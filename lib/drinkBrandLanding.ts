@@ -77,9 +77,11 @@ export function drinkBrandCandidateForVenue(
   if (!isPublicRankablePub(venue)) return null;
   const selected = selectDrinkBrandPriceForVenue(venue, brand);
   if (!selected || typeof selected.price_gbp !== "number") return null;
+  const branchAddress = venue.address.trim() || venue.locality?.trim();
   return {
     venueId: venue.id,
     venueName: venue.name,
+    ...(branchAddress ? { branchAddress } : {}),
     borough: venue.primaryBorough,
     pintName: selected.pint_name,
     priceGbp: selected.price_gbp,

@@ -4,6 +4,7 @@ import LandingPage from "@/components/landing/LandingPage";
 import LandingSkylinePreload from "@/components/landing/LandingSkylinePreload";
 import AppEntryRoute from "@/components/native/AppEntryRoute";
 import { loadLandingAnswers } from "@/lib/landingAnswers.server";
+import { loadLandingDrinkLinks } from "@/lib/landingDiscovery.server";
 import { HISTORIC_PUB_COUNT } from "@/components/landing/londonMapGeometry";
 import { landingPhotoFor } from "@/lib/landingImagery";
 import { loadLandingHeroData } from "@/lib/landingPubCard.server";
@@ -89,12 +90,13 @@ export default async function Home() {
   // price archive. A null card renders no card and the plain receipt door,
   // never an invented pub. Passed as plain serialisable props into the client
   // LandingPage.
-  const [{ card, archive, rail, averages, priceReadLine, collagePrices }, answers] = await Promise.all([
+  const [{ card, archive, rail, averages, priceReadLine, collagePrices }, answers, discoveryDrinks] = await Promise.all([
     loadLandingHeroData(),
     // What is on today and what is on tonight, read at prerender from the same
     // lanes /today and /tonight read. Both fail soft to an honest line, so a
     // provider that is down cannot fail the build or invent a night.
     loadLandingAnswers(),
+    loadLandingDrinkLinks(),
   ]);
   // Soft launch keeps friends-launch unset/off. Thread the same gate the Social
   // APIs use so Memory CTAs never promise "Open Social" while /social still
@@ -122,6 +124,7 @@ export default async function Home() {
         priceReadLine={priceReadLine}
         collagePrices={collagePrices}
         answers={answers}
+        discoveryDrinks={discoveryDrinks}
         socialFriendsLaunchEnabled={socialFriendsLaunchEnabled}
       />
     </>

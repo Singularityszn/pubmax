@@ -13,6 +13,7 @@ import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 // shared styles with it.
 import { SiteNavActions } from "@/components/nav/SiteNav";
 import type { LandingAnswers } from "@/lib/landingAnswers";
+import type { LandingDrinkLink } from "@/lib/landingDiscovery.server";
 import type { LandingArchiveIndex, LandingRailRow } from "@/lib/landingHero";
 import type { LondonCollageAreaPrice } from "@/lib/landingLondonCollage";
 import type { LandingPubCardData } from "@/lib/landingPubCard";
@@ -32,6 +33,7 @@ import { socialSurfaceName } from "@/lib/socialLaunch";
 
 import LandingAnswerCards from "./LandingAnswerCards";
 import LandingFaq from "./LandingFaq";
+import LandingDiscoveryLinks from "./LandingDiscoveryLinks";
 import LandingHero from "./LandingHero";
 import LandingLondonCollage from "./LandingLondonCollage";
 import LandingLondonFilm from "./LandingLondonFilm";
@@ -58,6 +60,7 @@ export default function LandingPage({
   priceReadLine = null,
   collagePrices = {},
   answers = null,
+  discoveryDrinks = [],
   // Server-threaded friends-launch flag. Explicit 0 is the rollback state.
   socialFriendsLaunchEnabled = true,
 }: {
@@ -75,6 +78,7 @@ export default function LandingPage({
   collagePrices?: Record<string, LondonCollageAreaPrice>;
   /** What is on today and what is on tonight, one sentence each. */
   answers?: LandingAnswers | null;
+  discoveryDrinks?: readonly LandingDrinkLink[];
   socialFriendsLaunchEnabled?: boolean;
 }) {
   const router = useRouter();
@@ -171,6 +175,8 @@ export default function LandingPage({
             Open the map
           </Link>
         </section>
+
+        <LandingDiscoveryLinks drinks={discoveryDrinks} />
 
         <div className="lpDrops">
           <PintDropStrip />
