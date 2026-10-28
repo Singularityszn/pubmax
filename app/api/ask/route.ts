@@ -1,7 +1,7 @@
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { runAsk } from "@/lib/ask/runAsk";
-import { paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
+import { admitPaidSpend } from "@/lib/paidSpendBudget.server";
 import { isLimited } from "@/lib/pintDrops";
 import { assertProductionSecrets } from "@/lib/serverEnv";
 import { clientIp, hashIp, isSupabaseConfigured } from "@/lib/supabase";
@@ -49,14 +49,16 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     // The per-address budget above is one signal and a caller picks their own
-    // address. This ceiling is the deployment's, and no header widens it.
-    const budgetRefusal = await paidSpendBudgetRefusal("ask");
-    if (budgetRefusal) return budgetRefusal;
+    // address. This ceiling is the deployment's, and no header widens it. One
+    // address spends at most its share of it, and a spent share or ceiling
+    // withholds the model rather than refusing: the deterministic tools still
+    // answer, so one caller cannot switch Ask off for everybody else.
+    const modelAdmitted = await admitPaidSpend("ask", request);
 
     // Paid-spend guard: without Supabase the durable limiter is only per-instance.
     // Withhold OpenRouter in that production posture; deterministic tools still answer.
     const llmAssistAllowed =
-      isSupabaseConfigured() || process.env.NODE_ENV !== "production";
+      modelAdmitted && (isSupabaseConfigured() || process.env.NODE_ENV !== "production");
 
     const answer = await runAsk({
       query,

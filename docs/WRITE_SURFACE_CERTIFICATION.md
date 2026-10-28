@@ -1634,9 +1634,9 @@ inventory count and boundary assertions in CI.
 
 POST is a stateless MCP transport. It accepts no account credentials or plan writes.
 Each request passes origin checks, a 32 KiB body limit and the hashed-address rate limit.
-Generation delegates to the existing plan route and retains its paid-spend ceiling.
+Generation delegates to the existing plan route, which calls no paid model and charges no paid-spend lane.
 Tool errors use the MCP result contract. HTTP errors use the public API envelope.
-The anonymous paid-route probe proves that a spent generation ceiling makes no paid provider call.
+The anonymous paid-route probe proves that a generation request with every paid-spend ceiling closed makes no paid provider call.
 
 ### `app/api/pub-list-import` - signed-in pub list matching
 
