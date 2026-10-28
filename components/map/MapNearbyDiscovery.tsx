@@ -59,7 +59,7 @@ function NearbyCard({ card, onSelectVenue }: { card: MapNearbyCard; onSelectVenu
     : card.roles[0] === "cheapest" ? "Cheapest match" : "Best match";
   const exactPint = card.price.category === "beer" && card.price.servingKnown === true && card.price.measureLabel === "pint";
   return (
-    <article className="mapNearbyDiscoveryCard">
+    <article className="mapNearbyDiscoveryCard" data-venue-id={card.venue.id}>
       <p className="mapNearbyDiscoveryRole">{role}</p>
       <ReadyButton className="mapNearbyDiscoverySelect" type="button" onClick={() => onSelectVenue(card.venue.id)} aria-label={`Open ${card.venue.name}`}>
         <span className="mapNearbyDiscoveryPub">
