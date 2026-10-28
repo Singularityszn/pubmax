@@ -1,9 +1,9 @@
 // The predicates the harvest asks before it reads a URL.
 //
-// The table they answer from is lib/harvest/sourceRegistry.ts: every source the
-// harvest knows about, each with the rule that decided it and the day that rule
-// was checked. This file holds no source of its own. It reads that table, and
-// every fetcher takes its URLs from here, never from a caller.
+// Registered sources and estate hosts live in lib/harvest/sourceRegistry.ts.
+// Keep the re-exports here so existing callers retain the same import path.
+// The source ledger (docs/data/SOURCE_LEDGER.md) owns the separate contracts
+// for registered-source and venue own-site reads.
 
 import {
   HARVEST_SOURCES,

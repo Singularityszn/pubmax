@@ -34,7 +34,8 @@ results without writing files. The durable pass produces files for review.
 
 | Question | File |
 |---|---|
-| May we read this source, and on whose say-so? | `lib/harvest/sourcePolicy.ts` |
+| Registered sources, estate hosts, and permission evidence | `lib/harvest/sourceRegistry.ts` |
+| Source lookup and URL permission checks | `lib/harvest/sourcePolicy.ts` |
 | Key, retries, and the per-run request budget | `lib/harvest/firecrawl.ts` |
 | What makes a chain offer a deal day | `lib/harvest/chainDeals.ts` |
 | What makes a venue listing an event | `lib/harvest/venueEvents.ts` |
@@ -48,7 +49,7 @@ results without writing files. The durable pass produces files for review.
 ## Context.dev (events lane)
 
 The What's-On events refresh (`scripts/whatson/eventsRefresh.mjs`) may read
-**registered venue-events pages** from `lib/harvest/sourcePolicy.ts` through
+**registered venue-events pages** selected by `contextDevEventSources()` through
 Context.dev when `CONTEXT_DEV_API_KEY` is set server-side. The wrapper is `lib/contextDev.ts` (`scrapeMarkdown`, `extract`); the lane is
 `lib/events/contextDevProvider.ts`.
 

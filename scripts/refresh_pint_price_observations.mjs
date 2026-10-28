@@ -82,7 +82,7 @@ const BUILD_REPORT_OUTPUT_PATH = "data/pint_prices_app_dataset.csv";
 // row whose geography moved here would silently inherit a decision nobody made.
 const WRITABLE_CSV_COLUMNS = new Set(["price_gbp", "price_text", "scraped_at_values"]);
 
-/** The sourcePolicy row this lane needs before it may send one request. */
+/** The sourceRegistry row this lane needs before it may send one request. */
 export const PINT_PRICES_SOURCE_ID = "pint-prices-com";
 const SITEMAP_PATH = "/static/sitemap.xml";
 // OUR name, our URL and our contact, the same harvest identity the other

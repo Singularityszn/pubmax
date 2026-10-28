@@ -5,8 +5,8 @@
 // it and the day that rule was checked. The run report prints the skips beside
 // the counts, so "we harvested nothing from Mitchells & Butlers" reads as a
 // recorded decision with a reason rather than as coverage nobody noticed was
-// missing. A source that is not in this table is not harvested at all: the
-// fetchers take their URLs from here, never from a caller.
+// missing. Registered-source fetchers take their URLs from this table.
+// Separate venue own-site reads follow docs/data/SOURCE_LEDGER.md.
 //
 // THE BAR IS PERMISSION, NOT REACHABILITY. `robots-unreadable` is a REFUSAL:
 // several Mitchells & Butlers brands answer their own robots.txt with a
