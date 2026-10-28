@@ -105,6 +105,7 @@ import {
 } from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
 import { readPdfText } from "../../../lib/harvest/pdfText.ts";
@@ -297,20 +298,7 @@ function pubsByHost() {
  */
 const robots = createRobotsChecker();
 
-/**
- * A redirect hop is asked the source table and robots BEFORE it is requested,
- * so a permitted page that 30x-es to a refused host or path never sends that
- * request. `harvestRedirectLanding` still reads the final response.
- */
-async function permitRedirectHop(next, from) {
-  if (harvestRedirectLanding(from, next).outcome === "refused") {
-    return { allowed: false, reason: "redirect-refused" };
-  }
-  return robots(next);
-}
-
-/** A page, as text; or the bytes when the host answered with a PDF. */
-async function fetchPage(url) {
+export async function fetchPage(url, { fetchImpl = fetch, robots: checkRobots = robots } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PAGE_TIMEOUT_MS);
   try {
@@ -323,7 +311,15 @@ async function fetchPage(url) {
         },
         signal: controller.signal,
       },
-      { permitHop: permitRedirectHop },
+      {
+        fetchImpl,
+        permitHop: async (next, from) => {
+          if (harvestRedirectLanding(from, next).outcome === "refused") {
+            return { allowed: false, reason: "redirect-refused" };
+          }
+          return checkRobots(next);
+        },
+      },
     );
     if (followed.refusal) {
       return { ok: false, status: followed.refusal.status, body: "", redirectedAway: true, finalUrl: followed.refusal.url };
@@ -723,6 +719,6 @@ async function main() {
   );
 }
 
-if (process.argv[1] && process.argv[1].endsWith("ocr.mjs")) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   await main();
 }

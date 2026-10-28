@@ -17,7 +17,7 @@
 // unsafe schemes, hosts we may not read, hosts that name our own network, and
 // the page a REDIRECT CHAIN landed on.
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   harvestRedirectLanding,
@@ -25,6 +25,9 @@ import {
   REFUSED_ESTATE_HOSTS,
 } from "@/lib/harvest/sourcePolicy";
 import { defined } from "@/__tests__/helpers/defined";
+import { fetchText } from "../scripts/harvest/uk-prices/run.mjs";
+import { fetchPage } from "../scripts/harvest/uk-prices/ocr.mjs";
+import { createRobotsChecker } from "@/lib/harvest/robots";
 
 /** A host the table refuses on permission, used as the worked example below. */
 const REFUSED_ESTATE = defined(REFUSED_ESTATE_HOSTS[0]);
@@ -238,57 +241,100 @@ describe("the page a redirect chain landed on", () => {
   });
 });
 
-describe("both price crawl lanes spend the one rule", () => {
-  it("asks about every redirect hop before it is sent, and the landing rule about the final page", async () => {
-    const { readFileSync } = await import("node:fs");
-    const { join } = await import("node:path");
-    for (const lane of ["run.mjs", "ocr.mjs"]) {
-      const source = readFileSync(
-        join(process.cwd(), "scripts/harvest/uk-prices", lane),
-        "utf8",
-      );
-      // `redirect: "follow"` sent the request to every hop before anything
-      // asked about it. Each hop is now asked the table and robots first.
-      expect(source, lane).not.toContain('redirect: "follow"');
-      expect(source, lane).toContain("fetchFollowingPermittedRedirects(");
-      expect(source, lane).toContain("permitHop: permitRedirectHop");
-      // The final page is still read for where it landed. Both used to
-      // compute `finalUrl` and hand it to nothing.
-      expect(source, lane).toContain("harvestRedirectLanding(url, response.url || followed.url)");
-      expect(source, lane).not.toContain("finalUrl: response.url || url");
-    }
-  });
-});
+describe.each([
+  { lane: "UK text prices", fetchPage: fetchText },
+  { lane: "UK OCR prices", fetchPage },
+])("$lane redirect permission contract", ({ fetchPage }) => {
+  const moved = "https://www.arnosarms.co.uk/drinks";
+  const allow = async (url: string) => ({ allowed: true, reason: "allowed" as const, evidence: `${url} permitted` });
 
-describe("every other harvest lane that follows a redirect spends the same rule", () => {
-  it("asks the landing rule about every fetch or scrape, rather than trusting the asked-for URL", async () => {
-    const { readFileSync } = await import("node:fs");
-    const { join } = await import("node:path");
-    // A plain fetch reads `response.url`; a Firecrawl scrape reads the
-    // `landedUrl` lib/harvest/firecrawl.ts carries. Each of these used to
-    // follow the redirect and then read nothing about where it went.
-    const lanes = [
-      { file: "scripts/harvest_chain_menu_prices.mjs", call: "harvestRedirectLanding(followed.url, response.url)" },
-      { file: "scripts/backfill_site_harvest_drink_labels.mjs", call: "harvestRedirectLanding(url, response.url)" },
-      { file: "scripts/refresh_pint_price_observations.mjs", call: "harvestRedirectLanding(url, response.url)" },
-      { file: "scripts/harvest/run.mjs", call: "harvestRedirectLanding(url, page.landedUrl)" },
-    ];
-    for (const { file, call } of lanes) {
-      const source = readFileSync(join(process.cwd(), file), "utf8");
-      expect(source, file).toContain(call);
-    }
-    // The chain lane and the shared permitted fetch follow redirects by hand,
-    // so a refused hop is never requested. __tests__/harvestScriptPermission.test.ts
-    // proves it with fake 302 chains.
-    for (const file of ["scripts/harvest_chain_menu_prices.mjs", "scripts/lib/permittedHarvestFetch.mjs"]) {
-      const source = readFileSync(join(process.cwd(), file), "utf8");
-      expect(source, file).not.toContain('redirect: "follow"');
-      expect(source, file).toContain("fetchFollowingPermittedRedirects(");
-    }
-    // run.mjs has four scrapes (the deal page, a venue's home and what's-on
-    // pages, an operator page), and each one reads its landing.
-    const run = readFileSync(join(process.cwd(), "scripts/harvest/run.mjs"), "utf8");
-    expect(run.match(/await client\.scrape\(/g)?.length).toBe(4);
-    expect(run.match(/await scrapeLanding\(/g)?.length).toBe(4);
+  it.each([
+    "http://127.0.0.1/admin",
+    `https://${REFUSED_ESTATE}/menu`,
+    "file:///etc/passwd",
+  ])("never requests a policy-refused redirect target: %s", async (refused) => {
+    const fetchImpl = vi.fn<typeof fetch>(async (input) => {
+      const url = String(input);
+      if (url === PERMITTED) return new Response(null, { status: 302, headers: { location: moved } });
+      if (url === moved) return new Response(null, { status: 302, headers: { location: refused } });
+      return new Response("This refused page must not be requested.");
+    });
+    const robots = vi.fn(allow);
+
+    const result = await fetchPage(PERMITTED, { fetchImpl, robots });
+
+    expect(result).toMatchObject({ ok: false, redirectedAway: true, body: "", finalUrl: refused });
+    expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([PERMITTED, moved]);
+    expect(robots.mock.calls).toEqual([[moved]]);
+  });
+
+  it("never requests a redirect target that robots refuses", async () => {
+    const refused = "https://www.arnosarms.co.uk/private/menu";
+    const fetchImpl = vi.fn<typeof fetch>(async (input) => {
+      const url = String(input);
+      const location = url === PERMITTED ? moved : refused;
+      return new Response(null, { status: 302, headers: { location } });
+    });
+    const robots = vi.fn(async (url: string) => ({
+      allowed: url !== refused,
+      reason: "robots-disallowed" as const,
+      evidence: `${url} checked`,
+    }));
+
+    const result = await fetchPage(PERMITTED, { fetchImpl, robots });
+
+    expect(result).toMatchObject({ ok: false, redirectedAway: true, body: "", finalUrl: refused });
+    expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([PERMITTED, moved]);
+    expect(robots.mock.calls).toEqual([[moved], [refused]]);
+  });
+
+  it("refuses a page when its robots file redirects to a refused target", async () => {
+    const robotsUrl = "https://www.arnosarms.co.uk/robots.txt";
+    const fetchImpl = vi.fn<typeof fetch>(async (input) => {
+      const url = String(input);
+      const location = url === PERMITTED ? moved : "http://127.0.0.1/admin";
+      return new Response(null, { status: 302, headers: { location } });
+    });
+
+    const result = await fetchPage(PERMITTED, { fetchImpl, robots: createRobotsChecker({ fetchImpl }) });
+
+    expect(result).toMatchObject({ ok: false, redirectedAway: true, body: "", finalUrl: moved });
+    expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([PERMITTED, robotsUrl]);
+  });
+
+  it.each(["text/html", "application/pdf"])("refuses an unexpected %s landing before reading its body", async (type) => {
+    const refused = `https://${REFUSED_ESTATE}/menu`;
+    const response = new Response("This refused body must not be read.", { headers: { "content-type": type } });
+    Object.defineProperty(response, "url", { value: refused });
+    const readBody = vi.spyOn(response, "text");
+    const readBytes = vi.spyOn(response, "arrayBuffer");
+    const fetchImpl = vi.fn<typeof fetch>(async (input) =>
+      String(input) === PERMITTED
+        ? new Response(null, { status: 302, headers: { location: moved } })
+        : response,
+    );
+
+    const result = await fetchPage(PERMITTED, { fetchImpl, robots: allow });
+
+    expect(result).toMatchObject({ ok: false, redirectedAway: true, body: "", finalUrl: refused });
+    expect(readBody).not.toHaveBeenCalled();
+    expect(readBytes).not.toHaveBeenCalled();
+    expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([PERMITTED, moved]);
+  });
+
+  it("returns the final permitted page and its URL after a relative redirect", async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async (input) =>
+      String(input) === PERMITTED
+        ? new Response(null, { status: 302, headers: { location: "/drinks" } })
+        : new Response("The pub's drinks menu.", { headers: { "content-type": "text/html" } }),
+    );
+    const robots = vi.fn(allow);
+
+    const result = await fetchPage(PERMITTED, { fetchImpl, robots });
+
+    expect(result).toMatchObject({ ok: true, status: 200, body: "The pub's drinks menu.", finalUrl: moved });
+    expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([PERMITTED, moved]);
+    expect(fetchImpl.mock.calls.every(([, init]) => init?.redirect === "manual")).toBe(true);
+    expect(robots.mock.calls).toEqual([[moved]]);
   });
 });

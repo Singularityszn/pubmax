@@ -31,8 +31,8 @@ function discardBody(response: Response): void {
 }
 
 /**
- * Fetch `url` and follow at most `hopLimit` redirects, calling `permitHop` with
- * each resolved target before it is requested.
+ * Fetch `url` and follow at most `HARVEST_REDIRECT_HOP_LIMIT` redirects, calling
+ * `permitHop` with each resolved target before it is requested.
  *
  * The caller has already asked permission about `url` itself. A 3xx with no
  * `Location` is an ordinary answer and is returned as the response. `url` in
@@ -45,11 +45,9 @@ export async function fetchFollowingPermittedRedirects(
   {
     fetchImpl = fetch,
     permitHop,
-    hopLimit = HARVEST_REDIRECT_HOP_LIMIT,
   }: {
     fetchImpl?: typeof fetch;
     permitHop: (next: string, from: string) => Promise<RedirectHopVerdict>;
-    hopLimit?: number;
   },
 ): Promise<PermittedRedirectResult> {
   let current = url;
@@ -74,13 +72,13 @@ export async function fetchFollowingPermittedRedirects(
         url: current,
       };
     }
-    if (hops >= hopLimit) {
+    if (hops >= HARVEST_REDIRECT_HOP_LIMIT) {
       return {
         refusal: {
           url: next,
           status: response.status,
           reason: "redirect-hop-limit",
-          evidence: `${url} redirected more than ${hopLimit} times, so ${next} was not requested.`,
+          evidence: `${url} redirected more than ${HARVEST_REDIRECT_HOP_LIMIT} times, so ${next} was not requested.`,
         },
         response: null,
         url: next,

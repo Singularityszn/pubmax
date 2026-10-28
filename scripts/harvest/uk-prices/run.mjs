@@ -58,6 +58,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync, appendFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import { pathToFileURL } from "node:url";
 
 import { pdfIsWorthReading, readPdfText } from "../../../lib/harvest/pdfText.ts";
 import { fetchFollowingPermittedRedirects } from "../../../lib/harvest/redirectChain.ts";
@@ -217,19 +218,7 @@ function hostOf(website) {
  */
 const robots = createRobotsChecker();
 
-/**
- * A redirect hop is asked the source table and robots BEFORE it is requested,
- * so a permitted page that 30x-es to a refused host or path never sends that
- * request. `harvestRedirectLanding` still reads the final response.
- */
-async function permitRedirectHop(next, from) {
-  if (harvestRedirectLanding(from, next).outcome === "refused") {
-    return { allowed: false, reason: "redirect-refused" };
-  }
-  return robots(next);
-}
-
-async function fetchText(url) {
+export async function fetchText(url, { fetchImpl = fetch, robots: checkRobots = robots } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PAGE_TIMEOUT_MS);
   try {
@@ -242,7 +231,15 @@ async function fetchText(url) {
         },
         signal: controller.signal,
       },
-      { permitHop: permitRedirectHop },
+      {
+        fetchImpl,
+        permitHop: async (next, from) => {
+          if (harvestRedirectLanding(from, next).outcome === "refused") {
+            return { allowed: false, reason: "redirect-refused" };
+          }
+          return checkRobots(next);
+        },
+      },
     );
     if (followed.refusal) {
       return { ok: false, status: followed.refusal.status, body: "", redirectedAway: true, finalUrl: followed.refusal.url };
@@ -1000,4 +997,6 @@ async function main() {
   if (!DRY_RUN) console.log(`  report → ${path.relative(ROOT, REPORT_PATH)}`);
 }
 
-await main();
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  await main();
+}

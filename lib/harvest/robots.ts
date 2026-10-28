@@ -53,6 +53,8 @@
 // A plain-node CLI imports this module, so the specifier is RELATIVE and carries
 // its extension. `lib/responseBody.ts` is a leaf and pulls nothing behind it.
 import { discardBody } from "../responseBody.ts";
+import { fetchFollowingPermittedRedirects } from "./redirectChain.ts";
+import { isHarvestableOperatorUrl } from "./sourcePolicy.ts";
 
 export const HARVEST_ROBOTS_AGENTS = ["cloudflarebrowserrenderingcrawler", "firecrawlagent", "*"] as const;
 
@@ -326,11 +328,23 @@ export function createRobotsChecker(options: { fetchImpl?: typeof fetch } = {}):
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), ROBOTS_TIMEOUT_MS);
     try {
-      const response = await fetchImpl(`${origin}/robots.txt`, {
-        headers: { accept: "text/plain", "user-agent": "PUBMAXX-harvest/1" },
-        signal: controller.signal,
-        redirect: "follow",
-      });
+      const followed = await fetchFollowingPermittedRedirects(
+        `${origin}/robots.txt`,
+        {
+          headers: { accept: "text/plain", "user-agent": "PUBMAXX-harvest/1" },
+          signal: controller.signal,
+        },
+        { fetchImpl, permitHop: async (next) => ({ allowed: isHarvestableOperatorUrl(next) }) },
+      );
+      if (followed.refusal) {
+        return {
+          allowed: false,
+          reason: "robots-unreadable",
+          robots: "http-refused",
+          evidence: followed.refusal.evidence,
+        };
+      }
+      const { response } = followed;
       if (response.status === 404 || response.status === 410) {
         // Nothing here reads this body, so let the stream go rather than
         // leaving the connection open on a host we are about to stop asking.
