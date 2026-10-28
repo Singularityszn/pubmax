@@ -24,6 +24,14 @@ beforeEach(() => {
 });
 
 describe("legacy handle freeze", () => {
+  it("refuses to ensure an alias with or without a colliding memory row", async () => {
+    expect(await memoryIdentityHandleStore.claim("user-1", "before_rename")).toMatchObject({ ok: true });
+    expect(await memoryIdentityHandleStore.rename("user-1", "after_rename")).toMatchObject({ ok: true });
+    await expect(memoryProfileStore.ensure("after_rename")).rejects.toThrow(/not available/);
+    __seedMemoryLegacyProfile("after_rename");
+    await expect(memoryProfileStore.ensure("after_rename")).rejects.toThrow(/not available/);
+    expect(await memoryProfileStore.ensure("before_rename")).toMatchObject({ userId: "user-1" });
+  });
   it("keeps an existing unlinked handle unavailable and unowned", async () => {
     const legacy = __seedMemoryLegacyProfile("old_timer");
 

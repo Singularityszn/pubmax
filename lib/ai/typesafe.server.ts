@@ -79,9 +79,6 @@ export async function systemOneOutcome<Q extends Questions>(
     return { status: "skipped", reason: "no_key" };
   }
 
-  // The lane is spelled out here on purpose: `__tests__/paidSpendBudget.test.ts`
-  // greps each lane's owning file for this exact call, so a lane cannot be
-  // declared and then quietly never spent.
   const budgetRefusal = await paidSpendBudgetRefusal("typesafe");
   if (budgetRefusal) {
     recordTypesafeTiming(options.lane, 0, "skipped");

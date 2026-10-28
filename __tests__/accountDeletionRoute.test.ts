@@ -28,11 +28,11 @@ vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
 // The bearer seam. `userId` is the account the token NAMES; `unavailable` is a
 // verification we could not run at all. The route asks `verifyCallerAuth` with
-// `{ localOnly: true }` on purpose (the local JWKS lane), so the mock records
-// what it was asked with: a route that went back to asking the auth server for
-// the ACCOUNT could not answer a caller whose auth row the first delete already
-// removed. That option is this door's alone (review finding F-3); the default
-// asks GoTrue so revocation holds everywhere else.
+// `{ allowDeletedAccount: true }` on purpose, so the mock records what it was
+// asked with: a route that went back to the plain account lane could not answer
+// a caller whose auth row the first delete already removed. That option is this
+// door's alone (review finding F-3), and it still asks GoTrue first, so a
+// revoked session or a ban is refused for every live account.
 const authState = vi.hoisted(() => ({
   userId: null as string | null,
   unavailable: false,
@@ -196,7 +196,7 @@ describe("DELETE /api/account", () => {
 
     await del();
 
-    expect(authState.optionsSeen).toEqual([{ localOnly: true }]);
+    expect(authState.optionsSeen).toEqual([{ allowDeletedAccount: true }]);
   });
 
   it("reports a verification it could not run as a retryable 503, and writes nothing", async () => {

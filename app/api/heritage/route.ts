@@ -9,7 +9,7 @@ import {
   NO_STORY_LINE,
   retrieveHeritageWithStatus,
 } from "@/lib/heritage";
-import { paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
+import { admitPaidSpend } from "@/lib/paidSpendBudget.server";
 import { isLimited } from "@/lib/pintDrops";
 import { assertProductionSecrets } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
@@ -73,9 +73,10 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     // The per-address budget above is one signal and a caller picks their own
-    // address. This ceiling is the deployment's, and no header widens it.
-    const budgetRefusal = await paidSpendBudgetRefusal("heritage");
-    if (budgetRefusal) return budgetRefusal;
+    // address. This ceiling is the deployment's, and no header widens it. One
+    // address spends at most its share of it, and a spent share or ceiling
+    // answers from the grounded facts rather than refusing the question.
+    const modelAdmitted = await admitPaidSpend("heritage", request);
 
     // Any client-supplied `context` is deliberately ignored — venue context is
     // reconstructed server-side (heritage cache + pub_heritage) so a client
@@ -100,6 +101,7 @@ export async function POST(request: Request): Promise<Response> {
       venueKind: resolvedVenue?.kind,
       question,
       overlayVenueResolution,
+      skipModel: !modelAdmitted,
     });
     return jsonNoStore(response, { status: 200 });
   } catch {

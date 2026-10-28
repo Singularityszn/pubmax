@@ -236,10 +236,26 @@ describe("store.listVisible — server-side visibility filtering", () => {
     );
     const mine = await memoryPintDropStore.listVisible("the-crown", undefined, "author_ale");
     const ids = mine.map((d) => d.id);
-    expect(ids).toEqual(expect.arrayContaining(["pub", "anon"]));
+    expect(ids).toContain("pub");
     expect(ids).not.toContain("other-pub");
     expect(ids).not.toContain("fr");
     expect(ids).not.toContain("leg");
+  });
+
+  // An author-scoped read names its author in the request. An anonymous row in
+  // that answer would attribute it, and its id matches the unscoped feed, so a
+  // stranger's read keeps only rows whose public DTO carries the handle. The
+  // author's own read (their export and their stats) still keeps the row.
+  it("authorHandle never returns an anonymous drop to a stranger", async () => {
+    seedAllLanes();
+    for (const viewer of [undefined, oneWayFollower, mutual]) {
+      const scoped = await memoryPintDropStore.listVisible("the-crown", viewer, "author_ale");
+      expect(scoped.map((d) => d.id)).not.toContain("anon");
+    }
+    const own = await memoryPintDropStore.listVisible("the-crown", author, "author_ale");
+    expect(own.map((d) => d.id)).toEqual(expect.arrayContaining(["pub", "anon", "fr"]));
+    const unscoped = await memoryPintDropStore.listVisible("the-crown");
+    expect(unscoped.map((d) => d.id)).toContain("anon");
   });
 });
 
