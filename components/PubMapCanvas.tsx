@@ -1359,6 +1359,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     cameraLanePending,
     easeArrivalBearing,
     fitRoute,
+    fitResizedRoute,
     fitCityBounds,
     fitQueryVenues,
     fitNearby,
@@ -4488,6 +4489,22 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     if (selectedVenueId) return;
     fitRoute();
   }, [routeKey, mapReady, fitRoute, selectedVenueId]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!mapReady || !map) return;
+    const container = map.getContainer();
+    let width = container.clientWidth;
+    let height = container.clientHeight;
+    const refit = () => {
+      if (width === container.clientWidth && height === container.clientHeight) return;
+      width = container.clientWidth;
+      height = container.clientHeight;
+      if (!selectedIdRef.current) fitResizedRoute();
+    };
+    map.on("resize", refit);
+    return () => { map.off("resize", refit); };
+  }, [mapReady, fitResizedRoute]);
 
   // Cinematic fly-to on venue selection (after the route framing above).
   // `selectedPresent` closes the ?sel= deep-link race: on first load the
