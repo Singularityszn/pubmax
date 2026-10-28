@@ -150,3 +150,32 @@ describe("trusted no-alcohol price evidence", () => {
     expect(result.cards[0]!.price.category).toBe("soft-drink");
   });
 });
+
+describe("current map style precedence", () => {
+  it("does not retain a saved music preference after an explicit map reset", () => {
+    const near = pub("Near", 51.501, 3);
+    const music = pub("Music", 51.507, 5, { amenities: { ...near.amenities, liveMusic: true } });
+    const result = rank([near, music], { savedProfile: profile({ atmosphere: ["music", "lively"] }), currentFilterKeys: ["crawlStyle"] });
+    expect(result.cards.map((card) => card.venue.id)).toEqual(["Near"]);
+    expect(result.cards[0]!.reasons).toEqual([]);
+  });
+
+  it("ranks the current sports style above a conflicting saved music preference", () => {
+    const near = pub("Music", 51.501, 3);
+    near.amenities.liveMusic = true;
+    const sports = pub("Sports", 51.507, 5, { amenities: { ...near.amenities, liveMusic: false, liveSports: true } });
+    const result = rank([near, sports], { filters: { ...initialFilters, crawlStyle: "sports" }, savedProfile: profile({ atmosphere: ["music"] }) });
+    expect(result.cards[1]!.venue.id).toBe("Sports");
+    expect(result.cards[1]!.reasons).toEqual(["Live sports on record"]);
+  });
+
+  it("uses a current heritage style without any saved profile", () => {
+    const result = rank([pub("Near", 51.501, 3), pub("Historic", 51.507, 5, { hasStory: true })], { filters: { ...initialFilters, crawlStyle: "heritage" } });
+    expect(result.cards[1]!.venue.id).toBe("Historic");
+  });
+
+  it("keeps the cheapest-first choice ahead of proximity", () => {
+    const result = rank([pub("Near", 51.501, 5), pub("Cheap", 51.507, 3)], { filters: { ...initialFilters, crawlStyle: "cheapest" } });
+    expect(result.cards.map((card) => card.venue.id)).toEqual(["Cheap"]);
+  });
+});

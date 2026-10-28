@@ -62,7 +62,9 @@ export function resolveMapNearbyFilters(
     if (need === "food") apply("requireFood", true);
     else blockedConstraints.push(need);
   }
-  unassessedPreferences.push(...context.atmosphere.filter((value) => !["historic", "garden", "sports", "music", "lively"].includes(value)));
+  if (!chosen("crawlStyle")) {
+    unassessedPreferences.push(...context.atmosphere.filter((value) => !["historic", "garden", "sports", "music", "lively"].includes(value)));
+  }
   if (context.budgetLimitPence !== null) unassessedPreferences.push("whole-night budget");
   unassessedPreferences.push(...context.transportConstraints);
   return { filters, blockedConstraints, unassessedPreferences };
@@ -95,17 +97,29 @@ function validPoint(lat: number, lng: number): boolean {
   return Number.isFinite(lat) && Math.abs(lat) <= 90 && Number.isFinite(lng) && Math.abs(lng) <= 180;
 }
 
-function preferenceReasons(venue: Venue, options: MapNearbyOptions): string[] {
+function preferenceReasons(venue: Venue, price: NearbyPrice, options: MapNearbyOptions): string[] {
   const context = options.savedProfile?.context;
-  if (!context) return [];
   const chosen = (key: keyof Filters) => options.currentFilterKeys?.includes(key)
     || options.filters[key] !== initialFilters[key];
   const reasons: string[] = [];
-  if (context.atmosphere.includes("historic") && !chosen("requireHeritage") && venue.hasStory) reasons.push("Heritage on record");
-  if (context.atmosphere.includes("garden") && !chosen("requireBeerGarden") && venue.amenities.beerGarden) reasons.push("Beer garden on record");
-  if (context.atmosphere.includes("sports") && !chosen("requireLiveSports") && venue.amenities.liveSports) reasons.push("Live sports on record");
-  if ((context.atmosphere.includes("music") || context.atmosphere.includes("lively")) && venue.amenities.liveMusic) reasons.push("Live music on record");
-  if (context.wetherspoonsPreferred && options.wetherspoonsMatchedIds?.has(venue.id)) reasons.push("Matches your saved Wetherspoon preference");
+  const styleChosen = chosen("crawlStyle");
+  if (styleChosen) {
+    const style = options.filters.crawlStyle;
+    if ((style === "beerGarden" || style === "dateNight") && venue.amenities.beerGarden) reasons.push("Beer garden on record");
+    if (style === "sports" && venue.amenities.liveSports) reasons.push("Live sports on record");
+    if ((style === "heritage" || style === "writerTrail" || style === "dateNight") && venue.hasStory) reasons.push("Heritage on record");
+    if ((style === "heritage" || style === "writerTrail") && venue.curation.nearWater) reasons.push("Waterside setting on record");
+    if (style === "writerTrail" && venue.curation.writerPick) reasons.push("Writer pick on record");
+    if (style === "dateNight" && venue.amenities.food) reasons.push("Food on record");
+    if (style === "dateNight" && venue.amenities.cocktails) reasons.push("Cocktails on record");
+    if (style === "noAlcoholFirst" && (price.category === "soft-drink" || price.category === "alcohol-free")) reasons.push("Alcohol-free drink price on record");
+  } else if (context) {
+    if (context.atmosphere.includes("historic") && !chosen("requireHeritage") && venue.hasStory) reasons.push("Heritage on record");
+    if (context.atmosphere.includes("garden") && !chosen("requireBeerGarden") && venue.amenities.beerGarden) reasons.push("Beer garden on record");
+    if (context.atmosphere.includes("sports") && !chosen("requireLiveSports") && venue.amenities.liveSports) reasons.push("Live sports on record");
+    if ((context.atmosphere.includes("music") || context.atmosphere.includes("lively")) && venue.amenities.liveMusic) reasons.push("Live music on record");
+  }
+  if (context?.wetherspoonsPreferred && options.wetherspoonsMatchedIds?.has(venue.id)) reasons.push("Matches your saved Wetherspoon preference");
   return reasons;
 }
 
@@ -137,7 +151,7 @@ export function rankMapNearbyRecommendations(options: MapNearbyOptions): MapNear
     if (preferences.filters.drinkCategory && price.category !== preferences.filters.drinkCategory) continue;
     if (preferences.filters.requireNonAlcoholic && price.category !== "soft-drink" && price.category !== "alcohol-free") continue;
     if (price.category === "beer" && preferences.filters.maxPrice < NO_PINT_PRICE_CAP && price.priceGbp > preferences.filters.maxPrice) continue;
-    const reasons = preferenceReasons(venue, options);
+    const reasons = preferenceReasons(venue, price, options);
     candidates.push({ venue, price, distanceKm, walkMinutes: walkMinutesFromKm(distanceKm), roles: [], reasons, matchCount: reasons.length });
   }
   const walkable = candidates.filter((card) => card.distanceKm <= WALKABLE_RADIUS_KM);
@@ -146,7 +160,8 @@ export function rankMapNearbyRecommendations(options: MapNearbyOptions): MapNear
   if (!pool.length) return empty;
   const byDistance = (a: MapNearbyCard, b: MapNearbyCard) => a.distanceKm - b.distanceKm || a.price.priceGbp - b.price.priceGbp || a.venue.id.localeCompare(b.venue.id);
   const cheapest = [...pool].sort((a, b) => a.price.priceGbp - b.price.priceGbp || byDistance(a, b))[0]!;
-  const best = [...pool].sort((a, b) => b.matchCount - a.matchCount || byDistance(a, b))[0]!;
+  const best = options.filters.crawlStyle === "cheapest" ? cheapest
+    : [...pool].sort((a, b) => b.matchCount - a.matchCount || byDistance(a, b))[0]!;
   const toCard = (entry: typeof cheapest, roles: MapNearbyCard["roles"]): MapNearbyCard => ({
     venue: entry.venue, price: entry.price, distanceKm: entry.distanceKm, walkMinutes: entry.walkMinutes,
     roles, reasons: entry.reasons,

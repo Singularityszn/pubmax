@@ -8,11 +8,11 @@ import { firstHttp } from "@/lib/httpUrl";
 import type { MapLensPrice } from "@/lib/mapExperienceLens";
 import type { NearbyPrice } from "@/lib/mapNearbyRecommendations";
 import { isCurrentVenueRow, isLivePriceRow } from "@/lib/priceRowEligibility.mjs";
-import type { Filters, Venue, VenuePrice } from "@/lib/venues";
+import type { Filters, Venue } from "@/lib/venues";
 
 /** Only a serving stated in the selected row can name a non-pint measure. */
-function recordedServing(row: VenuePrice): string {
-  const text = `${row.pint_name} ${row.price_text}`;
+function recordedServing(...texts: string[]): string {
+  const text = texts.join(" ");
   return text.match(/\b(?:\d{2,4}\s*(?:ml|cl)|half\s+pint|pint|single|double)\b/i)?.[0] ?? "";
 }
 
@@ -62,7 +62,7 @@ export function mapNearbyPriceForVenue(
     const drink = legacyPricesToDrinks([row])[0];
     if (!drink || !positivePrice(drink.priceGbp)) continue;
     const rowCategory = drinkCategoryFromText(row.pint_name) ?? "beer";
-    const measureLabel = recordedServing(row) || (rowCategory === "beer" ? drink.servingSize ?? "" : "");
+    const measureLabel = recordedServing(row.pint_name, row.price_text) || (rowCategory === "beer" ? drink.servingSize ?? "" : "");
     candidates.push({
       priceGbp: drink.priceGbp,
       drinkLabel: drink.name,
@@ -81,7 +81,8 @@ export function mapNearbyPriceForVenue(
     && positivePrice(venue.cheapestPrice) && isLivePriceRow({ price_gbp: venue.cheapestPrice })
     && venue.cheapestPint.trim() && labelMatches(venue.cheapestPint)) {
     candidates.push({
-      priceGbp: venue.cheapestPrice, drinkLabel: venue.cheapestPint, measureLabel: "pint",
+      priceGbp: venue.cheapestPrice, drinkLabel: venue.cheapestPint,
+      measureLabel: recordedServing(venue.cheapestPint) || "pint",
       servingKnown: true, category: "beer",
       sourceLabel: venue.priceSource, observedAt: venue.priceObservedAt,
     });

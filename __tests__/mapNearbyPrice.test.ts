@@ -82,3 +82,10 @@ describe("nearby report drink identity", () => {
     expect(mapNearbyPriceForVenue(venue, initialFilters)).toMatchObject({ drinkLabel: "Guinness", priceGbp: 4.5, sourceLabel: "Pint Prices" });
   });
 });
+
+describe("slim recorded serving sizes", () => {
+  it.each(["Guinness half pint", "Guinness 330ml"])("keeps the serving in %s", (label) => {
+    const venue = nearbyVenue({ prices: [], cheapestPint: label });
+    expect(mapNearbyPriceForVenue(venue, initialFilters)?.measureLabel).toBe(label.endsWith("330ml") ? "330ml" : "half pint");
+  });
+});
