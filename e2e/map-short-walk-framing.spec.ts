@@ -570,7 +570,9 @@ for (const { theme, motion } of [
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await expectLayoutSettled(page.locator(".mapCanvasWrap"));
       for (const pub of SOHO_FOUR_PUBS) {
-        await page.getByRole("button", { name: /^(?:Recenter route|Show whole walk)$/ }).click();
+        const recover = page.getByRole("button", { name: /^(?:Recenter route|Show whole walk)$/ });
+        await expect(recover).toBeVisible();
+        await recover.click();
         await expect.poll(async () => (await readMap())?.ready).toBe(true);
         const point = await page.evaluate((pub) => {
           const view = window as SohoProbeWindow;

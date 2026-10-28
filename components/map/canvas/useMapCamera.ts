@@ -44,9 +44,13 @@ function routeFitPadding(
   const desktopBottom = shortLandscape
     ? Math.max(72, routeChip?.height ? container.getBoundingClientRect().bottom - routeChip.top + 16 : 88)
     : 180;
+  const recoveryBounds = isPhone
+    ? document.querySelector(".mapRecenterBtn")?.getBoundingClientRect()
+    : null;
   const padding = isPhone
     ? { ...PHONE_ROUTE_PADDING, top: Math.max(PHONE_ROUTE_PADDING.top,
-        measureTopChromeBottom(containerTop, PHONE_ROUTE_PADDING.top)) }
+        measureTopChromeBottom(containerTop, PHONE_ROUTE_PADDING.top),
+        recoveryBounds?.height ? recoveryBounds.bottom - containerTop + 16 : 0) }
     : { top: desktopTop, right: 72, bottom: desktopBottom, left: 72 };
   const verticalScale = Math.min(
     1,
