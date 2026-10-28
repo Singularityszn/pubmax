@@ -15,8 +15,8 @@
 // `?pubs=` draw a curated share card; `?card=pint` draws one pub's listed
 // pint for a "Share this pint" link (lib/pintShare.ts). A key added here takes its requests off
 // the CDN, so add one only when the document itself differs. `public/sw.js`
-// keeps its own copy of the list, so its offline shelf files each twin under
-// its exact query; `__tests__/serviceWorkerCache.test.ts` shelves every key here.
+// mirrors this list and owns the offline cache rules.
+// `__tests__/serviceWorkerCache.test.ts` checks every key here.
 //
 // `__tests__/mapDocumentTwin.test.ts` pins the split.
 
