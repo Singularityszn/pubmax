@@ -481,9 +481,6 @@ for (const route of ["/map", "/pubs", "/discover", "/pint-index", "/onboarding"]
     }
     if (route === "/map") {
       await expectMobileMapShellReady(page, 60_000);
-      // The shell can mount before the document's temporary price preview
-      // yields to the scene. Read the ready page after that handoff.
-      await expect(page.locator(".mapOpeningPreview")).toBeHidden({ timeout: 60_000 });
     }
     await page.evaluate(() => document.fonts.ready);
     const unreadable = await page.evaluate(() => [...document.querySelectorAll("body *")]

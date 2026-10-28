@@ -193,7 +193,7 @@ html[data-theme="dark"] .mapOpeningPreviewDisc {
 }
 
 .mapOpeningPreviewFrom {
-  font-size: calc(var(--figure-size) * 0.62);
+  font-size: max(11px, calc(var(--figure-size) * 0.62));
   font-weight: 600;
 }
 
