@@ -1,5 +1,20 @@
 import type { DrinkCategory } from "@/lib/drinks";
 import type { UkPriceReading } from "@/lib/harvest/ukPriceCrawl";
+import type { RobotsChecker } from "../../../lib/harvest/robots.ts";
+
+export function fetchPage(
+  url: string,
+  options?: { fetchImpl?: typeof fetch; robots?: RobotsChecker },
+): Promise<{
+  ok: boolean;
+  status: number;
+  body: string;
+  finalUrl: string;
+  reason?: string;
+  error?: string;
+  pdf?: true;
+  bytes?: Uint8Array;
+}>;
 
 /** Every reason a document the OCR lane opened produced no price. */
 export const OCR_DOCUMENT_OUTCOMES: readonly string[];

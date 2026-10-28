@@ -1,13 +1,13 @@
 // scripts/whatson/quizParsers.mjs
 //
 // Pure parsers + date math for the What's-On QUIZ vertical (PRD_WHATS_ON B3).
-// No fetching here: every function is a plain transform over strings so the
-// whole module unit-tests offline against saved fixtures
-// (__tests__/fixtures/whats_on/*). Fetch orchestration lives in
-// scripts/whatson/quizRefresh.mjs.
+// No fetching here. The parsers use saved HTML or directory JSON, so tests
+// need no network (__tests__/fixtures/whats_on/*). The cron and bundled-pack
+// command share the directory reader in questionOneDirectory.mjs.
 //
 // Sources are the quiz suppliers' own public venue listings (first-party):
 //   - Question One  https://questionone.com/venues/         (parsed, rows emitted)
+//     The live readers use directory JSON through questionOneDirectory.mjs.
 //   - SpeedQuizzing https://www.speedquizzing.com/find/     (parsed, rows NOT
 //     emitted in v1: the inline events array is public, but venue names/times
 //     only exist behind /utils/… which speedquizzing.com/robots.txt disallows.
@@ -253,6 +253,83 @@ export function parseQuestionOneVenueDetail(html) {
   return out;
 }
 
+// ---------------------------------------------------------------------------
+// Question One directory JSON (https://questionone.com/wp-json/wp/v2/venues)
+// ---------------------------------------------------------------------------
+
+function titleCaseDay(value) {
+  const day = String(value ?? "").trim().toLowerCase();
+  const named = DAY_NAMES.find((name) => name.toLowerCase() === day);
+  return named ?? null;
+}
+
+// "19:30:00" and "19:30" both state 19:30. Anything else is no slot.
+function directoryClock(value) {
+  const m = /^(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(String(value ?? "").trim());
+  if (!m || Number(m[1]) > 23 || Number(m[2]) > 59) return null;
+  return `${pad(Number(m[1]))}:${m[2]}`;
+}
+
+function finiteNumber(value) {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+// The directory's price field is free text. A £ figure is a fee, "Free" is
+// free entry, and anything else (a bare "2", an empty string) states no fee.
+function directoryFee(value) {
+  const raw = decodeEntities(value);
+  const fee = /£\s*(\d+(?:\.\d{1,2})?)/.exec(raw);
+  if (fee) return { feeGbp: Number(fee[1]), feeRaw: raw, freeEntry: false };
+  if (/^free$/i.test(raw)) return { feeGbp: null, feeRaw: raw, freeEntry: true };
+  return { feeGbp: null, feeRaw: null, freeEntry: false };
+}
+
+// One page of the directory's JSON -> the same { cards, detailsByUrl } the HTML
+// readers produce, so every row goes through buildQuestionOneRows. A record
+// with more than one weekly slot gives one card per slot, each with its own
+// id suffix. Only the facts a row states are taken: the description text, the
+// phone number and the website field are never read.
+export function parseQuestionOneVenuesApi(json) {
+  const cards = [];
+  const detailsByUrl = new Map();
+  for (const record of Array.isArray(json) ? json : []) {
+    const url = typeof record?.link === "string" ? record.link : "";
+    const title = decodeEntities(record?.title?.rendered);
+    if (!url || !title) continue;
+    const acf = record?.acf && typeof record.acf === "object" ? record.acf : {};
+    const location = acf.location && typeof acf.location === "object" ? acf.location : {};
+    const address = decodeEntities(location.address) || null;
+    const postcode = extractPostcode(location.post_code) ?? extractPostcode(address);
+    detailsByUrl.set(url, {
+      // The card carries the slot, so a record with two slots keeps both.
+      day: null,
+      time: null,
+      ...directoryFee(acf.price),
+      address,
+      postcode,
+      lat: finiteNumber(location.lat),
+      lng: finiteNumber(location.lng),
+      name: decodeEntities(location.name) || null,
+    });
+    const slots = (Array.isArray(acf.dates) ? acf.dates : []).map((slot) => ({
+      day: titleCaseDay(slot?.day),
+      time: directoryClock(slot?.time),
+    }));
+    if (slots.length === 0) slots.push({ day: null, time: null });
+    for (const slot of slots) {
+      const ok = slot.day !== null && slot.time !== null;
+      cards.push({
+        url,
+        title,
+        day: ok ? slot.day : null,
+        time: ok ? slot.time : null,
+        ...(slots.length > 1 && ok ? { idSuffix: slot.day.toLowerCase() } : {}),
+      });
+    }
+  }
+  return { cards, detailsByUrl };
+}
+
 // Cards whose TITLE declares a non-weekly cadence must not be emitted with a
 // weekly next-occurrence (that would invent events on off weeks).
 const NON_WEEKLY_RE =
@@ -271,6 +348,8 @@ export function placeNameFromQuestionOneTitle(title) {
   const kept = parts.filter((p) => !cadence.test(p.trim()));
   return (kept.length ? kept : parts).join(" – ").replace(/,\s*$/, "").trim();
 }
+
+const feeLabel = (gbp) => (Number.isInteger(gbp) ? String(gbp) : gbp.toFixed(2));
 
 const AMPM_HOURS = (hhmm) => {
   const [h, m] = hhmm.split(":").map(Number);
@@ -293,17 +372,24 @@ export function buildQuestionOneRows({ cards, detailsByUrl = new Map(), observed
     const time = detail.time ?? card.time;
     if (!day || !time) { dropped.noSlot += 1; continue; }
     const placeName = placeNameFromQuestionOneTitle(card.title);
-    // London filter: full postcode wins; when the page has no postcode, fall
-    // back to the explicit district-name allowlist. Ambiguous -> dropped.
+    // London filter: full postcode wins; then the directory's own map point;
+    // only with neither, the explicit district-name allowlist. The directory
+    // also lists Sydney and Melbourne, which have a Paddington and a Richmond
+    // of their own. Ambiguous -> dropped.
+    const statedLat = typeof detail.lat === "number" ? detail.lat : null;
+    const statedLng = typeof detail.lng === "number" ? detail.lng : null;
     const inLondon = detail.postcode
       ? isGreaterLondonPostcode(detail.postcode)
-      : isKnownLondonAreaName(placeName);
+      : statedLat !== null && statedLng !== null
+        ? isGreaterLondonLatLng(statedLat, statedLng)
+        : isKnownLondonAreaName(placeName);
     if (!inLondon) { dropped.notLondon += 1; continue; }
     const startsAt = nextWeeklyOccurrence(day, time, observedAt);
     if (!startsAt) { dropped.noSlot += 1; continue; }
     const slug = card.url.replace(/\/+$/, "").split("/").pop();
     const detailBits = [`Weekly pub quiz — every ${day} ${time}`];
-    if (detail.feeGbp != null) detailBits.push(`entry £${detail.feeGbp}`);
+    if (detail.feeGbp != null) detailBits.push(`entry £${feeLabel(detail.feeGbp)}`);
+    else if (detail.freeEntry) detailBits.push("free entry");
     if (detail.postcode) detailBits.push(detail.postcode);
     detailBits.push("run by Question One");
     // Question One's own titles are "Pub Name, Area" (placeNameFromQuestionOneTitle
@@ -314,13 +400,21 @@ export function buildQuestionOneRows({ cards, detailsByUrl = new Map(), observed
     const resolverName = placeName.includes(",")
       ? placeName.slice(0, placeName.lastIndexOf(",")).trim()
       : placeName;
+    // The directory also states the pub's own name and map point. The resolver
+    // still needs a name match AND a postcode district or a point within 75 m,
+    // so a second name is a second question, never a looser one.
+    const evidence = { address: detail.address, postcode: detail.postcode, lat: statedLat, lng: statedLng };
     const resolvedVenueId = venueIndex
-      ? resolveVenueId({ name: resolverName, address: detail.address, postcode: detail.postcode }, venueIndex)
+      ? resolveVenueId({ name: resolverName, ...evidence }, venueIndex) ??
+        (detail.name && detail.name !== resolverName
+          ? resolveVenueId({ name: detail.name, ...evidence }, venueIndex)
+          : null)
       : null;
     rows.push({
-      id: `quiz-qo-${slug}`,
+      id: `quiz-qo-${slug}${card.idSuffix ? `-${card.idSuffix}` : ""}`,
       venueId: resolvedVenueId,
       placeName,
+      ...(statedLat !== null && statedLng !== null ? { lat: statedLat, lng: statedLng } : {}),
       kind: "quiz",
       startsAt,
       title: `Pub quiz — ${day}s ${AMPM_HOURS(time)}`,

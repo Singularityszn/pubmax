@@ -53,6 +53,8 @@
 // A plain-node CLI imports this module, so the specifier is RELATIVE and carries
 // its extension. `lib/responseBody.ts` is a leaf and pulls nothing behind it.
 import { discardBody } from "../responseBody.ts";
+import { fetchFollowingPermittedRedirects } from "./redirectChain.ts";
+import { isHarvestableOperatorUrl } from "./sourcePolicy.ts";
 
 export const HARVEST_ROBOTS_AGENTS = ["cloudflarebrowserrenderingcrawler", "firecrawlagent", "*"] as const;
 
@@ -93,7 +95,7 @@ type RobotsDecisionReason =
  *   absent          404 or 410: no file was published
  *   html-page       200 with an ordinary HTML document: read as no rules
  *   challenge-page  a body carrying a challenge signature, at any status
- *   http-refused    401, 403, 429, 5xx or any other non-2xx that is not absent
+ *   http-refused    refused redirect or a non-2xx status other than 404 or 410
  *   not-a-rules-file 200 with a body that is neither rules, HTML nor a challenge
  *   unreachable     the request itself failed, twice
  */
@@ -315,8 +317,8 @@ export function robotsAllows(rules: RobotsRules, path: string): { allowed: boole
 export type RobotsChecker = (url: string) => Promise<RobotsDecision>;
 
 /**
- * Build a per-run robots checker. One fetch per HOST, remembered for the run, so
- * a lane that reads two pages on a site asks once.
+ * Cache one rules file or decision per origin for the run. Redirects and a
+ * network retry can require multiple requests to obtain that answer.
  */
 export function createRobotsChecker(options: { fetchImpl?: typeof fetch } = {}): RobotsChecker {
   const fetchImpl = options.fetchImpl ?? fetch;
@@ -326,11 +328,23 @@ export function createRobotsChecker(options: { fetchImpl?: typeof fetch } = {}):
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), ROBOTS_TIMEOUT_MS);
     try {
-      const response = await fetchImpl(`${origin}/robots.txt`, {
-        headers: { accept: "text/plain", "user-agent": "PUBMAXX-harvest/1" },
-        signal: controller.signal,
-        redirect: "follow",
-      });
+      const followed = await fetchFollowingPermittedRedirects(
+        `${origin}/robots.txt`,
+        {
+          headers: { accept: "text/plain", "user-agent": "PUBMAXX-harvest/1" },
+          signal: controller.signal,
+        },
+        { fetchImpl, permitHop: async (next) => ({ allowed: isHarvestableOperatorUrl(next) }) },
+      );
+      if (followed.refusal) {
+        return {
+          allowed: false,
+          reason: "robots-unreadable",
+          robots: "http-refused",
+          evidence: followed.refusal.evidence,
+        };
+      }
+      const { response } = followed;
       if (response.status === 404 || response.status === 410) {
         // Nothing here reads this body, so let the stream go rather than
         // leaving the connection open on a host we are about to stop asking.
