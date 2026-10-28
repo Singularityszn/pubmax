@@ -44,6 +44,7 @@ for (const requireFood of [false, true]) {
     const blockedWrites: string[] = [];
     let fixtureRowsServed = 0;
     let categoryReadServed = false;
+    let hydratedDetailServed = false;
     page.on("pageerror", (error) => errors.push(error.message));
     await context.grantPermissions(["geolocation"]);
     await context.setGeolocation(LOCATION);
@@ -84,6 +85,23 @@ for (const requireFood of [false, true]) {
         truncated: false,
       } });
     });
+    await page.route(`**/api/venue/${VENUE_ID}*`, async (route) => {
+      const response = await route.fetch();
+      expect(response.ok()).toBe(true);
+      const payload = await response.json();
+      expect(payload.venue.id).toBe(VENUE_ID);
+      // A slim pin bypasses the legacy non-alcohol filter. This case needs
+      // the real hydrated branch, with its actual recorded price rows.
+      expect(payload.venue.prices.length).toBeGreaterThan(0);
+      await route.fulfill({ response, json: {
+        ...payload,
+        venue: {
+          ...payload.venue,
+          amenityStatus: { ...payload.venue.amenityStatus, nonAlcoholic: "unknown", food: "unknown" },
+        },
+      } });
+      hydratedDetailServed = true;
+    });
     await page.route("**/data/**", async (route) => {
       if (!new URL(route.request().url()).pathname.endsWith(".json")) {
         await route.fallback();
@@ -105,9 +123,18 @@ for (const requireFood of [false, true]) {
       await route.fulfill({ response, json: Array.isArray(payload) ? updated : { ...payload as Record<string, unknown>, rows: updated } });
     });
 
-    await page.goto(`/map?low=1&drink=soft-drink${requireFood ? "&food=1" : ""}`);
+    await page.goto(`/map?sel=${VENUE_ID}&low=1&drink=soft-drink${requireFood ? "&food=1" : ""}`);
     await expect.poll(() => fixtureRowsServed, { timeout: 30_000 }).toBeGreaterThan(0);
     await expect.poll(() => categoryReadServed, { timeout: 30_000 }).toBe(true);
+    await expect.poll(() => hydratedDetailServed, { timeout: 30_000 }).toBe(true);
+    const venueSheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+    await expect(venueSheet.locator(".venueInspector")).toContainText(COMMUNITY_SHEET_FIXTURE_VENUE_NAME);
+    await expect(venueSheet.locator(".venueSheetSkeleton")).toHaveCount(0);
+    await venueSheet.getByRole("button", { name: "Close pub detail", exact: true }).tap();
+    await expect(venueSheet).toHaveCount(0);
+    await expect.poll(() => new URL(page.url()).searchParams.get("low")).toBe("1");
+    await expect.poll(() => new URL(page.url()).searchParams.get("drink")).toBe("soft-drink");
+    if (requireFood) await expect.poll(() => new URL(page.url()).searchParams.get("food")).toBe("1");
     const nearMe = await mobileMapShellControl(page, "nearMe", 30_000);
     await nearMe.tap();
     const answer = page.getByRole("region", { name: "Nearby pub matches" });
