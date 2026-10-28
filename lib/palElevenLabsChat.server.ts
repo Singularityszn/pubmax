@@ -125,6 +125,53 @@ type AgentResponseEvent = {
   };
 };
 
+type PalChatEventProgress = {
+  preSendEventCount: number;
+  unrecognizedMessageCount: number;
+  replyCount: number;
+  firstReplyAtMs: number | null;
+  toolRequestCount: number;
+  recognizedRecallRequestCount: number;
+  toolResponseCount: number;
+  lastToolResponseAtMs: number | null;
+  recognizedRecallResponseCount: number;
+  lastStreamStopAtMs: number | null;
+};
+
+function countPalChatFrame(progress: PalChatEventProgress, payload: AgentResponseEvent, userMessageSent: boolean): void {
+  if (![
+    "ping", "conversation_initiation_metadata", "agent_chat_response_part", "agent_response",
+    "agent_tool_request", "agent_tool_response", "agent_response_complete",
+  ].includes(payload.type ?? "")) progress.unrecognizedMessageCount += 1;
+
+  // Count known reply/tool traffic that handling ignores before the send attempt.
+  if (!userMessageSent && (
+    payload.type === "agent_response" || payload.type === "agent_chat_response_part"
+    || payload.type === "agent_tool_request" || payload.type === "agent_tool_response"
+    || payload.type === "agent_response_complete"
+  )) progress.preSendEventCount += 1;
+}
+
+function countPalChatReply(progress: PalChatEventProgress, elapsed: () => number): void {
+  progress.replyCount += 1;
+  progress.firstReplyAtMs ??= elapsed();
+}
+
+function countPalChatStreamStop(progress: PalChatEventProgress, part: AgentResponseEvent["text_response_part"], elapsed: () => number): void {
+  if (part?.type === "stop") progress.lastStreamStopAtMs = elapsed();
+}
+
+function countPalChatToolRequest(progress: PalChatEventProgress, payload: AgentResponseEvent): void {
+  progress.toolRequestCount += 1;
+  if (payload.agent_tool_request?.tool_name === "recall_memories") progress.recognizedRecallRequestCount += 1;
+}
+
+function countPalChatToolResponse(progress: PalChatEventProgress, payload: AgentResponseEvent, elapsed: () => number): void {
+  progress.toolResponseCount += 1;
+  progress.lastToolResponseAtMs = elapsed();
+  if (payload.agent_tool_response?.tool_name === "recall_memories") progress.recognizedRecallResponseCount += 1;
+}
+
 export type PalElevenLabsChatInput = {
   query: string;
   cityId?: unknown;
@@ -556,17 +603,7 @@ export async function runPalElevenLabsChatTurn(
         progress.parseFailureCount += 1;
         return;
       }
-      if (![
-        "ping", "conversation_initiation_metadata", "agent_chat_response_part", "agent_response",
-        "agent_tool_request", "agent_tool_response", "agent_response_complete",
-      ].includes(payload.type ?? "")) progress.unrecognizedMessageCount += 1;
-
-      // Count known reply/tool traffic that handling ignores before the send attempt.
-      if (!userMessageSent && (
-        payload.type === "agent_response" || payload.type === "agent_chat_response_part"
-        || payload.type === "agent_tool_request" || payload.type === "agent_tool_response"
-        || payload.type === "agent_response_complete"
-      )) progress.preSendEventCount += 1;
+      countPalChatFrame(progress, payload, userMessageSent);
 
       if (payload.type === "ping") {
         ws.send(
@@ -592,8 +629,8 @@ export async function runPalElevenLabsChatTurn(
           progress.streamDeltaCount += 1;
           streamedText = true;
           input.onProgress?.({ type: "delta", text: part.text });
-        } else if (part?.type === "stop") {
-          progress.lastStreamStopAtMs = elapsed();
+        } else {
+          countPalChatStreamStop(progress, part, elapsed);
         }
         return;
       }
@@ -604,8 +641,7 @@ export async function runPalElevenLabsChatTurn(
         if (!reply) return;
         latestReply = reply;
         replyGeneration += 1;
-        progress.replyCount += 1;
-        progress.firstReplyAtMs ??= elapsed();
+        countPalChatReply(progress, elapsed);
         replyToolEvents = toolEvents;
         // The reply is the answer unless a tool event follows it in the window.
         armSettle(REPLY_SETTLE_MS);
@@ -617,8 +653,7 @@ export async function runPalElevenLabsChatTurn(
         clearSettle();
         resetStream();
         toolEvents += 1;
-        progress.toolRequestCount += 1;
-        if (payload.agent_tool_request?.tool_name === "recall_memories") progress.recognizedRecallRequestCount += 1;
+        countPalChatToolRequest(progress, payload);
         pendingToolCalls.add(payload.agent_tool_request?.tool_call_id ?? "");
         return;
       }
@@ -628,9 +663,7 @@ export async function runPalElevenLabsChatTurn(
         clearSettle();
         resetStream();
         toolEvents += 1;
-        progress.toolResponseCount += 1;
-        progress.lastToolResponseAtMs = elapsed();
-        if (payload.agent_tool_response?.tool_name === "recall_memories") progress.recognizedRecallResponseCount += 1;
+        countPalChatToolResponse(progress, payload, elapsed);
         pendingToolCalls.delete(payload.agent_tool_response?.tool_call_id ?? "");
         return;
       }
