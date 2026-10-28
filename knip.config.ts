@@ -90,6 +90,8 @@ const config: KnipConfig = {
     // Manual evidence CLIs documented beside their proof output.
     "scripts/map-fix-shots.mjs",
     "scripts/report_borough_coverage.mjs",
+    // Read-only operator command in docs/growth/ISLINGTON_EVIDENCE_PILOT.md.
+    "scripts/diagnose-pint-index.ts",
     // Named by docs/data/uk-osm-extract-2026-10-04.md as the ONE way to rewrite
     // that doc's figures ("Do not edit the figures by hand").
     "scripts/report_uk_venue_extract.mjs",

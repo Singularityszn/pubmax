@@ -60,8 +60,17 @@ It calls the existing snapshot validator and admission rule. It performs no fetc
 Run this command from the repository after its approved dependency installation:
 
 ```sh
-npx --no-install tsx -e 'import { readFileSync } from "node:fs"; import { diagnosePintIndex } from "./lib/pintIndexDiagnostics"; console.log(JSON.stringify(diagnosePintIndex(JSON.parse(readFileSync("public/data/pint_index_snapshot.json", "utf8"))), null, 2));'
+node --import tsx scripts/diagnose-pint-index.ts
 ```
+
+To inspect a candidate, pass its local JSON file path as the only argument.
+The command prints JSON and does not alter the input file or the committed snapshot.
+Exit code 0 means the snapshot is structurally valid, including an empty snapshot that does not meet admission.
+Exit code 1 means invalid JSON, an unreadable file, or failed snapshot validation. Exit code 2 means incorrect command arguments.
+Use `--help` to print the command format.
+
+The report does not invent a November group when the snapshot has no November evidence.
+The pilot's collection target remains 20 qualifying Islington pubs. It is an operational target, not a measured coverage result.
 
 | Report field | Meaning |
 |---|---|
