@@ -51,3 +51,38 @@ export const siteJsonLd = [
     },
   },
 ];
+
+/** Homepage product identity, separate from the site and its publisher. */
+export const homeJsonLd = [
+  {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "@id": `${PRODUCTION_SITE_ORIGIN}/#webpage`,
+    name: BRAND_NAME,
+    url: PRODUCTION_SITE_ORIGIN,
+    description: SITE_PRODUCT_DESCRIPTION,
+    isPartOf: { "@id": SITE_WEBSITE_ID },
+    mainEntity: { "@id": `${PRODUCTION_SITE_ORIGIN}/#app` },
+    inLanguage: "en-GB",
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "@id": `${PRODUCTION_SITE_ORIGIN}/#app`,
+    name: BRAND_NAME,
+    alternateName: [...SITE_BRAND_ALTERNATE_NAMES],
+    url: PRODUCTION_SITE_ORIGIN,
+    description: SITE_PRODUCT_DESCRIPTION,
+    applicationCategory: "LifestyleApplication",
+    isAccessibleForFree: true,
+    inLanguage: "en-GB",
+    publisher: { "@id": SITE_ORGANIZATION_ID },
+    // The homepage states that the app is free. No app ratings are published.
+    offers: {
+      "@type": "Offer",
+      price: 0,
+      priceCurrency: "GBP",
+      url: PRODUCTION_SITE_ORIGIN,
+    },
+  },
+];

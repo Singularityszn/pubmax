@@ -27,8 +27,21 @@ vi.mock("@/components/nav/SiteNav", () => ({
   default: () => null,
   SiteNavActions: () => null,
 }));
+vi.mock("@/lib/landingPubCard.server", () => ({
+  loadLandingHeroData: async () => ({
+    card: null, archive: {}, rail: [], averages: null,
+    priceReadLine: null, collagePrices: {},
+  }),
+}));
+vi.mock("@/lib/landingAnswers.server", () => ({
+  loadLandingAnswers: async () => null,
+}));
+vi.mock("@/lib/trustedHandoffFlags.server", () => ({
+  readTrustedHandoffFlag: () => false,
+}));
 
 import RootLayout from "@/app/layout";
+import Home from "@/app/page";
 import LandingPage from "@/components/landing/LandingPage";
 import type { siteJsonLd } from "@/lib/siteJsonLd";
 import { SITE_PRODUCT_DESCRIPTION } from "@/lib/siteProductCopy";
@@ -51,6 +64,39 @@ async function renderedIdentity(): Promise<typeof siteJsonLd> {
 }
 
 describe("homepage identity", () => {
+  it("describes the free web app on its homepage and connects its publisher", async () => {
+    const document = new DOMParser().parseFromString(
+      renderToStaticMarkup(await Home()),
+      "text/html",
+    );
+    const scripts = document.querySelectorAll('script[type="application/ld+json"]');
+    expect(scripts).toHaveLength(1);
+    const graph = JSON.parse(scripts.item(0).textContent ?? "");
+    const application = graph.find((node: Record<string, unknown>) => node["@type"] === "WebApplication");
+    const page = graph.find((node: Record<string, unknown>) => node["@type"] === "WebPage");
+    expect(application).toMatchObject({
+      "@id": "https://pubmaxxing.com/#app",
+      name: "PUBMAXX",
+      url: "https://pubmaxxing.com",
+      applicationCategory: "LifestyleApplication",
+      isAccessibleForFree: true,
+      inLanguage: "en-GB",
+      publisher: { "@id": "https://pubmaxxing.com/#organization" },
+      offers: { "@type": "Offer", price: 0, priceCurrency: "GBP" },
+    });
+    expect(application.description).toBe(SITE_PRODUCT_DESCRIPTION);
+    expect(application.alternateName).toContain("PubMaxxing");
+    expect(application).not.toHaveProperty("aggregateRating");
+    expect(application).not.toHaveProperty("review");
+    expect(page).toMatchObject({
+      "@id": "https://pubmaxxing.com/#webpage",
+      isPartOf: { "@id": "https://pubmaxxing.com/#website" },
+      mainEntity: { "@id": application["@id"] },
+    });
+    expect(document.body.textContent).toContain("Free to use.");
+    expect(document.body.textContent).toContain("Find a London pub, compare listed pint prices and plan your night.");
+  });
+
   it("assigns personal identity links to the founder instead of the organization", async () => {
     const siteJsonLd = await renderedIdentity();
     const organization = siteJsonLd.find(
