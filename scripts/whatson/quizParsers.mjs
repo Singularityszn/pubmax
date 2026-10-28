@@ -1,16 +1,13 @@
 // scripts/whatson/quizParsers.mjs
 //
 // Pure parsers + date math for the What's-On QUIZ vertical (PRD_WHATS_ON B3).
-// No fetching here: every function is a plain transform over strings so the
-// whole module unit-tests offline against saved fixtures
-// (__tests__/fixtures/whats_on/*). Fetch orchestration lives in
-// scripts/whatson/quizRefresh.mjs.
+// No fetching here. The parsers use saved HTML or directory JSON, so tests
+// need no network (__tests__/fixtures/whats_on/*). The cron and bundled-pack
+// command share the directory reader in questionOneDirectory.mjs.
 //
 // Sources are the quiz suppliers' own public venue listings (first-party):
 //   - Question One  https://questionone.com/venues/         (parsed, rows emitted)
-//     The live readers take the same directory as JSON from
-//     https://questionone.com/wp-json/wp/v2/venues (parseQuestionOneVenuesApi):
-//     two requests for the whole list instead of one per venue page.
+//     The live readers use directory JSON through questionOneDirectory.mjs.
 //   - SpeedQuizzing https://www.speedquizzing.com/find/     (parsed, rows NOT
 //     emitted in v1: the inline events array is public, but venue names/times
 //     only exist behind /utils/… which speedquizzing.com/robots.txt disallows.

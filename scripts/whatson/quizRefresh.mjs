@@ -4,12 +4,10 @@
  * suppliers' own public venue listings (first-party finders only):
  *
  *   Question One   https://questionone.com/venues/  (robots.txt: allowed)
- *     Read as the JSON of the same directory (the source-policy row's url,
- *     https://questionone.com/wp-json/wp/v2/venues): every record states the
- *     weekly slot, entry fee, address and map point, so 2 requests read the
- *     whole list (scripts/whatson/questionOneDirectory.mjs). Rows are emitted
- *     for Greater London only, with the NEXT occurrence of the weekly slot as
- *     startsAt, and each row links to the venue's own page.
+ *     The shared reader in questionOneDirectory.mjs owns directory pagination
+ *     and field selection. Rows use stated facts for Greater London only,
+ *     with the next weekly occurrence as startsAt. Each row links to the
+ *     venue's page on Question One.
  *
  *   SpeedQuizzing  https://www.speedquizzing.com/find/  (page allowed)
  *     The page inlines ~1,400 upcoming events (date/day/lat/lon), but venue

@@ -2,15 +2,12 @@
 // cron (lib/whatsOnRefresh.server.ts) and the bundled-pack CLI
 // (scripts/whatson/quizRefresh.mjs) share.
 //
-// WHY THE JSON. The directory's HTML archive is 15 pages of 9 cards, and a
-// card states no postcode, so a row built from it cannot be matched to a pub
-// and never reaches Tonight. Each venue page states the postcode, which made a
-// full read about 143 requests. The site's own WordPress API serves the same
-// directory with the slot, fee, postcode and map point on every record, so the
-// whole list is 2 requests of 100.
+// The HTML archive cards lack postcodes, so they cannot support a pub match
+// without separate venue-page reads. The directory JSON includes location
+// evidence alongside each venue's quiz slots, avoiding those extra requests.
 //
 // THE TABLE OWNS THE URL. The walk starts at the source-policy row's url and
-// only adds the page number, so no reader types a host. Every request goes
+// sets pagination and field selection, so no reader types a host. Every request goes
 // through the caller's permitted fetch (scripts/lib/permittedHarvestFetch.mjs),
 // which asks the fence and robots.txt first.
 //
