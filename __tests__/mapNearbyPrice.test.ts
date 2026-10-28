@@ -70,3 +70,15 @@ describe("nearby price exclusions", () => {
     expect(mapNearbyPriceForVenue(venue, initialFilters)?.measureLabel).toBe("half pint");
   });
 });
+
+describe("nearby report drink identity", () => {
+  it("refuses a merged report summary whose old drink name is not independent report evidence", () => {
+    const venue = nearbyVenue({ prices: [], cheapestPrice: 3, cheapestPint: "Guinness", latestContributorPrice: 3, latestContributorAt: "2026-10-22T12:00:00Z" });
+    expect(mapNearbyPriceForVenue(venue, initialFilters)).toBeNull();
+  });
+
+  it("keeps a named menu row at its own price when a cheaper report has no drink identity", () => {
+    const venue = nearbyVenue({ cheapestPrice: 3, cheapestPint: "Guinness", latestContributorPrice: 3, latestContributorAt: "2026-10-22T12:00:00Z" });
+    expect(mapNearbyPriceForVenue(venue, initialFilters)).toMatchObject({ drinkLabel: "Guinness", priceGbp: 4.5, sourceLabel: "Pint Prices" });
+  });
+});

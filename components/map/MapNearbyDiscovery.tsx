@@ -28,6 +28,8 @@ export type MapNearbyDiscoveryProps = {
   lensPrices: ReadonlyMap<string, MapLensPrice> | null;
   onSelectVenue: (id: string) => void;
   onApplyFilters?: (filters: Filters) => void;
+  /** The map sheet already owns the heading. */
+  titledByHost?: boolean;
   hasPintDrops?: (venueId: string) => boolean;
   openNowState?: (venueId: string) => boolean | "unknown";
   wetherspoonsMatchedIds?: ReadonlySet<string>;
@@ -80,7 +82,7 @@ function NearbyCard({ card, onSelectVenue }: { card: MapNearbyCard; onSelectVenu
 
 export default function MapNearbyDiscovery({
   cityId, venues, filters, currentFilterKeys, location, lensPrices, onSelectVenue, onApplyFilters,
-  hasPintDrops, openNowState, wetherspoonsMatchedIds,
+  hasPintDrops, openNowState, wetherspoonsMatchedIds, titledByHost = false,
 }: MapNearbyDiscoveryProps) {
   const auth = useAuth();
   const accountId = auth.user?.id ?? auth.session?.user.id ?? "account";
@@ -107,7 +109,7 @@ export default function MapNearbyDiscovery({
   return (
     <section className="mapNearbyDiscovery" aria-label="Nearby pub matches">
       <header className="mapNearbyDiscoveryHeader">
-        <h2>Near you</h2>
+        {titledByHost ? <p className="mapNearbyDiscoveryTitle">Near you</p> : <h2>Near you</h2>}
         <p>{answer.scope === "walkable" ? "Matches within 1 km."
           : answer.scope === "widened" ? "No matching price within 1 km. These are within 2.5 km."
           : "Your current filters, checked within 2.5 km."}</p>
