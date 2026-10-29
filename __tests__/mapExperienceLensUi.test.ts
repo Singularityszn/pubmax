@@ -243,7 +243,7 @@ describe("MapExperienceLens", () => {
         onChange: () => undefined,
       }),
     );
-    expect(food).toContain(">Food<");
+    expect(food).toContain(">Late food<");
     expect(food).toContain(">Restaurants<");
     expect(food).not.toContain(">Pints<");
     expect(food).toContain(">Pubs<");
@@ -262,15 +262,15 @@ describe("MapExperienceLens", () => {
         onChange: () => undefined,
       }),
     );
-    const pints = html.match(/<button[^>]*aria-pressed="true"[^>]*>[\s\S]*?Pints[\s\S]*?<\/button>/)?.[0] ?? "";
+    const pubs = html.match(/<button[^>]*aria-pressed="true"[^>]*>[\s\S]*?Pubs[\s\S]*?<\/button>/)?.[0] ?? "";
     const bars = html.match(/<button[^>]*aria-pressed="false"[^>]*>[\s\S]*?Bars[\s\S]*?<\/button>/)?.[0] ?? "";
 
-    expect(pints).toContain('class="tonightArcChip isOn"');
+    expect(pubs).toContain('class="tonightArcChip isOn"');
     expect(bars).toContain('class="tonightArcChip"');
     // The tick is the non-colour selection mark (design judgement 2026-08-01,
     // finding 2.1: selection reads without the accent). Decorative only —
     // aria-pressed carries the state.
-    expect(pints).toContain('class="tonightArcChipTick" aria-hidden="true"');
+    expect(pubs).toContain('class="tonightArcChipTick" aria-hidden="true"');
     expect(bars).not.toContain("✓");
     // The Clubs chip is gone (7 Sep 2026, walk finding B9). It was permanently
     // disabled, explained by a `title` attribute no phone shows, and it could

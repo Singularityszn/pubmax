@@ -1,5 +1,7 @@
 "use client";
 
+import { Beer, ForkKnife, Martini, Utensils, type LucideIcon } from "lucide-react";
+
 import {
   offeredVenueKinds,
   toggleVenueKind,
@@ -18,11 +20,12 @@ import "./tonightArcChips.css";
 const CHIPS: ReadonlyArray<{
   kind: CuratedVenueKind;
   label: string;
+  Icon: LucideIcon;
 }> = [
-  { kind: "pub", label: "Pints" },
-  { kind: "bar", label: "Bars" },
-  { kind: "food", label: "Food" },
-  { kind: "restaurant", label: "Restaurants" },
+  { kind: "pub", label: "Pubs", Icon: Beer },
+  { kind: "bar", label: "Bars", Icon: Martini },
+  { kind: "food", label: "Late food", Icon: Utensils },
+  { kind: "restaurant", label: "Restaurants", Icon: ForkKnife },
 ];
 
 export default function TonightArcChips({
@@ -68,6 +71,7 @@ export default function TonightArcChips({
       <div className="tonightArcRow">
         {chips.map((chip) => {
           const on = visibility[chip.kind];
+          const Icon = chip.Icon;
           return (
             <button
               key={chip.kind}
@@ -83,10 +87,9 @@ export default function TonightArcChips({
                   ✓
                 </span>
               ) : null}
+              <Icon size={14} aria-hidden="true" />
               <span className="tonightArcChipLabel">
-                {experienceLens !== "all" && chip.kind === "pub"
-                  ? "Pubs"
-                  : chip.label}
+                {chip.label}
               </span>
             </button>
           );

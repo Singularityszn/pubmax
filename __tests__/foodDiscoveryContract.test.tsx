@@ -171,7 +171,7 @@ describe("food discovery controls", () => {
       visible.querySelectorAll('[aria-hidden="true"]').forEach((node) => node.remove());
       return visible.textContent?.trim();
     });
-    expect(labels).toEqual(["Pubs", "Bars", "Food", "Restaurants"]);
+    expect(labels).toEqual(["Pubs", "Bars", "Late food", "Restaurants"]);
     expect(labels).toHaveLength(offeredVenueKinds("food").length);
   });
 
