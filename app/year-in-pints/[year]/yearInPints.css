@@ -1,0 +1,30 @@
+/* A shared Year in Pints (page.tsx). Ink and tokens only, like the Pal's own
+   year (components/pal/palYear.css): a year read back is never a score, so the
+   lines are not coral. The one coral fill is the screen's primary door. */
+.yipPage {
+  padding-block: var(--space-2) calc(var(--space-12) + env(safe-area-inset-bottom, 0px));
+}
+.yipScreen > :not(.screenHead) {
+  max-width: 40rem;
+}
+.yipLines {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--space-2);
+}
+.yipLines li {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--ink) 5%, var(--panel-raised));
+  color: var(--color-text);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+}
+.yipNote {
+  margin: var(--space-3) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}

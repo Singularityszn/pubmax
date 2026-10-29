@@ -9,7 +9,7 @@ CI refuses a change that goes past it.
 - The rules and the failure table: [`lib/performanceBudgets.ts`](../lib/performanceBudgets.ts)
 - The measuring: [`e2e/performance-budget.spec.ts`](../e2e/performance-budget.spec.ts)
 - The method every perf spec shares: [`e2e/helpers/perfMeasurement.ts`](../e2e/helpers/perfMeasurement.ts)
-- The UX lane report: [`e2e/ux-lane-perf-verification.spec.ts`](../e2e/ux-lane-perf-verification.spec.ts). Four arrival routes (`/`, `/near`, `/map/london`, `/out`) with LCP and CLS beside decoded JS, written as a markdown table for the PR body. It REPORTS: a route over a ceiling here is a warning, and the only failure is a route it could not measure at all
+- The UX lane report: [`e2e/ux-lane-perf-verification.spec.ts`](../e2e/ux-lane-perf-verification.spec.ts) owns the arrival route list. It reports LCP, CLS, and decoded JavaScript in a Markdown table for the PR body. A route above its ceiling produces a warning. The job fails if it cannot measure a route.
 - The gate: the `performance-budget` job in `.github/workflows/performance.yml`, which runs nightly on main and on demand since 15 September 2026 (it ran on every pull request in `ci.yml` before that); the UX lane report is its own `ux-lane-performance` job in the same workflow, because one 15-minute wall cannot hold two full sweeps
 - The evidence behind a RED run: [`scripts/perf-ab.mjs`](../scripts/perf-ab.mjs), an `if: failure()` step in that same job. It rebuilds the merge base, re-measures the breached routes against it on the same box with the navigations interleaved, and prints whether the branch or the box is slower. It gates nothing and moves no ceiling; the rule is [`perf/AGENTS.md`](../perf/AGENTS.md)
 - The API gate: the `api-latency-budget` job in `.github/workflows/api-performance.yml` probes a successful main deployment
@@ -67,13 +67,16 @@ profile rather than loopback. Measured figure first, ceiling second:
 | `/terms` | 6 / 150 | 788 / 910 | 32 / 37 | 184 / 2500 |
 | `/places` | 6 / 150 | 861 / 1000 | 40 / 46 | 188 / 2500 |
 
-Two rows are budgeted as redirects rather than pages, and their server-render cell
-carries no measured figure. `measurePerfRedirect` TIMES the 3xx and reports that as
-`serverRenderMs`, so a zero there would be a measurement nobody took: the 2026-09-04
-seed sweep measured the document each route used to serve, and neither has answered
-one since. The other three cells hold by construction rather than by sampling, because
-the lane returns one request, no script and no paint. See "A route that redirects is
-measured as a redirect".
+The `/onboarding` and `/choose-city` rows show redirect budgets without measured
+server times. The seed sweep measured their former documents. The `/out` row above
+retains its seed figures. Its current budget measures a redirect to `/tonight`,
+which keeps its own page budget. See [`perf/route-budgets.json`](../perf/route-budgets.json)
+for current ceilings.
+
+`measurePerfRedirect` measures the 3xx response time as `serverRenderMs`.
+The other metrics are one request, no script, and no paint. These values follow
+from the redirect measurement method rather than a sampled page load.
+See "A route that redirects is measured as a redirect".
 
 The margin is not one number, because the four metrics do not behave alike.
 
