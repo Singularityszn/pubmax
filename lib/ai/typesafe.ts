@@ -60,7 +60,7 @@ export async function systemOne<Q extends Questions>(
   options: SystemOneOptions = {},
 ): Promise<SystemOneResult<Q> | null> {
   const apiKey = typesafeApiKey();
-  if (!apiKey) return null;
+  if (!apiKey || state === null) return null;
 
   const lane = options.lane ?? "default";
   const timeoutMs = options.timeoutMs ?? TYPESAFE_DEFAULT_TIMEOUT_MS;

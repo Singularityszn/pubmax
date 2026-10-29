@@ -301,6 +301,17 @@ describe("brandRetrieve", () => {
 });
 
 describe("batchSubmit", () => {
+  it("requests Markdown with the SDK formats map while retaining the submitted URLs", async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async () => jsonResponse({ id: "batch_formats" }));
+    const urls = ["https://www.fullers.co.uk/a", "https://www.fullers.co.uk/b"];
+    const result = await batchSubmit(urls, { env: KEY, fetchImpl, sleepImpl: noSleep });
+    expect(result).toEqual({ status: "ok", batchId: "batch_formats", submitted: 2, invalidUrls: 0 });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body))).toEqual({
+      input: { mode: "scrape", data: { formats: { markdown: true }, urls: urls.map((url) => ({ url })) } },
+    });
+  });
+
   it("submits a permitted list and reports what was taken", async () => {
     const fetchImpl = vi.fn(async () =>
       jsonResponse({ id: "batch_1", invalid_urls: [{ url: "https://www.fullers.co.uk/b" }] }),

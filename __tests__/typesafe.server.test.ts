@@ -11,12 +11,21 @@ vi.mock("@/lib/paidSpendBudget.server", () => ({
 import { TypeSafeClient } from "@typesafe-ai/sdk";
 
 import { systemOne, TYPESAFE_API_BASE_URL } from "@/lib/ai/typesafe.server";
+import { systemOne as nodeSystemOne } from "@/lib/ai/typesafe";
 import { defined } from "@/__tests__/helpers/defined";
 
 describe("systemOne", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.mocked(TypeSafeClient).mockReset();
+  });
+
+  it("returns no judgment for null state through both app and plain-node doors", async () => {
+    vi.stubEnv("TYPESAFE_API_KEY", "test-key");
+    const questions = { q: { type: "noul" as const, instructions: "test?" } };
+    expect(await systemOne(null, questions, { lane: "typesafe" })).toBeNull();
+    expect(await nodeSystemOne(null, questions)).toBeNull();
+    expect(TypeSafeClient).not.toHaveBeenCalled();
   });
 
   it("returns null without calling the SDK when the API key is unset", async () => {

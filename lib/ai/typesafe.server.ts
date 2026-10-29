@@ -78,6 +78,11 @@ export async function systemOneOutcome<Q extends Questions>(
     recordTypesafeTiming(options.lane, 0, "skipped");
     return { status: "skipped", reason: "no_key" };
   }
+  // SDK 0.7 requires actual request state. No state means no judgment.
+  if (state === null) {
+    recordTypesafeTiming(options.lane, 0, "error");
+    return { status: "failed", reason: "error" };
+  }
 
   // The lane is spelled out here on purpose: `__tests__/paidSpendBudget.test.ts`
   // greps each lane's owning file for this exact call, so a lane cannot be
