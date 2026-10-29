@@ -247,6 +247,8 @@ export default function MobileSharedSheet({
     const sheet = sheetRef.current;
     if (!kind || !sheet || typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(recapToViewport);
+    const portal = sheet.closest(".mobileSheetPortal");
+    if (portal) observer.observe(portal);
     for (const part of sheet.querySelectorAll(":scope > .mobileSharedSheetHeader, :scope > .mobileSharedSheetFooter")) {
       observer.observe(part);
     }
