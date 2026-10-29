@@ -696,7 +696,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
   // fire under StrictMode re-mounts.
   const autoAskedRef = useRef(false);
   useEffect(() => {
-    if (!owner || autoAskedRef.current) return;
+    if (!owner || !threadReady || autoAskedRef.current) return;
     autoAskedRef.current = true;
     const preset = new URLSearchParams(window.location.search).get("ask");
     const text = preset?.trim() ?? "";
@@ -707,8 +707,8 @@ function PalChatBody({ owner }: { owner: string | null }) {
       if (priorAsksRef.current.at(-1) !== text) void ask(text);
     }, 0);
     return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- fire once after owner settlement
-  }, [owner]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fire once after owner and history settlement
+  }, [owner, threadReady]);
 
   const empty = entries.length === 0 && !pending;
   const mappedAnswer = palChatMapAnswer(entries);

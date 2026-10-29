@@ -91,6 +91,33 @@ async function submit(text: string): Promise<void> {
 }
 
 describe("a typed Pal answer that streams in", () => {
+  it("submits a linked question once after the earlier conversation finishes loading", async () => {
+    const previousUrl = window.location.href;
+    const preset = "Find me four pubs in Soho";
+    let finishHistory!: (value: Awaited<ReturnType<typeof chatThread.readPalChatThread>>) => void;
+    const history = new Promise<Awaited<ReturnType<typeof chatThread.readPalChatThread>>>((resolve) => {
+      finishHistory = resolve;
+    });
+    vi.spyOn(chatThread, "readPalChatThread").mockReturnValueOnce(history);
+    askSession.mockResolvedValue({ status: "empty", message: "Nothing sourced for that.", cards: [], proposals: [] });
+    window.history.replaceState({}, "", `/pal/chat?ask=${encodeURIComponent(preset)}`);
+    try {
+      await act(async () => { root?.render(createElement(PalChat, { key: "linked-question" })); });
+      await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+      expect(container.querySelector<HTMLInputElement>(".palChatInput")?.disabled).toBe(true);
+      expect(askSession).not.toHaveBeenCalled();
+
+      await act(async () => { finishHistory(null); });
+      await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+      expect(askSession).toHaveBeenCalledTimes(1);
+      expect(askSession.mock.calls[0]?.[0]).toBe(preset);
+      expect([...container.querySelectorAll(".palChatRow--user")].map((row) => row.textContent)).toEqual([preset]);
+      expect(container.textContent).toContain("Nothing sourced for that.");
+    } finally {
+      window.history.replaceState({}, "", previousUrl);
+    }
+  });
+
   it("keeps failed history restoration visible and preserves history until an explicit new conversation", async () => {
     const read = vi.spyOn(chatThread, "readPalChatThread").mockRejectedValueOnce(new Error("Chunk unavailable"));
     const save = vi.spyOn(chatThread, "savePalChatThread");
