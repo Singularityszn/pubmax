@@ -16,8 +16,13 @@ import { isHttpUrl } from "@/lib/httpUrl";
 import type { RobotsChecker } from "@/lib/harvest/robots";
 import {
   CATEGORY_PRICE_BANDS,
+  PRICE_ITEM_SEPARATOR,
+  UK_PRICE_PATTERN,
+  FRACTIONAL_BEER_MEASURE,
   decideKeylessUkPriceCandidate,
   findUkPriceCandidates,
+  fractionalMeasureAtPrice,
+  fractionalBeerServing,
   isLikelyMenuUrl,
   pageText,
   drinkLabelFromPriceContext,
@@ -32,6 +37,16 @@ const BEER_MIN_GBP = 2;
 const BEER_MAX_GBP = 12;
 const DAY_MS = 86_400_000;
 const EXCERPT_MAX = 500;
+const AFTER_PRICE_ITEM_SEPARATORS = new RegExp(`^(?:${PRICE_ITEM_SEPARATOR.source}|\\s)+`);
+// A fraction modifying a discount is never a serving size.
+const FRACTIONAL_PRICE_DISCOUNT = new RegExp(
+  `(?:${FRACTIONAL_BEER_MEASURE.source})\\s*\\)?\\s*(?:off\\b(?![\\s-]+menu\\b)|discount(?:ed)?\\b)`, "i",
+);
+
+// A fractional serving can precede the literal drink name Off Menu.
+const FRACTIONAL_OFF_MENU_NAME = new RegExp(
+  `^\\s*\\(?\\s*(?:${FRACTIONAL_BEER_MEASURE.source})(?:\\s+pints?)?\\s*\\)?\\s+off[\\s-]+menu\\b`, "i",
+);
 
 const SEED_PATCHES = ["soho", "clapham", "shoreditch", "islington", "camden"] as const;
 const THIN_BOROUGHS = new Set(["barking and dagenham", "kingston upon thames", "hounslow"]);
@@ -39,7 +54,7 @@ const THIN_BOROUGHS = new Set(["barking and dagenham", "kingston upon thames", "
 const VAGUE_NAME = /^(about|around|roughly|approximately|only|from|just|under|over)$/i;
 const SERVING_WORD = "pints?|halves|half|schooners?|two[\\s-]thirds|kegs?|bottles?|cans?|glasses|glass|measures|measure";
 const SERVING_SIZE = new RegExp(`\\b(?:${SERVING_WORD}|\\d{2,4}\\s*ml)\\b`, "i");
-const POUR_OF = /^(?:(?:a|an)\s+)?(?:pints?|half|measures?|schooners?|two[\s-]thirds|glass(?:es)?|bottles?|cans?)\s+of\s+(?:(?:a|an)\s+)?(.+)$/i;
+const POUR_OF = new RegExp(`^(?:(?:a|an)\\s+)?(?:pints?|half|measures?|schooners?|${FRACTIONAL_BEER_MEASURE.source}|glass(?:es)?|bottles?|cans?)\\s+of\\s+(?:(?:a|an)\\s+)?(.+)$`, "i");
 const FOOD_PATH = /(food|kitchen|lunch|dinner|brunch|\beat\b)/i;
 const FOOD_PATH_EXCLUDE = /(privacy|cookie|terms|careers|login|account|basket|checkout)/i;
 const DRINKS_PATH =
@@ -539,8 +554,7 @@ function cleanName(label: string): string | null {
   const source = poured?.[1]?.trim() ?? label;
   const cleaned = source
     .replace(/\bschooners?\b(?:\s*\([^)]*\))?/gi, " ")
-    .replace(/\btwo[\s-]thirds\b(?:\s+of\s+a)?(?:\s+pints?\b)?/gi, " ")
-    .replace(/(?:⅔|\b2\/3\b)(?:\s+of\s+a)?(?:\s+pints?\b)?/gi, " ")
+    .replace(new RegExp(`\\(?\\s*(?:${FRACTIONAL_BEER_MEASURE.source})(?:\\s+of\\s+a)?(?:\\s+pints?\\b)?\\s*\\)?`, "gi"), " ")
     .replace(/(?:½|\b1\/2\b)(?:\s+of\s+a)?(?:\s+pints?\b)?/gi, " ")
     .replace(/\b\d{2,4}\s*ml\b/gi, " ")
     .replace(new RegExp(`\\b(?:${SERVING_WORD})(?:\\s+of(?:\\s+a)?)?\\b`, "gi"), " ")
@@ -559,15 +573,15 @@ function cleanName(label: string): string | null {
 }
 
 function isMixedNumber(line: string): boolean {
+  line = line.replace(UK_PRICE_PATTERN, " ");
   return /\d\s*[½⅓⅔¼¾]\s*pints?\b/i.test(line)
     || /\d[ \t]+1\/2\s*pints?\b/i.test(line);
 }
 
 function sizeOf(line: string): { size: DrinkSize; sizeDetail: string | null } {
   if (/\bschooners?\b/i.test(line)) return { size: "unstated", sizeDetail: "schooner" };
-  if (/\btwo[\s-]thirds\b/i.test(line) || /(?<!\d)⅔|(?<!\d)\b2\/3\b/.test(line)) {
-    return { size: "unstated", sizeDetail: "two-thirds" };
-  }
+  const fractionalServing = fractionalBeerServing(line);
+  if (fractionalServing) return { size: "unstated", sizeDetail: fractionalServing };
   if (/(?<!\d)(?:½|\b1\/2\b|\bhalf)[\s-]+bottles?\b/i.test(line)) {
     return { size: "unstated", sizeDetail: "half bottle" };
   }
@@ -589,7 +603,7 @@ function sizeOf(line: string): { size: DrinkSize; sizeDetail: string | null } {
 function measureAllowed(line: string, size: { size: DrinkSize; sizeDetail: string | null }): boolean {
   if (isMixedNumber(line)) return false;
   if (size.size === "pint" || size.size === "keg" || size.size === "bottle" || size.size === "can") return true;
-  if (size.sizeDetail === "half" || size.sizeDetail === "half bottle" || size.sizeDetail === "schooner" || size.sizeDetail === "two-thirds") return true;
+  if (size.sizeDetail === "half" || size.sizeDetail === "half bottle" || size.sizeDetail === "schooner" || fractionalBeerServing(line)) return true;
   if (size.sizeDetail && (GLASS_ML.has(size.sizeDetail) || SPIRIT_ML.has(size.sizeDetail))) return true;
   if (/\b\d{2,4}\s*ml\b/i.test(line)) return true;
   return /\b(?:glasses|glass)\b/i.test(line);
@@ -648,19 +662,19 @@ function namedLabel(line: string, at: number, local: string): string {
   let cursor = at;
   for (let hop = 0; hop < 4; hop += 1) {
     const before = line.slice(0, cursor);
-    const prior = [...before.matchAll(/£\s?\d{1,2}(?:\.\d{2})?\b/g)].at(-1);
-    if (!prior || prior.index === undefined) return local;
-    const between = before.slice(prior.index + prior[0].length);
+    const prior = findUkPriceCandidates(before).at(-1);
+    if (!prior) return local;
+    const between = before.slice(prior.at + prior.verbatim.length);
     if (/(?:\. |; )/.test(between)) return local;
     const crossedPipe = /(?: \| |\|\s)/.test(between);
     if (crossedPipe && !isBareGlassMeasure(ownMeasure)) return local;
-    const priorLabel = drinkLabelFromPriceContext(line, prior[0], prior.index) ?? "";
+    const priorLabel = drinkLabelFromPriceContext(line, prior.verbatim, prior.at) ?? "";
     const priorName = cleanName(priorLabel);
     const priorMl = /\b(\d{2,4})\s*ml\b/i.exec(priorLabel);
     if (crossedPipe && priorName && !(priorMl && GLASS_ML.has(`${priorMl[1]}ml`))) return local;
     if (priorName) return ownMeasure ? `${priorName} ${ownMeasure}` : priorName;
     if (!isBareGlassMeasure(priorLabel)) return local;
-    cursor = prior.index;
+    cursor = prior.at;
   }
   return local;
 }
@@ -668,7 +682,8 @@ function namedLabel(line: string, at: number, local: string): string {
 function ownPrice(line: string, verbatim: string, at: number): { text: string; at: number; label: string } {
   const local = drinkLabelFromPriceContext(line, verbatim, at) ?? "";
   const label = namedLabel(line, at, local);
-  const tail = trailingMeasure(line.slice(at + verbatim.length));
+  const tail = fractionalMeasureAtPrice(line, at, verbatim).suffix
+    ?? trailingMeasure(line.slice(at + verbatim.length));
   const prefix = label ? `${label} ` : "";
   return { label, text: `${prefix}${verbatim}${tail}`, at: prefix.length };
 }
@@ -702,15 +717,17 @@ function rememberDrink(drinks: ListedDrinkLine[], seenDrinks: Set<string>, row: 
 }
 
 const JOINED_SIZE_LIST = /(?<![\d/.£])\d{2,4}(?:\s*ml)?(?:\s*\/\s*\d{2,4}(?:\s*ml)?)+(?!\s*\/\s*\d)/gi;
-const JOINED_PRICE_LIST = /^\s*((?:£\s?\d{1,2}(?:\.\d{2})?)(?:\s*\/\s*£\s?\d{1,2}(?:\.\d{2})?)*)/;
-const LEADING_MEASURE = new RegExp(`^(?:${SERVING_WORD}|\\d{2,4}\\s*ml|½|1\\/2|2\\/3|⅔)\\b`, "i");
+const JOINED_PRICE_LIST = new RegExp(`^\\s*((?:${UK_PRICE_PATTERN.source})(?:\\s*\\/\\s*(?:${UK_PRICE_PATTERN.source}))*)`, "i");
+const LEADING_MEASURE = new RegExp(`^(?:(?:${FRACTIONAL_BEER_MEASURE.source})|(?:${SERVING_WORD}|\\d{2,4}\\s*ml|½|1\\/2)\\b)`, "i");
 
 function isNewDrinkName(text: string): boolean {
   const body = text.replace(/^[/|\s]+/, "");
   if (!body || /^£/.test(body)) return false;
   const head = (body.split("£")[0] ?? "").trim();
   if (POUR_OF.test(head)) return true;
-  if (LEADING_MEASURE.test(body)) return false;
+  if (LEADING_MEASURE.test(body)) {
+    return FRACTIONAL_PRICE_DISCOUNT.test(head) || FRACTIONAL_OFF_MENU_NAME.test(head);
+  }
   const name = cleanName(head);
   return Boolean(name && /[A-Za-z]/.test(name));
 }
@@ -726,12 +743,14 @@ function splitPriceItems(line: string): string[] {
   for (const match of line.matchAll(/\s*\|\s*/g)) {
     consider(match.index ?? 0, (match.index ?? 0) + match[0].length);
   }
-  for (const match of line.matchAll(/£\s?\d{1,2}(?:\.\d{2})?(?:\s*\/\s*£\s?\d{1,2}(?:\.\d{2})?)*/g)) {
-    const after = (match.index ?? 0) + match[0].length;
-    const lead = /^,?\s+/.exec(line.slice(after));
+  for (const price of findUkPriceCandidates(line)) {
+    const suffix = fractionalMeasureAtPrice(line, price.at, price.verbatim).suffix ?? "";
+    const after = price.at + price.verbatim.length + suffix.length;
+    const lead = AFTER_PRICE_ITEM_SEPARATORS.exec(line.slice(after));
     if (!lead) continue;
     const nextStart = after + lead[0].length;
-    if (/^[.!?;|]/.test(line.slice(nextStart))) continue;
+    // Whitespace alone cannot prove that a trailing discount starts a new item.
+    if (!lead[0].trim() && FRACTIONAL_PRICE_DISCOUNT.test(line.slice(nextStart))) continue;
     consider(after, nextStart);
   }
   splits.sort((a, b) => a.sepStart - b.sepStart || a.nextStart - b.nextStart);
@@ -758,7 +777,7 @@ function pairedMeasureLines(line: string): string[] | null {
     const sizes = [...match[0].matchAll(/\d{2,4}/g)].map((token) => `${token[0]}ml`);
     const priceMatch = JOINED_PRICE_LIST.exec(line.slice(match.index + match[0].length));
     const prices = priceMatch
-      ? [...(priceMatch[1] ?? "").matchAll(/£\s?\d{1,2}(?:\.\d{2})?/g)].map((token) => token[0].replace(/\s+/g, ""))
+      ? findUkPriceCandidates(priceMatch[1] ?? "").map((token) => token.verbatim.replace(/\s+/g, ""))
       : [];
     if (!priceMatch || prices.length !== sizes.length) {
       const before = line.slice(cursor, match.index).trim();
@@ -796,6 +815,8 @@ function recordPriceLine(
     for (const item of items) recordPriceLine(item, fact, drinks, seenDrinks);
     return;
   }
+  // Refuse only this separated item, before any paired-size or serving recovery.
+  if (FRACTIONAL_PRICE_DISCOUNT.test(line)) return;
   const paired = pairedMeasureLines(line);
   if (paired) {
     for (const part of paired) recordPriceLine(part, fact, drinks, seenDrinks);
@@ -804,7 +825,7 @@ function recordPriceLine(
   if (!line.includes("£")) return;
   for (const raw of findUkPriceCandidates(line)) {
     const own = ownPrice(line, raw.verbatim, raw.at);
-    if (!SERVING_SIZE.test(own.text)) continue;
+    if (!SERVING_SIZE.test(own.text) && !fractionalMeasureAtPrice(line, raw.at, raw.verbatim).fractional) continue;
     const outcome = decideKeylessUkPriceCandidate(own.text, { ...raw, at: own.at });
     const row = outcome.kept
       ? listedDrink(

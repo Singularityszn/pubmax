@@ -110,6 +110,8 @@ export type UkPriceBundleRow = {
 const CATEGORY_QUARANTINE: ReadonlyArray<
   Pick<UkPriceBundleRow, "sourceUrl" | "category" | "priceGbp" | "drinkLabel">
 > = [
+  // Retained 2026-09-04 extract names a third, not a supported pint price.
+  { sourceUrl: "https://www.northwestwardho.co.uk/menu", category: "beer", priceGbp: 2.1, drinkLabel: "1/3" },
   { sourceUrl: "https://www.theploughstjohnshill.co.uk/the-bar/", category: "gin", priceGbp: 9, drinkLabel: "0% Tropical Negroni Three Spirit Livener, Lyres Italian Spritz, Tanqueray 0.0%" },
   { sourceUrl: "https://www.theploughstjohnshill.co.uk/the-bar/", category: "shot", priceGbp: 12, drinkLabel: "1.50 Picante Spritz Altos Plata tequila, Beesou honey, green chilli, lime, soda" },
   { sourceUrl: "https://www.theploughstjohnshill.co.uk/the-bar/", category: "whisky", priceGbp: 10, drinkLabel: "ary Absolut Tabasco Vodka, Tomato Juice, Worcestershire Sauce, Spices, Rosemary" },
