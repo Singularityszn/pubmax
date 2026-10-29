@@ -1,3 +1,4 @@
+import { MAP_SELECTION_NOTICE_PARAM, UNKNOWN_MAP_SELECTION_NOTE } from "@/lib/mapSelectionNotice";
 // Pure helpers extracted from components/PubMap.tsx (F1 decomposition).
 //
 // Server-safe: NO "use client", no window/DOM reads, no React. These live off
@@ -223,7 +224,7 @@ export function retiredSelectionNameFor(
 
 export type MapSelectionNotice = "unknown" | "lookup-failed" | "retired";
 
-export const MAP_SELECTION_NOTICE_PARAM = "mapNotice";
+export { MAP_SELECTION_NOTICE_PARAM } from "@/lib/mapSelectionNotice";
 
 export function mapSelectionNoticeFromSearch(search: string): MapSelectionNotice | null {
   const value = new URLSearchParams(search).get(MAP_SELECTION_NOTICE_PARAM);
@@ -271,7 +272,7 @@ export function ukBaseRestoreFailureNotice(
 }
 
 /** Visible copy for an unknown `?sel=` - empty-state voice, no plumbing. */
-export const UNKNOWN_MAP_SELECTION_NOTE = "That pub is not one we know.";
+export { UNKNOWN_MAP_SELECTION_NOTE } from "@/lib/mapSelectionNotice";
 export const MAP_SELECTION_LOOKUP_FAILED_NOTE = "We could not check that pub right now.";
 
 /**

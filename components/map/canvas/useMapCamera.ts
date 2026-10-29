@@ -323,20 +323,23 @@ export function useMapCamera(refs: CameraRefs) {
   const fitRoute = useCallback((kind: "route" | "route-recovery" = "route") => {
     const current = routeRef.current;
     if (current.length < 2) return;
-    const bounds = new maplibregl.LngLatBounds();
-    current.forEach((venue) => bounds.extend([venue.longitude, venue.latitude]));
-    const extendLine = (coordinates: GeoJSON.Position[]) => {
-      for (const [lng, lat] of coordinates) {
-        if (typeof lng === "number" && typeof lat === "number"
-          && Number.isFinite(lng) && Number.isFinite(lat)) bounds.extend([lng, lat]);
+    const routeBounds = () => {
+      const bounds = new maplibregl.LngLatBounds();
+      current.forEach((venue) => bounds.extend([venue.longitude, venue.latitude]));
+      const extendLine = (coordinates: GeoJSON.Position[]) => {
+        for (const [lng, lat] of coordinates) {
+          if (typeof lng === "number" && typeof lat === "number"
+            && Number.isFinite(lng) && Number.isFinite(lat)) bounds.extend([lng, lat]);
+        }
+      };
+      for (const feature of routeLineRef.current.features) {
+        const geometry = feature.geometry;
+        if (geometry.type === "LineString") extendLine(geometry.coordinates);
+        else if (geometry.type === "MultiLineString") geometry.coordinates.forEach(extendLine);
       }
+      return bounds;
     };
-    for (const feature of routeLineRef.current.features) {
-      const geometry = feature.geometry;
-      if (geometry.type === "LineString") extendLine(geometry.coordinates);
-      else if (geometry.type === "MultiLineString") geometry.coordinates.forEach(extendLine);
-    }
-    const boundsKey = bounds.toArray().flat().join(",");
+    const boundsKey = routeBounds().toArray().flat().join(",");
     const isPhone = window.matchMedia("(max-width: 640px)").matches;
     const request = kind === "route-recovery" ? ++routeRecoverySequence.current : 0;
     const routeKey = current.map((venue) => venue.id).join(">");
@@ -344,7 +347,9 @@ export function useMapCamera(refs: CameraRefs) {
     const viewportKey = `${container?.clientWidth}:${container?.clientHeight}`;
     scheduleCamera(kind, `${kind}:${request}:${routeKey}:${boundsKey}:${viewportKey}`, (map) => {
       routeFrameRef.current = { key: routeKey, gestureEndedAt: gestureCameraRef.current.endedAt };
-      map.fitBounds(bounds, {
+      // A road response can arrive after scheduling but before this frame.
+      // Read its geometry when the owned camera move actually runs.
+      map.fitBounds(routeBounds(), {
         padding: routeFitPadding(map, isPhone),
         maxZoom: 18,
         duration: reducedRef.current ? 0 : 800,
