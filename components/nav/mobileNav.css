@@ -620,7 +620,7 @@ body:has(.mobileMapUtilityCorner) {
 @container mobile-dock (width < 20rem) {
   .mobileTabList {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     align-items: stretch;
   }
 
@@ -661,5 +661,17 @@ body:has(.mobileMapUtilityCorner) {
     height: 40px;
     margin-top: 0;
     box-shadow: none;
+  }
+}
+
+/* Enlarged root text needs wider cells. At root32, 12rem is 384px;
+   at the ordinary root16 it is 192px, below both supported phone widths. */
+@container mobile-dock (width < 12rem) {
+  .mobileTabList { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@container mobile-dock (width < 20rem) {
+  html[data-text-scale="large"] .mobileTabList {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
