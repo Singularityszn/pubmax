@@ -363,9 +363,10 @@ the host side, then view, RSVP, react and map-click on the guest side.
   answer.
 - `invite_map_opened` — no props. Fires from a new small client component,
   `components/plan/InviteMapLink.tsx`, on the "Open these stops on the map"
-  link under the stop list. One stop opens `/map?sel=<id>` via `venueMapUrl`;
-  two or more opens the ordered crawl via `buildCrawlMapHref`
-  (`/map?mode=build&pubs=…`).
+  link under the stop list. `InviteMapLink` selects the destination through
+  `venueMapUrl` or `buildCrawlMapHref`. The
+  [map URL contract](MAP_URL_PARAMS.md#history-and-filter-synchronisation)
+  owns walking-route links and city limits.
 
 **Id hygiene — no `planId` on the link events.** `plan_invite_link_copied`
 and `plan_invite_link_rotated` carry no plan identifier at all, by design.
