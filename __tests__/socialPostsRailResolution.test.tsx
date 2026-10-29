@@ -209,3 +209,26 @@ describe("Social Posts account resolution", () => {
     expect(transport.request).not.toHaveBeenCalled();
   });
 });
+
+it.each(["verified", "age_verification_required"])("shows the hosted outing navigation only after adult access: %s", async (state) => {
+  viewer.auth.user = { id: "hosted-adult-account" };
+  setSession("signed-in");
+  transport.request.mockImplementation(async (input: RequestInfo | URL) => {
+    const href = String(input);
+    if (href === "/api/social/access") return Response.json({ state, draftScope: "a".repeat(43) });
+    if (href.startsWith("/api/starter-packs")) return Response.json({ packs: [], viewerFollowing: [] });
+    if (href.startsWith("/api/social/posts")) return Response.json({ posts: [], nextCursor: null });
+    return Response.json({ items: [], nextCursor: null });
+  });
+  await renderSocial();
+  const link = host.querySelector<HTMLAnchorElement>('a[href="/hosted-outings"]');
+  if (state === "verified") {
+    expect(link?.textContent).toBe("Hosted outings");
+    expect(link?.closest("nav")?.getAttribute("aria-label")).toBe("Your night out");
+  } else {
+    expect(link).toBeNull();
+  }
+  setSession("signed-out");
+  await renderSocial();
+  expect(host.querySelector('a[href="/hosted-outings"]')).toBeNull();
+});

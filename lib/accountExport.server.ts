@@ -1,5 +1,6 @@
 import "server-only";
 
+import { exportHostedOutingRecords, type HostedOutingExportRecord } from "@/lib/hostedOutingStore.server";
 import { listPubListNightDrafts } from "@/lib/pubListImportDraftStore.server";
 import type { PubListNightDraft } from "@/lib/pubListImport";
 
@@ -160,6 +161,7 @@ export type AccountExportDeps = {
   pubRankings(profileId: string): Promise<SocialPubRankingRow[]>;
   venueSubmissions(userId: string): Promise<{ status: "ready" | "degraded"; submissions: VenueSubmission[] }>;
   pubListNightDrafts(userId: string, limit: number): Promise<PubListNightDraft[]>;
+  hostedOutings?(userId: string, limit: number): Promise<HostedOutingExportRecord[]>;
   socialLinks(userId: string): Promise<PublicSocialConnection[]>;
   nightProfile(userId: string): Promise<NightProfile | null>;
   prices(
@@ -285,6 +287,7 @@ function storeDeps(): AccountExportDeps {
     pubRankings: (profileId) => socialPubRankingStore().read({ profileId }),
     venueSubmissions: (userId) => venueSubmissionStore().listForOwner(userId),
     pubListNightDrafts: listPubListNightDrafts,
+    hostedOutings: (userId, limit) => isSupabaseConfigured() ? exportHostedOutingRecords(userId, limit) : Promise.resolve([]),
     async socialLinks(userId) {
       return (await socialConnectionStore().list(userId)).map(publicSocialConnection);
     },
@@ -759,6 +762,11 @@ export async function buildAccountExport(
     items: await deps.pubListNightDrafts(userId, ACCOUNT_EXPORT_LANE_CAP + 1),
   }));
 
+  const hostedOutings = await lane<HostedOutingExportRecord>(async () => ({
+    degraded: false,
+    items: deps.hostedOutings ? await deps.hostedOutings(userId, ACCOUNT_EXPORT_LANE_CAP + 1) : [],
+  }));
+
   const socialLinks = await lane<PublicSocialConnection>(async () => ({
     degraded: false,
     items: await deps.socialLinks(userId),
@@ -797,6 +805,7 @@ export async function buildAccountExport(
     pubRankings,
     venueSubmissions,
     pubListNightDrafts,
+    hostedOutings,
     socialLinks,
     nightProfile,
     messages,

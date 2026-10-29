@@ -254,6 +254,10 @@ _Avoid_: Public list, scraped saves, server-fetched social post, Visited Venue
 A Planned Night whose crew strangers may ask to join. The host accepts, the meeting point is a listed venue or a named public place rather than typed words, and the host may close it. Membership is still the gate, so a left, removed or pending person stays out of the plan. `lib/openSocialCrew.ts`.
 _Avoid_: Free-text meetup, public plan without a host, typed meeting point
 
+**Hosted Outing**:
+A small adult group outing at a confirmed public venue, with a named moderator and operator approval. Each approved person chooses whether to confirm.
+_Avoid_: Open Crew, automatic connection, family matching
+
 **Night Moment**:
 A single shareable part of a Night Story, such as a photo, drink, event, venue, quote, person, or Side Quest. Night Moments belong to the wider story even when shared independently.
 _Avoid_: Generic post, unrelated content, complete Night Memory

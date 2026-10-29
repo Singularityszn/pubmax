@@ -162,6 +162,23 @@ export default function PrivacyPage() {
           age check. None of that private data appears on your profile as an age or
           verification badge.
         </p>
+        <h3 className="legalH3">If you join a hosted outing</h3>
+        <p className="legalBody">
+          We store your outing signup, declared pace, spending ceiling and attendance state.
+          The outing operator uses those choices and existing blocks to propose a group.
+          We do not use inferred personal traits or contact details for matching.
+          The operator must approve the group, and you choose whether to confirm.
+          Confirmed attendees can see other unblocked confirmed handles.
+          An outing does not connect accounts automatically.
+        </p>
+        <p className="legalBody">
+          Your named moderator can read a report you send about the outing.
+          Other attendees cannot read it.
+          We also store the rating you choose after a completed outing.
+          The operator sees a summary of those ratings.
+          Your account export includes your own outing records.
+          Deleting your account removes your hosted attendance, reports and feedback.
+        </p>
         <p className="legalBody">
           Your public profile may also contain a display name, home city and
           short bio. A profile picture is an optional upload you choose: we

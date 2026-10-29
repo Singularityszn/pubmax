@@ -300,3 +300,26 @@ It stores no pasted text or creator descriptions.
 The service role writes after the API checks the account and resolves the pub IDs again.
 Account deletion cascades to these drafts. The account export includes the owner's drafts.
 Migration 0195 and its rollback leave existing plans and pub records unchanged.
+
+## Hosted outings
+
+All hosted tables and actor-taking RPCs are service-only.
+The central matrix checks browser reads, writes and RPC execution for every account role.
+`hostedOutingsRoutes.test.ts` checks the adult and account API gates.
+`hostedOutingsMigrationEffective.test.ts` checks the durable workflow and concurrent capacity approval.
+
+| Resource | Anonymous or guest capability | Other adult account | Attendee | Active assigned operator | Active named moderator |
+| --- | --- | --- | --- | --- | --- |
+| Open outing metadata through API | Refused | Listed details only | Listed details and own attendance | Own draft and outing details | Assigned draft and outing details |
+| Enrollment choices and waiting list | Refused | None | Own choices only | Own outing candidates | No candidate list unless also operator |
+| Group approval or outing cancellation | Refused | Refused | Refused | Allowed with current revision | Refused unless also operator |
+| Attendance confirmation or cancellation | Refused | Refused | Own place only | Own place only | Own place only |
+| Host message | Refused | None | Approved or confirmed attendees | Own outing | Assigned outing |
+| Outing report | Refused | None | Own report | None unless also named moderator | Assigned outing reports |
+| Confirmed group handles | Refused | None | Confirmed unblocked peers only | Same rule | Same rule |
+| Hosted tables or RPCs through browser database roles | Refused | Refused | Refused | Refused | Refused |
+
+The API uses the existing Social adult gate.
+It never trusts an account or profile ID from a signup body.
+Approval and confirmation recheck bidirectional blocks.
+Public enrollment remains disabled until the venue and named moderation owner are confirmed.

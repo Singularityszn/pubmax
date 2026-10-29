@@ -921,6 +921,7 @@ const STORE_EXPORT_COVERAGE: Record<string, ExportCoverage> = {
   "lib/venuePhotoStore.ts": { lane: "wallPhotos" },
   "lib/venueSubmissionStore.ts": { lane: "venueSubmissions" },
   "lib/pubListImportDraftStore.server.ts": { lane: "pubListNightDrafts" },
+  "lib/hostedOutingStore.server.ts": { lane: "hostedOutings" },
   "lib/visitReportsStore.ts": { lane: "visitReports" },
   "lib/walkRouteStore.ts": { excluded: "Cached walking routes between two points, shared by every reader who asks for them." },
   "lib/wantedStore.ts": { lane: "wanted" },
@@ -1148,4 +1149,12 @@ describe("buildAccountExport reads every handle the account has held (LIB-S5)", 
     );
     expect([...unavailableExportLanes(document)].sort()).toEqual(["messages", "visitReports"]);
   });
+});
+
+it("exports the caller's hosted attendance and refuses an unavailable hosted lane", async () => {
+  const record = { kind: "attendance" as const, record: { outing_id: "hosted-outing", state: "waiting", pace: "easy", budget_pence: 2000 } };
+  const ready = await buildAccountExport(USER, fakeDeps({ hostedOutings: async (userId) => userId === USER ? [record] : [] }), NOW);
+  expect(ready.hostedOutings.items).toEqual([record]);
+  const unavailable = await buildAccountExport(USER, fakeDeps({ hostedOutings: async () => { throw new Error("storage unavailable"); } }), NOW);
+  expect(unavailableExportLanes(unavailable)).toEqual(["hostedOutings"]);
 });

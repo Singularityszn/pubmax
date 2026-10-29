@@ -27,6 +27,7 @@
 
 import type { PubListNightDraft } from "@/lib/pubListImport";
 
+import type { HostedOutingExportRecord } from "@/lib/hostedOutingStore.server";
 import type { DrinkCategory } from "@/lib/drinks";
 import type { OccupancyLevel } from "@/lib/occupancy";
 import type { ConversationKind } from "@/lib/messageGroupThread";
@@ -52,7 +53,7 @@ export const ACCOUNT_EXPORT_TITLE = "Download your data";
 
 /** One line under the heading. */
 export const ACCOUNT_EXPORT_LEDE =
-  "A JSON file of everything this account holds: your profile and private details, your Memories and Moments, your prices, Pint Drops, visit reports, crowd reports, posts and photos, your saved pubs and the messages you sent.";
+  "A JSON file of everything this account holds: your profile and private details, your Memories and Moments, your prices, Pint Drops, visit reports, crowd reports, posts and photos, your saved pubs, hosted outing records and the messages you sent.";
 
 /** The control that prepares the file. */
 export const ACCOUNT_EXPORT_LABEL = "Download JSON";
@@ -295,6 +296,7 @@ export type AccountExport = {
   /** Pubs the account added, with their prices and what each menu file was. */
   venueSubmissions: AccountExportLane<AccountExportVenueSubmission>;
   pubListNightDrafts: AccountExportLane<PubListNightDraft>;
+  hostedOutings: AccountExportLane<HostedOutingExportRecord>;
   socialLinks: AccountExportLane<PublicSocialConnection>;
   /** At most one row, the same way `identity` is. */
   nightProfile: AccountExportLane<NightProfile>;
@@ -321,6 +323,7 @@ export const ACCOUNT_EXPORT_LANES = [
   "pubRankings",
   "venueSubmissions",
   "pubListNightDrafts",
+  "hostedOutings",
   "socialLinks",
   "nightProfile",
   "messages",
