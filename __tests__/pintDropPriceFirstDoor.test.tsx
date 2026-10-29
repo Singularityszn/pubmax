@@ -46,8 +46,12 @@ vi.mock("@/components/map/composer/useActiveRound", () => ({
 }));
 
 import PintDropComposer from "@/components/map/PintDropComposer";
+import VenuePintsTab from "@/components/map/inspector/VenuePintsTab";
 import { SPILL_EXTRAS_TOGGLE_LABEL, SPILL_LOG_ACTION_LABEL } from "@/lib/spill";
 import type { PintDropsState } from "@/components/map/usePintDrops";
+
+vi.mock("@/components/map/VenuePriceStory", () => ({ default: () => null }));
+vi.mock("@/components/map/inspector/PintDropsList", () => ({ default: () => null }));
 
 const VENUE_ID = "venue-test1";
 
@@ -59,6 +63,7 @@ type StateOverrides = {
   identityReady?: boolean;
   dropForm?: Partial<{ price: string; drink: string; note: string; era: string; withWho: string }>;
   vibeTags?: string[];
+  dropMsg?: PintDropsState["dropMsg"];
 };
 
 function makeState(overrides: StateOverrides = {}): PintDropsState {
@@ -91,7 +96,7 @@ function makeState(overrides: StateOverrides = {}): PintDropsState {
     removePhoto: () => {},
     resetComposer: () => {},
     submitting: false,
-    dropMsg: null,
+    dropMsg: overrides.dropMsg ?? null,
     submitDrop: async () => {},
     venueSignals: new Map(),
   } as unknown as PintDropsState;
@@ -101,6 +106,7 @@ let container: HTMLDivElement;
 let root: Root | null = null;
 
 beforeEach(() => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   container = document.createElement("div");
   document.body.appendChild(container);
 });
@@ -111,6 +117,7 @@ afterEach(() => {
   });
   root = null;
   container.remove();
+  vi.unstubAllGlobals();
 });
 
 async function render(state: PintDropsState): Promise<void> {
@@ -135,6 +142,34 @@ function extrasToggle(): HTMLButtonElement {
 }
 
 describe("price-first Pint Drop door", () => {
+  it("keeps the age-confirmation link visible after the composer closes", async () => {
+    const state = makeState({
+      dropMsg: {
+        ok: false, text: "Confirm you are 18 or over before contributing.",
+        links: [{ href: "/social", label: "Confirm your age" }],
+      },
+    });
+    await act(async () => {
+      root = createRoot(container);
+      root.render(createElement(VenuePintsTab, {
+        venue: { id: VENUE_ID, name: "The Test Arms" } as never,
+        tab: "pints", pintDrops: state, drops: [], lastTrainDecision: null,
+      }));
+    });
+    expect(container.querySelector('[role="alert"] a[href="/social"]')?.textContent).toBe("Confirm your age");
+  });
+  it("shows the age-confirmation link beside an adult-check refusal", async () => {
+    await render(makeState({
+      dropMsg: {
+        ok: false,
+        text: "Confirm you are 18 or over before contributing.",
+        links: [{ href: "/social", label: "Confirm your age" }],
+      },
+    }));
+    const alert = container.querySelector('[role="alert"]');
+    expect(alert?.textContent).toContain("Confirm you are 18 or over");
+    expect(alert?.querySelector('a[href="/social"]')?.textContent).toBe("Confirm your age");
+  });
   it("opens on the price step, with the photo and story behind the disclosure", async () => {
     await render(makeState());
 

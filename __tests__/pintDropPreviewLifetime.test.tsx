@@ -65,6 +65,29 @@ afterEach(async () => {
 });
 
 describe("Pint Drop preview URL lifetime", () => {
+  it.each(["adult_check_required", "adult_check_failed"])(
+    "offers age confirmation only when the server answers %s", async (status) => {
+      io.post.mockResolvedValue({
+        ok: false,
+        json: async () => ({ status, error: "The account age check refused this price." }),
+      });
+      await act(async () => {
+        drops.pickPhoto("receipt", photo("bill.jpg"), null);
+        drops.setDropForm((form) => ({ ...form, price: "5.50", drink: "Pale ale" }));
+      });
+      await act(async () => {
+        await drops.submitDrop({ preventDefault() {} } as never, "venue-1");
+      });
+      expect(drops.dropMsg?.ok).toBe(false);
+      expect(drops.dropMsg?.text).toBe("The account age check refused this price.");
+      if (status === "adult_check_required") {
+        expect(drops.dropMsg?.links).toEqual([{ href: "/social", label: "Confirm your age" }]);
+      } else {
+        expect(drops.dropMsg?.links).toBeUndefined();
+      }
+    },
+  );
+
   it("changing the receipt slot revokes only the receipt it replaced", async () => {
     await act(async () => { drops.pickPhoto("pint", photo("pint.jpg"), null); });
     await act(async () => { drops.pickPhoto("receipt", photo("bill.jpg"), null); });

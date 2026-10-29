@@ -97,6 +97,12 @@ export type DropMsg = {
   links?: Array<{ href: Route; label: string }>;
 };
 
+function pintDropRefusalLinks(body: { status?: unknown } | null): DropMsg["links"] {
+  return body?.status === "adult_check_required"
+    ? [{ href: "/social", label: "Confirm your age" }]
+    : undefined;
+}
+
 // ONE NUMBER ON BOTH SIDES OF THE WIRE, and ONE PLACE THAT ASKS. This gate
 // said 5 MB while the platform refuses any body over 4.5 MB with a plain-text
 // 413 before a handler runs, so a 4.5 MB phone photo passed the check the
@@ -701,7 +707,7 @@ export function usePintDrops(
       links: [{ href: "/social", label: "Open Social" }],
     });
 
-    const markFailed = (message: string) => {
+    const markFailed = (message: string, links?: DropMsg["links"]) => {
       if (publishToFeed) {
         updateOptimisticFeedStorage((current) => failOptimisticSpill(current, clientRequestId, message));
       }
@@ -726,7 +732,7 @@ export function usePintDrops(
         );
         return next;
       });
-      setDropMsg({ ok: false, text: message });
+      setDropMsg({ ok: false, text: message, links });
     };
 
     try {
@@ -761,7 +767,10 @@ export function usePintDrops(
       const response = await authedActionFetch("/api/pint-drops", { method: "POST", body }, { requiresIdentity: true });
       const data = await response.json().catch(() => null);
       if (!response.ok) {
-        markFailed(errorMessageFrom(data, "Could not save that drop."));
+        markFailed(
+          errorMessageFrom(data, "Could not save that drop."),
+          pintDropRefusalLinks(data),
+        );
         return;
       }
       trackEvent("night_moment_saved", { kind: "pint_drop", visibility: submittedVisibility });

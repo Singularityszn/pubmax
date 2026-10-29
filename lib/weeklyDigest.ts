@@ -444,6 +444,7 @@ ${empty}${rows.join("\n")}
   <p style="margin:0;font-size:12px;color:${BRAND.muted};line-height:1.5;">
     You're getting this because you asked us to keep you posted. We link the source beside a price or event when we have one.
     <br><a href="{{unsubscribe_url}}" style="color:${BRAND.muted};text-decoration:underline;">Unsubscribe</a> any time.
+    <br>{{postal_address}}
   </p>
 </td></tr>
 </table>
@@ -510,6 +511,7 @@ export function renderWeeklyDigestText(digest: WeeklyDigest): string {
     "You're getting this because you asked us to keep you posted. We link the source beside a price or event when we have one.",
   );
   lines.push("Unsubscribe: {{unsubscribe_url}}");
+  lines.push("{{postal_address}}");
   return lines.join("\n");
 }
 
@@ -535,13 +537,12 @@ export function assertNoResidualPlaceholders(rendered: string, part: "html" | "t
 
 /**
  * Build the provider-ready message for a generated digest. `unsubscribeUrl` is
- * REQUIRED (P2-c): it is substituted per-recipient into both parts, HTML-escaped
- * in the HTML context and raw in the text context, and the result is asserted to
- * carry no residual `{{…}}` placeholder before the message is returned.
+ * required and substituted per recipient. The caller also supplies the sender's
+ * real postal address. Both parts must contain both values and no placeholders.
  */
 export function toEmailMessage(
   digest: WeeklyDigest,
-  options: { unsubscribeUrl: string },
+  options: { unsubscribeUrl: string; postalAddress: string },
 ): {
   to: string;
   subject: string;
@@ -554,8 +555,16 @@ export function toEmailMessage(
       "toEmailMessage: unsubscribeUrl is required and must be an absolute http(s) URL.",
     );
   }
-  const html = renderWeeklyDigestHtml(digest).split(UNSUBSCRIBE_PLACEHOLDER).join(esc(unsubscribeUrl));
-  const text = renderWeeklyDigestText(digest).split(UNSUBSCRIBE_PLACEHOLDER).join(unsubscribeUrl);
+  const postalAddress = options.postalAddress?.trim();
+  if (!postalAddress) {
+    throw new Error("toEmailMessage: postalAddress is required before sending marketing email.");
+  }
+  const html = renderWeeklyDigestHtml(digest)
+    .split(UNSUBSCRIBE_PLACEHOLDER).join(esc(unsubscribeUrl))
+    .split("{{postal_address}}").join(esc(postalAddress).replace(/\r?\n/g, "<br>"));
+  const text = renderWeeklyDigestText(digest)
+    .split(UNSUBSCRIBE_PLACEHOLDER).join(unsubscribeUrl)
+    .split("{{postal_address}}").join(postalAddress);
   assertNoResidualPlaceholders(html, "html");
   assertNoResidualPlaceholders(text, "text");
   return { to: digest.email, subject: digest.subject, html, text };
