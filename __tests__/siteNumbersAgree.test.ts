@@ -1,12 +1,13 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
 import { HISTORIC_PUB_COUNT } from "@/components/landing/londonMapGeometry";
 import { metadata as homeMetadata } from "@/app/page";
-import { loadAboutStats } from "@/lib/aboutStats";
+import { promises as fs } from "node:fs";
+import { loadAboutStats, resetAboutStatsForTests } from "@/lib/aboutStats";
 import { HOME_CARD_SUPPORT } from "@/lib/homeOgCard";
-import { landingPriceReadLine, loadLandingHeroData } from "@/lib/landingPubCard.server";
+import { landingPriceReadLine, loadLandingHeroData, resetLandingHeroDataForTests } from "@/lib/landingPubCard.server";
 
 // Site review, 18 Oct 2026: "The numbers disagree with each other. Homepage:
 // average listed pint £5.54 across 950 London pubs. About page: average £5.72."
@@ -56,5 +57,53 @@ describe("the homepage dates the prices behind its average", () => {
       "The average above comes from prices read on 2 October 2026. 1 of its 2 pubs records no read day.",
     );
     expect(landingPriceReadLine([undated] as never)).toBeNull();
+  });
+});
+
+
+describe("public loaders share one price snapshot", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    resetAboutStatsForTests();
+    resetLandingHeroDataForTests();
+  });
+
+  it("keeps the same cohort when the price file changes between page reads", async () => {
+    resetAboutStatsForTests();
+    resetLandingHeroDataForTests();
+    const rows = Array.from({ length: 30 }, (_, index) => ({
+      pub_name: `Snapshot Arms ${index}`,
+      address: `${index} Test Street`,
+      latitude: 51.5,
+      longitude: -0.1,
+      primary_borough: "Camden",
+      price_gbp: index < 15 ? 4 : 6,
+      price_superseded: undefined as unknown,
+      scraped_at_values: index === 0 ? undefined : "2026-10-02",
+    }));
+    rows.push(
+      { ...rows[1], price_gbp: 9 },
+      { ...rows[2], price_gbp: 0 },
+      { ...rows[3], price_gbp: 2, price_superseded: { reason: "operator_change" } },
+    );
+    const originalRead = fs.readFile.bind(fs);
+    let priceReads = 0;
+    vi.spyOn(fs, "readFile").mockImplementation((...args: Parameters<typeof fs.readFile>) => {
+      if (String(args[0]).endsWith("pint_prices_app_dataset.json")) {
+        priceReads += 1;
+        return Promise.resolve(JSON.stringify(priceReads === 1 ? rows : rows.slice(0, 15))) as ReturnType<typeof fs.readFile>;
+      }
+      return originalRead(...args);
+    });
+
+    const stats = await loadAboutStats();
+    const hero = await loadLandingHeroData();
+    expect(stats.pubsTracked).toBe(30);
+    expect(stats.pintPricesObserved).toBe(31);
+    expect(stats.cheapestPint).toBe(4);
+    expect(stats.dearestPint).toBe(9);
+    expect(stats.averagePint).toBe(5);
+    expect(hero.averages).toEqual({ averageGbp: 5, cheapAverageGbp: 4, sampleSize: 30 });
+    expect(hero.priceReadLine).toContain("1 of its 30 pubs records no read day.");
   });
 });

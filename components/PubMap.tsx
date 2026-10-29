@@ -1,5 +1,8 @@
 "use client";
 
+import { useMapDiscoveryFilters } from "@/lib/useMapDiscoveryFilters";
+import { WIDENED_RADIUS_KM } from "@/lib/nearMeAnswer";
+
 import VenueFeatureFilters from "@/components/map/VenueFeatureFilters";
 import { mapDrinkCoverage } from "@/lib/drinkCoverage";
 
@@ -478,6 +481,7 @@ import { warmVenueDetail } from "@/lib/warmVenueDetail";
 import { FIRST_PINS_SEEN_KEY, markPubmaxTiming } from "@/lib/performanceMarks";
 import {
   createMapResumeWriter,
+  clearMapResumeCamera,
   isCurrentMapResumeRefresh,
   isPersistableMapResumeViewport,
   type MapResumeLiveLoadStatus,
@@ -487,10 +491,11 @@ import {
 } from "@/lib/mapResume";
 import {
   readOpeningMapLocation,
-  readMapOpeningLocation,
+  retireMapOpeningLocation,
   resolveMapOpeningView,
-  writeMapOpeningLocation,
 } from "@/lib/mapOpeningLocation";
+import { mapLocationWasExposed } from "@/lib/mapLocationExposure";
+import { createMapCameraOwnership } from "@/lib/mapCameraProvenance";
 import type { MapOpeningLocation } from "@/lib/mapOpeningLocation";
 import { latchMapReaderLocationWatch } from "@/lib/mapReaderPosition";
 import { useMapReaderPosition } from "@/components/map/useMapReaderPosition";
@@ -610,6 +615,7 @@ import { venueSheetLabels } from "@/lib/venueSheetLabels";
 import {
   MAP_SHEET_TITLES,
   readMobileMapSession,
+  clearMobileMapSessionCamera,
   MOBILE_SHEET_DISMISS_EVENT,
   withCityCameraAttitude,
   writeMobileMapSession,
@@ -721,6 +727,7 @@ import VenuePeekPlanDoor from "@/components/map/inspector/VenuePeekPlanDoor";
 // never rides in the eager map chunk (perf budget, PR #306) — it only mounts
 // when the Near-me sheet opens, and answers from the already-loaded venues.
 const NearMeNow = dynamic(() => import("@/components/nearme/NearMeNow"), { ssr: false });
+const MapNearbyDiscovery = dynamic(() => import("@/components/map/MapNearbyDiscovery"), { ssr: false });
 
 // Mobile venue-detail bottom sheet: the drag gesture + snap→px math live in
 // useSheetDrag (components/map/useSheetDrag.ts). PubMap only owns WHICH snap is
@@ -1267,15 +1274,13 @@ export default function PubMap({
     ukPlacesPromiseRef.current = pending;
     return pending;
   }, []);
+  useEffect(() => { retireMapOpeningLocation(); }, []);
   const { search: arrivalSearch, frame: arrival, area: namedAreaArrival } = useMapOpeningArrival({
     placeArrival: ukPlaceArrival,
     nationalBrowse: ukNationalBrowse,
     cityId,
     cityDisplayName: city.displayName,
   });
-  const [lastKnownLocation] = useState(() =>
-    arrivalSearch ? null : readMapOpeningLocation(),
-  );
   const namedAreaViewport = useMemo(
     () => mapAreaOpeningView(namedAreaArrival, city.mapView),
     [city.mapView, namedAreaArrival],
@@ -1292,16 +1297,7 @@ export default function PubMap({
       };
     }
     if (mapOpeningNeedsResolution) return { ...city.mapView, bearing: 0 };
-    const location =
-      lastKnownLocation &&
-        pointInCityBounds(lastKnownLocation.lat, lastKnownLocation.lng, city)
-        ? lastKnownLocation
-        : null;
-    return resolveMapOpeningView(
-      city.mapView,
-      location,
-      LOCATION_FIRST_ZOOM,
-    );
+    return city.mapView;
   });
   const mobileViewport = useSyncExternalStore(
     subscribeMobileViewport,
@@ -1389,9 +1385,23 @@ export default function PubMap({
   );
   const shouldResolveOpeningLocation = shouldResolveOpeningLocationFor({
     needsOpeningResolution: arrival.needsOpeningResolution,
-    mapResumeSeed,
+    mapResumeSeed: mapResumeSeed?.viewport ? mapResumeSeed : null,
     restoredMobileSession,
   });
+  const [cameraOwnership] = useState(() => {
+    const ownership = createMapCameraOwnership(mapResumeSeed?.viewport ? mapResumeSeed : restoredMobileSession);
+    if (mapLocationWasExposed()) ownership.exposeLocation();
+    return ownership;
+  });
+  useEffect(() => {
+    cameraOwnership.attach();
+    return () => cameraOwnership.detach();
+  }, [cameraOwnership]);
+  const invalidatePrivateCamera = useCallback(() => {
+    cameraOwnership.exposeLocation();
+    clearMobileMapSessionCamera();
+    clearMapResumeCamera(cityId);
+  }, [cameraOwnership, cityId]);
   const [grantedOpeningLocation, setGrantedOpeningLocation] =
     useState<MapOpeningLocation | null>(null);
   const [openingLocationPromptActive, setOpeningLocationPromptActive] = useState(false);
@@ -1420,10 +1430,12 @@ export default function PubMap({
     // lib/mapFirstVisitArrival.ts; this fires on a GESTURE only, never on a
     // camera move the app made for them (PubMapCanvas emitUserCameraMove).
     dismissMapFirstVisitArrivalOnMapUse();
+    cameraOwnership.invalidate();
     claimMapCamera();
-  }, [claimMapCamera]);
+  }, [cameraOwnership, claimMapCamera]);
   useEffect(() => {
     if (!shouldResolveOpeningLocation) return;
+    invalidatePrivateCamera();
     let cancelled = false;
     void readOpeningMapLocation(undefined, {
       onPermissionPrompt: () => {
@@ -1436,9 +1448,9 @@ export default function PubMap({
         !openingLocationCancelledRef.current &&
         pointInCityBounds(location.lat, location.lng, city)
       ) {
+        invalidatePrivateCamera();
         setGrantedOpeningLocation(location);
         latchMapReaderLocationWatch();
-        writeMapOpeningLocation(location);
       }
       setOpeningLocationPromptActive(false);
       setOpeningLocationResolved(true);
@@ -1446,7 +1458,7 @@ export default function PubMap({
     return () => {
       cancelled = true;
     };
-  }, [city, shouldResolveOpeningLocation]);
+  }, [city, invalidatePrivateCamera, shouldResolveOpeningLocation]);
   // Everything this arrival already knows, read once. Every field below is a
   // lazy `useState` initialiser: taken on mount and ignored on every later
   // render, so one memoised read is the same answer seven separate optional
@@ -1581,17 +1593,8 @@ export default function PubMap({
     useState<MapViewportSnapshot | null>(restoredSession.resumeViewport);
   const openingViewport = openingViewportFrom(mapResumeViewport, restoredMobileSession, namedAreaViewport);
   const fallbackOpeningMapView = useMemo(() => {
-    const location =
-      lastKnownLocation &&
-        pointInCityBounds(lastKnownLocation.lat, lastKnownLocation.lng, city)
-        ? lastKnownLocation
-        : null;
-    return resolveMapOpeningView(
-      city.mapView,
-      location,
-      LOCATION_FIRST_ZOOM,
-    );
-  }, [city, lastKnownLocation]);
+    return city.mapView;
+  }, [city]);
   const locationFirstMapView = useMemo(() => {
     if (!mapOpeningNeedsResolution) return initialMapView;
     const view = !openingLocationResolved
@@ -1678,7 +1681,7 @@ export default function PubMap({
   const preSheetFocusRef = useRef<HTMLElement | null>(null);
   const [venueInitialTab, setVenueInitialTab] = useState<VenueTabRequest>("overview");
   const [gettingHomeRequestId, setGettingHomeRequestId] = useState(0);
-  const [filters, setFilters] = useState<Filters>(restoredSession.filters);
+  const [filters, setFilters, currentFilterKeys] = useMapDiscoveryFilters(restoredSession.filters);
   // First-party Wetherspoon directory for Open now hours. Loaded once; match is
   // name+distance only and never invents hours for unmatched pubs.
   const [wetherspoonsDirectoryPubs, setWetherspoonsDirectoryPubs] = useState<
@@ -1864,7 +1867,7 @@ export default function PubMap({
   const [nearbyLoading, setNearbyLoading] = useState(false);
   const [nearbyError, setNearbyError] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
-  const readerPosition = useMapReaderPosition();
+  const readerPosition = useMapReaderPosition(invalidatePrivateCamera);
   // Purpose-limited copy used only after the viewer explicitly asks for travel
   // times. A location granted for "Pubs near me" must not silently become a
   // precise journey request for every venue they inspect.
@@ -2746,16 +2749,19 @@ export default function PubMap({
           });
       };
 
+      const cameraReadIsCurrent = cameraOwnership.checkpoint();
       if (mapResumeSeed) {
         void readMapResume(cityId).then((snapshot) => {
           if (
             !isCurrentLoader() ||
             !snapshot ||
+            !cameraReadIsCurrent() ||
             mapCameraTouchedRef.current ||
             snapshot.savedAt <= mapResumeSeed.savedAt ||
             liveShardRowsCommittedRef.current
           ) return;
           const refreshVersion = ++resumeRefreshVersion;
+          if (!snapshot.viewport) return;
           setMapResumeViewport(snapshot.viewport);
           setMapResumeUpdating(true);
           const resumeBounds = boundsForOpeningView(snapshot.viewport);
@@ -2788,6 +2794,7 @@ export default function PubMap({
             if (
               !isCurrentLoader() ||
               !snapshot ||
+              !cameraReadIsCurrent() ||
               mapCameraTouchedRef.current ||
               liveShardRowsCommittedRef.current
             ) return;
@@ -2796,6 +2803,7 @@ export default function PubMap({
             setLoaded(true);
             markPubmaxTiming("pubmax:first-pins");
             markPubmaxTiming("pubmax:slim-venues-ready");
+            if (!snapshot.viewport) { setMapResumeUpdating(false); return; }
             setMapResumeViewport(snapshot.viewport);
             const refreshVersion = ++resumeRefreshVersion;
             setMapResumeUpdating(true);
@@ -2835,7 +2843,7 @@ export default function PubMap({
       ringLoadPendingKeyRef.current = null;
       targetViewportLoadStartedRef.current = false;
     };
-  }, [arrivalSearch, city.mapView, cityId, deferInitialSpatialLoad, initialShardReady, initialShardViewport, mapResumeSeed, mergeSlimVenues, readInitialShardStart, refreshCountCoverage, scheduleRingLoad, ukNationalBrowse, ukPlaceArrival, venueIndexAttempt]);
+  }, [arrivalSearch, cameraOwnership, city.mapView, cityId, deferInitialSpatialLoad, initialShardReady, initialShardViewport, mapResumeSeed, mergeSlimVenues, readInitialShardStart, refreshCountCoverage, scheduleRingLoad, ukNationalBrowse, ukPlaceArrival, venueIndexAttempt]);
 
   // Lazy outer shards: whenever the map settles on a viewport, load the shards
   // it intersects and merge their pins. Already-loaded shards are skipped by
@@ -3152,6 +3160,12 @@ export default function PubMap({
   const filteredPubVenues = useMemo(
     () => filteredVenues.filter(isPubVenue),
     [filteredVenues],
+  );
+  // Nearby ranking applies the current constraints against its exact drink price.
+  // Do not discard hydrated pubs through legacy drink flags before that check.
+  const nearbyDiscoveryVenues = useMemo(
+    () => savedOnly ? pubVenues.filter((venue) => savedIds.has(venue.id)) : pubVenues,
+    [pubVenues, savedOnly, savedIds],
   );
 
   const pinVenues = useMapPinVenues({
@@ -3945,7 +3959,7 @@ export default function PubMap({
       setNearbyLoading(false);
       setPendingNearMeRequest(null);
     };
-    void loader.nearPoint(location.lat, location.lng)
+    void loader.nearPoint(location.lat, location.lng, request?.kind === "map" ? WIDENED_RADIUS_KM : undefined)
       .then((result) => {
         if (
           cancelled ||
@@ -4668,6 +4682,7 @@ export default function PubMap({
       return;
     }
 
+    invalidatePrivateCamera();
     setLocationRequestStatus("requesting");
     navigator.geolocation.getCurrentPosition(
       (position) => {
@@ -4676,10 +4691,6 @@ export default function PubMap({
           lng: position.coords.longitude,
         });
         latchMapReaderLocationWatch();
-        writeMapOpeningLocation({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        });
         setLocationRequestStatus("idle");
       },
       () => {
@@ -4687,7 +4698,7 @@ export default function PubMap({
       },
       { enableHighAccuracy: false, timeout: 5000, maximumAge: 60_000 },
     );
-  }, []);
+  }, [invalidatePrivateCamera]);
 
   const clearVenueLocation = useCallback(() => {
     setVenueJourneyLocation(null);
@@ -4700,13 +4711,14 @@ export default function PubMap({
       setNearbyError(nearMeLocationMessage("unsupported"));
       return;
     }
+    invalidatePrivateCamera();
     setNearbyLoading(true);
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const location = { lat: position.coords.latitude, lng: position.coords.longitude };
         setUserLocation(location);
         latchMapReaderLocationWatch();
-        writeMapOpeningLocation(location);
+        invalidatePrivateCamera();
         setPendingNearMeRequest({
           kind: "crawl",
           location,
@@ -4721,6 +4733,7 @@ export default function PubMap({
     );
   }, [
     filters.stopCount,
+    invalidatePrivateCamera,
     setNearbyLoading,
     setPendingNearMeRequest,
     setUserLocation,
@@ -4757,6 +4770,7 @@ export default function PubMap({
         refuse(nearMeLocationMessage("unsupported"));
         return;
       }
+      invalidatePrivateCamera();
       setNearbyLoading(true);
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -4766,7 +4780,7 @@ export default function PubMap({
           };
           setUserLocation(location);
           latchMapReaderLocationWatch();
-          writeMapOpeningLocation(location);
+          invalidatePrivateCamera();
           setPendingNearMeRequest({ kind: "map", location, mode });
           // A mode marker, never a point: lib/mapChosenArea.ts owns that rule.
           writeMapChosenArea({
@@ -4783,7 +4797,7 @@ export default function PubMap({
         NEAR_ME_LOCATION_OPTIONS,
       );
     },
-    [cityId, setPendingNearMeRequest],
+    [cityId, invalidatePrivateCamera, setPendingNearMeRequest],
   );
 
   const showNearbyMap = useCallback(() => runNearMe("tap"), [runNearMe]);
@@ -4874,7 +4888,9 @@ export default function PubMap({
    * it lists that area's pubs, so the two disagree about the same place.
    */
   const moveMapCameraTo = useCallback(
-    (camera: { center: [number, number]; zoom: number }) => {
+    (camera: { center: [number, number]; zoom: number }, persist = true) => {
+      if (persist) cameraOwnership.beginPublicPlace(camera.center);
+      else cameraOwnership.invalidate();
       setNearbyMapResult(null);
       // A deliberate move is the reader taking the camera, exactly as a
       // gesture is (dismissAmbientBanners claims it the same way). claimMapCamera
@@ -4889,12 +4905,12 @@ export default function PubMap({
       claimMapCamera();
       setAreaFocus((prev) => nextAreaCameraFocus(prev, camera));
     },
-    [claimMapCamera],
+    [cameraOwnership, claimMapCamera],
   );
   const flyToArea = useCallback(
-    (option: AreaElsewhereOption) =>
+    (option: AreaElsewhereOption, persist = true) =>
       // Localities carry a slightly deeper zoom; areas/boroughs keep the default.
-      moveMapCameraTo({ center: option.center, zoom: option.zoom ?? 14 }),
+      moveMapCameraTo({ center: option.center, zoom: option.zoom ?? 14 }, persist),
     [moveMapCameraTo],
   );
 
@@ -4911,7 +4927,7 @@ export default function PubMap({
     const { maxPrice, center } = desktopHandoffMoves(held);
     queueMicrotask(() => {
       if (maxPrice !== null) setFilters((current) => ({ ...current, maxPrice }));
-      if (center) moveMapCameraTo({ center, zoom: 14 });
+      if (center) moveMapCameraTo({ center, zoom: 14 }, false);
     });
   }, [isLondon, loaded, mobileViewport, moveMapCameraTo]);
 
@@ -5268,7 +5284,7 @@ export default function PubMap({
         coverage: null,
         kind: camera.kind,
         zoom: camera.zoom,
-      });
+      }, false);
     });
   }, [
     cityId,
@@ -5626,8 +5642,10 @@ export default function PubMap({
     // persisting its viewport under cityId reopened the town under full London
     // chrome, with no arrival banner, on the next clean /map visit.
     if (ukPlaceArrival) return;
+    const camera = cameraOwnership.capture(mapViewport);
     writeMobileMapSession({
-      viewport: mapViewport,
+      viewport: camera ? mapViewport : null,
+      cameraProvenance: camera?.provenance ?? null,
       filters,
       cityId,
       nightArea: activeNightAreaSlug,
@@ -5641,7 +5659,7 @@ export default function PubMap({
             ? mapOverlay
             : null,
     });
-  }, [activeNightAreaSlug, cityId, detailOpen, filters, mapOverlay, mapViewport, planningOpen, poiHidden, selectedVenueId, ukPlaceArrival]);
+  }, [activeNightAreaSlug, cameraOwnership, cityId, detailOpen, filters, mapOverlay, mapViewport, planningOpen, poiHidden, selectedVenueId, ukPlaceArrival]);
 
   const [writeMapResume] = useState(() => createMapResumeWriter());
   useEffect(() => {
@@ -5657,8 +5675,9 @@ export default function PubMap({
     ) return;
     // The snapshot is a speed layer for the next visit, so it waits for idle
     // time instead of landing beside the next tap's frame.
-    return scheduleMapResumeWrite(() => writeMapResume(cityId, mapViewport, slimPins));
-  }, [cityId, mapBounds, mapOpeningNeedsResolution, mapViewport, openingLocationResolved, slimPins, ukPlaceArrival, venueIndexFailed, writeMapResume]);
+    const camera = cameraOwnership.capture(mapViewport);
+    return scheduleMapResumeWrite(() => writeMapResume(cityId, mapViewport, slimPins, Date.now(), camera));
+  }, [cameraOwnership, cityId, mapBounds, mapOpeningNeedsResolution, mapViewport, openingLocationResolved, slimPins, ukPlaceArrival, venueIndexFailed, writeMapResume]);
 
   // #215 a11y — the sheet's close button is the natural first stop for a
   // keyboard/AT user landing in a freshly-opened panel; on close (button,
@@ -6589,7 +6608,30 @@ export default function PubMap({
           />
         }
         nearMeContent={
-          mapOverlay === "near-me" ? (
+          mapOverlay === "near-me" && userLocation ? (
+            <MapNearbyDiscovery
+              cityId={cityId}
+              titledByHost
+              venues={nearbyDiscoveryVenues}
+              filters={experienceLens === "no-alcohol"
+                ? { ...filtersForExperienceLens(filters, experienceLens), requireNonAlcoholic: true }
+                : filters}
+              currentFilterKeys={currentFilterKeys}
+              location={userLocation}
+              lensPrices={activeLensPrices}
+              favoritePint={experienceLens === "all" && !mapDrinkLensCategory ? favoritePint : null}
+              onSelectVenue={selectVenue}
+              onApplyFilters={(next) => {
+                changeExperienceLens(next.requireNonAlcoholic && !next.drinkCategory ? "no-alcohol" : "all");
+                if ((next.drinkCategory && next.drinkCategory !== DEFAULT_DRINK_LANE) || next.requireNonAlcoholic || !next.drinkBrand) {
+                  changeFavoritePint(null);
+                }
+                setFilters(next);
+              }}
+              hasPintDrops={(id) => Boolean(venueSignals.get(id)?.hasPintDrops)}
+              openNowState={(id) => openNowStateById?.get(id) ?? "unknown"}
+            />
+          ) : mapOverlay === "near-me" ? (
             <NearMeNow
               cityId={cityId}
               onSelectVenue={selectVenue}
@@ -6957,7 +6999,10 @@ export default function PubMap({
           touched: mapCameraTouched,
           focus: openingLocationFocus,
         })}
-        onViewportChange={setMapViewport}
+        onViewportChange={(viewport) => {
+          cameraOwnership.settle(viewport);
+          setMapViewport(viewport);
+        }}
         onReaderTouchedMap={dismissMapFirstVisitArrivalOnMapUse}
         onUserCameraMove={dismissAmbientBanners}
         onBoundsChange={handleMapBoundsChange}
@@ -7044,6 +7089,7 @@ export default function PubMap({
         <CitySuggestBanner
           cityId={cityId}
           onLocationFound={(location) => {
+            invalidatePrivateCamera();
             setUserLocation(location);
             latchMapReaderLocationWatch();
           }}

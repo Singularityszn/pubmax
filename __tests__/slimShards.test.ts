@@ -448,6 +448,22 @@ describe("createSlimShardLoader (London)", () => {
     expect(result.status).toBe("unavailable");
   });
 
+  it("loads the wider recommendation radius before reporting it ready", async () => {
+    const loader = createSlimShardLoader("london");
+    const local = await loader.nearPoint(51.6, -0.08);
+    expect(local.rows.map((row) => row.id)).not.toContain("e1");
+    const wider = await loader.nearPoint(51.6, -0.08, 2.5);
+    expect(wider.status).toBe("ready");
+    expect(wider.rows.map((row) => row.id)).toContain("e1");
+  });
+
+  it("does not claim wider coverage when an outer radius shard fails", async () => {
+    installFetch({ "/data/venues_slim.enfield.json": "fail" });
+    const loader = createSlimShardLoader("london");
+    expect((await loader.nearPoint(51.6, -0.08)).status).toBe("ready");
+    expect((await loader.nearPoint(51.6, -0.08, 2.5)).status).toBe("unavailable");
+  });
+
   it("all() loads core plus every outer shard", async () => {
     const loader = createSlimShardLoader("london");
     const rows = await loader.all();

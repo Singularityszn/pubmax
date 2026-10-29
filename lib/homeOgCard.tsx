@@ -40,8 +40,9 @@ import {
 // the same guard the landing footer applies (components/landing/LandingPage
 // footerFacts). London is the flagship, so the cities figure is stated as the
 // capital plus the rest.
-export function homeCardCoverage(stats: AboutStats): string[] {
+export function homeCardCoverage(stats: AboutStats | null): string[] {
   const bits: string[] = [];
+  if (!stats) return bits;
   if (stats.pubsTracked > 0) {
     bits.push(`${stats.pubsTracked.toLocaleString("en-GB")} pubs tracked`);
   }
@@ -64,7 +65,7 @@ export const HOME_CARD_HERO_TAIL = "costs,";
 export const HOME_CARD_HERO_ACCENT = "pub by pub.";
 export const HOME_CARD_SUPPORT = homeProductDescription(HISTORIC_PUB_COUNT);
 
-export function HomeOgCard({ stats }: { stats: AboutStats }) {
+export function HomeOgCard({ stats }: { stats: AboutStats | null }) {
   const coverageBits = homeCardCoverage(stats);
 
   return (
@@ -217,11 +218,11 @@ export function HomeOgCard({ stats }: { stats: AboutStats }) {
 }
 
 export async function renderHomeOgCard() {
-  const stats = await loadAboutStats();
+  const stats = await loadAboutStats().catch(() => null);
 
   return new ImageResponse(<HomeOgCard stats={stats} />, {
     ...OG_SIZE,
     fonts: loadOgFonts(),
-    headers: OG_CACHE_HEADERS,
+    headers: stats ? OG_CACHE_HEADERS : { "cache-control": "no-store" },
   });
 }

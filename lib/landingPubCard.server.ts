@@ -15,8 +15,8 @@ import {
   type LondonCollageAreaPrice,
 } from "@/lib/landingLondonCollage";
 import { pintFactStats } from "@/lib/pintFacts";
-import { pintPriceAverages, pubCheapestPrices, type PintPriceAverages } from "@/lib/pintSavings";
-import { getPricedVenues } from "@/lib/venuePriceIndex";
+import { type PintPriceAverages } from "@/lib/pintSavings";
+import { loadPublicPriceStats, resetPublicPriceStatsForTests } from "@/lib/publicPriceStats.server";
 
 /** What the landing hero ships: the anchor card, the archive index, the rail. */
 export type LandingHeroData = {
@@ -57,12 +57,11 @@ export type LandingHeroData = {
 let cached: Promise<LandingHeroData> | null = null;
 
 export function loadLandingHeroData(): Promise<LandingHeroData> {
-  cached ??= getPricedVenues()
-    .then((venues) => {
+  cached ??= loadPublicPriceStats()
+    .then(({ venues, averages }) => {
       const card = buildLandingPubCard(venues, history);
       const archive = buildLandingArchiveIndex(venues, history);
       const rail = card ? buildLandingAnchorRail(venues, card, archive) : [];
-      const averages = pintPriceAverages(pubCheapestPrices(venues));
       const priceReadLine = averages ? landingPriceReadLine(venues) : null;
       const collagePrices = buildLondonCollageAreaPrices(venues);
       return { card, archive, rail, averages, priceReadLine, collagePrices };
@@ -100,4 +99,12 @@ export function landingPriceReadLine(
   return `${range} ${undated} of its ${stats.pubCount.toLocaleString("en-GB")} pubs ${
     stats.undatedCount === 1 ? "records" : "record"
   } no read day.`;
+}
+
+/** Clear both public caches so a fixture starts with one cold snapshot. */
+export function resetLandingHeroDataForTests(): void {
+  if (process.env.NODE_ENV === "test" || process.env.VITEST || process.env.VITEST_WORKER_ID) {
+    cached = null;
+    resetPublicPriceStatsForTests();
+  }
 }

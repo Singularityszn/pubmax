@@ -3,7 +3,9 @@ import { expect, test, type Locator, type Page, type TestInfo } from "@playwrigh
 import { NEAR_PRICE_TRUST_CAPTION } from "@/lib/nearPriceTrust";
 import { uiUxChromiumProjectUse } from "@/scripts/lib/uiUxBattleTestBrowser.mjs";
 import { desktopVenueDrawer, expectSoleDesktopDrawer } from "@/e2e/helpers/mapSurfaceDrawers";
-import { expectMobileMapShellReady, mobileMapShellControl } from "@/e2e/helpers/mobileMapShell";
+import { expectMobileMapShellReady, mobileMapShellControl, routeTubeStatus } from "@/e2e/helpers/mobileMapShell";
+import { installDeterministicMapBasemap } from "@/e2e/helpers/mapNetworkFixtures";
+import { expectMapToolbarReady } from "@/e2e/helpers/mapToolbar";
 
 // The painted-map shots below need a real WebGL context, so this file launches
 // with the same SwiftShader arguments chromium-gl uses, the way
@@ -29,7 +31,7 @@ const LAYOUTS = [
   { name: "390x844", width: 390, height: 844, phone: true },
   { name: "1440x900", width: 1440, height: 900, phone: false },
 ] as const;
-type Layout = (typeof LAYOUTS)[number];
+type Layout = { name: string; width: number; height: number; phone: boolean };
 
 const THEMES = ["light", "dark"] as const;
 type Theme = (typeof THEMES)[number];
@@ -440,7 +442,7 @@ for (const layout of LAYOUTS) {
       });
 
       if (layout.phone) {
-        test("the map's Near me sheet shows View pub rows browse-only and opens the picked pub", async ({ page }) => {
+        test("the map's Near me sheet shows matching pubs browse-only and opens the picked branch", async ({ page }, testInfo) => {
           const errors = watchPageErrors(page);
           await grantLocation(page);
           await prepareReader(page, layout, theme);
@@ -452,50 +454,55 @@ for (const layout of LAYOUTS) {
           await press(layout, await mobileMapShellControl(page, "nearMe"));
           const nearMeSheet = page.locator('.mobileSheetPortal[data-sheet-kind="near-me"]');
           await expect(nearMeSheet).toBeVisible({ timeout: 20_000 });
-          const answer = nearMeSheet.locator("section.nmn");
-          const cards = answer.locator(".nmnList > li .nmnCard");
+          const answer = nearMeSheet.getByRole("region", { name: "Nearby pub matches" });
+          const cards = answer.locator("article");
           await expect(cards.first()).toBeVisible({ timeout: 20_000 });
           const count = await cards.count();
           expect(count).toBeGreaterThan(0);
+          expect(count).toBeLessThanOrEqual(2);
+          await expect(cards.getByRole("button", { name: /^Open / })).toHaveCount(count);
+          await expect(answer.getByRole("button", { name: /Keep.*tonight/ })).toHaveCount(0);
+          await expect(answer.locator(".nmnAccept, .nmnAcceptReceipt")).toHaveCount(0);
+          await expect(answer).toContainText("straight-line estimates");
+          await expect(answer.getByRole("heading", { name: "Near you" })).toHaveCount(0);
 
-          // The embedded answer is browse-only (NearMeNow without acceptance):
-          // the same cue on every row, and no Keep, receipt or row pair at all.
-          await expect(answer.locator(".nmnCard .nmnCardView")).toHaveCount(count);
-          await expect(answer.locator(".nmnCardView").first()).toHaveText("View pub");
-          await expect(answer.locator(".nmnAccept")).toHaveCount(0);
-          await expect(answer.locator(".nmnCardRow")).toHaveCount(0);
-          await expect(answer.locator(".nmnAcceptReceipt")).toHaveCount(0);
-          await expect(answer.locator(".nmnListCaption")).toHaveCount(1);
-
-          const fit = await answer.evaluate((section) =>
-            Array.from(section.querySelectorAll(".nmnCard")).map((button) => {
-              const box = button.getBoundingClientRect();
-              const inside = (node: Element | null) => {
-                if (!node) return false;
-                const rect = node.getBoundingClientRect();
-                return rect.left >= box.left - 0.5 && rect.right <= box.right + 0.5;
-              };
-              const name = button.querySelector(".nmnCardName") as HTMLElement;
-              return {
-                cueInside: inside(button.querySelector(".nmnCardView")),
-                priceInside: inside(button.querySelector(".nmnCardPriceValue")),
-                nameClipped: name.scrollWidth > name.clientWidth,
-              };
-            }),
-          );
+          const fit = await cards.evaluateAll((items) => items.map((card) => {
+            const button = card.querySelector('button[aria-label^="Open "]');
+            const name = button?.querySelector("strong");
+            const price = button?.querySelector(".priceBadge");
+            const box = card.getBoundingClientRect();
+            const inside = (node: Element | null | undefined) => {
+              if (!node) return false;
+              const rect = node.getBoundingClientRect();
+              return rect.left >= box.left - 0.5 && rect.right <= box.right + 0.5;
+            };
+            return {
+              buttonInside: inside(button), priceInside: inside(price),
+              nameClipped: name ? name.scrollWidth > name.clientWidth : true,
+              tapHeight: button?.getBoundingClientRect().height ?? 0,
+            };
+          }));
           for (const row of fit) {
-            expect(row).toEqual({ cueInside: true, priceInside: true, nameClipped: false });
+            expect(row.buttonInside).toBe(true);
+            expect(row.priceInside).toBe(true);
+            expect(row.nameClipped).toBe(false);
+            expect(row.tapHeight).toBeGreaterThanOrEqual(44);
           }
           const overflow = await page.evaluate(
             () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
           );
           expect(overflow).toBeLessThanOrEqual(0);
+          await recordShot(page, testInfo, `map-nearby-cards-${layout.name}-${theme}`);
 
-          // The host's own select callback opens the pub in place on the map.
           const first = cards.first();
-          const pickedName = await rowName(first);
-          await press(layout, first.locator(".nmnCardView"));
+          const pickedId = await first.getAttribute("data-venue-id");
+          const pick = first.getByRole("button", { name: /^Open / });
+          const pickedName = (await pick.getAttribute("aria-label"))?.replace(/^Open /, "") ?? "";
+          expect(pickedId).toBeTruthy();
+          expect(pickedName).not.toBe("");
+          await press(layout, pick);
           await expectSelectedVenue(page, layout, pickedName);
+          await expect.poll(() => new URL(page.url()).searchParams.get("sel")).toBe(pickedId);
           await expectBrowseOnly(page);
           expect(errors).toEqual([]);
         });
@@ -550,14 +557,104 @@ for (const layout of LAYOUTS) {
           await press(layout, await mobileMapShellControl(page, "nearMe"));
           const nearMeSheet = page.locator('.mobileSheetPortal[data-sheet-kind="near-me"]');
           await expect(nearMeSheet).toBeVisible({ timeout: 20_000 });
-          await expect(nearMeSheet.locator(".nmnCard .nmnCardView").first()).toBeVisible({
+          const recommendations = nearMeSheet.getByRole("region", { name: "Nearby pub matches" });
+          await expect(recommendations.getByRole("button", { name: /^Open / }).first()).toBeVisible({
             timeout: 20_000,
           });
-          await expect(nearMeSheet.locator(".nmnAccept")).toHaveCount(0);
+          await expect(recommendations.getByRole("button", { name: /Keep.*tonight/ })).toHaveCount(0);
           await recordShot(page, testInfo, `map-near-me-sheet-${layout.name}-${theme}`);
         }
         expect(errors).toEqual([]);
       });
     });
   }
+}
+
+
+for (const layout of [
+  { name: "390x844", width: 390, height: 844, phone: true },
+  { name: "1280x720", width: 1280, height: 720, phone: false },
+] as const) {
+  test.describe(`nearby favourite journey ${layout.name}`, () => {
+    test.use({ hasTouch: layout.phone, isMobile: layout.phone });
+
+    test("keeps the selected Guinness through recommendation, exact branch and Back", async ({ page }, testInfo) => {
+      test.setTimeout(180_000);
+      const errors = watchPageErrors(page);
+      await installDeterministicMapBasemap(page);
+      await routeTubeStatus(page, "routine");
+      await page.route("**/api/**", async (route) => {
+        if (!["GET", "HEAD"].includes(route.request().method())) await route.abort("blockedbyclient");
+        else await route.fallback();
+      });
+      await grantLocation(page);
+      await prepareReader(page, layout, "dark");
+      await page.addInitScript(() => {
+        localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+        sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+      });
+      const response = await page.goto("/map");
+      expect(response?.status()).toBe(200);
+      if (layout.phone) await expectMobileMapShellReady(page);
+      else await expectMapToolbarReady(page);
+
+      const toolbar = page.locator(".mapToolbar");
+      let picker: Locator;
+      if (layout.phone) {
+        await press(layout, await mobileMapShellControl(page, "filters"));
+        const filters = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
+        picker = filters.getByLabel("Favourite pint or beer brand");
+        await expect(picker).toBeVisible();
+        await picker.selectOption("guinness");
+        await expect(picker).toHaveValue("guinness");
+        await press(layout, filters.locator(".surfaceNavHome"));
+        await expect(filters).toHaveCount(0);
+        await press(layout, await mobileMapShellControl(page, "nearMe"));
+      } else {
+        const drinkToggle = toolbar.getByRole("button", { name: /^Drink: / });
+        await press(layout, drinkToggle);
+        picker = toolbar.getByLabel("Favourite pint or beer brand");
+        await expect(picker).toBeVisible();
+        await picker.selectOption("guinness");
+        await expect(picker).toHaveValue("guinness");
+        await press(layout, drinkToggle);
+        await press(layout, toolbar.getByRole("button", { name: /^Map area: .*Change city$/ }));
+        await press(layout, toolbar.getByRole("button", { name: "Use my location", exact: true }));
+      }
+
+      const answer = page.getByRole("region", { name: "Nearby pub matches" });
+      const first = answer.locator("article").first();
+      await expect(first).toBeVisible({ timeout: 30_000 });
+      await expect(first.locator(".mapNearbyDiscoveryDrink")).toContainText(/Guinness/i);
+      await expect(first.locator(".mapNearbyDiscoveryDrink")).not.toContainText(/Amstel/i);
+      const pickedId = await first.getAttribute("data-venue-id");
+      const open = first.getByRole("button", { name: /^Open / });
+      const pickedName = (await open.getAttribute("aria-label"))?.replace(/^Open /, "") ?? "";
+      expect(pickedId).toBeTruthy();
+      expect(pickedName).not.toBe("");
+      const box = await open.boundingBox();
+      expect(box?.height).toBeGreaterThanOrEqual(44);
+      await recordShot(page, testInfo, `nearby-guinness-${layout.name}`);
+      await press(layout, open);
+      await expectSelectedVenue(page, layout, pickedName);
+      await expect.poll(() => new URL(page.url()).searchParams.get("sel")).toBe(pickedId);
+      await expectBrowseOnly(page);
+      await recordShot(page, testInfo, `nearby-guinness-selected-${layout.name}`);
+
+      await page.goBack();
+      await expect(page).not.toHaveURL(/[?&]sel=/);
+      if (layout.phone) {
+        await press(layout, await mobileMapShellControl(page, "filters"));
+        picker = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]').getByLabel("Favourite pint or beer brand");
+      } else {
+        await press(layout, toolbar.getByRole("button", { name: /^Drink: / }));
+        picker = toolbar.getByLabel("Favourite pint or beer brand");
+      }
+      await expect(picker).toHaveValue("guinness");
+      expect(await storedSavedPubs(page)).toBeNull();
+      expect(await storedIntent(page)).toBeNull();
+      await recordShot(page, testInfo, `nearby-guinness-back-${layout.name}`);
+      expect(errors).toEqual([]);
+    });
+  });
 }
