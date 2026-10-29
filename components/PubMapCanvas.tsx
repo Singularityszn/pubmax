@@ -153,7 +153,7 @@ import {
 } from "@/components/map/canvas/pinRevealCoordinator";
 import { applyMapFocusMute } from "@/lib/mapBasemapTaste";
 import { orientRouteStopLabels } from "@/lib/routeStopLabel";
-import { MAP_PIN_REVEAL_EVENT } from "@/lib/mapPinRevealEvent";
+import { MAP_PIN_READY_CEILING_MS, MAP_PIN_REVEAL_EVENT } from "@/lib/mapPinRevealEvent";
 import {
   wireClickRouting, wireHoverPrefetch, wirePubHover, wireCursor,
 } from "@/components/map/canvas/interactions";
@@ -537,13 +537,6 @@ type PubMapCanvasProps = {
 // the pub layers cannot hang hidden indefinitely. This runs behind the
 // still-present parent skeleton and never lifts the chrome.
 const PIN_REVEAL_TIMEOUT_MS = 3000;
-// Honest upper bound for the visible-map handoff. Desktop and phone both
-// degrade to the existing basemap retry toast; neither unmounts the canvas.
-// Phone still requires a confirmed visible frame before a successful reveal.
-// Keep the ceiling above the measured slow stream. The phone can reveal local
-// pins from their own painted source before basemap tiles settle; this ceiling
-// remains only for the honest parent loading handoff when that signal fails.
-const PIN_READY_CEILING_MS = 12_000;
 // How long a spent pin Retry is given before it reports back. Long enough for a
 // re-fetched venue index plus a MapLibre source settle, short enough that the
 // reader is not left watching an empty map with nothing to read.
@@ -1383,6 +1376,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   // into that pub owns the camera. lib/mapArrivalBearing.ts holds every other
   // case, reduced motion included.
   const arrivalBearingSpentRef = useRef(false);
+  const firstPinRevealFinishedRef = useRef(false);
   // Read by the camera probe; written beside the near-me framing effect below.
   const nearbyFramingOwedRef = useRef(false);
   // The deep link as it was on ARRIVAL. Reading the live prop would answer for
@@ -1404,6 +1398,10 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   useEffect(() => {
     const map = mapRef.current;
     if (!map || arrivalBearingSpentRef.current) return;
+    if (mapError) {
+      arrivalBearingSpentRef.current = true;
+      return;
+    }
     let cancelled = false;
     let wait: ArrivalBearingWait | null = { stillPolls: 0, waitedMs: 0 };
     // The turn waits for the map to STOP. Measured without the wait: the
@@ -1421,6 +1419,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       if (cancelled || arrivalBearingSpentRef.current || !wait) return;
       wait = nextArrivalBearingWait(wait, {
         moving: map.isMoving() || cameraLanePending(),
+        pinsPending: !firstPinRevealFinishedRef.current,
         openingPending:
           !openingCameraSettledRef.current ||
           mapCameraFocusMoves(focusPointRef.current, focusKeyRef.current),
@@ -1440,7 +1439,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [mapInstanceReady, easeArrivalBearing, cameraLanePending]);
+  }, [mapInstanceReady, mapError, easeArrivalBearing, cameraLanePending]);
 
   // The parent owns the selection and renders the story (the phone's shared
   // sheet, the desktop's left drawer); the canvas only reports a pin tap here
@@ -2303,7 +2302,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
 
     const pinRevealCoordinator = createPinRevealCoordinator({
       pinRevealTimeoutMs: PIN_REVEAL_TIMEOUT_MS,
-      readyCeilingMs: PIN_READY_CEILING_MS,
+      readyCeilingMs: MAP_PIN_READY_CEILING_MS,
       hasBasemapPainted: () => basemapTileReadyForPaint,
       hasPinsPaintable: () =>
         pubsDeferredUntilZoom() || !phoneFirstImpression || hasPinsPaintable(),
@@ -2344,6 +2343,9 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         retireTilesNotice();
       },
       onReveal: (reason, generation) => {
+        // The coordinator confirms the first visible phone frame, or names
+        // its bounded fallback. Neither may wait for the decorative turn.
+        firstPinRevealFinishedRef.current = true;
         const timeoutNotice = revealTimeoutNotice(reason, tileNoticeOwner, {
           basemapPainted: basemapTileReadyForPaint,
           venueData: venueDataFailedRef.current
