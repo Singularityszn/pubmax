@@ -76,8 +76,14 @@ Arms and The Clachan have facts with named sources and source URLs. The test
 checks each reference against the current local heritage reader and venue index.
 
 This subset calls `runAskTool("venue_heritage")` with the canonical venue ID.
-It does not test typed-question routing. See the
-[heritage routing follow-up](FOLLOW_UPS.md) for that known product gap.
+`__tests__/askHeritageQuestion.test.ts` separately sends every question through
+the real keyless `runAsk` path. Eleven names resolve to a unique venue.
+The Millers Well name matches two unresolved records and must return an
+ambiguity prompt without cards or sources. The canonical-ID subset continues
+to test all twelve records. See the [identity evidence](FOLLOW_UPS.md).
+Additional typed cases reject an unlisted longer name, preserve separate tool
+subjects in a multi-pub question, and refuse duplicate names without using
+punctuation to choose a record. These checks do not exercise a hosted provider.
 
 The `heritageAnswer` expectation rejects extra prose in answers and card notes.
 Unknown heritage requires one of four explicit absence statements and no source.
