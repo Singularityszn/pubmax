@@ -18,6 +18,7 @@ async function historicSchema(slug: string) {
 describe("historic pub identity markup", () => {
   it("keeps a single unambiguous Wikipedia identity", async () => {
     const { schema } = await historicSchema("prospect-of-whitby");
+    expect(schema["@type"]).toBe("LandmarksOrHistoricalBuildings");
     expect(schema.sameAs).toEqual(["https://en.wikipedia.org/wiki/Prospect_of_Whitby"]);
   });
 
@@ -27,8 +28,13 @@ describe("historic pub identity markup", () => {
     expect(document).toContain('href="https://www.alastairhiltonphotographer.com/product-page/the-grapes"');
   });
 
-  it("omits identity claims when the record cites different pubs", async () => {
+  it("describes the page without combining different pubs into one place", async () => {
     const { document, schema } = await historicSchema("black-lion");
+    expect(schema["@type"]).toBe("WebPage");
+    expect(schema.url).toBe("https://pubmaxxing.com/historic/black-lion");
+    expect(schema).not.toHaveProperty("description");
+    expect(schema).not.toHaveProperty("address");
+    expect(schema).not.toHaveProperty("geo");
     expect(schema).not.toHaveProperty("sameAs");
     expect(document).toContain('href="https://en.wikipedia.org/wiki/Black_Lion,_Kilburn"');
     expect(document).toContain('href="https://en.wikipedia.org/wiki/Black_Lion,_Hammersmith"');
