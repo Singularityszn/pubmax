@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
+import { Button } from "@/components/ui/button";
 import type { Drink } from "@/lib/drinks";
 import type { FoodItem } from "@/lib/food";
 import { menuBasketItems, quoteMenuBasket } from "@/lib/menuBasket";
@@ -60,7 +61,7 @@ export default function MenuBasket({ venueId, food, drinks }: { venueId: string;
             <p>Menu subtotal: <strong>{quote.menuSubtotalPence === null ? "Incomplete" : money(quote.menuSubtotalPence)}</strong></p>
             <p>Full cost unknown. Required fees, tax, deposits and availability need checking.</p>
             {quote.reasons.some((r) => r.code === "stale") ? <p>Some prices need a new check. Their collection dates are shown above.</p> : null}
-            <button type="button" onClick={() => setQuantities({})}>Clear items</button>
+            <Button variant="ghost" type="button" onClick={() => setQuantities({})}>Clear items</Button>
           </> : <p>Choose an item to see the menu subtotal.</p>}
         </div>
       </div>
