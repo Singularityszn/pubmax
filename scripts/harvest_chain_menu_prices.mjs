@@ -9,7 +9,7 @@
 // THREE RULES, and they are the whole design.
 //
 // 1. THE SOURCE TABLE DECIDES, NOT THE CALLER. Pages come from
-//    lib/harvest/sourcePolicy.ts, kind `chain-menu-prices`, allowed rows only.
+//    lib/harvest/sourceRegistry.ts, kind `chain-menu-prices`, allowed rows only.
 //    There is no --url flag: a source absent from that table is not read at all.
 //
 // 2. PERMISSION IS RE-ASKED LIVE. The table records a verdict and the day it was
