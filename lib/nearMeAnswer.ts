@@ -143,6 +143,41 @@ export type NearMeCard = {
   walkMinutes?: number;
 };
 
+export type NearestPub = Pick<NearMeCard, "id" | "name" | "borough"> & {
+  distanceKm: number;
+  walkMinutes: number;
+};
+
+/** The closest listed public pub, including pubs without a recorded pint price. */
+export function nearestListedPub(
+  lat: number,
+  lng: number,
+  venues: readonly PricedPoint[],
+): NearestPub | null {
+  const validLocation = (latitude: number, longitude: number) => (
+    Number.isFinite(latitude) && Math.abs(latitude) <= 90 &&
+    Number.isFinite(longitude) && Math.abs(longitude) <= 180
+  );
+  if (!validLocation(lat, lng)) return null;
+  let nearest: NearestPub | null = null;
+  for (const venue of venues) {
+    if (!isPublicRankablePub(venue) || !validLocation(venue.lat, venue.lng)) continue;
+    const distanceKm = haversineKm([lng, lat], [venue.lng, venue.lat]);
+    if (
+      nearest && (distanceKm > nearest.distanceKm ||
+        (distanceKm === nearest.distanceKm && venue.id >= nearest.id))
+    ) continue;
+    nearest = {
+      id: venue.id,
+      name: venue.name,
+      borough: venue.borough,
+      distanceKm,
+      walkMinutes: walkMinutesFromKm(distanceKm),
+    };
+  }
+  return nearest;
+}
+
 export type NearMeScope = "walkable" | "widened" | "none";
 
 /**
