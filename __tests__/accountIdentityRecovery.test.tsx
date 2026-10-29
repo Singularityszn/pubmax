@@ -81,7 +81,7 @@ let identityResponse: () => Promise<Response>;
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
 
 beforeEach(() => {
-  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.clearAllMocks();
   localStorage.clear(); sessionStorage.clear(); forgetCurrentIdentityRead();
   setProviderIdentity("supabase", null); setProviderAuthState("supabase", "unresolved");
