@@ -1,5 +1,7 @@
 "use client";
 
+import { ReadyButton } from "@/components/ui/ready-button";
+
 // Tomorrow and the weekend, on /tonight.
 //
 // The old /out page carried a Tonight | Tomorrow | Weekend switch over the same
@@ -88,7 +90,7 @@ export default function TonightLaterListings() {
       </h2>
       <div className="outDayChips" role="group" aria-label="When">
         {TONIGHT_LATER_WINDOWS.map((windowKey) => (
-          <button
+          <ReadyButton
             key={windowKey}
             type="button"
             className="outDayChip"
@@ -99,7 +101,7 @@ export default function TonightLaterListings() {
             }}
           >
             {DAY_LABEL[windowKey]}
-          </button>
+          </ReadyButton>
         ))}
       </div>
       {day ? <OutListingsRead key={day} day={day} /> : null}
@@ -174,9 +176,9 @@ export function OutListingsRead({ day }: { day: OutDayWindow }) {
         {emptyLane.way === "retry" ? (
           <>
             {" "}
-            <button type="button" className="tonightInlineReset" onClick={retry}>
+            <ReadyButton type="button" className="tonightInlineReset" onClick={retry}>
               {OUT_RETRY_LABEL}
-            </button>
+            </ReadyButton>
           </>
         ) : null}
       </p>

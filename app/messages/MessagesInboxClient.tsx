@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageCircle, Search, SquarePen } from "lucide-react";
+import { MessageCircle, Search, SquarePen, UsersRound } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -50,6 +50,8 @@ import "./messages.css";
 // subscribes to nothing; the list loads when the reader comes back to it.
 
 const HANDLE_KEY = "pubmax_handle";
+type InboxFilter = "all" | "unread" | "groups";
+const INBOX_FILTERS = [{ id: "all", label: "All" }, { id: "unread", label: "Unread" }, { id: "groups", label: "Groups" }] as const;
 
 function subscribeMobileViewport(onStoreChange: () => void): () => void {
   if (typeof window === "undefined") return () => {};
@@ -113,7 +115,7 @@ export default function MessagesInboxClient({
   // The thread route hides this pane on a phone; a hidden list owes no read.
   const paneHidden = Boolean(activeConversationId) && isMobileViewport;
   const [composeRevision, setComposeRevision] = useState<number | null>(null);
-  const [inboxSearch, setInboxSearch] = useState({ revision: accountRevision, query: "" });
+  const [inboxSearch, setInboxSearch] = useState<{ revision: number; query: string; filter: InboxFilter }>({ revision: accountRevision, query: "", filter: "all" });
   const [handle, setHandle] = useState("");
   const [conversations, setConversations] = useState<ConversationDTO[]>([]);
   const [loadedRevision, setLoadedRevision] = useState<number | null>(null);
@@ -322,10 +324,24 @@ export default function MessagesInboxClient({
   // from the same instant.
   const now = new Date();
   const searchQuery = inboxSearch.revision === accountRevision ? inboxSearch.query : "";
+  const filter = inboxSearch.revision === accountRevision ? inboxSearch.filter : "all";
   const filteredConversations = conversations.filter((conversation) =>
-    conversationRowMatches(conversation, handle, searchQuery),
+    conversationRowMatches(conversation, handle, searchQuery) &&
+    (filter !== "unread" || (conversation.unread ?? 0) > 0) &&
+    (filter !== "groups" || conversation.kind === "group"),
   );
+  const setFilter = (next: InboxFilter) => setInboxSearch({ revision: accountRevision, query: searchQuery, filter: next });
   const openCompose = () => setComposeRevision(accountRevision);
+  const hasSearch = searchQuery.trim().length > 0;
+  const filteredEmptyTitle = hasSearch
+    ? "No conversations match your search."
+    : filter === "unread" ? "No unread conversations to show." : "No group conversations yet.";
+  const filteredEmptyLine = hasSearch
+    ? "Try another name, handle or group title."
+    : filter === "groups" ? "Get the people joining you tonight into one conversation."
+      : partial ? "Some unread counts couldn't be checked. Your conversations are in All."
+        : failed ? "Couldn't check for new messages. Your conversations are in All."
+          : "You're up to date. The rest are in All.";
 
   return (
     <Screen
@@ -350,11 +366,18 @@ export default function MessagesInboxClient({
             <input
               type="search"
               aria-label="Search conversations"
-              placeholder="Search"
+              placeholder="Search names or handles"
               value={searchQuery}
-              onChange={(event) => setInboxSearch({ revision: accountRevision, query: event.target.value })}
+              onChange={(event) => setInboxSearch({ revision: accountRevision, query: event.target.value, filter })}
             />
           </label>
+          <div className="messagesInboxFilters" role="group" aria-label="Filter conversations">
+            {INBOX_FILTERS.map((item) => (
+              <button key={item.id} type="button" aria-pressed={filter === item.id} onClick={() => setFilter(item.id)}>
+                {item.label}
+              </button>
+            ))}
+          </div>
           <MessagesNewGroup
             key={`${accountRevision}:${handle}`}
             handle={handle}
@@ -417,7 +440,20 @@ export default function MessagesInboxClient({
               {retryButton}
             </p>
           ) : null}
-          {filteredConversations.length === 0 ? <p className="messagesSearchEmpty">No conversations match your search.</p> : null}
+          {filteredConversations.length === 0 ? (
+            <div className="messagesFilteredEmpty" role="status">
+              <MessageCircle size={24} aria-hidden="true" />
+              <h2>{filteredEmptyTitle}</h2>
+              <p>{filteredEmptyLine}</p>
+              <button type="button" className="threadRetryBtn" onClick={() => {
+                if (hasSearch) setInboxSearch({ revision: accountRevision, query: "", filter });
+                else if (filter === "groups") openCompose();
+                else setFilter("all");
+              }}>
+                {hasSearch ? "Clear search" : filter === "groups" ? "Start a group" : "Show all conversations"}
+              </button>
+            </div>
+          ) : null}
           <ul className="conversationList">
             {filteredConversations.map((c) => {
               const active = c.id === activeConversationId;
@@ -437,12 +473,13 @@ export default function MessagesInboxClient({
                     className="conversationLink"
                     aria-current={active ? "page" : undefined}
                   >
-                    <MessageAvatar
-                      handle={c.otherHandle}
-                      avatarUrl={c.otherAvatarUrl}
-                      label={c.otherDisplayName}
-                      size={56}
-                    />
+                    {c.kind === "group" ? (
+                      <span className="messageAvatar messageAvatarGroup" style={{ "--message-avatar-size": "56px" } as React.CSSProperties} aria-hidden="true">
+                        <UsersRound size={24} />
+                      </span>
+                    ) : (
+                      <MessageAvatar handle={c.otherHandle} avatarUrl={c.otherAvatarUrl} label={c.otherDisplayName} size={56} />
+                    )}
                     <div className="conversationBody">
                       {/* ONE naming rule for every kind (`conversationRowName`):
                           a DM is the other person, a group is its title or its
@@ -455,6 +492,7 @@ export default function MessagesInboxClient({
                         ) : null}
                       </div>
                       <div className="conversationPreview">
+                        {c.kind === "group" ? <span className="conversationGroupLabel">Group · </span> : null}
                         {c.lastBody
                           ? `${c.lastFromMe ? "You: " : ""}${c.lastBody}`
                           : "No messages yet"}

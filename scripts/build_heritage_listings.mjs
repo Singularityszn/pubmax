@@ -73,7 +73,7 @@ const UK_SEED_PATH = path.join(ROOT, "data", "osm", "uk", "uk_osm_pubs.json");
 const UK_BASE_MANIFEST_PATH = path.join(ROOT, "public", "data", "uk_base", "manifest.json");
 const NHLE_READ_PATH = path.join(ROOT, "data", "heritage", "nhle_london_points.json");
 
-// The NHLE FeatureServer's row in lib/harvest/sourcePolicy.ts. THE TABLE OWNS
+// The NHLE FeatureServer's row in lib/harvest/sourceRegistry.ts. THE TABLE OWNS
 // THE HOST: the query URL comes from `openDataSourceUrl`, never from here.
 const NHLE_SOURCE_POLICY_ID = "historic-england-nhle";
 

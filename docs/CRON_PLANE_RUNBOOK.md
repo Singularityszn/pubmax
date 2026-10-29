@@ -177,9 +177,14 @@ The **full** generic What's-On ingest still cannot run inside a serverless cron:
   `scripts/refresh_whats_on.mjs` **from pre-scraped agent outputs on disk**.
   There is no general scraper agent inside a Vercel function, and the output is
   a committed file the **read-only serverless filesystem cannot write**.
-- The cron does run bounded replacements for those lanes: Question One pages
-  for quiz, and existing first-party definitions plus bundled venue inputs for
-  deal, music, and sport. These rows are written to `whats_on_listings`.
+- The cron runs bounded replacements for those lanes and writes the rows to
+  `whats_on_listings`. Quiz reads Question One's venue directory as JSON under
+  the `questionone-quiz-venues` row in `lib/harvest/sourceRegistry.ts`.
+  The cron and the bundled-pack command share
+  [`questionOneDirectory.mjs`](../scripts/whatson/questionOneDirectory.mjs),
+  which owns pagination and the page limit. A failed or over-limit read keeps
+  the stored quiz rows. Deal, music and sport use existing first-party
+  definitions and bundled venue inputs.
 - The GitHub events-refresh workflow writes the same committed file. Keep it
   in the tree so it can resume when Actions billing returns. It is not the
   live path; Vercel Cron is the reliable refresh path.

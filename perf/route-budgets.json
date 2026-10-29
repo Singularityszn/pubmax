@@ -109,11 +109,12 @@
     {
       "path": "/out",
       "readySelector": "main",
-      "why": "The Out tab shell. Composed from existing what's-on rows; no new API.",
+      "why": "The Out tab's retired address. Tonight absorbed Out on 16 October 2026, and /out now answers a 308 to /tonight and ships no document, so this row is budgeted for the redirect: the page it lands on carries its own ceiling under \"/tonight\".",
       "serverRenderMs": 150,
-      "jsDecodedKB": 1010,
-      "requests": 49,
-      "lcpMs": 1400
+      "jsDecodedKB": 0,
+      "requests": 1,
+      "lcpMs": 0,
+      "redirectsTo": "/tonight"
     },
     {
       "path": "/about",

@@ -1,4 +1,5 @@
 name: Production smoke
+run-name: Production smoke ${{ inputs.deployment_id || github.run_id }}
 
 # Real journeys against the live site after every production deploy, with
 # nothing mocked. e2e/prod-smoke/README.md is the runbook, including how the
@@ -6,11 +7,19 @@ name: Production smoke
 #
 # Vercel's Git integration reports each deploy to GitHub as a deployment, so a
 # successful Production deployment status starts this run. A CLI deploy
-# reports nothing to GitHub: dispatch this workflow by hand after one.
+# reports nothing to GitHub: `npm run release:prod` dispatches this workflow
+# with the deployment it released, and a hand dispatch may name one too.
 
 on:
   deployment_status:
   workflow_dispatch:
+    inputs:
+      deployment_id:
+        description: >-
+          The Vercel deployment id this run must test. The run fails, and the
+          deployment stays unverified, when production serves another one.
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -65,15 +74,30 @@ jobs:
       # out one commit. Compare Vercel deployment ids: the deployment's own URL
       # and the live origin both answer /api/version without credentials. A
       # newer deploy already serving production makes this run moot, because
-      # that deploy's own run tests it.
+      # that deploy's own run tests it. A dispatch that names a deployment is a
+      # release waiting on this verdict, so a replaced deployment fails the run
+      # instead: a skip would read as a pass.
       - name: Check the live site serves this deployment
         id: bound
         env:
           DEPLOYMENT_URL: ${{ github.event.deployment_status.environment_url }}
+          EXPECTED_DEPLOYMENT_ID: ${{ inputs.deployment_id }}
         run: |
           live=$(curl -fsS --max-time 30 https://pubmaxxing.com/api/version | jq -r '.deploymentId // empty')
           if [ -z "$live" ]; then echo "::error::https://pubmaxxing.com/api/version named no deployment"; exit 1; fi
           echo "live=$live" >> "$GITHUB_OUTPUT"
+          if [ -n "$EXPECTED_DEPLOYMENT_ID" ]; then
+            if ! printf '%s' "$EXPECTED_DEPLOYMENT_ID" | grep -Eq '^[A-Za-z0-9_-]{1,64}$'; then
+              echo "::error::Unexpected deployment id: $EXPECTED_DEPLOYMENT_ID"; exit 1
+            fi
+            if [ "$live" != "$EXPECTED_DEPLOYMENT_ID" ]; then
+              echo "::error::Production serves $live, not the released deployment $EXPECTED_DEPLOYMENT_ID. It was replaced before this run started, so it is unverified."
+              exit 1
+            fi
+            echo "Dispatched run: testing the released deployment $live."
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           if [ -z "$DEPLOYMENT_URL" ]; then
             echo "Dispatched run: testing $live with the dispatched ref."
             echo "run=true" >> "$GITHUB_OUTPUT"

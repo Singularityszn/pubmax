@@ -577,6 +577,7 @@ export default function SignInButton({
           type="button"
           ref={triggerRef}
           className="authCompactTrigger"
+          disabled={!clientHydrated}
           onClick={() => {
             // Desktop fast path: popover. Also expose the full page as a link
             // inside the menu for anyone who wants the dedicated surface.

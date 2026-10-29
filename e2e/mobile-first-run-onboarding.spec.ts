@@ -7,7 +7,12 @@ import { ANALYTICS_CONSENT_STORAGE_KEY } from "@/lib/analyticsIdentity";
 
 import { answerFirstRunQuestions } from "./helpers/firstRunJourney";
 import { installNativeShell } from "./helpers/nativeShell";
-import { installSuccessfulPlanRoute } from "./helpers/nativePushJourney";
+import {
+  installSuccessfulPlanRoute,
+  isMarkedDocument,
+  markDocument,
+  pinLondonEvening,
+} from "./helpers/nativePushJourney";
 
 const VIEWPORT = { width: 390, height: 844 };
 
@@ -54,10 +59,10 @@ async function expectPushAskOnNextRoute(page: Page): Promise<void> {
   await expect(ask).toHaveCount(0);
   await page.keyboard.press("Escape");
   await expect(page.getByRole("heading", { name: "Plan a pub crawl" })).toBeHidden();
-  const documentStartedAt = await page.evaluate(() => performance.timeOrigin);
+  await markDocument(page);
   await page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Tonight" }).click();
   await expect(page).toHaveURL(/\/tonight$/);
-  expect(await page.evaluate(() => performance.timeOrigin)).toBe(documentStartedAt);
+  expect(await isMarkedDocument(page)).toBe(true);
   await expect(ask).toBeVisible();
   await expect(page.getByText(NATIVE_PUSH_PROMPT_COPY.body)).toBeVisible();
 }
@@ -110,6 +115,7 @@ for (const theme of ["light", "dark"] as const) {
 
 test("native first run with analytics decided hands one useful Plan to the contextual push ask", async ({ page }) => {
   test.setTimeout(90_000);
+  await pinLondonEvening(page);
   await page.setViewportSize(VIEWPORT);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await installNativeShell(page);
@@ -199,6 +205,7 @@ test("a same-origin returning native onboarding visit redirects to Tonight witho
 
 test("Skip releases onboarding budget for the next Plan but never prompts on reboot", async ({ page }) => {
   test.setTimeout(90_000);
+  await pinLondonEvening(page);
   await page.setViewportSize(VIEWPORT);
   await installNativeShell(page);
   await page.addInitScript((key) => localStorage.setItem(key, "denied"), ANALYTICS_CONSENT_STORAGE_KEY);

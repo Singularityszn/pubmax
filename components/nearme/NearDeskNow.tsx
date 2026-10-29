@@ -1,5 +1,7 @@
 "use client";
 
+import { ReadyButton } from "@/components/ui/ready-button";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { LocateFixed, RotateCw } from "lucide-react";
@@ -298,9 +300,9 @@ export default function NearDeskNow({
           title={deskIntroLede()}
           titleId="near-title"
           primary={
-            <button type="button" onClick={locate}>
+            <ReadyButton type="button" onClick={locate}>
               <LocateFixed size={16} aria-hidden="true" /> Find a work spot
-            </button>
+            </ReadyButton>
           }
         >
           <p className="nmnHint">We only use your location to rank work spots nearby. Nothing is stored.</p>
@@ -309,13 +311,13 @@ export default function NearDeskNow({
             <ul className="nmnAreaChips" aria-label="Pick an area">
               {NIGHT_PATCHES.map((entry) => (
                 <li key={entry.id}>
-                  <button
+                  <ReadyButton
                     type="button"
                     className="nmnBoroughChip"
                     onClick={() => pickPatch(entry)}
                   >
                     {entry.label}
-                  </button>
+                  </ReadyButton>
                 </li>
               ))}
             </ul>
@@ -344,14 +346,14 @@ export default function NearDeskNow({
             <ul className="nmnAreaChips" aria-label="Pick an area">
               {NIGHT_PATCHES.map((entry) => (
                 <li key={entry.id}>
-                  <button
+                  <ReadyButton
                     type="button"
                     className="nmnBoroughChip"
                     data-active={patch?.id === entry.id ? "" : undefined}
                     onClick={() => pickPatch(entry)}
                   >
                     {entry.label}
-                  </button>
+                  </ReadyButton>
                 </li>
               ))}
             </ul>
@@ -374,9 +376,9 @@ export default function NearDeskNow({
           <DeskCardList cards={answer.cards} />
           <DeskDataCredit />
           <footer className="nmnFoot">
-            <button type="button" className="nmnRetry nmnRetryGhost" onClick={locate}>
+            <ReadyButton type="button" className="nmnRetry nmnRetryGhost" onClick={locate}>
               <RotateCw size={16} aria-hidden="true" /> Update location
-            </button>
+            </ReadyButton>
           </footer>
         </>
       ) : null}

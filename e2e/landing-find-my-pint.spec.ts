@@ -1,5 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
+import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
+
 import {
   LANDING_FIRST_RUN_HREF,
   LANDING_PRIMARY_HREF,
@@ -8,6 +11,19 @@ import {
   LANDING_RECEIPT_HREF,
   LANDING_RECEIPT_NAME,
 } from "./helpers/landingHero";
+
+// The live desktop browser reserves a scrollbar gutter, including at phone
+// viewport widths. Playwright hides it by default and misses that layout.
+test.use({
+  launchOptions: async ({ browserName, launchOptions }, provide) => {
+    if (browserName !== "chromium" || launchOptions.ignoreDefaultArgs === true) {
+      await provide(launchOptions);
+      return;
+    }
+    const ignored = Array.isArray(launchOptions.ignoreDefaultArgs) ? launchOptions.ignoreDefaultArgs : [];
+    await provide({ ...launchOptions, ignoreDefaultArgs: [...new Set([...ignored, "--hide-scrollbars"])] });
+  },
+});
 
 // Permanent one-action hierarchy (captain 2026-09-03, issue #1354; 2026-09-04,
 // issue #1357; rebuilt 2026-09-07). No build flag changes this contract: the
@@ -261,3 +277,168 @@ test.describe("landing hierarchy", () => {
     expect(overflow).toBeLessThanOrEqual(0);
   });
 });
+
+async function prepareClearanceLanding(page: Page, theme: "light" | "dark", withPal: boolean) {
+  const now = "2026-10-26T12:00:00.000Z";
+  const pal = {
+    ...DEFAULT_PAL_DRAFT,
+    id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+    ownerId: ACCOUNTS.A.id,
+    name: "Ripley",
+    adultAttestedAt: now,
+    muted: false,
+    hidden: false,
+    proposalPreferences: {},
+    masteryPoints: 0,
+    createdAt: now,
+    updatedAt: now,
+  };
+  if (withPal) {
+    await installAuthDoubles(page);
+    await page.route("**/api/pub-pal", (route) => route.fulfill({ json: { pal, adultOnFile: true } }));
+    await page.route("**/api/pub-pal/memories", (route) => route.fulfill({ json: { memories: [] } }));
+  }
+  await page.addInitScript(({ theme, withPal, pal }) => {
+    localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+    localStorage.setItem("pubmax-tour-v1-done", "1");
+    sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    localStorage.setItem("pubmax-theme", theme);
+    localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
+    if (withPal) {
+      localStorage.setItem("pubmax_account_owner", pal.ownerId);
+      localStorage.setItem("pubmax_pub_pal_v1", JSON.stringify(pal));
+    } else {
+      localStorage.removeItem("pubmax_pub_pal_v1");
+    }
+  }, { theme, withPal, pal });
+  if (withPal) await seedSignedIn(page, "A");
+}
+
+async function expectLandingPrimaryClear(page: Page, viewport: { width: number; height: number }) {
+  const primary = page.locator(".lpHero [data-primary-action]").getByRole("link", { name: LANDING_PRIMARY_NAME });
+  if (page.context().browser()?.browserType().name() === "chromium") {
+    await expect.poll(() => page.evaluate(() => window.innerWidth - document.documentElement.clientWidth)).toBeGreaterThan(0);
+  }
+  await page.evaluate(() => document.fonts.ready);
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  const primaryBox = (await primary.boundingBox())!;
+  expect(primaryBox.height).toBeGreaterThanOrEqual(44);
+  expect(primaryBox.y).toBeGreaterThanOrEqual(0);
+  expect(primaryBox.y + primaryBox.height).toBeLessThanOrEqual(viewport.height);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(viewport.width);
+
+  for (const floating of await page.locator(".createFab, .palSummon").all()) {
+    if (!await floating.isVisible()) continue;
+    const box = (await floating.boundingBox())!;
+    const overlaps = primaryBox.x < box.x + box.width
+      && primaryBox.x + primaryBox.width > box.x
+      && primaryBox.y < box.y + box.height
+      && primaryBox.y + primaryBox.height > box.y;
+    expect(overlaps, `Primary action overlaps ${await floating.getAttribute("class")}`).toBe(false);
+  }
+
+  const hitOwnership = await primary.evaluate((link) => {
+    const box = link.getBoundingClientRect();
+    return [0.1, 0.5, 0.9].flatMap((x) => [0.1, 0.5, 0.9].map((y) =>
+      link.contains(document.elementFromPoint(box.x + box.width * x, box.y + box.height * y)),
+    ));
+  });
+  expect(hitOwnership).toEqual(Array<boolean>(9).fill(true));
+}
+
+for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }]) {
+  for (const theme of ["light", "dark"] as const) {
+    for (const withPal of [false, true]) {
+      test(`homepage action clears floating controls at ${viewport.width}px, ${theme}, ${withPal ? "saved Pal" : "no saved Pal"}`, async ({ page }) => {
+        await page.setViewportSize(withPal ? { width: 1440, height: 900 } : viewport);
+        await prepareClearanceLanding(page, theme, withPal);
+        await page.goto("/");
+        if (withPal) {
+          await expect(page.getByRole("link", { name: "Summon Ripley, your Pub Pal", exact: true })).toBeVisible();
+          await page.setViewportSize(viewport);
+        }
+
+        const primary = page.locator(".lpHero [data-primary-action]").getByRole("link", { name: LANDING_PRIMARY_NAME });
+        const create = page.getByRole("button", { name: "Create", exact: true });
+        const dock = page.getByRole("navigation", { name: "Primary" });
+        const palDoor = dock.getByRole("link", { name: withPal ? "Pub Pal, Ripley" : "Pub Pal", exact: true });
+        await expect(primary).toHaveAttribute("href", LANDING_PRIMARY_HREF);
+        await expect(create).toBeVisible();
+        await expect(palDoor).toBeVisible();
+        await expect(palDoor).toHaveAttribute("href", "/pal");
+
+        await expectLandingPrimaryClear(page, viewport);
+
+        await expect(async () => {
+          await create.click();
+          await expect(page.locator(".createFabMenu")).toBeVisible({ timeout: 1_000 });
+        }).toPass();
+        await page.keyboard.press("Escape");
+        await expect(page.locator(".createFabMenu")).toBeHidden();
+      });
+    }
+  }
+}
+
+test("desktop homepage retains the saved Pal shortcut beside the primary action", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await prepareClearanceLanding(page, "dark", true);
+  await page.goto("/");
+  const primary = page.locator(".lpHero [data-primary-action]").getByRole("link", { name: LANDING_PRIMARY_NAME });
+  const summon = page.getByRole("link", { name: "Summon Ripley, your Pub Pal", exact: true });
+  await expect(primary).toBeVisible();
+  await expect(summon).toBeVisible();
+  await expect(summon).toHaveAttribute("href", "/pal");
+  const action = (await primary.boundingBox())!;
+  const shortcut = (await summon.boundingBox())!;
+  expect(action.y + action.height).toBeLessThanOrEqual(shortcut.y);
+});
+
+// This doubles CSS text size in a desktop engine. It does not simulate native
+// Dynamic Type, browser zoom, a phone keyboard, or nonzero safe-area insets.
+for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }]) {
+  test(`homepage action remains readable and clear after scrolling with doubled text at ${viewport.width}px`, async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await prepareClearanceLanding(page, "dark", true);
+    await page.goto("/");
+    await expect(page.getByRole("link", { name: "Summon Ripley, your Pub Pal", exact: true })).toBeVisible();
+    await page.setViewportSize(viewport);
+
+    const primary = page.locator(".lpHero [data-primary-action]").getByRole("link", { name: LANDING_PRIMARY_NAME });
+    const normalFontSize = await primary.evaluate((link) => parseFloat(getComputedStyle(link).fontSize));
+    await page.evaluate(() => {
+      const root = document.documentElement;
+      root.style.fontSize = `${parseFloat(getComputedStyle(root).fontSize) * 2}px`;
+    });
+    await page.evaluate(() => document.fonts.ready);
+    await expect.poll(() => primary.evaluate((link) => parseFloat(getComputedStyle(link).fontSize)))
+      .toBeCloseTo(normalFontSize * 2, 1);
+
+    // Larger text may move the action below the first screen. It must remain
+    // reachable and readable when the reader scrolls to it.
+    await primary.evaluate((link) => link.scrollIntoView({ block: "center", behavior: "instant" }));
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+    const create = page.getByRole("button", { name: "Create", exact: true });
+    await create.focus();
+    await expect(page.locator(".createFabRoot")).toHaveCSS("opacity", "1");
+    await expectLandingPrimaryClear(page, viewport);
+
+    const textFits = await primary.evaluate((link) => {
+      const box = link.getBoundingClientRect();
+      const range = document.createRange();
+      range.selectNodeContents(link);
+      const lines = [...range.getClientRects()];
+      return lines.length > 0 && lines.every((line) =>
+        line.left >= box.left - 1 && line.right <= box.right + 1
+        && line.top >= box.top - 1 && line.bottom <= box.bottom + 1,
+      );
+    });
+    expect(textFits, "The whole enlarged label stays inside the primary button").toBe(true);
+    const palDoor = page.getByRole("navigation", { name: "Primary" })
+      .getByRole("link", { name: "Pub Pal, Ripley", exact: true });
+    await expect(palDoor).toBeVisible();
+    await expect(palDoor).toHaveAttribute("href", "/pal");
+    await expect(page.getByRole("link", { name: "Summon Ripley, your Pub Pal", exact: true })).toBeHidden();
+  });
+}

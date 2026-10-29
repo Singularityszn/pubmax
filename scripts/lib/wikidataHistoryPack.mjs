@@ -126,7 +126,7 @@ export function buildWikidataHistoryPack({ wanted, bindings, retrievedAt }) {
   };
 }
 
-/** The Wikidata Query Service's row in lib/harvest/sourcePolicy.ts. */
+/** The Wikidata Query Service's row in lib/harvest/sourceRegistry.ts. */
 const WIKIDATA_SOURCE_POLICY_ID = "wikidata-query-service";
 const USER_AGENT = "PubmaxxingWikidataHistory/1.0 (https://pubmaxxing.com/credits)";
 const RETRYABLE = new Set([429, 500, 502, 503, 504]);
@@ -136,8 +136,9 @@ const RETRYABLE = new Set([429, 500, 502, 503, 504]);
  * bindings.
  *
  * THE SOURCE POLICY OWNS THE HOST: the URL comes from `openDataSourceUrl`
- * (lib/harvest/sourcePolicy.ts, row `wikidata-query-service`) plus the query,
- * and a redirect is an error, so no response from another host is ever read. The
+ * (lib/harvest/sourcePolicy.ts, row `wikidata-query-service` in
+ * lib/harvest/sourceRegistry.ts) plus the query, and a redirect is an error, so
+ * no response from another host is ever read. The
  * service asks for a descriptive User-Agent, which this sends. A 429 or a 5xx
  * is asked again after the service's `Retry-After` (or a doubling wait from
  * `baseDelayMs`), at most `maxAttempts` times in all; any other failure throws,
