@@ -4,7 +4,7 @@ import type { Route as NextRoute } from "next";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Map, UserRound, Route, CalendarClock, Utensils, Images } from "lucide-react";
-import { Fragment, useCallback, useMemo, useSyncExternalStore, type CSSProperties } from "react";
+import { Fragment, useCallback, useLayoutEffect, useMemo, useRef, useSyncExternalStore, type CSSProperties } from "react";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import { profilePath } from "@/lib/appLink";
@@ -141,6 +141,24 @@ export default function MobileTabBar() {
 }
 
 function MobileTabBarContent({ pathname }: { pathname: string }) {
+  const listRef = useRef<HTMLUListElement>(null);
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    if (!list) return;
+    const root = document.documentElement;
+    const measure = () => {
+      const height = list.getBoundingClientRect().height;
+      if (height > 0) root.style.setProperty("--tabbar-measured-h", `${Math.ceil(height + 6)}px`);
+      else root.style.removeProperty("--tabbar-measured-h");
+    };
+    measure();
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    observer?.observe(list);
+    return () => {
+      observer?.disconnect();
+      root.style.removeProperty("--tabbar-measured-h");
+    };
+  }, []);
   const router = useRouter();
   const preferredCity = useSyncExternalStore(
     subscribePreferredCity,
@@ -218,6 +236,7 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
           column width and highlight geometry all derive from it (and from
           --tab-inset), so the CSS never assumes a tab total. */}
       <ul
+        ref={listRef}
         className="mobileTabList"
         style={{ "--tab-count": tabs.length + 1 } as CSSProperties}
       >

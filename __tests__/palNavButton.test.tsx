@@ -210,6 +210,47 @@ describe("the phone dock", () => {
     expect(list.style.getPropertyValue("--tab-count")).toBe("7");
   });
 
+  it.each(["normal", "large", "native-large"] as const)("reserves the measured dock height and clears it in %s mode", async (mode) => {
+    if (mode !== "normal") document.documentElement.setAttribute("data-text-scale", "large");
+    if (mode === "native-large") document.documentElement.setAttribute("data-native-shell", "ios");
+    let height = 52;
+    let resized = () => {};
+    const disconnect = vi.fn();
+    vi.stubGlobal("ResizeObserver", class {
+      constructor(callback: ResizeObserverCallback) {
+        resized = () => callback([], {} as ResizeObserver);
+      }
+      observe() {}
+      disconnect = disconnect;
+    });
+    const original = HTMLElement.prototype.getBoundingClientRect;
+    const rectangles = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+      return this.classList.contains("mobileTabList") ? new DOMRect(0, 0, 305, height) : original.call(this);
+    });
+    try {
+      await render(createElement(MobileTabBar));
+      const reserve = () => document.documentElement.style.getPropertyValue("--tabbar-measured-h");
+      expect(reserve()).toBe("58px");
+      height = 140;
+      act(resized);
+      expect(reserve()).toBe("146px");
+      height = 0;
+      act(resized);
+      expect(reserve()).toBe("");
+      height = 52;
+      act(resized);
+      act(() => root?.unmount());
+      root = null;
+      expect(reserve()).toBe("");
+      expect(disconnect).toHaveBeenCalledOnce();
+    } finally {
+      rectangles.mockRestore();
+      vi.unstubAllGlobals();
+      document.documentElement.removeAttribute("data-text-scale");
+      document.documentElement.removeAttribute("data-native-shell");
+    }
+  });
+
   it("slides the well to each tab's own column and skips the Pal's", () => {
     expect(PAL_DOCK_COLUMN).toBe(2);
     expect([0, 1, 2, 3, 4].map(dockColumnForTab)).toEqual([0, 1, 3, 4, 5]);

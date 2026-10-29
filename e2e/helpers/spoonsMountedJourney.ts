@@ -27,7 +27,6 @@ export async function closeDrink(page: Page): Promise<void> {
 /** Only the initial bootstrap loads a document. Every product destination is tapped. */
 export async function enterMountedSoftDrinks(page: Page): Promise<number> {
   const auth = await installAuthDoubles(page);
-  await auth.signedInAs(null);
   await installDeterministicMapBasemap(page);
   await page.addInitScript(() => {
     localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -36,6 +35,7 @@ export async function enterMountedSoftDrinks(page: Page): Promise<number> {
     sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
   });
   await page.goto("/privacy");
+  await auth.signedInAs(null);
   await expect(page.getByRole("button", { name: /Switch to .* theme/ }).first()).toBeEnabled();
   const documentStartedAt = await page.evaluate(() => performance.timeOrigin);
   await page.getByRole("navigation", { name: "Primary", exact: true })
@@ -79,7 +79,9 @@ export async function clickLuciaAndReturn(page: Page, documentStartedAt: number,
   await expect(page.getByRole("tab", { name: "Lucia 🐐", exact: true })).toHaveAttribute("aria-selected", "true");
   // Independent oracle: the committed Wells menu observation in uk_prices/rows.json,
   // not the production subtype selector or the displayed row read back as its own expectation.
-  const wells = page.locator(".softDrinksWater__row").filter({ hasText: "The Wells Tavern" });
+  const wells = page.locator(".softDrinksWater__row").filter({
+    has: page.locator('a[href="/ledger/venue-1472h4h"]'),
+  });
   await expect(wells).toHaveCount(1);
   await expect(wells.locator(".softDrinksWater__price")).toHaveText("£3.65");
   await expect(wells).toContainText("Collected 17 October 2026");

@@ -288,8 +288,8 @@ body:has(.mobileMapUtilityCorner) {
 }
 
 @media (max-width: 640px) {
-  :root:not([data-text-scale="large"]) {
-    --tabbar-h: max(64px, calc(2.1 * var(--text-2xs) + 48px));
+  :root {
+    --tabbar-h: max(64px, var(--tabbar-measured-h, 0px), calc(2.1 * var(--text-2xs) + 48px));
   }
 
   /* The bar alone: its lane, the home indicator and one gap, so the last line
@@ -320,6 +320,7 @@ body:has(.mobileMapUtilityCorner) {
   }
 
   .mobileTabBar {
+    container: mobile-dock / inline-size;
     display: block;
     position: fixed;
     left: 0;
@@ -611,4 +612,54 @@ body:has(.mobileMapUtilityCorner) {
 @media (max-width: 360px) {
   .mobileTabBar { padding-inline: 3px; }
   .mobileTabList { --tab-inset: 1px; }
+}
+
+/* A classic scrollbar leaves 305px at a 320px viewport. Seven 44px targets
+   need more than that. Root-relative containment also recovers enlarged text
+   without hiding labels or making the document wider. */
+@container mobile-dock (width < 20rem) {
+  .mobileTabList {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+  }
+
+  .mobileTabHighlight { display: none; }
+
+  .mobileTab,
+  .mobileTabPal {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .mobileTab.isActive,
+  .mobileTabPal.isActive {
+    background: var(--state-selected-surface);
+    box-shadow: var(--shadow-inset-press);
+  }
+
+  .mobileTabList .mobileTabLabel {
+    position: static;
+    width: auto;
+    height: auto;
+    max-width: none;
+    overflow: visible;
+    clip-path: none;
+    white-space: nowrap;
+  }
+
+  .mobileTabLabelText { overflow-wrap: normal; }
+
+  .mobileTabList .mobileTabPal {
+    justify-content: center;
+    padding: 4px 2px;
+    border-radius: calc(var(--tab-rail-radius) - var(--tab-inset));
+  }
+
+  .mobileTabList .mobileTabPal .palNavFace {
+    width: 40px;
+    height: 40px;
+    margin-top: 0;
+    box-shadow: none;
+  }
 }

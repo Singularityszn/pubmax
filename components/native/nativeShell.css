@@ -77,7 +77,7 @@
   [data-native-shell][data-text-scale="large"] {
     /* Two control rows and the 6px flex gap. */
     --topbar-h: 110px;
-    --tabbar-h: 72px;
+    --tabbar-h: max(72px, var(--tabbar-measured-h, 0px));
   }
 
   [data-native-shell][data-text-scale="large"] .siteNavBar {
