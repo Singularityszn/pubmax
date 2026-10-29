@@ -139,10 +139,10 @@ describe("the summon chip on a moment", () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date(2026, 9, 18, 21, 0));
     store(pal());
-    writeActivePlan({ id: "11111111-1111-4111-8111-111111111111", startTime: new Date(2026, 9, 18, 19, 0).toISOString(), stopIndex: 1 });
+    writeActivePlan({ id: "11111111-1111-4111-8111-111111111111", startTime: new Date(2026, 9, 18, 19, 0).toISOString(), stopIndex: 1, palContext: { id: pal().id, name: pal().name } });
     await render(createElement(PubPalSummon));
     expect(host.querySelector(".palSummon small")!.textContent).toBe("Night's on. Stop 2");
-    act(() => writeActivePlan({ id: "11111111-1111-4111-8111-111111111111", startTime: new Date(2026, 9, 18, 19, 0).toISOString(), stopIndex: 2 }));
+    act(() => writeActivePlan({ id: "11111111-1111-4111-8111-111111111111", startTime: new Date(2026, 9, 18, 19, 0).toISOString(), stopIndex: 2, palContext: { id: pal().id, name: pal().name } }));
     expect(host.querySelector(".palSummon small")!.textContent).toBe("Night's on. Stop 3");
   });
 });

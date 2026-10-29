@@ -8,6 +8,9 @@ vi.mock("@/components/auth/authContext", () => ({ useAuth: () => auth }));
 vi.mock("next/navigation", () => ({ usePathname: () => "/map" }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 
+import { readActivePlan, writeActivePlan } from "@/lib/activePlan";
+import { announcePalMoment } from "@/lib/palMoments";
+import { readPendingCompletedNight, recordCompletedNight } from "@/lib/morningReentry";
 import PubPalSummon from "@/components/pubpal/PubPalSummon";
 import { LOCAL_PAL_KEY, announceLocalPalChange } from "@/lib/localPal";
 import { DEVICE_ACCOUNT_OWNER_KEY, emitDeviceIdentityChanged } from "@/lib/deviceAccountIdentity";
@@ -16,15 +19,16 @@ let root: Root;
 let host: HTMLDivElement;
 function savePal(ownerId = "account-a", name = "Robin") {
   localStorage.setItem(LOCAL_PAL_KEY, JSON.stringify({
-    id: "pal-a", ownerId, name, appearance: { species: "robin", signalAffinity: "beer", material: "hologram", accessory: "none" }, personality: {},
+    id: `pal-${ownerId}`, ownerId, name, appearance: { species: "robin", signalAffinity: "beer", material: "hologram", accessory: "none" }, personality: {},
   }));
 }
 async function render() {
   await act(async () => { root.render(createElement(PubPalSummon)); });
 }
 beforeEach(() => {
-  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   localStorage.clear();
+  sessionStorage.clear();
   auth.user = { id: "account-a" };
   auth.loading = false;
   localStorage.setItem(DEVICE_ACCOUNT_OWNER_KEY, "account-a");
@@ -37,9 +41,55 @@ afterEach(async () => {
   await act(async () => root.unmount());
   host.remove();
   localStorage.clear();
+  sessionStorage.clear();
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
 });
 
 describe("mounted Pal shortcut ownership", () => {
+  it("retires the previous account's cheer and night offer when a new Pal arrives", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    vi.setSystemTime(new Date(2026, 9, 18, 9, 0));
+    const planId = "11111111-1111-4111-8111-111111111111";
+    writeActivePlan({ id: planId, startTime: new Date(2026, 9, 17, 23, 0).toISOString(), stopIndex: 6, palContext: { id: "pal-account-a", name: "Robin" } });
+    recordCompletedNight({ version: 1, planId, title: "A's night", completedAt: new Date(2026, 9, 18, 1, 0).toISOString() });
+    await render();
+    expect(host.querySelector("small")?.textContent).toBe("Morning. Last night's kept");
+    await act(async () => { announcePalMoment({ kind: "crawl-finished", stops: 7 }); });
+    expect(host.querySelector("small")?.textContent).toBe("Walked all 7 stops");
+
+    auth.user = { id: "account-b" };
+    localStorage.setItem(DEVICE_ACCOUNT_OWNER_KEY, "account-b");
+    savePal("account-b", "Pip");
+    await render();
+    expect(host.querySelector("a")?.getAttribute("aria-label")).toContain("Pip");
+    expect(readPendingCompletedNight()?.planId).toBe(planId);
+    expect(readActivePlan()?.palContext?.id).toBe("pal-account-a");
+    expect(host.querySelector("a")?.classList.contains("isCheering")).toBe(false);
+    expect(host.querySelector("small")?.textContent).toBe("Morning. Tap to plan tonight");
+    await act(async () => { vi.advanceTimersByTime(6_001); });
+    expect(host.querySelector("small")?.textContent).toBe("Morning. Tap to plan tonight");
+  });
+
+  it("keeps device plan continuity without attributing its cursor to another account's Pal", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    vi.setSystemTime(new Date(2026, 9, 18, 19, 0));
+    const planId = "11111111-1111-4111-8111-111111111111";
+    writeActivePlan({ id: planId, startTime: new Date().toISOString(), stopIndex: 4, palContext: { id: "pal-account-a", name: "Robin" } });
+    await render();
+    expect(host.querySelector("small")?.textContent).toBe("Night's on. Stop 5");
+    auth.user = { id: "account-b" };
+    localStorage.setItem(DEVICE_ACCOUNT_OWNER_KEY, "account-b");
+    savePal("account-b", "Pip");
+    await render();
+    expect(host.querySelector("small")?.textContent).toBe("Where to tonight?");
+    expect(readActivePlan()?.stopIndex).toBe(4);
+    await act(async () => {
+      writeActivePlan({ id: planId, startTime: new Date().toISOString(), stopIndex: 2, palContext: { id: "pal-account-b", name: "Pip" } });
+    });
+    expect(host.querySelector("small")?.textContent).toBe("Night's on. Stop 3");
+  });
+
   it("removes the previous account's shortcut during an account switch on the same route", async () => {
     await render();
     expect(host.querySelector("a")?.getAttribute("aria-label")).toContain("Robin");
