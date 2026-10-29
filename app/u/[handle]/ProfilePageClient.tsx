@@ -17,6 +17,7 @@ import OutTonightCrewLine from "@/components/profile/OutTonightCrewLine";
 import OutTonightToggle from "@/components/profile/OutTonightToggle";
 import PintPassport from "@/components/profile/PintPassport";
 import ProfileEditor from "@/components/profile/ProfileEditor";
+import ProfileSectionNav from "@/components/profile/ProfileSectionNav";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import SocialLinksEditor from "@/components/profile/SocialLinksEditor";
 import type { PublicSocialLink } from "@/lib/socialConnections";
@@ -1441,7 +1442,13 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
               ))}
             </div>
           ) : drops.length === 0 ? (
-            <p className="profileEmpty">No pints logged under @{routeHandle} yet.</p>
+            <EmptyState
+              className="profileMomentsEmpty"
+              title="A good night deserves a place here."
+              action={<Link href="/map?log=1">Log a pint</Link>}
+            >
+              Your pints, photos and pub stories will fill this space.
+            </EmptyState>
           ) : (
             <ProfileTimeline drops={drops as Array<Record<string, unknown>>} />
           )}
@@ -1545,16 +1552,136 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       ) : null;
   }
 
+  function profileJournal() {
+    const showFirstActions = isOwnProfile && stats.pintsLogged === 0;
+    return (
+      <div className="profileJournal">
+        {showFirstActions ? <FirstActionsRow /> : null}
+
+        {isOwnProfile && savedNotice && !editing ? (
+          <p className="profileSavedNotice" role="status">
+            Saved
+          </p>
+        ) : null}
+
+        {editingSection()}
+
+        {timelineSection()}
+
+        {crawlsSection()}
+
+        {/* /u/you redirects to the real handle the moment one is
+            known, so gating this on the sentinel alone left the
+            owner's own Wanted tab pointing at nothing. */}
+        {isYouRoute || isOwnProfile ? <WantedList /> : null}
+
+        {isYouRoute || isOwnProfile ? <DiaryList /> : null}
+
+        {/* Your crews, on your own page only. It resolves the Social
+            gate itself and renders nothing when Social is in
+            preview, so this card never promises what the flag has
+            not opened. */}
+        {isOwnProfile ? (
+          <CrewsPanel viewerHandle={viewerHandle} resolveAccess />
+        ) : null}
+
+        {!youSignedOut ? (
+          <div id="saved-pubs">
+            <SavedPubList
+              ownerHandle={isYouRoute ? viewerHandle : routeHandle}
+              groups={saved}
+              followedLists={followedLists}
+              isOwner={isYouRoute || isOwnProfile}
+            />
+          </div>
+        ) : null}
+
+
+      </div>
+    );
+  }
+
+  function profileSidebar() {
+    return (
+      <div className="profileSidebar">
+        {/* The one place a withheld card SAYS it is withheld. Without it a
+            private profile reads as a person who has written nothing about
+            themselves, which is a different claim entirely. */}
+        {projection === "limited" ? (
+          <EmptyState title={ACCOUNT_VISIBILITY_COPY.strangerTitle}>
+            {ACCOUNT_VISIBILITY_COPY.strangerBody}
+          </EmptyState>
+        ) : null}
+
+        {passportIsOwn && !youSignedOut ? (
+          <div id="passport">
+            <PintPassport
+              handle={routeHandle}
+              displayName={profile.displayName}
+              data={passport}
+              isOwn={passportIsOwn}
+              hero
+            />
+          </div>
+        ) : null}
+
+        {isOwnProfile ? (
+          <YourContributionsCard
+            handle={routeHandle}
+            claimNudge={shouldShowContributionClaimNudge({
+              isOwnProfile,
+              identityResolved: identityReadyForSurface,
+              hasUser: Boolean(user),
+            })}
+          />
+        ) : null}
+
+        {isOwnProfile ? (
+          <>
+            <ClaimMomentWelcome />
+            <ContributionLanesCard handle={routeHandle} />
+            <OutTonightToggle handle={routeHandle} />
+            <OutTonightBoard viewerHandle={routeHandle} />
+          </>
+        ) : null}
+
+        {!passportIsOwn ? (
+          <PintPassport
+            handle={routeHandle}
+            displayName={profile.displayName}
+            data={passport}
+            isOwn={passportIsOwn}
+            hero={false}
+          />
+        ) : null}
+
+        {!isOwnProfile && routeHandle && routeHandle !== YOU_SENTINEL ? (
+          <OutTonightCrewLine ownerHandle={routeHandle} viewerHandle={viewerHandle} />
+        ) : null}
+
+        {/* Quest chips (Loop 2): next-badge progress for the viewed handle.
+            NextBadgeChips fetches public drops and filters by handle — works
+            for any profile with drops; renders nothing when empty. Own
+            profile also surfaces local "Crawls walked" from crawlCompletion. */}
+        {routeHandle && routeHandle !== YOU_SENTINEL ? (
+          <NextBadgeChips handle={routeHandle} showCrawlsWalked={isOwnProfile} />
+        ) : null}
+
+        {seasonalBadgeSection()}
+      </div>
+    );
+  }
+
   function readySurface() {
+    const showProfileSections = (isYouRoute || isOwnProfile) && !youSignedOut;
     return (
       <>
-        {/* Desktop multi-pane (≥1024): identity/bio docks into a sticky left
-            pane; passport, timeline and saved flow in the main pane. Both
-            panes are display:contents below the breakpoint, so the phone
-            layout is the same single column it was before. */}
+        {/* The cover and identity span the page. Personal activity and the
+            passport share the space below on desktop. */}
         <div className="profileLayout">
             {isOwnProfile ? (
               <div className="profileOwnerUtilities">
+                <p className="profilePageKicker">Your corner of London</p>
                 <SiteNavMore
                   className="profileOptions"
                   label="Options"
@@ -1580,127 +1707,21 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
               </div>
             </div>
 
-            <div className="profileContentPane">
-              {/* The one place a withheld card SAYS it is withheld. Without it a
-                  private profile reads as a person who has written nothing about
-                  themselves, which is a different claim entirely. */}
-              {projection === "limited" ? (
-                <EmptyState title={ACCOUNT_VISIBILITY_COPY.strangerTitle}>
-                  {ACCOUNT_VISIBILITY_COPY.strangerBody}
-                </EmptyState>
-              ) : null}
+            {showProfileSections ? <ProfileSectionNav /> : null}
 
-              {passportIsOwn && !youSignedOut ? (
-                <div id="passport">
-                  <PintPassport
-                    handle={routeHandle}
-                    displayName={profile.displayName}
-                    data={passport}
-                    isOwn={passportIsOwn}
-                    hero
-                  />
-                </div>
-              ) : null}
-
+            <div className={`profileContentPane${isOwnProfile ? " profileContentPaneOwn" : ""}`}>
               {isOwnProfile ? (
-                <YourContributionsCard
-                  handle={routeHandle}
-                  claimNudge={shouldShowContributionClaimNudge({
-                    isOwnProfile,
-                    identityResolved: identityReadyForSurface,
-                    hasUser: Boolean(user),
-                  })}
-                />
-              ) : null}
+                <>{profileJournal()}{profileSidebar()}</>
+              ) : (
+                <>{profileSidebar()}{profileJournal()}</>
+              )}
 
-              {isOwnProfile ? (
-                <>
-                  <ClaimMomentWelcome />
-                  <FirstActionsRow />
-                  <ContributionLanesCard handle={routeHandle} />
-                  <OutTonightToggle handle={routeHandle} />
-                  <OutTonightBoard viewerHandle={routeHandle} />
-                </>
-              ) : null}
-
-              {(isYouRoute || isOwnProfile) && !youSignedOut ? (
-                <nav className="youProfileTabs" aria-label="Your profile sections">
-                  <a href="#timeline">Moments</a>
-                  <a href="#passport">Passport</a>
-                  <a href="#wanted">Pubs to try</a>
-                  <a href="#saved-pubs">Saved</a>
-                  <a href="#account-settings">Account settings</a>
-                </nav>
-              ) : null}
-
-              {!passportIsOwn ? (
-                <PintPassport
-                  handle={routeHandle}
-                  displayName={profile.displayName}
-                  data={passport}
-                  isOwn={passportIsOwn}
-                  hero={false}
-                />
-              ) : null}
-
-              {!isOwnProfile && routeHandle && routeHandle !== YOU_SENTINEL ? (
-                <OutTonightCrewLine ownerHandle={routeHandle} viewerHandle={viewerHandle} />
-              ) : null}
-
-              {/* Quest chips (Loop 2): next-badge progress for the viewed handle.
-                  NextBadgeChips fetches public drops and filters by handle — works
-                  for any profile with drops; renders nothing when empty. Own
-                  profile also surfaces local "Crawls walked" from crawlCompletion. */}
-              {routeHandle && routeHandle !== YOU_SENTINEL ? (
-                <NextBadgeChips handle={routeHandle} showCrawlsWalked={isOwnProfile} />
-              ) : null}
-
-              {seasonalBadgeSection()}
-
-              {isOwnProfile && savedNotice && !editing ? (
-                <p className="profileSavedNotice" role="status">
-                  Saved
-                </p>
-              ) : null}
-
-              {editingSection()}
-
-              {timelineSection()}
-
-              {crawlsSection()}
-
-              {/* /u/you redirects to the real handle the moment one is
-                  known, so gating this on the sentinel alone left the
-                  owner's own Wanted tab pointing at nothing. */}
-              {isYouRoute || isOwnProfile ? <WantedList /> : null}
-
-              {isYouRoute || isOwnProfile ? <DiaryList /> : null}
-
-              {/* Your crews, on your own page only. It resolves the Social
-                  gate itself and renders nothing when Social is in
-                  preview, so this card never promises what the flag has
-                  not opened. */}
-              {isOwnProfile ? (
-                <CrewsPanel viewerHandle={viewerHandle} resolveAccess />
-              ) : null}
-
-              {!youSignedOut ? (
-                <div id="saved-pubs">
-                  <SavedPubList
-                    ownerHandle={isYouRoute ? viewerHandle : routeHandle}
-                    groups={saved}
-                    followedLists={followedLists}
-                    isOwner={isYouRoute || isOwnProfile}
-                  />
-                </div>
-              ) : null}
-
-              {isYouRoute || isOwnProfile ? (
-                <div id="account-settings">
-                  <PubmaxxAccountHub />
-                </div>
-              ) : null}
             </div>
+            {isYouRoute || isOwnProfile ? (
+              <div id="account-settings">
+                <PubmaxxAccountHub />
+              </div>
+            ) : null}
         </div>
 
         <footer className="profileFloor">

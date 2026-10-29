@@ -47,6 +47,7 @@ import {
   loginPageHasSessionHint,
   loginPageHeadCopy,
 } from "@/lib/loginPageFraming";
+import HandleAvatar from "@/components/profile/HandleAvatar";
 import { authAvatarInitials } from "@/lib/authAvatarInitials";
 import { displayHandle } from "@/lib/handleDisplay";
 
@@ -118,17 +119,6 @@ function displayName(
   );
 }
 
-function avatarUrl(user: {
-  user_metadata?: Record<string, unknown> | null;
-}): string {
-  const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
-  return (
-    (typeof meta.avatar_url === "string" && meta.avatar_url) ||
-    (typeof meta.picture === "string" && meta.picture) ||
-    ""
-  );
-}
-
 /**
  * The already-signed-in state: who you are here, and three ways onward.
  *
@@ -159,7 +149,7 @@ function SignedInCard({
   addAccountHref: Route;
 }): React.JSX.Element {
   const card = usePublicProfileCard(handle);
-  const avatar = card?.avatarUrl || avatarUrl(user);
+  const avatar = card?.avatarUrl;
   const name = displayName(user, card, handle);
   // The handle is how people find them, so it sits under a name that is not it.
   const handleLine = handle && name !== displayHandle(handle) ? displayHandle(handle) : null;
@@ -167,20 +157,16 @@ function SignedInCard({
   return (
     <section className="loginPageSignedIn" aria-label="Signed-in account">
       <div className="loginPageIdentity">
-        {avatar ? (
-          // eslint-disable-next-line @next/next/no-img-element -- remote IdP avatar
-          <img
-            className="authAvatar loginPageAvatar"
-            src={avatar}
-            alt=""
-            width={48}
-            height={48}
-          />
-        ) : (
-          <span className="authAvatarFallback loginPageAvatar" aria-hidden="true">
-            {authAvatarInitials(name)}
-          </span>
-        )}
+        <HandleAvatar
+          key={`${activeUserId ?? ""}:${handle ?? ""}`}
+          handle={handle ?? ""}
+          avatarUrl={avatar}
+          displayName={name}
+          initials={authAvatarInitials(name)}
+          className="authAvatarFallback loginPageAvatar"
+          imageClassName="authAvatar loginPageAvatar"
+          size={48}
+        />
         <div className="loginPageIdentityText">
           <p className="loginPageWho">{name}</p>
           {handleLine ? <p className="loginPageHandle">{handleLine}</p> : null}
