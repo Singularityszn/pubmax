@@ -108,6 +108,27 @@ type Reconciliation = {
     currentLedger: { sha256: string; rowCount: number; rowIdentitySetSha256: string };
     currentBundle: { rowCount: number; siteHarvestRows: number };
   }>;
+  laterBundleQuarantines: Array<{
+    scope: "bundle-only";
+    reason: string;
+    row: {
+      venueId: string;
+      category: string;
+      priceGbp: number;
+      drinkLabel: string;
+      lane: string;
+      sourceUrl: string;
+      observedAt: string;
+    };
+    ledgerVenueId: string;
+    currentLedger: { sha256: string; rowCount: number; rowIdentitySetSha256: string };
+    beforeBundle: { rowCount: number; siteHarvestRows: number };
+    afterBundle: { rowCount: number; siteHarvestRows: number };
+    inputsUnchanged: boolean;
+    inputCount: number;
+    outputBeforeSha256: Record<string, string>;
+    outputAfterSha256: Record<string, string>;
+  }>;
   accounting: {
     refusedNicholsonRows: number;
     knownMisclassifiedWithdrawals: number;
@@ -464,8 +485,9 @@ describe("site-harvest withdrawal reconciliation", () => {
     expect(latest).toBeDefined();
     const bundleRows = JSON.parse(readFileSync(join(ROOT, "public/data/uk_prices/rows.json"), "utf8")) as Array<{ lane: string }>;
     expect(latest?.currentBundle).toEqual({
-      rowCount: bundleRows.length,
-      siteHarvestRows: bundleRows.filter((row) => row.lane === "site-harvest").length,
+      rowCount: bundleRows.length + reconciliation.laterBundleQuarantines.length,
+      siteHarvestRows: bundleRows.filter((row) => row.lane === "site-harvest").length
+        + reconciliation.laterBundleQuarantines.filter((entry) => entry.row.lane === "site-harvest").length,
     });
   });
 
@@ -522,9 +544,70 @@ describe("site-harvest withdrawal reconciliation", () => {
     const historicalBundle = bundleRows.filter(
       (row) => !laterSources.has(`${row.sourceUrl ?? ""}|${row.observedAt}`),
     );
+    const historicalQuarantines = reconciliation.laterBundleQuarantines.filter(
+      ({ row }) => !laterSources.has(`${row.sourceUrl}|${row.observedAt}`),
+    );
     expect(publication.currentBundle).toEqual({
-      rowCount: historicalBundle.length,
-      siteHarvestRows: historicalBundle.filter((row) => row.lane === "site-harvest").length,
+      rowCount: historicalBundle.length + historicalQuarantines.length,
+      siteHarvestRows: historicalBundle.filter((row) => row.lane === "site-harvest").length
+        + historicalQuarantines.filter((entry) => entry.row.lane === "site-harvest").length,
     });
+  });
+
+  it("quarantines only the historical bare fraction from the bundle and preserves its ledger", () => {
+    expect(reconciliation.laterBundleQuarantines).toHaveLength(1);
+    const quarantine = reconciliation.laterBundleQuarantines[0];
+    expect(quarantine.scope).toBe("bundle-only");
+    expect(quarantine.reason).toContain("without changing its source ledger");
+    expect(quarantine.row).toEqual({
+      basis: null,
+      category: "beer",
+      drinkLabel: "1/3",
+      lane: "site-harvest",
+      name: "North Westward Ho",
+      observedAt: "2026-09-04T14:07:10.622Z",
+      priceGbp: 2.1,
+      publisher: "northwestwardho.co.uk",
+      sampleSize: null,
+      sourceUrl: "https://www.northwestwardho.co.uk/menu",
+      standing: "listed",
+      venueId: "venue-mcr-y2sfka",
+    });
+    const bundleRows = JSON.parse(
+      readFileSync(join(ROOT, "public/data/uk_prices/rows.json"), "utf8"),
+    ) as Array<Record<string, unknown>>;
+    expect(bundleRows.some((row) => Object.entries(quarantine.row).every(
+      ([key, value]) => row[key] === value,
+    ))).toBe(false);
+    expect(quarantine.ledgerVenueId).toBe("venue-uk-n11469099314");
+    const ledgerMatches = rows.filter((row) =>
+      row.venueId === quarantine.ledgerVenueId
+      && row.sourceUrl === quarantine.row.sourceUrl
+      && row.observedAt === quarantine.row.observedAt
+      && row.category === "beer" && row.priceGbp === 2.1 && row.drinkLabel === "1/3",
+    );
+    expect(ledgerMatches).toHaveLength(1);
+    expect(quarantine.currentLedger).toEqual({
+      sha256: sha256(ledgerText),
+      rowCount: rows.length,
+      rowIdentitySetSha256: identitySetSha256(rows),
+    });
+    expect(sha256(ledgerText)).toBe(
+      "d7ceaae058bc148dfa2903a6f7bc4c08d3dfc88df562ee8bbff59fb4b2053284",
+    );
+    expect(quarantine.beforeBundle).toEqual(reconciliation.laterPublications.at(-1)?.currentBundle);
+    expect(quarantine.afterBundle).toEqual({
+      rowCount: bundleRows.length,
+      siteHarvestRows: bundleRows.filter((row) => row.lane === "site-harvest").length,
+    });
+    expect(quarantine.beforeBundle.rowCount - quarantine.afterBundle.rowCount).toBe(1);
+    expect(quarantine.beforeBundle.siteHarvestRows - quarantine.afterBundle.siteHarvestRows).toBe(1);
+    expect(quarantine.inputsUnchanged).toBe(true);
+    expect(quarantine.inputCount).toBe(628);
+    for (const [path, hash] of Object.entries(quarantine.outputAfterSha256)) {
+      expect(sha256(readFileSync(join(ROOT, path), "utf8"))).toBe(hash);
+    }
+    const coveragePath = "public/data/uk_prices/listed_coverage.json";
+    expect(quarantine.outputAfterSha256[coveragePath]).toBe(quarantine.outputBeforeSha256[coveragePath]);
   });
 });
