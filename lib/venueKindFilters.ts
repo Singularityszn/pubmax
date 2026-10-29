@@ -1,10 +1,12 @@
 import type { Venue, VenueKind } from "@/lib/venues";
 
-export type CuratedVenueKind = "pub" | "bar" | "food" | "restaurant";
-export type VenueKindVisibility = Record<CuratedVenueKind, boolean>;
+export type CuratedVenueKind = "pub" | "bar" | "club" | "food" | "restaurant";
+export type VenueKindVisibility = Record<Exclude<CuratedVenueKind, "club">, boolean> & {
+  club?: boolean;
+};
 
 export function defaultVenueKindVisibility(): VenueKindVisibility {
-  return { pub: true, bar: true, food: true, restaurant: true };
+  return { pub: true, bar: true, club: true, food: true, restaurant: true };
 }
 
 export function toggleVenueKind(
@@ -115,9 +117,9 @@ export function venueKindNoun(kind: VenueKind | undefined): string {
 }
 
 /**
- * The map's kind filter offers the CURATED kinds only. A club keeps its own
- * label but shows and hides with the bars, because it is somewhere to drink and
- * has no chip of its own. A kind that arrived with the UK-wide OSM venue pack
+ * Clubs have their own visibility key. Older four-key visibility records keep
+ * their Bars choice until they receive an explicit Clubs choice.
+ * A kind that arrived with the UK-wide OSM venue pack
  * answers null, so `filterVenuesByKind` leaves it out of a curated map view
  * rather than showing it under a toggle nobody can reach. Giving those kinds
  * their own surface is a separate wave.
@@ -126,7 +128,7 @@ function curatedVenueKind(
   kind: VenueKind | undefined,
 ): CuratedVenueKind | null {
   if (kind === "bar" || kind === "food" || kind === "restaurant") return kind;
-  if (kind === "club") return "bar";
+  if (kind === "club") return "club";
   if (kind === undefined || kind === "pub") return "pub";
   return null;
 }
@@ -137,6 +139,7 @@ export function filterVenuesByKind(
 ): Venue[] {
   return venues.filter((venue) => {
     const kind = curatedVenueKind(venue.kind);
+    if (kind === "club") return visibility.club ?? visibility.bar;
     return kind !== null && visibility[kind];
   });
 }
