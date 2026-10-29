@@ -1,6 +1,124 @@
 import { expect, test } from "@playwright/test";
 import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 
+for (const width of [320, 390]) {
+  for (const rootSize of [16, 32]) {
+    for (const native of [false, true]) {
+      test(`${width}px root${rootSize} large-text dock${native ? " in native shell" : ""} keeps three labelled columns`, async ({ page }) => {
+        await page.setViewportSize({ width, height: 568 });
+        await page.goto("/privacy");
+        const nav = page.getByRole("navigation", { name: "Primary", exact: true });
+        await expect(nav).toBeVisible();
+        await page.evaluate(({ rootSize, native }) => {
+          document.documentElement.style.fontSize = `${rootSize}px`;
+          document.documentElement.dataset.textScale = "large";
+          if (native) document.documentElement.dataset.nativeShell = "ios";
+        }, { rootSize, native });
+
+        await expect.poll(() => nav.locator("ul").evaluate((list) => getComputedStyle(list).display)).toBe("grid");
+        await expect.poll(() => nav.locator("ul").evaluate((list) =>
+          getComputedStyle(list).gridTemplateColumns.split(" ").length,
+        )).toBe(3);
+        const links = nav.getByRole("link");
+        await expect(links).toHaveCount(7);
+        const rows = new Set<number>();
+        for (const link of await links.all()) {
+          const label = link.locator(".mobileTabLabel");
+          await expect(label).toBeVisible();
+          const geometry = await link.evaluate((element) => {
+            const box = element.getBoundingClientRect();
+            const label = element.querySelector<HTMLElement>(".mobileTabLabel")!;
+            const text = label.getBoundingClientRect();
+            const style = getComputedStyle(label);
+            return {
+              x: box.x, right: box.right, top: box.top, width: box.width, height: box.height,
+              labelWidth: text.width, labelHeight: text.height,
+              labelFits: text.left >= box.left && text.right <= box.right + 1 && label.scrollWidth <= label.clientWidth + 1,
+              whiteSpace: style.whiteSpace, clipPath: style.clipPath,
+            };
+          });
+          expect(geometry.width).toBeGreaterThanOrEqual(44);
+          expect(geometry.height).toBeGreaterThanOrEqual(44);
+          expect(geometry.x).toBeGreaterThanOrEqual(0);
+          expect(geometry.right).toBeLessThanOrEqual(width);
+          expect(geometry.labelWidth).toBeGreaterThan(1);
+          expect(geometry.labelHeight).toBeGreaterThan(1);
+          expect(geometry.labelFits).toBe(true);
+          expect(geometry.whiteSpace).toBe("nowrap");
+          expect(geometry.clipPath).toBe("none");
+          rows.add(Math.round(geometry.top));
+        }
+        expect(rows.size).toBe(3);
+        const pal = nav.locator(".palNavFace");
+        const face = (await pal.boundingBox())!;
+        const cell = (await nav.getByRole("link", { name: "Pub Pal", exact: true }).boundingBox())!;
+        expect(face.y).toBeGreaterThanOrEqual(cell.y);
+        expect(face.y + face.height).toBeLessThanOrEqual(cell.y + cell.height);
+        await expect(nav.locator(".mobileTabHighlight")).toBeHidden();
+        await expect.poll(() => page.evaluate(() => {
+          const list = document.querySelector(".mobileTabList")!;
+          return parseFloat(document.documentElement.style.getPropertyValue("--tabbar-measured-h"))
+            >= Math.ceil(list.getBoundingClientRect().height + 6);
+        })).toBe(true);
+        const clearance = await page.evaluate(() => {
+          const probe = document.body.appendChild(document.createElement("div"));
+          probe.style.height = "var(--tabbar-h)";
+          const reserved = probe.getBoundingClientRect().height;
+          probe.remove();
+          const dock = document.querySelector(".mobileTabBar")!.getBoundingClientRect();
+          const list = document.querySelector(".mobileTabList")!.getBoundingClientRect();
+          return {
+            reserved, dockHeight: dock.height, listHeight: list.height, bottomGap: innerHeight - list.bottom,
+            padding: parseFloat(getComputedStyle(document.body).paddingBottom),
+            overflow: document.documentElement.scrollWidth - innerWidth,
+          };
+        });
+        expect(clearance.reserved).toBeGreaterThanOrEqual(clearance.listHeight + 6);
+        if (native) expect(clearance.reserved).toBeGreaterThanOrEqual(72);
+        expect(clearance.padding).toBeGreaterThanOrEqual(clearance.dockHeight);
+        expect(clearance.bottomGap).toBeGreaterThanOrEqual(6);
+        expect(clearance.overflow).toBe(0);
+      });
+    }
+  }
+}
+
+test("320px ordinary text keeps four columns beside a 15px scrollbar", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.goto("/privacy");
+  await page.addStyleTag({ content: "html { overflow-y: scroll; scrollbar-gutter: stable; } ::-webkit-scrollbar { width: 15px; }" });
+  const nav = page.getByRole("navigation", { name: "Primary", exact: true });
+  await expect(nav).toBeVisible();
+  expect(await page.evaluate(() => innerWidth - document.documentElement.clientWidth)).toBe(15);
+  await expect.poll(() => nav.locator("ul").evaluate((list) =>
+    getComputedStyle(list).gridTemplateColumns.split(" ").length,
+  )).toBe(4);
+  const targets = await nav.getByRole("link").evaluateAll((links) => links.map((link) => {
+    const box = link.getBoundingClientRect();
+    return { width: box.width, height: box.height, top: Math.round(box.top), right: box.right };
+  }));
+  expect(new Set(targets.map((target) => target.top)).size).toBe(2);
+  for (const target of targets) {
+    expect(target.width).toBeGreaterThanOrEqual(44);
+    expect(target.height).toBeGreaterThanOrEqual(44);
+    expect(target.right).toBeLessThanOrEqual(305);
+  }
+});
+
+for (const width of [320, 390]) {
+  test(`${width}px doubled root keeps three columns without explicit large-text mode`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto("/privacy");
+    const nav = page.getByRole("navigation", { name: "Primary", exact: true });
+    await expect(nav).toBeVisible();
+    await page.evaluate(() => { document.documentElement.style.fontSize = "32px"; });
+    await expect.poll(() => nav.locator("ul").evaluate((list) =>
+      getComputedStyle(list).gridTemplateColumns.split(" ").length,
+    )).toBe(3);
+    for (const label of await nav.locator(".mobileTabLabel").all()) await expect(label).toBeVisible();
+  });
+}
+
 for (const width of [320, 390, 641, 768, 900, 1440]) {
   test(`${width}px Spoons navigation opens searchable recorded costs`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 844 });
