@@ -41,7 +41,7 @@ function unmount(): void {
 }
 
 beforeEach(() => {
-  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   fetchProfile.mockReset();
   seen = [];
   host = document.createElement("div");
@@ -52,7 +52,7 @@ beforeEach(() => {
 afterEach(() => {
   unmount();
   host.remove();
-  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = false;
+  vi.unstubAllGlobals();
 });
 
 describe("nearby account preferences", () => {
