@@ -108,11 +108,18 @@ function historicPubJsonLd(pub: HistoricPub) {
         ),
     ),
   );
-  return {
+  const page = {
     "@context": "https://schema.org",
-    "@type": "LandmarksOrHistoricalBuildings",
     name: pub.name,
     url: `${SITE_URL}/historic/${pub.slug}`,
+  };
+  // Unreconciled references can combine different pubs. Describe this page
+  // without asserting that their descriptions and locations identify one place.
+  if (identityRefs.length > 1) return { ...page, "@type": "WebPage" };
+
+  return {
+    ...page,
+    "@type": "LandmarksOrHistoricalBuildings",
     ...(pub.hook ? { description: pub.hook } : {}),
     ...(pub.borough
       ? {
