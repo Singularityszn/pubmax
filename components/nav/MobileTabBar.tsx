@@ -66,8 +66,6 @@ type Tab = {
   href: NextRoute;
   label: string;
   Icon: typeof Map;
-  /** The link's accessible name. The large text bucket hides the tab word
-   *  (mobileNav.css), so the name must live on the link, not in that word. */
   ariaLabel: string;
   /** Path prefixes that should mark this tab active (defaults to href). */
   match?: string[];

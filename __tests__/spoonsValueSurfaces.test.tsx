@@ -1,13 +1,18 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+// @vitest-environment jsdom
 
-import { createElement } from "react";
+import { act, createElement, type ComponentProps } from "react";
+import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import SpoonsValueLensControl from "@/components/map/SpoonsValueLensControl";
 import SpoonsValueTable from "@/app/spoons-value/SpoonsValueTable";
-import { metadata } from "@/app/spoons-value/page";
+import SpoonsValuePage, { metadata } from "@/app/spoons-value/page";
+import VenueOverviewTab from "@/components/map/inspector/VenueOverviewTab";
+import UnverifiedPubSheet from "@/components/map/UnverifiedPubSheet";
+import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
+import { readSpoonsValue } from "@/lib/spoonsValue.server";
+import { slimVenueToPin } from "@/lib/slimPins";
 import {
   SPOONS_VALUE_LENS_OFF,
   SPOONS_VALUE_MAP_HREF,
@@ -19,7 +24,14 @@ import {
 } from "@/lib/spoonsValue";
 import { defined } from "@/__tests__/helpers/defined";
 
-const ROOT = process.cwd();
+vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
+vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
+
+function rendered(html: string): HTMLDivElement {
+  const view = document.createElement("div");
+  view.innerHTML = html;
+  return view;
+}
 
 function renderLens(props: Parameters<typeof SpoonsValueLensControl>[0]) {
   return renderToStaticMarkup(createElement(SpoonsValueLensControl, props));
@@ -161,12 +173,6 @@ describe("the ranking table", () => {
     expect(spoonsValueLensRequested("?lens=no-alcohol")).toBe(false);
   });
 
-  it("is the page's own primary door", () => {
-    const page = readFileSync(join(ROOT, "app/spoons-value/page.tsx"), "utf8");
-    expect(page).toContain("SPOONS_VALUE_MAP_HREF");
-    expect(page).not.toMatch(/href="\/map"/);
-  });
-
   it("prints every figure with its unit and its round beside it", () => {
     const html = renderToStaticMarkup(
       createElement(SpoonsValueTable, {
@@ -203,97 +209,164 @@ describe("the ranking page", () => {
     expect(copy).not.toMatch(/most drunk|get you drunk|hammered|smashed/i);
   });
 
-  it("carries no copy that makes getting drunk the goal", () => {
-    // The source report's own headline does. Ours may not: the figure is what
-    // a tenner buys, and every surface says it that way.
-    //
-    // COMMENTS ARE NOT COPY, the same allowance the em-dash law makes: a note
-    // explaining why a phrase is banned is not the phrase reaching a reader.
-    const stripComments = (source: string) =>
-      source.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/^\s*\/\/.*$/gm, " ");
-    for (const file of [
-      "app/spoons-value/page.tsx",
-      "app/spoons-value/SpoonsValueTable.tsx",
-      "components/map/SpoonsValueLensControl.tsx",
-      "components/map/inspector/VenueSpoonsValueRow.tsx",
-      "lib/spoonsValue.ts",
-    ]) {
-      const source = stripComments(readFileSync(join(ROOT, file), "utf8"));
-      expect(source, file).not.toMatch(/most drunk|get you drunk|drink more|hammered/i);
+  let page: HTMLDivElement;
+
+  beforeAll(async () => {
+    page = rendered(renderToStaticMarkup(await SpoonsValuePage()));
+  });
+
+  it("carries the Spoons lens on every rendered map link", () => {
+    const primary = page.querySelector<HTMLAnchorElement>("[data-primary-action] a");
+    expect(primary?.textContent).toBe("See it on the map");
+    expect(primary?.getAttribute("href")).toBe("/map?lens=spoons");
+    const links = Array.from(page.querySelectorAll<HTMLAnchorElement>("a[href]"))
+      .map((link) => new URL(link.href, "https://pubmaxxing.com"))
+      .filter((url) => url.pathname === "/map");
+    expect(links.length).toBeGreaterThan(1);
+    for (const url of links) expect(url.searchParams.get("lens")).toBe("spoons");
+  });
+
+  it("credits Oliver Clegg and links SpoonMe without adopting its headline", () => {
+    const credit = page.querySelector('[aria-label="Where these figures come from"]');
+    const link = credit?.querySelector("a");
+    expect(link?.textContent).toBe("Ranking method after SpoonMe by Oliver Clegg");
+    expect(link?.getAttribute("href")).toBe("https://spoonme.vercel.app/report");
+    expect(credit?.textContent).toContain("published 2026-08-30");
+    expect(page.textContent).not.toMatch(/most drunk|get you drunk|drink more|hammered/i);
+    for (const state of [
+      SPOONS_VALUE_LENS_OFF,
+      { status: "loading", modalMilliunits: null },
+      { status: "ready", modalMilliunits: 12_785 },
+      { status: "empty", modalMilliunits: null },
+      { status: "unavailable", modalMilliunits: null },
+    ] as const) {
+      const lens = rendered(renderLens({ on: state.status !== "off", state, onChange: vi.fn() }));
+      expect(lens.textContent).not.toMatch(/most drunk|get you drunk|drink more|hammered/i);
     }
   });
 
-  it("credits the author rather than repeating the source's own headline", () => {
-    // The report is titled with a claim we do not make. We name the publisher
-    // and the author and link the original; the headline stays theirs.
-    for (const file of [
-      "app/spoons-value/page.tsx",
-      "components/map/inspector/VenueSpoonsValueRow.tsx",
-    ]) {
-      const source = readFileSync(join(ROOT, file), "utf8");
-      expect(source, file).not.toContain("provenance.title");
-      expect(source, file).not.toContain("credit.title");
-    }
-  });
-
-  it("puts the doors after the answer, so a phone meets the table first", () => {
-    const page = readFileSync(join(ROOT, "app", "spoons-value", "page.tsx"), "utf8");
-    expect(page).toContain("actionsAfterContent");
-  });
-
-  // The two stylesheet regexes that used to stand here (a scroll box on the
-  // table, a 44px box on each cut chip) are gone. RENDERED geometry proves a
-  // layout claim and a regex over a stylesheet does not, and
-  // `e2e/spoons-value.spec.ts` measures the real thing: no sideways page scroll
-  // at 320, and at 390 every cut chip's own box clears the 44px tap floor on
-  // one row. Two locks on one implementation of an answer already proved is how
-  // a stylesheet becomes un-editable.
-
-  it("puts no lede in front of the answer", () => {
-    // The Screen lede plus an opening paragraph left a phone meeting no table
-    // row at all. One short paragraph is the whole ration.
-    const page = readFileSync(join(ROOT, "app", "spoons-value", "page.tsx"), "utf8");
-    expect(page).not.toContain("lede={");
+  it("puts the table before the actions without an extra header introduction", () => {
+    const table = page.querySelector("table");
+    const actions = page.querySelector("[data-primary-action]");
+    expect(table).not.toBeNull();
+    expect(actions).not.toBeNull();
+    expect(table!.compareDocumentPosition(actions!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const introduction = page.querySelector(".screenHead")!;
+    expect(Array.from(introduction.querySelectorAll("p"), (paragraph) => paragraph.textContent?.trim()))
+      .toEqual(["Wetherspoons, everywhere"]);
   });
 });
 
-describe("the lens costs a cold map nothing", () => {
-  it("is fetched only once a reader switches it on", () => {
-    const pubMap = readFileSync(join(ROOT, "components", "PubMap.tsx"), "utf8");
-    // The effect returns before the fetch whenever the lens is off, so nothing
-    // asks for the lane on a cold open.
-    expect(pubMap).toMatch(
-      /if \(!spoonsValueOn\) return;[\s\S]{0,200}?loadSpoonsValueLane\(\)/,
-    );
-    // The lens itself starting off is the other half, and it is not assertable
-    // here: `components/PubMap.tsx` holds 18 `useState(false)` calls, so that
-    // assertion could not fail. The effect's own guard above is the fence, and
-    // `e2e/spoons-value.spec.ts` opens a cold map and watches for the request.
+describe("Spoons figures in the real venue sheets", () => {
+  const venueId = "synthetic-spoons-pub";
+  const noop = () => {};
+  const communityPrices: CommunityPricesState = {
+    byVenueId: new Map(),
+    signalsByVenueId: new Map(),
+    freshestByVenueId: new Map(),
+    venuePriceStatus: new Map([[venueId, "ready"]]),
+    noAlcoholIndexStatus: "idle",
+    loadNoAlcoholIndex: noop,
+    loadDrinkCategoryIndex: noop,
+    drinkCategoryIndexStatus: new Map(),
+    provisionalBaseVenueIds: new Set(),
+    loadProvisionalBaseVenues: noop,
+    loadVenue: noop,
+    submit: async () => ({ ok: false, error: "Not submitted", reason: "rejected" }),
+    submitVenueSignal: async () => ({ ok: true }),
+    submitting: false,
+    reportPrice: noop,
+    reportedIds: new Set(),
+  };
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
-  it("answers both sheets from one route, so one row cannot drift into two", () => {
-    // 676 of the 788 pubs this lane joins are national base pins, which open a
-    // different sheet from a curated venue. Both mount the same row.
-    for (const file of [
-      "components/map/inspector/VenueOverviewTab.tsx",
-      "components/map/UnverifiedPubSheet.tsx",
-    ]) {
-      expect(readFileSync(join(ROOT, file), "utf8"), file).toContain(
-        "<VenueSpoonsValueRow",
-      );
+  it.each(["curated", "base"])("renders the credited round through the %s sheet", async (kind) => {
+    const { pack } = await readSpoonsValue();
+    expect(pack).not.toBeNull();
+    const row = { ...defined(pack!.rows[0]), venueId };
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input) === `/api/spoons-value?venueId=${venueId}`) {
+        return Response.json({
+          spoonsValue: { row, modalMilliunits: 12_785, rankedCount: 805, credit: pack!.provenance },
+        });
+      }
+      return new Response("{}", { status: 404 });
+    });
+    vi.useFakeTimers();
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    vi.stubGlobal("fetch", fetchMock);
+    const props = {
+      venue: slimVenueToPin({ id: venueId, name: "Synthetic Spoons", lat: 51.5, lng: -0.1, borough: "Camden", cheapestPrice: null, kind: "pub" }),
+      tab: "overview",
+      cityId: "london",
+      mode: "suggest",
+      inCrawl: false,
+      latestContributorPrice: null,
+      dropReadStatus: "ready",
+      communityPrices,
+      experienceLens: "all",
+      onToggleStop: noop,
+      presenceState: "idle",
+      markPresenceHere: noop,
+      userLocation: null,
+      locationRequestStatus: "idle",
+      onRequestLocation: noop,
+      onClearLocation: noop,
+      onLogTonightPrice: noop,
+      onOpenVisitReports: noop,
+      priceEntryAllowed: false,
+      priceSignInRequested: false,
+      priceAuthLoading: false,
+      priceFocusRequest: 0,
+    } satisfies ComponentProps<typeof VenueOverviewTab>;
+    const view = document.body.appendChild(document.createElement("div"));
+    const root = createRoot(view);
+    try {
+      await act(async () => root.render(kind === "curated"
+        ? createElement(VenueOverviewTab, props)
+        : createElement(UnverifiedPubSheet, {
+          pub: { id: venueId, name: "Synthetic Spoons", address: "1 Test Street", lat: 51.5, lng: -0.1, curatedVenueId: "", kind: "pub" },
+          communityPrices,
+        })));
+      await act(async () => { vi.advanceTimersByTime(1_500); });
+      const round = view.querySelector('[aria-label="Best value round"]');
+      expect(round).not.toBeNull();
+      expect(round!.textContent).toContain("15.7 units");
+      expect(round!.textContent).toContain("£9.96");
+      expect(round!.textContent).toContain("Sandford Orchards The General");
+      const credit = round!.querySelector<HTMLAnchorElement>('a[href="https://spoonme.vercel.app/report"]');
+      expect(credit?.textContent).toBe("Ranking method after SpoonMe by Oliver Clegg");
+      expect(round!.textContent).not.toMatch(/most drunk|get you drunk|drink more|hammered/i);
+      expect(round!.querySelector('a[href="/spoons-value"]')?.textContent).toBe("See the whole ranking");
+      const requests = fetchMock.mock.calls.map(([url]) => String(url));
+      expect(requests.filter((url) => url.startsWith("/api/spoons-value"))).toEqual([
+        `/api/spoons-value?venueId=${venueId}`,
+      ]);
+      expect(requests.map((url) => new URL(url, "https://pubmaxxing.com").pathname))
+        .not.toContain("/data/spoonme/rows.json");
+    } finally {
+      act(() => root.unmount());
+      view.remove();
     }
-    // What the row asks, and when, is held by venueSheetStaggeredPanels.test.tsx.
   });
 
-  it("reads the slim lane and never the whole edition in a browser", () => {
-    const lane = readFileSync(join(ROOT, "lib", "spoonsValueLane.ts"), "utf8");
-    expect(lane).toContain("SPOONS_VALUE_MAP_LANE_URL");
-    expect(lane).not.toContain("/data/spoonme/rows.json");
-    // The server pack must never be imported by a browser module.
-    const control = readFileSync(
-      join(ROOT, "components", "map", "SpoonsValueLensControl.tsx"),
-      "utf8",
-    );
-    expect(control).not.toContain("spoonsValue.server");
+  it("loads and caches the slim map lane without fetching the full edition", async () => {
+    vi.resetModules();
+    const fetchMock = vi.fn<typeof fetch>(async () => Response.json({
+      pubs: [["synthetic-spoons-pub", 15_739, 996, 1]],
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { loadSpoonsValueLane } = await import("@/lib/spoonsValueLane");
+    const lane = await loadSpoonsValueLane();
+    expect(lane.status).toBe("ready");
+    expect(lane.byVenueId.get("synthetic-spoons-pub")).toEqual({
+      venueId: "synthetic-spoons-pub", milliunits: 15_739, pence: 996, rankNumber: 1,
+    });
+    await loadSpoonsValueLane();
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(["/data/spoonme/map.json"]);
   });
 });

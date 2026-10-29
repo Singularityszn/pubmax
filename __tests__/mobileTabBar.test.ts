@@ -33,7 +33,7 @@ describe("mobile tab bar contract", () => {
     expect(tabs.map((tab) => tab.label)).toEqual(["Map", "Tonight", "Plan", "Spoons", "Social", "You"]);
   });
 
-  it("names every tab on the link itself, so hiding the word at large text costs nothing", () => {
+  it("names every tab on the link itself", () => {
     for (const tab of buildTabs()) expect(tab.ariaLabel).toBe(tab.label);
     for (const tab of buildTabs()) expect(tab.preview).toBe(false);
   });
