@@ -2,7 +2,7 @@
 
 > PubMaxxing product-led growth and network monopoly plan.
 > First-principles strategy from shipped product, open PRs, live site review, and PLG / Thiel framing.
-> Status: **READY FOR REVIEW** — build scope deferred until you say what to implement next.
+> Status: **IMPLEMENTATION APPROVED**. The captain approved the completion scope below on 29 October 2026.
 > Related: [`cursorreview.md`](./cursorreview.md) (post-merge defect ledger), landing acquisition execution on PR [#787](https://github.com/Singularityszn/pubmax/pull/787).
 
 ---
@@ -175,4 +175,75 @@ Public comps are not “Twitter for pubs.” Closer economic story: **category-d
 4. Instrument a single weekly dashboard from existing PostHog events (k-factor, coverage, meaningful users)
 5. Only then touch lot/presence densification
 
-**Do not start build work from this file until you name the wave / items to ship.**
+## Approved completion scope
+
+The captain approved this scope on 29 October 2026. The target is a website
+release and a production-identity TestFlight beta on 30 October. This target
+does not establish readiness or guarantee Apple's external beta review date.
+
+The existing integration coordinator, **Complete remaining thread tasks**,
+owns the merge queue, shared runtime queue, native distribution, and release.
+Workers preserve other tasks' branches, worktrees, and evidence. A merged
+change is not a production change until the release record identifies it.
+
+This section extends the existing waves. It does not replace their standing
+commitments or create a second roadmap.
+
+### Completion work
+
+| Work | Required result | Acceptance |
+|---|---|---|
+| Existing work | Reconcile open PRs, recovered changes, and current Main before replacing existing features. | Each change has one owner and a recorded production, merged, open, recovered, planned, or superseded state. |
+| Account recovery | Social and You recover from failed or stalled identity reads without a reload. | Failed reads expose retry. Missing handles remain distinct from unavailable identity. Old-account responses cannot update the new account. |
+| Pal identity | Every Pal shortcut follows the active account and current Pal. | Sign-out, account changes, same-tab edits, and cross-tab changes remove stale identity. |
+| QA isolation | Confirmed test identities and demo activity do not enter public discovery or production activity. | Fixture identity is explicit. Names alone never classify an account. Cleanup preserves real accounts and an audit record. |
+| Map coverage | Eligible UK records remain searchable and load spatially. London receives detailed launch acceptance. | Map and list share selection and filters. Counts distinguish geography, observed prices, and menu coverage. |
+| Venue categories | Pubs, bars, clubs, restaurants, cafes, and late food have distinct filters and symbols. | Points of interest remain separate. Category symbols do not replace price-band meaning. Color always has a label or shape. |
+| Menus | Official HTML and PDF observations preserve branch identity, servings, prices, sources, and dates. | Source policy governs collection. Failed extraction never creates a price. Current, dated, estimated, and community evidence remain distinct. |
+| Plan coordination | People can edit stops, share a Plan, choose a time, confirm attendance, complete the outing, and plan again. | Drafts survive interruptions. Repeated writes remain idempotent. Missing prices never produce a false precise total. |
+| Tonight | Dated events and venue suggestions answer the selected area and outing preferences. | Cancellations, midnight boundaries, missing events, and unknown hours remain explicit. |
+| Pub Pal answers | Typed chat, voice, and Ask use the same venue identity and evidence. | Held-out cases cover heritage resolution, late food, safeguards, missing facts, provider failure, and confirmed Plan actions. |
+| Social | Existing lists, invitations, crew messages, moments, and privacy work together. | Private and blocked users do not leak through another discovery path. Empty states do not invent activity. |
+| Hosted outings | Confirmed venues support adult enrollment, capacity, waiting lists, matching, attendance, reports, and feedback. | Enrollment remains closed without venue confirmation and a named moderation owner. Blocks apply before matching. No public attendee contact data. |
+| Native release | The retained production app identity reaches TestFlight and passes the core journeys. | Signing, associated domains, callbacks, permissions, background recovery, and the loaded website release are recorded. A demo USB installation is insufficient. |
+
+### Design and audience decisions
+
+Retain the existing coral accent, light and dark themes, fonts, and original
+3D Pub Pal. The design system continues to own tokens and components.
+
+Mobile discovery keeps search, essential filters, and one contextual sheet
+visible. Desktop discovery coordinates the map with a results or venue panel.
+Secondary actions belong in existing panels rather than additional floating
+controls. The Plan shows stops, spending evidence, timing, participants, and
+unresolved decisions. Pub Pal puts conversation and useful results before
+customization.
+
+Adult accounts can plan family outings. Family discovery remains separate
+from adult stranger matching. Quiet, seated, accessible, daytime, food-first,
+and alcohol-free preferences require recorded evidence. Unknown suitability
+stays unknown.
+
+Use real licensed venue imagery or an intentional fallback. Do not generate
+photographs that claim to depict a real venue. Motion explains selection,
+sheet movement, route changes, and completion, with reduced-motion support.
+
+### Proof and release record
+
+Focused checks run during implementation. Reuse a passed result only when its
+commit, relevant inputs, dependencies, and configuration still apply. Shared
+account, navigation, data, and schema changes also require integrated checks.
+Required GitHub checks remain in force. Existing performance limits stay.
+
+Acceptance covers 320, 390, 768, and 1440 pixel widths in both themes, larger
+text, keyboard operation, VoiceOver, and reduced motion. Each primary journey
+has loading, empty, success, failure, denied-access, and recovery behavior
+where those states apply.
+
+The release record identifies the source commit, production deployment,
+applied migration ledger, native build, and acceptance evidence separately.
+It records remaining gaps rather than treating a test, merge, or upload as a
+substitute for the next step. The captain retains migration ownership.
+
+No new package is required by this scope alone. A dependency change needs a
+concrete capability, compatibility, security, or measured performance reason.

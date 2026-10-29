@@ -51,6 +51,7 @@ import {
 import { uniqueExactVenueNameMatch } from "@/lib/ask/venueResolution";
 import { matchVenueByName } from "@/lib/ask/venueResolution.server";
 import { searchVenueHours } from "@/lib/ask/venueHours.server";
+import { heritageQuestionVenueName, heritageVenueNameMatches } from "@/lib/ask/heritageQuestion";
 import { resolveCanonicalVenueId } from "@/lib/venueAliases";
 import { STATIC_STATIONS } from "@/lib/staticStations";
 import type {
@@ -274,19 +275,14 @@ async function toolVenueHeritage(
 ): Promise<AskToolResult> {
   const venueName = str(args.venueName) || str(args.name);
   const venueId = str(args.venueId);
-  let name = venueName;
-  let id = venueId;
-  if (!name) {
-    const venues = await loadConciergeVenues(ctx.cityId);
-    const hit =
-      (id ? venues.find((v) => v.id === id) : null) ??
-      (await matchVenueByName(venues, ctx.query.replace(/\?+$/, ""), { wholeQuestion: true }));
-    if (hit) {
-      name = hit.name;
-      id = hit.id;
-    }
-  }
-  if (!name) {
+  const venues = await loadConciergeVenues(ctx.cityId);
+  const questionName = heritageQuestionVenueName(ctx.query);
+  const byId = venueId ? venues.find((venue) => venue.id === venueId) : null;
+  const byArgument = heritageVenueNameMatches(venues, venueName);
+  const candidates = byId ? [byId] : byArgument.length > 0
+    ? byArgument : heritageVenueNameMatches(venues, questionName ?? "");
+  const hit = candidates.length === 1 ? candidates[0] : null;
+  if (!hit) {
     return {
       ok: false,
       tool: "venue_heritage",
@@ -294,9 +290,12 @@ async function toolVenueHeritage(
       provenance: [],
       cards: [],
       proposals: [],
-      answerHint: "Name a listed pub to ask about its story.",
+      answerHint: candidates.length > 1
+        ? "I cannot tell which pub you mean. Choose the pub on the map, then ask about its history."
+        : "Name a listed pub to ask about its story.",
     };
   }
+  const { name, id } = hit;
   const facts = await retrieveHeritage({
     ...(id ? { venueId: id } : {}),
     venueName: name,

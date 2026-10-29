@@ -110,8 +110,11 @@ The client sends only `p_key` in the JSON request body, so the request size does
 The function removes at most one unit through a single atomic `UPDATE`.
 The application attempts a refund at most once per unused reservation, within a 2.5-second timeout.
 Repeated releases do not send another refund request.
-The migration remains unapplied to production and shared databases.
-The captain must apply it before production rollout.
+The read-only production ledger check on 29 October 2026 found this migration applied.
+Production records it as `20261023203750`, with the name `0196_rate_limit_refund`.
+The repository filename uses a different timestamp. Do not replay the migration from that difference alone.
+Before rollout, the captain checks the target database ledger and the function's availability.
+This production observation does not establish the state of another shared database.
 If the function is missing, the application retains the charged unit and emits `rate_limit.refund_failed`.
 Other refund failures emit the same event.
 After an ambiguous write, the application does not retry or grant replacement quota.
