@@ -64,6 +64,7 @@ function pal(overrides: Partial<PubPal> = {}): PubPal {
 }
 
 function store(value: unknown) {
+  window.localStorage.setItem("pubmax_account_owner", "owner");
   window.localStorage.setItem("pubmax_pub_pal_v1", JSON.stringify(value));
 }
 

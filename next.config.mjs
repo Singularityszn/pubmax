@@ -258,6 +258,11 @@ const nextConfig = {
     authInterrupts: true,
   },
   env: {
+    // Inline the refusal so production browsers match the server, even when
+    // an internal-test attribution value remains in the deployment settings.
+    ...(process.env.VERCEL_ENV === "production"
+      ? { NEXT_PUBLIC_DEMO_CONTENT: "off" }
+      : {}),
     // See swVersion above — SW cache-busting build id.
     NEXT_PUBLIC_SW_VERSION: swVersion,
     // Inlined at build time and read back by app/api/version. Next replaces a
