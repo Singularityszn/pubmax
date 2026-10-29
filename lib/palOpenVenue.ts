@@ -4,12 +4,12 @@ import {
   enabledCityContainingPoint,
   type CityId,
 } from "@/lib/cities";
-import { cityAwareMapPath } from "@/lib/curatedCrawls";
+import { cityAwareMapPath } from "@/lib/cityMapHref";
 import { cityIdFromVenueId } from "@/lib/cityVenueIds";
 import {
   MAP_SELECTION_NOTICE_PARAM,
   UNKNOWN_MAP_SELECTION_NOTE,
-} from "@/lib/pubMap";
+} from "@/lib/mapSelectionNotice";
 import { parseUkPlaceMapArrival, ukPlaceMapUrl } from "@/lib/ukPlaceSearch";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import type { SlimVenue } from "@/lib/venuesSlim";

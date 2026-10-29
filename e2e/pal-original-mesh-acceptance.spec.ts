@@ -180,6 +180,16 @@ test.describe("L1", () => {
         await expect.poll(() => delayed.length).toBeGreaterThan(0);
         await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
         await expect.poll(() => portrait(page).boundingBox().then(box => box ? box.y + box.height <= 0 || box.y >= 900 : false)).toBe(true);
+        // Layout can move before the browser delivers its visibility update.
+        // Deliver the held model only after the hidden-state precondition.
+        await portrait(page).locator(".palPortrait").evaluate(frame => new Promise<void>(resolve => {
+          const observer = new IntersectionObserver(([entry]) => {
+            if (!entry || entry.isIntersecting) return;
+            observer.disconnect();
+            resolve();
+          });
+          observer.observe(frame);
+        }));
         // Register completion before release. Do not accept an undelivered response.
         const target = delayed.at(-1)!;
         const outcome = target.failure() ? Promise.resolve("cancelled-or-failed" as const) : Promise.race([
