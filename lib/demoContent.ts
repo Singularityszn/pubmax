@@ -1,3 +1,5 @@
+import { currentAnalyticsAttribution } from "@/lib/analyticsAttribution.mjs";
+
 // Kill switch for DEMO content (seeded pint drops, ambient presence counts).
 //
 // Demo seeds bootstrapped the product's surfaces while no real users existed,
@@ -6,16 +8,18 @@
 // risk the moment real users arrive — so the seams below let the owner turn
 // ALL demo content off with one env flip, without touching the seed data.
 //
-// Default is ON (unchanged behavior) until `NEXT_PUBLIC_DEMO_CONTENT=off` is
-// set. The flag is a public build-time env because the seeds render on both
-// server and client surfaces and must agree.
+// Production defaults to no demo activity. The existing internal-test build
+// attribution preserves automated browser fixtures. The off flag disables both.
+// The public flag is a build-time value, so server and client agree.
 export function demoContentEnabled(): boolean {
-  return process.env.NEXT_PUBLIC_DEMO_CONTENT !== "off";
+  if (process.env.NEXT_PUBLIC_DEMO_CONTENT === "off") return false;
+  if (process.env.VERCEL_ENV === "production") return false;
+  return process.env.NODE_ENV !== "production"
+    || currentAnalyticsAttribution().environment === "internal-test";
 }
 
 // Narrower gate for DEMO DRINK ROWS (seeded venue menus and the demo lane of
-// the drink-price overlay), which is the OPPOSITE default to the kill switch
-// above and deliberately so.
+// the drink-price overlay). Nonproduction fixtures require an explicit opt-in.
 //
 // A demo pour used to render whenever the owner had not remembered to set
 // NEXT_PUBLIC_DEMO_CONTENT=off, so a forgotten deployment setting put seeded
