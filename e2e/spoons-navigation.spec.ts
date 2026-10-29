@@ -63,8 +63,12 @@ for (const width of [641, 768, 900]) {
     await seedSignedIn(page, "A");
     await page.goto("/spoons-value");
     await expect(page.locator(".siteNavLinks .siteNavLink")).toHaveCount(6);
-    await expect(page.locator(".siteNavActions .siteNavBell")).toBeVisible();
-    const blocked = await page.locator(".siteNavLinks .siteNavLink").evaluateAll((links) =>
+    const actions = page.locator(".siteNavActions");
+    await expect(actions.getByRole("link", { name: "Activity", exact: true })).toBeVisible();
+    await expect(actions.getByRole("link", { name: "Activity", exact: true })).toHaveAttribute("href", "/activity");
+    await expect(actions.getByRole("link", { name: "Messages", exact: true })).toBeVisible();
+    await expect(actions.getByRole("link", { name: "Messages", exact: true })).toHaveAttribute("href", "/messages");
+    const blocked = await page.locator(".siteNavLinks .siteNavLink, .siteNavActions .siteNavBell").evaluateAll((links) =>
       links.filter((link) => {
         const box = link.getBoundingClientRect();
         const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
