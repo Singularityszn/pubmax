@@ -204,6 +204,38 @@ count is never reported as a rate.
 | Loop moments | Each of the six in TRACKING_PLAN 5.10 | Its own pair | Read as pairs. Neither line alone says anything |
 | Release health | `$web_vitals` p75 by `$pathname` | Not a rate | Compare across `release` to see what a deploy moved |
 
+### 3.1 Plan creations and crew milestones
+
+Report `plan_created`, `crew_committed` and `plan_completed` separately.
+One host and three guests produce one creation and one first-two-person crew milestone.
+They describe the same outing. Later joins do not produce another crew milestone.
+Public RSVP records intent and does not prove crew membership.
+
+The historical `nights_planned_per_week` formula added creations and crew milestones.
+That sum counts activity events, not unique outings, completed outings or people.
+Grouping by `distinct_id` cannot deduplicate one outing across devices.
+No plan identifier may be added to public events to join these devices.
+
+### 3.2 Invitation response measures
+
+| Measure | Numerator | Denominator | Limits |
+|---|---|---|---|
+| Invite redemption ratio | `invite_redeemed` count | `invite_created` count | Same reporting window. Redemptions can include invitations created before that window |
+| Public invite RSVP ratio | `invite_rsvp_submitted` count | `invite_page_viewed` count | Response events per view, not unique guests or crew joins |
+| Public invite map-open ratio | `invite_map_opened` count | `invite_page_viewed` count | Map-open events per view, not unique guests |
+
+The historical `k_factor` label incorrectly names invitation response ratios.
+A viral coefficient needs invitations per eligible user and attributable new users per invitation.
+These event ratios alone cannot establish that coefficient.
+
+For a per-planner rate, state which devices qualify as planners and the reporting window.
+For cohort conversion, define the invitation creation period and the redemption observation period.
+Deduplicate by the non-secret `inviteId` before treating redemption events as unique invitations.
+The [invite delivery notes](../METRICS_FUNNEL.md#2-invites-per-planner-and-invite-redemption-ratio) describe the unresolved replay limitation.
+
+These corrections change documentation only. Existing saved reports require owner review before their names or definitions change.
+Keep old report exports with their original definition and reporting dates.
+
 ## 4. What this file will not define
 
 - **A revenue or a saving.** No counterfactual exists for what a drinker would have

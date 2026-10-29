@@ -332,7 +332,7 @@ vocabularies. The column here is the question the event exists to answer.
 | Event | Answers |
 |---|---|
 | `invite_created` | A host minted an invite link. |
-| `invite_redeemed` | A guest unlocked collaboration with it. The k-factor pair. |
+| `invite_redeemed` | A guest unlocked collaboration with it. See the [invitation response definitions](METRICS.md#32-invitation-response-measures). |
 | `plan_invite_sent` | An invite left through a channel. |
 | `content_shared` | Something left through a share channel, and which surface it came from. |
 | `plan_invite_opened` | An invite was opened by someone other than the host. The host's own landing after Lock is not counted. |

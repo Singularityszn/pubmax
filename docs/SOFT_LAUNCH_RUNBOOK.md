@@ -284,7 +284,12 @@ Captain + early cohort pre-log corroborated prices in 1–2 boroughs guests will
 
 ### 6.3 Weekly scoreboard (PostHog)
 
-Instrument already lives in [docs/METRICS_FUNNEL.md](METRICS_FUNNEL.md). Track invite k-factor / RSVP rate, corroborated coverage in seed boroughs, meaningful plan actions (`plan_saved`, `plan_invite_sent`, `plan_invite_link_copied`), return `activity_pulse`, and landing CTA mix (`landing_cta_clicked`). Track Social only for an explicit, consented product question; `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0` provides static preview only.
+Instrumentation lives in [METRICS_FUNNEL.md](METRICS_FUNNEL.md).
+Read invitation response through the [canonical definitions](analytics/METRICS.md#32-invitation-response-measures).
+Track corroborated coverage in seed boroughs and meaningful plan actions (`plan_saved`, `plan_invite_sent`, `plan_invite_link_copied`).
+Also track return `activity_pulse` and landing CTA mix (`landing_cta_clicked`).
+Track Social only for an explicit, consented product question.
+`PUBMAX_SOCIAL_FRIENDS_LAUNCH=0` provides static preview only.
 
 ### 6.4 Done when
 

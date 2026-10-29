@@ -86,24 +86,12 @@ a venue id or a coordinate. `crew_committed >= 2` measures one night;
 
 ## 1. Plan creations and crew milestones
 
-The canonical definitions are in [METRICS.md](analytics/METRICS.md).
-Report these events separately:
+The [canonical definitions](analytics/METRICS.md#31-plan-creations-and-crew-milestones) explain how these events differ and why their sum cannot count unique outings.
+Their emitters are:
 
 - `plan_created` records a successful host creation in `PlanComposer`.
 - `crew_committed` records the first join that creates a two-person crew in `PlanCrew`.
 - `plan_completed` records an explicit saved ending through the verified delivery lane.
-
-One host and three guests produce one creation and one crew milestone.
-They describe the same outing. Adding them produces two activity events, not two outings.
-Later joins do not produce another crew milestone. Public RSVP records intent and does not prove crew membership.
-
-The historical `nights_planned_per_week` formula added creations and crew milestones.
-Do not interpret that sum as unique outings, completed outings or people.
-Grouping it by `distinct_id` cannot deduplicate one outing across devices.
-No plan identifier may be added to public events to join these devices.
-
-This correction changes documentation only. Existing saved reports require an owner review before their names or definitions change.
-Keep old report exports with their original definition and reporting dates.
 
 ## 2. Invites per planner and invite redemption ratio
 
@@ -130,25 +118,10 @@ applies.
 This slice does not prove exactly-once delivery for `invite_redeemed`.
 The store accepts an already-authorised result and can return the identifier again.
 The client avoids the request when its local capability already records authorisation.
-The earlier claim that every replay returns `inviteId: null` did not match that store path.
 A dedicated durable-store and client replay test remains required before treating raw event counts as unique invitations.
 
-```
-invites_created_per_planner   = count(invite_created)   / distinct planners
-invites_redeemed_per_planner  = count(invite_redeemed)  / distinct planners
-invite_redemption_ratio      = count(invite_redeemed) / count(invite_created)
-```
-
-The historical `k_factor` label names this redemption ratio incorrectly.
-A viral coefficient also needs invitations per eligible user and attributable new users per invitation.
-The two event counts alone cannot establish that coefficient.
-Same-window redemptions can include invitations created before the window.
-A cohort calculation must define the creation period and the redemption observation period.
-This change does not rename a live PostHog report or change its calculation.
-
-Joining `invite_created.inviteId` to `invite_redeemed.inviteId` gives
-per-invite conversion (time-to-redeem, redemption rate per planner) beyond
-the raw ratio.
+The [invitation response definitions](analytics/METRICS.md#32-invitation-response-measures) own the ratios, denominators and limits.
+The non-secret `inviteId` permits per-invitation joins between creation and redemption events.
 
 ## 3. Return rate (daily basis)
 
@@ -325,7 +298,7 @@ second_session_rate = count(distinct ids with pint_index_viewed on day D
 
 ## 7. Invite loop (a Plan's public invite page)
 
-The invite k-factor in §2 counts a redeemed invite, but says nothing about
+The private invite redemption events in §2 say nothing about
 the separate public invite page itself (`/invite/[token]`, a Partiful-style
 card any guest with the link can open, RSVP on, and react to with no
 account). These events measure that page as its own funnel: copy/rotate on

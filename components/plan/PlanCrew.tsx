@@ -185,10 +185,8 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
       .then(({ response, body }) => {
         if (!response.ok) throw new Error(errorMessageFrom(body, "Could not load crew decisions."));
         writePlanCapability(planId, { token: memberToken, collaborationAuthorized: true, role: "guest" });
-        // body.inviteId is the invite's own row id (see upgradeMemberInvite in
-        // lib/planCollaborationStore.ts) — links back to invite_created for
-        // k-factor; null on a replayed/already-authorized redemption, so no
-        // event fires (an already-counted invite should not double count).
+        // Only the non-secret invite row id may link this event to invite_created.
+        // Replay and counting limits live in docs/METRICS_FUNNEL.md section 2.
         if (typeof body?.inviteId === "string" && body.inviteId) {
           trackEvent("invite_redeemed", { inviteId: body.inviteId });
         }
