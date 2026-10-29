@@ -1,6 +1,6 @@
 import "server-only";
 
-import { choice, noul, type Questions } from "@typesafe-ai/sdk";
+import { choice, noul, type ChoiceQuestion, type NoulQuestion, type Questions } from "@typesafe-ai/sdk";
 
 import { systemOneOutcome, type SystemOneOutcome } from "@/lib/ai/typesafe.server";
 import { DRINK_CATEGORIES } from "@/lib/drinks";
@@ -84,9 +84,9 @@ const whatIsPricedCriteria = {
   },
 };
 
-function ukPriceQuestionsForBatch(candidateCount: number): Questions {
+function ukPriceQuestionsForBatch(candidateCount: number): Record<string, ChoiceQuestion | NoulQuestion> {
   const drinkLabels = DRINK_CATEGORIES.join(", ");
-  const questions: Questions = {};
+  const questions: Record<string, ChoiceQuestion | NoulQuestion> = {};
   for (let index = 0; index < candidateCount; index += 1) {
     questions[`whatIsPriced_${index}`] = choice(
       {

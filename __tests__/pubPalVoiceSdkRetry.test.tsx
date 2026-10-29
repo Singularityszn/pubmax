@@ -3,7 +3,14 @@
 import { act, createElement, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { Conversation } from "@elevenlabs/client";
+import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
+
+// Resolve from the real React SDK so its private client dependency shares
+// this transport spy, even when the application also installs another version.
+const reactSdkRequire = createRequire(createRequire(import.meta.url).resolve("@elevenlabs/react"));
+const clientUrl = pathToFileURL(reactSdkRequire.resolve("@elevenlabs/client")).href;
+const { Conversation } = await import(/* @vite-ignore */ clientUrl) as typeof import("@elevenlabs/client");
 
 type FakeSessionOptions = {
   onConversationCreated?: (conversation: FakeConversation) => void;
@@ -114,8 +121,8 @@ beforeEach(() => {
   releasedIds = [];
   rejectPendingStartup = null;
   client.startSession.mockReset();
-  // Spy on the installed client's shared class. Externalized SDK imports do
-  // not see Vitest module mocks, but they use this same static method.
+  // Spy on the client resolved by the installed React SDK. Its real provider
+  // remains exercised, while session transport and audio stay fake.
   vi.spyOn(Conversation, "startSession").mockImplementation((options) => (
     client.startSession(options as FakeSessionOptions) as unknown as ReturnType<typeof Conversation.startSession>
   ));

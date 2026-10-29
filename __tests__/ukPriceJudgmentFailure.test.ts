@@ -22,7 +22,7 @@ import {
   readVenueDrinkPrices,
 } from "@/lib/harvest/ukPriceCrawl";
 import type { UkPriceRawCandidate } from "@/lib/harvest/ukPriceCrawl";
-import { readVenueDrinkPricesJudged } from "@/lib/harvest/ukPriceJudgment.server";
+import { judgeUkPriceCandidate, readVenueDrinkPricesJudged } from "@/lib/harvest/ukPriceJudgment.server";
 import { defined } from "@/__tests__/helpers/defined";
 
 const drinksList = `
@@ -62,6 +62,32 @@ function mockAnswersForBatch(
 }
 
 describe("readVenueDrinkPricesJudged batch failures", () => {
+  it("rejects a box answer instead of treating image coordinates as price probabilities", async () => {
+    vi.stubEnv("TYPESAFE_API_KEY", "test-key");
+    vi.mocked(systemOneOutcome).mockResolvedValue({
+      status: "ok",
+      result: {
+        model: "jev-test",
+        usage: { input_tokens: null, output_tokens: null },
+        answers: {
+          whatIsPriced_0: { type: "box", box: { top: 0, bottom: 1, left: 0, right: 1 }, confidence: null },
+          isPromotionalPrice_0: { type: "noul", noul: 0.01 },
+          drinkCategory_0: { type: "choice", choice: "beer", confidence: 0.95, probabilities: { beer: 0.95 } },
+        },
+      },
+    });
+    try {
+      const result = await judgeUkPriceCandidate({
+        snippet: "Madri pint £6.20", priceText: "£6.20",
+        pubName: "The Crown", pageUrl: "https://thecrown.co.uk/drinks",
+      });
+      expect(result).toBeNull();
+    } finally {
+      vi.unstubAllEnvs();
+      vi.mocked(systemOneOutcome).mockReset();
+    }
+  });
+
   it.each(["accepted", "budget", "timeout", "error", "malformed"])(
     "retains named wine pairs with separators on %s judgment", async (mode) => {
       vi.stubEnv("TYPESAFE_API_KEY", "test-key");
