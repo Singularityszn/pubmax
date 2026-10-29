@@ -17,6 +17,9 @@ import { isMapLensDrinkCategory, isDrinkCategory, type DrinkCategory } from "@/l
 import type { PintTrustState } from "@/lib/pintTrust";
 import { drinkLensPriceNoun } from "@/lib/mapExperienceLens";
 import type { MissionSurface } from "@/lib/analyticsEvents";
+import { MAX_PRICE_EVIDENCE_MISSION_VENUE_IDS } from "@/lib/priceEvidenceMissionLimits";
+
+export { MAX_PRICE_EVIDENCE_MISSION_VENUE_IDS } from "@/lib/priceEvidenceMissionLimits";
 
 export const PRICE_EVIDENCE_MISSION_REASONS = [
   "provisional",
@@ -24,8 +27,6 @@ export const PRICE_EVIDENCE_MISSION_REASONS = [
   "missing",
 ] as const;
 export type PriceEvidenceMissionReason = (typeof PRICE_EVIDENCE_MISSION_REASONS)[number];
-
-export const MAX_PRICE_EVIDENCE_MISSION_VENUE_IDS = 8;
 
 export type PriceEvidenceMission = {
   venueId: string;
@@ -38,6 +39,8 @@ export type VenueMissionRows = {
   venueId: string;
   prices: readonly CommunityPrice[];
   degraded?: boolean;
+  /** Current categories this contributor already observed, including hidden rows. */
+  actorCoveredCategories?: readonly DrinkCategory[];
   /**
    * True when the public Pint Index cannot DATE this pub: no Pint Drop here
    * holds a live confirmation. It changes the ORDER and never the reason, so no
@@ -109,7 +112,9 @@ function candidateForVenue(
 ): PriceEvidenceMission | null {
   if (venue.degraded && venue.prices.length === 0) return null;
   const rows = submittableRows(venue.prices);
+  const actorCovered = new Set(venue.actorCoveredCategories ?? []);
   if (rows.length === 0) {
+    if (actorCovered.size > 0) return null;
     return { venueId: venue.venueId, reason: "missing" };
   }
 
@@ -124,6 +129,7 @@ function candidateForVenue(
   const provisional: CommunityPrice[] = [];
   const stale: CommunityPrice[] = [];
   for (const price of byCategory.values()) {
+    if (actorCovered.has(price.drinkCategory)) continue;
     if (isWithinMaxAge(price, now) && isCorroborated(price)) continue;
     if (isWithinMaxAge(price, now)) provisional.push(price);
     else stale.push(price);
