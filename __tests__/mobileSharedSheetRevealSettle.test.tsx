@@ -139,6 +139,9 @@ it.each(["drink", "venue", "planner"] as const)(
       const portal = document.querySelector<HTMLElement>(".mobileSheetPortal")!;
       const sheet = portal.querySelector<HTMLElement>(".mobileSharedSheet")!;
       const closeButton = portal.querySelector<HTMLButtonElement>('[aria-label^="Close"]')!;
+      // Finish opening focus before testing focus during mounted clearance changes.
+      await act(async () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+      expect(document.activeElement).toBe(sheet);
       const header = sheet.querySelector<HTMLElement>(".mobileSharedSheetHeader")!;
       const footer = sheet.querySelector<HTMLElement>(".mobileSharedSheetFooter")!;
       Object.defineProperty(header, "offsetHeight", { value: 64 });
@@ -161,6 +164,7 @@ it.each(["drink", "venue", "planner"] as const)(
         expect(portal.querySelector('[aria-label^="Close"]')).toBe(closeButton);
         expect(closeButton.disabled).toBe(false);
         await act(async () => closeButton.focus());
+        await act(async () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
         expect(document.activeElement).toBe(closeButton);
       }
       expect(close).not.toHaveBeenCalled();
