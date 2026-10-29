@@ -26,3 +26,11 @@ describe("admitted menu basket", () => {
     expect(quoteMenuBasket("other", rows, { "drink:soft": 1 }, "2026-10-29T12:00:00Z").status).toBe("ineligible");
   });
 });
+
+it("keeps the source licence attached to every projected menu fact", () => {
+  const rows = menuBasketItems("v", [testFood], [testDrink]);
+  expect(rows.map((row) => row.evidence)).toEqual([
+    expect.objectContaining({ source: "Test menu", licence: "test" }),
+    expect.objectContaining({ source: "Test menu", licence: "test" }),
+  ]);
+});

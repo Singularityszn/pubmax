@@ -22,14 +22,14 @@ export function menuBasketItems(venueId: string, food: readonly FoodItem[], drin
     ...food.filter((item) => item.provenance.source !== "seed" && !item.provenance.source.toLowerCase().includes("demo")).map((item) => ({
       ...common, id: `food:${item.id}`, name: item.name, kind: "food" as const, serving: null,
       unitPence: pennies(item.priceGbp), evidence: {
-        source: item.provenance.source, url: firstHttp(item.source) || null,
+        source: item.provenance.source, licence: item.provenance.licence, url: firstHttp(item.source) || null,
         observedAt: observedInstant(item.provenance.observedAt), retrievedAt: null, state: "available" as const,
       },
     })),
     ...drinks.filter((item) => !isDemoDrinkProvenance(item.provenance)).map((item) => ({
       ...common, id: `drink:${item.id}`, name: item.name, kind: "drink" as const, serving: item.servingSize?.trim() || null,
       unitPence: pennies(item.priceGbp), evidence: {
-        source: item.provenance.source, url: firstHttp(item.provenance.sourceUrl) || null,
+        source: item.provenance.source, licence: item.provenance.licence, url: firstHttp(item.provenance.sourceUrl) || null,
         observedAt: observedInstant(item.provenance.observedAt), retrievedAt: null, state: "available" as const,
       },
     })),

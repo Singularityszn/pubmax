@@ -21,11 +21,11 @@ The existing map, Pub Pal, route optimisation, account and round repairs remain 
 | --- | --- | --- |
 | BASE-01 | Implemented for this selected slice | Existing menu, planner, crew, source, freshness and analytics owners were inspected. No replacement services were added. |
 | MEASURE-01 | Partial | The connected PostHog baseline was repeated. Search Console has no available connector or repository script in this session. Search rankings and Google indexation remain unmeasured. |
-| MEASURE-02 | Implemented documentation correction | `METRICS_FUNNEL.md` separates creation from the crew milestone and corrects the historical viral-coefficient label. `analytics/METRICS.md` excludes completions without a crew-status field from that ratio. No live reports changed. |
+| MEASURE-02 | Partial, documentation corrected | `METRICS_FUNNEL.md` separates creation from the crew milestone and corrects the historical viral-coefficient label. `analytics/METRICS.md` excludes completions without a crew-status field from that ratio. No live reports changed. Legacy invite redemption replay needs a dedicated regression proof. |
 | DATA-01 | Already present | `harvest/sourceRegistry.ts`, `harvest/sourcePolicy.ts` and `data/SOURCE_LEDGER.md` own access. The competitor register grants no fetch rights. No source was added. |
-| PRICE-01 | Implemented bounded contract | `outingQuote.ts` validates GBP pennies, selected item identity, serving, branch, source, observation/retrieval dates and exact offer instances. Existing menu records remain unchanged. |
-| PRICE-02 | Partial | Deterministic eligible/ineligible/unknown checks cover branch, exact validity/service intervals, party size, selected items, membership, booking and availability. Unresolved material terms cannot qualify. Recurring rules, nation-specific holiday resolution, provider inventory, voucher allocation and mixed membership groups remain dependent work. |
-| PRICE-03 | Implemented bounded calculator | Integer arithmetic includes fixed fees, explicit service bases, full new membership commitments and explicit fee payment timing. Refundable deposits and cashback remain separate. Unknown material components suppress the full total. |
+| PRICE-01 | Implemented bounded contract | `outingQuote.ts` validates GBP pennies, selected item identity, serving, branch, source, licence, observation/retrieval dates and exact offer instances. Existing menu records remain unchanged. |
+| PRICE-02 | Partial | Deterministic eligible/ineligible/unknown checks cover branch, exact validity/service intervals, party size, selected items, membership, booking and availability. Unresolved material terms cannot qualify. Recurring rules, nation-specific holiday resolution, provider inventory, voucher allocation, staged membership payments and mixed membership groups remain dependent work. |
+| PRICE-03 | Implemented bounded calculator | Integer arithmetic includes fixed fees, explicit service bases, full new upfront membership commitments and explicit fee payment timing. Refundable deposits and cashback remain separate. Unknown material components suppress the full total. |
 | DATA-03 | Partial, existing policy reused | The calculator uses `PRICE_AUTHORITY_MAX_AGE_MS`. Retrieval cannot renew an observation. Conflict, stale, missing and provider-error answers remain distinct. No refresh job changed. |
 | UX-01 | Partial | The venue Menu tab offers food/drink quantities and a dated menu subtotal. Existing menu data does not prove complete fees, tax, deposits or availability. The UI therefore never calls this a full payable quote. |
 | SEO-01 | Investigated, no new reproduced defect | Representative live documents and existing metadata/sitemap tests were checked. No indexing or publication gate changed. See validation results below. |
@@ -86,6 +86,21 @@ The basket does not infer a food portion, dietary suitability, availability, sav
 Consumer use remains free. Venue membership in an external offer is not a PUBMAXX paywall.
 
 ## Validation
+
+The complete repository gate passed on `4bf44a98940ec04c6d81140b94bff05f5d348bbf`.
+The reported results were 44,157 unit tests passed with one existing skip, 697 PostgreSQL tests passed, and ten serial harness tests passed.
+The production-build browser run passed 22 tests, with one separate immutable-checkout screenshot case skipped.
+The browser used headless Chromium with 320px light, 390px dark and 1440px light basket viewports.
+These are browser viewports, not physical device acceptance.
+The screenshots in `screenshots/` show that source version.
+The freshness check retained two advisory stale datasets and three unavailable durable-store observations.
+No high or critical dependency vulnerabilities were reported.
+
+Final contract review then reproduced and corrected an unknown party cap being treated as unlimited and a projection losing the source licence.
+The contract now requires an explicit `unlimited` value, keeps unknown caps unresolved, and preserves the source licence.
+The membership commitment field explicitly describes an upfront commitment. Staged membership payments remain unsupported.
+Focused validation passed 41 tests after those changes. Type checking and focused lint passed.
+The final no-mistakes gate must validate these later changes before publishing.
 
 Focused validation passed 186 tests across ten files, including source policy, verified analytics, metadata and sitemap checks.
 The two data-pipeline suites passed all 87 tests when repeated without a concurrent browser build.

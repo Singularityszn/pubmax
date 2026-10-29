@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { quoteOuting } from "@/lib/outingQuote";
 
 const now = "2026-10-29T12:00:00Z";
-const evidence = { source: "Synthetic menu", url: "https://example.com/menu", observedAt: now, retrievedAt: now, state: "available" };
+const evidence = { source: "Synthetic menu", licence: "synthetic fixture", url: "https://example.com/menu", observedAt: now, retrievedAt: now, state: "available" };
 const item = (id: string, kind: string, pence: number) => ({ currency: "GBP", id, venueId: "test-venue", name: id, kind, serving: "one portion", unitPence: pence, taxIncluded: true, evidence });
 const basket = () => ({ venueId: "test-venue", arrival: "2026-10-29T18:30:00Z", partySize: 1, membership: "existing", bookingConfirmed: true, availabilityConfirmed: true, items: [{ item: item("meal", "food", 1200), quantity: 1 }, { item: item("drink", "drink", 500), quantity: 1 }], charges: [], deposits: [], optionalTipPence: 0 });
 
@@ -12,16 +12,16 @@ describe("outing quote, synthetic examples from execution pack section 6.4", () 
   });
 });
 
-const offer = () => ({ currency: "GBP", id: "synthetic-offer", kind: "offer", venueIds: ["test-venue"], excludedVenueIds: [], startsAt: "2026-10-29T16:00:00Z", endsAt: "2026-10-30T02:00:00Z", serviceWindow: { startsAt: "2026-10-29T16:00:00Z", endsAt: "2026-10-29T23:00:00Z" }, minParty: 1, maxParty: 6, itemIds: ["meal", "drink"], membership: { required: false, newCommitmentPence: null, per: "person" }, bookingRequired: false, termsComplete: true, reduction: { kind: "bundle", pence: 1500 }, charges: [], cashbackPence: null, evidence });
+const offer = () => ({ currency: "GBP", id: "synthetic-offer", kind: "offer", venueIds: ["test-venue"], excludedVenueIds: [], startsAt: "2026-10-29T16:00:00Z", endsAt: "2026-10-30T02:00:00Z", serviceWindow: { startsAt: "2026-10-29T16:00:00Z", endsAt: "2026-10-29T23:00:00Z" }, minParty: 1, maxParty: 6, itemIds: ["meal", "drink"], membership: { required: false, newUpfrontCommitmentPence: null, per: "person" }, bookingRequired: false, termsComplete: true, reduction: { kind: "bundle", pence: 1500 }, charges: [], cashbackPence: null, evidence });
 const codes = (quote: ReturnType<typeof quoteOuting>) => quote.reasons.map((r) => r.code);
 
 describe("offer eligibility and full payment", () => {
   it("includes the full new membership commitment and distinguishes existing members", () => {
-    const o = { ...offer(), kind: "membership", membership: { required: true, newCommitmentPence: 500, per: "person" } };
+    const o = { ...offer(), kind: "membership", membership: { required: true, newUpfrontCommitmentPence: 500, per: "person" } };
     expect(quoteOuting(basket(), [o], now).totalPence).toBe(1500);
     expect(quoteOuting({ ...basket(), membership: "new" }, [o], now)).toMatchObject({ totalPence: 2000, payNowPence: 500, payAtVenuePence: 1500 });
     expect(quoteOuting({ ...basket(), membership: "unknown" }, [o], now)).toMatchObject({ totalPence: null, eligibility: "unknown" });
-    expect(codes(quoteOuting({ ...basket(), membership: "new" }, [{ ...o, membership: { ...o.membership, newCommitmentPence: null } }], now))).toContain("membership_cost");
+    expect(codes(quoteOuting({ ...basket(), membership: "new" }, [{ ...o, membership: { ...o.membership, newUpfrontCommitmentPence: null } }], now))).toContain("membership_cost");
   });
   it("discounts food only and adds a booking fee once", () => {
     const o = { ...offer(), itemIds: ["meal"], reduction: { kind: "percentage", basisPoints: 5000 }, charges: [{ kind: "fixed", label: "Booking", payable: "now", pence: 200, per: "booking" }] };
@@ -124,4 +124,9 @@ describe("quote boundary validation", () => {
 
 it("revalidates an expired saved offer even when its original arrival was inside the window", () => {
   expect(quoteOuting(basket(), [offer()], "2026-10-30T12:00:00Z")).toMatchObject({ totalPence: null, eligibility: "ineligible" });
+});
+
+it("keeps an unknown party limit unresolved and requires an explicit unlimited declaration", () => {
+  expect(quoteOuting(basket(), [{ ...offer(), maxParty: null }], now)).toMatchObject({ eligibility: "unknown", totalPence: null });
+  expect(quoteOuting(basket(), [{ ...offer(), maxParty: "unlimited" }], now)).toMatchObject({ eligibility: "eligible", totalPence: 1500 });
 });

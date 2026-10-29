@@ -126,11 +126,12 @@ gets its own format-only validator (`isUuidLike` in
 the sanitizer (unknown props dropped, unknown events rejected) still
 applies.
 
-`upgradeMemberInvite` in `lib/planCollaborationStore.ts` was extended to
-return this `inviteId` (via a read-only lookup, no RPC/schema change) so the
-redeem route can hand it back to the client; it's `null` on an
-already-authorized replay, which correctly emits no event (an invite already
-counted once should not double-count).
+`upgradeMemberInvite` in `lib/planCollaborationStore.ts` supplies the row identifier through a read-only lookup.
+This slice does not prove exactly-once delivery for `invite_redeemed`.
+The store accepts an already-authorised result and can return the identifier again.
+The client avoids the request when its local capability already records authorisation.
+The earlier claim that every replay returns `inviteId: null` did not match that store path.
+A dedicated durable-store and client replay test remains required before treating raw event counts as unique invitations.
 
 ```
 invites_created_per_planner   = count(invite_created)   / distinct planners

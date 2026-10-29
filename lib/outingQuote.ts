@@ -4,7 +4,7 @@ import { PRICE_AUTHORITY_MAX_AGE_MS } from "@/lib/priceAuthorityWindow";
 const pence = z.number().int().nonnegative().max(100_000_000);
 const instant = z.iso.datetime({ offset: true });
 const evidenceSchema = z.object({
-  source: z.string().trim().min(1),
+  source: z.string().trim().min(1), licence: z.string().trim().min(1),
   url: z.url().refine((url) => /^https?:\/\//.test(url)).nullable(),
   observedAt: instant.nullable(),
   retrievedAt: instant.nullable(),
@@ -30,9 +30,9 @@ const outingOfferSchema = z.object({
   venueIds: z.array(z.string().trim().min(1)).min(1), excludedVenueIds: z.array(z.string()),
   startsAt: instant, endsAt: instant,
   serviceWindow: z.object({ startsAt: instant, endsAt: instant }).strict().nullable(),
-  minParty: z.number().int().positive(), maxParty: z.number().int().positive().nullable(),
+  minParty: z.number().int().positive(), maxParty: z.union([z.number().int().positive(), z.literal("unlimited")]).nullable(),
   itemIds: z.array(z.string().trim().min(1)).min(1),
-  membership: z.object({ required: z.boolean(), newCommitmentPence: pence.nullable(), per: z.enum(["booking", "person"]) }).strict(),
+  membership: z.object({ required: z.boolean(), newUpfrontCommitmentPence: pence.nullable(), per: z.enum(["booking", "person"]) }).strict(),
   bookingRequired: z.boolean().nullable(),
   termsComplete: z.boolean(),
   reduction: z.discriminatedUnion("kind", [
@@ -42,7 +42,7 @@ const outingOfferSchema = z.object({
   ]),
   charges: z.array(chargeSchema).nullable(),
   cashbackPence: pence.nullable(), evidence: evidenceSchema,
-}).strict().refine((o) => Date.parse(o.endsAt) > Date.parse(o.startsAt) && (o.maxParty === null || o.maxParty >= o.minParty) &&
+}).strict().refine((o) => Date.parse(o.endsAt) > Date.parse(o.startsAt) && (typeof o.maxParty !== "number" || o.maxParty >= o.minParty) &&
   (!o.serviceWindow || Date.parse(o.serviceWindow.endsAt) > Date.parse(o.serviceWindow.startsAt)), "Invalid offer window or party range");
 
 const basketSchema = z.object({
@@ -63,7 +63,7 @@ const REASONS = {
   invalid_input: "Some price or offer details are invalid.", branch: "This offer does not apply at this venue.",
   expired: "This offer ends before your arrival.", not_started: "This offer starts after your arrival.",
   service_closed: "The selected food or drink service is closed at your arrival.", service_unknown: "The service times need checking.",
-  party: "This offer does not cover your group size.", items: "This offer does not cover the selected items and quantities.",
+  party: "This offer does not cover your group size.", party_unknown: "The maximum group size needs checking.", items: "This offer does not cover the selected items and quantities.",
   membership_unknown: "Your membership status needs checking.", membership_cost: "The full new membership commitment needs checking.",
   booking_unknown: "The booking conditions need checking.", booking_required: "This offer needs a confirmed booking.",
   availability_unknown: "Availability needs checking.", unavailable: "The selected items or slot are unavailable.",
@@ -110,12 +110,13 @@ function eligibilityReasons(b: Basket, o: OutingOffer, now: number): { denied: R
   if (arrival < Date.parse(o.startsAt)) denied.push("not_started");
   if (!o.serviceWindow) unknown.push("service_unknown");
   else if (arrival < Date.parse(o.serviceWindow.startsAt) || arrival >= Date.parse(o.serviceWindow.endsAt)) denied.push("service_closed");
-  if (b.partySize < o.minParty || (o.maxParty !== null && b.partySize > o.maxParty)) denied.push("party");
+  if (b.partySize < o.minParty || (typeof o.maxParty === "number" && b.partySize > o.maxParty)) denied.push("party");
+  if (o.maxParty === null) unknown.push("party_unknown");
   // A bundle is one exact selection, not a per-item or per-person assumption.
   if (!o.itemIds.every((id) => b.items.some((line) => line.item.id === id)) ||
       (o.reduction.kind === "bundle" && (b.items.some((line) => !o.itemIds.includes(line.item.id) || line.quantity !== 1)))) denied.push("items");
   if (o.membership.required && b.membership === "unknown") unknown.push("membership_unknown");
-  if (o.membership.required && b.membership === "new" && o.membership.newCommitmentPence === null) unknown.push("membership_cost");
+  if (o.membership.required && b.membership === "new" && o.membership.newUpfrontCommitmentPence === null) unknown.push("membership_cost");
   if (o.bookingRequired === null || (o.bookingRequired && b.bookingConfirmed === null)) unknown.push("booking_unknown");
   else if (o.bookingRequired && !b.bookingConfirmed) denied.push("booking_required");
   if (!o.termsComplete) unknown.push("terms_unknown");
@@ -161,7 +162,7 @@ function priceBasket(b: Basket, offers: OutingOffer[], menu: number | null, cloc
         const amount = item.unitPence! * quantity;
         return sum + (o.itemIds.includes(item.id) ? amount - percentage(amount, o.reduction.kind === "percentage" ? o.reduction.basisPoints : 0) : amount);
       }, 0);
-      if (o.membership.required && b.membership === "new") membership = (o.membership.newCommitmentPence ?? 0) * (o.membership.per === "person" ? b.partySize : 1);
+      if (o.membership.required && b.membership === "new") membership = (o.membership.newUpfrontCommitmentPence ?? 0) * (o.membership.per === "person" ? b.partySize : 1);
     }
   }
   if (b.charges === null || (o && o.charges === null)) unknown.push("charges_unknown");
