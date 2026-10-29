@@ -31,10 +31,12 @@ import {
   formatNearDistance,
   withoutWalkTimes,
   nearMeAnswerHeadline,
+  nearestListedPub,
   rankBoroughCheapest,
   rankNearMe,
   type NearMeCard,
   type NearMeScope,
+  type NearestPub,
   type PricedPoint,
 } from "@/lib/nearMeAnswer";
 import {
@@ -65,6 +67,7 @@ import SharePintButton from "@/components/share/SharePintButton";
 import { nearTopPintShare } from "@/lib/venuePintShare";
 import { markPriceAnswerMoment } from "@/lib/priceAnswerMoment";
 import Screen from "@/components/ui/screen";
+import DataCreditsLink from "@/components/legal/DataCreditsLink";
 
 import "./nearMeNow.css";
 
@@ -280,6 +283,7 @@ export default function NearMeNow({
   // so a missed effect can never leave a permanent locate spinner.
   const [state, setState] = useState<LocateState>(initialLocation ? "requesting" : "idle");
   const [cards, setCards] = useState<NearMeCard[]>([]);
+  const [nearestPub, setNearestPub] = useState<NearestPub | null>(null);
   const [scope, setScope] = useState<NearMeScope>("none");
   const [borough, setBorough] = useState<string | null>(null);
   const [patch, setPatch] = useState<NightPatch | null>(null);
@@ -492,6 +496,7 @@ export default function NearMeNow({
         void loadSlim().then((slim) => {
           if (!ownsAnswer(generation)) return;
           const answer = rankNearMe(position.coords.latitude, position.coords.longitude, slim);
+          setNearestPub(nearestListedPub(position.coords.latitude, position.coords.longitude, slim));
           if (answer.scope === "none") {
             // Located fine, but nothing priced in range — be honest that we do
             // not cover here yet, name the REAL nearest patch, and let them
@@ -551,6 +556,7 @@ export default function NearMeNow({
       void loadSlim().then((slim) => {
         if (!ownsAnswer(generation)) return;
         const answer = rankNearMe(initialLocation.lat, initialLocation.lng, slim);
+        setNearestPub(nearestListedPub(initialLocation.lat, initialLocation.lng, slim));
         setCards(answer.cards);
         setScope(answer.scope);
         setState("ready");
@@ -670,6 +676,11 @@ export default function NearMeNow({
         // answerWithoutFix is already resolving an area answer; this shows only
         // for the beat the slim index takes to arrive.
         <NearMeFallbackStatus />
+      ) : null}
+
+      {state === "ready" && nearestPub && !borough && !patch &&
+        answerContext?.source === "location" && answerContext.generation === activeAnswerGeneration ? (
+        <NearestPubAnswer pub={nearestPub} onOpen={openVenue} titledByHost={titledByHost} />
       ) : null}
 
       {state === "ready" && outsideCoverage ? (
@@ -874,6 +885,42 @@ function NearMeOutsideCoverage({
         </ReadyButton>
       </footer>
     </div>
+  );
+}
+
+function NearestPubAnswer({
+  pub,
+  onOpen,
+  titledByHost,
+}: {
+  pub: NearestPub;
+  onOpen: (id: string) => void;
+  titledByHost: boolean;
+}) {
+  return (
+    <section className="nmnNearest" aria-label="Nearest listed pub">
+      <header className="nmnHead">
+        <AnswerHeadline text="Nearest listed pub" titledByHost={titledByHost} />
+      </header>
+      <ReadyButton type="button" className="nmnCard" onClick={() => onOpen(pub.id)}>
+        <span className="nmnCardMain">
+          <span className="nmnCardName">{pub.name}</span>
+          <span className="nmnCardMeta">
+            <span className="nmnCardBorough">{pub.borough}</span>
+            <span className="nmnCardWalk">
+              <Footprints size={14} aria-hidden="true" />
+              About {pub.walkMinutes} min · {formatNearDistance(pub.distanceKm)}
+            </span>
+          </span>
+        </span>
+        <span className="nmnCardView">
+          {NEAR_ME_VIEW_LABEL}<ChevronRight size={14} aria-hidden="true" />
+        </span>
+      </ReadyButton>
+      <p className="nmnHint">
+        Pub data includes <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>, ODbL. <DataCreditsLink />
+      </p>
+    </section>
   );
 }
 
