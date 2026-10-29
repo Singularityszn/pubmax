@@ -10,6 +10,11 @@ No deployment, migration, live flag, outreach, paid service or analytics definit
 - The production version endpoint returned `e5da6c072d378e8f94bfa8e841f805a801e697a3` and deployment `dpl_4V9F76kkj68fRB7DvxPDXErfTa9o`.
 - Production and source inspection are separate observations. This branch is not deployed.
 
+Open PRs at admission were #2389, #2388, #2376, #2375, #2369 and dependency updates #2365-#2367.
+Their changed paths did not contain the new quote, basket or venue-menu files.
+PR #2389 also edits a separate route-link paragraph in `METRICS_FUNNEL.md`. These metric corrections do not change that paragraph.
+The existing map, Pub Pal, route optimisation, account and round repairs remain in their owning PRs.
+
 ## Reconciliation and task status
 
 | Pack task | Status in this change | Existing code, implementation or dependency |
