@@ -115,3 +115,31 @@ Final sequential verification and browser results remain pending.
 The initial broad baseline reached data validation, lint and schema comparison.
 A concurrent test-first addition made its type check fail on the then-missing quote module.
 That run is not a clean untouched-baseline result.
+
+## Quantity edit review correction
+
+Review started at `0f9ee11d135ceab902d142e47592aaa4de39d730`.
+The following results cover the uncommitted review correction on that head.
+Chromium 156.0.8078.4 reproduced the failure through the real basket component at a 390 by 900 viewport.
+The isolated component used the labelled synthetic meal and lemonade fixtures, priced at £12 and £5.
+Backspace removed the focused food row and reduced the subtotal from £17 to £5.
+The same action removed the drink row and reduced the subtotal to £12.
+
+The basket now keeps an empty quantity pending and marks the subtotal incomplete.
+Invalid quantities also retain their rows without showing a numeric subtotal.
+A valid replacement restores the subtotal. An explicit zero still removes the item.
+The existing controls and design components remain in use.
+Mounted regressions cover both row types, focus, invalid values, recovery, removal, clearing and multiple pending quantities.
+The venue-route browser spec now checks Backspace and replacement for food and drink at its three existing viewports.
+
+Focused verification ran sequentially and exited zero:
+
+1. `npm test -- __tests__/menuBasketRender.test.tsx __tests__/menuBasket.test.ts` passed all 11 tests across two files.
+2. An isolated Chromium component check repeated Backspace and replacement for both row types.
+   Both checks retained two rows and focus while the subtotal showed `Incomplete` without a price.
+   Replacing the quantity with two restored £29 for food or £22 for drink.
+
+The component browser check used a temporary in-memory bundle and a private loopback server.
+It did not run the venue route, production build, consent checks or physical device acceptance.
+The outer pipeline still owns full verification and production-build browser execution.
+No commit, push, merge or deployment occurred in this review phase.

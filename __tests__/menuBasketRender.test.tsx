@@ -33,6 +33,57 @@ async function quantity(name: string, value: string) {
 }
 
 describe("menu basket controls", () => {
+  it.each([food, drink])("keeps $name and focus while its quantity is empty", async (item) => {
+    const h = await mount([food], [drink]);
+    h.querySelector("details")!.open = true;
+    await addItem("food:meal"); await addItem("drink:soft");
+    const input = h.querySelector<HTMLInputElement>(`input[aria-label="Quantity of ${item.name}"]`)!;
+    input.focus();
+    await quantity(item.name, "");
+    expect(h.querySelectorAll("input")).toHaveLength(2);
+    expect(document.activeElement).toBe(input);
+    expect(input.value).toBe("");
+    expect(input.getAttribute("aria-invalid")).toBe("true");
+    expect(h.querySelector('[role="status"]')?.textContent).toContain("Menu subtotal: Incomplete");
+    expect(h.querySelector('[role="status"]')?.textContent).not.toContain("£");
+    await quantity(item.name, "2");
+    expect(document.activeElement).toBe(input);
+    expect(input.value).toBe("2");
+    expect(input.hasAttribute("aria-invalid")).toBe(false);
+    expect(h.querySelector('[role="status"]')?.textContent).toContain(item === food ? "£29.00" : "£22.00");
+    await quantity(item.name, "0");
+    expect(input.isConnected).toBe(false);
+    expect(h.querySelector('[role="status"]')?.textContent).toContain(item === food ? "£5.00" : "£12.00");
+  });
+  it.each([food, drink])("keeps $name pending for invalid quantities and permits recovery", async (item) => {
+    const h = await mount([food], [drink]);
+    await addItem("food:meal"); await addItem("drink:soft");
+    for (const value of ["-1", "1.5", "101"]) {
+      await quantity(item.name, value);
+      expect(h.querySelectorAll("input")).toHaveLength(2);
+      expect(h.querySelector('[role="status"]')?.textContent).toContain("Menu subtotal: Incomplete");
+      expect(h.querySelector('[role="status"]')?.textContent).not.toContain("£");
+    }
+    await addItem(item === food ? "food:meal" : "drink:soft");
+    expect(h.querySelector('[role="status"]')?.textContent).toContain("£17.00");
+    await quantity(item.name, "");
+    await act(async () => h.querySelector("button")!.click());
+    expect(h.querySelectorAll("input")).toHaveLength(0);
+    expect(h.querySelector('[role="status"]')?.textContent).toContain("Choose an item");
+  });
+  it("waits for every pending quantity before showing a subtotal", async () => {
+    const h = await mount([food], [drink]);
+    await addItem("food:meal");
+    await quantity(food.name, "");
+    await addItem("drink:soft");
+    expect(h.querySelector('[role="status"]')?.textContent).toContain("Menu subtotal: Incomplete");
+    await quantity(drink.name, "");
+    await quantity(food.name, "2");
+    expect(h.querySelector('[role="status"]')?.textContent).toContain("Menu subtotal: Incomplete");
+    expect(h.querySelector('[role="status"]')?.textContent).not.toContain("£");
+    await quantity(drink.name, "2");
+    expect(h.querySelector('[role="status"]')?.textContent).toContain("£34.00");
+  });
   it("adds food and a soft drink without claiming a guaranteed payable total", async () => {
     const h = await mount([food], [drink]);
     await addItem("food:meal"); await addItem("drink:soft");

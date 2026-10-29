@@ -12,10 +12,14 @@ const money = (pence: number) => new Intl.NumberFormat("en-GB", { style: "curren
 
 export default function MenuBasket({ venueId, food, drinks }: { venueId: string; food: readonly FoodItem[]; drinks: readonly Drink[] }) {
   const labelId = useId();
-  const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [quantities, setQuantities] = useState<Record<string, number | "">>({});
   const rows = menuBasketItems(venueId, food, drinks);
-  const selected = rows.filter((item) => (quantities[item.id] ?? 0) > 0);
-  const quote = selected.length ? quoteMenuBasket(venueId, rows, quantities, new Date().toISOString()) : null;
+  const selected = rows.filter((item) => {
+    const quantity = quantities[item.id] ?? 0;
+    return quantity === "" || quantity > 0;
+  });
+  const pending = selected.some((item) => quantities[item.id] === "");
+  const quote = selected.length && !pending ? quoteMenuBasket(venueId, rows, Object.fromEntries(Object.entries(quantities).map(([id, quantity]) => [id, Number(quantity)])), new Date().toISOString()) : null;
   if (!rows.length) return null;
   return (
     <details className="menuBasket">
@@ -26,7 +30,7 @@ export default function MenuBasket({ venueId, food, drinks }: { venueId: string;
           Add an item
           <select aria-label="Add an item" value="" onChange={(event) => {
             const id = event.target.value;
-            if (rows.some((item) => item.id === id)) setQuantities((old) => ({ ...old, [id]: Math.min(100, (old[id] ?? 0) + 1) }));
+            if (rows.some((item) => item.id === id)) setQuantities((old) => ({ ...old, [id]: Math.min(100, (old[id] || 0) + 1) }));
           }}>
             <option value="">Choose food or a drink</option>
             {(["food", "drink"] as const).map((kind) => <optgroup key={kind} label={kind === "food" ? "Food" : "Drinks"}>
@@ -44,9 +48,9 @@ export default function MenuBasket({ venueId, food, drinks }: { venueId: string;
                 <span>{item.name}</span>
                 <span className="menuBasketMeta">{item.kind === "food" ? "Food" : "Drink"} · {item.serving ?? "Serving size not recorded"}</span>
                 <span className="menuBasketAmount">{item.unitPence === null ? "Price needs checking" : money(item.unitPence)}</span>
-                <input type="number" min={0} max={100} step={1} inputMode="numeric" aria-label={`Quantity of ${item.name}`} value={quantity} onChange={(event) => {
+                <input type="number" min={0} max={100} step={1} inputMode="numeric" aria-label={`Quantity of ${item.name}`} aria-invalid={quantity === "" || undefined} value={quantity} onChange={(event) => {
                   const next = event.target.valueAsNumber;
-                  setQuantities((old) => ({ ...old, [item.id]: Number.isInteger(next) && next >= 0 && next <= 100 ? next : 0 }));
+                  setQuantities((old) => ({ ...old, [item.id]: Number.isInteger(next) && next >= 0 && next <= 100 ? next : "" }));
                 }} />
               </label>
               <span className="menuBasketMeta">
@@ -57,10 +61,11 @@ export default function MenuBasket({ venueId, food, drinks }: { venueId: string;
           })}
         </div>
         <div role="status" aria-live="polite" aria-atomic="true" className="menuBasketResult">
-          {quote ? <>
-            <p>Menu subtotal: <strong>{quote.menuSubtotalPence === null ? "Incomplete" : money(quote.menuSubtotalPence)}</strong></p>
+          {selected.length ? <>
+            <p>Menu subtotal: <strong>{quote?.menuSubtotalPence == null ? "Incomplete" : money(quote.menuSubtotalPence)}</strong></p>
+            {pending ? <p>Enter a whole quantity from 0 to 100 for each item.</p> : null}
             <p>Full cost unknown. Required fees, tax, deposits and availability need checking.</p>
-            {quote.reasons.some((r) => r.code === "stale") ? <p>Some prices need a new check. Their collection dates are shown above.</p> : null}
+            {quote?.reasons.some((r) => r.code === "stale") ? <p>Some prices need a new check. Their collection dates are shown above.</p> : null}
             <Button variant="ghost" type="button" onClick={() => setQuantities({})}>Clear items</Button>
           </> : <p>Choose an item to see the menu subtotal.</p>}
         </div>

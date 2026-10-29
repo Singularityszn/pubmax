@@ -36,6 +36,24 @@ for (const [width, theme] of [[320, "light"], [390, "dark"], [1440, "light"]] as
     await basket.getByRole("combobox", { name: "Add an item" }).selectOption(drink!.id);
     await expect(basket.getByRole("status")).toContainText(`£${(expectedPence / 100).toFixed(2)}`);
     await expect(basket.getByRole("status")).toContainText("Full cost unknown");
+    const quantities = basket.getByRole("spinbutton");
+    const itemPence = [food!, drink!].map((choice) => Math.round(Number(choice.text.match(/£([0-9.]+)/)?.[1]) * 100));
+    for (const index of [0, 1]) {
+      const input = quantities.nth(index);
+      await input.focus();
+      await input.press("ArrowRight");
+      await input.press("Backspace");
+      await expect(quantities).toHaveCount(2);
+      await expect(input).toBeFocused();
+      await expect(input).toHaveValue("");
+      await expect(basket.getByRole("status")).toContainText("Menu subtotal: Incomplete");
+      await expect(basket.getByRole("status")).not.toContainText("£");
+      await input.press("2");
+      await expect(input).toBeFocused();
+      await expect(input).toHaveValue("2");
+      await expect(basket.getByRole("status")).toContainText(`£${((expectedPence + itemPence[index]) / 100).toFixed(2)}`);
+      await input.fill("1");
+    }
     await expect(basket.locator("time").first()).toBeVisible();
     expect(await basket.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
     await basket.screenshot({ path: test.info().outputPath(`basket-${width}.png`) });
