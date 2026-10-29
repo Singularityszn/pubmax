@@ -1122,6 +1122,75 @@ describe("private Night Memory, Moment and its object", () => {
     }
   });
 
+  it("Plan recap replay excludes a contributor's unconsented Moment", async () => {
+    const { planStore } = await import("@/lib/planStore");
+    const { pendingPlanRecapFromCompletion } = await import("@/lib/planRecap");
+    const memoryStore = await import("@/lib/nightMemoryStore");
+    const { POST } = await import("@/app/api/plans/[id]/recap/route");
+    const store = planStore();
+    const created = await store.create({
+      title: "Private recap replay",
+      creatorName: "Alice",
+      startTime: "2026-10-28T19:00:00.000Z",
+      stops: ROUTE.map((stop, index) => ({ ...stop, venueName: `Pub ${index + 1}` })),
+    });
+    if (!created.ok) throw new Error("Plan fixture failed");
+    const planId = created.plan.plan.id;
+    const arrived = await store.addAction(planId, created.memberToken, {
+      type: "arrived", stopPosition: 0, idempotencyKey: "recap-replay-arrival",
+    });
+    expect(arrived.ok).toBe(true);
+    const completed = await store.complete(planId, created.memberToken, {
+      expectedRouteRevision: 1,
+      ending: "get_home",
+      endingSelection: {
+        kind: "get_home",
+        optionId: "transport:nearest-station",
+        evidenceSnapshot: { label: "Nearest station", confidence: "unknown" },
+      },
+    });
+    if (!completed.ok) throw new Error("Completion fixture failed");
+    const recap = pendingPlanRecapFromCompletion(completed.completion, "Private recap replay");
+    const save = () => POST(request(`/api/plans/${planId}/recap`, {
+      bearer: BEARER_ALICE,
+      body: { memberToken: created.memberToken, recap },
+    }), { params: Promise.resolve({ id: planId }) });
+    const initial = await save();
+    expect(initial.status).toBe(201);
+    const saved = await readJson<{ memory: { id: string }; moments: Array<{ id: string }> }>(initial);
+    expect(saved.moments).toHaveLength(3);
+    const story = await memoryStore.createNightStory(ALICE, {
+      memoryId: saved.memory.id, title: "Shared Story",
+    });
+    if (!story) throw new Error("Story fixture failed");
+    expect(await memoryStore.upsertStoryContributor(ALICE, story.id, {
+      handle: "bobpm", role: "contributor",
+    })).not.toBeNull();
+    expect(await memoryStore.acceptStoryContribution(BOB, story.id)).not.toBeNull();
+    const secret = "BOB-PRIVATE-RECAP-CAPTION";
+    const contributed = await memoryStore.addStoryMoment(BOB, story.id, {
+      kind: "event", caption: secret,
+    });
+    if (!contributed) throw new Error("Contributor Moment fixture failed");
+    const owned = await memoryStore.addNightMoment(ALICE, saved.memory.id, {
+      kind: "event", caption: "Alice keeps this Moment",
+    });
+    if (!owned) throw new Error("Owner Moment fixture failed");
+
+    const replay = await save();
+    expect(replay.status).toBe(201);
+    const body = await readJson<{ memory: { id: string }; moments: Array<{ id: string }> }>(replay);
+    expect(body.memory.id).toBe(saved.memory.id);
+    expect(body.moments.map((moment) => moment.id).sort()).toEqual(
+      [...saved.moments.map((moment) => moment.id), owned.id].sort(),
+    );
+    expect(JSON.stringify(body)).not.toContain(secret);
+    const contributorView = await memoryStore.getNightStoryWorkspace(BOB, story.id);
+    expect(contributorView?.moments).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: contributed.id, caption: secret, consent: "pending" }),
+    ]));
+  });
+
   it("only the owner may describe a photo Moment", async () => {
     const bob = await defined(handlers.altText)(
       request(`/api/night-moments/${ALICE_MOMENT}/alt-text`, {
