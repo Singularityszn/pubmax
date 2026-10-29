@@ -20,7 +20,7 @@ import evidenceSnapshot from "@/public/data/late_food_evidence.json";
 export const LATE_FOOD_AREAS = LONDON_NIGHT_AREA_SLUGS;
 export type LateFoodArea = LondonNightAreaSlug;
 
-const LATE_FOOD_AREA_ALIASES = {
+export const LATE_FOOD_AREA_ALIASES = {
   soho: "piccadilly-soho",
   piccadilly: "piccadilly-soho",
 } as const satisfies Record<string, LateFoodArea>;
