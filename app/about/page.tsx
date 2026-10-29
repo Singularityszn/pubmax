@@ -90,7 +90,7 @@ function Pint({ gbp }: { gbp: number | null }) {
 
 export default async function AboutPage() {
   const [stats, pintIndexSnapshot] = await Promise.all([
-    loadAboutStats(),
+    loadAboutStats().catch(() => null),
     loadPublicPintIndexSnapshot(),
   ]);
   const pintIndexRows = pintIndexSnapshot
@@ -242,6 +242,7 @@ export default async function AboutPage() {
           sentence of figures, not a grid of KPI tiles. ──────────── */}
       <section className="aboutSection" aria-labelledby="traction">
         <h2 id="traction" className="aboutH2">By the numbers</h2>
+        {stats ? <>
         <p className="aboutBody">
           PUBMAXX holds a price for <Figure>{fmtInt(stats.pubsTracked)}</Figure>{" "}
           pubs from <Figure>{fmtInt(stats.pintPricesObserved)}</Figure> pint
@@ -260,6 +261,7 @@ export default async function AboutPage() {
           <Pint gbp={stats.averagePint} />, the same figure the homepage gives,
           taken from each pub&rsquo;s cheapest pint.
         </p>
+        </> : <p className="aboutBody">Price figures are temporarily unavailable. Please try again shortly.</p>}
       </section>
 
       {/* ── Press appendix (kit + journalist hooks) ─────────────── */}
