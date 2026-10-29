@@ -18,6 +18,12 @@ import type {
   AskTurn,
 } from "@/lib/ask/types";
 
+import {
+  pubPalGetHomeRegisterAnswer,
+  regexFenceIntent,
+  resolvePubPalFenceIntent,
+} from "@/lib/pubPalLlmFence";
+
 const MAX_TURNS = 6;
 
 function dedupeCards(results: AskToolResult[]): AskCard[] {
@@ -179,6 +185,27 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
     ...(input.fetchImpl ? { fetchImpl: input.fetchImpl } : {}),
     ...(input.now !== undefined ? { now: input.now } : {}),
   };
+
+  const fence = input.skipModel
+    ? regexFenceIntent(query, turns)
+    : await resolvePubPalFenceIntent(query, turns);
+  if (fence.fenced) {
+    const transportCalls = routeAskDeterministically(query).filter(
+      (call) => call.name === "journey" || call.name === "city_status",
+    );
+    const transportResults = await Promise.all(transportCalls.map((call) =>
+      runAskTool(call.name, { ...call.args, query }, ctx),
+    ));
+    const merged = mergeToolResults(transportResults);
+    return {
+      answer: pubPalGetHomeRegisterAnswer(merged.hints.join(" "), fence.sobrietyOnly),
+      cards: merged.cards,
+      proposals: merged.proposals,
+      sources: merged.sources,
+      status: merged.degraded ? "degraded" : "ready",
+      toolsUsed: merged.toolsUsed,
+    };
+  }
 
   const recordedDrinks = recordedDrinkComparison(query);
   const hoursQuestion = isVenueHoursQuestion(query);
