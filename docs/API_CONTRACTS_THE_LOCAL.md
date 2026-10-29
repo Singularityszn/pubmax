@@ -304,6 +304,14 @@ The route planner has no menu-item or nutrition evidence. [`preparePlanGeneratio
 
 Drink-owned prices in the query and each `foodNeeds` field share one recognition boundary in [`planPriceAmounts`](../lib/planPriceLimits.ts). Pint, beer, and unspecified drink limits constrain recorded beer pint prices. Both price directions retain the strictest pint ceiling separately from route totals. The strictest recognised route budget also tightens any reconciled context ceiling. Candidates and alternatives require attributable, non-stale canonical evidence at or below the pint ceiling. When a pint ceiling applies, each returned stop and alternative retains that canonical `priceEvidence`, including its amount, source, and observation date. The response also identifies `priceCategory: "beer"` and `priceServing: "pint"`, even without a route-total budget. Explicit other servings, quantities, non-beer selections, and zero-proof selections return `422 DRINK_PRICE_CONSTRAINTS_UNSUPPORTED` when they request these drink limits. The planner does not convert bottle, cocktail, or half-pint prices into pints.
 
+### Budget route search
+
+[`planRouteOptimizer`](../lib/planRouteOptimizer.ts) first searches a bounded candidate slice selected by score. It keeps any feasible result from that search. If a total-price ceiling applies and that search fails, it tries one slice selected by price when that slice differs. Both slices use the same candidate and per-operator limits defined in the optimiser. Both searches evaluate candidates in score order.
+
+The beam search checks the cheapest unused candidates needed to complete each partial route. It discards that partial route if the minimum total exceeds the ceiling or too few candidates remain. This lower bound does not establish feasibility under the other hard constraints.
+
+This policy applies to ordinary routes and anchored companions. The affordable search preserves all hard constraints. The operator-diversity fallback runs only when the score search and any affordable search fail under that preference. These searches remain bounded heuristics and can miss a feasible route outside their search limits.
+
 ### Errors
 
 | Status | Condition | Current body |
@@ -316,7 +324,7 @@ Drink-owned prices in the query and each `foodNeeds` field share one recognition
 | `422` | no `nightArea` resolved | `NIGHT_AREA_REQUIRED` |
 | `422` | area not in requested city | `NIGHT_AREA_CITY_MISMATCH` |
 | `422` | fewer grounded venues than the requested stop count | `GROUNDED_VENUES_INSUFFICIENT` |
-| `422` | no unanchored route satisfies every hard constraint | `GROUNDED_CONSTRAINTS_UNSATISFIED` |
+| `422` | bounded searches find no unanchored route satisfying every hard constraint | `GROUNDED_CONSTRAINTS_UNSATISFIED` |
 | `429` | rate limited | `RATE_LIMITED` (`retryable: true`) |
 
 Every row uses the flat body described in §7. Coverage/confidence warnings are returned with successful editable routes; coverage readiness does not block generation.
