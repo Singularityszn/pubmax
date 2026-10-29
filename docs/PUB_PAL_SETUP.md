@@ -195,10 +195,14 @@ Voice uses the same opening builder in its first-message override.
    staying silent until it returns. The four confirm tools (`propose_plan`,
    `propose_map_action`, `report_occupancy`, `propose_memory`) set `interruption_mode:
    "disable_during_tool_and_turn"` so the proposal is heard whole. Typed chat
-   answers when a reply has settled: no tool event followed it for 1.2 seconds,
-   or 0.4 seconds after `agent_response_complete` when the agent sends it. A
-   reply that came before a tool event is the checking line, so typed chat drops
-   it and waits for the reply after the tool. The script adds the tool events
+   answers when a reply has settled and no observed tool request remains pending.
+   The settle window is 1.2 seconds, or 0.4 seconds after `agent_response_complete`.
+   A later tool event invalidates the earlier reply, except for a duplicate response to a completed observed request.
+   That exception requires a nonempty call ID and no reopened request for that ID.
+   First responses, unknown IDs, missing IDs and reopened requests still require a later reply.
+   `__tests__/palElevenLabsChat.server.test.ts` checks these sequences with simulated provider events.
+   These tests do not establish the live provider sequence or resolution of a production timeout.
+   The script adds the tool events
    and `agent_response_complete` to the agent's `conversation.client_events`,
    so the captain re-runs `npm run pubpal:agent` to turn them on. Typed chat
    works on an agent with or without them, so the deploy and the re-run can
@@ -246,7 +250,13 @@ Voice uses the same opening builder in its first-message override.
    since, so a stale card never overwrites a newer fact. Without a TypeSafe key only exact
    duplicates are caught and every other offer is an ordinary card. Typed chat also carries
    recent turns through `windowPalSessionTurns` in `lib/palSessionSummary.ts`.
-   It resolves same-area pint-budget references before older turns leave the window.
+   The browser loads this policy through `recentPalSessionTurns` in `lib/palSessionTurns.ts` when it needs to normalise history.
+   It loads `refineRoutedAskQuery` on submission, before sending the request.
+   The client deadline covers policy loading, the request, response reading and history normalisation.
+   A newer request prevents an older request from publishing text or committing its result.
+   Thread reads and writes in `lib/palChatThread.ts` are asynchronous and use the same history policy.
+   Regression coverage includes `__tests__/palChatPolicyLoading.test.ts`, `__tests__/palChatClient.test.ts` and `__tests__/palChatThread.test.ts`.
+   `windowPalSessionTurns` resolves same-area pint-budget references before older turns leave the window.
    Older user asks form a rolling session summary turn capped at 300 UTF-8 bytes, label included.
    A byte-level BPE token always covers at least one byte, so the turn is at
    most 300 tokens for any input. It is built only from the person's own older
