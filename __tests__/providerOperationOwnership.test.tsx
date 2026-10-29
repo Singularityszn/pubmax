@@ -46,7 +46,7 @@ function Fixture({ surface, initialUser = null, addAccount = false }: { surface:
   const providerAuthState = user ? "authenticated" : "signed-out";
   const value: AuthContextValue = {
     user, session, loading: false, configured: true,
-    handle: null, identityResolved: true, clerkIntegrationConfigured: false,
+    handle: null, identityResolved: true, identityUnavailable: false, clerkIntegrationConfigured: false,
     supabaseAuthState: providerAuthState, providerAuthState,
     accountRevision: readProviderAccountRevision(),
     retryIdentity: vi.fn(),

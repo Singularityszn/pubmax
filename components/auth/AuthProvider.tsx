@@ -314,12 +314,11 @@ async function waitForNativeEmailReadiness(): Promise<boolean> {
 // path off the map shell chunk.
 
 /**
- * The app's answer to "who is this?". A canonical read that has not landed, or
- * one that failed, is UNKNOWN - never the previous account's cached handle and
- * never a confident "no handle".
+ * A canonical read distinguishes pending, unavailable, and resolved identity.
+ * Only a resolved answer can establish that the account has no handle.
  */
 type CanonicalIdentityState =
-  | Readonly<{ status: "unknown" }>
+  | Readonly<{ status: "unknown" | "unavailable" }>
   | Readonly<{ status: "resolved"; identity: IdentityHandleChangedDetail | null }>;
 
 const UNKNOWN_IDENTITY: CanonicalIdentityState = { status: "unknown" };
@@ -350,7 +349,13 @@ export function AuthProvider({
   const [canonicalIdentityState, setCanonicalIdentityState] =
     useState<CanonicalIdentityState>(UNKNOWN_IDENTITY);
   const [identityReadAttempt, setIdentityReadAttempt] = useState(0);
-  const retryIdentity = useCallback(() => setIdentityReadAttempt((attempt) => attempt + 1), []);
+  const identityReadRevision = useRef(0);
+  const retryIdentity = useCallback(() => {
+    identityReadRevision.current += 1;
+    forgetCurrentIdentityRead();
+    setCanonicalIdentityState(UNKNOWN_IDENTITY);
+    setIdentityReadAttempt((attempt) => attempt + 1);
+  }, []);
   // Session restore only applies when Supabase public env is present. When it
   // is not, there is nothing to wait for — derive `loading` false during render
   // instead of setState-in-effect (which cascaded a second render on every
@@ -482,15 +487,31 @@ export function AuthProvider({
   useEffect(() => {
     const user = session?.user ?? null;
     let active = true;
-    const current = () => active && !providerAccountSignal.aborted &&
+    let settled = false;
+    const requestRevision = identityReadRevision.current;
+    let timeout: ReturnType<typeof window.setTimeout> | undefined;
+    const ownsAccount = () => active && !providerAccountSignal.aborted &&
       getCurrentUserId() === (user?.id ?? null);
-    const onChanged = (event: Event) => {
+    const current = () => ownsAccount() && !settled &&
+      requestRevision === identityReadRevision.current;
+    const finish = () => {
+      settled = true;
+      window.clearTimeout(timeout);
+    };
+    const unavailable = () => {
       if (!current()) return;
+      finish();
+      forgetCurrentIdentityRead();
+      setCanonicalIdentityState({ status: "unavailable" });
+    };
+    const onChanged = (event: Event) => {
+      if (!ownsAccount()) return;
       const handle = identityHandleForOwner(
         (event as CustomEvent<unknown>).detail,
         user?.id ?? null,
       );
       if (handle !== null && user) {
+        finish();
         setCanonicalIdentityState({
           status: "resolved",
           identity: { ownerId: user.id, handle: normalizeHandle(handle) },
@@ -504,6 +525,7 @@ export function AuthProvider({
         if (current()) setCanonicalIdentityState(NOBODY_IDENTITY);
         return;
       }
+      timeout = window.setTimeout(unavailable, 8_000);
       const resolution = await resolveCanonicalIdentity(
         user.id,
         session,
@@ -511,9 +533,12 @@ export function AuthProvider({
         undefined,
         current,
       ).catch(() => null);
-      // A read that failed is not evidence the account has no handle, so the
-      // answer stays unknown rather than becoming a confident "nobody".
-      if (!current() || !resolution?.ok) return;
+      if (!current()) return;
+      if (!resolution?.ok) {
+        unavailable();
+        return;
+      }
+      finish();
       setCanonicalIdentityState({
         status: "resolved",
         identity: resolution.identity,
@@ -526,6 +551,7 @@ export function AuthProvider({
     void loadCanonicalHandle();
     return () => {
       active = false;
+      finish();
       window.removeEventListener(IDENTITY_HANDLE_CHANGED_EVENT, onChanged);
     };
   }, [session, identityReadAttempt, getCurrentUserId, providerAccountSignal]);
@@ -1511,6 +1537,7 @@ export function AuthProvider({
       ),
       identityResolved:
         canonicalIdentityState.status === "resolved" && !loading,
+      identityUnavailable: canonicalIdentityState.status === "unavailable" && !loading,
       retryIdentity,
       accountRevision,
       providerAuthState,

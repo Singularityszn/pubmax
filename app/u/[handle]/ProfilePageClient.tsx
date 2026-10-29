@@ -31,6 +31,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import EmptyState from "@/components/ui/empty-state";
+import { Button } from "@/components/ui/button";
 import { ACCOUNT_VISIBILITY_COPY } from "@/lib/accountVisibility";
 import { getAccessToken } from "@/lib/authClient";
 import { authedFetch } from "@/lib/authedFetch";
@@ -450,7 +451,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   const router = useRouter();
   const editRequested = useSearchParams().get("edit") === "1";
   const documentComplete = useDocumentComplete();
-  const { accountRevision, user, identityResolved, loading: sessionLoading, signOut } = useAuth();
+  const { accountRevision, user, identityResolved, identityUnavailable, retryIdentity, loading: sessionLoading, signOut } = useAuth();
   const viewerSession = useViewerSession();
   const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
   const followKey = `${accountRevision}:${routeHandle}`;
@@ -1268,6 +1269,18 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // React element tree identical where a component would add a fibre, and the
   // source text the profile fences read stays in this file.
   function identityLoadingSurface() {
+    if (identityUnavailable) {
+      return (
+        <section className="profileIdentityLoadingSurface" aria-label="Your profile is unavailable" role="status">
+          <EmptyState
+            title="Your profile could not load"
+            action={<Button type="button" variant="secondary" onClick={retryIdentity}>Retry</Button>}
+          >
+            We could not confirm your profile.
+          </EmptyState>
+        </section>
+      );
+    }
     return (
       <section className="profileIdentityLoadingSurface" aria-label="Loading your profile">
         <ProfileHeader
