@@ -85,12 +85,12 @@ for (const width of [320, 390]) {
 
 // Only this case needs classic scrollbars. Preserve the inherited launch options.
 const classicScrollbarTest = test.extend({
-  launchOptions: async ({ launchOptions }, use) => {
+  launchOptions: async ({ launchOptions }, provide) => {
     const ignoredDefaults = launchOptions.ignoreDefaultArgs;
     if (ignoredDefaults === true) {
       throw new Error("The 15px scrollbar case requires Chromium default arguments.");
     }
-    await use({
+    await provide({
       ...launchOptions,
       ignoreDefaultArgs: [
         ...(Array.isArray(ignoredDefaults) ? ignoredDefaults : []),
