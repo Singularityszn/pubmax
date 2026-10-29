@@ -1062,6 +1062,8 @@
 }
 
 .profilePage .followError {
+  flex-basis: 100%;
+  overflow-wrap: anywhere;
   color: var(--danger, #b42318);
   font-size: var(--text-sm);
   font-weight: 600;

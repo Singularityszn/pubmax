@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   followActionDescription,
@@ -10,7 +10,7 @@ import {
   resolveFollowRelation,
 } from "@/lib/followRelation";
 import { authedActionFetch } from "@/lib/authedFetch";
-import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
+import { errorMessageFrom, offlineOrMessage, RATE_LIMIT_RETRY_MESSAGE } from "@/lib/apiErrorMessage";
 import type { FollowCounts } from "@/lib/followStore";
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 
@@ -51,6 +51,14 @@ export default function FollowButton({
   const [following, setFollowing] = useState(initialFollowing);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [retryAt, setRetryAt] = useState(0);
+  const busyRef = useRef(false);
+
+  useEffect(() => {
+    if (!retryAt) return;
+    const timer = setTimeout(() => setRetryAt(0), Math.max(0, retryAt - Date.now()));
+    return () => clearTimeout(timer);
+  }, [retryAt]);
 
   const relation = resolveFollowRelation({
     viewerFollowing: following,
@@ -59,7 +67,8 @@ export default function FollowButton({
   const hint = followRelationHint(relation);
 
   async function toggle() {
-    if (busy) return;
+    if (busyRef.current || retryAt > Date.now()) return;
+    busyRef.current = true;
     setBusy(true);
     setError(null);
     const next = !following;
@@ -77,8 +86,18 @@ export default function FollowButton({
       const body: unknown = await res.json().catch(() => null);
       if (!res.ok) {
         setFollowing(!next); // roll back
+        if (res.status === 429) {
+          const header = res.headers.get("Retry-After")?.trim();
+          const seconds = header ? Number(header) : NaN;
+          const delay = Number.isFinite(seconds) && seconds >= 0
+            ? seconds * 1_000
+            : header ? Date.parse(header) - Date.now() : NaN;
+          setRetryAt(Date.now() + (Number.isFinite(delay) ? Math.min(86_400_000, Math.max(1_000, delay)) : 60_000));
+        }
         setError(
-          offlineOrMessage(errorMessageFrom(body, "Could not update. Try again."))
+          offlineOrMessage(res.status === 429
+            ? RATE_LIMIT_RETRY_MESSAGE
+            : errorMessageFrom(body, "Could not update. Try again."))
         );
         return;
       }
@@ -94,6 +113,7 @@ export default function FollowButton({
         offlineOrMessage("Could not update. Try again.")
       );
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   }
@@ -108,10 +128,13 @@ export default function FollowButton({
         data-primary-action=""
         aria-pressed={following}
         aria-label={followActionDescription(relation, targetHandle)}
-        disabled={busy}
+        disabled={busy || retryAt > 0}
         onClick={toggle}
       >
-        {busy ? followPendingLabel(relation) : followActionLabel(relation)}
+        {busy ? followPendingLabel(resolveFollowRelation({
+          viewerFollowing: !following,
+          followsViewer,
+        })) : followActionLabel(relation)}
       </button>
       {hint ? <span className="followHint">{hint}</span> : null}
       {error ? (

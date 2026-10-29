@@ -818,7 +818,10 @@ export function restoredSessionFrame<NightAreaSlug extends string = string>(inpu
     search: string,
   ) => boolean;
 }): RestoredSessionFrame<NightAreaSlug> {
-  const { seed, restoredSession, resumeSeed, cityId, search } = input;
+  const { seed, restoredSession: savedSession, resumeSeed, cityId, search } = input;
+  // An explicit incoming query owns the frame even if the outgoing page made
+  // this saved session eligible. Clean arrivals retain their saved filters.
+  const restoredSession = search ? null : savedSession;
   return {
     loadedCityId: resumeSeed ? cityId : null,
     resumeViewport: resumeSeed?.viewport ?? null,
