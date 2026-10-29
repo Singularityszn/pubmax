@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 
 import {
   LINE_PATCH_RELEVANCE,
@@ -11,6 +11,7 @@ import {
   pickTopDisruption,
   describeDisruption,
   disruptionForPatch,
+  fetchLineStatuses,
   lineDisplayLabel,
   NIGHT_WINDOW_OPEN_HOUR,
   NIGHT_WINDOW_CLOSE_HOUR,
@@ -21,8 +22,8 @@ import { NIGHT_PATCHES } from "@/lib/nightPatches";
 import { defined } from "@/__tests__/helpers/defined";
 
 // Hermetic: every test drives fixtures and fixed Dates. No network, no clock —
-// fetchLineStatuses (the only impure export) is deliberately left untested here,
-// exactly as lib/tfl.ts keeps its fetch out of the unit surface.
+// fetchLineStatuses (the only impure export) is only driven through a stubbed
+// fetch, to pin that a malformed 200 body comes back as null.
 
 // A London evening instant: 2026-07-24 (a Friday) at 20:00 BST == 19:00Z.
 const FRIDAY_EVENING = new Date("2026-07-24T19:00:00Z");
@@ -366,5 +367,55 @@ describe("disruptionForPatch (end-to-end, pure)", () => {
       FRIDAY_EVENING,
     );
     expect(result?.lineId).toBe("victoria");
+  });
+
+  // Today renders this on the server, so a malformed TfL 200 body must read as
+  // "nothing to say" rather than throw and take the whole page down.
+  it.each<[string, unknown]>([
+    ["an object body", {}],
+    ["a null entry", [null]],
+    ["non-array lineStatuses", [{ id: "victoria", name: "Victoria", lineStatuses: {} }]],
+    ["a null status detail", [{ id: "victoria", name: "Victoria", lineStatuses: [null] }]],
+    [
+      "non-array validityPeriods",
+      [{ id: "victoria", name: "Victoria", lineStatuses: [{ statusSeverity: 4, validityPeriods: {} }] }],
+    ],
+  ])("is silent and never throws for %s", (_label, body) => {
+    expect(disruptionForPatch(body as RawLineStatus[], "soho", FRIDAY_EVENING)).toBeNull();
+  });
+
+  it("still surfaces a real disruption beside malformed entries", () => {
+    const body = [null, "victoria", { id: "central", lineStatuses: {} }, status("victoria", "Victoria", 2)];
+    const result = disruptionForPatch(body as RawLineStatus[], "soho", FRIDAY_EVENING);
+    expect(result?.lineId).toBe("victoria");
+    expect(result?.kind).toBe("suspended");
+  });
+});
+
+describe("fetchLineStatuses (stubbed fetch)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function respondWith(body: unknown) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify(body), { status: 200 })),
+    );
+  }
+
+  it.each<[string, unknown]>([
+    ["an object", {}],
+    ["a string", "Service Unavailable"],
+    ["null", null],
+  ])("returns null when a 200 body is %s, not a list", async (_label, body) => {
+    respondWith(body);
+    await expect(fetchLineStatuses()).resolves.toBeNull();
+  });
+
+  it("returns the list when a 200 body is a list", async () => {
+    const lines = [status("victoria", "Victoria", 2)];
+    respondWith(lines);
+    await expect(fetchLineStatuses()).resolves.toEqual(lines);
   });
 });
