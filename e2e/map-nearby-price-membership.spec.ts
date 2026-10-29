@@ -139,7 +139,9 @@ for (const requireFood of [false, true]) {
     await nearMe.tap();
     const answer = page.getByRole("region", { name: "Nearby pub matches" });
     await expect(answer).toBeVisible({ timeout: 30_000 });
-    await testInfo.attach("mounted-nearby-price-membership", { body: await page.screenshot(), contentType: "image/png" });
+    const screenshot = testInfo.outputPath("mounted-nearby-price-membership.png");
+    await page.screenshot({ path: screenshot });
+    await testInfo.attach("mounted-nearby-price-membership", { path: screenshot, contentType: "image/png" });
 
     const target = answer.locator(`[data-venue-id="${VENUE_ID}"]`);
     if (requireFood) {

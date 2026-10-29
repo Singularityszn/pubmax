@@ -3157,6 +3157,12 @@ export default function PubMap({
     () => filteredVenues.filter(isPubVenue),
     [filteredVenues],
   );
+  // Nearby ranking applies the current constraints against its exact drink price.
+  // Do not discard hydrated pubs through legacy drink flags before that check.
+  const nearbyDiscoveryVenues = useMemo(
+    () => savedOnly ? pubVenues.filter((venue) => savedIds.has(venue.id)) : pubVenues,
+    [pubVenues, savedOnly, savedIds],
+  );
 
   const pinVenues = useMapPinVenues({
     venues,
@@ -6588,7 +6594,7 @@ export default function PubMap({
             <MapNearbyDiscovery
               cityId={cityId}
               titledByHost
-              venues={filteredPubVenues}
+              venues={nearbyDiscoveryVenues}
               filters={experienceLens === "no-alcohol"
                 ? { ...filtersForExperienceLens(filters, experienceLens), requireNonAlcoholic: true }
                 : filters}
