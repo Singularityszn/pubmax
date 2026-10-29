@@ -3,6 +3,7 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/components/auth/authContext", () => ({ useAuth: () => ({ user: { id: "owner" }, loading: false }) }));
 vi.mock("next/navigation", () => ({ usePathname: () => "/map" }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 
@@ -25,6 +26,7 @@ function pal(overrides: Partial<PubPal> = {}): PubPal {
 }
 
 function store(value: PubPal) {
+  window.localStorage.setItem("pubmax_account_owner", "owner");
   window.localStorage.setItem("pubmax_pub_pal_v1", JSON.stringify(value));
 }
 
