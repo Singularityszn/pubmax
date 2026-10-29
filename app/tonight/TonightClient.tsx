@@ -388,7 +388,7 @@ export default function TonightClient({
   // retry control is offered when the SPINE reported, and a spine that reported
   // holds no rows, so the list under that button is the Out lane's.
   const paintStatus = tonightPaintStatus(status, tonightHeldRowCount(rows, outAnswer));
-  const { listingRows, primaryListingRows, listingsStatus, outEvents } = useMemo(() => {
+  const { listingRows, secondaryChainListingCount, primaryListingRows, listingsStatus, outEvents } = useMemo(() => {
     // The past guard needs the real clock, and this memo reads it again only
     // when one of the two reads answers, so both halves keep the same instant.
     // eslint-disable-next-line react-hooks/purity -- deliberate clock read
@@ -703,7 +703,7 @@ export default function TonightClient({
         state={listingsState}
         note={listingsNote}
         noteOffersRetry={noteOffersRetry}
-        emptyLead={tonightEmptyLead(status, outAnswer, pubSuggestionCount, secondaryMusic.length)}
+        emptyLead={tonightEmptyLead(status, outAnswer, pubSuggestionCount, secondaryMusic.length, secondaryChainListingCount)}
         heldRowCount={primaryListingRows.length}
         context={picksContext}
         onRetry={retryListings}
