@@ -8,6 +8,8 @@ export type PalEvalPublicCase = {
 };
 
 export type PalEvalAnswerExpectations = {
+  /** Closed authored terminal wording. Extra claims or side effects fail. */
+  honestTerminal?: { answer: string; tool: "search_venues" | "venue_heritage" };
   expectedTools?: string[];
   anyTools?: string[];
   minCards?: number;

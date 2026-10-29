@@ -6,6 +6,7 @@ import { venueSearchNames } from "@/lib/venueSearchNames.mjs";
 export function heritageQuestionVenueName(query: string): string | null {
   const question = query.trim().replace(/[.!?]+$/, "").trim();
   const patterns = [
+    /^heritage\s+story\s+for\s+(.+)$/i,
     /^(?:(?:please\s+)?tell me(?:\s+about)?\s+|what(?:'s|\s+is)\s+)?(?:the\s+)?(?:history|heritage|story)\s+(?:of|behind)\s+(.+)$/i,
     /^(?:please\s+)?tell me about\s+(.+)$/i,
     /^when was\s+(.+?)\s+(?:built|opened|founded|established)$/i,

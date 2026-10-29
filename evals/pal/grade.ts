@@ -181,6 +181,18 @@ export function gradePalCase(
     inventedVenues === 0 ? "none" : details.join("; "),
   );
 
+  if (expect.honestTerminal) {
+    const terminal = expect.honestTerminal;
+    const normalise = (value: string) => value.trim().replace(/\s+/g, " ");
+    push(checks, "honest_terminal_answer", normalise(body.answer) === normalise(terminal.answer), body.answer);
+    push(checks, "honest_terminal_cards", body.cards.length === 0, `cards=${body.cards.length}`);
+    push(checks, "honest_terminal_proposals", body.proposals.length === 0, `proposals=${body.proposals.length}`);
+    push(checks, "honest_terminal_sources", body.sources.length === 0, `sources=${body.sources.length}`);
+    push(checks, "honest_terminal_status", body.status === "ready", body.status);
+    push(checks, "honest_terminal_tool", body.toolsUsed.length === 1 && body.toolsUsed[0] === terminal.tool,
+      body.toolsUsed.join(","));
+  }
+
   if (expect.expectedTools?.length) {
     const used = body.toolsUsed;
     const ok = expect.expectedTools.every((tool) => used.includes(tool));

@@ -9,6 +9,30 @@ Pal voice and the hosted-LLM typed path use the ElevenLabs agent
 
 The hidden answer key combines hand-maintained routing constraints (`expectedTools`, `anyTools`, `answerIncludes`) with **data-derived** expectations (`topVenueId`, `topPrice`, `minCards`, `expectEmpty`) computed from committed venue, price and What's On data at the pinned `now`. The resolver lives in `answerKeyResolver.ts` and never calls `runAsk` or `runAskTool`. Graders score the live Pal response against that key for recall, invented venues, price accuracy, and tool routing.
 
+Two authored policy terminals require complete, honest responses. Covent Garden
+has no current late-food record. The bare Lamb query matches five distinct venue
+records without a canonical alias joining them. Its input contains only a case
+ID, query and city. It supplies no canonical venue ID or disambiguating context.
+
+Each terminal requires the complete authored answer, no cards, proposals or
+sources, ready status and exactly its declared tool. Extra prose, prices, hours
+or heritage claims fail. This closed wording contract does not judge paraphrases.
+Adversarial grader tests use real response objects and independent authored
+references. They do not call the product resolver, matcher or ranker.
+
+The declaration binds the exact public case, absence of turns and other context,
+London city and pinned instant. Minimal evidence checks bind Lamb's name/alias
+candidates, coordinates and relevant canonical alias edges. Covent checks bind
+its area/name mappings and food option IDs. A relevant change requires oracle
+review, including new Covent evidence or a disambiguated Lamb input. The check
+does not hash unrelated whole datasets.
+
+The Old Bank of England is listed exactly as `venue-lrlyh8` at 194 Fleet Street.
+Its positive expectation remains unchanged. The grammar repair passed all 22
+affected heritage tests, including four new regressions. The final consumer run
+also passed with this repair and the regenerated key. Full verification,
+browser acceptance, and live provider acceptance remain pending.
+
 The key also encodes the current keyless Ask regression baseline at the pinned instant: when Pal behaviour intentionally changes, regenerate the key in the same commit. Known Pal gaps live in `FOLLOW_UPS.md`; update the key and `FOLLOW_UPS.md` together when a gap is fixed or re-baselined.
 
 Invented-venue and directory price checks are absolute: every card `venueId` must exist in `public/data/venues_slim.json`, and directory pint prices must match the slim index within tolerance.
@@ -119,3 +143,54 @@ Regenerate data-derived fields after venue, price, What's On, or routing changes
 `npm run regenerate:pal-answer-key`
 
 The pinned `now` is data: it must be an evening the bundled What's On fixtures cover. After a What's On refresh, move `now` in `answer-key.json` to an evening the new fixtures cover, then regenerate. The script refuses to turn a case that expected cards into empty and names the cases.
+
+Only a successfully validated authored policy terminal can bypass the generator's
+existing cards-to-empty guard. A matching case ID alone grants no exemption.
+Every other unexpected data-derived empty result still blocks regeneration.
+Generated keys must come from the generator and must not be edited manually.
+The validation record below states the completed offline checks and their limits.
+
+The eval consumer revalidates authored policy declarations before product calls,
+including when it loads an existing generated key. Stale inputs, relevant
+mappings or evidence require review even if product behavior remains stale.
+The food-only alias table is exposed as data and included in the Covent projection.
+The Lamb projection includes leading-article/punctuation variants, recorded search
+names, relevant canonical edges and clusters. Unrelated records do not invalidate it.
+Grader-only adversarial tests import existing runtime exports. They exposed
+22 assertion failures in the previous grader. All 86 grader and binding tests
+passed after the implementation changed.
+
+The Lamb projection also binds an independent admission-validity flag for each
+identity. It checks pub kind or omitted kind, borough text, valid price shape,
+finite coordinates and nonempty ID/name. A loss of eligible namesakes requires
+review. Finite price changes do not invalidate the declaration.
+
+Canonical connectivity reads the same three-file path catalog as the server.
+The projection independently applies valid-target filtering and later-source
+precedence. It binds transitive incoming and outgoing connections to relevant
+Lamb IDs, including cross-file chains. Existing primary clusters remain bound.
+Unrelated components and overwritten unrelated edges do not invalidate the policy.
+
+## Offline validation recorded on 29 October 2026
+
+The following checks ran against the owned source changes.
+
+- The baseline grader run produced 22 assertion failures and six passes across
+  28 cases. The failures exposed unsupported claims, actions, sources, status,
+  and tool usage that the previous grader accepted.
+- All 86 grader and policy-binding checks passed after the repair. These checks
+  cover authored response objects, relevant evidence changes, and stale-key refusal.
+- The real generator wrote 30 entries. Only the Covent Garden and Lamb
+  expectations changed meaning. Old Bank, the other 27 cases, and the pinned
+  instant retained their meaning. No one manually edited the key.
+- All 22 affected heritage checks passed. These include the four Old Bank
+  regressions and the unchanged 12-question heritage corpus.
+- All 35 final consumer checks passed with the combined grammar and generated
+  key. The five evaluation tests exercised the complete 30-question corpus,
+  offline behaviour, pinned time, and regeneration parity. Eight sobriety tests
+  and 22 heritage tests also passed. The run made no network or model calls.
+
+The final run reused the 86-case evidence only for unchanged grader and binding
+behaviour. The 35-case run checked the regenerated key and the combined grammar.
+These totals overlap and must not be added as unique coverage.
+Full verification, browser acceptance, and live provider acceptance remain pending.

@@ -105,12 +105,16 @@
       ]
     },
     "heritage-lamb": {
-      "minCards": 1,
+      "expectEmpty": true,
+      "answerIncludes": [
+        "I cannot tell which pub you mean. Choose the pub on the map, then ask about its history."
+      ],
+      "honestTerminal": {
+        "answer": "I cannot tell which pub you mean. Choose the pub on the map, then ask about its history.",
+        "tool": "venue_heritage"
+      },
       "expectedTools": [
         "venue_heritage"
-      ],
-      "answerIncludes": [
-        "won"
       ]
     },
     "map-open-lamb": {
@@ -136,9 +140,14 @@
       ]
     },
     "food-midnight-covent": {
-      "minCards": 1,
-      "topVenueId": "venue-u68xn3",
-      "topPrice": 6.4,
+      "expectEmpty": true,
+      "answerIncludes": [
+        "I have no current late-food record for Covent Garden."
+      ],
+      "honestTerminal": {
+        "answer": "I have no current late-food record for Covent Garden.",
+        "tool": "search_venues"
+      },
       "expectedTools": [
         "search_venues"
       ]

@@ -1,3 +1,11 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { isDeepStrictEqual } from "node:util";
+import { LATE_FOOD_AREA_ALIASES } from "@/lib/lateFood";
+import { VENUE_ALIAS_FILES } from "@/lib/venueAliasesFile.mjs";
+import { getNightAreasForCity } from "@/lib/nightAreas";
+import { rowsFromSlimPayload } from "@/lib/slimPayload";
+import { loadPalEvalVenueIndex } from "./venueIndex";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { areaCircleForAsk } from "@/lib/concierge/areaCircle";
 import { parseConciergeIntent } from "@/lib/concierge/intent";
@@ -31,7 +39,7 @@ const PAL_EVAL_ROUTING: Record<string, Partial<PalEvalAnswerExpectations>> = {
   "find-desk-angel": { expectedTools: ["find_desk"] },
   "tonight-soho": { expectedTools: ["tonight_now"] },
   "cheapest-no-anchor": { expectedTools: ["venue_prices"], answerIncludes: ["listed pub"] },
-  "heritage-lamb": { expectedTools: ["venue_heritage"], answerIncludes: ["won"] },
+  "heritage-lamb": { expectedTools: ["venue_heritage"] },
   "map-open-lamb": { expectedTools: ["propose_map_action"] },
   "area-buzz-camden": { expectedTools: ["area_buzz", "venue_prices"] },
   "hampstead-quiet": { expectedTools: ["search_venues"] },
@@ -51,6 +59,139 @@ const PAL_EVAL_ROUTING: Record<string, Partial<PalEvalAnswerExpectations>> = {
     anyTools: ["search_venues", "cheapest_pint_near", "propose_plan"],
   },
 };
+
+// These are authored policy decisions, not observed product output.
+const AUTHORED_POLICY_NEGATIVES = {
+  "food-midnight-covent": {
+    query: "Food after midnight near Covent Garden",
+    answer: "I have no current late-food record for Covent Garden.",
+    tool: "search_venues",
+  },
+  "heritage-lamb": {
+    query: "Tell me the heritage of The Lamb",
+    answer: "I cannot tell which pub you mean. Choose the pub on the map, then ask about its history.",
+    tool: "venue_heritage",
+  },
+} as const;
+const POLICY_NOW = Date.parse("2026-07-21T18:00:00.000Z");
+
+export type AuthoredPolicyEvidence = {
+  lambCandidates: Array<{ id: string; name: string; lat: number; lng: number; searchNames: string[]; eligible: boolean }>;
+  lambAliasEdges: Array<[source: string, from: string, to: string]>;
+  lambClusters: Array<{ source: string; canonicalId: string; canonicalName: string; members: Array<{ id: string; name: string }> }>;
+  coventFoodAliases: Array<[string, string]>;
+  coventAreaMappings: Array<{ slug: string; names: string[] }>;
+  coventFoodOptions: Array<{ area: string; optionIds: string[] }>;
+};
+
+const LAMB_IDENTITIES: AuthoredPolicyEvidence["lambCandidates"] = [
+  { id: "venue-1yd70c7", name: "The Lamb", lat: 51.5231, lng: -0.119017, searchNames: ["The Lamb"], eligible: true },
+  { id: "venue-46mqmt", name: "The Lamb", lat: 51.3920141, lng: -0.3114144, searchNames: ["The Lamb"], eligible: true },
+  { id: "venue-kuml9r", name: "The Lamb", lat: 51.5353993, lng: 0.0215447, searchNames: ["The Lamb"], eligible: true },
+  { id: "venue-o3sr33", name: "The Lamb", lat: 51.6254907, lng: -0.0636229, searchNames: ["The Lamb"], eligible: true },
+  { id: "venue-uov7ku", name: "The Lamb", lat: 51.5487, lng: -0.106981, searchNames: ["The Lamb"], eligible: true },
+];
+
+/** Read only the name identities, alias edges and area evidence relevant to these two cases. */
+export function loadAuthoredPolicyEvidence(root = process.cwd()): AuthoredPolicyEvidence {
+  const read = (file: string) => JSON.parse(readFileSync(join(root, file), "utf8"));
+  const rows = rowsFromSlimPayload(read("public/data/venues_slim.json")) as Array<{
+    id: string; name: string; lat: number; lng: number; kind?: unknown; borough?: unknown; cheapestPrice?: unknown;
+  }> | null;
+  if (!rows) throw new Error("Authored policy evidence needs venue rows.");
+  const index = loadPalEvalVenueIndex(root);
+  // Independent spelling normalization implements the documented name contract,
+  // without invoking the production matcher or ranking candidates.
+  const lambName = (name: string) => name.toLowerCase().replace(/&/g, " and ")
+    .replace(/['\u2019\u2018]/g, "").replace(/[^\p{L}\p{N}]+/gu, " ").trim().replace(/^the\s+/, "") === "lamb";
+  const lambCandidates = rows.filter((row) => (index.namesById.get(row.id) ?? []).some(lambName))
+    .map((row) => ({ id: row.id, name: row.name, lat: row.lat, lng: row.lng,
+      searchNames: [...(index.namesById.get(row.id) ?? [])].sort(),
+      // Independently bind admission validity, not incidental price amounts.
+      eligible: typeof row.id === "string" && row.id.length > 0
+        && typeof row.name === "string" && row.name.length > 0
+        && (row.kind === undefined || row.kind === "pub")
+        && typeof row.borough === "string"
+        && typeof row.lat === "number" && Number.isFinite(row.lat)
+        && typeof row.lng === "number" && Number.isFinite(row.lng)
+        && (row.cheapestPrice === null || (typeof row.cheapestPrice === "number" && Number.isFinite(row.cheapestPrice))),
+    }))
+    .sort((a, b) => a.id.localeCompare(b.id));
+  const ids = new Set([...LAMB_IDENTITIES, ...lambCandidates].map((row) => row.id));
+  const aliasDocs = VENUE_ALIAS_FILES.map((source) => ({ source, doc: read(source) as {
+    aliases: Record<string, unknown>;
+    clusters?: Array<{ canonicalId: string; canonicalName: string; mergedFrom: Array<{ id: string; name: string }> }>;
+  } }));
+  // Independently mirror admission and source order, then retain the connected
+  // component of the relevant IDs. Do not call the production resolver/flattener.
+  const effective = new Map<string, { source: string; to: string }>();
+  for (const { source, doc } of aliasDocs) {
+    if (source === VENUE_ALIAS_FILES[0] && !Array.isArray(doc.clusters)) {
+      throw new Error(`Authored policy cluster evidence unavailable: ${source}`);
+    }
+    if (!doc.aliases || typeof doc.aliases !== "object" || Array.isArray(doc.aliases)) {
+      throw new Error(`Authored policy alias evidence unavailable: ${source}`);
+    }
+    for (const [from, to] of Object.entries(doc.aliases)) {
+      if (typeof to === "string" && to && from !== to) effective.set(from, { source, to });
+    }
+  }
+  let expanded = true;
+  while (expanded) {
+    expanded = false;
+    for (const [from, { to }] of effective) {
+      if (ids.has(from) || ids.has(to)) {
+        if (!ids.has(from) || !ids.has(to)) expanded = true;
+        ids.add(from);
+        ids.add(to);
+      }
+    }
+  }
+  const lambAliasEdges: AuthoredPolicyEvidence["lambAliasEdges"] = [...effective]
+    .filter(([from, { to }]) => ids.has(from) || ids.has(to))
+    .map(([from, { source, to }]): [string, string, string] => [source, from, to])
+    .sort((a, b) => a.join("\0").localeCompare(b.join("\0")));
+  const lambClusters = aliasDocs.flatMap(({ source, doc }) => (doc.clusters ?? [])
+    .filter((cluster) => ids.has(cluster.canonicalId) || lambName(cluster.canonicalName)
+      || cluster.mergedFrom.some((member) => ids.has(member.id) || lambName(member.name)))
+    .map((cluster) => ({ source, canonicalId: cluster.canonicalId, canonicalName: cluster.canonicalName,
+      members: cluster.mergedFrom.map(({ id, name }) => ({ id, name })).sort((a, b) => a.id.localeCompare(b.id)) })))
+    .sort((a, b) => `${a.source}\0${a.canonicalId}`.localeCompare(`${b.source}\0${b.canonicalId}`));
+  const coventName = (value: string) => value.toLowerCase().replace(/[^a-z]/g, "") === "coventgarden";
+  const coventFoodAliases = Object.entries(LATE_FOOD_AREA_ALIASES)
+    .filter(([alias]) => coventName(alias)).sort(([a], [b]) => a.localeCompare(b));
+  const coventAreaMappings = getNightAreasForCity("london")
+    .filter((area) => [area.slug, area.name, ...area.aliases].some(coventName))
+    .map((area) => ({ slug: area.slug, names: [area.name, ...area.aliases].sort() }))
+    .sort((a, b) => a.slug.localeCompare(b.slug));
+  const slugs = new Set([...coventAreaMappings.map((area) => area.slug), ...coventFoodAliases.map(([, area]) => area)]);
+  const areas = read("public/data/late_food_evidence.json").areas as Record<string, { options: Array<{ id: string; area: string }> }>;
+  const coventFoodOptions = Object.entries(areas).flatMap(([area, entry]) => {
+    const options = entry.options.filter((option) => coventName(area) || slugs.has(area) || coventName(option.area));
+    return options.length ? [{ area, optionIds: options.map((option) => option.id).sort() }] : [];
+  }).sort((a, b) => a.area.localeCompare(b.area));
+  return { lambCandidates, lambAliasEdges, lambClusters, coventFoodAliases, coventAreaMappings, coventFoodOptions };
+}
+
+/** A changed input or relevant evidence requires human oracle review, never an automatic empty key. */
+export function resolveAuthoredPolicyNegative(
+  caseDef: PalEvalPublicCase,
+  ctx: ResolveAnswerKeyContext,
+  evidence?: AuthoredPolicyEvidence,
+): PalEvalAnswerExpectations | null {
+  if (!Object.hasOwn(AUTHORED_POLICY_NEGATIVES, caseDef.id)) return null;
+  const policy = AUTHORED_POLICY_NEGATIVES[caseDef.id as keyof typeof AUTHORED_POLICY_NEGATIVES];
+  if (!isDeepStrictEqual(caseDef, { id: caseDef.id, query: policy.query, cityId: "london" })
+    || !isDeepStrictEqual(ctx, { now: POLICY_NOW, cityId: "london" })) {
+    throw new Error(`Authored policy input changed for ${caseDef.id}; review required.`);
+  }
+  const current = evidence ?? loadAuthoredPolicyEvidence();
+  const unchanged = caseDef.id === "heritage-lamb"
+    ? isDeepStrictEqual(current.lambCandidates, LAMB_IDENTITIES) && current.lambAliasEdges.length === 0 && current.lambClusters.length === 0
+    : current.coventFoodAliases.length === 0 && current.coventAreaMappings.length === 0 && current.coventFoodOptions.length === 0;
+  if (!unchanged) throw new Error(`Authored policy evidence changed for ${caseDef.id}; review required.`);
+  return { expectEmpty: true, answerIncludes: [policy.answer], honestTerminal: { answer: policy.answer, tool: policy.tool } };
+}
 
 export type ResolveAnswerKeyContext = {
   now: number;
@@ -185,7 +326,6 @@ function staticAnswerKeyFields(caseId: string): Partial<PalEvalAnswerExpectation
       return { minCards: 1, expectDegraded: true };
     case "tonight-soho":
       return { minCards: 1 };
-    case "heritage-lamb":
     case "heritage-bank":
       return { minCards: 1 };
     default:
@@ -227,7 +367,6 @@ async function resolveGeneratedAnswerKeyFields(
       return whatsOnFields(query, ctx.now);
     case "quiet-bank":
     case "hampstead-quiet":
-    case "food-midnight-covent":
     case "non-alcoholic-soho":
     case "plan-soho":
     case "followup-cheaper-camden":
@@ -244,6 +383,8 @@ export async function resolveFullAnswerKeyEntry(
   caseDef: PalEvalPublicCase,
   ctx: ResolveAnswerKeyContext,
 ): Promise<PalEvalAnswerExpectations> {
+  const policyNegative = resolveAuthoredPolicyNegative(caseDef, ctx);
+  if (policyNegative) return { ...policyNegative, ...PAL_EVAL_ROUTING[caseDef.id] };
   const routing = PAL_EVAL_ROUTING[caseDef.id] ?? {};
   const generated = await resolveGeneratedAnswerKeyFields(caseDef, ctx);
   return { ...generated, ...routing };

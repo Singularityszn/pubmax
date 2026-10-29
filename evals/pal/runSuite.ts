@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from "node:util";
+import { loadAuthoredPolicyEvidence, resolveAuthoredPolicyNegative } from "./answerKeyResolver";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -33,6 +35,14 @@ export async function runPalEvalSuite(options: RunPalEvalOptions): Promise<PalEv
 async function runSuiteWithoutTypesafe(options: RunPalEvalOptions): Promise<PalEvalScoreboard> {
   const root = options.root ?? process.cwd();
   const { cases, answerKey, now } = loadPalEvalSuite(root);
+  // Validate all authored negatives before any product execution or provider call.
+  const policyEvidence = loadAuthoredPolicyEvidence(root);
+  for (const caseDef of cases) {
+    const policy = resolveAuthoredPolicyNegative(caseDef, { now, cityId: caseDef.cityId ?? "london" }, policyEvidence);
+    if (policy && !isDeepStrictEqual(answerKey[caseDef.id], {
+      ...policy, expectedTools: [policy.honestTerminal!.tool],
+    })) throw new Error(`Stale authored policy key for ${caseDef.id}; review and regenerate.`);
+  }
   const index = loadPalEvalVenueIndex(root);
   const live = options.mode === "live";
   const apiKey = process.env.OPENROUTER_API_KEY?.trim();
