@@ -83,7 +83,24 @@ for (const width of [320, 390]) {
   }
 }
 
-test("320px ordinary text keeps four columns beside a 15px scrollbar", async ({ page }) => {
+// Only this case needs classic scrollbars. Preserve the inherited launch options.
+const classicScrollbarTest = test.extend({
+  launchOptions: async ({ launchOptions }, use) => {
+    const ignoredDefaults = launchOptions.ignoreDefaultArgs;
+    if (ignoredDefaults === true) {
+      throw new Error("The 15px scrollbar case requires Chromium default arguments.");
+    }
+    await use({
+      ...launchOptions,
+      ignoreDefaultArgs: [
+        ...(Array.isArray(ignoredDefaults) ? ignoredDefaults : []),
+        "--hide-scrollbars",
+      ],
+    });
+  },
+});
+
+classicScrollbarTest("320px ordinary text keeps four columns beside a 15px scrollbar", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 });
   await page.goto("/privacy");
   await page.addStyleTag({ content: "html { overflow-y: scroll; scrollbar-gutter: stable; } ::-webkit-scrollbar { width: 15px; }" });
