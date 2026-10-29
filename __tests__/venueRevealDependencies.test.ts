@@ -23,14 +23,15 @@ function allDependencyNames(pkg: Record<string, unknown>): string[] {
 
 describe("venue reveal dependency fence", () => {
   const forbidden = [
-    /^three$/,
     /^@react-three\//,
     /^lottie/,
     /^@rive-app\//,
     /^@designcodeio\//,
   ];
 
-  it("does not add forbidden 3D or motion-library packages", () => {
+  // Three renders the requested original Pub Pal models. Venue reveals still
+  // need no additional 3D framework or motion package.
+  it("does not add unapproved 3D or motion-library packages", () => {
     const names = allDependencyNames(readPackageJson());
     for (const name of names) {
       for (const pattern of forbidden) {

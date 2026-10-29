@@ -696,3 +696,32 @@ export function applySelectionMute(
   store.clear();
 }
 
+/** One focus owner restores the previous mode before applying the next one. */
+export function applyMapFocusMute(
+  map: MuteMap,
+  mode: "browse" | "route" | "selection",
+  store: Map<string, unknown>,
+): void {
+  applySelectionMute(map, false, store);
+  if (mode === "selection") {
+    applySelectionMute(map, true, store);
+    return;
+  }
+  if (mode !== "route") return;
+
+  // A walking map still needs street names. Only unrelated places and
+  // transport furniture step back while the route is in view.
+  const basemapTargets: MuteTarget[] = (map.getStyle().layers ?? [])
+    .filter((layer) => isBasemapSelectionMuteLayer(layer.id, layer.type)
+      && /poi|transit|rail|subway|airport|aeroway/i.test(layer.id))
+    .map((layer) => ({ id: layer.id, props: BASEMAP_MUTE_PROPS }));
+  for (const { id, props } of [...basemapTargets, ...APP_SELECTION_MUTE_TARGETS]) {
+    if (!map.getLayer(id)) continue;
+    for (const prop of props) {
+      const original = map.getPaintProperty(id, prop);
+      store.set(`${id}::${prop}`, original);
+      tryPaint(map, id, prop, muteOpacityExpr(original, 0.3));
+    }
+  }
+}
+

@@ -83,3 +83,10 @@
     transform: none;
   }
 }
+
+@media (max-width: 640px) {
+  .ukPlaceArrival[data-variant="national"] {
+    top: auto;
+    bottom: calc(var(--float-stack-top-plan) + 12px);
+  }
+}

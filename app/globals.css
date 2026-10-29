@@ -1389,8 +1389,7 @@ input[type="range"] {
   padding: 9px 10px 9px 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius-pill);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--surface-tint-lager) 40%, var(--panel-raised)), var(--panel-raised));
+  background: var(--panel-raised);
   color: var(--ink);
   box-shadow: var(--map-overlay-shadow);
   transform: translateX(-50%);

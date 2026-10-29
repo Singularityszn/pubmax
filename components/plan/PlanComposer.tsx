@@ -2421,7 +2421,7 @@ function PlanComposerForm({
       clearPlanIntakeDraft();
       clearPersistentPlanMutationKey("create", operationKey);
       haptic("plan-locked");
-      router.push(`/plan/${planId}#share`);
+      router.push(`/plan/${planId}`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The plan could not be created.");
     } finally {

@@ -33,6 +33,7 @@ it("shows known matches immediately after a pan while reactive query fits remain
     cityViewRef: { current: { center: [-0.13, 51.51], zoom: 13, pitch: 42, bearing: -12 } },
     cityBoundsRef: { current: [[-0.5, 51.3], [0.2, 51.7]] },
     routeRef: { current: [] },
+    routeLineRef: { current: { type: "FeatureCollection", features: [] } },
     venuesRef: { current: [
       { id: "first", longitude: -0.19, latitude: 51.50 },
       { id: "second", longitude: -0.20, latitude: 51.51 },

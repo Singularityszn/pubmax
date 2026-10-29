@@ -6,6 +6,7 @@ import localFont from "next/font/local";
 import ConsentAwareVercelAnalytics from "@/components/ConsentAwareVercelAnalytics";
 import ConsentAwareVercelSpeedInsights from "@/components/ConsentAwareVercelSpeedInsights";
 import "./root-shell.css";
+import { PlanMapNavigationProvider } from "@/components/nav/PlanMapNavigation";
 import CreateFab from "@/components/nav/CreateFab";
 import MobileTabBar, {
   MobileTabBarClearanceFallback,
@@ -412,52 +413,56 @@ export default async function RootLayout({
                   open/close state and renders the dialog only while open. Wraps
                   children so SiteNav's ⌘K affordance can read its context. */}
               <CommandPaletteProvider>
-                {children}
-                {/* App-wide bottom tab bar — mounted on every route and visible only
-                    on ≤640px (see mobileNav.css). display:none on desktop leaves the
-                    existing navs untouched.
-                    Suspense boundary: it reads useSearchParams; under any future
-                    prerendered route that read would otherwise bail the whole
-                    page out to CSR. Harmless today, required tomorrow. */}
-                <Suspense fallback={<MobileTabBarClearanceFallback />}>
-                  <MobileTabBar />
-                </Suspense>
-                <CreateFab />
-                {/* Night Mode card, Pub Pal summon, first-run tour, A2HS prompt and
-                    native push explainer all render nothing on first paint, so they
-                    load lazily after hydration — see DeferredShellExtras. */}
-                <DeferredShellExtras />
-                {/* Silent offline SW registration (issue #32) — renders nothing,
-                    production-only, registers after load. */}
-                <OfflineReady />
-                <ClientErrorReporter />
-                {/* Metrics funnel (Wave M) — consent-gated, render-nothing
-                    signals: daily return-rate pulse and the A2HS install funnel. */}
-                <DailyActivityPulse />
-                <A2HSTracking />
-                {/* Deep-link boot stamp: a boot on any non-root path consumes the
-                    session's entry decision, so the installed PWA (which cold-starts
-                    on the manifest start_url /tonight) can reach the landing page on
-                    a wordmark tap instead of bouncing back to /tonight. */}
-                <EntryBootStamp />
-                <ThemeAttribute />
+                <PlanMapNavigationProvider>
+                  {children}
+                  {/* App-wide bottom tab bar — mounted on every route and visible only
+                      on ≤640px (see mobileNav.css). display:none on desktop leaves the
+                      existing navs untouched.
+                      Suspense boundary: it reads useSearchParams; under any future
+                      prerendered route that read would otherwise bail the whole
+                      page out to CSR. Harmless today, required tomorrow. */}
+                  <Suspense fallback={<MobileTabBarClearanceFallback />}>
+                    <MobileTabBar />
+                  </Suspense>
+                  <CreateFab />
+                  {/* Night Mode card, Pub Pal summon, first-run tour, A2HS prompt and
+                      native push explainer all render nothing on first paint, so they
+                      load lazily after hydration — see DeferredShellExtras. */}
+                  <DeferredShellExtras />
+                  {/* Silent offline SW registration (issue #32) — renders nothing,
+                      production-only, registers after load. */}
+                  <OfflineReady />
+                  <ClientErrorReporter />
+                  {/* Metrics funnel (Wave M) — consent-gated, render-nothing
+                      signals: daily return-rate pulse and the A2HS install funnel. */}
+                  <DailyActivityPulse />
+                  <A2HSTracking />
+                  {/* Deep-link boot stamp: a boot on any non-root path consumes the
+                      session's entry decision, so the installed PWA (which cold-starts
+                      on the manifest start_url /tonight) can reach the landing page on
+                      a wordmark tap instead of bouncing back to /tonight. */}
+                  <EntryBootStamp />
+                  <ThemeAttribute />
+                </PlanMapNavigationProvider>
               </CommandPaletteProvider>
           </OptionalClerkProvider>
         ) : (
           <AuthProvider clerkIntegrationConfigured={clerkIntegrationConfigured}>
             <CommandPaletteProvider>
-              {children}
-              <Suspense fallback={<MobileTabBarClearanceFallback />}>
-                <MobileTabBar />
-              </Suspense>
-              <CreateFab />
-              <DeferredShellExtras />
-              <OfflineReady />
-              <ClientErrorReporter />
-              <DailyActivityPulse />
-              <A2HSTracking />
-              <EntryBootStamp />
-              <ThemeAttribute />
+              <PlanMapNavigationProvider>
+                {children}
+                <Suspense fallback={<MobileTabBarClearanceFallback />}>
+                  <MobileTabBar />
+                </Suspense>
+                <CreateFab />
+                <DeferredShellExtras />
+                <OfflineReady />
+                <ClientErrorReporter />
+                <DailyActivityPulse />
+                <A2HSTracking />
+                <EntryBootStamp />
+                <ThemeAttribute />
+              </PlanMapNavigationProvider>
             </CommandPaletteProvider>
           </AuthProvider>
         )}

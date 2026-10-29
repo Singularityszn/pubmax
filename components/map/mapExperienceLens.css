@@ -107,6 +107,10 @@
 }
 
 @media (max-width: 640px) {
+  .mobileMapFilters > .mapExperienceLens {
+    order: -1;
+  }
+
   .mapExperienceLensHead {
     align-items: flex-start;
     flex-direction: column;

@@ -36,7 +36,7 @@ function fitPreviewRoute(map: maplibregl.Map, stopCoords: LngLat[], lineCoords: 
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   map.fitBounds(box, {
     padding,
-    maxZoom: 15,
+    maxZoom: 18,
     duration: reduced ? 0 : 600,
     bearing: PREVIEW_BEARING,
     pitch: PREVIEW_PITCH,
@@ -159,6 +159,13 @@ export default function PlanCrawlRouteMapCanvas({
       drawRouteOnce();
     };
 
+    const fitResizedPreview = () => {
+      if (!map.getSource("route-line")) return;
+      const route = routeRef.current;
+      fitPreviewRoute(map, route.stopCoords, route.lineCoords);
+    };
+    map.on("resize", fitResizedPreview);
+
     map.on("load", paintRoute);
     if (map.loaded()) paintRoute();
     drawRef.current = () => {
@@ -182,6 +189,7 @@ export default function PlanCrawlRouteMapCanvas({
       drawRef.current = () => {};
       cancelAnimationFrame(drawFrame);
       drawingRef.current = false;
+      map.off("resize", fitResizedPreview);
       themeObserver.disconnect();
       stopFollowingPixelRatio();
       const parked = attributionSlot?.querySelector(".maplibregl-ctrl-bottom-right");
