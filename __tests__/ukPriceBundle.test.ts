@@ -347,3 +347,40 @@ it("preserves older differently named prices when a later menu extract omits the
     category: "beer", priceGbp: 5, drinkLabel: "Session IPA , 4.0%, Two by Two (Newcastle)",
   }));
 });
+
+
+describe("the retained North Westward Ho fractional-pour claim", () => {
+  const fractional: UkPriceBundleRow = {
+    venueId: "venue-mcr-y2sfka",
+    name: "North Westward Ho",
+    category: "beer",
+    priceGbp: 2.1,
+    lane: "site-harvest",
+    standing: "listed",
+    sourceUrl: "https://www.northwestwardho.co.uk/menu",
+    publisher: "northwestwardho.co.uk",
+    observedAt: "2026-09-04T14:07:10.622Z",
+    basis: null,
+    sampleSize: null,
+    drinkLabel: "1/3",
+  };
+
+  it("refuses the old claim through parsing, authority and displayed-price selection", () => {
+    expect(parseUkPriceBundleRows([fractional])).toEqual([]);
+    expect(authoritativeBundleRows([fractional])).toEqual([]);
+    expect(bundlePricesForCategory([fractional], "beer").listed).toBeNull();
+  });
+
+  it("preserves other printed items, source pages, categories and prices", () => {
+    // Synthetic controls prove exact matching. They are not new price observations.
+    const controls: UkPriceBundleRow[] = [
+      { ...fractional, drinkLabel: "Named pint" },
+      { ...fractional, sourceUrl: "https://example.com/menu" },
+      { ...fractional, category: "wine" },
+      { ...fractional, priceGbp: 6 },
+    ];
+    expect(parseUkPriceBundleRows([fractional, ...controls])).toEqual(controls);
+    expect(authoritativeBundleRows([fractional, ...controls])).toEqual(controls);
+    expect(bundlePricesForCategory([fractional, controls[3]!], "beer").listed?.priceGbp).toBe(6);
+  });
+});
