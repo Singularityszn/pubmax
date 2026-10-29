@@ -169,10 +169,8 @@
 }
 
 .pulseSplitLabel {
-  min-width: max-content;
   color: var(--color-text-soft);
   font-size: var(--text-sm);
-  white-space: nowrap;
 }
 
 .pulseSplitLabelFigure {
@@ -180,6 +178,7 @@
   color: var(--color-text);
   font-family: var(--font-data);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 /* No track: the gaps between the segments are the page itself. */
