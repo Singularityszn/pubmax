@@ -176,3 +176,11 @@ Public comps are not “Twitter for pubs.” Closer economic story: **category-d
 5. Only then touch lot/presence densification
 
 **Do not start build work from this file until you name the wave / items to ship.**
+
+## Wave 0: execution pack price slice
+
+The [29 October implementation record](../evidence/uk-execution-2026-10-29/implementation.md) tracks the first UK pack slice.
+The venue Menu tab can add existing food and drink prices into an explicitly incomplete subtotal.
+The pure quote calculator supports reviewed exact offer instances. No synthetic offer enters published data.
+Complete result-card and plan quotes depend on approved branch terms, fees and availability.
+The existing source, consent, consumer-free and London release rules remain binding.

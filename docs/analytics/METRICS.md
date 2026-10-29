@@ -89,10 +89,9 @@ A night qualifies when all three are true.
 **Guest-only participation is a separate line.** A person who joins other people's
 nights and never hosts one is a real and welcome pattern, and folding them into the
 host figure would flatter it. `crew_committed` is emitted by the joining guest's
-device, so guests already appear in the repeat measure on their own account. The
-registry also holds `guest_plan_participated` for the fuller picture, and it has no
-emitter today (section 6 of the tracking plan), so guest-only depth is currently
-unmeasurable rather than zero.
+device, so guests already appear in the repeat measure on their own account.
+The retired `guest_plan_participated` event has no emitter.
+Guest-only depth remains unmeasured, rather than zero (section 6 of the tracking plan).
 
 ### 2.1 What the stream can answer today
 
@@ -170,9 +169,10 @@ smallest honest close rather than a new identity surface.
 SELECT
     toStartOfWeek(timestamp) AS week,
     countIf(properties.crewNight = true) AS crew_nights_completed,
-    count() AS completed_nights
+    count() AS completions_with_crew_status
 FROM events
 WHERE event = 'plan_completed'
+  AND properties.crewNight IS NOT NULL
   AND properties.environment = 'production'
   AND timestamp >= now() - INTERVAL 90 DAY
 GROUP BY week

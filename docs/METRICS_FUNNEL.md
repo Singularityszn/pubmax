@@ -84,37 +84,28 @@ All three build their props through the one seam `nextNightCommittedProps`
 a venue id or a coordinate. `crew_committed >= 2` measures one night;
 `next_night_committed` measures the loop.
 
-## 1. Nights planned / week
+## 1. Plan creations and crew milestones
 
-**Events (both pre-existing, reused as-is):**
-- `plan_created` fires client-side in `components/plan/PlanComposer.tsx` on
-  a confirmed `POST /api/plans` success (the host's own plan).
-- `crew_committed` fires client-side in `components/plan/PlanCrew.tsx` on the
-  join that first takes a plan roster to two, with `source: "shared-plan"`.
+The canonical definitions are in [METRICS.md](analytics/METRICS.md).
+Report these events separately:
 
-**Dedupe:** the two events are structurally exclusive. A host's own plan
-never re-fires `crew_committed` for itself (the host is a member at
-creation, not a joiner), and a guest join never fires `plan_created`. So:
+- `plan_created` records a successful host creation in `PlanComposer`.
+- `crew_committed` records the first join that creates a two-person crew in `PlanCrew`.
+- `plan_completed` records an explicit saved ending through the verified delivery lane.
 
-```
-nights_planned_per_week = count(plan_created, window=7d)
-                        + count(crew_committed WHERE source = "shared-plan", window=7d)
-```
+One host and three guests produce one creation and one crew milestone.
+They describe the same outing. Adding them produces two activity events, not two outings.
+Later joins do not produce another crew milestone. Public RSVP records intent and does not prove crew membership.
 
-grouped by the anonymous id (the `distinct_id` PostHog receives) to
-get a per-planner rate.
+The historical `nights_planned_per_week` formula added creations and crew milestones.
+Do not interpret that sum as unique outings, completed outings or people.
+Grouping it by `distinct_id` cannot deduplicate one outing across devices.
+No plan identifier may be added to public events to join these devices.
 
-**What the §0 change did to this figure.** The total is now one row per night
-rather than one per person on it, which is what the name already promised: a
-host plus three guests used to add 4 to this figure for one night, and now adds
-2 (the host's `plan_created` and the crew night). The per-planner grouping
-narrows with it: only the guest whose join formed the crew registers a planned
-night, so the later guests on a big crew no longer appear here. Read this
-figure as nights, not as people who went out. There is no per-guest event to
-restore that reading, and inventing one would need its own privacy review
-against §7.
+This correction changes documentation only. Existing saved reports require an owner review before their names or definitions change.
+Keep old report exports with their original definition and reporting dates.
 
-## 2. Invites per planner (k-factor)
+## 2. Invites per planner and invite redemption ratio
 
 **New events:**
 - `invite_created` — `{ inviteId }`. Fires in
@@ -144,10 +135,17 @@ counted once should not double-count).
 ```
 invites_created_per_planner   = count(invite_created)   / distinct planners
 invites_redeemed_per_planner  = count(invite_redeemed)  / distinct planners
-k_factor                      = count(invite_redeemed) / count(invite_created)
+invite_redemption_ratio      = count(invite_redeemed) / count(invite_created)
 ```
 
-joining `invite_created.inviteId` to `invite_redeemed.inviteId` gives
+The historical `k_factor` label names this redemption ratio incorrectly.
+A viral coefficient also needs invitations per eligible user and attributable new users per invitation.
+The two event counts alone cannot establish that coefficient.
+Same-window redemptions can include invitations created before the window.
+A cohort calculation must define the creation period and the redemption observation period.
+This change does not rename a live PostHog report or change its calculation.
+
+Joining `invite_created.inviteId` to `invite_redeemed.inviteId` gives
 per-invite conversion (time-to-redeem, redemption rate per planner) beyond
 the raw ratio.
 
