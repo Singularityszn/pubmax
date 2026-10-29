@@ -13,7 +13,8 @@ export function toggleVenueKind(
   current: VenueKindVisibility,
   kind: CuratedVenueKind,
 ): VenueKindVisibility {
-  return { ...current, [kind]: !current[kind] };
+  const visible = kind === "club" ? (current.club ?? current.bar) : current[kind];
+  return { ...current, [kind]: !visible };
 }
 
 export function isPubVenueKind(kind: VenueKind | undefined): boolean {
