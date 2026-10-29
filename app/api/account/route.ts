@@ -13,15 +13,15 @@
 // every private write in this app goes through; a caller with no claimed handle
 // keeps the door, because a handle is not what makes an account theirs.
 //
-// The write is `lib/accountDeletion.server.ts`: the account's own Storage
-// objects through the Storage API first, then the one auth row. Migration
-// `0078`'s trigger, as restated by `0145`, owns everything downstream.
+// `lib/accountDeletion.server.ts` owns the deletion sequence. The account
+// deletion rule in `docs/rules/app-auth-and-account-routes.md` explains why
+// object keys must be collected before deletion and bytes removed afterwards.
 //
 // A DELETE IS IDEMPOTENT, so the door must still answer AFTER the auth row it
-// names has gone. The bearer is therefore verified against the project JWKS
-// rather than by asking the auth server for the account; the reasoning is on
-// that call below, and it is what makes the documented 410 `already-gone`
-// reachable at all.
+// names has gone. The bearer is therefore verified on the lane that falls back
+// to the token's own claims once the auth server says the account is gone; the
+// reasoning is on that call below, and it is what makes the documented 410
+// `already-gone` reachable at all.
 
 import { accountIsDeleted } from "@/lib/accountDeletion";
 import { deleteOwnAccount } from "@/lib/accountDeletion.server";
@@ -40,7 +40,7 @@ export async function DELETE(request: Request): Promise<Response> {
   // ONE bearer verification for the whole request; the gate below takes it
   // rather than asking Supabase a second time.
   //
-  // IT IS THE TOKEN'S OWN CLAIMS, NEVER THE ACCOUNT ROW, AND THAT IS WHAT MAKES
+  // A DELETED ACCOUNT IS NAMED BY ITS TOKEN'S OWN CLAIMS, AND THAT IS WHAT MAKES
   // THE SECOND DELETE ANSWERABLE. `callerUserId` asks GoTrue for the account, so
   // the moment the first delete removes the auth row every later request with
   // that bearer reads as `user_not_found`, and the repeat answered 401
@@ -48,24 +48,26 @@ export async function DELETE(request: Request): Promise<Response> {
   // request and we know exactly whose account it names. Verification scout
   // verify-preview-4 measured that: `DELETE 200 at 21:02:17, DELETE 401 at
   // 21:02:31`, with the documented 410 `already-gone` unreachable behind it.
-  // `{ localOnly: true }` checks the signature and the expiry against the
-  // project JWKS and takes `sub` from the verified claims, so a deleted account
-  // is still NAMED by its own unexpired token and the request reaches the
-  // idempotent answer it was promised. Nothing here trusts a claim it did not
-  // verify, and the target is still the token rather than a field.
+  // `{ allowDeletedAccount: true }` also verifies signed claims after GoTrue
+  // accepts the caller or reports `user_not_found`. Only the latter permits
+  // verification without a live account. `VerifyCallerAuthOptions` owns this
+  // contract, including the audience and role requirements.
   //
-  // THIS DOOR IS THE ONLY ONE THAT MAY ASK FOR IT. A locally verified token
-  // says nothing about whether the account still exists, which is exactly the
-  // property a second DELETE needs and exactly the property every other gate
-  // must not have (review finding F-3): `verifyCallerAuth` asks GoTrue by
-  // default, so a deleted account stops passing the contribution gate, the
-  // Social gate and the plan-seat claim the moment its auth row is gone.
-  // Nothing is lost here by the weaker check, because the only thing this
-  // request can do to a live account is delete it at its own asking.
+  // A LIVE ACCOUNT IS STILL ASKED ABOUT. The lane asks GoTrue first, so a token
+  // whose session was revoked by sign-out or a password change, or whose
+  // account is banned, is refused here as it is everywhere else. The earlier
+  // local-only check accepted those for the rest of the token's hour, which
+  // let a captured token delete an account its owner had already secured, and
+  // let a banned account erase itself (audit finding
+  // lib/authServer:localOnly-jwt-lane-skips-revocation-ban-and-audience).
+  //
+  // THIS DOOR IS THE ONLY ONE THAT MAY ASK FOR IT (review finding F-3): every
+  // other gate must stop passing the moment the auth row is gone, and
+  // `verifyCallerAuth` gives them exactly that by default.
   //
   // THREE-WAY, because a verification we could not RUN is a fact about us: it
   // answers 503 rather than telling somebody who is signed in that they are not.
-  const verification = await verifyCallerAuth(request, { localOnly: true });
+  const verification = await verifyCallerAuth(request, { allowDeletedAccount: true });
   if (verification.status === "unavailable") {
     return authUnavailableError();
   }

@@ -432,11 +432,18 @@ export type ProfileStore = {
   getHandleByUserId(userId: string): Promise<string | null>;
   /** Read a profile by linked auth user id, or null when none exists. */
   getByUserId(userId: string): Promise<ProfileRecord | null>;
-  /** Get-or-create a minimal row for a handle. Never clobbers existing fields. */
+  /**
+   * Get-or-create a minimal row for a handle. Never clobbers existing fields,
+   * and never mints a row under a handle the alias ledger holds for another
+   * profile (a retired alias).
+   */
   ensure(handle: string): Promise<ProfileRecord>;
   /** Atomically create an absent handle already owned by an account. */
   createOwned(handle: string, userId: string): Promise<ProfileRecord>;
-  /** Apply a patch to an existing profile. Returns null when the handle is unknown. */
+  /**
+   * Apply a patch to an existing profile. Returns null when the handle is
+   * unknown or names a deleted account's tombstone.
+   */
   update(handle: string, patch: ProfilePatch): Promise<ProfileRecord | null>;
   /**
    * Atomically authorize and soft-delete a profile. Anonymous callers may
@@ -444,7 +451,7 @@ export type ProfileStore = {
    * an unlinked row or their own linked row. Keeping ownership in the UPDATE
    * predicate prevents a concurrent account claim from being deleted after a
    * stale route-level read. The row, handle, and user_id remain so social graph
-   * edges are not cascade-destroyed.
+   * edges are not cascade-destroyed. A deleted account's tombstone is not found.
    */
   softDeleteForCaller(
     handle: string,
@@ -943,6 +950,11 @@ export const supabaseProfileStore: ProfileStore = {
     const key = normalizeHandle(handle);
     if (!key) throw new Error("A profile needs a non-empty handle.");
     const existing = await this.getByHandle(key);
+    const { supabaseIdentityHandleStore } = await import("@/lib/identityHandleStore");
+    const aliasProfileId = await supabaseIdentityHandleStore.aliasProfileId(key);
+    if (aliasProfileId && aliasProfileId !== existing?.id) {
+      throw new Error("That handle is not available.");
+    }
     if (existing) return existing;
 
     const { data, error } = await admin()
@@ -1002,6 +1014,7 @@ export const supabaseProfileStore: ProfileStore = {
       .from(TABLE)
       .update(row)
       .eq("handle", key)
+      .is("tombstoned_at", null)
       .select("*")
       .limit(1);
     if (error) {
@@ -1039,7 +1052,8 @@ export const supabaseProfileStore: ProfileStore = {
     let query = admin()
       .from(TABLE)
       .update(row)
-      .eq("handle", key);
+      .eq("handle", key)
+      .is("tombstoned_at", null);
     const caller = callerUserId?.trim() || null;
     query = caller
       ? query.or(`user_id.is.null,user_id.eq.${caller}`)
@@ -1058,7 +1072,9 @@ export const supabaseProfileStore: ProfileStore = {
     }
 
     const current = await this.getByHandle(key);
-    return current ? { status: "forbidden" } : { status: "not-found" };
+    return current && !isProfileTombstoned(current)
+      ? { status: "forbidden" }
+      : { status: "not-found" };
   },
 
   async linkUser(handle, userId) {
@@ -1350,6 +1366,11 @@ export const memoryProfileStore: ProfileStore = {
     const key = normalizeHandle(handle);
     if (!key) throw new Error("A profile needs a non-empty handle.");
     const existing = memoryProfiles.get(key);
+    const { memoryIdentityHandleStore } = await import("@/lib/identityHandleStore");
+    const aliasProfileId = await memoryIdentityHandleStore.aliasProfileId(key);
+    if (aliasProfileId && aliasProfileId !== existing?.id) {
+      throw new Error("That handle is not available.");
+    }
     if (existing) return existing;
     const now = new Date().toISOString();
     const record: ProfileRecord = {
@@ -1396,7 +1417,7 @@ export const memoryProfileStore: ProfileStore = {
   async update(handle, rawPatch) {
     const key = normalizeHandle(handle);
     const existing = memoryProfiles.get(key);
-    if (!existing) return null;
+    if (!existing || isProfileTombstoned(existing)) return null;
     const patch = cleanPatch(rawPatch);
     const next: ProfileRecord = {
       ...existing,
@@ -1421,7 +1442,7 @@ export const memoryProfileStore: ProfileStore = {
   async softDeleteForCaller(handle, callerUserId) {
     const key = normalizeHandle(handle);
     const existing = memoryProfiles.get(key);
-    if (!existing) return { status: "not-found" };
+    if (!existing || isProfileTombstoned(existing)) return { status: "not-found" };
 
     const caller = callerUserId?.trim() || null;
     if (existing.userId && existing.userId !== caller) {

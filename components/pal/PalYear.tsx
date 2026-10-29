@@ -6,6 +6,7 @@ import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import PalPrint from "@/components/pal/PalPrint";
 import PalYearShare from "@/components/pal/PalYearShare";
 import { readProgress } from "@/lib/crawlCompletion";
+import { getAccessToken } from "@/lib/authClient";
 import { readNightsKept } from "@/lib/nightsKept";
 import { londonDayKey } from "@/lib/pintContributions";
 import { palYearFacts, palYearLines, type PalYearFacts } from "@/lib/palYear";
@@ -38,7 +39,11 @@ async function venueName(venueId: string, signal: AbortSignal): Promise<string |
 
 async function contributions(handle: string, year: number, signal: AbortSignal): Promise<{ pricesMapped: number; boroughs: number } | null> {
   try {
-    const response = await fetch(`/api/pint-drops/stats?handle=${encodeURIComponent(handle)}&year=${year}`, { signal });
+    const token = await getAccessToken();
+    const response = await fetch(`/api/pint-drops/stats?handle=${encodeURIComponent(handle)}&year=${year}`, {
+      signal,
+      headers: token ? { authorization: `Bearer ${token}` } : {},
+    });
     if (!response.ok) {
       discardBody(response);
       return null;
