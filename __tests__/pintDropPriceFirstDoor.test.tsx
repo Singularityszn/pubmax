@@ -106,6 +106,7 @@ let container: HTMLDivElement;
 let root: Root | null = null;
 
 beforeEach(() => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   container = document.createElement("div");
   document.body.appendChild(container);
 });
@@ -116,6 +117,7 @@ afterEach(() => {
   });
   root = null;
   container.remove();
+  vi.unstubAllGlobals();
 });
 
 async function render(state: PintDropsState): Promise<void> {
