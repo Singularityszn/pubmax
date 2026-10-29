@@ -176,6 +176,8 @@ describe("createPalChatSession", () => {
   });
 
   it("drops a stale response when a newer ask supersedes it (latest wins)", async () => {
+    let sent!: () => void;
+    const firstSent = new Promise<void>((resolve) => { sent = resolve; });
     let resolveSlow: (r: Response) => void = () => {};
     const slow = new Promise<Response>((resolve) => {
       resolveSlow = resolve;
@@ -184,11 +186,13 @@ describe("createPalChatSession", () => {
     const ask = createPalChatSession({
       fetchImpl: () => {
         call += 1;
+        sent();
         return call === 1 ? slow : Promise.resolve(jsonResponse(VENUE_BODY));
       },
     });
 
     const first = ask("first", "london");
+    await firstSent;
     const second = await ask("second", "london");
     expect(second?.status).toBe("answered");
 
@@ -197,6 +201,8 @@ describe("createPalChatSession", () => {
   });
 
   it("yields null for a superseded request that ERRORS after being replaced", async () => {
+    let sent!: () => void;
+    const firstSent = new Promise<void>((resolve) => { sent = resolve; });
     let rejectSlow: (e: unknown) => void = () => {};
     const slow = new Promise<Response>((_, reject) => {
       rejectSlow = reject;
@@ -205,10 +211,12 @@ describe("createPalChatSession", () => {
     const ask = createPalChatSession({
       fetchImpl: () => {
         call += 1;
+        sent();
         return call === 1 ? slow : Promise.resolve(jsonResponse(VENUE_BODY));
       },
     });
     const first = ask("first", "london");
+    await firstSent;
     await ask("second", "london");
     rejectSlow(new TypeError("fetch failed"));
     expect(await first).toBeNull();

@@ -34,6 +34,7 @@ import { useViewerSession } from "@/components/auth/useViewerSession";
 import IntentLink from "@/components/nav/IntentLink";
 import SiteNav from "@/components/nav/SiteNav";
 import { captureAccountAuth } from "@/lib/accountBoundFetch";
+import { readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { trackEvent } from "@/lib/analytics";
 import type { AskProposal, AskTurn } from "@/lib/ask/types";
 import { occupancyReceiptLine } from "@/lib/occupancy";
@@ -315,6 +316,8 @@ function PalChatBody({ owner }: { owner: string | null }) {
   const composerInput = useRef<HTMLInputElement | null>(null);
   const openingReadRef = useRef(0);
   const sessionRef = useRef<ReturnType<typeof createPalChatSession> | null>(null);
+  const sessionControllerRef = useRef<AbortController | null>(null);
+  const askRequestRef = useRef(0);
   const counterRef = useRef(0);
   // Every ask this thread has carried, oldest first. In-thread only.
   const priorAsksRef = useRef<string[]>([]);
@@ -322,6 +325,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
   const turnsRef = useRef<AskTurn[]>([]);
   const savedEntriesRef = useRef<Entry[] | null>(null);
   const createSession = useCallback((initial?: Pick<PalChatThread, "turns" | "conversationId">) => createPalChatSession({
+    signal: (sessionControllerRef.current ??= new AbortController()).signal,
     initialTurns: initial?.turns,
     initialConversationId: initial?.conversationId,
     onConversationId(id) { conversationRef.current = { id, at: Date.now() }; },
@@ -451,6 +455,12 @@ function PalChatBody({ owner }: { owner: string | null }) {
   // "Take me there" and "where is The Lamb?" open that one pub when the chat
   // can name it, and otherwise reach the Pal, unless they ask for the map too.
   const mapAskRef = useRef(0);
+  useEffect(() => () => {
+    askRequestRef.current += 1;
+    mapAskRef.current += 1;
+    sessionControllerRef.current?.abort();
+    sessionControllerRef.current = null;
+  }, []);
   const entriesRef = useRef<Entry[]>([]);
   useEffect(() => {
     entriesRef.current = entries;
@@ -458,6 +468,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
   const openMapFromAsk = useCallback(
     async (text: string): Promise<boolean> => {
       const request = ++mapAskRef.current;
+      const accountSignal = readProviderAccountSignal();
       const plan = readActivePlan();
       const intent = palVoiceMapIntent(text, isPlanActiveNow(plan, Date.now()));
       if (!intent) return false;
@@ -481,7 +492,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
           palLines: last.palLines,
           loadVenues: () => loadSlimVenuesForCity(DEFAULT_CITY_ID),
         });
-        if (request !== mapAskRef.current) return true;
+        if (request !== mapAskRef.current || accountSignal.aborted) return true;
         if (venue) {
           href = resolvePalVenueOpenTarget(venue.id, knownVenueIds).href;
           line = `Opening ${venue.name}`;
@@ -493,7 +504,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
       setQuery((current) => current.trim() === text ? "" : current);
       if (intent === "next-stop" && plan) {
         const body = await readPlanMemberProjection(plan.id);
-        if (request !== mapAskRef.current) return true;
+        if (request !== mapAskRef.current || accountSignal.aborted) return true;
         const next = palNextStop(palNightStopsFrom(body), plan.stopIndex);
         if (next) {
           href = next.href;
@@ -521,8 +532,11 @@ function PalChatBody({ owner }: { owner: string | null }) {
     async (raw: string, options: { preserveDraft?: boolean } = {}) => {
       const text = raw.trim();
       if (!text || pending || !owner || !threadReady) return;
+      const request = ++askRequestRef.current;
+      const accountSignal = readProviderAccountSignal();
       openingReadRef.current += 1;
       if (await openMapFromAsk(text)) return;
+      if (request !== askRequestRef.current || accountSignal.aborted) return;
       sessionRef.current ??= createSession();
       // Read the recall BEFORE this ask joins the transcript, so the Pal never
       // recalls the question it is answering.
@@ -534,7 +548,10 @@ function PalChatBody({ owner }: { owner: string | null }) {
       }
       setPending(true);
       trackEvent("concierge_ask");
-      const result = await sessionRef.current(text, DEFAULT_CITY_ID, setStreamText);
+      const result = await sessionRef.current(text, DEFAULT_CITY_ID, (text) => {
+        if (request === askRequestRef.current && !accountSignal.aborted) setStreamText(text);
+      });
+      if (request !== askRequestRef.current || accountSignal.aborted) return;
       setPending(false);
       setStreamText("");
       if (result === null) return; // superseded by a newer ask — do nothing
@@ -802,6 +819,9 @@ function PalChatBody({ owner }: { owner: string | null }) {
         openingReadRef.current += 1;
         if (owner) clearPalChatThread(owner);
         mapAskRef.current += 1;
+        askRequestRef.current += 1;
+        sessionControllerRef.current?.abort();
+        sessionControllerRef.current = null;
         sessionRef.current = null;
         priorAsksRef.current = [];
         conversationRef.current = { id: "", at: 0 };
