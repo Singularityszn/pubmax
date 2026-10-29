@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { clearPalChatThread, palChatMapAnswer } from "@/lib/palChatThreadCache";
 import { DEVICE_IDENTITY_CHANGED_EVENT } from "@/lib/deviceAccountIdentity";
-import { readPalChatThread, savePalChatThread, type PalChatEntry } from "@/lib/palChatThread";
+import { readPalChatThread, savePalChatThread, clearPalChatThread, palChatMapAnswer, type PalChatEntry } from "@/lib/palChatThread";
 import { clearSurfaceCache, SURFACE_CACHE_NAMESPACE, writeSurfaceSnapshot } from "@/lib/surfaceDataCache";
 import { refineRoutedAskQuery } from "@/lib/ask/router";
 import { resolvePalLocality } from "@/lib/palLocality";

@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { AnswerCard } from "@/components/pal/PalChatAnswerCard";
+import { AnswerCard } from "@/components/pal/PalChat";
 import type { PalCard } from "@/lib/palChat";
 import { resolvePalLocality } from "@/lib/palLocality";
 

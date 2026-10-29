@@ -80,14 +80,12 @@ async function typeQuery(text: string): Promise<void> {
 }
 
 async function submit(text: string): Promise<void> {
-  const requests = askSession.mock.calls.length;
   await typeQuery(text);
   const form = container.querySelector<HTMLFormElement>("form");
   if (!form) throw new Error("Pal chat form not found");
   await act(async () => {
     form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
   });
-  await act(async () => { await vi.waitFor(() => expect(askSession).toHaveBeenCalledTimes(requests + 1)); });
 }
 
 describe("a typed Pal answer that streams in", () => {
@@ -187,7 +185,6 @@ describe("a typed Pal answer that streams in", () => {
     let finish: (result: unknown) => void = () => {};
     askSession.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
     await act(async () => retry.click());
-    await act(async () => { await vi.dynamicImportSettled(); });
     expect(askSession).toHaveBeenCalledTimes(2);
     expect(askSession.mock.calls[1]?.[0]).toBe(query);
     expect(retry.disabled).toBe(true);
@@ -216,7 +213,6 @@ describe("a typed Pal answer that streams in", () => {
     const retry = container.querySelector<HTMLButtonElement>('button[aria-label^="Ask again:"]');
     if (!retry) throw new Error("The failed ask has no recovery action");
     await act(async () => retry.click());
-    await act(async () => { await vi.dynamicImportSettled(); });
     expect(askSession.mock.calls[1]?.[0]).toBe(failedQuery);
     expect(container.querySelector<HTMLInputElement>(".palChatInput")?.value).toBe(draft);
     await act(async () => finish({ status: "empty", message: "Tell me your budget for the night.", cards: [], proposals: [] }));
