@@ -4,13 +4,13 @@ import { installAuthDoubles } from "./authDoubles";
 import { installDeterministicMapBasemap } from "./mapNetworkFixtures";
 import { expectMobileMapShellReady } from "./mobileMapShell";
 
-export const LUCIA_MAP_SUBTYPE = "soft-drink-lucia-special";
+const LUCIA_MAP_SUBTYPE = "soft-drink-lucia-special";
 
 export function drinkSheet(page: Page): Locator {
   return page.locator('.mobileSheetPortal[data-sheet-kind="drink"]');
 }
 
-export async function openDrink(page: Page): Promise<Locator> {
+async function openDrink(page: Page): Promise<Locator> {
   await expectMobileMapShellReady(page);
   const chip = page.locator(".mobileMapChipRow").getByRole("button", { name: /Drink shown on the map/ });
   await chip.tap();
@@ -19,7 +19,7 @@ export async function openDrink(page: Page): Promise<Locator> {
   return sheet;
 }
 
-export async function closeDrink(page: Page): Promise<void> {
+async function closeDrink(page: Page): Promise<void> {
   await drinkSheet(page).getByRole("button", { name: "Close Drink", exact: true }).tap();
   await expect(drinkSheet(page)).toHaveCount(0);
 }
