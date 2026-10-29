@@ -282,7 +282,67 @@ function isHalfMeasure(before: string): boolean {
   return !before.slice(at + 4).includes("£");
 }
 
-const PRICE_PATTERN = /£\s?(\d{1,2}(?:\.\d{1,2})?)(?![\da-z]|\.\d)/gi;
+export const UK_PRICE_PATTERN = /£\s?(\d{1,2}(?:\.\d{1,2})?)(?![\da-z]|\.\d)/gi;
+
+// Item punctuation is a boundary after a known price or measure. Commas inside
+// a drink name remain part of that name. Hyphens need padding to avoid splitting names.
+export const PRICE_ITEM_SEPARATOR = /(?:[,.;:•·|!?]|\s+-\s+)/;
+const LEADING_PRICE_ITEM_SEPARATORS = new RegExp(`^\\s*(?:${PRICE_ITEM_SEPARATOR.source}\\s*)+`);
+
+export const FRACTIONAL_BEER_MEASURE = /(?:\b[12]\s*\/\s*3\b|[⅓⅔]|\b(?:one[\s-]third|two[\s-]thirds)\b)/i;
+
+export function fractionalBeerServing(text: string): "one-third" | "two-thirds" | null {
+  const match = FRACTIONAL_BEER_MEASURE.exec(text)?.[0];
+  if (!match) return null;
+  return /^(?:1|⅓|one)/i.test(match) ? "one-third" : "two-thirds";
+}
+// Printed item separators also close a suffix, so it cannot become the next drink's prefix.
+const LEADING_FRACTIONAL_BEER_MEASURE = new RegExp(
+  `^\\s*(?:\\(\\s*(?:${FRACTIONAL_BEER_MEASURE.source})(?:\\s+(?:of\\s+a\\s+)?pints?)?\\s*\\)|(?:${FRACTIONAL_BEER_MEASURE.source})(?:\\s+(?:of\\s+a\\s+)?pints?)?)(?=\\s|${PRICE_ITEM_SEPARATOR.source}|$)`, "i",
+);
+
+/** Null means no fraction follows. An empty suffix belongs to the next drink. */
+function fractionalSuffix(gap: string, previousLabel: string): string | null {
+  const marker = LEADING_FRACTIONAL_BEER_MEASURE.exec(gap)?.[0];
+  if (!marker) return null;
+  const following = gap.slice(marker.length);
+  const followingLabel = following.trim();
+  if (!followingLabel || marker.includes("(") || LEADING_PRICE_ITEM_SEPARATORS.test(following)) return marker;
+  // An explicitly full pint cannot borrow the next drink's prefix measure.
+  if (/\b(?:pints?|568\s*ml)\b/i.test(previousLabel) && !FRACTIONAL_BEER_MEASURE.test(previousLabel)) return "";
+  if (/\b(?:pints?|568\s*ml)\b/i.test(followingLabel)) return marker;
+  return "";
+}
+
+/** Bind a fractional measure to its own price before either reader normalizes it. */
+export function fractionalMeasureAtPrice(text: string, at: number, verbatim: string): {
+  fractional: boolean; suffix: string | null; previousSuffixEnd: number | null;
+} {
+  const lineStart = text.lastIndexOf("\n", at - 1) + 1;
+  const lineEnd = text.indexOf("\n", at);
+  let cursor = lineStart;
+  let previousLabel = "";
+  for (const price of text.slice(lineStart, at).matchAll(UK_PRICE_PATTERN)) {
+    const priceAt = lineStart + (price.index ?? 0);
+    const gap = text.slice(cursor, priceAt);
+    const previousSuffix = cursor > lineStart ? fractionalSuffix(gap, previousLabel) : null;
+    previousLabel = gap.slice(previousSuffix?.length ?? 0).trim();
+    cursor = priceAt + price[0].length;
+  }
+  const before = text.slice(cursor, at);
+  const previousSuffix = cursor > lineStart ? fractionalSuffix(before, previousLabel) : null;
+  const ownLabel = before.slice(previousSuffix?.length ?? 0);
+  const afterStart = at + verbatim.length;
+  const remainder = text.slice(afterStart, lineEnd < 0 ? text.length : lineEnd);
+  const nextPrice = new RegExp(UK_PRICE_PATTERN.source, "i").exec(remainder);
+  const after = remainder.slice(0, nextPrice?.index ?? remainder.length);
+  const suffix = fractionalSuffix(after, ownLabel);
+  return {
+    fractional: FRACTIONAL_BEER_MEASURE.test(ownLabel) || Boolean(suffix),
+    suffix,
+    previousSuffixEnd: previousSuffix ? cursor + previousSuffix.length : null,
+  };
+}
 
 // A zero-strength claim in the printed item name beats spirit or cocktail
 // words in its description. Keep the marker close to the name so a 0.0%
@@ -321,7 +381,7 @@ function printedItemName(text: string, at: number): PrintedItemName | undefined 
   if (/£\s?\d/.test(line)) return undefined;
   const windowStart = Math.max(0, at - PRICE_CONTEXT_CHARS);
   const before = text.slice(windowStart, lineStart);
-  const lastFigure = [...before.matchAll(PRICE_PATTERN)].at(-1);
+  const lastFigure = [...before.matchAll(UK_PRICE_PATTERN)].at(-1);
   const since = lastFigure ? before.slice((lastFigure.index ?? 0) + lastFigure[0].length) : before;
   return {
     own: line.trim(),
@@ -395,7 +455,7 @@ export function drinkLabelFromPriceContext(
 
   const before = context.slice(0, priceAt);
   let start = 0;
-  const priorPrices = [...before.matchAll(PRICE_PATTERN)];
+  const priorPrices = [...before.matchAll(UK_PRICE_PATTERN)];
   const last = priorPrices.at(-1);
   if (last) {
     start = (last.index ?? 0) + last[0].length;
@@ -407,11 +467,13 @@ export function drinkLabelFromPriceContext(
 
   // A price list printed inline ("Cans (Coke £3.30, Coke Zero £3, ...)") leaves
   // the list's own separator in front of every item after the first.
+  const previousSuffixEnd = fractionalMeasureAtPrice(context, priceAt, verbatim).previousSuffixEnd;
+  if (previousSuffixEnd !== null) start = Math.max(start, previousSuffixEnd);
   const raw = context
     .slice(start, priceAt)
     .replace(/\s+/g, " ")
-    .trim()
-    .replace(/^[,;:•·]+\s*/, "");
+    .replace(LEADING_PRICE_ITEM_SEPARATORS, "")
+    .trim();
   if (!raw) return null;
   return normalizeHarvestDrinkLabel(raw);
 }
@@ -458,7 +520,7 @@ export function statedWineIdentity(
   for (let i = 0; i < 3; i += 1) {
     const price = i === 0
       ? verbatim
-      : context.slice(candidateAt).match(new RegExp(`^(?:${PRICE_PATTERN.source})`, "i"))?.[0];
+      : context.slice(candidateAt).match(new RegExp(`^(?:${UK_PRICE_PATTERN.source})`, "i"))?.[0];
     if (!price) return null;
     const label = drinkLabelFromPriceContext(context, price, candidateAt);
     const match = label?.match(/^(.*?)(?:\s+)?(\d{2,3}\s*ml)$/i);
@@ -466,7 +528,7 @@ export function statedWineIdentity(
     currentMeasure ??= (match[2] ?? "").replace(/\s+/g, "").toLowerCase();
     const name = (match[1] ?? "").replace(/^[/|\s\u2013\u2014-]+$/, "").trim();
     if (name) return { drinkLabel: name, servingSize: currentMeasure };
-    const prior = [...context.slice(0, candidateAt).matchAll(PRICE_PATTERN)].at(-1);
+    const prior = [...context.slice(0, candidateAt).matchAll(UK_PRICE_PATTERN)].at(-1);
     if (!prior) return null;
     candidateAt = prior.index ?? 0;
   }
@@ -755,7 +817,7 @@ export function categoryFor(context: string, at = Math.floor(context.length / 2)
  */
 export function findUkPriceCandidates(text: string, snippetChars = 120): UkPriceRawCandidate[] {
   const out: UkPriceRawCandidate[] = [];
-  for (const match of text.matchAll(PRICE_PATTERN)) {
+  for (const match of text.matchAll(UK_PRICE_PATTERN)) {
     const priceGbp = Number(match[1]);
     const verbatim = match[0];
     const at = match.index ?? 0;
@@ -875,13 +937,7 @@ function beerMeasureDrop(
   if (isHalfMeasure(before) || isFirstOfAMeasurePair(after) || isHalfOfABarePair(after, priceGbp)) {
     return "half-measure-not-a-pint";
   }
-  const lineStart = text.lastIndexOf("\n", at - 1) + 1;
-  const previousPrices = [...text.slice(lineStart, at).matchAll(PRICE_PATTERN)];
-  const ownBefore = previousPrices.length > 0
-    ? before.replace(/^\s*\(?\s*(?:[12]\s*\/\s*3\b|[⅓⅔])\s*\)?\s*/, "")
-    : before;
-  if (/(?:\b[12]\s*\/\s*3\b|[⅓⅔])/.test(ownBefore)
-    || /^\s*\(?\s*(?:[12]\s*\/\s*3\b|[⅓⅔])/.test(after.split("\n", 1)[0] ?? "")) {
+  if (fractionalMeasureAtPrice(text, at, verbatim).fractional) {
     return "fractional-measure-not-a-pint";
   }
   return isBottledMeasure(before) || inBottledSection(text, at) ? "bottled-measure-not-a-pint" : null;

@@ -118,3 +118,21 @@ describe("reading the words a PDF menu states", () => {
     expect(pdfIsWorthReading(0)).toBe(false);
   });
 });
+
+
+it.each([
+  "Guinness pint £6.20 2/3 Kernel stout £6.00",
+  ...[", ", ". ", "; ", ": ", " | ", " - ", "! ", "? "].flatMap((separator) =>
+    ["1/3", "1 / 3", "one-third", "one third", "2/3", "2 / 3", "two-thirds", "two thirds"].flatMap((measure) =>
+      ["£6.0", "£6.00"].map((price) => `Kernel stout ${price} ${measure} pint${separator}Guinness pint £6.20`))),
+  ...[", ", ". ", "; "].map((separator) => `Kernel stout £6.00 (2/3)${separator}Guinness pint £6.20`),
+])("keeps the PDF pint separate from an inline fraction: %s", async (line) => {
+  const text = await readPdfText(pdfStating([
+    line,
+    "Madri pint £6.40", "Neck Oil pint £6.80", "House red wine 175ml £7.50",
+  ]));
+  const reading = readVenueDrinkPrices(text ?? "", "text");
+  expect(pageStatesADrinksList(reading)).toBe(true);
+  expect(reading.kept).toContainEqual(expect.objectContaining({ drinkLabel: "Guinness pint", category: "beer", priceGbp: 6.2 }));
+  expect(reading.kept.some((row) => row.drinkLabel?.includes("Kernel"))).toBe(false);
+});

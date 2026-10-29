@@ -10326,5 +10326,51 @@
         "siteHarvestRows": 3871
       }
     }
+  ],
+  "laterBundleQuarantines": [
+    {
+      "scope": "bundle-only",
+      "reason": "The bare fractional label 1/3 does not establish a pint price. Quarantine this historical row from the bundle without changing its source ledger or claiming a new source observation.",
+      "row": {
+        "basis": null,
+        "category": "beer",
+        "drinkLabel": "1/3",
+        "lane": "site-harvest",
+        "name": "North Westward Ho",
+        "observedAt": "2026-09-04T14:07:10.622Z",
+        "priceGbp": 2.1,
+        "publisher": "northwestwardho.co.uk",
+        "sampleSize": null,
+        "sourceUrl": "https://www.northwestwardho.co.uk/menu",
+        "standing": "listed",
+        "venueId": "venue-mcr-y2sfka"
+      },
+      "ledgerVenueId": "venue-uk-n11469099314",
+      "currentLedger": {
+        "sha256": "d7ceaae058bc148dfa2903a6f7bc4c08d3dfc88df562ee8bbff59fb4b2053284",
+        "rowCount": 4033,
+        "rowIdentitySetSha256": "14fff6a094479bc8b2b39de5499af54dd0846c469f39735b6b8bfa565556ca56"
+      },
+      "beforeBundle": {
+        "rowCount": 7986,
+        "siteHarvestRows": 3871
+      },
+      "afterBundle": {
+        "rowCount": 7985,
+        "siteHarvestRows": 3870
+      },
+      "inputsUnchanged": true,
+      "inputCount": 628,
+      "outputBeforeSha256": {
+        "public/data/uk_prices/rows.json": "5741763f954d114d14c529c7b5d59fdd2f8e726645f7b71ffe4fe51ed81348f6",
+        "public/data/uk_prices/manifest.json": "2f398f5621d2d69d7c7a5ef95f7029c757aa495d49f1684467f6f205ba600d67",
+        "public/data/uk_prices/listed_coverage.json": "e2e5fa8576c85ffc28830145f4e673f844094ad7065c71ad3b31bcc6db58985f"
+      },
+      "outputAfterSha256": {
+        "public/data/uk_prices/manifest.json": "817c07ae6864d4738a79e8a7470e2098f69c139ba9cead613f87d6a38147e8af",
+        "public/data/uk_prices/listed_coverage.json": "e2e5fa8576c85ffc28830145f4e673f844094ad7065c71ad3b31bcc6db58985f",
+        "public/data/uk_prices/rows.json": "c314cfae26d3c2528f043006e3a8db214b4a2101bc1c22119a1697e853537a6b"
+      }
+    }
   ]
 }
