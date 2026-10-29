@@ -29,6 +29,8 @@ import { HELLO_MAILTO } from "@/lib/siteContact";
 import { trackEvent } from "@/lib/analytics";
 import type { LandingCtaTarget } from "@/lib/analyticsEvents";
 import { socialSurfaceName } from "@/lib/socialLaunch";
+import type { UkDirectoryCoverage } from "@/lib/ukDirectoryCoverage";
+import { UK_NATIONAL_ENTRY_LABEL, UK_NATIONAL_MAP_HREF } from "@/lib/ukNationalBrowse";
 
 import LandingAnswerCards from "./LandingAnswerCards";
 import LandingFaq from "./LandingFaq";
@@ -58,6 +60,7 @@ export default function LandingPage({
   priceReadLine = null,
   collagePrices = {},
   answers = null,
+  ukCoverage = null,
   // Server-threaded friends-launch flag. Explicit 0 is the rollback state.
   socialFriendsLaunchEnabled = true,
 }: {
@@ -75,6 +78,8 @@ export default function LandingPage({
   collagePrices?: Record<string, LondonCollageAreaPrice>;
   /** What is on today and what is on tonight, one sentence each. */
   answers?: LandingAnswers | null;
+  /** UK directory listings, never the denominator of a price comparison. */
+  ukCoverage?: UkDirectoryCoverage | null;
   socialFriendsLaunchEnabled?: boolean;
 }) {
   const router = useRouter();
@@ -154,6 +159,16 @@ export default function LandingPage({
 
         {/* Keep the calculation and the dates behind it together. */}
         <section className="lpWorth" aria-label="What it saves you">
+          {ukCoverage ? (
+            <p className="lpSavingSummary" data-uk-coverage="">
+              {ukCoverage.pubListings.toLocaleString("en-GB")} UK pub listings and{" "}
+              {ukCoverage.barListings.toLocaleString("en-GB")} bar listings from OpenStreetMap.
+              {" "}A listing doesn&apos;t mean we have its prices or know it&apos;s open.
+            </p>
+          ) : null}
+          <Link prefetch={false} href={UK_NATIONAL_MAP_HREF} className="lpTextLink">
+            {UK_NATIONAL_ENTRY_LABEL}
+          </Link>
           {/* When the prices behind the hero's average were read (site review,
               18 Oct 2026: "Freshness is quiet"). It sits here and not in the
               hero, because at 320px a third lede line put the primary under

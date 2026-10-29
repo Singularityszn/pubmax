@@ -119,7 +119,7 @@ describe("landing hierarchy: the price receipt door", () => {
     // many doors the hero carries (#1503).
     expect(quietDoors.slice(1)).toEqual(LANDING_QUIET_DOORS.map((door) => [door.href, door.label]));
     const textLinks = [...rendered.matchAll(/<a[^>]*class="lpTextLink"[^>]*>([\s\S]*?)<\/a>/g)].map((m) => m[1]);
-    expect(textLinks).toEqual(["Open the map"]);
+    expect(textLinks).toEqual(["Browse pubs across the UK", "Open the map"]);
   });
 
   it("gives Tonight a tap on the phone's home screen that the dead nav never had", () => {
