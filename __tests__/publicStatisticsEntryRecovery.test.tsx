@@ -1,4 +1,5 @@
 import { promises as fs } from "node:fs";
+import { JSDOM } from "jsdom";
 import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -43,13 +44,17 @@ function failFirstRead(kind: "EIO" | "malformed") {
   return () => reads;
 }
 
+function renderedText(element: ReactNode): string {
+  return new JSDOM(renderToStaticMarkup(element)).window.document.body.textContent ?? "";
+}
+
 describe.each(["EIO", "malformed"] as const)("public statistics entry recovery after %s", (kind) => {
   it("renders About without false figures, then recovers on the next request", async () => {
     const reads = failFirstRead(kind);
-    const initial = renderToStaticMarkup(await AboutPage());
+    const initial = renderedText(await AboutPage());
     expect(initial).toContain("temporarily unavailable");
     expect(initial).not.toMatch(/(?:for|across) 0 pubs|£0\.00/);
-    const recovered = renderToStaticMarkup(await AboutPage());
+    const recovered = renderedText(await AboutPage());
     expect(recovered).toContain("30 pubs");
     expect(recovered).toContain("£5.00");
     expect(reads()).toBe(2);
