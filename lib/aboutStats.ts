@@ -68,13 +68,9 @@ export function computeAboutStats(
 // the independent historic and enabled-city counts between callers.
 let cachedStats: Promise<AboutStats> | null = null;
 
-// The loader: reads the real bundled datasets (defensive — each source already
-// returns []/empty on failure, so a missing file degrades to zeroed stats
-// rather than crashing the page), once.
+// Share successful bundled reads. A failed price read rejects and remains retryable.
 export function loadAboutStats(): Promise<AboutStats> {
-  // A rejection must not be remembered: every read below is already fail-soft,
-  // so a throw here means something unexpected, and the next request deserves a
-  // fresh attempt rather than a permanently poisoned figure.
+  // A rejection must not be remembered. The next request needs a fresh attempt.
   cachedStats ??= readAboutStats().catch((error) => {
     cachedStats = null;
     throw error;
