@@ -236,7 +236,7 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
       const cacheNames = {
         data: `pubmax-sw-data-${version}`,
         plan: `pubmax-sw-preview-plan-v2-${version}`,
-        shell: `pubmax-sw-shell-${version}`,
+        shell: `pubmax-sw-shell-v2-${version}`,
         swr: `pubmax-sw-swr-${version}`,
       };
       const swr = await caches.open(cacheNames.swr);
@@ -411,7 +411,7 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
         data: await matchFamily("data", "/data/legacy-offline.json"),
         plan: await matchFamily("preview-plan-v2", "/plan/legacy-offline"),
         poisoned: await matchFamily("swr", poisonedTileUrl),
-        shell: await matchFamily("shell", "/offline.html"),
+        shell: await matchFamily("shell-v2", "/offline.html"),
         staticAsset: await matchFamily(
           "swr",
           "/_next/static/chunks/legacy-offline.js",

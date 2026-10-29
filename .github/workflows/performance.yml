@@ -179,8 +179,8 @@ jobs:
             test-results/perf-budget-breaches.json
           if-no-files-found: ignore
 
-  # UX lane 13: four arrival routes (/, /near, /map/london, /out) reported with
-  # LCP and CLS beside decoded JS, attached as a markdown table for the PR body.
+  # e2e/ux-lane-perf-verification.spec.ts owns the UX lane 13 arrival route list.
+  # It reports LCP, CLS and decoded JS in a markdown table for the PR body.
   # It measures on the method e2e/helpers/perfMeasurement.ts owns, so its figures
   # are comparable to the ceilings above. It REPORTS rather than gates: a route
   # over its own ceiling is printed as a warning, because the ceilings are

@@ -524,7 +524,7 @@ describe("loadWhatsOn orchestration", () => {
   it("groups the full provider inventory before applying the final card limit", async () => {
     let fetchArgs: unknown;
     const curry = Array.from({ length: 60 }, (_, index) =>
-      makeRow({ id: `curry-${index}`, placeName: `Curry ${index}`, title: "Curry Club" }),
+      makeRow({ id: `curry-${index}`, kind: "deal", placeName: `Curry ${index}`, title: "Curry Club" }),
     );
     const distinct = Array.from({ length: 12 }, (_, index) =>
       makeRow({
@@ -554,16 +554,17 @@ describe("loadWhatsOn orchestration", () => {
   });
 
   it("splits distinct schedules into distinct families before the limit", async () => {
-    // Same title/source/kind, two schedules, two venues each. The group key
+    // Same title/source/kind, two schedules, two venues each. A deal: one pub's
+    // quiz never folds into another pub's (lib/tonightListGrouping.ts). The group key
     // carries the schedule, so a limit of one selects one schedule's family and
     // both of its venues, never a single card standing for all four.
     const sched1 = "2026-07-11T22:00:00+01:00";
     const sched2 = "2026-07-11T23:00:00+01:00";
     const rows = [
-      makeRow({ id: "a1", placeName: "A1", venueId: "va1", startsAt: sched1 }),
-      makeRow({ id: "a2", placeName: "A2", venueId: "va2", startsAt: sched1 }),
-      makeRow({ id: "b1", placeName: "B1", venueId: "vb1", startsAt: sched2 }),
-      makeRow({ id: "b2", placeName: "B2", venueId: "vb2", startsAt: sched2 }),
+      makeRow({ id: "a1", kind: "deal", placeName: "A1", venueId: "va1", startsAt: sched1 }),
+      makeRow({ id: "a2", kind: "deal", placeName: "A2", venueId: "va2", startsAt: sched1 }),
+      makeRow({ id: "b1", kind: "deal", placeName: "B1", venueId: "vb1", startsAt: sched2 }),
+      makeRow({ id: "b2", kind: "deal", placeName: "B2", venueId: "vb2", startsAt: sched2 }),
     ];
     const deps = { now: NOW, loadBaseline: () => [], fetchLive: async () => ({ rows, sourceObservedAt: null }) };
 
@@ -868,10 +869,10 @@ describe("GET /api/whats-on (handleWhatsOnRequest)", () => {
     const sched1 = "2026-07-11T22:00:00+01:00";
     const sched2 = "2026-07-11T23:00:00+01:00";
     const rows = [
-      makeRow({ id: "a1", placeName: "A1", venueId: "va1", startsAt: sched1 }),
-      makeRow({ id: "a2", placeName: "A2", venueId: "va2", startsAt: sched1 }),
-      makeRow({ id: "b1", placeName: "B1", venueId: "vb1", startsAt: sched2 }),
-      makeRow({ id: "b2", placeName: "B2", venueId: "vb2", startsAt: sched2 }),
+      makeRow({ id: "a1", kind: "deal", placeName: "A1", venueId: "va1", startsAt: sched1 }),
+      makeRow({ id: "a2", kind: "deal", placeName: "A2", venueId: "va2", startsAt: sched1 }),
+      makeRow({ id: "b1", kind: "deal", placeName: "B1", venueId: "vb1", startsAt: sched2 }),
+      makeRow({ id: "b2", kind: "deal", placeName: "B2", venueId: "vb2", startsAt: sched2 }),
     ];
     const deps = { now: NOW, loadBaseline: () => [], fetchLive: async () => ({ rows, sourceObservedAt: null }) };
 

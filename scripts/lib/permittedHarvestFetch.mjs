@@ -15,10 +15,11 @@
 //
 // WHAT A CALLER MAY NOT DO is hand this a URL of its own: the host a fetch is
 // pinned to comes from the policy row, and every URL (including the page a
-// redirect landed on) must sit on that host and pass `isHarvestableOperatorUrl`.
+// redirect points at) must sit on that host and pass `isHarvestableOperatorUrl`.
 
 // A plain-node CLI imports this module, so the specifiers are RELATIVE and
 // carry their extensions.
+import { fetchFollowingPermittedRedirects } from "../../lib/harvest/redirectChain.ts";
 import { createRobotsChecker } from "../../lib/harvest/robots.ts";
 import {
   harvestSource,
@@ -80,11 +81,11 @@ export function isOnPermittedSourceHost(source, url) {
 /**
  * Build a fetch bound to one ALLOWED policy row.
  *
- * Every call: the URL must be on the row's host and pass the fence, the host's
- * robots.txt (read by `createRobotsChecker`, once per host per run) must permit
- * the path, and a redirect may not land anywhere the same two questions refuse.
- * A failure of any of them throws `HarvestRefusal` BEFORE (or instead of
- * reading) the page.
+ * Every call: the URL must be on the row's host and pass the fence, and the
+ * host's robots.txt must permit the path. See `createRobotsChecker` for the
+ * cache contract. Redirects are followed by hand, and each `Location` is put
+ * to the same two questions BEFORE it is requested, so a refused hop is never
+ * sent. A failure of any of them throws `HarvestRefusal`.
  */
 export function createPermittedFetch({ source, fetchImpl = fetch, robots } = {}) {
   if (!source?.access?.allowed) {
@@ -104,9 +105,21 @@ export function createPermittedFetch({ source, fetchImpl = fetch, robots } = {})
 
   async function permittedFetch(url, init = {}) {
     await assertPermitted(url);
-    const response = await fetchImpl(url, { ...init, redirect: "follow" });
-    const landed = typeof response.url === "string" && response.url ? response.url : url;
-    if (landed !== url) {
+    const followed = await fetchFollowingPermittedRedirects(url, init, {
+      fetchImpl,
+      permitHop: async (next) => {
+        await assertPermitted(next);
+        return { allowed: true };
+      },
+    });
+    if (followed.refusal) {
+      throw new HarvestRefusal(`REFUSED ${followed.refusal.url}: ${followed.refusal.evidence}`);
+    }
+    const { response } = followed;
+    // The final response is asked again, as a second fence: a fetch that
+    // reports a landing other than the URL we requested is not trusted.
+    const landed = typeof response.url === "string" && response.url ? response.url : followed.url;
+    if (landed !== followed.url) {
       try {
         await assertPermitted(landed);
       } catch (error) {
