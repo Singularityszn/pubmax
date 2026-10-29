@@ -8,6 +8,8 @@ import { attachSpillBill } from "./helpers/priceBill";
 // Browser UI coverage only. Provider authentication and age responses are
 // explicit doubles. Server policy and DOB precedence belong to route tests.
 // All priced requests here must use the real Pint Drop composer and endpoint.
+test.use({ launchOptions: { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] } });
+
 const VENUE_ID = COMMUNITY_SHEET_FIXTURE_VENUE_ID;
 const PRICE = "5.50";
 const DRINK = "Fixture pale ale";
@@ -124,8 +126,7 @@ async function submitPrice(page: Page) {
 
 for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 800 }]) {
   test.describe(`Pint Drop age refusal at ${viewport.width}`, () => {
-    test.use({ viewport, storageState: { cookies: [], origins: [] }, serviceWorkers: "block",
-      launchOptions: { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] } });
+    test.use({ viewport, storageState: { cookies: [], origins: [] }, serviceWorkers: "block" });
     test.setTimeout(120_000);
     test.beforeEach(async ({ page }) => {
       await page.emulateMedia({ reducedMotion: "reduce" });
