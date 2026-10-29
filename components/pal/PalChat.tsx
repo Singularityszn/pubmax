@@ -17,14 +17,13 @@ import {
   useSyncExternalStore,
 } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import type { Route } from "next";
 
-import PalCardPrice from "@/components/pal/PalCardPrice";
 import { useRouter } from "next/navigation";
 import { ArrowUp, MapPin, Sparkles } from "lucide-react";
 
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
-import PalRecommendationMap from "@/components/pal/PalRecommendationMap";
 import Screen from "@/components/ui/screen";
 import { Button } from "@/components/ui/button";
 
@@ -36,8 +35,6 @@ import { captureAccountAuth } from "@/lib/accountBoundFetch";
 import { trackEvent } from "@/lib/analytics";
 import type { AskProposal, AskTurn } from "@/lib/ask/types";
 import { occupancyReceiptLine } from "@/lib/occupancy";
-import { confirmPalMemoryProposal } from "@/lib/palMemoryConfirmClient";
-import { confirmOccupancyProposal } from "@/components/map/useVenueOccupancy";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
 import { writeAskPlanDraft } from "@/lib/conciergeAskClient";
 import { markConsentAnswerMoment } from "@/lib/consentAnswerMoment";
@@ -55,27 +52,18 @@ import {
   resolvePalVenueOpenTarget,
 } from "@/lib/palOpenVenue";
 import { isPlanActiveNow, readActivePlan } from "@/lib/activePlan";
-import { readPlanMemberProjection } from "@/components/plan/usePlanMemberRead";
-import {
-  palNextStop,
-  palNightStopsFrom,
-  palAsksForMap,
-  palVoiceMapIntent,
-} from "@/lib/palVoiceTranscript";
-import { palMapAskTarget, palPubAskVenue, type PalMapAskVenue } from "@/lib/palMapAsk";
-import { formatPalWhen, type PalCard } from "@/lib/palChat";
-import { venueAcceptUrl, venueMapUrl } from "@/lib/venueMapUrl";
+import type { PalMapAskVenue } from "@/lib/palMapAsk";
+import { PAL_ERROR_FALLBACK } from "@/lib/palChat";
+import { venueMapUrl } from "@/lib/venueMapUrl";
 import { palRecall } from "@/lib/palRecall";
 import { palLocalityLine, resolvePalLocality, type PalLocality } from "@/lib/palLocality";
 import { PLAN_FIELD_LABEL } from "@/lib/planCopy";
 import { planPalRouteHandoffHref } from "@/lib/planOccasion";
-import { writePlanningIntent } from "@/lib/planningIntent";
 import { authedActionFetch } from "@/lib/authedFetch";
-import { palChatResultFromBody } from "@/lib/palChatClient";
 import { palOpeningMessage } from "@/lib/palOpening";
-import { createPalChatSession } from "@/lib/palChatClient";
-import { refineRoutedAskQuery } from "@/lib/ask/router";
-import { clearPalChatThread, palChatMapAnswer, readPalChatThread, savePalChatThread, type PalChatEntry as Entry, type PalChatThread } from "@/lib/palChatThread";
+import type { createPalChatSession } from "@/lib/palChatClient";
+import type { PalChatEntry as Entry, PalChatThread } from "@/lib/palChatThread";
+import { clearPalChatThread, hasPalChatThread, palChatMapAnswer } from "@/lib/palChatThreadCache";
 import {
   cheapestGlanceLine,
   cheapestGlanceReceipt,
@@ -86,7 +74,7 @@ import {
   tonightGlanceReceipt,
   type CheapestGlanceCard,
 } from "@/lib/palGlance";
-import { formatPrice } from "@/lib/venues";
+import { formatGbp } from "@/lib/formatGbp";
 import {
   loadSlimVenuesForCity,
   loadSlimVenuesForCityResult,
@@ -96,6 +84,9 @@ import { VIBE_CHIPS } from "@/lib/vibeChips";
 import { useWhatsOnTonight } from "@/components/map/useWhatsOnTonight";
 
 import "./palChat.css";
+
+const AnswerCard = dynamic(() => import("@/components/pal/PalChatAnswerCard").then((module) => module.AnswerCard));
+const PalRecommendationMap = dynamic(() => import("@/components/pal/PalRecommendationMap"));
 
 /**
  * What "take me there" points at in the written chat: the newest Pal answer
@@ -136,149 +127,6 @@ function palLastAnswerVenue(entries: readonly Entry[]): {
   return { venue: null, palLines: [] };
 }
 
-function VenueLink({
-  card,
-  onOpen,
-  knownVenueIds,
-  children,
-}: {
-  card: PalCard;
-  onOpen: (venueId: string) => void;
-  knownVenueIds: ReadonlySet<string> | null;
-  children: React.ReactNode;
-}) {
-  // A card is only tappable when it deep-links to a real venue on the map. The
-  // static variant still renders every fact and its provenance.
-  if (!card.venueId) {
-    return <div className="palChatCardMain">{children}</div>;
-  }
-  const target = resolvePalVenueOpenTarget(card.venueId, knownVenueIds);
-  const href = target.href;
-  return (
-    <Link
-      prefetch={false}
-      className="palChatCardMain palChatCardBody--link"
-      href={href}
-      onClick={(event) => {
-        if (
-          event.defaultPrevented ||
-          event.button !== 0 ||
-          event.metaKey ||
-          event.ctrlKey ||
-          event.shiftKey ||
-          event.altKey
-        ) {
-          return;
-        }
-        event.preventDefault();
-        onOpen(card.venueId);
-      }}
-    >
-      {children}
-    </Link>
-  );
-}
-
-function ProvChip({ card }: { card: PalCard }) {
-  // Provenance is non-negotiable and kept on every card. A What's-On row carries
-  // an attributable link; a first-party directory row reads "On record".
-  const { provenance } = card;
-  const label = provenance.label;
-  if (provenance.url) {
-    return (
-      <a
-        className="palChatProv palChatProv--link"
-        href={provenance.url}
-        target="_blank"
-        rel="noreferrer noopener"
-        onClick={(event) => event.stopPropagation()}
-      >
-        {label}
-      </a>
-    );
-  }
-  return <span className="palChatProv">{label}</span>;
-}
-
-// Explicit Pub Pal acceptance (§4.8: Pal owns its own "Use this pub", distinct
-// from browsing). Writes a source-"pal" PlanningIntent then hands off to the Map
-// acceptance URL. Storage failure is swallowed by writePlanningIntent; the href
-// still carries accept=1&src=pal so the handoff never depends on client storage.
-function acceptPalVenue(card: PalCard, locality: PalLocality | null): void {
-  writePlanningIntent({
-    source: "pal",
-    cityId: DEFAULT_CITY_ID,
-    acceptedVenueId: card.venueId,
-    acceptedArea: locality?.area ?? null,
-    startsAt: null,
-    displayEvidence: {
-      kind: card.provenance.kind === "whats-on" ? "whats-on" : "directory",
-      observedAt: card.when ?? null,
-    },
-  });
-  trackEvent("venue_accepted", { source: "pal" });
-}
-
-export function AnswerCard({
-  card,
-  onOpen,
-  knownVenueIds = null,
-  locality,
-}: {
-  card: PalCard;
-  onOpen: (venueId: string) => void;
-  knownVenueIds?: ReadonlySet<string> | null;
-  locality: PalLocality | null;
-}) {
-  const when = card.when ? formatPalWhen(card.when) : "";
-  return (
-    <li className="palChatCard">
-      <div className="palChatCardBody">
-        <VenueLink card={card} onOpen={onOpen} knownVenueIds={knownVenueIds}>
-          <div className="palChatCardTop">
-            <p className="palChatCardTitle">{card.title}</p>
-            <PalCardPrice card={card} className="palChatCardPrice" />
-          </div>
-          {card.place ? (
-            <p className="palChatCardPlace">
-              <MapPin size={14} aria-hidden="true" />
-              <span>{card.place}</span>
-            </p>
-          ) : null}
-          {when ? <p className="palChatCardWhen">{when}</p> : null}
-          {card.note ? <p className="palChatCardNote">{card.note}</p> : null}
-          {card.venueId ? (
-            <span className="palChatCardCta" aria-hidden="true">
-              Show on map
-            </span>
-          ) : null}
-        </VenueLink>
-        <div className="palChatCardMeta">
-          <ProvChip card={card} />
-          {[card.menuEvidence?.caloriesProvenance, card.menuEvidence?.dietaryProvenance].map((field, index) => field && field.sourceUrl !== card.provenance.url ? (
-            <a key={index} className="palChatProv palChatProv--link" href={field.sourceUrl} target="_blank" rel="noreferrer noopener">
-              {index === 0 ? "Calorie source" : "Dietary source"}: {field.source}
-            </a>
-          ) : null)}
-          {card.confidence ? (
-            <span className="palChatConfidence">{card.confidence}</span>
-          ) : null}
-        </div>
-      </div>
-      {card.venueId ? (
-        <Link
-          prefetch={false}
-          className="palChatCardAccept pressable"
-          href={venueAcceptUrl(card.venueId, "pal")}
-          onClick={() => acceptPalVenue(card, locality)}
-        >
-          Use this pub
-        </Link>
-      ) : null}
-    </li>
-  );
-}
-
 export default function PalChat() {
   const { user } = useAuth();
   const viewer = useViewerSession();
@@ -293,8 +141,9 @@ function PalChatBody({ owner }: { owner: string | null }) {
   const auth = captureAccountAuth(user?.id ?? null, session);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [query, setQuery] = useState("");
+  const [threadLoadState, setThreadLoadState] = useState<"initial" | "ready" | "error">("initial");
   const browserReady = useSyncExternalStore(() => () => {}, () => true, () => false);
-  const inputReady = browserReady && owner !== null;
+  const inputReady = browserReady && owner !== null && (!hasPalChatThread(owner) || entries.length > 0 || threadLoadState === "ready");
   const [pending, setPending] = useState(false);
   // The answer text so far while the Pal is still writing it, "" until it starts.
   const [streamText, setStreamText] = useState("");
@@ -320,20 +169,35 @@ function PalChatBody({ owner }: { owner: string | null }) {
   const conversationRef = useRef({ id: "", at: 0 });
   const turnsRef = useRef<AskTurn[]>([]);
   const savedEntriesRef = useRef<Entry[] | null>(null);
-  const createSession = useCallback((initial?: Pick<PalChatThread, "turns" | "conversationId">) => createPalChatSession({
-    initialTurns: initial?.turns,
-    initialConversationId: initial?.conversationId,
-    onConversationId(id) { conversationRef.current = { id, at: Date.now() }; },
-    onTurns(turns) { turnsRef.current = turns; },
-  }), []);
+  const createSession = useCallback((initial?: Pick<PalChatThread, "turns" | "conversationId">): ReturnType<typeof createPalChatSession> => {
+    let session: Promise<ReturnType<typeof createPalChatSession>> | null = null;
+    return async (...args) => {
+      try {
+        session ??= import("@/lib/palChatClient").then(({ createPalChatSession }) => createPalChatSession({
+          initialTurns: initial?.turns,
+          initialConversationId: initial?.conversationId,
+          onConversationId(id) { conversationRef.current = { id, at: Date.now() }; },
+          onTurns(turns) { turnsRef.current = turns; },
+        }));
+        return await (await session)(...args);
+      } catch {
+        session = null;
+        return { status: "error", message: PAL_ERROR_FALLBACK };
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!owner || sessionRef.current || priorAsksRef.current.length) return;
-    const saved = readPalChatThread(owner);
-    if (!saved?.entries.length) return;
+    if (!hasPalChatThread(owner)) return;
     let active = true;
-    queueMicrotask(() => {
-      if (!active) return;
+    void import("@/lib/palChatThread").then(({ readPalChatThread }) => {
+      if (!active || sessionRef.current || priorAsksRef.current.length) return;
+      const saved = readPalChatThread(owner);
+      if (!saved?.entries.length) {
+        setThreadLoadState("ready");
+        return;
+      }
       sessionRef.current = createSession(saved);
       conversationRef.current = { id: saved.conversationId, at: saved.conversationAt };
       counterRef.current = saved.entries.length;
@@ -341,14 +205,22 @@ function PalChatBody({ owner }: { owner: string | null }) {
       turnsRef.current = saved.turns;
       savedEntriesRef.current = saved.entries;
       setEntries(saved.entries);
+      setThreadLoadState("ready");
+    }).catch(() => {
+      if (active) setThreadLoadState("error");
     });
     return () => { active = false; };
   }, [owner, createSession]);
 
   useEffect(() => {
     if (!owner || pending || !entries.length || entries === savedEntriesRef.current) return;
-    savePalChatThread(owner, entries, conversationRef.current.id, conversationRef.current.at, turnsRef.current);
-    savedEntriesRef.current = entries;
+    let active = true;
+    void import("@/lib/palChatThread").then(({ savePalChatThread }) => {
+      if (!active) return;
+      savePalChatThread(owner, entries, conversationRef.current.id, conversationRef.current.at, turnsRef.current);
+      savedEntriesRef.current = entries;
+    }).catch(() => { /* The current conversation remains on screen if tab persistence is unavailable. */ });
+    return () => { active = false; };
   }, [entries, pending, owner]);
 
   const nextId = useCallback(() => {
@@ -357,13 +229,16 @@ function PalChatBody({ owner }: { owner: string | null }) {
   }, []);
 
   useEffect(() => {
-    if (!owner || owner === "anonymous" || entries.length || sessionRef.current || readPalChatThread(owner)?.entries.length) return;
+    if (!owner || owner === "anonymous" || entries.length || sessionRef.current) return;
     const request = ++openingReadRef.current;
     let active = true;
     void (async () => {
       let answer = palOpeningMessage("", { memories: null, taste: null });
       let conversationId = "";
       try {
+        const { readPalChatThread } = await import("@/lib/palChatThread");
+        if (!active || readPalChatThread(owner)?.entries.length) return;
+        const { palChatResultFromBody } = await import("@/lib/palChatClient");
         const response = await authedActionFetch("/api/pub-pal/chat", { method: "GET" }, { requiresIdentity: true });
         const body = await response.json();
         const result = palChatResultFromBody(body);
@@ -442,6 +317,11 @@ function PalChatBody({ owner }: { owner: string | null }) {
   const openMapFromAsk = useCallback(
     async (text: string): Promise<boolean> => {
       const request = ++mapAskRef.current;
+      const [{ palNextStop, palNightStopsFrom, palAsksForMap, palVoiceMapIntent }, { palMapAskTarget, palPubAskVenue }] = await Promise.all([
+        import("@/lib/palVoiceTranscript"),
+        import("@/lib/palMapAsk"),
+      ]);
+      if (request !== mapAskRef.current) return true;
       const plan = readActivePlan();
       const intent = palVoiceMapIntent(text, isPlanActiveNow(plan, Date.now()));
       if (!intent) return false;
@@ -476,6 +356,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
       setEntries((prev) => [...prev, { kind: "user", id: nextId(), text }]);
       setQuery((current) => current.trim() === text ? "" : current);
       if (intent === "next-stop" && plan) {
+        const { readPlanMemberProjection } = await import("@/components/plan/usePlanMemberRead");
         const body = await readPlanMemberProjection(plan.id);
         if (request !== mapAskRef.current) return true;
         const next = palNextStop(palNightStopsFrom(body), plan.stopIndex);
@@ -506,51 +387,60 @@ function PalChatBody({ owner }: { owner: string | null }) {
       const text = raw.trim();
       if (!text || pending || !owner) return;
       openingReadRef.current += 1;
-      if (await openMapFromAsk(text)) return;
-      sessionRef.current ??= createSession();
-      // Read the recall BEFORE this ask joins the transcript, so the Pal never
-      // recalls the question it is answering.
-      const recall = palRecall(priorAsksRef.current, text);
-      priorAsksRef.current = [...priorAsksRef.current, text].slice(-12);
-      setEntries((prev) => [...prev, { kind: "user", id: nextId(), text }]);
-      if (!options.preserveDraft) {
-        setQuery((current) => current.trim() === text ? "" : current);
-      }
-      setPending(true);
-      trackEvent("concierge_ask");
-      const result = await sessionRef.current(text, DEFAULT_CITY_ID, setStreamText);
-      setPending(false);
-      setStreamText("");
-      if (result === null) return; // superseded by a newer ask — do nothing
-      if (result.status === "error") {
+      let ownsPending = false;
+      try {
+        if (await openMapFromAsk(text)) return;
+        ownsPending = true;
+        setPending(true);
+        sessionRef.current ??= createSession();
+        // Read the recall BEFORE this ask joins the transcript, so the Pal never
+        // recalls the question it is answering.
+        const recall = palRecall(priorAsksRef.current, text);
+        priorAsksRef.current = [...priorAsksRef.current, text].slice(-12);
+        setEntries((prev) => [...prev, { kind: "user", id: nextId(), text }]);
+        if (!options.preserveDraft) {
+          setQuery((current) => current.trim() === text ? "" : current);
+        }
+        trackEvent("concierge_ask");
+        const result = await sessionRef.current(text, DEFAULT_CITY_ID, setStreamText);
+        setStreamText("");
+        if (result === null) return; // superseded by a newer ask — do nothing
+        if (result.status === "error") {
+          setEntries((prev) => [
+            ...prev,
+            {
+              kind: "error",
+              id: nextId(),
+              message: result.message,
+              needsSignIn: result.needsSignIn,
+              retryQuery: text,
+            },
+          ]);
+          return;
+        }
+        // Ground WHERE this answer applies from the query and remembered area.
+        const priorUsers = turnsRef.current.filter((turn) => turn.role === "user").map((turn) => turn.content).slice(0, -1);
+        const { refineRoutedAskQuery } = await import("@/lib/ask/router");
+        const locality = resolvePalLocality(refineRoutedAskQuery(text, priorUsers.at(-1), priorUsers), readRememberedArea());
+        const proposals =
+          result.status === "answered" || result.status === "empty"
+            ? result.proposals ?? []
+            : [];
+        // An answer in the transcript is the Pal having answered, which is one of
+        // the moments the analytics consent card waits behind
+        // (lib/consentAnswerMoment.ts). It rides the ANSWER rather than the ask,
+        // because a question nobody has replied to is still the reader waiting.
+        markConsentAnswerMoment("pal-reply");
         setEntries((prev) => [
           ...prev,
-          {
-            kind: "error",
-            id: nextId(),
-            message: result.message,
-            needsSignIn: result.needsSignIn,
-            retryQuery: text,
-          },
+          { kind: "answer", id: nextId(), answer: result, locality, proposals, recall },
         ]);
-        return;
+      } catch {
+        setStreamText("");
+        setEntries((prev) => [...prev, { kind: "error", id: nextId(), message: PAL_ERROR_FALLBACK, retryQuery: text }]);
+      } finally {
+        if (ownsPending) setPending(false);
       }
-      // Ground WHERE this answer applies from the query and remembered area.
-      const priorUsers = turnsRef.current.filter((turn) => turn.role === "user").map((turn) => turn.content).slice(0, -1);
-      const locality = resolvePalLocality(refineRoutedAskQuery(text, priorUsers.at(-1), priorUsers), readRememberedArea());
-      const proposals =
-        result.status === "answered" || result.status === "empty"
-          ? result.proposals ?? []
-          : [];
-      // An answer in the transcript is the Pal having answered, which is one of
-      // the moments the analytics consent card waits behind
-      // (lib/consentAnswerMoment.ts). It rides the ANSWER rather than the ask,
-      // because a question nobody has replied to is still the reader waiting.
-      markConsentAnswerMoment("pal-reply");
-      setEntries((prev) => [
-        ...prev,
-        { kind: "answer", id: nextId(), answer: result, locality, proposals, recall },
-      ]);
     },
     [nextId, openMapFromAsk, pending, createSession, owner],
   );
@@ -579,6 +469,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
     }
     if (proposal.kind === "report_occupancy") {
       void (async () => {
+        const { confirmOccupancyProposal } = await import("@/components/map/useVenueOccupancy");
         const result = await confirmOccupancyProposal(
           { venueId: proposal.venueId, level: proposal.level },
           auth,
@@ -618,6 +509,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
     }
     if (proposal.kind === "remember_memory") {
       void (async () => {
+        const { confirmPalMemoryProposal } = await import("@/lib/palMemoryConfirmClient");
         const result = await confirmPalMemoryProposal(
           {
             id: proposal.id,
@@ -681,7 +573,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
   // fire under StrictMode re-mounts.
   const autoAskedRef = useRef(false);
   useEffect(() => {
-    if (!owner || autoAskedRef.current) return;
+    if (!owner || !inputReady || autoAskedRef.current) return;
     autoAskedRef.current = true;
     const preset = new URLSearchParams(window.location.search).get("ask");
     const text = preset?.trim() ?? "";
@@ -692,8 +584,8 @@ function PalChatBody({ owner }: { owner: string | null }) {
       if (priorAsksRef.current.at(-1) !== text) void ask(text);
     }, 0);
     return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- fire once after owner settlement
-  }, [owner]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fire once after owner and thread settlement
+  }, [owner, inputReady]);
 
   const empty = entries.length === 0 && !pending;
   const mappedAnswer = palChatMapAnswer(entries);
@@ -754,7 +646,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
     };
   }, [empty, cheapest]);
   const cheapestLine = useMemo(
-    () => (cheapest ? cheapestGlanceLine(cheapest.areaLabel, cheapest.card, formatPrice) : null),
+    () => (cheapest ? cheapestGlanceLine(cheapest.areaLabel, cheapest.card, formatGbp) : null),
     [cheapest],
   );
 
@@ -1051,6 +943,10 @@ function PalChatBody({ owner }: { owner: string | null }) {
         ) : null}
       </div>
 
+      {threadLoadState === "error" ? <p role="alert">
+        Your conversation could not be loaded.
+        <Button type="button" variant="ghost" onClick={() => window.location.reload()}>Try again</Button>
+      </p> : null}
       {!owner ? <p role="status">
         {providerAuthState !== "unavailable" ? "Checking your account before you type." : "Your account could not be checked. Try again before you type."}
         {providerAuthState === "unavailable" ? <Button type="button" variant="ghost" onClick={() => window.location.reload()}>Try account check again</Button> : null}

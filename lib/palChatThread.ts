@@ -9,17 +9,12 @@ import { windowPalSessionTurns } from "@/lib/palSessionSummary";
 import type { PalRecall } from "@/lib/palRecall";
 import { isPubPalConversationId, PUB_PAL_CONVERSATION_IDLE_MS } from "@/lib/pubPalConversationId";
 import { readSurfaceSnapshot, writeSurfaceSnapshot } from "@/lib/surfaceDataCache";
+import { palChatThreadKey } from "@/lib/palChatThreadCache";
 
 export type PalChatEntry =
   | { kind: "user"; id: string; text: string }
   | { kind: "answer"; id: string; answer: PalAnswer; locality: PalLocality | null; proposals: AskProposal[]; recall: PalRecall | null }
   | { kind: "error"; id: string; message: string; needsSignIn?: boolean; retryQuery?: string };
-
-/** Search results own the map until another search replaces them, including an empty result. */
-export function palChatMapAnswer(entries: readonly PalChatEntry[]): Extract<PalChatEntry, { kind: "answer" }> | undefined {
-  return entries.findLast((entry): entry is Extract<PalChatEntry, { kind: "answer" }> => entry.kind === "answer"
-    && Boolean(entry.answer.toolsUsed?.some((tool) => tool === "search_venues" || tool === "cheapest_pint_near")));
-}
 
 export type PalChatThread = {
   entries: PalChatEntry[];
@@ -29,7 +24,6 @@ export type PalChatThread = {
   conversationAt: number;
 };
 
-const key = (owner: string) => `/pal/chat#current-thread-v2/${encodeURIComponent(owner)}`;
 const record = (value: unknown): Record<string, unknown> | null => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
 const text = (value: unknown, max: number) => typeof value === "string" ? value.slice(0, max) : "";
 
@@ -59,11 +53,7 @@ function menuEvidence(value: unknown): AskMenuEvidence | undefined {
 
 /** Use the existing tab cache, including its account-change purge and age limit. */
 export function savePalChatThread(owner: string, entries: PalChatEntry[], conversationId: string, conversationAt: number, turns: readonly AskTurn[]): void {
-  writeSurfaceSnapshot(key(owner), { version: 2, entries: entries.slice(-24), conversationId, conversationAt, turns: windowPalSessionTurns("", [...turns]).turns });
-}
-
-export function clearPalChatThread(owner: string): void {
-  writeSurfaceSnapshot(key(owner), null);
+  writeSurfaceSnapshot(palChatThreadKey(owner), { version: 2, entries: entries.slice(-24), conversationId, conversationAt, turns: windowPalSessionTurns("", [...turns]).turns });
 }
 
 function restoreAnswer(entry: Record<string, unknown>, id: string, query: string | undefined): PalChatEntry | null {
@@ -105,7 +95,7 @@ function restoreAnswer(entry: Record<string, unknown>, id: string, query: string
 
 /** Restore this owner's facts and proposals. A proposal still needs a fresh tap. */
 export function readPalChatThread(owner: string, now = Date.now()): PalChatThread | null {
-  const saved = record(readSurfaceSnapshot<unknown>(key(owner), PUB_PAL_CONVERSATION_IDLE_MS, now));
+  const saved = record(readSurfaceSnapshot<unknown>(palChatThreadKey(owner), PUB_PAL_CONVERSATION_IDLE_MS, now));
   if (saved?.version !== 2 || !Array.isArray(saved.entries) || !Array.isArray(saved.turns)) return null;
   const entries: PalChatEntry[] = [];
   const priorAsks: string[] = [];

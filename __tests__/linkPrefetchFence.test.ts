@@ -157,7 +157,6 @@ const PENDING_GUARD: ReadonlyArray<{ file: string }> = [
   { file: "components/pubpal/PubPalSummon.tsx" },
   { file: "components/pubpal/PubPalVoice.tsx" },
   { file: "components/social/ConfirmFollow.tsx" },
-  { file: "components/social/CreatorListsLane.tsx" },
   { file: "components/social/PublicCrewRouteClient.tsx" },
 ];
 

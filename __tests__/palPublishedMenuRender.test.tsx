@@ -10,7 +10,7 @@ vi.mock("@/lib/supabase", () => ({ clientIp: () => "203.0.113.44", hashIp: (ip: 
 
 import { POST } from "@/app/api/pub-pal/chat/route";
 import { createPalChatSession } from "@/lib/palChatClient";
-import { AnswerCard } from "@/components/pal/PalChat";
+import { AnswerCard } from "@/components/pal/PalChatAnswerCard";
 
 afterEach(() => { vi.unstubAllEnvs(); document.body.replaceChildren(); });
 

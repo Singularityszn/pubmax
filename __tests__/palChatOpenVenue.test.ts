@@ -109,6 +109,7 @@ afterEach(async () => {
 });
 
 async function askPal(text: string): Promise<void> {
+  const requests = askSession.mock.calls.length + router.push.mock.calls.length + planRead.mock.calls.length;
   const input = container.querySelector<HTMLInputElement>(".palChatInput");
   const form = container.querySelector<HTMLFormElement>("form");
   if (!input || !form) throw new Error("Pal chat form not found");
@@ -117,6 +118,10 @@ async function askPal(text: string): Promise<void> {
     input.dispatchEvent(new Event("input", { bubbles: true }));
     form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
   });
+  await act(async () => {
+    await vi.waitFor(() => expect(askSession.mock.calls.length + router.push.mock.calls.length + planRead.mock.calls.length).toBeGreaterThan(requests));
+  });
+  await act(async () => { await vi.dynamicImportSettled(); });
 }
 
 describe("Pal locality line", () => {

@@ -384,9 +384,9 @@ describe("disruptionForPatch (end-to-end, pure)", () => {
     expect(disruptionForPatch(body as RawLineStatus[], "soho", FRIDAY_EVENING)).toBeNull();
   });
 
-  it.each([42, true, [], {}, { toString: null }, null])(
+  it.each([42, true, [], {}, { toString: null }, null].map((name) => ({ name })))(
     "uses the line id when the name is malformed: %j",
-    (name) => {
+    ({ name }) => {
       const body: unknown = [{ id: "victoria", name, lineStatuses: [{ statusSeverity: 2 }] }];
       const result = disruptionForPatch(body as RawLineStatus[], "soho", FRIDAY_EVENING);
       expect(result?.line).toBe("victoria line suspended tonight, plan the bus or the walk");
