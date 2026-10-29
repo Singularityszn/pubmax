@@ -954,6 +954,7 @@ function SocialPageAccountState({
               <Link prefetch={false} href="/messages">Messages</Link>
               <Link prefetch={false} href="/pal">Your Pub Pal</Link>
               <Link prefetch={false} href="/plan">Plan a crawl</Link>
+              <Link prefetch={false} href="/hosted-outings">Hosted outings</Link>
             </nav>
           ) : null}
         </div>

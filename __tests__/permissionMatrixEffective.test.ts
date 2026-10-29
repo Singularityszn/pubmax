@@ -2437,3 +2437,30 @@ describe("account deletion", () => {
     expect(truth(`select count(*) from public.plans where id = '${PLAN_ID}' and owner_user_id = '${ALICE}'`)).toBe("1");
   });
 });
+
+describe("Hosted outings: service-only table and RPC doors", () => {
+  it("denies hosted rows and actor-taking RPCs to every browser role", () => {
+    for (const table of ["hosted_outings", "hosted_outing_attendees", "hosted_outing_reports", "hosted_outing_feedback"]) {
+      expect(visibleRows("anon", null, `select count(*) from public.${table}`)).toBe(0);
+      for (const sub of [ALICE, BOB, CAROL, DAVE]) {
+        expect(visibleRows("authenticated", sub, `select count(*) from public.${table}`)).toBe(0);
+        const write = attemptAsRole("authenticated", sub, `delete from public.${table}`);
+        expect(write.ok).toBe(false);
+        expect(write.err).toMatch(/permission denied/i);
+      }
+    }
+    for (const call of [
+      `select public.hosted_outing_operator_eligible('${BOB_PROFILE}'::uuid)`,
+      `select public.hosted_outing_moderator_eligible('70000000-0000-4000-8000-000000000002'::uuid)`,
+      `select public.read_hosted_outings('${BOB_ACCOUNT}'::uuid,null::uuid)`,
+      `select public.change_hosted_outing('${BOB_ACCOUNT}'::uuid,'70000000-0000-4000-8000-000000000001'::uuid,'join','{}'::jsonb,null::integer,true)`,
+      `select public.create_hosted_outing('${BOB_ACCOUNT}'::uuid,'Outing','venue-fixture','Public pub',now()+interval '1 day',2,'70000000-0000-4000-8000-000000000002'::uuid)`,
+    ]) {
+      for (const role of ["anon", "authenticated"] as const) {
+        const attempted = attemptAsRole(role, role === "anon" ? null : BOB, call);
+        expect(attempted.ok, call).toBe(false);
+        expect(attempted.err).toMatch(/permission denied/i);
+      }
+    }
+  });
+});

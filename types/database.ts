@@ -814,6 +814,228 @@ export type Database = {
         };
         Relationships: [];
       };
+      hosted_outing_attendees: {
+        Row: {
+          outing_id: string;
+          profile_id: string;
+          user_id: string;
+          state: string;
+          pace: string;
+          budget_pence: number;
+          joined_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          outing_id: string;
+          profile_id: string;
+          user_id: string;
+          state?: string;
+          pace: string;
+          budget_pence: number;
+          joined_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          outing_id?: string;
+          profile_id?: string;
+          user_id?: string;
+          state?: string;
+          pace?: string;
+          budget_pence?: number;
+          joined_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "hosted_outing_attendees_outing_id_fkey";
+            columns: ["outing_id"];
+            isOneToOne: false;
+            referencedRelation: "hosted_outings";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "hosted_outing_attendees_profile_id_fkey";
+            columns: ["profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "hosted_outing_attendees_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      hosted_outing_feedback: {
+        Row: {
+          outing_id: string;
+          profile_id: string;
+          user_id: string;
+          rating: number;
+          created_at: string;
+        };
+        Insert: {
+          outing_id: string;
+          profile_id: string;
+          user_id: string;
+          rating: number;
+          created_at?: string;
+        };
+        Update: {
+          outing_id?: string;
+          profile_id?: string;
+          user_id?: string;
+          rating?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "hosted_outing_feedback_outing_id_fkey";
+            columns: ["outing_id"];
+            isOneToOne: false;
+            referencedRelation: "hosted_outings";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "hosted_outing_feedback_profile_id_fkey";
+            columns: ["profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "hosted_outing_feedback_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      hosted_outing_reports: {
+        Row: {
+          outing_id: string;
+          profile_id: string;
+          user_id: string;
+          body: string;
+          status: string;
+          created_at: string;
+        };
+        Insert: {
+          outing_id: string;
+          profile_id: string;
+          user_id: string;
+          body: string;
+          status?: string;
+          created_at?: string;
+        };
+        Update: {
+          outing_id?: string;
+          profile_id?: string;
+          user_id?: string;
+          body?: string;
+          status?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "hosted_outing_reports_outing_id_fkey";
+            columns: ["outing_id"];
+            isOneToOne: false;
+            referencedRelation: "hosted_outings";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "hosted_outing_reports_profile_id_fkey";
+            columns: ["profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "hosted_outing_reports_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      hosted_outings: {
+        Row: {
+          id: string;
+          title: string;
+          venue_id: string;
+          venue_name: string;
+          starts_at: string;
+          capacity: number;
+          status: string;
+          operator_profile_id: string | null;
+          moderator_staff_id: string | null;
+          venue_confirmation: string | null;
+          enrollment_enabled: boolean;
+          group_explanation: string | null;
+          group_budget_pence: number | null;
+          announcement: string;
+          revision: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          venue_id: string;
+          venue_name: string;
+          starts_at: string;
+          capacity: number;
+          status?: string;
+          operator_profile_id?: string | null;
+          moderator_staff_id?: string | null;
+          venue_confirmation?: string | null;
+          enrollment_enabled?: boolean;
+          group_explanation?: string | null;
+          group_budget_pence?: number | null;
+          announcement?: string;
+          revision?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          title?: string;
+          venue_id?: string;
+          venue_name?: string;
+          starts_at?: string;
+          capacity?: number;
+          status?: string;
+          operator_profile_id?: string | null;
+          moderator_staff_id?: string | null;
+          venue_confirmation?: string | null;
+          enrollment_enabled?: boolean;
+          group_explanation?: string | null;
+          group_budget_pence?: number | null;
+          announcement?: string;
+          revision?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "hosted_outings_moderator_staff_id_fkey";
+            columns: ["moderator_staff_id"];
+            isOneToOne: false;
+            referencedRelation: "private_social_staff_roles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "hosted_outings_operator_profile_id_fkey";
+            columns: ["operator_profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       map_search_events: {
         Row: {
           id: number;
@@ -6811,6 +7033,17 @@ export type Database = {
           review_state: string;
         }[];
       };
+      change_hosted_outing: {
+        Args: {
+          p_actor: string | null;
+          p_outing: string | null;
+          p_action: string | null;
+          p_input: Json;
+          p_revision: number | null;
+          p_enrollment_allowed?: boolean | null;
+        };
+        Returns: Json;
+      };
       charge_round_price_line: {
         Args: {
           p_actor: string | null;
@@ -7052,6 +7285,18 @@ export type Database = {
           p_provider: string | null;
         };
         Returns: Json;
+      };
+      create_hosted_outing: {
+        Args: {
+          p_actor: string | null;
+          p_title: string | null;
+          p_venue_id: string | null;
+          p_venue_name: string | null;
+          p_starts_at: string | null;
+          p_capacity: number | null;
+          p_moderator: string | null;
+        };
+        Returns: string;
       };
       create_plan_atomic: {
         Args: {
@@ -7404,6 +7649,18 @@ export type Database = {
         };
         Returns: Json;
       };
+      hosted_outing_moderator_eligible: {
+        Args: {
+          p_staff: string | null;
+        };
+        Returns: boolean;
+      };
+      hosted_outing_operator_eligible: {
+        Args: {
+          p_profile: string | null;
+        };
+        Returns: boolean;
+      };
       invite_social_crew_member_atomic: {
         Args: {
           p_actor_account_id: string | null;
@@ -7673,6 +7930,13 @@ export type Database = {
           byte_size: number;
           created_at: string;
         }[];
+      };
+      read_hosted_outings: {
+        Args: {
+          p_actor: string | null;
+          p_outing?: string | null;
+        };
+        Returns: Json;
       };
       read_lot_social_pub_ranking: {
         Args: {
