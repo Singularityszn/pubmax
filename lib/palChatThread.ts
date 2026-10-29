@@ -5,7 +5,7 @@ import type { RememberedArea } from "@/lib/nightPatches";
 import type { PalAnswer } from "@/lib/palChat";
 import { palChatResultFromBody } from "@/lib/palChatClient";
 import { resolvePalLocality, type PalLocality } from "@/lib/palLocality";
-import { windowPalSessionTurns } from "@/lib/palSessionSummary";
+import { recentPalSessionTurns } from "@/lib/palSessionTurns";
 import type { PalRecall } from "@/lib/palRecall";
 import { isPubPalConversationId, PUB_PAL_CONVERSATION_IDLE_MS } from "@/lib/pubPalConversationId";
 import { readSurfaceSnapshot, writeSurfaceSnapshot } from "@/lib/surfaceDataCache";
@@ -58,8 +58,10 @@ function menuEvidence(value: unknown): AskMenuEvidence | undefined {
 }
 
 /** Use the existing tab cache, including its account-change purge and age limit. */
-export function savePalChatThread(owner: string, entries: PalChatEntry[], conversationId: string, conversationAt: number, turns: readonly AskTurn[]): void {
-  writeSurfaceSnapshot(key(owner), { version: 2, entries: entries.slice(-24), conversationId, conversationAt, turns: windowPalSessionTurns("", [...turns]).turns });
+export async function savePalChatThread(owner: string, entries: PalChatEntry[], conversationId: string, conversationAt: number, turns: readonly AskTurn[], signal?: AbortSignal): Promise<void> {
+  const recent = await recentPalSessionTurns(turns);
+  if (signal?.aborted) return;
+  writeSurfaceSnapshot(key(owner), { version: 2, entries: entries.slice(-24), conversationId, conversationAt, turns: recent });
 }
 
 export function clearPalChatThread(owner: string): void {
@@ -104,7 +106,7 @@ function restoreAnswer(entry: Record<string, unknown>, id: string, query: string
 }
 
 /** Restore this owner's facts and proposals. A proposal still needs a fresh tap. */
-export function readPalChatThread(owner: string, now = Date.now()): PalChatThread | null {
+export async function readPalChatThread(owner: string, now = Date.now()): Promise<PalChatThread | null> {
   const saved = record(readSurfaceSnapshot<unknown>(key(owner), PUB_PAL_CONVERSATION_IDLE_MS, now));
   if (saved?.version !== 2 || !Array.isArray(saved.entries) || !Array.isArray(saved.turns)) return null;
   const entries: PalChatEntry[] = [];
@@ -134,6 +136,6 @@ export function readPalChatThread(owner: string, now = Date.now()): PalChatThrea
   const conversationAt = typeof saved.conversationAt === "number" && Number.isFinite(saved.conversationAt) ? saved.conversationAt : 0;
   const conversationId = typeof saved.conversationId === "string" && isPubPalConversationId(saved.conversationId)
     && conversationAt <= now && now - conversationAt < PUB_PAL_CONVERSATION_IDLE_MS ? saved.conversationId : "";
-  const recent = windowPalSessionTurns("", turns).turns;
+  const recent = await recentPalSessionTurns(turns);
   return { entries, priorAsks: recent.filter((turn) => turn.role === "user").map((turn) => turn.content), turns: recent, conversationId, conversationAt };
 }

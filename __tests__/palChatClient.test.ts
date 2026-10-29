@@ -93,6 +93,27 @@ it("retains the resolved area through repeated budget follow-ups and session res
   expect(areas.slice(-2)).toEqual(["Camden", "Camden"]);
 });
 
+it("normalises all initial history before retaining six turns and grounds the visible follow-up", async () => {
+  const turns: AskTurn[] = [{ role: "user", content: "Find pubs in Soho" }];
+  for (const budget of [7, 6.8, 6.6, 6.4]) {
+    turns.push({ role: "user", content: `Same area, under £${budget} a pint` }, { role: "assistant", content: "Listed choices." });
+  }
+  let sent: AskTurn[] = [];
+  const ask = createPalChatSession({
+    initialTurns: turns,
+    fetchImpl: async (_input, init) => {
+      sent = JSON.parse(String(init?.body)).turns;
+      return jsonResponse({ answer: "Listed Soho pubs.", cards: [] });
+    },
+  });
+  const result = await ask("Same area, under £6 a pint", "london");
+  expect(sent).toHaveLength(6);
+  expect(sent.filter((turn) => turn.role === "user").map((turn) => turn.content)).toEqual([
+    "pubs in Soho, under £6.8 a pint", "pubs in Soho, under £6.6 a pint", "pubs in Soho, under £6.4 a pint",
+  ]);
+  expect(result).toMatchObject({ status: "empty", message: "Listed Soho pubs.", routedQuery: "pubs in Soho, under £6 a pint" });
+});
+
 const VENUE_BODY = {
   venues: [
     {
