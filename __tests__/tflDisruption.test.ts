@@ -384,6 +384,48 @@ describe("disruptionForPatch (end-to-end, pure)", () => {
     expect(disruptionForPatch(body as RawLineStatus[], "soho", FRIDAY_EVENING)).toBeNull();
   });
 
+  it.each([42, true, [], {}, { toString: null }, null])(
+    "uses the line id when the name is malformed: %j",
+    (name) => {
+      const body: unknown = [{ id: "victoria", name, lineStatuses: [{ statusSeverity: 2 }] }];
+      const result = disruptionForPatch(body as RawLineStatus[], "soho", FRIDAY_EVENING);
+      expect(result?.line).toBe("victoria line suspended tonight, plan the bus or the walk");
+    },
+  );
+
+  it.each(["fromDate", "toDate"] as const)(
+    "treats a malformed %s as absent for every planned severity",
+    (field) => {
+      for (const value of [42, true, ["2026-07-24T23:00:00Z"], {}, { toString: null }, null]) {
+        for (const isNow of [undefined, false, true]) {
+          for (const statusSeverity of [4, 5, 11]) {
+            const body: unknown = [{
+              id: "victoria",
+              name: "Victoria",
+              lineStatuses: [{
+                statusSeverity,
+                validityPeriods: [{
+                  fromDate: "2026-07-24T22:30:00Z",
+                  toDate: "2026-07-25T00:45:00Z",
+                  [field]: value,
+                  isNow,
+                }],
+              }],
+            }];
+            const result = disruptionForPatch(body as RawLineStatus[], "soho", FRIDAY_EVENING);
+            if (isNow === true) {
+              expect(result?.line).toBe(statusSeverity === 4
+                ? "Victoria line closed tonight for planned works, plan another way home"
+                : "Victoria line part closed tonight for planned works, check your branch");
+            } else {
+              expect(result).toBeNull();
+            }
+          }
+        }
+      }
+    },
+  );
+
   it("still surfaces a real disruption beside malformed entries", () => {
     const body = [null, "victoria", { id: "central", lineStatuses: {} }, status("victoria", "Victoria", 2)];
     const result = disruptionForPatch(body as RawLineStatus[], "soho", FRIDAY_EVENING);
