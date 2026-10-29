@@ -120,7 +120,7 @@ let container: HTMLDivElement;
 let root: Root;
 
 beforeEach(() => {
-  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -130,6 +130,7 @@ afterEach(() => {
   act(() => root.unmount());
   container.remove();
   OUT_EVENTS.length = 0;
+  vi.unstubAllGlobals();
 });
 
 async function mount(props: Record<string, unknown> = {}): Promise<void> {
@@ -231,11 +232,15 @@ describe("the tonight lede, hydrated", () => {
     expect(container.textContent).not.toContain("city’s having a quiet one tonight");
     expect(container.querySelector('[data-tonight-provenance="whats-on"]')?.textContent)
       .not.toContain("Quiet night");
-    expect(ledeText()).toContain("No confirmed events listed tonight");
+    expect(ledeText()).toContain("Chain listings are available below.");
+    expect(ledeText()).not.toContain("No confirmed events listed tonight");
   });
 
   it("shows the chain supply under the lede, under the chain's own name", async () => {
     await mount({ hypedPubs: HYPED });
+    expect(container.querySelector('[data-testid="tonight-screen"]')?.getAttribute("data-listings-status")).toBe("empty");
+    expect(ledeText()).toContain("Chain listings are available below.");
+    expect(ledeText()).not.toContain("No confirmed events listed tonight");
     const chains = container.querySelector('[data-testid="tonight-chain-lanes"]');
     expect(chains?.textContent).toContain("Wetherspoon deals tonight");
     expect(chains?.textContent).toContain("J D Wetherspoon - Food & drink");
