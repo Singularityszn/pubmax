@@ -511,7 +511,7 @@ loss or a block; owner leave remains a durable conflict until ownership moves.
 - **Rollback / kill:** remove VAPID/APNs provider credentials to select the
   transport-specific loud no-ops, or 503 the registration route. Both client
   seams degrade fail-soft. Durable rows live in `public.push_tokens`
-  (migrations 0039 + 0046, RLS on, anon/authenticated revoked);
+  (migrations 0039 + 0052, RLS on, anon/authenticated revoked);
   `truncate public.push_tokens` is a safe reset — devices re-register on next
   boot.
 
