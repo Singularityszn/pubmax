@@ -55,7 +55,7 @@ export default function SunChaserPanel() {
         />
       </label>
       <p aria-live="polite" className="sunChaserStatus">{statusLine(state)}</p>
-      <p>Gardens likely in the sun get a sun dot. {SUN_ESTIMATE_CAVEAT} Trees, awnings and walls are not counted.</p>
+      <p>Gardens likely in the sun get a sun dot beside their pin, once the map shows the pin. {SUN_ESTIMATE_CAVEAT} Trees, awnings and walls are not counted.</p>
     </>
   );
 }
