@@ -346,7 +346,7 @@ const nextConfig = {
       { source: "/memories", destination: "/u/you#night-memories", permanent: false },
       { source: "/crews", destination: "/social", permanent: false },
       { source: "/coffee", destination: "/map?drink=coffee", permanent: false },
-      { source: "/gardens", destination: "/map", permanent: false },
+      { source: "/gardens", destination: "/map?garden=1", permanent: false },
     ];
   },
   async headers() {

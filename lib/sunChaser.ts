@@ -275,6 +275,15 @@ export type SunTimeline = {
 export function buildSunTimeline(
   surroundings: SunSurroundings,
   from: Date,
+  options: { stepMinutes?: number; horizonMinutes?: number } = {},
+): SunTimeline {
+  return timelineFromStates((ms) => sunStateAt(surroundings, new Date(ms)), from, options);
+}
+
+/** The timeline walk over any reading of the state at a minute, so its search can be tested on its own. */
+export function timelineFromStates(
+  stateAt: (ms: number) => SunState,
+  from: Date,
   { stepMinutes = SUN_CHASER_STEP_MINUTES, horizonMinutes = SUN_CHASER_HORIZON_MINUTES } = {},
 ): SunTimeline {
   const stepMs = stepMinutes * 60_000;
@@ -282,20 +291,26 @@ export function buildSunTimeline(
   const end = start + horizonMinutes * 60_000;
   const segments: SunSegment[] = [];
   let segmentStart = start;
-  let state = sunStateAt(surroundings, new Date(start));
+  let state = stateAt(start);
   for (let t = start + stepMs; t <= end; t += stepMs) {
-    const next = sunStateAt(surroundings, new Date(t));
-    if (next === state) continue;
+    const next = stateAt(t);
+    // One step can hold more than one change (shade, a gap of sun, then
+    // sunset), so keep finding the next change until the walk agrees with
+    // the sample at the end of the step. Each pass starts where the state
+    // is known to hold and ends where it is known not to.
     let lo = t - stepMs;
-    let hi = t;
-    while (hi - lo > 60_000) {
-      const mid = lo + Math.floor((hi - lo) / 120_000) * 60_000;
-      if (sunStateAt(surroundings, new Date(mid)) === state) lo = mid;
-      else hi = mid;
+    while (state !== next) {
+      let hi = t;
+      while (hi - lo > 60_000) {
+        const mid = lo + Math.floor((hi - lo) / 120_000) * 60_000;
+        if (stateAt(mid) === state) lo = mid;
+        else hi = mid;
+      }
+      segments.push({ state, start: new Date(segmentStart), end: new Date(hi) });
+      segmentStart = hi;
+      state = stateAt(hi);
+      lo = hi;
     }
-    segments.push({ state, start: new Date(segmentStart), end: new Date(hi) });
-    segmentStart = hi;
-    state = sunStateAt(surroundings, new Date(hi));
   }
   segments.push({ state, start: new Date(segmentStart), end: new Date(end) });
   return { from: new Date(start), to: new Date(end), segments };

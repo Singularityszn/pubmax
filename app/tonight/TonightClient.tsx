@@ -47,6 +47,7 @@ import TonightHypedPubs from "./TonightHypedPubs";
 import TonightListingsNotice from "./TonightListingsNotice";
 import TonightProvenanceLines from "./TonightProvenanceLines";
 import TonightGetHomeStrip from "./TonightGetHomeStrip";
+import TonightLastOrdersDoor from "./TonightLastOrdersDoor";
 import TonightLaterListings from "./TonightLaterListings";
 import TonightOpenPlans, { TonightDrinkWallLine } from "./TonightOpenPlans";
 import TonightAnswerCards from "@/components/tonight/TonightAnswerCards";
@@ -1005,6 +1006,16 @@ export default function TonightClient({
       ) : null}
 
       </div>
+      {/* Last orders sits under the lede, never in it: the answer comes first
+          and clears the docked consent card on the smallest phone, and its
+          list can name a chain pub, which the lede rule keeps out. From 21:30
+          the door is marked as the night's lead (TonightLastOrdersDoor). */}
+      <TonightLastOrdersDoor
+        origin={origin}
+        near={tonightNear}
+        onShareLocation={requestLocation}
+        locating={locationStatus === "requesting"}
+      />
       </div>
 
       {/* The first pub and its map action precede the listing explanation and

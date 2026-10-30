@@ -213,10 +213,11 @@ describe("the shipped budget file", () => {
     // of every dynamic and static family advertised by the sitemap.
     // docs/PERFORMANCE_BUDGETS.md "Which routes are budgeted" holds the list;
     // __tests__/sitemap.test.ts fails a family that is advertised and unmeasured.
-    // 53: plus /board/venue-eltcmh, the board reader (round 5, A4).
-    // 54: plus /time-machine, the pint price time machine (round 5, F1).
-    // 55: plus /dog-of-the-week, Dog of the week (round 5, F7).
-    expect(PERFORMANCE_BUDGETS.routes).toHaveLength(55);
+    // 53: plus /area/piccadilly-soho, the Night Area page (main, c6f19fd1).
+    // 54: plus /board/venue-eltcmh, the board reader (round 5, A4).
+    // 55: plus /time-machine, the pint price time machine (round 5, F1).
+    // 56: plus /dog-of-the-week, Dog of the week (round 5, F7).
+    expect(PERFORMANCE_BUDGETS.routes).toHaveLength(56);
   });
 
   it("gives every route a readiness selector and a reason", () => {

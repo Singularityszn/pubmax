@@ -27,6 +27,7 @@ import { pubSources, writerProfile } from "@/lib/curation";
 import { curatedCrawls as londonCuratedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import type { CityId } from "@/lib/cities";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
+import { LAST_ORDERS_FILTER_CAPTION } from "@/lib/lastOrdersList";
 import { OPEN_NOW_FILTER_CAPTION } from "@/lib/openNow";
 import {
   accessibilityFilterSummary,
@@ -470,6 +471,21 @@ export default function ControlRail({
         {filters.openNow ? (
           <p className="accessibilityHint" style={{ marginTop: 4 }} role="status">
             {OPEN_NOW_FILTER_CAPTION}
+          </p>
+        ) : null}
+        <label>
+          <input
+            type="checkbox"
+            checked={filters.lastOrders === true}
+            onChange={(event) =>
+              onFiltersChange({ ...filters, lastOrders: event.target.checked })
+            }
+          />
+          Last orders: open 30 more minutes
+        </label>
+        {filters.lastOrders ? (
+          <p className="accessibilityHint" style={{ marginTop: 4 }} role="status">
+            {LAST_ORDERS_FILTER_CAPTION}
           </p>
         ) : null}
       </section>
