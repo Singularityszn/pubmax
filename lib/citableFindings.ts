@@ -26,6 +26,15 @@ export type CitableSample = {
   windowLabel: string;
 };
 
+// A Pint Index month is a UTC calendar month (lib/pintIndexArchive.ts), so a
+// window edge is read as its UTC day. Formatting the instant itself in London
+// time turns a June edition's last instant, 23:59:59.999Z, into 1 July, and every
+// finding would then claim a period outside its own frozen edition. Noon on the
+// UTC day is the `pintIndexMonthCloseDay` idiom: no zone can move it a day.
+function windowDay(iso: string): string {
+  return formatPintIndexDate(`${new Date(iso).toISOString().slice(0, 10)}T12:00:00.000Z`);
+}
+
 export function citableSample(snapshot: PintIndexSnapshot): CitableSample | null {
   if (!snapshot.observationWindow || snapshot.observations.length === 0) return null;
   const summary = indexSummary(buildLeagueTable(snapshot));
@@ -34,7 +43,7 @@ export function citableSample(snapshot: PintIndexSnapshot): CitableSample | null
     boroughCount: summary.boroughCount,
     observationCount: snapshot.observations.length,
     sourceCount: snapshot.sources.length,
-    windowLabel: `${formatPintIndexDate(snapshot.observationWindow.start)} to ${formatPintIndexDate(snapshot.observationWindow.end)}`,
+    windowLabel: `${windowDay(snapshot.observationWindow.start)} to ${windowDay(snapshot.observationWindow.end)}`,
   };
 }
 

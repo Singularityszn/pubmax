@@ -28,7 +28,7 @@ function snapshotWith(boroughs: readonly [string, string, number, number][]): Pi
     generatedAt: "2026-10-01T00:00:00.000Z",
     observationWindow: observations.length === 0
       ? null
-      : { start: "2026-09-01T00:00:00.000Z", end: "2026-09-30T12:00:00.000Z" },
+      : { start: "2026-09-01T00:00:00.000Z", end: "2026-09-30T23:59:59.999Z" },
     classification: {
       version: LONDON_BOROUGH_CLASSIFIER_VERSION,
       method: "point_in_polygon",
@@ -89,6 +89,19 @@ describe("citableFindings", () => {
   it("drops the borough comparison when only one borough is listed", () => {
     const one = snapshotWith([["hackney", "Hackney", SEED_BOROUGH_MONTHLY_TARGET, 550]]);
     expect(citableFindings(one).map((finding) => finding.id)).toEqual(["average", "dearest-pint"]);
+  });
+
+  it("keeps a summer edition's period inside its own UTC month", () => {
+    const june = {
+      ...snapshotWith([["hackney", "Hackney", SEED_BOROUGH_MONTHLY_TARGET, 550]]),
+      observationWindow: { start: "2026-06-01T00:00:00.000Z", end: "2026-06-30T23:59:59.999Z" },
+    };
+    june.observations = june.observations.map((row) => ({ ...row, observedAt: "2026-06-10T12:00:00.000Z" }));
+    expect(citableSample(june)?.windowLabel).toBe("1 June 2026 to 30 June 2026");
+    for (const { sentence } of citableFindings(june)) {
+      expect(sentence).toContain("between 1 June 2026 to 30 June 2026");
+      expect(sentence).not.toContain("July");
+    }
   });
 
   it("counts the sample a writer needs to check the claim", () => {
