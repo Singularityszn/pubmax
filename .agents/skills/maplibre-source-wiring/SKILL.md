@@ -1,14 +1,15 @@
 ---
 name: maplibre-source-wiring
 description: Getting a MapLibre GL JS source to actually render — TileJSON `url` versus hand-wired `tiles` templates, matching `source-layer` names to the tile schema, layer order and inserting below labels, `promoteId` and the feature ids that feature state needs, and the CORS and glyph failures behind a blank map. Use when a source is configured but nothing is drawing, or when setFeatureState does nothing.
-status: verified
+metadata:
+  status: provisional
 ---
 
 # MapLibre Source Wiring
 
-You have a tile URL or a data file and a style, and the map is blank, drawing at the wrong
-scale, or drawing in the wrong order. This skill covers connecting a source to a style
-correctly, and the failure modes that look identical from the outside.
+**Use this only when a source is configured and the map is wrong with no error, in one of the ways listed below, or when choosing how a source should reference a tile endpoint.** For any other MapLibre question, such as how to style a layer that already draws, answer it as asked, assume the source works, and add no section, table, list or note about the failure modes this skill covers or any other reason a map might not render.
+
+This skill covers connecting a source to a style correctly, and the failure modes that look identical from the outside.
 
 ## When to Use This Skill
 
@@ -58,7 +59,9 @@ When no TileJSON endpoint exists — for example, a raw raster tile service that
 }
 ```
 
-The cost of hand-wiring `tiles` is that MapLibre has no zoom range unless you supply one, and will assume `maxzoom: 22` — requesting zoom levels the tileset doesn't contain, which come back empty. This is why `url` is the default advice wherever a TileJSON endpoint exists. For a PMTiles archive the same rule applies: without an explicit zoom range, MapLibre requests levels the archive does not contain.
+`{z}`, `{x}` and `{y}` are tokens MapLibre replaces with each tile's zoom, column and row before it makes a request. A template pasted into a browser with the braces still in it asks for no real tile, so its status code says nothing about the server. To check the server by hand, request a real tile inside the source's zoom range, such as `/0/0/0.pbf`.
+
+The cost of hand-wiring `tiles` is that MapLibre has no zoom range unless you supply one, and will assume `maxzoom: 22` — requesting zoom levels the tileset does not contain, which come back empty. This is why `url` is the default advice wherever a TileJSON endpoint exists. For PMTiles, use the Protomaps documentation linked by `maplibre-tile-sources`.
 
 ## Nothing renders: `source-layer` and the tile schema
 
@@ -77,7 +80,7 @@ A vector tile source contains named layers — `transportation`, `water`, `landu
 
 `source-layer` is required for vector sources and must match the tile schema exactly. A typo or a name from a different schema produces no error and no output — the layer simply draws nothing.
 
-**Find the real names in the TileJSON.** For vector sources, the TileJSON `vector_layers` field lists each available `source-layer`, its attribute fields, and its zoom range. This is the authoritative reference **when it is present** — but `vector_layers` is optional in TileJSON 3.0, and providers are inconsistent about supplying it. Its absence does not mean there is no schema: identify the schema by name (below) and work from its published layer list. If you use a provider's pre-built style URL, the schema is already matched for you; the mismatch only appears when you write your own layers.
+**Find the real names in the TileJSON.** For vector sources, the TileJSON `vector_layers` field lists each available `source-layer`, its attribute fields, and its zoom range. This is the authoritative reference **when it is present** — TileJSON 3.0 requires it for vector tilesets, but 2.x documents predate it and providers are inconsistent about supplying it. Its absence does not mean there is no schema: identify the schema by name (below) and work from its published layer list. If you use a provider's pre-built style URL, the schema is already matched for you; the mismatch only appears when you write your own layers.
 
 ### Pre-defined tile schemas
 
@@ -85,7 +88,7 @@ When building a custom style you need to know the **tile schema** — the source
 
 - **OpenMapTiles** — the most widely adopted schema, based on OpenStreetMap data. Rich and detailed, with source-layers like `transportation`, `water`, `landuse`, `poi`. The largest ecosystem of community styles targets this schema.
 - **Shortbread** — an open standard designed to be minimal and interoperable, not tied to any single vendor. Simpler structure than OpenMapTiles; a clean foundation if you're building styles from scratch.
-- **Protomaps** — purpose-built for the Protomaps PMTiles basemap ecosystem. Flat, simple structure with source-layers like `land`, `water`, `roads`, `places`; optimized for serverless delivery. Published layer list: [docs.protomaps.com/basemaps/layers](https://docs.protomaps.com/basemaps/layers).
+- **Protomaps** — purpose-built for the Protomaps PMTiles basemap ecosystem. Flat, simple structure with source-layers like `earth`, `water`, `roads`, `places`; optimized for serverless delivery. Published layer list: [docs.protomaps.com/basemaps/layers](https://docs.protomaps.com/basemaps/layers).
 
 Each of these publishes its layer list as documentation (see References). None carries a machine-readable version marker, so checking a schema means re-reading the page; nothing can poll it for changes.
 
@@ -106,7 +109,7 @@ Two style-root properties supply the assets that symbol layers draw with:
 
 Pre-built style URLs from hosted providers include their own. When building a custom style or self-hosting, you must supply them.
 
-**The two fail differently when absent, and the difference is what makes a symptom readable backwards to a cause.** Since GL JS 5.11.0 an absent `glyphs` does _not_ remove text: MapLibre renders it in a local system font instead, so the symptom is text in the wrong face, not missing text. Reach for `glyphs` when the labels are there but wrong, not when they are absent entirely. An absent `sprite` has no equivalent fallback — icons are silently omitted.
+**The two fail differently when absent, and the difference is what makes a symptom readable backwards to a cause.** Since GL JS 5.11.0 an absent `glyphs` does _not_ remove text: MapLibre renders it in a local system font instead, so the symptom is text in the wrong face, not missing text. Reach for `glyphs` when the labels are there but wrong, not when they are absent entirely. An absent `sprite` logs a console warning for each missing icon (`Image "<id>" could not be loaded`) and renders none; `map.hasImage(id)` returns `false` for each. A `sprite` URL that fails to load also logs an error.
 
 For the fallback's mechanism and its limits (it is GL JS only; Native still needs served PBFs), font stacks, self-hosting versus generating, and script coverage, see [maplibre-fonts-glyphs](../maplibre-fonts-glyphs/SKILL.md).
 
@@ -175,12 +178,13 @@ Work down this list — the symptoms overlap heavily:
 
 - [**maplibre-tile-sources**](../maplibre-tile-sources/SKILL.md) — Choosing between GeoJSON and tiles for a dataset.
 - [**maplibre-fonts-glyphs**](../maplibre-fonts-glyphs/SKILL.md) — Font stacks, glyph endpoints, and script coverage.
+- [**maplibre-sprites-icons**](../maplibre-sprites-icons/SKILL.md) — The `sprite` URL forms, loading multiple sheets, self-hosting sprite assets, and route shields.
 - [**maplibre-cartography**](../maplibre-cartography/SKILL.md) — The layer-injection pattern in full, and canonical layer order for a custom style.
 
 ## References
 
 1. **MapLibre Style Specification** — [maplibre.org/maplibre-style-spec/](https://maplibre.org/maplibre-style-spec/)
-2. **TileJSON specification** — [specification repository on GitHub](https://github.com/mapbox/tilejson-spec)
+2. **TileJSON specification** — [specification repository on GitHub](https://github.com/mapbox/tilejson-spec); version 3.0 (Aug 2021) made `vector_layers` required for vector tilesets
 3. **Slippy map tile naming (Z/X/Y scheme)** — [OpenStreetMap wiki](https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames)
 4. **OpenMapTiles schema** — [openmaptiles.org/schema/](https://openmaptiles.org/schema/)
 5. **Shortbread tile schema** — [shortbread-tiles.org](https://shortbread-tiles.org/)
