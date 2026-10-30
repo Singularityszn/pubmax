@@ -47,6 +47,7 @@ import TonightHypedPubs from "./TonightHypedPubs";
 import TonightListingsNotice from "./TonightListingsNotice";
 import TonightProvenanceLines from "./TonightProvenanceLines";
 import TonightGetHomeStrip from "./TonightGetHomeStrip";
+import TonightLastOrdersDoor from "./TonightLastOrdersDoor";
 import TonightLaterListings from "./TonightLaterListings";
 import TonightOpenPlans from "./TonightOpenPlans";
 import TonightOnTonightSummary from "./TonightOnTonightSummary";
@@ -693,6 +694,14 @@ export default function TonightClient({
           docs/rules/app-proxy-csp-caching-and-file-tracing.md. Chain blocks
           and cheap pints stay outside it so they cannot lead the answer. */}
       <div className="tonightLedeRegion" data-testid="tonight-lede">
+      {/* From 21:30 the night's question is who is still open, so Last
+          orders leads; earlier it is one quiet door (TonightLastOrdersDoor). */}
+      <TonightLastOrdersDoor
+        origin={origin}
+        near={tonightNear}
+        onShareLocation={requestLocation}
+        locating={locationStatus === "requesting"}
+      />
       <TonightHypedPubs
         rows={hypedPubs}
         selectableVenueIds={selectableVenueIds}

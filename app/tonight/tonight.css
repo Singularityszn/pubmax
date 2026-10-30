@@ -866,3 +866,32 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* The Last orders door (TonightLastOrdersDoor). Its panel brings its own
+   sheet, tonightLastOrders.css, only when it opens. */
+.lastOrdersDoor {
+  margin: 0 0 var(--space-4);
+}
+
+.lastOrdersDoorButton {
+  width: 100%;
+  min-height: 48px;
+  gap: var(--space-2);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-lg);
+}
+
+/* From 21:30 the door is the night's lead. It reads in ink, the selection
+   idiom, never coral: the page's one coral is "Open the map". */
+.lastOrdersDoorButton[data-late="true"] {
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
+  font-weight: 650;
+}
+
+@media (min-width: 768px) {
+  .lastOrdersDoorButton {
+    width: auto;
+  }
+}
