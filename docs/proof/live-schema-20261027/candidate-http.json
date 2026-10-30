@@ -1,0 +1,228 @@
+{
+  "atUTC": "2026-10-27T18:29:23.252693+00:00",
+  "result": "passed",
+  "routes": [
+    {
+      "route": "/",
+      "status": 200,
+      "canonical": "https://pubmaxxing.com",
+      "types": [
+        "WebSite",
+        "Organization"
+      ]
+    },
+    {
+      "route": "/about",
+      "status": 200,
+      "canonical": "https://pubmaxxing.com/about",
+      "types": [
+        "WebSite",
+        "Organization",
+        "AboutPage"
+      ]
+    },
+    {
+      "route": "/borough/camden",
+      "status": 200,
+      "canonical": "https://pubmaxxing.com/borough/camden",
+      "types": [
+        "WebSite",
+        "Organization",
+        "BreadcrumbList",
+        "ItemList",
+        "FAQPage"
+      ]
+    },
+    {
+      "route": "/drink/guinness",
+      "status": 200,
+      "canonical": "https://pubmaxxing.com/drink/guinness",
+      "types": [
+        "WebSite",
+        "Organization",
+        "BreadcrumbList",
+        "ItemList"
+      ]
+    },
+    {
+      "route": "/area/clapham/drink/guinness",
+      "status": 200,
+      "canonical": "https://pubmaxxing.com/area/clapham/drink/guinness",
+      "types": [
+        "WebSite",
+        "Organization",
+        "BreadcrumbList",
+        "ItemList"
+      ]
+    },
+    {
+      "route": "/ledger/venue-1vle947",
+      "status": 200,
+      "canonical": "https://pubmaxxing.com/ledger/venue-1vle947",
+      "types": [
+        "WebSite",
+        "Organization",
+        "BarOrPub"
+      ]
+    },
+    {
+      "route": "/historic/prospect-of-whitby",
+      "status": 200,
+      "canonical": "https://pubmaxxing.com/historic/prospect-of-whitby",
+      "types": [
+        "WebSite",
+        "Organization",
+        "LandmarksOrHistoricalBuildings"
+      ]
+    },
+    {
+      "route": "/historic/the-grapes",
+      "status": 200,
+      "canonical": "https://pubmaxxing.com/historic/the-grapes",
+      "types": [
+        "WebSite",
+        "Organization",
+        "LandmarksOrHistoricalBuildings"
+      ]
+    },
+    {
+      "route": "/historic/black-lion",
+      "status": 200,
+      "canonical": "https://pubmaxxing.com/historic/black-lion",
+      "types": [
+        "WebSite",
+        "Organization",
+        "WebPage"
+      ]
+    },
+    {
+      "route": "/spoons-value",
+      "status": 200,
+      "canonical": "https://pubmaxxing.com/spoons-value",
+      "types": [
+        "WebSite",
+        "Organization",
+        "Dataset"
+      ]
+    },
+    {
+      "route": "/pint-index",
+      "status": 200,
+      "canonical": "https://pubmaxxing.com/pint-index",
+      "types": [
+        "WebSite",
+        "Organization"
+      ]
+    },
+    {
+      "route": "/pint-index/2026-06",
+      "status": 200,
+      "canonical": "https://pubmaxxing.com/pint-index/2026-06",
+      "types": [
+        "WebSite",
+        "Organization",
+        "Dataset"
+      ]
+    },
+    {
+      "route": "/historic/the-old-pack-horse",
+      "status": 200,
+      "canonical": "https://pubmaxxing.com/historic/the-old-pack-horse",
+      "types": [
+        "WebSite",
+        "Organization",
+        "WebPage"
+      ]
+    },
+    {
+      "route": "/historic/coach-and-horses",
+      "status": 200,
+      "canonical": "https://pubmaxxing.com/historic/coach-and-horses",
+      "types": [
+        "WebSite",
+        "Organization",
+        "WebPage"
+      ]
+    },
+    {
+      "route": "/historic/duke-of-wellington",
+      "status": 200,
+      "canonical": "https://pubmaxxing.com/historic/duke-of-wellington",
+      "types": [
+        "WebSite",
+        "Organization",
+        "WebPage"
+      ]
+    },
+    {
+      "route": "/historic/red-lion",
+      "status": 200,
+      "canonical": "https://pubmaxxing.com/historic/red-lion",
+      "types": [
+        "WebSite",
+        "Organization",
+        "WebPage"
+      ]
+    },
+    {
+      "route": "/historic/rising-sun",
+      "status": 200,
+      "canonical": "https://pubmaxxing.com/historic/rising-sun",
+      "types": [
+        "WebSite",
+        "Organization",
+        "WebPage"
+      ]
+    },
+    {
+      "route": "/historic/rose-and-crown",
+      "status": 200,
+      "canonical": "https://pubmaxxing.com/historic/rose-and-crown",
+      "types": [
+        "WebSite",
+        "Organization",
+        "WebPage"
+      ]
+    },
+    {
+      "route": "/historic/the-half-moon",
+      "status": 200,
+      "canonical": "https://pubmaxxing.com/historic/the-half-moon",
+      "types": [
+        "WebSite",
+        "Organization",
+        "WebPage"
+      ]
+    },
+    {
+      "route": "/historic/the-victoria",
+      "status": 200,
+      "canonical": "https://pubmaxxing.com/historic/the-victoria",
+      "types": [
+        "WebSite",
+        "Organization",
+        "WebPage"
+      ]
+    },
+    {
+      "route": "/historic/white-lion",
+      "status": 200,
+      "canonical": "https://pubmaxxing.com/historic/white-lion",
+      "types": [
+        "WebSite",
+        "Organization",
+        "WebPage"
+      ]
+    }
+  ],
+  "unreconciledRecordsChecked": 10,
+  "port6427ListenerRemaining": false,
+  "localProductionOnly": true,
+  "deploymentPerformed": false,
+  "blackLionJsonLd": {
+    "@context": "https://schema.org",
+    "name": "Black Lion",
+    "url": "https://pubmaxxing.com/historic/black-lion",
+    "@type": "WebPage"
+  }
+}

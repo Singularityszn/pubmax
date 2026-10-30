@@ -72,7 +72,7 @@ const USER_AGENT =
   `PubmaxxingBot/0.1 (+https://pubmaxxing.com; what's-on data curation; contact ${CONTACT_EMAIL})`;
 const FETCH_DELAY_MS = 1500;
 
-/** The lib/harvest/sourcePolicy.ts rows a live run needs. SpeedQuizzing has none. */
+/** The lib/harvest/sourceRegistry.ts rows a live run needs. SpeedQuizzing has none. */
 export { QUESTION_ONE_SOURCE_ID };
 export const SPEEDQUIZZING_SOURCE_ID = "speedquizzing-quiz-finder";
 
