@@ -301,4 +301,44 @@ describe("a former venue id and its successor are one pub", () => {
     );
     expect(asked).toEqual(["lamb"]);
   });
+
+  // Review P3b (PR 2402): after alias mapping one pub could sit twice in a
+  // top five, ranked once under its old id and once under its current id.
+  // The best-placed row is the one that stays.
+  it("keeps one row per pub in the taste card's top five, at its best place", async () => {
+    const asked: string[] = [];
+    const result = await readPassportTaste(
+      request(),
+      "owner",
+      deps("owner", "public", {
+        venueAliases: canonical,
+        rankings: async () => rankedRows(["a", "lamb-old", "b", "lamb", "c"]),
+        venue: async (venueId) => (asked.push(venueId), { name: venueId.toUpperCase(), borough: "Camden" }),
+      }),
+    );
+    expect(result.ok).toBe(true);
+    expect(asked.sort()).toEqual(["a", "b", "c", "lamb"]);
+    // The row that stays is the one ranked at place 2, under the old id's name.
+    if (!result.ok) return;
+    const dated = result.body.facts.filter((fact) => fact.value.includes("LAMB"));
+    expect(dated).toHaveLength(1);
+    expect(dated[0]?.value).toContain("LAMB-OLD");
+  });
+
+  it("intersects the shared top five once when one mate ranked a pub under both ids", async () => {
+    const result = await readPassportOverlap(
+      request(),
+      "owner",
+      deps("mate", "public", {
+        venueAliases: canonical,
+        rankings: async (profileId) =>
+          profileId === OWNER.id ? rankedRows(["a", "lamb-old", "b", "lamb", "c"]) : rankedRows(["lamb", "lamb-old"]),
+        wanted: async () => [],
+      }),
+    );
+    expect(result).toEqual({
+      ok: true,
+      body: { topFive: [{ venueId: "lamb", venueName: "LAMB-OLD" }], wantToTry: [] },
+    });
+  });
 });

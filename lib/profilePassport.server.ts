@@ -188,6 +188,22 @@ function onCurrentIds<T extends { venueId: string }>(rows: readonly T[], canonic
   return rows.map((row) => (row.venueId ? { ...row, venueId: canonical(row.venueId) } : row));
 }
 
+/**
+ * A ranked list on current ids, one row per pub at its best place. A pub
+ * ranked under an old id and under its current id is one pub, so only the
+ * better-placed row stays (review P3b, PR 2402).
+ */
+function rankedOnCurrentIds(rows: readonly PassportRankedRow[], canonical: (venueId: string) => string): PassportRankedRow[] {
+  const seen = new Set<string>();
+  return onCurrentIds(rows, canonical)
+    .sort((a, b) => a.place - b.place)
+    .filter((row) => {
+      if (seen.has(row.venueId)) return false;
+      seen.add(row.venueId);
+      return true;
+    });
+}
+
 async function named(sightings: BeenSighting[], deps: PassportDeps): Promise<BeenSighting[]> {
   return Promise.all(
     sightings.map(async (sighting) => {
@@ -275,7 +291,7 @@ export async function readPassportOverlap(
     return {
       ok: true,
       body: {
-        topFive: sharedTopFive(onCurrentIds(mineRanked, canonical), onCurrentIds(theirsRanked, canonical)),
+        topFive: sharedTopFive(rankedOnCurrentIds(mineRanked, canonical), rankedOnCurrentIds(theirsRanked, canonical)),
         wantToTry: sharedWantToTry(onCurrentIds(mineWanted, canonical), onCurrentIds(theirsWanted, canonical)),
       },
     };
@@ -301,7 +317,7 @@ export async function readPassportTaste(
     settle(() => rankedWithNames(profile.id, deps), [] as PassportRankedRow[]),
     canonicalizer(deps),
   ]);
-  const topFive = onCurrentIds(ranked.value, canonical).sort((a, b) => a.place - b.place).slice(0, 5);
+  const topFive = rankedOnCurrentIds(ranked.value, canonical).slice(0, 5);
   const enriched = await Promise.all(
     topFive.map(async (row) => {
       const [venue, dateLabel] = await Promise.all([
