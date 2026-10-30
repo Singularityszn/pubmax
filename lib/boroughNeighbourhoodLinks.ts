@@ -18,7 +18,7 @@ import { assignVenueToNightArea } from "@/lib/pricedLanding";
 import type { Venue } from "@/lib/venues";
 
 /** The night areas this pass links. Both have content and neither has a page. */
-export const LINKED_NIGHT_AREA_SLUGS = ["piccadilly-soho", "shoreditch"] as const;
+const LINKED_NIGHT_AREA_SLUGS = ["piccadilly-soho", "shoreditch"] as const;
 
 export type BoroughLink = { href: Route; label: string };
 
@@ -29,7 +29,7 @@ function areaMapHref(areaName: string): Route {
 }
 
 /** A borough links an area when it holds at least this many of its priced pubs. */
-export const NIGHT_AREA_LINK_FLOOR = 5;
+const NIGHT_AREA_LINK_FLOOR = 5;
 
 /** Slugs of the boroughs holding at least NIGHT_AREA_LINK_FLOOR of the area's priced pubs. */
 export function nightAreaBoroughSlugs(areaSlug: string, venues: readonly Venue[]): string[] {
