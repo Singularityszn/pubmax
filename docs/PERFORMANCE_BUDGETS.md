@@ -925,6 +925,9 @@ at LCP 296 to 452 ms over five samples, a worst sample above the 400 ms seed, so
 the row is held at its seed and the cause is to be found; `/contributors` read
 348 to 564 ms on the same box. `/time-machine` was measured in the same run and
 its ceilings came down to 907 KB, 41 requests and 605 ms.
+The run's log excerpt, identities and limits are in
+`docs/proof/2026-10-30-round5-perf-sweep/`: a loaded-box run on Linux with
+software WebGL, not acceptance.
 
 The rule they close is that **a route the sitemap advertises carries a budget**,
 and `__tests__/sitemap.test.ts` enforces it per family. The gap it found was
