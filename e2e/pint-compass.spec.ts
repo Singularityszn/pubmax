@@ -135,7 +135,8 @@ for (const theme of ["light", "dark"] as const) {
       expect(Math.abs(headX - hubX)).toBeLessThan(hub.width * 2);
       expect(head.y + head.height).toBeLessThan(hub.y + hub.height);
     }).toPass({ timeout: 5_000 });
-    await page.screenshot({ path: `${SHOTS}/390-${theme}-facing.png` });
+    await page.waitForTimeout(500); // let the needle finish its swing
+  await page.screenshot({ path: `${SHOTS}/390-${theme}-facing.png` });
 
     // Next cheapest steps through the list.
     const firstName = await card.locator(".pcName").textContent();
@@ -170,6 +171,7 @@ test("a phone with no compass gets the direction in words", async ({ page }) => 
     expect(head.y).toBeGreaterThanOrEqual(face.y);
     expect(head.y + head.height).toBeLessThanOrEqual(face.y + face.height);
   }
+  await page.waitForTimeout(500); // let the needle finish its swing
   await page.screenshot({ path: `${SHOTS}/390-light-no-sensor.png` });
 });
 
@@ -185,6 +187,7 @@ test("a refused location offers the areas, and an area answers", async ({ page }
   await page.getByRole("group", { name: "Pick an area" }).getByRole("button", { name: "Soho" }).click();
   await expect(page.getByText("From the middle of Soho.")).toBeVisible();
   await expect(page.locator(".pcCard .pcTrust")).toHaveText(/^On record · /);
+  await page.waitForTimeout(500); // let the needle finish its swing
   await page.screenshot({ path: `${SHOTS}/390-dark-area.png` });
 });
 
