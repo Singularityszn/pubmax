@@ -946,9 +946,9 @@ this file's own margins, so LCP is the worst sample plus 25 percent: 815 ms.
 box runs slow. CI's sweep is the oracle. Take them down, never up.
 
 **And `/routes/victorian-soho`**, added on 30 October 2026 with the named route
-family (`/routes/{slug}`, SEO audit #2126). It renders per request and reads the
-grouped dataset, unlike the CDN-held ledger. It was measured before its ceilings
-were set: on a production build of its branch in a Linux container, three
+family (`/routes/{slug}`, SEO audit #2126). It was measured before its ceilings
+were set, while it still rendered per request; it joined the CDN document list
+the same day: on a production build of its branch in a Linux container, three
 samples after one warm-up, it rendered in 28 to 29 ms, decoded 775 KB of JS over
 32 requests on every sample, and painted its LCP at 220 to 276 ms. The ceilings
 use this file's own margins: 892 KB, 37 requests, the 150 ms render floor and

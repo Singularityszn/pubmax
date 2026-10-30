@@ -109,6 +109,10 @@ export const CDN_CACHED_DOCUMENT_PATHS: ReadonlySet<string> = new Set([
 // cached. So no drinker's words sit in a cached copy, and a hidden, withdrawn
 // or erased drop leaves the page as soon as the store stops returning it.
 //
+// `/routes/[slug]` joined on 2026-10-30 (captain's call): the four named crawl
+// pages (SEO audit #2126). Each renders the bundled price dataset and nothing
+// a drinker wrote, and it throws rather than cache an unreadable dataset.
+//
 // `__tests__/cdnCachedDocuments.test.ts` holds each pattern to the page file
 // at the same path under app/, which must declare `force-static`.
 export const CDN_CACHED_DOCUMENT_ROUTES: ReadonlySet<string> = new Set([
@@ -118,6 +122,7 @@ export const CDN_CACHED_DOCUMENT_ROUTES: ReadonlySet<string> = new Set([
   "/drink/[slug]",
   "/area/[slug]/drink/[brand]",
   "/ledger/[id]",
+  "/routes/[slug]",
 ]);
 
 /** True when `pathname` fills `pattern` segment for segment. */
