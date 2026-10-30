@@ -121,6 +121,8 @@ export function encodeCrawl(state: CrawlUrlState): string {
   if (filters.requireNonAlcoholic) params.set("low", "1");
   if (filters.requireCocktails) params.set("cocktails", "1");
   if (filters.requireFood) params.set("food", "1");
+  // The beer-garden feature filter, so /gardens can open the map with it on.
+  if (filters.requireBeerGarden) params.set("garden", "1");
   if (filters.query.trim()) params.set("q", filters.query.trim());
   // Drink lens (Wave C): round-trip ?drink= + optional ?brand=.
   const drinkCategory = filters.drinkCategory?.trim();
@@ -252,6 +254,7 @@ export function decodeCrawl(
   if (params.get("drops") === "1") filters.requirePintDrops = true;
   if (params.get("low") === "1") filters.requireNonAlcoholic = true;
   if (params.get("food") === "1") filters.requireFood = true;
+  if (params.get("garden") === "1") filters.requireBeerGarden = true;
   const q = params.get("q")?.trim();
   if (q) filters.query = q.slice(0, 80);
 
