@@ -6,7 +6,11 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import TonightOpenPlans, { TONIGHT_OPEN_PLANS_UNREAD_LINE } from "@/app/tonight/TonightOpenPlans";
+import TonightOpenPlans, {
+  TONIGHT_OPEN_PLAN_ASK_LABEL,
+  TONIGHT_OPEN_PLANS_UNREAD_LINE,
+  TonightDrinkWallLine,
+} from "@/app/tonight/TonightOpenPlans";
 import type { OutOpenPlan } from "@/lib/out";
 import type { OutResponse } from "@/lib/out/types";
 
@@ -46,7 +50,7 @@ describe("Tonight's open plans and Drink Wall", () => {
     const html = render(body({ openPlans: [plan(), plan({ crewId: "crew-2", meetingPoint: null })] }));
     expect(html).toContain('data-testid="tonight-open-plans"');
     expect(html).toContain("Soft plan");
-    expect(html.match(/class="outOpenPlanCard"/g)).toHaveLength(1);
+    expect(html.match(/data-testid="tonight-open-plan"/g)).toHaveLength(1);
     expect(html).toContain("Start a plan");
   });
 
@@ -69,11 +73,17 @@ describe("Tonight's open plans and Drink Wall", () => {
     expect(html).not.toContain('data-testid="tonight-open-plans"');
   });
 
-  it("always keeps the Drink Wall door", () => {
-    for (const input of [null, body({})]) {
-      const html = render(input);
-      expect(html).toContain('data-testid="tonight-drink-wall"');
-      expect(html).toMatch(/href="\/wall"[^>]*>See the photos</);
-    }
+  it("each card shows the host's handle, the time, the meeting pub and Ask to join", () => {
+    const html = render(body({ openPlans: [plan()] }));
+    expect(html).toContain("@karan");
+    expect(html).toMatch(/@karan · \w{3} 20:00/);
+    expect(html).toContain("Meet at The Anchor");
+    expect(html).toMatch(new RegExp(`href="/social/crews/crew-1"[^>]*>${TONIGHT_OPEN_PLAN_ASK_LABEL}`));
+  });
+
+  it("keeps the Drink Wall door as its own line", () => {
+    const html = renderToStaticMarkup(createElement(TonightDrinkWallLine));
+    expect(html).toContain('data-testid="tonight-drink-wall"');
+    expect(html).toMatch(/href="\/wall"[^>]*>See the photos</);
   });
 });
