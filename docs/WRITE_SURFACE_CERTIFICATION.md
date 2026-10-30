@@ -166,6 +166,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/social/posts/[postId]/photos`
 - `POST app/api/social/rankings`
 - `POST app/api/social/tags`
+- `POST app/api/social/tags/with`
 - `POST app/api/social/videos/uploads`
 - `POST app/api/starter-packs/[slug]/follow`
 - `POST app/api/venue-corrections`
@@ -388,6 +389,20 @@ bodies.
 - **Failure:** malformed requests return 400. Wrong actors, blocked edges and
   invalid state transitions use one denied response without exposing proposal
   state.
+
+### `app/api/social/tags/with` - verified Pint Drop "With" tag proposals
+
+- **Route / method:** `POST app/api/social/tags/with/route.ts`; the same
+  `POST app/api/social/tags` door decides them with `kind: "with"`.
+- **Authority:** `requireVerifiedSocialActor` derives stable profile authority.
+  Only the drop's author may propose, and an anonymous drop takes no tags. A
+  tag needs a live claimed handle. The target approves, declines or later
+  withdraws; the author cancels (`lib/pintDropWithTagsStore.ts`, migration 0197).
+- **Consent:** a reader sees the handle only while the tag is approved; until
+  then the drop says "with 1 person". A block either way, or a relationship
+  that cannot be read, writes nothing and answers exactly as a written tag.
+- **Failure:** malformed requests return 400; a caller who is not the author
+  is 403; wrong actors and invalid transitions share one denied response.
 
 ### `app/api/admin/social-posts` - named staff Social moderation (route 82)
 

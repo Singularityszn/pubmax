@@ -123,11 +123,11 @@ export function spillHasSubmissionEvidence(input: {
 }
 
 // ── "With" field → structured note suffix ───────────────────────────────────
-// The API has no `with` column (frozen contract) — the ponytail choice is to
-// fold it into passedDownNote as a suffix at submit time: "— with @sam, @priya".
-// This is intentionally lossy/append-only so every existing surface that
-// renders passedDownNote (feed, permalink, ledger) gets "with" for free,
-// without a migration. A real column can replace this later.
+// Free-text names (people who are not on PUBMAXX) are folded into
+// passedDownNote as a suffix at submit time: "with Jo, Dan". Every surface
+// that renders passedDownNote gets them for free. An `@handle` is NOT folded
+// in: it is a consented tag (lib/pintDropWithTags.ts, migration 0197) and the
+// drop says "with 1 person" until that person approves it.
 const WITH_SEPARATOR_RE = /[,\s]+/;
 const MAX_WITH_ENTRIES = 6;
 const MAX_WITH_ENTRY_LEN = 30;
@@ -156,7 +156,10 @@ export function parseWithEntries(value: string): string[] {
  * concatenate without extra branching.
  */
 export function buildWithSuffix(withValue: string): string {
-  const entries = parseWithEntries(withValue);
+  // A HANDLE NEVER RIDES THE NOTE. An `@handle` is a tag proposal that waits
+  // for that person's consent (lib/pintDropWithTags.ts), so only the free-text
+  // names of people who are not on PUBMAXX are folded into the note here.
+  const entries = parseWithEntries(withValue).filter((entry) => !entry.startsWith("@"));
   if (entries.length === 0) return "";
   return `with ${entries.join(", ")}`;
 }

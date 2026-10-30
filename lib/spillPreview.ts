@@ -13,6 +13,7 @@ import { type Provenance } from "@/lib/curation";
 // Shared chip vocabulary — seeded content always reads "Demo", never "Sample".
 import { PROVENANCE_LABEL } from "@/lib/provenanceLabels";
 import { displayHandle } from "@/lib/handleDisplay";
+import { formatWithLine, splitWithInput } from "@/lib/pintDropWithTags";
 import { appendWithSuffix, formatPriceGbp, type Visibility } from "@/lib/spill";
 
 // ── One-tap destinations ─────────────────────────────────────────────────────
@@ -154,8 +155,13 @@ export type SpillPreviewModel = {
   initial: string;
   /** Formatted "£x.xx" price stamp, or null when there's no valid price. */
   priceLabel: string | null;
-  /** The note with the "— with @sam" suffix folded in, exactly as submitted. */
+  /** The note with the free-text "with Jo" names folded in, exactly as submitted. */
   note: string;
+  /**
+   * The tag line a reader will see before anyone approves: "with 1 person",
+   * never a handle (lib/pintDropWithTags.ts). "" when nobody is tagged.
+   */
+  withLine: string;
   provenance: Provenance;
   provenanceLabel: string;
   venueName: string;
@@ -197,6 +203,10 @@ export function buildSpillPreview(input: SpillPreviewInput): SpillPreviewModel {
     initial,
     priceLabel,
     note: appendWithSuffix(input.note, input.withWho),
+    // An anonymous drop takes no tags: the inbox would name its author.
+    withLine: anonymous
+      ? ""
+      : formatWithLine({ approved: [], pending: splitWithInput(input.withWho).handles.length }),
     provenance,
     provenanceLabel: PROVENANCE_LABEL[provenance],
     venueName: input.venueName,

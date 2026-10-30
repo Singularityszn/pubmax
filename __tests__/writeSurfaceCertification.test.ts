@@ -204,7 +204,8 @@ describe("mutating API surface certification", () => {
     // 162: plus the anonymous POST /api/mcp transport.
     // 163: plus the signed-in POST /api/pub-list-import entry point.
     // 165: plus POST /api/venue-corrections and PATCH /api/admin/venue-corrections ("That's wrong").
-    expect(mutationHandlers).toHaveLength(165);
+    // 166: plus POST /api/social/tags/with, Pint Drop "With" tag proposals.
+    expect(mutationHandlers).toHaveLength(166);
     expect(certifiedMutationHandlers()).toEqual(
       mutationHandlers.map(mutationHandlerKey),
     );

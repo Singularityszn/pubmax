@@ -55,6 +55,7 @@ import {
   type RoundRequestIdentity,
 } from "@/lib/roundRequest";
 import { DEFAULT_DRINK_MEASURE, type DrinkMeasure } from "@/lib/drinkMeasure";
+import { proposeWithTagsForDrop, withTagHandlesFor } from "@/components/map/composer/proposeWithTags";
 import {
   appendWithSuffix,
   DEFAULT_VISIBILITY,
@@ -679,6 +680,9 @@ export function usePintDrops(
     const submittedPintFile = fileOfPhoto(pintPhoto);
     const submittedVenueFile = fileOfPhoto(venuePhoto);
     const submittedReceiptFile = fileOfPhoto(receiptPhoto);
+    // "With" handles become tag proposals once the drop has an id; they are
+    // never part of the note (lib/pintDropWithTags.ts).
+    const submittedWithHandles = withTagHandlesFor(dropForm.withWho, visibility);
     clearPintDropDraft(safeSessionStorage(), venueId);
     const local = safeLocalStorage();
     if (local) {
@@ -740,10 +744,9 @@ export function usePintDrops(
       body.set("measure", submittedMeasure.measure);
       body.set("measureLabel", submittedMeasure.measureLabel);
       body.set("priceGbp", submittedPrice);
-      // "With" has no server column (frozen API contract) — folded into the
-      // note as a structured suffix ("— with @sam, @priya") at submit time, so
-      // every surface that renders passedDownNote gets it for free. See
-      // lib/spill.ts for the exact format.
+      // Free-text "with" names are folded into the note ("with Jo, Dan");
+      // @handles are consented tags sent after the drop saves. See
+      // lib/spill.ts and lib/pintDropWithTags.ts.
       body.set("passedDownNote", passedDownNote);
       body.set("era", submittedEra);
       body.set("visibility", submittedVisibility);
@@ -787,6 +790,7 @@ export function usePintDrops(
       });
       // The server row has replaced the optimistic one, so its previews go.
       handedOffPreviews.forEach(revokePreview);
+      void proposeWithTagsForDrop(data.drop, submittedWithHandles);
 
       // Loop 2: if a Round is open, append this pub as a stop (existing
       // addStop API). Fail-soft — the drop already landed.
