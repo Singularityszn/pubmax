@@ -93,6 +93,10 @@
   font-variant-numeric: tabular-nums;
 }
 
+.lastOrdersCloses {
+  white-space: nowrap;
+}
+
 .lastOrdersTrailing {
   display: grid;
   justify-items: end;

@@ -54,24 +54,35 @@ type GetHome =
   | { status: "none" }
   | { status: "ready"; summary: GetHomeSummary };
 
+// Both packs go through the shared surface cache, so a returning tab paints the
+// last answer at once. Prices are optional: a failed price read lists the
+// pubs with no price rather than failing the list.
 function useLastOrdersPacks(): [Packs, () => void] {
   const [packs, setPacks] = useState<Packs>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
-    const read = async (path: string): Promise<unknown> => {
-      const response = await fetch(path, { signal: controller.signal });
-      if (!response.ok) throw new Error(`${path} ${response.status}`);
-      return response.json();
+    let hours: LastOrdersHoursPack | null = null;
+    let prices: ReadonlyMap<string, LastOrdersPrice> = new Map();
+    const paint = () => {
+      if (hours && !controller.signal.aborted) setPacks({ status: "ready", hours, prices });
     };
-    Promise.all([read(LAST_ORDERS_HOURS_PATH), read(LAST_ORDERS_PRICES_PATH).catch(() => null)])
-      .then(([hoursBody, pricesBody]) => {
-        const hours = parseLastOrdersHoursPack(hoursBody);
-        setPacks(hours ? { status: "ready", hours, prices: parseLastOrdersPricesPack(pricesBody) } : { status: "failed" });
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setPacks({ status: "failed" });
-      });
+    void Promise.all([
+      loadSurfaceJson<unknown>(
+        LAST_ORDERS_HOURS_PATH,
+        { signal: controller.signal, validate: (body) => parseLastOrdersHoursPack(body) !== null },
+        (body) => {
+          hours = parseLastOrdersHoursPack(body);
+          paint();
+        },
+      ),
+      loadSurfaceJson<unknown>(LAST_ORDERS_PRICES_PATH, { signal: controller.signal }, (body) => {
+        prices = parseLastOrdersPricesPack(body);
+        paint();
+      }),
+    ]).then(([hoursOutcome]) => {
+      if (hoursOutcome === "failed" && !controller.signal.aborted) setPacks({ status: "failed" });
+    });
     return () => controller.abort();
   }, [attempt]);
   const retry = useCallback(() => {
@@ -292,8 +303,10 @@ export default function TonightLastOrdersPanel({
                   <span className="lastOrdersFigure">{row.walkMinutes}</span> min walk
                   {row.closesAt ? (
                     <>
-                      {" · closes "}
-                      <span className="lastOrdersFigure">{row.closesAt}</span>
+                      {" · "}
+                      <span className="lastOrdersCloses">
+                        closes <span className="lastOrdersFigure">{row.closesAt}</span>
+                      </span>
                     </>
                   ) : null}
                 </>
