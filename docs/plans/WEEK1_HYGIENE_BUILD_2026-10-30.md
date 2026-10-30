@@ -63,14 +63,18 @@ Each row below says what PUBMAXX has, which fence applies, and what round 2 does
 | Photos per visit | Pint photo, venue photo, wall, posts | Image rights: own, community, Wikimedia | Keep. |
 | Group competitions | none | No volume competition | Borough bingo as a crew card: the crew's shared boroughs with a confirmed pint. Breadth only. |
 
-## 3. Round 2 plan (five builders, after round 1 integrates)
+## 3. Round 2 (started 30 October, 15:55 UTC, before round 1 handed back)
 
-| # | Slice | Builds | Needs first |
+The captain asked for round 2 to start without waiting. The cut is by surface rather than by feature, so none of the ten concurrent builders shares a file with another. Rows 6 and 7 from the earlier plan are merged into one profile builder; "Tell your lot" rides with the rank card because both live on the diary log.
+
+| # | Slice | Builds | Files it owns |
 | --- | --- | --- | --- |
-| 6 | Been, rank at the moment, rankings on profile | Been count and list, the rank card after diary log and plan completion, "Your pubs, ranked" on the owner's profile, share your top ten as a card | round 1 merged |
-| 7 | Explicit overlap and the taste-in-facts card | "Pubs you both rank top five", "Pubs you both want to try", "Your taste, in facts" | 6 |
-| 8 | Tell your lot | Consent toggle on the diary log and the rank card that posts a mutuals-only card; "With" as consented handle tags | round 1 builder 2 merged |
-| 9 | Venue sheet triage (design V1, see the design record) | Overview grouped into five folds, one hygiene block, tab names that match their contents, one price-cap set | round 1 builder 5 merged |
-| 10 | Tonight and Today without events (design V1) | Regular nights lane from the flagged venues, Tonight lede by time of day, Today as the daytime page | round 1 builder 4 merged |
+| 6 | Profile passport, rankings, overlap, taste | Passport head with Been and Want-to-try counts, Been list with a map link, "Your pubs, ranked" on the owner's profile with a top-ten share card, "Your taste, in facts", "Pubs you both rank top five" and "Pubs you both want to try" for mutuals | new `components/profile/Passport*`, `app/api/profiles/[handle]/{been,overlap,taste}`, one mount region in `ProfilePageClient.tsx` |
+| 7 | Rank at the moment, tell your lot | `RankAfterVisitCard` after a diary log, a completed plan and a priced drop; "Your usual here" on the diary; a default-off "Tell your lot" toggle that makes the server post one mutuals-only card | `components/visits/DiaryLogPanel*`, `components/night/NightModeCard.tsx`, the receipt in `components/map/VenuePriceSubmit.tsx`, `app/api/diary`, `app/api/social/rankings` |
+| 8 | With tags, list cards, share target | "With" as consented handle tags through the existing tag inbox; list pages with a head and an OG card; a web and native share target that pre-fills Wanted and never fetches the URL | `components/map/composer/**`, `SocialTagInbox.tsx`, `app/api/social/tags/**`, `app/u/[handle]/lists/**`, `public/manifest.webmanifest`, `lib/nativeDeepLinks.ts` |
+| 9 | Sheet and map micro-fixes, one toolbar | Tab names match contents, hygiene once, one price-cap set, the sheet head overlap, the Lore empty copy, the desktop toolbar at eight controls or fewer, Tonight reserved heights, the unwired CSS import | `lib/venueInspectorTabs.ts`, `VenueInspectorHeader.tsx`, `VenueStoryTab.tsx`, the CityMCP strip, `MapToolbar.tsx`, the price-cap chips, `ControlRail.tsx`, `app/tonight/tonight.css` |
+| 10 | Tonight and Today | Three answer cards above the rows; a regular-nights lane from the committed quiz, sport and music files with its read date, visibly separate from confirmed listings; open plans above the fold; Today as the daytime page | `app/tonight/*Client*.tsx`, `app/today/**`, `lib/tonight*.ts`, `lib/todayBrief.ts`, new `lib/regularNights.ts` |
+
+Integration wiring that no builder does: if builder 6 and builder 2 both edit `ProfilePageClient.tsx`, the integrator keeps both sections. The venue sheet fold regrouping (design V1) waits for round 3, after builder 5's door lands in `VenueOverviewTab.tsx`. E4, a drinker-added regular night, also waits for round 3 because it needs a store and a migration.
 
 The design record for rounds 2 and 3 is [`../design-explorations/2026-10-30-launch-ux-variations.md`](../design-explorations/2026-10-30-launch-ux-variations.md).
