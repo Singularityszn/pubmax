@@ -143,3 +143,46 @@ export function daylightForPoint(latDeg: unknown, lngDeg: unknown, at: Date): Da
   const daylight = daylightAt(latDeg, lngDeg, at);
   return Number.isFinite(daylight.sunsetAt.getTime()) ? daylight : null;
 }
+
+// Sun position, from the same SunCalc 1.9.0 source and licence as above.
+// SunCalc measures azimuth from south, positive to the west; this leaf turns it
+// into a compass bearing (0 is north, 90 is east) because that is what a map
+// reader and a ray cast both want. No atmospheric refraction is applied, so
+// the altitude is the geometric one: within half a degree near the horizon.
+
+function rightAscension(l: number, b: number): number {
+  return Math.atan2(sin(l) * cos(e) - Math.tan(b) * sin(e), cos(l));
+}
+
+function siderealTime(d: number, lw: number): number {
+  return rad * (280.16 + 360.9856235 * d) - lw;
+}
+
+export type SunPosition = {
+  /** Compass bearing to the sun in degrees: 0 north, 90 east, 180 south. */
+  azimuthDeg: number;
+  /** Angle of the sun above the horizon in degrees; negative below it. */
+  altitudeDeg: number;
+};
+
+/**
+ * Where the sun stands in the sky over one point at one instant. Null when the
+ * point or the instant is not usable, so a caller makes no sun claim at all.
+ */
+export function sunPosition(latDeg: unknown, lngDeg: unknown, at: Date): SunPosition | null {
+  if (typeof latDeg !== "number" || typeof lngDeg !== "number") return null;
+  if (!Number.isFinite(latDeg) || !Number.isFinite(lngDeg)) return null;
+  if (Math.abs(latDeg) > 90 || Math.abs(lngDeg) > 180) return null;
+  if (!Number.isFinite(at.getTime())) return null;
+  const lw = rad * -lngDeg;
+  const phi = rad * latDeg;
+  const d = toDays(at);
+  const M = solarMeanAnomaly(d);
+  const L = eclipticLongitude(M);
+  const dec = declination(L, 0);
+  const H = siderealTime(d, lw) - rightAscension(L, 0);
+  const azimuthFromSouth = Math.atan2(sin(H), cos(H) * sin(phi) - Math.tan(dec) * cos(phi));
+  const altitude = asin(sin(phi) * sin(dec) + cos(phi) * cos(dec) * cos(H));
+  const azimuthDeg = (((azimuthFromSouth / rad + 180) % 360) + 360) % 360;
+  return { azimuthDeg, altitudeDeg: altitude / rad };
+}

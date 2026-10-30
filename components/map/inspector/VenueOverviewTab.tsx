@@ -111,6 +111,7 @@ import { overviewDisplayablePintGbp } from "@/lib/overviewDisplayablePint";
 import { confirmPintActionName } from "@/lib/pintDropSecondDrinker";
 import type { ZonePintIndex } from "@/lib/zones";
 import { useSheetFooterSlot } from "@/components/mobile/sheetFooterContext";
+import SunChaserVenueLine from "@/components/map/sunChaser/SunChaserVenueLine";
 
 /**
  * The ranked evidence mission for THIS pub, read where the Overview decides
@@ -1129,6 +1130,11 @@ export default function VenueOverviewTab({
       className="venueTabPanel"
       hidden={tab !== "overview"}
     >
+      {/* Sun Chaser's estimate, only while its chip is on (main, 30 Oct 2026).
+          Above every fold, so the answer the reader turned the chip on for is
+          never behind a closed summary; the address it used to sit under now
+          lives in The pub fold. */}
+      <SunChaserVenueLine venueId={venue.id} />
       {/* FIVE FOLDS, ONE OPEN (launch UX V1, 30 Oct 2026). The order and every
           summary word live in lib/venueOverviewFolds.ts. Price leads and is the
           only fold open on arrival, because a pub page is asked one question
