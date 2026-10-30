@@ -14,7 +14,7 @@ export const PUBLIC_UPDATES = [
     changes: [
       "In the sun shows which pub gardens are likely in the sun, now and for the next 6 hours.",
       "Pint Compass points at the cheapest listed pint near you.",
-      "While you have signal, the crawl screen tries to save each stop's page, so it can open later without signal.",
+      "Crawl stop pages you saved earlier can open without signal. Pages save while you have signal, but not with Data Saver on.",
       "The Pals move their mouths when they talk.",
       "Loading screens ask a pub quiz question, and the answer links to Historic England.",
       "Fewer blank moments between the opening map picture and the live map.",
