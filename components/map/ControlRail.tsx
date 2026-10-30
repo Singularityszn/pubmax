@@ -18,7 +18,11 @@ import {
 } from "lucide-react";
 import { useMemo } from "react";
 
-import { formatGbp } from "@/lib/formatGbp";
+import {
+  nearestPintPriceCap,
+  nearestPintPriceCapIndex,
+  PINT_PRICE_CAPS_ASCENDING,
+} from "@/lib/pintPriceCaps";
 import { pubSources, writerProfile } from "@/lib/curation";
 import { curatedCrawls as londonCuratedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import type { CityId } from "@/lib/cities";
@@ -32,7 +36,6 @@ import {
 } from "@/lib/venueAccessibility";
 import {
   initialFilters,
-  NO_PINT_PRICE_CAP,
   type CrawlMode,
   type CrawlStyle,
   type Filters,
@@ -74,10 +77,6 @@ function citySearchPlaceholder(cityId: CityId, displayName: string): string {
 }
 
 import "./accessibilityFilters.css";
-// Map-scoped colour polish (D3): POI-toggle swatch rings + the documented,
-// unwired pin-by-category paint patch. Imported here (map chrome, non-hot) so
-// the rules load with the map without touching the codex-hot canvas.
-import "./mapColor.css";
 
 export const styleLabels: Record<CrawlStyle, string> = {
   balanced: "Balanced",
@@ -134,6 +133,8 @@ export default function ControlRail({
 }: ControlRailProps) {
   const searchPlaceholder = citySearchPlaceholder(cityId, cityDisplayName);
   const showWriterCard = cityId === "london";
+  const maxPintCapIndex = nearestPintPriceCapIndex(filters.maxPrice);
+  const maxPintCap = nearestPintPriceCap(filters.maxPrice);
   const cheapCount = filteredVenues.filter(
     (venue) => venue.cheapestPrice !== null && venue.cheapestPrice <= 5.5,
   ).length;
@@ -292,20 +293,23 @@ export default function ControlRail({
       <section className="panelSection">
         <div className="rangeLine">
           <span>Max pint</span>
-          {/* The slider's top end is the OFF value, so it reads as no cap
-              rather than as a figure it never applies. */}
-          <strong>
-            {filters.maxPrice >= NO_PINT_PRICE_CAP ? "Any" : formatGbp(filters.maxPrice)}
-          </strong>
+          {/* The slider walks the one shared cap set (lib/pintPriceCaps.ts),
+              so it can only land on a cap the chips and the phone sheet also
+              offer. Its top end is the OFF value, so it reads "Any". */}
+          <strong>{maxPintCap.label}</strong>
         </div>
         <input
           type="range"
-          min="4"
-          max={NO_PINT_PRICE_CAP}
-          step="0.25"
-          value={filters.maxPrice}
+          min={0}
+          max={PINT_PRICE_CAPS_ASCENDING.length - 1}
+          step={1}
+          value={maxPintCapIndex}
           aria-label="Maximum pint price"
-          onChange={(event) => onFiltersChange({ ...filters, maxPrice: Number(event.target.value) })}
+          aria-valuetext={maxPintCap.label}
+          onChange={(event) => {
+            const next = PINT_PRICE_CAPS_ASCENDING[Number(event.target.value)];
+            if (next) onFiltersChange({ ...filters, maxPrice: next.maxPrice });
+          }}
         />
         {mode === "suggest" ? (
           <>
