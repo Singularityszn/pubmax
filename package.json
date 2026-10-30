@@ -160,6 +160,7 @@
   "dependencies": {
     "@ai-sdk/otel": "^1.0.138",
     "@alexanderolsen/libsamplerate-js": "2.1.2",
+    "@anthropic-ai/sdk": "0.135.0",
     "@arizeai/openinference-instrumentation-openai": "^4.4.1",
     "@arizeai/openinference-semantic-conventions": "^2.14.0",
     "@arizeai/openinference-vercel": "^3.3.0",

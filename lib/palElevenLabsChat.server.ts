@@ -94,8 +94,8 @@ export function palPersonalContext(memories: PalRecalledMemory[] | null, taste: 
   return [...palMemoryPreamble(memories), ...palTastePreamble(taste)];
 }
 
-/** The typed turn as the agent reads it: the personal context, the session summary, earlier asks, then the ask itself. */
-function userMessageText(
+/** The typed turn as the model reads it: the personal context, the session summary, earlier asks, then the ask itself. */
+export function palUserMessageText(
   query: string,
   prior: PriorSession,
   memories: PalRecalledMemory[] | null,
@@ -158,7 +158,27 @@ export type PalElevenLabsChatOutcome =
 
 type PalChatFailureStage =
   | "configuration" | "input" | "context" | "signed_url" | "registration"
-  | "tool_result" | "deadline" | "caller_cancel" | "socket_error" | "socket_close" | "turn";
+  | "tool_result" | "deadline" | "caller_cancel" | "socket_error" | "socket_close" | "turn"
+  | "model";
+
+export type PalChatFailureRecorder = (
+  code: Extract<PalElevenLabsChatOutcome, { ok: false }>["code"],
+  stage: PalChatFailureStage,
+  reason?: Extract<PalSignedConversation, { ok: false }>["reason"],
+) => void;
+
+/** Logs a failed turn once, with its stage and duration. A cancelled caller is not a failure. */
+export function palChatFailureRecorder(input: PalElevenLabsChatInput, startedAt = Date.now()): PalChatFailureRecorder {
+  return (code, stage, reason) => {
+    if (input.signal?.aborted || stage === "caller_cancel") return;
+    log("warn", "pub_pal.chat_failed", {
+      code,
+      stage,
+      ...(reason ? { reason } : {}),
+      durationMs: Math.max(0, Date.now() - startedAt),
+    });
+  };
+}
 
 export type PalElevenLabsChatContext = {
   prior: PriorSession;
@@ -198,35 +218,31 @@ export function palChatRecordQuery(query: string, turns: readonly PubPalFenceTur
     ? routedQuery : null;
 }
 
-export async function runPalElevenLabsChatTurn(
-  input: PalElevenLabsChatInput,
-  context?: PalElevenLabsChatContext,
-): Promise<PalElevenLabsChatOutcome> {
-  const startedAt = Date.now();
-  const recordFailure = (
-    code: Extract<PalElevenLabsChatOutcome, { ok: false }>["code"],
-    stage: PalChatFailureStage,
-    reason?: Extract<PalSignedConversation, { ok: false }>["reason"],
-  ): void => {
-    if (input.signal?.aborted || stage === "caller_cancel") return;
-    log("warn", "pub_pal.chat_failed", {
-      code,
-      stage,
-      ...(reason ? { reason } : {}),
-      durationMs: Math.max(0, Date.now() - startedAt),
-    });
-  };
-  const apiKey = process.env.ELEVENLABS_API_KEY?.trim();
-  const agentId = process.env.ELEVENLABS_PUB_PAL_AGENT_ID?.trim();
-  if (!apiKey || !agentId) {
-    recordFailure("UNAVAILABLE", "configuration");
-    return { ok: false, code: "UNAVAILABLE" };
-  }
+/** A turn that needs a model: the checked ask, its owned history, and the personal reads already started. */
+export type PalChatProviderTurn = {
+  query: string;
+  cityId: ReturnType<typeof resolveAskCityId>;
+  deadline: number;
+  prior: PriorSession;
+  memoriesRead: ReturnType<typeof readConfirmedPalMemories>;
+  tasteRead: ReturnType<typeof readPalTaste>;
+};
 
+/**
+ * Everything a typed turn does before any provider is asked, for every
+ * provider: the owned history, the safety fence, and the asks the records
+ * answer alone. Returns the finished outcome for those, or the turn a model
+ * must answer, with the memory and taste reads already running.
+ */
+export async function preparePalChatProviderTurn(
+  input: PalElevenLabsChatInput,
+  context: PalElevenLabsChatContext | undefined,
+  recordFailure: PalChatFailureRecorder,
+): Promise<{ outcome: PalElevenLabsChatOutcome } | { turn: PalChatProviderTurn }> {
   const query = input.query.trim().slice(0, 500);
   if (!query) {
     recordFailure("UNAVAILABLE", "input");
-    return { ok: false, code: "UNAVAILABLE" };
+    return { outcome: { ok: false, code: "UNAVAILABLE" } };
   }
   const deadline = context?.deadline ?? Date.now() + CHAT_TIMEOUT_MS;
 
@@ -239,83 +255,137 @@ export async function runPalElevenLabsChatTurn(
   } catch (error) {
     const code = error instanceof PalChatDeadlineExceeded ? "TIMEOUT" : "UNAVAILABLE";
     recordFailure(code, "context");
-    return { ok: false, code };
+    return { outcome: { ok: false, code } };
   }
   const { prior, fence: { fenced, sobrietyOnly } } = context;
   if (Date.now() >= deadline) {
     recordFailure("TIMEOUT", "context");
-    return { ok: false, code: "TIMEOUT" };
+    return { outcome: { ok: false, code: "TIMEOUT" } };
   }
-  const turns = prior.turns;
-  const recordQuery = palChatRecordQuery(query, turns);
-  const answeredFromRecords = recordQuery !== null;
+  const recordQuery = palChatRecordQuery(query, prior.turns);
   if (fenced) {
     return {
-      ok: true,
-      message: pubPalGetHomeRegisterAnswer("", sobrietyOnly),
-      cards: [],
-      proposals: [],
-      conversationId: "",
-      toolsUsed: [],
+      outcome: {
+        ok: true,
+        message: pubPalGetHomeRegisterAnswer("", sobrietyOnly),
+        cards: [],
+        proposals: [],
+        conversationId: "",
+        toolsUsed: [],
+      },
     };
   }
 
-  // Only unfenced turns start provider and personal reads. These independent
-  // reads run together after the owned context and safety check finish.
-  const sessionRead = answeredFromRecords ? null : fetchPalSignedConversation({
-    apiKey, agentId, timeoutMs: Math.max(1, deadline - Date.now()),
-  });
-  // Read from the signed-in owner's own Pal and logs, never from the request body.
-  const memoriesRead = answeredFromRecords ? null : readConfirmedPalMemories(input.ownerId, query);
-  const tasteRead = answeredFromRecords ? null : readPalTaste(input.ownerId);
-  // The three reads are null exactly when the records answer; testing them here
-  // also tells the compiler so.
-  if (answeredFromRecords || !sessionRead || !memoriesRead || !tasteRead) {
-    let result: Awaited<ReturnType<typeof runAsk>>;
-    try {
-      result = await beforePalChatDeadline(deadline, () => runAsk({ query: recordQuery ?? query, cityId, skipModel: true }));
-    } catch (error) {
-      const code = error instanceof PalChatDeadlineExceeded ? "TIMEOUT" : "UNAVAILABLE";
-      recordFailure(code, "tool_result");
-      return { ok: false, code };
-    }
-    // A first answer from the records opens no provider session, so it gets a
-    // local thread: the follow-up reads this turn back instead of starting blind.
-    let threadId = unsupported ? "" : prior.conversationId ?? newPalLocalThreadId();
-    let historyUnavailable = false;
-    if (threadId) {
-      let timer: ReturnType<typeof setTimeout> | undefined;
-      try {
-        const stored = await Promise.race([
-          registerPubPalToolTurn(threadId, {
-            deadline,
-            query, cityId, ownerId: input.ownerId, turns: prior.turns, summary: prior.summary,
-            cards: result.cards, proposals: result.proposals, hints: [result.answer], toolsUsed: result.toolsUsed,
-          }).then(() => true, () => false),
-          new Promise<false>((resolve) => {
-            timer = setTimeout(() => resolve(false), Math.min(LOCAL_TURN_WRITE_BUDGET_MS, Math.max(0, deadline - Date.now())));
-          }),
-        ]);
-        if (!stored) {
-          // A public record answer needs no persisted conversation. Clear the
-          // client correlation so a later ask cannot rely on a missing turn.
-          threadId = "";
-          historyUnavailable = true;
-          recordFailure("UNAVAILABLE", "registration");
-        }
-      } finally {
-        clearTimeout(timer);
-      }
-    }
+  if (recordQuery === null) {
+    // Only unfenced provider turns read the person. Read from the signed-in
+    // owner's own Pal and logs, never from the request body.
     return {
+      turn: {
+        query,
+        cityId,
+        deadline,
+        prior,
+        memoriesRead: readConfirmedPalMemories(input.ownerId, query),
+        tasteRead: readPalTaste(input.ownerId),
+      },
+    };
+  }
+
+  let result: Awaited<ReturnType<typeof runAsk>>;
+  try {
+    result = await beforePalChatDeadline(deadline, () => runAsk({ query: recordQuery, cityId, skipModel: true }));
+  } catch (error) {
+    const code = error instanceof PalChatDeadlineExceeded ? "TIMEOUT" : "UNAVAILABLE";
+    recordFailure(code, "tool_result");
+    return { outcome: { ok: false, code } };
+  }
+  // A first answer from the records opens no provider session, so it gets a
+  // local thread: the follow-up reads this turn back instead of starting blind.
+  let threadId = unsupported ? "" : prior.conversationId ?? newPalLocalThreadId();
+  let historyUnavailable = false;
+  if (threadId) {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const stored = await Promise.race([
+        registerPubPalToolTurn(threadId, {
+          deadline,
+          query, cityId, ownerId: input.ownerId, turns: prior.turns, summary: prior.summary,
+          cards: result.cards, proposals: result.proposals, hints: [result.answer], toolsUsed: result.toolsUsed,
+        }).then(() => true, () => false),
+        new Promise<false>((resolve) => {
+          timer = setTimeout(() => resolve(false), Math.min(LOCAL_TURN_WRITE_BUDGET_MS, Math.max(0, deadline - Date.now())));
+        }),
+      ]);
+      if (!stored) {
+        // A public record answer needs no persisted conversation. Clear the
+        // client correlation so a later ask cannot rely on a missing turn.
+        threadId = "";
+        historyUnavailable = true;
+        recordFailure("UNAVAILABLE", "registration");
+      }
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  return {
+    outcome: {
       ok: true,
       message: historyUnavailable ? `${result.answer} Conversation history could not be kept. Name the area again in your next ask.` : result.answer,
       cards: result.cards,
       proposals: result.proposals,
       conversationId: threadId,
       toolsUsed: result.toolsUsed,
-    };
+    },
+  };
+}
+
+/**
+ * The finished answer: the model's own reply when it wrote one, else the
+ * stored tool hints or cards, else a plain nothing-sourced line.
+ */
+export function palChatAnswer(
+  modelMessage: string,
+  turn: PubPalToolTurn | null,
+  conversationId: string,
+): Extract<PalElevenLabsChatOutcome, { ok: true }> {
+  const cards = turn?.cards ?? [];
+  const proposals = turn?.proposals ?? [];
+  const message =
+    modelMessage ||
+    (turn?.hints.length
+      ? composeAnswer(turn.hints, cards, [])
+      : cards.length > 0
+        ? composeAnswer([], cards, [])
+        : "Nothing sourced for that. Try a nearby area or a broader ask.");
+  return {
+    ok: true,
+    message,
+    cards,
+    proposals,
+    conversationId,
+    toolsUsed: turn?.toolsUsed ?? [],
+  };
+}
+
+export async function runPalElevenLabsChatTurn(
+  input: PalElevenLabsChatInput,
+  context?: PalElevenLabsChatContext,
+): Promise<PalElevenLabsChatOutcome> {
+  const recordFailure = palChatFailureRecorder(input);
+  const apiKey = process.env.ELEVENLABS_API_KEY?.trim();
+  const agentId = process.env.ELEVENLABS_PUB_PAL_AGENT_ID?.trim();
+  if (!apiKey || !agentId) {
+    recordFailure("UNAVAILABLE", "configuration");
+    return { ok: false, code: "UNAVAILABLE" };
   }
+
+  const prepared = await preparePalChatProviderTurn(input, context, recordFailure);
+  if ("outcome" in prepared) return prepared.outcome;
+  const { query, cityId, deadline, prior, memoriesRead, tasteRead } = prepared.turn;
+  const turns = prior.turns;
+  const sessionRead = fetchPalSignedConversation({
+    apiKey, agentId, timeoutMs: Math.max(1, deadline - Date.now()),
+  });
 
   let session: PalSignedConversation;
   try {
@@ -360,25 +430,8 @@ export async function runPalElevenLabsChatTurn(
     // The agent says a checking line before each tool call, so a reply is the
     // answer only when no tool event followed it and no tool is still running.
     const replyIsAnswer = () => replyToolEvents === toolEvents && pendingToolCalls.size === 0;
-    const answer = (agentMessage: string, turn: PubPalToolTurn | null): PalElevenLabsChatOutcome => {
-      const cards = turn?.cards ?? [];
-      const proposals = turn?.proposals ?? [];
-      const message =
-        agentMessage ||
-        (turn?.hints.length
-          ? composeAnswer(turn.hints, cards, [])
-          : cards.length > 0
-            ? composeAnswer([], cards, [])
-            : "Nothing sourced for that. Try a nearby area or a broader ask.");
-      return {
-        ok: true,
-        message,
-        cards,
-        proposals,
-        conversationId,
-        toolsUsed: turn?.toolsUsed ?? [],
-      };
-    };
+    const answer = (agentMessage: string, turn: PubPalToolTurn | null): PalElevenLabsChatOutcome =>
+      palChatAnswer(agentMessage, turn, conversationId);
     // Text sent to the caller since the last reset. A tool event or a newer reply
     // makes it a checking line, so the caller is told to clear it.
     let streamedText = false;
@@ -492,7 +545,7 @@ export async function runPalElevenLabsChatTurn(
           if (settled || Date.now() >= deadline) return;
           userMessageSent = true;
           ws.send(
-            JSON.stringify({ type: "user_message", text: userMessageText(query, prior, memories, taste) }),
+            JSON.stringify({ type: "user_message", text: palUserMessageText(query, prior, memories, taste) }),
           );
         } catch {
           finish({ ok: false, code: "UNAVAILABLE" }, "registration");

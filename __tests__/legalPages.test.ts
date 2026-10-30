@@ -327,6 +327,7 @@ describe("legal content pages", () => {
     const promptTextRecipients = [
       { name: "Arize", host: "otlp.arize.com", source: "lib/observability/arize.ts" },
       { name: "OpenRouter", host: "openrouter.ai", source: "lib/ask/modelLoop.ts" },
+      { name: "Anthropic", host: "api.anthropic.com", source: "lib/palClaudeChat.server.ts" },
       { name: "TypeSafe", host: "api.typesafe.ai", source: "lib/ai/typesafe.server.ts" },
     ];
     for (const recipient of promptTextRecipients) {
@@ -416,6 +417,53 @@ describe("legal content pages", () => {
     expect([...signedUrlHosts]).toEqual(["api.elevenlabs.io"]);
     expect(promptHosts.has("api.elevenlabs.io")).toBe(true);
     expect(thirdPartySection, "Missing recipient name ElevenLabs").toContain("ElevenLabs");
+    for (const host of promptHosts) {
+      expect(thirdPartySection, `Missing recipient host ${host}`).toContain(host);
+    }
+  });
+
+  it("names every host a typed Pub Pal ask reaches on Claude", async () => {
+    // Runs a real typed turn through the Anthropic SDK. The network answers as
+    // the Messages API does, and every host that receives the typed text must
+    // be named.
+    const thirdPartySection =
+      privacy.match(/aria-labelledby="third"[\s\S]*?aria-labelledby="keep"/)?.[0] ?? "";
+    const query = "a quiet pub near the Lamb and Flag for six";
+    const promptHosts = new Set<string>();
+    const events = [
+      { type: "message_start", message: { id: "msg_1", type: "message", role: "assistant", model: "claude-haiku-5-5", content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 1, output_tokens: 0 } } },
+      { type: "content_block_start", index: 0, content_block: { type: "text", text: "" } },
+      { type: "content_block_delta", index: 0, delta: { type: "text_delta", text: "Two quiet picks." } },
+      { type: "content_block_stop", index: 0 },
+      { type: "message_delta", delta: { stop_reason: "end_turn", stop_sequence: null }, usage: { output_tokens: 4 } },
+      { type: "message_stop" },
+    ];
+    const sse = events.map((event) => `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`).join("");
+
+    vi.stubEnv("ANTHROPIC_API_KEY", "test-key");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+        const url = new URL(input instanceof Request ? input.url : String(input));
+        if (String(init?.body ?? "").includes(query)) promptHosts.add(url.host);
+        if (!url.pathname.endsWith("/v1/messages")) return new Response(null, { status: 503 });
+        return new Response(sse, { headers: { "content-type": "text/event-stream" } });
+      }),
+    );
+    try {
+      const { runPalClaudeChatTurn } = await import("@/lib/palClaudeChat.server");
+      const outcome = await runPalClaudeChatTurn({
+        query,
+        ownerId: "11111111-1111-4111-8111-111111111111",
+      });
+      expect(outcome).toMatchObject({ ok: true, message: "Two quiet picks." });
+    } finally {
+      vi.unstubAllGlobals();
+      vi.unstubAllEnvs();
+    }
+
+    expect([...promptHosts]).toEqual(["api.anthropic.com"]);
+    expect(thirdPartySection, "Missing recipient name Anthropic").toContain("Anthropic");
     for (const host of promptHosts) {
       expect(thirdPartySection, `Missing recipient host ${host}`).toContain(host);
     }
