@@ -174,6 +174,34 @@ export function rankLastOrders(input: {
   return rows.slice(0, input.limit ?? LAST_ORDERS_LIMIT);
 }
 
+/** The map caption while the Last orders filter is on. */
+export const LAST_ORDERS_FILTER_CAPTION =
+  "Showing pubs whose listed hours run at least 30 more minutes. Pubs with no listed hours are hidden. Hours come from OpenStreetMap.";
+
+/** The map's `?lastOrders=1`: arrive with the Last orders filter on. */
+export const LAST_ORDERS_MAP_PARAM = "lastOrders";
+
+/** Whether a map address asks for the Last orders filter. */
+export function lastOrdersMapRequested(search: string): boolean {
+  return new URLSearchParams(search).get(LAST_ORDERS_MAP_PARAM) === "1";
+}
+
+/**
+ * The map's Last orders filter: every pub whose sourced hours run at least
+ * {@link LAST_ORDERS_MIN_MINUTES} more at `now`, or that never closes tonight.
+ * Unknown, closed and closing-soon pubs are not in the set, so the filter
+ * hides them rather than showing a pin as open on no evidence.
+ */
+export function lastOrdersOpenVenueIds(pubs: readonly LastOrdersPub[], now: Date): Set<string> {
+  const ids = new Set<string>();
+  for (const pub of pubs) {
+    const answer = minutesUntilClose(pub.openingHours, now);
+    if (answer.state === "open-all-night") ids.add(pub.venueId);
+    else if (answer.state === "open" && answer.minutesLeft >= LAST_ORDERS_MIN_MINUTES) ids.add(pub.venueId);
+  }
+  return ids;
+}
+
 /**
  * The countdown chip's words: "Open 41 more min" inside two hours, the close
  * itself past that ("Open until 01:00"), and "Open all night" for 24/7.

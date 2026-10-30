@@ -10,6 +10,7 @@
 // only from /api/last-train; with no answer the line says so and stops.
 
 import type { Route } from "next";
+import Link from "next/link";
 import { TrainFront, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 
@@ -23,6 +24,7 @@ import { coarsenViewerPoint } from "@/lib/geo";
 import { LOCATION_FINDING_LABEL, LOCATION_SHARE_LABEL } from "@/lib/locationDisclosure";
 import {
   LAST_ORDERS_HOURS_PATH,
+  LAST_ORDERS_MAP_PARAM,
   LAST_ORDERS_MIN_MINUTES,
   LAST_ORDERS_PRICES_PATH,
   lastOrdersCountdownLabel,
@@ -325,6 +327,17 @@ export default function TonightLastOrdersPanel({
           ))}
         </RowList>
       )}
+
+      {rows && rows.length > 0 ? (
+        <Link
+          prefetch={false}
+          href={`/map?${LAST_ORDERS_MAP_PARAM}=1` as Route}
+          className="lastOrdersMapLink"
+          data-testid="last-orders-map-link"
+        >
+          See every pub still open on the map
+        </Link>
+      ) : null}
 
       {packs.status === "ready" ? (
         <p className="lastOrdersSource">

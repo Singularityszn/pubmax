@@ -6,6 +6,8 @@ import { describe, expect, it } from "vitest";
 import {
   isLastOrdersHour,
   lastOrdersCountdownLabel,
+  lastOrdersMapRequested,
+  lastOrdersOpenVenueIds,
   parseLastOrdersHoursPack,
   parseLastOrdersPricesPack,
   rankLastOrders,
@@ -63,6 +65,30 @@ describe("rankLastOrders", () => {
     expect(rows[0]).toMatchObject({ minutesLeft: 135, closesAt: "01:00" });
     expect(rows[0]?.walkMinutes).toBeLessThanOrEqual(3);
     expect(rows[2]).toMatchObject({ minutesLeft: null, closesAt: null, price: null });
+  });
+});
+
+describe("lastOrdersOpenVenueIds", () => {
+  it("keeps only pubs open 30 more minutes or all night, however far away", () => {
+    const ids = lastOrdersOpenVenueIds(
+      [
+        pub("venue-late", "Mo-Su 12:00-01:00", 0),
+        pub("venue-far-late", "Mo-Su 12:00-02:00", 40_000),
+        pub("venue-soon", "Mo-Su 12:00-23:10", 0),
+        pub("venue-closed", "Mo-Su 12:00-22:00", 0),
+        pub("venue-unknown", "Mo-Su 12:00-23:30; Dec 25 off", 0),
+        pub("venue-all-night", "24/7", 0),
+      ],
+      FRIDAY_2245,
+    );
+    expect([...ids].sort()).toEqual(["venue-all-night", "venue-far-late", "venue-late"]);
+  });
+
+  it("reads the map address that turns it on", () => {
+    expect(lastOrdersMapRequested("?lastOrders=1")).toBe(true);
+    expect(lastOrdersMapRequested("?sel=venue-a&lastOrders=1")).toBe(true);
+    expect(lastOrdersMapRequested("?lastOrders=0")).toBe(false);
+    expect(lastOrdersMapRequested("")).toBe(false);
   });
 });
 

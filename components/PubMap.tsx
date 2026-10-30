@@ -716,6 +716,8 @@ import {
 import { VENUE_ACCEPTANCE_STORAGE_ERROR } from "@/lib/venueAcceptance";
 import { phoneVenuePlanDoor } from "@/lib/venuePlanDoor";
 import VenuePeekPlanDoor from "@/components/map/inspector/VenuePeekPlanDoor";
+import { useLastOrdersVenueIds } from "@/components/map/pubmap/useLastOrdersVenueIds";
+import { lastOrdersMapRequested } from "@/lib/lastOrdersList";
 
 // The "Near me now" instant-answer cards (Cycle 3, Lane 1). Loaded lazily so it
 // never rides in the eager map chunk (perf budget, PR #306) — it only mounts
@@ -1105,6 +1107,7 @@ function useMapPinVenues({
   openNowStateById,
   savedOnly,
   savedIds,
+  lastOrdersIds,
 }: {
   venues: readonly Venue[];
   mapFilters: Filters;
@@ -1112,6 +1115,8 @@ function useMapPinVenues({
   openNowStateById: ReadonlyMap<string, OpenNowState> | null;
   savedOnly: boolean;
   savedIds: ReadonlySet<string>;
+  /** Last orders' open set; null while off or still reading, which does not narrow. */
+  lastOrdersIds: ReadonlySet<string> | null;
 }): Venue[] {
   const pinFilterKey = JSON.stringify(mapPinFilters(mapFilters));
   // eslint-disable-next-line react-hooks/exhaustive-deps -- the key includes every non-query filter
@@ -1123,8 +1128,9 @@ function useMapPinVenues({
       (id) => Boolean(venueSignals.get(id)?.hasPintDrops),
       (id) => openNowStateById?.get(id) ?? "unknown",
     );
-    return savedOnly ? candidates.filter((venue) => savedIds.has(venue.id)) : candidates;
-  }, [openNowStateById, pinFilters, savedIds, savedOnly, venues, venueSignals]);
+    const saved = savedOnly ? candidates.filter((venue) => savedIds.has(venue.id)) : candidates;
+    return lastOrdersIds ? saved.filter((venue) => lastOrdersIds.has(venue.id)) : saved;
+  }, [lastOrdersIds, openNowStateById, pinFilters, savedIds, savedOnly, venues, venueSignals]);
 }
 
 /**
@@ -1677,7 +1683,14 @@ export default function PubMap({
   const preSheetFocusRef = useRef<HTMLElement | null>(null);
   const [venueInitialTab, setVenueInitialTab] = useState<VenueTabRequest>("overview");
   const [gettingHomeRequestId, setGettingHomeRequestId] = useState(0);
-  const [filters, setFilters] = useState<Filters>(restoredSession.filters);
+  // `/map?lastOrders=1` (the door off Tonight's Last orders) arrives with that
+  // filter on, over whatever the restored session held.
+  const [filters, setFilters] = useState<Filters>(() =>
+    lastOrdersMapRequested(currentSearch())
+      ? { ...restoredSession.filters, lastOrders: true }
+      : restoredSession.filters,
+  );
+  const lastOrdersIds = useLastOrdersVenueIds(filters.lastOrders === true);
   // First-party Wetherspoon directory for Open now hours. Loaded once; match is
   // name+distance only and never invents hours for unmatched pubs.
   const [wetherspoonsDirectoryPubs, setWetherspoonsDirectoryPubs] = useState<
@@ -3141,10 +3154,11 @@ export default function PubMap({
   );
   // "Saved only" composes ON TOP of the pipeline: when on, keep only venues in
   // the saved set. When off it's a no-op, so all existing behavior is preserved.
-  const filteredVenues = useMemo(
-    () => (savedOnly ? pipelineVenues.filter((v) => savedIds.has(v.id)) : pipelineVenues),
-    [pipelineVenues, savedOnly, savedIds],
-  );
+  // Last orders composes the same way, on the clock-moving set its own hook reads.
+  const filteredVenues = useMemo(() => {
+    const saved = savedOnly ? pipelineVenues.filter((v) => savedIds.has(v.id)) : pipelineVenues;
+    return lastOrdersIds ? saved.filter((v) => lastOrdersIds.has(v.id)) : saved;
+  }, [pipelineVenues, savedOnly, savedIds, lastOrdersIds]);
   const filteredPubVenues = useMemo(
     () => filteredVenues.filter(isPubVenue),
     [filteredVenues],
@@ -3157,6 +3171,7 @@ export default function PubMap({
     openNowStateById,
     savedOnly,
     savedIds,
+    lastOrdersIds,
   });
 
   const nearbyMapResultForView = useMemo(() => {
@@ -6470,6 +6485,7 @@ export default function PubMap({
           filters.zone !== "all"
         }
         openNowActive={filters.openNow}
+        lastOrdersActive={filters.lastOrders === true}
         beerGardenActive={filters.requireBeerGarden}
         outdoorSeatingActive={filters.requireOutdoorSeating}
         savedOnlyActive={savedOnly}

@@ -29,6 +29,10 @@ describe("sourced venue feature filters", () => {
     expect(mapFiltersSuspendUkBasePubs(filters)).toBe(true);
     expect(mapFiltersSuspendUkBasePubs({ ...initialFilters, requireBeerGarden: true })).toBe(true);
   });
+  it("hides the unpriced base layer under Last orders, which has no hours for it", () => {
+    expect(mapFiltersSuspendUkBasePubs({ ...initialFilters, lastOrders: true })).toBe(true);
+    expect(mapFiltersSuspendUkBasePubs(initialFilters)).toBe(false);
+  });
   it("keeps the same outdoor match after venue details load", () => {
     const slim = pin("outdoor", { filterHints: { searchText: "", amenities: { food: false, cocktails: false, beerGarden: false, liveSports: false, nonAlcoholic: false }, curation: { nearWater: false, hasStory: false }, canonical: false, outdoorSeating: [true, "OpenStreetMap", "2026-10-05"] } });
     const merged = mergeLazyDetailPins([slim], new Map([["outdoor", pin("outdoor")]]));

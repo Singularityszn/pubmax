@@ -136,6 +136,16 @@
   color: var(--color-text-muted);
 }
 
+.lastOrdersMapLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-top: var(--space-1);
+  color: var(--color-text);
+  font-weight: 600;
+  text-decoration: underline;
+}
+
 .lastOrdersSource {
   margin: var(--space-2) 0 0;
   font-size: var(--text-xs);
