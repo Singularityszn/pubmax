@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import type { LegOption } from "@/lib/legOptions";
@@ -77,3 +80,18 @@ describe("the plan walk after a lead", () => {
   });
 });
 
+
+describe("Pal leads the way after the map is rebuilt", () => {
+  // WebGL recovery tears the map down and makes a new Pal marker. The lead key
+  // belonged to the old marker, so the teardown that destroys it must clear the
+  // key too, or the lead effect would skip the new marker and the plan's walk
+  // would wait on it, leaving no Pal on the map.
+  it("clears the lead key in the same teardown that destroys the Pal marker", () => {
+    const canvas = readFileSync(join(process.cwd(), "components/PubMapCanvas.tsx"), "utf8");
+    const teardown = canvas.indexOf("palMarkerRef.current?.destroy();");
+    expect(teardown).toBeGreaterThan(-1);
+    const next = canvas.slice(teardown, teardown + 400);
+    expect(next).toContain("palMarkerRef.current = null;");
+    expect(next).toContain("palLeadKeyRef.current = null;");
+  });
+});

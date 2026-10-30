@@ -3939,6 +3939,9 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       donutSync.destroy();
       palMarkerRef.current?.destroy();
       palMarkerRef.current = null;
+      // The lead belonged to that marker: after WebGL recovery the new marker
+      // leads the chosen way afresh instead of waiting for a walk it never began.
+      palLeadKeyRef.current = null;
       removePaintedPinProbe();
       removeMapCameraProbe();
       removeMapReaderPositionProbe();
