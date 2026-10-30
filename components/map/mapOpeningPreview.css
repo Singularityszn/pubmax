@@ -114,14 +114,21 @@ html[data-theme="dark"] .mapOpeningGroundPicture {
        touch (a drag moves the camera, which stands the preview down) and
        reads as mounted to everything that asks. Only the drawing goes
        transparent: MapLibre's control corner keeps the basemap's credit on
-       screen over the picture of that same basemap. The container's own
-       paper is an inline style (paintContainerBase in PubMapCanvas.tsx), so
-       only !important lets the picture show through it. */
+       screen over the picture of that same basemap. */
     html[data-map-preview="on"][data-map-ground="on"]:has(.mapOpeningGround) .mapCanvasWrap .maplibregl-canvas-container {
       opacity: 0;
     }
 
-    html[data-map-preview="on"][data-map-ground="on"]:has(.mapOpeningGround) .mapCanvasWrap .maplibregl-map {
+    /* Every plate the canvas stands on before it draws is see-through too, or
+       it covers the picture as it mounts: the lazy chunk's plate
+       (.mapCanvasSkeleton, a solid paper-and-river field), then the map's own
+       container (.maplibreMap, ink-deep in CSS until PubMapCanvas's effect
+       paints its paper as an inline style, hence !important). Targeting
+       MapLibre's own .maplibregl-map class missed both: it is added only when
+       the map is built, about 0.4 s after the container mounts, and a phone
+       at 4x CPU saw a grey then black frame over the picture in between. */
+    html[data-map-preview="on"][data-map-ground="on"]:has(.mapOpeningGround) .mapCanvasSkeleton,
+    html[data-map-preview="on"][data-map-ground="on"]:has(.mapOpeningGround) .mapCanvasWrap .maplibreMap {
       background: transparent !important;
     }
   }
@@ -141,7 +148,9 @@ html[data-theme="dark"] .mapOpeningGroundPicture {
   width: 0;
   height: 0;
   transform-origin: 0 0;
-  transform: rotateX(var(--map-preview-pitch));
+  /* MapLibre's bearing turns the map anticlockwise; CSS turns clockwise. The
+     bearing is set on the root while the arrival turn runs (MapOpeningPreview). */
+  transform: rotateX(var(--map-preview-pitch)) rotateZ(calc(-1 * var(--map-preview-bearing, 0deg)));
   transform-style: preserve-3d;
 }
 
@@ -172,7 +181,10 @@ html[data-theme="dark"] .mapOpeningGroundPicture {
       var(--ink-deep) 20.75px
     );
   color: var(--ink-deep);
-  transform: translate3d(var(--x), var(--y), 0) rotateX(calc(-1 * var(--map-preview-pitch)));
+  /* Undo the plane's turn, then its tilt, so the disc stands upright facing the
+     camera, as the canvas's own labels do. */
+  transform: translate3d(var(--x), var(--y), 0) rotateZ(var(--map-preview-bearing, 0deg))
+    rotateX(calc(-1 * var(--map-preview-pitch)));
 }
 
 html[data-theme="dark"] .mapOpeningPreviewDisc {

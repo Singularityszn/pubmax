@@ -6,6 +6,7 @@ import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 
 import { MAP_STYLES } from "@/components/map/canvas/tokens";
+import { MAP_ARRIVAL_BEARING_DEG } from "@/lib/mapArrivalBearing";
 import { MAP_OPENING_PREVIEW_CAMERA, projectAtCamera } from "@/lib/mapOpeningPreview";
 import mapOpeningSnapshot from "@/lib/mapOpeningSnapshot.json";
 import {
@@ -100,6 +101,17 @@ describe("where the picture may show", () => {
     }
   });
 
+  it("still covers the common iPhone screens through the arrival turn, and not the largest", () => {
+    // The preview turns the picture with the map only where this holds, and
+    // stands down where it does not (components/map/MapOpeningPreview.tsx).
+    for (const [width, height] of [[375, 667], [390, 664], [390, 844], [393, 852]] as const) {
+      for (const turn of [MAP_ARRIVAL_BEARING_DEG, -MAP_ARRIVAL_BEARING_DEG]) {
+        expect(groundRectCovers(meta.ground, meta.camera.pitch, width, height, turn), `${width}x${height}`).toBe(true);
+      }
+    }
+    expect(groundRectCovers(meta.ground, meta.camera.pitch, 440, 956, MAP_ARRIVAL_BEARING_DEG)).toBe(false);
+  });
+
   it("is the inverse of the projection the discs are laid with", () => {
     const camera = MAP_OPENING_PREVIEW_CAMERA;
     const worldSize = 512 * 2 ** camera.zoom;
@@ -141,5 +153,13 @@ describe("where the picture may show", () => {
     expect(css).toMatch(
       /html\[data-map-preview="on"\]\[data-map-ground="on"\]:has\(\.mapOpeningGround\) \.mapOpeningGround \{\s*display: block;/,
     );
+    // Every plate the canvas stands on before it draws is see-through while
+    // the picture shows, from the lazy chunk's plate to the map's own
+    // container, by our class rather than the one MapLibre adds at build.
+    const ground = 'html[data-map-preview="on"][data-map-ground="on"]:has(.mapOpeningGround)';
+    for (const plate of [".mapCanvasSkeleton", ".mapCanvasWrap .maplibreMap"]) {
+      expect(css).toContain(`${ground} ${plate}`);
+    }
+    expect(css).not.toContain(`${ground} .mapCanvasWrap .maplibregl-map`);
   });
 });
