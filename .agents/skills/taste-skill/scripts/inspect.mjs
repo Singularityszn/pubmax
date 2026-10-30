@@ -13,7 +13,7 @@
 // Exit code 0 = no FAIL findings. Exit code 1 = at least one FAIL (the page is not done).
 // Zero dependencies: drives an installed Chrome/Edge/Chromium. Node 22+.
 // Widths sharing a viewport class receive width-qualified screenshot filenames.
-import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync, createReadStream, readdirSync, unlinkSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync, realpathSync, createReadStream, readdirSync, unlinkSync } from 'node:fs';
 import { resolve, join, relative, dirname, extname, sep } from 'node:path';
 import { createServer } from 'node:http';
 import { Browser, sleep } from './lib/cdp.mjs';
@@ -40,24 +40,56 @@ if (!target || target === '-h' || target.startsWith('--')) {
 for (const p of ['.taste-skill/direction.json', join(outDir, '..', 'direction.json')]) {
   if (existsSync(p)) { try { const d = JSON.parse(readFileSync(p, 'utf8')); allow = [...new Set([...allow, ...(d.allow || [])])]; if (d.kind === 'app') appMode = true; if (Array.isArray(d.scenes) && d.scenes.length) film = true; dealtFonts = (d.input?.keep || []).includes('type') ? [] : d.kind === 'app' ? [d.style?.tokens?.font?.family].filter(Boolean) : [d.type?.display?.family, d.type?.text?.family].filter(Boolean); } catch {} break; }
 }
-// A local file is served over http from a throwaway server on 127.0.0.1, so the browser never has to
-// open a file path (some sandboxes show Node and the browser different views of the disk) and relative
-// assets, fetch() and module scripts behave as they will when the page is hosted.
+// A local file is served from its canonical parent folder on 127.0.0.1. Use a dedicated public
+// folder containing the entry HTML and every local asset. Sibling folders and working-directory
+// files outside that folder are not served. Relative assets and module scripts stay same-origin.
 let url = target; let server = null;
 if (!/^https?:\/\//.test(target)) {
-  const file = resolve(target);
-  if (!existsSync(file)) { console.error('No such file: ' + file); process.exit(2); }
-  const cwd = resolve('.');
-  const root = file.startsWith(cwd + sep) ? cwd : dirname(file);
+  const selected = resolve(target);
+  if (!existsSync(selected)) { console.error('No such file: ' + selected); process.exit(2); }
+  let file;
+  try {
+    file = realpathSync(selected);
+    if (!statSync(file).isFile()) { console.error('Not a file: ' + selected); process.exit(2); }
+  } catch (error) {
+    console.error('Cannot resolve file: ' + selected + ' (' + (error.code || 'unknown') + ')');
+    process.exit(2);
+  }
+  const root = dirname(file);
+  const rootPrefix = root.endsWith(sep) ? root : root + sep;
   const MIME = { '.html': 'text/html; charset=utf-8', '.htm': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.avif': 'image/avif', '.gif': 'image/gif', '.ico': 'image/x-icon', '.woff': 'font/woff', '.woff2': 'font/woff2', '.ttf': 'font/ttf', '.otf': 'font/otf', '.mp4': 'video/mp4', '.webm': 'video/webm', '.txt': 'text/plain; charset=utf-8', '.xml': 'application/xml', '.webmanifest': 'application/manifest+json' };
   server = createServer((req, res) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      res.writeHead(405, { allow: 'GET, HEAD' }); return res.end();
+    }
     try {
-      let f = resolve(join(root, decodeURIComponent(new URL(req.url, 'http://x').pathname)));
-      if (f !== root && !f.startsWith(root + sep)) { res.writeHead(403); return res.end(); }
+      const requested = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+      if (requested.split(/[\\/]/).some((part) => part.startsWith('.'))) {
+        res.writeHead(403); return res.end();
+      }
+      let f = resolve(join(root, requested));
+      if (f !== root && !f.startsWith(rootPrefix)) { res.writeHead(403); return res.end(); }
       if (statSync(f).isDirectory()) f = join(f, 'index.html');
-      res.writeHead(200, { 'content-type': MIME[extname(f).toLowerCase()] || 'application/octet-stream', 'content-length': statSync(f).size, 'cache-control': 'no-store' });
-      createReadStream(f).pipe(res);
-    } catch { res.writeHead(404); res.end('not found'); }
+      f = realpathSync(f);
+      if (f !== root && !f.startsWith(rootPrefix)) { res.writeHead(403); return res.end(); }
+      const pathFromRoot = relative(root, f);
+      if (pathFromRoot === '..' || pathFromRoot.startsWith('..' + sep) ||
+          pathFromRoot.split(sep).some((part) => part.startsWith('.')) ||
+          !Object.hasOwn(MIME, extname(f).toLowerCase())) {
+        res.writeHead(403); return res.end();
+      }
+      const info = statSync(f);
+      if (!info.isFile()) { res.writeHead(403); return res.end(); }
+      res.writeHead(200, { 'content-type': MIME[extname(f).toLowerCase()], 'content-length': info.size, 'cache-control': 'no-store' });
+      if (req.method === 'HEAD') return res.end();
+      const stream = createReadStream(f);
+      stream.on('error', () => res.destroy());
+      stream.pipe(res);
+    } catch (error) {
+      const status = error instanceof URIError ? 400 : error.code === 'ENOENT' || error.code === 'ENOTDIR' ? 404 : error.code === 'EACCES' ? 403 : 500;
+      if (!res.headersSent) res.writeHead(status);
+      res.end(status === 404 ? 'not found' : 'request failed');
+    }
   });
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
   url = `http://127.0.0.1:${server.address().port}/${relative(root, file).split(sep).map(encodeURIComponent).join('/')}`;
