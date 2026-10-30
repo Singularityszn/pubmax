@@ -163,13 +163,11 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
       history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
       setHashInviteToken(null);
     };
-    // Classic multi-use tokens authorize crew join only. Collaboration upgrade
-    // needs a one-use invite from PlanCollaborationPanel — never POST redeem
-    // with the classic token (it is a different capability shape).
-    if (isClassicPlanInviteToken(inviteToken)) {
-      if (role === "host" || collaborationAuthorized) clearInviteHash();
-      return;
-    }
+    // One guest capability (launch review 3.5): the host's classic link and a
+    // one-use private invite both let a guest vote, propose, add a need and
+    // check in. A guest seated through the classic link before that rule
+    // re-opens it and the redeem route lifts the seat; the server checks the
+    // link is still the plan's current one.
     if (collaborationAuthorized || role === "host") {
       clearInviteHash();
       return;
