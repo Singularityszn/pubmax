@@ -520,7 +520,7 @@
     {
       "path": "/area/clapham/drink/guinness",
       "readySelector": "main.drinkBrandAreaLanding",
-      "why": "One governed brand-by-area landing, measuring the /area/{slug}/drink/{brand} family. The parent /area/{slug} page is HELD and 404s, so this is the only page that family publishes. Seeded 7 September 2026: 18 ms, 884 KB, 42 requests, 672 ms LCP (samples 572/672/680).",
+      "why": "One governed brand-by-area landing, measuring the /area/{slug}/drink/{brand} family. Its parent /area/{slug} has its own row since 30 October 2026. Seeded 7 September 2026: 18 ms, 884 KB, 42 requests, 672 ms LCP (samples 572/672/680).",
       "serverRenderMs": 150,
       "jsDecodedKB": 1050,
       "requests": 48,

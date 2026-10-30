@@ -26,6 +26,11 @@ not a borough: Soho is part of Westminster, and Shoreditch spans four boroughs.
 - A name or alias of a published area redirects to that area's page. A known
   area below the floor still redirects to its map area. Unknown or ambiguous
   names return 404. Regression cases: `__tests__/areaRedirect.test.ts`.
+- The page is prerendered and held by the CDN (`proxy.ts`
+  `CDN_CACHED_DOCUMENT_ROUTES`), with an hour's ISR window. Every name the
+  page answers is a static param, so each redirect is prerendered too and an
+  unknown name is a 404 with no render. A read that finds no venues throws,
+  so a failed read keeps the last good copy and never caches a redirect.
 - Published area pages are in the sitemap. Borough pages link each area page
   that holds five or more of the borough's priced pubs
   (`lib/boroughNeighbourhoodLinks.ts`).

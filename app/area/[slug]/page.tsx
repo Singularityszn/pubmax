@@ -9,7 +9,7 @@ import PricedLandingRows, {
 import SiteNav from "@/components/nav/SiteNav";
 import JsonLd from "@/components/seo/JsonLd";
 import { areaLandingRoute } from "@/lib/areaLanding";
-import { areaLandingJsonLd, loadAreaLanding } from "@/lib/areaLanding.server";
+import { areaLandingJsonLd, loadAreaLanding, loadAreaLandings } from "@/lib/areaLanding.server";
 import { loadDrinkBrandAreaLandings } from "@/lib/drinkBrandAreaLanding.server";
 import { mapAreaHref } from "@/lib/mapAreaArrival";
 import { getNightAreasForCity, type NightArea } from "@/lib/nightAreas";
@@ -29,16 +29,34 @@ import "@/components/drinks/drinkBrandDirectory.css";
 // redirects, to that area's page when it has one and to its map area when it
 // does not. Unknown or ambiguous names are a 404.
 //
-// The page renders per request with its nonce. It is not on the CDN document
-// lists in proxy.ts; joining them is a separate captain decision.
+// THIS DOCUMENT IS PRERENDERED on the same terms as the area-by-drink pages
+// below it (proxy.ts CDN_CACHED_DOCUMENT_ROUTES): no nonce, no per-request
+// read, an hour's ISR window. A per-request render of the 71-row Piccadilly &
+// Soho page measured 227 to 288 ms of server time, over the 150 ms floor. Every
+// name the page answers is a static param, so a redirect is prerendered too
+// and an unknown name is a 404 with no render at all.
+export const dynamic = "force-static";
+export const revalidate = 3600;
+export const dynamicParams = false;
 
 type PageProps = { params: Promise<{ slug: string }> };
 
+function areaNameSlugs(area: NightArea): string[] {
+  return [area.slug, ...[area.name, ...area.aliases].map((name) => slugifyVenueName(name))];
+}
+
 function matchingArea(slug: string): NightArea | null {
-  const matches = getNightAreasForCity("london").filter((area) =>
-    area.slug === slug || [area.name, ...area.aliases].some((name) => slugifyVenueName(name) === slug),
-  );
+  const matches = getNightAreasForCity("london").filter((area) => areaNameSlugs(area).includes(slug));
   return matches.length === 1 ? matches[0]! : null;
+}
+
+export function generateStaticParams(): Array<{ slug: string }> {
+  const slugs = new Set(
+    getNightAreasForCity("london")
+      .flatMap(areaNameSlugs)
+      .filter((slug) => slug && matchingArea(slug) !== null),
+  );
+  return [...slugs].map((slug) => ({ slug }));
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -65,6 +83,9 @@ export default async function AreaPage({ params }: PageProps) {
   if (!landing) {
     const area = matchingArea(slug);
     if (!area) notFound();
+    // An empty read is a failed read, not an area with no prices. Throwing keeps
+    // the last good copy; a redirect would be cached for the whole ISR window.
+    if ((await loadAreaLandings()).length === 0) throw new Error("venue dataset unavailable");
     const canonical = await loadAreaLanding(area.slug);
     permanentRedirect(canonical ? areaLandingRoute(area.slug) : mapAreaHref(area));
   }
