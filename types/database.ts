@@ -501,6 +501,7 @@ export type Database = {
           visibility: string;
           created_at: string;
           usual_drink: string;
+          with_names: string;
         };
         Insert: {
           id?: string;
@@ -513,6 +514,7 @@ export type Database = {
           visibility?: string;
           created_at?: string;
           usual_drink?: string;
+          with_names?: string;
         };
         Update: {
           id?: string;
@@ -525,6 +527,7 @@ export type Database = {
           visibility?: string;
           created_at?: string;
           usual_drink?: string;
+          with_names?: string;
         };
         Relationships: [
           {
@@ -816,6 +819,51 @@ export type Database = {
           folded_at?: string;
         };
         Relationships: [];
+      };
+      kitchen_reports: {
+        Row: {
+          id: string;
+          venue_id: string;
+          state: string;
+          reporter_user_id: string;
+          reported_at: string;
+          confirmed_by: string | null;
+          confirmed_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          state: string;
+          reporter_user_id: string;
+          reported_at?: string;
+          confirmed_by?: string | null;
+          confirmed_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          venue_id?: string;
+          state?: string;
+          reporter_user_id?: string;
+          reported_at?: string;
+          confirmed_by?: string | null;
+          confirmed_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "kitchen_reports_confirmed_by_fkey";
+            columns: ["confirmed_by"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "kitchen_reports_reporter_user_id_fkey";
+            columns: ["reporter_user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       map_search_events: {
         Row: {
@@ -1720,6 +1768,74 @@ export type Database = {
             columns: ["pint_drop_id"];
             isOneToOne: false;
             referencedRelation: "pint_drops";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      pint_drop_with_tags: {
+        Row: {
+          id: string;
+          drop_id: string | null;
+          tagger_profile_id: string;
+          tagger_handle: string;
+          target_profile_id: string;
+          target_handle: string;
+          state: string;
+          created_at: string;
+          decided_at: string | null;
+          diary_entry_id: string | null;
+        };
+        Insert: {
+          id?: string;
+          drop_id?: string | null;
+          tagger_profile_id: string;
+          tagger_handle: string;
+          target_profile_id: string;
+          target_handle: string;
+          state?: string;
+          created_at?: string;
+          decided_at?: string | null;
+          diary_entry_id?: string | null;
+        };
+        Update: {
+          id?: string;
+          drop_id?: string | null;
+          tagger_profile_id?: string;
+          tagger_handle?: string;
+          target_profile_id?: string;
+          target_handle?: string;
+          state?: string;
+          created_at?: string;
+          decided_at?: string | null;
+          diary_entry_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "pint_drop_with_tags_diary_entry_id_fkey";
+            columns: ["diary_entry_id"];
+            isOneToOne: false;
+            referencedRelation: "diary_entries";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pint_drop_with_tags_drop_id_fkey";
+            columns: ["drop_id"];
+            isOneToOne: false;
+            referencedRelation: "pint_drops";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pint_drop_with_tags_tagger_profile_id_fkey";
+            columns: ["tagger_profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pint_drop_with_tags_target_profile_id_fkey";
+            columns: ["target_profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
             referencedColumns: ["id"];
           },
         ];
@@ -3782,6 +3898,98 @@ export type Database = {
           },
         ];
       };
+      regular_night_report_still_on: {
+        Row: {
+          report_id: string;
+          user_id: string;
+          created_at: string;
+        };
+        Insert: {
+          report_id: string;
+          user_id: string;
+          created_at?: string;
+        };
+        Update: {
+          report_id?: string;
+          user_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "regular_night_report_still_on_report_id_fkey";
+            columns: ["report_id"];
+            isOneToOne: false;
+            referencedRelation: "regular_night_reports";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "regular_night_report_still_on_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      regular_night_reports: {
+        Row: {
+          id: string;
+          venue_id: string;
+          kind: string;
+          weekday: number;
+          start_time: string | null;
+          note: string;
+          photo_key: string;
+          reporter_user_id: string;
+          created_at: string;
+          last_seen_at: string;
+          expires_at: string;
+          status: string;
+          confirmed_by: string | null;
+          confirmed_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          kind: string;
+          weekday: number;
+          start_time?: string | null;
+          note?: string;
+          photo_key: string;
+          reporter_user_id: string;
+          created_at?: string;
+          last_seen_at?: string;
+          expires_at?: string;
+          status?: string;
+          confirmed_by?: string | null;
+          confirmed_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          venue_id?: string;
+          kind?: string;
+          weekday?: number;
+          start_time?: string | null;
+          note?: string;
+          photo_key?: string;
+          reporter_user_id?: string;
+          created_at?: string;
+          last_seen_at?: string;
+          expires_at?: string;
+          status?: string;
+          confirmed_by?: string | null;
+          confirmed_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "regular_night_reports_reporter_user_id_fkey";
+            columns: ["reporter_user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       round_members: {
         Row: {
           id: string;
@@ -5799,6 +6007,50 @@ export type Database = {
         };
         Relationships: [];
       };
+      venue_corrections: {
+        Row: {
+          id: string;
+          owner_user_id: string;
+          venue_id: string;
+          kind: string;
+          note: string;
+          status: string;
+          resolved_at: string | null;
+          resolved_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          owner_user_id: string;
+          venue_id: string;
+          kind: string;
+          note?: string;
+          status?: string;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          owner_user_id?: string;
+          venue_id?: string;
+          kind?: string;
+          note?: string;
+          status?: string;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "venue_corrections_owner_user_id_fkey";
+            columns: ["owner_user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       venue_occupancy_flags: {
         Row: {
           id: string;
@@ -7172,25 +7424,6 @@ export type Database = {
           isSetofReturn: true;
         };
       };
-      open_social_crew_with_plan_atomic: {
-        Args: {
-          p_actor_account_id: string | null;
-          p_plan_id: string | null;
-          p_host_token_hash: string | null;
-          p_capacity: number | null;
-          p_meeting_venue_id: string | null;
-          p_description: string | null;
-          p_idempotency_key: string | null;
-          p_payload_digest: string | null;
-        };
-        Returns: Json;
-      };
-      read_social_crew_open_crawl: {
-        Args: {
-          p_crew_id: string | null;
-        };
-        Returns: Json;
-      };
       create_social_crew_atomic: {
         Args: {
           p_actor_account_id: string | null;
@@ -7622,6 +7855,19 @@ export type Database = {
         };
         Returns: boolean;
       };
+      open_social_crew_with_plan_atomic: {
+        Args: {
+          p_actor_account_id: string | null;
+          p_plan_id: string | null;
+          p_host_token_hash: string | null;
+          p_capacity: number | null;
+          p_meeting_venue_id: string | null;
+          p_description: string | null;
+          p_idempotency_key: string | null;
+          p_payload_digest: string | null;
+        };
+        Returns: Json;
+      };
       owns_issued_pub_pal_voice_conversation: {
         Args: {
           p_owner_id: string | null;
@@ -7809,6 +8055,12 @@ export type Database = {
           p_cursor_joined_at: string | null;
           p_cursor_member_id: string | null;
           p_limit: number | null;
+        };
+        Returns: Json;
+      };
+      read_social_crew_open_crawl: {
+        Args: {
+          p_crew_id: string | null;
         };
         Returns: Json;
       };
