@@ -1,0 +1,34 @@
+{
+  "name": "@vercel/cli-config",
+  "version": "0.3.1-pubmax.1",
+  "description": "Private repack of the original Vercel CLI config modules with external Zod",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "commonjs",
+  "main": "index.cjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./index.cjs",
+      "require": "./index.cjs",
+      "default": "./index.cjs"
+    },
+    "./paths": {
+      "types": "./dist/paths.d.ts",
+      "default": "./dist/paths.js"
+    }
+  },
+  "files": [
+    "dist",
+    "index.cjs",
+    "LICENSE",
+    "NOTICE",
+    "README.md",
+    "provenance.json"
+  ],
+  "dependencies": {
+    "zod": "4.6.7",
+    "xdg-app-paths": "5"
+  }
+}

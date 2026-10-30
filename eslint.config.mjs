@@ -21,6 +21,22 @@ const eslintConfig = [
       // Copied from the pinned MapLibre and ElevenLabs packages by `npm run dev` and `npm run build`.
       "public/vendor/maplibre/**",
       "public/vendor/elevenlabs/**",
+      // Pristine compiled modules/declarations from @vercel/cli-config 0.3.1.
+      // vendor/vercel-cli-config/provenance.json pins each original byte hash.
+      // Keep the new entry, tests and any future dist files under normal rules.
+      "vendor/vercel-cli-config/dist/cli-config.js",
+      "vendor/vercel-cli-config/dist/cli-config.d.ts",
+      "vendor/vercel-cli-config/dist/cred-storage.js",
+      "vendor/vercel-cli-config/dist/cred-storage.d.ts",
+      "vendor/vercel-cli-config/dist/index.d.ts",
+      "vendor/vercel-cli-config/dist/paths.js",
+      "vendor/vercel-cli-config/dist/paths.d.ts",
+      "vendor/vercel-cli-config/dist/schema.js",
+      "vendor/vercel-cli-config/dist/schema.d.ts",
+      "vendor/vercel-cli-config/dist/schema.zod.js",
+      "vendor/vercel-cli-config/dist/schema.zod.d.ts",
+      "vendor/vercel-cli-config/dist/types.js",
+      "vendor/vercel-cli-config/dist/types.d.ts",
       "data/**",
       // Generated verification artifacts - never hand-authored source.
       "test-results/**",
@@ -51,6 +67,21 @@ const eslintConfig = [
       parserOptions: {
         ecmaFeatures: { jsx: true },
       },
+    },
+  },
+  {
+    // This synchronous CommonJS entry preserves the original package API.
+    // Permit only its four pristine local modules. Other requires still fail.
+    files: ["vendor/vercel-cli-config/index.cjs"],
+    rules: {
+      "@typescript-eslint/no-require-imports": ["error", {
+        allow: [
+          "^\\./dist/types\\.js$",
+          "^\\./dist/schema\\.js$",
+          "^\\./dist/cli-config\\.js$",
+          "^\\./dist/cred-storage\\.js$",
+        ],
+      }],
     },
   },
   {

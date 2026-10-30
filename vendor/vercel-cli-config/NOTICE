@@ -1,0 +1,8 @@
+This private package contains unchanged modules and declarations from
+@vercel/cli-config 0.3.1, published by Vercel under the Apache License 2.0.
+The original licence is included in LICENSE.
+
+Local changes: package metadata pins external Zod 4.6.7, an explicit CommonJS
+entry forwards the original public exports, and provenance records the copied
+files. The original bundled dist/index.js is excluded. This is a local repack,
+not an official Vercel release. No generated upstream module was edited.

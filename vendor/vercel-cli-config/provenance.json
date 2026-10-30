@@ -1,0 +1,123 @@
+{
+  "status": "FOCUSED_TESTS_AND_EVIDENCE_PACK_PASSED_INTEGRATION_PENDING",
+  "baseCommit": "9b593b884729a11f3df02e788b16f153fdc27b21",
+  "upstream": {
+    "name": "@vercel/cli-config",
+    "version": "0.3.1",
+    "url": "https://registry.npmjs.org/@vercel/cli-config/-/cli-config-0.3.1.tgz",
+    "integrity": "sha512-sISbygqlFXYb8qfPu/+2Cf/A8IjrlAuZePdag3EDQr2PRA455s7UZtl9Ro674CWsB/saBRmz3jEkw0YsQs8OoQ==",
+    "archiveSha256": "7e07ed623571d8c6ea4aa6d8657762c6cfb2722865601f6f53758f87a690f544",
+    "packageJsonSha256": "1e34e3b23448cdbef968b0f6a37b2f75d899816919078e7072f38f9de5b07aa3"
+  },
+  "unchangedFiles": [
+    {
+      "path": "dist/cli-config.js",
+      "sha256": "3ad5806020d0617231681094c245d45240055402883cd61151bcc5963c94ba42",
+      "bytes": 7315
+    },
+    {
+      "path": "dist/cred-storage.js",
+      "sha256": "54a88ba6ccdf317a0d28bc0ec1361993f35fd0bc3616a03ed703ce7690b2cc6b",
+      "bytes": 2708
+    },
+    {
+      "path": "dist/paths.js",
+      "sha256": "49c1addfd16a4c792f992f4cffe5b222126f130d079a4288567defbd60ce7928",
+      "bytes": 2851
+    },
+    {
+      "path": "dist/schema.js",
+      "sha256": "d6098e639ed172e624b391fb8ca685a358b6bb579319d6db4f0bf27f359b7475",
+      "bytes": 3002
+    },
+    {
+      "path": "dist/schema.zod.js",
+      "sha256": "79f2aae773837f2c061210fcb23664cd8b7fa0cf07b4626b2e3c8e740b8ad535",
+      "bytes": 3106
+    },
+    {
+      "path": "dist/types.js",
+      "sha256": "ed6d71a9c4d5381f18d7631957fd48d6cafccd46f5173e4396596994e3ccbd51",
+      "bytes": 610
+    },
+    {
+      "path": "dist/cli-config.d.ts",
+      "sha256": "1f8255f225f0f4133d2a5cffa2512812095d905333f4e114338a92f5e56ff73f",
+      "bytes": 1854
+    },
+    {
+      "path": "dist/cred-storage.d.ts",
+      "sha256": "0a66735e0d1f41457451771c9acc9f22b956378701b2febd5a03acbe92bb1fcb",
+      "bytes": 266
+    },
+    {
+      "path": "dist/index.d.ts",
+      "sha256": "15b9703587feea1fe088413038589c697064bee79c315477af5f6547dac661fc",
+      "bytes": 113
+    },
+    {
+      "path": "dist/paths.d.ts",
+      "sha256": "b4a14d277237838cde5d610d53f824f37643e1416b63f419126604b185128869",
+      "bytes": 517
+    },
+    {
+      "path": "dist/schema.d.ts",
+      "sha256": "223c608764d99889abddca0746e6feef6ae3d0c12a69c6dc36debe8f69b7b8be",
+      "bytes": 794
+    },
+    {
+      "path": "dist/schema.zod.d.ts",
+      "sha256": "897159cbd3c47e845f07aa7918e8e72c7d7916b0c33b9f24ca8a1879e239a0d5",
+      "bytes": 2268
+    },
+    {
+      "path": "dist/types.d.ts",
+      "sha256": "9cb115e05623f62abd6f0af8304d21ef6808ef5821c3eb8944a25124b811a3b1",
+      "bytes": 1621
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "b070d77bfb2c52a1dd6996de0ce5f64c49a0ca55c889b163a963ddf5cb001ee2",
+      "bytes": 11343
+    }
+  ],
+  "excludedBundledEntry": {
+    "path": "dist/index.js",
+    "sha256": "653761ad32e10601c746068d40ce5b6db518519080ac78a7e98a4d075862e4cc",
+    "bytes": 101406,
+    "embeddedZodVersion": "4.1.11"
+  },
+  "localChanges": [
+    "Private package metadata with external zod 4.6.7",
+    "Explicit root entry forwarding the original 34 exports",
+    "Types condition for the unchanged upstream declarations",
+    "Package provenance and removal criteria"
+  ],
+  "limits": [
+    "The application override, lockfile and installed graph remain unchanged.",
+    "The retained evidence-only archive predates this README and provenance update. A final archive needs a fresh integrity record.",
+    "The TypeScript consumer, installed package, security audit, configured full verification and publication remain unproved.",
+    "Finite sampling does not prove true peak memory or all descendants. Startup-only processes lack active RSS samples.",
+    "Focused contract checks do not establish remote exploitability or final security acceptance."
+  ],
+  "validation": {
+    "date": "2026-10-30",
+    "baseline": {
+      "expectedFailures": 3,
+      "passes": 5
+    },
+    "prototype": {
+      "testsPassed": 18,
+      "filesPassed": 3
+    },
+    "evidencePack": {
+      "entries": 19,
+      "unchangedUpstreamHashesVerified": 14,
+      "sha256": "280501d3c6cc48061cfc53aacf4d55a4959c786f85f8aeaec98d0f411a5a9058",
+      "excludedBundledEntryAbsent": true,
+      "snapshot": "Before these validation-note changes"
+    },
+    "recordedProcessesAndGroupsReleased": true,
+    "resourcePassClaim": false
+  }
+}
