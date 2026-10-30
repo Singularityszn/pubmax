@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { isLastOrdersHour } from "@/lib/lastOrdersList";
 import type { TonightNear } from "@/lib/tonight";
 
-import { useLiveClock } from "./useLiveClock";
+import { useLiveClock } from "@/lib/useLiveClock";
 
 const TonightLastOrdersPanel = dynamic(() => import("./TonightLastOrdersPanel"), { ssr: false });
 

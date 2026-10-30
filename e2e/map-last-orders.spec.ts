@@ -37,6 +37,9 @@ test("the map arrives with Last orders on and narrows to pubs still open (390x84
   const filtersButton = page.getByRole("button", { name: /^Filters/ });
   await expect(filtersButton).toBeVisible({ timeout: 45_000 });
   await expect(filtersButton).toHaveAttribute("aria-label", /last orders/);
+  // Dark at night by default while the filter is on.
+  await expect(page.locator("html")).toHaveAttribute("data-night-theme", "1");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await page.screenshot({ path: "artifacts/last-orders/map-last-orders-390x844.png" });
 
   await filtersButton.click();
@@ -57,6 +60,7 @@ test("the map arrives with Last orders on and narrows to pubs still open (390x84
   await choice.click();
   await expect(choice).toHaveAttribute("aria-pressed", "false");
   await expect(filtersButton).not.toHaveAttribute("aria-label", /last orders/);
+  await expect(page.locator("html")).not.toHaveAttribute("data-night-theme", "1");
   expect(errors).toEqual([]);
 });
 
@@ -76,4 +80,63 @@ test("the desktop filters offer Last orders with its caption (1280x800)", async 
   );
   await expect(features).toContainText("Pubs with no listed hours are hidden.");
   await page.screenshot({ path: "artifacts/last-orders/map-last-orders-1280x800.png" });
+});
+
+// While the hours are on their way the filter hides every pin it cannot vouch
+// for and says it is loading; it never shows the unfiltered map under the
+// "open 30 more minutes" caption. Covered for both doors: the address, and the
+// chip on a map that was already open.
+async function holdHours(page: import("@playwright/test").Page): Promise<() => void> {
+  let release: () => void = () => {};
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/data/last_orders/london_hours.json", async (route) => {
+    await gate;
+    await route.continue();
+  });
+  return release;
+}
+
+async function openFilters(page: import("@playwright/test").Page) {
+  const filtersButton = page.getByRole("button", { name: /^Filters/ });
+  await expect(filtersButton).toBeVisible({ timeout: 45_000 });
+  await filtersButton.click();
+  const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
+  await expect(sheet).toBeVisible();
+  return sheet;
+}
+
+test("arriving by address with the hours delayed shows loading, never the unfiltered map", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.clock.setFixedTime(FRIDAY_2245);
+  const release = await holdHours(page);
+  await page.goto("/map?lastOrders=1");
+  const sheet = await openFilters(page);
+  await expect(sheet.getByRole("button", { name: "Last orders", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(sheet.getByRole("status").filter({ hasText: /matching|Loading/ })).toHaveText("Loading matching places…");
+  // Held for a while: still loading, still no count.
+  await page.waitForTimeout(3_000);
+  await expect(sheet.getByRole("status").filter({ hasText: /matching|Loading/ })).toHaveText("Loading matching places…");
+  release();
+  const status = sheet.getByRole("status").filter({ hasText: /matching places? loaded/ });
+  await expect(status).toBeVisible({ timeout: 30_000 });
+  const count = Number(/([\d,]+) matching/.exec(await status.innerText())?.[1]?.replace(/,/g, ""));
+  expect(count).toBeLessThanOrEqual(CURATED_PINS_WITH_HOURS);
+});
+
+test("turning the chip on with the hours delayed shows loading, never the unfiltered map", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.clock.setFixedTime(FRIDAY_2245);
+  const release = await holdHours(page);
+  await page.goto("/map");
+  const sheet = await openFilters(page);
+  await sheet.getByRole("button", { name: "Last orders", exact: true }).click();
+  await expect(sheet.getByRole("status").filter({ hasText: /matching|Loading/ })).toHaveText("Loading matching places…");
+  await page.waitForTimeout(3_000);
+  await expect(sheet.getByRole("status").filter({ hasText: /matching|Loading/ })).toHaveText("Loading matching places…");
+  release();
+  await expect(sheet.getByRole("status").filter({ hasText: /matching places? loaded/ })).toBeVisible({ timeout: 30_000 });
 });

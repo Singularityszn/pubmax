@@ -22,6 +22,7 @@ import { formatObservedDate, formatSnapshotFrom } from "@/lib/dataFreshness";
 import { oldestPintRead } from "@/lib/drinks";
 import { LOCATION_FINDING_LABEL, LOCATION_SHARE_LABEL } from "@/lib/locationDisclosure";
 import {
+  isLastOrdersHour,
   LAST_ORDERS_HOURS_PATH,
   LAST_ORDERS_MAP_PARAM,
   LAST_ORDERS_MIN_MINUTES,
@@ -39,7 +40,8 @@ import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 import type { TonightNear } from "@/lib/tonight";
 
 import { useLastOrdersGetHome, type GetHome } from "./useLastOrdersGetHome";
-import { useLiveClock } from "./useLiveClock";
+import { useLiveClock } from "@/lib/useLiveClock";
+import { useNightDarkTheme } from "@/lib/useNightDarkTheme";
 
 import "./tonightLastOrders.css";
 
@@ -139,6 +141,8 @@ function GetHomeLine({
     );
   } else if (getHome.status === "loading") {
     copy = "Looking up the last train from your nearest station.";
+  } else if (getHome.status === "stale") {
+    copy = "The last-train time we hold is out of date, so we show none. Check TfL before you set off.";
   } else if (getHome.status === "none") {
     copy = "We have no last-train time for this spot, so we show none. Check TfL before you set off.";
   } else {
@@ -174,6 +178,8 @@ export default function TonightLastOrdersPanel({
 }) {
   const [packs, retry] = useLastOrdersPacks();
   const now = useLiveClock(TICK_MS);
+  // Dark at night by default, unless the reader chose a theme (useNightDarkTheme).
+  useNightDarkTheme(now !== null && isLastOrdersHour(now));
   const getHome = useLastOrdersGetHome(origin, now);
   const from = near?.near ?? null;
   const fallback = getCity("london").mapView.center;

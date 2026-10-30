@@ -48,6 +48,12 @@ for (const viewport of VIEWPORTS) {
     await expect(getHome).not.toContainText(/\d{2}:\d{2}/);
     await expect(panel).toContainText("Hours from OpenStreetMap");
 
+    // Dark at night by default for a reader who never chose a theme, and
+    // nothing is stored on their behalf.
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await expect(page.locator("html")).toHaveAttribute("data-night-theme", "1");
+    expect(await page.evaluate(() => window.localStorage.getItem("pubmax-theme"))).toBeNull();
+
     await panel.scrollIntoViewIfNeeded();
     await page.screenshot({ path: `artifacts/last-orders/last-orders-${viewport.name}.png` });
   });
@@ -87,6 +93,26 @@ test("before 21:30 the door is quiet, and the address opens the panel at any hou
 
   await page.goto("/tonight?mode=last-orders");
   await expect(page.getByTestId("last-orders")).toBeVisible();
+  // 18:00 is not night: opening the list leaves the theme alone.
+  await expect(page.locator("html")).not.toHaveAttribute("data-night-theme", "1");
   await page.getByRole("button", { name: "Close Last orders" }).click();
   await expect(page.getByTestId("last-orders-door")).toBeVisible();
+});
+
+test("a reader's own light theme wins over the night default", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => window.localStorage.setItem("pubmax-theme", "light"));
+  const panel = await openTonightAt(page);
+  await expect(panel.getByTestId("last-orders-countdown").first()).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await expect(page.locator("html")).not.toHaveAttribute("data-night-theme", "1");
+});
+
+test("closing the list at night puts the theme back", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openTonightAt(page);
+  await expect(page.locator("html")).toHaveAttribute("data-night-theme", "1");
+  await page.getByRole("button", { name: "Close Last orders" }).click();
+  await expect(page.locator("html")).not.toHaveAttribute("data-night-theme", "1");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
 });

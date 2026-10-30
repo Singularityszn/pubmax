@@ -1115,7 +1115,7 @@ function useMapPinVenues({
   openNowStateById: ReadonlyMap<string, OpenNowState> | null;
   savedOnly: boolean;
   savedIds: ReadonlySet<string>;
-  /** Last orders' open set; null while off or still reading, which does not narrow. */
+  /** Last orders' open set; null only while off. Empty while its hours are read. */
   lastOrdersIds: ReadonlySet<string> | null;
 }): Venue[] {
   const pinFilterKey = JSON.stringify(mapPinFilters(mapFilters));
@@ -1690,7 +1690,11 @@ export default function PubMap({
       ? { ...restoredSession.filters, lastOrders: true }
       : restoredSession.filters,
   );
-  const lastOrdersIds = useLastOrdersVenueIds(filters.lastOrders === true);
+  // Null only when the filter is off. On and still reading is an EMPTY set, so
+  // no pin shows under the Last orders caption before its hours arrive.
+  const { ids: lastOrdersIds, reading: lastOrdersReading } = useLastOrdersVenueIds(
+    filters.lastOrders === true,
+  );
   // First-party Wetherspoon directory for Open now hours. Loaded once; match is
   // name+distance only and never invents hours for unmatched pubs.
   const [wetherspoonsDirectoryPubs, setWetherspoonsDirectoryPubs] = useState<
@@ -6329,7 +6333,7 @@ export default function PubMap({
             onOpen={() => changeMapOverlay("tonight")}
           />
         ) : null}
-        <VenueFeatureFilters filters={filters} onChange={setFilters} resultCount={loaded && loadedCityId === cityId ? filteredVenueCount : null} />
+        <VenueFeatureFilters filters={filters} onChange={setFilters} resultCount={loaded && loadedCityId === cityId && !lastOrdersReading ? filteredVenueCount : null} />
         <MapExperienceLensControl
           lens={experienceLens}
           allSelected={!drinkFiltersActive}
@@ -7000,7 +7004,9 @@ export default function PubMap({
         onTogglePlanning={togglePlanning}
         filters={filters}
         onFiltersChange={setFilters}
-        searchSettled={loaded && loadedCityId === cityId}
+        // Not settled while Last orders reads its hours: an empty map then is
+        // a wait, not "nothing matches".
+        searchSettled={loaded && loadedCityId === cityId && !lastOrdersReading}
         filteredVenueCount={filteredVenueCount}
         searchableVenueCount={venues.length}
         zoneIndex={zoneIndex}
