@@ -44,6 +44,7 @@ import { socialPubRankingEntries } from "@/lib/socialPubRankings";
 import { selectStore } from "@/lib/storeBackend";
 import { storedVenueName } from "@/lib/storedVenueRef";
 import { requireSupabaseAdmin } from "@/lib/supabase";
+import { loadVenueAliasResolver } from "@/lib/venueAliases";
 import { resolveStoredVenue } from "@/lib/venueIndex";
 import { wantedStore } from "@/lib/wantedStore";
 
@@ -72,6 +73,13 @@ export type PassportDeps = {
   nightProfile(ownerUserId: string): Promise<PassportNightProfile | null>;
   venue(venueId: string): Promise<PassportVenueFacts | null>;
   heritageDateLabel(venueId: string): Promise<string | null>;
+  /**
+   * The alias map as one function: a stored venue id to the id it names now.
+   * A merged or superseded id and its successor are one pub, so every count,
+   * ranking and intersection runs on the current id. The stores keep the id
+   * each row was written under.
+   */
+  venueAliases(): Promise<(venueId: string) => string>;
 };
 
 type PassportFailure = { ok: false; status: 403 | 404 | 503; code: string; error: string };
@@ -169,6 +177,21 @@ async function dropSightings(
   return deps.drops(profile.handle, viewer);
 }
 
+const identity = (venueId: string) => venueId;
+
+/** The alias map, or the identity when it cannot be read. */
+async function canonicalizer(deps: PassportDeps): Promise<(venueId: string) => string> {
+  try {
+    return await deps.venueAliases();
+  } catch {
+    return identity;
+  }
+}
+
+function onCurrentIds<T extends { venueId: string }>(rows: readonly T[], canonical: (venueId: string) => string): T[] {
+  return rows.map((row) => (row.venueId ? { ...row, venueId: canonical(row.venueId) } : row));
+}
+
 async function named(sightings: BeenSighting[], deps: PassportDeps): Promise<BeenSighting[]> {
   return Promise.all(
     sightings.map(async (sighting) => {
@@ -194,12 +217,13 @@ export async function readPassportBeen(
   const sources = beenSourcesFor(access);
   const userId = profile.userId?.trim() || "";
 
-  const [diary, drops, plans, wanted, night] = await Promise.all([
+  const [diary, drops, plans, wanted, night, canonical] = await Promise.all([
     sources.includes("diary") && userId ? settle(() => deps.diary(userId), []) : settle(async () => [], []),
     settle(() => dropSightings(request, profile, relation, deps), []),
     sources.includes("plan") && userId ? settle(() => deps.plans(userId), []) : settle(async () => [], []),
     settle(() => deps.wanted(profile.id), [] as PassportVenue[]),
     access === "full" && userId ? settle(() => deps.nightProfile(userId), null) : settle(async () => null, null),
+    canonicalizer(deps),
   ]);
 
   const dropRows: BeenSighting[] = drops.value.map((drop) => ({
@@ -208,7 +232,9 @@ export async function readPassportBeen(
     date: drop.createdAt,
     source: "pint_drop",
   }));
-  const venues = aggregateBeen(await named([...diary.value, ...dropRows, ...plans.value], deps));
+  const venues = aggregateBeen(
+    await named(onCurrentIds([...diary.value, ...dropRows, ...plans.value], canonical), deps),
+  );
   return {
     ok: true,
     body: {
@@ -243,17 +269,18 @@ export async function readPassportOverlap(
     return MATES_ONLY;
   }
   try {
-    const [mineRanked, theirsRanked, mineWanted, theirsWanted] = await Promise.all([
+    const [mineRanked, theirsRanked, mineWanted, theirsWanted, canonical] = await Promise.all([
       rankedWithNames(viewerProfile.id, deps),
       rankedWithNames(profile.id, deps),
       deps.wanted(viewerProfile.id),
       deps.wanted(profile.id),
+      canonicalizer(deps),
     ]);
     return {
       ok: true,
       body: {
-        topFive: sharedTopFive(mineRanked, theirsRanked),
-        wantToTry: sharedWantToTry(mineWanted, theirsWanted),
+        topFive: sharedTopFive(onCurrentIds(mineRanked, canonical), onCurrentIds(theirsRanked, canonical)),
+        wantToTry: sharedWantToTry(onCurrentIds(mineWanted, canonical), onCurrentIds(theirsWanted, canonical)),
       },
     };
   } catch {
@@ -274,12 +301,13 @@ export async function readPassportTaste(
   if (passportAccess("taste", relation, accountIsPrivate(profile.visibility)) === "none") return OWNER_ONLY;
   const userId = profile.userId?.trim() || "";
 
-  const [drops, ranked, night] = await Promise.all([
+  const [drops, ranked, night, canonical] = await Promise.all([
     settle(() => dropSightings(request, profile, relation, deps), []),
     settle(() => rankedWithNames(profile.id, deps), [] as PassportRankedRow[]),
     userId ? settle(() => deps.nightProfile(userId), null) : settle(async () => null, null),
+    canonicalizer(deps),
   ]);
-  const topFive = [...ranked.value].sort((a, b) => a.place - b.place).slice(0, 5);
+  const topFive = onCurrentIds(ranked.value, canonical).sort((a, b) => a.place - b.place).slice(0, 5);
   const enriched = await Promise.all(
     topFive.map(async (row) => {
       const [venue, dateLabel] = await Promise.all([
@@ -369,7 +397,7 @@ async function venueFacts(venueId: string): Promise<PassportVenueFacts | null> {
   return venue ? { name: storedVenueName(venue), borough: venue.borough || null } : null;
 }
 
-function defaultPassportDeps(): PassportDeps {
+export function defaultPassportDeps(): PassportDeps {
   return {
     verifyCaller: callerUserId,
     profiles: profileStore(),
@@ -423,9 +451,13 @@ function defaultPassportDeps(): PassportDeps {
       const patch = area
         ? getNightAreasForCity(profile.cityId).find((entry) => entry.slug === area)?.name ?? null
         : null;
-      return { fairPintPence: profile.context.budgetLimitPence ?? null, patch, updatedAt: profile.updatedAt };
+      // No account stores a fair price for one pint. `budgetLimitPence` is the
+      // per-person budget for a whole route, so printing it as "Fair pint"
+      // would claim a preference the owner never gave. The fact is left out.
+      return { fairPintPence: null, patch, updatedAt: profile.updatedAt };
     },
     venue: venueFacts,
+    venueAliases: async () => (await loadVenueAliasResolver()).canonical,
     async heritageDateLabel(venueId) {
       const pubs = await loadHistoricPubs();
       const pub = pubs.find((entry) => entry.venueId === venueId);

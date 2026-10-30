@@ -68,6 +68,7 @@ function deps(reader: Reader, visibility: AccountVisibility, overrides: Partial<
     nightProfile: async () => ({ fairPintPence: 550, patch: "Soho", updatedAt: "2026-09-20T10:00:00.000Z" }),
     venue: async (venueId) => ({ name: venueId.toUpperCase(), borough: "Camden" }),
     heritageDateLabel: async (venueId) => (venueId === "lamb" ? "Built 1729" : null),
+    venueAliases: async () => (venueId) => venueId,
     ...overrides,
   };
 }
@@ -199,5 +200,96 @@ describe("the ranked list behind the share", () => {
   it("carries place and name only", async () => {
     const result = await readPassportRanked(request(), "owner", deps("owner", "public"));
     expect(result.ok && Object.keys(result.body.ranked[0]!).sort()).toEqual(["place", "venueId", "venueName"]);
+  });
+});
+
+// Review finding 1 (PR 2402): the Night Profile holds a per-person ROUTE
+// budget, not a fair price for one pint. The production mapping must never
+// print that budget as "Fair pint", on the cover or on the taste card.
+describe("the fair pint is never the night budget", () => {
+  it("prints neither the cover line nor the taste fact from a route budget", async () => {
+    const { defaultPassportDeps } = await import("@/lib/profilePassport.server");
+    const { memoryNightProfileStore, __resetNightProfileStore } = await import("@/lib/nightProfileStore");
+    const { DEFAULT_NIGHT_PROFILE_INPUT } = await import("@/lib/nightProfile");
+    __resetNightProfileStore();
+    // A £40 route budget for the night; a fair pint would be about £5.50.
+    const nightBudgetPence = 4000;
+    await memoryNightProfileStore.put(
+      OWNER.userId,
+      { ...DEFAULT_NIGHT_PROFILE_INPUT, context: { ...DEFAULT_NIGHT_PROFILE_INPUT.context, budgetLimitPence: nightBudgetPence } },
+      null,
+    );
+    const production = defaultPassportDeps().nightProfile;
+    const stored = await production(OWNER.userId);
+    expect(stored?.fairPintPence ?? null).not.toBe(nightBudgetPence);
+
+    const been = await readPassportBeen(request(), "owner", deps("owner", "public", { nightProfile: production }));
+    expect(been.ok && been.body.cover?.fairPintPence).toBeFalsy();
+    const taste = await readPassportTaste(request(), "owner", deps("owner", "public", { nightProfile: production }));
+    expect(taste.ok && taste.body.facts.some((fact) => fact.key === "fair_pint")).toBe(false);
+    expect(JSON.stringify(taste)).not.toContain("£40");
+    __resetNightProfileStore();
+  });
+});
+
+// Review finding 2 (PR 2402): a former venue id and its successor are one pub.
+// "lamb-old" was merged into "lamb"; the alias map says so.
+describe("a former venue id and its successor are one pub", () => {
+  const ALIASES: Record<string, string> = { "lamb-old": "lamb" };
+  const canonical = async () => (id: string) => ALIASES[id] ?? id;
+
+  it("counts the diary row under the old id and the drop under the new id once", async () => {
+    const result = await readPassportBeen(
+      request(),
+      "owner",
+      deps("owner", "public", {
+        venueAliases: canonical,
+        diary: async () => [{ venueId: "lamb-old", venueName: "The Lamb", date: "2026-10-01", source: "diary" }],
+        plans: async () => [],
+      }),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.body.count).toBe(2);
+    expect(result.body.venues.map((venue) => venue.venueId).sort()).toEqual(["lamb", "stars"]);
+    // The merged row keeps every record that put the owner there.
+    expect(result.body.venues.find((venue) => venue.venueId === "lamb")?.sources).toEqual(["diary", "pint_drop"]);
+  });
+
+  it("finds the overlap when one mate ranked the old id and the other the new one", async () => {
+    const result = await readPassportOverlap(
+      request(),
+      "owner",
+      deps("mate", "public", {
+        venueAliases: canonical,
+        rankings: async (profileId) =>
+          profileId === OWNER.id ? rankedRows(["lamb", "stars"]) : rankedRows(["lamb-old", "z"]),
+        wanted: async (profileId) =>
+          profileId === OWNER.id
+            ? [{ venueId: "lamb", venueName: "The Lamb" }]
+            : [{ venueId: "lamb-old", venueName: "The Lamb" }],
+      }),
+    );
+    expect(result).toEqual({
+      ok: true,
+      body: {
+        topFive: [{ venueId: "lamb", venueName: "LAMB" }],
+        wantToTry: [{ venueId: "lamb", venueName: "The Lamb" }],
+      },
+    });
+  });
+
+  it("ranks the taste card's top five on the current id", async () => {
+    const asked: string[] = [];
+    await readPassportTaste(
+      request(),
+      "owner",
+      deps("owner", "public", {
+        venueAliases: canonical,
+        rankings: async () => rankedRows(["lamb-old"]),
+        venue: async (venueId) => (asked.push(venueId), { name: venueId.toUpperCase(), borough: "Camden" }),
+      }),
+    );
+    expect(asked).toEqual(["lamb"]);
   });
 });
