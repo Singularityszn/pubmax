@@ -109,6 +109,10 @@ export const CDN_CACHED_DOCUMENT_PATHS: ReadonlySet<string> = new Set([
 // cached. So no drinker's words sit in a cached copy, and a hidden, withdrawn
 // or erased drop leaves the page as soon as the store stops returning it.
 //
+// `/routes/[slug]` joined on 2026-10-30 (captain's call): the four named crawl
+// pages (SEO audit #2126). Each renders the bundled price dataset and nothing
+// a drinker wrote, and it throws rather than cache an unreadable dataset.
+//
 // `/area/[slug]` joined on 2026-10-30 with the area pages (captain's call on
 // the floor of 15): the cheapest listed pints in one Night Area, from the same
 // bundled price dataset as the area-by-drink pages, and a prerendered redirect
@@ -124,6 +128,7 @@ export const CDN_CACHED_DOCUMENT_ROUTES: ReadonlySet<string> = new Set([
   "/area/[slug]",
   "/area/[slug]/drink/[brand]",
   "/ledger/[id]",
+  "/routes/[slug]",
 ]);
 
 /** True when `pathname` fills `pattern` segment for segment. */
