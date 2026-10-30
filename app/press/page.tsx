@@ -17,7 +17,7 @@ import "./press.css";
 //
 // BACKLINK PLAYBOOK (docs/growth/BACKLINK_PLAYBOOK.md). One page carries the
 // tactics that need a URL: findings written as whole sentences (13 to 19),
-// what a journalist can ask us for (20 to 27), and the chart with its embed
+// what a journalist can ask us for (20 to 27), and the edition's card with its embed
 // code and credit line (50 to 55). It has no figure of its own. Every number
 // is read from a Pint Index snapshot through lib/citableFindings.ts, and a
 // snapshot below the admission floor gives the honest empty state instead.
@@ -87,7 +87,7 @@ function embedCode(source: CitedSource): string {
   const url = `${SITE_URL}${source.path}`;
   return [
     `<a href="${url}">`,
-    `  <img src="${SITE_URL}${source.imagePath}" alt="${source.title} chart by PUBMAXX" width="1200" height="630" loading="lazy">`,
+    `  <img src="${SITE_URL}${source.imagePath}" alt="${source.title} summary card by PUBMAXX" width="1200" height="630" loading="lazy">`,
     `</a>`,
     `<p>${citationLine(source.title, `<a href="${url}">${url}</a>`, source.publishedLabel)}</p>`,
   ].join("\n");
@@ -195,12 +195,13 @@ export default async function PressPage() {
 
       {source && findings.length > 0 ? (
         <section className="legalSection" aria-labelledby="embed">
-          <h2 id="embed" className="legalH2">Use the chart</h2>
+          <h2 id="embed" className="legalH2">Use the image</h2>
           <p className="legalBody">
-            You can put this chart in your article at no cost. The code below
+            You can put this summary card in your article at no cost. It names
+            the edition and how many prices it holds. The code below
             shows the image, links it to the source and adds the credit line.
           </p>
-          <pre className="pressCode" tabIndex={0} aria-label="Embed code for the chart"><code>{embedCode(source)}</code></pre>
+          <pre className="pressCode" tabIndex={0} aria-label="Embed code for the summary card"><code>{embedCode(source)}</code></pre>
         </section>
       ) : null}
 

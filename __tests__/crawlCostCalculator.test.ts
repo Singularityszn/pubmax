@@ -86,6 +86,18 @@ describe("calculateCrawlCost, unusual inputs", () => {
   });
 });
 
+describe("the error a reader sees", () => {
+  it("asks for pounds when the price cannot be read, never for a whole number", () => {
+    const result = calculateCrawlCost({ people: 4, stops: 4, drinksPerStop: 1, pricePence: parsePriceToPence("5.855") });
+    expect(result).toEqual({ ok: false, field: "pricePence", message: "Price of a drink must be an amount in pounds, for example 6.20." });
+  });
+
+  it("asks for a whole number of people", () => {
+    const result = calculateCrawlCost({ people: parseWholeNumber("2.5"), stops: 4, drinksPerStop: 1, pricePence: 600 });
+    expect(result).toMatchObject({ ok: false, field: "people", message: "People must be a whole number." });
+  });
+});
+
 describe("parsing what a reader types", () => {
   it.each([
     ["5.85", 585],

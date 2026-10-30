@@ -72,7 +72,8 @@ describe("citableFindings", () => {
     ]);
     for (const { sentence } of findings) {
       expect(sentence).toMatch(/^[A-Z].*\.$/);
-      expect(sentence).toContain("1 September 2026");
+      expect(sentence).toContain("from 1 September 2026 to 30 September 2026");
+      expect(sentence).not.toContain("between");
       expect(sentence).not.toMatch(/[—!]/);
     }
   });
@@ -99,7 +100,7 @@ describe("citableFindings", () => {
     june.observations = june.observations.map((row) => ({ ...row, observedAt: "2026-06-10T12:00:00.000Z" }));
     expect(citableSample(june)?.windowLabel).toBe("1 June 2026 to 30 June 2026");
     for (const { sentence } of citableFindings(june)) {
-      expect(sentence).toContain("between 1 June 2026 to 30 June 2026");
+      expect(sentence).toContain("for prices seen from 1 June 2026 to 30 June 2026.");
       expect(sentence).not.toContain("July");
     }
   });

@@ -63,7 +63,8 @@ const FIELD_LABEL: Record<CrawlCostField, string> = {
 function checkField(field: CrawlCostField, value: number): CrawlCostError | null {
   const { min, max } = CRAWL_LIMITS[field];
   if (!Number.isFinite(value) || !Number.isInteger(value)) {
-    return { ok: false, field, message: `${FIELD_LABEL[field]} must be a whole number.` };
+    const shape = field === "pricePence" ? "an amount in pounds, for example 6.20" : "a whole number";
+    return { ok: false, field, message: `${FIELD_LABEL[field]} must be ${shape}.` };
   }
   if (value < min || value > max) {
     const range = field === "pricePence"

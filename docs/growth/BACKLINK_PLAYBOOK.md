@@ -12,7 +12,7 @@ That record is dated, so this file is the live one.
 
 | Surface | Tactics | What it does |
 | --- | --- | --- |
-| `/press` (`app/press/page.tsx`) | 13 to 19, 24 to 26, 50 to 55, 60 | Findings as whole sentences, the sample, the method, stable links, a credit line, the chart embed code and the contact for journalists. |
+| `/press` (`app/press/page.tsx`) | 13 to 19, 24 to 26, 50 to 55, 60 | Findings as whole sentences, the sample, the method, stable links, a credit line, embed code for the edition's summary card and the contact for journalists. |
 | `lib/citableFindings.ts` | 15, 17 | Writes each finding from a Pint Index snapshot. It writes nothing below the admission floor. |
 | `/pub-crawl-cost` (`app/pub-crawl-cost/`) | 38 to 43 | A free calculator on a permanent page: cost for each person, and who buys an extra round. |
 | `lib/crawlCostCalculator.ts` | 39, 41 | The sums, in whole pence. `__tests__/crawlCostCalculator.test.ts` tests normal and unusual inputs. |

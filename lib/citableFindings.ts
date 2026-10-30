@@ -58,7 +58,7 @@ export function citableFindings(snapshot: PintIndexSnapshot): CitableFinding[] {
   const summary = indexSummary(rows);
   if (!sample || summary.averageGbp === null) return [];
 
-  const period = `between ${sample.windowLabel}`;
+  const period = `from ${sample.windowLabel}`;
   const findings: CitableFinding[] = [
     {
       id: "average",
