@@ -12,7 +12,7 @@ import {
   type YearShare,
 } from "@/lib/yearInPints";
 import { yearShareVenueNames } from "@/lib/yearInPints.server";
-import { YearDotGlass } from "@/lib/yearInPintsDotGlass";
+import { YearDotGlass } from "@/lib/yearInPintsDotGlassOg";
 
 // The Year in Pints card: the preview behind a shared year (lib/yearInPints.ts).
 // It draws only the lines the link holds, and the link holds only the lines
@@ -21,7 +21,7 @@ import { YearDotGlass } from "@/lib/yearInPintsDotGlass";
 // put words of its own on the card. A link with no readable year draws the
 // plain poster. The counts are ink, never coral: a year read back is not a
 // score. When the nights line was ticked, a pint glass of the year's days
-// stands beside them, lit one dot per night (lib/yearInPintsDotGlass.tsx).
+// stands beside them, lit one dot per night (lib/yearInPintsDotGlass.ts).
 //
 // runtime = "nodejs": the venue index and the Space Grotesk fonts are read
 // from the filesystem.

@@ -1,8 +1,11 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
+import YearGlass from "@/app/year-in-pints/[year]/YearGlass";
 import { daysInYear, daysThroughMonth, yearDotGlass } from "@/lib/yearInPintsDotGlass";
 
-// The Year in Pints glass (lib/yearInPintsDotGlass.tsx): one dot per day of the
+// The Year in Pints glass (lib/yearInPintsDotGlass.ts): one dot per day of the
 // year, lit from the bottom one per night out, dim for the rest of the days
 // read so far, faint for the days still to come.
 
@@ -60,5 +63,17 @@ describe("yearDotGlass", () => {
       expect(dot.y).toBeGreaterThan(0);
       expect(dot.y).toBeLessThan(glass.height);
     }
+  });
+});
+
+describe("the shared page's glass", () => {
+  it("draws one dot per day as classed tones, and says the count in words", () => {
+    const html = renderToStaticMarkup(createElement(YearGlass, { year: 2026, through: 10, nights: 40 }));
+    expect(html.match(/yipGlassDot--night/g)).toHaveLength(40);
+    expect(html.match(/<circle/g)).toHaveLength(365);
+    expect(html).toContain('role="img"');
+    expect(html).toContain("40 of the first 304 are lit, one for each night out.");
+    // Painted by the page's tokens, never an inline hue.
+    expect(html).not.toMatch(/fill="#/);
   });
 });

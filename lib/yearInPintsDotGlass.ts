@@ -14,13 +14,16 @@
 //     the top is faint, the days still to come. A lit dot is never placed on a
 //     date, because the link does not say which days they were.
 //
-// (3) A YEAR READ BACK IS NOT A SCORE. The lit dots are night amber, the route
-//     colour of a night out, never coral, the same way the card's counts are
-//     ink (app/api/year-card/route.tsx).
+// (3) A YEAR READ BACK IS NOT A SCORE. The lit dots are amber, the lager
+//     gold, never coral, the same way the card's counts are ink
+//     (app/api/year-card/route.tsx). The page paints them from `--amber`, not
+//     `--night-amber`, because the light theme's `--night-amber` IS coral.
+//
+// This module is the layout only, so a page and a share card draw the same
+// glass: the card paints it in lib/yearInPintsDotGlassOg.tsx, the shared page
+// in app/year-in-pints/[year]/YearGlass.tsx.
 
-import { OG } from "@/lib/ogBrand";
-
-type GlassTone = "night" | "day" | "ahead";
+export type GlassTone = "night" | "day" | "ahead";
 type GlassDot = { x: number; y: number; tone: GlassTone };
 
 function isLeapYear(year: number): boolean {
@@ -115,30 +118,4 @@ export function yearDotGlass({
     row += 1;
   }
   return { width, height, spacing, dots };
-}
-
-const TONE_FILL: Record<GlassTone, { fill: string; opacity: number }> = {
-  night: { fill: OG.amber, opacity: 1 },
-  day: { fill: OG.muted, opacity: 0.38 },
-  ahead: { fill: OG.muted, opacity: 0.18 },
-};
-
-/** The glass as an inline SVG satori can draw. */
-export function YearDotGlass(props: { year: number; through: number; nights: number; width?: number; height?: number }) {
-  const glass = yearDotGlass(props);
-  const r = glass.spacing * 0.36;
-  return (
-    <svg width={glass.width} height={glass.height} viewBox={`0 0 ${glass.width} ${glass.height}`} fill="none">
-      {glass.dots.map((dot) => (
-        <circle
-          key={`${dot.x}-${dot.y}`}
-          cx={dot.x}
-          cy={dot.y}
-          r={r}
-          fill={TONE_FILL[dot.tone].fill}
-          fillOpacity={TONE_FILL[dot.tone].opacity}
-        />
-      ))}
-    </svg>
-  );
 }
