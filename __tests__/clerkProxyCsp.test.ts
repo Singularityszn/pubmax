@@ -304,6 +304,8 @@ describe("the prerendered documents drop the nonce, and only they do", () => {
     "/ledger/venue-xjf3n0",
     "/drink/guinness",
     "/area/clapham/drink/guinness",
+    // The named crawl pages joined on 2026-10-30 (captain's call).
+    "/routes/victorian-soho",
   ];
   const CDN_CACHED = [...CDN_CACHED_EXACT, ...CDN_CACHED_SEO];
   // One from each family the decision explicitly keeps strict.
@@ -335,6 +337,8 @@ describe("the prerendered documents drop the nonce, and only they do", () => {
     "/area/clapham/drink/guinness/opengraph-image",
     "/ledger",
     "/ledger/venue-xjf3n0/extra",
+    "/routes",
+    "/routes/victorian-soho/extra",
   ];
   // The signed-in surfaces, named apart from the family list above: a route
   // that resolves a session in its document is the one thing the widening may
