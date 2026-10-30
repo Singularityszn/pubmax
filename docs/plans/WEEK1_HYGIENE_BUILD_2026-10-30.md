@@ -142,3 +142,26 @@ Week 2 of the review: the honest Tonight, the crawl noun, kitchen and glass, wit
 | 20 | Three 390 px HTML mockups (V1, V2, V3) of the sheet, Tonight, the locked plan and the profile; the peek row's dark "Unknown" moved to a token that measures AA; a measured contrast sweep of every stylesheet rounds 1 to 3 added; the dock overlap measured, not changed | `docs/design-explorations/2026-10-30-phone-mockups/**`, CSS token swaps only | none |
 
 Held for round 5, after builder 15 lands: the five-fold rule and the kitchen and bingo rules in `docs/rules/`, the PERMISSION_MATRIX rows for 0204 to 0211, and the browser specs for the folds, the kitchen tap and the open crawl section.
+
+### Round 4 integration record (30 October, 18:35 UTC)
+
+All five round 4 branches are merged, in the order 20, 16, 19, 17, 18. Migrations on the branch after this round, each with its rollback twin: 0203 to 0207 from rounds 1 to 3, 0208 open crew plan, 0209 kitchen reports, 0210 drink measure sizes, 0211 plan crew usual drink. The write-surface count is 172 (open crew, kitchen reports, usual drink). The integrator's glue: the Sun Chaser line from main sits above the five folds; the two regular-night direct reads are declared in the surface read fence; the invite scroll stop reserves the chrome once; the Pal browser spec reads "Going"; the plan card mounts "Open it up" and the round forecast side by side; the matrix test imports both new routes.
+
+Two independent reviews of fc6f70d3 (product and security, via the Codex coordinator) raised seven findings. They are being reproduced and fixed in a separate pass that lands after the frozen head is reviewed: the fair pint read from the night budget, venue aliases in the passport counts and overlap, the hygiene match cache hiding a current answer, the rail cap label against its value, monthly music parsed as a weekly night, the diary share comparing two account id domains, and the regular-night reporter handle after a suspension or ban.
+
+Captain decisions from round 4:
+
+1. Apply 0208 to 0211 in timestamp order, then `npm run db:types` (three builders hand-edited `types/database.ts`).
+2. Opening a plan up uses the crew rules: the plan moves to the crew page, seat tokens rotate and the open invite link stops working; guests who joined by the old link must ask to join the crew. Keep, or keep those guests.
+3. `/plan/[id]` cannot show a crew-held plan, so the crew page is the plan's link for an open crawl.
+4. The host's one line refuses carnage, sesh, session, wasted, smashed, hammered, blackout and bottomless, plus links, emails, phone numbers and handles.
+5. Open crews made before 0208 keep showing on Tonight and do not show on `/crawls`.
+6. Kitchen taps show only on pubs with a food row. A matching tap after a confirmation changes nothing.
+7. The Tonight drinker-night read now carries the session token so the reporter's own rows can hide the "Still on" button; say if anonymous reads must stay strictly anonymous.
+8. The round forecast reads the listed pint price only; a drinker-confirmed pint is not read yet. The planner report line lives on the device that built the route.
+9. The one-tap beer price door now offers the wine and spirit sizes because it shares the chips. A wine price from the venue price door still carries no size until B2.
+10. A bingo square fills from any visible Pint Drop in the borough, not only a priced one. Say if a confirmed price is required.
+11. Mockups show initials, not photographs, for faces on public surfaces (V2) until decided. The dock and the create disc were measured 133 px apart at 390 px, so micro-fix 10 is optional.
+12. After a rename, the drop store's author reads still filter on the current handle text, so older drops leave the passport geography and the bingo count; the fix belongs in `lib/pintDropsStore.ts`.
+
+Held for round 5: the rules docs rows and the PERMISSION_MATRIX rows each builder wrote in its handback (open crawl, kitchen tap, usual drink, bingo, diary tag edits), the `docs/WRITE_SURFACE_CERTIFICATION.md` header count, the plan page line that still says "Mates tap I'm in", the browser specs for the folds, the kitchen tap, the open crawl section and the round forecast, and the drop store rename read.
