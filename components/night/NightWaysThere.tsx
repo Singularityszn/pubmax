@@ -38,11 +38,11 @@ function legQuery(from: Point, to: Point): string {
 }
 
 function OptionIcon({ option }: { option: LegOption }) {
-  if (option.kind === "walk") return <Footprints size={18} aria-hidden="true" />;
+  if (option.kind === "walk") return <Footprints size={20} aria-hidden="true" />;
   if (option.parts.some((part) => part.mode === "bus") && !option.parts.some((part) => part.mode !== "bus" && part.mode !== "walking")) {
-    return <Bus size={18} aria-hidden="true" />;
+    return <Bus size={20} aria-hidden="true" />;
   }
-  return <TrainFront size={18} aria-hidden="true" />;
+  return <TrainFront size={20} aria-hidden="true" />;
 }
 
 export default function NightWaysThere({ legKey, from, to }: { legKey: string; from: Point; to: Point }) {

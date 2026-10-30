@@ -11,6 +11,8 @@
 // question that fails adds nothing, and when both fail the answer is null so
 // the route can say so.
 
+import "server-only";
+
 import { haversineKm } from "@/lib/haversine";
 import { legMode, legOptionName, parseTflLineString, rankLegOptions, type LegOption, type LegPart } from "@/lib/legOptions";
 import { legMinutes } from "@/lib/routeLegs";

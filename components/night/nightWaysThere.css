@@ -73,9 +73,10 @@
   text-align: left;
   cursor: pointer;
 }
+/* The way on the map: a 2px ink edge, padding trimmed so the row keeps its size. */
 .nightWays__option[aria-pressed="true"] {
-  border-color: var(--ink);
-  box-shadow: inset 0 0 0 1px var(--ink);
+  border: 2px solid var(--ink);
+  padding: 7px 11px;
 }
 .nightWays__option > svg {
   grid-area: icon;
