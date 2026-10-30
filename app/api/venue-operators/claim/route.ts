@@ -38,6 +38,9 @@ import {
 } from "@/lib/venueOperators";
 import { venueOperatorsStore } from "@/lib/venueOperatorsStore";
 
+/** A moderator clears a queue a tap at a time, so this is per minute and wide. */
+const MODERATION_WRITE_LIMIT = 60;
+
 assertServerEnv();
 
 // A genuine operator files a handful of claims (they might run a few pubs); more
@@ -69,6 +72,10 @@ export async function POST(request: Request): Promise<Response> {
   const action = readString(body.action);
   if (action && ACTION_STATE[action]) {
     if (!isModerator(request)) return publicApiError("Not authorised.", "FORBIDDEN", 403);
+    const moderatorKey = `venue-operator-claim-moderate:${hashIp(clientIp(request))}`;
+    if (await isLimited(moderatorKey, moderatorKey, MODERATION_WRITE_LIMIT)) {
+      return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
+    }
     const id = readString(body.id);
     if (!id) return publicApiError("Claim not found.", "NOT_FOUND", 404);
     try {
