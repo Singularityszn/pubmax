@@ -1126,7 +1126,16 @@ export function nearSavingSource(
   comparatorTrust: NearPriceTrustView | undefined,
 ): string {
   const view = cards.some((card) => card.id === nearest.id) ? priceTrust : comparatorTrust;
-  return `${nearest.name}: ${trustLabelForCard(nearest, view) ?? nearPriceTrustLabel("loading")}`;
+  const label = trustLabelForCard(nearest, view) ?? nearPriceTrustLabel("loading");
+  // The cards' label drops a missing or unreadable read day; under the saving
+  // line the day is named as missing instead, because this price is printed
+  // in a sentence of its own (review on PR 2414, P2).
+  const match =
+    view && view !== "loading"
+      ? view.results.find((item) => item.venueId === nearest.id && item.price === nearest.cheapestPrice)
+      : undefined;
+  const dated = match?.observedAt ? Number.isFinite(Date.parse(match.observedAt)) : false;
+  return `${nearest.name}: ${label}${match && !dated ? " · read date not recorded" : ""}`;
 }
 
 function NearMeCardBody({

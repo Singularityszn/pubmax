@@ -131,13 +131,27 @@ describe("nearSavingSource", () => {
 
   it("takes a doorstep outside the cards from its own read, never the cards'", () => {
     expect(nearSavingSource(doorstep, [card], read(["a"], "Card Co"), read(["doorstep"], "Crown Co"))).toBe(
-      "The Crown: On record · Crown Co",
+      "The Crown: On record · Crown Co · read date not recorded",
     );
   });
 
   it("takes a doorstep that is a card from the cards' read", () => {
     expect(nearSavingSource(doorstep, [card, doorstep], read(["doorstep"], "Crown Co"), undefined)).toBe(
-      "The Crown: On record · Crown Co",
+      "The Crown: On record · Crown Co · read date not recorded",
+    );
+  });
+
+  it("names a missing or unreadable read date rather than dropping it (review P2)", () => {
+    const dated = (observedAt: string | null): NearPriceTrustResponse => ({
+      status: "ready",
+      collectedAt: "2026-10-02",
+      results: [{ venueId: "doorstep", price: 6.2, publisher: "Crown Co", observedAt }],
+    });
+    expect(nearSavingSource(doorstep, [card], undefined, dated("not a date"))).toBe(
+      "The Crown: On record · Crown Co · read date not recorded",
+    );
+    expect(nearSavingSource(doorstep, [card], undefined, dated("2026-10-02T12:00:00.000Z"))).toMatch(
+      /^The Crown: On record · Crown Co · read \d+ \w+$/,
     );
   });
 
@@ -148,7 +162,7 @@ describe("nearSavingSource", () => {
       "The Crown: On record · Publisher could not be checked",
     );
     expect(nearSavingSource(doorstep, [card], undefined, read(["doorstep"], null))).toBe(
-      "The Crown: On record · Publisher not recorded",
+      "The Crown: On record · Publisher not recorded · read date not recorded",
     );
   });
 });

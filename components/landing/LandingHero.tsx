@@ -9,9 +9,7 @@ import Kicker from "@/components/ui/kicker";
 import Screen from "@/components/ui/screen";
 import { trackEvent } from "@/lib/analytics";
 import type { LandingCtaTarget } from "@/lib/analyticsEvents";
-import type { LegacyPintPrice } from "@/lib/drinks";
 import {
-  answerEvidenceFor,
   answerKicker,
   archiveMovementLine,
   HERO_RAIL_SIZE,
@@ -31,6 +29,7 @@ import {
   type LandingArchiveThen,
   type LandingRailRow,
 } from "@/lib/landingHero";
+import { comparatorEvidenceFor, readLandingEvidence, settleEachRead } from "@/lib/landingEvidenceRead";
 import type { LandingPubCardData } from "@/lib/landingPubCard";
 import {
   landingPhotoFor,
@@ -41,7 +40,6 @@ import type { NearMeCard } from "@/lib/nearMeAnswer";
 import { PRICE_NOT_COMPARED_LINE } from "@/lib/priceMovementLine";
 import { priceStandingLabel, priceStandingNote, type PriceStanding } from "@/lib/priceTier";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
-import { discardBody } from "@/lib/responseBody";
 import {
   LANDING_SKYLINE_HERO_AVIF_SRCSET,
   LANDING_SKYLINE_HERO_JPG_FALLBACK,
@@ -205,33 +203,6 @@ function nearAnswer(
   };
 }
 
-/**
- * The publisher and standing for a near-you answer, read off the same venue
- * detail the sheet reads, through the same decider the anchor used at build.
- * A read that could not be run answers `unavailable`, never "no publisher".
- */
-async function readEvidence(
-  venueId: string,
-  priceGbp: number,
-  signal: AbortSignal,
-): Promise<Evidence> {
-  try {
-    const response = await fetch(`/api/venue/${encodeURIComponent(venueId)}`, { signal });
-    if (!response.ok) {
-      discardBody(response);
-      return "unavailable";
-    }
-    const payload = (await response.json()) as { venue?: { prices?: LegacyPintPrice[] } };
-    const prices = Array.isArray(payload.venue?.prices) ? payload.venue.prices : null;
-    if (!prices) return "unavailable";
-    return answerEvidenceFor({ priceGbp, prices });
-  } catch {
-    return "unavailable";
-  }
-}
-
-
-
 export default function LandingHero({
   card,
   archive,
@@ -288,23 +259,30 @@ export default function LandingHero({
             const controller = new AbortController();
             // The doorstep pub's evidence is read beside the answer's own, by
             // the same venue read, so the price the saving line prints is as
-            // sourced as the card's.
-            const [evidence, savingEvidence] = await Promise.all([
-              readEvidence(first.id, first.cheapestPrice, controller.signal),
-              saving && nearest
-                ? readEvidence(nearest.id, nearest.cheapestPrice, controller.signal)
-                : Promise.resolve(null),
+            // sourced as the card's, and for that exact figure. Each read has
+            // its own deadline and lands on its own, so a stalled one cannot
+            // hold the other back (lib/landingEvidenceRead.ts).
+            const owns = () => mine === generation.current;
+            settleEachRead(owns, [
+              {
+                read: readLandingEvidence(first.id, first.cheapestPrice, controller.signal),
+                apply: (evidence) =>
+                  setAnswer((current) => (current && current.id === first.id ? { ...current, evidence } : current)),
+              },
+              ...(saving && nearest
+                ? [
+                    {
+                      read: readLandingEvidence(nearest.id, nearest.cheapestPrice, controller.signal, comparatorEvidenceFor),
+                      apply: (evidence: Exclude<Evidence, "loading">) =>
+                        setAnswer((current) =>
+                          current && current.id === first.id && current.saving
+                            ? { ...current, saving: { ...current.saving, evidence } }
+                            : current,
+                        ),
+                    },
+                  ]
+                : []),
             ]);
-            if (mine !== generation.current) return;
-            setAnswer((current) =>
-              current && current.id === first.id
-                ? {
-                    ...current,
-                    evidence,
-                    saving: current.saving && savingEvidence ? { ...current.saving, evidence: savingEvidence } : current.saving,
-                  }
-                : current,
-            );
           })
           .catch(() => fail(NEAR_ME_FAILED_LINE));
       },
