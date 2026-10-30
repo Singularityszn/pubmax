@@ -110,6 +110,7 @@ import { overviewDisplayablePintGbp } from "@/lib/overviewDisplayablePint";
 import { confirmPintActionName } from "@/lib/pintDropSecondDrinker";
 import type { ZonePintIndex } from "@/lib/zones";
 import { useSheetFooterSlot } from "@/components/mobile/sheetFooterContext";
+import SunChaserVenueLine from "@/components/map/sunChaser/SunChaserVenueLine";
 
 /**
  * The ranked evidence mission for THIS pub, read where the Overview decides
@@ -1168,6 +1169,9 @@ export default function VenueOverviewTab({
         />
       ) : null}
       <p className="venueAddress">{venue.address}</p>
+      {/* Sun Chaser's estimate, only while its chip is on. Outside the folded
+          details, so the answer the reader turned it on for is not hidden. */}
+      <SunChaserVenueLine venueId={venue.id} />
       {/* The pub's own page: prices, hours, what's there and what your lot
           said, laid out on one screen (app/pubs/[id]). */}
       <PubPageLink venue={venue} />
