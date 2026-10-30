@@ -18,9 +18,13 @@ import {
   type SunBuilding,
   type SunEstimate,
 } from "@/lib/sunChaser";
+import { loadSurfaceJson, SURFACE_JUST_READ_MS } from "@/lib/surfaceDataCache";
 import { venueHasRecordedOutdoorSpace, type Venue } from "@/lib/venues";
 import { sunChaserSelectedTime } from "./SunChaserControls";
 import { getSunChaserState, updateSunChaser, useSunChaser } from "./sunChaserStore";
+
+/** The live map this layer reads, named here so PubMap needs no MapLibre import. */
+export type SunChaserMap = maplibregl.Map;
 
 const SOURCE_ID = "sun-chaser";
 const LAYER_ID = "sun-chaser-dots";
@@ -188,13 +192,20 @@ export default function SunChaserLayer({ map, venues }: { map: maplibregl.Map | 
     const controller = new AbortController();
     const centre = map.getCenter();
     const query = new URLSearchParams({ lat: centre.lat.toFixed(3), lng: centre.lng.toFixed(3) });
-    fetch(`/api/tonight-conditions?${query.toString()}`, { signal: controller.signal })
-      .then((response) => (response.ok ? response.json() : null))
-      .then((body: { summary?: { skyCondition?: unknown } | null } | null) => {
-        const sky = body?.summary?.skyCondition;
+    void loadSurfaceJson<{ summary?: { skyCondition?: unknown } | null }>(
+      `/api/tonight-conditions?${query.toString()}`,
+      {
+        signal: controller.signal,
+        init: { headers: { accept: "application/json" } },
+        validate: (body) => Boolean(body && "summary" in body),
+        freshForMs: SURFACE_JUST_READ_MS,
+      },
+      (body) => {
+        if (controller.signal.aborted) return;
+        const sky = body.summary?.skyCondition;
         updateSunChaser({ skyCondition: typeof sky === "string" ? sky : null });
-      })
-      .catch(() => undefined);
+      },
+    );
     return () => controller.abort();
   }, [map]);
 
