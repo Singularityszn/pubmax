@@ -40,7 +40,7 @@ const PLAN_NAV_MATCH: readonly string[] = ["/plan", "/crawls"];
  * The captain requested this extra tab on 26 October 2026. Pub Pal keeps its
  * separate door between Tonight and Plan. Moment remains a compose action.
  *
- * Two former tabs folded into the five. Out IS Tonight now: /out 308s to
+ * Two former tabs left primary navigation. Out IS Tonight now: /out 308s to
  * /tonight at the edge (proxy.ts), and Tonight carries the Tomorrow and Weekend
  * listings. Places is no longer a destination: the city picker still lives at
  * /places, reached from the map's own city chip and the footer's "Pick your

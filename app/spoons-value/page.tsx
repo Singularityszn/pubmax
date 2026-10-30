@@ -30,8 +30,8 @@ const SITE_URL = "https://pubmaxxing.com";
 
 // A PUBLIC READING SURFACE, gated exactly as a price surface is: that is, not
 // at all. lib/adultGate.ts governs CONTRIBUTING (a price, a photo, a Social
-// post), and this page takes nothing from anybody. It states what a published
-// menu costs, which is the same kind of claim /borough and /pint-index make.
+// post), and this page takes nothing from anybody. It reports each published
+// round cost on its source date, without claiming a complete current menu.
 export const metadata: Metadata = {
   title: SPOONS_VALUE_PAGE_TITLE,
   description:
