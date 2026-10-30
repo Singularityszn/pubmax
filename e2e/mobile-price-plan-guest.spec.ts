@@ -21,7 +21,9 @@ test("a phone user checks a price, corrects an incomplete plan, and invites a gu
   await expect(page).toHaveURL(/\/plan$/);
 
   const description = page.getByRole("textbox", { name: "Where, how many, what budget" });
-  await description.fill("Three pubs in Clapham with short walks and listed pint prices.");
+  // Since week 1 hygiene a walk word never refuses a plan, so the incomplete
+  // route is asked for with a need the area cannot meet: step-free access.
+  await description.fill("Three pubs in Clapham, all step-free, with listed pint prices.");
   const incomplete = page.waitForResponse((response) =>
     response.request().method() === "POST" && response.url().endsWith("/api/plans/generate"));
   await page.getByRole("button", { name: "Make a plan", exact: true }).click();
@@ -100,7 +102,7 @@ test("a five-stop incomplete plan keeps its count after clearing, then accepts a
   await page.getByRole("dialog", { name: "The Coach & Horses", exact: true })
     .getByRole("button", { name: "Make The Coach & Horses Stop 1" }).click();
   const description = page.getByRole("textbox", { name: "Where, how many, what budget" });
-  await description.fill("Five pubs in Clapham with short walks and listed pint prices.");
+  await description.fill("Five pubs in Clapham, all step-free, with listed pint prices.");
   await page.getByRole("button", { name: "Make a plan", exact: true }).click();
   await expect(page.locator("#plan-route-status")).toContainText("5-stop route");
   await page.getByRole("button", { name: "Tune details", exact: true }).click();
