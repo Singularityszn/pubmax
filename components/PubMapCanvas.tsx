@@ -13,7 +13,7 @@ import { createPalMapMarker, palPinIsCheap, type PalMapMarker } from "@/componen
 import { legRouteToLines } from "@/components/map/canvas/legRouteScene";
 import { legRouteForCurrentLeg, readLegRouteOnMap, subscribeLegRouteOnMap } from "@/lib/legRouteOnMap";
 import { palLeadLine, palLeadPath, planWalkAfterLead } from "@/lib/palLead";
-import { palFirstLegLabel, palPerchSpeech, palWalkLine } from "@/lib/palMapLines";
+import { palFirstLegLabel, palPerchSpeechForPin, palWalkLine } from "@/lib/palMapLines";
 import { crewPalLook, type CrewPal } from "@/lib/crewPals";
 import { palWalkPathFrom, palWalkStopsFromKey } from "@/components/map/canvas/palWalk";
 import {
@@ -4437,10 +4437,11 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     const pin = venue ? pubsDataRef.current.features.find((feature) => feature.properties?.id === venue.id) : undefined;
     const cheap = palPinIsCheap(pin?.properties);
     palMarkerRef.current?.perch(venue ? [venue.longitude, venue.latitude] : null, { cheap });
-    // A cheap-band line comes with a new cheap pub and goes when the Pal leaves
-    // it or its pin leaves the band (palPerchSpeech). No crawl is on the map
-    // here, so no walk or lead line is cleared with it.
-    const speech = palPerchSpeech(palSpokePerchRef.current, venue?.id ?? null, cheap);
+    // A cheap-band line comes with a new pub whose price is in the cheapest
+    // band, and goes when the Pal leaves it, its price leaves the band or the
+    // Spoons value lens comes on (palPerchSpeechForPin). No crawl is on the
+    // map here, so no walk or lead line is cleared with it.
+    const speech = palPerchSpeechForPin(palSpokePerchRef.current, venue?.id ?? null, pin?.properties);
     palSpokePerchRef.current = speech.spoken;
     if (speech.say !== undefined) palMarkerRef.current?.say(speech.say);
   }, [routeCoordKey, routeIds, selectedVenueId, venues, venueSignals, favoritePint, drinkCategory, lensPrices, spoonsValue, mapReady, walkPals]);

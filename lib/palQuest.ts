@@ -99,12 +99,16 @@ export function palQuestStampToday(stamps: readonly PalQuestStamp[], now: Date =
   return stamps.find((stamp) => stamp.day === day) ?? null;
 }
 
-/** What the Pal asks: the mission's own reason, in the Pal's voice. */
+/**
+ * What the Pal asks, in its voice, saying no more than the mission's reason
+ * holds: a mission names a price to log or to check, never who logged one or
+ * how many did (missionHeading in lib/priceEvidenceMissions.ts says the same).
+ */
 export function palQuestLine(palName: string, reason: PriceEvidenceMissionReason, venueName: string): string {
   const pub = venueName.trim() || "this pub";
-  if (reason === "missing") return `${palName}'s quest for today: nobody has logged a price at ${pub} yet. Be the first?`;
+  if (reason === "missing") return `${palName}'s quest for today: log a price at ${pub}?`;
   if (reason === "stale") return `${palName}'s quest for today: the price at ${pub} is out of date. Check the board for me?`;
-  return `${palName}'s quest for today: one person logged a price at ${pub}. Can you check it?`;
+  return `${palName}'s quest for today: check the price at ${pub}?`;
 }
 
 /** The small print under every quest: it asks for a price, never a drink. */

@@ -50,3 +50,20 @@ export function palPerchSpeech(
   return { spoken: next, say: next ? palCheapPerchLine(next) : null };
 }
 
+/**
+ * The perch line from the pin's own data: the cheap-band line only for a pin
+ * whose PRICE is in the cheapest band (`bucket` 0). Under the Spoons value
+ * lens a green pin (`spoonsBucket` 0) means the most units for a round, not a
+ * low price, so the Pal claims no cheap band there (and takes back a line it
+ * said before the lens came on). The pin's happy hop still reads the painted
+ * band (palPinIsCheap); only the words need the price.
+ */
+export function palPerchSpeechForPin(
+  spoken: string,
+  venueId: string | null,
+  pin: { bucket?: unknown; spoonsBucket?: unknown } | null | undefined,
+): { spoken: string; say?: string | null } {
+  const lensOn = pin?.spoonsBucket !== undefined && pin?.spoonsBucket !== null;
+  return palPerchSpeech(spoken, venueId, !lensOn && pin?.bucket === 0);
+}
+

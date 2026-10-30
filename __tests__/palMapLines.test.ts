@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { palCheapPerchLine, palFirstLegLabel, palPerchSpeech, palWalkLine } from "@/lib/palMapLines";
+import { palPinIsCheap } from "@/components/map/canvas/palMarker";
+import { palCheapPerchLine, palFirstLegLabel, palPerchSpeech, palPerchSpeechForPin, palWalkLine } from "@/lib/palMapLines";
 
 const legTimes = (...labels: unknown[]): GeoJSON.FeatureCollection => ({
   type: "FeatureCollection",
@@ -64,6 +65,28 @@ describe("the Pal's line beside a cheap pin", () => {
   it("swaps the line for the next cheap pub, and says nothing new beside pubs that are not cheap", () => {
     expect(palPerchSpeech("venue-a", "venue-b", true)).toEqual({ spoken: "venue-b", say: palCheapPerchLine("venue-b") });
     expect(palPerchSpeech("", "venue-c", false)).toEqual({ spoken: "" });
+  });
+});
+
+describe("the cheap-band line reads the pin's price, never the Spoons value lens", () => {
+  it("speaks beside a pin whose own price is in the cheapest band", () => {
+    expect(palPerchSpeechForPin("", "venue-a", { bucket: 0 })).toEqual({ spoken: "venue-a", say: palCheapPerchLine("venue-a") });
+  });
+
+  it("says no cheap line under the Spoons lens, where a green pin means most units for a round, not a low price", () => {
+    // The pin is painted in band 0 (palPinIsCheap), so the Pal still hops, but
+    // the claim "cheapest band" would not be true of its price.
+    const spoons = { spoonsBucket: 0, bucket: 2 };
+    expect(palPinIsCheap(spoons)).toBe(true);
+    expect(palPerchSpeechForPin("", "venue-a", spoons)).toEqual({ spoken: "" });
+    expect(palPerchSpeechForPin("", "venue-a", { spoonsBucket: 0, bucket: 0 })).toEqual({ spoken: "" });
+    // A line said before the lens came on is taken back.
+    expect(palPerchSpeechForPin("venue-a", "venue-a", spoons)).toEqual({ spoken: "", say: null });
+  });
+
+  it("says nothing beside a pin with no price band", () => {
+    expect(palPerchSpeechForPin("", "venue-a", null)).toEqual({ spoken: "" });
+    expect(palPerchSpeechForPin("", "venue-a", { bucket: 3 })).toEqual({ spoken: "" });
   });
 });
 

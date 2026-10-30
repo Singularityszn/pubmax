@@ -103,15 +103,11 @@ describe("the Pal's stamp book", () => {
 
 describe("what the Pal says", () => {
   it("asks the mission's own reason in its own words", () => {
-    expect(palQuestLine("Ripley", "missing", "The Lamb")).toBe(
-      "Ripley's quest for today: nobody has logged a price at The Lamb yet. Be the first?",
-    );
+    expect(palQuestLine("Ripley", "missing", "The Lamb")).toBe("Ripley's quest for today: log a price at The Lamb?");
     expect(palQuestLine("Ripley", "stale", "The Lamb")).toBe(
       "Ripley's quest for today: the price at The Lamb is out of date. Check the board for me?",
     );
-    expect(palQuestLine("Ripley", "provisional", " ")).toBe(
-      "Ripley's quest for today: one person logged a price at this pub. Can you check it?",
-    );
+    expect(palQuestLine("Ripley", "provisional", " ")).toBe("Ripley's quest for today: check the price at this pub?");
     expect(palQuestDoneLine("Ripley", "The Lamb")).toBe("Quest done. Ripley stamped The Lamb in your book.");
   });
 
@@ -125,6 +121,8 @@ describe("what the Pal says", () => {
     ];
     for (const line of lines) {
       expect(line).not.toMatch(/!|—|\d|\b(level|points?|xp|streak|in a row|round|another pint|drink up)\b/i);
+      // A mission never says who logged a price, or that nobody did.
+      expect(line).not.toMatch(/\b(nobody|one person|someone|people)\b/i);
     }
     expect(PAL_QUEST_NO_DRINK).toBe("No need to buy anything. Read the board or ask at the bar.");
   });

@@ -69,10 +69,10 @@ test("the Pal asks today's price quest, stamps it once, and keeps the stamp in i
   const quest = page.getByTestId("pal-quest");
   await expect(quest).toBeVisible({ timeout: 60_000 });
   await expect(quest).toHaveAttribute("data-state", "ask");
-  await expect(quest.locator(".palQuestLine")).toContainText(/^Ripley's quest for today: one person logged a price at .+\. Can you check it\?$/);
+  await expect(quest.locator(".palQuestLine")).toContainText(/^Ripley's quest for today: check the price at .+\?$/);
   await expect(quest).toContainText("No need to buy anything. Read the board or ask at the bar.");
   const slot = page.locator(".pemSlot");
-  const pub = (await quest.locator(".palQuestLine").textContent())!.match(/price at (.+)\. Can you/)![1]!;
+  const pub = (await quest.locator(".palQuestLine").textContent())!.match(/price at (.+)\?$/)![1]!;
   await mkdir(SHOTS, { recursive: true });
   await page.screenshot({ path: `${SHOTS}/quest-ask-390.png` });
 

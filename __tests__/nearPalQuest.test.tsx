@@ -95,7 +95,7 @@ describe("the Pal's price quest while /near stays open", () => {
   it("asks, then lands this answer's own stamp", async () => {
     await render();
     expect(quest()?.dataset.state).toBe("ask");
-    expect(quest()?.textContent).toContain("nobody has logged a price at The Crown");
+    expect(quest()?.textContent).toContain("log a price at The Crown?");
     await answer();
     expect(quest()?.dataset.state).toBe("done");
     expect(quest()?.textContent).toContain("Ripley stamped The Crown in your book.");
