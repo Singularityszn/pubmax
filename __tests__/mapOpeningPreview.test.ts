@@ -19,6 +19,7 @@ import {
   openingDiscClaims,
   openingTurnBearing,
   projectAtCamera,
+  streetsInViewDrawn,
   type MapOpeningFrame,
 } from "@/lib/mapOpeningPreview";
 import { MAP_EAGER_VENUE_INDEX_FILE } from "@/lib/mapEagerVenueIndexFile.mjs";
@@ -258,5 +259,41 @@ describe("openingTurnBearing", () => {
     expect(
       openingTurnBearing({ ...from, bearing: from.bearing + 1, center: [from.center[0] + 0.001, from.center[1]] }, from),
     ).toBeNull();
+  });
+});
+
+describe("streetsInViewDrawn", () => {
+  const drawn = { primaryTilePainted: true, tilesSettled: true, unrecoveredTileFailures: false };
+
+  it("holds when a basemap tile painted and every tile in view settled", () => {
+    expect(streetsInViewDrawn(drawn)).toBe(true);
+  });
+
+  it("refuses settled tiles when one of them failed", () => {
+    // MapLibre's areTilesLoaded() counts an errored tile as settled, so one
+    // good tile beside a failed one would otherwise claim streets that are
+    // not there.
+    expect(streetsInViewDrawn({ ...drawn, unrecoveredTileFailures: true })).toBe(false);
+  });
+
+  it("refuses before any basemap tile painted, or while tiles are still loading", () => {
+    expect(streetsInViewDrawn({ ...drawn, primaryTilePainted: false })).toBe(false);
+    expect(streetsInViewDrawn({ ...drawn, tilesSettled: false })).toBe(false);
+  });
+
+  it("is what the canvas marks the streets with, for its own map only", () => {
+    const source = readFileSync(join(process.cwd(), "components/PubMapCanvas.tsx"), "utf8");
+    const producer = source.slice(
+      source.indexOf("performance.clearMarks(BASEMAP_DRAWN_EVENT)"),
+      source.indexOf('map.on("render", markBasemapDrawn)'),
+    );
+    // A new map clears the mark an earlier map left, so a return to /map
+    // never inherits its readiness.
+    expect(producer.length).toBeGreaterThan(0);
+    expect(producer).toContain("streetsInViewDrawn({");
+    expect(producer).toContain("primaryTilePainted: !initialBasemapPending");
+    expect(producer).toContain("tilesSettled: map.areTilesLoaded()");
+    expect(producer).toContain("unrecoveredTileFailures: failedBasemapTiles.hasFailures()");
+    expect(source).not.toContain("let basemapDrawnMarked = performance.getEntriesByName");
   });
 });

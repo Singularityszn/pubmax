@@ -109,6 +109,17 @@ function standDownWhenTheMapShows(): () => void {
   return stop;
 }
 
+/**
+ * How many previews are mounted. The document's preview belongs to the cold
+ * first load only, so leaving /map before the handoff stands it down: on a
+ * return through the app's own navigation the root still says "on", and the
+ * marks the first map left (`pubmax:pins-visible`, and the streets mark the
+ * canvas clears for each new map) would hand over a frame no map has drawn.
+ * Counted rather than flagged so React's development double mount, which
+ * unmounts and mounts again in the same turn, is not a departure.
+ */
+let mountedPreviews = 0;
+
 export default function MapOpeningPreview({
   discs,
   ground = null,
@@ -116,6 +127,16 @@ export default function MapOpeningPreview({
   discs: readonly OpeningPreviewDisc[];
   ground?: OpeningGround | null;
 }) {
+  useEffect(() => {
+    mountedPreviews += 1;
+    return () => {
+      mountedPreviews -= 1;
+      window.setTimeout(() => {
+        if (mountedPreviews === 0) standDown();
+      }, 0);
+    };
+  }, []);
+
   useEffect(() => {
     if (document.documentElement.dataset.mapPreview !== "on") return;
     // The map may already have revealed, or published, before this hydrated.

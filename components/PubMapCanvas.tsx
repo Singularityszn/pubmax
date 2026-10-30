@@ -246,6 +246,7 @@ import {
   openingTurnBearing,
   publishMapOpeningFrame,
   sameCameraPose,
+  streetsInViewDrawn,
   type OpeningCameraPose,
 } from "@/lib/mapOpeningPreview";
 import {
@@ -2284,16 +2285,34 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       markBasemapRecovered();
     };
     map.on("sourcedata", onBasemapTileLoaded);
-    // The first frame the streets in view are all drawn: a primary basemap
-    // tile has loaded and no tile in view is still loading. The opening
-    // picture hands over to the canvas only after it (MapOpeningPreview), so
-    // the pins never stand on bare paper between the picture and the streets.
-    let basemapDrawnMarked = performance.getEntriesByName(BASEMAP_DRAWN_EVENT).length > 0;
+    // The first frame the streets in view are all drawn (streetsInViewDrawn:
+    // a primary basemap tile painted, every tile in view settled, none still
+    // failed). The opening picture hands over to the canvas only after it
+    // (MapOpeningPreview), so the pins never stand on bare paper between the
+    // picture and the streets. The mark is THIS map's: a map built earlier in
+    // the same document (a return to /map) drew its own streets, not these.
+    try {
+      performance.clearMarks(BASEMAP_DRAWN_EVENT);
+    } catch {
+      // A timing mark is diagnostic as well; a locked-down browser keeps going.
+    }
     const markBasemapDrawn = () => {
-      if (!basemapDrawnMarked && (initialBasemapPending || !map.areTilesLoaded())) return;
+      // Once the preview has stood down nobody is waiting, and a map whose
+      // tiles keep failing would otherwise ask on every frame.
+      if (performance.getEntriesByName(MAP_OPENING_PREVIEW_DONE_MARK).length > 0) {
+        map.off("render", markBasemapDrawn);
+        return;
+      }
+      if (
+        !streetsInViewDrawn({
+          primaryTilePainted: !initialBasemapPending,
+          tilesSettled: map.areTilesLoaded(),
+          unrecoveredTileFailures: failedBasemapTiles.hasFailures(),
+        })
+      ) {
+        return;
+      }
       map.off("render", markBasemapDrawn);
-      if (basemapDrawnMarked) return;
-      basemapDrawnMarked = true;
       markPubmaxTiming(BASEMAP_DRAWN_EVENT);
     };
     map.on("render", markBasemapDrawn);

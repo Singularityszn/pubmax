@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { act, createElement } from "react";
+import { act, createElement, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -98,6 +98,8 @@ describe("MapOpeningPreview", () => {
     if (root) await act(() => root!.unmount());
     root = null;
     host.remove();
+    // Let an unmount's deferred stand-down land here, not in the next test.
+    await new Promise((resolve) => setTimeout(resolve, 0));
   });
 
   async function mount(discs: OpeningPreviewDisc[] = [DISC], ground: OpeningGround | null = null) {
@@ -317,6 +319,43 @@ describe("MapOpeningPreview", () => {
     } finally {
       delete document.documentElement.dataset.mapGround;
     }
+  });
+
+  it("does not carry an interrupted handoff into a return to the map", async () => {
+    // The first map revealed its pins and drew its streets, then the reader
+    // left /map while the loading frame was still up. The marks outlive the
+    // page; the preview must not, or a return would hand over a frame no map
+    // has drawn yet.
+    const loading = document.createElement("div");
+    loading.className = "mapLoading";
+    document.body.append(loading);
+    try {
+      document.documentElement.dataset.mapPreview = "on";
+      performance.mark(PINS_VISIBLE_EVENT);
+      performance.mark(BASEMAP_DRAWN_EVENT);
+      await mount();
+      expect(document.documentElement.dataset.mapPreview).toBe("on");
+      await act(() => root!.unmount());
+      root = null;
+      await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+      expect(document.documentElement.dataset.mapPreview).toBe("done");
+      // The return mounts a new preview over the same retained marks.
+      await mount();
+      expect(document.documentElement.dataset.mapPreview).toBe("done");
+      expect(performance.getEntriesByName(BASEMAP_DRAWN_EVENT)).toHaveLength(1);
+    } finally {
+      loading.remove();
+    }
+  });
+
+  it("is not stood down by React's development double mount", async () => {
+    document.documentElement.dataset.mapPreview = "on";
+    root = createRoot(host);
+    await act(() =>
+      root!.render(createElement(StrictMode, null, createElement(MapOpeningPreview, { discs: [DISC] }))),
+    );
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+    expect(document.documentElement.dataset.mapPreview).toBe("on");
   });
 
   it("still stands down at once when the camera moves before the loading frame lifts", async () => {

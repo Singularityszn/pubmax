@@ -363,6 +363,23 @@ function sameCamera(camera: MapOpeningFrame["camera"]): boolean {
 }
 
 /**
+ * Whether the streets in view are drawn, for `pubmax:basemap-drawn`: a primary
+ * basemap tile has painted, every tile in view has settled, and no basemap
+ * tile is still failed. MapLibre counts an errored tile as settled
+ * (`areTilesLoaded()` accepts "loaded" or "errored"), so settled alone would
+ * let one good tile and one failed one claim streets that are not there; the
+ * canvas's tile failure tracker (lib/mapTileFailure.ts) says which. A map that
+ * never gets here is left to the preview's degraded ceiling.
+ */
+export function streetsInViewDrawn(state: {
+  primaryTilePainted: boolean;
+  tilesSettled: boolean;
+  unrecoveredTileFailures: boolean;
+}): boolean {
+  return state.primaryTilePainted && state.tilesSettled && !state.unrecoveredTileFailures;
+}
+
+/**
  * Marked when the preview stands down, so a timing can read the handoff and
  * the canvas knows the preview no longer needs telling about a camera move.
  */
