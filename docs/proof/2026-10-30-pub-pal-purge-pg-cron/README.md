@@ -44,3 +44,25 @@ order by start_time desc limit 5;
 
 When the rows say `succeeded`, remove the `/api/cron/purge-pub-pal-turns` entry
 from `vercel.json` (and its runbook row) in a follow-up change.
+
+## Production (applied 30 Oct 2026, 18:24 UTC)
+
+The captain asked for the migration to be applied to the production project
+(`iankajxliutqogqkmvdg`, PostgreSQL 17) through the Supabase connector. Before:
+migrations matched main up to 0196, `pg_cron` 1.6.4 was available and not
+installed, and `pub_pal_tool_turns` held no expired rows. After:
+
+```
+jobid | jobname                         | schedule  | username | active
+1     | pubmax-purge-pub-pal-tool-turns | * * * * * | postgres | t
+
+cron.job_run_details: succeeded 18:25:00 DELETE 0
+```
+
+The security advisors showed no new finding. The Vercel route stays in
+`vercel.json` as the backstop until the job has a longer run history.
+
+The preload guard (`cron.database_name`) was added after this apply, when the
+types check failed on a local cluster that had the pg_cron package installed
+but not preloaded. Production defines `cron.database_name` (`postgres`), so
+the guarded file does exactly what was applied there.

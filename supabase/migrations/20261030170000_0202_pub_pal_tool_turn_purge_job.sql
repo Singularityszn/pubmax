@@ -11,8 +11,11 @@
 -- purgeExpiredRows) and the 0160 index on expires_at serves it.
 --
 -- A cluster with no pg_cron available (the local proof fixture, a plain
--- PostgreSQL) gets a NOTICE and no job, rather than a failed migration: the
--- Vercel cron route stays in place and keeps purging, so nothing is lost.
+-- PostgreSQL), or with the package installed but not loaded at server start
+-- (no shared_preload_libraries entry, so no cron.database_name setting and
+-- CREATE EXTENSION fails), gets a NOTICE and no job, rather than a failed
+-- migration: the Vercel cron route stays in place and keeps purging, so
+-- nothing is lost.
 -- Remove that route's vercel.json entry only after cron.job_run_details shows
 -- this job succeeding (docs/CRON_PLANE_RUNBOOK.md).
 --
@@ -23,6 +26,10 @@ do $migration$
 begin
   if not exists (select 1 from pg_available_extensions where name = 'pg_cron') then
     raise notice 'pg_cron is not available on this cluster; the Vercel cron keeps purging pub_pal_tool_turns';
+    return;
+  end if;
+  if current_setting('cron.database_name', true) is null then
+    raise notice 'pg_cron is not loaded at server start on this cluster; the Vercel cron keeps purging pub_pal_tool_turns';
     return;
   end if;
 

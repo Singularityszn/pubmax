@@ -30,7 +30,10 @@ describe("0202 Pub Pal tool-turn purge job", () => {
 
   it("is a notice, never a failure, where pg_cron is not available", () => {
     expect(MIGRATION).toMatch(/if not exists \(select 1 from pg_available_extensions where name = 'pg_cron'\)/);
-    expect(MIGRATION).toMatch(/raise notice/);
+    // Installed but not preloaded: CREATE EXTENSION would fail, so this is a
+    // notice too. Only a preloaded pg_cron defines cron.database_name.
+    expect(MIGRATION).toMatch(/if current_setting\('cron\.database_name', true\) is null then/);
+    expect(MIGRATION.match(/raise notice/g)).toHaveLength(2);
   });
 
   it("rolls back by unscheduling the same job and leaves the extension alone", () => {
