@@ -234,7 +234,9 @@ export async function runPalClaudeChatTurn(
               setError(new Error(`Claude stopped with ${message.stop_reason ?? "no reason"}.`));
               return failed("PROVIDER_UNAVAILABLE");
             }
-            const turn = await beforePalChatDeadline(deadline, () => readPubPalToolTurn(conversationId));
+            // The reply is the answer. A store that cannot be read in time
+            // costs the cards, never the reply, as on the ElevenLabs path.
+            const turn = await beforePalChatDeadline(deadline, () => readPubPalToolTurn(conversationId)).catch(() => null);
             return palChatAnswer(reply, turn, conversationId);
           }
 

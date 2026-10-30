@@ -240,6 +240,15 @@ describe("runPalClaudeChatTurn", () => {
     ]);
   });
 
+  it("keeps the reply when the stored cards cannot be read", async () => {
+    storeMocks.readPubPalToolTurn.mockRejectedValue(new Error("store down"));
+    const { client } = fakeClient([{ content: [text("The Crown is your quiet one.")], stop_reason: "end_turn" }]);
+
+    const outcome = await runPalClaudeChatTurn({ query: "a quiet pub in Soho", ownerId: OWNER }, undefined, { client });
+
+    expect(outcome).toMatchObject({ ok: true, message: "The Crown is your quiet one.", cards: [] });
+  });
+
   it("asks no model when the safety fence answers", async () => {
     fenceMocks.resolvePubPalFenceIntent.mockResolvedValue({ fenced: true, sobrietyOnly: false });
     const { client, bodies } = fakeClient([]);
