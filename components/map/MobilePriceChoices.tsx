@@ -28,7 +28,7 @@ export default function MobilePriceChoices({
       {drinkLabel || !legend.priceCapFilter ? null : (
         <fieldset className="mobilePriceChoices">
           <legend>Maximum pint price</legend>
-          {/* The four caps are ONE choice, so they share one edge and are
+          {/* The five caps are ONE choice, so they share one edge and are
               divided by interior hairlines. The group wrapper exists so the
               edge belongs to the GROUP: with the border on each button, the
               first segment closed its own box and read as a container in its

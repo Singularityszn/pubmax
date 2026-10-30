@@ -217,7 +217,7 @@ export function desktopHandoffMoves(handoff: PlannerHandoff): {
   const ceiling = handoff.budget ? budgetCeiling(handoff.budget) : null;
   return {
     // The map applies the shared cap its controls print (lib/pintPriceCaps.ts),
-    // so a £5 budget lands on the nearest cap, never on a figure no control shows.
+    // so a £5 budget applies the £5 cap, never a figure no control shows.
     maxPrice: ceiling === null ? null : appliedPintPriceCap(ceiling),
     center: handoff.patch ? [handoff.patch.lng, handoff.patch.lat] : null,
   };

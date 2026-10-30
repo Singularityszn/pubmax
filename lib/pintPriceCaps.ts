@@ -5,7 +5,9 @@ import { NO_PINT_PRICE_CAP } from "@/lib/pintPriceCapValue";
 // ≤ £7; the phone's Map controls sheet offered Any, £7, £6 and £5.50; the
 // planner rail had a free slider in 25p steps. Three surfaces, three answers to
 // the same question (launch UX micro-fix 3, 30 Oct 2026). Every surface now
-// reads this list, and the rail's slider snaps to it.
+// reads this list, and the rail's slider snaps to it. A £5 cap joined the set
+// so a £5 onboarding budget applies £5, never a looser £5.50 (captain decision,
+// PR 2402).
 
 export type PintPriceCap = {
   /** The `Filters.maxPrice` this cap writes. `NO_PINT_PRICE_CAP` is "Any". */
@@ -33,7 +35,7 @@ function cap(maxPrice: number, tone: PintPriceCap["tone"]): PintPriceCap {
 const ANY_CAP = cap(NO_PINT_PRICE_CAP, "any");
 
 /**
- * The four caps, loosest first. "Any" leads because it is the one OFF value and
+ * The five caps, loosest first. "Any" leads because it is the one OFF value and
  * what a fresh visitor starts on (see NO_PINT_PRICE_CAP).
  */
 export const PINT_PRICE_CAPS: readonly PintPriceCap[] = [
@@ -41,6 +43,7 @@ export const PINT_PRICE_CAPS: readonly PintPriceCap[] = [
   cap(7, "amber"),
   cap(6, "amber"),
   cap(5.5, "green"),
+  cap(5, "green"),
 ];
 
 /** The caps tightest first, the order a slider runs from left to right. */

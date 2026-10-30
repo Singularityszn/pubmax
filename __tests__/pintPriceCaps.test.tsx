@@ -19,17 +19,17 @@ import { initialFilters, NO_PINT_PRICE_CAP } from "@/lib/venues";
 
 // ONE SET OF PINT PRICE CAPS (launch UX micro-fix 3). The desktop chips, the
 // phone's segmented row and the rail slider each offered a different set. They
-// read lib/pintPriceCaps.ts now, so a reader meets the same four answers at
+// read lib/pintPriceCaps.ts now, so a reader meets the same five answers at
 // every width.
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 describe("the shared pint price caps", () => {
-  it("is four caps, Any first, and Any is the one OFF value", () => {
-    expect(PINT_PRICE_CAPS.map((cap) => cap.maxPrice)).toEqual([NO_PINT_PRICE_CAP, 7, 6, 5.5]);
-    expect(PINT_PRICE_CAPS.map((cap) => cap.label)).toEqual(["Any", "≤ £7", "≤ £6", "≤ £5.50"]);
-    expect(PINT_PRICE_CAPS.map((cap) => cap.shortLabel)).toEqual(["Any", "£7", "£6", "£5.50"]);
-    expect(PINT_PRICE_CAPS_ASCENDING.map((cap) => cap.maxPrice)).toEqual([5.5, 6, 7, NO_PINT_PRICE_CAP]);
+  it("is five caps, Any first, and Any is the one OFF value", () => {
+    expect(PINT_PRICE_CAPS.map((cap) => cap.maxPrice)).toEqual([NO_PINT_PRICE_CAP, 7, 6, 5.5, 5]);
+    expect(PINT_PRICE_CAPS.map((cap) => cap.label)).toEqual(["Any", "≤ £7", "≤ £6", "≤ £5.50", "≤ £5"]);
+    expect(PINT_PRICE_CAPS.map((cap) => cap.shortLabel)).toEqual(["Any", "£7", "£6", "£5.50", "£5"]);
+    expect(PINT_PRICE_CAPS_ASCENDING.map((cap) => cap.maxPrice)).toEqual([5, 5.5, 6, 7, NO_PINT_PRICE_CAP]);
   });
 
   it("snaps any figure to its nearest cap, and a tie to the looser one", () => {
@@ -38,7 +38,10 @@ describe("the shared pint price caps", () => {
     expect(nearestPintPriceCap(5.75).maxPrice).toBe(6);
     expect(nearestPintPriceCap(6.5).maxPrice).toBe(7);
     expect(nearestPintPriceCap(8.5).maxPrice).toBe(NO_PINT_PRICE_CAP);
-    expect(nearestPintPriceCap(4).maxPrice).toBe(5.5);
+    expect(nearestPintPriceCap(5).maxPrice).toBe(5);
+    expect(nearestPintPriceCap(5.2).maxPrice).toBe(5);
+    expect(nearestPintPriceCap(5.25).maxPrice).toBe(5.5);
+    expect(nearestPintPriceCap(4).maxPrice).toBe(5);
     expect(nearestPintPriceCap(99).maxPrice).toBe(NO_PINT_PRICE_CAP);
     expect(nearestPintPriceCap(Number.NaN).maxPrice).toBe(NO_PINT_PRICE_CAP);
     expect(nearestPintPriceCapIndex(initialFilters.maxPrice)).toBe(PINT_PRICE_CAPS_ASCENDING.length - 1);
@@ -122,11 +125,11 @@ describe("the rail's max pint slider", () => {
     expect(slider!.max).toBe(String(PINT_PRICE_CAPS_ASCENDING.length - 1));
     expect(slider!.step).toBe("1");
     // An old figure (£6.25) shows as the cap it snaps to.
-    expect(slider!.value).toBe("1");
+    expect(slider!.value).toBe("2");
     expect(slider!.getAttribute("aria-valuetext")).toBe("≤ £6");
 
     const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
-    for (const index of [0, 2, 3]) {
+    for (const index of [0, 1, 3, 4]) {
       act(() => {
         setValue.call(slider, String(index));
         slider!.dispatchEvent(new Event("input", { bubbles: true }));
@@ -134,7 +137,7 @@ describe("the rail's max pint slider", () => {
       const written = onFiltersChange.mock.calls.at(-1)?.[0] as { maxPrice: number } | undefined;
       expect(written?.maxPrice).toBe(PINT_PRICE_CAPS_ASCENDING[index]?.maxPrice);
     }
-    expect(onFiltersChange).toHaveBeenCalledTimes(3);
+    expect(onFiltersChange).toHaveBeenCalledTimes(4);
   });
 });
 
@@ -220,5 +223,71 @@ describe("every cap control prints the cap the map applies", () => {
       expect(phone.match(/aria-pressed="true"/g)?.length, source).toBe(1);
       expect(phone, source).toContain(`aria-pressed="true">${capFor?.shortLabel}<`);
     }
+  });
+});
+
+// Captain decision (PR 2402): a £5 onboarding budget snapped up to £5.50, a
+// looser cap than the person asked for. A £5 cap is in the shared set now.
+describe("a £5 onboarding budget", () => {
+  let host: HTMLDivElement;
+  let root: Root;
+
+  beforeEach(() => {
+    host = document.createElement("div");
+    document.body.append(host);
+    root = createRoot(host);
+  });
+
+  afterEach(() => {
+    act(() => root.unmount());
+    host.remove();
+  });
+
+  it("applies exactly £5, and the slider, the chips and the phone row light the £5 cap", async () => {
+    const { desktopHandoffMoves } = await import("@/lib/onboardingFlow");
+    const { default: ControlRail } = await import("@/components/map/ControlRail");
+    const applied = desktopHandoffMoves({ patch: null, budget: "five" }).maxPrice;
+    expect(applied).toBe(5);
+
+    const filters = { ...initialFilters, maxPrice: 5 };
+    const noop = () => undefined;
+    act(() =>
+      root.render(
+        createElement(ControlRail, {
+          mode: "suggest",
+          onModeChange: noop,
+          filters,
+          onFiltersChange: noop,
+          filteredVenues: [],
+          builtCount: 0,
+          onClearBuilt: noop,
+          onLoadCrawl: noop,
+          onNearbyCrawl: noop,
+          nearbyLoading: false,
+          nearbyError: null,
+          savedOnly: false,
+          onSavedOnlyChange: noop,
+        } as never),
+      ),
+    );
+    const slider = host.querySelector<HTMLInputElement>('input[aria-label="Maximum pint price"]');
+    expect(slider?.value).toBe("0");
+    expect(slider?.getAttribute("aria-valuetext")).toBe("≤ £5");
+
+    const chips = renderToStaticMarkup(
+      createElement(MapPriceFilterChips, { filters, onFiltersChange: noop, onPicked: noop }),
+    );
+    expect(chips.match(/aria-pressed="true"/g)?.length).toBe(1);
+    expect(chips).toMatch(/aria-pressed="true"><i[^>]*><\/i>≤ £5</);
+
+    const legend = mapPriceLegend({
+      kind: "default",
+      renderedState: { priceBands: [{ meaning: "pint", bucket: 0 }], storyColour: null, clusterPrices: false },
+    });
+    const phone = renderToStaticMarkup(
+      createElement(MobilePriceChoices, { maxPrice: 5, legend, onMaxPriceChange: noop }),
+    );
+    expect(phone.match(/aria-pressed="true"/g)?.length).toBe(1);
+    expect(phone).toContain('aria-pressed="true">£5<');
   });
 });
