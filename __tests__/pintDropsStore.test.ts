@@ -31,6 +31,9 @@ const updateMock = vi.fn((values: Record<string, unknown>) => {
 });
 const selectChain = {
   eq: vi.fn(),
+  in: vi.fn(),
+  neq: vi.fn(),
+  gt: vi.fn(),
   not: vi.fn(),
   is: vi.fn(),
   order: vi.fn(),
@@ -42,6 +45,9 @@ const selectChain = {
   ) => Promise.resolve({ data: reviewRowsRef.rows, error: null }).then(resolve, reject),
 };
 selectChain.eq.mockReturnValue(selectChain);
+selectChain.in.mockReturnValue(selectChain);
+selectChain.neq.mockReturnValue(selectChain);
+selectChain.gt.mockReturnValue(selectChain);
 selectChain.not.mockReturnValue(selectChain);
 selectChain.is.mockReturnValue(selectChain);
 selectChain.order.mockReturnValue(selectChain);
@@ -59,6 +65,10 @@ vi.mock("@/lib/supabase", () => ({
   getSupabaseAdmin: () => mockAdmin(),
   requireSupabaseAdmin: () => mockAdmin(),
   STORAGE_BUCKET: "pint-drops",
+  // Keyless, so the seams these tests do not drive (profiles, withdrawal) stay
+  // in process memory.
+  isSupabaseConfigured: () => false,
+  requiresSupabaseStore: () => false,
 }));
 
 import {
@@ -81,6 +91,12 @@ import {
   type PintDropReportIdentity,
 } from "@/lib/pintDrops";
 import { defined } from "@/__tests__/helpers/defined";
+import {
+  __resetMemoryIdentityHandles,
+  memoryIdentityHandleStore,
+  supabaseIdentityHandleStore,
+} from "@/lib/identityHandleStore";
+import { __resetMemoryProfiles } from "@/lib/profileStore";
 
 function verifiedReportIdentity(actorHash: string): PintDropReportIdentity {
   return { kind: "verified_account", actorHash };
@@ -585,5 +601,127 @@ describe("supabasePintDropStore.create (vibe_tags rollout resilience)", () => {
       /handle/,
     );
     expect(insertMock).toHaveBeenCalledTimes(1); // no retry
+  });
+});
+
+// A Pint Drop keeps the handle text it was posted under, and a rename does not
+// rewrite it. The author reads follow the ACCOUNT through its handle history,
+// so a renamed author keeps their older drops in their passport geography and
+// counts, and nobody becomes their author by presenting the old handle.
+describe("rename-safe author reads", () => {
+  const OLD = "rename_alpha_28";
+  const NEW = "rename_beta_28";
+  const OTHER = "rename_gamma_28";
+
+  function authored(
+    id: string,
+    venueId: string,
+    handle: string,
+    visibility: PersistableDrop["visibility"],
+    createdAt: string,
+  ) {
+    addPintDrop(drop({ id, venueId, handle, visibility, createdAt }));
+  }
+
+  afterEach(() => {
+    __resetMemoryIdentityHandles();
+    __resetMemoryProfiles();
+    vi.restoreAllMocks();
+  });
+
+  async function renamedAuthor() {
+    expect((await memoryIdentityHandleStore.claim("owner-a", OLD)).ok).toBe(true);
+    authored("old-public", "venue-eltcmh", OLD, "public", "2026-01-01T00:00:00.000Z");
+    authored("old-friends", "venue-wrpmzq", OLD, "friends", "2026-01-02T00:00:00.000Z");
+    expect(await memoryIdentityHandleStore.rename("owner-a", NEW)).toMatchObject({
+      ok: true,
+      previousHandle: OLD,
+    });
+    authored("new-public", "venue-1pfnt71", NEW, "public", "2026-02-01T00:00:00.000Z");
+  }
+
+  it("keeps drops under both handles in the memory author reads", async () => {
+    await renamedAuthor();
+
+    const own = await memoryPintDropStore.listVisible(undefined, { handle: NEW }, NEW, null);
+    expect(own.map((d) => d.id).sort()).toEqual(["new-public", "old-friends", "old-public"]);
+    expect(own.every((d) => d.handle === NEW)).toBe(true);
+    await expect(
+      memoryPintDropStore.listVisibleAuthorVenueIds(NEW, { handle: NEW }, null),
+    ).resolves.toEqual(["venue-1pfnt71", "venue-eltcmh", "venue-wrpmzq"]);
+    // The old handle still names the same account.
+    await expect(
+      memoryPintDropStore.listVisibleAuthorVenueIds(OLD, { handle: NEW }, null),
+    ).resolves.toEqual(["venue-1pfnt71", "venue-eltcmh", "venue-wrpmzq"]);
+    // A stranger reads the public drops under both handles, never the friends one.
+    await expect(
+      memoryPintDropStore.listVisibleAuthorVenueIds(NEW, undefined, null),
+    ).resolves.toEqual(["venue-1pfnt71", "venue-eltcmh"]);
+  });
+
+  it("never gives the old drops to a different account", async () => {
+    await renamedAuthor();
+
+    // The alias history reserves the old handle for the account that wore it.
+    expect(await memoryIdentityHandleStore.claim("owner-b", OLD)).toMatchObject({
+      ok: false,
+      code: "taken",
+    });
+    expect((await memoryIdentityHandleStore.claim("owner-b", OTHER)).ok).toBe(true);
+
+    // The other account's own author read holds none of the renamed account's drops.
+    await expect(
+      memoryPintDropStore.listVisible(undefined, { handle: OTHER }, OTHER, null),
+    ).resolves.toEqual([]);
+    await expect(
+      memoryPintDropStore.listVisibleAuthorVenueIds(OTHER, { handle: OTHER }, null),
+    ).resolves.toEqual([]);
+
+    // A viewer who presents the OLD handle is not the author, so the friends
+    // drop stays the account's own.
+    const asOldHandle = await memoryPintDropStore.listVisible(undefined, { handle: OLD }, OLD, null);
+    expect(asOldHandle.map((d) => d.id).sort()).toEqual(["new-public", "old-public"]);
+    await expect(
+      memoryPintDropStore.listVisibleAuthorVenueIds(NEW, { handle: OLD }, null),
+    ).resolves.toEqual(["venue-1pfnt71", "venue-eltcmh"]);
+  });
+
+  it("matches every worn handle in the Supabase author reads", async () => {
+    vi.spyOn(supabaseIdentityHandleStore, "wornHandles").mockResolvedValue({
+      currentHandle: NEW,
+      handles: [NEW, OLD],
+    });
+    const row = (id: string, venueId: string, handle: string, visibility: string) => ({
+      id,
+      venue_id: venueId,
+      handle,
+      drink: "",
+      price_gbp: 4.2,
+      passed_down_note: "",
+      era: "",
+      provenance: "contributor",
+      status: "visible",
+      visibility,
+      created_at: "2026-01-01T00:00:00.000Z",
+    });
+    reviewRowsRef.rows = [
+      row("old-public", "venue-eltcmh", OLD, "public"),
+      row("old-friends", "venue-wrpmzq", OLD, "friends"),
+      row("new-public", "venue-1pfnt71", NEW, "public"),
+      // The mock answers every filter with every row: the store's own match
+      // must still keep a handle the account never wore out of the read.
+      row("other-public", "venue-1pfnt71", OTHER, "public"),
+    ];
+
+    await expect(
+      supabasePintDropStore.listVisibleAuthorVenueIds(NEW, { handle: NEW }, null),
+    ).resolves.toEqual(["venue-1pfnt71", "venue-eltcmh", "venue-wrpmzq"]);
+    expect(selectChain.in).toHaveBeenCalledWith("handle", [NEW, OLD].sort());
+
+    const own = await supabasePintDropStore.listVisible(undefined, { handle: NEW }, NEW, null);
+    expect(own.map((d) => d.id).sort()).toEqual(["new-public", "old-friends", "old-public"]);
+
+    const asOldHandle = await supabasePintDropStore.listVisible(undefined, { handle: OLD }, NEW, null);
+    expect(asOldHandle.map((d) => d.id).sort()).toEqual(["new-public", "old-public"]);
   });
 });

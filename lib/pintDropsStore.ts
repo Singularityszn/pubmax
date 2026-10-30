@@ -18,6 +18,11 @@ import {
   measureIsPint,
 } from "@/lib/drinkMeasure";
 import { detectImageKind, magicBytesOk as magicBytesOkPure, stripImageMetadata } from "@/lib/imageSafety";
+import {
+  memoryIdentityHandleStore,
+  supabaseIdentityHandleStore,
+  type WornHandles,
+} from "@/lib/identityHandleStore";
 import { log } from "@/lib/log";
 import { loadVenueAliasResolver, storedVenueIds } from "@/lib/venueAliases";
 import { demoDropsFor, demoPintDropsForCity } from "@/lib/pintDropSeeds";
@@ -703,12 +708,57 @@ async function hasPricedDropTodayAcrossIds(
   return (await storedVenueIds(venueId)).some((id) => hasPricedDropTodayMemory(id, handle, day));
 }
 
+/**
+ * The account behind an author read. A Pint Drop keeps the handle text it was
+ * posted under and a rename does not rewrite it, so an author read matches
+ * every handle the account has worn (`worn`) and reads each match as the
+ * account's handle today (`current`). A handle with no alias history is its
+ * own account, which is the read as it was before the alias table.
+ */
+type AuthorIdentity = { current: string; worn: ReadonlySet<string> };
+
+async function resolveAuthor(
+  authorHandle: string | undefined,
+  wornHandles: (handle: string) => Promise<WornHandles | null>,
+): Promise<AuthorIdentity | null> {
+  const author = normalizeViewerHandle(authorHandle);
+  if (!author) return null;
+  const account = await wornHandles(author);
+  const current = normalizeViewerHandle(account?.currentHandle) || author;
+  const worn = new Set(
+    [author, current, ...(account?.handles ?? []).map(normalizeViewerHandle)].filter(Boolean),
+  );
+  return { current, worn };
+}
+
+/**
+ * Keep only the account's drops, each read under the handle it wears today.
+ * Every rule after this (visibility, the author's own lane, withdrawal) then
+ * asks about ONE author, so a drop posted before a rename is gated exactly
+ * like one posted after it, and a viewer is the author only when they ARE
+ * the account today, never because they type an old handle.
+ */
+function asAuthorDrops<T extends { handle: string }>(
+  drops: readonly T[],
+  author: AuthorIdentity,
+): T[] {
+  return drops.flatMap((drop) =>
+    author.worn.has(normalizeViewerHandle(drop.handle)) ? [{ ...drop, handle: author.current }] : [],
+  );
+}
+
+/** The handles an author query matches on the stored `handle` column. */
+function wornHandleList(author: AuthorIdentity): string[] {
+  return [...author.worn].sort();
+}
+
 async function attributedAuthorVenueIds(
   rows: PersistableDrop[],
-  author: string,
+  authorIdentity: AuthorIdentity,
   viewer?: ViewerContext,
 ): Promise<string[]> {
-  const permitted = rows.filter(
+  const author = authorIdentity.current;
+  const permitted = asAuthorDrops(rows, authorIdentity).filter(
     (drop) =>
       normalizeViewerHandle(drop.handle) === author &&
       visibilityOf(drop) !== "legacy" &&
@@ -736,10 +786,11 @@ export const memoryPintDropStore: PintDropStore = {
     return toDTO(drop);
   },
   async listVisible(venueId, viewer, authorHandle, cityId) {
-    const rows = venueId
+    const venueRows = venueId
       ? (await storedVenueIds(venueId)).flatMap((id) => listVisiblePintDrops(id))
       : listAllVisiblePintDrops(cityId);
-    const author = normalizeViewerHandle(authorHandle);
+    const author = await resolveAuthor(authorHandle, (h) => memoryIdentityHandleStore.wornHandles(h));
+    const rows = author ? asAuthorDrops(venueRows, author) : venueRows;
     // Visibility applied server-side (issue #29). Legacy is EXCLUDED from the
     // public surface for EVERYONE (including the author — they read it via the
     // ledger's listLegacyForVenue, not the feed), matching the Supabase backend's
@@ -748,14 +799,13 @@ export const memoryPintDropStore: PintDropStore = {
     const permitted = rows.filter(
       (d) =>
         visibilityOf(d) !== "legacy" &&
-        canViewOnPublicSurface(d, viewer) &&
-        (!author || normalizeViewerHandle(d.handle) === author),
+        canViewOnPublicSurface(d, viewer),
     );
     const published = await dropWithdrawnFromViewer(permitted, viewer);
     return newestFirstCapped(published).map((d) => toDTO(withVerifiedReportCount(d)));
   },
   async listVisibleAuthorVenueIds(authorHandle, viewer, cityId, venueId) {
-    const author = normalizeViewerHandle(authorHandle);
+    const author = await resolveAuthor(authorHandle, (h) => memoryIdentityHandleStore.wornHandles(h));
     if (!author) return [];
     const rows = venueId
       ? (await storedVenueIds(venueId)).flatMap((id) => listVisiblePintDrops(id))
@@ -1216,7 +1266,8 @@ export const supabasePintDropStore: PintDropStore = {
   /** Demo seeds (in-repo, never written to Supabase) merge with the organic
    *  rows in newestFirstCapped so both backends serve one read-merge path. */
   async listVisible(venueId, viewer, authorHandle, cityId) {
-    const author = normalizeViewerHandle(authorHandle);
+    const author = await resolveAuthor(authorHandle, (h) => supabaseIdentityHandleStore.wornHandles(h));
+    const authorHandles = author ? wornHandleList(author) : [];
     const venueIds = venueId ? await storedVenueIds(venueId) : [];
     // Base visible read, newest-first, capped. Split from the visibility filter
     // so we can retry WITHOUT it if migration 0012 isn't applied to this DB yet
@@ -1230,7 +1281,8 @@ export const supabasePintDropStore: PintDropStore = {
         .limit(MAX_PUBLIC_DROPS);
       if (venueIds.length === 1) q = q.eq("venue_id", venueIds[0]);
       else if (venueIds.length > 1) q = q.in("venue_id", venueIds);
-      if (author) q = q.eq("handle", author);
+      if (authorHandles.length === 1) q = q.eq("handle", authorHandles[0]);
+      else if (authorHandles.length > 1) q = q.in("handle", authorHandles);
       return q;
     };
     // Legacy (family/heirloom) drops NEVER ride the public surface — they read
@@ -1248,17 +1300,16 @@ export const supabasePintDropStore: PintDropStore = {
     if (error) throw new Error(error.message);
     // Per-venue: all city seeds for that id. Unscoped: city-scoped seeds so
     // Manchester demo drops never noise the London feed/landing.
-    const seeds = (
-      venueId ? venueIds.flatMap((id) => demoDropsFor(id)) : demoPintDropsForCity(cityId)
-    ).filter(
-      (d) => !author || normalizeViewerHandle(d.handle) === author,
-    );
+    const allSeeds = venueId
+      ? venueIds.flatMap((id) => demoDropsFor(id))
+      : demoPintDropsForCity(cityId);
+    const seeds = author ? asAuthorDrops(allSeeds, author) : allSeeds;
     // Apply the same pure predicate the memory store uses over the fetched page.
     // Legacy is already excluded above; public + anonymous always pass, friends
     // gate on the viewer's follow graph. Unscoped reads also city-scope organic
     // rows by venue id prefix (venue-mcr- ↔ Manchester).
-    const permitted = (data ?? [])
-      .map(fromRow)
+    const organic = (data ?? []).map(fromRow);
+    const permitted = (author ? asAuthorDrops(organic, author) : organic)
       .concat(seeds)
       .filter((d) => venueId || dropMatchesCityScope(d.venueId, cityId))
       .filter((d) => canViewOnPublicSurface(d, viewer));
@@ -1268,8 +1319,9 @@ export const supabasePintDropStore: PintDropStore = {
   },
 
   async listVisibleAuthorVenueIds(authorHandle, viewer, cityId, venueId) {
-    const author = normalizeViewerHandle(authorHandle);
+    const author = await resolveAuthor(authorHandle, (h) => supabaseIdentityHandleStore.wornHandles(h));
     if (!author) return [];
+    const authorHandles = wornHandleList(author);
     const venueIds = venueId ? await storedVenueIds(venueId) : [];
     const visited = new Set<string>();
     let afterId: string | undefined;
@@ -1281,7 +1333,7 @@ export const supabasePintDropStore: PintDropStore = {
           .from(TABLE)
           .select("*")
           .eq("status", "visible")
-          .eq("handle", author)
+          .in("handle", authorHandles)
           .order("id", { ascending: true })
           .limit(MAX_PUBLIC_DROPS);
         if (afterId) query = query.gt("id", afterId);
