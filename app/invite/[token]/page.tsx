@@ -267,29 +267,21 @@ export default async function PlanInvitePage({ params }: PageProps) {
           <span className="invite__edition">You&rsquo;re invited</span>
         </div>
 
-        {routePoints.length >= 2 ? (
-          <div className="invite__thumbFrame">
-            <RouteThumbnail
-              className="invite__thumb"
-              points={routePoints}
-              stopNumbers={routeStops.map((entry) => entry.number)}
-              label={`Route shape for ${state.plan.title}`}
-            />
-            <p className="invite__thumbNote">
-              Straight lines between stops, not a walking route.
-            </p>
-          </div>
-        ) : null}
+        {/* THE HOST FIRST (launch UX variations, V2 "Invite page"): who is
+            asking, and the night in their own words, before anything else. */}
+        <header className="invite__host">
+          <p className="invite__eyebrow">Hosted by {hostHandle}</p>
+          <h1 className="invite__title">{state.plan.title}</h1>
+          <p className="invite__start">{startLabel}</p>
+          {spendBand ? <p className="invite__spend">{formatPlanInviteSpendBand(spendBand)}</p> : null}
+          {alcoholOptionalLine ? (
+            <p className="invite__softNote">{alcoholOptionalLine}</p>
+          ) : null}
+        </header>
 
-        <p className="invite__eyebrow">Hosted by {hostHandle}</p>
-        <h1 className="invite__title">{state.plan.title}</h1>
-        <p className="invite__start">{startLabel}</p>
-        {spendBand ? <p className="invite__spend">{formatPlanInviteSpendBand(spendBand)}</p> : null}
-        {alcoholOptionalLine ? (
-          <p className="invite__softNote">{alcoholOptionalLine}</p>
-        ) : null}
-
-        <ol className="invite__stops">
+        {/* The stops as a timeline: one rail, a numbered stop on it, and the
+            listed price plaque beside each pub that has one. */}
+        <ol className="invite__stops invite__timeline" aria-label="The stops">
           {stops.map((stop) => (
             <li className="invite__stop" key={`${stop.position}-${stop.venueId}`}>
               <span className="invite__stopPosition">{stop.position + 1}</span>
@@ -303,6 +295,20 @@ export default async function PlanInvitePage({ params }: PageProps) {
             </li>
           ))}
         </ol>
+
+        {routePoints.length >= 2 ? (
+          <div className="invite__thumbFrame">
+            <RouteThumbnail
+              className="invite__thumb"
+              points={routePoints}
+              stopNumbers={routeStops.map((entry) => entry.number)}
+              label={`Route shape for ${state.plan.title}`}
+            />
+            <p className="invite__thumbNote">
+              Straight lines between stops, not a walking route.
+            </p>
+          </div>
+        ) : null}
 
         <p className="invite__softNote">
           Join while signed in with a claimed handle, and you and the host

@@ -570,3 +570,95 @@ html[data-theme="dark"] .invite__primary {
     transition: none;
   }
 }
+
+/* ── The invite as a timeline (launch UX variations, V2 "Invite page") ─────
+   The host and their line lead; the stops hang on one rail with each listed
+   price plaque beside its pub; the route shape follows them. Presentation
+   only: the same stops, the same badges, the same RSVP island. */
+.invite__host {
+  display: grid;
+  gap: 0;
+}
+
+.invite__timeline {
+  position: relative;
+  gap: 0;
+}
+
+/* The rail runs through the centre of the 26px stop numbers, from the first
+   to the last, and never past either end. */
+.invite__timeline::before {
+  content: "";
+  position: absolute;
+  top: calc(var(--space-3) + 13px);
+  bottom: calc(var(--space-3) + 13px);
+  left: 12px;
+  width: 2px;
+  background: var(--hairline-strong);
+}
+
+.invite__timeline .invite__stop {
+  position: relative;
+  align-items: flex-start;
+  padding: var(--space-3) 0;
+  border-bottom: none;
+}
+
+.invite__timeline .invite__stopPosition {
+  position: relative;
+  background: var(--panel-raised);
+  border-color: var(--hairline-strong);
+  color: var(--color-text);
+}
+
+.invite__timeline .invite__stopName {
+  padding-top: 3px;
+}
+
+.invite__timeline + .invite__thumbFrame {
+  margin: var(--space-5) 0 0;
+}
+
+/* THE ANSWER STAYS IN REACH ON A PHONE. At 390 the RSVP form rides the foot
+   of the screen while the stops scroll under it, and settles into its place
+   in the card once the reader reaches it. The island's own box is dissolved
+   so the form can stick across the whole card (a sticky box cannot leave its
+   parent), and its rows keep their spacing through their own margins. The
+   tab bar's lane is kept clear when the bar is on screen. */
+@media (max-width: 640px) {
+  .inviteRsvp {
+    display: contents;
+  }
+
+  /* Not the map prompt: its live region stays mounted empty, and its link
+     carries its own margin (see .inviteRsvp__mapPrompt above). */
+  .inviteRsvp > :not(.inviteRsvp__mapPrompt) {
+    margin-top: var(--space-4);
+  }
+
+  .inviteRsvp > :first-child {
+    margin-top: var(--space-6);
+    padding-top: var(--space-5);
+    border-top: 1px solid var(--line-soft);
+  }
+
+  .inviteRsvp__form {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    margin-inline: calc(-1 * var(--space-3));
+    padding: var(--space-3);
+    border-top: 1px solid var(--hairline);
+    border-radius: var(--radius-sm);
+    background: var(--panel-raised);
+  }
+
+  html:has(.mobileTabBar, .mobileTabBarClearance) .inviteRsvp__form {
+    bottom: calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* A link reached by the keyboard stops above the form, never under it. */
+  html:has(.inviteRsvp__form) {
+    scroll-padding-bottom: calc(var(--tabbar-h, 64px) + 12rem);
+  }
+}
