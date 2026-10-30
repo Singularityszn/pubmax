@@ -21,7 +21,8 @@ import {
 // Two kinds of tag land here, and both are proposals the person tagged
 // decides. "photo" is a Social post photo tag. "with" is a Pint Drop's "With"
 // handle tag (lib/pintDropWithTags.ts): until it is approved the drop says
-// "with 1 person", and a decline or a withdrawal takes it off the drop.
+// "with 1 person", and a decline or a withdrawal takes it off the drop. A
+// "with" tag can also sit on a diary entry (0201), which only its owner reads.
 
 type PhotoProposal = {
   kind?: "photo";
@@ -41,8 +42,10 @@ type PhotoProposal = {
 };
 type WithProposal = {
   kind: "with";
+  /** Absent from a server older than 0201, which only tagged drops. */
+  subject?: "drop" | "diary";
   id: string;
-  dropId: string;
+  dropId: string | null;
   taggerHandle: string;
   venueId: string | null;
   venueName: string | null;
@@ -263,14 +266,20 @@ export default function SocialTagInbox() {
                           </Link>
                           .
                         </>
+                      ) : item.subject === "diary" ? (
+                        "Says you were with them, in their diary."
                       ) : (
                         "Says you were with them on a Pint Drop."
                       )}
                     </p>
                     <p>
-                      {lane === "proposed"
-                        ? "Until you approve, the drop says “with 1 person”."
-                        : "Your handle shows on their drop."}
+                      {item.subject === "diary"
+                        ? lane === "proposed"
+                          ? "Until you approve, their diary says “with 1 person”. Only they can read it."
+                          : "Your handle shows in their diary. Only they can read it."
+                        : lane === "proposed"
+                          ? "Until you approve, the drop says “with 1 person”."
+                          : "Your handle shows on their drop."}
                     </p>
                   </>
                 ) : (

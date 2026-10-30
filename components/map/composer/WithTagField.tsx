@@ -12,6 +12,8 @@ type Props = {
   onChange: (value: string) => void;
   /** An anonymous drop takes no tags, so the search is not offered. */
   tagsAllowed: boolean;
+  /** What the tags sit on, for the line that says what shows until consent. */
+  subject?: "drop" | "diary";
 };
 
 const TOKEN_SPLIT = /([,\s]+)/;
@@ -36,7 +38,7 @@ export function pickWithHandle(value: string, handle: string): string {
  * that person's tag inbox after the drop is saved, and until they approve it
  * the drop says "with 1 person" (lib/pintDropWithTags.ts).
  */
-export default function WithTagField({ value, onChange, tagsAllowed }: Props) {
+export default function WithTagField({ value, onChange, tagsAllowed, subject = "drop" }: Props) {
   const inputId = useId();
   const hintId = useId();
   const listId = useId();
@@ -66,9 +68,11 @@ export default function WithTagField({ value, onChange, tagsAllowed }: Props) {
         placeholder="Names, or @ to tag someone on PUBMAXX"
       />
       <p id={hintId} className="withTagHint">
-        {tagsAllowed
-          ? "Anyone you tag gets asked first. Until they say yes, the drop says “with 1 person”."
-          : "Anonymous drops can't tag anyone. Names still show."}
+        {!tagsAllowed
+          ? "Anonymous drops can't tag anyone. Names still show."
+          : subject === "diary"
+            ? "Anyone you tag gets asked first. Until they say yes, your diary says “with 1 person”."
+            : "Anyone you tag gets asked first. Until they say yes, the drop says “with 1 person”."}
       </p>
       {searching ? (
         <div id={listId} className="withTagMatches" role="group" aria-label="People on PUBMAXX">

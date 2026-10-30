@@ -604,6 +604,10 @@ export function usePintDrops(
       return;
     }
     const passedDownNote = appendWithSuffix(dropForm.note, dropForm.withWho);
+    // "With" handles become tag proposals once the drop has an id; they are
+    // never part of the note (lib/pintDropWithTags.ts). They ride the retry
+    // payload too, so a retried save still asks the people tagged.
+    const submittedWithHandles = withTagHandlesFor(dropForm.withWho, visibility);
     // Wave G1: only stamp leave-by + decision when a LIVE Last Pint verdict is
     // on screen — never attach live_data_unavailable or a missing leave-by.
     const trainFields = lastTrainComposeFields(options?.lastTrainDecision ?? null);
@@ -622,6 +626,8 @@ export function usePintDrops(
       venuePhotoUrl: venuePhoto?.previewUrl ?? null,
       createdAt: new Date().toISOString(),
       ...(trainFields ?? {}),
+      // The retry payload keeps them only when there are some.
+      withHandles: submittedWithHandles,
     };
     const optimisticDrop = buildOptimisticSpillDrop(optimisticInput);
     const publishToFeed = shouldOptimisticallyAppearInFeed(visibility);
@@ -680,9 +686,6 @@ export function usePintDrops(
     const submittedPintFile = fileOfPhoto(pintPhoto);
     const submittedVenueFile = fileOfPhoto(venuePhoto);
     const submittedReceiptFile = fileOfPhoto(receiptPhoto);
-    // "With" handles become tag proposals once the drop has an id; they are
-    // never part of the note (lib/pintDropWithTags.ts).
-    const submittedWithHandles = withTagHandlesFor(dropForm.withWho, visibility);
     clearPintDropDraft(safeSessionStorage(), venueId);
     const local = safeLocalStorage();
     if (local) {

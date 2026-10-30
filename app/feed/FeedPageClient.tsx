@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import FeedCard from "@/components/feed/FeedCard";
+import { proposeWithTagsForDrop } from "@/components/map/composer/proposeWithTags";
 import FeedFilters from "@/components/feed/FeedFilters";
 import FeedSightings from "@/components/feed/FeedSightings";
 import PresenceStrip from "@/components/feed/PresenceStrip";
@@ -710,6 +711,9 @@ export default function FeedPageClient({
         ),
       );
       window.localStorage.setItem("pubmax_handle", entry.retry.handle.trim());
+      // The tags ride the retry: the first attempt never got a drop id to
+      // tag, and proposing is idempotent on drop id plus handle.
+      void proposeWithTagsForDrop(data.drop, entry.retry.withHandles ?? []);
     } catch (err) {
       const message =
         err instanceof Error && err.message.trim()

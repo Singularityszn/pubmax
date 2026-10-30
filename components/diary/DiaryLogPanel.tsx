@@ -13,6 +13,7 @@ import {
   useContributionGate,
 } from "@/components/identity/ContributionGateDialog";
 import RankAfterVisitCard from "@/components/pubs/RankAfterVisitCard";
+import WithTagField from "@/components/map/composer/WithTagField";
 import { useTellYourLot } from "@/components/pubs/useTellYourLot";
 import StarRating from "@/components/ratings/StarRating";
 import {
@@ -48,6 +49,8 @@ type DiaryDraft = {
   review: string;
   /** "Your usual here". Absent on a draft saved before the field existed. */
   usualDrink?: string;
+  /** "With": names, and `@handles` that are asked first. */
+  withWho?: string;
 };
 
 // A panel belongs to ONE pub: keying the mount drops the previous pub's
@@ -84,6 +87,7 @@ function VenueDiaryLog({ venueId, venueName }: DiaryLogPanelProps) {
   const rating = draft?.rating ?? null;
   const review = draft?.review ?? "";
   const usualDrink = draft?.usualDrink ?? "";
+  const withWho = draft?.withWho ?? "";
 
   async function submit() {
     if (!draft || !composerAuth) return;
@@ -108,6 +112,7 @@ function VenueDiaryLog({ venueId, venueName }: DiaryLogPanelProps) {
             rating,
             review: review.trim(),
             usualDrink: usualDrink.trim(),
+            ...(withWho.trim() ? { withWho: withWho.trim() } : {}),
             ...(tellYourLot ? { shareToLot: true } : {}),
           },
           auth,
@@ -126,9 +131,15 @@ function VenueDiaryLog({ venueId, venueName }: DiaryLogPanelProps) {
           : result.shared
             ? " Your lot will see you were here."
             : " It stayed private: we could not tell your lot this time.";
+        const tagLine =
+          result.tagsSent === undefined
+            ? ""
+            : result.tagsSent
+              ? " Anyone you tagged gets asked first."
+              : " We could not ask the people you tagged. Tagging needs your Social account.";
         setFeedback({
           kind: "ok",
-          text: `Logged ${venueName} for ${diaryVisitedOnLabel(result.entry.visitedOn)}. It's in your diary.${lotLine}`,
+          text: `Logged ${venueName} for ${diaryVisitedOnLabel(result.entry.visitedOn)}. It's in your diary.${lotLine}${tagLine}`,
         });
         setLogged(true);
       } catch (error) {
@@ -269,6 +280,13 @@ function VenueDiaryLog({ venueId, venueName }: DiaryLogPanelProps) {
             />
           </label>
 
+          <WithTagField
+            value={withWho}
+            onChange={(next) => setDraft((current) => ({ ...current, withWho: next }))}
+            tagsAllowed
+            subject="diary"
+          />
+
           <label className="diaryLotToggle">
             <input
               type="checkbox"
@@ -280,7 +298,7 @@ function VenueDiaryLog({ venueId, venueName }: DiaryLogPanelProps) {
               Tell your lot
               <small>
                 Your mutuals see one line saying you were here. Your rating,
-                words and usual stay private.
+                words, usual and names stay private.
               </small>
             </span>
           </label>

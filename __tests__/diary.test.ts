@@ -71,6 +71,7 @@ describe("validateDiaryEntryCreate", () => {
         rating: 4.5,
         review: "Back room was calm.",
         usualDrink: "",
+        withNames: "",
         visibility: "private",
       },
     });
@@ -161,6 +162,7 @@ describe("ordering and labels", () => {
     rating: null,
     review: "",
     usualDrink: "",
+    withNames: "",
     visibility: "private",
   };
 
@@ -223,7 +225,7 @@ describe("validateDiaryEntryEdit", () => {
   it("refuses an empty correction rather than answering a no-op", () => {
     expect(validateDiaryEntryEdit({}, NOW)).toEqual({
       ok: false,
-      error: "Change the day, the rating or the review.",
+      error: "Change the day, the rating, the review or your usual.",
     });
   });
 

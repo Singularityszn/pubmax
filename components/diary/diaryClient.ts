@@ -21,12 +21,14 @@ export type DiaryDraftInput = {
   review: string;
   /** "Your usual here", private. */
   usualDrink?: string;
+  /** The raw "With" field: names stay private, each `@handle` is asked first. */
+  withWho?: string;
   /** "Tell your lot": sent only when the owner turned it on for this log. */
   shareToLot?: boolean;
 };
 
 export type DiaryPostResult =
-  | { ok: true; entry: DiaryEntryDTO; shared: boolean }
+  | { ok: true; entry: DiaryEntryDTO; shared: boolean; tagsSent?: boolean }
   | { ok: false; error: string; status?: ContributionGateStatus };
 
 /** Log one visit. Auth and onboarding refusals stay typed so the shared
@@ -43,6 +45,7 @@ export async function postDiaryEntry(
   const body = (await res.json().catch(() => ({}))) as {
     entry?: DiaryEntryDTO;
     shared?: unknown;
+    tagsSent?: unknown;
     error?: unknown;
     status?: unknown;
   };
@@ -54,20 +57,27 @@ export async function postDiaryEntry(
       ...(status ? { status } : {}),
     };
   }
-  return { ok: true, entry: body.entry, shared: body.shared === true };
+  return {
+    ok: true,
+    entry: body.entry,
+    shared: body.shared === true,
+    ...(typeof body.tagsSent === "boolean" ? { tagsSent: body.tagsSent } : {}),
+  };
 }
 
 export type DiaryEntryChange = {
   visitedOn?: string;
   rating?: number | null;
   review?: string;
+  /** "Your usual here". An empty string clears it. */
+  usualDrink?: string;
 };
 
 export type DiaryChangeResult =
   | { ok: true; entry: DiaryEntryDTO }
   | { ok: false; error: string };
 
-/** Correct an entry the account already logged: its day, stars or words. The
+/** Correct an entry the account already logged: its day, stars, words or usual. The
  * server finds it by id AND the session's account, so it is never another
  * person's. A day that collides with another log of the same pub answers 409
  * and the line says so. */

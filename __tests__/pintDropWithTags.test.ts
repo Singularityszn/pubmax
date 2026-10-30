@@ -42,6 +42,9 @@ function deps(): WithTagDependencies {
   return {
     rows: memoryWithTagRows,
     drop: async (id) => drops.get(id) ?? null,
+    diaryEntry: async () => null,
+    currentHandles: async (ids) =>
+      new Map([ALICE, SAM, PRIYA, STRANGER].filter((actor) => ids.includes(actor.profileId)).map((actor) => [actor.profileId, actor.handle])),
     claimedProfile: async (handle) => {
       const actor = profiles.get(handle);
       return actor ? { id: actor.profileId, handle: actor.handle } : null;
