@@ -86,6 +86,35 @@ export function formatWithLine(summary: PintDropWithSummary): string {
   return `with ${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}`;
 }
 
+/**
+ * One tag on the owner's own diary entry, as the edit form lists it. Only the
+ * owner reads this: an approved tag names the person's current handle, and a
+ * proposal names the handle the owner typed, which is nothing new to them.
+ */
+export type DiaryWithTag = {
+  id: string;
+  handle: string;
+  state: "proposed" | "approved";
+};
+
+const TAG_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Parse an untrusted diary tag list; an odd row is left out. */
+export function parseDiaryWithTags(value: unknown): DiaryWithTag[] {
+  if (!Array.isArray(value)) return [];
+  const out: DiaryWithTag[] = [];
+  for (const raw of value) {
+    if (!raw || typeof raw !== "object") continue;
+    const row = raw as { id?: unknown; handle?: unknown; state?: unknown };
+    const handle = normalizeHandle(typeof row.handle === "string" ? row.handle : "");
+    if (typeof row.id !== "string" || !TAG_ID_RE.test(row.id) || !handle) continue;
+    if (row.state !== "proposed" && row.state !== "approved") continue;
+    out.push({ id: row.id, handle, state: row.state });
+    if (out.length >= WITH_TAG_MAX) break;
+  }
+  return out;
+}
+
 /** Parse an untrusted summary payload; anything odd reads as no tags. */
 export function parseWithSummary(value: unknown): PintDropWithSummary {
   if (!value || typeof value !== "object") return EMPTY_WITH_SUMMARY;

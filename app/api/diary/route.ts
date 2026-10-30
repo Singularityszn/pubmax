@@ -5,8 +5,10 @@
 //                                                200 { status: "adult_check_required" | ... , error } while a gate stands in front of it
 //   POST { venueId, visitedOn?, rating?, review?, usualDrink?, withWho?, shareToLot? }
 //                                             -> 201 { entry, shared, tagsSent? }
-//   POST { action: "update", id, visitedOn?, rating?, review?, usualDrink? }
-//                                             -> 200 { entry } (the owner's own entry, corrected)
+//   POST { action: "update", id, visitedOn?, rating?, review?, usualDrink?, withAdd?, withRemove? }
+//                                             -> 200 { entry, tagsSent? } (the owner's own entry, corrected;
+//                                                `withAdd` is a raw field whose @handles are proposed,
+//                                                `withRemove` the ids of tags the owner takes off)
 //   POST { action: "delete", id }             -> 200 { ok: true } (the owner's own entry, removed)
 //
 // Account-bound and PRIVATE: the owner is the authenticated account's auth user
@@ -38,7 +40,12 @@ import { validateDiaryEntryCreate, validateDiaryEntryEdit, type DiaryEntryDTO } 
 import { diaryStore } from "@/lib/diaryStore";
 import { log } from "@/lib/log";
 import { isLimited } from "@/lib/pintDrops";
-import { splitWithInput } from "@/lib/pintDropWithTags";
+import {
+  splitWithInput,
+  WITH_TAG_MAX,
+  type DiaryWithTag,
+  type PintDropWithSummary,
+} from "@/lib/pintDropWithTags";
 import { pintDropWithTagsStore } from "@/lib/pintDropWithTagsStore";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
@@ -92,25 +99,69 @@ export async function GET(request: Request): Promise<Response> {
 }
 
 // The owner's own read of who they tagged. A failure reads as no tags, so the
-// diary itself never fails because the tag store is down.
+// diary itself never fails because the tag store is down. The line (`withTags`)
+// and the edit form's list (`withTagList`) are read apart, so a failure of one
+// never takes the other with it.
 async function withTagsOn(ownerUserId: string, entries: DiaryEntryDTO[]): Promise<DiaryEntryDTO[]> {
   if (entries.length === 0) return entries;
+  const ids = entries.map((entry) => entry.id);
+  const store = pintDropWithTagsStore();
+  const [summaries, lists] = await Promise.all([
+    store.diarySummaries(ownerUserId, ids).catch((err: unknown) => {
+      log("warn", "diary.with_tags_read_failed", {
+        route: "GET /api/diary",
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return new Map<string, PintDropWithSummary>();
+    }),
+    Promise.resolve()
+      .then(() => store.diaryTagList(ownerUserId, ids))
+      .catch(() => new Map<string, DiaryWithTag[]>()),
+  ]);
+  if (summaries.size === 0 && lists.size === 0) return entries;
+  return entries.map((entry) => {
+    const withTags = summaries.get(entry.id);
+    const withTagList = lists.get(entry.id);
+    return {
+      ...entry,
+      ...(withTags ? { withTags } : {}),
+      ...(withTagList?.length ? { withTagList } : {}),
+    };
+  });
+}
+
+/** Tag ids the owner took off, or null when the field is not a list of ids. */
+function readWithRemove(value: unknown): string[] | null {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value) || value.length > WITH_TAG_MAX) return null;
+  return value.every((id) => typeof id === "string" && DIARY_ENTRY_ID.test(id)) ? (value as string[]) : null;
+}
+
+// "With" on an edit: each new `@handle` is a proposal through the one consent
+// path, each removed tag is the owner's cancel. The tags are asked in the name
+// of the session's own Social account, checked against the diary's owner, as
+// at creation. False when there is no such account or the store is down.
+async function editTags(
+  request: Request,
+  ownerUserId: string,
+  entryId: string,
+  change: { add: string[]; remove: string[] },
+): Promise<boolean> {
+  const actor = await lotActorForAccount(request, ownerUserId);
+  if (!actor) return false;
   try {
-    const summaries = await pintDropWithTagsStore().diarySummaries(
-      ownerUserId,
-      entries.map((entry) => entry.id),
+    await pintDropWithTagsStore().editDiaryTags(
+      { profileId: actor.profileId, handle: actor.handle, accountId: ownerUserId },
+      entryId,
+      change,
     );
-    if (summaries.size === 0) return entries;
-    return entries.map((entry) => {
-      const withTags = summaries.get(entry.id);
-      return withTags ? { ...entry, withTags } : entry;
-    });
+    return true;
   } catch (err) {
-    log("warn", "diary.with_tags_read_failed", {
-      route: "GET /api/diary",
+    log("warn", "diary.with_tags_edit_failed", {
+      route: "POST /api/diary",
       error: err instanceof Error ? err.message : String(err),
     });
-    return entries;
+    return false;
   }
 }
 
@@ -125,35 +176,63 @@ function readWithWho(value: unknown): string | null {
 // row is found by its id AND the account the session names, so another
 // account's entry answers 404 exactly as a missing one does.
 async function correctOwnEntry(
+  request: Request,
   body: Record<string, unknown>,
   ownerUserId: string,
 ): Promise<Response> {
   const id = readString(body.id);
   if (!id || !DIARY_ENTRY_ID.test(id)) return publicApiError("Diary entry not found.", "NOT_FOUND", 404);
 
-  const result = validateDiaryEntryEdit({
-    visitedOn: body.visitedOn,
-    rating: body.rating,
-    review: body.review,
-    usualDrink: body.usualDrink,
-  });
-  if (!result.ok) {
+  const withAdd = readWithWho(body.withAdd);
+  const withRemove = readWithRemove(body.withRemove);
+  if (withAdd === null || withRemove === null) {
+    return publicApiError("Type the handles of who you were with.", "INVALID_DIARY_ENTRY", 400);
+  }
+  const tagChange = { add: splitWithInput(withAdd).handles, remove: withRemove };
+  const changesTags = tagChange.add.length > 0 || tagChange.remove.length > 0;
+  const changesFields = [body.visitedOn, body.rating, body.review, body.usualDrink].some(
+    (field) => field !== undefined,
+  );
+
+  const result = changesFields || !changesTags
+    ? validateDiaryEntryEdit({
+        visitedOn: body.visitedOn,
+        rating: body.rating,
+        review: body.review,
+        usualDrink: body.usualDrink,
+      })
+    : null;
+  if (result && !result.ok) {
     return publicApiError(result.error, "INVALID_DIARY_ENTRY", 400);
   }
 
   try {
-    const updated = await diaryStore().update(ownerUserId, id, result.value);
-    if (updated.status === "not_found") {
-      return publicApiError("Diary entry not found.", "NOT_FOUND", 404);
+    let entry: DiaryEntryDTO;
+    if (result) {
+      const updated = await diaryStore().update(ownerUserId, id, result.value);
+      if (updated.status === "not_found") {
+        return publicApiError("Diary entry not found.", "NOT_FOUND", 404);
+      }
+      if (updated.status === "duplicate") {
+        return publicApiError(
+          "You already logged this pub for that day.",
+          "DIARY_ENTRY_EXISTS",
+          409,
+        );
+      }
+      entry = updated.entry;
+    } else {
+      // A change of tags alone still finds the row by its id AND the account.
+      const found = await diaryStore().get(id);
+      if (!found || found.ownerUserId !== ownerUserId) {
+        return publicApiError("Diary entry not found.", "NOT_FOUND", 404);
+      }
+      entry = found;
     }
-    if (updated.status === "duplicate") {
-      return publicApiError(
-        "You already logged this pub for that day.",
-        "DIARY_ENTRY_EXISTS",
-        409,
-      );
-    }
-    return jsonNoStore({ entry: updated.entry }, { status: 200 });
+    if (!changesTags) return jsonNoStore({ entry }, { status: 200 });
+    const tagsSent = await editTags(request, ownerUserId, id, tagChange);
+    const [withTagged] = await withTagsOn(ownerUserId, [entry]);
+    return jsonNoStore({ entry: withTagged ?? entry, tagsSent }, { status: 200 });
   } catch (err) {
     log("error", "diary.update_failed", {
       route: "POST /api/diary",
@@ -207,7 +286,7 @@ export async function POST(request: Request): Promise<Response> {
 
   // Correcting or removing an entry is the owner's own, and carries no venue.
   const action = readString(body.action);
-  if (action === "update") return correctOwnEntry(body, owner.accountId);
+  if (action === "update") return correctOwnEntry(request, body, owner.accountId);
   if (action === "delete") return removeOwnEntry(body, owner.accountId);
 
   const shareToLot = readShareToLot(body.shareToLot);

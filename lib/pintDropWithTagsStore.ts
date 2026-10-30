@@ -8,8 +8,9 @@ import "server-only";
 // same question two ways.
 //
 // FOUR RULES, each the photo tags' rule (migration 0074) restated for a drop.
-// (1) ONLY THE AUTHOR PROPOSES. The drop's stored handle must be the verified
-//     actor's handle, and an anonymous drop takes no tags, because the inbox
+// (1) ONLY THE AUTHOR PROPOSES. The drop's stored handle must be a handle the
+//     verified actor's ACCOUNT holds or once held, so a rename keeps the
+//     author the author; an anonymous drop takes no tags, because the inbox
 //     would name its author to the person tagged.
 // (2) A TAG NEEDS A LIVE CLAIMED HANDLE. An unclaimed, tombstoned or withdrawn
 //     handle, or the author's own, is skipped.
@@ -43,9 +44,11 @@ import { findPintDropsByIds } from "@/lib/pintDrops";
 import { PINT_DROPS_TABLE } from "@/lib/pintDropTable";
 import {
   WITH_TAG_MAX,
+  type DiaryWithTag,
   type PintDropWithSummary,
   type WithTagState,
 } from "@/lib/pintDropWithTags";
+import { identityHandleStore } from "@/lib/identityHandleStore";
 import { isProfileTombstoned, profileStore } from "@/lib/profileStore";
 import { socialMemoryBlocked } from "@/lib/socialBlockMemory";
 import { socialRelationshipBetweenProfiles } from "@/lib/socialRelationships.server";
@@ -149,6 +152,13 @@ export type WithTagDependencies = {
   publicDropIds(ids: readonly string[]): Promise<string[] | null>;
   hiddenHandles(handles: readonly string[]): Promise<ReadonlySet<string>>;
   venueName(venueId: string): Promise<string | null>;
+  /**
+   * True when the account holds, or once held, this handle. Authorship of a
+   * drop is read through it, because a drop keeps the handle it was posted
+   * under and a rename does not rewrite it. Absent in an older fake, where
+   * the handle text is compared instead.
+   */
+  ownsHandle?(accountId: string, handle: string): Promise<boolean>;
   now(): Date;
   newId(): string;
 };
@@ -171,6 +181,23 @@ export type PintDropWithTagsStore = {
    * from that owner's diary, and each entry is checked against the owner too.
    */
   diarySummaries(ownerUserId: string, entryIds: readonly string[]): Promise<Map<string, PintDropWithSummary>>;
+  /**
+   * The owner's own tags on their diary entries, one row each, for the edit
+   * form. An approved tag names the CURRENT handle; a proposal names the
+   * handle the owner typed, which tells them nothing they did not write.
+   */
+  diaryTagList(ownerUserId: string, entryIds: readonly string[]): Promise<Map<string, DiaryWithTag[]>>;
+  /**
+   * Change who is tagged on a diary entry after it was saved. A new handle is
+   * proposed exactly as at creation (rules 2 to 4); a removed tag is the
+   * tagger's own cancel. A pair the owner cancelled may be asked again; a
+   * declined one may not.
+   */
+  editDiaryTags(
+    actor: WithTagActor,
+    entryId: string,
+    change: { add: readonly string[]; remove: readonly string[] },
+  ): Promise<void>;
 };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -224,13 +251,26 @@ function nextState(
 }
 
 export function createPintDropWithTagsStore(deps: WithTagDependencies): PintDropWithTagsStore {
+  // Rule 1 for a drop. The account decides, not the handle text: a drop keeps
+  // the handle it was posted under, so after a rename the text no longer
+  // matches and only the account can say the drop is theirs.
+  async function authored(actor: WithTagActor, dropHandle: string): Promise<boolean> {
+    const stored = normalizeHandle(dropHandle);
+    if (!stored) return false;
+    if (actor.accountId && deps.ownsHandle) return deps.ownsHandle(actor.accountId, stored);
+    return stored === normalizeHandle(actor.handle);
+  }
+
   // Rules 2 and 3, shared by a drop and a diary entry. Calling it again with
-  // the same subject and handle writes nothing: the pair is unique.
+  // the same subject and handle writes nothing: the pair is unique. With
+  // `revive`, a pair the tagger cancelled is asked again; a pair the person
+  // declined is never asked again.
   async function proposeTo(
     actor: WithTagActor,
     actorHandle: string,
     subject: { dropId: string | null; diaryEntryId: string | null },
     handles: readonly string[],
+    revive = false,
   ): Promise<void> {
     const wanted = [...new Set(handles.map(normalizeHandle).filter(Boolean))].slice(0, WITH_TAG_MAX);
     for (const handle of wanted) {
@@ -240,7 +280,7 @@ export function createPintDropWithTagsStore(deps: WithTagDependencies): PintDrop
       // Rule 3: a block, or a relationship that cannot be read, writes
       // nothing and says nothing.
       if (await deps.blocked(actor.profileId, profile.id)) continue;
-      await deps.rows.insertIfAbsent({
+      const written = await deps.rows.insertIfAbsent({
         id: deps.newId(),
         ...subject,
         taggerProfileId: actor.profileId,
@@ -251,7 +291,23 @@ export function createPintDropWithTagsStore(deps: WithTagDependencies): PintDrop
         createdAt: deps.now().toISOString(),
         decidedAt: null,
       });
+      if (written || !revive || !subject.diaryEntryId) continue;
+      const [cancelled] = (await deps.rows.listForDiaryEntries([subject.diaryEntryId], ["cancelled"])).filter(
+        (row) => row.targetProfileId === profile.id && row.taggerProfileId === actor.profileId,
+      );
+      if (cancelled) await deps.rows.setState(cancelled.id, ["cancelled"], "proposed", deps.now().toISOString());
     }
+  }
+
+  // The diary's owner check, shared by a new tag and an edit of the tags.
+  async function ownDiaryEntry(actor: WithTagActor, entryId: string): Promise<string> {
+    if (!isWithTagId(entryId)) throw new WithTagError("That diary entry is not valid.", "invalid");
+    const entry = await deps.diaryEntry(entryId);
+    const actorHandle = normalizeHandle(actor.handle);
+    if (!entry || !actorHandle || !actor.accountId || entry.ownerUserId !== actor.accountId) {
+      throw new WithTagError("Only the person who logged it can tag who they were with.", "not_owner");
+    }
+    return actorHandle;
   }
 
   // Fold rows into one summary per subject. An approved tag prints the
@@ -294,7 +350,7 @@ export function createPintDropWithTagsStore(deps: WithTagDependencies): PintDrop
       if (
         !drop ||
         !actorHandle ||
-        normalizeHandle(drop.handle) !== actorHandle ||
+        !(await authored(actor, drop.handle)) ||
         drop.visibility === "anonymous" ||
         drop.status === "hidden"
       ) {
@@ -304,13 +360,37 @@ export function createPintDropWithTagsStore(deps: WithTagDependencies): PintDrop
     },
 
     async proposeOnDiary(actor, entryId, handles) {
-      if (!isWithTagId(entryId)) throw new WithTagError("That diary entry is not valid.", "invalid");
-      const entry = await deps.diaryEntry(entryId);
-      const actorHandle = normalizeHandle(actor.handle);
-      if (!entry || !actorHandle || !actor.accountId || entry.ownerUserId !== actor.accountId) {
-        throw new WithTagError("Only the person who logged it can tag who they were with.", "not_owner");
-      }
+      const actorHandle = await ownDiaryEntry(actor, entryId);
       await proposeTo(actor, actorHandle, { dropId: null, diaryEntryId: entryId }, handles);
+    },
+
+    async editDiaryTags(actor, entryId, change) {
+      const actorHandle = await ownDiaryEntry(actor, entryId);
+      const removeIds = [...new Set(change.remove)];
+      if (removeIds.length > WITH_TAG_MAX || !removeIds.every(isWithTagId)) {
+        throw new WithTagError("That tag change is not valid.", "invalid");
+      }
+      for (const id of removeIds) {
+        const row = await deps.rows.get(id);
+        // Only this entry's own tags, and only the tagger's cancel. An id that
+        // names anything else is passed over as one that names nothing.
+        if (!row || row.diaryEntryId !== entryId) continue;
+        const step = nextState(row, actor, "cancel");
+        if (!step || step.done || !step.from.includes(row.state)) continue;
+        await deps.rows.setState(row.id, step.from, step.to, deps.now().toISOString());
+      }
+      if (change.add.length === 0) return;
+      // An entry holds at most WITH_TAG_MAX live tags, however many edits
+      // it has seen. A handle already tagged costs nothing.
+      const live = await deps.rows.listForDiaryEntries([entryId], ["proposed", "approved"]);
+      const liveHandles = new Set(live.map((row) => normalizeHandle(row.targetHandle)));
+      const room = Math.max(0, WITH_TAG_MAX - live.length);
+      const fresh = [...new Set(change.add.map(normalizeHandle).filter(Boolean))]
+        .filter((handle) => !liveHandles.has(handle))
+        .slice(0, room);
+      if (fresh.length > 0) {
+        await proposeTo(actor, actorHandle, { dropId: null, diaryEntryId: entryId }, fresh, true);
+      }
     },
 
     async inbox(actor, input) {
@@ -389,7 +469,7 @@ export function createPintDropWithTagsStore(deps: WithTagDependencies): PintDrop
         for (const id of ids) {
           if (allowed.has(id)) continue;
           const drop = await deps.drop(id);
-          if (drop && normalizeHandle(drop.handle) === viewerHandle) allowed.add(id);
+          if (drop && viewer && (await authored(viewer, drop.handle))) allowed.add(id);
         }
       }
       if (allowed.size === 0) return out;
@@ -411,6 +491,36 @@ export function createPintDropWithTagsStore(deps: WithTagDependencies): PintDrop
       const rows = await deps.rows.listForDiaryEntries(owned, ["proposed", "approved"]);
       // The owner is the tagger, so a block on either side hides the name.
       return summarise(rows, (row) => row.diaryEntryId, (row) => row.taggerProfileId);
+    },
+
+    async diaryTagList(ownerUserId, entryIds) {
+      const out = new Map<string, DiaryWithTag[]>();
+      const ids = [...new Set(entryIds.filter(isWithTagId))].slice(0, MAX_DIARY_SUMMARY_ENTRIES);
+      if (!ownerUserId || ids.length === 0) return out;
+      const owned: string[] = [];
+      for (const id of ids) {
+        const entry = await deps.diaryEntry(id);
+        if (entry && entry.ownerUserId === ownerUserId) owned.push(id);
+      }
+      if (owned.length === 0) return out;
+      const rows = await deps.rows.listForDiaryEntries(owned, ["proposed", "approved"]);
+      const approvedIds = rows.filter((row) => row.state === "approved").map((row) => row.targetProfileId);
+      const current = await deps.currentHandles([...new Set(approvedIds)]);
+      const hidden = await deps.hiddenHandles([...current.values()]);
+      for (const row of rows) {
+        if (!row.diaryEntryId) continue;
+        // The same block rule as the summary: across a block, no name.
+        if (await deps.blocked(row.taggerProfileId, row.targetProfileId)) continue;
+        const handle =
+          row.state === "approved"
+            ? normalizeHandle(current.get(row.targetProfileId) ?? "")
+            : normalizeHandle(row.targetHandle);
+        if (!handle || (row.state === "approved" && hidden.has(handle))) continue;
+        const list = out.get(row.diaryEntryId) ?? [];
+        list.push({ id: row.id, handle, state: row.state === "approved" ? "approved" : "proposed" });
+        out.set(row.diaryEntryId, list);
+      }
+      return out;
     },
   };
 }
@@ -714,6 +824,8 @@ export function defaultWithTagDependencies(rows: WithTagRows): WithTagDependenci
     publicDropIds: filterPubliclyReadableDropIds,
     hiddenHandles: withdrawnHandles,
     venueName,
+    ownsHandle: async (accountId, handle) =>
+      (await identityHandleStore().ownedHandle(accountId, [handle])) !== null,
     now: () => new Date(),
     newId: () => randomUUID(),
   };

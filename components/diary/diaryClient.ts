@@ -71,10 +71,14 @@ export type DiaryEntryChange = {
   review?: string;
   /** "Your usual here". An empty string clears it. */
   usualDrink?: string;
+  /** A raw field whose `@handles` are asked, the same way as on a new log. */
+  withAdd?: string;
+  /** The ids of tags the owner takes off. */
+  withRemove?: string[];
 };
 
 export type DiaryChangeResult =
-  | { ok: true; entry: DiaryEntryDTO }
+  | { ok: true; entry: DiaryEntryDTO; tagsSent?: boolean }
   | { ok: false; error: string };
 
 /** Correct an entry the account already logged: its day, stars, words or usual. The
@@ -95,14 +99,22 @@ export async function updateDiaryEntry(
       },
       { requiresIdentity: true },
     );
-    const body = (await res.json().catch(() => ({}))) as { entry?: DiaryEntryDTO; error?: unknown };
+    const body = (await res.json().catch(() => ({}))) as {
+      entry?: DiaryEntryDTO;
+      tagsSent?: unknown;
+      error?: unknown;
+    };
     if (!res.ok || !body.entry) {
       return {
         ok: false,
         error: offlineOrMessage(errorMessageFrom(body, "Couldn't save that change just now.")),
       };
     }
-    return { ok: true, entry: body.entry };
+    return {
+      ok: true,
+      entry: body.entry,
+      ...(typeof body.tagsSent === "boolean" ? { tagsSent: body.tagsSent } : {}),
+    };
   } catch {
     return { ok: false, error: offlineOrMessage("Couldn't save that change just now.") };
   }

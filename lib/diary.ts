@@ -19,7 +19,7 @@
 // Pure leaf: no I/O, no Date.now(). Every time-sensitive function takes `now`.
 
 import { londonDayKey } from "@/lib/pintContributions";
-import { splitWithInput, type PintDropWithSummary } from "@/lib/pintDropWithTags";
+import { splitWithInput, type DiaryWithTag, type PintDropWithSummary } from "@/lib/pintDropWithTags";
 import { parseRating, type RatingValue } from "@/lib/ratings";
 import { cleanText } from "@/lib/textClean";
 
@@ -82,6 +82,11 @@ export type DiaryEntryDTO = DiaryEntry & {
    * count of proposals. Absent when nobody is tagged or the read failed.
    */
   withTags?: PintDropWithSummary;
+  /**
+   * The same tags one row each, with the id the edit form takes one off by.
+   * The owner's alone, like the rest of the entry. Absent when there are none.
+   */
+  withTagList?: DiaryWithTag[];
 };
 
 export type DiaryValidation =

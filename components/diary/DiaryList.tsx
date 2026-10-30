@@ -23,7 +23,7 @@ import {
   MAX_DIARY_REVIEW,
   MAX_DIARY_USUAL_DRINK,
 } from "@/lib/diary";
-import { parseWithSummary } from "@/lib/pintDropWithTags";
+import { parseDiaryWithTags, parseWithSummary } from "@/lib/pintDropWithTags";
 import {
   readContributionDoor,
   type ContributionDoorStatus,
@@ -136,17 +136,24 @@ export default function DiaryList(): React.JSX.Element | null {
             <DiaryEntryRow
               key={entry.id}
               entry={entry}
-              onChanged={(changed) =>
+              onChanged={(changed, tagsFresh) =>
                 setRead((previous) =>
                   previous
                     ? {
                         ...previous,
                         entries: previous.entries
-                          // An edit answers the entry alone; its tags are kept.
+                          // An edit of the fields answers the entry alone, so
+                          // its tags are kept; an edit of the tags answers them.
                           .map((row) =>
-                            row.id === changed.id
-                              ? { ...changed, ...(row.withTags ? { withTags: row.withTags } : {}) }
-                              : row,
+                            row.id !== changed.id
+                              ? row
+                              : tagsFresh
+                                ? changed
+                                : {
+                                    ...changed,
+                                    ...(row.withTags ? { withTags: row.withTags } : {}),
+                                    ...(row.withTagList ? { withTagList: row.withTagList } : {}),
+                                  },
                           )
                           .sort(compareDiaryEntries),
                       }
@@ -169,16 +176,17 @@ export default function DiaryList(): React.JSX.Element | null {
 }
 
 // One entry, with the two things its owner may do to it: correct it and take it
-// out. The pub is the entry's identity, so only the day, the stars, the words and
-// the usual open for editing. The server finds the row by its id and the session's
-// account.
+// out. The pub is the entry's identity, so only the day, the stars, the words,
+// the usual and the people tagged open for editing. The server finds the row by
+// its id and the session's account. A person added here is asked first, exactly
+// as on a new log; a person taken off is untagged.
 export function DiaryEntryRow({
   entry,
   onChanged,
   onRemoved,
 }: {
   entry: DiaryEntryDTO;
-  onChanged: (entry: DiaryEntryDTO) => void;
+  onChanged: (entry: DiaryEntryDTO, tagsFresh?: boolean) => void;
   onRemoved: (id: string) => void;
 }): React.JSX.Element {
   const latest = latestDiaryVisitedOn();
@@ -189,13 +197,20 @@ export function DiaryEntryRow({
   const [usualDrink, setUsualDrink] = useState(entry.usualDrink ?? "");
   const [busy, setBusy] = useState<"save" | "delete" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const tags = parseDiaryWithTags(entry.withTagList);
+  const [takenOff, setTakenOff] = useState<readonly string[]>([]);
+  const [withAdd, setWithAdd] = useState("");
 
   function open() {
     setVisitedOn(entry.visitedOn);
     setRating(entry.rating);
     setReview(entry.review);
     setUsualDrink(entry.usualDrink ?? "");
+    setTakenOff([]);
+    setWithAdd("");
     setError(null);
+    setNotice(null);
     setEditing(true);
   }
 
@@ -206,6 +221,9 @@ export function DiaryEntryRow({
     }
     setBusy("save");
     setError(null);
+    setNotice(null);
+    const remove = takenOff.filter((id) => tags.some((tag) => tag.id === id));
+    const add = withAdd.trim();
     const result = await updateDiaryEntry(entry.id, {
       visitedOn,
       rating,
@@ -213,6 +231,8 @@ export function DiaryEntryRow({
       // Sent only when it changed, so an edit of the day or the words never
       // writes the usual column on a database 0199 has not reached.
       ...(usualDrink.trim() !== (entry.usualDrink ?? "") ? { usualDrink: usualDrink.trim() } : {}),
+      ...(add ? { withAdd: add } : {}),
+      ...(remove.length ? { withRemove: remove } : {}),
     });
     setBusy(null);
     if (!result.ok) {
@@ -220,7 +240,14 @@ export function DiaryEntryRow({
       return;
     }
     setEditing(false);
-    onChanged(result.entry);
+    if (result.tagsSent === false) {
+      setNotice("Saved. The tags did not go through, so try them again shortly.");
+    }
+    onChanged(result.entry, result.tagsSent === true);
+  }
+
+  function toggleTag(id: string) {
+    setTakenOff((current) => (current.includes(id) ? current.filter((held) => held !== id) : [...current, id]));
   }
 
   async function remove() {
@@ -300,6 +327,47 @@ export function DiaryEntryRow({
               autoComplete="off"
             />
           </label>
+          <fieldset className="diaryWithEdit" data-testid="diary-edit-with">
+            <legend>Who you were with</legend>
+            {tags.length ? (
+              <ul className="diaryWithEdit__list">
+                {tags.map((tag) => {
+                  const off = takenOff.includes(tag.id);
+                  return (
+                    <li key={tag.id} className="diaryWithEdit__tag" data-off={off ? "" : undefined}>
+                      <span>
+                        @{tag.handle}
+                        {tag.state === "proposed" ? ", waiting for a yes" : null}
+                      </span>
+                      <button
+                        type="button"
+                        className="diaryRow__action"
+                        onClick={() => toggleTag(tag.id)}
+                        aria-pressed={off}
+                        aria-label={off ? `Keep @${tag.handle} tagged` : `Untag @${tag.handle}`}
+                      >
+                        {off ? "Keep" : "Untag"}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : null}
+            <label className="visitReportNoteWrap">
+              <span>Tag someone on PUBMAXX</span>
+              <input
+                className="diaryUsualInput"
+                data-testid="diary-edit-with-add"
+                type="text"
+                value={withAdd}
+                maxLength={400}
+                onChange={(event) => setWithAdd(event.target.value)}
+                placeholder="@handle"
+                autoComplete="off"
+              />
+              <small>Each person is asked first. Their handle shows once they say yes.</small>
+            </label>
+          </fieldset>
           <div className="diaryRow__actions">
             <button
               type="button"
@@ -366,6 +434,11 @@ export function DiaryEntryRow({
       {error ? (
         <p className="diaryRow__error" role="alert">
           {error}
+        </p>
+      ) : null}
+      {notice ? (
+        <p className="diaryRow__usual" role="status">
+          {notice}
         </p>
       ) : null}
     </li>
