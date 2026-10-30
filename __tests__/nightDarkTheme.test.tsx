@@ -5,7 +5,7 @@
 
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { THEME_STORAGE_KEY } from "@/lib/themePreference";
 import { useNightDarkTheme } from "@/lib/useNightDarkTheme";
@@ -38,6 +38,7 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   container.remove();
+  vi.restoreAllMocks();
 });
 
 describe("useNightDarkTheme", () => {
@@ -86,6 +87,41 @@ describe("useNightDarkTheme", () => {
     expect(html.dataset.theme).toBe("light");
     expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe("light");
     render(false);
+    expect(html.dataset.theme).toBe("light");
+    expect(html.dataset.nightTheme).toBeUndefined();
+  });
+
+  it("keeps a choice the reader makes even when storage refuses to save it", async () => {
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("QuotaExceededError");
+    });
+    html.dataset.theme = "light";
+    render(true);
+    expect(html.dataset.theme).toBe("dark");
+    // Light, then dark again, with the theme control: nothing is stored.
+    act(() => toggleThemeChoice());
+    act(() => toggleThemeChoice());
+    expect(html.dataset.theme).toBe("dark");
+    expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBeNull();
+    // The observer runs as a microtask; once it has, the page is the reader's.
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(html.dataset.nightTheme).toBeUndefined();
+    // Last orders closes: the reader's dark stays.
+    render(false);
+    expect(html.dataset.theme).toBe("dark");
+  });
+
+  it("keeps a single tap to light even when storage refuses to save it", () => {
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("QuotaExceededError");
+    });
+    html.dataset.theme = "light";
+    render(true);
+    act(() => toggleThemeChoice());
+    act(() => root.unmount());
+    root = createRoot(container);
     expect(html.dataset.theme).toBe("light");
     expect(html.dataset.nightTheme).toBeUndefined();
   });
