@@ -40,16 +40,24 @@ export function tellYourLotRankBody(handle: string, venueName: string, belowVenu
 }
 
 /**
- * The Social actor allowed to speak for `accountId`, or null. The session must
- * hold a verified Social account AND it must be the account that owns the log.
+ * The Social actor allowed to speak for the owner of a log, or null. The
+ * session must hold a verified Social account AND its profile must be the
+ * profile that owns the log.
+ *
+ * ONE DOMAIN ON BOTH SIDES (review finding 6, PR 2402). The Social actor's
+ * `accountId` is the private Social account record's own id, which
+ * provisioning gives a UUID of its own; the diary owner's `accountId` is the
+ * verified auth user id. They are never equal for a real account. Both sides
+ * verify the same `profiles.id` (the contribution identity as
+ * `profile:<id>`, the Social actor as `profileId`), so that is what is compared.
  */
 export async function lotActorForAccount(
   request: Request,
-  accountId: string,
+  owner: { actor: string },
 ): Promise<SocialPostActor | null> {
   try {
     const access = await requireVerifiedSocialActor(request);
-    if (!access.ok || access.actor.accountId !== accountId) return null;
+    if (!access.ok || !access.actor.profileId || owner.actor !== `profile:${access.actor.profileId}`) return null;
     return access.actor;
   } catch {
     return null;

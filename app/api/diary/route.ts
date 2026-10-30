@@ -342,7 +342,7 @@ export async function POST(request: Request): Promise<Response> {
     // account, checked against the diary's owner. A body handle or owner
     // field never names it.
     const actor =
-      shareToLot || withHandles.length > 0 ? await lotActorForAccount(request, owner.accountId) : null;
+      shareToLot || withHandles.length > 0 ? await lotActorForAccount(request, owner) : null;
     if (shareToLot && actor) {
       shared = await tellYourLot(actor, {
         body: tellYourLotVisitBody(actor.handle, venue.name),

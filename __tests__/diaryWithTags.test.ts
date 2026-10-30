@@ -58,9 +58,11 @@ beforeEach(() => {
   __resetDiary();
   __resetPintDrops();
   run += 1;
+  // A provisioned account: the auth user id owns the diary, the Social record
+  // has its own id, and both verify the same profile (review finding 6).
   const account = `acct-alice-${run}`;
-  state.identity = { ok: true, accountId: account, actor: `profile:alice-${run}`, handle: "alice" };
-  state.social = { ok: true, actor: { accountId: account, profileId: `social-alice-${run}`, handle: "alice" } };
+  state.identity = { ok: true, accountId: account, actor: `profile:social-alice-${run}`, handle: "alice" };
+  state.social = { ok: true, actor: { accountId: `psa-alice-${run}`, profileId: `social-alice-${run}`, handle: "alice" } };
   state.proposals = [];
   state.summaries = new Map();
 });

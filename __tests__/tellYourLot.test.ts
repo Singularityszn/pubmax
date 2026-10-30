@@ -48,9 +48,11 @@ beforeAll(async () => {
 /** A fresh account per case, so the shared in-memory post store never leaks between cases. */
 function signIn(name: string) {
   run += 1;
+  // A provisioned account: the auth user id owns the diary, the Social record
+  // has its own id, and both verify the same profile (review finding 6).
   const account = `acct-${name}-${run}`;
-  state.identity = { ok: true, accountId: account, actor: `profile:${name}-${run}`, handle: name };
-  state.social = { ok: true, actor: { accountId: account, profileId: `social-${name}-${run}`, handle: name } };
+  state.identity = { ok: true, accountId: account, actor: `profile:social-${name}-${run}`, handle: name };
+  state.social = { ok: true, actor: { accountId: `psa-${name}-${run}`, profileId: `social-${name}-${run}`, handle: name } };
   return state.social.actor;
 }
 
@@ -108,6 +110,7 @@ describe("POST /api/diary with Tell your lot", () => {
 
   it("never posts for someone else: a body handle is ignored and a Social account of another owner posts nothing", async () => {
     const alice = signIn("alice");
+    const aliceOwner = state.identity.accountId;
     const bob = { accountId: "acct-bob-x", profileId: "social-bob-x", handle: "bob" };
     // The session's Social account belongs to Bob; the diary belongs to Alice.
     state.social = { ok: true, actor: bob };
@@ -120,8 +123,36 @@ describe("POST /api/diary with Tell your lot", () => {
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(body.shared).toBe(false);
-    expect(body.entry.ownerUserId).toBe(alice.accountId);
+    expect(body.entry.ownerUserId).toBe(aliceOwner);
     expect(await postsOf(bob)).toHaveLength(0);
+    expect(await postsOf(alice)).toHaveLength(0);
+  });
+
+  // Review finding 6 (PR 2402): provisioning gives the Social account record
+  // its own UUID, apart from the auth user id the diary is owned by. The two
+  // are never equal for a real account, so ownership is read in one domain:
+  // the profile both sides verified.
+  it("shares for a provisioned account whose Social record id is not its auth user id", async () => {
+    run += 1;
+    const authUserId = `0b0e2a1c-0000-4000-8000-00000000${String(run).padStart(4, "0")}`;
+    const profileId = `prof-pat-${run}`;
+    state.identity = { ok: true, accountId: authUserId, actor: `profile:${profileId}`, handle: "pat" };
+    const actor = { accountId: `psa-${run}-distinct-uuid`, profileId, handle: "pat" };
+    state.social = { ok: true, actor };
+    const res = await diaryPost(request("/api/diary", { venueId: PUBS[2]!.id, shareToLot: true }));
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.entry.ownerUserId).toBe(authUserId);
+    expect(body.shared).toBe(true);
+    expect(await postsOf(actor)).toHaveLength(1);
+  });
+
+  it("still refuses a Social session whose profile is not the diary owner's, even when the account ids match", async () => {
+    const alice = signIn("alice");
+    state.social = { ok: true, actor: { accountId: state.identity.accountId, profileId: "prof-mallory", handle: "mallory" } };
+    const res = await diaryPost(request("/api/diary", { venueId: PUBS[3]!.id, shareToLot: true }));
+    expect(res.status).toBe(201);
+    expect((await res.json()).shared).toBe(false);
     expect(await postsOf(alice)).toHaveLength(0);
   });
 
