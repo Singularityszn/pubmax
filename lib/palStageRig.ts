@@ -1,4 +1,6 @@
-// The rig for the Pal stage (components/pal/PalStage.tsx): where each Pal's
+// The rig for the Pal stage (components/pal/palStageGl.ts, drawn by the
+// Remotion composition PalStage.tsx and live on /pal by PalStageCanvas.tsx):
+// where each Pal's
 // head, body, eyes and mouth sit on its own 512 master, in that square's
 // pixels. The stage moves the real artwork by these shapes; it draws nothing
 // new. The mouth ovals are the ones scripts/pubpal/mouth-ovals.json cut the
@@ -10,10 +12,10 @@ import { PAL_MASCOT_SLUGS, type PalMascotSpecies } from "@/lib/palMascotAssets.m
 /** The most depth shapes one rig may hold: the shader's fixed array length. */
 export const PAL_STAGE_MAX_BUMPS = 8;
 
-export type PalStageEllipse = { cx: number; cy: number; rx: number; ry: number };
+export type PalStageEllipse = { readonly cx: number; readonly cy: number; readonly rx: number; readonly ry: number };
 
 /** A raised shape of the depth map: an ellipse lifted toward the viewer. */
-type PalStageBump = PalStageEllipse & { lift: number };
+type PalStageBump = PalStageEllipse & { readonly lift: number };
 
 export type PalStageRig = {
   /** The head: it turns, nods and tilts on its own, over the body. */
@@ -21,8 +23,8 @@ export type PalStageRig = {
   /** Where the head turns about (the neck), and how far its turn reaches down. */
   neck: { x: number; y: number };
   /** The shapes of the depth map, nearest first in importance. */
-  bumps: PalStageBump[];
-  eyes: [PalStageEllipse, PalStageEllipse];
+  bumps: readonly PalStageBump[];
+  eyes: readonly [PalStageEllipse, PalStageEllipse];
   mouth: PalStageEllipse;
   /**
    * The talking frame shows the mouth OPEN, so the stage blends it in as the
@@ -156,8 +158,104 @@ export const PAL_STAGE_RIGS = {
   },
 } as const satisfies Record<PalMascotSpecies, PalStageRig>;
 
-/** The 512 master and its talking frame, the only two images the stage draws. */
-export function palStageImages(species: PalMascotSpecies) {
+/**
+ * The 512 master and its talking frame, the only two images the stage draws.
+ * The render takes the lossless PNG master; the page takes the WebP, the same
+ * rendition its photograph already loads at that size.
+ */
+export function palStageImages(species: PalMascotSpecies, master: "png" | "webp" = "png") {
   const slug = PAL_MASCOT_SLUGS[species];
-  return { master: `pal/${slug}-512.png`, talk: `pal/${slug}-talk-512.webp` };
+  return { master: `pal/${slug}-512.${master}`, talk: `pal/${slug}-talk-512.webp` };
+}
+
+/** The species whose rig draws a mascot slug (a stand-in resolves to its master), or null. */
+export function palStageSpeciesForSlug(slug: string | null): PalMascotSpecies | null {
+  if (!slug) return null;
+  const found = (Object.keys(PAL_MASCOT_SLUGS) as PalMascotSpecies[]).find((species) => PAL_MASCOT_SLUGS[species] === slug);
+  return found ?? null;
+}
+
+/** Everything the stage's shader needs for one frame, in the 512 square's pixels. */
+export type PalStageFrame = {
+  /** The camera's drift: every shape moves by it, nearer shapes further. */
+  cam: readonly [number, number];
+  /** The head's own turn (x, y in pixels) and tilt (radians), over the camera. */
+  turn: readonly [number, number, number];
+  /** 0 open to 1 shut. */
+  blink: number;
+  /** The body's rise, as a fraction of its height. */
+  breath: number;
+  /** The voice's mouth level, 0 shut to 1 wide. */
+  mouth: number;
+};
+
+const TAU = Math.PI * 2;
+
+function pulse(phase: number, at: number, width: number) {
+  const distance = Math.abs(((phase - at + 1.5) % 1) - 0.5);
+  return Math.max(0, 1 - distance / width);
+}
+
+/**
+ * The rendered loop at one point (0 to 1) with the voice at one level. Every
+ * motion repeats over the loop, so a render ends where it began.
+ */
+export function palStagePose(phase: number, level: number): PalStageFrame {
+  const t = phase * TAU;
+  return {
+    cam: [9 * Math.sin(t), 3 * Math.sin(2 * t)],
+    turn: [
+      12 * Math.sin(t + 0.6) + 3 * Math.sin(3 * t),
+      4 * Math.sin(2 * t + 0.3) + 5 * level,
+      0.05 * Math.sin(t + 1.2) + 0.015 * Math.sin(4 * t),
+    ],
+    blink: Math.min(1, 1.6 * Math.max(pulse(phase, 0.31, 0.03), pulse(phase, 0.79, 0.03))),
+    breath: 0.012 * Math.sin(3 * t),
+    mouth: level,
+  };
+}
+
+/** How long one blink takes, and the gaps between blinks, in seconds. */
+const BLINK_SECONDS = 0.22;
+const BLINK_GAPS = [3.4, 5.1, 2.6, 4.4, 6.2, 3.9] as const;
+const BLINK_CYCLE = BLINK_GAPS.reduce((sum, gap) => sum + gap, 0);
+
+/**
+ * How shut the eyes are at a time in seconds. The gaps between blinks vary,
+ * as a living face's do, and the pattern repeats only every 25.6 seconds.
+ */
+export function palStageBlink(seconds: number): number {
+  if (!Number.isFinite(seconds) || seconds < 0) return 0;
+  let at = seconds % BLINK_CYCLE;
+  for (const gap of BLINK_GAPS) {
+    if (at < gap) {
+      const into = at - (gap - BLINK_SECONDS);
+      if (into < 0) return 0;
+      return Math.min(1, 1.6 * (1 - Math.abs(into / BLINK_SECONDS - 0.5) * 2));
+    }
+    at -= gap;
+  }
+  return 0;
+}
+
+/** What the head loop (usePalHead3D) hands the live stage on every frame: degrees, and the mouth 0 to 1. */
+export type PalStageHead = { seconds: number; yaw: number; pitch: number; roll: number; mouth: number };
+
+/**
+ * The live head on /pal: the pose the head loop (usePalHead3D) already moves
+ * the portrait by, in degrees, becomes the stage's turn in pixels. A turn of
+ * 16 degrees, the pointer at the edge, moves the nose about 12 of the 512
+ * pixels; the camera follows a little so the body turns too.
+ */
+export function palStageLiveFrame(head: PalStageHead): PalStageFrame {
+  const yaw = Number.isFinite(head.yaw) ? head.yaw : 0;
+  const pitch = Number.isFinite(head.pitch) ? head.pitch : 0;
+  const roll = Number.isFinite(head.roll) ? head.roll : 0;
+  return {
+    cam: [yaw * 0.3, pitch * 0.25],
+    turn: [yaw * 0.75, pitch * 0.8, (roll * Math.PI) / 180],
+    blink: palStageBlink(head.seconds),
+    breath: 0.012 * Math.sin(head.seconds * 1.3),
+    mouth: Math.min(1, Math.max(0, Number.isFinite(head.mouth) ? head.mouth : 0)),
+  };
 }

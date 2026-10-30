@@ -176,6 +176,11 @@ const config: KnipConfig = {
     "scripts/ui-ux-axe-audit.mjs",
     "scripts/ui-ux-battle-test.mjs",
 
+    // The Pal stage's Remotion composition. scripts/pubpal/render-pal-stage.mjs
+    // writes the Remotion entry that renders it fresh on each run, so no
+    // committed file imports it.
+    "components/pal/PalStage.tsx",
+
     // Signed-in QA helper documented in docs/QA_SIGNED_IN_JOURNEYS.md.
     "scripts/qa/mint-signin-link.mjs",
 
