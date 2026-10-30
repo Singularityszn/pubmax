@@ -14,7 +14,7 @@ import {
   rankLastOrders,
   type LastOrdersPub,
 } from "@/lib/lastOrdersList";
-import { buildLastOrdersPacks } from "@/scripts/build_last_orders_pack.mjs";
+import { buildLastOrdersPacks, isSourcedPint } from "@/scripts/build_last_orders_pack.mjs";
 
 const FRIDAY_2245 = new Date("2026-10-30T22:45:00Z");
 const FROM = { lat: 51.5145, lng: -0.1313 }; // Soho
@@ -162,8 +162,12 @@ describe("the packs", () => {
     expect(parsed?.pubs.map((row) => row.venueId)).toEqual(["venue-a"]);
     expect(parsed?.pubs[0]?.hoursCheckDate).toBe("2025-04");
     expect(parseLastOrdersHoursPack({ version: 2, rows: [] })).toBeNull();
-    expect(parseLastOrdersPricesPack({ version: 1, rows: { "venue-a": [5.5, "2026-10-02"], "venue-b": [0, ""] } }))
-      .toEqual(new Map([["venue-a", { priceGbp: 5.5, observedAt: "2026-10-02" }]]));
+    expect(
+      parseLastOrdersPricesPack({
+        version: 1,
+        rows: { "venue-a": [5.5, "2026-10-02"], "venue-b": [0, ""], "venue-undated": [4.2, ""] },
+      }),
+    ).toEqual(new Map([["venue-a", { priceGbp: 5.5, observedAt: "2026-10-02" }]]));
   });
 
   it("are what the builder makes from the committed sources", () => {
@@ -204,11 +208,60 @@ describe("the packs", () => {
         { osmId: "node/3", name: "Three", lat: 51.5, lng: -0.1 },
         { osmId: "way/4", name: "Four", lat: 51.5, lng: -0.1, curatedRef: { source: "curated-london-slim", id: "venue-four" } },
       ],
-      slimRows: [{ id: "venue-four", cheapestPrice: 5.2, priceObservedAt: "2026-10-02" }],
+      slimRows: [{ id: "venue-four", cheapestPrice: 5.2, priceSource: "Pint Prices", priceObservedAt: "2026-10-02" }],
       closed: { osmRefs: ["n3"] },
     });
     expect(built.hours.rows.map((row: unknown[]) => row[0])).toEqual(["venue-four", "venue-osm-n1"]);
     expect(built.hours.readOn).toBe("2026-10-05");
     expect(built.prices.rows).toEqual({ "venue-four": [5.2, "2026-10-02"] });
+  });
+});
+
+describe("which curated prices count as a pint", () => {
+  const sourced = { cheapestPrice: 5.2, priceSource: "Pint Prices", priceObservedAt: "2026-10-02" };
+
+  it("keeps a sourced, dated pint and refuses a half, an unsourced or an undated figure", () => {
+    expect(isSourcedPint(sourced)).toBe(true);
+    // The French House: a half-pint anchor with no source and no day.
+    expect(isSourcedPint({ cheapestPrice: 3.4, anchorLabel: "Half pint house lager" })).toBe(false);
+    expect(isSourcedPint({ ...sourced, anchorLabel: "Half pint house lager" })).toBe(false);
+    expect(isSourcedPint({ ...sourced, priceSource: undefined })).toBe(false);
+    expect(isSourcedPint({ ...sourced, priceObservedAt: undefined })).toBe(false);
+    expect(isSourcedPint({ ...sourced, priceObservedAt: "2026-10" })).toBe(false);
+    expect(isSourcedPint({ ...sourced, cheapestPrice: 0 })).toBe(false);
+  });
+
+  it("keeps the half pint out of the price pack, and out of the committed one", () => {
+    const built = buildLastOrdersPacks({
+      facts: {
+        extractedAt: "2026-10-05T22:52:59Z",
+        rows: [
+          { osmId: "way/1", openingHours: "Mo-Su 12:00-23:00" },
+          { osmId: "way/2", openingHours: "Mo-Su 12:00-23:00" },
+          { osmId: "way/3", openingHours: "Mo-Su 12:00-23:00" },
+        ],
+      },
+      pubs: [1, 2, 3].map((n) => ({
+        osmId: `way/${n}`,
+        name: `Pub ${n}`,
+        lat: 51.5,
+        lng: -0.1,
+        curatedRef: { source: "curated-london-slim", id: `venue-${n}` },
+      })),
+      slimRows: [
+        { id: "venue-1", ...sourced },
+        { id: "venue-2", cheapestPrice: 3.4, anchorLabel: "Half pint house lager" },
+        { id: "venue-3", cheapestPrice: 4.1 },
+      ],
+      closed: {},
+    });
+    expect(built.prices.rows).toEqual({ "venue-1": [5.2, "2026-10-02"] });
+    const committed = JSON.parse(
+      readFileSync(path.join(process.cwd(), "public", "data", "last_orders", "london_prices.json"), "utf8"),
+    );
+    expect(committed.rows["venue-1kpe609"]).toBeUndefined();
+    for (const [, observedAt] of Object.values(committed.rows) as [number, string][]) {
+      expect(observedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    }
   });
 });

@@ -249,7 +249,7 @@ describe("the map filter's open set", () => {
   it("is null only when off, and an empty set while the hours are still on their way", async () => {
     surface.steps = [{ kind: "pending" }];
     await mapAt("2026-10-30T22:45:00Z", false);
-    expect(mapSeen).toEqual({ ids: null, reading: false });
+    expect(mapSeen).toEqual({ ids: null, reading: false, failed: false });
     await mapAt("2026-10-30T22:45:00Z", true);
     await flush(30_000);
     expect(mapSeen?.reading).toBe(true);
@@ -257,15 +257,29 @@ describe("the map filter's open set", () => {
     expect(mapSeen?.ids?.size).toBe(0);
   });
 
+  it("says so when the hours cannot be read, and shows no pin as open", async () => {
+    surface.steps = [{ kind: "failed" }];
+    await mapAt("2026-10-30T22:45:00Z", true);
+    expect(mapSeen?.failed).toBe(true);
+    expect(mapSeen?.reading).toBe(false);
+    expect(mapSeen?.ids?.size).toBe(0);
+  });
+
   it("drops a pub as its half hour runs out, also in a tab that slept", async () => {
     surface.steps = [{ kind: "network", value: hoursPack }];
     await mapAt("2026-10-30T22:55:00Z", true);
     expect([...(mapSeen?.ids ?? [])].sort()).toEqual(["venue-closes-0100", "venue-closes-2330"]);
+    // A minute on, the same pubs are open: the same set, so no pin redraws.
+    const before = mapSeen?.ids;
+    vi.setSystemTime(new Date("2026-10-30T22:56:00Z"));
+    await flush(60_000);
+    expect(mapSeen?.ids).toBe(before);
     // The tab sleeps past 23:00: wall time moves, its timers do not fire.
     vi.setSystemTime(new Date("2026-10-30T23:05:00Z"));
     await act(async () => {
       document.dispatchEvent(new Event("visibilitychange"));
     });
     expect([...(mapSeen?.ids ?? [])]).toEqual(["venue-closes-0100"]);
+    expect(mapSeen?.ids).not.toBe(before);
   });
 });

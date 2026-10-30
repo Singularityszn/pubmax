@@ -10,6 +10,13 @@ export type LastOrdersHoursPackRow = [
   hoursCheckDate: string,
 ];
 
+export function isSourcedPint(slim: {
+  cheapestPrice?: unknown;
+  priceSource?: unknown;
+  priceObservedAt?: unknown;
+  anchorLabel?: unknown;
+}): boolean;
+
 export function buildLastOrdersPacks(input: {
   facts: {
     extractedAt?: string;
@@ -22,7 +29,13 @@ export function buildLastOrdersPacks(input: {
     lng?: number;
     curatedRef?: { source?: string; id?: string };
   }>;
-  slimRows: ReadonlyArray<{ id?: string; cheapestPrice?: number; priceObservedAt?: string }>;
+  slimRows: ReadonlyArray<{
+    id?: string;
+    cheapestPrice?: number;
+    priceSource?: string;
+    priceObservedAt?: string;
+    anchorLabel?: string;
+  }>;
   closed: { osmRefs?: readonly string[]; curatedVenueIds?: readonly string[] };
 }): {
   hours: {

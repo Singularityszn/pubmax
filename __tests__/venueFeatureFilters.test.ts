@@ -183,3 +183,17 @@ it("keeps explicit sport and dog absences authoritative after hydration", () => 
     expect(filterMapVenues(hydrated, { ...initialFilters, [filter]: true }, () => false)).toEqual([]);
   }
 });
+
+describe("the Last orders caption", () => {
+  it("says the hours could not be read, only when they could not", async () => {
+    const { createElement } = await import("react");
+    const { renderToStaticMarkup } = await import("react-dom/server");
+    const { default: VenueFeatureFilters } = await import("@/components/map/VenueFeatureFilters");
+    const on = { ...initialFilters, lastOrders: true };
+    const render = (lastOrdersFailed: boolean, resultCount: number | null) =>
+      renderToStaticMarkup(createElement(VenueFeatureFilters, { filters: on, onChange: () => {}, resultCount, lastOrdersFailed }));
+    expect(render(true, 0)).toContain("We could not read pub hours, so no pub is shown as open.");
+    expect(render(false, 12)).not.toContain("We could not read pub hours");
+    expect(render(false, null)).toContain("Loading matching places");
+  });
+});

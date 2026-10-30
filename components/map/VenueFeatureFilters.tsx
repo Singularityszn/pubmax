@@ -1,7 +1,7 @@
 "use client";
 
 import type { Filters } from "@/lib/venues";
-import { LAST_ORDERS_FILTER_CAPTION } from "@/lib/lastOrdersList";
+import { LAST_ORDERS_FILTER_CAPTION, LAST_ORDERS_FILTER_FAILED } from "@/lib/lastOrdersList";
 import { OPEN_NOW_FILTER_CAPTION } from "@/lib/openNow";
 import "./venueFeatureFilters.css";
 
@@ -20,11 +20,13 @@ export function activeVenueFeatureCount(filters: Filters): number {
   return FEATURE_CHOICES.filter(([key]) => filters[key] === true).length;
 }
 
-export default function VenueFeatureFilters({ filters, onChange, resultCount }: {
+export default function VenueFeatureFilters({ filters, onChange, resultCount, lastOrdersFailed = false }: {
   filters: Filters;
   onChange: (filters: Filters) => void;
   /** Loaded, filtered venues only. null means the map is still loading. */
   resultCount: number | null;
+  /** Last orders is on and its hours could not be read. */
+  lastOrdersFailed?: boolean;
 }) {
   const active = activeVenueFeatureCount(filters) > 0;
   return (
@@ -44,6 +46,7 @@ export default function VenueFeatureFilters({ filters, onChange, resultCount }: 
       <p>Only recorded gardens and outdoor seating match. Missing details stay unknown. Outdoor seating may be a pavement or terrace.</p>
       {filters.openNow ? <p>{OPEN_NOW_FILTER_CAPTION} Hours come from Wetherspoon&apos;s directory.</p> : null}
       {filters.lastOrders ? <p>{LAST_ORDERS_FILTER_CAPTION}</p> : null}
+      {filters.lastOrders && lastOrdersFailed ? <p role="alert">{LAST_ORDERS_FILTER_FAILED}</p> : null}
       {active ? <p role="status">{resultCount === null ? "Loading matching places…" : `${resultCount.toLocaleString("en-GB")} matching ${resultCount === 1 ? "place" : "places"} loaded on the map.`}</p> : null}
     </section>
   );

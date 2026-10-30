@@ -8,7 +8,7 @@
 
 import dynamic from "next/dynamic";
 import { Clock } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { isLastOrdersHour } from "@/lib/lastOrdersList";
@@ -36,6 +36,12 @@ export default function TonightLastOrdersDoor({
   locating: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  // Focus follows the reader's own taps: opening by tap moves it to the
+  // panel's heading, and closing hands it back to this button, so it never
+  // falls to <body> with the control it was on.
+  const [focusPanel, setFocusPanel] = useState(false);
+  const doorRef = useRef<HTMLButtonElement>(null);
+  const returnFocus = useRef(false);
   // `?mode=last-orders` asked for this panel by name, so it is brought into
   // view once it mounts. It sits under the lede, below the first screen.
   const [arrivedByAddress, setArrivedByAddress] = useState(false);
@@ -80,6 +86,12 @@ export default function TonightLastOrdersDoor({
     return () => window.cancelAnimationFrame(frame);
   }, [open, arrivedByAddress]);
 
+  useEffect(() => {
+    if (open || !returnFocus.current) return;
+    returnFocus.current = false;
+    doorRef.current?.focus();
+  }, [open]);
+
   if (!open) {
     return (
       <div className="lastOrdersDoor">
@@ -87,9 +99,14 @@ export default function TonightLastOrdersDoor({
           type="button"
           variant="ghost"
           className="lastOrdersDoorButton uiButton--start"
+          ref={doorRef}
+          // No aria-controls: the panel it opens is not in the page while
+          // closed, and a reference to nothing is worse than none.
           aria-expanded={false}
-          aria-controls="last-orders"
-          onClick={() => setOpen(true)}
+          onClick={() => {
+            setFocusPanel(true);
+            setOpen(true);
+          }}
           data-late={late ? "true" : undefined}
           data-testid="last-orders-door"
         >
@@ -105,7 +122,12 @@ export default function TonightLastOrdersDoor({
       near={near}
       onShareLocation={onShareLocation}
       locating={locating}
-      onClose={() => setOpen(false)}
+      focusOnOpen={focusPanel}
+      onClose={() => {
+        returnFocus.current = true;
+        setFocusPanel(false);
+        setOpen(false);
+      }}
     />
   );
 }

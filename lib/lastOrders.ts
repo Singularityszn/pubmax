@@ -104,11 +104,25 @@ export function readHolidayAwareHours(raw: string | null | undefined): HolidayAw
   return { weekly, holiday };
 }
 
+// Each pub's hours string is read once and kept: the map asks about the same
+// thousand strings every minute, and the answer for a string never changes.
+const parsedHours = new Map<string, HolidayAwareHours | null>();
+function readHolidayAwareHoursOnce(raw: string): HolidayAwareHours | null {
+  const cached = parsedHours.get(raw);
+  if (cached !== undefined) return cached;
+  const hours = readHolidayAwareHours(raw);
+  if (parsedHours.size > 4096) parsedHours.clear();
+  parsedHours.set(raw, hours);
+  return hours;
+}
+
 type CivilDay = { year: number; ymd: string; weekday: number };
 
-/** The London calendar day and minute an instant falls on. */
-export function londonCivilTime(now: Date): { day: CivilDay; minutes: number } {
-  const parts = new Intl.DateTimeFormat("en-GB", {
+// Built once. A formatter is the expensive part of every clock question, and a
+// map tick asks about a thousand pubs at one instant.
+let wallClockFormatter: Intl.DateTimeFormat | null = null;
+function londonWallClock(): Intl.DateTimeFormat {
+  wallClockFormatter ??= new Intl.DateTimeFormat("en-GB", {
     timeZone: LAST_ORDERS_TIME_ZONE,
     year: "numeric",
     month: "2-digit",
@@ -116,13 +130,25 @@ export function londonCivilTime(now: Date): { day: CivilDay; minutes: number } {
     hour: "2-digit",
     minute: "2-digit",
     hourCycle: "h23",
-  }).formatToParts(now);
+  });
+  return wallClockFormatter;
+}
+
+let lastCivil: { ms: number; value: { day: CivilDay; minutes: number } } | null = null;
+
+/** The London calendar day and minute an instant falls on. */
+export function londonCivilTime(now: Date): { day: CivilDay; minutes: number } {
+  const ms = now.getTime();
+  if (lastCivil?.ms === ms) return lastCivil.value;
+  const parts = londonWallClock().formatToParts(now);
   const part = (type: string) => parts.find((entry) => entry.type === type)?.value ?? "0";
   const year = Number(part("year"));
   const month = Number(part("month"));
   const date = Number(part("day"));
   const minutes = Number(part("hour")) * 60 + Number(part("minute"));
-  return { day: civilDay(year, month, date), minutes };
+  const value = { day: civilDay(year, month, date), minutes };
+  lastCivil = { ms, value };
+  return value;
 }
 
 function civilDay(year: number, month: number, date: number): CivilDay {
@@ -179,15 +205,7 @@ function windowsForDay(hours: HolidayAwareHours, day: CivilDay): DayWindows {
 
 // London's offset from UTC at an instant, in minutes: 0 in winter, 60 in summer.
 function londonOffsetMinutes(instantMs: number): number {
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: LAST_ORDERS_TIME_ZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(new Date(instantMs));
+  const parts = londonWallClock().formatToParts(new Date(instantMs));
   const part = (type: string) => Number(parts.find((entry) => entry.type === type)?.value ?? 0);
   const wall = Date.UTC(part("year"), part("month") - 1, part("day"), part("hour"), part("minute"));
   return Math.round((wall - Math.floor(instantMs / 60_000) * 60_000) / 60_000);
@@ -200,14 +218,22 @@ function londonOffsetMinutes(instantMs: number): number {
  * 01:30 never happens. Both answer with the EARLIEST candidate, so a close is
  * never placed later than it can be and a countdown never runs long.
  */
+const instantCache = new Map<string, number>();
+
 export function londonWallClockInstant(ymd: string, minutes: number): number {
+  const key = `${ymd}+${minutes}`;
+  const cached = instantCache.get(key);
+  if (cached !== undefined) return cached;
   const [year = 0, month = 1, date = 1] = ymd.split("-").map(Number);
   const candidates = [0, 60].map((offset) => ({
     offset,
     instant: Date.UTC(year, month - 1, date, 0, minutes) - offset * 60_000,
   }));
   const valid = candidates.filter((entry) => londonOffsetMinutes(entry.instant) === entry.offset);
-  return Math.min(...(valid.length > 0 ? valid : candidates).map((entry) => entry.instant));
+  const instant = Math.min(...(valid.length > 0 ? valid : candidates).map((entry) => entry.instant));
+  if (instantCache.size > 4096) instantCache.clear();
+  instantCache.set(key, instant);
+  return instant;
 }
 
 function formatClock(minutes: number): string {
@@ -231,7 +257,7 @@ function formatClock(minutes: number): string {
 export function minutesUntilClose(raw: string | null | undefined, now: Date): ClosingAnswer {
   if (typeof raw !== "string" || !raw.trim()) return { state: "unknown", reason: "no-hours" };
   if (/^24\/7$/i.test(raw.trim())) return { state: "open-all-night" };
-  const hours = readHolidayAwareHours(raw);
+  const hours = readHolidayAwareHoursOnce(raw);
   if (!hours) return { state: "unknown", reason: "unreadable" };
 
   const { day: today, minutes } = londonCivilTime(now);

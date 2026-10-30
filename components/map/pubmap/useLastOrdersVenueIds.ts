@@ -34,12 +34,21 @@ export type LastOrdersVenueIds = {
   ids: ReadonlySet<string> | null;
   /** On, and the hours or the clock have not answered yet. */
   reading: boolean;
+  /** On, and the hours could not be read: no pin shows, and the caption says why. */
+  failed: boolean;
 };
 
 const NONE: ReadonlySet<string> = new Set();
 
+function sameMembers(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
+  if (a.size !== b.size) return false;
+  for (const id of a) if (!b.has(id)) return false;
+  return true;
+}
+
 export function useLastOrdersVenueIds(on: boolean): LastOrdersVenueIds {
   const [pubs, setPubs] = useState<readonly LastOrdersPub[] | null>(null);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     if (!on) return;
@@ -47,9 +56,15 @@ export function useLastOrdersVenueIds(on: boolean): LastOrdersVenueIds {
     void loadSurfaceJson<unknown>(
       LAST_ORDERS_HOURS_PATH,
       { signal: controller.signal, validate: (body) => parseLastOrdersHoursPack(body) !== null },
-      (body) => setPubs(parseLastOrdersHoursPack(body)?.pubs ?? []),
+      (body) => {
+        setFailed(false);
+        setPubs(parseLastOrdersHoursPack(body)?.pubs ?? []);
+      },
     ).then((outcome) => {
-      if (outcome === "failed" && !controller.signal.aborted) setPubs([]);
+      if (outcome === "failed" && !controller.signal.aborted) {
+        setFailed(true);
+        setPubs([]);
+      }
     });
     return () => controller.abort();
   }, [on]);
@@ -59,9 +74,19 @@ export function useLastOrdersVenueIds(on: boolean): LastOrdersVenueIds {
   // Dark at night by default, unless the reader chose a theme.
   useNightDarkTheme(on && now !== null && isLastOrdersHour(now));
 
-  return useMemo<LastOrdersVenueIds>(() => {
-    if (!on) return { ids: null, reading: false };
-    if (!pubs || !now) return { ids: NONE, reading: true };
-    return { ids: lastOrdersOpenVenueIds(pubs, now), reading: false };
-  }, [on, pubs, now]);
+  // The same pubs are open from one minute to the next nearly every tick. The
+  // set keeps its identity while its members do, so the map's pin pipeline and
+  // the canvas (both keyed on identity) redraw only when a pub really leaves.
+  const [held, setHeld] = useState<ReadonlySet<string> | null>(null);
+  const fresh = useMemo(
+    () => (on && pubs && now ? lastOrdersOpenVenueIds(pubs, now) : null),
+    [on, pubs, now],
+  );
+  const stable = fresh && held && sameMembers(fresh, held) ? held : fresh;
+  if (stable !== held) setHeld(stable);
+
+  if (!on) return { ids: null, reading: false, failed: false };
+  if (failed) return { ids: NONE, reading: false, failed: true };
+  if (!stable) return { ids: NONE, reading: true, failed: false };
+  return { ids: stable, reading: false, failed: false };
 }

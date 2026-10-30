@@ -192,6 +192,17 @@ describe("the calendar", () => {
     }
   });
 
+  it("holds this year and next, so Last orders never goes blank on 1 January", () => {
+    // Deliberately reads the REAL clock. Out of the calendar every pub's hours
+    // are unknown and the list empties, so this fails a full year early: on
+    // 1 January 2027 it asks for 2028. Add the next year from
+    // https://www.gov.uk/bank-holidays to ENGLAND_WALES_BANK_HOLIDAYS.
+    const year = new Date().getUTCFullYear();
+    for (const needed of [year, year + 1]) {
+      expect(ENGLAND_WALES_BANK_HOLIDAYS[needed], `bank holidays for ${needed}`).toBeDefined();
+    }
+  });
+
   it("reads the London wall clock across the clock change", () => {
     expect(londonCivilTime(new Date("2026-08-31T21:45:00Z"))).toMatchObject({
       day: { ymd: "2026-08-31", weekday: 1 },

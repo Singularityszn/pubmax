@@ -102,7 +102,7 @@ export function parseLastOrdersHoursPack(value: unknown): LastOrdersHoursPack | 
   return { readOn, pubs };
 }
 
-/** The price pack as a map by venue id. Anything malformed reads as no price. */
+/** The price pack as a map by venue id. Anything malformed or undated reads as no price. */
 export function parseLastOrdersPricesPack(value: unknown): ReadonlyMap<string, LastOrdersPrice> {
   const prices = new Map<string, LastOrdersPrice>();
   if (typeof value !== "object" || value === null) return prices;
@@ -112,10 +112,10 @@ export function parseLastOrdersPricesPack(value: unknown): ReadonlyMap<string, L
     if (!Array.isArray(entry)) continue;
     const [priceGbp, observedAt] = entry as unknown[];
     if (typeof priceGbp !== "number" || !Number.isFinite(priceGbp) || priceGbp <= 0) continue;
-    prices.set(venueId, {
-      priceGbp,
-      observedAt: typeof observedAt === "string" && DAY.test(observedAt) ? observedAt : null,
-    });
+    // A price with no day it was read is not shown: the builder already keeps
+    // only sourced, dated pints, and this holds the line if a pack does not.
+    if (typeof observedAt !== "string" || !DAY.test(observedAt)) continue;
+    prices.set(venueId, { priceGbp, observedAt });
   }
   return prices;
 }
@@ -186,6 +186,10 @@ export function rankLastOrders(input: {
 /** The map caption while the Last orders filter is on. */
 export const LAST_ORDERS_FILTER_CAPTION =
   "Showing pubs whose listed hours run at least 30 more minutes. Pubs with no listed hours are hidden. Hours come from OpenStreetMap.";
+
+/** The map caption when the Last orders hours could not be read. */
+export const LAST_ORDERS_FILTER_FAILED =
+  "We could not read pub hours, so no pub is shown as open. Turn Last orders off to see every pub.";
 
 /** The map's `?lastOrders=1`: arrive with the Last orders filter on. */
 export const LAST_ORDERS_MAP_PARAM = "lastOrders";

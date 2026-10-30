@@ -1692,7 +1692,7 @@ export default function PubMap({
   );
   // Null only when the filter is off. On and still reading is an EMPTY set, so
   // no pin shows under the Last orders caption before its hours arrive.
-  const { ids: lastOrdersIds, reading: lastOrdersReading } = useLastOrdersVenueIds(
+  const { ids: lastOrdersIds, reading: lastOrdersReading, failed: lastOrdersFailed } = useLastOrdersVenueIds(
     filters.lastOrders === true,
   );
   // First-party Wetherspoon directory for Open now hours. Loaded once; match is
@@ -6333,7 +6333,7 @@ export default function PubMap({
             onOpen={() => changeMapOverlay("tonight")}
           />
         ) : null}
-        <VenueFeatureFilters filters={filters} onChange={setFilters} resultCount={loaded && loadedCityId === cityId && !lastOrdersReading ? filteredVenueCount : null} />
+        <VenueFeatureFilters filters={filters} onChange={setFilters} resultCount={loaded && loadedCityId === cityId && !lastOrdersReading ? filteredVenueCount : null} lastOrdersFailed={lastOrdersFailed} />
         <MapExperienceLensControl
           lens={experienceLens}
           allSelected={!drinkFiltersActive}
@@ -7008,6 +7008,7 @@ export default function PubMap({
         // a wait, not "nothing matches".
         searchSettled={loaded && loadedCityId === cityId && !lastOrdersReading}
         filteredVenueCount={filteredVenueCount}
+        lastOrdersFailed={lastOrdersFailed}
         searchableVenueCount={venues.length}
         zoneIndex={zoneIndex}
         cityId={cityId}

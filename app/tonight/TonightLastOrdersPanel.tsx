@@ -12,7 +12,7 @@
 import type { Route } from "next";
 import Link from "next/link";
 import { TrainFront, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { PintPriceBadge } from "@/components/PriceBadge";
 import { Button } from "@/components/ui/button";
@@ -169,13 +169,20 @@ export default function TonightLastOrdersPanel({
   onShareLocation,
   locating,
   onClose,
+  focusOnOpen = false,
 }: {
   origin: { lat: number; lng: number } | null;
   near: TonightNear | null;
   onShareLocation: () => void;
   locating: boolean;
   onClose: () => void;
+  /** Opened by a tap: take focus to the heading, so it is not lost with the door. */
+  focusOnOpen?: boolean;
 }) {
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (focusOnOpen) headingRef.current?.focus();
+  }, [focusOnOpen]);
   const [packs, retry] = useLastOrdersPacks();
   const now = useLiveClock(TICK_MS);
   // Dark at night by default, unless the reader chose a theme (useNightDarkTheme).
@@ -211,7 +218,7 @@ export default function TonightLastOrdersPanel({
       data-testid="last-orders"
     >
       <div className="lastOrdersHead">
-        <h2 className="lastOrdersTitle tonightSectionTitle" id="last-orders-title">
+        <h2 className="lastOrdersTitle tonightSectionTitle" id="last-orders-title" ref={headingRef} tabIndex={-1}>
           Last orders
         </h2>
         <Button
@@ -220,7 +227,6 @@ export default function TonightLastOrdersPanel({
           size="icon"
           className="lastOrdersClose"
           aria-label="Close Last orders"
-          aria-controls="last-orders"
           onClick={onClose}
         >
           <X size={20} aria-hidden="true" />
