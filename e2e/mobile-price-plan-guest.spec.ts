@@ -56,13 +56,16 @@ test("a phone user checks a price, corrects an incomplete plan, and invites a gu
   const text = new URL((await whatsapp.getAttribute("href"))!).searchParams.get("text");
   const shared = text?.match(/https?:\/\/[^\s]+/)?.[0];
   expect(shared).toBeTruthy();
+  // One link (launch review 3.5): WhatsApp carries the public invite page.
   const invite = new URL(shared!);
-  expect(invite.hash).toMatch(/^#invite=.+/);
+  expect(invite.pathname).toMatch(/^\/invite\/[0-9a-f]{32}$/);
+  const inviteToken = invite.pathname.split("/").pop()!;
 
   const guestContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
   try {
     const guest = await guestContext.newPage();
-    await guest.goto(`${new URL(page.url()).origin}${invite.pathname}${invite.search}${invite.hash}`);
+    // The plan-page join through an old /plan/{id}#invite= link still works.
+    await guest.goto(`${new URL(page.url()).origin}${new URL(page.url()).pathname}#invite=${inviteToken}`);
     await expect(guest.getByText("You'll see the full route once you join the crew. No account needed.")).toBeVisible();
     await expect(guest.locator("main")).not.toContainText(venueName);
     const decline = guest.getByRole("button", { name: "No thanks", exact: true });

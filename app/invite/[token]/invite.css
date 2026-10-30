@@ -440,6 +440,7 @@
 }
 
 .inviteRsvp__status,
+.inviteRsvp__planDoor,
 .inviteRsvp__error {
   margin: 0;
   font-size: var(--text-sm);

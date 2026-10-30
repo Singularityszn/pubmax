@@ -945,6 +945,33 @@ async function supabasePlanMemberIdentityResult(id: string, rawToken: string): P
     : result;
 }
 
+/**
+ * One guest capability (launch review 3.5): a guest who holds the host's
+ * classic invite link may vote, propose, add a need and check in. This lifts
+ * an EXISTING non-host seat to that capability. It never creates a seat, never
+ * touches the host row and never revives a revoked one, and it only ever
+ * grants, so a repeat is harmless. False means no live seat matched or the
+ * write did not run.
+ */
+export async function grantPlanMemberCollaboration(id: string, rawToken: unknown): Promise<boolean> {
+  if (!isPlanId(id) || typeof rawToken !== "string" || !rawToken.trim()) return false;
+  const identity = await planMemberIdentity(id, rawToken);
+  if (!identity) return false;
+  if (identity.role === "host" || identity.collaborationAuthorized) return true;
+  if (!isSupabaseConfigured()) return grantMemoryPlanCollaboration(id, rawToken.trim());
+  try {
+    const { data, error } = await requireSupabaseAdmin().from(MEMBERS)
+      .update({ can_collaborate: true })
+      .eq("plan_id", id)
+      .eq("id", identity.memberId)
+      .is("membership_revoked_at", null)
+      .select("id");
+    return !error && Array.isArray(data) && data.length > 0;
+  } catch {
+    return false;
+  }
+}
+
 export function grantMemoryPlanCollaboration(id: string, rawToken: unknown): boolean {
   if (isSupabaseConfigured() || !isPlanId(id) || typeof rawToken !== "string") return false;
   const member = memoryPlans.get(id)?.crew.find((candidate) => candidate.tokenHash === hashPlanMemberToken(rawToken));
@@ -973,8 +1000,10 @@ export async function joinMemoryPlanInviteRsvpMember(
   if (existingReplay && existingReplay.origin !== "invite_rsvp") {
     return { ok: false, error: "conflict" };
   }
+  // A Going RSVP through the host's invite link is the same capability as a
+  // join through it, so the seat may collaborate (launch review 3.5).
   const joined = await memoryPlanStore.join(id, memberName, {
-    collaborationAuthorized: false,
+    collaborationAuthorized: true,
     idempotencyKey,
   });
   if (!joined.ok) {
@@ -989,7 +1018,8 @@ export async function joinMemoryPlanInviteRsvpMember(
     ) return joined;
     member.name = memberName;
     member.updatedAt = stamp();
-    replay.requestHash = planRequestDigest({ name: memberName, collaborationAuthorized: false });
+    member.collaborationAuthorized = true;
+    replay.requestHash = planRequestDigest({ name: memberName, collaborationAuthorized: true });
     const plan = await memoryPlanStore.get(id);
     return plan
       ? {
@@ -997,7 +1027,7 @@ export async function joinMemoryPlanInviteRsvpMember(
           plan,
           memberToken: planIdempotencyDigest(`plan-join-token:${id}`, idempotencyKey),
           role: "guest",
-          collaborationAuthorized: false,
+          collaborationAuthorized: true,
           memberId,
         }
       : { ok: false, error: "error" };
