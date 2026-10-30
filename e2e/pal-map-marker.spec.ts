@@ -42,7 +42,8 @@ test.describe("the Pal on the map", () => {
     await expect(marker).toHaveAttribute("aria-hidden", "true");
     await expect(marker.locator("a, button")).toHaveCount(0);
     expect(await marker.evaluate((element) => getComputedStyle(element).pointerEvents)).toBe("none");
-    const image = marker.locator("img");
+    // The avatar itself; its talking frame (.palMapMarkerMouth) is a second image laid over it.
+    const image = marker.locator("img:not(.palMapMarkerMouth)");
     await expect(image).toHaveAttribute("src", /avatar/);
     await expect.poll(() => image.evaluate((element) => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
 
