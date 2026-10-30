@@ -177,8 +177,21 @@ function localStart(startsAt: string): { weekday: RegularNightWeekday; time: str
 }
 
 const EVERY_WEEKDAY = /\bevery\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/i;
-const WEEKLY_WORDS =
-  /\b(weekly|every|recurring|residency|sundays|mondays|tuesdays|wednesdays|thursdays|fridays|saturdays)\b/i;
+// A music row is weekly only when it says so for its own dated weekday:
+// "every Friday", "Fridays", or "weekly" beside the word "Friday". "Every",
+// "recurring" and "residency" alone say nothing about how often, and a row
+// that names a monthly or fortnightly rhythm is never weekly (review finding
+// 5, PR 2402).
+const NOT_WEEKLY =
+  /\b(monthly|fortnightly|bi-?weekly|every\s+(other|second|month)|once\s+a\s+month|(first|second|third|fourth|last)\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday|week)|of\s+(the|each|every)\s+month)\b/i;
+
+function saysWeeklyOn(said: string, weekday: RegularNightWeekday): boolean {
+  if (NOT_WEEKLY.test(said)) return false;
+  const day = REGULAR_NIGHT_WEEKDAYS[weekday]?.toLowerCase();
+  if (!day) return false;
+  if (new RegExp(`\\bevery\\s+${day}\\b|\\b${day}s\\b`, "i").test(said)) return true;
+  return /\bweekly\b/i.test(said) && new RegExp(`\\b${day}\\b`, "i").test(said);
+}
 
 function quizNights(file: unknown): RegularNight[] {
   const fallbackRead = fileReadAt(file);
@@ -229,7 +242,7 @@ function musicNights(file: unknown): RegularNight[] {
     const start = localStart(text(row.startsAt));
     if (!id || !placeName || !title || !source || !readAt || !start) continue;
     const said = `${text(row.title)} ${text(row.detail)} ${notesByLabel.get(source.label) ?? ""}`;
-    if (!WEEKLY_WORDS.test(said)) continue;
+    if (!saysWeeklyOn(said, start.weekday)) continue;
     out.push({
       id,
       kind: "music",

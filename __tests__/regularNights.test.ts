@@ -116,6 +116,41 @@ describe("parseRegularNights refuses what it cannot back", () => {
     });
     expect(nights).toEqual([]);
   });
+
+  // Review finding 5 (PR 2402): "every", "recurring" and "residency" do not say
+  // weekly. A monthly residency on one dated Friday is not a Friday regular.
+  it("drops a monthly music residency that only says every, recurring or residency", () => {
+    const row = (id: string, title: string, detail: string, startsAt = "2026-07-24T20:00:00+01:00") => ({
+      id, placeName: "The Gig", title, detail, startsAt,
+      source: { label: "The Gig", url: "https://example.com" }, observedAt: read,
+    });
+    const nights = parseRegularNights({
+      music: { rows: [
+        row("m1", "Jazz residency", "Recurring jazz night, every first Friday of the month."),
+        row("m2", "Monthly soul night", "Our residency returns every month."),
+        row("m3", "Folk residency", "A recurring folk session."),
+        row("m4", "Every so often", "Every now and then a band plays on a Friday."),
+        // The stated weekday must be the dated one.
+        row("m5", "Blues jam", "Every Tuesday from 8pm."),
+      ] },
+    });
+    expect(nights).toEqual([]);
+  });
+
+  it("keeps music that says weekly in so many words", () => {
+    const row = (id: string, title: string, detail: string) => ({
+      id, placeName: "The Gig", title, detail, startsAt: "2026-07-24T20:00:00+01:00",
+      source: { label: "The Gig", url: "https://example.com" }, observedAt: read,
+    });
+    const nights = parseRegularNights({
+      music: { rows: [
+        row("w1", "Blues jam", "Every Friday from 8pm."),
+        row("w2", "Jazz Fridays", "Live jazz."),
+        row("w3", "Weekly Friday jam", "Bring an instrument."),
+      ] },
+    });
+    expect(nights.map((night) => [night.id, night.weekday])).toEqual([["w1", 5], ["w2", 5], ["w3", 5]]);
+  });
 });
 
 describe("regular night wording", () => {
