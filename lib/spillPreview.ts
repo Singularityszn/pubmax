@@ -48,7 +48,7 @@ export const DESTINATION_META: Record<SpillDestination, DestinationMeta> = {
     key: "tonight",
     label: "Tonight",
     visibility: "public",
-    helper: "Public tonight. On the feed and the map.",
+    helper: "Public tonight. On Social and the map.",
     needsActiveRound: false,
   },
   round: {

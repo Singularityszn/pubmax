@@ -1,0 +1,49 @@
+/* A city map outside London says what it is (lib/cityPubsOnlyNote.ts). One
+   line in the banner slot under the toolbar, the city suggest banner's own
+   berth. It is the LAST member of the map's ambient banner cascade
+   (components/map/mapBannerStaging.css), so every other banner that is
+   eligible paints first and this line waits for it. */
+
+.cityPubsOnlyNote {
+  position: absolute;
+  top: calc(
+    var(--map-top-clearance, 0px) +
+    var(--map-toolbar-resting-height, 155px) +
+    12px
+  );
+  left: 50%;
+  z-index: var(--z-map-suggest);
+  max-width: min(420px, calc(100vw - 24px));
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--panel-raised);
+  color: var(--ink);
+  box-shadow: var(--map-overlay-shadow);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  overflow-wrap: break-word;
+  transform: translateX(-50%);
+}
+
+.cityPubsOnlyNoteLink {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* The phone has one top bar and one chip row under it (mobileMapShell.css
+   publishes their height), so the line docks one gap under the whole chrome,
+   inside the same side lanes as the Near me message. */
+@media (max-width: 640px) {
+  .cityPubsOnlyNote {
+    position: fixed;
+    top: calc(var(--mobile-map-chrome-full-h) + 8px);
+    left: var(--mobile-map-stack-left, 12px);
+    right: var(--mobile-map-stack-right, 12px);
+    max-width: none;
+    border-radius: var(--control-radius);
+    transform: none;
+  }
+}

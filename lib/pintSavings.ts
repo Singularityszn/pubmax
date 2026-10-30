@@ -29,6 +29,7 @@
 // Pure: no fs, no React, no dataset import. The server hands it figures.
 
 import { formatGbp } from "@/lib/formatGbp";
+import { averageBasePhrase } from "@/lib/pubListBase";
 
 /** The city's own two figures, both derived from the priced dataset. */
 export type PintPriceAverages = {
@@ -99,7 +100,7 @@ export function strangerSavingLine(averages: PintPriceAverages | null): string |
   if (!averages) return null;
   const gap = savingPerPintGbp(averages);
   if (gap < 0.05) return null;
-  return `The average of each pub's cheapest listed pint across ${averages.sampleSize.toLocaleString("en-GB")} priced London pubs is ${formatGbp(averages.averageGbp)}. The cheapest third averages ${formatGbp(averages.cheapAverageGbp)}. That's a ${formatGbp(gap)} gap per pint.`;
+  return `The average of each pub's cheapest listed pint across ${averageBasePhrase(averages.sampleSize)} is ${formatGbp(averages.averageGbp)}. The cheapest third averages ${formatGbp(averages.cheapAverageGbp)}. That's a ${formatGbp(gap)} gap per pint.`;
 }
 
 /** One price a reader logged, with the pub it was logged at. */
