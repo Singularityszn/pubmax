@@ -3,6 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { LANDING_QUIET_DOORS, LANDING_RECEIPT_LABEL } from "@/lib/landingHero";
 
 import { LANDING_PRIMARY_NAME } from "./helpers/landingHero";
+import { openOverviewFold } from "./helpers/overviewFolds";
 import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 
 const DEVICES = [
@@ -371,6 +372,8 @@ test("1440px: the docked venue drawer aligns its name with its body", async ({ p
   // read, never a geometry ceiling.
   const name = page.locator(".mapDrawer.right .venueInspector > h3");
   await expect(name).toBeVisible({ timeout: 45_000 });
+  // The address lives in "The pub" fold (lib/venueOverviewFolds.ts).
+  await openOverviewFold(page.locator(".mapDrawer.right"), "pub", 45_000);
   const address = page.locator(".mapDrawer.right .venueAddress");
   await expect(address).toBeVisible({ timeout: 45_000 });
   const geometry = await page.evaluate(() => {

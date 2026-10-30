@@ -1,5 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 
+import { openOverviewFold } from "./helpers/overviewFolds";
+
 // Map story-surface E2E: the band picker DOM overlay (issue #15) and the venue
 // sheet's tab system (VenueInspector), including the "Last Pint" getting-home
 // tab (issues #19-24). All WebGL-agnostic — these are DOM overlays that sit on
@@ -285,6 +287,7 @@ test.describe("map / venue sheet tabs", () => {
     } else {
       // Absent gracefully: the Overview panel still renders a coherent surface
       // (address is always present) rather than a half-empty gap.
+      await openOverviewFold(overviewPanel, "pub");
       await expect(overviewPanel.locator(".venueAddress")).toBeVisible();
     }
   });
