@@ -69,7 +69,9 @@ vi.mock("@/lib/venueIndex", async (importOriginal) => {
 
 beforeAll(() => {
   if (!existsSync(DETAIL_INDEX)) {
-    execFileSync("node", [BUILD_SLIM_SCRIPT], {
+    // --details-only writes just the two gitignored detail files. The full
+    // build would also rewrite every committed map pack with a "local" stamp.
+    execFileSync("node", [BUILD_SLIM_SCRIPT, "--details-only"], {
       cwd: ROOT,
       env: { ...process.env, DEPLOYMENT_VERSION: "local" },
     });
