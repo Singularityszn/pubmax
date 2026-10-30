@@ -361,6 +361,7 @@ beforeAll(async () => {
     profileRoute,
     planStore,
     crewPalsRoute,
+    openCrewRoute,
   ] = await Promise.all([
     import("@/app/api/plans/[id]/route"),
     import("@/app/api/plans/[id]/getin/route"),
@@ -398,6 +399,7 @@ beforeAll(async () => {
     import("@/app/api/profiles/[handle]/route"),
     import("@/lib/planStore"),
     import("@/app/api/plans/[id]/pals/route"),
+    import("@/app/api/plans/[id]/open-crew/route"),
   ]);
   handlers = {
     readPlan: planRoute.GET as Handler,
@@ -409,6 +411,7 @@ beforeAll(async () => {
     rotateInvite: rotateRoute.POST as Handler,
     presence: presenceRoute.POST as Handler,
     crewPals: crewPalsRoute.GET as Handler,
+    openCrew: openCrewRoute.POST as Handler,
     planCard: planCard.GET as unknown as Handler,
     listMemories: memoriesRoute.GET as unknown as Handler,
     createMemory: memoriesRoute.POST as unknown as Handler,
@@ -2584,6 +2587,105 @@ describe("photo tags: the consent inbox is the tagged account's own", () => {
     );
     expect(response.status).toBe(400);
     expectNoDisclosure(await readJson(response));
+  });
+});
+
+describe("Open crawl: Open it up (0208)", () => {
+  // A plan of Alice's own, separate from the Crew Plan above: opening it up
+  // CONSUMES it (social owner stamped, seat tokens rotated), exactly as a
+  // Crew create does. The harness prints a boolean as the string "true".
+  const OPEN_PLAN_ID = "c8000000-0000-4000-8000-000000000011";
+  const OPEN_HOST_MEMBER_ID = "c8100000-0000-4000-8000-000000000012";
+  const OPEN_HOST_SEAT = "pm-open-crawl-host-seat-alice";
+  const goodBody = {
+    memberToken: OPEN_HOST_SEAT,
+    capacity: 6,
+    meetingVenueId: "venue-xjf3n0",
+    description: "Three old boozers, a pint at each.",
+  };
+
+  beforeAll(() => {
+    if (skipReason) return;
+    truth(`
+      insert into public.plans (id, title, start_time, status, route_revision, owner_user_id)
+        values ('${OPEN_PLAN_ID}', 'Alice open crawl', now() + interval '2 days', 'ready', 1, '${ALICE}');
+      insert into public.plan_stops (plan_id, venue_id, venue_name, position) values
+        ('${OPEN_PLAN_ID}', 'venue-1f5ygjb', 'Venue One', 0),
+        ('${OPEN_PLAN_ID}', 'venue-xjf3n0', 'Venue Two', 1);
+      insert into public.plan_crew_members (
+        id, plan_id, name, token_hash, user_id, status, joined_at, updated_at, can_collaborate
+      ) values (
+        '${OPEN_HOST_MEMBER_ID}', '${OPEN_PLAN_ID}', 'Alice', '${hashPlanMemberToken(OPEN_HOST_SEAT)}',
+        '${ALICE}', 'in', now(), now(), true
+      );
+      select 1
+    `);
+  });
+
+  const unopened = () =>
+    truth(`select social_owner_account_id is null from public.plans where id = '${OPEN_PLAN_ID}'`);
+
+  it("an account without the host seat is refused as if the plan were not there, and nothing moves", async () => {
+    for (const memberToken of [undefined, "pm-open-crawl-guess"]) {
+      const response = await defined(handlers.openCrew)(
+        crewRequest(`/api/plans/${OPEN_PLAN_ID}/open-crew`, {
+          bearer: BEARER_DAVE,
+          body: { ...goodBody, memberToken },
+        }),
+        context({ id: OPEN_PLAN_ID }),
+      );
+      expect(response.status).toBe(404);
+      expectNoDisclosure(await readJson(response), ["Alice open crawl", "Venue Two"]);
+    }
+    expect(unopened()).toBe("true");
+    expect(truth(`select count(*) from public.social_crews where plan_id = '${OPEN_PLAN_ID}'`)).toBe("0");
+  });
+
+  it("the host seat without an account is refused, and nothing moves", async () => {
+    const response = await defined(handlers.openCrew)(
+      crewRequest(`/api/plans/${OPEN_PLAN_ID}/open-crew`, { body: goodBody }),
+      context({ id: OPEN_PLAN_ID }),
+    );
+    expect(response.status).toBeGreaterThanOrEqual(400);
+    expect(unopened()).toBe("true");
+  });
+
+  it("a capacity past the crew cap is refused before any write", async () => {
+    const response = await defined(handlers.openCrew)(
+      crewRequest(`/api/plans/${OPEN_PLAN_ID}/open-crew`, {
+        bearer: BEARER_ALICE,
+        body: { ...goodBody, capacity: 21 },
+      }),
+      context({ id: OPEN_PLAN_ID }),
+    );
+    expect(response.status).toBe(422);
+    expect(unopened()).toBe("true");
+  });
+
+  it("the host with her account opens it, and the crew carries the plan and its three facts", async () => {
+    const response = await defined(handlers.openCrew)(
+      crewRequest(`/api/plans/${OPEN_PLAN_ID}/open-crew`, { bearer: BEARER_ALICE, body: goodBody }),
+      context({ id: OPEN_PLAN_ID }),
+    );
+    expect(response.status, await response.clone().text()).toBe(201);
+    expect(
+      truth(
+        `select visibility || ':' || capacity || ':' || meeting_venue_id from public.social_crews where plan_id = '${OPEN_PLAN_ID}'`,
+      ),
+    ).toBe("open:6:venue-xjf3n0");
+    expect(
+      truth(`select social_owner_account_id = '${ALICE_ACCOUNT}' from public.plans where id = '${OPEN_PLAN_ID}'`),
+    ).toBe("true");
+  });
+
+  it("at the table: no browser role reads or writes the open crawl facts", () => {
+    for (const [role, sub] of [["anon", null], ["authenticated", ALICE], ["authenticated", DAVE]] as const) {
+      expect(
+        visibleRows(role, sub, `select count(*) from public.social_crews where plan_id = '${OPEN_PLAN_ID}'`),
+      ).toBe(0);
+      attemptAsRole(role, sub, `update public.social_crews set capacity = 20 where plan_id = '${OPEN_PLAN_ID}'`);
+    }
+    expect(truth(`select capacity from public.social_crews where plan_id = '${OPEN_PLAN_ID}'`)).toBe("6");
   });
 });
 
