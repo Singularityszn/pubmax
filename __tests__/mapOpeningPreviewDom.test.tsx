@@ -53,6 +53,7 @@ const DISC: OpeningPreviewDisc = {
 beforeEach(() => {
   localStorage.clear();
   delete document.documentElement.dataset.mapPreview;
+  delete document.documentElement.dataset.mapPreviewDiscs;
   performance.clearMarks();
   delete (window as { __pubmaxOpeningFrame?: unknown }).__pubmaxOpeningFrame;
 });
@@ -356,6 +357,60 @@ describe("MapOpeningPreview", () => {
     );
     await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
     expect(document.documentElement.dataset.mapPreview).toBe("on");
+  });
+
+  it("keeps the picture but drops the discs when the map will draw other prices from the same camera", async () => {
+    // A fuller venue index lands after the arrival turn: same camera, other
+    // clusters. The discs are wrong now; the streets under them are not.
+    const ground: OpeningGround = {
+      rect: { x: -322, y: -848, width: 644, height: 1356 },
+      light: "/landing/map-opening/london-light.webp",
+      dark: "/landing/map-opening/london-dark.webp",
+    };
+    const otherPrices: MapOpeningFrame = {
+      features: [
+        {
+          type: "Feature",
+          geometry: { type: "Point", coordinates: [-0.12, 51.52] },
+          properties: { clusterPrice: 3.1, bucket: 0 },
+        },
+      ],
+      camera: { ...MAP_OPENING_PREVIEW_CAMERA, bearing: MAP_OPENING_PREVIEW_CAMERA.bearing + 4 },
+    };
+    document.documentElement.dataset.mapPreview = "on";
+    document.documentElement.dataset.mapGround = "on";
+    try {
+      await mount([DISC], ground);
+      await act(() => {
+        window.dispatchEvent(new CustomEvent(MAP_OPENING_FRAME_EVENT, { detail: otherPrices }));
+      });
+      expect(document.documentElement.dataset.mapPreview).toBe("on");
+      expect(document.documentElement.dataset.mapPreviewDiscs).toBe("off");
+    } finally {
+      delete document.documentElement.dataset.mapGround;
+    }
+  });
+
+  it("stands down whole on other prices where no picture is shown", async () => {
+    document.documentElement.dataset.mapPreview = "on";
+    await mount();
+    await act(() => {
+      window.dispatchEvent(
+        new CustomEvent(MAP_OPENING_FRAME_EVENT, {
+          detail: {
+            features: [
+              {
+                type: "Feature",
+                geometry: { type: "Point", coordinates: [-0.12, 51.52] },
+                properties: { clusterPrice: 3.1, bucket: 0 },
+              },
+            ],
+            camera: { ...MAP_OPENING_PREVIEW_CAMERA },
+          } satisfies MapOpeningFrame,
+        }),
+      );
+    });
+    expect(document.documentElement.dataset.mapPreview).toBe("done");
   });
 
   it("still stands down at once when the camera moves before the loading frame lifts", async () => {

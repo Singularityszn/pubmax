@@ -5,6 +5,7 @@ import { useEffect } from "react";
 
 import { donutFigureFontSize, DONUT_OUTER_RADIUS_LARGE } from "@/lib/donutClusterGeometry";
 import {
+  frameCameraMatchesPreview,
   frameMatchesPreview,
   MAP_OPENING_FRAME_EVENT,
   MAP_OPENING_PREVIEW_CAMERA,
@@ -148,7 +149,20 @@ export default function MapOpeningPreview({
       stopWaiting ??= standDownWhenTheMapShows();
     };
     const check = (frame: MapOpeningFrame | null) => {
-      if (frame && !frameMatchesPreview(frame, discs)) standDown();
+      if (!frame || frameMatchesPreview(frame, discs)) return;
+      // The map will draw other prices from the same camera (a fuller venue
+      // index has landed): the discs go, but the picture under them is still
+      // the ground the map draws, so it stays until the map shows. Leaving it
+      // put the loading frame back on bare paper until the reveal.
+      if (
+        ground &&
+        document.documentElement.dataset.mapGround === "on" &&
+        frameCameraMatchesPreview(frame)
+      ) {
+        document.documentElement.dataset.mapPreviewDiscs = "off";
+        return;
+      }
+      standDown();
     };
     check(readPublishedOpeningFrame());
     const onFrame = (event: Event) => check((event as CustomEvent<MapOpeningFrame>).detail ?? null);
