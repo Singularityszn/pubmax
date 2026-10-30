@@ -58,6 +58,7 @@ import {
   PIN_PRICE_LABEL_MIN_ZOOM,
   SELECTED_PIN_PRICE_LABEL_EXPR,
 } from "./filters";
+import { buildLegRoute } from "./legRouteScene";
 
 // The two zooms that shape pub density. They are deliberately NOT the same
 // number any more:
@@ -393,6 +394,8 @@ export type SceneCtx = {
   landmarksGeoJSON: GeoJSON.FeatureCollection;
   poisData: GeoJSON.FeatureCollection;
   routeLine: GeoJSON.FeatureCollection;
+  /** The way to the next stop chosen in Night Mode, if any — see buildLegRoute. */
+  legRoute?: GeoJSON.FeatureCollection;
   routeStops: GeoJSON.FeatureCollection;
   bandCorridor: GeoJSON.FeatureCollection;
   bandColor: string;
@@ -1982,6 +1985,7 @@ export function assembleSceneCritical(ctx: SceneCtx) {
   buildLandmarks(ctx);
   buildPois(ctx);
   buildRoute(ctx);
+  buildLegRoute(ctx);
   buildBandCorridor(ctx);
   buildPubs(ctx);
   buildCoffeePilot(ctx);

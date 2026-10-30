@@ -54,6 +54,7 @@ import {
 } from "@/lib/analyticsEvents";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { legKeyFor } from "@/lib/legRouteOnMap";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import { discardBody } from "@/lib/responseBody";
 import type { PlanGetInReportDTO, PlanGetInStopDTO } from "@/lib/planGetIn";
@@ -121,6 +122,7 @@ import {
   type LastTrainSlim,
   type VenueCoord,
 } from "@/components/night/nightModeSheetModel";
+import NightWaysThere from "./NightWaysThere";
 import "./nightMode.css";
 import PalCheer from "@/components/pal/PalCheer";
 import { announcePalMoment } from "@/lib/palMoments";
@@ -677,6 +679,7 @@ function NightModeSheet({
     nextStop,
     currentSignal,
     currentCoord,
+    nextCoord,
     nextStopWalkMinutes,
     keepGoingExtensions,
     currentTrain,
@@ -1271,6 +1274,14 @@ function NightModeSheet({
         </button>
       ) : currentStop ? (
         renderLastStop(currentStop)
+      ) : null}
+
+      {nextStop && currentStop && currentCoord && nextCoord ? (
+        <NightWaysThere
+          legKey={legKeyFor(currentStop.venueId, nextStop.venueId)}
+          from={currentCoord}
+          to={nextCoord}
+        />
       ) : null}
 
       <SafeNightStrip planId={id} />

@@ -10,6 +10,8 @@ import * as maplibregl from "maplibre-gl";
 import { MAPLIBRE_WORKER_URL } from "@/lib/maplibreWorkerAssets";
 import { followMapPixelRatio, mapPixelRatio, probeWebGl2 } from "@/components/map/canvas/webgl";
 import { createPalMapMarker, palPinIsCheap, type PalMapMarker } from "@/components/map/canvas/palMarker";
+import { legRouteToLines } from "@/components/map/canvas/legRouteScene";
+import { readLegRouteOnMap, subscribeLegRouteOnMap } from "@/lib/legRouteOnMap";
 import { crewPalLook, type CrewPal } from "@/lib/crewPals";
 import { palWalkPathFrom, palWalkStopsFromKey } from "@/components/map/canvas/palWalk";
 import {
@@ -1186,6 +1188,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     type: "FeatureCollection",
     features: [],
   });
+  // The way to the next stop chosen in Night Mode (lib/legRouteOnMap.ts).
+  const legRouteRef = useRef<GeoJSON.FeatureCollection>(legRouteToLines(null));
   const routeLineRef = useRef<GeoJSON.FeatureCollection>({
     type: "FeatureCollection",
     features: [],
@@ -2492,6 +2496,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         landmarksGeoJSON: landmarksGeoJSONRef.current,
         poisData: poisDataRef.current,
         routeLine: routeLineRef.current,
+        legRoute: legRouteRef.current,
         routeStops: routeStopsRef.current,
         bandCorridor: bandCorridorRef.current,
         bandColor: bandColorRef.current,
@@ -2573,6 +2578,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
               landmarksGeoJSON: landmarksGeoJSONRef.current,
               poisData: poisDataRef.current,
               routeLine: routeLineRef.current,
+              legRoute: legRouteRef.current,
               routeStops: routeStopsRef.current,
               bandCorridor: bandCorridorRef.current,
               bandColor: bandColorRef.current,
@@ -4384,6 +4390,18 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     const pin = venue ? pubsDataRef.current.features.find((feature) => feature.properties?.id === venue.id) : undefined;
     palMarkerRef.current?.perch(venue ? [venue.longitude, venue.latitude] : null, { cheap: palPinIsCheap(pin?.properties) });
   }, [routeCoordKey, routeIds, selectedVenueId, venues, venueSignals, favoritePint, drinkCategory, lensPrices, spoonsValue, mapReady, walkPals]);
+
+  // The way to the next stop the reader chose in Night Mode: drawn where the
+  // reader looks, never flown to.
+  useEffect(() => {
+    const sync = () => {
+      legRouteRef.current = legRouteToLines(readLegRouteOnMap()?.option ?? null);
+      const source = mapRef.current?.getSource("leg-route") as maplibregl.GeoJSONSource | undefined;
+      source?.setData(legRouteRef.current);
+    };
+    sync();
+    return subscribeLegRouteOnMap(sync);
+  }, [mapReady]);
 
   // Tonight's next stop: the reader's Pal waits beside it and, tapped there,
   // opens it the way a tapped route stop does.
