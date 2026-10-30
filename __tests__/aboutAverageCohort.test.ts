@@ -23,6 +23,13 @@ const fixtures = vi.hoisted(() => ({
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 vi.mock("@/lib/aboutStats", () => ({ loadAboutStats: async () => fixtures.stats }));
+vi.mock("@/lib/pricedPubCount.server", () => ({
+  loadPricedPubCount: async () => ({
+    count: { listPubs: 2_034, pricedPubs: 960 },
+    coverage: { total: 2_034, pricedPubs: 960, counts: {} },
+    status: "ready",
+  }),
+}));
 vi.mock("@/lib/publicPintIndexSnapshot.server", () => ({
   loadPublicPintIndexSnapshot: async () => null,
 }));
@@ -38,7 +45,7 @@ describe("/about names the cohort its average pint is taken over", () => {
   it("states the pub count beside the mean, in the landing's words", async () => {
     const line = priceLine(renderToStaticMarkup(await AboutPage()));
     expect(line).toContain(
-      "The average listed pint across 950 London pubs is £5.72, the same figure the homepage gives, taken from each pub’s cheapest pint.",
+      "The average listed pint across 950 pubs in our London pub list with a listed price is £5.72, the same figure the homepage gives, taken from each pub’s cheapest pint.",
     );
   });
 
