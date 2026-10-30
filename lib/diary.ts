@@ -28,7 +28,7 @@ export const MAX_DIARY_REVIEW = 280;
 export const MAX_DIARY_USUAL_DRINK = 40;
 /**
  * "With": the free-text names of people who are not on PUBMAXX. A handle is
- * never kept here; it is a consented tag (lib/pintDropWithTags.ts, 0201).
+ * never kept here; it is a consented tag (lib/pintDropWithTags.ts, 0207).
  */
 export const MAX_DIARY_WITH_NAMES = 120;
 const MAX_DIARY_VENUE_ID = 64;

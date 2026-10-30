@@ -1,7 +1,7 @@
--- "With" on a diary entry (0201). Apply AFTER 0198 and 0199.
+-- "With" on a diary entry (0207). Apply AFTER 0204 and 0205.
 -- Captain applies; agents ship SQL only.
 --
--- Reverse: supabase/migrations/rollback/20261030160000_0201_diary_with_tags_rollback.sql
+-- Reverse: supabase/migrations/rollback/20261030220000_0207_diary_with_tags_rollback.sql
 --
 -- WHAT IT IS. The diary log form takes the same "With" field as a Pint Drop:
 -- free-text names for people who are not on PUBMAXX, and consented handle tags
@@ -23,7 +23,7 @@
 --      at most 120 characters, as PRIVATE as the review beside it.
 --
 -- NO GRANT AND NO POLICY MOVES. The tag table stays service-mediated with RLS
--- on and nothing granted to a browser role (0198), and the new diary column
+-- on and nothing granted to a browser role (0204), and the new diary column
 -- inherits 0174's owner-only SELECT.
 --
 -- A DEPLOY AHEAD OF THE APPLY keeps every Pint Drop tag working (the store

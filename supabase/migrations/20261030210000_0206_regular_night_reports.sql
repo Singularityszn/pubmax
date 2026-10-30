@@ -1,8 +1,8 @@
--- Regular night reports (0200): a drinker adds a weekly night at a pub (a quiz,
+-- Regular night reports (0206): a drinker adds a weekly night at a pub (a quiz,
 -- a music night, the sport, comedy, karaoke or something else) with a photo of
 -- the board or the poster that says so.
 -- Captain applies. Agents ship SQL and a rollback beside it.
--- Reverse: rollback/20261030150000_0200_regular_night_reports_rollback.sql
+-- Reverse: rollback/20261030210000_0206_regular_night_reports_rollback.sql
 --
 -- WHAT A ROW IS. A DATED DRINKER REPORT, never a venue fact and never tonight's
 -- listing. The read prints it apart from the sourced regular nights, as "per a
@@ -23,7 +23,7 @@
 -- The route resolves the id through `lib/venueWriteTarget.server.ts` first.
 --
 -- LEAVES WITH THE ACCOUNT. Both tables key to the auth user with ON DELETE
--- CASCADE, the 0197 shape, so the tombstone trigger needs no edit.
+-- CASCADE, the 0203 shape, so the tombstone trigger needs no edit.
 --
 -- SERVICE ROLE ONLY. RLS is on, no browser role has a grant, and no policy
 -- names anon or authenticated. Writes go through `/api/regular-nights` and

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
-import { LocateFixed } from "lucide-react";
+import { Compass, LocateFixed } from "lucide-react";
 
 import {
   DEFAULT_CITY_ID,
@@ -10,6 +10,11 @@ import {
   type CityId,
 } from "@/lib/cities";
 import { writePreferredCity } from "@/lib/cityPreference";
+import {
+  PINT_COMPASS_DOOR_NAME,
+  PINT_COMPASS_HREF,
+  PINT_COMPASS_LABEL,
+} from "@/lib/pintCompassDoor";
 import { cityMapShareUrl } from "@/lib/cityShare";
 import { trackEvent } from "@/lib/analytics";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
@@ -89,6 +94,22 @@ function CitySwitcherList({
             <LocateFixed size={16} aria-hidden="true" />
             <span>{locationBusy ? "Locating" : "Use my location"}</span>
           </button>
+        </li>
+      ) : null}
+      {onUseMyLocation ? (
+        // The Pint Compass sits beside Near me, its sibling: both answer from
+        // where the reader stands. A link, prefetched only on intent.
+        <li role="option" aria-selected={false} className="citySwitcherCompass">
+          <Link
+            href={PINT_COMPASS_HREF}
+            prefetch={false}
+            className="citySwitcherLink citySwitcherLocationLink"
+            aria-label={PINT_COMPASS_DOOR_NAME}
+            onClick={() => onClose?.()}
+          >
+            <Compass size={16} aria-hidden="true" />
+            <span>{PINT_COMPASS_LABEL}</span>
+          </Link>
         </li>
       ) : null}
       {onOpenArea ? (

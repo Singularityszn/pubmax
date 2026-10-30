@@ -1,6 +1,6 @@
 // Regular night reports store - dual backend (process-memory + Supabase
 // public.regular_night_reports and public.regular_night_report_still_on,
-// migration 0200).
+// migration 0206).
 //
 // This store PERSISTS a drinker's "there's a regular night here" report and
 // moves it through open -> confirmed or hidden. It NEVER writes a venue fact:
@@ -38,7 +38,7 @@ import {
 
 const TABLE = "regular_night_reports";
 const STILL_ON_TABLE = "regular_night_report_still_on";
-const MIGRATION_HINT = "apply migration 0200";
+const MIGRATION_HINT = "apply migration 0206";
 const STORE_TAG = "regular-night-reports";
 
 /** Bounded reads: never return more than this many rows for one query. */

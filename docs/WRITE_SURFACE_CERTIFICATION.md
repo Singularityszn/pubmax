@@ -401,7 +401,7 @@ bodies.
 - **Authority:** `requireVerifiedSocialActor` derives stable profile authority.
   Only the drop's author may propose, and an anonymous drop takes no tags. A
   tag needs a live claimed handle. The target approves, declines or later
-  withdraws; the author cancels (`lib/pintDropWithTagsStore.ts`, migration 0198).
+  withdraws; the author cancels (`lib/pintDropWithTagsStore.ts`, migration 0204).
 - **Consent:** a reader sees the handle only while the tag is approved; until
   then the drop says "with 1 person". A block either way, or a relationship
   that cannot be read, writes nothing and answers exactly as a written tag.
@@ -756,7 +756,7 @@ loss or a block; owner leave remains a durable conflict until ownership moves.
   shared with the sheet's form. The kind is a closed set; a note over 200
   characters is refused, never trimmed. The venue resolves through
   `resolveWritableVenueId`, so it must be in the curated index or the UK base.
-  Migration 0197's CHECKs hold the kind, the note length and the
+  Migration 0203's CHECKs hold the kind, the note length and the
   open-or-stamped resolution shape.
 - **Rate limit (boundary):** durable `isLimited` per profile + hashed IP
   (`venue-correction:${actor}:${ipHash}`) on every write, then ten notes an
@@ -764,7 +764,7 @@ loss or a block; owner leave remains a durable conflict until ownership moves.
   is metered at 60 a minute per hashed IP.
 - **Auth stance:** `resolveContributionIdentity` derives the owner from the
   session (sign_in_required, onboarding_required and the adult check answer
-  first); a body owner is ignored. The 0197 table keys to `auth.users` with ON
+  first); a body owner is ignored. The 0203 table keys to `auth.users` with ON
   DELETE CASCADE and no browser grant. Both admin verbs are `isModerator`-gated,
   and `resolved_by` records the named moderator role or `admin`. A hard store
   failure answers 503, never a fake success.
@@ -777,7 +777,7 @@ loss or a block; owner leave remains a durable conflict until ownership moves.
   `startTime` like `20:00`, an optional note of up to 120 characters, and a
   required `photo` of the board or the poster. `PATCH app/api/regular-nights/route.ts`
   is "still on": a different signed-in account moves the report's expiry 90
-  days on, once per account per report (the 0200 still-on primary key is the
+  days on, once per account per report (the 0206 still-on primary key is the
   once; the reporter's own tap is 409). `PATCH app/api/admin/regular-nights/route.ts`
   is the moderator verdict, `confirmed` on an open report or `hidden` on an open
   or confirmed one, once; its `GET` is the queue with a signed photo URL. The
@@ -792,7 +792,7 @@ loss or a block; owner leave remains a durable conflict until ownership moves.
   `HH:MM`, a note over 120 characters is refused, never trimmed, and a report
   with no photo is refused. The photo takes the shared owned-image journey
   (`prepareUploadedImage`: type, size cap, magic bytes, EXIF strip). The venue
-  resolves through `resolveWritableVenueId`. Migration 0200's CHECKs hold the
+  resolves through `resolveWritableVenueId`. Migration 0206's CHECKs hold the
   kind, weekday, time, note length, photo key shape and status.
 - **Rate limit (boundary):** durable `isLimited` per profile + hashed IP
   (`regular-night:${actor}:${ipHash}`) on every report, then ten reports an
@@ -801,7 +801,7 @@ loss or a block; owner leave remains a durable conflict until ownership moves.
   IP, and the public read at 60 a minute per hashed IP.
 - **Auth stance:** `resolveContributionIdentity` derives the reporter from the
   session (sign_in_required, onboarding_required and the adult check answer
-  first); a body owner is ignored. Both 0200 tables key to `auth.users` with
+  first); a body owner is ignored. Both 0206 tables key to `auth.users` with
   ON DELETE CASCADE and no browser grant, and account deletion walks the
   reporter's board-photo folder (`lib/accountOwnedObjects.ts`). Both admin
   verbs are `isModerator`-gated. A hard store failure answers 503, never a

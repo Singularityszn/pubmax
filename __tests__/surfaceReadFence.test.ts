@@ -58,6 +58,8 @@ const SURFACE_READ_EXEMPTIONS = [
   { path: "components/map/useCommunityPrices.ts", fetchCount: 5, reason: "community price reads and writes have distinct authority and provisional-mark policy" },
   { path: "components/map/useCrawlJourneys.ts", fetchCount: 1, reason: "crawl journey reads are live route interaction" },
   { path: "components/map/usePintDrops.ts", fetchCount: 3, reason: "map Pint Drop reads and writes use the map feed lane" },
+  { path: "components/tonight/AddRegularNight.tsx", fetchCount: 1, reason: "the regular-night form's pub search is a debounced typeahead read per keystroke, never a painted reload surface" },
+  { path: "components/tonight/useTonightAnswerReads.ts", fetchCount: 1, reason: "drinker-added regular nights are dated reports that expire, get kept on by another account or get taken down by a moderator, so a held snapshot could show a report after it has gone; the committed quiz, sport and music files beside them go through surfaceDataCache" },
   { path: "components/map/useVenueJourney.ts", fetchCount: 1, reason: "venue journey is location and route interaction" },
   { path: "components/map/useVenueOccupancy.ts", fetchCount: 2, reason: "occupancy now-read is fail-soft and must never cache as an empty pub; flag fallback uses bare fetch when auth is absent, and the report beside it is a write" },
   { path: "components/out/useOutListings.ts", fetchCount: 1, reason: "an answer is held with the day it is about, so a pressed day chip repaints pending rather than another day's cached answer" },

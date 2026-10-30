@@ -2,7 +2,9 @@
 
 import type { Filters } from "@/lib/venues";
 import { OPEN_NOW_FILTER_CAPTION } from "@/lib/openNow";
+import SunChaserControls from "@/components/map/sunChaser/SunChaserControls";
 import "./venueFeatureFilters.css";
+import "@/components/map/sunChaser/sunChaser.css";
 
 const FEATURE_CHOICES = [
   ["requireBeerGarden", "Beer garden"],
@@ -41,6 +43,7 @@ export default function VenueFeatureFilters({ filters, onChange, resultCount }: 
       <p>Views and fireplaces: no sourced filter coverage yet. Dogs outside only do not match Dogs welcome. Lead restrictions may apply.</p>
       <p>Only recorded gardens and outdoor seating match. Missing details stay unknown. Outdoor seating may be a pavement or terrace.</p>
       {filters.openNow ? <p>{OPEN_NOW_FILTER_CAPTION} Hours come from Wetherspoon&apos;s directory.</p> : null}
+      <SunChaserControls />
       {active ? <p role="status">{resultCount === null ? "Loading matching places…" : `${resultCount.toLocaleString("en-GB")} matching ${resultCount === 1 ? "place" : "places"} loaded on the map.`}</p> : null}
     </section>
   );

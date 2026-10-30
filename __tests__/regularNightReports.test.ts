@@ -87,9 +87,9 @@ describe("validateRegularNightReport", () => {
     expect(validateRegularNightReport({ kind: "quiz", weekday: 1 })).toMatchObject({ ok: false, field: "venueId" });
   });
 
-  it("keeps the 0200 CHECKs and the leaf's closed sets the same", () => {
+  it("keeps the 0206 CHECKs and the leaf's closed sets the same", () => {
     const sql = readFileSync(
-      join(process.cwd(), "supabase/migrations/20261030150000_0200_regular_night_reports.sql"),
+      join(process.cwd(), "supabase/migrations/20261030210000_0206_regular_night_reports.sql"),
       "utf8",
     );
     expect(sql).toContain(`check (kind in (${REGULAR_NIGHT_REPORT_KINDS.map((kind) => `'${kind}'`).join(", ")}))`);

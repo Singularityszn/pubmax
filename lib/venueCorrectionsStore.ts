@@ -1,5 +1,5 @@
 // Venue corrections store - dual backend (process-memory + Supabase
-// public.venue_corrections, migration 0197).
+// public.venue_corrections, migration 0203).
 //
 // This store PERSISTS a "That's wrong" note and moves it through open ->
 // resolved or dismissed. It NEVER writes a venue fact: no pack, no pin, no
@@ -29,7 +29,7 @@ import {
 } from "@/lib/venueCorrections";
 
 const TABLE = "venue_corrections";
-const MIGRATION_HINT = "apply migration 0197";
+const MIGRATION_HINT = "apply migration 0203";
 const STORE_TAG = "venue-corrections";
 
 /** Bounded reads: never return more than this many rows for one query. */

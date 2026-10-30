@@ -1,4 +1,4 @@
--- Rollback 0200: drop the regular night report tables. THIS DELETES EVERY
+-- Rollback 0206: drop the regular night report tables. THIS DELETES EVERY
 -- REGULAR NIGHT A DRINKER HAS ADDED, open, confirmed or hidden, and every
 -- "still on" beside them. Nothing else reads these tables, so no pack, pin or
 -- listing moves. The board photos stay in Storage under regular-night-boards/

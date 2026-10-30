@@ -40,6 +40,7 @@ Full rules: [`docs/rules/components-sheets-chrome-and-navigation.md`](../docs/ru
 - [Phone chrome is measured, not eyeballed, and a trust caption never ellipses.](../docs/rules/components-sheets-chrome-and-navigation.md#phone-chrome-is-measured-not-eyeballed-and-a-trust-caption-never-ellipses)
 - [THE PRIMARY ROW IS FIVE DOORS, AND THE HEADER CARRIES ONLY WHAT HAS SOMETHING BEHIND IT.](../docs/rules/components-sheets-chrome-and-navigation.md#the-primary-row-is-five-doors-and-the-header-carries-only-what-has-something-beh)
 - [THE PUB PAL RISES OUT OF THE DOCK AS ITS OWN DOOR, NEVER A SIXTH DESTINATION.](../docs/rules/components-sheets-chrome-and-navigation.md#the-pub-pal-rises-out-of-the-dock-as-its-own-door-never-a-sixth-destination)
+- [THE VENUE SHEET NAMES A TAB BY WHAT IT HOLDS, AND SAYS A FACT ONCE.](../docs/rules/components-sheets-chrome-and-navigation.md#the-venue-sheet-names-a-tab-by-what-it-holds-and-says-a-fact-once)
 
 ## Venue, plan and message surfaces
 
@@ -48,6 +49,7 @@ Full rules: [`docs/rules/components-venue-plan-and-message-surfaces.md`](../docs
 - [Arrival is the moment of togetherness, never an admin form.](../docs/rules/components-venue-plan-and-message-surfaces.md#arrival-is-the-moment-of-togetherness-never-an-admin-form)
 - [THE OVERVIEW HAS ONE PRICE DOOR PER TRUST STATE, AND THE COMPOSER IS FOLDED BEHIND IT.](../docs/rules/components-venue-plan-and-message-surfaces.md#the-overview-has-one-price-door-per-trust-state-and-the-composer-is-folded-behin)
 - [THE PINT NEEDLE POINTS WHERE THE PIN IS PAINTED, AND THE PAL ONLY WATCHES IT.](../docs/rules/components-venue-plan-and-message-surfaces.md#the-pint-needle-points-where-the-pin-is-painted-and-the-pal-only-watches-it)
+- [THE PINT COMPASS POINTS AT A LISTED PINT, AND THE PHONE KEEPS WHERE YOU STAND.](../docs/rules/components-venue-plan-and-message-surfaces.md#the-pint-compass-points-at-a-listed-pint-and-the-phone-keeps-where-you-stand)
 - [THE BILL IS ASKED FOR IN FRONT OF THE PRICE, NEVER INSIDE THE DISCLOSURE.](../docs/rules/components-venue-plan-and-message-surfaces.md#the-bill-is-asked-for-in-front-of-the-price-never-inside-the-disclosure)
 - [`/plan` opens on one describe-first question, not the wizard.](../docs/rules/components-venue-plan-and-message-surfaces.md#plan-opens-on-one-describe-first-question-not-the-wizard)
 - [A describe chip is a promise of a route, and the promise is made through the DESCRIBE-FIRST body.](../docs/rules/components-venue-plan-and-message-surfaces.md#a-describe-chip-is-a-promise-of-a-route-and-the-promise-is-made-through-the-desc)
