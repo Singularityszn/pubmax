@@ -174,5 +174,7 @@ test("reduced motion draws the needle with no spin", async ({ page }) => {
   await page.goto("/compass");
   await startCompass(page);
   const duration = await page.locator(".pcNeedle").evaluate((node) => getComputedStyle(node).transitionDuration);
-  expect(duration).toBe("0s");
+  // app/globals.css flattens every transition to a hair above zero under
+  // reduced motion, so the needle snaps rather than swings.
+  expect(Number.parseFloat(duration)).toBeLessThan(0.01);
 });
