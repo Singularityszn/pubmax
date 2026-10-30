@@ -37,6 +37,7 @@ import {
 import SiteNav from "@/components/nav/SiteNav";
 import { moveTablistFocus } from "@/components/ui/tabs";
 import AdminSessionEntry from "./AdminSessionEntry";
+import RegularNightModeration from "./RegularNightModeration";
 import VenueCorrectionModeration from "./VenueCorrectionModeration";
 import VenueSubmissionModeration, { type AdminRequest } from "./VenueSubmissionModeration";
 
@@ -185,7 +186,7 @@ export function profileCoverFromAvatar(avatar: ModeratorProfileAvatar): Moderato
   };
 }
 
-type AdminTab = "moderation" | "import" | "operators" | "pubs" | "corrections";
+type AdminTab = "moderation" | "import" | "operators" | "pubs" | "corrections" | "regular-nights";
 
 const ADMIN_TABS: ReadonlyArray<{ key: AdminTab; label: string }> = [
   { key: "moderation", label: "Moderation" },
@@ -193,6 +194,7 @@ const ADMIN_TABS: ReadonlyArray<{ key: AdminTab; label: string }> = [
   { key: "operators", label: "Operators" },
   { key: "pubs", label: "Added pubs" },
   { key: "corrections", label: "Corrections" },
+  { key: "regular-nights", label: "Regular nights" },
 ];
 
 function AdminTabs({ tab, onSelect }: { tab: AdminTab; onSelect: (next: AdminTab) => void }) {
@@ -2446,6 +2448,8 @@ export default function AdminClient() {
         <VenueSubmissionModeration request={adminRequest} />
       ) : tab === "corrections" ? (
         <VenueCorrectionModeration request={adminRequest} />
+      ) : tab === "regular-nights" ? (
+        <RegularNightModeration request={adminRequest} />
       ) : (
         <>
           <h2 className="admin-section" style={{ marginTop: 0, borderTop: "none", paddingTop: 0 }}>

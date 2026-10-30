@@ -47,6 +47,8 @@ Protection in a sibling method cannot certify another method.
 - `DELETE app/api/social/rankings`
 - `PATCH app/api/admin/import-notes`
 - `PATCH app/api/admin/venue-corrections`
+- `PATCH app/api/admin/regular-nights`
+- `PATCH app/api/regular-nights`
 - `PATCH app/api/crawls/[slug]`
 - `PATCH app/api/profiles/[handle]/covers/[coverId]`
 - `PATCH app/api/identity/onboarding`
@@ -170,6 +172,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/social/videos/uploads`
 - `POST app/api/starter-packs/[slug]/follow`
 - `POST app/api/venue-corrections`
+- `POST app/api/regular-nights`
 - `POST app/api/venue-operators/claim`
 - `POST app/api/venue-photos`
 - `POST app/api/venue-submissions`
@@ -764,6 +767,45 @@ loss or a block; owner leave remains a durable conflict until ownership moves.
   DELETE CASCADE and no browser grant. Both admin verbs are `isModerator`-gated,
   and `resolved_by` records the named moderator role or `admin`. A hard store
   failure answers 503, never a fake success.
+
+### `app/api/regular-nights` and `app/api/admin/regular-nights` - a drinker adds a regular night
+
+- **Route / method:** `POST app/api/regular-nights/route.ts` takes one
+  multipart report: `venueId`, `kind` (`quiz`, `music`, `sport`, `comedy`,
+  `karaoke` or `other`), `weekday` (0 to 6, Sunday first), an optional
+  `startTime` like `20:00`, an optional note of up to 120 characters, and a
+  required `photo` of the board or the poster. `PATCH app/api/regular-nights/route.ts`
+  is "still on": a different signed-in account moves the report's expiry 90
+  days on, once per account per report (the 0200 still-on primary key is the
+  once; the reporter's own tap is 409). `PATCH app/api/admin/regular-nights/route.ts`
+  is the moderator verdict, `confirmed` on an open report or `hidden` on an open
+  or confirmed one, once; its `GET` is the queue with a signed photo URL. The
+  public `GET app/api/regular-nights` returns live rows only (open or
+  confirmed, not expired), with the reporter's current handle on an open row
+  and no account id or photo key on any.
+- **What it never writes:** a venue, a pin, opening hours, a price lane or a
+  what's-on listing. A report is a drinker's dated sighting, printed apart from
+  the sourced regular nights as "per a drinker, seen <date>".
+- **Validation:** `validateRegularNightReport` (`lib/regularNightReports.ts`),
+  shared with the form. The kind and the weekday are closed sets, the time is
+  `HH:MM`, a note over 120 characters is refused, never trimmed, and a report
+  with no photo is refused. The photo takes the shared owned-image journey
+  (`prepareUploadedImage`: type, size cap, magic bytes, EXIF strip). The venue
+  resolves through `resolveWritableVenueId`. Migration 0200's CHECKs hold the
+  kind, weekday, time, note length, photo key shape and status.
+- **Rate limit (boundary):** durable `isLimited` per profile + hashed IP
+  (`regular-night:${actor}:${ipHash}`) on every report, then ten reports an
+  hour per account (`regular-night-actor:${actor}`); "still on" is thirty an
+  hour per account. The moderator verdict is metered at 60 a minute per hashed
+  IP, and the public read at 60 a minute per hashed IP.
+- **Auth stance:** `resolveContributionIdentity` derives the reporter from the
+  session (sign_in_required, onboarding_required and the adult check answer
+  first); a body owner is ignored. Both 0200 tables key to `auth.users` with
+  ON DELETE CASCADE and no browser grant, and account deletion walks the
+  reporter's board-photo folder (`lib/accountOwnedObjects.ts`). Both admin
+  verbs are `isModerator`-gated. A hard store failure answers 503, never a
+  fake success, and a row that failed after its photo landed takes the photo
+  back out.
 
 ### `app/api/visit-reports` — structured Visit Reports (route 66)
 
