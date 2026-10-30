@@ -34,3 +34,21 @@ export function subscribeLegRouteOnMap(listener: () => void): () => void {
 export function legKeyFor(fromVenueId: string, toVenueId: string): string {
   return `${fromVenueId}>${toVenueId}`;
 }
+
+/**
+ * The chosen way, only while its leg is tonight's current leg on the map: from
+ * the stop before tonight's next stop to that next stop, in the order the map
+ * draws the plan (`routeIds`). Anything else draws nothing: a way kept from a
+ * leg the night has left, after the final stop (no next stop), with no plan,
+ * or on a crawl the reader built (the map then has no next stop for tonight).
+ */
+export function legRouteForCurrentLeg(
+  choice: LegRouteOnMap | null,
+  routeIds: readonly string[],
+  nextVenueId: string,
+): LegRouteOnMap | null {
+  if (!choice || !nextVenueId) return null;
+  const at = routeIds.indexOf(nextVenueId);
+  if (at < 1) return null;
+  return choice.legKey === legKeyFor(routeIds[at - 1]!, nextVenueId) ? choice : null;
+}

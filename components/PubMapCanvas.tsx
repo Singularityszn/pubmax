@@ -11,7 +11,7 @@ import { MAPLIBRE_WORKER_URL } from "@/lib/maplibreWorkerAssets";
 import { followMapPixelRatio, mapPixelRatio, probeWebGl2 } from "@/components/map/canvas/webgl";
 import { createPalMapMarker, palPinIsCheap, type PalMapMarker } from "@/components/map/canvas/palMarker";
 import { legRouteToLines } from "@/components/map/canvas/legRouteScene";
-import { readLegRouteOnMap, subscribeLegRouteOnMap } from "@/lib/legRouteOnMap";
+import { legRouteForCurrentLeg, readLegRouteOnMap, subscribeLegRouteOnMap } from "@/lib/legRouteOnMap";
 import { palLeadLine, palLeadPath } from "@/lib/palLead";
 import { crewPalLook, type CrewPal } from "@/lib/crewPals";
 import { palWalkPathFrom, palWalkStopsFromKey } from "@/components/map/canvas/palWalk";
@@ -4423,18 +4423,6 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     palMarkerRef.current?.perch(venue ? [venue.longitude, venue.latitude] : null, { cheap: palPinIsCheap(pin?.properties) });
   }, [routeCoordKey, routeIds, selectedVenueId, venues, venueSignals, favoritePint, drinkCategory, lensPrices, spoonsValue, mapReady, walkPals]);
 
-  // The way to the next stop the reader chose in Night Mode: drawn where the
-  // reader looks, never flown to.
-  useEffect(() => {
-    const sync = () => {
-      legRouteRef.current = legRouteToLines(readLegRouteOnMap()?.option ?? null);
-      const source = mapRef.current?.getSource("leg-route") as maplibregl.GeoJSONSource | undefined;
-      source?.setData(legRouteRef.current);
-    };
-    sync();
-    return subscribeLegRouteOnMap(sync);
-  }, [mapReady]);
-
   // Tonight's next stop: the reader's Pal waits beside it and, tapped there,
   // opens it the way a tapped route stop does.
   // The crew's Pals wait there with it, as pictures, never buttons.
@@ -4457,11 +4445,23 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   // next-stop button. A way to anywhere but tonight's next stop, or no way,
   // hands the Pal back to the plan's walk. Crew Pals keep the plan's walk.
   const legChoice = useSyncExternalStore(subscribeLegRouteOnMap, readLegRouteOnMap, () => null);
+  // The way to the next stop the reader chose in Night Mode, only while its leg
+  // is tonight's current leg on the map (legRouteForCurrentLeg): drawn where the
+  // reader looks, never flown to.
+  const shownLeg = useMemo(
+    () => legRouteForCurrentLeg(legChoice, routeIds.split(","), palNextVenueId),
+    [legChoice, routeIds, palNextVenueId],
+  );
+  useEffect(() => {
+    legRouteRef.current = legRouteToLines(shownLeg?.option ?? null);
+    const source = mapRef.current?.getSource("leg-route") as maplibregl.GeoJSONSource | undefined;
+    source?.setData(legRouteRef.current);
+  }, [shownLeg, mapReady]);
   useEffect(() => {
     const marker = palMarkerRef.current;
     if (!mapReady || !marker) return;
-    const path = legChoice ? palLeadPath(legChoice.option) : [];
-    const leads = legChoice !== null && palNextVenueId !== "" && legChoice.legKey.endsWith(`>${palNextVenueId}`) && path.length > 1;
+    const path = shownLeg ? palLeadPath(shownLeg.option) : [];
+    const leads = shownLeg !== null && path.length > 1;
     if (!leads) {
       if (!palLeadKeyRef.current) return;
       palLeadKeyRef.current = null;
@@ -4470,13 +4470,13 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       marker.nextStop(palNextRef.current);
       return;
     }
-    const key = `lead:${legChoice.legKey}:${legChoice.option.id}`;
+    const key = `lead:${shownLeg.legKey}:${shownLeg.option.id}`;
     if (palLeadKeyRef.current === key) return;
     palLeadKeyRef.current = key;
     marker.walk({ key, stops: [path[0]!, path.at(-1)!], path, road: true, cheer: true });
     marker.nextStop({ stop: 1, name: palNextName, open: () => onRouteStopClickRef.current(palNextVenueId) });
-    marker.say(palLeadLine(legChoice.option));
-  }, [legChoice, palNextVenueId, palNextName, mapReady]);
+    marker.say(palLeadLine(shownLeg.option));
+  }, [shownLeg, palNextVenueId, palNextName, mapReady]);
 
   // The crew's Pals: made when the crew read lands, walked on the route the
   // reader's own Pal is on, and gone with the plan's route.

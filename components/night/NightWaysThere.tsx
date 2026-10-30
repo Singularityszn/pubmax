@@ -2,7 +2,7 @@
 
 import { Bus, Footprints, TrainFront } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import {
   formatLegFare,
@@ -53,37 +53,57 @@ export default function NightWaysThere({ legKey, from, to }: { legKey: string; f
   const pathname = usePathname();
   const query = legQuery(from, to);
   const open = ask.state !== "closed";
+  // The one question in flight. Closing the list, or a new leg, takes it back,
+  // so an answer that lands late can never open the list again.
+  const requestRef = useRef<AbortController | null>(null);
+  const askedAttemptRef = useRef(0);
+  const close = () => {
+    requestRef.current?.abort();
+    requestRef.current = null;
+    setAsk({ state: "closed" });
+  };
 
   // A new leg (the night moved on) starts closed, and its old route leaves the map.
   useEffect(() => {
+    requestRef.current?.abort();
+    requestRef.current = null;
     queueMicrotask(() => setAsk({ state: "closed" }));
     const shown = readLegRouteOnMap();
     if (shown && shown.legKey !== legKey) showLegRouteOnMap(null);
   }, [legKey]);
 
+  // Asks once per opening or "Ask again" (`attempt`), never because the leg changed.
   useEffect(() => {
-    if (!open || attempt === 0) return;
+    if (attempt === askedAttemptRef.current) return;
+    askedAttemptRef.current = attempt;
     const controller = new AbortController();
-    queueMicrotask(() => setAsk({ state: "loading" }));
+    requestRef.current?.abort();
+    requestRef.current = controller;
+    const current = () => !controller.signal.aborted && requestRef.current === controller;
+    queueMicrotask(() => {
+      if (current()) setAsk({ state: "loading" });
+    });
     fetch(`/api/leg-options?${query}`, { signal: controller.signal, cache: "no-store" })
       .then((response) => (response.ok ? (response.json() as Promise<LegOptionsResponse>) : null))
       .then((body) => {
-        if (controller.signal.aborted) return;
+        if (!current()) return;
         if (!body) setAsk({ state: "failed" });
         else if (body.status !== "ok" || body.options.length === 0) setAsk({ state: "none" });
         else setAsk({ state: "ready", options: body.options });
       })
       .catch(() => {
-        if (!controller.signal.aborted) setAsk({ state: "failed" });
+        if (current()) setAsk({ state: "failed" });
       });
-    return () => controller.abort();
-    // `open` turns on with the first attempt; a retry bumps `attempt`.
+    // `query` is read when an attempt starts; a new leg takes the question back above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [attempt, query]);
+  }, [attempt]);
+
+  // Leaving takes the question back too.
+  useEffect(() => () => requestRef.current?.abort(), []);
 
   const toggle = () => {
     if (open) {
-      setAsk({ state: "closed" });
+      close();
       return;
     }
     setAsk({ state: "loading" });
@@ -153,7 +173,12 @@ export default function NightWaysThere({ legKey, from, to }: { legKey: string; f
           })}
         </ul>
       ) : null}
-      {ask.state === "ready" ? <p className="nightWays__source">Times and fares from TfL, if you leave now.</p> : null}
+      {ask.state === "ready" ? (
+        <p className="nightWays__source">
+          Times and fares from TfL, if you leave now.
+          {ask.options.some((option) => option.estimate) ? " A straight-line time is our own estimate." : ""}
+        </p>
+      ) : null}
     </div>
   );
 }

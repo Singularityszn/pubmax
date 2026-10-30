@@ -54,7 +54,7 @@ import {
 } from "@/lib/analyticsEvents";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
-import { legKeyFor } from "@/lib/legRouteOnMap";
+import { legKeyFor, readLegRouteOnMap, showLegRouteOnMap } from "@/lib/legRouteOnMap";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import { discardBody } from "@/lib/responseBody";
 import type { PlanGetInReportDTO, PlanGetInStopDTO } from "@/lib/planGetIn";
@@ -695,6 +695,13 @@ function NightModeSheet({
       }),
     [coords, lastTrain, plan, report, stopIndex],
   );
+
+  // At the final stop there is no next leg, so a way chosen for the last one
+  // leaves the map (the map also draws one only for tonight's current leg).
+  const atFinalStop = currentStop !== null && currentStop !== undefined && !nextStop;
+  useEffect(() => {
+    if (atFinalStop && readLegRouteOnMap()) showLegRouteOnMap(null);
+  }, [atFinalStop]);
 
   useEffect(() => {
     const area = plan?.context?.nightArea;

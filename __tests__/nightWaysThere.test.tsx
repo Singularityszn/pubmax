@@ -12,7 +12,7 @@ vi.mock("next/navigation", () => ({
 import { legPartColour, legRouteToLines } from "@/components/map/canvas/legRouteScene";
 import NightWaysThere from "@/components/night/NightWaysThere";
 import type { LegOption, LegOptionsResponse } from "@/lib/legOptions";
-import { legKeyFor, readLegRouteOnMap, showLegRouteOnMap } from "@/lib/legRouteOnMap";
+import { legKeyFor, legRouteForCurrentLeg, readLegRouteOnMap, showLegRouteOnMap } from "@/lib/legRouteOnMap";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -55,6 +55,32 @@ describe("the chosen way on the map", () => {
     ]);
     expect(legRouteToLines(walk).features[0]!.properties).toEqual({ walk: true, estimate: true, colour: "" });
     expect(legRouteToLines(null).features).toEqual([]);
+  });
+});
+
+describe("which chosen way the map draws", () => {
+  const plan = ["venue-a", "venue-b", "venue-c"];
+  const chosen = { legKey: legKeyFor("venue-a", "venue-b"), option: tube };
+
+  it("draws the chosen way only on tonight's current leg", () => {
+    expect(legRouteForCurrentLeg(chosen, plan, "venue-b")).toBe(chosen);
+  });
+
+  it("draws nothing once the night has left that leg, or reached its final stop", () => {
+    // Marked here at b: the next stop is c, and the a to b way is history.
+    expect(legRouteForCurrentLeg(chosen, plan, "venue-c")).toBeNull();
+    // At the final stop there is no next stop at all.
+    expect(legRouteForCurrentLeg({ legKey: legKeyFor("venue-b", "venue-c"), option: tube }, plan, "")).toBeNull();
+  });
+
+  it("draws nothing with no plan on the map, or on a crawl the reader built", () => {
+    // A cleared plan, and a mapped built crawl, both leave the map with no next stop for tonight.
+    expect(legRouteForCurrentLeg(chosen, [], "")).toBeNull();
+    expect(legRouteForCurrentLeg(chosen, plan, "")).toBeNull();
+    // A next stop the map's route does not hold, or holds first, names no leg.
+    expect(legRouteForCurrentLeg(chosen, ["venue-x", "venue-y"], "venue-b")).toBeNull();
+    expect(legRouteForCurrentLeg(chosen, plan, "venue-a")).toBeNull();
+    expect(legRouteForCurrentLeg(null, plan, "venue-b")).toBeNull();
   });
 });
 
@@ -111,6 +137,46 @@ describe("Ways to get there", () => {
     expect(rows()[0]!.getAttribute("aria-label")).toBe("Tube · Central then Tube · Hammersmith & City, 24 min, £3.00, fastest, show on the map");
     expect(rows()[1]!.getAttribute("aria-label")).toBe("Walk, about 26 min, Free, cheapest, show on the map");
     expect(host.textContent).toContain("Times and fares from TfL, if you leave now.");
+    // The walk here is a straight-line estimate, and the footer says whose it is.
+    expect(host.textContent).toContain("A straight-line time is our own estimate.");
+  });
+
+  it("names no estimate of its own when every time is TfL's", async () => {
+    answer = { status: 200, body: { status: "ok", options: [tube, bus] } };
+    await render();
+    await act(async () => toggle().click());
+    await settle();
+    expect(host.querySelector(".nightWays__source")!.textContent).toBe("Times and fares from TfL, if you leave now.");
+  });
+
+  it("stays closed when TfL answers after the reader closed the list, or after the night moved on", async () => {
+    const pending: Array<() => void> = [];
+    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      asked.push(String(input));
+      return new Promise<Response>((resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+        pending.push(() => resolve(Response.json({ status: "ok", options: [tube, walk] })));
+      });
+    }));
+    await render();
+    await act(async () => toggle().click());
+    expect(host.textContent).toContain("Asking TfL");
+    // Closed before TfL answers: the late answer opens nothing.
+    await act(async () => toggle().click());
+    await act(async () => pending.shift()!());
+    await settle();
+    expect(toggle().getAttribute("aria-expanded")).toBe("false");
+    expect(rows()).toHaveLength(0);
+
+    // Opened again, then the night moves on to the next leg before TfL answers.
+    await act(async () => toggle().click());
+    await act(async () => root!.render(createElement(NightWaysThere, { legKey: legKeyFor("venue-b", "venue-c"), from: to, to: from })));
+    await act(async () => pending.shift()!());
+    await settle();
+    expect(toggle().getAttribute("aria-expanded")).toBe("false");
+    expect(rows()).toHaveLength(0);
+    // Only the two openings asked; the new leg asks nothing until it is opened.
+    expect(asked).toHaveLength(2);
   });
 
   it("draws the chosen way on the map, takes the reader there, and clears it on a second tap", async () => {
