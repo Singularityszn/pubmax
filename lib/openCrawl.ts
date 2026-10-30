@@ -25,10 +25,10 @@ export const OPEN_CRAWL_CAPACITY_MAX = CREW_MAX_MEMBERS;
 export const OPEN_CRAWL_CAPACITY_DEFAULT = 8;
 export const OPEN_CRAWL_DESCRIPTION_MAX = 140;
 /** "Crawls you can join this week" looks this far ahead. */
-export const OPEN_CRAWL_JOIN_WINDOW_DAYS = 7;
+const OPEN_CRAWL_JOIN_WINDOW_DAYS = 7;
 export const OPEN_CRAWL_LIST_LIMIT = 20;
 /** "Host this on a date" offers today to this many days ahead. */
-export const HOST_ON_DATE_MAX_DAYS = 60;
+const HOST_ON_DATE_MAX_DAYS = 60;
 export const HOST_ON_DATE_DEFAULT_TIME = "19:00";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -36,7 +36,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 export const OPEN_CRAWL_CAPACITY_LINE =
   `Pick a crew size between ${OPEN_CRAWL_CAPACITY_MIN} and ${OPEN_CRAWL_CAPACITY_MAX}.`;
 export const OPEN_CRAWL_MEETING_LINE = "Meet at one of the plan's own pubs.";
-export const OPEN_CRAWL_DESCRIPTION_EMPTY_LINE = "Add one line so people know what the night is.";
+const OPEN_CRAWL_DESCRIPTION_EMPTY_LINE = "Add one line so people know what the night is.";
 export const OPEN_CRAWL_DESCRIPTION_LONG_LINE =
   `Keep it to one line, ${OPEN_CRAWL_DESCRIPTION_MAX} characters at most.`;
 export const OPEN_CRAWL_DESCRIPTION_CONTACT_LINE =
@@ -61,7 +61,7 @@ export const HOST_ON_DATE_NO_STOPS_LINE = "This crawl has no listed pubs to plan
  * voice bans the first three for the same reason (docs/VOICE.md, the Pal
  * copy test). Matched as whole words, case-insensitive.
  */
-export const OPEN_CRAWL_REFUSED_WORDS = [
+const OPEN_CRAWL_REFUSED_WORDS = [
   "carnage",
   "sesh",
   "session",
@@ -115,7 +115,7 @@ export function checkOpenCrawlDescription(value: unknown): OpenCrawlDescriptionR
   return { ok: true, text };
 }
 
-export function isOpenCrawlCapacity(value: unknown): value is number {
+function isOpenCrawlCapacity(value: unknown): value is number {
   return (
     typeof value === "number" &&
     Number.isInteger(value) &&
@@ -126,7 +126,7 @@ export function isOpenCrawlCapacity(value: unknown): value is number {
 
 export type OpenCrawlStop = { venueId: string; venueName: string; position: number };
 
-export type OpenCrawlInput = {
+type OpenCrawlInput = {
   capacity: number;
   meetingVenueId: string;
   description: string;

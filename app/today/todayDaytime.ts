@@ -30,17 +30,17 @@ import { venueMapUrl } from "@/lib/venueMapUrl";
 import type { Venue } from "@/lib/venues";
 
 /** Three rows a section: enough to choose from, short enough to read in a queue. */
-export const TODAY_DAYTIME_ROWS = 3;
+const TODAY_DAYTIME_ROWS = 3;
 
 /** How far a lunch pub may be from the patch's heart: a short walk. */
-export const TODAY_LUNCH_RADIUS_KM = 1.2;
+const TODAY_LUNCH_RADIUS_KM = 1.2;
 
 const TODAY_PATCHES: readonly NightPatch[] = [...NIGHT_PATCHES, CENTRAL_PATCH];
 
 /** A module answers for one patch; the index holds one per patch that has rows. */
 type PatchModule<Row> = { patchId: string; areaLabel: string; rows: Row[] };
 
-export type TodayWorkSpot = {
+type TodayWorkSpot = {
   id: string;
   name: string;
   kindLabel: string;
@@ -55,7 +55,7 @@ export type TodayWorkSpotsModule = PatchModule<TodayWorkSpot> & {
   checkedCaption: string;
 };
 
-export type TodayLunchPub = {
+type TodayLunchPub = {
   id: string;
   name: string;
   mapHref: Route;
@@ -68,7 +68,7 @@ export type TodayLunchPub = {
 
 export type TodayLunchModule = PatchModule<TodayLunchPub>;
 
-export type TodayCoffeeRow = {
+type TodayCoffeeRow = {
   venueId: string;
   name: string;
   drinkLabel: string;
@@ -87,7 +87,6 @@ export type TodayCoffeeModule = {
 export type TodayWorkSpotsIndex = Record<string, TodayWorkSpotsModule>;
 export type TodayLunchIndex = Record<string, TodayLunchModule>;
 
-export { todayPatchModule } from "./todayPatch";
 
 /**
  * Work spots around every patch, ranked by the /near Work spots rule

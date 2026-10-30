@@ -31,7 +31,7 @@ type LoadState =
   | { status: "degraded" }
   | { status: "ready"; crawls: OpenCrawlListing[] };
 
-export const ASK_TO_JOIN_LABEL = "Ask to join";
+const ASK_TO_JOIN_LABEL = "Ask to join";
 
 const WHEN = new Intl.DateTimeFormat("en-GB", {
   timeZone: "Europe/London",

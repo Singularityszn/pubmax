@@ -72,7 +72,7 @@ function positiveFigure(value: unknown): value is number {
 }
 
 /** The pub's listed pint, from the one price precedence, or null. */
-export function listedPintFor(venue: Venue, now: number = Date.now()): RoundListedPrice | null {
+function listedPintFor(venue: Venue, now: number = Date.now()): RoundListedPrice | null {
   const lane = venuePriceLane(venue, null, venueSourcedPrice(venue), venueBundlePrices(venue), null, null, null, now);
   if (!lane) return null;
   if (lane.lane === "sourced") {
@@ -126,7 +126,7 @@ export function listedMenuDrinkFor(
 }
 
 /** The listed figure for one choice at one pub, or null. */
-export function listedPriceForUsualDrink(
+function listedPriceForUsualDrink(
   venue: Venue,
   drink: PlanUsualDrink,
   now: number = Date.now(),

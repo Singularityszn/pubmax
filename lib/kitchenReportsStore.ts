@@ -41,7 +41,7 @@ const MAX_OWNER_ROWS = 200;
 
 type KitchenTapInput = { venueId: string; state: KitchenState; userId: string };
 
-export type KitchenTapResult =
+type KitchenTapResult =
   | { outcome: "reported"; report: KitchenReport }
   | { outcome: "confirmed"; report: KitchenReport }
   | { outcome: "own" }

@@ -55,7 +55,7 @@ import { socialRelationshipBetweenProfiles } from "@/lib/socialRelationships.ser
 import { isSupabaseConfigured, requireDynamicSupabaseAdmin } from "@/lib/supabase";
 import { selectStore } from "@/lib/storeBackend";
 
-export const PINT_DROP_WITH_TAGS_TABLE = "pint_drop_with_tags" as const;
+const PINT_DROP_WITH_TAGS_TABLE = "pint_drop_with_tags" as const;
 
 /**
  * `accountId` is the VERIFIED AUTH USER ID (`profiles.user_id`), the one
@@ -66,7 +66,7 @@ export const PINT_DROP_WITH_TAGS_TABLE = "pint_drop_with_tags" as const;
  */
 export type WithTagActor = { profileId: string; handle: string; accountId?: string };
 
-export type WithTagRow = {
+type WithTagRow = {
   id: string;
   /** Exactly one of dropId and diaryEntryId is set. */
   dropId: string | null;
@@ -80,11 +80,11 @@ export type WithTagRow = {
   decidedAt: string | null;
 };
 
-export type WithTagLane = "proposed" | "approved";
-export type WithTagAction = "approve" | "decline" | "withdraw" | "cancel";
+type WithTagLane = "proposed" | "approved";
+type WithTagAction = "approve" | "decline" | "withdraw" | "cancel";
 
 /** One item in the tagged person's inbox. */
-export type WithTagInboxItem = {
+type WithTagInboxItem = {
   id: string;
   kind: "with";
   /** What the tag sits on. A diary entry's id never leaves the owner. */
@@ -97,7 +97,7 @@ export type WithTagInboxItem = {
   createdAt: string;
 };
 
-export type WithTagInboxPage = { proposals: WithTagInboxItem[]; nextCursor: string | null };
+type WithTagInboxPage = { proposals: WithTagInboxItem[]; nextCursor: string | null };
 
 export type WithTagErrorKind = "not_owner" | "not_allowed" | "invalid" | "unavailable";
 
@@ -210,9 +210,9 @@ export type PintDropWithTagsStore = {
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const MAX_SUMMARY_DROPS = 60;
 /** A diary is read whole by its owner, so its cap is higher than one pub's drops. */
-export const MAX_DIARY_SUMMARY_ENTRIES = 500;
+const MAX_DIARY_SUMMARY_ENTRIES = 500;
 
-export function isWithTagId(value: unknown): value is string {
+function isWithTagId(value: unknown): value is string {
   return typeof value === "string" && UUID_RE.test(value);
 }
 
@@ -657,7 +657,7 @@ function unavailable(error: { message?: string } | null): never {
   throw new WithTagError(error?.message || "Tags are unavailable right now.", "unavailable");
 }
 
-export const supabaseWithTagRows: WithTagRows = {
+const supabaseWithTagRows: WithTagRows = {
   async insertIfAbsent(row) {
     const { data, error } = await requireDynamicSupabaseAdmin()
       .from(PINT_DROP_WITH_TAGS_TABLE)

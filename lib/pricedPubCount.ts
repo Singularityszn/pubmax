@@ -7,10 +7,10 @@
 //
 // Every page now reads this module and names its base in these words:
 //
-//   - `pricedPubCount` answers how many pubs are in OUR LONDON PUB LIST and how
-//     many of them have a pint price on record, from any source. It needs the
-//     menu and update packs, so it is read by the dynamic pages (/about,
-//     /pint-index), never by the prerendered landing.
+//   - `pricedPubCountFromCoverage` answers how many pubs are in OUR LONDON
+//     PUB LIST and how many of them have a pint price on record, from any
+//     source. It needs the menu and update packs, so it is read by the
+//     dynamic pages (/about, /pint-index), never by the prerendered landing.
 //   - `listedPriceCohort` is the set an AVERAGE is taken over: each pub in the
 //     same list that carries its own listed cheapest pint. A menu row or a
 //     drinker's update has no "cheapest pint" of the pub, so it stays out of
@@ -18,14 +18,12 @@
 //
 // Pure: no I/O. `lib/pricedPubCount.server.ts` wires the real packs.
 
-import type { DrinkPriceUpdate } from "@/lib/drinkPriceUpdates";
-import { listedDrinkCoverage, type ListedDrinkCoverage } from "@/lib/listedDrinkCoverage";
-import type { UkPriceBundleRow } from "@/lib/ukPriceBundle";
+import type { ListedDrinkCoverage } from "@/lib/listedDrinkCoverage";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import type { Venue } from "@/lib/venues";
 import { PUB_LIST_BASE } from "@/lib/pubListBase";
 
-export { averageBasePhrase, PUB_LIST_BASE } from "@/lib/pubListBase";
+export { averageBasePhrase } from "@/lib/pubListBase";
 
 export type PricedPubCount = {
   /** Pubs in our London pub list. */
@@ -34,16 +32,7 @@ export type PricedPubCount = {
   pricedPubs: number;
 };
 
-export function pricedPubCount(
-  venues: readonly Venue[],
-  updates: readonly DrinkPriceUpdate[],
-  bundleByVenue: ReadonlyMap<string, readonly UkPriceBundleRow[]> = new Map(),
-  now: number = Date.now(),
-): PricedPubCount {
-  return pricedPubCountFromCoverage(listedDrinkCoverage(venues, updates, bundleByVenue, now));
-}
-
-/** The same answer, read off a coverage the caller already holds. */
+/** The answer, read off a coverage `listedDrinkCoverage` already counted. */
 export function pricedPubCountFromCoverage(coverage: ListedDrinkCoverage): PricedPubCount {
   return { listPubs: coverage.total, pricedPubs: coverage.pricedPubs };
 }

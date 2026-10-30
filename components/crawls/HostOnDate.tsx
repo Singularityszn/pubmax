@@ -35,7 +35,7 @@ import "./hostOnDate.css";
 // door is for a signed-in viewer. A signed-out viewer gets the sign-in line,
 // read through the one session seam: a null user is not sign-out.
 
-export const HOST_ON_DATE_LABEL = "Host this on a date";
+const HOST_ON_DATE_LABEL = "Host this on a date";
 
 export default function HostOnDate({
   title,

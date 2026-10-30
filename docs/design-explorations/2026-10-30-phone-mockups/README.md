@@ -46,7 +46,7 @@ Before and after: 5.80:1 dark and 5.59:1 light for the peek line, unchanged.
 
 ## Contrast sweep
 
-`node docs/design-explorations/2026-10-30-phone-mockups/contrast.mjs` prints this table. It reads the token values from `app/globals.css` and `app/theme.css` on every run, resolves `var()` and `color-mix()` the way a browser computes a custom property, and exits non-zero when a live pair is under its bar. Add `--hex` for the resolved colours. The bar is 4.5:1 for body text and 3:1 for large text. The venue sheet is translucent over the map; it is measured as `--sheet-material-solid`.
+These figures were measured on 30 October 2026 with a one-off script, which is not kept. It read the token values from `app/globals.css` and `app/theme.css` and resolved `var()` and `color-mix()` the way a browser computes a custom property. The bar is 4.5:1 for body text and 3:1 for large text. The venue sheet is translucent over the map; it is measured as `--sheet-material-solid`.
 
 Two notes on what the script found while resolving:
 

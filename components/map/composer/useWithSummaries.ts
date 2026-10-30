@@ -12,7 +12,7 @@ import { parseWithSummary, type PintDropWithSummary } from "@/lib/pintDropWithTa
 // their own drops' tags (app/api/social/tags/with/route.ts).
 
 /** The route's cap on one read (MAX_SUMMARY_DROPS in the store). */
-export const WITH_SUMMARY_BATCH = 60;
+const WITH_SUMMARY_BATCH = 60;
 
 const DROP_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

@@ -50,7 +50,7 @@ export type TonightLastTrainView =
   | { status: "none" };
 
 /** How many regular nights the card lists before the rest fold away. */
-export const TONIGHT_REGULAR_NIGHTS_SHOWN = 3;
+const TONIGHT_REGULAR_NIGHTS_SHOWN = 3;
 
 /** The line the On tonight card says when the read holds no confirmed listing. */
 export const TONIGHT_NO_CONFIRMED_LISTING_LINE = "No confirmed listings for tonight yet.";
@@ -140,7 +140,7 @@ function DrinkerNightRow({ night }: { night: DrinkerRegularNight }) {
  * the day that source was read. Nights drinkers added sit in a list of their
  * own under it, each "per a drinker, seen <date>".
  */
-export function TonightRegularNights({ view }: { view: TonightRegularNightsView }) {
+function TonightRegularNights({ view }: { view: TonightRegularNightsView }) {
   if (view.status === "loading") {
     return <p className="tonightAnswerMeta" role="status">Checking the regular nights.</p>;
   }

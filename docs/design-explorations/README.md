@@ -124,4 +124,4 @@ Vocabulary stays singular: *Plan* (not “trip”/“itinerary” mixed), *Stop*
 
 ## Phone mockups and contrast sweep (30 October 2026)
 
-[`2026-10-30-phone-mockups/`](./2026-10-30-phone-mockups/README.md) answers section 5 of that record: three 390 px phone mockups, one per direction (V1 answer card, V2 night table, V3 field guide), each with the venue sheet, Tonight, the locked plan and the profile in light and dark. The same folder holds a measured contrast sweep of the CSS rounds 1 to 3 added (`contrast.mjs`), the micro-fix 11 measurement and the micro-fix 10 offsets.
+[`2026-10-30-phone-mockups/`](./2026-10-30-phone-mockups/README.md) answers section 5 of that record: three 390 px phone mockups, one per direction (V1 answer card, V2 night table, V3 field guide), each with the venue sheet, Tonight, the locked plan and the profile in light and dark. The same folder holds a measured contrast sweep of the CSS rounds 1 to 3 added, the micro-fix 11 measurement and the micro-fix 10 offsets.

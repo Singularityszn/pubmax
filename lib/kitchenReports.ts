@@ -97,7 +97,7 @@ export function parseKitchenState(value: unknown): KitchenState | null {
 }
 
 /** Whether a report may still be read: inside the 90 minute window, and not from the future. */
-export function isFreshKitchenReport(reportedAt: string, now: number): boolean {
+function isFreshKitchenReport(reportedAt: string, now: number): boolean {
   const at = Date.parse(reportedAt);
   if (!Number.isFinite(at)) return false;
   const age = now - at;

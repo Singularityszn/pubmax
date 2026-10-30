@@ -16,10 +16,10 @@ import { LONDON_BOROUGHS, slugifyBorough } from "@/lib/boroughs";
 export const BOROUGH_BINGO_TOTAL = LONDON_BOROUGHS.length;
 
 /** The three marks a share card exists for: a third, two thirds, all of London. */
-export const BOROUGH_BINGO_MARKS = [11, 22, 33] as const;
+const BOROUGH_BINGO_MARKS = [11, 22, 33] as const;
 export type BoroughBingoMark = (typeof BOROUGH_BINGO_MARKS)[number];
 
-export type BoroughBingoSquare = { name: string; slug: string; filled: boolean };
+type BoroughBingoSquare = { name: string; slug: string; filled: boolean };
 
 export type BoroughBingoCard = {
   /** All 33 squares in alphabetical order, so a square never moves. */

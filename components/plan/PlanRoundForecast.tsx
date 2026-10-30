@@ -93,7 +93,7 @@ function readDay(observedAt: string): string | null {
 }
 
 /** "Sam: Wine (175 ml) £7.50, listed 3 Oct" or "Sam: Soft drink, not listed". */
-export function roundLineText(line: RoundLine): string {
+function roundLineText(line: RoundLine): string {
   const label = PLAN_USUAL_DRINK_LABEL[line.drink];
   if (!line.price) return `${line.memberName}: ${label}, ${PLAN_ROUND_NOT_LISTED}`;
   const day = readDay(line.price.observedAt);

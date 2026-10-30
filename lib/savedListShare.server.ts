@@ -21,7 +21,7 @@ import { cleanListType, savedPubsStore, type SavedPubDTO } from "@/lib/savedPubs
 import type { VenueKind } from "@/lib/venues";
 
 /** How many pubs the share card names. */
-export const SAVED_LIST_CARD_PUBS = 5;
+const SAVED_LIST_CARD_PUBS = 5;
 
 export type SavedListCardPub = {
   venueId: string;

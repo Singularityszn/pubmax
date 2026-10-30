@@ -30,7 +30,7 @@ import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 // ink.
 
 /** The id the crew block carries, so "Who's in" lands on it. */
-export const PLAN_CREW_ANCHOR = "crew";
+const PLAN_CREW_ANCHOR = "crew";
 
 /**
  * When the night starts, in the words a person would text: "Friday, 7pm",

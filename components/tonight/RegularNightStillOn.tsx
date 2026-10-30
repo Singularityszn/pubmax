@@ -26,7 +26,7 @@ const FAILED = "Couldn't send that. Try again.";
 type Phase = { kind: "idle" } | { kind: "sending" } | { kind: "said"; line: string; tone: "thanks" | "refused" };
 
 /** Whether this reader may be offered "Still on" for this row. */
-export function stillOnOffered(
+function stillOnOffered(
   night: Pick<DrinkerRegularNight, "own" | "handle">,
   viewer: { signedIn: boolean; identityResolved: boolean; handle: string | null },
 ): boolean {

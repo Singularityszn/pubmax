@@ -31,9 +31,9 @@ export const SHARE_TARGET_PATH = "/share";
 
 /** The `share_target.params` names in public/manifest.webmanifest. */
 export const SHARE_TARGET_PARAMS = ["title", "text", "url"] as const;
-export type ShareTargetParam = (typeof SHARE_TARGET_PARAMS)[number];
+type ShareTargetParam = (typeof SHARE_TARGET_PARAMS)[number];
 
-export const SHARED_PASTE_STORAGE_KEY = "pubmax_shared_wanted_paste_v1";
+const SHARED_PASTE_STORAGE_KEY = "pubmax_shared_wanted_paste_v1";
 export const SHARED_PASTE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 /** The sign-in door hands the reader back to the share page. */

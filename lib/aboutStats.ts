@@ -37,8 +37,8 @@ export type AboutStats = {
   /**
    * Mean of each tracked pub's cheapest pint (GBP, rounded to pence), or null
    * when none. The SAME cohort and the same arithmetic as the landing's
-   * "average listed pint across N pubs" (`pubCheapestPrices` and
-   * `averagePriceGbp` in lib/pintSavings.ts), taken over the same
+   * "average listed pint across N pubs" (`listedPriceCohortPrices` in
+   * lib/pricedPubCount.ts and `averagePriceGbp` in lib/pintSavings.ts), taken over the same
    * `pubsTracked` pubs, so the two pages print one number. It used to be the
    * mean of every reading, which counted a pub with five pints five times and
    * printed £5.72 beside the landing's £5.54 (site review, 18 Oct 2026).

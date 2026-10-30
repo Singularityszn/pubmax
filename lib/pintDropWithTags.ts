@@ -19,7 +19,7 @@ import { normalizeHandle } from "@/lib/handleNormalize";
 export const WITH_TAG_MAX = 6;
 
 /** The tag kinds the inbox reads. "photo" is the Social post photo tag. */
-export const SOCIAL_TAG_KINDS = ["photo", "with"] as const;
+const SOCIAL_TAG_KINDS = ["photo", "with"] as const;
 export type SocialTagKind = (typeof SOCIAL_TAG_KINDS)[number];
 
 export function isSocialTagKind(value: unknown): value is SocialTagKind {
@@ -27,8 +27,7 @@ export function isSocialTagKind(value: unknown): value is SocialTagKind {
 }
 
 /** The five states a with-tag row can hold, copied from the photo tags. */
-export const WITH_TAG_STATES = ["proposed", "approved", "declined", "withdrawn", "cancelled"] as const;
-export type WithTagState = (typeof WITH_TAG_STATES)[number];
+export type WithTagState = "proposed" | "approved" | "declined" | "withdrawn" | "cancelled";
 
 /** What a reader of a drop is told about its tags. Handles are approved only. */
 export type PintDropWithSummary = {

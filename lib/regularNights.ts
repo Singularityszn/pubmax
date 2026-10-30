@@ -42,9 +42,9 @@ export const REGULAR_NIGHT_SOURCE_PATHS = {
   sport: "/data/whats_on/sport_attributes.json",
 } as const;
 
-export type RegularNightKind = "quiz" | "music" | "sport";
+type RegularNightKind = "quiz" | "music" | "sport";
 
-export const REGULAR_NIGHT_WEEKDAYS = [
+const REGULAR_NIGHT_WEEKDAYS = [
   "Sunday",
   "Monday",
   "Tuesday",
@@ -328,7 +328,7 @@ function oldestRead(rows: readonly RegularNight[]): string | null {
 }
 
 /** How many sport pubs a surface lists before it says how many more. */
-export const REGULAR_SPORT_SHOWN = 3;
+const REGULAR_SPORT_SHOWN = 3;
 
 /**
  * The drinker rows a `/api/regular-nights` answer carries, checked again here:
@@ -429,7 +429,7 @@ export const DRINKER_REGULAR_NIGHTS_LEAD =
 export const DRINKER_REGULAR_NIGHTS_HEADING = "From drinkers";
 
 /** "read 18 July 2026", the read date a regular night always carries. */
-export function regularNightReadLabel(readAt: string): string {
+function regularNightReadLabel(readAt: string): string {
   return `read ${formatObservedDate(new Date(readAt))}`;
 }
 

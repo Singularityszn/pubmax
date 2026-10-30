@@ -259,13 +259,6 @@ export const NON_PINT_PRICE_REACH_LINE =
   "Kept on this pub’s page with its measure. Nothing but a pint sets a pint price.";
 
 /**
- * What a listed row with no stated serving reads as. A harvested wine row
- * whose source printed no size stays exactly that: its size is never guessed
- * from the drink's name, because "House red" says nothing about the glass.
- */
-export const SIZE_NOT_STATED_LINE = "Size not stated";
-
-/**
  * The measure a SOURCE'S OWN serving field states, or null when it states
  * none this set can name.
  *

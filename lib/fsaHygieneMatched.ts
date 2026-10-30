@@ -41,11 +41,6 @@ export function holdFsaHygieneBadge(venueId: string): () => void {
   };
 }
 
-/** True while an FSA badge for `venueId` is rendered. */
-export function fsaHygieneMatched(venueId: string): boolean {
-  return shown.has(venueId);
-}
-
 function subscribe(listener: () => void): () => void {
   listeners.add(listener);
   return () => {

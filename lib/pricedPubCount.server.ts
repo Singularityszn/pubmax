@@ -1,7 +1,7 @@
 import "server-only";
 
-// The loader behind `pricedPubCount` (lib/pricedPubCount.ts). /about and
-// /pint-index both call THIS, so the two pages print one number from one read
+// The loader behind `pricedPubCountFromCoverage` (lib/pricedPubCount.ts).
+// /about and /pint-index both call THIS, so the two pages print one number from one read
 // of the pub list, the drink-price updates and the published-menu bundle.
 
 import { listedDrinkCoverage, type ListedDrinkCoverage } from "@/lib/listedDrinkCoverage";

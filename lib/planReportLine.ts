@@ -17,7 +17,7 @@
 // line and the card prints none.
 
 /** The report codes the card prints, in this order. */
-export const PLAN_REPORT_LINE_CODES = ["short_walks", "tube_stations", "exact_area"] as const;
+const PLAN_REPORT_LINE_CODES = ["short_walks", "tube_stations", "exact_area"] as const;
 
 const STORAGE_PREFIX = "pubmax:plan-report-line:";
 const LINE_MAX = 400;

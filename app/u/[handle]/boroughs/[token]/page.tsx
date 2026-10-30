@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 
 import Kicker from "@/components/ui/kicker";
 import SiteNav from "@/components/nav/SiteNav";
-import { boroughBingoCountLine } from "@/lib/boroughBingo";
+import { boroughBingoCountLine, boroughBingoShareTitle } from "@/lib/boroughBingo";
 import { readBoroughBingoCard } from "@/lib/boroughBingoShare.server";
 
 import "@/components/profile/boroughBingo.css";
@@ -50,7 +50,7 @@ export default async function BoroughBingoSharePage({ params }: PageProps) {
         <section className="boroughBingo boroughBingo--shared" aria-labelledby="borough-bingo-title">
           <Kicker>Borough bingo</Kicker>
           <h1 id="borough-bingo-title" className="boroughBingo__title">
-            @{card.handle}: {boroughBingoCountLine(card.mark)}
+            {boroughBingoShareTitle(card.handle, card.mark)}
           </h1>
           <p className="boroughBingo__line">
             One square for each London borough and the City, filled by the first pint logged there.
