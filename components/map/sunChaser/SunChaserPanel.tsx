@@ -30,7 +30,7 @@ function statusLine(state: SunChaserState): string {
   if (gardens === 0) return "No sun estimates for the gardens in view yet.";
   const when = state.offsetSteps === 0 ? "now" : `at ${formatSunClock(at, "exact")}`;
   const line = `${inSun} of ${gardens} recorded ${gardens === 1 ? "garden" : "gardens"} in view likely in the sun ${when}.`;
-  const sky = sunSkyNote(inSun > 0 ? "sun" : "shade", state.offsetSteps === 0, state.skyCondition);
+  const sky = sunSkyNote(inSun > 0 ? "sun" : "shade", state.offsetSteps === 0, state.sky, state.skyFetchedAtMs);
   return sky ? `${line} ${sky.replace("Sunny spot", "Sunny spots")}` : line;
 }
 

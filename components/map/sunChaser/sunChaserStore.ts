@@ -4,7 +4,7 @@
 // external store so none of those three has to thread props through PubMap.
 
 import { useSyncExternalStore } from "react";
-import type { SunEstimate } from "@/lib/sunChaser";
+import type { SkyReading, SunEstimate } from "@/lib/sunChaser";
 import { SUN_CHASER_STEP_MINUTES } from "@/lib/sunChaserWindow";
 
 /** Why the layer has no estimates to show right now. */
@@ -19,8 +19,10 @@ export type SunChaserState = {
   from: Date | null;
   /** Estimates for the recorded-garden pubs in view, by venue id. */
   estimates: ReadonlyMap<string, SunEstimate>;
-  /** The weather feed's fresh condition word near the map centre, or null. */
-  skyCondition: string | null;
+  /** The weather feed's latest fresh reading near the map centre, or null. */
+  sky: SkyReading | null;
+  /** When this page fetched `sky`. The layer clears `sky` once it ages out. */
+  skyFetchedAtMs: number;
 };
 
 const INITIAL: SunChaserState = {
@@ -29,7 +31,8 @@ const INITIAL: SunChaserState = {
   status: "idle",
   from: null,
   estimates: new Map(),
-  skyCondition: null,
+  sky: null,
+  skyFetchedAtMs: 0,
 };
 
 let state: SunChaserState = INITIAL;

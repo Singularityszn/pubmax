@@ -67,5 +67,5 @@ export async function resolveTonightConditions(
     }
   }
   // Sun Chaser's cloud half reads the feed's own word, and only a fresh one.
-  return { ...summariseTonightConditions({ weather, facts, now, tally }), skyCondition: stale ? null : observation.condition };
+  return { ...summariseTonightConditions({ weather, facts, now, tally }), skyCondition: stale ? null : observation.condition, skyObservedAt: stale ? null : observation.observedAt };
 }

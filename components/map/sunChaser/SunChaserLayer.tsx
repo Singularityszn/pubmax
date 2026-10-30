@@ -14,6 +14,7 @@ import {
   estimateSun,
   indexSunBuildings,
   segmentAt,
+  SKY_READING_MAX_AGE_MS,
   sunBuildingFromTile,
   type LngLat,
   type SunBuilding,
@@ -39,6 +40,8 @@ const PUBS_PER_SLICE = 15;
 const REFRESH_MS = 5 * 60_000;
 /** The sky is read again once the map centre has moved this far. */
 const SKY_REREAD_KM = 1.5;
+/** And at least this often while the map stands still. */
+const SKY_REREAD_MS = 10 * 60_000;
 
 function buildingSourceId(map: maplibregl.Map): string | null {
   const layer = map.getStyle()?.layers?.find(
@@ -120,6 +123,9 @@ function ensureLayer(map: maplibregl.Map): void {
     id: LAYER_ID,
     type: "circle",
     source: SOURCE_ID,
+    // The renderer holds the zoom floor itself, so no dot shows mid-gesture
+    // below the zoom the estimates were made for.
+    minzoom: SUN_CHASER_MIN_ZOOM,
     paint: {
       "circle-radius": 6,
       "circle-color": tokens.amber,
@@ -198,24 +204,32 @@ export default function SunChaserLayer({ map, venues }: { map: maplibregl.Map | 
     map.triggerRepaint();
   }, [map, venues]);
 
-  // The cloud half: the weather feed near the map centre, read again after a
-  // long pan so a cloud note never belongs to another part of town.
+  // The cloud half: the weather feed near the map centre. It is read again
+  // after a long pan, so a note never belongs to another part of town, on a
+  // timer, and when a suspended tab comes back, so an old reading ages out
+  // (lib/sunChaser.ts#sunSkyNote drops one past its age limit at every paint).
   useEffect(() => {
     if (!map) return;
     let controller: AbortController | null = null;
     let readAt: [number, number] | null = null;
-    const readSky = () => {
+    let expiry: number | null = null;
+    const clearExpiry = () => {
+      if (expiry !== null) window.clearTimeout(expiry);
+      expiry = null;
+    };
+    const readSky = (force = false) => {
       const centre = map.getCenter();
       const here: [number, number] = [centre.lng, centre.lat];
-      if (readAt && haversineKm(readAt, here) < SKY_REREAD_KM) return;
+      if (!force && readAt && haversineKm(readAt, here) < SKY_REREAD_KM) return;
       readAt = here;
       controller?.abort();
       const current = new AbortController();
       controller = current;
       // Until the new answer lands, no cloud claim at all.
-      updateSunChaser({ skyCondition: null });
+      clearExpiry();
+      updateSunChaser({ sky: null });
       const query = new URLSearchParams({ lat: centre.lat.toFixed(3), lng: centre.lng.toFixed(3) });
-      void loadSurfaceJson<{ summary?: { skyCondition?: unknown } | null }>(
+      void loadSurfaceJson<{ summary?: { skyCondition?: unknown; skyObservedAt?: unknown } | null }>(
         `/api/tonight-conditions?${query.toString()}`,
         {
           signal: current.signal,
@@ -225,15 +239,32 @@ export default function SunChaserLayer({ map, venues }: { map: maplibregl.Map | 
         },
         (body) => {
           if (current.signal.aborted) return;
-          const sky = body.summary?.skyCondition;
-          updateSunChaser({ skyCondition: typeof sky === "string" ? sky : null });
+          const condition = body.summary?.skyCondition;
+          const observedAtMs = typeof body.summary?.skyObservedAt === "string" ? Date.parse(body.summary.skyObservedAt) : Number.NaN;
+          const fetchedAtMs = Date.now();
+          const sky = typeof condition === "string" && Number.isFinite(observedAtMs) ? { condition, observedAtMs } : null;
+          updateSunChaser({ sky, skyFetchedAtMs: fetchedAtMs });
+          // Drop the reading the moment it passes its age limit, map moving or not.
+          if (sky) {
+            const ageOut = sky.observedAtMs + SKY_READING_MAX_AGE_MS - fetchedAtMs;
+            if (ageOut > 0) expiry = window.setTimeout(() => updateSunChaser({ sky: null }), ageOut);
+          }
         },
       );
     };
+    const onMoveEnd = () => readSky();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") readSky(true);
+    };
     readSky();
-    map.on("moveend", readSky);
+    map.on("moveend", onMoveEnd);
+    document.addEventListener("visibilitychange", onVisible);
+    const timer = window.setInterval(() => readSky(true), SKY_REREAD_MS);
     return () => {
-      map.off("moveend", readSky);
+      map.off("moveend", onMoveEnd);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.clearInterval(timer);
+      clearExpiry();
       controller?.abort();
     };
   }, [map]);

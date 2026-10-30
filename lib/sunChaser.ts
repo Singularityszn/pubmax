@@ -71,8 +71,6 @@ export type SunState = "sun" | "shade" | "set" | "unknown";
 const MAX_SHADOW_REACH_M = 300;
 /** The test point is a seated drinker's head, not the ground. */
 const GARDEN_EYE_HEIGHT_M = 1.2;
-/** A building with no recorded height is assumed this tall when asking whether it COULD shade. */
-const UNKNOWN_HEIGHT_REACH_M = 30;
 /** With no building at all this close, the tiles are taken to hold no data here. */
 const BUILDING_COVERAGE_RADIUS_M = 120;
 
@@ -139,11 +137,12 @@ function segmentDistanceToOrigin(a: Point, b: Point): number {
 }
 
 /**
- * Distance along the ray from the origin (unit direction `d`) to the first
- * wall it crosses, or null when it crosses none within `reach` metres.
+ * Every distance along the ray from the origin (unit direction `d`) where it
+ * crosses a wall, nearest first, up to `reach` metres. From outside a building
+ * the crossings pair up as enter and leave.
  */
-function firstWallHit(rings: readonly Point[][], d: Point, reach: number): number | null {
-  let best: number | null = null;
+function wallCrossings(rings: readonly Point[][], d: Point, reach: number): number[] {
+  const out: number[] = [];
   for (const ring of rings) {
     for (const [a, b] of walls(ring)) {
       const ex = b.x - a.x;
@@ -152,11 +151,11 @@ function firstWallHit(rings: readonly Point[][], d: Point, reach: number): numbe
       if (Math.abs(denom) < 1e-12) continue;
       const t = (a.x * ey - a.y * ex) / denom;
       const s = (a.x * d.y - a.y * d.x) / denom;
-      if (t <= 0 || t > reach || s < 0 || s > 1) continue;
-      if (best === null || t < best) best = t;
+      if (t <= 0 || t > reach || s < 0 || s >= 1) continue;
+      out.push(t);
     }
   }
-  return best;
+  return out.sort((x, y) => x - y);
 }
 
 /**
@@ -208,24 +207,30 @@ export function sunStateAt(surroundings: SunSurroundings, at: Date): SunState {
   const azimuth = (sun.azimuthDeg * Math.PI) / 180;
   const direction = { x: Math.sin(azimuth), y: Math.cos(azimuth) };
   let unknown = false;
+  const rayHeightAt = (distance: number) => GARDEN_EYE_HEIGHT_M + distance * tanAlt;
   for (const building of surroundings.buildings) {
     // The pub's own footprint: the garden is outside it on a side no source records.
     if (building.minDistM === 0) continue;
-    const roofAboveEye = (building.heightM ?? UNKNOWN_HEIGHT_REACH_M) - GARDEN_EYE_HEIGHT_M;
-    if (roofAboveEye <= 0) continue;
-    const reach = Math.min(roofAboveEye / tanAlt, MAX_SHADOW_REACH_M);
+    const roof = building.heightM;
+    if (roof !== null && roof <= GARDEN_EYE_HEIGHT_M) continue;
+    // A known roof bounds how far its shadow reaches. An unknown one could be
+    // any height, so it is asked about across the whole reach.
+    const reach = roof === null ? MAX_SHADOW_REACH_M : Math.min((roof - GARDEN_EYE_HEIGHT_M) / tanAlt, MAX_SHADOW_REACH_M);
     if (building.minDistM > reach) continue;
-    const hit = firstWallHit(building.rings, direction, reach);
-    if (hit === null) continue;
-    // The sun ray's height above the ground where it meets this building.
-    const rayHeight = GARDEN_EYE_HEIGHT_M + hit * tanAlt;
-    // A raised part whose underside is above the ray lets the sun through below it.
-    if (building.baseM > rayHeight) continue;
-    if (building.heightM === null) {
-      unknown = true;
-      continue;
+    const crossings = wallCrossings(building.rings, direction, MAX_SHADOW_REACH_M);
+    for (let i = 0; i < crossings.length; i += 2) {
+      const enter = crossings[i] ?? MAX_SHADOW_REACH_M;
+      if (enter > reach) break;
+      const leave = Math.min(crossings[i + 1] ?? MAX_SHADOW_REACH_M, MAX_SHADOW_REACH_M);
+      // The ray climbs from rayHeightAt(enter) to rayHeightAt(leave) inside this
+      // footprint; it is blocked where that span meets the part's [base, roof].
+      if (rayHeightAt(leave) <= building.baseM) continue;
+      if (roof === null) {
+        unknown = true;
+        break;
+      }
+      if (rayHeightAt(enter) < roof) return "shade";
     }
-    return "shade";
   }
   return unknown ? "unknown" : "sun";
 }
@@ -399,15 +404,32 @@ const SKY_NOW: Record<string, string> = {
   Thunderstorm: "storms",
 };
 
+/** One weather feed reading near the map: its condition word and when it was read. */
+export type SkyReading = { condition: string; observedAtMs: number };
+
 /**
- * The cloud half, only for the present moment and only when the weather feed
- * gave a fresh reading that is not clear. A future time gets no cloud claim:
- * the feed reads the sky now, not later.
+ * A cloud note is offered for a reading at most this old. The feed is read
+ * every six hours (vercel.json), so most of the day there is no note at all.
  */
-export function sunSkyNote(state: SunState, isNow: boolean, skyCondition: string | null | undefined): string | null {
-  if (!isNow || state !== "sun" || !skyCondition) return null;
-  const phrase = SKY_NOW[skyCondition];
-  return phrase ? `Sunny spot, but ${phrase} now (Open-Meteo).` : null;
+export const SKY_READING_MAX_AGE_MS = 3 * 60 * 60_000;
+
+/**
+ * The cloud half, only for the present moment, only for a reading no older
+ * than SKY_READING_MAX_AGE_MS, and only when that reading is not clear. It
+ * names the time of the reading, because the feed reads the sky then, not now.
+ * A future time gets no cloud claim at all.
+ */
+export function sunSkyNote(
+  state: SunState,
+  isNow: boolean,
+  sky: SkyReading | null | undefined,
+  nowMs: number,
+): string | null {
+  if (!isNow || state !== "sun" || !sky) return null;
+  const age = nowMs - sky.observedAtMs;
+  if (!Number.isFinite(age) || age < -5 * 60_000 || age > SKY_READING_MAX_AGE_MS) return null;
+  const phrase = SKY_NOW[sky.condition];
+  return phrase ? `Sunny spot, but ${phrase} at ${formatSunClock(new Date(sky.observedAtMs), "exact")} (Open-Meteo reading).` : null;
 }
 
 const NO_ESTIMATE_LINES: Record<Extract<SunEstimate, { kind: "no-estimate" }>["reason"], string> = {

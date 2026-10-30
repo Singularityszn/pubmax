@@ -7,6 +7,7 @@ import {
   indexSunBuildings,
   OPENMAPTILES_DEFAULT_HEIGHT_M,
   shadowDiscLoaded,
+  SKY_READING_MAX_AGE_MS,
   sunBuildingFromTile,
   prepareSunSurroundings,
   segmentAt,
@@ -159,12 +160,23 @@ describe("timeline and words", () => {
   });
 
   it("adds the cloud half only for now, only for a sunny spot, and only for a known condition", () => {
-    expect(sunSkyNote("sun", true, "Cloudy")).toBe("Sunny spot, but some cloud now (Open-Meteo).");
-    expect(sunSkyNote("sun", true, "Clear")).toBeNull();
-    expect(sunSkyNote("sun", false, "Cloudy")).toBeNull();
-    expect(sunSkyNote("shade", true, "Rain")).toBeNull();
-    expect(sunSkyNote("sun", true, null)).toBeNull();
-    expect(sunSkyNote("sun", true, "Weather code 4")).toBeNull();
+    const readAt = Date.parse("2026-06-20T12:45:00Z");
+    const now = readAt + 20 * 60_000;
+    const read = (condition: string) => ({ condition, observedAtMs: readAt });
+    expect(sunSkyNote("sun", true, read("Cloudy"), now)).toBe("Sunny spot, but some cloud at 13:45 (Open-Meteo reading).");
+    expect(sunSkyNote("sun", true, read("Clear"), now)).toBeNull();
+    expect(sunSkyNote("sun", false, read("Cloudy"), now)).toBeNull();
+    expect(sunSkyNote("shade", true, read("Rain"), now)).toBeNull();
+    expect(sunSkyNote("sun", true, null, now)).toBeNull();
+    expect(sunSkyNote("sun", true, read("Weather code 4"), now)).toBeNull();
+  });
+
+  it("drops the cloud half once the reading is older than its limit, even with the map standing still", () => {
+    const readAt = Date.parse("2026-06-20T06:00:00Z");
+    const sky = { condition: "Rain", observedAtMs: readAt };
+    expect(sunSkyNote("sun", true, sky, readAt + SKY_READING_MAX_AGE_MS)).toBe("Sunny spot, but rain at 07:00 (Open-Meteo reading).");
+    expect(sunSkyNote("sun", true, sky, readAt + SKY_READING_MAX_AGE_MS + 60_000)).toBeNull();
+    expect(sunSkyNote("sun", true, { condition: "Rain", observedAtMs: Number.NaN }, readAt)).toBeNull();
   });
 
   it("names itself an estimate and not a weather report", () => {
@@ -238,5 +250,19 @@ describe("review fixes: what the basemap really serves", () => {
     expect(formatSunClock(winter)).toBe("15:00");
     expect(formatSunClock(winter, "up")).toBe("15:05");
     expect(formatSunClock(new Date("2026-12-21T15:05:00Z"), "up")).toBe("15:05");
+  });
+});
+
+describe("second review: no sun claim through what is not known", () => {
+  it("answers unknown for a building of no recorded height anywhere in the shadow reach", () => {
+    // June noon: a 30 m stand-in would reach only 15 m, but a real tower 50 m
+    // south could be 60 m tall, so no sun may be claimed.
+    expect(stateWith([box(180, 50, null)], JUNE_NOON)).toBe("unknown");
+  });
+
+  it("sees a raised part that the ray passes under at its near wall and enters before its far wall", () => {
+    // Footprint 10 to 20 m south, underside 5 m, roof 40 m, sun about 15 degrees:
+    // the ray is at 3.9 m at the near wall and 6.6 m at the far wall.
+    expect(stateWith([{ ...box(180, 10, 40, 40, 10), baseM: 5 }], DECEMBER_NOON)).toBe("shade");
   });
 });

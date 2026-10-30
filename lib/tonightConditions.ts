@@ -69,6 +69,8 @@ export type TonightConditionsSummary = {
    * reading is fresh, else null. Sun Chaser's "cloudy now" note reads it.
    */
   skyCondition?: string | null;
+  /** When the feed read `skyCondition` (ISO), so a reader can say how old it is; null when stale. */
+  skyObservedAt?: string | null;
 };
 
 /** Format a date as the app's calm "Saturday 19 Jul" style (London time). */

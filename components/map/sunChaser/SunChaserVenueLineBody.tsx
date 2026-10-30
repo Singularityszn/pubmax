@@ -14,7 +14,7 @@ export default function SunChaserVenueLineBody({ venueId }: { venueId: string })
   if (!estimate || !at) return null;
   const isNow = state.offsetSteps === 0;
   const segment = estimate.kind === "estimate" ? segmentAt(estimate.timeline, at) : null;
-  const sky = sunSkyNote(segment?.state ?? "unknown", isNow, state.skyCondition);
+  const sky = sunSkyNote(segment?.state ?? "unknown", isNow, state.sky, state.skyFetchedAtMs);
   return (
     <p className="sunChaserVenueLine" data-sun-state={segment?.state ?? "none"}>
       <strong>{sunHeadline(estimate, at, isNow)}</strong>
