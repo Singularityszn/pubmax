@@ -9,7 +9,7 @@ import {
   freshnessArtifactIncludeById,
   freshnessArtifactIncludes,
 } from "./lib/freshnessTracing.mjs";
-import { PAL_MASCOT_SIZES, PAL_MASCOT_SLUGS } from "./lib/palMascotAssets.mjs";
+import { PAL_MASCOT_SIZES, PAL_MASCOT_SLUGS, PAL_MASCOT_TALK } from "./lib/palMascotAssets.mjs";
 import { cdnEdgeHeaderRules } from "./lib/cdnDocumentEdge.mjs";
 import { cdnDocumentContentSecurityPolicy } from "./lib/contentSecurityPolicy.mjs";
 import { staticAssetHeaderSources } from "./lib/staticAssetPrefixes.mjs";
@@ -18,6 +18,7 @@ import { runtimeDataPackRouteIncludes } from "./lib/venueIndexTracing.mjs";
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 const palMascotAssetPattern =
   "(?:" + Object.values(PAL_MASCOT_SLUGS).join("|") + ")-" +
+  "(?:" + PAL_MASCOT_TALK + "-)?" +
   "(?:avatar-)?" +
   "(?:" + PAL_MASCOT_SIZES.join("|") + ")\\.(?:webp|png)";
 
