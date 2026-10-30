@@ -62,6 +62,8 @@ type PalMapWalk = {
   path: LngLat[];
   /** True for the road line. A straight line never replaces a road one. */
   road?: boolean;
+  /** Arrive with a jump for joy, not a landing: the end of a way it led. */
+  cheer?: boolean;
 };
 
 /**
@@ -90,13 +92,28 @@ export type PalMapMarker = {
    * further than it, waits beside it, and opens it when tapped there.
    */
   nextStop: (next: PalNextStop | null) => void;
+  /**
+   * Say one short line in a bubble above the Pal for a few seconds, or clear
+   * it with null. The words come from the caller's own data, never invented.
+   */
+  say: (line: string | null) => void;
   destroy: () => void;
 };
 
 /** Tonight's next stop: its index on the walked route, its pub's name, and how to open it. */
 type PalNextStop = { stop: number; name: string; open: () => void };
 
-const NO_PAL: PalMapMarker = { perch: () => {}, walk: () => {}, visit: () => {}, nextStop: () => {}, destroy: () => {} };
+const NO_PAL: PalMapMarker = {
+  perch: () => {},
+  walk: () => {},
+  visit: () => {},
+  nextStop: () => {},
+  say: () => {},
+  destroy: () => {},
+};
+
+/** How long a said line stays up. */
+const SAY_MS = 5_000;
 
 function prefersReducedMotion(): boolean {
   try {
@@ -171,7 +188,29 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
   const nextLabel = document.createElement("span");
   nextLabel.className = "palMapMarkerNext";
   nextLabel.hidden = true;
-  element.append(nextLabel);
+  // The bubble for a said line: decorative like the Pal, as the same words are
+  // in the list the reader just tapped.
+  const sayBubble = document.createElement("span");
+  sayBubble.className = "palMapMarkerSay";
+  sayBubble.hidden = true;
+  element.append(nextLabel, sayBubble);
+  let sayTimer = 0;
+  // A line said while the walk waits for the map to paint, said when it sets off.
+  let heldLine: string | null = null;
+  const hush = () => {
+    heldLine = null;
+    window.clearTimeout(sayTimer);
+    sayTimer = 0;
+    sayBubble.hidden = true;
+    sayBubble.textContent = "";
+  };
+  const speak = (line: string) => {
+    hush();
+    sayBubble.textContent = line;
+    sayBubble.hidden = false;
+    restartClass("isSaying");
+    sayTimer = window.setTimeout(hush, SAY_MS);
+  };
 
   let marker: maplibregl.Marker | null = null;
   let next: PalNextStop | null = null;
@@ -190,6 +229,8 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
     /** The stop it rests beside, if any. */
     restAt: number | null;
     visit: Visit | null;
+    /** Jump for joy at the end of the walk instead of landing. */
+    cheer: boolean;
   } | null = null;
   let frame = 0;
   let lastFrameAt = 0;
@@ -225,6 +266,8 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
       return;
     }
     tappable = true;
+    // The chip takes the space above the Pal; a said line has had its moment.
+    hush();
     element.classList.add("isNextStop");
     element.setAttribute("role", "button");
     element.tabIndex = 0;
@@ -289,7 +332,7 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
     element.dataset.palWalk = state;
     perchedAt = null;
     place(walk.stops[stop]!, perchOffset);
-    restartClass(state === "visited" ? "isCheering" : "isLanding");
+    restartClass(state === "visited" || walk.cheer ? "isCheering" : "isLanding");
     syncTap();
     if (victoryPending) victory();
   };
@@ -420,7 +463,17 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
         if (finished) return;
       } else {
         stopWalking();
-        walk = { key: route.key, road, plan, stops: route.stops, elapsed: 0, metres: 0, restAt: null, visit: null };
+        walk = {
+          key: route.key,
+          road,
+          plan,
+          stops: route.stops,
+          elapsed: 0,
+          metres: 0,
+          restAt: null,
+          visit: null,
+          cheer: route.cheer === true,
+        };
       }
       // A sleeping (muted) Pal, like reduced motion, waits at the first stop,
       // or at tonight's next stop when there is one.
@@ -437,6 +490,7 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
       const start = () => {
         cancelStart?.();
         cancelStart = null;
+        if (heldLine) speak(heldLine);
         if (!walk || frame) return;
         if (!walk.visit) element.dataset.palWalk = "walking";
         lastFrameAt = performance.now();
@@ -477,7 +531,18 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
       }
       syncTap();
     },
+    say: (line) => {
+      hush();
+      if (!line) return;
+      // Nobody sees a line said over a map still loading: hold it for the start.
+      if (cancelStart) {
+        heldLine = line;
+        return;
+      }
+      speak(line);
+    },
     destroy: () => {
+      hush();
       element.removeEventListener("click", openNext);
       element.removeEventListener("keydown", onKey);
       unsubscribe();

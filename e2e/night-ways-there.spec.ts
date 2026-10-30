@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
 
 import type { LegOption } from "../lib/legOptions";
+import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
 
 // Ways to get there (components/night/NightWaysThere.tsx): in Night Mode, the
 // ways from this stop to the next, each with its time, TfL's fare and the
@@ -81,6 +82,18 @@ async function seedTonight(page: Page) {
   }, PLAN_ID);
 }
 
+/** The reader's own Pub Pal, stored the way the Pal flow stores it. */
+async function seedPal(page: Page) {
+  await page.addInitScript(({ appearance, personality, voice }) => {
+    const now = "2026-10-04T12:00:00.000Z";
+    window.localStorage.setItem("pubmax_pub_pal_v1", JSON.stringify({
+      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId: "owner-e2e", name: "Ripley",
+      adultAttestedAt: now, appearance, personality, voice, muted: false, hidden: false,
+      proposalPreferences: {}, masteryPoints: 0, createdAt: now, updatedAt: now,
+    }));
+  }, DEFAULT_PAL_DRAFT);
+}
+
 /** Zoom in on the stops the way a reader would, once the map has settled; the camera itself never moves. */
 async function leanIn(page: Page) {
   await expect(page.locator(".maplibregl-canvas")).toBeVisible({ timeout: 60_000 });
@@ -93,10 +106,11 @@ async function leanIn(page: Page) {
   await page.waitForTimeout(2_000);
 }
 
-test("Night Mode lists the ways to the next stop, and a tap draws the chosen one on the map", async ({ page }) => {
+test("Night Mode lists the ways to the next stop, and a tap draws the chosen one on the map with the Pal leading", async ({ page }) => {
   test.setTimeout(180_000);
   await page.setViewportSize({ width: 390, height: 844 });
   await seedTonight(page);
+  await seedPal(page);
   const asked: string[] = [];
   await page.route("**/api/leg-options**", (route) => {
     const url = new URL(route.request().url());
@@ -137,9 +151,16 @@ test("Night Mode lists the ways to the next stop, and a tap draws the chosen one
   await mkdir(SHOTS, { recursive: true });
   await page.screenshot({ path: `${SHOTS}/ways-390.png` });
 
-  // A tap draws that way on the map and takes the reader there.
+  // A tap draws that way on the map and takes the reader there, and the Pal
+  // leads it: one line about the choice (the tube's fare is not listed), the
+  // walk along that path, then a wait at the next stop as its button.
   await rows.nth(2).click();
   await expect(page).toHaveURL(/\/map/, { timeout: 30_000 });
+  const pal = page.locator(".palMapMarker:not([data-pal-crew])");
+  await expect(pal.locator(".palMapMarkerSay")).toHaveText("TfL won't say the fare. Bold choice.", { timeout: 60_000 });
+  await page.screenshot({ path: `${SHOTS}/pal-leads-390.png` });
+  await expect(pal).toHaveAttribute("aria-label", "Next stop: The Crown & Two Chairmen", { timeout: 60_000 });
+  await expect(pal.locator(".palMapMarkerSay")).toBeHidden();
   await leanIn(page);
   await page.screenshot({ path: `${SHOTS}/way-on-map-390.png` });
 });

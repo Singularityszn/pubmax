@@ -12,6 +12,7 @@ import { followMapPixelRatio, mapPixelRatio, probeWebGl2 } from "@/components/ma
 import { createPalMapMarker, palPinIsCheap, type PalMapMarker } from "@/components/map/canvas/palMarker";
 import { legRouteToLines } from "@/components/map/canvas/legRouteScene";
 import { readLegRouteOnMap, subscribeLegRouteOnMap } from "@/lib/legRouteOnMap";
+import { palLeadLine, palLeadPath } from "@/lib/palLead";
 import { crewPalLook, type CrewPal } from "@/lib/crewPals";
 import { palWalkPathFrom, palWalkStopsFromKey } from "@/components/map/canvas/palWalk";
 import {
@@ -27,6 +28,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 
@@ -1261,9 +1263,12 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   const palWalkRef = useRef<Parameters<PalMapMarker["walk"]>[0] | null>(null);
   // Tonight's next stop, for crew Pals made after it was set.
   const palNextRef = useRef<Parameters<PalMapMarker["nextStop"]>[0]>(null);
+  // Pal leads the way: while it walks the way the reader chose in Night Mode,
+  // the plan's own walk and stops wait for it (the effect below).
+  const palLeadKeyRef = useRef<string | null>(null);
   const walkPals = useCallback((walk: Parameters<PalMapMarker["walk"]>[0]) => {
     palWalkRef.current = walk;
-    palMarkerRef.current?.walk(walk);
+    if (!palLeadKeyRef.current) palMarkerRef.current?.walk(walk);
     for (const marker of crewMarkersRef.current) marker.walk(walk);
   }, []);
   // M7 pin entrance — armed once per mount at the first ACTUAL pin reveal
@@ -4406,7 +4411,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       walkPals({ key: routeCoordKey, stops, path: stops });
       const stop = selectedVenueId ? routeIds.split(",").indexOf(selectedVenueId) : -1;
       const visitKey = `${routeCoordKey}|${selectedVenueId}`;
-      if (stop >= 0 && visitKey !== palVisitKeyRef.current) palMarkerRef.current?.visit(stop);
+      if (stop >= 0 && visitKey !== palVisitKeyRef.current && !palLeadKeyRef.current) palMarkerRef.current?.visit(stop);
       palVisitKeyRef.current = visitKey;
       return;
     }
@@ -4442,9 +4447,36 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       ? { stop, name: palNextName, open: () => onRouteStopClickRef.current(palNextVenueId) }
       : null;
     palNextRef.current = next;
-    palMarkerRef.current?.nextStop(next);
+    if (!palLeadKeyRef.current) palMarkerRef.current?.nextStop(next);
     for (const marker of crewMarkersRef.current) marker.nextStop(next);
   }, [palNextVenueId, palNextName, routeIds, mapReady]);
+
+  // Pal leads the way: the way the reader chose to tonight's next stop, walked
+  // by their own Pal along its exact path, with one line about the choice
+  // (lib/palLead.ts). It arrives with a jump for joy and waits there as the
+  // next-stop button. A way to anywhere but tonight's next stop, or no way,
+  // hands the Pal back to the plan's walk. Crew Pals keep the plan's walk.
+  const legChoice = useSyncExternalStore(subscribeLegRouteOnMap, readLegRouteOnMap, () => null);
+  useEffect(() => {
+    const marker = palMarkerRef.current;
+    if (!mapReady || !marker) return;
+    const path = legChoice ? palLeadPath(legChoice.option) : [];
+    const leads = legChoice !== null && palNextVenueId !== "" && legChoice.legKey.endsWith(`>${palNextVenueId}`) && path.length > 1;
+    if (!leads) {
+      if (!palLeadKeyRef.current) return;
+      palLeadKeyRef.current = null;
+      marker.say(null);
+      if (palWalkRef.current) marker.walk(palWalkRef.current);
+      marker.nextStop(palNextRef.current);
+      return;
+    }
+    const key = `lead:${legChoice.legKey}:${legChoice.option.id}`;
+    if (palLeadKeyRef.current === key) return;
+    palLeadKeyRef.current = key;
+    marker.walk({ key, stops: [path[0]!, path.at(-1)!], path, road: true, cheer: true });
+    marker.nextStop({ stop: 1, name: palNextName, open: () => onRouteStopClickRef.current(palNextVenueId) });
+    marker.say(palLeadLine(legChoice.option));
+  }, [legChoice, palNextVenueId, palNextName, mapReady]);
 
   // The crew's Pals: made when the crew read lands, walked on the route the
   // reader's own Pal is on, and gone with the plan's route.

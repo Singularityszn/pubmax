@@ -308,6 +308,24 @@ describe("the Pal on the map", () => {
     expect(instance!.lngLat![0]).toBeGreaterThan(crawl[0]![0]);
   });
 
+  it("holds a line said over a map still loading, and says it as the walk sets off", () => {
+    store(pal());
+    const handlers: Array<() => void> = [];
+    const loading = {
+      loaded: () => false,
+      once: (_event: string, handler: () => void) => handlers.push(handler),
+      off: vi.fn(),
+    } as unknown as maplibregl.Map;
+    const marker = createPalMapMarker(loading);
+    marker.walk({ key: crawlKey, stops: crawl, path: crawl });
+    marker.say("Fastest way. Keep up.");
+    const bubble = markerHarness.instances[0]!.options.element.querySelector<HTMLElement>(".palMapMarkerSay")!;
+    expect(bubble.hidden).toBe(true);
+    handlers.forEach((handler) => handler());
+    expect(bubble.hidden).toBe(false);
+    expect(bubble.textContent).toBe("Fastest way. Keep up.");
+  });
+
   describe("tonight's next stop", () => {
     function nextStop(stop: number, name: string) {
       const open = vi.fn();
@@ -451,6 +469,67 @@ describe("the Pal on the map", () => {
       expect(instance!.lngLat).toEqual(crawl[1]);
       expect(instance!.options.element.dataset.palWalk).toBe("waiting");
       expect(tappable(instance!.options.element).label).toBe("Next stop: The Lamb");
+    });
+
+    it("leads a chosen way: says its line, walks the path, and arrives with a jump for joy as the next-stop button", () => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      try {
+        store(pal());
+        const marker = createPalMapMarker(map);
+        // A way that bends round a corner from this stop to the next.
+        const path: LngLat[] = [crawl[0]!, [-0.1, 51.502], crawl[1]!];
+        marker.walk({ key: "lead:a>b:walk", stops: [crawl[0]!, crawl[1]!], path, road: true, cheer: true });
+        const lamb = nextStop(1, "The Lamb");
+        marker.nextStop(lamb.target);
+        marker.say("Free and cheapest. Legs it is.");
+        runFrames(1);
+        const [instance] = markerHarness.instances;
+        const element = instance!.options.element;
+        const bubble = element.querySelector<HTMLElement>(".palMapMarkerSay")!;
+        expect(bubble.hidden).toBe(false);
+        expect(bubble.textContent).toBe("Free and cheapest. Legs it is.");
+        expect(element.classList.contains("isSaying")).toBe(true);
+        expect(tappable(element)).toEqual(decorative);
+
+        // On its way it walks the corner's run, not the straight line.
+        runFrames(3);
+        expect(element.classList.contains("isWalking")).toBe(true);
+        expect(instance!.lngLat![0]).toBeCloseTo(-0.1, 9);
+
+        runFrames(1_000);
+        expect(instance!.lngLat).toEqual(crawl[1]);
+        expect(element.classList.contains("isCheering")).toBe(true);
+        expect(element.classList.contains("isLanding")).toBe(false);
+        // Waiting as the button, the chip takes the space and the line is done.
+        expect(tappable(element)).toEqual({ role: "button", label: "Next stop: The Lamb", hidden: null, chip: "Next: The Lamb" });
+        expect(bubble.hidden).toBe(true);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("says a line for a few seconds, and a new line or null replaces it", () => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      try {
+        store(pal());
+        const marker = createPalMapMarker(map);
+        marker.perch([-0.1, 51.5]);
+        const bubble = markerHarness.instances[0]!.options.element.querySelector<HTMLElement>(".palMapMarkerSay")!;
+        marker.say("Fastest way. Keep up.");
+        vi.advanceTimersByTime(4_000);
+        expect(bubble.textContent).toBe("Fastest way. Keep up.");
+        marker.say("This way. Follow me.");
+        vi.advanceTimersByTime(4_000);
+        expect(bubble.textContent).toBe("This way. Follow me.");
+        vi.advanceTimersByTime(1_000);
+        expect(bubble.hidden).toBe(true);
+        marker.say("TfL won't say the fare. Bold choice.");
+        marker.say(null);
+        expect(bubble.hidden).toBe(true);
+        expect(bubble.textContent).toBe("");
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it("waits a crew Pal at the next stop too, as a picture, never a button", () => {
