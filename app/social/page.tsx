@@ -40,7 +40,7 @@ export async function generateMetadata(
   props: { searchParams: Promise<SearchParams> },
 ): Promise<Metadata> {
   const friendsLaunchEnabled = readTrustedHandoffFlag("socialFriendsLaunch");
-  const state = props.searchParams
+  const state = props?.searchParams
     ? parseSocialShellSearch(toUrlSearchParams(await props.searchParams))
     : null;
   const discover = state?.valid === true && state.tab === "discover";

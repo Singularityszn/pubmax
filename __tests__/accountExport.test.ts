@@ -874,7 +874,8 @@ const STORE_EXPORT_COVERAGE: Record<string, ExportCoverage> = {
   },
   "lib/pintDropsStore.ts": { lane: "pintDrops" },
   "lib/pintDropWithTagsStore.ts": {
-    gap: "A With tag is the account's own proposal about its own drop and needs an owner-keyed read to export; the approved handle already prints on the drop the pint drops lane carries.",
+    excluded:
+      "A With tag is a consent record between two accounts: the proposal names another person and the approval is that person's, so no row here is this caller's alone.",
   },
   "lib/planCollaborationStore.ts": { excluded: "A Plan is shared: its crew rows name other people." },
   "lib/planGroupPrefsStore.ts": { excluded: "Group preferences on a shared Plan, named by other members." },

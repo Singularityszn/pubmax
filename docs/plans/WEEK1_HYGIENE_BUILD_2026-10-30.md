@@ -78,3 +78,35 @@ The captain asked for round 2 to start without waiting. The cut is by surface ra
 Integration wiring that no builder does: if builder 6 and builder 2 both edit `ProfilePageClient.tsx`, the integrator keeps both sections. The venue sheet fold regrouping (design V1) waits for round 3, after builder 5's door lands in `VenueOverviewTab.tsx`. E4, a drinker-added regular night, also waits for round 3 because it needs a store and a migration.
 
 The design record for rounds 2 and 3 is [`../design-explorations/2026-10-30-launch-ux-variations.md`](../design-explorations/2026-10-30-launch-ux-variations.md).
+
+## 4. Integration record (30 October, 17:00 UTC)
+
+All ten builder branches are merged into `claude/relaxed-wozniak-bbaih7`. The integrator's own commits are the glue: one write-surface count (166), two inventory rows, one export exclusion, one metadata typing fix, one cover tint, and three migration labels. Three builders took label 0197 in parallel; the files now read 0197 venue corrections, 0198 Pint Drop With tags, 0199 diary usual drink, each with its rollback.
+
+What ran green on the merged tree: every builder's named unit tests together (439 of 441, then the two inventory rows fixed and green), the write-surface certification, the migration version and apply-list fences, the store inventories, the em-dash law, the analytics emitter fence, the coral economy, the account export fence, and typecheck. Lint was clean on each builder's own branch and is re-run on the merged tree.
+
+What did not run here, and must run before merge: the PostgreSQL suites (`npm run test:rls`, the permission-matrix effective cases, the migration-effective tests), because PostgreSQL refuses to start as root in this container; `npm run db:types` to regenerate `types/database.ts` for `venue_corrections` and `pint_drop_with_tags` (builder 7 hand-edited the diary column); and the Playwright specs whose selectors were edited (Prices tab, Tonight answer cards, invite copy, Pal night question).
+
+### Captain decisions collected from the builders
+
+1. Apply migrations 0197, 0198 and 0199, in timestamp order, after `npm run db:types`.
+2. One invite capability: the shared link now grants crew powers (vote, propose, add a need, check in). Say if the quieter "RSVP reads, crew acts" rule is wanted instead.
+3. Should a Going RSVP form friend links with the host when the guest is signed in, as the plan-page join does? If not, the invite page line about connecting with the host must change.
+4. Planner report lines ("Short walks", "Tube") exist in the response; the plan screen does not print them yet. Show them or leave them.
+5. The dietary warning's second sentence wording.
+6. "Quiet pint" as a Pal label: the Pal copy test now allows that one approved label and blocks carnage, sesh and session.
+7. Blocks inside an existing group thread: checked at creation only, so a later block does not reveal itself. Keep, or close the thread.
+8. Author posts on a profile need a signed-in Social reader; opening them to strangers is decision D2.
+9. Account deletion removes the person's venue corrections. The other choice keeps the note and drops the owner link.
+10. Secure email change must be on in Supabase Auth or the "old address gets a note" line is untrue.
+11. With tags: the native share extension (iOS) and SEND intent filter (Android) are listed in builder 8's report for the native rebuild.
+12. Two counts stay on purpose: 960 pubs have a pint price, the average uses 939, each page names its base.
+
+### Round 3 candidates (not started)
+
+- Show the "With" line on the drop card (`components/map/inspector/PintDropsList.tsx`), left by builder 8 because the inspector was another builder's area.
+- Rules docs: the Today picks rule and the Tonight first-row rule in `docs/rules/`, the one-invite rule in `docs/security/PERMISSION_MATRIX.md`, the pubs-only line and the count module.
+- "Lock it in on Plan" link in `components/plan/MobilePlanActivation.tsx` (one line).
+- The venue sheet fold regrouping (design V1) now that the correction door is in.
+- E4, a drinker-added regular night, with its store and migration.
+- The diary edit form for the usual drink; With tags on the diary.
