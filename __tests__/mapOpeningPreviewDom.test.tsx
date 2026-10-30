@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import MapOpeningPreview from "@/components/map/MapOpeningPreview";
 import { DONUT_CAPTION_SCALE } from "@/lib/donutClusterGeometry";
@@ -14,11 +14,16 @@ import {
   MAP_OPENING_PREVIEW_CAMERA,
   MAP_OPENING_PREVIEW_DONE_MARK,
   MAP_OPENING_PREVIEW_RETRACT_EVENT,
+  MAP_OPENING_PREVIEW_TURN_EVENT,
   type MapOpeningFrame,
 } from "@/lib/mapOpeningPreview";
 import type { OpeningPreviewDisc } from "@/lib/mapOpeningPreviewDiscs";
 import type { OpeningGround } from "@/lib/mapOpeningSnapshot";
-import { FIRST_PINS_SEEN_KEY, PINS_VISIBLE_EVENT } from "@/lib/performanceMarks";
+import {
+  BASEMAP_DRAWN_EVENT,
+  FIRST_PINS_SEEN_KEY,
+  PINS_VISIBLE_EVENT,
+} from "@/lib/performanceMarks";
 
 const themeInit = readFileSync(join(process.cwd(), "public/theme-init.js"), "utf8");
 
@@ -85,6 +90,7 @@ describe("MapOpeningPreview", () => {
 
   beforeEach(() => {
     (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    performance.clearMarks();
     host = document.createElement("div");
     document.body.append(host);
   });
@@ -94,9 +100,9 @@ describe("MapOpeningPreview", () => {
     host.remove();
   });
 
-  async function mount(discs: OpeningPreviewDisc[] = [DISC]) {
+  async function mount(discs: OpeningPreviewDisc[] = [DISC], ground: OpeningGround | null = null) {
     root = createRoot(host);
-    await act(() => root!.render(createElement(MapOpeningPreview, { discs })));
+    await act(() => root!.render(createElement(MapOpeningPreview, { discs, ground })));
   }
 
   it("ships the discs in the document, decorative, on the engine's camera", () => {
@@ -133,8 +139,14 @@ describe("MapOpeningPreview", () => {
     expect(renderToStaticMarkup(createElement(MapOpeningPreview, { discs: [] }))).toBe("");
   });
 
-  it("stands down when the map reveals its own pins", async () => {
+  function drawStreets() {
+    performance.mark(BASEMAP_DRAWN_EVENT);
+    window.dispatchEvent(new Event(BASEMAP_DRAWN_EVENT));
+  }
+
+  it("stands down when the map reveals its own pins over drawn streets", async () => {
     document.documentElement.dataset.mapPreview = "on";
+    performance.mark(BASEMAP_DRAWN_EVENT);
     await mount();
     expect(document.documentElement.dataset.mapPreview).toBe("on");
     await act(() => {
@@ -177,6 +189,7 @@ describe("MapOpeningPreview", () => {
 
   it("stands down at once if the map revealed before it hydrated", async () => {
     document.documentElement.dataset.mapPreview = "on";
+    performance.mark(BASEMAP_DRAWN_EVENT);
     performance.mark(PINS_VISIBLE_EVENT);
     await mount();
     expect(document.documentElement.dataset.mapPreview).toBe("done");
@@ -199,6 +212,7 @@ describe("MapOpeningPreview", () => {
     document.body.append(loading);
     try {
       document.documentElement.dataset.mapPreview = "on";
+      performance.mark(BASEMAP_DRAWN_EVENT);
       await mount();
       await act(() => {
         window.dispatchEvent(new Event(PINS_VISIBLE_EVENT));
@@ -212,6 +226,96 @@ describe("MapOpeningPreview", () => {
       expect(performance.getEntriesByName(MAP_OPENING_PREVIEW_DONE_MARK)).toHaveLength(1);
     } finally {
       loading.remove();
+    }
+  });
+
+  it("after the reveal, holds until the streets in view are drawn", async () => {
+    // The loading frame can lift while the street tiles are still arriving;
+    // standing down then showed the engine's pins on bare paper.
+    document.documentElement.dataset.mapPreview = "on";
+    await mount();
+    await act(() => {
+      window.dispatchEvent(new Event(PINS_VISIBLE_EVENT));
+    });
+    expect(document.documentElement.dataset.mapPreview).toBe("on");
+    await act(() => drawStreets());
+    expect(document.documentElement.dataset.mapPreview).toBe("done");
+  });
+
+  it("waits for both the lift and the streets, in either order", async () => {
+    const loading = document.createElement("div");
+    loading.className = "mapLoading";
+    document.body.append(loading);
+    try {
+      document.documentElement.dataset.mapPreview = "on";
+      await mount();
+      await act(() => {
+        window.dispatchEvent(new Event(PINS_VISIBLE_EVENT));
+      });
+      await act(() => drawStreets());
+      expect(document.documentElement.dataset.mapPreview).toBe("on");
+      await act(async () => {
+        loading.remove();
+        await Promise.resolve();
+      });
+      expect(document.documentElement.dataset.mapPreview).toBe("done");
+    } finally {
+      loading.remove();
+    }
+  });
+
+  it("stands down after a ceiling when the streets never report", async () => {
+    vi.useFakeTimers();
+    try {
+      document.documentElement.dataset.mapPreview = "on";
+      await mount();
+      await act(() => {
+        window.dispatchEvent(new Event(PINS_VISIBLE_EVENT));
+      });
+      await act(() => {
+        vi.advanceTimersByTime(2_999);
+      });
+      expect(document.documentElement.dataset.mapPreview).toBe("on");
+      await act(() => {
+        vi.advanceTimersByTime(1);
+      });
+      expect(document.documentElement.dataset.mapPreview).toBe("done");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("turns with the arrival turn instead of standing down", async () => {
+    document.documentElement.dataset.mapPreview = "on";
+    await mount();
+    try {
+      await act(() => {
+        window.dispatchEvent(new CustomEvent(MAP_OPENING_PREVIEW_TURN_EVENT, { detail: MAP_OPENING_PREVIEW_CAMERA.bearing + 2.5 }));
+      });
+      expect(document.documentElement.dataset.mapPreview).toBe("on");
+      expect(document.documentElement.style.getPropertyValue("--map-preview-bearing")).toBe("2.5deg");
+    } finally {
+      document.documentElement.style.removeProperty("--map-preview-bearing");
+    }
+  });
+
+  it("stands down on the turn where the turned screen would see past the picture", async () => {
+    // A 1024x768 jsdom window is far wider than the ground a phone picture covers.
+    const ground: OpeningGround = {
+      rect: { x: -322, y: -848, width: 644, height: 1356 },
+      light: "/landing/map-opening/london-light.webp",
+      dark: "/landing/map-opening/london-dark.webp",
+    };
+    document.documentElement.dataset.mapPreview = "on";
+    document.documentElement.dataset.mapGround = "on";
+    try {
+      await mount([DISC], ground);
+      await act(() => {
+        window.dispatchEvent(new CustomEvent(MAP_OPENING_PREVIEW_TURN_EVENT, { detail: MAP_OPENING_PREVIEW_CAMERA.bearing + 4 }));
+      });
+      expect(document.documentElement.dataset.mapPreview).toBe("done");
+    } finally {
+      delete document.documentElement.dataset.mapGround;
     }
   });
 

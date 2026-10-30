@@ -238,10 +238,12 @@ import {
   sameMapRenderedState,
   type MapRenderedState,
 } from "@/lib/mapRenderedState";
-import { markPubmaxTiming, PINS_VISIBLE_EVENT } from "@/lib/performanceMarks";
+import { BASEMAP_DRAWN_EVENT, markPubmaxTiming, PINS_VISIBLE_EVENT } from "@/lib/performanceMarks";
 import {
   MAP_OPENING_PREVIEW_DONE_MARK,
   MAP_OPENING_PREVIEW_RETRACT_EVENT,
+  MAP_OPENING_PREVIEW_TURN_EVENT,
+  openingTurnBearing,
   publishMapOpeningFrame,
   sameCameraPose,
   type OpeningCameraPose,
@@ -1660,11 +1662,11 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       }
       markPubmaxTiming("pubmax:map-constructed");
       stopFollowingPixelRatio = followMapPixelRatio(map);
-      // A camera that moves while the document's opening preview is up (the
-      // arrival turn, an opening location, a resumed view) is a frame the
-      // preview did not draw, and it must not hang in place while the ground
-      // slides under it: it stands down on the first frame the camera has
-      // MOVED. Not on `movestart`, which `resize()` also fires with the camera
+      // A camera that moves while the document's opening preview is up (an
+      // opening location, a resumed view) is a frame the preview did not draw,
+      // and it must not hang in place while the ground slides under it: it
+      // stands down on the first frame the camera has MOVED. The arrival turn
+      // is the exception: it only turns, and the preview turns with it. Not on `movestart`, which `resize()` also fires with the camera
       // where it was: the phone's first resize stood the preview down within
       // half a second of construction on every cold visit, seconds before the
       // reveal (measured, 390x844, 4x CPU). Once the preview has stood down
@@ -1689,7 +1691,16 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
             constructed.off("move", onOpeningMove);
             return;
           }
-          if (sameCameraPose(poseOf(), constructedPose) && paddingOf() === constructedPadding) return;
+          const pose = poseOf();
+          const samePadding = paddingOf() === constructedPadding;
+          if (sameCameraPose(pose, constructedPose) && samePadding) return;
+          // The arrival turn only turns the camera, and the preview turns with
+          // it rather than leaving the loading paper on screen until the reveal.
+          const turned = samePadding ? openingTurnBearing(pose, constructedPose) : null;
+          if (turned !== null) {
+            window.dispatchEvent(new CustomEvent<number>(MAP_OPENING_PREVIEW_TURN_EVENT, { detail: turned }));
+            return;
+          }
           constructed.off("move", onOpeningMove);
           window.dispatchEvent(new Event(MAP_OPENING_PREVIEW_RETRACT_EVENT));
         };
@@ -2273,6 +2284,19 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       markBasemapRecovered();
     };
     map.on("sourcedata", onBasemapTileLoaded);
+    // The first frame the streets in view are all drawn: a primary basemap
+    // tile has loaded and no tile in view is still loading. The opening
+    // picture hands over to the canvas only after it (MapOpeningPreview), so
+    // the pins never stand on bare paper between the picture and the streets.
+    let basemapDrawnMarked = performance.getEntriesByName(BASEMAP_DRAWN_EVENT).length > 0;
+    const markBasemapDrawn = () => {
+      if (!basemapDrawnMarked && (initialBasemapPending || !map.areTilesLoaded())) return;
+      map.off("render", markBasemapDrawn);
+      if (basemapDrawnMarked) return;
+      basemapDrawnMarked = true;
+      markPubmaxTiming(BASEMAP_DRAWN_EVENT);
+    };
+    map.on("render", markBasemapDrawn);
     // The moment the venue rows are paintable: the pubs GeoJSON has been
     // clustered by the worker and every tile in view has come back. It is the
     // first of the pin gates the reveal coordinator waits on, so the sweep can
@@ -3828,6 +3852,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       map.off("render", markBasemapRecovered);
       map.off("idle", markBasemapRecovered);
       map.off("sourcedata", onBasemapTileLoaded);
+      map.off("render", markBasemapDrawn);
       map.off("sourcedata", onPubsSourceLoaded);
       themeObserver.disconnect();
       reducedQuery.removeEventListener("change", onReducedChange);

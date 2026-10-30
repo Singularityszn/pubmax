@@ -10,12 +10,13 @@ import {
   MAP_OPENING_PREVIEW_CAMERA,
   MAP_OPENING_PREVIEW_DONE_MARK,
   MAP_OPENING_PREVIEW_RETRACT_EVENT,
+  MAP_OPENING_PREVIEW_TURN_EVENT,
   readPublishedOpeningFrame,
   type MapOpeningFrame,
 } from "@/lib/mapOpeningPreview";
 import type { OpeningPreviewDisc } from "@/lib/mapOpeningPreviewDiscs";
-import type { OpeningGround } from "@/lib/mapOpeningSnapshot";
-import { PINS_VISIBLE_EVENT } from "@/lib/performanceMarks";
+import { groundRectCovers, type OpeningGround } from "@/lib/mapOpeningSnapshot";
+import { BASEMAP_DRAWN_EVENT, PINS_VISIBLE_EVENT } from "@/lib/performanceMarks";
 
 import "./mapOpeningPreview.css";
 
@@ -39,6 +40,8 @@ import "./mapOpeningPreview.css";
 // waits for the loading frame to lift: the canvas is covered until then, and
 // standing down at the reveal itself put the loading frame back on screen for
 // the 1.2 to 1.9 s the reveal took to unmount it (measured, 390x844, 4x CPU).
+// It also waits for the streets in view to be drawn, or the pins stood on bare
+// paper while the street tiles were still arriving.
 //
 // The disc is the canvas's: neutral paper, a plain ring, "from" over the
 // cheapest figure in that figure's own band ink (components/map/canvas/
@@ -55,8 +58,8 @@ const FIGURE_INKS = [
 
 /** The map's own loading frame (MapLoadingFrame), over the canvas until the reveal unmounts it. */
 const MAP_LOADING_FRAME_SELECTOR = ".mapLoading";
-/** The longest the preview waits, after the reveal, for that frame to lift. */
-const LOADING_FRAME_LIFT_CEILING_MS = 3000;
+/** The longest the preview waits, after the reveal, for the map to show. */
+const MAP_SHOWS_CEILING_MS = 3000;
 
 function standDown(): void {
   const root = document.documentElement;
@@ -70,32 +73,40 @@ function standDown(): void {
 }
 
 /**
- * After the reveal, stand down in the frame the loading frame lifts off the
- * canvas, so the reader goes from the preview straight to the engine's own
- * frame. Returns the cleanup.
+ * After the reveal, stand down in the frame the map is there to be seen: the
+ * loading frame has lifted off the canvas AND the streets in view are drawn
+ * (BASEMAP_DRAWN_EVENT). Standing down on the lift alone showed the engine's
+ * pins on bare paper while its street tiles were still arriving, a blank
+ * frame between the picture and the map. Returns the cleanup.
  */
 function standDownWhenTheMapShows(): () => void {
-  if (!document.querySelector(MAP_LOADING_FRAME_SELECTOR)) {
+  const frameLifted = () => !document.querySelector(MAP_LOADING_FRAME_SELECTOR);
+  const streetsDrawn = () => performance.getEntriesByName(BASEMAP_DRAWN_EVENT).length > 0;
+  if (frameLifted() && streetsDrawn()) {
     standDown();
     return () => {};
   }
   let timer = 0;
-  // A mutation callback runs before the next paint, so the frame that drops
-  // the loading frame is the frame that drops the preview.
-  const observer = new MutationObserver(() => {
-    if (!document.querySelector(MAP_LOADING_FRAME_SELECTOR)) finish();
-  });
-  const finish = () => {
+  // A mutation callback runs before the next paint, and the streets mark is
+  // set inside the engine's own render, so either way the frame that shows
+  // the map is the frame that drops the preview.
+  const check = () => {
+    if (frameLifted() && streetsDrawn()) finish();
+  };
+  const observer = new MutationObserver(check);
+  const stop = () => {
     observer.disconnect();
+    window.removeEventListener(BASEMAP_DRAWN_EVENT, check);
     window.clearTimeout(timer);
+  };
+  const finish = () => {
+    stop();
     standDown();
   };
   observer.observe(document.body, { childList: true, subtree: true });
-  timer = window.setTimeout(finish, LOADING_FRAME_LIFT_CEILING_MS);
-  return () => {
-    observer.disconnect();
-    window.clearTimeout(timer);
-  };
+  window.addEventListener(BASEMAP_DRAWN_EVENT, check);
+  timer = window.setTimeout(finish, MAP_SHOWS_CEILING_MS);
+  return stop;
 }
 
 export default function MapOpeningPreview({
@@ -120,16 +131,36 @@ export default function MapOpeningPreview({
     };
     check(readPublishedOpeningFrame());
     const onFrame = (event: Event) => check((event as CustomEvent<MapOpeningFrame>).detail ?? null);
+    // The arrival turn: the picture and the discs turn with the camera, so the
+    // ground stays under the reader instead of the loading paper. The picture
+    // is drawn for a north-up screen, so a screen whose turned corners would
+    // see past its edge (the largest phones) stands down as before.
+    const onTurn = (event: Event) => {
+      const bearing = (event as CustomEvent<number>).detail;
+      if (typeof bearing !== "number" || !Number.isFinite(bearing)) return;
+      const turn = bearing - MAP_OPENING_PREVIEW_CAMERA.bearing;
+      if (
+        ground &&
+        document.documentElement.dataset.mapGround === "on" &&
+        !groundRectCovers(ground.rect, MAP_OPENING_PREVIEW_CAMERA.pitch, window.innerWidth, window.innerHeight, turn)
+      ) {
+        standDown();
+        return;
+      }
+      document.documentElement.style.setProperty("--map-preview-bearing", `${turn}deg`);
+    };
     window.addEventListener(PINS_VISIBLE_EVENT, onReveal);
     window.addEventListener(MAP_OPENING_PREVIEW_RETRACT_EVENT, standDown);
+    window.addEventListener(MAP_OPENING_PREVIEW_TURN_EVENT, onTurn);
     window.addEventListener(MAP_OPENING_FRAME_EVENT, onFrame);
     return () => {
       stopWaiting?.();
       window.removeEventListener(PINS_VISIBLE_EVENT, onReveal);
       window.removeEventListener(MAP_OPENING_PREVIEW_RETRACT_EVENT, standDown);
+      window.removeEventListener(MAP_OPENING_PREVIEW_TURN_EVENT, onTurn);
       window.removeEventListener(MAP_OPENING_FRAME_EVENT, onFrame);
     };
-  }, [discs]);
+  }, [discs, ground]);
 
   if (discs.length === 0) return null;
   const pitch = `${MAP_OPENING_PREVIEW_CAMERA.pitch}deg`;

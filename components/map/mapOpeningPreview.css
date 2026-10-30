@@ -141,7 +141,9 @@ html[data-theme="dark"] .mapOpeningGroundPicture {
   width: 0;
   height: 0;
   transform-origin: 0 0;
-  transform: rotateX(var(--map-preview-pitch));
+  /* MapLibre's bearing turns the map anticlockwise; CSS turns clockwise. The
+     bearing is set on the root while the arrival turn runs (MapOpeningPreview). */
+  transform: rotateX(var(--map-preview-pitch)) rotateZ(calc(-1 * var(--map-preview-bearing, 0deg)));
   transform-style: preserve-3d;
 }
 
@@ -172,7 +174,10 @@ html[data-theme="dark"] .mapOpeningGroundPicture {
       var(--ink-deep) 20.75px
     );
   color: var(--ink-deep);
-  transform: translate3d(var(--x), var(--y), 0) rotateX(calc(-1 * var(--map-preview-pitch)));
+  /* Undo the plane's turn, then its tilt, so the disc stands upright facing the
+     camera, as the canvas's own labels do. */
+  transform: translate3d(var(--x), var(--y), 0) rotateZ(var(--map-preview-bearing, 0deg))
+    rotateX(calc(-1 * var(--map-preview-pitch)));
 }
 
 html[data-theme="dark"] .mapOpeningPreviewDisc {

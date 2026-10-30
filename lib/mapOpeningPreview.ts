@@ -27,6 +27,7 @@
 // This module is PURE: no fs and no React, so the cluster port is testable.
 
 import { getCity } from "@/lib/cities";
+import { MAP_ARRIVAL_BEARING_DEG } from "@/lib/mapArrivalBearing";
 
 /** The world is 512 px wide at zoom 0 in MapLibre's 512-px tile pyramid. */
 const TILE_SIZE = 512;
@@ -338,8 +339,27 @@ export function sameCameraPose(a: OpeningCameraPose, b: OpeningCameraPose): bool
   );
 }
 
+/**
+ * The bearing a camera has turned to from `from`, when turning is all it did:
+ * the same centre, zoom and pitch, and a bearing no more than
+ * MAP_ARRIVAL_BEARING_DEG off. Null for any other move. The map's arrival turn
+ * (lib/mapArrivalBearing.ts) is this move, and the preview turns with it
+ * instead of standing down (components/map/MapOpeningPreview.tsx).
+ */
+export function openingTurnBearing(camera: OpeningCameraPose, from: OpeningCameraPose): number | null {
+  if (Math.abs(camera.bearing - from.bearing) > MAP_ARRIVAL_BEARING_DEG + 1e-6) return null;
+  return sameCameraPose({ ...camera, bearing: from.bearing }, from) ? camera.bearing : null;
+}
+
+/**
+ * Dispatched by the canvas, with the bearing as its detail, each frame the
+ * camera turns and does nothing else while the preview is up.
+ */
+export const MAP_OPENING_PREVIEW_TURN_EVENT = "pubmax:opening-preview-turn";
+
+/** The opening camera, or the opening camera turned as far as the arrival turn turns it. */
 function sameCamera(camera: MapOpeningFrame["camera"]): boolean {
-  return sameCameraPose(camera, MAP_OPENING_PREVIEW_CAMERA);
+  return openingTurnBearing(camera, MAP_OPENING_PREVIEW_CAMERA) !== null;
 }
 
 /**

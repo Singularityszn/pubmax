@@ -7,6 +7,7 @@ import { CLUSTER_MAX_ZOOM, CLUSTER_RADIUS_PX } from "@/components/map/canvas/bui
 import { CLUSTER_PRICE_KEY_NONE, CLUSTER_PRICE_NONE } from "@/components/map/canvas/filters";
 import { formatPinPriceLabel, pubsToGeoJSON } from "@/components/map/canvas/geojson";
 import { getCity } from "@/lib/cities";
+import { MAP_ARRIVAL_BEARING_DEG } from "@/lib/mapArrivalBearing";
 import {
   clusterAtZoom,
   frameMatchesPreview,
@@ -16,6 +17,7 @@ import {
   OPENING_CLUSTER_PRICE_NONE,
   OPENING_CLUSTER_RADIUS_PX,
   openingDiscClaims,
+  openingTurnBearing,
   projectAtCamera,
   type MapOpeningFrame,
 } from "@/lib/mapOpeningPreview";
@@ -194,6 +196,13 @@ describe("frameMatchesPreview", () => {
     expect(frameMatchesPreview(frame({ camera: { ...MAP_OPENING_PREVIEW_CAMERA, zoom: 14 } }), discs)).toBe(false);
   });
 
+  it("accepts the camera the arrival turn leaves, and nothing turned further", () => {
+    const turned = (bearing: number) =>
+      frame({ camera: { ...MAP_OPENING_PREVIEW_CAMERA, bearing: MAP_OPENING_PREVIEW_CAMERA.bearing + bearing } });
+    expect(frameMatchesPreview(turned(MAP_ARRIVAL_BEARING_DEG), discs)).toBe(true);
+    expect(frameMatchesPreview(turned(MAP_ARRIVAL_BEARING_DEG + 1), discs)).toBe(false);
+  });
+
   it("refuses a frame where a drinker's lower price changed a disc's figure", () => {
     const features = coreFeatures();
     const disc = discs[discs.length - 1]!;
@@ -226,5 +235,28 @@ describe("frameMatchesPreview", () => {
 
   it("refuses a frame with a pub more or fewer", () => {
     expect(frameMatchesPreview(frame({ features: coreFeatures().slice(1) }), discs)).toBe(false);
+  });
+});
+
+describe("openingTurnBearing", () => {
+  const from = { ...MAP_OPENING_PREVIEW_CAMERA };
+
+  it("reads a camera that only turned, as far as the arrival turn turns it", () => {
+    expect(openingTurnBearing({ ...from, bearing: from.bearing + 1.5 }, from)).toBeCloseTo(from.bearing + 1.5);
+    expect(openingTurnBearing({ ...from, bearing: from.bearing + MAP_ARRIVAL_BEARING_DEG }, from)).toBeCloseTo(
+      from.bearing + MAP_ARRIVAL_BEARING_DEG,
+    );
+  });
+
+  it("refuses a turn past the arrival turn", () => {
+    expect(openingTurnBearing({ ...from, bearing: from.bearing + MAP_ARRIVAL_BEARING_DEG + 0.5 }, from)).toBeNull();
+  });
+
+  it("refuses any move that is more than a turn", () => {
+    expect(openingTurnBearing({ ...from, bearing: from.bearing + 1, zoom: from.zoom + 0.1 }, from)).toBeNull();
+    expect(openingTurnBearing({ ...from, bearing: from.bearing + 1, pitch: from.pitch + 1 }, from)).toBeNull();
+    expect(
+      openingTurnBearing({ ...from, bearing: from.bearing + 1, center: [from.center[0] + 0.001, from.center[1]] }, from),
+    ).toBeNull();
   });
 });
