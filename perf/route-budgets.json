@@ -473,6 +473,15 @@
       "lcpMs": 700
     },
     {
+      "path": "/routes/victorian-soho",
+      "readySelector": "main.routePage",
+      "why": "The named route family (/routes/{slug}, SEO audit #2126): four curated crawls, each a server-rendered list of five or six stops. Victorian Soho is the instance because it is the featured crawl. Added 30 October 2026 without a local sweep, so its ceilings are set in family with /ledger/venue-eltcmh, a server-rendered page of the same size; CI's sweep is the oracle and these come DOWN at the next one.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 1050,
+      "requests": 48,
+      "lcpMs": 700
+    },
+    {
       "path": "/bar-tab/venue-eltcmh",
       "readySelector": "main.barTabPage",
       "why": "The public bar tab for one pub. It is NOT sitemap-listed, being an app surface rather than a crawlable landing, and it is budgeted anyway: it is a page a stranger opens from a shared link and it renders one tile per visible Pint Drop, so it grows with the drops. Seeded 7 September 2026: 15 ms, 924 KB, 46 requests, 608 ms LCP (samples 580/660/608).",

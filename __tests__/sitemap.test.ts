@@ -21,6 +21,7 @@ import {
 import { loadDrinkBrandLandings } from "@/lib/drinkBrandLanding.server";
 import { loadDrinkBrandAreaLandings } from "@/lib/drinkBrandAreaLanding.server";
 import { PERFORMANCE_BUDGETS } from "@/lib/performanceBudgets";
+import { NAMED_ROUTES } from "@/lib/namedRoutes";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 import type { MetadataRoute } from "next";
 
@@ -81,6 +82,7 @@ type ExpectedCounts = {
   editions: number;
   drinkBrands: number;
   drinkBrandAreas: number;
+  namedRoutes: number;
   total: number;
 };
 
@@ -112,6 +114,7 @@ async function expectedCounts(): Promise<ExpectedCounts> {
     editions,
     drinkBrands,
     drinkBrandAreas,
+    namedRoutes: NAMED_ROUTES.length,
   };
   return {
     ...counts,
@@ -124,7 +127,8 @@ async function expectedCounts(): Promise<ExpectedCounts> {
       counts.venues +
       counts.editions +
       counts.drinkBrands +
-      counts.drinkBrandAreas,
+      counts.drinkBrandAreas +
+      counts.namedRoutes,
   };
 }
 
@@ -246,6 +250,7 @@ describe("sitemap()", () => {
     expect(familyCount("/ledger/")).toBe(expected.venues);
     expect(familyCount("/drink/")).toBe(expected.drinkBrands);
     expect(familyCount("/area/")).toBe(expected.drinkBrandAreas);
+    expect(familyCount("/routes/")).toBe(expected.namedRoutes);
     expect(expected.drinkBrands).toBeGreaterThan(0);
     expect(expected.drinkBrandAreas).toBeGreaterThan(0);
     // Sanity floors so a "0 expected" (dataset wipe) can't make the test pass.

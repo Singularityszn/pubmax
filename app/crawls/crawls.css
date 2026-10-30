@@ -245,6 +245,13 @@
   letter-spacing: var(--tracking-tight);
 }
 
+/* A crawl with its own /routes page links its name there; the name keeps its
+   colour and reads as a link by its underline. */
+.curatedName a {
+  color: inherit;
+  text-underline-offset: 0.15em;
+}
+
 .curatedBlurb {
   margin: 0;
   max-width: 60ch;
