@@ -120,6 +120,7 @@ function RankAfterVisit({ visits }: { visits: readonly RankVisit[] }) {
   const venueName = subject?.venueName ?? visit.venueName;
   const venueId = subject?.venueId ?? visit.venueId;
   const nextVisit = visits[index + 1] ?? null;
+  const currentVisitId = visit.venueId;
 
   function skip() {
     setIndex((current) => current + 1);
@@ -150,9 +151,9 @@ function RankAfterVisit({ visits }: { visits: readonly RankVisit[] }) {
         { requiresIdentity: true },
       );
       if (response.status === 409 && body.code === "STALE_RANKING") {
-        const fresh = await readList(visit.venueId);
+        const fresh = await readList(currentVisitId);
         if (!fresh) throw new Error("That ranking did not save. Try again.");
-        setLoaded({ forVenueId: visit.venueId, ...fresh });
+        setLoaded({ forVenueId: currentVisitId, ...fresh });
         setNotice("Your list changed in another tab. One more go.");
         begin(band, fresh.entries, asked);
         return;

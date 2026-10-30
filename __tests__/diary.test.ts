@@ -160,6 +160,7 @@ describe("ordering and labels", () => {
     venueName: "V",
     rating: null,
     review: "",
+    usualDrink: "",
     visibility: "private",
   };
 
