@@ -1,8 +1,8 @@
 import "server-only";
 
 // The store behind "With" handle tags on a Pint Drop and on a diary entry
-// (lib/pintDropWithTags.ts is the reading rule; migration 0198 is the table and
-// 0201 lets a row name a diary entry instead of a drop). The rules live in ONE
+// (lib/pintDropWithTags.ts is the reading rule; migration 0204 is the table and
+// 0207 lets a row name a diary entry instead of a drop). The rules live in ONE
 // place, `createPintDropWithTagsStore`, over a small row seam, so the memory
 // backend (keyless dev and tests) and the Supabase backend cannot answer the
 // same question two ways.
@@ -486,15 +486,15 @@ const LEGACY_COLUMNS =
   "id,drop_id,tagger_profile_id,tagger_handle,target_profile_id,target_handle,state,created_at,decided_at";
 const COLUMNS = `${LEGACY_COLUMNS},diary_entry_id`;
 
-/** PostgREST's answer for the 0201 column on a database that has not got it. */
+/** PostgREST's answer for the 0207 column on a database that has not got it. */
 function isMissingDiaryColumn(error: { code?: string; message?: string } | null): boolean {
   if (!error) return false;
   return (error.code === "42703" || error.code === "PGRST204") && /diary_entry_id/.test(error.message ?? "");
 }
 
 /**
- * Run a read with the 0201 column, and again without it on a database that
- * is behind, so a deploy ahead of 0201 keeps every Pint Drop tag working.
+ * Run a read with the 0207 column, and again without it on a database that
+ * is behind, so a deploy ahead of 0207 keeps every Pint Drop tag working.
  */
 async function selectRows<T>(
   run: (columns: string) => PromiseLike<{ data: T; error: { code?: string; message?: string } | null }>,
@@ -547,8 +547,8 @@ export const supabaseWithTagRows: WithTagRows = {
       .upsert(
         {
           id: row.id,
-          // A drop tag never names the 0201 column, so it writes on a
-          // database that is behind; a diary tag needs 0201 and says so.
+          // A drop tag never names the 0207 column, so it writes on a
+          // database that is behind; a diary tag needs 0207 and says so.
           ...(row.diaryEntryId ? { diary_entry_id: row.diaryEntryId } : { drop_id: row.dropId }),
           tagger_profile_id: row.taggerProfileId,
           tagger_handle: row.taggerHandle,
@@ -622,7 +622,7 @@ export const supabaseWithTagRows: WithTagRows = {
       .in("diary_entry_id", [...entryIds])
       .in("state", [...states])
       .order("created_at", { ascending: false });
-    // Before 0201 no diary entry can hold a tag, so a behind database has none.
+    // Before 0207 no diary entry can hold a tag, so a behind database has none.
     if (isMissingDiaryColumn(error)) return [];
     if (error) unavailable(error);
     return (Array.isArray(data) ? data : []).map(rowFrom);

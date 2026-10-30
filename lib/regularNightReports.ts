@@ -14,7 +14,7 @@
 // NO SCRAPING. A drinker types it and photographs it. Nothing here fetches.
 //
 // Browser-safe leaf: the form and the route share ONE validator, and the closed
-// sets here are mirrored by CHECKs in migration 0200.
+// sets here are mirrored by CHECKs in migration 0206.
 
 import { cleanText } from "@/lib/textClean";
 
@@ -224,7 +224,7 @@ export function regularNightBoardObjectPrefix(reporterUserId: string): string {
   return `${REGULAR_NIGHT_BOARD_STORAGE_PREFIX}/${reporterUserId}`;
 }
 
-/** The one shape a board photo's key takes; the 0200 CHECK holds it. */
+/** The one shape a board photo's key takes; the 0206 CHECK holds it. */
 export function regularNightBoardKey(reporterUserId: string, reportId: string): string {
   return `${regularNightBoardObjectPrefix(reporterUserId)}/${reportId}.jpg`;
 }

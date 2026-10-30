@@ -1,7 +1,7 @@
 import "server-only";
 
 // The board or poster photo behind a drinker's regular night: the bytes half of
-// the 0200 lane.
+// the 0206 lane.
 //
 // The photo takes the shared owned-image journey (`prepareUploadedImage`, the
 // one venue photos and menu photos use): type, size cap, magic bytes, metadata

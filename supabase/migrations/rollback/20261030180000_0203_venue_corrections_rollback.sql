@@ -1,4 +1,4 @@
--- Rollback 0197: drop the venue corrections table. THIS DELETES EVERY "THAT'S
+-- Rollback 0203: drop the venue corrections table. THIS DELETES EVERY "THAT'S
 -- WRONG" NOTE ANY DRINKER HAS SENT, open or decided. Nothing else reads the
 -- table, so no pin, price or pub moves. Export first if any open rows matter.
 

@@ -22,7 +22,7 @@ import {
 // decides. "photo" is a Social post photo tag. "with" is a Pint Drop's "With"
 // handle tag (lib/pintDropWithTags.ts): until it is approved the drop says
 // "with 1 person", and a decline or a withdrawal takes it off the drop. A
-// "with" tag can also sit on a diary entry (0201), which only its owner reads.
+// "with" tag can also sit on a diary entry (0207), which only its owner reads.
 
 type PhotoProposal = {
   kind?: "photo";
@@ -42,7 +42,7 @@ type PhotoProposal = {
 };
 type WithProposal = {
   kind: "with";
-  /** Absent from a server older than 0201, which only tagged drops. */
+  /** Absent from a server older than 0207, which only tagged drops. */
   subject?: "drop" | "diary";
   id: string;
   dropId: string | null;
