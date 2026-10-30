@@ -4,6 +4,7 @@ import {
   ENGLAND_WALES_BANK_HOLIDAYS,
   isBankHoliday,
   londonCivilTime,
+  londonWallClockInstant,
   minutesUntilClose,
   readHolidayAwareHours,
 } from "@/lib/lastOrders";
@@ -123,6 +124,47 @@ describe("minutesUntilClose", () => {
         reason: "holiday-calendar-unknown",
       });
     });
+  });
+});
+
+describe("the nights the clocks change", () => {
+  it("counts real minutes when the clocks go forward (28 March 2027)", () => {
+    // 00:55 GMT. At 01:00 GMT the clocks jump to 02:00 BST, so a 02:05 close
+    // is 01:05 UTC: ten real minutes, not seventy wall-clock ones.
+    expect(minutesUntilClose("Sa 18:00-02:05", new Date("2027-03-28T00:55:00Z"))).toEqual({
+      state: "open",
+      minutesLeft: 10,
+      closesAt: "02:05",
+    });
+  });
+
+  it("never runs long when the clocks go back (25 October 2026)", () => {
+    // 01:15 BST, the first 01:15 of the night. 01:30 happens twice; the
+    // countdown takes the first, 15 minutes away, never the second at 75.
+    expect(minutesUntilClose("Sa 12:00-01:30", new Date("2026-10-25T00:15:00Z"))).toEqual({
+      state: "open",
+      minutesLeft: 15,
+      closesAt: "01:30",
+    });
+    // After the change a 02:30 close is plain GMT again.
+    expect(minutesUntilClose("Sa 12:00-02:30", new Date("2026-10-25T01:15:00Z"))).toEqual({
+      state: "open",
+      minutesLeft: 75,
+      closesAt: "02:30",
+    });
+  });
+
+  it("places a wall-clock time on the earliest instant it can name", () => {
+    const at = (ymd: string, hhmm: string) => {
+      const [h = 0, m = 0] = hhmm.split(":").map(Number);
+      return new Date(londonWallClockInstant(ymd, h * 60 + m)).toISOString();
+    };
+    expect(at("2026-10-30", "22:45")).toBe("2026-10-30T22:45:00.000Z");
+    expect(at("2026-08-31", "22:45")).toBe("2026-08-31T21:45:00.000Z");
+    // Gone when the clocks go forward: the earliest candidate, before the jump.
+    expect(at("2027-03-28", "01:30")).toBe("2027-03-28T00:30:00.000Z");
+    // Twice when the clocks go back: the first one, in BST.
+    expect(at("2026-10-25", "01:30")).toBe("2026-10-25T00:30:00.000Z");
   });
 });
 

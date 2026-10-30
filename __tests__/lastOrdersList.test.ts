@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   isLastOrdersHour,
+  LAST_ORDERS_ORDER_LINE,
   lastOrdersCountdownLabel,
   lastOrdersMapRequested,
   lastOrdersOpenVenueIds,
@@ -65,6 +66,38 @@ describe("rankLastOrders", () => {
     expect(rows[0]).toMatchObject({ minutesLeft: 135, closesAt: "01:00" });
     expect(rows[0]?.walkMinutes).toBeLessThanOrEqual(3);
     expect(rows[2]).toMatchObject({ minutesLeft: null, closesAt: null, price: null });
+  });
+});
+
+describe("the order the list promises", () => {
+  // 80 m is a 1-minute walk, 380 m a 5-minute one, 480 m a 6-minute one.
+  const pubs = [
+    pub("venue-one-min-dear", "Mo-Su 12:00-01:00", 80),
+    pub("venue-five-min-cheap", "Mo-Su 12:00-01:00", 380),
+    pub("venue-six-min-cheapest", "Mo-Su 12:00-01:00", 480),
+  ];
+  const prices = new Map([
+    ["venue-one-min-dear", { priceGbp: 7.5, observedAt: null }],
+    ["venue-five-min-cheap", { priceGbp: 5, observedAt: null }],
+    ["venue-six-min-cheapest", { priceGbp: 3.5, observedAt: null }],
+  ]);
+
+  it("puts the cheaper pint first inside a five-minute step, and a nearer step first", () => {
+    const rows = rankLastOrders({ pubs, prices, from: FROM, now: FRIDAY_2245 });
+    expect(rows.map((row) => [row.venueId, row.walkMinutes])).toEqual([
+      ["venue-five-min-cheap", 5],
+      ["venue-one-min-dear", 1],
+      ["venue-six-min-cheapest", 6],
+    ]);
+  });
+
+  it("says so in the words the reader sees", () => {
+    expect(LAST_ORDERS_ORDER_LINE).toBe(
+      "Nearest first in five-minute walking steps, and the cheapest pint first inside each step.",
+    );
+    const panel = readFileSync(path.join(process.cwd(), "app/tonight/TonightLastOrdersPanel.tsx"), "utf8");
+    expect(panel).toContain("{LAST_ORDERS_ORDER_LINE}");
+    expect(panel).not.toContain("Nearest first, then the");
   });
 });
 

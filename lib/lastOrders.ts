@@ -177,6 +177,39 @@ function windowsForDay(hours: HolidayAwareHours, day: CivilDay): DayWindows {
   return { windows };
 }
 
+// London's offset from UTC at an instant, in minutes: 0 in winter, 60 in summer.
+function londonOffsetMinutes(instantMs: number): number {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: LAST_ORDERS_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(instantMs));
+  const part = (type: string) => Number(parts.find((entry) => entry.type === type)?.value ?? 0);
+  const wall = Date.UTC(part("year"), part("month") - 1, part("day"), part("hour"), part("minute"));
+  return Math.round((wall - Math.floor(instantMs / 60_000) * 60_000) / 60_000);
+}
+
+/**
+ * The instant a London wall-clock time names: `minutes` from the start of the
+ * day `ymd` (past 1440 runs into the next day). Twice a year that is not one
+ * instant. When the clocks go back, 01:30 happens twice; when they go forward,
+ * 01:30 never happens. Both answer with the EARLIEST candidate, so a close is
+ * never placed later than it can be and a countdown never runs long.
+ */
+export function londonWallClockInstant(ymd: string, minutes: number): number {
+  const [year = 0, month = 1, date = 1] = ymd.split("-").map(Number);
+  const candidates = [0, 60].map((offset) => ({
+    offset,
+    instant: Date.UTC(year, month - 1, date, 0, minutes) - offset * 60_000,
+  }));
+  const valid = candidates.filter((entry) => londonOffsetMinutes(entry.instant) === entry.offset);
+  return Math.min(...(valid.length > 0 ? valid : candidates).map((entry) => entry.instant));
+}
+
 function formatClock(minutes: number): string {
   const inDay = ((minutes % DAY_MINUTES) + DAY_MINUTES) % DAY_MINUTES;
   const hour = Math.floor(inDay / 60);
@@ -190,8 +223,10 @@ function formatClock(minutes: number): string {
  * A window from yesterday that runs past midnight counts, so a Friday
  * `11:00-26:30` is still open at 01:00 on Saturday with 90 minutes left.
  * Windows that touch (`Fr 12:00-24:00; Sa 00:00-02:00`) are one stretch.
- * Clock arithmetic is in London civil minutes; on the two nights a year the
- * clocks change, a close after 02:00 can be out by an hour.
+ * The windows are read on London's wall clock, but the minutes left are REAL
+ * minutes: the close is turned into an instant (londonWallClockInstant), so a
+ * Saturday `18:00-02:05` read at 00:55 GMT on the night the clocks go forward
+ * has 10 minutes left, not 70.
  */
 export function minutesUntilClose(raw: string | null | undefined, now: Date): ClosingAnswer {
   if (typeof raw !== "string" || !raw.trim()) return { state: "unknown", reason: "no-hours" };
@@ -228,7 +263,9 @@ export function minutesUntilClose(raw: string | null | undefined, now: Date): Cl
     if (!next) break;
     close = next[1];
   }
-  const minutesLeft = close - minutes;
+  const closeInstant = londonWallClockInstant(today.ymd, close);
+  const minutesLeft = Math.floor((closeInstant - now.getTime()) / 60_000);
+  if (minutesLeft <= 0) return { state: "closed" };
   if (minutesLeft >= DAY_MINUTES) return { state: "open-all-night" };
   return { state: "open", minutesLeft, closesAt: formatClock(close) };
 }

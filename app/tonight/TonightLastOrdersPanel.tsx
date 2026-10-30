@@ -20,12 +20,12 @@ import { RowList, RowListItem } from "@/components/ui/row-list";
 import { getCity } from "@/lib/cities";
 import { formatObservedDate, formatSnapshotFrom } from "@/lib/dataFreshness";
 import { oldestPintRead } from "@/lib/drinks";
-import { coarsenViewerPoint } from "@/lib/geo";
 import { LOCATION_FINDING_LABEL, LOCATION_SHARE_LABEL } from "@/lib/locationDisclosure";
 import {
   LAST_ORDERS_HOURS_PATH,
   LAST_ORDERS_MAP_PARAM,
   LAST_ORDERS_MIN_MINUTES,
+  LAST_ORDERS_ORDER_LINE,
   LAST_ORDERS_PRICES_PATH,
   lastOrdersCountdownLabel,
   parseLastOrdersHoursPack,
@@ -36,9 +36,10 @@ import {
   type LastOrdersRow,
 } from "@/lib/lastOrdersList";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
-import type { LastTrainResult } from "@/lib/tfl";
 import type { TonightNear } from "@/lib/tonight";
-import { summariseGetHome, type GetHomeSummary } from "@/lib/tonightGetHome";
+
+import { useLastOrdersGetHome, type GetHome } from "./useLastOrdersGetHome";
+import { useLiveClock } from "./useLiveClock";
 
 import "./tonightLastOrders.css";
 
@@ -49,12 +50,6 @@ type Packs =
   | { status: "loading" }
   | { status: "failed" }
   | { status: "ready"; hours: LastOrdersHoursPack; prices: ReadonlyMap<string, LastOrdersPrice> };
-
-type GetHome =
-  | { status: "no-location" }
-  | { status: "loading" }
-  | { status: "none" }
-  | { status: "ready"; summary: GetHomeSummary };
 
 // Both packs go through the shared surface cache, so a returning tab paints the
 // last answer at once. Prices are optional: a failed price read lists the
@@ -92,50 +87,6 @@ function useLastOrdersPacks(): [Packs, () => void] {
     setAttempt((count) => count + 1);
   }, []);
   return [packs, retry];
-}
-
-// The same /api/last-train read the location block's strip makes, with the
-// same coarsened point, so the two never disagree and share one cached answer.
-function useGetHome(origin: { lat: number; lng: number } | null): GetHome {
-  const [answer, setAnswer] = useState<{ key: string; value: GetHome } | null>(null);
-  const key = origin ? `${origin.lat},${origin.lng}` : "";
-  useEffect(() => {
-    if (!origin) return;
-    const controller = new AbortController();
-    const { lat, lng } = coarsenViewerPoint(origin);
-    void loadSurfaceJson<LastTrainResult>(
-      `/api/last-train?lat=${lat}&lng=${lng}`,
-      {
-        signal: controller.signal,
-        validate: (body) => Boolean(body && typeof body === "object" && "station" in body && "trains" in body),
-      },
-      (body) => {
-        const summary = summariseGetHome(body);
-        setAnswer({ key, value: summary ? { status: "ready", summary } : { status: "none" } });
-      },
-    ).then((outcome) => {
-      if (outcome === "failed" && !controller.signal.aborted) setAnswer({ key, value: { status: "none" } });
-    });
-    return () => controller.abort();
-    // `key` carries the point; the object itself changes identity every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
-  if (!origin) return { status: "no-location" };
-  return answer?.key === key ? answer.value : { status: "loading" };
-}
-
-function useMinuteClock(): Date | null {
-  const [now, setNow] = useState<Date | null>(null);
-  useEffect(() => {
-    const tick = () => setNow(new Date());
-    const first = window.setTimeout(tick, 0);
-    const timer = window.setInterval(tick, TICK_MS);
-    return () => {
-      window.clearTimeout(first);
-      window.clearInterval(timer);
-    };
-  }, []);
-  return now;
 }
 
 function Countdown({ row }: { row: LastOrdersRow }) {
@@ -222,8 +173,8 @@ export default function TonightLastOrdersPanel({
   onClose: () => void;
 }) {
   const [packs, retry] = useLastOrdersPacks();
-  const getHome = useGetHome(origin);
-  const now = useMinuteClock();
+  const now = useLiveClock(TICK_MS);
+  const getHome = useLastOrdersGetHome(origin, now);
   const from = near?.near ?? null;
   const fallback = getCity("london").mapView.center;
   const fromLat = from?.lat ?? fallback[1];
@@ -270,8 +221,8 @@ export default function TonightLastOrdersPanel({
         </Button>
       </div>
       <p className="lastOrdersLede tonightSectionLine">
-        Pubs whose listed hours run at least {LAST_ORDERS_MIN_MINUTES} more minutes. Nearest first, then the
-        cheapest pint. {basis}
+        Pubs whose listed hours run at least {LAST_ORDERS_MIN_MINUTES} more minutes. {LAST_ORDERS_ORDER_LINE}{" "}
+        {basis}
       </p>
 
       <GetHomeLine getHome={getHome} onShareLocation={onShareLocation} locating={locating} />

@@ -14,9 +14,12 @@ import { Button } from "@/components/ui/button";
 import { isLastOrdersHour } from "@/lib/lastOrdersList";
 import type { TonightNear } from "@/lib/tonight";
 
+import { useLiveClock } from "./useLiveClock";
+
 const TonightLastOrdersPanel = dynamic(() => import("./TonightLastOrdersPanel"), { ssr: false });
 
 const LAST_ORDERS_MODE_PARAM = "last-orders";
+const DOOR_TICK_MS = 30_000;
 
 export default function TonightLastOrdersDoor({
   origin,
@@ -33,14 +36,17 @@ export default function TonightLastOrdersDoor({
   locating: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  // Read after load: the document is prerendered and its clock is the build's.
-  const [late, setLate] = useState(false);
+  // A live clock, never one read: a Tonight tab left open from 21:00 must
+  // promote the door at 21:30 and quieten it at 04:00, and a tab woken from
+  // the background reads the clock again (useLiveClock). Null until after
+  // load, because the document is prerendered and its clock is the build's.
+  const now = useLiveClock(DOOR_TICK_MS);
+  const late = now ? isLastOrdersHour(now) : false;
 
   useEffect(() => {
     let cancelled = false;
     void Promise.resolve().then(() => {
       if (cancelled) return;
-      setLate(isLastOrdersHour(new Date()));
       if (new URLSearchParams(window.location.search).get("mode") === LAST_ORDERS_MODE_PARAM) setOpen(true);
     });
     return () => {

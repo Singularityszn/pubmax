@@ -18,6 +18,15 @@ const LAST_ORDERS_ARRIVAL_MINUTES = 15;
 const LAST_ORDERS_MAX_WALK_MINUTES = 30;
 const LAST_ORDERS_LIMIT = 12;
 
+/**
+ * How the list is ordered, said where the reader sees it. Walks are grouped in
+ * five-minute steps because a one-minute and a five-minute walk cost a drinker
+ * the same, while a £1.50 gap in the pint does not; inside a step the cheaper
+ * pint wins. The words name the steps so the order never contradicts them.
+ */
+export const LAST_ORDERS_ORDER_LINE =
+  "Nearest first in five-minute walking steps, and the cheapest pint first inside each step.";
+
 /** London 21:30 to 03:59 is when Tonight offers Last orders on its own. */
 const WINDOW_OPENS = 21 * 60 + 30;
 const WINDOW_CLOSES = 4 * 60;

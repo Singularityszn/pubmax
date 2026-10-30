@@ -60,20 +60,20 @@ test("the map arrives with Last orders on and narrows to pubs still open (390x84
   expect(errors).toEqual([]);
 });
 
-test("the desktop rail offers Last orders with its caption (1280x800)", async ({ page }) => {
+test("the desktop filters offer Last orders with its caption (1280x800)", async ({ page }) => {
   test.setTimeout(90_000);
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.clock.setFixedTime(FRIDAY_2245);
   await page.goto("/map?lastOrders=1");
-  const toggle = page.getByLabel("Last orders: open 30 more minutes");
-  // The rail lives behind the desktop filters door; reach it whichever way the
-  // chrome shows it at this width.
-  if (!(await toggle.isVisible().catch(() => false))) {
-    const door = page.getByRole("button", { name: /^(Filters|More filters)/ }).first();
-    await expect(door).toBeVisible({ timeout: 45_000 });
-    await door.click();
-  }
-  await expect(toggle).toBeChecked({ timeout: 45_000 });
-  await expect(page.getByText("Pubs with no listed hours are hidden.").first()).toBeVisible();
+  const door = page.getByRole("button", { name: /^Filters/ }).first();
+  await expect(door).toBeVisible({ timeout: 45_000 });
+  await expect(door).toHaveAttribute("aria-label", /1 filter on, pub features/);
+  if ((await door.getAttribute("aria-expanded")) !== "true") await door.click();
+  const features = page.getByRole("region", { name: "Pub features" });
+  await expect(features.getByRole("button", { name: "Last orders", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(features).toContainText("Pubs with no listed hours are hidden.");
   await page.screenshot({ path: "artifacts/last-orders/map-last-orders-1280x800.png" });
 });
