@@ -89,6 +89,12 @@ const config: KnipConfig = {
 
     // Manual evidence CLIs documented beside their proof output.
     "scripts/map-fix-shots.mjs",
+    // Named by docs/design-explorations/2026-10-30-phone-mockups/README.md as
+    // the ONE command that prints its contrast table from the live tokens
+    // (`node docs/design-explorations/2026-10-30-phone-mockups/contrast.mjs`).
+    // It reads app/globals.css and app/theme.css on every run and found the
+    // Pint compass contrast defect, so it is kept to re-run the sweep.
+    "docs/design-explorations/2026-10-30-phone-mockups/contrast.mjs",
     "scripts/report_borough_coverage.mjs",
     // Named by docs/data/uk-osm-extract-2026-10-04.md as the ONE way to rewrite
     // that doc's figures ("Do not edit the figures by hand").
