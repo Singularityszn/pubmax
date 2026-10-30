@@ -102,7 +102,19 @@ What did not run here, and must run before merge: the PostgreSQL suites (`npm ru
 11. With tags: the native share extension (iOS) and SEND intent filter (Android) are listed in builder 8's report for the native rebuild.
 12. Two counts stay on purpose: 960 pubs have a pint price, the average uses 939, each page names its base.
 
-### Round 3 candidates (not started)
+### Round 3 (started 30 October, 17:05 UTC)
+
+Five builders, each merged onto the integration branch before work so rounds 1 and 2 are under them.
+
+| # | Slice | Files it owns |
+| --- | --- | --- |
+| 11 | Venue sheet five folds (design V1): Price open by default, then Tonight, Getting there and home, The pub, Your record | `components/map/inspector/VenueOverviewTab.tsx`, new `Overview*` split files, `components/map/venueSheet.css`, a fold table in `lib/` |
+| 12 | E4, a drinker-added regular night: store, migration 0200, write route with photo, "still on", admin tab, read merged into the regular-nights lane with its own label, add control on Tonight and the pub page | new `lib/regularNightReports*`, `app/api/regular-nights`, `app/api/admin/regular-nights`, one AdminClient tab, `components/tonight/AddRegularNight.tsx`, `lib/regularNights.ts` |
+| 13 | The With line on the drop card from one batched read, retry resends tags, tags follow a rename, With tags on the diary, edit the usual | `components/map/inspector/PintDropsList.tsx`, `components/map/usePintDrops.ts`, `lib/pintDropWithTags*`, `components/diary/**`, `lib/diary*`, `app/api/diary` |
+| 14 | The plan as one card (design V2), "Lock it in on Plan" links, the Pal share uses the one `/invite` URL, the invite page as a timeline | `components/plan/PlanSummary.tsx`, `MobilePlanActivation.tsx`, `app/plan/plan.css`, `components/pal/PalNightQuestion.tsx`, `app/invite/[token]/*` |
+| 15 | Rules docs say what the merged code does; run the browser specs whose selectors rounds 1 and 2 edited and fix selector drift only | `docs/rules/*`, `docs/security/PERMISSION_MATRIX.md`, `e2e/*` |
+
+The list the round was cut from:
 
 - Show the "With" line on the drop card (`components/map/inspector/PintDropsList.tsx`), left by builder 8 because the inspector was another builder's area.
 - Rules docs: the Today picks rule and the Tonight first-row rule in `docs/rules/`, the one-invite rule in `docs/security/PERMISSION_MATRIX.md`, the pubs-only line and the count module.
