@@ -122,14 +122,20 @@ const STORE_INVENTORY: Record<string, StoreRow> = {
   "lib/operatorProposalsStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/pendingPlanRecapStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/pintDropsStore.ts": { class: "policy-heavy", selector: "selectStore" },
+  "lib/pintDropWithTagsStore.ts": {
+    class: "policy-heavy",
+    selector: "selectStore",
+    inlineBranches: 2,
+    reason: "Consent, block and ownership checks branch per write beside the seam.",
+  },
   "lib/planCollaborationStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/planGroupPrefsStore.ts": { class: "plain-dual-backend", selector: "selectStore" },
   "lib/planInviteRsvpStore.ts": { class: "plain-dual-backend", selector: "selectStore" },
   "lib/planStore.ts": {
     class: "legacy-exception",
     selector: "selectStore",
-    inlineBranches: 13,
-    reason: "Capability, invite and idempotency lanes branch per operation; the store getter alone rides the seam.",
+    inlineBranches: 14,
+    reason: "Capability, invite, idempotency and RSVP-collaboration lanes branch per operation; the store getter alone rides the seam.",
   },
   "lib/presenceStore.ts": {
     class: "policy-heavy",

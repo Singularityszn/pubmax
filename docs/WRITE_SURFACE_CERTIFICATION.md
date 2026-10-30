@@ -397,7 +397,7 @@ bodies.
 - **Authority:** `requireVerifiedSocialActor` derives stable profile authority.
   Only the drop's author may propose, and an anonymous drop takes no tags. A
   tag needs a live claimed handle. The target approves, declines or later
-  withdraws; the author cancels (`lib/pintDropWithTagsStore.ts`, migration 0197).
+  withdraws; the author cancels (`lib/pintDropWithTagsStore.ts`, migration 0198).
 - **Consent:** a reader sees the handle only while the tag is approved; until
   then the drop says "with 1 person". A block either way, or a relationship
   that cannot be read, writes nothing and answers exactly as a written tag.

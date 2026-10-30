@@ -64,6 +64,7 @@ silently stale.
 | operatorProposalsStore | factory-ready | Operator proposal state has one backend selector. |
 | pendingPlanRecapStore | factory-ready | Small pending-plan recap store. |
 | pintDropsStore | legacy-exception | Inline Supabase configuration branch around Pint Drop and Storage work. |
+| pintDropWithTagsStore | factory-eligible, policy-heavy | "With" handle tags on a Pint Drop: proposal, consent, withdrawal and block refusal. |
 | planCollaborationStore | factory-ready | Shared selector with `globalThis` memory state. |
 | planGroupPrefsStore | factory-ready | Shared selector with `globalThis` memory state. |
 | planInviteRsvpStore | factory-ready | Shared selector with `globalThis` memory state. |
@@ -108,7 +109,7 @@ silently stale.
 The following stores intentionally stay outside the factory-ready path:
 
 - **legacy-exception:** `analyticsReceiptStore`, `contributorLeaderboardStore`,
-  `crawlStoryStore`, `nightMemoryStore`, `pintDropsStore`, `planStore`,
+  `crawlStoryStore`, `nightMemoryStore`, `pintDropsStore`, `pintDropWithTagsStore`, `planStore`,
   `pubPalStore`, and `savedPubsStore`. Each needs a separate selector
   refactor before a factory wrapper can preserve its behavior. Owner: the
   next issue #727 store wave.
@@ -182,6 +183,7 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/mapSearchEvents.server.ts",
     "lib/messageAuth.ts",
     "lib/messagePhotoMedia.server.ts",
+    "lib/messageSafety.server.ts",
     "lib/messagesStore.ts",
     "lib/nightMemoryStore.ts",
     "lib/nightMomentMedia.ts",
@@ -191,6 +193,7 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/operatorProposalsStore.ts",
     "lib/pendingPlanRecapStore.ts",
     "lib/pintDropLookup.ts",
+    "lib/pintDropWithTagsStore.ts",
     "lib/pintDrops.ts",
     "lib/pintDropsStore.ts",
     "lib/planCollaborationStore.ts",
