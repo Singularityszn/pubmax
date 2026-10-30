@@ -113,7 +113,7 @@ export default function TimeMachineClient({
             {rows.map((row) => (
               <li key={row.venueId} className="tmRow">
                 {row.placed ? (
-                  <Link className="tmRowName" href={venueMapUrl(row.venueId)}>
+                  <Link className="tmRowName" prefetch={false} href={venueMapUrl(row.venueId)}>
                     {row.name}
                   </Link>
                 ) : (
