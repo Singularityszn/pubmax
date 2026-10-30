@@ -6,6 +6,7 @@ import type { MapLensPrice } from "@/lib/mapExperienceLens";
 import type { NightContext } from "@/lib/nightPlanning";
 import type { PlanningWeather } from "@/lib/weatherSnapshots";
 import type { WhatsOnRow } from "@/lib/whatsOn";
+import { nearestStaticStation } from "@/lib/staticStations";
 
 type ScoreAccumulator = { score: number; reasons: string[] };
 
@@ -100,6 +101,45 @@ function occasionFit(venue: ConciergeVenue, context: NightContext): ScoreAccumul
   return { score, reasons };
 }
 
+/** A station this close counts as "near a station" for a tube or station word. */
+export const PLAN_NEAR_STATION_METRES = 600;
+
+/**
+ * The listed station within PLAN_NEAR_STATION_METRES of a point, or null. The
+ * bundled table (lib/staticStations.ts) holds central interchanges only, so a
+ * null is no proof that a pub is far from a station.
+ */
+export function planNearStationName(lat: number, lng: number): string | null {
+  const nearest = nearestStaticStation(lat, lng);
+  return nearest && nearest.distanceM <= PLAN_NEAR_STATION_METRES ? nearest.name : null;
+}
+
+/**
+ * Soft preferences a reader can name that no record can enforce: a tube or
+ * station word lifts pubs near a listed station, and a dietary word lifts pubs
+ * that publish a menu link. Neither removes a pub from the route.
+ */
+function namedPreferenceFit(
+  venue: ConciergeVenue,
+  context: NightContext,
+  menuLinkVenueIds: ReadonlySet<string> | undefined,
+): ScoreAccumulator {
+  const reasons: string[] = [];
+  let score = 0;
+  if (context.transportConstraints.includes("tube")) {
+    const station = planNearStationName(venue.lat, venue.lng);
+    if (station) {
+      score += 1.5;
+      reasons.push(`within ${PLAN_NEAR_STATION_METRES} m of ${station} station`);
+    }
+  }
+  if (menuLinkVenueIds?.has(venue.id)) {
+    score += 2;
+    reasons.push("publishes a menu link");
+  }
+  return { score, reasons };
+}
+
 function atmosphereFit(
   venue: ConciergeVenue,
   context: NightContext,
@@ -165,6 +205,7 @@ export function scoreVenueForPlan(
   naLensPrices?: ReadonlyMap<string, MapLensPrice>,
   wetherspoonsMatchedIds?: ReadonlySet<string>,
   drinkLensPrices?: ReadonlyMap<string, MapLensPrice>,
+  menuLinkVenueIds?: ReadonlySet<string>,
 ): { score: number; reasons: string[] } {
   const pieces = [
     priceAndZeroProof(venue, context, naLensPrices, drinkLensPrices),
@@ -172,6 +213,7 @@ export function scoreVenueForPlan(
     occasionFit(venue, context),
     atmosphereFit(venue, context, weather),
     liveSignals(context, tonightEvents, signalClaims),
+    namedPreferenceFit(venue, context, menuLinkVenueIds),
   ];
   return {
     score: pieces.reduce((sum, piece) => sum + piece.score, 0)
@@ -186,7 +228,9 @@ function missingPlanContextEvidence(
 ): string[] {
   const missing: string[] = [];
   if (context.accessibility.length > 0 && !answered.accessibilityEnforced) missing.push("venue_accessibility");
-  if (context.transportConstraints.length > 0) missing.push("per_venue_transport");
+  // A walking word is met by the route's own leg rule; any other transport word
+  // asks for transport evidence the dataset does not hold for every pub.
+  if (context.transportConstraints.some((need) => need !== "walking")) missing.push("per_venue_transport");
   if (context.zeroProof && !answered.allZeroProofConfirmed) missing.push("zero_proof_options");
   if (context.foodNeeds.some((need) => ["kebab", "halal", "vegan", "vegetarian"].includes(need))) {
     missing.push("food_terminal_specificity");
@@ -220,4 +264,26 @@ export function planGenerationEvidenceGaps(input: {
 
 export function planEvidenceWarning(code: string): string {
   return `Check ${code.replaceAll("_", " ")} before relying on this route.`;
+}
+
+/**
+ * The one warning a dietary word earns, or none. The planner reads no menu, so
+ * it says so, then says how many of the chosen stops publish a menu link.
+ */
+export function planDietaryMenuWarning(
+  dietaryMenu: { need: string; menuLinkVenueIds: ReadonlySet<string> } | null,
+  stopVenueIds: readonly string[],
+): string[] {
+  if (!dietaryMenu) return [];
+  const { need, menuLinkVenueIds } = dietaryMenu;
+  const cannotCheck = need === "allergy"
+    ? "We can't check menus for allergies."
+    : `We can't check ${need} menus or allergens.`;
+  const withLink = stopVenueIds.filter((id) => menuLinkVenueIds.has(id)).length;
+  const menus = withLink === 0
+    ? "Ask each pub before you order."
+    : withLink === stopVenueIds.length
+      ? "These stops publish a menu link."
+      : "Some of these stops publish a menu link. Ask the others before you order.";
+  return [`${cannotCheck} ${menus}`];
 }

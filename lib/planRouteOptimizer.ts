@@ -314,6 +314,13 @@ function report<T>(evaluation: EvaluatedRoute<T>, constraints: GroundedPlanRoute
         status: "satisfied",
         message: transportFeasibilityMessage(evaluation.timing.walkingBasis),
       },
+      // A walking word asks for what every route already is: routeTiming
+      // refuses a leg over MAX_PLAN_ROUTE_SEGMENT_KM. The line says it was heard.
+      ...(constraints.transportConstraints.includes("walking") ? [{
+        code: "short_walks" as const,
+        status: "satisfied" as const,
+        message: `Short walks: every leg is under ${MAX_PLAN_ROUTE_SEGMENT_KM} km.`,
+      }] : []),
       ...(constraints.exactArea ? [{
         code: "exact_area" as const,
         status: "satisfied" as const,
@@ -603,10 +610,9 @@ export function selectGroundedPlanRoute<T>(
   constraints: GroundedPlanRouteConstraints,
 ): GroundedPlanRouteSelection<T> {
   const target = planStopCount(constraints.stopCount);
+  // A transport word is a preference, never a refusal: the walking rule is the
+  // route's own rule, and station proximity is scored upstream.
   const rejected = { safety: 0, exclusions: 0, accessibility: 0, budgetEvidence: 0, budgetCeiling: 0 };
-  if (constraints.transportConstraints.length > 0) {
-    return { ok: false, eligibleCandidateCount: 0, rejected };
-  }
   const routeEligible = routeEligibleCandidates(candidates, constraints, rejected);
   if (routeEligible.length < target) {
     return { ok: false, eligibleCandidateCount: routeEligible.length, rejected };
@@ -693,7 +699,6 @@ export function selectAnchoredGroundedPlanRoute<T>(
     anchor: anchorStop,
     reason: "ANCHOR_COMPANIONS_INSUFFICIENT",
   };
-  if (constraints.transportConstraints.length > 0) return insufficient;
 
   const rejected = { safety: 0, exclusions: 0, accessibility: 0, budgetEvidence: 0, budgetCeiling: 0 };
   const companions = routeEligibleCandidates(candidates, constraints, rejected)
