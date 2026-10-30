@@ -2,9 +2,9 @@
 //
 //   GET                                       -> 200 { status, entries } (owner only, newest day first);
 //                                                200 { status: "adult_check_required" | ... , error } while a gate stands in front of it
-//   POST { venueId, visitedOn?, rating?, review? }
-//                                             -> 201 { entry }
-//   POST { action: "update", id, visitedOn?, rating?, review? }
+//   POST { venueId, visitedOn?, rating?, review?, usualDrink?, shareToLot? }
+//                                             -> 201 { entry, shared }
+//   POST { action: "update", id, visitedOn?, rating?, review?, usualDrink? }
 //                                             -> 200 { entry } (the owner's own entry, corrected)
 //   POST { action: "delete", id }             -> 200 { ok: true } (the owner's own entry, removed)
 //
@@ -15,6 +15,12 @@
 // same London day answers 409. A write is durably RATE LIMITED and a hard
 // store failure answers 503, never a fake success. The envelope is
 // publicApiError; nothing is cached.
+//
+// "Tell your lot": `shareToLot: true` on a NEW log, and nothing else, writes
+// one mutuals-only Social post ("@x was at <pub>") in the name of the verified
+// Social account of THIS session, and only when that account is the diary's
+// owner (lib/tellYourLot.server.ts). The entry itself stays private either
+// way, and `shared` says whether the post was written.
 
 import { jsonNoStore } from "@/lib/apiResponses";
 import { publicApiError } from "@/lib/apiError";
@@ -26,6 +32,12 @@ import { log } from "@/lib/log";
 import { isLimited } from "@/lib/pintDrops";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
+import {
+  lotActorForAccount,
+  readShareToLot,
+  tellYourLot,
+  tellYourLotVisitBody,
+} from "@/lib/tellYourLot.server";
 import { lookupCanonicalVenue } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 
@@ -82,6 +94,7 @@ async function correctOwnEntry(
     visitedOn: body.visitedOn,
     rating: body.rating,
     review: body.review,
+    usualDrink: body.usualDrink,
   });
   if (!result.ok) {
     return publicApiError(result.error, "INVALID_DIARY_ENTRY", 400);
@@ -156,6 +169,11 @@ export async function POST(request: Request): Promise<Response> {
   if (action === "update") return correctOwnEntry(body, owner.accountId);
   if (action === "delete") return removeOwnEntry(body, owner.accountId);
 
+  const shareToLot = readShareToLot(body.shareToLot);
+  if (shareToLot === null) {
+    return publicApiError("Say yes or no to telling your lot.", "INVALID_DIARY_ENTRY", 400);
+  }
+
   const venueId = readString(body.venueId);
   const lookup = venueId ? await lookupCanonicalVenue(venueId) : null;
   // An outage of the venue index is not the drinker's mistake: say so, and let
@@ -177,6 +195,7 @@ export async function POST(request: Request): Promise<Response> {
     visitedOn: body.visitedOn,
     rating: body.rating,
     review: body.review,
+    usualDrink: body.usualDrink,
     visibility: body.visibility,
   });
   if (!result.ok) {
@@ -192,7 +211,19 @@ export async function POST(request: Request): Promise<Response> {
         409,
       );
     }
-    return jsonNoStore({ entry: created.entry }, { status: 201 });
+    let shared = false;
+    if (shareToLot) {
+      // The author is the session's own Social account, checked against the
+      // diary's owner. A body handle or owner field never names it.
+      const actor = await lotActorForAccount(request, owner.accountId);
+      if (actor) {
+        shared = await tellYourLot(actor, {
+          body: tellYourLotVisitBody(actor.handle, venue.name),
+          venueId: venue.id,
+        });
+      }
+    }
+    return jsonNoStore({ entry: created.entry, shared }, { status: 201 });
   } catch (err) {
     log("error", "diary.create_failed", {
       route: "POST /api/diary",

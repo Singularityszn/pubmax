@@ -301,6 +301,11 @@ function DiaryEntryRow({
             />
           )}
           {entry.review ? <p className="diaryRow__review">{entry.review}</p> : null}
+          {entry.usualDrink ? (
+            <p className="diaryRow__usual" data-testid="diary-row-usual">
+              Your usual here: {entry.usualDrink}
+            </p>
+          ) : null}
           <div className="diaryRow__actions">
             <button
               type="button"
