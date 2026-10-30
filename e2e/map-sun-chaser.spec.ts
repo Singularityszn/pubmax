@@ -63,7 +63,15 @@ async function selectGardenPub(page: Page, phone: boolean) {
   await search.fill(GARDEN_PUB_NAME);
   const option = page.getByRole("option", { name: new RegExp(GARDEN_PUB_NAME.replace(/[()]/g, "\\$&")) }).first();
   await expect(async () => {
-    await option.click({ timeout: 2_000 });
+    // A click elsewhere on the map closes the suggestion list; focus the field
+    // and nudge the query so the list opens again.
+    if (!(await option.isVisible())) {
+      await search.click();
+      await search.press("End");
+      await search.press("Backspace");
+      await search.type(")");
+    }
+    await option.click({ timeout: 5_000 });
     await expect(page).toHaveURL(new RegExp(`sel=${GARDEN_PUB_ID}`), { timeout: 2_000 });
   }).toPass({ timeout: ARRIVAL_TIMEOUT_MS });
   await expect(page.getByRole("heading", { name: GARDEN_PUB_NAME })).toBeVisible({ timeout: ARRIVAL_TIMEOUT_MS });
