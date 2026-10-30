@@ -253,13 +253,18 @@
     "postcss": "^8.5.30",
     "sharp": "$sharp",
     "eslint-plugin-react": {
-      "eslint": "$eslint"
+      "eslint": "$eslint",
+      "minimatch": "3.1.5"
     },
     "eslint-plugin-jsx-a11y": {
-      "eslint": "$eslint"
+      "eslint": "$eslint",
+      "minimatch": "3.1.5"
     },
     "eslint-plugin-import": {
-      "eslint": "$eslint"
-    }
+      "eslint": "$eslint",
+      "minimatch": "3.1.5"
+    },
+    "glob": "^14.0.2",
+    "minimatch": "^11.0.1"
   }
 }
