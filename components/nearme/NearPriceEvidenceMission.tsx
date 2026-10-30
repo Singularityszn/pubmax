@@ -14,6 +14,7 @@ import {
   stampPalQuest,
   type PalQuestStamp,
 } from "@/lib/palQuest";
+import { londonDayKey } from "@/lib/pintContributions";
 import type { PriceEvidenceMission } from "@/lib/priceEvidenceMissions";
 
 import PriceEvidenceMissionSlot from "./PriceEvidenceMissionSlot";
@@ -73,8 +74,25 @@ export default function NearPriceEvidenceMission({
     const onStorage = (event: StorageEvent) => {
       if (event.key === null || event.key === PAL_QUEST_STAMPS_KEY) read();
     };
+    // A page left open past London midnight, or brought back to the front on
+    // a later day, starts the new day afresh: yesterday's stamp and answer no
+    // longer stand in for today's quest.
+    let day = londonDayKey(new Date());
+    const onNewDay = () => {
+      const next = londonDayKey(new Date());
+      if (next === day) return;
+      day = next;
+      setAnswered(null);
+      setQuest({ owner, today: palQuestStampToday(readPalQuestStamps()), now: null });
+    };
+    const tick = window.setInterval(onNewDay, 60_000);
     window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
+    document.addEventListener("visibilitychange", onNewDay);
+    return () => {
+      window.clearInterval(tick);
+      window.removeEventListener("storage", onStorage);
+      document.removeEventListener("visibilitychange", onNewDay);
+    };
   }, [owner]);
   const current = quest.owner === owner ? quest : { owner, today: undefined, now: null };
 

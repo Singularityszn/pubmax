@@ -116,6 +116,26 @@ describe("the Pal's price quest while /near stays open", () => {
     expect(quest()?.textContent).toContain("Ripley stamped The Crown in your book.");
   });
 
+  it("asks again once London midnight passes while the page stays open", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] });
+    try {
+      vi.setSystemTime(new Date("2026-01-01T23:58:00.000Z"));
+      await render();
+      await answer();
+      expect(quest()?.dataset.state).toBe("done");
+      vi.setSystemTime(new Date("2026-01-02T00:01:00.000Z"));
+      await act(async () => vi.advanceTimersByTime(60_000));
+      await settle();
+      expect(quest()?.dataset.state).toBe("ask");
+      await answer();
+      expect(quest()?.dataset.state).toBe("done");
+      const days = JSON.parse(window.localStorage.getItem(PAL_QUEST_STAMPS_KEY)!).map((stamp: { day: string }) => stamp.day);
+      expect(days).toEqual(["2026-01-02", "2026-01-01"]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("stops asking when another tab stamps the day, and never claims that tab's pub", async () => {
     await render();
     expect(quest()?.dataset.state).toBe("ask");
