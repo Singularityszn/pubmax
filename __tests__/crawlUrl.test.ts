@@ -14,7 +14,7 @@ const sample: CrawlUrlState = {
   filters: {
     ...initialFilters,
     crawlStyle: "heritage",
-    maxPrice: 6.5,
+    maxPrice: 6,
     stopCount: 5,
     routeWindow: 25,
     requirePintDrops: true,
@@ -29,7 +29,7 @@ describe("crawlUrl", () => {
     expect(decoded.mode).toBe("build");
     expect(decoded.filters).toMatchObject({
       crawlStyle: "heritage",
-      maxPrice: 6.5,
+      maxPrice: 6,
       stopCount: 5,
       routeWindow: 25,
       requirePintDrops: true,

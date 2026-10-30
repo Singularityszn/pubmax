@@ -66,8 +66,8 @@ for (const width of [390, 1440]) {
         await photos.press("ArrowRight");
         await expect(menu).toBeFocused();
         for (const [key, labels] of [
-          ["ArrowRight", ["Stories", "Lore", "Overview", "Photos", "Menu"]],
-          ["ArrowLeft", ["Photos", "Overview", "Lore", "Stories", "Menu"]],
+          ["ArrowRight", ["Prices", "Lore", "Overview", "Photos", "Menu"]],
+          ["ArrowLeft", ["Photos", "Overview", "Lore", "Prices", "Menu"]],
         ] as const) {
           for (const label of labels) {
             await page.keyboard.press(key);

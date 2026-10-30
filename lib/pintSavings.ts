@@ -29,6 +29,7 @@
 // Pure: no fs, no React, no dataset import. The server hands it figures.
 
 import { formatGbp } from "@/lib/formatGbp";
+import { averageBasePhrase } from "@/lib/pubListBase";
 
 /** The city's own two figures, both derived from the priced dataset. */
 export type PintPriceAverages = {
@@ -45,25 +46,6 @@ export type PintPriceAverages = {
  * prints no figure at all.
  */
 export const MIN_SAVINGS_SAMPLE = 30;
-
-/**
- * Each priced pub's cheapest pint, the one figure per pub every "London
- * average pint" on the site is taken over. The landing and /about both read it
- * (site review, 18 Oct 2026: the landing said £5.54 and /about £5.72, because
- * /about averaged every reading and so counted a pub with five pints five
- * times). One cohort, one number.
- */
-export function pubCheapestPrices(
-  venues: readonly { cheapestPrice?: number | null }[],
-): number[] {
-  return venues.flatMap((venue) =>
-    typeof venue.cheapestPrice === "number" &&
-    Number.isFinite(venue.cheapestPrice) &&
-    venue.cheapestPrice > 0
-      ? [venue.cheapestPrice]
-      : [],
-  );
-}
 
 /** The mean of the usable prices, rounded to pence, or null when there are none. */
 export function averagePriceGbp(prices: readonly number[]): number | null {
@@ -99,7 +81,7 @@ export function strangerSavingLine(averages: PintPriceAverages | null): string |
   if (!averages) return null;
   const gap = savingPerPintGbp(averages);
   if (gap < 0.05) return null;
-  return `The average of each pub's cheapest listed pint across ${averages.sampleSize.toLocaleString("en-GB")} priced London pubs is ${formatGbp(averages.averageGbp)}. The cheapest third averages ${formatGbp(averages.cheapAverageGbp)}. That's a ${formatGbp(gap)} gap per pint.`;
+  return `The average of each pub's cheapest listed pint across ${averageBasePhrase(averages.sampleSize)} is ${formatGbp(averages.averageGbp)}. The cheapest third averages ${formatGbp(averages.cheapAverageGbp)}. That's a ${formatGbp(gap)} gap per pint.`;
 }
 
 /** One price a reader logged, with the pub it was logged at. */

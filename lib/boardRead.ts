@@ -45,10 +45,10 @@ export const BOARD_READ_ACTION = "Photo of the board";
 export const BOARD_READ_MAX_ROWS = 20;
 
 /** Longest drink name a card prints. */
-export const BOARD_READ_NAME_MAX = 80;
+const BOARD_READ_NAME_MAX = 80;
 
 /** How sure the reader was of one line, in the words a card prints. */
-export const BOARD_READ_CONFIDENCE = ["clear", "likely", "unsure"] as const;
+const BOARD_READ_CONFIDENCE = ["clear", "likely", "unsure"] as const;
 export type BoardReadConfidence = (typeof BOARD_READ_CONFIDENCE)[number];
 
 export const BOARD_READ_CONFIDENCE_LABEL: Record<BoardReadConfidence, string> = {
@@ -95,7 +95,7 @@ function cleanName(value: unknown): string {
 }
 
 /** A whole number of pence inside the community envelope, or null. */
-export function boardPricePence(value: unknown): number | null {
+function boardPricePence(value: unknown): number | null {
   if (typeof value !== "number" || !Number.isInteger(value)) return null;
   if (value < MIN_PENCE || value > MAX_PENCE) return null;
   return value;

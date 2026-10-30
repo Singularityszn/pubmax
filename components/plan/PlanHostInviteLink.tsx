@@ -6,6 +6,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { discardBody } from "@/lib/responseBody";
 import { trackEvent } from "@/lib/analytics";
+import { planInviteShareUrl } from "@/lib/planCrewInviteUrl";
 import {
   ensurePlanInviteToken,
   parsePlanInviteTokenSnapshot,
@@ -40,6 +41,13 @@ import {
 
 /** An answer: the projection carried no invite token for this reader. */
 export const INVITE_TOKEN_MISSING_LINE = "Invite link not ready yet. Try refreshing in a moment.";
+/**
+ * A reader with no seat on this plan. One guest capability (launch review
+ * 3.5): the host's link is the whole door, and it brings the vote, the swap,
+ * the needs and the check-in with it.
+ */
+export const NOT_IN_CREW_LINE =
+  "You're not in the crew yet. Open the invite link from your host to join, vote and check in.";
 /** Not an answer: the read did not run, which is a different thing to say. */
 export const INVITE_TOKEN_UNAVAILABLE_LINE = "Couldn't read your invite link. Try again in a moment.";
 
@@ -94,9 +102,7 @@ export default function PlanHostInviteLink({ planId }: { planId: string }) {
     return (
       <div className="planHostInviteLink" aria-busy={!sessionChecked}>
         <p className="planHostInviteLink__status" role="status">
-          {sessionChecked
-            ? "You're a guest on this plan. Join the crew to use the invite tools."
-            : "Restoring your invite tools…"}
+          {sessionChecked ? NOT_IN_CREW_LINE : "Restoring your invite tools…"}
         </p>
       </div>
     );
@@ -125,7 +131,9 @@ export default function PlanHostInviteLink({ planId }: { planId: string }) {
   }
 
   async function copyLink() {
-    const url = `${window.location.origin}/invite/${inviteToken}`;
+    // The one link every share button sends, with its canonical host.
+    const url = planInviteShareUrl(inviteToken, window.location.href)
+      ?? `${window.location.origin}/invite/${inviteToken}`;
     setStatus("");
     try {
       if (!navigator.clipboard?.writeText) throw new Error("clipboard unavailable");

@@ -60,6 +60,7 @@ import {
 } from "@/lib/priceEvidenceMissions";
 import { scrollMotionBehavior } from "@/lib/scrollMotion";
 import PalCheer from "@/components/pal/PalCheer";
+import RankAfterVisitCard from "@/components/pubs/RankAfterVisitCard";
 import { announcePalMoment } from "@/lib/palMoments";
 
 export type VenuePriceSubmitMission = {
@@ -853,6 +854,8 @@ export default function VenuePriceSubmit({
           handle on the contributor record.
         </p>
       )}
+      {/* Rank at the moment: under the priced drop's receipt, never over it. */}
+      {logged ? <RankAfterVisitCard visits={[{ venueId, venueName }]} /> : null}
       {contributionGateDialog}
     </section>
   );

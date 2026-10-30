@@ -87,7 +87,7 @@ const OG_SITE_NAME_PAGES: ReadonlyArray<[string, () => Promise<Metadata>]> = [
       }),
   ],
   ["/pubs", async () => (await import("@/app/pubs/page")).generateMetadata()],
-  ["/social", async () => (await import("@/app/social/page")).generateMetadata()],
+  ["/social", async () => (await import("@/app/social/page")).generateMetadata({ searchParams: Promise.resolve({}) })],
   ["root layout", async () => (await import("@/app/layout")).metadata],
   ["/", async () => (await import("@/app/page")).metadata],
   ["/feed", async () => (await import("@/app/feed/page")).metadata],
@@ -122,7 +122,7 @@ const TEMPLATED_TITLE_PAGES: ReadonlyArray<[string, () => Promise<Metadata>]> = 
   ["/privacy", async () => (await import("@/app/privacy/page")).metadata],
   ["/terms", async () => (await import("@/app/terms/page")).metadata],
   ["/pubs", async () => (await import("@/app/pubs/page")).generateMetadata()],
-  ["/social", async () => (await import("@/app/social/page")).generateMetadata()],
+  ["/social", async () => (await import("@/app/social/page")).generateMetadata({ searchParams: Promise.resolve({}) })],
 ];
 
 describe("a document title carries the brand exactly once", () => {
@@ -157,7 +157,7 @@ describe("page metadata names the brand, never the app", () => {
     const privacyCardTitle = (privacy.openGraph as { title?: string }).title;
     expect(privacyCardTitle).toBe(appPageTitle("Privacy"));
 
-    const social = await (await import("@/app/social/page")).generateMetadata();
+    const social = await (await import("@/app/social/page")).generateMetadata({ searchParams: Promise.resolve({}) });
     const socialCardTitle = (social.openGraph as { title?: string }).title ?? "";
     expect(socialCardTitle).toContain(BRAND_NAME);
     expect(socialCardTitle).not.toContain(APP_NAME);

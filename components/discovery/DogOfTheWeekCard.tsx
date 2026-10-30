@@ -21,7 +21,7 @@ import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 import "./dogOfTheWeekCard.css";
 
 /** The wall read the card makes: the Dog lane, a few rows deep. */
-export const DOG_OF_THE_WEEK_CARD_READ = "/api/drink-wall?category=dog&limit=5";
+const DOG_OF_THE_WEEK_CARD_READ = "/api/drink-wall?category=dog&limit=5";
 
 type WallBody = { status?: string; photos?: DrinkWallPhotoDTO[] };
 

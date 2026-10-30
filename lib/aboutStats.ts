@@ -15,12 +15,18 @@ import "server-only";
 import { listEnabledCities } from "@/lib/cities";
 import { loadHistoricPubs } from "@/lib/historic";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
-import { averagePriceGbp, pubCheapestPrices } from "@/lib/pintSavings";
+import { averagePriceGbp } from "@/lib/pintSavings";
+import { listedPriceCohort, listedPriceCohortPrices } from "@/lib/pricedPubCount";
 import { isLivePriceRow } from "@/lib/priceRowEligibility.mjs";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 
 export type AboutStats = {
-  /** Distinct venues carrying at least one price observation. */
+  /**
+   * The pubs the average is taken over: pubs in our London pub list with a
+   * listed cheapest pint (`listedPriceCohort`, lib/pricedPubCount.ts), the same
+   * cohort the landing's average names. NOT the count of pubs with any pint
+   * price on record; that is `pricedPubCount`, which /about reads separately.
+   */
   pubsTracked: number;
   /** Individual observed pint-price readings across all venues. */
   pintPricesObserved: number;
@@ -31,8 +37,8 @@ export type AboutStats = {
   /**
    * Mean of each tracked pub's cheapest pint (GBP, rounded to pence), or null
    * when none. The SAME cohort and the same arithmetic as the landing's
-   * "average listed pint across N pubs" (`pubCheapestPrices` and
-   * `averagePriceGbp` in lib/pintSavings.ts), taken over the same
+   * "average listed pint across N pubs" (`listedPriceCohortPrices` in
+   * lib/pricedPubCount.ts and `averagePriceGbp` in lib/pintSavings.ts), taken over the same
    * `pubsTracked` pubs, so the two pages print one number. It used to be the
    * mean of every reading, which counted a pub with five pints five times and
    * printed £5.72 beside the landing's £5.54 (site review, 18 Oct 2026).
@@ -72,7 +78,7 @@ export function computeAboutStats(
   // "Pubs tracked" uses the same grouping the app uses everywhere else, so the
   // number on /about matches what a user would count on the map — but only
   // venues carrying at least one accepted price observation qualify.
-  const pubs = groupVenuePrices(pricedRows);
+  const pubs = listedPriceCohort(groupVenuePrices(pricedRows));
   const pubsTracked = pubs.length;
 
   const prices = pricedRows.map((row) => row.price_gbp as number);
@@ -80,7 +86,7 @@ export function computeAboutStats(
   const pintPricesObserved = prices.length;
   const cheapestPint = prices.length ? Math.min(...prices) : null;
   const dearestPint = prices.length ? Math.max(...prices) : null;
-  const averagePint = averagePriceGbp(pubCheapestPrices(pubs));
+  const averagePint = averagePriceGbp(listedPriceCohortPrices(pubs));
 
   const boroughs = new Set(
     safeRows

@@ -15,6 +15,7 @@ import { formatGbp } from "@/lib/formatGbp";
 import { loadSlimVenues, type SlimVenue } from "@/lib/venuesSlim";
 import SiteNav from "@/components/nav/SiteNav";
 import RoundStarter from "@/components/round/RoundStarter";
+import HostOnDate from "@/components/crawls/HostOnDate";
 import { RowList } from "@/components/ui/row-list";
 import Screen from "@/components/ui/screen";
 import { plainDashes } from "@/components/listing/displayCase";
@@ -26,6 +27,7 @@ import {
   formatPriceRange,
   visibleCuratedCrawls,
 } from "./routeSummary";
+import CrawlsYouCanJoin from "./CrawlsYouCanJoin";
 import "@/components/listing/listing.css";
 import "./crawls.css";
 
@@ -83,6 +85,16 @@ function groupCompactCrawls(crawls: CuratedCrawl[]): [string, CuratedCrawl[]][] 
     })
     .map((entry) => entry.label);
   return ordered.map((label) => [label, byLabel.get(label)!]);
+}
+
+// A fixed route's stops with their names, in the route's order, or null until
+// every stop is in the slim index. A route is never hosted with a stop missing.
+function curatedStops(
+  crawl: CuratedCrawl,
+  slimById: ReadonlyMap<string, SlimVenue>,
+): { venueId: string; venueName: string }[] | null {
+  const stops = crawl.venueIds.map((id) => ({ venueId: id, venueName: slimById.get(id)?.name ?? "" }));
+  return stops.every((stop) => stop.venueName) ? stops : null;
 }
 
 // Reproduce a crawl on the map from a story's stop ids, matching the existing
@@ -212,6 +224,8 @@ export default function CrawlsPageClient({ pack, encodedStory, featuredPhoto = n
               sticky pane (crawls.css). The pane is a grid placement of the
               same element, so the reading and tab order stay the DOM's. */}
           <div className="crawlLayout">
+            <CrawlsYouCanJoin />
+
             <nav className="routePackNav" aria-labelledby="routePacksHeading">
               <p className="crawlEyebrow" id="routePacksHeading">
                 Jump to a route pack
@@ -309,6 +323,7 @@ function FeaturedCrawlCard({
   const routeSummary = buildCrawlRouteSummary(crawl.venueIds, slimById);
   const priceRange = crawlPriceRange(crawl.venueIds, slimById);
   const stops = crawl.venueIds.length;
+  const hostStops = curatedStops(crawl, slimById);
   const meta = [
     `${stops} stop${stops === 1 ? "" : "s"}${originName ? ` from ${originName}` : ""}`,
     routeSummary ? `about ${routeSummary.totalMinutes} min (straight-line estimate)` : null,
@@ -358,6 +373,9 @@ function FeaturedCrawlCard({
         >
           Plan this crawl
         </Link>
+        {hostStops ? (
+          <HostOnDate title={crawl.name} stops={hostStops} returnPath={`/crawls#${crawl.id}`} />
+        ) : null}
       </article>
     </div>
   );
@@ -385,9 +403,10 @@ function CompactCrawlRow({
   const originName = startLandmarkName(crawl);
   const priceRange = crawlPriceRange(crawl.venueIds, slimById);
   const stopCount = crawl.venueIds.length;
+  const hostStops = curatedStops(crawl, slimById);
 
   return (
-    <li className="crawlCompactRow">
+    <li className="crawlCompactRow" id={crawl.id}>
       <Link
         prefetch={false}
         href={curatedCrawlMapHref(crawl)}
@@ -407,6 +426,9 @@ function CompactCrawlRow({
           <span className="rowListTrailing crawlCompactPrice">{formatPriceRange(priceRange)}</span>
         ) : null}
       </Link>
+      {hostStops ? (
+        <HostOnDate title={crawl.name} stops={hostStops} returnPath={`/crawls#${crawl.id}`} compact />
+      ) : null}
     </li>
   );
 }
@@ -495,6 +517,12 @@ function CrawlPoster({
           </button>
           {copyError ? <p role="status">{copyError}</p> : null}
         </div>
+
+        <HostOnDate
+          title={story.title || "A pub crawl"}
+          stops={story.stops.map((stop) => ({ venueId: stop.venueId, venueName: stop.name }))}
+          returnPath="/crawls"
+        />
 
         <p className="crawlFootnote">Pubs, prices and the route between them.</p>
       </Screen>
