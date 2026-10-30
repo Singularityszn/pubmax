@@ -18,7 +18,15 @@
 // durably rate limited, a hard store failure answers 503 and never a fake
 // success, and nothing is cached. The handle is read at answer time, never
 // stored, so a rename shows the new one.
+//
+// A WITHDRAWN REPORTER SHOWS NOTHING. The handle passes the public-withdrawal
+// boundary (lib/accountPublicAccess.server.ts) the way a regular night report
+// does (lib/regularNightReports.server.ts): a suspended, banned or deleted
+// reporter's reading is dropped, and a check that cannot answer shows no
+// reading at all (review P2, PR 2402). This holds for the GET read and the
+// POST reply alike.
 
+import { withdrawnHandles } from "@/lib/accountPublicAccess.server";
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { boundedJson } from "@/lib/boundedRequest.server";
@@ -27,7 +35,8 @@ import { parseKitchenState, type KitchenReport, type PublicKitchenReport } from 
 import { kitchenReportsStore } from "@/lib/kitchenReportsStore";
 import { log } from "@/lib/log";
 import { isLimited } from "@/lib/pintDrops";
-import { profileStore } from "@/lib/profileStore";
+import { normalizeHandle } from "@/lib/profiles";
+import { isProfileTombstoned, profileStore } from "@/lib/profileStore";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { resolveCanonicalVenueId } from "@/lib/venueAliases";
@@ -49,9 +58,19 @@ function rateLimited(): Response {
   return publicApiError("Too many reports, slow down.", "RATE_LIMITED", 429, { retryable: true });
 }
 
-async function handleFor(userId: string): Promise<string | null> {
+/**
+ * The reporter's current handle when a stranger may read it, else null. A
+ * tombstoned row, a withdrawn account and a check that cannot answer are all
+ * null: the read fails closed, never open.
+ */
+async function publicHandleFor(userId: string): Promise<string | null> {
   try {
-    return await profileStore().getHandleByUserId(userId);
+    const profile = await profileStore().getByUserId(userId);
+    if (!profile || isProfileTombstoned(profile)) return null;
+    const handle = normalizeHandle(profile.handle);
+    if (!handle) return null;
+    const hidden = await withdrawnHandles([handle]);
+    return hidden.has(handle) ? null : handle;
   } catch {
     return null;
   }
@@ -60,7 +79,7 @@ async function handleFor(userId: string): Promise<string | null> {
 /** The public projection: no account id leaves. A report with no handle to show is no reading. */
 async function publicKitchenReport(row: KitchenReport | null): Promise<PublicKitchenReport | null> {
   if (!row) return null;
-  const handle = await handleFor(row.reporterUserId);
+  const handle = await publicHandleFor(row.reporterUserId);
   if (!handle) return null;
   return {
     id: row.id,

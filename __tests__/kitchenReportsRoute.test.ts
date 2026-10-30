@@ -31,12 +31,20 @@ vi.mock("@/lib/venueAliases", () => ({
   resolveCanonicalVenueId: async (id: string) => id,
 }));
 
-vi.mock("@/lib/profileStore", () => ({
-  profileStore: () => ({
-    getHandleByUserId: async (userId: string) =>
-      userId === "a1111111-1111-4111-8111-111111111111" ? "alice" : userId === "b2222222-2222-4222-8222-222222222222" ? "bob" : null,
-  }),
-}));
+vi.mock("@/lib/profileStore", () => {
+  const handleOf = (userId: string) =>
+    userId === "a1111111-1111-4111-8111-111111111111" ? "alice" : userId === "b2222222-2222-4222-8222-222222222222" ? "bob" : null;
+  return {
+    isProfileTombstoned: (profile: { tombstonedAt?: string } | null) => Boolean(profile?.tombstonedAt),
+    profileStore: () => ({
+      getHandleByUserId: async (userId: string) => handleOf(userId),
+      getByUserId: async (userId: string) => {
+        const handle = handleOf(userId);
+        return handle ? { id: `profile-${handle}`, handle, userId } : null;
+      },
+    }),
+  };
+});
 
 import { GET, POST } from "@/app/api/kitchen-reports/route";
 import { __resetKitchenReports } from "@/lib/kitchenReportsStore";
