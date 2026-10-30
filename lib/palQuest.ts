@@ -166,19 +166,20 @@ export const PAL_PASSPORT_PLAIN_MARK = "civic" satisfies PalPassportLandmark;
  * The areas whose page wears a named building, each with the curated landmark
  * (lib/landmarks.ts, by id) that really stands in that area and wears that
  * mark on the map. An area never borrows another area's building, so every
- * area not named here, and "Around London", wears the plain mark.
+ * area not named here, and "Around London", wears the plain mark. Each row's
+ * borough comes from the official record named beside it: a National Heritage
+ * List for England (Historic England) entry, or the council that planned it.
  */
 export const PAL_PASSPORT_AREA_LANDMARKS: Readonly<Record<string, { mark: PalPassportLandmark; landmarkId: string }>> = {
-  "westminster": { mark: "clock-tower", landmarkId: "big-ben" },
-  "city of london": { mark: "dome", landmarkId: "st-pauls" },
-  "tower hamlets": { mark: "keep", landmarkId: "tower-of-london" },
-  "southwark": { mark: "shard", landmarkId: "the-shard" },
-  "lambeth": { mark: "wheel", landmarkId: "london-eye" },
-  "camden": { mark: "canal", landmarkId: "camden-lock" },
-  "greenwich": { mark: "ship", landmarkId: "greenwich" },
-  "wandsworth": { mark: "chimneys", landmarkId: "battersea-power-station" },
-  "kensington and chelsea": { mark: "dome", landmarkId: "royal-albert-hall" },
-  "richmond upon thames": { mark: "keep", landmarkId: "hampton-court-palace" },
+  "westminster": { mark: "clock-tower", landmarkId: "big-ben" }, // NHLE 1226284
+  "city of london": { mark: "dome", landmarkId: "st-pauls" }, // NHLE 1079157
+  "tower hamlets": { mark: "keep", landmarkId: "tower-of-london" }, // NHLE 1002061
+  "southwark": { mark: "shard", landmarkId: "the-shard" }, // Southwark Council planning
+  "lambeth": { mark: "wheel", landmarkId: "london-eye" }, // Lambeth Council, Jubilee Gardens
+  "camden": { mark: "canal", landmarkId: "camden-lock" }, // NHLE 1272427, Hampstead Road Lock
+  "greenwich": { mark: "ship", landmarkId: "greenwich" }, // NHLE 1079013, Cutty Sark
+  "wandsworth": { mark: "chimneys", landmarkId: "battersea-power-station" }, // NHLE 1357620
+  "richmond upon thames": { mark: "keep", landmarkId: "hampton-court-palace" }, // NHLE 1193127
 };
 
 /** The mark a page wears: its area's own building, or the plain mark. */

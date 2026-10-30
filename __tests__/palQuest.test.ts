@@ -163,6 +163,9 @@ describe("the price passport", () => {
     expect(palPassportLandmark("southwark")).toBe("shard");
     expect(palPassportLandmark("Camden")).toBe("canal");
     expect(palPassportLandmark("Wandsworth")).toBe("chimneys");
+    // The Royal Albert Hall stands in the City of Westminster (Historic
+    // England list entry 1217742), so Kensington and Chelsea never wears its dome.
+    expect(palPassportLandmark("Kensington and Chelsea")).toBe(PAL_PASSPORT_PLAIN_MARK);
     // No area borrows another area's famous building: an area the table does
     // not name, a city outside London and the undated page all get the plain mark.
     for (const area of ["Croydon", "Hounslow", "Haringey", "Newham", "Barking and Dagenham", "Barnet", "Harrow",
