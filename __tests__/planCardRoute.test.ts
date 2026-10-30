@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/supabase", async (importOriginal) => {
@@ -94,5 +97,24 @@ describe("GET /api/plan-card", () => {
     const response = await GET(new Request(`http://localhost/api/plan-card?id=${id}&vibe=on-a-bender`, { headers: { "x-forwarded-for": "198.51.100.44" } }));
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("image/png");
+  });
+});
+
+describe("the plan card's privacy boundary (§4.10)", () => {
+  const source = readFileSync(join(process.cwd(), "app/api/plan-card/route.tsx"), "utf8");
+
+  it("reads the plan only through the privacy-safe preview, never its stops, venues or title", () => {
+    expect(source).toContain("buildPlanPrivacyPreview(");
+    expect(source).not.toMatch(/state\.(stops|crew|plan\.title)/);
+    expect(source).not.toMatch(/venueName|venueId/);
+  });
+
+  it("draws the stop count as a count: one dot per stop on a straight line, no coordinates", () => {
+    expect(source).toContain("<DotRoute stops={preview.stopCount} />");
+    expect(source).not.toMatch(/\b(lat|lng|latitude|longitude)\b/);
+  });
+
+  it("always registers the brand face, so a stamp never changes the card's font", () => {
+    expect(source).toMatch(/fonts: vibeLabel \? \[\.\.\.loadOgFonts\(\), loadPartyFont\(\)\] : loadOgFonts\(\)/);
   });
 });
