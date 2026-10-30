@@ -3,10 +3,26 @@ import type { Venue, VenueKind } from "@/lib/venues";
 export type CuratedVenueKind = "pub" | "bar" | "club" | "food" | "restaurant";
 export type VenueKindVisibility = Record<Exclude<CuratedVenueKind, "club">, boolean> & {
   club?: boolean;
+  cafe?: boolean;
+  hotel_lounge?: boolean;
+  library?: boolean;
+  coworking?: boolean;
+  other?: boolean;
 };
 
 export function defaultVenueKindVisibility(): VenueKindVisibility {
-  return { pub: true, bar: true, club: true, food: true, restaurant: true };
+  return {
+    pub: true,
+    bar: true,
+    club: true,
+    food: true,
+    restaurant: true,
+    cafe: false,
+    hotel_lounge: false,
+    library: false,
+    coworking: false,
+    other: false,
+  };
 }
 
 export function toggleVenueKind(
