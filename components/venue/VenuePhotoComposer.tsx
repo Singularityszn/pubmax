@@ -34,6 +34,7 @@ import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { SUBMITTABLE_DRINK_CATEGORIES } from "@/lib/communityPrice";
 import { categoryLabel, type DrinkCategory } from "@/lib/drinks";
 import { PROFILE_IMAGE_PICKER_ACCEPT } from "@/lib/profileImagePicker";
+import { noteCrawlBingoAction } from "@/lib/crawlBingoNightLog";
 import {
   DRINK_WALL_CATEGORY_LABEL,
   VENUE_PHOTO_CAPTION_MAX,
@@ -132,6 +133,7 @@ export default function VenuePhotoComposer({
         setError("Could not add that photo. Try again.");
         return;
       }
+      noteCrawlBingoAction("photo", venueId);
       onPosted(payload.photo, venuePhotoCrosspostNote(payload.crosspost?.state ?? "off"));
     } catch {
       setError(
