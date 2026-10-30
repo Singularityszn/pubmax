@@ -122,3 +122,23 @@ The list the round was cut from:
 - The venue sheet fold regrouping (design V1) now that the correction door is in.
 - E4, a drinker-added regular night, with its store and migration.
 - The diary edit form for the usual drink; With tags on the diary.
+
+### Round 3 integration so far (30 October, 17:50 UTC)
+
+Builders 11, 12, 13 and 14 are merged. Builder 15 (rules docs and browser specs) is still running and merges last. The integrator's glue this round: migration labels 0200 (regular night reports) and 0201 (diary With tags); the 0174 diary rollback now drops the 0201 link first; the rank card's bands are a wrapping row; the write-surface count is 169; one effective-RLS assertion reads a boolean as the harness prints it ("true"); the correction door and the regular-night form read the session seam; the rank card lets a refused body go; six new raw font sizes, corners and fallbacks moved to tokens.
+
+Captain decisions from round 3: a board photo is moderator-only until approved; the reporter's handle is read live, never stored; "still on" adds 90 days and only another account may tap it; diary With tags are not editable after save (round 4 fixes this); `types/database.ts` does not know the new tables until `npm run db:types` runs; `docs/security/PERMISSION_MATRIX.md` has no rows for 0198 to 0201 yet (builder 15); the Pal share said "tap I'm in" while the invite page says "Going" (round 4 unifies); the invite timeline numbers stops from the meeting pub and the plan card from the first stop (round 4 aligns them); the address, "I'm here" and save controls are hidden until their fold opens (design V1, confirm).
+
+### Round 4 (started 30 October, 17:55 UTC)
+
+Week 2 of the review: the honest Tonight, the crawl noun, kitchen and glass, with a design pass. Five builders, each merged onto the integration head (034db7e6) before work. Nobody touches `e2e/`, `docs/rules/` or `docs/security/PERMISSION_MATRIX.md` while builder 15 holds them.
+
+| # | Slice | Files it owns | Label |
+| --- | --- | --- | --- |
+| 16 | E1 "Open it up": a locked plan becomes an open crew that carries the plan; `/crawls` opens with "Crawls you can join this week"; E2 "Host this on a date" on every fixed route and crawl story | the open crew model and routes, `app/crawls/**`, one mount line in `PlanCard.tsx` | 0202 if the crew table needs columns |
+| 17 | A1 "Kitchen's open till" tap in The pub fold with a 90 minute window and one confirmer; the "Still on" button on drinker-added regular nights; the journey fold opens by an explicit prop | new `lib/kitchenReports*`, `app/api/kitchen-reports`, `components/map/inspector/**` | 0203 |
+| 18 | B1 glass sizes in `lib/drinkMeasure.ts` (125 ml, 175 ml, 250 ml, bottle, single, double), never scaled; B6 "What's our round here?" on the locked plan from listed prices with dates; the planner report lines print on the card | `lib/drinkMeasure.ts`, the composer measure chips, `components/plan/**`, `app/plan/**` | 0204 and 0205 only if a constraint or column must change |
+| 19 | D8 borough bingo on the owner's profile (33 squares, breadth only, share card at 11, 22, 33); diary With tags editable after save; tag checks follow a rename by account id; invite copy says "Going" everywhere and numbers stops as the plan card does | `components/profile/BoroughBingo*`, `lib/boroughBingo.ts`, `components/diary/**`, `app/api/diary`, `lib/pintDropWithTags*`, `app/invite/**`, the Pal share copy | none |
+| 20 | Three 390 px HTML mockups (V1, V2, V3) of the sheet, Tonight, the locked plan and the profile; the peek row's dark "Unknown" moved to a token that measures AA; a measured contrast sweep of every stylesheet rounds 1 to 3 added; the dock overlap measured, not changed | `docs/design-explorations/2026-10-30-phone-mockups/**`, CSS token swaps only | none |
+
+Held for round 5, after builder 15 lands: the five-fold rule and the kitchen and bingo rules in `docs/rules/`, the PERMISSION_MATRIX rows for 0198 to 0205, and the browser specs for the folds, the kitchen tap and the open crawl section.
