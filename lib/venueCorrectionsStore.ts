@@ -36,7 +36,7 @@ const STORE_TAG = "venue-corrections";
 const MAX_REVIEW_ROWS = 200;
 const MAX_OWNER_ROWS = 200;
 
-export type NewVenueCorrection = {
+type NewVenueCorrection = {
   venueId: string;
   kind: StoredVenueCorrectionKind;
   note: string;

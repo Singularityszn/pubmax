@@ -18,7 +18,7 @@ import { profileStore } from "@/lib/profileStore";
 /** More than this many rows in either list is not a list a person reads. */
 const MAX_ROWS = 500;
 
-export type SocialRelationshipEntry = { handle: string; since: string | null };
+type SocialRelationshipEntry = { handle: string; since: string | null };
 
 export type OwnSocialRelationships = {
   blocked: SocialRelationshipEntry[];

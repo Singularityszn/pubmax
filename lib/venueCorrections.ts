@@ -15,18 +15,18 @@
 // Browser-safe leaf: the sheet's form and the route share ONE validator, and the
 // closed sets here are mirrored by CHECKs in migration 0197.
 
-export const VENUE_CORRECTION_KINDS = ["closed", "hours", "price", "other"] as const;
+const VENUE_CORRECTION_KINDS = ["closed", "hours", "price", "other"] as const;
 export type VenueCorrectionKind = (typeof VENUE_CORRECTION_KINDS)[number];
 
 /** The kinds a row is ever stored under. `price` is answered with the log flow instead. */
-export const STORED_VENUE_CORRECTION_KINDS = ["closed", "hours", "other"] as const;
+const STORED_VENUE_CORRECTION_KINDS = ["closed", "hours", "other"] as const;
 export type StoredVenueCorrectionKind = (typeof STORED_VENUE_CORRECTION_KINDS)[number];
 
-export const VENUE_CORRECTION_STATUSES = ["open", "resolved", "dismissed"] as const;
+const VENUE_CORRECTION_STATUSES = ["open", "resolved", "dismissed"] as const;
 export type VenueCorrectionStatus = (typeof VENUE_CORRECTION_STATUSES)[number];
 
 /** A moderator's two verdicts on an open row. */
-export const VENUE_CORRECTION_DECISIONS = ["resolved", "dismissed"] as const;
+const VENUE_CORRECTION_DECISIONS = ["resolved", "dismissed"] as const;
 export type VenueCorrectionDecision = (typeof VENUE_CORRECTION_DECISIONS)[number];
 
 export const VENUE_CORRECTION_NOTE_MAX = 200;
@@ -73,7 +73,7 @@ export type VenueCorrectionInput =
   | { ok: true; venueId: string; kind: VenueCorrectionKind; note: string }
   | { ok: false; error: string; field: "venueId" | "kind" | "note" };
 
-export function isVenueCorrectionKind(value: unknown): value is VenueCorrectionKind {
+function isVenueCorrectionKind(value: unknown): value is VenueCorrectionKind {
   return typeof value === "string" && (VENUE_CORRECTION_KINDS as readonly string[]).includes(value);
 }
 
