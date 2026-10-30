@@ -639,7 +639,7 @@ body:has(.mobileMapUtilityCorner) {
 
   .mobileTabList .mobileTabPal {
     justify-content: center;
-    padding: 4px 2px;
+    padding: 2px;
     border-radius: calc(var(--tab-rail-radius) - var(--tab-inset));
   }
 

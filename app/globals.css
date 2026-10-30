@@ -4518,6 +4518,8 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
    side by side: a 1px hairline, 5px, the 44px controls and 6px make 56px. */
 .analyticsConsentPrompt {
   position: fixed;
+  /* Published dock clearance takes effect without a bottom transition. */
+  transition-property: none;
   z-index: 1000;
   right: 0;
   bottom: 0;

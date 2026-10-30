@@ -186,10 +186,31 @@
   }
 
   .appShell .mapStage:has(.bandOnboardingChip) .bandOnboardingChip {
-    bottom: max(
+    --band-story-bottom: max(
       var(--map-bottom-chip-row),
       calc(var(--mobile-map-credit-bottom) + var(--mobile-map-credit-stack-h, 0px) - 10px + var(--float-stack-gap))
     );
+    bottom: var(--band-story-bottom);
+    box-sizing: border-box;
+    max-height: calc(100dvh - var(--mobile-map-chrome-full-h) - var(--float-stack-gap) - var(--band-story-bottom));
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  /* Full story copy scrolls within the available band. Both actions keep
+     their own row above the credit, even when the legal text expands. */
+  .appShell .mapStage .bandOnboardingChip .bandOnboardingText {
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+    scrollbar-gutter: stable;
+    outline-offset: -2px;
+  }
+
+  .appShell .mapStage .bandOnboardingChip .bandOnboardingText strong {
+    overflow: visible;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   body:has(.bandOnboardingChip):not(:has(.analyticsConsentPrompt))

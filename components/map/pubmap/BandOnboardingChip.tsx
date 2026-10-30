@@ -16,7 +16,7 @@ export function BandOnboardingChip({
 }) {
   return (
     <div className="bandOnboardingChip" role="status" aria-live="polite">
-      <div>
+      <div className="bandOnboardingText" role="region" aria-label={title} tabIndex={0}>
         <strong>{title}</strong>
         <span>{copy}</span>
       </div>

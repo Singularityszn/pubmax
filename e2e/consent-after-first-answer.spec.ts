@@ -256,15 +256,46 @@ for (const viewport of WIDTHS) {
       await page.goto(arrival.path, { waitUntil: "domcontentloaded" });
       await expect(prompt).toBeVisible({ timeout: 30_000 });
 
-      const promptBox = await prompt.boundingBox();
-      expect(promptBox).not.toBeNull();
+      const preAnchorPromptBox = await prompt.boundingBox();
+      expect(preAnchorPromptBox).not.toBeNull();
       await expect
         .poll(() => firstAnchorBox(page, arrival.anchors), {
           message: `${arrival.path} rendered ${arrival.what}`,
           timeout: 15_000,
         })
         .not.toBeNull();
-      const listing = await firstAnchorBox(page, arrival.anchors);
+      // Read every placement input in one synchronous browser snapshot.
+      const measurement = await prompt.evaluate((card, anchors) => {
+        const probe = document.createElement("div");
+        probe.style.cssText = "position:fixed;visibility:hidden;pointer-events:none;height:var(--tabbar-h)";
+        document.body.append(probe);
+        try {
+          let anchor: { selector: string; box: Box } | null = null;
+          for (const selector of anchors) {
+            const element = document.querySelector(selector);
+            if (!element) continue;
+            const style = getComputedStyle(element);
+            const box = element.getBoundingClientRect();
+            if (style.visibility === "hidden" || style.display === "none" || box.width <= 0 || box.height <= 0) continue;
+            anchor = { selector, box: box.toJSON() };
+            break;
+          }
+          return {
+            now: performance.now(), timeOrigin: performance.timeOrigin,
+            prompt: card.getBoundingClientRect().toJSON(), anchor,
+            lane: document.querySelector(".mobileTabBar, .mobileTabBarClearance") === null
+              ? 0 : probe.getBoundingClientRect().height,
+            viewport: { width: innerWidth, height: innerHeight },
+          };
+        } finally { probe.remove(); }
+      }, arrival.anchors);
+      await test.info().attach("consent-placement-timing", {
+        body: JSON.stringify({ preAnchorPromptBox, measurement }, null, 2),
+        contentType: "application/json",
+      });
+      expect(measurement.anchor).not.toBeNull();
+      const promptBox = measurement.prompt;
+      const listing = measurement.anchor!.box;
       expect(
         boxesOverlap(promptBox as Box, listing as Box),
         `the docked consent card covers ${arrival.what}`,
@@ -275,25 +306,19 @@ for (const viewport of WIDTHS) {
       // over the answer.
       const box = promptBox as Box;
       expect(box.x).toBeLessThanOrEqual(1);
-      expect(box.width).toBeGreaterThanOrEqual(viewport.width - 1);
+      expect(measurement.viewport).toEqual(viewport);
+      expect(box.width).toBeGreaterThanOrEqual(measurement.viewport.width - 1);
+      expect(box.height).toBeLessThanOrEqual(56);
 
       // The foot is the RESERVED LANE, not the tab bar's own bounding box: that
       // element is a full-bleed padded container holding the pill, so its top
       // edge sits above the lane the body reserves and measuring against it
       // would call a flush card 10px adrift. --tabbar-h is the one number both
       // the bar and the body's clearance read (components/nav/mobileNav.css).
-      const lane = await page.evaluate(() => {
-        if (document.querySelector(".mobileTabBar, .mobileTabBarClearance") === null) return 0;
-        const probe = document.createElement("div");
-        probe.style.cssText = "position:fixed;visibility:hidden;height:var(--tabbar-h)";
-        document.body.append(probe);
-        const height = probe.getBoundingClientRect().height;
-        probe.remove();
-        return height;
-      });
+      const lane = measurement.lane;
       expect(
-        Math.abs(box.y + box.height - (viewport.height - lane)),
-        `card foot ${box.y + box.height} against the reserved lane ${viewport.height - lane}`,
+        Math.abs(box.y + box.height - (measurement.viewport.height - lane)),
+        `card foot ${box.y + box.height} against the reserved lane ${measurement.viewport.height - lane}`,
       ).toBeLessThanOrEqual(1);
 
       // No overlay and no dim: the card is opaque and nothing behind it is

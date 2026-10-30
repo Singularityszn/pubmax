@@ -1445,6 +1445,44 @@ test.describe("story and credit placement", () => {
           expect(layout.buttonHit).toBe(true);
           expect(layout.storyHits).toEqual([true, true]);
           expect(layout.storyClipped).toBe(false);
+          const storyText = chip.getByRole("region", { name: "Subcrawl: Clockwork Orange loop", exact: true });
+          await expect(storyText).toHaveAttribute("tabindex", "0");
+          const textViewport = await storyText.evaluate(element => ({
+            height: element.clientHeight, width: element.clientWidth,
+            scrollHeight: element.scrollHeight, scrollWidth: element.scrollWidth,
+            overflow: getComputedStyle(element).overflowY,
+          }));
+          expect(textViewport.height).toBeGreaterThan(0);
+          expect(textViewport.scrollWidth).toBeLessThanOrEqual(textViewport.width);
+          expect(textViewport.overflow).toBe("auto");
+          const documentScroll = await page.evaluate(() => ({ x: scrollX, y: scrollY }));
+          await storyText.focus();
+          await expect(storyText).toBeFocused();
+          await page.keyboard.press("End");
+          await expect.poll(() => storyText.evaluate(element =>
+            element.scrollHeight - element.clientHeight - element.scrollTop)).toBeLessThanOrEqual(1);
+          const lastLine = await storyText.locator("span").evaluate(element => {
+            const range = document.createRange();
+            range.selectNodeContents(element);
+            const lines = Array.from(range.getClientRects()).filter(rect => rect.width > 0 && rect.height > 0);
+            const last = lines.at(-1)!;
+            const viewport = element.parentElement!.getBoundingClientRect();
+            return { top: last.top, bottom: last.bottom, viewportTop: viewport.top, viewportBottom: viewport.bottom };
+          });
+          expect(lastLine.top).toBeGreaterThanOrEqual(lastLine.viewportTop);
+          expect(lastLine.bottom).toBeLessThanOrEqual(lastLine.viewportBottom);
+          expect(await page.evaluate(() => ({ x: scrollX, y: scrollY }))).toEqual(documentScroll);
+          await page.keyboard.press("Home");
+          await expect.poll(() => storyText.evaluate(element => element.scrollTop)).toBe(0);
+          for (const action of await chip.getByRole("button").all()) {
+            const box = (await action.boundingBox())!;
+            expect(box.width).toBeGreaterThanOrEqual(44);
+            expect(box.height).toBeGreaterThanOrEqual(44);
+            expect(await action.evaluate(element => {
+              const box = element.getBoundingClientRect();
+              return element.contains(document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2));
+            })).toBe(true);
+          }
           for (const other of [layout.nearMe, layout.create, layout.consent, ...(expanded ? [] : [layout.pal])].filter((box): box is Rect => !!box)) {
             expect(overlaps(layout.credit, other)).toBe(false);
             expect(overlaps(layout.chip, other)).toBe(false);
@@ -2037,15 +2075,64 @@ for (const viewport of VIEWPORTS) {
     await expect(primary.getByRole("link", { name: "You", exact: true }))
       .toHaveAttribute("aria-current", "page");
     await expect(list.locator(".mobileTabHighlight")).toHaveCount(1);
+    const active = primary.getByRole("link", { name: "You", exact: true });
     const fit = await list.evaluate((element) => {
-      const list = element.getBoundingClientRect();
-      const highlight = element.querySelector(".mobileTabHighlight")!.getBoundingClientRect();
-      return { list, highlight };
+      const rail = element.closest<HTMLElement>(".mobileTabBar")!;
+      const railStyle = getComputedStyle(rail);
+      const root = getComputedStyle(document.documentElement);
+      const highlight = element.querySelector<HTMLElement>(".mobileTabHighlight")!;
+      const selected = element.querySelector<HTMLElement>('[aria-current="page"]')!;
+      const selectedStyle = getComputedStyle(selected);
+      const probe = document.createElement("div");
+      probe.style.cssText = "position:fixed;visibility:hidden;pointer-events:none;background:var(--state-selected-surface);box-shadow:var(--shadow-inset-press)";
+      document.body.append(probe);
+      try {
+        const expected = getComputedStyle(probe);
+        const box = selected.getBoundingClientRect();
+        const label = selected.querySelector<HTMLElement>(".mobileTabLabel")!;
+        const labelBox = label.getBoundingClientRect();
+        const points = [[box.left + 4, box.top + box.height / 2], [box.right - 4, box.top + box.height / 2], [box.left + box.width / 2, box.top + box.height / 2]];
+        return {
+          list: element.getBoundingClientRect(), highlight: highlight.getBoundingClientRect(),
+          selected: box, label: labelBox, labelText: label.textContent?.trim(),
+          narrow: rail.clientWidth - parseFloat(railStyle.paddingLeft) - parseFloat(railStyle.paddingRight) < 20 * parseFloat(root.fontSize)
+            || document.documentElement.dataset.textScale === "large",
+          highlightDisplay: getComputedStyle(highlight).display,
+          selectedBackground: selectedStyle.backgroundColor, expectedBackground: expected.backgroundColor,
+          selectedShadow: selectedStyle.boxShadow, expectedShadow: expected.boxShadow,
+          selectedRadius: parseFloat(selectedStyle.borderTopLeftRadius),
+          listRadius: parseFloat(getComputedStyle(element).borderTopLeftRadius),
+          ownsHits: points.every(([x, y]) => selected.contains(document.elementFromPoint(x, y))),
+        };
+      } finally { probe.remove(); }
     });
-    expect(fit.highlight.left).toBeGreaterThanOrEqual(fit.list.left - 0.5);
-    expect(fit.highlight.right).toBeLessThanOrEqual(fit.list.right + 0.5);
-    expect(fit.highlight.top).toBeGreaterThanOrEqual(fit.list.top - 0.5);
-    expect(fit.highlight.bottom).toBeLessThanOrEqual(fit.list.bottom + 0.5);
+    const contained = fit.narrow ? fit.selected : fit.highlight;
+    expect(contained.left).toBeGreaterThanOrEqual(fit.list.left - 0.5);
+    expect(contained.right).toBeLessThanOrEqual(fit.list.right + 0.5);
+    expect(contained.top).toBeGreaterThanOrEqual(fit.list.top - 0.5);
+    expect(contained.bottom).toBeLessThanOrEqual(fit.list.bottom + 0.5);
+    await expect(active).toBeVisible();
+    expect(fit.selected.width).toBeGreaterThanOrEqual(44);
+    expect(fit.selected.height).toBeGreaterThanOrEqual(44);
+    expect(fit.ownsHits).toBe(true);
+    if (fit.narrow) {
+      expect(fit.highlightDisplay).toBe("none");
+      expect(fit.selectedBackground).toBe(fit.expectedBackground);
+      expect(fit.selectedShadow).toBe(fit.expectedShadow);
+      expect(fit.selectedShadow).toContain("inset");
+      expect(fit.selectedRadius).toBeGreaterThan(0);
+      expect(fit.selectedRadius).toBeLessThanOrEqual(fit.listRadius);
+      expect(fit.labelText).toBe("You");
+      expect(fit.label.width).toBeGreaterThan(0);
+      expect(fit.label.height).toBeGreaterThan(0);
+      expect(fit.label.left).toBeGreaterThanOrEqual(fit.selected.left);
+      expect(fit.label.right).toBeLessThanOrEqual(fit.selected.right);
+      expect(fit.label.top).toBeGreaterThanOrEqual(fit.selected.top);
+      expect(fit.label.bottom).toBeLessThanOrEqual(fit.selected.bottom);
+    } else {
+      await expect(list.locator(".mobileTabHighlight")).toBeVisible();
+      expect(fit.highlight.width).toBeGreaterThan(0);
+      expect(fit.highlight.height).toBeGreaterThan(0);
+    }
   });
 }
-

@@ -82,7 +82,25 @@ for (const viewport of VIEWPORTS) {
     const leadBox = await lead.boundingBox();
     expect(leadBox!.height).toBeGreaterThan(8);
     expect(leadBox!.y + leadBox!.height).toBeLessThanOrEqual(arrivalBox!.y + arrivalBox!.height);
-    expect(arrivalBox!.y + arrivalBox!.height / 2).toBeGreaterThan(viewport.height / 2);
+    // docs/rules/components-sheets-chrome-and-navigation.md, "THE ARRIVAL ASK IS A STRIP":
+    // the compact ask parks one gap above the map-edge column's published top.
+    // mapArrivalCard.css owns that berth. The Plan rail and dock bound the
+    // usable map too. A multirow dock lifts the band, not the viewport midpoint.
+    const upperChrome = (await page.locator(".mobileMapChipRow").boundingBox())!;
+    const nearMe = (await page.locator(".mobileMapLocateFab").boundingBox())!;
+    const gap = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--float-stack-gap")));
+    expect(Number.isFinite(gap)).toBe(true);
+    expect(gap).toBeGreaterThan(0);
+    const usableTop = upperChrome.y + upperChrome.height;
+    const plan = (await page.locator(".mobilePlanActivation").boundingBox())!;
+    const dock = (await page.locator(".mobileTabBar").boundingBox())!;
+    expect(plan).not.toBeNull();
+    expect(dock).not.toBeNull();
+    const usableBottom = Math.min(nearMe.y, plan.y, dock.y) - gap;
+    expect(usableBottom).toBeGreaterThan(usableTop);
+    expect(arrivalBox!.y).toBeGreaterThanOrEqual(usableTop);
+    expect(arrivalBox!.y + arrivalBox!.height).toBeLessThanOrEqual(usableBottom);
+    expect(arrivalBox!.y + arrivalBox!.height / 2).toBeGreaterThan((usableTop + usableBottom) / 2);
     // Both answers are visible side by side: the filled primary and the quiet
     // "Choose an area" beside it, on one row.
     const useMine = arrival.getByRole("button", { name: "Use my location" });

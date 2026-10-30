@@ -29,6 +29,19 @@ html[data-text-scale="large"] .socialPage .screenHead {
   padding-top: calc(var(--space-6) - var(--topbar-gap, 10px));
 }
 
+/* On a short narrow phone, enlarged display text can use the full reading
+   width. Keep the action row's separate Create reservation unchanged. */
+@media (max-width: 360px) and (max-height: 640px) {
+  html[data-text-scale="large"] .socialPage .screenHead {
+    padding-top: var(--space-1);
+  }
+
+  html[data-text-scale="large"] .socialPage .screenTitle {
+    margin-left: calc(max(var(--space-2), env(safe-area-inset-left, 0px)) - var(--page-gutter));
+    margin-right: calc(max(var(--space-2), env(safe-area-inset-right, 0px)) - var(--page-gutter));
+  }
+}
+
 /* The Screen paints the one primary; while the session or the access answer
    is still open that control waits rather than routing anybody anywhere. */
 .socialPage .screenPrimary > button:disabled {
