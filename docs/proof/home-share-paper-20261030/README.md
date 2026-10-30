@@ -26,10 +26,17 @@ Its dimensions were 1200 by 630 pixels.
 Its first pixel was `[248, 242, 236]`, so the same colour check passed.
 The response retained its existing cache header.
 
-The existing homepage and crawler tests passed: 30 tests in two files.
+The homepage and crawler tests passed: 30 tests in two files.
+The related preview and homepage tests also passed: 347 tests in 24 files.
 The repository type check and lint checks for changed files also passed.
 The first type check used an incomplete shared dependency directory and failed on missing packages.
 An isolated installation from the committed lockfile resolved those errors.
+
+The independent no-mistakes source review inspected all eight changed files and reported no findings.
+Its source revision was `30dfab87a58196d74d4e4dfab64558f55f163d77`.
+The publication run stopped before push because opening a pull request starts automated builds.
+The owner requires explicit approval for builds.
+The complete publication gate did not finish.
 
 ## Coverage limits
 
