@@ -37,7 +37,7 @@ const SOCIAL_DISCOVER_DESCRIPTION =
   "London pubs and their listed pint prices, plus heritage crawls to walk.";
 
 export async function generateMetadata(
-  props: { searchParams?: Promise<SearchParams> } = {},
+  props: { searchParams: Promise<SearchParams> },
 ): Promise<Metadata> {
   const friendsLaunchEnabled = readTrustedHandoffFlag("socialFriendsLaunch");
   const state = props.searchParams

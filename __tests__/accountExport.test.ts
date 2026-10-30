@@ -873,6 +873,9 @@ const STORE_EXPORT_COVERAGE: Record<string, ExportCoverage> = {
     excluded: "A queue of recaps waiting to be written; a published recap rides its Plan, and the queue row is ours.",
   },
   "lib/pintDropsStore.ts": { lane: "pintDrops" },
+  "lib/pintDropWithTagsStore.ts": {
+    gap: "A With tag is the account's own proposal about its own drop and needs an owner-keyed read to export; the approved handle already prints on the drop the pint drops lane carries.",
+  },
   "lib/planCollaborationStore.ts": { excluded: "A Plan is shared: its crew rows name other people." },
   "lib/planGroupPrefsStore.ts": { excluded: "Group preferences on a shared Plan, named by other members." },
   "lib/planInviteRsvpStore.ts": { excluded: "RSVPs on a shared Plan, named by other members." },

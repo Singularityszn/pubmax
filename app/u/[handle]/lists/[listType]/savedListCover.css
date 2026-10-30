@@ -11,7 +11,7 @@
 .savedListCover[data-kind="bar"],
 .savedListCover[data-kind="club"],
 .savedListCover[data-kind="hotel_lounge"] {
-  --cover-tint: var(--brass);
+  --cover-tint: var(--muted);
 }
 
 .savedListCover[data-kind="food"],
