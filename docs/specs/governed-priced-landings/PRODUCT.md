@@ -1,25 +1,35 @@
 # Governed priced landings
 
-Two crawlable page families answer one question from PUBMAXX Pint Price
-evidence: what a named beer costs, and what it costs in one part of London.
+Three crawlable page families answer one question from PUBMAXX Pint Price
+evidence: what a pint costs, by beer, by part of London, or both.
 
 - `/drink/{brand}` - cheapest listed pints of one brand across London.
 - `/area/{area}/drink/{brand}` - the same question inside one Night Area.
+- `/area/{area}` - the cheapest listed pint at each pub in one Night Area.
 
-## Held: `/area/{area}`
+## The area root: `/area/{area}`
 
-The area landing page itself is not published because it duplicates
-`/borough/{slug}`. The borough index, Pint Index league table, and site footer
-link to that borough family.
+Captain decision, 30 Oct 2026 (SEO audit #2126, finding 17). It was held
+because an area page looked like a copy of `/borough/{slug}`. A Night Area is
+not a borough: Soho is part of Westminster, and Shoreditch spans four boroughs.
 
-`/area/{area}` permanently redirects to the matching London map area. The route
-accepts a catalogue slug or a name or alias converted with `slugifyVenueName`.
-Exactly one area must match. Unknown or ambiguous names return 404. The redirect
-uses `mapAreaHref`, so the destination carries the area rather than a venue-name
-query. Regression cases are in `__tests__/areaRedirect.test.ts`.
-
-Area roots remain absent from the sitemap, advertised links, and breadcrumbs.
-The brand-by-area page's parent crumb is the brand's own London page.
+- A London Night Area has a page when it holds **15** priced pubs
+  (`PRICED_LANDING_PUBLICATION_FLOORS.area`). Each pub counts once, at its own
+  cheapest listed pint. Only pub venue kinds, only finite positive prices.
+- The floor is the ONLY gate. A price list is not a route, so the route
+  readiness review (`nightAreaPublishesPrices`) that gates the brand-by-area
+  pairs does not gate this page. `lib/areaLanding.ts` owns the rule.
+- The page prints the same ranked list, publisher per row, count and
+  collection date as the other two families, the area's stations from
+  `transportAnchors`, and its published brand-by-area pairs.
+- Its map arrival is `mapAreaHref` (`/map?area={slug}`), never `?q=`.
+- A name or alias of a published area redirects to that area's page. A known
+  area below the floor still redirects to its map area. Unknown or ambiguous
+  names return 404. Regression cases: `__tests__/areaRedirect.test.ts`.
+- Published area pages are in the sitemap. Borough pages link each area page
+  that holds five or more of the borough's priced pubs
+  (`lib/boroughNeighbourhoodLinks.ts`).
+- The brand-by-area page's parent crumb is still the brand's own London page.
 
 ## What a page may claim
 
@@ -42,7 +52,8 @@ The brand-by-area page's parent crumb is the brand's own London page.
   pint in `lib/beers.ts` the lens lacks. The landing card matches its pint
   against that catalogue with the page's own matcher and links it only when
   the page publishes. Areas come from `NIGHT_AREAS`.
-- A brand page needs 20 pubs with a valid matching row. A brand-by-area page
+- A brand page needs 20 pubs with a valid matching row. An area root needs
+  15 priced pubs of any pint. A brand-by-area page
   needs 10, AND its brand's own London page must publish: that page is its
   parent crumb, so a pair without one would link a reader to a 404.
 - One pub counts once, at its own cheapest matching row.
