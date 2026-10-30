@@ -324,6 +324,9 @@ function safeNotificationPath(value) {
   try {
     const url = new URL(value, self.location.origin);
     if (url.origin !== self.location.origin) return "/today";
+    // "/..//evil.example" resolves on our origin to the path "//evil.example",
+    // which the click handler would read back as a protocol-relative URL.
+    if (url.pathname.startsWith("//")) return "/today";
     return `${url.pathname}${url.search}`;
   } catch {
     return "/today";
