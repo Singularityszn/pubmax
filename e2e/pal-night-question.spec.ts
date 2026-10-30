@@ -135,5 +135,5 @@ test("once tonight's plan is saved, the Pal hands out the crew link", async ({ p
   const shared = await page.evaluate(() => (window as unknown as { __shared: Array<{ text: string; url: string }> }).__shared);
   expect(shared).toHaveLength(1);
   expect(shared[0]!.text).toBe("Ripley's got a plan for tonight. Open the link and tap I'm in.");
-  expect(shared[0]!.url).toContain(`/plan/${planId}#invite=${inviteToken}`);
+  expect(new URL(shared[0]!.url).pathname).toBe(`/invite/${inviteToken}`);
 });

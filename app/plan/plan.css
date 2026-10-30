@@ -2114,3 +2114,126 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   font-weight: var(--control-font-weight);
   cursor: pointer;
 }
+
+/* ── The plan as one card (components/plan/PlanCard.tsx; PlanAstra 7.4) ────
+   A member reads the whole night before the route: the first stop's photo,
+   when it starts, the plan's name, the crew and three ways onward. It fits a
+   390 by 844 phone with the site nav above it. While it stands, the page head
+   steps aside: it paints the same "Send to the crew" in coral, and a screen
+   spends coral once. A non-member never gets the card, so the head and the
+   privacy preview stay exactly as they were. */
+.planPage:has(.planCard) .planDetailScreen { display: none; }
+
+.planCard {
+  width: 100%;
+  max-width: 1160px;
+  margin: 0 auto var(--space-8);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  background: var(--panel-raised);
+  overflow: hidden;
+}
+
+.planCard__cover {
+  --plan-cover-tint: var(--amber);
+  position: relative;
+  margin: 0;
+  aspect-ratio: 16 / 9;
+  max-height: 240px;
+  background: var(--panel);
+}
+
+.planCard__cover[data-kind="bar"],
+.planCard__cover[data-kind="club"],
+.planCard__cover[data-kind="hotel_lounge"] { --plan-cover-tint: var(--muted); }
+
+.planCard__cover[data-kind="food"],
+.planCard__cover[data-kind="restaurant"],
+.planCard__cover[data-kind="cafe"] { --plan-cover-tint: var(--pint); }
+
+.planCard__cover[data-kind="coworking"],
+.planCard__cover[data-kind="library"],
+.planCard__cover[data-kind="other"] { --plan-cover-tint: var(--river); }
+
+.planCard__photo,
+.planCard__placeholder {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.planCard__placeholder {
+  background: color-mix(in srgb, var(--plan-cover-tint) 22%, var(--panel));
+}
+
+.planCard__firstStop {
+  position: absolute;
+  left: var(--space-3);
+  bottom: var(--space-3);
+  max-width: calc(100% - var(--space-6));
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--paper);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  overflow-wrap: anywhere;
+}
+
+.planCard__body {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-5) var(--space-6);
+}
+
+.planCard__when {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+  font-size: var(--text-sm);
+}
+
+.planCard__title {
+  margin: 0;
+  color: var(--color-text);
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+  overflow-wrap: anywhere;
+}
+
+.planCard__crew {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.planCard__handle {
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--badge-border);
+  border-radius: var(--radius-pill);
+  background: var(--badge-surface);
+  color: var(--badge-ink);
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  overflow-wrap: anywhere;
+}
+
+.planCard__actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.planCard__actions .planCard__primary { grid-column: 1 / -1; }
+
+/* "Who's in" lands on the crew block with its heading clear of the top bar. */
+.planCrew { scroll-margin-top: calc(var(--space-12) * 2); }

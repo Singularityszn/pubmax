@@ -238,7 +238,7 @@ describe("the question on /pal", () => {
       expect(ready.hasAttribute("aria-busy")).toBe(false);
       await act(async () => ready.click());
       expect(crew.shared).toHaveLength(1);
-      expect(new URL(crew.shared[0]!.url).hash).toBe("#invite=0123456789abcdef0123456789abcdef");
+      expect(new URL(crew.shared[0]!.url).pathname).toBe("/invite/0123456789abcdef0123456789abcdef");
     });
 
     it("opens the plan's own invite tools when the crew link read fails", async () => {
@@ -266,8 +266,9 @@ describe("the question on /pal", () => {
       await act(async () => whoButton()!.click());
       expect(crew.shared).toHaveLength(1);
       expect(crew.shared[0]!.text).toBe("Ripley's got a plan for tonight. Open the link and tap I'm in.");
-      expect(new URL(crew.shared[0]!.url).pathname).toBe(`/plan/${PLAN_ID}`);
-      expect(new URL(crew.shared[0]!.url).hash).toBe("#invite=0123456789abcdef0123456789abcdef");
+      // ONE LINK: the same public invite page every host share sends.
+      expect(new URL(crew.shared[0]!.url).pathname).toBe("/invite/0123456789abcdef0123456789abcdef");
+      expect(new URL(crew.shared[0]!.url).hash).toBe("");
       expect(host.textContent).toContain("Sent. Now they tap I'm in.");
       // With tonight's plan saved, Open the plan goes to it, never to a fresh one.
       const open = [...host.querySelectorAll<HTMLAnchorElement>("a")].find((link) => link.textContent === "Open the plan")!;

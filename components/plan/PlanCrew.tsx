@@ -343,7 +343,7 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
   }
 
   return (
-    <section className="planCrew" aria-labelledby="plan-crew-title">
+    <section id="crew" className="planCrew" aria-labelledby="plan-crew-title">
       <div className="planCrew__heading">
         <div><h2 id="plan-crew-title">Who&rsquo;s in</h2></div>
         {crew.length > 0 ? <span>{crew.length}</span> : null}
