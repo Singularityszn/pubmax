@@ -187,6 +187,8 @@ describe("the regular-nights read with drinker rows", () => {
 
   it("labels a drinker row by its seen date and its reporter, apart from the sourced nights", () => {
     const [night] = parseDrinkerRegularNights({ reports: [row({})] }, T0);
+    expect(night?.own).toBe(false);
+    expect(parseDrinkerRegularNights({ reports: [row({ own: true })] }, T0)[0]?.own).toBe(true);
     expect(drinkerRegularNightSourceLine(night!)).toBe("per a drinker, seen 30 October 2026");
     expect(drinkerRegularNightByline(night!)).toBe("@alice");
     expect(drinkerRegularNightByline({ handle: null, confirmed: true })).toBe("checked by a person");

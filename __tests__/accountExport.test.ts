@@ -345,6 +345,23 @@ function fakeDeps(overrides: Partial<AccountExportDeps> = {}): AccountExportDeps
     ],
     venueCorrections: async () => ({ status: "ready" as const, corrections: [] }),
     regularNightReports: async () => ({ status: "ready" as const, reports: [] }),
+    kitchenReports: async (userId) => ({
+      status: "ready" as const,
+      reports:
+        userId === USER
+          ? [
+              {
+                id: "kitchen-1",
+                venueId: "venue-2",
+                state: "open" as const,
+                reporterUserId: USER,
+                reportedAt: "2026-10-30T19:00:00.000Z",
+                confirmedBy: "other-account",
+                confirmedAt: "2026-10-30T19:10:00.000Z",
+              },
+            ]
+          : [],
+    }),
     pubListNightDrafts: async () => [],
     venueSubmissions: async (userId) => ({
       status: "ready" as const,
@@ -442,6 +459,12 @@ describe("buildAccountExport", () => {
     ]);
     expect(JSON.stringify(document.venueSubmissions)).not.toContain("venue-submissions/");
     expect(document.venueSubmissions.items[0]).not.toHaveProperty("ownerUserId");
+    // A kitchen tap: the word, the minute and whether one other confirmed it,
+    // never who that other account was.
+    expect(document.kitchenReports.items).toEqual([
+      { id: "kitchen-1", venueId: "venue-2", state: "open", reportedAt: "2026-10-30T19:00:00.000Z", confirmed: true },
+    ]);
+    expect(JSON.stringify(document.kitchenReports)).not.toContain("other-account");
     expect(document.socialLinks.items).toEqual([socialLink]);
     expect(document.nightProfile.items).toEqual([nightProfileRow]);
   });
@@ -928,6 +951,7 @@ const STORE_EXPORT_COVERAGE: Record<string, ExportCoverage> = {
   "lib/venueSubmissionStore.ts": { lane: "venueSubmissions" },
   "lib/venueCorrectionsStore.ts": { lane: "venueCorrections" },
   "lib/regularNightReportsStore.ts": { lane: "regularNightReports" },
+  "lib/kitchenReportsStore.ts": { lane: "kitchenReports" },
   "lib/pubListImportDraftStore.server.ts": { lane: "pubListNightDrafts" },
   "lib/visitReportsStore.ts": { lane: "visitReports" },
   "lib/walkRouteStore.ts": { excluded: "Cached walking routes between two points, shared by every reader who asks for them." },

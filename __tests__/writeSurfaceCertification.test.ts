@@ -208,7 +208,8 @@ describe("mutating API surface certification", () => {
     // 169: plus POST and PATCH /api/regular-nights (add, "still on") and PATCH
     // /api/admin/regular-nights (confirm, hide).
     // 170: plus POST /api/plans/[id]/open-crew, "Open it up" (open crawls, 0208).
-    expect(mutationHandlers).toHaveLength(170);
+    // 171: plus POST /api/kitchen-reports ("Still serving", "Kitchen closed").
+    expect(mutationHandlers).toHaveLength(171);
     expect(certifiedMutationHandlers()).toEqual(
       mutationHandlers.map(mutationHandlerKey),
     );

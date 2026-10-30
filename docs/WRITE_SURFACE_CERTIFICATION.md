@@ -174,6 +174,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/starter-packs/[slug]/follow`
 - `POST app/api/venue-corrections`
 - `POST app/api/regular-nights`
+- `POST app/api/kitchen-reports`
 - `POST app/api/venue-operators/claim`
 - `POST app/api/venue-photos`
 - `POST app/api/venue-submissions`
@@ -807,6 +808,36 @@ loss or a block; owner leave remains a durable conflict until ownership moves.
   verbs are `isModerator`-gated. A hard store failure answers 503, never a
   fake success, and a row that failed after its photo landed takes the photo
   back out.
+
+### `app/api/kitchen-reports` - a drinker says whether the kitchen is serving
+
+- **Route / method:** `POST app/api/kitchen-reports/route.ts` takes one JSON
+  tap: `venueId` and `state`, which is `open` ("Still serving") or `closed`
+  ("Kitchen closed") and nothing else. A tap with no fresh report at the pub,
+  or with the other word, starts a report. A different account's matching tap
+  inside 90 minutes confirms the newest report, once: the reporter's own
+  matching tap is 409 and a tap on a report one other has already confirmed is
+  409. The public `GET app/api/kitchen-reports?venueId=` returns the newest
+  report inside 90 minutes with the reporter's current handle, read at answer
+  time, and no account id.
+- **What it never writes:** a venue, a pin, opening hours, a kitchen time or a
+  price lane. A report is one drinker's dated word, printed as "Kitchen open,
+  said @handle 20 min ago", and the read prints nothing once 90 minutes pass.
+- **Validation:** `parseKitchenState` (`lib/kitchenReports.ts`) takes exactly
+  `open` or `closed`; any other word is 400. The venue resolves through
+  `resolveWritableVenueId`. The body is capped at 1 KB. Migration 0209's
+  CHECKs hold the word, the venue id length, and a confirmer who is not the
+  reporter.
+- **Rate limit (boundary):** durable `isLimited` per profile + hashed IP
+  (`kitchen-report:${actor}:${ipHash}`) on every tap, then twenty taps an hour
+  per account (`kitchen-report-actor:${actor}`). The public read is metered at
+  60 a minute per hashed IP.
+- **Auth stance:** `resolveContributionIdentity` derives the reporter from the
+  session (sign_in_required, onboarding_required and the adult check answer
+  first); a body owner is ignored. The 0209 table keys the reporter to
+  `auth.users` with ON DELETE CASCADE and the confirmer with ON DELETE SET
+  NULL, and has no browser grant. A hard store failure answers 503, never a
+  fake success. No admin verb: a report is two fixed words and no free text.
 
 ### `app/api/visit-reports` — structured Visit Reports (route 66)
 

@@ -1,7 +1,9 @@
 // A regular night a drinker added: a quiz every Tuesday, music on a Sunday.
 //
 //   GET ?weekday=0..6 | ?venueId=<id>
-//        -> 200 { status, reports }   live rows only (open or confirmed, not expired)
+//        -> 200 { status, reports }   live rows only (open or confirmed, not expired);
+//           a caller with a verified session also learns `own` on each row, so
+//           the reader can leave "Still on" off the reporter's own nights
 //   POST multipart { venueId, kind, weekday, startTime?, note?, photo }
 //        -> 201 { report: { id, status, lastSeenAt, expiresAt } }
 //   PATCH { id }   "still on", from a different signed-in account, once
@@ -25,6 +27,7 @@
 
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { bearerToken, callerUserId } from "@/lib/authServer";
 import { boundedFormData, boundedJson } from "@/lib/boundedRequest.server";
 import { resolveContributionIdentity } from "@/lib/contributionIdentity.server";
 import { log } from "@/lib/log";
@@ -129,12 +132,15 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   const now = Date.now();
+  // Anonymous is the common read and stays a plain read: the session is only
+  // asked when the request carries a bearer, and a bad one is anonymous.
+  const viewer = bearerToken(request) ? await callerUserId(request) : null;
   const read = await regularNightReportsStore().listLive(
     { ...(weekday === null ? {} : { weekday }), ...(rawVenue ? { venueId: rawVenue } : {}) },
     now,
   );
   return jsonNoStore(
-    { status: read.status, reports: await publicRegularNightReports(read.reports, now) },
+    { status: read.status, reports: await publicRegularNightReports(read.reports, now, viewer) },
     { status: 200 },
   );
 }

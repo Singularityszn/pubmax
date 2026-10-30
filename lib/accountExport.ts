@@ -38,6 +38,7 @@ import type { DrinkWallCategory } from "@/lib/venuePhotos";
 import type { PublicSocialConnection } from "@/lib/socialConnections";
 import type { VisitReportDTO } from "@/lib/visitReports";
 import type { DiaryEntryDTO } from "@/lib/diary";
+import type { KitchenReportOwnerFields } from "@/lib/kitchenReports";
 import type { RegularNightReportOwnerFields } from "@/lib/regularNightReports";
 import type { VenueCorrectionOwnerFields } from "@/lib/venueCorrections";
 import type { VenueSubmissionFileKind, VenueSubmissionPublicFields } from "@/lib/venueSubmissions";
@@ -300,6 +301,8 @@ export type AccountExport = {
   venueCorrections: AccountExportLane<VenueCorrectionOwnerFields>;
   /** Regular nights the account added at a pub, with where each one got to. The board photo is not in the file. */
   regularNightReports: AccountExportLane<RegularNightReportOwnerFields>;
+  /** "Still serving" and "Kitchen closed" taps the account made, each with its minute and whether one other confirmed it. */
+  kitchenReports: AccountExportLane<KitchenReportOwnerFields>;
   pubListNightDrafts: AccountExportLane<PubListNightDraft>;
   socialLinks: AccountExportLane<PublicSocialConnection>;
   /** At most one row, the same way `identity` is. */
@@ -328,6 +331,7 @@ export const ACCOUNT_EXPORT_LANES = [
   "venueSubmissions",
   "venueCorrections",
   "regularNightReports",
+  "kitchenReports",
   "pubListNightDrafts",
   "socialLinks",
   "nightProfile",

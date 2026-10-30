@@ -110,6 +110,8 @@ export type DrinkerRegularNight = {
   /** The reporter's handle while no person has checked it; null once confirmed. */
   handle: string | null;
   confirmed: boolean;
+  /** The reader reported it themselves (a verified read said so). They get no "Still on". */
+  own: boolean;
 };
 
 type RawRow = Record<string, unknown>;
@@ -344,6 +346,7 @@ export function parseDrinkerRegularNights(payload: unknown, now: number): Drinke
       seenAt,
       handle: confirmed ? null : handle,
       confirmed,
+      own: row.own === true,
     });
   }
   return out;

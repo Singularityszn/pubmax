@@ -356,6 +356,7 @@ beforeAll(async () => {
     adminVenueCorrectionsRoute,
     regularNightsRoute,
     adminRegularNightsRoute,
+    kitchenReportsRoute,
     savedPubsRoute,
     tagsRoute,
     profileRoute,
@@ -394,6 +395,7 @@ beforeAll(async () => {
     import("@/app/api/admin/venue-corrections/route"),
     import("@/app/api/regular-nights/route"),
     import("@/app/api/admin/regular-nights/route"),
+    import("@/app/api/kitchen-reports/route"),
     import("@/app/api/saved-pubs/route"),
     import("@/app/api/social/tags/route"),
     import("@/app/api/profiles/[handle]/route"),
@@ -451,6 +453,8 @@ beforeAll(async () => {
     stillOnRegularNight: regularNightsRoute.PATCH as unknown as Handler,
     listRegularNightReports: adminRegularNightsRoute.GET as unknown as Handler,
     decideRegularNightReport: adminRegularNightsRoute.PATCH as unknown as Handler,
+    readKitchenReport: kitchenReportsRoute.GET as unknown as Handler,
+    writeKitchenReport: kitchenReportsRoute.POST as unknown as Handler,
     listSavedPubs: savedPubsRoute.GET as unknown as Handler,
     writeSavedPub: savedPubsRoute.POST as unknown as Handler,
     tagInbox: tagsRoute.GET as unknown as Handler,
@@ -2334,6 +2338,78 @@ describe("saves: two lanes, two promises", () => {
         expect(write.ok).toBe(false);
         expect(write.err).toMatch(/permission denied/i);
       }
+    }
+  });
+
+  it("a kitchen report is written from the session, confirmed once by another account, never by its reporter, and no browser role reaches the table", async () => {
+    const anonymous = await defined(handlers.writeKitchenReport)(
+      request("/api/kitchen-reports", { body: { venueId: PRICE_VENUE, state: "open" } }),
+      context({}),
+    );
+    expect(anonymous.status).toBe(401);
+    expect(Number(truth("select count(*) from public.kitchen_reports"))).toBe(0);
+
+    // The body cannot name the reporter: the session does.
+    const alice = await defined(handlers.writeKitchenReport)(
+      request("/api/kitchen-reports", {
+        bearer: BEARER_ALICE,
+        body: { venueId: PRICE_VENUE, state: "open", reporterUserId: BOB },
+      }),
+      context({}),
+    );
+    expect(alice.status, await alice.clone().text()).toBe(200);
+    expect(truth(`select reporter_user_id from public.kitchen_reports where venue_id = '${PRICE_VENUE}'`)).toBe(ALICE);
+
+    const offList = await defined(handlers.writeKitchenReport)(
+      request("/api/kitchen-reports", { bearer: BEARER_BOB, body: { venueId: PRICE_VENUE, state: "shut" } }),
+      context({}),
+    );
+    expect(offList.status).toBe(400);
+
+    // The public read prints the handle and never the account.
+    const read = await defined(handlers.readKitchenReport)(
+      request(`/api/kitchen-reports?venueId=${PRICE_VENUE}`),
+      context({}),
+    );
+    expect(read.status).toBe(200);
+    const readBody = JSON.stringify(await readJson(read));
+    expect(readBody).toContain("alicepm");
+    expect(readBody).not.toContain(ALICE);
+
+    const own = await defined(handlers.writeKitchenReport)(
+      request("/api/kitchen-reports", { bearer: BEARER_ALICE, body: { venueId: PRICE_VENUE, state: "open" } }),
+      context({}),
+    );
+    expect(own.status).toBe(409);
+    expect(truth("select confirmed_at is null from public.kitchen_reports")).toBe("true");
+
+    const bob = await defined(handlers.writeKitchenReport)(
+      request("/api/kitchen-reports", { bearer: BEARER_BOB, body: { venueId: PRICE_VENUE, state: "open" } }),
+      context({}),
+    );
+    expect(bob.status, await bob.clone().text()).toBe(200);
+    expect(truth(`select confirmed_by from public.kitchen_reports`)).toBe(BOB);
+
+    const carol = await defined(handlers.writeKitchenReport)(
+      request("/api/kitchen-reports", { bearer: BEARER_CAROL, body: { venueId: PRICE_VENUE, state: "open" } }),
+      context({}),
+    );
+    expect(carol.status).toBe(409);
+    expect(truth(`select confirmed_by from public.kitchen_reports`)).toBe(BOB);
+    expect(Number(truth("select count(*) from public.kitchen_reports"))).toBe(1);
+
+    // The table refuses a reporter confirming their own row, whoever writes it.
+    const selfConfirm = requireSession().sql(
+      "update public.kitchen_reports set confirmed_by = reporter_user_id, confirmed_at = now()",
+    );
+    expect(selfConfirm.ok).toBe(false);
+
+    expect(visibleRows("anon", null, "select count(*) from public.kitchen_reports")).toBe(0);
+    for (const sub of [ALICE, BOB]) {
+      expect(visibleRows("authenticated", sub, "select count(*) from public.kitchen_reports")).toBe(0);
+      const write = attemptAsRole("authenticated", sub, "delete from public.kitchen_reports");
+      expect(write.ok).toBe(false);
+      expect(write.err).toMatch(/permission denied/i);
     }
   });
 

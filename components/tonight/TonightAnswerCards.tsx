@@ -6,6 +6,7 @@ import { PintPriceBadge } from "@/components/PriceBadge";
 import { ReadyButton } from "@/components/ui/ready-button";
 import { formatSnapshotFrom } from "@/lib/dataFreshness";
 import AddRegularNight from "@/components/tonight/AddRegularNight";
+import RegularNightStillOn from "@/components/tonight/RegularNightStillOn";
 import {
   DRINKER_REGULAR_NIGHTS_HEADING,
   DRINKER_REGULAR_NIGHTS_LEAD,
@@ -127,6 +128,7 @@ function DrinkerNightRow({ night }: { night: DrinkerRegularNight }) {
         {night.note ? `. ${night.note}` : ""}
         {` · ${drinkerRegularNightSourceLine(night)} · ${drinkerRegularNightByline(night)}`}
       </span>
+      <RegularNightStillOn night={night} />
     </li>
   );
 }

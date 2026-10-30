@@ -56,6 +56,7 @@ silently stale.
 | harvestOverlayStore | factory-ready | Fold-written UK harvest overlays; one shared selector, with a `requireDurable` guard for the non-dry fold CLI. |
 | identityHandleStore | factory-eligible, policy-heavy | Handle ownership, rename, reservation, and tombstone policy. |
 | importNotesStore | not dual-backend | JSON-file store with memory fallback when the filesystem is unavailable. |
+| kitchenReportsStore | factory-ready | "Still serving" and "Kitchen closed" taps on a pub's food row: 90 minute read window, one confirmation by another account. |
 | messagesStore | factory-eligible, policy-heavy | Conversation identity, membership, and message policy. |
 | nightMemoryStore | legacy-exception | Multiple inline Supabase configuration checks around private memory policy. |
 | nightProfileStore | factory-ready | Night Profile preference rows with shared backend selection. |
@@ -262,7 +263,7 @@ and Supabase implementations keep their existing fail-soft behavior.
 
 The current branch also has `createDualBackendStore` in
 `adultSelfAssertionStore`, `diaryStore`, `feedFreshnessStore`,
-`harvestOverlayStore`, `occupancyStore`, `priceTrustEventStore`,
+`harvestOverlayStore`, `kitchenReportsStore`, `occupancyStore`, `priceTrustEventStore`,
 `pubPalToolTurnStore`, `regularNightReportsStore`, `stepOutNudgeStore`, `venueCorrectionsStore`, `venueSubmissionStore`,
 `walkRouteStore` and `wantedStore`. This inventory records that current state; it does not require
 other stores to migrate.
