@@ -1110,3 +1110,30 @@ export function socialPostStore(): SocialPostStore {
   if (requiresSupabaseStore()) return supabaseSocialPostStore;
   return selectStore(memorySocialPostStore, supabaseSocialPostStore);
 }
+
+/**
+ * A card the server writes for its author on their say-so ("Tell your lot"):
+ * "@sam was at the Lamb", "@sam ranked the Lamb above the Harp". It is an
+ * ordinary post in every way that matters: mutuals only, carries the venue,
+ * starts `pending` in the same moderation queue, and its author edits or
+ * deletes it like any other. Only the words are the server's, so no tag, no
+ * photo, no hashtag and never a hidden name. The caller decides consent and
+ * verifies the actor; this writes exactly one post.
+ */
+export async function createSystemSocialPostCard(
+  actor: SocialPostActor,
+  card: { body: string; venueId: string },
+  store: SocialPostStore = socialPostStore(),
+): Promise<SocialPostDTO> {
+  return store.create(actor, {
+    kind: "standard",
+    visibility: "friends",
+    body: card.body,
+    area: null,
+    venueId: card.venueId,
+    hashtags: [],
+    commentPolicy: "friends",
+    photo: null,
+    nameHidden: false,
+  });
+}

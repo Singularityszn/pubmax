@@ -70,6 +70,7 @@ describe("validateDiaryEntryCreate", () => {
         visitedOn: "2026-10-04",
         rating: 4.5,
         review: "Back room was calm.",
+        usualDrink: "",
         visibility: "private",
       },
     });

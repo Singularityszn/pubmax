@@ -500,6 +500,7 @@ export type Database = {
           review: string;
           visibility: string;
           created_at: string;
+          usual_drink: string;
         };
         Insert: {
           id?: string;
@@ -511,6 +512,7 @@ export type Database = {
           review?: string;
           visibility?: string;
           created_at?: string;
+          usual_drink?: string;
         };
         Update: {
           id?: string;
@@ -522,6 +524,7 @@ export type Database = {
           review?: string;
           visibility?: string;
           created_at?: string;
+          usual_drink?: string;
         };
         Relationships: [
           {

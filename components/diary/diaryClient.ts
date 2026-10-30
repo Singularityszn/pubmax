@@ -19,10 +19,14 @@ export type DiaryDraftInput = {
   visitedOn: string;
   rating: number | null;
   review: string;
+  /** "Your usual here", private. */
+  usualDrink?: string;
+  /** "Tell your lot": sent only when the owner turned it on for this log. */
+  shareToLot?: boolean;
 };
 
 export type DiaryPostResult =
-  | { ok: true; entry: DiaryEntryDTO }
+  | { ok: true; entry: DiaryEntryDTO; shared: boolean }
   | { ok: false; error: string; status?: ContributionGateStatus };
 
 /** Log one visit. Auth and onboarding refusals stay typed so the shared
@@ -38,6 +42,7 @@ export async function postDiaryEntry(
   });
   const body = (await res.json().catch(() => ({}))) as {
     entry?: DiaryEntryDTO;
+    shared?: unknown;
     error?: unknown;
     status?: unknown;
   };
@@ -49,7 +54,7 @@ export async function postDiaryEntry(
       ...(status ? { status } : {}),
     };
   }
-  return { ok: true, entry: body.entry };
+  return { ok: true, entry: body.entry, shared: body.shared === true };
 }
 
 export type DiaryEntryChange = {
