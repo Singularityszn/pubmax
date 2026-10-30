@@ -27,9 +27,13 @@
 }
 
 .rankAfterVisit__bands {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+}
+
+.rankAfterVisit__bands > * {
+  flex: 1 1 96px;
 }
 
 .rankAfterVisit__bands button,
@@ -119,8 +123,3 @@
   font-weight: 400;
 }
 
-@media (max-width: 360px) {
-  .rankAfterVisit__bands {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
