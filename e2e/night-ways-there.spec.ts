@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
 
 import type { LegOption } from "../lib/legOptions";
@@ -6,8 +6,11 @@ import type { LegOption } from "../lib/legOptions";
 // Ways to get there (components/night/NightWaysThere.tsx): in Night Mode, the
 // ways from this stop to the next, each with its time, TfL's fare and the
 // fastest and the cheapest marked, and a tap draws that way on the map. The
-// TfL answer is fixed here (GET /api/leg-options), so the test reads the
-// screens, not TfL. Shots land in artifacts/night-ways-there/ (gitignored).
+// crawl route itself reads like directions: a thick line on its own edge, with
+// each leg's minutes on a bubble. The TfL and street-router answers are fixed
+// here (GET /api/leg-options, GET /api/walk-route), so the test reads the
+// screens, not the outside world. Shots land in artifacts/night-ways-there/
+// (gitignored).
 
 const SHOTS = "artifacts/night-ways-there";
 const PLAN_ID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
@@ -48,9 +51,8 @@ function waysBetween(from: LngLat, to: LngLat): LegOption[] {
   return [bus, walk, tube];
 }
 
-test("Night Mode lists the ways to the next stop, and a tap draws the chosen one on the map", async ({ page }) => {
-  test.setTimeout(180_000);
-  await page.setViewportSize({ width: 390, height: 844 });
+/** The night's plan, answered by a fixed server: three Soho stops, the reader at the first. */
+async function seedTonight(page: Page) {
   const startTime = new Date(Date.now() - 60 * 60 * 1000).toISOString();
   const plan = {
     plan: { id: PLAN_ID, title: "Victorian Soho", startTime, createdAt: startTime, routeRevision: 1, status: "active" },
@@ -64,16 +66,6 @@ test("Night Mode lists the ways to the next stop, and a tap draws the chosen one
     return route.fulfill({ json: path.endsWith("/session") ? { active: true, role: "host", collaborationAuthorized: true } : { stops: [] } });
   });
   await page.route(`**/api/plans/${PLAN_ID}`, (route) => route.fulfill({ json: plan }));
-  const asked: string[] = [];
-  await page.route("**/api/leg-options**", (route) => {
-    const url = new URL(route.request().url());
-    asked.push(url.href);
-    const point = (name: string): LngLat => {
-      const [lat, lng] = url.searchParams.get(name)!.split(",").map(Number);
-      return [lng!, lat!];
-    };
-    return route.fulfill({ json: { status: "ok", options: waysBetween(point("from"), point("to")) } });
-  });
   await page.addInitScript((planId) => {
     window.localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
     window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
@@ -87,6 +79,34 @@ test("Night Mode lists the ways to the next stop, and a tap draws the chosen one
       version: 1, id: planId, startTime: new Date(Date.now() - 60 * 60 * 1000).toISOString(), stopIndex: 0, role: "host",
     }));
   }, PLAN_ID);
+}
+
+/** Zoom in on the stops the way a reader would, once the map has settled; the camera itself never moves. */
+async function leanIn(page: Page) {
+  await expect(page.locator(".maplibregl-canvas")).toBeVisible({ timeout: 60_000 });
+  await page.waitForTimeout(4_000);
+  await page.mouse.move(190, 400);
+  for (let turn = 0; turn < 3; turn += 1) {
+    await page.mouse.wheel(0, -240);
+    await page.waitForTimeout(300);
+  }
+  await page.waitForTimeout(2_000);
+}
+
+test("Night Mode lists the ways to the next stop, and a tap draws the chosen one on the map", async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await seedTonight(page);
+  const asked: string[] = [];
+  await page.route("**/api/leg-options**", (route) => {
+    const url = new URL(route.request().url());
+    asked.push(url.href);
+    const point = (name: string): LngLat => {
+      const [lat, lng] = url.searchParams.get(name)!.split(",").map(Number);
+      return [lng!, lat!];
+    };
+    return route.fulfill({ json: { status: "ok", options: waysBetween(point("from"), point("to")) } });
+  });
   await page.goto("/tonight");
   await page.getByRole("button", { name: "Show tonight's plan" }).click({ timeout: 60_000 });
 
@@ -108,6 +128,10 @@ test("Night Mode lists the ways to the next stop, and a tap draws the chosen one
   for (const row of await rows.all()) {
     expect((await row.boundingBox())!.height).toBeGreaterThanOrEqual(44);
   }
+  // The next-stop button keeps its own height above the list: nothing lies on it.
+  const nextBox = (await page.locator(".nightCard__next").boundingBox())!;
+  const toggleBox = (await toggle.boundingBox())!;
+  expect(nextBox.y + nextBox.height).toBeLessThanOrEqual(toggleBox.y);
   await ways.scrollIntoViewIfNeeded();
   await page.waitForTimeout(600);
   await mkdir(SHOTS, { recursive: true });
@@ -116,14 +140,51 @@ test("Night Mode lists the ways to the next stop, and a tap draws the chosen one
   // A tap draws that way on the map and takes the reader there.
   await rows.nth(2).click();
   await expect(page).toHaveURL(/\/map/, { timeout: 30_000 });
-  await expect(page.locator(".maplibregl-canvas")).toBeVisible({ timeout: 60_000 });
-  await page.waitForTimeout(4_000);
-  // Zoom in on the leg the way a reader would; the camera itself never moves.
-  await page.mouse.move(190, 400);
-  for (let turn = 0; turn < 3; turn += 1) {
-    await page.mouse.wheel(0, -240);
-    await page.waitForTimeout(300);
-  }
-  await page.waitForTimeout(2_000);
+  await leanIn(page);
   await page.screenshot({ path: `${SHOTS}/way-on-map-390.png` });
+});
+
+test("a routed crawl is a thick solid line with its walking minutes on a bubble on each leg", async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await seedTonight(page);
+  // The street router's answer, fixed: each leg turns one corner, as a street walk does.
+  const routed: string[] = [];
+  await page.route("**/api/walk-route**", (route) => {
+    routed.push(route.request().url());
+    const stops = new URL(route.request().url()).searchParams
+      .get("stops")!
+      .split(";")
+      .map((pair) => pair.split(",").map(Number) as LngLat);
+    const legs = stops.slice(1).map((to, index) => {
+      const from = stops[index]!;
+      return { from, corner: [from[0], to[1]] as LngLat, to };
+    });
+    return route.fulfill({
+      json: {
+        line: {
+          type: "FeatureCollection",
+          features: [{
+            type: "Feature",
+            properties: { source: "ors" },
+            geometry: { type: "LineString", coordinates: legs.flatMap(({ from, corner, to }) => [from, corner, to]) },
+          }],
+        },
+        source: "ors",
+        // Each leg's middle is halfway down its first, longer run.
+        legs: legs.map(({ from, to }, index) => ({
+          fromIndex: index,
+          toIndex: index + 1,
+          distanceKm: 0.5 + index * 0.25,
+          source: "ors",
+          midpoint: [from[0], (from[1] + to[1]) / 2],
+        })),
+      },
+    });
+  });
+  await page.goto("/map");
+  await expect.poll(() => routed.length, { timeout: 60_000 }).toBeGreaterThan(0);
+  await leanIn(page);
+  await mkdir(SHOTS, { recursive: true });
+  await page.screenshot({ path: `${SHOTS}/routed-crawl-390.png` });
 });

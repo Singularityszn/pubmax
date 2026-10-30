@@ -279,6 +279,7 @@ live in `lib/mapBasemapTaste.ts`; the stable token roles are:
 | `--tint-ink-accent`, `--tint-ink-positive`, `--tint-ink-caution`, `--tint-ink-negative`, `--tint-ink-info` | a hue as a WORD on a TINT of itself - see "A hue on a tint of itself" |
 | `--pint`, `--amber`, `--brick` | price and status semantics |
 | `--river`, `--river-bright` | heritage and by-water information |
+| `--route-line` | the crawl route on the map, the key and the plan strip, and the walk of a way chosen in Night Mode. It is drawn thick on its own paper edge (dark: ink edge), like directions in a maps app. A ride on that way wears its own TfL line colour, never this token |
 
 **One accent owns the CTA in both themes.** Coral (`--brass`) carries actions;
 amber (`--night-amber`) stays a route and price signal. Every other hue (`pint` / `amber` /

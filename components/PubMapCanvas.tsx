@@ -103,7 +103,7 @@ import {
   type BasemapProvider,
 } from "@/components/map/canvas/tokens";
 import {
-  pubsToGeoJSON, poisToGeoJSON, routeToLine, routeToStops,
+  pubsToGeoJSON, poisToGeoJSON, routeLegTimes, routeToLegTimes, routeToLine, routeToStops,
   bandCorridorGeoJSON, landmarksToGeoJSON,
 } from "@/components/map/canvas/geojson";
 import type { VenueWhatsOnSummary } from "@/lib/whatsOnBadges";
@@ -1198,6 +1198,18 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     type: "FeatureCollection",
     features: [],
   });
+  // The minutes on foot of each leg of the crawl route, one bubble per leg.
+  const routeLegTimesRef = useRef<GeoJSON.FeatureCollection>({
+    type: "FeatureCollection",
+    features: [],
+  });
+  // The street router's answer for the stops it was asked about, so a later
+  // render of the same stops keeps the street line instead of the estimate.
+  const routedLineRef = useRef<{
+    key: string;
+    line: GeoJSON.FeatureCollection;
+    legTimes: GeoJSON.FeatureCollection;
+  } | null>(null);
   const tonightDataRef = useRef<GeoJSON.FeatureCollection>(
     opportunitiesToGeoJSON([]),
   );
@@ -1331,6 +1343,9 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       );
       (m.getSource("route-stops") as maplibregl.GeoJSONSource | undefined)?.setData(
         routeStopsRef.current,
+      );
+      (m.getSource("route-leg-times") as maplibregl.GeoJSONSource | undefined)?.setData(
+        routeLegTimesRef.current,
       );
     };
     if (styleStructureReadyRef.current && map.getSource("route-stops")) {
@@ -2496,6 +2511,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         landmarksGeoJSON: landmarksGeoJSONRef.current,
         poisData: poisDataRef.current,
         routeLine: routeLineRef.current,
+        routeLegTimes: routeLegTimesRef.current,
         legRoute: legRouteRef.current,
         routeStops: routeStopsRef.current,
         bandCorridor: bandCorridorRef.current,
@@ -2578,6 +2594,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
               landmarksGeoJSON: landmarksGeoJSONRef.current,
               poisData: poisDataRef.current,
               routeLine: routeLineRef.current,
+              routeLegTimes: routeLegTimesRef.current,
               legRoute: legRouteRef.current,
               routeStops: routeStopsRef.current,
               bandCorridor: bandCorridorRef.current,
@@ -4202,8 +4219,14 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
 
   // Route + selection ring → sources/filter.
   useEffect(() => {
-    routeLineRef.current = routeToLine(route);
+    // The straight estimate draws at once; the street line, once routed, holds
+    // for as long as the stops are the same (a parent re-render hands over a new
+    // array for the same stops, and used to put the dashed estimate back).
+    const coordKey = route.map((v) => `${v.longitude},${v.latitude}`).join(";");
+    const routed = routedLineRef.current?.key === coordKey ? routedLineRef.current : null;
+    routeLineRef.current = routed?.line ?? routeToLine(route);
     routeStopsRef.current = routeToStops(route);
+    routeLegTimesRef.current = routed?.legTimes ?? routeToLegTimes(route);
     selectedIdRef.current = selectedVenueId;
     // A parent re-render hands over a new `route` array for the same stops;
     // only a real change of stops or selection is news worth moving for.
@@ -4346,11 +4369,15 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       signal: controller.signal,
     })
       .then((response) => (response.ok ? response.json() : null))
-      .then((body: { line?: GeoJSON.FeatureCollection; source?: string } | null) => {
+      .then((body: { line?: GeoJSON.FeatureCollection; source?: string; legs?: unknown } | null) => {
         // Only upgrade when the server actually routed roads; a "straight"
         // response is the same geometry we already painted, so leave it dashed.
         if (!body || body.source !== "ors" || !body.line?.features?.length) return;
         routeLineRef.current = body.line;
+        // The routed legs' own lengths and middles; a leg the router could not
+        // draw keeps its straight-line estimate, marked as one.
+        if (Array.isArray(body.legs)) routeLegTimesRef.current = routeLegTimes(body.legs);
+        routedLineRef.current = { key: routeCoordKey, line: body.line, legTimes: routeLegTimesRef.current };
         applyRouteData();
         const stops = palWalkStopsFromKey(routeCoordKey);
         walkPals({ key: routeCoordKey, stops, path: palWalkPathFrom(body.line), road: true });

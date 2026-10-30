@@ -53,8 +53,6 @@ export function legRouteToLines(option: LegOption | null): GeoJSON.FeatureCollec
   return { type: "FeatureCollection", features };
 }
 
-export const LEG_ROUTE_LAYERS = ["leg-route-casing", "leg-route-ride", "leg-route-walk", "leg-route-estimate"] as const;
-
 export function buildLegRoute(ctx: SceneCtx) {
   const { map, tokens, dark, addLayerOnce } = ctx;
   const data = ctx.legRoute ?? legRouteToLines(null);

@@ -9,6 +9,7 @@ import {
   COFFEE_PILOT_ICON_KEY,
   iconId,
   PILL_ICON_KEY_PREFIX,
+  ROUTE_TIME_ICON_KEY,
   UK_BASE_ICON_KEY,
   venuePinIconKey,
 } from "@/lib/mapIcons";
@@ -352,6 +353,32 @@ const PIN_PRICE_PILL_TEXT_SIZE_EXPR: maplibregl.ExpressionSpecification = [
 // image's own content box.
 const PIN_PRICE_PILL_FIT_PADDING: [number, number, number, number] = [1, 0, 1, 0];
 
+// The crawl route's width, in px, as a maps app draws directions: thick enough
+// to read as the way to go at a glance, and wider as the reader leans in. The
+// casing is the line plus a 3px edge each side at street level.
+const ROUTE_LINE_WIDTH: maplibregl.ExpressionSpecification = [
+  "interpolate",
+  ["linear"],
+  ["zoom"],
+  12,
+  4,
+  15,
+  6,
+  18,
+  9,
+];
+const ROUTE_CASING_WIDTH: maplibregl.ExpressionSpecification = [
+  "interpolate",
+  ["linear"],
+  ["zoom"],
+  12,
+  7,
+  15,
+  10,
+  18,
+  15,
+];
+
 // Zoom at/above which curated landmark pictograms stop yielding to other
 // symbols. Below it a landmark icon gives way where a pub cluster or pin
 // already occupies the spot; at/above it (the landmark-inspector camera flies
@@ -394,6 +421,8 @@ export type SceneCtx = {
   landmarksGeoJSON: GeoJSON.FeatureCollection;
   poisData: GeoJSON.FeatureCollection;
   routeLine: GeoJSON.FeatureCollection;
+  /** The crawl route's time bubbles, one per leg — see buildRouteLegTimes. */
+  routeLegTimes?: GeoJSON.FeatureCollection;
   /** The way to the next stop chosen in Night Mode, if any — see buildLegRoute. */
   legRoute?: GeoJSON.FeatureCollection;
   routeStops: GeoJSON.FeatureCollection;
@@ -884,11 +913,13 @@ export function buildPois(ctx: SceneCtx) {
 
 export function buildRoute(ctx: SceneCtx) {
   const { map, tokens, dark, addLayerOnce, routeLine } = ctx;
-  // --- Crawl route: a high-contrast walking line that follows real roads.
+  // --- Crawl route: a high-contrast walking line that follows real roads,
+  // drawn the way a maps app draws directions: thick, solid, on its own edge,
+  // and wider as the reader leans in.
   // Three layers off the one `route-line` source, whose single LineString
   // feature carries a `source` property ("ors" | "straight", set by
   // lib/walkRoute legsToLineString):
-  //   1. casing — an opposite-luminance halo so the line stays legible over both
+  //   1. casing — an opposite-luminance edge so the line stays legible over both
   //      the pale Positron paper and the OLED-dark basemap (the two-layer
   //      casing/colour idiom copied from tube-lines above).
   //   2. the solid coloured line — full strength for a real routed line ("ors"),
@@ -909,8 +940,8 @@ export function buildRoute(ctx: SceneCtx) {
     layout: { "line-cap": "round", "line-join": "round" },
     paint: {
       "line-color": dark ? tokens.inkDeep : tokens.paper,
-      "line-width": 6,
-      "line-opacity": 0.85,
+      "line-width": ROUTE_CASING_WIDTH,
+      "line-opacity": 0.95,
     },
   });
   addLayerOnce({
@@ -920,7 +951,7 @@ export function buildRoute(ctx: SceneCtx) {
     layout: { "line-cap": "round", "line-join": "round" },
     paint: {
       "line-color": tokens.routeLine,
-      "line-width": 4,
+      "line-width": ROUTE_LINE_WIDTH,
       // Solid at full strength for a routed line; a faint underlay under the
       // dash for the straight fallback.
       "line-opacity": ["case", ["==", ["get", "source"], "straight"], 0.3, 0.95],
@@ -938,6 +969,43 @@ export function buildRoute(ctx: SceneCtx) {
       // stays solid (the layer paints nothing when source is "ors").
       "line-opacity": ["case", ["==", ["get", "source"], "straight"], 0.9, 0],
       "line-dasharray": DASH_SEQ[0],
+    },
+  });
+}
+
+/**
+ * The time on foot of each leg of the crawl route, on a small bubble at the
+ * middle of the leg ("6 min", or "~6 min" on a straight-line estimate). It is
+ * placed after the pins on purpose: a route is the reader's own plan, so where
+ * a bubble and a pin collide the pin gives way, and the numbered stops above
+ * still take their space first. Zoom-gated with the stop names, so a route
+ * small enough to sit under one thumb does not wear a pile of bubbles.
+ */
+export function buildRouteLegTimes(ctx: SceneCtx) {
+  const { map, tokens, textFont, addLayerOnce } = ctx;
+  if (!map.getSource("route-leg-times")) {
+    map.addSource("route-leg-times", {
+      type: "geojson",
+      data: ctx.routeLegTimes ?? { type: "FeatureCollection", features: [] },
+    });
+  }
+  addLayerOnce({
+    id: "route-leg-time",
+    type: "symbol",
+    source: "route-leg-times",
+    minzoom: 13.5,
+    layout: {
+      "icon-image": iconId("route", ROUTE_TIME_ICON_KEY),
+      "icon-text-fit": "both",
+      "icon-allow-overlap": false,
+      "icon-padding": 2,
+      "text-field": ["get", "label"],
+      "text-font": textFont,
+      "text-size": 12,
+      "text-allow-overlap": false,
+    },
+    paint: {
+      "text-color": tokens.ink,
     },
   });
 }
@@ -1989,6 +2057,7 @@ export function assembleSceneCritical(ctx: SceneCtx) {
   buildBandCorridor(ctx);
   buildPubs(ctx);
   buildCoffeePilot(ctx);
+  buildRouteLegTimes(ctx);
   buildRouteStops(ctx);
   applySelectionState(ctx);
 }

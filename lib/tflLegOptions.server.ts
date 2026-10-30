@@ -19,7 +19,7 @@ import { tflFetch } from "@/lib/tflClient.server";
 /** TfL modes asked for the transit question. */
 const TRANSIT_MODES = "tube,bus,overground,elizabeth-line,dlr,national-rail,tram,walking";
 /** At most this many transit options are kept, in TfL's order. */
-export const TRANSIT_OPTIONS_MAX = 3;
+const TRANSIT_OPTIONS_MAX = 3;
 
 type TflJourneyLeg = {
   duration?: number;
