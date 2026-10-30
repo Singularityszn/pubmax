@@ -255,6 +255,86 @@ describe("runPalClaudeChatTurn", () => {
     ]);
   });
 
+  it("starts no tool when the caller leaves while the model is still answering", async () => {
+    const caller = new AbortController();
+    const client: PalClaudeClient = {
+      stream() {
+        return {
+          on() {
+            return this;
+          },
+          async finalMessage() {
+            // The caller leaves after the model has decided on a tool, before it runs.
+            caller.abort();
+            return {
+              id: "msg_test",
+              type: "message",
+              role: "assistant",
+              model: PAL_CLAUDE_DEFAULT_MODEL,
+              content: [toolUse("tu_1", "journey", { query: "to Soho" })],
+              stop_reason: "tool_use",
+              stop_sequence: null,
+              usage: { input_tokens: 10, output_tokens: 5 },
+            } as unknown as Anthropic.Message;
+          },
+        };
+      },
+    };
+    // Were it started, this tool would fail after the turn had already ended.
+    const runTool = vi.fn(
+      () => new Promise<Record<string, unknown>>((_, reject) => setTimeout(() => reject(new Error("CityMCP down")), 50)),
+    );
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.on("unhandledRejection", onUnhandled);
+    try {
+      const outcome = await runPalClaudeChatTurn(
+        { query: "how do I get to Soho", ownerId: OWNER, signal: caller.signal },
+        undefined,
+        { client, runTool },
+      );
+      await new Promise((resolve) => setTimeout(resolve, 150));
+
+      expect(outcome).toEqual({ ok: false, code: "TIMEOUT" });
+      expect(runTool).not.toHaveBeenCalled();
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
+  });
+
+  it("leaves no unhandled rejection when a tool fails after its caller left", async () => {
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.on("unhandledRejection", onUnhandled);
+    try {
+      const { client } = fakeClient([
+        { content: [toolUse("tu_1", "journey", { query: "to Soho" })], stop_reason: "tool_use" },
+      ]);
+      const caller = new AbortController();
+      let toolStarted!: () => void;
+      const started = new Promise<void>((resolve) => {
+        toolStarted = resolve;
+      });
+      const turn = runPalClaudeChatTurn({ query: "how do I get to Soho", ownerId: OWNER, signal: caller.signal }, undefined, {
+        client,
+        runTool: () => {
+          toolStarted();
+          return new Promise((_, reject) => setTimeout(() => reject(new Error("CityMCP down")), 50));
+        },
+      });
+      await started;
+      caller.abort();
+
+      expect(await turn).toEqual({ ok: false, code: "TIMEOUT" });
+      // Past the tool's late failure.
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
+  });
+
   it("tells the model a failed tool failed, and still answers", async () => {
     const { client, bodies } = fakeClient([
       { content: [toolUse("tu_1", "journey", { query: "to Soho" })], stop_reason: "tool_use" },

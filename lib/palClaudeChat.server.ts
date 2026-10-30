@@ -107,21 +107,30 @@ const PAL_TOOLS: Anthropic.Tool[] = PUB_PAL_TOOL_NAMES.map((name) => ({
 /** The turn's own signal fired: the caller left or the deadline passed. */
 class PalClaudeTurnAborted extends Error {}
 
-/** Settles with the work, or rejects as soon as the turn is aborted. */
-function untilAborted<T>(signal: AbortSignal, work: Promise<T>): Promise<T> {
+/**
+ * Starts the work only when the turn is still live, and settles with it, or
+ * rejects as soon as the turn is aborted. The work's own result is always
+ * consumed, so a late failure after an abort is never unhandled.
+ */
+function untilAborted<T>(signal: AbortSignal, start: () => Promise<T>): Promise<T> {
   if (signal.aborted) return Promise.reject(new PalClaudeTurnAborted());
   return new Promise<T>((resolve, reject) => {
     const onAbort = () => reject(new PalClaudeTurnAborted());
     signal.addEventListener("abort", onAbort, { once: true });
+    const settle = (finish: () => void) => {
+      signal.removeEventListener("abort", onAbort);
+      finish();
+    };
+    let work: Promise<T>;
+    try {
+      work = start();
+    } catch (error) {
+      settle(() => reject(error));
+      return;
+    }
     work.then(
-      (value) => {
-        signal.removeEventListener("abort", onAbort);
-        resolve(value);
-      },
-      (error: unknown) => {
-        signal.removeEventListener("abort", onAbort);
-        reject(error);
-      },
+      (value) => settle(() => resolve(value)),
+      (error: unknown) => settle(() => reject(error)),
     );
   });
 }
@@ -278,8 +287,7 @@ export async function runPalClaudeChatTurn(
               const toolSpan = toolCall({ name: use.name, input: args });
               try {
                 // A caller that leaves ends the turn now, not when a slow tool returns.
-                const result = await untilAborted(
-                  abort.signal,
+                const result = await untilAborted(abort.signal, () =>
                   beforePalChatDeadline(deadline, () => runTool(use.name, args, conversationId)),
                 );
                 toolSpan?.end();
