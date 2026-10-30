@@ -79,7 +79,15 @@ Object.defineProperty(window, "localStorage", {
   },
 });
 
+// The theme rule reads London's clock (dark from 21:30 to 04:00 with no
+// choice), so these OS-follow cases run at a fixed afternoon. Only Date is
+// faked; the night has its own case below.
+const AFTERNOON = new Date("2026-10-30T14:00:00Z");
+const NIGHT = new Date("2026-10-30T22:45:00Z");
+
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(AFTERNOON);
   vi.clearAllMocks();
   isNativeApp.mockReturnValue(true);
   memoryStorage.clear();
@@ -87,6 +95,7 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
+  vi.useRealTimers();
   if (root) {
     await act(async () => root!.unmount());
   }
@@ -110,11 +119,13 @@ describe("the theme preference leaf", () => {
     expect(THEME_STORAGE_KEY).toBe("pubmax-theme");
   });
 
-  it("lets a stored choice win and the OS decide only without one", () => {
-    expect(resolveThemePreference(null, true)).toBe("dark");
-    expect(resolveThemePreference(null, false)).toBe("light");
-    expect(resolveThemePreference("light", true)).toBe("light");
-    expect(resolveThemePreference("dark", false)).toBe("dark");
+  it("lets a stored choice win, then London's night, and the OS decide only without either", () => {
+    expect(resolveThemePreference(null, true, AFTERNOON)).toBe("dark");
+    expect(resolveThemePreference(null, false, AFTERNOON)).toBe("light");
+    expect(resolveThemePreference("light", true, AFTERNOON)).toBe("light");
+    expect(resolveThemePreference("dark", false, AFTERNOON)).toBe("dark");
+    expect(resolveThemePreference(null, false, NIGHT)).toBe("dark");
+    expect(resolveThemePreference("light", false, NIGHT)).toBe("light");
   });
 });
 
@@ -133,6 +144,14 @@ describe("NativeSystemBars inside the shell", () => {
 
     await act(async () => media.flip(false));
     expect(document.documentElement.dataset.theme).toBe("light");
+  });
+
+  it("stays dark at night with no choice, whatever the OS does", async () => {
+    vi.setSystemTime(NIGHT);
+    const media = installMatchMedia(true);
+    await mount();
+    await act(async () => media.flip(false));
+    expect(document.documentElement.dataset.theme).toBe("dark");
   });
 
   it("keeps the person's own choice whatever the OS does", async () => {
