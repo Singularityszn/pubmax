@@ -203,6 +203,15 @@ const nextConfig = {
   typedRoutes: true,
   // Don't advertise the framework/version on dynamic responses.
   poweredByHeader: false,
+  // How long the CDN may serve a stale ISR page while it renders a fresh one.
+  // Next's default is a year, and /today served a copy 38 minutes old as
+  // STALE (SEO audit #2126, finding 3). The captain chose one GLOBAL hour on
+  // 30 Oct 2026, because a per-route expire needs cacheComponents. It reaches
+  // every ISR route: /today and /tonight (revalidate 300) may now be stale
+  // for at most 55 minutes, and the hourly routes (/, /map, /near, /plan,
+  // /pal and the SEO families) keep no stale window at all, so the first
+  // request after the hour waits for a fresh render.
+  expireTime: 3600,
   distDir: process.env.NEXT_DIST_DIR ?? ".next",
   images: {
     qualities: [75, 78],
