@@ -3,7 +3,7 @@
 import VenueFeatureFilters from "@/components/map/VenueFeatureFilters";
 import { mapDrinkCoverage } from "@/lib/drinkCoverage";
 
-import { CalendarClock, ChevronRight, List, MapPinned, Navigation2, ShieldCheck, X } from "lucide-react";
+import { CalendarClock, ChevronRight, Compass, List, MapPinned, Navigation2, ShieldCheck, X } from "lucide-react";
 import { formatGbp } from "@/lib/formatGbp";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import dynamic from "next/dynamic";
@@ -59,6 +59,7 @@ import {
   venueSourcedPrice,
 } from "@/lib/venuePriceLane";
 import { dropLaneInput, splitLaneInput } from "@/lib/pintTrust";
+import { PINT_COMPASS_DOOR_NAME, PINT_COMPASS_HREF, PINT_COMPASS_LABEL } from "@/lib/pintCompassDoor";
 import {
   isMapSearchField,
   typedSearchCameraMove,
@@ -6245,6 +6246,19 @@ export default function PubMap({
               <Link prefetch={false} href="/pal">
                 <PubPalMascot size={18} circular />
                 Ask your Pub Pal
+              </Link>
+            </Button>
+            {/* The phone's door to the Pint Compass. Near me rests on the map
+                edge, which the three-layer rule keeps to one control, so its
+                sibling lives here among the map's other destinations. */}
+            <Button
+              asChild
+              variant="secondary"
+              className="w-full uiButton--start"
+            >
+              <Link prefetch={false} href={PINT_COMPASS_HREF} aria-label={PINT_COMPASS_DOOR_NAME}>
+                <Compass size={16} aria-hidden="true" />
+                {PINT_COMPASS_LABEL}
               </Link>
             </Button>
           </div>
