@@ -30,6 +30,10 @@ export default function NearPriceEvidenceMission({
     () => new Map(cards.map((card) => [card.id, card.name])),
     [cards],
   );
+  const areas = useMemo(
+    () => new Map(cards.map((card) => [card.id, card.borough])),
+    [cards],
+  );
   const communityPrices = useCommunityPrices();
   const { mission, dismiss, complete } = usePriceEvidenceMission({
     venueIds,
@@ -98,7 +102,11 @@ export default function NearPriceEvidenceMission({
           if (!questOn) return;
           // Only a stamp this answer added is shown as its own: a day another
           // tab stamped meanwhile ends the quest without claiming that pub.
-          const added = stampPalQuest({ venueId: answer.venueId, venueName: names.get(answer.venueId) ?? venueName });
+          const added = stampPalQuest({
+            venueId: answer.venueId,
+            venueName: names.get(answer.venueId) ?? venueName,
+            area: areas.get(answer.venueId),
+          });
           setQuest({ owner, today: palQuestStampToday(readPalQuestStamps()), now: added });
         }}
       />

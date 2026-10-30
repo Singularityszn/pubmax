@@ -18,6 +18,8 @@ export type PalQuestStamp = {
   day: string;
   venueId: string;
   venueName: string;
+  /** The London area (borough) the pub stands in, as the pub's own card names it. */
+  area?: string;
 };
 
 /** The stamp book on this device. A device identity key: it leaves with the account. */
@@ -40,10 +42,12 @@ export function parsePalQuestStamps(raw: string | null): PalQuestStamp[] {
   const byDay = new Map<string, PalQuestStamp>();
   for (const item of value) {
     if (!item || typeof item !== "object") continue;
-    const { day, venueId, venueName } = item as Record<string, unknown>;
+    const { day, venueId, venueName, area } = item as Record<string, unknown>;
     if (typeof day !== "string" || !DAY.test(day)) continue;
     if (typeof venueId !== "string" || !venueId || typeof venueName !== "string" || !venueName.trim()) continue;
-    if (!byDay.has(day)) byDay.set(day, { day, venueId, venueName: venueName.trim() });
+    const stamp: PalQuestStamp = { day, venueId, venueName: venueName.trim() };
+    if (typeof area === "string" && area.trim()) stamp.area = area.trim();
+    if (!byDay.has(day)) byDay.set(day, stamp);
   }
   return [...byDay.values()].sort((a, b) => (a.day < b.day ? 1 : -1)).slice(0, MAX_STAMPS);
 }
@@ -117,3 +121,72 @@ export function palQuestStampDate(day: string): string {
   const date = new Date(`${day}T12:00:00Z`);
   return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }).format(date);
 }
+
+// ---------------------------------------------------------------------------
+// The price passport: the stamp book as one page per London area, each page
+// with the area's own landmark (the map's pictograms, lib/mapIcons.ts) and the
+// person's Pal posed its own way for that area. Still a mark, never a score: a
+// page names its area and shows its stamps, and nothing counts pages or stamps.
+// ---------------------------------------------------------------------------
+
+/** The page for stamps from before the passport knew their area. */
+export const PAL_PASSPORT_ANYWHERE = "Around London";
+
+export type PalPassportPage = { area: string; stamps: PalQuestStamp[] };
+
+/** One page per area, the page with the newest stamp first, stamps newest first on each. */
+export function palPassportPages(stamps: readonly PalQuestStamp[]): PalPassportPage[] {
+  const pages = new Map<string, PalQuestStamp[]>();
+  const sorted = [...stamps].sort((a, b) => (a.day < b.day ? 1 : a.day > b.day ? -1 : 0));
+  for (const stamp of sorted) {
+    const area = stamp.area ?? PAL_PASSPORT_ANYWHERE;
+    pages.set(area, [...(pages.get(area) ?? []), stamp]);
+  }
+  return [...pages].map(([area, kept]) => ({ area, stamps: kept }));
+}
+
+function hashOf(text: string): number {
+  let hash = 0;
+  for (const char of text) hash = (hash * 31 + char.charCodeAt(0)) | 0;
+  return Math.abs(hash);
+}
+
+/** The landmarks a page may wear: the map's own pictograms (iconId "lm:<key>"). */
+const PASSPORT_LANDMARKS = [
+  "clock-tower", "dome", "twin-towers", "shard", "wheel", "gherkin", "column",
+  "civic", "keep", "market", "canal", "ship", "chimneys",
+] as const;
+export type PalPassportLandmark = (typeof PASSPORT_LANDMARKS)[number];
+
+/** The areas whose landmark everyone knows; every other area gets a steady one of its own. */
+const AREA_LANDMARKS: Record<string, PalPassportLandmark> = {
+  "westminster": "clock-tower",
+  "city of london": "dome",
+  "tower hamlets": "keep",
+  "southwark": "shard",
+  "lambeth": "wheel",
+  "camden": "market",
+  "islington": "canal",
+  "greenwich": "ship",
+  "hackney": "chimneys",
+};
+
+/** The landmark a page wears: the area's own, or the same one every time for an area without one. */
+export function palPassportLandmark(area: string): PalPassportLandmark {
+  return AREA_LANDMARKS[area.trim().toLowerCase()] ?? PASSPORT_LANDMARKS[hashOf(area) % PASSPORT_LANDMARKS.length]!;
+}
+
+/**
+ * The Pal's pose on a page: a tilt, a facing and a hop of its own for each
+ * area, steady across visits, so every page shows the Pal standing its own way.
+ */
+export function palPassportPose(area: string): { tiltDeg: number; flip: 1 | -1; hopPx: number } {
+  const hash = hashOf(`pose:${area}`);
+  const tilt = (hash % 13) + 6;
+  return {
+    tiltDeg: Math.floor(hash / 13) % 2 === 0 ? tilt : -tilt,
+    flip: hash % 2 === 0 ? 1 : -1,
+    hopPx: Math.floor(hash / 26) % 7,
+  };
+}
+

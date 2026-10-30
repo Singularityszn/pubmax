@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  PAL_PASSPORT_ANYWHERE,
   PAL_QUEST_NO_DRINK,
   PAL_QUEST_STAMPS_KEY,
   palQuestDoneLine,
   palQuestLine,
   palQuestStampDate,
+  palPassportLandmark,
+  palPassportPages,
+  palPassportPose,
   palQuestStampToday,
   parsePalQuestStamps,
   readPalQuestStamps,
@@ -125,3 +129,53 @@ describe("what the Pal says", () => {
     expect(PAL_QUEST_NO_DRINK).toBe("No need to buy anything. Read the board or ask at the bar.");
   });
 });
+
+describe("the price passport", () => {
+  it("keeps a stamp's area, and drops an empty one", () => {
+    expect(
+      parsePalQuestStamps(JSON.stringify([
+        { day: "2026-10-30", venueId: "venue-a", venueName: "The Lamb", area: " Camden " },
+        { day: "2026-10-29", venueId: "venue-b", venueName: "The Crown", area: "  " },
+      ])),
+    ).toEqual([
+      { day: "2026-10-30", venueId: "venue-a", venueName: "The Lamb", area: "Camden" },
+      { day: "2026-10-29", venueId: "venue-b", venueName: "The Crown" },
+    ]);
+    const store = memoryStore();
+    expect(stampPalQuest({ venueId: "venue-a", venueName: "The Lamb", area: "Camden" }, autumnDay, store)?.area).toBe("Camden");
+  });
+
+  it("opens one page per area, the newest page first, and gathers older stamps on one page", () => {
+    const pages = palPassportPages([
+      { day: "2026-10-27", venueId: "venue-c", venueName: "The Bell", area: "Camden" },
+      { day: "2026-10-30", venueId: "venue-a", venueName: "The Lamb", area: "Southwark" },
+      { day: "2026-10-28", venueId: "venue-d", venueName: "The Swan" },
+      { day: "2026-10-29", venueId: "venue-b", venueName: "The Crown", area: "Camden" },
+    ]);
+    expect(pages.map((page) => page.area)).toEqual(["Southwark", "Camden", PAL_PASSPORT_ANYWHERE]);
+    expect(pages[1]!.stamps.map((stamp) => stamp.venueName)).toEqual(["The Crown", "The Bell"]);
+    expect(palPassportPages([])).toEqual([]);
+  });
+
+  it("gives the well-known areas their landmark, and every other area a steady one", () => {
+    expect(palPassportLandmark("Westminster")).toBe("clock-tower");
+    expect(palPassportLandmark("southwark")).toBe("shard");
+    expect(palPassportLandmark("Camden")).toBe("market");
+    expect(palPassportLandmark("Barnet")).toBe(palPassportLandmark("Barnet"));
+    expect(["clock-tower", "dome", "twin-towers", "shard", "wheel", "gherkin", "column", "civic", "keep", "market", "canal", "ship", "chimneys"])
+      .toContain(palPassportLandmark(PAL_PASSPORT_ANYWHERE));
+  });
+
+  it("poses the Pal its own way for each area, and the same way every visit", () => {
+    const camden = palPassportPose("Camden");
+    expect(palPassportPose("Camden")).toEqual(camden);
+    expect(Math.abs(camden.tiltDeg)).toBeGreaterThanOrEqual(6);
+    expect(Math.abs(camden.tiltDeg)).toBeLessThanOrEqual(18);
+    expect([1, -1]).toContain(camden.flip);
+    expect(camden.hopPx).toBeGreaterThanOrEqual(0);
+    expect(camden.hopPx).toBeLessThanOrEqual(6);
+    const poses = new Set(["Camden", "Hackney", "Southwark", "Westminster", "Lambeth"].map((area) => JSON.stringify(palPassportPose(area))));
+    expect(poses.size).toBeGreaterThan(1);
+  });
+});
+

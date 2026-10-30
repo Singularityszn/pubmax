@@ -131,6 +131,59 @@
   color: var(--ink);
   font-weight: 700;
 }
+/* The passport: one page per London area, a dashed edge between pages like
+   the pages of a passport, the area's landmark from the map's own sprite and
+   the Pal posed its own way on each. */
+.palPassportPages {
+  display: grid;
+  gap: 0;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.palPassportPage {
+  padding: 14px 0;
+  border-top: 1px dashed var(--hairline-strong);
+}
+.palPassportPage:first-child {
+  border-top: 0;
+}
+.palPassportHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.palPassportHead h3 {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--text-md);
+}
+.palPassportMark {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  background-image: var(--mark-light);
+  background-repeat: no-repeat;
+}
+html[data-theme="dark"] .palPassportMark {
+  background-image: var(--mark-dark);
+}
+.palPassportPal {
+  flex: none;
+  width: 36px;
+  height: 36px;
+}
+.palPassportPal picture {
+  display: block;
+  transform: translateY(var(--pose-hop, 0px)) scaleX(var(--pose-flip, 1));
+  rotate: var(--pose-tilt, 0deg);
+}
+.palPassportPage .palStampBookList {
+  margin-top: 10px;
+}
+
 .palStampBookList {
   display: flex;
   flex-wrap: wrap;

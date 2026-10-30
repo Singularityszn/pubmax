@@ -93,15 +93,49 @@ test("the Pal asks today's price quest, stamps it once, and keeps the stamp in i
   await expect(page.locator(".pemSlot")).toBeVisible({ timeout: 60_000 });
   await expect(page.getByTestId("pal-quest")).toHaveCount(0);
 
-  // The stamp waits in the Pal's book, with no count beside it.
+  // The stamp waits in the Pal's passport, on the page for its pub's area,
+  // with the area's landmark and no count beside it.
   await page.goto("/pal");
   const book = page.getByTestId("pal-stamp-book");
   await expect(book).toBeVisible({ timeout: 60_000 });
+  await expect(book.getByRole("heading", { name: "Price passport" })).toBeVisible();
   await expect(book.locator(".palStamp")).toHaveCount(1);
   await expect(book.locator(".palStampPub")).toHaveText(pub);
+  const page1 = book.locator(".palPassportPage");
+  await expect(page1).toHaveCount(1);
+  await expect(page1.locator("h3")).not.toHaveText("Around London");
+  await expect(page1.locator(".palPassportMark")).toBeVisible();
   await expect(book).not.toContainText(/\b\d+ stamps?\b|streak|level/i);
   await book.scrollIntoViewIfNeeded();
   await page.screenshot({ path: `${SHOTS}/stamp-book-390.png` });
+});
+
+test("the passport opens a page for each London area, newest first, each with its landmark", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await seedQuest(page, ACCOUNTS.A.id);
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax:pal-quest-stamps:v1", JSON.stringify([
+      { day: "2026-10-30", venueId: "venue-1", venueName: "The Anchor", area: "Southwark" },
+      { day: "2026-10-29", venueId: "venue-2", venueName: "The Lamb", area: "Camden" },
+      { day: "2026-10-28", venueId: "venue-3", venueName: "The George Inn", area: "Southwark" },
+      { day: "2026-10-26", venueId: "venue-4", venueName: "The Red Lion", area: "Westminster" },
+      { day: "2026-10-20", venueId: "venue-5", venueName: "The Swan" },
+    ]));
+  });
+  await page.goto("/pal");
+  const book = page.getByTestId("pal-stamp-book");
+  await expect(book).toBeVisible({ timeout: 60_000 });
+  await expect(book.locator(".palPassportPage h3")).toHaveText(["Southwark", "Camden", "Westminster", "Around London"]);
+  await expect(book.locator(".palPassportPage").first().locator(".palStampPub")).toHaveText(["The Anchor", "The George Inn"]);
+  for (const mark of await book.locator(".palPassportMark").all()) {
+    expect((await mark.boundingBox())!.width).toBe(40);
+  }
+  await expect(book).not.toContainText(/\b\d+ (stamps?|pages?|areas?)\b|streak|level/i);
+  await book.scrollIntoViewIfNeeded();
+  await mkdir(SHOTS, { recursive: true });
+  await page.screenshot({ path: `${SHOTS}/passport-390.png`, fullPage: false });
+  await book.screenshot({ path: `${SHOTS}/passport-book-390.png` });
 });
 
 test("another account's stored Pal asks no quest, and the mission stays plain", async ({ page }) => {

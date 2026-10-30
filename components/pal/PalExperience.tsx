@@ -357,7 +357,7 @@ function PalHomeScreen({
       </section>
       <PalNightQuestion muted={pal.muted} palName={pal.name} />
       <PalYear palName={pal.name} print={genome.print} />
-      <PalQuestStamps palName={pal.name} print={genome.print} />
+      <PalQuestStamps pal={pal} print={genome.print} />
       <section className="palControls" aria-labelledby="pal-controls-title">
         <div>
           <p className="palEyebrow">Boundaries</p>
