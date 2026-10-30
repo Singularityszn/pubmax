@@ -209,3 +209,65 @@ test("a routed crawl is a thick solid line with its walking minutes on a bubble 
   await mkdir(SHOTS, { recursive: true });
   await page.screenshot({ path: `${SHOTS}/routed-crawl-390.png` });
 });
+
+// The Pal leads a chosen way, then the plan ends with the map still open: the
+// Pal keeps the map's own answer (a perch beside the open pub, or no Pal),
+// and never walks the ended plan again.
+for (const opened of [true, false]) {
+  test(`after the Pal led the way, a plan that ends leaves ${opened ? "it perched beside the open pub" : "no Pal on the map"}`, async ({ page }) => {
+    test.setTimeout(180_000);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await seedTonight(page);
+    await seedPal(page);
+    await page.route("**/api/leg-options**", (route) => {
+      const url = new URL(route.request().url());
+      const point = (name: string): LngLat => {
+        const [lat, lng] = url.searchParams.get(name)!.split(",").map(Number);
+        return [lng!, lat!];
+      };
+      return route.fulfill({ json: { status: "ok", options: waysBetween(point("from"), point("to")) } });
+    });
+    await page.goto("/tonight");
+    await page.getByRole("button", { name: "Show tonight's plan" }).click({ timeout: 60_000 });
+    const ways = page.getByTestId("night-ways-there");
+    await ways.getByRole("button", { name: "Ways to get there" }).click({ timeout: 60_000 });
+    await ways.locator(".nightWays__option").nth(1).click({ timeout: 30_000 });
+    await expect(page).toHaveURL(/\/map/, { timeout: 30_000 });
+    const pal = page.locator(".palMapMarker:not([data-pal-crew])");
+    await expect(pal).toHaveAttribute("aria-label", "Next stop: The Crown & Two Chairmen", { timeout: 60_000 });
+    if (opened) {
+      // The reader taps the waiting Pal: the next stop opens.
+      await pal.click();
+      await expect(page).toHaveURL(/sel=venue-1t8siin/, { timeout: 30_000 });
+    }
+
+    // The plan ends in this tab. Every walk state the Pal takes from then on is
+    // recorded, so even a moment's replay of the ended plan's walk is caught.
+    await page.evaluate(() => {
+      const seen: string[] = [];
+      (window as unknown as { palWalkSeen: string[] }).palWalkSeen = seen;
+      new MutationObserver((records) => {
+        for (const record of records) {
+          const target = record.target as HTMLElement;
+          if (target.classList?.contains("palMapMarker") && !target.dataset.palCrew) seen.push(target.dataset.palWalk ?? "");
+        }
+      }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ["data-pal-walk"] });
+      window.localStorage.removeItem("pubmax_active_plan");
+      window.dispatchEvent(new Event("pubmax:active-plan"));
+    });
+    const replayed = () => page.evaluate(() => (window as unknown as { palWalkSeen: string[] }).palWalkSeen.filter((state) => state !== ""));
+    if (opened) {
+      await expect(pal).toBeVisible();
+      await expect(pal).not.toHaveAttribute("data-pal-walk", /.+/, { timeout: 30_000 });
+      await page.waitForTimeout(3_000);
+      await expect(pal).not.toHaveAttribute("data-pal-walk", /.+/);
+      await expect(pal).not.toHaveClass(/isWalking/);
+      await expect(pal).not.toHaveAttribute("role", "button");
+    } else {
+      await expect(pal).toHaveCount(0, { timeout: 30_000 });
+      await page.waitForTimeout(3_000);
+      await expect(pal).toHaveCount(0);
+    }
+    expect(await replayed()).toEqual([]);
+  });
+}

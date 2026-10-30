@@ -12,7 +12,7 @@ import { followMapPixelRatio, mapPixelRatio, probeWebGl2 } from "@/components/ma
 import { createPalMapMarker, palPinIsCheap, type PalMapMarker } from "@/components/map/canvas/palMarker";
 import { legRouteToLines } from "@/components/map/canvas/legRouteScene";
 import { legRouteForCurrentLeg, readLegRouteOnMap, subscribeLegRouteOnMap } from "@/lib/legRouteOnMap";
-import { palLeadLine, palLeadPath } from "@/lib/palLead";
+import { palLeadLine, palLeadPath, planWalkAfterLead } from "@/lib/palLead";
 import { crewPalLook, type CrewPal } from "@/lib/crewPals";
 import { palWalkPathFrom, palWalkStopsFromKey } from "@/components/map/canvas/palWalk";
 import {
@@ -4416,6 +4416,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       return;
     }
     palVisitKeyRef.current = "";
+    // No crawl on the map: no plan walk to go back to (planWalkAfterLead).
+    palWalkRef.current = null;
     const venue = selectedVenueId ? venues.find((v) => v.id === selectedVenueId) : undefined;
     // The Pal reads the band the pin itself paints, from the pins' own data,
     // so it re-reads whenever the pins' data is rebuilt above.
@@ -4466,7 +4468,10 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       if (!palLeadKeyRef.current) return;
       palLeadKeyRef.current = null;
       marker.say(null);
-      if (palWalkRef.current) marker.walk(palWalkRef.current);
+      // Back to the plan's walk only while it is the route on the map; a plan
+      // that ended meanwhile leaves the perch or the empty map as it is.
+      const back = planWalkAfterLead(palWalkRef.current, routeCoordKey);
+      if (back) marker.walk(back);
       marker.nextStop(palNextRef.current);
       return;
     }
@@ -4476,7 +4481,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     marker.walk({ key, stops: [path[0]!, path.at(-1)!], path, road: true, cheer: true });
     marker.nextStop({ stop: 1, name: palNextName, open: () => onRouteStopClickRef.current(palNextVenueId) });
     marker.say(palLeadLine(shownLeg.option));
-  }, [shownLeg, palNextVenueId, palNextName, mapReady]);
+  }, [shownLeg, palNextVenueId, palNextName, routeCoordKey, mapReady]);
 
   // The crew's Pals: made when the crew read lands, walked on the route the
   // reader's own Pal is on, and gone with the plan's route.

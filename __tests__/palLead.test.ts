@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { LegOption } from "@/lib/legOptions";
-import { palLeadLine, palLeadPath } from "@/lib/palLead";
+import { palLeadLine, palLeadPath, planWalkAfterLead } from "@/lib/palLead";
 
 const way = (over: Partial<LegOption>): LegOption => ({
   id: "walk",
@@ -60,3 +60,20 @@ describe("Pal leads the way", () => {
     }
   });
 });
+
+describe("the plan walk after a lead", () => {
+  const walk = { key: "-0.13,51.51;-0.14,51.52", stops: [], path: [] };
+
+  it("goes back to the plan's walk while it is still the route on the map", () => {
+    expect(planWalkAfterLead(walk, walk.key)).toBe(walk);
+  });
+
+  it("has no walk to go back to once the plan ended or changed", () => {
+    // The plan ended: no route on the map, so the perch or the empty map stands.
+    expect(planWalkAfterLead(walk, "")).toBeNull();
+    // A different route is on the map now.
+    expect(planWalkAfterLead(walk, "-0.12,51.5;-0.11,51.5")).toBeNull();
+    expect(planWalkAfterLead(null, walk.key)).toBeNull();
+  });
+});
+

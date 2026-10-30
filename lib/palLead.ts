@@ -30,3 +30,14 @@ export function palLeadLine(option: LegOption): string {
   if (option.farePence === null) return "TfL won't say the fare. Bold choice.";
   return "This way. Follow me.";
 }
+
+/**
+ * The plan walk the Pal goes back to when it stops leading: the last plan walk,
+ * only while it is still the walk of the route on the map (`routeKey`, the
+ * map's own route identity). A plan that ended or changed meanwhile has no walk
+ * to go back to, so the Pal keeps whatever the map now gives it: a perch beside
+ * the open pub, or no Pal at all.
+ */
+export function planWalkAfterLead<Walk extends { key: string }>(planWalk: Walk | null, routeKey: string): Walk | null {
+  return planWalk && routeKey !== "" && planWalk.key === routeKey ? planWalk : null;
+}
