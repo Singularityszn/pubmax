@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 import { donutFigureFontSize, DONUT_OUTER_RADIUS_LARGE } from "@/lib/donutClusterGeometry";
 import {
@@ -92,11 +92,21 @@ function standDown(): void {
  * because standing down while the loading frame is still up shows that frame
  * on bare paper, which is never better than the picture: a busy phone took
  * 3.1 to 3.6 s to lift it after the reveal and showed exactly that.
- * MAP_SHOWS_BACKSTOP_MS is the last word. Returns the cleanup.
+ * MAP_SHOWS_BACKSTOP_MS is the last word.
+ *
+ * The streets wait is only for a picture that still shows the prices. When
+ * the discs have gone (data-map-preview-discs), the picture held the streets
+ * without a price for 2.5 to 3.5 s while the map's own pins waited under it
+ * (every cold run, 390x844), so it stands down when the frame lifts.
+ * Returns the cleanup.
  */
 function standDownWhenTheMapShows(): () => void {
   const frameLifted = () => !document.querySelector(MAP_LOADING_FRAME_SELECTOR);
-  const streetsDrawn = () => performance.getEntriesByName(BASEMAP_DRAWN_EVENT).length > 0;
+  // A picture whose prices have gone holds streets and nothing else, and the
+  // map has its prices ready: it waits for no street tile.
+  const streetsDrawn = () =>
+    document.documentElement.dataset.mapPreviewDiscs === "off" ||
+    performance.getEntriesByName(BASEMAP_DRAWN_EVENT).length > 0;
   if (frameLifted() && streetsDrawn()) {
     standDown();
     return () => {};
@@ -122,6 +132,7 @@ function standDownWhenTheMapShows(): () => void {
     standDown();
   };
   observer.observe(document.body, { childList: true, subtree: true });
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-map-preview-discs"] });
   window.addEventListener(BASEMAP_DRAWN_EVENT, check);
   ceiling = window.setTimeout(() => {
     streetsWaived = true;
@@ -149,6 +160,9 @@ export default function MapOpeningPreview({
   discs: readonly OpeningPreviewDisc[];
   ground?: OpeningGround | null;
 }) {
+  const groundRef = useRef<HTMLDivElement>(null);
+  const discsRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     mountedPreviews += 1;
     return () => {
@@ -207,7 +221,12 @@ export default function MapOpeningPreview({
           turn,
         );
       }
-      document.documentElement.style.setProperty("--map-preview-bearing", `${turn}deg`);
+      // Set on the two layers, never the root: a custom property on the root
+      // restyles the whole document on every frame of the turn, and that cost
+      // the engine about a second of its reveal on a phone.
+      for (const layer of [groundRef.current, discsRef.current]) {
+        layer?.style.setProperty("--map-preview-bearing", `${turn}deg`);
+      }
     };
     window.addEventListener(PINS_VISIBLE_EVENT, onReveal);
     window.addEventListener(MAP_OPENING_PREVIEW_RETRACT_EVENT, standDown);
@@ -228,6 +247,7 @@ export default function MapOpeningPreview({
     <>
       {ground ? (
         <div
+          ref={groundRef}
           className="mapOpeningGround"
           aria-hidden="true"
           style={
@@ -256,6 +276,7 @@ export default function MapOpeningPreview({
         </div>
       ) : null}
       <div
+        ref={discsRef}
         className="mapOpeningPreview"
         aria-hidden="true"
         style={{ "--map-preview-pitch": pitch } as CSSProperties}

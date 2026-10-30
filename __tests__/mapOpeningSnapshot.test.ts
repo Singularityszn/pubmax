@@ -173,5 +173,10 @@ describe("where the picture may show", () => {
       expect(css).toContain(`${ground} ${plate}`);
     }
     expect(css).not.toContain(`${ground} .mapCanvasWrap .maplibregl-map`);
+    // The loading line's glass holds still over the picture: its pour
+    // repaints every frame, and each one drew the picture again.
+    expect(css).toContain(
+      `${ground} :is(.mapSkeleton, .mapLoading) :is(.pintLoaderFill, .pintLoaderBubble) {\n      animation: none;`,
+    );
   });
 });

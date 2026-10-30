@@ -245,6 +245,33 @@ describe("MapOpeningPreview", () => {
     expect(document.documentElement.dataset.mapPreview).toBe("done");
   });
 
+  it("after the reveal, waits for no street tile once its prices have gone", async () => {
+    // A picture without its discs is streets with no price on them, and the
+    // map under it has its prices ready: holding it for the streets kept the
+    // prices off screen for 2.5 to 3.5 s on every cold run.
+    document.documentElement.dataset.mapPreview = "on";
+    document.documentElement.dataset.mapPreviewDiscs = "off";
+    await mount();
+    await act(() => {
+      window.dispatchEvent(new Event(PINS_VISIBLE_EVENT));
+    });
+    expect(document.documentElement.dataset.mapPreview).toBe("done");
+  });
+
+  it("stops waiting for the streets the moment its prices go", async () => {
+    document.documentElement.dataset.mapPreview = "on";
+    await mount();
+    await act(() => {
+      window.dispatchEvent(new Event(PINS_VISIBLE_EVENT));
+    });
+    expect(document.documentElement.dataset.mapPreview).toBe("on");
+    await act(async () => {
+      document.documentElement.dataset.mapPreviewDiscs = "off";
+      await Promise.resolve();
+    });
+    expect(document.documentElement.dataset.mapPreview).toBe("done");
+  });
+
   it("waits for both the lift and the streets, in either order", async () => {
     const loading = document.createElement("div");
     loading.className = "mapLoading";
@@ -349,7 +376,10 @@ describe("MapOpeningPreview", () => {
         window.dispatchEvent(new CustomEvent(MAP_OPENING_PREVIEW_TURN_EVENT, { detail: MAP_OPENING_PREVIEW_CAMERA.bearing + 2.5 }));
       });
       expect(document.documentElement.dataset.mapPreview).toBe("on");
-      expect(document.documentElement.style.getPropertyValue("--map-preview-bearing")).toBe("2.5deg");
+      const discs = document.querySelector<HTMLElement>(".mapOpeningPreview");
+      expect(discs?.style.getPropertyValue("--map-preview-bearing")).toBe("2.5deg");
+      // Never on the root: that restyles the whole document on every frame of the turn.
+      expect(document.documentElement.style.getPropertyValue("--map-preview-bearing")).toBe("");
     } finally {
       document.documentElement.style.removeProperty("--map-preview-bearing");
     }
@@ -373,7 +403,11 @@ describe("MapOpeningPreview", () => {
       });
       // Held short of the full turn, and still the preview: no bare paper.
       expect(document.documentElement.dataset.mapPreview).toBe("on");
-      const held = parseFloat(document.documentElement.style.getPropertyValue("--map-preview-bearing"));
+      const layers = [".mapOpeningGround", ".mapOpeningPreview"].map((selector) =>
+        document.querySelector<HTMLElement>(selector)?.style.getPropertyValue("--map-preview-bearing"),
+      );
+      expect(layers[0]).toBe(layers[1]);
+      const held = parseFloat(layers[0] ?? "");
       expect(held).toBeGreaterThan(0);
       expect(held).toBeLessThan(4);
     } finally {

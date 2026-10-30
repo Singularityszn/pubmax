@@ -136,6 +136,15 @@ html[data-theme="dark"] .mapOpeningGroundPicture {
     html[data-map-preview="on"][data-map-ground="on"]:has(.mapOpeningGround) .mapCanvasWrap .maplibreMap {
       background: transparent !important;
     }
+
+    /* The pint glass on the loading line holds still over the picture, as it
+       does for a reader who asked for less motion. Its pour moves parts of an
+       SVG, which the browser repaints on every frame, and over see-through
+       paper each of those frames drew the whole picture again: the map's own
+       pins came about 0.7 s later (median of six cold runs, 390x844). */
+    html[data-map-preview="on"][data-map-ground="on"]:has(.mapOpeningGround) :is(.mapSkeleton, .mapLoading) :is(.pintLoaderFill, .pintLoaderBubble) {
+      animation: none;
+    }
   }
 }
 
@@ -154,7 +163,7 @@ html[data-theme="dark"] .mapOpeningGroundPicture {
   height: 0;
   transform-origin: 0 0;
   /* MapLibre's bearing turns the map anticlockwise; CSS turns clockwise. The
-     bearing is set on the root while the arrival turn runs (MapOpeningPreview). */
+     bearing is set on the two layers while the arrival turn runs (MapOpeningPreview). */
   transform: rotateX(var(--map-preview-pitch)) rotateZ(calc(-1 * var(--map-preview-bearing, 0deg)));
   transform-style: preserve-3d;
 }
