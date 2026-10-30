@@ -364,6 +364,7 @@ describe("the prerendered documents drop the nonce, and only they do", () => {
         "/historic/[slug]",
         "/landmark/[id]",
         "/ledger/[id]",
+        "/routes/[slug]",
       ],
     );
   });
