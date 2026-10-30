@@ -131,9 +131,9 @@ test("once tonight's plan is saved, the Pal hands out the crew link", async ({ p
   }).toPass({ timeout: 30_000 });
 
   await who.click();
-  await expect(card).toContainText("Sent. Now they tap I'm in.");
+  await expect(card).toContainText("Sent. Now they tap Going.");
   const shared = await page.evaluate(() => (window as unknown as { __shared: Array<{ text: string; url: string }> }).__shared);
   expect(shared).toHaveLength(1);
-  expect(shared[0]!.text).toBe("Ripley's got a plan for tonight. Open the link and tap I'm in.");
+  expect(shared[0]!.text).toBe("Ripley's got a plan for tonight. Open the link and tap Going.");
   expect(new URL(shared[0]!.url).pathname).toBe(`/invite/${inviteToken}`);
 });
