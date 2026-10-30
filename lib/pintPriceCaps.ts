@@ -1,5 +1,5 @@
 import { formatGbp } from "@/lib/formatGbp";
-import { NO_PINT_PRICE_CAP } from "@/lib/venues";
+import { NO_PINT_PRICE_CAP } from "@/lib/pintPriceCapValue";
 
 // ONE SET OF PINT PRICE CAPS. The desktop Layers chips offered Any, ≤ £5.50 and
 // ≤ £7; the phone's Map controls sheet offered Any, £7, £6 and £5.50; the

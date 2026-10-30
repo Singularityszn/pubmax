@@ -60,6 +60,7 @@ import {
 import { parseZoneParam, venueMatchesZone } from "@/lib/zones";
 import type { MapLensPrice } from "@/lib/mapExperienceLens";
 import type { VenueRecordCopy } from "@/lib/venueRecordCopy";
+import { NO_PINT_PRICE_CAP } from "@/lib/pintPriceCapValue";
 
 export type CrawlStyle =
   | "balanced"
@@ -359,7 +360,7 @@ export type VenueFilterHints = {
  * it as "Any". It sits above every priced pub in the curated index, so it caps
  * nothing; non-pub anchors bypass the cap in filterVenues regardless.
  */
-export const NO_PINT_PRICE_CAP = 10;
+export { NO_PINT_PRICE_CAP };
 
 export type Filters = {
   query: string;
