@@ -117,3 +117,7 @@ Vocabulary stays singular: *Plan* (not “trip”/“itinerary” mixed), *Stop*
 2. Use the project design packs in [`docs/DESIGN_SKILLS_CATALOG.md`](../DESIGN_SKILLS_CATALOG.md) on the winner before tokenizing into `app/globals.css`.  
 3. Preserve the Layers objects when restyling — map chrome and sheet chrome should still read Plan / Stop / Venue / Friend.  
 4. Prefer shipping **one** direction’s accent system; don’t blend A’s coral paper with B’s neon and C’s river in one theme.
+
+## Launch UX variations (30 October 2026)
+
+[`2026-10-30-launch-ux-variations.md`](./2026-10-30-launch-ux-variations.md) gives three directions for the November launch as per-surface changes inside the locked colour decision, with a recommendation and a micro-fix list.

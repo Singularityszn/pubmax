@@ -9,6 +9,7 @@ Strategy and sequencing docs. Prefer one plan per concern; do not implement from
 | [`OUTINGS_WAVE_REVIEW.md`](./OUTINGS_WAVE_REVIEW.md) | REVIEW + FIXES | Code review of S1–S4 and follow-up taxonomy/outing-copy patches |
 | [`FABLE_REVIEW_ITERATION.md`](./FABLE_REVIEW_ITERATION.md) | EXECUTING | Multi-PR overnight queue for Fable; avoids duplicating #816 |
 | [`LAUNCH_REVIEW_2026-10-30.md`](./LAUNCH_REVIEW_2026-10-30.md) | DATED RECORD, CAPTAIN DECIDES | Page-by-page launch review of 30 Oct 2026, the week-one complaint list, and the feature brainstorm (food, wine, meetups, new pubs, hosting crawls) mapped onto PLG waves |
+| [`WEEK1_HYGIENE_BUILD_2026-10-30.md`](./WEEK1_HYGIENE_BUILD_2026-10-30.md) | DATED RECORD, BUILDING | Round 1 hygiene builders, the Beli parity ledger and the round 2 plan |
 | [`LANDING_ACQUISITION.md`](./LANDING_ACQUISITION.md) | SUPERSEDED | Historical map-first review; current hierarchy lives in [`2026-08-14-permanent-one-tap-landing.md`](../superpowers/plans/2026-08-14-permanent-one-tap-landing.md) |
 | [`PLG_STRATEGY.md`](./PLG_STRATEGY.md) | READY FOR REVIEW | Invite k-factor, price flywheel, lot density |
 | [`PAVEMENT_ANSWERS_WAVE.md`](./PAVEMENT_ANSWERS_WAVE.md) | SHIPPING | Research-led: open now, mug-check, cheapest-in-view, saved pubs, Tonight cold-start |
