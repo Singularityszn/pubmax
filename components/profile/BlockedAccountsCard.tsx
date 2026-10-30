@@ -12,6 +12,7 @@
 import { useEffect, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import { Button } from "@/components/ui/button";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { authedActionFetch } from "@/lib/authedFetch";
 
@@ -123,15 +124,15 @@ export default function BlockedAccountsCard(): React.JSX.Element | null {
         {entries.map((entry) => (
           <li key={entry.handle}>
             <span>@{entry.handle}</span>
-            <button
+            <Button
               type="button"
-              className="profileMuteBlockAction"
+              variant="secondary"
               disabled={busy !== null}
               aria-label={`${verb} @${entry.handle}`}
               onClick={() => void undo(kind, entry.handle)}
             >
               {verb}
-            </button>
+            </Button>
           </li>
         ))}
       </ul>
@@ -163,9 +164,9 @@ export default function BlockedAccountsCard(): React.JSX.Element | null {
           {current === null ? (
             <>
               {" "}
-              <button type="button" className="profileMuteBlockAction" onClick={() => setAttempt((n) => n + 1)}>
+              <Button type="button" variant="secondary" onClick={() => setAttempt((n) => n + 1)}>
                 Load again
-              </button>
+              </Button>
             </>
           ) : null}
         </p>
