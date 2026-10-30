@@ -88,6 +88,7 @@ const VENUE_ID_RE =
 // pub page still fills it with the whole city pack, and each entry is a fully
 // enriched record. Bounded with insertion-order eviction, the same house
 // pattern as lib/heritage.ts, so one warm function cannot hold every venue.
+// A read refreshes an entry, so the order is least recently used.
 const VENUE_DETAIL_CACHE_MAX_ENTRIES = 1_000;
 let venueDetailCacheMax = VENUE_DETAIL_CACHE_MAX_ENTRIES;
 const cachedDetails = new Map<string, { venue: Venue; overlayVenueIds?: string[] }>();
@@ -102,8 +103,8 @@ function setCachedDetail(id: string, entry: { venue: Venue; overlayVenueIds?: st
   }
 }
 
-export function venueDetailCacheSizeForTests(): number {
-  return isTestRuntime() ? cachedDetails.size : 0;
+export function venueDetailCachedIdsForTests(): string[] {
+  return isTestRuntime() ? [...cachedDetails.keys()] : [];
 }
 
 export function setVenueDetailCacheMaxForTests(max: number | null): void {
@@ -307,6 +308,10 @@ async function lookupVenueDetailBase(requestedId: string): Promise<VenueDetailLo
   if (isVerifiedClosedCuratedVenue(id)) return { status: "missing" };
   const cached = cachedDetails.get(id);
   if (cached) {
+    // A hit moves the venue to the newest end, so the pubs people keep
+    // opening tonight are the last the bound evicts.
+    cachedDetails.delete(id);
+    cachedDetails.set(id, cached);
     try {
       let overlayVenueIds = cached.overlayVenueIds;
       if (!overlayVenueIds) {

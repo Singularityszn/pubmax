@@ -14,7 +14,7 @@ import {
   setVenueDetailCacheMaxForTests,
   setVenueDetailIndexFileForTests,
   setVenueDetailRowsFileForTests,
-  venueDetailCacheSizeForTests,
+  venueDetailCachedIdsForTests,
   venueFromDetailArtifact,
   type VenueDetailArtifact,
 } from "@/lib/venueDetailIndex";
@@ -263,19 +263,24 @@ describe("venueDetailIndex", () => {
     });
   });
 
-  it("evicts the oldest venue once the detail cache reaches its bound", async () => {
-    setVenueDetailCacheMaxForTests(1);
+  it("evicts the least recently read venue once the detail cache reaches its bound", async () => {
+    const MANCHESTER_ID = "venue-mcr-1lwo5lo";
+    setVenueDetailCacheMaxForTests(2);
 
     await expect(getVenueDetail(SEED_VENUE_ID)).resolves.toMatchObject({ id: SEED_VENUE_ID });
-    expect(venueDetailCacheSizeForTests()).toBe(1);
+    await expect(getVenueDetail(MANCHESTER_ID)).resolves.toMatchObject({ id: MANCHESTER_ID });
+    expect(venueDetailCachedIdsForTests()).toEqual([SEED_VENUE_ID, MANCHESTER_ID]);
 
-    await expect(getVenueDetail("venue-mcr-1lwo5lo")).resolves.toMatchObject({
-      id: "venue-mcr-1lwo5lo",
-    });
-    expect(venueDetailCacheSizeForTests()).toBe(1);
+    // Reading the older venue again makes it the most recent one.
+    await getVenueDetail(SEED_VENUE_ID);
+    expect(venueDetailCachedIdsForTests()).toEqual([MANCHESTER_ID, SEED_VENUE_ID]);
+
+    // A third venue evicts Manchester, the least recently read.
+    await expect(getVenueDetail(FAMOUS_BAR_ID)).resolves.toMatchObject({ id: FAMOUS_BAR_ID });
+    expect(venueDetailCachedIdsForTests()).toEqual([SEED_VENUE_ID, FAMOUS_BAR_ID]);
 
     // The evicted venue still resolves; it is read again rather than lost.
-    await expect(getVenueDetail(SEED_VENUE_ID)).resolves.toMatchObject({ id: SEED_VENUE_ID });
-    expect(venueDetailCacheSizeForTests()).toBe(1);
+    await expect(getVenueDetail(MANCHESTER_ID)).resolves.toMatchObject({ id: MANCHESTER_ID });
+    expect(venueDetailCachedIdsForTests()).toHaveLength(2);
   });
 });
