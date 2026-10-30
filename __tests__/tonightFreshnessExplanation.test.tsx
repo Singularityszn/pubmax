@@ -89,6 +89,23 @@ describe("Tonight source explanations", () => {
     expect(html).not.toContain("The live listings source check date is not recorded.");
   });
 
+  it("does not call the date unrecorded beside a dated empty Ticketmaster read (F6)", () => {
+    const html = renderToStaticMarkup(createElement(TonightProvenanceLines, {
+      nearestSuffix: null,
+      provenance: tonightProvenanceCredits({
+        renderedGroups: [], whatsOnRows: [], whatsOnChecked: null, pubSuggestionCount: 3, now,
+        out: {
+          body: { status: "ready", venueMatch: "ready", events: [],
+            observedAt: { ticketmaster: "2026-10-25T11:00:00Z" } },
+          failed: false, pending: false,
+        },
+      }),
+    }));
+    expect(html).toContain("No pub-matched events · via what’s-on");
+    expect(html).toContain("No pub-matched events via Ticketmaster · Checked 25 Oct");
+    expect(html).not.toContain("source check date is not recorded");
+  });
+
   it("distinguishes an absent row date from an old row date", () => {
     expect(render([{ ...listing, observedAt: "" }])).toContain(
       "1 pub listing hidden: its source check date is not recorded.",

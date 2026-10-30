@@ -20,6 +20,17 @@ async function loadRedirects(): Promise<RedirectRule[]> {
 }
 
 describe("next.config redirects", () => {
+  it.each([
+    ["/data-credits", "/credits"],
+    ["/memories", "/u/you#night-memories"],
+    ["/crews", "/social"],
+    ["/coffee", "/map?drink=coffee"],
+    ["/gardens", "/map"],
+  ])("sends the typed name %s to the page that holds it (live walk F21)", async (source, destination) => {
+    const rule = (await loadRedirects()).find((entry) => entry.source === source);
+    expect(rule).toMatchObject({ source, destination, permanent: false });
+  });
+
   it.each(["/map/uk", "/map/uk/1"])(
     "sends %s to the national map permanently",
     async (source) => {
