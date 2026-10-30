@@ -31,6 +31,11 @@ type Props = {
     venueName: string;
     venueKind: "curated" | "uk_base";
   };
+  /**
+   * Text another app shared in (app/share, lib/nativeShareTarget.ts). It only
+   * fills the box: nothing is resolved or fetched until the reader presses Find.
+   */
+  initialPaste?: string;
 };
 
 function anonymousWantedId(): string {
@@ -66,8 +71,13 @@ function createAnonymousWanted(input: {
   };
 }
 
-export default function WantedCapture({ onSaved, anonymous = false, prefill }: Props): React.JSX.Element {
-  const [paste, setPaste] = useState(prefill?.venueName ?? "");
+export default function WantedCapture({
+  onSaved,
+  anonymous = false,
+  prefill,
+  initialPaste,
+}: Props): React.JSX.Element {
+  const [paste, setPaste] = useState(prefill?.venueName ?? initialPaste ?? "");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);

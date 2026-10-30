@@ -31,7 +31,7 @@ describe("saved-list detail metadata", () => {
     await expect(SavedListPage(props)).rejects.toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
   });
 
-  it("publishes an attributed social preview with saved/follower counts and list cover", async () => {
+  it("publishes an attributed social preview with saved and follower counts", async () => {
     const [first, second] = await venueIds(2);
     await savedPubsStore().toggleSaved({
       handle: "Sam",
@@ -58,20 +58,14 @@ describe("saved-list detail metadata", () => {
       description: "@sam's my locals saved list on PUBMAXX. 2 venues, 1 follower.",
       type: "article",
       url: "/u/sam/lists/my%20locals",
-      images: [
-        {
-          url: "/api/list-card?owner=sam&list=my+locals&venues=2&followers=1",
-          width: 1200,
-          height: 630,
-          alt: "@sam's my locals saved list",
-        },
-      ],
     });
+    // The picture is the sibling opengraph-image.tsx; file-based metadata
+    // outranks this object, so the object names no second image.
+    expect(metadata.openGraph).not.toHaveProperty("images");
     expect(metadata.twitter).toMatchObject({
       card: "summary_large_image",
       title: "@sam's my locals",
       description: "@sam's my locals saved list on PUBMAXX. 2 venues, 1 follower.",
-      images: ["/api/list-card?owner=sam&list=my+locals&venues=2&followers=1"],
     });
   });
 });
