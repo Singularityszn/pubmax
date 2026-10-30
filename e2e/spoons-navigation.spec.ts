@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
+import { expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobileMapShell";
 
 for (const width of [320, 390]) {
   for (const rootSize of [16, 32]) {
@@ -219,7 +220,8 @@ test.describe("short phone Drink sheet", () => {
   test("touch scrolling reaches lower content without moving the map shell", async ({ page, context }, testInfo) => {
     await page.setViewportSize({ width: 320, height: 568 });
     await page.goto("/map?drink=soft-drink");
-    const open = page.getByRole("button", { name: /Drink shown on the map/ });
+    await expectMobileMapShellReady(page);
+    const open = await mobileMapShellControl(page, "drink");
     const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="drink"]');
     await expect(async () => {
       await open.click();
@@ -250,8 +252,9 @@ for (const width of [390, 1440]) {
   test(`${width}px Drink exposes Lucia and opens the existing price list`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 844 });
     await page.goto("/map?drink=soft-drink");
+    if (width <= 640) await expectMobileMapShellReady(page);
     const open = width <= 640
-      ? page.getByRole("button", { name: /Drink shown on the map/ })
+      ? await mobileMapShellControl(page, "drink")
       : page.locator(".mapToolbarDrinkLaneBtn").first();
     const lucia = page.getByRole("link", { name: /Lucia 🐐/ });
     await expect(async () => {
