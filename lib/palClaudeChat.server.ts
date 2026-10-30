@@ -104,6 +104,28 @@ const PAL_TOOLS: Anthropic.Tool[] = PUB_PAL_TOOL_NAMES.map((name) => ({
   input_schema: { type: "object", properties: { ...pubPalToolArgumentProperties(name) } },
 }));
 
+/** The turn's own signal fired: the caller left or the deadline passed. */
+class PalClaudeTurnAborted extends Error {}
+
+/** Settles with the work, or rejects as soon as the turn is aborted. */
+function untilAborted<T>(signal: AbortSignal, work: Promise<T>): Promise<T> {
+  if (signal.aborted) return Promise.reject(new PalClaudeTurnAborted());
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(new PalClaudeTurnAborted());
+    signal.addEventListener("abort", onAbort, { once: true });
+    work.then(
+      (value) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(value);
+      },
+      (error: unknown) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(error);
+      },
+    );
+  });
+}
+
 function toolResultText(result: Record<string, unknown>): string {
   const text = JSON.stringify(result);
   return text.length > TOOL_RESULT_CHAR_LIMIT ? text.slice(0, TOOL_RESULT_CHAR_LIMIT) : text;
@@ -132,10 +154,13 @@ export async function runPalClaudeChatTurn(
   if ("outcome" in prepared) return prepared.outcome;
   const { query, cityId, deadline, prior, memoriesRead, tasteRead } = prepared.turn;
 
-  // Claude keeps no conversation, so the thread is ours: the earlier one when
-  // this continues it, else a new local id. The tools read the ask and the
-  // owner from this row, as they read an ElevenLabs conversation's row.
-  const conversationId = prior.conversationId ?? newPalLocalThreadId();
+  // Claude keeps no conversation, so each ask gets a new local thread, as each
+  // ElevenLabs ask gets a new conversation. The row carries the earlier asks
+  // forward, starts with no cards, proposals or hints, and belongs to this ask
+  // alone: the tools read their query from it and append to it, so a
+  // follow-up never shows an earlier ask's cards and two overlapping asks
+  // never share a row.
+  const conversationId = newPalLocalThreadId();
   let userText: string;
   try {
     const [, memories, taste] = await beforePalChatDeadline(deadline, () =>
@@ -252,13 +277,17 @@ export async function runPalClaudeChatTurn(
                   : {};
               const toolSpan = toolCall({ name: use.name, input: args });
               try {
-                const result = await beforePalChatDeadline(deadline, () => runTool(use.name, args, conversationId));
+                // A caller that leaves ends the turn now, not when a slow tool returns.
+                const result = await untilAborted(
+                  abort.signal,
+                  beforePalChatDeadline(deadline, () => runTool(use.name, args, conversationId)),
+                );
                 toolSpan?.end();
                 return { type: "tool_result", tool_use_id: use.id, content: toolResultText(result) };
               } catch (error) {
                 toolSpan?.setError(error);
                 toolSpan?.end();
-                if (error instanceof PalChatDeadlineExceeded) throw error;
+                if (error instanceof PalChatDeadlineExceeded || error instanceof PalClaudeTurnAborted) throw error;
                 return {
                   type: "tool_result",
                   tool_use_id: use.id,
@@ -276,7 +305,7 @@ export async function runPalClaudeChatTurn(
       },
     });
   } catch (error) {
-    if (error instanceof PalChatDeadlineExceeded) return failed("TIMEOUT");
+    if (error instanceof PalChatDeadlineExceeded || error instanceof PalClaudeTurnAborted) return failed("TIMEOUT");
     return failed("UNAVAILABLE");
   } finally {
     clearTimeout(timer);

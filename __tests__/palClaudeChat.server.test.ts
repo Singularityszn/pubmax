@@ -189,15 +189,49 @@ describe("runPalClaudeChatTurn", () => {
     ]);
   });
 
-  it("continues the caller's own earlier thread instead of starting a new one", async () => {
+  it("carries the caller's own earlier asks into a new thread for the follow-up", async () => {
     const thread = "conv_palAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
     storeMocks.readOwnedPubPalToolTurn.mockResolvedValue({ ...storedTurn, query: "pubs in Soho", turns: [] });
     const { client, bodies } = fakeClient([{ content: [text("Cheaper ones coming up.")], stop_reason: "end_turn" }]);
 
     const outcome = await runPalClaudeChatTurn({ query: "cheaper ones", threadId: thread, ownerId: OWNER }, undefined, { client });
 
-    expect(outcome).toMatchObject({ ok: true, conversationId: thread });
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(isPalLocalThreadId(outcome.conversationId)).toBe(true);
+    expect(outcome.conversationId).not.toBe(thread);
+    expect(storeMocks.registerPubPalToolTurn).toHaveBeenCalledWith(
+      outcome.conversationId,
+      expect.objectContaining({ query: "cheaper ones", turns: [{ role: "user", content: "pubs in Soho" }] }),
+    );
     expect(String(bodies[0]!.messages[0]!.content)).toContain("- pubs in Soho");
+  });
+
+  it("ends the turn when the caller leaves during a slow tool, without waiting for it", async () => {
+    const { client, bodies } = fakeClient([
+      { content: [toolUse("tu_1", "journey", { query: "to Soho" })], stop_reason: "tool_use" },
+    ]);
+    const caller = new AbortController();
+    let toolStarted!: () => void;
+    const started = new Promise<void>((resolve) => {
+      toolStarted = resolve;
+    });
+
+    const turn = runPalClaudeChatTurn({ query: "how do I get to Soho", ownerId: OWNER, signal: caller.signal }, undefined, {
+      client,
+      runTool: () => {
+        toolStarted();
+        // A tool that never answers.
+        return new Promise(() => {});
+      },
+    });
+    await started;
+    caller.abort();
+
+    // The chat deadline is 22 seconds away. The turn must end long before it.
+    const stillRunning = new Promise((resolve) => setTimeout(() => resolve("still running"), 1_000));
+    await expect(Promise.race([turn, stillRunning])).resolves.toEqual({ ok: false, code: "TIMEOUT" });
+    expect(bodies).toHaveLength(1);
   });
 
   it("streams the reply, and clears text written before a tool call", async () => {
