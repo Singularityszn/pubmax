@@ -15,7 +15,7 @@
 // are handed over by the Night Mode card that already holds them.
 
 /** A venue-sheet action that an existing surface notes for the active plan. */
-export const CRAWL_BINGO_NOTE_KINDS = [
+const CRAWL_BINGO_NOTE_KINDS = [
   // VenuePriceSubmit: the server kept a price for this pub.
   "price",
   // VenuePhotoComposer: a photo landed on this pub's wall.
@@ -105,7 +105,7 @@ export type CrawlBingoInput = {
   notes: readonly CrawlBingoNote[];
 };
 
-export type CrawlBingoSquare = {
+type CrawlBingoSquare = {
   id: CrawlBingoSquareId;
   label: string;
   done: boolean;
