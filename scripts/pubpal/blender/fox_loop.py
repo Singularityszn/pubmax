@@ -4,8 +4,9 @@ The fox is made from primitives (no sculpt, no master image), lit and animated
 here, and rendered with Cycles on the CPU so it runs headless. The look follows
 public/pal/circuit-fox-512.png: charcoal velvet, cyan eyes, pink cheeks, an
 orange circuit glow on the chest with a brass pendant, glowing ear traces, a
-dark glossy floor. The loop blinks, tilts the head, twitches an ear, breathes
-and pulses the glow, and frame 73 equals frame 1, so it repeats without a jump.
+dark glossy floor. The loop talks (the mouth opens on syllables in two short
+phrases), blinks, tilts the head, twitches an ear, breathes and pulses the
+glow, and frame 73 equals frame 1, so it repeats without a jump.
 
 Run (writes PNG frames to OUT_DIR):
   blender --background --factory-startup --python scripts/pubpal/blender/fox_loop.py -- OUT_DIR [SAMPLES] [SIZE] [FRAMES]
@@ -67,6 +68,8 @@ def glow(name, colour, strength):
 FUR = principled("fur", (0.018, 0.019, 0.024), roughness=0.85, sheen=1.0)
 NOSE = principled("nose", (0.01, 0.01, 0.012), roughness=0.25)
 PUPIL = principled("pupil", (0.0, 0.0, 0.0), roughness=0.1)
+MOUTH = principled("mouth", (0.03, 0.005, 0.01), roughness=0.6)
+TONGUE = principled("tongue", (0.85, 0.28, 0.34), roughness=0.45, emission=(0.9, 0.3, 0.35), strength=0.15)
 BRASS = principled("brass", (0.75, 0.48, 0.2), roughness=0.35, metallic=0.35, emission=(0.9, 0.55, 0.2), strength=0.25)
 CORD = principled("cord", (0.02, 0.02, 0.02), roughness=0.6)
 FLOOR = principled("floor", (0.006, 0.008, 0.011), roughness=0.45)
@@ -182,6 +185,13 @@ for side in (-1, 1):
 snout = sphere("snout", (0, -0.5, 1.26), (0.12, 0.2, 0.09), FUR, neck)
 sphere("nose", (0, -0.695, 1.29), (0.04, 0.03, 0.032), NOSE, neck)
 
+# The mouth: a dark opening tucked under the end of the muzzle, with the
+# tongue inside it. The pivot scales it open and shut, so at rest (scale ~0)
+# the muzzle reads closed and on a word the mouth drops open.
+mouth = empty("mouth_pivot", (0, -0.6, 1.195), neck)
+sphere("mouth", (0, -0.6, 1.195), (0.085, 0.07, 0.06), MOUTH, mouth)
+sphere("tongue", (0, -0.63, 1.18), (0.058, 0.05, 0.03), TONGUE, mouth)
+
 eyes = []
 for side in (-1, 1):
     eye = empty(f"eye_{side}", (0.16 * side, -0.45, 1.43), neck)
@@ -262,6 +272,20 @@ for f in range(1, END + 1, 6):
     s = 1.0 + 0.015 * math.sin(phase)
     body.scale = (0.55 * s, 0.48 * s, 0.66 * (2 - s) ** -1)
     body.keyframe_insert("scale", frame=f)
+
+# Talking: the mouth opens on syllables in two short phrases, rests shut
+# through the blink, and is shut on frames 1 and END, so the loop is seamless.
+MOUTH_SHUT = 0.04
+syllables = [(6, 0.9), (9, 0.4), (12, 1.0), (15, 0.5), (18, 0.85), (22, 0.3),
+             (40, 0.8), (43, 0.45), (46, 1.0), (49, 0.6), (52, 0.9), (56, 0.35), (60, 0.7)]
+mouth_keys = [(1, MOUTH_SHUT), (4, MOUTH_SHUT)]
+for frame, open_by in syllables:
+    mouth_keys.append((frame, max(MOUTH_SHUT, open_by)))
+    mouth_keys.append((frame + 2, MOUTH_SHUT + 0.15))
+mouth_keys += [(25, MOUTH_SHUT), (37, MOUTH_SHUT), (64, MOUTH_SHUT), (END, MOUTH_SHUT)]
+for frame, open_by in sorted(dict(mouth_keys).items()):
+    mouth.scale = (0.8 + 0.2 * open_by, 1.0, open_by)
+    mouth.keyframe_insert("scale", frame=frame)
 
 # Blink: both eyes close and open over 6 frames.
 for eye in eyes:
