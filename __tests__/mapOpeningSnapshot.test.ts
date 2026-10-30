@@ -153,5 +153,13 @@ describe("where the picture may show", () => {
     expect(css).toMatch(
       /html\[data-map-preview="on"\]\[data-map-ground="on"\]:has\(\.mapOpeningGround\) \.mapOpeningGround \{\s*display: block;/,
     );
+    // Every plate the canvas stands on before it draws is see-through while
+    // the picture shows, from the lazy chunk's plate to the map's own
+    // container, by our class rather than the one MapLibre adds at build.
+    const ground = 'html[data-map-preview="on"][data-map-ground="on"]:has(.mapOpeningGround)';
+    for (const plate of [".mapCanvasSkeleton", ".mapCanvasWrap .maplibreMap"]) {
+      expect(css).toContain(`${ground} ${plate}`);
+    }
+    expect(css).not.toContain(`${ground} .mapCanvasWrap .maplibregl-map`);
   });
 });
