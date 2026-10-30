@@ -138,7 +138,8 @@ test.describe("landing hierarchy", () => {
 
   // The first answer says what it is worth in pounds (nearSavingLine,
   // lib/nearMeAnswer.ts): against the nearest pub with a listed price, with
-  // that pub's own price, so the sum can be checked. A reader who already
+  // that pub's own price and its publisher and read day, so the sum and its
+  // source can be checked. A reader who already
   // allowed location gets it on the landing card with no tap, and /near
   // prints the same line. Soho has a dearer doorstep pub in the shipped data.
   test("an allowed location answers with the saving in pounds, on the card and on /near", async ({ page, context }) => {
@@ -149,9 +150,16 @@ test.describe("landing hierarchy", () => {
 
     const saving = /^.+ is £\d+\.\d{2} a pint less than .+, the nearest pub with a listed price \(£\d+\.\d{2}, (right here|\d+\.\d km)\)\.$/;
     await expect(page.getByTestId("landing-saving-line")).toHaveText(saving, { timeout: 20_000 });
+    // The doorstep pub's price carries its own publisher and read day, or
+    // says why it cannot, like every printed price.
+    await expect(page.getByTestId("landing-saving-source")).toHaveText(
+      /^.+: (Listed by .+|Publisher could not be checked|No publisher recorded)(, source read .+|, read day not recorded)\.$/,
+      { timeout: 20_000 },
+    );
 
     await page.goto("/near?locate=1");
     await expect(page.getByTestId("near-saving-line")).toHaveText(saving, { timeout: 20_000 });
+    await expect(page.getByTestId("near-saving-source")).toHaveText(/^.+: On record · (?!Checking).+$/, { timeout: 20_000 });
   });
 
   test("shows a sourced pub card and keeps the general price door separate", async ({ page }) => {

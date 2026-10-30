@@ -183,6 +183,13 @@
   color: var(--ink);
   text-wrap: pretty;
 }
+/* The doorstep pub's publisher and read day, in the cards' own words, so the
+   price the saving line prints is as sourced as any card's. */
+.nmnSavingSource {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
 
 .nmnWiden {
   color: color-mix(in srgb, var(--amber) 70%, var(--ink-soft));
@@ -378,6 +385,7 @@
       .nmnSub,
       .nmnWiden,
       .nmnSaving,
+      .nmnSavingSource,
       .nmnPatchTier,
       .nmnFoot,
       .ndnSource

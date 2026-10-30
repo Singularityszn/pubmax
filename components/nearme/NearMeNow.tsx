@@ -2,7 +2,7 @@
 
 import { ReadyButton } from "@/components/ui/ready-button";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PriceBadge from "@/components/PriceBadge";
 import { samePathWithQuery } from "@/lib/appLink";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
@@ -334,6 +334,24 @@ export default function NearMeNow({
     activeAnswerGeneration,
     answerContext?.generation ?? null,
   );
+  // The saving line prints the doorstep pub's price, and that pub is often not
+  // one of the cards, so its evidence is read on its own: one id, through the
+  // same endpoint, response guard and answer generation as the cards' read.
+  const comparator = useMemo(
+    () => (nearest && !cards.some((card) => card.id === nearest.id) ? [nearest] : []),
+    [cards, nearest],
+  );
+  const comparatorTrust = useNearPriceTrust(
+    comparator,
+    showPriceTrust,
+    activeAnswerGeneration,
+    answerContext?.generation ?? null,
+  );
+  // A printed price carries its publisher and read day, or says why it cannot.
+  // Where this surface shows no evidence at all, the line is not printed.
+  const savingLine = showPriceTrust ? nearSavingLine(cards, nearest) : null;
+  const savingSource =
+    savingLine && nearest ? nearSavingSource(nearest, cards, priceTrust, comparatorTrust) : null;
 
   const resolvedMapHref = mapHref ?? mapHrefForCity(cityId);
 
@@ -692,7 +710,8 @@ export default function NearMeNow({
           scope={scope}
           titledByHost={titledByHost}
           cards={cards}
-          savingLine={nearSavingLine(cards, nearest)}
+          savingLine={savingLine}
+          savingSource={savingSource}
           onOpen={openVenue}
           onAccept={acceptVenue}
           allowVenueAcceptance={allowVenueAcceptance}
@@ -890,6 +909,7 @@ function NearMeLocatedAnswer({
   titledByHost,
   cards,
   savingLine,
+  savingSource,
   onOpen,
   onAccept,
   allowVenueAcceptance,
@@ -904,6 +924,8 @@ function NearMeLocatedAnswer({
   cards: NearMeCard[];
   /** The pounds the top answer is worth against the doorstep pub (nearSavingLine). */
   savingLine: string | null;
+  /** The doorstep pub's price evidence, in the cards' own words. */
+  savingSource: string | null;
   onOpen: (id: string) => void;
   onAccept: (id: string) => void;
   allowVenueAcceptance: boolean;
@@ -926,9 +948,16 @@ function NearMeLocatedAnswer({
           <p className="nmnSub">Within about a 12-minute walk.</p>
         )}
         {savingLine ? (
-          <p className="nmnSaving" data-testid="near-saving-line">
-            {savingLine}
-          </p>
+          <>
+            <p className="nmnSaving" data-testid="near-saving-line">
+              {savingLine}
+            </p>
+            {savingSource ? (
+              <p className="nmnSavingSource" data-testid="near-saving-source">
+                {savingSource}
+              </p>
+            ) : null}
+          </>
         ) : null}
       </header>
       <AnswerCards
@@ -1083,6 +1112,21 @@ function trustLabelForCard(
   return match.publisher
     ? nearPriceTrustLabel("named", match.publisher, match.observedAt)
     : nearPriceTrustLabel("unrecorded", null, match.observedAt);
+}
+
+/**
+ * The doorstep pub's evidence under the saving line, in the cards' own words.
+ * When the pub is one of the cards its evidence comes from the cards' read;
+ * otherwise from its own one-id read. A read not yet answered says so.
+ */
+export function nearSavingSource(
+  nearest: NearMeCard,
+  cards: readonly NearMeCard[],
+  priceTrust: NearPriceTrustView | undefined,
+  comparatorTrust: NearPriceTrustView | undefined,
+): string {
+  const view = cards.some((card) => card.id === nearest.id) ? priceTrust : comparatorTrust;
+  return `${nearest.name}: ${trustLabelForCard(nearest, view) ?? nearPriceTrustLabel("loading")}`;
 }
 
 function NearMeCardBody({

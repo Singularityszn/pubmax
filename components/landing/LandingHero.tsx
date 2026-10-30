@@ -135,10 +135,12 @@ type Answer = {
   walkMinutes?: number;
   /**
    * What the near-you answer is worth against the reader's doorstep pub
-   * (nearSavingLine, lib/nearMeAnswer.ts). Only an answer from the reader's own
-   * fix carries one; the anchor never does.
+   * (nearSavingLine, lib/nearMeAnswer.ts), with that pub's own evidence: the
+   * line prints its price, so it prints who listed it and when, or why it
+   * cannot. Only an answer from the reader's own fix carries one; the anchor
+   * never does.
    */
-  savingLine?: string | null;
+  saving?: { line: string; name: string; evidence: Evidence } | null;
   evidence: Evidence;
   then: LandingArchiveThen | null;
   rail: LandingRailRow[];
@@ -176,7 +178,7 @@ function nearAnswer(
   rest: NearMeCard[],
   scope: "walkable" | "widened",
   archive: LandingArchiveIndex,
-  savingLine: string | null,
+  saving: { line: string; name: string } | null,
 ): Answer {
   return {
     id: first.id,
@@ -188,7 +190,7 @@ function nearAnswer(
     drinkHref: null,
     scope,
     walkMinutes: first.walkMinutes,
-    savingLine,
+    saving: saving ? { ...saving, evidence: "loading" } : null,
     evidence: "loading",
     then: archive[first.id] ?? null,
     rail: rest.slice(0, HERO_RAIL_SIZE).map((card) => ({
@@ -278,15 +280,30 @@ export default function LandingHero({
               fail(NEAR_ME_NOTHING_LINE);
               return;
             }
-            setAnswer(
-              nearAnswer(first, rest, ranked.scope, archive, rankModule.nearSavingLine(ranked.cards, ranked.nearest)),
-            );
+            const nearest = ranked.nearest;
+            const savingLine = rankModule.nearSavingLine(ranked.cards, nearest);
+            const saving = savingLine && nearest ? { line: savingLine, name: nearest.name } : null;
+            setAnswer(nearAnswer(first, rest, ranked.scope, archive, saving));
             setNear({ kind: "answered" });
             const controller = new AbortController();
-            const evidence = await readEvidence(first.id, first.cheapestPrice, controller.signal);
+            // The doorstep pub's evidence is read beside the answer's own, by
+            // the same venue read, so the price the saving line prints is as
+            // sourced as the card's.
+            const [evidence, savingEvidence] = await Promise.all([
+              readEvidence(first.id, first.cheapestPrice, controller.signal),
+              saving && nearest
+                ? readEvidence(nearest.id, nearest.cheapestPrice, controller.signal)
+                : Promise.resolve(null),
+            ]);
             if (mine !== generation.current) return;
             setAnswer((current) =>
-              current && current.id === first.id ? { ...current, evidence } : current,
+              current && current.id === first.id
+                ? {
+                    ...current,
+                    evidence,
+                    saving: current.saving && savingEvidence ? { ...current.saving, evidence: savingEvidence } : current.saving,
+                  }
+                : current,
             );
           })
           .catch(() => fail(NEAR_ME_FAILED_LINE));
@@ -411,6 +428,31 @@ function sourceLine(evidence: Evidence): string {
   return evidence.publisher ? "" : "No publisher recorded";
 }
 
+/** The doorstep pub's evidence under the saving line, in the card's own words. */
+function SavingSource({ name, evidence }: { name: string; evidence: Evidence }) {
+  const publisher = typeof evidence === "object" ? evidence.publisher : null;
+  const observedOn = typeof evidence === "object" ? evidence.observedOn : null;
+  return (
+    // lpPubSource: the card's own source line style, link and tap target too.
+    <p className="lpPubSource lpSavingSource" data-testid="landing-saving-source">
+      {name}:{" "}
+      {publisher ? (
+        <>
+          Listed by{" "}
+          <a href={publisher.url} target="_blank" rel="noopener noreferrer">
+            {publisher.label}
+          </a>
+        </>
+      ) : (
+        sourceLine(evidence)
+      )}
+      {observedOn
+        ? `, source read ${collectedDay(observedOn)}`
+        : typeof evidence === "object" ? ", read day not recorded" : ""}.
+    </p>
+  );
+}
+
 function AnswerCard({
   answer,
   near,
@@ -472,10 +514,13 @@ function AnswerCard({
           <span className="lpPubPint">{answer.pintName ?? "cheapest pint"}</span>
         )}
       </p>
-      {answer.savingLine ? (
-        <p className="lpSaving" data-testid="landing-saving-line">
-          {answer.savingLine}
-        </p>
+      {answer.saving ? (
+        <>
+          <p className="lpSaving" data-testid="landing-saving-line">
+            {answer.saving.line}
+          </p>
+          <SavingSource name={answer.saving.name} evidence={answer.saving.evidence} />
+        </>
       ) : null}
       <p className="lpPubSource">
         {publisher ? (

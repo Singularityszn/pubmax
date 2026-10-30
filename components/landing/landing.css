@@ -292,6 +292,9 @@ body:has(.lp) {
   line-height: var(--leading-normal);
   text-wrap: pretty;
 }
+/* The doorstep pub's publisher and read day under the saving line. It wears
+   .lpPubSource, the card's own source line, and only keeps off its price. */
+.lpSavingSource { margin-bottom: var(--space-2); }
 a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
 @media (hover: hover) and (pointer: fine) {
   a.lpPubPint:hover {
