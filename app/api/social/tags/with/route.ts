@@ -19,12 +19,21 @@ import {
   type WithTagActor,
 } from "@/lib/pintDropWithTagsStore";
 import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
+import type { SocialPostActor } from "@/lib/socialPostStore";
 import { clientIp, hashIp } from "@/lib/supabase";
 
 const PRIVATE = { "Cache-Control": "private, no-store" } as const;
 
 function json(body: unknown, status = 200): Response {
   return Response.json(body, { status, headers: PRIVATE });
+}
+
+// ONE DOMAIN FOR AUTHORSHIP (review P2, PR 2402). A drop's author is read
+// through the handles an AUTH user id holds, so the tag actor carries the
+// auth user id the session verified, never the Social actor's `accountId`
+// (the private Social account record's own UUID, a different domain).
+function withTagActor(access: { actor: SocialPostActor; authUserId: string }): WithTagActor {
+  return { profileId: access.actor.profileId, handle: access.actor.handle, accountId: access.authUserId };
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -56,7 +65,7 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiError("Tag request is not valid.", "MALFORMED_REQUEST", 400, { headers: PRIVATE });
   }
   try {
-    await pintDropWithTagsStore().propose(access.actor, value.dropId, value.handles as string[]);
+    await pintDropWithTagsStore().propose(withTagActor(access), value.dropId, value.handles as string[]);
     return json({ ok: true });
   } catch (error) {
     if (error instanceof WithTagError && error.kind === "invalid") {
@@ -92,7 +101,7 @@ export async function GET(request: Request): Promise<Response> {
   let viewer: WithTagActor | null = null;
   try {
     const access = await requireVerifiedSocialActor(request);
-    if (access.ok) viewer = access.actor;
+    if (access.ok) viewer = withTagActor(access);
   } catch {
     viewer = null;
   }

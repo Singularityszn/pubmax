@@ -13,7 +13,7 @@ const state = vi.hoisted(() => ({
 vi.mock("@/lib/socialAccessServer", () => ({
   requireVerifiedSocialActor: async () =>
     state.signedIn
-      ? { ok: true, actor: { accountId: "account-a", profileId: "profile-a", handle: "alice" } }
+      ? { ok: true, actor: { accountId: "account-a", profileId: "profile-a", handle: "alice" }, authUserId: "auth-a" }
       : { ok: false, status: 401, code: "SOCIAL_SIGN_IN_REQUIRED", error: "Sign in to use Social." },
 }));
 
@@ -108,7 +108,8 @@ describe("proposing and reading with tags", () => {
     expect(await response.json()).toEqual({ ok: true });
     expect(state.calls[0]).toEqual({
       name: "with.propose",
-      args: [expect.objectContaining({ profileId: "profile-a" }), dropId, ["sam"]],
+      // Authorship reads the verified auth user id, never the Social record id.
+      args: [{ profileId: "profile-a", handle: "alice", accountId: "auth-a" }, dropId, ["sam"]],
     });
   });
 

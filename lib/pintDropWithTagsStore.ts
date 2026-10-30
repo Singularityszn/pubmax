@@ -57,6 +57,13 @@ import { selectStore } from "@/lib/storeBackend";
 
 export const PINT_DROP_WITH_TAGS_TABLE = "pint_drop_with_tags" as const;
 
+/**
+ * `accountId` is the VERIFIED AUTH USER ID (`profiles.user_id`), the one
+ * domain every author check reads: a drop through `ownsHandle`, a diary entry
+ * through its `ownerUserId`. An author check never takes a Social actor's
+ * `accountId`, which is the private Social account record's own UUID (review
+ * P2, PR 2402). The inbox and a choice on a tag read only `profileId`.
+ */
 export type WithTagActor = { profileId: string; handle: string; accountId?: string };
 
 export type WithTagRow = {
@@ -153,7 +160,7 @@ export type WithTagDependencies = {
   hiddenHandles(handles: readonly string[]): Promise<ReadonlySet<string>>;
   venueName(venueId: string): Promise<string | null>;
   /**
-   * True when the account holds, or once held, this handle. Authorship of a
+   * True when the auth user id holds, or once held, this handle. Authorship of a
    * drop is read through it, because a drop keeps the handle it was posted
    * under and a rename does not rewrite it. Absent in an older fake, where
    * the handle text is compared instead.
