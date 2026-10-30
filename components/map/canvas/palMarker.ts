@@ -31,11 +31,17 @@ import "./palMarker.css";
 // - beside a pin painted in the cheapest band it lands with a happy hop. It
 //   reads the band the pin itself paints (palPinIsCheap), never a second copy
 //   of the price rules;
-// - it sits up and to the right of the pin, never over it, and takes no
-//   pointer events, so every pin under it stays tappable and the painted-pin
-//   probe still finds the pin it names;
+// - on tonight's plan it walks only as far as the next stop and waits there
+//   (nextStop). While it waits there, and only then, it is a button: "Next
+//   stop: The Lamb", with a small "Next: The Lamb" chip, and a tap opens that
+//   pub. Crew Pals wait there too but are never buttons. A still Pal waits at
+//   the next stop instead of the first;
+// - it sits up and to the right of the pin, never over it, and otherwise takes
+//   no pointer events, so every pin under it stays tappable and the
+//   painted-pin probe still finds the pin it names;
 // - it is the Pal's rendered avatar held by its genome (lib/palGenome.ts),
-//   never a drawing, and it is decorative, so assistive tech skips it;
+//   never a drawing, and it is decorative except as that one button, so
+//   assistive tech skips it;
 // - with no Pal, or a Pal the reader hid, it is never made.
 
 const MARKER_PX = 38;
@@ -79,10 +85,18 @@ export type PalMapMarker = {
   walk: (route: PalMapWalk) => void;
   /** The reader tapped this stop of the crawl (its index): go to it. */
   visit: (stop: number) => void;
+  /**
+   * Tonight's next stop on the route it walks, or null. The Pal walks no
+   * further than it, waits beside it, and opens it when tapped there.
+   */
+  nextStop: (next: PalNextStop | null) => void;
   destroy: () => void;
 };
 
-const NO_PAL: PalMapMarker = { perch: () => {}, walk: () => {}, visit: () => {}, destroy: () => {} };
+/** Tonight's next stop: its index on the walked route, its pub's name, and how to open it. */
+export type PalNextStop = { stop: number; name: string; open: () => void };
+
+const NO_PAL: PalMapMarker = { perch: () => {}, walk: () => {}, visit: () => {}, nextStop: () => {}, destroy: () => {} };
 
 function prefersReducedMotion(): boolean {
   try {
@@ -153,8 +167,14 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
     element.dataset.palCrew = String(crew.index);
   }
   const body = element.querySelector<HTMLElement>(".palMapMarkerBody")!;
+  // The chip that names tonight's next stop, shown only while the Pal waits there.
+  const nextLabel = document.createElement("span");
+  nextLabel.className = "palMapMarkerNext";
+  nextLabel.hidden = true;
+  element.append(nextLabel);
 
   let marker: maplibregl.Marker | null = null;
+  let next: PalNextStop | null = null;
   let perchedAt: string | null = null;
   type Visit = { from: number; to: number; stop: number; elapsed: number; durationMs: number };
   let walk: {
@@ -183,6 +203,49 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
     element.classList.add(name);
   };
 
+  // A button only while it waits beside tonight's next stop; anywhere else it
+  // is decorative and takes no taps.
+  let tappable = false;
+  const syncTap = () => {
+    // A crew Pal waits at the next stop too, but is never a button.
+    const waiting = !crew && walk !== null && next !== null && !walk.visit
+      && walk.elapsed >= walk.plan.durationMs && walk.restAt === next.stop;
+    const label = waiting ? next!.name : null;
+    if (label === null) {
+      if (!tappable) return;
+      tappable = false;
+      element.classList.remove("isNextStop");
+      element.removeAttribute("role");
+      element.removeAttribute("tabindex");
+      element.removeAttribute("aria-label");
+      element.setAttribute("aria-hidden", "true");
+      nextLabel.hidden = true;
+      nextLabel.textContent = "";
+      return;
+    }
+    tappable = true;
+    element.classList.add("isNextStop");
+    element.setAttribute("role", "button");
+    element.tabIndex = 0;
+    element.setAttribute("aria-label", `Next stop: ${label}`);
+    element.removeAttribute("aria-hidden");
+    nextLabel.textContent = `Next: ${label}`;
+    nextLabel.hidden = false;
+  };
+  const openNext = (event: Event) => {
+    if (!tappable || !next) return;
+    event.preventDefault();
+    event.stopPropagation();
+    next.open();
+  };
+  const onKey = (event: KeyboardEvent) => {
+    if (event.key === "Enter" || event.key === " ") openNext(event);
+  };
+  if (!crew) {
+    element.addEventListener("click", openNext);
+    element.addEventListener("keydown", onKey);
+  }
+
   const place = (lngLat: LngLat, offset: [number, number]) => {
     if (!marker) {
       marker = new maplibregl.Marker({ element, anchor: "bottom-left", offset })
@@ -210,6 +273,7 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
     pausedAt = null;
     element.classList.remove("isWalking", "isCheering");
     delete element.dataset.palWalk;
+    syncTap();
   };
 
   // Rest beside a stop: "rested" at the end of the crawl walk, "visited"
@@ -225,7 +289,15 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
     perchedAt = null;
     place(walk.stops[stop]!, perchOffset);
     restartClass(state === "visited" ? "isCheering" : "isLanding");
+    syncTap();
     if (victoryPending) victory();
+  };
+
+  // The stop a finished walk rests beside: tonight's next stop when it is on
+  // this route, else the last stop.
+  const restStop = (): number => {
+    if (!walk) return 0;
+    return next && next.stop >= 0 && next.stop < walk.stops.length ? next.stop : walk.stops.length - 1;
   };
 
   const step = (now: number) => {
@@ -252,8 +324,10 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
     }
     walk.elapsed += delta;
     const moment = palWalkAt(walk.plan, walk.elapsed);
-    if (moment.done) {
-      restBeside(walk.stops.length - 1, "rested");
+    const resting = restStop();
+    // On tonight's plan the walk ends at the next stop, not the last one.
+    if (moment.done || (resting < walk.stops.length - 1 && moment.metres >= walk.plan.stopsAt[resting]!)) {
+      restBeside(resting, "rested");
       return;
     }
     walk.metres = moment.metres;
@@ -314,12 +388,16 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
         stopWalking();
         walk = { key: route.key, road, plan, stops: route.stops, elapsed: 0, metres: 0, restAt: null, visit: null };
       }
-      // A sleeping (muted) Pal, like reduced motion, waits at the first stop.
+      // A sleeping (muted) Pal, like reduced motion, waits at the first stop,
+      // or at tonight's next stop when there is one.
       if (pal.muted || prefersReducedMotion()) {
+        const waitAt = next ? restStop() : 0;
         walk.elapsed = plan.durationMs;
-        walk.restAt = 0;
+        walk.restAt = waitAt;
+        walk.metres = plan.stopsAt[waitAt]!;
         element.dataset.palWalk = "waiting";
-        place(route.stops[0]!, perchOffset);
+        place(route.stops[waitAt]!, perchOffset);
+        syncTap();
         return;
       }
       const start = () => {
@@ -369,12 +447,30 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
       walk.restAt = null;
       element.classList.remove("isCheering");
       element.dataset.palWalk = "visiting";
+      syncTap();
       // A walk still waiting for the map to load takes the trip when it starts.
       if (frame || cancelStart) return;
       lastFrameAt = performance.now();
       frame = requestAnimationFrame(step);
     },
+    nextStop: (target) => {
+      const same = next && target && next.stop === target.stop && next.name === target.name;
+      next = target;
+      if (same || !walk) {
+        syncTap();
+        return;
+      }
+      const finished = !walk.visit && walk.elapsed >= walk.plan.durationMs;
+      // A finished walk goes on to the new next stop, as a tapped stop does.
+      if (finished && target && target.stop >= 0 && target.stop < walk.stops.length && walk.restAt !== target.stop) {
+        api.visit(target.stop);
+        return;
+      }
+      syncTap();
+    },
     destroy: () => {
+      element.removeEventListener("click", openNext);
+      element.removeEventListener("keydown", onKey);
       unsubscribe();
       stopWalking();
       marker?.remove();

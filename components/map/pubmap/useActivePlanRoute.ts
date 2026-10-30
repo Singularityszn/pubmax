@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 import {
   isPlanActiveNow,
@@ -83,4 +83,17 @@ export function useActivePlanRoute(): PlanStopDTO[] {
   }, []);
 
   return stops;
+}
+
+const readStopIndex = (): number => readActivePlan()?.stopIndex ?? 0;
+const serverStopIndex = (): number => 0;
+
+/**
+ * The Night Mode cursor of tonight's plan (`ActivePlanRef.stopIndex`, moved
+ * only by a tap), so the map Pal can wait at the next stop. A plain read of
+ * the pointer: unlike useActivePlan it restores nothing on the server. 0 on
+ * the server and first paint.
+ */
+export function useActivePlanStopIndex(): number {
+  return useSyncExternalStore(subscribeActivePlan, readStopIndex, serverStopIndex);
 }

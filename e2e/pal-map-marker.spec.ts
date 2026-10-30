@@ -5,13 +5,15 @@ import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
 
 // The Pal on the map (components/map/canvas/palMarker.ts): the reader's own
 // Pub Pal perches beside the pub they open, takes no taps from the pins under
-// it, and is never made for a Pal the reader hid. Shots land in
+// it, and is never made for a Pal the reader hid. On tonight's plan it waits at
+// the next stop as the one button it ever is, and a tap opens that pub. Shots land in
 // artifacts/pal-map-marker/ (gitignored).
 
 const SHOTS = "artifacts/pal-map-marker";
 const VENUE_ID = "venue-xjf3n0";
 // Three Soho stops from the "Victorian Soho" curated crawl (alt-crawls.spec.ts).
 const CRAWL = "venue-1ufn31x,venue-1t8siin,venue-xiesdn";
+const PLAN_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 
 async function seedPal(page: Page, hidden = false): Promise<void> {
   await page.addInitScript(({ appearance, personality, voice, hidden: palHidden }) => {
@@ -47,6 +49,56 @@ test.describe("the Pal on the map", () => {
     await page.waitForTimeout(1_200);
     await mkdir(SHOTS, { recursive: true });
     await page.screenshot({ path: `${SHOTS}/pal-on-map-390.png` });
+  });
+
+  test("waits at tonight's next stop as a button that opens it, and walks on when the night does", async ({ page }) => {
+    test.setTimeout(150_000);
+    await page.setViewportSize({ width: 390, height: 844 });
+    const stops = CRAWL.split(",");
+    await page.route(`**/api/plans/${PLAN_ID}`, (route) => route.fulfill({
+      json: { stops: stops.map((venueId, position) => ({ venueId, venueName: venueId, position })) },
+    }));
+    await page.route(`**/api/plans/${PLAN_ID}/pals`, (route) => route.fulfill({ json: { visibility: "member", pals: [] } }));
+    await seedPal(page);
+    await page.addInitScript((planId) => {
+      // Set once, so a reload or a later cursor write in the test is kept.
+      if (window.sessionStorage.getItem("e2e-plan-seeded")) return;
+      window.sessionStorage.setItem("e2e-plan-seeded", "1");
+      window.localStorage.setItem("pubmax_active_plan", JSON.stringify({
+        version: 1, id: planId, startTime: new Date(Date.now() - 60 * 60 * 1000).toISOString(), stopIndex: 0,
+      }));
+    }, PLAN_ID);
+    await page.goto("/map");
+
+    // On the first stop, tonight's next stop is the second: the Pal waits there as a button.
+    const marker = page.locator(".palMapMarker:not([data-pal-crew])");
+    await expect(marker).toHaveAttribute("role", "button", { timeout: 60_000 });
+    const label = (await marker.getAttribute("aria-label")) ?? "";
+    expect(label).toMatch(/^Next stop: \S/);
+    const name = label.replace(/^Next stop: /, "");
+    await expect(marker.locator(".palMapMarkerNext")).toHaveText(`Next: ${name}`);
+    await expect(marker).not.toHaveAttribute("aria-hidden", "true");
+    expect(await marker.evaluate((element) => getComputedStyle(element).pointerEvents)).toBe("auto");
+    const box = (await marker.boundingBox())!;
+    expect(box.width).toBeGreaterThanOrEqual(38);
+    await page.waitForTimeout(900);
+    await mkdir(SHOTS, { recursive: true });
+    await page.screenshot({ path: `${SHOTS}/pal-next-stop-390.png` });
+
+    // A tap opens that pub.
+    await marker.click();
+    await expect(page).toHaveURL(new RegExp(`sel=${stops[1]}`), { timeout: 30_000 });
+    await page.waitForTimeout(900);
+    await page.screenshot({ path: `${SHOTS}/pal-next-stop-opened-390.png` });
+
+    // Night Mode moves on to the second stop: the Pal walks on to the third and waits there.
+    await page.evaluate(() => {
+      const raw = window.localStorage.getItem("pubmax_active_plan")!;
+      window.localStorage.setItem("pubmax_active_plan", JSON.stringify({ ...JSON.parse(raw), stopIndex: 1 }));
+      window.dispatchEvent(new Event("focus"));
+    });
+    await expect(marker).not.toHaveAttribute("aria-label", label, { timeout: 30_000 });
+    await expect(marker).toHaveAttribute("aria-label", /^Next stop: \S/, { timeout: 30_000 });
   });
 
   test("is never made for a Pal the reader hid", async ({ page }) => {

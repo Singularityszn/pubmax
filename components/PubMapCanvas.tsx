@@ -274,6 +274,12 @@ type PubMapCanvasProps = {
    * (lib/crewPals.ts). Empty unless `route` is the active plan's own route.
    */
   crewPals?: readonly CrewPal[];
+  /**
+   * Tonight's next stop (lib/activePlanRoute.ts planNextStopVenue), when
+   * `route` is the active plan's own route. The reader's Pal walks no further
+   * than it, waits beside it, and opens it through onRouteStopClick when tapped.
+   */
+  palNextStop?: { venueId: string; name: string } | null;
   selectedVenueId: string;
   onVenueClick: (id: string) => void;
   /**
@@ -722,6 +728,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     venueDataReady,
     route,
     crewPals,
+    palNextStop,
     selectedVenueId,
     onVenueClick,
     onReaderTouchedMap,
@@ -1236,6 +1243,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   // step behind the reader's own, and the walk they were last sent on.
   const crewMarkersRef = useRef<PalMapMarker[]>([]);
   const palWalkRef = useRef<Parameters<PalMapMarker["walk"]>[0] | null>(null);
+  // Tonight's next stop, for crew Pals made after it was set.
+  const palNextRef = useRef<Parameters<PalMapMarker["nextStop"]>[0]>(null);
   const walkPals = useCallback((walk: Parameters<PalMapMarker["walk"]>[0]) => {
     palWalkRef.current = walk;
     palMarkerRef.current?.walk(walk);
@@ -4376,6 +4385,22 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     palMarkerRef.current?.perch(venue ? [venue.longitude, venue.latitude] : null, { cheap: palPinIsCheap(pin?.properties) });
   }, [routeCoordKey, routeIds, selectedVenueId, venues, venueSignals, favoritePint, drinkCategory, lensPrices, spoonsValue, mapReady, walkPals]);
 
+  // Tonight's next stop: the reader's Pal waits beside it and, tapped there,
+  // opens it the way a tapped route stop does.
+  // The crew's Pals wait there with it, as pictures, never buttons.
+  const palNextVenueId = palNextStop?.venueId ?? "";
+  const palNextName = palNextStop?.name ?? "";
+  useEffect(() => {
+    if (!mapReady) return;
+    const stop = palNextVenueId ? routeIds.split(",").indexOf(palNextVenueId) : -1;
+    const next = stop >= 0
+      ? { stop, name: palNextName, open: () => onRouteStopClickRef.current(palNextVenueId) }
+      : null;
+    palNextRef.current = next;
+    palMarkerRef.current?.nextStop(next);
+    for (const marker of crewMarkersRef.current) marker.nextStop(next);
+  }, [palNextVenueId, palNextName, routeIds, mapReady]);
+
   // The crew's Pals: made when the crew read lands, walked on the route the
   // reader's own Pal is on, and gone with the plan's route.
   const crewPalKey = (crewPals ?? []).map((pal) => `${pal.id}:${pal.muted ? 1 : 0}`).join(",");
@@ -4384,6 +4409,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     if (!mapReady || !map || !crewPals || crewPals.length === 0) return;
     const markers = crewPals.map((pal, index) => createPalMapMarker(map, { pal: crewPalLook(pal), index }));
     crewMarkersRef.current = markers;
+    for (const marker of markers) marker.nextStop(palNextRef.current);
     if (palWalkRef.current) for (const marker of markers) marker.walk(palWalkRef.current);
     return () => {
       for (const marker of markers) marker.destroy();
