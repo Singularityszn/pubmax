@@ -63,6 +63,7 @@ import type { VenueDropReadStatus } from "@/components/map/usePintDrops";
 import VenueDrinkPrices from "@/components/map/VenueDrinkPrices";
 import VenuePriceEntryPanel from "./VenuePriceEntryPanel";
 import VenueSpoonsValueRow from "./VenueSpoonsValueRow";
+import VenueCorrectionDoor from "./VenueCorrectionDoor";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { usePriceEvidenceMission } from "@/components/nearme/usePriceEvidenceMission";
 import VenueRecordSummary from "./VenueRecordSummary";
@@ -313,6 +314,25 @@ function PriceDoor({
   );
 }
 
+/** The price door and, beside it, the quiet "That's wrong" door. Both fold away while the composer is open. */
+function PriceDoorRow(props: Parameters<typeof PriceDoor>[0]) {
+  const { venue, composerOpen, onLogTonightPrice } = props;
+  return (
+    <>
+      <PriceDoor {...props} />
+      {isPubVenue(venue) && !composerOpen ? (
+        <VenueCorrectionDoor
+          key={venue.id}
+          venueId={venue.id}
+          venueName={venue.name}
+          onLogPrice={onLogTonightPrice}
+          where="price"
+        />
+      ) : null}
+    </>
+  );
+}
+
 /**
  * A DRINKER'S OWN LOG, printed with what it is still worth beside it.
  *
@@ -463,8 +483,11 @@ function VenuePriceSummary({
   const bandArea = priceBandAreaForVenue(venue.id);
   // THE ONE DOOR, decided once here and appended to whichever lane block
   // renders, so no lane can grow a second invitation of its own.
+  // "That's wrong" rides beside it as a quiet text door, never a second price
+  // door: it wears no `priceDoor` class, and its price choice opens this same
+  // log action rather than posting anything.
   const door = (
-    <PriceDoor
+    <PriceDoorRow
       venue={venue}
       door={overviewPriceDoor(trustChipState, lane)}
       composerOpen={composerOpen}
@@ -1208,6 +1231,16 @@ export default function VenueOverviewTab({
       <VenuePlacesDetails venue={venue} links />
       <VenueSiteDetails venue={venue} />
       <VenueOsmDetails facts={venue.osmFacts} />
+      {/* "That's wrong" on the hours and the listed facts above it: shut,
+          wrong hours, or something else, sent to a person. */}
+      <VenueCorrectionDoor
+        key={venue.id}
+        venueId={venue.id}
+        venueName={venue.name}
+        onLogPrice={logTonightPrice}
+        offerPrice={isPubVenue(venue)}
+        where="details"
+      />
       <CityPlaceStrip
         venueId={venue.id}
         venueName={venue.name}

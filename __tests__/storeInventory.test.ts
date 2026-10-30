@@ -184,6 +184,7 @@ const STORE_INVENTORY: Record<string, StoreRow> = {
   "lib/stepOutNudgeStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/venueOperatorsStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/venuePhotoStore.ts": { class: "policy-heavy", selector: "selectStore" },
+  "lib/venueCorrectionsStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/venueSubmissionStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/visitReportsStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/walkRouteStore.ts": { class: "cache-backed", selector: "selectStore" },

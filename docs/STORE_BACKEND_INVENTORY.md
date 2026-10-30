@@ -91,6 +91,7 @@ silently stale.
 | socialPostVideoStore | factory-eligible, policy-heavy | Upload intents, held-until-watched review and signed playback. |
 | socialPubRankingStore | factory-eligible, policy-heavy | Adjacent-neighbour placement and stale-list refusal (0186). |
 | stepOutNudgeStore | factory-ready | Nudge preference and send-stamp rows with shared backend selection. |
+| venueCorrectionsStore | factory-ready | "That's wrong" notes about a pub (shut, hours, other) and the moderator's resolve or dismiss. |
 | venueOperatorsStore | factory-eligible, policy-heavy | Venue claim ownership and operator moderation policy. |
 | venuePhotoStore | factory-eligible, policy-heavy | Photo cap, author projection, reports, and moderation policy. |
 | venueSubmissionStore | factory-ready | Pubs a drinker proposes, with their menu files; pending cap and moderator verdicts. |
@@ -256,7 +257,7 @@ and Supabase implementations keep their existing fail-soft behavior.
 The current branch also has `createDualBackendStore` in
 `adultSelfAssertionStore`, `diaryStore`, `feedFreshnessStore`,
 `harvestOverlayStore`, `occupancyStore`, `priceTrustEventStore`,
-`pubPalToolTurnStore`, `stepOutNudgeStore`, `venueSubmissionStore`,
+`pubPalToolTurnStore`, `stepOutNudgeStore`, `venueCorrectionsStore`, `venueSubmissionStore`,
 `walkRouteStore` and `wantedStore`. This inventory records that current state; it does not require
 other stores to migrate.
 

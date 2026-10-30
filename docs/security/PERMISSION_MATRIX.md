@@ -138,6 +138,9 @@ no side effect, as above.
 | Attach a menu file (`POST /api/venue-submissions`, multipart) | 401 | 404 on another account's submission | 404 on another account's submission | n/a | n/a | n/a | own pending submission, up to three files |
 | `venue_submissions`, `venue_submission_files` at the table | denied | denied | denied | n/a | n/a | n/a | denied: no browser grant, service role only (0189) |
 | Decide a submission, read the queue (`/api/admin/venue-submissions`) | 403 | 403 | 403 | 403 | 403 | 403 | 403; `ADMIN_TOKEN` only |
+| Send a "That's wrong" note (`POST /api/venue-corrections`) | 401 | written as their OWN note; a body owner is ignored | written as their own note | n/a | n/a | n/a | own note; nobody reads it back but staff |
+| `venue_corrections` at the table | denied | denied | denied | n/a | n/a | n/a | denied: no browser grant, service role only (0197) |
+| Read the corrections queue, resolve or dismiss (`/api/admin/venue-corrections`) | 403 | 403 | 403 | 403 | 403 | 403 | 403; `ADMIN_TOKEN` only, and the queue names no reporter |
 | Read a saved-pub list (`GET /api/saved-pubs`) | public by design |||||||
 | Write a saved-pub list (`POST /api/saved-pubs`) | 403 on a claimed handle, 404 on a handle with no profile row (no row is minted) | writes to their OWN list, never the named one ||||| allowed |
 | `saved_pubs` at the table | denied | no rows, and a write is refused at the grant (0172) ||||| own rows, SELECT only; a write is refused at the grant |
