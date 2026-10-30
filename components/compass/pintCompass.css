@@ -109,10 +109,13 @@
   font-weight: 700;
 }
 
+/* The dial's centre is the viewBox's (0, 0). Under view-box the reference box
+   starts at that origin, so "50% 50%" would be (100, 100) and the needle
+   would swing about the corner of the dial. */
 .pcRing,
 .pcNeedle {
   transform-box: view-box;
-  transform-origin: 50% 50%;
+  transform-origin: 0 0;
 }
 
 /* The sensor fires many times a second; a short linear follow reads as a

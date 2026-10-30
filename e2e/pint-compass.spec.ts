@@ -125,6 +125,16 @@ for (const theme of ["light", "dark"] as const) {
     await settleHeading(page, bearing);
     await expect(page.getByTestId("compass-direction")).toHaveText("You are facing it.");
     await expect(page.locator(".pcDial")).toHaveAttribute("data-aligned", "true");
+    // Facing it means the needle stands straight up from the hub on screen.
+    await expect(async () => {
+      const hub = await page.locator(".pcHub").boundingBox();
+      const head = await page.locator(".pcNeedleHead").boundingBox();
+      if (!hub || !head) throw new Error("dial not drawn");
+      const hubX = hub.x + hub.width / 2;
+      const headX = head.x + head.width / 2;
+      expect(Math.abs(headX - hubX)).toBeLessThan(hub.width * 2);
+      expect(head.y + head.height).toBeLessThan(hub.y + hub.height);
+    }).toPass({ timeout: 5_000 });
     await page.screenshot({ path: `${SHOTS}/390-${theme}-facing.png` });
 
     // Next cheapest steps through the list.
@@ -149,6 +159,17 @@ test("a phone with no compass gets the direction in words", async ({ page }) => 
     /^(north|north-east|east|south-east|south|south-west|west|north-west), \d+ min$/,
   );
   await expect(card.getByText("This phone is not sharing a compass heading")).toBeVisible();
+  // North sits at the top of a dial that cannot turn, and the needle swings
+  // about the hub: its head stays inside the face.
+  const face = await page.locator(".pcDialFace").boundingBox();
+  const head = await page.locator(".pcNeedleHead").boundingBox();
+  expect(face && head).toBeTruthy();
+  if (face && head) {
+    expect(head.x).toBeGreaterThanOrEqual(face.x);
+    expect(head.x + head.width).toBeLessThanOrEqual(face.x + face.width);
+    expect(head.y).toBeGreaterThanOrEqual(face.y);
+    expect(head.y + head.height).toBeLessThanOrEqual(face.y + face.height);
+  }
   await page.screenshot({ path: `${SHOTS}/390-light-no-sensor.png` });
 });
 
