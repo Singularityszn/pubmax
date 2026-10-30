@@ -1,4 +1,5 @@
 import { Bird, Bot, Rabbit, Squirrel, Turtle, type LucideIcon } from "lucide-react";
+import type { Ref } from "react";
 
 import {
   type PalAnimationState,
@@ -6,7 +7,9 @@ import {
   type PubPalSpecies,
 } from "@/lib/pubPal";
 import { palGenomeStyle, type PalGenome } from "@/lib/palGenome";
+import PalStageCanvas, { type PalStageHandle } from "@/components/pal/PalStageCanvas";
 import { PubPalMascot, PubPalMascotMouth } from "@/components/pal/PubPalMascot";
+import { palStageSpeciesForSlug } from "@/lib/palStageRig";
 import { pubPalMascotSlugFor } from "@/lib/pubPalMascot";
 
 /**
@@ -52,7 +55,7 @@ function legacyIconFor(species: PubPalSpecies): { Icon: LucideIcon; description:
 const PORTRAIT_MASCOT_SIZES =
   "(max-width: 760px) min(10.44rem, 41.76vw), min(24.36rem, 42.92vw)";
 
-export default function PalPortrait({ appearance, name, compact = false, state = "idle", priority = false, genome }: {
+export default function PalPortrait({ appearance, name, compact = false, state = "idle", priority = false, genome, stage }: {
   appearance: PubPalAppearance;
   name: string;
   compact?: boolean;
@@ -61,12 +64,19 @@ export default function PalPortrait({ appearance, name, compact = false, state =
   priority?: boolean;
   /** This Pal's genome: how its photograph is held. None for a draft. */
   genome?: PalGenome;
+  /**
+   * The live 3D stage's handle, where a head loop (usePalHead3D) drives this
+   * portrait. The stage lays the moving artwork over the still photograph.
+   */
+  stage?: Ref<PalStageHandle>;
 }) {
   const mascotSize = compact ? 96 : 192;
   // A species that ships a master is drawn as that photograph. The legacy
   // icons are the only other lane, so the question is asked once here rather
   // than by comparing species names in three places.
-  const rendered = pubPalMascotSlugFor(appearance.species) !== null;
+  const slug = pubPalMascotSlugFor(appearance.species);
+  const rendered = slug !== null;
+  const stageSpecies = stage ? palStageSpeciesForSlug(slug) : null;
   const legacy = rendered ? null : legacyIconFor(appearance.species);
 
   return (
@@ -96,6 +106,8 @@ export default function PalPortrait({ appearance, name, compact = false, state =
               circular={false}
               className="palPortraitMascot"
             />
+            {/* The moving artwork, over the still once its first frame is drawn. */}
+            {stageSpecies ? <PalStageCanvas species={stageSpecies} className="palPortraitMascot" ref={stage} /> : null}
             {/* The open mouth, only once the Pal has a voice to move it. */}
             {state === "speaking" || state === "listening" ? (
               <PubPalMascotMouth

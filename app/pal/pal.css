@@ -448,6 +448,7 @@ body:has(.analyticsConsentPrompt) .palPrintRow { display: none; }
    rests its head at. The photograph is never redrawn or recoloured; the zoom
    never drops under 1.08, so a framing shift never shows its edge. */
 .palPortrait[data-genome] .palPortraitMascot img,
+.palPortrait[data-genome] .palStageCanvas,
 .palVoiceFace[data-genome] .palVoiceFaceImg img {
   transform-origin: 50% 55%;
   transform: translate(var(--genome-x, 0%), var(--genome-y, 0%)) scale(var(--genome-zoom, 1)) scaleX(var(--genome-flip, 1));
@@ -476,6 +477,21 @@ body:has(.analyticsConsentPrompt) .palPrintRow { display: none; }
 .palHomePortrait[data-head-3d="live"] .palPortraitEcho { translate: 0 0 -2.5rem; }
 .palHomePortrait[data-head-3d="live"] .palPortraitCore { translate: 0 0 2rem; }
 .palHomePortrait[data-head-3d="live"] .palPortraitAccessory { translate: 0 0 3.5rem; }
+/* The live 3D stage (components/pal/PalStageCanvas.tsx): the Pal's own
+   artwork, moved by a depth map, laid exactly over the still photograph and
+   shown only once its first frame is drawn. While it runs, the head turns,
+   nods, tilts and talks INSIDE the picture, so the card no longer rotates or
+   lays the mouth frame on top; it still lifts, leans in and swells. */
+.palStageCanvas { position: absolute; inset: 0; z-index: 1; opacity: 0; pointer-events: none; }
+.palStageCanvas[data-stage="live"] { opacity: 1; transition: opacity .3s var(--ease-out-strong); }
+.palPortrait[data-pal-state="sleeping"] .palStageCanvas { filter: brightness(.72); }
+.palPortraitCore:has(> .palStageCanvas[data-stage="live"]) > .palMascotMouth { display: none; }
+.palHomePortrait[data-head-3d="live"]:has(.palStageCanvas[data-stage="live"]) .palPortrait {
+  transform:
+    translateY(calc(var(--pal-lift, 0px) * -1))
+    translateZ(var(--pal-lean, 0px))
+    scale(var(--pal-scale, 1));
+}
 /* A fixed light: as the head turns, its sheen slides across the photograph. */
 .palHomePortrait[data-head-3d="live"] .palPortraitCore::after {
   content: "";
