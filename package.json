@@ -256,6 +256,9 @@
     },
     "eslint-plugin-import": {
       "eslint": "$eslint"
+    },
+    "@vercel/cli-config": {
+      "zod": "$zod"
     }
   }
 }
