@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
+import { landmarkById } from "@/lib/landmarks";
 import {
   PAL_PASSPORT_ANYWHERE,
+  PAL_PASSPORT_AREA_LANDMARKS,
+  PAL_PASSPORT_PLAIN_MARK,
   PAL_QUEST_NO_DRINK,
   PAL_QUEST_STAMPS_KEY,
   palQuestDoneLine,
@@ -155,13 +158,26 @@ describe("the price passport", () => {
     expect(palPassportPages([])).toEqual([]);
   });
 
-  it("gives the well-known areas their landmark, and every other area a steady one", () => {
+  it("gives an area only a landmark that really stands in it, and every other area the plain mark", () => {
     expect(palPassportLandmark("Westminster")).toBe("clock-tower");
     expect(palPassportLandmark("southwark")).toBe("shard");
-    expect(palPassportLandmark("Camden")).toBe("market");
-    expect(palPassportLandmark("Barnet")).toBe(palPassportLandmark("Barnet"));
-    expect(["clock-tower", "dome", "twin-towers", "shard", "wheel", "gherkin", "column", "civic", "keep", "market", "canal", "ship", "chimneys"])
-      .toContain(palPassportLandmark(PAL_PASSPORT_ANYWHERE));
+    expect(palPassportLandmark("Camden")).toBe("canal");
+    expect(palPassportLandmark("Wandsworth")).toBe("chimneys");
+    // No area borrows another area's famous building: an area the table does
+    // not name, a city outside London and the undated page all get the plain mark.
+    for (const area of ["Croydon", "Hounslow", "Haringey", "Newham", "Barking and Dagenham", "Barnet", "Harrow",
+      "Hammersmith and Fulham", "Hillingdon", "Sutton", "Lewisham", "Hackney", "Islington", "Manchester", PAL_PASSPORT_ANYWHERE]) {
+      expect(palPassportLandmark(area)).toBe(PAL_PASSPORT_PLAIN_MARK);
+    }
+  });
+
+  it("names, for every area in the table, a curated landmark of that area that wears that mark", () => {
+    for (const [area, { mark, landmarkId }] of Object.entries(PAL_PASSPORT_AREA_LANDMARKS)) {
+      const landmark = landmarkById(landmarkId);
+      expect(landmark, `${area}: ${landmarkId}`).toBeDefined();
+      expect(landmark!.icon, `${area}: ${landmarkId}`).toBe(mark);
+      expect(mark).not.toBe(PAL_PASSPORT_PLAIN_MARK);
+    }
   });
 
   it("poses the Pal its own way for each area, and the same way every visit", () => {

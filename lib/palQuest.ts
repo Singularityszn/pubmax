@@ -128,9 +128,10 @@ export function palQuestStampDate(day: string): string {
 
 // ---------------------------------------------------------------------------
 // The price passport: the stamp book as one page per London area, each page
-// with the area's own landmark (the map's pictograms, lib/mapIcons.ts) and the
-// person's Pal posed its own way for that area. Still a mark, never a score: a
-// page names its area and shows its stamps, and nothing counts pages or stamps.
+// with a landmark that really stands in that area, or else a plain mark (the
+// map's pictograms, lib/mapIcons.ts), and the person's Pal posed its own way
+// for that area. Still a mark, never a score: a page names its area and shows
+// its stamps, and nothing counts pages or stamps.
 // ---------------------------------------------------------------------------
 
 /** The page for stamps from before the passport knew their area. */
@@ -155,29 +156,34 @@ function hashOf(text: string): number {
   return Math.abs(hash);
 }
 
-/** The landmarks a page may wear: the map's own pictograms (iconId "lm:<key>"). */
-const PASSPORT_LANDMARKS = [
-  "clock-tower", "dome", "twin-towers", "shard", "wheel", "gherkin", "column",
-  "civic", "keep", "market", "canal", "ship", "chimneys",
-] as const;
-export type PalPassportLandmark = (typeof PASSPORT_LANDMARKS)[number];
+/** The marks a page may wear: the map's own pictograms (iconId "lm:<key>"). */
+export type PalPassportLandmark = "clock-tower" | "dome" | "shard" | "wheel" | "keep" | "canal" | "ship" | "chimneys" | "civic";
 
-/** The areas whose landmark everyone knows; every other area gets a steady one of its own. */
-const AREA_LANDMARKS: Record<string, PalPassportLandmark> = {
-  "westminster": "clock-tower",
-  "city of london": "dome",
-  "tower hamlets": "keep",
-  "southwark": "shard",
-  "lambeth": "wheel",
-  "camden": "market",
-  "islington": "canal",
-  "greenwich": "ship",
-  "hackney": "chimneys",
+/** The plain mark, the map's generic civic building: it names no real place. */
+export const PAL_PASSPORT_PLAIN_MARK = "civic" satisfies PalPassportLandmark;
+
+/**
+ * The areas whose page wears a named building, each with the curated landmark
+ * (lib/landmarks.ts, by id) that really stands in that area and wears that
+ * mark on the map. An area never borrows another area's building, so every
+ * area not named here, and "Around London", wears the plain mark.
+ */
+export const PAL_PASSPORT_AREA_LANDMARKS: Readonly<Record<string, { mark: PalPassportLandmark; landmarkId: string }>> = {
+  "westminster": { mark: "clock-tower", landmarkId: "big-ben" },
+  "city of london": { mark: "dome", landmarkId: "st-pauls" },
+  "tower hamlets": { mark: "keep", landmarkId: "tower-of-london" },
+  "southwark": { mark: "shard", landmarkId: "the-shard" },
+  "lambeth": { mark: "wheel", landmarkId: "london-eye" },
+  "camden": { mark: "canal", landmarkId: "camden-lock" },
+  "greenwich": { mark: "ship", landmarkId: "greenwich" },
+  "wandsworth": { mark: "chimneys", landmarkId: "battersea-power-station" },
+  "kensington and chelsea": { mark: "dome", landmarkId: "royal-albert-hall" },
+  "richmond upon thames": { mark: "keep", landmarkId: "hampton-court-palace" },
 };
 
-/** The landmark a page wears: the area's own, or the same one every time for an area without one. */
+/** The mark a page wears: its area's own building, or the plain mark. */
 export function palPassportLandmark(area: string): PalPassportLandmark {
-  return AREA_LANDMARKS[area.trim().toLowerCase()] ?? PASSPORT_LANDMARKS[hashOf(area) % PASSPORT_LANDMARKS.length]!;
+  return PAL_PASSPORT_AREA_LANDMARKS[area.trim().toLowerCase()]?.mark ?? PAL_PASSPORT_PLAIN_MARK;
 }
 
 /**
