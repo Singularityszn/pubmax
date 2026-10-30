@@ -36,14 +36,14 @@ export type LocationState =
   | { kind: "failed"; failure: NearMeLocationFailure };
 
 /** Watch options. High accuracy, because a bearing from a 1 km guess is a guess. */
-export const COMPASS_WATCH_OPTIONS: PositionOptions = {
+const COMPASS_WATCH_OPTIONS: PositionOptions = {
   enableHighAccuracy: true,
   timeout: 15_000,
   maximumAge: 10_000,
 };
 
 /** With no reading by then, the phone has no usable compass. */
-export const HEADING_FIRST_READING_MS = 2_500;
+const HEADING_FIRST_READING_MS = 2_500;
 
 type OrientationCtor = {
   requestPermission?: () => Promise<"granted" | "denied" | "default">;

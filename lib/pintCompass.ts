@@ -30,10 +30,10 @@ export type CompassWalkMinutes = (typeof COMPASS_WALK_MINUTES)[number];
 export const DEFAULT_COMPASS_WALK_MINUTES: CompassWalkMinutes = 10;
 
 /** One widening, to twice the walk. */
-export const WIDEN_FACTOR = 2;
+const WIDEN_FACTOR = 2;
 
 /** The most pubs the needle can step through. */
-export const MAX_COMPASS_TARGETS = 8;
+const MAX_COMPASS_TARGETS = 8;
 
 /**
  * Inside this many degrees either side, the reader is facing the pub. It is
@@ -298,7 +298,7 @@ export function remeasureTarget(origin: CompassPoint, target: CompassTarget): Co
  * Whether the reader has moved far enough from the fix the list was ranked at
  * for the list itself to be read again.
  */
-export const RERANK_AFTER_KM = 0.25;
+const RERANK_AFTER_KM = 0.25;
 export function shouldRerank(rankedAt: CompassPoint | null, now: CompassPoint): boolean {
   return rankedAt === null || distanceKm(rankedAt, now) > RERANK_AFTER_KM;
 }
