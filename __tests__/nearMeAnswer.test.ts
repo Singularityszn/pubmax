@@ -3,6 +3,7 @@ import { describe, it, expect } from "vitest";
 import {
   boroughsWithPrices,
   nearSavingLine,
+  nearestListedPub,
   rankBoroughCheapest,
   rankCityCheapest,
   rankNearMe,
@@ -97,6 +98,119 @@ describe("Near Me branch identity", () => {
     expect(answer.cards[0]?.name).toBe("Coach & Horses");
     expect(answer.nearest?.name).toBe("Coach & Horses");
     expect(nearSavingLine(answer.cards, answer.nearest)).toBeNull();
+  });
+});
+
+describe("nearestListedPub", () => {
+  it("chooses distance before price or operator and preserves the cheapest-pint answer", () => {
+    const venues: PricedPoint[] = [
+      { ...at("spoons", 0.004, 0, 3.2), name: "The Example - JD Wetherspoon" },
+      { ...at("independent", 0.0002, 0, 7), name: "The Local" },
+      at("middle", 0.002, 0, 5),
+    ];
+
+    expect(nearestListedPub(here.lat, here.lng, venues)?.id).toBe("independent");
+    expect(rankNearMe(here.lat, here.lng, venues).cards.map((card) => card.id))
+      .toEqual(["spoons", "middle", "independent"]);
+  });
+
+  it("keeps a nearer unpriced pub eligible without inventing a pint price", () => {
+    const venues = [at("cheap", 0.004, 0, 3.2), at("unpriced", 0.0001, 0, null)];
+
+    expect(nearestListedPub(here.lat, here.lng, venues)).toMatchObject({
+      id: "unpriced", walkMinutes: 1,
+    });
+    expect(rankNearMe(here.lat, here.lng, venues).cards.map((card) => card.id)).toEqual(["cheap"]);
+    expect(venues[1]?.cheapestPrice).toBeNull();
+  });
+
+  it.each(["bar", "cafe", "restaurant", "food", "club", "other"] as const)(
+    "does not call a nearer %s the nearest pub",
+    (kind) => {
+      const venues = [at("non-pub", 0, 0, 2, "Camden", kind), at("public", 0.001, 0, null, "Camden", "pub")];
+      expect(nearestListedPub(here.lat, here.lng, venues)?.id).toBe("public");
+    },
+  );
+
+  it.each(["Members Only Bar", "Students' Union Bar", "Staff Club", "Working Men's Club"])(
+    "excludes a closer private venue named %s",
+    (name) => {
+      const venues = [{ ...at("private", 0, 0, 2), name }, at("public", 0.001, 0, null)];
+      expect(nearestListedPub(here.lat, here.lng, venues)?.id).toBe("public");
+    },
+  );
+
+  it.each([
+    { lat: Number.NaN, lng: here.lng },
+    { lat: here.lat, lng: Number.POSITIVE_INFINITY },
+    { lat: 91, lng: here.lng },
+    { lat: -91, lng: here.lng },
+    { lat: here.lat, lng: 181 },
+    { lat: here.lat, lng: -181 },
+  ])("refuses invalid origin coordinates $lat, $lng", ({ lat, lng }) => {
+    expect(nearestListedPub(lat, lng, [at("public", 0, 0, null)])).toBeNull();
+  });
+
+  it("ignores venues with non-finite or out-of-range coordinates", () => {
+    const invalid = [
+      { lat: Number.NaN, lng: here.lng },
+      { lat: here.lat, lng: Number.NEGATIVE_INFINITY },
+      { lat: 91, lng: here.lng },
+      { lat: -91, lng: here.lng },
+      { lat: here.lat, lng: 181 },
+      { lat: here.lat, lng: -181 },
+    ].map((coordinates, index) => ({ ...at(`invalid-${index}`, 0, 0, 1), ...coordinates }));
+
+    expect(nearestListedPub(here.lat, here.lng, [...invalid, at("valid", 0.001, 0, null)])?.id).toBe("valid");
+    expect(nearestListedPub(here.lat, here.lng, invalid)).toBeNull();
+  });
+
+  it("breaks equal-distance ties by venue ID regardless of input order", () => {
+    const a = at("a", 0.001, 0, null);
+    const z = at("z", 0.001, 0, 2);
+    expect(nearestListedPub(here.lat, here.lng, [z, a])?.id).toBe("a");
+    expect(nearestListedPub(here.lat, here.lng, [a, z])?.id).toBe("a");
+  });
+
+  it("returns no nearest pub for an empty list or an ineligible list", () => {
+    expect(nearestListedPub(here.lat, here.lng, [])).toBeNull();
+    expect(nearestListedPub(here.lat, here.lng, [at("cafe", 0, 0, 2, "Camden", "cafe")])).toBeNull();
+  });
+
+  it("accepts coordinate boundaries and gives a co-located pub a one-minute estimate", () => {
+    const venue = { ...at("at-origin", 0, 0, null), lat: 90, lng: 180 };
+    expect(nearestListedPub(90, 180, [venue])).toMatchObject({
+      id: "at-origin", distanceKm: 0, walkMinutes: 1,
+    });
+  });
+
+  it("reports a kilometre distance and a rounded walking estimate", () => {
+    // One hundredth of a degree of latitude is about 1.112 km.
+    const venue = { ...at("one-kilometre", 0, 0, null), lat: 0.01, lng: 0 };
+    const answer = nearestListedPub(0, 0, [venue]);
+    expect(answer?.distanceKm).toBeCloseTo(1.112, 2);
+    expect(answer?.walkMinutes).toBe(14);
+  });
+
+  it("names a namesake nearest pub by branch when a shown card shares its name", () => {
+    const venues: PricedPoint[] = [
+      { ...at("venue-nyowgc", 0, 0, null, "Westminster"), name: "Coach & Horses", address: "1 Great Malborough Street, W1F 7HG" },
+      { ...at("venue-phqazo", 0.002, 0, 5.7, "Westminster"), name: "The Coach & Horses", address: "29 Greek St, London W1D 5DH" },
+    ];
+    expect(nearestListedPub(here.lat, here.lng, venues, ["venue-phqazo"])?.name)
+      .toBe("Coach & Horses (1 Great Malborough Street)");
+    // With no namesake on screen the pub keeps its own name.
+    expect(nearestListedPub(here.lat, here.lng, venues)?.name).toBe("Coach & Horses");
+    expect(nearestListedPub(here.lat, here.lng, venues, ["venue-nyowgc"])?.name).toBe("Coach & Horses");
+  });
+
+  it("reads a frozen venue list without sorting or changing its rows", () => {
+    const venues = Object.freeze([
+      Object.freeze(at("far", 0.004, 0, 3.2)),
+      Object.freeze(at("near", 0.0001, 0, null)),
+    ]);
+    expect(nearestListedPub(here.lat, here.lng, venues)?.id).toBe("near");
+    expect(venues.map((venue) => venue.id)).toEqual(["far", "near"]);
   });
 });
 
