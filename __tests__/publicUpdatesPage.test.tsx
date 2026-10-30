@@ -26,7 +26,7 @@ describe("the public updates page", () => {
   it("gives shared links their own canonical address and plain description", () => {
     expect(metadata.alternates?.canonical).toBe("/updates");
     expect(metadata.title).toBe("Updates");
-    expect(metadata.description).toBe("The latest changes to PUBMAXX, with the day each one went live.");
+    expect(metadata.description).toBe("The latest changes now live on PUBMAXX, newest first.");
   });
 
   it("shows an appended newer release before older notes", async () => {

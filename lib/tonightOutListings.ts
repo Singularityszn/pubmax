@@ -731,10 +731,7 @@ export function tonightProvenanceCredits(input: {
     whatsOnExclusions,
     out: out.text,
     whatsOnDated,
-    // With no What's-On row on screen, a dated Out line already dates the
-    // empty answer; a missing-date notice beside it reads as a contradiction.
-    whatsOnUndated: !whatsOnDated &&
-      (lanes.whatsOnCount > 0 || (!whatsOnExclusions && !(out.text && out.dated))),
+    whatsOnUndated: !whatsOnDated && (lanes.whatsOnCount > 0 || !whatsOnExclusions),
     outDated: out.dated,
   };
 }

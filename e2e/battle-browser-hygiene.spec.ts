@@ -33,14 +33,24 @@ for (const width of [1280, 390]) {
     await expect(toggle).toBeVisible();
     await expect(toggle).toHaveAttribute("aria-expanded", "false");
     const panel = page.locator(`[id="${await toggle.getAttribute("aria-controls")}"]`);
-    await toggle.focus();
-    await page.keyboard.press("Enter");
-    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    // The button is painted on the server, so an Enter before hydration is
+    // dropped. Retry the key press with its result (e2e/AGENTS.md), and press
+    // only while the state is still the old one, so a slow answer is never
+    // toggled back.
+    const pressEnterUntil = async (expanded: "true" | "false") => {
+      await expect(async () => {
+        if ((await toggle.getAttribute("aria-expanded")) !== expanded) {
+          await toggle.focus();
+          await page.keyboard.press("Enter");
+        }
+        await expect(toggle).toHaveAttribute("aria-expanded", expanded, { timeout: 1_000 });
+      }).toPass({ timeout: 20_000 });
+    };
+    await pressEnterUntil("true");
     await expect(panel.locator("p").first()).toBeVisible();
     await expect(panel.locator("p").first()).not.toBeEmpty();
     await page.screenshot({ path: info.outputPath("tonight-why-keyboard.png"), fullPage: true });
-    await page.keyboard.press("Enter");
-    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await pressEnterUntil("false");
     await expect(panel).toBeHidden();
   });
 

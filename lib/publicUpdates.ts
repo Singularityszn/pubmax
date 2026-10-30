@@ -2,6 +2,9 @@
  * Public notes describe released changes only. Add a row after checking the
  * production deployment and the change it contains. Never list an open PR.
  * Release receipts belong in docs/proof/, rather than in the reader's copy.
+ * A row's date is not a release day unless a receipt shows it: the 25 and
+ * 26 Oct rows carry the day their pull requests merged, and the page claims
+ * no more than that the changes are live.
  */
 export const PUBLIC_UPDATES = [
   {

@@ -89,7 +89,10 @@ describe("Tonight source explanations", () => {
     expect(html).not.toContain("The live listings source check date is not recorded.");
   });
 
-  it("does not call the date unrecorded beside a dated empty Ticketmaster read (F6)", () => {
+  // Live walk F6 (30 Oct) read this pair as a contradiction. Each feed needs
+  // its own date: a Ticketmaster check does not date the what's-on read, so
+  // the what's-on notice stays beside the dated Ticketmaster line.
+  it("keeps the what's-on missing-date notice beside a dated empty Ticketmaster read", () => {
     const html = renderToStaticMarkup(createElement(TonightProvenanceLines, {
       nearestSuffix: null,
       provenance: tonightProvenanceCredits({
@@ -103,7 +106,8 @@ describe("Tonight source explanations", () => {
     }));
     expect(html).toContain("No pub-matched events · via what’s-on");
     expect(html).toContain("No pub-matched events via Ticketmaster · Checked 25 Oct");
-    expect(html).not.toContain("source check date is not recorded");
+    expect(html).toContain("The what’s-on source check date is not recorded.");
+    expect(html).not.toContain("The live listings source check date is not recorded.");
   });
 
   it("distinguishes an absent row date from an old row date", () => {
