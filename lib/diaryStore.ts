@@ -122,7 +122,7 @@ const { guard } = createFailSoftGuard({
   migrationHint: MIGRATION_HINT,
 });
 
-/** PostgREST's answer for a column 0197 has not added yet. */
+/** PostgREST's answer for a column 0199 has not added yet. */
 function isMissingUsualDrinkColumn(error: { code?: string; message?: string }): boolean {
   const message = error.message ?? "";
   return (error.code === "42703" || error.code === "PGRST204") && /usual_drink/.test(message);
@@ -146,7 +146,7 @@ function fromRow(row: Record<string, unknown>): DiaryEntry | null {
     visitedOn,
     rating,
     review: typeof row.review === "string" ? row.review : "",
-    // Absent until the captain applies 0197: an entry with no usual.
+    // Absent until the captain applies 0199: an entry with no usual.
     usualDrink: typeof row.usual_drink === "string" ? row.usual_drink : "",
     visibility: "private",
     createdAt: typeof row.created_at === "string" ? row.created_at : new Date(0).toISOString(),
@@ -178,7 +178,7 @@ const supabaseDiaryStore: DiaryStore = {
         const insert = (values: Record<string, unknown>) =>
           admin().from(TABLE).insert(values).select("*").single();
         let { data, error } = await insert(row);
-        // A deploy ahead of 0197 keeps the visit and loses the usual, the
+        // A deploy ahead of 0199 keeps the visit and loses the usual, the
         // 0153 receipt-photo rule: a visit is worth more than its footnote.
         if (error && "usual_drink" in row && isMissingUsualDrinkColumn(error)) {
           delete row.usual_drink;

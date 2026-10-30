@@ -1,10 +1,10 @@
--- Rollback for 0197 ("your usual here" on a diary entry).
+-- Rollback for 0199 ("your usual here" on a diary entry).
 --
 -- Drops `diary_entries.usual_drink` and its CHECK. COST: every usual anybody
 -- typed is deleted; the visits, ratings and reviews stay. It discloses
 -- nothing, because the column was never readable by anybody but its owner.
 -- The app reads a missing column as "no usual", so it keeps working, but a
--- new usual is lost on save until 0197 is applied again. Safe to re-run.
+-- new usual is lost on save until 0199 is applied again. Safe to re-run.
 
 begin;
 
