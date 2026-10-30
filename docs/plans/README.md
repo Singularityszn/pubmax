@@ -14,6 +14,6 @@ Strategy and sequencing docs. Prefer one plan per concern; do not implement from
 | [`PRODUCT_UTILITY_WAVE.md`](./PRODUCT_UTILITY_WAVE.md) | SHIPPING | Sheet/journey usefulness: signals, hygiene, visits, Safe Night, quiet pint, Social honesty |
 | [`RECAP_VIDEO_EXPORT.md`](./RECAP_VIDEO_EXPORT.md) | PROPOSAL, CAPTAIN DECIDES | MP4 export of the recap video: Remotion Lambda versus a render script, with cost for each 1,000 renders |
 | [`desktop-feature-parity.md`](./desktop-feature-parity.md) | FINAL — parked | Desktop parity waves D1–D6 (no implementation until unblocked) |
-| [`ROUND5_SHARE_MOMENTS_2026-10-30.md`](ROUND5_SHARE_MOMENTS_2026-10-30.md) | Round 5, the share moments: the time machine, the board reader, the Guinness lane and the dog, crawl bingo and the name generator, mates' prices and the rename-safe drop reads. A new PR from main while 2402 is in review. |
+| [`ROUND5_SHARE_MOMENTS_2026-10-30.md`](./ROUND5_SHARE_MOMENTS_2026-10-30.md) | BUILDING | Round 5, the share moments: the time machine, the board reader, the Guinness lane and the dog, crawl bingo and the name generator, mates' prices and the rename-safe drop reads. A new PR from main while 2402 is in review. |
 
 **Desktop-parity isolation note:** that plan’s away-mode rules still apply (no push/merge of D1–D6 without owner review). Re-read its §5.1 freeze map before any desktop parity build.
