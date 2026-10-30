@@ -145,7 +145,7 @@ describe("hygiene on the venue sheet", () => {
     expect(container.querySelector(".venueHygiene")).toBeNull();
 
     // Reopen it, and this time the FSA read does not answer.
-    const first = fetch as unknown as ReturnType<typeof vi.fn>;
+    const first = fetch as unknown as (url: string, init?: RequestInit) => Promise<Response>;
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) =>
