@@ -79,6 +79,13 @@ const OG_SITE_NAME_PAGES: ReadonlyArray<[string, () => Promise<Metadata>]> = [
   ["/privacy", async () => (await import("@/app/privacy/page")).metadata],
   ["/terms", async () => (await import("@/app/terms/page")).metadata],
   ["/historic", async () => (await import("@/app/historic/page")).metadata],
+  [
+    "/time-machine",
+    async () =>
+      (await import("@/app/time-machine/page")).generateMetadata({
+        searchParams: Promise.resolve({ year: "2013" }),
+      }),
+  ],
   ["/pubs", async () => (await import("@/app/pubs/page")).generateMetadata()],
   ["/social", async () => (await import("@/app/social/page")).generateMetadata()],
   ["root layout", async () => (await import("@/app/layout")).metadata],

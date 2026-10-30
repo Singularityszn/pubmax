@@ -356,6 +356,15 @@
       "lcpMs": 400
     },
     {
+      "path": "/time-machine",
+      "readySelector": "main.timeMachinePage",
+      "why": "The pint price time machine (launch review F1): the /historic listing shell plus its own small MapLibre map, which loads after the slider and the list. Seeded 30 October 2026 UNMEASURED, because no production sweep could run in the builder's box: server render, requests and LCP copy /historic/prospect-of-whitby, the nearest page in the same shell, and the script ceiling is /historic's 970 KB plus the engine it adds, maplibre-gl.mjs at 1,056 KB and the worker module at 497 KB, rounded up to 2,600. The CI sweep is the oracle, and these ceilings come down to its figure at the next one.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 2600,
+      "requests": 50,
+      "lcpMs": 800
+    },
+    {
       "path": "/pint-index",
       "readySelector": "main.pintIndexPage",
       "why": "The live Pint Index: the page every trust claim and every citation points at.",
