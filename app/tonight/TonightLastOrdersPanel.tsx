@@ -22,7 +22,6 @@ import { formatObservedDate, formatSnapshotFrom } from "@/lib/dataFreshness";
 import { oldestPintRead } from "@/lib/drinks";
 import { LOCATION_FINDING_LABEL, LOCATION_SHARE_LABEL } from "@/lib/locationDisclosure";
 import {
-  isLastOrdersHour,
   LAST_ORDERS_HOURS_PATH,
   LAST_ORDERS_MAP_PARAM,
   LAST_ORDERS_MIN_MINUTES,
@@ -41,7 +40,6 @@ import type { TonightNear } from "@/lib/tonight";
 
 import { useTonightGetHome, type GetHome } from "./useTonightGetHome";
 import { useLiveClock } from "@/lib/useLiveClock";
-import { useNightDarkTheme } from "@/lib/useNightDarkTheme";
 
 import "./tonightLastOrders.css";
 
@@ -185,8 +183,6 @@ export default function TonightLastOrdersPanel({
   }, [focusOnOpen]);
   const [packs, retry] = useLastOrdersPacks();
   const now = useLiveClock(TICK_MS);
-  // Dark at night by default, unless the reader chose a theme (useNightDarkTheme).
-  useNightDarkTheme(now !== null && isLastOrdersHour(now));
   const getHome = useTonightGetHome(origin, now);
   const from = near?.near ?? null;
   const fallback = getCity("london").mapView.center;

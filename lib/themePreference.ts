@@ -25,16 +25,53 @@ function systemThemePreference(matches: boolean): ThemePreference {
   return matches ? "dark" : "light";
 }
 
+/** London 21:30, in minutes after midnight: the night theme starts. */
+export const NIGHT_THEME_STARTS_MINUTES = 21 * 60 + 30;
+/** London 04:00: the night theme ends. */
+export const NIGHT_THEME_ENDS_MINUTES = 4 * 60;
+const NIGHT_THEME_TIME_ZONE = "Europe/London";
+
 /**
- * Which theme the document should wear: the person's own choice wins, and
- * only with no choice does the OS decide. This is the one rule theme-init.js
- * applies before paint; the native shell asks it again every time the OS
- * appearance changes while the app is open, because a phone that flips to
- * dark at sunset does so with the app on screen.
+ * Whether London's clock is in the night theme's hours, 21:30 to 03:59. A
+ * product for a night out in London is read in the dark, so a reader who has
+ * not chosen a theme gets the dark one then (docs/DESIGN_SYSTEM.md,
+ * "Day/night coherence"). public/theme-init.js keeps its own copy of these
+ * two numbers, because it runs before any module, and
+ * __tests__/themeNight.test.ts holds the two copies together.
+ */
+export function isNightThemeTime(now: Date): boolean {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: NIGHT_THEME_TIME_ZONE,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now);
+  const hour = Number(parts.find((part) => part.type === "hour")?.value ?? 0);
+  const minute = Number(parts.find((part) => part.type === "minute")?.value ?? 0);
+  const minutes = hour * 60 + minute;
+  return minutes >= NIGHT_THEME_STARTS_MINUTES || minutes < NIGHT_THEME_ENDS_MINUTES;
+}
+
+/**
+ * Which theme the document should wear: the person's own choice wins; with no
+ * choice, London's night (21:30 to 04:00) is dark; otherwise the OS decides.
+ * This is the one rule theme-init.js applies before paint; the native shell
+ * asks it again every time the OS appearance changes while the app is open,
+ * and ThemeAttribute asks it again as the clock passes 21:30 and 04:00.
  */
 export function resolveThemePreference(
   stored: ThemePreference | null,
   systemPrefersDark: boolean,
+  now: Date = new Date(),
 ): ThemePreference {
-  return stored ?? systemThemePreference(systemPrefersDark);
+  if (stored) return stored;
+  if (isNightThemeTime(now)) return "dark";
+  return systemThemePreference(systemPrefersDark);
 }
+
+/**
+ * The event the theme control fires on every tap. A tap is the reader's
+ * choice even when storage refuses to keep it, so the night rule stands down
+ * for the rest of the page's life when it hears this.
+ */
+export const THEME_CHOSEN_EVENT = "pubmax:theme-chosen";

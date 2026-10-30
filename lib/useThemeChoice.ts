@@ -6,6 +6,7 @@ import { useSyncExternalStore } from "react";
 
 import { safeLocalStorage } from "@/lib/safeStorage";
 import {
+  THEME_CHOSEN_EVENT,
   THEME_STORAGE_KEY,
   storedThemePreference,
   type ThemePreference,
@@ -49,6 +50,9 @@ export function useThemeChoice(): ThemePreference {
 export function toggleThemeChoice(): void {
   const next: ThemePreference = domTheme() === "dark" ? "light" : "dark";
   document.documentElement.dataset.theme = next;
+  // A choice, whether or not storage keeps it: the night rule stands down.
+  delete document.documentElement.dataset.nightTheme;
+  window.dispatchEvent(new Event(THEME_CHOSEN_EVENT));
   try {
     safeLocalStorage()?.setItem(THEME_STORAGE_KEY, next);
   } catch {

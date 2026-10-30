@@ -12,16 +12,23 @@
 // its attribute is missing, and renders nothing. It never overrides a value
 // that is already set.
 //
-// It also keeps the browser bar on the page's colour. The root viewport ships
-// two theme-color tags keyed to the OS scheme, so a reader who picks dark in
-// the app on a light phone would see a cream bar over a dark page. Whenever
-// html[data-theme] is set or changes, both tags take that theme's colour.
+// It also follows the night theme as the clock passes 21:30 and 04:00 (the
+// second effect), and keeps the browser bar on the page's colour. The root
+// viewport ships two theme-color tags keyed to the OS scheme, so a reader who
+// picks dark in the app on a light phone would see a cream bar over a dark
+// page. Whenever html[data-theme] is set or changes, both tags take that
+// theme's colour.
 
 import { useEffect } from "react";
 
 import { BROWSER_BAR_COLOR } from "@/lib/browserBarColor";
 import { safeLocalStorage } from "@/lib/safeStorage";
-import { resolveThemePreference, storedThemePreference } from "@/lib/themePreference";
+import {
+  isNightThemeTime,
+  resolveThemePreference,
+  storedThemePreference,
+  THEME_CHOSEN_EVENT,
+} from "@/lib/themePreference";
 import {
   LEGACY_STORAGE_KEY,
   MODE_STORAGE_KEY,
@@ -29,6 +36,9 @@ import {
   parseMode,
   resolveMode,
 } from "@/lib/viewMode";
+
+/** How often the night theme looks at the clock. A minute is the rule's grain. */
+const NIGHT_THEME_TICK_MS = 60_000;
 
 function paintBrowserBar(theme: string | undefined): void {
   if (theme !== "light" && theme !== "dark") return;
@@ -71,6 +81,46 @@ export default function ThemeAttribute(): null {
     const observer = new MutationObserver(() => paintBrowserBar(root.dataset.theme));
     observer.observe(root, { attributes: true, attributeFilter: ["data-theme"] });
     return () => observer.disconnect();
+  }, []);
+
+  // THE NIGHT THEME FOLLOWS THE CLOCK WHILE THE PAGE IS OPEN. theme-init.js
+  // decides once, before paint; a reader with no theme choice who has Tonight
+  // open at 21:29 should see it go dark at 21:30, and light again at 04:00.
+  // Asked every minute and whenever the tab comes back (a slept tab's timers
+  // do not fire). It stands down for good the moment the reader taps the
+  // theme control (THEME_CHOSEN_EVENT), even when storage refused to keep that
+  // choice, and it never touches a page whose choice is stored.
+  useEffect(() => {
+    const root = document.documentElement;
+    const storage = safeLocalStorage();
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    let chosen = false;
+    const follow = () => {
+      if (chosen || storedThemePreference(storage) !== null) return;
+      const now = new Date();
+      const next = resolveThemePreference(null, media.matches, now);
+      if (root.dataset.theme !== next) root.dataset.theme = next;
+      if (isNightThemeTime(now)) root.dataset.nightTheme = "1";
+      else delete root.dataset.nightTheme;
+    };
+    const onChosen = () => {
+      chosen = true;
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") follow();
+    };
+    const timer = window.setInterval(follow, NIGHT_THEME_TICK_MS);
+    window.addEventListener(THEME_CHOSEN_EVENT, onChosen);
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("pageshow", follow);
+    window.addEventListener("focus", follow);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener(THEME_CHOSEN_EVENT, onChosen);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("pageshow", follow);
+      window.removeEventListener("focus", follow);
+    };
   }, []);
 
   return null;
