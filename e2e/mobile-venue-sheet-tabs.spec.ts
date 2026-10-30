@@ -40,7 +40,7 @@ const TABS: ReadonlyArray<{ label: string; panelId: string }> = [
   { label: "Overview", panelId: "venuePanel-overview" },
   { label: "Photos", panelId: "venuePanel-photos" },
   { label: "Menu", panelId: "venuePanel-menu" },
-  { label: "Stories", panelId: "venuePanel-pints" },
+  { label: "Prices", panelId: "venuePanel-pints" },
   { label: "Lore", panelId: "venuePanel-story" },
 ];
 

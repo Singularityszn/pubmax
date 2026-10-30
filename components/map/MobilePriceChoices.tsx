@@ -1,12 +1,15 @@
 "use client";
 
 import MapKey from "@/components/map/MapKey";
-import { formatGbp } from "@/lib/formatGbp";
 import type { MapPriceLegendModel } from "@/lib/mapPriceLegend";
-import { NO_PINT_PRICE_CAP } from "@/lib/venues";
+import { PINT_PRICE_CAPS, pintPriceCapIsActive } from "@/lib/pintPriceCaps";
 
-/** The caps this sheet can set. The first is "Any", the one OFF value. */
-export const PRICE_CHOICES = [NO_PINT_PRICE_CAP, 7, 6, 5.5];
+/**
+ * The caps this sheet can set: the one shared set (lib/pintPriceCaps.ts), so
+ * the phone offers what the desktop chips and the rail slider offer. The first
+ * is "Any", the one OFF value.
+ */
+export const PRICE_CHOICES: readonly number[] = PINT_PRICE_CAPS.map((cap) => cap.maxPrice);
 
 export default function MobilePriceChoices({
   maxPrice,
@@ -31,17 +34,20 @@ export default function MobilePriceChoices({
               first segment closed its own box and read as a container in its
               own right (design judgement 2026-08-01, finding 2.4). */}
           <div className="mobilePriceChoicesGroup">
-            {PRICE_CHOICES.map((price) => (
-              <button
-                type="button"
-                key={price}
-                className={maxPrice === price ? "isActive" : ""}
-                aria-pressed={maxPrice === price}
-                onClick={() => onMaxPriceChange(price)}
-              >
-                {price === NO_PINT_PRICE_CAP ? "Any" : formatGbp(price)}
-              </button>
-            ))}
+            {PINT_PRICE_CAPS.map((cap) => {
+              const on = pintPriceCapIsActive(maxPrice, cap.maxPrice);
+              return (
+                <button
+                  type="button"
+                  key={cap.maxPrice}
+                  className={on ? "isActive" : ""}
+                  aria-pressed={on}
+                  onClick={() => onMaxPriceChange(cap.maxPrice)}
+                >
+                  {cap.shortLabel}
+                </button>
+              );
+            })}
           </div>
         </fieldset>
       )}

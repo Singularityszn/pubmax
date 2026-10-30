@@ -1268,7 +1268,7 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
 
    The 44px floor is where most of the room goes: Drinks and Lore ask less than
    44px whatever the inset, so a narrower inset only ever buys Overview, Photos
-   and Stories their own width back. The label's SIZE is what yields here, and
+   and Prices their own width back. The label's SIZE is what yields here, and
    never the label itself: a tab nobody can read is the section lost again, and
    the strip is the one row on the sheet whose words are all one word long.
    Inter is bundled, so those widths are the same on every box. */
