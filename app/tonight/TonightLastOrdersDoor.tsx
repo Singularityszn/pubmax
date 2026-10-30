@@ -36,6 +36,9 @@ export default function TonightLastOrdersDoor({
   locating: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  // `?mode=last-orders` asked for this panel by name, so it is brought into
+  // view once it mounts. It sits under the lede, below the first screen.
+  const [arrivedByAddress, setArrivedByAddress] = useState(false);
   // A live clock, never one read: a Tonight tab left open from 21:00 must
   // promote the door at 21:30 and quieten it at 04:00, and a tab woken from
   // the background reads the clock again (useLiveClock). Null until after
@@ -47,12 +50,35 @@ export default function TonightLastOrdersDoor({
     let cancelled = false;
     void Promise.resolve().then(() => {
       if (cancelled) return;
-      if (new URLSearchParams(window.location.search).get("mode") === LAST_ORDERS_MODE_PARAM) setOpen(true);
+      if (new URLSearchParams(window.location.search).get("mode") === LAST_ORDERS_MODE_PARAM) {
+        setOpen(true);
+        setArrivedByAddress(true);
+      }
     });
     return () => {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!open || !arrivedByAddress) return;
+    let frame = 0;
+    let tries = 0;
+    // The panel is a lazy chunk, so wait for it to exist. "auto" is an
+    // instant jump, which reduced motion needs and nobody else minds.
+    const seek = () => {
+      const panel = document.getElementById("last-orders");
+      if (panel) {
+        panel.scrollIntoView({ block: "start", behavior: "auto" });
+        setArrivedByAddress(false);
+      } else if (tries < 120) {
+        tries += 1;
+        frame = window.requestAnimationFrame(seek);
+      }
+    };
+    frame = window.requestAnimationFrame(seek);
+    return () => window.cancelAnimationFrame(frame);
+  }, [open, arrivedByAddress]);
 
   if (!open) {
     return (

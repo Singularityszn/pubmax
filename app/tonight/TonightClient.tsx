@@ -694,14 +694,6 @@ export default function TonightClient({
           docs/rules/app-proxy-csp-caching-and-file-tracing.md. Chain blocks
           and cheap pints stay outside it so they cannot lead the answer. */}
       <div className="tonightLedeRegion" data-testid="tonight-lede">
-      {/* From 21:30 the night's question is who is still open, so Last
-          orders leads; earlier it is one quiet door (TonightLastOrdersDoor). */}
-      <TonightLastOrdersDoor
-        origin={origin}
-        near={tonightNear}
-        onShareLocation={requestLocation}
-        locating={locationStatus === "requesting"}
-      />
       <TonightHypedPubs
         rows={hypedPubs}
         selectableVenueIds={selectableVenueIds}
@@ -986,6 +978,16 @@ export default function TonightClient({
       ) : null}
 
       </div>
+      {/* Last orders sits under the lede, never in it: the answer comes first
+          and clears the docked consent card on the smallest phone, and its
+          list can name a chain pub, which the lede rule keeps out. From 21:30
+          the door is marked as the night's lead (TonightLastOrdersDoor). */}
+      <TonightLastOrdersDoor
+        origin={origin}
+        near={tonightNear}
+        onShareLocation={requestLocation}
+        locating={locationStatus === "requesting"}
+      />
       </div>
 
       {/* The first pub and its map action precede the listing explanation and
