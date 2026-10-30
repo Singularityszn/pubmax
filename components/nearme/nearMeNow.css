@@ -333,6 +333,20 @@
   line-height: 1.4;
 }
 
+/* The Guinness lane (launch review B3): one quiet linked line under the answer. */
+.nmnGuinness {
+  margin: 0;
+  padding-inline: var(--space-2);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+
+.nmnGuinness a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
 /* The answer keeps out from under the create action.
    The control is fixed to the bottom-right of the phone viewport, so every row
    of this list passes under it while the list scrolls, and the cell it lands on
