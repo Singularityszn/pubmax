@@ -100,6 +100,9 @@ const CrewsPanel = dynamic(
 // The Diary list reads the owner-only API, so it loads only for the owner and
 // stays out of every other profile's first paint.
 const DiaryList = dynamic(() => import("@/components/diary/DiaryList"), { ssr: false });
+// The passport cover and book (Been, ranked, taste, overlap) read their own APIs.
+const PassportCover = dynamic(() => import("@/components/profile/PassportCover"), { ssr: false });
+const PassportSections = dynamic(() => import("@/components/profile/PassportSections"), { ssr: false });
 
 const ProfileTimeline = dynamic(
   () => import("@/components/profile/ProfileTimeline"),
@@ -1564,6 +1567,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                   following={visibleSocialData.counts?.following}
                   actions={headerActions}
                 />
+                <PassportCover handle={routeHandle} />
               </div>
             </div>
 
@@ -1655,6 +1659,8 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
               {timelineSection()}
 
               {crawlsSection()}
+
+              <PassportSections handle={routeHandle} isOwner={isOwnProfile} />
 
               {/* /u/you redirects to the real handle the moment one is
                   known, so gating this on the sentinel alone left the
