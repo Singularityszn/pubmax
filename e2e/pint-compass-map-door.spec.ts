@@ -91,9 +91,13 @@ for (const width of [320, 390, 430] as const) {
       await page.goto("/map");
       await expectMobileMapShellReady(page);
 
-      // The resting map edge is unchanged: Near me is still its one control.
+      // The resting map edge gains nothing: Near me is still there, and the
+      // door is not. (The edge may also hold TfL while a line is badly
+      // disrupted, so its count is the feed's business, not this change's.)
       const corner = page.locator(".mobileMapUtilityCorner");
-      await expect(corner.getByRole("button")).toHaveCount(1);
+      await expect(corner.locator(".mobileMapLocateFab")).toHaveCount(1);
+      await expect(corner.getByRole("link", { name: PINT_COMPASS_DOOR_NAME })).toHaveCount(0);
+      await expect(corner.getByRole("button", { name: /compass/i })).toHaveCount(0);
 
       const more = await mobileMapShellControl(page, "more");
       await expect(async () => {

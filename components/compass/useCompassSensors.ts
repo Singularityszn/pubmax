@@ -77,8 +77,13 @@ export function useCompassSensors(): {
   const start = useCallback(() => {
     stopRef.current?.();
     if (typeof window === "undefined") return;
+    // One run of the sensors. Leaving the page, or a second Start, retires
+    // it, and a retired run attaches nothing: the iOS permission answers
+    // LATER than the tap, so its answer can arrive after the cleanup ran.
+    let retired = false;
     const stops: Array<() => void> = [];
     stopRef.current = () => {
+      retired = true;
       for (const stop of stops.splice(0)) stop();
     };
 
@@ -107,6 +112,7 @@ export function useCompassSensors(): {
       if (!frame) frame = window.requestAnimationFrame(flush);
     };
     const listen = () => {
+      if (retired) return;
       window.addEventListener("deviceorientationabsolute", onOrientation);
       window.addEventListener("deviceorientation", onOrientation);
       const timer = window.setTimeout(() => {
@@ -131,10 +137,13 @@ export function useCompassSensors(): {
       }
       void ask
         .then((answer) => {
+          if (retired) return;
           if (answer === "granted") listen();
           else setSensor("none");
         })
-        .catch(() => setSensor("none"));
+        .catch(() => {
+          if (!retired) setSensor("none");
+        });
     } else {
       setSensor("asking");
       listen();
