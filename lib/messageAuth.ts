@@ -63,7 +63,7 @@ export async function resolveMessageHandle(
 
 export type LinkedActorGate =
   | { ok: true; handle: string; userId: string }
-  | { ok: false; status: 400 | 401 | 403; error: string };
+  | { ok: false; status: 400 | 401 | 403 | 503; error: string };
 
 /**
  * Wave I2 — DMs require a signed-in user whose profile is linked.
@@ -86,7 +86,11 @@ export async function requireLinkedActor(
   try {
     linked = (await profileStore().getHandleByUserId(userId)) ?? "";
   } catch {
-    linked = "";
+    return {
+      ok: false,
+      status: 503,
+      error: "Couldn't check your handle. Try again.",
+    };
   }
 
   if (!linked) {
