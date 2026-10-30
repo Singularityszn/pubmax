@@ -128,4 +128,37 @@ describe("hygiene on the venue sheet", () => {
       "Food hygiene 5/5",
     );
   });
+
+  // Review finding 3 (PR 2402): an FSA answer from an earlier opening of the
+  // sheet must not hide the strip's line when this opening has no FSA badge.
+  it.each([
+    ["fails", () => new Response("{}", { status: 503 })],
+    ["finds no match", () => new Response(JSON.stringify({ rating: null }), { status: 200 })],
+  ])("keeps one answer when the FSA matched, the sheet closed, and the next read %s", async (_label, second) => {
+    stubFetch({ rating: FSA_RATING });
+    renderSheet();
+    await settle(lastPhase);
+    expect(container.querySelector(".venueHygiene")).not.toBeNull();
+
+    // Leave the pub: the sheet unmounts.
+    act(() => root.render(createElement(Fragment)));
+    expect(container.querySelector(".venueHygiene")).toBeNull();
+
+    // Reopen it, and this time the FSA read does not answer.
+    const first = fetch as unknown as ReturnType<typeof vi.fn>;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) =>
+        String(url).startsWith("/api/hygiene") ? second() : first(url, init),
+      ),
+    );
+    renderSheet();
+    await settle(lastPhase);
+
+    expect(container.querySelector(".venueHygiene")).toBeNull();
+    expect(container.textContent?.match(/Food hygiene/g)).toHaveLength(1);
+    expect(container.querySelector('.cityPlaceStripChip[data-kind="hygiene"]')?.textContent).toContain(
+      "Food hygiene 5/5",
+    );
+  });
 });

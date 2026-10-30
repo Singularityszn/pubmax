@@ -15,7 +15,7 @@ import { ShieldCheck } from "lucide-react";
 import { useStaggeredRead } from "@/lib/useStaggeredRead";
 
 import { discardBody } from "@/lib/responseBody";
-import { markFsaHygieneMatched } from "@/lib/fsaHygieneMatched";
+import { holdFsaHygieneBadge } from "@/lib/fsaHygieneMatched";
 import DataCreditsLink from "@/components/legal/DataCreditsLink";
 
 import "./venueHygiene.css";
@@ -150,9 +150,6 @@ export default function VenueHygiene({ venueId, venueName, address }: Props) {
         void Promise.resolve().then(() => {
           if (generationRef.current !== generation) return;
           setRating(next);
-          // The CityMCP strip drops its own hygiene line for this pub, so
-          // hygiene is said once, by the FSA (lib/fsaHygieneMatched.ts).
-          markFsaHygieneMatched(venueId);
         });
       } catch {
         // Fail-soft: no badge is fine.
@@ -167,6 +164,12 @@ export default function VenueHygiene({ venueId, venueName, address }: Props) {
       controller.abort();
     };
   }, [ready, venueId, venueName, address]);
+
+  // While this badge is rendered, the CityMCP strip drops its own hygiene
+  // line for this pub, so hygiene is said once, by the FSA. The mark goes with
+  // the badge (lib/fsaHygieneMatched.ts).
+  const badgeShown = rating !== null;
+  useEffect(() => (badgeShown ? holdFsaHygieneBadge(venueId) : undefined), [badgeShown, venueId]);
 
   if (!rating) return null;
 
