@@ -8,11 +8,10 @@ import { describe, expect, it } from "vitest";
 import nextConfigModule from "@/next.config.mjs";
 
 // SEO audit #2126, finding 3: Next's default expire is a year, so /today sent
-// `s-maxage=300, stale-while-revalidate=31535700`. One global expireTime caps
+// `s-maxage=300, stale-while-revalidate=31535700`. One global expireTime bounds
 // it (captain, 30 Oct 2026). Next drops the stale part when revalidate is not
-// below expire, which would leave an hourly route serving its error page after
-// a failed read instead of the last good copy, so every ISR route keeps a
-// window of its own.
+// below expire, so every ISR route keeps a window of its own. These pins are
+// the header Next builds, not a promise about the age of what is served.
 
 function pageFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -35,7 +34,7 @@ const header = (revalidate: number) =>
   getCacheControlHeader({ revalidate, expire: nextConfigModule.expireTime });
 
 describe("the ISR stale window", () => {
-  it("gives Today and Tonight one hour of stale copy, not a year", () => {
+  it("gives Today and Tonight 5 fresh minutes and up to 60 stale ones, not a year", () => {
     const routes = isrRevalidateSeconds();
     expect(routes.get("app/today/page.tsx")).toBe(300);
     expect(routes.get("app/tonight/page.tsx")).toBe(300);

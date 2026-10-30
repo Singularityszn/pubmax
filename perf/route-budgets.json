@@ -153,6 +153,15 @@
       "lcpMs": 400
     },
     {
+      "path": "/compass",
+      "readySelector": "main.pcBody",
+      "why": "The Pint Compass, a client shell that asks for nothing until a tap: the pub list, the location and the heading all wait for Start, so these figures are the shell. Seeded 30 Oct 2026 from 11 samples on a local production build under this method, with /near measured beside it: 17 to 43 ms server render, 915 KB decoded, 39 requests on every sample, LCP 320 to 652 ms (median 348). Margins are the file's own: bytes and requests p75 plus 15 percent, server render at the 150 ms floor, LCP the worst sample plus 25 percent, because no ceiling here may sit below a figure we have measured. /near read 340 to 616 ms LCP on the same box against its 400 ms ceiling, so this box runs slow and CI should take this LCP down at the next sweep.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 1052,
+      "requests": 45,
+      "lcpMs": 815
+    },
+    {
       "path": "/login",
       "readySelector": "main.loginPage",
       "why": "The door. Every account this product ever gets comes through it, and it is the one surface where a slow paint costs a person rather than a page view.",

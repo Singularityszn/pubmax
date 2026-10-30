@@ -184,9 +184,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
     { path: "/pubs", priority: 0.7, changeFrequency: "weekly", lastModified: pricesModified },
     { path: "/tonight", priority: 0.6, changeFrequency: "daily", lastModified: now },
-    // Today joins once its stale window was capped at an hour (SEO audit
-    // #2126, finding 3): a dated brief a crawler is invited to must not be a
-    // copy that is days old.
+    // Today joins once its stale window was bounded (SEO audit #2126, finding
+    // 3): fresh for 5 minutes, then up to 60 more of stale-while-revalidate,
+    // where Next's default had allowed a year.
     { path: "/today", priority: 0.6, changeFrequency: "daily", lastModified: now },
     { path: "/pal", priority: 0.5, changeFrequency: "monthly", lastModified: now },
     {

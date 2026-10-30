@@ -208,10 +208,11 @@ const nextConfig = {
   // STALE (SEO audit #2126, finding 3). A per-route expire needs
   // cacheComponents, so this is one GLOBAL value (captain, 30 Oct 2026).
   // Next sends `s-maxage=<revalidate>, stale-while-revalidate=<expire -
-  // revalidate>`, and none at all when the two are equal. 3900 s gives
-  // /today and /tonight (revalidate 300) a one-hour stale window, and keeps a
-  // five-minute window on the hourly routes, so a failed read there still
-  // serves the last good copy rather than the error page.
+  // revalidate>`, and no stale window when the two are equal. With 3900:
+  // /today and /tonight are fresh for 5 minutes, then may be served stale for
+  // up to 60 more (65 in all); the hourly routes get a 5-minute stale window.
+  // These are the windows the header asks for, not a promise about age: a
+  // regeneration that fails can leave older content in place for longer.
   expireTime: 3900,
   distDir: process.env.NEXT_DIST_DIR ?? ".next",
   images: {
