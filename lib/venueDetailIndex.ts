@@ -84,7 +84,32 @@ const RAW_DATASET_FILE = path.join(process.cwd(), "public", "data", "pint_prices
 const VENUE_ID_RE =
   /^(?:venue-(?:[a-z]{3}-)?[a-z0-9]{1,24}|(?:bar|food|restaurant)-[a-z0-9-]{1,100})$/;
 
+// Only a venue the index knows reaches this cache, but a crawler walking every
+// pub page still fills it with the whole city pack, and each entry is a fully
+// enriched record. Bounded with insertion-order eviction, the same house
+// pattern as lib/heritage.ts, so one warm function cannot hold every venue.
+const VENUE_DETAIL_CACHE_MAX_ENTRIES = 1_000;
+let venueDetailCacheMax = VENUE_DETAIL_CACHE_MAX_ENTRIES;
 const cachedDetails = new Map<string, { venue: Venue; overlayVenueIds?: string[] }>();
+
+function setCachedDetail(id: string, entry: { venue: Venue; overlayVenueIds?: string[] }): void {
+  if (cachedDetails.has(id)) cachedDetails.delete(id);
+  cachedDetails.set(id, entry);
+  while (cachedDetails.size > venueDetailCacheMax) {
+    const oldest = cachedDetails.keys().next().value;
+    if (oldest === undefined) break;
+    cachedDetails.delete(oldest);
+  }
+}
+
+export function venueDetailCacheSizeForTests(): number {
+  return isTestRuntime() ? cachedDetails.size : 0;
+}
+
+export function setVenueDetailCacheMaxForTests(max: number | null): void {
+  if (!isTestRuntime()) return;
+  venueDetailCacheMax = max ?? VENUE_DETAIL_CACHE_MAX_ENTRIES;
+}
 /** Successful manifests only — I/O failures stay unset so the next call can retry.
  * Schema-invalid manifests are cached as INVALID_MANIFEST (warn once). */
 const INVALID_MANIFEST = Symbol("invalid-venue-detail-manifest");
@@ -344,7 +369,7 @@ async function lookupVenueDetailBase(requestedId: string): Promise<VenueDetailLo
     } catch {
       overlayVenueIds = undefined;
     }
-    cachedDetails.set(id, { venue: enriched, ...(overlayVenueIds ? { overlayVenueIds } : {}) });
+    setCachedDetail(id, { venue: enriched, ...(overlayVenueIds ? { overlayVenueIds } : {}) });
     if (!overlayVenueIds?.length) return { status: "found", venue: enriched };
     const reads = await Promise.all(
       overlayVenueIds.map((osmId) => harvestOverlayStore().getByVenueId(osmId)),
@@ -383,6 +408,7 @@ export async function getVenueDetail(requestedId: string): Promise<Venue | null>
 export function resetVenueDetailCachesForTests(): void {
   if (!isTestRuntime()) return;
   cachedDetails.clear();
+  venueDetailCacheMax = VENUE_DETAIL_CACHE_MAX_ENTRIES;
   cachedManifest = undefined;
   detailIndexFile = DEFAULT_DETAIL_INDEX_FILE;
   detailRowsFile = DEFAULT_DETAIL_ROWS_FILE;

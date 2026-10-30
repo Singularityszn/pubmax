@@ -11,8 +11,10 @@ import {
   isVenueDetailId,
   lookupVenueDetail,
   resetVenueDetailCachesForTests,
+  setVenueDetailCacheMaxForTests,
   setVenueDetailIndexFileForTests,
   setVenueDetailRowsFileForTests,
+  venueDetailCacheSizeForTests,
   venueFromDetailArtifact,
   type VenueDetailArtifact,
 } from "@/lib/venueDetailIndex";
@@ -257,5 +259,21 @@ describe("venueDetailIndex", () => {
       id: "venue-mcr-1lwo5lo",
       name: "Peveril of the Peak",
     });
+  });
+
+  it("evicts the oldest venue once the detail cache reaches its bound", async () => {
+    setVenueDetailCacheMaxForTests(1);
+
+    await expect(getVenueDetail(SEED_VENUE_ID)).resolves.toMatchObject({ id: SEED_VENUE_ID });
+    expect(venueDetailCacheSizeForTests()).toBe(1);
+
+    await expect(getVenueDetail("venue-mcr-1lwo5lo")).resolves.toMatchObject({
+      id: "venue-mcr-1lwo5lo",
+    });
+    expect(venueDetailCacheSizeForTests()).toBe(1);
+
+    // The evicted venue still resolves; it is read again rather than lost.
+    await expect(getVenueDetail(SEED_VENUE_ID)).resolves.toMatchObject({ id: SEED_VENUE_ID });
+    expect(venueDetailCacheSizeForTests()).toBe(1);
   });
 });
