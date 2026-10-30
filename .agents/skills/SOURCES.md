@@ -51,7 +51,7 @@ Upstream `SKILL.md` trees were copied flat, one directory per skill. Plugin test
 - Commit: `12af471f627f866411b4bd785b19646d3672784c` (`main`)
 - Checked 29 Oct 2026. The upstream repo now publishes one consolidated `taste-skill` tree. That tree is refreshed here. The other twelve installed trees remain from the prior pack because the current source has no direct replacements for them.
 
-The consolidated tree includes upstream JavaScript helpers and browser assets. These files do not execute on install. The local `PUBMAXX project rules` section preserves project design, copy, source permissions, explicit build approval and runtime ownership. The refresh does not grant permission to execute these helpers.
+The consolidated tree includes upstream JavaScript helpers and browser assets. Its `LICENSE` preserves the upstream MIT notice from the pinned commit. These files do not execute on install. The local `PUBMAXX project rules` section preserves project design, copy, source permissions, explicit build approval and runtime ownership. The refresh does not grant permission to execute these helpers.
 
 Directory name, then frontmatter `name` when it differs:
 
