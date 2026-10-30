@@ -1226,6 +1226,16 @@ function matchesVenueAmenities(venue: Venue, filters: Filters): boolean {
   });
 }
 
+/**
+ * A pub with a RECORDED beer garden or outdoor seating, read by the same rules
+ * as the two map filters. Sun Chaser estimates only these: a pub with no
+ * stated outdoor space gets no sun claim at all.
+ */
+export function venueHasRecordedOutdoorSpace(venue: Venue): boolean {
+  return matchesVenueAmenities(venue, { ...initialFilters, requireBeerGarden: true })
+    || matchesVenueAmenities(venue, { ...initialFilters, requireOutdoorSeating: true });
+}
+
 function matchesVenueCuration(venue: Venue, filters: Filters): boolean {
   const matchesWater =
     !filters.requireWater ||

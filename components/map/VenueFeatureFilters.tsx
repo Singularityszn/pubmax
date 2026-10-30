@@ -3,7 +3,9 @@
 import type { Filters } from "@/lib/venues";
 import { LAST_ORDERS_FILTER_CAPTION, LAST_ORDERS_FILTER_FAILED } from "@/lib/lastOrdersList";
 import { OPEN_NOW_FILTER_CAPTION } from "@/lib/openNow";
+import SunChaserControls from "@/components/map/sunChaser/SunChaserControls";
 import "./venueFeatureFilters.css";
+import "@/components/map/sunChaser/sunChaser.css";
 
 const FEATURE_CHOICES = [
   ["requireBeerGarden", "Beer garden"],
@@ -47,6 +49,7 @@ export default function VenueFeatureFilters({ filters, onChange, resultCount, la
       {filters.openNow ? <p>{OPEN_NOW_FILTER_CAPTION} Hours come from Wetherspoon&apos;s directory.</p> : null}
       {filters.lastOrders ? <p>{LAST_ORDERS_FILTER_CAPTION}</p> : null}
       {filters.lastOrders && lastOrdersFailed ? <p role="alert">{LAST_ORDERS_FILTER_FAILED}</p> : null}
+      <SunChaserControls />
       {active ? <p role="status">{resultCount === null ? "Loading matching places…" : `${resultCount.toLocaleString("en-GB")} matching ${resultCount === 1 ? "place" : "places"} loaded on the map.`}</p> : null}
     </section>
   );
