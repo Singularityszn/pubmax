@@ -394,4 +394,28 @@ describe("migration 0208", () => {
     expect(rollback.match(/state='active'\)>=20 then/g)).toHaveLength(2);
     expect(rollback).toMatch(/drop column if exists capacity/);
   });
+
+  // Review P3a (PR 2402): the list counted only members with an active Social
+  // account, the join counts every active row. A crew with one active member
+  // whose account is not active then read "1 place left" and the join answered
+  // `full`. Both now count seats with the join's own predicate.
+  it("counts seats in the list with the very predicate the join enforces", () => {
+    const body = (name: string) => {
+      const start = forward.indexOf(`create or replace function public.${name}(`);
+      expect(start, name).toBeGreaterThanOrEqual(0);
+      const end = forward.indexOf("$$;", start);
+      return forward.slice(start, end);
+    };
+    const seatCounts = (sql: string) =>
+      [...sql.matchAll(/select count\(\*\)(?:::integer)?\s+from public\.social_crew_members\s+([^)]*)\)/g)].map(
+        (match) => (match[1] ?? "").replace(/\s+/g, " ").trim(),
+      );
+    const join = seatCounts(body("_activate_social_crew_member"));
+    const list = seatCounts(body("list_open_plan_crawls"));
+    expect(join).toEqual(["where crew_id=p_crew and state='active'", "where crew_id=p_crew and state='active'"]);
+    expect(list).toEqual(["where crew_id=crew.id and state='active'"]);
+    expect(list.map((where) => where.replace("crew.id", "p_crew"))).toEqual([join[0]]);
+    const memberCount = body("list_open_plan_crawls").split("'memberCount'")[1]?.split("as row_obj")[0] ?? "";
+    expect(memberCount).not.toMatch(/ownership_state|plan_crew_members|join /);
+  });
 });

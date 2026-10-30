@@ -270,17 +270,14 @@ as $$
       'meetingVenueId', crew.meeting_venue_id,
       'meetingVenueName', meeting.venue_name,
       'description', crew.description,
+      -- The seat count is the join's own: `_activate_social_crew_member`
+      -- answers `full` on every active row, whatever the member's account
+      -- state, so the list counts the same rows. A narrower count here would
+      -- promise a seat the join then refuses (review P3a, PR 2402).
       'memberCount', (
         select count(*)::integer
-        from public.social_crew_members member
-        join public.private_social_accounts member_account
-          on member_account.id = member.social_account_id
-          and member_account.ownership_state = 'active'
-        join public.plan_crew_members plan_member
-          on plan_member.id = member.plan_member_id
-          and plan_member.plan_id = plan.id
-          and plan_member.social_account_id = member.social_account_id
-        where member.crew_id = crew.id and member.state = 'active'
+        from public.social_crew_members
+        where crew_id=crew.id and state='active'
       )
     ) as row_obj,
     plan.start_time,
