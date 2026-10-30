@@ -161,6 +161,50 @@ A last30days run on 2 Oct 2026 (Reddit, YouTube, Hacker News, GitHub, Digg) rank
 
 `react-best-practices` (frontmatter `vercel-react-best-practices`), `composition-patterns` (`vercel-composition-patterns`), `react-view-transitions` (`vercel-react-view-transitions`), `web-design-guidelines`, `vercel-optimize`.
 
+### React View Transitions compilation
+
+The compiled `react-view-transitions/AGENTS.md` is regenerated from this repository's actual skill and five reference sources. The one-off recipe below rebases their relative Markdown links. It needs only Python 3. Run it from the repository root after the source owner allocates this generation action. Review the generated delta before committing it. Do not edit the compiled file manually.
+
+```sh
+python3 - <<'PY'
+from pathlib import Path
+import hashlib
+import json
+import posixpath
+import re
+
+root = Path('.agents/skills/react-view-transitions')
+inputs = ['SKILL.md', 'references/implementation.md', 'references/patterns.md', 'references/troubleshooting.md', 'references/css-recipes.md', 'references/nextjs.md']
+metadata = json.loads((root / 'metadata.json').read_text())
+parts = ['# React View Transitions\n', '**Version ' + metadata['version'] + '**\n\n' + metadata['organization'] + '\n', '> Generated from SKILL.md and the five reference sources. Do not edit this compiled file.\n> Regeneration recipe: see the React View Transitions compilation section in `../SOURCES.md`.\n']
+records = []
+for name in inputs:
+    source = root / name
+    raw = source.read_bytes()
+    text = raw.decode()
+    if text.startswith('---\n'):
+        text = text.split('---\n', 2)[2].lstrip()
+    def rebase(match):
+        target = match.group(2)
+        if target.startswith(('#', '/', 'http:', 'https:', 'mailto:')):
+            return match.group(0)
+        path, marker, anchor = target.partition('#')
+        if not path or not path.endswith('.md'):
+            return match.group(0)
+        rebased = posixpath.normpath(posixpath.join(posixpath.dirname(name), path))
+        return match.group(1) + rebased + (marker + anchor if marker else '') + ')'
+    text = re.sub(r'(\[[^\]]+\]\()([^\s)]+)\)', rebase, text)
+    parts.append('---\n\n<!-- Source: ' + name + ' -->\n\n' + text.rstrip() + '\n')
+    records.append({'path': name, 'sha256': hashlib.sha256(raw).hexdigest()})
+target = root / 'AGENTS.md'
+before = hashlib.sha256(target.read_bytes()).hexdigest()
+output = '\n'.join(parts).encode()
+target.write_bytes(output)
+receipt = {'inputs': records, 'metadataSHA256': hashlib.sha256((root / 'metadata.json').read_bytes()).hexdigest(), 'output': str(target), 'beforeSHA256': before, 'afterSHA256': hashlib.sha256(output).hexdigest()}
+print(json.dumps(receipt, indent=2))
+PY
+```
+
 `web-design-guidelines` tells the agent to fetch `https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md` when someone asks for a review. That fetch is not an install step.
 
 `vercel-optimize` ships reviewed local scripts. They call the Vercel CLI when an agent runs the skill. They do not run on install. `collect-signals.mjs` redacts sensitive text before it prints JSON.

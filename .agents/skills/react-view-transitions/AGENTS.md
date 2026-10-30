@@ -1,14 +1,17 @@
 # React View Transitions
 
 **Version 1.0.0**
+
 Vercel Engineering
 
-> **Note:**
-> This standalone guide is compiled from `SKILL.md` and its reference files
-> for agents that consume a single `AGENTS.md` document. Edit the source
-> files, not this compiled copy.
+> Generated from SKILL.md and the five reference sources. Do not edit this compiled file.
+> Regeneration recipe: see the React View Transitions compilation section in `../SOURCES.md`.
 
 ---
+
+<!-- Source: SKILL.md -->
+
+# React View Transitions
 
 Animate between UI states using the browser's native `document.startViewTransition`. Declare *what* with `<ViewTransition>`, trigger *when* with `startTransition` / `useDeferredValue` / `Suspense`, control *how* with CSS classes. Unsupported browsers skip animations gracefully.
 
@@ -328,7 +331,13 @@ Always add the reduced motion CSS from [references/css-recipes.md](references/cs
 - **[references/css-recipes.md](references/css-recipes.md)** — Ready-to-use CSS animation recipes.
 - **[references/nextjs.md](references/nextjs.md)** — Next.js App Router patterns and Server Component details.
 
+## Full Compiled Document
+
+For the complete guide with all reference files expanded: `AGENTS.md`
+
 ---
+
+<!-- Source: references/implementation.md -->
 
 # Implementation Workflow
 
@@ -502,6 +511,8 @@ If any path produces no animation or competing animations, use the symptom-drive
 For Next.js-specific implementation steps (`transitionTypes` on `<Link>`, prefetch behavior, and same-route dynamic segments), see [nextjs.md](references/nextjs.md).
 
 ---
+
+<!-- Source: references/patterns.md -->
 
 # Patterns and Guidelines
 
@@ -780,6 +791,8 @@ The `types` array (second argument) lets you vary animation based on transition 
 
 ---
 
+<!-- Source: references/troubleshooting.md -->
+
 # Troubleshooting
 
 **VT not activating:** Ensure `<ViewTransition>` comes before any DOM node and the state update is inside `startTransition`. A raw `viewTransitionName` only isolates an element; it does not activate a React view transition.
@@ -829,6 +842,8 @@ The `types` array (second argument) lets you vary animation based on transition 
 **Batching:** Multiple updates during animation are batched. A→B→C→D becomes B→D.
 
 ---
+
+<!-- Source: references/css-recipes.md -->
 
 # CSS Animation Recipes
 
@@ -1144,6 +1159,8 @@ One shared-name indicator morphs between positions. Slide the group; disable old
 ```
 
 ---
+
+<!-- Source: references/nextjs.md -->
 
 # View Transitions in Next.js
 
