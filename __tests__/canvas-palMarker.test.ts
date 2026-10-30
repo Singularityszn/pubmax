@@ -373,6 +373,39 @@ describe("the Pal on the map", () => {
       expect(lamb.open).not.toHaveBeenCalled();
     });
 
+    it("turns for a newer next stop while still on its way to the old one, but not on a trip the reader asked for", () => {
+      store(pal());
+      const marker = createPalMapMarker(map);
+      const four: LngLat[] = [...crawl, [-0.1, 51.51]];
+      marker.walk({ key: four.map((stop) => stop.join(",")).join(";"), stops: four, path: four });
+      marker.nextStop(nextStop(1, "The Lamb").target);
+      runFrames(1_000);
+      const [instance] = markerHarness.instances;
+      const element = instance!.options.element;
+      expect(instance!.lngLat).toEqual(four[1]);
+
+      // On its way to the Crown, the night moves on to the Bell.
+      marker.nextStop(nextStop(2, "The Crown").target);
+      runFrames(3);
+      expect(element.dataset.palWalk).toBe("visiting");
+      const bell = nextStop(3, "The Bell");
+      marker.nextStop(bell.target);
+      runFrames(400);
+      expect(frames).toHaveLength(0);
+      expect(instance!.lngLat).toEqual(four[3]);
+      expect(tappable(element)).toEqual({ role: "button", label: "Next stop: The Bell", hidden: null, chip: "Next: The Bell" });
+      element.click();
+      expect(bell.open).toHaveBeenCalledTimes(1);
+
+      // Sent back to the first stop by the reader, it keeps going there.
+      marker.visit(0);
+      runFrames(3);
+      marker.nextStop(nextStop(2, "The Crown").target);
+      runFrames(400);
+      expect(instance!.lngLat).toEqual(four[0]);
+      expect(tappable(element)).toEqual(decorative);
+    });
+
     it("takes no taps beside any other stop, or once the plan has no next stop", () => {
       store(pal());
       const marker = createPalMapMarker(map);

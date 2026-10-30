@@ -176,7 +176,8 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
   let marker: maplibregl.Marker | null = null;
   let next: PalNextStop | null = null;
   let perchedAt: string | null = null;
-  type Visit = { from: number; to: number; stop: number; elapsed: number; durationMs: number };
+  /** A trip along the route to one stop. `following` is a trip to tonight's next stop, not one the reader asked for. */
+  type Visit = { from: number; to: number; stop: number; elapsed: number; durationMs: number; following: boolean };
   let walk: {
     key: string;
     road: boolean;
@@ -339,6 +340,39 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
     frame = requestAnimationFrame(step);
   };
 
+  // Send the Pal along the route to one stop: one the reader tapped, or
+  // tonight's next stop (`following`).
+  const goTo = (stop: number, following: boolean) => {
+    if (!walk || !Number.isInteger(stop) || stop < 0 || stop >= walk.stops.length) return;
+    if (pal.muted || prefersReducedMotion()) {
+      // A still Pal steps straight to the stop.
+      cancelStart?.();
+      cancelStart = null;
+      if (frame) cancelAnimationFrame(frame);
+      frame = 0;
+      restBeside(stop, "visited");
+      return;
+    }
+    if (!walk.visit && walk.restAt === stop && walk.elapsed >= walk.plan.durationMs) {
+      // Already beside it: just the jump.
+      element.dataset.palWalk = "visited";
+      restartClass("isCheering");
+      return;
+    }
+    const to = walk.plan.stopsAt[stop]!;
+    walk.visit = { from: walk.metres, to, stop, elapsed: 0, durationMs: palVisitMs(to - walk.metres), following };
+    // A tap ends the crawl walk: the Pal does not go back to it.
+    walk.elapsed = walk.plan.durationMs;
+    walk.restAt = null;
+    element.classList.remove("isCheering");
+    element.dataset.palWalk = "visiting";
+    syncTap();
+    // A walk still waiting for the map to load takes the trip when it starts.
+    if (frame || cancelStart) return;
+    lastFrameAt = performance.now();
+    frame = requestAnimationFrame(step);
+  };
+
   const api: PalMapMarker = {
     perch: (lngLat, pin) => {
       if (walk) {
@@ -423,36 +457,7 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
       }
       start();
     },
-    visit: (stop) => {
-      if (!walk || !Number.isInteger(stop) || stop < 0 || stop >= walk.stops.length) return;
-      if (pal.muted || prefersReducedMotion()) {
-        // A still Pal steps straight to the stop.
-        cancelStart?.();
-        cancelStart = null;
-        if (frame) cancelAnimationFrame(frame);
-        frame = 0;
-        restBeside(stop, "visited");
-        return;
-      }
-      if (!walk.visit && walk.restAt === stop && walk.elapsed >= walk.plan.durationMs) {
-        // Already beside it: just the jump.
-        element.dataset.palWalk = "visited";
-        restartClass("isCheering");
-        return;
-      }
-      const to = walk.plan.stopsAt[stop]!;
-      walk.visit = { from: walk.metres, to, stop, elapsed: 0, durationMs: palVisitMs(to - walk.metres) };
-      // A tap ends the crawl walk: the Pal does not go back to it.
-      walk.elapsed = walk.plan.durationMs;
-      walk.restAt = null;
-      element.classList.remove("isCheering");
-      element.dataset.palWalk = "visiting";
-      syncTap();
-      // A walk still waiting for the map to load takes the trip when it starts.
-      if (frame || cancelStart) return;
-      lastFrameAt = performance.now();
-      frame = requestAnimationFrame(step);
-    },
+    visit: (stop) => goTo(stop, false),
     nextStop: (target) => {
       const same = next && target && next.stop === target.stop && next.name === target.name;
       next = target;
@@ -460,10 +465,14 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
         syncTap();
         return;
       }
+      const onRoute = target !== null && target.stop >= 0 && target.stop < walk.stops.length;
       const finished = !walk.visit && walk.elapsed >= walk.plan.durationMs;
-      // A finished walk goes on to the new next stop, as a tapped stop does.
-      if (finished && target && target.stop >= 0 && target.stop < walk.stops.length && walk.restAt !== target.stop) {
-        api.visit(target.stop);
+      // A finished walk goes on to the new next stop, as a tapped stop does,
+      // and a trip still on its way to the old next stop turns for the new
+      // one. A trip the reader asked for keeps going where they sent it.
+      const followingElsewhere = walk.visit?.following === true && walk.visit.stop !== target?.stop;
+      if (onRoute && ((finished && walk.restAt !== target.stop) || followingElsewhere)) {
+        goTo(target.stop, true);
         return;
       }
       syncTap();

@@ -3503,7 +3503,7 @@ export default function PubMap({
   });
   // Tonight's plan is the route on the map, not a crawl the reader is building,
   // and the Pal waits at its next stop.
-  const { routeIsActivePlan, palNextStop } = useActivePlanPalNextStop(activePlanStops, activePlanRoute, routeForMap, venueById);
+  const { routeIsActivePlan, palNextStop } = useActivePlanPalNextStop(activePlanStops, activePlanRoute, routeMappedActive, venueById);
   // A suggested route exists behind the clean map, but its TfL legs are only
   // useful once the planner is open or the viewer explicitly maps it.
   const {

@@ -96,17 +96,19 @@ const serverStopIndex = (): number => 0;
  * only by a tap), where the map Pal waits. The cursor is a plain read of the
  * pointer: unlike useActivePlan it restores nothing on the server, and it is
  * 0 on the server and first paint.
+ *
+ * Ownership comes from the presentation itself (`routeMappedActive` from
+ * useMapPlanPresentation), never from matching stops: a crawl the reader
+ * builds and maps owns the map even when its pubs are tonight's pubs.
  */
 export function useActivePlanPalNextStop(
   stops: readonly PlanStopDTO[],
   activePlanRoute: readonly Venue[],
-  routeForMap: readonly Venue[],
+  routeMappedActive: boolean,
   venueById: ReadonlyMap<string, Venue>,
 ): { routeIsActivePlan: boolean; palNextStop: { venueId: string; name: string } | null } {
   const stopIndex = useSyncExternalStore(subscribeActivePlan, readStopIndex, serverStopIndex);
-  const routeIsActivePlan =
-    activePlanRoute.length > 1 &&
-    routeForMap.map((venue) => venue.id).join(",") === activePlanRoute.map((venue) => venue.id).join(",");
+  const routeIsActivePlan = !routeMappedActive && activePlanRoute.length > 1;
   const palNextStop = useMemo(() => {
     if (!routeIsActivePlan) return null;
     const next = planNextStopVenue(stops, stopIndex, venueById);
