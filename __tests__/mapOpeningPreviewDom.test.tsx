@@ -288,6 +288,59 @@ describe("MapOpeningPreview", () => {
     }
   });
 
+  it("past the streets ceiling, still holds while the loading frame is up", async () => {
+    // Standing down under the loading frame shows it on bare paper; a busy
+    // phone took longer than the ceiling to lift it.
+    vi.useFakeTimers();
+    const loading = document.createElement("div");
+    loading.className = "mapLoading";
+    document.body.append(loading);
+    try {
+      document.documentElement.dataset.mapPreview = "on";
+      await mount();
+      await act(() => {
+        window.dispatchEvent(new Event(PINS_VISIBLE_EVENT));
+      });
+      await act(() => {
+        vi.advanceTimersByTime(3_000);
+      });
+      expect(document.documentElement.dataset.mapPreview).toBe("on");
+      await act(async () => {
+        loading.remove();
+        await Promise.resolve();
+      });
+      expect(document.documentElement.dataset.mapPreview).toBe("done");
+    } finally {
+      loading.remove();
+      vi.useRealTimers();
+    }
+  });
+
+  it("gives up at the backstop if the loading frame never lifts", async () => {
+    vi.useFakeTimers();
+    const loading = document.createElement("div");
+    loading.className = "mapLoading";
+    document.body.append(loading);
+    try {
+      document.documentElement.dataset.mapPreview = "on";
+      await mount();
+      await act(() => {
+        window.dispatchEvent(new Event(PINS_VISIBLE_EVENT));
+      });
+      await act(() => {
+        vi.advanceTimersByTime(9_999);
+      });
+      expect(document.documentElement.dataset.mapPreview).toBe("on");
+      await act(() => {
+        vi.advanceTimersByTime(1);
+      });
+      expect(document.documentElement.dataset.mapPreview).toBe("done");
+    } finally {
+      loading.remove();
+      vi.useRealTimers();
+    }
+  });
+
   it("turns with the arrival turn instead of standing down", async () => {
     document.documentElement.dataset.mapPreview = "on";
     await mount();

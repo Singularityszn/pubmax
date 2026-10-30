@@ -59,8 +59,15 @@ const FIGURE_INKS = [
 
 /** The map's own loading frame (MapLoadingFrame), over the canvas until the reveal unmounts it. */
 const MAP_LOADING_FRAME_SELECTOR = ".mapLoading";
-/** The longest the preview waits, after the reveal, for the map to show. */
+/** The longest the preview waits, after the reveal, for the streets to be drawn. */
 const MAP_SHOWS_CEILING_MS = 3000;
+/**
+ * The longest it waits, after the reveal, for anything. The loading frame is
+ * the shell's to lift and the shell bounds that itself
+ * (MAP_CANVAS_READINESS_CEILING_MS), so this only stops a preview outliving a
+ * frame that somehow never goes.
+ */
+const MAP_SHOWS_BACKSTOP_MS = 10_000;
 
 function standDown(): void {
   const root = document.documentElement;
@@ -78,7 +85,14 @@ function standDown(): void {
  * loading frame has lifted off the canvas AND the streets in view are drawn
  * (BASEMAP_DRAWN_EVENT). Standing down on the lift alone showed the engine's
  * pins on bare paper while its street tiles were still arriving, a blank
- * frame between the picture and the map. Returns the cleanup.
+ * frame between the picture and the map.
+ *
+ * The streets have a ceiling, for a map whose tiles fail: after
+ * MAP_SHOWS_CEILING_MS the lift alone will do. The lift has none of its own,
+ * because standing down while the loading frame is still up shows that frame
+ * on bare paper, which is never better than the picture: a busy phone took
+ * 3.1 to 3.6 s to lift it after the reveal and showed exactly that.
+ * MAP_SHOWS_BACKSTOP_MS is the last word. Returns the cleanup.
  */
 function standDownWhenTheMapShows(): () => void {
   const frameLifted = () => !document.querySelector(MAP_LOADING_FRAME_SELECTOR);
@@ -87,18 +101,21 @@ function standDownWhenTheMapShows(): () => void {
     standDown();
     return () => {};
   }
-  let timer = 0;
+  let streetsWaived = false;
+  let ceiling = 0;
+  let backstop = 0;
   // A mutation callback runs before the next paint, and the streets mark is
   // set inside the engine's own render, so either way the frame that shows
   // the map is the frame that drops the preview.
   const check = () => {
-    if (frameLifted() && streetsDrawn()) finish();
+    if (frameLifted() && (streetsDrawn() || streetsWaived)) finish();
   };
   const observer = new MutationObserver(check);
   const stop = () => {
     observer.disconnect();
     window.removeEventListener(BASEMAP_DRAWN_EVENT, check);
-    window.clearTimeout(timer);
+    window.clearTimeout(ceiling);
+    window.clearTimeout(backstop);
   };
   const finish = () => {
     stop();
@@ -106,7 +123,11 @@ function standDownWhenTheMapShows(): () => void {
   };
   observer.observe(document.body, { childList: true, subtree: true });
   window.addEventListener(BASEMAP_DRAWN_EVENT, check);
-  timer = window.setTimeout(finish, MAP_SHOWS_CEILING_MS);
+  ceiling = window.setTimeout(() => {
+    streetsWaived = true;
+    check();
+  }, MAP_SHOWS_CEILING_MS);
+  backstop = window.setTimeout(finish, MAP_SHOWS_BACKSTOP_MS);
   return stop;
 }
 
