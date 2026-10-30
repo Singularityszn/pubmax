@@ -7,8 +7,8 @@
 .cityPubsOnlyNote {
   position: absolute;
   top: calc(
-    var(--map-top-clearance, 0px) +
-    var(--map-toolbar-resting-height, 155px) +
+    var(--map-top-clearance) +
+    var(--map-toolbar-resting-height) +
     12px
   );
   left: 50%;
@@ -40,8 +40,8 @@
   .cityPubsOnlyNote {
     position: fixed;
     top: calc(var(--mobile-map-chrome-full-h) + 8px);
-    left: var(--mobile-map-stack-left, 12px);
-    right: var(--mobile-map-stack-right, 12px);
+    left: var(--mobile-map-stack-left);
+    right: var(--mobile-map-stack-right);
     max-width: none;
     border-radius: var(--control-radius);
     transform: none;

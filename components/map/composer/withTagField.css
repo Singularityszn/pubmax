@@ -6,7 +6,7 @@
 .withTagHint {
   margin: 0;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: var(--text-sm);
 }
 
 .withTagMatches {
@@ -18,14 +18,14 @@
 .withTagMatches p {
   margin: 0;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: var(--text-sm);
 }
 
 .withTagMatch {
   min-height: 36px;
   padding: 4px 12px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--panel);
   color: var(--ink);
   font: inherit;

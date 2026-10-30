@@ -2,7 +2,7 @@
   --cover-tint: var(--amber);
   position: relative;
   margin: 0 0 16px;
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
   background: var(--panel);
   aspect-ratio: 16 / 7;
@@ -43,8 +43,8 @@
   left: 12px;
   bottom: 12px;
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--paper);
   color: var(--ink);
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
 }

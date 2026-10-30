@@ -12,7 +12,7 @@
 
 import { useId, useState, type FormEvent } from "react";
 
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useViewerSession } from "@/components/auth/useViewerSession";
 import SignInButton from "@/components/auth/SignInButton";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { authedActionFetch } from "@/lib/authedFetch";
@@ -46,7 +46,7 @@ export default function VenueCorrectionDoor({
   /** Which line the door sits on, for its accessible name and test hooks. */
   where: "price" | "details";
 }): React.JSX.Element {
-  const { user, loading } = useAuth();
+  const { signedIn, unresolved } = useViewerSession();
   const [phase, setPhase] = useState<Phase>("closed");
   const [kind, setKind] = useState<VenueCorrectionKind | null>(null);
   const [note, setNote] = useState("");
@@ -117,11 +117,11 @@ export default function VenueCorrectionDoor({
     );
   }
 
-  if (!user) {
+  if (!signedIn) {
     return (
       <div className="venueCorrectionForm" data-venue-correction={where}>
-        <p className="venueCorrectionLine">{loading ? "Checking your account." : SIGN_IN_LINE}</p>
-        {loading ? null : <SignInButton />}
+        <p className="venueCorrectionLine">{unresolved ? "Checking your account." : SIGN_IN_LINE}</p>
+        {unresolved ? null : <SignInButton />}
         <button type="button" className="venueCorrectionCancel" onClick={close}>
           Not now
         </button>

@@ -13,7 +13,7 @@
 
 import { useEffect, useId, useState, type FormEvent } from "react";
 
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useViewerSession } from "@/components/auth/useViewerSession";
 import SignInButton from "@/components/auth/SignInButton";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { authedActionFetch } from "@/lib/authedFetch";
@@ -79,7 +79,7 @@ export default function AddRegularNight({
   /** Which surface it sits on, for test hooks. */
   where: "tonight" | "pub";
 }): React.JSX.Element {
-  const { user, loading } = useAuth();
+  const { signedIn, unresolved } = useViewerSession();
   const [phase, setPhase] = useState<Phase>("closed");
   const [pub, setPub] = useState<PubChoice | null>(venueId ? { id: venueId, name: venueName ?? "", area: "" } : null);
   const [query, setQuery] = useState("");
@@ -166,11 +166,11 @@ export default function AddRegularNight({
     );
   }
 
-  if (!user) {
+  if (!signedIn) {
     return (
       <div className="addRegularNightForm" data-add-regular-night={where}>
-        <p className="addRegularNightLine">{loading ? "Checking your account." : REGULAR_NIGHT_REPORT_SIGN_IN_LINE}</p>
-        {loading ? null : <SignInButton />}
+        <p className="addRegularNightLine">{unresolved ? "Checking your account." : REGULAR_NIGHT_REPORT_SIGN_IN_LINE}</p>
+        {unresolved ? null : <SignInButton />}
         <button type="button" className="addRegularNightCancel" onClick={close}>
           Not now
         </button>

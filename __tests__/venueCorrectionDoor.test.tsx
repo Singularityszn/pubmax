@@ -7,8 +7,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const authState = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));
 const fetchMock = vi.hoisted(() => vi.fn<(url: string, init?: RequestInit) => Promise<Response>>());
 
-vi.mock("@/components/auth/AuthProvider", () => ({
-  useAuth: () => authState.current,
+vi.mock("@/components/auth/useViewerSession", () => ({
+  useViewerSession: () => {
+    const { user, loading } = authState.current as { user: unknown; loading: boolean };
+    const phase = user ? "signed-in" : loading ? "unresolved" : "signed-out";
+    return { phase, signedIn: phase === "signed-in", signedOut: phase === "signed-out", unresolved: phase === "unresolved" };
+  },
 }));
 vi.mock("@/components/auth/SignInButton", () => ({
   default: () => createElement("button", { type: "button" }, "Sign in"),

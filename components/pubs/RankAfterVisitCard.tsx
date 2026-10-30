@@ -20,6 +20,7 @@ import { useViewerSession } from "@/components/auth/useViewerSession";
 import { authedActionJson, authedFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { formatGbp } from "@/lib/formatGbp";
+import { discardBody } from "@/lib/responseBody";
 import {
   answerSocialPubComparison,
   nextSocialPubOpponent,
@@ -66,7 +67,10 @@ async function readList(venueId: string): Promise<Omit<Loaded, "forVenueId"> | n
       { credentials: "same-origin" },
       { requiresIdentity: true },
     );
-    if (!response.ok) return null;
+    if (!response.ok) {
+      discardBody(response);
+      return null;
+    }
     const body = (await response.json()) as { entries?: SocialPubRankingEntry[]; subject?: Subject };
     return { entries: body.entries ?? [], subject: body.subject ?? null };
   } catch {
