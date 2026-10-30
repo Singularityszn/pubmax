@@ -361,6 +361,7 @@ beforeAll(async () => {
     profileRoute,
     planStore,
     crewPalsRoute,
+    usualDrinkRoute,
   ] = await Promise.all([
     import("@/app/api/plans/[id]/route"),
     import("@/app/api/plans/[id]/getin/route"),
@@ -398,6 +399,7 @@ beforeAll(async () => {
     import("@/app/api/profiles/[handle]/route"),
     import("@/lib/planStore"),
     import("@/app/api/plans/[id]/pals/route"),
+    import("@/app/api/plans/[id]/usual-drink/route"),
   ]);
   handlers = {
     readPlan: planRoute.GET as Handler,
@@ -408,6 +410,7 @@ beforeAll(async () => {
     join: joinRoute.POST as Handler,
     rotateInvite: rotateRoute.POST as Handler,
     presence: presenceRoute.POST as Handler,
+    usualDrink: usualDrinkRoute.POST as Handler,
     crewPals: crewPalsRoute.GET as Handler,
     planCard: planCard.GET as unknown as Handler,
     listMemories: memoriesRoute.GET as unknown as Handler,
@@ -734,6 +737,41 @@ describe("private Plan: write", () => {
     expect(planRevision()).toBe(revisionBefore);
     expect(planStopOrder()).toBe(orderBefore);
     expect(truth(`select status from public.plan_crew_members where id = '${HOST_MEMBER_ID}'`)).toBe("in");
+  });
+
+  it("usual drink (0211): anonymous and user B set nothing, the host sets her own, and no browser role reads the column", async () => {
+    for (const bearer of [undefined, BEARER_BOB]) {
+      const refused = await defined(handlers.usualDrink)(
+        request(`/api/plans/${PLAN_ID}/usual-drink`, { bearer, body: { usualDrink: "wine" } }),
+        context({ id: PLAN_ID }),
+      );
+      expect([400, 403]).toContain(refused.status);
+    }
+    expect(truth(`select usual_drink is null from public.plan_crew_members where id = '${HOST_MEMBER_ID}'`)).toBe("true");
+
+    const saved = await defined(handlers.usualDrink)(
+      request(`/api/plans/${PLAN_ID}/usual-drink`, { bearer: HOST_TOKEN, body: { usualDrink: "wine" } }),
+      context({ id: PLAN_ID }),
+    );
+    expect(saved.status, await saved.text()).toBe(200);
+    expect(truth(`select usual_drink from public.plan_crew_members where id = '${HOST_MEMBER_ID}'`)).toBe("wine");
+
+    // The column is not in 0172's authenticated column grant, so even the
+    // seat's owner cannot select it through PostgREST.
+    const column = await requireSession().rest(
+      `/plan_crew_members?select=usual_drink&plan_id=eq.${PLAN_ID}`,
+      { sub: ALICE },
+    );
+    expect(column.status).toBeGreaterThanOrEqual(400);
+    for (const [role, sub] of [["anon", null], ["authenticated", ALICE], ["authenticated", BOB]] as const) {
+      const written = attemptAsRole(
+        role,
+        sub,
+        `update public.plan_crew_members set usual_drink = 'soft' where id = '${HOST_MEMBER_ID}'`,
+      );
+      expect(written.ok ? truth(`select usual_drink from public.plan_crew_members where id = '${HOST_MEMBER_ID}'`) : "refused")
+        .not.toBe("soft");
+    }
   });
 
   it("the host's capability replaces the route (the control cell)", async () => {

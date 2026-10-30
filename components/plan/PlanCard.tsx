@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 
 import VenueImage from "@/components/media/VenueImage";
 import { canonicalStateFromBody } from "@/components/plan/PlanSummary";
+import PlanRoundForecast from "@/components/plan/PlanRoundForecast";
 import { readPlanMemberProjection, usePlanMemberRead } from "@/components/plan/usePlanMemberRead";
 import { Button } from "@/components/ui/button";
 import { isPlanActiveNow, readActivePlan, subscribeActivePlan } from "@/lib/activePlan";
@@ -181,6 +182,7 @@ export default function PlanCard({ planId, completed = false }: { planId: string
             </Button>
           ) : null}
         </div>
+        <PlanRoundForecast planId={planId} stops={state.stops} crew={state.crew} onPlan={setState} />
       </div>
     </section>
   );
