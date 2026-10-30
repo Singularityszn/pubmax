@@ -10,6 +10,7 @@ import { getCity } from "@/lib/cities";
 import { MAP_ARRIVAL_BEARING_DEG } from "@/lib/mapArrivalBearing";
 import {
   clusterAtZoom,
+  frameCameraMatchesPreview,
   frameMatchesPreview,
   MAP_OPENING_PREVIEW_CAMERA,
   OPENING_CLUSTER_MAX_ZOOM,
@@ -202,6 +203,13 @@ describe("frameMatchesPreview", () => {
       frame({ camera: { ...MAP_OPENING_PREVIEW_CAMERA, bearing: MAP_OPENING_PREVIEW_CAMERA.bearing + bearing } });
     expect(frameMatchesPreview(turned(MAP_ARRIVAL_BEARING_DEG), discs)).toBe(true);
     expect(frameMatchesPreview(turned(MAP_ARRIVAL_BEARING_DEG + 1), discs)).toBe(false);
+  });
+
+  it("keeps the camera of a frame whose pubs differ, and not of a moved one", () => {
+    expect(frameCameraMatchesPreview(frame({ features: coreFeatures().slice(1) }))).toBe(true);
+    expect(
+      frameCameraMatchesPreview(frame({ camera: { ...MAP_OPENING_PREVIEW_CAMERA, zoom: 14 } })),
+    ).toBe(false);
   });
 
   it("refuses a frame where a drinker's lower price changed a disc's figure", () => {

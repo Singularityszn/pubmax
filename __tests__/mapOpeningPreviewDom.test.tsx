@@ -53,6 +53,7 @@ const DISC: OpeningPreviewDisc = {
 beforeEach(() => {
   localStorage.clear();
   delete document.documentElement.dataset.mapPreview;
+  delete document.documentElement.dataset.mapPreviewDiscs;
   performance.clearMarks();
   delete (window as { __pubmaxOpeningFrame?: unknown }).__pubmaxOpeningFrame;
 });
@@ -244,6 +245,33 @@ describe("MapOpeningPreview", () => {
     expect(document.documentElement.dataset.mapPreview).toBe("done");
   });
 
+  it("after the reveal, waits for no street tile once its prices have gone", async () => {
+    // A picture without its discs is streets with no price on them, and the
+    // map under it has its prices ready: holding it for the streets kept the
+    // prices off screen for 2.5 to 3.5 s on every cold run.
+    document.documentElement.dataset.mapPreview = "on";
+    document.documentElement.dataset.mapPreviewDiscs = "off";
+    await mount();
+    await act(() => {
+      window.dispatchEvent(new Event(PINS_VISIBLE_EVENT));
+    });
+    expect(document.documentElement.dataset.mapPreview).toBe("done");
+  });
+
+  it("stops waiting for the streets the moment its prices go", async () => {
+    document.documentElement.dataset.mapPreview = "on";
+    await mount();
+    await act(() => {
+      window.dispatchEvent(new Event(PINS_VISIBLE_EVENT));
+    });
+    expect(document.documentElement.dataset.mapPreview).toBe("on");
+    await act(async () => {
+      document.documentElement.dataset.mapPreviewDiscs = "off";
+      await Promise.resolve();
+    });
+    expect(document.documentElement.dataset.mapPreview).toBe("done");
+  });
+
   it("waits for both the lift and the streets, in either order", async () => {
     const loading = document.createElement("div");
     loading.className = "mapLoading";
@@ -287,6 +315,59 @@ describe("MapOpeningPreview", () => {
     }
   });
 
+  it("past the streets ceiling, still holds while the loading frame is up", async () => {
+    // Standing down under the loading frame shows it on bare paper; a busy
+    // phone took longer than the ceiling to lift it.
+    vi.useFakeTimers();
+    const loading = document.createElement("div");
+    loading.className = "mapLoading";
+    document.body.append(loading);
+    try {
+      document.documentElement.dataset.mapPreview = "on";
+      await mount();
+      await act(() => {
+        window.dispatchEvent(new Event(PINS_VISIBLE_EVENT));
+      });
+      await act(() => {
+        vi.advanceTimersByTime(3_000);
+      });
+      expect(document.documentElement.dataset.mapPreview).toBe("on");
+      await act(async () => {
+        loading.remove();
+        await Promise.resolve();
+      });
+      expect(document.documentElement.dataset.mapPreview).toBe("done");
+    } finally {
+      loading.remove();
+      vi.useRealTimers();
+    }
+  });
+
+  it("gives up at the backstop if the loading frame never lifts", async () => {
+    vi.useFakeTimers();
+    const loading = document.createElement("div");
+    loading.className = "mapLoading";
+    document.body.append(loading);
+    try {
+      document.documentElement.dataset.mapPreview = "on";
+      await mount();
+      await act(() => {
+        window.dispatchEvent(new Event(PINS_VISIBLE_EVENT));
+      });
+      await act(() => {
+        vi.advanceTimersByTime(9_999);
+      });
+      expect(document.documentElement.dataset.mapPreview).toBe("on");
+      await act(() => {
+        vi.advanceTimersByTime(1);
+      });
+      expect(document.documentElement.dataset.mapPreview).toBe("done");
+    } finally {
+      loading.remove();
+      vi.useRealTimers();
+    }
+  });
+
   it("turns with the arrival turn instead of standing down", async () => {
     document.documentElement.dataset.mapPreview = "on";
     await mount();
@@ -295,19 +376,24 @@ describe("MapOpeningPreview", () => {
         window.dispatchEvent(new CustomEvent(MAP_OPENING_PREVIEW_TURN_EVENT, { detail: MAP_OPENING_PREVIEW_CAMERA.bearing + 2.5 }));
       });
       expect(document.documentElement.dataset.mapPreview).toBe("on");
-      expect(document.documentElement.style.getPropertyValue("--map-preview-bearing")).toBe("2.5deg");
+      const discs = document.querySelector<HTMLElement>(".mapOpeningPreview");
+      expect(discs?.style.getPropertyValue("--map-preview-bearing")).toBe("2.5deg");
+      // Never on the root: that restyles the whole document on every frame of the turn.
+      expect(document.documentElement.style.getPropertyValue("--map-preview-bearing")).toBe("");
     } finally {
       document.documentElement.style.removeProperty("--map-preview-bearing");
     }
   });
 
-  it("stands down on the turn where the turned screen would see past the picture", async () => {
-    // A 1024x768 jsdom window is far wider than the ground a phone picture covers.
+  it("on the largest phones, turns only as far as the picture still covers", async () => {
     const ground: OpeningGround = {
       rect: { x: -322, y: -848, width: 644, height: 1356 },
       light: "/landing/map-opening/london-light.webp",
       dark: "/landing/map-opening/london-dark.webp",
     };
+    const size = { innerWidth: window.innerWidth, innerHeight: window.innerHeight };
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 440 });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 956 });
     document.documentElement.dataset.mapPreview = "on";
     document.documentElement.dataset.mapGround = "on";
     try {
@@ -315,9 +401,20 @@ describe("MapOpeningPreview", () => {
       await act(() => {
         window.dispatchEvent(new CustomEvent(MAP_OPENING_PREVIEW_TURN_EVENT, { detail: MAP_OPENING_PREVIEW_CAMERA.bearing + 4 }));
       });
-      expect(document.documentElement.dataset.mapPreview).toBe("done");
+      // Held short of the full turn, and still the preview: no bare paper.
+      expect(document.documentElement.dataset.mapPreview).toBe("on");
+      const layers = [".mapOpeningGround", ".mapOpeningPreview"].map((selector) =>
+        document.querySelector<HTMLElement>(selector)?.style.getPropertyValue("--map-preview-bearing"),
+      );
+      expect(layers[0]).toBe(layers[1]);
+      const held = parseFloat(layers[0] ?? "");
+      expect(held).toBeGreaterThan(0);
+      expect(held).toBeLessThan(4);
     } finally {
       delete document.documentElement.dataset.mapGround;
+      document.documentElement.style.removeProperty("--map-preview-bearing");
+      Object.defineProperty(window, "innerWidth", { configurable: true, value: size.innerWidth });
+      Object.defineProperty(window, "innerHeight", { configurable: true, value: size.innerHeight });
     }
   });
 
@@ -356,6 +453,60 @@ describe("MapOpeningPreview", () => {
     );
     await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
     expect(document.documentElement.dataset.mapPreview).toBe("on");
+  });
+
+  it("keeps the picture but drops the discs when the map will draw other prices from the same camera", async () => {
+    // A fuller venue index lands after the arrival turn: same camera, other
+    // clusters. The discs are wrong now; the streets under them are not.
+    const ground: OpeningGround = {
+      rect: { x: -322, y: -848, width: 644, height: 1356 },
+      light: "/landing/map-opening/london-light.webp",
+      dark: "/landing/map-opening/london-dark.webp",
+    };
+    const otherPrices: MapOpeningFrame = {
+      features: [
+        {
+          type: "Feature",
+          geometry: { type: "Point", coordinates: [-0.12, 51.52] },
+          properties: { clusterPrice: 3.1, bucket: 0 },
+        },
+      ],
+      camera: { ...MAP_OPENING_PREVIEW_CAMERA, bearing: MAP_OPENING_PREVIEW_CAMERA.bearing + 4 },
+    };
+    document.documentElement.dataset.mapPreview = "on";
+    document.documentElement.dataset.mapGround = "on";
+    try {
+      await mount([DISC], ground);
+      await act(() => {
+        window.dispatchEvent(new CustomEvent(MAP_OPENING_FRAME_EVENT, { detail: otherPrices }));
+      });
+      expect(document.documentElement.dataset.mapPreview).toBe("on");
+      expect(document.documentElement.dataset.mapPreviewDiscs).toBe("off");
+    } finally {
+      delete document.documentElement.dataset.mapGround;
+    }
+  });
+
+  it("stands down whole on other prices where no picture is shown", async () => {
+    document.documentElement.dataset.mapPreview = "on";
+    await mount();
+    await act(() => {
+      window.dispatchEvent(
+        new CustomEvent(MAP_OPENING_FRAME_EVENT, {
+          detail: {
+            features: [
+              {
+                type: "Feature",
+                geometry: { type: "Point", coordinates: [-0.12, 51.52] },
+                properties: { clusterPrice: 3.1, bucket: 0 },
+              },
+            ],
+            camera: { ...MAP_OPENING_PREVIEW_CAMERA },
+          } satisfies MapOpeningFrame,
+        }),
+      );
+    });
+    expect(document.documentElement.dataset.mapPreview).toBe("done");
   });
 
   it("still stands down at once when the camera moves before the loading frame lifts", async () => {

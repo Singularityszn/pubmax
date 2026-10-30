@@ -201,7 +201,7 @@ const PAINTED_READ_FILES = [
   "components/desktop/ConditionsChip.tsx",
   "components/map/VenueTonightChips.tsx",
   "app/tonight/TonightConditionsStrip.tsx",
-  "app/tonight/TonightGetHomeStrip.tsx",
+  "app/tonight/useTonightGetHome.ts",
   "app/today/TodayTubeCard.tsx",
   "app/today/TodayGetThereStrip.tsx",
   "components/transport/DisruptionLine.tsx",
