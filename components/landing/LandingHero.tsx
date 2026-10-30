@@ -133,6 +133,12 @@ type Answer = {
   drinkHref: Route | null;
   scope: LandingAnswerScope;
   walkMinutes?: number;
+  /**
+   * What the near-you answer is worth against the reader's doorstep pub
+   * (nearSavingLine, lib/nearMeAnswer.ts). Only an answer from the reader's own
+   * fix carries one; the anchor never does.
+   */
+  savingLine?: string | null;
   evidence: Evidence;
   then: LandingArchiveThen | null;
   rail: LandingRailRow[];
@@ -170,6 +176,7 @@ function nearAnswer(
   rest: NearMeCard[],
   scope: "walkable" | "widened",
   archive: LandingArchiveIndex,
+  savingLine: string | null,
 ): Answer {
   return {
     id: first.id,
@@ -181,6 +188,7 @@ function nearAnswer(
     drinkHref: null,
     scope,
     walkMinutes: first.walkMinutes,
+    savingLine,
     evidence: "loading",
     then: archive[first.id] ?? null,
     rail: rest.slice(0, HERO_RAIL_SIZE).map((card) => ({
@@ -270,7 +278,9 @@ export default function LandingHero({
               fail(NEAR_ME_NOTHING_LINE);
               return;
             }
-            setAnswer(nearAnswer(first, rest, ranked.scope, archive));
+            setAnswer(
+              nearAnswer(first, rest, ranked.scope, archive, rankModule.nearSavingLine(ranked.cards, ranked.nearest)),
+            );
             setNear({ kind: "answered" });
             const controller = new AbortController();
             const evidence = await readEvidence(first.id, first.cheapestPrice, controller.signal);
@@ -462,6 +472,11 @@ function AnswerCard({
           <span className="lpPubPint">{answer.pintName ?? "cheapest pint"}</span>
         )}
       </p>
+      {answer.savingLine ? (
+        <p className="lpSaving" data-testid="landing-saving-line">
+          {answer.savingLine}
+        </p>
+      ) : null}
       <p className="lpPubSource">
         {publisher ? (
           <>

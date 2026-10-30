@@ -228,6 +228,7 @@ body:has(.lp) {
 .lpPubCard--photo .lpNearLine {
   color: var(--landing-photo-ink-soft);
 }
+.lpPubCard--photo .lpSaving { color: var(--landing-photo-ink); }
 
 .lpPubCard--photo .lpPubName a { color: var(--landing-photo-ink); }
 @media (hover: hover) and (pointer: fine) {
@@ -279,6 +280,18 @@ body:has(.lp) {
    row because it is the one figure on the first screen. */
 .lpPubPrice .priceBadge { font-size: var(--text-lg); min-block-size: 2.4rem; padding-inline: .7rem; }
 .lpPubPint { color: var(--ink-soft); font-size: var(--text-base); }
+/* The near-you answer's saving against the doorstep pub (nearSavingLine,
+   lib/nearMeAnswer.ts), the same line /near prints. Full ink at body size, a
+   step above the source line under it. Ink, never a band hue or coral: colour
+   on a price says its band, and coral is the primary's. */
+.lpSaving {
+  margin: var(--space-2) 0 0;
+  color: var(--ink);
+  font-size: var(--text-base);
+  font-weight: 600;
+  line-height: var(--leading-normal);
+  text-wrap: pretty;
+}
 a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
 @media (hover: hover) and (pointer: fine) {
   a.lpPubPint:hover {

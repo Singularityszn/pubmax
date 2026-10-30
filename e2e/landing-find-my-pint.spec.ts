@@ -136,6 +136,24 @@ test.describe("landing hierarchy", () => {
     });
   }
 
+  // The first answer says what it is worth in pounds (nearSavingLine,
+  // lib/nearMeAnswer.ts): against the nearest pub with a listed price, with
+  // that pub's own price, so the sum can be checked. A reader who already
+  // allowed location gets it on the landing card with no tap, and /near
+  // prints the same line. Soho has a dearer doorstep pub in the shipped data.
+  test("an allowed location answers with the saving in pounds, on the card and on /near", async ({ page, context }) => {
+    test.setTimeout(60_000);
+    await context.grantPermissions(["geolocation"]);
+    await context.setGeolocation({ latitude: 51.5136, longitude: -0.134 });
+    await openLanding(page, { width: 390, height: 844 });
+
+    const saving = /^.+ is £\d+\.\d{2} a pint less than .+, the nearest pub with a listed price \(£\d+\.\d{2}, (right here|\d+\.\d km)\)\.$/;
+    await expect(page.getByTestId("landing-saving-line")).toHaveText(saving, { timeout: 20_000 });
+
+    await page.goto("/near?locate=1");
+    await expect(page.getByTestId("near-saving-line")).toHaveText(saving, { timeout: 20_000 });
+  });
+
   test("shows a sourced pub card and keeps the general price door separate", async ({ page }) => {
     await openLanding(page, { width: 1440, height: 900 });
     const card = page.locator(".lpHero .lpPubCard");
