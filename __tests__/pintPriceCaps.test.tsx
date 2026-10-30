@@ -137,3 +137,88 @@ describe("the rail's max pint slider", () => {
     expect(onFiltersChange).toHaveBeenCalledTimes(3);
   });
 });
+
+// Review finding 4 (PR 2402): a cap that came from an old link, a saved phone
+// session or the onboarding budget must be the cap every control prints. The
+// rail showed "≤ £6" while a £6.25 cap still filtered the map.
+describe("every cap control prints the cap the map applies", () => {
+  let host: HTMLDivElement;
+  let root: Root;
+
+  beforeEach(() => {
+    host = document.createElement("div");
+    document.body.append(host);
+    root = createRoot(host);
+  });
+
+  afterEach(() => {
+    act(() => root.unmount());
+    host.remove();
+  });
+
+  async function owners(): Promise<Array<[string, number]>> {
+    const { seedCrawlState } = await import("@/lib/crawlUrl");
+    const { validateMobileMapFilters } = await import("@/lib/mobileShell");
+    const { desktopHandoffMoves } = await import("@/lib/onboardingFlow");
+    return [
+      ["an old link", seedCrawlState("?max=6.25").filters.maxPrice],
+      ["a saved phone session", validateMobileMapFilters({ ...initialFilters, maxPrice: 6.25 })!.maxPrice],
+      ["the onboarding budget", desktopHandoffMoves({ patch: null, budget: "five" }).maxPrice!],
+    ];
+  }
+
+  it("applies only a shared cap, whatever figure it was handed", async () => {
+    for (const [source, applied] of await owners()) {
+      expect(PINT_PRICE_CAPS.map((cap) => cap.maxPrice), source).toContain(applied);
+    }
+  });
+
+  it("lights the one cap the map applies on the slider, the chips and the phone row", async () => {
+    const { default: ControlRail } = await import("@/components/map/ControlRail");
+    const noop = () => undefined;
+    const legend = mapPriceLegend({
+      kind: "default",
+      renderedState: { priceBands: [{ meaning: "pint", bucket: 0 }], storyColour: null, clusterPrices: false },
+    });
+    for (const [source, applied] of await owners()) {
+      const filters = { ...initialFilters, maxPrice: applied };
+      const capFor = PINT_PRICE_CAPS.find((cap) => cap.maxPrice === applied);
+      expect(capFor, source).toBeDefined();
+
+      act(() =>
+        root.render(
+          createElement(ControlRail, {
+            mode: "suggest",
+            onModeChange: noop,
+            filters,
+            onFiltersChange: noop,
+            filteredVenues: [],
+            builtCount: 0,
+            onClearBuilt: noop,
+            onLoadCrawl: noop,
+            onNearbyCrawl: noop,
+            nearbyLoading: false,
+            nearbyError: null,
+            savedOnly: false,
+            onSavedOnlyChange: noop,
+          } as never),
+        ),
+      );
+      const slider = host.querySelector<HTMLInputElement>('input[aria-label="Maximum pint price"]');
+      expect(slider?.getAttribute("aria-valuetext"), source).toBe(capFor?.label);
+
+      const chips = renderToStaticMarkup(
+        createElement(MapPriceFilterChips, { filters, onFiltersChange: noop, onPicked: noop }),
+      );
+      expect(chips.match(/aria-pressed="true"/g)?.length, source).toBe(1);
+      expect(chips, source).toContain(`${capFor?.label}</button>`);
+      expect(chips, source).toMatch(new RegExp(`aria-pressed="true"><i[^>]*></i>${capFor?.label}<`));
+
+      const phone = renderToStaticMarkup(
+        createElement(MobilePriceChoices, { maxPrice: applied, legend, onMaxPriceChange: noop }),
+      );
+      expect(phone.match(/aria-pressed="true"/g)?.length, source).toBe(1);
+      expect(phone, source).toContain(`aria-pressed="true">${capFor?.shortLabel}<`);
+    }
+  });
+});

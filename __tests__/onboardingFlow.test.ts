@@ -187,8 +187,10 @@ describe("the planner handoff", () => {
 
 describe("the desktop handoff", () => {
   it("turns the budget into the pint cap and the patch into the camera", () => {
+    // £5 is not a shared cap; the map applies the nearest one, £5.50, which is
+    // the cap every control prints (review finding 4, PR 2402).
     expect(desktopHandoffMoves({ patch: { lat: 51.5136, lng: -0.1365 }, budget: "five" })).toEqual({
-      maxPrice: 5,
+      maxPrice: 5.5,
       center: [-0.1365, 51.5136],
     });
   });

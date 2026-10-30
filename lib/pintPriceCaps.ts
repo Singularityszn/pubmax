@@ -78,3 +78,14 @@ export function nearestPintPriceCapIndex(maxPrice: number): number {
 export function nearestPintPriceCap(maxPrice: number): PintPriceCap {
   return PINT_PRICE_CAPS_ASCENDING[nearestPintPriceCapIndex(maxPrice)] ?? ANY_CAP;
 }
+
+/**
+ * The `Filters.maxPrice` a figure from outside the controls is applied as: the
+ * nearest shared cap. Every owner that reads a cap from a link, a saved session
+ * or a handoff runs it through here, so the cap the map applies is the cap
+ * every control prints (review finding 4, PR 2402). A rail that said "≤ £6"
+ * while £6.25 still filtered the map was printing one cap and applying another.
+ */
+export function appliedPintPriceCap(maxPrice: number): number {
+  return nearestPintPriceCap(maxPrice).maxPrice;
+}

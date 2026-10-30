@@ -27,6 +27,7 @@ import { safeLocalStorage, safeSessionStorage } from "@/lib/safeStorage";
 import { tryGetNightArea, type NightAreaSlug } from "@/lib/nightAreas";
 import { NIGHT_PATCHES } from "@/lib/nightPatches";
 import { DEFAULT_PLAN_STOP_COUNT } from "@/lib/planStopCount";
+import { appliedPintPriceCap } from "@/lib/pintPriceCaps";
 
 /** The steps in the order a reader meets them. */
 export const ONBOARDING_STEPS = [
@@ -213,8 +214,11 @@ export function desktopHandoffMoves(handoff: PlannerHandoff): {
   maxPrice: number | null;
   center: [number, number] | null;
 } {
+  const ceiling = handoff.budget ? budgetCeiling(handoff.budget) : null;
   return {
-    maxPrice: handoff.budget ? budgetCeiling(handoff.budget) : null,
+    // The map applies the shared cap its controls print (lib/pintPriceCaps.ts),
+    // so a £5 budget lands on the nearest cap, never on a figure no control shows.
+    maxPrice: ceiling === null ? null : appliedPintPriceCap(ceiling),
     center: handoff.patch ? [handoff.patch.lng, handoff.patch.lat] : null,
   };
 }
