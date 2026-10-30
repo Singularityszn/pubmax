@@ -89,6 +89,7 @@ import { RouteEndingCard,
 } from "@/components/night/RouteEndingCard";
 import { NightCalmLine } from "@/components/night/NightCalmLine";
 import { SafeNightStrip } from "@/components/night/SafeNightStrip";
+import { CrawlBingoCard } from "@/components/night/CrawlBingoCard";
 import { useScreenWakeLock } from "@/components/night/useScreenWakeLock";
 import { useActivePlan } from "@/components/night/useActivePlan";
 import {
@@ -1274,6 +1275,7 @@ function NightModeSheet({
       ) : null}
 
       <SafeNightStrip planId={id} />
+      <CrawlBingoCard planId={id} plan={plan} stopIndex={cursor} lastTrainVenueId={lastTrainLeaveBy ? (currentStop?.venueId ?? null) : null} />
 
       {wakeLock.supported ? (
         <>
