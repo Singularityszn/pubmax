@@ -93,7 +93,7 @@ describe("the closed usual-drink set", () => {
     const sql = readFileSync(MIGRATION, "utf8");
     const check = /usual_drink in \(([^)]*)\)/i.exec(sql);
     expect(check).not.toBe(null);
-    const words = (defined(check)[1] ?? "").split(",").map((word) => word.trim().replace(/'/g, ""));
+    const words = (check?.[1] ?? "").split(",").map((word) => word.trim().replace(/'/g, ""));
     expect(words).toEqual([...PLAN_USUAL_DRINKS]);
     expect(sql).not.toMatch(/^\s*grant\s/im);
     expect(readFileSync(ROLLBACK, "utf8")).toMatch(/drop column if exists usual_drink/i);

@@ -118,7 +118,7 @@ describe("the closed measure set", () => {
     const sql = readFileSync(SIZES_MIGRATION, "utf8");
     const check = /check \(measure in \(([^)]*)\)\)/i.exec(sql);
     expect(check).not.toBe(null);
-    const words = (defined(check)[1] ?? "").split(",").map((word) => word.trim().replace(/'/g, ""));
+    const words = (check?.[1] ?? "").split(",").map((word) => word.trim().replace(/'/g, ""));
     expect(words).toEqual([...DRINK_MEASURES]);
     expect(sql).not.toMatch(/update public\.pint_drops/i);
     const rollback = readFileSync(SIZES_ROLLBACK, "utf8");

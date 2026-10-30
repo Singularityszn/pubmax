@@ -2430,15 +2430,7 @@ function PlanComposerForm({
       clearPlanIntakeDraft();
       clearPersistentPlanMutationKey("create", operationKey);
       haptic("plan-locked");
-      // The report line rides to the card only when the locked stops are the
-      // ones the planner reported on; an edited route has no report.
-      const generatedReport = generatedReportRef.current;
-      rememberPlanReportLine(
-        planId,
-        generatedReport && generatedReport.venueIds === completeStops.map((stop) => stop.venueId).join(",")
-          ? generatedReport.line
-          : null,
-      );
+      rememberLockedReportLine(planId, generatedReportRef.current, completeStops);
       router.push(`/plan/${planId}#share`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The plan could not be created.");
@@ -2949,4 +2941,17 @@ export default function PlanComposer() {
       canPersist={hydrated}
     />
   );
+}
+
+/**
+ * The report line rides to the card only when the locked stops are the ones
+ * the planner reported on; an edited route has no report.
+ */
+function rememberLockedReportLine(
+  planId: string,
+  generated: { line: string; venueIds: string } | null,
+  lockedStops: readonly { venueId: string }[],
+): void {
+  const sameRoute = generated !== null && generated.venueIds === lockedStops.map((stop) => stop.venueId).join(",");
+  rememberPlanReportLine(planId, sameRoute ? generated.line : null);
 }
