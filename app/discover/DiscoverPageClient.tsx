@@ -581,29 +581,36 @@ export function DiscoverBody({
         </div>
       </section>
 
-      <section
-        ref={analysisRef}
-        className="discoverSection"
-        aria-labelledby="rivalry-title"
-      >
-        <h2 id="rivalry-title" className="discoverSectionTitle">
-          UK cities, ranked
-        </h2>
-        <p className="discoverSectionDek">
-          Cities ranked on Pint Drops, crawl packs, and how much ground we
-          cover. Open a map and add to your
-          city&rsquo;s tally.
-        </p>
-        <p className="discoverSectionNote">
-          Seeded only where we&rsquo;ve got demo data.
-        </p>
-        <CityRivalryTable entries={rivalry} />
-      </section>
+      {/* THE CITY TABLE PRINTS REAL COUNTS OR NOTHING (launch review, 30 Oct
+          2026, item 10). It scored twelve cities from demo seed counts and said
+          so on the live site. `publishableCityRivalry` (lib/cityRivalry.ts)
+          hands over rows only when every city has a real count above zero, so
+          an empty list means no section and no heading. The lazy-load anchor
+          stays mounted either way, because the analysis read waits for it. */}
+      {rivalry.length > 0 ? (
+        <section
+          ref={analysisRef}
+          className="discoverSection"
+          aria-labelledby="rivalry-title"
+        >
+          <h2 id="rivalry-title" className="discoverSectionTitle">
+            UK cities, ranked
+          </h2>
+          <p className="discoverSectionDek">
+            Cities ranked on Pint Drops, crawl packs, and how much ground we
+            cover. Open a map and add to your
+            city&rsquo;s tally.
+          </p>
+          <CityRivalryTable entries={rivalry} />
+        </section>
+      ) : (
+        <div ref={(node) => { analysisRef.current = node; }} className="discoverAnalysisAnchor" aria-hidden="true" />
+      )}
 
       {/* Fail-soft: after load with zero drops, omit the whole section (heading
           included). Never leave a labeled empty board shell. Loading/error keep
           a short status so the layout does not jump while data is on the way.
-          Lazy-load target stays on UK city energy above (always mounted). */}
+          Lazy-load target is the city table above, or its anchor. */}
       {status === "error" || status === "idle" || status === "loading" || tonight.length > 0 ? (
         <section
           className="discoverSection"

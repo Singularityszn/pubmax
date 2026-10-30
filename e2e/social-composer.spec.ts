@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page, type Route } from "@playwright/test";
 
 const POST_ID = "11111111-1111-4111-8111-111111111111";
 const E2E_AUTH_STORAGE_KEY = "sb-pubmaxx-e2e-auth-token";
@@ -70,6 +70,19 @@ async function mockVerified(page: Page) {
   await page.route("**/api/social/media/**", (route) => route.fulfill({ status: 404, body: "" }));
 }
 
+/**
+ * The tag inbox reads four lanes from one route: the photo lanes, and the
+ * Pint Drop "With" lanes with kind=with (app/social/SocialTagInbox.tsx). A
+ * mock that answers every read alike would put each photo fixture in both.
+ */
+function isPintDropTagRead(url: string): boolean {
+  return new URL(url).searchParams.get("kind") === "with";
+}
+
+function fulfillEmptyTagLane(route: Route): Promise<void> {
+  return route.fulfill({ contentType: "application/json", body: JSON.stringify({ proposals: [], nextCursor: null }) });
+}
+
 test.beforeEach(async ({ page }) => {
   await seedSocialSession(page);
   await page.addInitScript(() => { localStorage.setItem("pubmax-tour-v1-done", "1"); sessionStorage.setItem("pubmax_onboarding_dismissed", "1"); });
@@ -86,6 +99,9 @@ test("verified composer preserves failed photo draft, records consent choices, a
   const tagActions: Array<Record<string, unknown>> = [];
   await page.route("**/api/social/tags**", async (route) => {
     if (route.request().method() === "GET") {
+      // The Pint Drop tag lanes read the same route with kind=with. This case
+      // is about the photo lanes, so the Pint Drop lanes are empty.
+      if (isPintDropTagRead(route.request().url())) return fulfillEmptyTagLane(route);
       const approvedLane = new URL(route.request().url()).searchParams.get("lane") === "approved";
       const approved = tagActions.some((action) => action.action === "approve") && !tagActions.some((action) => action.action === "withdraw");
       const proposals = approvedLane === approved ? [{
@@ -127,13 +143,14 @@ test("verified composer preserves failed photo draft, records consent choices, a
 
   await page.goto("/social");
   await expect(page.getByText("Held for review")).toBeVisible();
-  const tagReview = page.getByRole("region", { name: "Tags to review" });
+  const tagReview = page.getByRole("region", { name: "Tags to review", exact: true });
   await expect(tagReview.getByRole("img", { name: "Friends outside" })).toBeVisible();
   await expect(tagReview.getByText("Friends audience", { exact: true })).toBeVisible();
   await expect(page.getByText("POST BODY MUST STAY PRIVATE", { exact: true })).toHaveCount(0);
-  await page.getByRole("button", { name: "Approve" }).click();
-  await expect(page.getByRole("button", { name: "Withdraw" })).toBeVisible();
-  await page.getByRole("button", { name: "Withdraw" }).click();
+  await tagReview.getByRole("button", { name: "Approve", exact: true }).click();
+  const approvedTags = page.getByRole("region", { name: "Approved tags", exact: true });
+  await expect(approvedTags.getByRole("button", { name: "Withdraw", exact: true })).toBeVisible();
+  await approvedTags.getByRole("button", { name: "Withdraw", exact: true }).click();
   // The click resolves before its request reaches the route, so wait for it.
   await expect.poll(() => tagActions).toEqual([
     { proposalId: "tag-1", action: "approve", expectedAudienceRevision: 4 },
@@ -433,6 +450,9 @@ test("photo tag review fences audience changes and pages approved withdrawals", 
   });
   await page.route("**/api/social/tags**", async (route) => {
     if (route.request().method() === "GET") {
+      // The Pint Drop tag lanes read the same route with kind=with; this case
+      // pages the photo lanes alone.
+      if (isPintDropTagRead(route.request().url())) return fulfillEmptyTagLane(route);
       const url = new URL(route.request().url());
       if (url.searchParams.get("lane") === "approved") {
         if (actions.some((action) => action.action === "withdraw")) {
@@ -467,22 +487,22 @@ test("photo tag review fences audience changes and pages approved withdrawals", 
   });
 
   await page.goto("/social");
-  const approvedLane = page.getByRole("region", { name: "Approved tags" });
-  await approvedLane.getByRole("button", { name: "Load more" }).click();
+  const approvedLane = page.getByRole("region", { name: "Approved tags", exact: true });
+  await approvedLane.getByRole("button", { name: "Load more", exact: true }).click();
   const detachedTag = approvedLane.getByText("@dee").locator("..");
   await expect(detachedTag).toBeVisible();
   await expect(detachedTag.getByRole("img")).toHaveCount(0);
-  await detachedTag.getByRole("button", { name: "Withdraw" }).click();
+  await detachedTag.getByRole("button", { name: "Withdraw", exact: true }).click();
 
-  const proposedLane = page.getByRole("region", { name: "Tags to review" });
+  const proposedLane = page.getByRole("region", { name: "Tags to review", exact: true });
   await expect(approvedLane).toHaveCount(0);
   const returnedTag = proposedLane.getByText("@cee").locator("..");
   await expect(returnedTag.getByText("Private audience", { exact: true })).toBeVisible();
   const bobTag = proposedLane.getByText("@bob").locator("..");
-  await bobTag.getByRole("button", { name: "Approve" }).click();
+  await bobTag.getByRole("button", { name: "Approve", exact: true }).click();
   await expect(page.getByText("Photo tag changed. Review it again.", { exact: true })).toBeVisible();
   await expect(bobTag.getByText("Private audience", { exact: true })).toBeVisible();
-  await bobTag.getByRole("button", { name: "Approve" }).click();
+  await bobTag.getByRole("button", { name: "Approve", exact: true }).click();
   expect(actions).toContainEqual({ proposalId: "44444444-4444-4444-8444-444444444444", action: "approve", expectedAudienceRevision: 1 });
   expect(actions).toContainEqual({ proposalId: "44444444-4444-4444-8444-444444444444", action: "approve", expectedAudienceRevision: 2 });
   expect(actions).toContainEqual({ proposalId: "66666666-6666-4666-8666-666666666666", action: "withdraw" });
@@ -505,11 +525,25 @@ test("photo tag lanes expose read failures, retry, and preserve approved withdra
     authorHandle: "cee", state: "approved", mediaId: null, photoAltText: null,
     audienceAtApproval: { visibility: "friends", revision: 1, shownAt: "2026-08-05T19:02:00.000Z" },
   };
+  // A Pint Drop "With" tag waiting for review. Its lane reads the same route
+  // with kind=with and never fails here, so it proves one lane's failure does
+  // not take the other lane down.
+  const pintDropTag = {
+    id: "77777777-7777-4777-8777-777777777777", subject: "drop", dropId: "drop-1",
+    taggerHandle: "dan", venueId: null, venueName: null, state: "proposed",
+  };
   let proposedReads = 0;
   let approvedReads = 0;
   await page.route("**/api/social/tags**", async (route) => {
     if (route.request().method() === "POST") {
       return route.fulfill({ contentType: "application/json", body: JSON.stringify({ ok: true }) });
+    }
+    if (isPintDropTagRead(route.request().url())) {
+      const pintDropLane = new URL(route.request().url()).searchParams.get("lane");
+      return route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ proposals: pintDropLane === "proposed" ? [pintDropTag] : [], nextCursor: null }),
+      });
     }
     const lane = new URL(route.request().url()).searchParams.get("lane");
     if (lane === "proposed") {
@@ -524,10 +558,15 @@ test("photo tag lanes expose read failures, retry, and preserve approved withdra
   });
 
   await page.goto("/social");
-  const proposedLane = page.getByRole("region", { name: "Tags to review" });
-  const approvedLane = page.getByRole("region", { name: "Approved tags" });
+  const proposedLane = page.getByRole("region", { name: "Tags to review", exact: true });
+  const approvedLane = page.getByRole("region", { name: "Approved tags", exact: true });
+  const pintDropLane = page.getByRole("region", { name: "Pint Drop tags: tags to review", exact: true });
   await expect(proposedLane.getByRole("alert")).toHaveText("Tags to review are unavailable right now.");
-  const proposedRetry = proposedLane.getByRole("button", { name: "Retry tags to review" });
+  // The photo lane's failure stays in the photo lane.
+  await expect(pintDropLane.getByText("@dan")).toBeVisible();
+  await expect(pintDropLane.getByRole("alert")).toHaveCount(0);
+  await expect(pintDropLane.getByRole("button", { name: "Approve", exact: true })).toBeVisible();
+  const proposedRetry = proposedLane.getByRole("button", { name: "Retry tags to review", exact: true });
   expect((await proposedRetry.boundingBox())?.height).toBeGreaterThanOrEqual(44);
   await proposedRetry.click();
   await expect(proposedLane.getByRole("alert")).toBeVisible();
@@ -535,11 +574,12 @@ test("photo tag lanes expose read failures, retry, and preserve approved withdra
   await expect(proposedLane.getByText("@bob")).toBeVisible();
 
   const approvedTag = approvedLane.getByText("@cee").locator("..");
-  await approvedTag.getByRole("button", { name: "Withdraw" }).click();
+  await approvedTag.getByRole("button", { name: "Withdraw", exact: true }).click();
   await expect(approvedLane.getByRole("alert")).toHaveText("Approved tags are unavailable right now.");
-  await expect(approvedTag.getByRole("button", { name: "Withdraw" })).toBeVisible();
-  await approvedLane.getByRole("button", { name: "Retry approved tags" }).click();
+  await expect(approvedTag.getByRole("button", { name: "Withdraw", exact: true })).toBeVisible();
+  await approvedLane.getByRole("button", { name: "Retry approved tags", exact: true }).click();
   await expect(approvedLane).toHaveCount(0);
+  await expect(pintDropLane.getByText("@dan")).toBeVisible();
 });
 
 for (const viewport of [{ width: 320, height: 720 }, { width: 390, height: 844 }, { width: 430, height: 932 }, { width: 1280, height: 900 }]) {

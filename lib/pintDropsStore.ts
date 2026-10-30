@@ -15,6 +15,7 @@ import type { Provenance } from "@/lib/curation";
 import {
   cleanDrinkMeasure,
   cleanDrinkMeasureLabel,
+  DRINK_MEASURE_LABEL,
   measureIsPint,
 } from "@/lib/drinkMeasure";
 import { detectImageKind, magicBytesOk as magicBytesOkPure, stripImageMetadata } from "@/lib/imageSafety";
@@ -1050,6 +1051,28 @@ function isMissingMeasureColumnError(error: {
   return (code === "42703" || code === "PGRST204") && mentions;
 }
 
+/** The measures the CHECK held before 0210, and holds again after its rollback. */
+const PRE_0210_MEASURES: ReadonlySet<string> = new Set(["pint", "half", "other"]);
+
+/**
+ * Rollback guard for the measure CHECK (migration 0210, review P3d, PR 2402).
+ *
+ * The 0210 rollback narrows `pint_drops_measure_known` back to pint, half and
+ * other. An app still offering 175 ml or Bottle in that window would lose the
+ * price to a 23514. The size is not a pint, so it may land as `other` with its
+ * own printed word as the label, exactly where the rollback moves such rows.
+ * Only a size the narrow CHECK does not know is retried; a pint or a half
+ * refused by this CHECK is some other fault and still throws.
+ */
+function isUnknownMeasureCheckError(
+  error: { code?: string; message?: string } | null,
+  measure: string,
+): boolean {
+  if (!error || error.code !== "23514") return false;
+  if (!(error.message ?? "").includes("pint_drops_measure_known")) return false;
+  return !PRE_0210_MEASURES.has(measure);
+}
+
 /**
  * Additive-rollout guard for the receipt column (migration 0153).
  *
@@ -1129,6 +1152,18 @@ export const supabasePintDropStore: PintDropStore = {
       // First attempt includes vibe_tags + Last Train columns. Once migrations
       // 0005 / 0021 are applied this is the only path that ever runs.
       let error = await insert(row);
+      if (error && isUnknownMeasureCheckError(error, row.measure)) {
+        // One retry, and the log names the size only, never an account.
+        console.warn(
+          "[pint-drops] measure CHECK refused a size - saving it as other with its label (0210 rolled back?):",
+          row.measure,
+        );
+        const label = DRINK_MEASURE_LABEL[row.measure];
+        persistable.measure = "other";
+        persistable.measureLabel = label;
+        row = { ...row, measure: "other", measure_label: label };
+        error = await insert(row);
+      }
       if (error && isMissingPriceDayColumnError(error)) {
         console.warn(
           "[pint-drops] price_day missing - the daily cap is the pre-check alone until migration 0141 is applied:",

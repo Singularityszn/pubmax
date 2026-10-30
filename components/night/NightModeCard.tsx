@@ -124,6 +124,7 @@ import {
 } from "@/components/night/nightModeSheetModel";
 import "./nightMode.css";
 import PalCheer from "@/components/pal/PalCheer";
+import RankAfterVisitCard from "@/components/pubs/RankAfterVisitCard";
 import { announcePalMoment } from "@/lib/palMoments";
 
 const SWIPE_DISMISS_PX = 72;
@@ -1033,6 +1034,9 @@ function NightModeSheet({
           keepGoingExtension={chosenExtension}
           nightArea={plan?.context?.nightArea ?? null}
         />
+        {/* Rank at the moment: the night's stops one by one, under the
+            ending it confirmed. Signed out, it renders nothing. */}
+        <RankAfterVisitCard visits={stops} />
         {recap ? (
           <div className="nightCard__recapInvite">
             <PalCheer moment="night-finished" stops={stops.length} />

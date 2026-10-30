@@ -7,18 +7,18 @@ Open [`index.html`](./index.html) in a browser to compare directions side by sid
 | File | Direction | One-line thesis |
 |------|-----------|-----------------|
 | [`direction-a-candle-coral.html`](./direction-a-candle-coral.html) | Candle Coral | Refine the current warm paper + coral into clearer hierarchy and a louder Plan CTA |
-| [`direction-b-night-out.html`](./direction-b-night-out.html) | Night Out | Deep ink nightlife with amber / neon-pint accents — energy without purple glow |
+| [`direction-b-night-out.html`](./direction-b-night-out.html) | Night Out | Deep ink nightlife with amber / neon-pint accents: energy without purple glow |
 | [`direction-c-field-guide.html`](./direction-c-field-guide.html) | Field Guide | River blue + pint green + brass amber as a colorful, structured guidebook system |
 
 ## Shared composition (held constant)
 
 Every mockup is **one desktop composition**, not a dashboard collage:
 
-1. **Brand** — `PUBMAXXING` as a hero-level mark in the top chrome  
-2. **City + search** — London switcher and crawl search  
-3. **Primary CTA** — `Plan tonight` (one clear action)  
-4. **Map plane** — full-bleed simplified map with colored pins + route  
-5. **Stop sheet** — 4-pub crawl list + friend avatars / Invite friends  
+1. **Brand**: `PUBMAXXING` as a hero-level mark in the top chrome  
+2. **City + search**: London switcher and crawl search  
+3. **Primary CTA**: `Plan tonight` (one clear action)  
+4. **Map plane**: full-bleed simplified map with colored pins + route  
+5. **Stop sheet**: 4-pub crawl list + friend avatars / Invite friends  
 
 Hierarchy on purpose: brand → map (the product) → Plan CTA → stops/friends. No floating badge overlays on the map hero, no card grids in the first viewport.
 
@@ -26,15 +26,15 @@ Hierarchy on purpose: brand → map (the product) → Plan CTA → stops/friends
 
 ## What each direction teaches
 
-### A — Candle Coral (refined current)
+### A. Candle Coral (refined current)
 
 **Scene:** Planning at a kitchen table under warm lamp light, phone propped beside a paper map.
 
 - **Color strategy:** *Restrained → committed accent.* Candle-lit paper neutrals tinted toward coral (not beige-by-default cream). Coral (`#ff5a5f` family) owns hierarchy: CTA fill, active pin, selected stop.
 - **Teaches:** Warmth can live in **accent + type + light**, not only in a sand body background. Stronger coral hierarchy makes “what do I do next?” obvious without adding chrome.
-- **Risk if shipped raw:** Still close to warm-paper AI defaults — keep paper chroma intentional and coral contrast high.
+- **Risk if shipped raw:** Still close to warm-paper AI defaults; keep paper chroma intentional and coral contrast high.
 
-### B — Night Out
+### B. Night Out
 
 **Scene:** Saturday 9pm outside the first pub; phone brightness fights street amber and window light.
 
@@ -42,13 +42,13 @@ Hierarchy on purpose: brand → map (the product) → Plan CTA → stops/friends
 - **Teaches:** Nightlife energy comes from **contrast + one warm accent + one live green**, not from glow stacks. Dark mode can feel like a night out without looking like a crypto dashboard.
 - **Risk if shipped raw:** Over-saturating pins; keep amber for route/CTA and pint-green for “cheap / go” semantics.
 
-### C — Field Guide
+### C. Field Guide
 
-**Scene:** Annotated guidebook page — river walks, stamped prices, brass margin notes — colorful but ordered.
+**Scene:** Annotated guidebook page: river walks, stamped prices, brass margin notes. Colorful but ordered.
 
 - **Color strategy:** *Full palette* with named roles: **river** (heritage / water / info), **pint** (go / cheap / positive), **brass amber** (accent / mid-price / CTA). Cool off-white ground tinted toward river, not cream DTC.
 - **Teaches:** Multi-hue systems work when each hue has a **job**. Playfulness comes from role color on pins/stops, structure from consistent chrome and typography.
-- **Risk if shipped raw:** Treating every hue as decoration — then the map becomes confetti.
+- **Risk if shipped raw:** Treating every hue as decoration, then the map becomes confetti.
 
 ---
 
@@ -56,7 +56,7 @@ Hierarchy on purpose: brand → map (the product) → Plan CTA → stops/friends
 
 These comps were read through a design-skills stack we researched from scraped third-party pages. That scrape was never ours to keep, so it's out of the repo now. The packs this repo keeps are in [`docs/DESIGN_SKILLS_CATALOG.md`](../DESIGN_SKILLS_CATALOG.md).
 
-### Impeccable — `/impeccable colorize` (+ typeset / layout / critique)
+### Impeccable: `/impeccable colorize` (+ typeset / layout / critique)
 
 | Direction | Colorize lesson |
 |-----------|-----------------|
@@ -73,24 +73,24 @@ Held across all three (product register, map shell):
 | Dial | Setting | Why |
 |------|---------|-----|
 | `DESIGN_VARIANCE` | ~5 | Asymmetry via map + side sheet, not collage heroes |
-| `MOTION_INTENSITY` | ~4–5 | Pin pulse, route draw, CTA hover — presence, not cinematic scroll |
+| `MOTION_INTENSITY` | ~4–5 | Pin pulse, route draw, CTA hover; presence, not cinematic scroll |
 | `VISUAL_DENSITY` | ~6 | Planner density: stops + friends visible without dashboard clutter |
 
 **Locks:** one accent system per direction; one radius language; no mid-composition light/dark flip.
 
 Anti-slop applied: no purple-on-white, no cream+terracotta default trio as the “safe” craft look, no floating promo badges on the map, no equal feature-card grids.
 
-### Refactoring UI — build color palette
+### Refactoring UI: build color palette
 
 Each direction sketches the Refactoring UI shape:
 
-- **Greys / neutrals** — paper↔ink or ink↔chrome ramps with enough steps for chrome, labels, muted copy  
-- **Primary** — coral (A), amber (B), brass (C)  
-- **Accents / semantics** — price/status hues (pint green, brick for expensive) without stealing the primary job  
+- **Greys / neutrals**: paper↔ink or ink↔chrome ramps with enough steps for chrome, labels, muted copy  
+- **Primary**: coral (A), amber (B), brass (C)  
+- **Accents / semantics**: price/status hues (pint green, brick for expensive) without stealing the primary job  
 
 Direction C is the clearest “full palette” example; A/B are restrained/committed with fewer competing hues.
 
-### Layers — conceptual model (`Plan` / `Stop` / `Venue` / `Friend`)
+### Layers: conceptual model (`Plan` / `Stop` / `Venue` / `Friend`)
 
 The mockups keep the **same objects** so color can change without muddying the model:
 
@@ -107,7 +107,7 @@ Plan  ──contains──▶  Stop  ──references──▶  Venue
 | **Venue** | Map pins + stop titles (The George, etc.) |
 | **Friend** | Avatar stack + Invite friends |
 
-Vocabulary stays singular: *Plan* (not “trip”/“itinerary” mixed), *Stop* (not “leg”), *Venue*/*pub* on the pin, *Friend* for people. Color differentiates **state and semantics** (selected stop, price band) — it does not invent new objects.
+Vocabulary stays singular: *Plan* (not “trip”/“itinerary” mixed), *Stop* (not “leg”), *Venue*/*pub* on the pin, *Friend* for people. Color differentiates **state and semantics** (selected stop, price band); it does not invent new objects.
 
 ---
 
@@ -115,5 +115,13 @@ Vocabulary stays singular: *Plan* (not “trip”/“itinerary” mixed), *Stop*
 
 1. Open `index.html`, pick a direction gut-feel for “PubMax at night with friends.”  
 2. Use the project design packs in [`docs/DESIGN_SKILLS_CATALOG.md`](../DESIGN_SKILLS_CATALOG.md) on the winner before tokenizing into `app/globals.css`.  
-3. Preserve the Layers objects when restyling — map chrome and sheet chrome should still read Plan / Stop / Venue / Friend.  
+3. Preserve the Layers objects when restyling: map chrome and sheet chrome should still read Plan / Stop / Venue / Friend.  
 4. Prefer shipping **one** direction’s accent system; don’t blend A’s coral paper with B’s neon and C’s river in one theme.
+
+## Launch UX variations (30 October 2026)
+
+[`2026-10-30-launch-ux-variations.md`](./2026-10-30-launch-ux-variations.md) gives three directions for the November launch as per-surface changes inside the locked colour decision, with a recommendation and a micro-fix list.
+
+## Phone mockups and contrast sweep (30 October 2026)
+
+[`2026-10-30-phone-mockups/`](./2026-10-30-phone-mockups/README.md) answers section 5 of that record: three 390 px phone mockups, one per direction (V1 answer card, V2 night table, V3 field guide), each with the venue sheet, Tonight, the locked plan and the profile in light and dark. The same folder holds a measured contrast sweep of the CSS rounds 1 to 3 added, the micro-fix 11 measurement and the micro-fix 10 offsets.

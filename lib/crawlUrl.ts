@@ -15,6 +15,7 @@ import { isMapLensDrinkCategory } from "@/lib/drinks";
 import { parseDrinkSubtypeParam } from "@/lib/drinkSubtypes";
 import { parseZoneParam } from "@/lib/zones";
 import { clamp } from "@/lib/mathClamp";
+import { appliedPintPriceCap } from "@/lib/pintPriceCaps";
 
 // Alt crawl styles (issue #31): a light "what kind of night" label that rides
 // alongside the scoring crawlStyle without touching it. It only shapes copy —
@@ -243,7 +244,9 @@ export function decodeCrawl(
   const style = params.get("style");
   if (style && CROSS_STYLES.has(style as CrawlStyle)) filters.crawlStyle = style as CrawlStyle;
   const max = parseNum(params.get("max"), MAX_PRICE.min, MAX_PRICE.max);
-  if (max !== undefined) filters.maxPrice = max;
+  // An old link may carry any figure ("max=6.25"); the map applies the shared
+  // cap the controls print (lib/pintPriceCaps.ts).
+  if (max !== undefined) filters.maxPrice = appliedPintPriceCap(max);
   const stops = parseNum(params.get("stops"), STOPS.min, STOPS.max);
   if (stops !== undefined) filters.stopCount = Math.round(stops);
   const win = parseNum(params.get("win"), WINDOW.min, WINDOW.max);
