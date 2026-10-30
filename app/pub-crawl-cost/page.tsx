@@ -101,7 +101,7 @@ export default async function PubCrawlCostPage() {
           It works in whole pence, so the totals add up exactly. It does not know
           what any real pub charges. For real prices, use{" "}
           <Link href="/pint-index" className="legalLink">the Pint Index</Link>{" "}
-          or <Link href="/map" className="legalLink">the map</Link>.
+          or <Link href="/map" prefetch={false} className="legalLink">the map</Link>.
         </p>
       </section>
 
