@@ -8,6 +8,11 @@
 -- is lost is the closed word: the app reads those rows as free labels from then
 -- on, so a later reader that groups by measure (a wine index) would not find
 -- them. Nothing is scaled in either direction.
+--
+-- Order. Revert the app (or hide the six new measure chips) BEFORE this runs,
+-- because an app that still offers a new size sends a measure this narrowed
+-- CHECK refuses. As a backstop, the price store retries such a refusal once as
+-- `other` with the size's own word as its label (lib/pintDropsStore.ts).
 
 update public.pint_drops
    set measure_label = case measure

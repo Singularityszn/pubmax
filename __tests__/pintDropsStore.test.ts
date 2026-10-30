@@ -573,6 +573,75 @@ describe("supabasePintDropStore.create (vibe_tags rollout resilience)", () => {
     expect(insertMock).toHaveBeenCalledTimes(1);
   });
 
+  // Review P3d (PR 2402): after the 0210 rollback narrows the measure CHECK,
+  // an app that still offers the new sizes would lose the price. The store
+  // retries ONCE as `other` with the size's own printed word as its label.
+  it("a size the measure CHECK refuses (23514) is retried once as other with the size as its label", async () => {
+    insertMock.mockReset();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    insertMock
+      .mockResolvedValueOnce({
+        error: {
+          code: "23514",
+          message: 'new row for relation "visit_reports" violates check constraint "pint_drops_measure_known"',
+        },
+      })
+      .mockResolvedValueOnce({ error: null });
+
+    const dto = await supabasePintDropStore.create(
+      drop({ measure: "175ml", priceGbp: 8.5 }) as Parameters<typeof supabasePintDropStore.create>[0],
+      noPhotos,
+    );
+
+    expect(insertMock).toHaveBeenCalledTimes(2);
+    expect(defined(insertMock.mock.calls[0])[0]).toMatchObject({ measure: "175ml", measure_label: null });
+    expect(defined(insertMock.mock.calls[1])[0]).toMatchObject({ measure: "other", measure_label: "175 ml", price_gbp: 8.5 });
+    expect(dto).toMatchObject({ measure: "other", measureLabel: "175 ml" });
+    expect(JSON.stringify(warn.mock.calls)).not.toContain("ale");
+    warn.mockRestore();
+  });
+
+  it("does not retry a CHECK refusal on any other constraint, nor a second refusal", async () => {
+    insertMock.mockReset();
+    insertMock.mockResolvedValueOnce({
+      error: {
+        code: "23514",
+        message: 'new row for relation "visit_reports" violates check constraint "pint_drops_price_range"',
+      },
+    });
+    await expect(
+      supabasePintDropStore.create(
+        drop({ measure: "175ml" }) as Parameters<typeof supabasePintDropStore.create>[0],
+        noPhotos,
+      ),
+    ).rejects.toThrow(/pint_drops_price_range/);
+    expect(insertMock).toHaveBeenCalledTimes(1);
+
+    insertMock.mockReset();
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const refused = {
+      error: { code: "23514", message: 'violates check constraint "pint_drops_measure_known"' },
+    };
+    insertMock.mockResolvedValueOnce(refused).mockResolvedValueOnce(refused);
+    await expect(
+      supabasePintDropStore.create(
+        drop({ measure: "bottle" }) as Parameters<typeof supabasePintDropStore.create>[0],
+        noPhotos,
+      ),
+    ).rejects.toThrow(/pint_drops_measure_known/);
+    expect(insertMock).toHaveBeenCalledTimes(2);
+
+    insertMock.mockReset();
+    insertMock.mockResolvedValueOnce({ error: { code: "57014", message: "canceling statement due to statement timeout" } });
+    await expect(
+      supabasePintDropStore.create(
+        drop({ measure: "single" }) as Parameters<typeof supabasePintDropStore.create>[0],
+        noPhotos,
+      ),
+    ).rejects.toThrow(/statement timeout/);
+    expect(insertMock).toHaveBeenCalledTimes(1);
+  });
+
   it("an unrelated insert error still throws (not swallowed as a missing column)", async () => {
     insertMock.mockReset();
     // A different missing column (not vibe_tags) must NOT be silently retried —
