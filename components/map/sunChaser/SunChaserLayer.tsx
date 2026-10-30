@@ -14,7 +14,6 @@ import {
   estimateSun,
   indexSunBuildings,
   segmentAt,
-  SKY_READING_MAX_AGE_MS,
   sunBuildingFromTile,
   type LngLat,
   type SunBuilding,
@@ -23,6 +22,7 @@ import {
 import { haversineKm } from "@/lib/haversine";
 import { loadSurfaceJson, SURFACE_JUST_READ_MS } from "@/lib/surfaceDataCache";
 import { venueHasRecordedOutdoorSpace, type Venue } from "@/lib/venues";
+import { createSkyReader } from "./skyReader";
 import { getSunChaserState, sunChaserSelectedTime, updateSunChaser, useSunChaser } from "./sunChaserStore";
 
 /** The live map this layer reads, named here so PubMap needs no MapLibre import. */
@@ -206,51 +206,35 @@ export default function SunChaserLayer({ map, venues }: { map: maplibregl.Map | 
 
   // The cloud half: the weather feed near the map centre. It is read again
   // after a long pan, so a note never belongs to another part of town, on a
-  // timer, and when a suspended tab comes back, so an old reading ages out
-  // (lib/sunChaser.ts#sunSkyNote drops one past its age limit at every paint).
+  // timer, and when a suspended tab comes back. skyReader.ts drops a reading
+  // the moment it passes its age limit, and owns the one expiry timer.
   useEffect(() => {
     if (!map) return;
-    let controller: AbortController | null = null;
+    const reader = createSkyReader({
+      load: (url, signal, onData) => {
+        void loadSurfaceJson<Parameters<typeof onData>[0]>(
+          url,
+          {
+            signal,
+            init: { headers: { accept: "application/json" } },
+            validate: (body) => Boolean(body && "summary" in body),
+            freshForMs: SURFACE_JUST_READ_MS,
+          },
+          onData,
+        );
+      },
+      update: updateSunChaser,
+      now: () => Date.now(),
+      setTimer: (run, ms) => window.setTimeout(run, ms),
+      clearTimer: (id) => window.clearTimeout(id),
+    });
     let readAt: [number, number] | null = null;
-    let expiry: number | null = null;
-    const clearExpiry = () => {
-      if (expiry !== null) window.clearTimeout(expiry);
-      expiry = null;
-    };
     const readSky = (force = false) => {
       const centre = map.getCenter();
       const here: [number, number] = [centre.lng, centre.lat];
       if (!force && readAt && haversineKm(readAt, here) < SKY_REREAD_KM) return;
       readAt = here;
-      controller?.abort();
-      const current = new AbortController();
-      controller = current;
-      // Until the new answer lands, no cloud claim at all.
-      clearExpiry();
-      updateSunChaser({ sky: null });
-      const query = new URLSearchParams({ lat: centre.lat.toFixed(3), lng: centre.lng.toFixed(3) });
-      void loadSurfaceJson<{ summary?: { skyCondition?: unknown; skyObservedAt?: unknown } | null }>(
-        `/api/tonight-conditions?${query.toString()}`,
-        {
-          signal: current.signal,
-          init: { headers: { accept: "application/json" } },
-          validate: (body) => Boolean(body && "summary" in body),
-          freshForMs: SURFACE_JUST_READ_MS,
-        },
-        (body) => {
-          if (current.signal.aborted) return;
-          const condition = body.summary?.skyCondition;
-          const observedAtMs = typeof body.summary?.skyObservedAt === "string" ? Date.parse(body.summary.skyObservedAt) : Number.NaN;
-          const fetchedAtMs = Date.now();
-          const sky = typeof condition === "string" && Number.isFinite(observedAtMs) ? { condition, observedAtMs } : null;
-          updateSunChaser({ sky, skyFetchedAtMs: fetchedAtMs });
-          // Drop the reading the moment it passes its age limit, map moving or not.
-          if (sky) {
-            const ageOut = sky.observedAtMs + SKY_READING_MAX_AGE_MS - fetchedAtMs;
-            if (ageOut > 0) expiry = window.setTimeout(() => updateSunChaser({ sky: null }), ageOut);
-          }
-        },
-      );
+      reader.read(centre.lat, centre.lng);
     };
     const onMoveEnd = () => readSky();
     const onVisible = () => {
@@ -264,8 +248,7 @@ export default function SunChaserLayer({ map, venues }: { map: maplibregl.Map | 
       map.off("moveend", onMoveEnd);
       document.removeEventListener("visibilitychange", onVisible);
       window.clearInterval(timer);
-      clearExpiry();
-      controller?.abort();
+      reader.close();
     };
   }, [map]);
 

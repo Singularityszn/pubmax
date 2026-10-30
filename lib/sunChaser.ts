@@ -138,8 +138,8 @@ function segmentDistanceToOrigin(a: Point, b: Point): number {
 
 /**
  * Every distance along the ray from the origin (unit direction `d`) where it
- * crosses a wall, nearest first, up to `reach` metres. From outside a building
- * the crossings pair up as enter and leave.
+ * meets a wall, nearest first, up to `reach` metres. A corner the ray only
+ * touches is in here too, so these are cut points, not enter and leave pairs.
  */
 function wallCrossings(rings: readonly Point[][], d: Point, reach: number): number[] {
   const out: number[] = [];
@@ -151,11 +151,40 @@ function wallCrossings(rings: readonly Point[][], d: Point, reach: number): numb
       if (Math.abs(denom) < 1e-12) continue;
       const t = (a.x * ey - a.y * ex) / denom;
       const s = (a.x * d.y - a.y * d.x) / denom;
-      if (t <= 0 || t > reach || s < 0 || s >= 1) continue;
+      if (t <= 0 || t > reach || s < 0 || s > 1) continue;
       out.push(t);
     }
   }
   return out.sort((x, y) => x - y);
+}
+
+/** Inside the outer ring and in no courtyard, for any point. */
+function polygonContains(rings: readonly Point[][], p: Point): boolean {
+  let inside = false;
+  for (const ring of rings) if (ringContains(ring, p)) inside = !inside;
+  return inside;
+}
+
+/**
+ * The stretches of the ray, as [enter, leave] in metres, that lie inside the
+ * building. The ray is cut at every wall it meets, and a stretch counts only
+ * when its own midpoint is inside, so a corner touch or a courtyard never
+ * flips inside and outside.
+ */
+export function occupiedStretches(rings: readonly Point[][], d: Point, reach: number): Array<[number, number]> {
+  const cuts = [0, ...wallCrossings(rings, d, reach), reach];
+  const out: Array<[number, number]> = [];
+  for (let i = 0; i + 1 < cuts.length; i += 1) {
+    const from = cuts[i] ?? 0;
+    const to = cuts[i + 1] ?? reach;
+    if (to - from < 1e-9) continue;
+    const mid = (from + to) / 2;
+    if (!polygonContains(rings, { x: d.x * mid, y: d.y * mid })) continue;
+    const last = out[out.length - 1];
+    if (last && Math.abs(last[1] - from) < 1e-9) last[1] = to;
+    else out.push([from, to]);
+  }
+  return out;
 }
 
 /**
@@ -217,13 +246,8 @@ export function sunStateAt(surroundings: SunSurroundings, at: Date): SunState {
     // any height, so it is asked about across the whole reach.
     const reach = roof === null ? MAX_SHADOW_REACH_M : Math.min((roof - GARDEN_EYE_HEIGHT_M) / tanAlt, MAX_SHADOW_REACH_M);
     if (building.minDistM > reach) continue;
-    const crossings = wallCrossings(building.rings, direction, MAX_SHADOW_REACH_M);
-    for (let i = 0; i < crossings.length; i += 2) {
-      const enter = crossings[i] ?? MAX_SHADOW_REACH_M;
+    for (const [enter, leave] of occupiedStretches(building.rings, direction, MAX_SHADOW_REACH_M)) {
       if (enter > reach) break;
-      const leave = Math.min(crossings[i + 1] ?? MAX_SHADOW_REACH_M, MAX_SHADOW_REACH_M);
-      // The ray climbs from rayHeightAt(enter) to rayHeightAt(leave) inside this
-      // footprint; it is blocked where that span meets the part's [base, roof].
       if (rayHeightAt(leave) <= building.baseM) continue;
       if (roof === null) {
         unknown = true;

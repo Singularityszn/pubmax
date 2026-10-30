@@ -5,6 +5,7 @@ import {
   estimateSun,
   formatSunClock,
   indexSunBuildings,
+  occupiedStretches,
   OPENMAPTILES_DEFAULT_HEIGHT_M,
   shadowDiscLoaded,
   SKY_READING_MAX_AGE_MS,
@@ -264,5 +265,53 @@ describe("second review: no sun claim through what is not known", () => {
     // Footprint 10 to 20 m south, underside 5 m, roof 40 m, sun about 15 degrees:
     // the ray is at 3.9 m at the near wall and 6.6 m at the far wall.
     expect(stateWith([{ ...box(180, 10, 40, 40, 10), baseM: 5 }], DECEMBER_NOON)).toBe("shade");
+  });
+});
+
+describe("third review: a corner touch is not a way in", () => {
+  /** A ring given in local metres as (across, along), where along points at the bearing. */
+  function ringFromLocal(points: Array<[number, number]>, bearingDeg: number): LngLat[] {
+    const cosLat = Math.cos((LONDON[1] * Math.PI) / 180);
+    const b = (bearingDeg * Math.PI) / 180;
+    return points.map(([across, along]) => {
+      const x = Math.sin(b) * along + Math.cos(b) * across;
+      const y = Math.cos(b) * along - Math.sin(b) * across;
+      return [LONDON[0] + x / (111_320 * cosLat), LONDON[1] + y / 110_540];
+    });
+  }
+
+  it("finds the raised part the ray really enters after touching a corner", () => {
+    // The ray towards the December noon sun touches the corner at 10 m, then
+    // enters at 20 m and leaves at 30 m, where it climbs through the underside.
+    const sunBearing = sunPosition(LONDON[1], LONDON[0], DECEMBER_NOON)!.azimuthDeg;
+    const ring = ringFromLocal([[0, 10], [5, 5], [10, 5], [10, 30], [-5, 30], [-5, 20], [5, 20], [5, 15]], sunBearing);
+    expect(stateWith([{ rings: [ring], heightM: 7.5, baseM: 6.8 }], DECEMBER_NOON)).toBe("shade");
+  });
+
+  it("still sees a courtyard as open sky inside its building", () => {
+    // The pub stands in a courtyard 20 m across; walls 12 m tall all round.
+    const sunBearing = sunPosition(LONDON[1], LONDON[0], JUNE_NOON)!.azimuthDeg;
+    const outer = ringFromLocal([[-40, -40], [40, -40], [40, 40], [-40, 40]], sunBearing);
+    const yard = ringFromLocal([[-10, -10], [10, -10], [10, 10], [-10, 10]], sunBearing);
+    // June noon: the 12 m wall 10 m away casts about 5.8 m, so the middle is in sun.
+    expect(stateWith([{ rings: [outer, yard], heightM: 12 }], JUNE_NOON)).toBe("sun");
+    // December noon: the same wall casts about 40 m, so the yard is in shade.
+    expect(stateWith([{ rings: [outer, yard], heightM: 12 }], DECEMBER_NOON)).toBe("shade");
+  });
+});
+
+describe("third review: inside stretches on exact coordinates", () => {
+  const along = { x: 0, y: 1 };
+  const pts = (list: Array<[number, number]>) => list.map(([x, y]) => ({ x, y }));
+
+  it("does not take a corner touch at 10 m as a way in", () => {
+    const ring = pts([[0, 10], [5, 5], [10, 5], [10, 30], [-5, 30], [-5, 20], [5, 20], [5, 15]]);
+    expect(occupiedStretches([ring], along, 300)).toEqual([[20, 30]]);
+  });
+
+  it("keeps a courtyard open and the walls round it closed", () => {
+    const outer = pts([[-40, -40], [40, -40], [40, 40], [-40, 40]]);
+    const yard = pts([[-10, -10], [10, -10], [10, 10], [-10, 10]]);
+    expect(occupiedStretches([outer, yard], along, 300)).toEqual([[10, 40]]);
   });
 });
