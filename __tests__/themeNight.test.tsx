@@ -46,7 +46,7 @@ function stubMatchMedia(): void {
 
 function resetDocument(): void {
   window.localStorage.clear();
-  for (const key of ["theme", "nightTheme", "legacy", "mode"]) delete html.dataset[key];
+  for (const key of ["theme", "nightTheme", "themeChosen", "legacy", "mode"]) delete html.dataset[key];
 }
 
 beforeEach(() => {
@@ -113,6 +113,40 @@ describe("the pre-paint script says the same", () => {
     expect(html.dataset.nightTheme === "1").toBe(nightMarker);
     // The module agrees with the script at every case.
     expect(resolveThemePreference(stored, osDark, at)).toBe(theme);
+  });
+});
+
+describe("the pre-paint script when storage refuses the read", () => {
+  // Blocked site data can throw on the localStorage getter itself, or on
+  // getItem. Neither is a stored choice, so the night rule must still paint.
+  function withStorage(descriptor: PropertyDescriptor, run: () => void): void {
+    const original = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+    Object.defineProperty(globalThis, "localStorage", { configurable: true, ...descriptor });
+    try {
+      run();
+    } finally {
+      if (original) Object.defineProperty(globalThis, "localStorage", original);
+      else delete (globalThis as { localStorage?: Storage }).localStorage;
+    }
+  }
+
+  it.each([
+    ["a throwing getter", { get: () => { throw new DOMException("blocked", "SecurityError"); } }],
+    ["a throwing getItem", { value: { getItem: () => { throw new DOMException("blocked", "SecurityError"); } } }],
+  ] as const)("paints dark at 22:45 with %s and a light system", (_name, descriptor) => {
+    systemDark = false;
+    vi.setSystemTime(GMT("22:45"));
+    withStorage(descriptor, () => new Function(THEME_INIT)());
+    expect(html.dataset.theme).toBe("dark");
+    expect(html.dataset.nightTheme).toBe("1");
+  });
+
+  it("follows the system by day when storage refuses the read", () => {
+    systemDark = true;
+    vi.setSystemTime(GMT("14:00"));
+    withStorage({ get: () => { throw new DOMException("blocked", "SecurityError"); } }, () => new Function(THEME_INIT)());
+    expect(html.dataset.theme).toBe("dark");
+    expect(html.dataset.nightTheme).toBeUndefined();
   });
 });
 

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, createElement } from "react";
+import { act, createElement, Fragment } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -92,10 +92,13 @@ beforeEach(() => {
   isNativeApp.mockReturnValue(true);
   memoryStorage.clear();
   document.documentElement.dataset.theme = "light";
+  delete document.documentElement.dataset.themeChosen;
+  delete document.documentElement.dataset.nightTheme;
 });
 
 afterEach(async () => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
   if (root) {
     await act(async () => root!.unmount());
   }
@@ -152,6 +155,42 @@ describe("NativeSystemBars inside the shell", () => {
     await mount();
     await act(async () => media.flip(false));
     expect(document.documentElement.dataset.theme).toBe("dark");
+  });
+
+  it("keeps a choice storage refused, in both theme writers, at night", async () => {
+    // 22:00, no stored choice, and storage throws on every write: the tap
+    // changes the page but saves nothing. The OS listener (NativeSystemBars)
+    // and the night clock (ThemeAttribute) must both leave the tap alone.
+    vi.setSystemTime(new Date("2026-10-30T22:00:00Z"));
+    vi.spyOn(window.localStorage, "setItem").mockImplementation(() => {
+      throw new DOMException("Storage blocked", "SecurityError");
+    });
+    const media = installMatchMedia(true);
+    document.documentElement.dataset.theme = "dark";
+    const [{ default: NativeSystemBars }, { default: ThemeAttribute }, { toggleThemeChoice }] = await Promise.all([
+      import("@/components/native/NativeSystemBars"),
+      import("@/components/ThemeAttribute"),
+      import("@/lib/useThemeChoice"),
+    ]);
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    await act(async () => {
+      root!.render(createElement(Fragment, null, createElement(NativeSystemBars), createElement(ThemeAttribute)));
+    });
+
+    act(() => toggleThemeChoice());
+    expect(document.documentElement.dataset.theme).toBe("light");
+    expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBeNull();
+
+    await act(async () => media.flip(false));
+    expect(document.documentElement.dataset.theme).toBe("light");
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+    });
+    expect(document.documentElement.dataset.theme).toBe("light");
+    await act(async () => media.flip(true));
+    expect(document.documentElement.dataset.theme).toBe("light");
   });
 
   it("keeps the person's own choice whatever the OS does", async () => {

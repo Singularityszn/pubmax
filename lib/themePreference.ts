@@ -68,10 +68,3 @@ export function resolveThemePreference(
   if (isNightThemeTime(now)) return "dark";
   return systemThemePreference(systemPrefersDark);
 }
-
-/**
- * The event the theme control fires on every tap. A tap is the reader's
- * choice even when storage refuses to keep it, so the night rule stands down
- * for the rest of the page's life when it hears this.
- */
-export const THEME_CHOSEN_EVENT = "pubmax:theme-chosen";

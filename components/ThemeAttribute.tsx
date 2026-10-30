@@ -27,7 +27,6 @@ import {
   isNightThemeTime,
   resolveThemePreference,
   storedThemePreference,
-  THEME_CHOSEN_EVENT,
 } from "@/lib/themePreference";
 import {
   LEGACY_STORAGE_KEY,
@@ -88,35 +87,29 @@ export default function ThemeAttribute(): null {
   // open at 21:29 should see it go dark at 21:30, and light again at 04:00.
   // Asked every minute and whenever the tab comes back (a slept tab's timers
   // do not fire). It stands down for good the moment the reader taps the
-  // theme control (THEME_CHOSEN_EVENT), even when storage refused to keep that
-  // choice, and it never touches a page whose choice is stored.
+  // theme control (html[data-theme-chosen]), even when storage refused to keep
+  // that choice, and it never touches a page whose choice is stored.
   useEffect(() => {
     const root = document.documentElement;
     const storage = safeLocalStorage();
     const media = window.matchMedia("(prefers-color-scheme: dark)");
-    let chosen = false;
     const follow = () => {
-      if (chosen || storedThemePreference(storage) !== null) return;
+      if (root.dataset.themeChosen === "1" || storedThemePreference(storage) !== null) return;
       const now = new Date();
       const next = resolveThemePreference(null, media.matches, now);
       if (root.dataset.theme !== next) root.dataset.theme = next;
       if (isNightThemeTime(now)) root.dataset.nightTheme = "1";
       else delete root.dataset.nightTheme;
     };
-    const onChosen = () => {
-      chosen = true;
-    };
     const onVisible = () => {
       if (document.visibilityState === "visible") follow();
     };
     const timer = window.setInterval(follow, NIGHT_THEME_TICK_MS);
-    window.addEventListener(THEME_CHOSEN_EVENT, onChosen);
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("pageshow", follow);
     window.addEventListener("focus", follow);
     return () => {
       window.clearInterval(timer);
-      window.removeEventListener(THEME_CHOSEN_EVENT, onChosen);
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("pageshow", follow);
       window.removeEventListener("focus", follow);

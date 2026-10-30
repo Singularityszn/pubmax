@@ -131,11 +131,16 @@
 // ---------------------------------------------------------------------------
 (function () {
   try {
-    var t = localStorage.getItem("pubmax-theme");
+    // Storage that refuses the read (blocked site data, some private modes)
+    // means no stored choice, not no theme: the night rule still runs.
+    var t = null;
+    try {
+      t = localStorage.getItem("pubmax-theme");
+    } catch {}
     if (t !== "light" && t !== "dark") {
       // With no choice, London's night (21:30 to 03:59) is dark, then the OS
       // decides. The same rule and the same two numbers as
-      // lib/themePreference.ts (isNightThemeTime); __tests__/themeNight.test.ts
+      // lib/themePreference.ts (isNightThemeTime); __tests__/themeNight.test.tsx
       // runs these bytes against it.
       var night = false;
       try {
