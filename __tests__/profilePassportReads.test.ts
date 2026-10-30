@@ -6,6 +6,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { AccountVisibility } from "@/lib/accountVisibility";
+import { PASSPORT_COPY, TASTE_COPY } from "@/lib/profilePassport";
 import {
   readPassportBeen,
   readPassportOverlap,
@@ -65,7 +66,7 @@ function deps(reader: Reader, visibility: AccountVisibility, overrides: Partial<
         : [{ venueId: "cittie", venueName: "Cittie of Yorke" }],
     rankings: async (profileId) =>
       profileId === OWNER.id ? rankedRows(["lamb", "stars", "mitre", "a", "b"]) : rankedRows(["stars", "z", "lamb"]),
-    nightProfile: async () => ({ fairPintPence: 550, patch: "Soho", updatedAt: "2026-09-20T10:00:00.000Z" }),
+    nightProfile: async () => ({ patch: "Soho" }),
     venue: async (venueId) => ({ name: venueId.toUpperCase(), borough: "Camden" }),
     heritageDateLabel: async (venueId) => (venueId === "lamb" ? "Built 1729" : null),
     venueAliases: async () => (venueId) => venueId,
@@ -85,7 +86,7 @@ describe("GET been", () => {
     expect(result.body.venues.map((venue) => venue.venueId).sort()).toEqual(["lamb", "mitre", "stars"]);
     expect(result.body.venues.find((venue) => venue.venueId === "lamb")?.sources).toEqual(["diary", "pint_drop"]);
     expect(result.body.wantToTryCount).toBe(2);
-    expect(result.body.cover).toEqual({ fairPintPence: 550, patch: "Soho" });
+    expect(result.body.cover).toEqual({ patch: "Soho" });
   });
 
   it.each<Reader>(["anon", "stranger", "mate"])(
@@ -171,7 +172,7 @@ describe("GET taste", () => {
     const result = await readPassportTaste(request(), "owner", deps("owner", "public"));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.body.facts.map((fact) => fact.key)).toEqual(["drink", "borough", "era", "fair_pint"]);
+    expect(result.body.facts.map((fact) => fact.key)).toEqual(["drink", "borough", "era"]);
     expect(result.body.facts.every((fact) => /^\d{4}-\d{2}-\d{2}$/.test(fact.date))).toBe(true);
   });
 
@@ -179,7 +180,7 @@ describe("GET taste", () => {
     const result = await readPassportTaste(
       request(),
       "owner",
-      deps("owner", "public", { drops: async () => [], rankings: async () => [], nightProfile: async () => null }),
+      deps("owner", "public", { drops: async () => [], rankings: async () => [] }),
     );
     expect(result).toEqual({ ok: true, body: { facts: [] } });
   });
@@ -204,15 +205,16 @@ describe("the ranked list behind the share", () => {
 });
 
 // Review finding 1 (PR 2402): the Night Profile holds a per-person ROUTE
-// budget, not a fair price for one pint. The production mapping must never
-// print that budget as "Fair pint", on the cover or on the taste card.
-describe("the fair pint is never the night budget", () => {
-  it("prints neither the cover line nor the taste fact from a route budget", async () => {
+// budget, not a fair price for one pint, and the passport printed it as "Fair
+// pint". The captain's decision removes the field: the passport has no
+// fair-pint line at all, on the cover or on the taste card.
+describe("the passport has no fair-pint line", () => {
+  it("prints no pint figure from a route budget, on the cover or the taste card", async () => {
     const { defaultPassportDeps } = await import("@/lib/profilePassport.server");
     const { memoryNightProfileStore, __resetNightProfileStore } = await import("@/lib/nightProfileStore");
     const { DEFAULT_NIGHT_PROFILE_INPUT } = await import("@/lib/nightProfile");
     __resetNightProfileStore();
-    // A £40 route budget for the night; a fair pint would be about £5.50.
+    // A £40 route budget for the night.
     const nightBudgetPence = 4000;
     await memoryNightProfileStore.put(
       OWNER.userId,
@@ -221,13 +223,20 @@ describe("the fair pint is never the night budget", () => {
     );
     const production = defaultPassportDeps().nightProfile;
     const stored = await production(OWNER.userId);
-    expect(stored?.fairPintPence ?? null).not.toBe(nightBudgetPence);
+    expect(Object.keys(stored ?? {})).toEqual(["patch"]);
 
     const been = await readPassportBeen(request(), "owner", deps("owner", "public", { nightProfile: production }));
-    expect(been.ok && been.body.cover?.fairPintPence).toBeFalsy();
+    expect(been.ok).toBe(true);
+    if (!been.ok) return;
+    expect(Object.keys(been.body.cover ?? {})).toEqual(["patch"]);
+    expect(JSON.stringify(been.body)).not.toMatch(/fair|£40|4000/i);
     const taste = await readPassportTaste(request(), "owner", deps("owner", "public", { nightProfile: production }));
-    expect(taste.ok && taste.body.facts.some((fact) => fact.key === "fair_pint")).toBe(false);
-    expect(JSON.stringify(taste)).not.toContain("£40");
+    expect(taste.ok).toBe(true);
+    if (!taste.ok) return;
+    expect(taste.body.facts.map((fact) => fact.key as string)).not.toContain("fair_pint");
+    expect(JSON.stringify(taste.body)).not.toMatch(/fair|£40/i);
+    expect(PASSPORT_COPY).not.toHaveProperty("fairPint");
+    expect(TASTE_COPY).not.toHaveProperty("fairPint");
     __resetNightProfileStore();
   });
 });

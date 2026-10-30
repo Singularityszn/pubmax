@@ -99,7 +99,7 @@ describe("explicit overlap", () => {
 
 describe("buildTasteFacts", () => {
   it("is empty with nothing stored, so the card does not render", () => {
-    expect(buildTasteFacts({ drinks: [], ranked: [], fairPint: null })).toEqual([]);
+    expect(buildTasteFacts({ drinks: [], ranked: [] })).toEqual([]);
   });
 
   it("states each stored fact with its day and leaves the rest out", () => {
@@ -113,7 +113,6 @@ describe("buildTasteFacts", () => {
         { venueId: "lamb", venueName: "The Lamb", place: 1, borough: "Camden", dateLabel: "Built 1729", updatedAt: "2026-10-03T10:00:00.000Z" },
         { venueId: "new", venueName: "New Bar", place: 2, borough: "Hackney", dateLabel: null, updatedAt: "2026-10-05T10:00:00.000Z" },
       ],
-      fairPint: null,
     });
     expect(facts.map((fact) => fact.key)).toEqual(["drink", "borough", "era"]);
     expect(facts[0]).toMatchObject({ value: "guinness, logged 2 times", date: "2026-10-12" });
@@ -121,18 +120,11 @@ describe("buildTasteFacts", () => {
     expect(facts[2]).toMatchObject({ value: "The Lamb: Built 1729", date: "2026-10-03" });
   });
 
-  it("prints the fair pint from the Night Profile", () => {
-    expect(
-      buildTasteFacts({ drinks: [], ranked: [], fairPint: { pence: 550, date: "2026-09-30T08:00:00.000Z" } }),
-    ).toEqual([{ key: "fair_pint", label: "Your fair pint", value: "£5.50", date: "2026-09-30" }]);
-  });
-
   it("uses no score, percentage or personality word", () => {
     const text = JSON.stringify(
       buildTasteFacts({
         drinks: [{ drink: "Bitter", date: "2026-10-01" }],
         ranked: [{ venueId: "a", venueName: "A", place: 1, borough: "Islington", dateLabel: "1800s", updatedAt: "2026-10-01" }],
-        fairPint: { pence: 600, date: "2026-10-01" },
       }),
     );
     expect(text).not.toMatch(/%|score|match|you are|you're a/i);

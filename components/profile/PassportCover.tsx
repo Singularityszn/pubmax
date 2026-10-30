@@ -2,8 +2,8 @@
 
 // The passport cover: the line under the profile head that says how many pubs
 // this person has been to and how many they want to try, and, on the owner's
-// own page, their patch and their fair pint from the Night Profile. A reader
-// the account does not share with gets no cover at all (the read answers 403).
+// own page, their patch from the Night Profile. A reader the account does not
+// share with gets no cover at all (the read answers 403).
 
 import { PASSPORT_COPY } from "@/lib/profilePassport";
 
@@ -11,15 +11,10 @@ import { usePassportRead, type PassportBeenRead } from "./PassportData";
 
 import "./passportBook.css";
 
-function pounds(pence: number): string {
-  return `£${(pence / 100).toFixed(2).replace(/\.00$/, "")}`;
-}
-
 export default function PassportCover({ handle }: { handle: string }): React.JSX.Element | null {
   const been = usePassportRead<PassportBeenRead>("been", handle);
   if (!been) return null;
   const patch = been.cover?.patch ?? null;
-  const fairPint = been.cover?.fairPintPence ?? null;
 
   return (
     <dl className="passportCover" aria-label={PASSPORT_COPY.cover}>
@@ -41,12 +36,6 @@ export default function PassportCover({ handle }: { handle: string }): React.JSX
         <div className="passportCoverItem">
           <dt>{PASSPORT_COPY.patch}</dt>
           <dd>{patch}</dd>
-        </div>
-      ) : null}
-      {fairPint ? (
-        <div className="passportCoverItem">
-          <dt>{PASSPORT_COPY.fairPint}</dt>
-          <dd className="passportCoverFigure">{pounds(fairPint)}</dd>
         </div>
       ) : null}
     </dl>

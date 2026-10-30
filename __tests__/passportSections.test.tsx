@@ -37,11 +37,11 @@ describe("PassportTasteCard", () => {
   it("prints each fact with its day", () => {
     const host = render(
       createElement(PassportTasteCard, {
-        facts: [{ key: "fair_pint", label: "Your fair pint", value: "£5.50", date: "2026-09-30" }],
+        facts: [{ key: "drink", label: "Most logged drink", value: "Guinness, logged 2 times", date: "2026-09-30" }],
       }),
     );
     expect(host.textContent).toContain("Your taste, in facts");
-    expect(host.textContent).toContain("£5.50");
+    expect(host.textContent).toContain("Guinness, logged 2 times");
     expect(host.textContent).toMatch(/30 Sept? 2026/);
   });
 });

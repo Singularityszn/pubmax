@@ -49,11 +49,7 @@ import { resolveStoredVenue } from "@/lib/venueIndex";
 import { wantedStore } from "@/lib/wantedStore";
 
 export type PassportRankedRow = RankedVenue & { updatedAt: string };
-type PassportNightProfile = {
-  fairPintPence: number | null;
-  patch: string | null;
-  updatedAt: string;
-};
+type PassportNightProfile = { patch: string | null };
 type PassportVenueFacts = { name: string; borough: string | null };
 
 export type PassportDeps = {
@@ -93,7 +89,7 @@ export type BeenBody = {
   /** Open Want-to-try rows, or null when that read failed. */
   wantToTryCount: number | null;
   /** The owner's own Night Profile line. Never sent to anybody else. */
-  cover: { fairPintPence: number | null; patch: string | null } | null;
+  cover: { patch: string | null } | null;
 };
 
 export type OverlapBody = { topFive: PassportVenue[]; wantToTry: PassportVenue[] };
@@ -245,7 +241,7 @@ export async function readPassportBeen(
       wantToTryCount: wanted.failed ? null : wanted.value.length,
       cover:
         access === "full"
-          ? { fairPintPence: night.value?.fairPintPence ?? null, patch: night.value?.patch ?? null }
+          ? { patch: night.value?.patch ?? null }
           : null,
     },
   };
@@ -299,12 +295,10 @@ export async function readPassportTaste(
   const { profile } = loaded;
   const { relation } = await resolveViewer(request, profile, deps);
   if (passportAccess("taste", relation, accountIsPrivate(profile.visibility)) === "none") return OWNER_ONLY;
-  const userId = profile.userId?.trim() || "";
 
-  const [drops, ranked, night, canonical] = await Promise.all([
+  const [drops, ranked, canonical] = await Promise.all([
     settle(() => dropSightings(request, profile, relation, deps), []),
     settle(() => rankedWithNames(profile.id, deps), [] as PassportRankedRow[]),
-    userId ? settle(() => deps.nightProfile(userId), null) : settle(async () => null, null),
     canonicalizer(deps),
   ]);
   const topFive = onCurrentIds(ranked.value, canonical).sort((a, b) => a.place - b.place).slice(0, 5);
@@ -320,10 +314,6 @@ export async function readPassportTaste(
   const facts = buildTasteFacts({
     drinks: drops.value.map((drop) => ({ drink: drop.drink, date: drop.createdAt })),
     ranked: enriched,
-    fairPint:
-      night.value?.fairPintPence && night.value.updatedAt
-        ? { pence: night.value.fairPintPence, date: night.value.updatedAt }
-        : null,
   });
   return { ok: true, body: { facts } };
 }
@@ -451,10 +441,10 @@ export function defaultPassportDeps(): PassportDeps {
       const patch = area
         ? getNightAreasForCity(profile.cityId).find((entry) => entry.slug === area)?.name ?? null
         : null;
-      // No account stores a fair price for one pint. `budgetLimitPence` is the
-      // per-person budget for a whole route, so printing it as "Fair pint"
-      // would claim a preference the owner never gave. The fact is left out.
-      return { fairPintPence: null, patch, updatedAt: profile.updatedAt };
+      // Only the patch. `budgetLimitPence` is the per-person budget for a
+      // whole route, never a price for one pint, so the passport prints no
+      // pint figure from it (captain decision, PR 2402).
+      return { patch };
     },
     venue: venueFacts,
     venueAliases: async () => (await loadVenueAliasResolver()).canonical,

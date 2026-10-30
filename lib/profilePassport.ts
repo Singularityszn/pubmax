@@ -180,7 +180,7 @@ export function sharedWantToTry(
 
 // ── Your taste, in facts ─────────────────────────────────────────────────────
 
-type TasteFactKey = "drink" | "borough" | "era" | "fair_pint";
+type TasteFactKey = "drink" | "borough" | "era";
 
 export type TasteFact = {
   key: TasteFactKey;
@@ -202,7 +202,6 @@ export type TasteInput = {
   /** The owner's own drops: the drink they logged and when. */
   drinks: ReadonlyArray<{ drink: string; date: string }>;
   ranked: readonly TasteRankedVenue[];
-  fairPint: { pence: number; date: string } | null;
 };
 
 export const TASTE_COPY = {
@@ -210,15 +209,10 @@ export const TASTE_COPY = {
   drink: "Most logged drink",
   borough: "The borough you rank highest",
   era: "Dates on the pubs in your top five",
-  fairPint: "Your fair pint",
 } as const;
 
 function times(count: number): string {
   return count === 1 ? "logged once" : `logged ${count} times`;
-}
-
-function pounds(pence: number): string {
-  return `£${(pence / 100).toFixed(2).replace(/\.00$/, "")}`;
 }
 
 /**
@@ -277,11 +271,6 @@ export function buildTasteFacts(input: TasteInput): TasteFact[] {
     });
   }
 
-  const fairDay = passportDay(input.fairPint?.date);
-  if (input.fairPint && Number.isFinite(input.fairPint.pence) && input.fairPint.pence > 0 && fairDay) {
-    facts.push({ key: "fair_pint", label: TASTE_COPY.fairPint, value: pounds(input.fairPint.pence), date: fairDay });
-  }
-
   return facts;
 }
 
@@ -307,7 +296,6 @@ export const PASSPORT_COPY = {
   cover: "Passport",
   been: "Been",
   wantToTry: "Want to try",
-  fairPint: "Fair pint",
   patch: "Patch",
   beenTitle: "Been",
   beenEmptyOwner: "Log a visit in your diary or drop a pint, and the pub lands here.",

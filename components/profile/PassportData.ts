@@ -17,7 +17,7 @@ export type PassportBeenRead = {
   count: number;
   venues: BeenVenue[];
   wantToTryCount: number | null;
-  cover: { fairPintPence: number | null; patch: string | null } | null;
+  cover: { patch: string | null } | null;
 };
 export type PassportOverlapRead = { topFive: PassportVenue[]; wantToTry: PassportVenue[] };
 export type PassportTasteRead = { facts: TasteFact[] };

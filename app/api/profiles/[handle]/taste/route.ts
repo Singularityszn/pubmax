@@ -3,8 +3,8 @@
 // GET /api/profiles/[handle]/taste -> 200 { facts } (owner only; 403 to anybody else)
 //
 // Every line is a stored fact with its day: the drink logged most, the borough
-// of the pub ranked first, the dates on the pubs in the top five, the fair pint
-// from the Night Profile. No inference. An empty list means no card.
+// of the pub ranked first, the dates on the pubs in the top five. No inference.
+// An empty list means no card.
 
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
