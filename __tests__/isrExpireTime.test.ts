@@ -1,16 +1,18 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
+import { getCacheControlHeader } from "next/dist/server/lib/cache-control";
 import { describe, expect, it } from "vitest";
 
 // @ts-expect-error -- next.config.mjs has no declaration file.
 import nextConfigModule from "@/next.config.mjs";
 
-// SEO audit #2126, finding 3: Next's default expire is a year, so /today could
-// serve a stale copy for up to 31,535,700 seconds. The captain chose one global
-// hour (30 Oct 2026). Next builds an ISR header as
-// `s-maxage=<revalidate>, stale-while-revalidate=<expire - revalidate>` and
-// drops the stale part when revalidate is not below expire.
+// SEO audit #2126, finding 3: Next's default expire is a year, so /today sent
+// `s-maxage=300, stale-while-revalidate=31535700`. One global expireTime caps
+// it (captain, 30 Oct 2026). Next drops the stale part when revalidate is not
+// below expire, which would leave an hourly route serving its error page after
+// a failed read instead of the last good copy, so every ISR route keeps a
+// window of its own.
 
 function pageFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -29,17 +31,25 @@ function isrRevalidateSeconds(): Map<string, number> {
   return routes;
 }
 
-describe("the ISR stale window", () => {
-  it("is one hour for every ISR route", () => {
-    expect(nextConfigModule.expireTime).toBe(3600);
-  });
+const header = (revalidate: number) =>
+  getCacheControlHeader({ revalidate, expire: nextConfigModule.expireTime });
 
-  it("is never shorter than a route's own revalidate, which Next would refuse to serve stale from", () => {
+describe("the ISR stale window", () => {
+  it("gives Today and Tonight one hour of stale copy, not a year", () => {
     const routes = isrRevalidateSeconds();
     expect(routes.get("app/today/page.tsx")).toBe(300);
     expect(routes.get("app/tonight/page.tsx")).toBe(300);
-    for (const [file, seconds] of routes) {
-      expect(seconds, file).toBeLessThanOrEqual(nextConfigModule.expireTime);
+    expect(header(300)).toBe("s-maxage=300, stale-while-revalidate=3600");
+  });
+
+  it("keeps a five-minute stale window on the hourly routes", () => {
+    expect(isrRevalidateSeconds().get("app/ledger/[id]/page.tsx")).toBe(3600);
+    expect(header(3600)).toBe("s-maxage=3600, stale-while-revalidate=300");
+  });
+
+  it("leaves every ISR route a stale window of its own", () => {
+    for (const [file, seconds] of isrRevalidateSeconds()) {
+      expect(header(seconds), file).toContain("stale-while-revalidate=");
     }
   });
 });

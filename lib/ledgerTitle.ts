@@ -4,14 +4,16 @@
 // pub's own area, so each ledger page has a title of its own. A unique name
 // stays bare, because an area on every title is noise.
 
-import { venueAreaLabel } from "@/lib/venueDisplay";
+import { displayVenueName, venueAreaLabel } from "@/lib/venueDisplay";
 
 type NamedVenue = { id: string; name: string; retired?: true };
 
 const countsByIndex = new WeakMap<ReadonlyMap<string, NamedVenue>, Map<string, number>>();
 
+// Both sides go through the reader-facing name, so "The Crown - JD
+// Wetherspoon" and "The Crown" count as one name, as a reader sees them.
 function nameKey(name: string): string {
-  return name.trim().toLowerCase().replace(/\s+/g, " ");
+  return displayVenueName(name).trim().toLowerCase().replace(/\s+/g, " ");
 }
 
 function nameCounts(index: ReadonlyMap<string, NamedVenue>): Map<string, number> {

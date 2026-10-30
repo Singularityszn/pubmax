@@ -936,9 +936,10 @@ samples beside `/privacy`, `/terms` and `/how-we-estimate`, it rendered in
 the tracked throttle, so CI's sweep is the oracle. Take them down, never up.
 
 **And `/routes/victorian-soho`**, added on 30 October 2026 with the named route
-family (`/routes/{slug}`, SEO audit #2126). It was not measured before its row
-was written, so it takes the ceilings of `/ledger/venue-eltcmh`, a server-rendered
-page of the same size. CI's sweep is the oracle. Take it down, never up.
+family (`/routes/{slug}`, SEO audit #2126). It was NOT measured before its row
+was written. It renders per request and reads the grouped dataset, unlike the
+CDN-held ledger, so the `/ledger/venue-eltcmh` ceilings it copies are a starting
+point only. The first CI sweep sets its real figures.
 
 ## The pin-ready record on /map
 

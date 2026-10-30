@@ -32,6 +32,16 @@ describe("ledger titles for pubs that share a name", () => {
     expect(ledgerTitleName({ name: "The Crown", primaryBorough: "Camden" }, mixed)).toBe("The Crown, Camden");
   });
 
+  it("reads an operator suffix as part of the same name", () => {
+    const suffixed = index([
+      { id: "venue-a", name: "The Moon Under Water" },
+      { id: "venue-b", name: "The Moon Under Water - JD Wetherspoon" },
+    ]);
+    expect(ledgerTitleName({ name: "The Moon Under Water", locality: "Barnet" }, suffixed)).toBe(
+      "The Moon Under Water, Barnet",
+    );
+  });
+
   it("does not count a pub that left the map", () => {
     const withRetired = index([
       { id: "venue-a", name: "The Crown" },

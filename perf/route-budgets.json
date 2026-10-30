@@ -475,7 +475,7 @@
     {
       "path": "/routes/victorian-soho",
       "readySelector": "main.routePage",
-      "why": "The named route family (/routes/{slug}, SEO audit #2126): four curated crawls, each a server-rendered list of five or six stops. Victorian Soho is the instance because it is the featured crawl. Added 30 October 2026 without a local sweep, so its ceilings are set in family with /ledger/venue-eltcmh, a server-rendered page of the same size; CI's sweep is the oracle and these come DOWN at the next one.",
+      "why": "The named route family (/routes/{slug}, SEO audit #2126): four curated crawls of four to six stops each. Victorian Soho is the instance because it is the featured crawl. Unlike the ledger it renders PER REQUEST with its nonce and reads the grouped dataset (loadGroupedVenues) on the server. NOT MEASURED: added 30 October 2026 without a sweep, with ceilings copied from /ledger/venue-eltcmh as a starting point only. The first CI sweep sets the real figures, in either direction, under perf/AGENTS.md.",
       "serverRenderMs": 150,
       "jsDecodedKB": 1050,
       "requests": 48,
