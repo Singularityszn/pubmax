@@ -129,6 +129,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/plans/[id]/proposals/[proposalId]/votes`
 - `POST app/api/plans/[id]/recap`
 - `POST app/api/plans/[id]/session`
+- `POST app/api/plans/[id]/usual-drink`
 - `POST app/api/plans/[id]/vibe-votes`
 - `POST app/api/mcp`
 - `POST app/api/plans/generate`

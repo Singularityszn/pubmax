@@ -79,6 +79,7 @@ const SURFACE_READ_EXEMPTIONS = [
   { path: "components/plan/usePlanMemberRead.ts", fetchCount: 1, reason: "the capability-gated plan projection is ONE no-store read per Plan, shared by the route, the crew and the Night Mode card" },
   { path: "components/plan/PlanHostInviteLink.tsx", fetchCount: 1, reason: "the invite-link rotation is a mutation; the token itself is read by lib/planInviteTokenClient.ts" },
   { path: "components/plan/PlanInviteRsvp.tsx", fetchCount: 3, reason: "invite RSVP reads and actions are mutation-sensitive" },
+  { path: "components/plan/PlanRoundForecast.tsx", fetchCount: 1, reason: "saving a member's usual drink is a mutation; the stop venue details it paints are read through surfaceDataCache" },
   { path: "components/plan/PlanRoute.tsx", fetchCount: 2, reason: "plan route and Tonight listings have no-store route semantics" },
   { path: "components/plan/PlanRouteMiniMap.tsx", fetchCount: 2, reason: "plan map detail is interactive venue data" },
   { path: "components/plan/PlanSummary.tsx", fetchCount: 3, reason: "plan summary actions are no-store and the third re-reads the stored route after a stale save; the member projection is the shared read in components/plan/usePlanMemberRead.ts" },

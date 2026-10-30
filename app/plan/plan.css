@@ -2237,3 +2237,109 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
 
 /* "Who's in" lands on the crew block with its heading clear of the top bar. */
 .planCrew { scroll-margin-top: calc(var(--space-12) * 2); }
+
+/* What's our round here? (review item B6). A quiet block under the card's
+   actions: the ask, then each stop's round from listed prices, then the
+   planner's report line. Ink and hairlines only; the card's one filled
+   action stays the share button above it. */
+.planRound {
+  display: grid;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+}
+
+.planRound__heading {
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--text-md);
+}
+
+.planRound__ask {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.planRound__askLabel {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+
+.planRound__choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.planRound__choice {
+  min-height: 44px;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--panel-raised);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.planRound__choice.selected {
+  border-color: var(--state-selected-border);
+  color: var(--state-selected-ink);
+  font-weight: 700;
+}
+
+.planRound__choice:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 1px;
+}
+
+.planRound__error {
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--text-sm);
+}
+
+.planRound__stops {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.planRound__stop {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.planRound__stopName {
+  color: var(--color-text);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.planRound__lines {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.planRound__total {
+  margin: 0;
+  color: var(--color-text);
+  font-family: var(--font-data);
+  font-size: var(--text-sm);
+}
+
+.planRound__basis,
+.planRound__report {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}

@@ -2034,6 +2034,7 @@ export type Database = {
           membership_revoked_at: string | null;
           recovery_key_hash: string | null;
           recovery_request_hash: string | null;
+          usual_drink: string | null;
         };
         Insert: {
           id?: string;
@@ -2051,6 +2052,7 @@ export type Database = {
           membership_revoked_at?: string | null;
           recovery_key_hash?: string | null;
           recovery_request_hash?: string | null;
+          usual_drink?: string | null;
         };
         Update: {
           id?: string;
@@ -2068,6 +2070,7 @@ export type Database = {
           membership_revoked_at?: string | null;
           recovery_key_hash?: string | null;
           recovery_request_hash?: string | null;
+          usual_drink?: string | null;
         };
         Relationships: [
           {
