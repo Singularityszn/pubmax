@@ -21,6 +21,7 @@ export const PUBLIC_UPDATES = [
       "Find your lot keeps the handle you typed.",
       "On Tonight, Why this pub works with a keyboard and a screen reader.",
       "Addresses people type, like /coffee and /data-credits, now open the right page.",
+      "/gardens opens the map with the Beer garden filter on.",
     ],
   },
   {
