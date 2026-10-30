@@ -18,4 +18,4 @@ Hours are OpenStreetMap `opening_hours`, read 5 October 2026. Pint prices are th
 | [map-last-orders-filters-390x844.png](map-last-orders-filters-390x844.png) | Phone Filters sheet with Last orders on, and the map behind it with the pins narrowed. |
 | [map-last-orders-1280x800.png](map-last-orders-1280x800.png) | Desktop Filters panel with Last orders on and its caption. The shot was taken before the basemap painted, so the count it shows (6) is from a part-loaded map, not the final count. |
 
-The list and the map shots above were re-taken after the review fixes and the move of Last orders under the Tonight lede.
+All shots were re-taken with night dark mode on: at 22:45, a reader with no stored theme choice sees Last orders, and the map with its filter on, in the dark theme.
