@@ -56,19 +56,29 @@
   text-wrap: pretty;
 }
 
-.tonightAnswerLink {
+/* A pub name, a listing title and a source credit are each a thumb's tap, so
+   each link takes the 44 px floor both ways (docs/DESIGN_SYSTEM.md) while its
+   words stay one line of type. The box grows around the text, never the type,
+   and it sits on the middle of the line so the meta line still reads in order. */
+.tonightAnswerLink,
+.tonightAnswerSource {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
-  color: var(--ink);
+  min-height: var(--control-height);
+  min-width: var(--control-height);
+  padding-block: var(--space-1);
+  vertical-align: middle;
   text-decoration: underline;
   text-underline-offset: 0.18em;
 }
 
+.tonightAnswerLink {
+  gap: var(--space-1);
+  color: var(--ink);
+}
+
 .tonightAnswerSource {
   color: var(--color-text-muted);
-  text-decoration: underline;
-  text-underline-offset: 0.18em;
 }
 
 .tonightAnswerButton {
@@ -176,7 +186,8 @@
   align-self: flex-start;
   display: inline-flex;
   align-items: center;
-  min-height: 32px;
+  min-height: var(--control-height);
+  min-width: var(--control-height);
   padding: 0;
   border: 0;
   background: none;
