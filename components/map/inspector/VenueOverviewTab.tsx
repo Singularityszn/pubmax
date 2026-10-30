@@ -110,6 +110,7 @@ import { overviewDisplayablePintGbp } from "@/lib/overviewDisplayablePint";
 import { confirmPintActionName } from "@/lib/pintDropSecondDrinker";
 import type { ZonePintIndex } from "@/lib/zones";
 import { useSheetFooterSlot } from "@/components/mobile/sheetFooterContext";
+import SunChaserVenueLine from "@/components/map/sunChaser/SunChaserVenueLine";
 
 /**
  * The ranked evidence mission for THIS pub, read where the Overview decides
@@ -1230,6 +1231,7 @@ export default function VenueOverviewTab({
           venue-matched award fact exists for this pin. Renders nothing otherwise. */}
       <VenueAwardBadge venueId={venue.id} />
       {amenityRow(amenityChips)}
+      <SunChaserVenueLine venueId={venue.id} />
       {cuisineRow(servesFood, cuisineTags)}
       {accessibilityRow(accessChips, quietHours)}
           <VenueWeatherRecommendations

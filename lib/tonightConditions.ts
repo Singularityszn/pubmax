@@ -64,6 +64,11 @@ export type TonightConditionsSummary = {
   drinkSuggestion: string;
   /** "4 gardens near you with a pint under 6 quid", or null. */
   venueClaim: string | null;
+  /**
+   * The weather feed's condition word ("Clear", "Cloudy", ...) while the
+   * reading is fresh, else null. Sun Chaser's "cloudy now" note reads it.
+   */
+  skyCondition?: string | null;
 };
 
 /** Format a date as the app's calm "Saturday 19 Jul" style (London time). */
