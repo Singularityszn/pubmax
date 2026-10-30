@@ -198,7 +198,7 @@ function GetHomeLine({
   }
   return (
     <div className="lastOrdersGetHome" data-testid="last-orders-get-home" data-status={getHome.status}>
-      <TrainFront size={18} aria-hidden="true" className="lastOrdersGetHomeIcon" />
+      <TrainFront size={20} aria-hidden="true" className="lastOrdersGetHomeIcon" />
       <p className="lastOrdersGetHomeCopy">
         <span className="lastOrdersGetHomeLabel">Get home.</span> {copy}
       </p>
@@ -264,7 +264,7 @@ export default function TonightLastOrdersPanel({
           aria-controls="last-orders"
           onClick={onClose}
         >
-          <X size={18} aria-hidden="true" />
+          <X size={20} aria-hidden="true" />
         </Button>
       </div>
       <p className="lastOrdersLede tonightSectionLine">
