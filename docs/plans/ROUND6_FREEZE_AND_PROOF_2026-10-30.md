@@ -8,9 +8,9 @@ Week 4 of the launch review's four-week proposal (section 5 of `LAUNCH_REVIEW_20
 
 | Item | Where it lands | Builder | Status |
 | --- | --- | --- | --- |
-| Smoke checklist walked in a browser on a local production build, keyless, every row PASS, FAIL or NEEDS KEY with the build SHA | `docs/SOFT_LAUNCH_RUNBOOK.md` section 7 | 34 | building |
-| Ops checklist re-verified and dated | `docs/growth/HORIZON0_OPS_CHECKLIST.md` | 34 | building |
-| The release metric: what to run, what to write down, where; measured on the launch head after merge, never by an agent | `docs/SOFT_LAUNCH_RUNBOOK.md` section 7 | 34 | building |
+| Smoke checklist walked in a browser on a local production build, keyless, every row PASS, FAIL or NEEDS KEY with the build SHA | `docs/SOFT_LAUNCH_RUNBOOK.md` section 7 | 34 | landed, e3cd72f2 |
+| Ops checklist re-verified and dated | `docs/growth/HORIZON0_OPS_CHECKLIST.md` | 34 | landed, e3cd72f2 |
+| The release metric: what to run, what to write down, where; measured on the launch head after merge, never by an agent | `docs/SOFT_LAUNCH_RUNBOOK.md` section 7 | 34 | landed, e3cd72f2 |
 | Route, API and Core Web Vitals sweeps on `main`, three samples after one warm-up, ceilings follow the figures down, breaches held and named | `perf/route-budgets.json`, `perf/api-budgets.json`, `perf/cwv-baseline.json`, the dated findings entry | 35 | building |
 | The three round 5 routes measured instead of seeded (`/time-machine`, `/board/[venueId]`, `/dog-of-the-week`) | `perf/route-budgets.json` on PR 2412 | 32 | building |
 | Browser specs for the six round 5 surfaces, keyless | `e2e/` on PR 2412 | 33 | building |
@@ -38,4 +38,11 @@ Every figure in this round is measured on `main` or on PR 2412's head. The launc
 
 ## 5. Record
 
-Filled in as the builders land.
+### Builder 34, smoke walk and checklists (e3cd72f2)
+
+- Eleven smoke results walked in a browser with `npm run e2e:cli` against a keyless local production build of `main` at 734b39e9: 8 PASS, 0 FAIL, 3 NEEDS KEY. The three that need a key are sign-in, handle claim, and the verified-adult Social states; all three need the Supabase URL, publishable key and email sender, so the captain walks them on the production host after the next release.
+- The ops checklist smoke date is now 30 October 2026. Its old page-title checks matched nothing on production or locally because the titles changed; the checks now read the live titles, checked on both.
+- The release metric is not what `scripts/release-production.mjs` measures. It is the first meaningful action within 60 seconds of landing, defined in `docs/analytics/TRACKING_PLAN.md` section 2.1. The runbook block says how to record it from PostHog for the released commit, once the release has had 7 days of traffic.
+- Two observations recorded in the runbook, not marked as failures: a Soho plan with no must-have need still answered the 422 line that talks about must-have needs, because the server found one usable pub of 135; production served commit e5da6c0 at the time of the walk, not the current `main`.
+- Follow-ups outside this round's brief: `docs/SOFT_LAUNCH_CHECKLIST.md` row 2.8 still uses the old title checks; the ops checklist's "Merge and promote" step 2 still says to merge PR 747, which closed unmerged.
+- Store placeholders still open before an app ships: the Apple Team ID in the site association file (two occurrences, and the iOS capabilities test expects the placeholder), the Play signing SHA-256 in the asset links file, the Firebase services file, the Android upload keystore, and the account-side APNs, App Store Connect and Play Console records. Listing copy and screenshots are already in the repo.
