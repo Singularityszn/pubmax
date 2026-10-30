@@ -214,7 +214,8 @@ describe("the shipped budget file", () => {
     // docs/PERFORMANCE_BUDGETS.md "Which routes are budgeted" holds the list;
     // __tests__/sitemap.test.ts fails a family that is advertised and unmeasured.
     // 53: plus /board/venue-eltcmh, the board reader (round 5, A4).
-    expect(PERFORMANCE_BUDGETS.routes).toHaveLength(53);
+    // 54: plus /time-machine, the pint price time machine (round 5, F1).
+    expect(PERFORMANCE_BUDGETS.routes).toHaveLength(54);
   });
 
   it("gives every route a readiness selector and a reason", () => {
