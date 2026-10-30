@@ -94,7 +94,7 @@ export type PalMapMarker = {
 };
 
 /** Tonight's next stop: its index on the walked route, its pub's name, and how to open it. */
-export type PalNextStop = { stop: number; name: string; open: () => void };
+type PalNextStop = { stop: number; name: string; open: () => void };
 
 const NO_PAL: PalMapMarker = { perch: () => {}, walk: () => {}, visit: () => {}, nextStop: () => {}, destroy: () => {} };
 
