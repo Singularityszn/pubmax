@@ -18,7 +18,10 @@
 
 import { useEffect, useState } from "react";
 
+import { useViewerSession } from "@/components/auth/useViewerSession";
+import { authedFetch } from "@/lib/authedFetch";
 import { coarsenViewerPoint } from "@/lib/geo";
+import { discardBody } from "@/lib/responseBody";
 import {
   parseDrinkerRegularNights,
   parseRegularNights,
@@ -156,12 +159,23 @@ export function useRegularNights(enabled: boolean): RegularNightsRead {
  */
 export function useDrinkerRegularNights(weekday: number | null): readonly DrinkerRegularNight[] {
   const [answer, setAnswer] = useState<{ weekday: number; rows: DrinkerRegularNight[] } | null>(null);
+  // A signed-in read carries the session, so the route can mark the reader's
+  // own rows and "Still on" stays off them. It is read again when that changes.
+  const { signedIn } = useViewerSession();
 
   useEffect(() => {
     if (weekday === null) return;
     const controller = new AbortController();
-    void fetch(`/api/regular-nights?weekday=${weekday}`, { signal: controller.signal })
-      .then((response) => (response.ok ? response.json() : null))
+    void authedFetch(
+      `/api/regular-nights?weekday=${weekday}`,
+      { signal: controller.signal },
+      { requiresIdentity: signedIn },
+    )
+      .then((response) => {
+        if (response.ok) return response.json();
+        discardBody(response);
+        return null;
+      })
       .then(
         (body: unknown) => {
           if (!controller.signal.aborted) {
@@ -173,7 +187,7 @@ export function useDrinkerRegularNights(weekday: number | null): readonly Drinke
         },
       );
     return () => controller.abort();
-  }, [weekday]);
+  }, [weekday, signedIn]);
 
   return answer && answer.weekday === weekday ? answer.rows : NO_DRINKER_NIGHTS;
 }

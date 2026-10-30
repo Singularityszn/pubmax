@@ -70,6 +70,10 @@ export const REGULAR_NIGHT_REPORT_WEEKDAY_CHOICES: ReadonlyArray<{ weekday: Regu
 export const REGULAR_NIGHT_REPORT_INVITE = "Know a regular night here? Add it";
 export const REGULAR_NIGHT_REPORT_RECEIPT = "Thanks. It shows with your handle until a person confirms it.";
 export const REGULAR_NIGHT_REPORT_SIGN_IN_LINE = "Sign in to contribute.";
+/** The quiet button under a drinker's row, for a signed-in reader who is not the reporter. */
+export const REGULAR_NIGHT_STILL_ON_LABEL = "Still on";
+/** What a "Still on" that landed says. */
+export const REGULAR_NIGHT_STILL_ON_RECEIPT = "Thanks, kept for 90 days";
 
 export type RegularNightReport = {
   id: string;
@@ -105,6 +109,12 @@ export type PublicRegularNightReport = {
   expiresAt: string;
   /** The reporter's current handle while the row is open; null once a person confirms it. */
   handle: string | null;
+  /**
+   * Present only on a read made with a verified session: whether the caller
+   * reported this row. A surface hides "Still on" from the reporter with it.
+   * It names the caller to themselves and nobody else.
+   */
+  own?: boolean;
 };
 
 /** What a moderator reads beside each row. */

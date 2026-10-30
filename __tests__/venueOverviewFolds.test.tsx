@@ -178,7 +178,7 @@ describe("the rendered Overview", () => {
 
   it("opens the journey fold around a getting-home ask", () => {
     const ask = createElement(GettingHomeStub, { key: "pub:getting-home:1", openRequest: true });
-    const host = render(props("pub", { gettingHome: ask }));
+    const host = render(props("pub", { gettingHome: ask, journeyFoldOpenKey: "pub:getting-home:1" }));
     const journey = host.querySelector<HTMLDetailsElement>("#venueFold-journey");
     expect(journey?.hasAttribute("open")).toBe(true);
     expect(journey?.querySelector("#venueSection-getting-home > summary")?.textContent).toBe(
@@ -186,8 +186,13 @@ describe("the rendered Overview", () => {
     );
 
     const quiet = createElement(GettingHomeStub, { key: "pub:overview:0", openRequest: false });
-    const resting = render(props("pub", { gettingHome: quiet }));
+    const resting = render(props("pub", { gettingHome: quiet, journeyFoldOpenKey: null }));
     expect(resting.querySelector("#venueFold-journey")?.hasAttribute("open")).toBe(false);
+
+    // The fold reads the explicit key and nothing off the element it holds: a
+    // getting-home element that asks to open does not open the fold alone.
+    const unkeyed = render(props("pub", { gettingHome: ask }));
+    expect(unkeyed.querySelector("#venueFold-journey")?.hasAttribute("open")).toBe(false);
   });
 
   it("keeps the desktop Add to crawl between the Price fold and the rest", () => {

@@ -97,6 +97,7 @@ const STORE_INVENTORY: Record<string, StoreRow> = {
     selector: "none",
     reason: "JSON file under .data/ with an in-memory fallback; no Supabase in the module.",
   },
+  "lib/kitchenReportsStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/messagesStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/nightMemoryStore.ts": {
     class: "legacy-exception",

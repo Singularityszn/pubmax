@@ -1,6 +1,6 @@
 import type { Route } from "next";
 import Link from "next/link";
-import { isValidElement, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { MapPin, PlusCircle } from "lucide-react";
 
 import PriceBadge from "@/components/PriceBadge";
@@ -64,6 +64,7 @@ import VenuePriceEntryPanel from "./VenuePriceEntryPanel";
 import VenueSpoonsValueRow from "./VenueSpoonsValueRow";
 import OverviewFold from "./OverviewFold";
 import VenueCorrectionDoor from "./VenueCorrectionDoor";
+import VenueKitchenReport from "./VenueKitchenReport";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { usePriceEvidenceMission } from "@/components/nearme/usePriceEvidenceMission";
 import VenueRecordSummary from "./VenueRecordSummary";
@@ -799,8 +800,13 @@ function amenityRow(
  * What the kitchen is known to do, or nothing. Same shape as the markup it
  * replaces: the sentence prints when food is stated, the chips print when there
  * are any, and a pub with neither renders no row.
+ *
+ * Under them, the drinker's word on tonight's kitchen ("Kitchen open, said
+ * @handle 20 min ago") and the two taps that say it (launch review A1). It sits
+ * on the food row and only there: a pub with no food row has no kitchen to ask
+ * about. It is a dated report, never hours.
  */
-function cuisineRow(servesFood: boolean, cuisineTags: readonly string[]) {
+function cuisineRow(servesFood: boolean, cuisineTags: readonly string[], venueId: string) {
   if (!servesFood && cuisineTags.length === 0) return null;
   return (
     <div className="cuisineRow" aria-label="Food and cuisine">
@@ -821,6 +827,7 @@ function cuisineRow(servesFood: boolean, cuisineTags: readonly string[]) {
           ))}
         </div>
       ) : null}
+      <VenueKitchenReport key={venueId} venueId={venueId} />
     </div>
   );
 }
@@ -867,17 +874,14 @@ function overviewPriceFoldPresent(
 }
 
 /**
- * How the journey fold mounts. A caller's "check the last train" ask is read
- * off the getting-home fold the inspector hands down (`VenueGettingHomeSection`,
- * keyed per ask with `openRequest` set), and the journey fold takes that ask's
- * key and mounts open, so the ask that opens the getting-home fold also opens
- * the fold around it. With no ask it mounts shut under a fixed key.
+ * How the journey fold mounts. The inspector names a caller's "check the last
+ * train" ask with `journeyFoldOpenKey`, the same key it gives the getting-home
+ * fold it opens, and the journey fold takes that key and mounts open, so the
+ * ask that opens the getting-home fold also opens the fold around it. With no
+ * ask it mounts shut under a fixed key.
  */
-function journeyFoldMount(gettingHome: ReactNode): { key: string; open: boolean } {
-  if (!isValidElement<{ openRequest?: boolean }>(gettingHome) || !gettingHome.props.openRequest) {
-    return { key: "journey", open: false };
-  }
-  return { key: `journey:${String(gettingHome.key)}`, open: true };
+function journeyFoldMount(openKey: string | null | undefined): { key: string; open: boolean } {
+  return openKey ? { key: `journey:${openKey}`, open: true } : { key: "journey", open: false };
 }
 
 function PubPageLink({ venue }: { venue: Venue }) {
@@ -926,6 +930,7 @@ export default function VenueOverviewTab({
   revealRecordLate = false,
   now,
   gettingHome = null,
+  journeyFoldOpenKey,
 }: {
   venue: Venue;
   tab: TabKey;
@@ -967,6 +972,9 @@ export default function VenueOverviewTab({
   onClearLocation: () => void;
   /** The getting-home fold, beside getting there. It was the seventh tab. */
   gettingHome?: ReactNode;
+  /** A caller's "check the last train" ask, by its key, or null. Opens the
+   *  journey fold on mount, once per new key; the reader can still shut it. */
+  journeyFoldOpenKey?: string | null;
   /** The log door: the community price path, soft-gated by the sheet, which
    *  answers by raising `priceFocusRequest` or `priceSignInRequested`. */
   onLogTonightPrice: () => void;
@@ -1120,7 +1128,7 @@ export default function VenueOverviewTab({
 
   const anchorStamp = anchorMonthLabel(venue.anchorObservedAt);
   const priceFoldPresent = overviewPriceFoldPresent(experienceLens, showsPriceSummary, pub);
-  const journeyFold = journeyFoldMount(gettingHome);
+  const journeyFold = journeyFoldMount(journeyFoldOpenKey);
 
   return (
     <div
@@ -1413,7 +1421,7 @@ export default function VenueOverviewTab({
             otherwise. */}
         <VenueAwardBadge venueId={venue.id} />
         {amenityRow(amenityChips)}
-        {cuisineRow(servesFood, cuisineTags)}
+        {cuisineRow(servesFood, cuisineTags, venue.id)}
         {accessibilityRow(accessChips, quietHours)}
         {/* FSA food hygiene rating (FHRS), matched by postcode + fuzzy name
             server-side. Renders nothing for an unmatched pub. Said once: the

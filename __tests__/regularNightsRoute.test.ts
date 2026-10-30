@@ -64,6 +64,16 @@ vi.mock("@/lib/regularNightReportMedia.server", () => {
   };
 });
 
+// A bearer of "alice" is Alice's verified session at the read; any other is nobody.
+vi.mock("@/lib/authServer", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/authServer")>();
+  return {
+    ...actual,
+    callerUserId: async (request: Request) =>
+      request.headers.get("authorization") === "Bearer alice" ? "a1111111-1111-4111-8111-111111111111" : null,
+  };
+});
+
 const moderatorState = vi.hoisted(() => ({ moderator: false }));
 vi.mock("@/lib/adminAuth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/adminAuth")>();
@@ -309,6 +319,23 @@ describe("GET /api/regular-nights", () => {
     await memoryRegularNightReportsStore.decide(created.id, "confirmed", "admin");
     const body = await (await GET(read("?venueId=venue-crown"))).json();
     expect(body.reports[0]).toMatchObject({ status: "confirmed", handle: null });
+  });
+
+  it("tells a verified reader which rows are their own, and an anonymous one nothing", async () => {
+    const mine = await seed();
+    const theirs = await seed(Date.now(), BOB);
+    const anonymous = await (await GET(read("?venueId=venue-crown"))).json();
+    for (const row of anonymous.reports) expect(row).not.toHaveProperty("own");
+
+    const signed = new Request("http://localhost/api/regular-nights?venueId=venue-crown", {
+      headers: { "x-forwarded-for": nextIp(), authorization: "Bearer alice" },
+    });
+    const body = await (await GET(signed)).json();
+    const own = Object.fromEntries(body.reports.map((row: { id: string; own: boolean }) => [row.id, row.own]));
+    // Bob has no handle in this file, so his open row is dropped from the read.
+    expect(own).toEqual({ [mine.id]: true });
+    expect(theirs.id).not.toBe(mine.id);
+    expect(JSON.stringify(body)).not.toContain(ALICE);
   });
 
   it("asks for a weekday or a pub, and refuses a weekday outside 0 to 6", async () => {

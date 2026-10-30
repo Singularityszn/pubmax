@@ -57,6 +57,7 @@ async function handleFor(userId: string): Promise<string | null> {
 export async function publicRegularNightReports(
   reports: readonly RegularNightReport[],
   now: number,
+  viewerUserId: string | null = null,
 ): Promise<PublicRegularNightReport[]> {
   const name = venueNameReader();
   const handles = new Map<string, Promise<string | null>>();
@@ -86,6 +87,9 @@ export async function publicRegularNightReports(
           lastSeenAt: row.lastSeenAt,
           expiresAt: row.expiresAt,
           handle,
+          // Only a verified caller learns which rows are their own, and only
+          // about themselves: the account id itself never leaves.
+          ...(viewerUserId ? { own: row.reporterUserId === viewerUserId } : {}),
         };
       }),
   );

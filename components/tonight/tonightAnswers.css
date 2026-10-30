@@ -169,3 +169,31 @@
     flex: 1 1 0;
   }
 }
+
+/* "Still on" under a drinker's regular night: a quiet text button, and the
+   line that replaces it once tapped. Launch tokens only. */
+.regularNightStillOn {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--text-xs);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.regularNightStillOn:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.regularNightStillOnLine {
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
