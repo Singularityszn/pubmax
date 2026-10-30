@@ -2285,7 +2285,7 @@ describe("saves: two lanes, two promises", () => {
       context({}),
     );
     expect(bob.status, await bob.clone().text()).toBe(200);
-    expect(truth(`select expires_at > '${before}'::timestamptz from public.regular_night_reports where id = '${reportId}'`)).toBe("t");
+    expect(truth(`select expires_at > '${before}'::timestamptz from public.regular_night_reports where id = '${reportId}'`)).toBe("true");
     const bobAgain = await defined(handlers.stillOnRegularNight)(
       request("/api/regular-nights", { bearer: BEARER_BOB, method: "PATCH", body: { id: reportId } }),
       context({}),
