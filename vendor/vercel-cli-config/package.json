@@ -1,6 +1,6 @@
 {
   "name": "@vercel/cli-config",
-  "version": "0.3.1-pubmax.1",
+  "version": "0.3.1-pubmax.2",
   "description": "Private repack of the original Vercel CLI config modules with external Zod",
   "private": true,
   "license": "Apache-2.0",

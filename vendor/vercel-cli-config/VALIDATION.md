@@ -1,16 +1,25 @@
 # Validation status and planned integration
 
-Focused checks completed on 30 October 2026.
-The installed original had exactly three expected failures and five passes.
-The prototype passed all 18 tests across three files through normal npm test setup.
-The evidence-only pack contained 19 files that matched the captured source.
-All 14 unchanged upstream hashes matched, and the bundled entry was absent.
-The coordinator independently confirmed release of the recorded processes and groups.
+The following dated results cover `0.3.1-pubmax.1` on 30 October 2026.
+The original package reproduced three expected failures and passed five other tests.
+The prototype passed all 18 initial tests through normal npm test setup.
+The installed `.1` archive had 19 entries and SHA-256 `79307fbce8bae7c49ec30b2cf424b891d062419bb9c31449b1bc9797832c0aa6`.
+All entries matched the verified source, all 14 upstream hashes matched, and the bundled entry was absent.
+A fresh local npm installation passed 36 tests across four files.
+Direct OIDC resolution and external root Zod resolution passed.
+The public TypeScript consumer passed, including both negative type cases.
+The existing npm audit received a real report with no high or critical findings.
+Its unavailable branch did not supply that result.
+This npm result is not OSV or complete security proof.
+
+The coordinator independently confirmed release of the recorded process groups.
 Finite sampling leaves true peak memory and unrecorded descendants unknown.
-The retained archive predates these documentation changes.
-Root application integration and final package acceptance remain pending.
-This worktree starts at `9b593b884729a11f3df02e788b16f153fdc27b21`.
-The original candidate remains unchanged in its existing worktree.
+The original preparation base is `9b593b884729a11f3df02e788b16f153fdc27b21`.
+The installed validation followed the local Main merge at `bfbe346b4d00e281ed370b90fd7bd0ea569d76fb`.
+The current source version is `0.3.1-pubmax.2`.
+That final source does not claim an existing `.2` archive or installation.
+Each final artifact needs its own integrity record, lockfile, installation, and remaining acceptance.
+The original candidate and the `.1` archive remain preserved.
 The coordinator must allocate the next runtime before any command below runs.
 
 ## Agreed public interfaces
@@ -40,7 +49,8 @@ They also require two refinements for a permitted collection and reject invalid 
 An unused external Zod import cannot satisfy these behaviour checks.
 The recorded baseline reproduced only the three expected contract failures.
 The prototype passed those contracts and the remaining selected tests.
-The TypeScript consumer fixture remains unrun.
+The public TypeScript consumer passed for the installed `.1` package.
+That isolated consumer check does not replace the full application typecheck.
 
 ## Future npm 12 sequence
 
@@ -56,26 +66,29 @@ node_modules/.bin/vitest run __tests__/vercelCliConfigPackaging.test.ts __tests_
 ```
 
 The worktree has its own lockfile installation from the allocated setup phase.
-The application still uses the original package.
-No prototype override has been installed.
+The local `.1` installation used an explicit root archive dependency and a version-scoped reference.
+The final `.2` source declares the same shape with its new archive filename.
 
-A final archive with these documentation changes still needs an allocated package phase.
-The retained evidence-only archive does not describe these later README and provenance bytes.
-The proposed integration sequence below remains unexecuted.
+A final `.2` archive still needs an allocated package phase.
+The retained `.1` archive does not identify the new version and documentation.
+The final `.2` integration sequence below remains unexecuted.
 Apply the override only after the coordinator accepts the prototype evidence.
 The bracket notation preserves the periods in the parent package version.
-The command retains unrelated overrides.
+The source declarations retain unrelated overrides.
+The parent-only `file:` shape failed because npm resolved it under the parent package.
+The explicit root dependency and scoped reference completed lock generation and fresh installation for `.1`.
 
 ```sh
 npm pack ./vendor/vercel-cli-config --ignore-scripts --pack-destination ./vendor
-npm pkg set 'overrides[@vercel/oidc@4.0.1][@vercel/cli-config]=file:vendor/vercel-cli-config-0.3.1-pubmax.1.tgz'
+npm pkg set 'dependencies[@vercel/cli-config]=file:vendor/vercel-cli-config-0.3.1-pubmax.2.tgz'
+npm pkg set 'overrides[@vercel/oidc@4.0.1][@vercel/cli-config]=$@vercel/cli-config'
 npm install --package-lock-only --ignore-scripts --no-audit --no-fund
 npm ci --no-audit --no-fund
 PUBMAX_CLI_CONFIG_SUBJECT=installed node_modules/.bin/vitest run __tests__/vercelCliConfigPackaging.test.ts __tests__/vercelCliConfigLintPolicy.test.ts __tests__/zodSecurity.test.ts __tests__/searchProvider.test.ts --maxWorkers=1
 ```
 
-Only the separate evidence-only pack has run.
-The root archive, scoped override, lockfile generation, and installed-package validation remain unproved with npm 12.
+The `.1` archive, explicit root dependency, scoped reference, lock generation, and fresh installation completed their focused checks.
+Those historical results do not establish final `.2` acceptance.
 If npm refuses the scoped local archive, preserve its exact diagnostic.
 Do not replace the scope with a global override or edit the lockfile manually.
 Do not use a post-install patch or a deep import into an unexported package path.
@@ -110,13 +123,14 @@ The package-owned collection tests check the parser reached through the public s
 
 ## Limits and removal
 
-The focused tests and external evidence-only pack ran.
-No typecheck, compiler, build, security audit, or configured full verification ran for this candidate.
-No root `package.json`, lockfile, installed graph, provider code, or held source changed.
-No application archive or override was added.
-No push, merge, upstream publication or deployment occurred.
+The `.1` focused tests, fresh installation, public type consumer, and npm audit passed.
+The installed original had exactly the expected baseline failures.
+Full application types, OSV, configured full verification, builds, and product acceptance remain final requirements.
+No public merge, upstream publication, or deployment follows from these results.
+The `.2` source preparation changes no lockfile or installed dependencies.
+The `.1` working archive remains preserved outside the checkout.
 
 The local package changes the packaging only.
 It is not an official Vercel release.
-It needs independent review and real validation before application use.
+Its final archive and installed graph need the remaining acceptance before release.
 Remove it after a compatible official package passes the same artifact and public-interface checks.

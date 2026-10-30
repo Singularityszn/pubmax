@@ -1,5 +1,5 @@
 {
-  "status": "FOCUSED_TESTS_AND_EVIDENCE_PACK_PASSED_INTEGRATION_PENDING",
+  "status": "FINAL_SOURCE_PREPARED_HISTORICAL_VALIDATION_RECORDED",
   "baseCommit": "9b593b884729a11f3df02e788b16f153fdc27b21",
   "upstream": {
     "name": "@vercel/cli-config",
@@ -94,11 +94,11 @@
     "Package provenance and removal criteria"
   ],
   "limits": [
-    "The application override, lockfile and installed graph remain unchanged.",
-    "The retained evidence-only archive predates this README and provenance update. A final archive needs a fresh integrity record.",
-    "The TypeScript consumer, installed package, security audit, configured full verification and publication remain unproved.",
+    "Recorded installation, tests, public types and npm audit describe version 0.3.1-pubmax.1 and archive 79307fbce8bae7c49ec30b2cf424b891d062419bb9c31449b1bc9797832c0aa6.",
+    "The final 0.3.1-pubmax.2 source needs its own verified archive, npm-generated lockfile, fresh installation and required integration checks.",
+    "Full application types, OSV, configured full verification, browser acceptance and publication remain final requirements.",
     "Finite sampling does not prove true peak memory or all descendants. Startup-only processes lack active RSS samples.",
-    "Focused contract checks do not establish remote exploitability or final security acceptance."
+    "A real npm report with no high or critical findings is not OSV, all-severity or complete security acceptance."
   ],
   "validation": {
     "date": "2026-10-30",
@@ -118,6 +118,29 @@
       "snapshot": "Before these validation-note changes"
     },
     "recordedProcessesAndGroupsReleased": true,
-    "resourcePassClaim": false
-  }
+    "resourcePassClaim": false,
+    "subjectVersion": "0.3.1-pubmax.1",
+    "installedPackage": {
+      "archiveSha256": "79307fbce8bae7c49ec30b2cf424b891d062419bb9c31449b1bc9797832c0aa6",
+      "freshNpmCiPassed": true,
+      "filesMatched": 19,
+      "excludedBundledEntryAbsent": true,
+      "testsPassed": 36,
+      "filesPassed": 4,
+      "directOidcAndExternalZodResolutionPassed": true
+    },
+    "publicTypeConsumer": {
+      "passed": true,
+      "bothNegativeTypeCasesEnforced": true,
+      "fullApplicationTypesClaim": false
+    },
+    "npmAudit": {
+      "actualReport": true,
+      "unavailableBranch": false,
+      "high": 0,
+      "critical": 0,
+      "OSVClaim": false
+    }
+  },
+  "localVersion": "0.3.1-pubmax.2"
 }

@@ -2,10 +2,11 @@
 
 This prototype removes the bundled Zod implementation from the package entry.
 It uses the unchanged published modules with external Zod 4.6.7.
-The application does not use this package yet.
+A local installation of `0.3.1-pubmax.1` completed the focused checks below.
+The current source version has no claimed production release.
 
 The upstream package is `@vercel/cli-config` 0.3.1.
-The local version is `0.3.1-pubmax.1`.
+The current source version is `0.3.1-pubmax.2`.
 The package stays private and has no installation or publication scripts.
 
 `provenance.json` records the official archive integrity and each unchanged file hash.
@@ -19,12 +20,18 @@ No generated upstream module or declaration was edited.
 
 ## Validation status
 
-Focused checks completed on 30 October 2026.
-The installed original reproduced three expected failures and passed five other tests.
-The prototype passed all 18 tests across three files.
-An evidence-only archive passed inspection of its 19 entries and all 14 unchanged upstream files.
-The application override, installed graph, typecheck, security audit, full verification, and publication remain unproved.
-The retained archive predates these validation-note changes and needs a fresh final package record.
+Validation recorded on 30 October 2026 covers `0.3.1-pubmax.1`.
+The original package reproduced three expected failures and passed five other tests.
+The prototype passed all 18 initial tests.
+A fresh local installation matched all 19 verified archive files and passed 36 tests across four files.
+The public TypeScript consumer passed both negative type cases.
+The existing npm audit received a real report with no high or critical findings.
+That audit is not OSV or complete security proof.
+
+The installed results identify the `.1` archive in `validation.installedPackage` within `provenance.json`.
+Version `.2` changes documentation and package identity.
+Final acceptance requires its own verified archive, npm-generated lockfile, fresh installation, and required integration checks.
+Full application types, configured verification, browser acceptance, and publication remain required.
 Finite process observations do not prove true peak memory or all descendants.
 
 The regression suite uses public config operations and synthetic credential files.
