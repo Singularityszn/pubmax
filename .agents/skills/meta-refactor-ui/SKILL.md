@@ -36,7 +36,7 @@ Run a complete UI design audit against all 10 Refactoring UI principles, generat
 
 ### Phase 1: Load Skill Registry
 ```
-Read skills.json
+Read ../refactoring-ui-plugin/skills.json
 Validate all 10 skills available
 ```
 
@@ -163,5 +163,5 @@ Report agreement rate
 
 ## References
 
-- `../skills.json` - Skill registry
+- `../refactoring-ui-plugin/skills.json` - Skill registry
 - `../examples/` - Before/after examples for all skills

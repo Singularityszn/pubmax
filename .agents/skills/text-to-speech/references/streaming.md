@@ -140,12 +140,17 @@ const out = fs.createWriteStream("output.mp3");
 let receivedFinal = false;
 
 const fail = (error) => {
+  process.exitCode = 1;
   if (out.destroyed) return;
   out.destroy(error);
   websocket.terminate();
 };
 
-out.on("error", (error) => console.error("Audio stream failed:", error));
+out.on("error", (error) => {
+  process.exitCode = 1;
+  console.error("Audio stream failed:", error);
+  websocket.terminate();
+});
 websocket.on("error", fail);
 
 websocket.on("open", () => {
