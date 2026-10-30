@@ -19,7 +19,7 @@ import { venueMapUrl } from "@/lib/venueMapUrl";
 // The engine is the heaviest thing on the page, so it loads after the list
 // and the slider have painted. The list under the map is the page's answer,
 // and it reads the same with no map at all.
-const TimeMachineMapCanvas = dynamic(() => import("./TimeMachineMapCanvas"), {
+const TimeMachineMapCanvas = dynamic(() => import("@/components/map/canvas/TimeMachineMapCanvas"), {
   ssr: false,
   loading: () => <div className="tmMapCanvas" aria-hidden="true" />,
 });

@@ -11,7 +11,9 @@ import type { TimeMachineVenue } from "@/lib/priceTimeMachine";
 // The time machine's own small map. It is NOT the main map: it shares the
 // basemap styles, the attribution and the worker module with
 // components/PubMapCanvas.tsx and nothing else, the way
-// components/map/PalRecommendationMapCanvas.tsx does.
+// components/map/PalRecommendationMapCanvas.tsx does. It lives under
+// components/map/canvas/ because MapLibre is imported only there
+// (__tests__/backendClientIsolation.test.ts).
 //
 // Every pub in the history file the index can place carries one pin for the
 // life of the map. A year change only relights them: a pin with a dated
