@@ -12,6 +12,7 @@ import {
   type YearShare,
 } from "@/lib/yearInPints";
 import { yearShareVenueNames } from "@/lib/yearInPints.server";
+import { YearDotGlass } from "@/lib/yearInPintsDotGlass";
 
 // The Year in Pints card: the preview behind a shared year (lib/yearInPints.ts).
 // It draws only the lines the link holds, and the link holds only the lines
@@ -19,7 +20,8 @@ import { yearShareVenueNames } from "@/lib/yearInPints.server";
 // named only from the venue dataset (`yearShareVenueNames`), so a link cannot
 // put words of its own on the card. A link with no readable year draws the
 // plain poster. The counts are ink, never coral: a year read back is not a
-// score.
+// score. When the nights line was ticked, a pint glass of the year's days
+// stands beside them, lit one dot per night (lib/yearInPintsDotGlass.tsx).
 //
 // runtime = "nodejs": the venue index and the Space Grotesk fonts are read
 // from the filesystem.
@@ -66,6 +68,8 @@ export async function GET(request: Request) {
   const span = share ? yearShareSpan(share) : null;
   const shareCounts = share ? counts(share) : [];
   const shareLines = share ? lines(share, names) : [];
+  const glassNights = share?.nights;
+  const countWidth = glassNights !== undefined ? 236 : 320;
 
   return new ImageResponse(
     (
@@ -86,41 +90,49 @@ export async function GET(request: Request) {
           </div>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          <div style={{ display: "flex", fontSize: 64, fontWeight: 700, letterSpacing: -1, lineHeight: 1.02, color: OG.ink }}>
-            {heading}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <div style={{ display: "flex", fontSize: 64, fontWeight: 700, letterSpacing: -1, lineHeight: 1.02, color: OG.ink }}>
+              {heading}
+            </div>
+            {span ? (
+              <div style={{ display: "flex", fontSize: 26, color: OG.muted, marginTop: 8 }}>{span}</div>
+            ) : null}
+            {!share ? (
+              <div style={{ display: "flex", fontSize: 30, color: OG.inkSoft, marginTop: 24 }}>
+                A year of nights out, read back by your Pub Pal.
+              </div>
+            ) : null}
+
+            {shareCounts.length > 0 ? (
+              <div style={{ display: "flex", gap: 40, marginTop: 28 }}>
+                {shareCounts.map((count) => (
+                  <div key={count.label} style={{ display: "flex", flexDirection: "column", width: countWidth }}>
+                    <div style={{ display: "flex", fontSize: 72, fontWeight: 700, lineHeight: 1, letterSpacing: -2, color: OG.ink }}>
+                      {count.value.toLocaleString("en-GB")}
+                    </div>
+                    <div style={{ display: "flex", fontSize: 24, color: OG.inkSoft, marginTop: 6, lineHeight: 1.2 }}>
+                      {count.label}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            {shareLines.length > 0 ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 22 }}>
+                {shareLines.map((line) => (
+                  <div key={line} style={{ display: "flex", fontSize: 26, color: OG.inkSoft, lineHeight: 1.25 }}>
+                    {line}
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </div>
-          {span ? (
-            <div style={{ display: "flex", fontSize: 26, color: OG.muted, marginTop: 8 }}>{span}</div>
-          ) : null}
-          {!share ? (
-            <div style={{ display: "flex", fontSize: 30, color: OG.inkSoft, marginTop: 24 }}>
-              A year of nights out, read back by your Pub Pal.
-            </div>
-          ) : null}
-
-          {shareCounts.length > 0 ? (
-            <div style={{ display: "flex", gap: 40, marginTop: 28 }}>
-              {shareCounts.map((count) => (
-                <div key={count.label} style={{ display: "flex", flexDirection: "column", width: 320 }}>
-                  <div style={{ display: "flex", fontSize: 72, fontWeight: 700, lineHeight: 1, letterSpacing: -2, color: OG.ink }}>
-                    {count.value.toLocaleString("en-GB")}
-                  </div>
-                  <div style={{ display: "flex", fontSize: 24, color: OG.inkSoft, marginTop: 6, lineHeight: 1.2 }}>
-                    {count.label}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : null}
-
-          {shareLines.length > 0 ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 22 }}>
-              {shareLines.map((line) => (
-                <div key={line} style={{ display: "flex", fontSize: 26, color: OG.inkSoft, lineHeight: 1.25 }}>
-                  {line}
-                </div>
-              ))}
+          {share && glassNights !== undefined ? (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginLeft: 32 }}>
+              <YearDotGlass year={share.year} through={share.through} nights={glassNights} width={200} height={340} />
+              <div style={{ display: "flex", fontSize: 18, color: OG.muted, marginTop: 12 }}>Each dot is a day. Lit: a night out.</div>
             </div>
           ) : null}
         </div>
