@@ -73,6 +73,7 @@
     "build:uk-base": "node scripts/build_uk_base_shards.mjs && node scripts/build_uk_place_index.mjs && node scripts/build_uk_pub_search_index.mjs",
     "build:uk-pub-search": "node scripts/build_uk_pub_search_index.mjs",
     "build:osm-pub-facts": "node scripts/build_osm_pub_facts.mjs",
+    "build:last-orders": "node scripts/build_last_orders_pack.mjs",
     "fetch:wikidata-notable-pubs": "node scripts/fetch_wikidata_notable_pubs.mjs",
     "prepare:maplibre-worker": "node scripts/copy_maplibre_worker.mjs && node scripts/copy_elevenlabs_worklets.mjs",
     "build:heritage-listings": "node scripts/build_heritage_listings.mjs",

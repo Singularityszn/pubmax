@@ -227,6 +227,7 @@ export function validateMobileMapFilters(value: unknown): Filters | null {
     // Open-now post-dates older sessions; upgrade missing to off rather than
     // discarding the whole saved map.
     openNow: raw.openNow === true,
+    lastOrders: raw.lastOrders === true,
     requireOutdoorSeating: raw.requireOutdoorSeating === true,
   };
 }
