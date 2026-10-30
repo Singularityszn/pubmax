@@ -1,12 +1,14 @@
-# Pub Pal tool-turn purge in the database (migration 0200)
+# Pub Pal tool-turn purge in the database (migration 0202)
 
 Run on 30 Oct 2026 in a cloud session, on a throwaway PostgreSQL 16 cluster with
-`pg_cron` 1.6 loaded (`shared_preload_libraries = 'pg_cron'`).
+`pg_cron` 1.6 loaded (`shared_preload_libraries = 'pg_cron'`). The run used
+the file's earlier label; it was renamed to 0202 later, because open branches
+hold 0197 to 0201. The SQL is the same, so the outputs below still hold.
 
 ## Without pg_cron (the proof fixture)
 
 `scripts/rls/session-fixture.sql`, then all 214 migrations in the order
-`scripts/qa/migration-apply-list.mjs` prints. Every migration applied. 0200 printed:
+`scripts/qa/migration-apply-list.mjs` prints. Every migration applied. 0202 printed:
 
 ```
 NOTICE:  pg_cron is not available on this cluster; the Vercel cron keeps purging pub_pal_tool_turns
@@ -16,7 +18,7 @@ The rollback ran with no error and no `cron` schema existed.
 
 ## With pg_cron
 
-0200 applied twice, then the job table:
+0202 applied twice, then the job table:
 
 ```
 pubmax-purge-pub-pal-tool-turns|* * * * *|delete from public.pub_pal_tool_turns where expires_at < now()

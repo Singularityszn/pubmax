@@ -1,4 +1,4 @@
-// Migration 0200 runs the Pub Pal tool-turn purge in the database with pg_cron.
+// Migration 0202 runs the Pub Pal tool-turn purge in the database with pg_cron.
 // The effective proof (job created once, expired row gone in about a minute,
 // live row kept, rollback leaves no job) needs pg_cron loaded at server start,
 // which the shared proof fixture does not do, so it is recorded in
@@ -12,14 +12,14 @@ import { describe, expect, it } from "vitest";
 const ROOT = process.cwd();
 const read = (path: string) => readFileSync(join(ROOT, path), "utf8");
 
-const MIGRATION = read("supabase/migrations/20261030120000_0200_pub_pal_tool_turn_purge_job.sql");
+const MIGRATION = read("supabase/migrations/20261030170000_0202_pub_pal_tool_turn_purge_job.sql");
 const ROLLBACK = read(
-  "supabase/migrations/rollback/20261030120000_0200_pub_pal_tool_turn_purge_job_rollback.sql",
+  "supabase/migrations/rollback/20261030170000_0202_pub_pal_tool_turn_purge_job_rollback.sql",
 );
 const STORE = read("lib/pubPalToolTurnStore.ts");
 const JOB = "pubmax-purge-pub-pal-tool-turns";
 
-describe("0200 Pub Pal tool-turn purge job", () => {
+describe("0202 Pub Pal tool-turn purge job", () => {
   it("deletes exactly what the store's own purge deletes, every minute", () => {
     expect(MIGRATION).toContain(`'${JOB}'`);
     expect(MIGRATION).toContain("'* * * * *'");

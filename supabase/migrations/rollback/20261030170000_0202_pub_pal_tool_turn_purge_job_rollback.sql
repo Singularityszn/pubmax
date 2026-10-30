@@ -1,4 +1,4 @@
--- Rollback for 0200: unschedule the database purge of Pub Pal tool turns.
+-- Rollback for 0202: unschedule the database purge of Pub Pal tool turns.
 --
 -- COST: the purge then rests on the Vercel cron route alone. If its
 -- vercel.json entry was already removed, put it back FIRST, or expired turn

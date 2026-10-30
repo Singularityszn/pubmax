@@ -1,4 +1,4 @@
--- The Pub Pal tool-turn purge runs in the database (0200).
+-- The Pub Pal tool-turn purge runs in the database (0202).
 -- Until now /api/cron/purge-pub-pal-turns started a Vercel function every
 -- minute (1,440 a day) to run one DELETE. This schedules the same DELETE with
 -- pg_cron, inside the database, on the same one-minute clock, so the retention
