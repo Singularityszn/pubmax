@@ -44,6 +44,13 @@ const COMPASS_WATCH_OPTIONS: PositionOptions = {
 
 /** With no reading by then, the phone has no usable compass. */
 const HEADING_FIRST_READING_MS = 2_500;
+/**
+ * A live sensor fires many times a second. Past this with no reading it has
+ * stopped (iOS sends -1 while it calibrates, Android can go quiet), so the
+ * page falls back to words rather than freezing a needle that may still say
+ * "You are facing it".
+ */
+export const HEADING_STALE_MS = 3_000;
 
 type OrientationCtor = {
   requestPermission?: () => Promise<"granted" | "denied" | "default">;
@@ -58,7 +65,10 @@ type CompassOrientationEvent = Event & {
 function screenAngle(): number {
   if (typeof window === "undefined") return 0;
   const angle = window.screen?.orientation?.angle;
-  return typeof angle === "number" && Number.isFinite(angle) ? angle : 0;
+  if (typeof angle === "number" && Number.isFinite(angle)) return angle;
+  // iOS before 16.4 has no screen.orientation, only the older window.orientation.
+  const legacy = (window as unknown as { orientation?: unknown }).orientation;
+  return typeof legacy === "number" && Number.isFinite(legacy) ? legacy : 0;
 }
 
 export function useCompassSensors(): {
@@ -94,6 +104,8 @@ export function useCompassSensors(): {
     let pending: number | null = null;
     let frame = 0;
     let gotReading = false;
+    let live = false;
+    let staleTimer = 0;
     const flush = () => {
       frame = 0;
       if (pending === null) return;
@@ -104,10 +116,16 @@ export function useCompassSensors(): {
     const onOrientation = (event: Event) => {
       const reading = headingFromOrientation(event as CompassOrientationEvent, screenAngle());
       if (reading === null) return;
-      if (!gotReading) {
-        gotReading = true;
+      gotReading = true;
+      if (!live) {
+        live = true;
         setSensor("live");
       }
+      window.clearTimeout(staleTimer);
+      staleTimer = window.setTimeout(() => {
+        live = false;
+        setSensor("none");
+      }, HEADING_STALE_MS);
       pending = reading;
       if (!frame) frame = window.requestAnimationFrame(flush);
     };
@@ -122,6 +140,7 @@ export function useCompassSensors(): {
         window.removeEventListener("deviceorientationabsolute", onOrientation);
         window.removeEventListener("deviceorientation", onOrientation);
         window.clearTimeout(timer);
+        window.clearTimeout(staleTimer);
         if (frame) window.cancelAnimationFrame(frame);
       });
     };

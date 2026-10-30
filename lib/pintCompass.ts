@@ -137,6 +137,25 @@ export function isAligned(relative: number, wasAligned: boolean): boolean {
   return wasAligned ? off <= ALIGNED_LEAVE_DEGREES : off <= ALIGNED_ENTER_DEGREES;
 }
 
+/** Which pub the facing state was earned on, and whether it holds. */
+export type CompassAlignment = { id: string | null; aligned: boolean };
+export const NOT_ALIGNED: CompassAlignment = { id: null, aligned: false };
+
+/**
+ * The facing state for the pub the needle points at now. The hysteresis gap
+ * belongs to ONE pub: a new pub starts outside it, so a pub 15 degrees off is
+ * never "faced" just because the last one was.
+ */
+export function nextAlignment(
+  previous: CompassAlignment,
+  id: string | null,
+  relative: number | null,
+): CompassAlignment {
+  if (id === null || relative === null) return { id, aligned: false };
+  const wasAligned = previous.id === id && previous.aligned;
+  return { id, aligned: isAligned(relative, wasAligned) };
+}
+
 /**
  * The needle's next drawn rotation. It is cumulative rather than wrapped, so a
  * turn from 350 to 10 degrees is a 20 degree step clockwise, never a 340

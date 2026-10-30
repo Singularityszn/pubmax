@@ -12,8 +12,7 @@ import { ReadyButton } from "@/components/ui/ready-button";
 import Screen from "@/components/ui/screen";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
 import { mapHrefForCity } from "@/lib/cityPreference";
-import { haptic, prefersReducedMotion } from "@/lib/nativeHaptics";
-import { isNativeApp } from "@/lib/nativePlatform";
+import { haptic } from "@/lib/nativeHaptics";
 import { formatNearDistance } from "@/lib/nearMeAnswer";
 import { nearMeLocationMessage } from "@/lib/nearMeLocation";
 import { NEAR_PRICE_TRUST_CAPTION } from "@/lib/nearPriceTrust";
@@ -22,7 +21,8 @@ import {
   COMPASS_WALK_MINUTES,
   DEFAULT_COMPASS_WALK_MINUTES,
   bearingText,
-  isAligned,
+  NOT_ALIGNED,
+  nextAlignment,
   nextNeedleRotation,
   rankCompassTargets,
   relativeBearing,
@@ -30,6 +30,7 @@ import {
   shouldRerank,
   stepTarget,
   turnText,
+  type CompassAlignment,
   type CompassAnswer,
   type CompassPoint,
   type CompassTarget,
@@ -71,20 +72,6 @@ function useUnwrappedAngle(angle: number): number {
     return next.drawn;
   }
   return state.drawn;
-}
-
-/** The soft tick when the needle lines up. Silent under reduced motion. */
-function alignedTick(): void {
-  if (isNativeApp()) {
-    haptic("heading-aligned");
-    return;
-  }
-  if (prefersReducedMotion()) return;
-  try {
-    navigator.vibrate?.(12);
-  } catch {
-    // A browser that refuses the buzz still shows the facing state.
-  }
 }
 
 function CompassDial({
@@ -377,7 +364,7 @@ function CompassAnswerView({
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [anchor, setAnchor] = useState<CompassPoint | null>(null);
-  const [aligned, setAligned] = useState(false);
+  const [alignment, setAlignment] = useState<CompassAlignment>(NOT_ALIGNED);
 
   if (origin && shouldRerank(anchor, origin)) setAnchor(origin);
   const rankedFrom = anchor ?? origin;
@@ -395,12 +382,21 @@ function CompassAnswerView({
 
   const live = sensor === "live" && heading !== null;
   const relative = target && live ? relativeBearing(target.bearing, heading) : null;
-  const nextAligned = relative !== null && isAligned(relative, aligned);
-  if (nextAligned !== aligned) setAligned(nextAligned);
+  // The facing state belongs to ONE pub: stepping to the next one starts it
+  // again, so the wider leave band never carries over to a pub it was not
+  // earned on (lib/pintCompass.ts nextAlignment).
+  const nextAlignmentState = nextAlignment(alignment, target?.id ?? null, relative);
+  if (nextAlignmentState.id !== alignment.id || nextAlignmentState.aligned !== alignment.aligned) {
+    setAlignment(nextAlignmentState);
+  }
+  const aligned = nextAlignmentState.aligned;
+  const alignedOn = aligned ? nextAlignmentState.id : null;
 
+  // The soft tick, once per line-up. lib/nativeHaptics.ts is the ONE place a
+  // phone buzzes: native only, silent under reduced motion, never on the web.
   useEffect(() => {
-    if (aligned) alignedTick();
-  }, [aligned]);
+    if (alignedOn) haptic("heading-aligned");
+  }, [alignedOn]);
 
   const ringRotation = useUnwrappedAngle(live ? -heading : 0);
   const needleRotation = useUnwrappedAngle(target?.bearing ?? 0);

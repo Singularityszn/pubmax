@@ -259,10 +259,11 @@
   cursor: pointer;
 }
 
+/* Inside a note the way on stays in the sentence and keeps its 44 px target,
+   like every other control on the page. */
 .pcNote .pcTextLink,
 .pcNote .pcTextButton {
-  min-height: 0;
-  display: inline;
+  vertical-align: middle;
 }
 
 .pcAreaDoor {

@@ -100,6 +100,17 @@ for (const theme of ["light", "dark"] as const) {
     await quietFirstRun(page, theme);
     await stubPosition(page, "soho");
     await stubIosOrientationPermission(page);
+    await page.addInitScript(() => {
+      const w = window as unknown as { __vibrateCalls: number };
+      w.__vibrateCalls = 0;
+      Object.defineProperty(navigator, "vibrate", {
+        configurable: true,
+        value: () => {
+          w.__vibrateCalls += 1;
+          return true;
+        },
+      });
+    });
     const requests: string[] = [];
     page.on("request", (request) => requests.push(`${request.url()} ${request.postData() ?? ""}`));
 
@@ -136,13 +147,24 @@ for (const theme of ["light", "dark"] as const) {
       expect(head.y + head.height).toBeLessThan(hub.y + hub.height);
     }).toPass({ timeout: 5_000 });
     await page.waitForTimeout(500); // let the needle finish its swing
-  await page.screenshot({ path: `${SHOTS}/390-${theme}-facing.png` });
+    await page.screenshot({ path: `${SHOTS}/390-${theme}-facing.png` });
+
+    // A browser never buzzes: lib/nativeHaptics.ts is the one place a phone
+    // vibrates, and only inside the app.
+    expect(await page.evaluate(() => (window as unknown as { __vibrateCalls?: number }).__vibrateCalls)).toBe(0);
 
     // Next cheapest steps through the list.
     const firstName = await card.locator(".pcName").textContent();
     await card.getByRole("button", { name: /Next cheapest/ }).click();
     await expect(card.locator(".pcCount")).toHaveText(/^2 of \d+$/);
     await expect(card.locator(".pcName")).not.toHaveText(firstName ?? "");
+
+    // The facing state belongs to the first pub. With the phone still held
+    // the same way, the next pub is faced only if it sits inside the narrow
+    // entry band, never on the wider band the first pub earned.
+    const nextBearing = Number(await card.getAttribute("data-bearing"));
+    const off = Math.abs(((nextBearing - bearing + 540) % 360) - 180);
+    await expect(page.locator(".pcDial")).toHaveAttribute("data-aligned", off <= 12 ? "true" : "false");
 
     // No request this page made carries the reader's position.
     const leaks = requests.filter((line) => /51\.51\d|-0\.13\d|lat=|lng=/.test(line));
@@ -189,6 +211,21 @@ test("a refused location offers the areas, and an area answers", async ({ page }
   await expect(page.locator(".pcCard .pcTrust")).toHaveText(/^On record · /);
   await page.waitForTimeout(500); // let the needle finish its swing
   await page.screenshot({ path: `${SHOTS}/390-dark-area.png` });
+});
+
+test("a pub list that fails to load says so, with a full-size way to try again", async ({ page }) => {
+  await quietFirstRun(page, "light");
+  await stubPosition(page, "soho");
+  await page.route("**/data/venues_slim.json**", (route) => route.fulfill({ status: 503, body: "" }));
+  await page.goto("/compass");
+  const retry = page.getByRole("button", { name: "Try again." });
+  await expect(async () => {
+    await page.getByRole("button", { name: "Start the compass" }).click();
+    await expect(retry).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 30_000 });
+  await expect(page.getByText("The pub list did not load.")).toBeVisible();
+  const box = await retry.boundingBox();
+  expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
 });
 
 test("reduced motion draws the needle with no spin", async ({ page }) => {

@@ -10,6 +10,8 @@ import {
   distanceKm,
   headingFromOrientation,
   isAligned,
+  NOT_ALIGNED,
+  nextAlignment,
   nextNeedleRotation,
   normaliseDegrees,
   rankCompassTargets,
@@ -237,5 +239,26 @@ describe("smoothing the heading", () => {
     expect(smoothHeading(350, 10, 0.5)).toBe(0);
     expect(smoothHeading(10, 350, 0.5)).toBe(0);
     expect(smoothHeading(90, 180, 1)).toBe(180);
+  });
+});
+
+describe("the facing state belongs to one pub", () => {
+  it("holds inside the wider leave band for the same pub", () => {
+    const facing = nextAlignment(NOT_ALIGNED, "a", 5);
+    expect(facing).toEqual({ id: "a", aligned: true });
+    expect(nextAlignment(facing, "a", ALIGNED_LEAVE_DEGREES - 2).aligned).toBe(true);
+  });
+
+  it("starts again on the next pub, so 15 degrees off is not facing it", () => {
+    const facing = nextAlignment(NOT_ALIGNED, "a", 5);
+    const off = ALIGNED_ENTER_DEGREES + 3;
+    expect(off).toBeLessThan(ALIGNED_LEAVE_DEGREES);
+    expect(nextAlignment(facing, "b", off)).toEqual({ id: "b", aligned: false });
+  });
+
+  it("is never facing without a heading or a pub", () => {
+    const facing = nextAlignment(NOT_ALIGNED, "a", 0);
+    expect(nextAlignment(facing, "a", null)).toEqual({ id: "a", aligned: false });
+    expect(nextAlignment(facing, null, 0)).toEqual({ id: null, aligned: false });
   });
 });
