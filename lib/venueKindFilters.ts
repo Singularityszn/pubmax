@@ -134,30 +134,17 @@ export function venueKindNoun(kind: VenueKind | undefined): string {
 }
 
 /**
- * Clubs have their own visibility key. Older four-key visibility records keep
- * their Bars choice until they receive an explicit Clubs choice.
- * A kind that arrived with the UK-wide OSM venue pack
- * answers null, so `filterVenuesByKind` leaves it out of a curated map view
- * rather than showing it under a toggle nobody can reach. Giving those kinds
- * their own surface is a separate wave.
+ * An absent kind retains Pub visibility. A missing Club choice follows Bars.
+ * Other missing choices stay hidden until the caller explicitly enables them.
  */
-function curatedVenueKind(
-  kind: VenueKind | undefined,
-): CuratedVenueKind | null {
-  if (kind === "bar" || kind === "food" || kind === "restaurant") return kind;
-  if (kind === "club") return "club";
-  if (kind === undefined || kind === "pub") return "pub";
-  return null;
-}
-
 export function filterVenuesByKind(
   venues: Venue[],
   visibility: VenueKindVisibility,
 ): Venue[] {
   return venues.filter((venue) => {
-    const kind = curatedVenueKind(venue.kind);
+    const kind = venue.kind === undefined ? "pub" : venue.kind;
     if (kind === "club") return visibility.club ?? visibility.bar;
-    return kind !== null && visibility[kind];
+    return visibility[kind] ?? false;
   });
 }
 

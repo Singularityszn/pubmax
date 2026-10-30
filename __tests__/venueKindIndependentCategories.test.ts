@@ -69,3 +69,27 @@ it("defaults all ten venue kinds and shows only the five default-on kinds", () =
     filterVenuesByKind(venues, visibility).map((venue) => venue.kind),
   ).toEqual(["pub", "bar", "club", "food", "restaurant"]);
 });
+
+it("enables and disables Cafes without changing other venue kinds", () => {
+  const venues = [
+    { id: "pub", kind: "pub" },
+    { id: "bar", kind: "bar" },
+    { id: "club", kind: "club" },
+    { id: "food", kind: "food" },
+    { id: "restaurant", kind: "restaurant" },
+    { id: "cafe", kind: "cafe" },
+    { id: "hotel_lounge", kind: "hotel_lounge" },
+    { id: "library", kind: "library" },
+    { id: "coworking", kind: "coworking" },
+    { id: "other", kind: "other" },
+  ] as Venue[];
+  const enabled = { ...defaultVenueKindVisibility(), cafe: true };
+  const disabled = { ...enabled, cafe: false };
+
+  expect(
+    filterVenuesByKind(venues, enabled).map((venue) => venue.id),
+  ).toEqual(["pub", "bar", "club", "food", "restaurant", "cafe"]);
+  expect(
+    filterVenuesByKind(venues, disabled).map((venue) => venue.id),
+  ).toEqual(["pub", "bar", "club", "food", "restaurant"]);
+});
