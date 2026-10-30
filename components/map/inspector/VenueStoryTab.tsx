@@ -196,7 +196,9 @@ export default function VenueStoryTab({
       ) : heritageFacts.length === 0 ? (
         <p className="description muted">
           {isPubVenueKind(venue.kind)
-            ? `No heritage note for ${venue.name} yet. Log a Pint Drop below with a passed-down story to be the first to give this pub some character.`
+            ? // The Pint Drop door is on the Prices tab, not below this line, so
+              // the sentence names the tab (launch UX micro-fix 6).
+              `No heritage note for ${venue.name} yet. Know a story passed down about it? Open the Prices tab and log it with a Pint Drop.`
             : `No sourced story has been added for this ${venueNoun}.`}
         </p>
       ) : null}

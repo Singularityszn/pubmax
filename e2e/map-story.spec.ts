@@ -111,7 +111,7 @@ test.describe("map / story bands (#15)", () => {
 
 // ---------------------------------------------------------------------------
 // Venue sheet tabs (components/map/VenueInspector.tsx). Five tabs (Overview,
-// Photos, Drinks, Stories, Lore) behind
+// Photos, Drinks, Prices, Lore) behind
 // role="tablist"/role="tab", with
 // roving-tabindex arrow-key navigation per the APG tabs pattern. Deep-link
 // straight to a known seed venue (mirrors smoke.spec's sel= precedent) so this
@@ -153,7 +153,7 @@ test.describe("map / venue sheet tabs", () => {
     );
   });
 
-  test("empty Drinks action opens the Pint Drop composer on Stories", async ({
+  test("empty Drinks action opens the Pint Drop composer on Prices", async ({
     page,
   }) => {
     await page.goto(`/map?sel=${OLD_BELL_ID}`);
@@ -167,13 +167,13 @@ test.describe("map / venue sheet tabs", () => {
       .getByRole("button", { name: "Add what you’re drinking" })
       .click();
 
-    const storiesTab = tablist.getByRole("tab", { name: "Stories", exact: true });
+    const storiesTab = tablist.getByRole("tab", { name: "Prices", exact: true });
     await expect(storiesTab).toHaveAttribute("aria-selected", "true");
     await expect(page.locator("#venuePanel-pints")).toBeVisible();
     await expect(page.getByRole("form", { name: "Pint Drop composer" })).toBeVisible();
   });
 
-  test("all five tabs render; each switches its panel; Stories shows the price block", async ({
+  test("all five tabs render; each switches its panel; Prices shows the price block", async ({
     page,
   }) => {
     const errors = watchPageErrors(page);
@@ -188,7 +188,7 @@ test.describe("map / venue sheet tabs", () => {
       "Overview",
       "Photos",
       "Menu",
-      "Stories",
+      "Prices",
       "Lore",
     ];
     const tabs = tablist.getByRole("tab");
@@ -197,10 +197,10 @@ test.describe("map / venue sheet tabs", () => {
       await expect(tablist.getByRole("tab", { name: label, exact: true })).toBeVisible();
     }
 
-    // Overview is the default. Stories owns community prices and Moments.
+    // Overview is the default. Prices owns community prices and Moments.
     const overviewTab = tablist.getByRole("tab", { name: "Overview", exact: true });
     await expect(overviewTab).toHaveAttribute("aria-selected", "true");
-    const pintsTab = tablist.getByRole("tab", { name: "Stories", exact: true });
+    const pintsTab = tablist.getByRole("tab", { name: "Prices", exact: true });
     await pintsTab.click();
     await expect(pintsTab).toHaveAttribute("aria-selected", "true");
     const pintsPanel = page.locator("#venuePanel-pints");
@@ -290,7 +290,7 @@ test.describe("map / venue sheet tabs", () => {
   });
 
   // "The Spill" composer (issue #24): visibility segmented control. Deep-link
-  // to Stories (the composer's tab), open it via its "Log a Pint Drop"
+  // to Prices (the composer's tab), open it via its "Log a Pint Drop"
   // button, and assert the four-option visibility radiogroup renders with
   // Public selected by default — a cheap DOM check, no submit/network needed.
   test("opening the composer renders the visibility control, defaulted to Public", async ({
@@ -299,7 +299,10 @@ test.describe("map / venue sheet tabs", () => {
     const errors = watchPageErrors(page);
 
     await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
-    await page.getByRole("tab", { name: "Stories", exact: true }).click();
+    await page
+      .getByRole("tablist", { name: "Venue detail sections" })
+      .getByRole("tab", { name: "Prices", exact: true })
+      .click();
     const pintsPanel = page.locator("#venuePanel-pints");
     await expect(pintsPanel).toBeVisible();
 
