@@ -92,6 +92,7 @@ const OG_SITE_NAME_PAGES: ReadonlyArray<[string, () => Promise<Metadata>]> = [
   ["/", async () => (await import("@/app/page")).metadata],
   ["/feed", async () => (await import("@/app/feed/page")).metadata],
   ["/crawls", async () => (await import("@/app/crawls/page")).metadata],
+  ["/dog-of-the-week", async () => (await import("@/app/dog-of-the-week/page")).metadata],
   [
     "/u/[handle]",
     async () =>

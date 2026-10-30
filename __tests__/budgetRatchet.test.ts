@@ -215,7 +215,8 @@ describe("the shipped budget file", () => {
     // __tests__/sitemap.test.ts fails a family that is advertised and unmeasured.
     // 53: plus /board/venue-eltcmh, the board reader (round 5, A4).
     // 54: plus /time-machine, the pint price time machine (round 5, F1).
-    expect(PERFORMANCE_BUDGETS.routes).toHaveLength(54);
+    // 55: plus /dog-of-the-week, Dog of the week (round 5, F7).
+    expect(PERFORMANCE_BUDGETS.routes).toHaveLength(55);
   });
 
   it("gives every route a readiness selector and a reason", () => {

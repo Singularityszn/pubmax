@@ -392,6 +392,15 @@
       "lcpMs": 400
     },
     {
+      "path": "/dog-of-the-week",
+      "readySelector": "main.dogOfTheWeekMain",
+      "why": "Dog of the week, the photo wall's newest approved Dog photo, a page people are sent to. Added 31 October 2026 before any sweep had measured it: the ceilings are the /contributors row's, the nearest page in shape (a request-time store read under SiteNav and one Screen), and the next sweep brings them down to the measured figure.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 960,
+      "requests": 43,
+      "lcpMs": 400
+    },
+    {
       "path": "/we-are-out",
       "readySelector": "main.weAreOut",
       "why": "The we-are-out feed, on the shared feed shell. Budgeted apart from /feed so a change to one cannot hide inside the other.",
