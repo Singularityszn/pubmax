@@ -5,7 +5,7 @@ import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
 import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 
 // The Pal's evening question on /pal (components/pal/PalNightQuestion.tsx):
-// "Right. Quiet couple, or is it one of those nights?", and each answer opens a
+// "Right. Quiet pint, or a big one tonight?", and each answer opens a
 // plan of that shape. Shots land in artifacts/pal-night-question/ (gitignored).
 
 const SHOTS = "artifacts/pal-night-question";
@@ -42,7 +42,7 @@ test("the Pal asks what kind of night it is, and the answer opens that plan", as
 
   const card = page.getByTestId("pal-night-question");
   await expect(card).toBeVisible({ timeout: 60_000 });
-  await expect(card).toContainText("Right. Quiet couple, or is it one of those nights?");
+  await expect(card).toContainText("Right. Quiet pint, or a big one tonight?");
   const choices = card.getByRole("link");
   await expect(choices).toHaveCount(3);
   // The page renders again once the server's Pal lands, so each choice is
@@ -58,13 +58,13 @@ test("the Pal asks what kind of night it is, and the answer opens that plan", as
     await card.screenshot({ path: `${SHOTS}/question-390.png` });
   }).toPass({ timeout: 30_000 });
 
-  await card.getByRole("link", { name: /Proper sesh/ }).click();
+  await card.getByRole("link", { name: /Big one tonight/ }).click();
   await expect(page).toHaveURL(/\/plan\?query=4\+pubs\+tonight%2C\+lively\+and\+cheap/);
 
   // Back on /pal the same evening, the Pal answers instead of asking again.
   await page.goto("/pal");
   const answered = page.getByTestId("pal-night-question");
-  await expect(answered.getByRole("status")).toHaveText("Proper sesh it is. Four lively pubs, on a budget.", { timeout: 60_000 });
+  await expect(answered.getByRole("status")).toHaveText("A big one it is. Four lively pubs, on a budget, and mind the last train.", { timeout: 60_000 });
   await expect(answered.getByRole("link", { name: "Open the plan" })).toBeVisible();
   await expect(async () => {
     await answered.scrollIntoViewIfNeeded();
@@ -103,7 +103,7 @@ test("once tonight's plan is saved, the Pal hands out the crew link", async ({ p
       proposalPreferences: {}, masteryPoints: 0, createdAt: stamp, updatedAt: stamp,
     }));
     // Tonight's answer, and the plan the host locked in for half eight.
-    window.localStorage.setItem("pubmax:pal-night-answer:v1", JSON.stringify({ evening: "2026-10-19", answer: "sesh" }));
+    window.localStorage.setItem("pubmax:pal-night-answer:v1", JSON.stringify({ evening: "2026-10-19", answer: "big" }));
     window.localStorage.setItem("pubmax_active_plan", JSON.stringify({
       version: 1, id, startTime: "2026-10-19T19:30:00.000Z", stopIndex: 0, role: "host",
     }));
@@ -119,7 +119,7 @@ test("once tonight's plan is saved, the Pal hands out the crew link", async ({ p
   await page.goto("/pal");
 
   const card = page.getByTestId("pal-night-question");
-  await expect(card.getByRole("status").first()).toHaveText("Proper sesh it is. Four lively pubs, on a budget.", { timeout: 60_000 });
+  await expect(card.getByRole("status").first()).toHaveText("A big one it is. Four lively pubs, on a budget, and mind the last train.", { timeout: 60_000 });
   const who = card.getByRole("button", { name: "Who's coming?" });
   await expect(who).toBeVisible({ timeout: 30_000 });
   // The page renders again as the server's Pal and the plan read land.
