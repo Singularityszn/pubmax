@@ -1,8 +1,8 @@
--- Venue corrections (0197): the "That's wrong" door on the venue sheet. A
+-- Venue corrections (0203): the "That's wrong" door on the venue sheet. A
 -- signed-in drinker says a pub has shut, its hours are wrong, or something else
 -- listed on its sheet is off.
 -- Captain applies. Agents ship SQL and a rollback beside it.
--- Reverse: rollback/20261030120000_0197_venue_corrections_rollback.sql
+-- Reverse: rollback/20261030180000_0203_venue_corrections_rollback.sql
 --
 -- WHAT A ROW IS. A NOTE TO A PERSON, never an edit. Nothing reads this table to
 -- move a pin, hide a pub, change hours or touch a price. A moderator reads the

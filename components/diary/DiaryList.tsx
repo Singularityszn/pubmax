@@ -229,7 +229,7 @@ export function DiaryEntryRow({
       rating,
       review: review.trim(),
       // Sent only when it changed, so an edit of the day or the words never
-      // writes the usual column on a database 0199 has not reached.
+      // writes the usual column on a database 0205 has not reached.
       ...(usualDrink.trim() !== (entry.usualDrink ?? "") ? { usualDrink: usualDrink.trim() } : {}),
       ...(add ? { withAdd: add } : {}),
       ...(remove.length ? { withRemove: remove } : {}),

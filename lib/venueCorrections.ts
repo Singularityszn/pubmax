@@ -13,7 +13,7 @@
 // stores nothing for it and answers with that hint.
 //
 // Browser-safe leaf: the sheet's form and the route share ONE validator, and the
-// closed sets here are mirrored by CHECKs in migration 0197.
+// closed sets here are mirrored by CHECKs in migration 0203.
 
 const VENUE_CORRECTION_KINDS = ["closed", "hours", "price", "other"] as const;
 export type VenueCorrectionKind = (typeof VENUE_CORRECTION_KINDS)[number];

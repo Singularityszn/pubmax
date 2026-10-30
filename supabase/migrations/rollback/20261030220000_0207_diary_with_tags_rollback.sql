@@ -1,4 +1,4 @@
--- Rollback for 0201 ("With" on a diary entry).
+-- Rollback for 0207 ("With" on a diary entry).
 --
 -- COST: every With tag on a diary entry is deleted, approved or not, and so
 -- is every free-text name typed on a diary entry. The entries, their ratings,

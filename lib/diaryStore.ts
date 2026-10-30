@@ -133,7 +133,7 @@ const { guard } = createFailSoftGuard({
   migrationHint: MIGRATION_HINT,
 });
 
-/** PostgREST's answer for a column a migration (0199, 0201) has not added yet. */
+/** PostgREST's answer for a column a migration (0205, 0207) has not added yet. */
 function isMissingColumn(error: { code?: string; message?: string }, column: string): boolean {
   const message = error.message ?? "";
   return (error.code === "42703" || error.code === "PGRST204") && message.includes(column);
@@ -160,9 +160,9 @@ function fromRow(row: Record<string, unknown>): DiaryEntry | null {
     visitedOn,
     rating,
     review: typeof row.review === "string" ? row.review : "",
-    // Absent until the captain applies 0199: an entry with no usual.
+    // Absent until the captain applies 0205: an entry with no usual.
     usualDrink: typeof row.usual_drink === "string" ? row.usual_drink : "",
-    // Absent until the captain applies 0201: an entry with no names.
+    // Absent until the captain applies 0207: an entry with no names.
     withNames: typeof row.with_names === "string" ? row.with_names : "",
     visibility: "private",
     createdAt: typeof row.created_at === "string" ? row.created_at : new Date(0).toISOString(),
@@ -195,7 +195,7 @@ const supabaseDiaryStore: DiaryStore = {
         const insert = (values: Record<string, unknown>) =>
           admin().from(TABLE).insert(values).select("*").single();
         let { data, error } = await insert(row);
-        // A deploy ahead of 0199 or 0201 keeps the visit and loses the
+        // A deploy ahead of 0205 or 0207 keeps the visit and loses the
         // footnote, the 0153 receipt-photo rule: a visit is worth more.
         for (const column of OPTIONAL_COLUMNS) {
           if (error && column in row && isMissingColumn(error, column)) {

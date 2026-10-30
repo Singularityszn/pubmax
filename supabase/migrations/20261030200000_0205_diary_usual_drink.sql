@@ -1,7 +1,7 @@
--- "Your usual here" on a diary entry (0199). Apply AFTER 0196.
+-- "Your usual here" on a diary entry (0205). Apply AFTER 0196.
 -- Captain applies; agents ship SQL only.
 --
--- Reverse: supabase/migrations/rollback/20261030140000_0199_diary_usual_drink_rollback.sql
+-- Reverse: supabase/migrations/rollback/20261030200000_0205_diary_usual_drink_rollback.sql
 --
 -- WHAT IT IS. One optional line on a diary entry: the drink the owner orders
 -- at that pub, as they typed it, at most 40 characters. It is as PRIVATE as

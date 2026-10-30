@@ -25,7 +25,7 @@
 // owner (lib/tellYourLot.server.ts). The entry itself stays private either
 // way, and `shared` says whether the post was written.
 //
-// "With" (0201): `withWho` is the raw field. Its free-text names are kept on
+// "With" (0207): `withWho` is the raw field. Its free-text names are kept on
 // the entry; each `@handle` becomes a PROPOSAL in that person's tag inbox
 // (lib/pintDropWithTagsStore.ts), made in the name of the same verified Social
 // account and refused silently across a block. `tagsSent` is false only when

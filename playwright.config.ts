@@ -255,6 +255,7 @@ export default defineConfig({
         "**/plan-route-strip.spec.ts",
         "**/ui-ux-battle-test.spec.ts",
         "**/signed-in-review.spec.ts",
+        "**/map-sun-chaser.spec.ts",
         // The Core Web Vitals sweep owns its own project: it needs a real GL
         // context for the map routes, and it re-emulates device, CPU and
         // network per run, which this project's fixed device would fight.
@@ -401,6 +402,8 @@ export default defineConfig({
         // The Plan result's route strip: a real MapLibre canvas above the cards.
         "**/plan-route-strip.spec.ts",
         "**/ui-ux-battle-test.spec.ts",
+        // Sun Chaser reads building heights from real vector tiles on a real scene.
+        "**/map-sun-chaser.spec.ts",
       ],
       use: {
         ...devices["Desktop Chrome"],
