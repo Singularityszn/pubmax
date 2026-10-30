@@ -9,3 +9,13 @@
 | [last-orders-located-390x844.png](last-orders-located-390x844.png) | Phone with a shared position in Soho. The last-train answer is empty, so the line says there is no time and shows none. |
 
 Hours are OpenStreetMap `opening_hours`, read 5 October 2026. Pint prices are the curated venue index, read 2 October 2026.
+
+## The map filter
+
+| Shot | What it shows |
+| --- | --- |
+| [map-last-orders-390x844.png](map-last-orders-390x844.png) | Phone map opened with `/map?lastOrders=1`. The Filters control counts one filter. |
+| [map-last-orders-filters-390x844.png](map-last-orders-filters-390x844.png) | Phone Filters sheet with Last orders on, and the map behind it with the pins narrowed. |
+| [map-last-orders-1280x800.png](map-last-orders-1280x800.png) | Desktop Filters panel with Last orders on and its caption. The shot was taken before the basemap painted, so the count it shows (6) is from a part-loaded map, not the final count. |
+
+The list and the map shots above were re-taken on head `0ef3cc0b` after the review fixes.
