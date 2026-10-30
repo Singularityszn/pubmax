@@ -344,6 +344,7 @@ function fakeDeps(overrides: Partial<AccountExportDeps> = {}): AccountExportDeps
       { venueId: "venue-1f5ygjb", band: "loved" as const, rankKey: 1, updatedAt: "2026-09-05T21:00:00.000Z" },
     ],
     venueCorrections: async () => ({ status: "ready" as const, corrections: [] }),
+    regularNightReports: async () => ({ status: "ready" as const, reports: [] }),
     pubListNightDrafts: async () => [],
     venueSubmissions: async (userId) => ({
       status: "ready" as const,
@@ -926,6 +927,7 @@ const STORE_EXPORT_COVERAGE: Record<string, ExportCoverage> = {
   "lib/venuePhotoStore.ts": { lane: "wallPhotos" },
   "lib/venueSubmissionStore.ts": { lane: "venueSubmissions" },
   "lib/venueCorrectionsStore.ts": { lane: "venueCorrections" },
+  "lib/regularNightReportsStore.ts": { lane: "regularNightReports" },
   "lib/pubListImportDraftStore.server.ts": { lane: "pubListNightDrafts" },
   "lib/visitReportsStore.ts": { lane: "visitReports" },
   "lib/walkRouteStore.ts": { excluded: "Cached walking routes between two points, shared by every reader who asks for them." },

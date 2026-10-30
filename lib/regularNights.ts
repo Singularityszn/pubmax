@@ -17,9 +17,24 @@
 //    screens; it never says a match is on tonight. It has no weekday.
 // 3. PURE. The surfaces fetch the three committed files and hand them here;
 //    this module reads no clock it is not given and no network.
+//
+// DRINKER ROWS RIDE BESIDE, NEVER INSIDE. A night a drinker added (with a
+// photo of the board, `lib/regularNightReports.ts`) comes from
+// `/api/regular-nights` and is parsed here into its own list under its own
+// label: "per a drinker, seen <date>", with the reporter's handle until a
+// person confirms it. It is never merged into the sourced nights, never into a
+// confirmed listing, and never called tonight's listing. A hidden row and an
+// expired row are dropped here too, whatever the route sent.
 
 import { formatObservedDate } from "@/lib/dataFreshness";
 import { haversineKm } from "@/lib/haversine";
+import {
+  isLiveRegularNightReport,
+  isRegularNightReportKind,
+  readRegularNightWeekday,
+  REGULAR_NIGHT_REPORT_KIND_LABEL,
+  type RegularNightReportKind,
+} from "@/lib/regularNightReports";
 
 export const REGULAR_NIGHT_SOURCE_PATHS = {
   quiz: "/data/whats_on/quiz_london.json",
@@ -76,6 +91,25 @@ export type RegularNightsAnswer = {
   sportCount: number;
   /** The OLDEST read among the rows returned, so a newer source cannot redate an older one. */
   readAt: string | null;
+  /** Nights drinkers added for that weekday, in a list of their own, earliest start first. */
+  drinker: DrinkerRegularNight[];
+};
+
+/** A night one drinker added, with a photo behind it. Never a sourced row and never a listing. */
+export type DrinkerRegularNight = {
+  id: string;
+  kind: RegularNightReportKind;
+  venueId: string;
+  placeName: string;
+  title: string;
+  weekday: RegularNightWeekday;
+  time: string | null;
+  note: string;
+  /** The day it was reported, or the latest day somebody said it is still on. */
+  seenAt: string;
+  /** The reporter's handle while no person has checked it; null once confirmed. */
+  handle: string | null;
+  confirmed: boolean;
 };
 
 type RawRow = Record<string, unknown>;
@@ -277,17 +311,65 @@ function oldestRead(rows: readonly RegularNight[]): string | null {
 export const REGULAR_SPORT_SHOWN = 3;
 
 /**
+ * The drinker rows a `/api/regular-nights` answer carries, checked again here:
+ * a hidden row, an expired row, a row with no seen date or no pub name, and an
+ * open row with no handle to print are all dropped.
+ */
+export function parseDrinkerRegularNights(payload: unknown, now: number): DrinkerRegularNight[] {
+  const reports = isRecord(payload) && Array.isArray(payload.reports) ? payload.reports.filter(isRecord) : [];
+  const out: DrinkerRegularNight[] = [];
+  for (const row of reports) {
+    const id = text(row.id);
+    const venueId = text(row.venueId);
+    const placeName = text(row.venueName);
+    const status = text(row.status);
+    const seenAt = validIso(row.lastSeenAt);
+    const weekday = readRegularNightWeekday(row.weekday);
+    const handle = text(row.handle) || null;
+    if (!id || !venueId || !placeName || !seenAt || weekday === null) continue;
+    if (!isRegularNightReportKind(row.kind)) continue;
+    if (!isLiveRegularNightReport({ status, expiresAt: text(row.expiresAt) }, now)) continue;
+    const confirmed = status === "confirmed";
+    if (!confirmed && !handle) continue;
+    const time = text(row.startTime);
+    out.push({
+      id,
+      kind: row.kind,
+      venueId,
+      placeName,
+      title: REGULAR_NIGHT_REPORT_KIND_LABEL[row.kind],
+      weekday,
+      time: /^\d{2}:\d{2}$/.test(time) ? time : null,
+      note: text(row.note),
+      seenAt,
+      handle: confirmed ? null : handle,
+      confirmed,
+    });
+  }
+  return out;
+}
+
+function byStart(
+  a: { time: string | null; placeName: string },
+  b: { time: string | null; placeName: string },
+): number {
+  return (a.time ?? "99:99").localeCompare(b.time ?? "99:99") || a.placeName.localeCompare(b.placeName);
+}
+
+/**
  * The regular nights for one weekday. Quiz and music nights on that day,
- * earliest first; the sport pubs, nearest to `near` first when one is given.
+ * earliest first; the sport pubs, nearest to `near` first when one is given;
+ * and, in a list of their own, the nights drinkers added for that day.
  */
 export function regularNightsForWeekday(
   all: readonly RegularNight[],
   weekday: RegularNightWeekday,
   near: { lat: number; lng: number } | null = null,
+  drinkerRows: readonly DrinkerRegularNight[] = [],
 ): RegularNightsAnswer {
   const nights = all
     .filter((row) => row.kind !== "sport" && row.weekday === weekday)
-    .sort((a, b) => (a.time ?? "99:99").localeCompare(b.time ?? "99:99") || a.placeName.localeCompare(b.placeName));
+    .sort(byStart);
   const sportAll = all.filter((row) => row.kind === "sport");
   const sport = (near
     ? sportAll
@@ -304,8 +386,26 @@ export function regularNightsForWeekday(
     sport,
     sportCount: sportAll.length,
     readAt: oldestRead([...nights, ...sport]),
+    drinker: drinkerRows.filter((row) => row.weekday === weekday).sort(byStart),
   };
 }
+
+/** "per a drinker, seen 30 October 2026", the label every drinker row carries. */
+export function drinkerRegularNightSourceLine(row: Pick<DrinkerRegularNight, "seenAt">): string {
+  return `per a drinker, seen ${formatObservedDate(new Date(row.seenAt))}`;
+}
+
+/** Who stands behind it: the reporter's handle, or that a person has checked it. */
+export function drinkerRegularNightByline(row: Pick<DrinkerRegularNight, "handle" | "confirmed">): string {
+  return row.confirmed || !row.handle ? "checked by a person" : `@${row.handle}`;
+}
+
+/** The line over the drinker list: whose word it is, and that it is not tonight’s listing. */
+export const DRINKER_REGULAR_NIGHTS_LEAD =
+  "Added by drinkers, each with a photo of the board. Not tonight’s listing, so check before you go.";
+
+/** The heading of the drinker list, inside the regular nights block. */
+export const DRINKER_REGULAR_NIGHTS_HEADING = "From drinkers";
 
 /** "read 18 July 2026", the read date a regular night always carries. */
 export function regularNightReadLabel(readAt: string): string {

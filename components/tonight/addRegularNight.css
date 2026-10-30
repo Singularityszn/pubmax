@@ -1,0 +1,119 @@
+/* "Know a regular night here? Add it": a quiet text door and a small form.
+   No box: a hairline above the form sets it off, the de-box rule
+   (docs/DESIGN_SYSTEM.md). Launch tokens only, so both themes inherit. */
+
+.addRegularNightDoor,
+.addRegularNightCancel,
+.addRegularNightPub {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--text-xs);
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.addRegularNightPub {
+  color: var(--ink);
+  font-size: var(--text-sm);
+}
+
+.addRegularNightDoor:focus-visible,
+.addRegularNightCancel:focus-visible,
+.addRegularNightPub:focus-visible,
+.addRegularNightSend:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.addRegularNightForm {
+  display: grid;
+  gap: 8px;
+  margin: 4px 0 0;
+  padding: 10px 0 0;
+  border-top: 1px solid var(--line-soft);
+  min-width: 0;
+}
+
+.addRegularNightTitle {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.addRegularNightRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+.addRegularNightField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+.addRegularNightField input,
+.addRegularNightField select {
+  min-height: var(--control-height);
+  padding: 0 var(--control-pad-x);
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius);
+  background: var(--panel-raised);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-sm);
+}
+
+.addRegularNightField input[type="file"] {
+  padding: 6px var(--control-pad-x);
+}
+
+.addRegularNightPubs {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.addRegularNightActions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.addRegularNightSend {
+  min-height: var(--control-height);
+  padding: 0 var(--control-pad-x);
+  border: 1px solid var(--control-secondary-border);
+  border-radius: var(--control-radius);
+  background: var(--control-secondary-surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--control-font-size);
+  font-weight: var(--control-font-weight);
+  cursor: pointer;
+}
+
+.addRegularNightSend:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.addRegularNightLine {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}

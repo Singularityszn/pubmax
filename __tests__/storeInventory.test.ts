@@ -168,6 +168,7 @@ const STORE_INVENTORY: Record<string, StoreRow> = {
   "lib/ratingsStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/reactionsStore.ts": { class: "plain-dual-backend", selector: "selectStore" },
   "lib/referralStore.ts": { class: "policy-heavy", selector: "selectStore" },
+  "lib/regularNightReportsStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/roundsStore.ts": { class: "plain-dual-backend", selector: "selectStore" },
   "lib/savedPubsStore.ts": { class: "plain-dual-backend", selector: "selectStore" },
   "lib/socialConnectionStore.ts": { class: "plain-dual-backend", selector: "selectStore" },

@@ -80,6 +80,7 @@ silently stale.
 | ratingsStore | factory-ready | Drink and venue rating rows with shared backend selection; public reads expose summaries, not venue leaderboards. |
 | reactionsStore | factory-ready | Pint Drop reactions with shared backend selection. |
 | referralStore | factory-eligible, policy-heavy | Referral identity, milestone, and proof-expiry policy. |
+| regularNightReportsStore | factory-ready | Regular nights a drinker adds with a board photo: 90-day expiry, once-per-account "still on", moderator confirm or hide. |
 | roundsStore | factory-eligible, policy-heavy | Round membership, spend-line provenance, and promotion policy. |
 | savedPubsStore | legacy-exception | Inline Supabase configuration branch keyed by existing profile rows; needs its own selector refactor. |
 | socialConnectionStore | factory-ready | Connected provider rows with one backend selector. |
@@ -215,6 +216,7 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/ratingsStore.ts",
     "lib/reactionsStore.ts",
     "lib/referralStore.ts",
+    "lib/regularNightReportMedia.server.ts",
     "lib/roundPriceBudget.ts",
     "lib/roundsStore.ts",
     "lib/savedPubsStore.ts",
@@ -261,7 +263,7 @@ and Supabase implementations keep their existing fail-soft behavior.
 The current branch also has `createDualBackendStore` in
 `adultSelfAssertionStore`, `diaryStore`, `feedFreshnessStore`,
 `harvestOverlayStore`, `occupancyStore`, `priceTrustEventStore`,
-`pubPalToolTurnStore`, `stepOutNudgeStore`, `venueCorrectionsStore`, `venueSubmissionStore`,
+`pubPalToolTurnStore`, `regularNightReportsStore`, `stepOutNudgeStore`, `venueCorrectionsStore`, `venueSubmissionStore`,
 `walkRouteStore` and `wantedStore`. This inventory records that current state; it does not require
 other stores to migrate.
 

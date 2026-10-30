@@ -5,11 +5,17 @@ import { ArrowRight, ExternalLink, LocateFixed } from "lucide-react";
 import { PintPriceBadge } from "@/components/PriceBadge";
 import { ReadyButton } from "@/components/ui/ready-button";
 import { formatSnapshotFrom } from "@/lib/dataFreshness";
+import AddRegularNight from "@/components/tonight/AddRegularNight";
 import {
+  DRINKER_REGULAR_NIGHTS_HEADING,
+  DRINKER_REGULAR_NIGHTS_LEAD,
+  drinkerRegularNightByline,
+  drinkerRegularNightSourceLine,
   REGULAR_NIGHTS_HEADING,
   regularNightsLead,
   regularNightSourceLine,
   regularNightTimeLabel,
+  type DrinkerRegularNight,
   type RegularNight,
   type RegularNightsAnswer,
 } from "@/lib/regularNights";
@@ -105,11 +111,32 @@ function RegularNightRow({ night }: { night: RegularNight }) {
   );
 }
 
+/** One night a drinker added: "per a drinker, seen <date>", and whose word it is. */
+function DrinkerNightRow({ night }: { night: DrinkerRegularNight }) {
+  const time = regularNightTimeLabel(night.time);
+  return (
+    <li className="tonightRegularRow" data-kind={night.kind} data-source="drinker" data-confirmed={night.confirmed}>
+      <span className="tonightRegularTitle">
+        <Link prefetch={false} href={mapHref(night.venueId)} className="tonightAnswerLink">
+          {night.placeName}
+        </Link>
+      </span>
+      <span className="tonightAnswerMeta">
+        {night.title}
+        {time ? `, ${time}` : ""}
+        {night.note ? `. ${night.note}` : ""}
+        {` · ${drinkerRegularNightSourceLine(night)} · ${drinkerRegularNightByline(night)}`}
+      </span>
+    </li>
+  );
+}
+
 /**
  * The regular nights, in a block of their own. It is never mixed into the
  * confirmed listings and never called one: its heading says "Regular nights",
  * its lead says it is not tonight's listing, and every row names its source and
- * the day that source was read.
+ * the day that source was read. Nights drinkers added sit in a list of their
+ * own under it, each "per a drinker, seen <date>".
  */
 export function TonightRegularNights({ view }: { view: TonightRegularNightsView }) {
   if (view.status === "loading") {
@@ -121,7 +148,8 @@ export function TonightRegularNights({ view }: { view: TonightRegularNightsView 
   const { answer } = view;
   const shown = answer.nights.slice(0, TONIGHT_REGULAR_NIGHTS_SHOWN);
   const rest = answer.nights.slice(TONIGHT_REGULAR_NIGHTS_SHOWN);
-  if (shown.length === 0 && answer.sport.length === 0) return null;
+  const drinker = answer.drinker ?? [];
+  if (shown.length === 0 && answer.sport.length === 0 && drinker.length === 0) return null;
   return (
     <section
       className="tonightRegular"
@@ -161,6 +189,18 @@ export function TonightRegularNights({ view }: { view: TonightRegularNightsView 
           </ul>
         </>
       ) : null}
+      {drinker.length > 0 ? (
+        <div data-testid="tonight-regular-drinker">
+          <h4 className="tonightRegularHeading">{DRINKER_REGULAR_NIGHTS_HEADING}</h4>
+          <p className="tonightAnswerMeta">{DRINKER_REGULAR_NIGHTS_LEAD}</p>
+          <ul className="tonightRegularList">
+            {drinker.map((night) => (
+              <DrinkerNightRow key={night.id} night={night} />
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      <AddRegularNight where="tonight" />
     </section>
   );
 }

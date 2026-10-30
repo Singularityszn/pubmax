@@ -141,6 +141,9 @@ no side effect, as above.
 | Send a "That's wrong" note (`POST /api/venue-corrections`) | 401 | written as their OWN note; a body owner is ignored | written as their own note | n/a | n/a | n/a | own note; nobody reads it back but staff |
 | `venue_corrections` at the table | denied | denied | denied | n/a | n/a | n/a | denied: no browser grant, service role only (0197) |
 | Read the corrections queue, resolve or dismiss (`/api/admin/venue-corrections`) | 403 | 403 | 403 | 403 | 403 | 403 | 403; `ADMIN_TOKEN` only, and the queue names no reporter |
+| Add a regular night, or say one is still on (`POST`, `PATCH /api/regular-nights`) | 401 | written as their OWN report; a body owner is ignored; "still on" once, never on their own | the same | n/a | n/a | n/a | own report; the public read prints the handle and never the account id or photo key |
+| `regular_night_reports`, `regular_night_report_still_on` at the table | denied | denied | denied | n/a | n/a | n/a | denied: no browser grant, service role only (0200) |
+| Read the regular nights queue, confirm or hide (`/api/admin/regular-nights`) | 403 | 403 | 403 | 403 | 403 | 403 | 403; `ADMIN_TOKEN` only |
 | Read a saved-pub list (`GET /api/saved-pubs`) | public by design |||||||
 | Write a saved-pub list (`POST /api/saved-pubs`) | 403 on a claimed handle, 404 on a handle with no profile row (no row is minted) | writes to their OWN list, never the named one ||||| allowed |
 | `saved_pubs` at the table | denied | no rows, and a write is refused at the grant (0172) ||||| own rows, SELECT only; a write is refused at the grant |

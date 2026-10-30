@@ -354,6 +354,8 @@ beforeAll(async () => {
     venueSubmissionsRoute,
     venueCorrectionsRoute,
     adminVenueCorrectionsRoute,
+    regularNightsRoute,
+    adminRegularNightsRoute,
     savedPubsRoute,
     tagsRoute,
     profileRoute,
@@ -389,6 +391,8 @@ beforeAll(async () => {
     import("@/app/api/venue-submissions/route"),
     import("@/app/api/venue-corrections/route"),
     import("@/app/api/admin/venue-corrections/route"),
+    import("@/app/api/regular-nights/route"),
+    import("@/app/api/admin/regular-nights/route"),
     import("@/app/api/saved-pubs/route"),
     import("@/app/api/social/tags/route"),
     import("@/app/api/profiles/[handle]/route"),
@@ -439,6 +443,11 @@ beforeAll(async () => {
     writeVenueCorrection: venueCorrectionsRoute.POST as unknown as Handler,
     listVenueCorrections: adminVenueCorrectionsRoute.GET as unknown as Handler,
     decideVenueCorrection: adminVenueCorrectionsRoute.PATCH as unknown as Handler,
+    readRegularNights: regularNightsRoute.GET as unknown as Handler,
+    writeRegularNight: regularNightsRoute.POST as unknown as Handler,
+    stillOnRegularNight: regularNightsRoute.PATCH as unknown as Handler,
+    listRegularNightReports: adminRegularNightsRoute.GET as unknown as Handler,
+    decideRegularNightReport: adminRegularNightsRoute.PATCH as unknown as Handler,
     listSavedPubs: savedPubsRoute.GET as unknown as Handler,
     writeSavedPub: savedPubsRoute.POST as unknown as Handler,
     tagInbox: tagsRoute.GET as unknown as Handler,
@@ -2228,6 +2237,100 @@ describe("saves: two lanes, two promises", () => {
       const write = attemptAsRole("authenticated", sub, "delete from public.venue_corrections");
       expect(write.ok).toBe(false);
       expect(write.err).toMatch(/permission denied/i);
+    }
+  });
+
+  it("a regular night is written from the session, \"still on\" once by another account, decided by staff, and no browser role reaches the tables", async () => {
+    const reportId = "e2000000-0000-4000-8000-000000000200";
+    truth(`
+      insert into public.regular_night_reports (id, venue_id, kind, weekday, start_time, note, photo_key, reporter_user_id)
+      values ('${reportId}', '${PRICE_VENUE}', 'quiz', 2, '20:00', 'Alice regular night line',
+        'regular-night-boards/${ALICE}/${reportId}.jpg', '${ALICE}')
+      returning id
+    `);
+
+    const form = new FormData();
+    form.set("venueId", PRICE_VENUE);
+    form.set("kind", "quiz");
+    form.set("weekday", "2");
+    const anonymous = await defined(handlers.writeRegularNight)(
+      request("/api/regular-nights", { form }),
+      context({}),
+    );
+    expect(anonymous.status).toBe(401);
+    const anonymousStillOn = await defined(handlers.stillOnRegularNight)(
+      request("/api/regular-nights", { method: "PATCH", body: { id: reportId } }),
+      context({}),
+    );
+    expect(anonymousStillOn.status).toBe(401);
+    expect(Number(truth("select count(*) from public.regular_night_reports"))).toBe(1);
+
+    // The public read prints the handle and never the account or the photo key.
+    const read = await defined(handlers.readRegularNights)(request("/api/regular-nights?weekday=2"), context({}));
+    expect(read.status).toBe(200);
+    const readBody = JSON.stringify(await readJson(read));
+    expect(readBody).toContain("alicepm");
+    expect(readBody).not.toContain(ALICE);
+    expect(readBody).not.toContain("regular-night-boards/");
+
+    // The reporter cannot keep her own report up; another account can, once.
+    const own = await defined(handlers.stillOnRegularNight)(
+      request("/api/regular-nights", { bearer: BEARER_ALICE, method: "PATCH", body: { id: reportId } }),
+      context({}),
+    );
+    expect(own.status).toBe(409);
+    const before = truth(`select expires_at from public.regular_night_reports where id = '${reportId}'`);
+    const bob = await defined(handlers.stillOnRegularNight)(
+      request("/api/regular-nights", { bearer: BEARER_BOB, method: "PATCH", body: { id: reportId } }),
+      context({}),
+    );
+    expect(bob.status, await bob.clone().text()).toBe(200);
+    expect(truth(`select expires_at > '${before}'::timestamptz from public.regular_night_reports where id = '${reportId}'`)).toBe("t");
+    const bobAgain = await defined(handlers.stillOnRegularNight)(
+      request("/api/regular-nights", { bearer: BEARER_BOB, method: "PATCH", body: { id: reportId } }),
+      context({}),
+    );
+    expect(bobAgain.status).toBe(409);
+    expect(Number(truth(`select count(*) from public.regular_night_report_still_on where report_id = '${reportId}'`))).toBe(1);
+
+    for (const bearer of [undefined, BEARER_ALICE, BEARER_BOB, BEARER_CAROL, BEARER_DAVE]) {
+      const refused = await defined(handlers.listRegularNightReports)(
+        request("/api/admin/regular-nights", bearer ? { bearer } : {}),
+        context({}),
+      );
+      expect(refused.status).toBe(403);
+      expectNoDisclosure(await readJson(refused), ["Alice regular night line"]);
+    }
+    const ownerVerdict = await defined(handlers.decideRegularNightReport)(
+      request("/api/admin/regular-nights", { bearer: BEARER_ALICE, method: "PATCH", body: { id: reportId, status: "confirmed" } }),
+      context({}),
+    );
+    expect(ownerVerdict.status).toBe(403);
+    expect(truth(`select status from public.regular_night_reports where id = '${reportId}'`)).toBe("open");
+    const staff = await defined(handlers.listRegularNightReports)(
+      request("/api/admin/regular-nights", { headers: { "x-admin-token": MODERATOR_TOKEN } }),
+      context({}),
+    );
+    expect(staff.status).toBe(200);
+    const staffVerdict = await defined(handlers.decideRegularNightReport)(
+      request("/api/admin/regular-nights", {
+        method: "PATCH",
+        headers: { "x-admin-token": MODERATOR_TOKEN },
+        body: { id: reportId, status: "hidden" },
+      }),
+      context({}),
+    );
+    expect(staffVerdict.status).toBe(200);
+    expect(truth(`select status from public.regular_night_reports where id = '${reportId}'`)).toBe("hidden");
+
+    for (const table of ["regular_night_reports", "regular_night_report_still_on"]) {
+      expect(visibleRows("anon", null, `select count(*) from public.${table}`)).toBe(0);
+      for (const sub of [ALICE, BOB]) {
+        expect(visibleRows("authenticated", sub, `select count(*) from public.${table}`)).toBe(0);
+        const write = attemptAsRole("authenticated", sub, `delete from public.${table}`);
+        expect(write.ok).toBe(false);
+        expect(write.err).toMatch(/permission denied/i);
+      }
     }
   });
 

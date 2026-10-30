@@ -12,6 +12,7 @@ import type {
   TonightRegularNightsView,
 } from "@/components/tonight/TonightAnswerCards";
 import {
+  useDrinkerRegularNights,
   useLastTrainSummary,
   useRegularNights,
   useTonightNearbyVenues,
@@ -78,17 +79,22 @@ export function useTonightAnswers(input: {
   const wantRegular = !row && listingsStateKind !== "refreshing";
   const regularRead = useRegularNights(wantRegular);
   const near = tonightNear?.near ?? null;
+  const regularWeekday = useMemo(() => {
+    if (!wantRegular || regularRead.status !== "ready") return null;
+    // eslint-disable-next-line react-hooks/purity -- deliberate clock read
+    return regularNightsWeekday(new Date(renderedAt ?? Date.now()));
+  }, [wantRegular, regularRead.status, renderedAt]);
+  // Drinker rows ride in a list of their own beside the sourced nights.
+  const drinkerNights = useDrinkerRegularNights(regularWeekday);
   const regular = useMemo<TonightRegularNightsView | null>(() => {
     if (!wantRegular) return null;
     if (regularRead.status === "failed") return { status: "failed" };
-    if (regularRead.status !== "ready") return { status: "loading" };
-    // eslint-disable-next-line react-hooks/purity -- deliberate clock read
-    const now = new Date(renderedAt ?? Date.now());
+    if (regularRead.status !== "ready" || regularWeekday === null) return { status: "loading" };
     return {
       status: "ready",
-      answer: regularNightsForWeekday(regularRead.nights, regularNightsWeekday(now), near),
+      answer: regularNightsForWeekday(regularRead.nights, regularWeekday, near, drinkerNights),
     };
-  }, [wantRegular, regularRead, renderedAt, near]);
+  }, [wantRegular, regularRead, regularWeekday, near, drinkerNights]);
 
   const lastTrain = useLastTrainSummary(origin);
   return { cheapest, listing, regular, lastTrain };

@@ -20,8 +20,10 @@ import { useEffect, useState } from "react";
 
 import { coarsenViewerPoint } from "@/lib/geo";
 import {
+  parseDrinkerRegularNights,
   parseRegularNights,
   REGULAR_NIGHT_SOURCE_PATHS,
+  type DrinkerRegularNight,
   type RegularNight,
 } from "@/lib/regularNights";
 import type { SlimShardLoader } from "@/lib/slimShards";
@@ -145,6 +147,38 @@ export function useRegularNights(enabled: boolean): RegularNightsRead {
 
   return read;
 }
+
+/**
+ * The nights drinkers added for one weekday, from /api/regular-nights, read
+ * once `weekday` is known. Fail-soft: a read that could not answer leaves the
+ * drinker list empty and the sourced nights untouched. Hidden and expired rows
+ * are dropped again by `parseDrinkerRegularNights`, whatever the route sent.
+ */
+export function useDrinkerRegularNights(weekday: number | null): readonly DrinkerRegularNight[] {
+  const [answer, setAnswer] = useState<{ weekday: number; rows: DrinkerRegularNight[] } | null>(null);
+
+  useEffect(() => {
+    if (weekday === null) return;
+    const controller = new AbortController();
+    void fetch(`/api/regular-nights?weekday=${weekday}`, { signal: controller.signal })
+      .then((response) => (response.ok ? response.json() : null))
+      .then(
+        (body: unknown) => {
+          if (!controller.signal.aborted) {
+            setAnswer({ weekday, rows: parseDrinkerRegularNights(body, Date.now()) });
+          }
+        },
+        () => {
+          if (!controller.signal.aborted) setAnswer({ weekday, rows: [] });
+        },
+      );
+    return () => controller.abort();
+  }, [weekday]);
+
+  return answer && answer.weekday === weekday ? answer.rows : NO_DRINKER_NIGHTS;
+}
+
+const NO_DRINKER_NIGHTS: readonly DrinkerRegularNight[] = [];
 
 export type LastTrainRead =
   | { status: "no-location" }
