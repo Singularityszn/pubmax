@@ -1168,6 +1168,7 @@ export default function VenueOverviewTab({
           }}
         />
       ) : null}
+      {isPubVenue(venue) ? <Link prefetch={false} className="venuePubPageLink" data-testid="board-reader-door" href={`/board/${encodeURIComponent(venue.id)}` as Route}>Photo of the board</Link> : null}
       <p className="venueAddress">{venue.address}</p>
       {/* Sun Chaser's estimate, only while its chip is on. Outside the folded
           details, so the answer the reader turned it on for is not hidden. */}
