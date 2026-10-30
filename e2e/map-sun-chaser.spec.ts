@@ -80,7 +80,8 @@ async function selectGardenPub(page: Page, phone: boolean) {
 for (const viewport of VIEWPORTS) {
   for (const scheme of ["light", "dark"] as const) {
     test(`Sun Chaser marks garden sun honestly at ${viewport.width}x${viewport.height} ${scheme}`, async ({ page }, testInfo) => {
-      test.setTimeout(300_000);
+      // The map paints through a software rasteriser here, so a desktop frame is slow.
+      test.setTimeout(480_000);
       const phone = viewport.name === "phone";
       await page.clock.setFixedTime(SUMMER_AFTERNOON);
       await page.emulateMedia({ colorScheme: scheme, reducedMotion: "reduce" });

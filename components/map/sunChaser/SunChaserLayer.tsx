@@ -135,6 +135,9 @@ function ensureLayer(map: maplibregl.Map): void {
 export default function SunChaserLayer({ map, venues }: { map: maplibregl.Map | null; venues: readonly Venue[] }) {
   const { estimates, offsetSteps, from } = useSunChaser();
   const venuesRef = useRef(venues);
+  // Set when the estimates are out of date; the map's next settled frame redoes them.
+  const dirtyRef = useRef(true);
+  const venueKeyRef = useRef("");
   const byIdRef = useRef(new Map<string, Venue>());
 
   useEffect(() => {
@@ -145,18 +148,18 @@ export default function SunChaserLayer({ map, venues }: { map: maplibregl.Map | 
   // Work out the sun after each settled camera move, once its tiles are in.
   useEffect(() => {
     if (!map) return;
-    let dirty = true;
+    dirtyRef.current = true;
     const markDirty = () => {
-      dirty = true;
+      dirtyRef.current = true;
     };
     const onIdle = () => {
-      if (!dirty) return;
-      dirty = false;
+      if (!dirtyRef.current) return;
+      dirtyRef.current = false;
       computeEstimates(map, venuesRef.current);
     };
     const onStyle = () => {
       ensureLayer(map);
-      dirty = true;
+      dirtyRef.current = true;
     };
     map.on("moveend", markDirty);
     map.on("idle", onIdle);
@@ -164,7 +167,7 @@ export default function SunChaserLayer({ map, venues }: { map: maplibregl.Map | 
     if (map.isStyleLoaded()) ensureLayer(map);
     map.triggerRepaint();
     const refresh = window.setInterval(() => {
-      dirty = true;
+      dirtyRef.current = true;
       map.triggerRepaint();
     }, REFRESH_MS);
     return () => {
@@ -181,9 +184,16 @@ export default function SunChaserLayer({ map, venues }: { map: maplibregl.Map | 
     };
   }, [map]);
 
-  // A new venue list (a filter change) asks for a fresh read.
+  // A different set of pubs (a filter change) asks for a fresh read on the
+  // next settled frame. A new array holding the same pubs asks for nothing,
+  // because the list is rebuilt often and every read casts every ray again.
   useEffect(() => {
-    if (map && getSunChaserState().status !== "idle") computeEstimates(map, venues);
+    const key = venues.map((venue) => venue.id).join(",");
+    if (key === venueKeyRef.current) return;
+    venueKeyRef.current = key;
+    if (!map || getSunChaserState().status === "idle") return;
+    dirtyRef.current = true;
+    map.triggerRepaint();
   }, [map, venues]);
 
   // The cloud half: one read of the weather feed near the map centre.
