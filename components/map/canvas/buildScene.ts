@@ -981,7 +981,7 @@ export function buildRoute(ctx: SceneCtx) {
  * still take their space first. Zoom-gated with the stop names, so a route
  * small enough to sit under one thumb does not wear a pile of bubbles.
  */
-export function buildRouteLegTimes(ctx: SceneCtx) {
+function buildRouteLegTimes(ctx: SceneCtx) {
   const { map, tokens, textFont, addLayerOnce } = ctx;
   if (!map.getSource("route-leg-times")) {
     map.addSource("route-leg-times", {
