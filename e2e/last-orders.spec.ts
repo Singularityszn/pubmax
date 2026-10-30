@@ -116,3 +116,36 @@ test("closing the list at night puts the theme back", async ({ page }) => {
   await expect(page.locator("html")).not.toHaveAttribute("data-night-theme", "1");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
 });
+
+test("The French House lists no price: its £3.40 is a half pint (390x844)", async ({ page, context }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await context.grantPermissions(["geolocation"]);
+  // On Dean Street, beside it.
+  await context.setGeolocation({ latitude: 51.51274, longitude: -0.13171 });
+  await page.route("**/api/last-train**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ station: null, trains: [], error: "unavailable" }),
+    }),
+  );
+  // 21:45 on Sunday 1 November: it closes at 22:30, so it is listed. On a
+  // Friday the list fills with pubs open later and an unpriced pub sorts last.
+  await page.clock.setFixedTime(new Date("2026-11-01T21:45:00Z"));
+  await page.goto("/tonight");
+  await page.getByTestId("last-orders-door").click();
+  const panel = page.getByTestId("last-orders");
+  await panel.getByTestId("last-orders-share-location").click();
+  await expect(panel).toContainText("Walks are from where you are.");
+
+  const row = panel.locator("li", { hasText: "French House" });
+  await expect(row).toHaveCount(1);
+  await expect(row).toContainText("No price yet");
+  await expect(panel).not.toContainText("£3.40");
+  // The tab bar and the create button float over the page; leave them out of
+  // a shot of the whole list so no row is hidden behind them.
+  await panel.screenshot({
+    path: "artifacts/last-orders/last-orders-soho-full-390.png",
+    style: ".mobileTabBar, .createFab { visibility: hidden !important; }",
+  });
+});
