@@ -1172,12 +1172,88 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   font-variant-numeric: tabular-nums;
 }
 
-/* The getting-home fold on the Overview (it was the seventh tab, D10). The fold
-   itself wears the same plain disclosure as "Details and practical info"; the
-   river tint stays on the transport cards inside it. */
-.venueOverviewMore + .venueGettingHome {
-  /* One list of folds: the second shares the first's bottom hairline. */
-  margin-top: -13px;
+/* THE OVERVIEW IS FIVE FOLDS (lib/venueOverviewFolds.ts). One list of folds,
+   divided by hairlines and nothing else (the de-box rule): no card, no fill,
+   no coral. Each summary is a 44px-plus row with the fold's name over one
+   muted line that says what is inside. */
+.venueOverviewFold {
+  min-width: 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.venueOverviewFold:first-child {
+  border-top: 1px solid var(--line-soft);
+}
+
+.venueOverviewFoldSummary {
+  min-height: 52px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  align-content: center;
+  column-gap: 12px;
+  row-gap: 2px;
+  padding-block: 8px;
+  list-style: none;
+  cursor: pointer;
+}
+
+.venueOverviewFoldSummary::-webkit-details-marker {
+  display: none;
+}
+
+.venueOverviewFoldLabel {
+  grid-column: 1;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  font-weight: 750;
+  line-height: var(--leading-snug);
+}
+
+.venueOverviewFoldHint {
+  grid-column: 1;
+  min-width: 0;
+  color: var(--muted);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  line-height: var(--leading-snug);
+}
+
+.venueOverviewFoldSummary::after {
+  content: "+";
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  color: var(--muted);
+  font-size: var(--text-md);
+}
+
+.venueOverviewFold[open] > .venueOverviewFoldSummary::after {
+  content: "\2212";
+}
+
+.venueOverviewFoldSummary:focus-visible {
+  outline-offset: -2px;
+}
+
+.venueOverviewFoldBody {
+  min-width: 0;
+  padding: 2px 0 14px;
+}
+
+/* A fold whose every block answered empty after its own read names no empty
+   room: the summary goes with the body. */
+.venueOverviewFold:not(:has(> .venueOverviewFoldBody > *)) {
+  display: none;
+}
+
+/* The getting-home fold now sits inside "Getting there and home", under the
+   directions. It keeps its own summary ("Last train"), so it is one row in
+   the fold rather than a second list of hairlines. */
+.venueOverviewFoldBody > .venueGettingHome {
+  margin-bottom: 0;
+  border-bottom: 0;
 }
 
 .venueGettingHomeBody > section {
