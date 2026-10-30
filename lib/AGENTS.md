@@ -7,7 +7,7 @@ Long-form incident history, measured proof and review finding IDs live under [`d
 
 ## Identity, accounts and sessions
 
-Accounts, adult gate, contribution identity, founding marks, referrals, starter packs, directory, add links, visibility.
+Accounts, adult gate, direct-message safety, contribution identity, founding marks, referrals, starter packs, directory, add links, visibility.
 
 Full rules: [`docs/rules/lib-identity-accounts-and-sessions.md`](../docs/rules/lib-identity-accounts-and-sessions.md).
 
@@ -31,7 +31,7 @@ Full rules: [`docs/rules/lib-venues-areas-listings-and-nights.md`](../docs/rules
 
 ## Saves, nudges, rounds, reports and Pub Pal
 
-Visit reports, occupancy, wanted, nudges, community signals, rounds, ask and concierge routing, Pub Pal tools.
+Visit reports, venue corrections, With tags, the profile passport, the rank card and Tell your lot, occupancy, wanted, nudges, community signals, rounds, ask and concierge routing, Pub Pal tools.
 
 Full rules: [`docs/rules/lib-saves-nudges-rounds-reports-and-pub-pal.md`](../docs/rules/lib-saves-nudges-rounds-reports-and-pub-pal.md).
 

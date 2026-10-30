@@ -4406,6 +4406,9 @@ export type Database = {
           authority_revision: number;
           created_at: string;
           updated_at: string;
+          capacity: number | null;
+          meeting_venue_id: string | null;
+          description: string | null;
         };
         Insert: {
           id?: string;
@@ -4415,6 +4418,9 @@ export type Database = {
           authority_revision?: number;
           created_at?: string;
           updated_at?: string;
+          capacity?: number | null;
+          meeting_venue_id?: string | null;
+          description?: string | null;
         };
         Update: {
           id?: string;
@@ -4424,6 +4430,9 @@ export type Database = {
           authority_revision?: number;
           created_at?: string;
           updated_at?: string;
+          capacity?: number | null;
+          meeting_venue_id?: string | null;
+          description?: string | null;
         };
         Relationships: [
           {
@@ -7160,6 +7169,25 @@ export type Database = {
           isSetofReturn: true;
         };
       };
+      open_social_crew_with_plan_atomic: {
+        Args: {
+          p_actor_account_id: string | null;
+          p_plan_id: string | null;
+          p_host_token_hash: string | null;
+          p_capacity: number | null;
+          p_meeting_venue_id: string | null;
+          p_description: string | null;
+          p_idempotency_key: string | null;
+          p_payload_digest: string | null;
+        };
+        Returns: Json;
+      };
+      read_social_crew_open_crawl: {
+        Args: {
+          p_crew_id: string | null;
+        };
+        Returns: Json;
+      };
       create_social_crew_atomic: {
         Args: {
           p_actor_account_id: string | null;
@@ -7478,6 +7506,14 @@ export type Database = {
           p_conversation_id: string | null;
         };
         Returns: boolean;
+      };
+      list_open_plan_crawls: {
+        Args: {
+          p_from: string | null;
+          p_until: string | null;
+          p_limit: number | null;
+        };
+        Returns: Json;
       };
       list_open_social_crews: {
         Args: {

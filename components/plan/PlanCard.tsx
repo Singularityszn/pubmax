@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 
 import VenueImage from "@/components/media/VenueImage";
+import OpenItUp from "@/components/plan/OpenItUp";
 import { canonicalStateFromBody } from "@/components/plan/PlanSummary";
 import { readPlanMemberProjection, usePlanMemberRead } from "@/components/plan/usePlanMemberRead";
 import { Button } from "@/components/ui/button";
@@ -181,6 +182,7 @@ export default function PlanCard({ planId, completed = false }: { planId: string
             </Button>
           ) : null}
         </div>
+        <OpenItUp planId={planId} state={state} />
       </div>
     </section>
   );

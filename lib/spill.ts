@@ -126,7 +126,7 @@ export function spillHasSubmissionEvidence(input: {
 // Free-text names (people who are not on PUBMAXX) are folded into
 // passedDownNote as a suffix at submit time: "with Jo, Dan". Every surface
 // that renders passedDownNote gets them for free. An `@handle` is NOT folded
-// in: it is a consented tag (lib/pintDropWithTags.ts, migration 0203) and the
+// in: it is a consented tag (lib/pintDropWithTags.ts, migration 0204) and the
 // drop says "with 1 person" until that person approves it.
 const WITH_SEPARATOR_RE = /[,\s]+/;
 const MAX_WITH_ENTRIES = 6;

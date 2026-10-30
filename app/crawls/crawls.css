@@ -563,3 +563,78 @@
 }
 
 /* RoundStarter styles live in components/round/roundStarter.css (shared with Plan drawer). */
+
+/* --- Crawls you can join this week (app/crawls/CrawlsYouCanJoin.tsx) ------ */
+/* The first section: open crews that carry a plan. One column of rows, one
+   hairline between them, ink only. */
+
+.openCrawls {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-6);
+}
+
+.openCrawlsHeading {
+  margin: 0;
+  font-size: var(--text-md);
+  color: var(--color-text);
+}
+
+.openCrawlsLine {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.openCrawlsList {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.openCrawlsRow {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3) 0;
+}
+
+.openCrawlsRow + .openCrawlsRow {
+  border-top: 1px solid var(--line-soft);
+}
+
+.openCrawlsTitle {
+  margin: 0;
+  font-size: var(--text-base);
+  color: var(--color-text);
+}
+
+.openCrawlsDescription,
+.openCrawlsMeta {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.openCrawlsDescription {
+  color: var(--color-text);
+}
+
+.openCrawlsJoin {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--hairline-strong);
+  text-underline-offset: 3px;
+}
+
+.openCrawlsJoin:focus-visible {
+  outline: 2px solid var(--color-text);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}

@@ -46,6 +46,7 @@ import {
 } from "@/lib/socialCrewsUi";
 
 import "@/components/social/crews.css";
+import CrewPlanSection, { CREW_PLAN_ANCHOR } from "./CrewPlanSection";
 
 type LoadState = "loading" | "ready" | "missing" | "error";
 type JoinRequestLoadState = "idle" | "loading" | "ready" | "error";
@@ -624,7 +625,12 @@ export default function CrewDetailClient({
             {starts ? <time dateTime={crew.startsAt}>{starts}</time> : null}
             <span>{CREW_VISIBILITY_LABEL[crew.visibility]}</span>
           </p>
+          {crew.plan.stops.length ? (
+            <a className="crewPage__planLink" href={`#${CREW_PLAN_ANCHOR}`}>See the plan</a>
+          ) : null}
         </header>
+
+        <CrewPlanSection crew={crew} />
 
         <section aria-labelledby="crew-members-title">
           <h2 id="crew-members-title" className="crews__title">

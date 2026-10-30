@@ -122,6 +122,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/plans/[id]/invites`
 - `POST app/api/plans/[id]/invites/redeem`
 - `POST app/api/plans/[id]/join`
+- `POST app/api/plans/[id]/open-crew`
 - `POST app/api/plans/[id]/presence`
 - `POST app/api/plans/[id]/proposals`
 - `POST app/api/plans/[id]/proposals/[proposalId]/decision`
@@ -1744,3 +1745,27 @@ The resume action and GET read only the verified account's drafts. Missing stora
 Invalid input answers 400, missing sign-in answers 401, and a spent budget answers 429.
 An oversized body answers 413. Unavailable account checks or catalogues answer a retryable 503.
 `__tests__/pubListImportRoute.test.ts` exercises these responses through the real import entry point.
+
+### `app/api/plans/[id]/open-crew` - "Open it up", a plan becomes an open crawl
+
+- **Route / method:** `POST app/api/plans/[id]/open-crew/route.ts` (launch review
+  4.5, E1). Turns a locked plan into an Open Crew that carries it, with a
+  capacity (4 to 20), a meeting pub that is one of the plan's own stops, and the
+  host's one line (140 characters at most).
+- **Authority (two, both required):** the verified Social actor
+  (`requireVerifiedSocialActor`), who will own the crew, AND the plan's host seat
+  (`memberToken` in the body, else the path-scoped member cookie; never the
+  Authorization header, which carries the account). The route refuses any seat
+  that is not the host with the same 404 as a missing plan, and the database
+  checks the seat again inside `open_social_crew_with_plan_atomic` (0208).
+- **Rate limit (boundary):** `socialCrewActor(access, true)`, the per-profile
+  Social Crew write budget (30 a minute).
+- **Validation:** `validateOpenCrawlInput` (`lib/openCrawl.ts`): the capacity
+  bounds, the meeting pub among the plan's stops, and the one line, which
+  carries no link, email address, phone number or handle and none of the words
+  that sell quantity. The meeting pub must also resolve as a listed pub.
+- **Idempotency:** `Idempotency-Key` header (16 to 128 characters) under the
+  crew write receipts, the same key as `create_social_crew_atomic`.
+- **Effect:** the same as `POST app/api/social/crews` with visibility open, plus
+  the three facts, in one transaction: the plan becomes social-owned, every seat
+  token rotates and open plan invites are revoked.

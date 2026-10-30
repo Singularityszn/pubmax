@@ -659,6 +659,6 @@ html[data-theme="dark"] .invite__primary {
 
   /* A link reached by the keyboard stops above the form, never under it. */
   html:has(.inviteRsvp__form) {
-    scroll-padding-bottom: calc(var(--tabbar-h) + 12rem);
+    scroll-padding-bottom: calc(var(--chrome-bottom-clearance) + 12rem);
   }
 }
