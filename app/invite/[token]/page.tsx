@@ -10,6 +10,7 @@ import PlanInviteRsvp from "@/components/plan/PlanInviteRsvp";
 import type { PlanInviteRsvpSummary } from "@/lib/planInvite";
 import { reactionStore, rsvpStore } from "@/lib/planInviteRsvpStore";
 import { PLAN_STOP_MAX, type PlanStopDTO } from "@/lib/plan";
+import { numberPlanStops } from "@/lib/planStopNumbers";
 import { planStateResult, resolvePlanIdByInviteToken } from "@/lib/planStore";
 import type { ReactionSummary } from "@/lib/reactions";
 import {
@@ -251,8 +252,10 @@ export default async function PlanInvitePage({ params }: PageProps) {
   });
   // Each drawn point keeps its place in the stop list, so the pin numbers match
   // the numbered stops below even when a stop has no coordinates.
-  const routeStops = stops.flatMap((stop, index) =>
-    stop.coordinates ? [{ point: stop.coordinates, number: index + 1 }] : [],
+  // The numbers are the plan card's: the first stop is 1 (lib/planStopNumbers).
+  const numbered = numberPlanStops(stops);
+  const routeStops = numbered.flatMap((stop) =>
+    stop.coordinates ? [{ point: stop.coordinates, number: stop.number }] : [],
   );
   const routePoints = routeStops.map((entry) => entry.point);
   const spendBand = inviteSpendBand(stops);
@@ -282,9 +285,9 @@ export default async function PlanInvitePage({ params }: PageProps) {
         {/* The stops as a timeline: one rail, a numbered stop on it, and the
             listed price plaque beside each pub that has one. */}
         <ol className="invite__stops invite__timeline" aria-label="The stops">
-          {stops.map((stop) => (
+          {numbered.map((stop) => (
             <li className="invite__stop" key={`${stop.position}-${stop.venueId}`}>
-              <span className="invite__stopPosition">{stop.position + 1}</span>
+              <span className="invite__stopPosition">{stop.number}</span>
               <div className="invite__stopName">
                 <span>{stop.venueName}</span>
                 {stop.listedPint ? <ListedPriceSource evidence={stop.listedPint} className="invite__stopSource" /> : null}

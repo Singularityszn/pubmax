@@ -103,6 +103,7 @@ const DiaryList = dynamic(() => import("@/components/diary/DiaryList"), { ssr: f
 // The passport cover and book (Been, ranked, taste, overlap) read their own APIs.
 const PassportCover = dynamic(() => import("@/components/profile/PassportCover"), { ssr: false });
 const PassportSections = dynamic(() => import("@/components/profile/PassportSections"), { ssr: false });
+const BoroughBingo = dynamic(() => import("@/components/profile/BoroughBingo"), { ssr: false });
 
 // A person's Social posts. Loaded after the document, like the timeline, and
 // only when the Social launch flag is on, so a closed Social adds nothing here.
@@ -1673,6 +1674,8 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
               {crawlsSection()}
 
               <PassportSections handle={routeHandle} isOwner={isOwnProfile} />
+
+              <BoroughBingo handle={routeHandle} boroughs={passport.boroughs} isOwner={isOwnProfile} isMutual={visibleSocialData.following && visibleSocialData.followsViewer} />
 
               {/* /u/you redirects to the real handle the moment one is
                   known, so gating this on the sentinel alone left the

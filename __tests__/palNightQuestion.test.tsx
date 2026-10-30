@@ -129,8 +129,8 @@ describe("the Pal's evening question", () => {
   });
 
   it("invites the crew to tonight in the Pal's name, never to a price, a count or the evening's answer", () => {
-    expect(palNightInviteText("Ripley")).toBe("Ripley's got a plan for tonight. Open the link and tap I'm in.");
-    expect(palNightInviteText("  ")).toBe("My Pal's got a plan for tonight. Open the link and tap I'm in.");
+    expect(palNightInviteText("Ripley")).toBe("Ripley's got a plan for tonight. Open the link and tap Going.");
+    expect(palNightInviteText("  ")).toBe("My Pal's got a plan for tonight. Open the link and tap Going.");
     expect(palNightInviteText("Ripley")).not.toMatch(/\d|£/);
     // The saved plan may not be the one the answer made, so the words never name the answer.
     for (const choice of PAL_NIGHT_CHOICES) expect(palNightInviteText("Ripley").toLowerCase()).not.toContain(choice.label.toLowerCase());
@@ -265,11 +265,11 @@ describe("the question on /pal", () => {
       await act(async () => { await Promise.resolve(); });
       await act(async () => whoButton()!.click());
       expect(crew.shared).toHaveLength(1);
-      expect(crew.shared[0]!.text).toBe("Ripley's got a plan for tonight. Open the link and tap I'm in.");
+      expect(crew.shared[0]!.text).toBe("Ripley's got a plan for tonight. Open the link and tap Going.");
       // ONE LINK: the same public invite page every host share sends.
       expect(new URL(crew.shared[0]!.url).pathname).toBe("/invite/0123456789abcdef0123456789abcdef");
       expect(new URL(crew.shared[0]!.url).hash).toBe("");
-      expect(host.textContent).toContain("Sent. Now they tap I'm in.");
+      expect(host.textContent).toContain("Sent. Now they tap Going.");
       // With tonight's plan saved, Open the plan goes to it, never to a fresh one.
       const open = [...host.querySelectorAll<HTMLAnchorElement>("a")].find((link) => link.textContent === "Open the plan")!;
       expect(new URL(open.href).pathname).toBe(`/plan/${PLAN_ID}`);
@@ -309,7 +309,7 @@ describe("the question on /pal", () => {
       await act(async () => { await Promise.resolve(); });
       await act(async () => whoButton()!.click());
       expect(host.textContent).not.toContain("Sent.");
-      expect(host.textContent).toContain("Ready in WhatsApp. Send it, then they tap I'm in.");
+      expect(host.textContent).toContain("Ready in WhatsApp. Send it, then they tap Going.");
     });
 
     it("forgets the last share when another tab swaps tonight's plan", async () => {
@@ -318,7 +318,7 @@ describe("the question on /pal", () => {
       await render();
       await act(async () => { await Promise.resolve(); });
       await act(async () => whoButton()!.click());
-      expect(host.textContent).toContain("Sent. Now they tap I'm in.");
+      expect(host.textContent).toContain("Sent. Now they tap Going.");
       await act(async () => {
         writeActivePlan({ id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd", startTime: new Date(LONDON_LATE.getTime() - 60 * 60_000).toISOString(), stopIndex: 0, role: "host" });
         await Promise.resolve();

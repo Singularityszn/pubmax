@@ -79,13 +79,13 @@ export function msUntilPalNightBoundary(now: Date): number {
 /**
  * The words that ride with tonight's crew link. They name the Pal and tonight,
  * never the pubs, a price or a count, and ask the way the plan page already
- * does ("Open the link and tap I'm in."). They never name the evening's answer:
+ * does ("Open the link and tap Going.", the invite page's own button). They never name the evening's answer:
  * the saved plan may not be the one the answer made, so the words could
  * describe a different night.
  */
 export function palNightInviteText(palName: string): string {
   const name = palName.trim() || "My Pal";
-  return `${name}'s got a plan for tonight. Open the link and tap I'm in.`;
+  return `${name}'s got a plan for tonight. Open the link and tap Going.`;
 }
 
 export function palNightChoice(id: unknown): PalNightChoice | null {

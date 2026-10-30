@@ -136,8 +136,8 @@ function PalNightCrew({ crew, palName }: { crew: Crew; palName: string }) {
       <button type="button" className="palNightQuestionOpen" onClick={() => void share()}>
         Who&apos;s coming?
       </button>
-      {sent === "sent" ? <p className="palNightQuestionNote" role="status">Sent. Now they tap I&apos;m in.</p> : null}
-      {sent === "whatsapp" ? <p className="palNightQuestionNote" role="status">Ready in WhatsApp. Send it, then they tap I&apos;m in.</p> : null}
+      {sent === "sent" ? <p className="palNightQuestionNote" role="status">Sent. Now they tap Going.</p> : null}
+      {sent === "whatsapp" ? <p className="palNightQuestionNote" role="status">Ready in WhatsApp. Send it, then they tap Going.</p> : null}
       {sent === "failed" ? (
         <p className="palNightQuestionNote" role="status">
           That didn&apos;t send. <Link href={invitePage}>Send it from the plan</Link>
