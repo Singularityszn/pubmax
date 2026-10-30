@@ -1169,6 +1169,9 @@ export default function VenueOverviewTab({
         />
       ) : null}
       <p className="venueAddress">{venue.address}</p>
+      {/* Sun Chaser's estimate, only while its chip is on. Outside the folded
+          details, so the answer the reader turned it on for is not hidden. */}
+      <SunChaserVenueLine venueId={venue.id} />
       {/* The pub's own page: prices, hours, what's there and what your lot
           said, laid out on one screen (app/pubs/[id]). */}
       <PubPageLink venue={venue} />
@@ -1231,7 +1234,6 @@ export default function VenueOverviewTab({
           venue-matched award fact exists for this pin. Renders nothing otherwise. */}
       <VenueAwardBadge venueId={venue.id} />
       {amenityRow(amenityChips)}
-      <SunChaserVenueLine venueId={venue.id} />
       {cuisineRow(servesFood, cuisineTags)}
       {accessibilityRow(accessChips, quietHours)}
           <VenueWeatherRecommendations
