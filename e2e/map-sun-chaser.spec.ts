@@ -89,7 +89,7 @@ for (const viewport of VIEWPORTS) {
       await page.goto("/map");
 
       let controls = await openFeatureControls(page, phone);
-      const chip = controls.getByRole("button", { name: "Sun Chaser" });
+      const chip = controls.getByRole("button", { name: "In the sun", exact: true });
       await chip.scrollIntoViewIfNeeded();
       await chip.click();
       await expect(chip).toHaveAttribute("aria-pressed", "true");

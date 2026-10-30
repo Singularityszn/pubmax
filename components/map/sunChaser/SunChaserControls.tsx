@@ -1,6 +1,6 @@
 "use client";
 
-// The Sun Chaser chip, inside the map's pub feature controls on both widths.
+// The Sun Chaser chip (it reads "In the sun", the captain's label), inside the map's pub feature controls on both widths.
 // It holds no sun maths: the slider, the status line and the map layer load
 // only once the chip is on (SunChaserPanel.tsx, components/PubMap.tsx).
 
@@ -20,7 +20,7 @@ export default function SunChaserControls() {
         onClick={() => setSunChaserEnabled(!enabled)}
       >
         <span aria-hidden="true" className="sunChaserChipDot" />
-        Sun Chaser
+        In the sun
       </button>
       {enabled ? <SunChaserPanel /> : null}
     </div>
