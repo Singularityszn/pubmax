@@ -61,12 +61,14 @@ describe("the Pal's stamp book", () => {
     expect(kept[0]!.venueId).toBe("venue-79");
   });
 
-  it("stamps the London day's first answer only; a second price that day stamps nothing", () => {
+  it("stamps the London day's first answer only; a second price that day stamps nothing and claims nothing", () => {
     const store = memoryStore();
-    expect(stampPalQuest({ venueId: "venue-a", venueName: "The Lamb" }, autumnDay, store)).toEqual([
+    expect(stampPalQuest({ venueId: "venue-a", venueName: "The Lamb" }, autumnDay, store)).toEqual(
       { day: "2026-10-30", venueId: "venue-a", venueName: "The Lamb" },
-    ]);
-    stampPalQuest({ venueId: "venue-b", venueName: "The Crown" }, autumnDay, store);
+    );
+    // The same day answered again (here, or in another tab) adds no stamp, so
+    // the second pub is never shown as the first one's stamp.
+    expect(stampPalQuest({ venueId: "venue-b", venueName: "The Crown" }, autumnDay, store)).toBeNull();
     expect(readPalQuestStamps(store)).toEqual([{ day: "2026-10-30", venueId: "venue-a", venueName: "The Lamb" }]);
     expect(palQuestStampToday(readPalQuestStamps(store), autumnDay)?.venueName).toBe("The Lamb");
     expect(palQuestStampToday(readPalQuestStamps(store), new Date("2026-10-31T12:00:00Z"))).toBeNull();
@@ -85,7 +87,7 @@ describe("the Pal's stamp book", () => {
         throw new Error("full");
       },
     };
-    expect(stampPalQuest({ venueId: "venue-b", venueName: "The Crown" }, autumnDay, refusing)[0]!.day).toBe("2026-10-30");
+    expect(stampPalQuest({ venueId: "venue-b", venueName: "The Crown" }, autumnDay, refusing)?.day).toBe("2026-10-30");
     expect(readPalQuestStamps(null)).toEqual([]);
   });
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { palCheapPerchLine, palFirstLegLabel, palWalkLine } from "@/lib/palMapLines";
+import { palCheapPerchLine, palFirstLegLabel, palPerchSpeech, palWalkLine } from "@/lib/palMapLines";
 
 const legTimes = (...labels: unknown[]): GeoJSON.FeatureCollection => ({
   type: "FeatureCollection",
@@ -45,3 +45,25 @@ describe("what the Pal says on the map", () => {
     }
   });
 });
+
+describe("the Pal's line beside a cheap pin", () => {
+  it("speaks for a new cheap pub, once", () => {
+    expect(palPerchSpeech("", "venue-a", true)).toEqual({ spoken: "venue-a", say: palCheapPerchLine("venue-a") });
+    expect(palPerchSpeech("venue-a", "venue-a", true)).toEqual({ spoken: "venue-a" });
+  });
+
+  it("takes the line back when the Pal moves to a pub that is not cheap, or to none", () => {
+    expect(palPerchSpeech("venue-a", "venue-b", false)).toEqual({ spoken: "", say: null });
+    expect(palPerchSpeech("venue-a", null, false)).toEqual({ spoken: "", say: null });
+  });
+
+  it("takes the line back when the same pub's pin leaves the cheapest band", () => {
+    expect(palPerchSpeech("venue-a", "venue-a", false)).toEqual({ spoken: "", say: null });
+  });
+
+  it("swaps the line for the next cheap pub, and says nothing new beside pubs that are not cheap", () => {
+    expect(palPerchSpeech("venue-a", "venue-b", true)).toEqual({ spoken: "venue-b", say: palCheapPerchLine("venue-b") });
+    expect(palPerchSpeech("", "venue-c", false)).toEqual({ spoken: "" });
+  });
+});
+

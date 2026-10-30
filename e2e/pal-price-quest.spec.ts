@@ -112,3 +112,37 @@ test("another account's stored Pal asks no quest, and the mission stays plain", 
   await expect(page.locator(".pemSlot")).toBeVisible({ timeout: 60_000 });
   await expect(page.getByTestId("pal-quest")).toHaveCount(0);
 });
+
+test("two open /near tabs: the second stops asking once the first stamps the day, and never claims its pub", async ({ page, context }) => {
+  test.setTimeout(180_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await seedQuest(page, ACCOUNTS.A.id);
+  const second = await context.newPage();
+  await second.setViewportSize({ width: 390, height: 844 });
+  await seedQuest(second, ACCOUNTS.A.id);
+  await page.goto("/near?patch=soho", { waitUntil: "domcontentloaded" });
+  await second.goto("/near?patch=soho", { waitUntil: "domcontentloaded" });
+  await expect(page.getByTestId("pal-quest")).toHaveAttribute("data-state", "ask", { timeout: 60_000 });
+  await expect(second.getByTestId("pal-quest")).toHaveAttribute("data-state", "ask", { timeout: 60_000 });
+
+  // The first tab answers the quest and lands the day's stamp.
+  const slot = page.locator(".pemSlot");
+  await slot.getByRole("button", { name: "Log it" }).click();
+  await slot.getByRole("textbox").fill("4.20");
+  await attachBill(slot);
+  await slot.getByRole("button", { name: "Log it" }).last().click();
+  await expect(page.getByTestId("pal-quest")).toHaveAttribute("data-state", "done", { timeout: 30_000 });
+
+  // The second tab hears the book change and stops asking; its own answer
+  // later is still welcome, and stamps nothing.
+  await expect(second.getByTestId("pal-quest")).toHaveCount(0, { timeout: 30_000 });
+  const otherSlot = second.locator(".pemSlot");
+  await otherSlot.getByRole("button", { name: "Log it" }).click();
+  await otherSlot.getByRole("textbox").fill("4.40");
+  await attachBill(otherSlot);
+  await otherSlot.getByRole("button", { name: "Log it" }).last().click();
+  await expect(otherSlot.getByRole("status")).toBeVisible({ timeout: 30_000 });
+  await expect(second.getByTestId("pal-quest")).toHaveCount(0);
+  const stamps = await second.evaluate(() => window.localStorage.getItem("pubmax:pal-quest-stamps:v1"));
+  expect(JSON.parse(stamps!)).toHaveLength(1);
+});

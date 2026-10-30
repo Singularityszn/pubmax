@@ -32,3 +32,21 @@ export function palWalkLine(legLabel: string | null, key: string): string | null
 export function palCheapPerchLine(key: string): string {
   return pick(["In the cheapest band. Nice find.", "Green pin. My favourite colour.", "This one's in the cheap band. Noted."], key);
 }
+
+/**
+ * What the Pal says beside the pin it perches at, given what it last spoke
+ * about (`spoken`: the cheap pub's id, or "" for nothing). A new cheap pub
+ * gets its line; leaving a cheap pub, for another pub or none, or that pub's
+ * pin leaving the cheapest band, takes the line back (null), so a claim never
+ * stays beside a pin it is not true of. Anything else says nothing new.
+ */
+export function palPerchSpeech(
+  spoken: string,
+  venueId: string | null,
+  cheap: boolean,
+): { spoken: string; say?: string | null } {
+  const next = venueId && cheap ? venueId : "";
+  if (next === spoken) return { spoken };
+  return { spoken: next, say: next ? palCheapPerchLine(next) : null };
+}
+

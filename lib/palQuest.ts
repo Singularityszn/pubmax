@@ -67,24 +67,26 @@ export function readPalQuestStamps(storage: Storage | null = localStore()): PalQ
 }
 
 /**
- * Stamp today's quest. The first answer of a London day is the day's stamp; a
- * second price that day is still welcome, and stamps nothing.
+ * Stamp today's quest, and return the new stamp. The first answer of a London
+ * day is the day's stamp; a day already stamped, in this tab or another,
+ * returns null, so a second price that day never claims the first one's pub.
  */
 export function stampPalQuest(
   stamp: Omit<PalQuestStamp, "day">,
   now: Date = new Date(),
   storage: Storage | null = localStore(),
-): PalQuestStamp[] {
+): PalQuestStamp | null {
   const day = londonDayKey(now);
   const stamps = readPalQuestStamps(storage);
-  if (!day || stamps.some((kept) => kept.day === day)) return stamps;
-  const next = parsePalQuestStamps(JSON.stringify([{ ...stamp, day }, ...stamps]));
+  if (!day || stamps.some((kept) => kept.day === day)) return null;
+  const added = parsePalQuestStamps(JSON.stringify([{ ...stamp, day }]))[0] ?? null;
+  if (!added) return null;
   try {
-    storage?.setItem(PAL_QUEST_STAMPS_KEY, JSON.stringify(next));
+    storage?.setItem(PAL_QUEST_STAMPS_KEY, JSON.stringify(parsePalQuestStamps(JSON.stringify([added, ...stamps]))));
   } catch {
     // A full or blocked store keeps the old book; the cheer still plays.
   }
-  return next;
+  return added;
 }
 
 /** Today's stamp, if the quest is already answered today. */
