@@ -10,7 +10,7 @@
 //
 // Exit code 0 = every scene ran; 1 = a scene never started, fell back to rest on desktop, or the page
 // logged errors. Zero dependencies: drives an installed Chrome/Edge/Chromium. Node 22+.
-import { existsSync, mkdirSync, statSync, createReadStream } from 'node:fs';
+import { existsSync, mkdirSync, statSync, realpathSync, createReadStream } from 'node:fs';
 import { resolve, join, dirname, extname, sep, relative } from 'node:path';
 import { createServer } from 'node:http';
 import { Browser, sleep } from './lib/cdp.mjs';
@@ -23,23 +23,56 @@ const only = flag('scene', '');
 const target = args[0];
 if (!target || target.startsWith('--')) { console.error('usage: node scenes.mjs <url | file.html> [--out DIR] [--steps 10] [--scene "#id"] [--wait 900]'); process.exit(2); }
 
-// A local file is served from 127.0.0.1 (the working directory when the file is inside it, else the
-// file's folder), so relative assets and CDN scripts behave as they will when the page is hosted.
+// A local file is served from its canonical parent folder on 127.0.0.1. Use a dedicated public
+// folder containing the entry HTML and every local asset. Sibling folders and working-directory
+// files outside that folder are not served. Relative assets and module scripts stay same-origin.
 let url = target, server = null;
 if (!/^https?:\/\//.test(target)) {
-  const file = resolve(target);
-  if (!existsSync(file)) { console.error('No such file: ' + file); process.exit(2); }
-  const cwd = resolve('.');
-  const root = file.startsWith(cwd + sep) ? cwd : dirname(file);
-  const MIME = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.avif': 'image/avif', '.gif': 'image/gif', '.mp4': 'video/mp4', '.webm': 'video/webm', '.woff': 'font/woff', '.woff2': 'font/woff2' };
+  const selected = resolve(target);
+  if (!existsSync(selected)) { console.error('No such file: ' + selected); process.exit(2); }
+  let file;
+  try {
+    file = realpathSync(selected);
+    if (!statSync(file).isFile()) { console.error('Not a file: ' + selected); process.exit(2); }
+  } catch (error) {
+    console.error('Cannot resolve file: ' + selected + ' (' + (error.code || 'unknown') + ')');
+    process.exit(2);
+  }
+  const root = dirname(file);
+  const rootPrefix = root.endsWith(sep) ? root : root + sep;
+  const MIME = { '.html': 'text/html; charset=utf-8', '.htm': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.avif': 'image/avif', '.gif': 'image/gif', '.ico': 'image/x-icon', '.woff': 'font/woff', '.woff2': 'font/woff2', '.ttf': 'font/ttf', '.otf': 'font/otf', '.mp4': 'video/mp4', '.webm': 'video/webm', '.txt': 'text/plain; charset=utf-8', '.xml': 'application/xml', '.webmanifest': 'application/manifest+json' };
   server = createServer((req, res) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      res.writeHead(405, { allow: 'GET, HEAD' }); return res.end();
+    }
     try {
-      let f = resolve(join(root, decodeURIComponent(new URL(req.url, 'http://x').pathname)));
-      if (f !== root && !f.startsWith(root + sep)) { res.writeHead(403); return res.end(); }
+      const requested = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+      if (requested.split(/[\\/]/).some((part) => part.startsWith('.'))) {
+        res.writeHead(403); return res.end();
+      }
+      let f = resolve(join(root, requested));
+      if (f !== root && !f.startsWith(rootPrefix)) { res.writeHead(403); return res.end(); }
       if (statSync(f).isDirectory()) f = join(f, 'index.html');
-      res.writeHead(200, { 'content-type': MIME[extname(f).toLowerCase()] || 'application/octet-stream', 'cache-control': 'no-store' });
-      createReadStream(f).pipe(res);
-    } catch { res.writeHead(404); res.end('not found'); }
+      f = realpathSync(f);
+      if (f !== root && !f.startsWith(rootPrefix)) { res.writeHead(403); return res.end(); }
+      const pathFromRoot = relative(root, f);
+      if (pathFromRoot === '..' || pathFromRoot.startsWith('..' + sep) ||
+          pathFromRoot.split(sep).some((part) => part.startsWith('.')) ||
+          !Object.hasOwn(MIME, extname(f).toLowerCase())) {
+        res.writeHead(403); return res.end();
+      }
+      const info = statSync(f);
+      if (!info.isFile()) { res.writeHead(403); return res.end(); }
+      res.writeHead(200, { 'content-type': MIME[extname(f).toLowerCase()], 'content-length': info.size, 'cache-control': 'no-store' });
+      if (req.method === 'HEAD') return res.end();
+      const stream = createReadStream(f);
+      stream.on('error', () => res.destroy());
+      stream.pipe(res);
+    } catch (error) {
+      const status = error instanceof URIError ? 400 : error.code === 'ENOENT' || error.code === 'ENOTDIR' ? 404 : error.code === 'EACCES' ? 403 : 500;
+      if (!res.headersSent) res.writeHead(status);
+      res.end(status === 404 ? 'not found' : 'request failed');
+    }
   });
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
   url = `http://127.0.0.1:${server.address().port}/${relative(root, file).split(sep).map(encodeURIComponent).join('/')}`;

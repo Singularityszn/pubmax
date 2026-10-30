@@ -53,7 +53,7 @@ Upstream `SKILL.md` trees were copied flat, one directory per skill. Plugin test
 
 The consolidated tree includes upstream JavaScript helpers and browser assets. Its `LICENSE` preserves the upstream MIT notice from the pinned commit. These files do not execute on install. The local `PUBMAXX project rules` section preserves project design, copy, source permissions, explicit build approval and runtime ownership. The refresh does not grant permission to execute these helpers.
 
-The two local HTTP inspectors and the media downloader are excluded from project execution pending their separate permission and file-serving checks. A local inspector repair is prepared externally but remains unapplied and unverified. Do not describe it as an implemented divergence from upstream.
+Local changes in `taste-skill/scripts/inspect.mjs` and `scenes.mjs` restrict HTTP serving to known web assets in the canonical entry folder. The public folder must contain the entry and all local assets. Both helpers passed synthetic HTTP checks for hidden paths, symlink escapes, allowed assets, methods, malformed URLs and input refusals. The inspector loaded a real TTF font and decoded a real ICO image. OTF responses passed MIME and byte checks. OTF decoding, Windows execution and concurrent filesystem replacement remain unverified. Both inspectors and the media downloader remain excluded from ordinary project execution pending their separate checks and permissions.
 
 Directory name, then frontmatter `name` when it differs:
 
