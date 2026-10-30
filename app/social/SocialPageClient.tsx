@@ -1,6 +1,5 @@
 "use client";
 
-import type { Route } from "next";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from "react";
@@ -11,17 +10,13 @@ import { useViewerSession } from "@/components/auth/useViewerSession";
 import FoundersWallLink from "@/components/founding/FoundersWallLink";
 import IntentLink from "@/components/nav/IntentLink";
 import SiteNav from "@/components/nav/SiteNav";
-import HandleAvatar from "@/components/profile/HandleAvatar";
 import CrewsPanel from "@/components/social/CrewsPanel";
 import PubRankingPanel from "@/components/social/PubRankingPanel";
 import CreatorListsLane from "@/components/social/CreatorListsLane";
 import FindYourLot from "@/components/social/FindYourLot";
 import PeopleDirectory from "@/components/social/PeopleDirectory";
 import ReelsViewer from "@/components/social/ReelsViewer";
-import ReviewStars from "@/components/social/ReviewStars";
-import SocialPostCarousel from "@/components/social/SocialPostCarousel";
-import SocialPostVideoPlayer from "@/components/social/SocialPostVideoPlayer";
-import SocialPostActions from "@/components/social/SocialPostActions";
+import SharedSocialPostCard from "@/components/social/SocialPostCard";
 import StarterPacks from "@/components/social/StarterPacks";
 import {
   SOCIAL_SIGN_IN_HREF,
@@ -31,14 +26,13 @@ import {
 import EmptyState from "@/components/ui/empty-state";
 import Screen from "@/components/ui/screen";
 import { ADULT_SELF_ASSERTION_ACTION } from "@/lib/adultGate";
-import { profilePath } from "@/lib/appLink";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { subscribeDeviceIdentity } from "@/lib/deviceAccountIdentity";
 import type { CityRivalryEntry } from "@/lib/cityRivalry";
 import type { CuratedCrawl } from "@/lib/curatedCrawls";
 import { discardBody } from "@/lib/responseBody";
 import { getCity } from "@/lib/cities";
-import { getNightArea, nightAreasByCity } from "@/lib/nightAreas";
+import { nightAreasByCity } from "@/lib/nightAreas";
 import { normalizeHandle } from "@/lib/profiles";
 import { relativeTime } from "@/lib/relativeTime";
 import type { SocialAccessState } from "@/lib/socialAccess";
@@ -56,22 +50,8 @@ import {
   socialShellHref,
   type SocialShellState,
 } from "@/lib/socialShell";
-import {
-  HIDDEN_NAME_AUTHOR_LABEL,
-  HIDDEN_NAME_CONTROL_LINE,
-  HIDDEN_NAME_OWN_LINE,
-  HIDDEN_NAME_READER_LINE,
-} from "@/lib/socialHiddenName";
 import type { SocialPostDTO } from "@/lib/socialPosts";
-import {
-  SOCIAL_POST_CONTROL_LINE,
-  SOCIAL_POST_ORDER_LINE,
-  SOCIAL_POST_REASON_SUMMARY,
-  socialPostReason,
-  socialPostReasonLine,
-  type SocialPostLane,
-} from "@/lib/socialPostReason";
-import { venueMapUrl } from "@/lib/venueMapUrl";
+import type { SocialPostLane } from "@/lib/socialPostReason";
 
 import "./social.css";
 import SocialComposer from "./SocialComposer";
@@ -249,141 +229,19 @@ export function SocialAccessBoundary({
   );
 }
 
-/** The post's media: a carousel, one photo, or a reel, edge to edge. */
-function PostMedia({ post, onOpenVideo }: { post: SocialPostDTO; onOpenVideo?: (postId: string) => void }) {
-  return (
-    <>
-      {post.photo && post.extraPhotos && post.extraPhotos.length > 0 ? (
-        <SocialPostCarousel
-          caption={post.photo.tags && post.photo.tags.length > 0 ? post.photo.tags.map((tag) => `@${tag.handle}`).join(" ") : undefined}
-          photos={[
-            { key: post.photo.mediaId, src: `/api/social/media/${post.photo.mediaId}`, altText: post.photo.altText },
-            ...post.extraPhotos.map((extra) => ({
-              key: extra.mediaId,
-              src: extra.url,
-              altText: extra.altText,
-              held: extra.moderationState !== "approved",
-            })),
-          ]}
-        />
-      ) : post.photo ? (
-        <figure className="socialPostPhoto">
-          {/* eslint-disable-next-line @next/next/no-img-element -- private signed delivery route. */}
-          <img
-            src={`/api/social/media/${post.photo.mediaId}`}
-            alt={post.photo.altText}
-            loading="lazy"
-            decoding="async"
-          />
-          {post.photo.tags && post.photo.tags.length > 0 ? (
-            <figcaption>{post.photo.tags.map((tag) => `@${tag.handle}`).join(" ")}</figcaption>
-          ) : null}
-        </figure>
-      ) : null}
-      {post.video ? (
-        <SocialPostVideoPlayer video={post.video} caption={post.body} onOpen={onOpenVideo ? () => onOpenVideo(post.id) : undefined} />
-      ) : null}
-    </>
-  );
-}
-
 /**
- * A disclosure, not a control: the lane rule that let this post in, read back
- * by `lib/socialPostReason.ts`. Nothing on the card is ranked.
+ * The Social page's card: the shared card plus the composer for the viewer's
+ * own post. Kept under this name so every caller and test reads it unchanged.
  */
-function PostWhy({ lane, post, areaName }: { lane: SocialPostLane; post: SocialPostDTO; areaName: string | null }) {
-  return (
-    <details className="socialPostWhy">
-      <summary>{SOCIAL_POST_REASON_SUMMARY}</summary>
-      <p>
-        {socialPostReasonLine(socialPostReason(lane, post), {
-          handle: post.author.handle ?? HIDDEN_NAME_AUTHOR_LABEL,
-          visibility: post.visibility,
-          areaName,
-        })}
-      </p>
-      <p>{SOCIAL_POST_ORDER_LINE}</p>
-      {post.ownedByViewer ? null : <p>{post.author.handle ? SOCIAL_POST_CONTROL_LINE : HIDDEN_NAME_CONTROL_LINE}</p>}
-    </details>
-  );
-}
-
-/** Where a post was: the pub, which opens its page, and the area. */
-function PostPlace({ venueId, venueName, areaName }: { venueId: string | null; venueName: string | null; areaName: string | null }) {
-  if (!venueName && !areaName) return null;
-  return (
-    <span className="socialPostMeta__place">
-      {venueId && venueName ? <Link prefetch={false} href={`/pubs/${encodeURIComponent(venueId)}` as Route}>{venueName}</Link> : null}
-      {venueId && venueName && areaName ? " · " : null}
-      {areaName}
-    </span>
-  );
-}
-
 export function SocialPostCard({ post, lane, canEdit = false, draftScope, onEdited, interactive = false, onOpenVideo }: { post: SocialPostDTO; lane?: SocialPostLane; canEdit?: boolean; draftScope?: string | null; onEdited?: (post?: SocialPostDTO) => void; interactive?: boolean; onOpenVideo?: (postId: string) => void }) {
-  const area = post.area ? getNightArea(post.area) : null;
-  const exactVenueId = post.venueProjected ? post.venueId : null;
-  const venueName = exactVenueId ? post.venueName : null;
-  const review = exactVenueId && post.review ? post.review : null;
-  const when = relativeTime(post.createdAt);
   return (
-    <article className="socialPostCard" data-has-media={post.photo || post.video ? "true" : undefined}>
-      <header className="socialPostMeta">
-        <HandleAvatar
-          handle={post.author.handle ?? HIDDEN_NAME_AUTHOR_LABEL}
-          avatarUrl={post.author.avatarUrl}
-          className="socialPostAvatar"
-          imageClassName="socialPostAvatar"
-          size={36}
-        />
-        <div className="socialPostMeta__who">
-          <strong>
-            {post.author.handle ? (
-              <Link prefetch={false} href={profilePath(post.author.handle)}>
-                @{post.author.handle}
-              </Link>
-            ) : HIDDEN_NAME_AUTHOR_LABEL}
-          </strong>
-          {post.nameHidden ? (
-            <span className="socialPostMeta__hidden">
-              {post.ownedByViewer ? HIDDEN_NAME_OWN_LINE : HIDDEN_NAME_READER_LINE}
-            </span>
-          ) : null}
-          <PostPlace venueId={exactVenueId} venueName={venueName} areaName={area?.name ?? null} />
-        </div>
-        <div className="socialPostMeta__context">
-          {when ? <time dateTime={post.createdAt}>{when}</time> : null}
-          <span className="socialPostAudience">{post.visibility === "friends" ? "Mutual friends" : post.visibility === "private" ? "Only you" : "Public"}</span>
-        </div>
-      </header>
-      {post.kind === "feature_request" ? (
-        <p className="socialPostKind">Feature request</p>
-      ) : null}
-      <PostMedia post={post} onOpenVideo={onOpenVideo} />
-      {review ? (
-        <p className="socialPostReview">
-          <ReviewStars rating={review.rating} label={`${post.author.handle ? `@${post.author.handle}` : HIDDEN_NAME_AUTHOR_LABEL} scored ${venueName ?? "this pub"} ${review.rating} out of 5`} />
-          {venueName ? <span>{venueName}</span> : null}
-        </p>
-      ) : null}
-      {post.body ? <p className="socialPostBody">{post.body}</p> : null}
-      {exactVenueId ? (
-        <p className="socialPostPlace">
-          <Link prefetch={false} href={venueMapUrl(exactVenueId)}>Open venue</Link>
-        </p>
-      ) : null}
-      {post.hashtags.length > 0 ? (
-        <p className="socialPostTags">
-          {post.hashtags.map((tag) => (
-            <span key={tag}>#{tag}</span>
-          ))}
-        </p>
-      ) : null}
-      {interactive ? <SocialPostActions postId={post.id} /> : null}
-      {post.editedAt ? <p className="socialPostEdited">Edited</p> : null}
-      {lane ? <PostWhy lane={lane} post={post} areaName={area?.name ?? null} /> : null}
-      {canEdit && draftScope && onEdited ? <SocialComposer key={`${draftScope}:${post.id}`} post={post} draftScope={draftScope} onSaved={onEdited} /> : null}
-    </article>
+    <SharedSocialPostCard
+      post={post}
+      lane={lane}
+      interactive={interactive}
+      onOpenVideo={onOpenVideo}
+      editor={canEdit && draftScope && onEdited ? <SocialComposer key={`${draftScope}:${post.id}`} post={post} draftScope={draftScope} onSaved={onEdited} /> : null}
+    />
   );
 }
 
@@ -790,6 +648,7 @@ function SocialPageAccountState({
   }, [access, initialState, loadingMore, nextCursor]);
 
   const isPosts = initialState.tab === "posts";
+  const activeTag = initialState.tab === "posts" && initialState.feed === "discover" ? initialState.tag ?? null : null;
   const visibleActivityStatus = activityRevision === accountRevision ? activityStatus : "idle";
   const visibleActivityItems = activityRevision === accountRevision ? activityItems : [];
   const showPostsControls =
@@ -1024,8 +883,14 @@ function SocialPageAccountState({
             >
               <header className="socialFeedHeading">
                 <h2>{initialState.feed === "following" ? "Your lot, lately" : initialState.feed === "nearby" ? "Around your patch" : "Across the pub tables"}</h2>
-                <p>{initialState.feed === "following" ? "Posts from people you follow. Newest first." : initialState.feed === "nearby" ? "Public posts tagged in this area. Newest first." : "Public posts from across town. Newest first."}</p>
+                <p>{initialState.feed === "following" ? "Posts from people you follow. Newest first." : initialState.feed === "nearby" ? "Public posts tagged in this area. Newest first." : activeTag ? `Public posts tagged #${activeTag}. Newest first.` : "Public posts from across town. Newest first."}</p>
               </header>
+              {activeTag ? (
+                <p className="socialTagChip">
+                  <span>Tag: #{activeTag}</span>
+                  <Link prefetch={false} href="/social?feed=discover" aria-label={`Clear the #${activeTag} filter`}>Clear</Link>
+                </p>
+              ) : null}
               <p
                 className="srOnly"
                 role="status"
@@ -1067,7 +932,9 @@ function SocialPageAccountState({
                       ? <Link prefetch={false} href="/social?feed=discover">See posts across town</Link>
                       : <Link prefetch={false} href="/social">Back to your following feed</Link>
                   }>
-                    {initialState.feed === "following"
+                    {activeTag
+                      ? `No public posts tagged #${activeTag} yet.`
+                      : initialState.feed === "following"
                       ? "Your noticeboard is waiting for a good pub story. Find your lot below or share one of your own."
                       : initialState.feed === "nearby"
                         ? "No public posts in this patch yet. Pick another area or start the conversation."

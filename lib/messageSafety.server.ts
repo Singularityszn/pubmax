@@ -62,7 +62,7 @@ export async function messageAdultRefusal(userId: string): Promise<Response | nu
  * direction. One read for a pair or a whole group. A block is keyed on the
  * profile, so a handle with no profile row can hold no block.
  */
-export async function anyBlockAmong(
+async function anyBlockAmong(
   profileIds: readonly string[],
 ): Promise<boolean | "unavailable"> {
   const ids = [...new Set(profileIds.filter(Boolean))];

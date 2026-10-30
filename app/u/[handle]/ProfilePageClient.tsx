@@ -101,6 +101,13 @@ const CrewsPanel = dynamic(
 // stays out of every other profile's first paint.
 const DiaryList = dynamic(() => import("@/components/diary/DiaryList"), { ssr: false });
 
+// A person's Social posts. Loaded after the document, like the timeline, and
+// only when the Social launch flag is on, so a closed Social adds nothing here.
+const ProfilePostsSection = dynamic(
+  () => import("@/components/profile/ProfilePostsSection"),
+  { ssr: false },
+);
+
 const ProfileTimeline = dynamic(
   () => import("@/components/profile/ProfileTimeline"),
   { ssr: false },
@@ -1613,6 +1620,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
               {(isYouRoute || isOwnProfile) && !youSignedOut ? (
                 <nav className="youProfileTabs" aria-label="Your profile sections">
                   <a href="#timeline">Moments</a>
+                  {postsTabLink()}
                   <a href="#passport">Passport</a>
                   <a href="#wanted">Pubs to try</a>
                   <a href="#saved-pubs">Saved</a>
@@ -1653,6 +1661,10 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
               {editingSection()}
 
               {timelineSection()}
+
+              {/* Social posts, beside Moments rather than in place of it. Hidden
+                  while Social is closed, the same way /social is. */}
+              {postsSection()}
 
               {crawlsSection()}
 
@@ -1701,6 +1713,18 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         </footer>
       </>
     );
+  }
+
+  // A person's Social posts, beside Moments. Hidden while Social is closed,
+  // the same way /social is.
+  function postsSection() {
+    if (!socialFriendsLaunchEnabled || youSignedOut) return null;
+    if (!routeHandle || routeHandle === YOU_SENTINEL) return null;
+    return <ProfilePostsSection authorHandle={routeHandle} isOwn={isOwnProfile} />;
+  }
+
+  function postsTabLink() {
+    return socialFriendsLaunchEnabled ? <a href="#posts">Posts</a> : null;
   }
 
   function surfaceBody() {

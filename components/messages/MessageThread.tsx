@@ -804,7 +804,7 @@ export default function MessageThread({
       sendInFlightRef.current = false;
       setSending(false);
     }
-  }, [conversationId, draft, over, pending, refresh, user, authHandle]);
+  }, [conversationId, draft, over, pending, refresh, user, authHandle, fromRefusal]);
 
   /**
    * Answering a poll. The card shows the server's OWN tally rather than one
