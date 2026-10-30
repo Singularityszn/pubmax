@@ -143,15 +143,15 @@ function readWithRemove(value: unknown): string[] | null {
 // at creation. False when there is no such account or the store is down.
 async function editTags(
   request: Request,
-  ownerUserId: string,
+  owner: { accountId: string; actor: string },
   entryId: string,
   change: { add: string[]; remove: string[] },
 ): Promise<boolean> {
-  const actor = await lotActorForAccount(request, ownerUserId);
+  const actor = await lotActorForAccount(request, owner);
   if (!actor) return false;
   try {
     await pintDropWithTagsStore().editDiaryTags(
-      { profileId: actor.profileId, handle: actor.handle, accountId: ownerUserId },
+      { profileId: actor.profileId, handle: actor.handle, accountId: owner.accountId },
       entryId,
       change,
     );
@@ -178,8 +178,9 @@ function readWithWho(value: unknown): string | null {
 async function correctOwnEntry(
   request: Request,
   body: Record<string, unknown>,
-  ownerUserId: string,
+  owner: { accountId: string; actor: string },
 ): Promise<Response> {
+  const ownerUserId = owner.accountId;
   const id = readString(body.id);
   if (!id || !DIARY_ENTRY_ID.test(id)) return publicApiError("Diary entry not found.", "NOT_FOUND", 404);
 
@@ -230,7 +231,7 @@ async function correctOwnEntry(
       entry = found;
     }
     if (!changesTags) return jsonNoStore({ entry }, { status: 200 });
-    const tagsSent = await editTags(request, ownerUserId, id, tagChange);
+    const tagsSent = await editTags(request, owner, id, tagChange);
     const [withTagged] = await withTagsOn(ownerUserId, [entry]);
     return jsonNoStore({ entry: withTagged ?? entry, tagsSent }, { status: 200 });
   } catch (err) {
@@ -286,7 +287,7 @@ export async function POST(request: Request): Promise<Response> {
 
   // Correcting or removing an entry is the owner's own, and carries no venue.
   const action = readString(body.action);
-  if (action === "update") return correctOwnEntry(request, body, owner.accountId);
+  if (action === "update") return correctOwnEntry(request, body, owner);
   if (action === "delete") return removeOwnEntry(body, owner.accountId);
 
   const shareToLot = readShareToLot(body.shareToLot);

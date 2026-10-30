@@ -12,7 +12,7 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 });
 
 const state = vi.hoisted(() => ({
-  identity: { ok: true as const, accountId: "acct-alice", actor: "profile:alice", handle: "alice" },
+  identity: { ok: true as const, accountId: "acct-alice", actor: "profile:social-alice", handle: "alice" },
   social: { ok: true, actor: { accountId: "acct-alice", profileId: "social-alice", handle: "alice" } } as
     | { ok: true; actor: { accountId: string; profileId: string; handle: string } }
     | { ok: false; status: number; code: string; error: string },
@@ -62,7 +62,9 @@ beforeEach(() => {
   __resetPintDrops();
   run += 1;
   const account = `acct-alice-edit-${run}`;
-  state.identity = { ok: true, accountId: account, actor: `profile:alice-edit-${run}`, handle: "alice" };
+  // The owner record names the Social profile, and the account ids differ from
+  // the profile id as real sign-up gives them (review finding 6, PR 2402).
+  state.identity = { ok: true, accountId: account, actor: `profile:social-alice-${run}`, handle: "alice" };
   state.social = { ok: true, actor: { accountId: account, profileId: `social-alice-${run}`, handle: "alice" } };
   state.edits = [];
   state.lists = new Map();
