@@ -203,6 +203,17 @@ const nextConfig = {
   typedRoutes: true,
   // Don't advertise the framework/version on dynamic responses.
   poweredByHeader: false,
+  // How long the CDN may serve a stale ISR page while it renders a fresh one.
+  // Next's default is a year, and /today served a copy 38 minutes old as
+  // STALE (SEO audit #2126, finding 3). A per-route expire needs
+  // cacheComponents, so this is one GLOBAL value (captain, 30 Oct 2026).
+  // Next sends `s-maxage=<revalidate>, stale-while-revalidate=<expire -
+  // revalidate>`, and no stale window when the two are equal. With 3900:
+  // /today and /tonight are fresh for 5 minutes, then may be served stale for
+  // up to 60 more (65 in all); the hourly routes get a 5-minute stale window.
+  // These are the windows the header asks for, not a promise about age: a
+  // regeneration that fails can leave older content in place for longer.
+  expireTime: 3900,
   distDir: process.env.NEXT_DIST_DIR ?? ".next",
   images: {
     qualities: [75, 78],
