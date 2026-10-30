@@ -454,7 +454,7 @@ describe("VOICE.md rule 2 — plumbing words stay off reader surfaces", () => {
       },
       nearestSuffix: null,
     }));
-    expect(html.match(/The (?:what’s-on|live listings) source check date is not recorded\./gu)).toHaveLength(2);
+    expect(html.match(/The (?:pub listings|live listings) source check date is not recorded\./gu)).toHaveLength(2);
     expect(html).not.toContain("Freshness unknown");
   });
 

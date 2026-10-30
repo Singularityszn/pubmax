@@ -192,7 +192,7 @@ describe("sitemap()", () => {
 
   it("dates the updates page from its latest released note", () => {
     const update = entries.find((entry) => entry.url === `${SITE}/updates`);
-    expect(new Date(update!.lastModified!).toISOString()).toBe("2026-10-22T00:00:00.000Z");
+    expect(new Date(update!.lastModified!).toISOString()).toBe("2026-10-26T00:00:00.000Z");
   });
 
   it("uses an appended newer release to date the updates page", async () => {
@@ -202,14 +202,14 @@ describe("sitemap()", () => {
       return {
         PUBLIC_UPDATES: [
           ...actual.PUBLIC_UPDATES,
-          { id: "appended-release", date: "2026-10-24", title: "A newer release", changes: ["A verified change."] },
+          { id: "appended-release", date: "2026-10-27", title: "A newer release", changes: ["A verified change."] },
         ],
       };
     });
     try {
       const { default: appendedSitemap } = await import("@/app/sitemap");
       const update = (await appendedSitemap()).find((entry) => entry.url === `${SITE}/updates`);
-      expect(new Date(update!.lastModified!).toISOString()).toBe("2026-10-24T00:00:00.000Z");
+      expect(new Date(update!.lastModified!).toISOString()).toBe("2026-10-27T00:00:00.000Z");
     } finally {
       vi.doUnmock("@/lib/publicUpdates");
       vi.resetModules();

@@ -328,6 +328,13 @@ const nextConfig = {
       { source: "/pub-pal", destination: "/pal", permanent: true },
       { source: "/pub-pal/:path*", destination: "/pal/:path*", permanent: true },
       { source: "/pubpal", destination: "/pal", permanent: true },
+      // Names people type for pages that live elsewhere (live walk F21,
+      // 30 Oct 2026). Temporary, so a real page can take the path later.
+      { source: "/data-credits", destination: "/credits", permanent: false },
+      { source: "/memories", destination: "/u/you#night-memories", permanent: false },
+      { source: "/crews", destination: "/social", permanent: false },
+      { source: "/coffee", destination: "/map?drink=coffee", permanent: false },
+      { source: "/gardens", destination: "/map", permanent: false },
     ];
   },
   async headers() {
