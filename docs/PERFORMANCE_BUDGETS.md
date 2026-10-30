@@ -908,6 +908,11 @@ can open: `/borough/westminster` (the heaviest borough, 200 priced pubs on a
 `/area/clapham/drink/guinness`, `/pint-index/2026-06`, plus the two static
 pages that had been missed, `/spoons-value` and `/account/delete`.
 
+`/board/venue-eltcmh` joined on 30 October 2026: the board reader, a private
+tool the venue sheet links from every pub. It is not sitemap-listed and is
+budgeted anyway, seeded unmeasured in family with `/bar-tab/venue-eltcmh` until
+the next CI sweep brings its ceilings down.
+
 The rule they close is that **a route the sitemap advertises carries a budget**,
 and `__tests__/sitemap.test.ts` enforces it per family. The gap it found was
 `/spoons-value`: crawlable, sitemap-listed and unmeasured while serving 683 KB

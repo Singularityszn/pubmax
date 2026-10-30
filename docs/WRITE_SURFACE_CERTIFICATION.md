@@ -77,6 +77,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/auth/change-password/verify`
 - `POST app/api/auth/handle-password`
 - `POST app/api/ask`
+- `POST app/api/board-reads`
 - `POST app/api/cheap-pint-ping`
 - `POST app/api/client-error`
 - `POST app/api/check-ins`
@@ -1654,3 +1655,18 @@ The resume action and GET read only the verified account's drafts. Missing stora
 Invalid input answers 400, missing sign-in answers 401, and a spent budget answers 429.
 An oversized body answers 413. Unavailable account checks or catalogues answer a retryable 503.
 `__tests__/pubListImportRoute.test.ts` exercises these responses through the real import entry point.
+
+### `app/api/board-reads` - the board reader's proposal read (review item A4)
+
+POST takes one multipart body: a venue ID and one photo of a pub's price board.
+It is a read, not a write. It stores no photo and no price.
+The caller must pass the shared contribution gate (`resolveContributionIdentity`): a signed-in account with a claimed handle.
+The route refuses a keyless deployment with one line, "The Pal needs its key to read a board.", before any budget is spent.
+The address budget allows 20 reads an hour and the account budget allows 6 reads an hour. Both refuse when the durable limiter cannot answer.
+The photo takes the shared owned-image journey (`prepareUploadedImage`), so metadata is stripped and the image is re-encoded before the model sees it.
+The venue must be a pub the price write accepts. The deployment-wide paid ceiling, lane `board-read`, is spent last, after every refusal.
+The answer lists proposed drink lines (name, category, measure from the closed set, price in pence, a confidence word) and food lines kept out.
+A row with no price, a price outside the community envelope, an unknown measure or an unknown category is dropped.
+Nothing lands from this answer. The page sends each row the person confirms through `POST app/api/price-submit`, one by one, with the board photo as its bill.
+Missing sign-in answers 401, a spent budget answers 429, a keyless deployment or a failed read answers 503, and a bad photo answers 400 or 413.
+`__tests__/boardReadsRoute.test.ts` exercises these responses through the real entry point.

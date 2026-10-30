@@ -213,7 +213,8 @@ describe("the shipped budget file", () => {
     // of every dynamic and static family advertised by the sitemap.
     // docs/PERFORMANCE_BUDGETS.md "Which routes are budgeted" holds the list;
     // __tests__/sitemap.test.ts fails a family that is advertised and unmeasured.
-    expect(PERFORMANCE_BUDGETS.routes).toHaveLength(52);
+    // 53: plus /board/venue-eltcmh, the board reader (round 5, A4).
+    expect(PERFORMANCE_BUDGETS.routes).toHaveLength(53);
   });
 
   it("gives every route a readiness selector and a reason", () => {

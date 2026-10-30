@@ -561,6 +561,15 @@
       "jsDecodedKB": 900,
       "requests": 37,
       "lcpMs": 500
+    },
+    {
+      "path": "/board/venue-eltcmh",
+      "readySelector": "main.boardPage",
+      "why": "The board reader for one pub (review item A4): photograph a price board, check the lines the Pal proposes, and log each one through the community price write. It is NOT sitemap-listed, being a private tool behind sign-in, and it is budgeted anyway because the venue sheet links every pub to it. The Blackfriar is the instance because it is the ledger row's own anchor pub. Seeded 30 October 2026 unmeasured, in family with /bar-tab/venue-eltcmh, which shares its SiteNav and venue read: the CI sweep is the oracle and these ceilings come down at the next one.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 1070,
+      "requests": 54,
+      "lcpMs": 850
     }
   ]
 }
