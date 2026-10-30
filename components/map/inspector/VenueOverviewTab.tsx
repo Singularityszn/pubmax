@@ -72,6 +72,7 @@ import { listedCheapPintShare } from "@/lib/venuePintShare";
 import type { PriceEvidenceMission } from "@/lib/priceEvidenceMissions";
 import VenueCommunitySignals from "@/components/map/VenueCommunitySignals";
 import VenuePriceThen from "@/components/map/VenuePriceThen";
+import MatesPricesLine from "@/components/map/MatesPricesLine";
 import VenueAreaPriceCompare from "@/components/map/VenueAreaPriceCompare";
 import VenuePintNeedle from "@/components/map/VenuePintNeedle";
 import VenueWeatherRecommendations from "@/components/map/VenueWeatherRecommendations";
@@ -1111,6 +1112,7 @@ export default function VenueOverviewTab({
           revealRecordLate={revealRecordLate}
         />
       )}
+      <MatesPricesLine venueId={venue.id} />
       {/* The shared price lane owns precedence. Never imply a live feed.
           Non-pub venues carry a type-specific anchor (a cocktail, a doner).
           It renders under its own label with date and source, never as a
