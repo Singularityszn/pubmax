@@ -127,7 +127,7 @@ describe("preview deployments must not be indexable", () => {
         ? String(image)
         : String(image.url),
     );
-    expect(homeImages).toContain("/api/home-card");
+    expect(homeImages.map((image) => new URL(image, "https://pubmaxxing.com").pathname)).toContain("/api/home-card");
 
     // Cards drawn for crawlable pages: the homepage, /crawls/[slug],
     // /u/[handle]/lists/[listType], pint shares and /map/[city].
