@@ -1,7 +1,8 @@
 import "server-only";
 
-// The store behind "With" handle tags on a Pint Drop (lib/pintDropWithTags.ts
-// is the reading rule; migration 0197 is the table). The rules live in ONE
+// The store behind "With" handle tags on a Pint Drop and on a diary entry
+// (lib/pintDropWithTags.ts is the reading rule; migration 0198 is the table and
+// 0201 lets a row name a diary entry instead of a drop). The rules live in ONE
 // place, `createPintDropWithTagsStore`, over a small row seam, so the memory
 // backend (keyless dev and tests) and the Supabase backend cannot answer the
 // same question two ways.
@@ -20,10 +21,22 @@ import "server-only";
 //     state on the row rather than a delete, so a declined pair cannot be
 //     proposed again. Readers see an approved handle and a count of proposals,
 //     never a proposed handle.
+//
+// A HANDLE IS READ, NEVER KEPT. A row keys both people on their profile id.
+// The handle columns record what was typed at tag time and are never printed:
+// every reader resolves the CURRENT handle through the profile store, so a
+// renamed account keeps its tag and an old handle that somebody else claims
+// later can never be printed against their profile.
+//
+// A DIARY ENTRY IS THE OWNER'S ALONE. Its tags follow the same four rules, the
+// proposer must be the account that owns the entry, and only that owner reads
+// the summary. The person tagged sees the pub in their inbox and nothing else
+// of the entry.
 
 import { randomUUID } from "node:crypto";
 
 import { isProfileWithdrawnFromPublic, withdrawnHandles } from "@/lib/accountPublicAccess.server";
+import { diaryStore } from "@/lib/diaryStore";
 import { normalizeHandle } from "@/lib/handleNormalize";
 import { filterPubliclyReadableDropIds } from "@/lib/pintDropLookup";
 import { findPintDropsByIds } from "@/lib/pintDrops";
@@ -41,11 +54,13 @@ import { selectStore } from "@/lib/storeBackend";
 
 export const PINT_DROP_WITH_TAGS_TABLE = "pint_drop_with_tags" as const;
 
-export type WithTagActor = { profileId: string; handle: string };
+export type WithTagActor = { profileId: string; handle: string; accountId?: string };
 
 export type WithTagRow = {
   id: string;
-  dropId: string;
+  /** Exactly one of dropId and diaryEntryId is set. */
+  dropId: string | null;
+  diaryEntryId: string | null;
   taggerProfileId: string;
   taggerHandle: string;
   targetProfileId: string;
@@ -62,7 +77,9 @@ export type WithTagAction = "approve" | "decline" | "withdraw" | "cancel";
 export type WithTagInboxItem = {
   id: string;
   kind: "with";
-  dropId: string;
+  /** What the tag sits on. A diary entry's id never leaves the owner. */
+  subject: "drop" | "diary";
+  dropId: string | null;
   taggerHandle: string;
   venueId: string | null;
   venueName: string | null;
@@ -100,6 +117,7 @@ export type WithTagRows = {
     limit: number,
   ): Promise<WithTagRow[]>;
   listForDrops(dropIds: readonly string[], states: readonly WithTagState[]): Promise<WithTagRow[]>;
+  listForDiaryEntries(entryIds: readonly string[], states: readonly WithTagState[]): Promise<WithTagRow[]>;
 };
 
 export type WithTagDrop = {
@@ -109,9 +127,21 @@ export type WithTagDrop = {
   venueId: string;
 };
 
+export type WithTagDiaryEntry = {
+  ownerUserId: string;
+  venueId: string;
+  venueName: string;
+};
+
 export type WithTagDependencies = {
   rows: WithTagRows;
   drop(dropId: string): Promise<WithTagDrop | null>;
+  diaryEntry(entryId: string): Promise<WithTagDiaryEntry | null>;
+  /**
+   * The CURRENT handle of each live claimed profile asked about. A profile
+   * that is gone, tombstoned or unclaimed is absent, so it prints nothing.
+   */
+  currentHandles(profileIds: readonly string[]): Promise<ReadonlyMap<string, string>>;
   claimedProfile(handle: string): Promise<{ id: string; handle: string } | null>;
   /** True when either has blocked the other, AND when that cannot be read. */
   blocked(firstProfileId: string, secondProfileId: string): Promise<boolean>;
@@ -125,6 +155,8 @@ export type WithTagDependencies = {
 
 export type PintDropWithTagsStore = {
   propose(actor: WithTagActor, dropId: string, handles: readonly string[]): Promise<void>;
+  /** The diary twin of `propose`: the actor must own the entry. */
+  proposeOnDiary(actor: WithTagActor, entryId: string, handles: readonly string[]): Promise<void>;
   inbox(
     actor: WithTagActor,
     input: { lane: WithTagLane; cursor?: string | null; limit: number },
@@ -134,10 +166,17 @@ export type PintDropWithTagsStore = {
     dropIds: readonly string[],
     viewer?: WithTagActor | null,
   ): Promise<Map<string, PintDropWithSummary>>;
+  /**
+   * The owner's own diary entries' tags. The caller passes only ids it read
+   * from that owner's diary, and each entry is checked against the owner too.
+   */
+  diarySummaries(ownerUserId: string, entryIds: readonly string[]): Promise<Map<string, PintDropWithSummary>>;
 };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const MAX_SUMMARY_DROPS = 60;
+/** A diary is read whole by its owner, so its cap is higher than one pub's drops. */
+export const MAX_DIARY_SUMMARY_ENTRIES = 500;
 
 export function isWithTagId(value: unknown): value is string {
   return typeof value === "string" && UUID_RE.test(value);
@@ -185,6 +224,68 @@ function nextState(
 }
 
 export function createPintDropWithTagsStore(deps: WithTagDependencies): PintDropWithTagsStore {
+  // Rules 2 and 3, shared by a drop and a diary entry. Calling it again with
+  // the same subject and handle writes nothing: the pair is unique.
+  async function proposeTo(
+    actor: WithTagActor,
+    actorHandle: string,
+    subject: { dropId: string | null; diaryEntryId: string | null },
+    handles: readonly string[],
+  ): Promise<void> {
+    const wanted = [...new Set(handles.map(normalizeHandle).filter(Boolean))].slice(0, WITH_TAG_MAX);
+    for (const handle of wanted) {
+      if (handle === actorHandle) continue;
+      const profile = await deps.claimedProfile(handle);
+      if (!profile || profile.id === actor.profileId) continue;
+      // Rule 3: a block, or a relationship that cannot be read, writes
+      // nothing and says nothing.
+      if (await deps.blocked(actor.profileId, profile.id)) continue;
+      await deps.rows.insertIfAbsent({
+        id: deps.newId(),
+        ...subject,
+        taggerProfileId: actor.profileId,
+        taggerHandle: actorHandle,
+        targetProfileId: profile.id,
+        targetHandle: normalizeHandle(profile.handle),
+        state: "proposed",
+        createdAt: deps.now().toISOString(),
+        decidedAt: null,
+      });
+    }
+  }
+
+  // Fold rows into one summary per subject. An approved tag prints the
+  // person's CURRENT handle, and nothing when it cannot be resolved, is
+  // withdrawn from public view, or sits across a block from `readerOf(row)`.
+  async function summarise(
+    rows: readonly WithTagRow[],
+    keyOf: (row: WithTagRow) => string | null,
+    readerOf: (row: WithTagRow) => string | null,
+  ): Promise<Map<string, PintDropWithSummary>> {
+    const out = new Map<string, PintDropWithSummary>();
+    const approvedIds = rows.filter((row) => row.state === "approved").map((row) => row.targetProfileId);
+    const current = await deps.currentHandles([...new Set(approvedIds)]);
+    const hidden = await deps.hiddenHandles([...current.values()]);
+    for (const row of rows) {
+      const key = keyOf(row);
+      if (!key) continue;
+      const summary = out.get(key) ?? { approved: [], pending: 0 };
+      if (row.state === "proposed") {
+        summary.pending += 1;
+      } else {
+        const handle = normalizeHandle(current.get(row.targetProfileId) ?? "");
+        const reader = readerOf(row);
+        const readerBlocked =
+          handle && reader && reader !== row.targetProfileId
+            ? await deps.blocked(reader, row.targetProfileId)
+            : false;
+        if (handle && !hidden.has(handle) && !readerBlocked) summary.approved.push(handle);
+      }
+      if (summary.pending > 0 || summary.approved.length > 0) out.set(key, summary);
+    }
+    return out;
+  }
+
   return {
     async propose(actor, dropId, handles) {
       if (!isWithTagId(dropId)) throw new WithTagError("That Pint Drop is not valid.", "invalid");
@@ -199,26 +300,17 @@ export function createPintDropWithTagsStore(deps: WithTagDependencies): PintDrop
       ) {
         throw new WithTagError("Only the person who posted it can tag who they were with.", "not_owner");
       }
-      const wanted = [...new Set(handles.map(normalizeHandle).filter(Boolean))].slice(0, WITH_TAG_MAX);
-      for (const handle of wanted) {
-        if (handle === actorHandle) continue;
-        const profile = await deps.claimedProfile(handle);
-        if (!profile || profile.id === actor.profileId) continue;
-        // Rule 3: a block, or a relationship that cannot be read, writes
-        // nothing and says nothing.
-        if (await deps.blocked(actor.profileId, profile.id)) continue;
-        await deps.rows.insertIfAbsent({
-          id: deps.newId(),
-          dropId,
-          taggerProfileId: actor.profileId,
-          taggerHandle: actorHandle,
-          targetProfileId: profile.id,
-          targetHandle: normalizeHandle(profile.handle),
-          state: "proposed",
-          createdAt: deps.now().toISOString(),
-          decidedAt: null,
-        });
+      await proposeTo(actor, actorHandle, { dropId, diaryEntryId: null }, handles);
+    },
+
+    async proposeOnDiary(actor, entryId, handles) {
+      if (!isWithTagId(entryId)) throw new WithTagError("That diary entry is not valid.", "invalid");
+      const entry = await deps.diaryEntry(entryId);
+      const actorHandle = normalizeHandle(actor.handle);
+      if (!entry || !actorHandle || !actor.accountId || entry.ownerUserId !== actor.accountId) {
+        throw new WithTagError("Only the person who logged it can tag who they were with.", "not_owner");
       }
+      await proposeTo(actor, actorHandle, { dropId: null, diaryEntryId: entryId }, handles);
     },
 
     async inbox(actor, input) {
@@ -229,18 +321,35 @@ export function createPintDropWithTagsStore(deps: WithTagDependencies): PintDrop
       const fetched = await deps.rows.listForTarget(actor.profileId, input.lane, cursor, input.limit + 1);
       const page = fetched.slice(0, input.limit);
       const items: WithTagInboxItem[] = [];
+      const taggers = await deps.currentHandles([...new Set(page.map((row) => row.taggerProfileId))]);
       for (const row of page) {
         // A proposal from somebody the reader has since blocked is not shown.
         if (await deps.blocked(row.taggerProfileId, row.targetProfileId)) continue;
-        const drop = await deps.drop(row.dropId);
-        if (!drop) continue;
+        const taggerHandle = normalizeHandle(taggers.get(row.taggerProfileId) ?? "");
+        if (!taggerHandle) continue;
+        let venueId: string | null = null;
+        let venueName: string | null = null;
+        if (row.dropId) {
+          const drop = await deps.drop(row.dropId);
+          if (!drop) continue;
+          venueId = drop.venueId || null;
+          venueName = drop.venueId ? await deps.venueName(drop.venueId) : null;
+        } else if (row.diaryEntryId) {
+          const entry = await deps.diaryEntry(row.diaryEntryId);
+          if (!entry) continue;
+          venueId = entry.venueId || null;
+          venueName = entry.venueName || null;
+        } else {
+          continue;
+        }
         items.push({
           id: row.id,
           kind: "with",
+          subject: row.dropId ? "drop" : "diary",
           dropId: row.dropId,
-          taggerHandle: row.taggerHandle,
-          venueId: drop.venueId || null,
-          venueName: drop.venueId ? await deps.venueName(drop.venueId) : null,
+          taggerHandle,
+          venueId,
+          venueName,
           state: input.lane,
           createdAt: row.createdAt,
         });
@@ -285,25 +394,23 @@ export function createPintDropWithTagsStore(deps: WithTagDependencies): PintDrop
       }
       if (allowed.size === 0) return out;
       const rows = await deps.rows.listForDrops([...allowed], ["proposed", "approved"]);
-      const hidden = await deps.hiddenHandles(
-        rows.filter((row) => row.state === "approved").map((row) => row.targetHandle),
-      );
-      for (const row of rows) {
-        const summary = out.get(row.dropId) ?? { approved: [], pending: 0 };
-        if (row.state === "proposed") {
-          summary.pending += 1;
-        } else if (!hidden.has(normalizeHandle(row.targetHandle))) {
-          // A reader who has blocked, or been blocked by, the person tagged
-          // does not see their name on somebody else's drop.
-          const viewerBlocked =
-            viewer && viewer.profileId !== row.targetProfileId
-              ? await deps.blocked(viewer.profileId, row.targetProfileId)
-              : false;
-          if (!viewerBlocked) summary.approved.push(normalizeHandle(row.targetHandle));
-        }
-        out.set(row.dropId, summary);
+      // A reader who has blocked, or been blocked by, the person tagged does
+      // not see their name on somebody else's drop.
+      return summarise(rows, (row) => row.dropId, () => viewer?.profileId ?? null);
+    },
+
+    async diarySummaries(ownerUserId, entryIds) {
+      const ids = [...new Set(entryIds.filter(isWithTagId))].slice(0, MAX_DIARY_SUMMARY_ENTRIES);
+      if (!ownerUserId || ids.length === 0) return new Map();
+      const owned: string[] = [];
+      for (const id of ids) {
+        const entry = await deps.diaryEntry(id);
+        if (entry && entry.ownerUserId === ownerUserId) owned.push(id);
       }
-      return out;
+      if (owned.length === 0) return new Map();
+      const rows = await deps.rows.listForDiaryEntries(owned, ["proposed", "approved"]);
+      // The owner is the tagger, so a block on either side hides the name.
+      return summarise(rows, (row) => row.diaryEntryId, (row) => row.taggerProfileId);
     },
   };
 }
@@ -320,7 +427,13 @@ function newestFirst(a: WithTagRow, b: WithTagRow): number {
 export const memoryWithTagRows: WithTagRows = {
   async insertIfAbsent(row) {
     for (const existing of memoryRows.values()) {
-      if (existing.dropId === row.dropId && existing.targetProfileId === row.targetProfileId) return false;
+      if (
+        existing.dropId === row.dropId &&
+        existing.diaryEntryId === row.diaryEntryId &&
+        existing.targetProfileId === row.targetProfileId
+      ) {
+        return false;
+      }
     }
     memoryRows.set(row.id, { ...row });
     return true;
@@ -350,7 +463,14 @@ export const memoryWithTagRows: WithTagRows = {
   async listForDrops(dropIds, states) {
     const ids = new Set(dropIds);
     return [...memoryRows.values()]
-      .filter((row) => ids.has(row.dropId) && states.includes(row.state))
+      .filter((row) => row.dropId !== null && ids.has(row.dropId) && states.includes(row.state))
+      .sort(newestFirst)
+      .map((row) => ({ ...row }));
+  },
+  async listForDiaryEntries(entryIds, states) {
+    const ids = new Set(entryIds);
+    return [...memoryRows.values()]
+      .filter((row) => row.diaryEntryId !== null && ids.has(row.diaryEntryId) && states.includes(row.state))
       .sort(newestFirst)
       .map((row) => ({ ...row }));
   },
@@ -362,15 +482,37 @@ export function __resetMemoryWithTags(): void {
 
 // ── Supabase rows ───────────────────────────────────────────────────────────
 
-const COLUMNS =
+const LEGACY_COLUMNS =
   "id,drop_id,tagger_profile_id,tagger_handle,target_profile_id,target_handle,state,created_at,decided_at";
+const COLUMNS = `${LEGACY_COLUMNS},diary_entry_id`;
+
+/** PostgREST's answer for the 0201 column on a database that has not got it. */
+function isMissingDiaryColumn(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  return (error.code === "42703" || error.code === "PGRST204") && /diary_entry_id/.test(error.message ?? "");
+}
+
+/**
+ * Run a read with the 0201 column, and again without it on a database that
+ * is behind, so a deploy ahead of 0201 keeps every Pint Drop tag working.
+ */
+async function selectRows<T>(
+  run: (columns: string) => PromiseLike<{ data: T; error: { code?: string; message?: string } | null }>,
+): Promise<T> {
+  let result = await run(COLUMNS);
+  if (isMissingDiaryColumn(result.error)) result = await run(LEGACY_COLUMNS);
+  if (result.error) unavailable(result.error);
+  return result.data;
+}
 
 function rowFrom(value: unknown): WithTagRow {
   const row = value as Record<string, unknown> | null;
+  const dropId = typeof row?.drop_id === "string" ? row.drop_id : null;
+  const diaryEntryId = typeof row?.diary_entry_id === "string" ? row.diary_entry_id : null;
   if (
     !row ||
     typeof row.id !== "string" ||
-    typeof row.drop_id !== "string" ||
+    (dropId === null) === (diaryEntryId === null) ||
     typeof row.tagger_profile_id !== "string" ||
     typeof row.tagger_handle !== "string" ||
     typeof row.target_profile_id !== "string" ||
@@ -382,7 +524,8 @@ function rowFrom(value: unknown): WithTagRow {
   }
   return {
     id: row.id,
-    dropId: row.drop_id,
+    dropId,
+    diaryEntryId,
     taggerProfileId: row.tagger_profile_id,
     taggerHandle: row.tagger_handle,
     targetProfileId: row.target_profile_id,
@@ -404,7 +547,9 @@ export const supabaseWithTagRows: WithTagRows = {
       .upsert(
         {
           id: row.id,
-          drop_id: row.dropId,
+          // A drop tag never names the 0201 column, so it writes on a
+          // database that is behind; a diary tag needs 0201 and says so.
+          ...(row.diaryEntryId ? { diary_entry_id: row.diaryEntryId } : { drop_id: row.dropId }),
           tagger_profile_id: row.taggerProfileId,
           tagger_handle: row.taggerHandle,
           target_profile_id: row.targetProfileId,
@@ -412,19 +557,19 @@ export const supabaseWithTagRows: WithTagRows = {
           state: row.state,
           created_at: row.createdAt,
         },
-        { onConflict: "drop_id,target_profile_id", ignoreDuplicates: true },
+        {
+          onConflict: row.diaryEntryId ? "diary_entry_id,target_profile_id" : "drop_id,target_profile_id",
+          ignoreDuplicates: true,
+        },
       )
       .select("id");
     if (error) unavailable(error);
     return Array.isArray(data) && data.length > 0;
   },
   async get(id) {
-    const { data, error } = await requireDynamicSupabaseAdmin()
-      .from(PINT_DROP_WITH_TAGS_TABLE)
-      .select(COLUMNS)
-      .eq("id", id)
-      .maybeSingle();
-    if (error) unavailable(error);
+    const data = await selectRows((columns) =>
+      requireDynamicSupabaseAdmin().from(PINT_DROP_WITH_TAGS_TABLE).select(columns).eq("id", id).maybeSingle(),
+    );
     return data ? rowFrom(data) : null;
   },
   async setState(id, from, to, at) {
@@ -438,32 +583,47 @@ export const supabaseWithTagRows: WithTagRows = {
     return Array.isArray(data) && data.length > 0;
   },
   async listForTarget(targetProfileId, state, before, limit) {
-    let query = requireDynamicSupabaseAdmin()
-      .from(PINT_DROP_WITH_TAGS_TABLE)
-      .select(COLUMNS)
-      .eq("target_profile_id", targetProfileId)
-      .eq("state", state);
-    if (before) {
-      // Both values were validated by decodeCursor: an ISO date and a uuid.
-      query = query.or(
-        `created_at.lt.${before.createdAt},and(created_at.eq.${before.createdAt},id.lt.${before.id})`,
-      );
-    }
-    const { data, error } = await query
-      .order("created_at", { ascending: false })
-      .order("id", { ascending: false })
-      .limit(limit);
-    if (error) unavailable(error);
+    const data = await selectRows((columns) => {
+      let query = requireDynamicSupabaseAdmin()
+        .from(PINT_DROP_WITH_TAGS_TABLE)
+        .select(columns)
+        .eq("target_profile_id", targetProfileId)
+        .eq("state", state);
+      if (before) {
+        // Both values were validated by decodeCursor: an ISO date and a uuid.
+        query = query.or(
+          `created_at.lt.${before.createdAt},and(created_at.eq.${before.createdAt},id.lt.${before.id})`,
+        );
+      }
+      return query
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .limit(limit);
+    });
     return (Array.isArray(data) ? data : []).map(rowFrom);
   },
   async listForDrops(dropIds, states) {
     if (dropIds.length === 0) return [];
+    const data = await selectRows((columns) =>
+      requireDynamicSupabaseAdmin()
+        .from(PINT_DROP_WITH_TAGS_TABLE)
+        .select(columns)
+        .in("drop_id", [...dropIds])
+        .in("state", [...states])
+        .order("created_at", { ascending: false }),
+    );
+    return (Array.isArray(data) ? data : []).map(rowFrom);
+  },
+  async listForDiaryEntries(entryIds, states) {
+    if (entryIds.length === 0) return [];
     const { data, error } = await requireDynamicSupabaseAdmin()
       .from(PINT_DROP_WITH_TAGS_TABLE)
       .select(COLUMNS)
-      .in("drop_id", [...dropIds])
+      .in("diary_entry_id", [...entryIds])
       .in("state", [...states])
       .order("created_at", { ascending: false });
+    // Before 0201 no diary entry can hold a tag, so a behind database has none.
+    if (isMissingDiaryColumn(error)) return [];
     if (error) unavailable(error);
     return (Array.isArray(data) ? data : []).map(rowFrom);
   },
@@ -500,6 +660,24 @@ async function readDrop(dropId: string): Promise<WithTagDrop | null> {
     : null;
 }
 
+async function readDiaryEntry(entryId: string): Promise<WithTagDiaryEntry | null> {
+  const entry = await diaryStore().get(entryId);
+  return entry ? { ownerUserId: entry.ownerUserId, venueId: entry.venueId, venueName: entry.venueName } : null;
+}
+
+async function currentHandles(profileIds: readonly string[]): Promise<ReadonlyMap<string, string>> {
+  const out = new Map<string, string>();
+  const store = profileStore();
+  for (const id of new Set(profileIds)) {
+    if (!id) continue;
+    const profile = await store.getById(id);
+    if (!profile || !profile.userId || isProfileTombstoned(profile)) continue;
+    const handle = normalizeHandle(profile.handle);
+    if (handle) out.set(id, handle);
+  }
+  return out;
+}
+
 async function claimedProfile(handle: string): Promise<{ id: string; handle: string } | null> {
   const profile = await profileStore().getByHandle(handle);
   if (!profile || !profile.userId || isProfileTombstoned(profile)) return null;
@@ -529,6 +707,8 @@ export function defaultWithTagDependencies(rows: WithTagRows): WithTagDependenci
   return {
     rows,
     drop: readDrop,
+    diaryEntry: readDiaryEntry,
+    currentHandles,
     claimedProfile,
     blocked: blockedPair,
     publicDropIds: filterPubliclyReadableDropIds,

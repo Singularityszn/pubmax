@@ -19,12 +19,18 @@
 // Pure leaf: no I/O, no Date.now(). Every time-sensitive function takes `now`.
 
 import { londonDayKey } from "@/lib/pintContributions";
+import { splitWithInput, type PintDropWithSummary } from "@/lib/pintDropWithTags";
 import { parseRating, type RatingValue } from "@/lib/ratings";
 import { cleanText } from "@/lib/textClean";
 
 export const MAX_DIARY_REVIEW = 280;
 /** "Your usual here": one drink name, free text, private like the rest of the entry. */
 export const MAX_DIARY_USUAL_DRINK = 40;
+/**
+ * "With": the free-text names of people who are not on PUBMAXX. A handle is
+ * never kept here; it is a consented tag (lib/pintDropWithTags.ts, 0201).
+ */
+export const MAX_DIARY_WITH_NAMES = 120;
 const MAX_DIARY_VENUE_ID = 64;
 const MAX_DIARY_VENUE_NAME = 120;
 
@@ -58,6 +64,8 @@ export type DiaryEntryFields = {
    * private as the review: nothing outside the owner's own reads sees it.
    */
   usualDrink?: string;
+  /** "With": free-text names only, as private as the review. Empty when none. */
+  withNames?: string;
   visibility: DiaryVisibility;
 };
 
@@ -65,9 +73,16 @@ export type DiaryEntry = DiaryEntryFields & {
   id: string;
   createdAt: string;
   usualDrink: string;
+  withNames: string;
 };
 
-export type DiaryEntryDTO = DiaryEntry;
+export type DiaryEntryDTO = DiaryEntry & {
+  /**
+   * The owner's own read of the entry's handle tags: approved handles and a
+   * count of proposals. Absent when nobody is tagged or the read failed.
+   */
+  withTags?: PintDropWithSummary;
+};
 
 export type DiaryValidation =
   | { ok: true; value: DiaryEntryFields }
@@ -154,6 +169,26 @@ function validateDiaryUsualDrink(
 }
 
 /**
+ * The free-text names of a "With" field. Every `@token` is taken out, whether
+ * or not it names an account, because a handle prints only after consent.
+ * Names past the cap are refused rather than cut.
+ */
+function validateDiaryWithNames(
+  value: unknown,
+): { ok: true; value: string } | { ok: false; error: string } {
+  if (value !== undefined && value !== null && typeof value !== "string") {
+    return { ok: false, error: "Type the names of who you were with." };
+  }
+  const names = splitWithInput(
+    typeof value === "string" ? value.replace(DIARY_USUAL_CONTROL, " ") : "",
+  ).names;
+  if ([...names].length > MAX_DIARY_WITH_NAMES) {
+    return { ok: false, error: `Keep the names to ${MAX_DIARY_WITH_NAMES} characters.` };
+  }
+  return { ok: true, value: names };
+}
+
+/**
  * Clean a review. It is the owner's own private words, so it is kept as typed:
  * control characters are stripped and the ends are trimmed, nothing else. No
  * copy filter runs on it, and angle brackets, newlines and inner spacing stay.
@@ -173,6 +208,8 @@ export function validateDiaryEntryCreate(
     rating?: unknown;
     review?: unknown;
     usualDrink?: unknown;
+    /** The raw "With" field. Its `@handles` are tags and never kept here. */
+    withWho?: unknown;
     visibility?: unknown;
   },
   now: Date = new Date(),
@@ -209,6 +246,9 @@ export function validateDiaryEntryCreate(
   const usualDrink = validateDiaryUsualDrink(input.usualDrink);
   if (!usualDrink.ok) return usualDrink;
 
+  const withNames = validateDiaryWithNames(input.withWho);
+  if (!withNames.ok) return withNames;
+
   if (
     input.visibility !== undefined
     && input.visibility !== null
@@ -227,6 +267,7 @@ export function validateDiaryEntryCreate(
       rating,
       review,
       usualDrink: usualDrink.value,
+      withNames: withNames.value,
       visibility: "private",
     },
   };
@@ -245,8 +286,8 @@ export type DiaryEditValidation =
   | { ok: false; error: string };
 
 /**
- * Validate a correction to an existing entry. Only the three things a person
- * wrote can change: the day, the stars and the words. The pub is the entry's
+ * Validate a correction to an existing entry. Only the things a person wrote
+ * can change: the day, the stars, the words and their usual. The pub is the entry's
  * identity, so it never moves, and a body that names nothing to change is
  * refused rather than answered with a no-op. A key that is present is checked
  * with the same rules as logging it (`validateDiaryEntryCreate`), and a rating
@@ -296,7 +337,7 @@ export function validateDiaryEntryEdit(
   }
 
   if (Object.keys(patch).length === 0) {
-    return { ok: false, error: "Change the day, the rating or the review." };
+    return { ok: false, error: "Change the day, the rating, the review or your usual." };
   }
   return { ok: true, value: patch };
 }

@@ -1,9 +1,10 @@
 // The Diary, Phase 1: a drinker's own dated log of pub visits.
 //
-//   GET                                       -> 200 { status, entries } (owner only, newest day first);
+//   GET                                       -> 200 { status, entries } (owner only, newest day first;
+//                                                each entry carries `withTags` when somebody is tagged);
 //                                                200 { status: "adult_check_required" | ... , error } while a gate stands in front of it
-//   POST { venueId, visitedOn?, rating?, review?, usualDrink?, shareToLot? }
-//                                             -> 201 { entry, shared }
+//   POST { venueId, visitedOn?, rating?, review?, usualDrink?, withWho?, shareToLot? }
+//                                             -> 201 { entry, shared, tagsSent? }
 //   POST { action: "update", id, visitedOn?, rating?, review?, usualDrink? }
 //                                             -> 200 { entry } (the owner's own entry, corrected)
 //   POST { action: "delete", id }             -> 200 { ok: true } (the owner's own entry, removed)
@@ -21,15 +22,24 @@
 // Social account of THIS session, and only when that account is the diary's
 // owner (lib/tellYourLot.server.ts). The entry itself stays private either
 // way, and `shared` says whether the post was written.
+//
+// "With" (0201): `withWho` is the raw field. Its free-text names are kept on
+// the entry; each `@handle` becomes a PROPOSAL in that person's tag inbox
+// (lib/pintDropWithTagsStore.ts), made in the name of the same verified Social
+// account and refused silently across a block. `tagsSent` is false only when
+// this account has no verified Social account to ask from, or the tag store is
+// down; it never says whether a particular person could be tagged.
 
 import { jsonNoStore } from "@/lib/apiResponses";
 import { publicApiError } from "@/lib/apiError";
 import { contributionReadRefusalResponse } from "@/lib/contributionReadRefusal.server";
 import { resolveContributionIdentity } from "@/lib/contributionIdentity.server";
-import { validateDiaryEntryCreate, validateDiaryEntryEdit } from "@/lib/diary";
+import { validateDiaryEntryCreate, validateDiaryEntryEdit, type DiaryEntryDTO } from "@/lib/diary";
 import { diaryStore } from "@/lib/diaryStore";
 import { log } from "@/lib/log";
 import { isLimited } from "@/lib/pintDrops";
+import { splitWithInput } from "@/lib/pintDropWithTags";
+import { pintDropWithTagsStore } from "@/lib/pintDropWithTagsStore";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
 import {
@@ -68,7 +78,8 @@ export async function GET(request: Request): Promise<Response> {
 
   try {
     const result = await diaryStore().listForOwner(owner.accountId);
-    return jsonNoStore(result, { status: 200 });
+    const entries = await withTagsOn(owner.accountId, result.entries);
+    return jsonNoStore({ ...result, entries }, { status: 200 });
   } catch (err) {
     log("error", "diary.list_failed", {
       route: "GET /api/diary",
@@ -78,6 +89,36 @@ export async function GET(request: Request): Promise<Response> {
       retryable: true,
     });
   }
+}
+
+// The owner's own read of who they tagged. A failure reads as no tags, so the
+// diary itself never fails because the tag store is down.
+async function withTagsOn(ownerUserId: string, entries: DiaryEntryDTO[]): Promise<DiaryEntryDTO[]> {
+  if (entries.length === 0) return entries;
+  try {
+    const summaries = await pintDropWithTagsStore().diarySummaries(
+      ownerUserId,
+      entries.map((entry) => entry.id),
+    );
+    if (summaries.size === 0) return entries;
+    return entries.map((entry) => {
+      const withTags = summaries.get(entry.id);
+      return withTags ? { ...entry, withTags } : entry;
+    });
+  } catch (err) {
+    log("warn", "diary.with_tags_read_failed", {
+      route: "GET /api/diary",
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return entries;
+  }
+}
+
+/** The raw "With" field: text of at most 400 characters, or absent. */
+function readWithWho(value: unknown): string | null {
+  if (value === undefined || value === null) return "";
+  if (typeof value !== "string" || value.length > 400) return null;
+  return value;
 }
 
 // A correction or a removal is the owner's own business and nobody else's: the
@@ -173,6 +214,11 @@ export async function POST(request: Request): Promise<Response> {
   if (shareToLot === null) {
     return publicApiError("Say yes or no to telling your lot.", "INVALID_DIARY_ENTRY", 400);
   }
+  const withWho = readWithWho(body.withWho);
+  if (withWho === null) {
+    return publicApiError("Type the names of who you were with.", "INVALID_DIARY_ENTRY", 400);
+  }
+  const withHandles = splitWithInput(withWho).handles;
 
   const venueId = readString(body.venueId);
   const lookup = venueId ? await lookupCanonicalVenue(venueId) : null;
@@ -196,6 +242,7 @@ export async function POST(request: Request): Promise<Response> {
     rating: body.rating,
     review: body.review,
     usualDrink: body.usualDrink,
+    withWho,
     visibility: body.visibility,
   });
   if (!result.ok) {
@@ -212,18 +259,40 @@ export async function POST(request: Request): Promise<Response> {
       );
     }
     let shared = false;
-    if (shareToLot) {
-      // The author is the session's own Social account, checked against the
-      // diary's owner. A body handle or owner field never names it.
-      const actor = await lotActorForAccount(request, owner.accountId);
+    // The author of a lot post and of a tag is the session's own Social
+    // account, checked against the diary's owner. A body handle or owner
+    // field never names it.
+    const actor =
+      shareToLot || withHandles.length > 0 ? await lotActorForAccount(request, owner.accountId) : null;
+    if (shareToLot && actor) {
+      shared = await tellYourLot(actor, {
+        body: tellYourLotVisitBody(actor.handle, venue.name),
+        venueId: venue.id,
+      });
+    }
+    let tagsSent: boolean | undefined;
+    if (withHandles.length > 0) {
+      tagsSent = false;
       if (actor) {
-        shared = await tellYourLot(actor, {
-          body: tellYourLotVisitBody(actor.handle, venue.name),
-          venueId: venue.id,
-        });
+        try {
+          await pintDropWithTagsStore().proposeOnDiary(
+            { profileId: actor.profileId, handle: actor.handle, accountId: owner.accountId },
+            created.entry.id,
+            withHandles,
+          );
+          tagsSent = true;
+        } catch (err) {
+          log("warn", "diary.with_tags_propose_failed", {
+            route: "POST /api/diary",
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
       }
     }
-    return jsonNoStore({ entry: created.entry, shared }, { status: 201 });
+    return jsonNoStore(
+      { entry: created.entry, shared, ...(tagsSent === undefined ? {} : { tagsSent }) },
+      { status: 201 },
+    );
   } catch (err) {
     log("error", "diary.create_failed", {
       route: "POST /api/diary",

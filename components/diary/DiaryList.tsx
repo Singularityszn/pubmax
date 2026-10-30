@@ -10,16 +10,20 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import ContributionGateDoor from "@/components/identity/ContributionGateDoor";
+import PintDropWithLine from "@/components/map/composer/PintDropWithLine";
 import StarRating from "@/components/ratings/StarRating";
 import { authedFetch } from "@/lib/authedFetch";
 import {
   clampDiaryReviewInput,
+  clampDiaryUsualDrinkInput,
   compareDiaryEntries,
   DIARY_EARLIEST_VISITED_ON,
   diaryReviewLength,
   latestDiaryVisitedOn,
   MAX_DIARY_REVIEW,
+  MAX_DIARY_USUAL_DRINK,
 } from "@/lib/diary";
+import { parseWithSummary } from "@/lib/pintDropWithTags";
 import {
   readContributionDoor,
   type ContributionDoorStatus,
@@ -138,7 +142,12 @@ export default function DiaryList(): React.JSX.Element | null {
                     ? {
                         ...previous,
                         entries: previous.entries
-                          .map((row) => (row.id === changed.id ? changed : row))
+                          // An edit answers the entry alone; its tags are kept.
+                          .map((row) =>
+                            row.id === changed.id
+                              ? { ...changed, ...(row.withTags ? { withTags: row.withTags } : {}) }
+                              : row,
+                          )
                           .sort(compareDiaryEntries),
                       }
                     : previous,
@@ -160,9 +169,10 @@ export default function DiaryList(): React.JSX.Element | null {
 }
 
 // One entry, with the two things its owner may do to it: correct it and take it
-// out. The pub is the entry's identity, so only the day, the stars and the words
-// open for editing. The server finds the row by its id and the session's account.
-function DiaryEntryRow({
+// out. The pub is the entry's identity, so only the day, the stars, the words and
+// the usual open for editing. The server finds the row by its id and the session's
+// account.
+export function DiaryEntryRow({
   entry,
   onChanged,
   onRemoved,
@@ -176,6 +186,7 @@ function DiaryEntryRow({
   const [visitedOn, setVisitedOn] = useState(entry.visitedOn);
   const [rating, setRating] = useState<RatingValue | null>(entry.rating);
   const [review, setReview] = useState(entry.review);
+  const [usualDrink, setUsualDrink] = useState(entry.usualDrink ?? "");
   const [busy, setBusy] = useState<"save" | "delete" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -183,6 +194,7 @@ function DiaryEntryRow({
     setVisitedOn(entry.visitedOn);
     setRating(entry.rating);
     setReview(entry.review);
+    setUsualDrink(entry.usualDrink ?? "");
     setError(null);
     setEditing(true);
   }
@@ -198,6 +210,9 @@ function DiaryEntryRow({
       visitedOn,
       rating,
       review: review.trim(),
+      // Sent only when it changed, so an edit of the day or the words never
+      // writes the usual column on a database 0199 has not reached.
+      ...(usualDrink.trim() !== (entry.usualDrink ?? "") ? { usualDrink: usualDrink.trim() } : {}),
     });
     setBusy(null);
     if (!result.ok) {
@@ -272,6 +287,19 @@ function DiaryEntryRow({
             />
             <small>{MAX_DIARY_REVIEW - diaryReviewLength(review)} characters left</small>
           </label>
+          <label className="visitReportNoteWrap">
+            <span>Your usual here</span>
+            <input
+              className="diaryUsualInput"
+              data-testid="diary-edit-usual"
+              type="text"
+              value={usualDrink}
+              maxLength={MAX_DIARY_USUAL_DRINK * 2}
+              onChange={(event) => setUsualDrink(clampDiaryUsualDrinkInput(event.target.value))}
+              placeholder="A drink name, if you have one"
+              autoComplete="off"
+            />
+          </label>
           <div className="diaryRow__actions">
             <button
               type="button"
@@ -306,6 +334,13 @@ function DiaryEntryRow({
               Your usual here: {entry.usualDrink}
             </p>
           ) : null}
+          {entry.withNames ? (
+            <p className="diaryRow__usual" data-testid="diary-row-with-names">
+              With {entry.withNames}
+            </p>
+          ) : null}
+          {/* Handles only after consent; a proposal is a count. */}
+          <PintDropWithLine summary={parseWithSummary(entry.withTags)} className="diaryRow__usual" />
           <div className="diaryRow__actions">
             <button
               type="button"
