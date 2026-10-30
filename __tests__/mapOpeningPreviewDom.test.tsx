@@ -355,13 +355,15 @@ describe("MapOpeningPreview", () => {
     }
   });
 
-  it("stands down on the turn where the turned screen would see past the picture", async () => {
-    // A 1024x768 jsdom window is far wider than the ground a phone picture covers.
+  it("on the largest phones, turns only as far as the picture still covers", async () => {
     const ground: OpeningGround = {
       rect: { x: -322, y: -848, width: 644, height: 1356 },
       light: "/landing/map-opening/london-light.webp",
       dark: "/landing/map-opening/london-dark.webp",
     };
+    const size = { innerWidth: window.innerWidth, innerHeight: window.innerHeight };
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 440 });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 956 });
     document.documentElement.dataset.mapPreview = "on";
     document.documentElement.dataset.mapGround = "on";
     try {
@@ -369,9 +371,16 @@ describe("MapOpeningPreview", () => {
       await act(() => {
         window.dispatchEvent(new CustomEvent(MAP_OPENING_PREVIEW_TURN_EVENT, { detail: MAP_OPENING_PREVIEW_CAMERA.bearing + 4 }));
       });
-      expect(document.documentElement.dataset.mapPreview).toBe("done");
+      // Held short of the full turn, and still the preview: no bare paper.
+      expect(document.documentElement.dataset.mapPreview).toBe("on");
+      const held = parseFloat(document.documentElement.style.getPropertyValue("--map-preview-bearing"));
+      expect(held).toBeGreaterThan(0);
+      expect(held).toBeLessThan(4);
     } finally {
       delete document.documentElement.dataset.mapGround;
+      document.documentElement.style.removeProperty("--map-preview-bearing");
+      Object.defineProperty(window, "innerWidth", { configurable: true, value: size.innerWidth });
+      Object.defineProperty(window, "innerHeight", { configurable: true, value: size.innerHeight });
     }
   });
 

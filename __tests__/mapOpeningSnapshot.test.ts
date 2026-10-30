@@ -11,6 +11,7 @@ import { MAP_OPENING_PREVIEW_CAMERA, projectAtCamera } from "@/lib/mapOpeningPre
 import mapOpeningSnapshot from "@/lib/mapOpeningSnapshot.json";
 import {
   groundRectCovers,
+  largestCoveredTurn,
   MAP_OPENING_SNAPSHOT_MARGIN_PX,
   MAP_OPENING_SNAPSHOT_MAX_VIEWPORT,
   openingGroundRect,
@@ -110,6 +111,17 @@ describe("where the picture may show", () => {
       }
     }
     expect(groundRectCovers(meta.ground, meta.camera.pitch, 440, 956, MAP_ARRIVAL_BEARING_DEG)).toBe(false);
+  });
+
+  it("holds the largest phones at the widest turn they still cover", () => {
+    const { pitch } = meta.camera;
+    expect(largestCoveredTurn(meta.ground, pitch, 390, 844, MAP_ARRIVAL_BEARING_DEG)).toBe(MAP_ARRIVAL_BEARING_DEG);
+    for (const [width, height] of [[430, 932], [440, 956]] as const) {
+      const held = largestCoveredTurn(meta.ground, pitch, width, height, MAP_ARRIVAL_BEARING_DEG);
+      expect(held, `${width}x${height}`).toBeGreaterThan(0);
+      expect(held, `${width}x${height}`).toBeLessThan(MAP_ARRIVAL_BEARING_DEG);
+      expect(groundRectCovers(meta.ground, pitch, width, height, held), `${width}x${height}`).toBe(true);
+    }
   });
 
   it("is the inverse of the projection the discs are laid with", () => {

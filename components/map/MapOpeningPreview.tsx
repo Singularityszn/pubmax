@@ -16,7 +16,7 @@ import {
   type MapOpeningFrame,
 } from "@/lib/mapOpeningPreview";
 import type { OpeningPreviewDisc } from "@/lib/mapOpeningPreviewDiscs";
-import { groundRectCovers, type OpeningGround } from "@/lib/mapOpeningSnapshot";
+import { largestCoveredTurn, type OpeningGround } from "@/lib/mapOpeningSnapshot";
 import { BASEMAP_DRAWN_EVENT, PINS_VISIBLE_EVENT } from "@/lib/performanceMarks";
 
 import "./mapOpeningPreview.css";
@@ -189,19 +189,23 @@ export default function MapOpeningPreview({
     const onFrame = (event: Event) => check((event as CustomEvent<MapOpeningFrame>).detail ?? null);
     // The arrival turn: the picture and the discs turn with the camera, so the
     // ground stays under the reader instead of the loading paper. The picture
-    // is drawn for a north-up screen, so a screen whose turned corners would
-    // see past its edge (the largest phones) stands down as before.
+    // is drawn for a north-up screen, so on a screen whose turned corners
+    // would see past its edge (the largest phones) it turns only as far as it
+    // still covers, and the map's own frame takes the last degree or two at
+    // the handoff. Standing down there left the loading frame on bare paper
+    // for 2 to 3 s until the reveal.
     const onTurn = (event: Event) => {
       const bearing = (event as CustomEvent<number>).detail;
       if (typeof bearing !== "number" || !Number.isFinite(bearing)) return;
-      const turn = bearing - MAP_OPENING_PREVIEW_CAMERA.bearing;
-      if (
-        ground &&
-        document.documentElement.dataset.mapGround === "on" &&
-        !groundRectCovers(ground.rect, MAP_OPENING_PREVIEW_CAMERA.pitch, window.innerWidth, window.innerHeight, turn)
-      ) {
-        standDown();
-        return;
+      let turn = bearing - MAP_OPENING_PREVIEW_CAMERA.bearing;
+      if (ground && document.documentElement.dataset.mapGround === "on") {
+        turn = largestCoveredTurn(
+          ground.rect,
+          MAP_OPENING_PREVIEW_CAMERA.pitch,
+          window.innerWidth,
+          window.innerHeight,
+          turn,
+        );
       }
       document.documentElement.style.setProperty("--map-preview-bearing", `${turn}deg`);
     };
