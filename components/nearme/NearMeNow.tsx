@@ -31,6 +31,7 @@ import {
   formatNearDistance,
   withoutWalkTimes,
   nearMeAnswerHeadline,
+  nearSavingLine,
   rankBoroughCheapest,
   rankNearMe,
   type NearMeCard,
@@ -281,6 +282,9 @@ export default function NearMeNow({
   const [state, setState] = useState<LocateState>(initialLocation ? "requesting" : "idle");
   const [cards, setCards] = useState<NearMeCard[]>([]);
   const [scope, setScope] = useState<NearMeScope>("none");
+  // The doorstep pub the saving line compares against. Set only by an answer
+  // from the reader's own fix; every new answer clears it (beginAnswer).
+  const [nearest, setNearest] = useState<NearMeCard | null>(null);
   const [borough, setBorough] = useState<string | null>(null);
   const [patch, setPatch] = useState<NightPatch | null>(null);
   const [patchReason, setPatchReason] = useState<PatchReason>(null);
@@ -321,6 +325,7 @@ export default function NearMeNow({
   const beginAnswer = useCallback(() => {
     const generation = ++answerGenerationRef.current;
     setActiveAnswerGeneration(generation);
+    setNearest(null);
     return generation;
   }, []);
   const priceTrust = useNearPriceTrust(
@@ -517,6 +522,7 @@ export default function NearMeNow({
           }
           setCards(answer.cards);
           setScope(answer.scope);
+          setNearest(answer.nearest);
           setState("ready");
           setBorough(null);
           setPatch(null);
@@ -553,6 +559,7 @@ export default function NearMeNow({
         const answer = rankNearMe(initialLocation.lat, initialLocation.lng, slim);
         setCards(answer.cards);
         setScope(answer.scope);
+        setNearest(answer.nearest);
         setState("ready");
         setBorough(null);
         setAnswerContext({ source: "location", generation });
@@ -685,6 +692,7 @@ export default function NearMeNow({
           scope={scope}
           titledByHost={titledByHost}
           cards={cards}
+          savingLine={nearSavingLine(cards, nearest)}
           onOpen={openVenue}
           onAccept={acceptVenue}
           allowVenueAcceptance={allowVenueAcceptance}
@@ -881,6 +889,7 @@ function NearMeLocatedAnswer({
   scope,
   titledByHost,
   cards,
+  savingLine,
   onOpen,
   onAccept,
   allowVenueAcceptance,
@@ -893,6 +902,8 @@ function NearMeLocatedAnswer({
   scope: NearMeScope;
   titledByHost: boolean;
   cards: NearMeCard[];
+  /** The pounds the top answer is worth against the doorstep pub (nearSavingLine). */
+  savingLine: string | null;
   onOpen: (id: string) => void;
   onAccept: (id: string) => void;
   allowVenueAcceptance: boolean;
@@ -914,6 +925,11 @@ function NearMeLocatedAnswer({
         ) : (
           <p className="nmnSub">Within about a 12-minute walk.</p>
         )}
+        {savingLine ? (
+          <p className="nmnSaving" data-testid="near-saving-line">
+            {savingLine}
+          </p>
+        ) : null}
       </header>
       <AnswerCards
         cards={cards}
