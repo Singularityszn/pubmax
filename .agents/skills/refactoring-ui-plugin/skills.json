@@ -12,7 +12,7 @@
       "type": "evaluative",
       "domain": "ui-design",
       "version": "1.0.0",
-      "path": "skills/01-establish-visual-hierarchy/SKILL.md",
+      "path": ".agents/skills/01-establish-visual-hierarchy/SKILL.md",
       "prerequisites": [],
       "dependencies": [],
       "examples": "examples/visual-hierarchy/",
@@ -31,7 +31,7 @@
       "type": "generative",
       "domain": "ui-design",
       "version": "1.0.0",
-      "path": "skills/02-apply-typography-scale/SKILL.md",
+      "path": ".agents/skills/02-apply-typography-scale/SKILL.md",
       "prerequisites": [
         "01-establish-visual-hierarchy"
       ],
@@ -52,7 +52,7 @@
       "type": "generative",
       "domain": "ui-design",
       "version": "1.0.0",
-      "path": "skills/03-build-color-palette/SKILL.md",
+      "path": ".agents/skills/03-build-color-palette/SKILL.md",
       "prerequisites": [],
       "dependencies": [],
       "examples": "examples/color-palette/",
@@ -71,7 +71,7 @@
       "type": "generative",
       "domain": "ui-design",
       "version": "1.0.0",
-      "path": "skills/04-apply-consistent-spacing/SKILL.md",
+      "path": ".agents/skills/04-apply-consistent-spacing/SKILL.md",
       "prerequisites": [],
       "dependencies": [],
       "examples": "examples/consistent-spacing/",
@@ -90,7 +90,7 @@
       "type": "generative",
       "domain": "ui-design",
       "version": "1.0.0",
-      "path": "skills/05-design-button-hierarchy/SKILL.md",
+      "path": ".agents/skills/05-design-button-hierarchy/SKILL.md",
       "prerequisites": [],
       "dependencies": [
         "03-build-color-palette"
@@ -111,7 +111,7 @@
       "type": "corrective",
       "domain": "ui-design",
       "version": "1.0.0",
-      "path": "skills/06-eliminate-visual-clutter/SKILL.md",
+      "path": ".agents/skills/06-eliminate-visual-clutter/SKILL.md",
       "prerequisites": [],
       "dependencies": [
         "04-apply-consistent-spacing"
@@ -131,7 +131,7 @@
       "type": "generative",
       "domain": "ui-design",
       "version": "1.0.0",
-      "path": "skills/07-design-empty-states/SKILL.md",
+      "path": ".agents/skills/07-design-empty-states/SKILL.md",
       "prerequisites": [],
       "dependencies": [
         "05-design-button-hierarchy"
@@ -151,7 +151,7 @@
       "type": "corrective",
       "domain": "ui-design",
       "version": "1.0.0",
-      "path": "skills/08-use-shadows-appropriately/SKILL.md",
+      "path": ".agents/skills/08-use-shadows-appropriately/SKILL.md",
       "prerequisites": [],
       "dependencies": [],
       "examples": "examples/shadows/",
@@ -169,7 +169,7 @@
       "type": "evaluative",
       "domain": "ui-design",
       "version": "1.0.0",
-      "path": "skills/09-manage-color-contrast/SKILL.md",
+      "path": ".agents/skills/09-manage-color-contrast/SKILL.md",
       "prerequisites": [],
       "dependencies": [
         "03-build-color-palette"
@@ -188,7 +188,7 @@
       "type": "generative",
       "domain": "ui-design",
       "version": "1.0.0",
-      "path": "skills/10-group-related-elements/SKILL.md",
+      "path": ".agents/skills/10-group-related-elements/SKILL.md",
       "prerequisites": [],
       "dependencies": [
         "04-apply-consistent-spacing"
@@ -204,7 +204,7 @@
   "meta_skill": {
     "name": "refactor-ui",
     "description": "Analyze a design against all 10 Refactoring UI skills",
-    "path": "skills/meta-refactor-ui/SKILL.md",
+    "path": ".agents/skills/meta-refactor-ui/SKILL.md",
     "dependencies": [
       "01-establish-visual-hierarchy",
       "02-apply-typography-scale",

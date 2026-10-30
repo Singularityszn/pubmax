@@ -53,6 +53,8 @@ Upstream `SKILL.md` trees were copied flat, one directory per skill. Plugin test
 
 The consolidated tree includes upstream JavaScript helpers and browser assets. Its `LICENSE` preserves the upstream MIT notice from the pinned commit. These files do not execute on install. The local `PUBMAXX project rules` section preserves project design, copy, source permissions, explicit build approval and runtime ownership. The refresh does not grant permission to execute these helpers.
 
+The two local HTTP inspectors and the media downloader are excluded from project execution pending their separate permission and file-serving checks. A local inspector repair is prepared externally but remains unapplied and unverified. Do not describe it as an implemented divergence from upstream.
+
 Directory name, then frontmatter `name` when it differs:
 
 | Directory | Name |
@@ -82,6 +84,8 @@ Local corrections:
 - [`state-machine` step 3](state-machine/SKILL.md#3-build-the-throwaway-page) preserves the target's Next.js server/client boundary.
 - [`break` step 3](break/SKILL.md#3-build-the-harness-page) points to that fixture boundary guidance.
 - [`better-typography` punctuation guidance](better-typography/SKILL.md#before-you-finish) defers to the project's voice policy.
+- `better-writing` preserves the full PUBMAXX voice, price uncertainty, quoted text and rendered-coverage override.
+- [`explain-interface` breakpoint recipe](explain-interface/read-the-system.md#breakpoints) follows imported stylesheets, records unreadable sheets, prevents repeated traversal and recognises both media-range directions.
 - [`explain-interface` token recipe](explain-interface/read-the-system.md#tokens) reads active computed values for the current viewport and theme.
 - [`better-layout` growth guidance](better-layout/spacing-and-adaptivity.md#plan-for-growth-and-clipping) preserves the project's keyboard-inset requirement alongside `dvh` sizing. Its [review checklist](better-layout/SKILL.md#before-you-finish) retains this requirement.
 - [`better-accessibility` hit-area recipe](better-accessibility/hit-areas.md#expanding-the-hit-area) requires a wrapping label for expanded checkbox targets.
@@ -96,7 +100,7 @@ Local corrections:
 
 `01-establish-visual-hierarchy`, `02-apply-typography-scale`, `03-build-color-palette`, `04-apply-consistent-spacing`, `05-design-button-hierarchy`, `06-eliminate-visual-clutter`, `07-design-empty-states`, `08-use-shadows-appropriately`, `09-manage-color-contrast`, `10-group-related-elements`, `meta-refactor-ui`.
 
-The plugin's root `SKILL.md` and `skills.json` are in `refactoring-ui-plugin/`. Each `path` in `skills.json` is `.agents/skills/<id>/SKILL.md`. `meta-refactor-ui` reads `../refactoring-ui-plugin/skills.json`.
+The plugin's root `SKILL.md` and `skills.json` are in `refactoring-ui-plugin/`. Each `path` in `skills.json` is `.agents/skills/<id>/SKILL.md`. `meta-refactor-ui` reads `../refactoring-ui-plugin/skills.json`. The installed registry paths and both skill references retain this local layout.
 
 ### shadcn-labs/skills
 
@@ -173,7 +177,7 @@ Left upstream: `deploy-to-vercel` (the machine already has `deploy-with-vercel`)
 
 Upstream `references/installation.md` in three of these skills offered `curl … | sh` for the ElevenLabs CLI. Those blocks are removed. npm, Homebrew, and Scoop remain.
 
-The local [`text-to-speech` dialogue example](text-to-speech/references/streaming.md#eleven-v4-turbo-websocket) fails on API errors and closure before a final frame.
+The local [`text-to-speech` dialogue example](text-to-speech/references/streaming.md#eleven-v4-turbo-websocket) sets a nonzero process status on API, output-stream or premature-close errors.
 
 Left upstream: `dubbing`, `music`, `sound-effects`, `voice-changer`, `voice-isolator`, `setup-api-key`, `update-skills-from-changelog`.
 

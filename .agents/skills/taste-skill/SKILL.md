@@ -21,6 +21,8 @@ Read the root and scoped `AGENTS.md` files before this upstream guide. Keep the 
 
 The supplied scripts can write local files, start a browser or download external assets when invoked. Vendoring this skill does not authorise those actions. Use the existing authorised browser and runtime allocation. Obtain explicit build approval before a build. Apply the repository's source policy before any external asset request. Do not run a script to bypass these rules.
 
+The local HTTP inspectors (`scripts/inspect.mjs` and `scripts/scenes.mjs`) are excluded from project execution until their file-serving repair passes verification. The media downloader (`scripts/assets.mjs`) is also excluded until its source and redirect permission behaviour is reviewed. Source review alone does not clear either restriction.
+
 A page built by a model usually looks like the average of every page the model has seen: a centred
 headline over three lines, a little label above it, a row of icon cards, a soft gradient, a few thin
 rules and a monospace caption. Nothing in it is wrong and nothing in it was decided.
