@@ -20,7 +20,7 @@ const VIEWPORTS = [
   { name: "desktop", width: 1280, height: 800 },
 ] as const;
 
-const SHEET_LINE = /^(Sun on the garden until|Garden in shade|After sunset|No sun estimate)/;
+const SHEET_LINE = /^(Garden likely in sun until|Garden likely in shade|After sunset|No sun estimate)/;
 
 async function openFeatureControls(page: Page, phone: boolean) {
   if (phone) {
@@ -118,7 +118,7 @@ for (const viewport of VIEWPORTS) {
       controls = await openFeatureControls(page, phone);
       const status = controls.locator(".sunChaserStatus");
       await status.scrollIntoViewIfNeeded();
-      await expect(status).toHaveText(/likely in the sun now|No sun estimate|No recorded gardens/, { timeout: ARRIVAL_TIMEOUT_MS });
+      await expect(status).toHaveText(/likely in the sun now|No sun estimate|No sun estimates for the gardens in view yet/, { timeout: ARRIVAL_TIMEOUT_MS });
       await controls.locator(".sunChaserControls").screenshot({ path: testInfo.outputPath(`sun-chaser-controls-${viewport.name}-${scheme}.png`) });
 
       // The scrubber moves the question three hours on, and says the time.

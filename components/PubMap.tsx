@@ -11,7 +11,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Component, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 import type { SunChaserMap } from "@/components/map/sunChaser/SunChaserLayer";
-import { useSunChaser } from "@/components/map/sunChaser/sunChaserStore";
+import { useSunChaserEnabled } from "@/components/map/sunChaser/sunChaserStore";
 
 const PubPalMascot = dynamic(
   () => import("@/components/pal/PubPalMascot").then((m) => m.PubPalMascot),
@@ -1524,7 +1524,7 @@ export default function PubMap({
   // visible frame. Canvas errors lift this state so fallback UI is not hidden.
   const [mapCanvasReady, setMapCanvasReady] = useState(false);
   const [liveMap, setLiveMap] = useState<SunChaserMap | null>(null);
-  const sunChaserOn = useSunChaser().enabled;
+  const sunChaserOn = useSunChaserEnabled();
   // Pin-reveal is the loading shell's exit: it fires when painted pubs are
   // tappable, not merely when the basemap or slim rows exist.
   const { pinsRevealed, resetPinReveal } = useMapPinsRevealed();

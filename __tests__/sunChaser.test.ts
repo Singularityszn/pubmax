@@ -3,6 +3,11 @@ import { sunPosition } from "@/lib/weatherDaylight";
 import {
   buildSunTimeline,
   estimateSun,
+  formatSunClock,
+  indexSunBuildings,
+  OPENMAPTILES_DEFAULT_HEIGHT_M,
+  shadowDiscLoaded,
+  sunBuildingFromTile,
   prepareSunSurroundings,
   segmentAt,
   sunHeadline,
@@ -131,16 +136,16 @@ describe("timeline and words", () => {
   it("says when the sun leaves the garden, and when it comes back", () => {
     const estimate = estimateSun({ point: LONDON, hasRecordedOutdoorSpace: true, buildings: [OWN_PUB, westBlock], from });
     expect(estimate.kind).toBe("estimate");
-    expect(sunHeadline(estimate, from, true)).toMatch(/^Sun on the garden until \d\d:\d\d$/);
+    expect(sunHeadline(estimate, from, true)).toMatch(/^Garden likely in sun until \d\d:\d\d$/);
     if (estimate.kind !== "estimate") return;
     const inShade = new Date((estimate.timeline.segments[0]?.end.getTime() ?? 0) + 10 * 60_000);
-    expect(sunHeadline(estimate, inShade, false)).toMatch(/^Garden in shade at \d\d:\d\d/);
+    expect(sunHeadline(estimate, inShade, false)).toMatch(/^Garden likely in shade at \d\d:\d\d\. Sun likely from|^Garden likely in shade at \d\d:\d\d, and no sun likely before/);
   });
 
   it("says until at least the window's end when nothing blocks the sun", () => {
     const morning = new Date("2026-06-21T07:00:00Z");
     const estimate = estimateSun({ point: LONDON, hasRecordedOutdoorSpace: true, buildings: [OWN_PUB], from: morning });
-    expect(sunHeadline(estimate, morning, true)).toBe("Sun on the garden until at least 14:00");
+    expect(sunHeadline(estimate, morning, true)).toBe("Garden likely in sun until at least 14:00");
   });
 
   it("fails closed with no recorded garden or no building data", () => {
@@ -154,7 +159,7 @@ describe("timeline and words", () => {
   });
 
   it("adds the cloud half only for now, only for a sunny spot, and only for a known condition", () => {
-    expect(sunSkyNote("sun", true, "Cloudy")).toBe("Sunny spot, but cloudy now (Open-Meteo).");
+    expect(sunSkyNote("sun", true, "Cloudy")).toBe("Sunny spot, but some cloud now (Open-Meteo).");
     expect(sunSkyNote("sun", true, "Clear")).toBeNull();
     expect(sunSkyNote("sun", false, "Cloudy")).toBeNull();
     expect(sunSkyNote("shade", true, "Rain")).toBeNull();
@@ -164,5 +169,74 @@ describe("timeline and words", () => {
 
   it("names itself an estimate and not a weather report", () => {
     expect(SUN_ESTIMATE_CAVEAT).toBe("Estimate from building heights and sun angle, not a weather report.");
+  });
+});
+
+describe("review fixes: what the basemap really serves", () => {
+  // The basemap's building features carry render_height, render_min_height,
+  // colour and hide_3d, and nothing else (OpenFreeMap planet tiles, Oct 2026).
+  const rings = box(180, 10, 0).rings;
+
+  it("reads the OpenMapTiles fill-in height as unknown, and a real height as itself", () => {
+    expect(OPENMAPTILES_DEFAULT_HEIGHT_M).toBe(5);
+    expect(sunBuildingFromTile({ render_height: 5, render_min_height: 0, colour: "#e0d7cb" }, rings)?.heightM).toBeNull();
+    expect(sunBuildingFromTile({ render_min_height: 0 }, rings)?.heightM).toBeNull();
+    expect(sunBuildingFromTile({ render_height: 26, render_min_height: 0 }, rings)?.heightM).toBe(26);
+    expect(sunBuildingFromTile({ render_height: 40, render_min_height: 12 }, rings)?.baseM).toBe(12);
+  });
+
+  it("leaves out an outline the basemap hides in 3D, because its parts answer for it", () => {
+    expect(sunBuildingFromTile({ render_height: 30, hide_3d: true }, rings)).toBeNull();
+  });
+
+  it("never reports sun beside a block whose tile height is the fill-in default", () => {
+    const tileBlock = sunBuildingFromTile({ render_height: 5, render_min_height: 0 }, box(180, 10, 0).rings);
+    expect(tileBlock).not.toBeNull();
+    expect(stateWith([tileBlock!], DECEMBER_NOON)).toBe("unknown");
+  });
+
+  it("lets a low sun pass under a raised part, and not through a part on the ground", () => {
+    expect(stateWith([{ ...box(180, 10, 40), baseM: 20 }], DECEMBER_NOON)).toBe("sun");
+    expect(stateWith([{ ...box(180, 10, 40), baseM: 0 }], DECEMBER_NOON)).toBe("shade");
+  });
+
+  it("skips every piece of the pub's own building when a tile edge cut it in two", () => {
+    // The pub stands in the north piece; the south piece shares the id and would
+    // otherwise put a 12 m wall right beside the pub.
+    const north = { ...box(0, -4, 12, 12, 8), id: 777 };
+    const south = { ...box(180, 4, 12, 12, 8), id: 777 };
+    expect(stateWith([north, south], DECEMBER_NOON)).toBe("sun");
+    expect(stateWith([north, { ...south, id: 778 }], DECEMBER_NOON)).toBe("shade");
+  });
+
+  it("gives no estimate for a pub whose shadow disc runs past the loaded area", () => {
+    const area = { west: LONDON[0] - 0.01, south: LONDON[1] - 0.01, east: LONDON[0] + 0.01, north: LONDON[1] + 0.01 };
+    expect(shadowDiscLoaded(LONDON, area)).toBe(true);
+    const edge = { ...area, east: LONDON[0] + 0.002 };
+    expect(shadowDiscLoaded(LONDON, edge)).toBe(false);
+    const estimate = estimateSun({ point: LONDON, hasRecordedOutdoorSpace: true, buildings: [OWN_PUB], from: JUNE_NOON, loadedArea: edge });
+    expect(estimate).toEqual({ kind: "no-estimate", reason: "edge-of-view" });
+    expect(sunHeadline(estimate, JUNE_NOON, true)).toBe("No sun estimate: move the map so this pub is not at its edge.");
+  });
+
+  it("hands each pub only the buildings a shadow could reach", () => {
+    const near = box(180, 50, 20);
+    const far = box(90, 2_000, 20);
+    const index = indexSunBuildings([OWN_PUB, near, far]);
+    const found = index.near(LONDON);
+    expect(found).toContain(near);
+    expect(found).toContain(OWN_PUB);
+    expect(found).not.toContain(far);
+  });
+
+  it("rounds the end of sun down and the start of sun up, in BST and in GMT", () => {
+    const summer = new Date("2026-06-20T14:03:00Z");
+    expect(formatSunClock(summer)).toBe("15:00");
+    expect(formatSunClock(summer, "up")).toBe("15:05");
+    expect(formatSunClock(summer, "exact")).toBe("15:03");
+    const winter = new Date("2026-12-21T15:03:00Z");
+    expect(formatSunClock(winter)).toBe("15:00");
+    expect(formatSunClock(winter, "up")).toBe("15:05");
+    expect(formatSunClock(new Date("2026-12-21T15:05:00Z"), "up")).toBe("15:05");
   });
 });

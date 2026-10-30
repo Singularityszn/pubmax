@@ -2,26 +2,27 @@
 
 // Sun Chaser's map half, loaded only while the chip is on. It reads building
 // outlines and heights from the basemap's own vector tiles (the OpenMapTiles
-// `building` layer: `render_height`, else `height`), works out sun and shade for
-// every pub in view with a recorded garden or outdoor seating, and draws a sun
-// dot beside each pin likely in the sun at the chosen time. It draws nothing
-// else and never moves the camera.
+// `building` layer, through lib/sunChaser.ts#sunBuildingFromTile), works out
+// sun and shade for every pub in view with a recorded garden or outdoor
+// seating, and draws a sun dot beside each pin likely in the sun at the chosen
+// time. It draws nothing else and never moves the camera.
 
 import { useEffect, useRef } from "react";
 import type * as maplibregl from "maplibre-gl";
 import { readTokens } from "@/components/map/canvas/tokens";
 import {
   estimateSun,
-  MAX_SHADOW_REACH_M,
+  indexSunBuildings,
   segmentAt,
+  sunBuildingFromTile,
   type LngLat,
   type SunBuilding,
   type SunEstimate,
 } from "@/lib/sunChaser";
+import { haversineKm } from "@/lib/haversine";
 import { loadSurfaceJson, SURFACE_JUST_READ_MS } from "@/lib/surfaceDataCache";
 import { venueHasRecordedOutdoorSpace, type Venue } from "@/lib/venues";
-import { sunChaserSelectedTime } from "./SunChaserControls";
-import { getSunChaserState, updateSunChaser, useSunChaser } from "./sunChaserStore";
+import { getSunChaserState, sunChaserSelectedTime, updateSunChaser, useSunChaser } from "./sunChaserStore";
 
 /** The live map this layer reads, named here so PubMap needs no MapLibre import. */
 export type SunChaserMap = maplibregl.Map;
@@ -29,13 +30,15 @@ export type SunChaserMap = maplibregl.Map;
 const SOURCE_ID = "sun-chaser";
 const LAYER_ID = "sun-chaser-dots";
 /** The basemap's building layer holds outlines from here; below it a city of pubs is too many rays. */
-export const SUN_CHASER_MIN_ZOOM = 14;
+const SUN_CHASER_MIN_ZOOM = 14;
 /** The nearest gardens to the centre of the view, so a wide phone pan stays quick. */
 const MAX_PUBS = 150;
+/** Pubs worked out per slice before the browser gets its turn back. */
+const PUBS_PER_SLICE = 15;
 /** A new start time every few minutes, so "now" does not drift into the past. */
 const REFRESH_MS = 5 * 60_000;
-
-const DEG_LAT_PER_M = 1 / 110_540;
+/** The sky is read again once the map centre has moved this far. */
+const SKY_REREAD_KM = 1.5;
 
 function buildingSourceId(map: maplibregl.Map): string | null {
   const layer = map.getStyle()?.layers?.find(
@@ -44,45 +47,28 @@ function buildingSourceId(map: maplibregl.Map): string | null {
   return layer && "source" in layer && typeof layer.source === "string" ? layer.source : null;
 }
 
-function finiteHeight(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
-}
-
-type IndexedBuilding = SunBuilding & { minLng: number; maxLng: number; minLat: number; maxLat: number };
-
-function readBuildings(map: maplibregl.Map, sourceId: string): IndexedBuilding[] {
-  const out: IndexedBuilding[] = [];
+function readBuildings(map: maplibregl.Map, sourceId: string): SunBuilding[] {
+  const out: SunBuilding[] = [];
   for (const feature of map.querySourceFeatures(sourceId, { sourceLayer: "building" })) {
     const geometry = feature.geometry;
     const polygons = geometry.type === "Polygon"
       ? [geometry.coordinates]
       : geometry.type === "MultiPolygon" ? geometry.coordinates : [];
-    const props = feature.properties ?? {};
-    const heightM = finiteHeight(props.render_height) ?? finiteHeight(props.height);
     for (const polygon of polygons) {
       const rings = polygon.map((ring) => ring.map(([lng, lat]) => [lng, lat] as LngLat));
-      const outer = rings[0] ?? [];
-      if (outer.length < 3) continue;
-      let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
-      for (const [lng, lat] of outer) {
-        minLng = Math.min(minLng, lng); maxLng = Math.max(maxLng, lng);
-        minLat = Math.min(minLat, lat); maxLat = Math.max(maxLat, lat);
-      }
-      out.push({ rings, heightM, minLng, maxLng, minLat, maxLat });
+      if ((rings[0]?.length ?? 0) < 3) continue;
+      const building = sunBuildingFromTile(feature.properties, rings, feature.id);
+      if (building) out.push(building);
     }
   }
   return out;
 }
 
-function nearby(buildings: readonly IndexedBuilding[], point: LngLat): SunBuilding[] {
-  const dLat = MAX_SHADOW_REACH_M * DEG_LAT_PER_M;
-  const dLng = dLat / Math.cos((point[1] * Math.PI) / 180);
-  return buildings.filter((b) =>
-    b.maxLng >= point[0] - dLng && b.minLng <= point[0] + dLng && b.maxLat >= point[1] - dLat && b.minLat <= point[1] + dLat,
-  );
-}
+/** Each new read gets a number, so a read overtaken by a newer one stops quietly. */
+let latestRun = 0;
 
 function computeEstimates(map: maplibregl.Map, venues: readonly Venue[]): void {
+  const run = ++latestRun;
   if (map.getZoom() < SUN_CHASER_MIN_ZOOM) {
     updateSunChaser({ status: "zoom-in", estimates: new Map(), from: null });
     return;
@@ -95,19 +81,33 @@ function computeEstimates(map: maplibregl.Map, venues: readonly Venue[]): void {
       Math.hypot(a.longitude - centre.lng, a.latitude - centre.lat) - Math.hypot(b.longitude - centre.lng, b.latitude - centre.lat))
     .slice(0, MAX_PUBS);
   const sourceId = buildingSourceId(map);
-  const buildings = sourceId ? readBuildings(map, sourceId) : [];
+  const index = indexSunBuildings(sourceId ? readBuildings(map, sourceId) : []);
+  // Only the view's own tiles are sure to be loaded, so the view is the loaded area.
+  const loadedArea = { west: bounds.getWest(), south: bounds.getSouth(), east: bounds.getEast(), north: bounds.getNorth() };
   const from = new Date(Math.floor(Date.now() / 60_000) * 60_000);
   const estimates = new Map<string, SunEstimate>();
-  for (const venue of gardens) {
-    const point: LngLat = [venue.longitude, venue.latitude];
-    estimates.set(venue.id, estimateSun({
-      point,
-      hasRecordedOutdoorSpace: true,
-      buildings: buildings.length > 0 ? nearby(buildings, point) : null,
-      from,
-    }));
-  }
-  updateSunChaser({ status: buildings.length > 0 ? "ready" : "no-buildings", estimates, from });
+  let next = 0;
+  const slice = () => {
+    if (run !== latestRun) return;
+    for (const stop = Math.min(next + PUBS_PER_SLICE, gardens.length); next < stop; next += 1) {
+      const venue = gardens[next];
+      if (!venue) continue;
+      const point: LngLat = [venue.longitude, venue.latitude];
+      estimates.set(venue.id, estimateSun({
+        point,
+        hasRecordedOutdoorSpace: true,
+        buildings: index.size > 0 ? index.near(point) : null,
+        from,
+        loadedArea,
+      }));
+    }
+    if (next < gardens.length) {
+      window.setTimeout(slice, 0);
+      return;
+    }
+    updateSunChaser({ status: index.size > 0 ? "ready" : "no-buildings", estimates, from });
+  };
+  slice();
 }
 
 function ensureLayer(map: maplibregl.Map): void {
@@ -171,6 +171,8 @@ export default function SunChaserLayer({ map, venues }: { map: maplibregl.Map | 
       map.triggerRepaint();
     }, REFRESH_MS);
     return () => {
+      // A slice still waiting for its turn stops when it sees a newer run.
+      latestRun += 1;
       window.clearInterval(refresh);
       map.off("moveend", markDirty);
       map.off("idle", onIdle);
@@ -196,27 +198,44 @@ export default function SunChaserLayer({ map, venues }: { map: maplibregl.Map | 
     map.triggerRepaint();
   }, [map, venues]);
 
-  // The cloud half: one read of the weather feed near the map centre.
+  // The cloud half: the weather feed near the map centre, read again after a
+  // long pan so a cloud note never belongs to another part of town.
   useEffect(() => {
     if (!map) return;
-    const controller = new AbortController();
-    const centre = map.getCenter();
-    const query = new URLSearchParams({ lat: centre.lat.toFixed(3), lng: centre.lng.toFixed(3) });
-    void loadSurfaceJson<{ summary?: { skyCondition?: unknown } | null }>(
-      `/api/tonight-conditions?${query.toString()}`,
-      {
-        signal: controller.signal,
-        init: { headers: { accept: "application/json" } },
-        validate: (body) => Boolean(body && "summary" in body),
-        freshForMs: SURFACE_JUST_READ_MS,
-      },
-      (body) => {
-        if (controller.signal.aborted) return;
-        const sky = body.summary?.skyCondition;
-        updateSunChaser({ skyCondition: typeof sky === "string" ? sky : null });
-      },
-    );
-    return () => controller.abort();
+    let controller: AbortController | null = null;
+    let readAt: [number, number] | null = null;
+    const readSky = () => {
+      const centre = map.getCenter();
+      const here: [number, number] = [centre.lng, centre.lat];
+      if (readAt && haversineKm(readAt, here) < SKY_REREAD_KM) return;
+      readAt = here;
+      controller?.abort();
+      const current = new AbortController();
+      controller = current;
+      // Until the new answer lands, no cloud claim at all.
+      updateSunChaser({ skyCondition: null });
+      const query = new URLSearchParams({ lat: centre.lat.toFixed(3), lng: centre.lng.toFixed(3) });
+      void loadSurfaceJson<{ summary?: { skyCondition?: unknown } | null }>(
+        `/api/tonight-conditions?${query.toString()}`,
+        {
+          signal: current.signal,
+          init: { headers: { accept: "application/json" } },
+          validate: (body) => Boolean(body && "summary" in body),
+          freshForMs: SURFACE_JUST_READ_MS,
+        },
+        (body) => {
+          if (current.signal.aborted) return;
+          const sky = body.summary?.skyCondition;
+          updateSunChaser({ skyCondition: typeof sky === "string" ? sky : null });
+        },
+      );
+    };
+    readSky();
+    map.on("moveend", readSky);
+    return () => {
+      map.off("moveend", readSky);
+      controller?.abort();
+    };
   }, [map]);
 
   // Draw the dots for the chosen time from the stored timelines: no new rays.

@@ -15,6 +15,9 @@
 // it on an unknown side; trees, awnings, walls and terrain are not modelled.
 
 import { sunPosition } from "@/lib/weatherDaylight";
+import { SUN_CHASER_HORIZON_MINUTES, SUN_CHASER_STEP_MINUTES } from "@/lib/sunChaserWindow";
+
+export { SUN_CHASER_HORIZON_MINUTES, SUN_CHASER_STEP_MINUTES };
 
 export type LngLat = readonly [number, number];
 
@@ -23,26 +26,61 @@ export type SunBuilding = {
   rings: ReadonlyArray<ReadonlyArray<LngLat>>;
   /** Roof height above the ground in metres, or null when the source has none. */
   heightM: number | null;
+  /** Underside height in metres: a raised part (an overhang, a bridge) lets a low sun under it. */
+  baseM?: number;
+  /**
+   * The source feature id. A tile edge cuts one building into several pieces
+   * that share it, so every piece of the pub's own building is skipped, not
+   * only the piece holding the pub's point.
+   */
+  id?: string | number;
 };
+
+/**
+ * OpenMapTiles writes this roof height for a building with no recorded height
+ * or levels (planetiler-openmaptiles fills it in). It is not a measurement, so
+ * it is read as unknown rather than as a 5 m building.
+ */
+export const OPENMAPTILES_DEFAULT_HEIGHT_M = 5;
+
+function finiteMetres(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
+}
+
+/**
+ * One basemap building feature as a sun test reads it, or null for a feature
+ * the sun test must not use. `hide_3d` marks an outline whose `building:part`
+ * pieces are drawn instead, so the parts answer for it.
+ */
+export function sunBuildingFromTile(
+  properties: Record<string, unknown> | null | undefined,
+  rings: ReadonlyArray<ReadonlyArray<LngLat>>,
+  id?: string | number,
+): SunBuilding | null {
+  const props = properties ?? {};
+  if (props.hide_3d === true) return null;
+  const roof = finiteMetres(props.render_height);
+  const heightM = roof === null || roof === OPENMAPTILES_DEFAULT_HEIGHT_M ? null : roof;
+  const baseM = finiteMetres(props.render_min_height) ?? 0;
+  return { rings, heightM, baseM, ...(id === undefined ? {} : { id }) };
+}
 
 export type SunState = "sun" | "shade" | "set" | "unknown";
 
 /** A shadow can reach this far at most. Past it the low sun is near setting anyway. */
-export const MAX_SHADOW_REACH_M = 300;
+const MAX_SHADOW_REACH_M = 300;
 /** The test point is a seated drinker's head, not the ground. */
-export const GARDEN_EYE_HEIGHT_M = 1.2;
+const GARDEN_EYE_HEIGHT_M = 1.2;
 /** A building with no recorded height is assumed this tall when asking whether it COULD shade. */
-export const UNKNOWN_HEIGHT_REACH_M = 30;
+const UNKNOWN_HEIGHT_REACH_M = 30;
 /** With no building at all this close, the tiles are taken to hold no data here. */
-export const BUILDING_COVERAGE_RADIUS_M = 120;
-export const SUN_CHASER_STEP_MINUTES = 30;
-export const SUN_CHASER_HORIZON_MINUTES = 6 * 60;
+const BUILDING_COVERAGE_RADIUS_M = 120;
 
 const METRES_PER_DEG_LAT = 110_540;
 const METRES_PER_DEG_LNG_AT_EQUATOR = 111_320;
 
 type Point = { x: number; y: number };
-type LocalBuilding = { rings: Point[][]; heightM: number | null; minDistM: number };
+type LocalBuilding = { rings: Point[][]; heightM: number | null; baseM: number; minDistM: number };
 
 /** The surroundings of one pub, projected once and reused for every instant. */
 export type SunSurroundings = {
@@ -132,22 +170,33 @@ export function prepareSunSurroundings(
 ): SunSurroundings | null {
   if (!Number.isFinite(point[0]) || !Number.isFinite(point[1])) return null;
   const cosLat = Math.cos((point[1] * Math.PI) / 180);
-  const local: LocalBuilding[] = [];
+  const local: Array<LocalBuilding & { id?: string | number }> = [];
+  const ownIds = new Set<string | number>();
   let covered = false;
   for (const building of buildings) {
     const rings = building.rings
       .map((ring) => ring.map((vertex) => toLocal(point, cosLat, vertex)))
       .filter((ring) => ring.length >= 3);
     if (rings.length === 0) continue;
-    const minDistM = polygonContainsOrigin(rings) ? 0 : nearestVertexDistance(rings);
+    const inside = polygonContainsOrigin(rings);
+    if (inside && building.id !== undefined) ownIds.add(building.id);
+    const minDistM = inside ? 0 : nearestVertexDistance(rings);
     if (minDistM <= BUILDING_COVERAGE_RADIUS_M) covered = true;
     if (minDistM > MAX_SHADOW_REACH_M) continue;
-    const heightM = typeof building.heightM === "number" && Number.isFinite(building.heightM) && building.heightM >= 0
-      ? building.heightM
-      : null;
-    local.push({ rings, heightM, minDistM });
+    local.push({
+      rings,
+      heightM: finiteMetres(building.heightM),
+      baseM: finiteMetres(building.baseM) ?? 0,
+      minDistM,
+      id: building.id,
+    });
   }
-  return covered ? { point, buildings: local } : null;
+  if (!covered) return null;
+  // Every piece of the pub's own building is the pub's own, wherever a tile edge cut it.
+  for (const building of local) {
+    if (building.id !== undefined && ownIds.has(building.id)) building.minDistM = 0;
+  }
+  return { point, buildings: local };
 }
 
 /** Sun, shade, set or unknown for one pub point at one instant. */
@@ -168,6 +217,10 @@ export function sunStateAt(surroundings: SunSurroundings, at: Date): SunState {
     if (building.minDistM > reach) continue;
     const hit = firstWallHit(building.rings, direction, reach);
     if (hit === null) continue;
+    // The sun ray's height above the ground where it meets this building.
+    const rayHeight = GARDEN_EYE_HEIGHT_M + hit * tanAlt;
+    // A raised part whose underside is above the ray lets the sun through below it.
+    if (building.baseM > rayHeight) continue;
     if (building.heightM === null) {
       unknown = true;
       continue;
@@ -226,20 +279,84 @@ export function segmentAt(timeline: SunTimeline, at: Date): SunSegment | null {
     ?? (t === timeline.to.getTime() ? timeline.segments.at(-1) ?? null : null);
 }
 
+/** Buildings bucketed by a coarse grid, so each pub only meets the ones a shadow could reach. */
+export type SunBuildingIndex = {
+  size: number;
+  near: (point: LngLat) => SunBuilding[];
+};
+
+const GRID_DEG = 0.0025;
+
+export function indexSunBuildings(buildings: readonly SunBuilding[]): SunBuildingIndex {
+  const cells = new Map<string, SunBuilding[]>();
+  const cellOf = (deg: number) => Math.floor(deg / GRID_DEG);
+  for (const building of buildings) {
+    const outer = building.rings[0];
+    if (!outer || outer.length === 0) continue;
+    let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
+    for (const [lng, lat] of outer) {
+      minLng = Math.min(minLng, lng); maxLng = Math.max(maxLng, lng);
+      minLat = Math.min(minLat, lat); maxLat = Math.max(maxLat, lat);
+    }
+    for (let cx = cellOf(minLng); cx <= cellOf(maxLng); cx += 1) {
+      for (let cy = cellOf(minLat); cy <= cellOf(maxLat); cy += 1) {
+        const key = `${cx}:${cy}`;
+        const bucket = cells.get(key);
+        if (bucket) bucket.push(building);
+        else cells.set(key, [building]);
+      }
+    }
+  }
+  return {
+    size: buildings.length,
+    near(point) {
+      const dLat = MAX_SHADOW_REACH_M / METRES_PER_DEG_LAT;
+      const dLng = MAX_SHADOW_REACH_M / (METRES_PER_DEG_LNG_AT_EQUATOR * Math.cos((point[1] * Math.PI) / 180));
+      const found = new Set<SunBuilding>();
+      for (let cx = cellOf(point[0] - dLng); cx <= cellOf(point[0] + dLng); cx += 1) {
+        for (let cy = cellOf(point[1] - dLat); cy <= cellOf(point[1] + dLat); cy += 1) {
+          for (const building of cells.get(`${cx}:${cy}`) ?? []) found.add(building);
+        }
+      }
+      return [...found];
+    },
+  };
+}
+
 export type SunEstimate =
   | { kind: "estimate"; timeline: SunTimeline }
-  | { kind: "no-estimate"; reason: "no-outdoor-space" | "no-building-data" };
+  | { kind: "no-estimate"; reason: "no-outdoor-space" | "no-building-data" | "edge-of-view" };
 
-/** The whole answer for one pub, failing closed on either missing input. */
+/** The part of the map whose building tiles are loaded, in degrees. */
+export type LoadedArea = { west: number; south: number; east: number; north: number };
+
+/**
+ * True when the whole disc a shadow could come from lies inside the loaded
+ * area. A pub at the edge of the view may have a tall block just off screen,
+ * in tiles that are not loaded, so it gets no estimate rather than a sunny one.
+ */
+export function shadowDiscLoaded(point: LngLat, area: LoadedArea): boolean {
+  const dLat = MAX_SHADOW_REACH_M / METRES_PER_DEG_LAT;
+  const dLng = MAX_SHADOW_REACH_M / (METRES_PER_DEG_LNG_AT_EQUATOR * Math.cos((point[1] * Math.PI) / 180));
+  return point[0] - dLng >= area.west && point[0] + dLng <= area.east
+    && point[1] - dLat >= area.south && point[1] + dLat <= area.north;
+}
+
+/** The whole answer for one pub, failing closed on any missing input. */
 export function estimateSun(input: {
   point: LngLat;
   hasRecordedOutdoorSpace: boolean;
   /** Null when the map has no building data loaded at all. */
   buildings: readonly SunBuilding[] | null;
   from: Date;
+  /** Where building tiles are loaded. Without it the caller vouches for full cover. */
+  loadedArea?: LoadedArea;
 }): SunEstimate {
   if (!input.hasRecordedOutdoorSpace) return { kind: "no-estimate", reason: "no-outdoor-space" };
   if (!input.buildings || input.buildings.length === 0) return { kind: "no-estimate", reason: "no-building-data" };
+  if (input.loadedArea && !shadowDiscLoaded(input.point, input.loadedArea)) {
+    return { kind: "no-estimate", reason: "edge-of-view" };
+  }
   const surroundings = prepareSunSurroundings(input.point, input.buildings);
   if (!surroundings) return { kind: "no-estimate", reason: "no-building-data" };
   return { kind: "estimate", timeline: buildSunTimeline(surroundings, input.from) };
@@ -250,25 +367,36 @@ export function estimateSun(input: {
 
 export const SUN_ESTIMATE_CAVEAT = "Estimate from building heights and sun angle, not a weather report.";
 
-/** "17:40" in London time. A change found to the minute is shown to five. */
-export function formatSunClock(at: Date): string {
-  const rounded = new Date(Math.floor(at.getTime() / 300_000) * 300_000);
+/**
+ * "17:40" in London time. A change found to the minute is shown to five, and
+ * the rounding always favours the cautious reading: the end of sun rounds down
+ * (never claims sun for longer), the start of sun rounds up (never earlier).
+ * A time the reader chose on the slider is shown exactly.
+ */
+export function formatSunClock(at: Date, round: "down" | "up" | "exact" = "down"): string {
+  const step = 300_000;
+  const ms = at.getTime();
+  const shown = round === "exact" ? ms : round === "up" ? Math.ceil(ms / step) * step : Math.floor(ms / step) * step;
   return new Intl.DateTimeFormat("en-GB", {
     hour: "2-digit",
     minute: "2-digit",
     hourCycle: "h23",
     timeZone: "Europe/London",
-  }).format(rounded);
+  }).format(new Date(shown));
 }
 
-/** The weather feed's own condition word, as a short "now" phrase, or null for one it does not know. */
+/**
+ * The weather feed's own condition word, as a short "now" phrase, or null for
+ * one it does not know. The feed's "Cloudy" also covers mainly clear and
+ * partly cloudy skies (lib/weatherProvider.ts), so it reads "some cloud".
+ */
 const SKY_NOW: Record<string, string> = {
-  Cloudy: "cloudy",
-  Fog: "foggy",
-  Drizzle: "drizzling",
-  Rain: "raining",
-  Snow: "snowing",
-  Thunderstorm: "stormy",
+  Cloudy: "some cloud",
+  Fog: "fog",
+  Drizzle: "drizzle",
+  Rain: "rain",
+  Snow: "snow",
+  Thunderstorm: "storms",
 };
 
 /**
@@ -278,36 +406,41 @@ const SKY_NOW: Record<string, string> = {
  */
 export function sunSkyNote(state: SunState, isNow: boolean, skyCondition: string | null | undefined): string | null {
   if (!isNow || state !== "sun" || !skyCondition) return null;
-  const word = SKY_NOW[skyCondition];
-  return word ? `Sunny spot, but ${word} now (Open-Meteo).` : null;
+  const phrase = SKY_NOW[skyCondition];
+  return phrase ? `Sunny spot, but ${phrase} now (Open-Meteo).` : null;
 }
 
-/** The headline for one pub at one chosen moment. */
+const NO_ESTIMATE_LINES: Record<Extract<SunEstimate, { kind: "no-estimate" }>["reason"], string> = {
+  "no-outdoor-space": "No sun estimate: no recorded garden or outdoor seating.",
+  "no-building-data": "No sun estimate: no building heights loaded here.",
+  "edge-of-view": "No sun estimate: move the map so this pub is not at its edge.",
+};
+
+/**
+ * The headline for one pub at one chosen moment. Every verdict says "likely":
+ * the pub's own building is skipped and the garden's side is not recorded.
+ */
 export function sunHeadline(estimate: SunEstimate, at: Date, isNow: boolean): string {
-  if (estimate.kind === "no-estimate") {
-    return estimate.reason === "no-outdoor-space"
-      ? "No sun estimate: no recorded garden or outdoor seating."
-      : "No sun estimate: no building heights loaded here.";
-  }
+  if (estimate.kind === "no-estimate") return NO_ESTIMATE_LINES[estimate.reason];
   const { timeline } = estimate;
   const segment = segmentAt(timeline, at);
   if (!segment) return "No sun estimate for this time.";
-  const when = isNow ? "now" : `at ${formatSunClock(at)}`;
+  const when = isNow ? "now" : `at ${formatSunClock(at, "exact")}`;
   const reachesEnd = segment.end.getTime() >= timeline.to.getTime();
   const index = timeline.segments.indexOf(segment);
   const next = timeline.segments[index + 1];
   switch (segment.state) {
     case "sun":
       return reachesEnd
-        ? `Sun on the garden until at least ${formatSunClock(timeline.to)}`
+        ? `Garden likely in sun until at least ${formatSunClock(timeline.to)}`
         : next?.state === "set"
-          ? `Sun on the garden until sunset, about ${formatSunClock(segment.end)}`
-          : `Sun on the garden until ${formatSunClock(segment.end)}`;
+          ? `Garden likely in sun until sunset, about ${formatSunClock(segment.end)}`
+          : `Garden likely in sun until ${formatSunClock(segment.end)}`;
     case "shade": {
       const sunLater = timeline.segments.slice(index + 1).find((later) => later.state === "sun");
       return sunLater
-        ? `Garden in shade ${when}. Sun from ${formatSunClock(sunLater.start)}`
-        : `Garden in shade ${when}, and no sun before ${formatSunClock(next?.state === "set" ? next.start : timeline.to)}`;
+        ? `Garden likely in shade ${when}. Sun likely from ${formatSunClock(sunLater.start, "up")}`
+        : `Garden likely in shade ${when}, and no sun likely before ${formatSunClock(next?.state === "set" ? next.start : timeline.to)}`;
     }
     case "set":
       return "After sunset. No sun on the garden.";

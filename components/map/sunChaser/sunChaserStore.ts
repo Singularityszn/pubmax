@@ -5,9 +5,10 @@
 
 import { useSyncExternalStore } from "react";
 import type { SunEstimate } from "@/lib/sunChaser";
+import { SUN_CHASER_STEP_MINUTES } from "@/lib/sunChaserWindow";
 
 /** Why the layer has no estimates to show right now. */
-export type SunChaserStatus = "idle" | "zoom-in" | "no-buildings" | "ready";
+type SunChaserStatus = "idle" | "zoom-in" | "no-buildings" | "ready";
 
 export type SunChaserState = {
   enabled: boolean;
@@ -55,4 +56,22 @@ function subscribe(listener: () => void): () => void {
 
 export function useSunChaser(): SunChaserState {
   return useSyncExternalStore(subscribe, getSunChaserState, () => INITIAL);
+}
+
+function readEnabled(): boolean {
+  return state.enabled;
+}
+
+function serverEnabled(): boolean {
+  return false;
+}
+
+/** On or off alone, so a slider step or a new estimate re-renders no reader of this. */
+export function useSunChaserEnabled(): boolean {
+  return useSyncExternalStore(subscribe, readEnabled, serverEnabled);
+}
+
+/** The instant the slider points at, or null before the first estimate. */
+export function sunChaserSelectedTime(chosen: Pick<SunChaserState, "from" | "offsetSteps">): Date | null {
+  return chosen.from ? new Date(chosen.from.getTime() + chosen.offsetSteps * SUN_CHASER_STEP_MINUTES * 60_000) : null;
 }
