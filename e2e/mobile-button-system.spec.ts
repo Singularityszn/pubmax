@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { LANDING_QUIET_DOORS, LANDING_RECEIPT_LABEL } from "@/lib/landingHero";
+import type { OverviewFoldKey } from "@/lib/venueOverviewFolds";
 
 import { LANDING_PRIMARY_NAME } from "./helpers/landingHero";
 import { openOverviewFold } from "./helpers/overviewFolds";
@@ -392,12 +393,19 @@ test("1440px: the docked venue drawer aligns its name with its body", async ({ p
 // sizes across the routes; every one now reads the control tokens in
 // app/globals.css, and this is the rendered proof: the same radius as the
 // token, the thumb floor, and one weight.
-const UNIFIED_CONTROLS = [
+// The venue sheet's Book and Menu strip lives in "The pub" fold
+// (lib/venueOverviewFolds.ts), which is shut on arrival, so that case opens
+// the fold before it measures. The sticky bar sits outside every fold.
+const UNIFIED_CONTROLS: readonly { route: string; selector: string; fold?: OverviewFoldKey }[] = [
   { route: "/tonight", selector: ".tonightShare, .tonightRetry, .tonightLocationButton" },
   { route: "/near?patch=soho", selector: ".nmnAccept" },
   { route: "/u/you", selector: ".youIdentityActions a" },
-  { route: "/map?sel=venue-nyowgc", selector: ".venueSheetStickyBar button, .venueActionStrip__btn" },
-] as const;
+  {
+    route: "/map?sel=venue-nyowgc",
+    selector: ".venueSheetStickyBar button, .venueActionStrip__btn",
+    fold: "pub",
+  },
+];
 
 for (const surface of UNIFIED_CONTROLS) {
   test(`390px: ${surface.route} text buttons share the control tokens`, async ({ page }) => {
@@ -405,6 +413,7 @@ for (const surface of UNIFIED_CONTROLS) {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await setTheme(page, "light");
     await page.goto(surface.route);
+    if (surface.fold) await openOverviewFold(page, surface.fold, 45_000);
     const controls = page.locator(surface.selector);
     // The venue sheet's controls arrive with the venue read (see the docked
     // drawer case above for the measured wait).
