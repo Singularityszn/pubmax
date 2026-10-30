@@ -215,7 +215,7 @@
     "@capacitor/core": "^8.5.3",
     "@capacitor/ios": "^8.5.3",
     "@copilotkit/aimock": "^1.45.1",
-    "@elevenlabs/client": "1.28.0",
+    "@elevenlabs/client": "1.27.0",
     "@maplibre/maplibre-gl-style-spec": "^26.4.4",
     "@next/env": "^16.4.2",
     "@playwright/test": "^1.64.1",
