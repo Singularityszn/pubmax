@@ -99,7 +99,9 @@ for (const viewport of VIEWPORTS) {
       await line.scrollIntoViewIfNeeded();
       await page.screenshot({ path: testInfo.outputPath(`sun-chaser-sheet-${viewport.name}-${scheme}.png`) });
 
-      if (phone) await page.getByRole("button", { name: "Close pub detail" }).click();
+      await line.screenshot({ path: testInfo.outputPath(`sun-chaser-sheet-line-${viewport.name}-${scheme}.png`) });
+
+      if (phone) await page.getByRole("button", { name: "Close and return to the map" }).click();
       await page.screenshot({ path: testInfo.outputPath(`sun-chaser-map-${viewport.name}-${scheme}.png`) });
 
       controls = await openFeatureControls(page, phone);
