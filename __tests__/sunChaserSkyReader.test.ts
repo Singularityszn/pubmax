@@ -59,7 +59,7 @@ describe("Sun Chaser's weather reading", () => {
   });
 
   it("cancels its timer and any late answer when it closes", () => {
-    let late: ((b: ReturnType<typeof body>) => void) | null = null;
+    const held: { late: ((b: ReturnType<typeof body>) => void) | null } = { late: null };
     let updates = 0;
     const reader = createSkyReader({
       ...timers,
@@ -69,14 +69,14 @@ describe("Sun Chaser's weather reading", () => {
       },
       load: (_url, _signal, onData) => {
         onData(body("Rain", NOW));
-        late = onData;
+        held.late = onData;
       },
     });
     reader.read(51.5, -0.1);
     const before = updates;
     reader.close();
     vi.advanceTimersByTime(SKY_READING_MAX_AGE_MS * 2);
-    late?.(body("Cloudy", NOW));
+    held.late?.(body("Cloudy", NOW));
     expect(updates).toBe(before);
     expect(vi.getTimerCount()).toBe(0);
   });
