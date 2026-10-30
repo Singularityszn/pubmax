@@ -352,6 +352,8 @@ beforeAll(async () => {
     wantedRoute,
     diaryRoute,
     venueSubmissionsRoute,
+    venueCorrectionsRoute,
+    adminVenueCorrectionsRoute,
     savedPubsRoute,
     tagsRoute,
     profileRoute,
@@ -385,6 +387,8 @@ beforeAll(async () => {
     import("@/app/api/wanted/route"),
     import("@/app/api/diary/route"),
     import("@/app/api/venue-submissions/route"),
+    import("@/app/api/venue-corrections/route"),
+    import("@/app/api/admin/venue-corrections/route"),
     import("@/app/api/saved-pubs/route"),
     import("@/app/api/social/tags/route"),
     import("@/app/api/profiles/[handle]/route"),
@@ -432,6 +436,9 @@ beforeAll(async () => {
     writeDiary: diaryRoute.POST as unknown as Handler,
     listVenueSubmissions: venueSubmissionsRoute.GET as unknown as Handler,
     writeVenueSubmission: venueSubmissionsRoute.POST as unknown as Handler,
+    writeVenueCorrection: venueCorrectionsRoute.POST as unknown as Handler,
+    listVenueCorrections: adminVenueCorrectionsRoute.GET as unknown as Handler,
+    decideVenueCorrection: adminVenueCorrectionsRoute.PATCH as unknown as Handler,
     listSavedPubs: savedPubsRoute.GET as unknown as Handler,
     writeSavedPub: savedPubsRoute.POST as unknown as Handler,
     tagInbox: tagsRoute.GET as unknown as Handler,
@@ -2152,6 +2159,75 @@ describe("saves: two lanes, two promises", () => {
         expect(write.ok).toBe(false);
         expect(write.err).toMatch(/permission denied/i);
       }
+    }
+  });
+
+  it("a \"That's wrong\" note is owned by the session, read only by staff, and no browser role reaches the table", async () => {
+    const seeded = await defined(handlers.writeVenueCorrection)(
+      request("/api/venue-corrections", {
+        bearer: BEARER_ALICE,
+        body: { venueId: PRICE_VENUE, kind: "closed", note: "Alice correction line", ownerUserId: BOB },
+      }),
+      context({}),
+    );
+    expect(seeded.status, await seeded.clone().text()).toBe(201);
+    expect(
+      Number(truth(`select count(*) from public.venue_corrections where owner_user_id = '${ALICE}'`)),
+    ).toBe(1);
+    expect(
+      Number(truth(`select count(*) from public.venue_corrections where owner_user_id = '${BOB}'`)),
+    ).toBe(0);
+
+    const anonymous = await defined(handlers.writeVenueCorrection)(
+      request("/api/venue-corrections", { body: { venueId: PRICE_VENUE, kind: "hours" } }),
+      context({}),
+    );
+    expect(anonymous.status).toBe(401);
+    expect(Number(truth("select count(*) from public.venue_corrections"))).toBe(1);
+
+    // The queue answers staff alone, and it never names the reporter.
+    for (const bearer of [undefined, BEARER_ALICE, BEARER_BOB, BEARER_CAROL, BEARER_DAVE]) {
+      const refused = await defined(handlers.listVenueCorrections)(
+        request("/api/admin/venue-corrections", bearer ? { bearer } : {}),
+        context({}),
+      );
+      expect(refused.status).toBe(403);
+      expectNoDisclosure(await readJson(refused), ["Alice correction line"]);
+    }
+    const staff = await defined(handlers.listVenueCorrections)(
+      request("/api/admin/venue-corrections", { headers: { "x-admin-token": MODERATOR_TOKEN } }),
+      context({}),
+    );
+    expect(staff.status).toBe(200);
+    const staffBody = await readJson<{ corrections?: { id: string; note: string }[] }>(staff);
+    expect(staffBody.corrections?.map((row) => row.note)).toEqual(["Alice correction line"]);
+    expect(JSON.stringify(staffBody)).not.toContain(ALICE);
+    const id = defined(staffBody.corrections?.[0]).id;
+
+    // Owning the note is not a moderator credential, and the refusal moves nothing.
+    const ownerVerdict = await defined(handlers.decideVenueCorrection)(
+      request("/api/admin/venue-corrections", { bearer: BEARER_ALICE, method: "PATCH", body: { id, status: "dismissed" } }),
+      context({}),
+    );
+    expect(ownerVerdict.status).toBe(403);
+    expect(truth(`select status from public.venue_corrections where id = '${id}'`)).toBe("open");
+    const staffVerdict = await defined(handlers.decideVenueCorrection)(
+      request("/api/admin/venue-corrections", {
+        method: "PATCH",
+        headers: { "x-admin-token": MODERATOR_TOKEN },
+        body: { id, status: "resolved" },
+      }),
+      context({}),
+    );
+    expect(staffVerdict.status).toBe(200);
+    expect(truth(`select status from public.venue_corrections where id = '${id}'`)).toBe("resolved");
+
+    expect(visibleRows("anon", null, "select count(*) from public.venue_corrections")).toBe(0);
+    for (const sub of [ALICE, BOB]) {
+      expect(visibleRows("authenticated", sub, "select count(*) from public.venue_corrections")).toBe(0);
+      const write = attemptAsRole("authenticated", sub, "delete from public.venue_corrections");
+      expect(write.ok).toBe(false);
+      expect(write.err).toMatch(/permission denied/i);
     }
   });
 

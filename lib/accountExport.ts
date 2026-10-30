@@ -38,6 +38,7 @@ import type { DrinkWallCategory } from "@/lib/venuePhotos";
 import type { PublicSocialConnection } from "@/lib/socialConnections";
 import type { VisitReportDTO } from "@/lib/visitReports";
 import type { DiaryEntryDTO } from "@/lib/diary";
+import type { VenueCorrectionOwnerFields } from "@/lib/venueCorrections";
 import type { VenueSubmissionFileKind, VenueSubmissionPublicFields } from "@/lib/venueSubmissions";
 import type { WantedDTO } from "@/lib/wanted";
 
@@ -294,6 +295,8 @@ export type AccountExport = {
   pubRankings: AccountExportLane<AccountExportPubRanking>;
   /** Pubs the account added, with their prices and what each menu file was. */
   venueSubmissions: AccountExportLane<AccountExportVenueSubmission>;
+  /** "That's wrong" notes the account sent about a pub, with where each one got to. */
+  venueCorrections: AccountExportLane<VenueCorrectionOwnerFields>;
   pubListNightDrafts: AccountExportLane<PubListNightDraft>;
   socialLinks: AccountExportLane<PublicSocialConnection>;
   /** At most one row, the same way `identity` is. */
@@ -320,6 +323,7 @@ export const ACCOUNT_EXPORT_LANES = [
   "diary",
   "pubRankings",
   "venueSubmissions",
+  "venueCorrections",
   "pubListNightDrafts",
   "socialLinks",
   "nightProfile",

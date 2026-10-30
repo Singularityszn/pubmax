@@ -46,6 +46,7 @@ Protection in a sibling method cannot certify another method.
 - `DELETE app/api/social/interactions`
 - `DELETE app/api/social/rankings`
 - `PATCH app/api/admin/import-notes`
+- `PATCH app/api/admin/venue-corrections`
 - `PATCH app/api/crawls/[slug]`
 - `PATCH app/api/profiles/[handle]/covers/[coverId]`
 - `PATCH app/api/identity/onboarding`
@@ -167,6 +168,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/social/tags`
 - `POST app/api/social/videos/uploads`
 - `POST app/api/starter-packs/[slug]/follow`
+- `POST app/api/venue-corrections`
 - `POST app/api/venue-operators/claim`
 - `POST app/api/venue-photos`
 - `POST app/api/venue-submissions`
@@ -716,6 +718,37 @@ loss or a block; owner leave remains a durable conflict until ownership moves.
   owner's menu folder (`lib/accountOwnedObjects.ts`). The verdict route is
   `isModerator`-gated on both verbs. A hard store failure answers 503, never a
   fake success.
+
+### `app/api/venue-corrections` and `app/api/admin/venue-corrections` - "That's wrong"
+
+- **Route / method:** `POST app/api/venue-corrections/route.ts` takes one
+  note about a listed pub: `{ venueId, kind, note? }`, where `kind` is
+  `closed`, `hours` or `other` and the note is one line of up to 200
+  characters. `kind: "price"` stores nothing and answers 200
+  `{ stored: false, next: "price_log" }`, because a new price goes through the
+  existing log flow with its bill. `PATCH app/api/admin/venue-corrections/route.ts`
+  is the moderator verdict, `resolved` or `dismissed`, on an open note, once
+  (a second tap is 409); its `GET` is the queue, newest first, with the pub's
+  name and no reporter.
+- **What it never writes:** a venue, a pin, opening hours or a price lane. A
+  note is for a person; a moderator fixes the fact through the offline pack
+  rebuild and then resolves the note.
+- **Validation:** `validateVenueCorrection` (`lib/venueCorrections.ts`),
+  shared with the sheet's form. The kind is a closed set; a note over 200
+  characters is refused, never trimmed. The venue resolves through
+  `resolveWritableVenueId`, so it must be in the curated index or the UK base.
+  Migration 0197's CHECKs hold the kind, the note length and the
+  open-or-stamped resolution shape.
+- **Rate limit (boundary):** durable `isLimited` per profile + hashed IP
+  (`venue-correction:${actor}:${ipHash}`) on every write, then ten notes an
+  hour per account (`venue-correction-actor:${actor}`). The moderator verdict
+  is metered at 60 a minute per hashed IP.
+- **Auth stance:** `resolveContributionIdentity` derives the owner from the
+  session (sign_in_required, onboarding_required and the adult check answer
+  first); a body owner is ignored. The 0197 table keys to `auth.users` with ON
+  DELETE CASCADE and no browser grant. Both admin verbs are `isModerator`-gated,
+  and `resolved_by` records the named moderator role or `admin`. A hard store
+  failure answers 503, never a fake success.
 
 ### `app/api/visit-reports` — structured Visit Reports (route 66)
 
