@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { expectMapLoadingFrameReleased, expectMobileMapShellReady } from "./helpers/mobileMapShell";
+import { expectMapLoadingFrameReleased, expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobileMapShell";
 
 const VIEWPORTS = [
   { width: 320, height: 568 },
@@ -87,7 +87,8 @@ for (const viewport of VIEWPORTS) {
     // mapArrivalCard.css owns that berth. The Plan rail and dock bound the
     // usable map too. A multirow dock lifts the band, not the viewport midpoint.
     const upperChrome = (await page.locator(".mobileMapChipRow").boundingBox())!;
-    const nearMe = (await page.locator(".mobileMapLocateFab").boundingBox())!;
+    const nearMeControl = await mobileMapShellControl(page, "nearMe");
+    const nearMe = (await nearMeControl.boundingBox())!;
     const gap = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--float-stack-gap")));
     expect(Number.isFinite(gap)).toBe(true);
     expect(gap).toBeGreaterThan(0);
