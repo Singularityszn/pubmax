@@ -935,6 +935,11 @@ samples beside `/privacy`, `/terms` and `/how-we-estimate`, it rendered in
 372 ms (worst 412). Like the ten above, those figures came from a laptop under
 the tracked throttle, so CI's sweep is the oracle. Take them down, never up.
 
+**And `/routes/victorian-soho`**, added on 30 October 2026 with the named route
+family (`/routes/{slug}`, SEO audit #2126). It was not measured before its row
+was written, so it takes the ceilings of `/ledger/venue-eltcmh`, a server-rendered
+page of the same size. CI's sweep is the oracle. Take it down, never up.
+
 ## The pin-ready record on /map
 
 `/map` carries one extra tracked block, `pinReady`. It is not one of the four
