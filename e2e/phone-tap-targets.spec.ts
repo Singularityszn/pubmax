@@ -254,16 +254,30 @@ for (const width of [320, 390]) {
     await page.keyboard.press("Tab");
     await expect(link).toBeFocused();
 
-    const ring = await link.evaluate((element) => {
+    // The ring and the row are read in ONE layout, after the web fonts have
+    // settled. Two separate reads let a late font swap or stylesheet move the
+    // row between them, and the 1px pin then failed by tens of pixels on a slow
+    // runner (Browser layout pins 2/3, 30 Oct 2026, on main and on #2395).
+    // A ring that really misses the row still fails once the poll times out.
+    await page.evaluate(() => document.fonts.ready);
+    const measure = () => link.evaluate((element) => {
       const style = getComputedStyle(element, "::after");
+      const rowElement = element.closest(".rowListItem")!;
       return {
-        width: Number.parseFloat(style.width),
-        height: Number.parseFloat(style.height),
-        outlineWidth: Number.parseFloat(style.outlineWidth),
-        outlineStyle: style.outlineStyle,
+        ring: {
+          width: Number.parseFloat(style.width),
+          height: Number.parseFloat(style.height),
+          outlineWidth: Number.parseFloat(style.outlineWidth),
+          outlineStyle: style.outlineStyle,
+        },
+        size: { width: rowElement.clientWidth, height: rowElement.clientHeight },
       };
     });
-    const size = await row.evaluate((element) => ({ width: element.clientWidth, height: element.clientHeight }));
+    await expect.poll(async () => {
+      const { ring: r, size: s } = await measure();
+      return Math.max(Math.abs(r.width - s.width), Math.abs(r.height - s.height));
+    }, { message: "the focus ring must cover the whole row" }).toBeLessThanOrEqual(1);
+    const { ring, size } = await measure();
     expect(ring.outlineWidth).toBeGreaterThan(0);
     expect(ring.outlineStyle).not.toBe("none");
     expect(ring.width).toBeGreaterThanOrEqual(MIN_HIT);
