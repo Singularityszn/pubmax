@@ -106,7 +106,9 @@ for (const viewport of VIEWPORTS) {
         await expect(line).toContainText("estimate from building heights and sun angle, not a weather report");
       }
       await line.scrollIntoViewIfNeeded();
-      await page.screenshot({ path: testInfo.outputPath(`sun-chaser-sheet-${viewport.name}-${scheme}.png`) });
+      // A software-drawn desktop frame takes minutes here, and the desktop map
+      // shot below already holds the open sheet, so only the phone takes this one.
+      if (phone) await page.screenshot({ path: testInfo.outputPath(`sun-chaser-sheet-${viewport.name}-${scheme}.png`) });
 
       await line.screenshot({ path: testInfo.outputPath(`sun-chaser-sheet-line-${viewport.name}-${scheme}.png`) });
 
@@ -128,7 +130,7 @@ for (const viewport of VIEWPORTS) {
         // A future time makes no cloud claim: the feed reads the sky now.
         await expect(status).not.toContainText("now (Open-Meteo)");
       }
-      await controls.locator(".sunChaserControls").screenshot({ path: testInfo.outputPath(`sun-chaser-controls-later-${viewport.name}-${scheme}.png`) });
+      if (phone) await controls.locator(".sunChaserControls").screenshot({ path: testInfo.outputPath(`sun-chaser-controls-later-${viewport.name}-${scheme}.png`) });
     });
   }
 }
