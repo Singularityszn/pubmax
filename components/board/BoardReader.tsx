@@ -107,7 +107,7 @@ export default function BoardReader({
 
   async function openPicker() {
     if (isNativeApp()) {
-      const pick = await pickNativePhoto("pint");
+      const pick = await pickNativePhoto("board");
       if (pick.outcome === "chosen") choosePhoto(pick.file);
       else if (pick.outcome === "blocked") setError(pick.message);
       return;
