@@ -83,6 +83,8 @@ import {
 } from "@/lib/messagePhotoServeRoute.server";
 import { __resetMemoryMessages } from "@/lib/messagesStore";
 import { __resetMemoryProfiles, __seedMemoryOwnedProfile } from "@/lib/profileStore";
+// Messaging asks the one adult gate, so every seeded account has answered it.
+import { memoryAdultSelfAssertionStore } from "@/lib/adultSelfAssertionStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
 
 const BASE = "http://localhost/api/messages";
@@ -229,7 +231,7 @@ beforeEach(() => {
   // A conversation is opened WITH somebody, so every handle here has to exist
   // and be owned by the account that signs in as it.
   for (const handle of ["ken", "sam", "mallory"]) {
-    __seedMemoryOwnedProfile(handle, `user-${handle}`);
+    __seedMemoryOwnedProfile(handle, `user-${handle}`); void memoryAdultSelfAssertionStore.record(`user-${handle}`);
   }
 });
 

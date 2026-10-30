@@ -31,6 +31,7 @@ import MessagePhoto from "@/components/messages/MessagePhoto";
 import MessagePollCard from "@/components/messages/MessagePollCard";
 import MessagePollComposer from "@/components/messages/MessagePollComposer";
 import MessageVenueCard from "@/components/messages/MessageVenueCard";
+import { useMessageAdultGate } from "@/components/messages/useMessageAdultGate";
 import MessageVenuePicker, {
   type PickedVenue,
 } from "@/components/messages/MessageVenuePicker";
@@ -333,6 +334,7 @@ export default function MessageThread({
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const { fromRefusal, adultGateDialog } = useMessageAdultGate();
   const [pending, setPending] = useState<PendingAttachment | null>(null);
   const [cropping, setCropping] = useState<File | null>(null);
   const [picking, setPicking] = useState<OpenPicker>(null);
@@ -769,6 +771,9 @@ export default function MessageThread({
         // conversation that is gone are different things to be told.
         const body: unknown = await res.json().catch(() => null);
         takeBack();
+        // The age gate is answered on the spot; the words are back in the
+        // field, so one more tap on Send sends them.
+        if (fromRefusal(body)) return;
         setError(
           offlineOrMessage(errorMessageFrom(
                 body,
@@ -1365,6 +1370,7 @@ export default function MessageThread({
         </div>
       </div>
       </div>
+      {adultGateDialog}
     </div>
   );
 }
