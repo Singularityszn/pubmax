@@ -316,6 +316,11 @@ describe("sitemap()", () => {
     }
   });
 
+  it("advertises neither the photo wall nor Dog of the week, because both are user photos", () => {
+    expect(urls).not.toContain(`${SITE}/wall`);
+    expect(urls).not.toContain(`${SITE}/dog-of-the-week`);
+  });
+
   it("advertises no /out page, because it duplicates /tonight's claim", () => {
     // /out lists the same baseline What's-On rows /tonight already publishes for
     // the same city, so it ships noindex (app/out/page.tsx) until L2 and L4 give

@@ -25,6 +25,7 @@ import TonightMapPointer from "@/components/discovery/TonightMapPointer";
 import MusicTonightLane from "@/components/discovery/MusicTonightLane";
 import DealsTonightLane from "@/components/discovery/DealsTonightLane";
 import GardenTonightCard from "@/components/discovery/GardenTonightCard";
+import DogOfTheWeekCard from "@/components/discovery/DogOfTheWeekCard";
 import ThenVsNowCard from "@/components/discovery/ThenVsNowCard";
 import SiteNav from "@/components/nav/SiteNav";
 import Screen from "@/components/ui/screen";
@@ -652,6 +653,8 @@ export function DiscoverBody({
       <MusicTonightLane />
 
       <GardenTonightCard />
+
+      <DogOfTheWeekCard />
 
       {/* Fail-soft (journey audit P1): after load, empty data → omit the whole
           section (no permanent "Counting…" / empty shell). Loading still shows

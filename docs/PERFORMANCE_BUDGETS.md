@@ -913,6 +913,11 @@ tool the venue sheet links from every pub. It is not sitemap-listed and is
 budgeted anyway, seeded unmeasured in family with `/bar-tab/venue-eltcmh` until
 the next CI sweep brings its ceilings down.
 
+`/dog-of-the-week` joined on 31 October 2026: Dog of the week, the photo wall's
+newest approved Dog photo. Like `/wall` it is user content and not
+sitemap-listed, and it is budgeted anyway, seeded unmeasured from the
+`/contributors` row until the next CI sweep brings its ceilings down.
+
 The rule they close is that **a route the sitemap advertises carries a budget**,
 and `__tests__/sitemap.test.ts` enforces it per family. The gap it found was
 `/spoons-value`: crawlable, sitemap-listed and unmeasured while serving 683 KB
