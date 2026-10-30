@@ -1,11 +1,13 @@
 "use client";
 
-// The Get home line's answer. It keeps the RAW /api/last-train answer and
-// words it against the live clock on every render, so "Leave in 10 min" turns
-// into "Leave-by time has passed" when the deadline does, rather than staying
-// as the sentence written when the answer arrived. Service status moves during
-// a night, so the answer itself is asked for again every few minutes while the
-// panel is open.
+// Tonight's get-home answer, shared by the Last orders panel's Get home line
+// and the location block's strip (TonightGetHomeStrip), so both read one
+// cached answer and say the same thing. It keeps the RAW /api/last-train
+// answer and words it against the live clock on every render, so "Leave in
+// 10 min" turns into "Leave-by time has passed" when the deadline does, rather
+// than staying as the sentence written when the answer arrived. Service status
+// moves during a night, so the answer itself is asked for again every few
+// minutes while a surface that shows it is open.
 //
 // AN ANSWER HAS AN AGE. Its age is read from the answer's own `generatedAt`
 // stamp (when the server composed it), or, when that stamp is missing or
@@ -26,7 +28,7 @@ import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 import type { LastTrainResult } from "@/lib/tfl";
 import { summariseGetHome, type GetHomeSummary } from "@/lib/tonightGetHome";
 
-/** How often a held train answer is asked for again while the panel is open. */
+/** How often a held train answer is asked for again while a surface shows it. */
 export const GET_HOME_REFRESH_MS = 3 * 60_000;
 
 /** Past this age a held answer is out of date: two refreshes have been missed. */
@@ -58,7 +60,7 @@ export function getHomeObservedAt(
   return source === "network" ? receivedAt : null;
 }
 
-export function useLastOrdersGetHome(
+export function useTonightGetHome(
   origin: { lat: number; lng: number } | null,
   now: Date | null,
 ): GetHome {

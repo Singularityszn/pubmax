@@ -39,7 +39,7 @@ import {
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 import type { TonightNear } from "@/lib/tonight";
 
-import { useLastOrdersGetHome, type GetHome } from "./useLastOrdersGetHome";
+import { useTonightGetHome, type GetHome } from "./useTonightGetHome";
 import { useLiveClock } from "@/lib/useLiveClock";
 import { useNightDarkTheme } from "@/lib/useNightDarkTheme";
 
@@ -187,7 +187,7 @@ export default function TonightLastOrdersPanel({
   const now = useLiveClock(TICK_MS);
   // Dark at night by default, unless the reader chose a theme (useNightDarkTheme).
   useNightDarkTheme(now !== null && isLastOrdersHour(now));
-  const getHome = useLastOrdersGetHome(origin, now);
+  const getHome = useTonightGetHome(origin, now);
   const from = near?.near ?? null;
   const fallback = getCity("london").mapView.center;
   const fromLat = from?.lat ?? fallback[1];

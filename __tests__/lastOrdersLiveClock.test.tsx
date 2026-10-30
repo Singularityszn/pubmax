@@ -45,9 +45,9 @@ import {
   GET_HOME_MAX_AGE_MS,
   GET_HOME_REFRESH_MS,
   getHomeObservedAt,
-  useLastOrdersGetHome,
+  useTonightGetHome,
   type GetHome,
-} from "@/app/tonight/useLastOrdersGetHome";
+} from "@/app/tonight/useTonightGetHome";
 import { useLastOrdersVenueIds, type LastOrdersVenueIds } from "@/components/map/pubmap/useLastOrdersVenueIds";
 
 let container: HTMLDivElement;
@@ -118,7 +118,7 @@ describe("the Get home line", () => {
   let seen: GetHome | null = null;
 
   function Probe({ now }: { now: Date }) {
-    seen = useLastOrdersGetHome(ORIGIN, now);
+    seen = useTonightGetHome(ORIGIN, now);
     return null;
   }
 
