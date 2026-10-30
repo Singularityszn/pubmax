@@ -957,7 +957,7 @@ runner, so CI's sweep is the oracle. Take them down, never up.
 
 **And `/area/piccadilly-soho`**, added on 30 October 2026 with the area root
 family (`/area/{slug}`, SEO audit #2126, the captain's floor of 15 priced
-pubs). It prints the most rows of any published area. The first build
+pubs). It has the most priced pubs of any published area (71). The first build
 rendered it per request, and it measured 227 to 288 ms of server time, over
 the 150 ms floor. So the page is prerendered and held by the CDN, like the
 area-by-drink pages. Measured again on a production build of its branch in a

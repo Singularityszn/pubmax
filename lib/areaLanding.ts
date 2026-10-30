@@ -8,6 +8,7 @@
 // price row that owns them, one pub counts once at its cheapest row, and an
 // area below the floor has no page.
 
+import { comparePriceRows } from "@/lib/drinkBrandLanding";
 import { legacyPintPriceObservedAt, namedLegacyPintPriceSource, oldestPintRead } from "@/lib/drinks";
 import { getNightAreasForCity, type NightArea, type NightAreaSlug } from "@/lib/nightAreas";
 import {
@@ -29,14 +30,13 @@ export type AreaLanding = {
   rows: [PricedLandingRow, ...PricedLandingRow[]];
 };
 
+// The beer pages' order, so a pub with two pints at one price prints the same
+// row whatever order the dataset holds them in.
 function cheapestPintRow(venue: Venue): VenuePrice | null {
-  let best: VenuePrice | null = null;
-  for (const row of venue.prices) {
-    const price = row.price_gbp;
-    if (typeof price !== "number" || !Number.isFinite(price) || price <= 0) continue;
-    if (!best || price < (best.price_gbp as number)) best = row;
-  }
-  return best;
+  const priced = venue.prices.filter(
+    (row) => typeof row.price_gbp === "number" && Number.isFinite(row.price_gbp) && row.price_gbp > 0,
+  );
+  return priced.sort(comparePriceRows)[0] ?? null;
 }
 
 /** One pub's candidate row for the area page: its own cheapest listed pint. */

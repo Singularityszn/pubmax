@@ -35,6 +35,27 @@ describe("area root pages", () => {
     expect(new Set(soho.rows.map((row) => row.venueId)).size).toBe(soho.rows.length);
   });
 
+  it("print a collection date on every area that publishes today", () => {
+    for (const landing of listAreaLandings(venues)) {
+      expect({ area: landing.areaSlug, collectedAt: landing.collectedAt }).toEqual({
+        area: landing.areaSlug,
+        collectedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}/),
+      });
+    }
+  });
+
+  it("break a price tie on the beer pages' order, whatever order the dataset holds", () => {
+    const venue = venues.find((candidate) => {
+      const prices = candidate.prices.map((row) => row.price_gbp).filter((price) => typeof price === "number");
+      const lowest = Math.min(...prices);
+      return candidate.prices.filter((row) => row.price_gbp === lowest).length > 1 && areaCandidateForVenue(candidate);
+    })!;
+    expect(venue).toBeDefined();
+    const forward = areaCandidateForVenue(venue)!;
+    const reversed = areaCandidateForVenue({ ...venue, prices: [...venue.prices].reverse() })!;
+    expect(reversed.pintName).toBe(forward.pintName);
+  });
+
   it("take each figure, publisher and read from the row that owns it", () => {
     const venue = venues.find((candidate) => candidate.id === "venue-1ufn31x")!;
     const candidate = areaCandidateForVenue(venue)!;
