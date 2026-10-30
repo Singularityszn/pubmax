@@ -10,7 +10,11 @@ import type { PubPal } from "@/lib/pubPal";
 // switch. The mission, its form and the Pal are stood in for, so the test
 // reads only what the quest decides.
 
-const state = vi.hoisted(() => ({ pal: null as PubPal | null }));
+const state = vi.hoisted(() => ({
+  pal: null as PubPal | null,
+  /** The form's success callback as the form last held it, for an answer that lands late. */
+  held: null as null | (() => void),
+}));
 
 vi.mock("@/components/pal/useOwnPal", () => ({ useOwnPal: () => state.pal }));
 vi.mock("@/components/map/useCommunityPrices", () => ({ useCommunityPrices: () => ({}) }));
@@ -25,13 +29,16 @@ vi.mock("@/components/nearme/usePriceEvidenceMission", () => ({
 vi.mock("@/components/nearme/PriceEvidenceMissionSlot", async () => {
   const { createElement: h } = await import("react");
   return {
-    default: ({ mission, onFulfilled }: { mission: { venueId: string }; onFulfilled: (m: unknown) => void }) =>
-      h("button", { type: "button", className: "answer", onClick: () => onFulfilled(mission) }, "Log it"),
+    default: ({ mission, onFulfilled }: { mission: { venueId: string }; onFulfilled: (m: unknown) => void }) => {
+      state.held = () => onFulfilled(mission);
+      return h("button", { type: "button", className: "answer", onClick: () => onFulfilled(mission) }, "Log it");
+    },
   };
 });
 vi.mock("@/components/pal/PubPalMascot", () => ({ PubPalMascot: () => null }));
 
 import NearPriceEvidenceMission from "@/components/nearme/NearPriceEvidenceMission";
+import { LOCAL_PAL_KEY } from "@/lib/localPal";
 import { PAL_QUEST_STAMPS_KEY } from "@/lib/palQuest";
 import { londonDayKey } from "@/lib/pintContributions";
 
@@ -81,9 +88,17 @@ describe("the Pal's price quest while /near stays open", () => {
     window.dispatchEvent(new StorageEvent("storage", { key: PAL_QUEST_STAMPS_KEY }));
   }
 
+  // The device's stored Pal, as the account bound to the device holds it.
+  function storePal(pal: PubPal | null) {
+    if (pal) window.localStorage.setItem(LOCAL_PAL_KEY, JSON.stringify(pal));
+    else window.localStorage.removeItem(LOCAL_PAL_KEY);
+  }
+
   beforeEach(() => {
     window.localStorage.clear();
     state.pal = ripley;
+    state.held = null;
+    storePal(ripley);
   });
   afterEach(() => {
     act(() => root?.unmount());
@@ -132,5 +147,35 @@ describe("the Pal's price quest while /near stays open", () => {
     expect(host.textContent).not.toContain("Ripley");
     expect(quest()?.dataset.state).toBe("ask");
     expect(quest()?.textContent).toContain("Moss's quest for today");
+  });
+
+  it("drops a price answer that lands after the account switched, so the next owner's book stays theirs", async () => {
+    await render();
+    expect(quest()?.dataset.state).toBe("ask");
+    // Account A's price is on its way; its success callback is held.
+    const late = state.held!;
+    // The device switches to account B: its identity keys go, B's Pal arrives.
+    window.localStorage.removeItem(PAL_QUEST_STAMPS_KEY);
+    storePal(moss);
+    state.pal = moss;
+    await rerender();
+    expect(quest()?.textContent).toContain("Moss's quest for today");
+    // A's answer lands now.
+    await act(async () => late());
+    await settle();
+    expect(window.localStorage.getItem(PAL_QUEST_STAMPS_KEY)).toBeNull();
+    expect(host.textContent).not.toContain("Ripley");
+    expect(quest()?.dataset.state).toBe("ask");
+  });
+
+  it("drops it too when the page has gone by the time it lands", async () => {
+    await render();
+    const late = state.held!;
+    window.localStorage.removeItem(PAL_QUEST_STAMPS_KEY);
+    storePal(moss);
+    act(() => root?.unmount());
+    root = null;
+    late();
+    expect(window.localStorage.getItem(PAL_QUEST_STAMPS_KEY)).toBeNull();
   });
 });

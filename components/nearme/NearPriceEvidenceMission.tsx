@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useCommunityPrices } from "@/components/map/useCommunityPrices";
 import PalQuest from "@/components/pal/PalQuest";
 import { useOwnPal } from "@/components/pal/useOwnPal";
+import { readLocalPal } from "@/lib/localPal";
 import type { NearMeCard } from "@/lib/nearMeAnswer";
 import {
   PAL_QUEST_STAMPS_KEY,
@@ -100,6 +101,12 @@ export default function NearPriceEvidenceMission({
           setAnswered({ owner, mission: answer });
           complete(answer);
           if (!questOn) return;
+          // A price answer can land after the device switched account (the
+          // write is the old owner's, the book is now the next owner's), even
+          // after this page has gone. So the owner is read again, from the
+          // stored Pal, right before the write, and a different one stamps nothing.
+          const stored = readLocalPal();
+          if (!stored || stored.hidden || `${stored.ownerId}:${stored.id}` !== owner) return;
           // Only a stamp this answer added is shown as its own: a day another
           // tab stamped meanwhile ends the quest without claiming that pub.
           const added = stampPalQuest({
