@@ -49,9 +49,15 @@ function avatarInitial(handle: string): string {
 
 export default function FindYourLot({
   compact = false,
+  query: heldQuery,
+  onQueryChange,
 }: {
   myHandle?: string | null;
   compact?: boolean;
+  /** A page that mounts this lane in more than one place holds the typed
+   * handle itself, so the swap between places keeps what was typed. */
+  query?: string;
+  onQueryChange?: (query: string) => void;
 }) {
   const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
   const { accountRevision } = useAuth();
@@ -60,7 +66,9 @@ export default function FindYourLot({
   // route to nobody and the sign-in route to nobody.
   const viewerSession = useViewerSession();
   const identityViewerHandle = useViewerHandle();
-  const [query, setQuery] = useState("");
+  const [ownQuery, setOwnQuery] = useState("");
+  const query = heldQuery ?? ownQuery;
+  const setQuery = onQueryChange ?? setOwnQuery;
   const [searchAttempt, setSearchAttempt] = useState(0);
   const searchInput = useRef<HTMLInputElement>(null);
   const [matches, setMatches] = useState<SearchMatch[]>([]);
