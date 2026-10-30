@@ -17,6 +17,7 @@
   box-shadow: var(--map-overlay-shadow-tight);
   background: var(--ink-deep);
   transform-origin: 50% 100%;
+  position: relative;
 }
 .palMapMarkerBody img {
   display: block;
@@ -110,6 +111,8 @@
   background: var(--panel-raised);
 }
 .palMapMarkerSay[hidden] { display: none; }
+/* The talking frame sits on the avatar, shut until a moment plays it. */
+.palMapMarkerBody .palMapMarkerMouth { position: absolute; inset: 0; opacity: 0; }
 /* The victory burst sits behind the Pal and shows only while it plays. */
 .palMapSparks {
   position: absolute;
@@ -150,11 +153,28 @@
   }
   /* A said line pops up from the Pal. */
   .palMapMarker.isSaying .palMapMarkerSay { animation: palMapSay .32s cubic-bezier(.2, .9, .3, 1.2) both; }
+  /* A moment is said out loud: the mouth chatters for under a second as the
+     Pal lands, cheers or celebrates. A sleeping (muted) Pal says nothing. */
+  .palMapMarker.isLanding:not([data-pal-state="sleeping"]) .palMapMarkerMouth,
+  .palMapMarker.isCheering:not([data-pal-state="sleeping"]) .palMapMarkerMouth,
+  .palMapMarker.isVictory:not([data-pal-state="sleeping"]) .palMapMarkerMouth,
+  .palMapMarker.isSaying:not([data-pal-state="sleeping"]) .palMapMarkerMouth {
+    animation: palMapChatter .9s linear .15s both;
+  }
   /* Walking a crawl: a quick step bounce in place of the idle bob. */
   .palMapMarker.isWalking .palMapMarkerBody,
   .palMapMarker.isWalking:not([data-pal-state="sleeping"]) .palMapMarkerBody {
     animation: palMapStep .34s ease-in-out infinite;
   }
+}
+@keyframes palMapChatter {
+  0%, 100% { opacity: 0; }
+  14% { opacity: 1; }
+  28% { opacity: .15; }
+  44% { opacity: .9; }
+  60% { opacity: .1; }
+  76% { opacity: .8; }
+  90% { opacity: 0; }
 }
 @keyframes palMapLand {
   0% { opacity: 0; transform: translateY(-1.6rem) scale(.6); }

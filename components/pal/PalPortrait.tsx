@@ -6,7 +6,7 @@ import {
   type PubPalSpecies,
 } from "@/lib/pubPal";
 import { palGenomeStyle, type PalGenome } from "@/lib/palGenome";
-import { PubPalMascot } from "@/components/pal/PubPalMascot";
+import { PubPalMascot, PubPalMascotMouth } from "@/components/pal/PubPalMascot";
 import { pubPalMascotSlugFor } from "@/lib/pubPalMascot";
 
 /**
@@ -87,14 +87,26 @@ export default function PalPortrait({ appearance, name, compact = false, state =
           patterns"; docs/DESIGN_SYSTEM.md, "no glow"). */}
       <span className="palPortraitCore" aria-hidden={!rendered}>
         {rendered ? (
-          <PubPalMascot
-            species={appearance.species}
-            size={mascotSize}
-            sizes={compact ? undefined : PORTRAIT_MASCOT_SIZES}
-            priority={priority}
-            circular={false}
-            className="palPortraitMascot"
-          />
+          <>
+            <PubPalMascot
+              species={appearance.species}
+              size={mascotSize}
+              sizes={compact ? undefined : PORTRAIT_MASCOT_SIZES}
+              priority={priority}
+              circular={false}
+              className="palPortraitMascot"
+            />
+            {/* The open mouth, only once the Pal has a voice to move it. */}
+            {state === "speaking" || state === "listening" ? (
+              <PubPalMascotMouth
+                species={appearance.species}
+                size={mascotSize}
+                sizes={compact ? undefined : PORTRAIT_MASCOT_SIZES}
+                circular={false}
+                className="palPortraitMascot"
+              />
+            ) : null}
+          </>
         ) : legacy ? (
           <legacy.Icon className="palLegacyIcon" strokeWidth={1.15} />
         ) : null}

@@ -3,19 +3,23 @@
 import VenueFeatureFilters from "@/components/map/VenueFeatureFilters";
 import { mapDrinkCoverage } from "@/lib/drinkCoverage";
 
-import { CalendarClock, ChevronRight, List, MapPinned, Navigation2, ShieldCheck, X } from "lucide-react";
+import { CalendarClock, ChevronRight, Compass, List, MapPinned, Navigation2, ShieldCheck, X } from "lucide-react";
 import { formatGbp } from "@/lib/formatGbp";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Component, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
+import type { SunChaserMap } from "@/components/map/sunChaser/SunChaserLayer";
+import { useSunChaserEnabled } from "@/components/map/sunChaser/sunChaserStore";
 
 const PubPalMascot = dynamic(
   () => import("@/components/pal/PubPalMascot").then((m) => m.PubPalMascot),
   { ssr: false },
 );
 const ThemeToggle = dynamic(() => import("@/components/ThemeToggle"), { ssr: false });
+// Sun Chaser's maths and map layer load only once its chip is on.
+const SunChaserLayer = dynamic(() => import("@/components/map/sunChaser/SunChaserLayer"), { ssr: false });
 import PriceBadge from "@/components/PriceBadge";
 import VenuePeekPintPrice from "@/components/map/VenuePeekPintPrice";
 import "@/components/map/venueSheet.css";
@@ -59,6 +63,7 @@ import {
   venueSourcedPrice,
 } from "@/lib/venuePriceLane";
 import { dropLaneInput, splitLaneInput } from "@/lib/pintTrust";
+import { PINT_COMPASS_DOOR_NAME, PINT_COMPASS_HREF, PINT_COMPASS_LABEL } from "@/lib/pintCompassDoor";
 import {
   isMapSearchField,
   typedSearchCameraMove,
@@ -1519,6 +1524,8 @@ export default function PubMap({
   // for the active city's slim data, a paintable pubs source, and its guarded
   // visible frame. Canvas errors lift this state so fallback UI is not hidden.
   const [mapCanvasReady, setMapCanvasReady] = useState(false);
+  const [liveMap, setLiveMap] = useState<SunChaserMap | null>(null);
+  const sunChaserOn = useSunChaserEnabled();
   // Pin-reveal is the loading shell's exit: it fires when painted pubs are
   // tappable, not merely when the basemap or slim rows exist.
   const { pinsRevealed, resetPinReveal } = useMapPinsRevealed();
@@ -6250,6 +6257,19 @@ export default function PubMap({
                 Ask your Pub Pal
               </Link>
             </Button>
+            {/* The phone's door to the Pint Compass. Near me rests on the map
+                edge, which the three-layer rule keeps to one control, so its
+                sibling lives here among the map's other destinations. */}
+            <Button
+              asChild
+              variant="secondary"
+              className="w-full uiButton--start"
+            >
+              <Link prefetch={false} href={PINT_COMPASS_HREF} aria-label={PINT_COMPASS_DOOR_NAME}>
+                <Compass size={16} aria-hidden="true" />
+                {PINT_COMPASS_LABEL}
+              </Link>
+            </Button>
           </div>
           {routeMappedActive ? <Button variant="secondary" onClick={hideMappedRoute}>Hide active route</Button> : null}
           <div className="mobileLayersTheme">
@@ -6942,7 +6962,9 @@ export default function PubMap({
         onReaderTouchedMap={dismissMapFirstVisitArrivalOnMapUse}
         onUserCameraMove={dismissAmbientBanners}
         onBoundsChange={handleMapBoundsChange}
+        onMapInstance={setLiveMap}
       />
+      {sunChaserOn ? <SunChaserLayer map={liveMap} venues={filteredPubVenues} /> : null}
       </MapCanvasBoundary>
     );
   }

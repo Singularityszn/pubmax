@@ -29,6 +29,7 @@ const API_DIR = path.join(ROOT, "app", "api");
 
 const PAID_PROVIDER_DOMAINS = [
   "openrouter.ai",
+  "anthropic.com",
   "openai.com",
   "elevenlabs.io",
   "typesafe.ai",
@@ -43,6 +44,7 @@ const PAID_PROVIDER_DOMAINS = [
 
 const PAID_PROVIDER_KEYS = [
   "OPENROUTER_API_KEY",
+  "ANTHROPIC_API_KEY",
   "OPENAI_API_KEY",
   "ELEVENLABS_API_KEY",
   "TYPESAFE_API_KEY",
@@ -367,6 +369,7 @@ const PAID_CLIENTS: Record<string, string> = {
   "@/lib/heritage": "OpenRouter (heritage)",
   "@/lib/pubListImport.server": "OpenRouter (pub list import)",
   "@/lib/palElevenLabsChat.server": "ElevenLabs (chat)",
+  "@/lib/palClaudeChat.server": "Anthropic (chat)",
   "@/app/api/pub-pal/voice-token/route": "ElevenLabs (voice)",
   "@/lib/profileAvatarModeration": "OpenAI (image moderation)",
   "@/lib/socialPostModeration": "OpenAI (post moderation)",

@@ -1,7 +1,7 @@
 import * as maplibregl from "maplibre-gl";
 
 import { palGenomeFor, palGenomeStyle } from "@/lib/palGenome";
-import { pubPalMascotSlugFor, pubPalMascotSrc } from "@/lib/pubPalMascot";
+import { pubPalMascotSlugFor, pubPalMascotSrc, pubPalMascotTalkSrc } from "@/lib/pubPalMascot";
 import type { PubPal } from "@/lib/pubPal";
 import { readLocalPal } from "@/lib/localPal";
 import { palMomentIsFinish, subscribePalMoments } from "@/lib/palMoments";
@@ -152,7 +152,13 @@ export function palMarkerElement(pal: PalMarkerLook): HTMLElement | null {
   image.height = MARKER_PX;
   image.decoding = "async";
   image.draggable = false;
-  body.append(image);
+  // The talking frame: the same avatar with only the mouth open, laid exactly
+  // over it. The map has no voice to follow, so palMarker.css plays it as a
+  // short chatter when the Pal lands, cheers or celebrates.
+  const mouth = image.cloneNode() as HTMLImageElement;
+  mouth.className = "palMapMarkerMouth";
+  mouth.src = pubPalMascotTalkSrc(slug, "avatar", 64);
+  body.append(image, mouth);
   // The victory burst: eight sparks that fly out once (palMarker.css).
   const sparks = document.createElement("span");
   sparks.className = "palMapSparks";

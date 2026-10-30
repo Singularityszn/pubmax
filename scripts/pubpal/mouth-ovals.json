@@ -1,0 +1,47 @@
+{
+  "note": "Mouth ovals (centre x, centre y, radius x, radius y) in the 512 square, used by scripts/pubpal/mouth-composite.mjs to lay the edited mouth over each master. The corgi's talking frame is its mouth CLOSED, because its master already smiles open-mouthed.",
+  "ovals": {
+    "badger": {
+      "cx": 270,
+      "cy": 256,
+      "rx": 24,
+      "ry": 16
+    },
+    "cat": {
+      "cx": 226,
+      "cy": 212,
+      "rx": 28,
+      "ry": 15
+    },
+    "corgi": {
+      "cx": 268,
+      "cy": 262,
+      "rx": 40,
+      "ry": 26
+    },
+    "fox": {
+      "cx": 241,
+      "cy": 251,
+      "rx": 26,
+      "ry": 21
+    },
+    "greyhound": {
+      "cx": 192,
+      "cy": 195,
+      "rx": 44,
+      "ry": 26
+    },
+    "pigeon": {
+      "cx": 229,
+      "cy": 173,
+      "rx": 32,
+      "ry": 22
+    },
+    "robin": {
+      "cx": 277,
+      "cy": 190,
+      "rx": 30,
+      "ry": 22
+    }
+  }
+}

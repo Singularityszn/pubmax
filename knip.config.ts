@@ -211,8 +211,10 @@ const config: KnipConfig = {
   // pg_restore, which the off-platform backup shells out to
   // (scripts/backup-offplatform.mjs). The pub-website amenity harvest mints its
   // Vertex token with gcloud, and the Places verify jobs read an access token
-  // from it (scripts/lib/googlePlacesQuota.mjs). None of them is an npm binary.
-  ignoreBinaries: ["ipcs", "ipcrm", "ps", "gcloud", "pg_dump", "pg_restore"],
+  // from it (scripts/lib/googlePlacesQuota.mjs). The Pal stage renderer reads a
+  // voice line's loudness and lays it under the video with ffmpeg
+  // (scripts/pubpal/render-pal-stage.mjs). None of them is an npm binary.
+  ignoreBinaries: ["ipcs", "ipcrm", "ps", "gcloud", "pg_dump", "pg_restore", "ffmpeg"],
 };
 
 // This optional local MCP CLI has its own pinned package manifest and named

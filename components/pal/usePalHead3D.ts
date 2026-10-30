@@ -43,6 +43,16 @@ function voiceModeFor(state: PalAnimationState): PalVoiceSignalMode {
   return "idle";
 }
 
+/**
+ * How open the mouth is for a spoken level (0 to 1). A whisper of output under
+ * the floor keeps it shut, and a normal word opens it most of the way. Pure,
+ * so it is tested.
+ */
+export function palMouthOpenness(spoken: number): number {
+  if (!Number.isFinite(spoken) || spoken <= 0) return 0;
+  return Math.min(1, Math.max(0, (spoken - 0.06) * 2.4));
+}
+
 /** The pose the head is heading towards this frame. Pure, so it is tested. */
 export function palHeadTarget(input: {
   t: number;
@@ -125,6 +135,7 @@ export function usePalHead3D(
     if (!frame || prefersReducedMotion()) return;
 
     const pose: HeadPose = { ...REST };
+    let mouth = 0;
     let pointerX = 0;
     let pointerY = 0;
     let pointerAt = 0;
@@ -192,6 +203,11 @@ export function usePalHead3D(
       // from where the genome says the light catches this Pal.
       style.setProperty("--pal-sheen-dx", `${(-pose.yaw * 2).toFixed(1)}%`);
       style.setProperty("--pal-sheen-dy", `${(pose.pitch * 2).toFixed(1)}%`);
+      // The mouth opens on the Pal's own voice: quick to open so it lands on
+      // the syllable, a little slower to close so it never flickers.
+      const open = palMouthOpenness(spoken);
+      mouth += (open - mouth) * (open > mouth ? 0.6 : 0.35);
+      style.setProperty("--pal-mouth", mouth.toFixed(3));
       raf = window.requestAnimationFrame(tick);
     };
 
@@ -228,7 +244,7 @@ export function usePalHead3D(
       window.removeEventListener("deviceorientation", onTilt);
       document.removeEventListener("visibilitychange", onVisibility);
       frame.removeAttribute("data-head-3d");
-      for (const name of ["yaw", "pitch", "roll", "lean", "lift", "scale", "sheen-dx", "sheen-dy"]) {
+      for (const name of ["yaw", "pitch", "roll", "lean", "lift", "scale", "sheen-dx", "sheen-dy", "mouth"]) {
         frame.style.removeProperty(`--pal-${name}`);
       }
     };

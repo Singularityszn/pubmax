@@ -21,6 +21,7 @@ import {
 import { loadDrinkBrandLandings } from "@/lib/drinkBrandLanding.server";
 import { loadDrinkBrandAreaLandings } from "@/lib/drinkBrandAreaLanding.server";
 import { PERFORMANCE_BUDGETS } from "@/lib/performanceBudgets";
+import { NAMED_ROUTES } from "@/lib/namedRoutes";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 import type { MetadataRoute } from "next";
 
@@ -33,7 +34,8 @@ import type { MetadataRoute } from "next";
 // public account-deletion page Play Console holds in its Data safety form and
 // expects to be able to open, /spoons-value, the national Wetherspoon units-per-tenner ranking, and
 // /price-pulse, the weekly Price Pulse and its "Where your £6 goes" explainer.
-// The public /feedback, /updates and /pal pages also belong in this list.
+// The public /feedback, /updates and /pal pages also belong in this list, and
+// so does /today since its ISR stale window is one hour (SEO audit #2126).
 //
 // /pint-index is NOT here. Captain decision D10 holds its row until a month
 // carries the admission floor of priced pubs in at least one borough, and the
@@ -41,7 +43,7 @@ import type { MetadataRoute } from "next";
 // row returning is a conscious test edit, the same as a change to the list
 // above; the gate itself is proved in both directions by the fixture-driven
 // describe at the foot of this file. The ROUTE is unaffected either way.
-const STATIC_HUB_COUNT = 20;
+const STATIC_HUB_COUNT = 21;
 
 // Wave S1.2 — sitemap sanity. Runs the real generator against the bundled
 // dataset (process.cwd() is the repo root in tests, so public/data/*.json is
@@ -81,6 +83,7 @@ type ExpectedCounts = {
   editions: number;
   drinkBrands: number;
   drinkBrandAreas: number;
+  namedRoutes: number;
   total: number;
 };
 
@@ -112,6 +115,7 @@ async function expectedCounts(): Promise<ExpectedCounts> {
     editions,
     drinkBrands,
     drinkBrandAreas,
+    namedRoutes: NAMED_ROUTES.length,
   };
   return {
     ...counts,
@@ -124,7 +128,8 @@ async function expectedCounts(): Promise<ExpectedCounts> {
       counts.venues +
       counts.editions +
       counts.drinkBrands +
-      counts.drinkBrandAreas,
+      counts.drinkBrandAreas +
+      counts.namedRoutes,
   };
 }
 
@@ -192,7 +197,7 @@ describe("sitemap()", () => {
 
   it("dates the updates page from its latest released note", () => {
     const update = entries.find((entry) => entry.url === `${SITE}/updates`);
-    expect(new Date(update!.lastModified!).toISOString()).toBe("2026-10-22T00:00:00.000Z");
+    expect(new Date(update!.lastModified!).toISOString()).toBe("2026-10-26T00:00:00.000Z");
   });
 
   it("uses an appended newer release to date the updates page", async () => {
@@ -202,14 +207,14 @@ describe("sitemap()", () => {
       return {
         PUBLIC_UPDATES: [
           ...actual.PUBLIC_UPDATES,
-          { id: "appended-release", date: "2026-10-24", title: "A newer release", changes: ["A verified change."] },
+          { id: "appended-release", date: "2026-10-27", title: "A newer release", changes: ["A verified change."] },
         ],
       };
     });
     try {
       const { default: appendedSitemap } = await import("@/app/sitemap");
       const update = (await appendedSitemap()).find((entry) => entry.url === `${SITE}/updates`);
-      expect(new Date(update!.lastModified!).toISOString()).toBe("2026-10-24T00:00:00.000Z");
+      expect(new Date(update!.lastModified!).toISOString()).toBe("2026-10-27T00:00:00.000Z");
     } finally {
       vi.doUnmock("@/lib/publicUpdates");
       vi.resetModules();
@@ -246,6 +251,7 @@ describe("sitemap()", () => {
     expect(familyCount("/ledger/")).toBe(expected.venues);
     expect(familyCount("/drink/")).toBe(expected.drinkBrands);
     expect(familyCount("/area/")).toBe(expected.drinkBrandAreas);
+    expect(familyCount("/routes/")).toBe(expected.namedRoutes);
     expect(expected.drinkBrands).toBeGreaterThan(0);
     expect(expected.drinkBrandAreas).toBeGreaterThan(0);
     // Sanity floors so a "0 expected" (dataset wipe) can't make the test pass.

@@ -8,6 +8,7 @@ import { loadPintPriceLandingVenuesOrThrow } from "@/lib/pintPriceLandingDataset
 import { pintIndexMeetsAdmissionFloor } from "@/lib/pintIndexArchive";
 import { loadPintIndexArchive, loadPublicPintIndexSnapshotOrThrow } from "@/lib/pintIndexSnapshot.server";
 import { loadDrinkBrandLandings } from "@/lib/drinkBrandLanding.server";
+import { NAMED_ROUTES, namedRoutePath } from "@/lib/namedRoutes";
 import { readSpoonsValue } from "@/lib/spoonsValue.server";
 import { pricePulseLastModified, publishedEditions } from "@/lib/pricePulse";
 import { PRICE_PULSE_EDITION_FILES } from "@/lib/pricePulseEditions";
@@ -183,6 +184,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
     { path: "/pubs", priority: 0.7, changeFrequency: "weekly", lastModified: pricesModified },
     { path: "/tonight", priority: 0.6, changeFrequency: "daily", lastModified: now },
+    // Today joins once its stale window was bounded (SEO audit #2126, finding
+    // 3): fresh for 5 minutes, then up to 60 more of stale-while-revalidate,
+    // where Next's default had allowed a year.
+    { path: "/today", priority: 0.6, changeFrequency: "daily", lastModified: now },
     { path: "/pal", priority: 0.5, changeFrequency: "monthly", lastModified: now },
     {
       path: "/how-we-estimate",
@@ -293,6 +298,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: `${SITE_URL}/pint-index/${edition.archive.month}`,
       lastModified: new Date(edition.archive.publishedAt),
       changeFrequency: "yearly",
+      priority: 0.6,
+    });
+  }
+
+  // Named route pages: four curated crawls with a page of their own.
+  for (const route of NAMED_ROUTES) {
+    entries.push({
+      url: `${SITE_URL}${namedRoutePath(route.slug)}`,
+      lastModified: pricesModified,
+      changeFrequency: "weekly",
       priority: 0.6,
     });
   }

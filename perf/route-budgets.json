@@ -153,6 +153,15 @@
       "lcpMs": 400
     },
     {
+      "path": "/compass",
+      "readySelector": "main.pcBody",
+      "why": "The Pint Compass, a client shell that asks for nothing until a tap: the pub list, the location and the heading all wait for Start, so these figures are the shell. Seeded 30 Oct 2026 from 11 samples on a local production build under this method, with /near measured beside it: 17 to 43 ms server render, 915 KB decoded, 39 requests on every sample, LCP 320 to 652 ms (median 348). Margins are the file's own: bytes and requests p75 plus 15 percent, server render at the 150 ms floor, LCP the worst sample plus 25 percent, because no ceiling here may sit below a figure we have measured. /near read 340 to 616 ms LCP on the same box against its 400 ms ceiling, so this box runs slow and CI should take this LCP down at the next sweep.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 1052,
+      "requests": 45,
+      "lcpMs": 815
+    },
+    {
       "path": "/login",
       "readySelector": "main.loginPage",
       "why": "The door. Every account this product ever gets comes through it, and it is the one surface where a slow paint costs a person rather than a page view.",
@@ -471,6 +480,15 @@
       "jsDecodedKB": 1050,
       "requests": 48,
       "lcpMs": 700
+    },
+    {
+      "path": "/routes/victorian-soho",
+      "readySelector": "main.routePage",
+      "why": "The named route family (/routes/{slug}, SEO audit #2126): four curated crawls of four to six stops each. Victorian Soho is the instance because it is the featured crawl. Unlike the ledger it renders PER REQUEST with its nonce and reads the grouped dataset on the server. Measured 30 October 2026 in a Linux container on a production build of its branch, with the e2e/helpers/perfMeasurement.ts method (one warm-up, three samples): 28/29/28 ms server render, 775 KB decoded JS and 32 requests on every sample, LCP 220/276/268 ms. Ceilings use this file's margins: bytes and requests p75 plus 15%, server render the 150 ms floor, LCP the worst sample plus 25%. That box is not CI's runner, so CI's sweep is the oracle and these come DOWN at the next one.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 892,
+      "requests": 37,
+      "lcpMs": 345
     },
     {
       "path": "/bar-tab/venue-eltcmh",

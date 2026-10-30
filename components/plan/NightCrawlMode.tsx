@@ -18,6 +18,7 @@
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
+import { useCrawlOfflinePack } from "@/components/plan/useCrawlOfflinePack";
 import type { CrewMemberDTO, CrewPresenceStatus } from "@/lib/crew";
 import type { PlanState } from "@/lib/plan";
 import { isPlanPreviewProjection, type PlanPrivacyPreviewDTO } from "@/lib/planPrivacy";
@@ -315,6 +316,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
   }, [activeNow, planId, capabilitySnapshot, initialState]);
 
   const stops = plan.stops;
+  useCrawlOfflinePack(stops.map((stop) => stop.venueId));
   const stack = useMemo(
     () => nightCrawlStack(stops, cursor, plan.actions, optimistic),
     [stops, cursor, plan.actions, optimistic],

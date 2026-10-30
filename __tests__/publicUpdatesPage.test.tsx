@@ -12,10 +12,13 @@ describe("the public updates page", () => {
     document.body.innerHTML = renderToStaticMarkup(createElement(UpdatesPage));
 
     expect(document.querySelector("main h1")?.textContent).toBe("What's changed");
-    expect(document.querySelector("time")?.dateTime).toBe("2026-10-22");
-    expect(document.querySelector("time")?.textContent).toBe("22 October 2026");
-    expect(document.querySelector("article h2")?.textContent).toBe("Updated London menu details");
-    expect(document.querySelectorAll("article li")).toHaveLength(4);
+    expect(document.querySelector("time")?.dateTime).toBe("2026-10-26");
+    expect(document.querySelector("time")?.textContent).toBe("26 October 2026");
+    expect(document.querySelector("article h2")?.textContent).toBe("Better social feeds and messages");
+    // Newest first, through the releases of 25 and 26 Oct (live walk F24).
+    expect(Array.from(document.querySelectorAll("time"), (time) => time.dateTime))
+      .toEqual(["2026-10-26", "2026-10-25", "2026-10-22", "2026-10-19"]);
+    expect(document.querySelectorAll("article li")).toHaveLength(14);
     expect(document.querySelector<HTMLAnchorElement>('main a[href="/map"]')?.textContent).toBe("Open the map");
     expect(document.querySelector("form, input")).toBeNull();
   });
@@ -23,7 +26,7 @@ describe("the public updates page", () => {
   it("gives shared links their own canonical address and plain description", () => {
     expect(metadata.alternates?.canonical).toBe("/updates");
     expect(metadata.title).toBe("Updates");
-    expect(metadata.description).toBe("The latest changes to PUBMAXX, with the day each one went live.");
+    expect(metadata.description).toBe("The latest changes now live on PUBMAXX, newest first.");
   });
 
   it("shows an appended newer release before older notes", async () => {
@@ -33,7 +36,7 @@ describe("the public updates page", () => {
       return {
         PUBLIC_UPDATES: [
           ...actual.PUBLIC_UPDATES,
-          { id: "appended-release", date: "2026-10-24", title: "A newer release", changes: ["A verified change."] },
+          { id: "appended-release", date: "2026-10-27", title: "A newer release", changes: ["A verified change."] },
         ],
       };
     });
@@ -42,7 +45,7 @@ describe("the public updates page", () => {
       document.body.innerHTML = renderToStaticMarkup(createElement(AppendedUpdatesPage));
 
       expect(Array.from(document.querySelectorAll("time"), (time) => time.dateTime))
-        .toEqual(["2026-10-24", "2026-10-22", "2026-10-19"]);
+        .toEqual(["2026-10-27", "2026-10-26", "2026-10-25", "2026-10-22", "2026-10-19"]);
       expect(document.querySelector("article h2")?.textContent).toBe("A newer release");
     } finally {
       vi.doUnmock("@/lib/publicUpdates");

@@ -125,6 +125,11 @@ describe("the Pal on the map", () => {
     const image = element.querySelector("img")!;
     expect(image.getAttribute("src")).toMatch(/avatar.*64.*\.webp$/);
     expect(image.alt).toBe("");
+    // The talking frame lies on the same avatar, decorative and shut.
+    const mouth = element.querySelector<HTMLImageElement>("img.palMapMarkerMouth")!;
+    expect(mouth.getAttribute("src")).toBe("/pal/circuit-robin-talk-avatar-64.webp");
+    expect(mouth.alt).toBe("");
+    expect(mouth.parentElement).toBe(image.parentElement);
     const body = element.querySelector<HTMLElement>(".palMapMarkerBody")!;
     expect(body.style.getPropertyValue("--genome-zoom")).not.toBe("");
   });

@@ -50,3 +50,4 @@ Full rules: [`docs/rules/app-proxy-csp-caching-and-file-tracing.md`](../docs/rul
 - [A STATIC ASSET NEVER RUNS THE PROXY, AND A FAILING PACK IS NOT A FAILING BASEMAP.](../docs/rules/app-proxy-csp-caching-and-file-tracing.md#a-static-asset-never-runs-the-proxy-and-a-failing-pack-is-not-a-failing-basemap)
 - [The host canonicalisation is for READERS, and `/api` is a caller.](../docs/rules/app-proxy-csp-caching-and-file-tracing.md#the-host-canonicalisation-is-for-readers-and-api-is-a-caller)
 - [A ROUTE THAT SHIPS A DOCUMENT NOBODY KEEPS, AND THE HEADER THAT SAYS SO.](../docs/rules/app-proxy-csp-caching-and-file-tracing.md#a-route-that-ships-a-document-nobody-keeps-and-the-header-that-says-so)
+- [A CRAWL STOP STILL READS WITH NO SIGNAL, AND THE SAVED PAGE IS THE ONE A STRANGER GETS.](../docs/rules/app-proxy-csp-caching-and-file-tracing.md#a-crawl-stop-still-reads-with-no-signal-and-the-saved-page-is-the-one-a-stranger-gets)

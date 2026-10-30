@@ -350,6 +350,16 @@ export function venuePhotoCursor(photo: Pick<VenuePhoto, "createdAt" | "id">): s
 const VENUE_PHOTO_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
+ * The cursor's timestamp lands in the same `.or()` filter, so it must be a
+ * plain ISO timestamp. `Date.parse` alone is not enough: it skips bracketed
+ * text and accepts commas, so `Jan 1 2026 (a,b)` passed and reshaped the
+ * filter. The text is kept as written, never re-serialised, because a database
+ * row carries microseconds that `toISOString()` would drop and skip a photo.
+ */
+const VENUE_PHOTO_CURSOR_AT =
+  /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}(?::?\d{2})?)?$/;
+
+/**
  * The cursor's id is written into a PostgREST `.or()` filter against a uuid
  * column (the venue wall and the drink wall both), so anything that is not a
  * uuid is refused here: unchecked, it raised a cast error the route answered
@@ -362,7 +372,8 @@ export function parseVenuePhotoCursor(
   const at = value.indexOf("|");
   const createdAt = value.slice(0, at);
   const id = value.slice(at + 1);
-  if (!createdAt || !id || !Number.isFinite(Date.parse(createdAt))) return null;
+  if (!createdAt || !id || !VENUE_PHOTO_CURSOR_AT.test(createdAt)) return null;
+  if (!Number.isFinite(Date.parse(createdAt))) return null;
   if (!VENUE_PHOTO_ID.test(id)) return null;
   return { createdAt, id };
 }

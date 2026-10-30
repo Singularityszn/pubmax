@@ -935,6 +935,26 @@ samples beside `/privacy`, `/terms` and `/how-we-estimate`, it rendered in
 372 ms (worst 412). Like the ten above, those figures came from a laptop under
 the tracked throttle, so CI's sweep is the oracle. Take them down, never up.
 
+**And `/compass`**, added on 30 October 2026 with the Pint Compass page. It is a
+noindex client shell like `/near`, and nothing on it loads until the reader
+taps Start, so its figures are the shell's. It was measured before its row was
+written: on a production build of its branch, eleven samples beside `/near`,
+it rendered in 17 to 43 ms, decoded 915 KB of JS over 39 requests on every
+sample, and painted its LCP at a median of 348 ms (worst 652). The ceilings use
+this file's own margins, so LCP is the worst sample plus 25 percent: 815 ms.
+`/near` read 340 to 616 ms on the same box against its 400 ms ceiling, so that
+box runs slow. CI's sweep is the oracle. Take them down, never up.
+
+**And `/routes/victorian-soho`**, added on 30 October 2026 with the named route
+family (`/routes/{slug}`, SEO audit #2126). It renders per request and reads the
+grouped dataset, unlike the CDN-held ledger. It was measured before its ceilings
+were set: on a production build of its branch in a Linux container, three
+samples after one warm-up, it rendered in 28 to 29 ms, decoded 775 KB of JS over
+32 requests on every sample, and painted its LCP at 220 to 276 ms. The ceilings
+use this file's own margins: 892 KB, 37 requests, the 150 ms render floor and
+an LCP of 345 ms (the worst sample plus 25 percent). That box is not CI's
+runner, so CI's sweep is the oracle. Take them down, never up.
+
 ## The pin-ready record on /map
 
 `/map` carries one extra tracked block, `pinReady`. It is not one of the four
