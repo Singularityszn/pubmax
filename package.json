@@ -80,6 +80,7 @@
     "pubpal:design-voices": "node scripts/pubpal/design-pal-voices.mjs",
     "pubpal:prove-text-tool": "node scripts/pubpal/prove-pal-text-tool.mjs",
     "gen:brand-assets": "node scripts/gen-brand-assets.mjs",
+    "pubpal:mouth-composite": "node scripts/pubpal/mouth-composite.mjs",
     "generate:pub-copy": "node --conditions=react-server --import tsx scripts/generate_pub_record_copy.mjs",
     "gen:store-screenshots": "node scripts/gen-store-screenshots.mjs",
     "ios:build": "node scripts/ios-simulator.mjs",
