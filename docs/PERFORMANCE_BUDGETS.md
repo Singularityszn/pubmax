@@ -955,6 +955,19 @@ use this file's own margins: 892 KB, 37 requests, the 150 ms render floor and
 an LCP of 345 ms (the worst sample plus 25 percent). That box is not CI's
 runner, so CI's sweep is the oracle. Take them down, never up.
 
+**And `/area/piccadilly-soho`**, added on 30 October 2026 with the area root
+family (`/area/{slug}`, SEO audit #2126, the captain's floor of 15 priced
+pubs). It has the most priced pubs of any published area (71). The first build
+rendered it per request, and it measured 227 to 288 ms of server time, over
+the 150 ms floor. So the page is prerendered and held by the CDN, like the
+area-by-drink pages. Measured again on a production build of its branch in a
+Linux container, three samples after one warm-up: it rendered in 82 to 84 ms,
+decoded 776 KB of JS over 32 requests on every sample, and painted its LCP at
+300 to 384 ms. The ceilings use this file's own margins: 892 KB, 37 requests,
+the 150 ms render floor and an LCP of 480 ms (the worst sample plus 25
+percent). That box is not CI's runner, so CI's sweep is the oracle. Take them
+down, never up.
+
 ## The pin-ready record on /map
 
 `/map` carries one extra tracked block, `pinReady`. It is not one of the four

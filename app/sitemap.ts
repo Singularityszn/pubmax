@@ -9,6 +9,7 @@ import { pintIndexMeetsAdmissionFloor } from "@/lib/pintIndexArchive";
 import { loadPintIndexArchive, loadPublicPintIndexSnapshotOrThrow } from "@/lib/pintIndexSnapshot.server";
 import { loadDrinkBrandLandings } from "@/lib/drinkBrandLanding.server";
 import { NAMED_ROUTES, namedRoutePath } from "@/lib/namedRoutes";
+import { areaLandingRoute, listAreaLandings } from "@/lib/areaLanding";
 import { readSpoonsValue } from "@/lib/spoonsValue.server";
 import { pricePulseLastModified, publishedEditions } from "@/lib/pricePulse";
 import { PRICE_PULSE_EDITION_FILES } from "@/lib/pricePulseEditions";
@@ -279,9 +280,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     });
   }
 
-  // Governed brand-by-area pages. Same rule, same loader. The parent
-  // /area/{slug} family is HELD (it duplicates /borough/{slug}), so no area
-  // page is published or advertised here.
+  // Area root pages: every London Night Area with the area floor of priced
+  // pubs (lib/areaLanding.ts, captain 30 Oct 2026). Same dataset read as the
+  // rows above, so the route and this list cannot disagree.
+  for (const landing of listAreaLandings(venues)) {
+    entries.push({
+      url: `${SITE_URL}${areaLandingRoute(landing.areaSlug)}`,
+      lastModified: pricesModified,
+      changeFrequency: "weekly",
+      priority: 0.7,
+    });
+  }
+
+  // Governed brand-by-area pages. Same rule, same loader.
   for (const landing of drinkBrandAreaLandings) {
     entries.push({
       url: `${SITE_URL}${drinkBrandAreaLandingRoute(landing)}`,

@@ -113,6 +113,11 @@ export const CDN_CACHED_DOCUMENT_PATHS: ReadonlySet<string> = new Set([
 // pages (SEO audit #2126). Each renders the bundled price dataset and nothing
 // a drinker wrote, and it throws rather than cache an unreadable dataset.
 //
+// `/area/[slug]` joined on 2026-10-30 with the area pages (captain's call on
+// the floor of 15): the cheapest listed pints in one Night Area, from the same
+// bundled price dataset as the area-by-drink pages, and a prerendered redirect
+// for every other area name. Nothing in it is about a viewer.
+//
 // `__tests__/cdnCachedDocuments.test.ts` holds each pattern to the page file
 // at the same path under app/, which must declare `force-static`.
 export const CDN_CACHED_DOCUMENT_ROUTES: ReadonlySet<string> = new Set([
@@ -120,6 +125,7 @@ export const CDN_CACHED_DOCUMENT_ROUTES: ReadonlySet<string> = new Set([
   "/borough/[slug]",
   "/landmark/[id]",
   "/drink/[slug]",
+  "/area/[slug]",
   "/area/[slug]/drink/[brand]",
   "/ledger/[id]",
   "/routes/[slug]",

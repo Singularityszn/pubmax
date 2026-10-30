@@ -518,9 +518,18 @@
       "lcpMs": 800
     },
     {
+      "path": "/area/piccadilly-soho",
+      "readySelector": "main.drinkBrandAreaLanding",
+      "why": "The area root family (/area/{slug}, SEO audit #2126, captain's floor of 15 priced pubs). Piccadilly & Soho is the instance because it has the most priced pubs of any published area (71); every area with 20 or more prints 20 rows. It is prerendered and CDN-held like the area-by-drink pages below it; a per-request render of the same page measured 227 to 288 ms, which is why it is not. Measured 30 October 2026 in a Linux container on a production build of its branch, with the e2e/helpers/perfMeasurement.ts method (one warm-up, three samples): 82/84/82 ms server render, 776 KB decoded JS and 32 requests on every sample, LCP 316/384/300 ms. Ceilings use this file's margins: bytes and requests p75 plus 15%, server render the 150 ms floor, LCP the worst sample plus 25%. That box is not CI's runner, so CI's sweep is the oracle and these come DOWN at the next one.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 892,
+      "requests": 37,
+      "lcpMs": 480
+    },
+    {
       "path": "/area/clapham/drink/guinness",
       "readySelector": "main.drinkBrandAreaLanding",
-      "why": "One governed brand-by-area landing, measuring the /area/{slug}/drink/{brand} family. The parent /area/{slug} page is HELD and 404s, so this is the only page that family publishes. Seeded 7 September 2026: 18 ms, 884 KB, 42 requests, 672 ms LCP (samples 572/672/680).",
+      "why": "One governed brand-by-area landing, measuring the /area/{slug}/drink/{brand} family. Its parent /area/{slug} has its own row since 30 October 2026. Seeded 7 September 2026: 18 ms, 884 KB, 42 requests, 672 ms LCP (samples 572/672/680).",
       "serverRenderMs": 150,
       "jsDecodedKB": 1050,
       "requests": 48,

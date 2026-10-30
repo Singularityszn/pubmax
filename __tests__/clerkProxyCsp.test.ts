@@ -303,6 +303,8 @@ describe("the prerendered documents drop the nonce, and only they do", () => {
     // bundled facts, and the logbook and Family Table load after it.
     "/ledger/venue-xjf3n0",
     "/drink/guinness",
+    // The area pages joined on 2026-10-30, with the floor of 15.
+    "/area/piccadilly-soho",
     "/area/clapham/drink/guinness",
     // The named crawl pages joined on 2026-10-30 (captain's call).
     "/routes/victorian-soho",
@@ -331,7 +333,7 @@ describe("the prerendered documents drop the nonce, and only they do", () => {
     "/historic",
     "/borough",
     "/drink",
-    "/area/clapham",
+    "/area",
     "/area/clapham/drink",
     "/historic/the-gun/opengraph-image",
     "/area/clapham/drink/guinness/opengraph-image",
@@ -362,6 +364,7 @@ describe("the prerendered documents drop the nonce, and only they do", () => {
     expect([...CDN_CACHED_DOCUMENT_PATHS].sort()).toEqual([...CDN_CACHED_EXACT].sort());
     expect([...CDN_CACHED_DOCUMENT_ROUTES].sort()).toEqual(
       [
+        "/area/[slug]",
         "/area/[slug]/drink/[brand]",
         "/borough/[slug]",
         "/drink/[slug]",
