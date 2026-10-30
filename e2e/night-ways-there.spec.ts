@@ -165,10 +165,11 @@ test("Night Mode lists the ways to the next stop, and a tap draws the chosen one
   await page.screenshot({ path: `${SHOTS}/way-on-map-390.png` });
 });
 
-test("a routed crawl is a thick solid line with its walking minutes on a bubble on each leg", async ({ page }) => {
+test("a routed crawl is a thick solid line with its walking minutes on a bubble on each leg, and the Pal sets off saying the first one", async ({ page }) => {
   test.setTimeout(180_000);
   await page.setViewportSize({ width: 390, height: 844 });
   await seedTonight(page);
+  await seedPal(page);
   // The street router's answer, fixed: each leg turns one corner, as a street walk does.
   const routed: string[] = [];
   await page.route("**/api/walk-route**", (route) => {
@@ -204,6 +205,13 @@ test("a routed crawl is a thick solid line with its walking minutes on a bubble 
     });
   });
   await page.goto("/map");
+  // The Pal speaks as it sets off, with the first leg's own time (lib/palMapLines.ts).
+  const said = page.locator(".palMapMarker:not([data-pal-crew]) .palMapMarkerSay");
+  await expect(said).toHaveText(
+    /^(About )?\d+ min (to the next pub\. Race you\.|on foot\. I'll wait at the door\.|to the next one\. Stretch first\.)$/,
+    { timeout: 60_000 },
+  );
+  await page.screenshot({ path: `${SHOTS}/pal-sets-off-390.png` });
   await expect.poll(() => routed.length, { timeout: 60_000 }).toBeGreaterThan(0);
   await leanIn(page);
   await mkdir(SHOTS, { recursive: true });

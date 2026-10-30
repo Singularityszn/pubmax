@@ -95,6 +95,7 @@ export type PalMapMarker = {
   /**
    * Say one short line in a bubble above the Pal for a few seconds, or clear
    * it with null. The words come from the caller's own data, never invented.
+   * A sleeping (muted) Pal and a crew Pal say nothing.
    */
   say: (line: string | null) => void;
   destroy: () => void;
@@ -533,7 +534,7 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
     },
     say: (line) => {
       hush();
-      if (!line) return;
+      if (!line || crew || pal.muted) return;
       // Nobody sees a line said over a map still loading: hold it for the start.
       if (cancelStart) {
         heldLine = line;

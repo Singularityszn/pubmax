@@ -13,6 +13,7 @@ import { createPalMapMarker, palPinIsCheap, type PalMapMarker } from "@/componen
 import { legRouteToLines } from "@/components/map/canvas/legRouteScene";
 import { legRouteForCurrentLeg, readLegRouteOnMap, subscribeLegRouteOnMap } from "@/lib/legRouteOnMap";
 import { palLeadLine, palLeadPath, planWalkAfterLead } from "@/lib/palLead";
+import { palCheapPerchLine, palFirstLegLabel, palWalkLine } from "@/lib/palMapLines";
 import { crewPalLook, type CrewPal } from "@/lib/crewPals";
 import { palWalkPathFrom, palWalkStopsFromKey } from "@/components/map/canvas/palWalk";
 import {
@@ -1266,9 +1267,21 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   // Pal leads the way: while it walks the way the reader chose in Night Mode,
   // the plan's own walk and stops wait for it (the effect below).
   const palLeadKeyRef = useRef<string | null>(null);
+  // The Pal speaks on the map (lib/palMapLines.ts): once as it sets off on a
+  // crawl, with the first leg's own time, and once beside a cheapest-band pin.
+  // These keys hold what it last spoke about, so a re-render never repeats it.
+  const palSpokeWalkRef = useRef("");
+  const palSpokePerchRef = useRef("");
   const walkPals = useCallback((walk: Parameters<PalMapMarker["walk"]>[0]) => {
     palWalkRef.current = walk;
-    if (!palLeadKeyRef.current) palMarkerRef.current?.walk(walk);
+    if (!palLeadKeyRef.current) {
+      palMarkerRef.current?.walk(walk);
+      if (walk.key !== palSpokeWalkRef.current) {
+        palSpokeWalkRef.current = walk.key;
+        const line = palWalkLine(palFirstLegLabel(routeLegTimesRef.current), walk.key);
+        if (line) palMarkerRef.current?.say(line);
+      }
+    }
     for (const marker of crewMarkersRef.current) marker.walk(walk);
   }, []);
   // M7 pin entrance — armed once per mount at the first ACTUAL pin reveal
@@ -4422,7 +4435,11 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     // The Pal reads the band the pin itself paints, from the pins' own data,
     // so it re-reads whenever the pins' data is rebuilt above.
     const pin = venue ? pubsDataRef.current.features.find((feature) => feature.properties?.id === venue.id) : undefined;
-    palMarkerRef.current?.perch(venue ? [venue.longitude, venue.latitude] : null, { cheap: palPinIsCheap(pin?.properties) });
+    const cheap = palPinIsCheap(pin?.properties);
+    palMarkerRef.current?.perch(venue ? [venue.longitude, venue.latitude] : null, { cheap });
+    const perchKey = venue?.id ?? "";
+    if (cheap && perchKey !== "" && perchKey !== palSpokePerchRef.current) palMarkerRef.current?.say(palCheapPerchLine(perchKey));
+    palSpokePerchRef.current = perchKey;
   }, [routeCoordKey, routeIds, selectedVenueId, venues, venueSignals, favoritePint, drinkCategory, lensPrices, spoonsValue, mapReady, walkPals]);
 
   // Tonight's next stop: the reader's Pal waits beside it and, tapped there,

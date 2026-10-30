@@ -326,6 +326,20 @@ describe("the Pal on the map", () => {
     expect(bubble.textContent).toBe("Fastest way. Keep up.");
   });
 
+  it("says nothing while asleep (muted), and a crew Pal says nothing", () => {
+    store(pal({ muted: true }));
+    const sleeping = createPalMapMarker(map);
+    sleeping.perch([-0.1, 51.5]);
+    sleeping.say("7 min to the next pub. Race you.");
+    const crew = createPalMapMarker(map, { pal: pal({ id: "aaaaaaaa-aaaa-4aaa-8aaa-000000000002" }), index: 0 });
+    crew.perch([-0.1, 51.5]);
+    crew.say("7 min to the next pub. Race you.");
+    for (const instance of markerHarness.instances) {
+      expect(instance.options.element.querySelector<HTMLElement>(".palMapMarkerSay")!.hidden).toBe(true);
+    }
+    expect(markerHarness.instances).toHaveLength(2);
+  });
+
   describe("tonight's next stop", () => {
     function nextStop(stop: number, name: string) {
       const open = vi.fn();
