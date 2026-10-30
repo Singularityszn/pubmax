@@ -18,7 +18,7 @@
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
-import { requestCrawlOfflinePack } from "@/lib/crawlOfflinePack";
+import { useCrawlOfflinePack } from "@/components/plan/useCrawlOfflinePack";
 import type { CrewMemberDTO, CrewPresenceStatus } from "@/lib/crew";
 import type { PlanState } from "@/lib/plan";
 import { isPlanPreviewProjection, type PlanPrivacyPreviewDTO } from "@/lib/planPrivacy";
@@ -316,13 +316,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
   }, [activeNow, planId, capabilitySnapshot, initialState]);
 
   const stops = plan.stops;
-  // The offline pack: once the stops are known, ask the worker to save each
-  // stop's pub page, so the crawl still reads in a basement or on the Tube.
-  // Keyed on the ids alone, so a check-in or a cursor move sends nothing.
-  const stopIds = stops.map((stop) => stop.venueId).join(",");
-  useEffect(() => {
-    if (stopIds) requestCrawlOfflinePack(stopIds.split(","));
-  }, [stopIds]);
+  useCrawlOfflinePack(stops.map((stop) => stop.venueId));
   const stack = useMemo(
     () => nightCrawlStack(stops, cursor, plan.actions, optimistic),
     [stops, cursor, plan.actions, optimistic],
