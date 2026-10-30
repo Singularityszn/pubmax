@@ -181,9 +181,14 @@ const EVERY_WEEKDAY = /\bevery\s+(sunday|monday|tuesday|wednesday|thursday|frida
 // "every Friday", "Fridays", or "weekly" beside the word "Friday". "Every",
 // "recurring" and "residency" alone say nothing about how often, and a row
 // that names a monthly or fortnightly rhythm is never weekly (review finding
-// 5, PR 2402).
-const NOT_WEEKLY =
-  /\b(monthly|fortnightly|bi-?weekly|every\s+(other|second|month)|once\s+a\s+month|(first|second|third|fourth|last)\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday|week)|of\s+(the|each|every)\s+month)\b/i;
+// 5, PR 2402). An ordinal week is never weekly either, in words or in
+// figures, alone or in a list: "2nd Friday", "1st and 3rd Fridays", "last
+// Friday" (review P3c, PR 2402).
+const ORDINAL = "(?:1st|2nd|3rd|4th|5th|first|second|third|fourth|fifth|last)";
+const NOT_WEEKLY = new RegExp(
+  `\\b(monthly|fortnightly|bi-?weekly|every\\s+(other|second|month)|once\\s+a\\s+month|${ORDINAL}(\\s*(,|and|&)\\s*${ORDINAL})*\\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday|week)s?|of\\s+(the|each|every)\\s+month)\\b`,
+  "i",
+);
 
 function saysWeeklyOn(said: string, weekday: RegularNightWeekday): boolean {
   if (NOT_WEEKLY.test(said)) return false;

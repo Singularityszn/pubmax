@@ -137,6 +137,33 @@ describe("parseRegularNights refuses what it cannot back", () => {
     expect(nights).toEqual([]);
   });
 
+  // Review P3c (PR 2402): an ordinal week ("1st and 3rd Fridays", "2nd
+  // Friday", "last Friday") is not weekly, however the title reads.
+  it("drops a music row that names ordinal weeks of the month", () => {
+    const row = (id: string, title: string, detail: string, startsAt = "2026-07-24T20:00:00+01:00") => ({
+      id, placeName: "The Gig", title, detail, startsAt,
+      source: { label: "The Gig", url: "https://example.com" }, observedAt: read,
+    });
+    const phrases: Array<[string, string, string?]> = [
+      ["Jazz Fridays", "Live jazz on the 1st and 3rd Fridays."],
+      ["Jazz Fridays", "Live jazz every 2nd Friday."],
+      ["Soul Thursdays", "Soul on the 3rd Thursday of the month.", "2026-07-23T20:00:00+01:00"],
+      ["Jazz Fridays", "Live jazz on the last Friday."],
+      ["Jazz Fridays", "Live jazz on the 2nd & 4th Fridays."],
+      ["Jazz Fridays", "Live jazz on the last Fridays."],
+    ];
+    for (const [title, detail, startsAt] of phrases) {
+      expect(parseRegularNights({ music: { rows: [row("o1", title, detail, startsAt)] } }), detail).toEqual([]);
+    }
+    const weekly = parseRegularNights({
+      music: { rows: [
+        row("w1", "Blues jam", "Every Friday from 8pm."),
+        row("w2", "Jazz Fridays", "Live jazz, last orders at 11pm."),
+      ] },
+    });
+    expect(weekly.map((night) => [night.id, night.weekday])).toEqual([["w1", 5], ["w2", 5]]);
+  });
+
   it("keeps music that says weekly in so many words", () => {
     const row = (id: string, title: string, detail: string) => ({
       id, placeName: "The Gig", title, detail, startsAt: "2026-07-24T20:00:00+01:00",
