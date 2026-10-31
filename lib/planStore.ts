@@ -80,7 +80,7 @@ export type PlanStore = {
   /** The caller's own usual drink for the round forecast (review item B6). Their seat only. */
   updateUsualDrink(id: string, memberToken: unknown, drink: unknown): Promise<PlanPresenceResult>;
   update(id: string, memberToken: unknown, update: { status?: PlannedNightStatus; context?: NightContext; stops?: PlanStopDTO[]; expectedRouteRevision?: number; groundedUpgrade?: boolean }): Promise<PlanUpdateResult>;
-  addAction(id: string, memberToken: unknown, action: { type: PlanActionDTO["type"]; stopPosition?: number; ending?: CrawlEnding; idempotencyKey?: string }): Promise<PlanUpdateResult>;
+  addAction(id: string, memberToken: unknown, action: { type: PlanActionDTO["type"]; stopPosition?: number; ending?: CrawlEnding; idempotencyKey?: string; expectedRouteRevision?: number; venueId?: string }): Promise<PlanUpdateResult>;
   getCompletion(id: string): Promise<PlanCompletionDTO | null>;
   complete(id: string, memberToken: unknown, input: { expectedRouteRevision: number; ending: CrawlEnding; terminalVenueId?: string; endingSelection: EndingSelection }): Promise<PlanCompletionResult>;
 };
@@ -252,7 +252,7 @@ async function readCrewRows(id: string) {
 
 async function readActionRows(id: string) {
   const admin = requireSupabaseAdmin();
-  const read = await admin.from(ACTIONS).select("id,type,stop_position,ending,created_at,route_revision").eq("plan_id", id).order("created_at");
+  const read = await admin.from(ACTIONS).select("id,type,stop_position,ending,created_at,route_revision,venue_id").eq("plan_id", id).order("created_at");
   if (read.error?.code !== "42703") return read;
   return admin.from(ACTIONS).select("id,type,stop_position,ending,created_at").eq("plan_id", id).order("created_at");
 }
@@ -305,6 +305,7 @@ async function readSupabasePlanState(
       ending: row.ending as CrawlEnding | null,
       createdAt: String(row.created_at),
       ...("route_revision" in row && typeof row.route_revision === "number" ? { routeRevision: row.route_revision } : {}),
+      ...(typeof row.venue_id === "string" ? { venueId: row.venue_id } : {}),
     })),
     ending: (planRow as Record<string, unknown>).ending as CrawlEnding | null ?? null,
   };
@@ -543,7 +544,10 @@ export const supabasePlanStore: PlanStore = {
       return { ok: false, error: "invalid" };
     }
     const key = action.idempotencyKey.trim();
-    const requestHash = planRequestDigest({ type: action.type, stopPosition: action.stopPosition ?? null });
+    const requestHash = planRequestDigest({ type: action.type, stopPosition: action.stopPosition ?? null,
+      ...(action.expectedRouteRevision !== undefined || action.venueId !== undefined
+        ? { expectedRouteRevision: action.expectedRouteRevision, venueId: action.venueId } : {}),
+    });
     const createdAt = new Date().toISOString();
     const { data, error } = await requireSupabaseAdmin().rpc("add_plan_action_idempotent_atomic", {
       p_plan_id: id,
@@ -554,11 +558,14 @@ export const supabasePlanStore: PlanStore = {
       p_idempotency_key_hash: planIdempotencyDigest(`plan-action-key:${id}`, key),
       p_request_hash: requestHash,
       p_created_at: createdAt,
+      p_expected_route_revision: action.expectedRouteRevision ?? null,
+      p_venue_id: action.venueId ?? null,
     });
     if (error) return { ok: false, error: "error" };
     if (data === "forbidden") return { ok: false, error: "forbidden" };
     if (data === "not_found") return { ok: false, error: "not_found" };
     if (data === "conflict") return { ok: false, error: "conflict" };
+    if (data === "invalid") return { ok: false, error: "invalid" };
     if (data !== "applied" && data !== "replayed") return { ok: false, error: "error" };
     const plan = await this.get(id);
     return plan ? { ok: true, plan } : { ok: false, error: "error" };
@@ -894,14 +901,24 @@ export const memoryPlanStore: PlanStore = {
     }
     const key = action.idempotencyKey.trim();
     const keyHash = planIdempotencyDigest(`plan-action-key:${id}`, key);
-    const requestHash = planRequestDigest({ type: action.type, stopPosition: action.stopPosition ?? null });
+    const requestHash = planRequestDigest({ type: action.type, stopPosition: action.stopPosition ?? null,
+      ...(action.expectedRouteRevision !== undefined || action.venueId !== undefined
+        ? { expectedRouteRevision: action.expectedRouteRevision, venueId: action.venueId } : {}),
+    });
     const requestId = `${id}:${plan.crew[actorIndex]!.id}:${keyHash}`;
     const replay = planMemory.actionRequests.get(requestId);
     if (replay) {
       return replay.requestHash === requestHash ? { ok: true, plan: publicState(plan) } : { ok: false, error: "conflict" };
     }
+    const bound = action.expectedRouteRevision !== undefined || action.venueId !== undefined;
+    if (bound && (!Number.isInteger(action.expectedRouteRevision) || action.expectedRouteRevision! < 1
+      || typeof action.venueId !== "string" || !action.venueId.trim())) return { ok: false, error: "invalid" };
+    if (bound && (action.expectedRouteRevision !== routeRevisionOf(plan.plan)
+      || !plan.stops.some((stop) => stop.position === action.stopPosition && stop.venueId === action.venueId))) {
+      return { ok: false, error: "conflict" };
+    }
     const actionId = planIdempotentUuid(`plan-action:${id}:${plan.crew[actorIndex]!.id}`, key);
-    plan.actions.push({ id: actionId, type: action.type, stopPosition: action.stopPosition ?? null, ending: action.ending ?? null, createdAt: stamp(), routeRevision: routeRevisionOf(plan.plan) });
+    plan.actions.push({ id: actionId, type: action.type, stopPosition: action.stopPosition ?? null, ending: action.ending ?? null, createdAt: stamp(), ...(bound ? { routeRevision: action.expectedRouteRevision, venueId: action.venueId } : {}) });
     planMemory.actionRequests.set(requestId, { requestHash, actionId });
     if (plan.plan.status === "draft" || plan.plan.status === "ready") plan.plan.status = "active";
     return { ok: true, plan: publicState(plan) };

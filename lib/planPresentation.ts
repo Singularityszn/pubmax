@@ -31,6 +31,7 @@ export function planNightRefreshKey(state: PlanState): string {
 export function planVisitedRevealPositions(state: PlanState): number[] {
   const revision = Number(state.plan.routeRevision ?? 1);
   return (state.actions ?? []).filter((action) => typeof action.routeRevision === "number" && action.routeRevision >= 1 && action.routeRevision <= revision
-    && (action.type === "arrived" || action.type === "skipped"))
+    && (action.type === "arrived" || action.type === "skipped")
+    && state.stops.some((stop) => stop.position === action.stopPosition && stop.venueId === action.venueId))
     .flatMap((action) => action.stopPosition === null ? [] : [action.stopPosition]);
 }

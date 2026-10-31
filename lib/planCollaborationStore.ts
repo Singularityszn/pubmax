@@ -807,6 +807,7 @@ const supabaseStore: PlanCollaborationStore = {
       p_plan_id: planId,
       p_proposal_id: randomUUID(),
       p_proposed_by_member_id: identity.memberId,
+      p_token_hash: hashPlanMemberToken(String(token).trim()),
       p_expected_route_revision: input.expectedRouteRevision,
       p_stops: pricedStops.map((stop, position) => ({ ...stop, position })),
       p_reason: reason,
@@ -818,7 +819,6 @@ const supabaseStore: PlanCollaborationStore = {
     const { data, error } = checked.grounding
       ? await admin.rpc("create_plan_grounded_proposal_atomic", {
         ...proposalArgs,
-        p_token_hash: hashPlanMemberToken(String(token).trim()),
         p_grounding_proof: checked.grounding.proof,
         p_grounding_operation_key: checked.grounding.operationKey,
         p_grounding_expires_at: checked.grounding.expiresAt,

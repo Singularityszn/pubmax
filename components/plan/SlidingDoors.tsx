@@ -48,7 +48,7 @@ function SlidingDoorsContent({ planState, memberToken, onProposalCreated }: Prop
   const inFlight = useRef(false);
   const request = useRef<AbortController | null>(null);
   const alive = useRef(true);
-  const proposalKey = useRef<string | null>(null);
+  const proposalKeys = useRef(new Map<string, string>());
   const [comparison, setComparison] = useState<{ revision: string; options: SlidingDoorsOption[] } | null>(null);
   const [selected, setSelected] = useState<SlidingDoorsKind>("original");
   const [busy, setBusy] = useState(false);
@@ -91,7 +91,6 @@ function SlidingDoorsContent({ planState, memberToken, onProposalCreated }: Prop
       const { points, incomplete } = await venuePoints([...ids], controller.signal);
       if (controller.signal.aborted || !alive.current) return;
       const next = slidingDoorsOptions(planState, generated, points);
-      proposalKey.current = crypto.randomUUID();
       setComparison({ revision, options: next });
       if (incomplete) setError("Some walk distances could not be checked. Compare again to retry.");
       setMessage(next.length === 1 ? "Your saved route is still the one to keep. No different route passed these checks." : "Compare the routes. Your saved route stays as it is until the host accepts a proposal.");
@@ -109,15 +108,18 @@ function SlidingDoorsContent({ planState, memberToken, onProposalCreated }: Prop
     setBusy(true); setMessage(""); setError("");
     const controller = new AbortController();
     request.current = controller;
+    const payload = JSON.stringify({
+      reason: choice.kind === "shorter-walk" ? "A shorter walk between these pubs, based on straight-line estimates." : "Plot twist: try a route with more pub history.",
+      expectedRouteRevision: Number(revision), stops: choice.stops, resolvedConstraintIds: [],
+      groundingProof: choice.groundingProof, operationKey: choice.operationKey,
+    });
+    const key = proposalKeys.current.get(payload) ?? crypto.randomUUID();
+    proposalKeys.current.set(payload, key);
     try {
       const response = await slidingDoorsJson(`/api/plans/${encodeURIComponent(planState.plan.id)}/proposals`, {
         method: "POST",
-        headers: { "content-type": "application/json", authorization: `Bearer ${memberToken}`, "idempotency-key": proposalKey.current ??= crypto.randomUUID() },
-        body: JSON.stringify({
-          reason: choice.kind === "shorter-walk" ? "A shorter walk between these pubs, based on straight-line estimates." : "Plot twist: try a route with more pub history.",
-          expectedRouteRevision: Number(revision), stops: choice.stops, resolvedConstraintIds: [],
-          groundingProof: choice.groundingProof, operationKey: choice.operationKey,
-        }),
+        headers: { "content-type": "application/json", authorization: `Bearer ${memberToken}`, "idempotency-key": key },
+        body: payload,
       }, controller.signal);
       const body = response.body;
       if (!response.ok) {

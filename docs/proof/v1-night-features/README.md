@@ -50,3 +50,32 @@ The application build, normal full verification, and browser execution require t
 `e2e/v1-night-extras.spec.ts` contains desktop and phone coverage but was not executed.
 No physical-device acceptance, PR publication, merge, or deployment occurred.
 The existing release and native ownership records remain in force.
+
+## Review repair round on 31 October 2026
+
+This round starts from `29fe22b362ae1066650ca7e24224d6f470185325` in the assigned review worktree.
+The changes remain uncommitted in this phase.
+
+1. Queued arrival and skip requests carry their original route revision and venue.
+   Both stores check the binding before insertion and retain identical retry behaviour.
+   Legacy unbound requests remain compatible but cannot establish a table location or a completed-stop reveal.
+2. Ordinary and grounded proposal creation check the live membership capability at the shared SQL insertion boundary.
+3. Night mode titles and both glance lines retain stamped completed-stop reveals after safe route changes.
+4. Sliding Doors keeps a retry key for each submitted payload across option changes.
+5. The new store inventory rows declare metadata only.
+   Store and handler tests exercise production refusal, current membership and host permissions.
+
+Regression cases cover stale queued requests, legacy requests, retries, membership removal and token rotation.
+They also cover a completed second stop with a stale device cursor after a later-stop replacement.
+The focused Vitest command exited with code 1 before loading any test.
+Node reported `MODULE_NOT_FOUND` for `node_modules/vitest/vitest.mjs`.
+`git diff --check` exited with code 0.
+These new regression cases did not run in this round.
+The worktree has no `node_modules`, and Vitest is unavailable on PATH.
+PostgreSQL tools are also unavailable on PATH.
+The generated database types remain unchanged and require `npm run db:types` before validation can pass.
+No manual edit replaces the required generator.
+
+The outer executor owns the normal verification gate, build, browser acceptance, PR and CI phases.
+This round supplies no new browser, native or physical-device evidence.
+Earlier results above do not validate these uncommitted repairs.

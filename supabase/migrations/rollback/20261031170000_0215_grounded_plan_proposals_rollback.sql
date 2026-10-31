@@ -184,3 +184,49 @@ begin
   return 'ok';
 end;
 $$;
+
+drop function public.create_plan_route_proposal_atomic(uuid,uuid,uuid,integer,jsonb,text,jsonb,jsonb,text,timestamptz,text);
+create function public.create_plan_route_proposal_atomic(
+  p_plan_id uuid,
+  p_proposal_id uuid,
+  p_proposed_by_member_id uuid,
+  p_expected_route_revision integer,
+  p_stops jsonb,
+  p_reason text,
+  p_resolved_constraint_ids jsonb,
+  p_unresolved_constraint_ids jsonb,
+  p_idempotency_key text,
+  p_created_at timestamptz
+) returns jsonb
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  v_owner uuid;
+  v_proposal public.plan_route_proposals%rowtype;
+begin
+  select social_owner_account_id into v_owner
+  from public.plans where id=p_plan_id for update;
+  if not found or v_owner is not null then return jsonb_build_object('code','not_found'); end if;
+  if not exists (
+    select 1 from public.plan_crew_members
+    where id=p_proposed_by_member_id and plan_id=p_plan_id and status='in'
+  ) then return jsonb_build_object('code','not_found'); end if;
+  select * into v_proposal from public.plan_route_proposals
+  where plan_id=p_plan_id and proposed_by_member_id=p_proposed_by_member_id
+    and idempotency_key=p_idempotency_key;
+  if found then return jsonb_build_object('code','replayed','row',to_jsonb(v_proposal)); end if;
+  insert into public.plan_route_proposals(
+    id,plan_id,proposed_by_member_id,expected_route_revision,stops,reason,
+    resolved_constraint_ids,unresolved_constraint_ids,status,idempotency_key,
+    decision_idempotency_key,created_at,decided_at
+  ) values(
+    p_proposal_id,p_plan_id,p_proposed_by_member_id,p_expected_route_revision,p_stops,p_reason,
+    p_resolved_constraint_ids,p_unresolved_constraint_ids,'pending',p_idempotency_key,
+    null,p_created_at,null
+  ) returning * into v_proposal;
+  return jsonb_build_object('code','created','row',to_jsonb(v_proposal));
+end;
+$$;
+
+revoke all on function public.create_plan_route_proposal_atomic(uuid,uuid,uuid,integer,jsonb,text,jsonb,jsonb,text,timestamptz) from public,anon,authenticated;
+grant execute on function public.create_plan_route_proposal_atomic(uuid,uuid,uuid,integer,jsonb,text,jsonb,jsonb,text,timestamptz) to service_role;

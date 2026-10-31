@@ -9,7 +9,7 @@ vi.mock("@/lib/supabase", async (importOriginal) => ({
 vi.mock("@/lib/pintDrops", () => ({ isLimited: async () => false }));
 
 import { DELETE, GET, PUT } from "@/app/api/plans/[id]/beacon/route";
-import { __resetMemoryPlans, memoryPlanStore } from "@/lib/planStore";
+import { __resetMemoryPlans, memoryPlanStore, recoverMemoryPlanMembership, removeMemoryPlanInviteRsvpMember } from "@/lib/planStore";
 
 const NOW = new Date("2026-10-31T19:00:00.000Z");
 const STOPS = [
@@ -27,9 +27,9 @@ async function night() {
   const created = await memoryPlanStore.create({ title: "Our night", startTime: NOW.toISOString(), creatorName: "Host", stops: STOPS });
   if (!created.ok) throw new Error("Could not create the test plan.");
   const id = created.plan.plan.id;
-  const joined = await memoryPlanStore.join(id, "Guest", { collaborationAuthorized: true });
+  const joined = await memoryPlanStore.join(id, "Guest", { collaborationAuthorized: true, userId: "beacon-guest-account" });
   if (!joined.ok) throw new Error("Could not join the test plan.");
-  const arrived = await memoryPlanStore.addAction(id, created.memberToken, { type: "arrived", stopPosition: 0, idempotencyKey: "beacon-arrival-one" });
+  const arrived = await memoryPlanStore.addAction(id, created.memberToken, { type: "arrived", stopPosition: 0, expectedRouteRevision: 1, venueId: STOPS[0]!.venueId, idempotencyKey: "beacon-arrival-one" });
   if (!arrived.ok) throw new Error("Could not record the test arrival.");
   return { id, host: created.memberToken, guest: joined.memberToken, arrivalId: arrived.plan.actions!.at(-1)!.id };
 }
@@ -156,12 +156,36 @@ describe("Find our table through the private plan route", () => {
     expect(await (await GET(request(id, host), context(id))).json()).toMatchObject({ beacon: null, current: null });
   });
 
+  it("rechecks the member capability after recovery and removal", async () => {
+    const { id, host, guest, arrivalId } = await night();
+    const state = (await memoryPlanStore.get(id))!;
+    const guestId = state.crew.find((member) => member.name === "Guest")!.id;
+    expect((await GET(request(id, guest), context(id))).status).toBe(200);
+    expect(recoverMemoryPlanMembership(id, "beacon-guest-account", "replacement-member-token")).not.toBeNull();
+    expect((await GET(request(id, guest), context(id))).status).toBe(404);
+    expect((await GET(request(id, "replacement-member-token"), context(id))).status).toBe(200);
+    expect(removeMemoryPlanInviteRsvpMember(id, guestId)).toBe(true);
+    const body = { symbol: "star", note: "Upstairs", expectedRouteRevision: 1, expectedArrivalId: arrivalId };
+    expect((await GET(request(id, "replacement-member-token"), context(id))).status).toBe(404);
+    expect((await PUT(request(id, "replacement-member-token", "PUT", body), context(id))).status).toBe(404);
+    expect((await DELETE(request(id, "replacement-member-token", "DELETE", body), context(id))).status).toBe(404);
+    expect((await PUT(request(id, host, "PUT", body), context(id))).status).toBe(200);
+    expect((await DELETE(request(id, host, "DELETE", body), context(id))).status).toBe(200);
+  });
+
   it("fails closed when production has no durable store", async () => {
-    const { id, host } = await night();
+    const { id, host, arrivalId } = await night();
     vi.stubEnv("VERCEL_ENV", "production");
-    const response = await GET(request(id, host), context(id));
-    expect(response.status).toBe(503);
-    expect(await response.text()).not.toMatch(/venue-first|Upstairs|The First Pub/);
+    const body = { symbol: "star", note: "Upstairs", expectedRouteRevision: 1, expectedArrivalId: arrivalId };
+    const responses = [
+      await GET(request(id, host), context(id)),
+      await PUT(request(id, host, "PUT", body), context(id)),
+      await DELETE(request(id, host, "DELETE", body), context(id)),
+    ];
+    for (const response of responses) {
+      expect(response.status).toBe(503);
+      expect(await response.text()).not.toMatch(/venue-first|Upstairs|The First Pub/);
+    }
   });
 
 });

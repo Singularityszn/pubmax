@@ -1,5 +1,10 @@
 # Mutating API surface certification
 
+The Plan beacon and presentation entries declare the handler inventory.
+Their route tests and `__tests__/planNightStorePermissions.test.ts` exercise the permission contracts.
+Source names and syntax do not establish their runtime protection.
+
+
 Wave 0 treats every exported `POST`, `PUT`, `PATCH`, or `DELETE` handler as a
 reviewed surface—even when a POST is semantically read-only. The regression test
 `__tests__/writeSurfaceCertification.test.ts` scans the complete `app/api` tree.

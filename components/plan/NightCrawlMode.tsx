@@ -23,7 +23,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import PlanNightPresentation, { MysteryGlanceLine, MysteryStopTitle, PlanMysteryControls } from "@/components/plan/PlanNightPresentation";
 import PlanNightClues from "@/components/plan/PlanNightClues";
 import PlanTableBeacon from "@/components/plan/PlanTableBeacon";
-import { planNightRefreshKey } from "@/lib/planPresentation";
+import { planNightRefreshKey, planVisitedRevealPositions } from "@/lib/planPresentation";
 import type { CrewMemberDTO, CrewPresenceStatus } from "@/lib/crew";
 import type { PlanState } from "@/lib/plan";
 import { isPlanPreviewProjection, type PlanPrivacyPreviewDTO } from "@/lib/planPrivacy";
@@ -322,6 +322,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
     };
   }, [activeNow, planId, capabilitySnapshot, initialState]);
 
+  const visitedPositions = planVisitedRevealPositions(plan);
   const stops = plan.stops;
   useCrawlOfflinePack(stops.map((stop) => stop.venueId));
   const stack = useMemo(
@@ -386,7 +387,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
       }
 
       const scope = nightCrawlIdempotencyScope(planId, type, stopPosition);
-      const payload = nightCrawlActionPayload(type, hero);
+      const payload = nightCrawlActionPayload(type, hero, Number(plan.plan.routeRevision ?? 1));
       const key = await persistentPlanMutationKey(scope, payload);
       // Fingerprint aligns with the idempotency key scope: same tap, same key.
       const print = `${scope}:${JSON.stringify(payload)}`;
@@ -398,6 +399,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
           planId,
           type,
           stop: hero,
+          expectedRouteRevision: Number(plan.plan.routeRevision ?? 1),
           idempotencyKey: key,
           fingerprint: print,
           previousCursor,
@@ -430,7 +432,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
       reconcile("offline", stillQueued);
       setBusy(null);
     },
-    [busy, hero, cursor, stops, canUpdatePlan, planId, optimistic, handOffConfirmedStop],
+    [busy, hero, cursor, stops, canUpdatePlan, planId, optimistic, handOffConfirmedStop, plan.plan.routeRevision],
   );
 
   if (!activeNow) return null;
@@ -510,14 +512,14 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
             return (
               <div key={`hero-${view.stop.venueId}`} className="nightCrawl__hero">
                 <div className="nightCrawl__glance" aria-label="Tonight at a glance">
-                  <p className="nightCrawl__glanceNow"><MysteryGlanceLine venueId={hero?.venueId} position={heroPosition}>{glance.currentLine}</MysteryGlanceLine></p>
-                  {glance.nextLine ? <p className="nightCrawl__glanceNext"><MysteryGlanceLine venueId={nextStop?.venueId} position={heroPosition + 1}>{glance.nextLine}</MysteryGlanceLine></p> : null}
+                  <p className="nightCrawl__glanceNow"><MysteryGlanceLine venueId={hero?.venueId} position={heroPosition} alreadyVisited={visitedPositions.includes(heroPosition)}>{glance.currentLine}</MysteryGlanceLine></p>
+                  {glance.nextLine ? <p className="nightCrawl__glanceNext"><MysteryGlanceLine venueId={nextStop?.venueId} position={heroPosition + 1} alreadyVisited={visitedPositions.includes(heroPosition + 1)}>{glance.nextLine}</MysteryGlanceLine></p> : null}
                   <a className="nightCrawl__glanceHome" href={TFL_JOURNEY_PLANNER} target="_blank" rel="noreferrer">
                     {glance.homeLine}
                   </a>
                 </div>
                 <p className="nightCrawl__eyebrow">{finalStop ? "Last stop · head here" : "Next up · head here"}</p>
-                <h2 className="nightCrawl__heroName"><MysteryStopTitle venueId={view.stop.venueId} name={view.stop.venueName} position={view.stop.position} /></h2>
+                <h2 className="nightCrawl__heroName"><MysteryStopTitle venueId={view.stop.venueId} name={view.stop.venueName} position={view.stop.position} alreadyVisited={visitedPositions.includes(view.stop.position)} /></h2>
 
                 {crewChips.length > 0 ? (
                   <div className="nightCrawl__crew">
@@ -568,7 +570,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
           return (
             <div key={`up-${view.stop.venueId}`} className="nightCrawl__upcoming">
               <span className="nightCrawl__mark" aria-hidden="true">{view.index + 1}</span>
-              <div className="nightCrawl__upcomingName"><MysteryStopTitle venueId={view.stop.venueId} name={view.stop.venueName} position={view.stop.position} /></div>
+              <div className="nightCrawl__upcomingName"><MysteryStopTitle venueId={view.stop.venueId} name={view.stop.venueName} position={view.stop.position} alreadyVisited={visitedPositions.includes(view.stop.position)} /></div>
             </div>
           );
         })}

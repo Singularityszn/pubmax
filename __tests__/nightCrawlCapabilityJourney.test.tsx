@@ -5,7 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import NightCrawlMode from "@/components/plan/NightCrawlMode";
-import { markActivePlan, readActivePlan } from "@/lib/activePlan";
+import { markActivePlan, readActivePlan, setActivePlanStopIndex } from "@/lib/activePlan";
 import { clearPlanCapability, PLAN_HTTP_ONLY_SESSION, writePlanCapability } from "@/lib/planSessionCapability";
 import { __resetPlanMutationOutboxForTests, listPlanMutationOutbox } from "@/lib/planMutationOutbox";
 import type { PlanState } from "@/lib/plan";
@@ -199,4 +199,35 @@ describe("Night mode action permissions and recovery", () => {
       expect(host.textContent).not.toContain("Held on this phone");
     });
   });
+});
+
+it.each([0, 1])("reveals the stamped completed pub with a stale device cursor at %s after a safe revision", async (cursor) => {
+  const revised: PlanState = {
+    ...plan,
+    plan: { ...plan.plan, routeRevision: 2 },
+    stops: [...plan.stops, { venueId: "replacement", venueName: "Later Replacement", position: 2 }],
+    actions: [{ id: "arrival-at-second", type: "arrived", stopPosition: 1, ending: null,
+      createdAt: new Date().toISOString(), routeRevision: 1, venueId: "second" }],
+  };
+  setActivePlanStopIndex(cursor);
+  writePlanCapability(planId, { token: PLAN_HTTP_ONLY_SESSION, role: "guest", collaborationAuthorized: true });
+  const calls: Array<{ url: string; method: string }> = [];
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    calls.push({ url, method: init?.method ?? "GET" });
+    if (url.endsWith("/presentation")) return Response.json({ memberId: "guest-seat", canEdit: false, mysteryEnabled: true, routeRevision: 2 });
+    return Response.json(revised);
+  }));
+  await act(async () => root.render(createElement(NightCrawlMode, { planId, initialState: revised })));
+  await settle(() => expect(action("Show full route")).toBeDefined());
+  const glance = host.querySelector(cursor === 0 ? ".nightCrawl__glanceNext" : ".nightCrawl__glanceNow");
+  expect(glance?.textContent).toContain("Second Arms");
+  expect(host.querySelector(cursor === 0 ? ".nightCrawl__upcomingName" : ".nightCrawl__heroName")?.textContent).toContain("Second Arms");
+  expect(action("Open stop 2")).toBeUndefined();
+  expect(action("Open stop 3")).toBeDefined();
+  expect(host.textContent).not.toContain("Later Replacement");
+  await act(async () => action("Show full route")!.click());
+  expect(host.textContent).toContain("Later Replacement");
+  expect(calls.every((call) => call.method === "GET")).toBe(true);
+  expect(readActivePlan()?.stopIndex).toBe(cursor);
 });

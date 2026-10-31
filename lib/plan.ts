@@ -83,7 +83,7 @@ export type CrawlEnding = (typeof CRAWL_ENDINGS)[number];
 export const PLAN_ACTION_TYPES = ["arrived", "skipped", "swapped", "ending"] as const;
 type PlanActionType = (typeof PLAN_ACTION_TYPES)[number];
 export type PlanMemberRole = "host" | "guest";
-export type PlanActionDTO = { id: string; type: PlanActionType; stopPosition: number | null; ending: CrawlEnding | null; createdAt: string; routeRevision?: number };
+export type PlanActionDTO = { id: string; type: PlanActionType; stopPosition: number | null; ending: CrawlEnding | null; createdAt: string; routeRevision?: number; venueId?: string };
 
 type EndingEvidenceSnapshot = {
   label: string;

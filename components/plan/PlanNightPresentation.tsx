@@ -189,9 +189,9 @@ export function MysteryStopTitle({ venueId, name, position, alreadyVisited = fal
   </Button>;
 }
 
-export function MysteryGlanceLine({ venueId, position, children }: { venueId?: string; position: number; children: ReactNode }) {
+export function MysteryGlanceLine({ venueId, position, alreadyVisited = false, children }: { venueId?: string; position: number; alreadyVisited?: boolean; children: ReactNode }) {
   const context = usePlanNightPresentation();
-  if (venueId && position > 0 && context?.value?.mysteryEnabled && !context.revealed.includes("*") && !context.revealed.includes(venueId)) {
+  if (venueId && position > 0 && !alreadyVisited && context?.value?.mysteryEnabled && !context.revealed.includes("*") && !context.revealed.includes(venueId)) {
     return <>Stop {position + 1} is sealed below.</>;
   }
   return <>{children}</>;

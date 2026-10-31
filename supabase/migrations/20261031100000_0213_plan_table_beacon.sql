@@ -5,16 +5,64 @@ begin;
 -- Historical arrivals have no reliable route version. Do not backfill a claim.
 alter table public.plan_actions add column route_revision integer
   check (route_revision is null or route_revision > 0);
-create function public.stamp_plan_table_beacon_action() returns trigger
-language plpgsql security invoker set search_path = '' as $$
+alter table public.plan_actions add column venue_id text;
+drop function public.add_plan_action_idempotent_atomic(uuid,text,uuid,text,integer,text,text,timestamptz);
+create function public.add_plan_action_idempotent_atomic(
+  p_plan_id uuid,
+  p_token_hash text,
+  p_action_id uuid,
+  p_type text,
+  p_stop_position integer,
+  p_idempotency_key_hash text,
+  p_request_hash text,
+  p_created_at timestamptz,
+  p_expected_route_revision integer default null,
+  p_venue_id text default null
+) returns text
+language plpgsql security definer set search_path = ''
+as $$
+declare actor public.plan_crew_members%rowtype;
+declare existing_action public.plan_actions%rowtype;
+declare host_id uuid;
+declare current_revision integer;
 begin
-  select route_revision into new.route_revision from public.plans where id = new.plan_id for update;
-  return new;
+  perform pg_advisory_xact_lock(hashtextextended('plan:action:' || p_plan_id::text || ':' || p_idempotency_key_hash, 0));
+  select route_revision into current_revision from public.plans
+    where id = p_plan_id and social_owner_account_id is null for update;
+  if not found then return 'not_found'; end if;
+  select * into actor from public.plan_crew_members where plan_id = p_plan_id and token_hash = p_token_hash and membership_revoked_at is null for share;
+  if not found then return 'forbidden'; end if;
+  select id into host_id from public.plan_crew_members where plan_id = p_plan_id and membership_revoked_at is null order by joined_at, id limit 1;
+  if not actor.can_collaborate and actor.id <> host_id then return 'forbidden'; end if;
+  if p_type = 'swapped' and actor.id <> host_id then return 'forbidden'; end if;
+  if p_type not in ('arrived', 'skipped', 'swapped') or p_stop_position not between 0 and 7 then return 'invalid'; end if;
+
+  select * into existing_action from public.plan_actions
+  where plan_id = p_plan_id and actor_member_id = actor.id and idempotency_key_hash = p_idempotency_key_hash for update;
+  if found then
+    if existing_action.request_hash = p_request_hash and existing_action.id = p_action_id then return 'replayed'; end if;
+    return 'conflict';
+  end if;
+
+  if p_expected_route_revision is not null or p_venue_id is not null then
+    if p_expected_route_revision is null or p_expected_route_revision < 1 or nullif(btrim(p_venue_id),'') is null then return 'invalid'; end if;
+    if p_expected_route_revision <> current_revision or not exists (
+      select 1 from public.plan_stops where plan_id=p_plan_id and position=p_stop_position and venue_id=p_venue_id
+    ) then return 'conflict'; end if;
+  end if;
+  if not exists (select 1 from public.plan_stops where plan_id=p_plan_id and position=p_stop_position) then return 'invalid'; end if;
+
+  insert into public.plan_actions
+    (id, plan_id, actor_member_id, type, stop_position, created_at, idempotency_key_hash, request_hash, route_revision, venue_id)
+  values
+    (p_action_id, p_plan_id, actor.id, p_type, p_stop_position, p_created_at, p_idempotency_key_hash, p_request_hash, p_expected_route_revision, p_venue_id);
+  update public.plans set status = 'active' where id = p_plan_id and status in ('draft', 'ready');
+  return 'applied';
 end;
 $$;
-revoke all on function public.stamp_plan_table_beacon_action() from public, anon, authenticated;
-create trigger plan_action_stamps_beacon_revision before insert on public.plan_actions
-for each row execute function public.stamp_plan_table_beacon_action();
+
+revoke all on function public.add_plan_action_idempotent_atomic(uuid,text,uuid,text,integer,text,text,timestamptz,integer,text) from public, anon, authenticated;
+grant execute on function public.add_plan_action_idempotent_atomic(uuid,text,uuid,text,integer,text,text,timestamptz,integer,text) to service_role;
 
 create table public.plan_table_beacons (
   plan_id uuid primary key references public.plans(id) on delete cascade,
@@ -104,7 +152,7 @@ begin
     if found and v_action.type = 'arrived' and v_action.route_revision = v_plan.route_revision and (
       select count(*) from public.plan_actions where plan_id = p_plan_id and created_at = v_action.created_at
     ) = 1 then
-      select * into v_stop from public.plan_stops where plan_id = p_plan_id and position = v_action.stop_position;
+      select * into v_stop from public.plan_stops where plan_id = p_plan_id and position = v_action.stop_position and venue_id = v_action.venue_id;
       if found then
         v_arrival := v_action.id;
         v_current := jsonb_build_object('venueId', v_stop.venue_id, 'venueName', v_stop.venue_name, 'position', v_stop.position);

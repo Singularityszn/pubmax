@@ -1,4 +1,4 @@
-import { beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
@@ -6,10 +6,11 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 });
 
 import { GET, PUT } from "@/app/api/plans/[id]/presentation/route";
-import { __resetMemoryPlans, memoryPlanStore } from "@/lib/planStore";
+import { __resetMemoryPlans, memoryPlanStore, recoverMemoryPlanMembership, removeMemoryPlanInviteRsvpMember } from "@/lib/planStore";
 import { planVisitedRevealPositions } from "@/lib/planPresentation";
 
 beforeEach(() => __resetMemoryPlans());
+afterEach(() => vi.unstubAllEnvs());
 
 async function night() {
   const result = await memoryPlanStore.create({
@@ -19,7 +20,7 @@ async function night() {
   });
   if (!result.ok) throw new Error("Could not create test Plan");
   const id = result.plan.plan.id;
-  const guest = await memoryPlanStore.join(id, "Guest", { collaborationAuthorized: true });
+  const guest = await memoryPlanStore.join(id, "Guest", { collaborationAuthorized: true, userId: "presentation-guest-account" });
   if (!guest.ok) throw new Error("Could not join test Plan");
   const context = { params: Promise.resolve({ id }) };
   const read = (token: string) => GET(new Request(`http://localhost/api/plans/${id}/presentation`, {
@@ -54,7 +55,7 @@ it("refuses strangers, guest writes, stale routes, and malformed settings", asyn
 
 it("keeps the preserved completed prefix revealed after the host changes later stops", async () => {
   const n = await night();
-  const arrival = await memoryPlanStore.addAction(n.id, n.host, { type: "arrived", stopPosition: 0, idempotencyKey: "arrival-before-change" });
+  const arrival = await memoryPlanStore.addAction(n.id, n.host, { type: "arrived", stopPosition: 0, expectedRouteRevision: 1, venueId: "one", idempotencyKey: "arrival-before-change" });
   expect(arrival.ok).toBe(true);
   const changed = await memoryPlanStore.update(n.id, n.host, { expectedRouteRevision: 1, stops: [
     { venueId: "one", venueName: "First pub", position: 0 }, { venueId: "two", venueName: "Second pub", position: 1 },
@@ -63,4 +64,27 @@ it("keeps the preserved completed prefix revealed after the host changes later s
   expect(changed.plan.plan.routeRevision).toBe(2);
   expect(planVisitedRevealPositions(changed.plan)).toEqual([0]);
   expect(planVisitedRevealPositions({ ...changed.plan, actions: [{ ...changed.plan.actions![0]!, routeRevision: undefined }] })).toEqual([]);
+});
+
+it("rechecks membership on reads and writes after capability recovery and removal", async () => {
+  const n = await night();
+  expect((await n.read(n.guest)).status).toBe(200);
+  expect(recoverMemoryPlanMembership(n.id, "presentation-guest-account", "new-guest-token")).not.toBeNull();
+  expect((await n.read(n.guest)).status).toBe(403);
+  expect((await n.set(n.guest, true)).status).toBe(403);
+  expect((await n.read("new-guest-token")).status).toBe(200);
+  const state = (await memoryPlanStore.get(n.id))!;
+  expect(removeMemoryPlanInviteRsvpMember(n.id, state.crew.find((member) => member.name === "Guest")!.id)).toBe(true);
+  expect((await n.read("new-guest-token")).status).toBe(403);
+  expect((await n.set("new-guest-token", true)).status).toBe(403);
+  expect((await n.set(n.host, true)).status).toBe(200);
+});
+
+it("refuses production reads and writes when durable storage is unavailable", async () => {
+  const n = await night();
+  vi.stubEnv("VERCEL_ENV", "production");
+  expect((await n.read(n.host)).status).toBe(503);
+  expect((await n.set(n.host, true)).status).toBe(503);
+  vi.unstubAllEnvs();
+  expect(await (await n.read(n.host)).json()).toMatchObject({ mysteryEnabled: false });
 });

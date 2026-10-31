@@ -11,14 +11,14 @@ function db() { if (!session) throw new Error("PostgreSQL session unavailable");
 function id(kind: number, suffix: number) { return `${kind}0000000-0000-4000-8000-${String(suffix).padStart(12, "0")}`; }
 function token(suffix: number) { return String(suffix).padStart(64, "0"); }
 const next = JSON.stringify([{ venueId: "venue-a", venueName: "A", position: 0 }, { venueId: "venue-b", venueName: "B", position: 1 }, { venueId: "venue-d", venueName: "D", position: 2 }]);
-function seed(suffix: number) {
+function seed(suffix: number, anchored = true) {
   db().sql(`select public.create_plan_idempotent_atomic('${id(1, suffix)}','Friday',now()+interval '2 hours',
     '[{"venueId":"venue-a","venueName":"A"},{"venueId":"venue-b","venueName":"B"},{"venueId":"venue-c","venueName":"C"}]'::jsonb,
     '${id(2, suffix)}','Host','${token(suffix)}',now(),'${String(suffix).padStart(64, "0")}','${String(suffix).padStart(64, "0")}',
-    'venue-a','near','route')`);
+    ${anchored ? "'venue-a','near','route'" : 'null,null,null'})`);
   const created = db().sql(`select public.create_plan_grounded_proposal_atomic('${id(1, suffix)}','${id(3, suffix)}','${id(2, suffix)}','${token(suffix)}',1,
     '${next}'::jsonb,'A different last pub','[]'::jsonb,'[]'::jsonb,'proposal-${suffix}',now(),
-    'signature-checked-by-service','generation-${suffix}',now()+interval '5 minutes','venue-a','near')->>'code'`);
+    'signature-checked-by-service','generation-${suffix}',now()+interval '5 minutes',${anchored ? "'venue-a','near'" : 'null,null'})->>'code'`);
   expect(created).toBe("created");
 }
 function decisionSql(suffix: number) { return `select public.decide_plan_route_proposal_atomic('${id(1, suffix)}','${id(3, suffix)}','${token(suffix)}','accepted','decision-${suffix}',now())`; }
@@ -136,6 +136,24 @@ describe.skipIf(skip !== null)("0215 grounded proposal acceptance", () => {
     expect(db().sql(`select public.replace_plan_route_atomic('${id(1, 16)}','${token(16)}',1,'${next}'::jsonb,null,true)`)).toBe("forbidden");
     expect(revision(16)).toBe("1");
   });
+  it.each(["ordinary", "grounded"] as const)("checks membership changes after lookup before creating a %s proposal", (kind) => {
+    for (const [index, change] of ["removed", "rotated", "permission"].entries()) {
+      const suffix = (kind === "ordinary" ? 30 : 40) + index;
+      seed(suffix, kind === "grounded"); addGuest(suffix);
+      const capability = db().sql(`select token_hash from public.plan_crew_members where id='${id(2, suffix + 100)}' and membership_revoked_at is null`);
+      const query = () => kind === "grounded" ? guestProposal(suffix) : db().sql(`select public.create_plan_route_proposal_atomic(
+        '${id(1, suffix)}','${id(3, suffix + 100)}','${id(2, suffix + 100)}',1,'${next}'::jsonb,
+        'Guest choice','[]'::jsonb,'[]'::jsonb,'guest-proposal-${suffix}',now(),'${capability}')->>'code'`);
+      const update = change === "removed" ? "membership_revoked_at=now()"
+        : change === "rotated" ? `token_hash='${token(suffix + 200)}'` : "can_collaborate=false";
+      db().sql(`update public.plan_crew_members set ${update} where id='${id(2, suffix + 100)}'`);
+      expect(query()).toBe("forbidden");
+      expect(db().sql(`select count(*) from public.plan_route_proposals where id='${id(3, suffix + 100)}'`)).toBe("0");
+      db().sql(`update public.plan_crew_members set membership_revoked_at=null,token_hash='${capability}',can_collaborate=true where id='${id(2, suffix + 100)}'`);
+      expect(query()).toBe("created");
+    }
+  });
+
   it("rolls back without changing saved routes", () => {
     db().applyFile(join(migrations, "rollback", name.replace(".sql", "_rollback.sql")));
     expect(revision(1)).toBe("2");

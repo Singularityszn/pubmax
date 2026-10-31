@@ -4,6 +4,10 @@ Companion to issue #727, "Spec: reduce store/review bloat without hiding
 policy". This file is the review artefact for every `lib/*Store.ts` module.
 The inventory is descriptive, not a runtime registry.
 
+The `planBeaconStore` and `planPresentationStore` rows declare metadata only.
+`__tests__/planNightStorePermissions.test.ts` exercises production refusal, current membership and host permissions.
+The beacon and presentation route tests exercise their HTTP handlers.
+
 ## Current snapshot
 
 Counted on 31 October 2026 on the round 5 tree (PR 2412, which carries PR

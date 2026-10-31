@@ -54,7 +54,7 @@ export function planBeaconLocation(state: PlanState, now: Date): Omit<PlanBeacon
   const stops = [...state.stops].sort((a, b) => a.position - b.position);
   const index = stops.findIndex((stop) => stop.position === latest.stopPosition);
   const current = stops[index];
-  if (!current) return empty;
+  if (!current || latest.venueId !== current.venueId) return empty;
   return { routeRevision, arrivalId: latest.id, current: stopView(current), next: stops[index + 1] ? stopView(stops[index + 1]!) : null };
 }
 

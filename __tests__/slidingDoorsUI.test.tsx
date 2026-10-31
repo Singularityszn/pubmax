@@ -87,6 +87,37 @@ describe("Sliding Doors controls", () => {
     expect(keys[1]).toBe(keys[0]);
   });
 
+  it("keeps retry keys with their payload after a lost response and an option change", async () => {
+    const original = fetchMock.getMockImplementation()!;
+    const submissions: Array<{ key: string; body: string }> = [];
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url === "/api/plans/generate") {
+        const candidate = await original(url, init);
+        const body = await candidate.json();
+        const generatedBefore = fetchMock.mock.calls.filter(([path]) => path === "/api/plans/generate").length;
+        return Response.json(generatedBefore === 2 ? { ...body, operationKey: "generation-twist", stops: [state.stops[0], state.stops[1], { venueId: "d", venueName: "Pub d", position: 2 }] } : body);
+      }
+      if (url.endsWith("/proposals")) {
+        submissions.push({ key: new Headers(init?.headers).get("idempotency-key") ?? "", body: String(init?.body) });
+        throw new Error("The response was lost.");
+      }
+      return original(url, init);
+    });
+    await act(async () => root.render(createElement(SlidingDoors, { planState: state, memberToken: "guest-token", onProposalCreated: vi.fn() })));
+    await act(async () => button("Compare routes").click());
+    await act(async () => container.querySelector<HTMLInputElement>('input[value="shorter-walk"]')!.click());
+    await act(async () => button("Send route for crew review").click());
+    await act(async () => container.querySelector<HTMLInputElement>('input[value="plot-twist"]')!.click());
+    await act(async () => button("Send route for crew review").click());
+    await act(async () => container.querySelector<HTMLInputElement>('input[value="shorter-walk"]')!.click());
+    await act(async () => button("Send route for crew review").click());
+    expect(submissions).toHaveLength(3);
+    expect(submissions[0]!.key).toBeTruthy();
+    expect(submissions[1]!.key).not.toBe(submissions[0]!.key);
+    expect(submissions[2]).toEqual(submissions[0]);
+    expect(JSON.parse(submissions[1]!.body).stops.map((stop: { venueId: string }) => stop.venueId)).toEqual(["a", "b", "d"]);
+  });
+
   it.each(["fetch", "body"])("releases comparison controls when the generation %s ignores cancellation", async (stage) => {
     vi.useFakeTimers();
     fetchMock.mockImplementation(() => stage === "fetch" ? new Promise(() => {})

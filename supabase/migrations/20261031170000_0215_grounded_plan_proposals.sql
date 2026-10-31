@@ -10,6 +10,59 @@ alter table public.plan_route_proposals
   add column grounding_anchor_venue_id text,
   add column grounding_anchor_source text;
 
+drop function public.create_plan_route_proposal_atomic(uuid,uuid,uuid,integer,jsonb,text,jsonb,jsonb,text,timestamptz);
+create function public.create_plan_route_proposal_atomic(
+  p_plan_id uuid,
+  p_proposal_id uuid,
+  p_proposed_by_member_id uuid,
+  p_expected_route_revision integer,
+  p_stops jsonb,
+  p_reason text,
+  p_resolved_constraint_ids jsonb,
+  p_unresolved_constraint_ids jsonb,
+  p_idempotency_key text,
+  p_created_at timestamptz,
+  p_token_hash text
+) returns jsonb
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  v_owner uuid;
+  v_host uuid;
+  v_member public.plan_crew_members%rowtype;
+  v_proposal public.plan_route_proposals%rowtype;
+begin
+  select social_owner_account_id into v_owner
+  from public.plans where id=p_plan_id for update;
+  if not found or v_owner is not null then return jsonb_build_object('code','not_found'); end if;
+  select id into v_host from public.plan_crew_members
+    where plan_id=p_plan_id and membership_revoked_at is null order by joined_at,id limit 1;
+  select * into v_member from public.plan_crew_members
+    where id=p_proposed_by_member_id and plan_id=p_plan_id and token_hash=p_token_hash
+      and membership_revoked_at is null for share;
+  if not found or v_member.status <> 'in'
+    or (v_member.id is distinct from v_host and not coalesce(v_member.can_collaborate,false))
+    then return jsonb_build_object('code','forbidden'); end if;
+  select * into v_proposal from public.plan_route_proposals
+  where plan_id=p_plan_id and proposed_by_member_id=p_proposed_by_member_id
+    and idempotency_key=p_idempotency_key;
+  if found then return jsonb_build_object('code','replayed','row',to_jsonb(v_proposal)); end if;
+  insert into public.plan_route_proposals(
+    id,plan_id,proposed_by_member_id,expected_route_revision,stops,reason,
+    resolved_constraint_ids,unresolved_constraint_ids,status,idempotency_key,
+    decision_idempotency_key,created_at,decided_at
+  ) values(
+    p_proposal_id,p_plan_id,p_proposed_by_member_id,p_expected_route_revision,p_stops,p_reason,
+    p_resolved_constraint_ids,p_unresolved_constraint_ids,'pending',p_idempotency_key,
+    null,p_created_at,null
+  ) returning * into v_proposal;
+  return jsonb_build_object('code','created','row',to_jsonb(v_proposal));
+end;
+$$;
+
+revoke all on function public.create_plan_route_proposal_atomic(uuid,uuid,uuid,integer,jsonb,text,jsonb,jsonb,text,timestamptz,text) from public,anon,authenticated;
+grant execute on function public.create_plan_route_proposal_atomic(uuid,uuid,uuid,integer,jsonb,text,jsonb,jsonb,text,timestamptz,text) to service_role;
+
 create function public.create_plan_grounded_proposal_atomic(
   p_plan_id uuid, p_proposal_id uuid, p_proposed_by_member_id uuid, p_token_hash text,
   p_expected_route_revision integer, p_stops jsonb, p_reason text,
@@ -55,7 +108,7 @@ begin
   ) then return jsonb_build_object('code','conflict'); end if;
   v_result := public.create_plan_route_proposal_atomic(p_plan_id,p_proposal_id,p_proposed_by_member_id,
     p_expected_route_revision,p_stops,p_reason,p_resolved_constraint_ids,p_unresolved_constraint_ids,
-    p_idempotency_key,p_created_at);
+    p_idempotency_key,p_created_at,p_token_hash);
   if v_result->>'code' <> 'created' then return v_result; end if;
   v_id := (v_result->'row'->>'id')::uuid;
   update public.plan_route_proposals set
