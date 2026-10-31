@@ -600,14 +600,14 @@ than a tablist.
 
 **The phone tab bar is the pressed rail.** The dock is a raised mat with one
 hairline and one soft drop, and the page you are on is a WELL pressed into it,
-which glides between tabs: `--state-selected-surface` with a shadow under its
+which glides between tabs in the single-row layout: `--state-selected-surface` with a shadow under its
 top lip and a lit lower lip, the glyph sitting one pixel down. At night the
 well is a darker recess (`app/theme.css`), because pressed ink reads as shadow
 on a near-black rail. It is the bar-mat tactility spent on structure, never a
 second stamp: no tilt, no coral at rest. The well's radius is the rail's minus
 `--tab-inset`, so the two curves stay concentric at every width; glyphs are
 20px in a 22px box over the 11px label floor, idle words at 600 and the
-current page at 750. The rail is 54px inside the 64px `--tabbar-h` lane.
+current page at 750. The [dock layout rule](rules/components-sheets-chrome-and-navigation.md#the-pub-pal-rises-out-of-the-dock-as-its-own-door-never-a-sixth-destination) owns responsive rows and measured clearance.
 Before and after: `docs/proof/tab-bar-pressed-rail/`.
 
 `__tests__/tablistKeyboard.test.tsx` sweeps every `role="tab"` under `app/`

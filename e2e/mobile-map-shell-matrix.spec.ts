@@ -134,9 +134,9 @@ for (const viewport of VIEWPORTS) {
       const chromeRows = page.locator(".mobileMapChrome > :visible");
       await expect(chromeRows).toHaveCount(2);
       const navLinks = page.getByRole("navigation", { name: "Primary" }).getByRole("link");
-      // Five destinations, and the Pub Pal's own door between Tonight and Plan.
-      await expect(navLinks).toHaveCount(6);
-      await expect(navLinks).toHaveText(["Map", "Tonight", "Pal", "Plan", "Social", "You"]);
+      // Six destinations, and the Pub Pal's own door between Tonight and Plan.
+      await expect(navLinks).toHaveCount(7);
+      await expect(navLinks).toHaveText(["Map", "Tonight", "Pal", "Plan", "Spoons", "Social", "You"]);
       await expect(navLinks.filter({ hasText: "Map" })).toHaveAttribute("aria-current", "page");
 
       const utilityCorner = page.locator(".mobileMapUtilityCorner");

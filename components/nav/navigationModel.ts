@@ -1,6 +1,6 @@
 import type { Route } from "next";
 
-export type PrimaryNavKey = "map" | "now" | "plan" | "social" | "you";
+export type PrimaryNavKey = "map" | "now" | "plan" | "spoons" | "social" | "you";
 
 export type PrimaryNavItem = {
   key: PrimaryNavKey;
@@ -32,21 +32,15 @@ export const SOCIAL_NAV_MATCH: readonly string[] = [
 const PLAN_NAV_MATCH: readonly string[] = ["/plan", "/crawls"];
 
 /**
- * The FIVE durable destinations in the PUBMAXX shell, and the ONE vocabulary
+ * The six durable destinations in the PUBMAXX shell, and the ONE vocabulary
  * for every bar that names them: the phone dock, the desktop SiteNav and the
  * landing bar all render this list, so their labels cannot drift apart again.
  *
- * Product owner, Oct 2026 UX audit: six tabs were too many, so the row is a
- * five-door loop, in this order. Map finds the pint (the answer the product
- * exists to give), Tonight says what is worth going out for, Plan turns that
- * into a route, Social is the night shared with friends, and You keeps what
- * the night left behind. Social is a main tab by the captain's call
- * (16 Oct 2026), so it is not repeated in the desktop More menu; every bar
- * names it for its launch state (`primaryNavLabel`, `useSocialSurfaceName`).
- * Moment is a compose action, never a location, and is modelled separately
- * below.
+ * Spoons opens the published value ranking directly on phones and desktops.
+ * The captain requested this extra tab on 26 October 2026. Pub Pal keeps its
+ * separate door between Tonight and Plan. Moment remains a compose action.
  *
- * Two former tabs folded into the five. Out IS Tonight now: /out 308s to
+ * Two former tabs left primary navigation. Out IS Tonight now: /out 308s to
  * /tonight at the edge (proxy.ts), and Tonight carries the Tomorrow and Weekend
  * listings. Places is no longer a destination: the city picker still lives at
  * /places, reached from the map's own city chip and the footer's "Pick your
@@ -63,6 +57,7 @@ export const PRIMARY_NAV_ITEMS: readonly PrimaryNavItem[] = [
   // Plan owns the composer, a shared plan at /plan/[id] and the crawl routes
   // (PLAN_NAV_MATCH).
   { key: "plan", href: "/plan", label: "Plan", match: [...PLAN_NAV_MATCH] },
+  { key: "spoons", href: "/spoons-value", label: "Spoons", match: ["/spoons-value"] },
   // Social owns its shell and its retired aliases (SOCIAL_NAV_MATCH). The label
   // here is the launched name; a bar names it through primaryNavLabel.
   { key: "social", href: "/social", label: "Social", match: [...SOCIAL_NAV_MATCH] },

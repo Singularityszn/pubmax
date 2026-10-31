@@ -184,6 +184,12 @@ describe("real command registry", () => {
     expect(destination(first!)).toBe("/historic");
   });
 
+  it("finds Spoons by its label and opens the recorded-price page", () => {
+    const [first] = filterCommands(commands, "Spoons");
+    expect(first).toBeDefined();
+    expect(destination(first!)).toBe("/spoons-value");
+  });
+
   it("finds each page the More menu lists by its own label", () => {
     for (const link of SITE_NAV_MORE_LINKS) {
       // Social is renamed for the launch state at render time, so its label is

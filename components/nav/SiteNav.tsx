@@ -63,6 +63,7 @@ type NavKey =
   | "drop"
   | "out"
   | "plan"
+  | "spoons"
   | "tonight"
   | "historic"
   | "feed"

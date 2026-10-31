@@ -95,6 +95,91 @@ it("keeps the expanded sheet and typing focus when Android opens and closes the 
   }
 });
 
+it.each(["drink", "venue", "planner"] as const)(
+  "keeps the full %s sheet and Close available as portal clearance grows and recovers",
+  async (kind) => {
+    const host = document.body.appendChild(document.createElement("div"));
+    const root = createRoot(host);
+    const environment = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+    const previousAct = environment.IS_REACT_ACT_ENVIRONMENT;
+    environment.IS_REACT_ACT_ENVIRONMENT = true;
+    vi.stubGlobal("innerWidth", 390);
+    vi.stubGlobal("innerHeight", 568);
+    vi.stubGlobal("matchMedia", () => ({ matches: true, addEventListener() {}, removeEventListener() {} }));
+    const styles = document.head.appendChild(document.createElement("style"));
+    styles.textContent = ".mobileSheetPortal { bottom: 64px; }";
+    const observers = new Set<PortalResizeObserver>();
+    class PortalResizeObserver implements ResizeObserver {
+      readonly targets = new Set<Element>();
+      constructor(readonly callback: ResizeObserverCallback) { observers.add(this); }
+      observe(target: Element) { this.targets.add(target); }
+      unobserve(target: Element) { this.targets.delete(target); }
+      disconnect() { this.targets.clear(); observers.delete(this); }
+    }
+    vi.stubGlobal("ResizeObserver", PortalResizeObserver);
+    const notifyResize = (target: Element, height: number) => {
+      for (const observer of observers) {
+        if (!observer.targets.has(target)) continue;
+        observer.callback([{
+          target,
+          contentRect: new DOMRect(0, 0, 390, height),
+          borderBoxSize: [],
+          contentBoxSize: [],
+          devicePixelContentBoxSize: [],
+        }], observer);
+      }
+    };
+    const close = vi.fn();
+    try {
+      await act(async () => root.render(
+        <MobileSharedSheet kind={kind} title="Drink" initialSnap="full" onClose={close}>
+          <div style={{ height: 1200 }}>Drink choices and Spoons legend</div>
+        </MobileSharedSheet>,
+      ));
+      const portal = document.querySelector<HTMLElement>(".mobileSheetPortal")!;
+      const sheet = portal.querySelector<HTMLElement>(".mobileSharedSheet")!;
+      const closeButton = portal.querySelector<HTMLButtonElement>('[aria-label^="Close"]')!;
+      // Finish opening focus before testing focus during mounted clearance changes.
+      await act(async () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+      expect(document.activeElement).toBe(sheet);
+      const header = sheet.querySelector<HTMLElement>(".mobileSharedSheetHeader")!;
+      const footer = sheet.querySelector<HTMLElement>(".mobileSharedSheetFooter")!;
+      Object.defineProperty(header, "offsetHeight", { value: 64 });
+      Object.defineProperty(footer, "offsetHeight", { value: 0 });
+      await act(async () => notifyResize(header, 64));
+      expect(Number.parseFloat(sheet.style.maxHeight)).toBeCloseTo(458.56);
+      for (const { bottom, availableHeight, expectedCap } of [
+        { bottom: 192, availableHeight: 376, expectedCap: 330.56 },
+        { bottom: 64, availableHeight: 504, expectedCap: 458.56 },
+        { bottom: 192, availableHeight: 376, expectedCap: 330.56 },
+      ]) {
+        await act(async () => {
+          portal.style.bottom = `${bottom}px`;
+          notifyResize(portal, availableHeight);
+        });
+        expect(document.querySelector(".mobileSharedSheet")).toBe(sheet);
+        expect(sheet.classList).toContain("sheet-full");
+        expect(Number.parseFloat(sheet.style.maxHeight)).toBeCloseTo(expectedCap);
+        expect(Number.parseFloat(sheet.style.maxHeight)).toBeLessThanOrEqual(availableHeight);
+        expect(portal.querySelector('[aria-label^="Close"]')).toBe(closeButton);
+        expect(closeButton.disabled).toBe(false);
+        await act(async () => closeButton.focus());
+        await act(async () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+        expect(document.activeElement).toBe(closeButton);
+      }
+      expect(close).not.toHaveBeenCalled();
+      await act(async () => closeButton.click());
+      expect(close).toHaveBeenCalledTimes(1);
+    } finally {
+      await act(async () => root.unmount());
+      styles.remove();
+      host.remove();
+      vi.unstubAllGlobals();
+      environment.IS_REACT_ACT_ENVIRONMENT = previousAct;
+    }
+  },
+);
+
 
 it("releases logical Close and background focus before the exit spring rests", async () => {
   const host = document.body.appendChild(document.createElement("div"));
