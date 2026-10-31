@@ -36,6 +36,8 @@ import {
 } from "@/lib/rounds";
 import { isDrinkCategory } from "@/lib/drinks";
 import { normalizeHandle } from "@/lib/profiles";
+import { log } from "@/lib/log";
+import { deletePhotos, isMissingReceiptColumnError, PhotoRefusalError, uploadPhoto } from "@/lib/pintDropsStore";
 import { admin, selectStore } from "@/lib/storeBackend";
 
 // How many times to retry a code collision before giving up. A 6-char code over a
@@ -99,6 +101,7 @@ export type RoundsStore = {
       items?: unknown;
       initialPromotionStatus?: RoundPromotionStatus;
       promotionActor?: string;
+      receipt?: File | null;
     },
   ): Promise<RecordSpendResult>;
   claimSpendPromotionOwner(
@@ -124,6 +127,25 @@ const ROUNDS = "rounds";
 const MEMBERS = "round_members";
 const STOPS = "round_stops";
 const SPENDS = "round_spends";
+
+async function uploadRoundReceipt(
+  venueId: string,
+  spendId: string,
+  receipt?: File | null,
+): Promise<string | undefined> {
+  if (!receipt) return undefined;
+  try {
+    return await uploadPhoto("receipt", venueId, spendId, receipt);
+  } catch (error) {
+    if (error instanceof PhotoRefusalError) throw error;
+    log("warn", "rounds.receipt_upload_failed", {
+      venueId,
+      spendId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return undefined;
+  }
+}
 
 // ── Row → DTO mappers (Supabase) ─────────────────────────────────────────────
 function roundFromRow(row: Record<string, unknown>): RoundDTO {
@@ -193,6 +215,7 @@ function spendFromRow(row: Record<string, unknown>): RoundSpendDTO {
     venueId: String(row.venue_id ?? ""),
     venueName: String(row.venue_name ?? ""),
     totalPence: Number(row.total_pence ?? 0),
+    ...(row.receipt_photo_key ? { receiptPhotoKey: String(row.receipt_photo_key) } : {}),
     items: spendItemsFromRow(row.items),
     recordedAt: String(row.recorded_at ?? new Date(0).toISOString()),
   };
@@ -250,9 +273,7 @@ const supabaseRoundsStore: RoundsStore = {
         admin().from(STOPS).select("id, venue_id, venue_name, added_by_handle, drop_ref, created_at").eq("round_id", round.id).order("created_at", { ascending: true }),
         admin()
           .from(SPENDS)
-          .select(
-            "id, client_ref, payer_handle, recorded_by_handle, venue_id, venue_name, total_pence, items, recorded_at",
-          )
+          .select("*")
           .eq("round_id", round.id)
           .order("recorded_at", { ascending: true }),
       ]);
@@ -342,7 +363,10 @@ const supabaseRoundsStore: RoundsStore = {
       if (state.spends.some((spend) => spend.clientRef === clean.clientRef)) {
         return { ok: true, state, created: false };
       }
-      const { error } = await admin().from(SPENDS).insert({
+      const id = crypto.randomUUID();
+      let receiptPhotoKey = await uploadRoundReceipt(clean.venueId, id, input.receipt);
+      const row = {
+        id,
         round_id: state.round.id,
         client_ref: clean.clientRef,
         payer_handle: clean.payerHandle,
@@ -358,7 +382,22 @@ const supabaseRoundsStore: RoundsStore = {
               : "diary_only",
         })),
         promotion_actor: input.promotionActor ?? null,
-      });
+        receipt_photo_key: receiptPhotoKey ?? null,
+      };
+      let { error } = await admin().from(SPENDS).insert(row);
+      if (isMissingReceiptColumnError(error)) {
+        log("warn", "rounds.receipt_column_missing", { spendId: id, migration: "0199" });
+        if (receiptPhotoKey) {
+          await deletePhotos([receiptPhotoKey]);
+          receiptPhotoKey = undefined;
+        }
+        const { receipt_photo_key: _receipt, ...withoutReceipt } = row;
+        void _receipt;
+        ({ error } = await admin().from(SPENDS).insert(withoutReceipt));
+      }
+      if (error?.code && receiptPhotoKey) {
+        await deletePhotos([receiptPhotoKey]);
+      }
       if (error && (error as { code?: string }).code !== "23505") {
         throw new Error(error.message);
       }
@@ -367,6 +406,7 @@ const supabaseRoundsStore: RoundsStore = {
         ? { ok: true, state: next, created: !error }
         : { ok: false, error: "error" };
     } catch (err) {
+      if (err instanceof PhotoRefusalError) return { ok: false, error: "invalid" };
       console.error("[rounds] recordSpend failed:", err instanceof Error ? err.message : err);
       return { ok: false, error: "error" };
     }
@@ -634,17 +674,31 @@ export const memoryRoundsStore: RoundsStore = {
     if (!round.stops.some((stop) => stop.venueId === clean.venueId)) {
       return { ok: false, error: "invalid" };
     }
+    const id = crypto.randomUUID();
+    let receiptPhotoKey: string | undefined;
+    if (!round.spends.some((spend) => spend.clientRef === clean.clientRef)) {
+      try {
+        receiptPhotoKey = await uploadRoundReceipt(clean.venueId, id, input.receipt);
+      } catch (error) {
+        if (error instanceof PhotoRefusalError) return { ok: false, error: "invalid" };
+        throw error;
+      }
+    }
     const created = !round.spends.some((spend) => spend.clientRef === clean.clientRef);
+    if (!created && receiptPhotoKey) {
+      await deletePhotos([receiptPhotoKey]);
+    }
     if (created) {
       memorySeq += 1;
       round.spends.push({
-        id: `spend${memorySeq}`,
+        id,
         clientRef: clean.clientRef,
         payerHandle: clean.payerHandle,
         recordedByHandle: clean.recordedByHandle,
         venueId: clean.venueId,
         venueName: clean.venueName,
         totalPence: clean.totalPence,
+        ...(receiptPhotoKey ? { receiptPhotoKey } : {}),
         items: clean.items.map((item) => ({
           ...item,
           promotionStatus:
