@@ -2,7 +2,6 @@ import { formatGbp } from "@/lib/formatGbp";
 import { haversineKm } from "@/lib/haversine";
 import { WALK_KMH } from "@/lib/routeLegs";
 import { isPublicRankablePub } from "@/lib/venueKindFilters";
-import { formatGbp } from "@/lib/formatGbp";
 import type { VenueKind } from "@/lib/venues";
 import { walkMinutesFromKm } from "@/lib/walkMinutes";
 
