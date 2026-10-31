@@ -1,6 +1,9 @@
 "use client";
 
+import { useEffect } from "react";
+
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
+import { trackEvent } from "@/lib/analytics";
 import { palGenomeFor, palGenomeStyle } from "@/lib/palGenome";
 import {
   PAL_QUEST_NO_DRINK,
@@ -29,6 +32,11 @@ export default function PalQuest({
   done: Stamp | null;
 }) {
   const genome = palGenomeFor(pal.id, pal.personality);
+  // Counted once each time the ask appears, never again while it stays up.
+  const asking = !done && ask !== null;
+  useEffect(() => {
+    if (asking) trackEvent("pal_quest_asked");
+  }, [asking]);
   if (!done && !ask) return null;
   return (
     <section

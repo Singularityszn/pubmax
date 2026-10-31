@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 import sprite from "@/components/map/canvas/mapIconSprite.json";
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
+import { trackEvent } from "@/lib/analytics";
 import {
   palPassportLandmark,
   palPassportPages,
@@ -56,6 +57,12 @@ export default function PalQuestStamps({ pal, print }: { pal: Pick<PubPal, "name
     window.addEventListener("storage", read);
     return () => window.removeEventListener("storage", read);
   }, []);
+  // Counted once per visit, and only for a book with a stamp in it: the empty
+  // book is a /pal visit, which page views already count.
+  const stamped = stamps !== null && stamps.length > 0;
+  useEffect(() => {
+    if (stamped) trackEvent("pal_passport_viewed");
+  }, [stamped]);
   if (stamps === null) return null;
   const pages = palPassportPages(stamps);
   return (

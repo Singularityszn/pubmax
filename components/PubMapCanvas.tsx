@@ -12,6 +12,7 @@ import { followMapPixelRatio, mapPixelRatio, probeWebGl2 } from "@/components/ma
 import { createPalMapMarker, palPinIsCheap, type PalMapMarker } from "@/components/map/canvas/palMarker";
 import { legRouteToLines } from "@/components/map/canvas/legRouteScene";
 import { legRouteForCurrentLeg, readLegRouteOnMap, subscribeLegRouteOnMap } from "@/lib/legRouteOnMap";
+import { trackEvent } from "@/lib/analytics";
 import { palLeadLine, palLeadPath, planWalkAfterLead } from "@/lib/palLead";
 import { palFirstLegLabel, palPerchSpeechForPin, palWalkLine } from "@/lib/palMapLines";
 import { crewPalLook, type CrewPal } from "@/lib/crewPals";
@@ -1278,6 +1279,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   // Pal leads the way: while it walks the way the reader chose in Night Mode,
   // the plan's own walk and stops wait for it (the effect below).
   const palLeadKeyRef = useRef<string | null>(null);
+  const palLeadReportedRef = useRef<string | null>(null);
   // The Pal speaks on the map (lib/palMapLines.ts): once as it sets off on a
   // crawl, with the first leg's own time, and once beside a cheapest-band pin.
   // These keys hold what it last spoke about, so a re-render never repeats it.
@@ -4559,6 +4561,12 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     marker.walk({ key, stops: [path[0]!, path.at(-1)!], path, road: true, cheer: true });
     marker.nextStop({ stop: 1, name: palNextName, open: () => onRouteStopClickRef.current(palNextVenueId) });
     marker.say(palLeadLine(shownLeg.option));
+    // Once per chosen way: a map rebuilt mid-walk leads again, but it is the
+    // same lead, so it is not counted again.
+    if (palLeadReportedRef.current !== key) {
+      palLeadReportedRef.current = key;
+      trackEvent("pal_lead_started");
+    }
   }, [shownLeg, palNextVenueId, palNextName, routeCoordKey, mapReady]);
 
   // The crew's Pals: made when the crew read lands, walked on the route the

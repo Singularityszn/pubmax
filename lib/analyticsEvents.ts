@@ -50,6 +50,18 @@ export const ANALYTICS_EVENTS = {
   night_description_submitted: ["area", "daypart"],
   planned_night_action: ["type"],
   pub_pal_summoned: ["surface"],
+  // The Pal's own loop, so "do people use the Pal?" has an answer beyond the
+  // summon tap. No props on purpose: the closed name is the whole signal. No
+  // venue, no area, no stamp count (a stamp is a mark, not a score) and no
+  // route, each of which narrows toward one drinker's night.
+  //   pal_quest_asked     the Pal asked today's price quest on /near
+  //   pal_quest_stamped   an answer landed today's stamp in the passport
+  //   pal_passport_viewed a passport with at least one stamp was opened on /pal
+  //   pal_lead_started    the Pal began walking the way chosen to the next stop
+  pal_quest_asked: [],
+  pal_quest_stamped: [],
+  pal_passport_viewed: [],
+  pal_lead_started: [],
   discovery_viewed: ["surface", "daypart"],
   plan_invite_sent: ["channel"],
   plan_invite_opened: ["source"],

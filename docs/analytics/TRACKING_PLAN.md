@@ -373,6 +373,10 @@ vocabularies. The column here is the question the event exists to answer.
 | `concierge_ask` | Somebody asked the concierge. |
 | `concierge_result_tap` | An answer was taken. |
 | `pub_pal_summoned` | The Pal was called from a surface. |
+| `pal_quest_asked` | The Pal asked today's price quest on /near. |
+| `pal_quest_stamped` | An answer to the quest landed today's stamp in the price passport. |
+| `pal_passport_viewed` | A price passport with at least one stamp was opened on /pal. |
+| `pal_lead_started` | The Pal began to walk the way the reader chose to the next stop. Counted once for each chosen way. |
 | `voice_started` | A Pub Pal voice session connected. See 5.10. |
 | `voice_ended` | A connected voice session ended, and why: the reader stopped it, it disconnected, it hit the cap, or it failed. |
 
