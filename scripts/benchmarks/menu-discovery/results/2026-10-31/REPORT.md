@@ -46,6 +46,8 @@ Discovery includes eligible menu links on captured pages. Downloads require a su
 Offline evaluation merges URL aliases only when recorded redirects establish their identity.
 The recorded requests, duplicate downloads, latency, and historical crawler hashes remain unchanged.
 Complete price yields stay unknown until all successful fetched pages receive conclusive review, including noncandidates.
+Fetched-page verdicts and relevance require a label with the same body hash.
+A different captured body remains unreviewed, even when its URL has a conclusive label.
 The gold review can verify a linked document separately without adding a request to either arm.
 The separate reference stage made 22 requests outside both arms.
 This earlier reference reader applied at least 1.5 seconds between request starts. No longer published delay occurred in these three reference origins. The final paired crawler uses delays after response completion.
@@ -58,18 +60,18 @@ It does not measure production ingestion or a fully reviewed price inventory.
 | --- | ---: | ---: |
 | Venues | 60 | 60 |
 | Upstream request attempts | 324 | 313 |
-| Verified menu URLs discovered | 13 | 11 |
-| Verified menu URLs downloaded | 11 | 4 |
+| Verified menu URLs discovered | 12 | 11 |
+| Verified menu URLs downloaded | 10 | 4 |
 | Verified PDF URLs discovered | 5 | 5 |
-| Verified HTML URLs discovered | 8 | 6 |
+| Verified HTML URLs discovered | 7 | 6 |
 | Verified PDF menus downloaded | 5 | 0 |
-| Verified HTML menus downloaded | 6 | 4 |
+| Verified HTML menus downloaded | 5 | 4 |
 | Venues with a verified PDF URL, lower bound | 1 | 1 |
-| Venues with a verified HTML URL, lower bound | 5 | 5 |
-| Judged false-positive URLs | 33 | 36 |
-| Missing reviewed gold URLs | 11 | 13 |
-| Unjudged candidate URLs | 331 | 539 |
-| Relevant pages per 100 requests, lower bound | 3.4 | 1.28 |
+| Venues with a verified HTML URL, lower bound | 4 | 5 |
+| Judged false-positive URLs | 30 | 36 |
+| Missing reviewed gold URLs | 12 | 13 |
+| Unjudged candidate URLs | 335 | 539 |
+| Relevant pages per 100 requests, lower bound | 3.09 | 1.28 |
 | Verified price records | 21 | 0 |
 | Verified price records per 100 requests, lower bound | 6.48 | 0 |
 | Native gateway fetch errors | 0 | 0 |
@@ -88,10 +90,10 @@ It does not measure production ingestion or a fully reviewed price inventory.
 | Python peak RSS, bytes | 31,866,880 | 28,377,088 |
 | PageSift peak RSS, bytes | 0 | 39,157,760 |
 | Downloaded bytes | 70,422,858 | 58,529,305 |
-| Judged-candidate precision | 28.3% | 23.4% |
-| Precision lower bound | 3.4% | 1.9% |
-| Precision upper bound | 91.2% | 93.9% |
-| Recall against all reviewed inventory URLs | 54.2% | 45.8% |
+| Judged-candidate precision | 28.6% | 23.4% |
+| Precision lower bound | 3.2% | 1.9% |
+| Precision upper bound | 92% | 93.9% |
+| Recall against all reviewed inventory URLs | 50% | 45.8% |
 | Measured-component cost scenario | $0.00660 | $0.00642 |
 
 The cohort took 594.43 seconds of elapsed time.
@@ -106,15 +108,15 @@ The primary sample contains 12 venues selected before the crawl.
 The annotation set currently contains 24 verified menu labels, 51 negative labels, and 3 unresolved labels.
 Those labels include a separate diagnostic sample outside the primary 12 venues.
 Primary-sample discovery recall is 38.9% for A and 27.8% for B.
-Primary-sample judged precision is 17.9% for A and 12.5% for B.
+Primary-sample judged precision is 19.4% for A and 12.5% for B.
 
 | Primary 12-venue sample | A: breadth-first | B: PageSift 0.81.0 |
 | --- | ---: | ---: |
 | Upstream attempts | 70 | 70 |
 | Verified menu URLs discovered | 7 | 5 |
-| Judged false positives | 32 | 35 |
+| Judged false positives | 29 | 35 |
 | Missing reviewed URLs | 11 | 13 |
-| Unjudged candidate URLs | 73 | 306 |
+| Unjudged candidate URLs | 76 | 306 |
 | Verified price records | 0 | 0 |
 | Price records per 100, lower bound | 0 | 0 |
 | PDF URL recall in the primary inventory | 0% | 0% |
@@ -137,6 +139,7 @@ Eight earlier reference URLs therefore count as access misses. These misses do n
 Both profiles also exclude the three Bluecoats image menus. Their missing records state that protocol limit.
 The remaining missing-URL differences come from eligible discovery in this observation.
 
+- Arm A: way/176677099, [reviewed menu](https://www.oldshiphammersmith.co.uk/food-and-drink). Cause: fetched-capture-unreviewed. The fetched body does not have a matching conclusive review.
 - Arm A: way/160279486, [reviewed menu](https://etmcollection.co.uk/venue/the-jugged-hare/). Cause: access-unavailable-during-paired-run. The arm did not identify this reviewed menu URL.
 - Arm A: way/160279486, [reviewed menu](https://etmcollection.co.uk/app/uploads/2024/07/JH-Sunday-Feast-Menu-0626.pdf). Cause: access-unavailable-during-paired-run. The arm did not identify this reviewed menu URL.
 - Arm A: way/160279486, [reviewed menu](https://etmcollection.co.uk/app/uploads/2024/07/Jugged-Hare-Christmas-Set-Menu-Design-26.pdf). Cause: access-unavailable-during-paired-run. The arm did not identify this reviewed menu URL.
@@ -165,8 +168,8 @@ The remaining missing-URL differences come from eligible discovery in this obser
 These reviewed false positives illustrate the errors. The machine-readable file contains every judged false-positive URL.
 
 - Arm A: [https://www.brunningandprice.co.uk/company/pubs-with-private-dining/](https://www.brunningandprice.co.uk/company/pubs-with-private-dining/). This is a company page or article. It is not a menu bound to the input Roebuck in Chiswick.
-- Arm A: [https://www.brunningandprice.co.uk/company/food/](https://www.brunningandprice.co.uk/company/food/). This is a company page or article. It is not a menu bound to the input Roebuck in Chiswick.
-- Arm A: [https://www.brunningandprice.co.uk/company/drink/](https://www.brunningandprice.co.uk/company/drink/). This is a company page or article. It is not a menu bound to the input Roebuck in Chiswick.
+- Arm A: [https://www.brunningandprice.co.uk/leatherbottle/](https://www.brunningandprice.co.uk/leatherbottle/). This page identifies the Leather Bottle, not the input Roebuck in Chiswick. A shared company host does not establish branch identity.
+- Arm A: [https://www.brunningandprice.co.uk/company/food-archive/](https://www.brunningandprice.co.uk/company/food-archive/). This is a company page or article. It is not a menu bound to the input Roebuck in Chiswick.
 - Arm B: [https://www.brunningandprice.co.uk/company/pubs-with-private-dining/](https://www.brunningandprice.co.uk/company/pubs-with-private-dining/). This is a company page or article. It is not a menu bound to the input Roebuck in Chiswick.
 - Arm B: [https://www.brunningandprice.co.uk/company/food/](https://www.brunningandprice.co.uk/company/food/). This is a company page or article. It is not a menu bound to the input Roebuck in Chiswick.
 - Arm B: [https://www.brunningandprice.co.uk/company/drink/](https://www.brunningandprice.co.uk/company/drink/). This is a company page or article. It is not a menu bound to the input Roebuck in Chiswick.

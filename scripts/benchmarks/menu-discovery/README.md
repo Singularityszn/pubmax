@@ -170,6 +170,8 @@ node scripts/benchmarks/menu-discovery/evaluate.mjs /tmp/pubmax-menu-result-copy
 The reference stage can run after a crawl with `node scripts/benchmarks/menu-discovery/reference.mjs RUN scripts/benchmarks/menu-discovery/reference-targets.json`.
 Each reference venue has a separate 40-request maximum. These requests do not enter either arm's figures.
 Reference reads retain their actual timestamps and can predate a later corrected crawl.
+The reference reader carries host refusals from both paired arms into every request, including redirects.
+A paired terms refusal also holds the affected venue.
 Do not retry a challenge or access refusal to complete the reference inventory.
 
 ## Export a completed comparison
@@ -196,3 +198,8 @@ Offline evaluation merges only aliases supported by recorded redirects. It does 
 Complete price yields require conclusive review of every successful fetched page, including noncandidates.
 The archive auditor checks historical crawler hashes against the recorded Git commit, independently of current runtime files.
 The report discloses the recorded cohort impact of the terms and delay defects.
+
+## Validation status
+
+See [the validation record](VALIDATION.md) for the current checks and pending repository gate.
+The final local CLI run passed all 36 checks. No further pub requests occurred.

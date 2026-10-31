@@ -17,6 +17,13 @@ const manifest = JSON.parse(readFileSync(resolve(here, 'manifest.json')));
 const protocol = JSON.parse(readFileSync(resolve(here, 'protocol.json')));
 const targets = JSON.parse(readFileSync(resolve(targetsInput))).targets;
 const results = loadResults(run);
+const refusedVenues = new Set(results.filter((row) => row.events.some((event) => /terms-restrict|terms-unreadable|venue-terms-refused/.test(event.reason)))
+  .map((row) => row.venueId));
+const refusedHosts = new Set([...results.flatMap((row) => [
+  ...row.events.filter((event) => /refused|disallowed|unreadable|challenge|cooldown|terms-restrict/.test(event.reason)),
+  ...row.requests.filter((request) => [401, 403, 429, 503].includes(request.status) || request.retryAfter),
+]), ...manifest.venues.filter((venue) => refusedVenues.has(venue.venueId)).map((venue) => ({ url: venue.website }))]
+  .map((row) => canonical(row.url)).filter(Boolean).map((url) => new URL(url).host.replace(/^www\./, '')));
 const clocks = new Map();
 const summaries = [];
 mkdirSync(resolve(run, 'reference'));
@@ -26,6 +33,11 @@ for (const venueId of [...new Set(targets.map((r) => r.venueId))]) {
   const out = resolve(run, 'reference', venueId.replace('/', '-'));
   mkdirSync(out, { recursive: true });
   const transport = new Transport({ venue, arm: 'REFERENCE', out, protocol: { ...protocol, requestBudgetPerArmPerVenue: 40 }, clocks });
+  for (const host of refusedHosts) {
+    transport.cooldown.add(host);
+    transport.cooldown.add(`www.${host}`);
+  }
+  transport.venueRefused = refusedVenues.has(venueId);
   const start = performance.now();
   await transport.fetch(venue.website);
   for (const target of targets.filter((r) => r.venueId === venueId)) {

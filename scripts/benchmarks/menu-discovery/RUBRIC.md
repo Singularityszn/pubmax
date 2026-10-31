@@ -42,6 +42,8 @@ Record HTML and PDF formats from the response body, not just the URL suffix.
 Use `relevant: true` only for a verified menu or a useful official menu hub.
 Keep `unresolved` labels out of precision and recall denominators.
 Never convert a missing annotation to `not-menu`.
+For a fetched page, require the annotation to match its response body hash.
+A label for a different captured body does not establish a verdict, relevance, or prices for that page.
 
 ## Price records
 
@@ -76,6 +78,7 @@ Keep genuine food and drink records separate in the report when both occur.
 | Blocked pages | Pre-request access refusals, challenges, rate limits, and cooldown events, grouped by reason |
 
 Report judged-candidate precision with the number of unjudged candidates beside it.
+Complete price yield also requires conclusive review of every successful fetched page, including noncandidates.
 Give a complete metric only when its full annotation scope is complete. Otherwise give a lower bound and an unknown complete value.
 The primary sample's recall is bounded by the manually established inventory. It is not full-site recall.
 Discovery can include a linked PDF whose body only the separate reference review downloads.

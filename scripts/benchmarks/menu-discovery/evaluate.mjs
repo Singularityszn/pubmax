@@ -57,19 +57,21 @@ export function evaluate(results, labels) {
       }
     }
     const candidates = [...discovered];
-    const truePositiveKeys = candidates.filter(([k]) => byKey.get(k)?.verdict === 'menu').map(([k]) => k);
-    const falsePositiveKeys = candidates.filter(([k]) => byKey.get(k)?.verdict === 'not-menu').map(([k]) => k);
-    const unjudged = candidates.filter(([k]) => !byKey.has(k)).map(([k]) => k);
+    const reviewed = new Map([...pages].filter(([k, p]) => p.bodySha256 && p.bodySha256 === byKey.get(k)?.bodySha256)
+      .map(([k]) => [k, byKey.get(k)]));
+    const candidateLabel = (k) => pages.has(k) ? reviewed.get(k) : byKey.get(k);
+    const truePositiveKeys = candidates.filter(([k]) => candidateLabel(k)?.verdict === 'menu').map(([k]) => k);
+    const falsePositiveKeys = candidates.filter(([k]) => candidateLabel(k)?.verdict === 'not-menu').map(([k]) => k);
+    const unjudged = candidates.filter(([k]) => !candidateLabel(k)).map(([k]) => k);
     const misses = truth.filter((r) => !truePositiveKeys.includes(key(r.venueId, r.url)));
-    const menuKeys = [...pages].filter(([k, p]) => p.status === 200 && byKey.get(k)?.verdict === 'menu').map(([k]) => k);
-    const relevantPages = [...pages].filter(([k, p]) => p.status === 200 && byKey.get(k)?.relevant === true).length;
+    const menuKeys = [...pages].filter(([k, p]) => p.status === 200 && reviewed.get(k)?.verdict === 'menu').map(([k]) => k);
+    const relevantPages = [...pages].filter(([k, p]) => p.status === 200 && reviewed.get(k)?.relevant === true).length;
     const successfulPages = [...pages].filter(([, p]) => p.status === 200);
-    const allSuccessfulPagesReviewed = successfulPages.every(([k]) => byKey.has(k));
-    const reviewedPages = [...pages].filter(([k]) => byKey.has(k)).length;
-    const priceKeys = menuKeys.filter((k) => !byKey.get(k).bodySha256 || byKey.get(k).bodySha256 === pages.get(k).bodySha256);
-    const priceBodyMismatches = menuKeys.filter((k) => !priceKeys.includes(k) && byKey.get(k).priceRecords?.length)
-      .map((k) => ({ venueId: pages.get(k).venueId, url: pages.get(k).url, fetchedSha256: pages.get(k).bodySha256, reviewedSha256: byKey.get(k).bodySha256 }));
-    const prices = unique(priceKeys.flatMap((k) => (byKey.get(k)?.priceRecords ?? []).map((p) => `${pages.get(k).venueId}\t${p.id}`)));
+    const allSuccessfulPagesReviewed = successfulPages.every(([k]) => reviewed.has(k));
+    const reviewedPages = reviewed.size;
+    const priceBodyMismatches = successfulPages.filter(([k]) => !reviewed.has(k) && byKey.get(k)?.verdict === 'menu' && byKey.get(k).priceRecords?.length)
+      .map(([k, page]) => ({ venueId: page.venueId, url: page.url, fetchedSha256: page.bodySha256, reviewedSha256: byKey.get(k).bodySha256 }));
+    const prices = unique(menuKeys.flatMap((k) => (reviewed.get(k).priceRecords ?? []).map((p) => `${pages.get(k).venueId}\t${p.id}`)));
     const requests = rows.reduce((n, r) => n + r.networkRequests, 0);
     const events = rows.flatMap((r) => r.events);
     const network = rows.flatMap((r) => r.requests);
@@ -116,7 +118,7 @@ export function evaluate(results, labels) {
       priceBodyMismatches,
       verifiedPriceRecordsPer100RequestsLowerBound: rate(prices.length * 100, requests),
       verifiedPriceRecordsPer100Requests: allSuccessfulPagesReviewed && candidates.length === truePositiveKeys.length + falsePositiveKeys.length
-        && priceKeys.length === menuKeys.length && priceBodyMismatches.length === 0 && menuKeys.every((k) => byKey.get(k).priceReviewComplete === true) ? rate(prices.length * 100, requests) : null,
+        && priceBodyMismatches.length === 0 && menuKeys.every((k) => reviewed.get(k).priceReviewComplete === true) ? rate(prices.length * 100, requests) : null,
       fetchFailures: network.filter((r) => r.error).length,
       nativeFetchErrors: rows.reduce((n, r) => n + (r.nativeFetchErrors?.length ?? 0), 0),
       httpFailures: network.filter((r) => r.status >= 400).length,
@@ -137,7 +139,7 @@ export function evaluate(results, labels) {
         reason: r.format === 'image' ? 'image-menu-excluded-by-protocol'
           : !rows.find((v) => v.venueId === r.venueId)?.pages.some((p) => p.status === 200)
             && rows.find((v) => v.venueId === r.venueId)?.events.some(blockedReason) ? 'access-unavailable-during-paired-run'
-            : pages.has(key(r.venueId, r.url)) ? 'fetched-but-not-identified' : 'not-discovered',
+            : pages.has(key(r.venueId, r.url)) ? reviewed.has(key(r.venueId, r.url)) ? 'fetched-but-not-identified' : 'fetched-capture-unreviewed' : 'not-discovered',
         fetched: pages.has(key(r.venueId, r.url)) })),
       falsePositiveUrls: falsePositiveKeys.map((k) => ({ venueId: discovered.get(k).venueId, url: discovered.get(k).url,
         fetched: pages.has(k), evidence: byKey.get(k).evidence ?? null })),

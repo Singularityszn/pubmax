@@ -10,27 +10,27 @@
       "venues": 60,
       "requests": 324,
       "candidates": 377,
-      "reviewedPages": 56,
-      "unjudgedCandidates": 331,
-      "truePositives": 13,
-      "falsePositives": 33,
-      "falseNegatives": 11,
-      "precision": 0.2826086956521739,
-      "precisionLowerBound": 0.034482758620689655,
-      "precisionUpperBound": 0.9124668435013262,
-      "recall": 0.5416666666666666,
-      "verifiedMenusFetched": 11,
-      "verifiedMenuUrlsDiscovered": 13,
+      "reviewedPages": 50,
+      "unjudgedCandidates": 335,
+      "truePositives": 12,
+      "falsePositives": 30,
+      "falseNegatives": 12,
+      "precision": 0.2857142857142857,
+      "precisionLowerBound": 0.03183023872679045,
+      "precisionUpperBound": 0.9204244031830239,
+      "recall": 0.5,
+      "verifiedMenusFetched": 10,
+      "verifiedMenuUrlsDiscovered": 12,
       "verifiedPdfUrlsDiscovered": 5,
-      "verifiedHtmlUrlsDiscovered": 8,
+      "verifiedHtmlUrlsDiscovered": 7,
       "verifiedPdfDiscoveryVenues": 1,
-      "verifiedHtmlDiscoveryVenues": 5,
+      "verifiedHtmlDiscoveryVenues": 4,
       "pdfUrlRecall": 0.4166666666666667,
-      "htmlUrlRecall": 0.8888888888888888,
+      "htmlUrlRecall": 0.7777777777777778,
       "verifiedPdfMenus": 5,
-      "verifiedHtmlMenus": 6,
+      "verifiedHtmlMenus": 5,
       "verifiedMenuVenues": 5,
-      "relevantPagesPer100RequestsLowerBound": 3.3950617283950617,
+      "relevantPagesPer100RequestsLowerBound": 3.0864197530864197,
       "relevantPagesPer100Requests": null,
       "verifiedPriceRecords": 21,
       "priceBodyMismatches": [],
@@ -73,6 +73,13 @@
       "nativeChildPeakRssBytes": 0,
       "downloadBytes": 70422858,
       "missingUrls": [
+        {
+          "venueId": "way/176677099",
+          "url": "https://www.oldshiphammersmith.co.uk/food-and-drink",
+          "format": "html",
+          "reason": "fetched-capture-unreviewed",
+          "fetched": true
+        },
         {
           "venueId": "way/160279486",
           "url": "https://etmcollection.co.uk/venue/the-jugged-hare/",
@@ -160,18 +167,6 @@
         },
         {
           "venueId": "node/262702979",
-          "url": "https://www.brunningandprice.co.uk/company/food/",
-          "fetched": true,
-          "evidence": "This is a company page or article. It is not a menu bound to the input Roebuck in Chiswick."
-        },
-        {
-          "venueId": "node/262702979",
-          "url": "https://www.brunningandprice.co.uk/company/drink/",
-          "fetched": true,
-          "evidence": "This is a company page or article. It is not a menu bound to the input Roebuck in Chiswick."
-        },
-        {
-          "venueId": "node/262702979",
           "url": "https://www.brunningandprice.co.uk/leatherbottle/",
           "fetched": true,
           "evidence": "This page identifies the Leather Bottle, not the input Roebuck in Chiswick. A shared company host does not establish branch identity."
@@ -186,12 +181,6 @@
           "venueId": "node/262702979",
           "url": "https://www.brunningandprice.co.uk/company/drink-archive/",
           "fetched": false,
-          "evidence": "This is a company page or article. It is not a menu bound to the input Roebuck in Chiswick."
-        },
-        {
-          "venueId": "node/262702979",
-          "url": "https://www.brunningandprice.co.uk/company/pub-contacts/",
-          "fetched": true,
           "evidence": "This is a company page or article. It is not a menu bound to the input Roebuck in Chiswick."
         },
         {
@@ -430,19 +419,6 @@
           "format": "html",
           "fetched": false,
           "bodySha256": "310d8c40aaf434f67c0f7e37ecfbce9f5587ca58da1fdd47e9c30db3fb03b1bb",
-          "reviewer": "source-review-20261031"
-        },
-        {
-          "venueId": "way/176677099",
-          "url": "https://www.oldshiphammersmith.co.uk/food-and-drink",
-          "sourceUrl": "https://www.oldshiphammersmith.co.uk/",
-          "path": [
-            "https://www.oldshiphammersmith.co.uk/",
-            "https://www.oldshiphammersmith.co.uk/food-and-drink"
-          ],
-          "format": "html",
-          "fetched": true,
-          "bodySha256": "c02f4b9cad144a2e390c6c77d8296a35397c86f648b6149f7b50fed2ed68501e",
           "reviewer": "source-review-20261031"
         },
         {
@@ -1107,14 +1083,14 @@
       "venues": 12,
       "requests": 70,
       "candidates": 112,
-      "reviewedPages": 49,
-      "unjudgedCandidates": 73,
+      "reviewedPages": 44,
+      "unjudgedCandidates": 76,
       "truePositives": 7,
-      "falsePositives": 32,
+      "falsePositives": 29,
       "falseNegatives": 11,
-      "precision": 0.1794871794871795,
+      "precision": 0.19444444444444445,
       "precisionLowerBound": 0.0625,
-      "precisionUpperBound": 0.7142857142857143,
+      "precisionUpperBound": 0.7410714285714286,
       "recall": 0.3888888888888889,
       "verifiedMenusFetched": 5,
       "verifiedMenuUrlsDiscovered": 7,
@@ -1250,18 +1226,6 @@
         },
         {
           "venueId": "node/262702979",
-          "url": "https://www.brunningandprice.co.uk/company/food/",
-          "fetched": true,
-          "evidence": "This is a company page or article. It is not a menu bound to the input Roebuck in Chiswick."
-        },
-        {
-          "venueId": "node/262702979",
-          "url": "https://www.brunningandprice.co.uk/company/drink/",
-          "fetched": true,
-          "evidence": "This is a company page or article. It is not a menu bound to the input Roebuck in Chiswick."
-        },
-        {
-          "venueId": "node/262702979",
           "url": "https://www.brunningandprice.co.uk/leatherbottle/",
           "fetched": true,
           "evidence": "This page identifies the Leather Bottle, not the input Roebuck in Chiswick. A shared company host does not establish branch identity."
@@ -1276,12 +1240,6 @@
           "venueId": "node/262702979",
           "url": "https://www.brunningandprice.co.uk/company/drink-archive/",
           "fetched": false,
-          "evidence": "This is a company page or article. It is not a menu bound to the input Roebuck in Chiswick."
-        },
-        {
-          "venueId": "node/262702979",
-          "url": "https://www.brunningandprice.co.uk/company/pub-contacts/",
-          "fetched": true,
           "evidence": "This is a company page or article. It is not a menu bound to the input Roebuck in Chiswick."
         },
         {

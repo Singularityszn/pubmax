@@ -1,0 +1,32 @@
+{
+  "status": "focused-checks-passed-final-repository-gate-pending",
+  "cliTests": {
+    "passed": 36,
+    "failed": 0,
+    "skipped": 0,
+    "durationMilliseconds": 71412.278667,
+    "network": "synthetic-local-only"
+  },
+  "archiveAudit": {
+    "passed": true,
+    "venues": 60,
+    "arms": 120,
+    "requests": 637
+  },
+  "measuredRuntimeHead": "c350c09b785f4e5798665751606ed0466a5ff213",
+  "finalRepositoryGate": "pending-shared-resource-reservation",
+  "earlierPipelineRun": "01M69VH4HAT3GTV57RTJ4RGMVZ",
+  "earlierPipelineOutcome": "failed-agent-max-output-tokens",
+  "recoveredThrough": "25a91e5b8f1292699e8251744bc3cbbef84d952d",
+  "humanGoldApproved": false,
+  "browserRenderingVerified": false,
+  "testedFilesSha256": {
+    "benchmark.test.mjs": "4cc8907cebda03426c441e9cb69ec6c783336d5567280ed9e787139852839e15",
+    "evaluate.mjs": "5b9f07e5a0f3ba4f370b249940c74e7448def87e8e653a82a8419239011a0356",
+    "reference.mjs": "da44106835390307676012712d559a288968796ea2a98c6b36d1c67be4a64b1f",
+    "review.mjs": "2fb587580681a65802483f960fcd7cbb800fef690f539a60a2ccb18b1dc1ec2e",
+    "export.mjs": "9ac0d64f90bc56ba4a718a37b9b4b4b79d9d38f99bc0b8357fb818d2aa031ff0",
+    "transport.mjs": "2c14aea95073a98ab086e8383d62bc60ee7c5f3e355a57b6ab15b01f592d2dd8",
+    "run.mjs": "b6c92c4262f1cafb743b04aa219d8926263048356a649e433547c3178709de2a"
+  }
+}

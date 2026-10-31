@@ -83,7 +83,7 @@ const primaryTable = [['requests', 'Upstream attempts'], ['verifiedMenuUrlsDisco
 const oldShip = results.filter((r) => r.venueId === 'way/176677099');
 const shipPdf = (arm) => oldShip.find((r) => r.arm === arm)?.pages.filter((p) => p.format === 'pdf' && p.status === 200).length ?? 0;
 const examples = comparison.summary.flatMap((arm) => arm.falsePositiveUrls.slice(0, 3).map((row) => `- Arm ${arm.arm}: [${row.url}](${row.url}). ${row.evidence ?? 'The recorded reviewer classified this URL as not a menu.'}`));
-const misses = comparison.summary.flatMap((arm) => arm.missingUrls.map((row) => `- Arm ${arm.arm}: ${row.venueId}, [reviewed menu](${row.url}). Cause: ${row.reason}. ${row.fetched ? 'The arm fetched the page but did not identify it.' : 'The arm did not identify this reviewed menu URL.'}`));
+const misses = comparison.summary.flatMap((arm) => arm.missingUrls.map((row) => `- Arm ${arm.arm}: ${row.venueId}, [reviewed menu](${row.url}). Cause: ${row.reason}. ${row.reason === 'fetched-capture-unreviewed' ? 'The fetched body does not have a matching conclusive review.' : row.fetched ? 'The arm fetched the page but did not identify it.' : 'The arm did not identify this reviewed menu URL.'}`));
 const extraction = JSON.parse(readFileSync(resolve(run, 'extracted-pdfs.json')));
 const offlineCpuSeconds = (extraction.nodeCpuSeconds ?? 0) + (extraction.childCpuSeconds ?? 0);
 const offlineMemoryGiB = ((extraction.nodePeakRssBytes ?? 0) + (extraction.childPeakRssBytes ?? 0)) / 1024 ** 3;
@@ -146,6 +146,8 @@ Discovery includes eligible menu links on captured pages. Downloads require a su
 Offline evaluation merges URL aliases only when recorded redirects establish their identity.
 The recorded requests, duplicate downloads, latency, and historical crawler hashes remain unchanged.
 Complete price yields stay unknown until all successful fetched pages receive conclusive review, including noncandidates.
+Fetched-page verdicts and relevance require a label with the same body hash.
+A different captured body remains unreviewed, even when its URL has a conclusive label.
 The gold review can verify a linked document separately without adding a request to either arm.
 The separate reference stage made ${referenceRows.reduce((n, r) => n + r.networkRequests, 0)} requests outside both arms.
 ${referenceOrigin?.timingNote ?? 'The reference timing metadata is unavailable.'}

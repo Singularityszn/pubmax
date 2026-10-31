@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFile, execFileSync, spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, copyFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
@@ -89,8 +89,15 @@ test('the CLI retains source paths and refuses blocked URLs before requesting th
 });
 
 test('the CLI evaluates literal gold labels without turning pending reviews into false positives', () => {
-  const result = fixture(9);
-  for (const arm of result.evaluation) {
+  const root = 'https://fixture.example/';
+  const result = evaluationFixture([
+    { url: root + 'food-menu', candidate: true, status: 200, bodySha256: 'menu-body' },
+    { url: root + 'menu-news', candidate: true, status: 200, bodySha256: 'news-body' },
+    { url: root + 'unknown-menu', candidate: true, status: 200, bodySha256: 'unknown-body' },
+  ], [reviewedMenu(root + 'food-menu'), reviewedMenu(root + 'missing-menu.pdf'),
+    { venueId: 'fixture', url: root + 'menu-news', verdict: 'not-menu', relevant: false,
+      bodySha256: 'news-body', reviewer: 'fixture-truth', evidence: 'News, not a menu' }]);
+  for (const arm of result.summary) {
     assert.equal(arm.truePositives, 1);
     assert.equal(arm.falsePositives, 1);
     assert.equal(arm.falseNegatives, 1);
@@ -102,25 +109,12 @@ test('the CLI evaluates literal gold labels without turning pending reviews into
 });
 
 test('the evaluation CLI does not transfer prices onto different downloaded menu bytes', () => {
-  const captured = fixture(9);
-  const out = mkdtempSync(join(tmpdir(), 'pubmax-menu-price-hash-'));
-  try {
-    for (const arm of captured.arms) {
-      mkdirSync(join(out, 'fixture', arm.arm), { recursive: true });
-      writeFileSync(join(out, 'fixture', arm.arm, 'result.json'), JSON.stringify(arm));
-    }
-    const page = captured.arms[0].pages.find((p) => p.url.endsWith('/food-menu'));
-    const labels = { humanApproved: false, labels: [{ venueId: 'fixture', url: page.url, verdict: 'menu', format: 'html',
-      reviewer: 'fixture-truth', evidence: 'Soup £6.50', officialEvidence: { sourceUrl: page.url },
-      bodySha256: 'different-reviewed-document', priceRecords: [{ id: 'soup', item: 'Soup', amountGbp: 6.5, currency: 'GBP', evidence: 'Soup £6.50' }] }] };
-    writeFileSync(join(out, 'labels.json'), JSON.stringify(labels));
-    execFileSync(process.execPath, [join(here, 'evaluate.mjs'), out, join(out, 'labels.json')], { stdio: 'pipe' });
-    const result = JSON.parse(readFileSync(join(out, 'comparison.json')));
-    for (const arm of result.summary) {
-      assert.equal(arm.verifiedPriceRecords, 0);
-      assert.equal(arm.priceBodyMismatches.length, 1);
-    }
-  } finally { rmSync(out, { recursive: true, force: true }); }
+  const url = 'https://fixture.example/menu';
+  const result = evaluationFixture([{ url, status: 200, candidate: true, bodySha256: 'downloaded-body' }], [reviewedMenu(url)]);
+  const arm = result.summary[0];
+  assert.equal(arm.verifiedPriceRecords, 0);
+  assert.equal(arm.priceBodyMismatches.length, 1);
+  assert.equal(arm.verifiedPriceRecordsPer100Requests, null);
 });
 
 test('the native CLI waits for a permitted menu beyond its conservative twelve-second default', () => {
@@ -202,12 +196,16 @@ test('the CLI reuses fetched destinations through multiple redirect aliases', ()
   }
 });
 
-function evaluationFixture(pages, labels, requests = []) {
+function evaluationFixture(pages, labels, requests = [], otherArms = []) {
   const out = mkdtempSync(join(tmpdir(), 'pubmax-menu-evaluation-'));
   mkdirSync(join(out, 'fixture/A'), { recursive: true });
   const arm = { venueId: 'fixture', arm: 'A', budget: 12, networkRequests: 4, wallSeconds: 1,
     nodeCpuSeconds: 0, nodePeakRssBytes: 0, pages, requests, events: [] };
   writeFileSync(join(out, 'fixture/A/result.json'), JSON.stringify(arm));
+  for (const row of otherArms) {
+    mkdirSync(join(out, 'fixture', row.arm), { recursive: true });
+    writeFileSync(join(out, 'fixture', row.arm, 'result.json'), JSON.stringify({ ...arm, ...row }));
+  }
   writeFileSync(join(out, 'labels.json'), JSON.stringify({ humanApproved: false, labels }));
   try {
     execFileSync(process.execPath, [join(here, 'evaluate.mjs'), out, join(out, 'labels.json')], { stdio: 'pipe' });
@@ -242,7 +240,7 @@ test('the evaluation CLI merges recorded aliases in labels, candidates, and emit
 test('the evaluation CLI keeps complete yield unknown until successful noncandidates receive review', () => {
   const url = 'https://fixture.example/menu';
   const contextUrl = 'https://fixture.example/context';
-  const pages = [{ url, status: 200, candidate: true, bodySha256: 'menu-body' }, { url: contextUrl, status: 200, candidate: false }];
+  const pages = [{ url, status: 200, candidate: true, bodySha256: 'menu-body' }, { url: contextUrl, status: 200, candidate: false, bodySha256: 'context-body' }];
   const labels = [reviewedMenu(url)];
   let result = evaluationFixture(pages, labels);
   assert.equal(result.summary[0].verifiedPriceRecordsPer100Requests, null);
@@ -250,10 +248,70 @@ test('the evaluation CLI keeps complete yield unknown until successful noncandid
   assert.equal(result.summary[0].relevantPagesPer100Requests, null);
   labels.push({ venueId: 'fixture', url: contextUrl, verdict: 'unresolved', reviewer: 'fixture-truth', evidence: 'Review pending' });
   assert.equal(evaluationFixture(pages, labels).summary[0].verifiedPriceRecordsPer100Requests, null);
-  labels[1] = { ...labels[1], verdict: 'not-menu', relevant: false };
+  labels[1] = { ...labels[1], verdict: 'not-menu', relevant: false, bodySha256: 'context-body' };
   result = evaluationFixture(pages, labels);
   assert.equal(result.summary[0].verifiedPriceRecordsPer100Requests, 25);
   assert.equal(result.summary[0].relevantPagesPer100Requests, 25);
+});
+
+test('capture evaluation keeps different-body negative labels and missing hashes unreviewed in either arm', () => {
+  const url = 'https://fixture.example/menu';
+  for (const candidate of [false, true]) for (const reviewedArm of ['A', 'B']) {
+    const page = (arm) => ({ url, status: 200, candidate, bodySha256: arm + '-body' });
+    const label = { venueId: 'fixture', url, verdict: 'not-menu', relevant: false,
+      bodySha256: reviewedArm + '-body', reviewer: 'fixture-truth', evidence: 'Booking page' };
+    const result = evaluationFixture([page('A')], [label], [], [{ arm: 'B', pages: [page('B')] }]);
+    for (const arm of result.summary) {
+      const matching = arm.arm === reviewedArm;
+      assert.equal(arm.reviewedPages, matching ? 1 : 0);
+      assert.equal(arm.falsePositives, candidate && matching ? 1 : 0);
+      assert.equal(arm.unjudgedCandidates, candidate && !matching ? 1 : 0);
+      assert.equal(arm.verifiedPriceRecordsPer100Requests, matching ? 0 : null);
+      assert.equal(arm.relevantPagesPer100Requests, matching ? 0 : null);
+      assert.equal(arm.verifiedPriceRecordsPer100RequestsLowerBound, 0);
+    }
+  }
+  for (const bodySha256 of [undefined, 'A-body']) {
+    const arm = evaluationFixture([{ url, status: 200, candidate: true, bodySha256 }], [{
+      venueId: 'fixture', url, verdict: 'not-menu', relevant: false, reviewer: 'fixture-truth', evidence: 'No capture binding',
+    }]).summary[0];
+    assert.equal(arm.reviewedPages, 0);
+    assert.equal(arm.unjudgedCandidates, 1);
+    assert.equal(arm.verifiedPriceRecordsPer100Requests, null);
+  }
+});
+
+test('capture evaluation binds positive verdicts, relevance, prices, aliases and provenance to each body', () => {
+  const root = 'https://fixture.example/';
+  const url = root + 'menu/';
+  const alias = root + 'menu';
+  const page = { url, requestedUrl: alias, status: 200, candidate: true, bodySha256: 'menu-body',
+    sourceUrl: root, path: [root, alias, url] };
+  const label = reviewedMenu(alias);
+  const result = evaluationFixture([page], [label], [{ url: alias, status: 301, location: url }],
+    [{ arm: 'B', pages: [{ ...page, bodySha256: 'booking-body' }] }]);
+  const [a, b] = result.summary;
+  assert.equal(a.truePositives, 1);
+  assert.equal(a.verifiedMenusFetched, 1);
+  assert.equal(a.verifiedPriceRecordsPer100Requests, 25);
+  assert.equal(a.relevantPagesPer100Requests, 25);
+  assert.equal(a.verifiedUrls[0].bodySha256, 'menu-body');
+  assert.deepEqual(a.verifiedUrls[0].path, page.path);
+  assert.equal(b.truePositives, 0);
+  assert.equal(b.verifiedMenusFetched, 0);
+  assert.equal(b.unjudgedCandidates, 1);
+  assert.equal(b.verifiedPriceRecords, 0);
+  assert.equal(b.verifiedPriceRecordsPer100Requests, null);
+  assert.equal(b.verifiedPriceRecordsPer100RequestsLowerBound, 0);
+  assert.equal(b.relevantPagesPer100RequestsLowerBound, 0);
+  assert.equal(b.relevantPagesPer100Requests, null);
+  assert.equal(b.missingUrls[0].reason, 'fetched-capture-unreviewed');
+  assert.deepEqual(b.verifiedUrls, []);
+  const linked = evaluationFixture([{ url: root, status: 200, links: [{ url, keyword: true }] }], [reviewedMenu(url)]).summary[0];
+  assert.equal(linked.truePositives, 1);
+  assert.equal(linked.verifiedMenusFetched, 0);
+  assert.equal(linked.verifiedPriceRecords, 0);
+  assert.equal(linked.verifiedUrls[0].bodySha256, 'menu-body');
 });
 
 test('the live CLI rejects partial-cohort options before opening a crawl', () => {
@@ -554,6 +612,83 @@ test('offline fixes refuse every existing reference stage before reading targets
   }
 });
 
+test('reference CLI carries paired refusal holds through seeds, sources, targets and redirects', async () => {
+  const venues = JSON.parse(readFileSync(join(here, 'manifest.json'))).venues;
+  const venue = venues.find((v) => v.venueId === 'way/1075176772');
+  const sharedVenue = venues.find((v) => v.venueId !== venue.venueId && new URL(v.website).host === new URL(venue.website).host);
+  const root = canonical(venue.website);
+  const source = new URL('/reference-source', root).href;
+  const document = 'https://menus.fixture.example/menu.pdf';
+  const redirect = new URL('/redirect-menu.pdf', root).href;
+  const hits = [];
+  const server = createServer((request, response) => {
+    const url = request.headers['x-fixture-url'];
+    hits.push(url);
+    if (new URL(url).pathname === '/robots.txt') response.writeHead(200, { 'content-type': 'text/plain' }).end('User-agent: *\nAllow: /\n');
+    else if (url === redirect) response.writeHead(302, { location: document }).end();
+    else if (url === document) response.writeHead(200, { 'content-type': 'application/pdf' }).end('%PDF-1.4 fixture');
+    else response.writeHead(200, { 'content-type': 'text/html' }).end(`<html>Pub <a href="${source}">Food menu</a><a href="${document}">Menu PDF</a><a href="${redirect}">Menu PDF</a></html>`);
+  });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  const origin = `http://127.0.0.1:${server.address().port}`;
+  try {
+    const cases = [
+      { events: [{ url: new URL('/robots.txt', root).href, reason: 'robots-unreadable' }], forbidden: new URL(root).host },
+      { events: [{ url: source, reason: 'robots-disallowed' }], forbidden: new URL(source).host },
+      { events: [{ url: document, reason: 'challenge-page' }], forbidden: new URL(document).host },
+      { events: [{ url: document, reason: 'terms-unreadable' }], all: true },
+      { events: [{ url: document, reason: 'terms-restrict-automation' }], all: true },
+      { events: [{ url: document, reason: 'terms-restrict-automation' }], all: true, shared: true },
+      { events: [{ url: document.replace('menus.', 'www.menus.'), reason: 'host-cooldown' }], forbidden: new URL(document).host, shared: true, redirect: true },
+      ...[401, 403, 429, 503].map((status) => ({ requests: [{ url: document, status }], forbidden: new URL(document).host })),
+      { requests: [{ url: document, status: 200, retryAfter: '60' }], forbidden: new URL(document).host },
+      {},
+    ];
+    for (const [index, scenario] of cases.entries()) {
+      const out = mkdtempSync(join(tmpdir(), 'pubmax-menu-reference-hold-'));
+      hits.length = 0;
+      try {
+        writeFileSync(join(out, 'run.json'), JSON.stringify({ finishedAt: '2026-10-31T00:00:00Z' }));
+        writeFileSync(join(out, 'targets.json'), JSON.stringify({ targets: [{ venueId: venue.venueId, sourceUrl: source,
+          url: scenario.redirect ? redirect : document }] }));
+        for (const arm of ['A', 'B']) {
+          mkdirSync(join(out, 'venue', arm), { recursive: true });
+          writeFileSync(join(out, 'venue', arm, 'result.json'), JSON.stringify({ venueId: scenario.shared ? sharedVenue.venueId : venue.venueId, arm,
+            pages: [{ url: source, status: 200 }], requests: arm === (index % 2 ? 'A' : 'B') ? scenario.requests ?? [] : [],
+            events: arm === (index % 2 ? 'A' : 'B') ? scenario.events ?? [] : [] }));
+        }
+        if (scenario.shared) {
+          mkdirSync(join(out, 'selected/A'), { recursive: true });
+          writeFileSync(join(out, 'selected/A/result.json'), JSON.stringify({ venueId: venue.venueId, arm: 'A',
+            pages: [{ url: source, status: 200 }], requests: [], events: [] }));
+        }
+        const preload = join(out, 'local-http.mjs');
+        writeFileSync(preload, `import http from 'node:http';import https from 'node:https';import dns from 'node:dns/promises';import {syncBuiltinESMExports} from 'node:module';
+const request=http.request;const origin=${JSON.stringify(origin)};
+dns.lookup=async()=>[{address:'93.184.216.34',family:4}];
+const local=(url,options,callback)=>request(new URL(url.pathname+url.search,origin),{...options,lookup:undefined,headers:{...options.headers,'x-fixture-url':url.href}},callback);
+http.request=local;https.request=local;syncBuiltinESMExports();`);
+        await new Promise((accept, reject) => execFile(process.execPath, ['--import', preload, join(here, 'reference.mjs'), out, join(out, 'targets.json')],
+          { timeout: 15000 }, (error, stdout, stderr) => error ? reject(new Error(stderr || error.message)) : accept(stdout)));
+        const result = JSON.parse(readFileSync(join(out, 'reference', venue.venueId.replace('/', '-'), 'result.json')));
+        assert.equal(result.networkRequests, hits.length, `case ${index}`);
+        if (scenario.all) assert.deepEqual(hits, []);
+        else if (scenario.forbidden) {
+          assert.ok(hits.every((url) => new URL(url).host.replace(/^www\./, '') !== scenario.forbidden), `case ${index}: ${hits}`);
+          assert.equal(result.pages.some((p) => p.url === document), false);
+          assert.ok(result.events.some((event) => event.reason === 'host-cooldown'));
+        } else {
+          assert.ok(hits.includes(source));
+          assert.ok(hits.includes(document));
+          assert.equal(result.pages.find((p) => p.url === document)?.status, 200);
+        }
+        assert.deepEqual(JSON.parse(readFileSync(join(out, 'venue', 'B', 'result.json'))).requests,
+          index % 2 ? [] : scenario.requests ?? []);
+      } finally { rmSync(out, { recursive: true, force: true }); }
+    }
+  } finally { await new Promise((r) => server.close(r)); }
+});
+
 test('offline fixes reproduce the retained compact comparison without network access', () => {
   const out = mkdtempSync(join(tmpdir(), 'pubmax-menu-compact-'));
   const retained = join(here, 'results/2026-10-31');
@@ -618,16 +753,13 @@ function openGeneratedReview(html, drafts = {}) {
   const cacheKey = 'pubmax-menu-review-' + data.generatedFrom;
   const storage = new Map([[cacheKey, JSON.stringify(drafts)]]);
   let blob;
-  let queued;
   const context = createContext({ document, localStorage: {
     getItem: (key) => storage.get(key), setItem: (key, value) => storage.set(key, value),
-  }, Blob, URL: { createObjectURL(value) { blob = value; return 'blob:fixture'; }, revokeObjectURL() {} },
-  window: { lavish: { queuePrompt: (...args) => { queued = args; } } } });
+  }, Blob, URL: { createObjectURL(value) { blob = value; return 'blob:fixture'; }, revokeObjectURL() {} } });
   for (const [, attrs, source] of scripts) if (!attrs.includes('application/json')) runInContext(source, context);
   return { data, cacheKey, storage, fields,
     save: (id) => runInContext('save(' + JSON.stringify(id) + ')', context),
-    download: async () => { document.getElementById('export').onclick(); return JSON.parse(await blob.text()); },
-    queue: () => { document.getElementById('queue').onclick(); return queued?.[1].data.items; } };
+    download: async () => { document.getElementById('export').onclick(); return JSON.parse(await blob.text()); } };
 }
 
 function assertCaptureBinding(label, page) {
@@ -657,7 +789,7 @@ test('capture review clears imported A evidence when the displayed capture is B'
   });
 });
 
-test('capture review rejects stale drafts and binds saved downloads and feedback to B', async () => {
+test('capture review rejects stale drafts and binds saved downloads to B', async () => {
   const pending = captureReviewFixture(({ generate, label }) => {
     const old = generate(['A']).packet.pages[0];
     const { packet, html } = generate(['A', 'B']);
@@ -666,7 +798,6 @@ test('capture review rejects stale drafts and binds saved downloads and feedback
     const browser = openGeneratedReview(html, stale);
     const check = async () => {
       assert.deepEqual((await browser.download()).labels, []);
-      assert.equal(browser.queue(), undefined);
       assert.deepEqual(JSON.parse(browser.storage.get(browser.cacheKey)), stale);
       browser.save(current.reviewId);
       const saved = JSON.parse(browser.storage.get(browser.cacheKey));
@@ -678,9 +809,6 @@ test('capture review rejects stale drafts and binds saved downloads and feedback
       assert.equal(downloaded.labels.length, 1);
       assertCaptureBinding(downloaded.labels[0], current);
       assert.equal(downloaded.labels[0].priceRecords[0].item, 'B soup');
-      const queued = JSON.parse(JSON.stringify(browser.queue()));
-      assert.equal(queued.length, 1);
-      assertCaptureBinding(queued[0], current);
       const restored = openGeneratedReview(html, saved);
       const recovered = (await restored.download()).labels[0];
       assertCaptureBinding(recovered, current);
