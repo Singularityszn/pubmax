@@ -1,0 +1,65 @@
+.planClues {
+  margin-block: var(--space-5);
+  padding-block: var(--space-4);
+  border-block-start: 1px solid var(--line);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.planClues h3,
+.planClues h4 {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+}
+
+.planClues p {
+  margin-block: var(--space-2);
+  line-height: 1.5;
+}
+
+.planClues__note,
+.planClues__leg {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.planClues__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-block-start: var(--space-3);
+}
+
+.planClues__list {
+  padding: 0;
+  margin-block: var(--space-4);
+  list-style: none;
+}
+
+.planClues__item + .planClues__item {
+  margin-block-start: var(--space-5);
+  padding-block-start: var(--space-4);
+  border-block-start: 1px solid var(--line-soft);
+}
+
+.planClues a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.planClues summary {
+  min-block-size: var(--control-height);
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.planClues :is(a, summary):focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
