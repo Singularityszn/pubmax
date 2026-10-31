@@ -105,7 +105,8 @@ begin
 end;
 $$;
 
-drop function if exists public.create_plan_grounded_proposal_atomic(uuid,uuid,uuid,integer,jsonb,text,jsonb,jsonb,text,timestamptz,text,text,timestamptz,text,text);
+drop function if exists public.record_plan_member_vote_atomic(uuid,uuid,uuid,text,text,text,uuid,timestamptz);
+drop function if exists public.create_plan_grounded_proposal_atomic(uuid,uuid,uuid,text,integer,jsonb,text,jsonb,jsonb,text,timestamptz,text,text,timestamptz,text,text);
 alter table public.plan_route_proposals
   drop column grounding_proof,
   drop column grounding_operation_key,
