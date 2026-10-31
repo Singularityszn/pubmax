@@ -1,8 +1,5 @@
 // @vitest-environment jsdom
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
-import { act, createElement } from "react";
+import { act, createElement, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -41,6 +38,7 @@ vi.mock("@/components/pal/PubPalMascot", () => ({ PubPalMascot: () => null }));
 
 import NearPriceEvidenceMission from "@/components/nearme/NearPriceEvidenceMission";
 import PalQuestStamps from "@/components/pal/PalQuestStamps";
+import { usePalLeadStarted } from "@/components/pal/usePalLeadStarted";
 import { ANALYTICS_EVENTS, sanitizeEvent } from "@/lib/analyticsEvents";
 import { LOCAL_PAL_KEY } from "@/lib/localPal";
 import { PAL_QUEST_STAMPS_KEY } from "@/lib/palQuest";
@@ -134,17 +132,43 @@ describe("the Pal's usage events on screen", () => {
     await render(createElement(PalQuestStamps, { pal: ripley, print: [] }));
     expect(sent("pal_passport_viewed")).toBe(1);
   });
-});
 
-describe("pal_lead_started on the map", () => {
-  const canvas = readFileSync(join(process.cwd(), "components/PubMapCanvas.tsx"), "utf8");
+  it("counts a chosen way once across map rebuilds and counts a new choice without a payload", async () => {
+    // Oracle: the PR contract counts one event per choice and none for a
+    // rebuilt map walking that same choice. A duplicate or missing event fails.
+    const callbacks = new Set<ReturnType<typeof usePalLeadStarted>>();
+    function Lead({ choice, ready }: { choice: string; ready: boolean }) {
+      const reportStarted = usePalLeadStarted();
+      callbacks.add(reportStarted);
+      useEffect(() => {
+        if (ready) reportStarted(choice);
+      }, [choice, ready, reportStarted]);
+      return null;
+    }
 
-  it("is sent once for each chosen way, not again when a rebuilt map leads the same way", () => {
-    expect(canvas).toMatch(
-      /if \(palLeadReportedRef\.current !== key\) \{\s*palLeadReportedRef\.current = key;\s*trackEvent\("pal_lead_started"\);\s*\}/,
-    );
-    // The teardown clears the lead key so a rebuilt map leads again; it must
-    // never clear the reported key, or every rebuild would count a new lead.
-    expect(canvas).not.toMatch(/palLeadReportedRef\.current = null/);
+    await render(createElement(Lead, { choice: "lead:a>b:walk", ready: false }));
+    expect(sent("pal_lead_started")).toBe(0);
+    await act(async () => root!.render(createElement(Lead, { choice: "lead:a>b:walk", ready: true })));
+    expect(sent("pal_lead_started")).toBe(1);
+
+    // Keep the mounted canvas while its map is torn down and created again.
+    await act(async () => root!.render(createElement(Lead, { choice: "lead:a>b:walk", ready: false })));
+    await act(async () => root!.render(createElement(Lead, { choice: "lead:a>b:walk", ready: true })));
+    expect(sent("pal_lead_started")).toBe(1);
+
+    await act(async () => root!.render(createElement(Lead, { choice: "lead:a>b:bus", ready: true })));
+    expect(state.track).toEqual([
+      { name: "pal_lead_started", props: undefined },
+      { name: "pal_lead_started", props: undefined },
+    ]);
+
+    // Selecting the earlier option again is a new choice, not a map rebuild.
+    await act(async () => root!.render(createElement(Lead, { choice: "lead:a>b:walk", ready: true })));
+    expect(state.track).toEqual([
+      { name: "pal_lead_started", props: undefined },
+      { name: "pal_lead_started", props: undefined },
+      { name: "pal_lead_started", props: undefined },
+    ]);
+    expect(callbacks.size).toBe(1);
   });
 });

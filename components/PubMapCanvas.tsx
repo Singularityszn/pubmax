@@ -12,7 +12,7 @@ import { followMapPixelRatio, mapPixelRatio, probeWebGl2 } from "@/components/ma
 import { createPalMapMarker, palPinIsCheap, type PalMapMarker } from "@/components/map/canvas/palMarker";
 import { legRouteToLines } from "@/components/map/canvas/legRouteScene";
 import { legRouteForCurrentLeg, readLegRouteOnMap, subscribeLegRouteOnMap } from "@/lib/legRouteOnMap";
-import { trackEvent } from "@/lib/analytics";
+import { usePalLeadStarted } from "@/components/pal/usePalLeadStarted";
 import { palLeadLine, palLeadPath, planWalkAfterLead } from "@/lib/palLead";
 import { palFirstLegLabel, palPerchSpeechForPin, palWalkLine } from "@/lib/palMapLines";
 import { crewPalLook, type CrewPal } from "@/lib/crewPals";
@@ -1279,7 +1279,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   // Pal leads the way: while it walks the way the reader chose in Night Mode,
   // the plan's own walk and stops wait for it (the effect below).
   const palLeadKeyRef = useRef<string | null>(null);
-  const palLeadReportedRef = useRef<string | null>(null);
+  const reportPalLeadStarted = usePalLeadStarted();
   // The Pal speaks on the map (lib/palMapLines.ts): once as it sets off on a
   // crawl, with the first leg's own time, and once beside a cheapest-band pin.
   // These keys hold what it last spoke about, so a re-render never repeats it.
@@ -4563,11 +4563,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     marker.say(palLeadLine(shownLeg.option));
     // Once per chosen way: a map rebuilt mid-walk leads again, but it is the
     // same lead, so it is not counted again.
-    if (palLeadReportedRef.current !== key) {
-      palLeadReportedRef.current = key;
-      trackEvent("pal_lead_started");
-    }
-  }, [shownLeg, palNextVenueId, palNextName, routeCoordKey, mapReady]);
+    reportPalLeadStarted(key);
+  }, [shownLeg, palNextVenueId, palNextName, routeCoordKey, mapReady, reportPalLeadStarted]);
 
   // The crew's Pals: made when the crew read lands, walked on the route the
   // reader's own Pal is on, and gone with the plan's route.
