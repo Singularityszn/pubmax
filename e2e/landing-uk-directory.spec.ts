@@ -297,9 +297,9 @@ test.describe("clicked UK directory arrivals", () => {
             await testInfo.attach(`national-note-credit-${expanded ? "open" : "closed"}`, {
               body: JSON.stringify(geometry, null, 2), contentType: "application/json",
             });
-            expect(geometry.separate, "coverage note does not cover the map credit").toBe(true);
-            expect(geometry.buttonReachable, "the credit button owns its centre tap").toBe(true);
-            expect(geometry.noteInViewport).toBe(true);
+            expect(geometry.separate, `coverage note does not cover the map credit: ${JSON.stringify(geometry)}`).toBe(true);
+            expect(geometry.buttonReachable, `the credit button owns its centre tap: ${JSON.stringify(geometry)}`).toBe(true);
+            expect(geometry.noteInViewport, `coverage note stays in view: ${JSON.stringify(geometry)}`).toBe(true);
           }
           await expect(ukNote).toBeVisible();
         }
