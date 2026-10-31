@@ -272,12 +272,16 @@ describe("MapExperienceLens", () => {
     // aria-pressed carries the state.
     expect(pubs).toContain('class="tonightArcChipTick" aria-hidden="true"');
     expect(bars).not.toContain("✓");
-    // The Clubs chip is gone (7 Sep 2026, walk finding B9). It was permanently
-    // disabled, explained by a `title` attribute no phone shows, and it could
-    // never be enabled, so it went: `curatedVenueKind` in
-    // lib/venueKindFilters.ts files a club under the bars, and the Bars chip
-    // shows and hides clubs with them.
-    expect(html).not.toContain("Clubs");
+    // Clubs has an enabled control. This legacy object has no explicit Club
+    // choice, so its initial pressed state follows Bars=false.
+    const controls = document.createElement("div");
+    controls.innerHTML = html;
+    const clubs = [...controls.querySelectorAll<HTMLButtonElement>("button")].find(
+      (button) => button.querySelector(".tonightArcChipLabel")?.textContent === "Clubs",
+    );
+    expect(clubs).toBeDefined();
+    expect(clubs?.disabled).toBe(false);
+    expect(clubs?.getAttribute("aria-pressed")).toBe("false");
     expect(html).not.toContain("aria-disabled");
     expect(html).not.toContain("are not mapped yet");
     expect(html).not.toContain("Wave 2");
