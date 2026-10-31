@@ -236,8 +236,8 @@ export function periodOverlapsTonight(
   period: LineStatusPeriod,
   window: { start: number; end: number },
 ): boolean {
-  const from = period.fromDate ? Date.parse(period.fromDate) : NaN;
-  const to = period.toDate ? Date.parse(period.toDate) : NaN;
+  const from = typeof period.fromDate === "string" ? Date.parse(period.fromDate) : NaN;
+  const to = typeof period.toDate === "string" ? Date.parse(period.toDate) : NaN;
   if (Number.isFinite(from) && Number.isFinite(to)) {
     return from < window.end && to > window.start;
   }
@@ -272,30 +272,36 @@ const KIND_RANK: Record<MaterialKind, number> = {
  * material severity (surfaced as current), or a planned closure whose window
  * overlaps tonight. Pure — `window` and the payload are the only inputs.
  * At most one disruption is returned per line (the most material one).
+ * Malformed entries are skipped rather than thrown on: Today renders this on
+ * the server, so a bad upstream body must read as "nothing to say".
  */
 export function materialDisruptionsFor(
   statuses: readonly RawLineStatus[] | null | undefined,
   relevantLineIds: Set<string>,
   window: { start: number; end: number },
 ): MaterialDisruption[] {
-  if (!statuses || relevantLineIds.size === 0) return [];
+  if (!Array.isArray(statuses) || relevantLineIds.size === 0) return [];
   const out: MaterialDisruption[] = [];
 
   for (const line of statuses) {
-    if (!line.id || !relevantLineIds.has(line.id)) continue;
+    if (!isObjectEntry(line) || !line.id || !relevantLineIds.has(line.id)) continue;
     let best: MaterialDisruption | null = null;
+    const details = Array.isArray(line.lineStatuses) ? line.lineStatuses : [];
 
-    for (const detail of line.lineStatuses ?? []) {
+    for (const detail of details) {
+      if (!isObjectEntry(detail)) continue;
       const code = detail.statusSeverity;
       let kind: MaterialKind | null = null;
 
       if (isLiveMaterialSeverity(code)) {
         kind = LIVE_SEVERITY_KIND[code as number] ?? null;
       } else if (isPlannedClosureSeverity(code)) {
-        const periods = detail.validityPeriods ?? [];
+        const periods: readonly LineStatusPeriod[] = Array.isArray(detail.validityPeriods)
+          ? detail.validityPeriods
+          : [];
         const overlaps =
           periods.length > 0
-            ? periods.some((p) => periodOverlapsTonight(p, window))
+            ? periods.some((p) => isObjectEntry(p) && periodOverlapsTonight(p, window))
             : false;
         if (overlaps) kind = PLANNED_SEVERITY_KIND[code as number] ?? null;
       }
@@ -303,7 +309,7 @@ export function materialDisruptionsFor(
 
       const candidate: MaterialDisruption = {
         lineId: line.id,
-        lineName: line.name ?? line.id,
+        lineName: typeof line.name === "string" ? line.name : line.id,
         kind,
         reason:
           typeof detail.reason === "string" && detail.reason.trim().length > 0
@@ -319,6 +325,11 @@ export function materialDisruptionsFor(
   }
 
   return out;
+}
+
+/** A payload entry that is a plain object, keeping its declared shape. */
+function isObjectEntry<T extends object>(value: T | null | undefined): value is T {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 /** The single most material disruption from a list, or null. Stable: ties keep
@@ -436,8 +447,8 @@ function statusUrl(): string {
 
 /**
  * Fetch TfL Line Status for the night modes, revalidated server-side. Returns
- * null on ANY failure (network, timeout, non-2xx, bad JSON) — the surface then
- * simply renders nothing, never an error. Never throws.
+ * null on ANY failure (network, timeout, non-2xx, bad JSON, a body that is not
+ * a list) — the surface then simply renders nothing, never an error. Never throws.
  */
 export async function fetchLineStatuses(): Promise<RawLineStatus[] | null> {
   const controller = new AbortController();
@@ -457,7 +468,8 @@ export async function fetchLineStatuses(): Promise<RawLineStatus[] | null> {
       discardBody(res);
       return null;
     }
-    return (await res.json()) as RawLineStatus[];
+    const body: unknown = await res.json();
+    return Array.isArray(body) ? (body as RawLineStatus[]) : null;
   } catch {
     return null;
   } finally {

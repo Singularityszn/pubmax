@@ -33,7 +33,8 @@ for (const destination of ["plan", "map"] as const) {
 
     const coverage = page.getByRole("list", { name: "Representative area coverage" });
     const link = destination === "plan"
-      ? coverage.getByRole("link", { name: "Open planner", exact: true })
+      ? page.getByRole("region", { name: "Where you can plan a crawl tonight", exact: true })
+        .locator("header").getByRole("link", { name: "Open planner", exact: true })
       : coverage.getByRole("link", { name: /See .* pubs on the map/ }).first();
     await expectHydrated(link);
     const href = await link.getAttribute("href");
