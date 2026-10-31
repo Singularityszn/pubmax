@@ -24,6 +24,7 @@ import {
   subscribeRememberedNearMode,
   writeRememberedNearMode,
 } from "@/lib/nearModePreference";
+import type { NearGuinnessPrice } from "@/lib/nearMeAnswer";
 import { resolveNightPatch } from "@/lib/nightPatches";
 
 import NearDeskNow from "./NearDeskNow";
@@ -65,7 +66,12 @@ export function resolveNearPageMode({
   return resolveNearMode(modeParam, urlNamesContent ? null : rememberedMode);
 }
 
-function NearPageBody() {
+type NearPageClientProps = {
+  /** Listed Guinness rows for the "Cheapest Guinness" line (lib/nearGuinness.server.ts). */
+  guinnessPrices?: readonly NearGuinnessPrice[];
+};
+
+function NearPageBody({ guinnessPrices }: NearPageClientProps) {
   const preferredCity = useSyncExternalStore(
     subscribePreferredCity,
     readPreferredCity,
@@ -152,6 +158,7 @@ function NearPageBody() {
             syncPatchToUrl
             allowVenueAcceptance
             showPriceTrust
+            guinnessPrices={guinnessPrices}
           />
         )}
         {/* The first-run setup is offered here, under the answer, and never
@@ -162,10 +169,10 @@ function NearPageBody() {
   );
 }
 
-export default function NearPageClient() {
+export default function NearPageClient({ guinnessPrices }: NearPageClientProps = {}) {
   return (
     <Suspense fallback={<div className="nmnPage" aria-busy="true" />}>
-      <NearPageBody />
+      <NearPageBody guinnessPrices={guinnessPrices} />
     </Suspense>
   );
 }

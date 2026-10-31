@@ -59,7 +59,7 @@ test("mobile venue Share clipboard fallback and the one Plan door stay tappable 
   await expect(portal).toBeVisible();
   const sheet = portal.locator(".mobileSharedSheet");
   await expect(sheet).toHaveClass(/open/);
-  await portal.getByRole("tab", { name: "Stories", exact: true }).click();
+  await portal.getByRole("tab", { name: "Prices", exact: true }).click();
   await expect(sheet).toHaveClass(/sheet-full/);
 
   const stickyActions = portal.getByRole("toolbar", { name: "Venue actions" });
@@ -97,7 +97,7 @@ test("mobile sticky actions stay reachable across content tabs and the sheet reo
   await expect(portal).toBeVisible();
   const sheet = portal.locator(".mobileSharedSheet");
   await expect(sheet).toHaveClass(/open/);
-  await portal.getByRole("tab", { name: "Stories", exact: true }).click();
+  await portal.getByRole("tab", { name: "Prices", exact: true }).click();
   await expect(sheet).toHaveClass(/sheet-full/);
 
   const stickyActions = portal.getByRole("toolbar", { name: "Venue actions" });

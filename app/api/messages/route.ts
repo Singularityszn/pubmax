@@ -17,7 +17,9 @@
 // fail-silent: the body carries the read's own `status`, and `degraded` means a
 // read could not be run rather than that there is nothing here. EVERY write action is rate-limited per handle (~20/min)
 // by one limiter above the action switch, and a recipient handle must resolve to
-// a live profile before any conversation row is written.
+// a live profile before any conversation row is written. Opening and sending
+// also ask the one adult gate, and a block in either direction (or between any
+// two members of a new group) refuses with one sentence that names nobody.
 
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
@@ -32,6 +34,7 @@ import {
 } from "@/lib/messageGroupThread";
 import { broadcastMessageSent, deferMessagesSignal } from "@/lib/messagesBroadcast.server";
 import { attachParticipantCards } from "@/lib/messageParticipantCards.server";
+import { messageAdultRefusal, messageBlockRefusal } from "@/lib/messageSafety.server";
 import { messagesStore } from "@/lib/messagesStore";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { isLimited } from "@/lib/pintDrops";
@@ -137,6 +140,12 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiErrorFromStatus(ownership.error, ownership.status);
   }
 
+  // MESSAGING IS FOR OVER-18s, asked through the one adult gate before any
+  // conversation row is written. The refusal carries the contribution gate's
+  // `status`, so the surface can offer the one tap.
+  const adultRefusal = await messageAdultRefusal(actor.userId);
+  if (adultRefusal) return adultRefusal;
+
   // A conversation is opened WITH somebody. A handle nobody holds is not
   // somebody, and accepting one minted a durable row per fabricated name.
   if (action === "open" || action === "send") {
@@ -151,6 +160,10 @@ export async function POST(request: Request): Promise<Response> {
     if (!recipient || isProfileTombstoned(recipient)) {
       return publicApiError("We couldn't find that person.", "NOT_FOUND", 404);
     }
+    // A block in EITHER direction closes the door, and the refusal names
+    // nobody: the sender is never told which side set it.
+    const blockRefusal = await messageBlockRefusal([handle, other]);
+    if (blockRefusal) return blockRefusal;
   }
 
   const store = messagesStore();
@@ -224,6 +237,10 @@ async function openGroup(
       return publicApiError(GROUP_MEMBER_UNKNOWN_LINE, "NOT_FOUND", 404);
     }
   }
+  // A group is refused whole when ANY two of its people have a block between
+  // them, with the same sentence a pair gets, so it names nobody.
+  const blockRefusal = await messageBlockRefusal([handle, ...members]);
+  if (blockRefusal) return blockRefusal;
   const opened = await store.openGroupConversation(
     handle,
     members,

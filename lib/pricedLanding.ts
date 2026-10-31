@@ -35,6 +35,8 @@ export type PricedLandingCandidate = Omit<PricedLandingRow, "rank">;
 export const PRICED_LANDING_PUBLICATION_FLOORS = {
   "drink-brand": 20,
   "drink-brand-area": 10,
+  // The area root, any pint (captain, 30 Oct 2026, SEO audit #2126 finding 17).
+  area: 15,
 } as const;
 
 export type PricedLandingFamily = keyof typeof PRICED_LANDING_PUBLICATION_FLOORS;

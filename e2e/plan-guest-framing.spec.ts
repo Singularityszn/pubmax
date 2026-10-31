@@ -28,7 +28,7 @@ test("a guest on a plan sees guest wording and clean copy", async ({ page, reque
     sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
   });
   await page.goto(`/plan/${id}`);
-  await expect(page.getByText("You're a guest on this plan. Join the crew to use the invite tools.")).toBeVisible();
+  await expect(page.getByText("You're not in the crew yet. Open the invite link from your host to join, vote and check in.")).toBeVisible();
   await expect(page.getByText("Invite tools need a crew session")).toHaveCount(0);
   await expect(page.getByText("Sort My Night P1")).toHaveCount(0);
   // A guest holds no crew list, so the "Who's in" card paints no count disc.

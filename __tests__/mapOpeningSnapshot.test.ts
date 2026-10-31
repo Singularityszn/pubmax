@@ -6,10 +6,12 @@ import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 
 import { MAP_STYLES } from "@/components/map/canvas/tokens";
+import { MAP_ARRIVAL_BEARING_DEG } from "@/lib/mapArrivalBearing";
 import { MAP_OPENING_PREVIEW_CAMERA, projectAtCamera } from "@/lib/mapOpeningPreview";
 import mapOpeningSnapshot from "@/lib/mapOpeningSnapshot.json";
 import {
   groundRectCovers,
+  largestCoveredTurn,
   MAP_OPENING_SNAPSHOT_MARGIN_PX,
   MAP_OPENING_SNAPSHOT_MAX_VIEWPORT,
   openingGroundRect,
@@ -100,6 +102,28 @@ describe("where the picture may show", () => {
     }
   });
 
+  it("still covers the common iPhone screens through the arrival turn, and not the largest", () => {
+    // The preview turns the picture with the map only where this holds, and
+    // stands down where it does not (components/map/MapOpeningPreview.tsx).
+    for (const [width, height] of [[375, 667], [390, 664], [390, 844], [393, 852]] as const) {
+      for (const turn of [MAP_ARRIVAL_BEARING_DEG, -MAP_ARRIVAL_BEARING_DEG]) {
+        expect(groundRectCovers(meta.ground, meta.camera.pitch, width, height, turn), `${width}x${height}`).toBe(true);
+      }
+    }
+    expect(groundRectCovers(meta.ground, meta.camera.pitch, 440, 956, MAP_ARRIVAL_BEARING_DEG)).toBe(false);
+  });
+
+  it("holds the largest phones at the widest turn they still cover", () => {
+    const { pitch } = meta.camera;
+    expect(largestCoveredTurn(meta.ground, pitch, 390, 844, MAP_ARRIVAL_BEARING_DEG)).toBe(MAP_ARRIVAL_BEARING_DEG);
+    for (const [width, height] of [[430, 932], [440, 956]] as const) {
+      const held = largestCoveredTurn(meta.ground, pitch, width, height, MAP_ARRIVAL_BEARING_DEG);
+      expect(held, `${width}x${height}`).toBeGreaterThan(0);
+      expect(held, `${width}x${height}`).toBeLessThan(MAP_ARRIVAL_BEARING_DEG);
+      expect(groundRectCovers(meta.ground, pitch, width, height, held), `${width}x${height}`).toBe(true);
+    }
+  });
+
   it("is the inverse of the projection the discs are laid with", () => {
     const camera = MAP_OPENING_PREVIEW_CAMERA;
     const worldSize = 512 * 2 ** camera.zoom;
@@ -140,6 +164,19 @@ describe("where the picture may show", () => {
     // only where the document carries a picture at all.
     expect(css).toMatch(
       /html\[data-map-preview="on"\]\[data-map-ground="on"\]:has\(\.mapOpeningGround\) \.mapOpeningGround \{\s*display: block;/,
+    );
+    // Every plate the canvas stands on before it draws is see-through while
+    // the picture shows, from the lazy chunk's plate to the map's own
+    // container, by our class rather than the one MapLibre adds at build.
+    const ground = 'html[data-map-preview="on"][data-map-ground="on"]:has(.mapOpeningGround)';
+    for (const plate of [".mapCanvasSkeleton", ".mapCanvasWrap .maplibreMap"]) {
+      expect(css).toContain(`${ground} ${plate}`);
+    }
+    expect(css).not.toContain(`${ground} .mapCanvasWrap .maplibregl-map`);
+    // The loading line's glass holds still over the picture: its pour
+    // repaints every frame, and each one drew the picture again.
+    expect(css).toContain(
+      `${ground} :is(.mapSkeleton, .mapLoading) :is(.pintLoaderFill, .pintLoaderBubble) {\n      animation: none;`,
     );
   });
 });

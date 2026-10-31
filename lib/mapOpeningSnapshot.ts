@@ -93,12 +93,35 @@ export function visibleGround(
   return { top, bottom, halfWidthTop: halfWidthAt(top), halfWidthBottom: halfWidthAt(bottom) };
 }
 
+/** The four corners of the ground a map sees, turned `turnDeg` about the point it looks at. */
+function visibleGroundCorners(
+  pitchDeg: number,
+  width: number,
+  height: number,
+  turnDeg: number,
+): Array<[number, number]> {
+  const seen = visibleGround(pitchDeg, width, height);
+  const turn = (turnDeg * Math.PI) / 180;
+  const cos = Math.cos(turn);
+  const sin = Math.sin(turn);
+  const corners: Array<[number, number]> = [
+    [-seen.halfWidthTop, seen.top],
+    [seen.halfWidthTop, seen.top],
+    [-seen.halfWidthBottom, seen.bottom],
+    [seen.halfWidthBottom, seen.bottom],
+  ];
+  return corners.map(([x, y]) => [x * cos - y * sin, x * sin + y * cos]);
+}
+
 /**
  * The ground rectangle a picture must cover so that no viewport up to
  * `viewport` sees its edge at `pitchDeg`, plus `margin` on every side. A
  * smaller viewport sees less on every side (the top width is a fixed multiple
  * of the viewport width, and the reach up and down grows with the height), so
- * covering the largest covers them all.
+ * covering the largest covers them all. It is drawn for a north-up screen: the
+ * arrival turn keeps the picture only where `groundRectCovers` says the turned
+ * screen still sees none of its edge, because covering every turned phone cost
+ * the dark picture a fifth more bytes than its ceiling allows.
  */
 export function openingGroundRect(
   pitchDeg: number,
@@ -112,16 +135,41 @@ export function openingGroundRect(
   return { x: -half, y: top, width: half * 2, height: bottom - top };
 }
 
-/** Whether `rect` holds everything a `width` x `height` map sees at `pitchDeg`. */
-export function groundRectCovers(rect: GroundRect, pitchDeg: number, width: number, height: number): boolean {
-  const seen = visibleGround(pitchDeg, width, height);
-  const half = Math.max(seen.halfWidthTop, seen.halfWidthBottom);
-  return (
-    rect.x <= -half &&
-    rect.x + rect.width >= half &&
-    rect.y <= seen.top &&
-    rect.y + rect.height >= seen.bottom
+/** Whether `rect` holds everything a `width` x `height` map sees at `pitchDeg`, turned `turnDeg`. */
+export function groundRectCovers(
+  rect: GroundRect,
+  pitchDeg: number,
+  width: number,
+  height: number,
+  turnDeg = 0,
+): boolean {
+  return visibleGroundCorners(pitchDeg, width, height, turnDeg).every(
+    ([x, y]) => x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height,
   );
+}
+
+/**
+ * The furthest the picture can turn toward `turnDeg` with a `width` x `height`
+ * screen still seeing none of its edge, to a tenth of a degree. The whole turn
+ * when it fits; less on a screen the turned picture would not cover (the
+ * largest phones), where the preview holds at this rather than leave the
+ * loading frame on bare paper, and the map's own frame takes the last degrees
+ * at the handoff.
+ */
+export function largestCoveredTurn(
+  rect: GroundRect,
+  pitchDeg: number,
+  width: number,
+  height: number,
+  turnDeg: number,
+): number {
+  if (groundRectCovers(rect, pitchDeg, width, height, turnDeg)) return turnDeg;
+  const steps = Math.floor(Math.abs(turnDeg) * 10);
+  for (let step = steps; step > 0; step -= 1) {
+    const turn = Math.sign(turnDeg) * (step / 10);
+    if (groundRectCovers(rect, pitchDeg, width, height, turn)) return turn;
+  }
+  return 0;
 }
 
 export type OpeningGround = {

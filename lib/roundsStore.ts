@@ -365,6 +365,20 @@ const supabaseRoundsStore: RoundsStore = {
       }
       const id = crypto.randomUUID();
       let receiptPhotoKey = await uploadRoundReceipt(clean.venueId, id, input.receipt);
+      // The bill upload awaited Storage, so the Round may have been called
+      // meanwhile. Read closed_at again before the insert. A close that lands
+      // between this read and the insert is still possible; only a database
+      // guard on round_spends could refuse that one.
+      const { data: current, error: currentError } = await admin()
+        .from(ROUNDS)
+        .select("closed_at")
+        .eq("id", state.round.id)
+        .maybeSingle();
+      if (currentError || !current || (current as { closed_at?: unknown }).closed_at != null) {
+        if (receiptPhotoKey) await deletePhotos([receiptPhotoKey]);
+        if (currentError) throw new Error(currentError.message);
+        return { ok: false, error: current ? "closed" : "not_found" };
+      }
       const row = {
         id,
         round_id: state.round.id,
@@ -684,7 +698,12 @@ export const memoryRoundsStore: RoundsStore = {
         throw error;
       }
     }
-    const created = !round.spends.some((spend) => spend.clientRef === clean.clientRef);
+    // The bill upload awaited Storage, so the Round may have been called meanwhile.
+    if (round.closedAt) {
+      if (receiptPhotoKey) await deletePhotos([receiptPhotoKey]);
+      return { ok: false, error: "closed" };
+    }
+    const created =!round.spends.some((spend) => spend.clientRef === clean.clientRef);
     if (!created && receiptPhotoKey) {
       await deletePhotos([receiptPhotoKey]);
     }

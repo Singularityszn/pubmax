@@ -79,6 +79,7 @@ const ALLOW = [
   "/api/city-map-card",
   "/api/list-card",
   "/api/pint-card",
+  "/api/year-card",
 ];
 
 function isProductionDeployment(

@@ -257,6 +257,7 @@ export async function createNightMemoryFromPlanRecap(
   const momentsRead = await admin.from("night_moments")
     .select("*")
     .eq("memory_id", promoted.data)
+    .eq("owner_id", ownerId)
     .order("created_at");
   if (memoryRead.error || !memoryRead.data || momentsRead.error || !momentsRead.data) return null;
   memory = memoryFromRow(memoryRead.data as Record<string, unknown>);

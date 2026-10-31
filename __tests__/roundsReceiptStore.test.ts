@@ -24,6 +24,7 @@ let uploadBarrier: (() => Promise<void>) | null;
 let insertFailure: { code: string; message: string; status: number } | null;
 let loseInsertResponse: boolean;
 let failReadAfterInsert: boolean;
+let roundClosed: boolean;
 
 const fixtureFetch: typeof fetch = async (input, init) => {
   const url = new URL(input instanceof Request ? input.url : String(input));
@@ -31,7 +32,13 @@ const fixtureFetch: typeof fetch = async (input, init) => {
   const method = init?.method ?? (input instanceof Request ? input.method : "GET");
   if (url.pathname === "/rest/v1/rounds") {
     if (failReadAfterInsert && rows.length) return new Response(null, { status: 503 });
-    return Response.json({ id: ROUND_ID, code: CODE, title: "Friday", created_by_handle: "ken" });
+    return Response.json({
+      id: ROUND_ID,
+      code: CODE,
+      title: "Friday",
+      created_by_handle: "ken",
+      closed_at: roundClosed ? "2026-10-28T23:00:00.000Z" : null,
+    });
   }
   if (url.pathname === "/rest/v1/round_members") return Response.json([{ handle: "ken" }]);
   if (url.pathname === "/rest/v1/round_stops") {
@@ -100,6 +107,7 @@ beforeEach(() => {
   insertFailure = null;
   loseInsertResponse = false;
   failReadAfterInsert = false;
+  roundClosed = false;
   __resetMemoryRounds();
   vi.stubEnv("SUPABASE_URL", "https://rounds-receipt.test");
   vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "fixture-key");
@@ -251,4 +259,29 @@ it("keeps the bill when its write cannot be read back during a storage outage", 
   expect(key).toEqual(expect.any(String));
   expect(objects).toEqual(new Set([key]));
   expect(deleted).toEqual([]);
+});
+it.each(["supabase", "memory"])("refuses a billed spend when the Round closes during its upload (%s)", async (backend) => {
+  const store = backend === "supabase" ? roundsStore() : memoryRoundsStore;
+  let code = CODE;
+  if (backend === "memory") {
+    const created = await store.create({ title: "Friday", createdByHandle: "ken" });
+    if (!created.ok) throw new Error("Round was not created");
+    code = created.state.round.code;
+    await store.addStop(code, { venueId: "venue-1", venueName: "The Ship", addedByHandle: "ken" });
+  }
+  uploadBarrier = async () => {
+    if (backend === "supabase") roundClosed = true;
+    else await memoryRoundsStore.close(code, "ken");
+  };
+  const result = await store.recordSpend(code, {
+    ...spend(),
+    initialPromotionStatus: "pending",
+    promotionActor: "profile:ken",
+  });
+  expect(result).toEqual({ ok: false, error: "closed" });
+  if (backend === "supabase") expect(insertAttempts).toBe(0);
+  else expect((await store.getByCode(code))?.spends).toEqual([]);
+  expect(uploads).toHaveLength(1);
+  expect(deleted).toHaveLength(1);
+  expect(objects.size).toBe(0);
 });

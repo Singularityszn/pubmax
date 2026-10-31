@@ -10,6 +10,7 @@ import PlanInviteRsvp from "@/components/plan/PlanInviteRsvp";
 import type { PlanInviteRsvpSummary } from "@/lib/planInvite";
 import { reactionStore, rsvpStore } from "@/lib/planInviteRsvpStore";
 import { PLAN_STOP_MAX, type PlanStopDTO } from "@/lib/plan";
+import { numberPlanStops } from "@/lib/planStopNumbers";
 import { planStateResult, resolvePlanIdByInviteToken } from "@/lib/planStore";
 import type { ReactionSummary } from "@/lib/reactions";
 import {
@@ -251,8 +252,10 @@ export default async function PlanInvitePage({ params }: PageProps) {
   });
   // Each drawn point keeps its place in the stop list, so the pin numbers match
   // the numbered stops below even when a stop has no coordinates.
-  const routeStops = stops.flatMap((stop, index) =>
-    stop.coordinates ? [{ point: stop.coordinates, number: index + 1 }] : [],
+  // The numbers are the plan card's: the first stop is 1 (lib/planStopNumbers).
+  const numbered = numberPlanStops(stops);
+  const routeStops = numbered.flatMap((stop) =>
+    stop.coordinates ? [{ point: stop.coordinates, number: stop.number }] : [],
   );
   const routePoints = routeStops.map((entry) => entry.point);
   const spendBand = inviteSpendBand(stops);
@@ -267,6 +270,35 @@ export default async function PlanInvitePage({ params }: PageProps) {
           <span className="invite__edition">You&rsquo;re invited</span>
         </div>
 
+        {/* THE HOST FIRST (launch UX variations, V2 "Invite page"): who is
+            asking, and the night in their own words, before anything else. */}
+        <header className="invite__host">
+          <p className="invite__eyebrow">Hosted by {hostHandle}</p>
+          <h1 className="invite__title">{state.plan.title}</h1>
+          <p className="invite__start">{startLabel}</p>
+          {spendBand ? <p className="invite__spend">{formatPlanInviteSpendBand(spendBand)}</p> : null}
+          {alcoholOptionalLine ? (
+            <p className="invite__softNote">{alcoholOptionalLine}</p>
+          ) : null}
+        </header>
+
+        {/* The stops as a timeline: one rail, a numbered stop on it, and the
+            listed price plaque beside each pub that has one. */}
+        <ol className="invite__stops invite__timeline" aria-label="The stops">
+          {numbered.map((stop) => (
+            <li className="invite__stop" key={`${stop.position}-${stop.venueId}`}>
+              <span className="invite__stopPosition">{stop.number}</span>
+              <div className="invite__stopName">
+                <span>{stop.venueName}</span>
+                {stop.listedPint ? <ListedPriceSource evidence={stop.listedPint} className="invite__stopSource" /> : null}
+              </div>
+              {stop.listedPint ? (
+                <PintPriceBadge className="invite__stopPrice" priceGbp={stop.listedPint.priceGbp} venueId={stop.venueId} />
+              ) : null}
+            </li>
+          ))}
+        </ol>
+
         {routePoints.length >= 2 ? (
           <div className="invite__thumbFrame">
             <RouteThumbnail
@@ -280,29 +312,6 @@ export default async function PlanInvitePage({ params }: PageProps) {
             </p>
           </div>
         ) : null}
-
-        <p className="invite__eyebrow">Hosted by {hostHandle}</p>
-        <h1 className="invite__title">{state.plan.title}</h1>
-        <p className="invite__start">{startLabel}</p>
-        {spendBand ? <p className="invite__spend">{formatPlanInviteSpendBand(spendBand)}</p> : null}
-        {alcoholOptionalLine ? (
-          <p className="invite__softNote">{alcoholOptionalLine}</p>
-        ) : null}
-
-        <ol className="invite__stops">
-          {stops.map((stop) => (
-            <li className="invite__stop" key={`${stop.position}-${stop.venueId}`}>
-              <span className="invite__stopPosition">{stop.position + 1}</span>
-              <div className="invite__stopName">
-                <span>{stop.venueName}</span>
-                {stop.listedPint ? <ListedPriceSource evidence={stop.listedPint} className="invite__stopSource" /> : null}
-              </div>
-              {stop.listedPint ? (
-                <PintPriceBadge className="invite__stopPrice" priceGbp={stop.listedPint.priceGbp} venueId={stop.venueId} />
-              ) : null}
-            </li>
-          ))}
-        </ol>
 
         <p className="invite__softNote">
           Join while signed in with a claimed handle, and you and the host

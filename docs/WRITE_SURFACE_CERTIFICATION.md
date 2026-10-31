@@ -6,7 +6,7 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 163 mutating handlers across 130 route files.** Each exported
+> **Inventory: 173 mutating handlers across 139 route files.** Each exported
 > `POST`, `PUT`, `PATCH`, or `DELETE` is one reviewed surface. A file with two
 > mutation methods contributes two entries. Read-only handlers do not enter this
 > inventory. Both counts are merge-conflict coordination points.
@@ -46,6 +46,9 @@ Protection in a sibling method cannot certify another method.
 - `DELETE app/api/social/interactions`
 - `DELETE app/api/social/rankings`
 - `PATCH app/api/admin/import-notes`
+- `PATCH app/api/admin/venue-corrections`
+- `PATCH app/api/admin/regular-nights`
+- `PATCH app/api/regular-nights`
 - `PATCH app/api/crawls/[slug]`
 - `PATCH app/api/profiles/[handle]/covers/[coverId]`
 - `PATCH app/api/identity/onboarding`
@@ -77,6 +80,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/auth/change-password/verify`
 - `POST app/api/auth/handle-password`
 - `POST app/api/ask`
+- `POST app/api/board-reads`
 - `POST app/api/cheap-pint-ping`
 - `POST app/api/client-error`
 - `POST app/api/check-ins`
@@ -119,12 +123,14 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/plans/[id]/invites`
 - `POST app/api/plans/[id]/invites/redeem`
 - `POST app/api/plans/[id]/join`
+- `POST app/api/plans/[id]/open-crew`
 - `POST app/api/plans/[id]/presence`
 - `POST app/api/plans/[id]/proposals`
 - `POST app/api/plans/[id]/proposals/[proposalId]/decision`
 - `POST app/api/plans/[id]/proposals/[proposalId]/votes`
 - `POST app/api/plans/[id]/recap`
 - `POST app/api/plans/[id]/session`
+- `POST app/api/plans/[id]/usual-drink`
 - `POST app/api/plans/[id]/vibe-votes`
 - `POST app/api/mcp`
 - `POST app/api/plans/generate`
@@ -165,8 +171,12 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/social/posts/[postId]/photos`
 - `POST app/api/social/rankings`
 - `POST app/api/social/tags`
+- `POST app/api/social/tags/with`
 - `POST app/api/social/videos/uploads`
 - `POST app/api/starter-packs/[slug]/follow`
+- `POST app/api/venue-corrections`
+- `POST app/api/regular-nights`
+- `POST app/api/kitchen-reports`
 - `POST app/api/venue-operators/claim`
 - `POST app/api/venue-photos`
 - `POST app/api/venue-submissions`
@@ -386,6 +396,20 @@ bodies.
 - **Failure:** malformed requests return 400. Wrong actors, blocked edges and
   invalid state transitions use one denied response without exposing proposal
   state.
+
+### `app/api/social/tags/with` - verified Pint Drop "With" tag proposals
+
+- **Route / method:** `POST app/api/social/tags/with/route.ts`; the same
+  `POST app/api/social/tags` door decides them with `kind: "with"`.
+- **Authority:** `requireVerifiedSocialActor` derives stable profile authority.
+  Only the drop's author may propose, and an anonymous drop takes no tags. A
+  tag needs a live claimed handle. The target approves, declines or later
+  withdraws; the author cancels (`lib/pintDropWithTagsStore.ts`, migration 0204).
+- **Consent:** a reader sees the handle only while the tag is approved; until
+  then the drop says "with 1 person". A block either way, or a relationship
+  that cannot be read, writes nothing and answers exactly as a written tag.
+- **Failure:** malformed requests return 400; a caller who is not the author
+  is 403; wrong actors and invalid transitions share one denied response.
 
 ### `app/api/admin/social-posts` - named staff Social moderation (route 82)
 
@@ -716,6 +740,106 @@ loss or a block; owner leave remains a durable conflict until ownership moves.
   owner's menu folder (`lib/accountOwnedObjects.ts`). The verdict route is
   `isModerator`-gated on both verbs. A hard store failure answers 503, never a
   fake success.
+
+### `app/api/venue-corrections` and `app/api/admin/venue-corrections` - "That's wrong"
+
+- **Route / method:** `POST app/api/venue-corrections/route.ts` takes one
+  note about a listed pub: `{ venueId, kind, note? }`, where `kind` is
+  `closed`, `hours` or `other` and the note is one line of up to 200
+  characters. `kind: "price"` stores nothing and answers 200
+  `{ stored: false, next: "price_log" }`, because a new price goes through the
+  existing log flow with its bill. `PATCH app/api/admin/venue-corrections/route.ts`
+  is the moderator verdict, `resolved` or `dismissed`, on an open note, once
+  (a second tap is 409); its `GET` is the queue, newest first, with the pub's
+  name and no reporter.
+- **What it never writes:** a venue, a pin, opening hours or a price lane. A
+  note is for a person; a moderator fixes the fact through the offline pack
+  rebuild and then resolves the note.
+- **Validation:** `validateVenueCorrection` (`lib/venueCorrections.ts`),
+  shared with the sheet's form. The kind is a closed set; a note over 200
+  characters is refused, never trimmed. The venue resolves through
+  `resolveWritableVenueId`, so it must be in the curated index or the UK base.
+  Migration 0203's CHECKs hold the kind, the note length and the
+  open-or-stamped resolution shape.
+- **Rate limit (boundary):** durable `isLimited` per profile + hashed IP
+  (`venue-correction:${actor}:${ipHash}`) on every write, then ten notes an
+  hour per account (`venue-correction-actor:${actor}`). The moderator verdict
+  is metered at 60 a minute per hashed IP.
+- **Auth stance:** `resolveContributionIdentity` derives the owner from the
+  session (sign_in_required, onboarding_required and the adult check answer
+  first); a body owner is ignored. The 0203 table keys to `auth.users` with ON
+  DELETE CASCADE and no browser grant. Both admin verbs are `isModerator`-gated,
+  and `resolved_by` records the named moderator role or `admin`. A hard store
+  failure answers 503, never a fake success.
+
+### `app/api/regular-nights` and `app/api/admin/regular-nights` - a drinker adds a regular night
+
+- **Route / method:** `POST app/api/regular-nights/route.ts` takes one
+  multipart report: `venueId`, `kind` (`quiz`, `music`, `sport`, `comedy`,
+  `karaoke` or `other`), `weekday` (0 to 6, Sunday first), an optional
+  `startTime` like `20:00`, an optional note of up to 120 characters, and a
+  required `photo` of the board or the poster. `PATCH app/api/regular-nights/route.ts`
+  is "still on": a different signed-in account moves the report's expiry 90
+  days on, once per account per report (the 0206 still-on primary key is the
+  once; the reporter's own tap is 409). `PATCH app/api/admin/regular-nights/route.ts`
+  is the moderator verdict, `confirmed` on an open report or `hidden` on an open
+  or confirmed one, once; its `GET` is the queue with a signed photo URL. The
+  public `GET app/api/regular-nights` returns live rows only (open or
+  confirmed, not expired), with the reporter's current handle on an open row
+  and no account id or photo key on any.
+- **What it never writes:** a venue, a pin, opening hours, a price lane or a
+  what's-on listing. A report is a drinker's dated sighting, printed apart from
+  the sourced regular nights as "per a drinker, seen <date>".
+- **Validation:** `validateRegularNightReport` (`lib/regularNightReports.ts`),
+  shared with the form. The kind and the weekday are closed sets, the time is
+  `HH:MM`, a note over 120 characters is refused, never trimmed, and a report
+  with no photo is refused. The photo takes the shared owned-image journey
+  (`prepareUploadedImage`: type, size cap, magic bytes, EXIF strip). The venue
+  resolves through `resolveWritableVenueId`. Migration 0206's CHECKs hold the
+  kind, weekday, time, note length, photo key shape and status.
+- **Rate limit (boundary):** durable `isLimited` per profile + hashed IP
+  (`regular-night:${actor}:${ipHash}`) on every report, then ten reports an
+  hour per account (`regular-night-actor:${actor}`); "still on" is thirty an
+  hour per account. The moderator verdict is metered at 60 a minute per hashed
+  IP, and the public read at 60 a minute per hashed IP.
+- **Auth stance:** `resolveContributionIdentity` derives the reporter from the
+  session (sign_in_required, onboarding_required and the adult check answer
+  first); a body owner is ignored. Both 0206 tables key to `auth.users` with
+  ON DELETE CASCADE and no browser grant, and account deletion walks the
+  reporter's board-photo folder (`lib/accountOwnedObjects.ts`). Both admin
+  verbs are `isModerator`-gated. A hard store failure answers 503, never a
+  fake success, and a row that failed after its photo landed takes the photo
+  back out.
+
+### `app/api/kitchen-reports` - a drinker says whether the kitchen is serving
+
+- **Route / method:** `POST app/api/kitchen-reports/route.ts` takes one JSON
+  tap: `venueId` and `state`, which is `open` ("Still serving") or `closed`
+  ("Kitchen closed") and nothing else. A tap with no fresh report at the pub,
+  or with the other word, starts a report. A different account's matching tap
+  inside 90 minutes confirms the newest report, once: the reporter's own
+  matching tap is 409 and a tap on a report one other has already confirmed is
+  409. The public `GET app/api/kitchen-reports?venueId=` returns the newest
+  report inside 90 minutes with the reporter's current handle, read at answer
+  time, and no account id.
+- **What it never writes:** a venue, a pin, opening hours, a kitchen time or a
+  price lane. A report is one drinker's dated word, printed as "Kitchen open,
+  said @handle 20 min ago", and the read prints nothing once 90 minutes pass.
+- **Validation:** `parseKitchenState` (`lib/kitchenReports.ts`) takes exactly
+  `open` or `closed`; any other word is 400. The venue resolves through
+  `resolveWritableVenueId`. The body is capped at 1 KB. Migration 0209's
+  CHECKs hold the word, the venue id length, and a confirmer who is not the
+  reporter.
+- **Rate limit (boundary):** durable `isLimited` per profile + hashed IP
+  (`kitchen-report:${actor}:${ipHash}`) on every tap, then twenty taps an hour
+  per account (`kitchen-report-actor:${actor}`). The public read is metered at
+  60 a minute per hashed IP.
+- **Auth stance:** `resolveContributionIdentity` derives the reporter from the
+  session (sign_in_required, onboarding_required and the adult check answer
+  first); a body owner is ignored. The 0209 table keys the reporter to
+  `auth.users` with ON DELETE CASCADE and the confirmer with ON DELETE SET
+  NULL, and has no browser grant. A hard store failure answers 503, never a
+  fake success. No admin verb: a report is two fixed words and no free text.
 
 ### `app/api/visit-reports` — structured Visit Reports (route 66)
 
@@ -1655,3 +1779,42 @@ The resume action and GET read only the verified account's drafts. Missing stora
 Invalid input answers 400, missing sign-in answers 401, and a spent budget answers 429.
 An oversized body answers 413. Unavailable account checks or catalogues answer a retryable 503.
 `__tests__/pubListImportRoute.test.ts` exercises these responses through the real import entry point.
+
+### `app/api/plans/[id]/open-crew` - "Open it up", a plan becomes an open crawl
+
+- **Route / method:** `POST app/api/plans/[id]/open-crew/route.ts` (launch review
+  4.5, E1). Turns a locked plan into an Open Crew that carries it, with a
+  capacity (4 to 20), a meeting pub that is one of the plan's own stops, and the
+  host's one line (140 characters at most).
+- **Authority (two, both required):** the verified Social actor
+  (`requireVerifiedSocialActor`), who will own the crew, AND the plan's host seat
+  (`memberToken` in the body, else the path-scoped member cookie; never the
+  Authorization header, which carries the account). The route refuses any seat
+  that is not the host with the same 404 as a missing plan, and the database
+  checks the seat again inside `open_social_crew_with_plan_atomic` (0208).
+- **Rate limit (boundary):** `socialCrewActor(access, true)`, the per-profile
+  Social Crew write budget (30 a minute).
+- **Validation:** `validateOpenCrawlInput` (`lib/openCrawl.ts`): the capacity
+  bounds, the meeting pub among the plan's stops, and the one line, which
+  carries no link, email address, phone number or handle and none of the words
+  that sell quantity. The meeting pub must also resolve as a listed pub.
+- **Idempotency:** `Idempotency-Key` header (16 to 128 characters) under the
+  crew write receipts, the same key as `create_social_crew_atomic`.
+- **Effect:** the same as `POST app/api/social/crews` with visibility open, plus
+  the three facts, in one transaction: the plan becomes social-owned, every seat
+  token rotates and open plan invites are revoked.
+
+### `app/api/board-reads` - the board reader's proposal read (review item A4)
+
+POST takes one multipart body: a venue ID and one photo of a pub's price board.
+It is a read, not a write. It stores no photo and no price.
+The caller must pass the shared contribution gate (`resolveContributionIdentity`): a signed-in account with a claimed handle.
+The route refuses a keyless deployment with one line, "The Pal needs its key to read a board.", before any budget is spent.
+The address budget allows 20 reads an hour and the account budget allows 6 reads an hour. Both refuse when the durable limiter cannot answer.
+The photo takes the shared owned-image journey (`prepareUploadedImage`), so metadata is stripped and the image is re-encoded before the model sees it.
+The venue must be a pub the price write accepts. The deployment-wide paid ceiling, lane `board-read`, is spent last, after every refusal.
+The answer lists proposed drink lines (name, category, measure from the closed set, price in pence, a confidence word) and food lines kept out.
+A row with no price, a price outside the community envelope, an unknown measure or an unknown category is dropped.
+Nothing lands from this answer. The page sends each row the person confirms through `POST app/api/price-submit`, one by one, with the board photo as its bill.
+Missing sign-in answers 401, a spent budget answers 429, a keyless deployment or a failed read answers 503, and a bad photo answers 400 or 413.
+`__tests__/boardReadsRoute.test.ts` exercises these responses through the real entry point.

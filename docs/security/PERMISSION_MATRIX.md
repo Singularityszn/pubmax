@@ -81,11 +81,11 @@ the honest refusal for that route (401, 403, 400 or 409) and no change.
 | Read A's Plan (`GET /api/plans/[id]`, getin, recap) | preview only | preview only | preview only with a bare account bearer | host or guest member token: member state |
 | Read A's Plan at the table (`plans`, `plan_stops`, `plan_crew_members`) | denied | no rows | own rows | seat bound to an account: rows while the seat is live |
 | The seat token column (`plan_crew_members.token_hash`) | denied | denied | denied | denied |
-| Edit A's Plan (`PATCH` stops, invite rotate, presence) | denied | denied | denied with a bare bearer | host token only; a guest may not rotate |
+| Edit A's Plan (`PATCH` stops, invite rotate, presence) | denied | denied | denied with a bare bearer | saving the route, deciding a proposal, rotating the link, removing an RSVP and completing the night: host token only (403 for a guest); vote, propose, add a need and check in: host or guest member token |
 | Plan writes at the table | denied | denied | denied | denied |
 | Read A's crew Pals (`GET /api/plans/[id]/pals`, "Crew Pals") | preview only | preview only | preview only with a bare account bearer | host or guest member token: the Pals of the OTHER members whose owners set `pub_pals.crew_visible` and did not hide them, by Pal name and look only, never an account id, seat id or handle |
 | Another member's Pal at the table (`pub_pals`, including `crew_visible`) | denied | no rows | own row only | n/a |
-| Invite acceptance (`POST /api/plans/[id]/join`) | invite required | one seat per account, spent invite refused | n/a | invite token as a bearer: preview and no edit |
+| Invite acceptance (`POST /api/plans/[id]/join`, a Going RSVP at `POST /api/invite/[token]/rsvp`) | invite required: a bare plan id is 403 `PLAN_INVITE_REQUIRED` | one seat per account, spent invite refused | n/a | the host's current invite token: ONE guest capability, a seat that may vote, propose, add a need and check in, never edit; a rotated token lets nobody new in |
 | Removed member | n/a | preview at the route and no rows at the table, immediately | n/a | revoked token: preview, presence refused |
 | Unfurler (`/api/plan-card`) | PNG from the preview only | same | same | same |
 | List Night Memories (`GET /api/night-memories`) | 401 | own only | own only | n/a |
@@ -139,6 +139,12 @@ no side effect, as above.
 | Attach a menu file (`POST /api/venue-submissions`, multipart) | 401 | 404 on another account's submission | 404 on another account's submission | n/a | n/a | n/a | own pending submission, up to three files |
 | `venue_submissions`, `venue_submission_files` at the table | denied | denied | denied | n/a | n/a | n/a | denied: no browser grant, service role only (0189) |
 | Decide a submission, read the queue (`/api/admin/venue-submissions`) | 403 | 403 | 403 | 403 | 403 | 403 | 403; `ADMIN_TOKEN` only |
+| Send a "That's wrong" note (`POST /api/venue-corrections`) | 401 | written as their OWN note; a body owner is ignored | written as their own note | n/a | n/a | n/a | own note; nobody reads it back but staff |
+| `venue_corrections` at the table | denied | denied | denied | n/a | n/a | n/a | denied: no browser grant, service role only (0203) |
+| Read the corrections queue, resolve or dismiss (`/api/admin/venue-corrections`) | 403 | 403 | 403 | 403 | 403 | 403 | 403; `ADMIN_TOKEN` only, and the queue names no reporter |
+| Add a regular night, or say one is still on (`POST`, `PATCH /api/regular-nights`) | 401 | written as their OWN report; a body owner is ignored; "still on" once, never on their own | the same | n/a | n/a | n/a | own report; the public read prints the handle and never the account id or photo key |
+| `regular_night_reports`, `regular_night_report_still_on` at the table | denied | denied | denied | n/a | n/a | n/a | denied: no browser grant, service role only (0206) |
+| Read the regular nights queue, confirm or hide (`/api/admin/regular-nights`) | 403 | 403 | 403 | 403 | 403 | 403 | 403; `ADMIN_TOKEN` only |
 | Read a saved-pub list (`GET /api/saved-pubs`) | public by design |||||||
 | Write a saved-pub list (`POST /api/saved-pubs`) | 403 on a claimed handle, 404 on a handle with no profile row (no row is minted) | writes to their OWN list, never the named one ||||| allowed |
 | `saved_pubs` at the table | denied | no rows, and a write is refused at the grant (0172) ||||| own rows, SELECT only; a write is refused at the grant |
@@ -256,12 +262,8 @@ Three gaps were measured and closed in `isHarvestableOperatorUrl`:
 3. **Credentials in a URL passed through**, and they are sent to whatever the
    URL names.
 
-And one gap that a single-URL check cannot see: **a redirect chain was never
-re-asked**. Both price crawl lanes fetch with `redirect: "follow"`, so the HOST
-picks the last hop; both computed a `finalUrl` and handed it to nothing, so a
-permitted site that 30x-ed to a refused one was read in full and the row was
-then stamped with the asked-for URL, naming a page that never stated the price.
-`harvestRedirectLanding` is the one owner of that rule and both lanes read it.
+The [harvest redirect contract](../rules/scripts-harvest-and-source-permission.md#a-url-we-decide-to-fetch-is-somebody-else-s-string-and-the-allow-list-is-asked-a)
+owns redirect permission checks and the final response check.
 
 ## Password paths, for the leaked-password setting
 

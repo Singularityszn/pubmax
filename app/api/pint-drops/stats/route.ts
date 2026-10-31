@@ -1,11 +1,14 @@
 // Contribution stats for the Pint Drop gamification loop (feat/price-drops-v2).
 //
-// GET /api/pint-drops/stats?handle=<handle>[&city=<city>] → the honest "your
-// impact" summary a contributor's You-page card renders: a mapping streak, a
-// per-borough tally of the prices they've mapped, and a running total. READ
+// GET /api/pint-drops/stats?handle=<handle>[&city=<city>][&year=<YYYY>]
+// Returns the contributor's "your impact" summary: a mapping streak,
+// per-borough price counts, and a running total. READ
 // ONLY — no mutation, so it carries no write-surface certification weight; it
 // still runs the house abuse controls (per-IP + global durable rate limits) and
 // returns the flat public error envelope (lib/apiError.ts) THE LOCAL routes use.
+// The optional year filters the returned timeline by each contribution's London
+// calendar year. Omitting it keeps all timeline dates. Invalid years return
+// HTTP 400 with code `invalid_year`. The existing timeline cap still applies.
 //
 // Boroughs are resolved server-side (getVenueIndex — venue records carry a
 // `borough`), so the pure summariser (lib/pintContributions.ts) never needs the
@@ -16,7 +19,7 @@ import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { parseCityId } from "@/lib/cities";
 import { log } from "@/lib/log";
-import { summariseContributions, type ContributionInput } from "@/lib/pintContributions";
+import { londonDayKey, summariseContributions, type ContributionInput } from "@/lib/pintContributions";
 import { isLimited, normalizeViewerHandle } from "@/lib/pintDrops";
 import { pintDropsStore } from "@/lib/pintDropsStore";
 import { clientIp, hashIp } from "@/lib/supabase";
@@ -36,6 +39,10 @@ export async function GET(request: Request): Promise<Response> {
   const handle = normalizeViewerHandle(params.get("handle") ?? params.get("author"));
   if (!handle) {
     return publicApiError("Add a handle.", "handle_required", 400);
+  }
+  const year = params.get("year");
+  if (year !== null && !/^[1-9]\d{3}$/.test(year)) {
+    return publicApiError("Choose a four-digit year.", "invalid_year", 400);
   }
 
   // Two-axis rate limit (mirrors the report path): per-IP flood control plus a
@@ -62,11 +69,13 @@ export async function GET(request: Request): Promise<Response> {
       : await pintDropsStore().listVisible(undefined, { handle }, handle, cityId);
 
     const [index, aliases] = await Promise.all([getVenueIndex(), loadVenueAliasResolver()]);
-    const entries: ContributionInput[] = drops.map((drop) => ({
-      createdAt: drop.createdAt,
-      priceGbp: drop.priceGbp,
-      borough: storedVenueRef(index, aliases, drop.venueId)?.borough ?? "London",
-    }));
+    const entries: ContributionInput[] = drops
+      .filter((drop) => year === null || londonDayKey(drop.createdAt).startsWith(`${year}-`))
+      .map((drop) => ({
+        createdAt: drop.createdAt,
+        priceGbp: drop.priceGbp,
+        borough: storedVenueRef(index, aliases, drop.venueId)?.borough ?? "London",
+      }));
 
     const summary = summariseContributions(handle, entries);
     return jsonNoStore({ stats: summary }, { status: 200 });

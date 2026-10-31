@@ -8,9 +8,12 @@
 import { LONDON_DAY_MS, londonHour, londonMsSinceMidnight } from "@/lib/londonHour";
 import { londonEveningKey } from "@/lib/visitReports";
 
-export const PAL_NIGHT_QUESTION = "Right. Quiet couple, or is it one of those nights?";
+export const PAL_NIGHT_QUESTION = "Right. Quiet pint, or a big one tonight?";
 
-export type PalNightAnswer = "quiet" | "sesh" | "carnage";
+// The three answers use the approved CAP set (docs/CAP_COPY_AUDIT_2026-07-21.md).
+// No answer plans more than four pubs: a one-tap six-pub night read as a
+// quantity nudge, and "carnage" and session words are banned.
+export type PalNightAnswer = "quiet" | "big" | "loud";
 
 export type PalNightChoice = {
   id: PalNightAnswer;
@@ -26,24 +29,24 @@ export type PalNightChoice = {
 export const PAL_NIGHT_CHOICES: readonly PalNightChoice[] = [
   {
     id: "quiet",
-    label: "Quiet couple",
+    label: "Quiet pint",
     hint: "Two quiet pubs, on a budget",
-    reply: "A quiet couple it is. Two quiet pubs, on a budget.",
+    reply: "A quiet pint it is. Two quiet pubs, on a budget.",
     plan: "2 pubs tonight, quiet and not pricey",
   },
   {
-    id: "sesh",
-    label: "Proper sesh",
+    id: "big",
+    label: "Big one tonight",
     hint: "Four lively pubs, on a budget",
-    reply: "Proper sesh it is. Four lively pubs, on a budget.",
+    reply: "A big one it is. Four lively pubs, on a budget, and mind the last train.",
     plan: "4 pubs tonight, lively and cheap",
   },
   {
-    id: "carnage",
-    label: "Absolute carnage",
-    hint: "Six lively pubs, on a budget",
-    reply: "Absolute carnage it is. Six lively pubs, on a budget, and mind the last train.",
-    plan: "6 pubs tonight, lively and cheap",
+    id: "loud",
+    label: "Live and loud",
+    hint: "Four pubs with music or a lively crowd, on a budget",
+    reply: "Live and loud it is. Four pubs with music or a lively crowd, on a budget, and mind the last train.",
+    plan: "4 pubs tonight, lively with live music, and cheap",
   },
 ];
 
@@ -76,13 +79,13 @@ export function msUntilPalNightBoundary(now: Date): number {
 /**
  * The words that ride with tonight's crew link. They name the Pal and tonight,
  * never the pubs, a price or a count, and ask the way the plan page already
- * does ("Open the link and tap I'm in."). They never name the evening's answer:
+ * does ("Open the link and tap Going.", the invite page's own button). They never name the evening's answer:
  * the saved plan may not be the one the answer made, so the words could
  * describe a different night.
  */
 export function palNightInviteText(palName: string): string {
   const name = palName.trim() || "My Pal";
-  return `${name}'s got a plan for tonight. Open the link and tap I'm in.`;
+  return `${name}'s got a plan for tonight. Open the link and tap Going.`;
 }
 
 export function palNightChoice(id: unknown): PalNightChoice | null {

@@ -5,7 +5,7 @@
  *   npm run fetch:wetherspoons-pubs
  *
  * THE SOURCE TABLE DECIDES, NOT THIS SCRIPT. The endpoint and the crawl delay
- * come from the `wetherspoon-pub-directory` entry in lib/harvest/sourcePolicy.ts,
+ * come from the `wetherspoon-pub-directory` entry in lib/harvest/sourceRegistry.ts,
  * robots.txt is asked again live before the first read, and a redirect that
  * lands outside the allow-list is refused. This file names no URL of its own.
  *
@@ -70,7 +70,7 @@ const COORDINATE_CORRECTIONS = [
 
 function directorySource() {
   const source = harvestSource(WETHERSPOON_DIRECTORY_SOURCE_ID);
-  if (!source) throw new Error(`No ${WETHERSPOON_DIRECTORY_SOURCE_ID} entry in lib/harvest/sourcePolicy.ts`);
+  if (!source) throw new Error(`No ${WETHERSPOON_DIRECTORY_SOURCE_ID} entry in lib/harvest/sourceRegistry.ts`);
   return source;
 }
 

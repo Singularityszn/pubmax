@@ -389,12 +389,23 @@ export async function resolveSocialAccess(
   request?: Request,
   dependencies?: SocialAccessServerDependencies,
 ): Promise<SocialAccessResolution> {
+  return (await resolveSocialAccessFor(request, dependencies)).access;
+}
+
+// The resolution plus, when the state is verified, the auth user id the
+// session verified. That id stays on the server: the access route hands the
+// resolution to the browser, and its shape does not change.
+async function resolveSocialAccessFor(
+  request?: Request,
+  dependencies?: SocialAccessServerDependencies,
+): Promise<{ access: SocialAccessResolution; authUserId: string | null }> {
   const deps = dependencies ?? readDefaultDependencies();
-  if (!deps.friendsLaunchEnabled) return { available: true, state: "preview" };
+  const without = (access: SocialAccessResolution) => ({ access, authUserId: null });
+  if (!deps.friendsLaunchEnabled) return without({ available: true, state: "preview" });
   const supabase = await deps.verifySupabaseSession(request);
-  if (supabase.status === "unavailable") return unavailableAccess();
+  if (supabase.status === "unavailable") return without(unavailableAccess());
   if (supabase.status === "absent") {
-    return { available: true, state: "sign_in_required" };
+    return without({ available: true, state: "sign_in_required" });
   }
   const resumeCookie: SocialResumeCookie = supabase.resumeCookie
     ? { resumeCookie: supabase.resumeCookie }
@@ -413,16 +424,19 @@ export async function resolveSocialAccess(
     });
     if (state === "verified") {
       if (!account || !profile || account.id === "" || profile.id === "" || profile.handle === "") {
-        return { ...unavailableAccess(), ...resumeCookie };
+        return without({ ...unavailableAccess(), ...resumeCookie });
       }
       return {
-        available: true,
-        state,
-        actor: { accountId: account.id, profileId: profile.id, handle: profile.handle },
-        ...resumeCookie,
+        access: {
+          available: true,
+          state,
+          actor: { accountId: account.id, profileId: profile.id, handle: profile.handle },
+          ...resumeCookie,
+        },
+        authUserId: supabase.userId,
       };
     }
-    return {
+    return without({
       available: true,
       state,
       ...resumeCookie,
@@ -436,14 +450,25 @@ export async function resolveSocialAccess(
               }),
           }
         : {}),
-    };
+    });
   } catch {
-    return { ...unavailableAccess(), ...resumeCookie };
+    return without({ ...unavailableAccess(), ...resumeCookie });
   }
 }
 
 export type VerifiedSocialActorResolution = (
-  | { ok: true; actor: SocialPostActor }
+  | {
+      ok: true;
+      actor: SocialPostActor;
+      /**
+       * The auth user id this session verified (`profiles.user_id`). It is a
+       * different domain from `actor.accountId`, the private Social account
+       * record's own id, which provisioning gives a UUID of its own. A check
+       * that reads the auth owner, such as handle ownership through
+       * `identityHandleStore().ownedHandle`, takes this one.
+       */
+      authUserId: string;
+    }
   | {
       ok: false;
       status: 401 | 403 | 503;
@@ -462,7 +487,7 @@ export async function requireVerifiedSocialActor(
   dependencies?: SocialAccessServerDependencies,
 ): Promise<VerifiedSocialActorResolution> {
   const deps = dependencies ?? readDefaultDependencies();
-  const access = await resolveSocialAccess(request, deps);
+  const { access, authUserId } = await resolveSocialAccessFor(request, deps);
   const resumeCookie: SocialResumeCookie = access.resumeCookie
     ? { resumeCookie: access.resumeCookie }
     : {};
@@ -476,7 +501,19 @@ export async function requireVerifiedSocialActor(
       ...resumeCookie,
     };
   }
-  if (access.state === "verified") return { ok: true, actor: access.actor, ...resumeCookie };
+  if (access.state === "verified" && authUserId) {
+    return { ok: true, actor: access.actor, authUserId, ...resumeCookie };
+  }
+  if (access.state === "verified") {
+    return {
+      ok: false,
+      status: 503,
+      code: "SOCIAL_ACCESS_UNAVAILABLE",
+      error: "Social access checks are unavailable right now.",
+      retryable: true,
+      ...resumeCookie,
+    };
+  }
   if (access.state === "preview") {
     return { ok: false, status: 503, code: "SOCIAL_ACCESS_UNAVAILABLE", error: "Social is not open yet.", ...resumeCookie };
   }

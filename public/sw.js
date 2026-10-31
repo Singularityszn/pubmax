@@ -26,6 +26,9 @@
  *       → navigation preload (else fetch), network-first
  *         → shelved shell after a timeout, only while within its revalidate window
  *         → cached plan preview or fixed shell page → cached "/" → /offline.html
+ *       A /map query that changes the document itself (MAP_DOCUMENT_QUERY_KEYS)
+ *       is shelved under its exact query, never under the shared /map shell,
+ *       and never answers from the shelf early.
  *   /api/* GETs
  *       → untouched (network-only); the app already renders honest
  *         empty/error states when these fail.
@@ -39,12 +42,29 @@ const PRE_FIX_CACHE_POLICIES = new Set(["cache-write-coupled-v1", "write-safe-v1
 const PREFIX = "pubmax-sw-";
 const DATA_CACHE = `${PREFIX}data-${VERSION}`;
 const SWR_CACHE = `${PREFIX}swr-${VERSION}`;
-const SHELL_CACHE = `${PREFIX}shell-${VERSION}`;
+// v2: a v1 shell family filed /map?place=, ?crawl= and the other document
+// twins under the plain /map key, so a stalled or offline map navigation could
+// get another town's document. Activation retires every v1 shell cache.
+const SHELL_CACHE_PREFIX = `${PREFIX}shell-v2-`;
+const SHELL_CACHE = `${SHELL_CACHE_PREFIX}${VERSION}`;
 // Plan detail previews a crew opened earlier, so they reopen offline.
 // Older navigation HTML can contain a private anchor in its inline Flight.
 // A disjoint family prevents both migration and fallback from reading it.
 const PLAN_CACHE_PREFIX = `${PREFIX}preview-plan-v2-`;
 const PLAN_CACHE = `${PLAN_CACHE_PREFIX}${VERSION}`;
+// The crawl offline pack: each stop's public /pubs/<id> page, saved when a
+// crawl screen opens, so a stop still reads in a basement or on the Tube. The
+// pages are fetched WITHOUT cookies, so the HTML is the page a stranger gets
+// and no account is in it.
+const CRAWL_PUB_CACHE_PREFIX = `${PREFIX}crawl-pubs-v1-`;
+const CRAWL_PUB_CACHE = `${CRAWL_PUB_CACHE_PREFIX}${VERSION}`;
+const CRAWL_PACK_MESSAGE = "pubmax:crawl-offline-pack";
+const MAX_CRAWL_PACK_STOPS = 12;
+const MAX_CRAWL_PUB_ENTRIES = 24;
+const MAX_CRAWL_PACK_STYLESHEETS = 8;
+// A saved stop younger than this is not fetched again, so reopening the crawl
+// screen all night costs one fetch per stop, not one per visit.
+const CRAWL_PUB_FRESH_FOR_MS = 6 * 60 * 60 * 1000;
 const DATA_CACHE_FAMILY = {
   current: DATA_CACHE,
   prefix: `${PREFIX}data-`,
@@ -53,8 +73,9 @@ const DATA_CACHE_FAMILY = {
 const CACHE_FAMILIES = [
   DATA_CACHE_FAMILY,
   { current: SWR_CACHE, prefix: `${PREFIX}swr-`, purgeTileHost: true },
-  { current: SHELL_CACHE, prefix: `${PREFIX}shell-` },
+  { current: SHELL_CACHE, prefix: SHELL_CACHE_PREFIX },
   { current: PLAN_CACHE, prefix: PLAN_CACHE_PREFIX },
+  { current: CRAWL_PUB_CACHE, prefix: CRAWL_PUB_CACHE_PREFIX },
 ];
 
 // Only new plan-cache writes depend on this versioned helper. Keep eligibility,
@@ -82,6 +103,14 @@ const OFFLINE_URL = "/offline.html";
 // whose install fails never activates, which would strand a reader on the
 // pre-fix worker for exactly the storage pressure this one is built for.
 const SHELL_URLS = ["/", "/map", "/tonight", OFFLINE_URL];
+// /map query keys whose value changes the document, not just the camera. The
+// server answers these from the per-request twin (lib/mapDocumentTwin.ts,
+// MAP_DOCUMENT_QUERY_KEYS; __tests__/serviceWorkerCache.test.ts shelves
+// every key from that list), so each one is its own page with its own shelf entry.
+const MAP_DOCUMENT_QUERY_KEYS = ["place", "uk", "band", "crawl", "pubs", "card"];
+// Each twin entry is one town or one share card a reader opened, so the shelf
+// keeps only the most recent few.
+const MAX_MAP_DOCUMENT_ENTRIES = 20;
 
 // A stalled navigation (weak or captive signal) may serve its shelved shell
 // after this long, while the live answer keeps loading and refreshes the
@@ -122,6 +151,7 @@ self.addEventListener("activate", (event) => {
     Promise.allSettled([
       ...CACHE_FAMILIES.map(migrateCacheFamily),
       retireLegacyPlanCaches(),
+      retireLegacyShellCaches(),
       enableNavigationPreload(),
     ])
       .then(() => self.clients.claim()),
@@ -156,6 +186,15 @@ async function retireLegacyPlanCaches() {
   );
 }
 
+async function retireLegacyShellCaches() {
+  const names = await caches.keys();
+  await Promise.allSettled(
+    names.filter((name) =>
+      name.startsWith(`${PREFIX}shell-`) && !name.startsWith(SHELL_CACHE_PREFIX)
+    ).map((name) => caches.delete(name)),
+  );
+}
+
 async function cacheFamilyNames(currentName) {
   const family = CACHE_FAMILIES.find(({ current }) => current === currentName);
   if (!family) return [currentName];
@@ -177,6 +216,22 @@ function isEligibleShellCacheUrl(url) {
   return url.origin === self.location.origin && SHELL_URLS.includes(url.pathname);
 }
 
+function isMapDocumentTwinUrl(url) {
+  return url.origin === self.location.origin && url.pathname === "/map" &&
+    MAP_DOCUMENT_QUERY_KEYS.some((key) => (url.searchParams.get(key) ?? "").trim());
+}
+
+// A shell is shelved under its path alone, except a /map document twin, which
+// is shelved under its exact query so one town never answers for another.
+function shellCacheKey(url) {
+  return isMapDocumentTwinUrl(url) ? `${url.pathname}${url.search}` : url.pathname;
+}
+
+function isShelvedShellEntry(url) {
+  return isEligibleShellCacheUrl(url) &&
+    `${url.pathname}${url.search}` === shellCacheKey(url);
+}
+
 async function migrateCacheFamily({
   current,
   prefix,
@@ -192,7 +247,7 @@ async function migrateCacheFamily({
     for (const request of await destination.keys()) {
       const eligible = current === PLAN_CACHE
         ? isEligiblePlanCacheUrl(new URL(request.url))
-        : isEligibleShellCacheUrl(new URL(request.url));
+        : isShelvedShellEntry(new URL(request.url));
       if (!eligible) await destination.delete(request);
     }
   }
@@ -204,7 +259,7 @@ async function migrateCacheFamily({
     let covered = true;
     for (const request of await source.keys()) {
       if ((current === PLAN_CACHE && !isEligiblePlanCacheUrl(new URL(request.url))) ||
-        (current === SHELL_CACHE && !isEligibleShellCacheUrl(new URL(request.url)))) {
+        (current === SHELL_CACHE && !isShelvedShellEntry(new URL(request.url)))) {
         if (!(await source.delete(request))) covered = false;
         continue;
       }
@@ -234,8 +289,12 @@ async function matchCacheFamily(currentName, request, options) {
     typeof request === "string" ? request : request.url,
     self.location.origin,
   );
-  if (currentName === SHELL_CACHE && !isEligibleShellCacheUrl(requestUrl)) {
-    return undefined;
+  if (currentName === SHELL_CACHE) {
+    if (!isEligibleShellCacheUrl(requestUrl)) return undefined;
+    // An ignoreSearch read would let a shelved twin answer the plain map, or
+    // the plain map answer a twin. Every shelf entry sits at its exact key.
+    request = shellCacheKey(requestUrl);
+    options = { ...options, ignoreSearch: false };
   }
   const names = await cacheFamilyNames(currentName);
   const candidates =
@@ -245,6 +304,89 @@ async function matchCacheFamily(currentName, request, options) {
   for (const name of candidates) {
     const response = await (await caches.open(name)).match(request, options);
     if (response) return response;
+  }
+  return undefined;
+}
+
+function isCrawlPubPath(pathname) {
+  return /^\/pubs\/[a-z0-9][a-z0-9-]{0,119}$/.test(pathname);
+}
+
+// The venue ids a crawl screen asked for, cleaned: strings of the venue id
+// shape only, no repeats, at most MAX_CRAWL_PACK_STOPS. Anything else in the
+// message is ignored, so a page cannot steer the worker at another path.
+function crawlPackPaths(data) {
+  if (!data || data.type !== CRAWL_PACK_MESSAGE || !Array.isArray(data.venueIds)) return [];
+  const paths = [];
+  for (const id of data.venueIds) {
+    if (typeof id !== "string") continue;
+    const path = `/pubs/${id}`;
+    if (!isCrawlPubPath(path) || paths.includes(path)) continue;
+    paths.push(path);
+    if (paths.length === MAX_CRAWL_PACK_STOPS) break;
+  }
+  return paths;
+}
+
+// The page's own stylesheets, so a saved stop is not bare HTML offline. Only
+// hashed build CSS, which never changes under its URL.
+function crawlPackStylesheets(html) {
+  const found = [];
+  for (const match of html.matchAll(/href="(\/_next\/static\/[^"?#]+\.css)"/g)) {
+    if (!found.includes(match[1])) found.push(match[1]);
+    if (found.length === MAX_CRAWL_PACK_STYLESHEETS) break;
+  }
+  return found;
+}
+
+async function storeCrawlPack(paths) {
+  if (paths.length === 0) return;
+  const cache = await caches.open(CRAWL_PUB_CACHE);
+  const swr = await caches.open(SWR_CACHE);
+  const stylesheets = [];
+  for (const path of paths) {
+    try {
+      const url = new URL(path, self.location.origin).href;
+      const saved = await cache.match(url);
+      if (saved && shelvedShellAgeMs(saved, Date.now()) < CRAWL_PUB_FRESH_FOR_MS) continue;
+      const response = await fetch(new Request(url, {
+        credentials: "omit",
+        headers: { Accept: "text/html" },
+      }));
+      const type = response.headers.get("content-type") ?? "";
+      if (!response.ok || response.redirected || !type.includes("text/html")) continue;
+      for (const href of crawlPackStylesheets(await response.clone().text())) {
+        if (!stylesheets.includes(href)) stylesheets.push(href);
+      }
+      await cache.put(url, response);
+    } catch {
+      // One stop failing must not cost the others.
+    }
+  }
+  for (const href of stylesheets.slice(0, MAX_CRAWL_PACK_STYLESHEETS)) {
+    try {
+      const url = new URL(href, self.location.origin).href;
+      if (await swr.match(url)) continue;
+      await cachePutBestEffort(swr, url, await fetch(url, { credentials: "omit" }));
+    } catch {
+      // A missing stylesheet leaves a plainer page, never a missing one.
+    }
+  }
+  await trimCache(CRAWL_PUB_CACHE, MAX_CRAWL_PUB_ENTRIES);
+}
+
+async function matchCrawlPubAcrossCaches(url) {
+  if (url.origin !== self.location.origin || !isCrawlPubPath(url.pathname)) return undefined;
+  for (const name of await cacheFamilyNames(CRAWL_PUB_CACHE)) {
+    try {
+      const response = await (await caches.open(name)).match(
+        new URL(url.pathname, self.location.origin).href,
+        { ignoreSearch: true },
+      );
+      if (response) return response;
+    } catch {
+      continue;
+    }
   }
   return undefined;
 }
@@ -279,11 +421,19 @@ function safeNotificationPath(value) {
   try {
     const url = new URL(value, self.location.origin);
     if (url.origin !== self.location.origin) return "/today";
+    // "/..//evil.example" resolves on our origin to the path "//evil.example",
+    // which the click handler would read back as a protocol-relative URL.
+    if (url.pathname.startsWith("//")) return "/today";
     return `${url.pathname}${url.search}`;
   } catch {
     return "/today";
   }
 }
+
+self.addEventListener("message", (event) => {
+  const paths = crawlPackPaths(event.data);
+  if (paths.length > 0) event.waitUntil(storeCrawlPack(paths).catch(() => undefined));
+});
 
 self.addEventListener("push", (event) => {
   let payload = {};
@@ -521,7 +671,16 @@ function shelveNavigation(request, url, response) {
   // this browser has seen — but only for the pages we deliberately shelve.
   if (response.ok && isEligibleShellCacheUrl(url)) {
     const copy = response.clone();
-    return caches.open(SHELL_CACHE).then((cache) => cache.put(url.pathname, copy));
+    const twin = isMapDocumentTwinUrl(url);
+    return caches.open(SHELL_CACHE)
+      .then((cache) => cache.put(shellCacheKey(url), copy))
+      .then(() => twin
+        ? trimCache(
+          SHELL_CACHE,
+          MAX_MAP_DOCUMENT_ENTRIES,
+          (candidate) => isMapDocumentTwinUrl(new URL(candidate.url)),
+        )
+        : undefined);
   }
   if (response.ok && isEligiblePlanCacheUrl(url) && self.planCache) {
     // Shelve the plan preview so a crew that opened the link earlier
@@ -544,7 +703,9 @@ function shelvedShellAgeMs(response, now) {
 // NAVIGATION_NETWORK_TIMEOUT_MS and the shelf is fresh enough; otherwise with
 // undefined, and the caller keeps waiting on the network.
 async function stalledShellFallback(network, url) {
-  const freshForMs = url.origin === self.location.origin
+  // A twin renders per request, so no CDN copy bounds its shelf's age. A
+  // stalled twin waits for the network like a page the worker never shelves.
+  const freshForMs = url.origin === self.location.origin && !isMapDocumentTwinUrl(url)
     ? SHELL_FRESH_FOR_MS[url.pathname]
     : undefined;
   if (!freshForMs) return undefined;
@@ -590,6 +751,9 @@ async function handleNavigation(event, request, url) {
     // generic shell ladder. Member details still require their live API.
     const plan = await matchPlanNavigationAcrossCaches(url);
     if (plan) return plan;
+    // A crawl stop saved by the offline pack.
+    const pub = await matchCrawlPubAcrossCaches(url);
+    if (pub) return pub;
     const exact = await matchCacheFamily(SHELL_CACHE, url.href, {
       ignoreSearch: true,
     });

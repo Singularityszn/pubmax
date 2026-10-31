@@ -138,6 +138,8 @@ describe("sign-in credentials in a deep link", () => {
     `${NATIVE_URL_SCHEME}://tonight#${TOKENS}`,
     `${NATIVE_URL_SCHEME}://plan/abc#${TOKENS}`,
     `${NATIVE_URL_SCHEME}://tonight#${ERROR}`,
+    `${NATIVE_URL_SCHEME}://share?text=The%20Ship#${TOKENS}`,
+    `${NATIVE_URL_SCHEME}://share?text=The%20Ship#${ERROR}`,
     `https://pubmaxxing.com/map?sel=venue-1#${TOKENS}`,
     `https://pubmaxxing.com/tonight#${TOKENS}`,
     `https://pubmaxxing.com/plan/abc#${TOKENS}`,
@@ -184,6 +186,8 @@ describe("sign-in credentials in a deep link", () => {
   });
 
   it("keeps ordinary app fragments", () => {
+    expect(nativeDeepLinkPath(`${NATIVE_URL_SCHEME}://share?text=The%20Ship#details`))
+      .toBe("/share?text=The%20Ship#details");
     expect(nativeDeepLinkPath("https://pubmaxxing.com/p/pub-1#prices")).toBe("/p/pub-1#prices");
     expect(nativeDeepLinkPath(`${NATIVE_URL_SCHEME}://plan/abc#crew`)).toBe("/plan/abc#crew");
   });
