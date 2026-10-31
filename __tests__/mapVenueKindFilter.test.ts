@@ -52,7 +52,12 @@ describe("the venue-type filter counts what the panel offers", () => {
       food: true,
       restaurant: true,
     });
-    expect(showAllVenueKinds(held, "all")).toEqual(defaultVenueKindVisibility());
+    expect(showAllVenueKinds(held, "all")).toEqual({
+      pub: true,
+      bar: true,
+      food: true,
+      restaurant: true,
+    });
   });
 
   it("carries the count on the closed control, in words and in the label", () => {

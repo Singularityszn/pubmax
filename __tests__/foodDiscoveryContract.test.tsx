@@ -154,7 +154,12 @@ describe("food discovery controls", () => {
     expect(offeredVenueKinds("food")).toEqual(["pub", "bar", "food", "restaurant"]);
     const off = { pub: false, bar: false, food: false, restaurant: false };
     expect(hiddenVenueKindCount(off, "food")).toBe(4);
-    expect(showAllVenueKinds(off, "food")).toEqual(defaultVenueKindVisibility());
+    expect(showAllVenueKinds(off, "food")).toEqual({
+      pub: true,
+      bar: true,
+      food: true,
+      restaurant: true,
+    });
   });
 
   it("renders pub and bar choices that agree with the food view's offered kinds", () => {
