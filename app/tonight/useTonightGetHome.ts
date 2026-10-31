@@ -85,7 +85,7 @@ export function useTonightGetHome(
       `/api/last-train?lat=${point.lat}&lng=${point.lng}`,
       {
         signal: controller.signal,
-        // A held answer older than one refresh is not shown as current.
+        // Only snapshots within one refresh interval can seed a new read.
         maxAgeMs: GET_HOME_REFRESH_MS,
         validate: (body) => Boolean(body && typeof body === "object" && "station" in body && "trains" in body),
       },
