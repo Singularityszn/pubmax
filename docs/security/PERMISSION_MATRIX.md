@@ -94,6 +94,10 @@ the honest refusal for that route (401, 403, 400 or 409) and no change.
 | Add a Moment to A's Memory | 401 | denied | allowed | n/a |
 | Describe A's photo Moment (`PATCH alt-text`) | 401 | 403 | allowed | n/a |
 | `night_moments` at the table | denied | no rows, no writes | own rows, no writes | n/a |
+| `night_stories` source text at the table, including published public Stories | denied | no rows, including accepted editors | host rows only, no writes | service role reads all rows |
+| Story contributors and publication proposals at the table | denied | own contributor row or requested proposal only | host reads all rows for the Story | no browser writes |
+| Story Moment links at the table | denied | no rows | host rows only | no browser writes |
+| Published public or unlisted Story through the application reader | redacted public fields | redacted public fields for non-members | host retains source text | private drafts stay private |
 | A's upload object (`storage.objects` and the bucket paths) | invisible | invisible | invisible; only a server-minted signed URL serves it | n/a |
 | Log a price (`POST /api/price-submit`, `POST /api/pint-drops`) | 401 | allowed under own actor | allowed under own actor | n/a |
 | Confirmation | 401, no row; anon and authenticated inserts refused at the table | a matching figure confirms and `pintTrust` becomes `confirmed` | a different figure does not confirm and `pintTrust` stays `disputed` | n/a |
@@ -111,6 +115,14 @@ the honest refusal for that route (401, 403, 400 or 409) and no change.
 | A's `profiles` row at the table, the choice included | denied | no rows | own row | n/a |
 | Write A's `profiles` row at the table (handle, founding number, avatar moderation, report count, moderator note, or delete) | denied | denied | denied | n/a |
 | Insert an ownerless `profiles` row at the table | denied | denied | denied | n/a |
+
+Migration `0216` limits raw Story reads to the host for every publication state.
+It retains the authenticated SELECT grant because contributor, proposal and Moment-link policies query the Story table.
+The service role continues to read source rows for the application projection.
+Migration `0198` retains source text and departure facts, which the public projection uses to remove departed identities.
+The `0216` rollback restores raw public Story reads for unrelated authenticated accounts, including retained names.
+It changes no source text or grants.
+`accountDeletionStoryRedactionEffective.test.ts` checks deletion, public redaction, raw reads and rollback over every migration.
 
 ## Cells added for the wider roles
 

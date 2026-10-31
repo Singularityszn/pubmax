@@ -7,6 +7,7 @@ import { postgresSkipReason } from "./helpers/postgres";
 type Session = {
   sqlFile(path: string): void;
   sql(statement: string): { ok: boolean; out: string; err: string };
+  rest(path: string, opts?: { sub?: string | null }): Promise<{ status: number; body: unknown; text: string }>;
   reloadPostgrestSchema(): Promise<void>;
   stop(): Promise<void>;
   restBaseUrl: string;
@@ -15,6 +16,7 @@ type Session = {
 
 const HOST = "a1970000-0000-4000-8000-000000000001";
 const GUEST = "b1970000-0000-4000-8000-000000000002";
+const STRANGER = "c1970000-0000-4000-8000-000000000005";
 const HOST_PROFILE = "a1970000-0000-4000-8000-000000000003";
 const GUEST_PROFILE = "b1970000-0000-4000-8000-000000000004";
 const HANDLE = "departing_story_guest";
@@ -24,6 +26,11 @@ const root = process.cwd();
 const nativeFetch = globalThis.fetch;
 let session: Session | null = null;
 let store: typeof import("@/lib/nightMemoryStore");
+let priorPolicy = "";
+const policyQuery = `select to_jsonb(p)::text from pg_policies p
+  where schemaname='public' and tablename='night_stories'
+    and policyname='night_stories_host_or_public_select'`;
+const sourcePolicy = "20261031120000_0216_story_source_host_read";
 
 function sql(statement: string): string {
   if (!session) throw new Error("Story deletion proof has no database session");
@@ -44,6 +51,7 @@ beforeAll(async () => {
     for (const name of readdirSync(migrations)
       .filter((name) => name.endsWith(".sql") && name > "20260806035204_0070_v1_release_security.sql")
       .sort()) {
+      if (name === `${sourcePolicy}.sql`) priorPolicy = sql(policyQuery);
       session.sqlFile(join(migrations, name));
     }
     await session.reloadPostgrestSchema();
@@ -62,7 +70,7 @@ beforeAll(async () => {
     });
     vi.resetModules();
     store = await import("@/lib/nightMemoryStore");
-    sql(`insert into auth.users(id) values ('${HOST}'), ('${GUEST}');
+    sql(`insert into auth.users(id) values ('${HOST}'), ('${GUEST}'), ('${STRANGER}');
       insert into public.profiles(id,user_id,handle,display_name) values
       ('${HOST_PROFILE}','${HOST}','remaining_story_host','Remaining Host'),
       ('${GUEST_PROFILE}','${GUEST}','${HANDLE}','${DISPLAY_NAME}');`);
@@ -82,6 +90,25 @@ afterAll(async () => {
 });
 
 type Published = { storyId: string; momentId: string };
+
+async function expectHostOnlySource(storyId: string): Promise<void> {
+  const path = `/night_stories?id=eq.${storyId}&select=title,summary`;
+  const host = await session!.rest(path, { sub: HOST });
+  expect(host.status).toBe(200);
+  expect(host.body).toEqual([{
+    title: `Night with @${HANDLE}`,
+    summary: `${DISPLAY_NAME} chose the route with Remaining Host.`,
+  }]);
+  const stranger = await session!.rest(path, { sub: STRANGER });
+  expect(stranger.status).toBe(200);
+  expect(stranger.body).toEqual([]);
+  const anonymous = await session!.rest(path);
+  expect(anonymous.status).toBe(401);
+  for (const refused of [stranger, anonymous]) {
+    expect(refused.text).not.toContain(HANDLE);
+    expect(refused.text).not.toContain(DISPLAY_NAME);
+  }
+}
 
 async function publishHostStory(title: string, summary: string, caption: string, guest: boolean): Promise<Published> {
   const memory = await store.createNightMemory(HOST, { title: `Disposable shared night: ${title}` });
@@ -141,6 +168,10 @@ describe.skipIf(skipReason !== null)("account deletion and published Story redac
     const declined = await publishHostStory(title, summary, caption, true);
     // A Story the guest was never linked to keeps its words whatever happens.
     const unrelated = await publishHostStory("Host-only night", "Remaining Host chose the route.", "Quiet pint.", false);
+    await expectHostOnlySource(accepted.storyId);
+    await expectHostOnlySource(declined.storyId);
+    expect((await session!.rest(`/night_stories?id=eq.${accepted.storyId}&select=title,summary`, { sub: GUEST })).body)
+      .toEqual([]);
 
     const before = await store.readPublishedRecapSource(accepted.storyId);
     expect(before.status).toBe("found");
@@ -168,6 +199,8 @@ describe.skipIf(skipReason !== null)("account deletion and published Story redac
 
     await expectRedacted(accepted);
     await expectRedacted(declined);
+    await expectHostOnlySource(accepted.storyId);
+    await expectHostOnlySource(declined.storyId);
     const untouched = await store.readPublishedRecapSource(unrelated.storyId);
     expect(untouched.status).toBe("found");
     if (untouched.status !== "found") throw new Error("Unrelated recap disappeared");
@@ -184,6 +217,16 @@ describe.skipIf(skipReason !== null)("account deletion and published Story redac
       expect(session!.sql(`set role ${role}; select retired_display_name, retired_handles,
         night_story_ids from public.account_retention_ledger`).ok).toBe(false);
     }
+    session!.sqlFile(join(root, `supabase/migrations/rollback/${sourcePolicy}_rollback.sql`));
+    expect(sql(policyQuery)).toBe(priorPolicy);
+    for (const { storyId } of [accepted, declined]) {
+      const restored = await session!.rest(`/night_stories?id=eq.${storyId}&select=title,summary`, { sub: STRANGER });
+      expect(restored.status).toBe(200);
+      expect(restored.body).toEqual([{ title, summary }]);
+    }
+    session!.sqlFile(join(root, `supabase/migrations/${sourcePolicy}.sql`));
+    await expectHostOnlySource(accepted.storyId);
+    await expectHostOnlySource(declined.storyId);
     session!.sqlFile(join(root, "supabase/migrations/rollback/20261026123000_0198_story_departure_retention_rollback.sql"));
     await session!.reloadPostgrestSchema();
     for (const { storyId, momentId } of [accepted, declined]) {

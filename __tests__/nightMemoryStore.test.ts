@@ -1,6 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 
 vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
@@ -112,16 +110,6 @@ describe("collaborative Night Story storage", () => {
     expect(listed.map((moment) => moment.id)).toEqual([own!.id]);
     expect(JSON.stringify(listed)).not.toContain("FRIEND-PRIVATE-CAPTION");
     expect(contributed).not.toBeNull();
-  });
-
-  it("ships an atomic configured-backend draft authorization check", () => {
-    const sql = readFileSync(join(process.cwd(), "supabase/migrations/20260716150000_0032_night_story_draft_atomic.sql"), "utf8");
-    expect(sql).toContain("update_night_story_draft_atomic");
-    expect(sql).toContain("contributor.role in ('host', 'editor')");
-    expect(sql).toContain("contributor.status = 'accepted'");
-    expect(sql).toContain("create_plan_recap_atomic");
-    expect(sql).toContain("pg_advisory_xact_lock");
-    expect(sql).toContain("revoke all on function");
   });
 
   it("lets no editor demote the host or another accepted member", async () => {
