@@ -730,14 +730,8 @@ for (const viewport of VIEWPORTS) {
     const arc = sheet.getByRole("group", { name: "Venue types" });
     await expect(arc).toHaveCount(1);
     const arcButtons = arc.locator(".tonightArcChip");
-    // Four, not five. The `Clubs` chip is gone (7 Sep 2026, walk finding B9):
-    // it stood here permanently `aria-disabled`, explained by a `title` no
-    // phone shows, and it could never be enabled. Clubs show with the Bars
-    // chip: `curatedVenueKind` in lib/venueKindFilters.ts files a club under
-    // the bars. The DESKTOP chrome cut is not what
-    // moved this; the chip is one component (components/map/TonightArcChips.tsx)
-    // read at both widths, and a chip nobody can press is not a chip.
-    expect(await arcButtons.count()).toBe(4);
+    // The five shared controls include Clubs. Each control must take a tap.
+    expect(await arcButtons.count()).toBe(5);
     for (let index = 0; index < (await arcButtons.count()); index += 1) {
       const button = arcButtons.nth(index);
       const label =

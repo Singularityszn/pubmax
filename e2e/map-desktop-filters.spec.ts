@@ -142,17 +142,14 @@ for (const viewport of DESKTOP) {
       // A field narrower than this reads a postcode and nothing else.
       expect(boxes!.inputWidth).toBeGreaterThan(120);
 
-      // A tap opens the panel with the same four chips in it. Four, not five:
-      // `Clubs` is deleted (walk finding B9), because it could never have been
-      // enabled. Clubs show with `Bars`: `curatedVenueKind` in
-      // lib/venueKindFilters.ts files a club under the bars.
+      // The shared panel offers five enabled kinds, including independent Clubs.
       await expect(async () => {
         if ((await filters.getAttribute("aria-expanded")) === "false") {
           await filters.click();
         }
         await expect(
           page.locator(".mapVenueKindFilterPanel .tonightArcChip"),
-        ).toHaveCount(4, { timeout: 2_000 });
+        ).toHaveCount(5, { timeout: 2_000 });
       }).toPass({ timeout: 30_000 });
       await expect(filters).toHaveAttribute("aria-expanded", "true");
       const panelId = await filters.getAttribute("aria-controls");
@@ -289,9 +286,8 @@ test.describe("390x844", () => {
       const sheet = page.locator(
         '.mobileSheetPortal[data-sheet-kind="filters"]',
       );
-      // Four at both widths: `TonightArcChips` is one component read by the phone
-      // sheet and the desktop popover alike, and `Clubs` is gone from both.
-      await expect(sheet.locator(".tonightArcChip")).toHaveCount(4);
+      // The phone and desktop share the same five enabled kind controls.
+      await expect(sheet.locator(".tonightArcChip")).toHaveCount(5);
       await expect(sheet.locator(".tonightArcChipsSheet")).toBeVisible();
       if (chunkDelayMs) expect(delayedChunks).toBeGreaterThan(0);
       expect(await expandedStates.jsonValue()).toEqual(["true"]);

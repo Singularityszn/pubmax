@@ -154,12 +154,13 @@ export function filterVenuesByKind(
  * The desktop chips live behind one Filters control, so the badge on the closed
  * control and the chips inside it must count the SAME set: a badge that counted
  * a kind the open panel never offers would say a filter is on over a control
- * nobody can reach. Every view offers all four curated kinds. The experience
+ * nobody can reach. Every view offers all five curated kinds. The experience
  * lens decides which venues qualify within those kinds.
  */
 const CURATED_VENUE_KIND_ORDER: readonly CuratedVenueKind[] = [
   "pub",
   "bar",
+  "club",
   "food",
   "restaurant",
 ];
@@ -177,8 +178,9 @@ export function hiddenVenueKindCount(
   visibility: VenueKindVisibility,
   experienceLens: string,
 ): number {
-  return offeredVenueKinds(experienceLens).filter((kind) => !visibility[kind])
-    .length;
+  return offeredVenueKinds(experienceLens).filter((kind) =>
+    kind === "club" ? !(visibility.club ?? visibility.bar) : !visibility[kind],
+  ).length;
 }
 
 /**
