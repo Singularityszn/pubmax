@@ -23,7 +23,7 @@ London bar coverage - without scraping Reddit or inventing prices.
 
 | Asset | Count / behaviour |
 | --- | --- |
-| UK base OSM pubs (`amenity=pub`) | ~38,215 streamed shards |
+| UK base OSM pubs (`amenity=pub`) | Streamed shards. See the [published coverage source](../../public/data/uk_base/README.md) for current counts. |
 | UK place gazetteer (`places.json`) | Town/city/suburb fly targets |
 | Curated London slim index | ~1,997 priced/product venues |
 | Heritage cache + Landlord | Wikipedia/Wikidata/seed facts per pub name |

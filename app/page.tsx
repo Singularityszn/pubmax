@@ -12,6 +12,7 @@ import { homeProductDescription } from "@/lib/siteProductCopy";
 import { appPageTitle, BRAND_NAME } from "@/lib/brandNaming";
 import JsonLd from "@/components/seo/JsonLd";
 import { homeJsonLd } from "@/lib/siteJsonLd";
+import { loadUkDirectoryCoverage } from "@/lib/ukDirectoryCoverage.server";
 
 // The words a forwarded link shows beside the card. They say the same thing the
 // page itself says, because a referral link (/r/<code>) lands on /#referral=…
@@ -126,6 +127,7 @@ export default async function Home() {
         collagePrices={collagePrices}
         answers={answers}
         socialFriendsLaunchEnabled={socialFriendsLaunchEnabled}
+        ukCoverage={loadUkDirectoryCoverage()}
       />
     </>
   );
