@@ -1,4 +1,4 @@
-import { type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import type { DeviceAccountRecord } from "../../lib/deviceAccountSessions";
 
 type RememberedAccount = Pick<DeviceAccountRecord, "userId" | "refreshToken" | "handle">;
@@ -22,6 +22,24 @@ export const ACCOUNTS = {
 
 export type AccountKey = keyof typeof ACCOUNTS;
 type Account = (typeof ACCOUNTS)[AccountKey];
+
+/** Switch through the control tab's UI, without treating shared storage as its session. */
+export async function switchRememberedAccount(page: Page, from: AccountKey, to: AccountKey): Promise<void> {
+  const menu = page.locator(".authAccountMenu");
+  if (!(await menu.isVisible())) {
+    await page.getByRole("button", { name: /Account options/ }).first().click();
+  }
+  await expect(menu.getByRole("button", { name: `Sign out of @${ACCOUNTS[from].handle}`, exact: true })).toBeVisible();
+  const list = menu.locator(".authSwitcherList");
+  if (!(await list.isVisible())) {
+    await menu.getByRole("button", { name: "Switch account", exact: true }).click();
+  }
+  // @karan is a prefix of @karansznx. A substring can select the departing account.
+  const target = list.locator(".authSwitcherRow").filter({ has: page.getByText(`@${ACCOUNTS[to].handle}`, { exact: true }) });
+  await target.click();
+  await expect(menu.getByRole("button", { name: `Sign out of @${ACCOUNTS[to].handle}`, exact: true })).toBeVisible();
+  await expect(target).toHaveCount(0);
+}
 
 export const AUTH_STORAGE_KEY = "sb-pubmaxx-e2e-auth-token";
 export const DEVICE_ACCOUNTS_KEY = "pubmax_device_sessions_v1";

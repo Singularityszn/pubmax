@@ -187,3 +187,22 @@ it("retires prices when the same account signs out and back in", async () => {
   await act(async () => finishRead(json({ prices: [] })));
   expect(container.textContent).toBe("");
 });
+
+it("reads A's prices again after B's failed read without remounting", async () => {
+  state.respond = async () => json(prices("alice"));
+  await renderLine();
+  expect(container.textContent).toContain("@alice");
+
+  state.respond = async () => json({ error: "unavailable" }, 503);
+  await act(async () => setProviderIdentity("supabase", "account-b"));
+  expect(container.textContent).toBe("");
+
+  let finishA!: (response: Response) => void;
+  state.respond = () => new Promise((resolve) => { finishA = resolve; });
+  await act(async () => setProviderIdentity("supabase", "account-a"));
+  expect(state.calls).toHaveLength(3);
+  expect(container.textContent).toBe("");
+  await act(async () => finishA(json(prices("alice"))));
+  expect(container.textContent).toContain("@alice");
+  expect(container.textContent).not.toContain("@bob");
+});
