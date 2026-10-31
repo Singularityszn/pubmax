@@ -6,6 +6,8 @@ import {
   pubPalMascotSlugFor,
   pubPalMascotSrc,
   pubPalMascotSrcSet,
+  pubPalMascotTalkSrc,
+  pubPalMascotTalkSrcSet,
   type PubPalMascotKind,
 } from "@/lib/pubPalMascot";
 
@@ -67,6 +69,44 @@ export function PubPalMascot({
         decoding="async"
         loading={lazy ? "lazy" : "eager"}
         fetchPriority={priority ? "high" : undefined}
+      />
+    </picture>
+  );
+}
+
+/**
+ * The same photograph with only the mouth open, laid exactly over the still.
+ * Its opacity is `--pal-mouth`, which the head loop (usePalHead3D) sets from the
+ * Pal's own voice level while it speaks, so the mouth moves on the words and
+ * rests closed otherwise. Decorative: the still below it carries the name.
+ * A caller mounts it only while voice is live, so a page view never fetches it.
+ */
+export function PubPalMascotMouth({
+  species = DEFAULT_MASCOT_SPECIES,
+  size = 32,
+  sizes,
+  circular = true,
+  className,
+}: {
+  species?: PubPalSpecies;
+  size?: number;
+  sizes?: string;
+  circular?: boolean;
+  className?: string;
+}) {
+  const slug = pubPalMascotSlugFor(species);
+  if (!slug) return null;
+  const kind: PubPalMascotKind = circular ? "avatar" : "square";
+  return (
+    <picture className={className ? `palMascotMouth ${className}` : "palMascotMouth"}>
+      <img
+        src={pubPalMascotTalkSrc(slug, kind, pubPalMascotFallbackSize(size))}
+        srcSet={pubPalMascotTalkSrcSet(slug, kind)}
+        sizes={sizes ?? `${size}px`}
+        alt=""
+        width={size}
+        height={size}
+        decoding="async"
       />
     </picture>
   );

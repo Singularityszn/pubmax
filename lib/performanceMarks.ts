@@ -12,11 +12,17 @@ export type PubmaxPerformanceMark =
   | "pubmax:map-scene-built"
   | "pubmax:pubs-source-loaded"
   | "pubmax:pins-visible"
+  | "pubmax:basemap-drawn"
   | "pubmax:pin-entrance-settled";
 
 const FIRST_PINS_EVENT = "pubmax:first-pins";
 /** Dispatched on window when the pin layers are first made visible. */
 export const PINS_VISIBLE_EVENT = "pubmax:pins-visible";
+/**
+ * Dispatched on window, and marked, on the first frame the streets in view are
+ * all drawn: a basemap tile has loaded and no tile in view is still loading.
+ */
+export const BASEMAP_DRAWN_EVENT = "pubmax:basemap-drawn";
 export const FIRST_PINS_SEEN_KEY = "pubmax:first-pins-seen:v1";
 
 declare global {
@@ -34,9 +40,9 @@ export function markPubmaxTiming(name: PubmaxPerformanceMark): void {
     }
   }
   if (typeof window === "undefined") return;
-  if (name === PINS_VISIBLE_EVENT) {
+  if (name === PINS_VISIBLE_EVENT || name === BASEMAP_DRAWN_EVENT) {
     try {
-      window.dispatchEvent(new Event(PINS_VISIBLE_EVENT));
+      window.dispatchEvent(new Event(name));
     } catch {
       // The field-timing reporter listens for this; a restricted event API
       // must never affect the pins themselves.

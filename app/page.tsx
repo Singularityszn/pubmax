@@ -10,6 +10,8 @@ import { loadLandingHeroData } from "@/lib/landingPubCard.server";
 import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 import { homeProductDescription } from "@/lib/siteProductCopy";
 import { appPageTitle, BRAND_NAME } from "@/lib/brandNaming";
+import JsonLd from "@/components/seo/JsonLd";
+import { homeJsonLd } from "@/lib/siteJsonLd";
 import { loadUkDirectoryCoverage } from "@/lib/ukDirectoryCoverage.server";
 
 // The words a forwarded link shows beside the card. They say the same thing the
@@ -109,6 +111,7 @@ export default async function Home() {
 
   return (
     <>
+      <JsonLd data={homeJsonLd} />
       <LandingSkylinePreload phoneAnswerOwnsLcp={cardHasOwnPhoto} />
       {/* The only route the entry decision may rewrite (issue #439): shell
           opens (Capacitor wrap, installed PWA) land on /tonight, a genuine

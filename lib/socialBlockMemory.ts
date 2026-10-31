@@ -48,3 +48,13 @@ export function clearSocialMemoryBlocks(): void {
   blocks.clear();
   mutes.clear();
 }
+
+/** One-way, the owner's own list: every account `blocker` has blocked, never who blocked them. */
+export function socialMemoryBlocksBy(blocker: string): Set<string> {
+  const result = new Set<string>();
+  for (const key of blocks) {
+    const [first, second] = key.split(":");
+    if (first === blocker && second) result.add(second);
+  }
+  return result;
+}

@@ -503,6 +503,9 @@ export default function VenueInspector({
         priceRevealMotionClass={priceRevealMotionClass}
         revealRecord={revealRecord}
         revealRecordLate={revealRecordLate}
+        journeyFoldOpenKey={
+          initialTab === "getting-home" ? `${venue.id}:${initialTab}:${gettingHomeRequestId}` : null
+        }
         gettingHome={
           <VenueGettingHomeSection
             key={`${venue.id}:${initialTab}:${gettingHomeRequestId}`}

@@ -19,7 +19,7 @@
 // carry their extensions.
 import { parseQuestionOneVenuesApi } from "./quizParsers.mjs";
 
-/** The lib/harvest/sourcePolicy.ts row both readers ask for. */
+/** The lib/harvest/sourceRegistry.ts row both readers ask for. */
 export const QUESTION_ONE_SOURCE_ID = "questionone-quiz-venues";
 
 /** WordPress caps `per_page` at 100. */

@@ -9,7 +9,9 @@ import SiteNav from "@/components/nav/SiteNav";
 import Screen from "@/components/ui/screen";
 import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
 import { loadAboutStats } from "@/lib/aboutStats";
-import { buildLeagueTable, indexSummary } from "@/lib/pintIndex";
+import { buildLeagueTable, indexSummary, PINT_INDEX_NOT_READY_LINE, pintIndexLeagueReady } from "@/lib/pintIndex";
+import { averageBasePhrase, pricedPubsSentence } from "@/lib/pricedPubCount";
+import { loadPricedPubCount } from "@/lib/pricedPubCount.server";
 import { priceBand } from "@/lib/priceBand";
 import { loadPublicPintIndexSnapshot } from "@/lib/publicPintIndexSnapshot.server";
 import { HELLO_EMAIL, HELLO_MAILTO } from "@/lib/siteContact";
@@ -91,10 +93,14 @@ function Pint({ gbp }: { gbp: number | null }) {
 }
 
 export default async function AboutPage() {
-  const [stats, pintIndexSnapshot] = await Promise.all([
+  const [stats, pintIndexSnapshot, pricedPubs] = await Promise.all([
     loadAboutStats(),
     loadPublicPintIndexSnapshot(),
+    // The ONE priced-pub count (lib/pricedPubCount.ts), the same read
+    // /pint-index makes, so the two pages print one number on one base.
+    loadPricedPubCount(),
   ]);
+  const leagueReady = pintIndexLeagueReady(pintIndexSnapshot);
   const pintIndexRows = pintIndexSnapshot
     ? buildLeagueTable(pintIndexSnapshot)
     : [];
@@ -255,9 +261,10 @@ export default async function AboutPage() {
       <section className="aboutSection" aria-labelledby="traction">
         <h2 id="traction" className="aboutH2">By the numbers</h2>
         <p className="aboutBody">
-          PUBMAXX holds a price for <Figure>{fmtInt(stats.pubsTracked)}</Figure>{" "}
-          pubs from <Figure>{fmtInt(stats.pintPricesObserved)}</Figure> pint
-          prices on record, each with its source status shown.{" "}
+          {pricedPubs.status === "degraded" ? null : <>{pricedPubsSentence(pricedPubs.count)}{" "}</>}
+          Our pub price list holds{" "}
+          <Figure>{fmtInt(stats.pintPricesObserved)}</Figure> pint prices,
+          each with its source status shown.{" "}
           <Figure>{fmtInt(stats.historicPubsCited)}</Figure> historic pubs carry
           a cited fact, and <Figure>{fmtInt(stats.citiesCovered)}</Figure> UK
           cities are live, London first. Every figure here is counted from the
@@ -268,7 +275,7 @@ export default async function AboutPage() {
           boroughs and neighbourhoods, the cheapest listed pint we hold is{" "}
           <Pint gbp={stats.cheapestPint} />. The dearest is{" "}
           <Pint gbp={stats.dearestPint} />. The average listed pint across{" "}
-          <Figure>{fmtInt(stats.pubsTracked)}</Figure> London pubs is{" "}
+          {averageBasePhrase(stats.pubsTracked)} is{" "}
           <Pint gbp={stats.averagePint} />, the same figure the homepage gives,
           taken from each pub&rsquo;s cheapest pint.
         </p>
@@ -360,7 +367,7 @@ export default async function AboutPage() {
             coffee, food, or alcohol-free rounds, the same honesty rules apply.
           </p>
           <ul className="aboutEthos">
-            {pintIndexRows.length > 0 && pintIndexSnapshot ? (
+            {leagueReady && pintIndexSnapshot ? (
               <>
                 <li>
                   <strong>London&rsquo;s pint price league table.</strong> The
@@ -378,18 +385,14 @@ export default async function AboutPage() {
                 </li>
               </>
             ) : (
-              <li>
-                <strong>No borough league yet.</strong> The public Pint Index has
-                no dated prices with a public source to rank yet. Older map-only
-                prices stay separate from the league.
-              </li>
+              <li>{PINT_INDEX_NOT_READY_LINE}</li>
             )}
           </ul>
           <p className="aboutBody">
             <Link href="/pint-index" className="aboutLink">
-              {pintIndexRows.length > 0
+              {leagueReady
                 ? "See the league table"
-                : "See the Index status"}
+                : "See the borough list"}
             </Link>
           </p>
         </div>

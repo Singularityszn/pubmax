@@ -8,7 +8,7 @@ The temporary exemption `late_food_evidence` held in `TEMPORARY_ADVISORY_UNTIL` 
 
 ## Who can do this
 
-A person with a browser. `reviewedAt` records that someone read the operator's page and checked the row against it, so the dates must not be advanced without that review. None of the five operator hosts is in `lib/harvest/sourcePolicy.ts`, so no harvest script may fetch them.
+A person with a browser. `reviewedAt` records that someone read the operator's page and checked the row against it, so the dates must not be advanced without that review. The [source ledger](data/SOURCE_LEDGER.md) governs separate harvest permissions. A harvest does not replace this manual review.
 
 ## For each row
 

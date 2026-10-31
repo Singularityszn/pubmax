@@ -35,7 +35,7 @@ for (const width of [1440, 390]) {
         : page.locator(".mapDrawer.right.springDrawer");
       await expect(surface).toBeVisible();
       if (width === 390) {
-        await surface.getByRole("tab", { name: "Stories", exact: true }).click();
+        await surface.getByRole("tab", { name: "Prices", exact: true }).click();
         await expect(surface.locator(".mobileSharedSheet")).toHaveClass(/sheet-full/);
         await surface.getByRole("tab", { name: "Overview", exact: true }).click();
       }
