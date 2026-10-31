@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
+import { resolve, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execFileSync } from 'node:child_process';
 import { loadResults } from './evaluate.mjs';
 import { canonical, sha256 } from './transport.mjs';
 import { isHarvestableOperatorUrl } from '../../../lib/harvest/sourcePolicy.ts';
@@ -25,7 +26,9 @@ check('input and protocol hashes', () => {
   assert.equal(sha256(readFileSync(resolve(here, 'protocol.json'))), manifest.protocolSha256);
 });
 for (const [name, hash] of Object.entries(meta.harnessFiles)) check(`crawler file ${name}`, () => {
-  assert.equal(sha256(readFileSync(resolve(here, name))), hash);
+  const path = relative(resolve(here, '../../..'), resolve(here, name));
+  const recorded = execFileSync('git', ['show', `${meta.codeHead}:${path}`], { cwd: here, maxBuffer: 16 * 1024 * 1024 });
+  assert.equal(sha256(recorded), hash);
 });
 for (const arm of results) {
   const name = `${arm.venueId}/${arm.arm}`;
@@ -52,8 +55,14 @@ for (const arm of results) {
     }
   });
   check(`${name} no request after a terms refusal`, () => {
-    for (const event of arm.events.filter((r) => r.reason === 'terms-restrict-automation')) {
+    for (const event of arm.events.filter((r) => ['terms-restrict-automation', 'terms-unreadable'].includes(r.reason))) {
       assert.ok(arm.requests.every((r) => Date.parse(r.at) < Date.parse(event.at)));
+    }
+  });
+  check(`${name} readable terms`, () => {
+    for (const event of arm.events.filter((r) => r.reason === 'terms-no-automation-bar-found')) {
+      const page = arm.pages.find((p) => p.url === event.url || p.requestedUrl === event.url);
+      assert.ok(page?.status === 200 && page.format === 'html' && page.text?.trim(), `Unreadable terms accepted: ${event.url}`);
     }
   });
   for (const request of arm.requests) check(`${name} ${request.sequence} source and body`, () => {
@@ -105,6 +114,13 @@ for (const [host, rows] of byHost) check(`shared rate limit ${host}`, () => {
 });
 const audit = { schemaVersion: 1, passed: failures.length === 0, arms: results.length, requests: requests.length,
   checkedAt: new Date().toISOString(), failures,
+  recordedRuntimeHead: meta.codeHead,
+  runtimeHashSource: 'Git objects at the recorded runtime commit, not current crawler files',
+  historicalAccessReview: {
+    unreadableTermsAccepted: failures.filter((f) => f.name.endsWith('readable terms')),
+    hostDelayViolations: failures.filter((f) => f.name.startsWith('shared rate limit ')),
+    scope: 'Paired archive only. Earlier reference reads retain their separate timing profile.',
+  },
   scope: 'Recorded request caps, source policy, body hashes, observed robots body limits, provenance edges, native termination, shared minimum host spacing, and input/code hashes. This does not establish human gold approval or legal permission beyond the recorded checks.' };
 writeFileSync(resolve(run, 'audit.json'), `${JSON.stringify(audit, null, 2)}\n`);
 console.log(JSON.stringify(audit));

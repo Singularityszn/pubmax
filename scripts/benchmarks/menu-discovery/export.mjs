@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync, readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadResults } from './evaluate.mjs';
+import { loadResults, urlIdentity } from './evaluate.mjs';
 import { sha256 } from './transport.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -12,12 +12,15 @@ const comparison = JSON.parse(readFileSync(resolve(run, 'comparison.json')));
 const audit = JSON.parse(readFileSync(resolve(run, 'audit.json')));
 if (!meta.finishedAt || comparison.completeArms !== 120 || !audit.passed) throw new Error('Export requires a finished 60-site run and a passing archive audit');
 const results = loadResults(run);
+const identity = urlIdentity(results);
 const manifest = JSON.parse(readFileSync(resolve(here, 'manifest.json')));
 const annotations = JSON.parse(readFileSync(resolve(run, 'annotations.json')));
 mkdirSync(out, { recursive: true });
 const json = (name, value) => writeFileSync(resolve(out, name), `${JSON.stringify(value, null, 2)}\n`);
 const jsonl = (name, rows) => writeFileSync(resolve(out, name), rows.map((row) => JSON.stringify(row)).join('\n') + '\n');
-for (const name of ['comparison.json', 'audit.json', 'annotations.json', 'sensitivity.json']) copyFileSync(resolve(run, name), resolve(out, name));
+for (const name of ['comparison.json', 'audit.json', 'annotations.json', 'sensitivity.json']) {
+  if (resolve(run, name) !== resolve(out, name)) copyFileSync(resolve(run, name), resolve(out, name));
+}
 if (existsSync(resolve(run, 'reference-origin.json'))) copyFileSync(resolve(run, 'reference-origin.json'), resolve(out, 'reference-origin.json'));
 json('run.json', { ...meta, privateResponseArchiveRecordedLocally: true, responseArchivePublished: false,
   note: 'The recorded code head and runtime file hashes identify the measured crawler. Offline review and report files can change after the crawl. No application build or ingestion ran.' });
@@ -38,7 +41,7 @@ jsonl('price-records.jsonl', annotations.labels.flatMap((label) => (label.priceR
   ...price, venueId: label.venueId, menuUrl: label.url, bodySha256: label.bodySha256,
   sourceUrl: label.sourceUrl, path: label.path, reviewer: label.reviewer, reviewedAt: label.reviewedAt,
   primaryGold: primaryIds.has(label.venueId), humanApproved: false,
-  suppliedByArms: results.filter((r) => r.venueId === label.venueId && r.pages.some((p) => p.url === label.url && p.status === 200 && p.bodySha256 === label.bodySha256)).map((r) => r.arm),
+  suppliedByArms: results.filter((r) => r.venueId === label.venueId && r.pages.some((p) => identity(r.venueId, p.url) === identity(label.venueId, label.url) && p.status === 200 && p.bodySha256 === label.bodySha256)).map((r) => r.arm),
 }))));
 const referenceOrigin = existsSync(resolve(run, 'reference-origin.json')) ? JSON.parse(readFileSync(resolve(run, 'reference-origin.json'))) : null;
 const referenceRoot = resolve(run, 'reference');
@@ -123,12 +126,23 @@ The shared transport applies the repository's source policy, live robots checks,
 It stops at access challenges and rate-limit responses. A linked terms restriction also stops the host.
 Four venue workers share one host scheduler, including menu asset hosts.
 The minimum host delay is ${meta.protocol.minIntervalMs / 1000} seconds, or a longer published delay.
-The archive audit checked ${audit.requests} attempts across all 120 arms and passed.
+The archive audit checked ${audit.requests} attempts across all 120 arms. Its recorded verdict is ${audit.passed ? 'PASS' : 'FAIL'}.
+A failed audit remains a failed historical observation. It does not authorise adoption.
+The measured runtime is \`${meta.codeHead}\`. Its original crawler hashes remain in \`run.json\`.
+The current runtime corrects unreadable terms, host-delay retention, and redirect cache reuse. It has not received a live measurement.
+The auditor verifies the recorded crawler bytes against that recorded Git commit.
+Its paired-archive terms review found ${audit.historicalAccessReview?.unreadableTermsAccepted.length ?? 'an unknown number of'} accepted unreadable terms pages.
+Its paired-archive rate review found ${audit.historicalAccessReview?.hostDelayViolations.length ?? 'an unknown number of'} hosts with recorded delay violations.
+${audit.historicalAccessReview?.unreadableTermsAccepted.length === 0 && audit.historicalAccessReview?.hostDelayViolations.length === 0 ? 'Neither access defect affected the recorded paired cohort. No affected paired reads were identified.' : 'See audit.json for the affected host or arm. Preserve every request as historical evidence.'}
+Earlier reference reads retain their separate recorded timing profile. They do not establish compliance with the later paired profile.
 
 ## Measured comparison
 
 Verified figures below use the supplied annotations. Unreviewed results do not count as verified menus or prices.
 Discovery includes eligible menu links on captured pages. Downloads require a successful body fetch by that arm.
+Offline evaluation merges URL aliases only when recorded redirects establish their identity.
+The recorded requests, duplicate downloads, latency, and historical crawler hashes remain unchanged.
+Complete price yields stay unknown until all successful fetched pages receive conclusive review, including noncandidates.
 The gold review can verify a linked document separately without adding a request to either arm.
 The separate reference stage made ${referenceRows.reduce((n, r) => n + r.networkRequests, 0)} requests outside both arms.
 ${referenceOrigin?.timingNote ?? 'The reference timing metadata is unavailable.'}
@@ -200,6 +214,7 @@ Both arms use one common candidate filter. Their false positives do not establis
 ## Compute and estimated cost
 
 Node CPU and sampled RSS come from each venue worker.
+B Node CPU includes driver polling, serialisation, and gateway rewriting.
 The same Node worker runs both arms sequentially. CPU uses per-arm deltas. RSS can include memory retained from the earlier arm.
 B starts and stops one private native API process per venue, including access-refused seeds. Its measurements include that overhead.
 A persistent shared PageSift service is outside this profile.
@@ -246,7 +261,7 @@ The recorded base head is \`${meta.codeHead}\`. The harness file hashes identify
 Calibration runs exposed timing and parser problems and are excluded from this comparison.
 An earlier terms matcher also missed a published scraping prohibition. Some calibration reads continued after that prohibition.
 I stopped those runs, excluded their data, added benchmark-only host holds, and added a regression test for the exact wording.
-The corrected run applies those holds before any request. Its audit checks that no request follows a detected terms refusal.
+The historical c350c09 run applies those holds before any request. Its audit checks that no request follows a detected terms refusal.
 The [calibration notice](../../calibration-notice.json) records the known affected requests and partial-log limits. Those reads are not described as permitted.
 Excluded A/B calibration latency and data do not enter this comparison.
 Calibration traffic preceded the measured run and may have affected later access responses. Server-side state was not controlled.

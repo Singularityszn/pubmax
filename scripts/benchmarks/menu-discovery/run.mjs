@@ -4,7 +4,7 @@ import { readFileSync, writeFileSync, mkdirSync, createWriteStream, existsSync }
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { platform, release, cpus, totalmem } from 'node:os';
-import { Transport, canonical, sha256 } from './transport.mjs';
+import { Transport, canonical, sha256, coordinateHosts } from './transport.mjs';
 import { evaluate } from './evaluate.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -208,7 +208,7 @@ export async function runArm({ venue, arm, out, config, clocks, fixtureOrigin })
     budget: config.requestBudgetPerArmPerVenue, networkRequests: transport.used,
     wallSeconds, nodeCpuSeconds, nodePeakRssBytes: peakRssBytes,
     parserCpuSeconds: transport.parserCpuSeconds, parserPeakRssBytes: transport.parserPeakRssBytes,
-    computeNote: 'Node CPU is measured per arm. Native child CPU and RSS use /usr/bin/time. Each Python parser reports its own CPU and RSS. Node RSS is sampled. These maxima are not a simultaneous process-tree peak. B includes gateway rewriting overhead.',
+    computeNote: 'Node CPU is measured per arm. Native child CPU and RSS use /usr/bin/time. Each Python parser reports its own CPU and RSS. Node RSS is sampled. These maxima are not a simultaneous process-tree peak. B includes gateway rewriting, driver polling, and serialisation overhead.',
     resourceUsageBefore: { userCPUTime: childrenBefore.userCPUTime, systemCPUTime: childrenBefore.systemCPUTime },
     ...outcome, pages: transport.pages, requests: transport.requests, events: transport.events };
   json(resolve(out, 'result.json'), result);
@@ -223,6 +223,7 @@ async function worker(venue, out, config) {
 }
 
 async function live() {
+  if (args.some((arg) => arg === '--venues' || arg.startsWith('--venues='))) throw new Error('Live runs require the full frozen 60-site manifest');
   const binary = checkBinary();
   const manifestBytes = readFileSync(resolve(here, 'manifest.json'));
   const manifest = JSON.parse(manifestBytes);
@@ -230,8 +231,8 @@ async function live() {
   const out = resolve(option('out', resolve(here, 'runs', new Date().toISOString().replaceAll(':', '-'))));
   if (existsSync(resolve(out, 'run.json'))) throw new Error('This output directory already contains a run. Choose a new directory.');
   mkdirSync(out, { recursive: true });
-  const limit = Number(option('venues', manifest.venues.length));
-  const venues = manifest.venues.slice(0, limit);
+  const venues = manifest.venues;
+  if (venues.length !== 60) throw new Error('Live runs require exactly 60 manifest venues');
   const meta = { startedAt: new Date().toISOString(), binary, protocol, manifestSha256: sha256(manifestBytes),
     codeHead: spawnSync('git', ['rev-parse', 'HEAD'], { cwd: here, encoding: 'utf8' }).stdout.trim(),
     harnessFiles: Object.fromEntries(['run.mjs', 'transport.mjs', 'parse_html.py', 'pagesift.toml', 'protocol.json', 'manifest.json', 'dependency-lock.json', 'access-review.json',
@@ -245,7 +246,7 @@ async function live() {
   const failures = [];
   // Different venue domains can link to the same menu CDN. Serialise by actual host.
   const hostQueues = new Map();
-  const hostStarts = new Map();
+  const hostCompletions = new Map();
   const hostDelays = new Map();
   const start = performance.now();
   while (pending.length || active.size) {
@@ -258,33 +259,11 @@ async function live() {
         env: { ...process.env, PAGESIFT_BIN: bin }, stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
       });
       venueChildren.add(child);
-      const releases = new Map();
-      child.on('message', (message) => {
-        if (message.type === 'host-release') {
-          hostStarts.set(message.host, Date.now());
-          releases.get(message.id)?.();
-          releases.delete(message.id);
-        }
-        if (message.type !== 'host-acquire') return;
-        const prior = hostQueues.get(message.host) ?? Promise.resolve();
-        const next = prior.then(async () => {
-          hostDelays.set(message.host, Math.max(hostDelays.get(message.host) ?? 0, message.minDelay));
-          const wait = Math.max(0, (hostStarts.get(message.host) ?? 0) + hostDelays.get(message.host) - Date.now());
-          if (wait) await new Promise((r) => setTimeout(r, wait));
-          if (!child.connected) return;
-          hostStarts.set(message.host, Date.now());
-          await new Promise((r) => {
-            releases.set(message.id, r);
-            child.send({ type: 'host-granted', id: message.id });
-          });
-        });
-        hostQueues.set(message.host, next);
-      });
+      coordinateHosts(child, hostQueues, hostCompletions, hostDelays);
       let errors = '';
       child.stderr.on('data', (chunk) => { errors += chunk; });
       const done = new Promise((r) => child.on('close', (code) => {
         venueChildren.delete(child);
-        for (const release of releases.values()) release();
         if (code !== 0) failures.push({ venueId: venue.venueId, code, error: errors });
         console.log(JSON.stringify({ venue: venue.name, venueId: venue.venueId, code }));
         active.delete(venue.venueId);
@@ -306,15 +285,28 @@ async function fixture() {
   let forbiddenHits = 0;
   const server = createServer((request, response) => {
     const send = (body, status = 200, headers = {}) => response.writeHead(status, { 'content-type': 'text/html', ...headers }).end(body);
-    if (request.url === '/robots.txt') return scenario === 'robots-refused' ? send('Access denied', 403)
+    if (request.url === '/robots.txt') {
+      if (scenario === 'delay-disallowed') return send('User-agent: *\nDisallow: /\nCrawl-delay: 0.8\n', 200, { 'content-type': 'text/plain' });
+      if (scenario === 'rate-disallowed') return send('User-agent: *\nDisallow: /\nRequest-rate: 1/1\n', 200, { 'content-type': 'text/plain' });
+      return scenario === 'robots-refused' ? send('Access denied', 403)
       : send(`User-agent: *\nDisallow: /private-menu\n${scenario === 'published-delay' ? 'Crawl-delay: 0.1\n' : ''}`, 200, { 'content-type': 'text/plain' });
+    }
     if (request.url === '/private-menu') { forbiddenHits++; return send('Forbidden', 500); }
-    if (request.url === '/terms-conditions') return send('<html><title>Terms and Conditions</title><p>No text or data mining, or web scraping. You shall not conduct, facilitate, authorise or permit any text or data mining or web scraping in relation to our Websites.</p></html>');
+    if (request.url === '/terms-conditions') {
+      if (scenario === 'terms-404') return send('<html><p>Missing terms</p></html>', 404);
+      if (scenario === 'terms-empty') return send('<html><body>   </body></html>');
+      if (scenario === 'terms-pdf') return send('%PDF-1.4 Terms', 200, { 'content-type': 'application/pdf' });
+      if (scenario === 'terms-plain') return send('Terms are supplied as unparsed text', 200, { 'content-type': 'text/plain' });
+      if (scenario === 'terms-readable') return send('<html><p>These terms describe table bookings.</p></html>');
+      return send('<html><title>Terms and Conditions</title><p>No text or data mining, or web scraping. You shall not conduct, facilitate, authorise or permit any text or data mining or web scraping in relation to our Websites.</p></html>');
+    }
     if (request.url === '/large-menu') return send('<html><title>Food menu</title><body><h1>Food menu</h1>' + '<p>Vegetable soup £6.50</p>'.repeat(45000) + '</body></html>');
-    if (request.url === '/') return send(scenario === 'terms-refused' ? '<html><title>Fixture pub</title><a href="/terms-conditions">Terms and Conditions</a><a href="/old-menu">Food menu</a></html>'
+    if (request.url === '/') return send(scenario.startsWith('terms-') ? '<html><title>Fixture pub</title><a href="/terms-conditions">Terms and Conditions</a><a href="/old-menu">Food menu</a></html>'
+      : scenario === 'redirect-cache' ? '<html><title>Fixture</title><a href="/food-menu">Menu</a><a href="/old-menu">Old menu</a><a href="/second-old-menu">Previous menu</a></html>'
       : scenario === 'large-page' ? '<html><title>Fixture pub</title><a href="/large-menu">Food menu</a></html>'
       : scenario === 'redirect-refused' ? '<html><title>Fixture pub</title><a href="/old-menu">Food menu</a></html>'
       : '<html><head><title>Fixture pub food and drinks</title></head><body><h1>Fixture pub</h1><p>London SW1A 1AA</p><a href="/old-menu">Food menu</a><a href="/menu-news">Menu news</a><a href="/private-menu">Private menu</a><a href="/challenge">Drinks menu</a><a href="/unknown-menu">Seasonal menu</a></body></html>');
+    if (request.url === '/second-old-menu') return send('', 302, { location: '/old-menu' });
     if (request.url === '/old-menu') return send('', 302, { location: scenario === 'redirect-refused' ? 'http://169.254.169.254/metadata-menu.pdf' : '/food-menu' });
     if (request.url === '/food-menu' && scenario === 'slow-menu') return setTimeout(() => send('<html><title>Food menu</title><h1>Food menu</h1><p>Soup £6.50</p></html>'), 13000);
     if (request.url === '/food-menu') return send('<html><head><title>Food menu</title></head><body><h1>Food menu</h1><p>Soup £6.50</p></body></html>');
@@ -357,5 +349,5 @@ try {
     await worker(venue, resolve(option('out')), protocol);
     if (process.connected) process.disconnect();
   } else if (command === 'fixture') await fixture();
-  else throw new Error('Usage: node run.mjs live [--out PATH] [--venues N] | fixture [--out PATH] [--budget N]');
+  else throw new Error('Usage: node run.mjs live [--out PATH] | fixture [--out PATH] [--budget N]');
 } catch (error) { console.error(error.stack); process.exitCode = 1; }

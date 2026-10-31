@@ -26,8 +26,41 @@ async function acquireHost(host, minDelay) {
     process.on('message', listener);
     process.send({ type: 'host-acquire', id, host, minDelay });
   });
-  return () => process.send?.({ type: 'host-release', id, host });
+  return (delay) => process.send?.({ type: 'host-release', id, host, minDelay: delay });
 }
+export function coordinateHosts(child, queues, completions, delays) {
+  const releases = new Map();
+  child.on('message', (message) => {
+    if (!['host-acquire', 'host-release'].includes(message.type)) return;
+    delays.set(message.host, Math.max(delays.get(message.host) ?? 0, message.minDelay));
+    if (message.type === 'host-release') {
+      completions.set(message.host, Date.now());
+      releases.get(message.id)?.();
+      releases.delete(message.id);
+      return;
+    }
+    const prior = queues.get(message.host) ?? Promise.resolve();
+    const next = prior.then(async () => {
+      let wait;
+      while ((wait = (completions.get(message.host) ?? 0) + delays.get(message.host) - Date.now()) > 0) {
+        await new Promise((r) => setTimeout(r, wait));
+      }
+      if (!child.connected) return;
+      await new Promise((r) => {
+        releases.set(message.id, r);
+        child.send({ type: 'host-granted', id: message.id });
+      });
+    });
+    queues.set(message.host, next);
+  });
+  child.on('close', () => { for (const release of releases.values()) release(); });
+}
+
+const publishedDelay = (body, minimum) => Math.max(minimum,
+  ...[...body.matchAll(/^\s*crawl-delay:\s*(\d+(?:\.\d+)?)/gmi)].map((m) => Number(m[1]) * 1000),
+  ...[...body.matchAll(/^\s*request-rate:\s*(\d+)\s*\/\s*(\d+)/gmi)]
+    .filter((m) => Number(m[1]) > 0).map((m) => Number(m[2]) / Number(m[1]) * 1000));
+
 export const sha256 = (s) => createHash('sha256').update(s).digest('hex');
 export const canonical = (input) => {
   try {
@@ -113,9 +146,10 @@ export class Transport {
     if (this.cooldown.has(new URL(url).host)) return this.event(url, 'host-cooldown');
     if (this.used >= this.protocol.requestBudgetPerArmPerVenue) return this.event(url, 'budget-exhausted');
     const host = new URL(url).host;
+    minDelay = Math.max(minDelay, this.clocks.get(host)?.delay ?? 0);
+    const releaseHost = await acquireHost(host, minDelay);
     const previous = this.clocks.get(host) ?? { at: 0, delay: 0 };
     minDelay = Math.max(minDelay, previous.delay);
-    const releaseHost = await acquireHost(host, minDelay);
     const wait = Math.max(0, previous.at + minDelay - Date.now());
     if (wait) await new Promise((r) => setTimeout(r, wait));
     const row = { sequence: ++this.used, at: new Date().toISOString(), url, kind, status: null, bytes: 0 };
@@ -154,6 +188,7 @@ export class Transport {
         request.on('error', reject);
         request.end();
       });
+      if (kind === 'robots') minDelay = publishedDelay(result.body.toString('utf8'), minDelay);
       if ([429, 503].includes(result.status) || result.headers['retry-after']) this.cooldown.add(host);
       row.bodySha256 = sha256(result.body);
       row.bodyFile = `bodies/${row.bodySha256}.bin`;
@@ -163,7 +198,7 @@ export class Transport {
       row.error = error.message;
       this.event(url, 'fetch-failed', { detail: error.message });
       return null;
-    } finally { row.elapsedMs = performance.now() - start; this.clocks.set(host, { at: Date.now(), delay: minDelay }); releaseHost(); }
+    } finally { row.elapsedMs = performance.now() - start; this.clocks.set(host, { at: Date.now(), delay: minDelay }); releaseHost(minDelay); }
   }
 
   async robots(origin) {
@@ -185,11 +220,8 @@ export class Transport {
       if (looksLikeChallengePage(body)) break;
       if ([404, 410].includes(response.status)) answer = { ...answer, allowed: true, reason: 'robots-absent' };
       else if (response.status === 200 && (looksLikeHtmlDocument(body) || !body.trim() || /(?:^|\n)\s*(?:#|user-agent:|sitemap:|allow:|disallow:)/i.test(body))) {
-        const delays = [...body.matchAll(/^\s*crawl-delay:\s*(\d+(?:\.\d+)?)/gmi)].map((m) => Number(m[1]) * 1000);
-        const rates = [...body.matchAll(/^\s*request-rate:\s*(\d+)\s*\/\s*(\d+)/gmi)]
-          .filter((m) => Number(m[1]) > 0).map((m) => Number(m[2]) / Number(m[1]) * 1000);
         answer = { allowed: true, reason: looksLikeHtmlDocument(body) ? 'robots-html-page' : 'robots-rules',
-          rules: parseRobotsTxt(body), delay: Math.max(this.protocol.minIntervalMs, ...delays, ...rates), body };
+          rules: parseRobotsTxt(body), delay: publishedDelay(body, this.protocol.minIntervalMs), body };
       }
       break;
     }
@@ -258,10 +290,11 @@ export class Transport {
           const text = (termsPage?.text ?? '').replace(/\s+/g, ' ');
           const restrictions = text.match(/[^.!?]{0,400}(?:scrap(?:e|ing|er)|crawl(?:ing|er)?|robots?|automated|data mining|commercial (?:purposes|use)|business purposes)[^.!?]{0,400}/gi) ?? [];
           const refusal = restrictions.find((line) => /prohibit|shall not|must not|may not|agree not|not use|not permitted|not allowed|no (?:text|data|web)|without.{0,100}(?:consent|permission)|prior.{0,50}(?:consent|permission)/i.test(line));
-          if (!termsPage || refusal) {
+          const readable = termsPage?.status === 200 && termsPage.format === 'html' && text.trim().length > 0;
+          if (!readable || refusal) {
             this.venueRefused = true;
             this.cooldown.add(new URL(page.url).host);
-            this.event(termsUrl, termsPage ? 'terms-restrict-automation' : 'terms-unreadable', { evidence: refusal ?? null });
+            this.event(termsUrl, readable && refusal ? 'terms-restrict-automation' : 'terms-unreadable', { evidence: refusal ?? null });
             break;
           } else this.event(termsUrl, 'terms-no-automation-bar-found');
           }
@@ -277,6 +310,11 @@ export class Transport {
     const sourceUrl = path.length > 1 ? path[path.length - 2] : null;
     const original = url;
     for (let hop = 0; hop <= this.protocol.maxRedirectHops; hop++) {
+      if (this.seen.has(url)) {
+        const cached = this.seen.get(url);
+        this.seen.set(original, cached);
+        return cached;
+      }
       const permission = await this.permitted(url);
       if (!permission) { this.seen.set(original, null); return null; }
       const response = await this.raw(url, 'page', permission.delay);

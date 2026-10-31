@@ -29,12 +29,23 @@ The shared transport applies the repository's source policy, live robots checks,
 It stops at access challenges and rate-limit responses. A linked terms restriction also stops the host.
 Four venue workers share one host scheduler, including menu asset hosts.
 The minimum host delay is 1.5 seconds, or a longer published delay.
-The archive audit checked 637 attempts across all 120 arms and passed.
+The archive audit checked 637 attempts across all 120 arms. Its recorded verdict is PASS.
+A failed audit remains a failed historical observation. It does not authorise adoption.
+The measured runtime is `c350c09b785f4e5798665751606ed0466a5ff213`. Its original crawler hashes remain in `run.json`.
+The current runtime corrects unreadable terms, host-delay retention, and redirect cache reuse. It has not received a live measurement.
+The auditor verifies the recorded crawler bytes against that recorded Git commit.
+Its paired-archive terms review found 0 accepted unreadable terms pages.
+Its paired-archive rate review found 0 hosts with recorded delay violations.
+Neither access defect affected the recorded paired cohort. No affected paired reads were identified.
+Earlier reference reads retain their separate recorded timing profile. They do not establish compliance with the later paired profile.
 
 ## Measured comparison
 
 Verified figures below use the supplied annotations. Unreviewed results do not count as verified menus or prices.
 Discovery includes eligible menu links on captured pages. Downloads require a successful body fetch by that arm.
+Offline evaluation merges URL aliases only when recorded redirects establish their identity.
+The recorded requests, duplicate downloads, latency, and historical crawler hashes remain unchanged.
+Complete price yields stay unknown until all successful fetched pages receive conclusive review, including noncandidates.
 The gold review can verify a linked document separately without adding a request to either arm.
 The separate reference stage made 22 requests outside both arms.
 This earlier reference reader applied at least 1.5 seconds between request starts. No longer published delay occurred in these three reference origins. The final paired crawler uses delays after response completion.
@@ -57,7 +68,7 @@ It does not measure production ingestion or a fully reviewed price inventory.
 | Venues with a verified HTML URL, lower bound | 5 | 5 |
 | Judged false-positive URLs | 33 | 36 |
 | Missing reviewed gold URLs | 11 | 13 |
-| Unjudged candidate URLs | 333 | 541 |
+| Unjudged candidate URLs | 331 | 539 |
 | Relevant pages per 100 requests, lower bound | 3.4 | 1.28 |
 | Verified price records | 21 | 0 |
 | Verified price records per 100 requests, lower bound | 6.48 | 0 |
@@ -79,7 +90,7 @@ It does not measure production ingestion or a fully reviewed price inventory.
 | Downloaded bytes | 70,422,858 | 58,529,305 |
 | Judged-candidate precision | 28.3% | 23.4% |
 | Precision lower bound | 3.4% | 1.9% |
-| Precision upper bound | 91.3% | 93.9% |
+| Precision upper bound | 91.2% | 93.9% |
 | Recall against all reviewed inventory URLs | 54.2% | 45.8% |
 | Measured-component cost scenario | $0.00660 | $0.00642 |
 
@@ -171,6 +182,7 @@ Both arms use one common candidate filter. Their false positives do not establis
 ## Compute and estimated cost
 
 Node CPU and sampled RSS come from each venue worker.
+B Node CPU includes driver polling, serialisation, and gateway rewriting.
 The same Node worker runs both arms sequentially. CPU uses per-arm deltas. RSS can include memory retained from the earlier arm.
 B starts and stops one private native API process per venue, including access-refused seeds. Its measurements include that overhead.
 A persistent shared PageSift service is outside this profile.
@@ -217,7 +229,7 @@ The recorded base head is `c350c09b785f4e5798665751606ed0466a5ff213`. The harnes
 Calibration runs exposed timing and parser problems and are excluded from this comparison.
 An earlier terms matcher also missed a published scraping prohibition. Some calibration reads continued after that prohibition.
 I stopped those runs, excluded their data, added benchmark-only host holds, and added a regression test for the exact wording.
-The corrected run applies those holds before any request. Its audit checks that no request follows a detected terms refusal.
+The historical c350c09 run applies those holds before any request. Its audit checks that no request follows a detected terms refusal.
 The [calibration notice](../../calibration-notice.json) records the known affected requests and partial-log limits. Those reads are not described as permitted.
 Excluded A/B calibration latency and data do not enter this comparison.
 Calibration traffic preceded the measured run and may have affected later access responses. Server-side state was not controlled.

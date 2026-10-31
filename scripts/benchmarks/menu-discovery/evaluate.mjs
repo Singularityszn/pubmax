@@ -1,14 +1,40 @@
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { canonical } from './transport.mjs';
 
 const key = (v, u) => `${v}\t${u}`;
 const rate = (n, d) => d ? n / d : null;
 const unique = (items) => [...new Set(items)];
 
+export function urlIdentity(results) {
+  const redirects = new Map();
+  for (const row of results) {
+    for (const request of row.requests ?? []) {
+      if (request.status >= 300 && request.status < 400 && request.location) {
+        const target = canonical(new URL(request.location, request.url).href);
+        if (target) redirects.set(key(row.venueId, request.url), target);
+      }
+    }
+    for (const page of row.pages) {
+      if (page.requestedUrl && page.requestedUrl !== page.url) redirects.set(key(row.venueId, page.requestedUrl), page.url);
+    }
+  }
+  return (venueId, url) => {
+    const visited = new Set();
+    while (redirects.has(key(venueId, url)) && !visited.has(url)) {
+      visited.add(url);
+      url = redirects.get(key(venueId, url));
+    }
+    return url;
+  };
+}
+
 // Gold is an independent annotation file. A missing label never means "not a menu".
 export function evaluate(results, labels) {
-  const valid = labels.filter((r) => ['menu', 'not-menu'].includes(r.verdict));
+  const identity = urlIdentity(results);
+  const valid = labels.filter((r) => ['menu', 'not-menu'].includes(r.verdict))
+    .map((r) => ({ ...r, url: identity(r.venueId, r.url) }));
   const byKey = new Map(valid.map((row) => [key(row.venueId, row.url), row]));
   if (byKey.size !== valid.length) throw new Error('Duplicate gold venue/URL label');
   const output = [];
@@ -16,16 +42,17 @@ export function evaluate(results, labels) {
     const rows = results.filter((r) => r.arm === arm);
     const venueIds = new Set(rows.map((r) => r.venueId));
     const truth = valid.filter((r) => venueIds.has(r.venueId) && r.verdict === 'menu');
-    const pages = new Map(rows.flatMap((r) => r.pages.map((page) => [key(r.venueId, page.url), { ...page, venueId: r.venueId }])));
+    const pages = new Map(rows.flatMap((r) => r.pages.map((page) => [key(r.venueId, identity(r.venueId, page.url)), { ...page, url: identity(r.venueId, page.url), venueId: r.venueId }])));
     const discovered = new Map();
     for (const [k, page] of pages) {
       if (page.candidate && page.status === 200) discovered.set(k, { ...page, fetched: true });
       if (page.status !== 200) continue;
       for (const link of page.links ?? []) {
         if (!link.keyword && !/\.pdf(?:\?|$)/i.test(link.url)) continue;
-        const linkKey = key(page.venueId, link.url);
-        if (!discovered.has(linkKey)) discovered.set(linkKey, { venueId: page.venueId, url: link.url,
-          sourceUrl: page.url, path: [...(page.path ?? []), link.url], fetched: pages.has(linkKey) });
+        const url = identity(page.venueId, link.url);
+        const linkKey = key(page.venueId, url);
+        if (!discovered.has(linkKey)) discovered.set(linkKey, { venueId: page.venueId, url,
+          sourceUrl: page.url, path: [...(page.path ?? []), link.url, ...(url === link.url ? [] : [url])], fetched: pages.has(linkKey) });
       }
     }
     const candidates = [...discovered];
@@ -35,6 +62,8 @@ export function evaluate(results, labels) {
     const misses = truth.filter((r) => !truePositiveKeys.includes(key(r.venueId, r.url)));
     const menuKeys = [...pages].filter(([k, p]) => p.status === 200 && byKey.get(k)?.verdict === 'menu').map(([k]) => k);
     const relevantPages = [...pages].filter(([k, p]) => p.status === 200 && byKey.get(k)?.relevant === true).length;
+    const successfulPages = [...pages].filter(([, p]) => p.status === 200);
+    const allSuccessfulPagesReviewed = successfulPages.every(([k]) => byKey.has(k));
     const reviewedPages = [...pages].filter(([k]) => byKey.has(k)).length;
     const priceKeys = menuKeys.filter((k) => !byKey.get(k).bodySha256 || byKey.get(k).bodySha256 === pages.get(k).bodySha256);
     const priceBodyMismatches = menuKeys.filter((k) => !priceKeys.includes(k) && byKey.get(k).priceRecords?.length)
@@ -81,11 +110,11 @@ export function evaluate(results, labels) {
       verifiedHtmlMenus: menuKeys.filter((k) => byKey.get(k).format === 'html').length,
       verifiedMenuVenues: unique(menuKeys.map((k) => pages.get(k).venueId)).length,
       relevantPagesPer100RequestsLowerBound: rate(relevantPages * 100, requests),
-      relevantPagesPer100Requests: reviewedPages === pages.size ? rate(relevantPages * 100, requests) : null,
+      relevantPagesPer100Requests: allSuccessfulPagesReviewed ? rate(relevantPages * 100, requests) : null,
       verifiedPriceRecords: prices.length,
       priceBodyMismatches,
       verifiedPriceRecordsPer100RequestsLowerBound: rate(prices.length * 100, requests),
-      verifiedPriceRecordsPer100Requests: candidates.length === truePositiveKeys.length + falsePositiveKeys.length
+      verifiedPriceRecordsPer100Requests: allSuccessfulPagesReviewed && candidates.length === truePositiveKeys.length + falsePositiveKeys.length
         && priceKeys.length === menuKeys.length && priceBodyMismatches.length === 0 && menuKeys.every((k) => byKey.get(k).priceReviewComplete === true) ? rate(prices.length * 100, requests) : null,
       fetchFailures: network.filter((r) => r.error).length,
       nativeFetchErrors: rows.reduce((n, r) => n + (r.nativeFetchErrors?.length ?? 0), 0),

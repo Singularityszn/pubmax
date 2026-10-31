@@ -54,7 +54,7 @@ No API key, paid service, browser, or model is required.
 
 `PAGESIFT_BIN` can select another copy of the exact 0.81.0 executable.
 The runner rejects a different version and records the executable hash.
-`--venues N` runs a pilot. A pilot is never a completed 60-site benchmark.
+Live runs always use all 60 manifest venues. Partial live cohorts are not supported.
 Use a new output directory for every run. Keep the original run and its hashes.
 
 `prepare.mjs` recreates the manifest from the committed OSM and London app snapshots.
@@ -138,6 +138,7 @@ This prevents native error cooldowns from extending the measured run after the r
 The process measurements remain available after this planned interruption.
 The sum of venue durations differs from the elapsed cohort duration because four venues can run together.
 Node CPU, Python parser CPU, and native child CPU have separate measurements.
+B Node CPU includes driver polling, serialisation, and gateway rewriting.
 Memory figures are process maxima, not a simultaneous process-tree peak.
 The cost estimate uses explicit scenario rates. It excludes review labour and unknown commercial licence costs.
 
@@ -179,3 +180,13 @@ node scripts/benchmarks/menu-discovery/export.mjs /tmp/pubmax-menu-run /tmp/pubm
 
 The export contains the report, gold labels, price facts, request records, page records, access decisions, and compute readings.
 The local review page stays beside the private response archive.
+
+## Historical runtime and corrected runtime
+
+The measured archive records runtime head `c350c09b785f4e5798665751606ed0466a5ff213` and its original crawler hashes.
+The current transport fixes unreadable terms, retained host delays, and redirect cache reuse for future runs.
+This corrected runtime has not received a live measurement. The historical timing and request counts remain unchanged.
+Offline evaluation merges only aliases supported by recorded redirects. It does not assume every trailing slash is interchangeable.
+Complete price yields require conclusive review of every successful fetched page, including noncandidates.
+The archive auditor checks historical crawler hashes against the recorded Git commit, independently of current runtime files.
+The report discloses the recorded cohort impact of the terms and delay defects.

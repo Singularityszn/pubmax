@@ -3,7 +3,14 @@
   "passed": true,
   "arms": 120,
   "requests": 637,
-  "checkedAt": "2026-10-31T20:46:09.654Z",
+  "checkedAt": "2026-10-31T20:57:33.459Z",
   "failures": [],
+  "recordedRuntimeHead": "c350c09b785f4e5798665751606ed0466a5ff213",
+  "runtimeHashSource": "Git objects at the recorded runtime commit, not current crawler files",
+  "historicalAccessReview": {
+    "unreadableTermsAccepted": [],
+    "hostDelayViolations": [],
+    "scope": "Paired archive only. Earlier reference reads retain their separate timing profile."
+  },
   "scope": "Recorded request caps, source policy, body hashes, observed robots body limits, provenance edges, native termination, shared minimum host spacing, and input/code hashes. This does not establish human gold approval or legal permission beyond the recorded checks."
 }
