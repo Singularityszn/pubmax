@@ -20,7 +20,12 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
       const id: string = host.plan.plan.id;
       const arrival = await page.request.post(`/api/plans/${id}/actions`, {
         headers: { "idempotency-key": randomUUID(), authorization: `Bearer ${host.memberToken}` },
-        data: { type: "arrived", stopPosition: 0 },
+        data: {
+          type: "arrived",
+          stopPosition: 0,
+          expectedRouteRevision: host.plan.plan.routeRevision,
+          venueId: host.plan.stops.find((stop: { position: number }) => stop.position === 0).venueId,
+        },
       });
       expect(arrival.ok()).toBe(true);
       await page.addInitScript(() => {

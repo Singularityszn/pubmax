@@ -136,6 +136,28 @@ describe.skipIf(skip !== null)("0215 grounded proposal acceptance", () => {
     expect(db().sql(`select public.replace_plan_route_atomic('${id(1, 16)}','${token(16)}',1,'${next}'::jsonb,null,true)`)).toBe("forbidden");
     expect(revision(16)).toBe("1");
   });
+  it.each(["ordinary", "grounded"] as const)("allows every presence value for live host and guest %s proposals", (kind) => {
+    for (const [index, presence] of ["in", "here", "on_the_way", "running_late", "start_without_me"].entries()) {
+      const suffix = (kind === "ordinary" ? 50 : 60) + index;
+      seed(suffix, kind === "grounded"); addGuest(suffix);
+      for (const offset of [0, 100]) {
+        const memberSuffix = suffix + offset;
+        const proposalId = id(3, suffix + offset + 200);
+        db().sql(`update public.plan_crew_members set status='${presence}' where id='${id(2, memberSuffix)}'`);
+        const args = `'${id(1, suffix)}','${proposalId}','${id(2, memberSuffix)}'`;
+        const payload = `1,'${next}'::jsonb,'Presence choice','[]'::jsonb,'[]'::jsonb,'presence-${memberSuffix}',now()`;
+        const query = kind === "grounded"
+          ? `select public.create_plan_grounded_proposal_atomic(${args},'${token(memberSuffix)}',${payload},
+              'signature-checked-by-service','presence-generation-${memberSuffix}',now()+interval '5 minutes','venue-a','near')->>'code'`
+          : `select public.create_plan_route_proposal_atomic(${args},${payload},'${token(memberSuffix)}')->>'code'`;
+        expect(db().sql(query)).toBe("created");
+        expect(db().sql(query)).toBe("replayed");
+        expect(db().sql(`select count(*) from public.plan_route_proposals where id='${proposalId}'`)).toBe("1");
+        expect(revision(suffix)).toBe("1");
+      }
+    }
+  });
+
   it.each(["ordinary", "grounded"] as const)("checks membership changes after lookup before creating a %s proposal", (kind) => {
     for (const [index, change] of ["removed", "rotated", "permission"].entries()) {
       const suffix = (kind === "ordinary" ? 30 : 40) + index;
@@ -146,7 +168,7 @@ describe.skipIf(skip !== null)("0215 grounded proposal acceptance", () => {
         'Guest choice','[]'::jsonb,'[]'::jsonb,'guest-proposal-${suffix}',now(),'${capability}')->>'code'`);
       const update = change === "removed" ? "membership_revoked_at=now()"
         : change === "rotated" ? `token_hash='${token(suffix + 200)}'` : "can_collaborate=false";
-      db().sql(`update public.plan_crew_members set ${update} where id='${id(2, suffix + 100)}'`);
+      db().sql(`update public.plan_crew_members set status='here',${update} where id='${id(2, suffix + 100)}'`);
       expect(query()).toBe("forbidden");
       expect(db().sql(`select count(*) from public.plan_route_proposals where id='${id(3, suffix + 100)}'`)).toBe("0");
       db().sql(`update public.plan_crew_members set membership_revoked_at=null,token_hash='${capability}',can_collaborate=true where id='${id(2, suffix + 100)}'`);

@@ -40,7 +40,7 @@ begin
   select * into v_member from public.plan_crew_members
     where id=p_proposed_by_member_id and plan_id=p_plan_id and token_hash=p_token_hash
       and membership_revoked_at is null for share;
-  if not found or v_member.status <> 'in'
+  if not found
     or (v_member.id is distinct from v_host and not coalesce(v_member.can_collaborate,false))
     then return jsonb_build_object('code','forbidden'); end if;
   select * into v_proposal from public.plan_route_proposals
