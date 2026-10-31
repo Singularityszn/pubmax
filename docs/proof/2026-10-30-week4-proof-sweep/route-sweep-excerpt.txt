@@ -40,6 +40,7 @@ route        metric              median  budget  excess  samples ran  spread
 /messages    LCP (ms)            808     800     +8      748 to 880   16%
 /borough     LCP (ms)            416     400     +16     376 to 492   28%
 /historic    server render (ms)  95      150     -55     89 to 160    75%
+/pint-index  server render (ms)  154     150     +4      124 to 183   38%
 
 ## Samples for the routes above (samples / median / spread)
 route                         metric              samples                                         median  spread

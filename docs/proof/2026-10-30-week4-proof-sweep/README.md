@@ -14,8 +14,8 @@ merge and before the public build.
 | File | What it is |
 | --- | --- |
 | `route-sweep-excerpt.txt` | The route budget sweep's breach table, undecided table, the samples for every route named in them, the ratchet table and the result lines. 52 routes, 26.9 minutes. |
-| `ceilings-down.patch` | A patch against 734b39e9 that would lower 71 ceilings on 35 routes by the file's own margins. NOT applied. Kept as the record of what the sweep saw. |
-| `proposed.tsv` | The same 71 proposals as a table: route, metric, samples, old ceiling, new ceiling. |
+| `ceilings-down.patch` | A patch against 734b39e9 that would lower 71 ceiling values on 35 routes by the file's own margins: 20 LCP, 23 decoded JS and 28 request ceilings. NOT applied. Kept as the record of what the sweep saw. |
+| `proposed.tsv` | The sweep's 73 proposals on 36 routes as a table (20 LCP, 24 decoded JS, 29 requests): route, metric, samples, old ceiling, new ceiling. The two `/map` rows are the ones the patch leaves out. |
 | `cwv-sweep.txt` | The Core Web Vitals sweep, three runs a cell, which stopped at its own interaction fence. |
 
 ## How it was taken
@@ -33,20 +33,21 @@ merge and before the public build.
 
 ### Ceilings with slack (not banked)
 
-71 ceilings on 35 routes sat under their ceiling by more than the file's
-margins (bytes and requests at the p75 sample plus 15 percent, LCP at the worst
-sample plus 25 percent, server render untouched at the 150 ms floor). The
-patch and `proposed.tsv` hold them. They are not applied, for one reason: 44
-of the 71 are LCP, and this same sweep read twelve light shells at about
-400 ms against 300 ms ceilings that were set on macOS, so the two platforms'
-clocks do not agree route by route. A Linux LCP ceiling can turn a healthy
-macOS route red. The 27 byte and request figures do not depend on the box,
-but the lane rule is that the macOS sweep banks the slack. `/map` bytes
-(2839 KB against 3400) and requests (127 to 130 against 160) appear in
-`proposed.tsv` but were held out of the patch on purpose, because the map
-behaved unlike every earlier record on this box (below): the patch holds 69
-of the 71 proposals plus the two `/map` rows left as they are, 35 routes in
-all.
+The sweep's ratchet table named 73 ceiling values on 36 routes that sat under
+their ceiling by more than the file's margins (bytes and requests at the p75
+sample plus 15 percent, LCP at the worst sample plus 25 percent, server render
+untouched at the 150 ms floor). `proposed.tsv` holds all 73. The patch lowers
+71 of them on 35 routes (20 LCP, 23 decoded JS, 28 requests) and leaves the
+two `/map` rows (bytes 2839 KB against 3400, requests 127 to 130 against 160)
+as they are, because the map behaved unlike every earlier record on this box
+(below). Nothing is applied, for one reason: 20 of the 71 are LCP, and this
+same sweep read twelve light shells at about 400 ms against 300 ms ceilings
+that were set on macOS, so the two platforms' clocks do not agree route by
+route. A Linux LCP ceiling can turn a healthy macOS route red. The 51 byte and
+request figures are steadier, but they are totals counted before the
+readiness boundary, so the build, data, cache and boundary conditions decide
+which resources enter them as much as the code does, and the lane rule is that
+the macOS sweep banks the slack.
 
 ### Breaches (no ceiling moved)
 
@@ -55,7 +56,7 @@ The failing assertion's table, from `route-sweep-excerpt.txt`:
 | Route | Metric | Measured | Ceiling | Reading |
 | --- | --- | --- | --- | --- |
 | `/map` | LCP | 10,188 ms (samples 10,220 / 10,188 / 10,184) | 900 ms | Unresolved. A near-zero spread at 10.2 s looks like a timer, perhaps the 8 s style-load timeout plus about 2 s, not a slow paint. The rules file records 716 to 792 ms on this method. Needs an A/B against an older build on the same box. |
-| `/pal/chat` | JS decoded | 1,183 KB on all five samples | 1,040 KB | Probably a real change on `main`: bytes do not depend on the box. Nine Pal commits landed on 30 October. To be bisected on `main`. |
+| `/pal/chat` | JS decoded | 1,183 KB on all five samples | 1,040 KB | An investigation lead, not an established cause: the total is counted before the readiness boundary, so the build, data, cache and boundary conditions decide which resources enter it as well as the code. Nine Pal commits landed on 30 October. A bisect on `main` by build output, with the build identity and a like-for-like comparison, is what would show a regression; nothing here does. |
 | `/today` | LCP | 1,064 ms (976 to 1,080 over seven samples) | 300 ms | Unresolved. Consistent and large. |
 | `/social`, `/feed` | LCP | about 1,000 ms (932 to 1,072) | 400 ms | Unresolved. Same shell as `/today`. |
 | `/discover`, `/drinks` | LCP | 1,136 and 1,060 ms | 1,000 ms | Same shell; `/drinks` redirects to the discover tab. |
@@ -105,8 +106,9 @@ p95). Loopback is not production, so the rows stay as they are.
 ## What happens next
 
 - No ceiling moves on this evidence, up or down.
-- The `/pal/chat` script growth is bisected on `main` by build output, which
-  needs no browser.
+- The `/pal/chat` reading is a lead. A bisect on `main` by build output, with
+  the build identity and a like-for-like comparison, would show whether it is
+  a regression; it needs no browser.
 - The `/map`, `/today`, `/social` and `/feed` timings and the first-pin
   regression need an A/B on one box, or the macOS job, before anyone reads
   them as the product's.
