@@ -917,7 +917,7 @@ its key" state) on a production build in a Linux container: 833 KB decoded JS,
 958 KB, 43 requests and 620 ms by this file's margins. The macOS CI sweep is
 still the oracle.
 
-`/dog-of-the-week` joined on 31 October 2026: Dog of the week, the photo wall's
+`/dog-of-the-week` joined on 30 October 2026: Dog of the week, the photo wall's
 newest approved Dog photo. Like `/wall` it is user content and not
 sitemap-listed, and it is budgeted anyway, seeded unmeasured from the
 `/contributors` row. The same 30 October sweep measured its keyless empty state

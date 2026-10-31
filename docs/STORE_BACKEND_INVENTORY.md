@@ -6,13 +6,19 @@ The inventory is descriptive, not a runtime registry.
 
 ## Current snapshot
 
-- The repository has 54 `lib/*Store.ts` modules.
-- 36 modules call `selectStore` directly.
-- 10 modules use `createDualBackendStore`.
-- 6 modules keep memory state on `globalThis` so it survives a development
+Counted on 31 October 2026 on the round 5 tree (PR 2412, which carries PR
+2402). Recount it with `ls lib/*Store.ts` and a grep for `selectStore(` and
+`createDualBackendStore` whenever a store is added.
+
+- The repository has 63 `lib/*Store.ts` modules.
+- 42 modules call `selectStore` directly.
+- 14 modules use `createDualBackendStore`.
+- 7 modules keep memory state on `globalThis` so it survives a development
   server reload. That state pattern is separate from backend selection.
-- The remaining modules use an explicit backend, a file or static data path,
-  or an inline legacy selector.
+- The remaining 7 modules use an explicit backend, a file or static data path,
+  or an inline legacy selector: `contributorLeaderboardStore`,
+  `crawlStoryStore`, `importNotesStore`, `pubPalStore`, `socialCrewStore`,
+  `socialPostConsentStore` and `whatsOnStore`.
 
 `lib/storeBackend.ts` owns the narrow backend seam. `createDualBackendStore`
 only curries `selectStore(memory, supabase)` into a zero-argument getter. It
@@ -65,7 +71,7 @@ silently stale.
 | operatorProposalsStore | factory-ready | Operator proposal state has one backend selector. |
 | pendingPlanRecapStore | factory-ready | Small pending-plan recap store. |
 | pintDropsStore | legacy-exception | Inline Supabase configuration branch around Pint Drop and Storage work. |
-| pintDropWithTagsStore | factory-eligible, policy-heavy | "With" handle tags on a Pint Drop: proposal, consent, withdrawal and block refusal. |
+| pintDropWithTagsStore | legacy-exception | "With" handle tags on a Pint Drop: proposal, consent, withdrawal and block refusal. Inline Supabase configuration checks around the drop read and the block check. |
 | planCollaborationStore | factory-ready | Shared selector with `globalThis` memory state. |
 | planGroupPrefsStore | factory-ready | Shared selector with `globalThis` memory state. |
 | planInviteRsvpStore | factory-ready | Shared selector with `globalThis` memory state. |

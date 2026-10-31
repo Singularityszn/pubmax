@@ -44,8 +44,13 @@ Columns are the samples in the order taken, the median and the spread.
 | `/dog-of-the-week` | requests | 32 / 32 / 32 / 32 / 32 | 32 | 0% |
 | `/dog-of-the-week` | LCP (ms) | 452 / 376 / 296 / 316 / 328 | 328 | 48% |
 
-`/dog-of-the-week` has five samples because its LCP spread passed the tracked
-width on the first three, so the method took its two resamples.
+`/dog-of-the-week` has five samples because the median of its first three LCP
+samples (452 / 376 / 296, median 376 ms) sat within 10 percent of the 400 ms
+ceiling, the near-ceiling rule in `lib/performanceBudgets.ts`
+(`medianSitsOnTheLine`). The spread rule did not fire: it needs the percentage
+past the 12 percent width AND the span past the metric's floor, and those three
+samples span 156 ms against the 250 ms LCP floor. The two resamples (316 and
+328 ms) moved the median to 328 ms.
 
 ## How to read it
 
