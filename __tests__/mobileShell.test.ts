@@ -113,6 +113,15 @@ describe("mobile map session adapter", () => {
     });
   });
 
+  it("restores Last orders only when it was saved on", () => {
+    const current = seedCrawlState("").filters;
+    expect(validateMobileMapFilters({ ...current, lastOrders: true })?.lastOrders).toBe(true);
+    expect(validateMobileMapFilters({ ...current, lastOrders: "true" })?.lastOrders).toBe(false);
+    const legacy: Partial<typeof current> = { ...current };
+    delete legacy.lastOrders;
+    expect(validateMobileMapFilters(legacy)?.lastOrders).toBe(false);
+  });
+
   it.each(["requireDogFriendly", "requireDarts", "requirePool"] as const)(
     "defaults absent %s to false and rejects malformed present values",
     (key) => {

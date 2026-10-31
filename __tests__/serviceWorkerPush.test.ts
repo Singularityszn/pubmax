@@ -47,6 +47,19 @@ describe("service worker web push", () => {
     }));
   });
 
+  it("reduces a dot-segment path that resolves off-site to /today", async () => {
+    const { listeners, showNotification } = workerHarness();
+    let pending: Promise<unknown> = Promise.resolve();
+    listeners.get("push")!({
+      data: { json: () => ({ title: "Today in London", data: { url: "/..//evil.example/x" } }) },
+      waitUntil(value: Promise<unknown>) { pending = value; },
+    });
+    await pending;
+    expect(showNotification).toHaveBeenCalledWith("Today in London", expect.objectContaining({
+      data: { url: "/today" },
+    }));
+  });
+
   it("shows a useful fallback for a malformed push", async () => {
     const { listeners, showNotification } = workerHarness();
     let pending: Promise<unknown> = Promise.resolve();

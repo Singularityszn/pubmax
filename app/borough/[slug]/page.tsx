@@ -26,6 +26,7 @@ import { loadPintPriceLandingVenues } from "@/lib/pintPriceLandingDataset.server
 import { boroughFromSlug, pubsInBorough, slugifyBorough } from "@/lib/boroughs";
 import { boroughPlacePhoto, londonPlacePhoto } from "@/components/listing/placePhotoRules";
 import { loadBoroughHeritage, NOTABLE_CAP } from "@/lib/boroughHeritage";
+import { boroughNamedRouteLinks, boroughNightAreaLinks } from "@/lib/boroughNeighbourhoodLinks";
 import { curatedCrawlMapHref, curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import SiteNav from "@/components/nav/SiteNav";
 import EmptyState from "@/components/ui/empty-state";
@@ -240,6 +241,12 @@ export default async function BoroughPage({ params }: PageProps) {
   const pubs = pubsInBorough(venues, slug);
   const storyPubs = pubs.filter((pub) => pub.hasStory);
   const touchingCrawls = crawlsTouchingBorough(curatedCrawls, venues, slug);
+  // Soho, Shoreditch and the named route pages, linked from the borough that
+  // holds them (SEO audit #2126, finding 17). No new area page is published.
+  const neighbourhoodLinks = [
+    ...boroughNightAreaLinks(slug, venues),
+    ...boroughNamedRouteLinks(slug, venues),
+  ];
   // Cheapest-first sort already applied by pubsInBorough — first numeric
   // price is our dataset's cheapest pint here. Used only for the CityMCP
   // card's optional "vs our map" one-liner.
@@ -474,6 +481,11 @@ export default async function BoroughPage({ params }: PageProps) {
             <li>
               <Link prefetch={false} href={boroughBrowseMapUrl(name)}>{name} on the map</Link>
             </li>
+            {neighbourhoodLinks.map((link) => (
+              <li key={link.href}>
+                <Link prefetch={false} href={link.href}>{link.label}</Link>
+              </li>
+            ))}
             <li>
               <Link href="/pint-index">London Pint Index</Link>
             </li>

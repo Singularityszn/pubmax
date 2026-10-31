@@ -3,6 +3,7 @@
 // The Sun Chaser time slider and status line. Loaded only after the chip is
 // on (SunChaserControls.tsx), because it carries the sun maths.
 
+import { useEffect } from "react";
 import {
   formatSunClock,
   segmentAt,
@@ -34,8 +35,22 @@ function statusLine(state: SunChaserState): string {
   return sky ? `${line} ${sky.replace("Sunny spot", "Sunny spots")}` : line;
 }
 
+/**
+ * While a finger or pointer holds the slider, the page is marked so the phone
+ * Filters sheet steps aside and the map shows through (sunChaser.css). The
+ * mark goes the moment the pointer lets go, is cancelled, or loses the slider.
+ */
+const SCRUBBING_ATTRIBUTE = "data-sun-scrubbing";
+
+function setScrubbing(on: boolean): void {
+  if (on) document.documentElement.setAttribute(SCRUBBING_ATTRIBUTE, "");
+  else document.documentElement.removeAttribute(SCRUBBING_ATTRIBUTE);
+}
+
 export default function SunChaserPanel() {
   const state = useSunChaser();
+  // A panel closed mid-drag must not leave the sheet hidden.
+  useEffect(() => () => setScrubbing(false), []);
   const at = sunChaserSelectedTime(state);
   const timeLabel = state.offsetSteps === 0 || !at ? "Now" : formatSunClock(at, "exact");
   return (
@@ -52,10 +67,15 @@ export default function SunChaserPanel() {
           value={state.offsetSteps}
           aria-valuetext={timeLabel}
           onChange={(event) => updateSunChaser({ offsetSteps: Number(event.target.value) })}
+          onPointerDown={() => setScrubbing(true)}
+          onPointerUp={() => setScrubbing(false)}
+          onPointerCancel={() => setScrubbing(false)}
+          onLostPointerCapture={() => setScrubbing(false)}
+          onBlur={() => setScrubbing(false)}
         />
       </label>
       <p aria-live="polite" className="sunChaserStatus">{statusLine(state)}</p>
-      <p>Gardens likely in the sun get a sun dot. {SUN_ESTIMATE_CAVEAT} Trees, awnings and walls are not counted.</p>
+      <p>Gardens likely in the sun get a sun dot beside their pin, once the map shows the pin. {SUN_ESTIMATE_CAVEAT} Trees, awnings and walls are not counted.</p>
     </>
   );
 }

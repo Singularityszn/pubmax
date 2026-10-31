@@ -225,6 +225,19 @@ describe("the wall's order and its pages", () => {
     expect(parseVenuePhotoCursor("not-a-date|id")).toBeNull();
   });
 
+  it("refuses a cursor date that would reshape the keyset filter", () => {
+    const id = "11111111-1111-4111-8111-111111111111";
+    // Date.parse accepts both of these, so the old check let them through.
+    expect(parseVenuePhotoCursor(`Jan 1 2026 (a,b)|${id}`)).toBeNull();
+    expect(parseVenuePhotoCursor(`1 Jan 2026, 10:00|${id}`)).toBeNull();
+  });
+
+  it("keeps a database timestamp exactly as written, microseconds and offset", () => {
+    const id = "11111111-1111-4111-8111-111111111111";
+    const at = "2026-08-09T18:00:00.123456+00:00";
+    expect(parseVenuePhotoCursor(`${at}|${id}`)).toEqual({ createdAt: at, id });
+  });
+
   it("refuses a cursor whose id is not a uuid, since it lands in a uuid filter (LIB-S7)", () => {
     const at = "2026-08-09T18:00:00.000Z";
     expect(parseVenuePhotoCursor(`${at}|id`)).toBeNull();

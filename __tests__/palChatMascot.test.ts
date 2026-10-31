@@ -24,12 +24,13 @@ import {
   PAL_MASCOT_SIZES,
   PAL_MASCOT_SLUGS,
   PAL_MASCOT_STAND_INS,
+  PAL_MASCOT_TALK,
   PAL_MASCOT_WEBP_512_BUDGET,
   palMascotSlug,
 } from "@/lib/palMascotAssets.mjs";
 import { PAL_VISUAL_MANIFEST } from "@/lib/pubPal";
 import PalChat from "@/components/pal/PalChat";
-import { PubPalMascot } from "@/components/pal/PubPalMascot";
+import { PubPalMascot, PubPalMascotMouth } from "@/components/pal/PubPalMascot";
 
 function palChatMarkup(): string {
   return renderToStaticMarkup(createElement(PalChat));
@@ -121,3 +122,34 @@ describe("public mascot renditions", () => {
     expect(palMascotSlug("raven")).toBeNull();
   });
 });
+
+describe("the talking frame", () => {
+  const palDir = join(process.cwd(), "public", "pal");
+
+  // The open-mouth frame is an overlay, so it ships as WebP alone, at every
+  // size and in both shapes the still ships in, for every species.
+  it("ships the open-mouth WebP set for every species with a master", () => {
+    for (const slug of Object.values(PAL_MASCOT_SLUGS)) {
+      for (const size of PAL_MASCOT_SIZES) {
+        for (const name of [`${slug}-${PAL_MASCOT_TALK}-${size}`, `${slug}-${PAL_MASCOT_TALK}-avatar-${size}`]) {
+          expect(statSync(join(palDir, `${name}.webp`)).size, name).toBeGreaterThan(0);
+        }
+      }
+      const bytes = statSync(join(palDir, `${slug}-${PAL_MASCOT_TALK}-512.webp`)).size;
+      expect(bytes).toBeLessThan(PAL_MASCOT_WEBP_512_BUDGET);
+    }
+  });
+
+  it("draws the open mouth as a decorative overlay of the same Pal", () => {
+    const html = renderToStaticMarkup(createElement(PubPalMascotMouth, { species: "fox", size: 56 }));
+    expect(html).toContain('class="palMascotMouth"');
+    expect(html).toContain('alt=""');
+    expect(html).toContain("/pal/circuit-fox-talk-avatar-64.webp");
+    expect(html).not.toContain(".png");
+  });
+
+  it("draws nothing for a species with no master", () => {
+    expect(renderToStaticMarkup(createElement(PubPalMascotMouth, { species: "owl" as never }))).toBe("");
+  });
+});
+

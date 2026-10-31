@@ -78,9 +78,9 @@ describe("the public discovery metadata", () => {
   });
 
   it("names the existing London crawl directory and retains its canonical", () => {
-    expect(crawlsMetadata.title).toBe("London pub crawl routes");
+    expect(crawlsMetadata.title).toBe("Free, self-guided London pub crawl routes");
     expect(crawlsMetadata.alternates?.canonical).toBe("/crawls");
-    expect(crawlsMetadata.openGraph).toMatchObject({ title: "London pub crawl routes", url: "/crawls" });
-    expect(crawlsMetadata.twitter).toMatchObject({ title: "London pub crawl routes" });
+    expect(crawlsMetadata.openGraph).toMatchObject({ title: "Free, self-guided London pub crawl routes", url: "/crawls" });
+    expect(crawlsMetadata.twitter).toMatchObject({ title: "Free, self-guided London pub crawl routes" });
   });
 });

@@ -341,6 +341,19 @@ describe("crawlUrl", () => {
     ).not.toContain("food=");
   });
 
+  it("decodes garden=1 into the beer-garden filter, so /gardens can open it", () => {
+    expect(decodeCrawl(new URLSearchParams("garden=1")).filters?.requireBeerGarden).toBe(true);
+    expect(decodeCrawl(new URLSearchParams("garden=0")).filters?.requireBeerGarden).toBeUndefined();
+    expect(seedCrawlState("?garden=1").filters.requireBeerGarden).toBe(true);
+    expect(seedCrawlState("").filters.requireBeerGarden).toBe(false);
+    expect(
+      encodeCrawl({ ...sample, filters: { ...sample.filters, requireBeerGarden: true } }),
+    ).toContain("garden=1");
+    expect(
+      encodeCrawl({ ...sample, filters: { ...sample.filters, requireBeerGarden: false } }),
+    ).not.toContain("garden=");
+  });
+
   it("round-trips explicit drink search filters", () => {
     const encoded = encodeCrawl({
       ...sample,

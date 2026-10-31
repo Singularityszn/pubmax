@@ -4,6 +4,7 @@ import {
   buildSunTimeline,
   estimateSun,
   formatSunClock,
+  timelineFromStates,
   indexSunBuildings,
   occupiedStretches,
   OPENMAPTILES_DEFAULT_HEIGHT_M,
@@ -313,5 +314,41 @@ describe("third review: inside stretches on exact coordinates", () => {
     const outer = pts([[-40, -40], [40, -40], [40, 40], [-40, 40]]);
     const yard = pts([[-10, -10], [10, -10], [10, 10], [-10, 10]]);
     expect(occupiedStretches([outer, yard], along, 300)).toEqual([[10, 40]]);
+  });
+});
+
+describe("device check: two changes inside one half-hour step", () => {
+  it("never carries sun past sunset when shade, sun and sunset fall in one step", () => {
+    // Shade until 20:05, a gap of sun until 20:15, then the sun sets: all three
+    // inside the 20:00 to 20:30 step. The 20:30 sample says set, and so must the timeline.
+    const from = Date.parse("2026-06-20T15:30:00Z");
+    const shadeEnds = Date.parse("2026-06-20T20:05:00Z");
+    const sunsetAt = Date.parse("2026-06-20T20:15:00Z");
+    const stateAt = (ms: number) => (ms >= sunsetAt ? "set" : ms >= shadeEnds ? "sun" : "shade");
+    const timeline = timelineFromStates(stateAt, new Date(from));
+    expect(timeline.segments.map((s) => [s.state, s.start.toISOString().slice(11, 16), s.end.toISOString().slice(11, 16)])).toEqual([
+      ["shade", "15:30", "20:05"],
+      ["sun", "20:05", "20:15"],
+      ["set", "20:15", "21:30"],
+    ]);
+    expect(segmentAt(timeline, new Date("2026-06-20T20:30:00Z"))?.state).toBe("set");
+  });
+
+  it("agrees with every sample it took and with the first minute of every stretch", () => {
+    // A state that flips often. A dip that starts and ends between two samples
+    // may be missed (a stated limit); a sample the walk read may never be contradicted.
+    const from = Date.parse("2026-06-20T12:00:00Z");
+    const stateAt = (ms: number) => {
+      const minute = Math.floor((ms - from) / 60_000);
+      return minute % 47 < 9 ? "shade" : minute % 47 < 13 ? "unknown" : "sun";
+    };
+    const timeline = timelineFromStates(stateAt, new Date(from));
+    for (let step = 0; step <= 12; step += 1) {
+      const at = from + step * 30 * 60_000;
+      expect(segmentAt(timeline, new Date(at))?.state, `step ${step}`).toBe(stateAt(at));
+    }
+    for (const segment of timeline.segments) {
+      expect(stateAt(segment.start.getTime()), segment.start.toISOString()).toBe(segment.state);
+    }
   });
 });

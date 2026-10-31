@@ -9,6 +9,7 @@ import { useEffect, useMemo, useState } from "react";
 import { decodeCrawlStory, totalGbp, type CrawlStory } from "@/lib/crawlStory";
 import { curatedCrawlMapHref, type CuratedCrawl } from "@/lib/curatedCrawls";
 import { landmarks } from "@/lib/landmarks";
+import { namedRoutePathForCrawl } from "@/lib/namedRoutes";
 import { getRoutePack, routePacks } from "@/lib/routePacks";
 import { formatGbp } from "@/lib/formatGbp";
 import { loadSlimVenues, type SlimVenue } from "@/lib/venuesSlim";
@@ -304,12 +305,13 @@ function FeaturedCrawlCard({
   photo: PlacePhotoData | null;
 }) {
   const originName = startLandmarkName(crawl);
+  const routePath = namedRoutePathForCrawl(crawl.id);
   const routeSummary = buildCrawlRouteSummary(crawl.venueIds, slimById);
   const priceRange = crawlPriceRange(crawl.venueIds, slimById);
   const stops = crawl.venueIds.length;
   const meta = [
     `${stops} stop${stops === 1 ? "" : "s"}${originName ? ` from ${originName}` : ""}`,
-    routeSummary ? `${routeSummary.totalMinutes} min straight-line estimate` : null,
+    routeSummary ? `about ${routeSummary.totalMinutes} min (straight-line estimate)` : null,
   ]
     .filter(Boolean)
     .join(", ");
@@ -329,7 +331,15 @@ function FeaturedCrawlCard({
             sizes="(min-width: 1100px) 18rem, (min-width: 700px) 40rem, calc(100vw - 2.75rem)"
           />
         ) : null}
-        <h2 className="curatedName">{crawl.name}</h2>
+        <h2 className="curatedName">
+          {routePath ? (
+            <Link prefetch={false} href={routePath}>
+              {crawl.name}
+            </Link>
+          ) : (
+            crawl.name
+          )}
+        </h2>
         <p className="curatedBlurb">{plainDashes(crawl.blurb)}</p>
         <p className="curatedMeta">
           {meta}

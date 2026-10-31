@@ -2,7 +2,7 @@
 
 import { useRef } from "react";
 
-import { PubPalMascot } from "@/components/pal/PubPalMascot";
+import { PubPalMascot, PubPalMascotMouth } from "@/components/pal/PubPalMascot";
 import { usePalHead3D } from "@/components/pal/usePalHead3D";
 import type { PalAnimationState, PubPalAppearance } from "@/lib/pubPal";
 import type { PalVoiceSignal } from "@/lib/palVoiceSignal";
@@ -36,6 +36,7 @@ export default function PalVoiceFace({
       {...(genome ? { "data-genome": "", style: palGenomeStyle(genome) as React.CSSProperties } : {})}
     >
       <PubPalMascot species={appearance.species} size={56} circular decorative className="palVoiceFaceImg" />
+      <PubPalMascotMouth species={appearance.species} size={56} circular className="palVoiceFaceImg" />
     </span>
   );
 }

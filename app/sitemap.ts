@@ -8,6 +8,8 @@ import { loadPintPriceLandingVenuesOrThrow } from "@/lib/pintPriceLandingDataset
 import { pintIndexMeetsAdmissionFloor } from "@/lib/pintIndexArchive";
 import { loadPintIndexArchive, loadPublicPintIndexSnapshotOrThrow } from "@/lib/pintIndexSnapshot.server";
 import { loadDrinkBrandLandings } from "@/lib/drinkBrandLanding.server";
+import { NAMED_ROUTES, namedRoutePath } from "@/lib/namedRoutes";
+import { areaLandingRoute, listAreaLandings } from "@/lib/areaLanding";
 import { readSpoonsValue } from "@/lib/spoonsValue.server";
 import { pricePulseLastModified, publishedEditions } from "@/lib/pricePulse";
 import { PRICE_PULSE_EDITION_FILES } from "@/lib/pricePulseEditions";
@@ -183,6 +185,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
     { path: "/pubs", priority: 0.7, changeFrequency: "weekly", lastModified: pricesModified },
     { path: "/tonight", priority: 0.6, changeFrequency: "daily", lastModified: now },
+    // Today joins once its stale window was bounded (SEO audit #2126, finding
+    // 3): fresh for 5 minutes, then up to 60 more of stale-while-revalidate,
+    // where Next's default had allowed a year.
+    { path: "/today", priority: 0.6, changeFrequency: "daily", lastModified: now },
     { path: "/pal", priority: 0.5, changeFrequency: "monthly", lastModified: now },
     {
       path: "/how-we-estimate",
@@ -274,9 +280,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     });
   }
 
-  // Governed brand-by-area pages. Same rule, same loader. The parent
-  // /area/{slug} family is HELD (it duplicates /borough/{slug}), so no area
-  // page is published or advertised here.
+  // Area root pages: every London Night Area with the area floor of priced
+  // pubs (lib/areaLanding.ts, captain 30 Oct 2026). Same dataset read as the
+  // rows above, so the route and this list cannot disagree.
+  for (const landing of listAreaLandings(venues)) {
+    entries.push({
+      url: `${SITE_URL}${areaLandingRoute(landing.areaSlug)}`,
+      lastModified: pricesModified,
+      changeFrequency: "weekly",
+      priority: 0.7,
+    });
+  }
+
+  // Governed brand-by-area pages. Same rule, same loader.
   for (const landing of drinkBrandAreaLandings) {
     entries.push({
       url: `${SITE_URL}${drinkBrandAreaLandingRoute(landing)}`,
@@ -293,6 +309,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: `${SITE_URL}/pint-index/${edition.archive.month}`,
       lastModified: new Date(edition.archive.publishedAt),
       changeFrequency: "yearly",
+      priority: 0.6,
+    });
+  }
+
+  // Named route pages: four curated crawls with a page of their own.
+  for (const route of NAMED_ROUTES) {
+    entries.push({
+      url: `${SITE_URL}${namedRoutePath(route.slug)}`,
+      lastModified: pricesModified,
+      changeFrequency: "weekly",
       priority: 0.6,
     });
   }

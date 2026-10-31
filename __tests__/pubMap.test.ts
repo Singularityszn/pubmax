@@ -923,6 +923,21 @@ describe("restoredSessionFrame", () => {
     expect(frame.filters.maxPrice).toBe(6);
   });
 
+  it("brings a saved drink lane back on a bare /map, on purpose (live walk F23)", () => {
+    // A reader opens the map where they left it. The lane is a visible,
+    // one-tap choice in the toolbar, unlike the search word, so it is kept.
+    const saved = { ...initialFilters, drinkCategory: "coffee" } as Filters;
+    const frame = restoredSessionFrame({
+      seed: { ...(seed as object), filters: { ...initialFilters } } as never,
+      restoredSession: { filters: saved },
+      resumeSeed: null,
+      cityId: "london",
+      search: "",
+      shouldOpenPlanningInitially,
+    });
+    expect(frame.filters.drinkCategory).toBe("coffee");
+  });
+
   it("keeps the search the address asks for", () => {
     expect(
       restoredSessionFrame({
