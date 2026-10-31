@@ -197,7 +197,7 @@ for (const viewport of DESKTOP) {
         page.getByRole("button", { name: "Bars", exact: true }),
       ).toHaveAttribute("aria-pressed", "false");
       await expect(
-        page.getByRole("button", { name: "Pints", exact: true }),
+        page.getByRole("button", { name: "Pubs", exact: true }),
       ).toHaveAttribute("aria-pressed", "true");
 
       // One reset, and it names what it resets.
