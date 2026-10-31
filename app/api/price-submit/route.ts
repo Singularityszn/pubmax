@@ -82,8 +82,8 @@ import type { PintDropConfirmationOutcome } from "@/lib/pintDropSecondDrinker";
 import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
 import type { PintTrustState } from "@/lib/pintTrust";
 import { qualifyCheapPintForOwnerActor } from "@/lib/cheapPintPingQualify.server";
-import { magicBytesOk } from "@/lib/imageSafety";
-import { RECEIPT_REQUIRED_LINE, photoRefusal, priceNeedsReceipt } from "@/lib/pintDropReceipt";
+import { RECEIPT_REQUIRED_LINE, priceNeedsReceipt } from "@/lib/pintDropReceipt";
+import { receiptPhotoRefusal } from "@/lib/receiptPhoto.server";
 import { parsePriceSubmitPostBody } from "@/lib/priceSubmitPostBody.server";
 import type { PintDropPhotos } from "@/lib/pintDropsStore";
 import { syncTrustAfterPriceWrite } from "@/lib/priceTrustImpact.server";
@@ -165,15 +165,6 @@ async function reportObservation(request: Request, body: Record<string, unknown>
     return publicApiError("We cannot find that report.", "NOT_FOUND", 404);
   }
   return jsonNoStore({ ok: true }, { status: 200 });
-}
-
-/** Why the attached bill is not a photo we could keep, or null. */
-async function receiptPhotoRefusal(receipt: File | null | undefined): Promise<string | null> {
-  if (!receipt) return null;
-  const refusal = photoRefusal(receipt);
-  if (refusal) return refusal;
-  const head = new Uint8Array(await receipt.slice(0, 64).arrayBuffer());
-  return magicBytesOk(head, receipt.type) ? null : "Photo must be a JPEG, PNG, or WebP image.";
 }
 
 export async function POST(request: Request): Promise<Response> {

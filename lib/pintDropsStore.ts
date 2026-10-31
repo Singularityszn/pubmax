@@ -7,6 +7,8 @@ import "server-only";
 // function assumes admin access exists — if getSupabaseAdmin() is null we
 // throw, we don't silently no-op, so the route can 503 deliberately.
 
+import { createHash } from "node:crypto";
+
 import sharp from "sharp";
 
 import { dropWithdrawnAuthors } from "@/lib/accountPublicAccess.server";
@@ -77,6 +79,7 @@ import { PRICE_AUTHORITY_MAX_AGE_MS } from "@/lib/priceAuthorityWindow";
 import { UPLOAD_PHOTO_MAX_BYTES, uploadPhotoSizeLabel } from "@/lib/uploadBodyLimit";
 import { admin, selectStore, whereVenueIdIn } from "@/lib/storeBackend";
 import { STORAGE_BUCKET } from "@/lib/supabase";
+import { proveUploadedImageWrite, readUploadedImageObject, uploadUploadedImageObject } from "@/lib/uploadedImage.server";
 import { isLiveLastTrainDecision } from "@/lib/lastTrainBadge";
 import { londonDayKey } from "@/lib/pintContributions";
 import { PINT_DROPS_TABLE } from "@/lib/pintDropTable";
@@ -1082,7 +1085,7 @@ function isUnknownMeasureCheckError(
  * the key: the drop is saved without it, and a photo is lost where a price
  * would have been.
  */
-function isMissingReceiptColumnError(error: { code?: string; message?: string } | null): boolean {
+export function isMissingReceiptColumnError(error: { code?: string; message?: string } | null): boolean {
   if (!error) return false;
   const code = error.code ?? "";
   const message = (error.message ?? "").toLowerCase();
@@ -1739,24 +1742,30 @@ export async function uploadPhoto(
 
   const key = `${venueId}/${dropId}/${slot}.${NORMALIZED_EXT}`;
 
-  const { error } = await admin()
-    .storage.from(STORAGE_BUCKET)
-    .upload(key, processed, { contentType: NORMALIZED_CONTENT_TYPE, upsert: false });
+  const error = await uploadUploadedImageObject(key, processed, NORMALIZED_CONTENT_TYPE, { upsert: false });
   if (error) {
     log("error", "pint_drops.photo_upload_failed", {
       slot,
       venueId,
       dropId,
-      error: error.message,
+      error,
     });
-    throw new Error(error.message);
+    throw new Error(error);
+  }
+  const proof = await proveUploadedImageWrite(
+    key,
+    { sha256: createHash("sha256").update(processed).digest("hex"), byteSize: processed.byteLength },
+    readUploadedImageObject,
+  );
+  if (proof === "corrupt") {
+    await deletePhotos([key]);
+    throw new Error("That photo did not save correctly. Try uploading it again.");
   }
   return key;
 }
 
-/** Best-effort delete of uploaded objects — called to undo orphans when the
- *  DB insert fails after upload. Never throws: cleanup must not mask the
- *  original 503. */
+/** Best-effort cleanup of corrupt or unreferenced uploaded objects.
+ *  Never throws: cleanup must not mask the original failure. */
 export async function deletePhotos(keys: string[]): Promise<void> {
   const present = keys.filter(Boolean);
   if (!present.length) return;
