@@ -36,7 +36,10 @@ export function evaluate(results, labels) {
     const menuKeys = [...pages].filter(([k, p]) => p.status === 200 && byKey.get(k)?.verdict === 'menu').map(([k]) => k);
     const relevantPages = [...pages].filter(([k, p]) => p.status === 200 && byKey.get(k)?.relevant === true).length;
     const reviewedPages = [...pages].filter(([k]) => byKey.has(k)).length;
-    const prices = unique(menuKeys.flatMap((k) => (byKey.get(k)?.priceRecords ?? []).map((p) => `${pages.get(k).venueId}\t${p.id}`)));
+    const priceKeys = menuKeys.filter((k) => !byKey.get(k).bodySha256 || byKey.get(k).bodySha256 === pages.get(k).bodySha256);
+    const priceBodyMismatches = menuKeys.filter((k) => !priceKeys.includes(k) && byKey.get(k).priceRecords?.length)
+      .map((k) => ({ venueId: pages.get(k).venueId, url: pages.get(k).url, fetchedSha256: pages.get(k).bodySha256, reviewedSha256: byKey.get(k).bodySha256 }));
+    const prices = unique(priceKeys.flatMap((k) => (byKey.get(k)?.priceRecords ?? []).map((p) => `${pages.get(k).venueId}\t${p.id}`)));
     const requests = rows.reduce((n, r) => n + r.networkRequests, 0);
     const events = rows.flatMap((r) => r.events);
     const network = rows.flatMap((r) => r.requests);
@@ -51,6 +54,8 @@ export function evaluate(results, labels) {
       reviewedPages, unjudgedCandidates: unjudged.length, truePositives: truePositiveKeys.length,
       falsePositives: falsePositiveKeys.length, falseNegatives: misses.length,
       precision: rate(truePositiveKeys.length, truePositiveKeys.length + falsePositiveKeys.length),
+      precisionLowerBound: rate(truePositiveKeys.length, candidates.length),
+      precisionUpperBound: rate(truePositiveKeys.length + unjudged.length, candidates.length),
       recall: rate(truePositiveKeys.length, truth.length),
       verifiedMenusFetched: menuKeys.length,
       verifiedMenuUrlsDiscovered: truePositiveKeys.length,
@@ -64,9 +69,10 @@ export function evaluate(results, labels) {
       relevantPagesPer100RequestsLowerBound: rate(relevantPages * 100, requests),
       relevantPagesPer100Requests: reviewedPages === pages.size ? rate(relevantPages * 100, requests) : null,
       verifiedPriceRecords: prices.length,
+      priceBodyMismatches,
       verifiedPriceRecordsPer100RequestsLowerBound: rate(prices.length * 100, requests),
       verifiedPriceRecordsPer100Requests: candidates.length === truePositiveKeys.length + falsePositiveKeys.length
-        && menuKeys.every((k) => byKey.get(k).priceReviewComplete === true) ? rate(prices.length * 100, requests) : null,
+        && priceKeys.length === menuKeys.length && priceBodyMismatches.length === 0 && menuKeys.every((k) => byKey.get(k).priceReviewComplete === true) ? rate(prices.length * 100, requests) : null,
       fetchFailures: network.filter((r) => r.error).length,
       httpFailures: network.filter((r) => r.status >= 400).length,
       redirects: network.filter((r) => r.status >= 300 && r.status < 400).length,
@@ -80,7 +86,9 @@ export function evaluate(results, labels) {
       nodePeakRssBytes: Math.max(0, ...rows.map((r) => r.nodePeakRssBytes)),
       nativeChildPeakRssBytes: Math.max(0, ...rows.map((r) => r.childPeakRssBytes ?? 0)),
       downloadBytes: bytes,
-      missingUrls: misses.map((r) => ({ venueId: r.venueId, url: r.url, fetched: pages.has(key(r.venueId, r.url)) })),
+      missingUrls: misses.map((r) => ({ venueId: r.venueId, url: r.url, format: r.format,
+        reason: r.format === 'image' ? 'image-menu-excluded-by-protocol' : pages.has(key(r.venueId, r.url)) ? 'fetched-but-not-identified' : 'not-discovered',
+        fetched: pages.has(key(r.venueId, r.url)) })),
       falsePositiveUrls: falsePositiveKeys.map((k) => ({ venueId: discovered.get(k).venueId, url: discovered.get(k).url,
         fetched: pages.has(k), evidence: byKey.get(k).evidence ?? null })),
       verifiedUrls: truePositiveKeys.map((k) => ({ venueId: discovered.get(k).venueId, url: discovered.get(k).url,
@@ -116,6 +124,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     if (!label.venueId || !label.url || !label.reviewer || !label.evidence) throw new Error(`Incomplete review evidence for ${label.url}`);
     if (label.verdict === 'menu' && !label.officialEvidence?.sourceUrl) throw new Error(`Menu needs official-site evidence: ${label.url}`);
     for (const price of label.priceRecords ?? []) {
+      if (!label.bodySha256) throw new Error(`Price review needs a captured body hash: ${label.url}`);
       if (!price.id || !price.item || !Number.isFinite(price.amountGbp) || price.amountGbp <= 0 || price.currency !== 'GBP' || !price.evidence) {
         throw new Error(`Incomplete price record for ${label.url}`);
       }
@@ -152,7 +161,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     humanGoldApproved: annotations.humanApproved === true && humanReviews >= gates.minHumanReviewedVenues,
     requestCaps: results.every((r) => r.networkRequests <= r.budget),
     relevanceRecallGain: relativeRecall == null ? null : relativeRecall >= 1 + gates.minRelativeVerifiedMenuRecallGain,
-    candidatePrecision: b && !b.unjudgedCandidates ? b.precision >= gates.minAbsolutePrecision : null,
+    candidatePrecision: b && b.precisionUpperBound < gates.minAbsolutePrecision ? false
+      : b && !b.unjudgedCandidates ? b.precision >= gates.minAbsolutePrecision : null,
     priceYieldGain: priceRatio == null ? null : priceRatio >= 1 + gates.minRelativeVerifiedPriceYieldGain,
     latencyRatio: a && b ? ratio(b.wallSecondsSum, a.wallSecondsSum) <= gates.maxLatencyRatio : null,
     measuredComponentCostRatio: a && b ? ratio(b.estimatedMeasuredComponentCost.total, a.estimatedMeasuredComponentCost.total) <= gates.maxEstimatedCostRatio : null,

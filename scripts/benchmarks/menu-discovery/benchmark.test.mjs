@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -93,5 +93,35 @@ test('the CLI evaluates literal gold labels without turning pending reviews into
     assert.equal(arm.recall, 0.5);
     assert.equal(arm.verifiedPriceRecords, 1);
     assert.equal(arm.unjudgedCandidates, 1);
+  }
+});
+
+test('the evaluation CLI does not transfer prices onto different downloaded menu bytes', () => {
+  const captured = fixture(9);
+  const out = mkdtempSync(join(tmpdir(), 'pubmax-menu-price-hash-'));
+  try {
+    for (const arm of captured.arms) {
+      mkdirSync(join(out, 'fixture', arm.arm), { recursive: true });
+      writeFileSync(join(out, 'fixture', arm.arm, 'result.json'), JSON.stringify(arm));
+    }
+    const page = captured.arms[0].pages.find((p) => p.url.endsWith('/food-menu'));
+    const labels = { humanApproved: false, labels: [{ venueId: 'fixture', url: page.url, verdict: 'menu', format: 'html',
+      reviewer: 'fixture-truth', evidence: 'Soup £6.50', officialEvidence: { sourceUrl: page.url },
+      bodySha256: 'different-reviewed-document', priceRecords: [{ id: 'soup', item: 'Soup', amountGbp: 6.5, currency: 'GBP', evidence: 'Soup £6.50' }] }] };
+    writeFileSync(join(out, 'labels.json'), JSON.stringify(labels));
+    execFileSync(process.execPath, [join(here, 'evaluate.mjs'), out, join(out, 'labels.json')], { stdio: 'pipe' });
+    const result = JSON.parse(readFileSync(join(out, 'comparison.json')));
+    for (const arm of result.summary) {
+      assert.equal(arm.verifiedPriceRecords, 0);
+      assert.equal(arm.priceBodyMismatches.length, 1);
+    }
+  } finally { rmSync(out, { recursive: true, force: true }); }
+});
+
+test('the native CLI waits for a permitted menu beyond its conservative twelve-second default', () => {
+  for (const arm of fixture(9, 'slow-menu').arms) {
+    assert.ok(arm.pages.some((p) => p.url.endsWith('/food-menu') && p.status === 200));
+    assert.ok(!arm.events.some((e) => e.reason === 'native-venue-timeout'));
+    if (arm.arm === 'B') assert.deepEqual(arm.nativeFetchErrors, []);
   }
 });

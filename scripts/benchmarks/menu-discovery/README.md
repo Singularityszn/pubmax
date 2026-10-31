@@ -101,7 +101,11 @@ This prevents native retries or cooldowns for the gateway's synthetic responses.
 The comparison therefore measures one-attempt crawling. It does not compare native retry strategies.
 
 The gateway removes executable scripts and remote resource attributes.
-The native crawler uses HTTP mode, one worker, no sitemap seeds, no adaptive early stop, and no persistent cache.
+The native crawler uses HTTP mode, conservative tuning, no sitemap seeds, no adaptive early stop, and no persistent cache.
+Version 0.81.0 conservative tuning overrides its configured worker counts. The shared transport still serialises all upstream requests.
+Both arms pay for the initial root and legal checks. B completes these checks before it starts the native loopback crawl.
+An explicit native timeout preserves its 30-second first-byte limit instead of the conservative 12-second default.
+The audit rejects any native fetch error, including a gateway timeout. It does not treat a locally timed-out request as a relevance result.
 Both arms start at the same venue URL and use maximum discovery depth four.
 Both arms can explore the shared host, so another pub's menu is a possible false positive.
 Both arms can follow explicitly linked external menu PDFs. They cannot explore an arbitrary external website.

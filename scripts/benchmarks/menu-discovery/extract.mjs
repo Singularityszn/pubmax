@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadResults } from './evaluate.mjs';
@@ -12,12 +12,20 @@ mkdirSync(docs, { recursive: true });
 const seen = new Set();
 const output = [];
 const start = performance.now();
-for (const arm of loadResults(run)) {
+const results = loadResults(run).map((row) => ({ ...row, archiveRoot: resolve(run, row.venueId.replace('/', '-'), row.arm) }));
+const referenceRoot = resolve(run, 'reference');
+if (existsSync(referenceRoot)) {
+  for (const entry of readdirSync(referenceRoot, { withFileTypes: true }).filter((e) => e.isDirectory())) {
+    const folder = resolve(referenceRoot, entry.name);
+    if (existsSync(resolve(folder, 'result.json'))) results.push({ ...JSON.parse(readFileSync(resolve(folder, 'result.json'))), archiveRoot: folder });
+  }
+}
+for (const arm of results) {
   for (const page of arm.pages.filter((p) => p.format === 'pdf' && p.status === 200)) {
     if (seen.has(page.bodySha256)) continue;
     seen.add(page.bodySha256);
     const file = resolve(docs, `${page.bodySha256}.pdf`);
-    writeFileSync(file, readFileSync(resolve(run, arm.venueId.replace('/', '-'), arm.arm, page.bodyFile)));
+    writeFileSync(file, readFileSync(resolve(arm.archiveRoot, page.bodyFile)));
     const result = spawnSync(bin, ['scrape', file, '--config', resolve(here, 'pagesift.toml'), '--format', 'json'], { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
     let extracted;
     try { extracted = JSON.parse(result.stdout); } catch { extracted = { success: false }; }

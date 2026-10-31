@@ -46,7 +46,8 @@ for (const arm of results) {
     const records = readFileSync(resolve(run, arm.venueId.replace('/', '-'), arm.arm, 'native-audit.jsonl'), 'utf8').trim().split('\n').filter(Boolean).map((line) => JSON.parse(line));
     for (const record of records) {
       assert.equal(new URL(record.url).hostname, '127.0.0.1');
-      assert.equal(record.engine, 'http');
+      assert.equal(record.engine ?? record.engineRequested, 'http');
+      assert.ok(!record.error, `Native gateway fetch failed: ${record.error}`);
       assert.equal(record.version, '0.81.0');
     }
   });

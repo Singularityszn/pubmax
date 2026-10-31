@@ -50,6 +50,9 @@ async function breadthFirst(transport) {
 }
 
 async function relevanceGuided(transport) {
+  // Complete the mandatory root and legal checks before native loopback timeouts start.
+  // The outer arm timer and request ledger include this work.
+  await transport.fetch(transport.venue.website);
   const routes = new Map();
   let localOrigin;
   let localRequests = 0;
@@ -150,7 +153,9 @@ async function relevanceGuided(transport) {
     : number(/User time \(seconds\): (\d+(?:\.\d+)?)/) + number(/System time \(seconds\): (\d+(?:\.\d+)?)/);
   const childPeakRssBytes = process.platform === 'darwin'
     ? number(/^\s*(\d+)\s+maximum resident set size/m) : number(/Maximum resident set size \(kbytes\): (\d+)/) * 1024;
+  const nativeAudit = readFileSync(resolve(transport.out, 'native-audit.jsonl'), 'utf8').trim().split('\n').filter(Boolean).map((line) => JSON.parse(line));
   return { exitCode, exitSignal, budgetStopped, localRequests, childCpuSeconds, childPeakRssBytes,
+    nativeFetchCount: nativeAudit.length, nativeFetchErrors: nativeAudit.filter((r) => r.error),
     stopReason: budgetStopped ? 'request-budget' : 'native-cli-returned',
     nativeOutputSha256: sha256(readFileSync(resolve(transport.out, 'pagesift.jsonl'))) };
 }
@@ -279,6 +284,7 @@ async function fixture() {
       : scenario === 'redirect-refused' ? '<html><title>Fixture pub</title><a href="/old-menu">Food menu</a></html>'
       : '<html><head><title>Fixture pub food and drinks</title></head><body><h1>Fixture pub</h1><p>London SW1A 1AA</p><a href="/old-menu">Food menu</a><a href="/menu-news">Menu news</a><a href="/private-menu">Private menu</a><a href="/challenge">Drinks menu</a><a href="/unknown-menu">Seasonal menu</a></body></html>');
     if (request.url === '/old-menu') return send('', 302, { location: scenario === 'redirect-refused' ? 'http://169.254.169.254/metadata-menu.pdf' : '/food-menu' });
+    if (request.url === '/food-menu' && scenario === 'slow-menu') return setTimeout(() => send('<html><title>Food menu</title><h1>Food menu</h1><p>Soup £6.50</p></html>'), 13000);
     if (request.url === '/food-menu') return send('<html><head><title>Food menu</title></head><body><h1>Food menu</h1><p>Soup £6.50</p></body></html>');
     if (request.url === '/menu-news') return send('<html><head><title>Menu news</title></head><body><h1>Menu news</h1><p>We will announce our new menu next year.</p></body></html>');
     if (request.url === '/challenge') return send('<html><title>Just a moment...</title><body>cf-chl-platform</body></html>');
@@ -288,7 +294,7 @@ async function fixture() {
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
   const origin = `http://127.0.0.1:${server.address().port}`;
   const venue = { venueId: 'fixture', name: 'Fixture pub', website: scenario === 'source-refused' ? 'http://169.254.169.254/metadata-menu.pdf' : `${origin}/`, postcode: 'SW1A 1AA', goldSample: true };
-  const config = { ...protocol, minIntervalMs: 0, timeoutMs: 3000, requestBudgetPerArmPerVenue: Number(option('budget', 9)) };
+  const config = { ...protocol, minIntervalMs: 0, timeoutMs: scenario === 'slow-menu' ? 20000 : 3000, requestBudgetPerArmPerVenue: Number(option('budget', 9)) };
   const arms = [];
   try {
     for (const arm of ['A', 'B']) arms.push(await runArm({ venue, arm, out: resolve(out, arm), config, clocks: new Map(), fixtureOrigin: origin }));

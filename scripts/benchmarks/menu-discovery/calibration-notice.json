@@ -5,44 +5,64 @@
   "productionModified": false,
   "calibrations": [
     {
-      "archive": "/private/tmp/menu-benchmark-live-pilot-1031",
       "purpose": "three-site pilot",
       "excludedFromComparison": true,
       "completedArmLogs": 6,
       "partialArmDirectories": 0,
       "recordedAttemptsInCompletedLogs": 64,
       "attemptUpperBoundIncludingPartialArms": 64,
-      "knownPostTermsRequestsInCompletedLogs": 16
+      "knownPostTermsRequestsInCompletedLogs": 16,
+      "archiveId": "menu-benchmark-live-pilot-1031"
     },
     {
-      "archive": "/Users/karanmanoharan/.codex/worktrees/menu-discovery-benchmark-1031/pubmaxx/scripts/benchmarks/menu-discovery/runs/live-20261031",
       "purpose": "rate-limit calibration",
       "excludedFromComparison": true,
       "completedArmLogs": 12,
       "partialArmDirectories": 4,
       "recordedAttemptsInCompletedLogs": 68,
       "attemptUpperBoundIncludingPartialArms": 116,
-      "knownPostTermsRequestsInCompletedLogs": 16
+      "knownPostTermsRequestsInCompletedLogs": 16,
+      "archiveId": "live-20261031"
     },
     {
-      "archive": "/Users/karanmanoharan/.codex/worktrees/menu-discovery-benchmark-1031/pubmaxx/scripts/benchmarks/menu-discovery/runs/final-20261031",
       "purpose": "native stop calibration",
       "excludedFromComparison": true,
       "completedArmLogs": 73,
       "partialArmDirectories": 4,
       "recordedAttemptsInCompletedLogs": 473,
       "attemptUpperBoundIncludingPartialArms": 521,
-      "knownPostTermsRequestsInCompletedLogs": 62
+      "knownPostTermsRequestsInCompletedLogs": 62,
+      "archiveId": "final-20261031"
     },
     {
-      "archive": "/Users/karanmanoharan/.codex/worktrees/menu-discovery-benchmark-1031/pubmaxx/scripts/benchmarks/menu-discovery/runs/measured-20261031",
       "purpose": "invalid terms-check calibration",
       "excludedFromComparison": true,
       "completedArmLogs": 78,
       "partialArmDirectories": 4,
       "recordedAttemptsInCompletedLogs": 503,
       "attemptUpperBoundIncludingPartialArms": 551,
-      "knownPostTermsRequestsInCompletedLogs": 72
+      "knownPostTermsRequestsInCompletedLogs": 72,
+      "archiveId": "measured-20261031"
+    },
+    {
+      "archiveId": "access-checked-20261031",
+      "purpose": "Parser pipe-input calibration, excluded after a blocking input read.",
+      "excludedFromComparison": true,
+      "completedArmLogs": 86,
+      "partialArmDirectories": 4,
+      "recordedAttemptsInCompletedLogs": 442,
+      "attemptUpperBoundIncludingPartialArms": 490,
+      "knownPostDetectedTermsRequestsInCompletedLogs": 0
+    },
+    {
+      "archiveId": "cohort-20261031",
+      "purpose": "Native gateway timeout calibration, excluded after ten arms recorded native fetch errors.",
+      "excludedFromComparison": true,
+      "completedArmLogs": 123,
+      "partialArmDirectories": -3,
+      "recordedAttemptsInCompletedLogs": 681,
+      "attemptUpperBoundIncludingPartialArms": 645,
+      "knownPostDetectedTermsRequestsInCompletedLogs": 0
     }
   ]
 }

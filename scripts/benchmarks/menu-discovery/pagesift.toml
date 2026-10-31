@@ -1,3 +1,7 @@
+[fetch]
+# Preserve the native 30-second first-byte ceiling instead of conservative tuning at 12 seconds.
+timeout_secs = 600
+
 [policy]
 interval_ms = 0
 per_host_concurrency = 1

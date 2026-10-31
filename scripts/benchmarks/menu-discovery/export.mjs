@@ -18,10 +18,11 @@ mkdirSync(out, { recursive: true });
 const json = (name, value) => writeFileSync(resolve(out, name), `${JSON.stringify(value, null, 2)}\n`);
 const jsonl = (name, rows) => writeFileSync(resolve(out, name), rows.map((row) => JSON.stringify(row)).join('\n') + '\n');
 for (const name of ['comparison.json', 'audit.json', 'annotations.json', 'sensitivity.json']) copyFileSync(resolve(run, name), resolve(out, name));
-json('run.json', { ...meta, privateResponseArchive: run, responseArchivePublished: false,
+json('run.json', { ...meta, privateResponseArchiveRecordedLocally: true, responseArchivePublished: false,
   note: 'The captured code head is the base checkout. The harness file hashes identify the exact uncommitted source bytes used by this run. No application build or ingestion ran.' });
 jsonl('requests.jsonl', results.flatMap((arm) => arm.requests.map((request) => ({ venueId: arm.venueId, arm: arm.arm, ...request }))));
 jsonl('access-events.jsonl', results.flatMap((arm) => arm.events.map((event) => ({ venueId: arm.venueId, arm: arm.arm, ...event }))));
+jsonl('native-fetches.jsonl', results.filter((arm) => arm.arm === 'B').flatMap((arm) => readFileSync(resolve(run, arm.venueId.replace('/', '-'), 'B', 'native-audit.jsonl'), 'utf8').trim().split('\n').filter(Boolean).map((line) => { const { snapshot, ...record } = JSON.parse(line); return { venueId: arm.venueId, arm: 'B', ...record, snapshotRetainedPrivately: Boolean(snapshot) }; })));
 jsonl('pages.jsonl', results.flatMap((arm) => arm.pages.map(({ text, headings, ...page }) => ({ venueId: arm.venueId, arm: arm.arm,
   ...page, headings: headings.slice(0, 240), textCharacters: text.length, textSha256: sha256(text),
   note: 'Full response and text stay in the private archive. Links, paths, status, format, read time, and content hash remain reviewable.' }))));
@@ -53,6 +54,8 @@ const goldA = primary.find((r) => r.arm === 'A');
 const goldB = primary.find((r) => r.arm === 'B');
 const examples = comparison.summary.flatMap((arm) => arm.falsePositiveUrls.slice(0, 3).map((row) => `- Arm ${arm.arm}: [${row.url}](${row.url}). ${row.evidence ?? 'The recorded reviewer classified this URL as not a menu.'}`));
 const misses = comparison.summary.flatMap((arm) => arm.missingUrls.map((row) => `- Arm ${arm.arm}: ${row.venueId}, [reviewed menu](${row.url}). ${row.fetched ? 'The arm fetched the page but did not identify it.' : 'The arm did not identify this reviewed menu URL.'}`));
+const extraction = JSON.parse(readFileSync(resolve(run, 'extracted-pdfs.json')));
+json('verification-stage.json', { commonPdfExtractionWallSeconds: extraction.wallSeconds, fullHumanVerifiedEndToEndSeconds: null, priceYieldMeaning: 'Verified facts available in downloaded menus under a common offline reader and provisional source review. This is crawl supply, not production ingestion yield.' });
 const menuCount = annotations.labels.filter((l) => l.verdict === 'menu').length;
 const notMenuCount = annotations.labels.filter((l) => l.verdict === 'not-menu').length;
 const unresolvedCount = annotations.labels.filter((l) => l.verdict === 'unresolved').length;
@@ -91,17 +94,22 @@ The archive audit checked ${audit.requests} attempts across all 120 arms and pas
 Verified figures below use the supplied annotations. Unreviewed results do not count as verified menus or prices.
 Discovery includes eligible menu links on captured pages. Downloads require a successful body fetch by that arm.
 The gold review can verify a linked document separately without adding a request to either arm.
+Price yield measures verified facts available in downloaded menus under a common offline reader.
+It does not measure production ingestion or a fully reviewed price inventory.
 
 | Metric | A: breadth-first | B: PageSift 0.81.0 |
 | --- | ---: | ---: |
 ${table}
 | Judged-candidate precision | ${percent(a.precision)} | ${percent(b.precision)} |
+| Precision lower bound | ${percent(a.precisionLowerBound)} | ${percent(b.precisionLowerBound)} |
+| Precision upper bound | ${percent(a.precisionUpperBound)} | ${percent(b.precisionUpperBound)} |
 | Recall against all reviewed inventory URLs | ${percent(a.recall)} | ${percent(b.recall)} |
 | Measured-component cost scenario | ${dollars(a.estimatedMeasuredComponentCost.total)} | ${dollars(b.estimatedMeasuredComponentCost.total)} |
 
 The cohort took ${fmt(meta.wallSeconds)} seconds of elapsed time.
 The sum of venue durations includes overlapping workers and therefore differs from cohort elapsed time.
 The native process stops when a new fetch would exceed the upstream cap.
+Empty local responses suppress native retries of gateway refusals. The ledger preserves actual upstream statuses and failures.
 Its planned SIGINT termination is distinct from a transport failure or a blocked website.
 
 ## Gold sample and review limits
@@ -133,6 +141,8 @@ A downloaded six PDFs there. B downloaded no PDF and returned two native HTML do
 The PDF set includes food, wine, and cocktail menus, alongside a cigar catalogue that does not qualify.
 An offline sensitivity check also extracted little main content from the original Old Ship HTML.
 This supports the extraction-failure explanation for this case, but it does not isolate the gateway's full effect on all websites.
+This diagnostic venue is outside the primary gold sample. Its price records are a lower bound, not evidence of population-wide superiority.
+Both arms use one common candidate filter. Their false positives do not establish that PageSift alone misclassified those pages.
 
 ## Compute and estimated cost
 
@@ -147,7 +157,9 @@ These assumed rates are not a supplier quote or an actual bill.
 The memory scenario charges each arm's summed duration at the sum of its measured component maxima.
 The estimate excludes coordinator CPU, retained storage, review labour, and an unknown commercial licence price.
 There are no paid API or model calls in either arm.
-Separate reference fetches and offline review extraction stay outside the benchmark request and latency totals.
+Separate reference fetches and offline review extraction stay outside the crawl request and latency totals.
+The common offline PDF extraction took ${fmt(extraction.wallSeconds, 3)} seconds.
+Full latency through human gold approval is unknown. The report gives crawl latency, not human-review turnaround.
 
 ## Licence and adoption decision
 
@@ -165,14 +177,18 @@ Reject integration now. Keep A as the benchmark baseline and use the review pack
 
 The [benchmark instructions](../../README.md) provide the installation, CLI checks, live run, and offline evaluation commands.
 The [input manifest](../../manifest.json), [protocol](../../protocol.json), and [rubric](../../RUBRIC.md) define the experiment.
-The response archive remains private at \`${run}\`.
+The response archive remains private. Its local path is recorded with the research task.
 The committed request, page, and access-event files preserve URLs, crawl paths, read times, and response hashes.
 The exact crawler source hashes appear in \`run.json\`.
 The recorded run started at ${meta.startedAt} and finished at ${meta.finishedAt}.
 The recorded base head is \`${meta.codeHead}\`. The harness file hashes identify the run's exact source bytes.
 
-Calibration runs exposed the native post-budget timing problem and are excluded from this comparison.
-They consumed additional permitted reads under separate per-run caps. Their latency is not mixed into this run.
+Calibration runs exposed timing and parser problems and are excluded from this comparison.
+An earlier terms matcher also missed a published scraping prohibition. Some calibration reads continued after that prohibition.
+I stopped those runs, excluded their data, added benchmark-only host holds, and added a regression test for the exact wording.
+The corrected run applies those holds before any request. Its audit checks that no request follows a detected terms refusal.
+The calibration notice records the known affected requests and partial-log limits. Those reads are not described as permitted.
+Calibration latency and data do not enter this comparison.
 No production crawl, ingestion, migration, application build, or deployment ran as part of this benchmark.
 `;
 writeFileSync(resolve(out, 'REPORT.md'), markdown);
