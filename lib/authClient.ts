@@ -207,13 +207,14 @@ export function isAuthConfigured(): boolean {
 }
 
 /**
- * The current provider account's access token (JWT), or null when signed out /
- * unconfigured. The SDK's storage read can lag the provider's account event.
- * Release its token only when both still name the same account.
- * Ownership-sensitive writes send this as `Authorization: Bearer`
- * so the server can verify the caller's identity (lib/authServer.ts). Best-effort
- * and non-throwing: any failure resolves to null, and the caller simply makes an
- * anonymous request (still valid for an unlinked, demo handle).
+ * The SDK's storage read can lag the provider's account event.
+ * Release a Supabase token only when its owner matches that provider's account
+ * and the account signal captured before the read remains active.
+ * A sign-out and return to the same account also invalidates that read.
+ * Unavailable browser auth, a failed session read or an ownership mismatch
+ * returns null. Browser-client initialisation can reject.
+ * The transport in lib/authedFetch.ts decides whether a missing token permits
+ * an anonymous request or requires a retry or refusal.
  */
 export async function getAccessToken(): Promise<string | null> {
   const accountSignal = readProviderAccountSignal();

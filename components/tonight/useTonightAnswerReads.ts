@@ -155,7 +155,8 @@ export function useRegularNights(enabled: boolean): RegularNightsRead {
 
 /**
  * The nights drinkers added for one weekday, from /api/regular-nights, read
- * once `weekday` is known. Fail-soft: a read that could not answer leaves the
+ * when `weekday` and the required identity are ready. Account ownership follows
+ * docs/rules/lib-identity-accounts-and-sessions.md. A failed read leaves the
  * drinker list empty and the sourced nights untouched. Hidden and expired rows
  * are dropped again by `parseDrinkerRegularNights`, whatever the route sent.
  */

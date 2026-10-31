@@ -4,10 +4,9 @@
 //
 // A different signed-in account may say the night is still on, once, which
 // keeps the report 90 more days (PATCH /api/regular-nights). The reporter gets
-// no button: the read marks their own rows `own` when it was made with their
-// session, and their current handle on an open row says the same thing while
-// that read is anonymous. A signed-out or still unresolved viewer gets no
-// button either: for them the row is a read, not a door.
+// no button: the authenticated read marks their own rows `own`.
+// The handle comparison also excludes their rows when ownership data is absent.
+// A signed-out or still unresolved viewer gets no button either.
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { readProviderAccountRevision, readProviderAccountSignal, subscribeProviderIdentityRevision } from "@/lib/authProviderRevision";
