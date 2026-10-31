@@ -49,6 +49,11 @@ export function useThemeChoice(): ThemePreference {
 export function toggleThemeChoice(): void {
   const next: ThemePreference = domTheme() === "dark" ? "light" : "dark";
   document.documentElement.dataset.theme = next;
+  // A choice, whether or not storage keeps it. The marker lives on the
+  // document, so every theme writer (the night clock in ThemeAttribute, the OS
+  // listener in NativeSystemBars) stands down for the life of the page.
+  document.documentElement.dataset.themeChosen = "1";
+  delete document.documentElement.dataset.nightTheme;
   try {
     safeLocalStorage()?.setItem(THEME_STORAGE_KEY, next);
   } catch {

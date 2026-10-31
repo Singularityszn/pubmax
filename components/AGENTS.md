@@ -23,6 +23,7 @@ Full rules: [`docs/rules/components-map-canvas-and-pins.md`](../docs/rules/compo
 - [A MAP THAT NEVER MOUNTS IS THE SHELL'S PROBLEM, AND NOTHING ON /map MAY WAIT FOR IT FOR EVER.](../docs/rules/components-map-canvas-and-pins.md#a-map-that-never-mounts-is-the-shell-s-problem-and-nothing-on-map-may-wait-for-i)
 - [THE PINS ARRIVE DURING THE ARRIVAL FLIGHT, NEVER BEFORE THE BASEMAP.](../docs/rules/components-map-canvas-and-pins.md#the-pins-arrive-during-the-arrival-flight-never-before-the-basemap)
 - [THE DOCUMENT DRAWS THE OPENING PRICES BEFORE THE ENGINE, AND ONLY THE ONES IT WILL DRAW.](../docs/rules/components-map-canvas-and-pins.md#the-document-draws-the-opening-prices-before-the-engine-and-only-the-ones-it-wil)
+- [THE CRAWL ROUTE READS LIKE DIRECTIONS, AND AN ESTIMATE STILL SAYS SO.](../docs/rules/components-map-canvas-and-pins.md#the-crawl-route-reads-like-directions-and-an-estimate-still-says-so)
 - [THE OPENING PRICES STAND ON A PICTURE OF THE OPENING STREETS, AND ONLY FOR THE CAMERA IT WAS TAKEN FROM.](../docs/rules/components-map-canvas-and-pins.md#the-opening-prices-stand-on-a-picture-of-the-opening-streets-and-only-for-the-ca)
 
 ## Sheets, chrome and navigation
@@ -57,6 +58,7 @@ Full rules: [`docs/rules/components-venue-plan-and-message-surfaces.md`](../docs
 - [A PLAN READ FOLLOWS THE CAPABILITY, AND THE INVITE TOKEN IS ONE LIVE VALUE.](../docs/rules/components-venue-plan-and-message-surfaces.md#a-plan-read-follows-the-capability-and-the-invite-token-is-one-live-value)
 - [A message bubble's WIDTH is the row's business, and a message photo is the one owned image that is not public.](../docs/rules/components-venue-plan-and-message-surfaces.md#a-message-bubble-s-width-is-the-row-s-business-and-a-message-photo-is-the-one-ow)
 - [A THREAD READS LIKE A CONVERSATION, AND ITS COMPOSER IS PINNED OVER THE FOOT OF THE PAGE.](../docs/rules/components-venue-plan-and-message-surfaces.md#a-thread-reads-like-a-conversation-and-its-composer-is-pinned-over-the-foot-of-t)
+- [WAYS TO GET THERE SHOW TFL'S OWN TIMES, FARES AND PATHS, AND NEVER GUESS A FARE.](../docs/rules/components-venue-plan-and-message-surfaces.md#ways-to-get-there-show-tfl-s-own-times-fares-and-paths-and-never-guess-a-fare)
 
 ## Design system and launch primitives
 

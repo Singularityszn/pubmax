@@ -1,3 +1,4 @@
+import { formatGbp } from "@/lib/formatGbp";
 import { haversineKm } from "@/lib/haversine";
 import { WALK_KMH } from "@/lib/routeLegs";
 import { isPublicRankablePub } from "@/lib/venueKindFilters";
@@ -133,6 +134,12 @@ export type NearMeAnswer = {
   radiusKm: number;
   /** How many priced pubs sit inside the walkable ring (for honest copy). */
   qualifyingWithinWalk: number;
+  /**
+   * The nearest priced pub inside the walkable ring, whatever its price: the
+   * pub a reader would walk into without the answer. Null outside the
+   * "walkable" scope, where the cards are already the nearest ones.
+   */
+  nearest: NearMeCard | null;
 };
 
 export type RankNearMeOptions = {
@@ -204,6 +211,7 @@ export function rankNearMe(
       scope: "walkable",
       radiusKm: walkRadius,
       qualifyingWithinWalk: walkable.length,
+      nearest: walkable[0] ? toCard(walkable[0]) : null,
     };
   }
 
@@ -212,7 +220,7 @@ export function rankNearMe(
   const widened = measured.filter((entry) => entry.km <= wideRadius);
   const pool = widened.length > 0 ? widened : measured;
   if (pool.length === 0) {
-    return { cards: [], scope: "none", radiusKm: wideRadius, qualifyingWithinWalk: 0 };
+    return { cards: [], scope: "none", radiusKm: wideRadius, qualifyingWithinWalk: 0, nearest: null };
   }
   const nearest = pool.slice(0, max);
   const cards = nearest.map(toCard).sort(byPriceThenDistance);
@@ -222,7 +230,40 @@ export function rankNearMe(
     scope: "widened",
     radiusKm: radiusKm > 0 ? radiusKm : wideRadius,
     qualifyingWithinWalk: walkable.length,
+    nearest: null,
   };
+}
+
+/** Under this gap a saving line is noise, not a reason to walk further. */
+export const MIN_NEAR_SAVING_GBP = 0.1;
+
+/**
+ * The saving the first answer is worth, in pounds, against the pub on the
+ * reader's doorstep: "The Lamb is £1.10 a pint less than The Crown, the
+ * nearest pub with a listed price (£6.20, 0.2 km)." It names both pubs, so the line
+ * stands on its own above the list.
+ *
+ * THREE RULES, the same ones lib/pintSavings.ts keeps for the landing.
+ * (1) TWO LISTED PRICES, NEVER A GUESS. Both figures are a pub's cheapest
+ *     listed pint, and the line prints the doorstep pub's own figure, so the
+ *     reader can check the sum.
+ * (2) PER PINT ONLY. We do not know how many pints they drink, so no total.
+ * (3) SILENT WHEN THERE IS NOTHING TO SAY. No line when the nearest pub IS
+ *     the answer, when it is no dearer, or when the gap is under 10p.
+ *
+ * Only a reader's own fix earns the line: "nearest" from a fallback centre is
+ * a doorstep nobody is standing on, so callers pass `nearest` only there.
+ */
+export function nearSavingLine(cards: readonly NearMeCard[], nearest: NearMeCard | null): string | null {
+  const top = cards[0];
+  if (!top || !nearest || nearest.id === top.id) return null;
+  const gap = Math.round((nearest.cheapestPrice - top.cheapestPrice) * 100) / 100;
+  if (!(gap >= MIN_NEAR_SAVING_GBP)) return null;
+  // The doorstep pub is often not one of the cards, so its price rides in the
+  // line: the reader can check the sum without opening anything.
+  const where = formatNearDistance(nearest.distanceKm);
+  const detail = [formatGbp(nearest.cheapestPrice), where].filter(Boolean).join(", ");
+  return `${top.name} is ${formatGbp(gap)} a pint less than ${nearest.name}, the nearest pub with a listed price (${detail}).`;
 }
 
 /**

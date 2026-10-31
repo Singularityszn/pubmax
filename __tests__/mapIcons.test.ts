@@ -13,6 +13,7 @@ import {
   PILL_BOX,
   PILL_ICON_KEY_PREFIX,
   PILL_STRETCH,
+  ROUTE_TIME_ICON_KEY,
   drinkPinKindFromCategories,
   iconId,
   pillIconKey,
@@ -193,7 +194,7 @@ describe("MAP_ICON_SPECS registry", () => {
 
   it("every spec has a valid namespace, a draw function, and a positive size", () => {
     for (const spec of MAP_ICON_SPECS) {
-      expect(["lm", "tfl", "drink", "base", "pill"], `${spec.key} ns`).toContain(
+      expect(["lm", "tfl", "drink", "base", "pill", "route"], `${spec.key} ns`).toContain(
         spec.ns,
       );
       expect(typeof spec.draw, `${spec.key} draw`).toBe("function");
@@ -456,6 +457,36 @@ describe("price pill (ns: pill)", () => {
     const painted = exercise(spec, TOKENS);
     expect(painted.fillStyles[0]).toBe(TOKENS.paper);
     expect(painted.strokeStyles).toEqual([TOKENS.ink]);
+  });
+});
+
+describe("route time bubble (ns: route)", () => {
+  const bubble = MAP_ICON_SPECS.find((spec) => spec.ns === "route" && spec.key === ROUTE_TIME_ICON_KEY)!;
+
+  it("is the one route image, a stretchable box whose stretch stays clear of its round ends", () => {
+    expect(MAP_ICON_SPECS.filter((spec) => spec.ns === "route")).toEqual([bubble]);
+    const width = bubble.size;
+    const height = defined(bubble.height);
+    const stretch = defined(bubble.stretch);
+    const [x0, x1] = defined(stretch.x[0]);
+    const [y0, y1] = defined(stretch.y[0]);
+    const [left, top, right, bottom] = stretch.content;
+    // A 10px corner radius: the stretch may not begin inside a corner.
+    expect(x0).toBeGreaterThanOrEqual(10);
+    expect(x1).toBeLessThanOrEqual(width - 10);
+    expect(y0).toBeGreaterThanOrEqual(10);
+    expect(y1).toBeLessThanOrEqual(height - 10);
+    expect(left).toBeLessThan(right);
+    expect(top).toBeLessThan(bottom);
+    expect(right).toBeLessThanOrEqual(width);
+    expect(bottom).toBeLessThanOrEqual(height);
+  });
+
+  it("paints the plaque surface and an ink rim, and no price band, because it is a time", () => {
+    const painted = exercise(bubble, { ...TOKENS, pillSurface: "#f4ead5", pillRim: "rgba(23, 23, 26, 0.7)" });
+    expect(painted.fillStyles).toEqual(["#f4ead5"]);
+    expect(painted.strokeStyles).toEqual(["rgba(23, 23, 26, 0.7)"]);
+    expect(exercise(bubble, TOKENS).fillStyles).toEqual([TOKENS.paper]);
   });
 });
 
