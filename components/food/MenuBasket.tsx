@@ -2,7 +2,7 @@
 
 import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { drinkProvenanceLabel, type Drink } from "@/lib/drinks";
+import { drinkProvenanceLabel, isUnattributedDrinkPrice, type Drink } from "@/lib/drinks";
 import type { FoodItem } from "@/lib/food";
 import { menuBasketItems, quoteMenuBasket } from "@/lib/menuBasket";
 import { formatObservedDate } from "@/lib/dataFreshness";
@@ -43,7 +43,8 @@ export default function MenuBasket({ venueId, food, drinks }: { venueId: string;
         <div role="group" aria-labelledby={labelId}>
           {selected.map((item) => {
             const quantity = quantities[item.id] ?? 0;
-            const publisherLabel = drinkProvenanceLabel({ source: item.evidence.source, sourceUrl: item.evidence.url ?? undefined });
+            const provenance = { source: item.evidence.source, sourceUrl: item.evidence.url ?? undefined };
+            const publisherLabel = drinkProvenanceLabel(provenance);
             return <div key={item.id} className="menuBasketRow">
               <label>
                 <span>{item.name}</span>
@@ -55,7 +56,7 @@ export default function MenuBasket({ venueId, food, drinks }: { venueId: string;
                 }} />
               </label>
               <span className="menuBasketMeta">
-                {item.evidence.url ? <a href={item.evidence.url} target="_blank" rel="noopener noreferrer">{publisherLabel}</a> : publisherLabel}
+                {item.evidence.url ? <a href={item.evidence.url} target="_blank" rel="noopener noreferrer">{publisherLabel}</a> : <>{publisherLabel}{!isUnattributedDrinkPrice(provenance) ? ". Link unavailable." : null}</>}
                 {item.evidence.observedAt ? <> · Collected <time dateTime={item.evidence.observedAt}>{formatObservedDate(new Date(item.evidence.observedAt))}</time></> : " · Collection date not recorded"}
               </span>
             </div>;

@@ -125,6 +125,7 @@ it("retains a named publisher when its link is unavailable", async () => {
   const h = await mount([], [{ ...drink, provenance: { ...drink.provenance, source: "Recorded menu publisher", sourceUrl: "javascript:alert(1)" } }]);
   await addItem("drink:soft");
   expect(h.textContent).toContain("Recorded menu publisher");
+  expect(h.textContent).toContain("Link unavailable.");
   expect(h.querySelector("a")).toBeNull();
   expect(h.textContent).not.toContain("Publisher not recorded");
 });
