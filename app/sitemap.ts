@@ -15,6 +15,7 @@ import { pricePulseLastModified, publishedEditions } from "@/lib/pricePulse";
 import { PRICE_PULSE_EDITION_FILES } from "@/lib/pricePulseEditions";
 import { EXPLAINER_REVIEWED_ON } from "@/lib/pricePulseExplainer";
 import { PUBLIC_UPDATES } from "@/lib/publicUpdates";
+import priceHistory from "@/public/data/price_history/london.json";
 import {
   drinkBrandAreaLandingRoute,
   loadDrinkBrandAreaLandings,
@@ -163,6 +164,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         }]
       : []),
     { path: "/historic", priority: 0.8, changeFrequency: "weekly", lastModified: historicModified },
+    // The pint price time machine. Its own history file dates it: the rows are
+    // curated by hand, so the page changes when the file is re-curated.
+    {
+      path: "/time-machine",
+      priority: 0.5,
+      changeFrequency: "monthly",
+      lastModified: new Date(`${priceHistory.generatedAt}T00:00:00.000Z`),
+    },
     // The Spoons value ranking. Its own content dates it: the figures are an
     // imported edition and nothing we run advances them, so it changes when a
     // re-import lands and not on our build clock.
@@ -196,6 +205,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "yearly",
       lastModified: now,
     },
+    // The two pages other sites are asked to link to (docs/growth/
+    // BACKLINK_PLAYBOOK.md): the quotable findings and the free calculator.
+    { path: "/press", priority: 0.5, changeFrequency: "monthly", lastModified: now },
+    { path: "/pub-crawl-cost", priority: 0.5, changeFrequency: "yearly", lastModified: now },
     { path: "/crawls", priority: 0.6, changeFrequency: "weekly", lastModified: now },
     // The city picker. /choose-city held this row until the picker was made
     // one page: it now 308s to /places (proxy.ts), and the canonical moved in

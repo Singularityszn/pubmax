@@ -2,6 +2,7 @@ import "server-only";
 
 import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
 
+import { cleanPlanUsualDrink } from "@/lib/planUsualDrink";
 import { cleanCrewName, CREW_MAX_MEMBERS, isCrewPresenceStatus, type CrewMemberDTO, type CrewPresenceStatus } from "@/lib/crew";
 import { canTransitionPlannedNight, cleanCreatePlan, cleanEndingSelection, isPlanId, type CleanPlanInput, type CrawlEnding, type CreatePlanInput, type EndingSelection, type PlanActionDTO, type PlanAnchorMetadata, type PlanCompletionDTO, type PlanDTO, type PlanMemberRole, type PlannedNightStatus, type PlanState, type PlanStopDTO } from "@/lib/plan";
 import { CLASSIC_PLAN_INVITE_TOKEN_PATTERN } from "@/lib/planCrewInviteUrl";
@@ -75,6 +76,8 @@ export type PlanStore = {
   get(id: string): Promise<PlanState | null>;
   join(id: string, name: unknown, options?: { collaborationAuthorized?: boolean; idempotencyKey?: string; userId?: string }): Promise<PlanJoinResult>;
   updatePresence(id: string, memberToken: unknown, status: unknown): Promise<PlanPresenceResult>;
+  /** The caller's own usual drink for the round forecast (review item B6). Their seat only. */
+  updateUsualDrink(id: string, memberToken: unknown, drink: unknown): Promise<PlanPresenceResult>;
   update(id: string, memberToken: unknown, update: { status?: PlannedNightStatus; context?: NightContext; stops?: PlanStopDTO[]; expectedRouteRevision?: number; groundedUpgrade?: boolean }): Promise<PlanUpdateResult>;
   addAction(id: string, memberToken: unknown, action: { type: PlanActionDTO["type"]; stopPosition?: number; ending?: CrawlEnding; idempotencyKey?: string }): Promise<PlanUpdateResult>;
   getCompletion(id: string): Promise<PlanCompletionDTO | null>;
@@ -216,13 +219,34 @@ function stopFromRow(row: Record<string, unknown>): PlanStopDTO {
 }
 
 function memberFromRow(row: Record<string, unknown>): CrewMemberDTO {
+  const usualDrink = cleanPlanUsualDrink(row.usual_drink);
   return {
     id: String(row.id),
     name: String(row.name),
     status: row.status as CrewPresenceStatus,
     joinedAt: String(row.joined_at),
     updatedAt: String(row.updated_at),
+    ...(usualDrink ? { usualDrink } : {}),
   };
+}
+
+/**
+ * The crew read, with the usual drink when migration 0211 is applied. A deploy
+ * that runs ahead of the apply reads the crew without it (42703, the stops
+ * read's idiom below), so the plan still opens and the round forecast stays
+ * off until the column exists.
+ */
+async function readCrewRows(id: string) {
+  const admin = requireSupabaseAdmin();
+  const result = await admin.from(MEMBERS).select("id,name,status,joined_at,updated_at,usual_drink")
+    .eq("plan_id", id)
+    .is("membership_revoked_at", null)
+    .order("joined_at").order("id");
+  if (result.error?.code !== "42703") return result;
+  return admin.from(MEMBERS).select("id,name,status,joined_at,updated_at")
+    .eq("plan_id", id)
+    .is("membership_revoked_at", null)
+    .order("joined_at").order("id");
 }
 
 async function readSupabasePlanState(
@@ -253,10 +277,7 @@ async function readSupabasePlanState(
     { data: actionRows, error: actionsError },
   ] = await Promise.all([
     readStops(),
-    admin.from(MEMBERS).select("id,name,status,joined_at,updated_at")
-      .eq("plan_id", id)
-      .is("membership_revoked_at", null)
-      .order("joined_at").order("id"),
+    readCrewRows(id),
     admin.from(ACTIONS).select("id,type,stop_position,ending,created_at").eq("plan_id", id).order("created_at"),
   ]);
   if (stopsError || membersError || actionsError) {
@@ -420,6 +441,31 @@ export const supabasePlanStore: PlanStore = {
       return plan ? { ok: true, plan } : { ok: false, error: "error" };
     } catch (error) {
       console.error("[plans] presence failed:", error instanceof Error ? error.message : error);
+      return { ok: false, error: "error" };
+    }
+  },
+  async updateUsualDrink(id, rawToken, rawDrink) {
+    const drink = cleanPlanUsualDrink(rawDrink);
+    if (!isPlanId(id) || typeof rawToken !== "string" || !drink) {
+      return { ok: false, error: "invalid" };
+    }
+    const lookup = await planStateResult(id);
+    if (!lookup.ok) return { ok: false, error: "error" };
+    if (!lookup.plan) return { ok: false, error: "not_found" };
+    try {
+      // The seat is found by its own token hash, so a member sets their own
+      // drink and nobody else's. `updated_at` is left alone: it dates presence.
+      const { data, error } = await requireSupabaseAdmin().from(MEMBERS)
+        .update({ usual_drink: drink })
+        .eq("plan_id", id).eq("token_hash", hashPlanMemberToken(rawToken))
+        .is("membership_revoked_at", null)
+        .select("id").maybeSingle();
+      if (error) throw new Error(error.message);
+      if (!data) return { ok: false, error: "forbidden" };
+      const plan = await this.get(id);
+      return plan ? { ok: true, plan } : { ok: false, error: "error" };
+    } catch (error) {
+      console.error("[plans] usual drink failed:", error instanceof Error ? error.message : error);
       return { ok: false, error: "error" };
     }
   },
@@ -630,6 +676,7 @@ function publicState(value: MemoryPlan): PlanState {
       status: member.status,
       joinedAt: member.joinedAt,
       updatedAt: member.updatedAt,
+      ...(member.usualDrink ? { usualDrink: member.usualDrink } : {}),
     }))
       .sort((a, b) => a.joinedAt.localeCompare(b.joinedAt)),
     context: value.context ? structuredClone(value.context) : null,
@@ -761,6 +808,18 @@ export const memoryPlanStore: PlanStore = {
     if (!member) return { ok: false, error: "forbidden" };
     member.status = rawStatus;
     member.updatedAt = stamp();
+    return { ok: true, plan: publicState(plan) };
+  },
+  async updateUsualDrink(id, rawToken, rawDrink) {
+    const drink = cleanPlanUsualDrink(rawDrink);
+    if (!isPlanId(id) || typeof rawToken !== "string" || !drink) {
+      return { ok: false, error: "invalid" };
+    }
+    const plan = memoryPlans.get(id);
+    if (!plan) return { ok: false, error: "not_found" };
+    const member = plan.crew.find((candidate) => candidate.tokenHash === hashPlanMemberToken(rawToken));
+    if (!member) return { ok: false, error: "forbidden" };
+    member.usualDrink = drink;
     return { ok: true, plan: publicState(plan) };
   },
   async update(id, rawToken, update) {
@@ -945,6 +1004,33 @@ async function supabasePlanMemberIdentityResult(id: string, rawToken: string): P
     : result;
 }
 
+/**
+ * One guest capability (launch review 3.5): a guest who holds the host's
+ * classic invite link may vote, propose, add a need and check in. This lifts
+ * an EXISTING non-host seat to that capability. It never creates a seat, never
+ * touches the host row and never revives a revoked one, and it only ever
+ * grants, so a repeat is harmless. False means no live seat matched or the
+ * write did not run.
+ */
+export async function grantPlanMemberCollaboration(id: string, rawToken: unknown): Promise<boolean> {
+  if (!isPlanId(id) || typeof rawToken !== "string" || !rawToken.trim()) return false;
+  const identity = await planMemberIdentity(id, rawToken);
+  if (!identity) return false;
+  if (identity.role === "host" || identity.collaborationAuthorized) return true;
+  if (!isSupabaseConfigured()) return grantMemoryPlanCollaboration(id, rawToken.trim());
+  try {
+    const { data, error } = await requireSupabaseAdmin().from(MEMBERS)
+      .update({ can_collaborate: true })
+      .eq("plan_id", id)
+      .eq("id", identity.memberId)
+      .is("membership_revoked_at", null)
+      .select("id");
+    return !error && Array.isArray(data) && data.length > 0;
+  } catch {
+    return false;
+  }
+}
+
 export function grantMemoryPlanCollaboration(id: string, rawToken: unknown): boolean {
   if (isSupabaseConfigured() || !isPlanId(id) || typeof rawToken !== "string") return false;
   const member = memoryPlans.get(id)?.crew.find((candidate) => candidate.tokenHash === hashPlanMemberToken(rawToken));
@@ -973,8 +1059,10 @@ export async function joinMemoryPlanInviteRsvpMember(
   if (existingReplay && existingReplay.origin !== "invite_rsvp") {
     return { ok: false, error: "conflict" };
   }
+  // A Going RSVP through the host's invite link is the same capability as a
+  // join through it, so the seat may collaborate (launch review 3.5).
   const joined = await memoryPlanStore.join(id, memberName, {
-    collaborationAuthorized: false,
+    collaborationAuthorized: true,
     idempotencyKey,
   });
   if (!joined.ok) {
@@ -989,7 +1077,8 @@ export async function joinMemoryPlanInviteRsvpMember(
     ) return joined;
     member.name = memberName;
     member.updatedAt = stamp();
-    replay.requestHash = planRequestDigest({ name: memberName, collaborationAuthorized: false });
+    member.collaborationAuthorized = true;
+    replay.requestHash = planRequestDigest({ name: memberName, collaborationAuthorized: true });
     const plan = await memoryPlanStore.get(id);
     return plan
       ? {
@@ -997,7 +1086,7 @@ export async function joinMemoryPlanInviteRsvpMember(
           plan,
           memberToken: planIdempotencyDigest(`plan-join-token:${id}`, idempotencyKey),
           role: "guest",
-          collaborationAuthorized: false,
+          collaborationAuthorized: true,
           memberId,
         }
       : { ok: false, error: "error" };

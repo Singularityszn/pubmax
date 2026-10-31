@@ -170,13 +170,17 @@ describe("selectGroundedPlanRoute", () => {
     expect(openingScheduleReads).toBe(candidates.length);
   });
 
-  it("fails closed for requested transport constraints without matching evidence", () => {
+  it("treats a transport word as a preference, never a refusal", () => {
     const candidates = [candidate("a"), candidate("b"), candidate("c")];
 
     expect(selectGroundedPlanRoute(
       candidates,
       constraints({ transportConstraints: ["tube"] }),
-    ).ok).toBe(false);
+    ).ok).toBe(true);
+    expect(selectGroundedPlanRoute(
+      candidates,
+      constraints({ transportConstraints: ["walking"] }),
+    ).ok).toBe(true);
     expect(selectGroundedPlanRoute(candidates, constraints()).ok).toBe(true);
   });
 

@@ -1,8 +1,14 @@
 // UK city rivalry leaderboard — ranks cities by community energy, not fake
-// price catalogues. Score = demo Pint Drops × 3 + curated crawl packs × 5 +
-// min(venues, 200) / 10. Organic drop counts are never invented: only demo
-// seeds that already ship (London + Manchester) contribute drop energy;
-// Glasgow and other cities stay at 0 until seeded.
+// price catalogues. Score = Pint Drops × 3 + curated crawl packs × 5 +
+// min(venues, 200) / 10.
+//
+// REAL COUNTS OR NOTHING (launch review, 30 Oct 2026, item 10). The board used
+// to score twelve cities from DEMO seed counts and printed "Seeded only where
+// we've got demo data" on the live site. A demo count is never a drop count
+// now: the snapshot takes REAL per-city counts from its caller, and
+// `publishableCityRivalry` hands a page rows only when every city has a real
+// count above zero. No real counter exists yet, so the board is empty and the
+// Pubs and pints tab prints no section. The path stays for that counter.
 
 import "server-only";
 
@@ -11,7 +17,6 @@ import path from "path";
 
 import { CITIES, listEnabledCities, type CityId } from "@/lib/cities";
 import { curatedCrawlsForCity } from "@/lib/cityCuratedCrawls";
-import { demoPintDropsForCity } from "@/lib/pintDropSeeds";
 import { rowsFromSlimPayload } from "@/lib/slimPayload";
 
 export type CityRivalryEntry = {
@@ -109,11 +114,15 @@ function countSlimVenues(
 }
 
 /**
- * Demo Pint Drop count for a city — seeds only, never invented organics.
- * London + Manchester ship seeds; Glasgow and others are 0 until seeded.
+ * The board a public page may print: every row, when every city carries a
+ * real Pint Drop count above zero, and otherwise nothing at all. A partial
+ * board would rank cities on counts we do not hold.
  */
-function demoDropCountForCity(cityId: CityId): number {
-  return demoPintDropsForCity(cityId).length;
+export function publishableCityRivalry(entries: readonly CityRivalryEntry[]): CityRivalryEntry[] {
+  if (entries.length === 0) return [];
+  return entries.every((entry) => Number.isFinite(entry.dropCount) && entry.dropCount > 0)
+    ? [...entries]
+    : [];
 }
 
 /**
@@ -137,26 +146,30 @@ export function crawlPackCountForCity(cityId: CityId): number {
 }
 
 /**
- * Build the live rivalry snapshot from demo seeds, curated crawl packs, and
- * slim venue lengths. Optional venueOverrides keep Node filesystem out of tests.
+ * Build the publishable rivalry snapshot from REAL per-city Pint Drop counts,
+ * curated crawl packs and slim venue lengths. A city missing from
+ * `realDropCounts` counts zero, so the board stays empty until a real counter
+ * supplies every city. Optional venueOverrides keep Node filesystem out of tests.
  */
 export function buildCityRivalrySnapshot(
   venueOverrides?: Partial<Record<CityId, number>>,
+  realDropCounts: Partial<Record<CityId, number>> = {},
 ): CityRivalryEntry[] {
   const rows: CityRivalryInput[] = listEnabledCities().map((city) => ({
     cityId: city.id,
     displayName: city.displayName,
-    dropCount: demoDropCountForCity(city.id),
+    dropCount: realDropCounts[city.id] ?? 0,
     crawlPackCount: crawlPackCountForCity(city.id),
     venueCount: countSlimVenues(city.id, venueOverrides),
     tagline: city.tagline,
   }));
-  return rankCities(rows);
+  return publishableCityRivalry(rankCities(rows));
 }
 
 /** Alias matching the product brief. */
 export function cityRivalryLeaderboard(
   venueOverrides?: Partial<Record<CityId, number>>,
+  realDropCounts?: Partial<Record<CityId, number>>,
 ): CityRivalryEntry[] {
-  return buildCityRivalrySnapshot(venueOverrides);
+  return buildCityRivalrySnapshot(venueOverrides, realDropCounts);
 }
