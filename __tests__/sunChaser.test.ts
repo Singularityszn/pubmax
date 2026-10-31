@@ -4,6 +4,7 @@ import {
   buildSunTimeline,
   estimateSun,
   formatSunClock,
+  timelineFromStates,
   indexSunBuildings,
   occupiedStretches,
   OPENMAPTILES_DEFAULT_HEIGHT_M,
@@ -142,6 +143,42 @@ describe("timeline and words", () => {
     if (estimate.kind !== "estimate") return;
     const inShade = new Date((estimate.timeline.segments[0]?.end.getTime() ?? 0) + 10 * 60_000);
     expect(sunHeadline(estimate, inShade, false)).toMatch(/^Garden likely in shade at \d\d:\d\d\. Sun likely from|^Garden likely in shade at \d\d:\d\d, and no sun likely before/);
+  });
+
+  it("stops a shade forecast when later building heights are unknown", () => {
+    const start = new Date("2026-10-31T12:00:00Z");
+    const timeline = timelineFromStates((ms) => ms < start.getTime() + 30 * 60_000 ? "shade" : "unknown", start);
+    expect(sunHeadline({ kind: "estimate", timeline }, start, true)).toBe(
+      "Garden likely in shade now. No sun estimate from 12:30.",
+    );
+  });
+
+  it.each([true, false])("shows the exact unknown boundary while 12:30 is still shaded (isNow=%s)", (isNow) => {
+    const start = new Date("2026-10-31T12:00:00Z");
+    const unknownAt = Date.parse("2026-10-31T12:32:00Z");
+    const timeline = timelineFromStates((ms) => ms < unknownAt ? "shade" : "unknown", start);
+    // The specified 12:32 transition must not become 12:30 or 12:35 in the headline.
+    expect(segmentAt(timeline, new Date("2026-10-31T12:31:00Z"))?.state).toBe("shade");
+    expect(segmentAt(timeline, new Date(unknownAt))?.state).toBe("unknown");
+    expect(sunHeadline({ kind: "estimate", timeline }, new Date("2026-10-31T12:30:00Z"), isNow)).toBe(
+      isNow
+        ? "Garden likely in shade now. No sun estimate from 12:32."
+        : "Garden likely in shade at 12:30. No sun estimate from 12:32.",
+    );
+  });
+
+  it("does not skip unknown heights to promise a later sunny stretch", () => {
+    const start = new Date("2026-10-31T12:00:00Z");
+    const timeline = timelineFromStates((ms) => {
+      const minutes = (ms - start.getTime()) / 60_000;
+      return minutes < 30 ? "shade" : minutes < 60 ? "unknown" : "sun";
+    }, start);
+    expect(sunHeadline({ kind: "estimate", timeline }, new Date("2026-10-31T12:15:00Z"), false)).toBe(
+      "Garden likely in shade at 12:15. No sun estimate from 12:30.",
+    );
+    expect(sunHeadline({ kind: "estimate", timeline }, new Date("2026-10-31T13:10:00Z"), false)).toBe(
+      "Garden likely in sun until at least 18:00",
+    );
   });
 
   it("says until at least the window's end when nothing blocks the sun", () => {
@@ -313,5 +350,41 @@ describe("third review: inside stretches on exact coordinates", () => {
     const outer = pts([[-40, -40], [40, -40], [40, 40], [-40, 40]]);
     const yard = pts([[-10, -10], [10, -10], [10, 10], [-10, 10]]);
     expect(occupiedStretches([outer, yard], along, 300)).toEqual([[10, 40]]);
+  });
+});
+
+describe("device check: two changes inside one half-hour step", () => {
+  it("never carries sun past sunset when shade, sun and sunset fall in one step", () => {
+    // Shade until 20:05, a gap of sun until 20:15, then the sun sets: all three
+    // inside the 20:00 to 20:30 step. The 20:30 sample says set, and so must the timeline.
+    const from = Date.parse("2026-06-20T15:30:00Z");
+    const shadeEnds = Date.parse("2026-06-20T20:05:00Z");
+    const sunsetAt = Date.parse("2026-06-20T20:15:00Z");
+    const stateAt = (ms: number) => (ms >= sunsetAt ? "set" : ms >= shadeEnds ? "sun" : "shade");
+    const timeline = timelineFromStates(stateAt, new Date(from));
+    expect(timeline.segments.map((s) => [s.state, s.start.toISOString().slice(11, 16), s.end.toISOString().slice(11, 16)])).toEqual([
+      ["shade", "15:30", "20:05"],
+      ["sun", "20:05", "20:15"],
+      ["set", "20:15", "21:30"],
+    ]);
+    expect(segmentAt(timeline, new Date("2026-06-20T20:30:00Z"))?.state).toBe("set");
+  });
+
+  it("agrees with every sample it took and with the first minute of every stretch", () => {
+    // A state that flips often. A dip that starts and ends between two samples
+    // may be missed (a stated limit); a sample the walk read may never be contradicted.
+    const from = Date.parse("2026-06-20T12:00:00Z");
+    const stateAt = (ms: number) => {
+      const minute = Math.floor((ms - from) / 60_000);
+      return minute % 47 < 9 ? "shade" : minute % 47 < 13 ? "unknown" : "sun";
+    };
+    const timeline = timelineFromStates(stateAt, new Date(from));
+    for (let step = 0; step <= 12; step += 1) {
+      const at = from + step * 30 * 60_000;
+      expect(segmentAt(timeline, new Date(at))?.state, `step ${step}`).toBe(stateAt(at));
+    }
+    for (const segment of timeline.segments) {
+      expect(stateAt(segment.start.getTime()), segment.start.toISOString()).toBe(segment.state);
+    }
   });
 });

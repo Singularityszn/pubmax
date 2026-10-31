@@ -1,7 +1,6 @@
-// Internal links from a borough page to the Soho and Shoreditch content that
-// already exists (SEO audit #2126, finding 17). Standalone /area/{slug} pages
-// stay HELD, so nothing new is published: a borough links the map, framed on
-// a night area, and the named route pages whose stops it holds.
+// Internal links from a borough page to the area and route pages that cover
+// it (SEO audit #2126, finding 17). A borough links every published area page
+// (lib/areaLanding.ts) and every named route page whose stops it holds.
 //
 // An area can span boroughs (Shoreditch's priced pubs sit in four), so a
 // borough links an area when it holds at least NIGHT_AREA_LINK_FLOOR of the
@@ -13,20 +12,11 @@ import type { Route } from "next";
 import { slugifyBorough } from "@/lib/boroughs";
 import { curatedCrawlById } from "@/lib/curatedCrawls";
 import { NAMED_ROUTES, namedRoutePath } from "@/lib/namedRoutes";
-import { getNightAreasForCity } from "@/lib/nightAreas";
+import { areaLandingRoute, listAreaLandings } from "@/lib/areaLanding";
 import { assignVenueToNightArea } from "@/lib/pricedLanding";
 import type { Venue } from "@/lib/venues";
 
-/** The night areas this pass links. Both have content and neither has a page. */
-const LINKED_NIGHT_AREA_SLUGS = ["piccadilly-soho", "shoreditch"] as const;
-
 export type BoroughLink = { href: Route; label: string };
-
-function areaMapHref(areaName: string): Route {
-  const params = new URLSearchParams();
-  params.set("q", areaName);
-  return `/map?${params.toString()}` as Route;
-}
 
 /** A borough links an area when it holds at least this many of its priced pubs. */
 const NIGHT_AREA_LINK_FLOOR = 5;
@@ -47,13 +37,15 @@ export function nightAreaBoroughSlugs(areaSlug: string, venues: readonly Venue[]
     .sort();
 }
 
-/** Map links for the linked night areas whose home borough is this one. */
+/** Links to the published area pages that cover this borough. */
 export function boroughNightAreaLinks(boroughSlug: string, venues: readonly Venue[]): BoroughLink[] {
   const target = slugifyBorough(boroughSlug);
-  return getNightAreasForCity("london")
-    .filter((area) => (LINKED_NIGHT_AREA_SLUGS as readonly string[]).includes(area.slug))
-    .filter((area) => nightAreaBoroughSlugs(area.slug, venues).includes(target))
-    .map((area) => ({ href: areaMapHref(area.name), label: `${area.name} on the map` }));
+  return listAreaLandings(venues)
+    .filter((landing) => nightAreaBoroughSlugs(landing.areaSlug, venues).includes(target))
+    .map((landing) => ({
+      href: areaLandingRoute(landing.areaSlug) as Route,
+      label: `Cheapest pints in ${landing.areaName}`,
+    }));
 }
 
 /** The named route pages with at least one stop in this borough. */

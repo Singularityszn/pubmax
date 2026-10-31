@@ -383,7 +383,7 @@ const LogIntentFallback = dynamic(
     ),
   { ssr: false },
 );
-import { useActivePlanRoute } from "@/components/map/pubmap/useActivePlanRoute";
+import { useActivePlanPalNextStop, useActivePlanRoute } from "@/components/map/pubmap/useActivePlanRoute";
 import { useCrewPals } from "@/components/map/pubmap/useCrewPals";
 import { useMapPlanCoordinator, useMapPlanPresentation } from "@/components/map/pubmap/useMapPlanCoordinator";
 import { planStopsToRouteVenues } from "@/lib/activePlanRoute";
@@ -721,6 +721,8 @@ import {
 import { VENUE_ACCEPTANCE_STORAGE_ERROR } from "@/lib/venueAcceptance";
 import { phoneVenuePlanDoor } from "@/lib/venuePlanDoor";
 import VenuePeekPlanDoor from "@/components/map/inspector/VenuePeekPlanDoor";
+import { useLastOrdersVenueIds } from "@/components/map/pubmap/useLastOrdersVenueIds";
+import { lastOrdersMapRequested } from "@/lib/lastOrdersList";
 
 // The "Near me now" instant-answer cards (Cycle 3, Lane 1). Loaded lazily so it
 // never rides in the eager map chunk (perf budget, PR #306) — it only mounts
@@ -1110,6 +1112,7 @@ function useMapPinVenues({
   openNowStateById,
   savedOnly,
   savedIds,
+  lastOrdersIds,
 }: {
   venues: readonly Venue[];
   mapFilters: Filters;
@@ -1117,6 +1120,8 @@ function useMapPinVenues({
   openNowStateById: ReadonlyMap<string, OpenNowState> | null;
   savedOnly: boolean;
   savedIds: ReadonlySet<string>;
+  /** Last orders' open set; null only while off. Empty while its hours are read. */
+  lastOrdersIds: ReadonlySet<string> | null;
 }): Venue[] {
   const pinFilterKey = JSON.stringify(mapPinFilters(mapFilters));
   // eslint-disable-next-line react-hooks/exhaustive-deps -- the key includes every non-query filter
@@ -1128,8 +1133,9 @@ function useMapPinVenues({
       (id) => Boolean(venueSignals.get(id)?.hasPintDrops),
       (id) => openNowStateById?.get(id) ?? "unknown",
     );
-    return savedOnly ? candidates.filter((venue) => savedIds.has(venue.id)) : candidates;
-  }, [openNowStateById, pinFilters, savedIds, savedOnly, venues, venueSignals]);
+    const saved = savedOnly ? candidates.filter((venue) => savedIds.has(venue.id)) : candidates;
+    return lastOrdersIds ? saved.filter((venue) => lastOrdersIds.has(venue.id)) : saved;
+  }, [lastOrdersIds, openNowStateById, pinFilters, savedIds, savedOnly, venues, venueSignals]);
 }
 
 /**
@@ -1684,7 +1690,18 @@ export default function PubMap({
   const preSheetFocusRef = useRef<HTMLElement | null>(null);
   const [venueInitialTab, setVenueInitialTab] = useState<VenueTabRequest>("overview");
   const [gettingHomeRequestId, setGettingHomeRequestId] = useState(0);
-  const [filters, setFilters] = useState<Filters>(restoredSession.filters);
+  // `/map?lastOrders=1` (the door off Tonight's Last orders) arrives with that
+  // filter on, over whatever the restored session held.
+  const [filters, setFilters] = useState<Filters>(() =>
+    lastOrdersMapRequested(currentSearch())
+      ? { ...restoredSession.filters, lastOrders: true }
+      : restoredSession.filters,
+  );
+  // Null only when the filter is off. On and still reading is an EMPTY set, so
+  // no pin shows under the Last orders caption before its hours arrive.
+  const { ids: lastOrdersIds, reading: lastOrdersReading, failed: lastOrdersFailed } = useLastOrdersVenueIds(
+    filters.lastOrders === true,
+  );
   // First-party Wetherspoon directory for Open now hours. Loaded once; match is
   // name+distance only and never invents hours for unmatched pubs.
   const [wetherspoonsDirectoryPubs, setWetherspoonsDirectoryPubs] = useState<
@@ -3148,10 +3165,11 @@ export default function PubMap({
   );
   // "Saved only" composes ON TOP of the pipeline: when on, keep only venues in
   // the saved set. When off it's a no-op, so all existing behavior is preserved.
-  const filteredVenues = useMemo(
-    () => (savedOnly ? pipelineVenues.filter((v) => savedIds.has(v.id)) : pipelineVenues),
-    [pipelineVenues, savedOnly, savedIds],
-  );
+  // Last orders composes the same way, on the clock-moving set its own hook reads.
+  const filteredVenues = useMemo(() => {
+    const saved = savedOnly ? pipelineVenues.filter((v) => savedIds.has(v.id)) : pipelineVenues;
+    return lastOrdersIds ? saved.filter((v) => lastOrdersIds.has(v.id)) : saved;
+  }, [pipelineVenues, savedOnly, savedIds, lastOrdersIds]);
   const filteredPubVenues = useMemo(
     () => filteredVenues.filter(isPubVenue),
     [filteredVenues],
@@ -3164,6 +3182,7 @@ export default function PubMap({
     openNowStateById,
     savedOnly,
     savedIds,
+    lastOrdersIds,
   });
 
   const nearbyMapResultForView = useMemo(() => {
@@ -3508,6 +3527,9 @@ export default function PubMap({
     activePlanRoute,
     venueById,
   });
+  // Tonight's plan is the route on the map, not a crawl the reader is building,
+  // and the Pal waits at its next stop.
+  const { routeIsActivePlan, palNextStop } = useActivePlanPalNextStop(activePlanStops, activePlanRoute, routeMappedActive, venueById);
   // A suggested route exists behind the clean map, but its TfL legs are only
   // useful once the planner is open or the viewer explicitly maps it.
   const {
@@ -6334,7 +6356,7 @@ export default function PubMap({
             onOpen={() => changeMapOverlay("tonight")}
           />
         ) : null}
-        <VenueFeatureFilters filters={filters} onChange={setFilters} resultCount={loaded && loadedCityId === cityId ? filteredVenueCount : null} />
+        <VenueFeatureFilters filters={filters} onChange={setFilters} resultCount={loaded && loadedCityId === cityId && !lastOrdersReading ? filteredVenueCount : null} lastOrdersFailed={lastOrdersFailed} />
         <MapExperienceLensControl
           lens={experienceLens}
           allSelected={!drinkFiltersActive}
@@ -6490,6 +6512,7 @@ export default function PubMap({
           filters.zone !== "all"
         }
         openNowActive={filters.openNow}
+        lastOrdersActive={filters.lastOrders === true}
         beerGardenActive={filters.requireBeerGarden}
         outdoorSeatingActive={filters.requireOutdoorSeating}
         savedOnlyActive={savedOnly}
@@ -6878,12 +6901,8 @@ export default function PubMap({
         // Clean first view stays route-free. Once the user maps a crawl, the
         // line remains visible even if the mobile planner closes.
         route={routeForMap}
-        crewPals={
-          activePlanRoute.length > 1 &&
-          routeForMap.map((venue) => venue.id).join(",") === activePlanRoute.map((venue) => venue.id).join(",")
-            ? crewPals
-            : undefined
-        }
+        crewPals={routeIsActivePlan ? crewPals : undefined}
+        palNextStop={palNextStop}
         selectedVenueId={selectedVenueId}
         onVenueClick={handleVenueClick}
         onUkBasePubClick={handleUkBasePubClick}
@@ -7006,8 +7025,11 @@ export default function PubMap({
         onTogglePlanning={togglePlanning}
         filters={filters}
         onFiltersChange={setFilters}
-        searchSettled={loaded && loadedCityId === cityId}
+        // Not settled while Last orders reads its hours: an empty map then is
+        // a wait, not "nothing matches".
+        searchSettled={loaded && loadedCityId === cityId && !lastOrdersReading}
         filteredVenueCount={filteredVenueCount}
+        lastOrdersFailed={lastOrdersFailed}
         searchableVenueCount={venues.length}
         zoneIndex={zoneIndex}
         cityId={cityId}

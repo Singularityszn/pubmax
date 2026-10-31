@@ -49,6 +49,7 @@ import {
 import PalPortrait from "./PalPortrait";
 import type { PalStageHandle } from "./PalStageCanvas";
 import PalNightQuestion from "./PalNightQuestion";
+import PalQuestStamps from "./PalQuestStamps";
 import PalYear from "./PalYear";
 import PalPrint from "./PalPrint";
 import { usePalHead3D } from "./usePalHead3D";
@@ -361,6 +362,7 @@ function PalHomeScreen({
       </section>
       <PalNightQuestion muted={pal.muted} palName={pal.name} />
       <PalYear palName={pal.name} print={genome.print} />
+      <PalQuestStamps pal={pal} print={genome.print} />
       <section className="palControls" aria-labelledby="pal-controls-title">
         <div>
           <p className="palEyebrow">Boundaries</p>

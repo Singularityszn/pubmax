@@ -1,3 +1,4 @@
+import { clampStopIndex } from "@/lib/activePlan";
 import type { PlanStopDTO } from "@/lib/plan";
 import type { Venue } from "@/lib/venues";
 
@@ -37,4 +38,23 @@ export function planStopsToRouteVenues(
     venues.push(venue);
   }
   return venues.length >= 2 ? venues : [];
+}
+
+/**
+ * Tonight's next stop on the map: the stop after the person's cursor
+ * (`ActivePlanRef.stopIndex`, moved only by a tap in Night Mode), in the plan's
+ * stored order, as Night Mode reads it (nightModeSheetModel.ts). Null when the
+ * cursor is on the last stop, or when that pub is not on the map. The map Pal
+ * waits beside it (components/map/canvas/palMarker.ts).
+ */
+export function planNextStopVenue(
+  stops: readonly PlanStopDTO[] | null | undefined,
+  stopIndex: number,
+  venueById: ReadonlyMap<string, Venue>,
+): Venue | null {
+  if (!stops || stops.length < 2) return null;
+  const ordered = [...stops].sort((a, b) => a.position - b.position);
+  const next = ordered[clampStopIndex(stopIndex, ordered.length) + 1];
+  if (!next || typeof next.venueId !== "string") return null;
+  return venueById.get(next.venueId) ?? null;
 }

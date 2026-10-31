@@ -22,6 +22,8 @@ import { loadDrinkBrandLandings } from "@/lib/drinkBrandLanding.server";
 import { loadDrinkBrandAreaLandings } from "@/lib/drinkBrandAreaLanding.server";
 import { PERFORMANCE_BUDGETS } from "@/lib/performanceBudgets";
 import { NAMED_ROUTES } from "@/lib/namedRoutes";
+import { loadAreaLandings } from "@/lib/areaLanding.server";
+import { PRICED_LANDING_PUBLICATION_FLOORS } from "@/lib/pricedLanding";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 import type { MetadataRoute } from "next";
 
@@ -83,6 +85,7 @@ type ExpectedCounts = {
   editions: number;
   drinkBrands: number;
   drinkBrandAreas: number;
+  areas: number;
   namedRoutes: number;
   total: number;
 };
@@ -115,6 +118,7 @@ async function expectedCounts(): Promise<ExpectedCounts> {
     editions,
     drinkBrands,
     drinkBrandAreas,
+    areas: (await loadAreaLandings()).length,
     namedRoutes: NAMED_ROUTES.length,
   };
   return {
@@ -129,6 +133,7 @@ async function expectedCounts(): Promise<ExpectedCounts> {
       counts.editions +
       counts.drinkBrands +
       counts.drinkBrandAreas +
+      counts.areas +
       counts.namedRoutes,
   };
 }
@@ -137,6 +142,7 @@ describe("sitemap()", () => {
   let entries: MetadataRoute.Sitemap;
   let urls: string[];
   let expected: ExpectedCounts;
+  let areaLandings: Awaited<ReturnType<typeof loadAreaLandings>>;
 
   const familyCount = (prefix: string) =>
     urls.filter((u) => u.startsWith(`${SITE}${prefix}`)).length;
@@ -146,6 +152,7 @@ describe("sitemap()", () => {
     entries = await sitemap();
     urls = entries.map((e) => e.url);
     expected = await expectedCounts();
+    areaLandings = await loadAreaLandings();
   });
 
   afterAll(() => {
@@ -197,7 +204,7 @@ describe("sitemap()", () => {
 
   it("dates the updates page from its latest released note", () => {
     const update = entries.find((entry) => entry.url === `${SITE}/updates`);
-    expect(new Date(update!.lastModified!).toISOString()).toBe("2026-10-26T00:00:00.000Z");
+    expect(new Date(update!.lastModified!).toISOString()).toBe("2026-10-30T00:00:00.000Z");
   });
 
   it("uses an appended newer release to date the updates page", async () => {
@@ -207,14 +214,14 @@ describe("sitemap()", () => {
       return {
         PUBLIC_UPDATES: [
           ...actual.PUBLIC_UPDATES,
-          { id: "appended-release", date: "2026-10-27", title: "A newer release", changes: ["A verified change."] },
+          { id: "appended-release", date: "2026-10-31", title: "A newer release", changes: ["A verified change."] },
         ],
       };
     });
     try {
       const { default: appendedSitemap } = await import("@/app/sitemap");
       const update = (await appendedSitemap()).find((entry) => entry.url === `${SITE}/updates`);
-      expect(new Date(update!.lastModified!).toISOString()).toBe("2026-10-27T00:00:00.000Z");
+      expect(new Date(update!.lastModified!).toISOString()).toBe("2026-10-31T00:00:00.000Z");
     } finally {
       vi.doUnmock("@/lib/publicUpdates");
       vi.resetModules();
@@ -250,7 +257,9 @@ describe("sitemap()", () => {
     expect(familyCount("/historic/")).toBe(expected.historic);
     expect(familyCount("/ledger/")).toBe(expected.venues);
     expect(familyCount("/drink/")).toBe(expected.drinkBrands);
-    expect(familyCount("/area/")).toBe(expected.drinkBrandAreas);
+    expect(urls.filter((u) => /\/area\/[^/]+\/drink\//.test(u))).toHaveLength(expected.drinkBrandAreas);
+    expect(urls.filter((u) => /\/area\/[^/]+$/.test(u))).toHaveLength(expected.areas);
+    expect(expected.areas).toBeGreaterThan(0);
     expect(familyCount("/routes/")).toBe(expected.namedRoutes);
     expect(expected.drinkBrands).toBeGreaterThan(0);
     expect(expected.drinkBrandAreas).toBeGreaterThan(0);
@@ -306,12 +315,16 @@ describe("sitemap()", () => {
     }
   });
 
-  it("advertises no /area/{slug} page, because that family is held", () => {
-    // The brand-by-area pages live UNDER /area/{slug}, but the area page itself
-    // duplicates /borough/{slug} and is not published. Advertising one would be
-    // advertising a 404.
-    for (const url of urls.filter((candidate) => candidate.includes("/area/"))) {
-      expect(url).toMatch(/\/area\/[^/]+\/drink\/[^/]+$/);
+  it("advertises an /area/{slug} page only for an area that clears the area floor", () => {
+    // The area root publishes on PRICED_LANDING_PUBLICATION_FLOORS.area priced
+    // pubs alone (lib/areaLanding.ts). An area below it redirects to the map,
+    // so advertising it would advertise a redirect.
+    const published = new Set<string>(areaLandings.map((landing) => landing.areaSlug));
+    for (const url of urls.filter((candidate) => /\/area\/[^/]+$/.test(candidate))) {
+      expect(published.has(url.slice(url.lastIndexOf("/") + 1)), url).toBe(true);
+    }
+    for (const landing of areaLandings) {
+      expect(landing.totalPricedVenues).toBeGreaterThanOrEqual(PRICED_LANDING_PUBLICATION_FLOORS.area);
     }
   });
 

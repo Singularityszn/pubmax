@@ -7,13 +7,12 @@
 // seating, and draws a sun dot beside each pin likely in the sun at the chosen
 // time. It draws nothing else and never moves the camera.
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type * as maplibregl from "maplibre-gl";
 import { readTokens } from "@/components/map/canvas/tokens";
 import {
   estimateSun,
   indexSunBuildings,
-  segmentAt,
   sunBuildingFromTile,
   type LngLat,
   type SunBuilding,
@@ -23,6 +22,7 @@ import { haversineKm } from "@/lib/haversine";
 import { loadSurfaceJson, SURFACE_JUST_READ_MS } from "@/lib/surfaceDataCache";
 import { venueHasRecordedOutdoorSpace, type Venue } from "@/lib/venues";
 import { createSkyReader } from "./skyReader";
+import { paintedPinIds, sameIds, sunDotFeatures } from "./sunDots";
 import { getSunChaserState, sunChaserSelectedTime, updateSunChaser, useSunChaser } from "./sunChaserStore";
 
 /** The live map this layer reads, named here so PubMap needs no MapLibre import. */
@@ -252,28 +252,36 @@ export default function SunChaserLayer({ map, venues }: { map: maplibregl.Map | 
     };
   }, [map]);
 
+  // Which pins the map is drawing, read again on every settled frame. A dot
+  // only stands beside a drawn pin (sunDots.ts), so a pin that lost collision
+  // or sits inside a cluster takes its dot with it.
+  const [paintedIds, setPaintedIds] = useState<ReadonlySet<string>>(() => new Set());
+  useEffect(() => {
+    if (!map) return;
+    const readPainted = () => {
+      const next = paintedPinIds(map);
+      setPaintedIds((current) => (sameIds(current, next) ? current : next));
+    };
+    readPainted();
+    map.on("idle", readPainted);
+    return () => {
+      map.off("idle", readPainted);
+    };
+  }, [map]);
+
   // Draw the dots for the chosen time from the stored timelines: no new rays.
   useEffect(() => {
     if (!map) return;
     const at = sunChaserSelectedTime({ from, offsetSteps });
-    const features: GeoJSON.Feature[] = [];
-    if (at) {
-      for (const [id, estimate] of estimates) {
-        if (estimate.kind !== "estimate" || segmentAt(estimate.timeline, at)?.state !== "sun") continue;
-        const venue = byIdRef.current.get(id);
-        if (!venue) continue;
-        features.push({
-          type: "Feature",
-          properties: { id },
-          geometry: { type: "Point", coordinates: [venue.longitude, venue.latitude] },
-        });
-      }
-    }
+    const features = sunDotFeatures(estimates, at, (id) => {
+      const venue = byIdRef.current.get(id);
+      return venue ? [venue.longitude, venue.latitude] : null;
+    }, paintedIds);
     if (!map.isStyleLoaded()) return;
     ensureLayer(map);
     const source = map.getSource(SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
     source?.setData({ type: "FeatureCollection", features });
-  }, [map, estimates, offsetSteps, from]);
+  }, [map, estimates, offsetSteps, from, paintedIds]);
 
   return null;
 }

@@ -126,7 +126,9 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
       description,
       type: "website",
       url: `/plan/${id}`,
-      images: [{ url: card, width: 1200, height: 630 }],
+      // The alt names what the card draws: the preview-safe title and the
+      // stop count, never a venue (§4.10).
+      images: [{ url: card, width: 1200, height: 630, alt: `${safeTitle}, ${preview.stopCount} ${preview.stopCount === 1 ? "stop" : "stops"}` }],
     },
     twitter: { card: "summary_large_image", title: safeTitle, description, images: [card] },
   };
