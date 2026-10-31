@@ -25,17 +25,22 @@ describe("borough links to Soho, Shoreditch and the named routes", () => {
     ]);
   });
 
-  it("links Westminster to Piccadilly & Soho and Hackney to Shoreditch, through the map", () => {
-    expect(boroughNightAreaLinks("westminster", venues)).toEqual([
-      { href: "/map?q=Piccadilly+%26+Soho", label: "Piccadilly & Soho on the map" },
-    ]);
-    expect(boroughNightAreaLinks("hackney", venues)).toEqual([
-      { href: "/map?q=Shoreditch", label: "Shoreditch on the map" },
-    ]);
-    expect(boroughNightAreaLinks("southwark", venues)).toEqual([]);
+  it("links a borough to the area pages that cover it, never through ?q=", () => {
+    expect(boroughNightAreaLinks("westminster", venues)).toContainEqual({
+      href: "/area/piccadilly-soho",
+      label: "Cheapest pints in Piccadilly & Soho",
+    });
+    expect(boroughNightAreaLinks("hackney", venues)).toContainEqual({
+      href: "/area/shoreditch",
+      label: "Cheapest pints in Shoreditch",
+    });
+    const every = ["westminster", "hackney", "camden", "southwark", "lambeth"].flatMap((slug) =>
+      boroughNightAreaLinks(slug, venues),
+    );
+    expect(every.every((link) => /^\/area\/[a-z-]+$/.test(link.href))).toBe(true);
   });
 
-  it("links a borough to each named route with a stop in it, and publishes no area page", () => {
+  it("links a borough to each named route with a stop in it", () => {
     const westminster = boroughNamedRouteLinks("westminster", venues);
     expect(westminster).toContainEqual({ href: "/routes/victorian-soho", label: "Victorian Soho route" });
     expect(boroughNamedRouteLinks("camden", venues)).toContainEqual({
@@ -46,6 +51,6 @@ describe("borough links to Soho, Shoreditch and the named routes", () => {
       ...boroughNightAreaLinks(slug, venues),
       ...boroughNamedRouteLinks(slug, venues),
     ]);
-    expect(every.some((link) => link.href.startsWith("/area/"))).toBe(false);
+    expect(every.some((link) => link.href.includes("?q="))).toBe(false);
   });
 });

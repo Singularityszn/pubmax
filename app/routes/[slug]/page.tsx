@@ -29,8 +29,21 @@ import "@/components/listing/listing.css";
 // publisher and read day, and the straight-line walk between stops. The
 // namespace is /routes; /crawls/[slug] belongs to user Crawl Stories.
 //
-// This document is rendered per request with its nonce. It is NOT on the CDN
-// document lists in proxy.ts, because joining them is a captain decision.
+// THIS DOCUMENT IS PRERENDERED (captain's decision, 30 Oct 2026, recorded in
+// proxy.ts beside CDN_CACHED_DOCUMENT_ROUTES): it drops the per-request CSP
+// nonce so the Vercel CDN can hold it. It renders only bundled data and reads
+// no cookie, no header and no search param. `__tests__/cdnCachedDocuments.test.ts`
+// holds both rules.
+export const dynamic = "force-static";
+// The dataset changes only on a deploy, so an hour is the same quiet ceiling
+// the other SEO route shapes take.
+export const revalidate = 3600;
+// Only the four named routes render at all.
+export const dynamicParams = false;
+
+export function generateStaticParams(): Array<{ slug: string }> {
+  return NAMED_ROUTES.map(({ slug }) => ({ slug }));
+}
 
 type PageProps = { params: Promise<{ slug: string }> };
 
@@ -81,7 +94,12 @@ function stopMeta(stop: NamedRouteStop) {
 export default async function NamedRoutePage({ params }: PageProps) {
   const { slug } = await params;
   if (!isNamedRouteSlug(slug)) notFound();
-  const route = buildNamedRoute(slug, await loadGroupedVenues());
+  const venues = await loadGroupedVenues();
+  // A dataset we could not read is never held: the page throws, so ISR keeps
+  // the last good copy (or holds nothing) and the next request reads again.
+  // A cached page of empty stops would stand for the whole window.
+  if (venues.length === 0) throw new Error("venue dataset unavailable");
+  const route = buildNamedRoute(slug, venues);
   if (!route) notFound();
   const { crawl, stops, totalKm } = route;
   const stopCount = crawl.venueIds.length;

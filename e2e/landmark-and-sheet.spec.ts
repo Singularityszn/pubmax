@@ -267,7 +267,13 @@ test("mobile drag-sheet traps focus at half and contains it at full (#17)", asyn
   const reducedMotionHeight = await sheet.evaluate((node) =>
     Number.parseFloat((node as HTMLElement).style.maxHeight),
   );
-  expect(reducedMotionHeight).toBeCloseTo(844 * 0.92 - 64, 0);
+  // The full cap is 92% of the viewport less the dock (lib/sheetSnap.ts
+  // sheetSnapCaps). At or under 640px the dock is the phone tab bar,
+  // max(64px, 2.1 * --text-2xs + 48px) in components/nav/mobileNav.css, with
+  // --text-2xs at 0.68rem: 70.848px, because the tab labels may wrap to two
+  // lines (08b08bd4). The bar was 64px when this pin was written.
+  const phoneTabBarPx = Math.max(64, 2.1 * 0.68 * 16 + 48);
+  expect(reducedMotionHeight).toBeCloseTo(844 * 0.92 - phoneTabBarPx, 0);
 
   expect(errors).toEqual([]);
 });

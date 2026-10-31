@@ -386,6 +386,16 @@ export function streetsInViewDrawn(state: {
 export const MAP_OPENING_PREVIEW_DONE_MARK = "pubmax:opening-preview-done";
 
 /**
+ * Whether the frame the map is about to draw is drawn from the preview's own
+ * camera, the opening camera or that camera turned by the arrival turn. When
+ * this holds and only the pubs differ, the picture of the opening streets
+ * under the discs is still the ground the map draws, though the discs are not.
+ */
+export function frameCameraMatchesPreview(frame: MapOpeningFrame): boolean {
+  return sameCamera(frame.camera);
+}
+
+/**
  * Whether the frame the map is about to draw is the frame the preview drew:
  * the opening camera, and every priced disc the same cluster with the same
  * count and the same cheapest price in the same band ink (a live Pint Drop can

@@ -148,6 +148,30 @@ export function groundRectCovers(
   );
 }
 
+/**
+ * The furthest the picture can turn toward `turnDeg` with a `width` x `height`
+ * screen still seeing none of its edge, to a tenth of a degree. The whole turn
+ * when it fits; less on a screen the turned picture would not cover (the
+ * largest phones), where the preview holds at this rather than leave the
+ * loading frame on bare paper, and the map's own frame takes the last degrees
+ * at the handoff.
+ */
+export function largestCoveredTurn(
+  rect: GroundRect,
+  pitchDeg: number,
+  width: number,
+  height: number,
+  turnDeg: number,
+): number {
+  if (groundRectCovers(rect, pitchDeg, width, height, turnDeg)) return turnDeg;
+  const steps = Math.floor(Math.abs(turnDeg) * 10);
+  for (let step = steps; step > 0; step -= 1) {
+    const turn = Math.sign(turnDeg) * (step / 10);
+    if (groundRectCovers(rect, pitchDeg, width, height, turn)) return turn;
+  }
+  return 0;
+}
+
 export type OpeningGround = {
   rect: GroundRect;
   /** Each theme's picture, with its content hash as the cache key. */
