@@ -1,0 +1,16 @@
+.menuBasket { border-top: 1px solid var(--line); margin-top: var(--space-4); padding-top: var(--space-3); }
+.menuBasket summary { cursor: pointer; font-weight: 600; padding-block: var(--space-2); }
+.menuBasketBody { display: grid; gap: var(--space-3); }
+.menuBasketRow { padding-block: var(--space-3); border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.menuBasketRow label { display: grid; grid-template-columns: minmax(0, 1fr) 4.5rem; gap: var(--space-1) var(--space-2); }
+.menuBasketRow label > span { grid-column: 1; }
+.menuBasketRow input { grid-column: 2; grid-row: 1 / 4; align-self: center; width: 100%; min-height: 44px; font-size: var(--text-base); padding: var(--space-1); border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--paper); color: var(--ink); }
+.menuBasketMeta { display: block; color: var(--muted); font-size: var(--text-xs); }
+.menuBasketAmount, .menuBasketResult strong { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+.menuBasketResult { display: grid; gap: var(--space-2); }
+.menuBasketResult p { margin: 0; }
+.menuBasketResult button { justify-self: start; min-height: 44px; padding: var(--space-2); }
+.menuBasket :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+.menuBasketAdd { display: grid; gap: var(--space-2); }
+.menuBasketAdd select { width: 100%; min-width: 0; min-height: 44px; font-size: var(--text-base); padding: var(--space-2); border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--ink); background: var(--paper); }

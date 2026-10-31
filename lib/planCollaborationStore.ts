@@ -248,10 +248,8 @@ export type PlanCollaborationStore = {
   revokeInvite(planId: string, token: unknown, inviteId: string, key: string, now?: Date): Promise<{ ok: true; invite: PlanInvite } | Failure>;
   consumeInvite(planId: string, token: unknown, now?: Date): Promise<{ ok: true; inviteId: string; role: "guest" } | Failure>;
   redeemInviteAndJoin(planId: string, token: unknown, name: string, now?: Date, options?: { idempotencyKey?: string; userId?: string }): Promise<{ ok: true; plan: PlanState | null; memberToken: string; role: "guest"; collaborationAuthorized: true } | Failure | { ok: false; error: "full" }>;
-  // inviteId is the invite's own (non-secret) row id, surfaced only so the
-  // caller can emit a metrics event linking invite_created -> invite_redeemed
-  // for k-factor; null when the redemption is a replay of an already-
-  // authorized session and the originating invite can't be identified.
+  // inviteId is the non-secret row id, never the redeemable invite token.
+  // Replay and counting limits live in docs/METRICS_FUNNEL.md section 2.
   upgradeMemberInvite(planId: string, memberToken: unknown, inviteToken: unknown, now?: Date): Promise<{ ok: true; collaborationAuthorized: true; inviteId: string | null } | Failure>;
   addConstraint(planId: string, token: unknown, input: { kind: PlanConstraintKind; value: string; priority: PlanConstraint["priority"]; idempotencyKey: string; now?: Date }): Promise<{ ok: true; constraint: PlanConstraint } | Failure>;
   resolveConstraint(planId: string, token: unknown, constraintId: string, input: { evidence: PlanConstraintEvidence; idempotencyKey: string; now?: Date }): Promise<{ ok: true; constraint: PlanConstraint } | Failure>;
