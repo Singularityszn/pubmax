@@ -1,4 +1,7 @@
+import sharp from "sharp";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+
+import { downloadUploadedImageObject } from "@/lib/uploadedImage.server";
 
 import { __resetMemoryRounds, memoryRoundsStore, roundsStore } from "@/lib/roundsStore";
 
@@ -13,6 +16,9 @@ let uploads: string[];
 let missingColumn: string | null;
 let insertAttempts: number;
 let objects: Set<string>;
+let storedBytes: Map<string, Buffer>;
+let corruptWrites: boolean;
+let failedDownloads: boolean;
 let deleted: string[];
 let uploadBarrier: (() => Promise<void>) | null;
 let insertFailure: { code: string; message: string; status: number } | null;
@@ -52,11 +58,26 @@ const fixtureFetch: typeof fetch = async (input, init) => {
       const { prefixes } = JSON.parse(String(init?.body)) as { prefixes: string[] };
       for (const key of prefixes) {
         objects.delete(key);
+        storedBytes.delete(key);
         deleted.push(key);
       }
       return Response.json([]);
     }
+    if (method === "GET") {
+      if (failedDownloads) return new Response(null, { status: 503 });
+      const bytes = storedBytes.get(url.pathname.split("/").slice(5).join("/"));
+      return bytes ? new Response(new Uint8Array(bytes), { headers: { "content-type": "image/jpeg" } }) : new Response(null, { status: 404 });
+    }
     if (method !== "POST") throw new Error("Unexpected storage method");
+    const body = init?.body;
+    const image = body instanceof FormData
+      ? [...body.values()].find((value): value is File => value instanceof File)
+      : null;
+    let bytes = image
+      ? Buffer.from(await image.arrayBuffer())
+      : Buffer.from(Buffer.from(body as Uint8Array).toString("utf8"), "utf8");
+    if (corruptWrites) bytes = Buffer.from(bytes.toString("utf8"), "utf8");
+    storedBytes.set(url.pathname.split("/").slice(5).join("/"), bytes);
     uploads.push(url.pathname);
     objects.add(url.pathname.split("/").slice(5).join("/"));
     await uploadBarrier?.();
@@ -71,6 +92,9 @@ beforeEach(() => {
   missingColumn = null;
   insertAttempts = 0;
   objects = new Set();
+  storedBytes = new Map();
+  corruptWrites = false;
+  failedDownloads = false;
   deleted = [];
   uploadBarrier = null;
   insertFailure = null;
@@ -188,4 +212,43 @@ it.each(["supabase", "memory", "memory with another owner"])("removes only the l
   expect(deleted).toHaveLength(1);
   expect(deleted).not.toContain(key);
   expect(objects).toEqual(new Set([key]));
+});
+
+// Exercise the real store, Storage SDK and image reader against the same bucket.
+it("makes a Round bill readable after its Storage round trip", async () => {
+  const saved = await roundsStore().recordSpend(CODE, spend());
+  expect(saved.ok).toBe(true);
+  if (!saved.ok) throw new Error("Spend was not saved");
+  const key = saved.state.spends[0]?.receiptPhotoKey;
+  expect(key).toEqual(expect.any(String));
+  const image = await downloadUploadedImageObject(key!);
+  expect(image).not.toBeNull();
+  const metadata = await sharp(image!.bytes).metadata();
+  expect(metadata).toMatchObject({ format: "jpeg", width: 1, height: 1 });
+  const decoded = await sharp(image!.bytes).raw().toBuffer({ resolveWithObject: true });
+  expect(decoded.info).toMatchObject({ width: 1, height: 1, channels: 3 });
+  expect([...decoded.data]).toEqual([255, 255, 255]);
+});
+
+
+it("keeps the spend without accepting a receipt whose stored bytes are corrupt", async () => {
+  corruptWrites = true;
+  const saved = await roundsStore().recordSpend(CODE, spend());
+  expect(saved).toMatchObject({ ok: true, created: true, state: { spends: [{ totalPence: 620 }] } });
+  if (!saved.ok) throw new Error("Spend was not saved");
+  expect(saved.state.spends[0]).not.toHaveProperty("receiptPhotoKey");
+  expect(rows[0]?.receipt_photo_key).toBeNull();
+  expect(objects.size).toBe(0);
+});
+
+
+it("keeps the bill when its write cannot be read back during a storage outage", async () => {
+  failedDownloads = true;
+  const saved = await roundsStore().recordSpend(CODE, spend());
+  expect(saved.ok).toBe(true);
+  if (!saved.ok) throw new Error("Spend was not saved");
+  const key = saved.state.spends[0]?.receiptPhotoKey;
+  expect(key).toEqual(expect.any(String));
+  expect(objects).toEqual(new Set([key]));
+  expect(deleted).toEqual([]);
 });

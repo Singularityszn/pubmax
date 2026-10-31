@@ -831,7 +831,7 @@ describe("POST /api/rounds/[code] — actions", () => {
     expect(saved?.receiptPhotoKey).toBe(`venue-1/${saved?.id}/receipt.jpg`);
     expect(receiptStorage.upload).toHaveBeenCalledWith(
       saved?.receiptPhotoKey,
-      expect.any(Uint8Array),
+      expect.any(Blob),
       { contentType: "image/jpeg", upsert: false },
     );
     const reloaded = ((await (await get(round.code)).json()) as RoundState).spends[0];
