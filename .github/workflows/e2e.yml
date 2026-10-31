@@ -214,8 +214,11 @@ jobs:
     # They stay on macos-latest. The specs were proved on macOS glyph widths,
     # and on ubuntu-latest (16 Oct 2026) four of them failed on a measured
     # edge, for example 7px short at 320px.
+    # The nightly and a dispatch skip them: the full suite below runs every
+    # one of these specs on the same commit, and the three jobs would hold
+    # three of the five macOS runners while the full suite waits for them.
     needs: [change-scope]
-    if: ${{ !cancelled() && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}
+    if: ${{ !cancelled() && github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}
     runs-on: macos-latest
     timeout-minutes: 40
     env:
@@ -333,7 +336,7 @@ jobs:
   layout-pins-2:
     name: Browser layout pins (2/3)
     needs: [change-scope]
-    if: ${{ !cancelled() && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}
+    if: ${{ !cancelled() && github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}
     runs-on: macos-latest
     timeout-minutes: 40
     env:
@@ -343,7 +346,7 @@ jobs:
   layout-pins-3:
     name: Browser layout pins (3/3)
     needs: [change-scope]
-    if: ${{ !cancelled() && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}
+    if: ${{ !cancelled() && github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}
     runs-on: macos-latest
     timeout-minutes: 40
     env:
@@ -351,19 +354,28 @@ jobs:
     steps: *layout-pin-steps
 
   full-suite:
-    name: Full browser suite (${{ matrix.shard }}/4)
+    name: Full browser suite (${{ matrix.shard }}/8)
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: macos-latest
     timeout-minutes: 45
     # A hosted macOS runner gives Playwright one worker. Two shards of about
     # 645 tests each did not finish inside the 45-minute ceiling (4 Oct 2026
-    # nightly and dispatch), so the suite is cut into four instead. It stays
-    # on macOS: on ubuntu-latest (16 Oct 2026) it failed 19 more tests than
-    # the macOS nightly, most of them layout measures.
+    # nightly and dispatch), so the suite was cut into four. By 28 Oct the four
+    # shards held about 620 tests each: shard 4 was cancelled at 45 minutes on
+    # 8 of 8 nights and shard 1 on most, so their failures never printed.
+    # Playwright cuts shards by test COUNT, and the slow specs (the map group
+    # and the WebGL projects) sit together at the end of its order, so more
+    # count-cut shards of every project still left one shard over the wall.
+    # The plain Chromium project is cut into eight here, and the WebGL and
+    # keyless projects run as one job below. Measured from the 25-28 Oct
+    # nightly logs, the slowest Chromium shard is about 29 minutes of tests
+    # beside one production build. It stays on macOS: on ubuntu-latest
+    # (16 Oct 2026) it failed 19 more tests than the macOS nightly, most of
+    # them layout measures.
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -388,21 +400,70 @@ jobs:
       - name: Choose Playwright port
         uses: ./.github/actions/pubmax-playwright-port
 
+      # The Chromium project needs no keyless server, so each shard pays for
+      # one production build rather than two (about 3.5 minutes each).
       - name: Run full browser shard
         env:
           PUBMAX_TRACKED_OUTPUTS: public/data
           NODE_OPTIONS: "--max-old-space-size=6144"
           PUBMAX_E2E_KEYLESS: "1"
+          PW_SKIP_KEYLESS_WEBSERVER: "1"
           PLAYWRIGHT_JSON_OUTPUT_NAME: "playwright-default-${{ matrix.shard }}.json"
         run: >-
           npx playwright test
           --reporter=list,json
           --project=chromium
+          --shard=${{ matrix.shard }}/8
+
+      - name: Gate the full browser shard
+        run: node scripts/assert-playwright-gate.mjs playwright-default-${{ matrix.shard }}.json
+
+  full-suite-gl:
+    name: Full browser suite (WebGL and keyless)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: macos-latest
+    timeout-minutes: 45
+    # Every project the Chromium shards above do not run: the SwiftShader map
+    # journeys, the service-worker map, the no-WebGL fallback and the keyless
+    # build's own specs. About 131 tests and 16 minutes of them by the 25-28 Oct
+    # nightly logs, beside the two production builds the keyless project needs.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        timeout-minutes: 5
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm run deps:install-scripts
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Choose Playwright port
+        uses: ./.github/actions/pubmax-playwright-port
+
+      - name: Run the WebGL and keyless projects
+        env:
+          PUBMAX_TRACKED_OUTPUTS: public/data
+          NODE_OPTIONS: "--max-old-space-size=6144"
+          PUBMAX_E2E_KEYLESS: "1"
+          PLAYWRIGHT_JSON_OUTPUT_NAME: "playwright-default-gl.json"
+        run: >-
+          npx playwright test
+          --reporter=list,json
           --project=chromium-keyless
           --project=chromium-gl
           --project=chromium-sw-gl
           --project=chromium-no-gl
-          --shard=${{ matrix.shard }}/4
 
-      - name: Gate the full browser shard
-        run: node scripts/assert-playwright-gate.mjs playwright-default-${{ matrix.shard }}.json
+      - name: Gate the WebGL and keyless run
+        run: node scripts/assert-playwright-gate.mjs playwright-default-gl.json

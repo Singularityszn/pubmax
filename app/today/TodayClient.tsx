@@ -73,6 +73,7 @@ import type { TodayPintsIndex } from "./todayPints";
 import type { QuietPintModule } from "@/lib/quietPint";
 import TonightHypedPubs from "../tonight/TonightHypedPubs";
 import type { HypedPub } from "@/lib/hypedPubs";
+import type { PatchDisruption } from "@/lib/tflDisruption";
 import "../tonight/tonightLede.css";
 import "./today.css";
 
@@ -82,6 +83,7 @@ type Props = {
   nowIso: string;
   greeting: DayGreeting;
   weather: WeatherBrief | null;
+  initialDisruption?: PatchDisruption | null;
   weatherByArea: Partial<Record<NightAreaSlug, WeatherBrief | null>>;
   picks: TonightPickDto[];
   hypedPubs?: readonly HypedPub[];
@@ -405,6 +407,7 @@ export default function TodayClient({
   greeting,
   weather,
   weatherByArea,
+  initialDisruption = null,
   picks,
   picksStatus,
   hypedPubs = [],
@@ -552,7 +555,7 @@ export default function TodayClient({
       <div className="todayStack">
         <div className="todayBriefColumn">
           <WeatherCard weather={brief.weather} />
-          <TodayTubeCard slot={shownGreeting.slot} />
+          <TodayTubeCard slot={shownGreeting.slot} initialDisruption={initialDisruption} />
           <PicksCard
             picksCheckedAt={picksCheckedAt}
             picksReason={picksReason}

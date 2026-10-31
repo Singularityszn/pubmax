@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { proofShotPath } from "./helpers/proofShot";
+
 const VENUE_ID = "venue-xjf3n0";
 const VENUE_NAME = "Arnos Arms";
 const INTENT_KEY = "pubmax:planning-intent:v1";
@@ -27,7 +29,7 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test("390px Map acceptance persists before Plan receives Stop 1", async ({ page }) => {
+test("390px Map acceptance persists before Plan receives Stop 1", async ({ page }, testInfo) => {
   await page.goto(`/map?sel=${VENUE_ID}`);
   const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
   // With no crawl in progress the phone sheet's ONE plan door is the peek's
@@ -61,12 +63,12 @@ test("390px Map acceptance persists before Plan receives Stop 1", async ({ page 
     localStorage.setItem("pubmax-theme", "light");
     document.documentElement.dataset.theme = "light";
   });
-  await page.screenshot({ path: "docs/proof/venue-acceptance/accepted-plan-390-light.png" });
+  await page.screenshot({ path: proofShotPath(testInfo, "docs/proof/venue-acceptance/accepted-plan-390-light.png") });
   await page.evaluate(() => {
     localStorage.setItem("pubmax-theme", "dark");
     document.documentElement.dataset.theme = "dark";
   });
-  await page.screenshot({ path: "docs/proof/venue-acceptance/accepted-plan-390-dark.png" });
+  await page.screenshot({ path: proofShotPath(testInfo, "docs/proof/venue-acceptance/accepted-plan-390-dark.png") });
 });
 
 /**
@@ -79,7 +81,7 @@ test("390px Map acceptance persists before Plan receives Stop 1", async ({ page 
  */
 for (const width of [320, 390] as const) {
   for (const textScale of [1, 1.5, 2] as const) {
-    test(`Venue actions fit ${width}px at ${textScale}x text`, async ({ page }) => {
+    test(`Venue actions fit ${width}px at ${textScale}x text`, async ({ page }, testInfo) => {
       await page.setViewportSize({ width, height: 844 });
       await page.goto(`/map?sel=${VENUE_ID}`);
       const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
@@ -87,16 +89,18 @@ for (const width of [320, 390] as const) {
       await expect(toolbar).toBeVisible({ timeout: 30_000 });
       // Hydration rewrites the root's style attribute, so the scale is set once
       // the sheet is up, as e2e/mobile-large-text.spec.ts does, then read back.
-      const rootFontPx = await page.evaluate(async (scale) => {
-        const root = document.documentElement;
-        root.setAttribute("data-text-scale", scale === 1 ? "default" : "large");
-        root.style.fontSize = `${scale * 100}%`;
-        await new Promise<void>((resolve) => {
-          requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-        });
-        return Number.parseFloat(getComputedStyle(root).fontSize);
-      }, textScale);
-      expect(rootFontPx).toBeCloseTo(16 * textScale);
+      await expect(async () => {
+        const rootFontPx = await page.evaluate(async (scale) => {
+          const root = document.documentElement;
+          root.setAttribute("data-text-scale", scale === 1 ? "default" : "large");
+          root.style.fontSize = `${scale * 100}%`;
+          await new Promise<void>((resolve) => {
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+          });
+          return Number.parseFloat(getComputedStyle(root).fontSize);
+        }, textScale);
+        expect(rootFontPx).toBeCloseTo(16 * textScale);
+      }).toPass({ timeout: 10_000 });
       const share = toolbar.getByRole("button", { name: `Share ${VENUE_NAME}` });
       await expect(share).toBeVisible();
       await expect(toolbar.getByRole("button")).toHaveCount(1);
@@ -157,7 +161,10 @@ for (const width of [320, 390] as const) {
 
       if (textScale === 1 || textScale === 2) {
         await page.screenshot({
-          path: `docs/proof/one-plan-door/stop-1-${width}${textScale === 1 ? "" : "-large-text"}.png`,
+          path: proofShotPath(
+            testInfo,
+            `docs/proof/one-plan-door/stop-1-${width}${textScale === 1 ? "" : "-large-text"}.png`,
+          ),
         });
       }
     });
