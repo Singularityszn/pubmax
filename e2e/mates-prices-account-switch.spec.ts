@@ -36,7 +36,7 @@ test("a mounted phone map recovers A's prices after B's failed read through anot
   await installAuthDoubles(map);
   const reads: string[] = [];
   await map.route("**/api/mates-prices?**", async (route) => {
-    const bearer = route.request().headers().authorization;
+    const bearer = await route.request().headerValue("authorization");
     const account = (["A", "B"] as const).find((key) =>
       bearer === `Bearer ${accessJwt(ACCOUNTS[key])}` || bearer === `Bearer pubmaxx-e2e-access-token-${key}`,
     );
