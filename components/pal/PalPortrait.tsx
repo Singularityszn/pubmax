@@ -107,7 +107,14 @@ export default function PalPortrait({ appearance, name, compact = false, state =
               className="palPortraitMascot"
             />
             {/* The moving artwork, over the still once its first frame is drawn. */}
-            {stageSpecies ? <PalStageCanvas species={stageSpecies} className="palPortraitMascot" ref={stage} /> : null}
+            {/* The state motion moves this frame, as it moves the picture above;
+                the genome framing stays on the canvas inside, as it stays on
+                the img, so an animated transform never replaces it. */}
+            {stageSpecies ? (
+              <span className="palPortraitMascot palStageFrame" aria-hidden="true">
+                <PalStageCanvas species={stageSpecies} ref={stage} />
+              </span>
+            ) : null}
             {/* The open mouth, only once the Pal has a voice to move it. */}
             {state === "speaking" || state === "listening" ? (
               <PubPalMascotMouth

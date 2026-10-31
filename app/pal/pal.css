@@ -479,13 +479,16 @@ body:has(.analyticsConsentPrompt) .palPrintRow { display: none; }
 .palHomePortrait[data-head-3d="live"] .palPortraitAccessory { translate: 0 0 3.5rem; }
 /* The live 3D stage (components/pal/PalStageCanvas.tsx): the Pal's own
    artwork, moved by a depth map, laid exactly over the still photograph and
-   shown only once its first frame is drawn. While it runs, the head turns,
+   shown only once its first frame is drawn. Like the picture, it is two
+   layers: the state motion animates the frame's transform, and the genome
+   framing is the canvas's own, so neither replaces the other. While it runs, the head turns,
    nods, tilts and talks INSIDE the picture, so the card no longer rotates or
    lays the mouth frame on top; it still lifts, leans in and swells. */
-.palStageCanvas { position: absolute; inset: 0; z-index: 1; opacity: 0; pointer-events: none; }
+.palStageFrame { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+.palStageCanvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; opacity: 0; }
 .palStageCanvas[data-stage="live"] { opacity: 1; transition: opacity .3s var(--ease-out-strong); }
 .palPortrait[data-pal-state="sleeping"] .palStageCanvas { filter: brightness(.72); }
-.palPortraitCore:has(> .palStageCanvas[data-stage="live"]) > .palMascotMouth { display: none; }
+.palPortraitCore:has(.palStageCanvas[data-stage="live"]) > .palMascotMouth { display: none; }
 .palHomePortrait[data-head-3d="live"]:has(.palStageCanvas[data-stage="live"]) .palPortrait {
   transform:
     translateY(calc(var(--pal-lift, 0px) * -1))

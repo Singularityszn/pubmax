@@ -7,7 +7,9 @@ import { act, createElement, createRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import PalPortrait from "@/components/pal/PalPortrait";
 import PalStageCanvas, { type PalStageHandle } from "@/components/pal/PalStageCanvas";
+import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
 
 let root: Root | null = null;
 let host: HTMLDivElement;
@@ -78,5 +80,44 @@ describe("PalStageCanvas", () => {
       handle.current?.draw(head);
     });
     expect(host.querySelector("canvas")?.hasAttribute("data-stage")).toBe(false);
+  });
+});
+
+describe("PalPortrait with the stage", () => {
+  // app/pal/pal.css animates the TRANSFORM of `.palPortraitMascot` for the
+  // state motion, and the genome framing (zoom, position, flip) is a transform
+  // too. On one element the animation replaced the framing every idle cycle,
+  // so the stage carries the two on two layers, as the picture does.
+  it("moves a frame with the state motion and keeps the framing on the canvas", () => {
+    act(() => {
+      root = createRoot(host);
+      root.render(
+        createElement(PalPortrait, {
+          appearance: { ...DEFAULT_PAL_DRAFT.appearance, species: "fox" },
+          name: "Ripley",
+          stage: createRef<PalStageHandle>(),
+        }),
+      );
+    });
+    const canvas = host.querySelector("canvas.palStageCanvas");
+    expect(canvas).not.toBeNull();
+    expect(canvas?.classList.contains("palPortraitMascot")).toBe(false);
+    const frame = canvas?.parentElement;
+    expect(frame?.classList.contains("palPortraitMascot")).toBe(true);
+    expect(frame?.classList.contains("palStageFrame")).toBe(true);
+    expect(frame?.getAttribute("aria-hidden")).toBe("true");
+  });
+
+  it("draws no stage where no head loop drives the portrait", () => {
+    act(() => {
+      root = createRoot(host);
+      root.render(
+        createElement(PalPortrait, {
+          appearance: { ...DEFAULT_PAL_DRAFT.appearance, species: "fox" },
+          name: "Ripley",
+        }),
+      );
+    });
+    expect(host.querySelector("canvas")).toBeNull();
   });
 });
