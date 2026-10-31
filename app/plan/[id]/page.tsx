@@ -7,6 +7,7 @@ import { areaRoutePlacePhoto, type PlacePhoto as PlacePhotoData } from "@/compon
 import ActivePlanMarker from "@/components/plan/ActivePlanMarker";
 import NightCrawlMode from "@/components/plan/NightCrawlMode";
 import PlanInviteOpened from "@/components/plan/PlanInviteOpened";
+import PlanCard from "@/components/plan/PlanCard";
 import PlanCrew from "@/components/plan/PlanCrew";
 import PlanInviteNextStep from "@/components/plan/PlanInviteNextStep";
 import PlanReadUnavailable from "@/components/plan/PlanReadUnavailable";
@@ -239,6 +240,11 @@ export default async function PlanPage({ params }: Props) {
         }
         secondary={<Link prefetch={false} href="/plan">Make another plan</Link>}
       />
+      {/* The plan as one card (PlanAstra 7.4): a member's cover, name, time,
+          crew and three actions, before the route. Client-only, because only
+          the capability-gated member read may name the stops and the crew;
+          while it stands the head above steps aside (app/plan/plan.css). */}
+      <PlanCard planId={id} completed={completed} />
       {/* Night-crawl mode (U7): while this plan's night is on, it becomes the
           default full-screen surface on mobile and offers an inline entry
           otherwise. Client-only gating, no new route. */}

@@ -18,6 +18,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  DRINK_MEASURES,
   DRINK_MEASURE_LABEL,
   NON_PINT_PRICE_REACH_LINE,
 } from "@/lib/drinkMeasure";
@@ -113,11 +114,12 @@ describe("the one-tap price door asks the measure", () => {
   it("renders the closed measure chips on the beer lane", async () => {
     await renderDoor();
 
-    expect(measureChips().map((chip) => chip.textContent)).toEqual([
-      DRINK_MEASURE_LABEL.pint,
-      DRINK_MEASURE_LABEL.half,
-      DRINK_MEASURE_LABEL.other,
-    ]);
+    // Pint and Half first, the glass and spirit sizes after them under their
+    // own heading, Other last (review item B1).
+    expect(measureChips().map((chip) => chip.textContent)).toEqual(
+      DRINK_MEASURES.map((measure) => DRINK_MEASURE_LABEL[measure]),
+    );
+    expect(container.querySelector(".measureGroupLabel")?.textContent).toBe("Wine and spirits");
     // The closed question stands ABOVE the figure, so the answer is never
     // inferred from what somebody typed afterwards.
     const chipRow = container.querySelector(".measureChips");

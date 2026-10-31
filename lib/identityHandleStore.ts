@@ -9,7 +9,7 @@ import {
   isReservedContributorHandle,
 } from "@/lib/pubmaxxIdentity";
 import { requireSupabaseAdmin } from "@/lib/supabase";
-import { selectStore } from "@/lib/storeBackend";
+import { admin as storeAdmin, selectStore } from "@/lib/storeBackend";
 
 type HandleAvailability = {
   handle: string;
@@ -43,6 +43,17 @@ type HandleRenameResult =
  * legacy anonymous-era handles with user_id null. The handle stays reserved
  * either way so attribution attacks cannot reclaim it.
  */
+/**
+ * Every handle one account has worn, found from any one of them. A Pint Drop
+ * keeps the handle text it was posted under, so an author read matches all of
+ * these. The alias table holds each handle once, for one profile, for ever,
+ * so a handle here can never also belong to a different account.
+ */
+export type WornHandles = {
+  currentHandle: string;
+  handles: string[];
+};
+
 type HandleResolution = {
   profileId: string;
   requestedHandle: string;
@@ -60,6 +71,8 @@ export type IdentityHandleStore = {
     ownerId: string,
     handles: readonly string[],
   ): Promise<string | null>;
+  /** Null when no account holds the handle in the alias history. */
+  wornHandles(handle: string): Promise<WornHandles | null>;
 };
 
 type MemoryAlias = {
@@ -323,6 +336,19 @@ export const memoryIdentityHandleStore: IdentityHandleStore = {
     }
     return null;
   },
+
+  async wornHandles(handle) {
+    const alias = memoryAliases.get(handle);
+    if (!alias) return null;
+    const handles: string[] = [];
+    let currentHandle = alias.currentHandle;
+    for (const [worn, entry] of memoryAliases) {
+      if (entry.profileId !== alias.profileId) continue;
+      handles.push(worn);
+      if (entry.isCurrent) currentHandle = worn;
+    }
+    return { currentHandle, handles: handles.sort() };
+  },
 };
 
 export const supabaseIdentityHandleStore: IdentityHandleStore = {
@@ -499,6 +525,33 @@ export const supabaseIdentityHandleStore: IdentityHandleStore = {
     if (error) throw new Error(error.message);
     const alias = (aliases ?? [])[0] as { handle?: unknown } | undefined;
     return typeof alias?.handle === "string" ? alias.handle : null;
+  },
+
+  async wornHandles(handle) {
+    // Read through the store seam, the same client the Pint Drop author reads use.
+    const admin = storeAdmin();
+    const { data: held, error } = await admin
+      .from("profile_handle_aliases")
+      .select("profile_id")
+      .eq("handle", handle)
+      .limit(1);
+    if (error) throw new Error(error.message);
+    const profileId = ((held ?? [])[0] as { profile_id?: unknown } | undefined)?.profile_id;
+    if (typeof profileId !== "string" || !profileId) return null;
+    const { data: worn, error: wornError } = await admin
+      .from("profile_handle_aliases")
+      .select("handle,is_current")
+      .eq("profile_id", profileId)
+      .limit(100);
+    if (wornError) throw new Error(wornError.message);
+    const rows = (worn ?? []) as { handle?: unknown; is_current?: unknown }[];
+    const handles = rows.flatMap((row) => (typeof row.handle === "string" && row.handle ? [row.handle] : []));
+    if (!handles.includes(handle)) handles.push(handle);
+    const current = rows.find((row) => row.is_current === true && typeof row.handle === "string");
+    return {
+      currentHandle: typeof current?.handle === "string" ? current.handle : handle,
+      handles: handles.sort(),
+    };
   },
 };
 

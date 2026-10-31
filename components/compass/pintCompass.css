@@ -187,7 +187,9 @@
 }
 
 .pcDirectionAligned {
-  color: var(--color-positive);
+  /* The green as a WORD inks: --pint itself read 2.95:1 on the light card
+     (docs/design-explorations/2026-10-30-phone-mockups/contrast.mjs). */
+  color: var(--tint-ink-positive);
 }
 
 .pcName {

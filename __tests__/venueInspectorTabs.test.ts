@@ -15,7 +15,7 @@ describe("venueInspectorTabs", () => {
       "Overview",
       "Photos",
       "Menu",
-      "Stories",
+      "Prices",
       "Lore",
     ]);
   });
@@ -45,7 +45,7 @@ describe("venueInspectorTabs", () => {
     expect(resolveVenueTab("nonsense", "pub")).toBe(DEFAULT_TAB);
   });
 
-  it("opens Stories only on a venue that has a Stories tab", () => {
+  it("opens Prices only on a venue that has a Prices tab", () => {
     expect(resolveVenueTab("pints", "pub")).toBe("pints");
     expect(resolveVenueTab("pints", "bar")).toBe(DEFAULT_TAB);
     expect(resolveVenueTab("getting-home", "bar")).toBe("overview");

@@ -245,8 +245,6 @@ const LAUNCH_SURFACES: ReadonlyArray<[string, () => string]> = [
           },
           weather: null,
           weatherByArea: {},
-          picks: [],
-          picksStatus: "ready",
           fact: null,
           pintsIndex: {},
           quietPint: null,

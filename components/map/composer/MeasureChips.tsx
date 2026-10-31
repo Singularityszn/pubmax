@@ -3,11 +3,13 @@
 import { useId } from "react";
 
 import {
-  DRINK_MEASURES,
+  BEER_MEASURES,
   DRINK_MEASURE_LABEL,
   DRINK_MEASURE_LABEL_MAX,
   MEASURE_FIELD_LABEL,
   MEASURE_OTHER_PLACEHOLDER,
+  WINE_AND_SPIRIT_MEASURES,
+  WINE_AND_SPIRIT_MEASURES_HEADING,
   type DrinkMeasure,
 } from "@/lib/drinkMeasure";
 
@@ -35,6 +37,12 @@ type MeasureChipsProps = {
 //
 // Leaving `other` drops the free label with it: a word kept beside `pint` would
 // be a second name for a measure that already names itself.
+//
+// THE ORDER IS THE BEER MEASURES, THEN THE GLASSES, THEN OTHER (review item B1).
+// Pint and Half stay first because they are what most prices on this door are
+// about; the glass and spirit sizes sit under their own heading so a wine
+// price can say "175 ml" instead of hiding in `other`. One radio group still,
+// because it is one question with one answer.
 export default function MeasureChips({
   measure,
   measureLabel,
@@ -44,6 +52,28 @@ export default function MeasureChips({
 }: MeasureChipsProps) {
   const groupId = useId();
   const labelInputId = `${groupId}-label`;
+
+  const chip = (option: DrinkMeasure) => {
+    const selected = measure === option;
+    return (
+      <button
+        key={option}
+        type="button"
+        role="radio"
+        aria-checked={selected}
+        className={selected ? "measureChip selected" : "measureChip"}
+        disabled={disabled}
+        onClick={() =>
+          onChange({
+            measure: option,
+            measureLabel: option === "other" ? measureLabel : "",
+          })
+        }
+      >
+        {DRINK_MEASURE_LABEL[option]}
+      </button>
+    );
+  };
 
   return (
     <div className="measureField">
@@ -55,27 +85,18 @@ export default function MeasureChips({
         role="radiogroup"
         aria-labelledby={`${groupId}-measure`}
       >
-        {DRINK_MEASURES.map((option) => {
-          const selected = measure === option;
-          return (
-            <button
-              key={option}
-              type="button"
-              role="radio"
-              aria-checked={selected}
-              className={selected ? "measureChip selected" : "measureChip"}
-              disabled={disabled}
-              onClick={() =>
-                onChange({
-                  measure: option,
-                  measureLabel: option === "other" ? measureLabel : "",
-                })
-              }
-            >
-              {DRINK_MEASURE_LABEL[option]}
-            </button>
-          );
-        })}
+        {BEER_MEASURES.map(chip)}
+        <div
+          className="measureChipGroup"
+          role="group"
+          aria-labelledby={`${groupId}-wine`}
+        >
+          <span className="measureGroupLabel" id={`${groupId}-wine`}>
+            {WINE_AND_SPIRIT_MEASURES_HEADING}
+          </span>
+          {WINE_AND_SPIRIT_MEASURES.map(chip)}
+        </div>
+        {chip("other")}
       </div>
       {measure === "other" ? (
         <label className="measureLabelField" htmlFor={labelInputId}>

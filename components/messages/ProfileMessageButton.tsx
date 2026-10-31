@@ -12,6 +12,7 @@ import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { normalizeHandle } from "@/lib/profiles";
 
 import "@/app/messages/messages.css";
+import { useMessageAdultGate } from "./useMessageAdultGate";
 
 // The "Message" control on a profile (PRD E4 / Wave I2). Opens (or finds) the
 // conversation via POST /api/messages {action:"open"} with Bearer JWT, then
@@ -35,6 +36,7 @@ export default function ProfileMessageButton({
   const viewerSession = useViewerSession();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const { fromRefusal, adultGateDialog } = useMessageAdultGate();
 
   const effectiveViewer = normalizeHandle(authHandle ?? "") || normalizeHandle(viewerHandle);
   if (!targetHandle || targetHandle === effectiveViewer) return null;
@@ -69,6 +71,7 @@ export default function ProfileMessageButton({
       }, { requiresIdentity: true });
       if (!res.ok) {
         const body: unknown = await res.json().catch(() => null);
+        if (fromRefusal(body, () => void open())) return;
         setError(
           offlineOrMessage(errorMessageFrom(body, "Could not open messages. Try again."))
         );
@@ -104,6 +107,7 @@ export default function ProfileMessageButton({
           {error}
         </p>
       ) : null}
+      {adultGateDialog}
     </>
   );
 }

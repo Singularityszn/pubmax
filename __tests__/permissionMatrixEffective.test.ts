@@ -352,11 +352,18 @@ beforeAll(async () => {
     wantedRoute,
     diaryRoute,
     venueSubmissionsRoute,
+    venueCorrectionsRoute,
+    adminVenueCorrectionsRoute,
+    regularNightsRoute,
+    adminRegularNightsRoute,
+    kitchenReportsRoute,
     savedPubsRoute,
     tagsRoute,
     profileRoute,
     planStore,
     crewPalsRoute,
+    openCrewRoute,
+    usualDrinkRoute,
   ] = await Promise.all([
     import("@/app/api/plans/[id]/route"),
     import("@/app/api/plans/[id]/getin/route"),
@@ -385,11 +392,18 @@ beforeAll(async () => {
     import("@/app/api/wanted/route"),
     import("@/app/api/diary/route"),
     import("@/app/api/venue-submissions/route"),
+    import("@/app/api/venue-corrections/route"),
+    import("@/app/api/admin/venue-corrections/route"),
+    import("@/app/api/regular-nights/route"),
+    import("@/app/api/admin/regular-nights/route"),
+    import("@/app/api/kitchen-reports/route"),
     import("@/app/api/saved-pubs/route"),
     import("@/app/api/social/tags/route"),
     import("@/app/api/profiles/[handle]/route"),
     import("@/lib/planStore"),
     import("@/app/api/plans/[id]/pals/route"),
+    import("@/app/api/plans/[id]/open-crew/route"),
+    import("@/app/api/plans/[id]/usual-drink/route"),
   ]);
   handlers = {
     readPlan: planRoute.GET as Handler,
@@ -400,7 +414,9 @@ beforeAll(async () => {
     join: joinRoute.POST as Handler,
     rotateInvite: rotateRoute.POST as Handler,
     presence: presenceRoute.POST as Handler,
+    usualDrink: usualDrinkRoute.POST as Handler,
     crewPals: crewPalsRoute.GET as Handler,
+    openCrew: openCrewRoute.POST as Handler,
     planCard: planCard.GET as unknown as Handler,
     listMemories: memoriesRoute.GET as unknown as Handler,
     createMemory: memoriesRoute.POST as unknown as Handler,
@@ -432,6 +448,16 @@ beforeAll(async () => {
     writeDiary: diaryRoute.POST as unknown as Handler,
     listVenueSubmissions: venueSubmissionsRoute.GET as unknown as Handler,
     writeVenueSubmission: venueSubmissionsRoute.POST as unknown as Handler,
+    writeVenueCorrection: venueCorrectionsRoute.POST as unknown as Handler,
+    listVenueCorrections: adminVenueCorrectionsRoute.GET as unknown as Handler,
+    decideVenueCorrection: adminVenueCorrectionsRoute.PATCH as unknown as Handler,
+    readRegularNights: regularNightsRoute.GET as unknown as Handler,
+    writeRegularNight: regularNightsRoute.POST as unknown as Handler,
+    stillOnRegularNight: regularNightsRoute.PATCH as unknown as Handler,
+    listRegularNightReports: adminRegularNightsRoute.GET as unknown as Handler,
+    decideRegularNightReport: adminRegularNightsRoute.PATCH as unknown as Handler,
+    readKitchenReport: kitchenReportsRoute.GET as unknown as Handler,
+    writeKitchenReport: kitchenReportsRoute.POST as unknown as Handler,
     listSavedPubs: savedPubsRoute.GET as unknown as Handler,
     writeSavedPub: savedPubsRoute.POST as unknown as Handler,
     tagInbox: tagsRoute.GET as unknown as Handler,
@@ -718,6 +744,41 @@ describe("private Plan: write", () => {
     expect(planRevision()).toBe(revisionBefore);
     expect(planStopOrder()).toBe(orderBefore);
     expect(truth(`select status from public.plan_crew_members where id = '${HOST_MEMBER_ID}'`)).toBe("in");
+  });
+
+  it("usual drink (0211): anonymous and user B set nothing, the host sets her own, and no browser role reads the column", async () => {
+    for (const bearer of [undefined, BEARER_BOB]) {
+      const refused = await defined(handlers.usualDrink)(
+        request(`/api/plans/${PLAN_ID}/usual-drink`, { bearer, body: { usualDrink: "wine" } }),
+        context({ id: PLAN_ID }),
+      );
+      expect([400, 403]).toContain(refused.status);
+    }
+    expect(truth(`select usual_drink is null from public.plan_crew_members where id = '${HOST_MEMBER_ID}'`)).toBe("true");
+
+    const saved = await defined(handlers.usualDrink)(
+      request(`/api/plans/${PLAN_ID}/usual-drink`, { bearer: HOST_TOKEN, body: { usualDrink: "wine" } }),
+      context({ id: PLAN_ID }),
+    );
+    expect(saved.status, await saved.text()).toBe(200);
+    expect(truth(`select usual_drink from public.plan_crew_members where id = '${HOST_MEMBER_ID}'`)).toBe("wine");
+
+    // The column is not in 0172's authenticated column grant, so even the
+    // seat's owner cannot select it through PostgREST.
+    const column = await requireSession().rest(
+      `/plan_crew_members?select=usual_drink&plan_id=eq.${PLAN_ID}`,
+      { sub: ALICE },
+    );
+    expect(column.status).toBeGreaterThanOrEqual(400);
+    for (const [role, sub] of [["anon", null], ["authenticated", ALICE], ["authenticated", BOB]] as const) {
+      const written = attemptAsRole(
+        role,
+        sub,
+        `update public.plan_crew_members set usual_drink = 'soft' where id = '${HOST_MEMBER_ID}'`,
+      );
+      expect(written.ok ? truth(`select usual_drink from public.plan_crew_members where id = '${HOST_MEMBER_ID}'`) : "refused")
+        .not.toBe("soft");
+    }
   });
 
   it("the host's capability replaces the route (the control cell)", async () => {
@@ -2155,6 +2216,241 @@ describe("saves: two lanes, two promises", () => {
     }
   });
 
+  it("a \"That's wrong\" note is owned by the session, read only by staff, and no browser role reaches the table", async () => {
+    const seeded = await defined(handlers.writeVenueCorrection)(
+      request("/api/venue-corrections", {
+        bearer: BEARER_ALICE,
+        body: { venueId: PRICE_VENUE, kind: "closed", note: "Alice correction line", ownerUserId: BOB },
+      }),
+      context({}),
+    );
+    expect(seeded.status, await seeded.clone().text()).toBe(201);
+    expect(
+      Number(truth(`select count(*) from public.venue_corrections where owner_user_id = '${ALICE}'`)),
+    ).toBe(1);
+    expect(
+      Number(truth(`select count(*) from public.venue_corrections where owner_user_id = '${BOB}'`)),
+    ).toBe(0);
+
+    const anonymous = await defined(handlers.writeVenueCorrection)(
+      request("/api/venue-corrections", { body: { venueId: PRICE_VENUE, kind: "hours" } }),
+      context({}),
+    );
+    expect(anonymous.status).toBe(401);
+    expect(Number(truth("select count(*) from public.venue_corrections"))).toBe(1);
+
+    // The queue answers staff alone, and it never names the reporter.
+    for (const bearer of [undefined, BEARER_ALICE, BEARER_BOB, BEARER_CAROL, BEARER_DAVE]) {
+      const refused = await defined(handlers.listVenueCorrections)(
+        request("/api/admin/venue-corrections", bearer ? { bearer } : {}),
+        context({}),
+      );
+      expect(refused.status).toBe(403);
+      expectNoDisclosure(await readJson(refused), ["Alice correction line"]);
+    }
+    const staff = await defined(handlers.listVenueCorrections)(
+      request("/api/admin/venue-corrections", { headers: { "x-admin-token": MODERATOR_TOKEN } }),
+      context({}),
+    );
+    expect(staff.status).toBe(200);
+    const staffBody = await readJson<{ corrections?: { id: string; note: string }[] }>(staff);
+    expect(staffBody.corrections?.map((row) => row.note)).toEqual(["Alice correction line"]);
+    expect(JSON.stringify(staffBody)).not.toContain(ALICE);
+    const id = defined(staffBody.corrections?.[0]).id;
+
+    // Owning the note is not a moderator credential, and the refusal moves nothing.
+    const ownerVerdict = await defined(handlers.decideVenueCorrection)(
+      request("/api/admin/venue-corrections", { bearer: BEARER_ALICE, method: "PATCH", body: { id, status: "dismissed" } }),
+      context({}),
+    );
+    expect(ownerVerdict.status).toBe(403);
+    expect(truth(`select status from public.venue_corrections where id = '${id}'`)).toBe("open");
+    const staffVerdict = await defined(handlers.decideVenueCorrection)(
+      request("/api/admin/venue-corrections", {
+        method: "PATCH",
+        headers: { "x-admin-token": MODERATOR_TOKEN },
+        body: { id, status: "resolved" },
+      }),
+      context({}),
+    );
+    expect(staffVerdict.status).toBe(200);
+    expect(truth(`select status from public.venue_corrections where id = '${id}'`)).toBe("resolved");
+
+    expect(visibleRows("anon", null, "select count(*) from public.venue_corrections")).toBe(0);
+    for (const sub of [ALICE, BOB]) {
+      expect(visibleRows("authenticated", sub, "select count(*) from public.venue_corrections")).toBe(0);
+      const write = attemptAsRole("authenticated", sub, "delete from public.venue_corrections");
+      expect(write.ok).toBe(false);
+      expect(write.err).toMatch(/permission denied/i);
+    }
+  });
+
+  it("a regular night is written from the session, \"still on\" once by another account, decided by staff, and no browser role reaches the tables", async () => {
+    const reportId = "e2000000-0000-4000-8000-000000000200";
+    truth(`
+      insert into public.regular_night_reports (id, venue_id, kind, weekday, start_time, note, photo_key, reporter_user_id)
+      values ('${reportId}', '${PRICE_VENUE}', 'quiz', 2, '20:00', 'Alice regular night line',
+        'regular-night-boards/${ALICE}/${reportId}.jpg', '${ALICE}')
+      returning id
+    `);
+
+    const form = new FormData();
+    form.set("venueId", PRICE_VENUE);
+    form.set("kind", "quiz");
+    form.set("weekday", "2");
+    const anonymous = await defined(handlers.writeRegularNight)(
+      request("/api/regular-nights", { form }),
+      context({}),
+    );
+    expect(anonymous.status).toBe(401);
+    const anonymousStillOn = await defined(handlers.stillOnRegularNight)(
+      request("/api/regular-nights", { method: "PATCH", body: { id: reportId } }),
+      context({}),
+    );
+    expect(anonymousStillOn.status).toBe(401);
+    expect(Number(truth("select count(*) from public.regular_night_reports"))).toBe(1);
+
+    // The public read prints the handle and never the account or the photo key.
+    const read = await defined(handlers.readRegularNights)(request("/api/regular-nights?weekday=2"), context({}));
+    expect(read.status).toBe(200);
+    const readBody = JSON.stringify(await readJson(read));
+    expect(readBody).toContain("alicepm");
+    expect(readBody).not.toContain(ALICE);
+    expect(readBody).not.toContain("regular-night-boards/");
+
+    // The reporter cannot keep her own report up; another account can, once.
+    const own = await defined(handlers.stillOnRegularNight)(
+      request("/api/regular-nights", { bearer: BEARER_ALICE, method: "PATCH", body: { id: reportId } }),
+      context({}),
+    );
+    expect(own.status).toBe(409);
+    const before = truth(`select expires_at from public.regular_night_reports where id = '${reportId}'`);
+    const bob = await defined(handlers.stillOnRegularNight)(
+      request("/api/regular-nights", { bearer: BEARER_BOB, method: "PATCH", body: { id: reportId } }),
+      context({}),
+    );
+    expect(bob.status, await bob.clone().text()).toBe(200);
+    expect(truth(`select expires_at > '${before}'::timestamptz from public.regular_night_reports where id = '${reportId}'`)).toBe("true");
+    const bobAgain = await defined(handlers.stillOnRegularNight)(
+      request("/api/regular-nights", { bearer: BEARER_BOB, method: "PATCH", body: { id: reportId } }),
+      context({}),
+    );
+    expect(bobAgain.status).toBe(409);
+    expect(Number(truth(`select count(*) from public.regular_night_report_still_on where report_id = '${reportId}'`))).toBe(1);
+
+    for (const bearer of [undefined, BEARER_ALICE, BEARER_BOB, BEARER_CAROL, BEARER_DAVE]) {
+      const refused = await defined(handlers.listRegularNightReports)(
+        request("/api/admin/regular-nights", bearer ? { bearer } : {}),
+        context({}),
+      );
+      expect(refused.status).toBe(403);
+      expectNoDisclosure(await readJson(refused), ["Alice regular night line"]);
+    }
+    const ownerVerdict = await defined(handlers.decideRegularNightReport)(
+      request("/api/admin/regular-nights", { bearer: BEARER_ALICE, method: "PATCH", body: { id: reportId, status: "confirmed" } }),
+      context({}),
+    );
+    expect(ownerVerdict.status).toBe(403);
+    expect(truth(`select status from public.regular_night_reports where id = '${reportId}'`)).toBe("open");
+    const staff = await defined(handlers.listRegularNightReports)(
+      request("/api/admin/regular-nights", { headers: { "x-admin-token": MODERATOR_TOKEN } }),
+      context({}),
+    );
+    expect(staff.status).toBe(200);
+    const staffVerdict = await defined(handlers.decideRegularNightReport)(
+      request("/api/admin/regular-nights", {
+        method: "PATCH",
+        headers: { "x-admin-token": MODERATOR_TOKEN },
+        body: { id: reportId, status: "hidden" },
+      }),
+      context({}),
+    );
+    expect(staffVerdict.status).toBe(200);
+    expect(truth(`select status from public.regular_night_reports where id = '${reportId}'`)).toBe("hidden");
+
+    for (const table of ["regular_night_reports", "regular_night_report_still_on"]) {
+      expect(visibleRows("anon", null, `select count(*) from public.${table}`)).toBe(0);
+      for (const sub of [ALICE, BOB]) {
+        expect(visibleRows("authenticated", sub, `select count(*) from public.${table}`)).toBe(0);
+        const write = attemptAsRole("authenticated", sub, `delete from public.${table}`);
+        expect(write.ok).toBe(false);
+        expect(write.err).toMatch(/permission denied/i);
+      }
+    }
+  });
+
+  it("a kitchen report is written from the session, confirmed once by another account, never by its reporter, and no browser role reaches the table", async () => {
+    const anonymous = await defined(handlers.writeKitchenReport)(
+      request("/api/kitchen-reports", { body: { venueId: PRICE_VENUE, state: "open" } }),
+      context({}),
+    );
+    expect(anonymous.status).toBe(401);
+    expect(Number(truth("select count(*) from public.kitchen_reports"))).toBe(0);
+
+    // The body cannot name the reporter: the session does.
+    const alice = await defined(handlers.writeKitchenReport)(
+      request("/api/kitchen-reports", {
+        bearer: BEARER_ALICE,
+        body: { venueId: PRICE_VENUE, state: "open", reporterUserId: BOB },
+      }),
+      context({}),
+    );
+    expect(alice.status, await alice.clone().text()).toBe(200);
+    expect(truth(`select reporter_user_id from public.kitchen_reports where venue_id = '${PRICE_VENUE}'`)).toBe(ALICE);
+
+    const offList = await defined(handlers.writeKitchenReport)(
+      request("/api/kitchen-reports", { bearer: BEARER_BOB, body: { venueId: PRICE_VENUE, state: "shut" } }),
+      context({}),
+    );
+    expect(offList.status).toBe(400);
+
+    // The public read prints the handle and never the account.
+    const read = await defined(handlers.readKitchenReport)(
+      request(`/api/kitchen-reports?venueId=${PRICE_VENUE}`),
+      context({}),
+    );
+    expect(read.status).toBe(200);
+    const readBody = JSON.stringify(await readJson(read));
+    expect(readBody).toContain("alicepm");
+    expect(readBody).not.toContain(ALICE);
+
+    const own = await defined(handlers.writeKitchenReport)(
+      request("/api/kitchen-reports", { bearer: BEARER_ALICE, body: { venueId: PRICE_VENUE, state: "open" } }),
+      context({}),
+    );
+    expect(own.status).toBe(409);
+    expect(truth("select confirmed_at is null from public.kitchen_reports")).toBe("true");
+
+    const bob = await defined(handlers.writeKitchenReport)(
+      request("/api/kitchen-reports", { bearer: BEARER_BOB, body: { venueId: PRICE_VENUE, state: "open" } }),
+      context({}),
+    );
+    expect(bob.status, await bob.clone().text()).toBe(200);
+    expect(truth(`select confirmed_by from public.kitchen_reports`)).toBe(BOB);
+
+    const carol = await defined(handlers.writeKitchenReport)(
+      request("/api/kitchen-reports", { bearer: BEARER_CAROL, body: { venueId: PRICE_VENUE, state: "open" } }),
+      context({}),
+    );
+    expect(carol.status).toBe(409);
+    expect(truth(`select confirmed_by from public.kitchen_reports`)).toBe(BOB);
+    expect(Number(truth("select count(*) from public.kitchen_reports"))).toBe(1);
+
+    // The table refuses a reporter confirming their own row, whoever writes it.
+    const selfConfirm = requireSession().sql(
+      "update public.kitchen_reports set confirmed_by = reporter_user_id, confirmed_at = now()",
+    );
+    expect(selfConfirm.ok).toBe(false);
+
+    expect(visibleRows("anon", null, "select count(*) from public.kitchen_reports")).toBe(0);
+    for (const sub of [ALICE, BOB]) {
+      expect(visibleRows("authenticated", sub, "select count(*) from public.kitchen_reports")).toBe(0);
+      const write = attemptAsRole("authenticated", sub, "delete from public.kitchen_reports");
+      expect(write.ok).toBe(false);
+      expect(write.err).toMatch(/permission denied/i);
+    }
+  });
+
   it("a saved-pub list is PUBLIC to read and gated to write, and the write gate holds", async () => {
     const saved = await defined(handlers.writeSavedPub)(
       request("/api/saved-pubs", {
@@ -2405,6 +2701,105 @@ describe("photo tags: the consent inbox is the tagged account's own", () => {
     );
     expect(response.status).toBe(400);
     expectNoDisclosure(await readJson(response));
+  });
+});
+
+describe("Open crawl: Open it up (0208)", () => {
+  // A plan of Alice's own, separate from the Crew Plan above: opening it up
+  // CONSUMES it (social owner stamped, seat tokens rotated), exactly as a
+  // Crew create does. The harness prints a boolean as the string "true".
+  const OPEN_PLAN_ID = "c8000000-0000-4000-8000-000000000011";
+  const OPEN_HOST_MEMBER_ID = "c8100000-0000-4000-8000-000000000012";
+  const OPEN_HOST_SEAT = "pm-open-crawl-host-seat-alice";
+  const goodBody = {
+    memberToken: OPEN_HOST_SEAT,
+    capacity: 6,
+    meetingVenueId: "venue-xjf3n0",
+    description: "Three old boozers, a pint at each.",
+  };
+
+  beforeAll(() => {
+    if (skipReason) return;
+    truth(`
+      insert into public.plans (id, title, start_time, status, route_revision, owner_user_id)
+        values ('${OPEN_PLAN_ID}', 'Alice open crawl', now() + interval '2 days', 'ready', 1, '${ALICE}');
+      insert into public.plan_stops (plan_id, venue_id, venue_name, position) values
+        ('${OPEN_PLAN_ID}', 'venue-1f5ygjb', 'Venue One', 0),
+        ('${OPEN_PLAN_ID}', 'venue-xjf3n0', 'Venue Two', 1);
+      insert into public.plan_crew_members (
+        id, plan_id, name, token_hash, user_id, status, joined_at, updated_at, can_collaborate
+      ) values (
+        '${OPEN_HOST_MEMBER_ID}', '${OPEN_PLAN_ID}', 'Alice', '${hashPlanMemberToken(OPEN_HOST_SEAT)}',
+        '${ALICE}', 'in', now(), now(), true
+      );
+      select 1
+    `);
+  });
+
+  const unopened = () =>
+    truth(`select social_owner_account_id is null from public.plans where id = '${OPEN_PLAN_ID}'`);
+
+  it("an account without the host seat is refused as if the plan were not there, and nothing moves", async () => {
+    for (const memberToken of [undefined, "pm-open-crawl-guess"]) {
+      const response = await defined(handlers.openCrew)(
+        crewRequest(`/api/plans/${OPEN_PLAN_ID}/open-crew`, {
+          bearer: BEARER_DAVE,
+          body: { ...goodBody, memberToken },
+        }),
+        context({ id: OPEN_PLAN_ID }),
+      );
+      expect(response.status).toBe(404);
+      expectNoDisclosure(await readJson(response), ["Alice open crawl", "Venue Two"]);
+    }
+    expect(unopened()).toBe("true");
+    expect(truth(`select count(*) from public.social_crews where plan_id = '${OPEN_PLAN_ID}'`)).toBe("0");
+  });
+
+  it("the host seat without an account is refused, and nothing moves", async () => {
+    const response = await defined(handlers.openCrew)(
+      crewRequest(`/api/plans/${OPEN_PLAN_ID}/open-crew`, { body: goodBody }),
+      context({ id: OPEN_PLAN_ID }),
+    );
+    expect(response.status).toBeGreaterThanOrEqual(400);
+    expect(unopened()).toBe("true");
+  });
+
+  it("a capacity past the crew cap is refused before any write", async () => {
+    const response = await defined(handlers.openCrew)(
+      crewRequest(`/api/plans/${OPEN_PLAN_ID}/open-crew`, {
+        bearer: BEARER_ALICE,
+        body: { ...goodBody, capacity: 21 },
+      }),
+      context({ id: OPEN_PLAN_ID }),
+    );
+    expect(response.status).toBe(422);
+    expect(unopened()).toBe("true");
+  });
+
+  it("the host with her account opens it, and the crew carries the plan and its three facts", async () => {
+    const response = await defined(handlers.openCrew)(
+      crewRequest(`/api/plans/${OPEN_PLAN_ID}/open-crew`, { bearer: BEARER_ALICE, body: goodBody }),
+      context({ id: OPEN_PLAN_ID }),
+    );
+    expect(response.status, await response.clone().text()).toBe(201);
+    expect(
+      truth(
+        `select visibility || ':' || capacity || ':' || meeting_venue_id from public.social_crews where plan_id = '${OPEN_PLAN_ID}'`,
+      ),
+    ).toBe("open:6:venue-xjf3n0");
+    expect(
+      truth(`select social_owner_account_id = '${ALICE_ACCOUNT}' from public.plans where id = '${OPEN_PLAN_ID}'`),
+    ).toBe("true");
+  });
+
+  it("at the table: no browser role reads or writes the open crawl facts", () => {
+    for (const [role, sub] of [["anon", null], ["authenticated", ALICE], ["authenticated", DAVE]] as const) {
+      expect(
+        visibleRows(role, sub, `select count(*) from public.social_crews where plan_id = '${OPEN_PLAN_ID}'`),
+      ).toBe(0);
+      attemptAsRole(role, sub, `update public.social_crews set capacity = 20 where plan_id = '${OPEN_PLAN_ID}'`);
+    }
+    expect(truth(`select capacity from public.social_crews where plan_id = '${OPEN_PLAN_ID}'`)).toBe("6");
   });
 });
 

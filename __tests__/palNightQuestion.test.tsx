@@ -91,8 +91,8 @@ describe("the Pal's evening question", () => {
     }));
     expect(shapes).toEqual({
       quiet: { stops: 2, budget: "value", daypart: "evening", atmosphere: ["quiet"] },
-      sesh: { stops: 4, budget: "value", daypart: "evening", atmosphere: ["lively"] },
-      carnage: { stops: 6, budget: "value", daypart: "evening", atmosphere: ["lively"] },
+      big: { stops: 4, budget: "value", daypart: "evening", atmosphere: ["lively"] },
+      loud: { stops: 4, budget: "value", daypart: "evening", atmosphere: ["lively", "music"] },
     });
   });
 
@@ -104,26 +104,33 @@ describe("the Pal's evening question", () => {
     for (const line of lines) {
       expect(line).not.toMatch(/!/);
       expect(line).not.toMatch(/[–—]/);
-      expect(line).not.toMatch(/\b(?:fuck\w*|shit\w*|smashed|wasted|hammered)\b/i);
-      // A plan of pubs, never a number of drinks or another round.
-      expect(line).not.toMatch(/\b(?:drinks?|pints?|rounds?|shots?)\b/i);
+      expect(line).not.toMatch(/\b(?:fuck\w*|shit\w*|smashed|wasted|hammered|carnage|sesh|session)\b/i);
+      // A plan of pubs, never a number of drinks or another round. "Quiet
+      // pint" is the approved CAP label for the calm night, not a count.
+      expect(line.replace(/\bquiet pint\b/gi, "")).not.toMatch(/\b(?:drinks?|pints?|rounds?|shots?)\b/i);
+    }
+  });
+
+  it("never offers a night of more than four pubs", () => {
+    for (const choice of PAL_NIGHT_CHOICES) {
+      expect(inferNightContext(choice.plan, LONDON_NOON).context.stopCount).toBeLessThanOrEqual(4);
     }
   });
 
   it("remembers the answer for the rest of the evening, and only that evening", () => {
     const storage = memoryStorage();
-    writePalNightAnswer(storage, "sesh", LONDON_LATE);
-    expect(readPalNightAnswer(storage, LONDON_LATE)?.id).toBe("sesh");
+    writePalNightAnswer(storage, "big", LONDON_LATE);
+    expect(readPalNightAnswer(storage, LONDON_LATE)?.id).toBe("big");
     // Half past midnight still belongs to the same night out.
-    expect(readPalNightAnswer(storage, LONDON_SMALL_HOURS)?.id).toBe("sesh");
+    expect(readPalNightAnswer(storage, LONDON_SMALL_HOURS)?.id).toBe("big");
     expect(readPalNightAnswer(storage, new Date("2026-10-20T11:00:00Z"))).toBeNull();
     writePalNightAnswer(storage, null, LONDON_LATE);
     expect(readPalNightAnswer(storage, LONDON_LATE)).toBeNull();
   });
 
   it("invites the crew to tonight in the Pal's name, never to a price, a count or the evening's answer", () => {
-    expect(palNightInviteText("Ripley")).toBe("Ripley's got a plan for tonight. Open the link and tap I'm in.");
-    expect(palNightInviteText("  ")).toBe("My Pal's got a plan for tonight. Open the link and tap I'm in.");
+    expect(palNightInviteText("Ripley")).toBe("Ripley's got a plan for tonight. Open the link and tap Going.");
+    expect(palNightInviteText("  ")).toBe("My Pal's got a plan for tonight. Open the link and tap Going.");
     expect(palNightInviteText("Ripley")).not.toMatch(/\d|£/);
     // The saved plan may not be the one the answer made, so the words never name the answer.
     for (const choice of PAL_NIGHT_CHOICES) expect(palNightInviteText("Ripley").toLowerCase()).not.toContain(choice.label.toLowerCase());
@@ -177,9 +184,9 @@ describe("the question on /pal", () => {
     expect(host.textContent).toContain(PAL_NIGHT_QUESTION);
     const links = [...host.querySelectorAll<HTMLAnchorElement>("a.palChoice")];
     expect(links.map((link) => link.textContent)).toEqual([
-      "Quiet coupleTwo quiet pubs, on a budget",
-      "Proper seshFour lively pubs, on a budget",
-      "Absolute carnageSix lively pubs, on a budget",
+      "Quiet pintTwo quiet pubs, on a budget",
+      "Big one tonightFour lively pubs, on a budget",
+      "Live and loudFour pubs with music or a lively crowd, on a budget",
     ]);
     expect(links.map((link) => new URL(link.href).searchParams.get("query"))).toEqual(PAL_NIGHT_CHOICES.map((choice) => choice.plan));
     expect(links.every((link) => new URL(link.href).pathname === "/plan")).toBe(true);
@@ -187,13 +194,13 @@ describe("the question on /pal", () => {
 
   it("answers back, keeps the plan one tap away, and lets the person change their mind", async () => {
     await render();
-    const sesh = [...host.querySelectorAll<HTMLAnchorElement>("a.palChoice")][1]!;
-    sesh.addEventListener("click", (event) => event.preventDefault());
-    await act(async () => sesh.click());
-    expect(host.querySelector("[role='status']")?.textContent).toBe("Proper sesh it is. Four lively pubs, on a budget.");
+    const bigOne = [...host.querySelectorAll<HTMLAnchorElement>("a.palChoice")][1]!;
+    bigOne.addEventListener("click", (event) => event.preventDefault());
+    await act(async () => bigOne.click());
+    expect(host.querySelector("[role='status']")?.textContent).toBe("A big one it is. Four lively pubs, on a budget, and mind the last train.");
     const open = [...host.querySelectorAll<HTMLAnchorElement>("a")].find((link) => link.textContent === "Open the plan")!;
     expect(new URL(open.href).searchParams.get("query")).toBe("4 pubs tonight, lively and cheap");
-    expect(JSON.parse(window.localStorage.getItem(PAL_NIGHT_ANSWER_STORAGE_KEY) ?? "null")?.answer).toBe("sesh");
+    expect(JSON.parse(window.localStorage.getItem(PAL_NIGHT_ANSWER_STORAGE_KEY) ?? "null")?.answer).toBe("big");
 
     await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Change my mind")!.click());
     expect(host.textContent).toContain(PAL_NIGHT_QUESTION);
@@ -210,7 +217,7 @@ describe("the question on /pal", () => {
     }
 
     it("holds Who's coming? until the crew link is read, so a quick tap never takes the fallback", async () => {
-      writePalNightAnswer(window.localStorage, "sesh", LONDON_LATE);
+      writePalNightAnswer(window.localStorage, "big", LONDON_LATE);
       let resolveToken: (token: string | null) => void = () => undefined;
       crew.pending = new Promise((resolve) => { resolveToken = resolve; });
       tonightsPlan();
@@ -231,11 +238,11 @@ describe("the question on /pal", () => {
       expect(ready.hasAttribute("aria-busy")).toBe(false);
       await act(async () => ready.click());
       expect(crew.shared).toHaveLength(1);
-      expect(new URL(crew.shared[0]!.url).hash).toBe("#invite=0123456789abcdef0123456789abcdef");
+      expect(new URL(crew.shared[0]!.url).pathname).toBe("/invite/0123456789abcdef0123456789abcdef");
     });
 
     it("opens the plan's own invite tools when the crew link read fails", async () => {
-      writePalNightAnswer(window.localStorage, "sesh", LONDON_LATE);
+      writePalNightAnswer(window.localStorage, "big", LONDON_LATE);
       crew.pending = Promise.reject(new Error("offline"));
       tonightsPlan();
       await render();
@@ -245,23 +252,24 @@ describe("the question on /pal", () => {
     });
 
     it("is not offered before tonight's plan is saved", async () => {
-      writePalNightAnswer(window.localStorage, "sesh", LONDON_LATE);
+      writePalNightAnswer(window.localStorage, "big", LONDON_LATE);
       await render();
       expect(whoButton()).toBeUndefined();
       expect(whoLink()).toBeUndefined();
     });
 
     it("shares tonight's real crew link in the Pal's words", async () => {
-      writePalNightAnswer(window.localStorage, "sesh", LONDON_LATE);
+      writePalNightAnswer(window.localStorage, "big", LONDON_LATE);
       tonightsPlan();
       await render();
       await act(async () => { await Promise.resolve(); });
       await act(async () => whoButton()!.click());
       expect(crew.shared).toHaveLength(1);
-      expect(crew.shared[0]!.text).toBe("Ripley's got a plan for tonight. Open the link and tap I'm in.");
-      expect(new URL(crew.shared[0]!.url).pathname).toBe(`/plan/${PLAN_ID}`);
-      expect(new URL(crew.shared[0]!.url).hash).toBe("#invite=0123456789abcdef0123456789abcdef");
-      expect(host.textContent).toContain("Sent. Now they tap I'm in.");
+      expect(crew.shared[0]!.text).toBe("Ripley's got a plan for tonight. Open the link and tap Going.");
+      // ONE LINK: the same public invite page every host share sends.
+      expect(new URL(crew.shared[0]!.url).pathname).toBe("/invite/0123456789abcdef0123456789abcdef");
+      expect(new URL(crew.shared[0]!.url).hash).toBe("");
+      expect(host.textContent).toContain("Sent. Now they tap Going.");
       // With tonight's plan saved, Open the plan goes to it, never to a fresh one.
       const open = [...host.querySelectorAll<HTMLAnchorElement>("a")].find((link) => link.textContent === "Open the plan")!;
       expect(new URL(open.href).pathname).toBe(`/plan/${PLAN_ID}`);
@@ -270,7 +278,7 @@ describe("the question on /pal", () => {
 
     it("opens the plan's own invite tools when there is no crew link to hand out", async () => {
       crew.token = null;
-      writePalNightAnswer(window.localStorage, "carnage", LONDON_LATE);
+      writePalNightAnswer(window.localStorage, "loud", LONDON_LATE);
       tonightsPlan("guest");
       await render();
       await act(async () => { await Promise.resolve(); });
@@ -294,23 +302,23 @@ describe("the question on /pal", () => {
     });
 
     it("says a WhatsApp draft is ready to send, never that it was sent", async () => {
-      writePalNightAnswer(window.localStorage, "sesh", LONDON_LATE);
+      writePalNightAnswer(window.localStorage, "big", LONDON_LATE);
       tonightsPlan();
       crew.outcome = "whatsapp";
       await render();
       await act(async () => { await Promise.resolve(); });
       await act(async () => whoButton()!.click());
       expect(host.textContent).not.toContain("Sent.");
-      expect(host.textContent).toContain("Ready in WhatsApp. Send it, then they tap I'm in.");
+      expect(host.textContent).toContain("Ready in WhatsApp. Send it, then they tap Going.");
     });
 
     it("forgets the last share when another tab swaps tonight's plan", async () => {
-      writePalNightAnswer(window.localStorage, "sesh", LONDON_LATE);
+      writePalNightAnswer(window.localStorage, "big", LONDON_LATE);
       tonightsPlan();
       await render();
       await act(async () => { await Promise.resolve(); });
       await act(async () => whoButton()!.click());
-      expect(host.textContent).toContain("Sent. Now they tap I'm in.");
+      expect(host.textContent).toContain("Sent. Now they tap Going.");
       await act(async () => {
         writeActivePlan({ id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd", startTime: new Date(LONDON_LATE.getTime() - 60 * 60_000).toISOString(), stopIndex: 0, role: "host" });
         await Promise.resolve();
@@ -321,7 +329,7 @@ describe("the question on /pal", () => {
     });
 
     it("stops offering last night's plan on a page left open past its window", async () => {
-      writePalNightAnswer(window.localStorage, "sesh", LONDON_LATE);
+      writePalNightAnswer(window.localStorage, "big", LONDON_LATE);
       tonightsPlan();
       await render();
       expect(whoButton()).toBeDefined();
@@ -329,9 +337,9 @@ describe("the question on /pal", () => {
       await act(async () => { vi.advanceTimersByTime(13 * 60 * 60_000); });
       await act(async () => { await Promise.resolve(); });
       expect(host.textContent).toContain(PAL_NIGHT_QUESTION);
-      const sesh = [...host.querySelectorAll<HTMLAnchorElement>("a.palChoice")][1]!;
-      sesh.addEventListener("click", (event) => event.preventDefault());
-      await act(async () => sesh.click());
+      const bigOne = [...host.querySelectorAll<HTMLAnchorElement>("a.palChoice")][1]!;
+      bigOne.addEventListener("click", (event) => event.preventDefault());
+      await act(async () => bigOne.click());
       expect(whoButton()).toBeUndefined();
       expect(whoLink()).toBeUndefined();
       const open = [...host.querySelectorAll<HTMLAnchorElement>("a")].find((link) => link.textContent === "Open the plan")!;
@@ -339,7 +347,7 @@ describe("the question on /pal", () => {
     });
 
     it("drops a plan whose window closes while its crew link is still being read", async () => {
-      writePalNightAnswer(window.localStorage, "sesh", LONDON_LATE);
+      writePalNightAnswer(window.localStorage, "big", LONDON_LATE);
       let resolveToken: (token: string | null) => void = () => undefined;
       crew.pending = new Promise((resolve) => { resolveToken = resolve; });
       // The plan's window closes at 23:35 London, five minutes from now.
@@ -358,7 +366,7 @@ describe("the question on /pal", () => {
     });
 
     it("starts offering the crew link when tonight's plan window opens on a page left open", async () => {
-      writePalNightAnswer(window.localStorage, "sesh", LONDON_LATE);
+      writePalNightAnswer(window.localStorage, "big", LONDON_LATE);
       // The plan starts at 02:40 London, so its window opens at 23:40.
       writeActivePlan({ id: PLAN_ID, startTime: new Date(LONDON_LATE.getTime() + (3 * 60 + 10) * 60_000).toISOString(), stopIndex: 0, role: "host" });
       await render();
@@ -369,7 +377,7 @@ describe("the question on /pal", () => {
     });
 
     it("is not offered for a plan with no seat on it", async () => {
-      writePalNightAnswer(window.localStorage, "sesh", LONDON_LATE);
+      writePalNightAnswer(window.localStorage, "big", LONDON_LATE);
       tonightsPlan(null);
       await render();
       expect(whoButton()).toBeUndefined();
@@ -381,7 +389,7 @@ describe("the question on /pal", () => {
     writePalNightAnswer(window.localStorage, "quiet", LONDON_LATE);
     await render();
     expect(host.textContent).not.toContain(PAL_NIGHT_QUESTION);
-    expect(host.querySelector("[role='status']")?.textContent).toBe("A quiet couple it is. Two quiet pubs, on a budget.");
+    expect(host.querySelector("[role='status']")?.textContent).toBe("A quiet pint it is. Two quiet pubs, on a budget.");
   });
 
   it("starts asking at noon on a page left open since the morning", async () => {
@@ -402,13 +410,13 @@ describe("the question on /pal", () => {
   it("takes an answer given in another tab, so it never asks twice", async () => {
     await render();
     expect(host.textContent).toContain(PAL_NIGHT_QUESTION);
-    writePalNightAnswer(window.localStorage, "carnage", LONDON_LATE);
+    writePalNightAnswer(window.localStorage, "loud", LONDON_LATE);
     await act(async () => {
       window.dispatchEvent(new StorageEvent("storage", { key: PAL_NIGHT_ANSWER_STORAGE_KEY }));
     });
     expect(host.textContent).not.toContain(PAL_NIGHT_QUESTION);
     expect(host.querySelector("[role='status']")?.textContent).toBe(
-      "Absolute carnage it is. Six lively pubs, on a budget, and mind the last train.",
+      "Live and loud it is. Four pubs with music or a lively crowd, on a budget, and mind the last train.",
     );
   });
 

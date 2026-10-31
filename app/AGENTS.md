@@ -43,7 +43,7 @@ Full rules: [`docs/rules/app-api-contract-and-rate-limits.md`](../docs/rules/app
 Full rules: [`docs/rules/app-proxy-csp-caching-and-file-tracing.md`](../docs/rules/app-proxy-csp-caching-and-file-tracing.md).
 
 - [A file a route opens at runtime is not in the deployed function unless you say so.](../docs/rules/app-proxy-csp-caching-and-file-tracing.md#a-file-a-route-opens-at-runtime-is-not-in-the-deployed-function-unless-you-say-s)
-- [THE ANSWER IS A PUB LONDONERS KEEP RECOMMENDING, THEN OUR OWN LISTINGS, THEN AN HONEST QUIET NIGHT.](../docs/rules/app-proxy-csp-caching-and-file-tracing.md#the-answer-is-a-pub-londoners-keep-recommending-then-our-own-listings-then-an-ho)
+- [THE ANSWER IS THREE CARDS, THEN A PUB LONDONERS KEEP RECOMMENDING, THEN OUR OWN LISTINGS, THEN AN HONEST QUIET NIGHT.](../docs/rules/app-proxy-csp-caching-and-file-tracing.md#the-answer-is-three-cards-then-a-pub-londoners-keep-recommending-then-our-own-listings)
 - [A tab you have already opened is not a page you have to fetch again.](../docs/rules/app-proxy-csp-caching-and-file-tracing.md#a-tab-you-have-already-opened-is-not-a-page-you-have-to-fetch-again)
 - [Only the listed documents are exempt from the nonce, and the two lists are the fence.](../docs/rules/app-proxy-csp-caching-and-file-tracing.md#only-the-listed-documents-are-exempt-from-the-nonce-and-the-two-lists-are-the-fence)
 - [THE FIVE CDN DOCUMENTS RUN NO FUNCTION, AND THEIR POLICY IS ONE POLICY.](../docs/rules/app-proxy-csp-caching-and-file-tracing.md#the-five-cdn-documents-run-no-function-and-their-policy-is-one-policy)

@@ -6,7 +6,7 @@ import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import ShareBar from "@/components/share/ShareBar";
 import { discardBody } from "@/lib/responseBody";
 import { trackEvent } from "@/lib/analytics";
-import { planCrewSharePath } from "@/lib/planCrewInviteUrl";
+import { planInviteSharePath } from "@/lib/planCrewInviteUrl";
 import { parsePlanCapabilitySnapshot, planCapabilityEvent, readPlanCapabilitySnapshot } from "@/lib/planSessionCapability";
 import { VIBE_CHIPS, VIBE_SLUGS, type VibeChip, type VibeChipId } from "@/lib/vibeChips";
 import { vibeTallyLine, type VibeTally } from "@/lib/vibeTally";
@@ -166,12 +166,13 @@ export default function PlanVibe({ planId, initialTally }: { planId: string; ini
 }
 
 /**
- * The invite ShareBar, vibe-aware: the share URL carries ?vibe=<top slug> so
- * the plan-card OG stamp is pinned to what the sharer saw. Subscribes to the
- * picker's tally updates so a vote cast on this visit re-stamps the URL before
- * it is shared; with no top vibe the URL stays bare and the card renders base.
+ * The invite ShareBar. One link (launch review 3.5): it shares the same public
+ * invite page Send on WhatsApp and Copy invite link carry, so every guest meets
+ * one door and one capability. The invite page draws its own share card, so
+ * the plan page's ?vibe= stamp no longer rides this link. `planId` and
+ * `initialVibeSlug` stay in the props so callers do not have to move.
  */
-export function PlanInviteShareBar({ planId, title, text, initialVibeSlug, inviteToken }: {
+export function PlanInviteShareBar({ title, text, inviteToken }: {
   planId: string;
   title: string;
   text: string;
@@ -179,18 +180,9 @@ export function PlanInviteShareBar({ planId, title, text, initialVibeSlug, invit
   /** Classic multi-use invite — required so ShareBar guests can join the crew. */
   inviteToken: string | null;
 }) {
-  const [slug, setSlug] = useState(initialVibeSlug);
-  useEffect(() => {
-    const onTop = (event: Event) => {
-      const detail = (event as CustomEvent<{ slug: string | null }>).detail;
-      setSlug(detail?.slug ?? null);
-    };
-    window.addEventListener(vibeTopEvent(planId), onTop);
-    return () => window.removeEventListener(vibeTopEvent(planId), onTop);
-  }, [planId]);
   // Without an invite token, omit the bar rather than share a bare plan UUID
   // that can no longer join after invite-only enforcement.
-  if (!inviteToken) return null;
-  const url = planCrewSharePath(planId, inviteToken, slug);
+  const url = planInviteSharePath(inviteToken);
+  if (!url) return null;
   return <ShareBar url={url} title={title} text={text} />;
 }

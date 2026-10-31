@@ -54,6 +54,7 @@ export const PAID_SPEND_LANES = [
   "pub-pal-voice",
   "plan-generate",
   "pub-list-import",
+  "board-read",
   "typesafe",
 ] as const;
 
@@ -83,6 +84,9 @@ export const PAID_SPEND_DEFAULT_DAILY_BUDGET: Record<PaidSpendLane, number> = {
   "pub-pal-voice": 200,
   "plan-generate": 1_000,
   "pub-list-import": 1_000,
+  // One photo of a price board read by a vision model (review item A4). An
+  // image call costs more than a text one, so its day is smaller.
+  "board-read": 300,
   typesafe: 5_000,
 };
 

@@ -1,0 +1,94 @@
+/* E1 "Open it up" on the plan card (components/plan/OpenItUp.tsx). Ink only:
+   the card's one coral fill stays "Send to the crew". */
+
+.openItUp {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.openItUp--form {
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line-soft);
+}
+
+.openItUp__door,
+.openItUp__quiet {
+  justify-self: start;
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.openItUp__quiet {
+  border-color: transparent;
+  color: var(--color-text-muted);
+}
+
+.openItUp__door:disabled,
+.openItUp__quiet:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.openItUp__door:focus-visible,
+.openItUp__quiet:focus-visible,
+.openItUp__field input:focus-visible,
+.openItUp__field select:focus-visible {
+  outline: 2px solid var(--color-text);
+  outline-offset: 2px;
+}
+
+.openItUp__note,
+.openItUp__line {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.openItUp__line a {
+  color: var(--color-text);
+  text-decoration: underline;
+}
+
+.openItUp__field {
+  display: grid;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--color-text);
+}
+
+.openItUp__field input,
+.openItUp__field select {
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--text-base);
+}
+
+.openItUp__count {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+
+.openItUp__problem {
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.openItUp__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}

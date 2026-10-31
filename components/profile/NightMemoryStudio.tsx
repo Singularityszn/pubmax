@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { Check, Eye, LockKeyhole, UserPlus } from "lucide-react";
@@ -20,6 +21,11 @@ import { Button } from "@/components/ui/button";
 
 type Memory = { id: string; title: string; createdAt: string };
 type Moment = { id: string; kind: NightMomentKind; caption: string; venueId: string | null; createdAt: string };
+/** A published Story, public or unlisted, is read at /recap/[storyId]. */
+function storyRecapHref(storyId: string): Route {
+  return `/recap/${encodeURIComponent(storyId)}` as Route;
+}
+
 type Story = { id: string; memoryId?: string; title: string; summary: string; status: "draft" | "published"; visibility: string; publishedMomentIds?: string[]; membership?: { role: "host" | "editor" | "contributor"; status: "invited" | "accepted" | "removed"; joinedAt: string | null } };
 type StoryWorkspace = {
   story: Story;
@@ -517,7 +523,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
       trackEvent("story_published", { visibility: publishVisibility, contributors: workspace.contributors.length, moments: selectedMomentIds.length });
       trackMeaningfulCoreAction("story_published");
       if (!await refreshWorkspace(workspace.story.id)) return;
-      setMessage("Story published to Stories. Your private Memory stays private.");
+      setMessage("Story published. Its recap page is linked below. Your private Memory stays private.");
     } catch (caught) {
       setMessage(caught instanceof Error ? caught.message : "That Story could not be published.");
     } finally {
@@ -782,16 +788,22 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
                 <Button variant="secondary" type="submit" disabled={saving || !inviteHandle.trim()}>Invite</Button>
               </form>
               <div className="memoryStoryReview__publish">
-                <label><span>Audience</span><select value={publishVisibility} disabled={saving} onChange={(event) => { setPublishVisibility(event.target.value as "public" | "unlisted"); invalidatePublication(); }}><option value="unlisted">Anyone with the link</option><option value="public">Public in Stories</option></select></label>
+                <label><span>Audience</span><select value={publishVisibility} disabled={saving} onChange={(event) => { setPublishVisibility(event.target.value as "public" | "unlisted"); invalidatePublication(); }}><option value="unlisted">Anyone with the link</option><option value="public">Public recap page</option></select></label>
                 <Button variant="secondary" type="button" disabled={saving || selectedMomentIds.length === 0} onClick={() => void proposePublication()}><Eye size={16} aria-hidden="true" />Review publication</Button>
               </div>
             </div>
           ) : null}
 
+          {workspace.story.status === "published" ? (
+            <p className="memoryStoryReview__recap">
+              <Link href={storyRecapHref(workspace.story.id)}>Open the recap page</Link>
+            </p>
+          ) : null}
+
           {confirmation ? (
             <div className="memoryStoryReview__confirmation" role="group" aria-label="Confirm Story publication">
               <Check size={16} aria-hidden="true" />
-              <div><strong>Publish {confirmation.momentCount} Moment{confirmation.momentCount === 1 ? "" : "s"}?</strong><p>{confirmation.visibility === "public" ? "This Story will appear publicly in Stories." : "Only people with its link will be able to open it."} Consent is checked again when you confirm.</p></div>
+              <div><strong>Publish {confirmation.momentCount} Moment{confirmation.momentCount === 1 ? "" : "s"}?</strong><p>{confirmation.visibility === "public" ? "This Story gets a public recap page that anyone can open and search engines can list." : "Only people with its link will be able to open it."} Consent is checked again when you confirm.</p></div>
               <Button variant="secondary" type="button" disabled={saving} onClick={() => void confirmPublication()}>{saving ? "Confirming…" : "Confirm publication"}</Button>
               <Button variant="secondary" type="button" className="memoryStoryReview__cancel" onClick={() => setConfirmation(null)}>Cancel</Button>
             </div>

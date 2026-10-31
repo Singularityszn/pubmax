@@ -90,7 +90,7 @@ describe("mobile map session adapter", () => {
   });
 
   it("restores a session saved before dog, darts and pool filters existed", () => {
-    const filters = { ...seedCrawlState("").filters, query: "Camden", maxPrice: 7.5, requireLiveSports: true };
+    const filters = { ...seedCrawlState("").filters, query: "Camden", maxPrice: 7, requireLiveSports: true };
     const legacyFilters: Partial<typeof filters> = { ...filters };
     delete legacyFilters.requireDogFriendly;
     delete legacyFilters.requireDarts;

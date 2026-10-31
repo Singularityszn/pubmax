@@ -284,7 +284,8 @@ function stopWithNextAlternative(stop: EditableStop, excludedVenueIds: ReadonlyS
   };
 }
 
-function canonicalStateFromBody(value: unknown): PlanState | null {
+/** The member PlanState inside a `/api/plans/[id]` body, or null. Shared with PlanCard. */
+export function canonicalStateFromBody(value: unknown): PlanState | null {
   if (!value || typeof value !== "object") return null;
   const row = value as { stops?: unknown; plan?: unknown; state?: unknown };
   if (Array.isArray(row.stops) && row.plan && typeof row.plan === "object") return value as PlanState;

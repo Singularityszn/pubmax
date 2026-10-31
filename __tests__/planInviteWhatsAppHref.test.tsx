@@ -41,6 +41,7 @@ vi.mock("@/components/plan/PlanHostInviteLink", () => ({
   default: () => null,
   INVITE_TOKEN_MISSING_LINE: "missing",
   INVITE_TOKEN_UNAVAILABLE_LINE: "unavailable",
+  NOT_IN_CREW_LINE: "not in crew",
 }));
 
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
@@ -81,13 +82,13 @@ afterEach(async () => {
   vi.clearAllMocks();
 });
 
-describe("Send on WhatsApp carries an absolute crew-join URL", () => {
-  it("puts the site origin in the anchor href, not a bare /plan path", () => {
+describe("Send on WhatsApp carries the absolute invite page URL", () => {
+  it("puts the site origin and the /invite page in the anchor href, not a bare /plan path", () => {
     const anchor = container.querySelector<HTMLAnchorElement>("a.planInviteNext__whatsapp");
     expect(anchor).not.toBeNull();
 
     const payload = sharedPayload(anchor!.href);
-    expect(payload).toContain(`https://pubmaxxing.com/plan/${PLAN}#invite=${TOKEN}`);
+    expect(payload).toContain(`https://pubmaxxing.com/invite/${TOKEN}`);
     expect(payload).not.toMatch(/(^|\s)\/plan\//);
     expect(payload.startsWith("Friday sorted ")).toBe(true);
   });
@@ -103,7 +104,7 @@ describe("Send on WhatsApp carries an absolute crew-join URL", () => {
 
     expect(open).toHaveBeenCalledTimes(1);
     const payload = sharedPayload(String(open.mock.calls[0]?.[0]));
-    expect(payload).toContain(`https://pubmaxxing.com/plan/${PLAN}#invite=${TOKEN}`);
+    expect(payload).toContain(`https://pubmaxxing.com/invite/${TOKEN}`);
   });
 
   it("never carries a viewer coordinate in the share URL", () => {

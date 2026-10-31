@@ -908,6 +908,31 @@ can open: `/borough/westminster` (the heaviest borough, 200 priced pubs on a
 `/area/clapham/drink/guinness`, `/pint-index/2026-06`, plus the two static
 pages that had been missed, `/spoons-value` and `/account/delete`.
 
+`/board/venue-eltcmh` joined on 30 October 2026: the board reader, a private
+tool the venue sheet links from every pub. It is not sitemap-listed and is
+budgeted anyway. It was seeded unmeasured in family with `/bar-tab/venue-eltcmh`,
+and on 30 October 2026 the route sweep measured it keyless (the reader's "needs
+its key" state) on a production build in a Linux container: 833 KB decoded JS,
+37 requests and LCP 352 to 496 ms over three samples. Its ceilings came down to
+958 KB, 43 requests and 620 ms by this file's margins. The macOS CI sweep is
+still the oracle.
+
+`/dog-of-the-week` joined on 30 October 2026: Dog of the week, the photo wall's
+newest approved Dog photo. Like `/wall` it is user content and not
+sitemap-listed, and it is budgeted anyway, seeded unmeasured from the
+`/contributors` row. The same 30 October sweep measured its keyless empty state
+at LCP 296 to 452 ms over five samples, a worst sample above the 400 ms seed, so
+the row is held at its seed and the cause is to be found; `/contributors` read
+348 to 564 ms on the same box. `/time-machine` was measured in the same run and
+its ceilings came down to 907 KB, 41 requests and 605 ms.
+The run's log excerpt, identities and limits are in
+`docs/proof/2026-10-30-round5-perf-sweep/`: a loaded-box run on Linux with
+software WebGL, not acceptance.
+
+`/press` and `/pub-crawl-cost` joined on 30 October 2026 with the backlink
+playbook (`docs/growth/BACKLINK_PLAYBOOK.md`). Both are seeded in family with
+`/how-we-estimate` and come down at the next sweep.
+
 The rule they close is that **a route the sitemap advertises carries a budget**,
 and `__tests__/sitemap.test.ts` enforces it per family. The gap it found was
 `/spoons-value`: crawlable, sitemap-listed and unmeasured while serving 683 KB

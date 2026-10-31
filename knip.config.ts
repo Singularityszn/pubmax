@@ -61,6 +61,13 @@ const config: KnipConfig = {
     "scripts/e2e/run-disposable-plan-browser.mjs",
     // Forked by e2e/web-first-run-journey.spec.ts for real fixture-clock HTTP.
     "scripts/e2e/canonical-price-server.ts",
+    // Named by docs/design-explorations/2026-10-30-phone-mockups/README.md as
+    // the ONE command that prints its contrast table from the live tokens
+    // (`node docs/design-explorations/2026-10-30-phone-mockups/contrast.mjs`).
+    // It reads app/globals.css and app/theme.css on every run and found the
+    // Pint compass contrast defect, so it is kept to re-run the sweep. An
+    // entry root, not an ignore: knip traces what it imports.
+    "docs/design-explorations/2026-10-30-phone-mockups/contrast.mjs",
   ],
   ignore: [
     ...AGENT_TOOLING_PATHS,

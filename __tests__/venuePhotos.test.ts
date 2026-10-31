@@ -169,6 +169,7 @@ describe("validating a submission", () => {
       ok: true,
       value: {
         venueId: "venue-abc",
+        wallCategory: "pint",
         drinkCategory: "beer",
         caption: "First of the night",
         shareToFeed: true,
@@ -182,6 +183,7 @@ describe("validating a submission", () => {
       wallCategory: "pub",
     });
     expect(result.ok && result.value.venueId).toBe("venue-abc");
+    expect(result.ok && result.value.wallCategory).toBe("pint");
   });
 
   it("defaults the crosspost to off when nothing asked for it", () => {

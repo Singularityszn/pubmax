@@ -777,6 +777,15 @@ export default function PrivacyPage() {
             </dd>
           </div>
           <div className="legalRow">
+            <dt>Board photos</dt>
+            <dd>
+              If you photograph a pub&rsquo;s price board, we strip the photo&rsquo;s metadata and send it to
+              OpenRouter, using providers that do not retain it, so the Pal can read the prices.
+              We do not keep the photo from that read. Each price you then confirm is logged like any
+              other price you log, with the photo as its bill.
+            </dd>
+          </div>
+          <div className="legalRow">
             <dt>AI features</dt>
             <dd>
               If you ask The Landlord about a pub, or talk to Pub Pal by typing
