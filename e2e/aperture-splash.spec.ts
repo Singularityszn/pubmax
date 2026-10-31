@@ -76,9 +76,9 @@ async function trackCls(page: Page) {
   });
 }
 
-// Deliver the real response unchanged, pausing inside the public header while
-// its real fonts load. Splitting after Pal recreates the CI paint where only
-// the first action is present. No product fixture or generated HTML is replaced.
+// Deliver the real response unchanged, splitting after the first Pal action.
+// Hold the remaining HTML and real font bytes for controlled transport timing.
+// This models the partial-header paint, not a naturally observed CI schedule.
 async function fragmentedLandingProxy(baseURL: string) {
   const upstreamOrigin = new URL(baseURL);
   if (upstreamOrigin.protocol !== "http:" || !["localhost", "127.0.0.1", "[::1]"].includes(upstreamOrigin.hostname)) {
