@@ -225,6 +225,9 @@ it("makes a Round bill readable after its Storage round trip", async () => {
   expect(image).not.toBeNull();
   const metadata = await sharp(image!.bytes).metadata();
   expect(metadata).toMatchObject({ format: "jpeg", width: 1, height: 1 });
+  const decoded = await sharp(image!.bytes).raw().toBuffer({ resolveWithObject: true });
+  expect(decoded.info).toMatchObject({ width: 1, height: 1, channels: 3 });
+  expect([...decoded.data]).toEqual([255, 255, 255]);
 });
 
 
