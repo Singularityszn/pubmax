@@ -31,6 +31,16 @@ function voiceModeFor(state: PalAnimationState): PalVoiceSignalMode {
   return "idle";
 }
 
+/**
+ * How open the mouth is for a spoken level (0 to 1). A whisper of output under
+ * the floor keeps it shut, and a normal word opens it most of the way. Pure,
+ * so it is tested.
+ */
+export function palMouthOpenness(spoken: number): number {
+  if (!Number.isFinite(spoken) || spoken <= 0) return 0;
+  return Math.min(1, Math.max(0, (spoken - 0.06) * 2.4));
+}
+
 /** The pose the head is heading towards this frame. Pure, so it is tested. */
 export function palHeadTarget(input: {
   t: number;
@@ -118,6 +128,7 @@ export function usePalHead3D(
       return box.width > 0 && box.height > 0 && box.bottom > 0 && box.right > 0 && box.top < innerHeight && box.left < innerWidth;
     };
     const pose: HeadPose = { ...REST };
+    let mouth = 0;
     let pointerX = 0;
     let pointerY = 0;
     let pointerAt = 0;
@@ -133,7 +144,7 @@ export function usePalHead3D(
     let requested: number | null = null;
     const active = () => !disposed && !parked && visible && !document.hidden && !reduced();
     const clearCssPose = () => {
-      for (const name of ["yaw", "pitch", "roll", "lean", "lift", "scale", "sheen-dx", "sheen-dy"]) {
+      for (const name of ["yaw", "pitch", "roll", "lean", "lift", "scale", "sheen-dx", "sheen-dy", "mouth"]) {
         const property = `--pal-${name}`;
         if (frame.style.getPropertyValue(property)) frame.style.removeProperty(property);
       }
@@ -279,6 +290,11 @@ export function usePalHead3D(
       // from where the genome says the light catches this Pal.
       writeProperty("--pal-sheen-dx", `${(-pose.yaw * 2).toFixed(1)}%`);
       writeProperty("--pal-sheen-dy", `${(pose.pitch * 2).toFixed(1)}%`);
+      // The mouth opens on the Pal's own voice: quick to open so it lands on
+      // the syllable, a little slower to close so it never flickers.
+      const open = palMouthOpenness(spoken);
+      mouth += (open - mouth) * (open > mouth ? 0.6 : 0.35);
+      writeProperty("--pal-mouth", mouth.toFixed(3));
       raf = window.requestAnimationFrame(tick);
     };
 

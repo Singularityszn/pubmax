@@ -20,7 +20,7 @@ Full rules: [`docs/rules/app-auth-and-account-routes.md`](../docs/rules/app-auth
 
 Full rules: [`docs/rules/app-landing-city-and-listing-pages.md`](../docs/rules/app-landing-city-and-listing-pages.md).
 
-- [A governed price landing is a crawler's page, and `/area/{slug}` is HELD.](../docs/rules/app-landing-city-and-listing-pages.md#a-governed-price-landing-is-a-crawler-s-page-and-area-slug-is-held)
+- [A governed price landing is a crawler's page, and `/area/{slug}` publishes on its floor alone.](../docs/rules/app-landing-city-and-listing-pages.md#a-governed-price-landing-is-a-crawler-s-page-and-area-slug-is-held)
 - [The root landing keeps pub evidence grounded.](../docs/rules/app-landing-city-and-listing-pages.md#the-root-landing-lands-on-the-answer-and-the-first-tap-is-a-receipt)
 - [A city is CHOSEN once, and the surfaces that read it follow.](../docs/rules/app-landing-city-and-listing-pages.md#a-city-is-chosen-once-and-the-surfaces-that-read-it-follow)
 - [THE ANSWER COMES FIRST, AND WHAT ACTS ON IT COMES AFTER IT.](../docs/rules/app-landing-city-and-listing-pages.md#the-answer-comes-first-and-what-acts-on-it-comes-after-it)
@@ -43,10 +43,11 @@ Full rules: [`docs/rules/app-api-contract-and-rate-limits.md`](../docs/rules/app
 Full rules: [`docs/rules/app-proxy-csp-caching-and-file-tracing.md`](../docs/rules/app-proxy-csp-caching-and-file-tracing.md).
 
 - [A file a route opens at runtime is not in the deployed function unless you say so.](../docs/rules/app-proxy-csp-caching-and-file-tracing.md#a-file-a-route-opens-at-runtime-is-not-in-the-deployed-function-unless-you-say-s)
-- [THE ANSWER IS A PUB LONDONERS KEEP RECOMMENDING, THEN OUR OWN LISTINGS, THEN AN HONEST QUIET NIGHT.](../docs/rules/app-proxy-csp-caching-and-file-tracing.md#the-answer-is-a-pub-londoners-keep-recommending-then-our-own-listings-then-an-ho)
+- [THE ANSWER IS THREE CARDS, THEN A PUB LONDONERS KEEP RECOMMENDING, THEN OUR OWN LISTINGS, THEN AN HONEST QUIET NIGHT.](../docs/rules/app-proxy-csp-caching-and-file-tracing.md#the-answer-is-three-cards-then-a-pub-londoners-keep-recommending-then-our-own-listings)
 - [A tab you have already opened is not a page you have to fetch again.](../docs/rules/app-proxy-csp-caching-and-file-tracing.md#a-tab-you-have-already-opened-is-not-a-page-you-have-to-fetch-again)
 - [Only the listed documents are exempt from the nonce, and the two lists are the fence.](../docs/rules/app-proxy-csp-caching-and-file-tracing.md#only-the-listed-documents-are-exempt-from-the-nonce-and-the-two-lists-are-the-fence)
 - [THE FIVE CDN DOCUMENTS RUN NO FUNCTION, AND THEIR POLICY IS ONE POLICY.](../docs/rules/app-proxy-csp-caching-and-file-tracing.md#the-five-cdn-documents-run-no-function-and-their-policy-is-one-policy)
 - [A STATIC ASSET NEVER RUNS THE PROXY, AND A FAILING PACK IS NOT A FAILING BASEMAP.](../docs/rules/app-proxy-csp-caching-and-file-tracing.md#a-static-asset-never-runs-the-proxy-and-a-failing-pack-is-not-a-failing-basemap)
 - [The host canonicalisation is for READERS, and `/api` is a caller.](../docs/rules/app-proxy-csp-caching-and-file-tracing.md#the-host-canonicalisation-is-for-readers-and-api-is-a-caller)
 - [A ROUTE THAT SHIPS A DOCUMENT NOBODY KEEPS, AND THE HEADER THAT SAYS SO.](../docs/rules/app-proxy-csp-caching-and-file-tracing.md#a-route-that-ships-a-document-nobody-keeps-and-the-header-that-says-so)
+- [A CRAWL STOP STILL READS WITH NO SIGNAL, AND THE SAVED PAGE IS THE ONE A STRANGER GETS.](../docs/rules/app-proxy-csp-caching-and-file-tracing.md#a-crawl-stop-still-reads-with-no-signal-and-the-saved-page-is-the-one-a-stranger-gets)

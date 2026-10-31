@@ -28,6 +28,7 @@ import {
   type PalElevenLabsChatInput,
   type PalElevenLabsChatOutcome,
 } from "@/lib/palElevenLabsChat.server";
+import { palClaudeConfigured, runPalClaudeChatTurn } from "@/lib/palClaudeChat.server";
 import { paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
 import { palTasteAsk } from "@/lib/palTaste";
 import { readPalTaste } from "@/lib/palTaste.server";
@@ -54,6 +55,18 @@ function normaliseTurns(raw: unknown): AskTurn[] {
     if (turns.length >= 6) break;
   }
   return turns;
+}
+
+/**
+ * Typed chat goes to Claude when this deploy has an Anthropic key, else to the
+ * ElevenLabs agent. Voice stays on ElevenLabs either way.
+ */
+function typedChatConfigured(): boolean {
+  return palClaudeConfigured() || palVoiceConfigured();
+}
+
+function runTypedTurn(input: PalElevenLabsChatInput, context: PalElevenLabsChatContext): Promise<PalElevenLabsChatOutcome> {
+  return palClaudeConfigured() ? runPalClaudeChatTurn(input, context) : runPalElevenLabsChatTurn(input, context);
 }
 
 function answerBody(outcome: Extract<PalElevenLabsChatOutcome, { ok: true }>) {
@@ -88,7 +101,7 @@ function streamTurn(input: PalElevenLabsChatInput, context: PalElevenLabsChatCon
         }
       };
       try {
-        const outcome = await runPalElevenLabsChatTurn({
+        const outcome = await runTypedTurn({
           ...input,
           signal: abort.signal,
           onProgress: send,
@@ -245,7 +258,7 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiError("Ask a question.", "QUERY_REQUIRED", 400);
   }
 
-  const configured = palVoiceConfigured();
+  const configured = typedChatConfigured();
   const ownerId = configured ? await callerUserId(request) : null;
   if (configured && !ownerId) {
     return publicApiError("Sign in to ask Pub Pal.", "UNAUTHENTICATED", 401);
@@ -289,8 +302,8 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiError(PAL_ERROR_FALLBACK, "UNAVAILABLE", 503, { retryable: true });
   }
 
-  // Voice is optional. Keyless deploys still answer from the same grounded
-  // tools as /api/ask, and they never call OpenRouter.
+  // A model is optional. Keyless deploys still answer from the same grounded
+  // tools as /api/ask, and they never call OpenRouter, Anthropic or ElevenLabs.
   if (!configured) {
     try {
       const social = keylessSocialReply(query, turns);
@@ -368,7 +381,7 @@ async function configuredTurn(turn: PalElevenLabsChatInput, context: PalElevenLa
 
   if (acceptsPalChatStream(request.headers.get("accept"))) return streamTurn(turn, context, request);
 
-  const outcome = await runPalElevenLabsChatTurn(turn, context);
+  const outcome = await runTypedTurn(turn, context);
 
   if (!outcome.ok) {
     return publicApiError(PAL_ERROR_FALLBACK, "UNAVAILABLE", 503, { retryable: true });

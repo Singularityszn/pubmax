@@ -21,17 +21,30 @@ import {
   DEFAULT_DRINK_MEASURE,
   drinkMeasureName,
   DRINK_MEASURES,
+  DRINK_MEASURE_LABEL,
+  BEER_MEASURES,
+  measureFromServingSize,
   measureIsPint,
   measureNamedInDrinkText,
   MEASURE_ASK_LINE,
   NON_PINT_MEASURE_PATTERNS,
   statedDrinkMeasure,
+  WINE_AND_SPIRIT_MEASURES,
+  type DrinkMeasure,
 } from "@/lib/drinkMeasure";
 import { validatePintDrop } from "@/lib/pintDrops";
 
 const MEASURE_MIGRATION = join(
   process.cwd(),
   "supabase/migrations/20260905170000_0147_pint_drop_measure.sql",
+);
+const SIZES_MIGRATION = join(
+  process.cwd(),
+  "supabase/migrations/20261031010000_0210_drink_measure_sizes.sql",
+);
+const SIZES_ROLLBACK = join(
+  process.cwd(),
+  "supabase/migrations/rollback/20261031010000_0210_drink_measure_sizes_rollback.sql",
 );
 import { pintTrustFor } from "@/lib/pintTrust";
 import {
@@ -73,9 +86,46 @@ function confirmable(
 }
 
 describe("the closed measure set", () => {
-  it("is pint, half and other, and defaults to the one the lane already assumed", () => {
-    expect([...DRINK_MEASURES]).toEqual(["pint", "half", "other"]);
+  it("is the beer measures, the glass and spirit sizes, then other, and defaults to a pint", () => {
+    expect([...DRINK_MEASURES]).toEqual([
+      "pint", "half", "125ml", "175ml", "250ml", "bottle", "single", "double", "other",
+    ]);
     expect(DEFAULT_DRINK_MEASURE).toBe("pint");
+    // The two chip groups and `other` cover the set exactly once (review item B1).
+    expect([...BEER_MEASURES, ...WINE_AND_SPIRIT_MEASURES, "other"]).toEqual([...DRINK_MEASURES]);
+  });
+
+  it("prints each glass and spirit size in plain words", () => {
+    expect(WINE_AND_SPIRIT_MEASURES.map((measure) => DRINK_MEASURE_LABEL[measure])).toEqual([
+      "125 ml", "175 ml", "250 ml", "Bottle", "Single", "Double",
+    ]);
+    expect(drinkMeasureName("175ml")).toBe("175 ml");
+    expect(measureIsPint("175ml")).toBe(false);
+    expect(statedDrinkMeasure("175ml")).toBe("175ml");
+  });
+
+  it("reads a size only off a stated serving field, never a guess", () => {
+    expect(measureFromServingSize("175ml")).toBe("175ml");
+    expect(measureFromServingSize("175 ml")).toBe("175ml");
+    expect(measureFromServingSize(" 250 ML ")).toBe("250ml");
+    expect(measureFromServingSize("Pint")).toBe("pint");
+    expect(measureFromServingSize("Large glass")).toBe(null);
+    expect(measureFromServingSize("")).toBe(null);
+    expect(measureFromServingSize(undefined)).toBe(null);
+  });
+
+  it("widens the database CHECK to exactly the closed set, and the rollback keeps every size as a label", () => {
+    const sql = readFileSync(SIZES_MIGRATION, "utf8");
+    const check = /check \(measure in \(([^)]*)\)\)/i.exec(sql);
+    expect(check).not.toBe(null);
+    const words = (check?.[1] ?? "").split(",").map((word) => word.trim().replace(/'/g, ""));
+    expect(words).toEqual([...DRINK_MEASURES]);
+    expect(sql).not.toMatch(/update public\.pint_drops/i);
+    const rollback = readFileSync(SIZES_ROLLBACK, "utf8");
+    for (const measure of WINE_AND_SPIRIT_MEASURES) {
+      expect(rollback).toContain(`when '${measure}' then '${DRINK_MEASURE_LABEL[measure]}'`);
+    }
+    expect(rollback).toContain("check (measure in ('pint', 'half', 'other'))");
   });
 
   it("reads an absent or unknown measure as a pint, so no legacy row changes lane", () => {
@@ -216,9 +266,11 @@ describe("the write path", () => {
   });
 });
 
-describe("every pint lane holds a non-pint out", () => {
-  const half = drop({ priceGbp: 2.6, measure: "half", authorityKey: "a" });
-  const halfPeer = drop({ priceGbp: 2.6, measure: "half", authorityKey: "b" });
+// A 175 ml glass of wine is held out exactly as a half is (review item B1), so
+// every lane case runs once for each.
+describe.each(["half", "175ml"] as const)("every pint lane holds a non-pint out (%s)", (measure) => {
+  const half = drop({ priceGbp: 2.6, measure, authorityKey: "a" });
+  const halfPeer = drop({ priceGbp: 2.6, measure, authorityKey: "b" });
 
   it("refuses to corroborate two agreeing halves", () => {
     expect(corroboratedPriceDrop([half, halfPeer], NOW)).toBe(null);
@@ -227,7 +279,7 @@ describe("every pint lane holds a non-pint out", () => {
   it("refuses to read a confirmation minted over a half", () => {
     const confirmed = drop({
       priceGbp: 2.6,
-      measure: "half",
+      measure,
       authorityKey: "a",
       confirmation: {
         confirmationId: "c1",
@@ -247,7 +299,7 @@ describe("every pint lane holds a non-pint out", () => {
   });
 
   it("refuses to print a half as the pub's aged pint figure", () => {
-    const agedHalf = drop({ priceGbp: 2.6, measure: "half", createdAt: LONG_AGO });
+    const agedHalf = drop({ priceGbp: 2.6, measure, createdAt: LONG_AGO });
     expect(agedPriceDrop([agedHalf], NOW)).toBe(null);
   });
 
@@ -314,7 +366,7 @@ describe("the second-reporter pass", () => {
 describe("the Pint Index", () => {
   const generatedAt = new Date(NOW).toISOString();
 
-  function build(measure: "pint" | "half") {
+  function build(measure: DrinkMeasure) {
     return buildPintIndexSnapshotFromConfirmations({
       drops: [
         {
@@ -347,6 +399,14 @@ describe("the Pint Index", () => {
 
   it("counts a confirmed half out under that reason rather than citing it", () => {
     const result = build("half");
+    expect(result.published).toBe(0);
+    expect(
+      result.snapshot.excluded.some((row) => row.reason === "measure_not_pint"),
+    ).toBe(true);
+  });
+
+  it("counts a confirmed 175 ml glass out under the same reason (review item B1)", () => {
+    const result = build("175ml");
     expect(result.published).toBe(0);
     expect(
       result.snapshot.excluded.some((row) => row.reason === "measure_not_pint"),

@@ -6,9 +6,7 @@ import SiteNav from "@/components/nav/SiteNav";
 import JsonLd from "@/components/seo/JsonLd";
 import NationalPintBenchmarks from "@/components/pintindex/NationalPintBenchmarks";
 import ListedDrinkCoverage from "@/components/pintindex/ListedDrinkCoverage";
-import { listedDrinkCoverage } from "@/lib/listedDrinkCoverage";
-import { ukPriceBundleRowsByVenue } from "@/lib/ukPriceBundle.server";
-import { readAllDrinkPriceUpdates } from "@/lib/priceUpdates.server";
+import { loadPricedPubCount } from "@/lib/pricedPubCount.server";
 import BoroughCoverageStatus from "@/components/pintindex/BoroughCoverageStatus";
 import PintIndexArrival from "@/components/pintindex/PintIndexArrival";
 import PintIndexEditions from "@/components/pintindex/PintIndexEditions";
@@ -16,7 +14,7 @@ import PintIndexLeagueTable from "@/components/pintindex/PintIndexLeagueTable";
 import ZonePintIndexStrip from "@/components/zones/ZonePintIndexStrip";
 import { loadSeedBoroughCoverage } from "@/lib/boroughCoverageStatus.server";
 import { citableNationalBenchmarks, NATIONAL_PINT_BENCHMARKS } from "@/lib/nationalPintBenchmarks";
-import { buildLeagueTable, dearestFirst, formatPintIndexDate, indexSummary, type PintIndexSnapshot } from "@/lib/pintIndex";
+import { buildLeagueTable, dearestFirst, formatPintIndexDate, indexSummary, PINT_INDEX_NOT_READY_LINE, pintIndexLeagueReady, type PintIndexSnapshot } from "@/lib/pintIndex";
 import { londonMonthOf, pintIndexMeetsAdmissionFloor, pintIndexMonthCloseDay, pintIndexMonthLabel } from "@/lib/pintIndexArchive";
 import { arrivalAreas } from "@/lib/pintIndexArrival";
 import { loadPintIndexArchive, loadPublicPintIndexSnapshotOrThrow } from "@/lib/pintIndexSnapshot.server";
@@ -97,14 +95,14 @@ function datasetJsonLd(snapshot: PintIndexSnapshot, boroughCount: number, pubCou
 }
 
 export default async function PintIndexPage() {
-  const [snapshot, zoneIndex, editions, venues, drinkUpdates, priceBundle] = await Promise.all([
+  const [snapshot, zoneIndex, editions, venues] = await Promise.all([
     loadPublicPintIndexSnapshotOrThrow(),
     loadZonePintIndex(),
     loadPintIndexArchive(),
     loadGroupedVenues(),
-    readAllDrinkPriceUpdates(),
-    ukPriceBundleRowsByVenue(),
   ]);
+  // The ONE priced-pub count (lib/pricedPubCount.ts), the same read /about makes.
+  const pricedPubs = await loadPricedPubCount(venues);
   const seedBoroughCoverage = await loadSeedBoroughCoverage(venues);
   const rows = buildLeagueTable(snapshot);
   const summary = indexSummary(rows);
@@ -132,8 +130,9 @@ export default async function PintIndexPage() {
   // London's own figures come first, then the reader's own patch, then the
   // league and its history; the national yardstick follows them, because it is
   // context for London's numbers rather than the answer. A section with no
-  // rows renders nothing: "No borough league yet" was a whole section saying
-  // there was nothing in it (taste plan, 18 Oct 2026).
+  // rows renders nothing, because a whole section saying there was nothing in
+  // it was noise (taste plan, 18 Oct 2026). While the citable snapshot is
+  // empty, ONE line says so, in the words /about uses (lib/pintIndex.ts).
   return (
     <main id="main" className="pintIndexPage listingShell">
       {jsonLd ? <JsonLd data={jsonLd} nonce={nonce} /> : null}
@@ -153,7 +152,7 @@ export default async function PintIndexPage() {
           </dl>
         ) : null}
 
-        <ListedDrinkCoverage coverage={listedDrinkCoverage(venues, drinkUpdates ?? [], priceBundle.byVenue)} status={venues.length === 0 ? "degraded" : (drinkUpdates === null || priceBundle.status === "unavailable") ? "partial" : "ready"} />
+        <ListedDrinkCoverage coverage={pricedPubs.coverage} status={pricedPubs.status} />
 
         <section className="pintIndexSection" aria-labelledby="zoneHeading">
           <h2 id="zoneHeading" className="listingSectionTitle">By fare zone</h2>
@@ -170,6 +169,12 @@ export default async function PintIndexPage() {
           areas={arrivalAreas(venues)}
           surface="index"
         />
+
+        {/* The same words /about uses while the citable snapshot is empty, so
+            the borough list above is never read as the dated league. */}
+        {pintIndexLeagueReady(snapshot) ? null : (
+          <p className="listingSectionDek pintIndexLeagueStatus" role="note">{PINT_INDEX_NOT_READY_LINE}</p>
+        )}
 
         {rows.length > 0 ? (
           <section className="pintIndexSection" aria-labelledby="leagueHeading">

@@ -69,6 +69,10 @@ it("paints both generated chains over the global tokens before and after hydrati
     for (const [name, value] of attributes) html.setAttribute(name, value);
   };
   window.matchMedia = vi.fn(() => ({ matches: false }) as MediaQueryList);
+  // The theme rule reads London's clock (dark from 21:30 with no choice), and
+  // this case expects the light theme, so it runs at a fixed afternoon.
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-30T14:00:00Z"));
   try {
     restoreAttributes(Array.from(parsed.documentElement.attributes, ({ name, value }) => [name, value] as const));
     html.replaceChildren(...Array.from(parsed.documentElement.childNodes, (node) => document.importNode(node, true)));
@@ -93,5 +97,6 @@ it("paints both generated chains over the global tokens before and after hydrati
     html.replaceChildren(...previousChildren);
     restoreAttributes(previousAttributes);
     window.matchMedia = oldMatchMedia;
+    vi.useRealTimers();
   }
 });

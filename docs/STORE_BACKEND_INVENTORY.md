@@ -6,13 +6,19 @@ The inventory is descriptive, not a runtime registry.
 
 ## Current snapshot
 
-- The repository has 54 `lib/*Store.ts` modules.
-- 36 modules call `selectStore` directly.
-- 10 modules use `createDualBackendStore`.
-- 6 modules keep memory state on `globalThis` so it survives a development
+Counted on 31 October 2026 on the round 5 tree (PR 2412, which carries PR
+2402). Recount it with `ls lib/*Store.ts` and a grep for `selectStore(` and
+`createDualBackendStore` whenever a store is added.
+
+- The repository has 63 `lib/*Store.ts` modules.
+- 42 modules call `selectStore` directly.
+- 14 modules use `createDualBackendStore`.
+- 7 modules keep memory state on `globalThis` so it survives a development
   server reload. That state pattern is separate from backend selection.
-- The remaining modules use an explicit backend, a file or static data path,
-  or an inline legacy selector.
+- The remaining 7 modules use an explicit backend, a file or static data path,
+  or an inline legacy selector: `contributorLeaderboardStore`,
+  `crawlStoryStore`, `importNotesStore`, `pubPalStore`, `socialCrewStore`,
+  `socialPostConsentStore` and `whatsOnStore`.
 
 `lib/storeBackend.ts` owns the narrow backend seam. `createDualBackendStore`
 only curries `selectStore(memory, supabase)` into a zero-argument getter. It
@@ -56,6 +62,7 @@ silently stale.
 | harvestOverlayStore | factory-ready | Fold-written UK harvest overlays; one shared selector, with a `requireDurable` guard for the non-dry fold CLI. |
 | identityHandleStore | factory-eligible, policy-heavy | Handle ownership, rename, reservation, and tombstone policy. |
 | importNotesStore | not dual-backend | JSON-file store with memory fallback when the filesystem is unavailable. |
+| kitchenReportsStore | factory-ready | "Still serving" and "Kitchen closed" taps on a pub's food row: 90 minute read window, one confirmation by another account. |
 | messagesStore | factory-eligible, policy-heavy | Conversation identity, membership, and message policy. |
 | nightMemoryStore | legacy-exception | Multiple inline Supabase configuration checks around private memory policy. |
 | nightProfileStore | factory-ready | Night Profile preference rows with shared backend selection. |
@@ -64,6 +71,7 @@ silently stale.
 | operatorProposalsStore | factory-ready | Operator proposal state has one backend selector. |
 | pendingPlanRecapStore | factory-ready | Small pending-plan recap store. |
 | pintDropsStore | legacy-exception | Inline Supabase configuration branch around Pint Drop and Storage work. |
+| pintDropWithTagsStore | legacy-exception | "With" handle tags on a Pint Drop: proposal, consent, withdrawal and block refusal. Inline Supabase configuration checks around the drop read and the block check. |
 | planCollaborationStore | factory-ready | Shared selector with `globalThis` memory state. |
 | planGroupPrefsStore | factory-ready | Shared selector with `globalThis` memory state. |
 | planInviteRsvpStore | factory-ready | Shared selector with `globalThis` memory state. |
@@ -79,6 +87,7 @@ silently stale.
 | ratingsStore | factory-ready | Drink and venue rating rows with shared backend selection; public reads expose summaries, not venue leaderboards. |
 | reactionsStore | factory-ready | Pint Drop reactions with shared backend selection. |
 | referralStore | factory-eligible, policy-heavy | Referral identity, milestone, and proof-expiry policy. |
+| regularNightReportsStore | factory-ready | Regular nights a drinker adds with a board photo: 90-day expiry, once-per-account "still on", moderator confirm or hide. |
 | roundsStore | factory-eligible, policy-heavy | Round membership, spend-line provenance, and promotion policy. |
 | savedPubsStore | legacy-exception | Inline Supabase configuration branch keyed by existing profile rows; needs its own selector refactor. |
 | socialConnectionStore | factory-ready | Connected provider rows with one backend selector. |
@@ -91,6 +100,7 @@ silently stale.
 | socialPostVideoStore | factory-eligible, policy-heavy | Upload intents, held-until-watched review and signed playback. |
 | socialPubRankingStore | factory-eligible, policy-heavy | Adjacent-neighbour placement and stale-list refusal (0186). |
 | stepOutNudgeStore | factory-ready | Nudge preference and send-stamp rows with shared backend selection. |
+| venueCorrectionsStore | factory-ready | "That's wrong" notes about a pub (shut, hours, other) and the moderator's resolve or dismiss. |
 | venueOperatorsStore | factory-eligible, policy-heavy | Venue claim ownership and operator moderation policy. |
 | venuePhotoStore | factory-eligible, policy-heavy | Photo cap, author projection, reports, and moderation policy. |
 | venueSubmissionStore | factory-ready | Pubs a drinker proposes, with their menu files; pending cap and moderator verdicts. |
@@ -107,7 +117,7 @@ silently stale.
 The following stores intentionally stay outside the factory-ready path:
 
 - **legacy-exception:** `analyticsReceiptStore`, `contributorLeaderboardStore`,
-  `crawlStoryStore`, `nightMemoryStore`, `pintDropsStore`, `planStore`,
+  `crawlStoryStore`, `nightMemoryStore`, `pintDropsStore`, `pintDropWithTagsStore`, `planStore`,
   `pubPalStore`, and `savedPubsStore`. Each needs a separate selector
   refactor before a factory wrapper can preserve its behavior. Owner: the
   next issue #727 store wave.
@@ -179,8 +189,10 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/identityHandleStore.ts",
     "lib/ledgerLog.server.ts",
     "lib/mapSearchEvents.server.ts",
+    "lib/matesPrices.server.ts",
     "lib/messageAuth.ts",
     "lib/messagePhotoMedia.server.ts",
+    "lib/messageSafety.server.ts",
     "lib/messagesStore.ts",
     "lib/nightMemoryStore.ts",
     "lib/nightMomentMedia.ts",
@@ -190,6 +202,7 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/operatorProposalsStore.ts",
     "lib/pendingPlanRecapStore.ts",
     "lib/pintDropLookup.ts",
+    "lib/pintDropWithTagsStore.ts",
     "lib/pintDrops.ts",
     "lib/pintDropsStore.ts",
     "lib/planCollaborationStore.ts",
@@ -204,12 +217,14 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/profileImageMedia.server.ts",
     "lib/profileImageRoute.server.ts",
     "lib/profileImageServe.server.ts",
+    "lib/profilePassport.server.ts",
     "lib/profileStore.ts",
     "lib/pubPalStore.ts",
     "lib/pushTokenStore.ts",
     "lib/ratingsStore.ts",
     "lib/reactionsStore.ts",
     "lib/referralStore.ts",
+    "lib/regularNightReportMedia.server.ts",
     "lib/roundPriceBudget.ts",
     "lib/roundsStore.ts",
     "lib/savedPubsStore.ts",
@@ -255,8 +270,8 @@ and Supabase implementations keep their existing fail-soft behavior.
 
 The current branch also has `createDualBackendStore` in
 `adultSelfAssertionStore`, `diaryStore`, `feedFreshnessStore`,
-`harvestOverlayStore`, `occupancyStore`, `priceTrustEventStore`,
-`pubPalToolTurnStore`, `stepOutNudgeStore`, `venueSubmissionStore`,
+`harvestOverlayStore`, `kitchenReportsStore`, `occupancyStore`, `priceTrustEventStore`,
+`pubPalToolTurnStore`, `regularNightReportsStore`, `stepOutNudgeStore`, `venueCorrectionsStore`, `venueSubmissionStore`,
 `walkRouteStore` and `wantedStore`. This inventory records that current state; it does not require
 other stores to migrate.
 

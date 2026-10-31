@@ -79,7 +79,11 @@ async function openedPhoneMap(page: Page) {
   await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
 }
 
-type ChromeReading = { share: number; members: string[] };
+/**
+ * `preview` is the document's opening prices at the measurement itself: the
+ * same synchronous evaluation reads it, so nothing can change in between.
+ */
+type ChromeReading = { share: number; members: string[]; preview: string };
 
 async function chromeShare(page: Page): Promise<ChromeReading> {
   return page.evaluate(() => {
@@ -129,7 +133,23 @@ async function chromeShare(page: Page): Promise<ChromeReading> {
 
     let count = 0;
     for (const cell of covered) count += cell;
-    return { share: count / covered.length, members: [...members].sort() };
+    // The opening prices are fixed, so while they show they count as chrome;
+    // this names the handoff branch that kept them up
+    // (components/map/MapOpeningPreview.tsx).
+    const root = document.documentElement.dataset;
+    const mark = (name: string) => {
+      const entry = performance.getEntriesByName(name)[0];
+      return entry ? `${Math.round(entry.startTime)}ms` : "none";
+    };
+    const preview = [
+      `data-map-preview=${root.mapPreview ?? "unset"}`,
+      `data-map-preview-discs=${root.mapPreviewDiscs ?? "unset"}`,
+      `pins-visible=${mark("pubmax:pins-visible")}`,
+      `basemap-drawn=${mark("pubmax:basemap-drawn")}`,
+      `opening-preview-done=${mark("pubmax:opening-preview-done")}`,
+      `measured at ${Math.round(performance.now())}ms`,
+    ].join(", ");
+    return { share: count / covered.length, members: [...members].sort(), preview };
   });
 }
 
@@ -206,7 +226,7 @@ test("the phone map with its sheet closed spends under 30 percent on chrome @390
   const reading = await chromeShare(page);
   expect(
     reading.share,
-    `map chrome ${percent(reading.share)} from ${reading.members.join(", ")}`,
+    `map chrome ${percent(reading.share)} from ${reading.members.join(", ")} (${reading.preview})`,
   ).toBeLessThan(MAP_CHROME_CEILING);
 });
 

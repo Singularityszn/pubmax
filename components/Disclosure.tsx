@@ -13,7 +13,7 @@ function classNames(...values: Array<string | undefined>): string {
   return values.filter(Boolean).join(" ");
 }
 
-export default function Disclosure({
+function Disclosure({
   summary,
   children,
   className,

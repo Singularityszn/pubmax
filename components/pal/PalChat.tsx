@@ -960,7 +960,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
                 ) : null}
                 {proposals.some((proposal) => proposal.kind === "remember_memory") ? (
                   <p className="palChatProposalNote">
-                    A saved memory goes with each Pub Pal chat to ElevenLabs, which answers it. You can delete it on your Pal page.
+                    A saved memory goes with each Pub Pal chat to Anthropic or ElevenLabs, whichever answers it. You can delete it on your Pal page.
                   </p>
                 ) : null}
                 {answer.cards.length > 0 ? (

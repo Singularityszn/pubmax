@@ -10,6 +10,10 @@ import * as maplibregl from "maplibre-gl";
 import { MAPLIBRE_WORKER_URL } from "@/lib/maplibreWorkerAssets";
 import { followMapPixelRatio, mapPixelRatio, probeWebGl2 } from "@/components/map/canvas/webgl";
 import { createPalMapMarker, palPinIsCheap, type PalMapMarker } from "@/components/map/canvas/palMarker";
+import { legRouteToLines } from "@/components/map/canvas/legRouteScene";
+import { legRouteForCurrentLeg, readLegRouteOnMap, subscribeLegRouteOnMap } from "@/lib/legRouteOnMap";
+import { palLeadLine, palLeadPath, planWalkAfterLead } from "@/lib/palLead";
+import { palFirstLegLabel, palPerchSpeechForPin, palWalkLine } from "@/lib/palMapLines";
 import { crewPalLook, type CrewPal } from "@/lib/crewPals";
 import { palWalkPathFrom, palWalkStopsFromKey } from "@/components/map/canvas/palWalk";
 import {
@@ -25,6 +29,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 
@@ -101,7 +106,7 @@ import {
   type BasemapProvider,
 } from "@/components/map/canvas/tokens";
 import {
-  pubsToGeoJSON, poisToGeoJSON, routeToLine, routeToStops,
+  pubsToGeoJSON, poisToGeoJSON, routeLegTimes, routeToLegTimes, routeToLine, routeToStops,
   bandCorridorGeoJSON, landmarksToGeoJSON,
 } from "@/components/map/canvas/geojson";
 import type { VenueWhatsOnSummary } from "@/lib/whatsOnBadges";
@@ -239,12 +244,15 @@ import {
   sameMapRenderedState,
   type MapRenderedState,
 } from "@/lib/mapRenderedState";
-import { markPubmaxTiming, PINS_VISIBLE_EVENT } from "@/lib/performanceMarks";
+import { BASEMAP_DRAWN_EVENT, markPubmaxTiming, PINS_VISIBLE_EVENT } from "@/lib/performanceMarks";
 import {
   MAP_OPENING_PREVIEW_DONE_MARK,
   MAP_OPENING_PREVIEW_RETRACT_EVENT,
+  MAP_OPENING_PREVIEW_TURN_EVENT,
+  openingTurnBearing,
   publishMapOpeningFrame,
   sameCameraPose,
+  streetsInViewDrawn,
   type OpeningCameraPose,
 } from "@/lib/mapOpeningPreview";
 import {
@@ -275,6 +283,12 @@ type PubMapCanvasProps = {
    * (lib/crewPals.ts). Empty unless `route` is the active plan's own route.
    */
   crewPals?: readonly CrewPal[];
+  /**
+   * Tonight's next stop (lib/activePlanRoute.ts planNextStopVenue), when
+   * `route` is the active plan's own route. The reader's Pal walks no further
+   * than it, waits beside it, and opens it through onRouteStopClick when tapped.
+   */
+  palNextStop?: { venueId: string; name: string } | null;
   selectedVenueId: string;
   onVenueClick: (id: string) => void;
   /**
@@ -394,6 +408,11 @@ type PubMapCanvasProps = {
    * ceiling stops at this handoff (lib/mapCanvasAvailability.ts).
    */
   onMapConstructed?: () => void;
+  /**
+   * Hands the live MapLibre map to an optional reader (Sun Chaser reads the
+   * building tiles through it), and null again before the map is removed.
+   */
+  onMapInstance?: (map: maplibregl.Map | null) => void;
   /**
    * Opening camera from CityConfig.mapView. Defaults to London for back-compat
    * when the multi-city router has not wired a city yet.
@@ -716,6 +735,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     venueDataReady,
     route,
     crewPals,
+    palNextStop,
     selectedVenueId,
     onVenueClick,
     onReaderTouchedMap,
@@ -749,6 +769,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     onBasemapProviderChange,
     onMapErrored,
     onMapConstructed,
+    onMapInstance,
     mapView,
     resumeViewport,
     maxBounds,
@@ -856,14 +877,16 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   const onBasemapProviderChangeRef = useRef(onBasemapProviderChange);
   const onMapErroredRef = useRef(onMapErrored);
   const onMapConstructedRef = useRef(onMapConstructed);
+  const onMapInstanceRef = useRef(onMapInstance);
   const onRenderedStateChangeRef = useRef(onRenderedStateChange);
   useEffect(() => {
     onMapReadyRef.current = onMapReady;
     onBasemapProviderChangeRef.current = onBasemapProviderChange;
     onMapErroredRef.current = onMapErrored;
     onMapConstructedRef.current = onMapConstructed;
+    onMapInstanceRef.current = onMapInstance;
     onRenderedStateChangeRef.current = onRenderedStateChange;
-  }, [onMapReady, onBasemapProviderChange, onMapErrored, onMapConstructed, onRenderedStateChange]);
+  }, [onMapReady, onBasemapProviderChange, onMapErrored, onMapConstructed, onMapInstance, onRenderedStateChange]);
   const publishMapReady = useCallback((ready: boolean) => {
     setMapReady(ready);
     onMapReadyRef.current?.(ready);
@@ -1173,6 +1196,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     type: "FeatureCollection",
     features: [],
   });
+  // The way to the next stop chosen in Night Mode (lib/legRouteOnMap.ts).
+  const legRouteRef = useRef<GeoJSON.FeatureCollection>(legRouteToLines(null));
   const routeLineRef = useRef<GeoJSON.FeatureCollection>({
     type: "FeatureCollection",
     features: [],
@@ -1182,6 +1207,18 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     type: "FeatureCollection",
     features: [],
   });
+  // The minutes on foot of each leg of the crawl route, one bubble per leg.
+  const routeLegTimesRef = useRef<GeoJSON.FeatureCollection>({
+    type: "FeatureCollection",
+    features: [],
+  });
+  // The street router's answer for the stops it was asked about, so a later
+  // render of the same stops keeps the street line instead of the estimate.
+  const routedLineRef = useRef<{
+    key: string;
+    line: GeoJSON.FeatureCollection;
+    legTimes: GeoJSON.FeatureCollection;
+  } | null>(null);
   const tonightDataRef = useRef<GeoJSON.FeatureCollection>(
     opportunitiesToGeoJSON([]),
   );
@@ -1231,9 +1268,26 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   // step behind the reader's own, and the walk they were last sent on.
   const crewMarkersRef = useRef<PalMapMarker[]>([]);
   const palWalkRef = useRef<Parameters<PalMapMarker["walk"]>[0] | null>(null);
+  // Tonight's next stop, for crew Pals made after it was set.
+  const palNextRef = useRef<Parameters<PalMapMarker["nextStop"]>[0]>(null);
+  // Pal leads the way: while it walks the way the reader chose in Night Mode,
+  // the plan's own walk and stops wait for it (the effect below).
+  const palLeadKeyRef = useRef<string | null>(null);
+  // The Pal speaks on the map (lib/palMapLines.ts): once as it sets off on a
+  // crawl, with the first leg's own time, and once beside a cheapest-band pin.
+  // These keys hold what it last spoke about, so a re-render never repeats it.
+  const palSpokeWalkRef = useRef("");
+  const palSpokePerchRef = useRef("");
   const walkPals = useCallback((walk: Parameters<PalMapMarker["walk"]>[0]) => {
     palWalkRef.current = walk;
-    palMarkerRef.current?.walk(walk);
+    if (!palLeadKeyRef.current) {
+      palMarkerRef.current?.walk(walk);
+      if (walk.key !== palSpokeWalkRef.current) {
+        palSpokeWalkRef.current = walk.key;
+        const line = palWalkLine(palFirstLegLabel(routeLegTimesRef.current), walk.key);
+        if (line) palMarkerRef.current?.say(line);
+      }
+    }
     for (const marker of crewMarkersRef.current) marker.walk(walk);
   }, []);
   // M7 pin entrance — armed once per mount at the first ACTUAL pin reveal
@@ -1315,6 +1369,9 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         (point) => m.project(point).x, m.getContainer().clientWidth / 2);
       (m.getSource("route-stops") as maplibregl.GeoJSONSource | undefined)?.setData(
         routeStopsRef.current,
+      );
+      (m.getSource("route-leg-times") as maplibregl.GeoJSONSource | undefined)?.setData(
+        routeLegTimesRef.current,
       );
     };
     if (styleStructureReadyRef.current && map.getSource("route-stops")) {
@@ -1665,11 +1722,11 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       }
       markPubmaxTiming("pubmax:map-constructed");
       stopFollowingPixelRatio = followMapPixelRatio(map);
-      // A camera that moves while the document's opening preview is up (the
-      // arrival turn, an opening location, a resumed view) is a frame the
-      // preview did not draw, and it must not hang in place while the ground
-      // slides under it: it stands down on the first frame the camera has
-      // MOVED. Not on `movestart`, which `resize()` also fires with the camera
+      // A camera that moves while the document's opening preview is up (an
+      // opening location, a resumed view) is a frame the preview did not draw,
+      // and it must not hang in place while the ground slides under it: it
+      // stands down on the first frame the camera has MOVED. The arrival turn
+      // is the exception: it only turns, and the preview turns with it. Not on `movestart`, which `resize()` also fires with the camera
       // where it was: the phone's first resize stood the preview down within
       // half a second of construction on every cold visit, seconds before the
       // reveal (measured, 390x844, 4x CPU). Once the preview has stood down
@@ -1694,7 +1751,16 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
             constructed.off("move", onOpeningMove);
             return;
           }
-          if (sameCameraPose(poseOf(), constructedPose) && paddingOf() === constructedPadding) return;
+          const pose = poseOf();
+          const samePadding = paddingOf() === constructedPadding;
+          if (sameCameraPose(pose, constructedPose) && samePadding) return;
+          // The arrival turn only turns the camera, and the preview turns with
+          // it rather than leaving the loading paper on screen until the reveal.
+          const turned = samePadding ? openingTurnBearing(pose, constructedPose) : null;
+          if (turned !== null) {
+            window.dispatchEvent(new CustomEvent<number>(MAP_OPENING_PREVIEW_TURN_EVENT, { detail: turned }));
+            return;
+          }
           constructed.off("move", onOpeningMove);
           window.dispatchEvent(new Event(MAP_OPENING_PREVIEW_RETRACT_EVENT));
         };
@@ -1811,6 +1877,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     );
     mapRef.current = map;
     setMapInstanceReady(true);
+    onMapInstanceRef.current?.(map);
     let styleGeneration = 0;
     // MapLibre's own context-loss handler destroys the style (map.style is null
     // until a `webglcontextrestored` sets it again), with no setStyle of ours to
@@ -2284,6 +2351,37 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       markBasemapRecovered();
     };
     map.on("sourcedata", onBasemapTileLoaded);
+    // The first frame the streets in view are all drawn (streetsInViewDrawn:
+    // a primary basemap tile painted, every tile in view settled, none still
+    // failed). The opening picture hands over to the canvas only after it
+    // (MapOpeningPreview), so the pins never stand on bare paper between the
+    // picture and the streets. The mark is THIS map's: a map built earlier in
+    // the same document (a return to /map) drew its own streets, not these.
+    try {
+      performance.clearMarks(BASEMAP_DRAWN_EVENT);
+    } catch {
+      // A timing mark is diagnostic as well; a locked-down browser keeps going.
+    }
+    const markBasemapDrawn = () => {
+      // Once the preview has stood down nobody is waiting, and a map whose
+      // tiles keep failing would otherwise ask on every frame.
+      if (performance.getEntriesByName(MAP_OPENING_PREVIEW_DONE_MARK).length > 0) {
+        map.off("render", markBasemapDrawn);
+        return;
+      }
+      if (
+        !streetsInViewDrawn({
+          primaryTilePainted: !initialBasemapPending,
+          tilesSettled: map.areTilesLoaded(),
+          unrecoveredTileFailures: failedBasemapTiles.hasFailures(),
+        })
+      ) {
+        return;
+      }
+      map.off("render", markBasemapDrawn);
+      markPubmaxTiming(BASEMAP_DRAWN_EVENT);
+    };
+    map.on("render", markBasemapDrawn);
     // The moment the venue rows are paintable: the pubs GeoJSON has been
     // clustered by the worker and every tile in view has come back. It is the
     // first of the pin gates the reveal coordinator waits on, so the sweep can
@@ -2497,6 +2595,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         landmarksGeoJSON: landmarksGeoJSONRef.current,
         poisData: poisDataRef.current,
         routeLine: routeLineRef.current,
+        routeLegTimes: routeLegTimesRef.current,
+        legRoute: legRouteRef.current,
         routeStops: routeStopsRef.current,
         bandCorridor: bandCorridorRef.current,
         bandColor: bandColorRef.current,
@@ -2579,6 +2679,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
               landmarksGeoJSON: landmarksGeoJSONRef.current,
               poisData: poisDataRef.current,
               routeLine: routeLineRef.current,
+              routeLegTimes: routeLegTimesRef.current,
+              legRoute: legRouteRef.current,
               routeStops: routeStopsRef.current,
               bandCorridor: bandCorridorRef.current,
               bandColor: bandColorRef.current,
@@ -3843,6 +3945,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       map.off("render", markBasemapRecovered);
       map.off("idle", markBasemapRecovered);
       map.off("sourcedata", onBasemapTileLoaded);
+      map.off("render", markBasemapDrawn);
       map.off("sourcedata", onPubsSourceLoaded);
       themeObserver.disconnect();
       reducedQuery.removeEventListener("change", onReducedChange);
@@ -3851,12 +3954,16 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       donutSync.destroy();
       palMarkerRef.current?.destroy();
       palMarkerRef.current = null;
+      // The lead belonged to that marker: after WebGL recovery the new marker
+      // leads the chosen way afresh instead of waiting for a walk it never began.
+      palLeadKeyRef.current = null;
       removePaintedPinProbe();
       removeMapCameraProbe();
       removeMapReaderPositionProbe();
       if (publishCurrentViewportRef.current === publishCurrentViewport) {
         publishCurrentViewportRef.current = null;
       }
+      onMapInstanceRef.current?.(null);
       map.remove();
       mapRef.current = null;
       styleStructureReadyRef.current = false;
@@ -4203,13 +4310,15 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   // Route + selection ring → sources/filter.
   const routeCoordKey = route.map((v) => `${v.longitude},${v.latitude}`).join(";");
   useEffect(() => {
+    const routed = routedLineRef.current?.key === routeCoordKey ? routedLineRef.current : null;
     // Selection and venue-data refreshes must retain a routed road line.
     // Only a different ordered coordinate sequence needs a new fallback.
     if (routeLineKeyRef.current !== routeCoordKey) {
       routeLineKeyRef.current = routeCoordKey;
-      routeLineRef.current = routeToLine(route);
+      routeLineRef.current = routed?.line ?? routeToLine(route);
     }
     routeStopsRef.current = routeToStops(route);
+    routeLegTimesRef.current = routed?.legTimes ?? routeToLegTimes(route);
     selectedIdRef.current = selectedVenueId;
     // A parent re-render hands over a new `route` array for the same stops;
     // only a real change of stops or selection is news worth moving for.
@@ -4348,12 +4457,16 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       signal: controller.signal,
     })
       .then((response) => (response.ok ? response.json() : null))
-      .then((body: { line?: GeoJSON.FeatureCollection; source?: string } | null) => {
+      .then((body: { line?: GeoJSON.FeatureCollection; source?: string; legs?: unknown } | null) => {
         if (controller.signal.aborted || routeLineKeyRef.current !== routeCoordKey) return;
         // Only upgrade when the server actually routed roads; a "straight"
         // response is the same geometry we already painted, so leave it dashed.
         if (!body || body.source !== "ors" || !body.line?.features?.length) return;
         routeLineRef.current = body.line;
+        // The routed legs' own lengths and middles; a leg the router could not
+        // draw keeps its straight-line estimate, marked as one.
+        if (Array.isArray(body.legs)) routeLegTimesRef.current = routeLegTimes(body.legs);
+        routedLineRef.current = { key: routeCoordKey, line: body.line, legTimes: routeLegTimesRef.current };
         applyRouteData();
         // A pavement bend can extend beyond the stops. Fit the upgraded line
         // only while the reader has not taken the camera during this request.
@@ -4385,17 +4498,85 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       walkPals({ key: routeCoordKey, stops, path: stops });
       const stop = selectedVenueId ? routeIds.split(",").indexOf(selectedVenueId) : -1;
       const visitKey = `${routeCoordKey}|${selectedVenueId}`;
-      if (stop >= 0 && visitKey !== palVisitKeyRef.current) palMarkerRef.current?.visit(stop);
+      if (stop >= 0 && visitKey !== palVisitKeyRef.current && !palLeadKeyRef.current) palMarkerRef.current?.visit(stop);
       palVisitKeyRef.current = visitKey;
       return;
     }
     palVisitKeyRef.current = "";
+    // No crawl on the map: no plan walk to go back to (planWalkAfterLead).
+    palWalkRef.current = null;
     const venue = selectedVenueId ? venues.find((v) => v.id === selectedVenueId) : undefined;
     // The Pal reads the band the pin itself paints, from the pins' own data,
     // so it re-reads whenever the pins' data is rebuilt above.
     const pin = venue ? pubsDataRef.current.features.find((feature) => feature.properties?.id === venue.id) : undefined;
-    palMarkerRef.current?.perch(venue ? [venue.longitude, venue.latitude] : null, { cheap: palPinIsCheap(pin?.properties) });
+    const cheap = palPinIsCheap(pin?.properties);
+    palMarkerRef.current?.perch(venue ? [venue.longitude, venue.latitude] : null, { cheap });
+    // A cheap-band line comes with a new pub whose price is in the cheapest
+    // band, and goes when the Pal leaves it, its price leaves the band or the
+    // Spoons value lens comes on (palPerchSpeechForPin). No crawl is on the
+    // map here, so no walk or lead line is cleared with it.
+    const speech = palPerchSpeechForPin(palSpokePerchRef.current, venue?.id ?? null, pin?.properties);
+    palSpokePerchRef.current = speech.spoken;
+    if (speech.say !== undefined) palMarkerRef.current?.say(speech.say);
   }, [routeCoordKey, routeIds, selectedVenueId, venues, venueSignals, favoritePint, drinkCategory, lensPrices, spoonsValue, mapReady, walkPals]);
+
+  // Tonight's next stop: the reader's Pal waits beside it and, tapped there,
+  // opens it the way a tapped route stop does.
+  // The crew's Pals wait there with it, as pictures, never buttons.
+  const palNextVenueId = palNextStop?.venueId ?? "";
+  const palNextName = palNextStop?.name ?? "";
+  useEffect(() => {
+    if (!mapReady) return;
+    const stop = palNextVenueId ? routeIds.split(",").indexOf(palNextVenueId) : -1;
+    const next = stop >= 0
+      ? { stop, name: palNextName, open: () => onRouteStopClickRef.current(palNextVenueId) }
+      : null;
+    palNextRef.current = next;
+    if (!palLeadKeyRef.current) palMarkerRef.current?.nextStop(next);
+    for (const marker of crewMarkersRef.current) marker.nextStop(next);
+  }, [palNextVenueId, palNextName, routeIds, mapReady]);
+
+  // Pal leads the way: the way the reader chose to tonight's next stop, walked
+  // by their own Pal along its exact path, with one line about the choice
+  // (lib/palLead.ts). It arrives with a jump for joy and waits there as the
+  // next-stop button. A way to anywhere but tonight's next stop, or no way,
+  // hands the Pal back to the plan's walk. Crew Pals keep the plan's walk.
+  const legChoice = useSyncExternalStore(subscribeLegRouteOnMap, readLegRouteOnMap, () => null);
+  // The way to the next stop the reader chose in Night Mode, only while its leg
+  // is tonight's current leg on the map (legRouteForCurrentLeg): drawn where the
+  // reader looks, never flown to.
+  const shownLeg = useMemo(
+    () => legRouteForCurrentLeg(legChoice, routeIds.split(","), palNextVenueId),
+    [legChoice, routeIds, palNextVenueId],
+  );
+  useEffect(() => {
+    legRouteRef.current = legRouteToLines(shownLeg?.option ?? null);
+    const source = mapRef.current?.getSource("leg-route") as maplibregl.GeoJSONSource | undefined;
+    source?.setData(legRouteRef.current);
+  }, [shownLeg, mapReady]);
+  useEffect(() => {
+    const marker = palMarkerRef.current;
+    if (!mapReady || !marker) return;
+    const path = shownLeg ? palLeadPath(shownLeg.option) : [];
+    const leads = shownLeg !== null && path.length > 1;
+    if (!leads) {
+      if (!palLeadKeyRef.current) return;
+      palLeadKeyRef.current = null;
+      marker.say(null);
+      // Back to the plan's walk only while it is the route on the map; a plan
+      // that ended meanwhile leaves the perch or the empty map as it is.
+      const back = planWalkAfterLead(palWalkRef.current, routeCoordKey);
+      if (back) marker.walk(back);
+      marker.nextStop(palNextRef.current);
+      return;
+    }
+    const key = `lead:${shownLeg.legKey}:${shownLeg.option.id}`;
+    if (palLeadKeyRef.current === key) return;
+    palLeadKeyRef.current = key;
+    marker.walk({ key, stops: [path[0]!, path.at(-1)!], path, road: true, cheer: true });
+    marker.nextStop({ stop: 1, name: palNextName, open: () => onRouteStopClickRef.current(palNextVenueId) });
+    marker.say(palLeadLine(shownLeg.option));
+  }, [shownLeg, palNextVenueId, palNextName, routeCoordKey, mapReady]);
 
   // The crew's Pals: made when the crew read lands, walked on the route the
   // reader's own Pal is on, and gone with the plan's route.
@@ -4405,6 +4586,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     if (!mapReady || !map || !crewPals || crewPals.length === 0) return;
     const markers = crewPals.map((pal, index) => createPalMapMarker(map, { pal: crewPalLook(pal), index }));
     crewMarkersRef.current = markers;
+    for (const marker of markers) marker.nextStop(palNextRef.current);
     if (palWalkRef.current) for (const marker of markers) marker.walk(palWalkRef.current);
     return () => {
       for (const marker of markers) marker.destroy();
