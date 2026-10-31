@@ -63,6 +63,7 @@ type HandleResolution = {
 };
 
 export type IdentityHandleStore = {
+  aliasProfileId(handle: string): Promise<string | null>;
   availability(handle: string): Promise<HandleAvailability>;
   claim(ownerId: string, handle: string): Promise<HandleClaimResult>;
   rename(ownerId: string, handle: string): Promise<HandleRenameResult>;
@@ -108,11 +109,14 @@ function rpcClaim(row: Record<string, unknown>): HandleClaimResult {
 }
 
 export const memoryIdentityHandleStore: IdentityHandleStore = {
+  async aliasProfileId(handle) {
+    return memoryAliases.get(handle)?.profileId ?? null;
+  },
   async availability(handle) {
     if (isReservedContributorHandle(handle)) {
       return { handle, available: false, reason: "taken" };
     }
-    if (memoryAliases.has(handle)) return { handle, available: false, reason: "taken" };
+    if (await this.aliasProfileId(handle)) return { handle, available: false, reason: "taken" };
     const profile = await profileStore().getByHandle(handle);
     return profile
       ? { handle, available: false, reason: "taken" }
@@ -352,21 +356,21 @@ export const memoryIdentityHandleStore: IdentityHandleStore = {
 };
 
 export const supabaseIdentityHandleStore: IdentityHandleStore = {
+  async aliasProfileId(handle) {
+    const { data, error } = await requireSupabaseAdmin()
+      .from("profile_handle_aliases")
+      .select("profile_id")
+      .eq("handle", handle)
+      .limit(1);
+    if (error) throw new Error(error.message);
+    return data?.[0]?.profile_id ? String(data[0].profile_id) : null;
+  },
   async availability(handle) {
     if (isReservedContributorHandle(handle)) {
       return { handle, available: false, reason: "taken" };
     }
     const admin = requireSupabaseAdmin();
-    const { data, error } = await admin
-      .from("profile_handle_aliases")
-      .select("profile_id,is_current")
-      .eq("handle", handle)
-      .limit(1);
-    if (error) throw new Error(error.message);
-    const alias = (data ?? [])[0] as
-      | { profile_id?: unknown; is_current?: unknown }
-      | undefined;
-    if (alias?.profile_id) {
+    if (await this.aliasProfileId(handle)) {
       return { handle, available: false, reason: "taken" };
     }
     const { data: profiles, error: profileError } = await admin
