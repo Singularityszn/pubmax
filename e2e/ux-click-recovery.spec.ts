@@ -190,12 +190,82 @@ test("keyboard Moment activation keeps map context in a new tab", async ({ page 
   const sourceReturnTo = new URL(sourceUrl).pathname + new URL(sourceUrl).search;
   await share.focus();
   const activationKey = process.platform === "darwin" ? "Meta+Enter" : "Control+Enter";
-  const beforeActivation = await page.evaluate(() => {
+  const browserVersion = page.context().browser()?.version() ?? "UNKNOWN";
+  let pressState: "pending" | "fulfilled" | "rejected" = "pending";
+  const keyboardEventPrefix = "UX_KEYBOARD_MOMENT_EVENT ";
+  const observedEvents: unknown[] = [];
+  const createdPages: Array<{ event: string; initialUrl: string; page: Page }> = [];
+  const observeKeyboardEvent = (message: { text(): string }) => {
+    const text = message.text();
+    if (!text.startsWith(keyboardEventPrefix) || observedEvents.length >= 12) return;
+    try {
+      observedEvents.push(JSON.parse(text.slice(keyboardEventPrefix.length)));
+    } catch {
+      observedEvents.push({ malformedProbeMessage: true });
+    }
+  };
+  const observeContextPage = (created: Page) => {
+    if (createdPages.length < 12) createdPages.push({ event: "context-page", initialUrl: created.url(), page: created });
+  };
+  const observePopup = (created: Page) => {
+    if (createdPages.length < 12) createdPages.push({ event: "opener-popup", initialUrl: created.url(), page: created });
+  };
+  page.on("console", observeKeyboardEvent);
+  page.context().on("page", observeContextPage);
+  page.on("popup", observePopup);
+  const beforeActivation = await page.evaluate((eventPrefix) => {
     const matches = document.querySelectorAll<HTMLAnchorElement>(
       'a.siteNavMoment[aria-label="Share a Moment"]',
     );
     const anchor = matches.length === 1 ? matches[0] : null;
     const active = document.activeElement;
+    let eventCount = 0;
+    const observeEvent = (event: KeyboardEvent | MouseEvent) => {
+      if (eventCount >= 12) return;
+      eventCount += 1;
+      const target = event.target instanceof Element ? event.target : null;
+      const activeAtCapture = document.activeElement;
+      const captured = {
+        ordinal: eventCount,
+        type: event.type,
+        key: "key" in event ? event.key : null,
+        code: "code" in event ? event.code : null,
+        keyCode: "keyCode" in event ? event.keyCode : null,
+        charCode: "charCode" in event ? event.charCode : null,
+        button: "button" in event ? event.button : null,
+        ctrlKey: event.ctrlKey,
+        metaKey: event.metaKey,
+        shiftKey: event.shiftKey,
+        altKey: event.altKey,
+        isTrusted: event.isTrusted,
+        target: target ? {
+          tag: target.tagName,
+          id: target.id,
+          ariaLabel: target.getAttribute("aria-label"),
+          sourceAnchor: target === anchor || !!anchor?.contains(target),
+        } : null,
+        activeElementAtCapture: activeAtCapture ? {
+          tag: activeAtCapture.tagName,
+          id: activeAtCapture.id,
+          ariaLabel: activeAtCapture.getAttribute("aria-label"),
+          sourceAnchor: activeAtCapture === anchor,
+        } : null,
+        defaultPreventedAtCapture: event.defaultPrevented,
+        sourceAnchorHrefAtCapture: anchor?.getAttribute("href") ?? null,
+      };
+      window.setTimeout(() => {
+        console.debug(eventPrefix + JSON.stringify({
+          ...captured,
+          defaultPreventedAfterHandlers: event.defaultPrevented,
+          sourceAnchorConnectedAfterHandlers: anchor?.isConnected ?? false,
+          sourceAnchorHrefAfterHandlers: anchor?.isConnected ? anchor.getAttribute("href") : null,
+        }));
+      }, 0);
+    };
+    document.addEventListener("keydown", observeEvent, { capture: true, passive: true });
+    document.addEventListener("keypress", observeEvent, { capture: true, passive: true });
+    document.addEventListener("keyup", observeEvent, { capture: true, passive: true });
+    document.addEventListener("click", observeEvent, { capture: true, passive: true });
     return {
       targetIdentity: anchor ? "unique-source-selector" : "UNKNOWN",
       matchingAnchors: matches.length,
@@ -214,14 +284,30 @@ test("keyboard Moment activation keeps map context in a new tab", async ({ page 
       } : null,
       openerUrl: window.location.href,
     };
-  }).catch(() => ({ sampleUnavailable: true }));
+  }, keyboardEventPrefix).catch(() => ({ sampleUnavailable: true }));
   const [popup] = await Promise.all([
     page.waitForEvent("popup"),
-    share.press(activationKey),
+    share.press(activationKey).then(() => {
+      pressState = "fulfilled";
+    }, (error: unknown) => {
+      pressState = "rejected";
+      throw error;
+    }),
   ]).catch((error: unknown) => {
+    page.off("console", observeKeyboardEvent);
+    page.context().off("page", observeContextPage);
+    page.off("popup", observePopup);
     console.error("UX_KEYBOARD_MOMENT_POPUP_FAILURE", JSON.stringify({
       requestedKey: activationKey,
+      browserVersion,
+      pressState,
       beforeActivation,
+      observedEvents,
+      createdPages: createdPages.map(({ event, initialUrl, page: created }) => ({
+        event,
+        initialUrl,
+        currentUrl: created.url(),
+      })),
       openerUrlAfterFailure: page.url(),
     }));
     throw error;
@@ -231,6 +317,9 @@ test("keyboard Moment activation keeps map context in a new tab", async ({ page 
     expect(new URL(popup.url()).searchParams.get("returnTo")).toBe(sourceReturnTo);
     await expect(page).toHaveURL(sourceUrl);
   } finally {
+    page.off("console", observeKeyboardEvent);
+    page.context().off("page", observeContextPage);
+    page.off("popup", observePopup);
     await popup.close();
   }
 });
