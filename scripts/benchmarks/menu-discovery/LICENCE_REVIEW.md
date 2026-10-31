@@ -11,7 +11,7 @@ This is version 3 only, not an option to choose a later licence version.
 
 The [dependency lock](dependency-lock.json) records the source commit, release archive hashes, and licence hash.
 The bootstrap downloads an unchanged executable and its licence into an ignored tools directory.
-The experiment calls that executable through its CLI. It does not copy PageSift code into the application.
+The experiment starts that executable as a local API, bound to 127.0.0.1. It does not copy PageSift code into the application.
 The application package manifest and lockfile remain unchanged.
 
 ## Obligations that affect a future integration

@@ -113,10 +113,11 @@ export class Transport {
     if (this.cooldown.has(new URL(url).host)) return this.event(url, 'host-cooldown');
     if (this.used >= this.protocol.requestBudgetPerArmPerVenue) return this.event(url, 'budget-exhausted');
     const host = new URL(url).host;
+    const previous = this.clocks.get(host) ?? { at: 0, delay: 0 };
+    minDelay = Math.max(minDelay, previous.delay);
     const releaseHost = await acquireHost(host, minDelay);
-    const wait = Math.max(0, (this.clocks.get(host) ?? 0) + minDelay - Date.now());
+    const wait = Math.max(0, previous.at + minDelay - Date.now());
     if (wait) await new Promise((r) => setTimeout(r, wait));
-    this.clocks.set(host, Date.now());
     const row = { sequence: ++this.used, at: new Date().toISOString(), url, kind, status: null, bytes: 0 };
     this.requests.push(row);
     const start = performance.now();
@@ -162,7 +163,7 @@ export class Transport {
       row.error = error.message;
       this.event(url, 'fetch-failed', { detail: error.message });
       return null;
-    } finally { row.elapsedMs = performance.now() - start; releaseHost(); }
+    } finally { row.elapsedMs = performance.now() - start; this.clocks.set(host, { at: Date.now(), delay: minDelay }); releaseHost(); }
   }
 
   async robots(origin) {

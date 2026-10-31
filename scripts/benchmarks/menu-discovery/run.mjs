@@ -111,37 +111,67 @@ async function relevanceGuided(transport) {
   const timePath = resolve(transport.out, 'pagesift-time.txt');
   const stdout = createWriteStream(resolve(transport.out, 'pagesift.jsonl'));
   const stderr = createWriteStream(resolve(transport.out, 'pagesift.stderr.txt'));
-  const cli = ['crawl', start, '--config', resolve(here, 'pagesift.toml'), '--audit-log', resolve(transport.out, 'native-audit.jsonl'), '--query', transport.protocol.query,
-    '--limit', String(transport.protocol.requestBudgetPerArmPerVenue), '--depth', String(transport.protocol.maxDepth),
-    '--scope', 'domain', '--sitemap', 'skip', '--engine', 'http', '--attachments',
-    '--attachment-limit', String(transport.protocol.requestBudgetPerArmPerVenue),
-    '--tuning-mode', 'conservative', '--allow-cidr', '127.0.0.1/32'];
-  json(resolve(transport.out, 'pagesift-command.json'), { executable: bin, args: cli, urlMapping: 'Own-host paths unchanged. Explicit external menu PDFs use /__menu_asset__/host/original-path.' });
+  const reservation = createServer();
+  await new Promise((r) => reservation.listen(0, '127.0.0.1', r));
+  const apiPort = reservation.address().port;
+  await new Promise((r) => reservation.close(r));
+  const apiOrigin = `http://127.0.0.1:${apiPort}`;
+  const cli = ['serve', '--host', '127.0.0.1', '--port', String(apiPort), '--config', resolve(here, 'pagesift.toml'),
+    '--audit-log', resolve(transport.out, 'native-audit.jsonl'), '--data-dir', resolve(transport.out, 'native-state'), '--no-cache', '--allow-cidr', '127.0.0.1/32'];
+  const payload = { url: start, query: transport.protocol.query, limit: transport.protocol.requestBudgetPerArmPerVenue,
+    maxDiscoveryDepth: transport.protocol.maxDepth, maxConcurrency: 1, scope: 'domain', sitemap: 'skip',
+    allowSubdomains: false, scrapeOptions: { engine: 'http', formats: ['markdown', 'links'] },
+    attachments: true, attachmentLimit: transport.protocol.requestBudgetPerArmPerVenue };
+  json(resolve(transport.out, 'pagesift-command.json'), { executable: bin, args: cli, payload,
+    urlMapping: 'Own-host paths unchanged. Explicit external menu PDFs use /__menu_asset__/host/original-path.' });
+  const timeArgs = process.platform === 'darwin' ? ['-l', '-p', '-o', timePath] : ['-v', '-o', timePath];
+  const child = spawn('/usr/bin/time', [...timeArgs, bin, ...cli], { detached: true, cwd: transport.out,
+    env: { PATH: process.env.PATH, TMPDIR: process.env.TMPDIR ?? '/tmp', LANG: 'en_GB.UTF-8' }, stdio: ['ignore', 'pipe', 'pipe'] });
+  nativeProcess = child;
+  nativeChildren.add(child);
+  child.stdout.pipe(stdout);
+  child.stderr.pipe(stderr);
   let exitCode;
+  let closed = false;
+  const completion = new Promise((accept, reject) => {
+    child.on('error', reject);
+    child.on('close', (code, signal) => { closed = true; nativeChildren.delete(child); exitSignal = signal; accept(code); });
+  });
+  let nativeStatus = null;
+  const timeout = setTimeout(() => {
+    transport.event(transport.venue.website, 'native-venue-timeout');
+    try { process.kill(-child.pid, 'SIGINT'); } catch (error) { if (error.code !== 'ESRCH') throw error; }
+  }, 600000);
+  const pause = (ms) => new Promise((r) => setTimeout(r, ms));
   try {
-    exitCode = await new Promise((accept, reject) => {
-      const timeArgs = process.platform === 'darwin' ? ['-l', '-p', '-o', timePath] : ['-v', '-o', timePath];
-      const child = spawn('/usr/bin/time', [...timeArgs, bin, ...cli], {
-        detached: true,
-        cwd: transport.out,
-        // No API credentials or inherited PageSift settings enter the child.
-        env: { PATH: process.env.PATH, TMPDIR: process.env.TMPDIR ?? '/tmp', LANG: 'en_GB.UTF-8' },
-        stdio: ['ignore', 'pipe', 'pipe'],
-      });
-      nativeProcess = child;
-      nativeChildren.add(child);
-      child.stdout.pipe(stdout);
-      child.stderr.pipe(stderr);
-      const timeout = setTimeout(() => {
-        process.kill(-child.pid, 'SIGINT');
-        transport.event(transport.venue.website, 'native-venue-timeout');
-      }, 600000);
-      child.on('error', (error) => { clearTimeout(timeout); reject(error); });
-      child.on('close', (code, signal) => { nativeChildren.delete(child); clearTimeout(timeout); exitSignal = signal; accept(code); });
-    });
+    let ready = false;
+    for (let i = 0; i < 200 && !closed; i++) {
+      try { ready = (await fetch(`${apiOrigin}/healthz`, { signal: AbortSignal.timeout(1000) })).ok; } catch {}
+      if (ready) break;
+      await pause(25);
+    }
+    if (!ready) throw new Error('The isolated PageSift API did not become ready');
+    const started = await fetch(`${apiOrigin}/v2/crawl`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
+    const job = await started.json();
+    if (!started.ok || !job.id) throw new Error(`Native crawl refused: ${JSON.stringify(job)}`);
+    while (!closed && !budgetStopped) {
+      const response = await fetch(`${apiOrigin}/v2/crawl/${job.id}`);
+      const state = await response.json();
+      if (!response.ok) throw new Error(`Native job read failed: ${JSON.stringify(state)}`);
+      nativeStatus = state.status;
+      json(resolve(transport.out, 'native-job.json'), state);
+      if (state.status !== 'scraping') break;
+      await pause(25);
+    }
+    if (!budgetStopped && nativeStatus !== 'completed') throw new Error(`Native job ended as ${nativeStatus}`);
+  } catch (error) {
+    if (!budgetStopped) throw error;
+  } finally {
+    if (!closed) { try { process.kill(-child.pid, 'SIGINT'); } catch (error) { if (error.code !== 'ESRCH') throw error; } }
+    exitCode = await completion;
+    clearTimeout(timeout);
     await new Promise((r) => stdout.end(r));
     await new Promise((r) => stderr.end(r));
-  } finally {
     await transport.queue;
     server.closeAllConnections();
     await new Promise((r) => server.close(r));
@@ -154,7 +184,7 @@ async function relevanceGuided(transport) {
   const childPeakRssBytes = process.platform === 'darwin'
     ? number(/^\s*(\d+)\s+maximum resident set size/m) : number(/Maximum resident set size \(kbytes\): (\d+)/) * 1024;
   const nativeAudit = readFileSync(resolve(transport.out, 'native-audit.jsonl'), 'utf8').trim().split('\n').filter(Boolean).map((line) => JSON.parse(line));
-  return { exitCode, exitSignal, budgetStopped, localRequests, childCpuSeconds, childPeakRssBytes,
+  return { exitCode, exitSignal, budgetStopped, nativeStopRequested: true, nativeStatus, localRequests, childCpuSeconds, childPeakRssBytes,
     nativeFetchCount: nativeAudit.length, nativeFetchErrors: nativeAudit.filter((r) => r.error),
     stopReason: budgetStopped ? 'request-budget' : 'native-cli-returned',
     nativeOutputSha256: sha256(readFileSync(resolve(transport.out, 'pagesift.jsonl'))) };
@@ -216,6 +246,7 @@ async function live() {
   // Different venue domains can link to the same menu CDN. Serialise by actual host.
   const hostQueues = new Map();
   const hostStarts = new Map();
+  const hostDelays = new Map();
   const start = performance.now();
   while (pending.length || active.size) {
     const usedHosts = new Set([...active.values()].map((row) => row.host));
@@ -237,7 +268,8 @@ async function live() {
         if (message.type !== 'host-acquire') return;
         const prior = hostQueues.get(message.host) ?? Promise.resolve();
         const next = prior.then(async () => {
-          const wait = Math.max(0, (hostStarts.get(message.host) ?? 0) + message.minDelay - Date.now());
+          hostDelays.set(message.host, Math.max(hostDelays.get(message.host) ?? 0, message.minDelay));
+          const wait = Math.max(0, (hostStarts.get(message.host) ?? 0) + hostDelays.get(message.host) - Date.now());
           if (wait) await new Promise((r) => setTimeout(r, wait));
           if (!child.connected) return;
           hostStarts.set(message.host, Date.now());
@@ -275,7 +307,7 @@ async function fixture() {
   const server = createServer((request, response) => {
     const send = (body, status = 200, headers = {}) => response.writeHead(status, { 'content-type': 'text/html', ...headers }).end(body);
     if (request.url === '/robots.txt') return scenario === 'robots-refused' ? send('Access denied', 403)
-      : send('User-agent: *\nDisallow: /private-menu\n', 200, { 'content-type': 'text/plain' });
+      : send(`User-agent: *\nDisallow: /private-menu\n${scenario === 'published-delay' ? 'Crawl-delay: 0.1\n' : ''}`, 200, { 'content-type': 'text/plain' });
     if (request.url === '/private-menu') { forbiddenHits++; return send('Forbidden', 500); }
     if (request.url === '/terms-conditions') return send('<html><title>Terms and Conditions</title><p>No text or data mining, or web scraping. You shall not conduct, facilitate, authorise or permit any text or data mining or web scraping in relation to our Websites.</p></html>');
     if (request.url === '/large-menu') return send('<html><title>Food menu</title><body><h1>Food menu</h1>' + '<p>Vegetable soup £6.50</p>'.repeat(45000) + '</body></html>');
@@ -296,8 +328,9 @@ async function fixture() {
   const venue = { venueId: 'fixture', name: 'Fixture pub', website: scenario === 'source-refused' ? 'http://169.254.169.254/metadata-menu.pdf' : `${origin}/`, postcode: 'SW1A 1AA', goldSample: true };
   const config = { ...protocol, minIntervalMs: 0, timeoutMs: scenario === 'slow-menu' ? 20000 : 3000, requestBudgetPerArmPerVenue: Number(option('budget', 9)) };
   const arms = [];
+  const fixtureClocks = new Map();
   try {
-    for (const arm of ['A', 'B']) arms.push(await runArm({ venue, arm, out: resolve(out, arm), config, clocks: new Map(), fixtureOrigin: origin }));
+    for (const arm of ['A', 'B']) arms.push(await runArm({ venue, arm, out: resolve(out, arm), config, clocks: fixtureClocks, fixtureOrigin: origin }));
     const labels = [
       { venueId: 'fixture', url: `${origin}/food-menu`, verdict: 'menu', format: 'html', reviewer: 'fixture-truth', relevant: true,
         priceRecords: [{ id: 'soup', item: 'Soup', amountGbp: 6.5, evidence: 'Soup £6.50' }] },

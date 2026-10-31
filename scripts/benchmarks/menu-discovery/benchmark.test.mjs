@@ -125,3 +125,13 @@ test('the native CLI waits for a permitted menu beyond its conservative twelve-s
     if (arm.arm === 'B') assert.deepEqual(arm.nativeFetchErrors, []);
   }
 });
+
+test('the CLI retains a published host delay across both arms, including the next robots read', () => {
+  const arms = fixture(9, 'published-delay').arms;
+  const requests = arms.flatMap((r) => r.requests);
+  for (let i = 1; i < requests.length; i++) {
+    const previous = requests[i - 1];
+    const current = requests[i];
+    assert.ok(Date.parse(current.at) - Date.parse(previous.at) - previous.elapsedMs >= 90);
+  }
+});

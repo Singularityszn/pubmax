@@ -4,7 +4,7 @@ This experiment compares two crawlers on the same frozen set of 60 London pub we
 It has no production writer, database connection, deployment step, or application dependency change.
 
 Arm A uses breadth-first traversal, with conventional URL and anchor keywords first within each depth.
-Arm B uses the unchanged PageSift 0.81.0 executable and its native relevance-guided crawler.
+Arm B uses the unchanged PageSift 0.81.0 executable and its native relevance-guided crawler through its local API.
 Both arms use one access transport and one candidate detector.
 
 The [protocol](protocol.json) fixes the query, keywords, limits, cost assumptions, and adoption gates before the final run.
@@ -86,6 +86,7 @@ The benchmark also applies the stricter, evidenced restrictions in `access-revie
 The minimum host delay is 1.5 seconds, or a longer published crawl delay or request rate.
 The coordinator serialises requests to an actual host across all four venue workers, including shared PDF hosts.
 The delay also follows completion of the preceding request.
+The scheduler retains the longest observed delay for a host across arms, workers, and later robots reads.
 A challenge, rate-limit response, or Retry-After response stops further requests to that host within the arm.
 The crawler does not bypass challenges, use browser impersonation, or use authenticated access.
 
@@ -101,10 +102,11 @@ This prevents native retries or cooldowns for the gateway's synthetic responses.
 The comparison therefore measures one-attempt crawling. It does not compare native retry strategies.
 
 The gateway removes executable scripts and remote resource attributes.
-The native crawler uses HTTP mode, conservative tuning, no sitemap seeds, no adaptive early stop, and no persistent cache.
-Version 0.81.0 conservative tuning overrides its configured worker counts. The shared transport still serialises all upstream requests.
+The native crawler uses its local HTTP API with maxConcurrency=1, HTTP mode, no sitemap seeds, no adaptive early stop, and no persistent cache.
+The API binds only to 127.0.0.1. Each arm has a private state directory.
+The CLI conservative profile overrides worker counts, so the final benchmark uses the API to set concurrency explicitly.
 Both arms pay for the initial root and legal checks. B completes these checks before it starts the native loopback crawl.
-An explicit native timeout preserves its 30-second first-byte limit instead of the conservative 12-second default.
+An explicit native timeout preserves its 30-second first-byte limit instead of the CLI conservative 12-second default.
 The audit rejects any native fetch error, including a gateway timeout. It does not treat a locally timed-out request as a relevance result.
 Both arms start at the same venue URL and use maximum discovery depth four.
 Both arms can explore the shared host, so another pub's menu is a possible false positive.
@@ -147,3 +149,18 @@ It refuses to run before the paired crawl finishes. It has a separate cap of 40 
 `audit.mjs RUN` checks request caps, body hashes, path edges, rate limits, access holds, and source hashes.
 `export.mjs RUN OUTPUT` writes the compact machine-readable dataset and comparison report after the audit passes.
 These commands do not publish any production data.
+
+## Re-evaluate the committed result
+
+The compact result retains the fields needed for offline evaluation. It omits response bodies and full menu text.
+Copy the result directory before re-evaluating it, so the original result remains unchanged.
+
+```sh
+cp -R scripts/benchmarks/menu-discovery/results/2026-10-31 /tmp/pubmax-menu-result-copy
+node scripts/benchmarks/menu-discovery/evaluate.mjs /tmp/pubmax-menu-result-copy /tmp/pubmax-menu-result-copy/annotations.json
+```
+
+The reference stage can run after a crawl with `node scripts/benchmarks/menu-discovery/reference.mjs RUN scripts/benchmarks/menu-discovery/reference-targets.json`.
+Each reference venue has a separate 40-request maximum. These requests do not enter either arm's figures.
+Reference reads retain their actual timestamps and can predate a later corrected crawl.
+Do not retry a challenge or access refusal to complete the reference inventory.

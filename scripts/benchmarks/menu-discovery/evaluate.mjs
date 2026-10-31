@@ -74,6 +74,7 @@ export function evaluate(results, labels) {
       verifiedPriceRecordsPer100Requests: candidates.length === truePositiveKeys.length + falsePositiveKeys.length
         && priceKeys.length === menuKeys.length && priceBodyMismatches.length === 0 && menuKeys.every((k) => byKey.get(k).priceReviewComplete === true) ? rate(prices.length * 100, requests) : null,
       fetchFailures: network.filter((r) => r.error).length,
+      nativeFetchErrors: rows.reduce((n, r) => n + (r.nativeFetchErrors?.length ?? 0), 0),
       httpFailures: network.filter((r) => r.status >= 400).length,
       redirects: network.filter((r) => r.status >= 300 && r.status < 400).length,
       blockedEvents: events.filter((r) => /refused|disallowed|unreadable|challenge|cooldown/.test(r.reason)).length,
@@ -103,6 +104,18 @@ export function evaluate(results, labels) {
 }
 
 export function loadResults(run) {
+  // Compact exports retain every field needed for offline evaluation, without response bodies.
+  if (existsSync(resolve(run, 'venue-results.jsonl'))) {
+    const lines = (name) => readFileSync(resolve(run, name), 'utf8').trim().split('\n').filter(Boolean).map((line) => JSON.parse(line));
+    const pages = lines('pages.jsonl');
+    const requests = lines('requests.jsonl');
+    const events = lines('access-events.jsonl');
+    return lines('venue-results.jsonl').map((row) => ({ ...row,
+      pages: pages.filter((p) => p.venueId === row.venueId && p.arm === row.arm),
+      requests: requests.filter((p) => p.venueId === row.venueId && p.arm === row.arm),
+      events: events.filter((p) => p.venueId === row.venueId && p.arm === row.arm),
+    }));
+  }
   const results = [];
   for (const venue of readdirSync(run, { withFileTypes: true }).filter((d) => d.isDirectory())) {
     for (const arm of ['A', 'B']) {
@@ -153,7 +166,9 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const b = summary.find((r) => r.arm === 'B');
   const ratio = (x, y) => x != null && y > 0 ? x / y : null;
   const relativeRecall = ratio(primaryGoldSummary.find((r) => r.arm === 'B')?.recall, primaryGoldSummary.find((r) => r.arm === 'A')?.recall);
-  const priceRatio = ratio(b?.verifiedPriceRecordsPer100Requests, a?.verifiedPriceRecordsPer100Requests);
+  const primaryA = primaryGoldSummary.find((r) => r.arm === 'A');
+  const primaryB = primaryGoldSummary.find((r) => r.arm === 'B');
+  const priceRatio = ratio(primaryB?.verifiedPriceRecordsPer100Requests, primaryA?.verifiedPriceRecordsPer100Requests);
   const gates = protocol.adoptionGates;
   const humanReviews = (annotations.venueReviews ?? []).filter((r) => r.reviewerType === 'human' && r.inventoryComplete === true).length;
   const gateResults = {
@@ -161,8 +176,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     humanGoldApproved: annotations.humanApproved === true && humanReviews >= gates.minHumanReviewedVenues,
     requestCaps: results.every((r) => r.networkRequests <= r.budget),
     relevanceRecallGain: relativeRecall == null ? null : relativeRecall >= 1 + gates.minRelativeVerifiedMenuRecallGain,
-    candidatePrecision: b && b.precisionUpperBound < gates.minAbsolutePrecision ? false
-      : b && !b.unjudgedCandidates ? b.precision >= gates.minAbsolutePrecision : null,
+    candidatePrecision: primaryB && primaryB.precisionUpperBound < gates.minAbsolutePrecision ? false
+      : primaryB && !primaryB.unjudgedCandidates ? primaryB.precision >= gates.minAbsolutePrecision : null,
     priceYieldGain: priceRatio == null ? null : priceRatio >= 1 + gates.minRelativeVerifiedPriceYieldGain,
     latencyRatio: a && b ? ratio(b.wallSecondsSum, a.wallSecondsSum) <= gates.maxLatencyRatio : null,
     measuredComponentCostRatio: a && b ? ratio(b.estimatedMeasuredComponentCost.total, a.estimatedMeasuredComponentCost.total) <= gates.maxEstimatedCostRatio : null,

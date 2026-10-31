@@ -41,7 +41,7 @@ for (const arm of results) {
     const noContent = !arm.pages.some((p) => p.status === 200);
     const refused = arm.events.some((e) => /refused|unreadable|challenge|fetch-failed/.test(e.reason))
       || arm.requests.some((r) => r.error || r.status >= 400);
-    assert.ok(arm.exitCode === 0 || (arm.budgetStopped && arm.exitSignal === 'SIGINT') || (arm.exitCode === 1 && noContent && refused));
+    assert.ok(arm.exitCode === 0 || (arm.nativeStopRequested && arm.exitSignal === 'SIGINT') || (arm.exitCode === 1 && noContent && refused));
     assert.ok(!arm.events.some((r) => r.reason === 'native-venue-timeout' || r.reason === 'gateway-error'));
     const records = readFileSync(resolve(run, arm.venueId.replace('/', '-'), arm.arm, 'native-audit.jsonl'), 'utf8').trim().split('\n').filter(Boolean).map((line) => JSON.parse(line));
     for (const record of records) {
@@ -90,9 +90,17 @@ for (const request of requests) {
 }
 for (const [host, rows] of byHost) check(`shared rate limit ${host}`, () => {
   rows.sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
-  for (let i = 1; i < rows.length; i++) {
-    assert.ok(Date.parse(rows[i].at) - Date.parse(rows[i - 1].at) >= meta.protocol.minIntervalMs - 10,
-      `Requests started too close: ${rows[i - 1].at}, ${rows[i].at}`);
+  let published = meta.protocol.minIntervalMs;
+  for (let i = 0; i < rows.length; i++) {
+    if (i) assert.ok(Date.parse(rows[i].at) - Date.parse(rows[i - 1].at) - rows[i - 1].elapsedMs >= published - 10,
+      `Requests did not retain a ${published}ms delay after completion: ${rows[i - 1].at}, ${rows[i].at}`);
+    const row = rows[i];
+    if (row.kind === 'robots' && row.bodyFile) {
+      const body = readFileSync(resolve(run, row.venueId.replace('/', '-'), row.arm, row.bodyFile), 'utf8');
+      const delays = [...body.matchAll(/^\s*crawl-delay:\s*(\d+(?:\.\d+)?)/gmi)].map((m) => Number(m[1]) * 1000);
+      const rates = [...body.matchAll(/^\s*request-rate:\s*(\d+)\s*\/\s*(\d+)/gmi)].filter((m) => Number(m[1]) > 0).map((m) => Number(m[2]) / Number(m[1]) * 1000);
+      published = Math.max(published, ...delays, ...rates);
+    }
   }
 });
 const audit = { schemaVersion: 1, passed: failures.length === 0, arms: results.length, requests: requests.length,

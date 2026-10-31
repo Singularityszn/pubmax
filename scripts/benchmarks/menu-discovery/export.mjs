@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, mkdirSync, copyFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync, readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadResults } from './evaluate.mjs';
@@ -19,7 +19,7 @@ const json = (name, value) => writeFileSync(resolve(out, name), `${JSON.stringif
 const jsonl = (name, rows) => writeFileSync(resolve(out, name), rows.map((row) => JSON.stringify(row)).join('\n') + '\n');
 for (const name of ['comparison.json', 'audit.json', 'annotations.json', 'sensitivity.json']) copyFileSync(resolve(run, name), resolve(out, name));
 json('run.json', { ...meta, privateResponseArchiveRecordedLocally: true, responseArchivePublished: false,
-  note: 'The captured code head is the base checkout. The harness file hashes identify the exact uncommitted source bytes used by this run. No application build or ingestion ran.' });
+  note: 'The recorded code head and runtime file hashes identify the measured crawler. Offline review and report files can change after the crawl. No application build or ingestion ran.' });
 jsonl('requests.jsonl', results.flatMap((arm) => arm.requests.map((request) => ({ venueId: arm.venueId, arm: arm.arm, ...request }))));
 jsonl('access-events.jsonl', results.flatMap((arm) => arm.events.map((event) => ({ venueId: arm.venueId, arm: arm.arm, ...event }))));
 jsonl('native-fetches.jsonl', results.filter((arm) => arm.arm === 'B').flatMap((arm) => readFileSync(resolve(run, arm.venueId.replace('/', '-'), 'B', 'native-audit.jsonl'), 'utf8').trim().split('\n').filter(Boolean).map((line) => { const { snapshot, ...record } = JSON.parse(line); return { venueId: arm.venueId, arm: 'B', ...record, snapshotRetainedPrivately: Boolean(snapshot) }; })));
@@ -29,6 +29,24 @@ jsonl('pages.jsonl', results.flatMap((arm) => arm.pages.map(({ text, headings, .
 jsonl('venue-results.jsonl', results.map(({ pages, requests, events, ...arm }) => ({ ...arm, pagesFetched: pages.length,
   candidatePages: pages.filter((p) => p.candidate).length, httpFailures: requests.filter((r) => r.status >= 400).length,
   redirects: requests.filter((r) => r.status >= 300 && r.status < 400).length, eventCount: events.length })));
+const primaryIds = new Set(annotations.primaryGoldVenueIds);
+json('gold-inventory.json', { status: 'provisional-agent-source-review', humanApproved: false,
+  venueReviews: annotations.venueReviews, labels: annotations.labels.filter((l) => primaryIds.has(l.venueId)),
+  note: 'The 12 predetermined venue inventories are bounded and incomplete. Blocked venues stay unresolved. The Old Ship diagnostic is outside this primary inventory.' });
+jsonl('price-records.jsonl', annotations.labels.flatMap((label) => (label.priceRecords ?? []).map((price) => ({
+  ...price, venueId: label.venueId, menuUrl: label.url, bodySha256: label.bodySha256,
+  sourceUrl: label.sourceUrl, path: label.path, reviewer: label.reviewer, reviewedAt: label.reviewedAt,
+  primaryGold: primaryIds.has(label.venueId), humanApproved: false,
+  suppliedByArms: results.filter((r) => r.venueId === label.venueId && r.pages.some((p) => p.url === label.url && p.status === 200 && p.bodySha256 === label.bodySha256)).map((r) => r.arm),
+}))));
+const referenceRoot = resolve(run, 'reference');
+const referenceRows = existsSync(referenceRoot) ? readdirSync(referenceRoot).map((id) => JSON.parse(readFileSync(resolve(referenceRoot, id, 'result.json')))) : [];
+json('reference-summary.json', { excludedFromBothArms: true, source: 'Separate official-link reference reads. These responses can predate the final crawl.',
+  venues: referenceRows.map(({ pages, requests, events, ...row }) => ({ ...row, requestAttempts: requests.length, pages: pages.length, events: events.length })),
+  requests: referenceRows.flatMap((r) => r.requests.map((row) => ({ venueId: r.venueId, ...row }))),
+  events: referenceRows.flatMap((r) => r.events.map((row) => ({ venueId: r.venueId, ...row }))),
+  pages: referenceRows.flatMap((r) => r.pages.map(({ text, headings, ...page }) => ({ venueId: r.venueId, ...page, headingCharacters: headings.length, textCharacters: text.length, textSha256: sha256(text) }))),
+});
 const fmt = (number, places = 2) => number == null ? 'Unknown' : Number(number.toFixed(places)).toLocaleString('en-GB');
 const percent = (number) => number == null ? 'Unknown' : `${fmt(number * 100, 1)}%`;
 const dollars = (number) => number == null ? 'Unknown' : `$${number.toFixed(5)}`;
@@ -42,10 +60,11 @@ const fields = [
   ['Missing reviewed gold URLs', 'falseNegatives'], ['Unjudged candidate URLs', 'unjudgedCandidates'],
   ['Relevant pages per 100 requests, lower bound', 'relevantPagesPer100RequestsLowerBound'],
   ['Verified price records', 'verifiedPriceRecords'], ['Verified price records per 100 requests, lower bound', 'verifiedPriceRecordsPer100RequestsLowerBound'],
-  ['Transport failures', 'fetchFailures'], ['HTTP failures', 'httpFailures'], ['Redirect hops', 'redirects'],
+  ['Native gateway fetch errors', 'nativeFetchErrors'], ['Transport failures', 'fetchFailures'], ['HTTP failures', 'httpFailures'], ['Redirect hops', 'redirects'],
   ['Blocked venue and URL pairs', 'blockedVenueUrlPairs'], ['Sum of venue durations, seconds', 'wallSecondsSum'],
   ['Median venue duration, seconds', 'wallSecondsMedian'], ['95th percentile venue duration, seconds', 'wallSecondsP95'],
   ['Node CPU seconds', 'nodeCpuSeconds'], ['Python parser CPU seconds', 'parserCpuSeconds'], ['Native child CPU seconds', 'nativeChildCpuSeconds'],
+  ['Node peak RSS, bytes', 'nodePeakRssBytes'], ['Python peak RSS, bytes', 'parserPeakRssBytes'], ['PageSift peak RSS, bytes', 'nativeChildPeakRssBytes'],
   ['Downloaded bytes', 'downloadBytes'],
 ];
 const table = fields.map(([title, key]) => `| ${title} | ${fmt(a[key])} | ${fmt(b[key])} |`).join('\n');
@@ -81,6 +100,8 @@ A uses breadth-first traversal with conventional URL and anchor keywords first a
 B uses the unchanged PageSift 0.81.0 executable with query \`${meta.protocol.query}\`.
 Both arms start at the same venue URL and receive at most ${meta.protocol.requestBudgetPerArmPerVenue} upstream attempts per venue.
 Robots, redirects, terms pages, failures, and PDFs all consume that cap. Neither arm retries a failed upstream attempt.
+Both arms pay for the root and legal checks. B completes these checks before the native loopback crawl starts.
+The native configuration preserves a 30-second first-byte limit. The audit rejects any native fetch error.
 The manifest fixes the arm order before crawling. Neither arm receives the other's response cache.
 
 The shared transport applies the repository's source policy, live robots checks, public-address checks, and host rate limits.
@@ -165,7 +186,7 @@ Full latency through human gold approval is unknown. The report gives crawl late
 
 The [PageSift 0.81.0 release](https://github.com/YOLOW92/pagesift/releases/tag/v0.81.0) states AGPL-3.0-only and offers commercial licensing.
 The [licence review](../../LICENCE_REVIEW.md) records the release commit and the relevant obligations.
-This experiment runs the unchanged CLI locally. It does not distribute the executable or integrate it with the app.
+This experiment runs the unchanged executable as a local API bound to 127.0.0.1. It does not distribute the executable or integrate it with the app.
 Process isolation alone does not settle whether a future combined or hosted integration meets AGPL requirements.
 
 The declared gates require 12 human-reviewed venue inventories, 95 percent precision, and 10 percent gains in recall and verified price yield.
@@ -187,7 +208,7 @@ Calibration runs exposed timing and parser problems and are excluded from this c
 An earlier terms matcher also missed a published scraping prohibition. Some calibration reads continued after that prohibition.
 I stopped those runs, excluded their data, added benchmark-only host holds, and added a regression test for the exact wording.
 The corrected run applies those holds before any request. Its audit checks that no request follows a detected terms refusal.
-The calibration notice records the known affected requests and partial-log limits. Those reads are not described as permitted.
+The [calibration notice](../../calibration-notice.json) records the known affected requests and partial-log limits. Those reads are not described as permitted.
 Calibration latency and data do not enter this comparison.
 No production crawl, ingestion, migration, application build, or deployment ran as part of this benchmark.
 `;

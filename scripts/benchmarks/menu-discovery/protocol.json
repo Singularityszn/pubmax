@@ -30,5 +30,7 @@
     "maxEstimatedCostRatio": 1.5,
     "requireNoAccessOrBudgetViolations": true,
     "requireLicenceDecision": true
-  }
+  },
+  "nativeInterface": "Unchanged PageSift 0.81.0 executable, local HTTP API, maxConcurrency=1, no persistent cache.",
+  "hostDelayPolicy": "Retain the longest observed published delay across arms, workers and robots refreshes. Apply it after response completion."
 }

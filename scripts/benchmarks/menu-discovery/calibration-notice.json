@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "issue": "The initial terms matcher missed shall not and the terms-conditions URL spelling. Some calibration requests continued after a published scraping prohibition. All calibration data is excluded.",
-  "response": "Stopped active traffic, added evidenced benchmark-only host holds, read linked terms before exploration, and added a regression test for the exact prohibition wording.",
+  "response": "Stopped active traffic, added evidenced benchmark-only host holds, read linked terms before exploration, and added a regression test for the exact prohibition wording. The final scheduler retains observed host delays across arms. The final crawler uses the local API with explicit concurrency.",
   "productionModified": false,
   "calibrations": [
     {
@@ -63,6 +63,16 @@
       "recordedAttemptsInCompletedLogs": 681,
       "attemptUpperBoundIncludingPartialArms": 645,
       "knownPostDetectedTermsRequestsInCompletedLogs": 0
+    },
+    {
+      "archiveId": "final-cohort-20261031",
+      "purpose": "Host-delay calibration. Excluded after two known robots refreshes did not retain a longer published delay between arms.",
+      "excludedFromComparison": true,
+      "completedArmLogs": 80,
+      "partialArmDirectories": 1,
+      "recordedAttemptsInCompletedLogs": 379,
+      "attemptUpperBoundIncludingPartialArms": 391,
+      "knownShortPublishedDelayGapsInCompletedLogs": 2
     }
   ]
 }
