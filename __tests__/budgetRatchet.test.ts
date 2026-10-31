@@ -217,7 +217,8 @@ describe("the shipped budget file", () => {
     // 54: plus /board/venue-eltcmh, the board reader (round 5, A4).
     // 55: plus /time-machine, the pint price time machine (round 5, F1).
     // 56: plus /dog-of-the-week, Dog of the week (round 5, F7).
-    expect(PERFORMANCE_BUDGETS.routes).toHaveLength(56);
+    // 58: plus /press and /pub-crawl-cost, the backlink pages (#2416).
+    expect(PERFORMANCE_BUDGETS.routes).toHaveLength(58);
   });
 
   it("gives every route a readiness selector and a reason", () => {

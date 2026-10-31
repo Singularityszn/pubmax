@@ -446,6 +446,24 @@
       "lcpMs": 500
     },
     {
+      "path": "/press",
+      "readySelector": "main.legalPage",
+      "why": "Press and citations, the page a writer is sent to for a quotable London pint figure (docs/growth/BACKLINK_PLAYBOOK.md). It is the legal shell plus SiteNav and reads the Pint Index snapshot and its dated editions, the same reads /pint-index makes. Seeded 30 October 2026 unmeasured, in family with /how-we-estimate and /credits: the CI sweep is the oracle and these ceilings come down at the next one.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 910,
+      "requests": 37,
+      "lcpMs": 500
+    },
+    {
+      "path": "/pub-crawl-cost",
+      "readySelector": "main.legalPage",
+      "why": "The free pub crawl cost calculator (docs/growth/BACKLINK_PLAYBOOK.md, tactic 38). The legal shell plus SiteNav and one small client form, and it reads the live Pint Index snapshot for its one suggested price. Seeded 30 October 2026 unmeasured, in family with /how-we-estimate plus the form's island: the CI sweep is the oracle and these ceilings come down at the next one.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 960,
+      "requests": 40,
+      "lcpMs": 500
+    },
+    {
       "path": "/price-pulse",
       "readySelector": "main.pricePulsePage",
       "why": "The weekly Price Pulse and the Where your \u00a36 goes explainer. It is the legal shell plus SiteNav, the same composition as /about, and it reads the Pint Drop store only for a line that names a pub on the map. Seeded 16 October 2026 unmeasured, in family with /about: the CI sweep is the oracle and these ceilings come down at the next one.",

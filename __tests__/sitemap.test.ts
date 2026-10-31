@@ -39,6 +39,8 @@ import type { MetadataRoute } from "next";
 // /time-machine, the pint price time machine over the dated history file.
 // The public /feedback, /updates and /pal pages also belong in this list, and
 // so does /today since its ISR stale window is one hour (SEO audit #2126).
+// /press and /pub-crawl-cost are the two pages other sites are asked to link
+// to (docs/growth/BACKLINK_PLAYBOOK.md).
 //
 // /pint-index is NOT here. Captain decision D10 holds its row until a month
 // carries the admission floor of priced pubs in at least one borough, and the
@@ -46,7 +48,7 @@ import type { MetadataRoute } from "next";
 // row returning is a conscious test edit, the same as a change to the list
 // above; the gate itself is proved in both directions by the fixture-driven
 // describe at the foot of this file. The ROUTE is unaffected either way.
-const STATIC_HUB_COUNT = 22;
+const STATIC_HUB_COUNT = 24;
 
 // Wave S1.2 — sitemap sanity. Runs the real generator against the bundled
 // dataset (process.cwd() is the repo root in tests, so public/data/*.json is
@@ -187,6 +189,8 @@ describe("sitemap()", () => {
       "/about",
       "/spoons-value",
       "/price-pulse",
+      "/press",
+      "/pub-crawl-cost",
     ]) {
       expect(urls).toContain(`${SITE}${hub}`);
     }

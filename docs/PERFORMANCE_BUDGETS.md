@@ -929,6 +929,10 @@ The run's log excerpt, identities and limits are in
 `docs/proof/2026-10-30-round5-perf-sweep/`: a loaded-box run on Linux with
 software WebGL, not acceptance.
 
+`/press` and `/pub-crawl-cost` joined on 30 October 2026 with the backlink
+playbook (`docs/growth/BACKLINK_PLAYBOOK.md`). Both are seeded in family with
+`/how-we-estimate` and come down at the next sweep.
+
 The rule they close is that **a route the sitemap advertises carries a budget**,
 and `__tests__/sitemap.test.ts` enforces it per family. The gap it found was
 `/spoons-value`: crawlable, sitemap-listed and unmeasured while serving 683 KB
