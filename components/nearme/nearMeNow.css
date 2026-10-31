@@ -170,6 +170,27 @@
   color: var(--muted);
 }
 
+/* The saving the answer is worth against the doorstep pub (nearSavingLine in
+   lib/nearMeAnswer.ts). It is the line a first visit is for, so it reads in
+   full ink at body size, a step above the muted sub-line. Ink, not a band hue:
+   colour on a price says its band and nothing else (lib/priceBand.ts), and
+   coral is spent on the doors. */
+.nmnSaving {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-base);
+  font-weight: 600;
+  line-height: var(--leading-normal);
+  color: var(--ink);
+  text-wrap: pretty;
+}
+/* The doorstep pub's publisher and read day, in the cards' own words, so the
+   price the saving line prints is as sourced as any card's. */
+.nmnSavingSource {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
 .nmnWiden {
   color: color-mix(in srgb, var(--amber) 70%, var(--ink-soft));
 }
@@ -363,6 +384,8 @@
       .nmnHint,
       .nmnSub,
       .nmnWiden,
+      .nmnSaving,
+      .nmnSavingSource,
       .nmnPatchTier,
       .nmnFoot,
       .ndnSource

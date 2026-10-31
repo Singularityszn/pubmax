@@ -383,7 +383,7 @@ const LogIntentFallback = dynamic(
     ),
   { ssr: false },
 );
-import { useActivePlanRoute } from "@/components/map/pubmap/useActivePlanRoute";
+import { useActivePlanPalNextStop, useActivePlanRoute } from "@/components/map/pubmap/useActivePlanRoute";
 import { useCrewPals } from "@/components/map/pubmap/useCrewPals";
 import { useMapPlanCoordinator, useMapPlanPresentation } from "@/components/map/pubmap/useMapPlanCoordinator";
 import { planStopsToRouteVenues } from "@/lib/activePlanRoute";
@@ -3527,6 +3527,9 @@ export default function PubMap({
     activePlanRoute,
     venueById,
   });
+  // Tonight's plan is the route on the map, not a crawl the reader is building,
+  // and the Pal waits at its next stop.
+  const { routeIsActivePlan, palNextStop } = useActivePlanPalNextStop(activePlanStops, activePlanRoute, routeMappedActive, venueById);
   // A suggested route exists behind the clean map, but its TfL legs are only
   // useful once the planner is open or the viewer explicitly maps it.
   const {
@@ -6898,12 +6901,8 @@ export default function PubMap({
         // Clean first view stays route-free. Once the user maps a crawl, the
         // line remains visible even if the mobile planner closes.
         route={routeForMap}
-        crewPals={
-          activePlanRoute.length > 1 &&
-          routeForMap.map((venue) => venue.id).join(",") === activePlanRoute.map((venue) => venue.id).join(",")
-            ? crewPals
-            : undefined
-        }
+        crewPals={routeIsActivePlan ? crewPals : undefined}
+        palNextStop={palNextStop}
         selectedVenueId={selectedVenueId}
         onVenueClick={handleVenueClick}
         onUkBasePubClick={handleUkBasePubClick}

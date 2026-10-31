@@ -306,3 +306,56 @@ Do not mark issue #392 complete until each row has a dated link or screenshot fr
 | Analytics order | PostHog receives release, map open, plan generated, invite opened, invite accepted, crew activation, completion, recap share, and repeat-plan events in that order | Owner action |
 | First cohort | Dated result for 10 distinct map opens and 5 RSVPs or price logs, with no paid ads | Owner action |
 | Release gate | Exact `main` SHA, local `npm run ci`, RLS, browser smoke, hosted CI state, and promoted deployment ID | In progress |
+
+### Smoke walk, 30 October 2026, local production build, keyless
+
+What happened: builder 34 walked every row of section 2 in a browser on 30 October 2026. No row failed. Two results are partial, because a keyless local build cannot prove the whole acceptance row. Three results need keys that a keyless build does not have. The captain must prove the two partial results and walk the three key-dependent rows on the production host after the next release.
+
+- **Build:** `main` at `734b39e97690890cc716866c4d9516329e3d5e3d`, built with `NEXT_DIST_DIR=.next-prod` and served on a private port with `PUBMAX_E2E_KEYLESS=1` and no Supabase keys. `/api/version` named that commit.
+- **Driver:** `npm run e2e:cli` (Playwright CLI, headless Chromium). Pictures and console logs went to `artifacts/playwright-cli/`, which is not committed.
+- **Not proved here:** the production host. A local build proves the code at this commit, not the Vercel environment values.
+
+| Check | Result | What the browser showed |
+|---|---|---|
+| Sign-in journey | NEEDS KEY | `/login` says "Sign-in is not configured on this build. You can still browse the map." It needs `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` and the Supabase email sender for the magic link. |
+| Handle claim | NEEDS KEY | It needs a signed-in Supabase account, so it needs the same keys as sign-in. |
+| Map paint | PARTIAL | Proved: price clusters at London zoom merge into four clusters at county zoom and split into single price pins at street zoom, and the console had 0 errors. Not proved: "pins render within a few seconds". The first pin painted after 5.8 seconds on a warm load and after 16 to 18 seconds on the first two loads. The machine was a shared 4-core box that draws WebGL in software, so these times are not a production figure, and the timing part of the row is proved only on the production host. |
+| Venue sheet | PASS | A tap on a pin opened Baccarat Bar with its address, a listed £9.50 pint, its collection date and the publisher Pint Prices. The "Checking" lines settled within 8 seconds. |
+| Plan generate | PASS | The five steps (Soho, Evening, 4 people, Standard, access skipped) then "Make a plan" gave the honest 422 line "No 3-stop route in Piccadilly & Soho meets every must-have need with the information available." on the page. "Quiet in Clapham for 4, not pricey" gave a priced three-stop route at £16.85 each. No raw error page appeared. |
+| Plan invite share | PASS | "Lock it in" opened `/plan/<id>`. The coral "Send to the crew" button jumps to the share card, where "Send on WhatsApp" is the first full-width action. "Copy invite link" said "Invite link copied." and put `/invite/<token>` on the clipboard. A fresh browser on the same URL showed no "Copy invite link". |
+| Public invite RSVP | PARTIAL | Proved: a fresh guest browser saw a form with one field, "Your name". "Open these stops on the map" was there before and after the RSVP. It opened `/map?mode=build&pubs=<three ids>` with the route drawn. Not proved: the one-stop invite, which the row says opens `/map?sel=<id>`; it was not walked and is owed on the production host. |
+| Host Remove (cookie path) | PASS | The host browser saw "Remove Priya". After Remove and a reload, Priya was gone. The guest browser saw no Remove button. |
+| Social tab, live default, signed out | PASS | With `PUBMAX_SOCIAL_FRIENDS_LAUNCH` unset, `/social` said "Sign in to use Social." with no posts and no compose control. |
+| Social tab, live default, verified adult and adult verification | NEEDS KEY | Both states need a signed-in Supabase account, so they need the sign-in keys. |
+| Social tab, `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0` | PASS | The title, the page heading, the desktop navigation and the command palette all read "Social preview". The page said "Social preview is invite-only for now. It opens more widely soon." and showed no posts. |
+
+Count: 9 checklist rows, walked as 11 results: 6 PASS, 2 PARTIAL, 0 FAIL, 3 NEEDS KEY. A PARTIAL result proves part of its acceptance row and names the part it does not prove.
+
+Two observations that are not failures of a row:
+
+1. Soho, a seed borough, gave the 422 line with no must-have need chosen. The server found 1 eligible pub of 135, so the words "every must-have need" name a need the person did not choose.
+2. Production served commit `e5da6c0` on 30 October 2026, not this `main` commit. The titles it served match the titles this build serves.
+
+### Release metric, how to record it
+
+The release metric is the share of landings whose first meaningful action comes 60 seconds or less after the landing. [`docs/analytics/TRACKING_PLAN.md`](analytics/TRACKING_PLAN.md) section 2 owns the definition and the query, and this block does not copy the query. `npm run release:prod` does not measure the metric. Its last line names the commit and the deployment that you measure.
+
+Measure it on the launch head after the merge and after the release, when the release has had seven days of traffic.
+
+1. Write down the commit and the deployment id from the last line of `npm run release:prod`: `Released <commit> as <deployment id>.`
+2. Take the first 7 characters of that commit. Every event carries them as `release` (`lib/analyticsAttribution.mjs`).
+3. Copy the query in TRACKING_PLAN 2.1. In BOTH the `landings` part and the `actions` part, add `AND properties.environment = 'production'` and `AND properties.release = '<7 characters>'`. The query joins actions to landings by `distinct_id` only, so an unfiltered action from another environment or release would count towards this release. Put it in a file as `{"query": {"kind": "HogQLQuery", "query": "<the query>"}}`.
+4. Run this command. It needs a PostHog personal API key that can read queries.
+
+```sh
+curl -sS -X POST "https://eu.posthog.com/api/projects/219466/query/" \
+  -H "Authorization: Bearer $POSTHOG_PERSONAL_API_KEY" \
+  -H "content-type: application/json" \
+  --data @release-metric.json
+```
+
+5. Write down `rate_pct` as the release metric. Write `landings`, `acted_within_60s` and `median_seconds_to_first_action` beside it, because a rate over a few landings means little. Put the five values and the date in the table below.
+
+| Date measured | Commit (7) | Deployment id | Landings | Within 60 s | `rate_pct` | Median seconds |
+|---|---|---|---|---|---|---|
+| Not measured yet | | | | | | |
