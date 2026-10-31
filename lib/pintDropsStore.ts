@@ -1677,9 +1677,8 @@ export async function uploadPhoto(
   return key;
 }
 
-/** Best-effort delete of uploaded objects — called to undo orphans when the
- *  DB insert fails after upload. Never throws: cleanup must not mask the
- *  original 503. */
+/** Best-effort cleanup of corrupt or unreferenced uploaded objects.
+ *  Never throws: cleanup must not mask the original failure. */
 export async function deletePhotos(keys: string[]): Promise<void> {
   const present = keys.filter(Boolean);
   if (!present.length) return;
