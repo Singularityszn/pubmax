@@ -285,3 +285,23 @@ describe("what's-on cron: the quiz lane asks the policy table first", () => {
     expect(fetchedUrls(fetchImpl)).toEqual([QO_ROBOTS]);
   });
 });
+
+it.each(["cli", "server"])("releases a rejected directory body through its %s reader", async (caller) => {
+  const cancel = vi.fn();
+  const source = harvestSource(QUESTION_ONE_SOURCE_ID);
+  if (!source) throw new Error("Missing permitted fixture source");
+  const QO_API = source.url;
+  const QO_ROBOTS = new URL("/robots.txt", QO_API).href;
+  grant(QUESTION_ONE_SOURCE_ID, QO_API);
+  const fetchImpl = fakeFetch({
+    [QO_ROBOTS]: () => new Response("", { status: 404 }),
+    [questionOneDirectoryPageUrl(QO_API, 1)]: () => new Response(new ReadableStream({ cancel }), {
+      status: 503, headers: { "content-type": "application/json" },
+    }),
+  });
+  const read = caller === "cli"
+    ? loadQuestionOne(null, { fetchImpl, sleep: noSleep })
+    : refreshQuestionOneQuiz(Date.parse("2026-10-31T12:00:00Z"), { fetchImpl });
+  await expect(read).rejects.toThrow(/returned 503/);
+  expect(cancel).toHaveBeenCalledOnce();
+});
