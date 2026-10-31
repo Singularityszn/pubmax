@@ -206,12 +206,14 @@ export function CreatorListsContent({
                 <div className="creatorListActions">
                   <Link href={list.listUrl}>View list</Link>
                   <Link
+                    prefetch={false}
                     href={list.mapUrl}
                     onClick={() => trackEvent("creator_list_map_opened")}
                   >
                     Open map
                   </Link>
                   <Link
+                    prefetch={false}
                     className="creatorListPlanAction"
                     href={list.planUrl}
                     onClick={() => trackEvent("creator_list_plan_started")}
