@@ -55,6 +55,7 @@ let root: Root;
 
 beforeEach(() => {
   vi.useFakeTimers();
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   surface.steps = [];
   surface.calls = 0;
   surface.keys = [];
@@ -67,6 +68,7 @@ afterEach(() => {
   act(() => root.unmount());
   container.remove();
   vi.useRealTimers();
+  vi.unstubAllGlobals();
 });
 
 async function flush(ms = 0): Promise<void> {
@@ -213,6 +215,20 @@ describe("the Get home line", () => {
     await renderAt("2026-10-30T23:12:00Z");
     await flush(GET_HOME_REFRESH_MS);
     expect(surface.calls).toBeGreaterThanOrEqual(2);
+    expect(seen).toEqual({ status: "stale" });
+  });
+
+  it("keeps a held time after failed refreshes and expires it on its original clock", async () => {
+    surface.steps = [
+      { kind: "network", value: answer("2026-10-31T00:10:00Z", "2026-10-30T23:00:00Z") },
+      { kind: "failed" },
+    ];
+    await renderAt("2026-10-30T23:00:00Z");
+    await flush(GET_HOME_REFRESH_MS + 1);
+    await renderAt("2026-10-30T23:03:00.001Z");
+    expect(seen).toMatchObject({ status: "ready", summary: { trainLine: expect.stringContaining("Oxford Circus") } });
+    await flush(GET_HOME_REFRESH_MS + 1);
+    await renderAt("2026-10-30T23:06:00.002Z");
     expect(seen).toEqual({ status: "stale" });
   });
 
