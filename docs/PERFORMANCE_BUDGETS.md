@@ -908,6 +908,31 @@ can open: `/borough/westminster` (the heaviest borough, 200 priced pubs on a
 `/area/clapham/drink/guinness`, `/pint-index/2026-06`, plus the two static
 pages that had been missed, `/spoons-value` and `/account/delete`.
 
+`/board/venue-eltcmh` joined on 30 October 2026: the board reader, a private
+tool the venue sheet links from every pub. It is not sitemap-listed and is
+budgeted anyway. It was seeded unmeasured in family with `/bar-tab/venue-eltcmh`,
+and on 30 October 2026 the route sweep measured it keyless (the reader's "needs
+its key" state) on a production build in a Linux container: 833 KB decoded JS,
+37 requests and LCP 352 to 496 ms over three samples. Its ceilings came down to
+958 KB, 43 requests and 620 ms by this file's margins. The macOS CI sweep is
+still the oracle.
+
+`/dog-of-the-week` joined on 30 October 2026: Dog of the week, the photo wall's
+newest approved Dog photo. Like `/wall` it is user content and not
+sitemap-listed, and it is budgeted anyway, seeded unmeasured from the
+`/contributors` row. The same 30 October sweep measured its keyless empty state
+at LCP 296 to 452 ms over five samples, a worst sample above the 400 ms seed, so
+the row is held at its seed and the cause is to be found; `/contributors` read
+348 to 564 ms on the same box. `/time-machine` was measured in the same run and
+its ceilings came down to 907 KB, 41 requests and 605 ms.
+The run's log excerpt, identities and limits are in
+`docs/proof/2026-10-30-round5-perf-sweep/`: a loaded-box run on Linux with
+software WebGL, not acceptance.
+
+`/press` and `/pub-crawl-cost` joined on 30 October 2026 with the backlink
+playbook (`docs/growth/BACKLINK_PLAYBOOK.md`). Both are seeded in family with
+`/how-we-estimate` and come down at the next sweep.
+
 The rule they close is that **a route the sitemap advertises carries a budget**,
 and `__tests__/sitemap.test.ts` enforces it per family. The gap it found was
 `/spoons-value`: crawlable, sitemap-listed and unmeasured while serving 683 KB
@@ -934,6 +959,39 @@ samples beside `/privacy`, `/terms` and `/how-we-estimate`, it rendered in
 16 ms, decoded 835 KB of JS over 31 requests and painted its LCP at a median of
 372 ms (worst 412). Like the ten above, those figures came from a laptop under
 the tracked throttle, so CI's sweep is the oracle. Take them down, never up.
+
+**And `/compass`**, added on 30 October 2026 with the Pint Compass page. It is a
+noindex client shell like `/near`, and nothing on it loads until the reader
+taps Start, so its figures are the shell's. It was measured before its row was
+written: on a production build of its branch, eleven samples beside `/near`,
+it rendered in 17 to 43 ms, decoded 915 KB of JS over 39 requests on every
+sample, and painted its LCP at a median of 348 ms (worst 652). The ceilings use
+this file's own margins, so LCP is the worst sample plus 25 percent: 815 ms.
+`/near` read 340 to 616 ms on the same box against its 400 ms ceiling, so that
+box runs slow. CI's sweep is the oracle. Take them down, never up.
+
+**And `/routes/victorian-soho`**, added on 30 October 2026 with the named route
+family (`/routes/{slug}`, SEO audit #2126). It was measured before its ceilings
+were set, while it still rendered per request; it joined the CDN document list
+the same day: on a production build of its branch in a Linux container, three
+samples after one warm-up, it rendered in 28 to 29 ms, decoded 775 KB of JS over
+32 requests on every sample, and painted its LCP at 220 to 276 ms. The ceilings
+use this file's own margins: 892 KB, 37 requests, the 150 ms render floor and
+an LCP of 345 ms (the worst sample plus 25 percent). That box is not CI's
+runner, so CI's sweep is the oracle. Take them down, never up.
+
+**And `/area/piccadilly-soho`**, added on 30 October 2026 with the area root
+family (`/area/{slug}`, SEO audit #2126, the captain's floor of 15 priced
+pubs). It has the most priced pubs of any published area (71). The first build
+rendered it per request, and it measured 227 to 288 ms of server time, over
+the 150 ms floor. So the page is prerendered and held by the CDN, like the
+area-by-drink pages. Measured again on a production build of its branch in a
+Linux container, three samples after one warm-up: it rendered in 82 to 84 ms,
+decoded 776 KB of JS over 32 requests on every sample, and painted its LCP at
+300 to 384 ms. The ceilings use this file's own margins: 892 KB, 37 requests,
+the 150 ms render floor and an LCP of 480 ms (the worst sample plus 25
+percent). That box is not CI's runner, so CI's sweep is the oracle. Take them
+down, never up.
 
 ## The pin-ready record on /map
 

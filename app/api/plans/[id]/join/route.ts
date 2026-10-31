@@ -2,12 +2,11 @@ import { jsonNoStore } from "@/lib/apiResponses";
 import { publicApiError } from "@/lib/apiError";
 import { callerUserId } from "@/lib/authServer";
 import { formFriendEdgesForPlanJoin } from "@/lib/crewFriendEdges";
-import { cleanCrewName, joinCommitsCrewNight } from "@/lib/crew";
+import { cleanCrewName } from "@/lib/crew";
 import { isLimited } from "@/lib/pintDrops";
-import { londonDayKey } from "@/lib/pintContributions";
-import { isPlanId, type PlanState } from "@/lib/plan";
+import { isPlanId } from "@/lib/plan";
+import { planCrewCommittedToken } from "@/lib/planCrewCommitted.server";
 import { isClassicPlanInviteToken } from "@/lib/planCrewInviteUrl";
-import { planRouteReady } from "@/lib/planPrivacy";
 import {
   planMemberIdentity,
   planStateResult,
@@ -20,7 +19,6 @@ import { attachPlanMemberSession } from "@/lib/planMemberCapability";
 import { PLAN_IDEMPOTENCY_ERROR, planMutationIdempotencyKey } from "@/lib/planMutationHttp";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
-import { crewCommittedEventToken } from "@/lib/verifiedAnalytics.server";
 
 /** Best-effort friend-graph byproduct after a committed join. Never fails the join. */
 async function maybeFormCrewFriendEdges(
@@ -46,26 +44,9 @@ async function maybeFormCrewFriendEdges(
 assertServerEnv();
 type Context = { params: Promise<{ id: string }> };
 
-// §4.10: a successful join returns a verified crew_committed delivery token so
-// the client can report the north-star Friend proof.
-//
-// The token rides ONE join per plan per night: the one that took the roster to
-// the crew-night threshold. Every join used to get its own token, so a plan
-// that reached four people reported three crew nights, and the biggest crews
-// were overcounted the most (issue #1253). A later join gets no token, so the
-// client sends no beacon at all. The plan id and its night stay inside the
-// signed subject and never ride on the event, which keeps §7 id hygiene.
-// Absent when the store returned no plan (nothing to commit).
-function crewCommittedToken(plan: PlanState | null): string | undefined {
-  if (!plan || !joinCommitsCrewNight(plan.crew.length)) return undefined;
-  return crewCommittedEventToken({
-    planId: plan.plan.id,
-    nightKey: londonDayKey(plan.plan.startTime) || "unscheduled",
-    committedAt: new Date().toISOString(),
-    participants: plan.crew.length,
-    routeReady: planRouteReady(plan),
-  });
-}
+// §4.10: the crew_committed receipt rides ONE seat per plan per night; the
+// rule and its history live in lib/planCrewCommitted.server.ts.
+const crewCommittedToken = planCrewCommittedToken;
 
 export async function POST(request: Request, context: Context): Promise<Response> {
   const { id } = await context.params;
@@ -90,8 +71,12 @@ export async function POST(request: Request, context: Context): Promise<Response
   const userId = await callerUserId(request);
   // Invite-only: a bare plan id must never join the crew or return PlanState.
   // Open join was an IDOR (know the UUID → read stops/names and stuff the crew).
-  // Two invite shapes are accepted:
-  //   - classic multi-use plans.invite_token (WhatsApp / ShareBar #invite=)
+  // Two invite shapes are accepted, and both grant ONE guest capability
+  // (launch review 3.5): the guest may vote, propose, add a need and check in.
+  // Saving route changes, deciding proposals, rotating the link, removing
+  // RSVPs and completing the night stay with the host.
+  //   - classic multi-use plans.invite_token (the link the host shares; old
+  //     /plan/{id}#invite= links still land here)
   //   - collaboration one-use invite (PlanCollaborationPanel #invite=)
   const inviteToken =
     typeof body.inviteToken === "string" ? body.inviteToken.trim() : "";
@@ -112,7 +97,7 @@ export async function POST(request: Request, context: Context): Promise<Response
       return publicApiError("That invite link isn't valid for this Plan.", "PLAN_INVITE_INVALID", 403);
     }
     const result = await planStore().join(id, name, {
-      collaborationAuthorized: false,
+      collaborationAuthorized: true,
       idempotencyKey,
       userId: userId ?? undefined,
     });

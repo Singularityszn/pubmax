@@ -231,7 +231,7 @@ function MapFoot({
   return doorVisible ? <>{door}</> : null;
 }
 
-export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, limitedCoverage, overlay, onOverlayChange, backLabel, onBack, onHome, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tflCount, tflUrgentCount = 0, tflStatus, peek = null, onPeekOpenVenue, onPeekOpenList, priceLabel, drinkFiltersActive, drinkLaneLabel, drinkLaneSelected, experienceFilterLabel, priceCapActive, zoneActive, savedOnlyActive = false, openNowActive, beerGardenActive, outdoorSeatingActive, planOpen, planActive, planStopCount, builtStopCount = 0, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchProps, searchContent, filtersContent, drinkContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent, chooseAreaContent, chooseAreaOpening = false, sheetsEnabled = true }: {
+export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, limitedCoverage, overlay, onOverlayChange, backLabel, onBack, onHome, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tflCount, tflUrgentCount = 0, tflStatus, peek = null, onPeekOpenVenue, onPeekOpenList, priceLabel, drinkFiltersActive, drinkLaneLabel, drinkLaneSelected, experienceFilterLabel, priceCapActive, zoneActive, savedOnlyActive = false, openNowActive, lastOrdersActive, beerGardenActive, outdoorSeatingActive, planOpen, planActive, planStopCount, builtStopCount = 0, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchProps, searchContent, filtersContent, drinkContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent, chooseAreaContent, chooseAreaOpening = false, sheetsEnabled = true }: {
   cityId?: CityId;
   cityLabel: string;
   /** Base-pub-only arrival: omit city-guide controls that cannot answer here. */
@@ -275,6 +275,8 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
   savedOnlyActive?: boolean;
   /** Open now filter counts as a filters refinement when on. */
   openNowActive?: boolean;
+  /** Last orders filter counts as a filters refinement when on. */
+  lastOrdersActive?: boolean;
   beerGardenActive?: boolean;
   outdoorSeatingActive?: boolean;
   priceCapActive: boolean;
@@ -383,6 +385,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
     zoneActive,
     savedOnlyActive,
     openNowActive,
+    lastOrdersActive,
     beerGardenActive,
     outdoorSeatingActive,
   });

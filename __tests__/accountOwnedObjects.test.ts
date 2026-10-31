@@ -36,15 +36,17 @@ describe("ownedObjectFolders", () => {
     }
     expect(folders).toContain(`night-moments/${USER}`);
     expect(folders).toContain(`venue-submissions/${USER}`);
+    expect(folders).toContain(`regular-night-boards/${USER}`);
     expect(folders.every((folder) => !folder.endsWith("/"))).toBe(true);
-    // The slots plus the Moment and menu folders: a slot added to the table joins here.
-    expect(folders).toHaveLength(Object.keys(PROFILE_IMAGE_SLOT_SPECS).length + 2);
+    // The slots plus the Moment, menu and board folders: a slot added to the table joins here.
+    expect(folders).toHaveLength(Object.keys(PROFILE_IMAGE_SLOT_SPECS).length + 3);
   });
 
-  it("keeps the Moment and menu folders for an account that never claimed a handle", () => {
+  it("keeps the Moment, menu and board folders for an account that never claimed a handle", () => {
     expect(ownedObjectFolders({ userId: USER, profileId: null })).toEqual([
       `night-moments/${USER}`,
       `venue-submissions/${USER}`,
+      `regular-night-boards/${USER}`,
     ]);
   });
 

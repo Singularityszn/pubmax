@@ -84,7 +84,7 @@ describe.each(["initial", "browser"] as const)("Tonight exclusions in the %s rea
         expect(doc.querySelector(".tonightPrimary")?.getAttribute("data-status"))
           .toBe(out.pending ? "idle" : "error");
         expect(doc.body.textContent).not.toContain("Bluegrass");
-        expect(doc.body.textContent).not.toContain("The what’s-on source check date is not recorded.");
+        expect(doc.body.textContent).not.toContain("The pub listings source check date is not recorded.");
       }
     },
   );
@@ -100,7 +100,7 @@ describe.each(["initial", "browser"] as const)("Tonight exclusions in the %s rea
     const doc = documentFor(path, [cask, ...deals], { body: readyBody, failed: false, pending: false });
     expect(doc.body.textContent).toContain("Sunday food offer");
     expect(doc.querySelector('[data-tonight-provenance="undated-whats-on"]')?.textContent)
-      .toContain("The what’s-on source check date is not recorded.");
+      .toContain("The pub listings source check date is not recorded.");
     expect(doc.querySelector('[data-tonight-provenance="excluded-whats-on"]')?.textContent)
       .toBe("1 pub listing hidden: its source check is older than 24 hours.");
     expect(doc.querySelector('[data-tonight-provenance="out"]')?.textContent)

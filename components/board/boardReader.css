@@ -1,0 +1,132 @@
+/* The board reader (/board/[venueId]). Scoped to this page and built from the
+   shared tokens only, so it reads the same in the light and dark themes. One
+   column at every width: a card per proposed price, read top to bottom. */
+
+.boardPage {
+  min-height: 100dvh;
+  background: var(--paper);
+  color: var(--ink);
+  padding: var(--space-6) var(--page-gutter) var(--space-12);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+.boardPage .siteNav,
+.boardPage .boardScreen {
+  width: 100%;
+  max-width: 40rem;
+}
+
+.boardPage .boardScreen {
+  padding-inline: 0;
+}
+
+.boardReader,
+.boardReaderStep {
+  display: grid;
+  gap: var(--space-4);
+  width: 100%;
+}
+
+.boardReaderInput {
+  display: none;
+}
+
+.boardReaderHeading {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.boardReaderHint,
+.boardReaderMeta {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.boardReaderLine {
+  margin: 0;
+  font-size: var(--text-base);
+  color: var(--ink);
+}
+
+.boardReaderActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.boardReaderRows {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.boardReaderRow {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--control-radius);
+  background: var(--panel);
+  min-width: 0;
+}
+
+.boardReaderRow--out {
+  background: var(--paper);
+}
+
+.boardReaderTick {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.boardReaderName {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.boardReaderPrice {
+  display: grid;
+  gap: var(--space-1);
+  max-width: 10rem;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.boardReaderPrice input {
+  width: 100%;
+  min-height: var(--control-height);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius);
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 400;
+}
+
+.boardReaderDone {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.boardReaderError {
+  margin: 0;
+  color: var(--tint-ink-negative);
+  font-size: var(--text-sm);
+}

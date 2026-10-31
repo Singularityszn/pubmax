@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { openOverviewFold } from "./helpers/overviewFolds";
+
 const ARNOS_ARMS_ID = "venue-xjf3n0";
 
 async function seedChrome(page: Page): Promise<void> {
@@ -84,6 +86,8 @@ test("existing Last Train destinations keep Cancel at the tap floor", async ({ p
   const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
   expect(response?.status()).toBe(200);
 
+  // The getting-home fold sits inside "Getting there and home".
+  await openOverviewFold(page, "journey");
   await page.locator("#venueSection-getting-home summary").click();
   const card = page.getByLabel("Last Pint");
   await expect(card).toBeVisible();

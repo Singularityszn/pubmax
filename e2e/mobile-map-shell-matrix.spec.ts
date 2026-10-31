@@ -247,7 +247,11 @@ test("venue selection opens exactly one coordinated sheet", async ({ page }) => 
   await expect(page.locator(".mobileSheetPortal:visible")).toHaveCount(1);
   await expect(page.locator(".mapDrawer.right.open:visible")).toHaveCount(1);
   await expect(page.getByRole("tab", { name: "Overview", exact: true })).toHaveAttribute("aria-selected", "true");
-  await page.getByRole("tab", { name: "Stories", exact: true }).click();
+  // Scoped to the venue sheet: the Map controls sheet has a Prices tab too.
+  await page
+    .locator('.mobileSheetPortal[data-sheet-kind="venue"]')
+    .getByRole("tab", { name: "Prices", exact: true })
+    .click();
   await expect(page.locator(".mobileSharedSheet")).toHaveClass(/sheet-full/);
 });
 

@@ -42,6 +42,7 @@ describe("the haptic vocabulary", () => {
       "selection-released",
       "action-refused",
       "plan-locked",
+      "heading-aligned",
     ]);
   });
 
@@ -71,6 +72,8 @@ describe("the haptic vocabulary", () => {
     });
     expect(hapticEngineFor("selection-kept").kind).toBe("impact");
     expect(hapticEngineFor("selection-released").kind).toBe("impact");
+    // The compass line-up is a soft tick, the lightest engine there is.
+    expect(hapticEngineFor("heading-aligned")).toEqual({ kind: "impact", style: "Light" });
   });
 
   it("releases lighter than it keeps", () => {

@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { selectFirstToolbarVenue, expectMapToolbarReady } from "../helpers/mapToolbar";
+import { openOverviewFold } from "../helpers/overviewFolds";
 import { asReturningVisitor, evidence, expectPaintedPins, watchPageErrors } from "./smokeSession";
 
 // The read-only half of the production smoke suite. Every journey here only
@@ -67,8 +68,10 @@ test("a venue sheet shows Google Places hours and address", async ({ page }) => 
   await page.goto(`/map?sel=${PLACES_VENUE.id}`);
   const sheet = page.getByRole("dialog", { name: "Pub detail" });
   await expect(sheet.getByRole("heading", { name: PLACES_VENUE.name })).toBeInViewport();
+  // The address and the listed details live in "The pub" fold
+  // (lib/venueOverviewFolds.ts), shut on arrival.
+  await openOverviewFold(sheet, "pub");
   await expect(sheet.locator(".venueAddress")).toContainText(PLACES_VENUE.postcode);
-  await sheet.getByText("Details and practical info").click();
   // Google Places and OpenStreetMap share this layout class. Match the source credit.
   const places = sheet.locator(".venuePlacesDetails").filter({ hasText: "Google Places · Checked" });
   await expect(places).toHaveCount(1);

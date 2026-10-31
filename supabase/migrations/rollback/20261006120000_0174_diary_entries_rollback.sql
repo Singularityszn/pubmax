@@ -8,6 +8,13 @@ drop policy if exists diary_entries_owner_select on public.diary_entries;
 
 drop index if exists public.diary_entries_owner_visited_idx;
 
+-- 0207 keys diary With tags to this table. Dropping the table takes that
+-- link with it: a diary tag row loses its subject, so the 0207 rollback is
+-- the honest companion to this one. The constraint goes first so the drop
+-- below is not refused.
+alter table if exists public.pint_drop_with_tags
+  drop constraint if exists pint_drop_with_tags_diary_entry_id_fkey;
+
 drop table if exists public.diary_entries;
 
 commit;
