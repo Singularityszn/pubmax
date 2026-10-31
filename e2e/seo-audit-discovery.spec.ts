@@ -82,10 +82,21 @@ test.describe("completed public discovery documents without JavaScript", () => {
         return Array.isArray(parsed) ? parsed : [parsed];
       });
       const landmarks = nodes.filter((node) => node["@type"] === "LandmarksOrHistoricalBuildings");
-      expect(landmarks).toHaveLength(1);
-      expect(landmarks[0]?.url).toBe(canonical);
-      if (record.sameAs) expect(landmarks[0]?.sameAs).toEqual(record.sameAs);
-      else expect(landmarks[0]).not.toHaveProperty("sameAs");
+      if (record.slug === "black-lion") {
+        // The two cited identities remain unresolved. The served page must not
+        // assert that their descriptions or locations identify one building.
+        expect(landmarks).toHaveLength(0);
+        const pages = nodes.filter((node) => node["@type"] === "WebPage" && node.url === canonical);
+        expect(pages).toHaveLength(1);
+        expect(pages[0]?.name).toBe("Black Lion");
+        for (const claim of ["sameAs", "description", "address", "geo"]) {
+          expect(pages[0]).not.toHaveProperty(claim);
+        }
+      } else {
+        expect(landmarks).toHaveLength(1);
+        expect(landmarks[0]?.url).toBe(canonical);
+        expect(landmarks[0]?.sameAs).toEqual(record.sameAs);
+      }
       if (record.slug === "the-grapes") {
         await expect(page.locator('a[href="https://www.alastairhiltonphotographer.com/product-page/the-grapes"]').first()).toBeVisible();
       }

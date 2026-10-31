@@ -181,7 +181,13 @@ test("keyboard Moment activation keeps map context in a new tab", async ({ page 
   await wine.click();
   await expect(wine).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("button", { name: "Drink: Wine", exact: true })).toBeVisible();
-  await expect(page).toHaveURL(/\/map\?sel=venue-eltcmh&drink=wine$/);
+  await expect(page).toHaveURL((url) => {
+    const query = new URLSearchParams(url.search);
+    query.sort();
+    return url.pathname === "/map" && query.toString() === "drink=wine&sel=venue-eltcmh";
+  });
+  const sourceUrl = page.url();
+  const sourceReturnTo = new URL(sourceUrl).pathname + new URL(sourceUrl).search;
   await share.focus();
   const [popup] = await Promise.all([
     page.waitForEvent("popup"),
@@ -189,8 +195,8 @@ test("keyboard Moment activation keeps map context in a new tab", async ({ page 
   ]);
   try {
     await expect(popup).toHaveURL(/\/moment\?/);
-    expect(new URL(popup.url()).searchParams.get("returnTo")).toBe("/map?sel=venue-eltcmh&drink=wine");
-    await expect(page).toHaveURL(/\/map\?sel=venue-eltcmh&drink=wine$/);
+    expect(new URL(popup.url()).searchParams.get("returnTo")).toBe(sourceReturnTo);
+    await expect(page).toHaveURL(sourceUrl);
   } finally {
     await popup.close();
   }
