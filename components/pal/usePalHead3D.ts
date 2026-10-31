@@ -4,6 +4,7 @@ import { useEffect, useRef, type RefObject } from "react";
 
 import type { PalAnimationState } from "@/lib/pubPal";
 import type { PalTemperament } from "@/lib/palGenome";
+import type { PalStageHead } from "@/lib/palStageRig";
 import type { PalVoiceSignal, PalVoiceSignalMode } from "@/lib/palVoiceSignal";
 
 // The Pal's head in 3D, from the photograph it already is.
@@ -117,18 +118,22 @@ function prefersReducedMotion(): boolean {
 
 export function usePalHead3D(
   frameRef: RefObject<HTMLElement | null>,
-  { signal, state, temperament }: {
+  { signal, state, temperament, onFrame }: {
     signal?: PalVoiceSignal;
     state: PalAnimationState;
     temperament?: PalTemperament;
+    /** Called with the pose on every frame the loop draws: the 3D stage's feed. */
+    onFrame?: (head: PalStageHead) => void;
   },
 ): void {
   const stateRef = useRef(state);
   const temperamentRef = useRef(temperament);
+  const onFrameRef = useRef(onFrame);
   useEffect(() => {
     stateRef.current = state;
     temperamentRef.current = temperament;
-  }, [state, temperament]);
+    onFrameRef.current = onFrame;
+  }, [state, temperament, onFrame]);
 
   useEffect(() => {
     const frame = frameRef.current;
@@ -208,6 +213,7 @@ export function usePalHead3D(
       const open = palMouthOpenness(spoken);
       mouth += (open - mouth) * (open > mouth ? 0.6 : 0.35);
       style.setProperty("--pal-mouth", mouth.toFixed(3));
+      onFrameRef.current?.({ seconds: t, yaw: pose.yaw, pitch: pose.pitch, roll: pose.roll, mouth });
       raf = window.requestAnimationFrame(tick);
     };
 

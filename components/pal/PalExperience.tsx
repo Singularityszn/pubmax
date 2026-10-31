@@ -2,7 +2,7 @@
 
 import { useClientReady } from "@/lib/useClientReady";
 
-import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -47,12 +47,14 @@ import {
   type PubPalMemory,
 } from "@/lib/pubPal";
 import PalPortrait from "./PalPortrait";
+import type { PalStageHandle } from "./PalStageCanvas";
 import PalNightQuestion from "./PalNightQuestion";
 import PalQuestStamps from "./PalQuestStamps";
 import PalYear from "./PalYear";
 import PalPrint from "./PalPrint";
 import { usePalHead3D } from "./usePalHead3D";
 import { palGenomeFor } from "@/lib/palGenome";
+import type { PalStageHead } from "@/lib/palStageRig";
 import { createPalVoiceSignal } from "@/lib/palVoiceSignal";
 import PubPalVoice from "@/components/pubpal/PubPalVoice";
 import { Button } from "@/components/ui/button";
@@ -333,14 +335,17 @@ function PalHomeScreen({
   // them, so the head turns, leans and nods with the conversation.
   const [voiceSignal] = useState(createPalVoiceSignal);
   const headRef = useRef<HTMLDivElement>(null);
+  // The live 3D stage over the portrait, fed the head loop's pose each frame.
+  const stageRef = useRef<PalStageHandle>(null);
+  const drawStage = useCallback((head: PalStageHead) => stageRef.current?.draw(head), []);
   // Seeded by the Pal's own id: the same genome on every device and visit.
   const genome = useMemo(() => palGenomeFor(pal.id, pal.personality), [pal.id, pal.personality]);
-  usePalHead3D(headRef, { signal: voiceSignal, state: visiblePalState, temperament: genome.temperament });
+  usePalHead3D(headRef, { signal: voiceSignal, state: visiblePalState, temperament: genome.temperament, onFrame: drawStage });
   return (
     <main id="main" className="palExperience palHome">
       <section className="palHomeHero" aria-labelledby="pal-home-title">
         <div className="palHomePortrait" ref={headRef}>
-          <PalPortrait appearance={pal.appearance} name={pal.name} state={visiblePalState} genome={genome} />
+          <PalPortrait appearance={pal.appearance} name={pal.name} state={visiblePalState} genome={genome} stage={stageRef} />
           <p className="palSpeech">{palStateSpeech[visiblePalState]}</p>
         </div>
         <div className="palHomeCopy">
