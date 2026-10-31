@@ -66,7 +66,7 @@ export default function PlanClueHunt({ planId, clues, onDisable }: PlanClueHuntP
         </ul>
       </details>
       <div className="planClues__actions">
-        <Link href={momentHref(`/plan/${encodeURIComponent(planId)}`)}>Save a memory</Link>
+        <Link prefetch={false} href={momentHref(`/plan/${encodeURIComponent(planId)}`)}>Save a memory</Link>
         <Button variant="ghost" onClick={onDisable}>Turn clues off</Button>
       </div>
     </section>

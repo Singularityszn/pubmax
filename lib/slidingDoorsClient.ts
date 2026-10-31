@@ -34,7 +34,7 @@ export async function slidingDoorsJson(url: string, init: RequestInit, parentSig
     }, 8_000);
   });
   const read = async () => {
-    const response = await fetch(url, { ...init, signal: controller.signal });
+    const response = await fetch(url, { ...init, cache: "no-store", credentials: "same-origin", signal: controller.signal });
     if (controller.signal.aborted) { discardBody(response); throw new DOMException("Request cancelled.", "AbortError"); }
     const body: unknown = await response.json();
     if (controller.signal.aborted) throw new DOMException("Request cancelled.", "AbortError");

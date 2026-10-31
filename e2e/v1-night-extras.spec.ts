@@ -8,6 +8,52 @@ const stops = [
   { venueId: "venue-3h52h", venueName: "The Elephant Inn" },
 ];
 
+test("a legacy arrival retry proves neither a table location nor a completed reveal", async ({ page }, testInfo) => {
+  const created = await page.request.post("/api/plans", {
+    headers: { "idempotency-key": randomUUID() },
+    data: { title: "Legacy arrival", creatorName: "Host", startTime: new Date(Date.now() + 3_600_000).toISOString(), stops },
+  });
+  expect(created.status()).toBe(201);
+  const host = await created.json();
+  const id: string = host.plan.plan.id;
+  const headers = { authorization: `Bearer ${host.memberToken}` };
+  const key = randomUUID();
+  const submit = () => page.request.post(`/api/plans/${id}/actions`, {
+    headers: { ...headers, "idempotency-key": key }, data: { type: "arrived", stopPosition: 1 },
+  });
+  const first = await submit();
+  expect(first.status()).toBe(201);
+  const initial = await first.json();
+  const retry = await submit();
+  expect(retry.status()).toBe(201);
+  const replay = await retry.json();
+  expect(replay.actions).toHaveLength(1);
+  expect(replay.actions).toEqual(initial.actions);
+  expect(replay.actions[0].venueId).toBeUndefined();
+  expect(replay.actions[0].routeRevision).toBeUndefined();
+  const beaconResponse = await page.request.get(`/api/plans/${id}/beacon`, { headers });
+  expect(beaconResponse.status()).toBe(200);
+  const beacon = await beaconResponse.json();
+  expect(beacon.current).toBeNull();
+  expect(beacon.beacon).toBeNull();
+  const settings = await page.request.put(`/api/plans/${id}/presentation`, {
+    headers, data: { mysteryEnabled: true, expectedRouteRevision: host.plan.plan.routeRevision },
+  });
+  expect(settings.status()).toBe(200);
+  await page.goto(`/plan/${id}`);
+  await expect(page.getByRole("button", { name: "Open stop 2", exact: true })).toBeVisible();
+  const table = page.getByRole("region", { name: "Find our table", exact: true });
+  await expect(table).toContainText("before setting a table sign");
+  await expect(table.getByRole("button", { name: "Set table sign", exact: true })).toHaveCount(0);
+  await testInfo.attach("legacy-arrival", { body: JSON.stringify({ initial, replay, beacon }, null, 2), contentType: "application/json" });
+  const screenshot = testInfo.outputPath("legacy-arrival.png");
+  await page.screenshot({ path: screenshot, fullPage: true });
+  await testInfo.attach("legacy-arrival-browser", { path: screenshot, contentType: "image/png" });
+  const after = await (await page.request.get(`/api/plans/${id}`, { headers })).json();
+  expect(after.actions).toEqual(replay.actions);
+  expect(after.plan.routeRevision).toBe(host.plan.plan.routeRevision);
+});
+
 test.describe("Night mode readability", () => {
   test.use({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
   for (const theme of ["light", "dark"] as const) {

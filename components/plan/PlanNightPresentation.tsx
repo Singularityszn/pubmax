@@ -185,7 +185,7 @@ export function MysteryStopTitle({ venueId, name, position, alreadyVisited = fal
     && !context.revealed.includes("*") && !context.revealed.includes(venueId);
   if (!hidden) return <strong className="planMystery__revealed">{name}</strong>;
   return <Button type="button" variant="secondary" className="planMystery__envelope" onClick={() => context.reveal(venueId)}>
-    <Mail size={18} aria-hidden="true" /> Open stop {position + 1}
+    <Mail size={20} aria-hidden="true" /> Open stop {position + 1}
   </Button>;
 }
 

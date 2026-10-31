@@ -388,3 +388,91 @@ These checks do not establish real-provider availability or pavement accuracy.
 Phone evidence uses desktop Chromium. Physical-device and native-shell acceptance remain unverified.
 All disposable browsers and servers stopped. Temporary build outputs and test configuration were removed.
 No merge, deployment, production promotion or live migration occurred.
+
+## Focused legacy-action test correction on 31 October 2026
+
+This phase tested `e03608dee4bb561afbaa2275441007009873173a`.
+The change since the previous tested candidate narrows an optional action before the existing assertions.
+It also preserves the previous evidence entry. Runtime code is unchanged.
+The test still requires one legacy action without a venue or revision stamp.
+It also requires no completed reveal or current table location from that action.
+
+The affected behaviour suite ran once and passed all seven cases with exit code 0:
+
+```sh
+node node_modules/vitest/vitest.mjs run --config .v1-binding-focused.config.mts __tests__/planActionBinding.test.ts
+```
+
+The temporary configuration retained repository setup and selected only this suite.
+It disabled the unrelated enrichment builder. This phase removed the temporary configuration after the run.
+The log remains at `/Users/karanmanoharan/.no-mistakes/evidence/01M69HEAA3GT8PSTA3844GERAK/r6/action-binding-tests.log`.
+
+The latest recorded decision prohibits repeated builds, browser journeys and SQL proofs for this test-only correction.
+The previous production and browser results remain historical evidence at `84b62b3fc3e2fae3a8572f9bc3eccb119ab9d65d`.
+This phase captured no new screenshots and started no browser or server.
+It did not run lint, type checking or the configured verification command.
+The outer executor must rerun configured verification. This focused pass does not establish full gate success.
+
+## Five test repairs and live legacy retry on 31 October 2026
+
+This phase tested the working tree based on `e03608dee4bb561afbaa2275441007009873173a`, with the repairs recorded below.
+The repairs remain uncommitted for the outer executor.
+The source and test patch is `r7/repair.patch` under the existing external evidence directory.
+Its SHA-256 is `88acf0f016c15e071d893fabada239f6ea7906c24c663d91761c7de7bc02a582`.
+The earlier evidence edits remain intact.
+
+The five reported failures reproduced together before the repairs. The command exited 1, with five failures and 40 passes.
+`r7/reproduction.log` records the exact failures.
+
+The repairs address these causes:
+
+1. The export inventory omitted two shared Plan stores. Named exclusions now explain their ownership, including other members' private notes.
+2. The envelope icon used an unsupported size. It now uses the existing 20-pixel size.
+3. The numbering test required a bare `<strong>` tag. It now checks rendered list items, pub names and visible numbers against accessible list order.
+4. The memory link allowed automatic prefetching. It now uses `prefetch={false}`.
+5. The read inventory omitted capability-sensitive interactions. Its existing exception mechanism now records their private lifecycle and executed behaviour tests.
+
+The cache policy permits callers to retain their own data policy.
+Private table notes and host settings cannot safely use held reload snapshots after membership changes.
+The existing body deadlines, cancellation, owner boundaries and late-response guards remain in place.
+Sliding Doors now explicitly uses `no-store` and same-origin credentials.
+Executed tests check capability headers and prevent proposal credentials from reaching public venue reads.
+The inventory declarations describe policy. They do not prove runtime protection by themselves.
+
+The five failing suites and nine affected feature suites ran together after the repairs.
+All 103 tests passed across 14 files. The command exited 0. `r7/focused-tests.log` records the selected files.
+The three clue suites then passed all 23 tests with exit code 0. Their log is `r7/clue-tests.log`.
+Both runs used the normal repository test configuration.
+
+The isolated production build and all five browser cases passed with exit code 0:
+
+```sh
+PW_PORT=3189 PW_NEXT_DIST_DIR=.next-v1-test-r7 PW_SKIP_KEYLESS_WEBSERVER=1 PUBMAX_TRACKED_OUTPUTS=public/data NEXT_TELEMETRY_DISABLED=1 node node_modules/@playwright/test/cli.js test e2e/v1-night-extras.spec.ts --project=chromium --workers=1 --output=/Users/karanmanoharan/.no-mistakes/evidence/01M69HEAA3GT8PSTA3844GERAK/r7/browser-results
+```
+
+The restored-output wrapper ran the build. `r7/production-browser.log` records the completed command.
+The browser cases covered desktop and phone host settings, guest reveals, private table signs and stranger refusal.
+The phone readability cases passed in light and dark themes.
+
+The new live scenario submitted the same legacy unbound arrival twice to the local production server.
+Both requests returned 201. The stored action list contained one identical action without a venue or revision stamp.
+The beacon read returned no current pub and no table sign.
+With mystery settings enabled, the browser kept stop 2 sealed and offered no table-sign form.
+The browser checks left the route revision and action list unchanged.
+
+A focused repeat reused the same production build and exited 0 after adding a persistent screenshot path to this test.
+Application source did not change between these browser runs.
+`r7/legacy-result.json` records one passing case, zero failures and zero flaky results.
+`r7/legacy-responses.json` retains the product responses. `r7/legacy-results/` retains the screenshot.
+The legacy screenshot and the phone table and clue screenshots were inspected.
+
+The server used the repository keyless environment on private port 3189. No live service or live database was used.
+Phone evidence uses desktop Chromium. Physical-device and native-shell acceptance remain unverified.
+Disposable browsers and servers stopped. Port 3189 has no listener.
+Temporary build outputs, generated enrichment files and working-tree test logs were removed. Dependencies remain installed.
+
+This phase did not run lint, static analysis, the complete suite or the configured verification command.
+The supplied full-suite result remains historical: 45,288 passed, five failed and one skipped before these repairs.
+The outer executor must rerun the configured command, including PostgreSQL, freshness and audit stages.
+These focused passes do not establish full gate success or PR readiness.
+No merge, deployment, production promotion or live migration occurred.

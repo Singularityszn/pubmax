@@ -51,6 +51,10 @@ describe("Sliding Doors controls", () => {
     await act(async () => { const send = button("Send route for crew review"); send.click(); send.click(); });
     expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/proposals"))).toHaveLength(1);
     expect(submitted).toHaveBeenCalledTimes(1);
+    for (const [url, init] of fetchMock.mock.calls) {
+      expect(init?.cache).toBe("no-store");
+      expect(new Headers(init?.headers).get("authorization")).toBe(String(url).endsWith("/proposals") ? "Bearer guest-token" : null);
+    }
     expect(state.stops.map((stop) => stop.venueId)).toEqual(["a", "b", "c"]);
   });
 

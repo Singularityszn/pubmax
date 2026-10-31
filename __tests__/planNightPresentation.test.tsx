@@ -42,11 +42,13 @@ afterEach(async () => { await act(async () => root.unmount()); container.remove(
 
 it("reveals stops and the full route without changing the Plan or recording arrivals", async () => {
   await render(<Night />);
+  expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ cache: "no-store", headers: { authorization: "Bearer test-capability" } });
   await click("Open stop 2");
   expect(container.textContent).toContain("Second pub");
   await click("Show full route");
   expect(container.textContent).toContain("Third pub");
   expect(fetchMock.mock.calls.every(([, options]) => !options?.method)).toBe(true);
+  expect(Object.keys(sessionStorage).some((key) => key.startsWith("pubmax.surface."))).toBe(false);
 });
 
 it("shares device reveals between views and preserves them when the overlay closes", async () => {

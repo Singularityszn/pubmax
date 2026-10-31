@@ -36,8 +36,10 @@ async function click(text: string) {
 
 describe("Find our table at its rendered boundary", () => {
   it("shows a member the pub, next pub, labelled symbol and full-screen sign", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(answer())));
+    const fetcher = vi.fn().mockResolvedValue(Response.json(answer()));
+    vi.stubGlobal("fetch", fetcher);
     await render();
+    expect(fetcher.mock.calls[0]?.[1]).toMatchObject({ cache: "no-store", credentials: "same-origin", headers: { authorization: "Bearer member-a" } });
     expect(container.textContent).toContain("Upstairs, by the window");
     expect(container.querySelector('a[href="/map?sel=venue-first"]')?.textContent).toBe("Meet us at The First Pub");
     expect(container.querySelector('a[href="/map?sel=venue-next"]')?.textContent).toBe("Meet us next at The Next Pub");
