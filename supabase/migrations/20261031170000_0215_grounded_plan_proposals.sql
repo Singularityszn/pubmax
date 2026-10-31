@@ -11,7 +11,7 @@ alter table public.plan_route_proposals
   add column grounding_anchor_source text;
 
 create function public.create_plan_grounded_proposal_atomic(
-  p_plan_id uuid, p_proposal_id uuid, p_proposed_by_member_id uuid,
+  p_plan_id uuid, p_proposal_id uuid, p_proposed_by_member_id uuid, p_token_hash text,
   p_expected_route_revision integer, p_stops jsonb, p_reason text,
   p_resolved_constraint_ids jsonb, p_unresolved_constraint_ids jsonb,
   p_idempotency_key text, p_created_at timestamptz,
@@ -25,9 +25,18 @@ declare
   v_plan public.plans%rowtype;
   v_result jsonb;
   v_id uuid;
+  v_member public.plan_crew_members%rowtype;
+  v_host uuid;
 begin
   select * into v_plan from public.plans where id=p_plan_id for update;
   if not found or v_plan.social_owner_account_id is not null then return jsonb_build_object('code','not_found'); end if;
+  select id into v_host from public.plan_crew_members
+    where plan_id=p_plan_id and membership_revoked_at is null order by joined_at,id limit 1;
+  select * into v_member from public.plan_crew_members
+    where id=p_proposed_by_member_id and plan_id=p_plan_id
+      and token_hash=p_token_hash and membership_revoked_at is null for share;
+  if not found or (v_member.id is distinct from v_host and not coalesce(v_member.can_collaborate,false))
+    then return jsonb_build_object('code','forbidden'); end if;
   if v_plan.route_revision <> p_expected_route_revision
     or v_plan.status in ('completed','abandoned')
     or p_grounding_expires_at is null or p_grounding_expires_at <= clock_timestamp()
@@ -58,8 +67,35 @@ begin
   return v_result;
 end;
 $$;
-revoke all on function public.create_plan_grounded_proposal_atomic(uuid,uuid,uuid,integer,jsonb,text,jsonb,jsonb,text,timestamptz,text,text,timestamptz,text,text) from public, anon, authenticated;
-grant execute on function public.create_plan_grounded_proposal_atomic(uuid,uuid,uuid,integer,jsonb,text,jsonb,jsonb,text,timestamptz,text,text,timestamptz,text,text) to service_role;
+revoke all on function public.create_plan_grounded_proposal_atomic(uuid,uuid,uuid,text,integer,jsonb,text,jsonb,jsonb,text,timestamptz,text,text,timestamptz,text,text) from public, anon, authenticated;
+grant execute on function public.create_plan_grounded_proposal_atomic(uuid,uuid,uuid,text,integer,jsonb,text,jsonb,jsonb,text,timestamptz,text,text,timestamptz,text,text) to service_role;
+
+
+-- The member token is rechecked under the same lock used by membership removal and recovery.
+create function public.record_plan_member_vote_atomic(
+  p_plan_id uuid, p_proposal_id uuid, p_member_id uuid, p_token_hash text,
+  p_value text, p_idempotency_key text, p_vote_id uuid, p_created_at timestamptz
+) returns jsonb
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  v_owner uuid;
+  v_host uuid;
+  v_member public.plan_crew_members%rowtype;
+begin
+  select social_owner_account_id into v_owner from public.plans where id=p_plan_id for update;
+  if not found or v_owner is not null then return jsonb_build_object('code','not_found'); end if;
+  select id into v_host from public.plan_crew_members where plan_id=p_plan_id
+    and membership_revoked_at is null order by joined_at,id limit 1;
+  select * into v_member from public.plan_crew_members where id=p_member_id and plan_id=p_plan_id
+    and token_hash=p_token_hash and membership_revoked_at is null for share;
+  if not found or (v_member.id is distinct from v_host and not coalesce(v_member.can_collaborate,false))
+    then return jsonb_build_object('code','forbidden'); end if;
+  return public.record_plan_vote_atomic(p_plan_id,p_proposal_id,p_member_id,p_value,p_idempotency_key,p_vote_id,p_created_at);
+end;
+$$;
+revoke all on function public.record_plan_member_vote_atomic(uuid,uuid,uuid,text,text,text,uuid,timestamptz) from public,anon,authenticated;
+grant execute on function public.record_plan_member_vote_atomic(uuid,uuid,uuid,text,text,text,uuid,timestamptz) to service_role;
 
 create or replace function public.decide_plan_route_proposal_atomic(
   p_plan_id uuid,
@@ -81,17 +117,23 @@ declare
   v_context jsonb;
   v_anchor text;
   v_anchor_source text;
+  v_social_owner uuid;
   v_current_unresolved jsonb;
   v_stop_count integer;
 begin
   if public._social_plan_is_bound(p_plan_id) then return 'not_found'; end if;
   if p_decision not in ('accepted', 'rejected') then return 'invalid'; end if;
 
+  select route_revision,status,night_context,anchor_venue_id,anchor_source,social_owner_account_id
+    into v_revision,v_status,v_context,v_anchor,v_anchor_source,v_social_owner
+    from public.plans where id=p_plan_id for update;
+  if not found or v_social_owner is not null then return 'not_found'; end if;
+
   select token_hash into v_host_hash
   from public.plan_crew_members
-  where plan_id = p_plan_id
+  where plan_id = p_plan_id and membership_revoked_at is null
   order by joined_at, id
-  limit 1;
+  limit 1 for share;
   if v_host_hash is null or v_host_hash <> p_token_hash then return 'forbidden'; end if;
 
   select * into v_proposal
@@ -104,10 +146,6 @@ begin
 
   v_stop_count := jsonb_array_length(v_proposal.stops);
   if p_decision = 'accepted' then
-    select route_revision, status, night_context, anchor_venue_id, anchor_source
-      into v_revision, v_status, v_context, v_anchor, v_anchor_source
-      from public.plans where id=p_plan_id for update;
-    if v_revision is null then return 'not_found'; end if;
     if v_status in ('completed','abandoned') then return 'invalid'; end if;
     if v_revision <> v_proposal.expected_route_revision then return 'conflict'; end if;
     if v_proposal.grounding_proof is not null and
@@ -208,9 +246,9 @@ begin
 
   select member.id into creator_id
   from public.plan_crew_members member
-  where member.plan_id = p_plan_id
+  where member.plan_id = p_plan_id and member.membership_revoked_at is null
   order by member.joined_at, member.id
-  limit 1;
+  limit 1 for share;
   if creator_id is null or not exists (
     select 1 from public.plan_crew_members
     where id = creator_id and token_hash = p_token_hash

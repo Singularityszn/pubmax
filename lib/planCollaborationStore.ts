@@ -818,6 +818,7 @@ const supabaseStore: PlanCollaborationStore = {
     const { data, error } = checked.grounding
       ? await admin.rpc("create_plan_grounded_proposal_atomic", {
         ...proposalArgs,
+        p_token_hash: hashPlanMemberToken(String(token).trim()),
         p_grounding_proof: checked.grounding.proof,
         p_grounding_operation_key: checked.grounding.operationKey,
         p_grounding_expires_at: checked.grounding.expiresAt,
@@ -829,6 +830,7 @@ const supabaseStore: PlanCollaborationStore = {
     const result = atomicRow(data);
     if (result?.code === "not_found") return { ok: false, error: "not_found" };
     if (result?.code === "conflict") return { ok: false, error: "conflict" };
+    if (result?.code === "forbidden") return { ok: false, error: "forbidden" };
     return result?.row
       ? { ok: true, proposal: proposalFromRow(result.row) }
       : { ok: false, error: "error" };
@@ -839,13 +841,15 @@ const supabaseStore: PlanCollaborationStore = {
     const identity = await member(planId, token);
     if (!identity) return { ok: false, error: "forbidden" };
     const admin = requireSupabaseAdmin();
-    const { data: voteRow, error } = await admin.rpc("record_plan_vote_atomic", {
+    const { data: voteRow, error } = await admin.rpc("record_plan_member_vote_atomic", {
       p_plan_id: planId, p_proposal_id: proposalId, p_member_id: identity.memberId,
+      p_token_hash: hashPlanMemberToken(String(token).trim()),
       p_value: value, p_idempotency_key: key.trim(), p_vote_id: randomUUID(), p_created_at: now.toISOString(),
     });
     if (error) return { ok: false, error: "error" };
     if (!voteRow || typeof voteRow !== "object") return { ok: false, error: "conflict" };
     if ((voteRow as Record<string, unknown>).code === "not_found") return { ok: false, error: "not_found" };
+    if ((voteRow as Record<string, unknown>).code === "forbidden") return { ok: false, error: "forbidden" };
     return { ok: true, vote: voteFromRow(voteRow as Record<string, unknown>) };
   },
 
