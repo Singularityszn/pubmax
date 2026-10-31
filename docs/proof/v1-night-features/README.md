@@ -344,3 +344,47 @@ The successful runs used explicit selectors and replaced the include list direct
 The initial attempt generated Places enrichment files. This phase removed those files and the temporary configuration.
 All test processes finished. This phase started no browser or server.
 Earlier browser evidence remains historical. This repair does not claim a new build, browser pass or configured gate pass.
+
+
+## Action-handler candidate test on 31 October 2026
+
+This phase tested `84b62b3fc3e2fae3a8572f9bc3eccb119ab9d65d`.
+The isolated production build and all focused product journeys passed.
+The supplied configured command, `npm run verify:no-mistakes:changed`, failed before this phase with exit code 1.
+Its current diagnostic output was not supplied.
+This phase prohibits lint and static analysis, so it did not repeat that command.
+The outer executor must resolve that failure. This phase returns **no-go** despite the passing product checks.
+
+The production browser command exited with code 0:
+
+```sh
+PW_PORT=3187 PW_NEXT_DIST_DIR=.next-v1-test-r5 PW_SKIP_KEYLESS_WEBSERVER=1 PUBMAX_TRACKED_OUTPUTS=public/data NEXT_TELEMETRY_DISABLED=1 node node_modules/@playwright/test/cli.js test e2e/v1-night-extras.spec.ts --project=chromium --workers=1 --output=/Users/karanmanoharan/.no-mistakes/evidence/01M69HEAA3GT8PSTA3844GERAK/r5/browser-results
+```
+
+The restored-output wrapper completed the production build before the browser checks.
+The desktop and phone cases checked host settings, separate guest reveals, table signs, stranger refusal and unchanged route and arrival state.
+The phone readability cases passed with explicit light and dark themes.
+The two focused Night mode behaviour suites also exited with code 0.
+Their temporary configuration retained repository setup and disabled only the unrelated enrichment builder.
+
+Eight additional journeys passed against the completed production build.
+The new phone journey interrupted an arrival request, reloaded the page and confirmed one bound arrival from the queued request.
+It then skipped the next stop through the Night mode button and checked the stored venue, revision and unchanged route.
+The remaining journeys repeated table expiry, host permissions, stale arrival refusal, completed-prefix preservation and completed mystery reveals.
+They also repeated explicit host acceptance, proposal response recovery, required needs, anchor protection, sourced clue reveals and walking-provider failure.
+Production policy returned 503 for all five beacon and presentation operations without durable credentials.
+
+The only source change since the previous candidate is the Night mode action-handler repair.
+The SQL migrations and generated database types are unchanged.
+The previous database generation and PostgreSQL regression results remain historical evidence for those unchanged files.
+This phase did not repeat them or claim a new durable browser session.
+
+New evidence remains under `r5/` in the external evidence directory named above.
+`production-browser.log`, `action-tests.log`, `live-results.json` and `production-policy-results.json` retain the checks and product responses.
+The PNG files show table signs, comparisons, sourced clues, completed reveals and the recovered phone action journey.
+The screenshots were inspected.
+The clue journey uses disposable upstream walking geometry. The fallback journey supplies an upstream 503.
+These checks do not establish real-provider availability or pavement accuracy.
+Phone evidence uses desktop Chromium. Physical-device and native-shell acceptance remain unverified.
+All disposable browsers and servers stopped. Temporary build outputs and test configuration were removed.
+No merge, deployment, production promotion or live migration occurred.

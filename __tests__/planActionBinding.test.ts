@@ -65,8 +65,10 @@ it("keeps legacy action retries compatible without treating them as bound venue 
   expect((await n.submit(body)).status).toBe(201);
   const state = (await memoryPlanStore.get(n.id))!;
   expect(state.actions).toHaveLength(1);
-  expect(state.actions![0].routeRevision).toBeUndefined();
-  expect(state.actions![0].venueId).toBeUndefined();
+  const action = state.actions?.[0];
+  if (!action) throw new Error("Expected a legacy arrival action");
+  expect(action.routeRevision).toBeUndefined();
+  expect(action.venueId).toBeUndefined();
   expect(planVisitedRevealPositions(state)).toEqual([]);
   expect(planBeaconLocation(state, new Date()).current).toBeNull();
 });
