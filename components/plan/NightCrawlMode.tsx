@@ -344,96 +344,93 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
     .filter((entry): entry is { member: CrewMemberDTO; chip: NonNullable<(typeof CREW_CHIP)[CrewPresenceStatus]> } => Boolean(entry.chip))
     .slice(0, 5);
 
-  const runAction = useCallback(
-    async (type: NightCrawlActionType) => {
-      if (busy || !hero || !canUpdatePlan) return;
-      const stopPosition = hero.position;
-      const heroName = hero.venueName;
-      const previousCursor = cursor;
-      setBusy(type);
-      setNote(null);
-      // Optimistic: the done row marks and the cursor advances on the same frame.
-      const optimisticState = { ...optimistic, [stopPosition]: type };
-      const optimisticCursor = advanceNightCrawl(cursor, stops.length);
-      setOptimistic(optimisticState);
-      setActivePlanStopIndex(optimisticCursor);
+  const runAction = async (type: NightCrawlActionType) => {
+    if (busy || !hero || !canUpdatePlan) return;
+    const stopPosition = hero.position;
+    const heroName = hero.venueName;
+    const previousCursor = cursor;
+    setBusy(type);
+    setNote(null);
+    // Optimistic: the done row marks and the cursor advances on the same frame.
+    const optimisticState = { ...optimistic, [stopPosition]: type };
+    const optimisticCursor = advanceNightCrawl(cursor, stops.length);
+    setOptimistic(optimisticState);
+    setActivePlanStopIndex(optimisticCursor);
 
-      const reconcile = (
-        outcome: ReturnType<typeof classifyActionOutcome>,
-        queued = false,
-      ) => {
-        const settled = reconcileNightCrawlAction({
-          outcome,
-          type,
-          venueName: heroName,
-          stopPosition,
-          previousCursor,
-          optimisticCursor,
-          optimistic: optimisticState,
-          queued,
-        });
-        setOptimistic(settled.optimistic);
-        if (settled.cursor !== previousCursor || readActivePlan()?.stopIndex === optimisticCursor) {
-          setActivePlanStopIndex(settled.cursor);
-        }
-        setNote(settled.note);
-      };
-
-      const capability = parsePlanCapabilitySnapshot(readPlanCapabilitySnapshot(planId));
-      if (!capability.token || !capability.collaborationAuthorized) {
-        reconcile("forbidden");
-        setBusy(null);
-        return;
+    const reconcile = (
+      outcome: ReturnType<typeof classifyActionOutcome>,
+      queued = false,
+    ) => {
+      const settled = reconcileNightCrawlAction({
+        outcome,
+        type,
+        venueName: heroName,
+        stopPosition,
+        previousCursor,
+        optimisticCursor,
+        optimistic: optimisticState,
+        queued,
+      });
+      setOptimistic(settled.optimistic);
+      if (settled.cursor !== previousCursor || readActivePlan()?.stopIndex === optimisticCursor) {
+        setActivePlanStopIndex(settled.cursor);
       }
+      setNote(settled.note);
+    };
 
-      const scope = nightCrawlIdempotencyScope(planId, type, stopPosition);
-      const payload = nightCrawlActionPayload(type, hero, Number(plan.plan.routeRevision ?? 1));
-      const key = await persistentPlanMutationKey(scope, payload);
-      // Fingerprint aligns with the idempotency key scope: same tap, same key.
-      const print = `${scope}:${JSON.stringify(payload)}`;
-
-      // Persist intent before the network attempt so reload can replay.
-      let queued = false;
-      try {
-        await enqueueNightCrawlAction({
-          planId,
-          type,
-          stop: hero,
-          expectedRouteRevision: Number(plan.plan.routeRevision ?? 1),
-          idempotencyKey: key,
-          fingerprint: print,
-          previousCursor,
-          optimisticCursor,
-        });
-        queued = true;
-      } catch {
-        queued = false;
-      }
-
-      const flushResults = await flushPlanMutationOutbox({ planId });
-      const mine = flushResults.find((row) => row.entryId === scope);
-      if (mine?.outcome === "confirmed") {
-        clearPersistentPlanMutationKey(scope, key);
-        if (mine.plan) setPlan(mine.plan);
-        reconcile("confirmed");
-        handOffConfirmedStop(mine.plan, stopPosition);
-        setBusy(null);
-        return;
-      }
-      if (mine?.outcome === "forbidden" || mine?.outcome === "rejected" || mine?.outcome === "conflict") {
-        clearPersistentPlanMutationKey(scope, key);
-        reconcile(mine.outcome === "conflict" ? "rejected" : mine.outcome);
-        setBusy(null);
-        return;
-      }
-
-      // Offline or still pending in the outbox.
-      const stillQueued = queued && hasPendingPlanMutation(planId, scope);
-      reconcile("offline", stillQueued);
+    const capability = parsePlanCapabilitySnapshot(readPlanCapabilitySnapshot(planId));
+    if (!capability.token || !capability.collaborationAuthorized) {
+      reconcile("forbidden");
       setBusy(null);
-    },
-    [busy, hero, cursor, stops, canUpdatePlan, planId, optimistic, handOffConfirmedStop, plan.plan.routeRevision],
-  );
+      return;
+    }
+
+    const scope = nightCrawlIdempotencyScope(planId, type, stopPosition);
+    const payload = nightCrawlActionPayload(type, hero, Number(plan.plan.routeRevision ?? 1));
+    const key = await persistentPlanMutationKey(scope, payload);
+    // Fingerprint aligns with the idempotency key scope: same tap, same key.
+    const print = `${scope}:${JSON.stringify(payload)}`;
+
+    // Persist intent before the network attempt so reload can replay.
+    let queued = false;
+    try {
+      await enqueueNightCrawlAction({
+        planId,
+        type,
+        stop: hero,
+        expectedRouteRevision: Number(plan.plan.routeRevision ?? 1),
+        idempotencyKey: key,
+        fingerprint: print,
+        previousCursor,
+        optimisticCursor,
+      });
+      queued = true;
+    } catch {
+      queued = false;
+    }
+
+    const flushResults = await flushPlanMutationOutbox({ planId });
+    const mine = flushResults.find((row) => row.entryId === scope);
+    if (mine?.outcome === "confirmed") {
+      clearPersistentPlanMutationKey(scope, key);
+      if (mine.plan) setPlan(mine.plan);
+      reconcile("confirmed");
+      handOffConfirmedStop(mine.plan, stopPosition);
+      setBusy(null);
+      return;
+    }
+    if (mine?.outcome === "forbidden" || mine?.outcome === "rejected" || mine?.outcome === "conflict") {
+      clearPersistentPlanMutationKey(scope, key);
+      reconcile(mine.outcome === "conflict" ? "rejected" : mine.outcome);
+      setBusy(null);
+      return;
+    }
+
+    // Offline or still pending in the outbox.
+    const stillQueued = queued && hasPendingPlanMutation(planId, scope);
+    reconcile("offline", stillQueued);
+    setBusy(null);
+  };
 
   if (!activeNow) return null;
 

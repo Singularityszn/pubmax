@@ -255,3 +255,92 @@ Physical-device and native acceptance remain outstanding.
 This repair did not repeat the linter, formatter, separate static analysis, full suite or configured gate.
 The earlier configured gate failure remains unresolved for the outer executor. Remote CI remains required.
 No merge, deployment, production promotion or live migration occurred.
+
+
+## Final candidate test on 31 October 2026
+
+This phase tested `a01a52b1c3d4e3a04d4dbe108eb7379acf520ff6`.
+The isolated production build and all focused product journeys passed.
+The supplied configured command failed before this phase with exit code 1.
+This phase did not repeat that command, lint, static analysis or the full suite.
+The outer executor still owns resolution of that configured failure and remote CI.
+Product checks pass, but this phase returns **no-go** because the required configured command remains failed.
+
+The browser command completed through the restored-output wrapper:
+
+```sh
+PW_PORT=3187 PW_NEXT_DIST_DIR=.next-v1-test-r4 PW_SKIP_KEYLESS_WEBSERVER=1 PUBMAX_TRACKED_OUTPUTS=public/data node node_modules/@playwright/test/cli.js test e2e/v1-night-extras.spec.ts --project=chromium --workers=1 --output=/Users/karanmanoharan/.no-mistakes/evidence/01M69HEAA3GT8PSTA3844GERAK/r4/browser-results
+```
+
+Both desktop and phone cases passed, at 1440 by 1000 and 390 by 844.
+The phone contrast cases also passed with explicit light and dark page themes.
+These cases checked the table heading, note, links, field, buttons and clue introduction against the 4.5:1 text threshold.
+The four retained contrast screenshots show readable text and controls.
+
+The additional production journeys checked these behaviours:
+
+1. Table signs require bound arrivals, reject guest changes, expire and clear after another arrival.
+2. Safe route changes preserve completed mystery titles with a stale phone cursor.
+   Stale arrival and skip requests fail without changing actions.
+   Completed stops cannot change, and a route change clears the table sign.
+   Bound arrival retries create one action. Legacy arrivals establish no table location.
+3. Route comparison leaves the saved route unchanged and discloses unknown prices and straight-line distance estimates.
+   A host marked Here can propose. A guest can vote but cannot accept.
+   Explicit host acceptance saves the proposed route.
+4. Clues reveal sourced answers after a manual action and leave the route and actions unchanged.
+5. Lost proposal responses retain the same key for the same payload.
+   Another option uses another key and creates another proposal.
+6. Unresolved required needs prevent acceptance. The accepted anchor cannot move.
+7. A failed walking provider supplies no clues from straight-line fallback.
+
+The production storage check returned 503 for all five beacon and presentation operations without durable credentials.
+The browser specification also checked host-only settings, separate guest reveals, the full-route escape and stranger refusal.
+The clue journeys used disposable upstream walking geometry and a deliberate provider failure.
+They do not establish real-provider availability or pavement accuracy.
+
+The repository database generator completed against disposable PostgreSQL without changing `types/database.ts`.
+An initial attempt exceeded PostgreSQL's socket-path limit inside this long worktree path.
+A private temporary directory resolved the setup problem. No permanent test-tool change was needed.
+All 19 focused behaviour suites passed, including all three changed migration suites.
+These include presence values, current membership, token rotation and collaboration permission checks in PostgreSQL.
+The temporary Vitest configuration retained repository setup and disabled only the enrichment builder.
+The production build ran the normal application builders.
+
+Evidence remains under `r4/` in the external evidence directory named above.
+`production-browser.log` records the completed production build and browser specification.
+`live-results.json` retains product requests and results. The PNG files show the product journeys.
+`production-policy-results.json` retains the production storage refusals.
+`database-types-retry.log`, `focused-tests.log` and `focused-check-status.json` retain the supporting checks.
+`process-status.json` records successful drivers and intentional server shutdowns.
+`cleanup.json` records the closed private port and removed disposable outputs.
+
+The screenshots were inspected. All disposable browsers, servers and PostgreSQL clusters stopped.
+Temporary build outputs, generated data and test configuration were removed. Existing dependencies were retained.
+This phase changed only this evidence document.
+Phone evidence uses desktop Chromium. Physical-device and native-shell acceptance remain outstanding.
+No merge, deployment, production promotion or live migration occurred.
+
+## Focused memoisation repair on 31 October 2026
+
+This repair starts from `a01a52b1c3d4e3a04d4dbe108eb7379acf520ff6` and preserves the evidence changes already present in the worktree.
+The supplied gate output reports `react-hooks/preserve-manual-memoization` errors for `runAction` and its `hero` dependency.
+The handler only serves local click callbacks. Its identity does not need to remain stable between renders.
+The repair removes its manual `useCallback` wrapper and dependency list, without changing the action body.
+
+The exact reported lint failure was not reproduced or rechecked because this phase explicitly prohibits lint and static analysis.
+The configured gate remains unverified after this repair. The outer executor must repeat that gate.
+No new source-pattern test was added to stand in for the compiler check.
+
+Both focused behaviour suites passed before and after the repair, with 15 tests and exit code 0 each time:
+
+```sh
+node node_modules/vitest/vitest.mjs run --config .v1-action-focused.config.mts __tests__/nightCrawlCapabilityJourney.test.tsx __tests__/nightCrawlMode.test.ts
+```
+
+The temporary configuration retained repository setup, selected these two suites and disabled only the unrelated enrichment builder.
+These tests cover arrival and skip permissions, offline recovery, refusal rollback, ending handoff and completed reveals after route changes.
+An initial configuration attempt was interrupted with exit code 130 before test results because configuration merging could widen the selectors.
+The successful runs used explicit selectors and replaced the include list directly.
+The initial attempt generated Places enrichment files. This phase removed those files and the temporary configuration.
+All test processes finished. This phase started no browser or server.
+Earlier browser evidence remains historical. This repair does not claim a new build, browser pass or configured gate pass.
