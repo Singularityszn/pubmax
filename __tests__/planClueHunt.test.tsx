@@ -36,6 +36,7 @@ afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 async function click(label: string) {
@@ -80,11 +81,9 @@ describe("manual clue reveal", () => {
     await act(async () => root.render(<PlanClueHuntLoader {...scope} />));
     await click("Turn clues on");
     await click("Reveal answer 1");
-    const oldSignal = request.mock.calls[0]?.[1]?.signal;
     await act(async () => root.render(<PlanClueHuntLoader {...scope} {...change} />));
     expect(container.textContent).not.toContain("Answer revealed");
     expect(container.textContent).toContain("Turn clues on");
-    expect(oldSignal?.aborted).toBe(true);
     expect(request).toHaveBeenCalledTimes(3);
   });
 
@@ -94,5 +93,34 @@ describe("manual clue reveal", () => {
     await click("Turn clues on");
     expect(container.textContent).toContain("No sourced clues are available for this walk.");
     expect(container.textContent).toContain("The original pub route");
+  });
+
+  it("leaves loading after a stalled request and can retry without changing the route", async () => {
+    vi.useFakeTimers();
+    const workingRead = request.getMockImplementation()!;
+    request.mockImplementation(() => new Promise<Response>(() => {}));
+    await act(async () => root.render(<><p>The original pub route</p><PlanClueHuntLoader {...scope} /></>));
+    await click("Turn clues on");
+    expect(container.textContent).toContain("Checking for clues beside your walking route.");
+    await act(async () => { await vi.advanceTimersByTimeAsync(8_000); });
+    expect(container.textContent).not.toContain("Checking for clues beside your walking route.");
+    expect(container.textContent).toContain("No sourced clues are available for this walk.");
+    expect(container.textContent).toContain("The original pub route");
+    request.mockImplementation(workingRead);
+    await click("Check for clues again");
+    expect(container.textContent).toContain("Between stops 1 and 2");
+  });
+
+  it("aborts a pending read on account change and ignores its late result", async () => {
+    let finish: (response: Response) => void = () => {};
+    request.mockImplementation(() => new Promise<Response>((resolve) => { finish = resolve; }));
+    await act(async () => root.render(<PlanClueHuntLoader {...scope} />));
+    await click("Turn clues on");
+    const signal = request.mock.calls[0]?.[1]?.signal;
+    await act(async () => root.render(<PlanClueHuntLoader {...scope} accountId="account-b" />));
+    expect(signal?.aborted).toBe(true);
+    await act(async () => finish(Response.json({ venue: { longitude: -0.1246, latitude: 51.5007 } })));
+    expect(container.textContent).toContain("Turn clues on");
+    expect(container.textContent).not.toContain("Between stops 1 and 2");
   });
 });

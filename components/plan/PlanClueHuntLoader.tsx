@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 import PlanClueHunt from "@/components/plan/PlanClueHunt";
 import type { PlanStopDTO } from "@/lib/plan";
 import { planClueScopeKey, selectPlanClues, type PlanClue, type PlanClueScope } from "@/lib/planClues";
