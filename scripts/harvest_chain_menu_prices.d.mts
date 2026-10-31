@@ -7,15 +7,19 @@ export type ChainPageRead = {
   ok: boolean;
   status: number;
   body: string;
-  redirectedAway?: boolean;
+  /** Why a redirect was refused, for example `redirect-left-source` or `redirect-robots-refused`. */
+  reason?: string;
   landedUrl?: string;
   error?: string;
 };
 
-/** One chain page, refused unread when its redirect lands off the source's own hosts. */
+/**
+ * One chain page. Each redirect hop is asked the source's allow-list and
+ * `robots` before it is requested, so the robots checker is required.
+ */
 export declare function fetchText(
   url: string,
-  options: { sourceId: string; fetchImpl?: typeof fetch },
+  options: { sourceId: string; robots: RobotsAsk; fetchImpl?: typeof fetch },
 ): Promise<ChainPageRead>;
 
 /** The menu pages a source names about itself, put back through its own allow-list. */
@@ -23,7 +27,7 @@ export declare function menuPagesFor(
   source: HarvestSource,
   spend: () => boolean,
   options: { robots: RobotsAsk; fetchImpl?: typeof fetch },
-): Promise<{ pages: string[]; offAllowList: number; refusal: RobotsAnswer | null }>;
+): Promise<{ pages: string[]; offAllowList: number; refusal: RobotsAnswer | null; reason?: string }>;
 
 export type ChainPriceRow = {
   url: string;

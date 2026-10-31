@@ -33,3 +33,16 @@ describe("FindYourLot for a stranger", () => {
     expect(html).not.toContain('href="/login"');
   });
 });
+
+describe("FindYourLot with a query held by its page", () => {
+  it("renders the held handle, so a remount in another place keeps it", () => {
+    // /social mounts this lane in the door and then in the rail; the page holds
+    // the typed handle so the swap between them does not clear the field.
+    const html = renderToStaticMarkup(
+      createElement(FindYourLot, { query: "alex", onQueryChange: () => {} }),
+    );
+
+    expect(html).toMatch(/type="search"[^>]*value="alex"/);
+    expect(html).toContain(">Clear</button>");
+  });
+});

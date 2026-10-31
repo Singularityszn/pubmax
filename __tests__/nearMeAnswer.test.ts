@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 
 import {
   boroughsWithPrices,
+  nearSavingLine,
   rankBoroughCheapest,
   rankNearMe,
   walkMinutesFromKm,
@@ -191,5 +192,59 @@ describe("withoutWalkTimes", () => {
       { id: "a", name: "A", borough: "Westminster", cheapestPrice: 4.5 },
       { id: "b", name: "B", borough: "Camden", cheapestPrice: 5.1 },
     ]);
+  });
+});
+
+describe("nearSavingLine: what the first answer is worth against the doorstep pub", () => {
+  const venues: PricedPoint[] = [
+    at("cheap-far", 0.006, 0.006, 4.5),
+    at("dear-close", 0.001, 0.001, 7.2), // ~0.13 km: past "right here"
+    at("mid", 0.002, 0.002, 5.5),
+    at("no-price", 0.0001, 0.0001, null), // closer still, but unpriced: never the comparison
+  ];
+
+  it("names the nearest priced pub, whatever its price", () => {
+    expect(rankNearMe(here.lat, here.lng, venues).nearest?.id).toBe("dear-close");
+  });
+
+  it("states the per-pint gap between two listed prices and where the doorstep pub is", () => {
+    const answer = rankNearMe(here.lat, here.lng, venues);
+    expect(nearSavingLine(answer.cards, answer.nearest)).toBe(
+      "Pub cheap-far is £2.70 a pint less than Pub dear-close, the nearest pub with a listed price (£7.20, 0.1 km).",
+    );
+  });
+
+  it("says nothing when the nearest pub is the answer", () => {
+    const answer = rankNearMe(here.lat, here.lng, [
+      at("cheap-close", 0.0005, 0.0005, 4.0),
+      at("dear-far", 0.004, 0.004, 6.0),
+      at("mid", 0.002, 0.002, 5.0),
+    ]);
+    expect(answer.nearest?.id).toBe("cheap-close");
+    expect(nearSavingLine(answer.cards, answer.nearest)).toBeNull();
+  });
+
+  it("says nothing for a gap under 10p", () => {
+    const answer = rankNearMe(here.lat, here.lng, [
+      at("a", 0.004, 0.004, 5.0),
+      at("b", 0.0005, 0.0005, 5.05),
+      at("c", 0.002, 0.002, 5.08),
+    ]);
+    expect(nearSavingLine(answer.cards, answer.nearest)).toBeNull();
+  });
+
+  it("has no doorstep pub outside the walkable scope", () => {
+    const answer = rankNearMe(here.lat, here.lng, [at("only", 0.01, 0.01, 5.0)]);
+    expect(answer.scope).toBe("widened");
+    expect(answer.nearest).toBeNull();
+    expect(nearSavingLine(answer.cards, answer.nearest)).toBeNull();
+  });
+
+  it("reads 'right here' rather than a zero distance", () => {
+    const nearest = { id: "x", name: "The Crown", borough: "Camden", cheapestPrice: 6.2, distanceKm: 0.05 };
+    const top = { id: "y", name: "The Lamb", borough: "Camden", cheapestPrice: 4.9, distanceKm: 0.6 };
+    expect(nearSavingLine([top], nearest)).toBe(
+      "The Lamb is £1.30 a pint less than The Crown, the nearest pub with a listed price (£6.20, right here).",
+    );
   });
 });

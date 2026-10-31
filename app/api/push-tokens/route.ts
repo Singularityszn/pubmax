@@ -11,8 +11,9 @@
 // generous) plus a global route-wide backstop, because the per-IP key is
 // derived from spoofable forwarding headers. Errors use the flat public envelope
 // (lib/apiError.ts). Validation and storage live in lib/pushTokenStore.ts
-// (memory + Supabase dual backend); server-side push SENDING is a later wave
-// and needs an APNs key (docs/CAPACITOR_WRAP.md).
+// (memory + Supabase dual backend). Sending lives in lib/pushSender.ts, which
+// reads the tokens stored here; native delivery needs an APNs key
+// (docs/CAPACITOR_WRAP.md).
 
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";

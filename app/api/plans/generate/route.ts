@@ -20,8 +20,13 @@ import {
 	preparePlanGeneration,
 	runAnchoredGeneration,
 } from "@/lib/planGeneration.server";
-import { planEvidenceWarning, planGenerationEvidenceGaps, planScoringDrinkCategory } from "@/lib/planGenerationRanking";
-import { selectPlanGenerationCandidates } from "@/lib/planGenerationSelection.server";
+import {
+	planDietaryMenuWarning,
+	planEvidenceWarning,
+	planGenerationEvidenceGaps,
+	planScoringDrinkCategory,
+} from "@/lib/planGenerationRanking";
+import { planRouteRefusalMessage, selectPlanGenerationCandidates } from "@/lib/planGenerationSelection.server";
 import { priceEvidenceUsableForCeiling, type PlanPriceEvidence } from "@/lib/planRouteEvidence";
 import type { PlanConstraintReport, SelectedGroundedPlanStop } from "@/lib/planRouteOptimizer";
 import type { PlanningIntentSource } from "@/lib/planningIntent";
@@ -98,6 +103,7 @@ export async function POST(request: Request): Promise<Response> {
 		reviewedSignalClaims,
 		naLensPrices,
 		drinkPriceCoverageNote,
+		dietaryMenu,
 		candidates,
 		anchor: anchorRequest,
 	} = preparation.prepared;
@@ -126,11 +132,13 @@ export async function POST(request: Request): Promise<Response> {
 	} else {
 		const generatedSelection = await selectPlanGenerationCandidates(candidates, context, intake, requestNow);
 		if (!generatedSelection.ok) {
+			// Name the words that refused it, so the reader knows what to drop.
+			const { mustHaves } = generatedSelection;
 			return publicApiError(
-				`No ${normalizePlanStopCount(context.stopCount)}-stop route in ${area.name} meets every must-have need with the information available.`,
+				planRouteRefusalMessage(normalizePlanStopCount(context.stopCount), area.name, mustHaves),
 				"GROUNDED_CONSTRAINTS_UNSATISFIED",
 				422,
-				{ details: { nightArea: area.slug, availableVenueCount: candidates.length, ...generatedSelection.selection } },
+				{ details: { nightArea: area.slug, availableVenueCount: candidates.length, mustHaves, ...generatedSelection.selection } },
 			);
 		}
 		chosen = generatedSelection.chosen;
@@ -176,6 +184,7 @@ export async function POST(request: Request): Promise<Response> {
 		warnings: [
 			...missingEvidence.filter((gap) => gap !== "selected_drink_price_index").map(planEvidenceWarning),
 			...(drinkPriceCoverageNote ? [drinkPriceCoverageNote] : []),
+			...planDietaryMenuWarning(dietaryMenu, chosen.map(({ venue }) => venue.id)),
 		],
 		provenance: [
 			{ kind: "venue_dataset", label: "PUBMAXX Venue Dataset" },

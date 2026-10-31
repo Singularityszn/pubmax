@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+import { openOverviewFold } from "./helpers/overviewFolds";
 
 // Landmark/heritage STORY surface + the mobile drag bottom-sheet's accessible
 // state (PRD "Testing Decisions": landmark story card opens with image/credit/
@@ -178,7 +179,9 @@ test("venue sheet offers a start-a-crawl affordance in build mode (non-canvas jo
     await expect(addToCrawl).toHaveAttribute("aria-pressed", /true|false/);
     expect((await addToCrawl.innerText()).trim().length).toBeGreaterThan(0);
   } else {
-    // Fallback crawl/list journey entry always present on Overview.
+    // Fallback crawl/list journey entry always present on Overview, in the
+    // Your record fold (lib/venueOverviewFolds.ts).
+    await openOverviewFold(overviewPanel, "record");
     const saveToList = overviewPanel.locator(".saveToListToggle, .saveToList");
     await expect(saveToList.first()).toBeVisible();
   }

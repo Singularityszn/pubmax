@@ -53,7 +53,7 @@ Per-pub **food/drink item prices are not published on the website**.
 ## Refresh
 
 Keyless. The endpoint and the crawl delay come from the
-`wetherspoon-pub-directory` entry in `lib/harvest/sourcePolicy.ts`, and the
+`wetherspoon-pub-directory` entry in `lib/harvest/sourceRegistry.ts`, and the
 script asks `robots.txt` again before its first read.
 
 ```bash

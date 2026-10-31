@@ -100,6 +100,17 @@ const CrewsPanel = dynamic(
 // The Diary list reads the owner-only API, so it loads only for the owner and
 // stays out of every other profile's first paint.
 const DiaryList = dynamic(() => import("@/components/diary/DiaryList"), { ssr: false });
+// The passport cover and book (Been, ranked, taste, overlap) read their own APIs.
+const PassportCover = dynamic(() => import("@/components/profile/PassportCover"), { ssr: false });
+const PassportSections = dynamic(() => import("@/components/profile/PassportSections"), { ssr: false });
+const BoroughBingo = dynamic(() => import("@/components/profile/BoroughBingo"), { ssr: false });
+
+// A person's Social posts. Loaded after the document, like the timeline, and
+// only when the Social launch flag is on, so a closed Social adds nothing here.
+const ProfilePostsSection = dynamic(
+  () => import("@/components/profile/ProfilePostsSection"),
+  { ssr: false },
+);
 
 const ProfileTimeline = dynamic(
   () => import("@/components/profile/ProfileTimeline"),
@@ -1564,6 +1575,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                   following={visibleSocialData.counts?.following}
                   actions={headerActions}
                 />
+                <PassportCover handle={routeHandle} />
               </div>
             </div>
 
@@ -1613,6 +1625,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
               {(isYouRoute || isOwnProfile) && !youSignedOut ? (
                 <nav className="youProfileTabs" aria-label="Your profile sections">
                   <a href="#timeline">Moments</a>
+                  {postsTabLink()}
                   <a href="#passport">Passport</a>
                   <a href="#wanted">Pubs to try</a>
                   <a href="#saved-pubs">Saved</a>
@@ -1654,7 +1667,15 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
 
               {timelineSection()}
 
+              {/* Social posts, beside Moments rather than in place of it. Hidden
+                  while Social is closed, the same way /social is. */}
+              {postsSection()}
+
               {crawlsSection()}
+
+              <PassportSections handle={routeHandle} isOwner={isOwnProfile} />
+
+              <BoroughBingo handle={routeHandle} boroughs={passport.boroughs} isOwner={isOwnProfile} isMutual={visibleSocialData.following && visibleSocialData.followsViewer} />
 
               {/* /u/you redirects to the real handle the moment one is
                   known, so gating this on the sentinel alone left the
@@ -1701,6 +1722,18 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         </footer>
       </>
     );
+  }
+
+  // A person's Social posts, beside Moments. Hidden while Social is closed,
+  // the same way /social is.
+  function postsSection() {
+    if (!socialFriendsLaunchEnabled || youSignedOut) return null;
+    if (!routeHandle || routeHandle === YOU_SENTINEL) return null;
+    return <ProfilePostsSection authorHandle={routeHandle} isOwn={isOwnProfile} />;
+  }
+
+  function postsTabLink() {
+    return socialFriendsLaunchEnabled ? <a href="#posts">Posts</a> : null;
   }
 
   function surfaceBody() {

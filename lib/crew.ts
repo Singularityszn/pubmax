@@ -1,3 +1,4 @@
+import type { PlanUsualDrink } from "@/lib/planUsualDrink";
 import { cleanText } from "@/lib/textClean";
 
 export const CREW_NAME_MAX = 40;
@@ -19,6 +20,11 @@ export type CrewMemberDTO = {
   status: CrewPresenceStatus;
   joinedAt: string;
   updatedAt: string;
+  /**
+   * The member's usual drink for the round forecast (review item B6), or
+   * absent when they have not picked one. Absent, not a default.
+   */
+  usualDrink?: PlanUsualDrink | null;
 };
 
 export function cleanCrewName(value: unknown): string {

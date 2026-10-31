@@ -96,6 +96,23 @@ for (const viewport of WIDTHS) {
     const createMemory = hub.getByRole("button", { name: "Create private Memory" });
     await expect(createMemory).toBeAttached({ timeout: 30_000 });
 
+    // Some editor steps sit in a closed disclosure until a reader opens them
+    // (Change email, ChangeEmailCard.tsx). A closed one paints nothing, so a
+    // button in it has no box to measure. Each one is opened first, so its
+    // button is held to the same family as the rest, never skipped.
+    const steps = hub.locator("details").filter({ has: page.locator("button.uiButton") });
+    for (let index = 0; index < (await steps.count()); index += 1) {
+      const disclosure = steps.nth(index);
+      // The tap is retried only while the step is still shut, so a slow
+      // toggle is never undone.
+      await expect(async () => {
+        if ((await disclosure.getAttribute("open")) === null) {
+          await disclosure.locator(":scope > summary").click();
+        }
+        await expect(disclosure).toHaveAttribute("open", "", { timeout: 1_000 });
+      }).toPass({ timeout: 20_000 });
+    }
+
     // THE FAMILY. Every text button in the editor is the primitive, so it is
     // measured against the primitive rather than against a figure typed here.
     const primitives = hub.locator("button.uiButton");

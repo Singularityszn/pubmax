@@ -90,7 +90,7 @@ describe("mobile map session adapter", () => {
   });
 
   it("restores a session saved before dog, darts and pool filters existed", () => {
-    const filters = { ...seedCrawlState("").filters, query: "Camden", maxPrice: 7.5, requireLiveSports: true };
+    const filters = { ...seedCrawlState("").filters, query: "Camden", maxPrice: 7, requireLiveSports: true };
     const legacyFilters: Partial<typeof filters> = { ...filters };
     delete legacyFilters.requireDogFriendly;
     delete legacyFilters.requireDarts;
@@ -111,6 +111,15 @@ describe("mobile map session adapter", () => {
       ...session,
       filters: { ...filters, requireDogFriendly: false, requireDarts: false, requirePool: false },
     });
+  });
+
+  it("restores Last orders only when it was saved on", () => {
+    const current = seedCrawlState("").filters;
+    expect(validateMobileMapFilters({ ...current, lastOrders: true })?.lastOrders).toBe(true);
+    expect(validateMobileMapFilters({ ...current, lastOrders: "true" })?.lastOrders).toBe(false);
+    const legacy: Partial<typeof current> = { ...current };
+    delete legacy.lastOrders;
+    expect(validateMobileMapFilters(legacy)?.lastOrders).toBe(false);
   });
 
   it.each(["requireDogFriendly", "requireDarts", "requirePool"] as const)(

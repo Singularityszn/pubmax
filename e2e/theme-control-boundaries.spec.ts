@@ -2,12 +2,15 @@ import { expect, test } from "@playwright/test";
 
 import { desktopVenueDrawer, expectSoleDesktopDrawer } from "./helpers/mapSurfaceDrawers";
 import { expectMapLoadingFrameReleased } from "./helpers/mobileMapShell";
+import { holdLondonAfternoon } from "./helpers/themeClock";
 
 test.use({ launchOptions: { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] } });
 
 // Oracle: the theme repair must preserve the independent Day/Tonight route,
 // follow the system without a saved choice, and accept keyboard activation.
+// The system decides by day; London's night default would answer instead.
 test.beforeEach(async ({ page }) => {
+  await holdLondonAfternoon(page);
   await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });
   await page.addInitScript(() => {
     localStorage.setItem("pubmax-tour-v1-done", "1");

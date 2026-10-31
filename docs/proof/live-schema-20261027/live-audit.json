@@ -1,0 +1,247 @@
+{
+  "capturedAtUTC": "2026-10-27T18:08:15.360977+00:00",
+  "liveVersion": {
+    "ok": true,
+    "deploymentId": "dpl_4qp5YNj3CvE1tQKiKLUu6cWJ9Qsv",
+    "gitCommitSha": "1aa95f7f6d9d42b8472fb57ea39462a9a9035d12"
+  },
+  "routes": [
+    {
+      "route": "/",
+      "status": 200,
+      "url": "https://pubmaxxing.com/",
+      "canonical": "https://pubmaxxing.com",
+      "types": [
+        "WebSite",
+        "Organization"
+      ]
+    },
+    {
+      "route": "/about",
+      "status": 200,
+      "url": "https://pubmaxxing.com/about",
+      "canonical": "https://pubmaxxing.com/about",
+      "types": [
+        "WebSite",
+        "Organization",
+        "AboutPage"
+      ]
+    },
+    {
+      "route": "/borough/camden",
+      "status": 200,
+      "url": "https://pubmaxxing.com/borough/camden",
+      "canonical": "https://pubmaxxing.com/borough/camden",
+      "types": [
+        "WebSite",
+        "Organization",
+        "BreadcrumbList",
+        "ItemList",
+        "FAQPage"
+      ]
+    },
+    {
+      "route": "/drink/guinness",
+      "status": 200,
+      "url": "https://pubmaxxing.com/drink/guinness",
+      "canonical": "https://pubmaxxing.com/drink/guinness",
+      "types": [
+        "WebSite",
+        "Organization",
+        "BreadcrumbList",
+        "ItemList"
+      ]
+    },
+    {
+      "route": "/area/clapham/drink/guinness",
+      "status": 200,
+      "url": "https://pubmaxxing.com/area/clapham/drink/guinness",
+      "canonical": "https://pubmaxxing.com/area/clapham/drink/guinness",
+      "types": [
+        "WebSite",
+        "Organization",
+        "BreadcrumbList",
+        "ItemList"
+      ]
+    },
+    {
+      "route": "/ledger/venue-1vle947",
+      "status": 200,
+      "url": "https://pubmaxxing.com/ledger/venue-1vle947",
+      "canonical": "https://pubmaxxing.com/ledger/venue-1vle947",
+      "types": [
+        "WebSite",
+        "Organization",
+        "BarOrPub"
+      ]
+    },
+    {
+      "route": "/historic/prospect-of-whitby",
+      "status": 200,
+      "url": "https://pubmaxxing.com/historic/prospect-of-whitby",
+      "canonical": "https://pubmaxxing.com/historic/prospect-of-whitby",
+      "types": [
+        "WebSite",
+        "Organization",
+        "LandmarksOrHistoricalBuildings"
+      ]
+    },
+    {
+      "route": "/historic/the-grapes",
+      "status": 200,
+      "url": "https://pubmaxxing.com/historic/the-grapes",
+      "canonical": "https://pubmaxxing.com/historic/the-grapes",
+      "types": [
+        "WebSite",
+        "Organization",
+        "LandmarksOrHistoricalBuildings"
+      ]
+    },
+    {
+      "route": "/historic/black-lion",
+      "status": 200,
+      "url": "https://pubmaxxing.com/historic/black-lion",
+      "canonical": "https://pubmaxxing.com/historic/black-lion",
+      "types": [
+        "WebSite",
+        "Organization",
+        "LandmarksOrHistoricalBuildings"
+      ]
+    },
+    {
+      "route": "/spoons-value",
+      "status": 200,
+      "url": "https://pubmaxxing.com/spoons-value",
+      "canonical": "https://pubmaxxing.com/spoons-value",
+      "types": [
+        "WebSite",
+        "Organization",
+        "Dataset"
+      ]
+    },
+    {
+      "route": "/pint-index",
+      "status": 200,
+      "url": "https://pubmaxxing.com/pint-index",
+      "canonical": "https://pubmaxxing.com/pint-index",
+      "types": [
+        "WebSite",
+        "Organization"
+      ]
+    },
+    {
+      "route": "/pint-index/2026-06",
+      "status": 200,
+      "url": "https://pubmaxxing.com/pint-index/2026-06",
+      "canonical": "https://pubmaxxing.com/pint-index/2026-06",
+      "types": [
+        "WebSite",
+        "Organization",
+        "Dataset"
+      ]
+    }
+  ],
+  "confirmed2346Fixes": {
+    "personalProfilesOnFounderOnly": true,
+    "aboutUsesSharedIds": true,
+    "grapesPrintNotIdentity": true,
+    "blackLionAmbiguousSameAsOmitted": true
+  },
+  "remainingLiveBlackLion": {
+    "@context": "https://schema.org",
+    "@type": "LandmarksOrHistoricalBuildings",
+    "name": "Black Lion",
+    "url": "https://pubmaxxing.com/historic/black-lion",
+    "description": "pub in Kilburn, London",
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "Hammersmith and Fulham",
+      "addressRegion": "London",
+      "addressCountry": "GB"
+    },
+    "geo": {
+      "@type": "GeoCoordinates",
+      "latitude": 51.4905,
+      "longitude": -0.24209
+    }
+  },
+  "unreconciledHistoricRecords": [
+    {
+      "slug": "the-old-pack-horse",
+      "identityReferences": [
+        "https://en.wikipedia.org/wiki/Old_Pack_Horse",
+        "https://en.wikipedia.org/wiki/The_Old_Pack_Horse,_Chiswick"
+      ]
+    },
+    {
+      "slug": "black-lion",
+      "identityReferences": [
+        "https://en.wikipedia.org/wiki/Black_Lion,_Hammersmith",
+        "https://en.wikipedia.org/wiki/Black_Lion,_Kilburn"
+      ]
+    },
+    {
+      "slug": "coach-and-horses",
+      "identityReferences": [
+        "https://en.wikipedia.org/wiki/Coach_and_Horses,_Hill_Street",
+        "https://en.wikipedia.org/wiki/Coach_and_Horses,_Isleworth",
+        "https://en.wikipedia.org/wiki/Coach_and_Horses,_Soho"
+      ]
+    },
+    {
+      "slug": "duke-of-wellington",
+      "identityReferences": [
+        "https://en.wikipedia.org/wiki/Duke_of_Wellington,_Belgravia",
+        "https://en.wikipedia.org/wiki/Duke_of_Wellington,_Bethnal_Green",
+        "https://en.wikipedia.org/wiki/The_Duke_of_Wellington,_Marylebone"
+      ]
+    },
+    {
+      "slug": "red-lion",
+      "identityReferences": [
+        "https://en.wikipedia.org/wiki/Red_Lion,_Duke_of_York_Street",
+        "https://en.wikipedia.org/wiki/Red_Lion,_Hillingdon"
+      ]
+    },
+    {
+      "slug": "rising-sun",
+      "identityReferences": [
+        "https://en.wikipedia.org/wiki/Rising_Sun,_Fitzrovia",
+        "https://en.wikipedia.org/wiki/Rising_Sun,_Mill_Hill"
+      ]
+    },
+    {
+      "slug": "rose-and-crown",
+      "identityReferences": [
+        "https://en.wikipedia.org/wiki/Rose_and_Crown,_Isleworth",
+        "https://en.wikipedia.org/wiki/Rose_and_Crown,_Stoke_Newington",
+        "https://en.wikipedia.org/wiki/The_Rose_and_Crown,_Clay_Hill"
+      ]
+    },
+    {
+      "slug": "the-half-moon",
+      "identityReferences": [
+        "https://en.wikipedia.org/wiki/Half_Moon,_Herne_Hill",
+        "https://en.wikipedia.org/wiki/The_Commercial,_Herne_Hill",
+        "https://en.wikipedia.org/wiki/The_Half_Moon,_Putney"
+      ]
+    },
+    {
+      "slug": "the-victoria",
+      "identityReferences": [
+        "https://en.wikipedia.org/wiki/The_Victoria,_Bayswater",
+        "https://en.wikipedia.org/wiki/The_Victoria,_Richmond"
+      ]
+    },
+    {
+      "slug": "white-lion",
+      "identityReferences": [
+        "https://en.wikipedia.org/wiki/The_White_Lion,_Putney",
+        "https://en.wikipedia.org/wiki/White_Lion,_Covent_Garden"
+      ]
+    }
+  ],
+  "remainingIssue": "A landmark node still joins the Kilburn description to Hammersmith coordinates after sameAs is omitted.",
+  "change": "Emit WebPage only for records with multiple unreconciled identity references.",
+  "productionChanged": false
+}

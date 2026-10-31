@@ -412,6 +412,53 @@
   border-top: 1px solid var(--line-soft);
 }
 
+/* RESERVED HEIGHTS (PlanAstra item 10: Tonight CLS 0.20). Three boxes moved
+   the page after first paint, so each holds its room before its content lands.
+
+   1. The chip row is one 44px row at every width (it scrolls sideways on a
+      phone rather than wrapping), so it holds that row. On a phone the 4px
+      focus-ring padding is part of its box.
+   2. The first listing holds the height of a one-line listing: meta, title,
+      place, facts and the action. A late fact (a walk time once a location
+      arrives, a listing age) then fills room that is already there.
+   3. The weather line holds the lines its loading hold drew
+      (tonightConditions.css: two lines, three under 440px, four under 300px).
+      The hold had the floor and the answer did not, so a one-line answer
+      pulled everything under it up by a line or two. */
+.tonightFilters {
+  min-block-size: 44px;
+}
+
+@media (max-width: 640px) {
+  .tonightFilters {
+    min-block-size: 52px;
+  }
+}
+
+.tonightList > .tonightRow:first-child {
+  min-block-size: 8.5rem;
+}
+
+.tonightWeather .tonightConditions {
+  container-type: inline-size;
+}
+
+.tonightWeather .tonightConditionsCopy {
+  min-height: 2lh;
+}
+
+@container (max-width: 439.98px) {
+  .tonightWeather .tonightConditionsCopy {
+    min-height: 3lh;
+  }
+}
+
+@container (max-width: 299.98px) {
+  .tonightWeather .tonightConditionsCopy {
+    min-height: 4lh;
+  }
+}
+
 .tonightRowLink {
   display: flex;
   flex-direction: column;
@@ -864,5 +911,34 @@
 
   .tonightContext [aria-labelledby="music-tonight-title"] .dealsTonightList {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* The Last orders door (TonightLastOrdersDoor). Its panel brings its own
+   sheet, tonightLastOrders.css, only when it opens. */
+.lastOrdersDoor {
+  margin: 0 0 var(--space-4);
+}
+
+.lastOrdersDoorButton {
+  width: 100%;
+  min-height: 48px;
+  gap: var(--space-2);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-lg);
+}
+
+/* From 21:30 the door is the night's lead. It reads in ink, the selection
+   idiom, never coral: the page's one coral is "Open the map". */
+.lastOrdersDoorButton[data-late="true"] {
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
+  font-weight: 650;
+}
+
+@media (min-width: 641px) {
+  .lastOrdersDoorButton {
+    width: auto;
   }
 }

@@ -36,7 +36,7 @@ in the same commit.
 | `GET /api/cron/refresh-night-signals` | `15 5 * * *` | 06:15 / 05:15 | Exa sweep for PENDING Night Signal candidates + freshness stamp — never publishes; human review still gates the feed | 60s |
 | `GET /api/cron/moderate-social-posts` | `*/10 * * * *` | Every 10 minutes | Claim and moderate up to 20 queued Social posts; posts stay held until approval | 30s |
 | `GET /api/cron/moderate-social-interactions` | `*/10 * * * *` | Every 10 minutes | Claim and moderate up to 20 queued comments or quote posts; text stays held until approval | 30s |
-| `GET /api/cron/purge-pub-pal-turns` | `* * * * *` | Every minute | Delete expired Pub Pal tool turns (`pub_pal_tool_turns`), which keep the user's lines for two minutes after their last line | 30s |
+| `GET /api/cron/purge-pub-pal-turns` | `* * * * *` | Every minute | Delete expired Pub Pal tool turns (`pub_pal_tool_turns`), which keep the user's lines for two minutes after their last line. Migration 0202 runs the same delete in the database with pg_cron; this route stays as the backstop until `cron.job_run_details` shows that job succeeding ([proof](./proof/2026-10-30-pub-pal-purge-pg-cron/README.md)) | 30s |
 | `GET /api/cron/enrich-city-pubs` | `15 3 * * *` | 04:15 / 03:15 | Rotating official-page discovery for the night's primary UK city (`lib/searchProvider.server.ts` selects Exa or Tavily; `lib/tavilyPubEnrichment.server.ts` owns rotation, caps, and Bristol spillover) - structured observations to logs only; a function cannot commit repository files | 120s |
 | `GET /api/cron/reconcile-price-trust` | `*/10 * * * *` | Every 10 minutes | Retry the queued price-trust events and account credits that a community-price write could not record, then acknowledge each queue revision; the price itself is already saved | 30s |
 | `GET /api/cron/purge-social-media` | `20 4 * * *` | 05:20 / 04:20 | Delete up to 50 detached Social photos and up to 50 orphaned uploads; skips while `PUBMAX_SOCIAL_FRIENDS_LAUNCH` keeps Social rolled back | 30s |
@@ -179,7 +179,7 @@ The **full** generic What's-On ingest still cannot run inside a serverless cron:
   a committed file the **read-only serverless filesystem cannot write**.
 - The cron runs bounded replacements for those lanes and writes the rows to
   `whats_on_listings`. Quiz reads Question One's venue directory as JSON under
-  the `questionone-quiz-venues` row in `lib/harvest/sourcePolicy.ts`.
+  the `questionone-quiz-venues` row in `lib/harvest/sourceRegistry.ts`.
   The cron and the bundled-pack command share
   [`questionOneDirectory.mjs`](../scripts/whatson/questionOneDirectory.mjs),
   which owns pagination and the page limit. A failed or over-limit read keeps

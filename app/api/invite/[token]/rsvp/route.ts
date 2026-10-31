@@ -11,6 +11,8 @@ import { GUEST_DISPLAY_NAME_MAX, isRsvpStatus } from "@/lib/planInvite";
 import { resolveClassicInvitePlan } from "@/lib/planInviteResolve";
 import { PlanCrewFullError, RsvpCapExceededError, UnknownPlanError, rsvpStore } from "@/lib/planInviteRsvpStore";
 import { attachPlanMemberSession } from "@/lib/planMemberCapability";
+import { planCrewCommittedReceipt, type PlanCrewCommittedReceipt } from "@/lib/planCrewCommitted.server";
+import { planStateResult } from "@/lib/planStore";
 import { clientIp, hashActor, hashIp } from "@/lib/supabase";
 import { cleanText, readString } from "@/lib/textClean";
 
@@ -61,11 +63,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
       displayName,
       status,
     );
+    // A Going RSVP seats the guest in the crew, so the seat that crosses the
+    // crew-night threshold carries the same receipt the join does. A plan
+    // read that fails costs the beacon, never the RSVP.
+    let crewCommitted: PlanCrewCommittedReceipt | undefined;
+    if (membership) {
+      const state = await planStateResult(resolved.planId).catch(() => null);
+      crewCommitted = state?.ok ? planCrewCommittedReceipt(state.plan) : undefined;
+    }
     const response = jsonNoStore(
       {
         summary,
         isUpdate,
         ...(membership ?? {}),
+        ...(crewCommitted ? { crewCommitted } : {}),
       },
       { status: 200 },
     );

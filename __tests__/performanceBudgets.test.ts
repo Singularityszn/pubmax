@@ -23,6 +23,7 @@ import {
   type RouteBudget,
   type RouteMeasurement,
   type SampleRow,
+  formatBudgetHeadroomMarkdown,
 } from "@/lib/performanceBudgets";
 import { defined } from "@/__tests__/helpers/defined";
 
@@ -765,3 +766,31 @@ describe("the disjoint breach sets of 3ebac98ac", () => {
     expect(second.unmeasured.map((entry) => entry.metric)).toEqual(["lcpMs"]);
   });
 });
+
+describe("formatBudgetHeadroomMarkdown", () => {
+  const route = (path: string): RouteBudget => ({
+    path,
+    readySelector: "main",
+    why: "test",
+    serverRenderMs: 100,
+    jsDecodedKB: 200,
+    requests: 10,
+    lcpMs: 1000,
+  });
+
+  it("lists the fullest route first, as a share of each ceiling", () => {
+    const measured = new Map<string, RouteMeasurement>([
+      ["/calm", { serverRenderMs: 10, jsDecodedKB: 20, requests: 1, lcpMs: 100 }],
+      ["/tight", { serverRenderMs: 50, jsDecodedKB: 190, requests: 5, lcpMs: 500 }],
+    ]);
+    const lines = formatBudgetHeadroomMarkdown([route("/calm"), route("/tight")], measured).split("\n");
+    expect(lines[4]).toBe("| `/tight` | ▰▰▰▰▰▰▰▰▰▰ 95% | 50% | 95% | 50% | 50% |");
+    expect(lines[5]).toBe("| `/calm` | ▰▱▱▱▱▱▱▱▱▱ 10% | 10% | 10% | 10% | 10% |");
+  });
+
+  it("names a route the sweep never measured rather than calling it empty", () => {
+    const text = formatBudgetHeadroomMarkdown([route("/gone")], new Map());
+    expect(text).toContain("| `/gone` | not measured | not measured |");
+  });
+});
+

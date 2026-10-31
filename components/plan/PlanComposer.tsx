@@ -102,6 +102,7 @@ import {
   syncPlanIntakeAreaFromQuery,
 } from "@/lib/planComposerChipFill";
 import { writePlanCapability } from "@/lib/planSessionCapability";
+import { planReportLine, rememberPlanReportLine } from "@/lib/planReportLine";
 import { markPalRouteActivation } from "@/lib/pubPal";
 import { recordPlanHighIntentAction } from "@/lib/nativePushPrompt";
 import { clearPersistentPlanMutationKey, persistentPlanMutationKey } from "@/lib/planMutationKey";
@@ -1454,6 +1455,9 @@ function PlanComposerForm({
   // flips `heldVenueId` - and a second application would overwrite whatever
   // the drinker has typed since with the line the URL opened on.
   const appliedUrlAskRef = useRef<string | null>(null);
+  // The planner's report line for the route it last built, with the stops it
+  // was about, so the lock hands the plan card a line only for that route.
+  const generatedReportRef = useRef<{ line: string; venueIds: string } | null>(null);
   useLayoutEffect(() => {
     if (!canPersist) return;
     const fresh = describeAskFromLocation();
@@ -2221,6 +2225,7 @@ function PlanComposerForm({
         cultureOpener?: unknown;
         inferredContext?: NightContext;
         groundingProof?: unknown;
+        constraintReport?: unknown;
         operationKey?: unknown;
         anchored?: unknown;
         anchorVenueId?: unknown;
@@ -2250,6 +2255,10 @@ function PlanComposerForm({
       setStops(suggested);
       setRouteSorted(true);
       setCultureOpener(cleanCultureOpener(body.cultureOpener));
+      const reportLine = planReportLine(body.constraintReport);
+      generatedReportRef.current = reportLine
+        ? { line: reportLine, venueIds: suggested.map((stop) => stop.venueId).join(",") }
+        : null;
       const grounded = isGroundedGeneratedRoute(body, suggested);
       const generatedAnchor = generatedPlanAnchorFromResponse(body);
       const { reconciled, conciergeNote, routeStatus: generationStatus } = generatedRouteFeedback({
@@ -2421,6 +2430,7 @@ function PlanComposerForm({
       clearPlanIntakeDraft();
       clearPersistentPlanMutationKey("create", operationKey);
       haptic("plan-locked");
+      rememberLockedReportLine(planId, generatedReportRef.current, completeStops);
       router.push(`/plan/${planId}#share`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The plan could not be created.");
@@ -2931,4 +2941,17 @@ export default function PlanComposer() {
       canPersist={hydrated}
     />
   );
+}
+
+/**
+ * The report line rides to the card only when the locked stops are the ones
+ * the planner reported on; an edited route has no report.
+ */
+function rememberLockedReportLine(
+  planId: string,
+  generated: { line: string; venueIds: string } | null,
+  lockedStops: readonly { venueId: string }[],
+): void {
+  const sameRoute = generated !== null && generated.venueIds === lockedStops.map((stop) => stop.venueId).join(",");
+  rememberPlanReportLine(planId, sameRoute ? generated.line : null);
 }

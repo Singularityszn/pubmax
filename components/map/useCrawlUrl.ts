@@ -98,7 +98,7 @@ function writeCrawlUrl(encoded: string, preserveCrawlParam: boolean, preserveBee
 // Filter and plan keys from encodeCrawl, excluding selection and surface keys.
 const CRAWL_CONTEXT_PARAMS = [
   "mode", "style", "max", "stops", "win", "drops", "low",
-  "cocktails", "food", "q", "drink", "brand", "sub", "topshelf",
+  "cocktails", "food", "garden", "q", "drink", "brand", "sub", "topshelf",
   "zone", "pubs", "band", "alt", "crawl", "area",
 ] as const;
 

@@ -7,6 +7,7 @@ import type {
 } from "@/lib/plan";
 import type { NightContext } from "@/lib/nightPlanning";
 import type { OutOpenPlanMeetingPoint } from "@/lib/out";
+import type { OpenCrawlDetails } from "@/lib/openCrawl";
 
 const SOCIAL_CREW_ROLES = ["owner", "cohost", "member"] as const;
 export type SocialCrewRole = (typeof SOCIAL_CREW_ROLES)[number];
@@ -130,6 +131,11 @@ export type SocialCrewPageDTO = {
   owner: { memberId: string; handle: string };
   members: SocialCrewMemberDTO[];
   plan: SocialCrewPlanDTO;
+  /**
+   * An open crawl's capacity, meeting pub and the host's line (0208). Absent
+   * on a crew that is not open, null on an open crew that carries none.
+   */
+  openCrawl?: OpenCrawlDetails | null;
 };
 
 export type SocialCrewReadDTO = SocialCrewPreviewDTO | SocialCrewPageDTO;

@@ -69,10 +69,10 @@ disagreement.
 
 Three changes close it:
 
-1. **Price sources now live in `sourcePolicy` at all.** The table had no price
-   kind, which is how the two tables could disagree without anything noticing. A
-   `chain-menu-prices` kind now carries all three chains, each with its live
-   re-read recorded as evidence.
+1. **Price sources have a registered kind.** The original table had no price
+   kind, which let the two tables disagree without detection. The
+   [price-source rule](../rules/scripts-harvest-and-source-permission.md#a-price-source-is-fenced-like-every-other-source-and-the-narrower-table-binds)
+   owns the current registration and evidence contract.
 2. **`data/price_sources.json` marks both Nicholson's entries `permissible: false`**
    and says why. The rows are kept rather than deleted, because a source that
    vanishes is a gap nobody notices.
@@ -100,9 +100,9 @@ rules in `lib/harvest/chainMenuPrices.ts`.
 
 Three rules, and they are the design:
 
-1. **The source table decides, not the caller.** Pages come from
-   `sourcePolicy`, kind `chain-menu-prices`, allowed rows only. There is no
-   `--url` flag: a source absent from the table is not read at all.
+1. **The source table decides, not the caller.** The
+   [price-source rule](../rules/scripts-harvest-and-source-permission.md#a-price-source-is-fenced-like-every-other-source-and-the-narrower-table-binds)
+   owns page selection and the restriction on caller-supplied URLs.
 2. **Permission is re-asked live.** The table records a verdict and the day it
    was checked, but a host can change its mind between runs, so `robots.txt` is
    fetched again each run through `lib/harvest/robots.ts`, once per host, and an

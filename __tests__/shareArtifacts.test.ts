@@ -18,7 +18,7 @@ describe("buildPlanInviteShareText", () => {
   it("carries title, stop count and start clock", () => {
     expect(
       buildPlanInviteShareText({ title: "Friday in Soho", stopCount: 3, startClock: "19:00" }),
-    ).toBe("Friday in Soho · 3 stops · starts 19:00. Open the link and tap I'm in.");
+    ).toBe("Friday in Soho · 3 stops · starts 19:00. Open the link and tap Going.");
   });
 
   it("singularises one stop", () => {
@@ -29,7 +29,7 @@ describe("buildPlanInviteShareText", () => {
 
   it("omits the start clause when the start time is unknown — never invented", () => {
     const text = buildPlanInviteShareText({ title: "Friday in Soho", stopCount: 2, startClock: null });
-    expect(text).toBe("Friday in Soho · 2 stops. Open the link and tap I'm in.");
+    expect(text).toBe("Friday in Soho · 2 stops. Open the link and tap Going.");
     expect(text).not.toContain("starts");
   });
 
@@ -42,7 +42,7 @@ describe("buildPlanInviteShareText", () => {
         spendBand: { minGbp: 4.5, maxGbp: 6 },
       }),
     ).toBe(
-      "Friday in Soho · 3 stops · starts 19:00 · £4.50–£6.00 per pint. Open the link and tap I'm in.",
+      "Friday in Soho · 3 stops · starts 19:00 · £4.50–£6.00 per pint. Open the link and tap Going.",
     );
   });
 
@@ -59,7 +59,7 @@ describe("buildPlanInviteShareText", () => {
         startClock: "19:00",
         spendBand: planInviteSpendBandFromListedPrices([4.5, null, 6]),
       }),
-    ).toBe("Friday in Soho · 3 stops · starts 19:00. Open the link and tap I'm in.");
+    ).toBe("Friday in Soho · 3 stops · starts 19:00. Open the link and tap Going.");
   });
 });
 

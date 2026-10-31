@@ -3,7 +3,7 @@
 // service asks every client for a descriptive User-Agent, which this sends,
 // and is read one batch at a time, one second apart. Every read goes through
 // `wikidataSparqlRead` (scripts/lib/wikidataHistoryPack.mjs): the endpoint
-// comes from the `wikidata-query-service` row in lib/harvest/sourcePolicy.ts, a
+// comes from the `wikidata-query-service` row in lib/harvest/sourceRegistry.ts, a
 // redirect is refused, and a 429 or 5xx is retried a bounded number of times.
 //
 // What it does:

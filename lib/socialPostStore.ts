@@ -18,6 +18,7 @@ import { requireSupabaseAdmin, requiresSupabaseStore } from "@/lib/supabase";
 import { isMissingTableSchema, onMissingDurableWrite, selectStore } from "@/lib/storeBackend";
 import { moderationJobShouldRetry, moderationRetryBackoffMs } from "@/lib/moderationRetry";
 import { trustedSigningKey } from "@/lib/trustedSigningKey.server";
+import { socialRelationshipBetweenProfiles } from "@/lib/socialRelationships.server";
 import { signSocialPhotoObject } from "@/lib/socialPostMedia.server";
 import { socialMemoryBlockedProfiles, socialMemoryMutedProfiles } from "@/lib/socialBlockMemory";
 
@@ -44,9 +45,22 @@ type SocialPostFeedLane = "discover" | "nearby" | "following";
 type SocialPostFeedInput = {
   lane: SocialPostFeedLane;
   area?: string;
+  /**
+   * One normalised hashtag (`normalizeSocialHashtag`). Honoured on the
+   * Across-town lane only; the route refuses it anywhere else.
+   */
+  tag?: string | null;
   cursor?: string | null;
   limit?: number;
 };
+
+type SocialPostAuthorInput = {
+  cursor?: string | null;
+  limit?: number;
+};
+
+/** Whose posts a profile's Posts section reads. */
+type SocialPostAuthor = { profileId: string; handle: string };
 
 type SocialPostFeedPage = {
   posts: SocialPostDTO[];
@@ -120,9 +134,10 @@ export class SocialPostStoreError extends Error {
 }
 
 type RelationshipResolver = (actor: SocialPostActor) => Promise<SocialPostRelationships>;
+type CursorLane = SocialPostFeedLane | "author";
 type Cursor = {
   v: 1;
-  lane: SocialPostFeedLane;
+  lane: CursorLane;
   area: string | null;
   createdAt: string;
   id: string;
@@ -150,6 +165,20 @@ export type SocialPostStore = {
   listOwned(owner: SocialPostActor, limit: number): Promise<SocialPostDTO[]>;
   readServerProjection(id: string, viewer: SocialPostActor): Promise<SocialPostServerProjection | null>;
   feed(viewer: SocialPostActor, input: SocialPostFeedInput): Promise<SocialPostFeedPage>;
+  /**
+   * ONE AUTHOR'S POSTS, as this viewer may read them: the profile's Posts
+   * section. Anyone verified reads the public ones, a mutual follow also reads
+   * the friends ones, and the owner reads every visible post of their own,
+   * private and still-in-review included. A hidden-name post is the owner's
+   * alone here: listing it under the author's name would undo the choice.
+   * A block in either direction reads as an empty page. Mutes do not apply:
+   * opening somebody's profile is a direct read, not a lane.
+   */
+  authorFeed(
+    viewer: SocialPostActor,
+    author: SocialPostAuthor,
+    input: SocialPostAuthorInput,
+  ): Promise<SocialPostFeedPage>;
   processModerationQueue(
     adapter: SocialPostModerationAdapter,
     limit?: number,
@@ -246,7 +275,7 @@ function encodeCursor(cursor: Cursor, viewerProfileId: string): string {
 function decodeCursor(
   raw: string | null | undefined,
   viewer: SocialPostActor,
-  lane: SocialPostFeedLane,
+  lane: CursorLane,
   area: string | null,
 ): Cursor | null {
   if (!raw) return null;
@@ -343,14 +372,36 @@ async function defaultRelationships(actor: SocialPostActor): Promise<SocialPostR
   };
 }
 
+/** The Across-town tag filter: no tag admits every post. */
+function tagAllows(post: Pick<SocialPost, "hashtags">, tag: string | null | undefined): boolean {
+  return !tag || post.hashtags.includes(tag);
+}
+
+/** The author read's rule, in one place for both backends. */
+function authorAllows(
+  post: SocialPost,
+  viewer: SocialPostActor,
+  authorProfileId: string,
+  relationship: "self" | "mutual" | "not_mutual" | "blocked",
+): boolean {
+  if (post.authorProfileId !== authorProfileId || post.status !== "visible") return false;
+  if (relationship === "self") return post.authorProfileId === viewer.profileId;
+  if (relationship === "blocked") return false;
+  if (post.moderationState !== "approved" || post.nameHidden) return false;
+  if (post.visibility === "public") return true;
+  return post.visibility === "friends" && relationship === "mutual";
+}
+
 function feedAllows(
   post: SocialPost,
   viewer: SocialPostActor,
   relationships: SocialPostRelationships,
   lane: SocialPostFeedLane,
   area: string | null,
+  tag?: string | null,
 ): boolean {
   if (!canRead(post, viewer, relationships)) return false;
+  if (lane === "discover" && !tagAllows(post, tag)) return false;
   if (relationships.mutedProfileIds?.has(post.authorProfileId)) return false;
   if (lane === "discover") return post.visibility === "public";
   if (lane === "nearby") return post.visibility === "public" && post.area === area;
@@ -477,7 +528,7 @@ function makePage(
   }
   const cursor = decodeCursor(input.cursor, viewer, input.lane, area);
   const matches = rows
-    .filter((post) => feedAllows(post, viewer, relationships, input.lane, area))
+    .filter((post) => feedAllows(post, viewer, relationships, input.lane, area, input.tag))
     .filter((post) => isBefore(post, cursor))
     .sort(newest);
   const pageRows = matches.slice(0, limit);
@@ -637,6 +688,26 @@ export function createMemorySocialPostStore(options: {
       const graph = await relationships(viewer);
       return makePage(await dropWithdrawnHiddenNamePosts([...rows.values()], viewer), viewer, input, graph);
     },
+    async authorFeed(viewer, author, input) {
+      const limit = resolvedLimit(input.limit);
+      const cursor = decodeCursor(input.cursor, viewer, "author", author.profileId);
+      const graph = await relationships(viewer);
+      const relationship = viewer.profileId === author.profileId ? "self"
+        : graph.blockedProfileIds?.has(author.profileId) ? "blocked"
+          : graph.mutualProfileIds.has(author.profileId) ? "mutual" : "not_mutual";
+      const matches = [...rows.values()]
+        .filter((post) => authorAllows(post, viewer, author.profileId, relationship))
+        .filter((post) => isBefore(post, cursor))
+        .sort(newest);
+      const pageRows = matches.slice(0, limit);
+      const last = pageRows.at(-1);
+      return {
+        posts: pageRows.map((post) => projectedPost(post, viewer, graph)),
+        nextCursor: matches.length > limit && last
+          ? encodeCursor({ v: 1, lane: "author", area: author.profileId, createdAt: last.createdAt, id: last.id }, viewer.profileId)
+          : null,
+      };
+    },
     async applyFeatureRequestUpdate(id, status, staffResponse) {
       const post = rows.get(id);
       if (!post || post.status !== "visible" || post.kind !== "feature_request") {
@@ -762,6 +833,59 @@ async function durableOrMemory<T>(operation: () => Promise<T>, fallback: () => P
       fallback,
     });
   }
+}
+
+/** How many lane pages a tagged read scans before it hands back a cursor. */
+const TAG_SCAN_PAGES = 4;
+const TAG_SCAN_PAGE_SIZE = 51;
+
+/**
+ * THE ACROSS-TOWN LANE, FILTERED TO ONE TAG. The lane's own read
+ * (`read_social_post_feed`) decides who may see what; the tag only narrows
+ * what it returns. It scans at most TAG_SCAN_PAGES pages of the lane per
+ * request, so a rare tag costs a bounded read, and the cursor is always a
+ * row the lane really read, so the next page neither skips nor repeats.
+ */
+async function taggedDiscoverPage(
+  viewer: SocialPostActor,
+  tag: string,
+  cursor: Cursor | null,
+  limit: number,
+): Promise<SocialPostFeedPage> {
+  const matched: SocialPost[] = [];
+  let before = cursor ? { createdAt: cursor.createdAt, id: cursor.id } : null;
+  let exhausted = false;
+  for (let page = 0; page < TAG_SCAN_PAGES && matched.length < limit; page += 1) {
+    const { data, error } = await requireSupabaseAdmin().rpc("read_social_post_feed", {
+      p_viewer_profile_id: viewer.profileId,
+      p_lane: "discover",
+      p_area_slug: null,
+      p_before_created_at: before?.createdAt ?? null,
+      p_before_id: before?.id ?? null,
+      p_limit: TAG_SCAN_PAGE_SIZE,
+    });
+    if (error) throw error;
+    const rows: SocialPost[] = (data ?? []).map(socialPostFromRow);
+    for (const post of rows) {
+      before = { createdAt: post.createdAt, id: post.id };
+      if (tagAllows(post, tag)) matched.push(post);
+      if (matched.length === limit) break;
+    }
+    if (rows.length < TAG_SCAN_PAGE_SIZE && matched.length < limit) {
+      exhausted = true;
+      break;
+    }
+  }
+  const shown = await dropWithdrawnHiddenNamePosts(matched, viewer);
+  return {
+    posts: shown.map((post) => socialPostDTO(post, {
+      exactVenue: Boolean(post.venueId),
+      viewerProfileId: viewer.profileId,
+    })),
+    nextCursor: !exhausted && before
+      ? encodeCursor({ v: 1, lane: "discover", area: null, createdAt: before.createdAt, id: before.id }, viewer.profileId)
+      : null,
+  };
 }
 
 export const supabaseSocialPostStore: SocialPostStore = {
@@ -957,6 +1081,14 @@ export const supabaseSocialPostStore: SocialPostStore = {
     const area = input.area ?? null;
     if (input.lane === "nearby" && !area) throw new SocialPostStoreError("INVALID_CURSOR", "Choose an area for nearby posts.");
     const cursor = decodeCursor(input.cursor, viewer, input.lane, area);
+    const tag = input.lane === "discover" ? input.tag ?? null : null;
+    if (tag) {
+      return durableOrMemory(
+        () => taggedDiscoverPage(viewer, tag, cursor, limit),
+        () => memorySocialPostStore.feed(viewer, input),
+        false,
+      );
+    }
     return durableOrMemory(async () => {
       const { data, error } = await requireSupabaseAdmin().rpc("read_social_post_feed", {
         p_viewer_profile_id: viewer.profileId,
@@ -983,6 +1115,53 @@ export const supabaseSocialPostStore: SocialPostStore = {
           : null,
       };
     }, () => memorySocialPostStore.feed(viewer, input), false);
+  },
+  async authorFeed(viewer, author, input) {
+    const limit = resolvedLimit(input.limit);
+    const cursor = decodeCursor(input.cursor, viewer, "author", author.profileId);
+    return durableOrMemory(async () => {
+      const relationship = viewer.profileId === author.profileId
+        ? "self"
+        : await socialRelationshipBetweenProfiles(viewer.profileId, author.profileId);
+      if (relationship === "unavailable") throw new Error("Social relationship is unavailable.");
+      if (relationship === "blocked") return { posts: [], nextCursor: null };
+      let query = requireSupabaseAdmin()
+        .from("social_posts")
+        .select("*")
+        .eq("author_profile_id", author.profileId)
+        .eq("status", "visible");
+      if (relationship !== "self") {
+        query = query
+          .eq("moderation_state", "approved")
+          .in("visibility", relationship === "mutual" ? ["public", "friends"] : ["public"]);
+      }
+      if (cursor) {
+        query = query.or(
+          `created_at.lt."${cursor.createdAt}",and(created_at.eq."${cursor.createdAt}",id.lt.${cursor.id})`,
+        );
+      }
+      const { data, error } = await query
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .limit(limit + 1);
+      if (error) throw error;
+      const posts: SocialPost[] = (data ?? []).map(socialPostFromRow);
+      const pageRows = posts.slice(0, limit);
+      // The cursor is the last row READ, so a row the rule drops below (a
+      // hidden-name post) never makes the next page skip or repeat.
+      const last = pageRows.at(-1);
+      return {
+        posts: pageRows
+          .filter((post) => authorAllows(post, viewer, author.profileId, relationship))
+          .map((post) => socialPostDTO(post, {
+            exactVenue: relationship === "self" || relationship === "mutual" ? Boolean(post.venueId) : false,
+            viewerProfileId: viewer.profileId,
+          })),
+        nextCursor: posts.length > limit && last
+          ? encodeCursor({ v: 1, lane: "author", area: author.profileId, createdAt: last.createdAt, id: last.id }, viewer.profileId)
+          : null,
+      };
+    }, () => memorySocialPostStore.authorFeed(viewer, author, input), false);
   },
   async processModerationQueue(adapter, limit = 20) {
     return durableOrMemory(async () => {
@@ -1109,4 +1288,31 @@ export const supabaseSocialPostStore: SocialPostStore = {
 export function socialPostStore(): SocialPostStore {
   if (requiresSupabaseStore()) return supabaseSocialPostStore;
   return selectStore(memorySocialPostStore, supabaseSocialPostStore);
+}
+
+/**
+ * A card the server writes for its author on their say-so ("Tell your lot"):
+ * "@sam was at the Lamb", "@sam ranked the Lamb above the Harp". It is an
+ * ordinary post in every way that matters: mutuals only, carries the venue,
+ * starts `pending` in the same moderation queue, and its author edits or
+ * deletes it like any other. Only the words are the server's, so no tag, no
+ * photo, no hashtag and never a hidden name. The caller decides consent and
+ * verifies the actor; this writes exactly one post.
+ */
+export async function createSystemSocialPostCard(
+  actor: SocialPostActor,
+  card: { body: string; venueId: string },
+  store: SocialPostStore = socialPostStore(),
+): Promise<SocialPostDTO> {
+  return store.create(actor, {
+    kind: "standard",
+    visibility: "friends",
+    body: card.body,
+    area: null,
+    venueId: card.venueId,
+    hashtags: [],
+    commentPolicy: "friends",
+    photo: null,
+    nameHidden: false,
+  });
 }

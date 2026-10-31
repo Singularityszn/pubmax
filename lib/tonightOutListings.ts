@@ -518,7 +518,7 @@ export const TONIGHT_VENUE_INDEX_FAILED_LINE =
   "Couldn't confirm tonight's venues right now.";
 
 /** One lane's own account of why it is not carrying its share of the night. */
-export type TonightLaneReport = {
+type TonightLaneReport = {
   lane: "whats-on" | "out";
   line: string;
   /**
@@ -537,7 +537,7 @@ export type TonightLaneReport = {
  * ASKED speaks here too, because the quiet-night sentence beneath it would
  * otherwise claim an absence on a read that never ran.
  */
-export function tonightLaneReports(
+function tonightLaneReports(
   whatsOn: TonightWhatsOnStatus,
   out: TonightOutAnswer,
 ): TonightLaneReport[] {

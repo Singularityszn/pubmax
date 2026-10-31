@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
 import {
   isPlanActiveNow,
   readActivePlan,
   subscribeActivePlan,
 } from "@/lib/activePlan";
+import { planNextStopVenue } from "@/lib/activePlanRoute";
 import type { PlanState, PlanStopDTO } from "@/lib/plan";
+import type { Venue } from "@/lib/venues";
 
 // C2 — the map's view of "is a plan on tonight, and what are its stops". Reuses
 // the SAME client pointer (lib/activePlan) that drives the Night Mode shell card:
@@ -83,4 +85,34 @@ export function useActivePlanRoute(): PlanStopDTO[] {
   }, []);
 
   return stops;
+}
+
+const readStopIndex = (): number => readActivePlan()?.stopIndex ?? 0;
+const serverStopIndex = (): number => 0;
+
+/**
+ * Is the route on the map tonight's plan (not a crawl the reader is building),
+ * and the stop after its Night Mode cursor (`ActivePlanRef.stopIndex`, moved
+ * only by a tap), where the map Pal waits. The cursor is a plain read of the
+ * pointer: unlike useActivePlan it restores nothing on the server, and it is
+ * 0 on the server and first paint.
+ *
+ * Ownership comes from the presentation itself (`routeMappedActive` from
+ * useMapPlanPresentation), never from matching stops: a crawl the reader
+ * builds and maps owns the map even when its pubs are tonight's pubs.
+ */
+export function useActivePlanPalNextStop(
+  stops: readonly PlanStopDTO[],
+  activePlanRoute: readonly Venue[],
+  routeMappedActive: boolean,
+  venueById: ReadonlyMap<string, Venue>,
+): { routeIsActivePlan: boolean; palNextStop: { venueId: string; name: string } | null } {
+  const stopIndex = useSyncExternalStore(subscribeActivePlan, readStopIndex, serverStopIndex);
+  const routeIsActivePlan = !routeMappedActive && activePlanRoute.length > 1;
+  const palNextStop = useMemo(() => {
+    if (!routeIsActivePlan) return null;
+    const next = planNextStopVenue(stops, stopIndex, venueById);
+    return next ? { venueId: next.id, name: next.name } : null;
+  }, [routeIsActivePlan, stops, stopIndex, venueById]);
+  return { routeIsActivePlan, palNextStop };
 }

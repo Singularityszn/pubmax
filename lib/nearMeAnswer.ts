@@ -1,3 +1,4 @@
+import { formatGbp } from "@/lib/formatGbp";
 import { haversineKm } from "@/lib/haversine";
 import { WALK_KMH } from "@/lib/routeLegs";
 import { isPublicRankablePub } from "@/lib/venueKindFilters";
@@ -132,6 +133,12 @@ export type NearMeAnswer = {
   radiusKm: number;
   /** How many priced pubs sit inside the walkable ring (for honest copy). */
   qualifyingWithinWalk: number;
+  /**
+   * The nearest priced pub inside the walkable ring, whatever its price: the
+   * pub a reader would walk into without the answer. Null outside the
+   * "walkable" scope, where the cards are already the nearest ones.
+   */
+  nearest: NearMeCard | null;
 };
 
 export type RankNearMeOptions = {
@@ -203,6 +210,7 @@ export function rankNearMe(
       scope: "walkable",
       radiusKm: walkRadius,
       qualifyingWithinWalk: walkable.length,
+      nearest: walkable[0] ? toCard(walkable[0]) : null,
     };
   }
 
@@ -211,7 +219,7 @@ export function rankNearMe(
   const widened = measured.filter((entry) => entry.km <= wideRadius);
   const pool = widened.length > 0 ? widened : measured;
   if (pool.length === 0) {
-    return { cards: [], scope: "none", radiusKm: wideRadius, qualifyingWithinWalk: 0 };
+    return { cards: [], scope: "none", radiusKm: wideRadius, qualifyingWithinWalk: 0, nearest: null };
   }
   const nearest = pool.slice(0, max);
   const cards = nearest.map(toCard).sort(byPriceThenDistance);
@@ -221,7 +229,40 @@ export function rankNearMe(
     scope: "widened",
     radiusKm: radiusKm > 0 ? radiusKm : wideRadius,
     qualifyingWithinWalk: walkable.length,
+    nearest: null,
   };
+}
+
+/** Under this gap a saving line is noise, not a reason to walk further. */
+export const MIN_NEAR_SAVING_GBP = 0.1;
+
+/**
+ * The saving the first answer is worth, in pounds, against the pub on the
+ * reader's doorstep: "The Lamb is £1.10 a pint less than The Crown, the
+ * nearest pub with a listed price (£6.20, 0.2 km)." It names both pubs, so the line
+ * stands on its own above the list.
+ *
+ * THREE RULES, the same ones lib/pintSavings.ts keeps for the landing.
+ * (1) TWO LISTED PRICES, NEVER A GUESS. Both figures are a pub's cheapest
+ *     listed pint, and the line prints the doorstep pub's own figure, so the
+ *     reader can check the sum.
+ * (2) PER PINT ONLY. We do not know how many pints they drink, so no total.
+ * (3) SILENT WHEN THERE IS NOTHING TO SAY. No line when the nearest pub IS
+ *     the answer, when it is no dearer, or when the gap is under 10p.
+ *
+ * Only a reader's own fix earns the line: "nearest" from a fallback centre is
+ * a doorstep nobody is standing on, so callers pass `nearest` only there.
+ */
+export function nearSavingLine(cards: readonly NearMeCard[], nearest: NearMeCard | null): string | null {
+  const top = cards[0];
+  if (!top || !nearest || nearest.id === top.id) return null;
+  const gap = Math.round((nearest.cheapestPrice - top.cheapestPrice) * 100) / 100;
+  if (!(gap >= MIN_NEAR_SAVING_GBP)) return null;
+  // The doorstep pub is often not one of the cards, so its price rides in the
+  // line: the reader can check the sum without opening anything.
+  const where = formatNearDistance(nearest.distanceKm);
+  const detail = [formatGbp(nearest.cheapestPrice), where].filter(Boolean).join(", ");
+  return `${top.name} is ${formatGbp(gap)} a pint less than ${nearest.name}, the nearest pub with a listed price (${detail}).`;
 }
 
 /**
@@ -291,4 +332,92 @@ export function boroughsWithPrices(venues: PricedPoint[]): string[] {
     if (qualifies(point) && point.borough.trim()) seen.add(point.borough.trim());
   }
   return [...seen].sort((a, b) => a.localeCompare(b));
+}
+
+// ---------------------------------------------------------------------------
+// The Guinness lane (launch review B3): one line under the answer naming the
+// cheapest LISTED Guinness within a 15 minute walk of the same centre the
+// answer ranked from.
+//
+// The figure is the venue's own Guinness row, chosen the way /drink/guinness
+// chooses it (lib/drinkBrandLanding.ts#drinkBrandCandidateForVenue), never a
+// pint lane average and never a pour rating. The server hands the rows over
+// as compact tuples (lib/nearGuinness.server.ts); this half is pure.
+
+/** The walk the Guinness line answers inside, in whole minutes. */
+export const NEAR_GUINNESS_WALK_MINUTES = 15;
+
+/** Where the Guinness line links: the governed brand page. */
+export const NEAR_GUINNESS_HREF = "/drink/guinness" as const;
+
+/**
+ * One venue's listed Guinness: [venue id, price in pounds, the day the row
+ * was last read as `YYYY-MM-DD`, or null when the row records no read].
+ */
+export type NearGuinnessPrice = readonly [venueId: string, priceGbp: number, observedOn: string | null];
+
+export type NearGuinnessAnswer = {
+  id: string;
+  name: string;
+  priceGbp: number;
+  observedOn: string | null;
+  walkMinutes: number;
+};
+
+/**
+ * The cheapest listed Guinness within a 15 minute walk of (lat, lng), drawn
+ * only from the venues the near answer already ranks. Null when none is in
+ * reach, so the surface prints nothing rather than "Unknown".
+ */
+export function cheapestGuinnessNearby(
+  lat: number,
+  lng: number,
+  venues: readonly PricedPoint[],
+  prices: readonly NearGuinnessPrice[],
+  maxWalkMinutes: number = NEAR_GUINNESS_WALK_MINUTES,
+): NearGuinnessAnswer | null {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || prices.length === 0) return null;
+  const byVenue = new Map<string, NearGuinnessPrice>();
+  for (const entry of prices) {
+    const [id, priceGbp] = entry;
+    if (typeof id !== "string" || !Number.isFinite(priceGbp) || priceGbp <= 0) continue;
+    const held = byVenue.get(id);
+    if (!held || priceGbp < held[1]) byVenue.set(id, entry);
+  }
+
+  let best: NearGuinnessAnswer | null = null;
+  let bestKm = Number.POSITIVE_INFINITY;
+  for (const point of venues) {
+    const entry = byVenue.get(point.id);
+    if (!entry || !qualifies(point)) continue;
+    const km = haversineKm([lng, lat], [point.lng, point.lat]);
+    const walkMinutes = walkMinutesFromKm(km);
+    if (walkMinutes > maxWalkMinutes) continue;
+    const priceGbp = entry[1];
+    if (!best || priceGbp < best.priceGbp || (priceGbp === best.priceGbp && km < bestKm)) {
+      best = { id: point.id, name: point.name, priceGbp, observedOn: entry[2] ?? null, walkMinutes };
+      bestKm = km;
+    }
+  }
+  return best;
+}
+
+const LISTED_MONTH = new Intl.DateTimeFormat("en-GB", {
+  month: "long",
+  year: "numeric",
+  timeZone: "Europe/London",
+});
+
+/** "September 2026" for a `YYYY-MM-DD` read day, or null when it does not parse. */
+export function nearGuinnessListedMonth(observedOn: string | null): string | null {
+  if (!observedOn || !/^\d{4}-\d{2}-\d{2}/.test(observedOn)) return null;
+  const date = new Date(`${observedOn.slice(0, 10)}T12:00:00Z`);
+  return Number.isNaN(date.getTime()) ? null : LISTED_MONTH.format(date);
+}
+
+/** The line itself. The month says what the price is based on. */
+export function nearGuinnessLine(answer: NearGuinnessAnswer): string {
+  const month = nearGuinnessListedMonth(answer.observedOn);
+  const when = month ? `listed ${month}` : "listing date not recorded";
+  return `Cheapest Guinness within ${NEAR_GUINNESS_WALK_MINUTES} minutes: ${answer.name}, ${formatGbp(answer.priceGbp)}, ${when}`;
 }

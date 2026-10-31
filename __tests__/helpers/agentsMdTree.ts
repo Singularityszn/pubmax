@@ -20,12 +20,16 @@ import { AGENT_TOOLING_PATHS } from "@/lib/agentToolingPaths.mjs";
 const VENDORED = new Set(
   AGENT_TOOLING_PATHS.map((pattern) => pattern.split("/")[0]),
 );
+// `artifacts` is the gitignored scratch directory other tests write to and
+// delete from while this walk runs (pubPalPrivacyDeleteOnly's per-case dirs),
+// so walking it raced them: an entry listed by readdir was gone by the stat.
 const BUILD_OUTPUT = new Set([
   ".git",
   "node_modules",
   "coverage",
   "playwright-report",
   "test-results",
+  "artifacts",
 ]);
 
 function skipped(name: string): boolean {

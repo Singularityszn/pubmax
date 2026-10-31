@@ -1831,7 +1831,7 @@ describe("POST /api/plans/generate", () => {
   });
 
   it.each([
-    { query: "One vegan meal in Soho" },
+    { query: "One vegan meal under £10 in Soho" },
     { query: "One meal under 500 calories in Soho" },
     { query: "One pizza under £10 in Soho" },
     { query: "3 pubs" },
@@ -1872,8 +1872,6 @@ describe("POST /api/plans/generate", () => {
     "One pizza under £10 in Soho",
     "One kebab under 10 pounds in Soho",
     "Chips under 5 quid in Soho",
-    "One nut-free meal in Soho",
-    "One dairy free meal in Soho",
     "One dish under £10 in Soho",
     "Food under £10 in Soho",
     "One pizza under £10 per person in Soho",
@@ -1886,9 +1884,6 @@ describe("POST /api/plans/generate", () => {
     "One burger under £10 in Soho",
     "One pub in Soho with pizza priced under £10",
     "One pub in Soho with pizza in the evening under £10",
-    "One meal without nuts in Soho",
-    "One meal free of nuts in Soho",
-    "One meal free from nuts in Soho",
     "One pub in Soho with food priced under £10",
     "One pub in Soho with pizza under £10 and pints under £5",
     "One pub in Soho with a £10.50 burger",
@@ -1922,9 +1917,6 @@ describe("POST /api/plans/generate", () => {
   });
 
   it.each([
-    { foodNeeds: ["nut-free"] },
-    { foodNeeds: ["dairy-free"] },
-    { foodNeeds: ["allergy to sesame"] },
     { foodNeeds: ["under 500 calories"] },
     { foodNeeds: ["pizza under £10"] },
     { foodNeeds: ["kebab under 10 pounds"] },
@@ -1932,10 +1924,6 @@ describe("POST /api/plans/generate", () => {
     { foodNeeds: ["vegan meal under £10 under 500 calories"] },
     { foodNeeds: ["meal under 500kcal"] },
     { foodNeeds: ["meal under 500calories"] },
-    { foodNeeds: ["nut-free meal"] },
-    { foodNeeds: ["meal without nuts"] },
-    { foodNeeds: ["meal free of nuts"] },
-    { foodNeeds: ["meal free from nuts"] },
     { foodNeeds: ["burger under £10"] },
     { foodNeeds: ["pub with pizza priced under £10"] },
     { foodNeeds: ["pub with pizza in the evening under £10"] },
@@ -2391,6 +2379,56 @@ describe("POST /api/plans/generate", () => {
     expect(extensions.every((option: { detail: string; priceImpactPence: number | null }) =>
       option.priceImpactPence === null && option.detail.includes("drink price unavailable for this extension") && !option.detail.includes("pint"))).toBe(true);
     expect(body.missingContextEvidence).toContain("price_evidence");
+  });
+
+  // DIETARY WORDS DEGRADE, MEAL PRICES REFUSE (launch review, 30 Oct 2026). A
+  // dietary word used to refuse the whole plan. Now it plans, prefers pubs that
+  // publish a menu link, and says in one line that nobody checked the menu.
+  it.each([
+    ["vegan pubs in Clapham for 2", "We can't check vegan menus or allergens."],
+    ["halal food, 3 pubs in Clapham", "We can't check halal menus or allergens."],
+    ["gluten-free, 3 pubs in Clapham", "We can't check gluten-free menus or allergens."],
+    ["3 pubs in Clapham, one of us has a nut allergy", "We can't check nut-free menus or allergens."],
+    ["3 pubs in Clapham, food allergies in the group", "We can't check menus for allergies."],
+  ])("plans %s and warns once that the menu is unchecked", async (query, opening) => {
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({ query }),
+    }));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    const dietary = body.planningConfidence.warnings.filter((warning: string) => warning.startsWith("We can't check"));
+    expect(dietary).toHaveLength(1);
+    expect(dietary[0].startsWith(`${opening} `)).toBe(true);
+    expect(dietary[0]).toMatch(/(These stops publish a menu link\.|Some of these stops publish a menu link\.|Ask each pub before you order\.)/);
+  });
+
+  it("still refuses a meal price beside a dietary word", async () => {
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({ query: "One vegan pizza under £10 in Clapham" }),
+    }));
+    expect(response.status).toBe(422);
+    expect(await response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
+  });
+
+  it("plans a short walk between pubs and names a must-have it cannot meet", async () => {
+    const walk = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({ query: "short walk between pubs in Clapham" }),
+    }));
+    expect(walk.status).toBe(200);
+
+    const tight = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({ query: "short walk between pubs in Clapham, under £1 per person" }),
+    }));
+    expect(tight.status).toBe(422);
+    const body = await tight.json();
+    expect(body.code).toBe("GROUNDED_CONSTRAINTS_UNSATISFIED");
+    expect(body.error).toContain("£1");
+    expect(body.error).not.toMatch(/walk/i);
   });
 
   it.each([

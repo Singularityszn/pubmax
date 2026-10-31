@@ -1,6 +1,15 @@
 import { selectedDrinkPriceEvidenceForPrice } from "@/lib/planSelectedDrinkPriceEvidence";
 type PlanConstraintDisclosure = {
-  code: "safety" | "exclusions" | "exact_area" | "accessibility" | "budget_ceiling" | "opening_hours" | "transport_feasibility";
+  code:
+    | "safety"
+    | "exclusions"
+    | "exact_area"
+    | "accessibility"
+    | "budget_ceiling"
+    | "opening_hours"
+    | "transport_feasibility"
+    | "short_walks"
+    | "tube_stations";
   status: "satisfied" | "flagged";
   message: string;
 };

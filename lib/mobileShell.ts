@@ -5,6 +5,7 @@ import { parseDrinkCategoryParam } from "@/lib/drinkBrands";
 import { parseDrinkSubtypeParam } from "@/lib/drinkSubtypes";
 import type { SheetSnap } from "@/lib/sheetSnap";
 import { isNightAreaSlug, type NightAreaSlug } from "@/lib/nightAreaSlugs";
+import { appliedPintPriceCap } from "@/lib/pintPriceCaps";
 
 export type MapOverlay =
   | "none"
@@ -221,12 +222,16 @@ export function validateMobileMapFilters(value: unknown): Filters | null {
     ...(raw as Filters),
     // A session saved when a category was still lensable must not restore it as
     // an invisible filter: the picker could neither show nor clear it.
+    // A session saved before the caps were one set may hold any figure; it
+    // restores as the shared cap every control prints (lib/pintPriceCaps.ts).
+    maxPrice: appliedPintPriceCap(raw.maxPrice),
     drinkCategory: category ?? "",
     drinkSubtype: subtype?.id ?? "",
     topShelfOnly: raw.topShelfOnly === true && Boolean(category),
     // Open-now post-dates older sessions; upgrade missing to off rather than
     // discarding the whole saved map.
     openNow: raw.openNow === true,
+    lastOrders: raw.lastOrders === true,
     requireOutdoorSeating: raw.requireOutdoorSeating === true,
   };
 }

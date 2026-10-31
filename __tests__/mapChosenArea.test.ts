@@ -11,6 +11,7 @@ import {
   writeMapChosenArea,
   type MapChosenArea,
 } from "@/lib/mapChosenArea";
+import { explicitMapIntent } from "@/lib/explicitMapIntent";
 import { LOCALITY_FLY_ZOOM } from "@/lib/mapSearchSuggest";
 
 function makeMemoryStorage(): Storage {
@@ -240,6 +241,18 @@ describe("resolveMapChosenAreaRestore", () => {
     hasRestoredViewport: false,
     venueCount: 40,
   };
+
+  // /gardens lands on /map?garden=1. That link owns the camera, so neither a
+  // remembered named area nor a remembered Near me may move it.
+  it("leaves the camera to a /gardens arrival (?garden=1)", () => {
+    const explicitArrivalIntent = explicitMapIntent({
+      search: "?garden=1", planningIntent: null, restoredMobileSession: null,
+    });
+    expect(explicitArrivalIntent).toBe(true);
+    expect(resolveMapChosenAreaRestore({ ...base, explicitArrivalIntent })).toEqual({ action: "skip" });
+    expect(resolveMapChosenAreaRestore({ ...base, stored: NEAR_ME, explicitArrivalIntent }))
+      .toEqual({ action: "skip" });
+  });
 
   it("restores the remembered area on a clean arrival", () => {
     expect(resolveMapChosenAreaRestore(base)).toEqual({

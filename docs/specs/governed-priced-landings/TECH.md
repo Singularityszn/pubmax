@@ -79,10 +79,11 @@ no such pub. It is declared as its own runtime data pack
 
 - `app/drink/[slug]/{page,opengraph-image}.tsx`
 - `app/area/[slug]/drink/[brand]/{page,opengraph-image}.tsx`
+- `app/area/[slug]/page.tsx`
 
-Both declare `dynamicParams = false`. The [document caching contract](../../rules/app-proxy-csp-caching-and-file-tracing.md#only-the-listed-documents-are-exempt-from-the-nonce-and-the-two-lists-are-the-fence)
+All three declare `dynamicParams = false`. The [document caching contract](../../rules/app-proxy-csp-caching-and-file-tracing.md#only-the-listed-documents-are-exempt-from-the-nonce-and-the-two-lists-are-the-fence)
 owns their prerendering and revalidation policy. The area-root redirect follows
-the [product contract](PRODUCT.md#held-areaarea).
+the [product contract](PRODUCT.md#the-area-root-areaarea).
 
 Each OG route carries `loadOgFonts()` and `OG_CACHE_HEADERS`, and
 `notFound()`s an unpublished slug rather than answering a 200 branded card. The
@@ -108,7 +109,7 @@ of the window and names the file and fields to move forward.
 | Shared floors, order, publisher, count label, JSON-LD | `__tests__/drinkBrandLanding.test.ts`, `__tests__/drinkBrandAreaLanding.test.ts` |
 | The landing card's link, and the map arrival a published page opens | `__tests__/landingDrinkPageCoverage.test.ts` |
 | Route, metadata, 404, destinations, OG card | `__tests__/drinkBrandLandingPage.test.ts`, `__tests__/drinkBrandAreaLandingPage.test.ts` |
-| Exactly the governed URL set, and no `/area/{slug}` | `__tests__/sitemap.test.ts` |
+| Exactly the governed URL set, and `/area/{slug}` only for an area on the floor | `__tests__/sitemap.test.ts`, `__tests__/areaLanding.test.tsx` |
 | Dataset reaches every reader function | `__tests__/venueIndexTracing.test.ts` |
 | Review renewal alarm | `__tests__/nightAreaReviewRenewal.test.ts` |
 | Rendered geometry, focus, both themes, exact hrefs | `e2e/drink-brand-landing.spec.ts`, `e2e/drink-brand-area-landing.spec.ts` |

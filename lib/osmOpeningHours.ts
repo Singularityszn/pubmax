@@ -62,7 +62,8 @@ function parseTimeWindows(raw: string): { opens: string; closes: string }[] {
   return windows;
 }
 
-function splitHourRules(input: string): string[] {
+/** One OSM opening_hours string split into its rules, as this reader splits it. */
+export function splitHourRules(input: string): string[] {
   const rules: string[] = [];
   for (const semi of input.split(/\s*;\s*/)) {
     const chunk = semi.trim();

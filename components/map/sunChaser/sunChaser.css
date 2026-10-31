@@ -1,0 +1,28 @@
+/* Sun Chaser: the chip, the time scrubber and the pub sheet line. Launch
+   tokens only (docs/DESIGN_SYSTEM.md). Nothing here moves, so reduced motion
+   needs no override. */
+.sunChaserControls { display: grid; gap: 8px; }
+.sunChaserChip { display: inline-flex; align-items: center; gap: 8px; justify-self: start; }
+.sunChaserChipDot { box-sizing: border-box; width: 12px; height: 12px; border: 2px solid var(--ink); border-radius: 50%; background: var(--amber); flex: none; }
+/* The padding and the matching negative margin are always there, so the
+   panel that appears mid-drag (below) never moves the slider under a thumb. */
+.sunChaserScrubber { display: grid; gap: 4px; margin: 0 -12px; padding: 8px 12px; border: 1px solid transparent; border-radius: var(--control-radius); color: var(--ink); font-size: var(--text-xs); }
+.sunChaserScrubber strong { font-variant-numeric: tabular-nums; }
+.sunChaserScrubber input[type="range"] { width: 100%; min-height: var(--control-height); margin: 0; accent-color: var(--ink); }
+.sunChaserScrubber input[type="range"]:focus-visible { outline: 2px solid var(--brass-bright); outline-offset: 2px; }
+.sunChaserControls .sunChaserStatus { color: var(--ink); }
+.sunChaserVenueLine { margin: 0; color: var(--ink-soft); font-size: var(--text-xs); line-height: 1.5; }
+.sunChaserVenueLine strong { color: var(--ink); font-weight: 600; }
+.sunChaserVenueLine[data-sun-state="sun"] strong::before { content: ""; display: inline-block; box-sizing: border-box; width: 10px; height: 10px; margin-right: 6px; border: 1.5px solid var(--ink); border-radius: 50%; background: var(--amber); vertical-align: 0; }
+
+/* While a thumb holds the slider on a phone, the Filters sheet and its scrim
+   step aside so the map and its sun dots show through; only the slider row
+   stays, on its own panel. visibility keeps the layout, so nothing under the
+   thumb moves, and the sheet returns the moment the thumb lifts
+   (SunChaserPanel.tsx). Nothing animates, so reduced motion needs nothing. */
+html[data-sun-scrubbing] .mobileSheetPortal[data-sheet-kind="filters"] { visibility: hidden; }
+html[data-sun-scrubbing] .mobileSheetPortal[data-sheet-kind="filters"] .sunChaserScrubber {
+  visibility: visible;
+  border-color: var(--line);
+  background: var(--panel);
+}

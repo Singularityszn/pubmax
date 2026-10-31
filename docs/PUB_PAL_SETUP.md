@@ -7,6 +7,24 @@ script has run. [ADR 0014](adr/0014-night-os-ask-agent.md) owns the deterministi
 menu and price routing that precedes provider selection.
 Map Ask still answers keylessly via `/api/ask`.
 
+## Typed chat on Claude
+
+Typed chat can run on Claude instead of the ElevenLabs agent. Voice stays on
+ElevenLabs.
+
+1. Make an API key in the Claude Console. Set a monthly spend limit there.
+2. Set `ANTHROPIC_API_KEY` on the deployment (server-only).
+3. Optional: set `PUB_PAL_CLAUDE_MODEL`. The default is `claude-haiku-5-5`.
+
+When the key is set, `/api/pub-pal/chat` sends each typed ask to Claude
+(`lib/palClaudeChat.server.ts`). It needs a signed-in session and spends the
+same `pub-pal-chat` ceiling. The safety fence, the answers from records, the
+memories and the taste read run before Claude is asked, as they do for
+ElevenLabs. Claude uses the same tools (`lib/pubPalToolCatalog.mjs`) and the
+same prompt rules (`lib/palVoicePrompt.mjs`, without the spoken parts). Our
+server runs each tool itself, so no webhook is involved. To go back to
+ElevenLabs for typed chat, remove the key.
+
 Nothing here changes what the Pal may SAY. Text and voice run the same
 source-backed tool registry (ADR 0014) and the same propose-then-confirm rule
 (ADR 0006).
