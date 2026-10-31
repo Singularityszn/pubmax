@@ -189,10 +189,43 @@ test("keyboard Moment activation keeps map context in a new tab", async ({ page 
   const sourceUrl = page.url();
   const sourceReturnTo = new URL(sourceUrl).pathname + new URL(sourceUrl).search;
   await share.focus();
+  const activationKey = process.platform === "darwin" ? "Meta+Enter" : "Control+Enter";
+  const beforeActivation = await page.evaluate(() => {
+    const matches = document.querySelectorAll<HTMLAnchorElement>(
+      'a.siteNavMoment[aria-label="Share a Moment"]',
+    );
+    const anchor = matches.length === 1 ? matches[0] : null;
+    const active = document.activeElement;
+    return {
+      targetIdentity: anchor ? "unique-source-selector" : "UNKNOWN",
+      matchingAnchors: matches.length,
+      focused: anchor ? active === anchor : null,
+      activeElement: active ? {
+        tag: active.tagName,
+        id: active.id,
+        role: active.getAttribute("role"),
+        ariaLabel: active.getAttribute("aria-label"),
+      } : null,
+      anchor: anchor ? {
+        href: anchor.getAttribute("href"),
+        absoluteHref: anchor.href,
+        target: anchor.getAttribute("target"),
+        rel: anchor.getAttribute("rel"),
+      } : null,
+      openerUrl: window.location.href,
+    };
+  }).catch(() => ({ sampleUnavailable: true }));
   const [popup] = await Promise.all([
     page.waitForEvent("popup"),
-    share.press(process.platform === "darwin" ? "Meta+Enter" : "Control+Enter"),
-  ]);
+    share.press(activationKey),
+  ]).catch((error: unknown) => {
+    console.error("UX_KEYBOARD_MOMENT_POPUP_FAILURE", JSON.stringify({
+      requestedKey: activationKey,
+      beforeActivation,
+      openerUrlAfterFailure: page.url(),
+    }));
+    throw error;
+  });
   try {
     await expect(popup).toHaveURL(/\/moment\?/);
     expect(new URL(popup.url()).searchParams.get("returnTo")).toBe(sourceReturnTo);
