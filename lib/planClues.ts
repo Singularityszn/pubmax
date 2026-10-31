@@ -57,7 +57,7 @@ export const PLAN_CLUE_CATALOGUE: readonly PlanClueDefinition[] = [
 ];
 
 /** A geometric proximity limit, never a detour distance or an access promise. */
-export const PLAN_CLUE_MAX_PATH_DISTANCE_METRES = 80;
+const PLAN_CLUE_MAX_PATH_DISTANCE_METRES = 80;
 const MAX_PLAN_CLUES = 3;
 
 export type PlanClue = PlanClueDefinition & {

@@ -130,6 +130,8 @@ const STORE_INVENTORY: Record<string, StoreRow> = {
     reason: "Consent, block and ownership checks branch per write beside the seam.",
   },
   "lib/planCollaborationStore.ts": { class: "policy-heavy", selector: "selectStore" },
+  "lib/planBeaconStore.ts": { class: "policy-heavy", selector: "selectStore" },
+  "lib/planPresentationStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/planGroupPrefsStore.ts": { class: "plain-dual-backend", selector: "selectStore" },
   "lib/planInviteRsvpStore.ts": { class: "plain-dual-backend", selector: "selectStore" },
   "lib/planStore.ts": {

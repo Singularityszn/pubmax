@@ -5,7 +5,7 @@ import type { Route } from "next";
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent, type RefObject } from "react";
 import { createPortal } from "react-dom";
 
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { PLAN_BEACON_NOTE_MAX, PLAN_BEACON_SYMBOLS, type PlanBeacon, type PlanBeaconSymbol, type PlanBeaconView } from "@/lib/planBeacon";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";

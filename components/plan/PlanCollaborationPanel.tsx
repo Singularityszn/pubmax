@@ -253,6 +253,7 @@ function PlanCollaborationContent({ planId, memberToken, isHost, draftStops, rou
       const body = await response.json();
       if (!response.ok) throw new Error(errorMessageFrom(body, decision ? "The route was not changed." : "Could not record your vote."));
       proposalMutationKeys.current.delete(scope);
+      if (operation === "accepted") trackEvent("planned_night_action", { type: "swapped" });
       announce(decision ? "decision" : "vote");
       setStatus(decision ? `Proposal ${operation}.` : "Your vote is in.");
       await refresh();

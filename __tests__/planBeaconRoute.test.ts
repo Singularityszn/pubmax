@@ -132,9 +132,14 @@ describe("Find our table through the private plan route", () => {
   it("does not attach a previous arrival to a replaced route", async () => {
     const { id, host, arrivalId } = await night();
     await PUT(request(id, host, "PUT", { symbol: "star", note: "Upstairs", expectedRouteRevision: 1, expectedArrivalId: arrivalId }), context(id));
-    const replacement = await memoryPlanStore.update(id, host, {
+    const forbidden = await memoryPlanStore.update(id, host, {
       expectedRouteRevision: 1,
       stops: [{ venueId: "venue-replacement", venueName: "Another Pub", position: 0 }, STOPS[1]!],
+    });
+    expect(forbidden).toMatchObject({ ok: false, error: "forbidden" });
+    const replacement = await memoryPlanStore.update(id, host, {
+      expectedRouteRevision: 1,
+      stops: [STOPS[0]!, { venueId: "venue-replacement", venueName: "Another Pub", position: 1 }],
     });
     expect(replacement.ok).toBe(true);
     expect(await (await GET(request(id, host), context(id))).json()).toMatchObject({ beacon: null, current: null });

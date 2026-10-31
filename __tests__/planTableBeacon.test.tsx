@@ -16,6 +16,7 @@ function answer(canEdit = false) {
 let root: Root;
 let container: HTMLDivElement;
 beforeEach(() => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);

@@ -212,7 +212,8 @@ describe("mutating API surface certification", () => {
     // 172: plus POST /api/plans/[id]/usual-drink, a member's own usual drink for
     // the round forecast on the plan card (review item B6).
     // 173: plus POST /api/board-reads, the board reader's proposal read (A4).
-    expect(mutationHandlers).toHaveLength(173);
+    // 176: private Plan beacon PUT/DELETE and mystery presentation PUT.
+    expect(mutationHandlers).toHaveLength(176);
     expect(certifiedMutationHandlers()).toEqual(
       mutationHandlers.map(mutationHandlerKey),
     );

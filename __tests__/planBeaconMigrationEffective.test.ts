@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { asBrowserRole, asServiceRole, postgresSkipReason, startMigratedPostgres, type PostgresSession } from "@/__tests__/helpers/postgres";
+import { asBrowserRole, asServiceRole, postgresSkipReason, startMigratedPostgres, type PostgresSession } from "./helpers/postgres";
 
 const skipReason = postgresSkipReason();
 const PLAN = "11111111-1111-4111-8111-111111111111";

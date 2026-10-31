@@ -171,7 +171,7 @@ describe("Night mode action permissions and recovery", () => {
     await settle(() => {
       expect(readActivePlan()?.stopIndex).toBe(0);
       expect(host.textContent).toContain("Stop 1 of 2");
-      expect(host.querySelector('[role="status"]')?.textContent).toMatch(
+      expect(host.querySelector('[role="status"][data-tone]')?.textContent).toMatch(
         status === 403 ? /permission|host/i : /rejected|full plan/i,
       );
     });

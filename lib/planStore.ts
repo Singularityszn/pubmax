@@ -11,6 +11,7 @@ import { selectStore } from "@/lib/storeBackend";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 import { isPlanStopCount } from "@/lib/planStopCount";
 import { cleanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+import { proposalPreservesNight } from "@/lib/slidingDoors";
 
 const PLANS = "plans";
 const STOPS = "plan_stops";
@@ -249,6 +250,13 @@ async function readCrewRows(id: string) {
     .order("joined_at").order("id");
 }
 
+async function readActionRows(id: string) {
+  const admin = requireSupabaseAdmin();
+  const read = await admin.from(ACTIONS).select("id,type,stop_position,ending,created_at,route_revision").eq("plan_id", id).order("created_at");
+  if (read.error?.code !== "42703") return read;
+  return admin.from(ACTIONS).select("id,type,stop_position,ending,created_at").eq("plan_id", id).order("created_at");
+}
+
 async function readSupabasePlanState(
   id: string,
   socialOwnerAccountId: string | null,
@@ -278,7 +286,7 @@ async function readSupabasePlanState(
   ] = await Promise.all([
     readStops(),
     readCrewRows(id),
-    admin.from(ACTIONS).select("id,type,stop_position,ending,created_at").eq("plan_id", id).order("created_at"),
+    readActionRows(id),
   ]);
   if (stopsError || membersError || actionsError) {
     throw new Error(stopsError?.message ?? membersError?.message ?? actionsError?.message);
@@ -296,6 +304,7 @@ async function readSupabasePlanState(
       stopPosition: row.stop_position as number | null,
       ending: row.ending as CrawlEnding | null,
       createdAt: String(row.created_at),
+      ...("route_revision" in row && typeof row.route_revision === "number" ? { routeRevision: row.route_revision } : {}),
     })),
     ending: (planRow as Record<string, unknown>).ending as CrawlEnding | null ?? null,
   };
@@ -839,6 +848,7 @@ export const memoryPlanStore: PlanStore = {
       if (plan.plan.anchorVenueId && (!update.groundedUpgrade || stops[0]?.venueId !== plan.plan.anchorVenueId)) {
         return { ok: false, error: "forbidden" };
       }
+      if (!proposalPreservesNight(publicState(plan), stops)) return { ok: false, error: "forbidden" };
       // One synchronous mutation keeps the demo store's route + revision
       // semantics equivalent to the production RPC transaction.
       const context = update.context ?? plan.context;
@@ -891,7 +901,7 @@ export const memoryPlanStore: PlanStore = {
       return replay.requestHash === requestHash ? { ok: true, plan: publicState(plan) } : { ok: false, error: "conflict" };
     }
     const actionId = planIdempotentUuid(`plan-action:${id}:${plan.crew[actorIndex]!.id}`, key);
-    plan.actions.push({ id: actionId, type: action.type, stopPosition: action.stopPosition ?? null, ending: action.ending ?? null, createdAt: stamp() });
+    plan.actions.push({ id: actionId, type: action.type, stopPosition: action.stopPosition ?? null, ending: action.ending ?? null, createdAt: stamp(), routeRevision: routeRevisionOf(plan.plan) });
     planMemory.actionRequests.set(requestId, { requestHash, actionId });
     if (plan.plan.status === "draft" || plan.plan.status === "ready") plan.plan.status = "active";
     return { ok: true, plan: publicState(plan) };
