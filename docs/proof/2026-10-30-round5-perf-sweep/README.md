@@ -19,7 +19,7 @@ edited.
 | Build ID | Not recorded. The worktree that held `.next-prod` was removed after the merge, so the `BUILD_ID` file is gone. |
 | Data | The committed tree at `b67983ad`; `data/freshness_registry.json` at that commit is the registry it read. |
 | Command | `PUBMAX_PERF_BUDGET=1 PUBMAX_E2E_KEYLESS=1 PW_SKIP_KEYLESS_WEBSERVER=1 npx playwright test e2e/performance-budget.spec.ts --project=chromium --workers=1`, against a production server on a private port, keyless |
-| Method | The `method` block in `perf/route-budgets.json`: Desktop Chrome, device scale 1, one warm-up, three measured runs, two resamples when a spread passes the tracked 12 percent width or the median sits within 10 percent of the ceiling. `e2e/helpers/perfMeasurement.ts` stamps the counting boundary from the page and leaves out resources that start after it. |
+| Method | The `method` block in `perf/route-budgets.json`: Desktop Chrome, device scale 1, one warm-up, three measured runs, two resamples when a route needs more evidence: either its samples disagree (the percentage spread past the tracked 12 percent width AND the span past the metric's absolute floor, 250 ms for LCP and 25 ms for server render) or the median sits within 10 percent of a ceiling (`routeNeedsMoreEvidence` in `lib/performanceBudgets.ts`). `e2e/helpers/perfMeasurement.ts` stamps the counting boundary from the page and leaves out resources that start after it. |
 | Playwright | 1.64.0, project `chromium` = `devices["Desktop Chrome"]` |
 | Browser | Chromium 153.0.8010.12, Playwright build 1243, linked as build 1248 because Playwright 1.64.0 asks for 1248. CI's macOS runners use the real 1248. |
 | Box | Linux cloud container, 4 cores, software WebGL, other builds running at the same time. The whole 55-row sweep took 34.3 minutes. |
@@ -58,7 +58,12 @@ samples span 156 ms against the 250 ms LCP floor. The two resamples (316 and
   the figures the two lowered ceilings rest on.
 - Timing is not proof from this box. `/board/venue-eltcmh` server render spread
   75 percent and LCP 34 percent; `/dog-of-the-week` spread 56 and 48 percent.
-  All are far past the 12 percent width the method tracks.
+  Those percentages alone are not a method breach: the spread rule also needs
+  the span past the metric's floor, and none of these did (the board's LCP
+  span is 144 ms and the dog's 156 ms against the 250 ms floor; the server
+  render spans are 18 and 15 ms against 25 ms). They say only that one loaded
+  box moved the clocks by a third to three quarters between samples, which is
+  why the timings are weak evidence and the macOS sweep is the oracle.
 - `/dog-of-the-week` recorded one LCP sample, 452 ms, above the 400 ms seeded
   ceiling. The median, 328 ms, sits 72 ms under it, so the run listed the row
   as undecided rather than as a breach. The ceiling stays at 400 ms. It was not
