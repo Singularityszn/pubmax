@@ -153,6 +153,20 @@ describe("timeline and words", () => {
     );
   });
 
+  it.each([true, false])("shows the exact unknown boundary while 12:30 is still shaded (isNow=%s)", (isNow) => {
+    const start = new Date("2026-10-31T12:00:00Z");
+    const unknownAt = Date.parse("2026-10-31T12:32:00Z");
+    const timeline = timelineFromStates((ms) => ms < unknownAt ? "shade" : "unknown", start);
+    // The specified 12:32 transition must not become 12:30 or 12:35 in the headline.
+    expect(segmentAt(timeline, new Date("2026-10-31T12:31:00Z"))?.state).toBe("shade");
+    expect(segmentAt(timeline, new Date(unknownAt))?.state).toBe("unknown");
+    expect(sunHeadline({ kind: "estimate", timeline }, new Date("2026-10-31T12:30:00Z"), isNow)).toBe(
+      isNow
+        ? "Garden likely in shade now. No sun estimate from 12:32."
+        : "Garden likely in shade at 12:30. No sun estimate from 12:32.",
+    );
+  });
+
   it("does not skip unknown heights to promise a later sunny stretch", () => {
     const start = new Date("2026-10-31T12:00:00Z");
     const timeline = timelineFromStates((ms) => {

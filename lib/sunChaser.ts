@@ -502,7 +502,7 @@ export function sunHeadline(estimate: SunEstimate, at: Date, isNow: boolean): st
     case "shade": {
       const change = timeline.segments.slice(index + 1).find((later) => later.state !== "shade");
       if (change?.state === "unknown") {
-        return `Garden likely in shade ${when}. No sun estimate from ${formatSunClock(change.start)}.`;
+        return `Garden likely in shade ${when}. No sun estimate from ${formatSunClock(change.start, "exact")}.`;
       }
       const sunLater = change?.state === "sun" ? change : null;
       return sunLater
