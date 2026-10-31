@@ -50,6 +50,18 @@ export function evaluate(results, labels) {
     const childCpuSeconds = rows.reduce((n, r) => n + (r.childCpuSeconds ?? 0), 0);
     const parserCpuSeconds = rows.reduce((n, r) => n + (r.parserCpuSeconds ?? 0), 0);
     const bytes = network.reduce((n, r) => n + r.bytes, 0);
+    const blockedReason = (e) => /refused|disallowed|unreadable|challenge|cooldown|terms-restrict/.test(e.reason);
+    const blockedResponse = (r) => [429, 503].includes(r.status) || Boolean(r.retryAfter);
+    const blockedPairs = unique(rows.flatMap((r) => [
+      ...r.events.filter(blockedReason).map((e) => key(r.venueId, e.url)),
+      ...r.requests.filter(blockedResponse).map((e) => key(r.venueId, e.url)),
+    ]));
+    const documentHashes = new Map();
+    for (const k of truePositiveKeys) {
+      const label = byKey.get(k);
+      const hash = pages.get(k)?.bodySha256 ?? label.bodySha256;
+      if (hash) { const group = key(label.venueId, hash); documentHashes.set(group, [...(documentHashes.get(group) ?? []), label.url]); }
+    }
     const result = { arm, venues: rows.length, requests, candidates: candidates.length,
       reviewedPages, unjudgedCandidates: unjudged.length, truePositives: truePositiveKeys.length,
       falsePositives: falsePositiveKeys.length, falseNegatives: misses.length,
@@ -61,6 +73,8 @@ export function evaluate(results, labels) {
       verifiedMenuUrlsDiscovered: truePositiveKeys.length,
       verifiedPdfUrlsDiscovered: truePositiveKeys.filter((k) => byKey.get(k).format === 'pdf').length,
       verifiedHtmlUrlsDiscovered: truePositiveKeys.filter((k) => byKey.get(k).format === 'html').length,
+      verifiedPdfDiscoveryVenues: unique(truePositiveKeys.filter((k) => byKey.get(k).format === 'pdf').map((k) => byKey.get(k).venueId)).length,
+      verifiedHtmlDiscoveryVenues: unique(truePositiveKeys.filter((k) => byKey.get(k).format === 'html').map((k) => byKey.get(k).venueId)).length,
       pdfUrlRecall: rate(truePositiveKeys.filter((k) => byKey.get(k).format === 'pdf').length, truth.filter((r) => r.format === 'pdf').length),
       htmlUrlRecall: rate(truePositiveKeys.filter((k) => byKey.get(k).format === 'html').length, truth.filter((r) => r.format === 'html').length),
       verifiedPdfMenus: menuKeys.filter((k) => byKey.get(k).format === 'pdf').length,
@@ -77,9 +91,11 @@ export function evaluate(results, labels) {
       nativeFetchErrors: rows.reduce((n, r) => n + (r.nativeFetchErrors?.length ?? 0), 0),
       httpFailures: network.filter((r) => r.status >= 400).length,
       redirects: network.filter((r) => r.status >= 300 && r.status < 400).length,
-      blockedEvents: events.filter((r) => /refused|disallowed|unreadable|challenge|cooldown/.test(r.reason)).length,
-      blockedVenueUrlPairs: unique(rows.flatMap((r) => r.events.filter((e) => /refused|disallowed|unreadable|challenge|cooldown|terms-restrict/.test(e.reason)).map((e) => key(r.venueId, e.url)))).length,
-      blockedVenues: rows.filter((r) => r.events.some((e) => /refused|disallowed|unreadable|challenge|cooldown|terms-restrict/.test(e.reason))).length,
+      blockedResponses: network.filter(blockedResponse).length,
+      duplicateDocumentUrlGroups: [...documentHashes].filter(([, urls]) => urls.length > 1).map(([id, urls]) => ({ venueId: id.split('\t')[0], bodySha256: id.split('\t')[1], urls })),
+      blockedEvents: events.filter((r) => /refused|disallowed|unreadable|challenge|cooldown|terms-restrict/.test(r.reason)).length,
+      blockedVenueUrlPairs: blockedPairs.length,
+      blockedVenues: rows.filter((r) => r.events.some(blockedReason) || r.requests.some(blockedResponse)).length,
       blockReasons: Object.fromEntries(unique(events.map((r) => r.reason)).sort().map((reason) => [reason, events.filter((r) => r.reason === reason).length])),
       wallSecondsSum: wallSeconds, nodeCpuSeconds, nativeChildCpuSeconds: childCpuSeconds, parserCpuSeconds,
       wallSecondsMedian: percentile(0.5), wallSecondsP95: percentile(0.95),
@@ -88,7 +104,10 @@ export function evaluate(results, labels) {
       nativeChildPeakRssBytes: Math.max(0, ...rows.map((r) => r.childPeakRssBytes ?? 0)),
       downloadBytes: bytes,
       missingUrls: misses.map((r) => ({ venueId: r.venueId, url: r.url, format: r.format,
-        reason: r.format === 'image' ? 'image-menu-excluded-by-protocol' : pages.has(key(r.venueId, r.url)) ? 'fetched-but-not-identified' : 'not-discovered',
+        reason: r.format === 'image' ? 'image-menu-excluded-by-protocol'
+          : !rows.find((v) => v.venueId === r.venueId)?.pages.some((p) => p.status === 200)
+            && rows.find((v) => v.venueId === r.venueId)?.events.some(blockedReason) ? 'access-unavailable-during-paired-run'
+            : pages.has(key(r.venueId, r.url)) ? 'fetched-but-not-identified' : 'not-discovered',
         fetched: pages.has(key(r.venueId, r.url)) })),
       falsePositiveUrls: falsePositiveKeys.map((k) => ({ venueId: discovered.get(k).venueId, url: discovered.get(k).url,
         fetched: pages.has(k), evidence: byKey.get(k).evidence ?? null })),

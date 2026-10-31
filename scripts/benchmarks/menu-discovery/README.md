@@ -102,8 +102,10 @@ This prevents native retries or cooldowns for the gateway's synthetic responses.
 The comparison therefore measures one-attempt crawling. It does not compare native retry strategies.
 
 The gateway removes executable scripts and remote resource attributes.
-The native crawler uses its local HTTP API with maxConcurrency=1, HTTP mode, no sitemap seeds, no adaptive early stop, and no persistent cache.
-The API binds only to 127.0.0.1. Each arm has a private state directory.
+The native crawler uses its local HTTP API with maxConcurrency=1 and HTTP mode.
+It disables sitemap seeds, adaptive early stop, and persistent caching.
+The API binds only to 127.0.0.1. Each B arm starts a fresh process and private state directory.
+The measured B profile includes startup and shutdown, even for refused seeds. It does not model a persistent shared service.
 The CLI conservative profile overrides worker counts, so the final benchmark uses the API to set concurrency explicitly.
 Both arms pay for the initial root and legal checks. B completes these checks before it starts the native loopback crawl.
 An explicit native timeout preserves its 30-second first-byte limit instead of the CLI conservative 12-second default.
@@ -164,3 +166,16 @@ The reference stage can run after a crawl with `node scripts/benchmarks/menu-dis
 Each reference venue has a separate 40-request maximum. These requests do not enter either arm's figures.
 Reference reads retain their actual timestamps and can predate a later corrected crawl.
 Do not retry a challenge or access refusal to complete the reference inventory.
+
+## Export a completed comparison
+
+After you save the annotations, use these commands. The export refuses an incomplete cohort or a failed archive audit.
+
+```sh
+node scripts/benchmarks/menu-discovery/audit.mjs /tmp/pubmax-menu-run
+node scripts/benchmarks/menu-discovery/sensitivity.mjs /tmp/pubmax-menu-run
+node scripts/benchmarks/menu-discovery/export.mjs /tmp/pubmax-menu-run /tmp/pubmax-menu-results
+```
+
+The export contains the report, gold labels, price facts, request records, page records, access decisions, and compute readings.
+The local review page stays beside the private response archive.

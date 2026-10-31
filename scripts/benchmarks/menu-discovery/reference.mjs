@@ -1,7 +1,7 @@
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { resolve, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Transport, canonical } from './transport.mjs';
+import { Transport, canonical, sha256 } from './transport.mjs';
 import { loadResults } from './evaluate.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -20,6 +20,7 @@ for (const venueId of [...new Set(targets.map((r) => r.venueId))]) {
   const venue = manifest.venues.find((v) => v.venueId === venueId);
   if (!venue) throw new Error(`Unknown reference venue ${venueId}`);
   const out = resolve(run, 'reference', venueId.replace('/', '-'));
+  if (existsSync(out)) throw new Error(`Reference evidence already exists. Preserve it and do not retry its refusals: ${out}`);
   mkdirSync(out, { recursive: true });
   const transport = new Transport({ venue, arm: 'REFERENCE', out, protocol: { ...protocol, requestBudgetPerArmPerVenue: 40 }, clocks });
   const start = performance.now();
@@ -47,3 +48,11 @@ for (const venueId of [...new Set(targets.map((r) => r.venueId))]) {
   console.log(JSON.stringify(summaries.at(-1)));
 }
 writeFileSync(resolve(run, 'reference-summary.json'), `${JSON.stringify(summaries, null, 2)}\n`);
+
+writeFileSync(resolve(run, 'reference-origin.json'), `${JSON.stringify({
+  sourceArchiveId: basename(run), crawlBaseCodeHead: meta.codeHead,
+  transportSha256: sha256(readFileSync(resolve(here, 'transport.mjs'))),
+  scope: 'Separate official-link reference requests, excluded from both paired arms.',
+  requestsCount: summaries.reduce((n, r) => n + r.networkRequests, 0),
+  timingNote: 'The reference reader retains observed host delays across venues and applies them after response completion.',
+}, null, 2)}\n`);

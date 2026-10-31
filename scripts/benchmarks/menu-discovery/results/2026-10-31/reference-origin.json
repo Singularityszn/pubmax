@@ -1,0 +1,8 @@
+{
+  "sourceArchiveId": "cohort-20261031",
+  "scope": "Separate official-link reference requests only. No excluded A/B response is copied into either final arm. The reference stage predates this corrected crawl and is outside both arms. Known challenged links are not retried.",
+  "transportSha256": "99c1ac77f316560d348a9888ad63f8e382d36f98d2c9a89686b84af9446d9bef",
+  "sourceCodeHead": "02412192fc57f0af5f6f791d0babfced8350e610",
+  "requestsCount": 22,
+  "timingNote": "This earlier reference reader applied at least 1.5 seconds between request starts. No longer published delay occurred in these three reference origins. The final paired crawler uses delays after response completion."
+}

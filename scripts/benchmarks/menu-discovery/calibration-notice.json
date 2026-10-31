@@ -58,21 +58,59 @@
       "archiveId": "cohort-20261031",
       "purpose": "Native gateway timeout calibration, excluded after ten arms recorded native fetch errors.",
       "excludedFromComparison": true,
-      "completedArmLogs": 123,
-      "partialArmDirectories": -3,
-      "recordedAttemptsInCompletedLogs": 681,
-      "attemptUpperBoundIncludingPartialArms": 645,
+      "completedArmLogs": 120,
+      "partialArmDirectories": 0,
+      "recordedAttemptsInCompletedLogs": 659,
+      "attemptUpperBoundIncludingPartialArms": 659,
       "knownPostDetectedTermsRequestsInCompletedLogs": 0
     },
     {
       "archiveId": "final-cohort-20261031",
-      "purpose": "Host-delay calibration. Excluded after two known robots refreshes did not retain a longer published delay between arms.",
+      "purpose": "Host-delay calibration. Excluded because robots refreshes did not retain longer published delays between arms. The recorded gap evidence follows.",
       "excludedFromComparison": true,
-      "completedArmLogs": 80,
-      "partialArmDirectories": 1,
-      "recordedAttemptsInCompletedLogs": 379,
-      "attemptUpperBoundIncludingPartialArms": 391,
-      "knownShortPublishedDelayGapsInCompletedLogs": 2
+      "completedArmLogs": 77,
+      "partialArmDirectories": 4,
+      "recordedAttemptsInCompletedLogs": 357,
+      "attemptUpperBoundIncludingPartialArms": 405,
+      "knownShortPublishedDelayGapsInCompletedLogs": 5,
+      "shortGapEvidence": [
+        {
+          "host": "www.crolandcocoffee.com",
+          "at": "2026-10-31T20:31:21.842Z",
+          "kind": "robots",
+          "observedGapMs": 1502.642,
+          "publishedDelayMs": 10000.0
+        },
+        {
+          "host": "www.ashburnham-arms.co.uk",
+          "at": "2026-10-31T20:33:43.278Z",
+          "kind": "robots",
+          "observedGapMs": 1501.791,
+          "publishedDelayMs": 10000.0
+        },
+        {
+          "host": "www.thegreengoddess.pub",
+          "at": "2026-10-31T20:31:59.105Z",
+          "kind": "robots",
+          "observedGapMs": 1503.08,
+          "publishedDelayMs": 10000.0
+        },
+        {
+          "host": "www.jdwetherspoon.com",
+          "at": "2026-10-31T20:32:26.897Z",
+          "kind": "robots",
+          "observedGapMs": 1500.438,
+          "publishedDelayMs": 10000.0
+        },
+        {
+          "host": "www.jdwetherspoon.com",
+          "at": "2026-10-31T20:33:08.769Z",
+          "kind": "robots",
+          "observedGapMs": 1502.301,
+          "publishedDelayMs": 10000.0
+        }
+      ]
     }
-  ]
+  ],
+  "countsExcludeSeparateReferenceReads": true
 }

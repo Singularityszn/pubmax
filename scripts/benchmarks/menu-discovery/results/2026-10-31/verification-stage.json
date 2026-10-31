@@ -1,0 +1,12 @@
+{
+  "commonPdfExtractionWallSeconds": 0.223834875,
+  "automatedCrawlThenCommonPdfExtractionSeconds": 594.656842292,
+  "offlineNodeCpuSeconds": 0.035832,
+  "offlineChildCpuSeconds": 0,
+  "offlineNodePeakRssBytes": 98107392,
+  "offlineChildPeakRssBytes": 18579456,
+  "offlineMeasuredComponentCostScenarioUsd": 5.652356355349224e-7,
+  "fullHumanVerifiedEndToEndSeconds": null,
+  "note": "The common offline reader includes reference-only PDFs. It is not charged to one arm. Native CPU readings can round below 0.01 seconds. Human review time and cost are unknown.",
+  "priceYieldMeaning": "Verified facts available in downloaded menus under a common offline reader and provisional source review. This is crawl supply, not production ingestion yield."
+}

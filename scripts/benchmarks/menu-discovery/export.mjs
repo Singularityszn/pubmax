@@ -18,6 +18,7 @@ mkdirSync(out, { recursive: true });
 const json = (name, value) => writeFileSync(resolve(out, name), `${JSON.stringify(value, null, 2)}\n`);
 const jsonl = (name, rows) => writeFileSync(resolve(out, name), rows.map((row) => JSON.stringify(row)).join('\n') + '\n');
 for (const name of ['comparison.json', 'audit.json', 'annotations.json', 'sensitivity.json']) copyFileSync(resolve(run, name), resolve(out, name));
+if (existsSync(resolve(run, 'reference-origin.json'))) copyFileSync(resolve(run, 'reference-origin.json'), resolve(out, 'reference-origin.json'));
 json('run.json', { ...meta, privateResponseArchiveRecordedLocally: true, responseArchivePublished: false,
   note: 'The recorded code head and runtime file hashes identify the measured crawler. Offline review and report files can change after the crawl. No application build or ingestion ran.' });
 jsonl('requests.jsonl', results.flatMap((arm) => arm.requests.map((request) => ({ venueId: arm.venueId, arm: arm.arm, ...request }))));
@@ -39,6 +40,7 @@ jsonl('price-records.jsonl', annotations.labels.flatMap((label) => (label.priceR
   primaryGold: primaryIds.has(label.venueId), humanApproved: false,
   suppliedByArms: results.filter((r) => r.venueId === label.venueId && r.pages.some((p) => p.url === label.url && p.status === 200 && p.bodySha256 === label.bodySha256)).map((r) => r.arm),
 }))));
+const referenceOrigin = existsSync(resolve(run, 'reference-origin.json')) ? JSON.parse(readFileSync(resolve(run, 'reference-origin.json'))) : null;
 const referenceRoot = resolve(run, 'reference');
 const referenceRows = existsSync(referenceRoot) ? readdirSync(referenceRoot).map((id) => JSON.parse(readFileSync(resolve(referenceRoot, id, 'result.json')))) : [];
 json('reference-summary.json', { excludedFromBothArms: true, source: 'Separate official-link reference reads. These responses can predate the final crawl.',
@@ -49,19 +51,19 @@ json('reference-summary.json', { excludedFromBothArms: true, source: 'Separate o
 });
 const fmt = (number, places = 2) => number == null ? 'Unknown' : Number(number.toFixed(places)).toLocaleString('en-GB');
 const percent = (number) => number == null ? 'Unknown' : `${fmt(number * 100, 1)}%`;
-const dollars = (number) => number == null ? 'Unknown' : `$${number.toFixed(5)}`;
+const dollars = (number) => number == null ? 'Unknown' : number > 0 && number < 0.00001 ? 'less than $0.00001' : `$${number.toFixed(5)}`;
 const a = comparison.summary.find((row) => row.arm === 'A');
 const b = comparison.summary.find((row) => row.arm === 'B');
 const fields = [
   ['Venues', 'venues'], ['Upstream request attempts', 'requests'], ['Verified menu URLs discovered', 'verifiedMenuUrlsDiscovered'],
   ['Verified menu URLs downloaded', 'verifiedMenusFetched'], ['Verified PDF URLs discovered', 'verifiedPdfUrlsDiscovered'],
   ['Verified HTML URLs discovered', 'verifiedHtmlUrlsDiscovered'], ['Verified PDF menus downloaded', 'verifiedPdfMenus'],
-  ['Verified HTML menus downloaded', 'verifiedHtmlMenus'], ['Judged false-positive URLs', 'falsePositives'],
+  ['Verified HTML menus downloaded', 'verifiedHtmlMenus'], ['Venues with a verified PDF URL, lower bound', 'verifiedPdfDiscoveryVenues'], ['Venues with a verified HTML URL, lower bound', 'verifiedHtmlDiscoveryVenues'], ['Judged false-positive URLs', 'falsePositives'],
   ['Missing reviewed gold URLs', 'falseNegatives'], ['Unjudged candidate URLs', 'unjudgedCandidates'],
   ['Relevant pages per 100 requests, lower bound', 'relevantPagesPer100RequestsLowerBound'],
   ['Verified price records', 'verifiedPriceRecords'], ['Verified price records per 100 requests, lower bound', 'verifiedPriceRecordsPer100RequestsLowerBound'],
   ['Native gateway fetch errors', 'nativeFetchErrors'], ['Transport failures', 'fetchFailures'], ['HTTP failures', 'httpFailures'], ['Redirect hops', 'redirects'],
-  ['Blocked venue and URL pairs', 'blockedVenueUrlPairs'], ['Sum of venue durations, seconds', 'wallSecondsSum'],
+  ['Rate-limit or unavailable responses', 'blockedResponses'], ['Blocked venue and URL pairs', 'blockedVenueUrlPairs'], ['Sum of venue durations, seconds', 'wallSecondsSum'],
   ['Median venue duration, seconds', 'wallSecondsMedian'], ['95th percentile venue duration, seconds', 'wallSecondsP95'],
   ['Node CPU seconds', 'nodeCpuSeconds'], ['Python parser CPU seconds', 'parserCpuSeconds'], ['Native child CPU seconds', 'nativeChildCpuSeconds'],
   ['Node peak RSS, bytes', 'nodePeakRssBytes'], ['Python peak RSS, bytes', 'parserPeakRssBytes'], ['PageSift peak RSS, bytes', 'nativeChildPeakRssBytes'],
@@ -71,10 +73,22 @@ const table = fields.map(([title, key]) => `| ${title} | ${fmt(a[key])} | ${fmt(
 const primary = comparison.primaryGoldSummary;
 const goldA = primary.find((r) => r.arm === 'A');
 const goldB = primary.find((r) => r.arm === 'B');
+const primaryTable = [['requests', 'Upstream attempts'], ['verifiedMenuUrlsDiscovered', 'Verified menu URLs discovered'], ['falsePositives', 'Judged false positives'], ['falseNegatives', 'Missing reviewed URLs'], ['unjudgedCandidates', 'Unjudged candidate URLs'], ['verifiedPriceRecords', 'Verified price records'], ['verifiedPriceRecordsPer100RequestsLowerBound', 'Price records per 100, lower bound']].map(([key, title]) => `| ${title} | ${fmt(goldA?.[key])} | ${fmt(goldB?.[key])} |`).join('\n');
+const oldShip = results.filter((r) => r.venueId === 'way/176677099');
+const shipPdf = (arm) => oldShip.find((r) => r.arm === arm)?.pages.filter((p) => p.format === 'pdf' && p.status === 200).length ?? 0;
 const examples = comparison.summary.flatMap((arm) => arm.falsePositiveUrls.slice(0, 3).map((row) => `- Arm ${arm.arm}: [${row.url}](${row.url}). ${row.evidence ?? 'The recorded reviewer classified this URL as not a menu.'}`));
-const misses = comparison.summary.flatMap((arm) => arm.missingUrls.map((row) => `- Arm ${arm.arm}: ${row.venueId}, [reviewed menu](${row.url}). ${row.fetched ? 'The arm fetched the page but did not identify it.' : 'The arm did not identify this reviewed menu URL.'}`));
+const misses = comparison.summary.flatMap((arm) => arm.missingUrls.map((row) => `- Arm ${arm.arm}: ${row.venueId}, [reviewed menu](${row.url}). Cause: ${row.reason}. ${row.fetched ? 'The arm fetched the page but did not identify it.' : 'The arm did not identify this reviewed menu URL.'}`));
 const extraction = JSON.parse(readFileSync(resolve(run, 'extracted-pdfs.json')));
-json('verification-stage.json', { commonPdfExtractionWallSeconds: extraction.wallSeconds, fullHumanVerifiedEndToEndSeconds: null, priceYieldMeaning: 'Verified facts available in downloaded menus under a common offline reader and provisional source review. This is crawl supply, not production ingestion yield.' });
+const offlineCpuSeconds = (extraction.nodeCpuSeconds ?? 0) + (extraction.childCpuSeconds ?? 0);
+const offlineMemoryGiB = ((extraction.nodePeakRssBytes ?? 0) + (extraction.childPeakRssBytes ?? 0)) / 1024 ** 3;
+const offlineCost = offlineCpuSeconds / 3600 * meta.protocol.costAssumptions.cpuHour + offlineMemoryGiB * extraction.wallSeconds / 3600 * meta.protocol.costAssumptions.memoryGiBHour;
+json('verification-stage.json', { commonPdfExtractionWallSeconds: extraction.wallSeconds,
+  automatedCrawlThenCommonPdfExtractionSeconds: meta.wallSeconds + extraction.wallSeconds,
+  offlineNodeCpuSeconds: extraction.nodeCpuSeconds, offlineChildCpuSeconds: extraction.childCpuSeconds,
+  offlineNodePeakRssBytes: extraction.nodePeakRssBytes, offlineChildPeakRssBytes: extraction.childPeakRssBytes,
+  offlineMeasuredComponentCostScenarioUsd: offlineCost, fullHumanVerifiedEndToEndSeconds: null,
+  note: 'The common offline reader includes reference-only PDFs. It is not charged to one arm. Native CPU readings can round below 0.01 seconds. Human review time and cost are unknown.',
+  priceYieldMeaning: 'Verified facts available in downloaded menus under a common offline reader and provisional source review. This is crawl supply, not production ingestion yield.' });
 const menuCount = annotations.labels.filter((l) => l.verdict === 'menu').length;
 const notMenuCount = annotations.labels.filter((l) => l.verdict === 'not-menu').length;
 const unresolvedCount = annotations.labels.filter((l) => l.verdict === 'unresolved').length;
@@ -84,6 +98,7 @@ Recorded on 31 October 2026. Recommendation: **reject production adoption of Pag
 Keep production ingestion unchanged. The benchmark provides a separate experiment and a review packet.
 
 PageSift's native relevance crawler does not establish a complete, verified yield advantage in this experiment.
+Quality counts cover a bounded source-reviewed inventory. They include one separate diagnostic venue.
 The gold labels remain provisional agent review. A human has not approved the reference inventory.
 Complete relevant-page and price-yield figures remain unknown where review is incomplete.
 The AGPL integration decision and repeat-run gate also remain open.
@@ -115,6 +130,10 @@ The archive audit checked ${audit.requests} attempts across all 120 arms and pas
 Verified figures below use the supplied annotations. Unreviewed results do not count as verified menus or prices.
 Discovery includes eligible menu links on captured pages. Downloads require a successful body fetch by that arm.
 The gold review can verify a linked document separately without adding a request to either arm.
+The separate reference stage made ${referenceRows.reduce((n, r) => n + r.networkRequests, 0)} requests outside both arms.
+${referenceOrigin?.timingNote ?? 'The reference timing metadata is unavailable.'}
+The read times and available source-code hash remain recorded.
+These reference reads are separate from the excluded A/B calibration results. Known challenged references were not retried.
 Price yield measures verified facts available in downloaded menus under a common offline reader.
 It does not measure production ingestion or a fully reviewed price inventory.
 
@@ -140,6 +159,14 @@ The annotation set currently contains ${menuCount} verified menu labels, ${notMe
 Those labels include a separate diagnostic sample outside the primary 12 venues.
 Primary-sample discovery recall is ${percent(goldA?.recall)} for A and ${percent(goldB?.recall)} for B.
 Primary-sample judged precision is ${percent(goldA?.precision)} for A and ${percent(goldB?.precision)} for B.
+
+| Primary 12-venue sample | A: breadth-first | B: PageSift 0.81.0 |
+| --- | ---: | ---: |
+${primaryTable}
+| PDF URL recall in the primary inventory | ${percent(goldA?.pdfUrlRecall)} | ${percent(goldB?.pdfUrlRecall)} |
+| HTML URL recall in the primary inventory | ${percent(goldA?.htmlUrlRecall)} | ${percent(goldB?.htmlUrlRecall)} |
+
+The adoption recall, precision, and price-yield gates use this predetermined primary sample.
 Both precision figures omit unjudged candidates. They are not complete-cohort precision estimates.
 The reference inventory is bounded by recorded reads and reviewed navigation. It does not establish full-site recall.
 Blocked primary venues stay unresolved. They do not become zero-menu venues.
@@ -151,6 +178,11 @@ Reference-only image evidence stays in the review packet and outside HTML and PD
 
 ## Missing URLs and false positives
 
+The live robots endpoint for The Jugged Hare returned HTTP 403 in both arms. Both arms stopped before reading its pub page.
+Eight earlier reference URLs therefore count as access misses. These misses do not demonstrate a relevance-ranking failure.
+Both profiles also exclude the three Bluecoats image menus. Their missing records state that protocol limit.
+The remaining missing-URL differences come from eligible discovery in this observation.
+
 ${misses.length ? misses.join('\n') : 'No missing URL appears in the currently verified inventory. This does not establish complete recall.'}
 
 These reviewed false positives illustrate the errors. The machine-readable file contains every judged false-positive URL.
@@ -158,7 +190,7 @@ These reviewed false positives illustrate the errors. The machine-readable file 
 ${examples.join('\n')}
 
 The Old Ship is a useful retrieval case.
-A downloaded six PDFs there. B downloaded no PDF and returned two native HTML documents.
+A downloaded ${shipPdf('A')} PDFs there. B downloaded ${shipPdf('B')} PDFs.
 The PDF set includes food, wine, and cocktail menus, alongside a cigar catalogue that does not qualify.
 An offline sensitivity check also extracted little main content from the original Old Ship HTML.
 This supports the extraction-failure explanation for this case, but it does not isolate the gateway's full effect on all websites.
@@ -168,6 +200,9 @@ Both arms use one common candidate filter. Their false positives do not establis
 ## Compute and estimated cost
 
 Node CPU and sampled RSS come from each venue worker.
+The same Node worker runs both arms sequentially. CPU uses per-arm deltas. RSS can include memory retained from the earlier arm.
+B starts and stops one private native API process per venue, including access-refused seeds. Its measurements include that overhead.
+A persistent shared PageSift service is outside this profile.
 Each Python parser reports its own CPU and peak RSS.
 The operating system's time tool measures PageSift CPU and maximum RSS.
 These memory figures are separate process maxima, not one simultaneous process-tree peak.
@@ -180,7 +215,11 @@ The estimate excludes coordinator CPU, retained storage, review labour, and an u
 There are no paid API or model calls in either arm.
 Separate reference fetches and offline review extraction stay outside the crawl request and latency totals.
 The common offline PDF extraction took ${fmt(extraction.wallSeconds, 3)} seconds.
-Full latency through human gold approval is unknown. The report gives crawl latency, not human-review turnaround.
+Its measured Node CPU was ${fmt(extraction.nodeCpuSeconds, 4)} seconds. Its native child CPU reading was ${fmt(extraction.childCpuSeconds, 4)} seconds.
+Native CPU readings below the printed 0.01-second resolution can round to zero. Zero is not proof of no CPU work.
+The common offline component cost scenario is ${dollars(offlineCost)} and is separate from both crawl estimates.
+The verification-stage JSON records its memory readings and automated crawl-plus-extraction duration.
+Full latency through human gold approval is unknown. The report gives crawl latency and common extraction time. Human-review turnaround remains unknown.
 
 ## Licence and adoption decision
 
@@ -209,7 +248,8 @@ An earlier terms matcher also missed a published scraping prohibition. Some cali
 I stopped those runs, excluded their data, added benchmark-only host holds, and added a regression test for the exact wording.
 The corrected run applies those holds before any request. Its audit checks that no request follows a detected terms refusal.
 The [calibration notice](../../calibration-notice.json) records the known affected requests and partial-log limits. Those reads are not described as permitted.
-Calibration latency and data do not enter this comparison.
+Excluded A/B calibration latency and data do not enter this comparison.
+Calibration traffic preceded the measured run and may have affected later access responses. Server-side state was not controlled.
 No production crawl, ingestion, migration, application build, or deployment ran as part of this benchmark.
 `;
 writeFileSync(resolve(out, 'REPORT.md'), markdown);

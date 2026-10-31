@@ -1,0 +1,80 @@
+{
+  "note": "Offline extraction sensitivity only. Neither variant adds live requests or changes either measured crawl.",
+  "cases": [
+    {
+      "venueId": "way/176677099",
+      "url": "https://www.oldshiphammersmith.co.uk/",
+      "variants": [
+        {
+          "name": "original",
+          "htmlBytes": 181642,
+          "htmlSha256": "57dc61dacbf3aee39d49cc9c9c7d578e19b616c3c2385cdcf016d38906bae2c0",
+          "extractedCharacters": 729,
+          "markdownSha256": "794364108bcc525a87c6d1e747db951d386cbce3622dc1f172944f098f83aeb5",
+          "pdfLinksInExtractedText": 0,
+          "warnings": ""
+        },
+        {
+          "name": "rewritten",
+          "htmlBytes": 37090,
+          "htmlSha256": "18f30e819d0aba8dc50aa7e2091b1a04abd4a67adfc22585d5f0e3e7e63e8cf9",
+          "extractedCharacters": 459,
+          "markdownSha256": "dde49f8699056d1a385e9a22bec465178362fc1ae023f49df4742598eca9b0d0",
+          "pdfLinksInExtractedText": 0,
+          "warnings": ""
+        }
+      ],
+      "networkRequests": 0
+    },
+    {
+      "venueId": "node/2267462478",
+      "url": "https://thebluecoatspub.com/",
+      "variants": [
+        {
+          "name": "original",
+          "htmlBytes": 44367,
+          "htmlSha256": "e583a70273cdb8b3a8b7b1ada990d971acb04a4dd37224b705e968efcf15e1e6",
+          "extractedCharacters": 2417,
+          "markdownSha256": "562dbd02b54c9cad0d69af2361ea38a7fa83dcc8e40f17c72814e8093a1bc7fe",
+          "pdfLinksInExtractedText": 0,
+          "warnings": ""
+        },
+        {
+          "name": "rewritten",
+          "htmlBytes": 24930,
+          "htmlSha256": "8b3edbfb4586cbf847224fc2c34350aef6e276726c899be6bbf69db4467226be",
+          "extractedCharacters": 1502,
+          "markdownSha256": "b301fa49c85899dad3dc777114052e68b2d0a19803154fba778fee6b3ebdc387",
+          "pdfLinksInExtractedText": 0,
+          "warnings": ""
+        }
+      ],
+      "networkRequests": 0
+    },
+    {
+      "venueId": "way/155488603",
+      "url": "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms",
+      "variants": [
+        {
+          "name": "original",
+          "htmlBytes": 328418,
+          "htmlSha256": "773ade2901dd7bcd525b7398c031c5355b8af750655e4d6c5ad12eb325dec4a4",
+          "extractedCharacters": 2952,
+          "markdownSha256": "ab3c817a0c6ad7d5e5db1f1d08b6b4dea8a637390f8f37317746d408b5f299cb",
+          "pdfLinksInExtractedText": 0,
+          "warnings": ""
+        },
+        {
+          "name": "rewritten",
+          "htmlBytes": 69158,
+          "htmlSha256": "5aa5a7d06e131349e8780b33c7a055072595aedd5e229af5f2116136488456dd",
+          "extractedCharacters": 2931,
+          "markdownSha256": "e2842042b0629a61010644d4827e728651aa416ceb4381fd072005b48b8e5356",
+          "pdfLinksInExtractedText": 0,
+          "warnings": ""
+        }
+      ],
+      "networkRequests": 0
+    }
+  ]
+}

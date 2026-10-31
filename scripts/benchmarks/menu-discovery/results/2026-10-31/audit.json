@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "passed": true,
+  "arms": 120,
+  "requests": 637,
+  "checkedAt": "2026-10-31T20:46:09.654Z",
+  "failures": [],
+  "scope": "Recorded request caps, source policy, body hashes, observed robots body limits, provenance edges, native termination, shared minimum host spacing, and input/code hashes. This does not establish human gold approval or legal permission beyond the recorded checks."
+}
