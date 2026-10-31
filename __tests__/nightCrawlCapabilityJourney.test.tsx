@@ -69,7 +69,7 @@ async function settle(check: () => void) {
 }
 
 function action(label: string) {
-  return [...host.querySelectorAll("button")].find((button) => button.textContent?.startsWith(label));
+  return [...host.querySelectorAll("button")].find((button) => button.textContent?.trimStart().startsWith(label));
 }
 
 // The action buttons stay disabled while a tap is in flight, as a person sees

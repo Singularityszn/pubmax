@@ -46,8 +46,8 @@ The full Plan holds comparisons and detailed evidence. Night mode keeps table si
 
 ## Remaining acceptance
 
-The application build, normal full verification, and browser execution require the pending explicit build approval.
-`e2e/v1-night-extras.spec.ts` contains desktop and phone coverage but was not executed.
+At the initial source check, the application build and browser execution still required explicit approval.
+The test-phase record below supersedes that approval hold and records later execution.
 No physical-device acceptance, PR publication, merge, or deployment occurred.
 The existing release and native ownership records remain in force.
 
@@ -79,3 +79,102 @@ No manual edit replaces the required generator.
 The outer executor owns the normal verification gate, build, browser acceptance, PR and CI phases.
 This round supplies no new browser, native or physical-device evidence.
 Earlier results above do not validate these uncommitted repairs.
+
+## Test phase on 31 October 2026
+
+The candidate commit is `d6089f29749e2e02570d657c62cf7b5bbd4ef826`.
+The supplied configured command, `npm run verify:no-mistakes:changed`, failed with exit code 1 before this phase.
+This phase did not repeat the full gate, lint, static analysis, PR work or CI work.
+
+This phase leaves three test-related repairs in the worktree.
+The repository database generator adds the missing action venue fields and SQL arguments to `types/database.ts`.
+The Night mode test helper now ignores leading whitespace in button labels.
+The phone browser test opens the full plan before using its controls, for both the host and the guest.
+
+### Focused checks
+
+- All 176 checks in the 19 changed behaviour suites passed, including the three PostgreSQL migration suites.
+- The isolated Vitest configuration retains the repository setup and disables only the automatic enrichment builder.
+  It uses one worker. The production build attempts separately ran the normal application builders.
+- `npm run db:types` completed through the repository generator and a disposable PostgreSQL cluster.
+- `npm run db:types:check` confirmed that the generated file matches the migrated schema.
+- `e2e/v1-night-extras.spec.ts` passed at 1440 by 1000 and 390 by 844 after the phone test repair.
+  These runs used the real application through an isolated development server on port 3187.
+
+### Product journeys
+
+The retained browser driver passed seven journeys against the running application.
+
+1. Table signs require a bound arrival, restrict changes to the host, expire at plan end and clear after another arrival.
+2. A safe route revision retains completed-stop reveals with a stale phone cursor and rejects stale or mismatched arrival requests.
+   Identical bound arrival retries add one action. A legacy unbound arrival establishes no table location.
+3. Sliding Doors compares without changing the saved route. A host marked Here can propose a route.
+   A guest can vote but cannot accept. Explicit host acceptance changes the saved route.
+4. Clues reveal a sourced answer only after a manual action and leave stops and arrivals unchanged.
+5. A lost proposal response retains the same key for an identical retry.
+   A different comparison option uses a different key and creates a separate proposal.
+6. An unresolved required need blocks acceptance. The accepted anchor cannot move.
+7. A failed walking provider supplies no clues from the straight-line fallback.
+
+A further HTTP check exercised the real beacon and presentation handlers with `VERCEL_ENV=production` and no durable credentials.
+Every read and write returned 503. This used a development server with the production policy enabled.
+It does not establish production-build acceptance.
+
+The clue journey uses disposable upstream routing geometry through the real walking endpoint and clue selector.
+The fallback journey supplies an upstream 503. Neither journey proves live OpenRouteService availability or pavement accuracy.
+No operator account, shared service or live database received writes.
+The journey server, production-policy server and final visual-check server exited with code 0.
+The disposable browsers and PostgreSQL clusters stopped.
+
+### Build blocker and evidence
+
+The first isolated production build failed because the generated database types lacked `plan_actions.venue_id`.
+After generation, the second build still failed at `lib/planStore.ts:308`.
+Its legacy action-query fallback omits `venue_id`, but the mapper accesses that property without narrowing the row type.
+The compiler reports that `venue_id` does not exist on the fallback row.
+This source repair belongs to the outer repair phase. This test phase returns **no-go**.
+
+Evidence remains outside the worktree at:
+`/Users/karanmanoharan/.no-mistakes/evidence/01M69HEAA3GT8PSTA3844GERAK`.
+
+- `browser-build.log` and `browser-build-retry.log` retain both production build failures.
+- `focused-tests-retry.log`, `database-types.log` and `database-types-check.log` retain the completed focused checks.
+- `final-browser.log` records the passing desktop and phone browser test.
+- `live-journeys.cjs`, `live-results.json` and `all-live-journeys.log` retain the seven product journeys.
+- `final-accepted-route.log` and `live-results-Sliding.json` record the additional acceptance check after session restoration.
+  This check confirms that the saved venue IDs equal the accepted proposal and that the route is visible.
+- `production-policy-results.json` records the missing-storage responses and the server mode.
+- `table-sign-fullscreen.png`, `mystery-completed-phone.png` and `mystery-full-route-phone.png` show the table and reveal surfaces.
+- `sliding-doors-comparison.png`, `sliding-doors-accepted.png` and `comparison-lost-response-recovery.png` show the comparison journey.
+- `clue-sealed.png`, `clue-answer-and-source.png` and `clues-unavailable-fallback.png` show clue controls and source disclosure.
+
+The screenshots were inspected. Phone evidence uses a desktop Chromium viewport, not a physical phone or native shell.
+Production browser acceptance remains blocked by the compiler error. Physical-device and native acceptance remain outstanding.
+No merge, deployment, production promotion or live migration occurred.
+
+## Production build repair on 31 October 2026
+
+This repair uses candidate `d6089f29749e2e02570d657c62cf7b5bbd4ef826` and the existing uncommitted test repairs above.
+The isolated production build reproduced the `lib/planStore.ts:308` error and exited with code 1.
+The legacy query omits `venue_id`. The mapper now checks that the field exists before reading it.
+Legacy actions still carry no invented venue identity. This repair changes one source line.
+
+The same focused command then exited with code 0:
+
+```sh
+PW_PORT=3187 PW_NEXT_DIST_DIR=.next-v1-repair PW_SKIP_KEYLESS_WEBSERVER=1 PUBMAX_TRACKED_OUTPUTS=public/data node node_modules/@playwright/test/cli.js test e2e/v1-night-extras.spec.ts --project=chromium --workers=1
+```
+
+The restored-output wrapper ran the normal application builders and completed the production build.
+Playwright started that build with its keyless environment, signing secret and test rate-limit allowance.
+Both browser cases passed, at 1440 by 1000 and 390 by 844.
+They opened saved Plans and checked host settings, guest reveals, private table signs and stranger refusal.
+They also confirmed that reveal interactions leave the route revision and arrival actions unchanged.
+The production server and disposable browsers stopped after the checks.
+
+`repair-build-before.log` and `repair-production-after.log` retain the results in the evidence directory named above.
+This result supersedes the production-build blocker above. The other journey results remain the earlier development-server evidence.
+The full gate, lint, static analysis and unrelated test suites did not run again in this repair.
+The earlier configured gate failure remains recorded for the outer executor. Remote CI remains required.
+Phone evidence uses a desktop Chromium viewport. Physical-device and native acceptance remain outstanding.
+No merge, deployment, production promotion or live migration occurred.

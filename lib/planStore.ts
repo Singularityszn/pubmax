@@ -305,7 +305,7 @@ async function readSupabasePlanState(
       ending: row.ending as CrawlEnding | null,
       createdAt: String(row.created_at),
       ...("route_revision" in row && typeof row.route_revision === "number" ? { routeRevision: row.route_revision } : {}),
-      ...(typeof row.venue_id === "string" ? { venueId: row.venue_id } : {}),
+      ...("venue_id" in row && typeof row.venue_id === "string" ? { venueId: row.venue_id } : {}),
     })),
     ending: (planRow as Record<string, unknown>).ending as CrawlEnding | null ?? null,
   };

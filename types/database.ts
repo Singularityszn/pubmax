@@ -1957,6 +1957,7 @@ export type Database = {
           idempotency_key_hash: string | null;
           request_hash: string | null;
           route_revision: number | null;
+          venue_id: string | null;
         };
         Insert: {
           id: string;
@@ -1969,6 +1970,7 @@ export type Database = {
           idempotency_key_hash?: string | null;
           request_hash?: string | null;
           route_revision?: number | null;
+          venue_id?: string | null;
         };
         Update: {
           id?: string;
@@ -1981,6 +1983,7 @@ export type Database = {
           idempotency_key_hash?: string | null;
           request_hash?: string | null;
           route_revision?: number | null;
+          venue_id?: string | null;
         };
         Relationships: [
           {
@@ -7055,6 +7058,8 @@ export type Database = {
           p_idempotency_key_hash: string | null;
           p_request_hash: string | null;
           p_created_at: string | null;
+          p_expected_route_revision?: number | null;
+          p_venue_id?: string | null;
         };
         Returns: string;
       };
@@ -7492,6 +7497,7 @@ export type Database = {
           p_unresolved_constraint_ids: Json;
           p_idempotency_key: string | null;
           p_created_at: string | null;
+          p_token_hash: string | null;
         };
         Returns: Json;
       };

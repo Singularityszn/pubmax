@@ -34,6 +34,9 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
         sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
       });
       await page.goto(`/plan/${id}`);
+      if (viewport.width < 768) {
+        await page.getByRole("button", { name: "View full plan", exact: true }).click();
+      }
       await page.getByRole("button", { name: "Turn on mystery envelopes" }).click();
       await expect(page.getByRole("button", { name: "Open stop 2", exact: true })).toBeVisible();
       await page.getByRole("button", { name: "Open stop 2", exact: true }).click();
@@ -58,6 +61,9 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
         });
         expect(joined.ok()).toBe(true);
         await guestPage.goto(`${base}/plan/${id}`);
+        if (viewport.width < 768) {
+          await guestPage.getByRole("button", { name: "View full plan", exact: true }).click();
+        }
         await expect(guestPage.getByRole("button", { name: "Open stop 2", exact: true })).toBeVisible();
         await expect(guestPage.getByRole("button", { name: "Turn off mystery envelopes" })).toHaveCount(0);
         await expect(guestPage.getByRole("region", { name: "Find our table", exact: true }).getByText("Upstairs, beside the window", { exact: true })).toBeVisible();
