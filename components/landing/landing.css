@@ -54,6 +54,14 @@ body:has(.lp) {
   transform: translateX(-50%);
 }
 
+.lpNav > [data-lp-nav-complete] { display: none; }
+
+/* A streamed action subtree can resize all three tracks before it is complete.
+   Keep its box, but expose the header only after its static final marker. */
+@supports selector(:has(*)) {
+  .lpNav:not(:has(> [data-lp-nav-complete])) { visibility: hidden; }
+}
+
 .lpWordmark {
   min-height: 44px;
   min-width: 0;

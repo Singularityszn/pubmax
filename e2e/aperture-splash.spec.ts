@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+import { createServer, request, type ClientRequest } from "node:http";
 import { expect, test, type Page } from "@playwright/test";
 
 type SplashMeasurements = {
@@ -74,7 +76,147 @@ async function trackCls(page: Page) {
   });
 }
 
+// Deliver the real response unchanged, pausing inside the public header while
+// its real fonts load. Splitting after Pal recreates the CI paint where only
+// the first action is present. No product fixture or generated HTML is replaced.
+async function fragmentedLandingProxy(baseURL: string) {
+  const upstreamOrigin = new URL(baseURL);
+  if (upstreamOrigin.protocol !== "http:" || !["localhost", "127.0.0.1", "[::1]"].includes(upstreamOrigin.hostname)) {
+    throw new Error("The streamed landing regression requires a local HTTP baseURL.");
+  }
+  const requests = new Set<ClientRequest>();
+  const waitingFonts: Array<() => void> = [];
+  const delivery = { originalSha256: "", htmlBytes: 0, splitAt: 0, heldFonts: 0, errors: [] as string[] };
+  let fontReleaseAt = 0;
+  let releaseTimer: ReturnType<typeof setTimeout> | undefined;
+  const server = createServer((incoming, outgoing) => {
+    const upstreamURL = new URL(upstreamOrigin);
+    const path = new URL(incoming.url ?? "/", upstreamOrigin);
+    upstreamURL.pathname = path.pathname;
+    upstreamURL.search = path.search;
+    const upstream = request(upstreamURL, {
+      method: incoming.method,
+      headers: { ...incoming.headers, host: upstreamOrigin.host, "accept-encoding": "identity" },
+    }, (reply) => {
+      const isLanding = path.pathname === "/" && reply.statusCode === 200 &&
+        String(reply.headers["content-type"]).includes("text/html");
+      const holdFont = /\.woff2?$/.test(path.pathname) && reply.statusCode === 200 && Date.now() < fontReleaseAt;
+      if (!isLanding && !holdFont) {
+        outgoing.writeHead(reply.statusCode ?? 502, reply.headers);
+        reply.pipe(outgoing);
+        return;
+      }
+      const chunks: Buffer[] = [];
+      reply.on("data", (chunk: Buffer) => chunks.push(chunk));
+      reply.on("error", (error) => {
+        delivery.errors.push(error.message);
+        outgoing.destroy(error);
+      });
+      reply.on("end", () => {
+        const body = Buffer.concat(chunks);
+        if (holdFont) {
+          const release = () => {
+            outgoing.writeHead(reply.statusCode ?? 502, reply.headers);
+            outgoing.end(body);
+          };
+          if (Date.now() < fontReleaseAt) waitingFonts.push(() => { delivery.heldFonts += 1; release(); });
+          else release();
+          return;
+        }
+        const actions = body.indexOf("siteNavActions lpNavActions");
+        const firstLinkEnd = body.indexOf("</a>", actions);
+        const headerEnd = body.indexOf("</header>", actions);
+        if (actions < 0 || firstLinkEnd < 0 || headerEnd < firstLinkEnd) {
+          delivery.errors.push("The response has no complete public landing action link.");
+          outgoing.writeHead(502);
+          outgoing.end("Landing header boundary unavailable");
+          return;
+        }
+        delivery.splitAt = firstLinkEnd + Buffer.byteLength("</a>");
+        delivery.htmlBytes = body.length;
+        delivery.originalSha256 = createHash("sha256").update(body).digest("hex");
+        const headers = { ...reply.headers };
+        delete headers["content-length"];
+        delete headers["transfer-encoding"];
+        outgoing.writeHead(200, headers);
+        fontReleaseAt = Date.now() + 500;
+        outgoing.flushHeaders();
+        outgoing.write(body.subarray(0, delivery.splitAt));
+        releaseTimer = setTimeout(() => {
+          for (const release of waitingFonts.splice(0)) release();
+          outgoing.end(body.subarray(delivery.splitAt));
+        }, 500);
+      });
+    });
+    requests.add(upstream);
+    upstream.once("close", () => requests.delete(upstream));
+    upstream.setTimeout(10_000, () => upstream.destroy(new Error("Local landing upstream timed out.")));
+    upstream.on("error", (error) => {
+      delivery.errors.push(error.message);
+      if (!outgoing.headersSent) outgoing.writeHead(502);
+      outgoing.end("Local landing upstream unavailable");
+    });
+    incoming.pipe(upstream);
+  });
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      server.off("error", reject);
+      resolve();
+    });
+  });
+  const address = server.address();
+  if (!address || typeof address === "string") throw new Error("The landing proxy has no private port.");
+  return {
+    origin: `http://127.0.0.1:${address.port}`,
+    delivery,
+    async close() {
+      clearTimeout(releaseTimer);
+      waitingFonts.length = 0;
+      for (const pending of requests) pending.destroy();
+      const closed = new Promise<void>((resolve) => server.close(() => resolve()));
+      server.closeAllConnections();
+      await closed;
+    },
+  };
+}
+
 test.describe("aperture splash - eligible session (navigator.webdriver overridden)", () => {
+  test("holds CLS below 0.01 when the header stream and real fonts finish together", async ({ page, baseURL }) => {
+    expect(baseURL, "The local production server must provide baseURL").toBeTruthy();
+    const proxy = await fragmentedLandingProxy(baseURL!);
+    try {
+      await page.setViewportSize({ width: 1280, height: 720 });
+      await overrideWebdriver(page);
+      await trackCls(page);
+      await page.addInitScript(() => {
+        localStorage.setItem("pubmax-tour-v1-done", "1");
+        localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+        sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+      });
+      const response = await page.goto(proxy.origin);
+      expect(response?.status()).toBe(200);
+      expect(createHash("sha256").update(await response!.body()).digest("hex")).toBe(proxy.delivery.originalSha256);
+      expect(proxy.delivery.heldFonts, "The reproduction must hold real font responses with the HTML").toBeGreaterThanOrEqual(2);
+      expect(await page.evaluate(() => PerformanceObserver.supportedEntryTypes.includes("layout-shift"))).toBe(true);
+      await expect(page.locator(".lpNav")).toBeVisible();
+      await expect(page.locator(".lpNav").getByRole("link", { name: "PUBMAXX home", exact: true })).toBeVisible();
+      await page.waitForTimeout(900);
+      const measurements = await page.evaluate(() => {
+        const measured = window as unknown as SplashMeasurements;
+        return { cls: measured.__pubmaxSplashCls, shifts: measured.__pubmaxSplashShifts };
+      });
+      await test.info().attach("fragmented-landing-layout-shifts", {
+        body: JSON.stringify({ delivery: proxy.delivery, ...measurements }, null, 2),
+        contentType: "application/json",
+      });
+      expect(proxy.delivery.errors).toEqual([]);
+      expect(measurements.cls, `Streamed landing shifts: ${JSON.stringify(measurements.shifts)}`).toBeLessThan(0.01);
+    } finally {
+      await proxy.close();
+    }
+  });
+
   test("plays once, resolves within the 700ms ceiling, and holds CLS at zero", async ({ page }) => {
     await overrideWebdriver(page);
     await trackCls(page);
@@ -188,4 +330,23 @@ test.describe("aperture splash - default automated session", () => {
     const splashDefault = await page.evaluate(() => document.documentElement.dataset.splash);
     expect(splashDefault).toBeUndefined();
   });
+});
+
+test.describe("landing header without JavaScript", () => {
+  for (const viewport of [{ width: 1280, height: 720 }, { width: 390, height: 844 }]) {
+    test(`keeps the public header visible at ${viewport.width}px`, async ({ browser, baseURL }) => {
+      const context = await browser.newContext({ baseURL, viewport, javaScriptEnabled: false });
+      try {
+        const page = await context.newPage();
+        const response = await page.goto("/");
+        expect(response?.status()).toBe(200);
+        const header = page.locator(".lpNav");
+        await expect(header).toBeVisible();
+        await expect(header.getByRole("link", { name: "PUBMAXX home", exact: true })).toBeVisible();
+        await expect(header.getByRole("button", { name: "More pages", exact: true })).toBeVisible();
+      } finally {
+        await context.close();
+      }
+    });
+  }
 });
