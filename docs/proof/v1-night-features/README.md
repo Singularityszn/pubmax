@@ -178,3 +178,80 @@ The full gate, lint, static analysis and unrelated test suites did not run again
 The earlier configured gate failure remains recorded for the outer executor. Remote CI remains required.
 Phone evidence uses a desktop Chromium viewport. Physical-device and native acceptance remain outstanding.
 No merge, deployment, production promotion or live migration occurred.
+
+## Candidate test repeat on 31 October 2026
+
+This phase tested `e98ed5553f54e05422246b8a02ed4601e848e26f`.
+The supplied configured command failed before this phase. This phase did not repeat lint, static analysis or the full gate.
+
+The isolated production build completed successfully through the restored-output wrapper.
+The existing browser specification passed at 1440 by 1000 and 390 by 844.
+All seven additional product journeys passed against this production build.
+The stale-cursor journey also checked completed-prefix refusal, table-sign invalidation after a route revision, and stale skip refusal.
+The production storage check returned 503 for all five beacon and presentation operations without durable credentials.
+The repository database generator completed against disposable PostgreSQL.
+The 19 focused behaviour suites passed, including all three changed migration suites.
+The generated types required no further change.
+
+Visual inspection found a remaining Night mode defect.
+With the page theme set to light, table headings, table notes, clue headings and clue text inherit dark text.
+Night mode retains its own dark background.
+The live phone check measured approximately 1.11:1 contrast for these elements.
+The same elements measured approximately 17.62:1 with the page theme set to dark.
+The separate visual check failed. This phase returns **no-go** until the Night mode palette is corrected.
+This test phase leaves application source unchanged.
+
+New evidence remains under `r2/` in the external evidence directory named above.
+`r2-production-browser.log` is beside that directory and records the completed production build and browser specification.
+`r2/live-results.json` and `r2/journeys.log` record the seven passing journeys.
+`r2/production-policy-results.json` records production storage refusal.
+`r2/night-contrast-results.json`, `r2/night-contrast-light.png` and `r2/night-contrast-dark.png` record the visual failure.
+`r2/process-status.json` and `r2/contrast-process-status.json` record the completed drivers and intentional server shutdowns.
+The servers received SIGTERM after their drivers completed. Their recorded exit status is -15.
+The temporary driver initially expected 409 for completed-prefix refusal. The endpoint correctly returned 403 without changing the route.
+The corrected driver checked that refusal and the unchanged route, then passed.
+An earlier driver wrapper also treated intentional SIGTERM as a failure. The corrected wrapper records the expected shutdown explicitly.
+
+The screenshots were inspected. The clue journeys use disposable upstream walking geometry and a deliberate provider failure.
+These checks do not prove real-provider routing, physical-device behaviour or native-shell acceptance.
+All disposable browsers, servers and PostgreSQL clusters stopped. Temporary build and generated data outputs were removed.
+The outer executor still owns the configured gate, PR and remote CI.
+No merge, deployment, production promotion or live migration occurred.
+
+## Night mode contrast repair on 31 October 2026
+
+This repair tested `e98ed5553f54e05422246b8a02ed4601e848e26f` plus the uncommitted CSS and browser-test changes in `r3/repair.patch`.
+The new phone browser regression reproduced the reported failure before the CSS change.
+The light theme measured 1.11:1 for the table heading. The dark theme passed.
+The focused reproduction exited with code 1.
+
+Shared panels inherited the page palette over Night mode's fixed dark background.
+Night mode now supplies its existing palette through the shared panel and control tokens.
+The repair adds no new colours and leaves the full Plan's theme unchanged.
+
+The following focused command rebuilt the application through the restored-output wrapper and exited with code 0:
+
+```sh
+PW_PORT=3187 PW_NEXT_DIST_DIR=.next-v1-contrast PW_SKIP_KEYLESS_WEBSERVER=1 PUBMAX_TRACKED_OUTPUTS=public/data node node_modules/@playwright/test/cli.js test e2e/v1-night-extras.spec.ts --project=chromium --workers=1 --grep 'Night mode readability'
+```
+
+Both phone cases passed at 390 by 844, with explicit light and dark page themes.
+Each case created a Plan, recorded a bound arrival, set a private table sign and opened the clue introduction.
+The checks measured headings, notes, table links, the note field and panel buttons against the WCAG AA 4.5:1 text threshold.
+The minimum measured ratio was 7.41:1 across 14 text samples in each theme.
+A final focused repeat reused the completed production build with `PW_SCREENSHOTS=1` and also exited with code 0.
+All four screenshots were inspected.
+
+The external evidence directory retains `r3-contrast-red.log`, `r3-contrast-after.log` and `r3-contrast-final.json`.
+`r3/contrast-final/` contains the screenshots. `r3/contrast-light.json` and `r3/contrast-dark.json` contain the measurements.
+`r3/process-status.json` records the check exits and the closed server port.
+The disposable browser and server processes stopped. The temporary build and newly generated data files were removed.
+Existing dependencies were retained.
+
+This result supersedes the Night mode contrast failure above.
+It covers the clue introduction rather than a newly repeated sourced-answer journey.
+Earlier functional journeys remain historical evidence. Phone evidence still uses desktop Chromium.
+Physical-device and native acceptance remain outstanding.
+This repair did not repeat the linter, formatter, separate static analysis, full suite or configured gate.
+The earlier configured gate failure remains unresolved for the outer executor. Remote CI remains required.
+No merge, deployment, production promotion or live migration occurred.
