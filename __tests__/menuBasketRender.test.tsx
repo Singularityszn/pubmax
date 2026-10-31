@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 import { act } from "react";
+import { readFileSync } from "node:fs";
+import { legacyPricesToDrinks, type LegacyPintPrice } from "@/lib/drinks";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
 import MenuBasket from "@/components/food/MenuBasket";
@@ -101,4 +103,28 @@ describe("menu basket controls", () => {
     expect(h.querySelector('[role="status"]')?.textContent).toContain("Incomplete");
     expect(h.querySelector("a")).toBeNull();
   });
+});
+
+
+it("discloses the missing publisher of a selected committed legacy pint", async () => {
+  const rows = JSON.parse(readFileSync("public/data/pint_prices_app_dataset.json", "utf8")) as LegacyPintPrice[];
+  const row = rows.find((entry) => entry.app_price_id === "app_price_003098");
+  if (!row) throw new Error("Missing committed unattributed price fixture");
+  const drinks = legacyPricesToDrinks([row]);
+  const selected = drinks[0];
+  if (!selected) throw new Error("Missing projected legacy drink");
+  const h = await mount([], drinks);
+  await addItem(`drink:${selected.id}`);
+  expect(h.textContent).toContain("Publisher not recorded");
+  expect(h.textContent).not.toContain("app-dataset");
+  expect(h.textContent).toContain("£2.49");
+});
+
+
+it("retains a named publisher when its link is unavailable", async () => {
+  const h = await mount([], [{ ...drink, provenance: { ...drink.provenance, source: "Recorded menu publisher", sourceUrl: "javascript:alert(1)" } }]);
+  await addItem("drink:soft");
+  expect(h.textContent).toContain("Recorded menu publisher");
+  expect(h.querySelector("a")).toBeNull();
+  expect(h.textContent).not.toContain("Publisher not recorded");
 });
