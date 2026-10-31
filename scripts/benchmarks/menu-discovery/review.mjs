@@ -54,8 +54,10 @@ for (const arm of results) {
         .filter((line) => /£\s*\d/.test(line.text)).map((line) => ({ ...line, text: line.text.slice(0, 500) })),
     });
     for (const link of page.links.filter((l) => l.keyword)) {
-      leads.set(`${arm.venueId}\t${identity(arm.venueId, link.url)}`, { venueId: arm.venueId, venue: venue.name, goldSample: venue.goldSample,
-        sourceUrl: page.url, url: identity(arm.venueId, link.url), anchor: link.anchor, path: [...page.path, link.url], verified: false });
+      const target = identity(arm.venueId, link.url);
+      leads.set(`${arm.venueId}\t${target}`, { venueId: arm.venueId, venue: venue.name, goldSample: venue.goldSample,
+        sourceUrl: page.url, url: target, anchor: link.anchor,
+        path: [...page.path, link.url, ...(target === link.url ? [] : [target])], verified: false });
     }
   }
 }

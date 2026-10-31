@@ -52,6 +52,10 @@ No API key, paid service, browser, or model is required.
    node scripts/benchmarks/menu-discovery/evaluate.mjs /tmp/pubmax-menu-run /path/to/annotations.json
    ```
 
+Evaluation saves the labels in `evaluated-annotations.json` and records their hash in `comparison.json`.
+Export uses that saved snapshot, including when the supplied labels came from another directory.
+Export refuses a snapshot whose hash differs from the comparison.
+
 `PAGESIFT_BIN` can select another copy of the exact 0.81.0 executable.
 The runner rejects a different version and records the executable hash.
 Live runs always use all 60 manifest venues. Partial live cohorts are not supported.
@@ -185,6 +189,8 @@ The local review page stays beside the private response archive.
 
 The measured archive records runtime head `c350c09b785f4e5798665751606ed0466a5ff213` and its original crawler hashes.
 The current transport fixes unreadable terms, retained host delays, and redirect cache reuse for future runs.
+It retains intermediate redirect aliases and stops page and robots redirect loops before repeating a request.
+The reference command refuses an existing reference directory, summary, or origin record before making requests.
 This corrected runtime has not received a live measurement. The historical timing and request counts remain unchanged.
 Offline evaluation merges only aliases supported by recorded redirects. It does not assume every trailing slash is interchangeable.
 Complete price yields require conclusive review of every successful fetched page, including noncandidates.

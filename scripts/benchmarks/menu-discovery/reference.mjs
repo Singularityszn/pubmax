@@ -8,6 +8,9 @@ const here = dirname(fileURLToPath(import.meta.url));
 const [runInput, targetsInput] = process.argv.slice(2);
 if (!runInput || !targetsInput) throw new Error('Usage: node reference.mjs RUN_DIRECTORY REVIEW_TARGETS.json');
 const run = resolve(runInput);
+if (['reference', 'reference-summary.json', 'reference-origin.json'].some((name) => existsSync(resolve(run, name)))) {
+  throw new Error('Reference evidence already exists. Preserve it and do not retry its refusals.');
+}
 const meta = JSON.parse(readFileSync(resolve(run, 'run.json')));
 if (!meta.finishedAt) throw new Error('Finish the benchmark before separate reference fetches. Shared hosts need one rate-limit owner.');
 const manifest = JSON.parse(readFileSync(resolve(here, 'manifest.json')));
@@ -16,11 +19,11 @@ const targets = JSON.parse(readFileSync(resolve(targetsInput))).targets;
 const results = loadResults(run);
 const clocks = new Map();
 const summaries = [];
+mkdirSync(resolve(run, 'reference'));
 for (const venueId of [...new Set(targets.map((r) => r.venueId))]) {
   const venue = manifest.venues.find((v) => v.venueId === venueId);
   if (!venue) throw new Error(`Unknown reference venue ${venueId}`);
   const out = resolve(run, 'reference', venueId.replace('/', '-'));
-  if (existsSync(out)) throw new Error(`Reference evidence already exists. Preserve it and do not retry its refusals: ${out}`);
   mkdirSync(out, { recursive: true });
   const transport = new Transport({ venue, arm: 'REFERENCE', out, protocol: { ...protocol, requestBudgetPerArmPerVenue: 40 }, clocks });
   const start = performance.now();

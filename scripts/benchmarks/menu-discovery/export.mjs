@@ -14,13 +14,16 @@ if (!meta.finishedAt || comparison.completeArms !== 120 || !audit.passed) throw 
 const results = loadResults(run);
 const identity = urlIdentity(results);
 const manifest = JSON.parse(readFileSync(resolve(here, 'manifest.json')));
-const annotations = JSON.parse(readFileSync(resolve(run, 'annotations.json')));
+const snapshot = readFileSync(resolve(run, 'evaluated-annotations.json'));
+if (sha256(snapshot) !== comparison.annotationSnapshotSha256) throw new Error('Evaluated annotation snapshot does not match the comparison');
+const annotations = JSON.parse(snapshot);
 mkdirSync(out, { recursive: true });
 const json = (name, value) => writeFileSync(resolve(out, name), `${JSON.stringify(value, null, 2)}\n`);
 const jsonl = (name, rows) => writeFileSync(resolve(out, name), rows.map((row) => JSON.stringify(row)).join('\n') + '\n');
-for (const name of ['comparison.json', 'audit.json', 'annotations.json', 'sensitivity.json']) {
+for (const name of ['comparison.json', 'audit.json', 'evaluated-annotations.json', 'sensitivity.json']) {
   if (resolve(run, name) !== resolve(out, name)) copyFileSync(resolve(run, name), resolve(out, name));
 }
+writeFileSync(resolve(out, 'annotations.json'), snapshot);
 if (existsSync(resolve(run, 'reference-origin.json'))) copyFileSync(resolve(run, 'reference-origin.json'), resolve(out, 'reference-origin.json'));
 json('run.json', { ...meta, privateResponseArchiveRecordedLocally: true, responseArchivePublished: false,
   note: 'The recorded code head and runtime file hashes identify the measured crawler. Offline review and report files can change after the crawl. No application build or ingestion ran.' });
@@ -37,7 +40,7 @@ const primaryIds = new Set(annotations.primaryGoldVenueIds);
 json('gold-inventory.json', { status: 'provisional-agent-source-review', humanApproved: false,
   venueReviews: annotations.venueReviews, labels: annotations.labels.filter((l) => primaryIds.has(l.venueId)),
   note: 'The 12 predetermined venue inventories are bounded and incomplete. Blocked venues stay unresolved. The Old Ship diagnostic is outside this primary inventory.' });
-jsonl('price-records.jsonl', annotations.labels.flatMap((label) => (label.priceRecords ?? []).map((price) => ({
+jsonl('price-records.jsonl', annotations.labels.filter((label) => label.verdict === 'menu').flatMap((label) => (label.priceRecords ?? []).map((price) => ({
   ...price, venueId: label.venueId, menuUrl: label.url, bodySha256: label.bodySha256,
   sourceUrl: label.sourceUrl, path: label.path, reviewer: label.reviewer, reviewedAt: label.reviewedAt,
   primaryGold: primaryIds.has(label.venueId), humanApproved: false,

@@ -205,7 +205,10 @@ export class Transport {
     if (this.rules.has(origin)) return this.rules.get(origin);
     let url = `${origin}/robots.txt`;
     let answer = { allowed: false, reason: 'robots-unreadable', delay: this.protocol.minIntervalMs };
+    const visited = new Set();
     for (let hop = 0; hop <= this.protocol.maxRedirectHops; hop++) {
+      if (visited.has(url)) break;
+      visited.add(url);
       const response = await this.raw(url, 'robots');
       if (!response) break;
       if (response.status >= 300 && response.status < 400 && response.headers.location) {
@@ -309,20 +312,23 @@ export class Transport {
     const path = [...(this.paths.get(url) ?? [canonical(this.venue.website), url])];
     const sourceUrl = path.length > 1 ? path[path.length - 2] : null;
     const original = url;
+    const visited = new Set();
+    const finish = (page) => {
+      for (const alias of visited) this.seen.set(alias, page);
+      return page;
+    };
     for (let hop = 0; hop <= this.protocol.maxRedirectHops; hop++) {
-      if (this.seen.has(url)) {
-        const cached = this.seen.get(url);
-        this.seen.set(original, cached);
-        return cached;
-      }
+      if (visited.has(url)) return finish(this.event(url, 'redirect-loop'));
+      visited.add(url);
+      if (this.seen.has(url)) return finish(this.seen.get(url));
       const permission = await this.permitted(url);
-      if (!permission) { this.seen.set(original, null); return null; }
+      if (!permission) return finish(null);
       const response = await this.raw(url, 'page', permission.delay);
-      if (!response) { this.seen.set(original, null); return null; }
+      if (!response) return finish(null);
       if (response.status >= 300 && response.status < 400 && response.headers.location) {
         const target = canonical(new URL(response.headers.location, url).href);
-        if (!target) return this.event(url, 'invalid-redirect');
-        if (hop === this.protocol.maxRedirectHops) return this.event(url, 'redirect-hop-limit');
+        if (!target) return finish(this.event(url, 'invalid-redirect'));
+        if (hop === this.protocol.maxRedirectHops) return finish(this.event(url, 'redirect-hop-limit'));
         // Re-check permission before requesting every hop, including an off-site hop.
         url = target;
         path.push(target);
@@ -334,8 +340,7 @@ export class Transport {
       const html = !pdf && (type.includes('html') || looksLikeHtmlDocument(response.body.toString('utf8')));
       if (looksLikeChallengePage(response.body.toString('utf8', 0, 16384))) {
         this.cooldown.add(new URL(url).host);
-        this.seen.set(original, null);
-        return this.event(url, 'challenge-page', { status: response.status });
+        return finish(this.event(url, 'challenge-page', { status: response.status }));
       }
       const page = {
         requestedUrl: original, url, sourceUrl, path, status: response.status,
@@ -352,8 +357,7 @@ export class Transport {
       page.identityPostcodePresent = page.text.replace(/\s/g, '').toLowerCase()
         .includes(this.venue.postcode.replace(/\s/g, '').toLowerCase());
       this.pages.push(page);
-      this.seen.set(original, page);
-      this.seen.set(url, page);
+      finish(page);
       await this.checkTerms(page, original);
       return page;
     }

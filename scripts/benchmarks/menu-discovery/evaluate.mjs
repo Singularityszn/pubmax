@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { canonical } from './transport.mjs';
+import { canonical, sha256 } from './transport.mjs';
 
 const key = (v, u) => `${v}\t${u}`;
 const rate = (n, d) => d ? n / d : null;
@@ -21,9 +21,10 @@ export function urlIdentity(results) {
     }
   }
   return (venueId, url) => {
-    const visited = new Set();
-    while (redirects.has(key(venueId, url)) && !visited.has(url)) {
-      visited.add(url);
+    const visited = [];
+    while (redirects.has(key(venueId, url))) {
+      if (visited.includes(url)) return visited.slice(visited.indexOf(url)).sort()[0];
+      visited.push(url);
       url = redirects.get(key(venueId, url));
     }
     return url;
@@ -234,12 +235,14 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     accessAudit: annotations.accessAuditApproved === true,
   };
   const passed = Object.values(gateResults).every((v) => v === true);
-  const output = { schemaVersion: 1, status: annotations.humanApproved ? 'reviewed-sample' : 'provisional-review',
+  const snapshot = `${JSON.stringify(annotations, null, 2)}\n`;
+  const output = { schemaVersion: 1, annotationSnapshotSha256: sha256(snapshot), status: annotations.humanApproved ? 'reviewed-sample' : 'provisional-review',
     completeArms: results.length, humanApproved: annotations.humanApproved === true,
     summary, primaryGoldSummary, gateResults,
     recommendation: passed ? 'ADOPT_SUBJECT_TO_SEPARATE_INTEGRATION_AUTHORISATION' : 'REJECT_PRODUCTION_ADOPTION_PENDING_EVIDENCE',
     reason: passed ? 'The recorded evidence passes the declared gates. Integration still needs separate authorisation.'
       : 'At least one declared gate is false or unknown. Human gold approval, complete yields, repeat runs, access audit, and an AGPL integration decision must all pass.' };
+  writeFileSync(resolve(run, 'evaluated-annotations.json'), snapshot);
   writeFileSync(resolve(run, 'comparison.json'), `${JSON.stringify(output, null, 2)}\n`);
   console.log(JSON.stringify({ output: resolve(run, 'comparison.json'), arms: results.length }));
 }

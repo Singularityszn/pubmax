@@ -1,0 +1,2134 @@
+{
+  "schemaVersion": 1,
+  "humanApproved": false,
+  "repeatRunApproved": false,
+  "licenceDecisionApproved": false,
+  "accessAuditApproved": false,
+  "reviewerType": "agent",
+  "primaryGoldVenueIds": [
+    "way/100856450",
+    "way/155488603",
+    "node/2267462478",
+    "node/9891375140",
+    "way/439037559",
+    "way/1075176772",
+    "node/5567081656",
+    "node/262702979",
+    "way/134777475",
+    "way/160279486",
+    "way/97425688",
+    "way/1545736312"
+  ],
+  "venueReviews": [
+    {
+      "venueId": "way/100856450",
+      "name": "The White House",
+      "reviewerType": "agent",
+      "inventoryComplete": false,
+      "scope": "Bounded review of captured pages and separate official-link references. This is not full-site recall.",
+      "status": "access-unresolved",
+      "verifiedMenuCount": 0,
+      "accessReasons": [
+        "benchmark-terms-refused"
+      ]
+    },
+    {
+      "venueId": "way/155488603",
+      "name": "Sawyers Arms",
+      "reviewerType": "agent",
+      "inventoryComplete": false,
+      "scope": "Bounded review of captured pages and separate official-link references. This is not full-site recall.",
+      "status": "bounded-review",
+      "verifiedMenuCount": 4,
+      "accessReasons": [
+        "budget-exhausted",
+        "robots-rules",
+        "terms-no-automation-bar-found"
+      ]
+    },
+    {
+      "venueId": "node/2267462478",
+      "name": "The Bluecoats Pub",
+      "reviewerType": "agent",
+      "inventoryComplete": false,
+      "scope": "Bounded review of captured pages and separate official-link references. This is not full-site recall.",
+      "status": "bounded-review",
+      "verifiedMenuCount": 4,
+      "accessReasons": [
+        "robots-rules",
+        "terms-link-not-found"
+      ]
+    },
+    {
+      "venueId": "node/9891375140",
+      "name": "The Green Goddess",
+      "reviewerType": "agent",
+      "inventoryComplete": false,
+      "scope": "Bounded review of captured pages and separate official-link references. This is not full-site recall.",
+      "status": "bounded-review",
+      "verifiedMenuCount": 0,
+      "accessReasons": [
+        "robots-rules",
+        "terms-link-not-found"
+      ]
+    },
+    {
+      "venueId": "way/439037559",
+      "name": "Paradise by way of Kensal Green",
+      "reviewerType": "agent",
+      "inventoryComplete": false,
+      "scope": "Bounded review of captured pages and separate official-link references. This is not full-site recall.",
+      "status": "access-unresolved",
+      "verifiedMenuCount": 0,
+      "accessReasons": [
+        "robots-unreadable"
+      ]
+    },
+    {
+      "venueId": "way/1075176772",
+      "name": "Ye Olde Rose and Crown",
+      "reviewerType": "agent",
+      "inventoryComplete": false,
+      "scope": "Bounded review of captured pages and separate official-link references. This is not full-site recall.",
+      "status": "access-unresolved",
+      "verifiedMenuCount": 0,
+      "accessReasons": [
+        "robots-unreadable"
+      ]
+    },
+    {
+      "venueId": "node/5567081656",
+      "name": "The North Star",
+      "reviewerType": "agent",
+      "inventoryComplete": false,
+      "scope": "Bounded review of captured pages and separate official-link references. This is not full-site recall.",
+      "status": "access-unresolved",
+      "verifiedMenuCount": 0,
+      "accessReasons": [
+        "source-policy-refused"
+      ]
+    },
+    {
+      "venueId": "node/262702979",
+      "name": "The Roebuck",
+      "reviewerType": "agent",
+      "inventoryComplete": false,
+      "scope": "Bounded review of captured pages and separate official-link references. This is not full-site recall.",
+      "status": "bounded-review",
+      "verifiedMenuCount": 0,
+      "accessReasons": [
+        "budget-exhausted",
+        "robots-rules",
+        "terms-link-not-found"
+      ]
+    },
+    {
+      "venueId": "way/134777475",
+      "name": "The Ferry Boat Inn",
+      "reviewerType": "agent",
+      "inventoryComplete": false,
+      "scope": "Bounded review of captured pages and separate official-link references. This is not full-site recall.",
+      "status": "access-unresolved",
+      "verifiedMenuCount": 0,
+      "accessReasons": [
+        "benchmark-terms-refused"
+      ]
+    },
+    {
+      "venueId": "way/160279486",
+      "name": "The Jugged Hare",
+      "reviewerType": "agent",
+      "inventoryComplete": false,
+      "scope": "Bounded review of captured pages and separate official-link references. This is not full-site recall.",
+      "status": "bounded-review",
+      "verifiedMenuCount": 8,
+      "accessReasons": [
+        "challenge-page",
+        "host-cooldown",
+        "robots-rules",
+        "robots-unreadable",
+        "terms-link-not-found"
+      ]
+    },
+    {
+      "venueId": "way/97425688",
+      "name": "The Hope",
+      "reviewerType": "agent",
+      "inventoryComplete": false,
+      "scope": "Bounded review of captured pages and separate official-link references. This is not full-site recall.",
+      "status": "bounded-review",
+      "verifiedMenuCount": 1,
+      "accessReasons": [
+        "budget-exhausted",
+        "robots-absent",
+        "terms-link-not-found"
+      ]
+    },
+    {
+      "venueId": "way/1545736312",
+      "name": "Whelans",
+      "reviewerType": "agent",
+      "inventoryComplete": false,
+      "scope": "Bounded review of captured pages and separate official-link references. This is not full-site recall.",
+      "status": "bounded-review",
+      "verifiedMenuCount": 1,
+      "accessReasons": [
+        "budget-exhausted",
+        "robots-rules",
+        "terms-link-not-found"
+      ]
+    }
+  ],
+  "labels": [
+    {
+      "venueId": "way/155488603",
+      "url": "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms/book",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The page provides a table booking form. It does not provide a menu.",
+      "bodySha256": "7b0f627bef49a121a592b8bddc41452b621915d71999ff7f079dbcc39b05f865",
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms",
+      "path": [
+        "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms",
+        "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms/book"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "way/155488603",
+      "url": "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms/sign-up",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The page asks for marketing registration. It does not provide a menu.",
+      "bodySha256": "89faf6a64679d9f9dd4df94ef7a31fa4b5819f4a76219e9b059c02e1df4af787",
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms",
+      "path": [
+        "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms",
+        "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms/sign-up"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "way/155488603",
+      "url": "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms/whats-on",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The page lists events and occasions. It does not provide a food or drinks menu.",
+      "bodySha256": "47824906b1d71c609438406ae18c1309a2f195e1b273f6d0fde3515c463183a1",
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms",
+      "path": [
+        "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms",
+        "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms/whats-on"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "way/155488603",
+      "url": "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms/find-us",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The page provides contact details and opening hours. It does not provide a menu.",
+      "bodySha256": "86d04237461805ee907332c7b5b10c54f4fea3fff9cc385fe8e8283573375ba5",
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms",
+      "path": [
+        "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms",
+        "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms/find-us"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "way/155488603",
+      "url": "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms/faqs",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The page answers frequently asked questions. Gift card amounts are not menu item prices.",
+      "bodySha256": "9ec1d506a13bea233e699fa35311a680407b38892acff01f2891d0de2fc8cf38",
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms",
+      "path": [
+        "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms",
+        "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms/faqs"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "way/155488603",
+      "url": "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms/menu",
+      "verdict": "unresolved",
+      "format": "html",
+      "relevant": null,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The official branch menu page identifies W2 1HL, but its content says Content is loading. Its menu contents require JavaScript.",
+      "bodySha256": "fc0f50ebf380ee6f90e95750955def7ad8dc8fa2c0df79d150e69d7a5e11aefd",
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms",
+      "path": [
+        "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms",
+        "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms/menu"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "way/155488603",
+      "url": "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms/specials",
+      "verdict": "menu",
+      "format": "html",
+      "relevant": true,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The branch page lists October starters, mains, and desserts, including Camembert fondue and venison pie. Gift card amounts are not item prices.",
+      "bodySha256": "8f51a2d7d50282019827ee21660c9a604104bfc041017e4ed798d880928c8891",
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms",
+      "path": [
+        "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms",
+        "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms/specials"
+      ],
+      "priceReviewComplete": true,
+      "priceRecords": [],
+      "menuKind": "seasonal",
+      "officialEvidence": {
+        "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms",
+        "identityExcerpt": "8-9 London Street, Paddington, London, W2 1HL",
+        "binding": "The address identifies this venue. Its own page states these offerings or links this document."
+      }
+    },
+    {
+      "venueId": "way/155488603",
+      "url": "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms/christmas",
+      "verdict": "menu",
+      "format": "html",
+      "relevant": true,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The branch page provides direct choices for its Festive Fayre and Buffet menus. This is a seasonal menu hub.",
+      "bodySha256": "366e6c0d9697fd826c0c88f1582091ae58134447679f7e8756f63d86b5455f90",
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms",
+      "path": [
+        "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms",
+        "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms/christmas"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": [],
+      "menuKind": "hub",
+      "officialEvidence": {
+        "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms",
+        "identityExcerpt": "8-9 London Street, Paddington, London, W2 1HL",
+        "binding": "The address identifies this venue. Its own page states these offerings or links this document."
+      }
+    },
+    {
+      "venueId": "way/155488603",
+      "url": "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms/our-beers",
+      "verdict": "unresolved",
+      "format": "html",
+      "relevant": null,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The branch describes three cask beers, but this is partly a promotional page. A human must decide whether it meets the menu inventory rule.",
+      "bodySha256": "6afd7c16d61c07f24a96e5e6166cd86822ff21f44c593abd5317c6bb75b2b70a",
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms",
+      "path": [
+        "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms",
+        "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms/our-beers"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "way/155488603",
+      "url": "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms/our-food",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "This is a food marketing overview with links to broad chain food articles. It does not present a structured branch menu.",
+      "bodySha256": "c9bb136a083efee9aaf1a2c3d898e89de5d53382e48adeec9a810ea10d7fc2ea",
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms",
+      "path": [
+        "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms",
+        "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms/our-food"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "node/2267462478",
+      "url": "https://thebluecoatspub.com/food-drink/",
+      "verdict": "menu",
+      "format": "html",
+      "relevant": true,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The official page states N17 9TA and directly links Weekday Menu, Sunday Roast Menu, and Drinks Menu. The documents use JPEG images.",
+      "bodySha256": "375e2f6626cdec7ea0eed2d6867d3a913efa9f24749565d243cc9fa7b4d597e9",
+      "sourceUrl": "https://thebluecoatspub.com/",
+      "path": [
+        "https://thebluecoatspub.com/",
+        "https://thebluecoatspub.com/food-drink/"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": [],
+      "menuKind": "hub",
+      "officialEvidence": {
+        "sourceUrl": "https://thebluecoatspub.com/food-drink/",
+        "identityExcerpt": "614 High Road, London, N17 9TA",
+        "binding": "The address identifies this venue. Its own page states these offerings or links this document."
+      }
+    },
+    {
+      "venueId": "node/2267462478",
+      "url": "https://thebluecoatspub.com/contact/",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The page provides contact and travel information. It does not provide a menu.",
+      "bodySha256": "f9d80984b687b33acc57e0c5966282f5f56cb941bbbc5f6764d02fffd63d805c",
+      "sourceUrl": "https://thebluecoatspub.com/",
+      "path": [
+        "https://thebluecoatspub.com/",
+        "https://thebluecoatspub.com/contact/"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "node/2267462478",
+      "url": "https://thebluecoatspub.com/faq/",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The page answers venue questions. It does not provide a menu.",
+      "bodySha256": "e6d4ebcaefd95981aa83c16ef982720cd1f3d0a887ade878ba5b9f819f7a3692",
+      "sourceUrl": "https://thebluecoatspub.com/",
+      "path": [
+        "https://thebluecoatspub.com/",
+        "https://thebluecoatspub.com/faq/"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "node/2267462478",
+      "url": "https://thebluecoatspub.com/private-hire/",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The page describes private hire. Hire or spend amounts do not establish item prices. It does not provide a menu.",
+      "bodySha256": "96cdf918fc5a171f60e411bc22e59936f5174d98ac81df803fea9482b82bd202",
+      "sourceUrl": "https://thebluecoatspub.com/",
+      "path": [
+        "https://thebluecoatspub.com/",
+        "https://thebluecoatspub.com/private-hire/"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "node/2267462478",
+      "url": "https://thebluecoatspub.com/whats-on/",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The page lists events. It does not provide a menu.",
+      "bodySha256": "f6b3ea20a2e4b1635dd256f91a65493400af7a165a8a3d5e60bcef72554de6a5",
+      "sourceUrl": "https://thebluecoatspub.com/",
+      "path": [
+        "https://thebluecoatspub.com/",
+        "https://thebluecoatspub.com/whats-on",
+        "https://thebluecoatspub.com/whats-on/"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "node/9891375140",
+      "url": "https://www.thegreengoddess.pub/",
+      "verdict": "unresolved",
+      "format": "html",
+      "relevant": null,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The root page binds 43A Vanbrugh Park. It has a What is pouring section without readable items in the captured HTML. The site postcode SE3 7AA differs from the input SE3 7AB. No menu or zero-price inventory is inferred.",
+      "bodySha256": "599d447ce219e478cf4b94a0de83c524049126c2b255fc4234d6367b4751d3d5",
+      "sourceUrl": null,
+      "path": [
+        "https://www.thegreengoddess.pub/"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "node/9891375140",
+      "url": "https://www.thegreengoddess.pub/_files/ugd/c63850_0fe016439ec6443aaa70a0ac491b0beb.pdf",
+      "verdict": "not-menu",
+      "format": "pdf",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The PDF is a bus timetable for 19 July 2025. It lists departure times and pub stops, not food or drink offerings.",
+      "bodySha256": "e2471f29d004d3fbed0b2139d6395b228057172726c7726bc45dde6194656e48",
+      "sourceUrl": "https://www.thegreengoddess.pub/shirkrustpray",
+      "path": [
+        "https://www.thegreengoddess.pub/",
+        "https://www.thegreengoddess.pub/shirkrustpray",
+        "https://www.thegreengoddess.pub/_files/ugd/c63850_0fe016439ec6443aaa70a0ac491b0beb.pdf"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "node/9891375140",
+      "url": "https://www.thegreengoddess.pub/_files/ugd/c63850_4b5eee81c689478e9ab2b7955495c18e.pdf",
+      "verdict": "not-menu",
+      "format": "pdf",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The PDF is a bus timetable for 19 July 2025. It lists departure times and pub stops, not food or drink offerings.",
+      "bodySha256": "32896a8bf782d3af06a948cd663a5d4dae117a94acd13c195ec3f2b2d268031e",
+      "sourceUrl": "https://www.thegreengoddess.pub/shirkrustpray",
+      "path": [
+        "https://www.thegreengoddess.pub/",
+        "https://www.thegreengoddess.pub/shirkrustpray",
+        "https://www.thegreengoddess.pub/_files/ugd/c63850_4b5eee81c689478e9ab2b7955495c18e.pdf"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "node/9891375140",
+      "url": "https://www.thegreengoddess.pub/_files/ugd/c63850_949a5a7ee95d478cb892c47e71336376.pdf",
+      "verdict": "not-menu",
+      "format": "pdf",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The PDF is a bus timetable for 19 July 2025. It lists departure times and pub stops, not food or drink offerings.",
+      "bodySha256": "29cf93c1e84e2cf08a665d3c6bfeac4bdfea957e38376bd66a2a2f53ad8957f6",
+      "sourceUrl": "https://www.thegreengoddess.pub/shirkrustpray",
+      "path": [
+        "https://www.thegreengoddess.pub/",
+        "https://www.thegreengoddess.pub/shirkrustpray",
+        "https://www.thegreengoddess.pub/_files/ugd/c63850_949a5a7ee95d478cb892c47e71336376.pdf"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "node/9891375140",
+      "url": "https://www.thegreengoddess.pub/_files/ugd/c63850_d4dc62e7d2d146be9331813e466f0145.pdf",
+      "verdict": "not-menu",
+      "format": "pdf",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The PDF is a bus timetable for 19 July 2025. It lists departure times and pub stops, not food or drink offerings.",
+      "bodySha256": "eac68b002a2204c30f903eb692e2941a06d64d38bd7500d68fc96f25366001d6",
+      "sourceUrl": "https://www.thegreengoddess.pub/shirkrustpray",
+      "path": [
+        "https://www.thegreengoddess.pub/",
+        "https://www.thegreengoddess.pub/shirkrustpray",
+        "https://www.thegreengoddess.pub/_files/ugd/c63850_d4dc62e7d2d146be9331813e466f0145.pdf"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "node/9891375140",
+      "url": "https://www.thegreengoddess.pub/contact-5",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "This page gives the pub address and contact details. It does not provide a menu. The site postcode differs from OSM, so the exact street address is retained for identity review.",
+      "bodySha256": "3167b79732aa3c259e31bf327fbc68b6151039777ac53343d63942a98edfeb8a",
+      "sourceUrl": "https://www.thegreengoddess.pub/",
+      "path": [
+        "https://www.thegreengoddess.pub/",
+        "https://www.thegreengoddess.pub/contact-5"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "node/9891375140",
+      "url": "https://www.thegreengoddess.pub/event-details/cheese-beer-and-cider-tasting-2",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "This is an event ticket page. The ticket and its service fee are not a food or drink menu.",
+      "bodySha256": "e28129ac5f733baf9744cda44aed4044b16a41763baf80aca1ed4409c7a9e298",
+      "sourceUrl": "https://www.thegreengoddess.pub/event-list",
+      "path": [
+        "https://www.thegreengoddess.pub/",
+        "https://www.thegreengoddess.pub/event-list",
+        "https://www.thegreengoddess.pub/event-details/cheese-beer-and-cider-tasting-2"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "node/9891375140",
+      "url": "https://www.thegreengoddess.pub/event-details/comedy-at-the-goddess-2026-11-01-19-00",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "This page lists an event or events. It does not provide a menu.",
+      "bodySha256": "9fd6448554f9ce256e872bbceb5995616436c82c2aad3e42029a92c6db93106e",
+      "sourceUrl": "https://www.thegreengoddess.pub/event-list",
+      "path": [
+        "https://www.thegreengoddess.pub/",
+        "https://www.thegreengoddess.pub/event-list",
+        "https://www.thegreengoddess.pub/event-details/comedy-at-the-goddess-2026-11-01-19-00"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "node/9891375140",
+      "url": "https://www.thegreengoddess.pub/event-list",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "This page lists an event or events. It does not provide a menu.",
+      "bodySha256": "2e4729ad2fad4e4404d46a52c8d0b1ce94c50940fab8e778f5424f1b77d2e4ec",
+      "sourceUrl": "https://www.thegreengoddess.pub/",
+      "path": [
+        "https://www.thegreengoddess.pub/",
+        "https://www.thegreengoddess.pub/event-list"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "node/9891375140",
+      "url": "https://www.thegreengoddess.pub/shirkrustpray",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "This page describes a pub bus trip and links bus timetables. It does not provide a menu.",
+      "bodySha256": "a2c3a787be84e68b7edd5e81b5210062f3834b256b39c0bcee6c9cb5264a19db",
+      "sourceUrl": "https://www.thegreengoddess.pub/",
+      "path": [
+        "https://www.thegreengoddess.pub/",
+        "https://www.thegreengoddess.pub/shirkrustpray"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "node/262702979",
+      "url": "https://www.brunningandprice.co.uk/architectbath/",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The page identifies The Architect in Bath, BA1 1LP. It is not the input Roebuck at 122 Chiswick High Road, W4 1PU.",
+      "bodySha256": "01e10e33463a497a76e69ac1fea3cb168449b52436f028a210cad13d4afc125b",
+      "sourceUrl": "https://www.brunningandprice.co.uk/company/urban/",
+      "path": [
+        "https://www.brunningandprice.co.uk/roebuck/",
+        "https://www.brunningandprice.co.uk/company/urban/",
+        "https://www.brunningandprice.co.uk/architectbath/"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "node/262702979",
+      "url": "https://www.brunningandprice.co.uk/architectbath/menus/daily-menu/",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The page identifies The Architect in Bath, BA1 1LP. It is not the input Roebuck at 122 Chiswick High Road, W4 1PU.",
+      "bodySha256": "7dc5a28f6e56a7056197f700d70f705ece2a366ed59c8d988c9c063aa67d7d94",
+      "sourceUrl": "https://www.brunningandprice.co.uk/architectbath/",
+      "path": [
+        "https://www.brunningandprice.co.uk/roebuck/",
+        "https://www.brunningandprice.co.uk/company/urban/",
+        "https://www.brunningandprice.co.uk/architectbath/",
+        "https://www.brunningandprice.co.uk/architectbath/menus/daily-menu/"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "node/262702979",
+      "url": "https://www.brunningandprice.co.uk/architectbath/menus/wine-and-drinks/",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The page identifies The Architect in Bath, BA1 1LP. It is not the input Roebuck at 122 Chiswick High Road, W4 1PU.",
+      "bodySha256": "e5f589319c2b409a853f698e545ab18a05b40fbd300384e154e6613f7ab9e46b",
+      "sourceUrl": "https://www.brunningandprice.co.uk/architectbath/",
+      "path": [
+        "https://www.brunningandprice.co.uk/roebuck/",
+        "https://www.brunningandprice.co.uk/company/urban/",
+        "https://www.brunningandprice.co.uk/architectbath/",
+        "https://www.brunningandprice.co.uk/architectbath/menus/wine-and-drinks/"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "node/262702979",
+      "url": "https://www.brunningandprice.co.uk/company/",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "This is a company page or article. It is not a menu bound to the input Roebuck in Chiswick.",
+      "bodySha256": "0d669fb27868d897a718d0fc9d582613c45deb34b6ff4b9241e3eede4cf25644",
+      "sourceUrl": "https://www.brunningandprice.co.uk/company/urban/",
+      "path": [
+        "https://www.brunningandprice.co.uk/roebuck/",
+        "https://www.brunningandprice.co.uk/company/urban/",
+        "https://www.brunningandprice.co.uk/company/"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "node/262702979",
+      "url": "https://www.brunningandprice.co.uk/company/drink-archive/",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "This is a company page or article. It is not a menu bound to the input Roebuck in Chiswick.",
+      "bodySha256": "be5c59be4e197424b6556af234b9be352dee06921ae3580fcb98de665348f8ac",
+      "sourceUrl": "https://www.brunningandprice.co.uk/company/drink/",
+      "path": [
+        "https://www.brunningandprice.co.uk/roebuck/",
+        "https://www.brunningandprice.co.uk/company/urban/",
+        "https://www.brunningandprice.co.uk/company/drink/",
+        "https://www.brunningandprice.co.uk/company/drink-archive/"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "node/262702979",
+      "url": "https://www.brunningandprice.co.uk/company/drink/",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "This is a company page or article. It is not a menu bound to the input Roebuck in Chiswick.",
+      "bodySha256": "6d5b31c8012595e9dd5c5b2664df36c825e8550d015403909de3d0b1521a6c89",
+      "sourceUrl": "https://www.brunningandprice.co.uk/company/urban/",
+      "path": [
+        "https://www.brunningandprice.co.uk/roebuck/",
+        "https://www.brunningandprice.co.uk/company/urban/",
+        "https://www.brunningandprice.co.uk/company/drink/"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "node/262702979",
+      "url": "https://www.brunningandprice.co.uk/company/food-archive/",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "This is a company page or article. It is not a menu bound to the input Roebuck in Chiswick.",
+      "bodySha256": "3384f153b65516966b6482c4b08516a89d9add5880658ddd6587c989028dfb29",
+      "sourceUrl": "https://www.brunningandprice.co.uk/company/food/",
+      "path": [
+        "https://www.brunningandprice.co.uk/roebuck/",
+        "https://www.brunningandprice.co.uk/company/urban/",
+        "https://www.brunningandprice.co.uk/company/food/",
+        "https://www.brunningandprice.co.uk/company/food-archive/"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "node/262702979",
+      "url": "https://www.brunningandprice.co.uk/company/food/",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "This is a company page or article. It is not a menu bound to the input Roebuck in Chiswick.",
+      "bodySha256": "5d32ad189144551ba935e683fb177255d5321443f128f043eab0af1dc245293d",
+      "sourceUrl": "https://www.brunningandprice.co.uk/company/urban/",
+      "path": [
+        "https://www.brunningandprice.co.uk/roebuck/",
+        "https://www.brunningandprice.co.uk/company/urban/",
+        "https://www.brunningandprice.co.uk/company/food/"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "node/262702979",
+      "url": "https://www.brunningandprice.co.uk/company/homepage/",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "This is a company page or article. It is not a menu bound to the input Roebuck in Chiswick.",
+      "bodySha256": "b30efd9b5edac589fea2f06c12b4e847d96b721826caf67d696b3834eaa6ce45",
+      "sourceUrl": "https://www.brunningandprice.co.uk/company/urban/",
+      "path": [
+        "https://www.brunningandprice.co.uk/roebuck/",
+        "https://www.brunningandprice.co.uk/company/urban/",
+        "https://www.brunningandprice.co.uk/company/homepage/"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "node/262702979",
+      "url": "https://www.brunningandprice.co.uk/company/pub-contacts/",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "This is a company page or article. It is not a menu bound to the input Roebuck in Chiswick.",
+      "bodySha256": "5df436ecad66c3e35f6a86b29326368b16237e605fad0c3d81f4d5a004f7c024",
+      "sourceUrl": "https://www.brunningandprice.co.uk/company/urban/",
+      "path": [
+        "https://www.brunningandprice.co.uk/roebuck/",
+        "https://www.brunningandprice.co.uk/company/urban/",
+        "https://www.brunningandprice.co.uk/company/pub-contacts/"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "node/262702979",
+      "url": "https://www.brunningandprice.co.uk/company/pubs-with-private-dining/",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "This is a company page or article. It is not a menu bound to the input Roebuck in Chiswick.",
+      "bodySha256": "e4d5b303dea62e85c13c77ebfbbe38e3cfcce07c2660dd01fbf2050636d8ce4e",
+      "sourceUrl": "https://www.brunningandprice.co.uk/company/urban/",
+      "path": [
+        "https://www.brunningandprice.co.uk/roebuck/",
+        "https://www.brunningandprice.co.uk/company/urban/",
+        "https://www.brunningandprice.co.uk/company/pubs-with-private-dining/"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "node/262702979",
+      "url": "https://www.brunningandprice.co.uk/company/pubs-with-rooms/",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "This is a company page or article. It is not a menu bound to the input Roebuck in Chiswick.",
+      "bodySha256": "6d2c2ce8b7bc961d96c397827196b7f1ad595e4ccb155b3585094ec3f85346eb",
+      "sourceUrl": "https://www.brunningandprice.co.uk/company/urban/",
+      "path": [
+        "https://www.brunningandprice.co.uk/roebuck/",
+        "https://www.brunningandprice.co.uk/company/urban/",
+        "https://www.brunningandprice.co.uk/company/pubs-with-rooms/"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "node/262702979",
+      "url": "https://www.brunningandprice.co.uk/company/urban/",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "This is a company page or article. It is not a menu bound to the input Roebuck in Chiswick.",
+      "bodySha256": "3d1d48cf8a6a205387f30c656b5576d8ac81f178d4886c192d1674e4dc93a40c",
+      "sourceUrl": null,
+      "path": [
+        "https://www.brunningandprice.co.uk/roebuck/",
+        "https://www.brunningandprice.co.uk/company/urban/"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "node/262702979",
+      "url": "https://www.brunningandprice.co.uk/leatherbottle/",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "This page identifies the Leather Bottle, not the input Roebuck in Chiswick. A shared company host does not establish branch identity.",
+      "bodySha256": "3032c6cdfba26fa754e60e40eabe5b5180ddc517c708744dd54646444bde3e01",
+      "sourceUrl": "https://www.brunningandprice.co.uk/company/urban/",
+      "path": [
+        "https://www.brunningandprice.co.uk/roebuck/",
+        "https://www.brunningandprice.co.uk/company/urban/",
+        "https://www.brunningandprice.co.uk/leatherbottle/"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "way/97425688",
+      "url": "http://www.hopecarshalton.co.uk/Beer-and-Food.html",
+      "verdict": "menu",
+      "format": "html",
+      "relevant": true,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The official page lists specific drinks, including Bavo Pils and Hacker Pschorr Munchener Hell, plus ABVs and thirds, halves, and pints. The contact page binds 48 West Street, SM5 2PR.",
+      "bodySha256": "3308a05e7f265599fe66cdd61de8488e2683a0b395eafddcf5a566ce7f89963e",
+      "sourceUrl": "http://www.hopecarshalton.co.uk/",
+      "path": [
+        "http://www.hopecarshalton.co.uk/",
+        "http://www.hopecarshalton.co.uk/Beer-and-Food.html"
+      ],
+      "priceReviewComplete": true,
+      "priceRecords": [],
+      "menuKind": "drinks-offerings",
+      "officialEvidence": {
+        "sourceUrl": "http://www.hopecarshalton.co.uk/Contact-Us.html",
+        "identityExcerpt": "The Hope, 48 West Street, Carshalton, Surrey SM5 2PR",
+        "binding": "The address identifies this venue. Its own page states these offerings or links this document."
+      }
+    },
+    {
+      "venueId": "way/97425688",
+      "url": "http://www.hopecarshalton.co.uk/About-Us.html",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "This page describes the pub history. It does not provide a menu.",
+      "bodySha256": "83d73d9f5ad2c25b7b6a0944544aa900ba9c0fc20ba2b0ef4cf2ce60fee279f3",
+      "sourceUrl": "http://www.hopecarshalton.co.uk/",
+      "path": [
+        "http://www.hopecarshalton.co.uk/",
+        "http://www.hopecarshalton.co.uk/About-Us.html"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "way/97425688",
+      "url": "http://www.hopecarshalton.co.uk/Contact-Us.html",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "This page provides the address and travel information. It does not provide a menu.",
+      "bodySha256": "6f77cccf7604aeaeffb56ceaa59fa1de8114ca713d3fd3c2f0ce92c30ec78829",
+      "sourceUrl": "http://www.hopecarshalton.co.uk/",
+      "path": [
+        "http://www.hopecarshalton.co.uk/",
+        "http://www.hopecarshalton.co.uk/Contact-Us.html"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "way/97425688",
+      "url": "http://www.hopecarshalton.co.uk/Events.html",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "This page lists events. It does not provide a menu.",
+      "bodySha256": "8b2f87155f0154615ad3f30930a35b7ee1b52cc1ebf358956343096768328ca1",
+      "sourceUrl": "http://www.hopecarshalton.co.uk/",
+      "path": [
+        "http://www.hopecarshalton.co.uk/",
+        "http://www.hopecarshalton.co.uk/Events.html"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "way/97425688",
+      "url": "http://www.hopecarshalton.co.uk/Links.html",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "This page lists community links. It does not provide a menu.",
+      "bodySha256": "577a886744f46ce9349cad4a3a6e541a6e83d2791e3a553ad26c38d62306604a",
+      "sourceUrl": "http://www.hopecarshalton.co.uk/",
+      "path": [
+        "http://www.hopecarshalton.co.uk/",
+        "http://www.hopecarshalton.co.uk/Links.html"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "way/97425688",
+      "url": "http://www.hopecarshalton.co.uk/bf2605.html",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The beer-festival page is a holding page without a populated item list. Serving-size text alone is not a menu.",
+      "bodySha256": "55f9ca79546d97ddbf5a175ebfa1a18b8b52a666b9c9a166a64f44ffd220d881",
+      "sourceUrl": "http://www.hopecarshalton.co.uk/Events.html",
+      "path": [
+        "http://www.hopecarshalton.co.uk/",
+        "http://www.hopecarshalton.co.uk/Events.html",
+        "http://www.hopecarshalton.co.uk/bf2605.html"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "way/97425688",
+      "url": "http://www.hopecarshalton.co.uk/bf2606.html",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The beer-festival page is a holding page without a populated item list. Serving-size text alone is not a menu.",
+      "bodySha256": "5b2cfc55e3d88cbac6e3964bce1d4c287d768256216d227a03b5dabbe271156a",
+      "sourceUrl": "http://www.hopecarshalton.co.uk/Events.html",
+      "path": [
+        "http://www.hopecarshalton.co.uk/",
+        "http://www.hopecarshalton.co.uk/Events.html",
+        "http://www.hopecarshalton.co.uk/bf2606.html"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "way/97425688",
+      "url": "http://www.hopecarshalton.co.uk/bf2609.html",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The beer-festival page is a holding page without a populated item list. Serving-size text alone is not a menu.",
+      "bodySha256": "d1f7b4ee75bad9b5578ac1a058afc02bdf0ff1137b60ce30237a1a3cbcfe2d1c",
+      "sourceUrl": "http://www.hopecarshalton.co.uk/",
+      "path": [
+        "http://www.hopecarshalton.co.uk/",
+        "http://www.hopecarshalton.co.uk/bf2609.html"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "way/97425688",
+      "url": "http://www.hopecarshalton.co.uk/bf26nn.html",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The beer-festival page is a holding page without a populated item list. Serving-size text alone is not a menu.",
+      "bodySha256": "d1f7b4ee75bad9b5578ac1a058afc02bdf0ff1137b60ce30237a1a3cbcfe2d1c",
+      "sourceUrl": "http://www.hopecarshalton.co.uk/Events.html",
+      "path": [
+        "http://www.hopecarshalton.co.uk/",
+        "http://www.hopecarshalton.co.uk/Events.html",
+        "http://www.hopecarshalton.co.uk/bf26nn.html"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "way/176677099",
+      "url": "https://www.oldshiphammersmith.co.uk/food-and-drink",
+      "verdict": "menu",
+      "format": "html",
+      "relevant": true,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The official pub page identifies W6 9TD and provides direct choices for food and drinks menus.",
+      "bodySha256": "7e655b4ca01ff7d4d959156c7040434208d47a9e49f5938e9a68d7d75925c078",
+      "sourceUrl": "https://www.oldshiphammersmith.co.uk/",
+      "path": [
+        "https://www.oldshiphammersmith.co.uk/",
+        "https://www.oldshiphammersmith.co.uk/food-and-drink"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": [],
+      "menuKind": "hub",
+      "officialEvidence": {
+        "sourceUrl": "https://www.oldshiphammersmith.co.uk/",
+        "identityExcerpt": "25 Upper Mall, Hammersmith, London, W6 9TD",
+        "binding": "The address identifies this venue. Its own page states these offerings or links this document."
+      }
+    },
+    {
+      "venueId": "way/176677099",
+      "url": "https://www.oldshiphammersmith.co.uk/wp-content/uploads/sites/118/2026/01/Buffetcanape-menu-Private-dining-2026.pdf",
+      "verdict": "menu",
+      "format": "pdf",
+      "relevant": true,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The official W6 9TD pub page links this document. Its readable contents list food or drinks. Any scanned-page warning limits price-review completeness.",
+      "bodySha256": "6c71f7bb475fd7d847831f26e3cc1916ce668fcbec0ab6be9db397676a6d877c",
+      "sourceUrl": "https://www.oldshiphammersmith.co.uk/food-and-drink",
+      "path": [
+        "https://www.oldshiphammersmith.co.uk/",
+        "https://www.oldshiphammersmith.co.uk/food-and-drink",
+        "https://www.oldshiphammersmith.co.uk/wp-content/uploads/sites/118/2026/01/Buffetcanape-menu-Private-dining-2026.pdf"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": [],
+      "menuKind": "document",
+      "officialEvidence": {
+        "sourceUrl": "https://www.oldshiphammersmith.co.uk/",
+        "identityExcerpt": "25 Upper Mall, Hammersmith, London, W6 9TD",
+        "binding": "The address identifies this venue. Its own page states these offerings or links this document."
+      }
+    },
+    {
+      "venueId": "way/176677099",
+      "url": "https://www.oldshiphammersmith.co.uk/wp-content/uploads/sites/118/2026/01/Childrens-Menu-2026-A5.pdf",
+      "verdict": "menu",
+      "format": "pdf",
+      "relevant": true,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The official W6 9TD pub page links this document. Its readable contents list food or drinks. Any scanned-page warning limits price-review completeness.",
+      "bodySha256": "e3cca435a239f353690d7ec5a639128a3b58c368f932120c5280860b6e6c220d",
+      "sourceUrl": "https://www.oldshiphammersmith.co.uk/food-and-drink",
+      "path": [
+        "https://www.oldshiphammersmith.co.uk/",
+        "https://www.oldshiphammersmith.co.uk/food-and-drink",
+        "https://www.oldshiphammersmith.co.uk/wp-content/uploads/sites/118/2026/01/Childrens-Menu-2026-A5.pdf"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": [],
+      "menuKind": "document",
+      "officialEvidence": {
+        "sourceUrl": "https://www.oldshiphammersmith.co.uk/",
+        "identityExcerpt": "25 Upper Mall, Hammersmith, London, W6 9TD",
+        "binding": "The address identifies this venue. Its own page states these offerings or links this document."
+      }
+    },
+    {
+      "venueId": "way/176677099",
+      "url": "https://www.oldshiphammersmith.co.uk/wp-content/uploads/sites/118/2026/01/Childrens-Sunday-Menu-2026.pdf",
+      "verdict": "menu",
+      "format": "pdf",
+      "relevant": true,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The official W6 9TD pub page links this document. Its readable contents list food or drinks. Any scanned-page warning limits price-review completeness.",
+      "bodySha256": "25cbe2c037a5ed2b866a11f0030ee151b0ed8ecc5a0312f1829f7fe4636d2184",
+      "sourceUrl": "https://www.oldshiphammersmith.co.uk/food-and-drink",
+      "path": [
+        "https://www.oldshiphammersmith.co.uk/",
+        "https://www.oldshiphammersmith.co.uk/food-and-drink",
+        "https://www.oldshiphammersmith.co.uk/wp-content/uploads/sites/118/2026/01/Childrens-Sunday-Menu-2026.pdf"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": [],
+      "menuKind": "document",
+      "officialEvidence": {
+        "sourceUrl": "https://www.oldshiphammersmith.co.uk/",
+        "identityExcerpt": "25 Upper Mall, Hammersmith, London, W6 9TD",
+        "binding": "The address identifies this venue. Its own page states these offerings or links this document."
+      }
+    },
+    {
+      "venueId": "way/176677099",
+      "url": "https://www.oldshiphammersmith.co.uk/wp-content/uploads/sites/118/2026/01/Cigar-menu.pdf",
+      "verdict": "not-menu",
+      "format": "pdf",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "This PDF lists cigars and cigar prices. It is not a food or drinks menu.",
+      "bodySha256": "952062f342a47736dad9a3e0a75c273a6e7677efd27c894c0112f32c47ffd752",
+      "sourceUrl": "https://www.oldshiphammersmith.co.uk/food-and-drink",
+      "path": [
+        "https://www.oldshiphammersmith.co.uk/",
+        "https://www.oldshiphammersmith.co.uk/food-and-drink",
+        "https://www.oldshiphammersmith.co.uk/wp-content/uploads/sites/118/2026/01/Cigar-menu.pdf"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "way/176677099",
+      "url": "https://www.oldshiphammersmith.co.uk/wp-content/uploads/sites/118/2026/01/Medium-H-1.pdf.pdf",
+      "verdict": "menu",
+      "format": "pdf",
+      "relevant": true,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The official W6 9TD pub page links this document. Its readable contents list food or drinks. Any scanned-page warning limits price-review completeness.",
+      "bodySha256": "e54d9dc4a8620559b464c89aa4e4729ee3f30a7ddeddc51b9b82b5b64d4f3722",
+      "sourceUrl": "https://www.oldshiphammersmith.co.uk/food-and-drink",
+      "path": [
+        "https://www.oldshiphammersmith.co.uk/",
+        "https://www.oldshiphammersmith.co.uk/food-and-drink",
+        "https://www.oldshiphammersmith.co.uk/wp-content/uploads/sites/118/2026/01/Medium-H-1.pdf.pdf"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": [],
+      "menuKind": "document",
+      "officialEvidence": {
+        "sourceUrl": "https://www.oldshiphammersmith.co.uk/",
+        "identityExcerpt": "25 Upper Mall, Hammersmith, London, W6 9TD",
+        "binding": "The address identifies this venue. Its own page states these offerings or links this document."
+      }
+    },
+    {
+      "venueId": "way/176677099",
+      "url": "https://www.oldshiphammersmith.co.uk/wp-content/uploads/sites/118/2026/04/OSH-Cocktails.pdf",
+      "verdict": "menu",
+      "format": "pdf",
+      "relevant": true,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The official W6 9TD pub page links this document. Its readable contents list food or drinks. Any scanned-page warning limits price-review completeness.",
+      "bodySha256": "7ad7a715e6551c330b7362ad095e649d607b890c6507befca6267b5612c3cda6",
+      "sourceUrl": "https://www.oldshiphammersmith.co.uk/food-and-drink",
+      "path": [
+        "https://www.oldshiphammersmith.co.uk/",
+        "https://www.oldshiphammersmith.co.uk/food-and-drink",
+        "https://www.oldshiphammersmith.co.uk/wp-content/uploads/sites/118/2026/04/OSH-Cocktails.pdf"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": [
+        {
+          "id": "1023e1a825b0a1828258",
+          "item": "Apple & Elderflower",
+          "category": "drink",
+          "amountGbp": 5.35,
+          "currency": "GBP",
+          "serving": null,
+          "conditions": "Recorded menu prices, not a payable total. The document labels these seasonal drinks. Additional service-charge conditions are not established.",
+          "evidence": "Apple & Elderflower .................................. £5.35",
+          "sourceUrl": "https://www.oldshiphammersmith.co.uk/wp-content/uploads/sites/118/2026/04/OSH-Cocktails.pdf"
+        },
+        {
+          "id": "7327ed92d6cbdcd6313b",
+          "item": "Cranberry & Mint",
+          "category": "drink",
+          "amountGbp": 5.35,
+          "currency": "GBP",
+          "serving": null,
+          "conditions": "Recorded menu prices, not a payable total. The document labels these seasonal drinks. Additional service-charge conditions are not established.",
+          "evidence": "Cranberry & Mint .......................................... £5.35",
+          "sourceUrl": "https://www.oldshiphammersmith.co.uk/wp-content/uploads/sites/118/2026/04/OSH-Cocktails.pdf"
+        },
+        {
+          "id": "72342b1216ca227a8f8d",
+          "item": "Raspberry & Rose",
+          "category": "drink",
+          "amountGbp": 4.35,
+          "currency": "GBP",
+          "serving": null,
+          "conditions": "Recorded menu prices, not a payable total. The document labels these seasonal drinks. Additional service-charge conditions are not established.",
+          "evidence": "Raspberry & Rose ........................................ £4.35",
+          "sourceUrl": "https://www.oldshiphammersmith.co.uk/wp-content/uploads/sites/118/2026/04/OSH-Cocktails.pdf"
+        },
+        {
+          "id": "737302f86c5435080ef2",
+          "item": "TRIP Cherry Lemon",
+          "category": "drink",
+          "amountGbp": 4.85,
+          "currency": "GBP",
+          "serving": null,
+          "conditions": "Recorded menu prices, not a payable total. The document labels these seasonal drinks. Additional service-charge conditions are not established.",
+          "evidence": "TRIP Cherry Lemon ..................................... £4.85",
+          "sourceUrl": "https://www.oldshiphammersmith.co.uk/wp-content/uploads/sites/118/2026/04/OSH-Cocktails.pdf"
+        },
+        {
+          "id": "721a9bd899877334b281",
+          "item": "TRIP Elderflower Mint",
+          "category": "drink",
+          "amountGbp": 4.85,
+          "currency": "GBP",
+          "serving": null,
+          "conditions": "Recorded menu prices, not a payable total. The document labels these seasonal drinks. Additional service-charge conditions are not established.",
+          "evidence": "TRIP Elderflower Mint ............................... £4.85",
+          "sourceUrl": "https://www.oldshiphammersmith.co.uk/wp-content/uploads/sites/118/2026/04/OSH-Cocktails.pdf"
+        },
+        {
+          "id": "e55711a61f63df606928",
+          "item": "Ginger Yuzu Fizz",
+          "category": "drink",
+          "amountGbp": 8,
+          "currency": "GBP",
+          "serving": null,
+          "conditions": "Recorded menu prices, not a payable total. The document labels these seasonal drinks. Additional service-charge conditions are not established.",
+          "evidence": "Ginger Yuzu Fizz ..................................................... £8",
+          "sourceUrl": "https://www.oldshiphammersmith.co.uk/wp-content/uploads/sites/118/2026/04/OSH-Cocktails.pdf"
+        },
+        {
+          "id": "f345fb4b7baecf13c66a",
+          "item": "Steinbock Riesling",
+          "category": "drink",
+          "amountGbp": 6.9,
+          "currency": "GBP",
+          "serving": "125ml",
+          "conditions": "Recorded menu prices, not a payable total. The document labels these seasonal drinks. Additional service-charge conditions are not established.",
+          "evidence": "Germany ....................................S £6.9 (28kcal) B £34.5",
+          "sourceUrl": "https://www.oldshiphammersmith.co.uk/wp-content/uploads/sites/118/2026/04/OSH-Cocktails.pdf",
+          "servingEvidence": "Glass size (S): 125ml | Bottle (B): 750ml"
+        },
+        {
+          "id": "7741dc364919ce0c822f",
+          "item": "Steinbock Riesling",
+          "category": "drink",
+          "amountGbp": 34.5,
+          "currency": "GBP",
+          "serving": "750ml",
+          "conditions": "Recorded menu prices, not a payable total. The document labels these seasonal drinks. Additional service-charge conditions are not established.",
+          "evidence": "Germany ....................................S £6.9 (28kcal) B £34.5",
+          "sourceUrl": "https://www.oldshiphammersmith.co.uk/wp-content/uploads/sites/118/2026/04/OSH-Cocktails.pdf",
+          "servingEvidence": "Glass size (S): 125ml | Bottle (B): 750ml"
+        },
+        {
+          "id": "cf7eec81ee4b282bae9b",
+          "item": "Nooh La Coste Rose",
+          "category": "drink",
+          "amountGbp": 8.7,
+          "currency": "GBP",
+          "serving": "125ml",
+          "conditions": "Recorded menu prices, not a payable total. The document labels these seasonal drinks. Additional service-charge conditions are not established.",
+          "evidence": "Provence....................................S £8.7 (22kcal) B £45.5",
+          "sourceUrl": "https://www.oldshiphammersmith.co.uk/wp-content/uploads/sites/118/2026/04/OSH-Cocktails.pdf",
+          "servingEvidence": "Glass size (S): 125ml | Bottle (B): 750ml"
+        },
+        {
+          "id": "f1ec0bddb91f2d859f03",
+          "item": "Nooh La Coste Rose",
+          "category": "drink",
+          "amountGbp": 45.5,
+          "currency": "GBP",
+          "serving": "750ml",
+          "conditions": "Recorded menu prices, not a payable total. The document labels these seasonal drinks. Additional service-charge conditions are not established.",
+          "evidence": "Provence....................................S £8.7 (22kcal) B £45.5",
+          "sourceUrl": "https://www.oldshiphammersmith.co.uk/wp-content/uploads/sites/118/2026/04/OSH-Cocktails.pdf",
+          "servingEvidence": "Glass size (S): 125ml | Bottle (B): 750ml"
+        },
+        {
+          "id": "39f04e116fe14e31cf8c",
+          "item": "Winter Sangria",
+          "category": "drink",
+          "amountGbp": 11.5,
+          "currency": "GBP",
+          "serving": null,
+          "conditions": "Recorded menu prices, not a payable total. The document labels these seasonal drinks. Additional service-charge conditions are not established.",
+          "evidence": "Winter Sangria .................... £11.5",
+          "sourceUrl": "https://www.oldshiphammersmith.co.uk/wp-content/uploads/sites/118/2026/04/OSH-Cocktails.pdf"
+        },
+        {
+          "id": "902e6e00d70b06027238",
+          "item": "Paloma 0.0",
+          "category": "drink",
+          "amountGbp": 9.5,
+          "currency": "GBP",
+          "serving": null,
+          "conditions": "Recorded menu prices, not a payable total. The document labels these seasonal drinks. Additional service-charge conditions are not established.",
+          "evidence": "Paloma 0.0 ................................... £9.5",
+          "sourceUrl": "https://www.oldshiphammersmith.co.uk/wp-content/uploads/sites/118/2026/04/OSH-Cocktails.pdf"
+        },
+        {
+          "id": "16711d8ce6217ec626a2",
+          "item": "Picante Spritz",
+          "category": "drink",
+          "amountGbp": 12,
+          "currency": "GBP",
+          "serving": null,
+          "conditions": "Recorded menu prices, not a payable total. The document labels these seasonal drinks. Additional service-charge conditions are not established.",
+          "evidence": "Picante Spritz ............................. £12",
+          "sourceUrl": "https://www.oldshiphammersmith.co.uk/wp-content/uploads/sites/118/2026/04/OSH-Cocktails.pdf"
+        },
+        {
+          "id": "fca9af9777e1a1718d27",
+          "item": "Yuzu Honeybee",
+          "category": "drink",
+          "amountGbp": 13,
+          "currency": "GBP",
+          "serving": null,
+          "conditions": "Recorded menu prices, not a payable total. The document labels these seasonal drinks. Additional service-charge conditions are not established.",
+          "evidence": "Yuzu Honeybee ....................... £13",
+          "sourceUrl": "https://www.oldshiphammersmith.co.uk/wp-content/uploads/sites/118/2026/04/OSH-Cocktails.pdf"
+        },
+        {
+          "id": "df8d49d62ff6db858b61",
+          "item": "Espresso Martini",
+          "category": "drink",
+          "amountGbp": 12.5,
+          "currency": "GBP",
+          "serving": null,
+          "conditions": "Recorded menu prices, not a payable total. The document labels these seasonal drinks. Additional service-charge conditions are not established.",
+          "evidence": "Espresso Martini ............... £12.5",
+          "sourceUrl": "https://www.oldshiphammersmith.co.uk/wp-content/uploads/sites/118/2026/04/OSH-Cocktails.pdf"
+        },
+        {
+          "id": "aabe53579a88dff84c34",
+          "item": "Passion Fruit Martini",
+          "category": "drink",
+          "amountGbp": 12.5,
+          "currency": "GBP",
+          "serving": null,
+          "conditions": "Recorded menu prices, not a payable total. The document labels these seasonal drinks. Additional service-charge conditions are not established.",
+          "evidence": "Passion Fruit Martini ... £12.5",
+          "sourceUrl": "https://www.oldshiphammersmith.co.uk/wp-content/uploads/sites/118/2026/04/OSH-Cocktails.pdf"
+        },
+        {
+          "id": "5ee7286be6e140aea0ab",
+          "item": "Fig Negroni",
+          "category": "drink",
+          "amountGbp": 13,
+          "currency": "GBP",
+          "serving": null,
+          "conditions": "Recorded menu prices, not a payable total. The document labels these seasonal drinks. Additional service-charge conditions are not established.",
+          "evidence": "Fig Negroni .................................... £13",
+          "sourceUrl": "https://www.oldshiphammersmith.co.uk/wp-content/uploads/sites/118/2026/04/OSH-Cocktails.pdf"
+        },
+        {
+          "id": "06514ddfa2aca3c9dcb1",
+          "item": "Negroni 0.0",
+          "category": "drink",
+          "amountGbp": 10,
+          "currency": "GBP",
+          "serving": null,
+          "conditions": "Recorded menu prices, not a payable total. The document labels these seasonal drinks. Additional service-charge conditions are not established.",
+          "evidence": "Negroni 0.0 AF ........................ £10",
+          "sourceUrl": "https://www.oldshiphammersmith.co.uk/wp-content/uploads/sites/118/2026/04/OSH-Cocktails.pdf"
+        },
+        {
+          "id": "f7ace6feb8afb00d8d9e",
+          "item": "Old Fashioned",
+          "category": "drink",
+          "amountGbp": 12.5,
+          "currency": "GBP",
+          "serving": null,
+          "conditions": "Recorded menu prices, not a payable total. The document labels these seasonal drinks. Additional service-charge conditions are not established.",
+          "evidence": "Old Fashioned...................... £12.5",
+          "sourceUrl": "https://www.oldshiphammersmith.co.uk/wp-content/uploads/sites/118/2026/04/OSH-Cocktails.pdf"
+        },
+        {
+          "id": "15c955ff2ba212ef2570",
+          "item": "Lychee Margarita",
+          "category": "drink",
+          "amountGbp": 13,
+          "currency": "GBP",
+          "serving": null,
+          "conditions": "Recorded menu prices, not a payable total. The document labels these seasonal drinks. Additional service-charge conditions are not established.",
+          "evidence": "Lychee Margarita ................. £13",
+          "sourceUrl": "https://www.oldshiphammersmith.co.uk/wp-content/uploads/sites/118/2026/04/OSH-Cocktails.pdf"
+        },
+        {
+          "id": "641379f1643e719531e1",
+          "item": "Cherry Bakewell Martini",
+          "category": "drink",
+          "amountGbp": 12,
+          "currency": "GBP",
+          "serving": null,
+          "conditions": "Recorded menu prices, not a payable total. The document labels these seasonal drinks. Additional service-charge conditions are not established.",
+          "evidence": "Cherry Bakewell\n\nMartini .................................................. £12",
+          "sourceUrl": "https://www.oldshiphammersmith.co.uk/wp-content/uploads/sites/118/2026/04/OSH-Cocktails.pdf"
+        }
+      ],
+      "menuKind": "document",
+      "officialEvidence": {
+        "sourceUrl": "https://www.oldshiphammersmith.co.uk/",
+        "identityExcerpt": "25 Upper Mall, Hammersmith, London, W6 9TD",
+        "binding": "The address identifies this venue. Its own page states these offerings or links this document."
+      }
+    },
+    {
+      "venueId": "way/160279486",
+      "url": "https://etmcollection.co.uk/venue/the-jugged-hare/",
+      "verdict": "menu",
+      "format": "html",
+      "relevant": true,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The page identifies 49 Chiswell Street, EC1Y 4SA and presents its own menu selector with direct PDF choices.",
+      "bodySha256": "3720949924c67f167f97f852fa233a70d683ed740509199e474a739e7580603e",
+      "sourceUrl": null,
+      "path": [
+        "https://etmcollection.co.uk/venue/the-jugged-hare/"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": [],
+      "menuKind": "hub",
+      "officialEvidence": {
+        "sourceUrl": "https://etmcollection.co.uk/venue/the-jugged-hare/",
+        "identityExcerpt": "49 Chiswell Street, London, EC1Y 4SA",
+        "binding": "The address identifies this venue. Its own page states these offerings or links this document."
+      }
+    },
+    {
+      "venueId": "way/160279486",
+      "url": "https://etmcollection.co.uk/app/uploads/2024/07/JH-Sunday-Feast-Menu-0626.pdf",
+      "verdict": "menu",
+      "format": "pdf",
+      "relevant": true,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The verified 49 Chiswell Street venue page links this PDF in its menu selector. Its readable contents list food or drinks for The Jugged Hare.",
+      "bodySha256": "c76a52a7ecf1fd57db46b940c0de219c95e1c314a51b2878636eb0ff34ddab19",
+      "sourceUrl": "https://etmcollection.co.uk/venue/the-jugged-hare/",
+      "path": [
+        "https://etmcollection.co.uk/venue/the-jugged-hare/",
+        "https://etmcollection.co.uk/app/uploads/2024/07/JH-Sunday-Feast-Menu-0626.pdf"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": [],
+      "menuKind": "document",
+      "officialEvidence": {
+        "sourceUrl": "https://etmcollection.co.uk/venue/the-jugged-hare/",
+        "identityExcerpt": "49 Chiswell Street, London, EC1Y 4SA",
+        "binding": "The address identifies this venue. Its own page states these offerings or links this document."
+      }
+    },
+    {
+      "venueId": "way/160279486",
+      "url": "https://etmcollection.co.uk/app/uploads/2024/07/Jugged-Hare-Christmas-Set-Menu-Design-26.pdf",
+      "verdict": "menu",
+      "format": "pdf",
+      "relevant": true,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The verified 49 Chiswell Street venue page links this PDF in its menu selector. Its readable contents list food or drinks for The Jugged Hare.",
+      "bodySha256": "0af5bb5a5f158f024029b99dd3d3db1b7824fb237479b46682da5404ad39456b",
+      "sourceUrl": "https://etmcollection.co.uk/venue/the-jugged-hare/",
+      "path": [
+        "https://etmcollection.co.uk/venue/the-jugged-hare/",
+        "https://etmcollection.co.uk/app/uploads/2024/07/Jugged-Hare-Christmas-Set-Menu-Design-26.pdf"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": [
+        {
+          "id": "5e5c42e7f572aea093fc",
+          "item": "Joseph Perrier Cuvee Royale Champagne",
+          "amountGbp": 18.5,
+          "currency": "GBP",
+          "category": "drink",
+          "serving": "glass, volume not stated",
+          "conditions": "Festive set menu. Peak and off-peak dates require enquiry. Sample menu subject to change. Prices include VAT. A discretionary 12.5 percent service charge applies. Supplements are separate.",
+          "evidence": "Glass £18.5 | Bottle £88",
+          "sourceUrl": "https://etmcollection.co.uk/app/uploads/2024/07/Jugged-Hare-Christmas-Set-Menu-Design-26.pdf"
+        },
+        {
+          "id": "23ac385a313a2a5fe06a",
+          "item": "Joseph Perrier Cuvee Royale Champagne",
+          "amountGbp": 88,
+          "currency": "GBP",
+          "category": "drink",
+          "serving": "bottle, volume not stated",
+          "conditions": "Festive set menu. Peak and off-peak dates require enquiry. Sample menu subject to change. Prices include VAT. A discretionary 12.5 percent service charge applies. Supplements are separate.",
+          "evidence": "Glass £18.5 | Bottle £88",
+          "sourceUrl": "https://etmcollection.co.uk/app/uploads/2024/07/Jugged-Hare-Christmas-Set-Menu-Design-26.pdf"
+        }
+      ],
+      "menuKind": "document",
+      "officialEvidence": {
+        "sourceUrl": "https://etmcollection.co.uk/venue/the-jugged-hare/",
+        "identityExcerpt": "49 Chiswell Street, London, EC1Y 4SA",
+        "binding": "The address identifies this venue. Its own page states these offerings or links this document."
+      }
+    },
+    {
+      "venueId": "way/160279486",
+      "url": "https://etmcollection.co.uk/app/uploads/2024/07/Jugged-October-ALC.pdf.pdf",
+      "verdict": "menu",
+      "format": "pdf",
+      "relevant": true,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The verified 49 Chiswell Street venue page links this PDF in its menu selector. Its readable contents list food or drinks for The Jugged Hare.",
+      "bodySha256": "3cccfee8a111b09fbaefed19ced979ee28e93b6d7597e1d80e993238cbc89db6",
+      "sourceUrl": "https://etmcollection.co.uk/venue/the-jugged-hare/",
+      "path": [
+        "https://etmcollection.co.uk/venue/the-jugged-hare/",
+        "https://etmcollection.co.uk/app/uploads/2024/07/Jugged-October-ALC.pdf.pdf"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": [],
+      "menuKind": "document",
+      "officialEvidence": {
+        "sourceUrl": "https://etmcollection.co.uk/venue/the-jugged-hare/",
+        "identityExcerpt": "49 Chiswell Street, London, EC1Y 4SA",
+        "binding": "The address identifies this venue. Its own page states these offerings or links this document."
+      }
+    },
+    {
+      "venueId": "way/160279486",
+      "url": "https://etmcollection.co.uk/app/uploads/2024/07/Jugged-Pre-Theatre-Working-File-Sep-26.pdf",
+      "verdict": "menu",
+      "format": "pdf",
+      "relevant": true,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The verified 49 Chiswell Street venue page links this PDF in its menu selector. Its readable contents list food or drinks for The Jugged Hare.",
+      "bodySha256": "b3e5d0cb6990cd2ed1e59e046832385d8499a53cbc36d96441ae94f8f480e178",
+      "sourceUrl": "https://etmcollection.co.uk/venue/the-jugged-hare/",
+      "path": [
+        "https://etmcollection.co.uk/venue/the-jugged-hare/",
+        "https://etmcollection.co.uk/app/uploads/2024/07/Jugged-Pre-Theatre-Working-File-Sep-26.pdf"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": [],
+      "menuKind": "document",
+      "officialEvidence": {
+        "sourceUrl": "https://etmcollection.co.uk/venue/the-jugged-hare/",
+        "identityExcerpt": "49 Chiswell Street, London, EC1Y 4SA",
+        "binding": "The address identifies this venue. Its own page states these offerings or links this document."
+      }
+    },
+    {
+      "venueId": "way/160279486",
+      "url": "https://etmcollection.co.uk/app/uploads/2024/07/Jugged-Set-Menu-Sep-26.pdf",
+      "verdict": "menu",
+      "format": "pdf",
+      "relevant": true,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The verified 49 Chiswell Street venue page links this PDF in its menu selector. Its readable contents list food or drinks for The Jugged Hare.",
+      "bodySha256": "8a1d236c474b6dbc2e4f7f76d8948318373beefbcd4de328e8bf0eb429e1f953",
+      "sourceUrl": "https://etmcollection.co.uk/venue/the-jugged-hare/",
+      "path": [
+        "https://etmcollection.co.uk/venue/the-jugged-hare/",
+        "https://etmcollection.co.uk/app/uploads/2024/07/Jugged-Set-Menu-Sep-26.pdf"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": [],
+      "menuKind": "document",
+      "officialEvidence": {
+        "sourceUrl": "https://etmcollection.co.uk/venue/the-jugged-hare/",
+        "identityExcerpt": "49 Chiswell Street, London, EC1Y 4SA",
+        "binding": "The address identifies this venue. Its own page states these offerings or links this document."
+      }
+    },
+    {
+      "venueId": "way/160279486",
+      "url": "https://etmcollection.co.uk/app/uploads/2024/07/Jugged-Sunday-Working-File-October-2nd.pdf",
+      "verdict": "menu",
+      "format": "pdf",
+      "relevant": true,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The verified 49 Chiswell Street venue page links this PDF in its menu selector. Its readable contents list food or drinks for The Jugged Hare.",
+      "bodySha256": "7bcfd7b53e03edcfa3e50c823355e38a21842ff23ef390a80af93bf3c30c74d5",
+      "sourceUrl": "https://etmcollection.co.uk/venue/the-jugged-hare/",
+      "path": [
+        "https://etmcollection.co.uk/venue/the-jugged-hare/",
+        "https://etmcollection.co.uk/app/uploads/2024/07/Jugged-Sunday-Working-File-October-2nd.pdf"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": [],
+      "menuKind": "document",
+      "officialEvidence": {
+        "sourceUrl": "https://etmcollection.co.uk/venue/the-jugged-hare/",
+        "identityExcerpt": "49 Chiswell Street, London, EC1Y 4SA",
+        "binding": "The address identifies this venue. Its own page states these offerings or links this document."
+      }
+    },
+    {
+      "venueId": "way/160279486",
+      "url": "https://etmcollection.co.uk/app/uploads/2026/10/Jugged-Hare-Christmas-Day-Menu-Design-26.pdf",
+      "verdict": "menu",
+      "format": "pdf",
+      "relevant": true,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The verified 49 Chiswell Street venue page links this PDF in its menu selector. Its readable contents list food or drinks for The Jugged Hare.",
+      "bodySha256": "a404ff538d21a9160a90e948bc016f52db2d1de4110df6b0aa07967a8713ed0f",
+      "sourceUrl": "https://etmcollection.co.uk/venue/the-jugged-hare/",
+      "path": [
+        "https://etmcollection.co.uk/venue/the-jugged-hare/",
+        "https://etmcollection.co.uk/app/uploads/2026/10/Jugged-Hare-Christmas-Day-Menu-Design-26.pdf"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": [
+        {
+          "id": "jugged-hare-christmas-day-125",
+          "item": "Christmas Day dining menu",
+          "amountGbp": 125,
+          "currency": "GBP",
+          "category": "food-set-menu",
+          "serving": "per person",
+          "conditions": "Christmas Day. Includes a glass of Champagne. Sample menu subject to change. Prices include VAT. A discretionary 12.5 percent service charge applies. Supplements are separate: deer Wellington GBP 20, cheeseboard GBP 15, coffee, tea and mince pies GBP 5.",
+          "evidence": "£125 per person, includes a glass of Champagne",
+          "sourceUrl": "https://etmcollection.co.uk/app/uploads/2026/10/Jugged-Hare-Christmas-Day-Menu-Design-26.pdf"
+        }
+      ],
+      "menuKind": "document",
+      "officialEvidence": {
+        "sourceUrl": "https://etmcollection.co.uk/venue/the-jugged-hare/",
+        "identityExcerpt": "49 Chiswell Street, London, EC1Y 4SA",
+        "binding": "The address identifies this venue. Its own page states these offerings or links this document."
+      }
+    },
+    {
+      "venueId": "way/1545736312",
+      "url": "https://whelanspubs.co.uk/whelanskingston/",
+      "verdict": "menu",
+      "format": "html",
+      "relevant": true,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The page identifies 20 Richmond Road, KT2 5EB and lists specific cocktails with ingredients. It explicitly says to ask at the bar for prices.",
+      "bodySha256": "5eb59123a06056d8d486286525c8eabedfa86a1b96d875891c2e4459151695fc",
+      "sourceUrl": null,
+      "path": [
+        "https://whelanspubs.co.uk/whelans-irish-traditional/whelans-kingston/",
+        "https://whelanspubs.co.uk/whelanskingston/"
+      ],
+      "priceReviewComplete": true,
+      "priceRecords": [],
+      "menuKind": "drinks",
+      "officialEvidence": {
+        "sourceUrl": "https://whelanspubs.co.uk/whelanskingston/",
+        "identityExcerpt": "20 Richmond Road, Kingston upon Thames, KT2 5EB",
+        "binding": "The address identifies this venue. Its own page states these offerings or links this document."
+      }
+    },
+    {
+      "venueId": "way/1545736312",
+      "url": "https://whelanspubs.co.uk/",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "This is a directory of the pub group, not the Kingston menu.",
+      "bodySha256": "d4b9c2230cac7d8a3e573978097a23aa6e1aa4094c0328f39762d2a785042b19",
+      "sourceUrl": "https://whelanspubs.co.uk/whelanskingston/",
+      "path": [
+        "https://whelanspubs.co.uk/whelans-irish-traditional/whelans-kingston/",
+        "https://whelanspubs.co.uk/whelanskingston/",
+        "https://whelanspubs.co.uk/"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "way/1545736312",
+      "url": "https://whelanspubs.co.uk/bedfordtavern/",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "This page belongs to another named Whelan venue. Its title and address do not match 20 Richmond Road, Kingston, KT2 5EB.",
+      "bodySha256": "c6b52c981efffda84dd3b0286b691a03c8b0cb81c507c9393ce55f2df10961dd",
+      "sourceUrl": "https://whelanspubs.co.uk/",
+      "path": [
+        "https://whelanspubs.co.uk/whelans-irish-traditional/whelans-kingston/",
+        "https://whelanspubs.co.uk/whelanskingston/",
+        "https://whelanspubs.co.uk/",
+        "https://whelanspubs.co.uk/bedfordtavern/"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "way/1545736312",
+      "url": "https://whelanspubs.co.uk/blackbull/",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "This page belongs to another named Whelan venue. Its title and address do not match 20 Richmond Road, Kingston, KT2 5EB.",
+      "bodySha256": "102d2b5a2a940f3004a4a0fcb28db173c066fe97e52a2429248f4aef7826896a",
+      "sourceUrl": "https://whelanspubs.co.uk/",
+      "path": [
+        "https://whelanspubs.co.uk/whelans-irish-traditional/whelans-kingston/",
+        "https://whelanspubs.co.uk/whelanskingston/",
+        "https://whelanspubs.co.uk/",
+        "https://whelanspubs.co.uk/blackbull/"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "way/1545736312",
+      "url": "https://whelanspubs.co.uk/blythehill/",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "This page belongs to another named Whelan venue. Its title and address do not match 20 Richmond Road, Kingston, KT2 5EB.",
+      "bodySha256": "875c7c108ddb5ff73ec96750cd95ca49073b8369825ef191ac20fa9feb49adbd",
+      "sourceUrl": "https://whelanspubs.co.uk/",
+      "path": [
+        "https://whelanspubs.co.uk/whelans-irish-traditional/whelans-kingston/",
+        "https://whelanspubs.co.uk/whelanskingston/",
+        "https://whelanspubs.co.uk/",
+        "https://whelanspubs.co.uk/blythehill/"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "way/1545736312",
+      "url": "https://whelanspubs.co.uk/elmtree/",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "This page belongs to another named Whelan venue. Its title and address do not match 20 Richmond Road, Kingston, KT2 5EB.",
+      "bodySha256": "bf19405c05b99556923f4d317cbc9bf6eb44e5e9efc43ed49512ae04531f128c",
+      "sourceUrl": "https://whelanspubs.co.uk/",
+      "path": [
+        "https://whelanspubs.co.uk/whelans-irish-traditional/whelans-kingston/",
+        "https://whelanspubs.co.uk/whelanskingston/",
+        "https://whelanspubs.co.uk/",
+        "https://whelanspubs.co.uk/elmtree/"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "way/1545736312",
+      "url": "https://whelanspubs.co.uk/erins/",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "This page belongs to another named Whelan venue. Its title and address do not match 20 Richmond Road, Kingston, KT2 5EB.",
+      "bodySha256": "fb9e9b9f0ed0ac1cfcd80ab05773f6a7ec7fcb8ba070276fc2e399299782685b",
+      "sourceUrl": "https://whelanspubs.co.uk/",
+      "path": [
+        "https://whelanspubs.co.uk/whelans-irish-traditional/whelans-kingston/",
+        "https://whelanspubs.co.uk/whelanskingston/",
+        "https://whelanspubs.co.uk/",
+        "https://whelanspubs.co.uk/erins/"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "way/1545736312",
+      "url": "https://whelanspubs.co.uk/graces/",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "This page belongs to another named Whelan venue. Its title and address do not match 20 Richmond Road, Kingston, KT2 5EB.",
+      "bodySha256": "e8bfd8e7a94cb836dfd4486633ca6221f5145e8c827aa7dd429e5145ef85137e",
+      "sourceUrl": "https://whelanspubs.co.uk/",
+      "path": [
+        "https://whelanspubs.co.uk/whelans-irish-traditional/whelans-kingston/",
+        "https://whelanspubs.co.uk/whelanskingston/",
+        "https://whelanspubs.co.uk/",
+        "https://whelanspubs.co.uk/graces/"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "way/1545736312",
+      "url": "https://whelanspubs.co.uk/newinn/",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "This page belongs to another named Whelan venue. Its title and address do not match 20 Richmond Road, Kingston, KT2 5EB.",
+      "bodySha256": "4e7fcd8113a0499a3f81bc870d84ae1cab6967bd83bad53ab396c826d3ccbce6",
+      "sourceUrl": "https://whelanspubs.co.uk/",
+      "path": [
+        "https://whelanspubs.co.uk/whelans-irish-traditional/whelans-kingston/",
+        "https://whelanspubs.co.uk/whelanskingston/",
+        "https://whelanspubs.co.uk/",
+        "https://whelanspubs.co.uk/newinn/"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "way/1545736312",
+      "url": "https://whelanspubs.co.uk/thefoundry/",
+      "verdict": "not-menu",
+      "format": "html",
+      "relevant": false,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "This page belongs to another named Whelan venue. Its title and address do not match 20 Richmond Road, Kingston, KT2 5EB.",
+      "bodySha256": "5b8547ce563503547f83bf23ce4717561945413a0eed584c143b8383f1e7dfc4",
+      "sourceUrl": "https://whelanspubs.co.uk/",
+      "path": [
+        "https://whelanspubs.co.uk/whelans-irish-traditional/whelans-kingston/",
+        "https://whelanspubs.co.uk/whelanskingston/",
+        "https://whelanspubs.co.uk/",
+        "https://whelanspubs.co.uk/thefoundry/"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": []
+    },
+    {
+      "venueId": "node/2267462478",
+      "url": "https://thebluecoatspub.com/wp-content/uploads/2025/12/1EDF8B55-A8BA-4EAD-A80C-26C72A93F546.jpeg",
+      "verdict": "menu",
+      "format": "image",
+      "relevant": true,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The own food-drink page links this exact menu image. Visual inspection confirms structured food or drinks and prices. The image states that match days and stadium events use a different menu or schedule. The food images name Jolly Blue, the on-site kitchen, and the drinks image names The Bluecoats. A discretionary 12.5 percent service charge applies.",
+      "bodySha256": "a7793d1758c31f6e8e947624962b773c9504b6781c1992dec3a4541141bb85a5",
+      "sourceUrl": "https://thebluecoatspub.com/food-drink/",
+      "path": [
+        "https://thebluecoatspub.com/",
+        "https://thebluecoatspub.com/food-drink/",
+        "https://thebluecoatspub.com/wp-content/uploads/2025/12/1EDF8B55-A8BA-4EAD-A80C-26C72A93F546.jpeg"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": [],
+      "menuKind": "image-document",
+      "officialEvidence": {
+        "sourceUrl": "https://thebluecoatspub.com/food-drink/",
+        "identityExcerpt": "614 High Road, London, N17 9TA",
+        "binding": "The address identifies this venue. Its own page states these offerings or links this document."
+      }
+    },
+    {
+      "venueId": "node/2267462478",
+      "url": "https://thebluecoatspub.com/wp-content/uploads/2025/12/765DCE6C-7ED7-40FF-ABB4-0B5DD5E96F59.jpeg",
+      "verdict": "menu",
+      "format": "image",
+      "relevant": true,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The own food-drink page links this exact menu image. Visual inspection confirms structured food or drinks and prices. The image states that match days and stadium events use a different menu or schedule. The food images name Jolly Blue, the on-site kitchen, and the drinks image names The Bluecoats. A discretionary 12.5 percent service charge applies.",
+      "bodySha256": "2c0819330c9db80e2fd1d0f9f48047c8623a575bfb86b7813a6807a0b08c57b4",
+      "sourceUrl": "https://thebluecoatspub.com/food-drink/",
+      "path": [
+        "https://thebluecoatspub.com/",
+        "https://thebluecoatspub.com/food-drink/",
+        "https://thebluecoatspub.com/wp-content/uploads/2025/12/765DCE6C-7ED7-40FF-ABB4-0B5DD5E96F59.jpeg"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": [],
+      "menuKind": "image-document",
+      "officialEvidence": {
+        "sourceUrl": "https://thebluecoatspub.com/food-drink/",
+        "identityExcerpt": "614 High Road, London, N17 9TA",
+        "binding": "The address identifies this venue. Its own page states these offerings or links this document."
+      }
+    },
+    {
+      "venueId": "node/2267462478",
+      "url": "https://thebluecoatspub.com/wp-content/uploads/2025/12/EB426D09-90C1-4EDA-944D-0B6127886F23.jpeg",
+      "verdict": "menu",
+      "format": "image",
+      "relevant": true,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The own food-drink page links this exact menu image. Visual inspection confirms structured food or drinks and prices. The image states that match days and stadium events use a different menu or schedule. The food images name Jolly Blue, the on-site kitchen, and the drinks image names The Bluecoats. A discretionary 12.5 percent service charge applies.",
+      "bodySha256": "a79674d7f80fc6d6e83d597a46724d3561873593fb05ad1fe2b98fdd7080894a",
+      "sourceUrl": "https://thebluecoatspub.com/food-drink/",
+      "path": [
+        "https://thebluecoatspub.com/",
+        "https://thebluecoatspub.com/food-drink/",
+        "https://thebluecoatspub.com/wp-content/uploads/2025/12/EB426D09-90C1-4EDA-944D-0B6127886F23.jpeg"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": [],
+      "menuKind": "image-document",
+      "officialEvidence": {
+        "sourceUrl": "https://thebluecoatspub.com/food-drink/",
+        "identityExcerpt": "614 High Road, London, N17 9TA",
+        "binding": "The address identifies this venue. Its own page states these offerings or links this document."
+      }
+    },
+    {
+      "venueId": "way/155488603",
+      "url": "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms/christmas/festive-menu",
+      "verdict": "menu",
+      "format": "html",
+      "relevant": true,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The branch page lists named starters, mains and desserts for its Festive Fayre menu. It states two or three courses and links further menu documents. W2 1HL binds the venue.",
+      "bodySha256": "e64191aaa50c42ee18a24ed8df45072c52b15233bb74d7449a8127673b2f96ef",
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms/christmas",
+      "path": [
+        "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms",
+        "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms/christmas",
+        "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms/christmas/festive-menu"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": [],
+      "menuKind": "seasonal",
+      "officialEvidence": {
+        "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms",
+        "identityExcerpt": "8-9 London Street, Paddington, London, W2 1HL",
+        "binding": "The address identifies this venue. Its own page states these offerings or links this document."
+      }
+    },
+    {
+      "venueId": "way/155488603",
+      "url": "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms/christmas/buffet-menu",
+      "verdict": "menu",
+      "format": "html",
+      "relevant": true,
+      "reviewer": "source-review-20261031",
+      "reviewerType": "agent",
+      "reviewedAt": "2026-10-31T20:46:10.178412+00:00",
+      "evidence": "The branch page lists named foods and tier prices for its Christmas buffet. A template token remains in one paragraph, but the branch header and W2 1HL identify this venue.",
+      "bodySha256": "310d8c40aaf434f67c0f7e37ecfbce9f5587ca58da1fdd47e9c30db3fb03b1bb",
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms/christmas",
+      "path": [
+        "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms",
+        "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms/christmas",
+        "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms/christmas/buffet-menu"
+      ],
+      "priceReviewComplete": false,
+      "priceRecords": [],
+      "menuKind": "seasonal",
+      "officialEvidence": {
+        "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms",
+        "identityExcerpt": "8-9 London Street, Paddington, London, W2 1HL",
+        "binding": "The address identifies this venue. Its own page states these offerings or links this document."
+      }
+    }
+  ]
+}
