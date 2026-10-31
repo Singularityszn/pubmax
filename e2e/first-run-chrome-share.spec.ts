@@ -204,9 +204,28 @@ test("the phone map with its sheet closed spends under 30 percent on chrome @390
   await page.waitForTimeout(1_500);
 
   const reading = await chromeShare(page);
+  // Where the document's opening prices stood at the reading. They are fixed,
+  // so while they show they count as chrome; a reading that names
+  // mapOpeningPreview says which handoff branch kept them up
+  // (components/map/MapOpeningPreview.tsx).
+  const preview = await page.evaluate(() => {
+    const root = document.documentElement.dataset;
+    const mark = (name: string) => {
+      const entry = performance.getEntriesByName(name)[0];
+      return entry ? `${Math.round(entry.startTime)}ms` : "none";
+    };
+    return [
+      `data-map-preview=${root.mapPreview ?? "unset"}`,
+      `data-map-preview-discs=${root.mapPreviewDiscs ?? "unset"}`,
+      `pins-visible=${mark("pubmax:pins-visible")}`,
+      `basemap-drawn=${mark("pubmax:basemap-drawn")}`,
+      `opening-preview-done=${mark("pubmax:opening-preview-done")}`,
+      `read at ${Math.round(performance.now())}ms`,
+    ].join(", ");
+  });
   expect(
     reading.share,
-    `map chrome ${percent(reading.share)} from ${reading.members.join(", ")}`,
+    `map chrome ${percent(reading.share)} from ${reading.members.join(", ")} (${preview})`,
   ).toBeLessThan(MAP_CHROME_CEILING);
 });
 
