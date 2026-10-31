@@ -6,7 +6,9 @@
 // with no stars, `lib/visitReports.ts`) and it is not a community vote
 // (`lib/ratings.ts` aggregates those). Phase 1 entries are PRIVATE: only the
 // owner reads them, and nothing here feeds a venue score, a feed or a count a
-// stranger can see.
+// stranger can see. "Tell your lot" (lib/tellYourLot.server.ts) is the one
+// exception, and it is the owner's choice per log: the entry stays private
+// and a separate friends-only Social post says only "@x was at <pub>".
 //
 // One entry per venue per London day per owner. A second log of the same pub
 // on the same day is refused, so a diary reads as nights and never as taps.
@@ -17,10 +19,18 @@
 // Pure leaf: no I/O, no Date.now(). Every time-sensitive function takes `now`.
 
 import { londonDayKey } from "@/lib/pintContributions";
+import { splitWithInput, type DiaryWithTag, type PintDropWithSummary } from "@/lib/pintDropWithTags";
 import { parseRating, type RatingValue } from "@/lib/ratings";
 import { cleanText } from "@/lib/textClean";
 
 export const MAX_DIARY_REVIEW = 280;
+/** "Your usual here": one drink name, free text, private like the rest of the entry. */
+export const MAX_DIARY_USUAL_DRINK = 40;
+/**
+ * "With": the free-text names of people who are not on PUBMAXX. A handle is
+ * never kept here; it is a consented tag (lib/pintDropWithTags.ts, 0207).
+ */
+const MAX_DIARY_WITH_NAMES = 120;
 const MAX_DIARY_VENUE_ID = 64;
 const MAX_DIARY_VENUE_NAME = 120;
 
@@ -48,15 +58,36 @@ export type DiaryEntryFields = {
   /** Half stars from 1 to 5, or null for a visit logged without a rating. */
   rating: RatingValue | null;
   review: string;
+  /**
+   * "Your usual here": the drink the owner orders at this pub, as they typed
+   * it, at most MAX_DIARY_USUAL_DRINK characters. Empty when they left it. As
+   * private as the review: nothing outside the owner's own reads sees it.
+   */
+  usualDrink?: string;
+  /** "With": free-text names only, as private as the review. Empty when none. */
+  withNames?: string;
   visibility: DiaryVisibility;
 };
 
 export type DiaryEntry = DiaryEntryFields & {
   id: string;
   createdAt: string;
+  usualDrink: string;
+  withNames: string;
 };
 
-export type DiaryEntryDTO = DiaryEntry;
+export type DiaryEntryDTO = DiaryEntry & {
+  /**
+   * The owner's own read of the entry's handle tags: approved handles and a
+   * count of proposals. Absent when nobody is tagged or the read failed.
+   */
+  withTags?: PintDropWithSummary;
+  /**
+   * The same tags one row each, with the id the edit form takes one off by.
+   * The owner's alone, like the rest of the entry. Absent when there are none.
+   */
+  withTagList?: DiaryWithTag[];
+};
 
 export type DiaryValidation =
   | { ok: true; value: DiaryEntryFields }
@@ -111,6 +142,57 @@ export function clampDiaryReviewInput(typed: string): string {
 /** Control characters a review drops. Tab and newline are spacing the owner typed. */
 const DIARY_REVIEW_CONTROL = /[\u0000-\u0008\u000B-\u001F\u007F-\u009F]/g;
 
+/** Control characters and line breaks a usual drops: it is one line. */
+const DIARY_USUAL_CONTROL = /[\u0000-\u001F\u007F-\u009F]/g;
+
+/** Clean "your usual here": control characters out, inner spacing collapsed, ends trimmed. */
+function cleanDiaryUsualDrink(value: unknown): string {
+  if (typeof value !== "string") return "";
+  return value.replace(DIARY_USUAL_CONTROL, " ").replace(/\s+/g, " ").trim();
+}
+
+/** The first MAX_DIARY_USUAL_DRINK characters of what a person typed, cut on a code point. */
+export function clampDiaryUsualDrinkInput(typed: string): string {
+  const points = [...typed];
+  return points.length > MAX_DIARY_USUAL_DRINK
+    ? points.slice(0, MAX_DIARY_USUAL_DRINK).join("")
+    : typed;
+}
+
+/** A usual that is not text, or is too long, is refused rather than cut. */
+function validateDiaryUsualDrink(
+  value: unknown,
+): { ok: true; value: string } | { ok: false; error: string } {
+  if (value !== undefined && value !== null && typeof value !== "string") {
+    return { ok: false, error: "Type your usual as a drink name." };
+  }
+  const usual = cleanDiaryUsualDrink(value);
+  if ([...usual].length > MAX_DIARY_USUAL_DRINK) {
+    return { ok: false, error: `Keep your usual to ${MAX_DIARY_USUAL_DRINK} characters.` };
+  }
+  return { ok: true, value: usual };
+}
+
+/**
+ * The free-text names of a "With" field. Every `@token` is taken out, whether
+ * or not it names an account, because a handle prints only after consent.
+ * Names past the cap are refused rather than cut.
+ */
+function validateDiaryWithNames(
+  value: unknown,
+): { ok: true; value: string } | { ok: false; error: string } {
+  if (value !== undefined && value !== null && typeof value !== "string") {
+    return { ok: false, error: "Type the names of who you were with." };
+  }
+  const names = splitWithInput(
+    typeof value === "string" ? value.replace(DIARY_USUAL_CONTROL, " ") : "",
+  ).names;
+  if ([...names].length > MAX_DIARY_WITH_NAMES) {
+    return { ok: false, error: `Keep the names to ${MAX_DIARY_WITH_NAMES} characters.` };
+  }
+  return { ok: true, value: names };
+}
+
 /**
  * Clean a review. It is the owner's own private words, so it is kept as typed:
  * control characters are stripped and the ends are trimmed, nothing else. No
@@ -130,6 +212,9 @@ export function validateDiaryEntryCreate(
     visitedOn?: unknown;
     rating?: unknown;
     review?: unknown;
+    usualDrink?: unknown;
+    /** The raw "With" field. Its `@handles` are tags and never kept here. */
+    withWho?: unknown;
     visibility?: unknown;
   },
   now: Date = new Date(),
@@ -163,6 +248,12 @@ export function validateDiaryEntryCreate(
     return { ok: false, error: `Keep the review to ${MAX_DIARY_REVIEW} characters.` };
   }
 
+  const usualDrink = validateDiaryUsualDrink(input.usualDrink);
+  if (!usualDrink.ok) return usualDrink;
+
+  const withNames = validateDiaryWithNames(input.withWho);
+  if (!withNames.ok) return withNames;
+
   if (
     input.visibility !== undefined
     && input.visibility !== null
@@ -180,6 +271,8 @@ export function validateDiaryEntryCreate(
       visitedOn,
       rating,
       review,
+      usualDrink: usualDrink.value,
+      withNames: withNames.value,
       visibility: "private",
     },
   };
@@ -190,6 +283,7 @@ export type DiaryEntryPatch = {
   visitedOn?: string;
   rating?: RatingValue | null;
   review?: string;
+  usualDrink?: string;
 };
 
 export type DiaryEditValidation =
@@ -197,15 +291,15 @@ export type DiaryEditValidation =
   | { ok: false; error: string };
 
 /**
- * Validate a correction to an existing entry. Only the three things a person
- * wrote can change: the day, the stars and the words. The pub is the entry's
+ * Validate a correction to an existing entry. Only the things a person wrote
+ * can change: the day, the stars, the words and their usual. The pub is the entry's
  * identity, so it never moves, and a body that names nothing to change is
  * refused rather than answered with a no-op. A key that is present is checked
  * with the same rules as logging it (`validateDiaryEntryCreate`), and a rating
  * of null clears the stars. Pure.
  */
 export function validateDiaryEntryEdit(
-  input: { visitedOn?: unknown; rating?: unknown; review?: unknown },
+  input: { visitedOn?: unknown; rating?: unknown; review?: unknown; usualDrink?: unknown },
   now: Date = new Date(),
 ): DiaryEditValidation {
   const patch: DiaryEntryPatch = {};
@@ -241,8 +335,14 @@ export function validateDiaryEntryEdit(
     patch.review = review;
   }
 
+  if (input.usualDrink !== undefined) {
+    const usualDrink = validateDiaryUsualDrink(input.usualDrink);
+    if (!usualDrink.ok) return usualDrink;
+    patch.usualDrink = usualDrink.value;
+  }
+
   if (Object.keys(patch).length === 0) {
-    return { ok: false, error: "Change the day, the rating or the review." };
+    return { ok: false, error: "Change the day, the rating, the review or your usual." };
   }
   return { ok: true, value: patch };
 }

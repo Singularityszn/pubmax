@@ -44,7 +44,7 @@ export function filterMapVenues(
  * filters must hide the base layer rather than imply confirmed matches.
  */
 export function mapFiltersSuspendUkBasePubs(filters: Filters): boolean {
-  return Boolean(filters.requireBeerGarden || filters.requireOutdoorSeating || filters.requireLiveSports || filters.requireDogFriendly || filters.requireDarts || filters.requirePool) || anyAccessibilityFilterActive({
+  return Boolean(filters.lastOrders || filters.requireBeerGarden || filters.requireOutdoorSeating || filters.requireLiveSports || filters.requireDogFriendly || filters.requireDarts || filters.requirePool) || anyAccessibilityFilterActive({
     stepFree: filters.requireStepFree,
     accessibleToilet: filters.requireAccessibleToilet,
     seatedService: filters.requireSeatedService,

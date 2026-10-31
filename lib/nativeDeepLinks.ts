@@ -77,6 +77,20 @@ export const NATIVE_DEEP_LINK_EXACT_PATHS: readonly string[] = ALLOWED_EXACT_PAT
 export const NATIVE_URL_SCHEME = "pubmaxx";
 const SCHEME_REFUSED_PATHS: readonly string[] = ["/auth/callback"];
 
+/**
+ * Families only the custom scheme opens, never a verified https link.
+ *
+ * `/share` is the share target (lib/nativeShareTarget.ts): another app's share
+ * sheet hands the shell `pubmaxx://share?text=...&url=...`, and the page drops
+ * it into the Wanted paste flow. It is scheme-only on purpose. Nobody shares a
+ * `https://pubmaxxing.com/share` link, so it is in neither the AASA nor the
+ * App Links filters, and the three-way agreement `__tests__/nativeWrap.test.ts`
+ * holds stays exactly as it was. The share extension and the SEND intent that
+ * produce the scheme link are native work the captain rebuilds.
+ */
+const SCHEME_ONLY_EXACT_PATHS = ["/share"] as const;
+export const NATIVE_SCHEME_ONLY_EXACT_PATHS: readonly string[] = SCHEME_ONLY_EXACT_PATHS;
+
 function isAllowedPath(pathname: string): boolean {
   return (
     ALLOWED_EXACT_PATHS.some((path) => pathname === path) ||
@@ -90,7 +104,9 @@ function schemeLinkPath(url: URL): string | null {
   if (url.username || url.password || url.port || !url.hostname) return null;
   const pathname = `/${url.hostname}${url.pathname}`;
   if (SCHEME_REFUSED_PATHS.includes(pathname)) return null;
-  if (!isAllowedPath(pathname)) return null;
+  if (!isAllowedPath(pathname) && !SCHEME_ONLY_EXACT_PATHS.some((path) => pathname === path)) {
+    return null;
+  }
   return `${pathname}${url.search}${url.hash}`;
 }
 

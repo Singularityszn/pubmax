@@ -17,6 +17,9 @@ import { readString } from "@/lib/textClean";
 import { resolveCanonicalVenueId } from "@/lib/venueAliases";
 import { resolveWritableVenueId } from "@/lib/venueWriteTarget.server";
 
+/** A moderator clears a queue a tap at a time, so this is per minute and wide. */
+const MODERATION_WRITE_LIMIT = 60;
+
 assertServerEnv();
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -80,13 +83,15 @@ export async function POST(
     const id = readString(body.id);
     if (!id) return publicApiError("Crowd reading not found.", "NOT_FOUND", 404);
     const actorHash = hashActor(`occupancy:${hashIp(clientIp(request))}`);
+    // The reporter's own key first: a refused reporter must not spend the
+    // reading's shared budget and lock out everyone else who reports it.
     if (
-      (await isLimited(`occupancy-report:${id}`, `occupancy-report:${id}`)) ||
       (await isLimited(
         `occupancy-report:${id}:${actorHash}`,
         `occupancy-report:${id}:${actorHash}`,
         1,
-      ))
+      )) ||
+      (await isLimited(`occupancy-report:${id}`, `occupancy-report:${id}`))
     ) {
       return publicApiError("Too many reports, slow down.", "RATE_LIMITED", 429, {
         retryable: true,
@@ -110,6 +115,10 @@ export async function POST(
   if (action === "hide" || action === "restore") {
     if (!isModerator(request)) {
       return publicApiError("Not authorised.", "FORBIDDEN", 403);
+    }
+    const moderatorKey = `occupancy-moderate:${hashIp(clientIp(request))}`;
+    if (await isLimited(moderatorKey, moderatorKey, MODERATION_WRITE_LIMIT)) {
+      return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
     }
     const id = readString(body.id);
     if (!id) return publicApiError("Crowd reading not found.", "NOT_FOUND", 404);

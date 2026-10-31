@@ -186,10 +186,14 @@ describe("the tonight lede, hydrated", () => {
     const pubs = Array.from(container.querySelectorAll('[data-testid="tonight-hyped-row"]'));
     expect(pubs).toHaveLength(6);
     for (const [index, pub] of pubs.entries()) {
-      const reason = pub.querySelector<HTMLDetailsElement>("details.tonightHypedReason");
+      const reason = pub.querySelector<HTMLElement>(".tonightHypedReason");
       expect(reason, `card ${index + 1} folds its reason`).not.toBeNull();
-      expect(reason!.open).toBe(false);
-      expect(reason!.querySelector("summary")?.textContent).toContain("Why this pub");
+      // A real button, so a screen reader and a role query find it (F20).
+      const toggle = reason!.querySelector<HTMLButtonElement>("button.tonightHypedReasonToggle");
+      expect(toggle?.textContent).toContain("Why this pub");
+      expect(toggle?.getAttribute("aria-expanded")).toBe("false");
+      const panel = reason!.querySelector<HTMLElement>(`#${CSS.escape(toggle!.getAttribute("aria-controls")!)}`);
+      expect(panel?.hidden).toBe(true);
       expect(reason!.querySelector(".tonightHypedWhy")?.textContent).toBe(rows[index]!.whyLine);
       expect(reason!.querySelector(".tonightHypedSource")?.getAttribute("href"))
         .toBe(rows[index]!.sources[0]!.url);
@@ -198,7 +202,11 @@ describe("the tonight lede, hydrated", () => {
     const more = container.querySelector<HTMLDetailsElement>(".tonightHypedMore");
     more!.querySelector("summary")!.click();
     expect(more?.open).toBe(true);
-    expect(more?.querySelectorAll("details.tonightHypedReason").length).toBeGreaterThan(0);
+    expect(more?.querySelectorAll(".tonightHypedReason").length).toBeGreaterThan(0);
+    const firstToggle = container.querySelector<HTMLButtonElement>("button.tonightHypedReasonToggle")!;
+    await act(async () => firstToggle.click());
+    expect(firstToggle.getAttribute("aria-expanded")).toBe("true");
+    expect(document.getElementById(firstToggle.getAttribute("aria-controls")!)?.hidden).toBe(false);
   });
 
   it("leads with pubs the map can open and prints the listed pint we hold", async () => {

@@ -96,7 +96,7 @@ export function buildPlanInviteShareText(input: PlanInviteShareInput): string {
   const parts = [opener, countNoun(stopCount, "stop")];
   if (startClock) parts.push(`starts ${startClock}`);
   if (spendBand) parts.push(formatPlanInviteSpendBand(spendBand));
-  return `${parts.join(" · ")}. Open the link and tap I'm in.`;
+  return `${parts.join(" · ")}. Open the link and tap Going.`;
 }
 
 // ── Pint drop (permalink card + feed card share the same message) ────────────

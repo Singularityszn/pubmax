@@ -1,0 +1,218 @@
+/* /time-machine. The listing shell and the Screen head, like /price-pulse
+   (components/listing/listing.css). Tokens only, so both themes track.
+   Nothing is coral: a lit pin reads in ink and a grey pin in the muted tone,
+   so the one thing that changes with the year is which pins carry a figure.
+   Phone first, one column at every width. */
+
+.timeMachinePage {
+  padding-block: var(--space-2) calc(var(--space-12) + env(safe-area-inset-bottom, 0px));
+}
+
+.timeMachineScreen > :not(.screenHead) {
+  max-width: var(--listing-max);
+}
+
+.tmBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.tmControls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-width: var(--content-max);
+}
+
+.tmYearLabel {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.tmYearValue {
+  color: var(--color-text);
+  font-family: var(--font-data);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+}
+
+/* The native range keeps its keyboard and its screen-reader role. Only its
+   colour is ours; the thumb stays a 44px target on a phone. */
+.tmYearSlider {
+  width: 100%;
+  min-height: 44px;
+  margin: 0;
+  accent-color: var(--color-text);
+}
+
+.tmYearSlider:focus-visible {
+  outline: 2px solid var(--color-text);
+  outline-offset: 2px;
+}
+
+.tmYearBounds {
+  display: flex;
+  justify-content: space-between;
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+  font-size: var(--text-xs);
+}
+
+.tmOnlyDated {
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--text-base);
+  font-weight: 600;
+  line-height: var(--leading-snug);
+}
+
+.tmCount {
+  margin: 0;
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.tmMap {
+  overflow: hidden;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-panel);
+}
+
+.tmMapFrame {
+  position: relative;
+}
+
+.tmMapCanvas {
+  position: relative;
+  width: 100%;
+  height: clamp(18rem, 60vw, 30rem);
+}
+
+.tmMapLoading {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  background: var(--color-surface-panel);
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+}
+
+.tmMapCanvas[data-map-ready="true"] + .tmMapLoading {
+  display: none;
+}
+
+.tmMapFallback {
+  margin: 0;
+  padding: var(--space-4);
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+}
+
+/* A grey pin is a small dot with no figure. A lit pin is an ink pill that
+   prints the recorded price, and sits above the grey ones. */
+.tmPin {
+  width: var(--space-2);
+  height: var(--space-2);
+  border: 1px solid var(--color-surface);
+  border-radius: var(--radius-pill);
+  background: var(--color-text-muted);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.tmPin[data-lit="true"] {
+  z-index: 1;
+  opacity: 1;
+  width: auto;
+  height: auto;
+  padding: 0 var(--space-1);
+  background: var(--color-text);
+  color: var(--color-surface);
+  font-family: var(--font-data);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  line-height: var(--leading-normal);
+  white-space: nowrap;
+}
+
+.tmListSection {
+  margin-top: var(--space-4);
+  max-width: var(--content-max);
+}
+
+.tmList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tmRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--space-3);
+  padding-block: var(--space-2);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.tmRowName {
+  flex: 1 1 12rem;
+  color: var(--color-text);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+a.tmRowName {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  text-decoration: underline;
+  text-decoration-color: var(--hairline-strong);
+  text-underline-offset: 3px;
+}
+
+.tmRowPrice {
+  color: var(--color-text);
+  font-family: var(--font-data);
+  font-weight: 700;
+}
+
+.tmRowWhen {
+  flex-basis: 100%;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.tmRowWhen a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.tmEmpty,
+.tmFoot {
+  margin: var(--space-2) 0 0;
+  max-width: var(--content-max);
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.tmFoot {
+  margin-top: var(--space-6);
+}
+
+.tmShare {
+  margin-top: var(--space-2);
+}

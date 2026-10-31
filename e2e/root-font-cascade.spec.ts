@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { storeThemeChoice } from "./helpers/themeClock";
+
 for (const width of [390, 1440]) {
   for (const javaScriptEnabled of [false, true]) {
     test(`${width}px ${javaScriptEnabled ? "hydrated" : "without JavaScript"}: the generated font chains survive the global cascade`, async ({ browser, baseURL }) => {
@@ -10,6 +12,7 @@ for (const width of [390, 1440]) {
         reducedMotion: "reduce",
         colorScheme: "light",
       });
+      await storeThemeChoice(context, "light");
       try {
         const page = await context.newPage();
         await page.goto("/pal/chat");

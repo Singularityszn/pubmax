@@ -1697,6 +1697,40 @@ input[type="range"] {
   .appShell {
     --desktop-venue-drawer-width: 376px;
   }
+
+  /* THE COMMAND BAR RESTS ON THE DRAWER'S BOTTOM EDGE, WHATEVER THE CONTENT
+     HEIGHT. The bar is `position: sticky; bottom: 0` (venueSheet.css), and a
+     sticky box only moves UP to the edge, never down: with the Overview in
+     five folds the side drawer's content at 820x1180 ended 93px short of the
+     bottom, and the bar sat there with it. So the drawer is a column, the
+     inspector takes the height left under the head, and its open panel takes
+     the space left above the bar. Tall content scrolls as before and
+     the bar sticks as before. The inspector sits in a `display: contents`
+     wrapper, so it is a flex item of the drawer itself. Its basis is its
+     content and it never shrinks, so tall content keeps every pixel. */
+  .mapDrawer.right.open:not(.mobileSharedSheet):has(.venueInspector) {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .mapDrawer.right.open:not(.mobileSharedSheet) .venueInspector {
+    display: flex;
+    flex-direction: column;
+    flex: 1 0 auto;
+  }
+
+  /* A flex column does not collapse margins. The tab strip's bottom margin
+     and the panel's top margin collapsed to the panel's in the block flow, so
+     the strip gives its own up here and the panel keeps the same gap. */
+  .mapDrawer.right.open:not(.mobileSharedSheet) .venueInspector > .venueTabs {
+    margin-bottom: 0;
+  }
+
+  /* The open panel takes the space left, so the bar keeps its own 12px
+     gutter above it at the end of a tall scroll. Shut panels paint nothing. */
+  .mapDrawer.right.open:not(.mobileSharedSheet) .venueInspector > .venueTabPanel {
+    flex-grow: 1;
+  }
 }
 
 /* Desktop map chrome needs one measured source for the planner lane. The

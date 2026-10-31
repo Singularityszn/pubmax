@@ -198,6 +198,17 @@ const ROUTE_MARKS: MapKeyEntry[] = [
     detail: "Straight estimate while a road route is unavailable.",
     colour: "var(--route-line)",
   },
+  {
+    id: "leg-time",
+    label: "Small time bubble",
+    detail: "Minutes on foot for that leg. A ~ before the minutes marks a straight-line estimate.",
+  },
+  {
+    id: "chosen-way",
+    label: "Dotted line, then a coloured line",
+    detail: "The way you chose to the next stop in Night Mode. Dots are on foot. A ride wears its TfL line colour.",
+    colour: "var(--route-line)",
+  },
 ];
 
 const NO_ALCOHOL_NOTE =

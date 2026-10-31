@@ -19,7 +19,7 @@ The tree already rules on everything such a post touches:
 - A price on a price surface is read verbatim from a venue's own page or is a
   reviewed submission (`docs/UK_PRICE_HARVEST.md`, `lib/ukPriceBundle.ts`). A post
   is neither. It is one person's report of one visit.
-- Nothing is fetched without a row in `lib/harvest/sourcePolicy.ts`. X has none.
+- Nothing is fetched without a row in `lib/harvest/sourceRegistry.ts`. X has none.
   Scraping x.com is outside its terms and behind a login, so the only
   permissible read is X's own API.
 - The anti-goals rule out a Twitter-for-pubs growth engine
@@ -73,7 +73,7 @@ Supabase.
 - An X API plan that includes recent search, its bearer token set as
   `X_BEARER_TOKEN` in the environment that runs the lane, and a monthly read cap
   from the captain.
-- A `sourcePolicy.ts` row for the X API with the terms read live on the day,
+- A `sourceRegistry.ts` row for the X API with the terms read live on the day,
   its evidence and its `checkedOn`, as the open-data rows carry.
 - Tests beside the lane for the keep rule, the venue match, the field allow-list
   (no personal fields can reach the queue) and the budget stop.

@@ -31,6 +31,8 @@ import { CURRENT_IDENTITY_PATH, readCurrentIdentity } from "@/lib/currentIdentit
 import PrivateIdentityEditor from "@/components/identity/PrivateIdentityEditor";
 import SetAccountPassword from "@/components/auth/SetAccountPassword";
 import AccountExportCard from "@/components/profile/AccountExportCard";
+import BlockedAccountsCard from "@/components/profile/BlockedAccountsCard";
+import ChangeEmailCard from "@/components/profile/ChangeEmailCard";
 import AccountLegalRow from "@/components/profile/AccountLegalRow";
 import DeleteAccountCard from "@/components/profile/DeleteAccountCard";
 import NightMemoryStudio from "@/components/profile/NightMemoryStudio";
@@ -923,6 +925,8 @@ export default function PubmaxxAccountHub() {
         <div className="accountHubGrid accountHubSettingsGrid">
           <PrivateIdentityEditor />
           <SetAccountPassword />
+          <ChangeEmailCard />
+          <BlockedAccountsCard />
           <StepOutNudgePref />
           <AppearancePref />
           {renderAnalyticsControls(analyticsConsent, updateAnalyticsConsent)}

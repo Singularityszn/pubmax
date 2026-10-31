@@ -282,3 +282,17 @@ describe("phone planner with no crawl-ready area", () => {
     expect(requests[0]!.context).toMatchObject({ nightArea: "piccadilly-soho" });
   });
 });
+
+describe("the route preview next step", () => {
+  it("says Lock it in on Plan as a link to Plan, the same door the transfer button opens", async () => {
+    await render(wine, "Quiet in Soho");
+    await generate();
+    const sentence = container.querySelector(".mobilePlannerNextStep")!;
+    expect(sentence.textContent).toBe("Route preview stays on this device. Lock it in on Plan when you want a shareable crew link.");
+    const link = sentence.querySelector("a")!;
+    expect(link.textContent).toBe("Lock it in on Plan");
+    expect(link.getAttribute("href")).toBe("/plan?src=mobile-route-preview");
+    const transfer = [...container.querySelectorAll("a")].find((item) => item.textContent === "Open Plan to lock it in")!;
+    expect(transfer.getAttribute("href")).toBe(link.getAttribute("href"));
+  });
+});

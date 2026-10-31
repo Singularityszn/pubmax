@@ -15,7 +15,7 @@ What was deleted, rather than switched off:
   which are not sources.
 
 **Why, and it is supply rather than permission.** Measured on the 2026-09-03
-re-read recorded in `lib/harvest/sourcePolicy.ts`: Greene King and Wetherspoon
+re-read recorded in `lib/harvest/sourceRegistry.ts`: Greene King and Wetherspoon
 both permit automated reading and publish no web pint price at all, and the one
 chain that does publish one (Nicholson's, Mitchells & Butlers) answers
 `robots.txt` with a Cloudflare 403 and is refused on permission. A real

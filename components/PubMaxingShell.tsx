@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { createContext, useContext, useEffect, useState } from "react";
 
+import CityPubsOnlyNoteMount from "@/components/map/CityPubsOnlyNote";
 import MapLoadingSkeleton from "@/components/map/MapLoadingSkeleton";
 import { MapPricesReadContext } from "@/components/map/mapPricesReadContext";
 import { warmCityMapFirstPaint, warmMapFirstPaint } from "@/lib/mapWarmup";
@@ -153,6 +154,11 @@ export default function PubMaxingShell({
           nationalBrowse={ukNationalBrowse}
           zonePintIndex={zonePintIndex}
         />
+        {/* A city with no listed prices says so (lib/cityPubsOnlyNote.ts). It
+            mounts here, outside the edit-locked PubMap, and portals into the
+            map stage so the banner staging rules reach it. A UK place arrival
+            or national browse already explains its own coverage. */}
+        {placeArrival || ukNationalBrowse ? null : <CityPubsOnlyNoteMount key={cityId} cityId={cityId} />}
       </MapPricesReadContext.Provider>
     </MapSkeletonCityContext.Provider>
   );
