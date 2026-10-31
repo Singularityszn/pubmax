@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useId, useState } from "react";
 
 import { momentHref } from "@/components/nav/navigationModel";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 import type { PlanClue } from "@/lib/planClues";
 
 import "./planClueHunt.css";
