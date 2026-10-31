@@ -1,0 +1,131 @@
+# Official London pub menu discovery benchmark
+
+This experiment compares two crawlers on the same frozen set of 60 London pub websites.
+It has no production writer, database connection, deployment step, or application dependency change.
+
+Arm A uses breadth-first traversal, with conventional URL and anchor keywords first within each depth.
+Arm B uses the unchanged PageSift 0.81.0 executable and its native relevance-guided crawler.
+Both arms use one access transport and one candidate detector.
+
+The [protocol](protocol.json) fixes the query, keywords, limits, cost assumptions, and adoption gates before the final run.
+The [manifest](manifest.json) fixes the venues, source snapshots, arm order, and 12 primary review venues.
+The [rubric](RUBRIC.md) defines a verified menu, a price record, and a missing result.
+The [licence review](LICENCE_REVIEW.md) records the integration limits.
+
+## Run the experiment
+
+Use Node.js 26 and Python 3 on macOS or Linux. The recorded run uses Node.js 26.13.0 and Python 3.15.2.
+The operating system must provide `/usr/bin/time`.
+No API key, paid service, browser, or model is required.
+
+1. From the repository root, download the pinned executable.
+
+   ```sh
+   python3 scripts/benchmarks/menu-discovery/bootstrap.py
+   ```
+
+2. Run the CLI checks against the synthetic local website.
+
+   ```sh
+   node --test scripts/benchmarks/menu-discovery/benchmark.test.mjs
+   ```
+
+3. Run both arms against the frozen manifest.
+
+   ```sh
+   node scripts/benchmarks/menu-discovery/run.mjs live --out /tmp/pubmax-menu-run
+   ```
+
+4. Extract PDF text offline and generate the review packet.
+
+   ```sh
+   node scripts/benchmarks/menu-discovery/extract.mjs /tmp/pubmax-menu-run
+   node scripts/benchmarks/menu-discovery/review.mjs /tmp/pubmax-menu-run
+   ```
+
+5. Review the packet against the rubric and save the annotation JSON.
+
+6. Recompute the comparison from the responses and annotations.
+
+   ```sh
+   node scripts/benchmarks/menu-discovery/evaluate.mjs /tmp/pubmax-menu-run /path/to/annotations.json
+   ```
+
+`PAGESIFT_BIN` can select another copy of the exact 0.81.0 executable.
+The runner rejects a different version and records the executable hash.
+`--venues N` runs a pilot. A pilot is never a completed 60-site benchmark.
+Use a new output directory for every run. Keep the original run and its hashes.
+
+`prepare.mjs` recreates the manifest from the committed OSM and London app snapshots.
+It is a deliberate sample regeneration command, not a prerequisite for each run.
+It joins names and coordinates within 150 metres. It does not join on names alone.
+The source records contain OSM attribution and licence metadata in their original files.
+
+## What the cap counts
+
+Each arm has at most 12 upstream HTTP request attempts per venue.
+Robots requests, redirect hops, linked terms pages, PDFs, timeouts, and failed attempts all consume the cap.
+There are no automatic retries. A policy refusal before an HTTP attempt consumes no request.
+DNS failures count as attempts. DNS queries themselves are not HTTP requests.
+Repeated reads within one arm use its captured response and consume no additional upstream request.
+The two arms have separate response caches and separate robots caches.
+
+The transport validates the production source policy before every request and redirect.
+It checks public DNS addresses and pins the validated address for the connection.
+It asks live robots rules before each origin's pages.
+It applies the repository's crawler identities, the benchmark identity, and PageSift restrictions.
+Unreadable robots rules fail closed. Ordinary HTML at robots.txt follows the repository's existing absent-rules decision.
+
+Both arms first read a linked terms page when the homepage exposes one.
+A detected automation restriction stops that host. An unreadable linked terms page also stops that host.
+This check records its text evidence. It does not establish a complete legal interpretation of every site's terms.
+Known commercial-use prohibitions in the source registry remain binding.
+
+The minimum host delay is 1.5 seconds, or a longer published crawl delay or request rate.
+The coordinator serialises requests to an actual host across all four venue workers, including shared PDF hosts.
+The delay also follows completion of the preceding request.
+A challenge, rate-limit response, or Retry-After response stops further requests to that host within the arm.
+The crawler does not bypass challenges, use browser impersonation, or use authenticated access.
+
+## How the comparison stays bounded
+
+PageSift receives an inert local HTTP copy through the shared access transport.
+The gateway keeps each own-host URL path. It rewrites permitted links to the local copy.
+An explicitly linked external menu PDF keeps its path under `/__menu_asset__/host/`.
+This allows native PageSift ordering while the transport enforces the real upstream request cap.
+PageSift's page limit alone would not count robots, redirects, or failed requests.
+
+The gateway removes executable scripts and remote resource attributes.
+The native crawler uses HTTP mode, one worker, no sitemap seeds, no adaptive early stop, and no persistent cache.
+Both arms start at the same venue URL and use maximum discovery depth four.
+Both arms can explore the shared host, so another pub's menu is a possible false positive.
+Both arms can follow explicitly linked external menu PDFs. They cannot explore an arbitrary external website.
+External HTML menu services and extensionless external documents are outside this protocol.
+
+The gateway changes hostname signals and external PDF prefixes. It can affect PageSift's relevance scores.
+B also pays for HTML rewriting. This is a controlled, policy-constrained comparison, not unrestricted native performance.
+The report must retain these limits when it describes the outcome.
+
+## Keep the evidence
+
+Each arm writes `result.json`, request logs, access decisions, and response-body hashes.
+Every captured page has its source URL, crawl path, format, read time, and response hash.
+B also keeps the native JSON output, exact command, stderr, and process measurements.
+The run manifest records the code head, runtime, hardware, executable hash, and crawler file hashes.
+
+Full response bodies stay in ignored `runs/` directories or the selected private output directory.
+Do not publish menu documents or full website copies as a benchmark dataset without permission.
+The committed results contain metadata, short evidence excerpts, and price facts.
+The same response snapshot and annotations reproduce the evaluation without network requests.
+Live crawl results can change because websites and access rules change.
+
+The latency includes policy checks, rate-limit waits, downloads, parsing, and B's local gateway.
+When the upstream cap blocks a new fetch, the runner stops PageSift's process group and retains its partial output.
+This prevents native error cooldowns from extending the measured run after the request budget ends.
+The process measurements remain available after this planned interruption.
+The sum of venue durations differs from the elapsed cohort duration because four venues can run together.
+Node CPU, Python parser CPU, and native child CPU have separate measurements.
+Memory figures are process maxima, not a simultaneous process-tree peak.
+The cost estimate uses explicit scenario rates. It excludes review labour and unknown commercial licence costs.
+
+The source policy modules are read-only imports. No production crawl or ingestion command runs here.

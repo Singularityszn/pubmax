@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "seed": "pubmax-menu-discovery-v1-20261031",
+  "venues": 60,
+  "requestBudgetPerArmPerVenue": 12,
+  "minIntervalMs": 1500,
+  "timeoutMs": 15000,
+  "maxResponseBytes": 8388608,
+  "maxRedirectHops": 5,
+  "maxDepth": 4,
+  "venueConcurrency": 4,
+  "query": "pub food drinks menus beer wine prices",
+  "userAgent": "PubmaxMenuBenchmark/1.0 (+https://pubmaxx.com/contact)",
+  "keywordPattern": "menu|food|drink|dining|eat|beer|wine|cocktail|sunday|lunch|dinner|breakfast|brunch|supper|bill.of.fare",
+  "costAssumptions": {
+    "currency": "USD",
+    "cpuHour": 0.05,
+    "memoryGiBHour": 0.01,
+    "downloadGiB": 0.09,
+    "note": "Scenario rates, not a supplier quote or a bill. No paid APIs or LLM calls. Human review and commercial licence costs are unknown."
+  },
+  "adoptionGates": {
+    "minHumanReviewedVenues": 12,
+    "minRelativeVerifiedMenuRecallGain": 0.1,
+    "minAbsolutePrecision": 0.95,
+    "minRelativeVerifiedPriceYieldGain": 0.1,
+    "maxLatencyRatio": 1.5,
+    "maxEstimatedCostRatio": 1.5,
+    "requireNoAccessOrBudgetViolations": true,
+    "requireLicenceDecision": true
+  }
+}

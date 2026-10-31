@@ -1,0 +1,1579 @@
+{
+  "schemaVersion": 1,
+  "protocolSha256": "4e76753ac1a54baa89660f9f8961f7af6dc535119fa5ac9e79f56038ccc2be27",
+  "sourceFiles": [
+    {
+      "path": "data/osm/uk/uk_osm_pubs.json",
+      "sha256": "5280bd5012c59487582ef35585da5146dc9c41bec17ca5405df99197dc79cc4c"
+    },
+    {
+      "path": "public/data/venues_slim.json",
+      "sha256": "4b3b4269195640381ce633c1dce32acdf4fa89aca4a0188fe61e2ae92e274238"
+    }
+  ],
+  "eligibleVenues": 730,
+  "selection": "Seeded hash, 12 per geographic stratum, including 4 shared-host and 8 venue-host websites. Maximum 3 venues per host. Postcode required. Name and coordinates within 150 metres must match the London app dataset.",
+  "limitations": "A balanced stress sample, not a prevalence estimate. Existing London app inclusion and OSM website/postcode completeness affect selection. Hosting is not ownership. Menu format is unknown before crawling.",
+  "venues": [
+    {
+      "venueId": "way/100856450",
+      "appVenueId": "venue-13ribh6",
+      "name": "The White House",
+      "website": "https://www.craftunionpubs.com/white-house-enfield",
+      "postcode": "EN3 5SU",
+      "address": "Hertford Road, Enfield, EN3 5SU",
+      "borough": "Enfield",
+      "lat": 51.6687253,
+      "lng": -0.0416253,
+      "operatorRecorded": "Stonegate",
+      "stratum": "north",
+      "host": "craftunionpubs.com",
+      "selectionKey": "00099f67bee27b09cab120432550581c9a45a637254c693dae6896a9d90cfb03",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "way/100856450",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "shared-host",
+      "goldSample": true,
+      "armOrder": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "venueId": "way/155488603",
+      "appVenueId": "venue-dr4ovr",
+      "name": "Sawyers Arms",
+      "website": "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms",
+      "postcode": "W2 1HL",
+      "address": "8-9, London Street, London, W2 1HL",
+      "borough": "Westminster",
+      "lat": 51.5154924,
+      "lng": -0.1746004,
+      "operatorRecorded": null,
+      "stratum": "inner",
+      "host": "greeneking.co.uk",
+      "selectionKey": "000d23030814d71f76340f95f55012d926c8252376a69eb23df27c670e348ce8",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "way/155488603",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "shared-host",
+      "goldSample": true,
+      "armOrder": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "venueId": "node/2267462478",
+      "appVenueId": "venue-b1b1ls",
+      "name": "The Bluecoats Pub",
+      "website": "https://thebluecoatspub.com/",
+      "postcode": "N17 9TA",
+      "address": "614, High Road, London, N17 9TA",
+      "borough": "Haringey",
+      "lat": 51.5969321,
+      "lng": -0.0680521,
+      "operatorRecorded": null,
+      "stratum": "north",
+      "host": "thebluecoatspub.com",
+      "selectionKey": "00bcb2220c19128b1a95d37e0c9199e42e93f72486239b89556a1e4b3529b85a",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "node/2267462478",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": true,
+      "armOrder": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "venueId": "node/9891375140",
+      "appVenueId": "venue-1mhmkh",
+      "name": "The Green Goddess",
+      "website": "https://www.thegreengoddess.pub/",
+      "postcode": "SE3 7AB",
+      "address": "43A, Vanbrugh Park, London, SE3 7AB",
+      "borough": "Greenwich",
+      "lat": 51.4771393,
+      "lng": 0.0188457,
+      "operatorRecorded": null,
+      "stratum": "east",
+      "host": "thegreengoddess.pub",
+      "selectionKey": "00eca02cbdb4305038567781002e989cd58ae26965a00181527f6970dac0a2de",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "node/9891375140",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": true,
+      "armOrder": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "venueId": "way/439037559",
+      "appVenueId": "venue-1fzuz5g",
+      "name": "Paradise by way of Kensal Green",
+      "website": "http://www.theparadise.co.uk/",
+      "postcode": "W10 4AE",
+      "address": "19, Kilburn Lane, London, W10 4AE",
+      "borough": "Brent",
+      "lat": 51.5288525,
+      "lng": -0.2162893,
+      "operatorRecorded": null,
+      "stratum": "west",
+      "host": "theparadise.co.uk",
+      "selectionKey": "0109248f6b1710392f1dda3d459d6fdac5f4d3381887f4534abb4a92fbb8c622",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "way/439037559",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": true,
+      "armOrder": [
+        "B",
+        "A"
+      ]
+    },
+    {
+      "venueId": "way/1075176772",
+      "appVenueId": "venue-14mebwj",
+      "name": "Ye Olde Rose and Crown",
+      "website": "https://www.greeneking-pubs.co.uk/pubs/greater-london/ye-olde-rose-crown/",
+      "postcode": "SE10 8ER",
+      "address": "1, Crooms Hill, London, SE10 8ER",
+      "borough": "Greenwich",
+      "lat": 51.4794409,
+      "lng": -0.0078799,
+      "operatorRecorded": null,
+      "stratum": "east",
+      "host": "greeneking-pubs.co.uk",
+      "selectionKey": "012ddbd6fd7ed9ee3ba9c26dfeae484a24e0aeca4f151d28e4794241d8c7677b",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "way/1075176772",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "shared-host",
+      "goldSample": true,
+      "armOrder": [
+        "B",
+        "A"
+      ]
+    },
+    {
+      "venueId": "node/5567081656",
+      "appVenueId": "venue-zt2cel",
+      "name": "The North Star",
+      "website": "https://www.emberinns.co.uk/nationalsearch/london/the-north-star-chessington",
+      "postcode": "KT9 1EQ",
+      "address": "271, Hook Road, Chessington, KT9 1EQ",
+      "borough": "Kingston upon Thames",
+      "lat": 51.3709474,
+      "lng": -0.3055479,
+      "operatorRecorded": null,
+      "stratum": "south",
+      "host": "emberinns.co.uk",
+      "selectionKey": "01422b15be65c18af01fc4d746866d98ae2bc2b16d5d82b6f707a423b476a3c9",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "node/5567081656",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "shared-host",
+      "goldSample": true,
+      "armOrder": [
+        "B",
+        "A"
+      ]
+    },
+    {
+      "venueId": "node/262702979",
+      "appVenueId": "venue-v3z56g",
+      "name": "The Roebuck",
+      "website": "https://www.brunningandprice.co.uk/roebuck/",
+      "postcode": "W4 1PU",
+      "address": "122, Chiswick High Road, London, W4 1PU",
+      "borough": "Hounslow",
+      "lat": 51.4929603,
+      "lng": -0.252613,
+      "operatorRecorded": null,
+      "stratum": "west",
+      "host": "brunningandprice.co.uk",
+      "selectionKey": "01573b01efb86419385df365be879bb8ba5c97413f2bd924875e775c6bdc8f86",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "node/262702979",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": true,
+      "armOrder": [
+        "B",
+        "A"
+      ]
+    },
+    {
+      "venueId": "way/134777475",
+      "appVenueId": "venue-xrjcyj",
+      "name": "The Ferry Boat Inn",
+      "website": "https://www.heritagepubs.co.uk/ferry-boat-tottenham",
+      "postcode": "N17 9NG",
+      "address": "1, Ferry Lane, London, N17 9NG",
+      "borough": "Waltham Forest",
+      "lat": 51.5869518,
+      "lng": -0.0525083,
+      "operatorRecorded": "Heritage Pubs",
+      "stratum": "north",
+      "host": "heritagepubs.co.uk",
+      "selectionKey": "017789b112cfffcfebc29cd9168c811f1911c8dfe6a8adac90ae62554e1ec39c",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "way/134777475",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": true,
+      "armOrder": [
+        "B",
+        "A"
+      ]
+    },
+    {
+      "venueId": "way/1457317600",
+      "appVenueId": "venue-290j76",
+      "name": "The Plough",
+      "website": "https://www.craftunionpubs.com/plough-upminster",
+      "postcode": "RM14 1XL",
+      "address": "83, Front Lane, Upminster, RM14 1XL",
+      "borough": "Havering",
+      "lat": 51.5621629,
+      "lng": 0.2664688,
+      "operatorRecorded": "Stonegate",
+      "stratum": "east",
+      "host": "craftunionpubs.com",
+      "selectionKey": "0199425bc0503e3d1ee85a9840a09189040b89e3953c3dc2c008f3718a1ff1e8",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "way/1457317600",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "shared-host",
+      "goldSample": false,
+      "armOrder": [
+        "B",
+        "A"
+      ]
+    },
+    {
+      "venueId": "way/176677099",
+      "appVenueId": "venue-x2hh3d",
+      "name": "The Old Ship",
+      "website": "https://www.oldshiphammersmith.co.uk/",
+      "postcode": "W6 9TD",
+      "address": "25, Upper Mall, London, W6 9TD",
+      "borough": "Hammersmith and Fulham",
+      "lat": 51.4903483,
+      "lng": -0.2398601,
+      "operatorRecorded": "Young's",
+      "stratum": "west",
+      "host": "oldshiphammersmith.co.uk",
+      "selectionKey": "01ca4a2aae5b68f87b9e7f6d0d6a3cd1c3cd6446147ab6db64c9b00777dd0610",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "way/176677099",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": false,
+      "armOrder": [
+        "B",
+        "A"
+      ]
+    },
+    {
+      "venueId": "node/425907420",
+      "appVenueId": "venue-1wxqxk6",
+      "name": "Chatterton Arms",
+      "website": "https://www.craftunionpubs.com/chatterton-arms-pub-bromley",
+      "postcode": "BR2 9QW",
+      "address": "41, Chatterton Road, Bromley, BR2 9QW",
+      "borough": "Bromley",
+      "lat": 51.3924612,
+      "lng": 0.0357109,
+      "operatorRecorded": "Stonegate",
+      "stratum": "south",
+      "host": "craftunionpubs.com",
+      "selectionKey": "01cc31bb5f3daa687ea46c781a74e3a465a8cb0d37d7b37731f9752d96b658c3",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "node/425907420",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "shared-host",
+      "goldSample": false,
+      "armOrder": [
+        "B",
+        "A"
+      ]
+    },
+    {
+      "venueId": "node/330128385",
+      "appVenueId": "venue-kgv1v0",
+      "name": "The Gryphon Pub",
+      "website": "https://www.emberinns.co.uk/nationalsearch/london/thegryphonenfield/",
+      "postcode": "N21 1RE",
+      "address": "9, Vera Avenue, London, N21 1RE",
+      "borough": "Enfield",
+      "lat": 51.642833,
+      "lng": -0.0986945,
+      "operatorRecorded": null,
+      "stratum": "north",
+      "host": "emberinns.co.uk",
+      "selectionKey": "027adaed88945bcbe31985e94b3e2ad3dd1ca19a28c425de5de5c7fc43f9fa14",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "node/330128385",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "shared-host",
+      "goldSample": false,
+      "armOrder": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "venueId": "way/304437065",
+      "appVenueId": "venue-12sa9pm",
+      "name": "Deers Rest",
+      "website": "https://www.deersrestpub.co.uk/",
+      "postcode": "RM3 7LL",
+      "address": "Noak Hill Road, Romford, RM3 7LL",
+      "borough": "Havering",
+      "lat": 51.6169584,
+      "lng": 0.2190045,
+      "operatorRecorded": null,
+      "stratum": "east",
+      "host": "deersrestpub.co.uk",
+      "selectionKey": "028f60481ebbdc6863aad5ee5caaa1b995b97dd1e7287ae422ecb7ac3c2ba3fa",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "way/304437065",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": false,
+      "armOrder": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "venueId": "way/160279486",
+      "appVenueId": "venue-1h8gb3j",
+      "name": "The Jugged Hare",
+      "website": "https://etmcollection.co.uk/venue/the-jugged-hare/",
+      "postcode": "EC1Y 4SA",
+      "address": "49, Chiswell Street, London, EC1Y 4SA",
+      "borough": "City of London",
+      "lat": 51.520922,
+      "lng": -0.0921713,
+      "operatorRecorded": null,
+      "stratum": "inner",
+      "host": "etmcollection.co.uk",
+      "selectionKey": "029998fa1e4f351890529a3b3eba92054b669d80bea6b66f0defcddff5aff38b",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "way/160279486",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": true,
+      "armOrder": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "venueId": "way/97425688",
+      "appVenueId": "venue-1kk8osq",
+      "name": "The Hope",
+      "website": "http://www.hopecarshalton.co.uk/",
+      "postcode": "SM5 2PR",
+      "address": "48, West Street, Carshalton, SM5 2PR",
+      "borough": "Sutton",
+      "lat": 51.3670496,
+      "lng": -0.1670711,
+      "operatorRecorded": null,
+      "stratum": "south",
+      "host": "hopecarshalton.co.uk",
+      "selectionKey": "02b5754e94c590b0b13a8134982ceaa6d1974c92acbdfbc8ac8ac7a64b9f17b0",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "way/97425688",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": true,
+      "armOrder": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "venueId": "node/11146695407",
+      "appVenueId": "venue-5x2hvb",
+      "name": "CROL&CO",
+      "website": "https://www.crolandcocoffee.com/",
+      "postcode": "SE1 3LE",
+      "address": "Tanner Street, London, SE1 3LE",
+      "borough": "Southwark",
+      "lat": 51.5004616,
+      "lng": -0.0808232,
+      "operatorRecorded": null,
+      "stratum": "inner",
+      "host": "crolandcocoffee.com",
+      "selectionKey": "031e3ed7af2d9cedfb532323b1c1924022c7c2dd991db9484f1c472990ab646c",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "node/11146695407",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": false,
+      "armOrder": [
+        "B",
+        "A"
+      ]
+    },
+    {
+      "venueId": "way/1238338171",
+      "appVenueId": "venue-16b6tl5",
+      "name": "The Wych Elm",
+      "website": "https://thewych.co.uk/",
+      "postcode": "KT2 6HT",
+      "address": "93, Elm Road, Kingston upon Thames, KT2 6HT",
+      "borough": "Kingston upon Thames",
+      "lat": 51.4171012,
+      "lng": -0.2941632,
+      "operatorRecorded": null,
+      "stratum": "west",
+      "host": "thewych.co.uk",
+      "selectionKey": "03924a14a5ce10b8b3eec863eab16f5b5a594f05438d60b1047c9f3e29da72e2",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "way/1238338171",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": false,
+      "armOrder": [
+        "B",
+        "A"
+      ]
+    },
+    {
+      "venueId": "way/610164112",
+      "appVenueId": "venue-ujkvd1",
+      "name": "The Pembroke",
+      "website": "https://www.greatukpubs.co.uk/pembroke-coulsdon",
+      "postcode": "CR5 2RA",
+      "address": "12-16, Chipstead Valley Road, Coulsdon, CR5 2RA",
+      "borough": "Croydon",
+      "lat": 51.3210142,
+      "lng": -0.1388148,
+      "operatorRecorded": "Stonegate",
+      "stratum": "south",
+      "host": "greatukpubs.co.uk",
+      "selectionKey": "043a1101a54a1eaa438b8908453017af93ab89080716c5725661af72155af45e",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "way/610164112",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "shared-host",
+      "goldSample": false,
+      "armOrder": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "venueId": "way/943635819",
+      "appVenueId": "venue-q4jgwv",
+      "name": "Ye Olde Black Horse",
+      "website": "https://www.greeneking-pubs.co.uk/pubs/kent/ye-olde-black-horse/",
+      "postcode": "DA15 8LH",
+      "address": "43, Halfway Street, Sidcup, DA15 8LH",
+      "borough": "Bexley",
+      "lat": 51.4371476,
+      "lng": 0.0984239,
+      "operatorRecorded": null,
+      "stratum": "east",
+      "host": "greeneking-pubs.co.uk",
+      "selectionKey": "04b64a380c3ecce14453f8d67899ae8899cb8af4c9953627d0ec6372bb8e6ca2",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "way/943635819",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "shared-host",
+      "goldSample": false,
+      "armOrder": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "venueId": "way/424790398",
+      "appVenueId": "venue-1ad37ry",
+      "name": "The Surrey Docks",
+      "website": "https://www.jdwetherspoon.com/pubs/all-pubs/england/london/the-surrey-docks-rotherhithe",
+      "postcode": "SE16 2LW",
+      "address": "185, Lower Road, London, SE16 2LW",
+      "borough": "Southwark",
+      "lat": 51.4930717,
+      "lng": -0.0463704,
+      "operatorRecorded": null,
+      "stratum": "inner",
+      "host": "jdwetherspoon.com",
+      "selectionKey": "04eb7746926df5a3a302a32ce37d74b33a64c344c5d14727be7d239ce596b301",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "way/424790398",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "shared-host",
+      "goldSample": false,
+      "armOrder": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "venueId": "way/188072069",
+      "appVenueId": "venue-yc5yht",
+      "name": "The Little Windsor",
+      "website": "https://www.littlewindsorsutton.co.uk/",
+      "postcode": "SM1 4BY",
+      "address": "13, Greyhound Road, SM1 4BY",
+      "borough": "Sutton",
+      "lat": 51.3640143,
+      "lng": -0.1868745,
+      "operatorRecorded": null,
+      "stratum": "south",
+      "host": "littlewindsorsutton.co.uk",
+      "selectionKey": "055100b5edf2bcf98c87c7e6ef47498d169c5aa44530958d5d89f6f5c3937cda",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "way/188072069",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": false,
+      "armOrder": [
+        "B",
+        "A"
+      ]
+    },
+    {
+      "venueId": "node/1937328128",
+      "appVenueId": "venue-1n7mtb0",
+      "name": "Comptons of Soho",
+      "website": "https://www.comptonsofsoho.co.uk/comptons",
+      "postcode": "W1D 6HN",
+      "address": "51-53, Old Compton Street, London, W1D 6HN",
+      "borough": "Westminster",
+      "lat": 51.5126049,
+      "lng": -0.1325151,
+      "operatorRecorded": "Stonegate",
+      "stratum": "inner",
+      "host": "comptonsofsoho.co.uk",
+      "selectionKey": "058b0afc72225a6faa19510c3e8236625e0034c8e97ddc25edf7dde602e747bc",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "node/1937328128",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": false,
+      "armOrder": [
+        "B",
+        "A"
+      ]
+    },
+    {
+      "venueId": "node/993017354",
+      "appVenueId": "venue-lq0c1j",
+      "name": "Five Bells",
+      "website": "https://www.greeneking-pubs.co.uk/pubs/greater-london/five-bells/",
+      "postcode": "N2 0LZ",
+      "address": "165-167, East End Road, London, N2 0LZ",
+      "borough": "Barnet",
+      "lat": 51.5908058,
+      "lng": -0.1722957,
+      "operatorRecorded": null,
+      "stratum": "north",
+      "host": "greeneking-pubs.co.uk",
+      "selectionKey": "05ac1401b8ec3cb818e2313981b71941a57337a37c9d09bbfdce560f6af28fe2",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "node/993017354",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "shared-host",
+      "goldSample": false,
+      "armOrder": [
+        "B",
+        "A"
+      ]
+    },
+    {
+      "venueId": "node/3750381862",
+      "appVenueId": "venue-1p2m0lc",
+      "name": "The Toll Gate",
+      "website": "https://www.jdwetherspoon.com/pubs/all-pubs/england/london/the-toll-gate-harringay",
+      "postcode": "N8 0PS",
+      "address": "26-30, Turnpike Lane, London, N8 0PS",
+      "borough": "Haringey",
+      "lat": 51.5899928,
+      "lng": -0.1052284,
+      "operatorRecorded": null,
+      "stratum": "north",
+      "host": "jdwetherspoon.com",
+      "selectionKey": "05d39fec4924ba6975aa86dcff08e9d7eb066ed594da8b952b21e44cd15cfd6e",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "node/3750381862",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "shared-host",
+      "goldSample": false,
+      "armOrder": [
+        "B",
+        "A"
+      ]
+    },
+    {
+      "venueId": "way/256331320",
+      "appVenueId": "venue-7c95yy",
+      "name": "The Whippet Inn",
+      "website": "http://www.thewhippetinn.com/",
+      "postcode": "NW10 3JJ",
+      "address": "64-66, Chamberlayne Road, London, NW10 3JJ",
+      "borough": "Brent",
+      "lat": 51.5322471,
+      "lng": -0.2178703,
+      "operatorRecorded": null,
+      "stratum": "west",
+      "host": "thewhippetinn.com",
+      "selectionKey": "060b3e569f51ca71ab62bf69312d778052ca961ed010c433a67a98624b2ae2bd",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "way/256331320",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": false,
+      "armOrder": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "venueId": "way/199171524",
+      "appVenueId": "venue-qkjsbo",
+      "name": "The Dog & Duck",
+      "website": "https://dogandduck-e17.co.uk/",
+      "postcode": "E17 5AL",
+      "address": "222, Chingford Road, London, E17 5AL",
+      "borough": "Waltham Forest",
+      "lat": 51.597781,
+      "lng": -0.0150542,
+      "operatorRecorded": null,
+      "stratum": "north",
+      "host": "dogandduck-e17.co.uk",
+      "selectionKey": "06598b28f1dfdb83f87330d7b10fa1d02ed358fcd9b5c414aa22304c4231a9c2",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "way/199171524",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": false,
+      "armOrder": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "venueId": "node/3261904462",
+      "appVenueId": "venue-1pv5bwv",
+      "name": "Dodo",
+      "website": "https://www.thedodomicropub.com/",
+      "postcode": "W7 3TR",
+      "address": "52, Boston Road, London, W7 3TR",
+      "borough": "Ealing",
+      "lat": 51.5067295,
+      "lng": -0.3374416,
+      "operatorRecorded": null,
+      "stratum": "west",
+      "host": "thedodomicropub.com",
+      "selectionKey": "0668a18da9fded24dcdba9102f35af80ae96e34c7d294e3be0a741e9a6e3482f",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "node/3261904462",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": false,
+      "armOrder": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "venueId": "node/13315502601",
+      "appVenueId": "venue-a5snii",
+      "name": "The Post Bar",
+      "website": "https://www.thepostbar.co.uk/",
+      "postcode": "N15 4BN",
+      "address": "316, High Road, London, N15 4BN",
+      "borough": "Haringey",
+      "lat": 51.588058,
+      "lng": -0.0704832,
+      "operatorRecorded": null,
+      "stratum": "north",
+      "host": "thepostbar.co.uk",
+      "selectionKey": "06bab23e48225cfb44cb32f225ee9b9e00b233a7c8f52fc907f740f98698c406",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "node/13315502601",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": false,
+      "armOrder": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "venueId": "node/261245915",
+      "appVenueId": "venue-1je46ir",
+      "name": "Crown & Anchor",
+      "website": "https://crownandanchorbrixton.co.uk/",
+      "postcode": "SW9 6AQ",
+      "address": "246, Brixton Road, London, SW9 6AQ",
+      "borough": "Lambeth",
+      "lat": 51.4713507,
+      "lng": -0.1128611,
+      "operatorRecorded": "Conway Taverns",
+      "stratum": "inner",
+      "host": "crownandanchorbrixton.co.uk",
+      "selectionKey": "06c0502abbdff3b3bd696e514f9579eaa39a7d3344e055110963e713bae3f66c",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "node/261245915",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": false,
+      "armOrder": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "venueId": "way/157767121",
+      "appVenueId": "venue-u0ox5x",
+      "name": "The Cambridge",
+      "website": "https://www.nicholsonspubs.co.uk/restaurants/london/thecambridgecambridgecircuslondon",
+      "postcode": "WC2H 0DP",
+      "address": "Charing Cross Road, London, WC2H 0DP",
+      "borough": "Westminster",
+      "lat": 51.5135794,
+      "lng": -0.129534,
+      "operatorRecorded": null,
+      "stratum": "inner",
+      "host": "nicholsonspubs.co.uk",
+      "selectionKey": "070232ad6cd59408ee8ff3d532f850ded14387fcb0dac72402160ef21af42165",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "way/157767121",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "shared-host",
+      "goldSample": false,
+      "armOrder": [
+        "B",
+        "A"
+      ]
+    },
+    {
+      "venueId": "node/1601053417",
+      "appVenueId": "venue-13xdb1p",
+      "name": "The Plough",
+      "website": "https://www.theploughstjohnshill.co.uk/",
+      "postcode": "SW11 1SY",
+      "address": "89, St. John's Hill, London, SW11 1SY",
+      "borough": "Wandsworth",
+      "lat": 51.4615658,
+      "lng": -0.1733056,
+      "operatorRecorded": null,
+      "stratum": "inner",
+      "host": "theploughstjohnshill.co.uk",
+      "selectionKey": "0743e761b3613e4296824bd51c29893bb994571804f905b697de2063d5f777cb",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "node/1601053417",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": false,
+      "armOrder": [
+        "B",
+        "A"
+      ]
+    },
+    {
+      "venueId": "way/1095220538",
+      "appVenueId": "venue-3xoea3",
+      "name": "The Ashburnham Arms",
+      "website": "https://www.ashburnham-arms.co.uk/",
+      "postcode": "SE10 8UH",
+      "address": "25, Ashburnham Grove, London, SE10 8UH",
+      "borough": "Greenwich",
+      "lat": 51.4757712,
+      "lng": -0.0152529,
+      "operatorRecorded": "Shepherd Neame",
+      "stratum": "east",
+      "host": "ashburnham-arms.co.uk",
+      "selectionKey": "0744cb25be1aef8349399d7946b3e143266ae6f04464eda20c18c0d237dfdc58",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "way/1095220538",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": false,
+      "armOrder": [
+        "B",
+        "A"
+      ]
+    },
+    {
+      "venueId": "way/99878205",
+      "appVenueId": "venue-yjfud7",
+      "name": "The Cuckfield",
+      "website": "https://www.thecuckfieldwanstead.co.uk/",
+      "postcode": "E11 2AA",
+      "address": "31, High Street, London, E11 2AA",
+      "borough": "Redbridge",
+      "lat": 51.5793635,
+      "lng": 0.0250203,
+      "operatorRecorded": null,
+      "stratum": "east",
+      "host": "thecuckfieldwanstead.co.uk",
+      "selectionKey": "083eb14f9f4b68a53236908b08f723f58201a75df87f7bbb78d474b5eb8913ba",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "way/99878205",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": false,
+      "armOrder": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "venueId": "way/961153760",
+      "appVenueId": "venue-12x0p9j",
+      "name": "The Stonhouse",
+      "website": "https://www.thestonhouse.co.uk/",
+      "postcode": "SW4 6BJ",
+      "address": "165, Stonhouse Street, London, SW4 6BJ",
+      "borough": "Lambeth",
+      "lat": 51.4639665,
+      "lng": -0.1369482,
+      "operatorRecorded": null,
+      "stratum": "inner",
+      "host": "thestonhouse.co.uk",
+      "selectionKey": "08630e1f6ba311df052a60730e548c581b85319844c1eb8574e75fe48c4c41dd",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "way/961153760",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": false,
+      "armOrder": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "venueId": "node/313181168",
+      "appVenueId": "venue-10getjx",
+      "name": "Newmarket Ale House / Canecão",
+      "website": "https://www.newmarkethotel.co.uk/",
+      "postcode": "N7 9QG",
+      "address": "17, York Way, London, N7 9QG",
+      "borough": "Camden",
+      "lat": 51.543225,
+      "lng": -0.1260664,
+      "operatorRecorded": null,
+      "stratum": "inner",
+      "host": "newmarkethotel.co.uk",
+      "selectionKey": "08b1a5b27f61f5425b7111674cc2467d004dea6928bb5dc72d4e8bc5376c6162",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "node/313181168",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": false,
+      "armOrder": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "venueId": "node/288041082",
+      "appVenueId": "venue-1kbrifo",
+      "name": "The White Hart",
+      "website": "https://www.aeronaut.pub/",
+      "postcode": "W3 9BH",
+      "address": "264, High Street, London, W3 9BH",
+      "borough": "Ealing",
+      "lat": 51.508471,
+      "lng": -0.275381,
+      "operatorRecorded": null,
+      "stratum": "west",
+      "host": "aeronaut.pub",
+      "selectionKey": "08c92bd0040712be0aeb4046a258cea78f908facfa5f2083597a6512c1188d55",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "node/288041082",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": false,
+      "armOrder": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "venueId": "way/220273570",
+      "appVenueId": "venue-10fj3ei",
+      "name": "Rising Sun Hotel & Restaurant",
+      "website": "http://www.risingsunhotels.com/",
+      "postcode": "HA1 3QL",
+      "address": "138, Greenford Road, Harrow, HA1 3QL",
+      "borough": "Harrow",
+      "lat": 51.5586926,
+      "lng": -0.3348143,
+      "operatorRecorded": null,
+      "stratum": "west",
+      "host": "risingsunhotels.com",
+      "selectionKey": "0a5e2b4661d149122164217c7eaf3dd68dc46fcb030477c45a04617feacfb966",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "way/220273570",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": false,
+      "armOrder": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "venueId": "node/3569220793",
+      "appVenueId": "venue-18czy6k",
+      "name": "The Pear Tree",
+      "website": "https://www.greatukpubs.co.uk/pear-tree-purley",
+      "postcode": "CR8 2LN",
+      "address": "908, Brighton Road, Purley, CR8 2LN",
+      "borough": "Croydon",
+      "lat": 51.3397341,
+      "lng": -0.115249,
+      "operatorRecorded": "Stonegate",
+      "stratum": "south",
+      "host": "greatukpubs.co.uk",
+      "selectionKey": "0a6bb130a0a08c9caf38833a970b88dadcc961a78b020e6226b9c1ce2b6783c3",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "node/3569220793",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "shared-host",
+      "goldSample": false,
+      "armOrder": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "venueId": "way/195649318",
+      "appVenueId": "venue-9b3dz2",
+      "name": "The Old Ship",
+      "website": "https://www.oldship.net/",
+      "postcode": "E14 7NW",
+      "address": "17, Barnes Street, London, E14 7NW",
+      "borough": "Tower Hamlets",
+      "lat": 51.513576,
+      "lng": -0.0400264,
+      "operatorRecorded": null,
+      "stratum": "east",
+      "host": "oldship.net",
+      "selectionKey": "0aa49ecf9e26c051db21cc630c67316a201f2910decd0127e908cadf09a6c661",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "way/195649318",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": false,
+      "armOrder": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "venueId": "node/3731791377",
+      "appVenueId": "venue-1q4kzs0",
+      "name": "The Door Hinge",
+      "website": "https://www.thedoorhinge.co.uk/",
+      "postcode": "DA16 1TR",
+      "address": "11, Welling High Street, DA16 1TR",
+      "borough": "Bexley",
+      "lat": 51.4619423,
+      "lng": 0.1132222,
+      "operatorRecorded": null,
+      "stratum": "east",
+      "host": "thedoorhinge.co.uk",
+      "selectionKey": "0b69034f66202fb28ef6362855317ea6d6d1645643320caaec8b9e1b13835779",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "node/3731791377",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": false,
+      "armOrder": [
+        "B",
+        "A"
+      ]
+    },
+    {
+      "venueId": "way/374461268",
+      "appVenueId": "venue-16s3et4",
+      "name": "The Jolly Gardeners",
+      "website": "https://thejollygardeners.co.uk/",
+      "postcode": "SE11 6AB",
+      "address": "49–51, Black Prince Road, London, SE11 6AB",
+      "borough": "Lambeth",
+      "lat": 51.4913329,
+      "lng": -0.1182347,
+      "operatorRecorded": null,
+      "stratum": "inner",
+      "host": "thejollygardeners.co.uk",
+      "selectionKey": "0cc1f8078936078b5578cf0b69a63994d009e5790463f28d5b1318cf5c409b46",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "way/374461268",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": false,
+      "armOrder": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "venueId": "way/177636940",
+      "appVenueId": "venue-fwwfs9",
+      "name": "Douglas Fir",
+      "website": "https://www.gipsyhillbrew.com/bar/the-douglas-fir",
+      "postcode": "SE20 8DL",
+      "address": "144, Anerley Road, London, SE20 8DL",
+      "borough": "Bromley",
+      "lat": 51.4147393,
+      "lng": -0.0709374,
+      "operatorRecorded": null,
+      "stratum": "south",
+      "host": "gipsyhillbrew.com",
+      "selectionKey": "108780c841d399172f85fb48c4a3402cb8ffaacf278882afcc05a0d673aea7b6",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "way/177636940",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": false,
+      "armOrder": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "venueId": "way/460796326",
+      "appVenueId": "venue-13nhw05",
+      "name": "The Old Frizzle",
+      "website": "https://www.theoldfrizzle.co.uk/",
+      "postcode": "SW19 1RQ",
+      "address": "74-78, The Broadway, London, SW19 1RQ",
+      "borough": "Merton",
+      "lat": 51.41976,
+      "lng": -0.202139,
+      "operatorRecorded": null,
+      "stratum": "south",
+      "host": "theoldfrizzle.co.uk",
+      "selectionKey": "10ab0e0cb4691dbac292b729746b9466b59552c1bfaa937f02a98edada38b3a2",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "way/460796326",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": false,
+      "armOrder": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "venueId": "way/1545736312",
+      "appVenueId": "venue-ndbkyg",
+      "name": "Whelans",
+      "website": "https://whelanspubs.co.uk/whelans-irish-traditional/whelans-kingston/",
+      "postcode": "KT2 5EB",
+      "address": "20, Richmond Road, Kingston upon Thames, KT2 5EB",
+      "borough": "Kingston upon Thames",
+      "lat": 51.4130073,
+      "lng": -0.3003753,
+      "operatorRecorded": null,
+      "stratum": "west",
+      "host": "whelanspubs.co.uk",
+      "selectionKey": "10f29ab74873d76019864684aae0bb5ef94809f8d32406bc65f3b61804334002",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "way/1545736312",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "shared-host",
+      "goldSample": true,
+      "armOrder": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "venueId": "way/1250246727",
+      "appVenueId": "venue-1woz9g0",
+      "name": "The Crown & Sceptre",
+      "website": "https://www.crownandsceptresouthcroydon.co.uk/",
+      "postcode": "CR2 6RB",
+      "address": "32, Junction Road, South Croydon, CR2 6RB",
+      "borough": "Croydon",
+      "lat": 51.3594511,
+      "lng": -0.0967294,
+      "operatorRecorded": null,
+      "stratum": "south",
+      "host": "crownandsceptresouthcroydon.co.uk",
+      "selectionKey": "11d327f29b623b981f894c329e952899476b7e26f9c58dabf54ca352000e45b6",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "way/1250246727",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": false,
+      "armOrder": [
+        "B",
+        "A"
+      ]
+    },
+    {
+      "venueId": "way/195029749",
+      "appVenueId": "venue-1ho4ruu",
+      "name": "The Crown",
+      "website": "http://www.geronimo-inns.co.uk/thecrown/",
+      "postcode": "E3 5SN",
+      "address": "223, Grove Road, London, E3 5SN",
+      "borough": "Tower Hamlets",
+      "lat": 51.5329011,
+      "lng": -0.0416128,
+      "operatorRecorded": null,
+      "stratum": "east",
+      "host": "geronimo-inns.co.uk",
+      "selectionKey": "1215fa1b54a5f2c4a93b64de576e1786b6512fe001595510994df57f96a8b94f",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "way/195029749",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "shared-host",
+      "goldSample": false,
+      "armOrder": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "venueId": "way/889916461",
+      "appVenueId": "venue-v42x21",
+      "name": "The Pelton Arms",
+      "website": "https://www.peltonarms.com/",
+      "postcode": "SE10 9PQ",
+      "address": "23-25, Pelton Road, London, SE10 9PQ",
+      "borough": "Greenwich",
+      "lat": 51.4868637,
+      "lng": 0.0025129,
+      "operatorRecorded": null,
+      "stratum": "east",
+      "host": "peltonarms.com",
+      "selectionKey": "12684b9b29f4736e6b377552c22e6739ca4a22d37a433e7461a3bede8264f34b",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "way/889916461",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": false,
+      "armOrder": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "venueId": "node/5418886554",
+      "appVenueId": "venue-6uincc",
+      "name": "The Space Bar",
+      "website": "https://spacebar.org.uk/",
+      "postcode": "E14 3RS",
+      "address": "269, Westferry Road, London, E14 3RS",
+      "borough": "Tower Hamlets",
+      "lat": 51.4921523,
+      "lng": -0.0241157,
+      "operatorRecorded": null,
+      "stratum": "east",
+      "host": "spacebar.org.uk",
+      "selectionKey": "139dc7fdfd86228871a8267db271961452616b1f2bcb9a17e39f6817d936e9a6",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "node/5418886554",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": false,
+      "armOrder": [
+        "B",
+        "A"
+      ]
+    },
+    {
+      "venueId": "way/99790830",
+      "appVenueId": "venue-txfgkc",
+      "name": "The Falcon",
+      "website": "https://www.nicholsonspubs.co.uk/restaurants/london/thefalconclaphamjunctionlondon",
+      "postcode": "SW11 1RU",
+      "address": "2, Saint John's Hill, London, SW11 1RU",
+      "borough": "Wandsworth",
+      "lat": 51.4638067,
+      "lng": -0.1681049,
+      "operatorRecorded": null,
+      "stratum": "inner",
+      "host": "nicholsonspubs.co.uk",
+      "selectionKey": "13e9b3a394165cd44ed6e1f6336c437f80e096bb2b495451b467d217b98783b5",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "way/99790830",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "shared-host",
+      "goldSample": false,
+      "armOrder": [
+        "B",
+        "A"
+      ]
+    },
+    {
+      "venueId": "node/4617068622",
+      "appVenueId": "venue-172ciso",
+      "name": "Ganley's Irish Bar",
+      "website": "https://ganleysirishbar.com/",
+      "postcode": "SM4 5HP",
+      "address": "43-47, London Road, Morden, SM4 5HP",
+      "borough": "Merton",
+      "lat": 51.4024188,
+      "lng": -0.1935054,
+      "operatorRecorded": null,
+      "stratum": "south",
+      "host": "ganleysirishbar.com",
+      "selectionKey": "15bc91c42cb7d8a842fb1222c5d581486db8e18c576a8ee7b3f1d727ba15a06a",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "node/4617068622",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": false,
+      "armOrder": [
+        "B",
+        "A"
+      ]
+    },
+    {
+      "venueId": "way/256649827",
+      "appVenueId": "venue-17lpd96",
+      "name": "The Surbiton Flyer",
+      "website": "https://www.surbitonflyer.co.uk/",
+      "postcode": "KT6 4NS",
+      "address": "84, Victoria Road, Surbiton, KT6 4NS",
+      "borough": "Kingston upon Thames",
+      "lat": 51.3927123,
+      "lng": -0.3048875,
+      "operatorRecorded": null,
+      "stratum": "south",
+      "host": "surbitonflyer.co.uk",
+      "selectionKey": "173cb035b7cc2d3ace166faa8e7d1a149a04a171152b65af81e892506df53887",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "way/256649827",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": false,
+      "armOrder": [
+        "B",
+        "A"
+      ]
+    },
+    {
+      "venueId": "node/370187947",
+      "appVenueId": "venue-1h4pukm",
+      "name": "The Priory",
+      "website": "https://www.thepriorypubn8.com/",
+      "postcode": "N8 8NB",
+      "address": "169, Priory Road, London, N8 8NB",
+      "borough": "Haringey",
+      "lat": 51.5872491,
+      "lng": -0.1325891,
+      "operatorRecorded": null,
+      "stratum": "north",
+      "host": "thepriorypubn8.com",
+      "selectionKey": "183886cafc6719837a72e6c568df7c174b23bbd34f92ae1ee3538f6c3ba5ceab",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "node/370187947",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": false,
+      "armOrder": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "venueId": "node/11019827413",
+      "appVenueId": "venue-9fb18e",
+      "name": "The Prince of Wales",
+      "website": "https://www.princeofwalessurbiton.co.uk/",
+      "postcode": "KT6 6AL",
+      "address": "117, Ewell Road, Surbiton, KT6 6AL",
+      "borough": "Kingston upon Thames",
+      "lat": 51.3896258,
+      "lng": -0.29768,
+      "operatorRecorded": null,
+      "stratum": "south",
+      "host": "princeofwalessurbiton.co.uk",
+      "selectionKey": "18ee5c5cce18aa56b4caa6b08ff2f81d1db61de447dbba4b8a2d5265bcfbaf57",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "node/11019827413",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": false,
+      "armOrder": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "venueId": "way/753674033",
+      "appVenueId": "venue-86sj0g",
+      "name": "The Moon on the Square",
+      "website": "https://www.jdwetherspoon.com/pubs/all-pubs/england/essex/the-moon-on-the-square-basildon",
+      "postcode": "TW13 4AU",
+      "address": "30, High Street, Feltham, TW13 4AU",
+      "borough": "Hounslow",
+      "lat": 51.4464358,
+      "lng": -0.4101685,
+      "operatorRecorded": null,
+      "stratum": "west",
+      "host": "jdwetherspoon.com",
+      "selectionKey": "1b093d237ef8a081e8b2cc901dacfeadb77a92ab3766a06a7ffe80c6da34c735",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "way/753674033",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "shared-host",
+      "goldSample": false,
+      "armOrder": [
+        "B",
+        "A"
+      ]
+    },
+    {
+      "venueId": "node/11061470043",
+      "appVenueId": "venue-1gb76ik",
+      "name": "Untraditional Pub",
+      "website": "https://www.pillarsbrewery.com/pages/untraditional-pub",
+      "postcode": "E17 7FY",
+      "address": "35, St James Street, London, E17 7FY",
+      "borough": "Waltham Forest",
+      "lat": 51.5805937,
+      "lng": -0.0322753,
+      "operatorRecorded": null,
+      "stratum": "north",
+      "host": "pillarsbrewery.com",
+      "selectionKey": "1dab483446332cb8412603abc7e4a17560b5291a520af4d98854679ad3991686",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "node/11061470043",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": false,
+      "armOrder": [
+        "B",
+        "A"
+      ]
+    },
+    {
+      "venueId": "node/13667302001",
+      "appVenueId": "venue-1belpvq",
+      "name": "The Bodhran",
+      "website": "https://www.thebodhranpub.com/",
+      "postcode": "NW4 3UT",
+      "address": "3, Vivian Avenue, London, NW4 3UT",
+      "borough": "Barnet",
+      "lat": 51.5825484,
+      "lng": -0.2280084,
+      "operatorRecorded": null,
+      "stratum": "north",
+      "host": "thebodhranpub.com",
+      "selectionKey": "1eb8f2d4cb9495c27ac0e8ed2a57926f8501634b371eea09276fbf933274df9a",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "node/13667302001",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": false,
+      "armOrder": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "venueId": "way/631150340",
+      "appVenueId": "venue-74z3rx",
+      "name": "The Fox",
+      "website": "https://www.crafted-social.co.uk/fox-twickenham",
+      "postcode": "TW1 3NR",
+      "address": "39, Church Street, Twickenham, TW1 3NR",
+      "borough": "Richmond upon Thames",
+      "lat": 51.4466725,
+      "lng": -0.3270806,
+      "operatorRecorded": "Stonegate",
+      "stratum": "west",
+      "host": "crafted-social.co.uk",
+      "selectionKey": "2028b777f2d4d6134a57d71c4d62246f9b6a703374bebe58d6ad18f83346fff5",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "way/631150340",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "shared-host",
+      "goldSample": false,
+      "armOrder": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "venueId": "way/832071957",
+      "appVenueId": "venue-17k0pzh",
+      "name": "The Occasional Half",
+      "website": "http://www.occasionalhalf.co.uk/",
+      "postcode": "N13 4TD",
+      "address": "67-67, Green Lanes, London, N13 4TD",
+      "borough": "Enfield",
+      "lat": 51.6103765,
+      "lng": -0.1100633,
+      "operatorRecorded": null,
+      "stratum": "north",
+      "host": "occasionalhalf.co.uk",
+      "selectionKey": "25f820d300ef07a88420345b676ab47bd8f0fc5b5be501af4a67dfbdf1b4e437",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "way/832071957",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "venue-host",
+      "goldSample": false,
+      "armOrder": [
+        "B",
+        "A"
+      ]
+    },
+    {
+      "venueId": "node/26979399",
+      "appVenueId": "venue-tmw47g",
+      "name": "The Metropolitan",
+      "website": "https://www.greatukpubs.co.uk/metropolitan-tavern-uxbridge",
+      "postcode": "UB8 1AB",
+      "address": "8,9, Windsor Street, Uxbridge, UB8 1AB",
+      "borough": "Hillingdon",
+      "lat": 51.5454653,
+      "lng": -0.480097,
+      "operatorRecorded": "Stonegate",
+      "stratum": "west",
+      "host": "greatukpubs.co.uk",
+      "selectionKey": "2af5ef91e7bc200f2cbb1cacfdae141da7947a86dd53d3caa4b620936cb20f0d",
+      "source": {
+        "file": "data/osm/uk/uk_osm_pubs.json",
+        "osmId": "node/26979399",
+        "fetchedAt": "2026-10-06T00:13:28.633Z"
+      },
+      "hostingStratum": "shared-host",
+      "goldSample": false,
+      "armOrder": [
+        "A",
+        "B"
+      ]
+    }
+  ]
+}

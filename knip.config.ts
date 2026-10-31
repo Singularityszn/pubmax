@@ -68,6 +68,9 @@ const config: KnipConfig = {
     // Pint compass contrast defect, so it is kept to re-run the sweep. An
     // entry root, not an ignore: knip traces what it imports.
     "docs/design-explorations/2026-10-30-phone-mockups/contrast.mjs",
+    // Standalone benchmark CLIs and their node:test suite. Their local README
+    // documents direct execution without adding production package scripts.
+    "scripts/benchmarks/menu-discovery/*.mjs",
   ],
   ignore: [
     ...AGENT_TOOLING_PATHS,
@@ -78,6 +81,9 @@ const config: KnipConfig = {
     // Evidence scripts kept beside the proof they produced. A proof README
     // names its script as the way to reproduce the run.
     "docs/proof/**",
+    // Private benchmark response archives can contain exact source snapshots.
+    // The review and audit CLIs read these as evidence, not application code.
+    "scripts/benchmarks/menu-discovery/runs/**",
     "scripts/clerk-auth-firefox-proof.mjs",
     "scripts/venue-truth-shots.mjs",
     // Refreshes TypeSafe fixture probabilities for Pub Pal fence tests.

@@ -1,0 +1,7 @@
+[policy]
+interval_ms = 0
+per_host_concurrency = 1
+global_concurrency = 1
+
+[cache]
+enabled = false
