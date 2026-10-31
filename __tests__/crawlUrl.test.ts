@@ -14,7 +14,7 @@ const sample: CrawlUrlState = {
   filters: {
     ...initialFilters,
     crawlStyle: "heritage",
-    maxPrice: 6.5,
+    maxPrice: 6,
     stopCount: 5,
     routeWindow: 25,
     requirePintDrops: true,
@@ -29,7 +29,7 @@ describe("crawlUrl", () => {
     expect(decoded.mode).toBe("build");
     expect(decoded.filters).toMatchObject({
       crawlStyle: "heritage",
-      maxPrice: 6.5,
+      maxPrice: 6,
       stopCount: 5,
       routeWindow: 25,
       requirePintDrops: true,
@@ -339,6 +339,19 @@ describe("crawlUrl", () => {
     expect(
       encodeCrawl({ ...sample, filters: { ...sample.filters, requireFood: false } }),
     ).not.toContain("food=");
+  });
+
+  it("decodes garden=1 into the beer-garden filter, so /gardens can open it", () => {
+    expect(decodeCrawl(new URLSearchParams("garden=1")).filters?.requireBeerGarden).toBe(true);
+    expect(decodeCrawl(new URLSearchParams("garden=0")).filters?.requireBeerGarden).toBeUndefined();
+    expect(seedCrawlState("?garden=1").filters.requireBeerGarden).toBe(true);
+    expect(seedCrawlState("").filters.requireBeerGarden).toBe(false);
+    expect(
+      encodeCrawl({ ...sample, filters: { ...sample.filters, requireBeerGarden: true } }),
+    ).toContain("garden=1");
+    expect(
+      encodeCrawl({ ...sample, filters: { ...sample.filters, requireBeerGarden: false } }),
+    ).not.toContain("garden=");
   });
 
   it("round-trips explicit drink search filters", () => {

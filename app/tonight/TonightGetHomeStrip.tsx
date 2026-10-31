@@ -3,57 +3,36 @@
 // Tonight get-home strip — one calm line pair under the location block:
 // "Victoria line good service." / "Last train from Oxford Circus 00:05."
 //
-// Reuses the existing /api/last-train surface (lib/tfl.ts, LastTrainCard's
-// backend) rather than adding any new TfL plumbing. Renders NOTHING while
-// loading, on error, or when there is nothing worth saying — the page must
-// never gain a spinner or an apologetic empty card for an optional extra.
+// Reuses the existing /api/last-train surface through the same hook as the
+// Last orders panel (./useTonightGetHome.ts), so the two read one cached
+// answer and say the same thing. The hook owns answer retention and expiry.
+// The strip shows only ready answers, without a spinner or an empty card
+// for an optional extra.
 //
-// React 19 rules: fetch fires in an effect, setState only inside the async
-// resolution/catch, AbortController cancels on unmount/origin change.
-// Privacy: coordinates are rounded to 3 decimals (~110 m) before they leave
-// the device; enough to find the nearest station, not the drinker's doorstep.
+// The words are made from the live clock on every tick (lib/useLiveClock.ts),
+// so "Leave in 10 min" turns into "Leave-by time has passed" when the deadline
+// does, and the answer is read again every few minutes while the strip shows.
+// Privacy: the hook coarsens the point (~110 m) before it leaves the device;
+// enough to find the nearest station, not the drinker's doorstep.
 
-import { useEffect, useState } from "react";
 import { TrainFront } from "lucide-react";
 
 import DisruptionLine from "@/components/transport/DisruptionLine";
-import { coarsenViewerPoint } from "@/lib/geo";
-import { loadSurfaceJson } from "@/lib/surfaceDataCache";
-import { summariseGetHome, type GetHomeSummary } from "@/lib/tonightGetHome";
-import type { LastTrainResult } from "@/lib/tfl";
+import { useLiveClock } from "@/lib/useLiveClock";
+
+import { useTonightGetHome } from "./useTonightGetHome";
+
+/** How often the words are made again. A minute figure needs nothing faster. */
+const TICK_MS = 30_000;
 
 type Props = {
   origin: { lat: number; lng: number };
 };
 
 export default function TonightGetHomeStrip({ origin }: Props) {
-  const [summary, setSummary] = useState<GetHomeSummary | null>(null);
-  const originLat = origin.lat;
-  const originLng = origin.lng;
-
-  useEffect(() => {
-    const controller = new AbortController();
-    const { lat, lng } = coarsenViewerPoint({ lat: originLat, lng: originLng });
-    void loadSurfaceJson<LastTrainResult>(
-      `/api/last-train?lat=${lat}&lng=${lng}`,
-      {
-        signal: controller.signal,
-        validate: (body) =>
-          Boolean(
-            body &&
-              typeof body === "object" &&
-              "station" in body &&
-              "trains" in body,
-          ),
-      },
-      (body) => setSummary(summariseGetHome(body)),
-    ).then((outcome) => {
-      if (outcome === "failed" && !controller.signal.aborted) {
-        setSummary(null);
-      }
-    });
-    return () => controller.abort();
-  }, [originLat, originLng]);
+  const now = useLiveClock(TICK_MS);
+  const getHome = useTonightGetHome(origin, now);
+  const summary = getHome.status === "ready" ? getHome.summary : null;
 
   // The get-home summary and the disruption line are independent: a material
   // disruption can matter even when we have no last-train time to show, and vice

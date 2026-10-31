@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 
 import { expect, test } from "@playwright/test";
@@ -10,6 +10,7 @@ import {
   findMethodWarnings,
   findRatchetCandidates,
   formatBreachTable,
+  formatBudgetHeadroomMarkdown,
   formatMeasurementTable,
   formatRatchetTable,
   formatSampleTable,
@@ -195,6 +196,15 @@ test("every budgeted route stays inside its performance budget", async ({ page, 
   if (handover) {
     mkdirSync(dirname(PERF_AB_BREACH_FILE), { recursive: true });
     writeFileSync(PERF_AB_BREACH_FILE, `${JSON.stringify(handover, null, 2)}\n`);
+  }
+
+  // How full every budget is, on the job's summary page, green or red. It
+  // reads the same figures and fails nothing.
+  if (process.env.GITHUB_STEP_SUMMARY) {
+    appendFileSync(
+      process.env.GITHUB_STEP_SUMMARY,
+      formatBudgetHeadroomMarkdown(budgets.routes, measured),
+    );
   }
 
   // An undecided ceiling is not a pass, so it is said out loud whether the

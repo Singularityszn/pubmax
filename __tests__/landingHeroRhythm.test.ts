@@ -108,7 +108,7 @@ describe("landing hero rhythm", () => {
     // the priced read), never typed into the hero.
     expect(hero).toContain('<p class="screenLede">Find a London pub, compare listed pint prices and plan your night.</p>');
     expect(hero).not.toContain('class="lpSavingSummary"');
-    expect(html).toContain("The average of each pub&#x27;s cheapest listed pint across 950 priced London pubs is £5.54.");
+    expect(html).toContain("The average of each pub&#x27;s cheapest listed pint across 950 pubs in our London pub list with a listed price is £5.54.");
     expect(html.indexOf('class="lpSavingSummary"')).toBeGreaterThan(html.indexOf('class="lpRail"'));
     expect(hero).toContain('alt="Tower Bridge and the Thames in London from above"');
     expect(hero).toContain('/landing/hero-thames-1600.avif');

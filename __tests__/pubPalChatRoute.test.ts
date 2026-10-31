@@ -15,6 +15,11 @@ vi.mock("@/lib/palElevenLabsChat.server", async (original) => ({
   runPalElevenLabsChatTurn: vi.fn(),
 }));
 
+vi.mock("@/lib/palClaudeChat.server", async (original) => ({
+  ...await original<typeof import("@/lib/palClaudeChat.server")>(),
+  runPalClaudeChatTurn: vi.fn(),
+}));
+
 const authState = vi.hoisted(() => ({ userId: null as string | null, checks: 0 }));
 
 vi.mock("@/lib/authServer", () => ({
@@ -33,6 +38,7 @@ vi.mock("@/lib/palTaste.server", () => ({
 import { offlineFetch } from "@/evals/pal/offlineFetch";
 import { POST } from "@/app/api/pub-pal/chat/route";
 import { PAL_ERROR_FALLBACK } from "@/lib/palChat";
+import { runPalClaudeChatTurn } from "@/lib/palClaudeChat.server";
 import { runPalElevenLabsChatTurn } from "@/lib/palElevenLabsChat.server";
 import { VIBE_CHIPS } from "@/lib/vibeChips";
 import { __resetPintDrops } from "@/lib/pintDrops";
@@ -42,10 +48,13 @@ describe("POST /api/pub-pal/chat", () => {
     __resetPintDrops();
     vi.stubEnv("ELEVENLABS_API_KEY", "test-key");
     vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "agent-id");
+    // A key in the shell must not move these ElevenLabs cases onto Claude.
+    vi.stubEnv("ANTHROPIC_API_KEY", "");
     authState.userId = null;
     authState.checks = 0;
     tasteState.taste = null;
     vi.mocked(runPalElevenLabsChatTurn).mockReset();
+    vi.mocked(runPalClaudeChatTurn).mockReset();
   });
 
   afterEach(() => {
@@ -597,6 +606,48 @@ describe("POST /api/pub-pal/chat", () => {
       fenceTurns: [{ role: "user", content: "Earlier question." }],
       ownerId: authState.userId,
     }, expect.objectContaining({ fence: { fenced: false, sobrietyOnly: false } }));
+  });
+
+  it("asks Claude instead of ElevenLabs when the deploy has an Anthropic key", async () => {
+    vi.stubEnv("ANTHROPIC_API_KEY", "test-anthropic-key");
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
+    authState.userId = "11111111-1111-4111-8111-111111111111";
+    vi.mocked(runPalClaudeChatTurn).mockResolvedValue({
+      ok: true,
+      message: "The Crown is your quiet one.",
+      cards: [],
+      proposals: [],
+      conversationId: "conv_palAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      toolsUsed: ["search_venues"],
+    });
+    const response = await POST(
+      new Request("http://localhost/api/pub-pal/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ query: "A quiet pub in Soho tonight" }),
+      }),
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ answer: "The Crown is your quiet one." });
+    expect(runPalClaudeChatTurn).toHaveBeenCalledWith(
+      expect.objectContaining({ query: "A quiet pub in Soho tonight", ownerId: authState.userId }),
+      expect.objectContaining({ fence: { fenced: false, sobrietyOnly: false } }),
+    );
+    expect(runPalElevenLabsChatTurn).not.toHaveBeenCalled();
+  });
+
+  it("still asks a Claude-only deploy's caller to sign in", async () => {
+    vi.stubEnv("ANTHROPIC_API_KEY", "test-anthropic-key");
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
+    const response = await POST(
+      new Request("http://localhost/api/pub-pal/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ query: "A quiet pub in Soho tonight" }),
+      }),
+    );
+    expect(response.status).toBe(401);
+    expect(runPalClaudeChatTurn).not.toHaveBeenCalled();
   });
 
   // The token check is a GoTrue round trip, so a request the limiter refuses

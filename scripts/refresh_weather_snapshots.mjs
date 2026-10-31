@@ -6,6 +6,8 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { isPullRequestPermissionError } from "./lib/pullRequestPermission.mjs";
+
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUTPUT = join(ROOT, "public", "data", "weather", "latest.json");
 const AREAS = {
@@ -33,6 +35,32 @@ export function weatherBranchName(now = new Date(), runId = process.env.GITHUB_R
   const stamp = now.toISOString().slice(0, 10).replaceAll("-", "");
   const suffix = runId?.replace(/\D/g, "") ? `${runId.replace(/\D/g, "")}-${attempt?.replace(/\D/g, "") || "1"}` : String(now.getTime());
   return `weather-cache/${stamp}-${suffix}`;
+}
+
+/**
+ * Push the refreshed cache to its own branch and open a review PR. When the
+ * repository does not let GITHUB_TOKEN open pull requests, the pushed branch is
+ * the handoff: the run logs its URL as a warning and stays green. Any other
+ * failure still fails the run.
+ */
+export function publishWeatherReview({ branch, stamp, env = process.env, runCommand = execFileSync, log = console.log }) {
+  // git keeps the job log readable; gh pipes stderr so its refusal can be read.
+  const run = (command, args) => runCommand(command, args, { cwd: ROOT, stdio: command === "gh" ? ["ignore", "inherit", "pipe"] : "inherit", encoding: "utf8" });
+  run("git", ["checkout", "-b", branch]);
+  run("git", ["add", OUTPUT]);
+  run("git", ["commit", "-m", `chore(weather): refresh ${stamp}`]);
+  run("git", ["push", "-u", "origin", branch]);
+  try {
+    run("gh", ["pr", "create", "--title", `Weather cache ${stamp}`, "--body", "Scheduled Open-Meteo cache refresh. Route generation remains third-party-free and consumes this snapshot only after merge."]);
+    return { status: "created", branch };
+  } catch (error) {
+    if (!isPullRequestPermissionError(error)) throw error;
+    const server = String(env.GITHUB_SERVER_URL ?? "https://github.com").replace(/\/+$/, "");
+    const repository = String(env.GITHUB_REPOSITORY ?? "Singularityszn/pubmax");
+    const branchUrl = `${server}/${repository}/tree/${branch}`;
+    log(`::warning::GitHub Actions may not open pull requests in this repository. The weather cache is on ${branchUrl}; open its PR by hand.`);
+    return { status: "branch-only", branch, branchUrl };
+  }
 }
 
 async function observation([nightArea, [lat, lng]]) {
@@ -85,13 +113,7 @@ async function main() {
   writeFileSync(OUTPUT, `${JSON.stringify(snapshot, null, 2)}\n`);
   console.log(`Wrote ${observations.length} cached weather observations.`);
   if (!process.argv.includes("--open-pr")) return;
-  const branch = weatherBranchName();
-  const stamp = new Date().toISOString().slice(0, 10).replaceAll("-", "");
-  execFileSync("git", ["checkout", "-b", branch], { cwd: ROOT, stdio: "inherit" });
-  execFileSync("git", ["add", OUTPUT], { cwd: ROOT, stdio: "inherit" });
-  execFileSync("git", ["commit", "-m", `chore(weather): refresh ${stamp}`], { cwd: ROOT, stdio: "inherit" });
-  execFileSync("git", ["push", "-u", "origin", branch], { cwd: ROOT, stdio: "inherit" });
-  execFileSync("gh", ["pr", "create", "--title", `Weather cache ${stamp}`, "--body", "Scheduled Open-Meteo cache refresh. Route generation remains third-party-free and consumes this snapshot only after merge."], { cwd: ROOT, stdio: "inherit" });
+  publishWeatherReview({ branch: weatherBranchName(), stamp: new Date().toISOString().slice(0, 10).replaceAll("-", "") });
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) await main();

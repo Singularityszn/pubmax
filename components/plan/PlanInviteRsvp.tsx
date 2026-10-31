@@ -146,20 +146,35 @@ export function applyInviteRsvpCapability(
   // Host cannot RSVP. A malformed success must never demote host authority or
   // make the surface claim the RSVP saved.
   if (currentRole === "host") return false;
+  // One guest capability (launch review 3.5): a Going RSVP through the host's
+  // link normally comes back able to collaborate. The server says which, and
+  // the client writes exactly what it was told.
   if (
     typeof response.memberToken !== "string"
     || !/^[0-9a-f]{64}$/.test(response.memberToken)
     || response.role !== "guest"
-    || response.collaborationAuthorized !== false
+    || typeof response.collaborationAuthorized !== "boolean"
   ) {
     return false;
   }
   writePlanCapability(planId, {
     token: response.memberToken,
     role: "guest",
-    collaborationAuthorized: false,
+    collaborationAuthorized: response.collaborationAuthorized,
   });
   return true;
+}
+
+/** The crew-night receipt a Going RSVP may carry, or null when absent or malformed. */
+export function inviteCrewCommittedReceipt(
+  raw: unknown,
+): { deliveryToken: string; participants: number; routeReady: boolean } | null {
+  if (!raw || typeof raw !== "object") return null;
+  const { deliveryToken, participants, routeReady } = raw as Record<string, unknown>;
+  if (typeof deliveryToken !== "string" || !deliveryToken) return null;
+  if (typeof participants !== "number" || !Number.isInteger(participants)) return null;
+  if (typeof routeReady !== "boolean") return null;
+  return { deliveryToken, participants, routeReady };
 }
 
 // The remembered name is read once React owns the page. This tab writes it
@@ -259,6 +274,7 @@ export default function PlanInviteRsvp({
   const [rsvpError, setRsvpError] = useState<string | null>(null);
   const [rsvpPlanRecovery, setRsvpPlanRecovery] = useState(false);
   const [rsvpCommitted, setRsvpCommitted] = useState(false);
+  const [goingSeat, setGoingSeat] = useState(false);
   const [pendingReaction, setPendingReaction] = useState<ReactionKey | null>(null);
   const [reactionError, setReactionError] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
@@ -400,6 +416,7 @@ export default function PlanInviteRsvp({
           memberToken?: unknown;
           role?: unknown;
           collaborationAuthorized?: unknown;
+          crewCommitted?: unknown;
         };
         if (isPlanInviteRsvpSummary(data.summary)) {
           if (!applyInviteRsvpCapability(planId, chosen, submitted.capability?.role ?? null, data)) {
@@ -408,8 +425,20 @@ export default function PlanInviteRsvp({
           }
           setRsvp(data.summary);
           setRsvpCommitted(true);
+          setGoingSeat(chosen === "going");
           markDeviceRsvpCommitted(planId, deviceStorage());
           trackEvent("invite_rsvp_submitted", { status: chosen, isUpdate: data.isUpdate === true });
+          // The night, not the RSVP, is the unit: the server hands back a
+          // receipt only for the seat that first takes the roster to the
+          // crew-night threshold, the same rule the plan-page join follows.
+          const receipt = inviteCrewCommittedReceipt(data.crewCommitted);
+          if (receipt) {
+            trackEvent(
+              "crew_committed",
+              { source: "shared-plan", participants: receipt.participants, routeReady: receipt.routeReady },
+              { deliveryToken: receipt.deliveryToken },
+            );
+          }
         } else {
           setRsvpError("Couldn't save that RSVP.");
         }
@@ -556,6 +585,13 @@ export default function PlanInviteRsvp({
         <p className="inviteRsvp__error" role="status">
           {rsvpError}
           {rsvpPlanRecovery ? <> <Link prefetch={false} href={`/plan/${planId}`}>Open the plan</Link></> : null}
+        </p>
+      ) : null}
+
+      {goingSeat ? (
+        <p className="inviteRsvp__planDoor">
+          You&apos;re in the crew. Vote, suggest a swap and check in on the plan.{" "}
+          <Link prefetch={false} href={`/plan/${planId}`}>Open the plan</Link>
         </p>
       ) : null}
 

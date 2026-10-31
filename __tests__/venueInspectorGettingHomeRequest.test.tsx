@@ -35,10 +35,23 @@ vi.mock("@/components/identity/ContributionGateDialog", () => ({
   ContributionGateDialog: () => null,
 }));
 vi.mock("@/components/map/inspector/VenueOverviewTab", () => ({
-  default: ({ tab, gettingHome }: { tab: string; gettingHome: React.ReactNode }) =>
+  default: ({
+    tab,
+    gettingHome,
+    journeyFoldOpenKey,
+  }: {
+    tab: string;
+    gettingHome: React.ReactNode;
+    journeyFoldOpenKey?: string | null;
+  }) =>
     createElement(
       "div",
-      { id: "venuePanel-overview", role: "tabpanel", hidden: tab !== "overview" },
+      {
+        id: "venuePanel-overview",
+        role: "tabpanel",
+        hidden: tab !== "overview",
+        "data-journey-open-key": journeyFoldOpenKey ?? "",
+      },
       gettingHome,
     ),
 }));
@@ -175,6 +188,9 @@ describe("VenueInspector getting-home request", () => {
 
     expect(selectedTab()).toBe("venueTab-overview");
     expect(gettingHomeFold().open).toBe(true);
+    // The journey fold is told by an explicit key, one per ask.
+    const panel = document.getElementById("venuePanel-overview");
+    expect(panel?.getAttribute("data-journey-open-key")).toMatch(/:getting-home:1$/);
   });
 
   it("reopens the fold for a second request after the reader moved away", async () => {

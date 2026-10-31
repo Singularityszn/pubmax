@@ -125,7 +125,9 @@ export default function DrinkWallComposer({ onCancel, onPosted }: DrinkWallCompo
       ) : null}
 
       <div className="venuePhotoComposerField">
-        <span className="venuePhotoComposerLegend">Pub (optional)</span>
+        <span className="venuePhotoComposerLegend">
+          {wallCategory === "dog" ? "Pub" : "Pub (optional)"}
+        </span>
         {venue ? (
           <p className="venuePhotoWallStatus">
             {venue.name}{" "}

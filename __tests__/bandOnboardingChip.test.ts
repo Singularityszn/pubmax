@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { BandOnboardingChip } from "@/components/map/pubmap/BandOnboardingChip";
+import { explicitMapIntent } from "@/lib/explicitMapIntent";
 import {
   bandChipHasResolvedBand,
   bandChipDismissedKey,
@@ -85,6 +86,13 @@ describe("shouldShowCuratedOnboarding priority vs band chip", () => {
 
   it("shows curated onboarding on a clean first paint", () => {
     expect(shouldShowCuratedOnboarding(clean)).toBe(true);
+  });
+
+  it("suppresses curated onboarding on a /gardens arrival (?garden=1)", () => {
+    const arrivedWithCrawlParams = explicitMapIntent({
+      search: "?garden=1", planningIntent: null, restoredMobileSession: null,
+    });
+    expect(shouldShowCuratedOnboarding({ ...clean, arrivedWithCrawlParams })).toBe(false);
   });
 
   it("suppresses curated onboarding when the band chip is showing", () => {

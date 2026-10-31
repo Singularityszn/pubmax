@@ -4,21 +4,12 @@
 // key: the cap is a reader control, and a reader control does not float over
 // the pins (see lib/mapSurfaceChrome.ts).
 
-import { NO_PINT_PRICE_CAP, type Filters } from "@/lib/venues";
+import { PINT_PRICE_CAPS, pintPriceCapIsActive } from "@/lib/pintPriceCaps";
+import type { Filters } from "@/lib/venues";
 
-const PRICE_OPTIONS: { label: string; maxPrice: number; tone: string }[] = [
-  // "Any" has to be the one OFF value, or picking it leaves a cap behind that
-  // no control reads back. See NO_PINT_PRICE_CAP.
-  { label: "Any", maxPrice: NO_PINT_PRICE_CAP, tone: "any" },
-  { label: "≤ £5.50", maxPrice: 5.5, tone: "green" },
-  { label: "≤ £7", maxPrice: 7, tone: "amber" },
-];
-
-function priceCapIsActive(filters: Filters, maxPrice: number): boolean {
-  return maxPrice >= NO_PINT_PRICE_CAP
-    ? filters.maxPrice >= NO_PINT_PRICE_CAP
-    : Math.abs(filters.maxPrice - maxPrice) < 0.01;
-}
+// The caps are the one shared set (lib/pintPriceCaps.ts): the phone sheet and
+// the rail slider offer exactly these. "Any" is the one OFF value, or picking
+// it leaves a cap behind that no control reads back (see NO_PINT_PRICE_CAP).
 
 export default function MapPriceFilterChips({
   filters,
@@ -37,8 +28,8 @@ export default function MapPriceFilterChips({
         role="group"
         aria-label="Max pint price"
       >
-        {PRICE_OPTIONS.map((option) => {
-          const on = priceCapIsActive(filters, option.maxPrice);
+        {PINT_PRICE_CAPS.map((option) => {
+          const on = pintPriceCapIsActive(filters.maxPrice, option.maxPrice);
           return (
             <button
               key={option.label}

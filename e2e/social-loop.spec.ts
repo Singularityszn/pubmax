@@ -150,7 +150,9 @@ for (const hasDrops of [false, true]) {
     });
     const response = await page.goto("/social?tab=discover");
     expect(response?.status()).toBe(200);
-    await page.getByRole("heading", { name: "UK cities, ranked", exact: true }).scrollIntoViewIfNeeded();
+    // The city table prints only with real counts in every row (lib/cityRivalry.ts),
+    // so the lazy-load anchor it leaves behind is what the reader scrolls to.
+    await page.locator(".discoverAnalysisAnchor").scrollIntoViewIfNeeded();
     await expect.poll(() => dropReads).toBeGreaterThan(0);
     const board = page.getByRole("region", { name: "Recently logged cheap pints" });
     if (hasDrops) {
@@ -164,7 +166,7 @@ for (const hasDrops of [false, true]) {
     } else {
       await expect(board).toHaveCount(0);
       await expect(page.locator("#tonight-title")).toHaveCount(0);
-      await expect(page.getByRole("heading", { name: "UK cities, ranked", exact: true })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "UK cities, ranked", exact: true })).toHaveCount(0);
     }
     expect(errors).toEqual([]);
   });

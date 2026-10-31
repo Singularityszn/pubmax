@@ -9,6 +9,7 @@ import { NO_ALCOHOL_DRINK_CATEGORIES, type CommunityPrice } from "@/lib/communit
 import { readCommunityPriceCategoryIndex } from "@/lib/communityPriceStore";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { formatGbp } from "@/lib/formatGbp";
+import { firstHttps } from "@/lib/httpUrl";
 import { haversineKm } from "@/lib/haversine";
 import { CATEGORY_META } from "@/lib/drinks";
 import { drinkLensCoverageNote, trustedDrinkLensPrices, trustedNoAlcoholLensPrices, type MapLensPrice } from "@/lib/mapExperienceLens";
@@ -18,7 +19,7 @@ import {
 	publicNightAreaCoverage,
 	type NightArea,
 } from "@/lib/nightAreas";
-import type { NightContext } from "@/lib/nightPlanning";
+import { planDietaryNeeds, type NightContext } from "@/lib/nightPlanning";
 import {
 	canAffectRoute,
 	claimsForEntity,
@@ -65,6 +66,7 @@ import type { PlanningIntentSource } from "@/lib/planningIntent";
 import { clientIp, hashIp, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS } from "@/lib/supabase";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 import { loadServedWhatsOnListings } from "@/lib/whatsOnListings.server";
+import { loadVenueMenuEnrichmentIndex } from "@/lib/venueMenuEnrichment";
 import { loadBaselineWhatsOn } from "@/lib/whatsOnStore";
 import { matchedWetherspoonsVenueIds } from "@/lib/wetherspoonsMatch.server";
 import nightSignalSnapshot from "@/public/data/night_signals/latest.json";
@@ -244,6 +246,8 @@ type PlanGenerationPreparation = {
 	reviewedSignalClaims: ReturnType<typeof planTemporalEvidence>["signalClaims"];
 	naLensPrices: ReturnType<typeof trustedNoAlcoholLensPrices>;
 	drinkPriceCoverageNote: string | null;
+	/** The first dietary word named, and the pubs that publish a menu link. */
+	dietaryMenu: { need: string; menuLinkVenueIds: ReadonlySet<string> } | null;
 	candidates: PlanGenerationCandidate[];
 	anchor: PlanGenerationAnchor | null;
 };
@@ -348,15 +352,35 @@ function hasMealPriceConstraint(value: string, explicitFoodIntent = false): bool
 	});
 }
 
-/** The pub-route generator has no menu-item or nutrition proof. */
+/**
+ * The pub-route generator has no menu-item or nutrition proof, so a meal price
+ * or a calorie count is refused. A dietary word is not: it degrades to a
+ * preference for pubs that publish a menu link and a warning
+ * (planDietaryNeeds, planDietaryMenuWarning).
+ */
 function requiresMenuEvidence(query: string, foodNeeds: readonly string[]): boolean {
 	const foodRequests = [query, ...foodNeeds];
 	const requiresNutrition = foodRequests.some((foodRequest) => /(?:\b|\d)(?:calories?|kcals?|kilocalories?)\b/i.test(foodRequest));
-	const allergens = "(?:gluten|nuts?|peanuts?|dairy|milk|lactose|eggs?|soy|soya|sesame|shellfish|wheat)";
-	const requiresDiet = foodRequests.some((foodRequest) => new RegExp(`\\b(?:vegan|vegetarian|pescatarian|halal|kosher|coeliac|celiac|${allergens}[ -]free|(?:without|no|avoid|free\\s+(?:of|from))\\s+${allergens}|allerg(?:y|ies|ic|en|ens)|intoleran(?:t|ce))\\b`, "i").test(foodRequest));
 	const requiresMealPrice = hasMealPriceConstraint(query)
 		|| foodNeeds.some((value) => hasMealPriceConstraint(value, true));
-	return requiresNutrition || requiresDiet || requiresMealPrice;
+	return requiresNutrition || requiresMealPrice;
+}
+
+/** Add every dietary word named to foodNeeds, and return them in order. */
+function withDietaryNeeds(query: string, context: NightContext): string[] {
+	const needs = planDietaryNeeds(query, ...context.foodNeeds);
+	for (const need of needs) if (!context.foodNeeds.includes(need)) context.foodNeeds.push(need);
+	return needs;
+}
+
+/** Venue ids whose curated record carries a safe https menu link. */
+async function menuLinkVenueIds(): Promise<ReadonlySet<string>> {
+	const index = await loadVenueMenuEnrichmentIndex();
+	const ids = new Set<string>();
+	for (const [venueId, record] of index) {
+		if (firstHttps(record.menuUrl)) ids.add(venueId);
+	}
+	return ids;
 }
 
 function applyStrictestRouteBudget(
@@ -417,6 +441,7 @@ export async function preparePlanGeneration(
 			422,
 		) };
 	}
+	const dietaryNeeds = withDietaryNeeds(query, context);
 	if (!context.nightArea) {
 		return { response: publicApiError("Choose an area.", "NIGHT_AREA_REQUIRED", 422) };
 	}
@@ -507,6 +532,9 @@ export async function preparePlanGeneration(
 			? [{ ...venue, cheapestPrice: price.pence! / 100 }]
 			: [];
 	});
+	const dietaryMenu = dietaryNeeds.length > 0
+		? { need: dietaryNeeds[0]!, menuLinkVenueIds: await menuLinkVenueIds() }
+		: null;
 	const candidates = cappedVenues
 		.map((venue) => {
 			const distance = distanceKm(area.centre, venue);
@@ -522,6 +550,7 @@ export async function preparePlanGeneration(
 				naLensPrices,
 				wetherspoonsMatchedIds,
 				drinkLensPrices,
+				dietaryMenu?.menuLinkVenueIds,
 			);
 			return { venue, distance, tonightEvents, signalClaims, ...scored, selectedDrinkPrice: drinkLensPrices?.get(venue.id) ?? null,
 				pintPriceEvidence: pintEvidence?.get(venue.id) ?? null,
@@ -547,6 +576,7 @@ export async function preparePlanGeneration(
 		reviewedSignalClaims,
 		naLensPrices,
 		drinkPriceCoverageNote,
+		dietaryMenu,
 		candidates,
 		anchor: parsedRequest.value.anchor,
 	} };

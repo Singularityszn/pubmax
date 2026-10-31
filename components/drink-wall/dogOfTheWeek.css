@@ -1,0 +1,55 @@
+/* Dog of the week (launch review F7): one photo, its pub and its uploader,
+   under the shared Screen head. Launch tokens only. */
+
+.dogOfTheWeekPage {
+  min-height: 100dvh;
+  color: var(--ink);
+}
+
+.dogOfTheWeekMain {
+  padding-bottom: calc(var(--space-12) * 2 + env(safe-area-inset-bottom, 0px));
+}
+
+.dogOfTheWeekFigure {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 36rem;
+  margin: var(--space-4) 0 0;
+}
+
+.dogOfTheWeekPhoto {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius);
+}
+
+.dogOfTheWeekCaption {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.dogOfTheWeekPub {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.dogOfTheWeekNote {
+  color: var(--ink);
+}
+
+.dogOfTheWeekBy,
+.dogOfTheWeekEmpty {
+  color: var(--color-text-muted);
+}
+
+.dogOfTheWeekEmpty {
+  max-width: 36rem;
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}

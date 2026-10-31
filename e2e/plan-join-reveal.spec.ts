@@ -98,7 +98,13 @@ test("M02: a guest who taps I'm in sees the route without reloading", async ({
   // PlanCrew shows "Restoring your private crew session…" until the session read
   // answers, so this field existing IS the proof that React has attached.
   const joinButton = page.getByRole("button", { name: "I’m in" });
-  const crewRow = page.getByRole("listitem").filter({ hasText: "Priya" });
+  // The presence row lives in the "Who’s in" list. The plan card names the
+  // crew too (li.planCard__handle), so the row is read inside the crew list
+  // the join writes to, which keeps the locator strict.
+  const crewRow = page
+    .getByRole("region", { name: "Who’s in", exact: true })
+    .getByRole("listitem")
+    .filter({ hasText: "Priya" });
   await page.locator("#join-name").fill("Priya");
   // The control is replaced by the presence row the moment the join lands, so a
   // click that has already been dispatched can still sit waiting for an element

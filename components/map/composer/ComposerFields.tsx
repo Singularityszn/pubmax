@@ -11,6 +11,7 @@ import {
 } from "@/lib/spillPreview";
 import { GENERATION_PRESETS, VISIBILITY_COPY } from "@/lib/pintDropComposerConfig";
 import type { PintDropsState } from "@/components/map/usePintDrops";
+import WithTagField from "@/components/map/composer/WithTagField";
 
 type ComposerFieldsProps = {
   dropForm: PintDropsState["dropForm"];
@@ -51,7 +52,6 @@ export function ComposerFields({
   toggleListening,
 }: ComposerFieldsProps) {
   const noteInputId = useId();
-  const withWhoInputId = useId();
   const eraInputId = useId();
 
   return (
@@ -128,15 +128,11 @@ export function ComposerFields({
         ) : null}
       </div>
 
-      <label className="spillTextField" htmlFor={withWhoInputId}>
-        <span className="spillFieldLabel">With</span>
-        <input
-          id={withWhoInputId}
-          value={dropForm.withWho}
-          onChange={(event) => setDropForm({ ...dropForm, withWho: event.target.value })}
-          placeholder="@sam, @priya, or names"
-        />
-      </label>
+      <WithTagField
+        value={dropForm.withWho}
+        onChange={(withWho) => setDropForm({ ...dropForm, withWho })}
+        tagsAllowed={visibility !== "anonymous"}
+      />
 
       <fieldset className="generationField">
         <legend>When is this from?</legend>

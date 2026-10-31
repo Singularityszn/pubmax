@@ -29,6 +29,7 @@ const API_DIR = path.join(ROOT, "app", "api");
 
 const PAID_PROVIDER_DOMAINS = [
   "openrouter.ai",
+  "anthropic.com",
   "openai.com",
   "elevenlabs.io",
   "typesafe.ai",
@@ -43,6 +44,7 @@ const PAID_PROVIDER_DOMAINS = [
 
 const PAID_PROVIDER_KEYS = [
   "OPENROUTER_API_KEY",
+  "ANTHROPIC_API_KEY",
   "OPENAI_API_KEY",
   "ELEVENLABS_API_KEY",
   "TYPESAFE_API_KEY",
@@ -145,6 +147,22 @@ const cronProbe = (job: string): PaidRouteCase => ({
 
 /** Every route handler that can reach a paid provider, called with no session. */
 const PAID_ROUTES: PaidRouteCase[] = [
+  {
+    route: "app/api/board-reads/route.ts",
+    call: async () => {
+      const form = new FormData();
+      form.set("venueId", "venue-eltcmh");
+      form.set("photo", new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], "board.jpg", { type: "image/jpeg" }));
+      return (await import("@/app/api/board-reads/route")).POST(
+        new Request("http://localhost/api/board-reads", {
+          method: "POST",
+          headers: { "x-forwarded-for": "203.0.113.7" },
+          body: form,
+        }),
+      );
+    },
+    answer: SIGN_IN_TO_CONTRIBUTE,
+  },
   {
     route: "app/api/pub-list-import/route.ts",
     call: async () =>
@@ -366,7 +384,9 @@ const PAID_CLIENTS: Record<string, string> = {
   "@/lib/ask/modelLoop": "OpenRouter (ask)",
   "@/lib/heritage": "OpenRouter (heritage)",
   "@/lib/pubListImport.server": "OpenRouter (pub list import)",
+  "@/lib/boardRead.server": "OpenRouter (board read)",
   "@/lib/palElevenLabsChat.server": "ElevenLabs (chat)",
+  "@/lib/palClaudeChat.server": "Anthropic (chat)",
   "@/app/api/pub-pal/voice-token/route": "ElevenLabs (voice)",
   "@/lib/profileAvatarModeration": "OpenAI (image moderation)",
   "@/lib/socialPostModeration": "OpenAI (post moderation)",

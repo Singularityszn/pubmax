@@ -340,7 +340,8 @@ describe("hard evidence fences", () => {
     });
   });
 
-  it("returns selection failure for unsupported context transport with no intake", async () => {
+  // A transport word is a preference, never a refusal (launch review, 30 Oct 2026).
+  it("never refuses a route for a context transport word with no intake", async () => {
     const context = {
       ...reconcilePlanContext("Camden", null, null, NOW).context,
       transportConstraints: ["tube"],
@@ -351,10 +352,7 @@ describe("hard evidence fences", () => {
       context,
       null,
       NOW.getTime(),
-    )).resolves.toMatchObject({
-      ok: false,
-      selection: { eligibleCandidateCount: 0 },
-    });
+    )).resolves.toMatchObject({ ok: true });
   });
 
   it("keeps a value preference without a numeric ceiling on the soft legacy path", async () => {

@@ -27,7 +27,7 @@ import "../legal.css";
 const PAGE_TITLE = "Privacy";
 const PAGE_DESCRIPTION =
   "What PUBMAXX collects, why, who else sees it, how long we keep it, and how to get it deleted. Written against the app's behaviour.";
-const LAST_UPDATED = "22 October 2026";
+const LAST_UPDATED = "30 October 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -777,13 +777,23 @@ export default function PrivacyPage() {
             </dd>
           </div>
           <div className="legalRow">
+            <dt>Board photos</dt>
+            <dd>
+              If you photograph a pub&rsquo;s price board, we strip the photo&rsquo;s metadata and send it to
+              OpenRouter, using providers that do not retain it, so the Pal can read the prices.
+              We do not keep the photo from that read. Each price you then confirm is logged like any
+              other price you log, with the photo as its bill.
+            </dd>
+          </div>
+          <div className="legalRow">
             <dt>AI features</dt>
             <dd>
               If you ask The Landlord about a pub, or talk to Pub Pal by typing
               or by voice, the text or audio of that request goes to the model
-              provider that answers it (OpenRouter, and ElevenLabs at{" "}
-              <code>api.elevenlabs.io</code> when Pub Pal voice or typed chat is
-              configured). With Pub Pal, the memories you confirmed for your
+              provider that answers it (OpenRouter; Anthropic at{" "}
+              <code>api.anthropic.com</code> when Pub Pal typed chat runs on
+              Claude; and ElevenLabs at <code>api.elevenlabs.io</code> for Pub
+              Pal voice, and for typed chat when Claude is not configured). With Pub Pal, the memories you confirmed for your
               Pal go with each chat or voice call too, so it can use them:
               every one of those short preferences, such as a drink you like or
               an access need, up to forty, with the ones about what you just

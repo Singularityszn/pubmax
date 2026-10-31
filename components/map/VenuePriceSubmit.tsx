@@ -37,6 +37,7 @@ import { formatPriceGbp, QUICK_ADD_PRICES_GBP } from "@/lib/spill";
 import { mergePriceChips } from "@/lib/spillPreview";
 import type { DrinkCategory } from "@/lib/drinks";
 import { formatPrice } from "@/lib/venues";
+import { noteCrawlBingoAction } from "@/lib/crawlBingoNightLog";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import { useContributionGate } from "@/components/identity/ContributionGateDialog";
 import { trackEvent } from "@/lib/analytics";
@@ -59,6 +60,7 @@ import {
 } from "@/lib/priceEvidenceMissions";
 import { scrollMotionBehavior } from "@/lib/scrollMotion";
 import PalCheer from "@/components/pal/PalCheer";
+import RankAfterVisitCard from "@/components/pubs/RankAfterVisitCard";
 import { announcePalMoment } from "@/lib/palMoments";
 
 export type VenuePriceSubmitMission = {
@@ -486,6 +488,8 @@ export default function VenuePriceSubmit({
         haptic("contribution-kept");
         // Every Pal on screen thanks the person (lib/palMoments.ts).
         announcePalMoment({ kind: "price-added" });
+        // Pub crawl bingo reads this kept price for tonight's plan (lib/crawlBingo.ts).
+        noteCrawlBingoAction("price", venueId);
         // A price the drinker kept is the first kept action for most people, and
         // until now only a plan could offer notifications. The explainer still
         // decides whether to show (lib/nativePushPrompt.ts); this only says an
@@ -850,6 +854,8 @@ export default function VenuePriceSubmit({
           handle on the contributor record.
         </p>
       )}
+      {/* Rank at the moment: under the priced drop's receipt, never over it. */}
+      {logged ? <RankAfterVisitCard visits={[{ venueId, venueName }]} /> : null}
       {contributionGateDialog}
     </section>
   );

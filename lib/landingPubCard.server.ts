@@ -15,7 +15,8 @@ import {
   type LondonCollageAreaPrice,
 } from "@/lib/landingLondonCollage";
 import { pintFactStats } from "@/lib/pintFacts";
-import { pintPriceAverages, pubCheapestPrices, type PintPriceAverages } from "@/lib/pintSavings";
+import { pintPriceAverages, type PintPriceAverages } from "@/lib/pintSavings";
+import { listedPriceCohort, listedPriceCohortPrices } from "@/lib/pricedPubCount";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
 
 /** What the landing hero ships: the anchor card, the archive index, the rail. */
@@ -62,8 +63,11 @@ export function loadLandingHeroData(): Promise<LandingHeroData> {
       const card = buildLandingPubCard(venues, history);
       const archive = buildLandingArchiveIndex(venues, history);
       const rail = card ? buildLandingAnchorRail(venues, card, archive) : [];
-      const averages = pintPriceAverages(pubCheapestPrices(venues));
-      const priceReadLine = averages ? landingPriceReadLine(venues) : null;
+      // The average names its base (lib/pricedPubCount.ts): pubs in our London
+      // pub list with a listed cheapest pint, the same cohort /about reads.
+      const cohort = listedPriceCohort(venues);
+      const averages = pintPriceAverages(listedPriceCohortPrices(cohort));
+      const priceReadLine = averages ? landingPriceReadLine(cohort) : null;
       const collagePrices = buildLondonCollageAreaPrices(venues);
       return { card, archive, rail, averages, priceReadLine, collagePrices };
     })

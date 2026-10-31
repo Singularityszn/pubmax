@@ -11,8 +11,10 @@ import {
   isVenueDetailId,
   lookupVenueDetail,
   resetVenueDetailCachesForTests,
+  setVenueDetailCacheMaxForTests,
   setVenueDetailIndexFileForTests,
   setVenueDetailRowsFileForTests,
+  venueDetailCachedIdsForTests,
   venueFromDetailArtifact,
   type VenueDetailArtifact,
 } from "@/lib/venueDetailIndex";
@@ -67,7 +69,9 @@ vi.mock("@/lib/venueIndex", async (importOriginal) => {
 
 beforeAll(() => {
   if (!existsSync(DETAIL_INDEX)) {
-    execFileSync("node", [BUILD_SLIM_SCRIPT], {
+    // --details-only writes just the two gitignored detail files. The full
+    // build would also rewrite every committed map pack with a "local" stamp.
+    execFileSync("node", [BUILD_SLIM_SCRIPT, "--details-only"], {
       cwd: ROOT,
       env: { ...process.env, DEPLOYMENT_VERSION: "local" },
     });
@@ -257,5 +261,26 @@ describe("venueDetailIndex", () => {
       id: "venue-mcr-1lwo5lo",
       name: "Peveril of the Peak",
     });
+  });
+
+  it("evicts the least recently read venue once the detail cache reaches its bound", async () => {
+    const MANCHESTER_ID = "venue-mcr-1lwo5lo";
+    setVenueDetailCacheMaxForTests(2);
+
+    await expect(getVenueDetail(SEED_VENUE_ID)).resolves.toMatchObject({ id: SEED_VENUE_ID });
+    await expect(getVenueDetail(MANCHESTER_ID)).resolves.toMatchObject({ id: MANCHESTER_ID });
+    expect(venueDetailCachedIdsForTests()).toEqual([SEED_VENUE_ID, MANCHESTER_ID]);
+
+    // Reading the older venue again makes it the most recent one.
+    await getVenueDetail(SEED_VENUE_ID);
+    expect(venueDetailCachedIdsForTests()).toEqual([MANCHESTER_ID, SEED_VENUE_ID]);
+
+    // A third venue evicts Manchester, the least recently read.
+    await expect(getVenueDetail(FAMOUS_BAR_ID)).resolves.toMatchObject({ id: FAMOUS_BAR_ID });
+    expect(venueDetailCachedIdsForTests()).toEqual([SEED_VENUE_ID, FAMOUS_BAR_ID]);
+
+    // The evicted venue still resolves; it is read again rather than lost.
+    await expect(getVenueDetail(MANCHESTER_ID)).resolves.toMatchObject({ id: MANCHESTER_ID });
+    expect(venueDetailCachedIdsForTests()).toHaveLength(2);
   });
 });

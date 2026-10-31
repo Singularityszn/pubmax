@@ -1,9 +1,20 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { useCommunityPrices } from "@/components/map/useCommunityPrices";
+import PalQuest from "@/components/pal/PalQuest";
+import { useOwnPal } from "@/components/pal/useOwnPal";
+import { readLocalPal } from "@/lib/localPal";
 import type { NearMeCard } from "@/lib/nearMeAnswer";
+import {
+  PAL_QUEST_STAMPS_KEY,
+  palQuestStampToday,
+  readPalQuestStamps,
+  stampPalQuest,
+  type PalQuestStamp,
+} from "@/lib/palQuest";
+import { londonDayKey } from "@/lib/pintContributions";
 import type { PriceEvidenceMission } from "@/lib/priceEvidenceMissions";
 
 import PriceEvidenceMissionSlot from "./PriceEvidenceMissionSlot";
@@ -21,6 +32,10 @@ export default function NearPriceEvidenceMission({
     () => new Map(cards.map((card) => [card.id, card.name])),
     [cards],
   );
+  const areas = useMemo(
+    () => new Map(cards.map((card) => [card.id, card.borough])),
+    [cards],
+  );
   const communityPrices = useCommunityPrices();
   const { mission, dismiss, complete } = usePriceEvidenceMission({
     venueIds,
@@ -30,22 +45,96 @@ export default function NearPriceEvidenceMission({
   // A logged price answers the mission, and the read then stops offering this
   // pub, but the RECEIPT is inside the slot. So the answered mission is held
   // here and keeps its own slot on screen; the slot drops the ask itself.
-  const [answered, setAnswered] = useState<PriceEvidenceMission | null>(null);
+  // The Pal's price quest (lib/palQuest.ts): with the person's own Pal, the
+  // first mission of a London day is the Pal's quest, and answering it lands
+  // the day's stamp. A day already stamped shows the plain mission, still welcome.
+  // The quest state belongs to the Pal's owner: an account switch starts it
+  // afresh, and the book is read again when another tab changes it.
+  const pal = useOwnPal();
+  const owner = pal ? `${pal.ownerId}:${pal.id}` : "";
+  const [answeredBy, setAnswered] = useState<{ owner: string; mission: PriceEvidenceMission } | null>(null);
+  const answered = answeredBy && answeredBy.owner === owner ? answeredBy.mission : null;
   const shown = mission ?? answered;
+
+  const [quest, setQuest] = useState<{
+    owner: string;
+    /** Today's stamp, or null for none yet; undefined until the book is read. */
+    today: PalQuestStamp | null | undefined;
+    /** The stamp this answer just landed, shown with the Pal's cheer. */
+    now: PalQuestStamp | null;
+  }>({ owner: "", today: undefined, now: null });
+  useEffect(() => {
+    const read = () =>
+      setQuest((held) => ({
+        owner,
+        today: palQuestStampToday(readPalQuestStamps()),
+        now: held.owner === owner ? held.now : null,
+      }));
+    queueMicrotask(read);
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === null || event.key === PAL_QUEST_STAMPS_KEY) read();
+    };
+    // A page left open past London midnight, or brought back to the front on
+    // a later day, starts the new day afresh: yesterday's stamp and answer no
+    // longer stand in for today's quest.
+    let day = londonDayKey(new Date());
+    const onNewDay = () => {
+      const next = londonDayKey(new Date());
+      if (next === day) return;
+      day = next;
+      setAnswered(null);
+      setQuest({ owner, today: palQuestStampToday(readPalQuestStamps()), now: null });
+    };
+    const tick = window.setInterval(onNewDay, 60_000);
+    window.addEventListener("storage", onStorage);
+    document.addEventListener("visibilitychange", onNewDay);
+    return () => {
+      window.clearInterval(tick);
+      window.removeEventListener("storage", onStorage);
+      document.removeEventListener("visibilitychange", onNewDay);
+    };
+  }, [owner]);
+  const current = quest.owner === owner ? quest : { owner, today: undefined, now: null };
 
   if (!enabled || !shown) return null;
   const venueName = names.get(shown.venueId) ?? "this pub";
+  const questOn = pal !== null && current.today === null;
+  const stampedNow = current.now;
   return (
-    <PriceEvidenceMissionSlot
-      mission={shown}
-      venueName={venueName}
-      surface="near"
-      communityPrices={communityPrices}
-      onDismiss={dismiss}
-      onFulfilled={(current) => {
-        setAnswered(current);
-        complete(current);
-      }}
-    />
+    <>
+      {pal && (stampedNow || (questOn && !answered)) ? (
+        <PalQuest
+          pal={pal}
+          ask={stampedNow ? null : { reason: shown.reason, venueName }}
+          done={stampedNow}
+        />
+      ) : null}
+      <PriceEvidenceMissionSlot
+        mission={shown}
+        venueName={venueName}
+        surface="near"
+        communityPrices={communityPrices}
+        onDismiss={dismiss}
+        onFulfilled={(answer) => {
+          setAnswered({ owner, mission: answer });
+          complete(answer);
+          if (!questOn) return;
+          // A price answer can land after the device switched account (the
+          // write is the old owner's, the book is now the next owner's), even
+          // after this page has gone. So the owner is read again, from the
+          // stored Pal, right before the write, and a different one stamps nothing.
+          const stored = readLocalPal();
+          if (!stored || stored.hidden || `${stored.ownerId}:${stored.id}` !== owner) return;
+          // Only a stamp this answer added is shown as its own: a day another
+          // tab stamped meanwhile ends the quest without claiming that pub.
+          const added = stampPalQuest({
+            venueId: answer.venueId,
+            venueName: names.get(answer.venueId) ?? venueName,
+            area: areas.get(answer.venueId),
+          });
+          setQuest({ owner, today: palQuestStampToday(readPalQuestStamps()), now: added });
+        }}
+      />
+    </>
   );
 }

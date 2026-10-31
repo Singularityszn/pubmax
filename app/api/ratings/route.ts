@@ -5,14 +5,15 @@
 //        → 400 invalid input · 429 rate-limited · 503 storage failed
 //   GET  ?kind=drink|venue&refs=a,b,c  → 200 { summaries: { ref → summary } }
 //
-// Identity is the self-asserted `handle` (no auth yet) — the SAME trust
-// posture as reactions/comments/notifications: a star rating is already-public
-// low-sensitivity signal, and the unique (ref, handle) upsert means one
+// Identity is the `handle`, resolved by resolveMessageHandle and then gated by
+// gateHandleAction (lib/profileOwnership.ts): a handle linked to an account
+// needs its signed-in owner, and an unlinked handle keeps the demo path. That
+// is the SAME trust posture as reactions/comments/notifications: a star rating
+// is already-public low-sensitivity signal, and the unique (ref, handle) upsert means one
 // handle holds ONE vote. Handles are unbounded, though, so a caller inventing a
 // fresh one per request would add a vote each time: the second budget below is
 // keyed on the hashed IP alone, and that is what bounds it. Noted honestly here,
-// in lib/ratingsStore.ts, and in migration 0020. When auth ownership merges,
-// gate writes on auth.uid().
+// in lib/ratingsStore.ts, and in migration 0020.
 //
 // Reads are fail-soft (the store returns empty summaries / [] on any storage
 // error) so a ratings outage can never 500 a menu or the discover page. The

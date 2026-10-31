@@ -1,0 +1,36 @@
+/* Mates' prices on the venue sheet: what the reader's mutual friends last
+   paid here. Launch tokens only. Quiet ink on the sheet's own surface, no
+   frame of its own, because it is three sentences a mate would say, not a
+   card. A figure in a sentence is ink (docs/DESIGN_SYSTEM.md "Status and
+   price"), so no price colour and no coral. */
+
+.matesPrices {
+  margin: var(--space-2) 0;
+}
+
+.matesPrices .matesPricesTitle {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+
+.matesPrices .matesPricesList {
+  margin: var(--space-1) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.matesPrices .matesPricesFact {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  /* A price caption never truncates: it wraps (the phone-chrome rule). */
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+.matesPrices .matesPricesFact + .matesPricesFact {
+  margin-top: var(--space-1);
+}

@@ -179,7 +179,7 @@ export default function MapConciergeAsk({
           aria-expanded={false}
         >
           <PubPalMascot size={20} circular />
-          <span>Ask your Pub Pal</span>
+          <span>Ask the map</span>
         </button>
       </div>
     );
@@ -190,12 +190,12 @@ export default function MapConciergeAsk({
       <section
         className="mapConciergeAskPanel"
         role="dialog"
-        aria-label="Ask your Pub Pal"
+        aria-label="Ask the map about a pub"
       >
         <header className="mapConciergeAskHead">
           <span className="mapConciergeAskEyebrow">
             <PubPalMascot size={16} circular />
-            Ask your Pub Pal
+            Ask the map
           </span>
           <button
             type="button"
@@ -217,7 +217,7 @@ export default function MapConciergeAsk({
             className="mapConciergeAskInput"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Quiet-ish near Bank, not pricey…"
+            placeholder="Ask the map: quiet-ish near Bank, not pricey…"
             maxLength={500}
             enterKeyHint="search"
           />

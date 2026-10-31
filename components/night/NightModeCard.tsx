@@ -54,6 +54,7 @@ import {
 } from "@/lib/analyticsEvents";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { legKeyFor, readLegRouteOnMap, showLegRouteOnMap } from "@/lib/legRouteOnMap";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import { discardBody } from "@/lib/responseBody";
 import type { PlanGetInReportDTO, PlanGetInStopDTO } from "@/lib/planGetIn";
@@ -89,6 +90,7 @@ import { RouteEndingCard,
 } from "@/components/night/RouteEndingCard";
 import { NightCalmLine } from "@/components/night/NightCalmLine";
 import { SafeNightStrip } from "@/components/night/SafeNightStrip";
+import { CrawlBingoCard } from "@/components/night/CrawlBingoCard";
 import { useScreenWakeLock } from "@/components/night/useScreenWakeLock";
 import { useActivePlan } from "@/components/night/useActivePlan";
 import {
@@ -121,8 +123,10 @@ import {
   type LastTrainSlim,
   type VenueCoord,
 } from "@/components/night/nightModeSheetModel";
+import NightWaysThere from "./NightWaysThere";
 import "./nightMode.css";
 import PalCheer from "@/components/pal/PalCheer";
+import RankAfterVisitCard from "@/components/pubs/RankAfterVisitCard";
 import { announcePalMoment } from "@/lib/palMoments";
 
 const SWIPE_DISMISS_PX = 72;
@@ -677,6 +681,7 @@ function NightModeSheet({
     nextStop,
     currentSignal,
     currentCoord,
+    nextCoord,
     nextStopWalkMinutes,
     keepGoingExtensions,
     currentTrain,
@@ -692,6 +697,13 @@ function NightModeSheet({
       }),
     [coords, lastTrain, plan, report, stopIndex],
   );
+
+  // At the final stop there is no next leg, so a way chosen for the last one
+  // leaves the map (the map also draws one only for tonight's current leg).
+  const atFinalStop = currentStop !== null && currentStop !== undefined && !nextStop;
+  useEffect(() => {
+    if (atFinalStop && readLegRouteOnMap()) showLegRouteOnMap(null);
+  }, [atFinalStop]);
 
   useEffect(() => {
     const area = plan?.context?.nightArea;
@@ -1032,6 +1044,9 @@ function NightModeSheet({
           keepGoingExtension={chosenExtension}
           nightArea={plan?.context?.nightArea ?? null}
         />
+        {/* Rank at the moment: the night's stops one by one, under the
+            ending it confirmed. Signed out, it renders nothing. */}
+        <RankAfterVisitCard visits={stops} />
         {recap ? (
           <div className="nightCard__recapInvite">
             <PalCheer moment="night-finished" stops={stops.length} />
@@ -1273,7 +1288,16 @@ function NightModeSheet({
         renderLastStop(currentStop)
       ) : null}
 
+      {nextStop && currentStop && currentCoord && nextCoord ? (
+        <NightWaysThere
+          legKey={legKeyFor(currentStop.venueId, nextStop.venueId)}
+          from={currentCoord}
+          to={nextCoord}
+        />
+      ) : null}
+
       <SafeNightStrip planId={id} />
+      <CrawlBingoCard planId={id} plan={plan} stopIndex={cursor} lastTrainVenueId={lastTrainLeaveBy ? (currentStop?.venueId ?? null) : null} />
 
       {wakeLock.supported ? (
         <>

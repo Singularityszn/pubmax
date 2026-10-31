@@ -1,0 +1,73 @@
+/* Borough bingo (launch review D8): 33 squares that wrap to the width they
+   are given, the same card on a phone and a desktop. Launch tokens only. No
+   coral: a filled square reads in ink, an empty one is a hairline. */
+
+.boroughBingo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: var(--space-8) 0 0;
+}
+
+.boroughBingo__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+}
+
+.boroughBingo__title {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.boroughBingo__line {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  color: var(--color-text-muted);
+}
+
+.boroughBingo__line a {
+  color: var(--color-text);
+  text-decoration: underline;
+}
+
+.boroughBingo__count {
+  margin: var(--space-3) 0 0;
+}
+
+.boroughBingo__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.boroughBingo__square {
+  display: flex;
+  min-width: 0;
+  min-height: 3.25rem;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  line-height: 1.2;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.boroughBingo__square[data-filled] {
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
+  font-weight: 650;
+}

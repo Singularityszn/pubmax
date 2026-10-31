@@ -20,9 +20,48 @@
 // the same answer, and a browser bundle that needs the word "Half" must not
 // pull the venue index in behind it.
 
-/** The closed set. `other` carries a free label; `pint` and `half` name themselves. */
-export const DRINK_MEASURES = ["pint", "half", "other"] as const;
+/**
+ * The closed set. `other` carries a free label; every other measure names
+ * itself.
+ *
+ * Review item B1 (launch review, 30 Oct 2026): "£7.50 for what, exactly?" A
+ * wine or a spirit price is as meaningless without its serving as a half was,
+ * so the glass and the measure are words in the same closed set, stored beside
+ * the price exactly as a half is. The rule does not move: a 175 ml glass is
+ * NEVER scaled into a bottle or a 250 ml glass, and nothing but `pint` ever
+ * reaches the pint lane (pin colour, cheapest buckets, the Pint Index), because
+ * `measureIsPint` below is still the one predicate every one of those reads.
+ * Migration 0210 widens the database CHECK to this list, and
+ * `__tests__/drinkMeasure.test.ts` holds the two together.
+ */
+export const DRINK_MEASURES = [
+  "pint",
+  "half",
+  "125ml",
+  "175ml",
+  "250ml",
+  "bottle",
+  "single",
+  "double",
+  "other",
+] as const;
 export type DrinkMeasure = (typeof DRINK_MEASURES)[number];
+
+/** The beer measures, offered first on every measure row. */
+export const BEER_MEASURES: readonly DrinkMeasure[] = ["pint", "half"];
+
+/** The glass and spirit measures, offered after the beer ones under their own name. */
+export const WINE_AND_SPIRIT_MEASURES: readonly DrinkMeasure[] = [
+  "125ml",
+  "175ml",
+  "250ml",
+  "bottle",
+  "single",
+  "double",
+];
+
+/** The heading the composer prints above the glass and spirit measures. */
+export const WINE_AND_SPIRIT_MEASURES_HEADING = "Wine and spirits";
 
 /**
  * What a price is about when nobody said otherwise, and what every row written
@@ -37,6 +76,12 @@ export const DEFAULT_DRINK_MEASURE: DrinkMeasure = "pint";
 export const DRINK_MEASURE_LABEL: Record<DrinkMeasure, string> = {
   pint: "Pint",
   half: "Half",
+  "125ml": "125 ml",
+  "175ml": "175 ml",
+  "250ml": "250 ml",
+  bottle: "Bottle",
+  single: "Single",
+  double: "Double",
   other: "Other",
 };
 
@@ -213,8 +258,32 @@ export const MEASURE_ASK_LINE =
 export const NON_PINT_PRICE_REACH_LINE =
   "Kept on this pub’s page with its measure. Nothing but a pint sets a pint price.";
 
+/**
+ * The measure a SOURCE'S OWN serving field states, or null when it states
+ * none this set can name.
+ *
+ * It reads a serving field (a menu row's `servingSize`) and never a drink name:
+ * "175ml", "175 ml" and "175 mL" are a 175 ml glass, "pint" is a pint, "half"
+ * or "half pint" is a half, "bottle" is a bottle. Anything else, a "Large
+ * glass" or a "Carafe", is not a size this set can name and answers null, so a
+ * reader prints it as size not stated rather than as a guess.
+ */
+export function measureFromServingSize(value: unknown): DrinkMeasure | null {
+  if (typeof value !== "string") return null;
+  const text = value.trim().toLowerCase().replace(/\s+/g, " ");
+  if (text === "") return null;
+  const ml = /^(125|175|250) ?ml$/.exec(text);
+  if (ml) return `${ml[1]}ml` as DrinkMeasure;
+  if (text === "pint") return "pint";
+  if (text === "half" || text === "half pint") return "half";
+  if (text === "bottle") return "bottle";
+  if (text === "single") return "single";
+  if (text === "double") return "double";
+  return null;
+}
+
 /** The composer's own label above the measure chips. */
 export const MEASURE_FIELD_LABEL = "What measure?";
 
 /** What the `other` measure's free field asks for. */
-export const MEASURE_OTHER_PLACEHOLDER = "Schooner, third, bottle";
+export const MEASURE_OTHER_PLACEHOLDER = "Schooner, third, carafe";

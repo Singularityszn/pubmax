@@ -2,8 +2,8 @@
  * Whether a tube the reader named is their way HOME rather than a rule for the
  * route between stops. "Then home by tube" says how the night ends, so it is
  * no route rule and never removes a pub from the route. "Near a tube station"
- * is a rule the optimizer has no evidence for, so it stays one: the route
- * fails closed and the answer names the need it missed.
+ * is a route preference: it lifts pubs near a listed station in scoring and
+ * the constraint report says what could be checked. It never refuses a route.
  *
  * A way home is the tube named AS the ride home - "home by tube", "home on
  * the last tube", "get the tube home", "take the tube back home". Each such

@@ -33,6 +33,13 @@
   scroll-margin-top: 24px;
 }
 
+/* What the city table leaves when it has no real counts to print: a 1px
+   anchor the analysis read can still wait for (lib/discoverLazy.ts). */
+.discoverAnalysisAnchor {
+  min-height: 1px;
+  margin-top: 48px;
+}
+
 .discoverSectionTitle {
   margin: 0 0 4px;
   padding-left: 12px;

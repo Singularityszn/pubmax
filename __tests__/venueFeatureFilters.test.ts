@@ -29,6 +29,10 @@ describe("sourced venue feature filters", () => {
     expect(mapFiltersSuspendUkBasePubs(filters)).toBe(true);
     expect(mapFiltersSuspendUkBasePubs({ ...initialFilters, requireBeerGarden: true })).toBe(true);
   });
+  it("hides the unpriced base layer under Last orders, which has no hours for it", () => {
+    expect(mapFiltersSuspendUkBasePubs({ ...initialFilters, lastOrders: true })).toBe(true);
+    expect(mapFiltersSuspendUkBasePubs(initialFilters)).toBe(false);
+  });
   it("keeps the same outdoor match after venue details load", () => {
     const slim = pin("outdoor", { filterHints: { searchText: "", amenities: { food: false, cocktails: false, beerGarden: false, liveSports: false, nonAlcoholic: false }, curation: { nearWater: false, hasStory: false }, canonical: false, outdoorSeating: [true, "OpenStreetMap", "2026-10-05"] } });
     const merged = mergeLazyDetailPins([slim], new Map([["outdoor", pin("outdoor")]]));
@@ -178,4 +182,18 @@ it("keeps explicit sport and dog absences authoritative after hydration", () => 
   for (const filter of ["requireLiveSports", "requireDogFriendly"] as const) {
     expect(filterMapVenues(hydrated, { ...initialFilters, [filter]: true }, () => false)).toEqual([]);
   }
+});
+
+describe("the Last orders caption", () => {
+  it("says the hours could not be read, only when they could not", async () => {
+    const { createElement } = await import("react");
+    const { renderToStaticMarkup } = await import("react-dom/server");
+    const { default: VenueFeatureFilters } = await import("@/components/map/VenueFeatureFilters");
+    const on = { ...initialFilters, lastOrders: true };
+    const render = (lastOrdersFailed: boolean, resultCount: number | null) =>
+      renderToStaticMarkup(createElement(VenueFeatureFilters, { filters: on, onChange: () => {}, resultCount, lastOrdersFailed }));
+    expect(render(true, 0)).toContain("We could not read pub hours, so no pub is shown as open.");
+    expect(render(false, 12)).not.toContain("We could not read pub hours");
+    expect(render(false, null)).toContain("Loading matching places");
+  });
 });

@@ -100,13 +100,15 @@ describe("buildSpillPreview", () => {
     expect(model.priceLabel).toBe(null);
   });
 
-  it("folds the 'with' suffix into the preview note", () => {
+  it("folds free-text 'with' names into the preview note, never a handle", () => {
     const model = buildSpillPreview({
       ...BASE_INPUT,
       note: "Cracking night",
-      withWho: "@sam, @priya",
+      withWho: "@sam, @priya, Jo",
     });
-    expect(model.note).toMatch(/Cracking night with @sam, @priya/);
+    expect(model.note).toBe("Cracking night with Jo");
+    expect(model.note).not.toContain("@sam");
+    expect(model.withLine).toBe("with 2 people");
   });
 
   it("withholds the handle and initial when anonymous", () => {

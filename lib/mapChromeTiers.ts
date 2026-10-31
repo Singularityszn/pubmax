@@ -80,6 +80,8 @@ export function buildFiltersChip(input: {
   savedOnlyActive?: boolean;
   /** Open now is on (known-closed pubs dropped; unknown hours stay). */
   openNowActive?: boolean;
+  /** Last orders is on (only pubs whose hours run 30 more minutes). */
+  lastOrdersActive?: boolean;
   beerGardenActive?: boolean;
   outdoorSeatingActive?: boolean;
 }): FiltersChipModel {
@@ -90,6 +92,7 @@ export function buildFiltersChip(input: {
     (input.experienceLabel ? 1 : 0) +
     (input.savedOnlyActive ? 1 : 0) +
     (input.openNowActive ? 1 : 0) +
+    (input.lastOrdersActive ? 1 : 0) +
     (input.beerGardenActive ? 1 : 0) +
     (input.outdoorSeatingActive ? 1 : 0);
   const parts: string[] = [];
@@ -99,6 +102,7 @@ export function buildFiltersChip(input: {
   if (input.zoneActive) parts.push("zone");
   if (input.savedOnlyActive) parts.push("saved only");
   if (input.openNowActive) parts.push("open now");
+  if (input.lastOrdersActive) parts.push("last orders");
   if (input.beerGardenActive) parts.push("beer garden");
   if (input.outdoorSeatingActive) parts.push("outdoor seating");
   return {

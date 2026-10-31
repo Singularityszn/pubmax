@@ -55,6 +55,7 @@ export function SpillPreviewCard({ preview, pintPhoto, visibility }: SpillPrevie
             </div>
           </div>
           {preview.note ? <p className="spillPreviewNote">{preview.note}</p> : null}
+          {preview.withLine ? <p className="spillPreviewNote">{preview.withLine}</p> : null}
         </div>
       </div>
     </div>

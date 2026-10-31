@@ -1,0 +1,75 @@
+/* /pub-crawl-cost borrows the legal shell (app/legal.css). This file holds the
+   form and nothing else. One column on a phone, two on a wider screen. Launch
+   tokens only, so both themes track automatically. The 16px input floor lives
+   once in app/globals.css and is not restated here. */
+
+.crawlCost {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.crawlCostForm {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+}
+
+@media (min-width: 641px) {
+  .crawlCostForm {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.crawlCostField {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.crawlCostField label {
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.crawlCostInput {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  color: var(--ink);
+}
+
+.crawlCostInput:focus-within {
+  border-color: var(--ink);
+}
+
+.crawlCostInput input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  outline: none;
+}
+
+.crawlCostInput:has(input[aria-invalid="true"]) {
+  border-color: var(--ink);
+  border-width: 2px;
+}
+
+.crawlCostHint {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  color: var(--ink-soft);
+}
+
+.crawlCostUrl {
+  font-family: var(--font-data);
+  overflow-wrap: anywhere;
+}

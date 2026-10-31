@@ -98,8 +98,8 @@ describe("About Pint Index story", () => {
   it("shows the public snapshot empty state instead of raw map-price counts", async () => {
     const story = await renderStoryHooks();
 
-    expect(story).toContain("No borough league yet.");
-    expect(story).toContain("See the Index status");
+    expect(story).toContain("The dated public edition of the borough league is not ready yet.");
+    expect(story).toContain("See the borough list");
     expect(story).not.toContain("2,796");
     expect(story).not.toContain("currently ranks");
   });

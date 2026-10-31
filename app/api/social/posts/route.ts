@@ -12,7 +12,7 @@ import {
   uploadPreparedSocialPhoto,
   type UploadedSocialPhoto,
 } from "@/lib/socialPostMedia.server";
-import { socialPostStore, SocialPostStoreError } from "@/lib/socialPostStore";
+import { socialPostStore, SocialPostStoreError, type SocialPostActor } from "@/lib/socialPostStore";
 import { socialPostConsentStore } from "@/lib/socialPostConsentStore";
 import { socialPostReviewStore, SocialPostReviewError } from "@/lib/socialPostReviewStore";
 import { SocialPostVideoError, socialPostVideoStore } from "@/lib/socialPostVideoStore";
@@ -20,7 +20,9 @@ import { socialPostExtraPhotoStore } from "@/lib/socialPostExtraPhotoStore";
 import { sniffSocialVideoType } from "@/lib/socialPostVideos";
 import { parseSocialCreateSubmission } from "@/lib/socialPostSubmission";
 import { projectSocialVenueName, projectSocialVenueNames, resolveSocialVenueId, type SocialVenueResolution } from "@/lib/socialPostVenue.server";
-import { enrichSocialPostAuthors, isSocialPostArea, type SocialPostDTO, type SocialPostFields } from "@/lib/socialPosts";
+import { enrichSocialPostAuthors, isSocialPostArea, normalizeSocialHashtag, type SocialPostDTO, type SocialPostFields } from "@/lib/socialPosts";
+import { normalizeHandle } from "@/lib/profiles";
+import { isProfileTombstoned, profileStore } from "@/lib/profileStore";
 import { hashActor } from "@/lib/supabase";
 import { boundedFormData, boundedJson } from "@/lib/boundedRequest.server";
 import { socialPhotoMediaId, socialPostRequestDigest, validSocialPostIdempotencyKey } from "@/lib/socialPostIdempotency.server";
@@ -115,10 +117,67 @@ function storeError(error: unknown): Response {
   return publicApiError("Social posts are unavailable right now.", "SOCIAL_POSTS_UNAVAILABLE", 503, { retryable: true, headers: { "Cache-Control": "private, no-store" } });
 }
 
+/** Everything a page of posts carries beyond the row, the same for every read. */
+async function projectPage(posts: SocialPostDTO[], viewer: SocialPostActor): Promise<SocialPostDTO[]> {
+  const photoPostIds = posts.filter((post) => post.photo).map((post) => post.id);
+  const tags = photoPostIds.length > 0
+    ? await socialPostConsentStore.approvedTags(viewer, photoPostIds)
+    : new Map();
+  return withExtraPhotos(await withVideos(await withReviews(await enrichSocialPostAuthors(
+    await projectSocialVenueNames(posts.map((post) => post.photo
+      ? { ...post, photo: { ...post.photo, tags: tags.get(post.id) ?? [] } }
+      : post)),
+  )), viewer), viewer);
+}
+
+/**
+ * ONE PERSON'S POSTS, for the Posts section on /u/[handle]. The store owns the
+ * rule (`authorFeed`): public for anyone verified, friends for a mutual, all of
+ * their own for the owner, and a hidden-name post for the owner only. Paged
+ * the same way as the lanes.
+ */
+async function authorRead(
+  actor: SocialPostActor,
+  rawAuthor: string,
+  params: URLSearchParams,
+  limit: number,
+): Promise<Response> {
+  const handle = normalizeHandle(rawAuthor);
+  if (!handle) {
+    return publicApiError("Choose a person.", "INVALID_AUTHOR", 400, { headers: { "Cache-Control": "private, no-store" } });
+  }
+  const feedKey = `social-post-feed:${hashActor(actor.profileId)}:author`;
+  if (await isLimited(feedKey, feedKey, FEED_RATE_LIMIT, FEED_RATE_WINDOW_MS)) {
+    return publicApiError("Too many Social feed requests. Slow down.", "RATE_LIMITED", 429, { retryable: true, headers: { "Cache-Control": "private, no-store" } });
+  }
+  try {
+    const author = await profileStore().getByHandle(handle);
+    if (!author || isProfileTombstoned(author)) {
+      return publicApiError("We couldn't find that person.", "NOT_FOUND", 404, { headers: { "Cache-Control": "private, no-store" } });
+    }
+    const page = await socialPostStore().authorFeed(actor, { profileId: author.id, handle: author.handle }, {
+      cursor: params.get("cursor"),
+      limit,
+    });
+    return privateJson({ ...page, posts: await projectPage(page.posts, actor) });
+  } catch (error) {
+    return storeError(error);
+  }
+}
+
 export async function GET(request: Request): Promise<Response> {
   const access = await requireVerifiedSocialActor(request);
   if (!access.ok) return accessError(access);
   const params = new URL(request.url).searchParams;
+  const author = params.get("author");
+  if (author !== null) {
+    const rawLimit = params.get("limit");
+    const authorLimit = rawLimit === null ? 20 : Number(rawLimit);
+    if (!Number.isInteger(authorLimit) || authorLimit < 1 || authorLimit > 50) {
+      return publicApiError("Feed size must be between 1 and 50.", "INVALID_LIMIT", 400, { headers: { "Cache-Control": "private, no-store" } });
+    }
+    return authorRead(access.actor, author, params, authorLimit);
+  }
   const lane = params.get("lane") ?? "discover";
   if (lane !== "discover" && lane !== "nearby" && lane !== "following") {
     return publicApiError("Choose a Social feed.", "INVALID_LANE", 400, { headers: { "Cache-Control": "private, no-store" } });
@@ -132,6 +191,12 @@ export async function GET(request: Request): Promise<Response> {
   if (lane === "nearby" && !isSocialPostArea(area)) {
     return publicApiError("Choose a listed area.", "INVALID_AREA", 400, { headers: { "Cache-Control": "private, no-store" } });
   }
+  // A tag narrows the Across-town lane only, read the way the composer stores it.
+  const rawTag = params.get("tag");
+  const tag = rawTag === null ? null : normalizeSocialHashtag(rawTag);
+  if (rawTag !== null && (lane !== "discover" || !tag)) {
+    return publicApiError("Choose a valid tag.", "INVALID_TAG", 400, { headers: { "Cache-Control": "private, no-store" } });
+  }
   const areaScope = lane === "nearby" ? area : "all";
   const feedKey = `social-post-feed:${hashActor(access.actor.profileId)}:${lane}:${areaScope}`;
   if (await isLimited(feedKey, feedKey, FEED_RATE_LIMIT, FEED_RATE_WINDOW_MS)) {
@@ -141,21 +206,11 @@ export async function GET(request: Request): Promise<Response> {
     const page = await socialPostStore().feed(access.actor, {
       lane,
       area: area ?? undefined,
+      ...(tag ? { tag } : {}),
       cursor: params.get("cursor"),
       limit,
     });
-    const photoPostIds = page.posts.filter((post) => post.photo).map((post) => post.id);
-    const tags = photoPostIds.length > 0
-      ? await socialPostConsentStore.approvedTags(access.actor, photoPostIds)
-      : new Map();
-    return privateJson({
-      ...page,
-      posts: await withExtraPhotos(await withVideos(await withReviews(await enrichSocialPostAuthors(
-        await projectSocialVenueNames(page.posts.map((post) => post.photo
-          ? { ...post, photo: { ...post.photo, tags: tags.get(post.id) ?? [] } }
-          : post)),
-      )), access.actor), access.actor),
-    });
+    return privateJson({ ...page, posts: await projectPage(page.posts, access.actor) });
   } catch (error) {
     return storeError(error);
   }

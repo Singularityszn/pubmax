@@ -263,7 +263,11 @@ export default function PlanCollaborationPanel({ planId, memberToken, isHost, dr
       </div>
 
       {isHost ? (
-        <div className="planCollab__invite">
+        <div className="planCollab__invite" role="group" aria-labelledby="plan-collab-private-invite">
+          {/* The special case (launch review 3.5): the host's own invite link
+              already lets every guest vote, propose and check in. This mints a
+              one-use link for one named person. */}
+          <h4 id="plan-collab-private-invite" className="planPage__eyebrow">Private invite for one person</h4>
           <button type="button" onClick={() => void createInvite()} disabled={Boolean(pending)}>Create private invite</button>
           <small className="planCollab__status">{invitePrivacyBlurb()}</small>
           {invite ? <output aria-label="Private invite link">{invite.url}</output> : null}

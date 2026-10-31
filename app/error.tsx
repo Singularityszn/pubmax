@@ -7,6 +7,8 @@
 import Link from "next/link";
 import { useEffect } from "react";
 
+import { SpilledGlassArt } from "@/components/brand/DotGlassArt";
+
 export default function Error({
   error,
   retry,
@@ -32,6 +34,11 @@ export default function Error({
       }}
     >
       <div style={{ maxWidth: "34rem", textAlign: "center" }}>
+        {/* A spilled pint in dots, the picture of "Spilled.": decoration only,
+            so it is hidden from assistive tech (DotGlassArt.tsx). */}
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: "18px" }}>
+          <SpilledGlassArt />
+        </div>
         {/* An eyebrow with no border and no fill is plain text, not a stamp, so
             it is sentence case with tight tracking (docs/DESIGN_SYSTEM.md, caps
             policy: uppercase is reserved for a bordered or filled mark, and the

@@ -23,7 +23,7 @@ vi.mock("@/components/plan/PlanVibe", () => ({
   PlanInviteShareBar: () => null,
 }));
 
-import PlanHostInviteLink from "@/components/plan/PlanHostInviteLink";
+import PlanHostInviteLink, { NOT_IN_CREW_LINE } from "@/components/plan/PlanHostInviteLink";
 import PlanInviteNextStep from "@/components/plan/PlanInviteNextStep";
 
 let root: Root;
@@ -49,7 +49,7 @@ describe("plan invite session restoration", () => {
       await Promise.resolve();
     });
 
-    expect(container.textContent).toContain("You're a guest on this plan. Join the crew to use the invite tools.");
+    expect(container.textContent).toContain(NOT_IN_CREW_LINE);
     expect(container.textContent).not.toContain("Restoring your invite tools");
   });
 
@@ -64,11 +64,11 @@ describe("plan invite session restoration", () => {
       await Promise.resolve();
     });
 
-    expect(container.textContent).toContain("You're a guest on this plan. Join the crew to use the invite tools.");
+    expect(container.textContent).toContain(NOT_IN_CREW_LINE);
     expect(container.textContent).not.toContain("Restoring your invite tools");
     // ONE notice for a stranger. The nested host link used to print the same
     // sentence a second time, and the host-only tools rendered beside it.
-    expect(container.textContent!.split("You're a guest on this plan").length - 1).toBe(1);
+    expect(container.textContent!.split("You're not in the crew yet").length - 1).toBe(1);
     expect(container.querySelector(".planInviteNext__more")).toBeNull();
   });
 });

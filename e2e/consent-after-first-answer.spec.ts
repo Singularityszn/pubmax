@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { storeThemeChoice } from "./helpers/themeClock";
+
 // THE PRODUCT ANSWERS FIRST, AND THE CONSENT CARD ARRIVES AFTER THE ANSWER.
 //
 // Captain's standing ask over PlanAstra section 3: the analytics consent card
@@ -104,6 +106,7 @@ for (const theme of ["light", "dark"] as const) {
     test(`Social primary clears Create after denial and reload @320x568 ${theme} ${fontSize}px`, async ({ page }) => {
       test.setTimeout(90_000);
       const beacons = await prepareUnanswered(page, { width: 320, height: 568 });
+      await storeThemeChoice(page, theme);
       await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
       await page.goto("/social", { waitUntil: "domcontentloaded" });
       await firstRouteRecorded(page);
@@ -331,10 +334,12 @@ for (const viewport of WIDTHS) {
         // Every card reads the same compact way: the reason folds behind "Why
         // this pub" on every card alike, and opening it shows the reason and
         // its credit.
-        const firstReason = firstPub.locator("details.tonightHypedReason");
+        const firstReason = firstPub.getByRole("button", { name: "Why this pub" });
         await expect(firstReason).toHaveCount(1);
+        await expect(firstReason).toHaveAttribute("aria-expanded", "false");
         await expect(firstPub.locator(".tonightHypedWhy")).toBeHidden();
-        await firstReason.locator("summary").click();
+        await firstReason.click();
+        await expect(firstReason).toHaveAttribute("aria-expanded", "true");
         await expect(firstPub.locator(".tonightHypedWhy")).toBeVisible();
         await expect(firstPub.locator(".tonightHypedSource")).toBeVisible();
         await expect(page.locator(".tonightWeather")).toContainText(/sky|weather|wind/i);
@@ -351,9 +356,9 @@ for (const viewport of WIDTHS) {
         const pubs = await page.locator(".tonightHypedRow").all();
         expect(pubs.length).toBeGreaterThan(1);
         for (const pub of pubs) {
-          const reason = pub.locator("details.tonightHypedReason");
+          const reason = pub.getByRole("button", { name: "Why this pub" });
           await expect(reason).toHaveCount(1);
-          if ((await reason.getAttribute("open")) === null) await reason.locator("summary").click();
+          if ((await reason.getAttribute("aria-expanded")) !== "true") await reason.click();
           await expect(pub.locator(".tonightHypedWhy")).toBeVisible();
           await expect(pub.locator(".tonightHypedSource")).toBeVisible();
           await expect(pub.locator(".tonightHypedChecked")).toBeVisible();
