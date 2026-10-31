@@ -44,7 +44,7 @@ test("mobile Discover shows Night Area evidence states without promising routes"
   await expect(details.locator('[data-coverage-status="reviewed"]').first()).toBeVisible();
   await expect(details.locator('[data-coverage-status="discovered"]').first()).toBeVisible();
   await expect(details.locator('[data-coverage-status="paused"]').first()).toBeVisible();
-  await expect(details.getByRole("link", { name: /See .* pubs on the map/ }).first()).toHaveAttribute(
+  await expect(details.getByRole("link", { name: /See the pubs in .* on the map/ }).first()).toHaveAttribute(
     "href",
     /\/map\?q=/,
   );
