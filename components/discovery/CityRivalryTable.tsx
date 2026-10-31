@@ -19,15 +19,10 @@ type CityRivalryTableProps = {
  */
 export default function CityRivalryTable({
   entries,
-  caption = "UK cities ranked on demo Pint Drops, listed crawls and venue coverage.",
+  caption = "UK cities ranked on Pint Drops, listed crawls and venue coverage.",
 }: CityRivalryTableProps) {
-  if (entries.length === 0) {
-    return (
-      <p className="discoverEmpty" role="status">
-        No city rankings yet. They arrive with the crawl packs.
-      </p>
-    );
-  }
+  // No rows, no table: the page that mounts this prints no section either.
+  if (entries.length === 0) return null;
 
   return (
     <table className="leaderboard cityRivalry">

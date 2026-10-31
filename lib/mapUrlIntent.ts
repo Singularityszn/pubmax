@@ -11,7 +11,7 @@ import { isUkNationalBrowse } from "@/lib/ukNationalBrowse";
 export function hasCrawlArrivalParams(search: string): boolean {
   // Intentional deep links (landmark/band/food/log/etc.) must also suppress
   // curated onboarding — not only crawl planner params (#79 follow-up).
-  return /[?&](pubs|sel|style|mode|q|area|drink|cocktails|landmark|band|food|max|alt|log|crawl|experience|mapNotice)=/.test(
+  return /[?&](pubs|sel|style|mode|q|area|drink|cocktails|landmark|band|food|garden|max|alt|log|crawl|experience|mapNotice)=/.test(
     search,
   );
 }

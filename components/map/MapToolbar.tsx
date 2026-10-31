@@ -211,6 +211,8 @@ type MapToolbarProps = {
   searchSettled: boolean;
   /** Count after the query and all current map filters have been applied. */
   filteredVenueCount: number;
+  /** Last orders is on and its hours could not be read. */
+  lastOrdersFailed?: boolean;
   /** Number of venues available to search; zero means the index is unavailable/empty. */
   searchableVenueCount: number;
   /** Per-zone median pint index for the zone picker's tappable detail. */
@@ -271,6 +273,7 @@ export default function MapToolbar({
   onFiltersChange,
   searchSettled,
   filteredVenueCount,
+  lastOrdersFailed = false,
   searchableVenueCount,
   zoneIndex,
   cityId = DEFAULT_CITY_ID,
@@ -464,7 +467,7 @@ export default function MapToolbar({
         {isMobile === false && venueKindVisibility && onVenueKindVisibilityChange ? (
           <MapVenueKindFilter
             featureFilterCount={activeVenueFeatureCount(filters)}
-            featureFilters={<VenueFeatureFilters filters={filters} onChange={onFiltersChange} resultCount={searchSettled ? filteredVenueCount : null} />}
+            featureFilters={<VenueFeatureFilters filters={filters} onChange={onFiltersChange} resultCount={searchSettled ? filteredVenueCount : null} lastOrdersFailed={lastOrdersFailed} />}
             visibility={venueKindVisibility}
             experienceLens={experienceLens}
             experienceSummary={experienceSummary}

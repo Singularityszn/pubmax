@@ -22,11 +22,16 @@ test("mobile Discover shows Night Area evidence states without promising routes"
   const coverage = page.locator(".nightAreaCoverage");
   await expect(coverage).toBeVisible();
   await expect(coverage.getByRole("heading", { name: "Where you can plan a crawl tonight" })).toBeVisible();
-  await expect(coverage).toContainText("We only call an area crawl-ready when its prices are fresh and checked.");
-  await expect(coverage.getByRole("link", { name: "Open planner", exact: true })).toHaveAttribute("href", "/plan");
+  await expect(coverage).toContainText("Crawl planning is available where we have enough checked information.");
+  // A route-ready row's action shares the header link's name, so each is found
+  // in its own place.
+  await expect(coverage.locator("header").getByRole("link", { name: "Open planner", exact: true })).toHaveAttribute("href", "/plan");
   await expectNoHorizontalOverflow(page);
 
-  const plannerLink = coverage.getByRole("link", { name: /Open the planner from / }).first();
+  const plannerLink = coverage
+    .locator('[data-route-ready="true"]')
+    .getByRole("link", { name: "Open planner", exact: true })
+    .first();
   const plannerBox = await plannerLink.boundingBox();
   expect(plannerBox?.height ?? 0, "route-ready action should be thumb-safe").toBeGreaterThanOrEqual(44);
 
@@ -39,7 +44,7 @@ test("mobile Discover shows Night Area evidence states without promising routes"
   await expect(details.locator('[data-coverage-status="reviewed"]').first()).toBeVisible();
   await expect(details.locator('[data-coverage-status="discovered"]').first()).toBeVisible();
   await expect(details.locator('[data-coverage-status="paused"]').first()).toBeVisible();
-  await expect(details.getByRole("link", { name: /See .* pubs on the map/ }).first()).toHaveAttribute(
+  await expect(details.getByRole("link", { name: /See the pubs in .* on the map/ }).first()).toHaveAttribute(
     "href",
     /\/map\?q=/,
   );

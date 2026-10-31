@@ -1,20 +1,18 @@
 import { expect, test, type Locator } from "@playwright/test";
 
+import { openOverviewFold } from "./helpers/overviewFolds";
+
 // Stable Prospect of Whitby seed from the slim keyless index.
 const VENUE_ID = "venue-16pnwmm";
 const USER_LOCATION = { latitude: 51.6074, longitude: -0.1278 };
 
-// Since #684 the Overview folds Getting there into its "Details and practical
-// info" disclosure, closed on arrival. Open it before reading the region.
+// The Overview folds Getting there into its "Getting there and home" fold
+// (lib/venueOverviewFolds.ts), closed on arrival. Open it before reading the
+// region.
 async function openGettingThere(venueSheet: Locator): Promise<Locator> {
-  const details = venueSheet.locator("details.venueOverviewMore");
-  const gettingThere = details.getByRole("region", { name: "Getting there" });
-  await expect(async () => {
-    if ((await details.getAttribute("open")) === null) {
-      await details.getByText("Details and practical info", { exact: true }).click();
-    }
-    await expect(gettingThere).toBeVisible({ timeout: 1_000 });
-  }).toPass({ timeout: 20_000 });
+  const journey = await openOverviewFold(venueSheet, "journey");
+  const gettingThere = journey.getByRole("region", { name: "Getting there" });
+  await expect(gettingThere).toBeVisible();
   return gettingThere;
 }
 

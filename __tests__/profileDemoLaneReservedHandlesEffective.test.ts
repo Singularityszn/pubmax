@@ -12,9 +12,9 @@
 // and rename doors refuse exactly those handles. And profileStore.ensure()
 // could mint a fresh profiles row under a retired alias.
 //
-// THE PROOF. The route and store checks run with every migration before 0197,
+// THE PROOF. The route and store checks run with every migration before 0200,
 // so they prove the application gate on its own. Then the database half: a
-// bare insert takes a retired alias before 0197, is refused after it, and is
+// bare insert takes a retired alias before 0200, is refused after it, and is
 // accepted again after the rollback.
 
 import { readdirSync } from "node:fs";
@@ -35,11 +35,11 @@ type Session = {
 
 const ROOT = process.cwd();
 const MIGRATIONS = join(ROOT, "supabase/migrations");
-const FORWARD_NAME = "20261028120000_0197_profile_handle_alias_reservation.sql";
+const FORWARD_NAME = "20261028120000_0200_profile_handle_alias_reservation.sql";
 const FORWARD = join(MIGRATIONS, FORWARD_NAME);
 const ROLLBACK = join(
   MIGRATIONS,
-  "rollback/20261028120000_0197_profile_handle_alias_reservation_rollback.sql",
+  "rollback/20261028120000_0200_profile_handle_alias_reservation_rollback.sql",
 );
 
 const RENAMED_USER = "c1970000-0000-4000-8000-000000000001";
@@ -220,7 +220,7 @@ describe.skipIf(skipReason !== null)("the anonymous demo lane on a reserved hand
   });
 });
 
-describe.skipIf(skipReason !== null)("0197 reserves an alias against every other profile row", () => {
+describe.skipIf(skipReason !== null)("0200 reserves an alias against every other profile row", () => {
   it("refuses writes while a pre-migration alias collision still exists", async () => {
     sql(`insert into public.profiles(handle) values ('${RETIRED_ALIAS}');`);
     db().sqlFile(FORWARD);
@@ -259,11 +259,11 @@ describe.skipIf(skipReason !== null)("0197 reserves an alias against every other
 
   it("keeps the claim and rename doors and the deletion trigger working", () => {
     expect(sql(`select (public.claim_pubmaxx_handle('${FRESH_USER}', '${RETIRED_ALIAS}'))->>'code';`)).toBe("taken");
-    expect(sql(`select (public.claim_pubmaxx_handle('${FRESH_USER}', 'fresh_after_0197'))->>'ok';`)).toBe("true");
-    expect(sql(`select (public.rename_pubmaxx_handle('${FRESH_USER}', 'fresh_renamed_0197'))->>'ok';`)).toBe("true");
-    expect(sql("select handle from public.profiles where handle like 'fresh_%';")).toBe("fresh_renamed_0197");
+    expect(sql(`select (public.claim_pubmaxx_handle('${FRESH_USER}', 'fresh_after_0200'))->>'ok';`)).toBe("true");
+    expect(sql(`select (public.rename_pubmaxx_handle('${FRESH_USER}', 'fresh_renamed_0200'))->>'ok';`)).toBe("true");
+    expect(sql("select handle from public.profiles where handle like 'fresh_%';")).toBe("fresh_renamed_0200");
     sql(`delete from auth.users where id = '${FRESH_USER}';`);
-    expect(sql("select tombstoned_at is not null from public.profiles where handle = 'fresh_renamed_0197';")).toBe("true");
+    expect(sql("select tombstoned_at is not null from public.profiles where handle = 'fresh_renamed_0200';")).toBe("true");
   });
 
   it("rolls back to the old behaviour", () => {

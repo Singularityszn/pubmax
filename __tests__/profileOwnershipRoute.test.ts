@@ -301,4 +301,3 @@ describe("a deleted account's profile", () => {
     expect(await memoryProfileStore.getByHandle("carla")).toMatchObject({ displayName: "Carla" });
   });
 });
-

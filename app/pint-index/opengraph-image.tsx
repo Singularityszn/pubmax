@@ -2,6 +2,7 @@ import { ImageResponse } from "next/og";
 
 import { loadPublicPintIndexSnapshot } from "@/lib/pintIndexSnapshot.server";
 import { CardShell, OG, OG_CACHE_HEADERS, OG_SIZE, Wordmark, loadOgFonts } from "@/lib/ogBrand";
+import { PintIndexDotLegend, PintIndexDotMap } from "@/lib/pintIndexDotMap";
 
 export const runtime = "nodejs";
 export const alt = "The London Pint Index public data status · PUBMAXX";
@@ -17,16 +18,22 @@ export default async function Image() {
         <Wordmark />
         <div style={{ display: "flex", color: OG.coral, fontSize: 22, fontWeight: 700, letterSpacing: 4, textTransform: "uppercase" }}>Public data</div>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", maxWidth: 980 }}>
-        <div style={{ display: "flex", color: OG.muted, fontSize: 25, fontWeight: 600, letterSpacing: 5, textTransform: "uppercase", marginBottom: 18 }}>The London Pint Index</div>
-        <div style={{ display: "flex", color: OG.ink, fontSize: 82, fontWeight: 700, lineHeight: 1.02, letterSpacing: -2 }}>
-          {count > 0 ? `${count} citable prices` : "Public release pending"}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+        <div style={{ display: "flex", flexDirection: "column", maxWidth: 560 }}>
+          <div style={{ display: "flex", color: OG.muted, fontSize: 25, fontWeight: 600, letterSpacing: 5, textTransform: "uppercase", marginBottom: 18 }}>The London Pint Index</div>
+          <div style={{ display: "flex", color: OG.ink, fontSize: 64, fontWeight: 700, lineHeight: 1.04, letterSpacing: -2 }}>
+            {count > 0 ? `${count} citable prices` : "Public release pending"}
+          </div>
+          <div style={{ display: "flex", color: OG.inkSoft, fontSize: 26, lineHeight: 1.35, marginTop: 24 }}>
+            Only sourced, dated prices enter the public Index. Older baseline prices stay out.
+          </div>
         </div>
-        <div style={{ display: "flex", color: OG.inkSoft, fontSize: 30, lineHeight: 1.35, marginTop: 26 }}>
-          Only sourced, dated prices enter the public Index. Older baseline prices stay out.
-        </div>
+        <PintIndexDotMap snapshot={snapshot} />
       </div>
-      <div style={{ display: "flex", color: OG.muted, fontSize: 21 }}>pubmaxxing.com/pint-index</div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+        <div style={{ display: "flex", color: OG.muted, fontSize: 21 }}>pubmaxxing.com/pint-index</div>
+        <PintIndexDotLegend />
+      </div>
     </CardShell>,
     { ...size, fonts: loadOgFonts(), headers: OG_CACHE_HEADERS },
   );

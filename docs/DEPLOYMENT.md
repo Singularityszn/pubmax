@@ -386,9 +386,17 @@ This is the way to ship to production. It runs these steps in order and stops at
 3. It stages a Production-target build with `scripts/deploy-vercel.mjs --prod --skip-domain`, so the build stamps the commit and reads Production environment values, and no domain moves yet.
 4. It reads `/api/version` on the new deployment, then runs `vercel promote`.
 5. It waits until `https://pubmaxxing.com/api/version` names the new deployment.
-6. It dispatches `.github/workflows/prod-smoke.yml` with `gh workflow run`, finds the run on the released commit, and waits with `gh run watch --exit-status`.
+6. It dispatches `.github/workflows/prod-smoke.yml` on `main` with the released deployment ID. It selects the matching run and waits with `gh run watch --exit-status`.
 
-A CLI deploy reports nothing to GitHub, so Vercel never starts the smoke suite for it. Before this command, nothing tested a release made from a Mac. A failed smoke run exits non-zero. The new deploy is already live at that point, so read the run, then fix forward or roll back with `vercel rollback`.
+The command selects the newest run that meets all these conditions:
+
+- Its `headSha` matches the released commit.
+- Its `displayTitle` exactly matches `Production smoke <deployment_id>` for the released deployment.
+- Its `createdAt` is no earlier than five seconds before dispatch.
+
+If no matching run appears within the lookup timeout, the command reports production as live and unverified. The [smoke runbook](../e2e/prod-smoke/README.md#after-every-deploy) owns dispatch inputs, deployment checks, and replacement failures.
+
+A failed smoke run exits non-zero. If the live deployment changed or cannot be read, the command reports the released deployment as unverified. If the released deployment remains live, inspect the run before you fix forward or roll back with `vercel rollback`.
 
 `npm run check:migration-ledger` is read-only. It reads `supabase_migrations.schema_migrations` through the Supabase Management API read-only query endpoint and compares by migration NAME, never by version, because the live versions differ from the file timestamps. A repo file counts as applied when the ledger holds its full name (`0161_plan_selected_drink_evidence`) or its bare slug. Names only the ledger holds are listed and are not a failure. It needs `SUPABASE_ACCESS_TOKEN`, a personal access token from the captain's Supabase account, in the environment. `SUPABASE_PROJECT_REF` overrides the production project.
 

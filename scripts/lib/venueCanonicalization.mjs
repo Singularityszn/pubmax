@@ -273,6 +273,15 @@ export const VERIFIED_MISPLACED_RECORDS = Object.freeze([
     // in OpenStreetMap. Both records share the postcode.
     to: "venue-86sj0g",
   }),
+  Object.freeze({
+    // "Three Colts Tavern", address "E2 0EL" alone. pint-prices.com printed it
+    // twice; this copy geocodes the postcode, 164 m from the pub.
+    from: "venue-1s1ffqx",
+    // The Three Colts Tavern, 199 Cambridge Heath Rd, E2 0EL. OpenStreetMap
+    // node/13327212416 is the only Three Colts Tavern in E2, 20 m from this
+    // record. Both records share the postcode (SEO audit #2126, finding 22).
+    to: "venue-1g0y58p",
+  }),
 ]);
 
 // A pub's own website that the source also printed on a namesake across town.

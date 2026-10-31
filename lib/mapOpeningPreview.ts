@@ -27,6 +27,7 @@
 // This module is PURE: no fs and no React, so the cluster port is testable.
 
 import { getCity } from "@/lib/cities";
+import { MAP_ARRIVAL_BEARING_DEG } from "@/lib/mapArrivalBearing";
 
 /** The world is 512 px wide at zoom 0 in MapLibre's 512-px tile pyramid. */
 const TILE_SIZE = 512;
@@ -338,8 +339,44 @@ export function sameCameraPose(a: OpeningCameraPose, b: OpeningCameraPose): bool
   );
 }
 
+/**
+ * The bearing a camera has turned to from `from`, when turning is all it did:
+ * the same centre, zoom and pitch, and a bearing no more than
+ * MAP_ARRIVAL_BEARING_DEG off. Null for any other move. The map's arrival turn
+ * (lib/mapArrivalBearing.ts) is this move, and the preview turns with it
+ * instead of standing down (components/map/MapOpeningPreview.tsx).
+ */
+export function openingTurnBearing(camera: OpeningCameraPose, from: OpeningCameraPose): number | null {
+  if (Math.abs(camera.bearing - from.bearing) > MAP_ARRIVAL_BEARING_DEG + 1e-6) return null;
+  return sameCameraPose({ ...camera, bearing: from.bearing }, from) ? camera.bearing : null;
+}
+
+/**
+ * Dispatched by the canvas, with the bearing as its detail, each frame the
+ * camera turns and does nothing else while the preview is up.
+ */
+export const MAP_OPENING_PREVIEW_TURN_EVENT = "pubmax:opening-preview-turn";
+
+/** The opening camera, or the opening camera turned as far as the arrival turn turns it. */
 function sameCamera(camera: MapOpeningFrame["camera"]): boolean {
-  return sameCameraPose(camera, MAP_OPENING_PREVIEW_CAMERA);
+  return openingTurnBearing(camera, MAP_OPENING_PREVIEW_CAMERA) !== null;
+}
+
+/**
+ * Whether the streets in view are drawn, for `pubmax:basemap-drawn`: a primary
+ * basemap tile has painted, every tile in view has settled, and no basemap
+ * tile is still failed. MapLibre counts an errored tile as settled
+ * (`areTilesLoaded()` accepts "loaded" or "errored"), so settled alone would
+ * let one good tile and one failed one claim streets that are not there; the
+ * canvas's tile failure tracker (lib/mapTileFailure.ts) says which. A map that
+ * never gets here is left to the preview's degraded ceiling.
+ */
+export function streetsInViewDrawn(state: {
+  primaryTilePainted: boolean;
+  tilesSettled: boolean;
+  unrecoveredTileFailures: boolean;
+}): boolean {
+  return state.primaryTilePainted && state.tilesSettled && !state.unrecoveredTileFailures;
 }
 
 /**
@@ -347,6 +384,16 @@ function sameCamera(camera: MapOpeningFrame["camera"]): boolean {
  * the canvas knows the preview no longer needs telling about a camera move.
  */
 export const MAP_OPENING_PREVIEW_DONE_MARK = "pubmax:opening-preview-done";
+
+/**
+ * Whether the frame the map is about to draw is drawn from the preview's own
+ * camera, the opening camera or that camera turned by the arrival turn. When
+ * this holds and only the pubs differ, the picture of the opening streets
+ * under the discs is still the ground the map draws, though the discs are not.
+ */
+export function frameCameraMatchesPreview(frame: MapOpeningFrame): boolean {
+  return sameCamera(frame.camera);
+}
 
 /**
  * Whether the frame the map is about to draw is the frame the preview drew:

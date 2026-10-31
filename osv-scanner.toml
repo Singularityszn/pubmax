@@ -1,15 +1,17 @@
-# GHSA-vfj7-8cjw-p6xm (CVE-2026-93687) covers braces through 3.0.3.
-# npm has no later braces release. micromatch 4.0.8, the latest, still
-# depends on braces ^3.0.3, and fast-glob 3.3.3 still depends on that
-# micromatch. The lockfile reaches braces only from devDependencies:
-# eslint-config-next -> @next/eslint-plugin-next -> fast-glob -> micromatch.
-# @next/eslint-plugin-next 16.4.0 and 16.4.0-canary.59 both still
-# pin fast-glob 3.3.1, and the upstream report (micromatch/braces#70) is
-# still open with no fix commit.
-# Re-checked 2026-10-04: still no fix, so the date stays unchanged.
-# ignoreUntil is about 30 days out so the finding comes back for another look.
+# osv-scanner (the "osv-scanner (lockfiles)" job in .github/workflows/security-ci.yml)
+# reads this file. Each entry names one advisory, why it does not reach this
+# repo, and the date it stops applying, so the job asks again then.
 
 [[IgnoredVulns]]
-id = "GHSA-vfj7-8cjw-p6xm"
-ignoreUntil = 2026-11-02
-reason = "Dev-only path eslint-config-next -> @next/eslint-plugin-next -> fast-glob -> micromatch -> braces 3.0.3. No patched braces release exists (advisory last affected 3.0.3). Re-checked 2026-10-04: still no fix in braces, micromatch, fast-glob or @next/eslint-plugin-next."
+id = "GHSA-g3hv-75wg-m249"
+ignoreUntil = 2027-01-31
+reason = """
+minimatch globparts amplification. The fixed line (11.x) is in use through the
+"minimatch@^10.0.0" override in package.json. What remains is minimatch 3.1.5,
+nested under eslint-plugin-import, eslint-plugin-jsx-a11y and eslint-plugin-react
+(dev only, already at their latest releases). Those plugins call minimatch 3 as a
+function, which 11 does not export, and 3.1.5 has no firstPhasePreProcess or
+optimizationLevel, the code the advisory names. Patterns come from this repo's
+own lint config, never from a user. Remove this entry when the plugins move off
+minimatch 3.
+"""

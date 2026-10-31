@@ -66,6 +66,7 @@ export const PAID_SPEND_LANES = [
   "pub-pal-chat",
   "pub-pal-voice",
   "pub-list-import",
+  "board-read",
   "typesafe",
 ] as const;
 
@@ -94,6 +95,9 @@ export const PAID_SPEND_DEFAULT_DAILY_BUDGET: Record<PaidSpendLane, number> = {
   // a monthly allowance but never across accounts until this ceiling.
   "pub-pal-voice": 200,
   "pub-list-import": 1_000,
+  // One photo of a price board read by a vision model (review item A4). An
+  // image call costs more than a text one, so its day is smaller.
+  "board-read": 300,
   typesafe: 5_000,
 };
 

@@ -78,7 +78,7 @@ async function bootAsShell(page: Page) {
 /** Put the audit's stale composition, doors first, into the worker's shell cache. */
 async function plantStaleTonight(page: Page) {
   await page.evaluate(async (version) => {
-    const cache = await caches.open(`pubmax-sw-shell-${version}`);
+    const cache = await caches.open(`pubmax-sw-shell-v2-${version}`);
     await cache.put(
       "/tonight",
       new Response(

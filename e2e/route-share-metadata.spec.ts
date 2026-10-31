@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 const site = "https://pubmaxxing.com";
 const routes = [
   { path: "/map", title: "London pub map", image: "/api/city-map-card?city=london" },
-  { path: "/pal", title: "Meet your Pub Pal", image: "/pal/circuit-robin-512.png" },
+  { path: "/pal", title: "Plan your night with Pub Pal", image: "/pal/circuit-robin-512.png" },
   { path: "/tonight", title: "Tonight in London", image: "/tonight/opengraph-image" },
 ];
 
