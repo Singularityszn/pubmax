@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "reviewedAt": "2026-10-31",
+  "scope": "Benchmark-only restrictions. This file does not change the production source registry.",
+  "blockedHosts": [
+    {
+      "host": "craftunionpubs.com",
+      "sourceUrl": "https://www.craftunionpubs.com/pubs/white-house-enfield/terms-and-conditions",
+      "reason": "Published terms prohibit text and data mining and web scraping.",
+      "evidence": "You shall not conduct, facilitate, authorise or permit any text or data mining or web scraping",
+      "bodySha256": "48966d8e2483929425fc487c2ec8dcf6550f8a966444435f8d2527994f8dce46",
+      "readAt": "2026-10-31T19:52:37.317Z"
+    },
+    {
+      "host": "heritagepubs.co.uk",
+      "sourceUrl": "https://www.heritagepubs.co.uk/pubs/ferry-boat-tottenham/terms-and-conditions",
+      "reason": "Published terms prohibit text and data mining and web scraping.",
+      "evidence": "You shall not conduct, facilitate, authorise or permit any text or data mining or web scraping",
+      "bodySha256": "9ee70aed4ed2e5ca30d727a47ca34b8793e6b0ea5a5ce5fcef122e6918750887",
+      "readAt": "2026-10-31T19:53:33.621Z"
+    },
+    {
+      "host": "comptonsofsoho.co.uk",
+      "sourceUrl": "https://www.comptonsofsoho.co.uk/terms-and-conditions",
+      "reason": "Published terms prohibit text and data mining and web scraping.",
+      "evidence": "You shall not conduct, facilitate, authorise or permit any text or data mining or web scraping",
+      "bodySha256": "7251c52f079f82671e11bd64e84c1414d46178d3c2b347702c16e50a6b86966a",
+      "readAt": "2026-10-31T19:55:36.961Z"
+    }
+  ]
+}

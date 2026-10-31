@@ -2,7 +2,7 @@ import http from 'node:http';
 import https from 'node:https';
 import { lookup } from 'node:dns/promises';
 import { createHash } from 'node:crypto';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
@@ -10,6 +10,7 @@ import { isHarvestableOperatorUrl } from '../../../lib/harvest/sourcePolicy.ts';
 import { looksLikeChallengePage, looksLikeHtmlDocument, parseRobotsTxt, robotsAllows } from '../../../lib/harvest/robots.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
+const accessReview = JSON.parse(readFileSync(resolve(here, 'access-review.json')));
 let slotId = 0;
 async function acquireHost(host, minDelay) {
   if (!process.send) return () => {};
@@ -72,7 +73,15 @@ export class Transport {
 
   policy(url) {
     if (this.fixtureOrigin && new URL(url).origin === this.fixtureOrigin) return true;
+    const host = new URL(url).hostname.replace(/^www\./, '');
+    if (accessReview.blockedHosts.some((row) => host === row.host || host.endsWith(`.${row.host}`))) return false;
     return isHarvestableOperatorUrl(url);
+  }
+
+  refusalReason(url) {
+    const host = new URL(url).hostname.replace(/^www\./, '');
+    return accessReview.blockedHosts.some((row) => host === row.host || host.endsWith(`.${row.host}`))
+      ? 'benchmark-terms-refused' : 'source-policy-refused';
   }
 
   inScope(url) {
@@ -94,7 +103,7 @@ export class Transport {
   }
 
   async raw(url, kind, minDelay = this.protocol.minIntervalMs) {
-    if (!this.policy(url)) return this.event(url, 'source-policy-refused');
+    if (!this.policy(url)) return this.event(url, this.refusalReason(url));
     if (this.cooldown.has(new URL(url).host)) return this.event(url, 'host-cooldown');
     if (this.used >= this.protocol.requestBudgetPerArmPerVenue) return this.event(url, 'budget-exhausted');
     const host = new URL(url).host;
@@ -129,7 +138,7 @@ export class Transport {
           const chunks = [];
           response.on('data', (chunk) => {
             row.bytes += chunk.length;
-            if (row.bytes > this.protocol.maxResponseBytes) request.destroy(new Error('response-too-large'));
+            if (row.bytes > Math.min(this.protocol.maxResponseBytes, kind === 'robots' ? 512 * 1024 : Infinity)) request.destroy(new Error('response-too-large'));
             else chunks.push(chunk);
           });
           response.on('end', () => accept({ status: response.statusCode, headers: response.headers, body: Buffer.concat(chunks) }));
@@ -183,7 +192,7 @@ export class Transport {
   }
 
   async permitted(url) {
-    if (!this.policy(url)) return this.event(url, 'source-policy-refused');
+    if (!this.policy(url)) return this.event(url, this.refusalReason(url));
     if (!this.inScope(url)) return this.event(url, 'scope-refused');
     const rules = await this.robots(new URL(url).origin);
     if (!rules.allowed) return this.event(url, rules.reason);
@@ -211,6 +220,9 @@ export class Transport {
   populateHtml(page, body) {
     if (page.format !== 'html' || page.status !== 200) return;
     const parsed = this.parse(body.toString('utf8'), page.url);
+    page.termsLinks = parsed.links.map((link) => ({ ...link, url: canonical(link.url) }))
+      .filter((link) => link.url && /terms|legal/i.test(link.anchor) && /terms|legal|conditions/i.test(new URL(link.url).pathname))
+      .map((link) => link.url);
     Object.assign(page, { title: parsed.title, headings: parsed.headings, text: parsed.text });
     for (const link of parsed.links) {
       const target = canonical(link.url);
@@ -223,6 +235,29 @@ export class Transport {
       if (!this.paths.has(target)) this.paths.set(target, [...page.path, target]);
       page.links.push({ url: target, anchor: link.anchor, keyword: this.keywords.test(`${target} ${link.anchor}`) });
     }
+  }
+
+  async checkTerms(page, original) {
+    // Both arms pay for the first linked terms page before they explore further.
+      if (original === canonical(this.venue.website) && !this.termsChecked) {
+        this.termsChecked = true;
+        const terms = [...new Set(page.termsLinks ?? [])].slice(0, 3);
+        if (terms.length) {
+          for (const termsUrl of terms) {
+          this.documentGrants.add(termsUrl);
+          this.paths.set(termsUrl, [...page.path, termsUrl]);
+          const termsPage = await this.fetchSerial(termsUrl);
+          const text = (termsPage?.text ?? '').replace(/\s+/g, ' ');
+          const restrictions = text.match(/[^.!?]{0,400}(?:scrap(?:e|ing|er)|crawl(?:ing|er)?|robots?|automated|data mining|commercial (?:purposes|use)|business purposes)[^.!?]{0,400}/gi) ?? [];
+          const refusal = restrictions.find((line) => /prohibit|shall not|must not|may not|agree not|not use|not permitted|not allowed|no (?:text|data|web)|without.{0,100}(?:consent|permission)|prior.{0,50}(?:consent|permission)/i.test(line));
+          if (!termsPage || refusal) {
+            this.cooldown.add(new URL(page.url).host);
+            this.event(termsUrl, termsPage ? 'terms-restrict-automation' : 'terms-unreadable', { evidence: refusal ?? null });
+            break;
+          } else this.event(termsUrl, 'terms-no-automation-bar-found');
+          }
+        } else this.event(page.url, 'terms-link-not-found');
+      }
   }
 
   async fetchSerial(input) {
@@ -272,21 +307,7 @@ export class Transport {
       this.pages.push(page);
       this.seen.set(original, page);
       this.seen.set(url, page);
-      // Both arms pay for the first linked terms page before they explore further.
-      if (original === canonical(this.venue.website) && !this.termsChecked) {
-        this.termsChecked = true;
-        const terms = page.links.find((link) => /(?:terms(?:-and-conditions|-of-use)?|legal)(?:\/|\?|$)/i.test(new URL(link.url).pathname));
-        if (terms) {
-          const termsPage = await this.fetchSerial(terms.url);
-          const text = termsPage?.text ?? '';
-          const restrictions = text.match(/[^.!?\n]{0,200}(?:scrap(?:e|ing)|crawl(?:ing|er)?|robots?|automated)[^.!?\n]{0,200}/gi) ?? [];
-          const refusal = restrictions.find((line) => /prohibit|must not|may not|not permitted|not allowed|without.{0,50}(?:consent|permission)|prior.{0,25}(?:consent|permission)/i.test(line));
-          if (!termsPage || refusal) {
-            this.cooldown.add(new URL(url).host);
-            this.event(terms.url, termsPage ? 'terms-restrict-automation' : 'terms-unreadable', { evidence: refusal ?? null });
-          } else this.event(terms.url, 'terms-no-automation-bar-found');
-        } else this.event(url, 'terms-link-not-found');
-      }
+      await this.checkTerms(page, original);
       return page;
     }
     return null;

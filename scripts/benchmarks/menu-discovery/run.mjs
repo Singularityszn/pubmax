@@ -80,7 +80,8 @@ async function relevanceGuided(transport) {
       const page = await transport.fetch(target);
       if (!page) {
         if (transport.used >= transport.protocol.requestBudgetPerArmPerVenue) response.once('finish', stopAtBudget);
-        response.writeHead(410).end('Access refused or budget exhausted');
+        // A synthetic policy refusal must not trigger native retry cooldowns.
+        response.writeHead(200, { 'content-type': 'text/plain', 'x-benchmark-refused': 'true' }).end('');
         return;
       }
       let body = readFileSync(resolve(transport.out, page.bodyFile));
@@ -93,7 +94,9 @@ async function relevanceGuided(transport) {
         }
         body = Buffer.from(transport.parse(body.toString('utf8'), page.url, mapping).html);
       }
-      response.writeHead(page.status, { 'content-type': page.contentType || 'application/octet-stream' }).end(body);
+      response.writeHead(page.status >= 400 ? 200 : page.status,
+        { 'content-type': page.status >= 400 ? 'text/plain' : page.contentType || 'application/octet-stream', 'x-benchmark-upstream-status': String(page.status) })
+        .end(page.status >= 400 ? '' : body);
     } catch (error) {
       transport.event(routes.get(request.url) ?? request.url, 'gateway-error', { detail: error.message });
       response.writeHead(500).end('Gateway error');
@@ -195,7 +198,7 @@ async function live() {
   const venues = manifest.venues.slice(0, limit);
   const meta = { startedAt: new Date().toISOString(), binary, protocol, manifestSha256: sha256(manifestBytes),
     codeHead: spawnSync('git', ['rev-parse', 'HEAD'], { cwd: here, encoding: 'utf8' }).stdout.trim(),
-    harnessFiles: Object.fromEntries(['run.mjs', 'transport.mjs', 'parse_html.py', 'pagesift.toml', 'protocol.json', 'manifest.json', 'dependency-lock.json',
+    harnessFiles: Object.fromEntries(['run.mjs', 'transport.mjs', 'parse_html.py', 'pagesift.toml', 'protocol.json', 'manifest.json', 'dependency-lock.json', 'access-review.json',
       '../../../lib/harvest/sourcePolicy.ts', '../../../lib/harvest/sourceRegistry.ts', '../../../lib/harvest/robots.ts']
       .map((name) => [name, sha256(readFileSync(resolve(here, name)))])),
     environment: { node: process.version, platform: platform(), release: release(), cpu: cpus()[0].model, cpuCount: cpus().length, totalMemoryBytes: totalmem() },
@@ -268,7 +271,9 @@ async function fixture() {
     if (request.url === '/robots.txt') return scenario === 'robots-refused' ? send('Access denied', 403)
       : send('User-agent: *\nDisallow: /private-menu\n', 200, { 'content-type': 'text/plain' });
     if (request.url === '/private-menu') { forbiddenHits++; return send('Forbidden', 500); }
-    if (request.url === '/') return send(scenario === 'redirect-refused' ? '<html><title>Fixture pub</title><a href="/old-menu">Food menu</a></html>'
+    if (request.url === '/terms-conditions') return send('<html><title>Terms and Conditions</title><p>No text or data mining, or web scraping. You shall not conduct, facilitate, authorise or permit any text or data mining or web scraping in relation to our Websites.</p></html>');
+    if (request.url === '/') return send(scenario === 'terms-refused' ? '<html><title>Fixture pub</title><a href="/terms-conditions">Terms and Conditions</a><a href="/old-menu">Food menu</a></html>'
+      : scenario === 'redirect-refused' ? '<html><title>Fixture pub</title><a href="/old-menu">Food menu</a></html>'
       : '<html><head><title>Fixture pub food and drinks</title></head><body><h1>Fixture pub</h1><p>London SW1A 1AA</p><a href="/old-menu">Food menu</a><a href="/menu-news">Menu news</a><a href="/private-menu">Private menu</a><a href="/challenge">Drinks menu</a><a href="/unknown-menu">Seasonal menu</a></body></html>');
     if (request.url === '/old-menu') return send('', 302, { location: scenario === 'redirect-refused' ? 'http://169.254.169.254/metadata-menu.pdf' : '/food-menu' });
     if (request.url === '/food-menu') return send('<html><head><title>Food menu</title></head><body><h1>Food menu</h1><p>Soup £6.50</p></body></html>');

@@ -50,6 +50,15 @@ test('the CLI checks a redirect target before any request reaches it', () => {
   }
 });
 
+test('the CLI stops after terms explicitly say shall not scrape', () => {
+  for (const arm of fixture(9, 'terms-refused').arms) {
+    assert.equal(arm.networkRequests, 3);
+    assert.ok(arm.events.some((e) => e.reason === 'terms-restrict-automation'));
+    assert.ok(arm.requests.every((r) => !r.url.endsWith('/old-menu') && !r.url.endsWith('/food-menu')));
+    assert.ok(arm.wallSeconds < 3);
+  }
+});
+
 test('the CLI retains source paths and refuses blocked URLs before requesting them', () => {
   const result = fixture(9);
   for (const arm of result.arms) {

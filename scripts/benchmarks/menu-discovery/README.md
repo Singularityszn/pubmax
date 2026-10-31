@@ -76,10 +76,11 @@ It asks live robots rules before each origin's pages.
 It applies the repository's crawler identities, the benchmark identity, and PageSift restrictions.
 Unreadable robots rules fail closed. Ordinary HTML at robots.txt follows the repository's existing absent-rules decision.
 
-Both arms first read a linked terms page when the homepage exposes one.
+Both arms first read linked terms pages when the homepage exposes them, including an explicitly linked external legal host.
 A detected automation restriction stops that host. An unreadable linked terms page also stops that host.
 This check records its text evidence. It does not establish a complete legal interpretation of every site's terms.
 Known commercial-use prohibitions in the source registry remain binding.
+The benchmark also applies the stricter, evidenced restrictions in `access-review.json` before any request.
 
 The minimum host delay is 1.5 seconds, or a longer published crawl delay or request rate.
 The coordinator serialises requests to an actual host across all four venue workers, including shared PDF hosts.
@@ -94,6 +95,9 @@ The gateway keeps each own-host URL path. It rewrites permitted links to the loc
 An explicitly linked external menu PDF keeps its path under `/__menu_asset__/host/`.
 This allows native PageSift ordering while the transport enforces the real upstream request cap.
 PageSift's page limit alone would not count robots, redirects, or failed requests.
+Synthetic gateway refusals and failed upstream responses become empty local HTTP 200 responses.
+This prevents native retries or cooldowns for the gateway's synthetic responses. The upstream ledger retains the true status and failure.
+The comparison therefore measures one-attempt crawling. It does not compare native retry strategies.
 
 The gateway removes executable scripts and remote resource attributes.
 The native crawler uses HTTP mode, one worker, no sitemap seeds, no adaptive early stop, and no persistent cache.

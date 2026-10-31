@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "protocolSha256": "4e76753ac1a54baa89660f9f8961f7af6dc535119fa5ac9e79f56038ccc2be27",
+  "protocolSha256": "d989c59de624b593e8c9c5151135bc0a22ffca4e2a22bf70a165c4acba818e63",
   "sourceFiles": [
     {
       "path": "data/osm/uk/uk_osm_pubs.json",

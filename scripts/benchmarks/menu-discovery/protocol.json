@@ -9,6 +9,7 @@
   "maxRedirectHops": 5,
   "maxDepth": 4,
   "venueConcurrency": 4,
+  "localRefusalResponses": "Empty local HTTP 200 responses suppress native retries of synthetic gateway refusals. Raw upstream failures and refusals remain in the shared transport ledger.",
   "query": "pub food drinks menus beer wine prices",
   "userAgent": "PubmaxMenuBenchmark/1.0 (+https://pubmaxx.com/contact)",
   "keywordPattern": "menu|food|drink|dining|eat|beer|wine|cocktail|sunday|lunch|dinner|breakfast|brunch|supper|bill.of.fare",
