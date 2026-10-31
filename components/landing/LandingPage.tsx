@@ -133,6 +133,8 @@ export default function LandingPage({
         {/* The canonical action island itself, not a copy of it: More, compose,
             the palette hint, the signed-in bell and messages, and sign-in. */}
         <SiteNavActions className="siteNavActions lpNavActions" />
+        {/* Paint the header only after its complete action subtree is parsed. */}
+        <span hidden data-lp-nav-complete="" />
       </header>
 
       <main id="main">
