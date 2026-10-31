@@ -131,11 +131,42 @@
 // ---------------------------------------------------------------------------
 (function () {
   try {
-    var t = localStorage.getItem("pubmax-theme");
+    // Storage that refuses the read (blocked site data, some private modes)
+    // means no stored choice, not no theme: the night rule still runs.
+    var t = null;
+    try {
+      t = localStorage.getItem("pubmax-theme");
+    } catch {}
     if (t !== "light" && t !== "dark") {
-      t = window.matchMedia("(prefers-color-scheme: dark)").matches
-        ? "dark"
-        : "light";
+      // With no choice, London's night (21:30 to 03:59) is dark, then the OS
+      // decides. The same rule and the same two numbers as
+      // lib/themePreference.ts (isNightThemeTime); __tests__/themeNight.test.tsx
+      // runs these bytes against it.
+      var night = false;
+      try {
+        var parts = new Intl.DateTimeFormat("en-GB", {
+          timeZone: "Europe/London",
+          hour: "2-digit",
+          minute: "2-digit",
+          hourCycle: "h23",
+        }).formatToParts(new Date());
+        var hour = 0;
+        var minute = 0;
+        for (var i = 0; i < parts.length; i++) {
+          if (parts[i].type === "hour") hour = Number(parts[i].value);
+          if (parts[i].type === "minute") minute = Number(parts[i].value);
+        }
+        var minutes = hour * 60 + minute;
+        night = minutes >= 21 * 60 + 30 || minutes < 4 * 60;
+      } catch {}
+      if (night) {
+        t = "dark";
+        document.documentElement.dataset.nightTheme = "1";
+      } else {
+        t = window.matchMedia("(prefers-color-scheme: dark)").matches
+          ? "dark"
+          : "light";
+      }
     }
     document.documentElement.dataset.theme = t;
   } catch {}

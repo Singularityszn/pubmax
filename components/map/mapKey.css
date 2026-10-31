@@ -304,6 +304,24 @@
   content: "";
 }
 
+/* The leg's time bubble: a paper pill with an ink hairline, as on the map. */
+.mapKeyMarker--leg-time::before {
+  width: 22px;
+  height: 12px;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-pill);
+  background: var(--paper);
+  content: "";
+}
+
+/* The chosen way: dots on foot. */
+.mapKeyMarker--chosen-way::before {
+  width: 24px;
+  height: 0;
+  border-top: 4px dotted var(--map-key-marker-colour);
+  content: "";
+}
+
 .mapKeyMarker--story-corridor::before {
   width: 24px;
   height: 12px;

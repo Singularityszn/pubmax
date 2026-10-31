@@ -621,6 +621,50 @@ export function formatBreachTable(breaches: readonly BudgetBreach[]): string {
 }
 
 /**
+ * How full each route's budget is, as a Markdown table for the CI job summary.
+ *
+ * The breach table speaks only when a route is over. This one speaks on a green
+ * run too, so a route creeping towards its ceiling is visible before it breaks.
+ * Rows are sorted fullest first, and each cell is the measured figure as a share
+ * of its ceiling. It reads and decides nothing: the breach list is still the gate.
+ */
+export function formatBudgetHeadroomMarkdown(
+  budgets: readonly RouteBudget[],
+  measured: ReadonlyMap<string, RouteMeasurement>,
+): string {
+  const share = (value: number, budget: number): number =>
+    Number.isFinite(value) && budget > 0 ? Math.round((value / budget) * 100) : Number.NaN;
+  const rows = budgets.map((route) => {
+    const measurement = measured.get(route.path);
+    const shares = BUDGET_METRICS.map((metric) =>
+      measurement ? share(measurement[metric], route[metric]) : Number.NaN,
+    );
+    const finite = shares.filter((value) => Number.isFinite(value));
+    const fullest = finite.length > 0 ? Math.max(...finite) : Number.NaN;
+    return { path: route.path, shares, fullest };
+  });
+  rows.sort((a, b) => (Number.isFinite(b.fullest) ? b.fullest : Infinity) -
+    (Number.isFinite(a.fullest) ? a.fullest : Infinity));
+  const cell = (value: number) => (Number.isFinite(value) ? `${value}%` : "not measured");
+  const gauge = (value: number) => {
+    if (!Number.isFinite(value)) return "not measured";
+    const filled = Math.max(0, Math.min(10, Math.round(value / 10)));
+    return `${"▰".repeat(filled)}${"▱".repeat(10 - filled)} ${value}%`;
+  };
+  const header = ["route", "fullest", ...BUDGET_METRICS.map((metric) => BUDGET_METRIC_LABELS[metric])];
+  const lines = [
+    "### Route budgets: how full each one is",
+    "",
+    `| ${header.join(" | ")} |`,
+    `| ${header.map(() => "---").join(" | ")} |`,
+    ...rows.map((row) =>
+      `| \`${row.path}\` | ${gauge(row.fullest)} | ${row.shares.map(cell).join(" | ")} |`,
+    ),
+  ];
+  return `${lines.join("\n")}\n`;
+}
+
+/**
  * The table naming every ceiling the run could not decide. Empty string when
  * every figure decided itself, so a clean sweep stays quiet.
  *

@@ -1,0 +1,125 @@
+/* Rank at the moment: an inline card below a receipt, never a sheet over it.
+   The pair is two big targets side by side, the same shape as ComparePubFlow. */
+.rankAfterVisit {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius);
+  background: var(--panel-raised);
+  color: var(--ink);
+}
+
+.rankAfterVisit__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  line-height: 1.2;
+}
+
+.rankAfterVisit__lede,
+.rankAfterVisit__notice {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+.rankAfterVisit__bands {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rankAfterVisit__bands > * {
+  flex: 1 1 96px;
+}
+
+.rankAfterVisit__bands button,
+.rankAfterVisit__pair button {
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius);
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+}
+
+.rankAfterVisit__pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.rankAfterVisit__pair button {
+  display: grid;
+  align-content: center;
+  gap: 6px;
+  min-height: 96px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.rankAfterVisit__pair strong {
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  line-height: 1.2;
+}
+
+.rankAfterVisit__pair span {
+  color: var(--ink-soft);
+  font-family: var(--font-data);
+  font-size: var(--text-sm);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.rankAfterVisit__quiet {
+  justify-self: start;
+  min-height: 44px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--river);
+  font: inherit;
+  font-weight: 700;
+}
+
+.rankAfterVisit__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.rankAfterVisit__lot {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-height: 44px;
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.rankAfterVisit__lot input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--river);
+}
+
+.rankAfterVisit__lot span {
+  display: grid;
+  gap: 2px;
+}
+
+.rankAfterVisit__lot small {
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+  font-weight: 400;
+}
+

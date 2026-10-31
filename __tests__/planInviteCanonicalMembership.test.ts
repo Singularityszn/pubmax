@@ -31,6 +31,8 @@ function queryWithRows(rows: Array<Record<string, unknown>>) {
   const query = {
     select: vi.fn(),
     eq: vi.fn(),
+    is: vi.fn(),
+    update: vi.fn(),
     maybeSingle: vi.fn(async () => ({ data: null, error: null })),
     upsert: vi.fn(async () => ({ error: null })),
     then: (
@@ -39,6 +41,8 @@ function queryWithRows(rows: Array<Record<string, unknown>>) {
   };
   query.select.mockReturnValue(query);
   query.eq.mockReturnValue(query);
+  query.is.mockReturnValue(query);
+  query.update.mockReturnValue(query);
   return query;
 }
 
@@ -81,11 +85,19 @@ describe("canonical invite RSVP membership store", () => {
         p_existing_member_id: null,
       }),
     );
+    // One guest capability (launch review 3.5): the seat the RPC wrote is
+    // lifted straight after, live and non-revoked rows only.
+    expect(storeHarness.from).toHaveBeenCalledWith("plan_crew_members");
+    const memberQuery = storeHarness.from.mock.results[0]?.value as ReturnType<typeof queryWithRows>;
+    expect(memberQuery.update).toHaveBeenCalledWith({ can_collaborate: true });
+    expect(memberQuery.eq).toHaveBeenCalledWith("plan_id", PLAN_ID);
+    expect(memberQuery.eq).toHaveBeenCalledWith("id", MEMBER_ID);
+    expect(memberQuery.is).toHaveBeenCalledWith("membership_revoked_at", null);
     expect(result).toMatchObject({
       isUpdate: false,
       membership: {
         role: "guest",
-        collaborationAuthorized: false,
+        collaborationAuthorized: true,
       },
     });
     expect(result.membership?.memberToken).toMatch(/^[0-9a-f]{64}$/);
@@ -119,8 +131,34 @@ describe("canonical invite RSVP membership store", () => {
     expect(result.membership).toEqual({
       memberToken: "b".repeat(64),
       role: "guest",
-      collaborationAuthorized: false,
+      collaborationAuthorized: true,
     });
+  });
+
+  it("reports the seat honestly when the collaboration grant does not run", async () => {
+    storeHarness.rpc.mockResolvedValue({
+      data: { outcome: "saved", is_update: false, member_id: MEMBER_ID },
+      error: null,
+    });
+    storeHarness.from.mockImplementation((table: string) => table === "plan_crew_members"
+      ? { update: () => { throw new Error("offline"); } }
+      : queryWithRows([]));
+
+    const result = await supabaseRsvpStore.upsert(PLAN_ID, SUBMITTER_HASH, "Priya", "going");
+
+    expect(result.membership).toMatchObject({ role: "guest", collaborationAuthorized: false });
+  });
+
+  it("grants nothing for a Maybe", async () => {
+    storeHarness.rpc.mockResolvedValue({
+      data: { outcome: "saved", is_update: true, member_id: null },
+      error: null,
+    });
+
+    const result = await supabaseRsvpStore.upsert(PLAN_ID, SUBMITTER_HASH, "Priya", "maybe");
+
+    expect(result.membership).toBeNull();
+    expect(storeHarness.from).not.toHaveBeenCalledWith("plan_crew_members");
   });
 
   it("maps an atomic crew-full result without writing a split RSVP", async () => {
