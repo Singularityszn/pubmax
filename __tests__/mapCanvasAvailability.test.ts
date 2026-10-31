@@ -15,6 +15,7 @@ import {
   type MapCanvasReadinessState,
 } from "@/lib/mapCanvasAvailability";
 import { defined } from "@/__tests__/helpers/defined";
+import { MAP_PIN_READY_CEILING_MS } from "@/lib/mapPinRevealEvent";
 
 const SILENT: MapCanvasReadinessState = {
   moduleFailed: false,
@@ -156,9 +157,8 @@ describe("map canvas unavailable copy", () => {
 
 describe("the readiness ceiling", () => {
   // A mounted canvas must always get to name its own failure first, so this
-  // ceiling has to outlast every watchdog inside the canvas. Read those two
-  // numbers out of the canvas itself rather than restating them, or the day one
-  // of them is raised this rule quietly stops holding.
+  // ceiling has to outlast every watchdog inside the canvas. Read the shared
+  // pin ceiling from its owner and the first-frame watchdog from the canvas.
   const canvasSource = readFileSync(
     path.join(process.cwd(), "components/PubMapCanvas.tsx"),
     "utf8",
@@ -174,7 +174,7 @@ describe("the readiness ceiling", () => {
 
   it("sits above the canvas's own pin-ready ceiling", () => {
     expect(MAP_CANVAS_READINESS_CEILING_MS).toBeGreaterThan(
-      canvasConstant("PIN_READY_CEILING_MS"),
+      MAP_PIN_READY_CEILING_MS,
     );
   });
 

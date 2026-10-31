@@ -15,6 +15,7 @@ import {
   type ArrivalBearingWait,
 } from "@/lib/mapArrivalBearing";
 import { REACTIVE_CAMERA_INTENTS } from "@/lib/mapGestureGuard";
+import { MAP_PIN_READY_CEILING_MS } from "@/lib/mapPinRevealEvent";
 
 const flat = {
   currentBearing: 0,
@@ -102,7 +103,7 @@ describe("the opening turn is not the idle orbit", () => {
     );
     expect(canvas).not.toMatch(/const ARRIVAL_BEARING_POLL_MS\s*=/);
     expect(MAP_ARRIVAL_BEARING_SETTLED_BY_MS).toBe(
-      ARRIVAL_BEARING_WAIT_CEILING_MS +
+      Math.max(ARRIVAL_BEARING_WAIT_CEILING_MS, MAP_PIN_READY_CEILING_MS) +
         ARRIVAL_BEARING_STILL_POLLS * ARRIVAL_BEARING_POLL_MS +
         MAP_ARRIVAL_BEARING_DURATION_MS,
     );
@@ -125,6 +126,42 @@ function pollsUntilTurn(samples: (poll: number) => { moving: boolean; openingPen
 
 describe("the opening turn waits for the camera's other writers", () => {
   const ceilingPolls = ARRIVAL_BEARING_WAIT_CEILING_MS / ARRIVAL_BEARING_POLL_MS;
+
+  it("holds the opening camera until the first pin frame, even past the camera wait ceiling", () => {
+    let wait: ArrivalBearingWait | null = { stillPolls: 0, waitedMs: 0 };
+    for (let poll = 0; poll <= ceilingPolls; poll += 1) {
+      wait = nextArrivalBearingWait(wait!, {
+        moving: false, openingPending: false, pinsPending: true,
+      });
+      expect(wait).not.toBeNull();
+    }
+    expect(nextArrivalBearingWait(wait!, {
+      moving: false, openingPending: false, pinsPending: false,
+    })).toBeNull();
+  });
+
+  it("keeps a gesture before the first pin frame in the existing camera wait", () => {
+    const held = nextArrivalBearingWait({ stillPolls: 0, waitedMs: 0 }, {
+      moving: true, openingPending: false, pinsPending: true,
+    });
+    const revealed = nextArrivalBearingWait(held!, {
+      moving: true, openingPending: false, pinsPending: false,
+    });
+    expect(revealed).not.toBeNull();
+    expect(nextArrivalBearingWait(revealed!, {
+      moving: false, openingPending: false, pinsPending: false,
+    })).toBeNull();
+  });
+
+  it("releases the pin wait when its existing fallback reports, without a second camera ceiling", () => {
+    const held = nextArrivalBearingWait({ stillPolls: 0, waitedMs: MAP_PIN_READY_CEILING_MS }, {
+      moving: false, openingPending: true, pinsPending: true,
+    });
+    expect(held).not.toBeNull();
+    expect(nextArrivalBearingWait(held!, {
+      moving: false, openingPending: true, pinsPending: false,
+    })).toBeNull();
+  });
 
   it("turns on the first still poll of a settled camera", () => {
     expect(pollsUntilTurn(() => ({ moving: false, openingPending: false }))).toBe(

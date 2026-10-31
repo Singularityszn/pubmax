@@ -1,3 +1,5 @@
+import { MAP_PIN_READY_CEILING_MS } from "@/lib/mapPinRevealEvent";
+
 // The slight turn the map makes when it arrives, and the four cases where it
 // makes none.
 //
@@ -66,12 +68,12 @@ export const ARRIVAL_BEARING_WAIT_CEILING_MS = 6_000;
 /**
  * The longest the turn can take to be over, counted from the map being ready.
  *
- * The wait runs to its ceiling, the stillness window closes, and the eased move
- * takes its second. A reader never sees this number; a browser spec waits it
- * out before it reads a resting bearing.
+ * The pin handoff and camera wait use their existing ceilings. The later one
+ * releases the turn, then the eased move takes its second. This derived bound
+ * changes neither product ceiling; browser checks use it to wait for rest.
  */
 export const MAP_ARRIVAL_BEARING_SETTLED_BY_MS =
-  ARRIVAL_BEARING_WAIT_CEILING_MS +
+  Math.max(ARRIVAL_BEARING_WAIT_CEILING_MS, MAP_PIN_READY_CEILING_MS) +
   ARRIVAL_BEARING_STILL_POLLS * ARRIVAL_BEARING_POLL_MS +
   MAP_ARRIVAL_BEARING_DURATION_MS;
 
@@ -81,13 +83,17 @@ export type ArrivalBearingWait = { stillPolls: number; waitedMs: number };
  * One poll of the turn's wait: the wait that follows, or null once the turn may
  * run. A camera the opening-location answer has not moved yet is not still,
  * because that answer's move is on its way and would stop the turn mid-ease.
- * The ceiling runs regardless, so a camera that never settles still turns.
+ * Pin readiness has its own bounded fallback. After that handoff, the camera
+ * ceiling still releases a turn when the other camera writers never settle.
  */
 export function nextArrivalBearingWait(
   wait: ArrivalBearingWait,
-  sample: { moving: boolean; openingPending: boolean },
+  sample: { moving: boolean; openingPending: boolean; pinsPending?: boolean },
 ): ArrivalBearingWait | null {
   const waitedMs = wait.waitedMs + ARRIVAL_BEARING_POLL_MS;
+  // Pin placement owns its own bounded reveal/fallback. The camera's shorter
+  // wait ceiling cannot rotate the document preview away before that handoff.
+  if (sample.pinsPending) return { stillPolls: 0, waitedMs };
   const stillPolls = sample.moving || sample.openingPending ? 0 : wait.stillPolls + 1;
   if (stillPolls >= ARRIVAL_BEARING_STILL_POLLS) return null;
   if (waitedMs >= ARRIVAL_BEARING_WAIT_CEILING_MS) return null;

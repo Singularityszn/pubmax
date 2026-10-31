@@ -1,3 +1,6 @@
+"use client";
+
+import { useRef } from "react";
 import { Bird, Bot, Rabbit, Squirrel, Turtle, type LucideIcon } from "lucide-react";
 
 import {
@@ -7,7 +10,9 @@ import {
 } from "@/lib/pubPal";
 import { palGenomeStyle, type PalGenome } from "@/lib/palGenome";
 import { PubPalMascot, PubPalMascotMouth } from "@/components/pal/PubPalMascot";
-import { pubPalMascotSlugFor } from "@/lib/pubPalMascot";
+import { pubPalMascotSlugFor, pubPalMascotModelSrc, pubPalMascotModelStyle } from "@/lib/pubPalMascot";
+import type { PalVoiceSignal } from "@/lib/palVoiceSignal";
+import { usePalHead3D } from "./usePalHead3D";
 
 /**
  * A stored legacy species with no master of its own draws an icon. `hound` is
@@ -52,7 +57,7 @@ function legacyIconFor(species: PubPalSpecies): { Icon: LucideIcon; description:
 const PORTRAIT_MASCOT_SIZES =
   "(max-width: 760px) min(10.44rem, 41.76vw), min(24.36rem, 42.92vw)";
 
-export default function PalPortrait({ appearance, name, compact = false, state = "idle", priority = false, genome }: {
+export default function PalPortrait({ appearance, name, compact = false, state = "idle", priority = false, genome, signal }: {
   appearance: PubPalAppearance;
   name: string;
   compact?: boolean;
@@ -61,7 +66,16 @@ export default function PalPortrait({ appearance, name, compact = false, state =
   priority?: boolean;
   /** This Pal's genome: how its photograph is held. None for a draft. */
   genome?: PalGenome;
+  signal?: PalVoiceSignal;
 }) {
+  const frameRef = useRef<HTMLDivElement>(null);
+  usePalHead3D(frameRef, {
+    signal,
+    state,
+    temperament: genome?.temperament,
+    modelUrl: compact ? null : pubPalMascotModelSrc(appearance.species),
+    enabled: !compact,
+  });
   const mascotSize = compact ? 96 : 192;
   // A species that ships a master is drawn as that photograph. The legacy
   // icons are the only other lane, so the question is asked once here rather
@@ -71,6 +85,7 @@ export default function PalPortrait({ appearance, name, compact = false, state =
 
   return (
     <div
+      ref={frameRef}
       className={`palPortrait palPortrait-${appearance.signalAffinity} palPortrait-${appearance.material} ${compact ? "isCompact" : ""}`}
       data-pal-state={state}
       {...(genome ? { "data-genome": "", style: palGenomeStyle(genome) as React.CSSProperties } : {})}
@@ -109,6 +124,18 @@ export default function PalPortrait({ appearance, name, compact = false, state =
           </>
         ) : legacy ? (
           <legacy.Icon className="palLegacyIcon" strokeWidth={1.15} />
+        ) : null}
+        {rendered && !compact ? (
+          <span
+            className="palOriginalModelHost"
+            data-pal-model-host=""
+            style={pubPalMascotModelStyle(appearance.species) as React.CSSProperties}
+            role="img"
+            aria-label={`${name} in 3D. Use the arrow keys to turn. Home faces forward.`}
+            aria-hidden="true"
+          >
+            <span className="palOriginalModelFraming" data-pal-model-drawing="" aria-hidden="true" />
+          </span>
         ) : null}
       </span>
       {appearance.accessory !== "none" ? <span className="palPortraitAccessory" aria-hidden="true">{appearance.accessory.replace("-", " ")}</span> : null}

@@ -100,7 +100,7 @@
 
   /* An open sheet owns the foot of the map. The ask is withheld behind it
      rather than painted through its scrim, and is back when the sheet closes. */
-  body:has(.mobileSheetPortal) .mapArrivalCard {
+  body:has(.mobileSheetPortal:not([data-sheet-exiting="true"])) .mapArrivalCard {
     visibility: hidden;
   }
 
@@ -261,4 +261,25 @@ body:has(.mapArrivalCard) .mapToolbar .planBtn:not(.active) {
   border: 1px solid var(--hairline);
   background: var(--panel-raised);
   color: var(--ink);
+}
+
+/* Tablet copy and both answers keep their intrinsic size when text grows. */
+@media (min-width: 641px) and (max-width: 900px) {
+  .mapArrivalCard {
+    display: flex;
+    flex-wrap: wrap;
+    max-height: none;
+    padding-right: 48px;
+  }
+
+  .mapArrivalCardSay {
+    flex: 1 1 12rem;
+    min-width: min(100%, 12rem);
+  }
+
+  .mapArrivalCardActions {
+    flex: 0 1 auto;
+    min-width: 0;
+    flex-wrap: wrap;
+  }
 }

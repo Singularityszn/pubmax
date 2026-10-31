@@ -427,6 +427,15 @@ export async function runPalElevenLabsChatTurn(
     let toolEvents = 0;
     let replyToolEvents = 0;
     const pendingToolCalls = new Set<string>();
+    const completedToolCalls = new Set<string>();
+    const completeToolCall = (rawCallId: string | undefined): boolean => {
+      const callId = rawCallId ?? "";
+      // A repeated result cannot make a later answer into a checking line.
+      // Only a result paired with an observed request can repeat safely.
+      if (callId && completedToolCalls.has(callId) && !pendingToolCalls.has(callId)) return false;
+      if (pendingToolCalls.delete(callId) && callId) completedToolCalls.add(callId);
+      return true;
+    };
     // The agent says a checking line before each tool call, so a reply is the
     // answer only when no tool event followed it and no tool is still running.
     const replyIsAnswer = () => replyToolEvents === toolEvents && pendingToolCalls.size === 0;
@@ -612,10 +621,10 @@ export async function runPalElevenLabsChatTurn(
 
       if (payload.type === "agent_tool_response") {
         if (!userMessageSent) return;
+        if (!completeToolCall(payload.agent_tool_response?.tool_call_id)) return;
         clearSettle();
         resetStream();
         toolEvents += 1;
-        pendingToolCalls.delete(payload.agent_tool_response?.tool_call_id ?? "");
         return;
       }
 

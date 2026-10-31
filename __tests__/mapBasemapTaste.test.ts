@@ -688,6 +688,49 @@ describe("M2 · POI-at-initiation selection mute", () => {
     };
   }
 
+  it("restores original detail after deferred layers and selection change the route focus", () => {
+    const map = makeMuteMap();
+    const store = new Map<string, unknown>();
+    const routeStops: GeoJSON.FeatureCollection = {
+      type: "FeatureCollection",
+      features: [0, 1].map((n) => ({ type: "Feature", properties: { n }, geometry: { type: "Point", coordinates: [-0.13 + n * 0.001, 51.51] } })),
+    };
+    const ctx = { map, selectionMuteStore: store, selectedId: "", routeStops } as unknown as SceneCtx;
+    applySelectionState(ctx);
+    // Deferred scene and transit calls operate on the same style.
+    applySelectionState(ctx);
+    map.paint["pois-transport-minor"] = { "icon-opacity": 0.7 };
+    applySelectionState({ ...ctx, selectedId: "first-stop" });
+    applySelectionState(ctx);
+    expect(map.paint["pois-label"]!["text-opacity"]).toEqual(["min", 0.88, 0.3]);
+    applySelectionState({ ...ctx, routeStops: { type: "FeatureCollection", features: [] } });
+    expect(map.paint["pois-label"]!["text-opacity"]).toBe(0.88);
+    expect(map.paint["pois-transport-minor"]!["icon-opacity"]).toBe(0.7);
+    expect(map.paint.road_label!["text-opacity"]).toBe(1);
+  });
+
+  it("makes transport quieter for a walking route without hiding street names", () => {
+    const map = makeMuteMap();
+    const store = new Map<string, unknown>();
+    applySelectionState({
+      map,
+      selectionMuteStore: store,
+      selectedId: "",
+      routeStops: {
+        type: "FeatureCollection",
+        features: [
+          { type: "Feature", properties: { n: 1 }, geometry: { type: "Point", coordinates: [-0.13, 51.51] } },
+          { type: "Feature", properties: { n: 2 }, geometry: { type: "Point", coordinates: [-0.131, 51.511] } },
+        ],
+      },
+    } as unknown as SceneCtx);
+    expect(map.paint.road_label!["text-opacity"]).toBe(1);
+    expect(map.paint.place_city!["text-opacity"]).toBe(0.95);
+    expect(map.paint["tube-lines-color"]!["line-opacity"]).toEqual(["min", ["interpolate"], 0.3]);
+    applySelectionMute(map, false, store);
+    expect(map.paint["tube-lines-color"]!["line-opacity"]).toEqual(["interpolate"]);
+  });
+
   it("mutes basemap + app label layers on selection, leaves place labels alone", () => {
     const map = makeMuteMap();
     const store = new Map<string, unknown>();
@@ -811,7 +854,7 @@ describe("style.load recapture path (applySelectionState, buildScene.ts)", () =>
     // raise the fresh (0-opacity) layer visible, reintroducing #222.
     const store = new Map<string, unknown>([["pois-transport-minor::icon-opacity", 0.9]]);
 
-    applySelectionState(makeCtx(map, store, "venue-1"));
+    applySelectionState(makeCtx(map, store, "venue-1"), true);
 
     // The stale 0.9 must be gone — re-snapshotted from the NEW style's own
     // fresh paint value (0), not reused from before the reload.
@@ -831,7 +874,7 @@ describe("style.load recapture path (applySelectionState, buildScene.ts)", () =>
     };
     const store = new Map<string, unknown>([["stale::key", 1]]);
 
-    applySelectionState(makeCtx(map, store, ""));
+    applySelectionState(makeCtx(map, store, ""), true);
 
     expect(store.size).toBe(0);
     expect(setPaintProperty).not.toHaveBeenCalled();
@@ -858,7 +901,7 @@ describe("style.load recapture path (applySelectionState, buildScene.ts)", () =>
     const store = new Map<string, unknown>([["pois-transport-minor::icon-opacity", 0.9]]);
 
     // style.load with a venue still selected: clear stale, recapture fresh, mute.
-    applySelectionState(makeCtx(map, store, "venue-1"));
+    applySelectionState(makeCtx(map, store, "venue-1"), true);
     expect(store.get("pois-transport-minor::icon-opacity")).toBe(0.7); // fresh, not 0.9
     expect(defined(paint["pois-transport-minor"])["icon-opacity"]).toEqual([
       "min",

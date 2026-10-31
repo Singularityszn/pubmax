@@ -10,7 +10,7 @@ import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
 import { isVenueHoursQuestion, refineRoutedAskQuery, socialTurnKind } from "@/lib/ask/router";
 import { runAsk } from "@/lib/ask/runAsk";
-import type { AskTurn } from "@/lib/ask/types";
+import type { AskResponseBody, AskTurn } from "@/lib/ask/types";
 import { parseConciergeIntent } from "@/lib/concierge/intent";
 import { DEFAULT_GROUP_SIZE, defaultKnownAreas } from "@/lib/concierge/intentPolicy";
 import { PAL_ERROR_FALLBACK } from "@/lib/palChat";
@@ -153,13 +153,16 @@ function openingResponse(opening: { answer: string; conversationId: string }): R
   return jsonNoStore({ ...opening, cards: [], proposals: [], sources: [], toolsUsed: [], status: "ready" });
 }
 
+function isFirstOpeningGreeting(query: string, record: Record<string, unknown>): boolean {
+  return socialTurnKind(query) === "greeting" && !record.threadId && normaliseTurns(record.turns).length === 0;
+}
+
 async function openingReply(
   request: Request, record: Record<string, unknown>, query: string,
   prepared?: { ownerId: string; context: PalElevenLabsChatContext },
   onWriteStarted?: (response: Response) => void,
 ): Promise<Response | null> {
-  const social = socialTurnKind(query);
-  const firstGreeting = social === "greeting" && !record.threadId && normaliseTurns(record.turns).length === 0;
+  const firstGreeting = isFirstOpeningGreeting(query, record);
   const threadId = typeof record.threadId === "string" && isPubPalConversationId(record.threadId) ? record.threadId : null;
   if (firstGreeting || threadId) {
     const ownerId = prepared?.ownerId ?? await callerUserId(request);
@@ -219,6 +222,10 @@ function keylessSocialReply(query: string, turns: AskTurn[]): Response | null {
     status: "ready",
     toolsUsed: [],
   });
+}
+
+function isVenueDiscoveryAnswer(query: string, answer: Pick<AskResponseBody, "toolsUsed">): boolean {
+  return !isVenueHoursQuestion(query) && answer.toolsUsed.length === 1 && answer.toolsUsed[0] === "search_venues";
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -311,7 +318,7 @@ export async function POST(request: Request): Promise<Response> {
       // Discovery ranks on area, mood, budget and group size. Without one,
       // it lists arbitrary pubs, so ask for a constraint. Preserve named-hours
       // results, including refusals and read failures, before this fallback.
-      if (!isVenueHoursQuestion(query) && answer.toolsUsed.length === 1 && answer.toolsUsed[0] === "search_venues") {
+      if (isVenueDiscoveryAnswer(query, answer)) {
         const priorUser = [...turns].reverse().find((turn) => turn.role === "user");
         const { intent } = await parseConciergeIntent(
           refineRoutedAskQuery(query, priorUser?.content, turns.filter((turn) => turn.role === "user").map((turn) => turn.content)),

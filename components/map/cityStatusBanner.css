@@ -2,14 +2,16 @@
    CitySwitcher dropdown (z-index 560) so city picks stay tappable. */
 
 .appShell {
+  --city-status-desktop-gap: 82px;
+  --city-status-desktop-height: 58px;
   --city-status-desktop-top: calc(
     var(--map-top-clearance, 0px) +
     var(--map-toolbar-resting-height, 181px) +
-    82px
+    var(--city-status-desktop-gap)
   );
   /* The bottom of one desktop pill: the 44px .cityStatusBannerLink, the
      banner's 6px padding and its 1px border on each side. */
-  --city-status-desktop-bottom: calc(var(--city-status-desktop-top) + 58px);
+  --city-status-desktop-bottom: calc(var(--city-status-desktop-top) + var(--city-status-desktop-height));
 }
 
 .cityStatusStack {

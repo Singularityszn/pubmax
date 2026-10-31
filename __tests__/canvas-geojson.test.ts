@@ -158,6 +158,14 @@ describe("truncateStopName", () => {
 });
 
 describe("routeToStops", () => {
+  it("points endpoint names toward the route interior", () => {
+    const fc = routeToStops([
+      makeVenue({ id: "east", longitude: -0.13 }),
+      makeVenue({ id: "west", longitude: -0.14 }),
+    ]);
+    expect(fc.features.map((feature) => feature.properties?.labelSide)).toEqual(["west", "east"]);
+  });
+
   it("labels stops 1..n in order and preserves ids", () => {
     const a = makeVenue({ id: "a" });
     const b = makeVenue({ id: "b" });

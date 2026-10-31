@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { mobileMapShellControl } from "./helpers/mobileMapShell";
+import { expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobileMapShell";
 
 test.beforeEach(async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -31,6 +31,25 @@ test.describe("map filters sheet and bottom navigation", () => {
     await expect(sheet).toHaveCount(0);
   });
 
+  test("the current Map tab dismisses its sheet and restores the first search click", async ({ page }) => {
+    await page.goto("/map");
+    const filters = await mobileMapShellControl(page, "filters");
+    await filters.click();
+    const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
+    await expect(sheet).toBeVisible();
+    const map = primaryNav(page).getByRole("link", { name: "Map", exact: true });
+    await expect(map).toHaveAttribute("aria-current", "page");
+    await map.click();
+    await expect(sheet).toHaveCount(0);
+    const search = await mobileMapShellControl(page, "search");
+    await search.click();
+    const input = page.getByRole("combobox", { name: "Search pubs" });
+    await expect(input).toBeVisible();
+    await input.fill("White");
+    await expect(page.getByRole("group", { name: "Areas", exact: true })
+      .getByRole("option", { name: /Whitechapel/i })).toBeVisible();
+  });
+
   // Once the reader has been answered, the consent card takes the outing pill's
   // slot on the phone map (components/mobile/mobileMapShell.css), and an open
   // filters sheet still covers it. e2e/first-run-chrome-share.spec.ts owns the
@@ -45,6 +64,7 @@ test.describe("map filters sheet and bottom navigation", () => {
     const consent = page.locator(".analyticsConsentPrompt");
     const pill = page.locator(".mobilePlanActivation");
     await expect(consent).toBeVisible({ timeout: 30_000 });
+    await expectMobileMapShellReady(page);
     await expect(pill).toHaveCount(1, { timeout: 30_000 });
     await expect(pill).toBeHidden();
 

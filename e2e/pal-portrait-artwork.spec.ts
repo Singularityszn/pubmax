@@ -15,7 +15,7 @@ for (const width of [390, 1440]) {
   for (const theme of ["light", "dark"] as const) {
   test(`${width}px ${theme}: the companion keeps its original artwork`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
-    await page.emulateMedia({ reducedMotion: "no-preference", colorScheme: theme });
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.addInitScript(value => localStorage.setItem("pubmax-theme", value), theme);
     await page.goto("/pal");
     await expect(page.getByRole("button", { name: "Meet your Pub Pal", exact: true })).toBeVisible();
@@ -43,7 +43,7 @@ for (const width of [390, 1440]) {
   for (const species of PAL_ONBOARDING_SPECIES) {
     test(`${width}px: ${species} keeps its original artwork in the owned companion frame`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
-      await page.emulateMedia({ reducedMotion: "no-preference" });
+      await page.emulateMedia({ reducedMotion: "reduce" });
       const timestamp = "2026-10-04T12:00:00.000Z";
       await installAuthDoubles(page);
       await seedSignedIn(page, "A");
@@ -78,17 +78,26 @@ for (const width of [390, 1440]) {
 }
 
 
-test("motion preference changes retain the original artwork without a replacement canvas", async ({ page }) => {
+test("motion preference changes retain the decoded original and switch between mesh and still artwork", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/pal");
   const portrait = page.locator(".palPortraitCore");
-  const image = portrait.getByRole("img", { name: "Pub Pal", exact: true });
+  const image = portrait.locator('img[alt="Pub Pal"]');
   await expect(image).toBeVisible();
+  await expect.poll(() => image.evaluate(node => (node as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
   const rendition = await image.getAttribute("src");
   for (const reducedMotion of ["no-preference", "reduce", "no-preference"] as const) {
     await page.emulateMedia({ reducedMotion });
     await expect(portrait).toHaveCSS("opacity", "1");
     await expect(image).toHaveAttribute("src", rendition!);
-    await expect(page.locator(".palPortrait canvas")).toHaveCount(0);
+    await expect.poll(() => image.evaluate(node => (node as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+    const model = page.locator(".palMeetingPortrait [data-pal-model-host]");
+    if (reducedMotion === "no-preference") {
+      await expect(model).toHaveAttribute("data-model-state", "ready");
+      await expect(page.locator(".palPortrait canvas")).toBeVisible();
+    } else {
+      await expect(image).toBeVisible();
+      await expect(page.locator(".palPortrait canvas")).toHaveCount(0);
+    }
   }
 });

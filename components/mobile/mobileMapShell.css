@@ -99,12 +99,9 @@
   .appShell .mapStage > .mapConciergeAsk,
   .appShell .mapStage > .tonightLane,
   .appShell .mapStage .mapLayersControl,
-  /* The camera stack's city-fit + recenter chips are re-homed into the mobile
-     top bar, so hide those two — but NOT the whole stack: the compass is the
-     only recovery once the map is rotated or tilted (#367), and the
-     coordinator provides no replacement for it. */
-  .appShell .mapStage .mapCameraControls .mapFitLondonBtn,
-  .appShell .mapStage .mapCameraControls .mapRecenterBtn {
+  /* The city chooser owns city framing. Keep route recovery visible: the
+     mobile top bar has no replacement for Show whole walk. */
+  .appShell .mapStage .mapCameraControls .mapFitLondonBtn {
     display: none !important;
   }
 
@@ -290,7 +287,7 @@
 
   /* Portal sheets sit outside .appShell. Hide map-owned controls while one is
      open so the compass cannot paint over or intercept sheet content. */
-  body:has(.mobileSheetPortal) .appShell .mapStage .mapCameraControls {
+  body:has(.mobileSheetPortal:not([data-sheet-exiting="true"])) .appShell .mapStage .mapCameraControls {
     visibility: hidden;
     pointer-events: none;
   }
@@ -959,7 +956,7 @@
      the shell does not know about). */
   .mapPeek[data-covered="true"],
   body:has(.appShell.detail-open) .mapPeek,
-  body:has(.mobileSheetPortal) .mapPeek {
+  body:has(.mobileSheetPortal:not([data-sheet-exiting="true"])) .mapPeek {
     visibility: hidden;
   }
   /* The analytics disclosure takes the door's slot on the dock, and the card
@@ -1482,4 +1479,10 @@
 .mobileMapFilterToggle small {
   opacity: 0.78;
   line-height: 1.35;
+}
+
+/* An exit is presentation only. Logical Close already released the live page. */
+.mobileSheetPortal[data-sheet-exiting="true"],
+.mobileSheetPortal[data-sheet-exiting="true"] * {
+  pointer-events: none;
 }

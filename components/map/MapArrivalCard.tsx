@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useId, useLayoutEffect, useRef } from "react";
 import { LocateFixed, X } from "lucide-react";
 
 import {
@@ -44,6 +44,37 @@ export default function MapArrivalCard({
   useEffect(() => {
     setMapFirstVisitArrivalCardVisible(true);
     return () => setMapFirstVisitArrivalCardVisible(false);
+  }, []);
+
+  useLayoutEffect(() => {
+    const node = cardRef.current;
+    const shell = node?.closest<HTMLElement>(".appShell");
+    if (!node || !shell) return;
+    const tablet = window.matchMedia("(min-width: 641px) and (max-width: 900px)");
+    const property = "--map-arrival-occupied-height";
+    let published = "";
+    const clear = () => {
+      if (published && shell.style.getPropertyValue(property) === published) shell.style.removeProperty(property);
+      published = "";
+    };
+    const sync = () => {
+      const height = node.getBoundingClientRect().height;
+      if (!tablet.matches || node.getClientRects().length === 0 || height <= 0) {
+        clear();
+        return;
+      }
+      published = `${Math.ceil(height)}px`;
+      shell.style.setProperty(property, published);
+    };
+    sync();
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(sync);
+    observer?.observe(node);
+    tablet.addEventListener("change", sync);
+    return () => {
+      observer?.disconnect();
+      tablet.removeEventListener("change", sync);
+      clear();
+    };
   }, []);
 
   // A live region announces a CHANGE to content already on screen. This strip
