@@ -8,6 +8,9 @@ vi.mock("@/lib/supabase", async (original) => ({
 import { memoryPlanStore, __resetMemoryPlans } from "@/lib/planStore";
 import { planCollaborationStore, __resetPlanCollaboration } from "@/lib/planCollaborationStore";
 import { mintPlanGroundingProofV2, PLAN_GROUNDING_PROOF_TTL_MS } from "@/lib/planGrounding.server";
+import { slidingDoorsGenerationBody } from "@/lib/slidingDoorsClient";
+import { parsePlanGenerationRequest } from "@/lib/planGenerationRequest";
+import { inferNightContext } from "@/lib/nightPlanning";
 
 const stops = ["a", "b", "c"].map((id, position) => ({ venueId: `venue-${id}`, venueName: id.toUpperCase(), position }));
 const alternative = [stops[0]!, stops[1]!, { venueId: "venue-d", venueName: "D", position: 2 }];
@@ -35,6 +38,19 @@ function input(now = Date.now(), next = alternative) {
 }
 
 describe("Sliding Doors uses the existing collaboration authority", () => {
+  it("sends its historic option through the existing generation request contract", async () => {
+    const state = {
+      plan: { id: "plan-one", title: "Friday", startTime: new Date(Date.now() + 7_200_000).toISOString(), createdAt: new Date().toISOString() },
+      stops, crew: [], context: { ...inferNightContext("quiet pubs in Soho").context, nightArea: "piccadilly-soho" as const },
+    };
+    const body = slidingDoorsGenerationBody(state, "plot-twist");
+    const parsed = await parsePlanGenerationRequest(new Request("https://pubmaxxing.com/api/plans/generate", { method: "POST", body: JSON.stringify(body) }));
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) throw new Error("The generation contract refused the comparison");
+    expect(parsed.value.context?.atmosphere).toEqual(["quiet", "historic"]);
+    expect(parsed.value.context?.accessibility).toEqual(state.context.accessibility);
+    expect(parsed.value.context?.budgetLimitPence).toBe(state.context.budgetLimitPence);
+  });
   it("leaves the route unchanged during proposals and votes, then lets the host accept once", async () => {
     const { id, host, guest } = await setup();
     const store = planCollaborationStore();
