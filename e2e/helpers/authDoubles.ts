@@ -1,4 +1,4 @@
-import { type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import type { DeviceAccountRecord } from "../../lib/deviceAccountSessions";
 
 type RememberedAccount = Pick<DeviceAccountRecord, "userId" | "refreshToken" | "handle">;
@@ -23,6 +23,24 @@ export const ACCOUNTS = {
 export type AccountKey = keyof typeof ACCOUNTS;
 type Account = (typeof ACCOUNTS)[AccountKey];
 
+/** Switch through the control tab's UI, without treating shared storage as its session. */
+export async function switchRememberedAccount(page: Page, from: AccountKey, to: AccountKey): Promise<void> {
+  const menu = page.locator(".authAccountMenu");
+  if (!(await menu.isVisible())) {
+    await page.getByRole("button", { name: /Account options/ }).first().click();
+  }
+  await expect(menu.getByRole("button", { name: `Sign out of @${ACCOUNTS[from].handle}`, exact: true })).toBeVisible();
+  const list = menu.locator(".authSwitcherList");
+  if (!(await list.isVisible())) {
+    await menu.getByRole("button", { name: "Switch account", exact: true }).click();
+  }
+  // @karan is a prefix of @karansznx. A substring can select the departing account.
+  const target = list.locator(".authSwitcherRow").filter({ has: page.getByText(`@${ACCOUNTS[to].handle}`, { exact: true }) });
+  await target.click();
+  await expect(menu.getByRole("button", { name: `Sign out of @${ACCOUNTS[to].handle}`, exact: true })).toBeVisible();
+  await expect(target).toHaveCount(0);
+}
+
 export const AUTH_STORAGE_KEY = "sb-pubmaxx-e2e-auth-token";
 export const DEVICE_ACCOUNTS_KEY = "pubmax_device_sessions_v1";
 const WHICH_ACCOUNT_KEY = "__e2e_signed_in_account";
@@ -30,7 +48,7 @@ const DEVICE_HANDLE_KEY = "pubmax_handle";
 const RESUME_COOKIE = "pubmax_session_resume";
 
 export type Stub = {
-  /** Whose session the init script installs, and whom the doubles answer for. */
+  /** Whose session the init script installs on the next document. */
   signedInAs: (account: AccountKey | null) => Promise<void>;
   /** The claimed handle the server owns for the signed-in account, or null. */
   setServerHandle: (handle: string | null) => void;
@@ -102,7 +120,7 @@ function accountForRefreshToken(token: string | undefined): Account | null {
 }
 
 /** Which account an Authorization header speaks for, seeded or minted. */
-function accountForBearer(header: string | undefined): Account | null {
+function accountForBearer(header: string | null | undefined): Account | null {
   if (!header) return null;
   const token = header.replace(/^Bearer\s+/i, "");
   for (const [key, account] of Object.entries(ACCOUNTS)) {
@@ -134,7 +152,6 @@ export async function installAuthDoubles(
   page: Page,
   options: { realResumeCookie?: boolean; analyticsConsent?: "denied" | "pending" } = {},
 ): Promise<Stub> {
-  let current: Account | null = ACCOUNTS.A;
   /** undefined: derive the handle from the caller. Otherwise force this answer. */
   let handleOverride: string | null | undefined = undefined;
 
@@ -254,10 +271,19 @@ export async function installAuthDoubles(
       });
       return;
     }
-    const bearer = accountForBearer(request.headers().authorization);
+    const bearer = accountForBearer(await request.headerValue("authorization"));
+    if (url.includes("/auth/v1/user") && !bearer) {
+      await route.fulfill({
+        status: 401,
+        contentType: "application/json",
+        headers: CORS_HEADERS,
+        body: JSON.stringify({ message: "Invalid fixture credential", code: "bad_jwt" }),
+      });
+      return;
+    }
     const body =
-      url.includes("/auth/v1/user") && (bearer ?? current)
-        ? userBody((bearer ?? current) as Account)
+      url.includes("/auth/v1/user") && bearer
+        ? userBody(bearer)
         : {};
     await route.fulfill({
       status: 200,
@@ -271,9 +297,13 @@ export async function installAuthDoubles(
   // reason: after a switch the live session is A's, and answering B's handle
   // would let the app name the new account after the previous one.
   await page.route("**/api/identity/handle/current", async (route) => {
-    const bearer = accountForBearer(route.request().headers().authorization);
+    const bearer = accountForBearer(await route.request().headerValue("authorization"));
+    if (!bearer) {
+      await route.fulfill({ status: 401, json: { code: "UNAUTHENTICATED" } });
+      return;
+    }
     const handle =
-      handleOverride === undefined ? (bearer ?? current)?.handle ?? null : handleOverride;
+      handleOverride === undefined ? bearer.handle : handleOverride;
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -281,9 +311,13 @@ export async function installAuthDoubles(
     });
   });
   await page.route("**/api/identity/onboarding", async (route) => {
-    const bearer = accountForBearer(route.request().headers().authorization);
+    const bearer = accountForBearer(await route.request().headerValue("authorization"));
+    if (!bearer) {
+      await route.fulfill({ status: 401, json: { code: "UNAUTHENTICATED" } });
+      return;
+    }
     const handle =
-      handleOverride === undefined ? (bearer ?? current)?.handle ?? null : handleOverride;
+      handleOverride === undefined ? bearer.handle : handleOverride;
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -293,7 +327,6 @@ export async function installAuthDoubles(
 
   return {
     async signedInAs(key) {
-      current = key ? ACCOUNTS[key] : null;
       handleOverride = undefined;
       await page.evaluate(
         ({ whichKey, value }) => {
