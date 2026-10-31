@@ -91,3 +91,24 @@ it("restores saved Pints and its price limit for a genuinely empty router arriva
     expect(selected?.getAttribute("data-selected-pub")).toBe("");
   } finally { act(() => root.unmount()); }
 });
+
+it("keeps the opening Wine snapshot when the mounted router query changes", () => {
+  window.history.replaceState(null, "", "/map?sel=venue-eltcmh&drink=wine");
+  const host = document.createElement("div");
+  const root = createRoot(host);
+  try {
+    act(() => root.render(createElement(ArrivalDrink, { savedSession: savedPints })));
+    const selected = () => host.querySelector('output[aria-label="Selected drink"]');
+    expect(selected()?.textContent).toBe("Wine");
+    expect(selected()?.getAttribute("data-selected-pub")).toBe("venue-eltcmh");
+    // Rerender the existing root, without a key or unmount. The live router
+    // query changes, but that does not become another opening arrival.
+    destination.query = "drink=cocktail&log=1";
+    window.history.replaceState(null, "", "/map?drink=cocktail&log=1");
+    act(() => root.render(createElement(ArrivalDrink, { savedSession: savedPints })));
+    expect(window.location.search).toBe("?drink=cocktail&log=1");
+    expect(selected()?.textContent).toBe("Wine");
+    expect(selected()?.getAttribute("data-selected-pub")).toBe("venue-eltcmh");
+    expect(selected()?.getAttribute("data-query")).toBe("");
+  } finally { act(() => root.unmount()); }
+});

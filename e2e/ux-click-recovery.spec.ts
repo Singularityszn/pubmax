@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 import {
   ACCOUNTS,
@@ -8,6 +8,9 @@ import {
   readDeviceIdentity,
   seedSignedIn,
 } from "./helpers/authDoubles";
+import { MOBILE_MAP_SESSION_KEY } from "@/lib/mobileShell";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+import { expectMapLoadingFrameReleased, expectMobileMapShellReady } from "./helpers/mobileMapShell";
 
 for (const [width, theme] of [[390, "light"], [390, "dark"], [1440, "light"], [1440, "dark"]] as const) {
   test(`${width}px ${theme}: a refused follow explains the wait and recovers without duplicate writes`, async ({ page }, info) => {
@@ -60,22 +63,110 @@ for (const [width, theme] of [[390, "light"], [390, "dark"], [1440, "light"], [1
   });
 }
 
-test("desktop Moment returns to the selected pub, including live map history", async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 960 });
-  await page.goto("/map?sel=venue-eltcmh");
-  const share = page.getByRole("link", { name: "Share a Moment", exact: true });
-  await expect(share).toBeVisible();
-  // Drive the map's own state and URL writer through its visible controls.
-  await page.getByRole("button", { name: "Drink: Pints", exact: true }).click();
-  const wine = page.getByRole("group", { name: "Drink prices shown on the map", exact: true })
-    .getByRole("button", { name: "Wine", exact: true });
-  await wine.click();
-  await expect(wine).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByRole("button", { name: "Drink: Wine", exact: true })).toBeVisible();
-  await expect(page).toHaveURL(/\/map\?sel=venue-eltcmh&drink=wine$/);
-  await share.click();
+// This fixture uses the app's own persisted session shape. It is written only
+// after leaving the map, so a stale saved Pints session competes with the
+// explicit Wine return URL rather than changing the visible map first.
+async function prepareWineMap(page: Page, width: number): Promise<void> {
+  await page.setViewportSize({ width, height: width === 390 ? 844 : 960 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.addInitScript(() => {
+    localStorage.setItem("pubmax-tour-v1-done", "1");
+    localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+    localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+    sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+  });
+  await installDeterministicMapBasemap(page);
+  // The phone Create action is hidden while a pub detail sheet is selected.
+  // Start the phone case without a pub. Desktop still proves selected-pub return.
+  await page.goto(width === 390 ? "/map" : "/map?sel=venue-eltcmh");
+  await expectMapLoadingFrameReleased(page);
+  if (width === 390) {
+    await expectMobileMapShellReady(page);
+    const drink = page.getByRole("button", { name: /^Drink shown on the map:/ });
+    const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="drink"]');
+    await expect(async () => {
+      await drink.click();
+      await expect(sheet).toBeVisible({ timeout: 1_000 });
+    }).toPass();
+    await sheet.getByRole("button", { name: "Wine", exact: true }).click();
+    await expect(drink).toContainText("Wine");
+    // Browser Back closes the drink picker through its existing history owner.
+    await page.goBack();
+    await expect(sheet).toHaveCount(0);
+  } else {
+    await expect(async () => {
+      await page.getByRole("button", { name: "Drink: Pints", exact: true }).click();
+      await expect(page.getByRole("group", { name: "Drink prices shown on the map", exact: true })).toBeVisible({ timeout: 1_000 });
+    }).toPass();
+    const wine = page.getByRole("group", { name: "Drink prices shown on the map", exact: true })
+      .getByRole("button", { name: "Wine", exact: true });
+    await wine.click();
+    await expect(wine).toHaveAttribute("aria-pressed", "true");
+  }
+  await expect.poll(() => new URL(page.url()).searchParams.get("drink")).toBe("wine");
+  if (width === 390) expect(new URL(page.url()).searchParams.has("sel")).toBe(false);
+  else expect(new URL(page.url()).searchParams.get("sel")).toBe("venue-eltcmh");
+  await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), MOBILE_MAP_SESSION_KEY)).not.toBeNull();
+}
+
+async function returnFromMoment(page: Page, width: number, returnTo: string): Promise<void> {
   await expect(page).toHaveURL(/\/moment\?/);
-  expect(new URL(page.url()).searchParams.get("returnTo")).toBe("/map?sel=venue-eltcmh&drink=wine");
+  expect(new URL(page.url()).searchParams.get("returnTo")).toBe(returnTo);
+  await page.evaluate((key) => {
+    const saved = JSON.parse(localStorage.getItem(key)!);
+    saved.filters.drinkCategory = "";
+    saved.filters.query = "Hatton";
+    saved.filters.maxPrice = 6;
+    localStorage.setItem(key, JSON.stringify(saved));
+  }, MOBILE_MAP_SESSION_KEY);
+  // Use the product's Back link, not a new goto or a fixture navigation.
+  const back = page.getByRole("link", { name: "Back", exact: true });
+  await expect(async () => {
+    await back.click();
+    await expect(page).toHaveURL((url) => url.pathname + url.search === returnTo, { timeout: 1_000 });
+  }).toPass();
+  if (width === 390) {
+    await expectMobileMapShellReady(page);
+    await expect(page.getByRole("button", { name: /^Drink shown on the map:/ })).toContainText("Wine");
+  } else {
+    await expect(page.getByRole("button", { name: "Drink: Wine", exact: true })).toBeVisible();
+  }
+  expect(new URL(page.url()).searchParams.get("drink")).toBe("wine");
+  if (width === 390) {
+    // This bounded phone case returns to the unselected map it actually left.
+    expect(new URL(page.url()).searchParams.has("sel")).toBe(false);
+  } else {
+    expect(new URL(page.url()).searchParams.get("sel")).toBe("venue-eltcmh");
+    await expect(page.getByRole("heading", { name: "The Blackfriar", exact: true }).first()).toBeVisible();
+  }
+}
+
+test.describe("Wine Moment return", () => {
+  test.use({ serviceWorkers: "block" });
+
+  test("desktop Moment returns to Wine and the selected pub despite saved Pints", async ({ page }) => {
+    await prepareWineMap(page, 1440);
+    const returnTo = new URL(page.url()).pathname + new URL(page.url()).search;
+    const share = page.getByRole("link", { name: "Share a Moment", exact: true });
+    await expect(share).toBeVisible();
+    await share.click();
+    await returnFromMoment(page, 1440, returnTo);
+  });
+
+  test("390px Create Moment returns to an unselected Wine map despite saved Pints", async ({ page }) => {
+    await prepareWineMap(page, 390);
+    const returnTo = new URL(page.url()).pathname + new URL(page.url()).search;
+    expect(new URL(page.url()).searchParams.has("sel")).toBe(false);
+    const create = page.getByRole("button", { name: "Create", exact: true });
+    await expect(create).toBeVisible();
+    await expect(async () => {
+      await create.click();
+      await expect(page.locator(".createFabMenu")).toBeVisible({ timeout: 1_000 });
+    }).toPass();
+    await page.locator(".createFabMenu").getByRole("link", { name: "Post a moment", exact: true }).click();
+    await returnFromMoment(page, 390, returnTo);
+  });
 });
 
 test("keyboard Moment activation keeps map context in a new tab", async ({ page }) => {
