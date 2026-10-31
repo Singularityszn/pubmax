@@ -264,6 +264,45 @@ test.describe("clicked UK directory arrivals", () => {
           expect(geometry.lines.every(line => line.inViewport && line.uncovered && !line.overlapsPeek),
             "every line of national coverage copy remains visible above the map card").toBe(true);
         }
+        if (viewport.width <= 640) {
+          const credit = page.locator(".maplibregl-ctrl-attrib");
+          const creditButton = credit.locator(".maplibregl-ctrl-attrib-button");
+          await expect(creditButton).toBeVisible();
+          for (const expanded of [false, true, false]) {
+            if (expanded) {
+              await creditButton.click();
+              await expect(credit).toHaveClass(/maplibregl-compact-show/);
+            } else if (await credit.evaluate((element) => element.classList.contains("maplibregl-compact-show"))) {
+              await creditButton.click();
+              await expect(credit).not.toHaveClass(/maplibregl-compact-show/);
+            }
+            await expectLayoutSettled(credit);
+            await expectLayoutSettled(ukNote);
+            const geometry = await ukNote.evaluate((element) => {
+              const credit = document.querySelector(".maplibregl-ctrl-attrib");
+              const button = credit?.querySelector(".maplibregl-ctrl-attrib-button");
+              if (!credit || !button) throw new Error("Map credit control missing");
+              const noteRect = element.getBoundingClientRect();
+              const creditRect = credit.getBoundingClientRect();
+              const buttonRect = button.getBoundingClientRect();
+              const hit = document.elementFromPoint(buttonRect.left + buttonRect.width / 2, buttonRect.top + buttonRect.height / 2);
+              return {
+                note: noteRect.toJSON(), credit: creditRect.toJSON(),
+                separate: noteRect.bottom <= creditRect.top || noteRect.top >= creditRect.bottom
+                  || noteRect.right <= creditRect.left || noteRect.left >= creditRect.right,
+                buttonReachable: button.contains(hit),
+                noteInViewport: noteRect.top >= 0 && noteRect.bottom <= innerHeight,
+              };
+            });
+            await testInfo.attach(`national-note-credit-${expanded ? "open" : "closed"}`, {
+              body: JSON.stringify(geometry, null, 2), contentType: "application/json",
+            });
+            expect(geometry.separate, "coverage note does not cover the map credit").toBe(true);
+            expect(geometry.buttonReachable, "the credit button owns its centre tap").toBe(true);
+            expect(geometry.noteInViewport).toBe(true);
+          }
+          await expect(ukNote).toBeVisible();
+        }
         await page.screenshot({ path: testInfo.outputPath("uk-map-arrival.png") });
       });
     }
