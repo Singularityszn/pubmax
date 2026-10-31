@@ -551,9 +551,10 @@ function PalChatBody({ owner }: { owner: string | null }) {
       const result = await sessionRef.current(text, DEFAULT_CITY_ID, (text) => {
         if (request === askRequestRef.current && !accountSignal.aborted) setStreamText(text);
       });
-      if (request !== askRequestRef.current || accountSignal.aborted) return;
+      if (request !== askRequestRef.current) return;
       setPending(false);
       setStreamText("");
+      if (accountSignal.aborted) return;
       if (result === null) return; // superseded by a newer ask — do nothing
       if (result.status === "error") {
         setEntries((prev) => [

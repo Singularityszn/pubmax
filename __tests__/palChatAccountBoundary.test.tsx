@@ -51,13 +51,17 @@ async function renderAccount(id: string, token = `${id}-token`) {
   });
 }
 
-async function submit(text: string) {
+async function typeQuery(text: string) {
   const input = container.querySelector<HTMLInputElement>(".palChatInput")!;
   expect(input.disabled).toBe(false);
   await act(async () => {
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, text);
     input.dispatchEvent(new Event("input", { bubbles: true }));
   });
+}
+
+async function submit(text: string) {
+  await typeQuery(text);
   await act(async () => { container.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); });
 }
 
@@ -175,6 +179,74 @@ it("keeps a same-account token refresh valid while policy is loading", async () 
   expect(posts[0]?.token).toBe("Bearer refreshed-a-token");
   expect(posts[0]?.body).toMatchObject({ query: "My same-account question", threadId: "conv_accounta1" });
   expect(container.textContent).toContain("Your sourced answer.");
+});
+
+it.each([
+  { change: "sign-in", before: null, after: "clerk-account" },
+  { change: "sign-out", before: "clerk-account", after: null },
+])("restores Send and New conversation after Clerk $change cancels an ask without changing the chat owner", async ({ before, after }) => {
+  await act(async () => { setProviderIdentity("clerk", before); });
+  const input = container.querySelector<HTMLInputElement>(".palChatInput")!;
+  await submit("A question cancelled by Clerk");
+  await policyStarted;
+  await typeQuery("My same-owner recovery question");
+  expect(container.querySelector<HTMLButtonElement>(".palChatSend")!.disabled).toBe(true);
+  expect(container.querySelector<HTMLButtonElement>(".palChatReset")!.disabled).toBe(true);
+
+  await act(async () => { setProviderIdentity("clerk", after); });
+  await vi.waitFor(async () => {
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+    expect(container.querySelector(".palChatBubble--pending")).toBeNull();
+    expect(container.querySelector<HTMLButtonElement>(".palChatSend")!.disabled).toBe(false);
+    expect(container.querySelector<HTMLButtonElement>(".palChatReset")!.disabled).toBe(false);
+  });
+  expect(container.querySelector(".palChatInput")).toBe(input);
+  expect(input.value).toBe("My same-owner recovery question");
+  await act(async () => { releasePolicy(); await policyLoaded; });
+  expect(posts).toEqual([]);
+
+  await submit("My same-owner recovery question");
+  await expectAnswer();
+  expect(posts).toEqual([{ token: "Bearer account-a-token", body: {
+    query: "My same-owner recovery question", cityId: "london", threadId: "conv_accounta1",
+    turns: [{ role: "assistant", content: "Private opening for Bearer account-a-token" }],
+  } }]);
+});
+
+it("clears a cancelled partial reply and rejects its late text while the same chat owner recovers", async () => {
+  await act(async () => { setProviderIdentity("clerk", null); });
+  let stream!: ReadableStreamDefaultController<Uint8Array>;
+  const encoder = new TextEncoder();
+  postResponse = async () => new Response(new ReadableStream<Uint8Array>({
+    start(controller) {
+      stream = controller;
+      controller.enqueue(encoder.encode(`${JSON.stringify({ type: "delta", text: "Cancelled partial reply" })}\n`));
+    },
+  }), { headers: { "content-type": "application/x-ndjson" } });
+  await submit("An ask interrupted by Clerk");
+  await policyStarted;
+  await act(async () => { releasePolicy(); await policyLoaded; });
+  expect(container.textContent).toContain("Cancelled partial reply");
+
+  await act(async () => { setProviderIdentity("clerk", "clerk-account"); });
+  await vi.waitFor(async () => {
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+    expect(container.querySelector(".palChatBubble--pending")).toBeNull();
+    expect(container.textContent).not.toContain("Cancelled partial reply");
+  });
+  postResponse = undefined;
+  await submit("A fresh same-owner ask");
+  await expectAnswer();
+  await act(async () => {
+    stream.enqueue(encoder.encode(`${JSON.stringify({ type: "delta", text: "Late cancelled detail" })}\n`));
+    stream.enqueue(encoder.encode(`${JSON.stringify({ type: "final", body: { answer: "Late cancelled answer", cards: [], conversationId: "conv_cancelled1" } })}\n`));
+    stream.close();
+  });
+  expect(container.textContent).not.toContain("Late cancelled");
+  expect(posts[1]).toEqual({ token: "Bearer account-a-token", body: {
+    query: "A fresh same-owner ask", cityId: "london", threadId: "conv_accounta1",
+    turns: [{ role: "assistant", content: "Private opening for Bearer account-a-token" }],
+  } });
 });
 
 it("rejects an account change before the provider has rendered the replacement chat", async () => {
