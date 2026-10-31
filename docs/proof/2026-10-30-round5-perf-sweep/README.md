@@ -59,9 +59,10 @@ samples span 156 ms against the 250 ms LCP floor. The two resamples (316 and
 - Timing is not proof from this box. `/board/venue-eltcmh` server render spread
   75 percent and LCP 34 percent; `/dog-of-the-week` spread 56 and 48 percent.
   Those percentages alone are not a method breach: the spread rule also needs
-  the span past the metric's floor, and none of these did (the board's LCP
-  span is 144 ms and the dog's 156 ms against the 250 ms floor; the server
-  render spans are 18 and 15 ms against 25 ms). They say only that one loaded
+  the span past the metric's floor, and none of these did. The rule decides on
+  the first three samples: the board's LCP span is 144 ms and the dog's 156 ms
+  against the 250 ms floor, and the server render spans are 18 ms (board,
+  24/20/38) and 9 ms (dog, 26/35/27) against 25 ms. They say only that one loaded
   box moved the clocks by a third to three quarters between samples, which is
   why the timings are weak evidence and the macOS sweep is the oracle.
 - `/dog-of-the-week` recorded one LCP sample, 452 ms, above the 400 ms seeded
