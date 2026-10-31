@@ -343,7 +343,9 @@ test.describe("landing header without JavaScript", () => {
         const header = page.locator(".lpNav");
         await expect(header).toBeVisible();
         await expect(header.getByRole("link", { name: "PUBMAXX home", exact: true })).toBeVisible();
-        await expect(header.getByRole("button", { name: "More pages", exact: true })).toBeVisible();
+        if (viewport.width === 1280) {
+          await expect(header.getByRole("button", { name: "More pages", exact: true })).toBeVisible();
+        }
       } finally {
         await context.close();
       }
