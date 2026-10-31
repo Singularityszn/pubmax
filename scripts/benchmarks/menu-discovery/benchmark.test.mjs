@@ -9,6 +9,7 @@ import { EventEmitter } from 'node:events';
 import { coordinateHosts, Transport } from './transport.mjs';
 import { createServer } from 'node:http';
 import { urlIdentity } from './evaluate.mjs';
+import { createContext, runInContext } from 'node:vm';
 
 const here = dirname(fileURLToPath(import.meta.url));
 function fixture(budget, scenario = 'normal') {
@@ -482,4 +483,142 @@ test('offline fixes reproduce the retained compact comparison without network ac
     assert.equal(comparison.humanApproved, false);
     assert.ok(comparison.summary.every((arm) => arm.verifiedPriceRecordsPer100Requests === null));
   } finally { rmSync(out, { recursive: true, force: true }); }
+});
+
+function captureReviewFixture(check) {
+  const out = mkdtempSync(join(tmpdir(), 'pubmax-menu-capture-review-'));
+  const venue = JSON.parse(readFileSync(join(here, 'manifest.json'))).venues[0];
+  const url = new URL('/menu', venue.website).href;
+  const page = (arm) => ({ url, status: 200, format: 'html', bodySha256: arm + '-body',
+    text: arm + ' menu Soup £6.50', sourceUrl: new URL('/' + arm, venue.website).href,
+    path: [venue.website, new URL('/' + arm, venue.website).href, url], links: [], candidate: true });
+  const label = { venueId: venue.venueId, url, bodySha256: 'A-body', verdict: 'menu', relevant: true,
+    format: 'pdf', sourceUrl: 'https://stale.example/', path: ['https://stale.example/'],
+    reviewer: 'Fixture reviewer', evidence: 'A menu evidence', officialEvidence: { binding: 'A address' },
+    priceReviewComplete: true, priceRecords: [{ id: 'soup', item: 'Soup', amountGbp: 6.5 }] };
+  const generate = (arms, imported = label) => {
+    for (const arm of ['A', 'B']) {
+      const directory = join(out, venue.venueId.replace('/', '-'), arm);
+      rmSync(directory, { recursive: true, force: true });
+      if (!arms.includes(arm)) continue;
+      mkdirSync(directory, { recursive: true });
+      writeFileSync(join(directory, 'result.json'), JSON.stringify({ venueId: venue.venueId, arm,
+        pages: [page(arm)], requests: [], events: [] }));
+    }
+    writeFileSync(join(out, 'annotations.json'), JSON.stringify({ humanApproved: false, labels: [imported] }));
+    execFileSync(process.execPath, [join(here, 'review.mjs'), out], { stdio: 'pipe' });
+    return { packet: JSON.parse(readFileSync(join(out, 'review-packet.json'))),
+      html: readFileSync(join(out, 'review/index.html'), 'utf8') };
+  };
+  try { return check({ generate, label, page }); }
+  finally { rmSync(out, { recursive: true, force: true }); }
+}
+
+function openGeneratedReview(html, drafts = {}) {
+  const scripts = [...html.matchAll(/<script([^>]*)>([\s\S]*?)<\/script>/g)];
+  const elements = new Map(scripts.filter(([, attrs]) => attrs.includes('application/json'))
+    .map(([, attrs, textContent]) => [attrs.match(/id="([^"]+)"/)[1], { textContent }]));
+  const fields = { verdict: { value: 'menu' }, reviewer: { value: 'New reviewer' },
+    evidence: { value: 'B address and menu' }, complete: { checked: true },
+    prices: { value: '[{"id":"b-soup","item":"B soup","amountGbp":7}]', setCustomValidity() {} } };
+  const document = {
+    getElementById(id) {
+      if (!elements.has(id)) elements.set(id, { value: id === 'scope' ? 'all' : '',
+        addEventListener() {}, querySelector: (selector) => fields[selector.match(/name=(\w+)/)[1]] });
+      return elements.get(id);
+    },
+    createElement: () => ({ click() {} }),
+  };
+  const data = JSON.parse(elements.get('data').textContent);
+  const cacheKey = 'pubmax-menu-review-' + data.generatedFrom;
+  const storage = new Map([[cacheKey, JSON.stringify(drafts)]]);
+  let blob;
+  let queued;
+  const context = createContext({ document, localStorage: {
+    getItem: (key) => storage.get(key), setItem: (key, value) => storage.set(key, value),
+  }, Blob, URL: { createObjectURL(value) { blob = value; return 'blob:fixture'; }, revokeObjectURL() {} },
+  window: { lavish: { queuePrompt: (...args) => { queued = args; } } } });
+  for (const [, attrs, source] of scripts) if (!attrs.includes('application/json')) runInContext(source, context);
+  return { data, cacheKey, storage, fields,
+    save: (id) => runInContext('save(' + JSON.stringify(id) + ')', context),
+    download: async () => { document.getElementById('export').onclick(); return JSON.parse(await blob.text()); },
+    queue: () => { document.getElementById('queue').onclick(); return queued?.[1].data.items; } };
+}
+
+function assertCaptureBinding(label, page) {
+  for (const key of ['venueId', 'url', 'bodySha256', 'sourceUrl', 'path', 'format']) {
+    assert.deepEqual(label[key], page[key], key);
+  }
+}
+
+test('capture review clears imported A evidence when the displayed capture is B', () => {
+  captureReviewFixture(({ generate, label }) => {
+    const first = generate(['A']).packet.pages[0];
+    const repeated = generate(['A']).packet.pages[0];
+    assert.equal(first.reviewId, repeated.reviewId);
+    assert.deepEqual(first.label.priceRecords, label.priceRecords);
+    assertCaptureBinding(first.label, first);
+    const revised = generate(['A', 'B']).packet.pages[0];
+    assert.notEqual(revised.reviewId, first.reviewId);
+    assert.equal(revised.bodySha256, 'B-body');
+    assertCaptureBinding(revised.label, revised);
+    assert.equal(revised.label.verdict, 'unresolved');
+    assert.equal(revised.label.relevant, null);
+    assert.equal(revised.label.evidence, '');
+    assert.equal(revised.label.reviewer, '');
+    assert.equal(revised.label.officialEvidence, undefined);
+    assert.equal(revised.label.priceReviewComplete, false);
+    assert.deepEqual(revised.label.priceRecords, []);
+  });
+});
+
+test('capture review rejects stale drafts and binds saved downloads and feedback to B', async () => {
+  const pending = captureReviewFixture(({ generate, label }) => {
+    const old = generate(['A']).packet.pages[0];
+    const { packet, html } = generate(['A', 'B']);
+    const current = packet.pages[0];
+    const stale = { [old.reviewId]: label, [current.reviewId]: label, legacy: label };
+    const browser = openGeneratedReview(html, stale);
+    const check = async () => {
+      assert.deepEqual((await browser.download()).labels, []);
+      assert.equal(browser.queue(), undefined);
+      assert.deepEqual(JSON.parse(browser.storage.get(browser.cacheKey)), stale);
+      browser.save(current.reviewId);
+      const saved = JSON.parse(browser.storage.get(browser.cacheKey));
+      assertCaptureBinding(saved[current.reviewId], current);
+      assert.deepEqual(saved[old.reviewId], label);
+      assert.deepEqual(saved.legacy, label);
+      const downloaded = await browser.download();
+      assert.equal(downloaded.humanApproved, false);
+      assert.equal(downloaded.labels.length, 1);
+      assertCaptureBinding(downloaded.labels[0], current);
+      assert.equal(downloaded.labels[0].priceRecords[0].item, 'B soup');
+      const queued = JSON.parse(JSON.stringify(browser.queue()));
+      assert.equal(queued.length, 1);
+      assertCaptureBinding(queued[0], current);
+      const restored = openGeneratedReview(html, saved);
+      const recovered = (await restored.download()).labels[0];
+      assertCaptureBinding(recovered, current);
+      assert.equal(recovered.evidence, 'B address and menu');
+      assert.equal(recovered.priceRecords[0].item, 'B soup');
+    };
+    return check();
+  });
+  await pending;
+});
+
+test('capture review restores matching drafts with the displayed provenance and format', async () => {
+  const pending = captureReviewFixture(({ generate, label }) => {
+    const { packet, html } = generate(['B'], { ...label, bodySha256: 'B-body' });
+    const current = packet.pages[0];
+    assertCaptureBinding(current.label, current);
+    assert.equal(current.label.evidence, label.evidence);
+    const browser = openGeneratedReview(html, { [current.reviewId]: { ...label, bodySha256: 'B-body' } });
+    return browser.download().then((downloaded) => {
+      assertCaptureBinding(downloaded.labels[0], current);
+      assert.equal(downloaded.labels[0].evidence, label.evidence);
+      assert.deepEqual(downloaded.labels[0].priceRecords, label.priceRecords);
+    });
+  });
+  await pending;
 });
