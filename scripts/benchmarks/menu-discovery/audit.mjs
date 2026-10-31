@@ -4,7 +4,7 @@ import { resolve, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { loadResults } from './evaluate.mjs';
-import { canonical, sha256 } from './transport.mjs';
+import { canonical, resolveRedirect, sha256 } from './transport.mjs';
 import { isHarvestableOperatorUrl } from '../../../lib/harvest/sourcePolicy.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -86,7 +86,7 @@ for (const arm of results) {
       const from = page.path[i - 1];
       const to = page.path[i];
       const link = arm.pages.some((p) => p.url === from && (p.links.some((l) => l.url === to) || p.termsLinks?.includes(to)));
-      const redirect = arm.requests.some((r) => r.url === from && r.location && canonical(new URL(r.location, from).href) === to);
+      const redirect = arm.requests.some((r) => r.url === from && r.location && resolveRedirect(r.location, from) === to);
       assert.ok(link || redirect, `Unexplained path edge: ${from} -> ${to}`);
     }
   });

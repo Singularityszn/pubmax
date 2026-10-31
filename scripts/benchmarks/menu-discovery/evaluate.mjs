@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { canonical, sha256 } from './transport.mjs';
+import { canonical, resolveRedirect, sha256 } from './transport.mjs';
 
 const key = (v, u) => `${v}\t${u}`;
 const rate = (n, d) => d ? n / d : null;
@@ -12,7 +12,7 @@ export function urlIdentity(results) {
   for (const row of results) {
     for (const request of row.requests ?? []) {
       if (request.status >= 300 && request.status < 400 && request.location) {
-        const target = canonical(new URL(request.location, request.url).href);
+        const target = resolveRedirect(request.location, request.url);
         if (target) redirects.set(key(row.venueId, request.url), target);
       }
     }

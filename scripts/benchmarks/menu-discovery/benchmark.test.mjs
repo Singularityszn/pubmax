@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { EventEmitter } from 'node:events';
-import { coordinateHosts, Transport } from './transport.mjs';
+import { canonical, coordinateHosts, sha256, Transport } from './transport.mjs';
 import { createServer } from 'node:http';
 import { urlIdentity } from './evaluate.mjs';
 import { createContext, runInContext } from 'node:vm';
@@ -321,6 +321,91 @@ async function transportFixture(routes, check) {
 }
 
 const robotsRoute = [200, 'User-agent: *\nAllow: /\n', { 'content-type': 'text/plain' }];
+
+test('malformed page redirects retain both transport ledgers and allow later fetches', async () => {
+  await transportFixture({ '/robots.txt': robotsRoute,
+    '/bad': [302, '', { location: 'http://[' }],
+    '/menu.pdf': [200, '%PDF-1.4', { 'content-type': 'application/pdf' }],
+  }, async (make, origin, hits) => {
+    for (const arm of ['A', 'B']) {
+      const transport = make();
+      transport.arm = arm;
+      assert.equal(await transport.fetch(origin + '/bad'), null);
+      assert.equal(await transport.fetch(origin + '/bad'), null);
+      assert.equal(transport.requests.length, 2);
+      assert.equal(transport.requests[1].status, 302);
+      assert.equal(transport.requests[1].location, 'http://[');
+      assert.ok(transport.requests[1].bodySha256);
+      assert.ok(transport.events.some((e) => e.url === origin + '/bad' && e.reason === 'invalid-redirect'));
+      assert.equal((await transport.fetch(origin + '/menu.pdf')).status, 200);
+    }
+    assert.deepEqual(hits, ['/robots.txt', '/bad', '/menu.pdf', '/robots.txt', '/bad', '/menu.pdf']);
+  });
+});
+
+test('malformed robots redirects retain both transport ledgers and refuse page reads', async () => {
+  await transportFixture({ '/robots.txt': [302, '', { location: 'http://[' }] }, async (make, origin, hits) => {
+    for (const arm of ['A', 'B']) {
+      const transport = make();
+      transport.arm = arm;
+      assert.equal(await transport.fetch(origin + '/'), null);
+      assert.equal(await transport.fetch(origin + '/menu'), null);
+      assert.equal(transport.requests.length, 1);
+      assert.equal(transport.requests[0].location, 'http://[');
+      assert.equal(transport.requests[0].kind, 'robots');
+      assert.ok(transport.events.some((e) => e.url === origin + '/robots.txt' && e.reason === 'invalid-redirect'));
+      assert.ok(transport.events.some((e) => e.reason === 'robots-unreadable'));
+    }
+    assert.deepEqual(hits, ['/robots.txt', '/robots.txt']);
+  });
+});
+
+test('the evaluation CLI ignores malformed recorded aliases and retains valid aliases', () => {
+  const root = 'https://fixture.example/';
+  const alias = root + 'menu';
+  const final = root + 'menu.pdf';
+  const page = { url: final, status: 200, candidate: true, path: [root, alias, final],
+    sourceUrl: root, bodySha256: 'menu-body' };
+  const requests = [{ url: root, status: 302, location: 'http://[' },
+    { url: alias, status: 302, location: '/menu.pdf' }];
+  const result = evaluationFixture([page], [reviewedMenu(alias)], requests).summary[0];
+  assert.equal(result.truePositives, 1);
+  assert.equal(result.falseNegatives, 0);
+  assert.equal(result.verifiedUrls[0].url, final);
+  assert.equal(urlIdentity([{ venueId: 'fixture', pages: [page], requests }])('fixture', root), root);
+});
+
+test('the audit CLI ignores malformed provenance targets without hiding valid or missing edges', () => {
+  const out = mkdtempSync(join(tmpdir(), 'pubmax-menu-redirect-audit-'));
+  const manifestBytes = readFileSync(join(here, 'manifest.json'));
+  const venue = JSON.parse(manifestBytes).venues[0];
+  const root = canonical(venue.website);
+  const valid = new URL('menu.pdf', root).href;
+  const missing = new URL('missing.pdf', root).href;
+  const protocol = JSON.parse(readFileSync(join(here, 'protocol.json')));
+  const requests = [
+    { url: root, status: 302, location: 'http://[' },
+    { url: root, status: 302, location: valid },
+    { url: valid, status: 200, bodySha256: 'valid-body' },
+    { url: missing, status: 200, bodySha256: 'missing-body' },
+  ].map((row, i) => ({ ...row, sequence: i + 1, at: new Date(i * 10000).toISOString(), elapsedMs: 0, bytes: 0 }));
+  const pages = [valid, missing].map((url, i) => ({ url, sourceUrl: root, path: [root, url],
+    bodySha256: i ? 'missing-body' : 'valid-body', links: [] }));
+  try {
+    mkdirSync(join(out, 'venue/A'), { recursive: true });
+    writeFileSync(join(out, 'venue/A/result.json'), JSON.stringify({ venueId: venue.venueId, arm: 'A',
+      budget: 12, networkRequests: requests.length, requests, pages, events: [] }));
+    writeFileSync(join(out, 'run.json'), JSON.stringify({ completeCohort: false, failures: [],
+      manifestSha256: sha256(manifestBytes), harnessFiles: {}, protocol, codeHead: 'synthetic-fixture' }));
+    const result = spawnSync(process.execPath, [join(here, 'audit.mjs'), out], { encoding: 'utf8' });
+    assert.equal(result.status, 1, result.stderr);
+    const audit = JSON.parse(readFileSync(join(out, 'audit.json')));
+    const provenance = audit.failures.filter((f) => f.name.includes('page provenance'));
+    assert.equal(provenance.length, 1);
+    assert.ok(provenance[0].name.endsWith(missing));
+    assert.equal(provenance[0].detail, `Unexplained path edge: ${root} -> ${missing}`);
+  } finally { rmSync(out, { recursive: true, force: true }); }
+});
 
 test('offline fixes retain all page redirect aliases and stop redirect loops', async () => {
   await transportFixture({ '/robots.txt': robotsRoute, '/': [200, '<html>Pub</html>'],

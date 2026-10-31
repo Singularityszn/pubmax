@@ -75,6 +75,11 @@ export const canonical = (input) => {
   } catch { return null; }
 };
 
+export function resolveRedirect(location, from) {
+  try { return canonical(new URL(location, from).href); }
+  catch { return null; }
+}
+
 export function parsePage(html, url, mapping = {}) {
   const directory = mkdtempSync(resolve(tmpdir(), 'pubmax-menu-parser-'));
   const input = resolve(directory, 'input.json');
@@ -212,9 +217,13 @@ export class Transport {
       const response = await this.raw(url, 'robots');
       if (!response) break;
       if (response.status >= 300 && response.status < 400 && response.headers.location) {
-        const target = canonical(new URL(response.headers.location, url).href);
+        const target = resolveRedirect(response.headers.location, url);
+        if (!target) {
+          this.event(url, 'invalid-redirect');
+          break;
+        }
         // A robots redirect cannot authorise a new origin for ordinary pages.
-        if (!target || !this.policy(target) || !ownHost(new URL(target).hostname, new URL(origin).hostname)
+        if (!this.policy(target) || !ownHost(new URL(target).hostname, new URL(origin).hostname)
           || (new URL(url).protocol === 'https:' && new URL(target).protocol !== 'https:')) break;
         url = target;
         continue;
@@ -326,7 +335,7 @@ export class Transport {
       const response = await this.raw(url, 'page', permission.delay);
       if (!response) return finish(null);
       if (response.status >= 300 && response.status < 400 && response.headers.location) {
-        const target = canonical(new URL(response.headers.location, url).href);
+        const target = resolveRedirect(response.headers.location, url);
         if (!target) return finish(this.event(url, 'invalid-redirect'));
         if (hop === this.protocol.maxRedirectHops) return finish(this.event(url, 'redirect-hop-limit'));
         // Re-check permission before requesting every hop, including an off-site hop.
