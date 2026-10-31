@@ -4,9 +4,7 @@
 // least 30 more minutes right now (lib/lastOrdersList.ts). The hours pack is
 // read only once the filter is on, the same rule as Open now's directory, so a
 // map that never turns it on pays nothing. The set is recomputed every minute,
-// because a pub that closes at 23:30 must leave the map at 23:00. Between
-// 21:30 and 04:00 the map wears the dark theme while the filter is on, unless
-// the reader chose a theme (lib/useNightDarkTheme.ts).
+// because a pub that closes at 23:30 must leave the map at 23:00.
 //
 // `ids` is null ONLY when the filter is off, and the caller then does not
 // narrow. While the filter is on and the hours are not read yet, `ids` is an
@@ -18,7 +16,6 @@
 import { useEffect, useMemo, useState } from "react";
 
 import {
-  isLastOrdersHour,
   LAST_ORDERS_HOURS_PATH,
   lastOrdersOpenVenueIds,
   parseLastOrdersHoursPack,
@@ -26,7 +23,6 @@ import {
 } from "@/lib/lastOrdersList";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 import { useLiveClock } from "@/lib/useLiveClock";
-import { useNightDarkTheme } from "@/lib/useNightDarkTheme";
 
 const TICK_MS = 60_000;
 
@@ -71,8 +67,6 @@ export function useLastOrdersVenueIds(on: boolean): LastOrdersVenueIds {
 
   // A live clock that also wakes with the tab (lib/useLiveClock.ts).
   const now = useLiveClock(TICK_MS, on);
-  // Dark at night by default, unless the reader chose a theme.
-  useNightDarkTheme(on && now !== null && isLastOrdersHour(now));
 
   // The same pubs are open from one minute to the next nearly every tick. The
   // set keeps its identity while its members do, so the map's pin pipeline and

@@ -59,9 +59,10 @@ test("the crew's opted-in Pals walk the plan's route beside the reader's own", a
     await expect(marker).toHaveAttribute("aria-hidden", "true");
     await expect(marker.locator("a, button")).toHaveCount(0);
   }
-  await expect(page.locator(".palMapMarker[data-pal-crew='0'] img")).toHaveAttribute("src", /fox/);
+  // The avatar itself, not its talking frame (.palMapMarkerMouth) laid over it.
+  await expect(page.locator(".palMapMarker[data-pal-crew='0'] img:not(.palMapMarkerMouth)")).toHaveAttribute("src", /fox/);
 
-  // They walk the same route as the reader's Pal, and rest beside the last stop.
+  // They walk the same route as the reader's Pal, and rest beside tonight's next stop.
   await expect(own).toHaveAttribute("data-pal-walk", /walking|rested/, { timeout: 30_000 });
   await mkdir(SHOTS, { recursive: true });
   await page.waitForTimeout(900);

@@ -399,6 +399,8 @@ describe("map key inventory", () => {
       "crawl-stop",
       "walking-route",
       "straight-route",
+      "leg-time",
+      "chosen-way",
       "story-corridor",
     ]);
     expect(legend.routeMarks.at(-1)?.detail).toContain("place story");

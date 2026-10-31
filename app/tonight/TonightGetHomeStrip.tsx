@@ -5,10 +5,9 @@
 //
 // Reuses the existing /api/last-train surface through the same hook as the
 // Last orders panel (./useTonightGetHome.ts), so the two read one cached
-// answer and say the same thing. Renders NOTHING while loading, on error,
-// when there is nothing worth saying, or when the answer it holds is out of
-// date — the page must never gain a spinner or an apologetic empty card for
-// an optional extra, and it must never show a stale train time as current.
+// answer and say the same thing. The hook owns answer retention and expiry.
+// The strip shows only ready answers, without a spinner or an empty card
+// for an optional extra.
 //
 // The words are made from the live clock on every tick (lib/useLiveClock.ts),
 // so "Leave in 10 min" turns into "Leave-by time has passed" when the deadline

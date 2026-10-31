@@ -478,8 +478,10 @@ const NO_ESTIMATE_LINES: Record<Extract<SunEstimate, { kind: "no-estimate" }>["r
 };
 
 /**
- * The headline for one pub at one chosen moment. Every verdict says "likely":
+ * The headline for one pub at one chosen moment. Sun and shade verdicts say "likely":
  * the pub's own building is skipped and the garden's side is not recorded.
+ * A shade forecast stops at unknown heights. A later known sun segment can
+ * still be selected.
  */
 export function sunHeadline(estimate: SunEstimate, at: Date, isNow: boolean): string {
   if (estimate.kind === "no-estimate") return NO_ESTIMATE_LINES[estimate.reason];
@@ -498,10 +500,14 @@ export function sunHeadline(estimate: SunEstimate, at: Date, isNow: boolean): st
           ? `Garden likely in sun until sunset, about ${formatSunClock(segment.end)}`
           : `Garden likely in sun until ${formatSunClock(segment.end)}`;
     case "shade": {
-      const sunLater = timeline.segments.slice(index + 1).find((later) => later.state === "sun");
+      const change = timeline.segments.slice(index + 1).find((later) => later.state !== "shade");
+      if (change?.state === "unknown") {
+        return `Garden likely in shade ${when}. No sun estimate from ${formatSunClock(change.start, "exact")}.`;
+      }
+      const sunLater = change?.state === "sun" ? change : null;
       return sunLater
         ? `Garden likely in shade ${when}. Sun likely from ${formatSunClock(sunLater.start, "up")}`
-        : `Garden likely in shade ${when}, and no sun likely before ${formatSunClock(next?.state === "set" ? next.start : timeline.to)}`;
+        : `Garden likely in shade ${when}, and no sun likely before ${formatSunClock(change?.state === "set" ? change.start : timeline.to)}`;
     }
     case "set":
       return "After sunset. No sun on the garden.";

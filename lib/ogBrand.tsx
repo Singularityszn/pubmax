@@ -41,6 +41,7 @@ export const OG = {
   coralBright: "#ff7a55", // --brass-bright
   amber: "#f0a01a", // --amber / --night-amber — price + route energy
   pint: "#5fb389", // --pint (cheap / positive go-green)
+  brick: "#d47a82", // --brick (dark), the expensive price band
 } as const;
 
 export const OG_SIZE = { width: 1200, height: 630 } as const;

@@ -37,7 +37,7 @@ test("the map arrives with Last orders on and narrows to pubs still open (390x84
   const filtersButton = page.getByRole("button", { name: /^Filters/ });
   await expect(filtersButton).toBeVisible({ timeout: 45_000 });
   await expect(filtersButton).toHaveAttribute("aria-label", /last orders/);
-  // Dark at night by default while the filter is on.
+  // Dark at night by default for a reader who never chose a theme.
   await expect(page.locator("html")).toHaveAttribute("data-night-theme", "1");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await page.screenshot({ path: "artifacts/last-orders/map-last-orders-390x844.png" });
@@ -56,11 +56,12 @@ test("the map arrives with Last orders on and narrows to pubs still open (390x84
   expect(count).toBeLessThanOrEqual(CURATED_PINS_WITH_HOURS);
   await page.screenshot({ path: "artifacts/last-orders/map-last-orders-filters-390x844.png" });
 
-  // Turning it off gives every pin back.
+  // Turning it off gives every pin back. The night theme is the whole
+  // page's, not the filter's, so the map stays dark.
   await choice.click();
   await expect(choice).toHaveAttribute("aria-pressed", "false");
   await expect(filtersButton).not.toHaveAttribute("aria-label", /last orders/);
-  await expect(page.locator("html")).not.toHaveAttribute("data-night-theme", "1");
+  await expect(page.locator("html")).toHaveAttribute("data-night-theme", "1");
   expect(errors).toEqual([]);
 });
 

@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { storeThemeChoice } from "./helpers/themeClock";
+
 // THE PRODUCT ANSWERS FIRST, AND THE CONSENT CARD ARRIVES AFTER THE ANSWER.
 //
 // Captain's standing ask over PlanAstra section 3: the analytics consent card
@@ -104,6 +106,7 @@ for (const theme of ["light", "dark"] as const) {
     test(`Social primary clears Create after denial and reload @320x568 ${theme} ${fontSize}px`, async ({ page }) => {
       test.setTimeout(90_000);
       const beacons = await prepareUnanswered(page, { width: 320, height: 568 });
+      await storeThemeChoice(page, theme);
       await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
       await page.goto("/social", { waitUntil: "domcontentloaded" });
       await firstRouteRecorded(page);

@@ -13,7 +13,9 @@ import { spoonsValuePinFor, type SpoonsValuePinLane } from "@/lib/spoonsValue";
 import { bandAnchors } from "@/lib/storyBandGeometry";
 import type { StoryBand } from "@/lib/storyBands";
 import { hasPintPriceSemantics, type Venue } from "@/lib/venues";
+import { legMinutes } from "@/lib/routeLegs";
 import { truncateStopName } from "@/lib/routeStopLabel";
+import { legDistances, straightLegs, type WalkLegDistance } from "@/lib/walkRoute";
 import type { VenueWhatsOnSummary } from "@/lib/whatsOnBadges";
 import { pintTrustPinStanding } from "@/lib/pintTrust";
 import {
@@ -486,6 +488,41 @@ export function routeToLine(route: Venue[]): GeoJSON.FeatureCollection {
           ]
         : [],
   };
+}
+
+type LegTime = Pick<WalkLegDistance, "distanceKm" | "source"> & Required<Pick<WalkLegDistance, "midpoint">>;
+
+function isLegTime(leg: Partial<LegTime> | null | undefined): leg is LegTime {
+  const mid = leg?.midpoint;
+  return (
+    typeof leg?.distanceKm === "number" &&
+    leg.distanceKm > 0 &&
+    Array.isArray(mid) &&
+    Number.isFinite(mid[0]) &&
+    Number.isFinite(mid[1])
+  );
+}
+
+// One time bubble per leg of the crawl route, at the middle of the drawn leg
+// (buildScene.buildRouteLegTimes): "6 min" on foot along a routed leg, and
+// "~6 min" on a straight-line leg, because that one is an estimate.
+export function routeLegTimes(legs: readonly Partial<LegTime>[]): GeoJSON.FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    features: legs.filter(isLegTime).map((leg) => ({
+      type: "Feature" as const,
+      properties: {
+        label: `${leg.source === "ors" ? "" : "~"}${legMinutes(leg.distanceKm)} min`,
+      },
+      geometry: { type: "Point" as const, coordinates: leg.midpoint },
+    })),
+  };
+}
+
+// The instant bubbles for the instant straight line (routeToLine), until
+// /api/walk-route answers with the routed legs.
+export function routeToLegTimes(route: Venue[]): GeoJSON.FeatureCollection {
+  return routeLegTimes(legDistances(straightLegs(route.map((venue) => [venue.longitude, venue.latitude]))));
 }
 
 export function routeToStops(route: Venue[]): GeoJSON.FeatureCollection {

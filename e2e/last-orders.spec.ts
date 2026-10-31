@@ -93,7 +93,7 @@ test("before 21:30 the door is quiet, and the address opens the panel at any hou
 
   await page.goto("/tonight?mode=last-orders");
   await expect(page.getByTestId("last-orders")).toBeVisible();
-  // 18:00 is not night: opening the list leaves the theme alone.
+  // 18:00 is not night, so the page keeps the reader's system theme.
   await expect(page.locator("html")).not.toHaveAttribute("data-night-theme", "1");
   await page.getByRole("button", { name: "Close Last orders" }).click();
   await expect(page.getByTestId("last-orders-door")).toBeVisible();
@@ -108,13 +108,14 @@ test("a reader's own light theme wins over the night default", async ({ page }) 
   await expect(page.locator("html")).not.toHaveAttribute("data-night-theme", "1");
 });
 
-test("closing the list at night puts the theme back", async ({ page }) => {
+test("the night theme is the whole page's, so closing the list leaves it dark", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openTonightAt(page);
   await expect(page.locator("html")).toHaveAttribute("data-night-theme", "1");
   await page.getByRole("button", { name: "Close Last orders" }).click();
-  await expect(page.locator("html")).not.toHaveAttribute("data-night-theme", "1");
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await expect(page.getByTestId("last-orders-door")).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("data-night-theme", "1");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 });
 
 test("The French House lists no price: its £3.40 is a half pint (390x844)", async ({ page, context }) => {

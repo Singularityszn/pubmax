@@ -145,6 +145,42 @@ describe("timeline and words", () => {
     expect(sunHeadline(estimate, inShade, false)).toMatch(/^Garden likely in shade at \d\d:\d\d\. Sun likely from|^Garden likely in shade at \d\d:\d\d, and no sun likely before/);
   });
 
+  it("stops a shade forecast when later building heights are unknown", () => {
+    const start = new Date("2026-10-31T12:00:00Z");
+    const timeline = timelineFromStates((ms) => ms < start.getTime() + 30 * 60_000 ? "shade" : "unknown", start);
+    expect(sunHeadline({ kind: "estimate", timeline }, start, true)).toBe(
+      "Garden likely in shade now. No sun estimate from 12:30.",
+    );
+  });
+
+  it.each([true, false])("shows the exact unknown boundary while 12:30 is still shaded (isNow=%s)", (isNow) => {
+    const start = new Date("2026-10-31T12:00:00Z");
+    const unknownAt = Date.parse("2026-10-31T12:32:00Z");
+    const timeline = timelineFromStates((ms) => ms < unknownAt ? "shade" : "unknown", start);
+    // The specified 12:32 transition must not become 12:30 or 12:35 in the headline.
+    expect(segmentAt(timeline, new Date("2026-10-31T12:31:00Z"))?.state).toBe("shade");
+    expect(segmentAt(timeline, new Date(unknownAt))?.state).toBe("unknown");
+    expect(sunHeadline({ kind: "estimate", timeline }, new Date("2026-10-31T12:30:00Z"), isNow)).toBe(
+      isNow
+        ? "Garden likely in shade now. No sun estimate from 12:32."
+        : "Garden likely in shade at 12:30. No sun estimate from 12:32.",
+    );
+  });
+
+  it("does not skip unknown heights to promise a later sunny stretch", () => {
+    const start = new Date("2026-10-31T12:00:00Z");
+    const timeline = timelineFromStates((ms) => {
+      const minutes = (ms - start.getTime()) / 60_000;
+      return minutes < 30 ? "shade" : minutes < 60 ? "unknown" : "sun";
+    }, start);
+    expect(sunHeadline({ kind: "estimate", timeline }, new Date("2026-10-31T12:15:00Z"), false)).toBe(
+      "Garden likely in shade at 12:15. No sun estimate from 12:30.",
+    );
+    expect(sunHeadline({ kind: "estimate", timeline }, new Date("2026-10-31T13:10:00Z"), false)).toBe(
+      "Garden likely in sun until at least 18:00",
+    );
+  });
+
   it("says until at least the window's end when nothing blocks the sun", () => {
     const morning = new Date("2026-06-21T07:00:00Z");
     const estimate = estimateSun({ point: LONDON, hasRecordedOutdoorSpace: true, buildings: [OWN_PUB], from: morning });

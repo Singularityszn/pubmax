@@ -53,6 +53,12 @@ html:has(.nightPill) {
   animation: night-card-rise 240ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* The card scrolls when it is full, so each block keeps its own height and
+   never shrinks under the block below it. */
+.nightCard > * {
+  flex-shrink: 0;
+}
+
 /* On phones the app's bottom tab bar (≤640px, 64px tall) owns the very bottom —
    lift the card clear of it so both stay tappable. */
 @media (max-width: 640px) {

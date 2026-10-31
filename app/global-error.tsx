@@ -16,6 +16,7 @@ import Link from "next/link";
 import { useEffect } from "react";
 
 import { createClientErrorSender } from "@/components/ClientErrorReporter";
+import { SpilledGlassArt } from "@/components/brand/DotGlassArt";
 
 const reportRootError = createClientErrorSender();
 
@@ -50,6 +51,8 @@ export default function GlobalError({
           .pubmaxGlobalError .reference { color: #666670; }
           .pubmaxGlobalError .retry { background: #0b0b0d; color: #fdfaf2; }
           .pubmaxGlobalError .home { border-color: #dedcdf; }
+          .pubmaxGlobalError .dotArtDim { fill: #666670; fill-opacity: 0.32; }
+          .pubmaxGlobalError .dotArtLit { fill: #c68a1b; }
           @media (prefers-color-scheme: dark) {
             .pubmaxGlobalError { background: #0a0a0b; color: #eef3ef; }
             .pubmaxGlobalError .eyebrow { color: #ff5a5f; }
@@ -57,9 +60,17 @@ export default function GlobalError({
             .pubmaxGlobalError .reference { color: #9a9aa0; }
             .pubmaxGlobalError .retry { background: #eef3ef; color: #0a0a0b; }
             .pubmaxGlobalError .home { border-color: #2c2c30; }
+            .pubmaxGlobalError .dotArtDim { fill: #9a9aa0; }
+            .pubmaxGlobalError .dotArtLit { fill: #f0b145; }
           }
         `}</style>
         <div style={{ maxWidth: "34rem", textAlign: "center" }}>
+          {/* The spilled pint of app/error.tsx. This document has no tokens,
+              so the dots take the literal palette above: --muted, and --amber
+              mixed 80% with --ink, per theme. */}
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: "18px" }}>
+            <SpilledGlassArt fills={null} />
+          </div>
           <p className="eyebrow" style={{ margin: "0 0 12px", fontSize: "0.8rem", fontWeight: 700, letterSpacing: "0.01em" }}>
             Last orders interrupted
           </p>
