@@ -29,7 +29,7 @@ export function proposalPreservesNight(state: PlanState, stops: readonly PlanSto
 function distance(stops: readonly PlanStopDTO[], points: SlidingDoorsPoints): number | null {
   const coords = stops.map((stop) => points.get(stop.venueId));
   if (coords.some((point) => !point)) return null;
-  return coords.reduce((sum, point, index) => index === 0 ? sum : sum + haversineKm(coords[index - 1]!, point!), 0);
+  return coords.reduce((sum, point, index) => index === 0 ? sum : sum + haversineKm([...coords[index - 1]!], [...point!]), 0);
 }
 
 function stopsFrom(value: unknown): PlanStopDTO[] {

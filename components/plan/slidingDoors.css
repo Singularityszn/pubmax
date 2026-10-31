@@ -34,6 +34,7 @@
 .slidingDoors__name input { width: 1.25rem; height: 1.25rem; accent-color: var(--ink); flex-shrink: 0; }
 .slidingDoors__option ol { padding-inline-start: var(--space-5); margin-block: var(--space-3); }
 .slidingDoors__option li + li { margin-top: var(--space-2); }
+.slidingDoors__price { display: block; margin-top: var(--space-1); line-height: 1.5; }
 .slidingDoors__distance, .slidingDoors__message { color: var(--ink-soft); }
 .slidingDoors__error { color: var(--brick); }
 
