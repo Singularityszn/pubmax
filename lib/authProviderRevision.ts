@@ -55,6 +55,7 @@ export type ProviderIdentityRevisionStore = {
   signal: () => AbortSignal;
   accountRevision: () => number;
   accountSignal: () => AbortSignal;
+  ownsSession: (provider: AuthProviderName, sessionUserId: string | null | undefined) => boolean;
   set: (provider: AuthProviderName, identity: string | null) => number;
   setAuthState: (provider: AuthProviderName, state: ProviderAuthState) => number;
   authState: (provider: AuthProviderName) => ProviderAuthState;
@@ -103,6 +104,8 @@ export function createProviderIdentityRevisionStore(): ProviderIdentityRevisionS
     signal: () => revisionController.signal,
     accountRevision: () => accountRevision,
     accountSignal: () => accountController.signal,
+    ownsSession: (provider, sessionUserId) =>
+      typeof sessionUserId === "string" && sessionUserId.length > 0 && identities[provider] === sessionUserId,
     set(provider, identity) {
       if (identities[provider] === identity) return revision;
       identities[provider] = identity;
@@ -127,6 +130,8 @@ const providerIdentityRevisionStore = createProviderIdentityRevisionStore();
 export const readProviderIdentityRevision = providerIdentityRevisionStore.read;
 export const readProviderAccountRevision = providerIdentityRevisionStore.accountRevision;
 export const readProviderAccountSignal = providerIdentityRevisionStore.accountSignal;
+/** Check a credential's owner without releasing provider IDs to consumers. */
+export const providerOwnsSession = providerIdentityRevisionStore.ownsSession;
 export const setProviderIdentity = providerIdentityRevisionStore.set;
 export const setProviderAuthState = providerIdentityRevisionStore.setAuthState;
 export const readProviderAuthState = providerIdentityRevisionStore.authState;
