@@ -88,7 +88,8 @@ class Page(HTMLParser):
 
 
 if __name__ == '__main__':
-    request = json.load(sys.stdin)
+    with open(sys.argv[1], encoding='utf-8') as source:
+        request = json.load(source)
     page = Page(request['url'], request.get('mapping', {}))
     page.feed(request['html'])
     usage = resource.getrusage(resource.RUSAGE_SELF)

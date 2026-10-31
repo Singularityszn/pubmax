@@ -2,7 +2,8 @@ import http from 'node:http';
 import https from 'node:https';
 import { lookup } from 'node:dns/promises';
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
@@ -42,11 +43,16 @@ export const canonical = (input) => {
 };
 
 export function parsePage(html, url, mapping = {}) {
-  const result = spawnSync('python3', [resolve(here, 'parse_html.py')], {
-    input: JSON.stringify({ html, url, mapping }), maxBuffer: 64 * 1024 * 1024, encoding: 'utf8',
-  });
-  if (result.status !== 0) throw new Error(`HTML parser failed: ${result.stderr}`);
-  return JSON.parse(result.stdout);
+  const directory = mkdtempSync(resolve(tmpdir(), 'pubmax-menu-parser-'));
+  const input = resolve(directory, 'input.json');
+  try {
+    writeFileSync(input, JSON.stringify({ html, url, mapping }));
+    const result = spawnSync('python3', [resolve(here, 'parse_html.py'), input], {
+      stdio: ['ignore', 'pipe', 'pipe'], timeout: 15000, maxBuffer: 64 * 1024 * 1024, encoding: 'utf8',
+    });
+    if (result.status !== 0) throw new Error(`HTML parser failed: ${result.error?.message ?? result.stderr}`);
+    return JSON.parse(result.stdout);
+  } finally { rmSync(directory, { recursive: true, force: true }); }
 }
 
 function ownHost(a, b) { return a.replace(/^www\./, '') === b.replace(/^www\./, ''); }
@@ -192,6 +198,7 @@ export class Transport {
   }
 
   async permitted(url) {
+    if (this.venueRefused) return this.event(url, 'venue-terms-refused');
     if (!this.policy(url)) return this.event(url, this.refusalReason(url));
     if (!this.inScope(url)) return this.event(url, 'scope-refused');
     const rules = await this.robots(new URL(url).origin);
@@ -251,6 +258,7 @@ export class Transport {
           const restrictions = text.match(/[^.!?]{0,400}(?:scrap(?:e|ing|er)|crawl(?:ing|er)?|robots?|automated|data mining|commercial (?:purposes|use)|business purposes)[^.!?]{0,400}/gi) ?? [];
           const refusal = restrictions.find((line) => /prohibit|shall not|must not|may not|agree not|not use|not permitted|not allowed|no (?:text|data|web)|without.{0,100}(?:consent|permission)|prior.{0,50}(?:consent|permission)/i.test(line));
           if (!termsPage || refusal) {
+            this.venueRefused = true;
             this.cooldown.add(new URL(page.url).host);
             this.event(termsUrl, termsPage ? 'terms-restrict-automation' : 'terms-unreadable', { evidence: refusal ?? null });
             break;

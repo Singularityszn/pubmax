@@ -32,7 +32,9 @@ for (const venueId of [...new Set(targets.map((r) => r.venueId))]) {
     const parsed = transport.parse(readFileSync(resolve(out, source.bodyFile)).toString('utf8'), source.url);
     const link = parsed.links.find((l) => canonical(l.url) === canonical(target.url));
     if (!link) { transport.event(target.url, 'reference-link-no-longer-present'); continue; }
-    if (!transport.keywords.test(link.anchor + ' ' + link.url)) throw new Error(`Reference needs an explicit menu link: ${target.url}`);
+    if (!transport.keywords.test(link.anchor + ' ' + link.url) && target.reviewedMenuLink !== true) {
+      throw new Error(`Reference needs an explicit reviewed menu link: ${target.url}`);
+    }
     transport.documentGrants.add(canonical(target.url));
     transport.paths.set(canonical(target.url), [...source.path, canonical(target.url)]);
     await transport.fetch(target.url);

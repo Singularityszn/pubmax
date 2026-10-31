@@ -11,6 +11,7 @@ const run = resolve(process.argv[2]);
 const manifest = JSON.parse(readFileSync(resolve(here, 'manifest.json')));
 const meta = JSON.parse(readFileSync(resolve(run, 'run.json')));
 const results = loadResults(run);
+const accessReview = JSON.parse(readFileSync(resolve(here, 'access-review.json')));
 const failures = [];
 const check = (name, fn) => { try { fn(); } catch (error) { failures.push({ name, detail: error.message }); } };
 check('complete paired cohort', () => {
@@ -42,9 +43,22 @@ for (const arm of results) {
       || arm.requests.some((r) => r.error || r.status >= 400);
     assert.ok(arm.exitCode === 0 || (arm.budgetStopped && arm.exitSignal === 'SIGINT') || (arm.exitCode === 1 && noContent && refused));
     assert.ok(!arm.events.some((r) => r.reason === 'native-venue-timeout' || r.reason === 'gateway-error'));
+    const records = readFileSync(resolve(run, arm.venueId.replace('/', '-'), arm.arm, 'native-audit.jsonl'), 'utf8').trim().split('\n').filter(Boolean).map((line) => JSON.parse(line));
+    for (const record of records) {
+      assert.equal(new URL(record.url).hostname, '127.0.0.1');
+      assert.equal(record.engine, 'http');
+      assert.equal(record.version, '0.81.0');
+    }
+  });
+  check(`${name} no request after a terms refusal`, () => {
+    for (const event of arm.events.filter((r) => r.reason === 'terms-restrict-automation')) {
+      assert.ok(arm.requests.every((r) => Date.parse(r.at) < Date.parse(event.at)));
+    }
   });
   for (const request of arm.requests) check(`${name} ${request.sequence} source and body`, () => {
     assert.ok(isHarvestableOperatorUrl(request.url));
+    const host = new URL(request.url).hostname.replace(/^www\./, '');
+    assert.ok(!accessReview.blockedHosts.some((row) => host === row.host || host.endsWith(`.${row.host}`)));
     if (request.bodyFile) {
       const body = readFileSync(resolve(run, arm.venueId.replace('/', '-'), arm.arm, request.bodyFile));
       assert.equal(sha256(body), request.bodySha256);
@@ -61,7 +75,7 @@ for (const arm of results) {
     for (let i = 1; i < page.path.length; i++) {
       const from = page.path[i - 1];
       const to = page.path[i];
-      const link = arm.pages.some((p) => p.url === from && p.links.some((l) => l.url === to));
+      const link = arm.pages.some((p) => p.url === from && (p.links.some((l) => l.url === to) || p.termsLinks?.includes(to)));
       const redirect = arm.requests.some((r) => r.url === from && r.location && canonical(new URL(r.location, from).href) === to);
       assert.ok(link || redirect, `Unexplained path edge: ${from} -> ${to}`);
     }

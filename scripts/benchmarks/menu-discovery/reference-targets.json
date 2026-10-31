@@ -1,0 +1,118 @@
+{
+  "targets": [
+    {
+      "venueId": "way/155488603",
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms/christmas",
+      "url": "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms/christmas/festive-menu",
+      "reason": "Independent review of the official seasonal menu navigation"
+    },
+    {
+      "venueId": "way/155488603",
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms/christmas",
+      "url": "https://www.greeneking.co.uk/pubs/greater-london/sawyers-arms/christmas/buffet-menu",
+      "reason": "Independent review of the official seasonal menu navigation"
+    },
+    {
+      "venueId": "node/2267462478",
+      "sourceUrl": "https://thebluecoatspub.com/food-drink/",
+      "url": "https://thebluecoatspub.com/wp-content/uploads/2025/12/765DCE6C-7ED7-40FF-ABB4-0B5DD5E96F59.jpeg",
+      "reason": "The official Weekday Menu link uses an image outside both crawler protocols"
+    },
+    {
+      "venueId": "node/2267462478",
+      "sourceUrl": "https://thebluecoatspub.com/food-drink/",
+      "url": "https://thebluecoatspub.com/wp-content/uploads/2025/12/1EDF8B55-A8BA-4EAD-A80C-26C72A93F546.jpeg",
+      "reason": "The official Sunday Roast Menu link uses an image outside both crawler protocols"
+    },
+    {
+      "venueId": "node/2267462478",
+      "sourceUrl": "https://thebluecoatspub.com/food-drink/",
+      "url": "https://thebluecoatspub.com/wp-content/uploads/2025/12/EB426D09-90C1-4EDA-944D-0B6127886F23.jpeg",
+      "reason": "The official Drinks Menu link uses an image outside both crawler protocols"
+    },
+    {
+      "venueId": "way/160279486",
+      "sourceUrl": "https://etmcollection.co.uk/venue/the-jugged-hare/",
+      "url": "https://etmcollection.co.uk/app/uploads/2024/07/Jugged-October-ALC.pdf.pdf",
+      "reviewedMenuLink": true,
+      "reason": "The verified venue page presents this link in its menu selector. The independent reference read checks the document contents and branch identity."
+    },
+    {
+      "venueId": "way/160279486",
+      "sourceUrl": "https://etmcollection.co.uk/venue/the-jugged-hare/",
+      "url": "https://etmcollection.co.uk/app/uploads/2026/10/Jugged-Hare-Christmas-Day-Menu-Design-26.pdf",
+      "reviewedMenuLink": true,
+      "reason": "The verified venue page presents this link in its menu selector. The independent reference read checks the document contents and branch identity."
+    },
+    {
+      "venueId": "way/160279486",
+      "sourceUrl": "https://etmcollection.co.uk/venue/the-jugged-hare/",
+      "url": "https://etmcollection.co.uk/app/uploads/2024/07/Jugged-Hare-Christmas-Set-Menu-Design-26.pdf",
+      "reviewedMenuLink": true,
+      "reason": "The verified venue page presents this link in its menu selector. The independent reference read checks the document contents and branch identity."
+    },
+    {
+      "venueId": "way/160279486",
+      "sourceUrl": "https://etmcollection.co.uk/venue/the-jugged-hare/",
+      "url": "https://etmcollection.co.uk/app/uploads/2024/07/Jugged-Pre-Theatre-Working-File-Sep-26.pdf",
+      "reviewedMenuLink": true,
+      "reason": "The verified venue page presents this link in its menu selector. The independent reference read checks the document contents and branch identity."
+    },
+    {
+      "venueId": "way/160279486",
+      "sourceUrl": "https://etmcollection.co.uk/venue/the-jugged-hare/",
+      "url": "https://etmcollection.co.uk/app/uploads/2024/07/Jugged-Set-Menu-Sep-26.pdf",
+      "reviewedMenuLink": true,
+      "reason": "The verified venue page presents this link in its menu selector. The independent reference read checks the document contents and branch identity."
+    },
+    {
+      "venueId": "way/160279486",
+      "sourceUrl": "https://etmcollection.co.uk/venue/the-jugged-hare/",
+      "url": "https://etmcollection.co.uk/app/uploads/2024/07/Jugged-Sunday-Working-File-October-2nd.pdf",
+      "reviewedMenuLink": true,
+      "reason": "The verified venue page presents this link in its menu selector. The independent reference read checks the document contents and branch identity."
+    },
+    {
+      "venueId": "way/160279486",
+      "sourceUrl": "https://etmcollection.co.uk/venue/the-jugged-hare/",
+      "url": "https://etmcollection.co.uk/app/uploads/2024/07/JH-Sunday-Feast-Menu-0626.pdf",
+      "reviewedMenuLink": true,
+      "reason": "The verified venue page presents this link in its menu selector. The independent reference read checks the document contents and branch identity."
+    },
+    {
+      "venueId": "way/160279486",
+      "sourceUrl": "https://etmcollection.co.uk/venue/the-jugged-hare/",
+      "url": "https://etmcollection.co.uk/app/uploads/2024/07/JH-Puddings-Menu-0926-1.pdf",
+      "reviewedMenuLink": true,
+      "reason": "The verified venue page presents this link in its menu selector. The independent reference read checks the document contents and branch identity."
+    },
+    {
+      "venueId": "way/160279486",
+      "sourceUrl": "https://etmcollection.co.uk/venue/the-jugged-hare/",
+      "url": "https://etmcollection.co.uk/app/uploads/2024/07/JH-Canapes_Combined_Digital.pdf",
+      "reviewedMenuLink": true,
+      "reason": "The verified venue page presents this link in its menu selector. The independent reference read checks the document contents and branch identity."
+    },
+    {
+      "venueId": "way/160279486",
+      "sourceUrl": "https://etmcollection.co.uk/venue/the-jugged-hare/",
+      "url": "https://etmcollection.co.uk/app/uploads/2024/07/JH-Digestives-0124.V1_01.pdf",
+      "reviewedMenuLink": true,
+      "reason": "The verified venue page presents this link in its menu selector. The independent reference read checks the document contents and branch identity."
+    },
+    {
+      "venueId": "way/160279486",
+      "sourceUrl": "https://etmcollection.co.uk/venue/the-jugged-hare/",
+      "url": "https://etmcollection.co.uk/app/uploads/2024/07/JH-Drinks-Menu-Web-17.09.pdf",
+      "reviewedMenuLink": true,
+      "reason": "The verified venue page presents this link in its menu selector. The independent reference read checks the document contents and branch identity."
+    },
+    {
+      "venueId": "way/160279486",
+      "sourceUrl": "https://etmcollection.co.uk/venue/the-jugged-hare/",
+      "url": "https://etmcollection.co.uk/app/uploads/2024/07/JH-Wine-List-28.9.pdf",
+      "reviewedMenuLink": true,
+      "reason": "The verified venue page presents this link in its menu selector. The independent reference read checks the document contents and branch identity."
+    }
+  ]
+}

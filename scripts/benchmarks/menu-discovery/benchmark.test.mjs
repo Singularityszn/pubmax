@@ -59,6 +59,15 @@ test('the CLI stops after terms explicitly say shall not scrape', () => {
   }
 });
 
+test('the CLI handles a large menu body without waiting for pipe input to close', () => {
+  for (const arm of fixture(9, 'large-page').arms) {
+    const menu = arm.pages.find((p) => p.url.endsWith('/large-menu'));
+    assert.ok(menu?.text.includes('Vegetable soup £6.50'));
+    assert.ok(menu.bytes > 1000000);
+    assert.ok(arm.wallSeconds < 10);
+  }
+});
+
 test('the CLI retains source paths and refuses blocked URLs before requesting them', () => {
   const result = fixture(9);
   for (const arm of result.arms) {

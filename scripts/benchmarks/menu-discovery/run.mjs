@@ -1,6 +1,6 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
-import { readFileSync, writeFileSync, mkdirSync, createWriteStream } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, createWriteStream, existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { platform, release, cpus, totalmem } from 'node:os';
@@ -108,7 +108,7 @@ async function relevanceGuided(transport) {
   const timePath = resolve(transport.out, 'pagesift-time.txt');
   const stdout = createWriteStream(resolve(transport.out, 'pagesift.jsonl'));
   const stderr = createWriteStream(resolve(transport.out, 'pagesift.stderr.txt'));
-  const cli = ['crawl', start, '--config', resolve(here, 'pagesift.toml'), '--query', transport.protocol.query,
+  const cli = ['crawl', start, '--config', resolve(here, 'pagesift.toml'), '--audit-log', resolve(transport.out, 'native-audit.jsonl'), '--query', transport.protocol.query,
     '--limit', String(transport.protocol.requestBudgetPerArmPerVenue), '--depth', String(transport.protocol.maxDepth),
     '--scope', 'domain', '--sitemap', 'skip', '--engine', 'http', '--attachments',
     '--attachment-limit', String(transport.protocol.requestBudgetPerArmPerVenue),
@@ -193,6 +193,7 @@ async function live() {
   const manifest = JSON.parse(manifestBytes);
   if (sha256(readFileSync(protocolFile)) !== manifest.protocolSha256) throw new Error('Manifest protocol hash differs. Run prepare.mjs.');
   const out = resolve(option('out', resolve(here, 'runs', new Date().toISOString().replaceAll(':', '-'))));
+  if (existsSync(resolve(out, 'run.json'))) throw new Error('This output directory already contains a run. Choose a new directory.');
   mkdirSync(out, { recursive: true });
   const limit = Number(option('venues', manifest.venues.length));
   const venues = manifest.venues.slice(0, limit);
@@ -272,7 +273,9 @@ async function fixture() {
       : send('User-agent: *\nDisallow: /private-menu\n', 200, { 'content-type': 'text/plain' });
     if (request.url === '/private-menu') { forbiddenHits++; return send('Forbidden', 500); }
     if (request.url === '/terms-conditions') return send('<html><title>Terms and Conditions</title><p>No text or data mining, or web scraping. You shall not conduct, facilitate, authorise or permit any text or data mining or web scraping in relation to our Websites.</p></html>');
+    if (request.url === '/large-menu') return send('<html><title>Food menu</title><body><h1>Food menu</h1>' + '<p>Vegetable soup £6.50</p>'.repeat(45000) + '</body></html>');
     if (request.url === '/') return send(scenario === 'terms-refused' ? '<html><title>Fixture pub</title><a href="/terms-conditions">Terms and Conditions</a><a href="/old-menu">Food menu</a></html>'
+      : scenario === 'large-page' ? '<html><title>Fixture pub</title><a href="/large-menu">Food menu</a></html>'
       : scenario === 'redirect-refused' ? '<html><title>Fixture pub</title><a href="/old-menu">Food menu</a></html>'
       : '<html><head><title>Fixture pub food and drinks</title></head><body><h1>Fixture pub</h1><p>London SW1A 1AA</p><a href="/old-menu">Food menu</a><a href="/menu-news">Menu news</a><a href="/private-menu">Private menu</a><a href="/challenge">Drinks menu</a><a href="/unknown-menu">Seasonal menu</a></body></html>');
     if (request.url === '/old-menu') return send('', 302, { location: scenario === 'redirect-refused' ? 'http://169.254.169.254/metadata-menu.pdf' : '/food-menu' });

@@ -11,6 +11,7 @@ The [protocol](protocol.json) fixes the query, keywords, limits, cost assumption
 The [manifest](manifest.json) fixes the venues, source snapshots, arm order, and 12 primary review venues.
 The [rubric](RUBRIC.md) defines a verified menu, a price record, and a missing result.
 The [licence review](LICENCE_REVIEW.md) records the integration limits.
+The [input provenance](INPUT_PROVENANCE.md) records OpenStreetMap attribution and the website identity limits.
 
 ## Run the experiment
 
@@ -76,7 +77,7 @@ It asks live robots rules before each origin's pages.
 It applies the repository's crawler identities, the benchmark identity, and PageSift restrictions.
 Unreadable robots rules fail closed. Ordinary HTML at robots.txt follows the repository's existing absent-rules decision.
 
-Both arms first read linked terms pages when the homepage exposes them, including an explicitly linked external legal host.
+Both arms first read up to three linked terms pages when the homepage exposes them, including an explicitly linked external legal host.
 A detected automation restriction stops that host. An unreadable linked terms page also stops that host.
 This check records its text evidence. It does not establish a complete legal interpretation of every site's terms.
 Known commercial-use prohibitions in the source registry remain binding.
@@ -133,3 +134,12 @@ Memory figures are process maxima, not a simultaneous process-tree peak.
 The cost estimate uses explicit scenario rates. It excludes review labour and unknown commercial licence costs.
 
 The source policy modules are read-only imports. No production crawl or ingestion command runs here.
+
+## Additional evidence commands
+
+`reference.mjs RUN TARGETS.json` reads explicitly selected menu links for the separate reference review.
+It refuses to run before the paired crawl finishes. It has a separate cap of 40 requests per venue.
+`sensitivity.mjs RUN` compares offline extraction of original HTML and gateway HTML for three named cases.
+`audit.mjs RUN` checks request caps, body hashes, path edges, rate limits, access holds, and source hashes.
+`export.mjs RUN OUTPUT` writes the compact machine-readable dataset and comparison report after the audit passes.
+These commands do not publish any production data.

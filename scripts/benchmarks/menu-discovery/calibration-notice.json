@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "issue": "The initial terms matcher missed shall not and the terms-conditions URL spelling. Some calibration requests continued after a published scraping prohibition. All calibration data is excluded.",
+  "response": "Stopped active traffic, added evidenced benchmark-only host holds, read linked terms before exploration, and added a regression test for the exact prohibition wording.",
+  "productionModified": false,
+  "calibrations": [
+    {
+      "archive": "/private/tmp/menu-benchmark-live-pilot-1031",
+      "purpose": "three-site pilot",
+      "excludedFromComparison": true,
+      "completedArmLogs": 6,
+      "partialArmDirectories": 0,
+      "recordedAttemptsInCompletedLogs": 64,
+      "attemptUpperBoundIncludingPartialArms": 64,
+      "knownPostTermsRequestsInCompletedLogs": 16
+    },
+    {
+      "archive": "/Users/karanmanoharan/.codex/worktrees/menu-discovery-benchmark-1031/pubmaxx/scripts/benchmarks/menu-discovery/runs/live-20261031",
+      "purpose": "rate-limit calibration",
+      "excludedFromComparison": true,
+      "completedArmLogs": 12,
+      "partialArmDirectories": 4,
+      "recordedAttemptsInCompletedLogs": 68,
+      "attemptUpperBoundIncludingPartialArms": 116,
+      "knownPostTermsRequestsInCompletedLogs": 16
+    },
+    {
+      "archive": "/Users/karanmanoharan/.codex/worktrees/menu-discovery-benchmark-1031/pubmaxx/scripts/benchmarks/menu-discovery/runs/final-20261031",
+      "purpose": "native stop calibration",
+      "excludedFromComparison": true,
+      "completedArmLogs": 73,
+      "partialArmDirectories": 4,
+      "recordedAttemptsInCompletedLogs": 473,
+      "attemptUpperBoundIncludingPartialArms": 521,
+      "knownPostTermsRequestsInCompletedLogs": 62
+    },
+    {
+      "archive": "/Users/karanmanoharan/.codex/worktrees/menu-discovery-benchmark-1031/pubmaxx/scripts/benchmarks/menu-discovery/runs/measured-20261031",
+      "purpose": "invalid terms-check calibration",
+      "excludedFromComparison": true,
+      "completedArmLogs": 78,
+      "partialArmDirectories": 4,
+      "recordedAttemptsInCompletedLogs": 503,
+      "attemptUpperBoundIncludingPartialArms": 551,
+      "knownPostTermsRequestsInCompletedLogs": 72
+    }
+  ]
+}
