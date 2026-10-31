@@ -700,6 +700,19 @@ second signature gesture (see "Coral is spent twice").
 
 ## Day/night coherence
 
+**The night is dark by default.** A reader who has not chosen a theme gets
+the dark theme from 21:30 to 03:59 London time, and the OS decides the rest
+of the day. A stored choice from the theme control always wins. The rule is
+`resolveThemePreference` in `lib/themePreference.ts`, and
+`public/theme-init.js` applies the same rule before first paint (it keeps its
+own copy of the two times, held to the module by
+`__tests__/themeNight.test.tsx`). `components/ThemeAttribute.tsx` asks again
+every minute and when a tab comes back, so an open page turns dark at 21:30
+and light at 04:00. A tap on the theme control is the reader's choice even
+when storage refuses to keep it, and the night rule stands down for the rest
+of that page's life. `html[data-night-theme="1"]` marks a page that is dark
+because of the night rule rather than a choice.
+
 Both themes flip from the same token names — `app/theme.css` only
 overrides values inside `html[data-theme="dark"]`, never introduces new
 variable names. The map token reader in `components/map/canvas/tokens.ts`

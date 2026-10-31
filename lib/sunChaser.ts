@@ -275,6 +275,15 @@ export type SunTimeline = {
 export function buildSunTimeline(
   surroundings: SunSurroundings,
   from: Date,
+  options: { stepMinutes?: number; horizonMinutes?: number } = {},
+): SunTimeline {
+  return timelineFromStates((ms) => sunStateAt(surroundings, new Date(ms)), from, options);
+}
+
+/** The timeline walk over any reading of the state at a minute, so its search can be tested on its own. */
+export function timelineFromStates(
+  stateAt: (ms: number) => SunState,
+  from: Date,
   { stepMinutes = SUN_CHASER_STEP_MINUTES, horizonMinutes = SUN_CHASER_HORIZON_MINUTES } = {},
 ): SunTimeline {
   const stepMs = stepMinutes * 60_000;
@@ -282,20 +291,26 @@ export function buildSunTimeline(
   const end = start + horizonMinutes * 60_000;
   const segments: SunSegment[] = [];
   let segmentStart = start;
-  let state = sunStateAt(surroundings, new Date(start));
+  let state = stateAt(start);
   for (let t = start + stepMs; t <= end; t += stepMs) {
-    const next = sunStateAt(surroundings, new Date(t));
-    if (next === state) continue;
+    const next = stateAt(t);
+    // One step can hold more than one change (shade, a gap of sun, then
+    // sunset), so keep finding the next change until the walk agrees with
+    // the sample at the end of the step. Each pass starts where the state
+    // is known to hold and ends where it is known not to.
     let lo = t - stepMs;
-    let hi = t;
-    while (hi - lo > 60_000) {
-      const mid = lo + Math.floor((hi - lo) / 120_000) * 60_000;
-      if (sunStateAt(surroundings, new Date(mid)) === state) lo = mid;
-      else hi = mid;
+    while (state !== next) {
+      let hi = t;
+      while (hi - lo > 60_000) {
+        const mid = lo + Math.floor((hi - lo) / 120_000) * 60_000;
+        if (stateAt(mid) === state) lo = mid;
+        else hi = mid;
+      }
+      segments.push({ state, start: new Date(segmentStart), end: new Date(hi) });
+      segmentStart = hi;
+      state = stateAt(hi);
+      lo = hi;
     }
-    segments.push({ state, start: new Date(segmentStart), end: new Date(hi) });
-    segmentStart = hi;
-    state = sunStateAt(surroundings, new Date(hi));
   }
   segments.push({ state, start: new Date(segmentStart), end: new Date(end) });
   return { from: new Date(start), to: new Date(end), segments };
@@ -463,8 +478,10 @@ const NO_ESTIMATE_LINES: Record<Extract<SunEstimate, { kind: "no-estimate" }>["r
 };
 
 /**
- * The headline for one pub at one chosen moment. Every verdict says "likely":
+ * The headline for one pub at one chosen moment. Sun and shade verdicts say "likely":
  * the pub's own building is skipped and the garden's side is not recorded.
+ * A shade forecast stops at unknown heights. A later known sun segment can
+ * still be selected.
  */
 export function sunHeadline(estimate: SunEstimate, at: Date, isNow: boolean): string {
   if (estimate.kind === "no-estimate") return NO_ESTIMATE_LINES[estimate.reason];
@@ -483,10 +500,14 @@ export function sunHeadline(estimate: SunEstimate, at: Date, isNow: boolean): st
           ? `Garden likely in sun until sunset, about ${formatSunClock(segment.end)}`
           : `Garden likely in sun until ${formatSunClock(segment.end)}`;
     case "shade": {
-      const sunLater = timeline.segments.slice(index + 1).find((later) => later.state === "sun");
+      const change = timeline.segments.slice(index + 1).find((later) => later.state !== "shade");
+      if (change?.state === "unknown") {
+        return `Garden likely in shade ${when}. No sun estimate from ${formatSunClock(change.start, "exact")}.`;
+      }
+      const sunLater = change?.state === "sun" ? change : null;
       return sunLater
         ? `Garden likely in shade ${when}. Sun likely from ${formatSunClock(sunLater.start, "up")}`
-        : `Garden likely in shade ${when}, and no sun likely before ${formatSunClock(next?.state === "set" ? next.start : timeline.to)}`;
+        : `Garden likely in shade ${when}, and no sun likely before ${formatSunClock(change?.state === "set" ? change.start : timeline.to)}`;
     }
     case "set":
       return "After sunset. No sun on the garden.";
