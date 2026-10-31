@@ -394,6 +394,11 @@ type PubMapCanvasProps = {
    */
   onMapConstructed?: () => void;
   /**
+   * Hands the live MapLibre map to an optional reader (Sun Chaser reads the
+   * building tiles through it), and null again before the map is removed.
+   */
+  onMapInstance?: (map: maplibregl.Map | null) => void;
+  /**
    * Opening camera from CityConfig.mapView. Defaults to London for back-compat
    * when the multi-city router has not wired a city yet.
    */
@@ -755,6 +760,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     onBasemapProviderChange,
     onMapErrored,
     onMapConstructed,
+    onMapInstance,
     mapView,
     resumeViewport,
     maxBounds,
@@ -862,14 +868,16 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   const onBasemapProviderChangeRef = useRef(onBasemapProviderChange);
   const onMapErroredRef = useRef(onMapErrored);
   const onMapConstructedRef = useRef(onMapConstructed);
+  const onMapInstanceRef = useRef(onMapInstance);
   const onRenderedStateChangeRef = useRef(onRenderedStateChange);
   useEffect(() => {
     onMapReadyRef.current = onMapReady;
     onBasemapProviderChangeRef.current = onBasemapProviderChange;
     onMapErroredRef.current = onMapErrored;
     onMapConstructedRef.current = onMapConstructed;
+    onMapInstanceRef.current = onMapInstance;
     onRenderedStateChangeRef.current = onRenderedStateChange;
-  }, [onMapReady, onBasemapProviderChange, onMapErrored, onMapConstructed, onRenderedStateChange]);
+  }, [onMapReady, onBasemapProviderChange, onMapErrored, onMapConstructed, onMapInstance, onRenderedStateChange]);
   const publishMapReady = useCallback((ready: boolean) => {
     setMapReady(ready);
     onMapReadyRef.current?.(ready);
@@ -1806,6 +1814,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     );
     mapRef.current = map;
     setMapInstanceReady(true);
+    onMapInstanceRef.current?.(map);
     let styleGeneration = 0;
     // MapLibre's own context-loss handler destroys the style (map.style is null
     // until a `webglcontextrestored` sets it again), with no setStyle of ours to
@@ -3842,6 +3851,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       if (publishCurrentViewportRef.current === publishCurrentViewport) {
         publishCurrentViewportRef.current = null;
       }
+      onMapInstanceRef.current?.(null);
       map.remove();
       mapRef.current = null;
       styleStructureReadyRef.current = false;

@@ -1028,6 +1028,39 @@ describe("the London review PR script", () => {
     expect(new Set(branches).size).toBe(2);
   });
 
+  function writeTonight(work: string) {
+    mkdirSync(join(work, "public/data/drink_price_updates"), { recursive: true });
+    writeFileSync(join(work, "public/data/drink_price_updates/latest.json"), "{}\n");
+    mkdirSync(join(work, "data/enrichment/tavily/london"), { recursive: true });
+    writeFileSync(join(work, "data/enrichment/tavily/london/run_20261006.json"), "{}\n");
+  }
+
+  const failingGh = (bin: string, message: string) => {
+    writeFileSync(join(bin, "gh"), `#!/bin/sh\necho "${message}" >&2\nexit 1\n`);
+    chmodSync(join(bin, "gh"), 0o755);
+  };
+
+  it("hands the pushed branch to a human when Actions may not open PRs", () => {
+    const { work, bin } = repo();
+    writeTonight(work);
+    failingGh(bin, "pull request create failed: GraphQL: GitHub Actions is not permitted to create or approve pull requests (createPullRequest)");
+
+    const out = runScript(work, bin);
+
+    expect(out).toMatch(/^::warning::.*\/tree\/tavily-london\/\d{8}-\d{6}; open its PR by hand\.$/m);
+    expect(remoteHeads(work).map(([, ref]) => ref)).toEqual(
+      expect.arrayContaining([expect.stringMatching(/^refs\/heads\/tavily-london\//)]),
+    );
+  });
+
+  it("still fails on any other gh error", () => {
+    const { work, bin } = repo();
+    writeTonight(work);
+    failingGh(bin, "gh: not authenticated");
+
+    expect(() => runScript(work, bin)).toThrow(/not authenticated/);
+  });
+
   it("pushes nothing when the pass wrote nothing", () => {
     const { work, mainBefore, bin } = repo();
 
