@@ -100,7 +100,7 @@ describe("landing price honesty", () => {
     const directory = rendered.querySelector("[data-uk-coverage]")?.textContent;
     expect(directory).toContain("6 UK pub listings and 3 bar listings from OpenStreetMap.");
     expect(directory).toContain("A listing doesn't mean we have its prices or know it's open.");
-    expect(rendered.body.textContent).toContain("42 priced London pubs is £6.00");
+    expect(rendered.body.textContent).toContain("42 pubs in our London pub list with a listed price is £6.00");
     expect(rendered.body.textContent).toContain("The cheapest third averages £5.00");
   });
 

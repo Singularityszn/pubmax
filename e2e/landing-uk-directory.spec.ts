@@ -193,9 +193,9 @@ test.describe("clicked UK directory arrivals", () => {
 
         // The UK catalogue cannot replace the smaller priced London cohort.
         const londonSample = page.locator(".lpWorth .lpSavingSummary")
-          .filter({ hasText: /priced London pubs/ });
+          .filter({ hasText: /pubs in our London pub list with a listed price/ });
         await expect(londonSample).toHaveCount(1);
-        await expect(londonSample).toContainText(/cheapest listed pint across [\d,]+ priced London pubs/);
+        await expect(londonSample).toContainText(/cheapest listed pint across [\d,]+ pubs in our London pub list with a listed price/);
 
         const entry = page.getByRole("link", { name: "Browse pubs across the UK", exact: true });
         await expect(entry).toHaveAttribute("href", "/map?uk=1");
