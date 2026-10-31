@@ -1,7 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { createPortal } from "react-dom";
+
+import { useAuth } from "@/components/auth/authContext";
+import { useSpringValue } from "@/lib/useSpringValue";
 
 import Kicker from "@/components/ui/kicker";
 import SurfaceNav from "@/components/ui/surface-nav";
@@ -22,6 +26,52 @@ import type { MapSheetDetent, MapSheetKind } from "@/lib/mobileShell";
 // test read its stacking as NaN (#1490). Next dedupes a global stylesheet by
 // module, so the shell's own import of the same file costs nothing twice.
 import "@/components/mobile/mobileMapShell.css";
+
+// Logical ownership and the retained exit presentation have separate lifetimes.
+function useSheetExit({ kind, title, kicker, children, sheetRef, sheetHeight, cancelDismiss }: {
+  kind: MapSheetKind | null;
+  title: string;
+  kicker: string | undefined;
+  children: React.ReactNode;
+  sheetRef: React.RefObject<HTMLElement | null>;
+  sheetHeight: number;
+  cancelDismiss: () => void;
+}) {
+  const pathname = usePathname();
+  const { user, accountRevision } = useAuth();
+  const owner = `${pathname ?? ""}:${user?.id ?? "signed-out"}:${accountRevision}`;
+  type Exit = {
+    owner: string;
+    kind: MapSheetKind;
+    title: string;
+    kicker: string | undefined;
+    children: React.ReactNode;
+  };
+  const [exit, setExit] = useState<Exit | null>(null);
+  const { value: exitHeight, stop, jumpTo, animateTo } = useSpringValue(0, { response: 0.34, dampingRatio: 1 });
+  const visibleExit = !kind && exit?.owner === owner ? exit : null;
+  // A new logical surface or identity never inherits the old presentation.
+  useEffect(() => {
+    if (!exit || (!kind && exit.owner === owner)) return;
+    stop();
+    queueMicrotask(() => setExit((current) => current === exit ? null : current));
+  }, [exit, kind, owner, stop]);
+  const closeExplicitly = useCallback((destination: () => void) => {
+    if (!kind || exit) return;
+    cancelDismiss();
+    const presentation: Exit = { owner, kind, title, kicker, children };
+    const height = sheetRef.current?.getBoundingClientRect().height ?? sheetHeight;
+    setExit(presentation);
+    jumpTo(height);
+    // Logical closure releases focus/inert ownership in this input action.
+    // The independent spring may only remove its own presentation afterwards.
+    destination();
+    animateTo(0, {
+      onRest: () => setExit((current) => current === presentation ? null : current),
+    });
+  }, [cancelDismiss, children, exit, animateTo, jumpTo, kind, kicker, owner, sheetHeight, sheetRef, title]);
+  return { visibleExit, exitHeight, closeExplicitly };
+}
 
 /**
  * The mobile bottom sheet, rebuilt as a bottom-anchored flex column:
@@ -89,7 +139,6 @@ export default function MobileSharedSheet({
   const initialSnapRequestRef = useRef<MapSheetDetent | null>(null);
   const onDismissRef = useRef(onDismiss);
   const onCloseRef = useRef(onClose);
-  const dismissToRef = useRef<(() => void) | null>(null);
   useEffect(() => {
     onDismissRef.current = onDismiss;
     onCloseRef.current = onClose;
@@ -99,9 +148,7 @@ export default function MobileSharedSheet({
     onInterruptRevealRef.current = onInterruptReveal;
   }, [onInterruptReveal]);
   const finishDismiss = useCallback(() => {
-    const dismissTo = dismissToRef.current ?? onDismissRef.current;
-    dismissToRef.current = null;
-    dismissTo();
+    onDismissRef.current();
   }, []);
 
   const {
@@ -109,7 +156,7 @@ export default function MobileSharedSheet({
     setSheetSnap,
     settleToRest,
     openAtSnap,
-    requestDismiss,
+    cancelDismiss,
     recapToViewport,
     sheetHeight,
     entering,
@@ -119,6 +166,9 @@ export default function MobileSharedSheet({
     onSheetDragMove,
     onSheetDragEnd,
   } = useSheetHeightDrag(finishDismiss);
+  const { visibleExit, exitHeight, closeExplicitly } = useSheetExit({
+    kind, title, kicker, children, sheetRef, sheetHeight, cancelDismiss,
+  });
   const interruptAndSettle = useCallback(() => {
     onInterruptRevealRef.current?.();
     settleToRest();
@@ -136,13 +186,12 @@ export default function MobileSharedSheet({
     settleToRest(requestedSnap ?? "half");
   }, [requestedSnap, settleToRest, venueRevealSettleSequence]);
   const requestClose = useCallback(() => {
-    requestDismiss(sheetRef.current?.getBoundingClientRect().height);
-  }, [requestDismiss]);
-  // Home leaves from any depth: it closes to the map, never one step back.
+    closeExplicitly(onDismissRef.current);
+  }, [closeExplicitly]);
+  // Home leaves from any depth, without waiting for the presentation to rest.
   const requestHome = useCallback(() => {
-    dismissToRef.current = () => onCloseRef.current();
-    requestClose();
-  }, [requestClose]);
+    closeExplicitly(onCloseRef.current);
+  }, [closeExplicitly]);
   // Escape steps back one level when there is a level to step back to, and
   // leaves for the map otherwise. It is the keyboard's Back, so it may not do
   // something the Back arrow beside it does not.
@@ -150,11 +199,13 @@ export default function MobileSharedSheet({
   useEffect(() => {
     onBackRef.current = onBack;
   }, [onBack]);
+  const requestCloseRef = useRef(requestClose);
+  useEffect(() => { requestCloseRef.current = requestClose; }, [requestClose]);
   const requestEscape = useCallback(() => {
     const stepBack = onBackRef.current;
     if (stepBack) stepBack();
-    else requestClose();
-  }, [requestClose]);
+    else requestCloseRef.current();
+  }, []);
 
   // On open: capture focus origin, reset to the requested opening snap, move
   // focus into the sheet, and wire Escape-to-close.
@@ -196,6 +247,8 @@ export default function MobileSharedSheet({
     const sheet = sheetRef.current;
     if (!kind || !sheet || typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(recapToViewport);
+    const portal = sheet.closest(".mobileSheetPortal");
+    if (portal) observer.observe(portal);
     for (const part of sheet.querySelectorAll(":scope > .mobileSharedSheetHeader, :scope > .mobileSharedSheetFooter")) {
       observer.observe(part);
     }
@@ -231,7 +284,8 @@ export default function MobileSharedSheet({
     previousFocus,
   );
 
-  if (!kind || typeof document === "undefined") return null;
+  const presented = kind ? { kind, title, kicker, children } : visibleExit;
+  if (!presented || typeof document === "undefined") return null;
   // At the first level Home IS this sheet's close, so it keeps the sheet's own
   // name. Deeper down that name would be a lie: the control leaves every open
   // sheet, not this one, so it says where the reader lands instead.
@@ -245,17 +299,20 @@ export default function MobileSharedSheet({
           : `Close ${title}`);
 
   const sectionStyle: React.CSSProperties = {
-    maxHeight: `${Math.max(0, sheetHeight)}px`,
+    maxHeight: `${Math.max(0, visibleExit ? exitHeight : sheetHeight)}px`,
     // Phone snaps change real geometry so the footer stays at the visible
     // bottom at peek, half, and full. Fence that layout work to this sheet and
     // drop compositor hints as soon as the spring rests.
-    willChange: dragging || settling ? "max-height" : "auto",
+    willChange: dragging || settling || visibleExit ? "max-height" : "auto",
   };
 
   return createPortal(
     <div
       className="mobileSheetPortal"
-      data-sheet-kind={kind}
+      data-sheet-kind={presented.kind}
+      data-sheet-exiting={visibleExit ? "true" : undefined}
+      inert={visibleExit ? true : undefined}
+      aria-hidden={visibleExit ? true : undefined}
       /* How deep the reader is. Present so a browser test can assert the trail
          rather than infer it from which glyph happens to be drawn. */
       data-surface-back={backLabel ?? ""}
@@ -265,14 +322,14 @@ export default function MobileSharedSheet({
         type="button"
         tabIndex={-1}
         onClick={requestClose}
-        aria-label={`Dismiss ${title} backdrop`}
+        aria-label={`Dismiss ${presented.title} backdrop`}
       />
       <section
         ref={sheetRef}
         data-sheet-motion={
           dragging ? "dragging" : settling ? "settling" : entering ? "entering" : "idle"
         }
-        className={`mapDrawer mobileSharedSheet ${kind === "venue" ? "right" : kind === "planner" ? "left" : "contextual"} open sheet-${sheetSnap}${dragging ? " sheet-dragging" : ""}${settling ? " sheet-settling" : ""}${entering ? " sheet-entering" : ""}`}
+        className={`mapDrawer mobileSharedSheet ${presented.kind === "venue" ? "right" : presented.kind === "planner" ? "left" : "contextual"} open sheet-${sheetSnap}${dragging ? " sheet-dragging" : ""}${settling ? " sheet-settling" : ""}${entering ? " sheet-entering" : ""}`}
         role={sheetModal ? "dialog" : undefined}
         // Primary navigation stays reachable outside this map surface. A
         // strict modal elsewhere owns aria-modal and withdraws those tabs.
@@ -308,13 +365,13 @@ export default function MobileSharedSheet({
               sit empty while the trailing one held the only way out. SurfaceNav
               fills both: Back on the left when a sheet opened over another
               sheet, Home on the right always. */}
-          {kicker ? (
+          {presented.kicker ? (
             <div className="mobileSharedSheetHeading">
-              <Kicker>{kicker}</Kicker>
-              <h2 id={titleId}>{title}</h2>
+              <Kicker>{presented.kicker}</Kicker>
+              <h2 id={titleId}>{presented.title}</h2>
             </div>
           ) : (
-            <h2 id={titleId}>{title}</h2>
+            <h2 id={titleId}>{presented.title}</h2>
           )}
           {/* No `closeRef` here on purpose. SurfaceNav is borderless and quiet
               already, so the de-box intent survives inside it, and the sheet
@@ -324,7 +381,7 @@ export default function MobileSharedSheet({
           <SurfaceNav backLabel={backLabel} onBack={onBack} homeLabel={closeButtonLabel} onHome={requestHome} />
         </header>
         <div className="mobileSharedSheetBody">
-          <SheetFooterContext.Provider value={footerEl}>{children}</SheetFooterContext.Provider>
+          <SheetFooterContext.Provider value={footerEl}>{presented.children}</SheetFooterContext.Provider>
         </div>
         {/* Footer slot: the venue command bar portals in here (SheetFooterContext)
             so it is a real flex child BELOW the scroll body — always visible, in

@@ -201,13 +201,54 @@ describe("the Pal's own door", () => {
 });
 
 describe("the phone dock", () => {
-  it("puts the Pal between Tonight and Plan, and keeps the five destinations", async () => {
+  it("puts the Pal between Tonight and Plan, and keeps the six destinations", async () => {
     await render(createElement(MobileTabBar));
     const links = [...host.querySelectorAll<HTMLAnchorElement>("nav[aria-label='Primary'] a")];
-    expect(links.map((link) => link.textContent)).toEqual(["Map", "Tonight", "Pal", "Plan", "Social", "You"]);
-    expect(host.querySelectorAll(".mobileTab")).toHaveLength(5);
+    expect(links.map((link) => link.textContent)).toEqual(["Map", "Tonight", "Pal", "Plan", "Spoons", "Social", "You"]);
+    expect(host.querySelectorAll(".mobileTab")).toHaveLength(6);
     const list = host.querySelector<HTMLElement>(".mobileTabList")!;
-    expect(list.style.getPropertyValue("--tab-count")).toBe("6");
+    expect(list.style.getPropertyValue("--tab-count")).toBe("7");
+  });
+
+  it.each(["normal", "large", "native-large"] as const)("reserves the measured dock height and clears it in %s mode", async (mode) => {
+    if (mode !== "normal") document.documentElement.setAttribute("data-text-scale", "large");
+    if (mode === "native-large") document.documentElement.setAttribute("data-native-shell", "ios");
+    let height = 52;
+    let resized = () => {};
+    const disconnect = vi.fn();
+    vi.stubGlobal("ResizeObserver", class {
+      constructor(callback: ResizeObserverCallback) {
+        resized = () => callback([], {} as ResizeObserver);
+      }
+      observe() {}
+      disconnect = disconnect;
+    });
+    const original = HTMLElement.prototype.getBoundingClientRect;
+    const rectangles = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+      return this.classList.contains("mobileTabList") ? new DOMRect(0, 0, 305, height) : original.call(this);
+    });
+    try {
+      await render(createElement(MobileTabBar));
+      const reserve = () => document.documentElement.style.getPropertyValue("--tabbar-measured-h");
+      expect(reserve()).toBe("58px");
+      height = 140;
+      act(resized);
+      expect(reserve()).toBe("146px");
+      height = 0;
+      act(resized);
+      expect(reserve()).toBe("");
+      height = 52;
+      act(resized);
+      act(() => root?.unmount());
+      root = null;
+      expect(reserve()).toBe("");
+      expect(disconnect).toHaveBeenCalledOnce();
+    } finally {
+      rectangles.mockRestore();
+      vi.unstubAllGlobals();
+      document.documentElement.removeAttribute("data-text-scale");
+      document.documentElement.removeAttribute("data-native-shell");
+    }
   });
 
   it("slides the well to each tab's own column and skips the Pal's", () => {

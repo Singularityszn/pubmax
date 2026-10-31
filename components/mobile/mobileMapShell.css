@@ -290,7 +290,7 @@
 
   /* Portal sheets sit outside .appShell. Hide map-owned controls while one is
      open so the compass cannot paint over or intercept sheet content. */
-  body:has(.mobileSheetPortal) .appShell .mapStage .mapCameraControls {
+  body:has(.mobileSheetPortal:not([data-sheet-exiting="true"])) .appShell .mapStage .mapCameraControls {
     visibility: hidden;
     pointer-events: none;
   }
@@ -959,7 +959,7 @@
      the shell does not know about). */
   .mapPeek[data-covered="true"],
   body:has(.appShell.detail-open) .mapPeek,
-  body:has(.mobileSheetPortal) .mapPeek {
+  body:has(.mobileSheetPortal:not([data-sheet-exiting="true"])) .mapPeek {
     visibility: hidden;
   }
   /* The analytics disclosure takes the door's slot on the dock, and the card
@@ -1482,4 +1482,10 @@
 .mobileMapFilterToggle small {
   opacity: 0.78;
   line-height: 1.35;
+}
+
+/* An exit is presentation only. Logical Close already released the live page. */
+.mobileSheetPortal[data-sheet-exiting="true"],
+.mobileSheetPortal[data-sheet-exiting="true"] * {
+  pointer-events: none;
 }

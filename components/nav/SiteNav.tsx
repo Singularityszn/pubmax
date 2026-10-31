@@ -4,7 +4,7 @@ import type { Route } from "next";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CirclePlus } from "lucide-react";
-import { useSyncExternalStore } from "react";
+import { useLayoutEffect, useRef, useSyncExternalStore } from "react";
 
 import { useNowHref } from "@/lib/useNowHref";
 import { useClientReady } from "@/lib/useClientReady";
@@ -62,6 +62,7 @@ type NavKey =
   | "drop"
   | "out"
   | "plan"
+  | "spoons"
   | "tonight"
   | "historic"
   | "feed"
@@ -177,6 +178,7 @@ export default function SiteNav({
 }: {
   active?: NavKey;
 }): React.JSX.Element {
+  const floatingNavRef = useRef<HTMLElement>(null);
   const pathname = usePathname() ?? "";
   const primaryActive = primaryKeyForLegacyActive(active);
   const socialSurfaceLabel = useSocialSurfaceName();
@@ -195,6 +197,26 @@ export default function SiteNav({
   const isMap =
     active === "map" || pathname === "/map" || pathname.startsWith("/map/");
 
+  useLayoutEffect(() => {
+    if (!isMap) return;
+    const node = floatingNavRef.current;
+    const shell = node?.closest<HTMLElement>(".appShell");
+    if (!node || !shell) return;
+    const property = "--site-nav-floating-height";
+    let published = "";
+    const sync = () => {
+      published = `${Math.ceil(node.getBoundingClientRect().height)}px`;
+      shell.style.setProperty(property, published);
+    };
+    sync();
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(sync);
+    observer?.observe(node);
+    return () => {
+      observer?.disconnect();
+      if (shell.style.getPropertyValue(property) === published) shell.style.removeProperty(property);
+    };
+  }, [isMap]);
+
   // Active state is the filled pill only (.siteNavLink.isActive) — same single
   // signal as the mobile tab bar. The gliding brass underline was removed so
   // desktop does not double-encode "here".
@@ -204,6 +226,7 @@ export default function SiteNav({
 
   return (
     <nav
+      ref={floatingNavRef}
       {...(isMap ? { [FOCUS_TRAP_EXEMPT_ATTRIBUTE]: "" } : {})}
       className={isMap ? "siteNavBar siteNavBarFloating" : "siteNavBar"}
       role="navigation"

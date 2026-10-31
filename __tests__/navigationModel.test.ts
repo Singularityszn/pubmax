@@ -13,12 +13,13 @@ import {
 import { socialSurfaceName } from "@/lib/socialLaunch";
 
 describe("PUBMAXX primary navigation", () => {
-  it("keeps five destinations on the loop and models Moment separately", () => {
+  it("keeps six destinations on the loop and models Moment separately", () => {
     // Captain, 16 Oct 2026: Social is a main tab, between Plan and You.
     expect(PRIMARY_NAV_ITEMS.map(({ label }) => label)).toEqual([
       "Map",
       "Tonight",
       "Plan",
+      "Spoons",
       "Social",
       "You",
     ]);
@@ -36,6 +37,7 @@ describe("PUBMAXX primary navigation", () => {
       "/map",
       "/tonight",
       "/plan",
+      "/spoons-value",
       "/social",
       "/u/you",
     ]);
