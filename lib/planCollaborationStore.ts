@@ -12,6 +12,7 @@ import { EMPTY_VIBE_TALLY, tallyVibeVotes, type VibeTally } from "@/lib/vibeTall
 import { inviteExpiresAtIso, isPastPlanScheduledEnd } from "@/lib/inviteExpiry";
 import { isPlanStopCount } from "@/lib/planStopCount";
 import { cleanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+import { checkProposalGrounding, type ProposalGrounding } from "@/lib/proposalGrounding.server";
 import { resolvePlanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence.server";
 
 export type PlanInvite = {
@@ -72,7 +73,10 @@ export type PlanRouteProposal = {
   status: "pending" | "accepted" | "rejected";
   createdAt: string;
   decidedAt: string | null;
+  grounded?: boolean;
 };
+
+type StoredPlanRouteProposal = PlanRouteProposal & { grounding?: ProposalGrounding | null };
 
 export type PlanCollaborationError = "invalid" | "not_found" | "forbidden" | "expired" | "revoked" | "replayed" | "conflict" | "account_conflict" | "constraints_unresolved" | "error";
 type Failure = { ok: false; error: PlanCollaborationError };
@@ -89,7 +93,7 @@ async function legacyPlanBoundary(planId: string): Promise<Failure | null> {
 type CollaborationMemory = {
   invites: Map<string, StoredInvite>;
   constraints: Map<string, PlanConstraint>;
-  proposals: Map<string, PlanRouteProposal>;
+  proposals: Map<string, StoredPlanRouteProposal>;
   votes: Map<string, PlanVote>;
   // Keyed `${planId}:${memberId}` so a revote overwrites the member's row.
   vibeVotes: Map<string, PlanVibeVote>;
@@ -130,9 +134,11 @@ function publicInvite(invite: StoredInvite): PlanInvite {
   return { ...value };
 }
 
-function cloneProposal(proposal: PlanRouteProposal): PlanRouteProposal {
+function cloneProposal(proposal: StoredPlanRouteProposal): PlanRouteProposal {
+  const { grounding: _grounding, ...publicProposal } = proposal;
+  void _grounding;
   return {
-    ...proposal,
+    ...publicProposal,
     stops: proposal.stops.map((stop) => ({ ...stop })),
     resolvedConstraintIds: [...proposal.resolvedConstraintIds],
     unresolvedConstraintIds: [...proposal.unresolvedConstraintIds],
@@ -209,6 +215,7 @@ function proposalFromRow(row: Record<string, unknown>): PlanRouteProposal {
     }),
     reason: String(row.reason), resolvedConstraintIds: strings(row.resolved_constraint_ids), unresolvedConstraintIds: strings(row.unresolved_constraint_ids),
     status: row.status as PlanRouteProposal["status"], createdAt: String(row.created_at), decidedAt: typeof row.decided_at === "string" ? row.decided_at : null,
+    ...(row.grounding_proof ? { grounded: true } : {}),
   };
 }
 
@@ -255,7 +262,7 @@ export type PlanCollaborationStore = {
   upgradeMemberInvite(planId: string, memberToken: unknown, inviteToken: unknown, now?: Date): Promise<{ ok: true; collaborationAuthorized: true; inviteId: string | null } | Failure>;
   addConstraint(planId: string, token: unknown, input: { kind: PlanConstraintKind; value: string; priority: PlanConstraint["priority"]; idempotencyKey: string; now?: Date }): Promise<{ ok: true; constraint: PlanConstraint } | Failure>;
   resolveConstraint(planId: string, token: unknown, constraintId: string, input: { evidence: PlanConstraintEvidence; idempotencyKey: string; now?: Date }): Promise<{ ok: true; constraint: PlanConstraint } | Failure>;
-  createProposal(planId: string, token: unknown, input: { reason: string; expectedRouteRevision: number; stops: PlanStopDTO[]; resolvedConstraintIds: string[]; idempotencyKey: string; now?: Date }): Promise<{ ok: true; proposal: PlanRouteProposal } | Failure>;
+  createProposal(planId: string, token: unknown, input: { reason: string; expectedRouteRevision: number; stops: PlanStopDTO[]; resolvedConstraintIds: string[]; groundingProof?: unknown; operationKey?: unknown; idempotencyKey: string; now?: Date }): Promise<{ ok: true; proposal: PlanRouteProposal } | Failure>;
   vote(planId: string, token: unknown, proposalId: string, value: PlanVote["value"], key: string, now?: Date): Promise<{ ok: true; vote: PlanVote } | Failure>;
   // Vibe votes (share-loop tally). recordVibeVote is member-capability bound and
   // upserts (revote replaces); vibeTally is a tokenless aggregate read for the
@@ -471,14 +478,18 @@ const memoryStore: PlanCollaborationStore = {
     const planLookup = await planStateResult(planId);
     if (!planLookup.ok) return { ok: false, error: "error" };
     if (!planLookup.plan) return { ok: false, error: "not_found" };
-    if (planLookup.plan.plan.anchorVenueId) return { ok: false, error: "forbidden" };
+    if (Number(planLookup.plan.plan.routeRevision ?? 1) !== input.expectedRouteRevision) return { ok: false, error: "conflict" };
+    if (["completed", "abandoned"].includes(planLookup.plan.plan.status ?? "draft")) return { ok: false, error: "invalid" };
+    const checked = checkProposalGrounding(planLookup.plan, input.stops, input.groundingProof, input.operationKey, (input.now ?? new Date()).getTime());
+    if (!checked.ok) return checked;
     const idem = idempotencyKey(planId, identity.memberId, "proposal:create", input.idempotencyKey);
     const replay = memory.idempotency.get(idem) as { ok: true; proposal: PlanRouteProposal } | undefined;
     if (replay) return structuredClone(replay);
     const activeConstraints = [...memory.constraints.values()].filter((constraint) => constraint.planId === planId);
     const resolved: string[] = [];
     const pricedStops = await resolvePlanSelectedDrinkPriceEvidence(input.stops, input.stops, planLookup.plan.context);
-    const proposal: PlanRouteProposal = {
+    const proposal: StoredPlanRouteProposal = {
+      ...(checked.grounding ? { grounding: checked.grounding, grounded: true } : {}),
       id: randomUUID(), planId, proposedByMemberId: identity.memberId,
       expectedRouteRevision: input.expectedRouteRevision,
       stops: pricedStops.map((stop, position) => ({ ...stop, position })), reason,
@@ -543,7 +554,6 @@ const memoryStore: PlanCollaborationStore = {
       const planLookup = await planStateResult(planId);
       if (!planLookup.ok) return { ok: false, error: "error" };
       if (!planLookup.plan) return { ok: false, error: "not_found" };
-      if (planLookup.plan.plan.anchorVenueId) return { ok: false, error: "forbidden" };
     }
     const idem = idempotencyKey(planId, identity.memberId, "proposal:decision", key);
     const replay = memory.idempotency.get(idem) as { ok: true; proposal: PlanRouteProposal } | undefined;
@@ -554,6 +564,14 @@ const memoryStore: PlanCollaborationStore = {
     const currentRequired = [...memory.constraints.values()].filter((constraint) => constraint.planId === planId && constraint.priority === "required");
     proposal.unresolvedConstraintIds = currentRequired.filter((constraint) => !evidenceCoversProposal(constraint, proposal)).map((constraint) => constraint.id);
     if (decision === "accepted" && proposal.unresolvedConstraintIds.length > 0) return { ok: false, error: "constraints_unresolved" };
+    if (decision === "accepted") {
+      const current = await planStateResult(planId);
+      if (!current.ok) return { ok: false, error: "error" };
+      if (!current.plan) return { ok: false, error: "not_found" };
+      if (Number(current.plan.plan.routeRevision ?? 1) !== proposal.expectedRouteRevision) return { ok: false, error: "conflict" };
+      const checked = checkProposalGrounding(current.plan, proposal.stops, proposal.grounding?.proof, proposal.grounding?.operationKey, now.getTime());
+      if (!checked.ok) return checked;
+    }
     if (decision === "accepted" && !(await apply(cloneProposal(proposal)))) return { ok: false, error: "conflict" };
     proposal.status = decision;
     proposal.decidedAt = now.toISOString();
@@ -773,7 +791,10 @@ const supabaseStore: PlanCollaborationStore = {
     const planLookup = await planStateResult(planId);
     if (!planLookup.ok) return { ok: false, error: "error" };
     if (!planLookup.plan) return { ok: false, error: "not_found" };
-    if (planLookup.plan.plan.anchorVenueId) return { ok: false, error: "forbidden" };
+    if (Number(planLookup.plan.plan.routeRevision ?? 1) !== input.expectedRouteRevision) return { ok: false, error: "conflict" };
+    if (["completed", "abandoned"].includes(planLookup.plan.plan.status ?? "draft")) return { ok: false, error: "invalid" };
+    const checked = checkProposalGrounding(planLookup.plan, input.stops, input.groundingProof, input.operationKey, (input.now ?? new Date()).getTime());
+    if (!checked.ok) return checked;
     const admin = requireSupabaseAdmin();
     const key = input.idempotencyKey.trim();
     const constraints = await admin.from(CONSTRAINTS).select("id,priority,resolved_at").eq("plan_id", planId);
@@ -782,7 +803,7 @@ const supabaseStore: PlanCollaborationStore = {
     const resolved: string[] = [];
     const unresolved = rows.filter((item) => item.priority === "required" && !resolved.includes(String(item.id))).map((item) => String(item.id));
     const pricedStops = await resolvePlanSelectedDrinkPriceEvidence(input.stops, input.stops, planLookup.plan.context);
-    const { data, error } = await admin.rpc("create_plan_route_proposal_atomic", {
+    const proposalArgs = {
       p_plan_id: planId,
       p_proposal_id: randomUUID(),
       p_proposed_by_member_id: identity.memberId,
@@ -793,10 +814,21 @@ const supabaseStore: PlanCollaborationStore = {
       p_unresolved_constraint_ids: unresolved,
       p_idempotency_key: key,
       p_created_at: (input.now ?? new Date()).toISOString(),
-    });
+    };
+    const { data, error } = checked.grounding
+      ? await admin.rpc("create_plan_grounded_proposal_atomic", {
+        ...proposalArgs,
+        p_grounding_proof: checked.grounding.proof,
+        p_grounding_operation_key: checked.grounding.operationKey,
+        p_grounding_expires_at: checked.grounding.expiresAt,
+        p_grounding_anchor_venue_id: checked.grounding.anchorVenueId,
+        p_grounding_anchor_source: checked.grounding.anchorSource,
+      })
+      : await admin.rpc("create_plan_route_proposal_atomic", proposalArgs);
     if (error) return { ok: false, error: "error" };
     const result = atomicRow(data);
     if (result?.code === "not_found") return { ok: false, error: "not_found" };
+    if (result?.code === "conflict") return { ok: false, error: "conflict" };
     return result?.row
       ? { ok: true, proposal: proposalFromRow(result.row) }
       : { ok: false, error: "error" };
@@ -850,9 +882,22 @@ const supabaseStore: PlanCollaborationStore = {
       const planLookup = await planStateResult(planId);
       if (!planLookup.ok) return { ok: false, error: "error" };
       if (!planLookup.plan) return { ok: false, error: "not_found" };
-      if (planLookup.plan.plan.anchorVenueId) return { ok: false, error: "forbidden" };
     }
     const admin = requireSupabaseAdmin();
+    if (decision === "accepted") {
+      const stored = await admin.from(PROPOSALS).select("*").eq("id", proposalId).eq("plan_id", planId).maybeSingle();
+      if (stored.error) return { ok: false, error: "error" };
+      if (!stored.data) return { ok: false, error: "not_found" };
+      const row = stored.data as Record<string, unknown>;
+      // A completed idempotent decision needs no still-live generation proof.
+      if (row.status === "pending") {
+        const current = await planStateResult(planId);
+        if (!current.ok) return { ok: false, error: "error" };
+        if (!current.plan) return { ok: false, error: "not_found" };
+        const checked = checkProposalGrounding(current.plan, proposalFromRow(row).stops, row.grounding_proof, row.grounding_operation_key, now.getTime());
+        if (!checked.ok) return checked;
+      }
+    }
     const { data, error } = await admin.rpc("decide_plan_route_proposal_atomic", {
       p_plan_id: planId,
       p_proposal_id: proposalId,
@@ -866,6 +911,8 @@ const supabaseStore: PlanCollaborationStore = {
     if (data === "forbidden") return { ok: false, error: "forbidden" };
     if (data === "not_found") return { ok: false, error: "not_found" };
     if (data === "constraints_unresolved") return { ok: false, error: "constraints_unresolved" };
+    if (data === "expired") return { ok: false, error: "expired" };
+    if (data === "invalid") return { ok: false, error: "invalid" };
     if (data !== "decided" && data !== "already_decided") return { ok: false, error: "conflict" };
     const updated = await admin.from(PROPOSALS).select("*").eq("id", proposalId).eq("plan_id", planId).maybeSingle();
     return !updated.error && updated.data ? { ok: true, proposal: proposalFromRow(updated.data as Record<string, unknown>) } : { ok: false, error: "error" };
