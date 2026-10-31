@@ -290,6 +290,10 @@ export default function HistoricPageClient({
                   ) : <span />}
                 </nav>
               ) : null}
+              <p className="historicTimeMachine">
+                <Link href="/time-machine">Pint price time machine</Link>: what a pint cost at London
+                pubs in past years, from dated reviews.
+              </p>
             </div>
             <HistoricPane summary={summary} borough={filters.borough} />
           </div>

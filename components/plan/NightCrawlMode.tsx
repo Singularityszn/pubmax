@@ -435,7 +435,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
           <p className="nightCrawl__enterKicker">It&rsquo;s on tonight</p>
           <p className="nightCrawl__enterLede">{canUpdatePlan
             ? "Big buttons, one thumb. Track the crawl and check in as you go."
-            : "Follow the route and crew. The host or invited collaborators update the stops."}</p>
+            : "Follow the route and crew. Join from your host’s invite link to check in as you go."}</p>
         </div>
         <button type="button" className="nightCrawl__enterBtn" onClick={engage}>
           Night mode
@@ -539,7 +539,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
                     <small>{finalStop ? "wrap the crawl" : "jump to the next"}</small>
                   </button>
                 </div> : <p className="nightCrawl__note" data-tone="guidance">
-                  Follow the route here. The host or invited collaborators can check in and skip stops.
+                  Follow the route here. Join the crew from your host&rsquo;s invite link to check in and skip stops.
                 </p>}
 
                 {note ? (

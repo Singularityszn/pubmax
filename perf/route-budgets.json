@@ -356,6 +356,15 @@
       "lcpMs": 400
     },
     {
+      "path": "/time-machine",
+      "readySelector": "main.timeMachinePage",
+      "why": "The pint price time machine (launch review F1): the /historic listing shell plus its own small MapLibre map, which loads after the slider and the list, so the engine starts past the counting boundary and is not in these figures. Measured 30 October 2026 keyless in a Linux container on a production build of this branch at b67983ad, through e2e/performance-budget.spec.ts under this file's method (Chromium 153 build 1243 standing in for CI's 1248; other agents' builds shared the box), three samples after one warm-up: server render 32/33/36 ms, 788 KB decoded JS and 35 requests on every sample, LCP 456/484/464 ms. Ceilings use this file's margins: bytes and requests p75 plus 15 percent, rounded up, server render the 150 ms floor, LCP the worst sample plus 25 percent. They replace the unmeasured seed of 30 October (2,600 KB, 50 requests, 800 ms LCP). The macOS CI sweep is the oracle and these come down to its figure at the next one.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 907,
+      "requests": 41,
+      "lcpMs": 605
+    },
+    {
       "path": "/pint-index",
       "readySelector": "main.pintIndexPage",
       "why": "The live Pint Index: the page every trust claim and every citation points at.",
@@ -377,6 +386,15 @@
       "path": "/contributors",
       "readySelector": "main.contributorMain",
       "why": "The contributor leaderboard.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 960,
+      "requests": 43,
+      "lcpMs": 400
+    },
+    {
+      "path": "/dog-of-the-week",
+      "readySelector": "main.dogOfTheWeekMain",
+      "why": "Dog of the week, the photo wall's newest approved Dog photo, a page people are sent to. Added 30 October 2026 before any sweep had measured it: the ceilings are the /contributors row's, the nearest page in shape (a request-time store read under SiteNav and one Screen). Measured above the seed on 30 October 2026: LCP 452/376/296/316/328 ms (median 328, worst 452 against the 400 ms ceiling); ceiling held, cause to be found. Measured 30 October 2026 keyless in a Linux container on a production build of this branch at b67983ad, through e2e/performance-budget.spec.ts under this file's method (Chromium 153 build 1243 standing in for CI's 1248; other agents' builds shared the box), so the page measured is the keyless empty state. The median of the first three LCP samples (376 ms) sat within 10 percent of the ceiling, so the run took its two resamples, five samples after one warm-up; the 156 ms span of those three sat under the 250 ms LCP spread floor, so the spread rule did not fire: server render 26/35/27/20/29 ms, 776 KB decoded JS and 32 requests on every sample. This file's margin (worst LCP sample plus 25 percent, 565 ms) would raise the LCP ceiling, so the whole row stays at its seed; /contributors read LCP 348 to 564 ms on the same box against the same 400 ms. The macOS CI sweep is the oracle and decides this row at the next one.",
       "serverRenderMs": 150,
       "jsDecodedKB": 960,
       "requests": 43,
@@ -588,6 +606,15 @@
       "jsDecodedKB": 900,
       "requests": 37,
       "lcpMs": 500
+    },
+    {
+      "path": "/board/venue-eltcmh",
+      "readySelector": "main.boardPage",
+      "why": "The board reader for one pub (review item A4): photograph a price board, check the lines the Pal proposes, and log each one through the community price write. It is NOT sitemap-listed, being a private tool behind sign-in, and it is budgeted anyway because the venue sheet links every pub to it. The Blackfriar is the instance because it is the ledger row's own anchor pub. Measured 30 October 2026 keyless in a Linux container on a production build of this branch at b67983ad, through e2e/performance-budget.spec.ts under this file's method (Chromium 153 build 1243 standing in for CI's 1248; other agents' builds shared the box), so the page measured is the reader's keyless state that says it needs its key. Three samples after one warm-up: server render 24/20/38 ms, 833 KB decoded JS and 37 requests on every sample, LCP 420/352/496 ms. Ceilings use this file's margins: bytes and requests p75 plus 15 percent, rounded up, server render the 150 ms floor, LCP the worst sample plus 25 percent. They replace the unmeasured seed of 30 October, in family with /bar-tab/venue-eltcmh (1,070 KB, 54 requests, 850 ms LCP). The macOS CI sweep is the oracle and these come down to its figure at the next one.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 958,
+      "requests": 43,
+      "lcpMs": 620
     }
   ]
 }
