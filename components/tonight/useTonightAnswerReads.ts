@@ -16,7 +16,8 @@
 // React 19: every setState lands in an async resolution, never in the effect
 // body, and an AbortController or a cancelled flag drops a late answer.
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { readProviderAccountRevision, readProviderAccountSignal, subscribeProviderIdentityRevision } from "@/lib/authProviderRevision";
 
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import { authedFetch } from "@/lib/authedFetch";
@@ -158,38 +159,42 @@ export function useRegularNights(enabled: boolean): RegularNightsRead {
  * are dropped again by `parseDrinkerRegularNights`, whatever the route sent.
  */
 export function useDrinkerRegularNights(weekday: number | null): readonly DrinkerRegularNight[] {
-  const [answer, setAnswer] = useState<{ weekday: number; rows: DrinkerRegularNight[] } | null>(null);
-  // A signed-in read carries the session, so the route can mark the reader's
-  // own rows and "Still on" stays off them. It is read again when that changes.
+  const accountRevision = useSyncExternalStore(subscribeProviderIdentityRevision, readProviderAccountRevision, () => 0);
+  const [answer, setAnswer] = useState<{ weekday: number; accountRevision: number; rows: DrinkerRegularNight[] } | null>(null);
   const { signedIn } = useViewerSession();
 
   useEffect(() => {
-    if (weekday === null) return;
+    if (weekday === null || readProviderAccountRevision() !== accountRevision) return;
     const controller = new AbortController();
+    const accountSignal = readProviderAccountSignal();
+    const abort = () => controller.abort();
+    accountSignal.addEventListener("abort", abort, { once: true });
+    const live = () => !controller.signal.aborted && !accountSignal.aborted && readProviderAccountRevision() === accountRevision;
     void authedFetch(
       `/api/regular-nights?weekday=${weekday}`,
       { signal: controller.signal },
       { requiresIdentity: signedIn },
     )
       .then((response) => {
-        if (response.ok) return response.json();
+        if (live() && response.ok) return response.json();
         discardBody(response);
         return null;
       })
       .then(
         (body: unknown) => {
-          if (!controller.signal.aborted) {
-            setAnswer({ weekday, rows: parseDrinkerRegularNights(body, Date.now()) });
-          }
+          if (live()) setAnswer({ weekday, accountRevision, rows: parseDrinkerRegularNights(body, Date.now()) });
         },
         () => {
-          if (!controller.signal.aborted) setAnswer({ weekday, rows: [] });
+          if (live()) setAnswer({ weekday, accountRevision, rows: [] });
         },
       );
-    return () => controller.abort();
-  }, [weekday, signedIn]);
+    return () => {
+      accountSignal.removeEventListener("abort", abort);
+      controller.abort();
+    };
+  }, [weekday, signedIn, accountRevision]);
 
-  return answer && answer.weekday === weekday ? answer.rows : NO_DRINKER_NIGHTS;
+  return answer && answer.weekday === weekday && answer.accountRevision === accountRevision ? answer.rows : NO_DRINKER_NIGHTS;
 }
 
 const NO_DRINKER_NIGHTS: readonly DrinkerRegularNight[] = [];
