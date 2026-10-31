@@ -196,6 +196,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "yearly",
       lastModified: now,
     },
+    // The two pages other sites are asked to link to (docs/growth/
+    // BACKLINK_PLAYBOOK.md): the quotable findings and the free calculator.
+    { path: "/press", priority: 0.5, changeFrequency: "monthly", lastModified: now },
+    { path: "/pub-crawl-cost", priority: 0.5, changeFrequency: "yearly", lastModified: now },
     { path: "/crawls", priority: 0.6, changeFrequency: "weekly", lastModified: now },
     // The city picker. /choose-city held this row until the picker was made
     // one page: it now 308s to /places (proxy.ts), and the canonical moved in

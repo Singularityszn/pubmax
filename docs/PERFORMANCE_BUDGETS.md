@@ -908,6 +908,10 @@ can open: `/borough/westminster` (the heaviest borough, 200 priced pubs on a
 `/area/clapham/drink/guinness`, `/pint-index/2026-06`, plus the two static
 pages that had been missed, `/spoons-value` and `/account/delete`.
 
+`/press` and `/pub-crawl-cost` joined on 30 October 2026 with the backlink
+playbook (`docs/growth/BACKLINK_PLAYBOOK.md`). Both are seeded in family with
+`/how-we-estimate` and come down at the next sweep.
+
 The rule they close is that **a route the sitemap advertises carries a budget**,
 and `__tests__/sitemap.test.ts` enforces it per family. The gap it found was
 `/spoons-value`: crawlable, sitemap-listed and unmeasured while serving 683 KB
