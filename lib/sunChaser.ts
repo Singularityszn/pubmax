@@ -498,10 +498,14 @@ export function sunHeadline(estimate: SunEstimate, at: Date, isNow: boolean): st
           ? `Garden likely in sun until sunset, about ${formatSunClock(segment.end)}`
           : `Garden likely in sun until ${formatSunClock(segment.end)}`;
     case "shade": {
-      const sunLater = timeline.segments.slice(index + 1).find((later) => later.state === "sun");
+      const change = timeline.segments.slice(index + 1).find((later) => later.state !== "shade");
+      if (change?.state === "unknown") {
+        return `Garden likely in shade ${when}. No sun estimate from ${formatSunClock(change.start)}.`;
+      }
+      const sunLater = change?.state === "sun" ? change : null;
       return sunLater
         ? `Garden likely in shade ${when}. Sun likely from ${formatSunClock(sunLater.start, "up")}`
-        : `Garden likely in shade ${when}, and no sun likely before ${formatSunClock(next?.state === "set" ? next.start : timeline.to)}`;
+        : `Garden likely in shade ${when}, and no sun likely before ${formatSunClock(change?.state === "set" ? change.start : timeline.to)}`;
     }
     case "set":
       return "After sunset. No sun on the garden.";
