@@ -594,7 +594,12 @@ test("a hung Out read settles instead of pinning the loading skeleton", async ({
   await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 30_000 });
   const screen = page.getByTestId("tonight-screen");
   await expect(screen).not.toHaveAttribute("data-listings-status", "idle");
-  await expect(page.getByRole("button", { name: "Retry listings" })).toBeVisible();
+  // The server's own answer paints first (useInitialListings), so the skeleton
+  // check above passes at once. The Retry control comes only when the browser's
+  // Out read gives up: OUT_FETCH_TIMEOUT_MS (8 s, components/out/useOutListings.ts)
+  // counted from hydration. The default 10 s left 2 s for hydration; this wait
+  // matches the skeleton's.
+  await expect(page.getByRole("button", { name: "Retry listings" })).toBeVisible({ timeout: 30_000 });
 });
 
 // The Tonight lede contract (issue #1429). An earlier build led the first

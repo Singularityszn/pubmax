@@ -30,6 +30,11 @@ export type OptimisticSpillInput = {
   /** Wave G1: optional Last Train context when a live decision was on screen. */
   leaveByIso?: string;
   lastTrainDecision?: LastPintDecisionKind;
+  /**
+   * The "With" handles this drop proposes once it has an id. They are never
+   * part of the note, so a retry that forgot them lost the tags.
+   */
+  withHandles?: string[];
 };
 
 export type OptimisticSpillRetryPayload = {
@@ -53,6 +58,8 @@ export type OptimisticSpillRetryPayload = {
   photoNotKept?: true;
   leaveByIso?: string;
   lastTrainDecision?: LastPintDecisionKind;
+  /** The "With" handles, sent as tag proposals after the retry saves. */
+  withHandles?: string[];
 };
 
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
@@ -130,6 +137,7 @@ export function buildOptimisticSpillRetryPayload(
     venuePhotoUrl: input.venuePhotoUrl,
     ...(input.leaveByIso ? { leaveByIso: input.leaveByIso } : {}),
     ...(input.lastTrainDecision ? { lastTrainDecision: input.lastTrainDecision } : {}),
+    ...(input.withHandles && input.withHandles.length > 0 ? { withHandles: [...input.withHandles] } : {}),
   };
 }
 

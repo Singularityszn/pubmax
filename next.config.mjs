@@ -9,7 +9,7 @@ import {
   freshnessArtifactIncludeById,
   freshnessArtifactIncludes,
 } from "./lib/freshnessTracing.mjs";
-import { PAL_MASCOT_SIZES, PAL_MASCOT_SLUGS } from "./lib/palMascotAssets.mjs";
+import { PAL_MASCOT_SIZES, PAL_MASCOT_SLUGS, PAL_MASCOT_TALK } from "./lib/palMascotAssets.mjs";
 import { cdnEdgeHeaderRules } from "./lib/cdnDocumentEdge.mjs";
 import { cdnDocumentContentSecurityPolicy } from "./lib/contentSecurityPolicy.mjs";
 import { staticAssetHeaderSources } from "./lib/staticAssetPrefixes.mjs";
@@ -18,6 +18,7 @@ import { runtimeDataPackRouteIncludes } from "./lib/venueIndexTracing.mjs";
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 const palMascotAssetPattern =
   "(?:" + Object.values(PAL_MASCOT_SLUGS).join("|") + ")-" +
+  "(?:" + PAL_MASCOT_TALK + "-)?" +
   "(?:avatar-)?" +
   "(?:" + PAL_MASCOT_SIZES.join("|") + ")\\.(?:webp|png)";
 
@@ -203,6 +204,17 @@ const nextConfig = {
   typedRoutes: true,
   // Don't advertise the framework/version on dynamic responses.
   poweredByHeader: false,
+  // How long the CDN may serve a stale ISR page while it renders a fresh one.
+  // Next's default is a year, and /today served a copy 38 minutes old as
+  // STALE (SEO audit #2126, finding 3). A per-route expire needs
+  // cacheComponents, so this is one GLOBAL value (captain, 30 Oct 2026).
+  // Next sends `s-maxage=<revalidate>, stale-while-revalidate=<expire -
+  // revalidate>`, and no stale window when the two are equal. With 3900:
+  // /today and /tonight are fresh for 5 minutes, then may be served stale for
+  // up to 60 more (65 in all); the hourly routes get a 5-minute stale window.
+  // These are the windows the header asks for, not a promise about age: a
+  // regeneration that fails can leave older content in place for longer.
+  expireTime: 3900,
   distDir: process.env.NEXT_DIST_DIR ?? ".next",
   images: {
     qualities: [75, 78],
@@ -328,6 +340,13 @@ const nextConfig = {
       { source: "/pub-pal", destination: "/pal", permanent: true },
       { source: "/pub-pal/:path*", destination: "/pal/:path*", permanent: true },
       { source: "/pubpal", destination: "/pal", permanent: true },
+      // Names people type for pages that live elsewhere (live walk F21,
+      // 30 Oct 2026). Temporary, so a real page can take the path later.
+      { source: "/data-credits", destination: "/credits", permanent: false },
+      { source: "/memories", destination: "/u/you#night-memories", permanent: false },
+      { source: "/crews", destination: "/social", permanent: false },
+      { source: "/coffee", destination: "/map?drink=coffee", permanent: false },
+      { source: "/gardens", destination: "/map?garden=1", permanent: false },
     ];
   },
   async headers() {

@@ -7,6 +7,9 @@ import { SocialPubRankingError, socialPubRankingStore } from "@/lib/socialPubRan
 import { isSocialPubBand, socialPubRankingEntries } from "@/lib/socialPubRankings";
 import { resolveSocialVenueId } from "@/lib/socialPostVenue.server";
 import { hashActor } from "@/lib/supabase";
+import { readShareToLot, tellYourLot, tellYourLotRankBody } from "@/lib/tellYourLot.server";
+import { lookupCanonicalVenue } from "@/lib/venueIndex";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,14 +27,37 @@ async function verified(request: Request): Promise<Access | Response> {
     : publicApiError(access.error, access.code, access.status, { retryable: access.retryable === true, headers: NO_STORE });
 }
 
-async function listFor(access: Access): Promise<Response> {
+/** A listed pub's name and the cheapest price the map lists for it, or null. */
+async function venueFacts(venueId: string): Promise<{ venueId: string; venueName: string; listedPrice: number | null } | null> {
+  const lookup = await lookupCanonicalVenue(venueId);
+  if (lookup.status !== "found" || !isPubVenueKind(lookup.venue.kind)) return null;
+  const price = lookup.slimVenue?.cheapestPrice;
+  return {
+    venueId: lookup.canonicalId,
+    venueName: lookup.venue.name,
+    listedPrice: typeof price === "number" && Number.isFinite(price) ? price : null,
+  };
+}
+
+/**
+ * The list, each pub with its name and listed price. With `subjectVenueId`
+ * (GET ?venue=), the pub being ranked rides along so the rank card can show
+ * its price beside the one it is compared with.
+ */
+async function listFor(access: Access, subjectVenueId?: string | null): Promise<Response> {
   const rows = await socialPubRankingStore().read(access.actor);
   const names = new Map<string, string>();
+  const prices = new Map<string, number | null>();
   await Promise.all(rows.map(async (row) => {
-    const venue = await resolveSocialVenueId(row.venueId);
-    if (venue.ok) names.set(row.venueId, venue.venueName);
+    const venue = await venueFacts(row.venueId);
+    if (!venue) return;
+    names.set(row.venueId, venue.venueName);
+    prices.set(row.venueId, venue.listedPrice);
   }));
-  return Response.json({ entries: socialPubRankingEntries(rows, names) }, { headers: NO_STORE });
+  const entries = socialPubRankingEntries(rows, names)
+    .map((entry) => ({ ...entry, listedPrice: prices.get(entry.venueId) ?? null }));
+  const subject = subjectVenueId ? await venueFacts(subjectVenueId) : null;
+  return Response.json(subject ? { entries, subject } : { entries }, { headers: NO_STORE });
 }
 
 function optionalVenue(value: unknown): string | null | undefined {
@@ -60,21 +86,28 @@ async function writeGate(request: Request): Promise<{ access: Access; input: Rec
   return { access, input: input as Record<string, unknown> };
 }
 
-/** GET /api/social/rankings: your pubs in your own order, with place and 0-10 score. */
+/**
+ * GET /api/social/rankings[?venue=<id>]: your pubs in your own order, with
+ * place, 0-10 score and listed price; `?venue=` adds that pub as `subject`.
+ */
 export async function GET(request: Request): Promise<Response> {
   const access = await verified(request);
   if (access instanceof Response) return access;
+  const subject = new URL(request.url).searchParams.get("venue");
   try {
-    return await listFor(access);
+    return await listFor(access, subject && subject.length <= 100 ? subject : null);
   } catch {
     return publicApiError("Your ranking is unavailable right now.", "RANKING_UNAVAILABLE", 503, { retryable: true, headers: NO_STORE });
   }
 }
 
 /**
- * POST /api/social/rankings { venueId, band, aboveVenueId, belowVenueId }:
+ * POST /api/social/rankings { venueId, band, aboveVenueId, belowVenueId, shareToLot? }:
  * places a pub where the browser's comparisons landed it. A list that moved
  * since the questions were asked answers 409 and the browser asks again.
+ * `shareToLot: true` ("Tell your lot") also writes one mutuals-only post in
+ * the session's own name: "@x ranked <pub> above <the pub just below it>".
+ * The answer carries `shared` only when it was asked for.
  */
 export async function POST(request: Request): Promise<Response> {
   const gate = await writeGate(request);
@@ -83,8 +116,10 @@ export async function POST(request: Request): Promise<Response> {
   const keys = Object.keys(input);
   const above = optionalVenue(input.aboveVenueId);
   const below = optionalVenue(input.belowVenueId);
-  if (keys.some((key) => !["venueId", "band", "aboveVenueId", "belowVenueId"].includes(key)) ||
-    typeof input.venueId !== "string" || !isSocialPubBand(input.band) || above === undefined || below === undefined) {
+  const shareToLot = readShareToLot(input.shareToLot);
+  if (keys.some((key) => !["venueId", "band", "aboveVenueId", "belowVenueId", "shareToLot"].includes(key)) ||
+    typeof input.venueId !== "string" || !isSocialPubBand(input.band) || above === undefined || below === undefined ||
+    shareToLot === null) {
     return publicApiError("Ranking request is not valid.", "INVALID_RANKING", 400, { headers: NO_STORE });
   }
   try {
@@ -95,7 +130,17 @@ export async function POST(request: Request): Promise<Response> {
         : publicApiError("Choose a pub from the search.", "INVALID_VENUE", 400, { headers: NO_STORE });
     }
     await socialPubRankingStore().place(access.actor, venue.venueId, input.band, above, below);
-    return await listFor(access);
+    const listed = await listFor(access);
+    if (!shareToLot) return listed;
+    // The author is the verified actor of this session and nobody else: the
+    // body names no handle and an unknown key is refused above.
+    const belowVenue = below ? await resolveSocialVenueId(below) : null;
+    const shared = await tellYourLot(access.actor, {
+      body: tellYourLotRankBody(access.actor.handle, venue.venueName, belowVenue?.ok ? belowVenue.venueName : null),
+      venueId: venue.venueId,
+    });
+    const body = (await listed.json()) as Record<string, unknown>;
+    return Response.json({ ...body, shared }, { headers: NO_STORE });
   } catch (error) {
     if (error instanceof SocialPubRankingError) {
       return publicApiError(error.message, error.code, error.code === "STALE_RANKING" ? 409 : 400, { headers: NO_STORE });

@@ -82,12 +82,12 @@ function params(id: string) {
   return { params: Promise.resolve({ id }) };
 }
 
-function postRequest(body: unknown): Request {
+function postRequest(body: unknown, ip = "198.51.100.9"): Request {
   return new Request("http://localhost/api/venues/venue-1/occupancy", {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "x-forwarded-for": "198.51.100.9",
+      "x-forwarded-for": ip,
     },
     body: JSON.stringify(body),
   });
@@ -284,5 +284,44 @@ describe("occupancy reader flag and moderator hide", () => {
     expect(restored.status).toBe(200);
     const back = await GET(getRequest(), params(VENUE));
     expect(await back.json()).toMatchObject({ now: "full", reportersLast90: 1 });
+  });
+
+  it("does not let one reporter spend the reading's shared report budget", async () => {
+    authState.userId = "user-a";
+    const written = await POST(postRequest({ level: "full" }), params(VENUE));
+    const { id } = (await written.json()) as { id: string };
+    authState.userId = null;
+
+    // One address reports far past its own allowance of one.
+    for (let i = 0; i < 20; i += 1) {
+      await POST(postRequest({ action: "report", id }, "198.51.100.20"), params(VENUE));
+    }
+    const repeat = await POST(
+      postRequest({ action: "report", id }, "198.51.100.20"),
+      params(VENUE),
+    );
+    expect(repeat.status).toBe(429);
+
+    // A second reporter still gets through.
+    const other = await POST(
+      postRequest({ action: "report", id }, "198.51.100.21"),
+      params(VENUE),
+    );
+    expect(other.status).toBe(200);
+  });
+
+  it("brakes a moderator's hide and restore writes", async () => {
+    authState.userId = "user-a";
+    const written = await POST(postRequest({ level: "full" }), params(VENUE));
+    const { id } = (await written.json()) as { id: string };
+    moderatorState.on = true;
+
+    const statuses: number[] = [];
+    for (let i = 0; i < 61; i += 1) {
+      const action = i % 2 === 0 ? "hide" : "restore";
+      statuses.push((await POST(postRequest({ action, id }), params(VENUE))).status);
+    }
+    expect(statuses.slice(0, 60).every((status) => status === 200)).toBe(true);
+    expect(statuses[60]).toBe(429);
   });
 });

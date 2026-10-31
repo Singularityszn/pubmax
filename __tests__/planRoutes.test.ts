@@ -192,19 +192,18 @@ describe("Plan public HTTP contract", () => {
     expect(guest.plan.crew.map((member) => member.name)).toEqual(["Karan", "Priya"]);
     expect(guest.memberToken).toMatch(/^[a-f0-9]{64}$/);
     expect(guest.role).toBe("guest");
-    expect(guest.collaborationAuthorized).toBe(false);
+    // One guest capability (launch review 3.5): the host's link is the door,
+    // and it brings the crawl-mode check-in with it.
+    expect(guest.collaborationAuthorized).toBe(true);
     const presence = await PRESENCE(new Request(URL + "/" + body.plan.plan.id + "/presence", {
       method: "POST", body: JSON.stringify({ memberToken: guest.memberToken, status: "on_the_way" }),
     }), ctx(body.plan.plan.id));
     expect(presence.status).toBe(200);
-    for (const type of ["arrived", "skipped"]) {
-      const denied = await ACTION(new Request(URL + "/" + body.plan.plan.id + "/actions", {
-        method: "POST", headers: { "idempotency-key": "classic-guest-" + type },
-        body: JSON.stringify({ memberToken: guest.memberToken, type, stopPosition: 0 }),
-      }), ctx(body.plan.plan.id));
-      expect(denied.status).toBe(403);
-      expect(await denied.json()).toMatchObject({ code: "PLAN_ACTION_FORBIDDEN", retryable: false });
-    }
+    const arrived = await ACTION(new Request(URL + "/" + body.plan.plan.id + "/actions", {
+      method: "POST", headers: { "idempotency-key": "classic-guest-arrived" },
+      body: JSON.stringify({ memberToken: guest.memberToken, type: "arrived", stopPosition: 0 }),
+    }), ctx(body.plan.plan.id));
+    expect(arrived.status).toBe(201);
 
 
     const wrongPlan = await createPlan();

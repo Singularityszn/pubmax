@@ -35,7 +35,7 @@ const listed: Coverage = { total: 2, pricedPubs: 1, counts: {
 describe("pub list coverage copy", () => {
   it("states the denominator and separates listed coverage from borough eligibility", () => {
     const html = renderToStaticMarkup(<ListedDrinkCoverage coverage={listed} status="ready" />);
-    expect(html).toContain("1 of 2 pubs");
+    expect(html).toContain("1 of the 2 pubs in our London pub list have a pint price on record");
     expect(html).toContain("(50%)");
     expect(html).toContain("not every pub in London");
     expect(html).toContain("pub price list and published menus");

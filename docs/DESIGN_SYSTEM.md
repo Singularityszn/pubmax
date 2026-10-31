@@ -279,6 +279,7 @@ live in `lib/mapBasemapTaste.ts`; the stable token roles are:
 | `--tint-ink-accent`, `--tint-ink-positive`, `--tint-ink-caution`, `--tint-ink-negative`, `--tint-ink-info` | a hue as a WORD on a TINT of itself - see "A hue on a tint of itself" |
 | `--pint`, `--amber`, `--brick` | price and status semantics |
 | `--river`, `--river-bright` | heritage and by-water information |
+| `--route-line` | the crawl route on the map, the key and the plan strip, and the walk of a way chosen in Night Mode. It is drawn thick on its own paper edge (dark: ink edge), like directions in a maps app. A ride on that way wears its own TfL line colour, never this token |
 
 **One accent owns the CTA in both themes.** Coral (`--brass`) carries actions;
 amber (`--night-amber`) stays a route and price signal. Every other hue (`pint` / `amber` /
@@ -699,6 +700,19 @@ surface needs emphasis, reach for weight, size or ink, not coral and not a
 second signature gesture (see "Coral is spent twice").
 
 ## Day/night coherence
+
+**The night is dark by default.** A reader who has not chosen a theme gets
+the dark theme from 21:30 to 03:59 London time, and the OS decides the rest
+of the day. A stored choice from the theme control always wins. The rule is
+`resolveThemePreference` in `lib/themePreference.ts`, and
+`public/theme-init.js` applies the same rule before first paint (it keeps its
+own copy of the two times, held to the module by
+`__tests__/themeNight.test.tsx`). `components/ThemeAttribute.tsx` asks again
+every minute and when a tab comes back, so an open page turns dark at 21:30
+and light at 04:00. A tap on the theme control is the reader's choice even
+when storage refuses to keep it, and the night rule stands down for the rest
+of that page's life. `html[data-night-theme="1"]` marks a page that is dark
+because of the night rule rather than a choice.
 
 Both themes flip from the same token names — `app/theme.css` only
 overrides values inside `html[data-theme="dark"]`, never introduces new

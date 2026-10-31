@@ -60,6 +60,7 @@ import {
 import { parseZoneParam, venueMatchesZone } from "@/lib/zones";
 import type { MapLensPrice } from "@/lib/mapExperienceLens";
 import type { VenueRecordCopy } from "@/lib/venueRecordCopy";
+import { NO_PINT_PRICE_CAP } from "@/lib/pintPriceCapValue";
 
 export type CrawlStyle =
   | "balanced"
@@ -359,7 +360,7 @@ export type VenueFilterHints = {
  * it as "Any". It sits above every priced pub in the curated index, so it caps
  * nothing; non-pub anchors bypass the cap in filterVenues regardless.
  */
-export const NO_PINT_PRICE_CAP = 10;
+export { NO_PINT_PRICE_CAP };
 
 export type Filters = {
   query: string;
@@ -387,6 +388,14 @@ export type Filters = {
    * match only — never invented, never CityMCP bulk.
    */
   openNow: boolean;
+  /**
+   * Last orders: keep only pubs whose OpenStreetMap hours run at least 30 more
+   * minutes (lib/lastOrdersList.ts). Unlike Open now, an unknown fails it, so
+   * a pin never reads as still open on no evidence. Applied by the map on top
+   * of filterVenues, the way Saved only is, because the answer moves with the
+   * clock and is read from its own pack.
+   */
+  lastOrders?: boolean;
   // Accessible-venue filters (PRD issue #28). Each, when on, narrows to pubs
   // KNOWN to have that facet — an unknown fact fails the filter (see
   // lib/venueAccessibility.matchesAccessibilityFilters). Off = no-op.
@@ -443,6 +452,7 @@ export const initialFilters: Filters = {
   canonicalOnly: false,
   // Off by default. When on, only known-closed pubs drop; unknown hours stay.
   openNow: false,
+  lastOrders: false,
   requireStepFree: false,
   requireAccessibleToilet: false,
   requireSeatedService: false,
@@ -1215,6 +1225,16 @@ function matchesVenueAmenities(venue: Venue, filters: Filters): boolean {
   return checks.every(([required, detailedValue, pickHint]) => {
     return !required || detailedValue || hasSlimFlag(venue, pickHint);
   });
+}
+
+/**
+ * A pub with a RECORDED beer garden or outdoor seating, read by the same rules
+ * as the two map filters. Sun Chaser estimates only these: a pub with no
+ * stated outdoor space gets no sun claim at all.
+ */
+export function venueHasRecordedOutdoorSpace(venue: Venue): boolean {
+  return matchesVenueAmenities(venue, { ...initialFilters, requireBeerGarden: true })
+    || matchesVenueAmenities(venue, { ...initialFilters, requireOutdoorSeating: true });
 }
 
 function matchesVenueCuration(venue: Venue, filters: Filters): boolean {

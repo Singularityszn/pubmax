@@ -6,6 +6,13 @@ import { hashPlanMemberToken } from "@/lib/planStore";
 import type { OutOpenPlan } from "@/lib/out";
 import { OPEN_PLAN_LIST_LIMIT } from "@/lib/openSocialCrew";
 import {
+  OPEN_CRAWL_LIST_LIMIT,
+  parseOpenCrawlDetails,
+  parseOpenCrawlListing,
+  type OpenCrawlDetails,
+  type OpenCrawlListing,
+} from "@/lib/openCrawl";
+import {
   isSocialCrewMutationCode,
   isSocialCrewRole,
   isSocialCrewVisibility,
@@ -41,6 +48,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-
 
 export type SocialCrewRpcName =
   | "create_social_crew_atomic"
+  | "open_social_crew_with_plan_atomic"
   | "invite_social_crew_member_atomic"
   | "accept_social_crew_invitation_atomic"
   | "revoke_social_crew_invitation_atomic"
@@ -57,7 +65,9 @@ type SocialCrewSnapshotRpcName =
   | "read_social_crew_member_page"
   | "read_social_crew_join_requests"
   | "list_open_social_crews"
-  | "read_social_crew_public_preview";
+  | "read_social_crew_public_preview"
+  | "read_social_crew_open_crawl"
+  | "list_open_plan_crawls";
 
 function crewRpcNamesMatchCatalog(
   _ok: (SocialCrewRpcName | SocialCrewSnapshotRpcName) extends keyof Database["public"]["Functions"]
@@ -92,6 +102,13 @@ type CreateInput = WriteInput & {
   planId: string;
   hostCapability: string;
   visibility: SocialCrewVisibility;
+};
+type OpenWithPlanInput = WriteInput & {
+  planId: string;
+  hostCapability: string;
+  capacity: number;
+  meetingVenueId: string;
+  description: string;
 };
 type InviteInput = WriteInput & { crewId: string; targetProfileId: string };
 type InvitationActionInput = WriteInput & {
@@ -144,6 +161,18 @@ export type SocialCrewStore = {
     actor: SocialPostActor,
   ): Promise<SocialCrewJoinRequestQueueDTO>;
   create(actor: SocialPostActor, input: CreateInput): Promise<SocialCrewMutationResult>;
+  /**
+   * E1 "Open it up": one transaction makes the plan an Open Crew and stamps
+   * its capacity, meeting pub and the host's line (0208).
+   */
+  openWithPlan(actor: SocialPostActor, input: OpenWithPlanInput): Promise<SocialCrewMutationResult>;
+  /** Upcoming open crawls that carry a plan's facts, soonest first. */
+  listOpenCrawls(input: { from: string; until: string; limit?: number }): Promise<OpenCrawlListing[]>;
+  /**
+   * The open crawl facts for one crew, or null when it carries none. The
+   * caller has ALREADY been admitted by `read`; this is no authority of its own.
+   */
+  readOpenCrawl(crewId: string): Promise<OpenCrawlDetails | null>;
   invite(actor: SocialPostActor, input: InviteInput): Promise<SocialCrewMutationResult>;
   acceptInvitation(actor: SocialPostActor, input: InvitationActionInput): Promise<SocialCrewMutationResult>;
   revokeInvitation(actor: SocialPostActor, input: InvitationInput): Promise<SocialCrewMutationResult>;
@@ -212,15 +241,18 @@ type FixedWriteContract = {
   ): SocialCrewMutationResult;
 };
 
+const CREATE_CONTRACT: FixedWriteContract = {
+  codes: ["created", "replayed"],
+  result: (base, value) => ({
+    ...base,
+    crewId: requiredUuid(value.crew_id),
+    memberId: requiredUuid(value.member_id),
+  }),
+};
+
 const FIXED_WRITE_CONTRACTS: Partial<Record<SocialCrewRpcName, FixedWriteContract>> = {
-  create_social_crew_atomic: {
-    codes: ["created", "replayed"],
-    result: (base, value) => ({
-      ...base,
-      crewId: requiredUuid(value.crew_id),
-      memberId: requiredUuid(value.member_id),
-    }),
-  },
+  create_social_crew_atomic: CREATE_CONTRACT,
+  open_social_crew_with_plan_atomic: CREATE_CONTRACT,
   invite_social_crew_member_atomic: {
     codes: ["invited", "replayed"],
     result: (base, value) => ({ ...base, invitationId: requiredUuid(value.invitation_id) }),
@@ -445,6 +477,15 @@ export function createSocialCrewStore(
     }
   }
 
+  async function readOpenCrawlDetails(crewId: string): Promise<OpenCrawlDetails | null> {
+    try {
+      const value = await dependencies.snapshot("read_social_crew_open_crawl", { p_crew_id: crewId });
+      return parseOpenCrawlDetails(value);
+    } catch {
+      return null;
+    }
+  }
+
   return {
     async read(crewId, actor) {
       if (!isUuid(crewId) || !validActor(actor)) return notFound();
@@ -459,12 +500,18 @@ export function createSocialCrewStore(
         return unavailable();
       }
       if (snapshot === null) return notFound();
+      let projected: SocialCrewReadDTO | null;
       try {
-        const projected = projectSocialCrewRead(snapshot, actor);
-        return projected ?? notFound();
+        projected = projectSocialCrewRead(snapshot, actor);
       } catch {
         return unavailable();
       }
+      if (!projected) return notFound();
+      if (projected.kind !== "member" || projected.visibility !== "open") return projected;
+      // The member snapshot admitted this reader; only then are the open
+      // crawl facts read. A read that cannot run leaves them off rather than
+      // failing the crew page (before 0208 is applied the function is absent).
+      return { ...projected, openCrawl: await readOpenCrawlDetails(crewId) };
     },
 
     async readPublicPreview(crewId) {
@@ -607,6 +654,61 @@ export function createSocialCrewStore(
         p_host_token_hash: hashPlanMemberToken(input.hostCapability.trim()),
         p_visibility: input.visibility,
       });
+    },
+
+    openWithPlan(actor, input) {
+      if (
+        !isUuid(input.planId) ||
+        typeof input.hostCapability !== "string" ||
+        !input.hostCapability.trim() ||
+        !Number.isInteger(input.capacity) ||
+        typeof input.meetingVenueId !== "string" ||
+        !input.meetingVenueId.trim() ||
+        typeof input.description !== "string" ||
+        !input.description.trim()
+      ) {
+        return Promise.reject(new SocialCrewStoreError("INVALID", 400, "Social Crew request is not valid."));
+      }
+      return write("open_social_crew_with_plan_atomic", actor, "open-crawl", input.idempotencyKey, {
+        p_plan_id: input.planId,
+        p_host_token_hash: hashPlanMemberToken(input.hostCapability.trim()),
+        p_capacity: input.capacity,
+        p_meeting_venue_id: input.meetingVenueId.trim(),
+        p_description: input.description.trim(),
+      });
+    },
+
+    async listOpenCrawls(input) {
+      const from = typeof input.from === "string" ? input.from.trim() : "";
+      const until = typeof input.until === "string" ? input.until.trim() : "";
+      const limit = input.limit ?? OPEN_CRAWL_LIST_LIMIT;
+      if (!from || !until || !Number.isInteger(limit) || limit < 1 || limit > OPEN_CRAWL_LIST_LIMIT) {
+        return unavailable();
+      }
+      let snapshot: unknown;
+      try {
+        snapshot = await dependencies.snapshot("list_open_plan_crawls", {
+          p_from: from,
+          p_until: until,
+          p_limit: limit,
+        });
+      } catch {
+        return unavailable();
+      }
+      const rows = unwrapOpenPlanRows(snapshot);
+      if (!rows) return unavailable();
+      const parsed: OpenCrawlListing[] = [];
+      for (const row of rows) {
+        const listing = parseOpenCrawlListing(row);
+        if (!listing) return unavailable();
+        parsed.push(listing);
+      }
+      return parsed.slice(0, OPEN_CRAWL_LIST_LIMIT);
+    },
+
+    readOpenCrawl(crewId) {
+      if (!isUuid(crewId)) return Promise.resolve(null);
+      return readOpenCrawlDetails(crewId);
     },
 
     invite(actor, input) {

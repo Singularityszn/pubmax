@@ -1,0 +1,21 @@
+.sharePageMain {
+  padding-block: 24px 48px;
+}
+
+.shareToWanted {
+  display: grid;
+  gap: 12px;
+  max-width: 560px;
+}
+
+.shareToWanted__shared span {
+  overflow-wrap: anywhere;
+  color: var(--ink);
+}
+
+.shareToWanted__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}

@@ -49,7 +49,11 @@ let baseScratchRoot = "";
 // datasets are needed too, since the script validates all of them in one run).
 function buildBaseScratch(): string {
   if (!existsSync(DETAIL_INDEX)) {
-    execFileSync("node", [BUILD_SLIM_SCRIPT], { cwd: ROOT, env: { ...process.env, DEPLOYMENT_VERSION: "local" } });
+    // --details-only: the full build would rewrite every committed map pack.
+    execFileSync("node", [BUILD_SLIM_SCRIPT, "--details-only"], {
+      cwd: ROOT,
+      env: { ...process.env, DEPLOYMENT_VERSION: "local" },
+    });
   }
   const scratchRoot = mkdtempSync(join(tmpdir(), "validate-data-base-"));
   const scratchScripts = join(scratchRoot, "scripts");

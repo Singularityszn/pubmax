@@ -12,6 +12,9 @@ import {
   useAccountScopedDraft,
   useContributionGate,
 } from "@/components/identity/ContributionGateDialog";
+import RankAfterVisitCard from "@/components/pubs/RankAfterVisitCard";
+import WithTagField from "@/components/map/composer/WithTagField";
+import { useTellYourLot } from "@/components/pubs/useTellYourLot";
 import StarRating from "@/components/ratings/StarRating";
 import {
   accountComposerAuth,
@@ -21,7 +24,9 @@ import {
 import {
   DIARY_EARLIEST_VISITED_ON,
   MAX_DIARY_REVIEW,
+  MAX_DIARY_USUAL_DRINK,
   clampDiaryReviewInput,
+  clampDiaryUsualDrinkInput,
   diaryReviewLength,
   diaryVisitedOnLabel,
   latestDiaryVisitedOn,
@@ -42,6 +47,10 @@ type DiaryDraft = {
   visitedOn: string;
   rating: RatingValue | null;
   review: string;
+  /** "Your usual here". Absent on a draft saved before the field existed. */
+  usualDrink?: string;
+  /** "With": names, and `@handles` that are asked first. */
+  withWho?: string;
 };
 
 // A panel belongs to ONE pub: keying the mount drops the previous pub's
@@ -65,6 +74,9 @@ function VenueDiaryLog({ venueId, venueName }: DiaryLogPanelProps) {
     kind: "ok" | "error";
     text: string;
   } | null>(null);
+  // The receipt's rank card appears after a log lands, under the receipt line.
+  const [logged, setLogged] = useState(false);
+  const [tellYourLot, setTellYourLot] = useTellYourLot();
   const composerAuth = accountComposerAuth(
     user?.id ?? null,
     session,
@@ -74,6 +86,8 @@ function VenueDiaryLog({ venueId, venueName }: DiaryLogPanelProps) {
   const visitedOn = draft?.visitedOn ?? latest;
   const rating = draft?.rating ?? null;
   const review = draft?.review ?? "";
+  const usualDrink = draft?.usualDrink ?? "";
+  const withWho = draft?.withWho ?? "";
 
   async function submit() {
     if (!draft || !composerAuth) return;
@@ -92,7 +106,15 @@ function VenueDiaryLog({ venueId, venueName }: DiaryLogPanelProps) {
       setSaving(true);
       try {
         const result = await postDiaryEntry(
-          { venueId, visitedOn, rating, review: review.trim() },
+          {
+            venueId,
+            visitedOn,
+            rating,
+            review: review.trim(),
+            usualDrink: usualDrink.trim(),
+            ...(withWho.trim() ? { withWho: withWho.trim() } : {}),
+            ...(tellYourLot ? { shareToLot: true } : {}),
+          },
           auth,
         );
         if (!result.ok) {
@@ -104,10 +126,22 @@ function VenueDiaryLog({ venueId, venueName }: DiaryLogPanelProps) {
         }
         clearDraft();
         setOpenAuth((current) => (sameAccountAuth(current, auth) ? null : current));
+        const lotLine = !tellYourLot
+          ? ""
+          : result.shared
+            ? " Your lot will see you were here."
+            : " It stayed private: we could not tell your lot this time.";
+        const tagLine =
+          result.tagsSent === undefined
+            ? ""
+            : result.tagsSent
+              ? " Anyone you tagged gets asked first."
+              : " We could not ask the people you tagged. Tagging needs your Social account.";
         setFeedback({
           kind: "ok",
-          text: `Logged ${venueName} for ${diaryVisitedOnLabel(result.entry.visitedOn)}. It's in your diary.`,
+          text: `Logged ${venueName} for ${diaryVisitedOnLabel(result.entry.visitedOn)}. It's in your diary.${lotLine}${tagLine}`,
         });
+        setLogged(true);
       } catch (error) {
         setFeedback({
           kind: "error",
@@ -227,6 +261,48 @@ function VenueDiaryLog({ venueId, venueName }: DiaryLogPanelProps) {
             <small>{MAX_DIARY_REVIEW - diaryReviewLength(review)} characters left</small>
           </label>
 
+          <label className="visitReportNoteWrap">
+            <span>Your usual here</span>
+            <input
+              className="diaryUsualInput"
+              data-testid="diary-usual"
+              type="text"
+              value={usualDrink}
+              maxLength={MAX_DIARY_USUAL_DRINK * 2}
+              onChange={(event) =>
+                setDraft((current) => ({
+                  ...current,
+                  usualDrink: clampDiaryUsualDrinkInput(event.target.value),
+                }))
+              }
+              placeholder="A drink name, if you have one"
+              autoComplete="off"
+            />
+          </label>
+
+          <WithTagField
+            value={withWho}
+            onChange={(next) => setDraft((current) => ({ ...current, withWho: next }))}
+            tagsAllowed
+            subject="diary"
+          />
+
+          <label className="diaryLotToggle">
+            <input
+              type="checkbox"
+              data-testid="diary-tell-your-lot"
+              checked={tellYourLot}
+              onChange={(event) => setTellYourLot(event.currentTarget.checked)}
+            />
+            <span>
+              Tell your lot
+              <small>
+                Your mutuals see one line saying you were here. Your rating,
+                words, usual and names stay private.
+              </small>
+            </span>
+          </label>
+
           <button
             type="button"
             className="visitReportSubmit"
@@ -251,6 +327,8 @@ function VenueDiaryLog({ venueId, venueName }: DiaryLogPanelProps) {
           {feedback.text}
         </p>
       ) : null}
+      {/* Rank at the moment: below the receipt line, never in front of it. */}
+      {logged ? <RankAfterVisitCard visits={[{ venueId, venueName }]} /> : null}
       {contributionGateDialog}
     </section>
   );

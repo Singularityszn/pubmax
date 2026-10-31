@@ -47,8 +47,11 @@ import TonightHypedPubs from "./TonightHypedPubs";
 import TonightListingsNotice from "./TonightListingsNotice";
 import TonightProvenanceLines from "./TonightProvenanceLines";
 import TonightGetHomeStrip from "./TonightGetHomeStrip";
+import TonightLastOrdersDoor from "./TonightLastOrdersDoor";
 import TonightLaterListings from "./TonightLaterListings";
-import TonightOpenPlans from "./TonightOpenPlans";
+import TonightOpenPlans, { TonightDrinkWallLine } from "./TonightOpenPlans";
+import TonightAnswerCards from "@/components/tonight/TonightAnswerCards";
+import { useTonightAnswers } from "@/components/tonight/useTonightAnswers";
 import TonightOnTonightSummary from "./TonightOnTonightSummary";
 import TonightYourPubs from "./TonightYourPubs";
 import AreaNewsRail from "@/components/desktop/AreaNewsRail";
@@ -476,6 +479,7 @@ export default function TonightClient({
     // holds on the mixed list rather than only behind the Deal filter.
     return orderDealsInPlace(groups, (group) => group.row, dealAnchor);
   }, [primaryListingRows, tonightNear, dealAnchor]);
+  const groupedRows = useMemo(() => groupedAll.map((group) => group.row), [groupedAll]);
   const groupedSecondaryAll = useMemo(() => {
     const groups = groupTonightListings(listingRows, tonightNear?.near ?? null);
     return orderDealsInPlace(groups, (group) => group.row, dealAnchor);
@@ -621,8 +625,29 @@ export default function TonightClient({
     primaryListingRows.some(
       (row) => typeof row.lat === "number" && typeof row.lng === "number",
     );
-  const showLocation = hasGeoRows || thinNight;
+  // The Last train card's door opens this section on any night, so a busy
+  // night with no mapped rows still has somewhere to share a position.
+  const showLocation = hasGeoRows || thinNight || locationOpen;
   const locationExpanded = locationOpen || origin != null;
+
+  // The three answers above the rows (design V1, 30 Oct 2026). Each reads what
+  // the page already holds, plus at most one small read of its own
+  // (components/tonight/useTonightAnswerReads.ts).
+  const answers = useTonightAnswers({
+    origin,
+    tonightNear,
+    listingRows: groupedRows,
+    listingsStateKind: listingsState.kind,
+    selectableVenueIds,
+    cheapPints,
+    renderedAt,
+  });
+  const openLocation = useCallback(() => {
+    setLocationOpen(true);
+    window.requestAnimationFrame(() => {
+      document.getElementById("tonight-location")?.scrollIntoView({ block: "center" });
+    });
+  }, []);
 
   // Secondary Deals/Music lanes reuse already-loaded all-row grouped heroes
   // instead of each firing their own /api/whats-on fetch.
@@ -693,6 +718,10 @@ export default function TonightClient({
           docs/rules/app-proxy-csp-caching-and-file-tracing.md. Chain blocks
           and cheap pints stay outside it so they cannot lead the answer. */}
       <div className="tonightLedeRegion" data-testid="tonight-lede">
+      <TonightAnswerCards {...answers} onShareLocation={openLocation} />
+      {/* Open plans lead the recommended pubs (design V2): a night out that
+          already has people in it is the first thing worth joining. */}
+      <TonightOpenPlans body={liveOut.body} />
       <TonightHypedPubs
         rows={hypedPubs}
         selectableVenueIds={selectableVenueIds}
@@ -977,6 +1006,16 @@ export default function TonightClient({
       ) : null}
 
       </div>
+      {/* Last orders sits under the lede, never in it: the answer comes first
+          and clears the docked consent card on the smallest phone, and its
+          list can name a chain pub, which the lede rule keeps out. From 21:30
+          the door is marked as the night's lead (TonightLastOrdersDoor). */}
+      <TonightLastOrdersDoor
+        origin={origin}
+        near={tonightNear}
+        onShareLocation={requestLocation}
+        locating={locationStatus === "requesting"}
+      />
       </div>
 
       {/* The first pub and its map action precede the listing explanation and
@@ -1107,12 +1146,10 @@ export default function TonightClient({
           <AreaNewsRail area={newsArea} />
         </div>
 
-        {/* What /out carried before it became a redirect here: the open plans
-            and the Drink Wall off the Out read this page already holds, then
-            tomorrow and the weekend, read only when a day is chosen. Open
-            plans come from the browser read alone: the server seed holds
-            listings only. */}
-        <TonightOpenPlans body={liveOut.body} />
+        {/* What /out carried before it became a redirect here: the Drink
+            Wall, then tomorrow and the weekend, read only when a day is
+            chosen. The open plans moved above the recommended pubs. */}
+        <TonightDrinkWallLine />
         <TonightLaterListings />
       </aside>
 
@@ -1150,6 +1187,7 @@ export default function TonightClient({
       {showLocation ? (
         <section
           className="tonightLocation"
+          id="tonight-location"
           aria-label="Location for walk times and last train"
         >
           <Button

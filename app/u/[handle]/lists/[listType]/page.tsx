@@ -1,21 +1,15 @@
 import { notFound } from "next/navigation";
-import { isKnownTestHandle } from "@/lib/accountPublicAccess.server";
-import type { Route } from "next";
 import type { Metadata } from "next";
 
 import SiteNav from "@/components/nav/SiteNav";
 import SavedListDetail from "@/components/profile/SavedListDetail";
-import { normalizeHandle } from "@/lib/profiles";
 import { formatSavedVenueCount } from "@/lib/savedListPresentation";
+import { readPublicSavedList, savedListCover } from "@/lib/savedListShare.server";
 import { savedListPath } from "@/lib/savedListUrl";
 import { isSocialFriendsLaunchEnabled, SOCIAL_FRIENDS_LAUNCH_ENV } from "@/lib/socialLaunch";
-import {
-  cleanListType,
-  savedListFollowsStore,
-  savedPubsStore,
-  type SavedPubDTO,
-} from "@/lib/savedPubsStore";
+import { savedListFollowsStore, type SavedPubDTO } from "@/lib/savedPubsStore";
 
+import SavedListCover from "./SavedListCover";
 import "../../profile.css";
 
 export const dynamic = "force-dynamic";
@@ -29,27 +23,10 @@ type PageProps = {
   params: Promise<PageParams>;
 };
 
-function decodeParam(value: string): string {
-  try {
-    return decodeURIComponent(value);
-  } catch {
-    return value;
-  }
-}
-
 type SavedListDisplayCounts = {
   followers: number | null;
   savedPubs: number;
 };
-
-function listCardHref(ownerHandle: string, listType: string, counts: SavedListDisplayCounts): Route {
-  const params = new URLSearchParams();
-  params.set("owner", ownerHandle);
-  params.set("list", listType);
-  params.set("venues", String(counts.savedPubs));
-  params.set("followers", counts.followers === null ? "unavailable" : String(counts.followers));
-  return `/api/list-card?${params.toString()}`;
-}
 
 function plural(count: number, singular: string): string {
   return `${count} ${singular}${count === 1 ? "" : "s"}`;
@@ -57,19 +34,17 @@ function plural(count: number, singular: string): string {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { handle, listType: rawListType } = await params;
-  const ownerHandle = normalizeHandle(handle);
-  if (isKnownTestHandle(ownerHandle)) notFound();
-  const listType = cleanListType(decodeParam(rawListType));
-
-  if (!ownerHandle || !listType) {
+  const read = await readPublicSavedList(handle, rawListType);
+  // A private account's list is the same not-found as the page.
+  if (read.status === "hidden") notFound();
+  if (read.status === "invalid") {
     return {
       title: "Saved list",
       robots: { index: false, follow: false },
     };
   }
 
-  const saved = await savedPubsStore().listSaved({ handle: ownerHandle });
-  const venues = saved.filter((venue) => venue.listType === listType);
+  const { ownerHandle, listType, venues } = read;
   const listCounts = isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV])
     ? await savedListFollowsStore().counts(ownerHandle, listType)
     : null;
@@ -81,8 +56,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const description = `@${ownerHandle}'s ${listType} saved list on PUBMAXX. ${formatSavedVenueCount(
     counts.savedPubs,
   )}${counts.followers === null ? "." : `, ${plural(counts.followers, "follower")}.`}`;
-  const cardUrl = listCardHref(ownerHandle, listType, counts);
 
+  // The picture is the sibling opengraph-image.tsx (the list name, the count
+  // and five pubs with their plaques). File-based metadata outranks this
+  // object, so naming an image here as well would only be a second answer.
   return {
     title,
     description,
@@ -91,29 +68,19 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       description,
       type: "article",
       url: savedListPath(ownerHandle, listType),
-      images: [
-        {
-          url: cardUrl,
-          width: 1200,
-          height: 630,
-          alt: `${title} saved list`,
-        },
-      ],
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: [cardUrl],
     },
   };
 }
 
 export default async function SavedListPage({ params }: PageProps) {
   const { handle, listType: rawListType } = await params;
-  const ownerHandle = normalizeHandle(handle);
-  if (isKnownTestHandle(ownerHandle)) notFound();
-  const listType = cleanListType(decodeParam(rawListType));
+  const read = await readPublicSavedList(handle, rawListType);
+  if (read.status === "hidden") notFound();
 
   const socialFriendsLaunchEnabled = isSocialFriendsLaunchEnabled(
     process.env[SOCIAL_FRIENDS_LAUNCH_ENV],
@@ -121,32 +88,35 @@ export default async function SavedListPage({ params }: PageProps) {
   let counts: SavedListDisplayCounts = { followers: null, savedPubs: 0 };
   let venues: SavedPubDTO[] = [];
 
-  if (ownerHandle && listType) {
-    const saved = await savedPubsStore().listSaved({ handle: ownerHandle });
-    venues = saved.filter((venue) => venue.listType === listType);
-    if (socialFriendsLaunchEnabled) {
-      counts = {
-        followers: (await savedListFollowsStore().counts(ownerHandle, listType)).followers,
-        savedPubs: venues.length,
-      };
-    } else {
-      counts = { followers: null, savedPubs: venues.length };
-    }
+  if (read.status === "ok") {
+    venues = read.venues;
+    counts = {
+      followers: socialFriendsLaunchEnabled
+        ? (await savedListFollowsStore().counts(read.ownerHandle, read.listType)).followers
+        : null,
+      savedPubs: venues.length,
+    };
   }
+  const cover = read.status === "ok" ? await savedListCover(venues) : null;
 
   return (
     <div className="lp profilePage">
       <SiteNav active="profile" />
       <main id="main" className="container profileMain">
-        {!ownerHandle || !listType ? (
+        {read.status === "invalid" ? (
           <p className="profileEmpty">That list link is missing a handle or list name.</p>
         ) : (
-          <SavedListDetail
-            ownerHandle={ownerHandle}
-            listType={listType}
-            venues={venues}
-            initialCounts={counts}
-          />
+          <>
+            <SavedListCover cover={cover} listType={read.listType} />
+            {/* The head (name, count, owner, Follow list) is SavedListDetail's,
+                and its Follow list control is the existing list-follow API. */}
+            <SavedListDetail
+              ownerHandle={read.ownerHandle}
+              listType={read.listType}
+              venues={venues}
+              initialCounts={counts}
+            />
+          </>
         )}
       </main>
     </div>

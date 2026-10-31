@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { palHeadTarget } from "@/components/pal/usePalHead3D";
+import { palHeadTarget, palMouthOpenness } from "@/components/pal/usePalHead3D";
 import { createPalVoiceSignal, palOutputLevel } from "@/lib/palVoiceSignal";
 
 const still = { t: 0, pointerX: 0, pointerY: 0, heard: 0, spoken: 0 } as const;
@@ -77,3 +77,19 @@ describe("the head's pose", () => {
     expect(waking.scale).toBeGreaterThan(1);
   });
 });
+
+describe("palMouthOpenness", () => {
+  it("keeps the mouth shut in silence and under the floor", () => {
+    expect(palMouthOpenness(0)).toBe(0);
+    expect(palMouthOpenness(0.05)).toBe(0);
+    expect(palMouthOpenness(Number.NaN)).toBe(0);
+    expect(palMouthOpenness(-1)).toBe(0);
+  });
+
+  it("opens with the Pal's own voice and never past fully open", () => {
+    expect(palMouthOpenness(0.2)).toBeGreaterThan(0.3);
+    expect(palMouthOpenness(0.3)).toBeGreaterThan(palMouthOpenness(0.2));
+    expect(palMouthOpenness(1)).toBe(1);
+  });
+});
+

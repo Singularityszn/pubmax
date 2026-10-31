@@ -58,6 +58,7 @@ import { messagePhotoRouteDeps } from "@/lib/messagePhotoRoute.server";
 import { attachMessageAttachmentCards } from "@/lib/messageAttachmentCards.server";
 import type { ConversationMembership, MessageDTO } from "@/lib/messages";
 import { MessageReadUnavailableError, messagesStore } from "@/lib/messagesStore";
+import { messageAdultRefusal, messageBlockRefusal } from "@/lib/messageSafety.server";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { isLimited } from "@/lib/pintDrops";
 import { gateHandleAction } from "@/lib/profileOwnership";
@@ -302,6 +303,13 @@ export async function POST(request: Request, { params }: Ctx): Promise<Response>
     });
   }
 
+  // Sending asks the one adult gate, like opening does.
+  const adultRefusal = await messageAdultRefusal(actor.userId);
+  if (adultRefusal) return adultRefusal;
+
+  const blockRefusal = await directThreadBlockRefusal(store, id, handle);
+  if (blockRefusal) return blockRefusal;
+
   const messageBody = readString(body.body) ?? "";
 
   if (photo) {
@@ -327,6 +335,26 @@ export async function POST(request: Request, { params }: Ctx): Promise<Response>
     { message: (await attachMessageAttachmentCards([sent.message]))[0] },
     { status: 201 },
   );
+}
+
+/**
+ * A BLOCK CLOSES A DIRECT THREAD BOTH WAYS. Only a member's own direct thread
+ * is checked here: an outsider falls through to the send, which answers the
+ * same 404 it always did, so this refusal never confirms a thread exists. A
+ * group was checked whole when it was opened; a block set later inside a group
+ * is left to the leave and report doors, because silencing a member there
+ * would also tell the group who blocked whom.
+ */
+async function directThreadBlockRefusal(
+  store: ReturnType<typeof messagesStore>,
+  conversationId: string,
+  handle: string,
+): Promise<Response | null> {
+  const membership = await store.membership(conversationId);
+  if (!membership || membership.kind !== "direct" || !membership.handles.includes(handle)) {
+    return null;
+  }
+  return messageBlockRefusal(membership.handles);
 }
 
 /**

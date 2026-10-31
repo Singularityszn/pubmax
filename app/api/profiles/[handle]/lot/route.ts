@@ -1,7 +1,8 @@
 // The handles in a MUTUAL follow with this profile — its "lot" (the Social Loop
-// definition of a friend: each side follows the other). Powers the "Your lot"
-// feed tab (app/feed): the /feed page fetches this for the viewer's own handle,
-// then keeps only drops + check-ins authored by a handle in the returned set.
+// definition of a friend: each side follows the other). Read by the Social
+// people directory (components/social/PeopleDirectory.tsx), a crew's page
+// (app/social/crews/[crewId]) and a profile's people list
+// (app/u/[handle]/people/[relation]). /feed is a permanent redirect to /social.
 //
 // A one-way follow is NOT a friend here, which is why this is distinct from
 // /following. Same seam as the sibling routes (Supabase when configured, memory

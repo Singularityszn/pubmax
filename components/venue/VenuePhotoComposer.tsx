@@ -34,13 +34,17 @@ import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { SUBMITTABLE_DRINK_CATEGORIES } from "@/lib/communityPrice";
 import { categoryLabel, type DrinkCategory } from "@/lib/drinks";
 import { PROFILE_IMAGE_PICKER_ACCEPT } from "@/lib/profileImagePicker";
+import { noteCrawlBingoAction } from "@/lib/crawlBingoNightLog";
 import {
+  DRINK_WALL_CATEGORY_LABEL,
   VENUE_PHOTO_CAPTION_MAX,
   VENUE_PHOTO_CROSSPOST_LABEL,
   VENUE_PHOTO_CROP_TARGET,
   VENUE_PHOTO_OUTPUT_HEIGHT,
   VENUE_PHOTO_OUTPUT_WIDTH,
+  VENUE_PHOTO_WALL_CATEGORIES,
   venuePhotoCrosspostNote,
+  type VenuePhotoWallCategory,
   type VenuePhotoCrosspost,
   type VenuePhotoDTO,
 } from "@/lib/venuePhotos";
@@ -70,6 +74,7 @@ export default function VenuePhotoComposer({
   const inputRef = useRef<HTMLInputElement>(null);
   const [chosen, setChosen] = useState<File | null>(null);
   const [cropped, setCropped] = useState<CroppedPhoto | null>(null);
+  const [wallCategory, setWallCategory] = useState<VenuePhotoWallCategory>("pint");
   const [drinkCategory, setDrinkCategory] = useState<DrinkCategory | null>(null);
   const [caption, setCaption] = useState("");
   const [shareToFeed, setShareToFeed] = useState(true);
@@ -103,7 +108,13 @@ export default function VenuePhotoComposer({
       const form = new FormData();
       form.append(
         "post",
-        JSON.stringify({ venueId, drinkCategory, caption, shareToFeed }),
+        JSON.stringify({
+          venueId,
+          wallCategory,
+          drinkCategory: wallCategory === "dog" ? null : drinkCategory,
+          caption,
+          shareToFeed,
+        }),
       );
       form.append("photo", file);
       const response = await authedActionFetch("/api/venue-photos", {
@@ -122,6 +133,7 @@ export default function VenuePhotoComposer({
         setError("Could not add that photo. Try again.");
         return;
       }
+      noteCrawlBingoAction("photo", venueId);
       onPosted(payload.photo, venuePhotoCrosspostNote(payload.crosspost?.state ?? "off"));
     } catch {
       setError(
@@ -210,24 +222,44 @@ export default function VenuePhotoComposer({
 
       {cropped && !chosen ? (
         <>
+          {/* A dog met at this pub goes up as a Dog photo, for Dog of the week. */}
           <fieldset className="venuePhotoComposerField">
-            <legend className="venuePhotoComposerLegend">Drink</legend>
+            <legend className="venuePhotoComposerLegend">Photo of</legend>
             <div className="venuePhotoComposerTags">
-              {SUBMITTABLE_DRINK_CATEGORIES.map((category) => (
+              {VENUE_PHOTO_WALL_CATEGORIES.map((category) => (
                 <button
                   key={category}
                   type="button"
                   className="venuePhotoComposerTag"
-                  aria-pressed={drinkCategory === category}
-                  onClick={() =>
-                    setDrinkCategory((current) => (current === category ? null : category))
-                  }
+                  aria-pressed={wallCategory === category}
+                  onClick={() => setWallCategory(category)}
                 >
-                  {categoryLabel(category)}
+                  {DRINK_WALL_CATEGORY_LABEL[category]}
                 </button>
               ))}
             </div>
           </fieldset>
+
+          {wallCategory === "pint" ? (
+            <fieldset className="venuePhotoComposerField">
+              <legend className="venuePhotoComposerLegend">Drink</legend>
+              <div className="venuePhotoComposerTags">
+                {SUBMITTABLE_DRINK_CATEGORIES.map((category) => (
+                  <button
+                    key={category}
+                    type="button"
+                    className="venuePhotoComposerTag"
+                    aria-pressed={drinkCategory === category}
+                    onClick={() =>
+                      setDrinkCategory((current) => (current === category ? null : category))
+                    }
+                  >
+                    {categoryLabel(category)}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+          ) : null}
 
           <div className="venuePhotoComposerField">
             <label htmlFor="venue-photo-caption">Caption</label>

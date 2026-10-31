@@ -9,6 +9,7 @@ import SiteNav from "@/components/nav/SiteNav";
 import BookingClickAnalytics from "@/components/pubs/BookingClickAnalytics";
 import PubLotReviews from "@/components/pubs/PubLotReviews";
 import RankThisPub from "@/components/pubs/RankThisPub";
+import AddRegularNight from "@/components/tonight/AddRegularNight";
 import Screen from "@/components/ui/screen";
 import VenuePhotoWall from "@/components/venue/VenuePhotoWall";
 import VenueReadUnavailable from "@/components/venue/VenueReadUnavailable";
@@ -253,6 +254,7 @@ export default async function PubPage({ params }: PageProps) {
         <section className="pubPage__section" aria-label="Photos and visits">
           <VenuePhotoWall venueId={venue.id} venueName={venue.name} />
           <VisitReportPanel venueId={venue.id} venueName={venue.name} />
+          <AddRegularNight where="pub" venueId={venue.id} venueName={venue.name} />
         </section>
       </div>
     </main>

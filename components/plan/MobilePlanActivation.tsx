@@ -1,9 +1,10 @@
 "use client";
 
 import { Mic, MicOff, ShieldCheck, Sparkles } from "lucide-react";
+import Link from "next/link";
 import { startTransition, useEffect, useRef, useState } from "react";
 
-import { MapRouteTransferButton } from "@/components/plan/MapRouteTransferButton";
+import { MAP_ROUTE_PLAN_HREF, MapRouteTransferButton, carryRouteToPlan } from "@/components/plan/MapRouteTransferButton";
 
 import PubmaxxLoadingEmber from "@/components/brand/PubmaxxLoadingEmber";
 import { Button } from "@/components/ui/button";
@@ -299,7 +300,7 @@ export function MobilePlanActivation({
             <div><strong>{result.confidence.level === "high" ? "Prices checked" : result.confidence.level === "medium" ? "Not all checked" : "Rough guess, yours to change"}</strong><span>{result.budget.basis === "selected-drink-price-unavailable" ? "We don't have recorded prices for the drink you picked. Check each stop before relying on the budget." : result.budget.estimatedPerPersonPence === null ? "Some prices are missing. Check each stop before relying on the budget." : `Estimated £${(result.budget.estimatedPerPersonPence / 100).toFixed(2)} each for one recorded pint per stop.`}</span>{result.confidence.warnings.length ? <ul aria-label="Route warnings">{result.confidence.warnings.map((warning) => <li key={warning}><small>{warning}</small></li>)}</ul> : null}</div>
           </div>
           <p className="mobilePlannerRouteTotal">{result.routeTotalLabel}</p>
-          <p className="mobilePlannerNextStep">Route preview stays on this device. Lock it in on Plan when you want a shareable crew link.</p>
+          <p className="mobilePlannerNextStep">Route preview stays on this device. <Link className="[color:inherit] underline underline-offset-2" href={MAP_ROUTE_PLAN_HREF} onClick={() => carryRouteToPlan(result.mapRoute)}>Lock it in on Plan</Link> when you want a shareable crew link.</p>
           <MapRouteTransferButton response={result.mapRoute} />
           <div className="mobilePlannerEndings" aria-label="Ending recommendations">
             {result.endings.map((ending) => (

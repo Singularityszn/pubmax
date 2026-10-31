@@ -4,7 +4,9 @@ import type { ConciergeVenue } from "@/lib/concierge/rank";
 import type { NightSignalClaim } from "@/lib/nightSignalClaims";
 import { canAffectRoute } from "@/lib/nightSignalClaims";
 import type { NightContext } from "@/lib/nightPlanning";
-import { planUsesPintPrices } from "@/lib/planGenerationDto";
+import { planUsesPintPrices, type PlanConstraintReport } from "@/lib/planGenerationDto";
+import { PLAN_NEAR_STATION_METRES, planNearStationName } from "@/lib/planGenerationRanking";
+import { formatGbp } from "@/lib/formatGbp";
 import {
   PLAN_ACCESSIBILITY_NEEDS,
   type PlanAccessibilityNeed,
@@ -47,6 +49,8 @@ export type PlanGenerationSelection<T extends ScoredPlanCandidate> =
   | {
       ok: false;
       selection: Extract<GroundedPlanRouteSelection<T>, { ok: false }>;
+      /** The must-have words the reader set, named in the refusal. Never a transport word. */
+      mustHaves: string[];
     };
 
 export type AnchoredPlanGenerationSelection<T extends ScoredPlanCandidate> =
@@ -156,6 +160,57 @@ function groundedConstraints(
   };
 }
 
+/**
+ * A tube or station word is a soft preference (scored in
+ * lib/planGenerationRanking.ts). The report says what we could check: the
+ * bundled station table is central London only, so a stop with no listed
+ * station near it is unchecked, not far.
+ */
+function withTubeReport(
+  report: PlanConstraintReport,
+  context: NightContext,
+  stops: readonly { lat: number; lng: number }[],
+): PlanConstraintReport {
+  if (!context.transportConstraints.includes("tube")) return report;
+  const allNear = stops.length > 0 && stops.every((stop) => planNearStationName(stop.lat, stop.lng) !== null);
+  return {
+    ...report,
+    hardConstraints: [
+      ...report.hardConstraints,
+      allNear
+        ? { code: "tube_stations", status: "satisfied", message: `Tube: every stop is within ${PLAN_NEAR_STATION_METRES} m of a station.` }
+        : { code: "tube_stations", status: "flagged", message: "Tube: we could not check station distance for these stops." },
+    ],
+  };
+}
+
+/** The must-haves a refusal names, in the words the reader would recognise. */
+function mustHaveWords(
+  context: NightContext,
+  intake: ParsedPlanGenerationIntake | null,
+  accessibilityNeeds: readonly PlanAccessibilityNeed[],
+): string[] {
+  const stopCount = normalizePlanStopCount(context.stopCount);
+  return [
+    ...PLAN_ACCESSIBILITY_NEEDS.flatMap(({ id, label }) => accessibilityNeeds.includes(id) ? [label.toLowerCase()] : []),
+    ...(context.budgetLimitPence !== null ? [`a ${formatGbp(context.budgetLimitPence / 100)} budget`] : []),
+    ...(intake?.routeWindow ? ["the time you picked"] : []),
+    ...(intake?.exactNightArea ? ["the exact patch"] : []),
+    ...(stopCount !== DEFAULT_PLAN_STOP_COUNT ? [`${stopCount} stops`] : []),
+  ];
+}
+
+/** The refusal that names the must-haves the reader set, so they know what to drop. */
+export function planRouteRefusalMessage(stopCount: number, areaName: string, mustHaves: readonly string[]): string {
+  if (mustHaves.length === 0) {
+    return `No ${stopCount}-stop route in ${areaName} meets every must-have need with the information available.`;
+  }
+  const named = mustHaves.length > 1
+    ? `${mustHaves.slice(0, -1).join(", ")} and ${mustHaves.at(-1)}`
+    : mustHaves[0];
+  return `No ${stopCount}-stop route in ${areaName} fits ${named} with the information we have. Try dropping one.`;
+}
+
 /** Join canonical evidence and run the hard-constraint optimizer. */
 export async function selectPlanGenerationCandidates<T extends ScoredPlanCandidate>(
   candidates: readonly T[],
@@ -166,28 +221,33 @@ export async function selectPlanGenerationCandidates<T extends ScoredPlanCandida
   const accessibilityNeeds = requiredAccessibilityNeeds(context, intake);
   const hasContextHardConstraint = accessibilityNeeds.length > 0
     || context.budgetLimitPence !== null
-    || context.transportConstraints.length > 0
     || normalizePlanStopCount(context.stopCount) !== DEFAULT_PLAN_STOP_COUNT;
-  if (!intake && !hasContextHardConstraint) {
+  const legacy = (): PlanGenerationSelection<T> => {
     const count = normalizePlanStopCount(context.stopCount);
     const chosen = context.wetherspoonsPreferred
       ? candidates.slice(0, count)
       : firstCandidatesPerOperator(candidates, count);
     return { ok: true, legacy: true, chosen };
-  }
+  };
+  // A transport word alone still takes the grounded route, so its report can
+  // say the walk was heard, but it never turns a route into a refusal.
+  const transportOnly = !intake && !hasContextHardConstraint;
+  if (transportOnly && context.transportConstraints.length === 0) return legacy();
   const selection = selectGroundedPlanRoute(
     await groundedRouteCandidates(candidates, now, planUsesPintPrices(context)),
     groundedConstraints(context, intake, accessibilityNeeds, now),
   );
-  return selection.ok
-    ? {
-        ok: true,
-        legacy: false,
-        chosen: selection.stops.map((stop) => stop.value),
-        selection,
-        accessibilityEnforced: accessibilityNeeds.length > 0,
-      }
-    : { ok: false, selection };
+  if (selection.ok) {
+    return {
+      ok: true,
+      legacy: false,
+      chosen: selection.stops.map((stop) => stop.value),
+      selection: { ...selection, constraintReport: withTubeReport(selection.constraintReport, context, selection.stops) },
+      accessibilityEnforced: accessibilityNeeds.length > 0,
+    };
+  }
+  if (transportOnly) return legacy();
+  return { ok: false, selection, mustHaves: mustHaveWords(context, intake, accessibilityNeeds) };
 }
 
 /**
@@ -222,7 +282,7 @@ export async function selectAnchoredPlanGenerationCandidates<T extends ScoredPla
         ok: true,
         outcome: "route",
         chosen: selection.stops.map((stop) => stop.value),
-        selection,
+        selection: { ...selection, constraintReport: withTubeReport(selection.constraintReport, context, selection.stops) },
         accessibilityEnforced,
       };
 }

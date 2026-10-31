@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import NearPageClient from "@/components/nearme/NearPageClient";
+import { loadNearGuinnessPrices } from "@/lib/nearGuinness.server";
 
 // The instant-answer surface (Cycle 3, Lane 1): geolocate → the cheapest good
 // pints within a short walk, as immediate cards. No map needed to reach the
@@ -26,6 +27,10 @@ export const dynamic = "force-static";
 // change nobody redeployed for.
 export const revalidate = 3600;
 
-export default function NearPage() {
-  return <NearPageClient />;
+// The Guinness line's rows are bundled data read at build, the same read
+// /drink/guinness makes, so the prerendered document stays the same for every
+// visitor. The ranking against the viewer's spot runs in the browser.
+export default async function NearPage() {
+  const guinnessPrices = await loadNearGuinnessPrices();
+  return <NearPageClient guinnessPrices={guinnessPrices} />;
 }

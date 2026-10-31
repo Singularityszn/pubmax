@@ -41,6 +41,7 @@ const LANE_OWNERS: Record<PaidSpendLane, string> = {
   "pub-pal-voice": "app/api/pub-pal/voice-token/route.ts",
   "plan-generate": "lib/planGeneration.server.ts",
   "pub-list-import": "lib/pubListImport.server.ts",
+  "board-read": "app/api/board-reads/route.ts",
   typesafe: "lib/ai/typesafe.server.ts",
 };
 

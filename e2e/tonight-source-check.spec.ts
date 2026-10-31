@@ -33,7 +33,7 @@ for (const width of [1280, 390]) {
     await expect(page.getByText("A dated concert", { exact: true })).toHaveCount(0);
     await expect(page.getByText("We can’t date these listings yet.", { exact: true })).toHaveCount(0);
     await expect(page.locator('[data-tonight-provenance="undated-whats-on"]'))
-      .toContainText("The what’s-on source check date is not recorded.");
+      .toContainText("The pub listings source check date is not recorded.");
     await page.screenshot({ path: testInfo.outputPath(`source-check-${width}.png`), fullPage: true });
   });
 
