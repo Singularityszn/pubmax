@@ -92,10 +92,11 @@ export function useTonightGetHome(
       (body, source) =>
         setHeld({ key: answerKey, result: body, observedAt: getHomeObservedAt(body, source, Date.now()) }),
     ).then((outcome) => {
-      // A failed read with nothing held says there is no answer. A failed read
-      // that fell back to a cached copy keeps that copy, and its age decides.
+      // Keep a held answer for this origin. Its original age still controls expiry.
       if (outcome === "failed" && !controller.signal.aborted) {
-        setHeld({ key: answerKey, result: null, observedAt: null });
+        setHeld((current) => current?.key === answerKey
+          ? current
+          : { key: answerKey, result: null, observedAt: null });
       }
     });
     return () => controller.abort();
