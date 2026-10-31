@@ -10,8 +10,8 @@ The beacon and presentation route tests exercise their HTTP handlers.
 
 ## Current snapshot
 
-Counted on 31 October 2026 on the round 5 tree (PR 2412, which carries PR
-2402). Recount it with `ls lib/*Store.ts` and a grep for `selectStore(` and
+Counted on 31 October 2026 with the V1 night stores included.
+Recount it with `ls lib/*Store.ts` and a grep for `selectStore(` and
 `createDualBackendStore` whenever a store is added.
 
 - The repository has 65 `lib/*Store.ts` modules.

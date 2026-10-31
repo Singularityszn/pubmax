@@ -9,26 +9,10 @@
 
 ## V1 night features, 31 October 2026
 
-The V1 implementation extends the existing Plan and active-night views with four optional features.
-
-1. Sliding Doors compares the saved route with checked alternatives. Crew votes do not change the route. The host accepts a proposal.
-2. Find our table displays a private crew symbol and note at a confirmed arrival. The sign expires after two hours or earlier.
-3. London Clue Hunt offers sourced landmark questions beside a confirmed walking route. A straight-line fallback supplies no clues.
-4. Mystery Envelopes hides future stop names until the reader opens them. The full route, price evidence, and map remain available.
-
-The chosen first pub and completed route prefix remain fixed during route changes.
-Required constraints still block proposal acceptance until their evidence is recorded.
-Old Plans default to ordinary presentation.
-Clues and reveals do not record arrivals, award points, or require a purchase.
-
-Migrations 0213, 0214, and 0215 have rollback files. The captain applies production migrations.
-Migration 0213 records the route version on new arrivals. Historical arrivals cannot establish a current table sign.
-Expired signs cannot be read. Clock-only expiry removes the stored note on its next access.
-Advancing the night or changing its route removes the note in the same database transaction.
-
-Source checks and local database tests do not establish browser or device acceptance.
-The release still needs the required full verification, a built desktop/phone journey, and physical-device checks for native claims.
-No production migration, merge, or deployment follows automatically from this implementation.
+The V1 implementation extends the existing Plan and active-night views.
+The [README](../../README.md#features) owns usage instructions for Sliding Doors, Find our table, London Clue Hunt and Mystery Envelopes.
+The [Plan API reference](../API_CONTRACTS_THE_LOCAL.md#55-night-feature-contracts) owns their request and persistence contracts.
+The [proof record](../proof/v1-night-features/README.md) records local verification and its limits, including unverified physical-device acceptance.
 
 The later ideas remain deferred: Fork and rejoin, Pub Radio, The Morning After Gazette, and Rewalk My London.
 

@@ -476,3 +476,51 @@ The supplied full-suite result remains historical: 45,288 passed, five failed an
 The outer executor must rerun the configured command, including PostgreSQL, freshness and audit stages.
 These focused passes do not establish full gate success or PR readiness.
 No merge, deployment, production promotion or live migration occurred.
+
+## Candidate acceptance after the configured repair on 31 October 2026
+
+This phase tested `2af80282f867b12a4f72dc71424318d983e3b417`.
+The outer executor supplied a successful baseline for `npm run verify:no-mistakes:changed` before this phase.
+That result supersedes the earlier configured-command failures recorded above.
+This phase did not repeat the configured command, lint, static analysis or the full suite.
+
+The isolated production build and all five browser cases completed with exit code 0:
+
+```sh
+CI=1 PW_PORT=3191 PW_NEXT_DIST_DIR=.next-v1-test-r8 PW_SKIP_KEYLESS_WEBSERVER=1 PUBMAX_TRACKED_OUTPUTS=public/data NEXT_TELEMETRY_DISABLED=1 node node_modules/@playwright/test/cli.js test e2e/v1-night-extras.spec.ts --project=chromium --workers=1 --output=/Users/karanmanoharan/.no-mistakes/evidence/01M69HEAA3GT8PSTA3844GERAK/r8/browser-results
+```
+
+The server used the repository keyless configuration and a fresh process-only signing secret.
+Live provider credentials were absent. Playwright owned the private port and the restored-output build wrapper.
+The cases checked these behaviours:
+
+1. A legacy arrival retry creates one unstamped action, no table location and no completed-stop reveal.
+2. Phone table details and clue controls remain readable under explicit light and dark page themes.
+3. Desktop and phone hosts control mystery settings and create private table signs.
+4. Guests retain separate reveals and the full-route escape. Strangers cannot read private settings or table signs.
+5. Reveal and table interactions preserve the saved route revision and arrival actions.
+
+Three additional browser journeys passed against the same completed build:
+
+1. Comparisons preserve the saved route and disclose unknown prices and straight-line estimates.
+   A host marked Here can propose. A guest cannot accept. Explicit host acceptance saves the proposed route.
+2. Clues reveal sourced answers manually and preserve the route and arrival actions.
+3. Lost proposal responses retain one key for the same payload. Another option creates a different proposal with another key.
+
+The clue journey used disposable upstream walking geometry. It does not establish real-provider availability or pavement accuracy.
+These repeats cover the latest private-read and visible-control repairs.
+Earlier SQL, route-preservation, expiry and production-refusal evidence remains historical evidence for unchanged code, as the recorded decision permits.
+This phase did not repeat those checks or claim a new durable browser session.
+
+New evidence remains under `r8/` in the existing external evidence directory.
+`production-browser.log` and `browser-status.json` record the completed build and browser specification.
+`live-results.json` retains product responses and the three additional journey results.
+The screenshots show legacy arrival restrictions, both phone themes, route comparisons and the sourced clue answer.
+The screenshots were inspected. `process-status.json` records the successful additional driver and intentional server shutdown.
+`cleanup.json` records the closed private port and removal of disposable build and generated data outputs.
+Dependencies and pre-existing outputs remain intact.
+
+This phase changes only this proof document after testing the named commit.
+Phone evidence uses desktop Chromium at 390 by 844. Desktop evidence uses 1440 by 1000.
+Physical-device and native-shell acceptance remain unverified. Remote CI remains the outer executor's responsibility.
+No merge, deployment, production promotion or live migration occurred.
