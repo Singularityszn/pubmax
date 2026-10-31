@@ -16,6 +16,7 @@
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import { isAuthAttemptId } from "@/lib/authRedirect";
 import { withAuthFetchTimeout } from "@/lib/authFetch";
+import { providerOwnsSession, readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { discardBody } from "@/lib/responseBody";
 import { resolveSupabaseConfig } from "@/lib/supabaseConfig";
 
@@ -206,18 +207,23 @@ export function isAuthConfigured(): boolean {
 }
 
 /**
- * The current session's access token (JWT), or null when signed out /
- * unconfigured. Ownership-sensitive writes send this as `Authorization: Bearer`
+ * The current provider account's access token (JWT), or null when signed out /
+ * unconfigured. The SDK's storage read can lag the provider's account event.
+ * Release its token only when both still name the same account.
+ * Ownership-sensitive writes send this as `Authorization: Bearer`
  * so the server can verify the caller's identity (lib/authServer.ts). Best-effort
  * and non-throwing: any failure resolves to null, and the caller simply makes an
  * anonymous request (still valid for an unlinked, demo handle).
  */
 export async function getAccessToken(): Promise<string | null> {
+  const accountSignal = readProviderAccountSignal();
   const supabase = await ensureSupabaseBrowser();
   if (!supabase) return null;
   try {
     const { data } = await supabase.auth.getSession();
-    return data.session?.access_token ?? null;
+    const session = data.session;
+    if (accountSignal.aborted || !providerOwnsSession("supabase", session?.user?.id)) return null;
+    return session?.access_token ?? null;
   } catch {
     return null;
   }

@@ -19,8 +19,9 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { readProviderAccountRevision, readProviderAccountSignal, subscribeProviderIdentityRevision } from "@/lib/authProviderRevision";
 
+import { useAuth } from "@/components/auth/authContext";
 import { useViewerSession } from "@/components/auth/useViewerSession";
-import { authedFetch } from "@/lib/authedFetch";
+import { authedFetch, signedInActionFetch } from "@/lib/authedFetch";
 import { coarsenViewerPoint } from "@/lib/geo";
 import { discardBody } from "@/lib/responseBody";
 import {
@@ -162,20 +163,22 @@ export function useDrinkerRegularNights(weekday: number | null): readonly Drinke
   const accountRevision = useSyncExternalStore(subscribeProviderIdentityRevision, readProviderAccountRevision, () => 0);
   const [answer, setAnswer] = useState<{ weekday: number; accountRevision: number; rows: DrinkerRegularNight[] } | null>(null);
   const { signedIn } = useViewerSession();
+  const { identityResolved } = useAuth();
 
   useEffect(() => {
-    if (weekday === null || readProviderAccountRevision() !== accountRevision) return;
+    if (weekday === null || (signedIn && !identityResolved) || readProviderAccountRevision() !== accountRevision) return;
     const controller = new AbortController();
     const accountSignal = readProviderAccountSignal();
     const abort = () => controller.abort();
     accountSignal.addEventListener("abort", abort, { once: true });
     const live = () => !controller.signal.aborted && !accountSignal.aborted && readProviderAccountRevision() === accountRevision;
-    void authedFetch(
-      `/api/regular-nights?weekday=${weekday}`,
-      { signal: controller.signal },
-      { requiresIdentity: signedIn },
-    )
+    const url = `/api/regular-nights?weekday=${weekday}`;
+    const request = signedIn
+      ? signedInActionFetch(url, { signal: controller.signal })
+      : authedFetch(url, { signal: controller.signal }, { requiresIdentity: false });
+    void request
       .then((response) => {
+        if (!response) return null;
         if (live() && response.ok) return response.json();
         discardBody(response);
         return null;
@@ -192,9 +195,9 @@ export function useDrinkerRegularNights(weekday: number | null): readonly Drinke
       accountSignal.removeEventListener("abort", abort);
       controller.abort();
     };
-  }, [weekday, signedIn, accountRevision]);
+  }, [weekday, signedIn, identityResolved, accountRevision]);
 
-  return answer && answer.weekday === weekday && answer.accountRevision === accountRevision ? answer.rows : NO_DRINKER_NIGHTS;
+  return (!signedIn || identityResolved) && answer && answer.weekday === weekday && answer.accountRevision === accountRevision ? answer.rows : NO_DRINKER_NIGHTS;
 }
 
 const NO_DRINKER_NIGHTS: readonly DrinkerRegularNight[] = [];

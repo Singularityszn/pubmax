@@ -25,9 +25,13 @@ vi.mock("@/components/auth/useViewerSession", () => ({
 vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({ handle: viewer.handle, identityResolved: viewer.identityResolved }),
 }));
+vi.mock("@/components/auth/authContext", () => ({
+  useAuth: () => ({ identityResolved: viewer.identityResolved }),
+}));
 vi.mock("@/lib/authedFetch", () => ({
   authedActionFetch: (url: string, init?: RequestInit) => fetchMock(url, init),
   authedFetch: (url: string, init?: RequestInit) => fetchMock(url, init),
+  signedInActionFetch: (url: string, init?: RequestInit) => fetchMock(url, init),
   publishAuthActionState: () => {},
 }));
 

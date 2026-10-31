@@ -22,9 +22,12 @@ vi.mock("@/components/auth/useViewerSession", () => ({
     unresolved: state.phase === "unresolved",
   }),
 }));
+vi.mock("@/components/auth/authContext", () => ({
+  useAuth: () => ({ identityResolved: true }),
+}));
 
 vi.mock("@/lib/authedFetch", () => ({
-  authedFetch: async (input: string) => {
+  signedInActionFetch: async (input: string) => {
     state.calls.push(String(input));
     if (!state.respond) throw new Error("no response queued");
     return state.respond();

@@ -35,6 +35,7 @@ test("a mounted phone map recovers A's prices after B's failed read through anot
   await map.setViewportSize({ width: 390, height: 844 });
   await installAuthDoubles(map);
   const reads: string[] = [];
+  let heldA: Promise<void> | null = null;
   await map.route("**/api/mates-prices?**", async (route) => {
     const bearer = await route.request().headerValue("authorization");
     const account = (["A", "B"] as const).find((key) =>
@@ -42,6 +43,7 @@ test("a mounted phone map recovers A's prices after B's failed read through anot
     );
     expect(account, "Every private price read must carry a known fixture credential").toBeDefined();
     reads.push(account!);
+    if (account === "A" && heldA) await heldA;
     await route.fulfill({
       status: account === "B" ? 503 : 200,
       json: account === "B" ? { error: "unavailable" } : {
@@ -68,8 +70,17 @@ test("a mounted phone map recovers A's prices after B's failed read through anot
     ]);
     await expect(mates).toHaveCount(0);
     const previousReads = reads.length;
-    await switchRememberedAccount(control, "B", "A");
-    await expect.poll(() => reads.slice(previousReads)).toContain("A");
+    let releaseA!: () => void;
+    heldA = new Promise<void>((resolve) => { releaseA = resolve; });
+    try {
+      await switchRememberedAccount(control, "B", "A");
+      await expect.poll(() => reads.slice(previousReads)).toContain("A");
+      // A's old result cannot return before its new response body arrives.
+      await expect(mates).toHaveCount(0);
+    } finally {
+      heldA = null;
+      releaseA();
+    }
     await expect(mates).toContainText("@alice_mate");
     await expect(mates).toContainText("£4.25");
     await expect(mates).not.toContainText("@bob_mate");
