@@ -1,15 +1,15 @@
 "use client";
 
-// The three small reads behind Tonight's answer cards. Each one starts only
-// when its card needs it, settles once, and owns nothing the page does not
-// already know.
+// The reads behind Tonight's answer cards. Each read starts only when its
+// card needs it and owns nothing the page does not already know.
 //
 // 1. The pubs within a walk of the reader, from the same slim venue cells the
 //    map and /near read (lib/slimShards.ts), and only once a position or a
 //    remembered area exists. No position, no read: the card answers from the
 //    city's cheapest listed pint the page already holds.
 // 2. The regular nights, from the three committed what's-on files, and only
-//    when the what's-on read has no confirmed listing to show.
+//    when the what's-on read has no confirmed listing to show. Drinker reports
+//    use the separate `useDrinkerRegularNights` read below.
 // 3. The last train, through the same /api/last-train read the get-home strip
 //    makes. The surface cache joins the two into one request.
 //
@@ -154,9 +154,12 @@ export function useRegularNights(enabled: boolean): RegularNightsRead {
 
 /**
  * The nights drinkers added for one weekday, from /api/regular-nights, read
- * once `weekday` is known. Fail-soft: a read that could not answer leaves the
- * drinker list empty and the sourced nights untouched. Hidden and expired rows
- * are dropped again by `parseDrinkerRegularNights`, whatever the route sent.
+ * when `weekday` is known and again when the account changes. Ownership flags
+ * belong to the account revision, not just its signed-in state. The render
+ * guard hides old rows before effect cleanup. Both response stages reject an
+ * old revision, including after sign-out and return to the same account.
+ * A failed read leaves the drinker list empty and the sourced nights untouched.
+ * `parseDrinkerRegularNights` also drops hidden and expired rows.
  */
 export function useDrinkerRegularNights(weekday: number | null): readonly DrinkerRegularNight[] {
   const accountRevision = useSyncExternalStore(subscribeProviderIdentityRevision, readProviderAccountRevision, () => 0);

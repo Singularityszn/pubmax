@@ -42,6 +42,8 @@ type Night = Pick<DrinkerRegularNight, "id" | "own" | "handle">;
 
 export default function RegularNightStillOn({ night }: { night: Night }): React.JSX.Element {
   const accountRevision = useSyncExternalStore(subscribeProviderIdentityRevision, readProviderAccountRevision, () => 0);
+  // The key resets action state before paint. The request guard below also
+  // rejects late bodies and failures that finish after the account changes.
   return <RegularNightAction key={`${accountRevision}:${night.id}`} night={night} accountRevision={accountRevision} />;
 }
 
