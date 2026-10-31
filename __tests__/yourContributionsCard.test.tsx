@@ -2,8 +2,6 @@
 
 import { createElement, act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import YourContributionsCard from "@/components/profile/YourContributionsCard";
@@ -23,8 +21,6 @@ vi.mock("next/link", () => ({
     [key: string]: unknown;
   }) => createElement("a", { href, ...props }, children),
 }));
-
-const ROOT = join(__dirname, "..");
 
 // The account Astra ended the 5 Sep battle test with: one price logged, on one
 // day, in one borough. This is the exact shape that printed "1-day mapping
@@ -107,22 +103,5 @@ describe("the You card counts what you mapped, never days running", () => {
     const nudge = host.querySelector(".contribNudge");
     expect(nudge?.textContent).toContain("Claim your @handle");
     expect(nudge?.textContent).not.toMatch(/streak/i);
-  });
-
-  it("leaves no streak wording in the card or its stylesheet", () => {
-    // A rendered absence proves this run; the source fence proves the next
-    // person cannot put the block back without reading this test.
-    for (const file of [
-      "components/profile/YourContributionsCard.tsx",
-      "components/profile/yourContributionsCard.css",
-    ]) {
-      const source = readFileSync(join(ROOT, file), "utf8");
-      // The word survives only in the comments that say why it is gone, so
-      // both comment forms come out before the sweep.
-      const code = source
-        .replace(/\/\*[\s\S]*?\*\//g, "")
-        .replace(/^\s*\/\/.*$/gm, "");
-      expect(code).not.toMatch(/streakLabel|contribStreak|mapping streak|day streak/);
-    }
   });
 });

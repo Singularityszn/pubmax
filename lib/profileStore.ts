@@ -1306,6 +1306,25 @@ function grantMemoryFoundingNumber(): number | undefined {
   return highest + 1;
 }
 
+/** Move an owned memory profile without changing its identity or saved fields. */
+export function renameMemoryOwnedProfile(profileId: string, userId: string, handle: string): void {
+  const key = normalizeHandle(handle);
+  const existing = [...memoryProfiles.values()].find((profile) => profile.id === profileId);
+  if (!key || !existing || existing.userId !== userId || isProfileTombstoned(existing)) {
+    throw new Error("Profile storage is unavailable.");
+  }
+  if (memoryProfiles.has(key)) {
+    throw new Error("That handle is not available.");
+  }
+  const renamed: ProfileRecord = {
+    ...existing,
+    handle: key,
+    updatedAt: new Date().toISOString(),
+  };
+  memoryProfiles.delete(existing.handle);
+  memoryProfiles.set(key, renamed);
+}
+
 export const memoryProfileStore: ProfileStore = {
   async getByHandle(handle) {
     return memoryProfiles.get(normalizeHandle(handle)) ?? null;
@@ -1365,9 +1384,9 @@ export const memoryProfileStore: ProfileStore = {
   async ensure(handle) {
     const key = normalizeHandle(handle);
     if (!key) throw new Error("A profile needs a non-empty handle.");
-    const existing = memoryProfiles.get(key);
     const { memoryIdentityHandleStore } = await import("@/lib/identityHandleStore");
     const aliasProfileId = await memoryIdentityHandleStore.aliasProfileId(key);
+    const existing = memoryProfiles.get(key);
     if (aliasProfileId && aliasProfileId !== existing?.id) {
       throw new Error("That handle is not available.");
     }
@@ -1391,7 +1410,12 @@ export const memoryProfileStore: ProfileStore = {
     if (isReservedContributorHandle(key)) {
       throw new Error("That handle is not available.");
     }
+    const { memoryIdentityHandleStore } = await import("@/lib/identityHandleStore");
+    const aliasProfileId = await memoryIdentityHandleStore.aliasProfileId(key);
     const existing = memoryProfiles.get(key);
+    if (aliasProfileId && aliasProfileId !== existing?.id) {
+      throw new Error("That handle is not available.");
+    }
     if (existing?.userId === userId) return existing;
     if (existing) throw new Error("That handle is not available.");
     for (const profile of memoryProfiles.values()) {

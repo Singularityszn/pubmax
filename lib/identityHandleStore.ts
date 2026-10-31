@@ -2,7 +2,11 @@ import "server-only";
 
 import { parseFoundingMemberNumber } from "@/lib/foundingMembers";
 import { isProfileWithdrawnFromPublic } from "@/lib/accountPublicAccess.server";
-import { isProfileTombstoned, profileStore } from "@/lib/profileStore";
+import {
+  isProfileTombstoned,
+  profileStore,
+  renameMemoryOwnedProfile,
+} from "@/lib/profileStore";
 import {
   assessPubmaxxHandle,
   evaluateHandleRename,
@@ -265,6 +269,14 @@ export const memoryIdentityHandleStore: IdentityHandleStore = {
       isCurrent: true,
       changedAt,
     };
+    try {
+      renameMemoryOwnedProfile(owned.profileId, ownerId, handle);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return /not available/i.test(message)
+        ? { ok: false, code: "taken", error: "That handle is already taken." }
+        : { ok: false, code: "storage", error: "Profile storage is unavailable." };
+    }
     memoryAliases.set(previousHandle, retired);
     memoryAliases.set(handle, current);
     currentByOwner.set(ownerId, current);
@@ -274,12 +286,7 @@ export const memoryIdentityHandleStore: IdentityHandleStore = {
   async resolve(handle) {
     const alias = memoryAliases.get(handle);
     if (alias) {
-      // Memory rename keeps aliases but may not move the profiles.handle
-      // column; prefer owner lookup so a live rename still resolves.
-      const current =
-        (await profileStore().getByHandle(alias.currentHandle)) ??
-        (await profileStore().getByUserId(alias.ownerId)) ??
-        (await profileStore().getByHandle(handle));
+      const current = await profileStore().getById(alias.profileId);
       if (!current) return null;
       // Auth-deletion stamp only — legacy user_id null stays live.
       if (await isProfileWithdrawnFromPublic(current)) return null;
@@ -287,7 +294,7 @@ export const memoryIdentityHandleStore: IdentityHandleStore = {
         return {
           profileId: alias.profileId,
           requestedHandle: handle,
-          currentHandle: alias.currentHandle,
+          currentHandle: current.handle,
           redirect: false,
           status: "gone",
         };
@@ -295,8 +302,8 @@ export const memoryIdentityHandleStore: IdentityHandleStore = {
       return {
         profileId: alias.profileId,
         requestedHandle: handle,
-        currentHandle: alias.currentHandle,
-        redirect: handle !== alias.currentHandle,
+        currentHandle: current.handle,
+        redirect: handle !== current.handle,
         status: "live",
       };
     }

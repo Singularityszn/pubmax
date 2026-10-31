@@ -4,14 +4,15 @@ vi.mock("@/lib/authServer", () => ({
   callerUserId: vi.fn(),
 }));
 
-// A retired alias (a renamed account's previous handle) lives only in the alias
-// ledger, and the memory rename does not move a profiles row, so the alias
-// state is set here. `aliases` maps each handle to its profile id.
+// These cases set the alias ledger directly to model absent and colliding rows.
 const identity = vi.hoisted(() => ({ aliases: new Map<string, string>() }));
 vi.mock("@/lib/identityHandleStore", () => ({
   identityHandleStore: () => ({
     aliasProfileId: async (handle: string) => identity.aliases.get(handle) ?? null,
   }),
+  memoryIdentityHandleStore: {
+    aliasProfileId: async (handle: string) => identity.aliases.get(handle) ?? null,
+  },
 }));
 
 import { callerUserId } from "@/lib/authServer";
