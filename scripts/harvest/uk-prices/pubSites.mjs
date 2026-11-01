@@ -71,6 +71,9 @@ export function singlePubSiteTargets(pubs, { only = null } = {}) {
       postcode: pub.postcode ?? null,
       lat: pub.lat ?? null,
       lng: pub.lng ?? null,
+      // What a branch URL could name this pub by (pageNamesAnotherBranch).
+      locality: pub.locality ?? null,
+      address: pub.address ?? null,
       host,
       homeUrl: site.url,
       origin: site.origin,

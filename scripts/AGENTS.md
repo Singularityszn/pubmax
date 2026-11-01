@@ -36,6 +36,7 @@ Full rules: [`docs/rules/scripts-harvest-and-source-permission.md`](../docs/rule
 - [A PUB'S OWN FOOD MENU IS READ LIKE ITS DRINKS LIST, AND ONLY ITS PRICE FACT SHIPS.](../docs/rules/scripts-harvest-and-source-permission.md#a-pub-s-own-food-menu-is-read-like-its-drinks-list-and-only-its-price-fact-ships)
 - [AN EXA WEBSITE IS READ FOR A PRICE ONLY WHEN ITS OWN PAGE STATES THE PUB'S ADDRESS.](../docs/rules/scripts-harvest-and-source-permission.md#an-exa-website-is-read-for-a-price-only-when-its-own-page-states-the-pub-s-address)
 - [A MENU IS THE PUB'S WHOSE WEBSITE IT IS, AND A SHARED NAME IS NOT A MATCH.](../docs/rules/scripts-harvest-and-source-permission.md#a-menu-is-the-pub-s-whose-website-it-is-and-a-shared-name-is-not-a-match)
+- [A PAGE THAT NAMES ANOTHER BRANCH IS NOT THIS PUB'S PRICE, EVEN ON A ONE-PUB HOST.](../docs/rules/scripts-harvest-and-source-permission.md#a-page-that-names-another-branch-is-not-this-pub-s-price-even-on-a-one-pub-host)
 
 ## Builders and publishers
 
