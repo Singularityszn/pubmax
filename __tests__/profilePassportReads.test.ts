@@ -64,6 +64,7 @@ function deps(reader: Reader, visibility: AccountVisibility, overrides: Partial<
       profileId === OWNER.id
         ? [{ venueId: "cittie", venueName: "Cittie of Yorke" }, { venueId: "", venueName: "" }]
         : [{ venueId: "cittie", venueName: "Cittie of Yorke" }],
+    beenHere: async () => [],
     rankings: async (profileId) =>
       profileId === OWNER.id ? rankedRows(["lamb", "stars", "mitre", "a", "b"]) : rankedRows(["stars", "z", "lamb"]),
     nightProfile: async () => ({ patch: "Soho" }),
@@ -121,9 +122,56 @@ describe("GET been", () => {
         diary: async () => (asked.push("diary"), []),
         plans: async () => (asked.push("plans"), []),
         nightProfile: async () => (asked.push("night"), null),
+        beenHere: async () => (asked.push("beenHere"), []),
       }),
     );
     expect(asked).toEqual([]);
+  });
+
+  it("folds the owner's own Been here list in as undated rows that say so", async () => {
+    const beenHere = async () => [
+      { venueId: "grapes", venueName: "The Grapes" },
+      // Already in the diary: one pub, one row, and the diary's day stands.
+      { venueId: "lamb", venueName: "The Lamb" },
+    ];
+    const result = await readPassportBeen(request(), "owner", deps("owner", "public", { beenHere }));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.body.count).toBe(4);
+    const grapes = result.body.venues.find((venue) => venue.venueId === "grapes");
+    expect(grapes).toEqual({ venueId: "grapes", venueName: "The Grapes", lastDate: "", sources: ["been_here"] });
+    const lamb = result.body.venues.find((venue) => venue.venueId === "lamb");
+    expect(lamb?.lastDate).toBe("2026-10-05");
+    expect(lamb?.sources).toEqual(["diary", "pint_drop", "been_here"]);
+    // The undated row sorts after every dated one.
+    expect(result.body.venues.at(-1)?.venueId).toBe("grapes");
+    expect(PASSPORT_COPY.undated).toBe("No date");
+  });
+
+  it.each<Reader>(["anon", "stranger", "mate"])(
+    "never shows %s the owner's Been here list, and never asks for it",
+    async (reader) => {
+      const asked: string[] = [];
+      const result = await readPassportBeen(
+        request(),
+        "owner",
+        deps(reader, "public", {
+          beenHere: async () => (asked.push("beenHere"), [{ venueId: "grapes", venueName: "The Grapes" }]),
+        }),
+      );
+      expect(asked).toEqual([]);
+      expect(result.ok && result.body.venues.some((venue) => venue.venueId === "grapes")).toBe(false);
+      expect(result.ok && result.body.venues.every((venue) => !venue.sources.includes("been_here"))).toBe(true);
+    },
+  );
+
+  it("reads degraded, never empty, when the Been here list cannot be read", async () => {
+    const result = await readPassportBeen(
+      request(),
+      "owner",
+      deps("owner", "public", { beenHere: async () => { throw new Error("saved lists down"); } }),
+    );
+    expect(result.ok && result.body.status).toBe("degraded");
   });
 
   it("answers a withdrawn or unknown handle as not found", async () => {

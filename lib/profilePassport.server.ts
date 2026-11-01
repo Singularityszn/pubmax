@@ -12,6 +12,7 @@ import "server-only";
 
 import { accountIsPrivate } from "@/lib/accountVisibility";
 import { callerUserId } from "@/lib/authServer";
+import { BEEN_HERE_LIST } from "@/lib/beenHere";
 import { diaryStore } from "@/lib/diaryStore";
 import { isMutual, resolveFollowRelation } from "@/lib/followRelation";
 import { followStore, type FollowStore } from "@/lib/followStore";
@@ -43,6 +44,7 @@ import { socialPubRankingStore } from "@/lib/socialPubRankingStore";
 import { socialPubRankingEntries } from "@/lib/socialPubRankings";
 import { selectStore } from "@/lib/storeBackend";
 import { storedVenueName } from "@/lib/storedVenueRef";
+import { savedPubsStore } from "@/lib/savedPubsStore";
 import { requireSupabaseAdmin } from "@/lib/supabase";
 import { loadVenueAliasResolver } from "@/lib/venueAliases";
 import { resolveStoredVenue } from "@/lib/venueIndex";
@@ -65,6 +67,11 @@ export type PassportDeps = {
   plans(ownerUserId: string): Promise<BeenSighting[]>;
   /** Open Want-to-try rows; a pending paste has an empty venue id. */
   wanted(profileId: string): Promise<PassportVenue[]>;
+  /**
+   * The owner's own "Been here" saved list (lib/beenHere.ts). Undated, so it
+   * is asked for the owner's full read alone and never for anybody else.
+   */
+  beenHere(ownerHandle: string): Promise<PassportVenue[]>;
   rankings(profileId: string): Promise<PassportRankedRow[]>;
   nightProfile(ownerUserId: string): Promise<PassportNightProfile | null>;
   venue(venueId: string): Promise<PassportVenueFacts | null>;
@@ -229,10 +236,13 @@ export async function readPassportBeen(
   const sources = beenSourcesFor(access);
   const userId = profile.userId?.trim() || "";
 
-  const [diary, drops, plans, wanted, night, canonical] = await Promise.all([
+  const [diary, drops, plans, beenHere, wanted, night, canonical] = await Promise.all([
     sources.includes("diary") && userId ? settle(() => deps.diary(userId), []) : settle(async () => [], []),
     settle(() => dropSightings(request, profile, relation, deps), []),
     sources.includes("plan") && userId ? settle(() => deps.plans(userId), []) : settle(async () => [], []),
+    sources.includes("been_here")
+      ? settle(() => deps.beenHere(profile.handle), [] as PassportVenue[])
+      : settle(async () => [] as PassportVenue[], []),
     settle(() => deps.wanted(profile.id), [] as PassportVenue[]),
     access === "full" && userId ? settle(() => deps.nightProfile(userId), null) : settle(async () => null, null),
     canonicalizer(deps),
@@ -244,14 +254,21 @@ export async function readPassportBeen(
     date: drop.createdAt,
     source: "pint_drop",
   }));
+  // A Been here row carries no day, and is never given one.
+  const beenHereRows: BeenSighting[] = beenHere.value.map((venue) => ({
+    venueId: venue.venueId,
+    venueName: venue.venueName,
+    date: "",
+    source: "been_here",
+  }));
   const venues = aggregateBeen(
-    await named(onCurrentIds([...diary.value, ...dropRows, ...plans.value], canonical), deps),
+    await named(onCurrentIds([...diary.value, ...dropRows, ...plans.value, ...beenHereRows], canonical), deps),
   );
   return {
     ok: true,
     body: {
       access,
-      status: diary.failed || drops.failed || plans.failed ? "degraded" : "ready",
+      status: diary.failed || drops.failed || plans.failed || beenHere.failed ? "degraded" : "ready",
       count: venues.length,
       venues,
       wantToTryCount: wanted.failed ? null : wanted.value.length,
@@ -432,6 +449,14 @@ export function defaultPassportDeps(): PassportDeps {
       const result = await wantedStore().listOpenForOwner(`profile:${profileId}`);
       if (result.status === "degraded") throw new Error("wanted degraded");
       return result.wanteds.map((row) => ({ venueId: row.venueId, venueName: row.venueName }));
+    },
+    async beenHere(ownerHandle) {
+      // The owner reads their own list, so a withdrawn handle is still theirs.
+      const read = await savedPubsStore(ownerHandle).readSaved({ handle: ownerHandle });
+      if (read.status !== "ready") throw new Error("saved lists unavailable");
+      return read.rows
+        .filter((row) => row.listType === BEEN_HERE_LIST)
+        .map((row) => ({ venueId: row.venueId, venueName: row.venueName }));
     },
     async rankings(profileId) {
       const rows = await socialPubRankingStore().read({ profileId });

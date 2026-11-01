@@ -1,6 +1,8 @@
 // Durable saved-pub LISTS for a handle (cc_plan2 §5).
 //   GET  ?handle=<handle>  (or ?actor=<anonId>)  → { saved: SavedPubDTO[] }
 //   POST { handle, venueId, listType, note }      → { saved: SavedPubDTO[] }  (toggles)
+//   POST { handle, action: "carryBeenHere", venueIds }
+//        → { saved, carried, refused }  (adds to "Been here", signed in only)
 //
 // A save is filed under a handle. The durable store keys saves by the profile_id
 // of a row that already exists (public.saved_pubs, see lib/savedPubsStore.ts)
@@ -22,6 +24,12 @@ import { callerOwnedWithdrawnHandle, gateHandleAction, gateHasVerifiedActor } fr
 import { profileStore } from "@/lib/profileStore";
 import { isLimited } from "@/lib/pintDrops";
 import { isListTypeEligibleForVenue } from "@/lib/savedListPolicy";
+import {
+  BEEN_HERE_CARRY_ACTION,
+  BEEN_HERE_CARRY_MAX,
+  BEEN_HERE_LIST,
+  parseBeenHereVenueIds,
+} from "@/lib/beenHere";
 import { assertServerEnv } from "@/lib/serverEnv";
 import {
   cleanListType,
@@ -130,6 +138,10 @@ export async function POST(request: Request): Promise<Response> {
     return jsonNoStore({ lists }, { status: 200 });
   }
 
+  if (readString(body.action) === BEEN_HERE_CARRY_ACTION) {
+    return carryBeenHere(request, ownership, body.venueIds);
+  }
+
   const venueId = (readString(body.venueId) ?? "").slice(0, MAX_VENUE_ID);
   if (!venueId) return publicApiError("Choose a venue.", "INVALID_REQUEST", 400);
 
@@ -145,26 +157,7 @@ export async function POST(request: Request): Promise<Response> {
   // Note is untrusted free text: strip HTML/control chars and cap length.
   const note = cleanNote(body.note);
 
-  // Rate-limit per handle AND per actor (two independent budgets). The handle
-  // cap stops one profile flooding; the actor cap stops one device spamming
-  // across handles. 429 when either budget is exhausted.
-  const actorHash = hashIp(clientIp(request));
-  if (
-    (await isLimited(
-      `saved:${ownership.handle}`,
-      `saved:${ownership.handle}`,
-      SAVE_HANDLE_LIMIT,
-      SAVE_RATE_WINDOW_MS,
-    )) ||
-    (await isLimited(
-      `saved:${actorHash}`,
-      `saved:${actorHash}`,
-      SAVE_ACTOR_LIMIT,
-      SAVE_RATE_WINDOW_MS,
-    ))
-  ) {
-    return publicApiError("Too many saves, slow down.", "RATE_LIMITED", 429, { retryable: true });
-  }
+  if (await savesLimited(request, ownership.handle)) return tooManySaves();
 
   // toggleSaved is fail-soft: a store error returns the current list unchanged, so
   // the client keeps its localStorage fallback in play rather than seeing a 503.
@@ -175,4 +168,79 @@ export async function POST(request: Request): Promise<Response> {
     ...(note ? { note } : {}),
   });
   return jsonNoStore({ saved }, { status: 200 });
+}
+
+function tooManySaves(): Response {
+  return publicApiError("Too many saves, slow down.", "RATE_LIMITED", 429, { retryable: true });
+}
+
+// Rate-limit per handle AND per actor (two independent budgets). The handle
+// cap stops one profile flooding; the actor cap stops one device spamming
+// across handles. True when either budget is exhausted.
+async function savesLimited(request: Request, handle: string): Promise<boolean> {
+  const actorHash = hashIp(clientIp(request));
+  return (
+    (await isLimited(`saved:${handle}`, `saved:${handle}`, SAVE_HANDLE_LIMIT, SAVE_RATE_WINDOW_MS)) ||
+    (await isLimited(`saved:${actorHash}`, `saved:${actorHash}`, SAVE_ACTOR_LIMIT, SAVE_RATE_WINDOW_MS))
+  );
+}
+
+// carryBeenHere (lib/beenHere.ts): the first-run card's taps, moved to the
+// signed-in account in ONE request, so a dozen taps spend one save from the
+// budget above rather than meeting its per-minute cap. It ADDS and never
+// toggles (ensureSaved), so a repeat after a lost answer cannot take a pub
+// back off. Only "Been here" is reachable through it, and only for a verified
+// account: the taps belong to a person, and the demo path has no person.
+// `carried` and `refused` echo the ids as they were sent, so the device can
+// clear exactly what this answer settled.
+async function carryBeenHere(
+  request: Request,
+  ownership: { handle: string; callerUserId: string | null },
+  rawVenueIds: unknown,
+): Promise<Response> {
+  if (!ownership.callerUserId?.trim()) {
+    return publicApiError("Sign in to keep these on your account.", "UNAUTHENTICATED", 401);
+  }
+  const venueIds = parseBeenHereVenueIds(rawVenueIds);
+  if (!venueIds) {
+    return publicApiError(`Send between 1 and ${BEEN_HERE_CARRY_MAX} pubs.`, "INVALID_REQUEST", 400);
+  }
+  if (await savesLimited(request, ownership.handle)) return tooManySaves();
+
+  let profileId: string;
+  try {
+    profileId = (await profileStore().getByHandle(ownership.handle))?.id ?? "";
+  } catch {
+    return publicApiError("Profile storage is unavailable.", "STORE_UNAVAILABLE", 503, {
+      retryable: true,
+    });
+  }
+  if (!profileId) return publicApiError("Profile not found.", "NOT_FOUND", 404);
+
+  const carried: string[] = [];
+  const refused: string[] = [];
+  const store = savedPubsStore();
+  for (const venueId of venueIds) {
+    const venue = await resolveVenue(venueId);
+    if (!venue || !isListTypeEligibleForVenue(BEEN_HERE_LIST, venue.kind)) {
+      refused.push(venueId);
+      continue;
+    }
+    const { outcome } = await store.ensureSaved({
+      profileId,
+      handle: ownership.handle,
+      venueId,
+      listType: BEEN_HERE_LIST,
+    });
+    if (outcome === "unavailable") {
+      // Nothing is lost: every add is idempotent, so the device keeps its set
+      // and asks again on the next visit.
+      return publicApiError("Saved lists are unavailable right now.", "STORE_UNAVAILABLE", 503, {
+        retryable: true,
+      });
+    }
+    carried.push(venueId);
+  }
+  const saved = await savedPubsStore(ownership.handle).listSaved({ handle: ownership.handle });
+  return jsonNoStore({ saved, carried, refused }, { status: 200 });
 }

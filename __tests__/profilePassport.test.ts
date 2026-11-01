@@ -46,6 +46,31 @@ describe("aggregateBeen", () => {
       ]),
     ).toEqual([]);
   });
+
+  it("keeps a Been here row with no day, never gives it one, and sorts it after the dated rows", () => {
+    const been = aggregateBeen([
+      { venueId: "grapes", venueName: "The Grapes", date: "", source: "been_here" },
+      { venueId: "anchor", venueName: "Anchor", date: "", source: "been_here" },
+      { venueId: "lamb", venueName: "The Lamb", date: "2026-10-01", source: "diary" },
+      // A day that rides in on a Been here row is ignored: the list has none.
+      { venueId: "lamb", venueName: "The Lamb", date: "2026-11-01", source: "been_here" },
+    ]);
+    expect(been).toEqual([
+      { venueId: "lamb", venueName: "The Lamb", lastDate: "2026-10-01", sources: ["diary", "been_here"] },
+      { venueId: "anchor", venueName: "Anchor", lastDate: "", sources: ["been_here"] },
+      { venueId: "grapes", venueName: "The Grapes", lastDate: "", sources: ["been_here"] },
+    ]);
+  });
+
+  it("still drops an undated record from every dated source", () => {
+    expect(
+      aggregateBeen([
+        { venueId: "a", venueName: "A", date: "", source: "diary" },
+        { venueId: "b", venueName: "B", date: "", source: "plan" },
+        { venueId: "c", venueName: "C", date: "", source: "pint_drop" },
+      ]),
+    ).toEqual([]);
+  });
 });
 
 describe("passportAccess", () => {
@@ -65,8 +90,8 @@ describe("passportAccess", () => {
     expect(passportAccess(...args)).toBe(expected);
   });
 
-  it("keeps the diary and plans for the owner alone", () => {
-    expect(beenSourcesFor("full")).toEqual(["diary", "pint_drop", "plan"]);
+  it("keeps the diary, plans and the Been here list for the owner alone", () => {
+    expect(beenSourcesFor("full")).toEqual(["diary", "pint_drop", "plan", "been_here"]);
     expect(beenSourcesFor("shared")).toEqual(["pint_drop"]);
     expect(beenSourcesFor("none")).toEqual([]);
   });

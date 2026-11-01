@@ -166,6 +166,7 @@ no side effect, as above.
 | Read the regular nights queue, confirm or hide (`/api/admin/regular-nights`) | 403 | 403 | 403 | 403 | 403 | 403 | 403; `ADMIN_TOKEN` only |
 | Read a saved-pub list (`GET /api/saved-pubs`) | public by design |||||||
 | Write a saved-pub list (`POST /api/saved-pubs`) | 403 on a claimed handle, 404 on a handle with no profile row (no row is minted) | writes to their OWN list, never the named one ||||| allowed |
+| Carry the first-run "Been here" taps (`POST /api/saved-pubs` with `action: "carryBeenHere"`) | 401, after the 403 and 404 above | adds to their OWN "Been here" list, never the named one; adds only, never toggles, never another list ||||| adds to their own "Been here" list |
 | `saved_pubs` at the table | denied | no rows, and a write is refused at the grant (0172) ||||| own rows, SELECT only; a write is refused at the grant |
 | A device RSVP (capability, no account) | reads the Plan it is a seat on; may not collaborate; names nobody at the inbox, the Wanted list, the export or deletion |||||||
 

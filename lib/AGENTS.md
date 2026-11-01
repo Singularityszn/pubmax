@@ -31,7 +31,7 @@ Full rules: [`docs/rules/lib-venues-areas-listings-and-nights.md`](../docs/rules
 
 ## Saves, nudges, rounds, reports and Pub Pal
 
-Visit reports, venue corrections, With tags, the profile passport, the rank card and Tell your lot, occupancy, wanted, nudges, community signals, rounds, ask and concierge routing, Pub Pal tools.
+Visit reports, venue corrections, With tags, the profile passport, the first-run Been here card, the rank card and Tell your lot, occupancy, wanted, nudges, community signals, rounds, ask and concierge routing, Pub Pal tools.
 
 Full rules: [`docs/rules/lib-saves-nudges-rounds-reports-and-pub-pal.md`](../docs/rules/lib-saves-nudges-rounds-reports-and-pub-pal.md).
 
