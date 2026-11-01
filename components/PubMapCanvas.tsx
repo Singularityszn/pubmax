@@ -3959,6 +3959,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     // sync in their own effect — toggling showLandmarks must not remount MapLibre.
     cinematic,
     cameraLanePending,
+    arrivalBearingSpentRef,
     cityId,
     selectLandmark,
     initAttempt,

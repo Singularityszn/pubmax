@@ -239,10 +239,8 @@ type CameraRefs = {
   gestureCameraRef: MutableRefObject<GestureCameraState>;
 };
 
-// The four camera helpers, extracted verbatim from PubMapCanvas. Each reads live
-// refs and keeps EMPTY dep arrays — that is intentional and load-bearing: the
-// helpers must always act on the latest map/route/venues without being recreated
-// (recreating them would re-fire the arrival/refit effects that consume them).
+// Camera helpers read live refs and keep stable callback identities. Recreating
+// them for each route or venue array would repeat the arrival and refit effects.
 export function useMapCamera(refs: CameraRefs) {
   const {
     mapRef,

@@ -56,12 +56,14 @@ Regression cases live in
 [`mapCrawlUrlSync.test.tsx`](../__tests__/mapCrawlUrlSync.test.tsx).
 
 Walking-route links also reach a map that stays mounted during client navigation.
-`useMapPlanCoordinator` adopts the linked ordered stops and clears any previous curated-crawl identity.
+`useMapPlanCoordinator` identifies each incoming history entry separately from its ordered stops.
+A new external entry adopts those stops, makes the walk visible and clears any previous curated-crawl identity.
+This also applies when consecutive external entries name the same walk.
 Without `sel`, the link closes the old venue selection and makes the landed entry the map's root.
 With `sel`, it selects that pub within the linked walk.
 `useCrawlUrlSync` stamps its own history writes with `pubmaxCrawlUrl`.
 Those writes cannot restore a hidden walk or replace the reader's edited stops.
-A pending write also yields to a new external walking-route entry.
+Pending writes retain their originating history entry and yield to a new external walking-route entry, including the same walk.
 `buildCrawlMapHref` in `lib/crawlUrl.ts` selects the stops' city path and rejects mixed-city lists or fewer than two stops.
 Regression cases live in `__tests__/mapWalkingRouteAdoption.test.tsx` and `e2e/map-crawl-spa-handoff.spec.ts`.
 

@@ -46,11 +46,10 @@ const MAP_ARRIVAL_BEARING_EPSILON = 0.5;
 // cancelled the turn's pending frame outright. Four runs of four came to rest
 // at exactly the bearing they arrived at.
 //
-// The canvas polls rather than waiting on MapLibre's `idle`, because `idle`
-// also waits on every requested tile and a basemap that never finishes would
-// mean a map that never turns. The ceiling is the same judgement: past it the
-// turn happens anyway, and the gesture guard still refuses it if the reader has
-// taken the map.
+// The arrival hook polls rather than waiting on MapLibre's `idle`, which also
+// waits on every requested tile. Pin reveal or its bounded fallback must finish
+// first. After that handoff, the elapsed camera ceiling permits the turn even
+// if the camera never settles. The gesture guard still protects the reader's view.
 //
 // They live here rather than in the canvas because the browser spec has to wait
 // out the same window before it may read a resting bearing, and two copies of
@@ -62,7 +61,7 @@ export const ARRIVAL_BEARING_POLL_MS = 100;
 /** How many consecutive still polls count as a camera nobody is writing. */
 export const ARRIVAL_BEARING_STILL_POLLS = 1;
 
-/** Past this the turn happens whether the camera has settled or not. */
+/** After pin handoff, this elapsed ceiling permits a turn even if the camera never settles. */
 export const ARRIVAL_BEARING_WAIT_CEILING_MS = 6_000;
 
 /**
