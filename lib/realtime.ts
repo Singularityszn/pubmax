@@ -38,6 +38,7 @@
 import { ensureSupabaseBrowser, getSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { PINT_DROPS_LIVE_EVENT, PINT_DROPS_LIVE_TOPIC } from "@/lib/pintDropsTopics";
+import { visibleInterval } from "@/lib/visiblePolling";
 
 // ── "X spilling right now" — a pure counter ──────────────────────────────────
 // The strip's number is derived, NOT streamed: count the drops created in the
@@ -84,7 +85,8 @@ export type Unsubscribe = () => void;
 const JOIN_TIMEOUT_MS = 5_000;
 // Poll cadence for the fallback path. Deliberately gentle (cost/scale
 // discipline, issue #37): a signal only ever triggers a refetch, so 30s of
-// latency in the degraded path is acceptable.
+// latency in the degraded path is acceptable. Every poll runs through
+// `visibleInterval`, so a hidden tab holds its poll and asks once on return.
 const POLL_INTERVAL_MS = 30_000;
 
 // Options shared by every subscription: an optional `poll` fn we fall back to
@@ -108,8 +110,7 @@ function subscribeByPolling(
 ): Unsubscribe {
   if (options?.enabled === false) return () => {};
   if (typeof window === "undefined") return () => {};
-  const id = setInterval(options?.poll ?? onSignal, POLL_INTERVAL_MS);
-  return () => clearInterval(id);
+  return visibleInterval(options?.poll ?? onSignal, POLL_INTERVAL_MS);
 }
 
 // Core subscription primitive. Opens ONE private broadcast channel on the
@@ -132,8 +133,7 @@ function subscribePintDropSignal(
   if (typeof window === "undefined") return () => {};
   if (!isAuthConfigured()) {
     if (!poll) return () => {};
-    const id = setInterval(poll, POLL_INTERVAL_MS);
-    return () => clearInterval(id);
+    return visibleInterval(poll, POLL_INTERVAL_MS);
   }
 
   let disposed = false;
@@ -141,17 +141,17 @@ function subscribePintDropSignal(
   let authRevision = 0;
   let client: ReturnType<typeof getSupabaseBrowser> = null;
   let authSubscription: { unsubscribe: () => void } | null = null;
-  let pollTimer: ReturnType<typeof setInterval> | null = null;
+  let stopPollTimer: (() => void) | null = null;
   let joinTimer: ReturnType<typeof setTimeout> | null = null;
   let channel: RealtimeChannel | null = null;
 
   function startPolling() {
-    if (!disposed && poll && !pollTimer) pollTimer = setInterval(poll, POLL_INTERVAL_MS);
+    if (!disposed && poll && !stopPollTimer) stopPollTimer = visibleInterval(poll, POLL_INTERVAL_MS);
   }
 
   function stopPolling() {
-    if (pollTimer) clearInterval(pollTimer);
-    pollTimer = null;
+    stopPollTimer?.();
+    stopPollTimer = null;
   }
 
   function dropChannel() {
