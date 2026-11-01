@@ -108,7 +108,7 @@ Speed:
 
 Reliability, on the free plan:
 
-- R1. A nightly `pg_dump` from a GitHub Action to private storage, and one restore drill with its time written in `docs/DR_RUNBOOK.md`. Upgrade on launch day if the spike is large.
+- R1. The off-platform dump on the captain's Mac runs every night instead of every Sunday (shipped, section 9), so a loss takes at most a day once `npm run backup:install-launchd` runs again. The dump stays off GitHub, because the repository is public and `docs/DR_RUNBOOK.md` forbids a dump on an Actions run. One restore drill sets the recovery time. Upgrade the database plan on launch day if the spike is large.
 - R2. Fewer database calls per visitor. Hidden map tabs no longer poll (shipped, section 9). The rate-limit fallback in `lib/pintDrops.ts` drops every key to 3 requests a minute when the database is slow; read-only routes should fail open with a local limit.
 - R3. A free uptime check on `/api/health`, the alert webhook set, PostHog alerts on `$exception`, and the emergency contacts filled in.
 - R4. A load test on a preview: 500 map opens and 100 plan links in 5 minutes.

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// npm run backup:install-launchd - schedule the off-platform backup weekly, on
-// Sunday at 03:30, as a launchd agent of the user who runs it. Run it from the
+// npm run backup:install-launchd - schedule the off-platform backup every night
+// at 03:30, as a launchd agent of the user who runs it. Nightly, not weekly, so
+// a loss takes at most a day of data (launch plan, 1 November 2026). Run it from the
 // checkout the job should use. Running it again rewrites the same agent and
 // reloads it, so it is safe to repeat after a pull or a move.
 //
@@ -54,8 +55,6 @@ ${programArguments.map((argument) => `    <string>${xml(argument)}</string>`).jo
   </dict>
   <key>StartCalendarInterval</key>
   <dict>
-    <key>Weekday</key>
-    <integer>0</integer>
     <key>Hour</key>
     <integer>3</integer>
     <key>Minute</key>
@@ -88,7 +87,7 @@ function install() {
   const loaded = spawnSync("launchctl", ["bootstrap", domain, agentFile], { stdio: ["ignore", "inherit", "inherit"] });
   if (loaded.error) throw new Error(`Could not run launchctl: ${loaded.error.message}`);
   if (loaded.status !== 0) throw new Error(`launchctl bootstrap exited ${loaded.status}.`);
-  console.log(`[backup] ${LABEL} runs weekly, Sunday 03:30, from ${checkout}. Log: ${logFile}`);
+  console.log(`[backup] ${LABEL} runs every night at 03:30, from ${checkout}. Log: ${logFile}`);
 }
 
 try {

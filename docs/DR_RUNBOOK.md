@@ -23,7 +23,7 @@ Facts to start from:
 
 ## Targets
 
-- **Recovery point objective (RPO), the most data a loss can take: 7 days today.** The off-platform dump runs once a week, so a loss can take everything written since the last complete dump. If the Mac is asleep, off or away, no dump runs, and this figure has no limit until the next complete run.
+- **Recovery point objective (RPO), the most data a loss can take: 1 day, once the agent is reinstalled.** The off-platform dump runs every night (launch plan, 1 November 2026), so a loss can take everything written since the last complete dump. A Mac still running the old weekly agent keeps a 7-day RPO until `npm run backup:install-launchd` runs again. If the Mac is asleep, off or away, no dump runs, and this figure has no limit until the next complete run.
 - **Recovery time objective (RTO), the longest the restore may take: not measured yet.** The first restore drill sets it. Write the measured minutes in the drill log below, then write the target here. Until then there is no figure.
 
 Accepted risks. Each one is known and open today:
@@ -32,7 +32,7 @@ Accepted risks. Each one is known and open today:
 - One Supabase project holds all production data.
 - One owner on each account. See section 4.
 - One person on call.
-- No point-in-time recovery (PITR), because the free plan does not have it. The weekly dump is the only way back.
+- No point-in-time recovery (PITR), because the free plan does not have it. The nightly dump is the only way back.
 
 The floor is automated. `__tests__/offPlatformBackupEffective.test.ts` builds the real schema from every migration, takes a dump with the backup script, and restores it into a fresh PostgreSQL cluster with the command in section 2. It fails when a table, a row count, a policy or a trigger does not come back, or when the restore prints an error not on its list. It does not prove a restore into Supabase, the bucket upload or the time a restore takes. The manual drill in section 1 is the real proof.
 
@@ -98,7 +98,7 @@ npm run backup:install-launchd
 ```
 
 It writes the launchd agent `~/Library/LaunchAgents/com.pubmax.backup.plist` and
-loads it. The agent runs the backup every Sunday at 03:30 with the variables
+loads it. The agent runs the backup every night at 03:30 with the variables
 from `backup.env`, and logs to `~/Library/Logs/pubmax-backup.log`. The installer
 refuses while `backup.env` is missing or open to other users. Running it again
 rewrites the same agent and reloads it, so run it again after the checkout moves.
@@ -117,7 +117,7 @@ backup, the newest complete dump and its photos, is NEVER deleted: if newer
 backups keep failing it is kept past 8 weeks, and every failed run says so in
 the log and in the alert (owner decision, 16 October 2026).
 
-- Each run deletes dumps older than 7 weeks, except the newest complete dump. That one goes only when a newer complete dump exists and it has passed 7 weeks. The one-week margin covers ordinary weekly scheduling jitter.
+- Each run deletes dumps older than 7 weeks, except the newest complete dump. That one goes only when a newer complete dump exists and it has passed 7 weeks. The one-week margin covers a Mac that misses some nights.
 - A dump's name supplies its UTC age. The eight-week comparison includes the exact deadline. A newer filesystem timestamp cannot extend that age.
 - When the newest complete dump has reached 8 weeks, a failed run logs `past the 8-week maximum` and its alert names the dump's UTC stamp. Fix the failing backup: the held copy goes on the first run after a newer backup completes.
 - A `.partial` dump expires at 8 weeks or when a newer complete dump makes it redundant. A failed renewal, dump or bucket sync removes the current partial dump and the staged photos.
