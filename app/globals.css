@@ -1732,6 +1732,12 @@ input[type="range"] {
   }
 }
 
+/* The list beside the map takes no room below 1024px; the query below gives
+   it its width (components/map/MapSplitList.tsx). */
+:root {
+  --desktop-split-list-width: 0px;
+}
+
 /* Desktop map chrome needs one measured source for the planner lane. The
    drawer's rendered width is 376px at this breakpoint; toolbar and banners
    consume this variable so their free-lane geometry cannot drift from it. */

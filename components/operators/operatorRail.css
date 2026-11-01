@@ -171,14 +171,14 @@
   gap: 0.5rem;
   margin-top: 1rem;
   padding-top: 0.85rem;
-  border-top: 1px solid var(--ledger-rule, rgba(0, 0, 0, 0.14));
+  border-top: 1px solid var(--hairline);
 }
 
 .operatorRailRequestsHeading {
   margin: 0;
   font-size: var(--text-base);
   font-weight: 650;
-  color: var(--ledger-ink, #2b2620);
+  color: var(--ink);
 }
 
 .operatorRailRequestList {
@@ -197,7 +197,7 @@
 .operatorRailRequestLine {
   margin: 0;
   font-weight: 650;
-  color: var(--ledger-ink, #2b2620);
+  color: var(--ink);
 }
 
 .operatorRailRequestReply {

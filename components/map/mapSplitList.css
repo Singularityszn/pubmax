@@ -126,7 +126,7 @@
   }
 
   .appShell:has(> .mapSplitList) .desktopRail.mapRail {
-    top: calc(var(--map-top-clearance) + var(--map-toolbar-resting-height, 60px) + 12px);
+    top: calc(var(--map-top-clearance) + var(--map-toolbar-resting-height) + 12px);
   }
 }
 
@@ -178,7 +178,7 @@
   min-width: 44px;
   padding: 0 12px;
   border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
-  border-radius: var(--control-radius, var(--radius));
+  border-radius: var(--control-radius);
   background: transparent;
   color: var(--muted);
   font-size: var(--text-xs);
@@ -356,7 +356,8 @@ body:has(.analyticsConsentPrompt) .mapSplitListScroll {
   box-sizing: border-box;
   border: 3px solid var(--state-selected-ink);
   border-radius: 50%;
-  box-shadow: 0 0 0 3px var(--paper);
+  /* The paper halo is an outline, which follows the ring's radius. */
+  outline: 3px solid var(--paper);
   pointer-events: none;
 }
 
