@@ -408,6 +408,7 @@ export default function PubmaxxAccountHub() {
   const [mergeDeferred, setMergeDeferred] = useState(false);
   const [devicePlanRecaps, setDevicePlanRecaps] = useState<PendingPlanRecap[]>([]);
   const [memoryCompletionIds, setMemoryCompletionIds] = useState<string[]>([]);
+  const [memoriesRevision, setMemoriesRevision] = useState(0);
   const [planRecapMergeLoaded, setPlanRecapMergeLoaded] = useState(false);
   const [planRecapMergeDeferred, setPlanRecapMergeDeferred] = useState(false);
   const [message, setMessage] = useState("");
@@ -655,6 +656,7 @@ export default function PubmaxxAccountHub() {
           return;
         }
         nextIds.add(recap.completionId);
+        setMemoriesRevision((revision) => revision + 1);
       }
       if (!isCurrentAccount()) return;
       // Keep every local draft until the whole batch succeeds. Earlier saves retry idempotently.
@@ -946,7 +948,7 @@ export default function PubmaxxAccountHub() {
         </div>
         <AccountLegalRow />
       </section>
-      <NightMemoryStudio key={user.id} userId={user.id} />
+      <NightMemoryStudio key={user.id} userId={user.id} memoriesRevision={memoriesRevision} />
       {message ? <p role="status" className="accountHubMessage">{message}</p> : null}
     </section>
   );

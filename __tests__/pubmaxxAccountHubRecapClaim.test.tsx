@@ -38,6 +38,7 @@ let root: Root;
 let mounted = false;
 let posts: Array<{ path: string; init: RequestInit }>;
 let save: (path: string, init: RequestInit) => Promise<Response>;
+let savedMemories: Array<{ id: string; title: string; createdAt: string }>;
 
 function draft(planId: string, completionId: string): PendingPlanRecap {
   return {
@@ -49,6 +50,10 @@ function draft(planId: string, completionId: string): PendingPlanRecap {
 }
 
 function saved(path: string): Response {
+  const id = path.includes(PLAN_A) ? "memory-a" : "memory-b";
+  if (!savedMemories.some((memory) => memory.id === id)) {
+    savedMemories.push({ id, title: "Private Thursday", createdAt: "2026-10-28T23:00:00.000Z" });
+  }
   return Response.json({
     private: true,
     memory: {
@@ -89,6 +94,7 @@ beforeEach(() => {
   auth.accountRevision = readProviderIdentityRevision();
   publishAuthActionState({ status: "signed-in", identityResolved: true });
   posts = [];
+  savedMemories = [];
   save = async (path) => saved(path);
   vi.stubGlobal("fetch", vi.fn<typeof fetch>(async (input, init = {}) => {
     const raw = input instanceof Request ? input.url : String(input);
@@ -100,6 +106,7 @@ beforeEach(() => {
     if (path.endsWith("/session")) {
       return Response.json({ active: true, role: "host", collaborationAuthorized: true });
     }
+    if (path === "/api/night-memories") return Response.json({ memories: savedMemories });
     return Response.json({ handle: null, profile: null, pending: [], drafts: [], memories: [], memoryCompletionIds: [] });
   }));
   host = document.body.appendChild(document.createElement("div"));
@@ -143,6 +150,8 @@ describe("AccountHub's confirmed private recap claim", () => {
       recap: { planId: PLAN_A, completionId: COMPLETION_A },
     });
     expect(host.textContent).toContain("Your device recap is now a private Memory. Nothing was published.");
+    await vi.waitFor(() => expect(host.querySelector('[aria-label="Your private Memories"]')?.textContent)
+      .toContain("Private Thursday"));
   });
 
   it("keeps every draft after a partial failure and retries the successful first save", async () => {
@@ -153,6 +162,7 @@ describe("AccountHub's confirmed private recap claim", () => {
     await mount([draft(PLAN_A, COMPLETION_A), draft(PLAN_B, COMPLETION_B)]);
     await choose("Bring this device");
     await vi.waitFor(() => expect(host.textContent).toContain("Try this recap again."));
+    await vi.waitFor(() => expect(host.querySelector('[aria-label="Your private Memories"]')?.children).toHaveLength(1));
     expect(listPendingPlanRecaps().map((recap) => recap.completionId).sort()).toEqual([COMPLETION_A, COMPLETION_B]);
     failSecond = false;
     await choose("Bring this device");
