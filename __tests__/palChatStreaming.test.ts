@@ -22,8 +22,10 @@ vi.mock("@/components/auth/AuthProvider", () => ({
 vi.mock("@/components/nav/SiteNav", () => ({
   default: () => createElement("nav", null, "Navigation"),
 }));
-vi.mock("@/components/pal/PubPalMascot", () => ({
+vi.mock("@/components/pal/PubPalMascot", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/components/pal/PubPalMascot")>()),
   PubPalMascot: () => createElement("span", null, "Pal"),
+  PubPalMascotMouth: () => null,
 }));
 vi.mock("@/components/map/useWhatsOnTonight", () => ({
   useWhatsOnTonight: whatsOnGlance,
@@ -43,6 +45,7 @@ vi.mock("@/lib/palChatClient", async (importOriginal) => ({
 
 import PalChat from "@/components/pal/PalChat";
 import { clearSurfaceCache } from "@/lib/surfaceDataCache";
+import * as chatThread from "@/lib/palChatThread";
 
 let container: HTMLDivElement;
 let root: Root | null = null;
@@ -68,6 +71,7 @@ afterEach(async () => {
   });
   root = null;
   container.remove();
+  vi.restoreAllMocks();
 });
 
 async function typeQuery(text: string): Promise<void> {
@@ -89,6 +93,48 @@ async function submit(text: string): Promise<void> {
 }
 
 describe("a typed Pal answer that streams in", () => {
+  it("submits a linked question once after the earlier conversation finishes loading", async () => {
+    const previousUrl = window.location.href;
+    const preset = "Find me four pubs in Soho";
+    let finishHistory!: (value: Awaited<ReturnType<typeof chatThread.readPalChatThread>>) => void;
+    const history = new Promise<Awaited<ReturnType<typeof chatThread.readPalChatThread>>>((resolve) => {
+      finishHistory = resolve;
+    });
+    vi.spyOn(chatThread, "readPalChatThread").mockReturnValueOnce(history);
+    askSession.mockResolvedValue({ status: "empty", message: "Nothing sourced for that.", cards: [], proposals: [] });
+    window.history.replaceState({}, "", `/pal/chat?ask=${encodeURIComponent(preset)}`);
+    try {
+      await act(async () => { root?.render(createElement(PalChat, { key: "linked-question" })); });
+      await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+      expect(container.querySelector<HTMLInputElement>(".palChatInput")?.disabled).toBe(true);
+      expect(askSession).not.toHaveBeenCalled();
+
+      await act(async () => { finishHistory(null); });
+      await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+      expect(askSession).toHaveBeenCalledTimes(1);
+      expect(askSession.mock.calls[0]?.[0]).toBe(preset);
+      expect([...container.querySelectorAll(".palChatRow--user")].map((row) => row.textContent)).toEqual([preset]);
+      expect(container.textContent).toContain("Nothing sourced for that.");
+    } finally {
+      window.history.replaceState({}, "", previousUrl);
+    }
+  });
+
+  it("keeps failed history restoration visible and preserves history until an explicit new conversation", async () => {
+    const read = vi.spyOn(chatThread, "readPalChatThread").mockRejectedValueOnce(new Error("Chunk unavailable"));
+    const save = vi.spyOn(chatThread, "savePalChatThread");
+    await act(async () => { root?.render(createElement(PalChat, { key: "failed-history" })); });
+    expect(container.textContent).toContain("Your earlier conversation could not be restored.");
+    expect(container.querySelector<HTMLInputElement>(".palChatInput")?.disabled).toBe(true);
+    expect(save).not.toHaveBeenCalled();
+    read.mockResolvedValueOnce(null);
+    await act(async () => { container.querySelector<HTMLButtonElement>(".palChatReset")?.click(); });
+    expect(container.querySelector<HTMLInputElement>(".palChatInput")?.disabled).toBe(false);
+    askSession.mockResolvedValue({ status: "empty", message: "Nothing sourced for that.", cards: [], proposals: [] });
+    await submit("Find pubs in Soho");
+    expect(container.textContent).toContain("Nothing sourced for that.");
+    expect(askSession).toHaveBeenCalledTimes(1);
+  });
   it("opens with a conversational greeting without creating a provider session", () => {
     expect(container.querySelector(".palChatRow--pal .palChatBubble")?.textContent).toBe(
       "Hi. What kind of night are you planning?",

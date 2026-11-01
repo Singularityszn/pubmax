@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef } from "react";
 
 import { encodeCrawl, seedCrawlState, type CrawlUrlState } from "@/lib/crawlUrl";
+import { readMapSurfaceHistory } from "@/lib/mapSurfaceHistory";
 import { isDrinkShapeArrival } from "@/lib/mapArrival";
 
 // (a) seedCrawlState reads the URL once on mount for a lazy useState initializer;
@@ -80,6 +81,35 @@ export function crawlUrlWriteAllowed(
   return hold === null || encoded !== hold.encodedAtMount;
 }
 
+// Every entry this sync writes carries its stamp. A walking-route link opens
+// or replaces an entry through the router, which never carries it, so an
+// address on a stamped entry is the map's own write, however late the router
+// hands it back.
+const CRAWL_URL_OWNER = "pubmaxCrawlUrl";
+
+/** Did this map's URL sync write the history entry that holds `historyState`? */
+export function ownsCrawlUrlEntry(historyState: unknown): boolean {
+  return typeof historyState === "object" && historyState !== null
+    && CRAWL_URL_OWNER in historyState && historyState[CRAWL_URL_OWNER] === true;
+}
+
+function ownedHistoryState(historyState: unknown): object {
+  return {
+    ...(typeof historyState === "object" && historyState !== null ? historyState : {}),
+    [CRAWL_URL_OWNER]: true,
+  };
+}
+
+type UrlEntry = { state: unknown; length: number; href: string };
+
+function urlEntry(): UrlEntry {
+  return { state: window.history.state, length: window.history.length, href: window.location.href };
+}
+
+function entryStillOwnsWrite(entry: UrlEntry): boolean {
+  return (entry.state === window.history.state && entry.length === window.history.length && entry.href === window.location.href);
+}
+
 function writeCrawlUrl(encoded: string, preserveCrawlParam: boolean, preserveBeerParam: boolean): void {
   const query = mergeCrawlUrlSearch(
     encoded,
@@ -91,7 +121,7 @@ function writeCrawlUrl(encoded: string, preserveCrawlParam: boolean, preserveBee
     ? `${window.location.pathname}?${query}${window.location.hash}`
     : `${window.location.pathname}${window.location.hash}`;
   if (`${window.location.pathname}${window.location.search}${window.location.hash}` !== url) {
-    window.history.replaceState(window.history.state, "", url);
+    window.history.replaceState(ownedHistoryState(window.history.state), "", url);
   }
 }
 
@@ -118,7 +148,7 @@ function writeLandedCrawlContext(encoded: string, preserveCrawlParam: boolean, p
   const query = live.toString();
   const url = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`;
   if (`${window.location.pathname}${window.location.search}${window.location.hash}` !== url) {
-    window.history.replaceState(window.history.state, "", url);
+    window.history.replaceState(ownedHistoryState(window.history.state), "", url);
   }
 }
 
@@ -134,7 +164,7 @@ export function useCrawlUrlSync(
   const crawlHold = useRef<CleanUrlHold | undefined>(undefined);
   const beerShareHold = useRef<CleanUrlHold | undefined>(undefined);
   const latestWrite = useRef<{
-    encoded: string; preserveCrawlParam: boolean; preserveBeerParam: boolean;
+    encoded: string; preserveCrawlParam: boolean; preserveBeerParam: boolean; entry: UrlEntry;
   } | null>(null);
 
   useEffect(() => {
@@ -187,9 +217,19 @@ export function useCrawlUrlSync(
       crawlHold.current !== undefined &&
       holdSeededCrawlParam;
     if (!holdSeededCrawlParam) crawlHold.current = null;
-    latestWrite.current = { encoded, preserveCrawlParam, preserveBeerParam };
+    const entry = urlEntry();
+    latestWrite.current = { encoded, preserveCrawlParam, preserveBeerParam, entry };
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => writeCrawlUrl(encoded, preserveCrawlParam, preserveBeerParam), CRAWL_URL_DEBOUNCE_MS);
+    // A walking-route link that lands before this write comes due owns the
+    // address: its entry carries no stamp of ours, and the older plan written
+    // over it would erase the walk the map is about to adopt.
+    timer.current = setTimeout(() => {
+      if (!entryStillOwnsWrite(entry)) {
+        if (!ownsCrawlUrlEntry(window.history.state) && readMapSurfaceHistory(window.history.state) === null) latestWrite.current = null;
+        return;
+      }
+      writeCrawlUrl(encoded, preserveCrawlParam, preserveBeerParam);
+    }, CRAWL_URL_DEBOUNCE_MS);
 
     return () => {
       if (timer.current) clearTimeout(timer.current);
@@ -199,7 +239,12 @@ export function useCrawlUrlSync(
   return useCallback(() => {
     if (timer.current) clearTimeout(timer.current);
     if (latestWrite.current !== null) {
-      const { encoded, preserveCrawlParam, preserveBeerParam } = latestWrite.current;
+      const { encoded, preserveCrawlParam, preserveBeerParam, entry } = latestWrite.current;
+      if (!entryStillOwnsWrite(entry) && !ownsCrawlUrlEntry(window.history.state)
+        && readMapSurfaceHistory(window.history.state) === null) {
+        latestWrite.current = null;
+        return;
+      }
       writeLandedCrawlContext(encoded, preserveCrawlParam, preserveBeerParam);
     }
   }, []);

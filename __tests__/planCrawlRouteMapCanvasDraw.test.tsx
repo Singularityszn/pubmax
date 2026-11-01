@@ -13,6 +13,7 @@ vi.mock("maplibre-gl/dist/maplibre-gl.css", () => ({}));
 vi.mock("maplibre-gl", () => {
   class FakeMap {
     on() {}
+    off() {}
     once() {}
     loaded() { return true; }
     getSource(id: string) { return id === "route-line" ? sources.line : id === "route-stops" ? sources.stops : undefined; }

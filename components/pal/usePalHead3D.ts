@@ -5,23 +5,11 @@ import { useEffect, useRef, type RefObject } from "react";
 import type { PalAnimationState } from "@/lib/pubPal";
 import type { PalTemperament } from "@/lib/palGenome";
 import type { PalVoiceSignal, PalVoiceSignalMode } from "@/lib/palVoiceSignal";
+import type { PalMeshStatus, PalMeshSurface } from "./originalPalMeshRenderer.mjs";
 
-// The Pal's head in 3D, from the photograph it already is.
-//
-// "Every Pub Pal is a rendered master, and state motion moves the whole
-// photograph" (docs/rules/components-design-system-and-launch-primitives.md),
-// so nothing here draws the animal. The loop writes a handful of CSS custom
-// properties on the portrait's frame, and app/pal/pal.css turns them into a
-// perspective turn, a lean and a nod, with the layers behind and in front of
-// the photograph at their own depth so the turn reads as a head, not a card.
-//
-// What moves it:
-// - the pointer, or the phone's tilt where the browser sends it unasked;
-// - the person's voice while the Pal listens: it leans in and perks up;
-// - the Pal's own voice while it speaks: it bobs and nods on the words;
-// - thinking: it tips its head and looks up.
-// Under reduced motion the loop never starts and the photograph stays still.
-// Off screen, or in a hidden tab, the loop sleeps.
+// One loop reads voice, pointer and tilt for the original photograph or model.
+// The optional model loads only for the selected visible portrait.
+// Reduced motion retains the still original artwork. Hidden surfaces stop work.
 
 type HeadPose = {
   yaw: number;
@@ -35,6 +23,11 @@ type HeadPose = {
 const REST: HeadPose = { yaw: 0, pitch: 0, roll: 0, lean: 0, lift: 0, scale: 1 };
 const EVEN_TEMPERAMENT: PalTemperament = { pace: 1, sway: 1, nod: 1, keen: 1 };
 const POINTER_IDLE_MS = 3_000;
+
+/** The states in which the Pal talks, and its photograph shows instead of the model. */
+function talking(state: PalAnimationState): boolean {
+  return state === "speaking" || state === "listening";
+}
 
 function voiceModeFor(state: PalAnimationState): PalVoiceSignalMode {
   if (state === "speaking") return "speaking";
@@ -107,41 +100,146 @@ export function palHeadTarget(input: {
   return pose;
 }
 
-function prefersReducedMotion(): boolean {
-  try {
-    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  } catch {
-    return false;
-  }
-}
-
 export function usePalHead3D(
   frameRef: RefObject<HTMLElement | null>,
-  { signal, state, temperament }: {
+  { signal, state, temperament, modelUrl, decorative = false, enabled = true }: {
     signal?: PalVoiceSignal;
     state: PalAnimationState;
     temperament?: PalTemperament;
+    /** Only the selected owned portrait or phone voice face supplies a model. */
+    modelUrl?: string | null;
+    /** A voice face remains outside the accessibility tree and Tab order. */
+    decorative?: boolean;
+    enabled?: boolean;
   },
 ): void {
   const stateRef = useRef(state);
   const temperamentRef = useRef(temperament);
+  // Set by the model lifetime below: re-reads whether the ready model is the
+  // thing on screen, after the Pal starts or stops talking.
+  const syncExposureRef = useRef<(() => void) | null>(null);
   useEffect(() => {
     stateRef.current = state;
     temperamentRef.current = temperament;
+    syncExposureRef.current?.();
   }, [state, temperament]);
 
   useEffect(() => {
     const frame = frameRef.current;
-    if (!frame || prefersReducedMotion()) return;
-
+    if (!frame || !enabled) return;
+    const host = modelUrl ? frame.querySelector<HTMLElement>("[data-pal-model-host]") : null;
+    const drawing = host?.querySelector<HTMLElement>("[data-pal-model-drawing]");
+    let motion: MediaQueryList | null = null;
+    try { motion = window.matchMedia("(prefers-reduced-motion: reduce)"); } catch { /* The still artwork remains available. */ }
+    const reduced = () => motion?.matches ?? false;
+    const inViewport = () => {
+      const box = frame.getBoundingClientRect();
+      return box.width > 0 && box.height > 0 && box.bottom > 0 && box.right > 0 && box.top < innerHeight && box.left < innerWidth;
+    };
     const pose: HeadPose = { ...REST };
     let mouth = 0;
     let pointerX = 0;
     let pointerY = 0;
     let pointerAt = 0;
     let tiltBase: { beta: number; gamma: number } | null = null;
-    let visible = true;
+    let visible = modelUrl ? inViewport() : true;
     let raf = 0;
+    let disposed = false;
+    let parked = false;
+    let mesh: PalMeshSurface | null = null;
+    let meshReady = false;
+    let failed = false;
+    let version = 0;
+    let requested: number | null = null;
+    const active = () => !disposed && !parked && visible && !document.hidden && !reduced();
+    const clearCssPose = () => {
+      for (const name of ["yaw", "pitch", "roll", "lean", "lift", "scale", "sheen-dx", "sheen-dy", "mouth"]) {
+        const property = `--pal-${name}`;
+        if (frame.style.getPropertyValue(property)) frame.style.removeProperty(property);
+      }
+    };
+    const setDrawingMode = () => {
+      if (!active()) {
+        frame.removeAttribute("data-head-3d");
+        clearCssPose();
+        return;
+      }
+      const value = meshReady ? "mesh" : "live";
+      if (frame.getAttribute("data-head-3d") !== value) frame.setAttribute("data-head-3d", value);
+      if (meshReady) clearCssPose();
+    };
+    // While the Pal talks, the photograph and its moving mouth own the frame
+    // (app/pal/pal.css), so the faded model takes no focus, is out of the
+    // accessibility tree, and turns for no key until the talk ends.
+    const showsModel = () => meshReady && !talking(stateRef.current);
+    const syncExposure = () => {
+      if (!host) return;
+      const exposed = showsModel() && !decorative;
+      const hidden = exposed ? "false" : "true";
+      if (host.getAttribute("aria-hidden") !== hidden) host.setAttribute("aria-hidden", hidden);
+      if (exposed) {
+        host.tabIndex = 0;
+        return;
+      }
+      if (document.activeElement === host) host.blur();
+      host.removeAttribute("tabindex");
+      mesh?.endDrag();
+    };
+    const setModelState = (status: PalMeshStatus | "poster") => {
+      meshReady = status === "ready";
+      if (host && host.dataset.modelState !== status) host.dataset.modelState = status;
+      syncExposure();
+      setDrawingMode();
+    };
+    const stop = () => {
+      if (raf) window.cancelAnimationFrame(raf);
+      raf = 0;
+      mesh?.setVisible(false);
+    };
+    const retireModel = () => {
+      version += 1;
+      requested = null;
+      mesh?.dispose();
+      mesh = null;
+      setModelState("poster");
+    };
+    const ensureModel = () => {
+      if (!modelUrl || !host || !drawing || mesh || failed || requested !== null || !active()) return;
+      const ownVersion = ++version;
+      requested = ownVersion;
+      void import("./originalPalMeshRenderer.mjs")
+        .then(({ mountOriginalPalMesh }) => {
+          if (disposed || ownVersion !== version || !active()) return;
+          const mounted = mountOriginalPalMesh(drawing, {
+            modelUrl,
+            onStatus(status) {
+              if (disposed || ownVersion !== version) return;
+              const unavailable = status === "graphics-unavailable" || status === "model-unavailable";
+              failed ||= unavailable;
+              setModelState(status);
+              if (unavailable && mesh) {
+                const old = mesh;
+                mesh = null;
+                old.dispose();
+              }
+            },
+          });
+          if (disposed || ownVersion !== version || failed) mounted.dispose();
+          else {
+            mesh = mounted;
+            mesh.setVisible(active());
+          }
+        })
+        .catch(() => {
+          if (disposed || ownVersion !== version) return;
+          failed = true;
+          setModelState("graphics-unavailable");
+        })
+        .finally(() => {
+          if (disposed || ownVersion !== version) return;
+          requested = null;
+        });
+    };
 
     const onPointer = (event: PointerEvent) => {
       const box = frame.getBoundingClientRect();
@@ -160,8 +258,12 @@ export function usePalHead3D(
       pointerY = Math.max(-1, Math.min(1, (event.beta - tiltBase.beta) / 25));
       pointerAt = performance.now();
     };
-
     const tick = (now: number) => {
+      raf = 0;
+      if (!active()) {
+        updateActivity();
+        return;
+      }
       const t = now / 1000;
       if (now - pointerAt > POINTER_IDLE_MS) {
         pointerX *= 0.96;
@@ -193,60 +295,105 @@ export function usePalHead3D(
       pose.lift += (target.lift - pose.lift) * 0.4;
       pose.scale += (target.scale - pose.scale) * 0.4;
       const style = frame.style;
-      style.setProperty("--pal-yaw", `${pose.yaw.toFixed(2)}deg`);
-      style.setProperty("--pal-pitch", `${pose.pitch.toFixed(2)}deg`);
-      style.setProperty("--pal-roll", `${pose.roll.toFixed(2)}deg`);
-      style.setProperty("--pal-lean", `${pose.lean.toFixed(1)}px`);
-      style.setProperty("--pal-lift", `${pose.lift.toFixed(1)}px`);
-      style.setProperty("--pal-scale", pose.scale.toFixed(3));
+      const writeProperty = (name: string, value: string) => {
+        if (style.getPropertyValue(name) !== value) style.setProperty(name, value);
+      };
+      if (meshReady && mesh) mesh.renderPose(pose, now);
+      // Keep the image pose current too, so a graphics failure restores it
+      // at the same voice state. Only the live-image CSS applies this pose.
+      writeProperty("--pal-yaw", `${pose.yaw.toFixed(2)}deg`);
+      writeProperty("--pal-pitch", `${pose.pitch.toFixed(2)}deg`);
+      writeProperty("--pal-roll", `${pose.roll.toFixed(2)}deg`);
+      writeProperty("--pal-lean", `${pose.lean.toFixed(1)}px`);
+      writeProperty("--pal-lift", `${pose.lift.toFixed(1)}px`);
+      writeProperty("--pal-scale", pose.scale.toFixed(3));
       // The light stays put while the head turns, so its sheen slides across
       // from where the genome says the light catches this Pal.
-      style.setProperty("--pal-sheen-dx", `${(-pose.yaw * 2).toFixed(1)}%`);
-      style.setProperty("--pal-sheen-dy", `${(pose.pitch * 2).toFixed(1)}%`);
+      writeProperty("--pal-sheen-dx", `${(-pose.yaw * 2).toFixed(1)}%`);
+      writeProperty("--pal-sheen-dy", `${(pose.pitch * 2).toFixed(1)}%`);
       // The mouth opens on the Pal's own voice: quick to open so it lands on
       // the syllable, a little slower to close so it never flickers.
       const open = palMouthOpenness(spoken);
       mouth += (open - mouth) * (open > mouth ? 0.6 : 0.35);
-      style.setProperty("--pal-mouth", mouth.toFixed(3));
+      writeProperty("--pal-mouth", mouth.toFixed(3));
       raf = window.requestAnimationFrame(tick);
     };
 
-    const start = () => {
-      if (raf || !visible || document.hidden) return;
-      raf = window.requestAnimationFrame(tick);
+    function updateActivity() {
+      if (reduced()) {
+        stop();
+        if (mesh || requested !== null) retireModel();
+        setDrawingMode();
+        return;
+      }
+      if (!active()) {
+        stop();
+        setDrawingMode();
+        return;
+      }
+      // Forward visibility even before ready. A model can finish loading hidden.
+      mesh?.setVisible(true);
+      ensureModel();
+      setDrawingMode();
+      if (!raf) raf = window.requestAnimationFrame(tick);
+    }
+    const onVisibility = () => updateActivity();
+    const onMotion = () => updateActivity();
+    const onPageHide = () => {
+      parked = true;
+      stop();
+      retireModel();
     };
-    const stop = () => {
-      if (raf) window.cancelAnimationFrame(raf);
-      raf = 0;
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (!event.persisted) return;
+      parked = false;
+      visible = modelUrl ? inViewport() : true;
+      failed = false;
+      updateActivity();
     };
-    const onVisibility = () => (document.hidden ? stop() : start());
-
+    const onTurnKey = (event: KeyboardEvent) => {
+      if (!showsModel() || !mesh) return;
+      if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+        event.preventDefault();
+        mesh.turnYaw(event.key === "ArrowLeft" ? -15 : 15);
+      } else if (event.key === "Home") {
+        event.preventDefault();
+        mesh.setYaw(0);
+      }
+    };
     let observer: IntersectionObserver | null = null;
     if (typeof IntersectionObserver === "function") {
       observer = new IntersectionObserver(([entry]) => {
         visible = entry?.isIntersecting ?? true;
-        if (visible) start();
-        else stop();
+        updateActivity();
       });
       observer.observe(frame);
     }
-
-    frame.setAttribute("data-head-3d", "live");
     window.addEventListener("pointermove", onPointer, { passive: true });
     window.addEventListener("deviceorientation", onTilt);
+    window.addEventListener("pagehide", onPageHide);
+    window.addEventListener("pageshow", onPageShow);
     document.addEventListener("visibilitychange", onVisibility);
-    start();
+    motion?.addEventListener("change", onMotion);
+    if (!decorative) host?.addEventListener("keydown", onTurnKey);
+    syncExposureRef.current = syncExposure;
+    updateActivity();
 
     return () => {
+      disposed = true;
+      if (syncExposureRef.current === syncExposure) syncExposureRef.current = null;
       stop();
+      retireModel();
       observer?.disconnect();
       window.removeEventListener("pointermove", onPointer);
       window.removeEventListener("deviceorientation", onTilt);
+      window.removeEventListener("pagehide", onPageHide);
+      window.removeEventListener("pageshow", onPageShow);
       document.removeEventListener("visibilitychange", onVisibility);
+      motion?.removeEventListener("change", onMotion);
+      if (!decorative) host?.removeEventListener("keydown", onTurnKey);
       frame.removeAttribute("data-head-3d");
-      for (const name of ["yaw", "pitch", "roll", "lean", "lift", "scale", "sheen-dx", "sheen-dy", "mouth"]) {
-        frame.style.removeProperty(`--pal-${name}`);
-      }
+      clearCssPose();
     };
-  }, [frameRef, signal]);
+  }, [decorative, enabled, frameRef, modelUrl, signal]);
 }

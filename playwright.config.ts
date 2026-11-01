@@ -231,6 +231,7 @@ export default defineConfig({
         "**/ui-ux-battle-test-keyless.spec.ts",
         "**/map-gl.spec.ts",
         "**/map-gestures.spec.ts",
+        "**/map-short-walk-framing.spec.ts",
         "**/map-deep-link-pin.spec.ts",
         // Every WebGL journey belongs to chromium-gl. Keeping these out of the
         // plain Chromium project avoids running the same spec without SwiftShader
@@ -240,6 +241,7 @@ export default defineConfig({
         "**/map-opening-preview.spec.ts",
         "**/map-arrival.spec.ts",
         "**/map-arrival-turn.spec.ts",
+        "**/tablet-map-control-clearance.spec.ts",
         "**/map-you-are-here.spec.ts",
         "**/map-arrival-card-pins.spec.ts",
         "**/map-desktop-arrival-chrome.spec.ts",
@@ -253,6 +255,7 @@ export default defineConfig({
         "**/map-london-restaurants.spec.ts",
         "**/map-live-qa-0924.spec.ts",
         "**/plan-route-strip.spec.ts",
+        "**/map-crawl-spa-handoff.spec.ts",
         "**/ui-ux-battle-test.spec.ts",
         "**/signed-in-review.spec.ts",
         "**/map-sun-chaser.spec.ts",
@@ -364,8 +367,11 @@ export default defineConfig({
       // a real WebGL2 context (SwiftShader), so both run here.
       testMatch: [
         "**/map-gl.spec.ts",
+        // A plain map that stays mounted draws the walk a locked plan links to.
+        "**/map-crawl-spa-handoff.spec.ts",
         // Two-finger rotate and tilt against a real MapLibre canvas.
         "**/map-gestures.spec.ts",
+        "**/map-short-walk-framing.spec.ts",
         // The document's opening prices held to the engine's own first frame:
         // a real camera and a real painted-pin probe to compare against.
         "**/map-opening-preview.spec.ts",
@@ -373,6 +379,7 @@ export default defineConfig({
         // read a real camera and a real painted-pin probe.
         "**/map-arrival.spec.ts",
         "**/map-arrival-turn.spec.ts",
+        "**/tablet-map-control-clearance.spec.ts",
         "**/map-arrival-card-pins.spec.ts",
         // The reader's own dot: a real GeoJSON source on a real scene, and a
         // real camera to hold still while the dot moves.

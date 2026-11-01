@@ -1,5 +1,7 @@
 "use client";
 
+import { useMapArrivalTurn } from "@/components/map/canvas/useMapArrivalTurn";
+
 import dynamic from "next/dynamic";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./map/mapColor.css";
@@ -12,6 +14,7 @@ import { followMapPixelRatio, mapPixelRatio, probeWebGl2 } from "@/components/ma
 import { createPalMapMarker, palPinIsCheap, type PalMapMarker } from "@/components/map/canvas/palMarker";
 import { legRouteToLines } from "@/components/map/canvas/legRouteScene";
 import { legRouteForCurrentLeg, readLegRouteOnMap, subscribeLegRouteOnMap } from "@/lib/legRouteOnMap";
+import { trackEvent } from "@/lib/analytics";
 import { palLeadLine, palLeadPath, planWalkAfterLead } from "@/lib/palLead";
 import { palFirstLegLabel, palPerchSpeechForPin, palWalkLine } from "@/lib/palMapLines";
 import { crewPalLook, type CrewPal } from "@/lib/crewPals";
@@ -156,8 +159,9 @@ import {
   type BasemapNoticeOwner,
   type PinRevealNoticeKind,
 } from "@/components/map/canvas/pinRevealCoordinator";
-import { applySelectionMute } from "@/lib/mapBasemapTaste";
-import { MAP_PIN_REVEAL_EVENT } from "@/lib/mapPinRevealEvent";
+import { applyMapFocusMute } from "@/lib/mapBasemapTaste";
+import { orientRouteStopLabels } from "@/lib/routeStopLabel";
+import { MAP_PIN_READY_CEILING_MS, MAP_PIN_REVEAL_EVENT } from "@/lib/mapPinRevealEvent";
 import {
   wireClickRouting, wireHoverPrefetch, wirePubHover, wireCursor,
 } from "@/components/map/canvas/interactions";
@@ -254,11 +258,7 @@ import {
   streetsInViewDrawn,
   type OpeningCameraPose,
 } from "@/lib/mapOpeningPreview";
-import {
-  ARRIVAL_BEARING_POLL_MS,
-  nextArrivalBearingWait,
-  type ArrivalBearingWait,
-} from "@/lib/mapArrivalBearing";
+
 
 // MapLibre 6 is ESM-only. Its worker imports a sibling shared module, which
 // Next's asset URL transform does not emit beside the worker. The copy step
@@ -555,13 +555,6 @@ type PubMapCanvasProps = {
 // the pub layers cannot hang hidden indefinitely. This runs behind the
 // still-present parent skeleton and never lifts the chrome.
 const PIN_REVEAL_TIMEOUT_MS = 3000;
-// Honest upper bound for the visible-map handoff. Desktop and phone both
-// degrade to the existing basemap retry toast; neither unmounts the canvas.
-// Phone still requires a confirmed visible frame before a successful reveal.
-// Keep the ceiling above the measured slow stream. The phone can reveal local
-// pins from their own painted source before basemap tiles settle; this ceiling
-// remains only for the honest parent loading handoff when that signal fails.
-const PIN_READY_CEILING_MS = 12_000;
 // How long a spent pin Retry is given before it reports back. Long enough for a
 // re-fetched venue index plus a MapLibre source settle, short enough that the
 // reader is not left watching an empty map with nothing to read.
@@ -1208,6 +1201,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     type: "FeatureCollection",
     features: [],
   });
+  const routeLineKeyRef = useRef<string | null>(null);
   const routeStopsRef = useRef<GeoJSON.FeatureCollection>({
     type: "FeatureCollection",
     features: [],
@@ -1278,6 +1272,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   // Pal leads the way: while it walks the way the reader chose in Night Mode,
   // the plan's own walk and stops wait for it (the effect below).
   const palLeadKeyRef = useRef<string | null>(null);
+  const palLeadReportedRef = useRef<string | null>(null);
   // The Pal speaks on the map (lib/palMapLines.ts): once as it sets off on a
   // crawl, with the first leg's own time, and once beside a cheapest-band pin.
   // These keys hold what it last spoke about, so a re-render never repeats it.
@@ -1370,6 +1365,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       (m.getSource("route-line") as maplibregl.GeoJSONSource | undefined)?.setData(
         routeLineRef.current,
       );
+      routeStopsRef.current = orientRouteStopLabels(routeStopsRef.current,
+        (point) => m.project(point).x, m.getContainer().clientWidth / 2);
       (m.getSource("route-stops") as maplibregl.GeoJSONSource | undefined)?.setData(
         routeStopsRef.current,
       );
@@ -1412,6 +1409,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     cameraLanePending,
     easeArrivalBearing,
     fitRoute,
+    fitOwnedRoute,
     fitCityBounds,
     fitQueryVenues,
     fitNearby,
@@ -1421,6 +1419,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     cityViewRef,
     cityBoundsRef,
     routeRef,
+    routeLineRef,
     venuesRef,
     queryVenuesRef,
     gestureCameraRef,
@@ -1433,14 +1432,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   // name. A reader who reached a pub by link is excluded, because the fly-to
   // into that pub owns the camera. lib/mapArrivalBearing.ts holds every other
   // case, reduced motion included.
-  const arrivalBearingSpentRef = useRef(false);
-  // Read by the camera probe; written beside the near-me framing effect below.
+  const firstPinRevealFinishedRef = useRef(false);
   const nearbyFramingOwedRef = useRef(false);
-  // The deep link as it was on ARRIVAL. Reading the live prop would answer for
-  // a pin the reader tapped a moment ago, which is a different question.
-  const arrivalDeepLinkRef = useRef(
-    Boolean(selectedVenueId) || Boolean(initialLandmarkId),
-  );
   const focusKeyRef = useRef<string | null>(null);
   const focusPointRef = useRef(focusPoint);
   const nearMePendingRef = useRef(Boolean(nearMePending));
@@ -1452,46 +1445,20 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     focusPointRef.current = focusPoint;
     openingCameraSettledRef.current = openingCameraSettled;
   }, [focusPoint, openingCameraSettled]);
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || arrivalBearingSpentRef.current) return;
-    let cancelled = false;
-    let wait: ArrivalBearingWait | null = { stillPolls: 0, waitedMs: 0 };
-    // The turn waits for the map to STOP. Measured without the wait: the
-    // opening-location answer schedules its own move a frame or so after the
-    // map is ready, the camera lane is latest-wins, and it cancelled the
-    // turn's pending frame outright - four runs of four came to rest at
-    // exactly the bearing they arrived at, with no `arrival` intent emitted.
-    //
-    // It polls rather than waiting on MapLibre's `idle`, because `idle` also
-    // waits on every requested tile and a basemap that never finishes would
-    // mean a map that never turns. The ceiling is the same judgement: past it
-    // the turn happens anyway, and `scheduleCamera` still refuses it if the
-    // reader has taken the map.
-    const tick = () => {
-      if (cancelled || arrivalBearingSpentRef.current || !wait) return;
-      wait = nextArrivalBearingWait(wait, {
-        moving: map.isMoving() || cameraLanePending(),
-        openingPending:
-          !openingCameraSettledRef.current ||
-          mapCameraFocusMoves(focusPointRef.current, focusKeyRef.current),
-      });
-      if (wait) {
-        timer = setTimeout(tick, ARRIVAL_BEARING_POLL_MS);
-        return;
-      }
-      arrivalBearingSpentRef.current = true;
-      easeArrivalBearing(arrivalDeepLinkRef.current);
-    };
-    let timer: ReturnType<typeof setTimeout> | null = setTimeout(
-      tick,
-      ARRIVAL_BEARING_POLL_MS,
-    );
-    return () => {
-      cancelled = true;
-      if (timer) clearTimeout(timer);
-    };
-  }, [mapInstanceReady, easeArrivalBearing, cameraLanePending]);
+  const sampleArrivalCamera = useCallback(() => ({
+    moving: Boolean(mapRef.current?.isMoving()) || cameraLanePending(),
+    pinsPending: !firstPinRevealFinishedRef.current,
+    openingPending: !openingCameraSettledRef.current
+      || mapCameraFocusMoves(focusPointRef.current, focusKeyRef.current),
+  }), [cameraLanePending]);
+  const arrivalBearingSpentRef = useMapArrivalTurn({
+    mapRef,
+    mapInstanceReady,
+    mapError,
+    deepLinked: Boolean(selectedVenueId) || Boolean(initialLandmarkId),
+    sample: sampleArrivalCamera,
+    easeArrivalBearing,
+  });
 
   // The parent owns the selection and renders the story (the phone's shared
   // sheet, the desktop's left drawer); the canvas only reports a pin tap here
@@ -1986,6 +1953,12 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     }
     let ambientMotionCameraKey = "";
     map.on("moveend", () => {
+      const inwardStops = orientRouteStopLabels(routeStopsRef.current,
+        (point) => map.project(point).x, map.getContainer().clientWidth / 2);
+      if (inwardStops !== routeStopsRef.current) {
+        routeStopsRef.current = inwardStops;
+        (map.getSource("route-stops") as maplibregl.GeoJSONSource | undefined)?.setData(inwardStops);
+      }
       // Audit F5: every camera move (programmatic flys included) ends on a
       // fresh present. A repaint moves no camera, so this cannot re-fire
       // moveend; deliberately NOT hooked on `idle` (that would loop).
@@ -2389,7 +2362,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
 
     const pinRevealCoordinator = createPinRevealCoordinator({
       pinRevealTimeoutMs: PIN_REVEAL_TIMEOUT_MS,
-      readyCeilingMs: PIN_READY_CEILING_MS,
+      readyCeilingMs: MAP_PIN_READY_CEILING_MS,
       hasBasemapPainted: () => basemapTileReadyForPaint,
       hasPinsPaintable: () =>
         pubsDeferredUntilZoom() || !phoneFirstImpression || hasPinsPaintable(),
@@ -2430,6 +2403,9 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         retireTilesNotice();
       },
       onReveal: (reason, generation) => {
+        // The coordinator confirms the first visible phone frame, or names
+        // its bounded fallback. Neither may wait for the decorative turn.
+        firstPinRevealFinishedRef.current = true;
         const timeoutNotice = revealTimeoutNotice(reason, tileNoticeOwner, {
           basemapPainted: basemapTileReadyForPaint,
           venueData: venueDataFailedRef.current
@@ -2603,6 +2579,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       const withLiveSelection = (ctx: typeof sceneCtx) => ({
         ...ctx,
         selectedId: selectedIdRef.current,
+        routeStops: routeStopsRef.current,
         selectionMuteStore: selectionMuteStoreRef.current,
       });
       const scheduleDeferredScene = () => {
@@ -3984,6 +3961,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     // sync in their own effect — toggling showLandmarks must not remount MapLibre.
     cinematic,
     cameraLanePending,
+    arrivalBearingSpentRef,
     cityId,
     selectLandmark,
     initAttempt,
@@ -4293,13 +4271,15 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   }, [poiHidden, mapReady]);
 
   // Route + selection ring → sources/filter.
+  const routeCoordKey = route.map((v) => `${v.longitude},${v.latitude}`).join(";");
   useEffect(() => {
-    // The straight estimate draws at once; the street line, once routed, holds
-    // for as long as the stops are the same (a parent re-render hands over a new
-    // array for the same stops, and used to put the dashed estimate back).
-    const coordKey = route.map((v) => `${v.longitude},${v.latitude}`).join(";");
-    const routed = routedLineRef.current?.key === coordKey ? routedLineRef.current : null;
-    routeLineRef.current = routed?.line ?? routeToLine(route);
+    const routed = routedLineRef.current?.key === routeCoordKey ? routedLineRef.current : null;
+    // Selection and venue-data refreshes must retain a routed road line.
+    // Only a different ordered coordinate sequence needs a new fallback.
+    if (routeLineKeyRef.current !== routeCoordKey) {
+      routeLineKeyRef.current = routeCoordKey;
+      routeLineRef.current = routed?.line ?? routeToLine(route);
+    }
     routeStopsRef.current = routeToStops(route);
     routeLegTimesRef.current = routed?.legTimes ?? routeToLegTimes(route);
     selectedIdRef.current = selectedVenueId;
@@ -4415,15 +4395,12 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
           selectedPinIconSizeExpr(selectedIdRef.current),
         );
       }
-      // M2 POI-at-initiation gating — while a venue is selected the selected pub
-      // must dominate: heavy-mute the POI/landmark/transport app layers AND the
-      // basemap-baked transit roundels / street / POI labels. Deselect restores
-      // the exact originals so the city overview reads unchanged. Opacity-only
-      // via paint transitions (MapLibre's default 300ms ease) — no new RAF, no
-      // React re-render, and it composes with the POI/tube visibility toggles.
-      applySelectionMute(map, Boolean(selectedIdRef.current), selectionMuteStoreRef.current);
+      // Selection owns the strongest focus. A walking route quiets transport
+      // and places but keeps street names. Browsing restores the original paint.
+      applyMapFocusMute(map, selectedIdRef.current ? "selection"
+        : route.length >= 2 ? "route" : "browse", selectionMuteStoreRef.current);
     });
-  }, [route, selectedVenueId, mapReady, applyToMap, applyRouteData]);
+  }, [route, routeCoordKey, selectedVenueId, mapReady, applyToMap, applyRouteData]);
 
   // Road-following upgrade (T4). The effect above paints the straight line
   // instantly (routeToLine, drawn dashed as "approximate"); here we ask
@@ -4434,7 +4411,6 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   // last route (mirrors the hover-detail fetch above). `routeCoordKey` is the
   // ordered `lng,lat;lng,lat` wire format /api/walk-route decodes (parseStops),
   // and re-fires only when the stop coordinates actually change.
-  const routeCoordKey = route.map((v) => `${v.longitude},${v.latitude}`).join(";");
   useEffect(() => {
     if (!mapReady) return;
     if (routeCoordKey.split(";").length < 2) return;
@@ -4445,6 +4421,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     })
       .then((response) => (response.ok ? response.json() : null))
       .then((body: { line?: GeoJSON.FeatureCollection; source?: string; legs?: unknown } | null) => {
+        if (controller.signal.aborted || routeLineKeyRef.current !== routeCoordKey) return;
         // Only upgrade when the server actually routed roads; a "straight"
         // response is the same geometry we already painted, so leave it dashed.
         if (!body || body.source !== "ors" || !body.line?.features?.length) return;
@@ -4454,6 +4431,9 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         if (Array.isArray(body.legs)) routeLegTimesRef.current = routeLegTimes(body.legs);
         routedLineRef.current = { key: routeCoordKey, line: body.line, legTimes: routeLegTimesRef.current };
         applyRouteData();
+        // A pavement bend can extend beyond the stops. Fit the upgraded line
+        // only while the reader has not taken the camera during this request.
+        if (!selectedIdRef.current) fitOwnedRoute();
         const stops = palWalkStopsFromKey(routeCoordKey);
         walkPals({ key: routeCoordKey, stops, path: palWalkPathFrom(body.line), road: true });
       })
@@ -4468,7 +4448,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       window.clearTimeout(timeout);
       controller.abort();
     };
-  }, [routeCoordKey, mapReady, applyRouteData, walkPals]);
+  }, [routeCoordKey, mapReady, applyRouteData, walkPals, fitOwnedRoute]);
 
   // The Pal walks a crawl route of two or more stops (the road line takes over
   // above once routed), and goes to a stop the reader taps; with no crawl it
@@ -4556,7 +4536,17 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     const key = `lead:${shownLeg.legKey}:${shownLeg.option.id}`;
     if (palLeadKeyRef.current === key) return;
     palLeadKeyRef.current = key;
-    marker.walk({ key, stops: [path[0]!, path.at(-1)!], path, road: true, cheer: true });
+    // Counted when the Pal is first placed on the way, never before: a map
+    // retired or rebuilt before that frame cancels the walk and its count.
+    // Once per chosen way: a map rebuilt mid-walk leads again, but it is the
+    // same lead, so it is not counted again. A Pal that is not drawn (none
+    // made, or hidden) never walks, so nothing is counted.
+    const reportLead = () => {
+      if (palLeadReportedRef.current === key) return;
+      palLeadReportedRef.current = key;
+      trackEvent("pal_lead_started");
+    };
+    marker.walk({ key, stops: [path[0]!, path.at(-1)!], path, road: true, cheer: true, onStarted: reportLead });
     marker.nextStop({ stop: 1, name: palNextName, open: () => onRouteStopClickRef.current(palNextVenueId) });
     marker.say(palLeadLine(shownLeg.option));
   }, [shownLeg, palNextVenueId, palNextName, routeCoordKey, mapReady]);
@@ -4654,6 +4644,22 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     if (selectedVenueId) return;
     fitRoute();
   }, [routeKey, mapReady, fitRoute, selectedVenueId]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!mapReady || !map) return;
+    const container = map.getContainer();
+    let width = container.clientWidth;
+    let height = container.clientHeight;
+    const refit = () => {
+      if (width === container.clientWidth && height === container.clientHeight) return;
+      width = container.clientWidth;
+      height = container.clientHeight;
+      if (!selectedIdRef.current) fitOwnedRoute();
+    };
+    map.on("resize", refit);
+    return () => { map.off("resize", refit); };
+  }, [mapReady, fitOwnedRoute]);
 
   // Cinematic fly-to on venue selection (after the route framing above).
   // `selectedPresent` closes the ?sel= deep-link race: on first load the
@@ -5123,17 +5129,17 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
           <button
             type="button"
             className="mapRecenterBtn"
-            onClick={fitRoute}
-            aria-label="Recenter route"
-            title="Recenter route"
+            onClick={() => fitRoute("route-recovery")}
+            aria-label="Show whole walk"
+            title="Show whole walk"
           >
             <Crosshair size={14} aria-hidden />
-            Recenter
+            Show whole walk
           </button>
         </div>
       ) : null}
       {hoveredVenue ? renderVenueHoverCard(hoveredVenue) : null}
-      {heroVenue && !heroDismissed ? (
+      {heroVenue && !heroDismissed && route.length < 2 ? (
         <MapHeroCard
           venue={heroVenue}
           onDismiss={() => setHeroDismissed(true)}

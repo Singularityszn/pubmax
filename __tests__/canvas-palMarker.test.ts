@@ -161,6 +161,93 @@ describe("the Pal on the map", () => {
     expect(markerHarness.instances[1]!.remove).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps a waiting companion inside the viewport without covering its stop", () => {
+    store(pal());
+    reducedMotion(true);
+    let point = { x: 370, y: 35 };
+    let width = 390;
+    const listeners = new Map<string, Set<() => void>>();
+    const viewportMap = {
+      project: () => point,
+      getContainer: () => ({ clientWidth: width, clientHeight: 844 }),
+      on: (event: string, listener: () => void) => {
+        if (!listeners.has(event)) listeners.set(event, new Set());
+        listeners.get(event)!.add(listener);
+      },
+      off: (event: string, listener: () => void) => listeners.get(event)?.delete(listener),
+    } as unknown as maplibregl.Map;
+    const marker = createPalMapMarker(viewportMap);
+    marker.walk({ key: crawlKey, stops: crawl, path: crawl });
+    const instance = markerHarness.instances[0]!;
+    const contained = () => {
+      const [x, y] = instance.options.offset!;
+      const box = { left: point.x + x, right: point.x + x + 38,
+        top: point.y + y - 38, bottom: point.y + y };
+      expect(box.left).toBeGreaterThanOrEqual(10);
+      expect(box.right).toBeLessThanOrEqual(width - 10);
+      expect(box.top).toBeGreaterThanOrEqual(10);
+      expect(box.bottom).toBeLessThanOrEqual(834);
+      const nearestX = Math.max(box.left, Math.min(point.x, box.right));
+      const nearestY = Math.max(box.top, Math.min(point.y, box.bottom));
+      expect(Math.hypot(point.x - nearestX, point.y - nearestY)).toBeGreaterThan(18);
+    };
+    contained();
+    expect(instance.lngLat).toEqual(crawl[0]);
+    expect(frames).toHaveLength(0);
+    point = { x: 20, y: 820 };
+    listeners.get("move")?.forEach(listener => listener());
+    contained();
+    width = 320;
+    point = { x: 300, y: 400 };
+    listeners.get("resize")?.forEach(listener => listener());
+    contained();
+    expect(instance.lngLat).toEqual(crawl[0]);
+    point = { x: -200, y: 400 };
+    listeners.get("move")?.forEach(listener => listener());
+    expect(instance.options.element.style.visibility).toBe("hidden");
+    point = { x: 150, y: 400 };
+    listeners.get("move")?.forEach(listener => listener());
+    expect(instance.options.element.style.visibility).toBe("");
+    contained();
+    marker.destroy();
+    expect([...listeners.values()].every(set => set.size === 0)).toBe(true);
+  });
+
+  it("keeps crew spacing when their stationary perches turn inward", () => {
+    reducedMotion(true);
+    const viewportMap = {
+      project: () => ({ x: 370, y: 400 }),
+      getContainer: () => ({ clientWidth: 390, clientHeight: 844 }),
+    } as unknown as maplibregl.Map;
+    const first = createPalMapMarker(viewportMap, { pal: pal(), index: 0 });
+    const second = createPalMapMarker(viewportMap, { pal: pal(), index: 1 });
+    first.walk({ key: crawlKey, stops: crawl, path: crawl });
+    second.walk({ key: crawlKey, stops: crawl, path: crawl });
+    expect(markerHarness.instances[0]!.options.offset).toEqual([-76, -12]);
+    expect(markerHarness.instances[1]!.options.offset).toEqual([-100, -12]);
+    first.destroy();
+    second.destroy();
+  });
+
+  it("does not move a walking companion off its line when the viewport changes", () => {
+    store(pal());
+    const listeners = new Map<string, () => void>();
+    const viewportMap = {
+      project: () => ({ x: 380, y: 400 }),
+      getContainer: () => ({ clientWidth: 390, clientHeight: 844 }),
+      on: (event: string, listener: () => void) => listeners.set(event, listener),
+      off: (event: string) => listeners.delete(event),
+    } as unknown as maplibregl.Map;
+    const marker = createPalMapMarker(viewportMap);
+    marker.walk({ key: crawlKey, stops: crawl, path: crawl });
+    runFrames(1);
+    const instance = markerHarness.instances[0]!;
+    listeners.get("move")?.();
+    expect(instance.options.offset).toEqual([-19, 4]);
+    expect(instance.options.element.classList.contains("isWalking")).toBe(true);
+    marker.destroy();
+  });
+
   it("reads the band the pin itself paints: the Spoons value band first, else the price bucket", () => {
     expect(palPinIsCheap({ bucket: 0 })).toBe(true);
     expect(palPinIsCheap({ bucket: 1 })).toBe(false);
@@ -238,6 +325,24 @@ describe("the Pal on the map", () => {
     expect(markerHarness.instances).toHaveLength(1);
   });
 
+  it("pauses beside the intermediate stop so its number remains visible", () => {
+    store(pal());
+    const marker = createPalMapMarker(map);
+    marker.walk({ key: crawlKey, stops: crawl, path: crawl });
+    runFrames(1);
+    const instance = markerHarness.instances[0]!;
+    for (let frame = 0; frame < 1_000 && instance.options.element.classList.contains("isWalking"); frame += 1) {
+      runFrames(1);
+    }
+    expect(instance.lngLat).toEqual(crawl[1]);
+    expect(instance.options.element.dataset.palWalk).toBe("walking");
+    expect(instance.options.offset).toEqual([14, -12]);
+    runFrames(20);
+    expect(instance.options.element.classList.contains("isWalking")).toBe(true);
+    expect(instance.options.offset).toEqual([-19, 4]);
+    marker.destroy();
+  });
+
   it("carries on along the road line at the same point of the walk", () => {
     store(pal());
     const marker = createPalMapMarker(map);
@@ -306,11 +411,82 @@ describe("the Pal on the map", () => {
     const [instance] = markerHarness.instances;
     expect(instance!.lngLat).toEqual(crawl[0]);
     expect(instance!.options.element.dataset.palWalk).toBe("setting-off");
+    expect(instance!.options.offset).toEqual([14, -12]);
     expect(frames).toHaveLength(0);
     handlers.forEach((handler) => handler());
     expect(frames).toHaveLength(1);
     runFrames(2);
     expect(instance!.lngLat![0]).toBeGreaterThan(crawl[0]![0]);
+  });
+
+  describe("the walk's one start call", () => {
+    it("comes on the first painted frame, once, and not on the same walk again", () => {
+      store(pal());
+      const onStarted = vi.fn();
+      const marker = createPalMapMarker(map);
+      marker.walk({ key: crawlKey, stops: crawl, path: crawl, onStarted });
+      expect(onStarted).not.toHaveBeenCalled();
+      runFrames(1);
+      expect(onStarted).toHaveBeenCalledTimes(1);
+      marker.walk({ key: crawlKey, stops: crawl, path: crawl, road: true, onStarted });
+      runFrames(1_000);
+      expect(onStarted).toHaveBeenCalledTimes(1);
+    });
+
+    it("waits for a loading map, and never comes if the marker goes first", () => {
+      store(pal());
+      const handlers: Array<() => void> = [];
+      const loading = {
+        loaded: () => false,
+        once: (_event: string, handler: () => void) => handlers.push(handler),
+        off: vi.fn(),
+      } as unknown as maplibregl.Map;
+      const ready = vi.fn();
+      createPalMapMarker(loading).walk({ key: crawlKey, stops: crawl, path: crawl, onStarted: ready });
+      handlers.forEach((handler) => handler());
+      expect(ready).not.toHaveBeenCalled();
+      runFrames(1);
+      expect(ready).toHaveBeenCalledTimes(1);
+
+      handlers.length = 0;
+      const retired = vi.fn();
+      const doomed = createPalMapMarker(loading);
+      doomed.walk({ key: crawlKey, stops: crawl, path: crawl, onStarted: retired });
+      doomed.destroy();
+      handlers.forEach((handler) => handler());
+      runFrames(1_000);
+      expect(retired).not.toHaveBeenCalled();
+    });
+
+    it("never comes for a walk destroyed or replaced before its first frame", () => {
+      store(pal());
+      const first = vi.fn();
+      const marker = createPalMapMarker(map);
+      marker.walk({ key: crawlKey, stops: crawl, path: crawl, onStarted: first });
+      marker.destroy();
+      runFrames(1_000);
+      expect(first).not.toHaveBeenCalled();
+
+      const replaced = vi.fn();
+      const second = createPalMapMarker(map);
+      second.walk({ key: crawlKey, stops: crawl, path: crawl, onStarted: replaced });
+      second.perch([-0.2, 51.4]);
+      runFrames(1_000);
+      expect(replaced).not.toHaveBeenCalled();
+    });
+
+    it("comes at once for a still Pal that waits instead of walking, and never for a hidden one", () => {
+      store(pal({ muted: true }));
+      const still = vi.fn();
+      createPalMapMarker(map).walk({ key: crawlKey, stops: crawl, path: crawl, onStarted: still });
+      expect(still).toHaveBeenCalledTimes(1);
+
+      store(pal({ hidden: true }));
+      const hidden = vi.fn();
+      createPalMapMarker(map).walk({ key: crawlKey, stops: crawl, path: crawl, onStarted: hidden });
+      runFrames(1_000);
+      expect(hidden).not.toHaveBeenCalled();
+    });
   });
 
   it("holds a line said over a map still loading, and says it as the walk sets off", () => {

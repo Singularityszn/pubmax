@@ -128,6 +128,7 @@ export function useMapSurfaceNavigation({
   onRestore,
   onHome,
   onSurfaceClose,
+  landedEntry = 0,
 }: {
   arrivalSearch: string;
   surfaceId: MapSurfaceId;
@@ -137,6 +138,8 @@ export function useMapSurfaceNavigation({
   onRestore: (entry: SurfaceEntry<MapSurfaceState> | null) => void;
   onHome: () => void;
   onSurfaceClose: () => void;
+  /** Changes when the map lets a pub go for a walking-route link it landed. */
+  landedEntry?: number;
 }) {
   const [stack, setStack] = useState<SurfaceStack<MapSurfaceState>>(
     ROOT_SURFACE_STACK as SurfaceStack<MapSurfaceState>,
@@ -270,6 +273,24 @@ export function useMapSurfaceNavigation({
     if (shown) open(shown);
     flushPendingOpens();
   }, [arrivalSearch, commitOpen, open, publishInitialStack, surfaceId, surfaceState, surfaceTitle]);
+
+  // A walking-route link followed while the map stays mounted opens a fresh
+  // entry with no Map trail; the trail held until then belongs to the page the
+  // reader left. Once the map lets that trail's pub go, the landed entry is its
+  // root, with no traversal and no Home. A landed trail is never overwritten.
+  const landedEntryRef = useRef(landedEntry);
+  useLayoutEffect(() => {
+    if (landedEntryRef.current === landedEntry || typeof window === "undefined") return;
+    landedEntryRef.current = landedEntry;
+    if (!initialisedRef.current || readMapSurfaceHistory(window.history.state) !== null) return;
+    const root = ROOT_SURFACE_STACK as SurfaceStack<MapSurfaceState>;
+    window.history.replaceState(
+      stampMapSurfaceHistory(window.history.state, root, ""),
+      "",
+      currentBrowserUrl(),
+    );
+    publishInitialStack(root);
+  }, [landedEntry, publishInitialStack]);
 
   useLayoutEffect(() => {
     if (!initialisedRef.current || typeof window === "undefined") return;

@@ -33,9 +33,15 @@ const LAYOUT_PIN_JOBS = ["layout-pins-1", "layout-pins-2", "layout-pins-3"];
 // Run unless the classifier succeeded and said no screen code changed. A failed
 // classifier must run the layout pins, not skip them: a skipped check counts
 // as passed for branch protection, so skipping would let a screen change merge
-// without them (fail closed).
+// without them (fail closed). The nightly and a dispatch skip them, because
+// the full suite runs every layout spec on the same commit.
 const LAYOUT_PIN_IF =
-  "${{ !cancelled() && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}";
+  "${{ !cancelled() && github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}";
+// The nightly full suite: the plain Chromium project in count-cut shards, and
+// every other project the default run covers in one job of its own.
+const FULL_SUITE_JOBS = ["full-suite", "full-suite-gl"];
+const FULL_SUITE_IF =
+  "github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'";
 
 // A `${{ ... }}` expression is one word even though it holds spaces.
 function runWords(run: string | undefined): string[] {
@@ -78,17 +84,46 @@ describe("browser CI policy", () => {
     expect(Object.keys(workflow.on)).toContain("workflow_dispatch");
     expect(workflow.on.push).toEqual({ branches: ["main"] });
     const fullSuiteJob = defined(workflow.jobs["full-suite"], "full-suite job");
-    expect(fullSuiteJob.if).toBe(
-      "github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'",
-    );
+    const glJob = defined(workflow.jobs["full-suite-gl"], "full-suite-gl job");
+    expect(fullSuiteJob.if).toBe(FULL_SUITE_IF);
+    expect(glJob.if).toBe(FULL_SUITE_IF);
     const shards = fullSuiteJob.strategy?.matrix?.shard;
-    expect(shards).toEqual([1, 2, 3, 4]);
-    const shardFlags = playwrightSteps(fullSuiteJob).flatMap((step) =>
-      runWords(step.run).filter((word) => word.startsWith("--shard=")),
-    );
-    expect(shardFlags).toEqual([
+    expect(shards).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(fullSuiteJob.name).toBe(`Full browser suite (\${{ matrix.shard }}/${shards?.length})`);
+    const [shardStep, ...extraShardSteps] = playwrightSteps(fullSuiteJob);
+    expect(extraShardSteps).toEqual([]);
+    const shardRun = runWords(defined(shardStep, "full-suite Playwright step").run);
+    expect(shardRun.filter((word) => word.startsWith("--shard="))).toEqual([
       `--shard=\${{ matrix.shard }}/${shards?.length}`,
     ]);
+    // The Chromium shards build one server; only the keyless project needs two.
+    expect(shardStep?.env?.PW_SKIP_KEYLESS_WEBSERVER).toBe("1");
+
+    // Between them the two jobs run every project the nightly always ran, and
+    // each project once.
+    const [glStep, ...extraGlSteps] = playwrightSteps(glJob);
+    expect(extraGlSteps).toEqual([]);
+    const glRun = runWords(defined(glStep, "full-suite-gl Playwright step").run);
+    expect(glRun.filter((word) => word.startsWith("--shard="))).toEqual([]);
+    expect(glStep?.env?.PW_SKIP_KEYLESS_WEBSERVER).toBeUndefined();
+    const projects = (run: string[]) =>
+      run.filter((word) => word.startsWith("--project=")).map((word) => word.slice("--project=".length));
+    expect(projects(shardRun)).toEqual(["chromium"]);
+    expect(projects(glRun).sort()).toEqual([
+      "chromium-gl",
+      "chromium-keyless",
+      "chromium-no-gl",
+      "chromium-sw-gl",
+    ]);
+    for (const [job, step] of [[fullSuiteJob, shardStep], [glJob, glStep]] as const) {
+      const report = defined(step?.env?.PLAYWRIGHT_JSON_OUTPUT_NAME, "JSON report name");
+      const gate = runWords(
+        job.steps.find((candidate) =>
+          runWords(candidate.run).includes("scripts/assert-playwright-gate.mjs"),
+        )?.run,
+      );
+      expect(gate[gate.indexOf("scripts/assert-playwright-gate.mjs") + 1]).toBe(report);
+    }
   });
 
   it("runs no second suite behind a retired rollout flag", () => {
@@ -100,7 +135,7 @@ describe("browser CI policy", () => {
       "law-pins",
       "change-scope",
       ...LAYOUT_PIN_JOBS,
-      "full-suite",
+      ...FULL_SUITE_JOBS,
     ]);
     const envKeys = [
       workflow.env,
@@ -196,7 +231,7 @@ describe("browser CI policy", () => {
   it("installs Chromium and its system dependencies before every Playwright run", () => {
     const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
 
-    for (const jobName of ["law-pins", ...LAYOUT_PIN_JOBS, "full-suite"]) {
+    for (const jobName of ["law-pins", ...LAYOUT_PIN_JOBS, ...FULL_SUITE_JOBS]) {
       const steps = defined(jobs[jobName]).steps;
       const install = steps.findIndex((step) =>
         step.run?.split("\n").some((line) => {
@@ -223,7 +258,7 @@ describe("browser CI policy", () => {
   it("chooses a runner-specific Playwright port before every Playwright run", () => {
     const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
 
-    for (const jobName of ["law-pins", ...LAYOUT_PIN_JOBS, "full-suite"]) {
+    for (const jobName of ["law-pins", ...LAYOUT_PIN_JOBS, ...FULL_SUITE_JOBS]) {
       const steps = defined(jobs[jobName]).steps;
       const portStep = steps.findIndex(
         (step) => step.uses === "./.github/actions/pubmax-playwright-port",
@@ -243,7 +278,7 @@ describe("browser CI policy", () => {
   it("gives each production browser build enough heap", () => {
     const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
 
-    for (const jobName of ["law-pins", ...LAYOUT_PIN_JOBS, "full-suite"]) {
+    for (const jobName of ["law-pins", ...LAYOUT_PIN_JOBS, ...FULL_SUITE_JOBS]) {
       const steps = playwrightSteps(defined(jobs[jobName]));
       expect(steps.length, jobName).toBeGreaterThan(0);
       for (const step of steps) {

@@ -36,9 +36,9 @@ import "./palMarker.css";
 //   stop: The Lamb", with a small "Next: The Lamb" chip, and a tap opens that
 //   pub. Crew Pals wait there too but are never buttons. A still Pal waits at
 //   the next stop instead of the first;
-// - it sits up and to the right of the pin, never over it, and otherwise takes
-//   no pointer events, so every pin under it stays tappable and the
-//   painted-pin probe still finds the pin it names;
+// - it perches beside the pin inside the viewport, never over it, and
+//   otherwise takes no pointer events, so every pin under it stays tappable
+//   and the painted-pin probe still finds the pin it names;
 // - it is the Pal's rendered avatar held by its genome (lib/palGenome.ts),
 //   never a drawing, and it is decorative except as that one button, so
 //   assistive tech skips it;
@@ -64,6 +64,12 @@ type PalMapWalk = {
   road?: boolean;
   /** Arrive with a jump for joy, not a landing: the end of a way it led. */
   cheer?: boolean;
+  /**
+   * Called once, when the Pal is first placed on this walk: on its first
+   * painted frame, or at once when it waits instead of walking. A walk ended
+   * or replaced before then, or a marker destroyed, never calls it.
+   */
+  onStarted?: () => void;
 };
 
 /**
@@ -222,6 +228,7 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
   let marker: maplibregl.Marker | null = null;
   let next: PalNextStop | null = null;
   let perchedAt: string | null = null;
+  let stationaryPoint: LngLat | null = null;
   /** A trip along the route to one stop. `following` is a trip to tonight's next stop, not one the reader asked for. */
   type Visit = { from: number; to: number; stop: number; elapsed: number; durationMs: number; following: boolean };
   let walk: {
@@ -238,7 +245,16 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
     visit: Visit | null;
     /** Jump for joy at the end of the walk instead of landing. */
     cheer: boolean;
+    /** Not yet called: the walk has not been placed on a painted frame. */
+    onStarted: (() => void) | null;
   } | null = null;
+  // Spend a walk's one start call, if it is still owed.
+  const reportStarted = () => {
+    const started = walk?.onStarted;
+    if (!walk || !started) return;
+    walk.onStarted = null;
+    started();
+  };
   let frame = 0;
   let lastFrameAt = 0;
   let pausedAt: number | null = null;
@@ -251,6 +267,44 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
     void element.offsetWidth;
     element.classList.add(name);
   };
+
+  // A stationary Pal can change sides as the map moves, without changing its
+  // geographic anchor or taking the camera. Keep the numbered disc clear too.
+  const containedPerchOffset = (lngLat: LngLat): [number, number] => {
+    if (typeof map.project !== "function" || typeof map.getContainer !== "function") return perchOffset;
+    const point = map.project(lngLat);
+    const container = map.getContainer();
+    const width = element.offsetWidth || MARKER_PX;
+    const height = element.offsetHeight || MARKER_PX;
+    const margin = 10;
+    const candidates: [number, number][] = [
+      perchOffset,
+      [-perchOffset[0] - width, perchOffset[1]],
+      [perchOffset[0], -perchOffset[1] + height],
+      [-perchOffset[0] - width, -perchOffset[1] + height],
+    ];
+    for (const candidate of candidates) {
+      const left = point.x + candidate[0];
+      const bottom = point.y + candidate[1];
+      if (left >= margin && left + width <= container.clientWidth - margin
+        && bottom - height >= margin && bottom <= container.clientHeight - margin) {
+        element.style.visibility = "";
+        return candidate;
+      }
+    }
+    // Do not drag a companion away from an off-screen stop, or cover its
+    // number when the viewport cannot hold both. It returns when space allows.
+    element.style.visibility = "hidden";
+    return perchOffset;
+  };
+
+  const updatePerch = () => {
+    if (marker && stationaryPoint) marker.setOffset(containedPerchOffset(stationaryPoint));
+  };
+  if (typeof map.on === "function") {
+    map.on("move", updatePerch);
+    map.on("resize", updatePerch);
+  }
 
   // A button only while it waits beside tonight's next stop; anywhere else it
   // is decorative and takes no taps.
@@ -298,12 +352,16 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
   }
 
   const place = (lngLat: LngLat, offset: [number, number]) => {
+    stationaryPoint = offset === perchOffset ? lngLat : null;
+    const placedOffset = stationaryPoint ? containedPerchOffset(lngLat) : offset;
+    if (!stationaryPoint) element.style.visibility = "";
     if (!marker) {
-      marker = new maplibregl.Marker({ element, anchor: "bottom-left", offset })
+      marker = new maplibregl.Marker({ element, anchor: "bottom-left", offset: placedOffset })
         .setLngLat(lngLat)
         .addTo(map);
+      updatePerch();
     } else {
-      marker.setOffset(offset);
+      marker.setOffset(placedOffset);
       marker.setLngLat(lngLat);
     }
   };
@@ -354,6 +412,7 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
   const step = (now: number) => {
     frame = 0;
     if (!walk) return;
+    reportStarted();
     const delta = Math.min(MAX_FRAME_MS, Math.max(0, now - lastFrameAt));
     lastFrameAt = now;
     if (walk.visit) {
@@ -386,7 +445,7 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
     element.classList.toggle("isWalking", moment.pausedAt === null);
     if (moment.pausedAt !== null && moment.pausedAt !== pausedAt) restartClass("isLanding");
     pausedAt = moment.pausedAt;
-    place(moment.at, walkOffset);
+    place(moment.at, moment.pausedAt === null ? walkOffset : perchOffset);
     frame = requestAnimationFrame(step);
   };
 
@@ -433,6 +492,7 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
         marker?.remove();
         marker = null;
         perchedAt = null;
+        stationaryPoint = null;
         return;
       }
       // The band is part of the perch, so a pin repainted cheap (or no longer
@@ -480,6 +540,7 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
           restAt: null,
           visit: null,
           cheer: route.cheer === true,
+          onStarted: route.onStarted ?? null,
         };
       }
       // A sleeping (muted) Pal, like reduced motion, waits at the first stop,
@@ -492,6 +553,7 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
         element.dataset.palWalk = "waiting";
         place(route.stops[waitAt]!, perchOffset);
         syncTap();
+        reportStarted();
         return;
       }
       const start = () => {
@@ -507,7 +569,7 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
       if (typeof map.loaded === "function" && !map.loaded()) {
         // Stand at the first stop until the map has painted.
         element.dataset.palWalk = "setting-off";
-        place(route.stops[0]!, walkOffset);
+        place(route.stops[0]!, perchOffset);
         const timer = window.setTimeout(start, START_WAIT_MS);
         map.once("idle", start);
         cancelStart = () => {
@@ -553,6 +615,11 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
       element.removeEventListener("click", openNext);
       element.removeEventListener("keydown", onKey);
       unsubscribe();
+      if (typeof map.off === "function") {
+        map.off("move", updatePerch);
+        map.off("resize", updatePerch);
+      }
+      stationaryPoint = null;
       stopWalking();
       marker?.remove();
       marker = null;

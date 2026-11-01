@@ -448,7 +448,9 @@ body:has(.analyticsConsentPrompt) .palPrintRow { display: none; }
    rests its head at. The photograph is never redrawn or recoloured; the zoom
    never drops under 1.08, so a framing shift never shows its edge. */
 .palPortrait[data-genome] .palPortraitMascot img,
-.palVoiceFace[data-genome] .palVoiceFaceImg img {
+.palVoiceFace[data-genome] .palVoiceFaceImg img,
+.palPortrait[data-genome] .palOriginalModelFraming,
+.palVoiceFace[data-genome] .palOriginalModelFraming {
   transform-origin: 50% 55%;
   transform: translate(var(--genome-x, 0%), var(--genome-y, 0%)) scale(var(--genome-zoom, 1)) scaleX(var(--genome-flip, 1));
   rotate: var(--genome-tilt, 0deg);
@@ -459,8 +461,8 @@ body:has(.analyticsConsentPrompt) .palPrintRow { display: none; }
    accessory sits nearer, so a turn reads as a head and not a flat card. Set
    only while the frame loop runs, so reduced motion keeps the still portrait.
    `isolation: isolate` would flatten the layers, so it gives way here. */
-.palHomePortrait[data-head-3d="live"] { perspective: 62rem; }
-.palHomePortrait[data-head-3d="live"] .palPortrait {
+.palPortrait[data-head-3d="live"] { perspective: 62rem; }
+.palPortrait[data-head-3d="live"] {
   isolation: auto;
   transform-style: preserve-3d;
   transform:
@@ -472,12 +474,13 @@ body:has(.analyticsConsentPrompt) .palPrintRow { display: none; }
     scale(var(--pal-scale, 1));
   will-change: transform;
 }
-.palHomePortrait[data-head-3d="live"] .palPortraitField { translate: 0 0 -5rem; }
-.palHomePortrait[data-head-3d="live"] .palPortraitEcho { translate: 0 0 -2.5rem; }
-.palHomePortrait[data-head-3d="live"] .palPortraitCore { translate: 0 0 2rem; }
-.palHomePortrait[data-head-3d="live"] .palPortraitAccessory { translate: 0 0 3.5rem; }
+.palPortrait[data-head-3d="live"] .palPortraitField { translate: 0 0 -5rem; }
+.palPortrait[data-head-3d="live"] .palPortraitEcho { translate: 0 0 -2.5rem; }
+.palPortrait[data-head-3d="live"] .palPortraitCore { translate: 0 0 2rem; }
+.palPortrait[data-head-3d="live"] .palPortraitAccessory { translate: 0 0 3.5rem; }
 /* A fixed light: as the head turns, its sheen slides across the photograph. */
-.palHomePortrait[data-head-3d="live"] .palPortraitCore::after {
+.palPortrait[data-head-3d="live"] .palPortraitCore::after,
+.palPortrait[data-head-3d="mesh"] .palPortraitCore::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -501,7 +504,7 @@ body:has(.analyticsConsentPrompt) .palPrintRow { display: none; }
 @keyframes palMascotWakeLight { from { filter: drop-shadow(0 .8rem 1.1rem color-mix(in srgb, var(--ink-deep) 30%, transparent)) brightness(.72); } }
 
 @media (prefers-reduced-motion: no-preference) {
-  .palPortraitCore { animation: palBreathe 4.8s ease-in-out infinite; }
+  .palPortrait:not(.isCompact) .palPortraitCore { animation: palBreathe 4.8s ease-in-out infinite; }
 }
 
 @media (max-width: 900px) {
@@ -550,6 +553,10 @@ body:has(.analyticsConsentPrompt) .palPrintRow { display: none; }
    the phone's foot, its portrait and title yield room to those controls. */
 body:has(.analyticsConsentPrompt) .palHomeCopy h1 { font-size: var(--text-xl); line-height: var(--leading-tight); }
 @media (max-width: 900px) and (max-height: 1100px) {
+  /* The taller two-line tab bar (#2352) lifted the consent card 7px, so the
+     page's own top margin yields too: an unbroken Pal name still leaves the
+     voice card 12px clear of consent at 390x844. */
+  body:has(.analyticsConsentPrompt) .palHome { padding-top: var(--space-3); }
   body:has(.analyticsConsentPrompt) .palHomeHero { padding-top: var(--space-1); gap: var(--space-4); }
   body:has(.analyticsConsentPrompt) .palHomePortrait { min-height: 10rem; grid-template-columns: 10rem minmax(0, 1fr); gap: var(--space-3); }
   body:has(.analyticsConsentPrompt) .palHomePortrait .palPortrait { width: 10rem; }
@@ -577,3 +584,81 @@ body:has(.analyticsConsentPrompt) .palHomeCopy h1 { font-size: var(--text-xl); l
   .palExperience { --pal-line: currentColor; --pal-soft: currentColor; }
   .palChoice.isSelected, .palToggleRow, .palSpeech { border-color: var(--pal-paper); }
 }
+
+/* The original photograph occupies the same box until the model draws. */
+.palOriginalModelHost {
+  position: absolute;
+  inset: 0;
+  visibility: hidden;
+  scale: 1.1;
+  border-radius: inherit;
+  outline-offset: -3px;
+}
+.palOriginalModelHost[data-model-state="ready"] { visibility: visible; }
+/* Draw focus inside the unscaled circular mask, above the overscanned model. */
+.palOriginalModelHost:focus-visible { outline: none; }
+.palPortraitCore:has(> .palOriginalModelHost:focus-visible)::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border: 2px solid var(--brass);
+  border-radius: inherit;
+  z-index: 3;
+  pointer-events: none;
+}
+.palPortraitCore:has(> .palOriginalModelHost[data-model-state="ready"]) {
+  animation: none;
+  translate: none;
+}
+.palPortraitCore:has(> .palOriginalModelHost[data-model-state="ready"]) > .palPortraitMascot {
+  visibility: hidden;
+}
+
+.palPortrait[data-pal-state="sleeping"] .palOriginalModelHost[data-model-state="ready"] { filter: brightness(.72); }
+@media (prefers-reduced-motion: no-preference) {
+  .palPortrait[data-pal-state="waking"] .palOriginalModelHost[data-model-state="ready"] { animation: palMascotWake 1.3s var(--ease-out-strong) both; transform-origin: center bottom; }
+  .palPortrait[data-pal-state="waking"] .palOriginalModelHost[data-model-state="ready"] canvas { animation: palMascotWakeLight .7s ease-out both; }
+  .palPortrait[data-pal-state="celebrating"] .palOriginalModelHost[data-model-state="ready"] { animation: palMascotCelebrate .8s var(--ease-out-strong) infinite alternate; }
+  .palPortrait[data-pal-state="error"] .palOriginalModelHost[data-model-state="ready"] { animation: palMascotError .32s steps(2, end) 3; }
+}
+
+/* Once the 3D model is ready the photograph is hidden, so the saved genome
+   (flip, zoom, focus and tilt) is held by the visible drawing frame instead
+   of an image nobody sees. The canvas keeps its own fit below. */
+.palPortrait[data-genome] .palOriginalModelHost[data-model-state="ready"] > .palOriginalModelFraming,
+.palVoiceFace[data-genome] .palOriginalModelHost[data-model-state="ready"] > .palOriginalModelFraming {
+  transform-origin: 50% 55%;
+  transform: translate(var(--genome-x, 0%), var(--genome-y, 0%)) scale(var(--genome-zoom, 1)) scaleX(var(--genome-flip, 1));
+  rotate: var(--genome-tilt, 0deg);
+}
+
+/* The GLB has no mouth to move. While the Pal talks, the model fades out over
+   the photograph and its talking-mouth frame, which open with the voice level
+   (--pal-mouth, 0 under reduced motion), and fades back when the talk ends.
+   The big portrait and the phone voice face do the same. */
+.palOriginalModelHost[data-model-state="ready"] { transition: opacity .2s var(--ease-out-strong); }
+.palPortrait:is([data-pal-state="speaking"], [data-pal-state="listening"]) .palPortraitCore:has(> .palOriginalModelHost[data-model-state="ready"]) > .palPortraitMascot,
+.palVoiceFace:is([data-pal-state="speaking"], [data-pal-state="listening"]) .palVoiceFaceMask:has(> .palOriginalModelHost[data-model-state="ready"]) > .palVoiceFaceImg {
+  visibility: visible;
+}
+.palPortrait:is([data-pal-state="speaking"], [data-pal-state="listening"]) .palOriginalModelHost[data-model-state="ready"],
+.palVoiceFace:is([data-pal-state="speaking"], [data-pal-state="listening"]) .palOriginalModelHost[data-model-state="ready"] {
+  opacity: 0;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .palOriginalModelHost[data-model-state="ready"] { transition: none; }
+}
+
+/* First match the original art's baseline composition. The outer drawing frame
+   then applies the Pal's genome independently of this model normalization. */
+.palOriginalModelFraming { position: absolute; inset: 0; }
+.palOriginalModelFraming canvas {
+  scale: var(--pal-model-fit, 1);
+  translate: var(--pal-model-fit-x, 0%) var(--pal-model-fit-y, 0%);
+}
+
+/* The phone voice face follows the same model and keeps its original fallback. */
+.palVoiceFaceMask { position: relative; display: block; width: 100%; height: 100%; border-radius: 50%; overflow: hidden; }
+.palVoiceFace .palOriginalModelHost { pointer-events: none; }
+.palVoiceFaceMask:has(> .palOriginalModelHost[data-model-state="ready"]) > .palVoiceFaceImg { visibility: hidden; }

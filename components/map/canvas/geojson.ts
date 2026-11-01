@@ -526,6 +526,8 @@ export function routeToLegTimes(route: Venue[]): GeoJSON.FeatureCollection {
 }
 
 export function routeToStops(route: Venue[]): GeoJSON.FeatureCollection {
+  const longitudes = route.map((venue) => venue.longitude);
+  const midLng = route.length ? (Math.min(...longitudes) + Math.max(...longitudes)) / 2 : 0;
   return {
     type: "FeatureCollection",
     features: route.map((venue, index) => ({
@@ -537,6 +539,7 @@ export function routeToStops(route: Venue[]): GeoJSON.FeatureCollection {
         // plaque text the map draws beside the numbered disc.
         name: venue.name,
         stopName: truncateStopName(venue.name),
+        labelSide: venue.longitude > midLng ? "west" : "east",
       },
       geometry: {
         type: "Point" as const,

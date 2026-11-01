@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useCommunityPrices } from "@/components/map/useCommunityPrices";
 import PalQuest from "@/components/pal/PalQuest";
 import { useOwnPal } from "@/components/pal/useOwnPal";
+import { trackEvent } from "@/lib/analytics";
 import { readLocalPal } from "@/lib/localPal";
 import type { NearMeCard } from "@/lib/nearMeAnswer";
 import {
@@ -132,7 +133,11 @@ export default function NearPriceEvidenceMission({
             venueName: names.get(answer.venueId) ?? venueName,
             area: areas.get(answer.venueId),
           });
-          setQuest({ owner, today: palQuestStampToday(readPalQuestStamps()), now: added });
+          const today = palQuestStampToday(readPalQuestStamps());
+          // The cheer plays even when the store refused the write, but only a
+          // stamp the book really kept is counted as stamped.
+          if (added && today?.day === added.day && today.venueId === added.venueId) trackEvent("pal_quest_stamped");
+          setQuest({ owner, today, now: added });
         }}
       />
     </>
