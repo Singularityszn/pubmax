@@ -633,6 +633,13 @@
   body:has(.palSummon) .mobileMapUtilityCorner > .mobileMapPalDoor {
     display: none;
   }
+  /* The first-visit ask parks one gap above the column and is the one banner
+     on screen until the reader answers it. The door stands down with it, so
+     the ask stays docked low (e2e/mobile-map-first-visit.spec.ts, 320x568),
+     and comes back with the answer. mobileNav.css drops its height too. */
+  body:has(.mapArrivalCard) .mobileMapUtilityCorner > .mobileMapPalDoor {
+    display: none;
+  }
   .mobileMapCornerSuffix { font-size: var(--text-2xs); font-weight: 700; margin-left: 2px; }
   .mobileMapCornerBadge {
     position: absolute;

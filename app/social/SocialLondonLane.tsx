@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import SocialPostCard from "@/components/social/SocialPostCard";
 import EmptyState from "@/components/ui/empty-state";
@@ -41,6 +41,26 @@ function aborted(error: unknown): boolean {
 }
 
 /**
+ * Keep a focused control BELOW the lane in view while the lane changes size.
+ *
+ * The lane takes the door slot's place once the session answers nobody, and
+ * it grows twice more (skeletons, then posts or the empty line). A reader who
+ * already tabbed or tapped into Find your lot under it would see that field
+ * pushed down under the consent card or off the screen, because the browser
+ * scrolls a control into view only when focus moves. "nearest" moves the page
+ * only when the control left the view, and it honours the root's scroll
+ * padding, which keeps the consent card's lane (e2e/ux-consent-chrome.spec.ts).
+ */
+function keepFocusBelowInView(lane: HTMLElement | null): void {
+  if (!lane || typeof document === "undefined") return;
+  const focused = document.activeElement;
+  if (!(focused instanceof HTMLElement) || focused === document.body) return;
+  if (lane.contains(focused)) return;
+  if (!(lane.compareDocumentPosition(focused) & Node.DOCUMENT_POSITION_FOLLOWING)) return;
+  focused.scrollIntoView?.({ block: "nearest" });
+}
+
+/**
  * THE LONDON LANE, AS A STRANGER READS IT (captain decision 7, 1 Nov 2026).
  *
  * Read-only: each card prints one quiet way to sign in where a reader's cheer
@@ -55,6 +75,12 @@ export default function SocialLondonLane() {
   const [attempt, setAttempt] = useState(0);
   const requestId = useRef(0);
   const moreController = useRef<AbortController | null>(null);
+  const laneRef = useRef<HTMLElement | null>(null);
+
+  // On mount (the lane replaced the slot) and on every change of its height.
+  useLayoutEffect(() => {
+    keepFocusBelowInView(laneRef.current);
+  }, [status, posts.length, nextCursor, loadingMore]);
 
   useEffect(() => {
     const id = ++requestId.current;
@@ -112,6 +138,7 @@ export default function SocialLondonLane() {
 
   return (
     <section
+      ref={laneRef}
       className="socialFeed socialLondonLane"
       aria-labelledby="social-london-lane-title"
       aria-busy={status === "loading" || loadingMore}

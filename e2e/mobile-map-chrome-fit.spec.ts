@@ -886,7 +886,7 @@ test("390px TfL rests in More map controls and comes to the edge only when a lin
   await expect(tfl.locator(".mobileMapCornerBadge")).toHaveText("1");
   await expect(tfl).toHaveAccessibleName("TfL live: 1 line badly disrupted, 2 updates");
   const layers = await restingLayers(page);
-  expect(layers.edge.sort()).toEqual(["create", "credit", "locate", "tfl"]);
+  expect(layers.edge.sort()).toEqual(["credit", "locate", "pal", "tfl"]);
   await tapRenderedCentre(page, tfl, viewport.width, "TfL live");
   await expect(
     page.locator('.mobileSheetPortal[data-sheet-kind="tfl"]:visible'),

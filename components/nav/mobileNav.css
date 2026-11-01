@@ -122,8 +122,10 @@
 /* The Pub Pal's door rides the map-edge column above Near me
    (components/mobile/MobileMapShell.tsx), so the column's top edge is the
    door's. Declared on the body, where the door is found, and re-derived there,
-   because a custom property is resolved where it is declared. */
-body:has(.mobileMapPalDoor) {
+   because a custom property is resolved where it is declared. The door stands
+   down while the first-visit ask is up (mobileMapShell.css), so it adds
+   nothing then and the ask parks one gap above Near me. */
+body:has(.mobileMapPalDoor):not(:has(.mapArrivalCard)) {
   --map-corner-pal-door-h: calc(var(--control-height) + 10px);
 }
 body {
