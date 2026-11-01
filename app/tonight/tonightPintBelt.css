@@ -1,17 +1,21 @@
 /* The pint belt (TonightPintBelt.tsx). From 641px the quiet night's cheapest
    pints ride a conveyor as beer mats; below it the list beside the belt is
-   the answer, one tap at the bar, and the belt is not drawn. */
+   the answer, one tap at the bar, and the belt is not drawn.
+
+   The list steps back only for a belt that is READY, measured and with its
+   mats placed. Until then (no script, a slow script, a failed chunk) the list
+   is the answer at every width, so the section is never an empty box. */
 .pintBelt {
   display: none;
 }
 
 @media (min-width: 641px) {
-  .pintBelt {
+  .pintBelt[data-ready] {
     display: grid;
     gap: var(--space-1);
   }
 
-  .tonightCheapPintsBeltList {
+  .tonightCheapPintsAnswer:has(> .pintBelt[data-ready]) > .tonightCheapPintsBeltList {
     display: none;
   }
 }
@@ -64,12 +68,6 @@
   text-decoration: none;
   will-change: transform;
   -webkit-user-drag: none;
-}
-
-/* Placed by script; until the first placement every mat would sit on the
-   first, so the mats wait unseen in the belt's reserved box. */
-.pintBeltFrame:not([data-ready]) .pintBeltMat {
-  visibility: hidden;
 }
 
 .pintBeltMatName {

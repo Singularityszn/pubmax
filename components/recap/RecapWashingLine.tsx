@@ -27,6 +27,8 @@ const CARD_GAP = 28;
 const SAG = 34;
 /** The string's two ends hang this far below the top of the line's box. */
 const LINE_TOP = 14;
+/** Room under the lowest polaroid for its shadow and a swing. */
+const LINE_FOOT = 16;
 /** Past this many px a press is a drag. */
 const DRAG_SLOP = 6;
 /** The most a polaroid swings either way while it is dragged, in degrees. */
@@ -49,6 +51,11 @@ export function washingLineDrop(x: number, width: number, sag = SAG): number {
   if (width <= 0) return 0;
   const t = x / width;
   return 4 * sag * t * (1 - t);
+}
+
+/** The line's box for a polaroid this tall: the string, its deepest sag, the card and a margin. */
+export function washingLineHeight(cardHeight: number): number {
+  return LINE_TOP + SAG + cardHeight + LINE_FOOT;
 }
 
 function counterLabel(index: number, total: number): string {
@@ -77,6 +84,7 @@ export default function RecapWashingLine({ photos }: { photos: readonly WashingL
   const dragRef = useRef<{ startX: number; lastX: number; lastTime: number; offset: number; velocity: number; dragging: boolean } | null>(null);
   const widthRef = useRef(0);
   const [width, setWidth] = useState(0);
+  const [cardHeight, setCardHeight] = useState(0);
   const [index, setIndex] = useState(0);
   const reducedMotion = useSyncExternalStore(subscribeReducedMotion, readReducedMotion, () => false);
   const total = photos.length;
@@ -110,6 +118,20 @@ export default function RecapWashingLine({ photos }: { photos: readonly WashingL
     observer.observe(viewport);
     return () => observer.disconnect();
   }, []);
+
+  // The line is as tall as its tallest polaroid hangs, so a long caption is
+  // read whole, as the grid it replaced printed it (a caption runs to 500
+  // characters, lib/nightMemory.ts). Re-measured when a card's own height
+  // changes: a font arriving, a narrower screen.
+  useLayoutEffect(() => {
+    const cards = cardRefs.current.filter((card): card is HTMLDivElement => card !== null);
+    const measure = () => setCardHeight(Math.max(0, ...cards.map((card) => card.offsetHeight)));
+    measure();
+    if (typeof ResizeObserver !== "function") return;
+    const observer = new ResizeObserver(measure);
+    for (const card of cards) observer.observe(card);
+    return () => observer.disconnect();
+  }, [total]);
 
   useLayoutEffect(() => {
     cardRefs.current.length = total;
@@ -191,6 +213,7 @@ export default function RecapWashingLine({ photos }: { photos: readonly WashingL
         ref={viewportRef}
         className="washingLineViewport"
         data-ready={width > 0 ? "" : undefined}
+        style={cardHeight > 0 ? { height: washingLineHeight(cardHeight) } : undefined}
         tabIndex={0}
         onKeyDown={onKeyDown}
         onPointerDown={onPointerDown}

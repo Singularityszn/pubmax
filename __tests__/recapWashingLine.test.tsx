@@ -5,7 +5,7 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import RecapWashingLine, { washingLineDrop } from "@/components/recap/RecapWashingLine";
+import RecapWashingLine, { washingLineDrop, washingLineHeight } from "@/components/recap/RecapWashingLine";
 
 // The recap's shared photos hang on a string of festoon lights
 // (components/recap/RecapWashingLine.tsx). Fixture images are Unsplash URLs
@@ -78,6 +78,20 @@ describe("the washing line", () => {
     expect(count()).toBe("03 / 03");
     press("Home");
     expect(count()).toBe("01 / 03");
+  });
+
+  it("grows to the tallest polaroid, so a long caption is read whole", () => {
+    // A 500-character caption makes a tall card; the line must not clip it.
+    const offsetHeight = vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (this: HTMLElement) {
+      return this.classList.contains("washingLineCard") && this.textContent?.includes("Last orders") ? 520 : 230;
+    });
+    act(() => root?.unmount());
+    root = createRoot(host);
+    act(() => root?.render(createElement(RecapWashingLine, { photos: PHOTOS })));
+    const viewport = host.querySelector<HTMLElement>(".washingLineViewport");
+    expect(viewport?.style.height).toBe(`${washingLineHeight(520)}px`);
+    expect(washingLineHeight(520)).toBeGreaterThan(520);
+    offsetHeight.mockRestore();
   });
 
   it("hangs the string lowest in the middle and level at both ends", () => {

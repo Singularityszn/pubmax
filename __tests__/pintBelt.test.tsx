@@ -136,4 +136,20 @@ describe("the pint belt", () => {
     expect(css).toMatch(/\.pintBelt \{\s*display: none;/);
     expect(css).toMatch(/@media \(min-width: 641px\) \{[\s\S]*\.tonightCheapPintsBeltList \{\s*display: none;/);
   });
+
+  it("keeps the list up until the belt is ready, so the section is never empty", () => {
+    // No layout here, so the belt has no width to lay its mats on: it must
+    // not call itself ready, and nothing may hide the list but a ready belt.
+    stubMotion(false);
+    render();
+    expect(host.querySelector(".pintBelt")?.hasAttribute("data-ready")).toBe(false);
+    const css = readFileSync(join(process.cwd(), "app/tonight/tonightPintBelt.css"), "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "");
+    const hidesList = [...css.matchAll(/([^{}]+)\{[^}]*display: none;[^}]*\}/g)]
+      .map((match) => (match[1] ?? "").trim())
+      .filter((selector) => selector.includes("tonightCheapPintsBeltList"));
+    expect(hidesList).toEqual([
+      ".tonightCheapPintsAnswer:has(> .pintBelt[data-ready]) > .tonightCheapPintsBeltList",
+    ]);
+  });
 });

@@ -94,17 +94,20 @@ export default function TonightPintBelt({ rows }: { rows: readonly TonightCheapP
     });
   }, [trackNow]);
 
+  // The belt stays undrawn (and the list beside it stays up) until it has a
+  // width to lay its mats on, so it is measured off the box it will fill:
+  // its own box has no width while it is still hidden.
   useLayoutEffect(() => {
-    const frame = frameRef.current;
-    if (!frame) return;
+    const host = frameRef.current?.parentElement?.parentElement;
+    if (!host) return;
     const measure = () => {
-      widthRef.current = frame.clientWidth;
-      setWidth(frame.clientWidth);
+      widthRef.current = host.clientWidth;
+      setWidth(host.clientWidth);
     };
     measure();
     if (typeof ResizeObserver !== "function") return;
     const observer = new ResizeObserver(measure);
-    observer.observe(frame);
+    observer.observe(host);
     return () => observer.disconnect();
   }, []);
 
@@ -207,7 +210,7 @@ export default function TonightPintBelt({ rows }: { rows: readonly TonightCheapP
   }
 
   return (
-    <div className="pintBelt">
+    <div className="pintBelt" data-ready={width > 0 ? "" : undefined}>
       <div
         ref={frameRef}
         className="pintBeltFrame"
@@ -215,7 +218,6 @@ export default function TonightPintBelt({ rows }: { rows: readonly TonightCheapP
         aria-roledescription="belt"
         aria-label="Cheapest listed pints on a moving belt"
         style={{ height: BELT_HEIGHT }}
-        data-ready={width > 0 ? "" : undefined}
         onPointerEnter={(event) => {
           if (event.pointerType === "mouse") holdRef.current.hover = true;
         }}

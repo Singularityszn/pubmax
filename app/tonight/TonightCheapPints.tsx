@@ -44,9 +44,10 @@ export default function TonightCheapPints({
           {formatSnapshotFrom(new Date(observedAt))}
         </p>
       ) : null}
-      <div data-testid="tonight-cheap-pints">
+      <div className="tonightCheapPintsAnswer" data-testid="tonight-cheap-pints">
         {/* From 641px the same rows ride the belt and this list steps back
-            (tonightPintBelt.css); on a phone the list is the answer. */}
+            once the belt is ready (tonightPintBelt.css); on a phone, and
+            until the belt is placed, the list is the answer. */}
         <TonightPintBelt rows={rows} />
         <RowList className="tonightCheapPintsList tonightCheapPintsBeltList">
           {rows.map((row) => (
