@@ -25,7 +25,7 @@ Full rules: [`docs/rules/lib-prices-trust-and-drinks.md`](../docs/rules/lib-pric
 
 ## Venues, areas, listings and nights
 
-Venue truth, display names, deals, kinds, near desk, landing imagery, picks, what's on, out listings, plans, UK base, night areas, map pack revision skew.
+Venue truth, display names, deals, kinds, near desk, landing imagery, picks, what's on, out listings, plans (the £20 crawl, the dry round, seasonal templates), UK base, night areas, map pack revision skew.
 
 Full rules: [`docs/rules/lib-venues-areas-listings-and-nights.md`](../docs/rules/lib-venues-areas-listings-and-nights.md).
 

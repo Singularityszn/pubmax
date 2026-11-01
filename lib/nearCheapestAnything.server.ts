@@ -234,3 +234,20 @@ export async function loadNearDrinkLanes(): Promise<NearDrinkLanes> {
     return {};
   }
 }
+
+let listedAlcoholFree: Promise<readonly NearDrinkRow[] | null> | null = null;
+
+/**
+ * The alcohol-free lane alone, for the dry round (lib/dryRound.ts): the SAME
+ * reader as the Alcohol-free chip, never a second one. Its inputs are bundled
+ * and change only on deploy, so a process holds the answer once. A read that
+ * failed answers null, never an empty lane, and is not held, so the next
+ * request asks again.
+ */
+export function loadListedAlcoholFreeRows(): Promise<readonly NearDrinkRow[] | null> {
+  const pending = (listedAlcoholFree ??= loadNearDrinkLanes().then((lanes) => lanes["alcohol-free"] ?? null));
+  void pending.then((rows) => {
+    if (!rows && listedAlcoholFree === pending) listedAlcoholFree = null;
+  });
+  return pending;
+}

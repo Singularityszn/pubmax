@@ -742,9 +742,11 @@
    6px one (the 6 Sep 2026 design review). */
 .planStopCount__choices { display: flex; flex-wrap: wrap; gap: 6px; }
 .planDescribeFirst__chips { margin: var(--space-2) 0 0; display: flex; flex-wrap: wrap; gap: 8px; }
-/* The £20 crawl option: the shared chip (components/ui/chip.css) with its one
-   line beside it, wrapping under it on a phone. */
-.planDescribeFirst__budget { margin: var(--space-2) 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+/* The £20 crawl and Dry round options: the shared chip
+   (components/ui/chip.css) with its one line beside it, wrapping under it on
+   a phone. */
+.planDescribeFirst__budget,
+.planDescribeFirst__dry { margin: var(--space-2) 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
 .planDescribeFirst__budgetNote { margin: 0; color: var(--muted); font-size: var(--text-xs); }
 .planDescribeFirst__chip {
   min-height: 44px;

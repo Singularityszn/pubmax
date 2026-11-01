@@ -1,0 +1,76 @@
+/* The dry round under its stops (components/plan/PlanDryRoundLedger.tsx).
+   Tokens only; figures in the data face, every word in ink or muted ink, no
+   fill. It reads like the £20 crawl ledger beside it. */
+
+.planDryRound {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-block: var(--space-3);
+}
+
+.planDryRound__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.planDryRound__lede {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.planDryRound__rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.planDryRound__row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.planDryRound__stop {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.planDryRound__line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--space-2);
+}
+
+.planDryRound__kind {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.planDryRound__price {
+  font-family: var(--font-data);
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+.planDryRound__drink {
+  min-width: 0;
+  font-size: var(--text-sm);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.planDryRound__read {
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
