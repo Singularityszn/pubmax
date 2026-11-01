@@ -10,6 +10,7 @@ import ListedPriceSource from "@/components/venue/ListedPriceSource";
 import VenuePriceThen from "@/components/map/VenuePriceThen";
 import { displayDrinkName } from "@/components/listing/displayCase";
 import { formatGbp } from "@/lib/formatGbp";
+import { firstHttp } from "@/lib/httpUrl";
 import { formatLedgerDate, type LedgerPintPrice } from "@/lib/ledger";
 import { displayHandle } from "@/lib/handleDisplay";
 import { PINT_TRUST_LINE } from "@/lib/pintTrust";
@@ -155,8 +156,10 @@ function LedgerPublishedPriceRecord({ publishedLane, listedPint, venueId }: {
     ? { priceGbp: publishedLane.cheapestPrice, sourceUrl: publishedLane.sourcedPrice.sourceUrl,
         sourceLabel: publishedLane.sourcedPrice.sourceLabel, observedAt: publishedLane.sourcedPrice.observedAt }
     : publishedLane?.lane === "listed"
-      ? { ...publishedLane.listed, sourceLabel: "Published menu" }
+      ? { ...publishedLane.listed, sourceLabel: publishedLane.listed.publisher }
       : null;
+  const sourceLabel = typeof publication?.sourceLabel === "string" ? publication.sourceLabel.trim() : "";
+  const sourceUrl = firstHttp(publication?.sourceUrl);
   return publication ? <>
     <p>Published price</p>
     <p>
@@ -164,7 +167,9 @@ function LedgerPublishedPriceRecord({ publishedLane, listedPint, venueId }: {
       Cheapest listed pint
     </p>
     <p>
-      Listed by <a className="ledgerMapLink" href={publication.sourceUrl} target="_blank" rel="noopener noreferrer">{publication.sourceLabel}</a>, collected{" "}
+      {sourceLabel ? <>Listed by {sourceUrl
+        ? <a className="ledgerMapLink" href={sourceUrl} target="_blank" rel="noopener noreferrer">{sourceLabel}</a>
+        : <>{sourceLabel}. Link unavailable.</>}</> : "Publisher not recorded"}, collected{" "}
       <time dateTime={publication.observedAt}>{formatLedgerDate(publication.observedAt)}</time>.
     </p>
   </> : publishedLane?.lane === "baseline" ? <>

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, createElement, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
-import { expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 const { prefetch } = vi.hoisted(() => ({ prefetch: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ prefetch }) }));
@@ -13,6 +13,14 @@ vi.mock("next/link", () => ({
   },
 }));
 import IntentLink from "@/components/nav/IntentLink";
+
+beforeEach(() => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 it("warms sibling Social queries on hover and keeps repeated intent deduped", async () => {
   const host = document.createElement("div");

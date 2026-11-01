@@ -94,6 +94,20 @@ describe("provider identity revision", () => {
     expect(store.authState("clerk")).toBe("authenticated");
   });
 
+  it("checks session ownership within its provider without publishing an identity", () => {
+    const store = createProviderIdentityRevisionStore();
+    expect(store.ownsSession("supabase", null)).toBe(false);
+    expect(store.ownsSession("supabase", "account-a")).toBe(false);
+    store.set("clerk", "account-a");
+    expect(store.ownsSession("supabase", "account-a")).toBe(false);
+    store.set("supabase", "account-b");
+    expect(store.ownsSession("supabase", "account-a")).toBe(false);
+    expect(store.ownsSession("supabase", "account-b")).toBe(true);
+    expect(store.ownsSession("clerk", "account-a")).toBe(true);
+    store.set("supabase", null);
+    expect(store.ownsSession("supabase", "account-b")).toBe(false);
+  });
+
   it("keeps Supabase unresolved for a null INITIAL_SESSION event", () => {
     expect(resolveSupabaseAuthState("initial-session", false, null)).toBe("unresolved");
   });

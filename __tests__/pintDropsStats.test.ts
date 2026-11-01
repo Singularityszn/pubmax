@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // The stats route resolves boroughs from the server-only venue index. Stub it
 // with a tiny fixture so the test never touches the bundled dataset on disk and
@@ -13,6 +13,20 @@ vi.mock("@/lib/venueIndex", () => ({
     ]),
 }));
 
+vi.mock("@/lib/supabase", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/supabase")>(),
+  getSupabaseAdmin: () => ({
+    auth: {
+      getUser: async (token: string) => {
+        if (token === "owner-token" || token === "other-token") {
+          return { data: { user: { id: token === "owner-token" ? "stats-owner" : "other-owner" } }, error: null };
+        }
+        return { data: { user: null }, error: { status: 401, code: "bad_jwt" } };
+      },
+    },
+  }),
+}));
+
 import { GET } from "@/app/api/pint-drops/stats/route";
 import { __resetPintDrops, addPintDrop } from "@/lib/pintDrops";
 import type { PintDrop } from "@/lib/pintDrops";
@@ -20,11 +34,13 @@ import { palYearFacts } from "@/lib/palYear";
 import { buildYearInPintsShareText } from "@/lib/shareArtifacts";
 import { parseYearShare, yearShareFrom, yearShareHeading, yearShareLines, yearShareQuery } from "@/lib/yearInPints";
 
+import { __resetMemoryProfiles, memoryProfileStore } from "@/lib/profileStore";
+
 const BASE = "http://localhost/api/pint-drops/stats";
 
-function statsFor(handle?: string): Promise<Response> {
+function statsFor(handle?: string, token?: string): Promise<Response> {
   const url = handle ? `${BASE}?handle=${encodeURIComponent(handle)}` : BASE;
-  return GET(new Request(url));
+  return GET(new Request(url, { headers: token ? { authorization: `Bearer ${token}` } : {} }));
 }
 
 function drop(partial: Partial<PintDrop> & Pick<PintDrop, "venueId">): void {
@@ -45,10 +61,34 @@ function drop(partial: Partial<PintDrop> & Pick<PintDrop, "venueId">): void {
 
 beforeEach(() => {
   __resetPintDrops();
+  __resetMemoryProfiles();
+  vi.stubEnv("SUPABASE_URL", "");
+  vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "");
   process.env.RATE_LIMIT_SALT = "test-salt";
 });
 
+afterEach(() => vi.unstubAllEnvs());
+
 describe("GET /api/pint-drops/stats", () => {
+  it("includes anonymous prices only for the verified author", async () => {
+    await memoryProfileStore.createOwned("statman", "stats-owner");
+    drop({ venueId: "venue-hack1", visibility: "anonymous" });
+    await memoryProfileStore.createOwned("otherhandle", "other-owner");
+    for (const token of [undefined, "invalid-token", "other-token"]) {
+      const response = await statsFor("statman", token);
+      expect(response.status).toBe(200);
+      expect((await response.json()).stats).toMatchObject({
+        total: 0, pintsMapped: 0, byBorough: [],
+        streak: { current: 0, longest: 0, activeDays: 0, lastDay: "" },
+      });
+    }
+    const response = await statsFor("statman", "owner-token");
+    expect(response.status).toBe(200);
+    expect((await response.json()).stats).toMatchObject({
+      total: 1, pintsMapped: 1, byBorough: [{ borough: "Hackney", count: 1 }],
+      streak: { activeDays: 1 },
+    });
+  });
   it("400s (flat envelope) when no handle is supplied", async () => {
     const res = await statsFor();
     expect(res.status).toBe(400);

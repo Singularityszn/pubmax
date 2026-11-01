@@ -253,8 +253,9 @@ bodies.
 
 ## Failure posture
 
-- Anonymous paid spend (`concierge`, narrated `heritage`) and Plan creation pass
-  `{ failClosed: true }` to the durable limiter.
+- Paid-provider admission follows the
+  [paid-spend rules](rules/lib-shared-seams-stores-http-freshness-brand.md#a-limiter-keyed-on-an-address-the-caller-chooses-guards-nothing-and-four-routes-).
+  Those rules own limiter failures and fallback behaviour.
 - Keyless local development remains usable through the bounded process-local
   limiter when Supabase is not configured.
 - Public community contribution paths use durable limits in production and a
@@ -1759,9 +1760,9 @@ inventory count and boundary assertions in CI.
 
 POST is a stateless MCP transport. It accepts no account credentials or plan writes.
 Each request passes origin checks, a 32 KiB body limit and the hashed-address rate limit.
-Generation delegates to the existing plan route and retains its paid-spend ceiling.
+Generation delegates to the existing plan route and follows the [paid-spend rules](rules/lib-shared-seams-stores-http-freshness-brand.md#a-limiter-keyed-on-an-address-the-caller-chooses-guards-nothing-and-four-routes-).
 Tool errors use the MCP result contract. HTTP errors use the public API envelope.
-The anonymous paid-route probe proves that a spent generation ceiling makes no paid provider call.
+The anonymous paid-route probe checks generation with every paid-spend ceiling closed and rejects any paid provider call.
 
 ### `app/api/pub-list-import` - signed-in pub list matching
 
