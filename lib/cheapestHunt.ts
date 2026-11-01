@@ -31,9 +31,22 @@
 // tenner, which by law may never become a price. London's Wetherspoon pints
 // reach this module through the London lane like any other listed pint.
 //
-// A bar the public cannot walk into never wins (`isPublicRankablePub`), and a
-// pub we cannot place in a town is not named: the claim prints a place every
-// time.
+// THE HEADLINE BAR: A WINNER NAMES ITS DRINK (`huntRowNamesItsDrink`). The map
+// reads an unstated measure as a pint, and that is right for a pin. It is not
+// enough for "the cheapest pint in Britain": the first build of this module
+// crowned a £2.00 taplist "beer" row (Enid Street Tavern, read 18 Oct 2026)
+// that stated no drink and no serving, from a harvest whose other labels read
+// "/" and "13.0% (", which is the shape of a third-pint price parsed loose.
+// So a figure may stand in ANY line here (Britain's cheapest, a city's
+// cheapest, London's dearest) only on a row whose own label names a drink in
+// real words, or whose own serving field states a pint. The London list holds
+// no serving field, so its row must name its pint (`pint_name`), and a row that
+// names none cannot win. The measure law still holds out a half or a third
+// first, and nothing is ever scaled.
+//
+// A bar the public cannot walk into never wins (`isPublicRankablePub`, which
+// also reads a students' union from its initials), and a pub we cannot place
+// in a town is not named: the claim prints a place every time.
 //
 // Pure: no fs, no React. lib/cheapestHunt.server.ts wires the real reads.
 
@@ -66,6 +79,14 @@ export const HUNT_CITIES_TITLE = "Britain's cheapest pint, city by city";
 /** What a city on the map with no listed price says, and the door it opens. */
 export const HUNT_CITY_EMPTY_LINE = "No prices yet.";
 export const HUNT_CITY_EMPTY_ACTION = "Log the first one.";
+
+/**
+ * What a city says when it holds published pint prices but none of them names
+ * its pint, so none may stand as the city's cheapest (`huntRowNamesItsDrink`).
+ * It is not "No prices yet", because that would be untrue of the city.
+ */
+export const HUNT_CITY_UNNAMED_LINE = "Prices listed, but none says which pint.";
+export const HUNT_CITY_UNNAMED_ACTION = "Log yours.";
 
 /** The row for a priced pub outside every city on the map. */
 export const HUNT_ELSEWHERE_LABEL = "Elsewhere in Britain";
@@ -131,7 +152,13 @@ type HuntCityRow = {
   cityId: CityId;
   cityName: string;
   pint: HuntPint | null;
-  /** The city's own price door, used when the city has no price yet. */
+  /**
+   * True when the city has no winner but DOES hold a published pint price that
+   * names no pint (`citiesWithUnnamedPints`), so its row may not say it has no
+   * prices.
+   */
+  unnamedPricesHeld: boolean;
+  /** The city's own price door, used when the city has no winner. */
   logHref: Route;
 };
 
@@ -165,16 +192,66 @@ function compareHuntPints(left: HuntPint, right: HuntPint): number {
   );
 }
 
+/** An ABV figure ("13.0%", "4,5 %"), which is a number about a drink, never its name. */
+const ABV_FIGURE = /\d+(?:[.,]\d+)?\s*%/g;
+/** One word of two letters or more, in any script. */
+const DRINK_WORD = /\p{L}{2,}/u;
+
+/** Whether a printed label is real words, once ABV figures and punctuation are set aside. */
+function labelNamesADrink(label: unknown): boolean {
+  return typeof label === "string" && DRINK_WORD.test(label.replace(ABV_FIGURE, " "));
+}
+
+/** Whether a source's own serving field states a pint (lib/drinkMeasure.ts), or 568 ml. */
+function servingStatesAPint(serving: unknown): boolean {
+  return (
+    typeof serving === "string" &&
+    (measureFromServingSize(serving) === "pint" || /^568 ?ml$/i.test(serving.trim()))
+  );
+}
+
+/**
+ * THE HEADLINE BAR (see the header): may this row's figure stand in a
+ * "cheapest" or "dearest" line? Only when the row NAMES ITS DRINK, by a label
+ * in real words (not empty, not punctuation, not an ABV fragment such as
+ * "13.0% (") or by a serving field that states a pint. A row that states
+ * neither may be a third, a taster or a garbled parse, and the front door does
+ * not stake a national claim on it.
+ */
+export function huntRowNamesItsDrink(row: {
+  drinkLabel?: string | null;
+  servingSize?: string | null;
+}): boolean {
+  return servingStatesAPint(row.servingSize) || labelNamesADrink(row.drinkLabel);
+}
+
+/**
+ * The London list's own evidence for the bar: a row that carries the figure
+ * and names its pint, with no half or third in that name. The list states no
+ * serving field, so the name is the only evidence it holds.
+ */
+function londonFigureNamesItsPint(venue: Venue, priceGbp: number): boolean {
+  return venue.prices.some(
+    (price) =>
+      typeof price.price_gbp === "number" &&
+      Math.abs(price.price_gbp - priceGbp) < 0.005 &&
+      huntRowNamesItsDrink({ drinkLabel: price.pint_name }) &&
+      measureNamedInDrinkText(price.pint_name) === null,
+  );
+}
+
 /**
  * The London lane: each pub in our list with its own listed cheapest pint,
  * read the way the landing's pub card reads it. A pub whose figure does not
- * stand as `listed` with a publisher and a read day is not a candidate.
+ * stand as `listed` with a publisher and a read day, or whose figure names no
+ * pint, is not a candidate.
  */
 export function londonHuntPints(venues: readonly Venue[], now: number = Date.now()): HuntPint[] {
   const pints: HuntPint[] = [];
   for (const venue of listedPriceCohort(venues)) {
     if (!isPublicRankablePub(venue)) continue;
     const priceGbp = venue.cheapestPrice as number;
+    if (!londonFigureNamesItsPint(venue, priceGbp)) continue;
     const evidence = answerEvidenceFor({ priceGbp, prices: venue.prices }, now);
     const observedOn = isoDay(evidence.observedOn);
     if (evidence.standing !== "listed" || !evidence.publisher || !observedOn) continue;
@@ -241,17 +318,49 @@ function bundleFigures(rows: readonly UkPriceBundleRow[], now: number): BundleFi
 /**
  * The bundle lane: one pint per pub, the cheapest figure that pub may claim,
  * placed in a town by `placeOf`. A pub the resolver cannot place is left out
- * rather than printed with no town.
+ * rather than printed with no town. Only rows that clear the headline bar
+ * (`huntRowNamesItsDrink`) are read.
  */
 export function bundleHuntPints(
   byVenue: ReadonlyMap<string, readonly UkPriceBundleRow[]>,
   placeOf: HuntPlaceResolver,
   now: number = Date.now(),
 ): HuntPint[] {
+  return bundlePubPints(byVenue, placeOf, now, true);
+}
+
+/**
+ * The map cities where the bundle holds a published, dated pint price that
+ * does NOT clear the headline bar. Such a city is not empty, so its row may
+ * not say "No prices yet": it says that none of its prices names its pint.
+ */
+export function citiesWithUnnamedPints(
+  byVenue: ReadonlyMap<string, readonly UkPriceBundleRow[]>,
+  placeOf: HuntPlaceResolver,
+  now: number = Date.now(),
+): Set<CityId> {
+  const cities = new Set<CityId>();
+  for (const pint of bundlePubPints(byVenue, placeOf, now, false)) {
+    if (pint.cityId) cities.add(pint.cityId);
+  }
+  return cities;
+}
+
+function bundlePubPints(
+  byVenue: ReadonlyMap<string, readonly UkPriceBundleRow[]>,
+  placeOf: HuntPlaceResolver,
+  now: number,
+  namedOnly: boolean,
+): HuntPint[] {
   const pints: HuntPint[] = [];
   for (const [venueId, all] of byVenue) {
+    // The sheet's own reading, taken over the rows that are pints by the
+    // measure law and, for a winner, rows that name their drink.
     const beer = authoritativeBundleRows(all).filter(
-      (row) => row.category === BUNDLE_DEFAULT_CATEGORY && rowIsAPint(row),
+      (row) =>
+        row.category === BUNDLE_DEFAULT_CATEGORY &&
+        rowIsAPint(row) &&
+        (!namedOnly || huntRowNamesItsDrink(row)),
     );
     if (beer.length === 0) continue;
     const figure = bundleFigures(beer, now).sort(
@@ -358,14 +467,22 @@ function cheapestOf(pints: readonly HuntPint[]): HuntPint | null {
  * evidence: its dearest London "beer" on 1 Nov 2026 was an £11 line that read
  * "Fish Finger haddock, tartare sauce", which a press card may never quote.
  */
-export function buildCheapestHunt(pints: readonly HuntPint[]): CheapestHunt {
+export function buildCheapestHunt(
+  pints: readonly HuntPint[],
+  /** Cities holding a published pint price that names no pint (`citiesWithUnnamedPints`). */
+  unnamedPriceCities: ReadonlySet<CityId> = new Set(),
+): CheapestHunt {
   const perPub = cheapestPerPub(pints);
-  const cities = listEnabledCities().map((city): HuntCityRow => ({
-    cityId: city.id,
-    cityName: city.displayName,
-    pint: cheapestOf(perPub.filter((pint) => pint.cityId === city.id)),
-    logHref: cityAwareMapPath(city.id, "log=1"),
-  }));
+  const cities = listEnabledCities().map((city): HuntCityRow => {
+    const pint = cheapestOf(perPub.filter((candidate) => candidate.cityId === city.id));
+    return {
+      cityId: city.id,
+      cityName: city.displayName,
+      pint,
+      unnamedPricesHeld: pint === null && unnamedPriceCities.has(city.id),
+      logHref: cityAwareMapPath(city.id, "log=1"),
+    };
+  });
   const londonList = pints.filter((pint) => pint.lane === "london-list");
   const londonDearest =
     [...londonList].sort(

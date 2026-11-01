@@ -6,7 +6,9 @@ import { describe, expect, it } from "vitest";
 import {
   buildCheapestHunt,
   bundleHuntPints,
+  citiesWithUnnamedPints,
   huntPlaceResolver,
+  huntRowNamesItsDrink,
   londonHuntPints,
   nearestTownName,
   type HuntPint,
@@ -28,7 +30,11 @@ function londonVenue(
   id: string,
   name: string,
   price: number | null,
-  { pubUrl = "https://www.pint-prices.com/pub/x", readAt = "2026-10-02T11:48:33+00:00" } = {},
+  {
+    pubUrl = "https://www.pint-prices.com/pub/x",
+    readAt = "2026-10-02T11:48:33+00:00",
+    pintName = "JAIPUR",
+  } = {},
 ): Venue {
   return {
     id,
@@ -42,7 +48,7 @@ function londonVenue(
       {
         app_price_id: id,
         pub_name: name,
-        pint_name: "JAIPUR",
+        pint_name: pintName,
         price_gbp: price,
         price_text: price === null ? "" : `£${price}`,
         address: "1 Test Street",
@@ -53,7 +59,7 @@ function londonVenue(
       } as Venue["prices"][number],
     ],
     cheapestPrice: price,
-    cheapestPint: "JAIPUR",
+    cheapestPint: pintName,
     averagePrice: price,
     hasStory: false,
   } as Venue;
@@ -72,8 +78,18 @@ function row(overrides: Partial<UkPriceBundleRow> = {}): UkPriceBundleRow {
     observedAt: "2026-10-01T10:00:00.000Z",
     basis: null,
     sampleSize: null,
+    // A row that names its drink, so it clears the headline bar unless a test
+    // says otherwise.
+    drinkLabel: "Pale Ale",
     ...overrides,
   };
+}
+
+/** The Enid Street Tavern shape (18 Oct 2026): beer, £2, no label, no serving. */
+function unnamedRow(overrides: Partial<UkPriceBundleRow> = {}): UkPriceBundleRow {
+  const bare = row({ priceGbp: 2, ...overrides });
+  delete bare.drinkLabel;
+  return bare;
 }
 
 function byVenue(rows: UkPriceBundleRow[]): Map<string, UkPriceBundleRow[]> {
@@ -167,6 +183,71 @@ describe("what may win a cheapest line", () => {
         mapHref: "/map?sel=venue-lon1",
       },
     ]);
+  });
+});
+
+// THE HEADLINE BAR: a winner names its drink. The first build crowned Enid
+// Street Tavern's £2.00 taplist "beer" (read 18 Oct 2026), a row with no label
+// and no serving from a harvest whose other labels read "/" and "13.0% (".
+describe("the headline bar: a winner names its drink", () => {
+  it("never lets the Enid Street row shape win: beer, £2, no label, no serving", () => {
+    const pints = bundle([
+      unnamedRow({ venueId: "venue-uk-n2", name: "Enid Street Tavern" }),
+      row({ priceGbp: 3.4, drinkLabel: "Neck Oil" }),
+    ]);
+    expect(pints.map((pint) => [pint.pubName, pint.priceGbp])).toEqual([["The Test Arms", 3.4]]);
+    expect(buildCheapestHunt(pints).britain).toMatchObject({ pubName: "The Test Arms", priceGbp: 3.4 });
+  });
+
+  it("lets a labelled pint win, and a stated pint serving win with no label", () => {
+    expect(bundle([row({ priceGbp: 2.6, drinkLabel: "Cruzcampo" })]).map((pint) => pint.priceGbp)).toEqual([2.6]);
+    expect(bundle([unnamedRow({ priceGbp: 2.7, servingSize: "pint" })]).map((pint) => pint.priceGbp)).toEqual([2.7]);
+    expect(bundle([unnamedRow({ priceGbp: 2.8, servingSize: "568ml" })]).map((pint) => pint.priceGbp)).toEqual([2.8]);
+  });
+
+  it("reads punctuation and ABV fragments as no name at all", () => {
+    for (const drinkLabel of ["/", "13.0% (", "11.0% (", "  ", "4,5 % -"]) {
+      expect(huntRowNamesItsDrink({ drinkLabel }), drinkLabel).toBe(false);
+      expect(bundle([row({ priceGbp: 1.5, drinkLabel })]), drinkLabel).toEqual([]);
+    }
+    for (const drinkLabel of ["Pint of Beer", "IPA", "John Smith’s", "Shenanigans Lager 4.0%"]) {
+      expect(huntRowNamesItsDrink({ drinkLabel }), drinkLabel).toBe(true);
+    }
+    expect(huntRowNamesItsDrink({ servingSize: "half" })).toBe(false);
+    expect(huntRowNamesItsDrink({})).toBe(false);
+  });
+
+  it("asks the London list's own row to name its pint, and holds out one that names none", () => {
+    const pints = londonHuntPints(
+      [
+        londonVenue("venue-lon1", "The Listed Lion", 2.09),
+        londonVenue("venue-lon2", "The Nameless", 1.5, { pintName: "" }),
+        londonVenue("venue-lon3", "The Fraction", 1.6, { pintName: "13.0% (" }),
+        londonVenue("venue-lon4", "The Half Measure", 1.7, { pintName: "1/2 Lager" }),
+      ],
+      NOW,
+    );
+    expect(pints.map((pint) => pint.pubName)).toEqual(["The Listed Lion"]);
+  });
+
+  it("keeps a city that holds only unnamed prices off the empty line, without crowning it", () => {
+    const rows = [unnamedRow({ venueId: "venue-oxf-abc123", name: "The Unnamed Oxford" })];
+    expect(bundle(rows)).toEqual([]);
+    const unnamed = citiesWithUnnamedPints(byVenue(rows), placeOf, NOW);
+    expect([...unnamed]).toEqual(["oxford"]);
+    const hunt = buildCheapestHunt([], unnamed);
+    const oxford = hunt.cities.find((city) => city.cityId === "oxford");
+    expect(oxford).toMatchObject({ pint: null, unnamedPricesHeld: true });
+    expect(hunt.cities.find((city) => city.cityId === "bath")).toMatchObject({ pint: null, unnamedPricesHeld: false });
+  });
+
+  it("never lets a students' union bar win a city", () => {
+    const pints = bundle([
+      row({ venueId: "venue-bhm-xbhlre", name: "Eagle & Ball by BCUSU", priceGbp: 2.5, drinkLabel: "Carling" }),
+      row({ venueId: "venue-bhm-1kho5a7", name: "The Botanist Gas Street Basin", priceGbp: 4.95, drinkLabel: "Pint of Pravha" }),
+    ]);
+    const birmingham = buildCheapestHunt(pints).cities.find((city) => city.cityId === "birmingham");
+    expect(birmingham?.pint).toMatchObject({ pubName: "The Botanist Gas Street Basin", priceGbp: 4.95 });
   });
 });
 

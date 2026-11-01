@@ -150,7 +150,7 @@ describe("Britain's cheapest pint, city by city", () => {
       lane: "london-list",
       mapHref: "/map?sel=venue-3pjert" as Route,
     }),
-  ]);
+  ], new Set(["oxford"] as const));
   const html = renderToStaticMarkup(createElement(LandingHuntCities, { hunt }));
 
   it("heads the list in its own words", () => {
@@ -173,6 +173,14 @@ describe("Britain's cheapest pint, city by city", () => {
     // No figure, no date, no source on an empty row.
     expect(bath).not.toMatch(/£\d/);
     expect(bath).not.toContain("<time");
+  });
+
+  it("never calls a city empty when it holds prices that name no pint", () => {
+    const oxford = part(html, /<li class="lpHuntCityRow" data-city="oxford">[\s\S]*?<\/li>/);
+    expect(text(oxford)).toBe("OxfordPrices listed, but none says which pint. Log yours.");
+    expect(oxford).toMatch(/<a [^>]*href="\/map\/oxford\?log=1"[^>]*>Log yours\.<\/a>/);
+    expect(oxford).not.toContain("No prices yet");
+    expect(oxford).not.toMatch(/£\d/);
   });
 
   it("names the place of a priced pub outside every map city", () => {

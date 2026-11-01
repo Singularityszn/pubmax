@@ -4,6 +4,8 @@ import {
   HUNT_CITIES_TITLE,
   HUNT_CITY_EMPTY_ACTION,
   HUNT_CITY_EMPTY_LINE,
+  HUNT_CITY_UNNAMED_ACTION,
+  HUNT_CITY_UNNAMED_LINE,
   HUNT_DEAREST_TITLE,
   HUNT_ELSEWHERE_LABEL,
   type CheapestHunt,
@@ -26,7 +28,9 @@ import { HuntPrice, HuntSource } from "./LandingHuntCard";
 // It is a list of PRICES, never of drinkers. Every city on the map gets a row:
 // a priced city prints its cheapest listed pint with who listed it and the day
 // that source was read, and a city with none says so and hands over its own
-// price door. A row for a pub outside every map city follows, when we hold one.
+// price door. A city whose prices name no pint (the hunt's headline bar) is not
+// a city with no prices, and its row says which of the two it is. A row for a
+// pub outside every map city follows, when we hold one.
 //
 // London's dearest pint is a press card: it sits here, beside the list, and
 // never on the map or in a pin colour (lib/cheapestHunt.ts says which pub, and
@@ -77,9 +81,9 @@ export default function LandingHuntCities({ hunt }: { hunt: CheapestHunt | null 
               <>
                 <span className="lpHuntCityName">{row.cityName}</span>
                 <span className="lpHuntCityEmpty">
-                  {HUNT_CITY_EMPTY_LINE}{" "}
+                  {row.unnamedPricesHeld ? HUNT_CITY_UNNAMED_LINE : HUNT_CITY_EMPTY_LINE}{" "}
                   <Link prefetch={false} href={row.logHref}>
-                    {HUNT_CITY_EMPTY_ACTION}
+                    {row.unnamedPricesHeld ? HUNT_CITY_UNNAMED_ACTION : HUNT_CITY_EMPTY_ACTION}
                   </Link>
                 </span>
               </>

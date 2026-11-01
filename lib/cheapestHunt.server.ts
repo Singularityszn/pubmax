@@ -13,6 +13,7 @@ import "server-only";
 import {
   buildCheapestHunt,
   bundleHuntPints,
+  citiesWithUnnamedPints,
   huntPlaceResolver,
   londonHuntPints,
   type CheapestHunt,
@@ -49,10 +50,10 @@ async function readCheapestHunt(): Promise<CheapestHunt> {
     basePubs,
     towns,
   });
-  return buildCheapestHunt([
-    ...londonHuntPints(venues, now),
-    ...bundleHuntPints(bundle.byVenue, placeOf, now),
-  ]);
+  return buildCheapestHunt(
+    [...londonHuntPints(venues, now), ...bundleHuntPints(bundle.byVenue, placeOf, now)],
+    citiesWithUnnamedPints(bundle.byVenue, placeOf, now),
+  );
 }
 
 export function loadCheapestHunt(): Promise<CheapestHunt> {
