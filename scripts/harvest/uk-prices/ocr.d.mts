@@ -37,6 +37,9 @@ export type OcrHostPub = {
   lat: number | null;
   lng: number | null;
   website: string;
+  /** What a branch URL could name this pub by, beside its name and website. */
+  locality?: string | null;
+  address?: string | null;
 };
 
 export type OcrHostEntry = {
