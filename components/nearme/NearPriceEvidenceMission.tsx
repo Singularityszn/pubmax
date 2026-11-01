@@ -133,8 +133,10 @@ export default function NearPriceEvidenceMission({
             venueName: names.get(answer.venueId) ?? venueName,
             area: areas.get(answer.venueId),
           });
-          if (added) trackEvent("pal_quest_stamped");
-          setQuest({ owner, today: palQuestStampToday(readPalQuestStamps()), now: added });
+          const today = palQuestStampToday(readPalQuestStamps());
+          // A blocked write can still show the cheer, but it did not stamp the book.
+          if (added && today?.day === added.day && today.venueId === added.venueId) trackEvent("pal_quest_stamped");
+          setQuest({ owner, today, now: added });
         }}
       />
     </>

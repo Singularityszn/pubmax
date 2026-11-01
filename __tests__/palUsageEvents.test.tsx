@@ -1,7 +1,4 @@
 // @vitest-environment jsdom
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -99,6 +96,8 @@ describe("the Pal's usage events on screen", () => {
     root = null;
     host?.remove();
     window.localStorage.clear();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it("counts the ask once, and the stamp once when the answer lands it", async () => {
@@ -108,7 +107,41 @@ describe("the Pal's usage events on screen", () => {
     await act(async () => host.querySelector<HTMLButtonElement>(".answer")!.click());
     expect(sent("pal_quest_stamped")).toBe(1);
     expect(sent("pal_quest_asked")).toBe(1);
+    await act(async () => host.querySelector<HTMLButtonElement>(".answer")!.click());
+    expect(sent("pal_quest_stamped")).toBe(1);
     expect(state.track.every((event) => event.props === undefined)).toBe(true);
+  });
+
+  it("keeps the cheer but counts no stamp when persistence rejects the answer", async () => {
+    await render(createElement(NearPriceEvidenceMission, { cards, enabled: true }));
+    const storage = window.localStorage;
+    const setItem = vi.fn((key: string, value: string) => {
+      if (key === PAL_QUEST_STAMPS_KEY) throw new DOMException("Full", "QuotaExceededError");
+      storage.setItem(key, value);
+    });
+    vi.stubGlobal("localStorage", {
+      getItem: storage.getItem.bind(storage),
+      clear: storage.clear.bind(storage),
+      setItem,
+    });
+    await act(async () => host.querySelector<HTMLButtonElement>(".answer")!.click());
+    expect(setItem).toHaveBeenCalledOnce();
+    expect(window.localStorage.getItem(PAL_QUEST_STAMPS_KEY)).toBeNull();
+    expect(host.textContent).toContain("The Crown");
+    expect(sent("pal_quest_stamped")).toBe(0);
+  });
+
+  it.each(["hidden", "another owner", "removed"])("counts no late stamp when the stored Pal is %s", async (change) => {
+    await render(createElement(NearPriceEvidenceMission, { cards, enabled: true }));
+    if (change === "removed") window.localStorage.removeItem(LOCAL_PAL_KEY);
+    else window.localStorage.setItem(LOCAL_PAL_KEY, JSON.stringify({
+      ...ripley,
+      hidden: change === "hidden",
+      ownerId: change === "another owner" ? "owner-b" : ripley.ownerId,
+    }));
+    await act(async () => host.querySelector<HTMLButtonElement>(".answer")!.click());
+    expect(window.localStorage.getItem(PAL_QUEST_STAMPS_KEY)).toBeNull();
+    expect(sent("pal_quest_stamped")).toBe(0);
   });
 
   it("counts no stamp when the day was already stamped", async () => {
@@ -133,18 +166,5 @@ describe("the Pal's usage events on screen", () => {
     );
     await render(createElement(PalQuestStamps, { pal: ripley, print: [] }));
     expect(sent("pal_passport_viewed")).toBe(1);
-  });
-});
-
-describe("pal_lead_started on the map", () => {
-  const canvas = readFileSync(join(process.cwd(), "components/PubMapCanvas.tsx"), "utf8");
-
-  it("is sent once for each chosen way, not again when a rebuilt map leads the same way", () => {
-    expect(canvas).toMatch(
-      /if \(palLeadReportedRef\.current !== key\) \{\s*palLeadReportedRef\.current = key;\s*trackEvent\("pal_lead_started"\);\s*\}/,
-    );
-    // The teardown clears the lead key so a rebuilt map leads again; it must
-    // never clear the reported key, or every rebuild would count a new lead.
-    expect(canvas).not.toMatch(/palLeadReportedRef\.current = null/);
   });
 });

@@ -3,12 +3,15 @@ import type * as maplibregl from "maplibre-gl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const markerHarness = vi.hoisted(() => ({
+  events: [] as string[],
   instances: [] as Array<{
     options: { element: HTMLElement; anchor?: string; offset?: [number, number] };
     lngLat: [number, number] | null;
     remove: ReturnType<typeof vi.fn>;
   }>,
 }));
+
+vi.mock("@/lib/analytics", () => ({ trackEvent: (name: string) => markerHarness.events.push(name) }));
 
 vi.mock("maplibre-gl", () => ({
   Marker: class {
@@ -36,6 +39,7 @@ vi.mock("maplibre-gl", () => ({
   },
 }));
 
+import { leadPalOnMap } from "@/components/map/canvas/palLead";
 import { createPalMapMarker, palMarkerElement, palPinIsCheap } from "@/components/map/canvas/palMarker";
 import { palWalkPlan, type LngLat } from "@/components/map/canvas/palWalk";
 import { announcePalMoment } from "@/lib/palMoments";
@@ -85,6 +89,7 @@ function reducedMotion(reduce: boolean) {
 
 beforeEach(() => {
   markerHarness.instances.length = 0;
+  markerHarness.events.length = 0;
   window.localStorage.clear();
   frames = [];
   clock = 0;
@@ -735,3 +740,91 @@ describe("the Pal on the map", () => {
   });
 });
 
+
+
+describe("the current leg lead's usage event", () => {
+  const key = "lead:venue-a>venue-b:walk";
+  const start = (marker: ReturnType<typeof createPalMapMarker>, reportedKey = { current: null as string | null }) => {
+    leadPalOnMap({
+      marker,
+      walk: { key, stops: [crawl[0]!, crawl[1]!], path: [crawl[0]!, crawl[1]!], road: true, cheer: true },
+      next: { stop: 1, name: "The Lamb", open: vi.fn() },
+      line: "Free and cheapest. Legs it is.",
+      reportedKey,
+    });
+    return reportedKey;
+  };
+
+  it.each(["missing", "hidden", "invalid"])("does not report a lead when the Pal is %s", (kind) => {
+    if (kind === "hidden") store(pal({ hidden: true }));
+    if (kind === "invalid") store({ id: "invalid", appearance: {} });
+    const reported = start(createPalMapMarker(map));
+    runFrames(5);
+    expect(markerHarness.instances).toHaveLength(0);
+    expect(markerHarness.events).toEqual([]);
+    expect(reported.current).toBeNull();
+  });
+
+  it("reports a visible lead once and preserves the next stop and line across a map rebuild", () => {
+    store(pal());
+    const marker = createPalMapMarker(map);
+    const reported = start(marker);
+    expect(markerHarness.events).toEqual([]);
+    runFrames(1);
+    expect(markerHarness.instances).toHaveLength(1);
+    expect(markerHarness.instances[0]!.options.element.querySelector(".palMapMarkerSay")!.textContent).toBe("Free and cheapest. Legs it is.");
+    expect(markerHarness.events).toEqual(["pal_lead_started"]);
+    start(marker, reported);
+    runFrames(1_000);
+    expect(markerHarness.instances[0]!.options.element.getAttribute("aria-label")).toBe("Next stop: The Lamb");
+    marker.destroy();
+    const rebuilt = createPalMapMarker(map);
+    start(rebuilt, reported);
+    runFrames(1);
+    expect(markerHarness.instances).toHaveLength(2);
+    expect(markerHarness.events).toEqual(["pal_lead_started"]);
+    rebuilt.destroy();
+  });
+
+  it("waits through map loading, then counts only the lead that remains visible", () => {
+    store(pal());
+    const handlers = new Set<() => void>();
+    const loading = {
+      loaded: () => false,
+      once: (_event: string, handler: () => void) => handlers.add(handler),
+      off: (_event: string, handler: () => void) => handlers.delete(handler),
+    } as unknown as maplibregl.Map;
+    const marker = createPalMapMarker(loading);
+    start(marker);
+    expect(markerHarness.instances[0]!.options.element.dataset.palWalk).toBe("setting-off");
+    expect(markerHarness.events).toEqual([]);
+    for (const ready of [...handlers]) ready();
+    runFrames(1);
+    expect(markerHarness.events).toEqual(["pal_lead_started"]);
+    marker.destroy();
+    expect(handlers.size).toBe(0);
+  });
+
+  it.each(["muted", "reduced motion"])("counts the visible still lead under %s", (mode) => {
+    store(pal({ muted: mode === "muted" }));
+    reducedMotion(mode === "reduced motion");
+    const marker = createPalMapMarker(map);
+    start(marker);
+    expect(frames).toHaveLength(0);
+    expect(markerHarness.instances[0]!.options.element.dataset.palWalk).toBe("visited");
+    expect(markerHarness.instances[0]!.lngLat).toEqual(crawl[1]);
+    expect(markerHarness.events).toEqual(["pal_lead_started"]);
+    marker.destroy();
+  });
+
+  it("does not report a walk cancelled before its first visible frame", () => {
+    store(pal());
+    const marker = createPalMapMarker(map);
+    const reported = start(marker);
+    marker.destroy();
+    runFrames(2);
+    expect(markerHarness.instances).toHaveLength(0);
+    expect(markerHarness.events).toEqual([]);
+    expect(reported.current).toBeNull();
+  });
+});

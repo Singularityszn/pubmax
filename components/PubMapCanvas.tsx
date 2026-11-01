@@ -14,6 +14,7 @@ import { legRouteToLines } from "@/components/map/canvas/legRouteScene";
 import { legRouteForCurrentLeg, readLegRouteOnMap, subscribeLegRouteOnMap } from "@/lib/legRouteOnMap";
 import { trackEvent } from "@/lib/analytics";
 import { palLeadLine, palLeadPath, planWalkAfterLead } from "@/lib/palLead";
+import { leadPalOnMap } from "./map/canvas/palLead";
 import { palFirstLegLabel, palPerchSpeechForPin, palWalkLine } from "@/lib/palMapLines";
 import { crewPalLook, type CrewPal } from "@/lib/crewPals";
 import { palWalkPathFrom, palWalkStopsFromKey } from "@/components/map/canvas/palWalk";
@@ -4558,15 +4559,13 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     const key = `lead:${shownLeg.legKey}:${shownLeg.option.id}`;
     if (palLeadKeyRef.current === key) return;
     palLeadKeyRef.current = key;
-    marker.walk({ key, stops: [path[0]!, path.at(-1)!], path, road: true, cheer: true });
-    marker.nextStop({ stop: 1, name: palNextName, open: () => onRouteStopClickRef.current(palNextVenueId) });
-    marker.say(palLeadLine(shownLeg.option));
-    // Once per chosen way: a map rebuilt mid-walk leads again, but it is the
-    // same lead, so it is not counted again.
-    if (palLeadReportedRef.current !== key) {
-      palLeadReportedRef.current = key;
-      trackEvent("pal_lead_started");
-    }
+    leadPalOnMap({
+      marker,
+      walk: { key, stops: [path[0]!, path.at(-1)!], path, road: true, cheer: true },
+      next: { stop: 1, name: palNextName, open: () => onRouteStopClickRef.current(palNextVenueId) },
+      line: palLeadLine(shownLeg.option),
+      reportedKey: palLeadReportedRef,
+    });
   }, [shownLeg, palNextVenueId, palNextName, routeCoordKey, mapReady]);
 
   // The crew's Pals: made when the crew read lands, walked on the route the

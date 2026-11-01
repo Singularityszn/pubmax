@@ -64,6 +64,8 @@ type PalMapWalk = {
   road?: boolean;
   /** Arrive with a jump for joy, not a landing: the end of a way it led. */
   cheer?: boolean;
+  /** Called once when this walk places the Pal, after any map-loading wait. */
+  onVisible?: () => void;
 };
 
 /**
@@ -238,6 +240,7 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
     visit: Visit | null;
     /** Jump for joy at the end of the walk instead of landing. */
     cheer: boolean;
+    onVisible?: () => void;
   } | null = null;
   let frame = 0;
   let lastFrameAt = 0;
@@ -305,6 +308,11 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
     } else {
       marker.setOffset(offset);
       marker.setLngLat(lngLat);
+    }
+    if (walk && element.dataset.palWalk !== "setting-off") {
+      const onVisible = walk.onVisible;
+      walk.onVisible = undefined;
+      onVisible?.();
     }
   };
 
@@ -480,6 +488,7 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
           restAt: null,
           visit: null,
           cheer: route.cheer === true,
+          onVisible: route.onVisible,
         };
       }
       // A sleeping (muted) Pal, like reduced motion, waits at the first stop,
