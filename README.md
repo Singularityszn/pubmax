@@ -231,9 +231,10 @@ On phones, tap the map credit control to expand its text and links. The Pub Pal 
 
 The community layer ships alive: hand-written Pint Drops and Featured crawls are seeded so the map has content on day one. Seeded content is tagged `demo` and stays **visibly distinct** — it never masquerades as organic contributor signal and is filtered out before it can move any price or story metric. Provenance chips (`Sourced` / `Contributor` / `Anecdote` / `Demo`) are the product's trust signal.
 
-Public releases set `NEXT_PUBLIC_DEMO_CONTENT=off` in both Vercel Preview and
-Production. The setting is read at build time, so it needs a fresh deployment.
-Local keyless demos may leave it empty to keep labelled seed content visible.
+Seeded content is opt-in. It renders only when `NEXT_PUBLIC_DEMO_CONTENT=on`,
+so a public release shows none of it whatever Vercel holds, and `off` still
+works. Set it to `on` for a local keyless demo. The e2e server sets it itself.
+The setting is read at build time, so a change needs a fresh deployment.
 
 ## Deeper docs
 
