@@ -714,14 +714,18 @@ function PalChatBody({ owner }: { owner: string | null }) {
   // fire under StrictMode re-mounts.
   const autoAskedRef = useRef(false);
   useEffect(() => {
+    // The one shot is spent inside the deferred callback, so a cleanup that
+    // clears the timer (a development StrictMode replay) leaves it for the
+    // next run instead of dropping the linked question.
     if (!owner || !threadReady || autoAskedRef.current) return;
-    autoAskedRef.current = true;
     const preset = new URLSearchParams(window.location.search).get("ask");
     const text = preset?.trim() ?? "";
     if (!text || text.length > 500) return;
     // Defer out of the effect body (React 19 idiom, as TonightClient's
     // settle()): ask() sets state, which must not run synchronously here.
     const timer = setTimeout(() => {
+      if (autoAskedRef.current) return;
+      autoAskedRef.current = true;
       if (priorAsksRef.current.at(-1) !== text) void ask(text);
     }, 0);
     return () => clearTimeout(timer);

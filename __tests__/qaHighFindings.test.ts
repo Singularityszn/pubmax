@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -10,6 +12,7 @@ import {
   isClerkConfigured,
   isClerkDevelopmentPublishableKey,
 } from "@/lib/clerkIdentity";
+import { requestMobileSheetDismiss } from "@/lib/mobileShell";
 
 const PUBLISHABLE_KEY = "pk_test_cmFyZS10cm91dC0yOS5jbGVyay5hY2NvdW50cy5kZXYk";
 
@@ -47,6 +50,18 @@ describe("QA high findings — mobile sheet and consent layering", () => {
       expect(consentHidingSelectors.some((selector) => consent.matches(selector))).toBe(hidden);
     } finally {
       dom.window.close();
+    }
+  });
+
+  it("dispatches sheet dismissal synchronously to window listeners", () => {
+    const dismiss = vi.fn();
+    window.addEventListener("pubmax:mobile-sheet-dismiss", dismiss);
+    try {
+      requestMobileSheetDismiss();
+      expect(dismiss).toHaveBeenCalledOnce();
+      expect(dismiss.mock.calls[0]?.[0]).toBeInstanceOf(CustomEvent);
+    } finally {
+      window.removeEventListener("pubmax:mobile-sheet-dismiss", dismiss);
     }
   });
 });

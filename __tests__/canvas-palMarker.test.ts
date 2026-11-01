@@ -419,6 +419,76 @@ describe("the Pal on the map", () => {
     expect(instance!.lngLat![0]).toBeGreaterThan(crawl[0]![0]);
   });
 
+  describe("the walk's one start call", () => {
+    it("comes on the first painted frame, once, and not on the same walk again", () => {
+      store(pal());
+      const onStarted = vi.fn();
+      const marker = createPalMapMarker(map);
+      marker.walk({ key: crawlKey, stops: crawl, path: crawl, onStarted });
+      expect(onStarted).not.toHaveBeenCalled();
+      runFrames(1);
+      expect(onStarted).toHaveBeenCalledTimes(1);
+      marker.walk({ key: crawlKey, stops: crawl, path: crawl, road: true, onStarted });
+      runFrames(1_000);
+      expect(onStarted).toHaveBeenCalledTimes(1);
+    });
+
+    it("waits for a loading map, and never comes if the marker goes first", () => {
+      store(pal());
+      const handlers: Array<() => void> = [];
+      const loading = {
+        loaded: () => false,
+        once: (_event: string, handler: () => void) => handlers.push(handler),
+        off: vi.fn(),
+      } as unknown as maplibregl.Map;
+      const ready = vi.fn();
+      createPalMapMarker(loading).walk({ key: crawlKey, stops: crawl, path: crawl, onStarted: ready });
+      handlers.forEach((handler) => handler());
+      expect(ready).not.toHaveBeenCalled();
+      runFrames(1);
+      expect(ready).toHaveBeenCalledTimes(1);
+
+      handlers.length = 0;
+      const retired = vi.fn();
+      const doomed = createPalMapMarker(loading);
+      doomed.walk({ key: crawlKey, stops: crawl, path: crawl, onStarted: retired });
+      doomed.destroy();
+      handlers.forEach((handler) => handler());
+      runFrames(1_000);
+      expect(retired).not.toHaveBeenCalled();
+    });
+
+    it("never comes for a walk destroyed or replaced before its first frame", () => {
+      store(pal());
+      const first = vi.fn();
+      const marker = createPalMapMarker(map);
+      marker.walk({ key: crawlKey, stops: crawl, path: crawl, onStarted: first });
+      marker.destroy();
+      runFrames(1_000);
+      expect(first).not.toHaveBeenCalled();
+
+      const replaced = vi.fn();
+      const second = createPalMapMarker(map);
+      second.walk({ key: crawlKey, stops: crawl, path: crawl, onStarted: replaced });
+      second.perch([-0.2, 51.4]);
+      runFrames(1_000);
+      expect(replaced).not.toHaveBeenCalled();
+    });
+
+    it("comes at once for a still Pal that waits instead of walking, and never for a hidden one", () => {
+      store(pal({ muted: true }));
+      const still = vi.fn();
+      createPalMapMarker(map).walk({ key: crawlKey, stops: crawl, path: crawl, onStarted: still });
+      expect(still).toHaveBeenCalledTimes(1);
+
+      store(pal({ hidden: true }));
+      const hidden = vi.fn();
+      createPalMapMarker(map).walk({ key: crawlKey, stops: crawl, path: crawl, onStarted: hidden });
+      runFrames(1_000);
+      expect(hidden).not.toHaveBeenCalled();
+    });
+  });
+
   it("holds a line said over a map still loading, and says it as the walk sets off", () => {
     store(pal());
     const handlers: Array<() => void> = [];

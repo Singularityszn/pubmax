@@ -52,7 +52,7 @@ export async function promotePendingPlanRecapToMemory(
     && recap.ending === completion.ending
     && JSON.stringify(recap.endingSelection) === JSON.stringify(completion.endingSelection ?? null)
     && recap.routeRevision === completion.routeRevision
-    && recap.completedAt === completion.completedAt
+    && Date.parse(recap.completedAt) === Date.parse(completion.completedAt)
     && recap.stops.length === canonicalStops.length
     && recap.stops.every((stop, index) => (
       stop.position === index

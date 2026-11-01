@@ -25,6 +25,7 @@ vi.mock("@/components/nav/SiteNav", () => ({
 vi.mock("@/components/pal/PubPalMascot", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/components/pal/PubPalMascot")>()),
   PubPalMascot: () => createElement("span", null, "Pal"),
+  PubPalMascotMouth: () => null,
 }));
 vi.mock("@/components/map/useWhatsOnTonight", () => ({
   useWhatsOnTonight: whatsOnGlance,

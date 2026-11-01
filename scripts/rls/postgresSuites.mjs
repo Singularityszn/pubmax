@@ -15,6 +15,7 @@
  */
 export const POSTGRES_BACKED_SUITES = Object.freeze([
   "__tests__/accountDeletionEveryHandleMigrationEffective.test.ts",
+  "__tests__/accountDeletionStoryRedactionEffective.test.ts",
   "__tests__/accountHasPasswordEffective.test.ts",
   "__tests__/accountRemovalMigrationEffective.test.ts",
   "__tests__/accountRetentionLedgerMigrationEffective.test.ts",
@@ -26,6 +27,7 @@ export const POSTGRES_BACKED_SUITES = Object.freeze([
   "__tests__/foreignKeyIndexCoverageEffective.test.ts",
   "__tests__/foundingMembersMigration.test.ts",
   "__tests__/foundingMembersRenumberMigrationEffective.test.ts",
+  "__tests__/groundedPlanProposalsMigrationEffective.test.ts",
   "__tests__/groupMessageThreadsMigrationEffective.test.ts",
   "__tests__/handleClaimNoInheritanceMigration.test.ts",
   "__tests__/harvestOverlayMigration.test.ts",
@@ -47,8 +49,10 @@ export const POSTGRES_BACKED_SUITES = Object.freeze([
   "__tests__/pintDropVerifiedReportsMigrationEffective.test.ts",
   "__tests__/pintDropsTableDoorMigrationEffective.test.ts",
   "__tests__/planAccountTransitionMigrationEffective.test.ts",
+  "__tests__/planBeaconMigrationEffective.test.ts",
   "__tests__/planJoinRevokedPrecheckEffective.test.ts",
   "__tests__/planLegacyReplayCapabilityEffective.test.ts",
+  "__tests__/planPresentationMigrationEffective.test.ts",
   "__tests__/planSelectedDrinkEvidenceCompletionMigrationEffective.test.ts",
   "__tests__/planSelectedDrinkEvidenceContextMigrationEffective.test.ts",
   "__tests__/planSelectedDrinkEvidenceCreateMigrationEffective.test.ts",

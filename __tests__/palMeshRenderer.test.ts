@@ -4,7 +4,7 @@ import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as THREE from "three";
 
-const graphics = vi.hoisted(() => ({ dispose: vi.fn(), loseContext: vi.fn(), disconnect: vi.fn() }));
+const graphics = vi.hoisted(() => ({ dispose: vi.fn(), loseContext: vi.fn(), disconnect: vi.fn(), render: vi.fn() }));
 
 vi.mock("three", async (importOriginal) => {
   const actual = await importOriginal<typeof import("three")>();
@@ -12,7 +12,7 @@ vi.mock("three", async (importOriginal) => {
     domElement = document.createElement("canvas");
     setPixelRatio() {}
     setSize() {}
-    render() {}
+    render = graphics.render;
     dispose = graphics.dispose;
     forceContextLoss = graphics.loseContext;
   } };
@@ -117,6 +117,38 @@ describe("the original mesh renderer", () => {
     expect(fetchModel).toHaveBeenCalledOnce();
     surface!.dispose();
     expect(graphics.dispose).toHaveBeenCalledOnce();
+  });
+
+  it("ends a drag in progress and releases its pointer capture on request", async () => {
+    const { host, statuses } = mount();
+    await settle();
+    expect(statuses).toContain("ready");
+    const canvas = host.querySelector("canvas")!;
+    let captured: number | null = null;
+    canvas.setPointerCapture = (id: number) => { captured = id; };
+    canvas.hasPointerCapture = (id: number) => captured === id;
+    canvas.releasePointerCapture = (id: number) => { if (captured === id) captured = null; };
+    let now = 1_000;
+    vi.spyOn(performance, "now").mockImplementation(() => (now += 100));
+    surface!.setVisible(true);
+    const render = graphics.render;
+    const pointer = (type: string, clientX: number) => {
+      const event = new MouseEvent(type, { clientX, bubbles: true }) as MouseEvent & { pointerId: number };
+      Object.defineProperty(event, "pointerId", { value: 7 });
+      canvas.dispatchEvent(event);
+    };
+    pointer("pointerdown", 100);
+    expect(captured).toBe(7);
+    // The same move redraws the model while the drag is live.
+    render.mockClear();
+    pointer("pointermove", 140);
+    expect(render).toHaveBeenCalled();
+    surface!.endDrag();
+    expect(captured).toBeNull();
+    render.mockClear();
+    pointer("pointermove", 180);
+    expect(render).not.toHaveBeenCalled();
+    surface!.endDrag();
   });
 
   it("releases decoded geometry, materials and textures when the portrait leaves", async () => {

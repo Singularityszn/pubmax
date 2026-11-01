@@ -64,7 +64,7 @@ for (const scenario of SCENARIOS) {
     expect(map?.status()).toBe(200);
     const routePanel = page.locator(".routePanel:visible").first();
     if (await routePanel.count() === 0) {
-      const editRoute = page.getByRole("button", { name: /^Edit(?: active \d+-stop plan)?$/ }).first();
+      const editRoute = page.getByRole("button", { name: /^Edit(?: stops| active \d+-stop plan)?$/ }).first();
       await expect(editRoute).toBeVisible({ timeout: 120_000 });
       await editRoute.click();
     }

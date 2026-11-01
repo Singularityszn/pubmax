@@ -73,6 +73,7 @@ describe("planMutationOutbox", () => {
 
   it("enqueues with PLAN_HTTP_ONLY_SESSION and dedupes by scope", async () => {
     const first = await enqueueNightCrawlAction({
+      expectedRouteRevision: 1,
       planId: "plan-1",
       type: "arrived",
       stop,
@@ -82,6 +83,7 @@ describe("planMutationOutbox", () => {
       optimisticCursor: 1,
     });
     const second = await enqueueNightCrawlAction({
+      expectedRouteRevision: 1,
       planId: "plan-1",
       type: "arrived",
       stop,
@@ -93,6 +95,7 @@ describe("planMutationOutbox", () => {
     expect(second.id).toBe(first.id);
     expect(listPlanMutationOutbox("plan-1")).toHaveLength(1);
     expect(first.body.memberToken).toBe(PLAN_HTTP_ONLY_SESSION);
+    expect(first.body).toMatchObject({ expectedRouteRevision: 1, venueId: stop.venueId });
     expect(first.previousCursor).toBe(0);
     expect(hasPendingPlanMutation("plan-1")).toBe(true);
     const raw = window.localStorage.getItem(PLAN_MUTATION_OUTBOX_KEY);
@@ -101,6 +104,7 @@ describe("planMutationOutbox", () => {
 
   it("flush confirms and removes the entry", async () => {
     await enqueueNightCrawlAction({
+      expectedRouteRevision: 1,
       planId: "plan-1",
       type: "arrived",
       stop,
@@ -110,6 +114,8 @@ describe("planMutationOutbox", () => {
       optimisticCursor: 1,
     });
     const results = await flushPlanMutationOutbox({ planId: "plan-1" });
+    const [, options] = vi.mocked(fetch).mock.calls[0]!;
+    expect(JSON.parse(String(options?.body))).toMatchObject({ expectedRouteRevision: 1, venueId: stop.venueId });
     expect(results[0]?.outcome).toBe("confirmed");
     expect(results[0]?.previousCursor).toBe(0);
     expect(listPlanMutationOutbox("plan-1")).toHaveLength(0);
@@ -130,6 +136,7 @@ describe("planMutationOutbox", () => {
       }),
     );
     await enqueueNightCrawlAction({
+      expectedRouteRevision: 1,
       planId: "plan-1",
       type: "skipped",
       stop,
@@ -149,6 +156,7 @@ describe("planMutationOutbox", () => {
       vi.fn(async () => new Response(JSON.stringify({ error: "conflict" }), { status: 409 })),
     );
     await enqueueNightCrawlAction({
+      expectedRouteRevision: 1,
       planId: "plan-1",
       type: "arrived",
       stop,
@@ -168,6 +176,7 @@ describe("planMutationOutbox", () => {
     });
     try {
       await enqueueNightCrawlAction({
+      expectedRouteRevision: 1,
         planId: "plan-1",
         type: "arrived",
         stop,
@@ -196,6 +205,7 @@ describe("planMutationOutbox", () => {
     );
     try {
       await enqueueNightCrawlAction({
+      expectedRouteRevision: 1,
         planId: "plan-1",
         type: "arrived",
         stop,
@@ -237,6 +247,7 @@ describe("planMutationOutbox", () => {
       });
     try {
       await enqueueNightCrawlAction({
+      expectedRouteRevision: 1,
         planId: "plan-1",
         type: "arrived",
         stop,
@@ -247,6 +258,7 @@ describe("planMutationOutbox", () => {
       });
       await vi.waitFor(() => expect(resolvers.length).toBe(1));
       await enqueueNightCrawlAction({
+      expectedRouteRevision: 1,
         planId: "plan-1",
         type: "arrived",
         stop: stopB,
@@ -278,6 +290,7 @@ describe("planMutationOutbox", () => {
       ),
     );
     await enqueueNightCrawlAction({
+      expectedRouteRevision: 1,
       planId: "plan-a",
       type: "arrived",
       stop,
@@ -287,6 +300,7 @@ describe("planMutationOutbox", () => {
       optimisticCursor: 1,
     });
     await enqueueNightCrawlAction({
+      expectedRouteRevision: 1,
       planId: "plan-b",
       type: "arrived",
       stop: stopB,
@@ -341,6 +355,7 @@ describe("planMutationOutbox", () => {
           ? Math.min(heldStop.position + 1, stops.length - 1)
           : heldStop.position + 1;
         await enqueueNightCrawlAction({
+      expectedRouteRevision: 1,
           planId: PLAN,
           type: "arrived",
           stop: heldStop,
@@ -407,6 +422,7 @@ describe("planMutationOutbox", () => {
       markActivePlan(PLAN, new Date().toISOString());
       const [firstStop, finalStop] = stops;
       await enqueueNightCrawlAction({
+      expectedRouteRevision: 1,
         planId: PLAN,
         type: "arrived",
         stop: defined(firstStop),
@@ -428,6 +444,7 @@ describe("planMutationOutbox", () => {
       await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
 
       await enqueueNightCrawlAction({
+      expectedRouteRevision: 1,
         planId: PLAN,
         type: "arrived",
         stop: defined(finalStop),

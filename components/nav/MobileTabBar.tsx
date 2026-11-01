@@ -11,7 +11,7 @@ import { profilePath } from "@/lib/appLink";
 import { useNowHref } from "@/lib/useNowHref";
 import { warmNavRoute } from "@/lib/mapWarmup";
 import {
-  PRIMARY_NAV_ITEMS,
+  PHONE_NAV_ITEMS,
   navPathMatches,
   primaryNavLabel,
   type PrimaryNavKey,
@@ -102,7 +102,7 @@ export function buildTabs(
     social: Images,
     you: UserRound,
   };
-  return PRIMARY_NAV_ITEMS
+  return PHONE_NAV_ITEMS
     .map((item) => ({
       ...item,
       ariaLabel: primaryNavLabel(item, socialLabel),
@@ -115,7 +115,8 @@ export function buildTabs(
             : item.key === "now"
               ? nowHref
               : item.href,
-      Icon: icons[item.key],
+      // PHONE_NAV_ITEMS never carries a desktop-only key (navigationModel.ts).
+      Icon: icons[item.key as keyof typeof icons],
     }));
 }
 

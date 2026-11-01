@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 // so no server code reaches the client bundle.
 import type { PlanGetInReportDTO, PlanGetInStopDTO } from "@/lib/planGetIn";
 import PlanRouteMiniMap from "@/components/plan/PlanRouteMiniMap";
+import { MysteryStopTitle } from "@/components/plan/PlanNightPresentation";
 import { buildCrawlMapHref } from "@/lib/crawlUrl";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import { discardBody } from "@/lib/responseBody";
@@ -48,10 +49,12 @@ export default function PlanRoute({
   planId,
   startTime,
   stops,
+  visitedPositions = [],
 }: {
   planId: string;
   startTime: string;
   stops: RouteStop[];
+  visitedPositions?: readonly number[];
 }) {
   const [report, setReport] = useState<GetInReport | null>(null);
   const [state, setState] = useState<FetchState>("loading");
@@ -141,7 +144,7 @@ export default function PlanRoute({
               <li key={`${stop.position}-${stop.venueId}`} style={{ "--i": index } as CSSProperties}>
                 <span className="planSummary__marker">{index + 1}</span>
                 <div className="planRoute__body">
-                  <strong>{stop.venueName}</strong>
+                  <MysteryStopTitle venueId={stop.venueId} name={stop.venueName} position={stop.position} alreadyVisited={visitedPositions.includes(stop.position)} />
                   {priceLine ? <small className="planRoute__selectedDrinkPrice">{priceLine}</small> : null}
                   <StopEventBadge event={events.get(stop.venueId)} />
                   <Link href={walkRouteHref

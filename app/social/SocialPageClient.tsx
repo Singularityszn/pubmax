@@ -765,16 +765,16 @@ function SocialPageAccountState({
             {/* The boundary prints its line ONCE, under the head that carries
                 the door, and says what Social holds rather than asking again.
                 The slot keeps its size while the account answers, so nothing
-                under it moves when the line appears. */}
+                under it moves when the title appears. */}
             <section
               className="socialDoorSlot"
               aria-label={`${surfaceName} posts`}
               aria-busy={viewerSession.unresolved || undefined}
               role={viewerSession.unresolved ? undefined : "status"}
             >
-              {/* While the account is unanswered the hidden copy holds the same
-                  one-line title and the same value line, so the slot is the
-                  size it will be, and it names no door it cannot yet offer. */}
+              {/* The title stays hidden until the account answers, so it names
+                  no door it cannot yet offer. The public value line paints
+                  immediately, and both lines reserve the slot's final size. */}
               <div aria-hidden={viewerSession.unresolved || undefined} className="socialRailContent">
                 <EmptyState
                   title={

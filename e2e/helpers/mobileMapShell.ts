@@ -55,7 +55,7 @@ export async function expectMobileMapShellReady(
  * me have namesakes on the desktop toolbar and in sheets, so each is scoped to
  * the shell's own container rather than found by name across the page.
  */
-export type MobileMapShellControl = "search" | "filters" | "more" | "tfl" | "nearMe";
+export type MobileMapShellControl = "search" | "filters" | "more" | "tfl" | "nearMe" | "drink";
 
 function shellControlLocator(page: Page, control: MobileMapShellControl): Locator {
   const topbar = page.locator(".mobileMapTopbar");
@@ -70,6 +70,8 @@ function shellControlLocator(page: Page, control: MobileMapShellControl): Locato
       return page.locator(".mobileMapUtilityCorner .mobileMapTflButton");
     case "nearMe":
       return page.locator(".mobileMapUtilityCorner .mobileMapLocateFab");
+    case "drink":
+      return page.locator(".mobileMapChipRow").getByRole("button", { name: /Drink shown on the map/ });
   }
 }
 
