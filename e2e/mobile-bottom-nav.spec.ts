@@ -123,14 +123,14 @@ test.describe("mobile bottom-tab navigation", () => {
     await expect(page.getByTestId("tonight-screen")).toBeVisible();
   });
 
-  test("the dock is six doors in loop order, and Out is Tonight", async ({ page }) => {
+  test("the dock is five doors in loop order, and Out is Tonight", async ({ page }) => {
     await page.goto("/map");
 
     const tabs = primaryNav(page).locator(".mobileTab");
-    await expect(tabs).toHaveCount(6);
+    await expect(tabs).toHaveCount(5);
     expect(
       await tabs.evaluateAll((links) => links.map((link) => link.getAttribute("aria-label"))),
-    ).toEqual(["Map", "Tonight", "Plan", "Spoons", "Social", "You"]);
+    ).toEqual(["Map", "Tonight", "Plan", "Social", "You"]);
     await expect(primaryNav(page).getByRole("link", { name: "Out", exact: true })).toHaveCount(0);
     await expect(primaryNav(page).getByRole("link", { name: "Places", exact: true })).toHaveCount(0);
 

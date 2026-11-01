@@ -7,6 +7,9 @@ export type PrimaryNavItem = {
   href: Route;
   label: string;
   match: string[];
+  /** Shown in the desktop SiteNav and the landing bar only, never in the phone
+   *  dock (MobileTabBar renders PHONE_NAV_ITEMS). */
+  desktopOnly?: true;
 };
 
 /**
@@ -32,13 +35,15 @@ export const SOCIAL_NAV_MATCH: readonly string[] = [
 const PLAN_NAV_MATCH: readonly string[] = ["/plan", "/crawls"];
 
 /**
- * The six durable destinations in the PUBMAXX shell, and the ONE vocabulary
- * for every bar that names them: the phone dock, the desktop SiteNav and the
+ * The durable destinations in the PUBMAXX shell, and the ONE vocabulary for
+ * every bar that names them: the phone dock, the desktop SiteNav and the
  * landing bar all render this list, so their labels cannot drift apart again.
  *
- * Spoons opens the published value ranking directly on phones and desktops.
- * The captain requested this extra tab on 26 October 2026. Pub Pal keeps its
- * separate door between Tonight and Plan. Moment remains a compose action.
+ * The phone dock keeps the five-door loop (Map, Tonight, Plan, Social, You)
+ * plus the Pub Pal's own door, six buttons in all: the Oct 2026 UX audit found
+ * more too many for a phone. Spoons, the published value ranking, is a desktop
+ * door only (`desktopOnly`), by the captain's call (1 Nov 2026); on a phone it
+ * is reached from the Drink sheet. Moment remains a compose action.
  *
  * Two former tabs left primary navigation. Out IS Tonight now: /out 308s to
  * /tonight at the edge (proxy.ts), and Tonight carries the Tomorrow and Weekend
@@ -57,7 +62,7 @@ export const PRIMARY_NAV_ITEMS: readonly PrimaryNavItem[] = [
   // Plan owns the composer, a shared plan at /plan/[id] and the crawl routes
   // (PLAN_NAV_MATCH).
   { key: "plan", href: "/plan", label: "Plan", match: [...PLAN_NAV_MATCH] },
-  { key: "spoons", href: "/spoons-value", label: "Spoons", match: ["/spoons-value"] },
+  { key: "spoons", href: "/spoons-value", label: "Spoons", match: ["/spoons-value"], desktopOnly: true },
   // Social owns its shell and its retired aliases (SOCIAL_NAV_MATCH). The label
   // here is the launched name; a bar names it through primaryNavLabel.
   { key: "social", href: "/social", label: "Social", match: [...SOCIAL_NAV_MATCH] },
@@ -67,6 +72,11 @@ export const PRIMARY_NAV_ITEMS: readonly PrimaryNavItem[] = [
   // desktop nav (audit F10). Dropped so /pal maps to no active tab.
   { key: "you", href: "/u/you" as Route, label: "You", match: ["/u"] },
 ] as const;
+
+/** The phone dock's destinations: every primary item except the desktop-only ones. */
+export const PHONE_NAV_ITEMS: readonly PrimaryNavItem[] = PRIMARY_NAV_ITEMS.filter(
+  (item) => !item.desktopOnly,
+);
 
 /**
  * The name a bar prints for a primary destination. Social is named for its

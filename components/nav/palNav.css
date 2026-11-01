@@ -40,8 +40,8 @@
     display: flex;
   }
 
-  /* The single-row layout raises the face while keeping its word aligned
-     with the primary tab labels. Narrow and large-text layouts override it. */
+  /* The face rises out of the rail; the word sits on the rail's own line, so
+     the five tab words and this one share a baseline. */
   .mobileTabPal {
     flex: 1;
     min-width: 0;

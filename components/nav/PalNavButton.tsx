@@ -17,8 +17,8 @@ import "./navigation.css";
 // The Pub Pal's own door in the navigation: the raised button in the middle of
 // the phone dock (MobileTabBar.tsx) and the Pal button in the desktop bar
 // (SiteNav.tsx). It opens /pal, where a stranger meets a Pal and a person with
-// one talks to it. This door stays separate from PRIMARY_NAV_ITEMS
-// (navigationModel.ts), and it is there from the first paint.
+// one talks to it. It is a door, not a sixth destination in the loop
+// (navigationModel.ts keeps the five), and it is there from the first paint.
 //
 // Only a person's OWN stored Pal puts a face on it: the Pal stored on this
 // device must belong to the account signed in now, because signing out does

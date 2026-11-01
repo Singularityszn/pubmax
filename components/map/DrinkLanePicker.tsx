@@ -100,12 +100,16 @@ export default function DrinkLanePicker({
           );
         })}
       </div>
+      {/* Lucia lives under soft drinks: the one shortcut this picker carries,
+          on the phone sheet and the desktop panel alike, straight to its
+          listed prices. */}
       {lucia ? (
         <Link
           prefetch={false}
           href="/soft-drinks-and-water?sub=soft-drink-lucia-special"
           className="drinkLanePickerLucia"
         >
+          <span className="drinkLanePickerLuciaLane">Soft drinks</span>
           <strong>{lucia.label}</strong>
           <span>{lucia.longLabel} prices</span>
         </Link>

@@ -332,8 +332,8 @@ body:has(.mobileMapUtilityCorner) {
 }
 
 @media (max-width: 640px) {
-  :root {
-    --tabbar-h: max(64px, var(--tabbar-measured-h, 0px), calc(2.1 * var(--text-2xs) + 48px));
+  :root:not([data-text-scale="large"]) {
+    --tabbar-h: max(64px, calc(2.1 * var(--text-2xs) + 48px));
   }
 
   /* The bar alone: its lane, the home indicator and one gap, so the last line
@@ -364,7 +364,6 @@ body:has(.mobileMapUtilityCorner) {
   }
 
   .mobileTabBar {
-    container: mobile-dock / inline-size;
     display: block;
     position: fixed;
     left: 0;
@@ -550,6 +549,19 @@ body:has(.mobileMapUtilityCorner) {
     max-width: 100%;
   }
 
+  /* AT A LARGE OS TEXT SIZE THE BAR KEEPS ITS SHAPE AND DROPS ITS WORDS.
+     The Android WebView zooms every text node by the OS font scale and the
+     iOS shell asks WebKit for the same (lib/nativeTextScale.ts), so at 2.0x
+     six 11px labels become six 22px labels in a 64px bar: measured on the
+     Pixel 7, "Places" ran into "Out" and the bar grew over the consent card
+     (docs/proof/mobile-app-design/android-emu-pixel7/textscale/). A native
+     tab bar answers the same setting by showing its icons alone, and the
+     accessible name stays on the link, so this is what the shell does from
+     the scale lib/nativeTextScale.ts publishes on <html>. */
+  html[data-text-scale="large"] .mobileTabLabel {
+    display: none;
+  }
+
   .mobileTabLabelText {
     min-width: 0;
     overflow-wrap: anywhere;
@@ -622,8 +634,8 @@ body:has(.mobileMapUtilityCorner) {
   }
 
   .mobileTab {
-    /* Preserve the 44px tap target. Container rules below add rows when the
-       dock cannot fit the targets and visible labels in one row. */
+    /* Hold the 44px WCAG tap target even on the smallest phones; label stays at
+       the 11px floor (iOS-convention exception) to fit five tabs across ~340px. */
     font-size: var(--text-2xs);
     padding: 2px 0;
     min-height: 44px;
@@ -636,112 +648,5 @@ body:has(.mobileMapUtilityCorner) {
   .mobileTabIcon,
   .mobileTabBar {
     transition: none;
-  }
-}
-
-/* Compact insets preserve target space at narrow phone widths. */
-@media (max-width: 360px) {
-  .mobileTabBar { padding-inline: 3px; }
-  .mobileTabList { --tab-inset: 1px; }
-}
-
-/* A classic scrollbar leaves 305px at a 320px viewport. Seven 44px targets
-   need more than that. Root-relative containment also recovers enlarged text
-   without hiding labels or making the document wider. */
-@container mobile-dock (width < 20rem) {
-  .mobileTabList {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    align-items: stretch;
-  }
-
-  .mobileTabHighlight { display: none; }
-
-  .mobileTab,
-  .mobileTabPal {
-    min-width: 44px;
-    min-height: 44px;
-  }
-
-  .mobileTab.isActive,
-  .mobileTabPal.isActive {
-    background: var(--state-selected-surface);
-    box-shadow: var(--shadow-inset-press);
-  }
-
-  .mobileTabList .mobileTabLabel {
-    position: static;
-    width: auto;
-    height: auto;
-    max-width: none;
-    overflow: visible;
-    clip-path: none;
-    white-space: nowrap;
-  }
-
-  .mobileTabLabelText { overflow-wrap: normal; }
-
-  .mobileTabList .mobileTabPal {
-    justify-content: center;
-    padding: 4px 2px;
-    border-radius: calc(var(--tab-rail-radius) - var(--tab-inset));
-  }
-
-  .mobileTabList .mobileTabPal .palNavFace {
-    width: 40px;
-    height: 40px;
-    margin-top: 0;
-    box-shadow: none;
-  }
-}
-
-/* Enlarged root text needs wider cells. At root32, 12rem is 384px;
-   at the ordinary root16 it is 192px, below both supported phone widths. */
-@container mobile-dock (width < 12rem) {
-  .mobileTabList { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-}
-
-@media (max-width: 640px) {
-  html[data-text-scale="large"] .mobileTabList {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    align-items: stretch;
-  }
-
-  html[data-text-scale="large"] .mobileTabHighlight { display: none; }
-
-  html[data-text-scale="large"] :is(.mobileTab, .mobileTabPal) {
-    min-width: 44px;
-    min-height: 44px;
-  }
-
-  html[data-text-scale="large"] :is(.mobileTab.isActive, .mobileTabPal.isActive) {
-    background: var(--state-selected-surface);
-    box-shadow: var(--shadow-inset-press);
-  }
-
-  html[data-text-scale="large"] .mobileTabList .mobileTabLabel {
-    position: static;
-    width: auto;
-    height: auto;
-    max-width: none;
-    overflow: visible;
-    clip-path: none;
-    white-space: nowrap;
-  }
-
-  html[data-text-scale="large"] .mobileTabLabelText { overflow-wrap: normal; }
-
-  html[data-text-scale="large"] .mobileTabList .mobileTabPal {
-    justify-content: center;
-    padding: 4px 2px;
-    border-radius: calc(var(--tab-rail-radius) - var(--tab-inset));
-  }
-
-  html[data-text-scale="large"] .mobileTabList .mobileTabPal .palNavFace {
-    width: 40px;
-    height: 40px;
-    margin-top: 0;
-    box-shadow: none;
   }
 }

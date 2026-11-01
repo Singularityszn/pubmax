@@ -28,12 +28,12 @@ describe("mobile tab bar contract", () => {
     expect(shouldShowMobileTabBar("/area/clapham/drink/guinness")).toBe(true);
   });
 
-  it("renders six tabs in the loop order", () => {
+  it("renders exactly five tabs in the loop order", () => {
     const tabs = buildTabs();
-    expect(tabs.map((tab) => tab.label)).toEqual(["Map", "Tonight", "Plan", "Spoons", "Social", "You"]);
+    expect(tabs.map((tab) => tab.label)).toEqual(["Map", "Tonight", "Plan", "Social", "You"]);
   });
 
-  it("names every tab on the link itself", () => {
+  it("names every tab on the link itself, so hiding the word at large text costs nothing", () => {
     for (const tab of buildTabs()) expect(tab.ariaLabel).toBe(tab.label);
     for (const tab of buildTabs()) expect(tab.preview).toBe(false);
   });

@@ -3,15 +3,15 @@
 import type { Route as NextRoute } from "next";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Map, UserRound, Route, CalendarClock, Utensils, Images } from "lucide-react";
-import { Fragment, useCallback, useLayoutEffect, useMemo, useRef, useSyncExternalStore, type CSSProperties } from "react";
+import { Map, UserRound, Route, CalendarClock, Images } from "lucide-react";
+import { Fragment, useCallback, useMemo, useSyncExternalStore, type CSSProperties } from "react";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import { profilePath } from "@/lib/appLink";
 import { useNowHref } from "@/lib/useNowHref";
 import { warmNavRoute } from "@/lib/mapWarmup";
 import {
-  PRIMARY_NAV_ITEMS,
+  PHONE_NAV_ITEMS,
   navPathMatches,
   primaryNavLabel,
   type PrimaryNavKey,
@@ -43,14 +43,15 @@ import "./navigation.css";
 // (see mobileNav.css). On desktop it is display:none, leaving existing desktop
 // navs untouched.
 //
-// navigationModel.ts owns the durable destinations for every bar. Out folded
-// into Tonight and Places is a setting reached from the map's city chip.
-// Compose lives on the floating + action, outside this row.
+// Five durable destinations in the order of the loop (navigationModel): Map,
+// Tonight, Plan, Social, You. Out folded into Tonight and Places is a setting
+// reached from the map's city chip, so neither is a tab any more. Compose lives
+// on the floating + action, never in this row.
 //
 // Between Tonight and Plan the Pub Pal rises out of the rail (PalNavButton.tsx):
-// the person's own Pal, a door to /pal outside the primary destinations, by the
-// captain's call (19 Oct 2026). It takes one extra column, which the
-// gliding highlight skips.
+// the person's own Pal, a door to /pal rather than a sixth destination, by the
+// captain's call (19 Oct 2026). It takes its own column, so the row has
+// PAL_DOCK_COLUMN + 1 more columns than tabs, and the gliding highlight skips it.
 //
 // Social is named for its launch state. While the friends launch is rolled
 // back, its accessible name is "Social preview" and the dock shows the word
@@ -65,6 +66,8 @@ type Tab = {
   href: NextRoute;
   label: string;
   Icon: typeof Map;
+  /** The link's accessible name. The large text bucket hides the tab word
+   *  (mobileNav.css), so the name must live on the link, not in that word. */
   ariaLabel: string;
   /** Path prefixes that should mark this tab active (defaults to href). */
   match?: string[];
@@ -95,11 +98,10 @@ export function buildTabs(
     now: CalendarClock,
     map: Map,
     plan: Route,
-    spoons: Utensils,
     social: Images,
     you: UserRound,
   };
-  return PRIMARY_NAV_ITEMS
+  return PHONE_NAV_ITEMS
     .map((item) => ({
       ...item,
       ariaLabel: primaryNavLabel(item, socialLabel),
@@ -112,7 +114,8 @@ export function buildTabs(
             : item.key === "now"
               ? nowHref
               : item.href,
-      Icon: icons[item.key],
+      // PHONE_NAV_ITEMS never carries a desktop-only key (navigationModel.ts).
+      Icon: icons[item.key as keyof typeof icons],
     }));
 }
 
@@ -138,24 +141,6 @@ export default function MobileTabBar() {
 }
 
 function MobileTabBarContent({ pathname }: { pathname: string }) {
-  const listRef = useRef<HTMLUListElement>(null);
-  useLayoutEffect(() => {
-    const list = listRef.current;
-    if (!list) return;
-    const root = document.documentElement;
-    const measure = () => {
-      const height = list.getBoundingClientRect().height;
-      if (height > 0) root.style.setProperty("--tabbar-measured-h", `${Math.ceil(height + 6)}px`);
-      else root.style.removeProperty("--tabbar-measured-h");
-    };
-    measure();
-    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
-    observer?.observe(list);
-    return () => {
-      observer?.disconnect();
-      root.style.removeProperty("--tabbar-measured-h");
-    };
-  }, []);
   const router = useRouter();
   const preferredCity = useSyncExternalStore(
     subscribePreferredCity,
@@ -233,7 +218,6 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
           column width and highlight geometry all derive from it (and from
           --tab-inset), so the CSS never assumes a tab total. */}
       <ul
-        ref={listRef}
         className="mobileTabList"
         style={{ "--tab-count": tabs.length + 1 } as CSSProperties}
       >
@@ -266,7 +250,7 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
                 <Link
                   href={tab.href}
                   // The bar sits in the viewport on every page, so Next's
-                  // automatic prefetch fires for all primary destinations while the
+                  // automatic prefetch fires for all five tab destinations while the
                   // current page is still painting. This component already owns a
                   // intent warm below replaces it. Leaving the automatic one on
                   // top downloads unrelated route code before the current page is

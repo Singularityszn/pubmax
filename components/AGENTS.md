@@ -39,8 +39,8 @@ Full rules: [`docs/rules/components-sheets-chrome-and-navigation.md`](../docs/ru
 - [THE MAP ARRIVES WITH ONE SLIGHT TURN, AND THEN HOLDS STILL.](../docs/rules/components-sheets-chrome-and-navigation.md#the-map-arrives-with-one-slight-turn-and-then-holds-still)
 - [THE PHONE MAP RESTS ON THREE LAYERS, AND THE BOTTOM CARD IS THE ANSWER.](../docs/rules/components-sheets-chrome-and-navigation.md#the-phone-map-rests-on-three-layers-and-the-bottom-card-is-the-answer)
 - [Phone chrome is measured, not eyeballed, and a trust caption never ellipses.](../docs/rules/components-sheets-chrome-and-navigation.md#phone-chrome-is-measured-not-eyeballed-and-a-trust-caption-never-ellipses)
-- [THE PRIMARY ROW IS SIX DOORS, AND THE HEADER CARRIES ONLY WHAT HAS SOMETHING BEHIND IT.](../docs/rules/components-sheets-chrome-and-navigation.md#the-primary-row-is-five-doors-and-the-header-carries-only-what-has-something-beh)
-- [THE PUB PAL RISES OUT OF THE DOCK AS ITS OWN DOOR.](../docs/rules/components-sheets-chrome-and-navigation.md#the-pub-pal-rises-out-of-the-dock-as-its-own-door-never-a-sixth-destination)
+- [THE PRIMARY ROW IS FIVE DOORS, AND THE HEADER CARRIES ONLY WHAT HAS SOMETHING BEHIND IT.](../docs/rules/components-sheets-chrome-and-navigation.md#the-primary-row-is-five-doors-and-the-header-carries-only-what-has-something-beh)
+- [THE PUB PAL RISES OUT OF THE DOCK AS ITS OWN DOOR, NEVER A SIXTH DESTINATION.](../docs/rules/components-sheets-chrome-and-navigation.md#the-pub-pal-rises-out-of-the-dock-as-its-own-door-never-a-sixth-destination)
 - [THE VENUE SHEET NAMES A TAB BY WHAT IT HOLDS, AND SAYS A FACT ONCE.](../docs/rules/components-sheets-chrome-and-navigation.md#the-venue-sheet-names-a-tab-by-what-it-holds-and-says-a-fact-once)
 
 ## Venue, plan and message surfaces

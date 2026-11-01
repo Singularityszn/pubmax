@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  PHONE_NAV_ITEMS,
   MOMENT_NAV_ACTION,
   PRIMARY_NAV_ITEMS,
   SOCIAL_NAV_MATCH,
@@ -13,7 +14,12 @@ import {
 import { socialSurfaceName } from "@/lib/socialLaunch";
 
 describe("PUBMAXX primary navigation", () => {
-  it("keeps six destinations on the loop and models Moment separately", () => {
+  it("keeps Spoons off the phone dock (captain, 1 Nov 2026)", () => {
+    expect(PHONE_NAV_ITEMS.map(({ label }) => label)).toEqual(["Map", "Tonight", "Plan", "Social", "You"]);
+    expect(PRIMARY_NAV_ITEMS.filter((item) => item.desktopOnly).map(({ key }) => key)).toEqual(["spoons"]);
+  });
+
+  it("keeps the five-door phone loop, Spoons on desktop only, and models Moment separately", () => {
     // Captain, 16 Oct 2026: Social is a main tab, between Plan and You.
     expect(PRIMARY_NAV_ITEMS.map(({ label }) => label)).toEqual([
       "Map",
