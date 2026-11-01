@@ -141,11 +141,21 @@ Target before launch: 30 claimed pubs in Soho, Shoreditch and Hackney, and Claph
 
 ---
 
-## 9. Shipped with this record
+## 9. Shipped with this record (PR #2454)
 
-- Demo content is opt-in. `demoContentEnabled` (`lib/demoContent.ts`) opens only on `NEXT_PUBLIC_DEMO_CONTENT=on`. Before this, any other value meant on, and a sensitive value once read as `[SENSITIVE]` put demo rows on a preview (`docs/DEPLOYMENT.md`). The e2e server asks for seeds by name.
-- Hidden tabs no longer poll for Pint Drops. `visibleInterval` (`lib/visiblePolling.ts`) holds a poll while the page is hidden and asks once on return. `lib/realtime.ts` uses it for every fallback poll.
-- Not shipped: an edge cache for `/api/whats-on`. It conflicts with the shared-cache rule in `__tests__/sharedCacheHonesty.test.ts`, because the answer reads a store that can change between two requests. A change needs a captain ruling. The browser already reuses the answer for 60 seconds per tab.
+Week 1 agent work, built on 1 November 2026 and held on one branch for review:
+
+- Demo content is opt-in: `NEXT_PUBLIC_DEMO_CONTENT=on` only, in lists and by id. A sensitive Vercel value once read as `[SENSITIVE]` turned it on.
+- Hidden tabs no longer poll for Pint Drops (`visibleInterval`, `lib/visiblePolling.ts`), and one owed catch-up read survives the live channel joining.
+- A new conversation needs mates until the age check is live (decision 8). An existing thread keeps working.
+- Signed-out visitors can read a London lane on Social (decision 7). Handles only, no faces.
+- A typed price without a bill saves as "not checked" and never colours a pin alone (decision 9). Migration 0218.
+- Accepted pub operator updates are stored and shown: "From the pub" on the venue sheet and "From the pubs tonight" on Tonight. Migration 0217.
+- Email sends through Resend once the keys are set. Nothing calls it yet; the digest stays off.
+- The off-platform backup runs every night.
+- The phone has five tabs (Explore, Tonight, Plan, Social, You), the Pal sits in the top bar, and the floating + button is gone (decision 13).
+
+Not shipped: an edge cache for `/api/whats-on`, because it conflicts with the shared-cache rule in `__tests__/sharedCacheHonesty.test.ts`. Still to build from week 1: map first pin under 3 s (S1), the `/plan/[id]` budget (S3), plan push identity, the rate-limit fallback (R2) and monitoring (R3).
 
 ---
 
