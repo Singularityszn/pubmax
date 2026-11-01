@@ -301,3 +301,53 @@ describe("subscribeToComments", () => {
     expect(() => unsub()).not.toThrow();
   });
 });
+
+describe("subscribeToNewDrops: a hidden tab and the live channel", () => {
+  type FakeDocument = EventTarget & { visibilityState: "visible" | "hidden" };
+  let page: FakeDocument;
+
+  function setVisibility(state: "visible" | "hidden") {
+    page.visibilityState = state;
+    page.dispatchEvent(new Event("visibilitychange"));
+  }
+
+  async function coldClientHiddenTickThenJoin(poll: () => void) {
+    page = Object.assign(new EventTarget(), { visibilityState: "visible" as const });
+    vi.stubGlobal("document", page);
+    clientReady = false;
+    let loaded!: (value: typeof fakeSupabase) => void;
+    loadClient = () => new Promise((resolve) => { loaded = resolve; });
+    const unsub = subscribeToNewDrops(vi.fn(), { poll });
+    setVisibility("hidden");
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(poll).not.toHaveBeenCalled();
+    loaded(fakeSupabase);
+    await vi.advanceTimersByTimeAsync(0);
+    subscribeCb?.("SUBSCRIBED");
+    return unsub;
+  }
+
+  it("runs a poll the hidden tab held once on return, after the channel joined", async () => {
+    const poll = vi.fn();
+    const unsub = await coldClientHiddenTickThenJoin(poll);
+
+    setVisibility("visible");
+    expect(poll).toHaveBeenCalledTimes(1);
+
+    // The channel carries changes from here on, so the poll does not resume.
+    await vi.advanceTimersByTimeAsync(60_000);
+    setVisibility("hidden");
+    setVisibility("visible");
+    expect(poll).toHaveBeenCalledTimes(1);
+    unsub();
+  });
+
+  it("drops the held poll when the subscription is torn down first", async () => {
+    const poll = vi.fn();
+    const unsub = await coldClientHiddenTickThenJoin(poll);
+
+    unsub();
+    setVisibility("visible");
+    expect(poll).not.toHaveBeenCalled();
+  });
+});

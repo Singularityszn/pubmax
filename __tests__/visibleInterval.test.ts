@@ -78,6 +78,46 @@ describe("visibleInterval", () => {
     expect(tick).not.toHaveBeenCalled();
   });
 
+  it("keeps a held tick for the return when stopped with keepHeld", () => {
+    const tick = vi.fn();
+    const stop = visibleInterval(tick, 30_000);
+
+    setVisibility("hidden");
+    vi.advanceTimersByTime(30_000);
+    stop({ keepHeld: true });
+    vi.advanceTimersByTime(60_000);
+    expect(tick).not.toHaveBeenCalled();
+
+    setVisibility("visible");
+    expect(tick).toHaveBeenCalledTimes(1);
+    setVisibility("hidden");
+    setVisibility("visible");
+    expect(tick).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps nothing when stopped with keepHeld and no tick was held", () => {
+    const tick = vi.fn();
+    const stop = visibleInterval(tick, 30_000);
+
+    stop({ keepHeld: true });
+    setVisibility("hidden");
+    vi.advanceTimersByTime(30_000);
+    setVisibility("visible");
+    expect(tick).not.toHaveBeenCalled();
+  });
+
+  it("drops a kept tick when stopped again before the return", () => {
+    const tick = vi.fn();
+    const stop = visibleInterval(tick, 30_000);
+
+    setVisibility("hidden");
+    vi.advanceTimersByTime(30_000);
+    stop({ keepHeld: true });
+    stop();
+    setVisibility("visible");
+    expect(tick).not.toHaveBeenCalled();
+  });
+
   it("falls back to a plain interval where there is no document", () => {
     vi.unstubAllGlobals();
     vi.stubGlobal("document", undefined);

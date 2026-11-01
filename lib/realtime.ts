@@ -38,7 +38,7 @@
 import { ensureSupabaseBrowser, getSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { PINT_DROPS_LIVE_EVENT, PINT_DROPS_LIVE_TOPIC } from "@/lib/pintDropsTopics";
-import { visibleInterval } from "@/lib/visiblePolling";
+import { type StopVisibleInterval, visibleInterval } from "@/lib/visiblePolling";
 
 // ── "X spilling right now" — a pure counter ──────────────────────────────────
 // The strip's number is derived, NOT streamed: count the drops created in the
@@ -141,7 +141,10 @@ function subscribePintDropSignal(
   let authRevision = 0;
   let client: ReturnType<typeof getSupabaseBrowser> = null;
   let authSubscription: { unsubscribe: () => void } | null = null;
-  let stopPollTimer: (() => void) | null = null;
+  let stopPollTimer: StopVisibleInterval | null = null;
+  // A poll held by a hidden tab when the channel joined. It still runs once
+  // on return, because the channel only reports changes from the join onwards.
+  let dropHeldPoll: (() => void) | null = null;
   let joinTimer: ReturnType<typeof setTimeout> | null = null;
   let channel: RealtimeChannel | null = null;
 
@@ -152,6 +155,16 @@ function subscribePintDropSignal(
   function stopPolling() {
     stopPollTimer?.();
     stopPollTimer = null;
+  }
+
+  /** The channel joined: stop polling, but keep a poll a hidden tab held. */
+  function handOverToChannel() {
+    const stop = stopPollTimer;
+    stopPollTimer = null;
+    if (!stop) return;
+    stop({ keepHeld: true });
+    dropHeldPoll?.();
+    dropHeldPoll = () => stop();
   }
 
   function dropChannel() {
@@ -185,7 +198,7 @@ function subscribePintDropSignal(
         if (status === "SUBSCRIBED") {
           if (joinTimer) clearTimeout(joinTimer);
           joinTimer = null;
-          stopPolling();
+          handOverToChannel();
         } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
           fallBackToPolling();
         }
@@ -236,6 +249,8 @@ function subscribePintDropSignal(
     disposed = true;
     authSubscription?.unsubscribe();
     stopPolling();
+    dropHeldPoll?.();
+    dropHeldPoll = null;
     dropChannel();
   };
 }
