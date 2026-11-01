@@ -7,7 +7,7 @@ import { act, createElement, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
-const lookup = vi.hoisted(() => ({ resolve: (_venue: null) => {} }));
+const lookup = vi.hoisted(() => ({ resolve: (() => {}) as (venue: null) => void }));
 const createSession = vi.hoisted(() => vi.fn());
 const request = vi.hoisted(() => vi.fn());
 
