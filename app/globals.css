@@ -2,6 +2,11 @@
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities);
 
+/* Tailwind's `dark:` follows the app's own theme (html[data-theme="dark"], set
+   pre-paint by public/theme-init.js), never the operating system's setting, so
+   a pasted component's dark classes agree with the theme toggle. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 /* ────────────────────────────────────────────────────────────────────────
    PUBMAXX token scale — see DESIGN.md + docs/DESIGN_SYSTEM.md.
    Light default = neutral paper with a focused coral action colour.

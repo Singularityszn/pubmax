@@ -3,14 +3,20 @@
 import type { Route } from "next";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { CirclePlus } from "lucide-react";
-import { useLayoutEffect, useRef, useSyncExternalStore } from "react";
+import { CirclePlus, type LucideIcon } from "lucide-react";
+import {
+  useLayoutEffect,
+  useRef,
+  useSyncExternalStore,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 
 import { useNowHref } from "@/lib/useNowHref";
 import { useClientReady } from "@/lib/useClientReady";
 
 import ThemeToggle from "@/components/ThemeToggle";
 import IntentLink from "@/components/nav/IntentLink";
+import { navIcon } from "@/components/nav/navIcons";
 import MessagesLink from "@/components/nav/MessagesLink";
 import { PalSiteNavButton, PalTopBarButton } from "@/components/nav/PalNavButton";
 import NotificationBell from "@/components/nav/NotificationBell";
@@ -80,6 +86,8 @@ type NavLink = {
   label: string;
   /** Path prefixes that should mark this link active (defaults to href). */
   match: string[];
+  /** The door's icon, shared with the phone dock (navIcons.ts). */
+  Icon: LucideIcon;
 };
 
 // Consumer nav only. Staff moderation lives at /admin (URL + token) and is
@@ -88,6 +96,7 @@ type NavLink = {
 const LINKS: NavLink[] = PRIMARY_NAV_ITEMS.map((item) => ({
   ...item,
   key: (item.key === "you" ? "profile" : item.key) as NavKey,
+  Icon: navIcon(item.key),
 }));
 
 function matchesPath(pathname: string, link: NavLink): boolean {
@@ -186,12 +195,39 @@ export function SiteNavActions({ className = "siteNavActions" }: { className?: s
   );
 }
 
+/** The width from which each door wears its icon and a hover pill glides. */
+const SITE_NAV_GLIDE_QUERY = "(min-width: 1024px) and (hover: hover) and (pointer: fine)";
+
+/**
+ * Glide the hover pill to `link`. The first door the pointer meets gets the
+ * pill in place, faded in rather than slid from nowhere; after that it slides
+ * from door to door, the Animated Menu Bar's motion kept to the one thing a
+ * reader's pointer is doing. Written straight to the element, so a hover
+ * never re-renders the bar.
+ */
+function glideTo(row: HTMLElement, glide: HTMLElement, link: HTMLElement): void {
+  const rowBox = row.getBoundingClientRect();
+  const box = link.getBoundingClientRect();
+  const arriving = glide.dataset.visible !== "true";
+  if (arriving) glide.style.transition = "none";
+  glide.style.transform = `translateX(${box.left - rowBox.left}px)`;
+  glide.style.width = `${box.width}px`;
+  if (arriving) {
+    // Commit the jump before the fade-in, so only the fade is seen.
+    void glide.offsetWidth;
+    glide.style.transition = "";
+  }
+  glide.dataset.visible = "true";
+}
+
 export default function SiteNav({
   active,
 }: {
   active?: NavKey;
 }): React.JSX.Element {
   const floatingNavRef = useRef<HTMLElement>(null);
+  const linksRef = useRef<HTMLUListElement>(null);
+  const glideRef = useRef<HTMLLIElement>(null);
   const pathname = usePathname() ?? "";
   const primaryActive = primaryKeyForLegacyActive(active);
   const socialSurfaceLabel = useSocialSurfaceName();
@@ -250,11 +286,30 @@ export default function SiteNav({
         <PubmaxxWordmark />
       </Link>
 
-      {/* Full link list — hidden on mobile (the bottom tab bar covers it). */}
-      <ul className="siteNavLinks">
+      {/* Full link list — hidden on mobile (the bottom tab bar covers it).
+          From 1024px each door wears its icon beside its word, a pill glides
+          to the door under the pointer, and the door you are on gives its
+          icon one small clink as the page arrives (siteNav.css). Below
+          1024px the row is the measured word-only row it always was. */}
+      <ul
+        ref={linksRef}
+        className="siteNavLinks"
+        onPointerOver={(event: ReactPointerEvent<HTMLUListElement>) => {
+          const row = linksRef.current;
+          const glide = glideRef.current;
+          if (!row || !glide || event.pointerType !== "mouse") return;
+          if (typeof window.matchMedia !== "function" || !window.matchMedia(SITE_NAV_GLIDE_QUERY).matches) return;
+          const link = (event.target as Element).closest<HTMLElement>(".siteNavLink");
+          if (link && row.contains(link)) glideTo(row, glide, link);
+        }}
+        onPointerLeave={() => {
+          if (glideRef.current) glideRef.current.dataset.visible = "false";
+        }}
+      >
         {links.map((link) => {
           const isActive = link.key === activeKey;
           const label = primaryNavLabel(link, socialSurfaceLabel);
+          const { Icon } = link;
           return (
             <li key={link.key} className="siteNavItem">
               <IntentLink
@@ -262,13 +317,14 @@ export default function SiteNav({
                 className={isActive ? "siteNavLink isActive" : "siteNavLink"}
                 aria-current={isActive ? "page" : undefined}
                 aria-label={label}
-                title={label}
               >
+                <Icon className="siteNavIcon" size={16} aria-hidden="true" />
                 {label}
               </IntentLink>
             </li>
           );
         })}
+        <li ref={glideRef} className="siteNavGlide" aria-hidden="true" data-visible="false" />
       </ul>
 
       <SiteNavActions />

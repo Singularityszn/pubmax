@@ -1,0 +1,102 @@
+/* The pint belt (TonightPintBelt.tsx). From 641px the quiet night's cheapest
+   pints ride a conveyor as beer mats; below it the list beside the belt is
+   the answer, one tap at the bar, and the belt is not drawn.
+
+   The list steps back only for a belt that is READY, measured and with its
+   mats placed. Until then (no script, a slow script, a failed chunk) the list
+   is the answer at every width, so the section is never an empty box. */
+.pintBelt {
+  display: none;
+}
+
+@media (min-width: 641px) {
+  .pintBelt[data-ready] {
+    display: grid;
+    gap: var(--space-1);
+  }
+
+  .tonightCheapPintsAnswer:has(> .pintBelt[data-ready]) > .tonightCheapPintsBeltList {
+    display: none;
+  }
+}
+
+.pintBeltFrame {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  cursor: grab;
+  /* A finger still scrolls the page up and down; sideways is the belt's. */
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.pintBeltFrame:active {
+  cursor: grabbing;
+}
+
+/* The belt the mats ride: one wide band on the loop's centre line. */
+.pintBeltTrack {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.pintBeltTrack path {
+  fill: none;
+  stroke: var(--color-surface-panel);
+  stroke-width: 124px;
+  stroke-linejoin: round;
+}
+
+.pintBeltMat {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  box-sizing: border-box;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+  background: var(--panel-raised);
+  box-shadow: var(--shadow-sm);
+  color: var(--ink);
+  text-align: center;
+  text-decoration: none;
+  will-change: transform;
+  -webkit-user-drag: none;
+}
+
+.pintBeltMatName {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: var(--text-xs);
+  font-weight: 800;
+  line-height: 1.15;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.pintBeltMatMeta {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  line-height: 1.15;
+}
+
+.pintBeltMat:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pintBeltMat:hover {
+    border-color: var(--hairline-strong);
+  }
+}
+
+.pintBeltPause {
+  justify-self: end;
+}

@@ -957,3 +957,95 @@ button.siteNavMoreItem {
     flex-wrap: wrap;
   }
 }
+
+/* ── Doors with icons (the Animated Menu Bar, captain's call 1 Nov 2026) ──
+   From 1024px, where the measured row has room, each door wears its icon
+   (components/nav/navIcons.ts, the phone dock's own) beside its word. Below
+   1024px the icon is not drawn, so the tablet band keeps the word-only row it
+   was measured with, and every word stays whole at every text size. */
+.siteNavIcon,
+.siteNavGlide {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .siteNavLink {
+    gap: 6px;
+  }
+
+  .siteNavIcon {
+    display: block;
+    flex: none;
+  }
+}
+
+/* The pill under the pointer glides from door to door (SiteNav.tsx writes
+   its place). It is the hover fill, moved onto one shared element so the
+   motion reads as one pill travelling; the door you are on keeps its own
+   steady ink fill, so "here" is still said once and never moves. */
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
+  .siteNavGlide {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    display: block;
+    height: 44px;
+    margin-top: -22px;
+    border-radius: var(--radius-pill);
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+    opacity: 0;
+    pointer-events: none;
+    transition:
+      transform var(--duration-slow) var(--ease-out-strong),
+      width var(--duration-slow) var(--ease-out-strong),
+      opacity var(--duration-fast) var(--ease-out);
+  }
+
+  .siteNavGlide[data-visible="true"] {
+    opacity: 1;
+  }
+
+  /* The doors sit above the pill, and the pill is their hover fill now. */
+  .siteNavItem {
+    position: relative;
+    z-index: 1;
+  }
+
+  .siteNavLink:hover {
+    background: transparent;
+  }
+}
+
+/* The door you are on clinks once as its page arrives: the icon tips like a
+   raised glass and rights itself. Once per page, and never for a reader who
+   asked for less motion. */
+@media (min-width: 1024px) and (prefers-reduced-motion: no-preference) {
+  .siteNavLink.isActive .siteNavIcon {
+    transform-origin: 50% 100%;
+    animation: siteNavClink 360ms var(--ease-out-strong) 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .siteNavGlide {
+    transition: opacity var(--duration-fast) var(--ease-out);
+  }
+}
+
+@keyframes siteNavClink {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  35% {
+    transform: rotate(-14deg);
+  }
+
+  70% {
+    transform: rotate(5deg);
+  }
+
+  100% {
+    transform: rotate(0deg);
+  }
+}

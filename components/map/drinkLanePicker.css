@@ -162,3 +162,79 @@
   outline: 2px solid var(--ink);
   outline-offset: 2px;
 }
+
+/* ── The desktop tap handles (DrinkLaneTapHandles.tsx) ─────────────────────
+   For a pointer that can hover, the lanes stand on the Dock as a row of bar
+   taps. The handle is round, the drink is its badge, and the lane the map is
+   under is TIPPED like a glass mid-pour, with a poured line under it.
+   Selection reads in ink, as the chips' does; coral is not spent here. The
+   chip rule above gives every option `flex` and padding, so the handle states
+   its own geometry at the same specificity. */
+.drinkTapItem {
+  aspect-ratio: 1;
+}
+
+.drinkLanePicker:not(.drinkLanePicker--sheet) .drinkTapHandle {
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-panel);
+  color: var(--color-text-muted);
+}
+
+.drinkLanePicker:not(.drinkLanePicker--sheet) .drinkTapHandle.isSelected {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+  box-shadow: none;
+}
+
+.drinkTapLever {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 80%;
+}
+
+.drinkTapIcon {
+  width: 100%;
+  height: 100%;
+}
+
+.drinkTapHandle.isSelected .drinkTapLever {
+  transform: rotate(-14deg);
+}
+
+.drinkTapPour {
+  position: absolute;
+  bottom: -7px;
+  left: 50%;
+  width: 20px;
+  height: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--ink);
+  transform: translateX(-50%);
+  clip-path: inset(0 100% 0 0);
+}
+
+.drinkTapItem:has(.drinkTapHandle.isSelected) .drinkTapPour {
+  clip-path: inset(0 0 0 0);
+}
+
+/* The tip settles with a little give and the pour runs left to right; both
+   are state, so a reader who asked for less motion gets the end state at once. */
+@media (prefers-reduced-motion: no-preference) {
+  .drinkTapLever {
+    transition: transform var(--duration-slow) var(--ease-spring);
+  }
+
+  .drinkTapPour {
+    transition: clip-path var(--duration-slow) var(--ease-out-strong);
+  }
+}

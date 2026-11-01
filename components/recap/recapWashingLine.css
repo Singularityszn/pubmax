@@ -1,0 +1,153 @@
+/* The washing line (RecapWashingLine.tsx): the night's shared photos pegged
+   to a string of festoon lights. Cards are placed by script on the string's
+   curve and move by transform alone. */
+.washingLine {
+  display: grid;
+  gap: var(--space-2);
+}
+
+/* The script sets the height from the tallest card; this is the box the line
+   holds before it has measured, the height of a card with a short caption. */
+.washingLineViewport {
+  position: relative;
+  height: 284px;
+  overflow: hidden;
+  border-radius: var(--radius);
+  cursor: grab;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.washingLineViewport:active {
+  cursor: grabbing;
+}
+
+.washingLineViewport:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.washingLineString {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.washingLineString path {
+  fill: none;
+  stroke: var(--hairline-strong);
+  stroke-width: 1.5;
+}
+
+.washingLineCard {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  justify-items: center;
+  will-change: transform;
+}
+
+.washingLineViewport:not([data-ready]) .washingLineCard {
+  visibility: hidden;
+}
+
+/* The bulb sits on the string above its peg. Lit means filled: the photo in
+   front has its bulb on, and no bulb glows. */
+.washingLineBulb {
+  width: 10px;
+  height: 14px;
+  margin-top: -4px;
+  border: 1.5px solid var(--hairline-strong);
+  border-radius: var(--radius-pill);
+  background: var(--paper);
+}
+
+.washingLineCard[data-current="true"] .washingLineBulb {
+  border-color: var(--ink);
+  background: var(--ink);
+}
+
+.washingLinePolaroid {
+  position: relative;
+  display: grid;
+  gap: var(--space-2);
+  width: 100%;
+  margin: 2px 0 0;
+  padding: var(--space-2) var(--space-2) var(--space-3);
+  box-sizing: border-box;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  background: var(--panel-raised);
+  box-shadow: var(--shadow-sm);
+  /* Hung from its peg: a swing turns it about the top, and it hangs straight
+     at rest. */
+  transform: rotate(var(--washing-line-swing, 0deg));
+  transform-origin: 50% 0;
+}
+
+.washingLinePeg {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  width: 6px;
+  height: 16px;
+  border-radius: var(--radius-sm);
+  background: var(--ink-soft);
+  transform: translateX(-50%);
+}
+
+.washingLinePhoto {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-panel);
+  pointer-events: none;
+}
+
+.washingLineCaption {
+  display: grid;
+  gap: 2px;
+  min-height: 2.4em;
+  color: var(--ink);
+  font-size: var(--text-xs);
+  line-height: 1.25;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.washingLineVenue {
+  color: var(--color-text-muted);
+}
+
+.washingLineControls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+.washingLineCount {
+  min-width: 5ch;
+  margin: 0;
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+  font-size: var(--text-xs);
+  text-align: center;
+}
+
+/* The glide along the line and the settle after a swing. A reader who asked
+   for less motion gets each photo in place at once. */
+@media (prefers-reduced-motion: no-preference) {
+  .washingLineCard[data-gliding="true"] {
+    transition: transform 420ms var(--ease-drawer);
+  }
+
+  .washingLineCard[data-gliding="true"] .washingLinePolaroid {
+    transition: transform 640ms var(--ease-spring);
+  }
+}

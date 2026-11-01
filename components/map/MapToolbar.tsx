@@ -11,7 +11,7 @@ import {
 
 import CitySwitcher from "@/components/map/CitySwitcher";
 import type { MapDrinkCoverage } from "@/components/map/DrinkCoverage";
-import DrinkLanePicker from "@/components/map/DrinkLanePicker";
+import DrinkLanePicker, { preloadDrinkLaneTapHandles } from "@/components/map/DrinkLanePicker";
 import SpoonsValueLensControl from "@/components/map/SpoonsValueLensControl";
 import DrinkShapeChips from "@/components/map/DrinkShapeChips";
 import VenueFeatureFilters, { activeVenueFeatureCount } from "@/components/map/VenueFeatureFilters";
@@ -20,6 +20,7 @@ import FavoritePintPicker from "@/components/map/FavoritePintPicker";
 import PersonaLensPicker from "@/components/map/PersonaLensPicker";
 import type { CityId } from "@/lib/cities";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
+import { FINE_POINTER_QUERY } from "@/lib/useFinePointer";
 import {
   activeDrinkLane,
   DEFAULT_DRINK_LANE,
@@ -57,6 +58,12 @@ function drawerLaneAttribute(active: boolean, surfaces: number): "" | undefined 
   return active && surfaces !== 0 ? "" : undefined;
 }
 
+function warmDrinkTaps(): void {
+  // Only a pointer that can hover is ever shown the taps.
+  if (typeof window.matchMedia !== "function" || !window.matchMedia(FINE_POINTER_QUERY).matches) return;
+  preloadDrinkLaneTapHandles().catch(() => {});
+}
+
 function DrinkLaneButton({
   laneLabel,
   laneSelected,
@@ -79,6 +86,10 @@ function DrinkLaneButton({
       aria-pressed={open}
       aria-expanded={open}
       onClick={onToggle}
+      // Hover or focus is the intent to open: fetch the desktop tap handles
+      // then, so the panel never opens on the chips it is about to replace.
+      onPointerEnter={warmDrinkTaps}
+      onFocus={warmDrinkTaps}
     >
       <GlassWater size={16} aria-hidden="true" />
       <span>{`Drink: ${laneLabel}`}</span>

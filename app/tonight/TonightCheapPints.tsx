@@ -2,6 +2,7 @@ import type { Route } from "next";
 
 import { PintPriceBadge } from "@/components/PriceBadge";
 import { RowList, RowListItem } from "@/components/ui/row-list";
+import TonightPintBelt from "./TonightPintBelt";
 import { formatSnapshotFrom } from "@/lib/dataFreshness";
 import { oldestPintRead } from "@/lib/drinks";
 import {
@@ -18,6 +19,7 @@ import {
  * line uses the oldest source read so a newer row cannot redate older prices.
  * If any row has no read date, the section prints no date.
  * Each figure wears its band through the one price badge, never a bare coloured number.
+ * From 641px the rows ride a belt of beer mats instead (TonightPintBelt).
  */
 export default function TonightCheapPints({
   rows = [],
@@ -42,8 +44,12 @@ export default function TonightCheapPints({
           {formatSnapshotFrom(new Date(observedAt))}
         </p>
       ) : null}
-      <div data-testid="tonight-cheap-pints">
-        <RowList className="tonightCheapPintsList">
+      <div className="tonightCheapPintsAnswer" data-testid="tonight-cheap-pints">
+        {/* From 641px the same rows ride the belt and this list steps back
+            once the belt is ready (tonightPintBelt.css); on a phone, and
+            until the belt is placed, the list is the answer. */}
+        <TonightPintBelt rows={rows} />
+        <RowList className="tonightCheapPintsList tonightCheapPintsBeltList">
           {rows.map((row) => (
             <RowListItem
               key={row.venueId}

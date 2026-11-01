@@ -26,6 +26,12 @@ Packages installed through `package.json` retain their own licences. Their sourc
 
 - Source: <https://github.com/mourner/suncalc>
 
+### Motion Primitives
+
+[`components/ui/dock.tsx`](components/ui/dock.tsx) adapts the Dock component from Motion Primitives, by ibelick and the Motion Primitives contributors, available under the MIT licence. The full notice is kept in the header of that file. The adapted Dock runs on the `framer-motion` package, installed through `package.json`.
+
+- Source: <https://github.com/ibelick/motion-primitives>
+
 ## Fonts and media
 
 Bundled fonts, venue images, and source media retain the notices or source metadata stored beside their assets. See repository data and public asset README files before redistributing those assets separately from the application.
