@@ -4,16 +4,20 @@ Companion to issue #727, "Spec: reduce store/review bloat without hiding
 policy". This file is the review artefact for every `lib/*Store.ts` module.
 The inventory is descriptive, not a runtime registry.
 
+The `planBeaconStore` and `planPresentationStore` rows declare metadata only.
+`__tests__/planNightStorePermissions.test.ts` exercises production refusal, current membership and host permissions.
+The beacon and presentation route tests exercise their HTTP handlers.
+
 ## Current snapshot
 
-Counted on 31 October 2026 on the round 5 tree (PR 2412, which carries PR
-2402). Recount it with `ls lib/*Store.ts` and a grep for `selectStore(` and
+Counted on 31 October 2026 with the V1 night stores included.
+Recount it with `ls lib/*Store.ts` and a grep for `selectStore(` and
 `createDualBackendStore` whenever a store is added.
 
-- The repository has 63 `lib/*Store.ts` modules.
-- 42 modules call `selectStore` directly.
+- The repository has 65 `lib/*Store.ts` modules.
+- 44 modules call `selectStore` directly.
 - 14 modules use `createDualBackendStore`.
-- 7 modules keep memory state on `globalThis` so it survives a development
+- 8 modules keep memory state on `globalThis` so it survives a development
   server reload. That state pattern is separate from backend selection.
 - The remaining 7 modules use an explicit backend, a file or static data path,
   or an inline legacy selector: `contributorLeaderboardStore`,
@@ -73,6 +77,8 @@ silently stale.
 | pintDropsStore | legacy-exception | Inline Supabase configuration branch around Pint Drop and Storage work. |
 | pintDropWithTagsStore | legacy-exception | "With" handle tags on a Pint Drop: proposal, consent, withdrawal and block refusal. Inline Supabase configuration checks around the drop read and the block check. |
 | planCollaborationStore | factory-ready | Shared selector with `globalThis` memory state. |
+| planBeaconStore | factory-eligible, policy-heavy | Private, expiring arrival signs with live membership and route checks. |
+| planPresentationStore | factory-eligible, policy-heavy | Host-controlled mystery settings with private member reads and route revision checks. |
 | planGroupPrefsStore | factory-ready | Shared selector with `globalThis` memory state. |
 | planInviteRsvpStore | factory-ready | Shared selector with `globalThis` memory state. |
 | planStore | legacy-exception | Multiple inline Supabase configuration checks and plan policy. |
@@ -125,6 +131,7 @@ The following stores intentionally stay outside the factory-ready path:
   `socialPostConsentStore`, and `whatsOnStore`. Their storage premise is not
   memory-or-Supabase. Owner: not applicable for this factory.
 - **policy-heavy:** `commentsStore`, `communityPriceStore`,
+  `planBeaconStore`, `planPresentationStore`,
   `identityHandleStore`, `messagesStore`, `occupancyStore`,
   `priceTrustEventStore`, `profileCoverPhotoStore`, `referralStore`,
   `roundsStore`, `socialInteractionStore`, `socialPostExtraPhotoStore`,
@@ -205,10 +212,12 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/pintDropWithTagsStore.ts",
     "lib/pintDrops.ts",
     "lib/pintDropsStore.ts",
+    "lib/planBeaconStore.ts",
     "lib/planCollaborationStore.ts",
     "lib/planCrewIdentity.ts",
     "lib/planGroupPrefsStore.ts",
     "lib/planInviteRsvpStore.ts",
+    "lib/planPresentationStore.ts",
     "lib/planStore.ts",
     "lib/presenceStore.ts",
     "lib/privateIdentityStore.ts",

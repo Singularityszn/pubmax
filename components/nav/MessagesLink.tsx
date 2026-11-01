@@ -26,7 +26,11 @@ export default function MessagesLink(): React.JSX.Element | null {
   const router = useRouter();
   const { user, handle: authHandle } = useAuth();
   const [handle, setHandle] = useState("");
-  const [unread, setUnread] = useState(0);
+  const [unreadResult, setUnreadResult] = useState<{
+    userId: string;
+    handle: string;
+    count: number;
+  } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -42,12 +46,15 @@ export default function MessagesLink(): React.JSX.Element | null {
   }, [authHandle]);
 
   const effectiveHandle = normalizeHandle(authHandle ?? "") || handle.trim();
+  const unread = unreadResult?.userId === user?.id && unreadResult?.handle === effectiveHandle
+    ? unreadResult.count
+    : 0;
 
   const refresh = useCallback(async (supersede = false) => {
     if (document.visibilityState === "hidden") return;
     if (abortRef.current && !abortRef.current.signal.aborted && !supersede) return;
     if (!user) {
-      setUnread(0);
+      setUnreadResult(null);
       return;
     }
     const h = effectiveHandle;
@@ -66,7 +73,7 @@ export default function MessagesLink(): React.JSX.Element | null {
       const body = (await res.json()) as { conversations?: ConversationDTO[] };
       if (controller.signal.aborted || abortRef.current !== controller) return;
       const total = (body.conversations ?? []).reduce((sum, c) => sum + (c.unread || 0), 0);
-      setUnread(total);
+      setUnreadResult({ userId: user.id, handle: h, count: total });
     } catch {
       // aborted / offline — leave the badge as-is; the nav never breaks on this.
     } finally {
@@ -77,7 +84,7 @@ export default function MessagesLink(): React.JSX.Element | null {
   useEffect(() => {
     // Never setState synchronously in the effect body (react-hooks/set-state-in-effect).
     if (!user) {
-      void Promise.resolve().then(() => setUnread(0));
+      void Promise.resolve().then(() => setUnreadResult(null));
       return;
     }
     const stop = subscribeVisiblePolling(() => void refresh(), POLL_MS, () => abortRef.current?.abort());

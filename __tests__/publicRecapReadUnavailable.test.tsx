@@ -32,7 +32,7 @@ vi.mock("next/og", () => ({
   },
 }));
 
-type TableAnswer = { data: unknown; error: { message: string } | null };
+type TableAnswer = { data: unknown; error: { message: string; code?: string } | null };
 
 const store = vi.hoisted(() => ({
   configured: true,
@@ -46,7 +46,7 @@ function chainFor(table: string) {
   store.asked.push(table);
   const answer = store.answers.get(table) ?? { data: [], error: null };
   const chain: Record<string, unknown> = {};
-  for (const method of ["select", "eq", "in", "order", "limit", "maybeSingle", "single"]) {
+  for (const method of ["select", "eq", "in", "contains", "order", "limit", "maybeSingle", "single"]) {
     chain[method] = () => chain;
   }
   chain.then = (resolve: (value: TableAnswer) => unknown, reject: (reason: unknown) => unknown) =>
@@ -187,6 +187,27 @@ describe("the store read has three answers", () => {
     store.answers.set("night_story_contributors", { data: null, error: OUTAGE });
     await expect(readPublishedRecapSource(STORY_ID)).resolves.toEqual({ status: "unavailable" });
     // Refused before a single Moment was read.
+    expect(store.asked).not.toContain("night_moments");
+  });
+
+  it("answers unavailable when the account-deletion ledger read failed", async () => {
+    // A deleted guest's contributor rows are gone with their account (0198),
+    // so the ledger is the only record of whom to redact. Not reading it is
+    // not the same as nobody having left.
+    seedPublishedStory();
+    store.answers.set("account_retention_ledger", { data: null, error: OUTAGE });
+    await expect(readPublishedRecapSource(STORY_ID)).resolves.toEqual({ status: "unavailable" });
+    expect(store.asked).not.toContain("night_moments");
+  });
+
+  it.each(["42703", "PGRST204"])("answers unavailable without the departure columns (%s)", async (code) => {
+    seedPublishedStory();
+    store.answers.set("account_retention_ledger", {
+      data: null,
+      error: { code, message: "column account_retention_ledger.night_story_ids does not exist" },
+    });
+    await expect(readPublishedRecapSource(STORY_ID)).resolves.toEqual({ status: "unavailable" });
+    await expect(readNightStory(STORY_ID, null)).resolves.toEqual({ status: "unavailable" });
     expect(store.asked).not.toContain("night_moments");
   });
 

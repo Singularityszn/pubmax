@@ -19,6 +19,11 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
 import { useCrawlOfflinePack } from "@/components/plan/useCrawlOfflinePack";
+import { useAuth } from "@/components/auth/AuthProvider";
+import PlanNightPresentation, { MysteryGlanceLine, MysteryStopTitle, PlanMysteryControls } from "@/components/plan/PlanNightPresentation";
+import PlanNightClues from "@/components/plan/PlanNightClues";
+import PlanTableBeacon from "@/components/plan/PlanTableBeacon";
+import { planNightRefreshKey, planVisitedRevealPositions } from "@/lib/planPresentation";
 import type { CrewMemberDTO, CrewPresenceStatus } from "@/lib/crew";
 import type { PlanState } from "@/lib/plan";
 import { isPlanPreviewProjection, type PlanPrivacyPreviewDTO } from "@/lib/planPrivacy";
@@ -86,6 +91,8 @@ function initial(name: string): string {
 }
 
 export default function NightCrawlMode({ planId, initialState }: { planId: string; initialState: PlanState }) {
+  const { user, accountRevision } = useAuth();
+  const ownerKey = `${user?.id ?? "guest"}:${accountRevision ?? 0}`;
   const collapseKey = `pubmax:night-crawl-collapsed:${planId}`;
   const [plan, setPlan] = useState<PlanState>(initialState);
   const [optimistic, setOptimistic] = useState<Record<number, NightCrawlActionType>>({});
@@ -315,6 +322,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
     };
   }, [activeNow, planId, capabilitySnapshot, initialState]);
 
+  const visitedPositions = planVisitedRevealPositions(plan);
   const stops = plan.stops;
   useCrawlOfflinePack(stops.map((stop) => stop.venueId));
   const stack = useMemo(
@@ -336,95 +344,93 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
     .filter((entry): entry is { member: CrewMemberDTO; chip: NonNullable<(typeof CREW_CHIP)[CrewPresenceStatus]> } => Boolean(entry.chip))
     .slice(0, 5);
 
-  const runAction = useCallback(
-    async (type: NightCrawlActionType) => {
-      if (busy || !hero || !canUpdatePlan) return;
-      const stopPosition = hero.position;
-      const heroName = hero.venueName;
-      const previousCursor = cursor;
-      setBusy(type);
-      setNote(null);
-      // Optimistic: the done row marks and the cursor advances on the same frame.
-      const optimisticState = { ...optimistic, [stopPosition]: type };
-      const optimisticCursor = advanceNightCrawl(cursor, stops.length);
-      setOptimistic(optimisticState);
-      setActivePlanStopIndex(optimisticCursor);
+  const runAction = async (type: NightCrawlActionType) => {
+    if (busy || !hero || !canUpdatePlan) return;
+    const stopPosition = hero.position;
+    const heroName = hero.venueName;
+    const previousCursor = cursor;
+    setBusy(type);
+    setNote(null);
+    // Optimistic: the done row marks and the cursor advances on the same frame.
+    const optimisticState = { ...optimistic, [stopPosition]: type };
+    const optimisticCursor = advanceNightCrawl(cursor, stops.length);
+    setOptimistic(optimisticState);
+    setActivePlanStopIndex(optimisticCursor);
 
-      const reconcile = (
-        outcome: ReturnType<typeof classifyActionOutcome>,
-        queued = false,
-      ) => {
-        const settled = reconcileNightCrawlAction({
-          outcome,
-          type,
-          venueName: heroName,
-          stopPosition,
-          previousCursor,
-          optimisticCursor,
-          optimistic: optimisticState,
-          queued,
-        });
-        setOptimistic(settled.optimistic);
-        if (settled.cursor !== previousCursor || readActivePlan()?.stopIndex === optimisticCursor) {
-          setActivePlanStopIndex(settled.cursor);
-        }
-        setNote(settled.note);
-      };
-
-      const capability = parsePlanCapabilitySnapshot(readPlanCapabilitySnapshot(planId));
-      if (!capability.token || !capability.collaborationAuthorized) {
-        reconcile("forbidden");
-        setBusy(null);
-        return;
+    const reconcile = (
+      outcome: ReturnType<typeof classifyActionOutcome>,
+      queued = false,
+    ) => {
+      const settled = reconcileNightCrawlAction({
+        outcome,
+        type,
+        venueName: heroName,
+        stopPosition,
+        previousCursor,
+        optimisticCursor,
+        optimistic: optimisticState,
+        queued,
+      });
+      setOptimistic(settled.optimistic);
+      if (settled.cursor !== previousCursor || readActivePlan()?.stopIndex === optimisticCursor) {
+        setActivePlanStopIndex(settled.cursor);
       }
+      setNote(settled.note);
+    };
 
-      const scope = nightCrawlIdempotencyScope(planId, type, stopPosition);
-      const payload = nightCrawlActionPayload(type, hero);
-      const key = await persistentPlanMutationKey(scope, payload);
-      // Fingerprint aligns with the idempotency key scope: same tap, same key.
-      const print = `${scope}:${JSON.stringify(payload)}`;
-
-      // Persist intent before the network attempt so reload can replay.
-      let queued = false;
-      try {
-        await enqueueNightCrawlAction({
-          planId,
-          type,
-          stop: hero,
-          idempotencyKey: key,
-          fingerprint: print,
-          previousCursor,
-          optimisticCursor,
-        });
-        queued = true;
-      } catch {
-        queued = false;
-      }
-
-      const flushResults = await flushPlanMutationOutbox({ planId });
-      const mine = flushResults.find((row) => row.entryId === scope);
-      if (mine?.outcome === "confirmed") {
-        clearPersistentPlanMutationKey(scope, key);
-        if (mine.plan) setPlan(mine.plan);
-        reconcile("confirmed");
-        handOffConfirmedStop(mine.plan, stopPosition);
-        setBusy(null);
-        return;
-      }
-      if (mine?.outcome === "forbidden" || mine?.outcome === "rejected" || mine?.outcome === "conflict") {
-        clearPersistentPlanMutationKey(scope, key);
-        reconcile(mine.outcome === "conflict" ? "rejected" : mine.outcome);
-        setBusy(null);
-        return;
-      }
-
-      // Offline or still pending in the outbox.
-      const stillQueued = queued && hasPendingPlanMutation(planId, scope);
-      reconcile("offline", stillQueued);
+    const capability = parsePlanCapabilitySnapshot(readPlanCapabilitySnapshot(planId));
+    if (!capability.token || !capability.collaborationAuthorized) {
+      reconcile("forbidden");
       setBusy(null);
-    },
-    [busy, hero, cursor, stops, canUpdatePlan, planId, optimistic, handOffConfirmedStop],
-  );
+      return;
+    }
+
+    const scope = nightCrawlIdempotencyScope(planId, type, stopPosition);
+    const payload = nightCrawlActionPayload(type, hero, Number(plan.plan.routeRevision ?? 1));
+    const key = await persistentPlanMutationKey(scope, payload);
+    // Fingerprint aligns with the idempotency key scope: same tap, same key.
+    const print = `${scope}:${JSON.stringify(payload)}`;
+
+    // Persist intent before the network attempt so reload can replay.
+    let queued = false;
+    try {
+      await enqueueNightCrawlAction({
+        planId,
+        type,
+        stop: hero,
+        expectedRouteRevision: Number(plan.plan.routeRevision ?? 1),
+        idempotencyKey: key,
+        fingerprint: print,
+        previousCursor,
+        optimisticCursor,
+      });
+      queued = true;
+    } catch {
+      queued = false;
+    }
+
+    const flushResults = await flushPlanMutationOutbox({ planId });
+    const mine = flushResults.find((row) => row.entryId === scope);
+    if (mine?.outcome === "confirmed") {
+      clearPersistentPlanMutationKey(scope, key);
+      if (mine.plan) setPlan(mine.plan);
+      reconcile("confirmed");
+      handOffConfirmedStop(mine.plan, stopPosition);
+      setBusy(null);
+      return;
+    }
+    if (mine?.outcome === "forbidden" || mine?.outcome === "rejected" || mine?.outcome === "conflict") {
+      clearPersistentPlanMutationKey(scope, key);
+      reconcile(mine.outcome === "conflict" ? "rejected" : mine.outcome);
+      setBusy(null);
+      return;
+    }
+
+    // Offline or still pending in the outbox.
+    const stillQueued = queued && hasPendingPlanMutation(planId, scope);
+    reconcile("offline", stillQueued);
+    setBusy(null);
+  };
 
   if (!activeNow) return null;
 
@@ -451,6 +457,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
   };
 
   return (
+    <PlanNightPresentation planId={planId} memberToken={memberToken ?? ""} ownerKey={ownerKey} revision={Number(plan.plan.routeRevision ?? 1)}>
     <section className="nightCrawl" aria-label="Night mode" role="dialog" aria-modal="false">
       <div className="nightCrawl__head">
         <div className="nightCrawl__headText">
@@ -496,14 +503,14 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
             return (
               <div key={`hero-${view.stop.venueId}`} className="nightCrawl__hero">
                 <div className="nightCrawl__glance" aria-label="Tonight at a glance">
-                  <p className="nightCrawl__glanceNow">{glance.currentLine}</p>
-                  {glance.nextLine ? <p className="nightCrawl__glanceNext">{glance.nextLine}</p> : null}
+                  <p className="nightCrawl__glanceNow"><MysteryGlanceLine venueId={hero?.venueId} position={heroPosition} alreadyVisited={visitedPositions.includes(heroPosition)}>{glance.currentLine}</MysteryGlanceLine></p>
+                  {glance.nextLine ? <p className="nightCrawl__glanceNext"><MysteryGlanceLine venueId={nextStop?.venueId} position={heroPosition + 1} alreadyVisited={visitedPositions.includes(heroPosition + 1)}>{glance.nextLine}</MysteryGlanceLine></p> : null}
                   <a className="nightCrawl__glanceHome" href={TFL_JOURNEY_PLANNER} target="_blank" rel="noreferrer">
                     {glance.homeLine}
                   </a>
                 </div>
                 <p className="nightCrawl__eyebrow">{finalStop ? "Last stop · head here" : "Next up · head here"}</p>
-                <h2 className="nightCrawl__heroName">{view.stop.venueName}</h2>
+                <h2 className="nightCrawl__heroName"><MysteryStopTitle venueId={view.stop.venueId} name={view.stop.venueName} position={view.stop.position} alreadyVisited={visitedPositions.includes(view.stop.position)} /></h2>
 
                 {crewChips.length > 0 ? (
                   <div className="nightCrawl__crew">
@@ -554,11 +561,20 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
           return (
             <div key={`up-${view.stop.venueId}`} className="nightCrawl__upcoming">
               <span className="nightCrawl__mark" aria-hidden="true">{view.index + 1}</span>
-              <div className="nightCrawl__upcomingName">{view.stop.venueName}</div>
+              <div className="nightCrawl__upcomingName"><MysteryStopTitle venueId={view.stop.venueId} name={view.stop.venueName} position={view.stop.position} alreadyVisited={visitedPositions.includes(view.stop.position)} /></div>
             </div>
           );
         })}
 
+        {/* The current stop's actions come first: the table beacon and the
+            clues sit below the route so they never push We are here and
+            Skip it under the pinned Get me home on a short phone. */}
+        <PlanTableBeacon planId={planId} memberToken={memberToken} ownerKey={ownerKey} refreshKey={planNightRefreshKey(plan)} />
+        <details className="nightCrawl__extras">
+          <summary>Clues and mystery stops</summary>
+          <PlanMysteryControls />
+          <PlanNightClues planId={planId} ownerKey={ownerKey} stops={stops} />
+        </details>
         {stops.length === 0 ? (
           <p className="nightCrawl__final">This plan has no stops yet. Open the full plan to build the route.</p>
         ) : null}
@@ -569,5 +585,6 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
         <small>last train or a cab</small>
       </a>
     </section>
+    </PlanNightPresentation>
   );
 }

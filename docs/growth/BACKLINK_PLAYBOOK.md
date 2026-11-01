@@ -14,7 +14,7 @@ That record is dated, so this file is the live one.
 | --- | --- | --- |
 | `/press` (`app/press/page.tsx`) | 13 to 19, 24 to 26, 50 to 55, 60 | Findings as whole sentences, the sample, the method, stable links, a credit line, embed code for the edition's summary card and the contact for journalists. |
 | `lib/citableFindings.ts` | 15, 17 | Writes each finding from a Pint Index snapshot. It writes nothing below the admission floor. |
-| `/pub-crawl-cost` (`app/pub-crawl-cost/`) | 38 to 43 | A free calculator on a permanent page: cost for each person, and who buys an extra round. |
+| `/pub-crawl-cost` (`app/pub-crawl-cost/`) | 38 to 43 | A free calculator on a permanent page. See its [calculation guide](https://pubmaxxing.com/pub-crawl-cost#how). |
 | `lib/crawlCostCalculator.ts` | 39, 41 | The sums, in whole pence. `__tests__/crawlCostCalculator.test.ts` tests normal and unusual inputs. |
 | `/pint-index/YYYY-MM` | 18 | Dated editions do not change after they go up. `/press` cites the newest edition that clears the floor. |
 | `docs/growth/backlinks/ledger.csv` | 5, 27, 34, 45 | One row for each pitch, request, placed link and recovered link. |

@@ -9,10 +9,12 @@
 // nothing when no mate has logged here, and nothing on any failed read: an
 // absence is never worded, so there is no "Unknown" and no empty frame.
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
+import { useAuth } from "@/components/auth/authContext";
 import { useViewerSession } from "@/components/auth/useViewerSession";
-import { authedFetch } from "@/lib/authedFetch";
+import { readProviderAccountRevision, readProviderAccountSignal, subscribeProviderIdentityRevision } from "@/lib/authProviderRevision";
+import { signedInActionFetch } from "@/lib/authedFetch";
 import { cleanDrinkMeasure } from "@/lib/drinkMeasure";
 import { formatGbp } from "@/lib/formatGbp";
 import {
@@ -59,31 +61,40 @@ function readPrices(body: unknown): MatesPrice[] {
 
 export default function MatesPricesLine({ venueId }: Props) {
   const { signedIn } = useViewerSession();
-  const [answer, setAnswer] = useState<{ venueId: string; prices: MatesPrice[] } | null>(null);
+  const { identityResolved } = useAuth();
+  const accountRevision = useSyncExternalStore(subscribeProviderIdentityRevision, readProviderAccountRevision, () => 0);
+  const [answer, setAnswer] = useState<{ venueId: string; accountRevision: number; prices: MatesPrice[] } | null>(null);
 
   useEffect(() => {
-    if (!signedIn || !venueId) return;
+    if (!signedIn || !identityResolved || !venueId || readProviderAccountRevision() !== accountRevision) return;
     const controller = new AbortController();
-    void authedFetch(
+    const accountSignal = readProviderAccountSignal();
+    const abort = () => controller.abort();
+    accountSignal.addEventListener("abort", abort, { once: true });
+    const live = () => !controller.signal.aborted && !accountSignal.aborted && readProviderAccountRevision() === accountRevision;
+    void signedInActionFetch(
       `/api/mates-prices?venueId=${encodeURIComponent(venueId)}`,
       { credentials: "same-origin", cache: "no-store", signal: controller.signal },
-      { requiresIdentity: true },
     )
       .then(async (response) => {
-        if (!response.ok) {
+        if (!response) return;
+        if (!live() || !response.ok) {
           discardBody(response);
           return;
         }
         const prices = readPrices(await response.json());
-        if (!controller.signal.aborted) setAnswer({ venueId, prices });
+        if (live()) setAnswer({ venueId, accountRevision, prices });
       })
       .catch(() => {
         // Fail-soft: no line is the honest answer to a read that did not land.
       });
-    return () => controller.abort();
-  }, [venueId, signedIn]);
+    return () => {
+      accountSignal.removeEventListener("abort", abort);
+      controller.abort();
+    };
+  }, [venueId, signedIn, identityResolved, accountRevision]);
 
-  if (!signedIn || !answer || answer.venueId !== venueId) return null;
+  if (!signedIn || !identityResolved || !answer || answer.venueId !== venueId || answer.accountRevision !== accountRevision) return null;
   const now = new Date();
   const facts = answer.prices.flatMap((price) => {
     const day = matesPriceDay(price.loggedAt, now);

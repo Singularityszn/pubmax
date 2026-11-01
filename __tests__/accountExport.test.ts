@@ -901,9 +901,11 @@ const STORE_EXPORT_COVERAGE: Record<string, ExportCoverage> = {
     excluded:
       "A With tag is a consent record between two accounts: the proposal names another person and the approval is that person's, so no row here is this caller's alone.",
   },
+  "lib/planBeaconStore.ts": { excluded: "An expiring table sign belongs to a shared Plan and can contain another member's private note, not this account's data." },
   "lib/planCollaborationStore.ts": { excluded: "A Plan is shared: its crew rows name other people." },
   "lib/planGroupPrefsStore.ts": { excluded: "Group preferences on a shared Plan, named by other members." },
   "lib/planInviteRsvpStore.ts": { excluded: "RSVPs on a shared Plan, named by other members." },
+  "lib/planPresentationStore.ts": { excluded: "Mystery settings belong to a shared Plan and its host member capability, not an account. Device reveals are not stored here." },
   "lib/planStore.ts": { excluded: "A Plan is shared with the crew that joined it, so its rows are not one account's to take away." },
   "lib/presenceStore.ts": { excluded: "Ambient presence expires within the night and is never a durable record." },
   "lib/priceTrustEventStore.ts": {
