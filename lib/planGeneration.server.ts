@@ -36,7 +36,6 @@ import {
 	planPriceLimits,
 	planPriceSubjectText,
 } from "@/lib/planPriceLimits";
-import { paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
 import { isLimited } from "@/lib/pintDrops";
 import { reconcilePlanContext } from "@/lib/planGenerationContext";
 import { selectedDrinkPriceEvidenceForPrice } from "@/lib/planSelectedDrinkPriceEvidence";
@@ -484,8 +483,6 @@ export async function preparePlanGeneration(
 			{ details: { nightArea: area.slug } },
 		) };
 	}
-	const budgetRefusal = await paidSpendBudgetRefusal("plan-generate");
-	if (budgetRefusal) return { response: budgetRefusal };
 	const tonightByVenue = new Map<string, WhatsOnRow[]>();
 	for (const row of tonightRows) {
 		if (!row.venueId) continue;

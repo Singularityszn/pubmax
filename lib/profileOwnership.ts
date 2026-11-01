@@ -9,7 +9,11 @@
 // whether the write may proceed.
 //
 // Rules:
-//   • An existing unlinked legacy profile is frozen against account ownership.
+//   • A deleted account's retained row answers 404. A retired alias answers 409
+//     when no row exists or an unowned row collides with another profile's alias.
+//     Both refusals apply to every caller, including the alias owner.
+//     `requireAccountOwner` refuses non-owners with 403 before these checks.
+//   • An existing live, unlinked, non-reserved legacy profile is frozen against account ownership.
 //     It keeps the anonymous demo path, but an authenticated write cannot claim
 //     it. A genuinely new handle can still be created and linked. That demo path
 //     grants no VERIFIED ACTOR, so a write whose record has to be attributable
@@ -23,9 +27,10 @@
 
 import { withdrawnHandles } from "@/lib/accountPublicAccess.server";
 import { callerUserId } from "@/lib/authServer";
+import { identityHandleStore } from "@/lib/identityHandleStore";
 import { assessPubmaxxHandle } from "@/lib/pubmaxxIdentity";
 import { normalizeHandle } from "@/lib/profiles";
-import { profileStore } from "@/lib/profileStore";
+import { isProfileTombstoned, profileStore } from "@/lib/profileStore";
 
 export type OwnershipDecision =
   | { allowed: true; reason: "unlinked" | "owner" }
@@ -40,12 +45,14 @@ type HandleActionIntent = "read" | "write" | "delete";
 const NOT_OWNER_ERROR =
   "This handle belongs to a signed-in account. Sign in as its owner to continue.";
 
+const HANDLE_NOT_AVAILABLE_ERROR = "That handle is not available.";
+
 export type HandleActionOptions = {
   /**
    * Messages and notifications reads. An unowned row and a tombstone (the
    * owner column cleared on account deletion) are the same refusal as a
-   * handle owned by somebody else. The demo path stays open for every other
-   * caller.
+   * handle owned by somebody else. The rules above govern demo access when this
+   * option is absent.
    */
   requireAccountOwner?: boolean;
 };
@@ -106,8 +113,9 @@ export function gateHasVerifiedActor(gate: HandleActionGate): boolean {
  * link a genuinely new handle. Reads and deletes never claim ownership.
  *
  * Unlinked, non-reserved handles keep the demo path. Linked handles require the
- * matching signed-in owner. Fail-closed on store errors so an outage cannot open
- * a linked handle to anonymous writes.
+ * matching signed-in owner. A deleted account's tombstone answers 404 and a
+ * retired alias 409, because both are held. Fail-closed on store errors so an
+ * outage cannot open a linked handle to anonymous writes.
  *
  * A route that already verified the bearer passes `verifiedUserId` so the JWT
  * is checked once per request rather than once per gate. Omitting it keeps the
@@ -155,6 +163,17 @@ export async function gateHandleAction(
         error: NOT_OWNER_ERROR,
       };
     }
+    // A deleted account keeps its row so its handle stays reserved, and the FK
+    // clears the owner. That row is nobody's to write or read through a handle
+    // gate: not the demo lane's and not a new account's (audit finding
+    // lib/profileOwnership:gateHandleAction-unlinked-lane-ignores-tombstone-and-retired-alias).
+    if (isProfileTombstoned(existing)) {
+      return {
+        allowed: false,
+        status: 404,
+        error: "Profile not found.",
+      };
+    }
     // Reserved contributor handles stay blocked for new claims and hijacks, but
     // a signed-in owner saving their own current handle must succeed idempotently.
     // A linked handle taken by someone else is a 403, not a reserved 409.
@@ -167,6 +186,16 @@ export async function gateHandleAction(
           error: assessment.error,
         };
       }
+    }
+    const aliasProfileId = !rowUserId
+      ? await identityHandleStore().aliasProfileId(key)
+      : null;
+    if (aliasProfileId && aliasProfileId !== existing?.id) {
+      return {
+        allowed: false,
+        status: 409,
+        error: HANDLE_NOT_AVAILABLE_ERROR,
+      };
     }
     const linkNewHandle = handleActionIntent(request.method) === "write";
     if (
@@ -208,7 +237,7 @@ export async function gateHandleAction(
           return {
             allowed: false,
             status: 409,
-            error: "That handle is not available.",
+            error: HANDLE_NOT_AVAILABLE_ERROR,
           };
         }
         throw err;

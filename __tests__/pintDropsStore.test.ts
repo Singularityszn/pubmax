@@ -728,6 +728,23 @@ describe("rename-safe author reads", () => {
     ).resolves.toEqual(["venue-1pfnt71", "venue-eltcmh"]);
   });
 
+  it("keeps renamed anonymous drops private while the current owner can export them", async () => {
+    await renamedAuthor();
+    authored("old-anonymous", "venue-eltcmh", OLD, "anonymous", "2026-01-03T00:00:00.000Z");
+    authored("new-anonymous", "venue-1pfnt71", NEW, "anonymous", "2026-02-02T00:00:00.000Z");
+
+    for (const requested of [OLD, NEW]) {
+      for (const viewer of [undefined, { handle: OLD }, { handle: OTHER }]) {
+        const visible = await memoryPintDropStore.listVisible(undefined, viewer, requested, null);
+        expect(visible.map((entry) => entry.id).sort()).toEqual(["new-public", "old-public"]);
+      }
+      const own = await memoryPintDropStore.listVisible(undefined, { handle: NEW }, requested, null);
+      expect(own.map((entry) => entry.id).sort()).toEqual([
+        "new-anonymous", "new-public", "old-anonymous", "old-friends", "old-public",
+      ]);
+    }
+  });
+
   it("never gives the old drops to a different account", async () => {
     await renamedAuthor();
 

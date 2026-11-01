@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, useRef, type ReactNode } from "react";
+import { act, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
@@ -13,18 +13,6 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/map",
   useRouter: () => ({ prefetch: vi.fn(), push: vi.fn() }),
 }));
-vi.mock("next/link", async () => {
-  const { forwardRef, createElement } = await import("react");
-  return {
-    useLinkStatus: () => ({ pending: false }),
-    default: forwardRef<HTMLAnchorElement, { href: string; children: ReactNode; prefetch?: boolean }>(
-      function Link({ href, children, prefetch: _prefetch, ...props }, ref) {
-        void _prefetch;
-        return createElement("a", { href, ref, ...props }, children);
-      },
-    ),
-  };
-});
 vi.mock("@/components/nav/MessagesLink", () => ({ default: () => null }));
 vi.mock("@/components/nav/NotificationBell", () => ({ default: () => null }));
 vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
@@ -135,11 +123,9 @@ it("isolates the palette over navigation and portalled More, then restores the h
   const opener = control<HTMLButtonElement>(".siteNavCmdk");
   expect(opener.closest("[inert]")).toBeNull();
   await act(async () => { opener.focus(); opener.click(); });
-  // Wait for the real lazy chunk, including cold coverage transforms.
-  await vi.waitFor(async () => {
-    await act(async () => { await Promise.resolve(); });
-    expect(document.querySelector('[aria-label="Search commands"]')).not.toBeNull();
-  }, { timeout: 5_000 });
+  // Keep the real chunk's completion inside act, including cold transforms.
+  await act(async () => { await import("@/components/command/CommandPalette"); });
+  expect(document.querySelector('[aria-label="Search commands"]')).not.toBeNull();
   await act(async () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
   const input = control<HTMLInputElement>('[aria-label="Search commands"]');
   expect(document.activeElement).toBe(input);

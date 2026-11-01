@@ -26,7 +26,7 @@ import "./pub-crawl-cost.css";
 const SITE_URL = "https://pubmaxxing.com";
 const PAGE_TITLE = "Pub crawl cost calculator";
 const PAGE_DESCRIPTION =
-  "Work out what a pub crawl costs each person, and who buys an extra round when you split it in rounds.";
+  "Work out what a pub crawl costs each person when your group takes turns buying rounds.";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -79,7 +79,7 @@ export default async function PubCrawlCostPage() {
         <h1 className="legalTitle">Pub crawl cost calculator</h1>
         <p className="legalLede">
           Enter your group, your pubs and the price of a drink. See the cost for
-          each person, and who buys an extra round.
+          each person and the difference between taking turns and splitting the bill.
         </p>
       </header>
 
@@ -95,7 +95,8 @@ export default async function PubCrawlCostPage() {
           rounds is the number of pubs times the drinks each person has at each
           pub. When the rounds do not divide evenly by the group, some people buy
           one more round than the others. The calculator shows how many people
-          that is, what it costs them, and how many more rounds make it even.
+          that is and the difference in their spending. It compares only the
+          drinks you entered. Split the bill to balance what each person pays.
         </p>
         <p className="legalBody">
           It works in whole pence, so the totals add up exactly. It does not know

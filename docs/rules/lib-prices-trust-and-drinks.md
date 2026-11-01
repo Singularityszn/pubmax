@@ -50,6 +50,8 @@ Moved from [`lib/AGENTS.md`](../../lib/AGENTS.md). Authoritative policy detail l
 
 - **The Ledger waits for the public pint read before showing an estimate.** Its **Price record** uses `venuePriceLane` for price precedence and the selected price for its historical comparison. Published prices and public pint reports remain separate, each with its source and date. A public report retains its drink, pint serving and age warning, and hides the fallback estimate.
 
+  The selected listed row supplies its price, publisher, source URL and source-read date together. Publisher disclosure follows the [voice rule](../VOICE.md#the-mission-said-plainly).
+
   A standalone estimate appears only after a successful read confirms that no public pint report exists. The shared cached server document never displays the estimate. Without another price, an unfinished read shows **Checking the price record**. Without another price, a failed read shows an unavailable message and **Try again**, without an estimate or an absence claim. A successful retry can reveal an estimate when no public report exists. Published prices remain visible during these reads.
 
   A standalone estimate shows `est. £X` and explains that it is modelled, not a quote. It gives its basis, published price sample count, calculation date and a link to the [estimate method](https://pubmaxxing.com/how-we-estimate). The implementation is in `components/ledger/LedgerLive.tsx`. The rendered checks in `__tests__/ledgerPriceRecord.test.tsx` cover the server document, a delayed report, and a failed read followed by a successful empty retry.

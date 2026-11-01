@@ -79,8 +79,10 @@ export async function POST(
 
   // Rate-limit per follower + hashed IP so the follow graph can't be spammed.
   const key = `follow:${follower}:${hashIp(clientIp(request))}`;
-  if (await isLimited(follower, key)) {
-    return publicApiError("Too many follow changes, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  if (await isLimited(key, key)) {
+    return publicApiError("Too many follow changes, slow down.", "RATE_LIMITED", 429, {
+      retryable: true, headers: { "Retry-After": "60" },
+    });
   }
 
   if (requiresSupabaseStore() && !isSupabaseConfigured()) {

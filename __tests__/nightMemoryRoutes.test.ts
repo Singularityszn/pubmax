@@ -10,7 +10,7 @@ const storeCalls = vi.hoisted(() => ({
 }));
 const authState = vi.hoisted(() => ({
   verification: "normal" as "normal" | "unavailable" | "invalid" | "banned",
-  localOnlyCalls: 0,
+  deletedAccountCalls: 0,
 }));
 
 vi.mock("@/lib/nightMomentMedia", async (importOriginal) => {
@@ -53,8 +53,8 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   return { ...actual, isSupabaseConfigured: () => false };
 });
 vi.mock("@/lib/authServer", () => ({
-  verifyCallerAuth: async (request: Request, options?: { localOnly?: boolean }) => {
-    if (options?.localOnly) authState.localOnlyCalls += 1;
+  verifyCallerAuth: async (request: Request, options?: { allowDeletedAccount?: boolean }) => {
+    if (options?.allowDeletedAccount) authState.deletedAccountCalls += 1;
     if (authState.verification === "unavailable") return { status: "unavailable" };
     if (authState.verification === "invalid") return { status: "invalid" };
     if (authState.verification === "banned") return { status: "banned" };
@@ -112,7 +112,7 @@ describe("Night Memory HTTP contract", () => {
     storeCalls.listMemories = 0;
     storeCalls.listMoments = 0;
     authState.verification = "normal";
-    authState.localOnlyCalls = 0;
+    authState.deletedAccountCalls = 0;
   });
 
   it("returns retryable no-store 503 for Auth outage on all Memory and Moment methods before writes", async () => {
@@ -151,7 +151,7 @@ describe("Night Memory HTTP contract", () => {
     expect(storeCalls.listMemories).toBe(0);
     expect(storeCalls.listMoments).toBe(0);
     expect(uploadState.calls).toBe(0);
-    expect(authState.localOnlyCalls).toBe(0);
+    expect(authState.deletedAccountCalls).toBe(0);
   });
 
   it.each(["absent", "invalid", "banned"] as const)("keeps %s identity refusals at 401 across Memory and Moment methods", async (identityState) => {
@@ -189,7 +189,7 @@ describe("Night Memory HTTP contract", () => {
     expect(storeCalls.listMemories).toBe(0);
     expect(storeCalls.listMoments).toBe(0);
     expect(uploadState.calls).toBe(0);
-    expect(authState.localOnlyCalls).toBe(0);
+    expect(authState.deletedAccountCalls).toBe(0);
   });
 
   it("requires an account and creates only a private Memory", async () => {

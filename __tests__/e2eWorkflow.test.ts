@@ -67,6 +67,8 @@ describe("browser CI policy", () => {
     for (const spec of [
       "e2e/smoke.spec.ts",
       "e2e/map-surface-history.spec.ts",
+      "e2e/ux-click-recovery.spec.ts",
+      "e2e/seo-audit-discovery.spec.ts",
     ]) {
       expect(run).toContain(spec);
     }

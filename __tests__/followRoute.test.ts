@@ -35,6 +35,7 @@ import { followOnce } from "@/lib/followWrite.server";
 import { followStore, __resetMemoryFollows } from "@/lib/followStore";
 import { __resetMemoryNotifications } from "@/lib/notificationsStore";
 import { normalizeHandle } from "@/lib/profiles";
+import { isRateLimited } from "@/lib/pintDrops";
 import {
   memoryProfileStore,
   __resetMemoryProfiles,
@@ -114,6 +115,30 @@ describe("shared follow write target guard", () => {
 });
 
 describe("POST /api/profiles/[handle]/follow", () => {
+  it("keeps the follow allowance separate from other handle actions", async () => {
+    const handle = "followbudget";
+    await memoryProfileStore.createOwned(handle, "user-followbudget");
+    asUser("user-followbudget");
+    for (let index = 0; index < 8; index += 1) isRateLimited(handle);
+
+    const response = await follow("sam", { follower: handle });
+    expect(response.status).toBe(200);
+    expect(await followStore().isFollowing(handle, "sam")).toBe(true);
+  });
+
+  it("still limits repeated follow changes and supplies a retry delay", async () => {
+    const handle = "followquota";
+    await memoryProfileStore.createOwned(handle, "user-followquota");
+    asUser("user-followquota");
+    for (let index = 0; index < 8; index += 1) {
+      expect((await follow("sam", { follower: handle })).status).toBe(200);
+    }
+    const response = await follow("sam", { follower: handle });
+    expect(response.status).toBe(429);
+    expect(response.headers.get("Retry-After")).toBe("60");
+    expect(await followStore().isFollowing(handle, "sam")).toBe(true);
+  });
+
   it("blocks follow writes during the full Social rollback", async () => {
     process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH = "0";
     asUser("user-ken");

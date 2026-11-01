@@ -34,6 +34,7 @@ vi.mock("@/lib/storeBackend", async (importOriginal) => ({
         };
         const thenable = {
           eq: () => thenable,
+          is: () => thenable,
           select: () => thenable,
           limit: () => Promise.resolve(result),
         };

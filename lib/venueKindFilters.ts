@@ -1,17 +1,36 @@
 import type { Venue, VenueKind } from "@/lib/venues";
 
-export type CuratedVenueKind = "pub" | "bar" | "food" | "restaurant";
-export type VenueKindVisibility = Record<CuratedVenueKind, boolean>;
+export type CuratedVenueKind = "pub" | "bar" | "club" | "food" | "restaurant";
+export type VenueKindVisibility = Record<Exclude<CuratedVenueKind, "club">, boolean> & {
+  club?: boolean;
+  cafe?: boolean;
+  hotel_lounge?: boolean;
+  library?: boolean;
+  coworking?: boolean;
+  other?: boolean;
+};
 
 export function defaultVenueKindVisibility(): VenueKindVisibility {
-  return { pub: true, bar: true, food: true, restaurant: true };
+  return {
+    pub: true,
+    bar: true,
+    club: true,
+    food: true,
+    restaurant: true,
+    cafe: false,
+    hotel_lounge: false,
+    library: false,
+    coworking: false,
+    other: false,
+  };
 }
 
 export function toggleVenueKind(
   current: VenueKindVisibility,
   kind: CuratedVenueKind,
 ): VenueKindVisibility {
-  return { ...current, [kind]: !current[kind] };
+  const visible = kind === "club" ? (current.club ?? current.bar) : current[kind];
+  return { ...current, [kind]: !visible };
 }
 
 export function isPubVenueKind(kind: VenueKind | undefined): boolean {
@@ -115,29 +134,17 @@ export function venueKindNoun(kind: VenueKind | undefined): string {
 }
 
 /**
- * The map's kind filter offers the CURATED kinds only. A club keeps its own
- * label but shows and hides with the bars, because it is somewhere to drink and
- * has no chip of its own. A kind that arrived with the UK-wide OSM venue pack
- * answers null, so `filterVenuesByKind` leaves it out of a curated map view
- * rather than showing it under a toggle nobody can reach. Giving those kinds
- * their own surface is a separate wave.
+ * An absent kind retains Pub visibility. A missing Club choice follows Bars.
+ * Other missing choices stay hidden until the caller explicitly enables them.
  */
-function curatedVenueKind(
-  kind: VenueKind | undefined,
-): CuratedVenueKind | null {
-  if (kind === "bar" || kind === "food" || kind === "restaurant") return kind;
-  if (kind === "club") return "bar";
-  if (kind === undefined || kind === "pub") return "pub";
-  return null;
-}
-
 export function filterVenuesByKind(
   venues: Venue[],
   visibility: VenueKindVisibility,
 ): Venue[] {
   return venues.filter((venue) => {
-    const kind = curatedVenueKind(venue.kind);
-    return kind !== null && visibility[kind];
+    const kind = venue.kind === undefined ? "pub" : venue.kind;
+    if (kind === "club") return visibility.club ?? visibility.bar;
+    return visibility[kind] ?? false;
   });
 }
 
@@ -147,12 +154,13 @@ export function filterVenuesByKind(
  * The desktop chips live behind one Filters control, so the badge on the closed
  * control and the chips inside it must count the SAME set: a badge that counted
  * a kind the open panel never offers would say a filter is on over a control
- * nobody can reach. Every view offers all four curated kinds. The experience
+ * nobody can reach. Every view offers all five curated kinds. The experience
  * lens decides which venues qualify within those kinds.
  */
 const CURATED_VENUE_KIND_ORDER: readonly CuratedVenueKind[] = [
   "pub",
   "bar",
+  "club",
   "food",
   "restaurant",
 ];
@@ -170,8 +178,9 @@ export function hiddenVenueKindCount(
   visibility: VenueKindVisibility,
   experienceLens: string,
 ): number {
-  return offeredVenueKinds(experienceLens).filter((kind) => !visibility[kind])
-    .length;
+  return offeredVenueKinds(experienceLens).filter((kind) =>
+    kind === "club" ? !(visibility.club ?? visibility.bar) : !visibility[kind],
+  ).length;
 }
 
 /**

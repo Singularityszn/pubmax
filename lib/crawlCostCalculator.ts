@@ -46,8 +46,6 @@ export type CrawlCostResult = {
     buyingOneMore: number;
     /** The gap between the most and the least anyone pays. Zero when even. */
     gapPence: number;
-    /** Extra rounds that would make it even. Zero when it already is. */
-    roundsToEven: number;
   };
 };
 
@@ -101,7 +99,6 @@ export function calculateCrawlCost(input: CrawlCostInput): CrawlCostResult | Cra
       fewest,
       buyingOneMore,
       gapPence: buyingOneMore === 0 ? 0 : roundPence,
-      roundsToEven: buyingOneMore === 0 ? 0 : people - buyingOneMore,
     },
   };
 }

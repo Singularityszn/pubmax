@@ -15,12 +15,18 @@ import type { Venue } from "@/lib/venues";
 const venue = (id: string, kind?: Venue["kind"]) => ({ id, kind }) as Venue;
 
 describe("venueKindFilters", () => {
-  it("defaults every curated venue type on", () => {
+  it("defaults the five curated venue types on and the other five off", () => {
     expect(defaultVenueKindVisibility()).toEqual({
       pub: true,
       bar: true,
+      club: true,
       food: true,
       restaurant: true,
+      cafe: false,
+      hotel_lounge: false,
+      library: false,
+      coworking: false,
+      other: false,
     });
   });
 
@@ -36,8 +42,14 @@ describe("venueKindFilters", () => {
     expect(barsOff).toEqual({
       pub: true,
       bar: false,
+      club: true,
       food: true,
       restaurant: true,
+      cafe: false,
+      hotel_lounge: false,
+      library: false,
+      coworking: false,
+      other: false,
     });
     expect(
       filterVenuesByKind(
@@ -66,8 +78,14 @@ describe("venueKindFilters", () => {
     ).toEqual(["pub"]);
   });
 
-  it("shows clubs with the bars and keeps their club label", () => {
+  it("keeps current Clubs independent while legacy Clubs follow Bars", () => {
     const club = venue("club", "club");
+    const legacyVisibility = {
+      pub: true,
+      bar: true,
+      food: true,
+      restaurant: true,
+    };
     expect(filterVenuesByKind([club], defaultVenueKindVisibility())).toEqual([
       club,
     ]);
@@ -76,6 +94,10 @@ describe("venueKindFilters", () => {
         [club],
         toggleVenueKind(defaultVenueKindVisibility(), "bar"),
       ),
+    ).toEqual([club]);
+    expect(filterVenuesByKind([club], legacyVisibility)).toEqual([club]);
+    expect(
+      filterVenuesByKind([club], toggleVenueKind(legacyVisibility, "bar")),
     ).toEqual([]);
     expect(
       filterVenuesByKind(

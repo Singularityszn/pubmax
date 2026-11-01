@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 
-import { act, createElement, type ReactNode } from "react";
-import { createRoot } from "react-dom/client";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { act, createElement } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const fetchMock = vi.hoisted(() => vi.fn());
 const authState = vi.hoisted(() => ({
@@ -19,31 +19,38 @@ vi.mock("@/components/auth/AuthProvider", () => ({
 vi.mock("@/lib/useSocialFriendsLaunch", () => ({
   useSocialFriendsLaunch: () => true,
 }));
-vi.mock("next/link", () => ({
-  useLinkStatus: () => ({ pending: false }),
-  default: ({ href, children, ...props }: { href: string; children?: ReactNode }) =>
-    createElement("a", { href, ...props }, children),
-}));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ prefetch: vi.fn() }),
 }));
 
 import NotificationBell from "@/components/nav/NotificationBell";
 
-afterEach(() => {
+let host: HTMLDivElement | null = null;
+let root: Root | null = null;
+
+beforeEach(() => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+});
+
+afterEach(async () => {
+  await act(async () => root?.unmount());
+  host?.remove();
+  root = null;
+  host = null;
   fetchMock.mockReset();
   authState.user = null;
   authState.handle = "ken";
   window.localStorage.clear();
-  document.body.innerHTML = "";
+  vi.unstubAllGlobals();
 });
 
 async function mount(): Promise<void> {
-  const host = document.createElement("div");
+  host = document.createElement("div");
   document.body.appendChild(host);
-  const root = createRoot(host);
+  const mountedRoot = createRoot(host);
+  root = mountedRoot;
   await act(async () => {
-    root.render(createElement(NotificationBell));
+    mountedRoot.render(createElement(NotificationBell));
     await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();

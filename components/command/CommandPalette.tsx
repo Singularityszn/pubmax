@@ -113,6 +113,11 @@ export default function CommandPalette({
     (command: Command) => {
       const ctx: CommandContext = {
         navigate: (href) => {
+          // Planner arrival is read at mount, including when the map is open.
+          if (href === "/map?mode=build&plan=1" && window.location.pathname.startsWith("/map")) {
+            window.location.assign(href);
+            return;
+          }
           // Reopening the mounted map's picker must retain its camera and GPS
           // fix. Native history publishes the query to useSearchParams without
           // making a route request that can replace the map's document.

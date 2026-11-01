@@ -2,7 +2,7 @@
 
 import type { Route } from "next";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { CirclePlus } from "lucide-react";
 import { useSyncExternalStore } from "react";
 
@@ -16,6 +16,7 @@ import { PalSiteNavButton } from "@/components/nav/PalNavButton";
 import NotificationBell from "@/components/nav/NotificationBell";
 import SiteNavMore from "@/components/nav/SiteNavMore";
 import SignInButton from "@/components/auth/SignInButton";
+import { returnToFromLocation } from "@/components/nav/createFabActions";
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 import { useCommandPalette } from "@/components/command/CommandPaletteProvider";
 import {
@@ -118,6 +119,8 @@ function primaryKeyForLegacyActive(active?: NavKey): NavKey | undefined {
 export function SiteNavActions({ className = "siteNavActions" }: { className?: string }) {
   const ready = useClientReady();
   const pathname = usePathname() ?? "";
+  const router = useRouter();
+  const liveMomentHref = () => momentHref(returnToFromLocation(window.location, pathname));
   // Imperative handle onto the global ⌘K palette (feature N1) — the button below
   // opens it for pointer users who won't reach for the shortcut.
   const { open: openCommandPalette } = useCommandPalette();
@@ -140,6 +143,13 @@ export function SiteNavActions({ className = "siteNavActions" }: { className?: s
         className="siteNavMoment"
         aria-label="Share a Moment"
         title="Share a Moment"
+        onPointerDown={(event) => { event.currentTarget.href = liveMomentHref(); }}
+        onClick={(event) => { event.currentTarget.href = liveMomentHref(); }}
+        onContextMenu={(event) => { event.currentTarget.href = liveMomentHref(); }}
+        onNavigate={(event) => {
+          event.preventDefault();
+          router.push(liveMomentHref());
+        }}
       >
         <CirclePlus size={20} aria-hidden="true" />
       </Link>

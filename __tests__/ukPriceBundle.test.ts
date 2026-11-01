@@ -292,6 +292,17 @@ describe("which price a reader is handed for one pub and one drink", () => {
     expect(picked.listed?.observedAt).toBe("2026-09-01T00:00:00.000Z");
   });
 
+  it("keeps the publisher with the selected price, URL and read date", () => {
+    const stale = { ...listedRow("2026-06-01T00:00:00.000Z", 4.8), publisher: "Older publisher" };
+    const fresh = { ...listedRow("2026-09-01T00:00:00.000Z", 6.2), publisher: "Small Beer", sourceUrl: "https://www.smallbeern8.co.uk/drinks" };
+    expect(bundlePricesForCategory([stale, fresh], "beer").listed).toMatchObject({
+      priceGbp: 6.2,
+      publisher: "Small Beer",
+      sourceUrl: "https://www.smallbeern8.co.uk/drinks",
+      observedAt: "2026-09-01T00:00:00.000Z",
+    });
+  });
+
   it("still takes the cheapest line WITHIN one reading, because a page states many", () => {
     const dear = listedRow("2026-09-01T00:00:00.000Z", 6.2);
     const cheap = listedRow("2026-09-01T00:00:00.000Z", 5.4);

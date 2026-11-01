@@ -32,7 +32,7 @@ Each `data/places_enrichment*.json` pack holds each returned field with `source:
 
 <a id="a-venue-kind-is-a-closed-list-with-one-owner-and-a-non-pub-kind-is-present-but-n"></a>
 
-- **Venue kind and price meaning are separate contracts.** `VENUE_KINDS` in `lib/venues.ts` owns the vocabulary, and `isVenueKind` guards it. An absent kind means pub for older payloads and caches. `venueKindLabel` and `venueKindNoun` name every kind. `curatedVenueKind` controls map-filter membership. Other UK-wide OSM kinds remain neutral and have no curated filter control.
+- **Venue kind and price meaning are separate contracts.** `VENUE_KINDS` in `lib/venues.ts` owns the vocabulary, and `isVenueKind` guards it. An absent kind means pub for older payloads and caches. `venueKindLabel` and `venueKindNoun` name every kind. `filterVenuesByKind` reads kind visibility, treats absent kinds as pubs, inherits missing Club choices from Bars, and hides other missing choices. Other UK-wide OSM kinds remain neutral and have no curated filter control.
 
   `legacyOsmVenueKind` in `lib/legacyOsmVenueKind.mjs` preserves a recorded bar kind only when the stamped OSM identity matches the bar comment's identity. The full loader, slim builder and validator share this rule without a name blacklist or a runtime seed read. The builder stamps `legacyOsmBar: true`, and the validator checks that marker against the committed source rows.
 

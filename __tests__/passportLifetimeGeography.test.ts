@@ -36,6 +36,34 @@ afterEach(() => {
 });
 
 describe("public author API to lifetime Passport geography", () => {
+  for (const handle of [author, "apubmaxxer"]) {
+    it(`withholds anonymous and retired attribution for author ${handle}`, async () => {
+      seed(0, "venue-eltcmh", handle);
+      for (const retired of [false, true]) {
+        addPintDrop({
+          id: retired ? "retired-author-drop" : "private-author-drop",
+          venueId: "venue-wrpmzq", handle,
+          drink: "", priceGbp: null, passedDownNote: "Withheld observation",
+          era: "", provenance: "anecdote", status: "visible",
+          visibility: retired ? "public" : "anonymous",
+          ...(retired ? { authorRetiredAt: "2026-01-02T00:00:00Z" } : {}),
+          createdAt: "2026-02-01T00:00:00.000Z",
+        });
+      }
+      const publicResponse = await GET(new Request("http://localhost/api/pint-drops?venueId=venue-wrpmzq"));
+      expect(publicResponse.status).toBe(200);
+      expect((await publicResponse.json()).drops).toEqual(expect.arrayContaining([
+        expect.objectContaining({ id: "private-author-drop", visibility: "anonymous" }),
+        expect.objectContaining({ id: "retired-author-drop" }),
+      ]));
+      const response = await GET(new Request(`http://localhost/api/pint-drops?author=${handle}`));
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.drops.map((drop: { id: string }) => drop.id)).toEqual(["lifetime-geography-0"]);
+      expect(body.passportAreas).toEqual(["City of London"]);
+    });
+  }
+
   for (const total of [500, 501, 502]) {
     it(`retains older City and Hackney areas among ${total} visible drops`, async () => {
       vi.stubGlobal("fetch", async () => { throw new Error("Local fixture forbids provider/network calls"); });

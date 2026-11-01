@@ -18,6 +18,7 @@
 // A plain-node CLI imports this module, so the specifiers are RELATIVE and
 // carry their extensions.
 import { parseQuestionOneVenuesApi } from "./quizParsers.mjs";
+import { discardBody } from "../../lib/responseBody.ts";
 
 /** The lib/harvest/sourceRegistry.ts row both readers ask for. */
 export const QUESTION_ONE_SOURCE_ID = "questionone-quiz-venues";
@@ -70,7 +71,10 @@ export async function readQuestionOneDirectory({
     if (page > 1 && delayMs > 0) await sleep(delayMs);
     const url = questionOneDirectoryPageUrl(sourceUrl, page);
     const response = await permittedFetch(url, init());
-    if (!response.ok) throw new Error(`Question One directory page ${page} returned ${response.status}`);
+    if (!response.ok) {
+      discardBody(response);
+      throw new Error(`Question One directory page ${page} returned ${response.status}`);
+    }
     const body = await response.json().catch(() => null);
     if (!Array.isArray(body)) throw new Error(`Question One directory page ${page} is not a JSON list`);
 
