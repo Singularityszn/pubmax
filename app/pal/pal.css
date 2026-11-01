@@ -550,6 +550,10 @@ body:has(.analyticsConsentPrompt) .palPrintRow { display: none; }
    the phone's foot, its portrait and title yield room to those controls. */
 body:has(.analyticsConsentPrompt) .palHomeCopy h1 { font-size: var(--text-xl); line-height: var(--leading-tight); }
 @media (max-width: 900px) and (max-height: 1100px) {
+  /* The taller two-line tab bar (#2352) lifted the consent card 7px, so the
+     page's own top margin yields too: an unbroken Pal name still leaves the
+     voice card 12px clear of consent at 390x844. */
+  body:has(.analyticsConsentPrompt) .palHome { padding-top: var(--space-3); }
   body:has(.analyticsConsentPrompt) .palHomeHero { padding-top: var(--space-1); gap: var(--space-4); }
   body:has(.analyticsConsentPrompt) .palHomePortrait { min-height: 10rem; grid-template-columns: 10rem minmax(0, 1fr); gap: var(--space-3); }
   body:has(.analyticsConsentPrompt) .palHomePortrait .palPortrait { width: 10rem; }

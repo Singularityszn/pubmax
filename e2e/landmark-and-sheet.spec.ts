@@ -218,6 +218,7 @@ test("mobile drag-sheet traps focus at half and contains it at full (#17)", asyn
   // A fresh pick rests at the "half" snap on open (the class drives the CSS
   // transform). We assert the mounted-snap class the sheet actually opens with.
   await expect(sheet).toHaveClass(/sheet-half/);
+  await expect(sheet).toHaveAttribute("data-sheet-motion", "idle");
 
   // The detent is a full touch target and a keyboard-operable counterpart to
   // dragging the grabber.
@@ -248,6 +249,7 @@ test("mobile drag-sheet traps focus at half and contains it at full (#17)", asyn
 
   await detent.click();
   await expect(sheet).toHaveClass(/sheet-full/);
+  await expect(sheet).toHaveAttribute("data-sheet-motion", "idle");
   await expect(sheet).toHaveAttribute("role", "dialog");
   await expect(sheet).not.toHaveAttribute("aria-modal");
   await expect(page.locator("body > [inert]")).not.toHaveCount(0);
@@ -261,12 +263,14 @@ test("mobile drag-sheet traps focus at half and contains it at full (#17)", asyn
 
   await collapse.click();
   await expect(sheet).toHaveClass(/sheet-half/);
+  await expect(sheet).toHaveAttribute("data-sheet-motion", "idle");
   await expect(sheet).not.toHaveAttribute("aria-modal");
   await expect(page.locator("body > [inert]")).not.toHaveCount(0);
 
   await page.emulateMedia({ reducedMotion: "reduce" });
   await sheet.getByRole("button", { name: "Expand sheet" }).click();
   await expect(sheet).toHaveClass(/sheet-full/);
+  await expect(sheet).toHaveAttribute("data-sheet-motion", "idle");
   const reducedMotionHeight = await sheet.evaluate((node) =>
     Number.parseFloat((node as HTMLElement).style.maxHeight),
   );

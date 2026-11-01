@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 
 import { buildDayGreeting } from "@/lib/dayGreeting";
+import { CENTRAL_PATCH } from "@/lib/nightPatches";
+import { nearestNightPatch } from "@/lib/nearestNightPatch";
+import { disruptionForPatch, fetchLineStatuses } from "@/lib/tflDisruption";
 import { buildWeatherBrief, type WeatherBrief } from "@/lib/todayBrief";
 import { loadHistoricPubs } from "@/lib/historic";
 import { LONDON_NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
@@ -31,8 +34,9 @@ import { buildTodayPintsIndex, type TodayPintsIndex } from "./todayPints";
 // Weather, the pub fact, the cheapest-pints index and the daytime modules are
 // composed on the server, one small module per night patch, so the browser
 // takes no venue data of its own. Independent reads run in parallel. The
-// get-there strip and the Tube card are client-only: they need the viewer's rough
-// location or remembered area and live TfL, so they own their own fetches.
+// get-there strip needs the viewer's rough location, so it owns its own fetch.
+// The Tube card starts with central London, then refreshes for the viewer's
+// remembered area.
 
 export const metadata: Metadata = {
   title: "Today in London",
@@ -54,8 +58,8 @@ export const runtime = "nodejs";
 //      into dynamic rendering. The remembered area, the briefing-arrival marker
 //      and the viewer's location are all read by the client after load.
 //   2. Nothing personal may reach this document. One prerendered copy is handed
-//      to every stranger, so the greeting names no one and the get-there strip
-//      and the Tube card own their own client fetches.
+//      to every stranger, so the greeting names no one. Viewer-specific reads
+//      stay in client components, including the Tube refresh.
 export const dynamic = "force-static";
 // The brief reads the current London day: the greeting's slot, the weather
 // snapshot's staleness, tonight's listing window and the pub-of-the-day
@@ -119,7 +123,7 @@ export default async function TodayPage() {
   const now = new Date();
 
   // These server reads run in parallel. Each read keeps its fail-soft result.
-  const [weatherSnapshot, pricedVenues, historicPubs, menus, desks, coffeeRows] = await Promise.all([
+  const [weatherSnapshot, pricedVenues, historicPubs, menus, desks, coffeeRows, lineStatuses] = await Promise.all([
     // Store-first read-through: the freshest durable/cached reading when it is
     // recent, else a live Open-Meteo top-up (reusing the cron's fetcher), else
     // the committed snapshot with its honest staleness banner. Never needlessly
@@ -136,8 +140,16 @@ export default async function TodayPage() {
     loadTodayDeskPack(),
     // The Shoreditch coffee pilot, hand-checked rows.
     loadTodayCoffeePilot(),
+    // Central London's first Tube notice, so it is in the shared document.
+    fetchLineStatuses(),
   ]);
 
+  // The shared document starts with the same central-London patch as the client.
+  // Live refresh still resolves the reader's remembered area after hydration.
+  const centralPatch = nearestNightPatch(CENTRAL_PATCH.lat, CENTRAL_PATCH.lng);
+  const initialDisruption = centralPatch
+    ? disruptionForPatch(lineStatuses, centralPatch.id, now)
+    : null;
   const weather = buildWeatherBrief(weatherSnapshot, now);
   // The snapshot is London's, so only London's patches are asked. An area in
   // another city has no observation and belongs in no entry here.
@@ -202,6 +214,7 @@ export default async function TodayPage() {
       nowIso={now.toISOString()}
       greeting={greeting}
       weather={weather}
+      initialDisruption={initialDisruption}
       weatherByArea={weatherByArea}
       fact={fact}
       pintsIndex={pintsIndex}
