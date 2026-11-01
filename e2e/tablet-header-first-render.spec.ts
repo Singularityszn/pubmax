@@ -8,7 +8,6 @@ import { expectMapToolbarReady } from "./helpers/mapToolbar";
 
 test.use({ storageState: { cookies: [], origins: [] } });
 
-// External draft only. Install beside the existing e2e helpers only after review.
 // The initial document is real SSR, not fixture-signed-in SSR or device proof.
 function createFrameCollector() {
 function readLayout() {
