@@ -367,3 +367,20 @@
   font-size: var(--text-sm);
   color: var(--color-text-muted);
 }
+
+/* From the pubs tonight
+   ------------------------------------------------------------------ */
+
+/* The pub's own words, under the confirmed listings and never in them. Each
+   row's meta line holds its kind and night, what it is, and the day the pub
+   said it, wrapped as words rather than a stack of boxes. */
+.tonightFromThePubs .rowListMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-2);
+}
+
+.tonightFromThePubsKind {
+  font-weight: 700;
+  color: var(--ink);
+}

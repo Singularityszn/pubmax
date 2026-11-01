@@ -120,6 +120,7 @@ const STORE_INVENTORY: Record<string, StoreRow> = {
     reason: "Two pint-drop lookups read the durable table only when configured, beside the selected store.",
   },
   "lib/occupancyStore.ts": { class: "policy-heavy", selector: "selectStore" },
+  "lib/operatorFactsStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/operatorProposalsStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/pendingPlanRecapStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/pintDropsStore.ts": { class: "policy-heavy", selector: "selectStore" },

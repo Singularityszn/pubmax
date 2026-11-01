@@ -1568,6 +1568,59 @@ export type Database = {
         };
         Relationships: [];
       };
+      operator_facts: {
+        Row: {
+          id: string;
+          proposal_id: string;
+          venue_id: string;
+          account_id: string;
+          kind: string;
+          title: string | null;
+          body: string | null;
+          field: string | null;
+          when_text: string | null;
+          on_date: string | null;
+          published_at: string;
+          withdrawn_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          proposal_id: string;
+          venue_id: string;
+          account_id: string;
+          kind: string;
+          title?: string | null;
+          body?: string | null;
+          field?: string | null;
+          when_text?: string | null;
+          on_date?: string | null;
+          published_at?: string;
+          withdrawn_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          proposal_id?: string;
+          venue_id?: string;
+          account_id?: string;
+          kind?: string;
+          title?: string | null;
+          body?: string | null;
+          field?: string | null;
+          when_text?: string | null;
+          on_date?: string | null;
+          published_at?: string;
+          withdrawn_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "operator_facts_proposal_id_fkey";
+            columns: ["proposal_id"];
+            isOneToOne: true;
+            referencedRelation: "operator_proposals";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       operator_proposals: {
         Row: {
           id: string;

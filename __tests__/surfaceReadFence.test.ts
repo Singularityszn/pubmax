@@ -68,6 +68,7 @@ const SURFACE_READ_EXEMPTIONS = [
   { path: "components/messages/useMessageRecipientSearch.ts", fetchCount: 1, reason: "public profile typeahead is no-store, aborts on query or account changes, and never reuses recipients as a cached reload surface" },
   { path: "components/night/NightCalmLine.tsx", fetchCount: 1, reason: "night calm is an optional live signal" },
   { path: "components/night/NightModeCard.tsx", fetchCount: 6, reason: "night venue data and actions are no-store interactive flows; the plan state itself is the shared read in components/plan/usePlanMemberRead.ts" },
+  { path: "components/operators/VenueFromThePub.tsx", fetchCount: 1, reason: "a pub's published word comes down the moment a moderator declines it, so a held snapshot could keep printing it after it was withdrawn; the read waits for the sheet's last phase and never paints an empty block" },
   { path: "components/night/NightWaysThere.tsx", fetchCount: 1, reason: "ways to get there asks TfL for one leg only when the reader opens it, for times and fares that change by the minute, so it is no-store and never a painted reload surface" },
   { path: "components/pal/PalYear.tsx", fetchCount: 2, reason: "the year card reads the signed-in person's own mapped-price count once and at most two pub names for its lines; a name or count that does not arrive is left out, never painted as a cached zero" },
   { path: "components/pintdrop/CommentThread.tsx", fetchCount: 1, reason: "comments are Social interaction reads and mutations" },

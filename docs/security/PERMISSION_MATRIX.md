@@ -41,6 +41,10 @@ granted, is the single non-expired read rule from 0159. Catalogue tables
 `drinks` and `pub_heritage` are not on this list. `crawl_stories` is not on it
 either: since 0178 browser roles hold no grant on it, and its read policy
 admits `public` rows only, so an unlisted crawl's slug never lists.
+`operator_facts` (0217) is a public read by design: anon and authenticated
+hold SELECT on the public columns of a published row only (`withdrawn_at is
+null`), never `account_id`, `proposal_id` or `withdrawn_at`, and no browser
+write. The one writer is the moderator branch of `/api/operator-proposals`.
 
 **Three rules every denied cell is held to.** A refusal answers the honest
 status. It discloses no protected value, asserted over the whole serialized

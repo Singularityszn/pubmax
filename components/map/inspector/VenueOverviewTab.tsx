@@ -96,6 +96,7 @@ import VenueGettingThere, {
 import VenueOccupancyRow from "@/components/map/VenueOccupancyRow";
 import DiaryLogPanel from "@/components/diary/DiaryLogPanel";
 import VisitReportPanel from "@/components/visits/VisitReportPanel";
+import VenueFromThePub from "@/components/operators/VenueFromThePub";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import { cuisineTagsForVenue } from "@/lib/cuisineTags";
 import type { CityId } from "@/lib/cities";
@@ -1437,6 +1438,8 @@ export default function VenueOverviewTab({
           offerPrice={isPubVenue(venue)}
           where="details"
         />
+        {/* "From the pub" and the quiet "Run this pub?" door: one row. */}
+        <VenueFromThePub venueId={venue.id} venueName={venue.name} offerClaim={isPubVenueKind(venue.kind)} />
         <CityPlaceStrip
           venueId={venue.id}
           venueName={venue.name}
