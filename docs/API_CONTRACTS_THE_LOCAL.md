@@ -18,6 +18,7 @@ Source of truth: **issue #252** ("Spec: The Local — companion-led activation, 
 | `GET /api/night-areas/:slug` | Detail plus `GET /api/night-areas?city=` catalogue | IMPLEMENTED LOCALLY |
 
 Adjacent endpoints Codex also built and this contract now governs: `POST /api/plans/:id/complete`, `GET /api/late-food`.
+The [night feature contracts](#55-night-feature-contracts) cover the additional Plan APIs.
 
 ---
 
@@ -373,6 +374,7 @@ type PatchPlanRequest = {
 
 Rules:
 - `stops` replacement requires `expectedRouteRevision` and must NOT be combined with `status`. Stops are re-resolved server-side via `canonicalPlanRoute` (3 to 6 distinct ids, per `isPlanStopCount`, that exist in a shipped city dataset; returns canonical names). Replacing the route increments `routeRevision`.
+- Route replacement uses the first-pub and completed-prefix checks described in [§5.5](#55-night-feature-contracts).
 - The grounded upgrade is permanent and unflagged: a `stops` replacement carrying a `groundingProof` plus an `operationKey` is verified against the exact new order, and only that path raises a one-Stop anchor draft to a grounded route and emits `plan_accepted` once. A legacy V1 creation proof is not an upgrade claim and takes the ordinary update path. Every V2 proof failure is a `422`.
 - `context` must pass strict `cleanNightContext` or `400`.
 - At least one of `status` / `context` / `stops` must be present.
@@ -408,7 +410,7 @@ Route replacement is **optimistically concurrent** via `expectedRouteRevision` �
 
 ## 5. `POST /api/plans/:id/actions` — record a stop action
 
-**Status: IMPLEMENTED LOCALLY.** Member-scoped live tracking.
+**Status: IMPLEMENTED LOCALLY.** Member-scoped stop actions. These record explicit actions, not live location.
 
 ### Request
 
@@ -416,9 +418,18 @@ Route replacement is **optimistically concurrent** via `expectedRouteRevision` �
 type PlanActionRequest = {
   memberToken?: string;         // migration fallback; Authorization: Bearer is canonical
   type: "arrived" | "skipped" | "swapped";  // "ending" is REJECTED here (goes via /complete)
-  stopPosition: number;         // integer 0..7 (validated against PLAN_STOP_MAX=8); THE LOCAL routes are 3 stops, so 0..2 in practice
+  stopPosition: number;         // integer 0..7; bound requests must match a current stop
+  expectedRouteRevision?: number; // positive integer, required together with venueId
+  venueId?: string;             // canonical venue at stopPosition in that revision
+  idempotencyKey?: string;      // fallback if no Idempotency-Key header
 };
 ```
+
+New Night mode requests include both binding fields, including requests queued offline.
+The stores check the route revision and venue before inserting a bound action.
+An identical accepted retry returns its original action even after a safe route revision.
+Legacy requests may omit both fields. They remain unstamped and establish neither a table location nor a completed-stop mystery reveal.
+Only bound arrivals can fulfil a signed-in owner's Wanted entry.
 
 ### Response `201`
 
@@ -429,16 +440,21 @@ Full `PlanState` (with the new action in `actions[]`). Side effect: recording an
 | Status | Condition |
 | --- | --- |
 | `404` | bad/unknown plan id |
-| `400` | malformed body / invalid `type` or `stopPosition` |
+| `400` | malformed body, invalid action or binding, or missing/invalid idempotency key |
 | `403` | member token cannot update this Plan |
+| `409` | stale route or venue binding, or the same key reused for another payload |
+| `429` | action request limit reached |
+| `503` | Plan storage unavailable |
 
 ### Idempotency
 
-Non-idempotent (append-only action log). Each POST inserts a new `PlanActionDTO`.
+Each request requires an `Idempotency-Key` header or a body `idempotencyKey`.
+The [mutation key helper](../lib/planMutationHttp.ts) defines precedence and validation.
+Identical retries return the saved action without another insertion. A different payload with the same key returns `409`.
 
 ### Rate limit
 
-**DEFERRED.** No limiter currently; the owner must set the member-write budget.
+The handler limits requests to 30 per hashed client per minute.
 
 ### 5.4 Adjacent: `POST /api/plans/:id/complete` (+ `GET`)
 
@@ -462,6 +478,66 @@ type CompletePlanRequest = {
 - Completion writes the chosen ending, ending action, completion record, and terminal status atomically (Supabase RPC `complete_plan_atomic`). A completion without `endingSelection` is rejected.
 
 **Safety invariant (#252):** the default/encouraged endings are `food` and `get_home`; `keep_going` exists but the product must never frame more drinking as success. Food terminals are late-food places, never pint-price pins (see §10).
+
+### 5.5 Night feature contracts
+
+The [README](../README.md#features) owns user instructions.
+The [permission matrix](security/PERMISSION_MATRIX.md#cells) owns the private read and host-write permissions.
+The routes resolve member capabilities through [the shared capability reader](../lib/planMemberCapability.ts).
+
+#### Grounded route proposals
+
+`POST /api/plans/:id/proposals` accepts `groundingProof` and `operationKey` alongside the existing proposal fields.
+An anchored Plan requires a valid generation proof for the exact stop order, operation and accepted first pub.
+Unanchored legacy proposals may omit the proof. A submitted proof must pass verification.
+The server stores proof metadata but omits the proof itself from public proposal responses.
+
+Proposal creation and acceptance preserve the accepted first pub and every stop through the latest arrived or skipped position.
+Acceptance rechecks the current route revision, proof expiry and proposal-specific evidence for required needs.
+Only an explicit host decision saves the proposal and increments the route revision.
+Creation, voting and decisions recheck live tokens and revocation inside their database transactions.
+Presence values do not grant or remove proposal permission.
+The [grounding checker](../lib/proposalGrounding.server.ts) and migration `0215` own the signature and transaction checks.
+
+#### Table signs
+
+`GET/PUT/DELETE /api/plans/:id/beacon` returns a `PlanBeaconView`, defined in [the beacon model](../lib/planBeacon.ts).
+`PUT` accepts `symbol`, `note`, `expectedRouteRevision` and `expectedArrivalId`.
+`DELETE` requires the same revision and arrival identifiers.
+The model owns the allowed symbols, note limit, expiry calculation and current-arrival rules.
+Repeating an unchanged `PUT` preserves the original expiry.
+
+The latest action must identify an arrival at the current route revision and venue, without an ambiguous timestamp.
+Historical unstamped actions cannot establish a current arrival.
+No current arrival exists after the scheduled night end or during ending, completed or abandoned states.
+The database removes signs transactionally after a new action, route revision, ending or start-time change.
+Clock-expired notes remain unreadable and are removed on the next authorised access.
+
+Successful responses use `200`. Failures use `400`, `403`, `404`, `409`, `429` or `503` with a `PLAN_BEACON_*` code.
+Every response is private and uses `no-store`.
+Missing Plans and invalid member capabilities share the same `404` refusal.
+
+#### Mystery presentation and clues
+
+`GET/PUT /api/plans/:id/presentation` returns the fields in [the presentation model](../lib/planPresentation.ts), plus `ok: true`.
+`PUT` requires `mysteryEnabled` and a positive `expectedRouteRevision` matching the current route.
+Completed and abandoned Plans refuse setting changes. Missing settings default to disabled.
+Failures use `400`, `403`, `409`, `429` or `503` with a `PLAN_PRESENTATION_*` code. Responses use `no-store`.
+Reveals remain in session storage or temporary memory, scoped to the Plan, member, account session and route revision.
+Stamped arrived and skipped stops derive their reveal from preserved venue identity across safe revisions.
+
+Clues add no private API endpoint or stored progress.
+After explicit enablement, [the clue client](../lib/planCluesClient.ts) reads public venues and adjacent walking legs.
+The [selector and reviewed catalogue](../lib/planClues.ts) require genuine routed geometry near a sourced landmark.
+Fallback geometry cannot supply clues.
+
+#### Persistence and rollback
+
+Migrations `0213`, `0214` and `0215` and their matching [rollbacks](../supabase/migrations/rollback/) define the durable contracts.
+Migration `0213` adds nullable arrival bindings without backfilling historical actions.
+Revert the application before rolling back these migrations.
+Rollback removes table signs, mystery settings and proposal proof metadata, while retaining saved routes and proposals.
+The captain controls migration application. The [proof record](proof/v1-night-features/README.md) records local checks, not production migration state.
 
 ---
 
@@ -651,7 +727,7 @@ FSA hygiene and routed walking time are not asserted until a scheduled, permissi
 | `/api/plans/generate` | POST | ✅ `plan-generate` (8/60s; hashed per client) | flat `PublicApiError` | keyless |
 | `/api/plans/anchor` | GET | ✅ `plan-anchor` (60/60s; hashed per client) | flat `PublicApiError` | keyless |
 | `/api/plans/:id` | PATCH | ❌ deferred | flat `PublicApiError` | member token |
-| `/api/plans/:id/actions` | POST | ❌ deferred | flat `PublicApiError` | Bearer member token; body fallback |
+| `/api/plans/:id/actions` | POST | See §5 | flat `PublicApiError` | Plan member capability |
 | `/api/plans/:id/complete` | POST/GET | ❌ deferred | flat `PublicApiError` | member token (POST) / public (GET) |
 | `/api/night-areas` | GET | ❌ deferred | flat `PublicApiError` | keyless |
 | `/api/night-areas/:slug` | GET | ❌ deferred | flat `PublicApiError` | keyless |

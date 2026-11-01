@@ -2,6 +2,7 @@ import { BEERS, normalizeBeer } from "@/lib/beers";
 import { legacyPintPriceObservedAt, namedLegacyPintPriceSource } from "@/lib/legacyPriceEvidence.mjs";
 export { legacyPintPriceObservedAt, namedLegacyPintPriceSource } from "@/lib/legacyPriceEvidence.mjs";
 import { isNonAlcoholicDrink } from "@/lib/nonAlcoholicDrinks";
+import { firstHttp } from "@/lib/httpUrl";
 
 // The all-drinks data model (PRD E1 — "extend, do not fork"). A venue today
 // carries `prices: VenuePrice[]` — cheapest-pint beer rows. This module
@@ -63,8 +64,20 @@ export function isDemoDrinkSource(source: string): boolean {
   return source === "seed" || source.toLocaleLowerCase("en-GB").includes("demo");
 }
 
-export function isDemoDrinkProvenance(provenance: DrinkProvenance): boolean {
+export function isDemoDrinkProvenance(provenance: Pick<DrinkProvenance, "source" | "lane">): boolean {
   return provenance.lane === "demo" || isDemoDrinkSource(provenance.source);
+}
+
+/** An internal dataset marker without a publisher URL names no publisher. */
+export function isUnattributedDrinkPrice(provenance: Pick<DrinkProvenance, "source" | "sourceUrl">): boolean {
+  return provenance.source === "app-dataset" && !firstHttp(provenance.sourceUrl);
+}
+
+/** Shared source wording for the drink menu and the selected basket rows. */
+export function drinkProvenanceLabel(provenance: Pick<DrinkProvenance, "source" | "sourceUrl" | "lane">): string {
+  if (isDemoDrinkProvenance(provenance)) return "Demo";
+  if (isUnattributedDrinkPrice(provenance)) return "Publisher not recorded";
+  return provenance.source;
 }
 
 export type AlcoholType = "alcoholic" | "low-no" | "unknown";
