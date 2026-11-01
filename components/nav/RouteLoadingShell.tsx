@@ -7,17 +7,21 @@
 // later, so a skeleton <main> made two <main> elements in one document for
 // that window. The skeleton stands in for the page; the page owns the landmark.
 
+import PubQuizCard from "@/components/nav/PubQuizCard";
 import SiteNav from "@/components/nav/SiteNav";
 import PintLoader from "@/components/ui/pint-loader";
+import type { PubQuizQuestion } from "@/lib/pubQuiz";
 
 import "./navigation.css";
 
 type RouteLoadingShellProps = {
   /** Short status label for AT + quiet on-screen copy (e.g. "Tonight"). */
   label: string;
+  /** Optional question to read while the route arrives (lib/pubQuiz.server.ts). */
+  quiz?: PubQuizQuestion | null;
 };
 
-export default function RouteLoadingShell({ label }: RouteLoadingShellProps) {
+export default function RouteLoadingShell({ label, quiz }: RouteLoadingShellProps) {
   return (
     <section
       id="main"
@@ -33,6 +37,7 @@ export default function RouteLoadingShell({ label }: RouteLoadingShellProps) {
         <span className="routeLoadingShellCard" aria-hidden="true" />
         <span className="routeLoadingShellCard" aria-hidden="true" />
         <PintLoader className="routeLoadingShellLabel" label={label} labelSize="quiet" />
+        {quiz ? <PubQuizCard quiz={quiz} /> : null}
       </div>
     </section>
   );

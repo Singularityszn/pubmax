@@ -64,18 +64,17 @@ import { priceEvidenceUsableForCeiling } from "@/lib/planRouteEvidence";
 import { preparePlanGeneration } from "@/lib/planGeneration.server";
 import { verifyPlanGroundingProof } from "@/lib/planGrounding.server";
 import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
-import {
-  PAID_SPEND_BUDGET_WINDOW_MS,
-  PAID_SPEND_REFUSAL_CODE,
-  PAID_SPEND_REFUSAL_LINE,
-  paidSpendBudgetKey,
-} from "@/lib/paidSpendBudget";
 import { hashIp } from "@/lib/supabase";
 import type { LngLat } from "@/lib/walkRoute";
 import type { ConciergeVenue } from "@/lib/concierge/rank";
 import type { PlanIntakeHandoff } from "@/lib/planIntake";
 
 const PLAN_GENERATION_TEST_NOW = PINT_DATASET_OBSERVED_AT.getTime() + 1_000;
+
+/** Whether any request so far charged a paid-spend lane. Plan generation must not. */
+function chargedPaidLane(): boolean {
+  return isLimitedMock.mock.calls.some(([key]) => String(key).startsWith("paid-spend:"));
+}
 
 function generationIntake(
   overrides: Partial<PlanIntakeHandoff> = {},
@@ -221,7 +220,7 @@ describe("POST /api/plans/generate", () => {
     expect(response.status).toBe(422);
     expect(await response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
     expect(loadConciergeVenuesMock).not.toHaveBeenCalled();
-    expect(isLimitedMock.mock.calls.some(([key]) => key === paidSpendBudgetKey("plan-generate"))).toBe(false);
+    expect(chargedPaidLane()).toBe(false);
   });
 
   it.each([
@@ -328,7 +327,7 @@ describe("POST /api/plans/generate", () => {
     expect(await prepared.response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
     expect(await response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
     expect(loadConciergeVenuesMock).not.toHaveBeenCalled();
-    expect(isLimitedMock.mock.calls.some(([key]) => key === paidSpendBudgetKey("plan-generate"))).toBe(false);
+    expect(chargedPaidLane()).toBe(false);
   });
 
   it.each(["sparkling beer", "sparkling wine", "steaming coffee"].flatMap((object) => [
@@ -500,7 +499,7 @@ describe("POST /api/plans/generate", () => {
     expect(await prepared.response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
     expect(await response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
     expect(loadConciergeVenuesMock).not.toHaveBeenCalled();
-    expect(isLimitedMock.mock.calls.some(([key]) => key === paidSpendBudgetKey("plan-generate"))).toBe(false);
+    expect(chargedPaidLane()).toBe(false);
   });
 
   it.each([
@@ -563,7 +562,7 @@ describe("POST /api/plans/generate", () => {
     expect(await prepared.response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
     expect(await response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
     expect(loadConciergeVenuesMock).not.toHaveBeenCalled();
-    expect(isLimitedMock.mock.calls.some(([key]) => key === paidSpendBudgetKey("plan-generate"))).toBe(false);
+    expect(chargedPaidLane()).toBe(false);
   });
 
   it.each([
@@ -681,7 +680,7 @@ describe("POST /api/plans/generate", () => {
     expect(await prepared.response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
     expect(response.status).toBe(422);
     expect(await response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
-    expect(isLimitedMock.mock.calls.some(([key]) => key === paidSpendBudgetKey("plan-generate"))).toBe(false);
+    expect(chargedPaidLane()).toBe(false);
     expect(loadConciergeVenuesMock).not.toHaveBeenCalled();
   });
 
@@ -725,7 +724,7 @@ describe("POST /api/plans/generate", () => {
     expect(await prepared.response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
     expect(await response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
     expect(loadConciergeVenuesMock).not.toHaveBeenCalled();
-    expect(isLimitedMock.mock.calls.some(([key]) => key === paidSpendBudgetKey("plan-generate"))).toBe(false);
+    expect(chargedPaidLane()).toBe(false);
   });
 
   it.each([
@@ -773,7 +772,7 @@ describe("POST /api/plans/generate", () => {
         expect((await prepared.response.json()).code).toBe(code);
         expect(body.code).toBe(code);
         expect(loadConciergeVenuesMock).not.toHaveBeenCalled();
-        expect(isLimitedMock.mock.calls.some(([key]) => key === paidSpendBudgetKey("plan-generate"))).toBe(false);
+        expect(chargedPaidLane()).toBe(false);
       } else {
         if (!("prepared" in prepared)) throw new Error("Expected preparation");
         expect(prepared.prepared.context.budgetLimitPence).toBeNull();
@@ -842,7 +841,7 @@ describe("POST /api/plans/generate", () => {
         expect((await prepared.response.json()).code).toBe(code);
         expect(body.code).toBe(code);
         expect(loadConciergeVenuesMock).not.toHaveBeenCalled();
-        expect(isLimitedMock.mock.calls.some(([key]) => key === paidSpendBudgetKey("plan-generate"))).toBe(false);
+        expect(chargedPaidLane()).toBe(false);
       } else {
         if (!("prepared" in prepared)) throw new Error("Expected preparation");
         expect(prepared.prepared.context.budgetLimitPence).toBeNull();
@@ -905,7 +904,7 @@ describe("POST /api/plans/generate", () => {
     expect(await response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
     if (!("response" in prepared)) throw new Error("Expected meal limitation");
     expect(await prepared.response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
-    expect(isLimitedMock.mock.calls.some(([key]) => key === paidSpendBudgetKey("plan-generate"))).toBe(false);
+    expect(chargedPaidLane()).toBe(false);
     expect(loadConciergeVenuesMock).not.toHaveBeenCalled();
   });
 
@@ -929,7 +928,7 @@ describe("POST /api/plans/generate", () => {
     expect(await prepared.response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
     expect(response.status).toBe(422);
     expect(await response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
-    expect(isLimitedMock.mock.calls.some(([key]) => key === paidSpendBudgetKey("plan-generate"))).toBe(false);
+    expect(chargedPaidLane()).toBe(false);
     expect(loadConciergeVenuesMock).not.toHaveBeenCalled();
   });
 
@@ -960,7 +959,7 @@ describe("POST /api/plans/generate", () => {
     if (!("response" in prepared)) throw new Error("Expected meal limitation");
     expect(await prepared.response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
     expect(await response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
-    expect(isLimitedMock.mock.calls.some(([key]) => key === paidSpendBudgetKey("plan-generate"))).toBe(false);
+    expect(chargedPaidLane()).toBe(false);
     expect(loadConciergeVenuesMock).not.toHaveBeenCalled();
   });
 
@@ -994,7 +993,7 @@ describe("POST /api/plans/generate", () => {
     expect(await response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
     if (!("response" in prepared)) throw new Error("Expected meal limitation");
     expect(await prepared.response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
-    expect(isLimitedMock.mock.calls.some(([key]) => key === paidSpendBudgetKey("plan-generate"))).toBe(false);
+    expect(chargedPaidLane()).toBe(false);
     expect(loadConciergeVenuesMock).not.toHaveBeenCalled();
   });
 
@@ -1244,7 +1243,7 @@ describe("POST /api/plans/generate", () => {
     if (!("response" in prepared)) throw new Error("Expected meal limitation");
     expect(prepared.response.status).toBe(422);
     expect(await prepared.response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
-    expect(isLimitedMock.mock.calls.some(([key]) => key === paidSpendBudgetKey("plan-generate"))).toBe(false);
+    expect(chargedPaidLane()).toBe(false);
     expect(loadConciergeVenuesMock).not.toHaveBeenCalled();
   });
 
@@ -1322,7 +1321,7 @@ describe("POST /api/plans/generate", () => {
     expect("response" in prepared ? prepared.response.status : 200).toBe(422);
     if (!("response" in prepared)) throw new Error("Expected unsupported serving refusal");
     expect(await prepared.response.json()).toMatchObject({ code: "DRINK_PRICE_CONSTRAINTS_UNSUPPORTED" });
-    expect(isLimitedMock.mock.calls.some(([key]) => key === paidSpendBudgetKey("plan-generate"))).toBe(false);
+    expect(chargedPaidLane()).toBe(false);
     expect(loadConciergeVenuesMock).not.toHaveBeenCalled();
   });
 
@@ -1510,7 +1509,7 @@ describe("POST /api/plans/generate", () => {
     }));
     expect(response.status).toBe(422);
     expect(await response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
-    expect(isLimitedMock.mock.calls.some(([key]) => key === paidSpendBudgetKey("plan-generate"))).toBe(false);
+    expect(chargedPaidLane()).toBe(false);
   });
 
   it.each([
@@ -1528,7 +1527,7 @@ describe("POST /api/plans/generate", () => {
     }));
     expect(response.status).toBe(422);
     expect(await response.json()).toMatchObject({ code: "DRINK_PRICE_CONSTRAINTS_UNSUPPORTED" });
-    expect(isLimitedMock.mock.calls.some(([key]) => key === paidSpendBudgetKey("plan-generate"))).toBe(false);
+    expect(chargedPaidLane()).toBe(false);
   });
 
   it.each([
@@ -1572,7 +1571,7 @@ describe("POST /api/plans/generate", () => {
     }));
     expect(response.status).toBe(422);
     expect(await response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
-    expect(isLimitedMock.mock.calls.some(([key]) => key === paidSpendBudgetKey("plan-generate"))).toBe(false);
+    expect(chargedPaidLane()).toBe(false);
   });
 
   it.each([
@@ -1831,7 +1830,7 @@ describe("POST /api/plans/generate", () => {
   });
 
   it.each([
-    { query: "One vegan meal in Soho" },
+    { query: "One vegan meal under £10 in Soho" },
     { query: "One meal under 500 calories in Soho" },
     { query: "One pizza under £10 in Soho" },
     { query: "3 pubs" },
@@ -1839,16 +1838,11 @@ describe("POST /api/plans/generate", () => {
     { query: "3 pubs in Soho", cityId: "not-a-city" },
     { query: "3 pubs in Soho", cityId: "manchester" },
     { intake: generationIntake({ area: { kind: "night-patch", id: "hackney" } }) },
-  ])("keeps the paid slot available after a deterministic refusal: %j", async (input) => {
-    vi.stubEnv("PUBMAX_PAID_SPEND_BUDGET_PLAN_GENERATE", "1");
-    let paidCalls = 0;
-    isLimitedMock.mockImplementation(async (key, _durableKey, limit) =>
-      key === paidSpendBudgetKey("plan-generate") ? ++paidCalls > (limit ?? 0) : false);
+  ])("charges no paid lane on a deterministic refusal or a valid plan: %j", async (input) => {
     const rejected = await POST(new Request("http://localhost/api/plans/generate", {
       method: "POST", body: JSON.stringify(input),
     }));
     expect(rejected.status).toBeGreaterThanOrEqual(400);
-    expect(paidCalls).toBe(0);
     expect(isLimitedMock.mock.calls[0]?.[0]).toMatch(/^plan-generate:/);
     loadConciergeVenuesMock.mockResolvedValueOnce([
       generatedVenue("v1"), generatedVenue("v2"), generatedVenue("v3"),
@@ -1857,12 +1851,7 @@ describe("POST /api/plans/generate", () => {
       method: "POST", body: JSON.stringify({ query: "3 pubs in Clapham" }),
     }), PLAN_GENERATION_TEST_NOW);
     expect(valid).toHaveProperty("prepared");
-    expect(paidCalls).toBe(1);
-    const spent = await POST(new Request("http://localhost/api/plans/generate", {
-      method: "POST", body: JSON.stringify({ query: "3 pubs in Clapham" }),
-    }));
-    expect(spent.status).toBe(429);
-    expect(await spent.json()).toMatchObject({ code: "DAILY_BUDGET_SPENT" });
+    expect(chargedPaidLane()).toBe(false);
   });
 
   it.each([
@@ -1872,8 +1861,6 @@ describe("POST /api/plans/generate", () => {
     "One pizza under £10 in Soho",
     "One kebab under 10 pounds in Soho",
     "Chips under 5 quid in Soho",
-    "One nut-free meal in Soho",
-    "One dairy free meal in Soho",
     "One dish under £10 in Soho",
     "Food under £10 in Soho",
     "One pizza under £10 per person in Soho",
@@ -1886,9 +1873,6 @@ describe("POST /api/plans/generate", () => {
     "One burger under £10 in Soho",
     "One pub in Soho with pizza priced under £10",
     "One pub in Soho with pizza in the evening under £10",
-    "One meal without nuts in Soho",
-    "One meal free of nuts in Soho",
-    "One meal free from nuts in Soho",
     "One pub in Soho with food priced under £10",
     "One pub in Soho with pizza under £10 and pints under £5",
     "One pub in Soho with a £10.50 burger",
@@ -1922,9 +1906,6 @@ describe("POST /api/plans/generate", () => {
   });
 
   it.each([
-    { foodNeeds: ["nut-free"] },
-    { foodNeeds: ["dairy-free"] },
-    { foodNeeds: ["allergy to sesame"] },
     { foodNeeds: ["under 500 calories"] },
     { foodNeeds: ["pizza under £10"] },
     { foodNeeds: ["kebab under 10 pounds"] },
@@ -1932,10 +1913,6 @@ describe("POST /api/plans/generate", () => {
     { foodNeeds: ["vegan meal under £10 under 500 calories"] },
     { foodNeeds: ["meal under 500kcal"] },
     { foodNeeds: ["meal under 500calories"] },
-    { foodNeeds: ["nut-free meal"] },
-    { foodNeeds: ["meal without nuts"] },
-    { foodNeeds: ["meal free of nuts"] },
-    { foodNeeds: ["meal free from nuts"] },
     { foodNeeds: ["burger under £10"] },
     { foodNeeds: ["pub with pizza priced under £10"] },
     { foodNeeds: ["pub with pizza in the evening under £10"] },
@@ -2393,6 +2370,56 @@ describe("POST /api/plans/generate", () => {
     expect(body.missingContextEvidence).toContain("price_evidence");
   });
 
+  // DIETARY WORDS DEGRADE, MEAL PRICES REFUSE (launch review, 30 Oct 2026). A
+  // dietary word used to refuse the whole plan. Now it plans, prefers pubs that
+  // publish a menu link, and says in one line that nobody checked the menu.
+  it.each([
+    ["vegan pubs in Clapham for 2", "We can't check vegan menus or allergens."],
+    ["halal food, 3 pubs in Clapham", "We can't check halal menus or allergens."],
+    ["gluten-free, 3 pubs in Clapham", "We can't check gluten-free menus or allergens."],
+    ["3 pubs in Clapham, one of us has a nut allergy", "We can't check nut-free menus or allergens."],
+    ["3 pubs in Clapham, food allergies in the group", "We can't check menus for allergies."],
+  ])("plans %s and warns once that the menu is unchecked", async (query, opening) => {
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({ query }),
+    }));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    const dietary = body.planningConfidence.warnings.filter((warning: string) => warning.startsWith("We can't check"));
+    expect(dietary).toHaveLength(1);
+    expect(dietary[0].startsWith(`${opening} `)).toBe(true);
+    expect(dietary[0]).toMatch(/(These stops publish a menu link\.|Some of these stops publish a menu link\.|Ask each pub before you order\.)/);
+  });
+
+  it("still refuses a meal price beside a dietary word", async () => {
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({ query: "One vegan pizza under £10 in Clapham" }),
+    }));
+    expect(response.status).toBe(422);
+    expect(await response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
+  });
+
+  it("plans a short walk between pubs and names a must-have it cannot meet", async () => {
+    const walk = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({ query: "short walk between pubs in Clapham" }),
+    }));
+    expect(walk.status).toBe(200);
+
+    const tight = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({ query: "short walk between pubs in Clapham, under £1 per person" }),
+    }));
+    expect(tight.status).toBe(422);
+    const body = await tight.json();
+    expect(body.code).toBe("GROUNDED_CONSTRAINTS_UNSATISFIED");
+    expect(body.error).toContain("£1");
+    expect(body.error).not.toMatch(/walk/i);
+  });
+
   it.each([
     ["degraded", false, true, "We could not read the wine prices just now, so none are shown yet."],
     ["partial", true, false, "Read from part of the wine prices, so some are still missing."],
@@ -2521,39 +2548,32 @@ describe("POST /api/plans/generate", () => {
     expect(recorded).not.toContain(hashIp(spoofedIp));
   });
 
-  it("spends the deployment ceiling as well, on a key no header can widen", async () => {
-    await POST(new Request("http://localhost/api/plans/generate", {
-      method: "POST",
-      headers: { "x-forwarded-for": "203.0.113.42" },
-      body: JSON.stringify({ query: "A quiet night in Barnes" }),
-    }));
-
-    const budgetCall = isLimitedMock.mock.calls.find(
-      (call) => call[0] === paidSpendBudgetKey("plan-generate"),
-    );
-    expect(budgetCall).toBeDefined();
-    expect(budgetCall?.[1]).toBe(paidSpendBudgetKey("plan-generate"));
-    expect(budgetCall?.[3]).toBe(PAID_SPEND_BUDGET_WINDOW_MS);
-    expect(budgetCall?.[4]).toEqual({ failClosed: true });
-  });
-
-  it("refuses with the deployment ceiling's own sentence once it is spent", async () => {
-    isLimitedMock.mockImplementation(async (key: string) =>
-      key === paidSpendBudgetKey("plan-generate"),
-    );
-
+  // Audit finding lib/paidSpendBudget:lane-ceiling-single-shared-allocation.
+  // Plan generation calls no paid model, so a deployment-wide lane here
+  // defended no spend: one address could spend it in about two hours and every
+  // other planner caller, web and MCP, was refused for the rest of a rolling day.
+  it("charges no paid lane, because plan generation calls no paid model", async () => {
     const response = await POST(new Request("http://localhost/api/plans/generate", {
       method: "POST",
       headers: { "x-forwarded-for": "203.0.113.42" },
       body: JSON.stringify({ query: "A quiet night in Barnes" }),
     }));
 
-    expect(response.status).toBe(429);
-    expect(await response.json()).toEqual({
-      error: PAID_SPEND_REFUSAL_LINE,
-      code: PAID_SPEND_REFUSAL_CODE,
-      retryable: true,
-    });
+    expect(response.status).toBe(200);
+    expect(chargedPaidLane()).toBe(false);
+  });
+
+  it("keeps planning for a second address when every paid lane is spent", async () => {
+    isLimitedMock.mockImplementation(async (key: string) => key.startsWith("paid-spend:"));
+
+    for (const address of ["203.0.113.10", "198.51.100.20"]) {
+      const response = await POST(new Request("http://localhost/api/plans/generate", {
+        method: "POST",
+        headers: { "x-real-ip": address },
+        body: JSON.stringify({ query: "A quiet night in Barnes" }),
+      }));
+      expect(response.status).toBe(200);
+    }
   });
 
   it("enforces rate limiting inside request preparation", async () => {
@@ -2576,8 +2596,7 @@ describe("POST /api/plans/generate", () => {
         body: JSON.stringify({ query: "A quiet night in Barnes" }),
       }));
     }
-    // Each request spends TWO budgets: its own address bucket, then the
-    // deployment ceiling. The per-address buckets differ; the ceiling does not.
+    // Each request spends its own address bucket, and the buckets differ.
     const perClientKeys = isLimitedMock.mock.calls
       .map((call) => call[0] as string)
       .filter((key) => key.startsWith("plan-generate:"));

@@ -22,10 +22,18 @@ do not change which prices qualify for the public Index.
 - [London Pint Index](https://pubmaxxing.com/pint-index): public release status,
   methodology, provenance rules, and CSV. It is empty until we collect
   eligible observations, and it contains no legacy competitor-derived prices.
+- [Press and citations](https://pubmaxxing.com/press): findings from the Pint
+  Index written as whole sentences, with the sample, the method, a stable link
+  to the dated edition and a credit line. It lists no finding until a month
+  clears the Index admission floor.
 
 ## Product surfaces
 
 - [Map](https://pubmaxxing.com/map): interactive pub map and night planner.
+- [Pub crawl cost calculator](https://pubmaxxing.com/pub-crawl-cost): free
+  tool. See its [calculation guide](https://pubmaxxing.com/pub-crawl-cost#how)
+  for costs and round payments. It uses the price the reader enters and states
+  no pub's real price.
 - [About](https://pubmaxxing.com/about): how planning, sharing, accounts and
   price evidence work.
 - [Plan](https://pubmaxxing.com/plan): create an outing and share its invite

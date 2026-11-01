@@ -56,6 +56,8 @@ export const DEVICE_IDENTITY_LOCAL_KEYS = [
   "pubmax_pub_pal_v1",
   // Tonight's answer to the Pal's evening question (lib/palNightQuestion.ts).
   "pubmax:pal-night-answer:v1",
+  // The Pal's stamp book of answered price quests (lib/palQuest.ts).
+  "pubmax:pal-quest-stamps:v1",
 ] as const;
 
 /** The sessionStorage half of the same set. */

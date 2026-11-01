@@ -61,6 +61,8 @@ describe("browser CI policy", () => {
     for (const spec of [
       "e2e/smoke.spec.ts",
       "e2e/map-surface-history.spec.ts",
+      "e2e/ux-click-recovery.spec.ts",
+      "e2e/seo-audit-discovery.spec.ts",
     ]) {
       expect(run).toContain(spec);
     }
@@ -137,12 +139,14 @@ describe("browser CI policy", () => {
     const run = runWords(defined(testStep, "layout-pins Playwright step").run);
     expect(run).toContain(`--shard=\${{ env.LAYOUT_SHARD }}/${LAYOUT_PIN_JOBS.length}`);
     expect(run).toContain("--workers=1");
-    // These specs alone now hold layout once pinned by source-text unit tests.
+    // These specs hold layout once pinned by source-text tests and the
+    // clicked UK arrival notice beside the live map credit control.
     for (const spec of [
       "e2e/desktop-map-chrome-fit.spec.ts",
       "e2e/mobile-map-chrome-fit.spec.ts",
       "e2e/mobile-map-shell-matrix.spec.ts",
       "e2e/ui-consistency-layout.spec.ts",
+      "e2e/landing-uk-directory.spec.ts",
       "e2e/map-desktop-arrival-chrome.spec.ts",
     ]) {
       expect(run).toContain(spec);
