@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { renderToStaticMarkup } from "react-dom/server";
+import type { PatchDisruption } from "@/lib/tflDisruption";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const { load } = vi.hoisted(() => ({ load: vi.fn() }));
@@ -17,7 +19,38 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+const INITIAL_DISRUPTION: PatchDisruption = {
+  patchId: "soho",
+  patchLabel: "Soho",
+  lineId: "northern",
+  lineName: "Northern",
+  kind: "severe_delays",
+  line: "Northern line severe delays",
+};
+
 describe("Today Tube refresh", () => {
+  it("includes the server's disruption in the first document", () => {
+    const html = renderToStaticMarkup(
+      <TodayTubeCard slot="afternoon" initialDisruption={INITIAL_DISRUPTION} />,
+    );
+    expect(html).toContain("Northern line severe delays");
+    expect(html).toContain("near Soho");
+    expect(load).not.toHaveBeenCalled();
+  });
+
+  it("keeps the server's disruption while refreshing and removes it on failure", async () => {
+    let failRefresh!: (result: string) => void;
+    load.mockImplementation(() => new Promise(resolve => { failRefresh = resolve; }));
+    const target = document.createElement("div");
+    document.body.append(target);
+    root = createRoot(target);
+    await act(async () => root!.render(
+      <TodayTubeCard slot="afternoon" initialDisruption={INITIAL_DISRUPTION} />,
+    ));
+    expect(document.body.textContent).toContain("Northern line severe delays");
+    await act(async () => failRefresh("failed"));
+    expect(document.body.textContent).not.toContain("Northern line severe delays");
+  });
   it("pauses hidden-tab polling, refreshes on return and clears its timer on unmount", async () => {
     vi.useFakeTimers();
     const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");

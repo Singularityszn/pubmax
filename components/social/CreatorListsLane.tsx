@@ -165,7 +165,7 @@ export function CreatorListsContent({
       ) : lists.length === 0 ? (
         <div className="creatorListsState">
           <p>No creators have shared a list yet.</p>
-          <Link href="/map">Find venues on the map</Link>
+          <Link prefetch={false} href="/map">Find venues on the map</Link>
         </div>
       ) : (
         <ul className="creatorListsGrid">
@@ -206,6 +206,7 @@ export function CreatorListsContent({
                 <div className="creatorListActions">
                   <Link href={list.listUrl}>View list</Link>
                   <Link
+                    prefetch={false}
                     href={list.mapUrl}
                     onClick={() => trackEvent("creator_list_map_opened")}
                   >
@@ -213,6 +214,7 @@ export function CreatorListsContent({
                   </Link>
                   <Link
                     className="creatorListPlanAction"
+                    prefetch={false}
                     href={list.planUrl}
                     onClick={() => trackEvent("creator_list_plan_started")}
                   >

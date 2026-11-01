@@ -70,6 +70,7 @@ import type {
 } from "./todayDaytime";
 import { todayPatchModule } from "./todayPatch";
 import type { QuietPintModule } from "@/lib/quietPint";
+import type { PatchDisruption } from "@/lib/tflDisruption";
 import "./today.css";
 
 type Props = {
@@ -78,6 +79,7 @@ type Props = {
   nowIso: string;
   greeting: DayGreeting;
   weather: WeatherBrief | null;
+  initialDisruption?: PatchDisruption | null;
   weatherByArea: Partial<Record<NightAreaSlug, WeatherBrief | null>>;
   fact: PubOfTheDayCard | null;
   pintsIndex: TodayPintsIndex;
@@ -212,6 +214,7 @@ export default function TodayClient({
   greeting,
   weather,
   weatherByArea,
+  initialDisruption = null,
   fact,
   pintsIndex,
   quietPint,
@@ -343,7 +346,7 @@ export default function TodayClient({
       <div className="todayStack">
         <div className="todayBriefColumn">
           <WeatherCard weather={brief.weather} />
-          <TodayTubeCard slot={shownGreeting.slot} />
+          <TodayTubeCard slot={shownGreeting.slot} initialDisruption={initialDisruption} />
           <TodayWorkSpots module={workSpotsModule} />
           <TodayCoffee module={coffee} />
           <TodayLunch module={lunchModule} />

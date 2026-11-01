@@ -201,6 +201,7 @@ const MACOS_JOBS: Record<string, string> = {
   "e2e.yml / layout-pins-2": "layout measured on macOS glyph widths",
   "e2e.yml / layout-pins-3": "layout measured on macOS glyph widths",
   "e2e.yml / full-suite": "layout measured on macOS glyph widths",
+  "e2e.yml / full-suite-gl": "layout measured on macOS glyph widths",
   // Its route budgets are figures measured on macOS. A Linux figure is a
   // different measurement, not the same ceiling.
   "performance.yml / performance-budget": "budgets measured on macOS",
