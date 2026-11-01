@@ -307,7 +307,7 @@ export async function PATCH(
 
   // Rate-limit per handle + hashed IP so a profile can't be edit-spammed.
   const key = `profile-edit:${handle}:${hashIp(clientIp(request))}`;
-  if (await isLimited(handle, key)) {
+  if (await isLimited(key, key)) {
     return publicApiError("Too many edits, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
@@ -365,7 +365,7 @@ export async function DELETE(
   }
 
   const key = `profile-delete:${handle}:${hashIp(clientIp(request))}`;
-  if (await isLimited(handle, key)) {
+  if (await isLimited(key, key)) {
     return publicApiError("Too many edits, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 

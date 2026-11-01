@@ -9,6 +9,12 @@ import {
 } from "@/lib/apiErrorMessage";
 
 describe("errorMessageFrom", () => {
+  it("turns generic rate-limit errors into retry guidance across API envelopes", () => {
+    expect(errorMessageFrom({ error: "Too Many Requests" }, "fallback"))
+      .toBe("Please wait a moment before trying again.");
+    expect(errorMessageFrom({ error: { message: "Too many requests." } }, "fallback"))
+      .toBe("Please wait a moment before trying again.");
+  });
   it("returns a non-empty string error", () => {
     expect(errorMessageFrom({ error: "Could not save that." }, "fallback")).toBe(
       "Could not save that.",
