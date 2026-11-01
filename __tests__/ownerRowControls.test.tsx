@@ -280,6 +280,36 @@ describe("Diary entry controls", () => {
     expect(container.querySelector("[data-testid=diary-entry-edit]")).toBeNull();
   });
 
+  it("edits your usual here with the 40 character cap, and shows the saved usual", async () => {
+    authedFetch.mockResolvedValue(json({ status: "ready", entries: [entry({ usualDrink: "Bitter" })] }));
+    authedActionFetch.mockResolvedValue(json({ entry: entry({ usualDrink: "Harvey's Best" }) }));
+    await act(async () => {
+      root.render(createElement(DiaryList));
+    });
+    await settle();
+
+    await act(async () => {
+      button("Edit").click();
+    });
+    const usual = container.querySelector<HTMLInputElement>("[data-testid=diary-edit-usual]")!;
+    expect(usual.value).toBe("Bitter");
+    await act(async () => {
+      type(usual, "x".repeat(50));
+    });
+    expect(usual.value).toHaveLength(40);
+    await act(async () => {
+      type(usual, "Harvey's Best");
+    });
+    await act(async () => {
+      button("Save changes").click();
+    });
+    await settle();
+
+    const [, init] = authedActionFetch.mock.calls[0]! as [string, { body: string }];
+    expect(JSON.parse(init.body)).toMatchObject({ action: "update", id: "entry-1", usualDrink: "Harvey's Best" });
+    expect(container.querySelector("[data-testid=diary-row-usual]")?.textContent).toContain("Harvey's Best");
+  });
+
   it("keeps the editor open with the server's line when a correction is refused", async () => {
     authedFetch.mockResolvedValue(json({ status: "ready", entries: [entry()] }));
     authedActionFetch.mockResolvedValue(

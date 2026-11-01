@@ -224,4 +224,10 @@ gh run list --workflow self-hosted-probe.yml --limit 1
 | Performance budgets | `performance.yml` |
 | Browser law pins, layout pins + nightly suite | `e2e.yml` |
 
+If the repository does not let GitHub Actions open pull requests, the weather
+and What's-On refreshes still push their review branch. They log the branch link
+as a warning and the run stays green. Open that PR by hand. The setting is in
+Settings, Actions, General: "Allow GitHub Actions to create and approve pull
+requests". Only the captain changes it.
+
 See also `docs/CRON_PLANE_RUNBOOK.md` and `docs/teach.md` (local pre-push hook).

@@ -4,16 +4,7 @@ import { buildDayGreeting } from "@/lib/dayGreeting";
 import { CENTRAL_PATCH } from "@/lib/nightPatches";
 import { nearestNightPatch } from "@/lib/nearestNightPatch";
 import { disruptionForPatch, fetchLineStatuses } from "@/lib/tflDisruption";
-import { dealDigestNote, digestSectionPicks } from "@/lib/dealsDigest";
-import {
-  buildWeatherBrief,
-  toTonightPickDto,
-  type WeatherBrief,
-} from "@/lib/todayBrief";
-import { venueCheapestPintObservedAt } from "@/lib/drinks";
-import { hypedPubPriceIndex, hypedPubsForPage } from "@/lib/hypedPubs";
-import { loadHypedPubs } from "@/lib/hypedPubs.server";
-import { loadMapSelectableVenueIds } from "@/lib/mapEagerVenueIndex.server";
+import { buildWeatherBrief, type WeatherBrief } from "@/lib/todayBrief";
 import { loadHistoricPubs } from "@/lib/historic";
 import { LONDON_NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
 import { pickPubOfTheDay } from "@/lib/pubOfTheDay";
@@ -22,33 +13,35 @@ import { formatConditionDate } from "@/lib/tonightConditions";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
 import type { Venue } from "@/lib/venues";
 import { loadFreshWeatherSnapshot } from "@/lib/weatherFreshness.server";
-import {
-  loadTodayOutAnswer,
-  loadTodayWhatsOnAnswer,
-  mergeTodayListingRows,
-  todayPicksLaneReport,
-  todayPicksReadStatus,
-  whatsOnStatusForTonightListings,
-} from "@/lib/todayListings.server";
+import { loadVenueMenuEnrichmentIndex } from "@/lib/venueMenuEnrichment";
 
 import TodayClient from "./TodayClient";
+import {
+  buildTodayCoffee,
+  buildTodayLunchIndex,
+  buildTodayWorkSpotsIndex,
+  type TodayLunchIndex,
+} from "./todayDaytime";
+import { loadTodayCoffeePilot, loadTodayDeskPack } from "./todayDaytime.server";
 import { buildTodayPintsIndex, type TodayPintsIndex } from "./todayPints";
 
-// The morning brief: one composed home surface for "before you go", a stack of
-// cards all from data the app already sources. Per PRD Lane A
-// (docs/UNIVERSAL_DAY0_PRD.md) this is the smallest excellent v1; the signed-in
-// mobile-home redirect before 17:00 London is deliberately out of this PR.
+// The daytime page: one composed surface for the day, a stack of sections all
+// from data the app already sources. Since the launch review (30 Oct 2026,
+// design V1) it carries none of Tonight's picks: work spots, coffee, lunch at a
+// pub, a quiet pint, the weather and the cheap pints, with the pub of the day at
+// the foot.
 //
-// Weather, the pub fact and the cheapest-pints index are bundled on the server.
-// Tonight's picks use the same merged What's-On plus Out spine as /tonight
-// (lib/todayListings.server.ts). Independent reads still run in parallel. The
-// get-there strip needs the viewer's rough location. The Tube card starts
-// with central London, then refreshes for the viewer's remembered area.
+// Weather, the pub fact, the cheapest-pints index and the daytime modules are
+// composed on the server, one small module per night patch, so the browser
+// takes no venue data of its own. Independent reads run in parallel. The
+// get-there strip needs the viewer's rough location, so it owns its own fetch.
+// The Tube card starts with central London, then refreshes for the viewer's
+// remembered area.
 
 export const metadata: Metadata = {
   title: "Today in London",
   description:
-    "Your morning brief: is it a pint-in-the-garden day, tonight's top picks, how you'll get home, and one sourced pub fact.",
+    "Your day in London: work spots, a coffee, lunch at a pub, a quiet pint, the weather, how you'll get home, and one sourced pub fact.",
   alternates: { canonical: "/today" },
 };
 
@@ -91,12 +84,27 @@ export const revalidate = 300;
 // so this can never hold one reader's answer in front of another.
 const pintsIndexByVenues = new WeakMap<Venue[], TodayPintsIndex>();
 const priceByIdByVenues = new WeakMap<Venue[], Map<string, number>>();
+const lunchIndexByVenues = new WeakMap<Venue[], TodayLunchIndex>();
 
 function todayPintsIndexFor(venues: Venue[]): TodayPintsIndex {
   const held = pintsIndexByVenues.get(venues);
   if (held) return held;
   const built = buildTodayPintsIndex(venues);
   pintsIndexByVenues.set(venues, built);
+  return built;
+}
+
+// The lunch rows join the dataset to the menu links, and neither moves within a
+// process, so the join is held on the dataset's identity like the two above.
+function todayLunchIndexFor(
+  venues: Venue[],
+  menus: Awaited<ReturnType<typeof loadVenueMenuEnrichmentIndex>>,
+): TodayLunchIndex {
+  const held = lunchIndexByVenues.get(venues);
+  if (held) return held;
+  const built = buildTodayLunchIndex(venues, menus);
+  // An empty menu index is a read that may have failed: never hold it.
+  if (menus.size > 0) lunchIndexByVenues.set(venues, built);
   return built;
 }
 
@@ -115,22 +123,24 @@ export default async function TodayPage() {
   const now = new Date();
 
   // These server reads run in parallel. Each read keeps its fail-soft result.
-  const [weatherSnapshot, whatsOn, out, pricedVenues, historicPubs, hyped, mapSelectableVenueIds, lineStatuses] = await Promise.all([
+  const [weatherSnapshot, pricedVenues, historicPubs, menus, desks, coffeeRows, lineStatuses] = await Promise.all([
     // Store-first read-through: the freshest durable/cached reading when it is
     // recent, else a live Open-Meteo top-up (reusing the cron's fetcher), else
     // the committed snapshot with its honest staleness banner. Never needlessly
     // stale even between cron runs or before migration 0047 lands.
     loadFreshWeatherSnapshot({ now }),
-    // Same bundled-plus-live spine as /api/whats-on; Out events merge below.
-    loadTodayWhatsOnAnswer(now.getTime()),
-    loadTodayOutAnswer(now.getTime()),
-    // Cheapest priced pints per area, precomputed from the bundled price dataset
-    // so the client can answer the viewer's remembered area with no venue data
-    // of its own and no request-time work.
+    // Cheapest priced pints per area and the lunch pubs, both precomputed from
+    // the bundled price dataset so the client answers the viewer's remembered
+    // area with no venue data of its own and no request-time work.
     getPricedVenues(),
     loadHistoricPubs(),
-    loadHypedPubs(),
-    loadMapSelectableVenueIds(),
+    // The menu links a lunch row needs (the venue sheet's own overlay).
+    loadVenueMenuEnrichmentIndex(),
+    // The /near Work spots pack, read here so no reader downloads it.
+    loadTodayDeskPack(),
+    // The Shoreditch coffee pilot, hand-checked rows.
+    loadTodayCoffeePilot(),
+    // Central London's first Tube notice, so it is in the shared document.
     fetchLineStatuses(),
   ]);
 
@@ -150,40 +160,13 @@ export default async function TodayPage() {
     ]),
   ) as Partial<Record<NightAreaSlug, WeatherBrief | null>>;
 
-  // Group syndicated chain deals (identical title + source across venues) into
-  // one pick carrying the real venue count and cap to one card per source. Keep
-  // the ranked candidate set uncapped until the client applies evidenced mutes,
-  // then Today takes its top 3. Fixes the live-taste P0 where one Wetherspoon promotion filled the
-  // section with five identical cards. No location on the server, so the digest
-  // resolves each group's display to its soonest venue; the client re-orders the
-  // resulting picks around the viewer's remembered patch below.
-  // Same merged spine as /tonight: bundled What's-On rows plus Out events.
-  const whatsOnReadStatus = whatsOn?.readStatus ?? "degraded";
-  const whatsOnRows = whatsOn?.rows ?? [];
-  const whatsOnStatus = whatsOnStatusForTonightListings(
-    whatsOnReadStatus,
-    whatsOnRows.length,
-  );
-  const listingRows = mergeTodayListingRows(
-    whatsOnRows,
-    out,
-    now.getTime(),
-    whatsOnStatus,
-  );
-  const picksStatus = todayPicksReadStatus(
-    whatsOnReadStatus,
-    whatsOnRows.length,
-    out,
-    now.getTime(),
-    whatsOnRows,
-  );
-  // A lane that FAILED and a lane nobody ASKED are the same absence to a
-  // reader, and neither is a quiet city (battle test M07).
-  const picksLane = todayPicksLaneReport(whatsOnReadStatus, whatsOnRows.length, out);
-  const picks = digestSectionPicks(listingRows, { limit: Number.POSITIVE_INFINITY }).map((pick) => {
-    const dto = toTonightPickDto(pick.row);
-    return pick.digest ? { ...dto, venueNote: dealDigestNote(pick.digest.venueCount) } : dto;
-  });
+  // The daytime modules. Each is fail-soft: a pack that could not be read
+  // leaves its index empty, and an empty index renders no section.
+  const workSpots = desks.status === "ready"
+    ? buildTodayWorkSpotsIndex(desks.venues, desks.observedAt, now)
+    : {};
+  const lunch = todayLunchIndexFor(pricedVenues, menus);
+  const coffee = buildTodayCoffee(coffeeRows, "Shoreditch");
 
   // Pub of the day, from the JOINED historic index rather than the raw
   // heritage cache: the join carries the venue id the card's map link needs,
@@ -220,21 +203,6 @@ export default async function TodayPage() {
     now,
   });
 
-  // The same fresh, priced rows /tonight leads with (lib/hypedPubs.ts).
-  const suggestedPubs = hypedPubsForPage(hyped.rows, {
-    now,
-    prices: hypedPubPriceIndex(
-      pricedVenues.map((venue) => ({
-        id: venue.id,
-        cheapestPrice: venue.cheapestPrice,
-        observedAt: venueCheapestPintObservedAt(venue),
-      })),
-    ),
-  });
-  const suggestedPubMapIds = mapSelectableVenueIds
-    ? suggestedPubs.flatMap((pub) => pub.venueId && mapSelectableVenueIds.has(pub.venueId) ? [pub.venueId] : [])
-    : null;
-
   // The greeting uses the server render's clock. Area personalisation reuses
   // that instant, so its time-of-day band agrees with the initial greeting.
   const dateLabel = formatConditionDate(now);
@@ -248,19 +216,12 @@ export default async function TodayPage() {
       weather={weather}
       initialDisruption={initialDisruption}
       weatherByArea={weatherByArea}
-      picks={picks}
-      hypedPubs={suggestedPubs}
-      mapSelectableVenueIds={suggestedPubMapIds}
-      picksStatus={picksStatus}
-      // The day the rows on screen were OBSERVED, never the instant this
-      // request was served. Null when the read carries no source time, and the
-      // card then prints no date rather than borrowing this render's.
-      picksCheckedAt={whatsOn?.sourceObservedAt ?? null}
-      picksReason={picksLane.reason}
-      picksRetryable={picksLane.retryable}
       fact={fact}
       pintsIndex={pintsIndex}
       quietPint={quietPint}
+      workSpots={workSpots}
+      lunch={lunch}
+      coffee={coffee}
     />
   );
 }

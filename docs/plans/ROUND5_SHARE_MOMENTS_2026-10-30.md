@@ -1,0 +1,15 @@
+# Round 5: the things people share (30 October 2026)
+
+> Status: BUILDING. A new PR from `main` (d460e097), cut while PR 2402 (rounds 1 to 4) is frozen for review. Nothing here depends on 2402 code, and the slices avoid its heavy files (the Tonight and Today clients, the plan card and composer, the venue Overview tab beyond one mount line, the price composer, the passport, the crawls page, the regular-nights lane). The captain asked for round 5 as its own PR so reviews stay small.
+
+Week 3 of [`LAUNCH_REVIEW_2026-10-30.md`](LAUNCH_REVIEW_2026-10-30.md) section 5: the share moments for launch week. Five builders, each merged onto this branch before work, one commit per slice. Migration labels 0203 to 0211 belong to PR 2402 and 0202 is on main, so this round takes no label unless a slice says so below.
+
+| # | Slice | Review item | Files it owns | Label |
+| --- | --- | --- | --- | --- |
+| 24 | Pint price time machine: a page with a year slider, pins with a dated record lit and the rest greyed, "Only pubs with a dated record light up", a share link with the year and an OG image | F1 | new `app/time-machine/**`, new `lib/priceTimeMachine.ts`, one link from `/historic` | none |
+| 25 | Board reader: "Photo of the board" from the venue sheet, the Pal proposes line items (drink, measure, price), the person confirms each, each confirmed row lands as a dated people-logged price with the photo as its bill | A4, F3 | new `app/board/**`, new `app/api/board-reads/**`, new `components/board/**`, one mount line in `VenueOverviewTab.tsx` | none |
+| 26 | Guinness lane on `/near` ("Cheapest Guinness within 15 minutes") linked to `/drink/guinness`; a "Dog" category on the photo wall and a Dog of the week page with an OG image, mounted on Discover | B3, F7 | `lib/nearMeAnswer.ts`, `app/near/**`, `lib/drinkWall.ts`, the wall upload category, new `app/dog-of-the-week/**`, one card on `app/discover` | none |
+| 27 | Pub crawl bingo, nine squares none about drinking, ticked from actions the app already records, on the night card; the crawl name generator, two words from the stops and the vibe vote | F2, F9 | new `lib/crawlBingo.ts`, new `components/night/CrawlBingoCard*`, one mount line in `NightModeCard.tsx`, new `lib/crawlNameGenerator.ts` | none |
+| 28 | Rename-safe author reads in the drop store (a renamed account keeps its older drops in its passport geography and counts); "Mates' prices", your mutuals' recent logged prices on the venue sheet, mutuals only | the drop store rename bug flagged in round 4, F8 | `lib/pintDropsStore.ts`, new `lib/matesPrices*.ts`, new `app/api/mates-prices/**`, new `components/map/MatesPricesLine.tsx`, one mount line in `VenueOverviewTab.tsx` | none |
+
+Held for the PR after 2402 merges, because they describe 2402 code: the rules docs rows and the permission matrix rows for the open crawl, kitchen tap, usual drink, bingo and diary tag edits; the browser specs for the five folds, the kitchen tap, the open crawl section and the round forecast; the passport top-ten alias map; the `docs/WRITE_SURFACE_CERTIFICATION.md` header count; the plan page line that still says "Mates tap I'm in".

@@ -610,16 +610,41 @@
       42
     ]
   },
-  "base:pub": {
+  "route:route-time": {
     "x": 514,
     "y": 434,
+    "width": 80,
+    "height": 44,
+    "pixelRatio": 2,
+    "stretchX": [
+      [
+        22,
+        58
+      ]
+    ],
+    "stretchY": [
+      [
+        20,
+        24
+      ]
+    ],
+    "content": [
+      16,
+      6,
+      64,
+      38
+    ]
+  },
+  "base:pub": {
+    "x": 0,
+    "y": 496,
     "width": 60,
     "height": 60,
     "pixelRatio": 2
   },
   "base:coffee": {
-    "x": 576,
-    "y": 434,
+    "x": 62,
+    "y": 496,
     "width": 60,
     "height": 60,
     "pixelRatio": 2

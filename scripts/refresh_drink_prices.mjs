@@ -167,7 +167,7 @@ function loadAllowlist() {
 const UA =
   `PubMaxxingBot/1.0 (+https://pubmaxxing.app; drink-price research; contact ${CONTACT_EMAIL})`;
 /**
- * Which lib/harvest/sourcePolicy.ts row PERMITS each allowlisted drink source
+ * Which lib/harvest/sourceRegistry.ts row PERMITS each allowlisted drink source
  * that has a fetcher. The two tables are read together and the narrower one
  * binds (docs/rules/scripts-harvest-and-source-permission.md), so a source with
  * a fetcher and no permitting row fetches nothing at all.

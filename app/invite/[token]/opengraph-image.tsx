@@ -192,7 +192,7 @@ export default async function Image({ params }: { params: Promise<{ token: strin
         {/* Footer */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", color: OG.muted, fontSize: 24, letterSpacing: 0.5 }}>
-            Going · Maybe · a guest list that fills in live
+            Tap Going or Maybe. The guest list fills in live.
           </div>
           <div style={{ display: "flex", alignItems: "center", color: OG.coral, fontSize: 26, fontWeight: 700 }}>
             <div style={{ width: 44, height: 2, background: OG.coral, marginRight: 16 }} />

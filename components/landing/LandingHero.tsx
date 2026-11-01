@@ -9,9 +9,7 @@ import Kicker from "@/components/ui/kicker";
 import Screen from "@/components/ui/screen";
 import { trackEvent } from "@/lib/analytics";
 import type { LandingCtaTarget } from "@/lib/analyticsEvents";
-import type { LegacyPintPrice } from "@/lib/drinks";
 import {
-  answerEvidenceFor,
   answerKicker,
   archiveMovementLine,
   HERO_RAIL_SIZE,
@@ -31,6 +29,7 @@ import {
   type LandingArchiveThen,
   type LandingRailRow,
 } from "@/lib/landingHero";
+import { comparatorEvidenceFor, readLandingEvidence, settleEachRead } from "@/lib/landingEvidenceRead";
 import type { LandingPubCardData } from "@/lib/landingPubCard";
 import {
   landingPhotoFor,
@@ -41,7 +40,6 @@ import type { NearMeCard } from "@/lib/nearMeAnswer";
 import { PRICE_NOT_COMPARED_LINE } from "@/lib/priceMovementLine";
 import { priceStandingLabel, priceStandingNote, type PriceStanding } from "@/lib/priceTier";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
-import { discardBody } from "@/lib/responseBody";
 import {
   LANDING_SKYLINE_HERO_AVIF_SRCSET,
   LANDING_SKYLINE_HERO_JPG_FALLBACK,
@@ -133,6 +131,14 @@ type Answer = {
   drinkHref: Route | null;
   scope: LandingAnswerScope;
   walkMinutes?: number;
+  /**
+   * What the near-you answer is worth against the reader's doorstep pub
+   * (nearSavingLine, lib/nearMeAnswer.ts), with that pub's own evidence: the
+   * line prints its price, so it prints who listed it and when, or why it
+   * cannot. Only an answer from the reader's own fix carries one; the anchor
+   * never does.
+   */
+  saving?: { line: string; name: string; evidence: Evidence } | null;
   evidence: Evidence;
   then: LandingArchiveThen | null;
   rail: LandingRailRow[];
@@ -170,6 +176,7 @@ function nearAnswer(
   rest: NearMeCard[],
   scope: "walkable" | "widened",
   archive: LandingArchiveIndex,
+  saving: { line: string; name: string } | null,
 ): Answer {
   return {
     id: first.id,
@@ -181,6 +188,7 @@ function nearAnswer(
     drinkHref: null,
     scope,
     walkMinutes: first.walkMinutes,
+    saving: saving ? { ...saving, evidence: "loading" } : null,
     evidence: "loading",
     then: archive[first.id] ?? null,
     rail: rest.slice(0, HERO_RAIL_SIZE).map((card) => ({
@@ -194,33 +202,6 @@ function nearAnswer(
     })),
   };
 }
-
-/**
- * The publisher and standing for a near-you answer, read off the same venue
- * detail the sheet reads, through the same decider the anchor used at build.
- * A read that could not be run answers `unavailable`, never "no publisher".
- */
-async function readEvidence(
-  venueId: string,
-  priceGbp: number,
-  signal: AbortSignal,
-): Promise<Evidence> {
-  try {
-    const response = await fetch(`/api/venue/${encodeURIComponent(venueId)}`, { signal });
-    if (!response.ok) {
-      discardBody(response);
-      return "unavailable";
-    }
-    const payload = (await response.json()) as { venue?: { prices?: LegacyPintPrice[] } };
-    const prices = Array.isArray(payload.venue?.prices) ? payload.venue.prices : null;
-    if (!prices) return "unavailable";
-    return answerEvidenceFor({ priceGbp, prices });
-  } catch {
-    return "unavailable";
-  }
-}
-
-
 
 export default function LandingHero({
   card,
@@ -270,14 +251,38 @@ export default function LandingHero({
               fail(NEAR_ME_NOTHING_LINE);
               return;
             }
-            setAnswer(nearAnswer(first, rest, ranked.scope, archive));
+            const nearest = ranked.nearest;
+            const savingLine = rankModule.nearSavingLine(ranked.cards, nearest);
+            const saving = savingLine && nearest ? { line: savingLine, name: nearest.name } : null;
+            setAnswer(nearAnswer(first, rest, ranked.scope, archive, saving));
             setNear({ kind: "answered" });
             const controller = new AbortController();
-            const evidence = await readEvidence(first.id, first.cheapestPrice, controller.signal);
-            if (mine !== generation.current) return;
-            setAnswer((current) =>
-              current && current.id === first.id ? { ...current, evidence } : current,
-            );
+            // The doorstep pub's evidence is read beside the answer's own, by
+            // the same venue read, so the price the saving line prints is as
+            // sourced as the card's, and for that exact figure. Each read has
+            // its own deadline and lands on its own, so a stalled one cannot
+            // hold the other back (lib/landingEvidenceRead.ts).
+            const owns = () => mine === generation.current;
+            settleEachRead(owns, [
+              {
+                read: readLandingEvidence(first.id, first.cheapestPrice, controller.signal),
+                apply: (evidence) =>
+                  setAnswer((current) => (current && current.id === first.id ? { ...current, evidence } : current)),
+              },
+              ...(saving && nearest
+                ? [
+                    {
+                      read: readLandingEvidence(nearest.id, nearest.cheapestPrice, controller.signal, comparatorEvidenceFor),
+                      apply: (evidence: Exclude<Evidence, "loading">) =>
+                        setAnswer((current) =>
+                          current && current.id === first.id && current.saving
+                            ? { ...current, saving: { ...current.saving, evidence } }
+                            : current,
+                        ),
+                    },
+                  ]
+                : []),
+            ]);
           })
           .catch(() => fail(NEAR_ME_FAILED_LINE));
       },
@@ -401,6 +406,31 @@ function sourceLine(evidence: Evidence): string {
   return evidence.publisher ? "" : "No publisher recorded";
 }
 
+/** The doorstep pub's evidence under the saving line, in the card's own words. */
+function SavingSource({ name, evidence }: { name: string; evidence: Evidence }) {
+  const publisher = typeof evidence === "object" ? evidence.publisher : null;
+  const observedOn = typeof evidence === "object" ? evidence.observedOn : null;
+  return (
+    // lpPubSource: the card's own source line style, link and tap target too.
+    <p className="lpPubSource lpSavingSource" data-testid="landing-saving-source">
+      {name}:{" "}
+      {publisher ? (
+        <>
+          Listed by{" "}
+          <a href={publisher.url} target="_blank" rel="noopener noreferrer">
+            {publisher.label}
+          </a>
+        </>
+      ) : (
+        sourceLine(evidence)
+      )}
+      {observedOn
+        ? `, source read ${collectedDay(observedOn)}`
+        : typeof evidence === "object" ? ", read day not recorded" : ""}.
+    </p>
+  );
+}
+
 function AnswerCard({
   answer,
   near,
@@ -462,6 +492,14 @@ function AnswerCard({
           <span className="lpPubPint">{answer.pintName ?? "cheapest pint"}</span>
         )}
       </p>
+      {answer.saving ? (
+        <>
+          <p className="lpSaving" data-testid="landing-saving-line">
+            {answer.saving.line}
+          </p>
+          <SavingSource name={answer.saving.name} evidence={answer.saving.evidence} />
+        </>
+      ) : null}
       <p className="lpPubSource">
         {publisher ? (
           <>

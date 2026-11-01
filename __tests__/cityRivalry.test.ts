@@ -4,9 +4,11 @@ import {
   buildCityRivalrySnapshot,
   cityRivalryLeaderboard,
   crawlPackCountForCity,
+  publishableCityRivalry,
   rankCities,
   rivalryScore,
 } from "@/lib/cityRivalry";
+import { listEnabledCities } from "@/lib/cities";
 import { cityMapShareUrl } from "@/lib/cityShare";
 import { demoPintDropsForCity } from "@/lib/pintDropSeeds";
 import { defined } from "@/__tests__/helpers/defined";
@@ -67,23 +69,42 @@ describe("buildCityRivalrySnapshot / cityRivalryLeaderboard", () => {
     bath: 68,
   } as const;
 
-  it("uses demo seeds only (no invented organics) and ranks enabled cities", () => {
-    const board = buildCityRivalrySnapshot(venueOverrides);
-    expect(board.length).toBeGreaterThanOrEqual(3);
+  it("prints nothing while any city lacks a real count (the board today)", () => {
+    // No real counter exists yet, so the shipped board is empty and the Pubs
+    // and pints tab renders no section (launch review, 30 Oct 2026, item 10).
+    expect(buildCityRivalrySnapshot(venueOverrides)).toEqual([]);
+    // Demo seed counts are never a drop count, even where seeds ship.
+    expect(demoPintDropsForCity("london").length).toBeGreaterThan(0);
+    expect(buildCityRivalrySnapshot(venueOverrides)).toEqual([]);
+  });
 
+  it("prints nothing when one city's real count is zero or missing", () => {
+    const cities = listEnabledCities().map((city) => city.id);
+    const allButOne = Object.fromEntries(cities.slice(1).map((id) => [id, 4]));
+    expect(buildCityRivalrySnapshot(venueOverrides, allButOne)).toEqual([]);
+    expect(buildCityRivalrySnapshot(venueOverrides, { ...allButOne, [defined(cities[0])]: 0 })).toEqual([]);
+  });
+
+  it("ranks every enabled city once every one has a real count above zero", () => {
+    const cities = listEnabledCities().map((city) => city.id);
+    const real = Object.fromEntries(cities.map((id) => [id, id === "london" ? 40 : 2]));
+    const board = buildCityRivalrySnapshot(venueOverrides, real);
+    expect(board).toHaveLength(cities.length);
     const byId = Object.fromEntries(board.map((e) => [e.cityId, e]));
-    expect(defined(byId.london).dropCount).toBe(demoPintDropsForCity("london").length);
-    expect(defined(byId.manchester).dropCount).toBe(demoPintDropsForCity("manchester").length);
-    expect(defined(byId.glasgow).dropCount).toBe(0);
+    expect(defined(byId.london).dropCount).toBe(40);
     expect(defined(byId.london).crawlPackCount).toBe(crawlPackCountForCity("london"));
-    expect(defined(byId.manchester).crawlPackCount).toBe(crawlPackCountForCity("manchester"));
-    expect(defined(byId.glasgow).crawlPackCount).toBe(crawlPackCountForCity("glasgow"));
-    expect(defined(byId.liverpool).crawlPackCount).toBe(crawlPackCountForCity("liverpool"));
-    expect(defined(byId.liverpool).crawlPackCount).toBeGreaterThanOrEqual(3);
-
-    // London should lead on demo drops + crawl packs.
     expect(defined(board[0]).cityId).toBe("london");
     expect(board.every((e) => e.score === rivalryScore(e))).toBe(true);
+  });
+
+  it("publishableCityRivalry refuses a partial board", () => {
+    const ranked = rankCities([
+      { cityId: "london", dropCount: 3, crawlPackCount: 1, venueCount: 10, tagline: "" },
+      { cityId: "bath", dropCount: 0, crawlPackCount: 0, venueCount: 10, tagline: "" },
+    ]);
+    expect(publishableCityRivalry(ranked)).toEqual([]);
+    expect(publishableCityRivalry([])).toEqual([]);
+    expect(publishableCityRivalry(ranked.slice(0, 1))).toHaveLength(1);
   });
 
   it("does not credit London crawl packs to browse-only cities", () => {
@@ -97,13 +118,15 @@ describe("buildCityRivalrySnapshot / cityRivalryLeaderboard", () => {
   });
 
   it("cityRivalryLeaderboard aliases the snapshot", () => {
-    expect(cityRivalryLeaderboard(venueOverrides)).toEqual(
-      buildCityRivalrySnapshot(venueOverrides),
+    const real = Object.fromEntries(listEnabledCities().map((city) => [city.id, 3]));
+    expect(cityRivalryLeaderboard(venueOverrides, real)).toEqual(
+      buildCityRivalrySnapshot(venueOverrides, real),
     );
   });
 
   it("rivalry city links use cityMapShareUrl (London /map, others /map/{id})", () => {
-    const board = buildCityRivalrySnapshot(venueOverrides);
+    const real = Object.fromEntries(listEnabledCities().map((city) => [city.id, 3]));
+    const board = buildCityRivalrySnapshot(venueOverrides, real);
     const byId = Object.fromEntries(board.map((e) => [e.cityId, e]));
     expect(cityMapShareUrl(defined(byId.london).cityId)).toBe("/map");
     expect(cityMapShareUrl(defined(byId.bristol).cityId)).toBe("/map/bristol");

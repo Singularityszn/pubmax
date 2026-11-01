@@ -2,6 +2,9 @@ export const PAL_MASCOT_SIZES: readonly [32, 64, 128, 256, 512];
 
 export const PAL_MASCOT_WEBP_512_BUDGET: number;
 
+/** The file-name part of the open-mouth frame laid over a speaking Pal. */
+export const PAL_MASCOT_TALK: "talk";
+
 export const PAL_MASCOT_SLUGS: {
   readonly robin: "circuit-robin";
   readonly greyhound: "circuit-greyhound";

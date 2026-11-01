@@ -128,9 +128,9 @@ const ARNOS_ARMS = stableVenueIdFromKey(
   ["arnos arms", "338 bowes road, arnos grove, london, n11 1an", "51.61620", "-0.13212"].join("|"),
 );
 
-/** Open the full Pint Drop composer on the Stories tab of an open pub sheet. */
+/** Open the full Pint Drop composer on the Prices tab of an open pub sheet. */
 async function openSpillComposer(page: Page, inspector: Locator): Promise<Locator> {
-  await inspector.getByRole("tab", { name: "Stories", exact: true }).click();
+  await inspector.getByRole("tab", { name: "Prices", exact: true }).click();
   const pintsPanel = inspector.locator("#venuePanel-pints");
   await expect(pintsPanel).toBeVisible();
   await expect(async () => {

@@ -90,21 +90,34 @@ someone sees it. Timeouts allow for real network latency instead.
 `.github/workflows/prod-smoke.yml` runs the suite when Vercel reports a
 successful Production deployment to GitHub. It checks out the deployed commit,
 so the specs match the code they test. Vercel's Git integration sends that
-report. A `vercel deploy --prod` from a laptop does not, so start the workflow
-by hand after one:
+report. A `vercel deploy --prod` from a laptop does not. Use the
+[release procedure](../../docs/DEPLOYMENT.md#one-release-command) for CLI releases.
+For a separate manual check, start the workflow with the deployment that the
+live site must serve:
 
 ```sh
-gh workflow run prod-smoke.yml
+gh workflow run prod-smoke.yml --ref main -f deployment_id=dpl_...
 ```
 
-Before the suite runs, the workflow checks that the live site serves the
-deployment that started it. Both the deployment's own URL and
-`https://pubmaxxing.com` answer `/api/version` with a Vercel deployment id. If a
-newer deploy already serves production, the run skips with a notice, because the
-newer deploy's own run tests it. If production moves while the suite runs, the
-run fails and says so: its verdict no longer belongs to the commit it checked
-out. A dispatched run tests the ref it was dispatched on, so dispatch it on the
-commit that is live.
+Replace `dpl_...` with the released deployment's ID from its own `/api/version`
+response. A dispatched run tests its selected ref. Use a ref whose commit
+matches the deployment.
+
+Before the suite runs, the workflow checks the live deployment's identity.
+The trigger determines the expected deployment:
+
+- A deployment-status event supplies the deployment URL. The workflow compares
+  its `/api/version` deployment ID with the live site's ID. If another
+  deployment already serves production, the run skips with a notice.
+- A dispatch with `deployment_id` requires the live site to serve that ID.
+  A mismatch fails the run and leaves the named deployment unverified.
+- A dispatch without `deployment_id` tests whatever production serves when the
+  initial check runs.
+
+Unless the run is cancelled, the workflow checks the live deployment ID after
+the suite, even if the suite failed. A changed or missing ID fails the run.
+The named deployment remains unverified because the suite cannot provide a
+complete verdict for it.
 
 The workflow always tests `https://pubmaxxing.com`, so the smoke account's
 secrets never go to another origin. `SMOKE_BASE_URL` is for local runs only.
@@ -130,7 +143,8 @@ The captain makes the account and the secrets. An agent never does.
    Actions:
    - `SMOKE_USER_HANDLE`: the handle without the `@`.
    - `SMOKE_USER_PASSWORD`: the password.
-6. Run `gh workflow run prod-smoke.yml` and check that every journey passes.
+6. Start the workflow as described in [After every deploy](#after-every-deploy).
+   Check that every journey passes.
    The first run also meets a Pub Pal for the account, as a new user would.
 
 Keep the account for the smoke suite only. Do not follow people, join crews or

@@ -3,7 +3,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 const VIEWPORT = { width: 390, height: 844 };
 const STORY_VENUE_ID = "venue-xiesdn"; // The Dog & Duck, Soho — has shipped heritage facts.
 
-const TAB_LABELS = ["Overview", "Photos", "Menu", "Stories", "Lore"] as const;
+const TAB_LABELS = ["Overview", "Photos", "Menu", "Prices", "Lore"] as const;
 
 test.setTimeout(120_000);
 

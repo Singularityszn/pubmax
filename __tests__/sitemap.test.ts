@@ -21,6 +21,9 @@ import {
 import { loadDrinkBrandLandings } from "@/lib/drinkBrandLanding.server";
 import { loadDrinkBrandAreaLandings } from "@/lib/drinkBrandAreaLanding.server";
 import { PERFORMANCE_BUDGETS } from "@/lib/performanceBudgets";
+import { NAMED_ROUTES } from "@/lib/namedRoutes";
+import { loadAreaLandings } from "@/lib/areaLanding.server";
+import { PRICED_LANDING_PUBLICATION_FLOORS } from "@/lib/pricedLanding";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 import type { MetadataRoute } from "next";
 
@@ -31,9 +34,13 @@ import type { MetadataRoute } from "next";
 // claimed handles), the two legal content pages (/privacy, /terms), the data
 // credits page (/credits) linked from the site footer, /account/delete, the
 // public account-deletion page Play Console holds in its Data safety form and
-// expects to be able to open, /spoons-value, the national Wetherspoon units-per-tenner ranking, and
-// /price-pulse, the weekly Price Pulse and its "Where your £6 goes" explainer.
-// The public /feedback, /updates and /pal pages also belong in this list.
+// expects to be able to open, /spoons-value, the national Wetherspoon units-per-tenner ranking,
+// /price-pulse, the weekly Price Pulse and its "Where your £6 goes" explainer, and
+// /time-machine, the pint price time machine over the dated history file.
+// The public /feedback, /updates and /pal pages also belong in this list, and
+// so does /today since its ISR stale window is one hour (SEO audit #2126).
+// /press and /pub-crawl-cost are the two pages other sites are asked to link
+// to (docs/growth/BACKLINK_PLAYBOOK.md).
 //
 // /pint-index is NOT here. Captain decision D10 holds its row until a month
 // carries the admission floor of priced pubs in at least one borough, and the
@@ -41,7 +48,7 @@ import type { MetadataRoute } from "next";
 // row returning is a conscious test edit, the same as a change to the list
 // above; the gate itself is proved in both directions by the fixture-driven
 // describe at the foot of this file. The ROUTE is unaffected either way.
-const STATIC_HUB_COUNT = 20;
+const STATIC_HUB_COUNT = 24;
 
 // Wave S1.2 — sitemap sanity. Runs the real generator against the bundled
 // dataset (process.cwd() is the repo root in tests, so public/data/*.json is
@@ -81,6 +88,8 @@ type ExpectedCounts = {
   editions: number;
   drinkBrands: number;
   drinkBrandAreas: number;
+  areas: number;
+  namedRoutes: number;
   total: number;
 };
 
@@ -112,6 +121,8 @@ async function expectedCounts(): Promise<ExpectedCounts> {
     editions,
     drinkBrands,
     drinkBrandAreas,
+    areas: (await loadAreaLandings()).length,
+    namedRoutes: NAMED_ROUTES.length,
   };
   return {
     ...counts,
@@ -124,7 +135,9 @@ async function expectedCounts(): Promise<ExpectedCounts> {
       counts.venues +
       counts.editions +
       counts.drinkBrands +
-      counts.drinkBrandAreas,
+      counts.drinkBrandAreas +
+      counts.areas +
+      counts.namedRoutes,
   };
 }
 
@@ -132,6 +145,7 @@ describe("sitemap()", () => {
   let entries: MetadataRoute.Sitemap;
   let urls: string[];
   let expected: ExpectedCounts;
+  let areaLandings: Awaited<ReturnType<typeof loadAreaLandings>>;
 
   const familyCount = (prefix: string) =>
     urls.filter((u) => u.startsWith(`${SITE}${prefix}`)).length;
@@ -141,6 +155,7 @@ describe("sitemap()", () => {
     entries = await sitemap();
     urls = entries.map((e) => e.url);
     expected = await expectedCounts();
+    areaLandings = await loadAreaLandings();
   });
 
   afterAll(() => {
@@ -174,6 +189,8 @@ describe("sitemap()", () => {
       "/about",
       "/spoons-value",
       "/price-pulse",
+      "/press",
+      "/pub-crawl-cost",
     ]) {
       expect(urls).toContain(`${SITE}${hub}`);
     }
@@ -192,7 +209,7 @@ describe("sitemap()", () => {
 
   it("dates the updates page from its latest released note", () => {
     const update = entries.find((entry) => entry.url === `${SITE}/updates`);
-    expect(new Date(update!.lastModified!).toISOString()).toBe("2026-10-22T00:00:00.000Z");
+    expect(new Date(update!.lastModified!).toISOString()).toBe("2026-10-30T00:00:00.000Z");
   });
 
   it("uses an appended newer release to date the updates page", async () => {
@@ -202,14 +219,14 @@ describe("sitemap()", () => {
       return {
         PUBLIC_UPDATES: [
           ...actual.PUBLIC_UPDATES,
-          { id: "appended-release", date: "2026-10-24", title: "A newer release", changes: ["A verified change."] },
+          { id: "appended-release", date: "2026-10-31", title: "A newer release", changes: ["A verified change."] },
         ],
       };
     });
     try {
       const { default: appendedSitemap } = await import("@/app/sitemap");
       const update = (await appendedSitemap()).find((entry) => entry.url === `${SITE}/updates`);
-      expect(new Date(update!.lastModified!).toISOString()).toBe("2026-10-24T00:00:00.000Z");
+      expect(new Date(update!.lastModified!).toISOString()).toBe("2026-10-31T00:00:00.000Z");
     } finally {
       vi.doUnmock("@/lib/publicUpdates");
       vi.resetModules();
@@ -245,7 +262,10 @@ describe("sitemap()", () => {
     expect(familyCount("/historic/")).toBe(expected.historic);
     expect(familyCount("/ledger/")).toBe(expected.venues);
     expect(familyCount("/drink/")).toBe(expected.drinkBrands);
-    expect(familyCount("/area/")).toBe(expected.drinkBrandAreas);
+    expect(urls.filter((u) => /\/area\/[^/]+\/drink\//.test(u))).toHaveLength(expected.drinkBrandAreas);
+    expect(urls.filter((u) => /\/area\/[^/]+$/.test(u))).toHaveLength(expected.areas);
+    expect(expected.areas).toBeGreaterThan(0);
+    expect(familyCount("/routes/")).toBe(expected.namedRoutes);
     expect(expected.drinkBrands).toBeGreaterThan(0);
     expect(expected.drinkBrandAreas).toBeGreaterThan(0);
     // Sanity floors so a "0 expected" (dataset wipe) can't make the test pass.
@@ -300,13 +320,22 @@ describe("sitemap()", () => {
     }
   });
 
-  it("advertises no /area/{slug} page, because that family is held", () => {
-    // The brand-by-area pages live UNDER /area/{slug}, but the area page itself
-    // duplicates /borough/{slug} and is not published. Advertising one would be
-    // advertising a 404.
-    for (const url of urls.filter((candidate) => candidate.includes("/area/"))) {
-      expect(url).toMatch(/\/area\/[^/]+\/drink\/[^/]+$/);
+  it("advertises an /area/{slug} page only for an area that clears the area floor", () => {
+    // The area root publishes on PRICED_LANDING_PUBLICATION_FLOORS.area priced
+    // pubs alone (lib/areaLanding.ts). An area below it redirects to the map,
+    // so advertising it would advertise a redirect.
+    const published = new Set<string>(areaLandings.map((landing) => landing.areaSlug));
+    for (const url of urls.filter((candidate) => /\/area\/[^/]+$/.test(candidate))) {
+      expect(published.has(url.slice(url.lastIndexOf("/") + 1)), url).toBe(true);
     }
+    for (const landing of areaLandings) {
+      expect(landing.totalPricedVenues).toBeGreaterThanOrEqual(PRICED_LANDING_PUBLICATION_FLOORS.area);
+    }
+  });
+
+  it("advertises neither the photo wall nor Dog of the week, because both are user photos", () => {
+    expect(urls).not.toContain(`${SITE}/wall`);
+    expect(urls).not.toContain(`${SITE}/dog-of-the-week`);
   });
 
   it("advertises no /out page, because it duplicates /tonight's claim", () => {

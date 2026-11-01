@@ -1,0 +1,451 @@
+diff --git a/perf/route-budgets.json b/perf/route-budgets.json
+index 8c3ef606..67d36a91 100644
+--- a/perf/route-budgets.json
++++ b/perf/route-budgets.json
+@@ -44,21 +44,21 @@
+     {
+       "path": "/",
+       "readySelector": "main",
+-      "why": "The landing every shared link and every search result opens.",
++      "why": "The landing every shared link and every search result opens. Week 4 proof sweep, 30 October 2026, main at 734b39e9: lowered requests 46 to 44 (samples 38/38/38); LCP 800 to 550 (samples 316/440/356). Bytes and requests take the p75 plus 15 percent and LCP the worst sample plus 25 percent. Measured in a Linux container (Chromium 153), so the macOS CI sweep is the oracle.",
+       "serverRenderMs": 150,
+       "jsDecodedKB": 1010,
+-      "requests": 46,
+-      "lcpMs": 800
++      "requests": 44,
++      "lcpMs": 550
+     },
+     {
+       "path": "/pal",
+       "readySelector": ".palExperience",
+       "settledSelectorHidden": ".palLoading",
+-      "why": "The front door's one primary action, so it is measured beside the landing that sends people to it. The 2026-09-01 seed sweep measured 1745 KB decoded, of which a single 603 KB chunk was the ElevenLabs conversation SDK, parsed before first paint for a control the reader may never reach and the deployment may not even have switched on. That chunk now loads when the availability probe says voice is on (components/pubpal/PubPalVoiceSession.tsx), so this ceiling ratchets to 1300 KB against an expected ~1142 KB. CI's sweep is the oracle; U8's ratchet check banks whatever slack is left.",
++      "why": "The front door's one primary action, so it is measured beside the landing that sends people to it. The 2026-09-01 seed sweep measured 1745 KB decoded, of which a single 603 KB chunk was the ElevenLabs conversation SDK, parsed before first paint for a control the reader may never reach and the deployment may not even have switched on. That chunk now loads when the availability probe says voice is on (components/pubpal/PubPalVoiceSession.tsx), so this ceiling ratchets to 1300 KB against an expected ~1142 KB. CI's sweep is the oracle; U8's ratchet check banks whatever slack is left. Week 4 proof sweep, 30 October 2026, main at 734b39e9: lowered LCP 700 to 390 (samples 292/276/312). Bytes and requests take the p75 plus 15 percent and LCP the worst sample plus 25 percent. Measured in a Linux container (Chromium 153), so the macOS CI sweep is the oracle.",
+       "serverRenderMs": 150,
+       "jsDecodedKB": 1050,
+       "requests": 45,
+-      "lcpMs": 700
++      "lcpMs": 390
+     },
+     {
+       "path": "/map",
+@@ -100,11 +100,11 @@
+     {
+       "path": "/tonight",
+       "readySelector": "main",
+-      "why": "The fastest route we have. It is the shape every other route is held against.",
++      "why": "The fastest route we have. It is the shape every other route is held against. Week 4 proof sweep, 30 October 2026, main at 734b39e9: lowered LCP 900 to 545 (samples 384/316/352/436/376). Bytes and requests take the p75 plus 15 percent and LCP the worst sample plus 25 percent. Measured in a Linux container (Chromium 153), so the macOS CI sweep is the oracle.",
+       "serverRenderMs": 150,
+       "jsDecodedKB": 1080,
+       "requests": 56,
+-      "lcpMs": 900
++      "lcpMs": 545
+     },
+     {
+       "path": "/out",
+@@ -119,28 +119,28 @@
+     {
+       "path": "/about",
+       "readySelector": "main",
+-      "why": "The page that states what the figures mean and where they come from, linked from every trust claim on the site. It composes nothing per request, so it is the floor a server-rendered page here should sit on. The 1900 KB ceiling was stale by 800 KB: the 2026-09-01 sweep measured 1081 KB decoded over 24 chunks with no MapLibre, no Convex, no voice SDK and no image cropper in any of them, so there was no accidental import to split, only slack to bank. The REQUEST ceiling is left where it is: a seed run counts requests against its own interactive moment on a different box and network, and this one counted 62 on / where CI is green at 50, so a request figure measured here is not comparable to the sweep's. Decoded bytes are.",
++      "why": "The page that states what the figures mean and where they come from, linked from every trust claim on the site. It composes nothing per request, so it is the floor a server-rendered page here should sit on. The 1900 KB ceiling was stale by 800 KB: the 2026-09-01 sweep measured 1081 KB decoded over 24 chunks with no MapLibre, no Convex, no voice SDK and no image cropper in any of them, so there was no accidental import to split, only slack to bank. The REQUEST ceiling is left where it is: a seed run counts requests against its own interactive moment on a different box and network, and this one counted 62 on / where CI is green at 50, so a request figure measured here is not comparable to the sweep's. Decoded bytes are. Week 4 proof sweep, 30 October 2026, main at 734b39e9: lowered JS decoded 960 to 893 (samples 776/776/776/776/776); requests 43 to 38 (samples 33/33/33/33/33); LCP 500 to 425 (samples 316/340/268/340/332). Bytes and requests take the p75 plus 15 percent and LCP the worst sample plus 25 percent. Measured in a Linux container (Chromium 153), so the macOS CI sweep is the oracle.",
+       "serverRenderMs": 150,
+-      "jsDecodedKB": 960,
+-      "requests": 43,
+-      "lcpMs": 500
++      "jsDecodedKB": 893,
++      "requests": 38,
++      "lcpMs": 425
+     },
+     {
+       "path": "/pubs",
+       "readySelector": "main.pubsShell",
+-      "why": "The one launch surface whose server render was not a shell: it re-parsed the 6.7 MB price dataset per request until the shared priced-venue index was reused. The ceiling is here so that read cannot come back unnoticed. Its JS ceiling was stale by 850 KB: the 2026-09-01 sweep measured 1092 KB decoded over 25 chunks, the same shared baseline /about carries, with none of the heavy libraries in any of them. Its request ceiling is left alone for the reason /about's is.",
++      "why": "The one launch surface whose server render was not a shell: it re-parsed the 6.7 MB price dataset per request until the shared priced-venue index was reused. The ceiling is here so that read cannot come back unnoticed. Its JS ceiling was stale by 850 KB: the 2026-09-01 sweep measured 1092 KB decoded over 25 chunks, the same shared baseline /about carries, with none of the heavy libraries in any of them. Its request ceiling is left alone for the reason /about's is. Week 4 proof sweep, 30 October 2026, main at 734b39e9: lowered JS decoded 1200 to 931 (samples 809/809/809); requests 68 to 48 (samples 41/41/41); LCP 600 to 525 (samples 276/380/420). Bytes and requests take the p75 plus 15 percent and LCP the worst sample plus 25 percent. Measured in a Linux container (Chromium 153), so the macOS CI sweep is the oracle.",
+       "serverRenderMs": 150,
+-      "jsDecodedKB": 1200,
+-      "requests": 68,
+-      "lcpMs": 600
++      "jsDecodedKB": 931,
++      "requests": 48,
++      "lcpMs": 525
+     },
+     {
+       "path": "/webmcp",
+       "readySelector": ".webmcpShell",
+-      "why": "The Agent Night Board. It is unlinked and noindex, so nobody arrives here by browsing, but it is a route a judge and an agent both open and it must not become the place heavy work hides. Seeded from the 2026-09-03 sweep on this branch: 13 ms server render, 863 KB decoded, 37 requests, 184 ms LCP. The board fetches nothing on mount, so those figures are the shell; every read here answers a person or agent action afterwards. Ceilings are set in family with /about and /pubs, which measure about 830 KB against 1200 KB, rather than at the measured figure, because a request count measured on one box is not comparable to CI's. CI is the oracle: take these DOWN at the next sweep, never up.",
++      "why": "The Agent Night Board. It is unlinked and noindex, so nobody arrives here by browsing, but it is a route a judge and an agent both open and it must not become the place heavy work hides. Seeded from the 2026-09-03 sweep on this branch: 13 ms server render, 863 KB decoded, 37 requests, 184 ms LCP. The board fetches nothing on mount, so those figures are the shell; every read here answers a person or agent action afterwards. Ceilings are set in family with /about and /pubs, which measure about 830 KB against 1200 KB, rather than at the measured figure, because a request count measured on one box is not comparable to CI's. CI is the oracle: take these DOWN at the next sweep, never up. Week 4 proof sweep, 30 October 2026, main at 734b39e9: lowered JS decoded 1000 to 977 (samples 849/849/849); requests 44 to 38 (samples 33/33/33). Bytes and requests take the p75 plus 15 percent and LCP the worst sample plus 25 percent. Measured in a Linux container (Chromium 153), so the macOS CI sweep is the oracle.",
+       "serverRenderMs": 150,
+-      "jsDecodedKB": 1000,
+-      "requests": 44,
++      "jsDecodedKB": 977,
++      "requests": 38,
+       "lcpMs": 400
+     },
+     {
+@@ -155,28 +155,28 @@
+     {
+       "path": "/compass",
+       "readySelector": "main.pcBody",
+-      "why": "The Pint Compass, a client shell that asks for nothing until a tap: the pub list, the location and the heading all wait for Start, so these figures are the shell. Seeded 30 Oct 2026 from 11 samples on a local production build under this method, with /near measured beside it: 17 to 43 ms server render, 915 KB decoded, 39 requests on every sample, LCP 320 to 652 ms (median 348). Margins are the file's own: bytes and requests p75 plus 15 percent, server render at the 150 ms floor, LCP the worst sample plus 25 percent, because no ceiling here may sit below a figure we have measured. /near read 340 to 616 ms LCP on the same box against its 400 ms ceiling, so this box runs slow and CI should take this LCP down at the next sweep.",
++      "why": "The Pint Compass, a client shell that asks for nothing until a tap: the pub list, the location and the heading all wait for Start, so these figures are the shell. Seeded 30 Oct 2026 from 11 samples on a local production build under this method, with /near measured beside it: 17 to 43 ms server render, 915 KB decoded, 39 requests on every sample, LCP 320 to 652 ms (median 348). Margins are the file's own: bytes and requests p75 plus 15 percent, server render at the 150 ms floor, LCP the worst sample plus 25 percent, because no ceiling here may sit below a figure we have measured. /near read 340 to 616 ms LCP on the same box against its 400 ms ceiling, so this box runs slow and CI should take this LCP down at the next sweep. Week 4 proof sweep, 30 October 2026, main at 734b39e9: lowered LCP 815 to 485 (samples 388/364/324). Bytes and requests take the p75 plus 15 percent and LCP the worst sample plus 25 percent. Measured in a Linux container (Chromium 153), so the macOS CI sweep is the oracle.",
+       "serverRenderMs": 150,
+       "jsDecodedKB": 1052,
+       "requests": 45,
+-      "lcpMs": 815
++      "lcpMs": 485
+     },
+     {
+       "path": "/login",
+       "readySelector": "main.loginPage",
+-      "why": "The door. Every account this product ever gets comes through it, and it is the one surface where a slow paint costs a person rather than a page view.",
++      "why": "The door. Every account this product ever gets comes through it, and it is the one surface where a slow paint costs a person rather than a page view. Week 4 proof sweep, 30 October 2026, main at 734b39e9: lowered requests 40 to 38 (samples 33/33/33). Bytes and requests take the p75 plus 15 percent and LCP the worst sample plus 25 percent. Measured in a Linux container (Chromium 153), so the macOS CI sweep is the oracle.",
+       "serverRenderMs": 150,
+       "jsDecodedKB": 950,
+-      "requests": 40,
++      "requests": 38,
+       "lcpMs": 400
+     },
+     {
+       "path": "/signin",
+       "readySelector": "main.loginPage",
+-      "why": "The live alias of /login, budgeted separately because an alias that quietly diverges from what it aliases is worse than two pages.",
++      "why": "The live alias of /login, budgeted separately because an alias that quietly diverges from what it aliases is worse than two pages. Week 4 proof sweep, 30 October 2026, main at 734b39e9: lowered requests 40 to 38 (samples 33/33/33/33/33). Bytes and requests take the p75 plus 15 percent and LCP the worst sample plus 25 percent. Measured in a Linux container (Chromium 153), so the macOS CI sweep is the oracle.",
+       "serverRenderMs": 150,
+       "jsDecodedKB": 950,
+-      "requests": 40,
++      "requests": 38,
+       "lcpMs": 400
+     },
+     {
+@@ -259,29 +259,29 @@
+     {
+       "path": "/messages",
+       "readySelector": "main.messagesMain",
+-      "why": "Private threads. It carries the photo pipeline, so it is the social surface most able to grow.",
++      "why": "Private threads. It carries the photo pipeline, so it is the social surface most able to grow. Week 4 proof sweep, 30 October 2026, main at 734b39e9: lowered JS decoded 970 to 924 (samples 803/803/803/803/803); requests 44 to 40 (samples 34/34/34/34/34). Bytes and requests take the p75 plus 15 percent and LCP the worst sample plus 25 percent. Measured in a Linux container (Chromium 153), so the macOS CI sweep is the oracle.",
+       "serverRenderMs": 150,
+-      "jsDecodedKB": 970,
+-      "requests": 44,
++      "jsDecodedKB": 924,
++      "requests": 40,
+       "lcpMs": 800
+     },
+     {
+       "path": "/activity",
+       "readySelector": "main.activity",
+-      "why": "The per-viewer notification feed.",
++      "why": "The per-viewer notification feed. Week 4 proof sweep, 30 October 2026, main at 734b39e9: lowered JS decoded 980 to 941 (samples 818/818/818); requests 45 to 42 (samples 36/36/36). Bytes and requests take the p75 plus 15 percent and LCP the worst sample plus 25 percent. Measured in a Linux container (Chromium 153), so the macOS CI sweep is the oracle.",
+       "serverRenderMs": 150,
+-      "jsDecodedKB": 980,
+-      "requests": 45,
++      "jsDecodedKB": 941,
++      "requests": 42,
+       "lcpMs": 300
+     },
+     {
+       "path": "/u/you",
+       "readySelector": "main.profileMain",
+-      "why": "The signed-in account hub, and the document /profile actually serves. #1411 painted its copy from the HTML and its LCP fell to about 770 ms, comfortably inside this ceiling, but it also mounted the whole Wanted panel across the identity-loading paint and took the route to 1375 KB over 71 requests against ceilings of 1290 and 66. The ceilings were left where they are rather than moved to fit the measurement, which is the whole rule of this file, and the route came back under them instead: the head of the panel stays in the HTML and the body, the account hub, the crews panel and the timeline load after paint, for 1199 KB over 59 requests at 612 ms.",
++      "why": "The signed-in account hub, and the document /profile actually serves. #1411 painted its copy from the HTML and its LCP fell to about 770 ms, comfortably inside this ceiling, but it also mounted the whole Wanted panel across the identity-loading paint and took the route to 1375 KB over 71 requests against ceilings of 1290 and 66. The ceilings were left where they are rather than moved to fit the measurement, which is the whole rule of this file, and the route came back under them instead: the head of the panel stays in the HTML and the body, the account hub, the crews panel and the timeline load after paint, for 1199 KB over 59 requests at 612 ms. Week 4 proof sweep, 30 October 2026, main at 734b39e9: lowered JS decoded 1290 to 1107 (samples 962/962/962); requests 66 to 52 (samples 45/45/45); LCP 900 to 565 (samples 452/388/396). Bytes and requests take the p75 plus 15 percent and LCP the worst sample plus 25 percent. Measured in a Linux container (Chromium 153), so the macOS CI sweep is the oracle.",
+       "serverRenderMs": 150,
+-      "jsDecodedKB": 1290,
+-      "requests": 66,
+-      "lcpMs": 900
++      "jsDecodedKB": 1107,
++      "requests": 52,
++      "lcpMs": 565
+     },
+     {
+       "path": "/onboarding",
+@@ -306,28 +306,28 @@
+     {
+       "path": "/moment",
+       "readySelector": "main.momentMain",
+-      "why": "The Moment capture surface.",
++      "why": "The Moment capture surface. Week 4 proof sweep, 30 October 2026, main at 734b39e9: lowered JS decoded 980 to 925 (samples 804/804/804/804/804); requests 43 to 40 (samples 34/34/34/34/34). Bytes and requests take the p75 plus 15 percent and LCP the worst sample plus 25 percent. Measured in a Linux container (Chromium 153), so the macOS CI sweep is the oracle.",
+       "serverRenderMs": 150,
+-      "jsDecodedKB": 980,
+-      "requests": 43,
++      "jsDecodedKB": 925,
++      "requests": 40,
+       "lcpMs": 300
+     },
+     {
+       "path": "/rounds",
+       "readySelector": "main.roundShell",
+-      "why": "The Round diary, where a night's spend is recorded. It is the one social surface that writes money figures, so it is budgeted rather than assumed light.",
++      "why": "The Round diary, where a night's spend is recorded. It is the one social surface that writes money figures, so it is budgeted rather than assumed light. Week 4 proof sweep, 30 October 2026, main at 734b39e9: lowered JS decoded 960 to 910 (samples 791/791/791); requests 44 to 40 (samples 34/34/34). Bytes and requests take the p75 plus 15 percent and LCP the worst sample plus 25 percent. Measured in a Linux container (Chromium 153), so the macOS CI sweep is the oracle.",
+       "serverRenderMs": 150,
+-      "jsDecodedKB": 960,
+-      "requests": 44,
++      "jsDecodedKB": 910,
++      "requests": 40,
+       "lcpMs": 300
+     },
+     {
+       "path": "/crawls",
+       "readySelector": "main.crawlsShell",
+-      "why": "The crawl index, a crawlable family.",
++      "why": "The crawl index, a crawlable family. Week 4 proof sweep, 30 October 2026, main at 734b39e9: lowered requests 45 to 44 (samples 38/38/38). Bytes and requests take the p75 plus 15 percent and LCP the worst sample plus 25 percent. Measured in a Linux container (Chromium 153), so the macOS CI sweep is the oracle.",
+       "serverRenderMs": 150,
+       "jsDecodedKB": 1020,
+-      "requests": 45,
++      "requests": 44,
+       "lcpMs": 300,
+       "noisy": {
+         "metrics": [
+@@ -340,19 +340,19 @@
+     {
+       "path": "/borough",
+       "readySelector": "main.boroughPage",
+-      "why": "The borough index above the crawlable price family, so the family's own entrance is measured.",
++      "why": "The borough index above the crawlable price family, so the family's own entrance is measured. Week 4 proof sweep, 30 October 2026, main at 734b39e9: lowered JS decoded 960 to 893 (samples 776/776/776/776/776); requests 44 to 41 (samples 35/35/35/35/35). Bytes and requests take the p75 plus 15 percent and LCP the worst sample plus 25 percent. Measured in a Linux container (Chromium 153), so the macOS CI sweep is the oracle.",
+       "serverRenderMs": 150,
+-      "jsDecodedKB": 960,
+-      "requests": 44,
++      "jsDecodedKB": 893,
++      "requests": 41,
+       "lcpMs": 400
+     },
+     {
+       "path": "/historic",
+       "readySelector": "main.historicPage",
+-      "why": "The historic pubs index.",
++      "why": "The historic pubs index. Week 4 proof sweep, 30 October 2026, main at 734b39e9: lowered JS decoded 970 to 895 (samples 778/778/778/778/778); requests 44 to 42 (samples 36/36/36/36/36). Bytes and requests take the p75 plus 15 percent and LCP the worst sample plus 25 percent. Measured in a Linux container (Chromium 153), so the macOS CI sweep is the oracle.",
+       "serverRenderMs": 150,
+-      "jsDecodedKB": 970,
+-      "requests": 44,
++      "jsDecodedKB": 895,
++      "requests": 42,
+       "lcpMs": 400
+     },
+     {
+@@ -367,28 +367,28 @@
+     {
+       "path": "/founders",
+       "readySelector": "main.foundersMain",
+-      "why": "The founding members wall.",
++      "why": "The founding members wall. Week 4 proof sweep, 30 October 2026, main at 734b39e9: lowered JS decoded 960 to 893 (samples 776/776/776/776/776); requests 44 to 37 (samples 32/32/32/32/32). Bytes and requests take the p75 plus 15 percent and LCP the worst sample plus 25 percent. Measured in a Linux container (Chromium 153), so the macOS CI sweep is the oracle.",
+       "serverRenderMs": 150,
+-      "jsDecodedKB": 960,
+-      "requests": 44,
++      "jsDecodedKB": 893,
++      "requests": 37,
+       "lcpMs": 400
+     },
+     {
+       "path": "/contributors",
+       "readySelector": "main.contributorMain",
+-      "why": "The contributor leaderboard.",
++      "why": "The contributor leaderboard. Week 4 proof sweep, 30 October 2026, main at 734b39e9: lowered JS decoded 960 to 893 (samples 776/776/776); requests 43 to 37 (samples 32/32/32). Bytes and requests take the p75 plus 15 percent and LCP the worst sample plus 25 percent. Measured in a Linux container (Chromium 153), so the macOS CI sweep is the oracle.",
+       "serverRenderMs": 150,
+-      "jsDecodedKB": 960,
+-      "requests": 43,
++      "jsDecodedKB": 893,
++      "requests": 37,
+       "lcpMs": 400
+     },
+     {
+       "path": "/we-are-out",
+       "readySelector": "main.weAreOut",
+-      "why": "The we-are-out feed, on the shared feed shell. Budgeted apart from /feed so a change to one cannot hide inside the other.",
++      "why": "The we-are-out feed, on the shared feed shell. Budgeted apart from /feed so a change to one cannot hide inside the other. Week 4 proof sweep, 30 October 2026, main at 734b39e9: lowered JS decoded 970 to 919 (samples 799/799/799/799/799); requests 44 to 38 (samples 33/33/33/33/33). Bytes and requests take the p75 plus 15 percent and LCP the worst sample plus 25 percent. Measured in a Linux container (Chromium 153), so the macOS CI sweep is the oracle.",
+       "serverRenderMs": 150,
+-      "jsDecodedKB": 970,
+-      "requests": 44,
++      "jsDecodedKB": 919,
++      "requests": 38,
+       "lcpMs": 400
+     },
+     {
+@@ -412,74 +412,74 @@
+     {
+       "path": "/credits",
+       "readySelector": "main.legalPage",
+-      "why": "Every outside source with its licence and credit, linked from the footer and from every surface that prints a credit. It shares the legal shell and composes nothing per request, so it takes the same floor as /how-we-estimate. Measured 16 Oct 2026 on a production build of this branch, five samples beside /privacy, /terms and /how-we-estimate: server render 16 ms, 835 KB decoded JS, 31 requests, LCP median 372 ms (worst 412).",
++      "why": "Every outside source with its licence and credit, linked from the footer and from every surface that prints a credit. It shares the legal shell and composes nothing per request, so it takes the same floor as /how-we-estimate. Measured 16 Oct 2026 on a production build of this branch, five samples beside /privacy, /terms and /how-we-estimate: server render 16 ms, 835 KB decoded JS, 31 requests, LCP median 372 ms (worst 412). Week 4 proof sweep, 30 October 2026, main at 734b39e9: lowered LCP 500 to 475 (samples 380/296/340). Bytes and requests take the p75 plus 15 percent and LCP the worst sample plus 25 percent. Measured in a Linux container (Chromium 153), so the macOS CI sweep is the oracle.",
+       "serverRenderMs": 150,
+       "jsDecodedKB": 910,
+       "requests": 37,
+-      "lcpMs": 500
++      "lcpMs": 475
+     },
+     {
+       "path": "/how-we-estimate",
+       "readySelector": "main.legalPage",
+-      "why": "The authority page every estimated price links to. It shares the legal shell and composes nothing per request, so it sits on the same floor as /privacy and /terms.",
++      "why": "The authority page every estimated price links to. It shares the legal shell and composes nothing per request, so it sits on the same floor as /privacy and /terms. Week 4 proof sweep, 30 October 2026, main at 734b39e9: lowered LCP 500 to 455 (samples 364/352/360). Bytes and requests take the p75 plus 15 percent and LCP the worst sample plus 25 percent. Measured in a Linux container (Chromium 153), so the macOS CI sweep is the oracle.",
+       "serverRenderMs": 150,
+       "jsDecodedKB": 910,
+       "requests": 37,
+-      "lcpMs": 500
++      "lcpMs": 455
+     },
+     {
+       "path": "/price-pulse",
+       "readySelector": "main.pricePulsePage",
+-      "why": "The weekly Price Pulse and the Where your \u00a36 goes explainer. It is the legal shell plus SiteNav, the same composition as /about, and it reads the Pint Drop store only for a line that names a pub on the map. Seeded 16 October 2026 unmeasured, in family with /about: the CI sweep is the oracle and these ceilings come down at the next one.",
++      "why": "The weekly Price Pulse and the Where your £6 goes explainer. It is the legal shell plus SiteNav, the same composition as /about, and it reads the Pint Drop store only for a line that names a pub on the map. Seeded 16 October 2026 unmeasured, in family with /about: the CI sweep is the oracle and these ceilings come down at the next one. Week 4 proof sweep, 30 October 2026, main at 734b39e9: lowered JS decoded 960 to 893 (samples 776/776/776); requests 43 to 40 (samples 34/34/34). Bytes and requests take the p75 plus 15 percent and LCP the worst sample plus 25 percent. Measured in a Linux container (Chromium 153), so the macOS CI sweep is the oracle.",
+       "serverRenderMs": 150,
+-      "jsDecodedKB": 960,
+-      "requests": 43,
++      "jsDecodedKB": 893,
++      "requests": 40,
+       "lcpMs": 500
+     },
+     {
+       "path": "/places",
+       "readySelector": "main.placesBody",
+-      "why": "The Places tab, which sets the one city Map, Out and Near follow. It shipped in #1368 after this sweep's route list was drawn, and an unbudgeted route is one nothing can regress.",
++      "why": "The Places tab, which sets the one city Map, Out and Near follow. It shipped in #1368 after this sweep's route list was drawn, and an unbudgeted route is one nothing can regress. Week 4 proof sweep, 30 October 2026, main at 734b39e9: lowered requests 46 to 43 (samples 37/37/37/37/37). Bytes and requests take the p75 plus 15 percent and LCP the worst sample plus 25 percent. Measured in a Linux container (Chromium 153), so the macOS CI sweep is the oracle.",
+       "serverRenderMs": 150,
+       "jsDecodedKB": 1000,
+-      "requests": 46,
++      "requests": 43,
+       "lcpMs": 300
+     },
+     {
+       "path": "/borough/westminster",
+       "readySelector": "main.boroughPage",
+-      "why": "The heaviest borough page and the heaviest crawlable landing this site publishes: 200 priced pubs over a 33,441px document with 534 controls. It is the instance that measures the /borough/{slug} family, because a family is measured through a page a browser can really open, and it is the WORST instance on purpose. Seeded 7 September 2026 on a laptop under the tracked throttle: 48 ms server render, 893 KB decoded, 47 requests, 804 ms LCP (samples 860/804/792). Its ceilings are set in family with /about and /pubs rather than at the measured figure, the way /webmcp's were, because a request count taken on one box is not comparable to CI's; CI's sweep is the oracle and these come DOWN at the next one.",
++      "why": "The heaviest borough page and the heaviest crawlable landing this site publishes: 200 priced pubs over a 33,441px document with 534 controls. It is the instance that measures the /borough/{slug} family, because a family is measured through a page a browser can really open, and it is the WORST instance on purpose. Seeded 7 September 2026 on a laptop under the tracked throttle: 48 ms server render, 893 KB decoded, 47 requests, 804 ms LCP (samples 860/804/792). Its ceilings are set in family with /about and /pubs rather than at the measured figure, the way /webmcp's were, because a request count taken on one box is not comparable to CI's; CI's sweep is the oracle and these come DOWN at the next one. Week 4 proof sweep, 30 October 2026, main at 734b39e9: lowered JS decoded 1050 to 902 (samples 784/784/784); requests 54 to 45 (samples 39/39/39); LCP 1100 to 665 (samples 532/444/384). Bytes and requests take the p75 plus 15 percent and LCP the worst sample plus 25 percent. Measured in a Linux container (Chromium 153), so the macOS CI sweep is the oracle.",
+       "serverRenderMs": 150,
+-      "jsDecodedKB": 1050,
+-      "requests": 54,
+-      "lcpMs": 1100
++      "jsDecodedKB": 902,
++      "requests": 45,
++      "lcpMs": 665
+     },
+     {
+       "path": "/historic/prospect-of-whitby",
+       "readySelector": "main.hdPage",
+-      "why": "One cited historic pub, measuring the 342-page /historic/{slug} family: static, self-canonical SEO pages, the heritage moat. Seeded 7 September 2026: 11 ms, 891 KB, 43 requests, 584 ms LCP (samples 584/592/544). Ceilings in family with /historic, its own index.",
++      "why": "One cited historic pub, measuring the 342-page /historic/{slug} family: static, self-canonical SEO pages, the heritage moat. Seeded 7 September 2026: 11 ms, 891 KB, 43 requests, 584 ms LCP (samples 584/592/544). Ceilings in family with /historic, its own index. Week 4 proof sweep, 30 October 2026, main at 734b39e9: lowered JS decoded 1050 to 901 (samples 783/783/783); requests 50 to 44 (samples 38/38/38); LCP 800 to 525 (samples 420/328/412). Bytes and requests take the p75 plus 15 percent and LCP the worst sample plus 25 percent. Measured in a Linux container (Chromium 153), so the macOS CI sweep is the oracle.",
+       "serverRenderMs": 150,
+-      "jsDecodedKB": 1050,
+-      "requests": 50,
+-      "lcpMs": 800
++      "jsDecodedKB": 901,
++      "requests": 44,
++      "lcpMs": 525
+     },
+     {
+       "path": "/landmark/big-ben",
+       "readySelector": "main.landmarkChapterPage",
+-      "why": "One landmark story chapter, measuring the /landmark/{id} family. It carries a Wikimedia hero photograph and its credit, so it is the crawlable landing most able to grow an image cost. Seeded 7 September 2026: 13 ms, 886 KB, 40 requests, 520 ms LCP (samples 516/520/548).",
++      "why": "One landmark story chapter, measuring the /landmark/{id} family. It carries a Wikimedia hero photograph and its credit, so it is the crawlable landing most able to grow an image cost. Seeded 7 September 2026: 13 ms, 886 KB, 40 requests, 520 ms LCP (samples 516/520/548). Week 4 proof sweep, 30 October 2026, main at 734b39e9: lowered JS decoded 1050 to 894 (samples 777/777/777); requests 46 to 38 (samples 33/33/33); LCP 700 to 450 (samples 272/316/360). Bytes and requests take the p75 plus 15 percent and LCP the worst sample plus 25 percent. Measured in a Linux container (Chromium 153), so the macOS CI sweep is the oracle.",
+       "serverRenderMs": 150,
+-      "jsDecodedKB": 1050,
+-      "requests": 46,
+-      "lcpMs": 700
++      "jsDecodedKB": 894,
++      "requests": 38,
++      "lcpMs": 450
+     },
+     {
+       "path": "/ledger/venue-eltcmh",
+       "readySelector": "main.ledgerPage",
+-      "why": "The canonical token-free venue permalink, the price moat, and the largest family the sitemap advertises at 1,995 URLs. The Blackfriar is the instance because it is the landing hero's own anchor pub and therefore the one with prices, history and sources to draw. Seeded 7 September 2026: 11 ms, 912 KB, 42 requests, 552 ms LCP (samples 524/564/552).",
++      "why": "The canonical token-free venue permalink, the price moat, and the largest family the sitemap advertises at 1,995 URLs. The Blackfriar is the instance because it is the landing hero's own anchor pub and therefore the one with prices, history and sources to draw. Seeded 7 September 2026: 11 ms, 912 KB, 42 requests, 552 ms LCP (samples 524/564/552). Week 4 proof sweep, 30 October 2026, main at 734b39e9: lowered LCP 700 to 460 (samples 344/312/320/368/332). Bytes and requests take the p75 plus 15 percent and LCP the worst sample plus 25 percent. Measured in a Linux container (Chromium 153), so the macOS CI sweep is the oracle.",
+       "serverRenderMs": 150,
+       "jsDecodedKB": 1050,
+       "requests": 48,
+-      "lcpMs": 700
++      "lcpMs": 460
+     },
+     {
+       "path": "/routes/victorian-soho",
+@@ -493,65 +493,65 @@
+     {
+       "path": "/bar-tab/venue-eltcmh",
+       "readySelector": "main.barTabPage",
+-      "why": "The public bar tab for one pub. It is NOT sitemap-listed, being an app surface rather than a crawlable landing, and it is budgeted anyway: it is a page a stranger opens from a shared link and it renders one tile per visible Pint Drop, so it grows with the drops. Seeded 7 September 2026: 15 ms, 924 KB, 46 requests, 608 ms LCP (samples 580/660/608).",
++      "why": "The public bar tab for one pub. It is NOT sitemap-listed, being an app surface rather than a crawlable landing, and it is budgeted anyway: it is a page a stranger opens from a shared link and it renders one tile per visible Pint Drop, so it grows with the drops. Seeded 7 September 2026: 15 ms, 924 KB, 46 requests, 608 ms LCP (samples 580/660/608). Week 4 proof sweep, 30 October 2026, main at 734b39e9: lowered JS decoded 1070 to 952 (samples 827/827/827); requests 54 to 48 (samples 41/41/41); LCP 850 to 495 (samples 396/372/360). Bytes and requests take the p75 plus 15 percent and LCP the worst sample plus 25 percent. Measured in a Linux container (Chromium 153), so the macOS CI sweep is the oracle.",
+       "serverRenderMs": 150,
+-      "jsDecodedKB": 1070,
+-      "requests": 54,
+-      "lcpMs": 850
++      "jsDecodedKB": 952,
++      "requests": 48,
++      "lcpMs": 495
+     },
+     {
+       "path": "/spoons-value",
+       "readySelector": "main.spoonsPage",
+-      "why": "The imported Wetherspoon units-per-tenner ranking: 806 server-rendered table rows, unpaginated, and the heaviest document the site serves by identity bytes (683 KB of HTML). It was crawlable and sitemap-listed with no budget at all, which is the hole __tests__/sitemap.test.ts now closes. Seeded 7 September 2026: 33 ms, 892 KB, 41 requests, 672 ms LCP (samples 744/672/672).",
++      "why": "The imported Wetherspoon units-per-tenner ranking: 806 server-rendered table rows, unpaginated, and the heaviest document the site serves by identity bytes (683 KB of HTML). It was crawlable and sitemap-listed with no budget at all, which is the hole __tests__/sitemap.test.ts now closes. Seeded 7 September 2026: 33 ms, 892 KB, 41 requests, 672 ms LCP (samples 744/672/672). Week 4 proof sweep, 30 October 2026, main at 734b39e9: lowered JS decoded 1050 to 903 (samples 785/785/785/785/785); requests 48 to 40 (samples 34/34/34/34/34); LCP 950 to 945 (samples 756/532/548/604/568). Bytes and requests take the p75 plus 15 percent and LCP the worst sample plus 25 percent. Measured in a Linux container (Chromium 153), so the macOS CI sweep is the oracle.",
+       "serverRenderMs": 150,
+-      "jsDecodedKB": 1050,
+-      "requests": 48,
+-      "lcpMs": 950
++      "jsDecodedKB": 903,
++      "requests": 40,
++      "lcpMs": 945
+     },
+     {
+       "path": "/drink/guinness",
+       "readySelector": "main.drinkBrandLanding",
+-      "why": "One governed drink brand landing, measuring the /drink/{slug} family. Its rows come from the shared priced-venue index, so a per-render re-parse of the 6.7 MB dataset would show up here first. Seeded 7 September 2026: 27 ms, 884 KB, 42 requests, 568 ms LCP (samples 560/568/636).",
++      "why": "One governed drink brand landing, measuring the /drink/{slug} family. Its rows come from the shared priced-venue index, so a per-render re-parse of the 6.7 MB dataset would show up here first. Seeded 7 September 2026: 27 ms, 884 KB, 42 requests, 568 ms LCP (samples 560/568/636). Week 4 proof sweep, 30 October 2026, main at 734b39e9: lowered JS decoded 1050 to 893 (samples 776/776/776); requests 48 to 38 (samples 33/33/33); LCP 800 to 450 (samples 348/336/360). Bytes and requests take the p75 plus 15 percent and LCP the worst sample plus 25 percent. Measured in a Linux container (Chromium 153), so the macOS CI sweep is the oracle.",
+       "serverRenderMs": 150,
+-      "jsDecodedKB": 1050,
+-      "requests": 48,
+-      "lcpMs": 800
++      "jsDecodedKB": 893,
++      "requests": 38,
++      "lcpMs": 450
+     },
+     {
+       "path": "/area/clapham/drink/guinness",
+       "readySelector": "main.drinkBrandAreaLanding",
+-      "why": "One governed brand-by-area landing, measuring the /area/{slug}/drink/{brand} family. The parent /area/{slug} page is HELD and 404s, so this is the only page that family publishes. Seeded 7 September 2026: 18 ms, 884 KB, 42 requests, 672 ms LCP (samples 572/672/680).",
++      "why": "One governed brand-by-area landing, measuring the /area/{slug}/drink/{brand} family. The parent /area/{slug} page is HELD and 404s, so this is the only page that family publishes. Seeded 7 September 2026: 18 ms, 884 KB, 42 requests, 672 ms LCP (samples 572/672/680). Week 4 proof sweep, 30 October 2026, main at 734b39e9: lowered JS decoded 1050 to 893 (samples 776/776/776); requests 48 to 40 (samples 34/34/34); LCP 900 to 505 (samples 352/360/404). Bytes and requests take the p75 plus 15 percent and LCP the worst sample plus 25 percent. Measured in a Linux container (Chromium 153), so the macOS CI sweep is the oracle.",
+       "serverRenderMs": 150,
+-      "jsDecodedKB": 1050,
+-      "requests": 48,
+-      "lcpMs": 900
++      "jsDecodedKB": 893,
++      "requests": 40,
++      "lcpMs": 505
+     },
+     {
+       "path": "/pint-index/2026-06",
+       "readySelector": "main.pintIndexPage",
+-      "why": "One frozen Pint Index edition, measuring the /pint-index/{month} family. A published month never changes again, so this row measures the archive shell rather than a moving figure. Seeded 7 September 2026: 21 ms, 884 KB, 40 requests, 608 ms LCP (samples 552/608/608).",
++      "why": "One frozen Pint Index edition, measuring the /pint-index/{month} family. A published month never changes again, so this row measures the archive shell rather than a moving figure. Seeded 7 September 2026: 21 ms, 884 KB, 40 requests, 608 ms LCP (samples 552/608/608). Week 4 proof sweep, 30 October 2026, main at 734b39e9: lowered JS decoded 1050 to 893 (samples 776/776/776); requests 46 to 38 (samples 33/33/33); LCP 800 to 455 (samples 248/364/336). Bytes and requests take the p75 plus 15 percent and LCP the worst sample plus 25 percent. Measured in a Linux container (Chromium 153), so the macOS CI sweep is the oracle.",
+       "serverRenderMs": 150,
+-      "jsDecodedKB": 1050,
+-      "requests": 46,
+-      "lcpMs": 800
++      "jsDecodedKB": 893,
++      "requests": 38,
++      "lcpMs": 455
+     },
+     {
+       "path": "/account/delete",
+       "readySelector": "main.legalPage",
+-      "why": "The public account-deletion page. Play Console holds this URL in its Data safety form and expects to be able to open it, and it is sitemap-listed for that reason, so it is measured like the two legal pages it shares a shell with. Seeded 7 September 2026: 9 ms, 838 KB, 35 requests, 456 ms LCP (samples 456/448/484).",
++      "why": "The public account-deletion page. Play Console holds this URL in its Data safety form and expects to be able to open it, and it is sitemap-listed for that reason, so it is measured like the two legal pages it shares a shell with. Seeded 7 September 2026: 9 ms, 838 KB, 35 requests, 456 ms LCP (samples 456/448/484). Week 4 proof sweep, 30 October 2026, main at 734b39e9: lowered JS decoded 990 to 837 (samples 727/727/727); requests 42 to 35 (samples 30/30/30); LCP 600 to 430 (samples 308/300/344). Bytes and requests take the p75 plus 15 percent and LCP the worst sample plus 25 percent. Measured in a Linux container (Chromium 153), so the macOS CI sweep is the oracle.",
+       "serverRenderMs": 150,
+-      "jsDecodedKB": 990,
+-      "requests": 42,
+-      "lcpMs": 600
++      "jsDecodedKB": 837,
++      "requests": 35,
++      "lcpMs": 430
+     },
+     {
+       "path": "/feedback",
+       "readySelector": "main.feedbackPage",
+-      "why": "The public feedback page uses Screen and SiteNav without a form or third-party integration. Five production-build samples on 20 October 2026 at 3449404bd under the tracked method measured median server render 7 ms, 771 KB decoded JS, 36 requests and LCP 400 ms (worst 400). The initial ceilings stay in family with the public content pages.",
++      "why": "The public feedback page uses Screen and SiteNav without a form or third-party integration. Five production-build samples on 20 October 2026 at 3449404bd under the tracked method measured median server render 7 ms, 771 KB decoded JS, 36 requests and LCP 400 ms (worst 400). The initial ceilings stay in family with the public content pages. Week 4 proof sweep, 30 October 2026, main at 734b39e9: lowered LCP 500 to 475 (samples 380/232/352). Bytes and requests take the p75 plus 15 percent and LCP the worst sample plus 25 percent. Measured in a Linux container (Chromium 153), so the macOS CI sweep is the oracle.",
+       "serverRenderMs": 150,
+       "jsDecodedKB": 900,
+       "requests": 37,
+-      "lcpMs": 500
++      "lcpMs": 475
+     },
+     {
+       "path": "/updates",

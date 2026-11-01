@@ -95,7 +95,7 @@ function stateForArea(area: NightArea, now: Date): CoverageState {
 function areaMapLabel(area: NightArea, state: CoverageState): string {
   return state.bucket === "route_ready"
     ? "Open planner"
-    : `See ${area.name} pubs on the map`;
+    : `${state.actionLabel} in ${area.name} on the map`;
 }
 
 function CoverageRow({ area, now }: { area: NightArea; now: Date }) {

@@ -1,7 +1,10 @@
 "use client";
 
-// The morning brief surface (/today). A personal greeting over a stack of
-// cards, mobile-first, both themes via role tokens. Most cards render from
+// The daytime page (/today). A personal greeting over a stack of daytime
+// answers, mobile-first, both themes via role tokens: the weather, the Tube,
+// work spots, coffee, lunch at a pub, a quiet pint, the cheap pints and the
+// last train, with the pub of the day at the foot. Tonight's picks live on
+// /tonight alone (design V1, 30 Oct 2026), so this page repeats none of them. Most cards render from
 // server-composed props (lib/todayBrief.ts); the Tube and get-there cards own
 // their own location + live TfL. Every sourced claim carries its attribution,
 // and every card has an honest empty/stale state rather than filler.
@@ -16,6 +19,10 @@
 // link here used to carry the diagonal `ArrowUpRight`, which is the glyph a
 // reader has learnt means "this opens somewhere else" - so "See everything on
 // tonight", a link to /tonight, promised a new tab it never opened.
+//
+// Every daytime module is composed on the server for each night patch
+// (./todayDaytime.ts); the reader's remembered area picks one after mount, and
+// a module with no rows is no section.
 
 import Link from "next/link";
 import { ArrowRight, ExternalLink, MapPin } from "lucide-react";
@@ -25,19 +32,15 @@ import { formatConditionDate } from "@/lib/tonightConditions";
 
 import NowSegment from "@/components/nav/NowSegment";
 import SiteNav from "@/components/nav/SiteNav";
-import PriceBadge from "@/components/PriceBadge";
 import Screen from "@/components/ui/screen";
 import PreparedBriefStamp from "@/components/seo/PreparedBriefStamp";
-import {
-  buildDayGreeting,
-  picksCardStatus,
-  picksListLine,
-  type DayGreeting,
-  type DaySlot,
-  type PicksListReadStatus,
-} from "@/lib/dayGreeting";
+import { buildDayGreeting, type DayGreeting } from "@/lib/dayGreeting";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
-import PicksAlternatives from "@/components/picks/PicksAlternatives";
+import {
+  TodayCoffee,
+  TodayLunch,
+  TodayWorkSpots,
+} from "@/components/today/TodayDaytimeSections";
 import { useLoopMoment } from "@/components/loop/useLoopMoment";
 import { arrivedFromBriefingPush } from "@/lib/briefingArrival";
 import type { NightAreaSlug } from "@/lib/nightAreas";
@@ -46,18 +49,8 @@ import {
   readRememberedArea,
   rememberedPatchId,
 } from "@/lib/nightPatches";
-import {
-  PICKS_REFRESHING_LINE,
-  picksCheckedLabel,
-  picksState,
-  picksStateOffersAlternative,
-  picksStateShowsRows,
-  type PicksContext,
-} from "@/lib/picksState";
-import { parsePlanOccasionIdFromSearch } from "@/lib/planOccasion";
 import { PLAN_INTAKE_STORAGE_KEY, parsePlanIntakeDraft } from "@/lib/planIntake";
-import { resolveTonightNear } from "@/lib/tonight";
-import { orderPicksNear, type TonightPickDto, type WeatherBrief } from "@/lib/todayBrief";
+import type { WeatherBrief } from "@/lib/todayBrief";
 import type { PubOfTheDayCard } from "@/lib/pubOfTheDay";
 import {
   applyTodayPersonalization,
@@ -70,11 +63,14 @@ import TodayQuietPintCard from "./TodayQuietPintCard";
 import TodayTubeCard from "./TodayTubeCard";
 import { TODAY_TEXT_BUTTON_CLASS } from "./todayTextButton";
 import type { TodayPintsIndex } from "./todayPints";
+import type {
+  TodayCoffeeModule,
+  TodayLunchIndex,
+  TodayWorkSpotsIndex,
+} from "./todayDaytime";
+import { todayPatchModule } from "./todayPatch";
 import type { QuietPintModule } from "@/lib/quietPint";
-import TonightHypedPubs from "../tonight/TonightHypedPubs";
-import type { HypedPub } from "@/lib/hypedPubs";
 import type { PatchDisruption } from "@/lib/tflDisruption";
-import "../tonight/tonightLede.css";
 import "./today.css";
 
 type Props = {
@@ -85,26 +81,15 @@ type Props = {
   weather: WeatherBrief | null;
   initialDisruption?: PatchDisruption | null;
   weatherByArea: Partial<Record<NightAreaSlug, WeatherBrief | null>>;
-  picks: TonightPickDto[];
-  hypedPubs?: readonly HypedPub[];
-  mapSelectableVenueIds?: readonly string[] | null;
-  picksStatus: PicksListReadStatus;
-  /** When the rows behind the picks were OBSERVED, not when this page was served. */
-  picksCheckedAt?: string | null;
-  /**
-   * A lane's own line for why it is not carrying its share, else null.
-   *
-   * Covers a lane that FAILED and a lane NOBODY ASKED alike: both are an
-   * absence about us, and neither may be worded as a quiet city (battle test
-   * M07, where an unconfigured listings lane printed "Nothing on tonight's
-   * list yet.").
-   */
-  picksReason?: string | null;
-  /** False for a lane nobody switched on: asking it again changes nothing. */
-  picksRetryable?: boolean;
   fact: PubOfTheDayCard | null;
   pintsIndex: TodayPintsIndex;
   quietPint: QuietPintModule | null;
+  /** Work spots around each patch, off the /near Work spots pack. */
+  workSpots?: TodayWorkSpotsIndex;
+  /** Pubs that serve food and publish a menu, around each patch. */
+  lunch?: TodayLunchIndex;
+  /** The Shoreditch coffee pilot's cheapest listed flat whites. */
+  coffee?: TodayCoffeeModule | null;
 };
 
 // The drink weather, as ONE line of the page: the verdict is the section's
@@ -143,184 +128,6 @@ function WeatherCard({ weather }: { weather: WeatherBrief | null }) {
         </a>
         .
       </p>
-    </section>
-  );
-}
-
-// ONE FIGURE, ONE PLACE, DATED. This card used to lead with the cheapest listed
-// pint as well, off `rows[0]` of the very module `TodayPintsCard` prints below
-// it, so the page showed one pub's price twice and dated it once: only the
-// pints card carries a snapshot date (the oldest read among its rows). The
-// dated copy is the one that stayed (#1426 follow-up).
-function PicksCard({
-  picks,
-  filteredPickCount,
-  slot,
-  picksStatus,
-  picksCheckedAt,
-  picksReason,
-  picksRetryable,
-  context,
-  hypedPubs,
-  selectableVenueIds,
-}: {
-  picks: TonightPickDto[];
-  filteredPickCount: number;
-  slot: DaySlot;
-  picksStatus: PicksListReadStatus;
-  picksCheckedAt: string | null;
-  picksReason: string | null;
-  picksRetryable: boolean;
-  context: PicksContext;
-  hypedPubs: readonly HypedPub[];
-  selectableVenueIds: ReadonlySet<string> | null;
-}) {
-  // ONE state, the same four words /tonight reads (lib/picksState.ts). Today's
-  // picks are composed on the SERVER and never re-read from the browser, so
-  // `inFlight` is honestly false here and `refreshing` is unreachable on this
-  // surface. It stays in the vocabulary because the renderer is built against
-  // the whole of it rather than retrofitted the day a client read lands.
-  //
-  // Listings the viewer filtered out still mean the read ANSWERED, so they
-  // count towards ready exactly as they did before.
-  const state = picksState({
-    visibleCount: picks.length + filteredPickCount,
-    inFlight: false,
-    // A lane that failed and a lane nobody asked are one absence here, and
-    // neither is a quiet city.
-    unreadable: picksStatus === "degraded" || picksReason !== null,
-    reason: picksReason,
-    retryable: picksRetryable,
-    checkedAt: picksCheckedAt,
-  });
-  const checked = picksCheckedLabel(state.checkedAt);
-  if (picks.length === 0 && filteredPickCount === 0 && hypedPubs.length > 0) {
-    return (
-      <section
-        className="todayPicksFallback"
-        aria-labelledby="today-picks-title"
-        data-testid="today-picks"
-        data-picks-state={state.kind}
-      >
-        <h2 className="todayCardTitle" id="today-picks-title">
-          Top picks for tonight.
-        </h2>
-        <TonightHypedPubs rows={hypedPubs} selectableVenueIds={selectableVenueIds} nested />
-        <p className="todayCardEmpty">
-          {state.reason ?? (picksStatus === "degraded" ? picksListLine(picksStatus, slot) : "No confirmed events listed tonight.")}
-        </p>
-        <p className="todayCardFootRow">
-          <Link prefetch={false} href="/tonight" className="todayInkLink">
-            See everything on tonight
-            <ArrowRight size={14} aria-hidden="true" />
-          </Link>
-        </p>
-      </section>
-    );
-  }
-  return (
-    <section
-      className="todayCard"
-      aria-labelledby="today-picks-title"
-      data-testid="today-picks"
-      data-picks-status={picksCardStatus(picksStatus, picks.length, filteredPickCount)}
-      data-picks-state={state.kind}
-    >
-      <h2 className="todayCardTitle" id="today-picks-title">
-        Top picks for tonight.
-      </h2>
-
-      {picksStateShowsRows(state, picks.length) ? (
-        <>
-          <ul className="todayPicks">
-            {picks.map((pick) => {
-              const inner = (
-                <>
-                  <div className="todayPickMeta">
-                    <span className="todayPickKind" data-kind={pick.kind}>
-                      {pick.kindLabel}
-                    </span>
-                    {/* A deal's figure, not a pint's, so the badge stays
-                        neutral: a band is a claim about a pint alone. */}
-                    {pick.priceGbp !== null ? (
-                      <PriceBadge className="todayPickPrice">£{pick.priceGbp.toFixed(2)}</PriceBadge>
-                    ) : null}
-                  </div>
-                  <h3 className="todayPickTitle">{pick.title}</h3>
-                  <p className="todayPickPlace">
-                    <MapPin size={14} aria-hidden="true" />
-                    <span>{pick.placeName}</span>
-                  </p>
-                  {pick.venueNote ? (
-                    <span className="todayPickDigest">{pick.venueNote}</span>
-                  ) : null}
-                  <span className="todayPickSource">via {pick.sourceLabel}</span>
-                </>
-              );
-              return (
-                <li key={pick.id} className="todayPick" data-kind={pick.kind}>
-                  {pick.href ? (
-                    pick.external ? (
-                      <a
-                        className="todayPickLink pressable"
-                        href={pick.href}
-                        target="_blank"
-                        rel="noreferrer noopener"
-                      >
-                        {inner}
-                        <ExternalLink size={14} aria-hidden="true" className="todayPickArrow" />
-                      </a>
-                    ) : (
-                      <Link prefetch={false} className="todayPickLink pressable" href={pick.href}>
-                        {inner}
-                        <ArrowRight size={14} aria-hidden="true" className="todayPickArrow" />
-                      </Link>
-                    )
-                  ) : (
-                    <div className="todayPickLink">{inner}</div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-          <p className="todayCardFootRow">
-            <Link prefetch={false} href="/tonight" className="todayInkLink">
-              See everything on tonight
-              <ArrowRight size={14} aria-hidden="true" />
-            </Link>
-            {state.kind === "refreshing" ? (
-              <span className="todayPickChecked" data-testid="today-picks-checked">
-                {PICKS_REFRESHING_LINE}
-                {checked ? ` ${checked}.` : ""}
-              </span>
-            ) : null}
-          </p>
-        </>
-      ) : (
-        <>
-          {/* A read we could not run says what happened to US. It may never be
-              swapped for the quiet-night line, because we did not look. */}
-          <p className="todayCardEmpty">
-            {filteredPickCount > 0
-              ? "Tonight has listings, but none match the filters you've set."
-              : (state.reason ?? picksListLine(picksStatus, slot))}
-          </p>
-          {/* The compose action floats over this card's right cell on a phone,
-              and this row's arrow lands in it, so the row takes the control's
-              own lane (createFab.css). */}
-          <p className="todayCardFootRow createFabLane">
-            <Link prefetch={false} href="/map" className="todayInkLink">
-              Meanwhile, the map knows the cheap pints
-              <ArrowRight size={14} aria-hidden="true" />
-            </Link>
-          </p>
-          {/* Nothing here is a dead end: two doors that are honestly not
-              listings, carrying the area and occasion the reader already chose. */}
-          {picksStateOffersAlternative(state) ? (
-            <PicksAlternatives context={context} />
-          ) : null}
-        </>
-      )}
     </section>
   );
 }
@@ -408,18 +215,17 @@ export default function TodayClient({
   weather,
   weatherByArea,
   initialDisruption = null,
-  picks,
-  picksStatus,
-  hypedPubs = [],
-  mapSelectableVenueIds = null,
-  picksCheckedAt = null,
-  picksReason = null,
-  picksRetryable = true,
   fact,
   pintsIndex,
   quietPint,
+  workSpots = EMPTY_WORK_SPOTS,
+  lunch = EMPTY_LUNCH,
+  coffee = null,
 }: Props) {
-  const [brief, setBrief] = useState({ weather, picks: picks.slice(0, 3), filteredPickCount: 0 });
+  const [brief, setBrief] = useState<{ weather: WeatherBrief | null; patchId: string | null }>({
+    weather,
+    patchId: null,
+  });
   // What the brief turned out to be, once the deferred personalization pass has
   // run. Null means "not resolved yet", so the impression is never reported off
   // a state the reader has not been shown.
@@ -427,14 +233,10 @@ export default function TodayClient({
   // Did this arrival come from the daily-brief notification's own landing?
   // Read after mount, because the server has no reader's URL to read.
   const [openedFromBrief, setOpenedFromBrief] = useState(false);
-  // What a fallback door out of an empty picks card must not drop: the area the
-  // viewer last chose anywhere in the app, and the occasion they arrived with.
-  // Both are read in the deferred pass below, so the first paint matches SSR.
-  const [picksContext, setPicksContext] = useState<PicksContext>({});
 
   // Who the salutation may name. SSR and hydration both see nobody, then the
   // live session answers. Nothing about the layout depends on it, so its
-  // arrival only ever appends a name — and a name it is not yet sure of is the
+  // arrival only ever appends a name, and a name it is not yet sure of is the
   // one thing it must never append (components/auth/useViewerHandle.ts).
   const deviceHandle = useViewerHandle() ?? "";
 
@@ -464,11 +266,10 @@ export default function TodayClient({
   // reached from the brief. No props - the closed name is the whole signal.
   useLoopMoment("briefing_opened", openedFromBrief ? "push" : null);
 
-  // Silent continuity (#427 seam), now resolved field-by-field. The progressive
-  // intake is the only newly consumed source in this UI wave. Account and
-  // device Night Profiles stay pure resolver inputs until their owning account
-  // lane provides an approved read contract. localStorage remains effect-only
-  // so the first paint matches SSR.
+  // Silent continuity (#427 seam), resolved field-by-field. The progressive
+  // intake is the only newly consumed source in this UI wave. localStorage
+  // remains effect-only so the first paint matches SSR: central London's
+  // daytime modules first, then the reader's own area once it is read.
   useEffect(() => {
     let cancelled = false;
     void Promise.resolve().then(() => {
@@ -477,10 +278,6 @@ export default function TodayClient({
       const rememberedPatch = NIGHT_PATCHES.find(
         (patch) => patch.id === rememberedPatchId(remembered),
       )?.id ?? null;
-      setPicksContext({
-        patchId: rememberedPatch,
-        occasion: parsePlanOccasionIdFromSearch(window.location.search),
-      });
       // The same deferred pass reads the address once: whether this arrival
       // carried the daily brief's own landing marker.
       setOpenedFromBrief(arrivedFromBriefingPush(window.location.search));
@@ -489,28 +286,26 @@ export default function TodayClient({
         reviewedDevice: null,
         defaults: rememberedPatch ? { preferredPatch: rememberedPatch } : null,
       });
+      // Tonight's picks no longer ride this page, so only the weather is
+      // personalised here; the daytime modules follow the patch.
       const personalized = applyTodayPersonalization(
-        { weather, picks, filteredPickCount: 0 },
+        { weather, picks: [], filteredPickCount: 0 },
         weatherByArea,
         resolved,
       );
-      // Preserve the existing borough-memory behavior for the no-profile path.
-      // Modelled profile/intake fields take precedence and never consult it.
-      const near = !resolved.personalized
-        ? resolveTonightNear(null, remembered)
-        : null;
-      setBrief(near
-        ? { ...personalized, picks: orderPicksNear(personalized.picks, near.near) }
-        : personalized);
-      setBriefShape({
-        personalized: resolved.personalized,
-        muted: personalized.filteredPickCount > 0,
+      setBrief({
+        weather: personalized.weather,
+        patchId: resolved.preferredPatch.value ?? rememberedPatch,
       });
+      setBriefShape({ personalized: resolved.personalized, muted: false });
     });
     return () => {
       cancelled = true;
     };
-  }, [picks, weather, weatherByArea, pintsIndex]);
+  }, [weather, weatherByArea]);
+
+  const workSpotsModule = todayPatchModule(brief.patchId, workSpots);
+  const lunchModule = todayPatchModule(brief.patchId, lunch);
 
   return (
     <main id="main" className="todayPage" data-testid="today-screen">
@@ -518,14 +313,10 @@ export default function TodayClient({
       <NowSegment current="day" />
 
       {/* The head is the Screen primitive (docs/design/LAUNCH_SCREENS.md):
-          the kicker names the surface and the heading is the table's own,
-          "What's on across London today." It used to be a generated weather
-          verdict ("Cold out. Fireplace weather.") over a card that said
-          "Stout weather.", two weather lines that read as written by a
-          machine (taste plan, 18 Oct 2026). The sky is said once now, in the
-          weather section; the personal line under the heading is the
-          salutation and the date. Find my pint is the one primary and the
-          map the quieter way onward, said once on the page. */}
+          the kicker names the surface and the heading is the table's own.
+          The sky is said once, in the weather section; the personal line
+          under the heading is the salutation and the date. Find my pint is
+          the one primary and the map the quieter way onward. */}
       <Screen
         as="div"
         className="todayScreen"
@@ -556,31 +347,27 @@ export default function TodayClient({
         <div className="todayBriefColumn">
           <WeatherCard weather={brief.weather} />
           <TodayTubeCard slot={shownGreeting.slot} initialDisruption={initialDisruption} />
-          <PicksCard
-            picksCheckedAt={picksCheckedAt}
-            picksReason={picksReason}
-            picksRetryable={picksRetryable}
-            context={picksContext}
-            picks={brief.picks}
-            filteredPickCount={brief.filteredPickCount}
-            slot={shownGreeting.slot}
-            picksStatus={picksStatus}
-            hypedPubs={hypedPubs}
-            selectableVenueIds={mapSelectableVenueIds ? new Set(mapSelectableVenueIds) : null}
-          />
-          <TodayGetThereStrip />
+          <TodayWorkSpots module={workSpotsModule} />
+          <TodayCoffee module={coffee} />
+          <TodayLunch module={lunchModule} />
         </div>
         <div className="todayExploreColumn">
-          <TodayPintsCard index={pintsIndex} />
           <TodayQuietPintCard module={quietPint} />
-          <FactCard fact={fact} />
+          <TodayPintsCard index={pintsIndex} />
+          <TodayGetThereStrip />
         </div>
       </div>
 
-      {/* One way onward once the brief is read. Tonight is the Day/Tonight
-          pair at the top and the map is the head's own secondary, so the foot
-          no longer repeats either. */}
+      {/* The pub of the day closes the page: something to read once the
+          day's answers are in, never the first thing a reader meets. */}
+      <FactCard fact={fact} />
+
+      {/* Two ways onward once the day is read: tonight's page, and a plan. */}
       <p className="todayFoot">
+        <Link prefetch={false} href="/tonight" className="todayInkLink">
+          What’s on tonight
+          <ArrowRight size={14} aria-hidden="true" />
+        </Link>
         <Link prefetch={false} href="/plan" className="todayInkLink">
           Plan an outing
           <ArrowRight size={14} aria-hidden="true" />
@@ -590,3 +377,6 @@ export default function TodayClient({
     </main>
   );
 }
+
+const EMPTY_WORK_SPOTS: TodayWorkSpotsIndex = {};
+const EMPTY_LUNCH: TodayLunchIndex = {};

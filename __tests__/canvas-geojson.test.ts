@@ -5,6 +5,8 @@ import {
   formatPinPriceLabel,
   priceBucket,
   pubsToGeoJSON,
+  routeLegTimes,
+  routeToLegTimes,
   routeToLine,
   routeToStops,
   bandCorridorGeoJSON,
@@ -73,6 +75,30 @@ describe("priceBucket", () => {
     expect(priceBucket(averageMaxGbp + 0.01)).toBe(2);
     // The captain's example: a £6.50 pint is expensive in London.
     expect(priceBucket(6.5)).toBe(2);
+  });
+});
+
+describe("route time bubbles", () => {
+  it("puts one bubble per leg at the middle of the leg, and marks a straight-line one as an estimate", () => {
+    const a = makeVenue({ id: "a", longitude: -0.14, latitude: 51.514 });
+    const b = makeVenue({ id: "b", longitude: -0.13, latitude: 51.514 });
+    const c = makeVenue({ id: "c", longitude: -0.13, latitude: 51.52 });
+    const fc = routeToLegTimes([a, b, c]);
+    expect(fc.features.map((feature) => feature.properties)).toEqual([{ label: "~9 min" }, { label: "~9 min" }]);
+    const [first] = fc.features.map((feature) => (feature.geometry as GeoJSON.Point).coordinates);
+    expect(first![0]).toBeCloseTo(-0.135, 6);
+    expect(first![1]).toBeCloseTo(51.514, 6);
+    expect(routeToLegTimes([a]).features).toEqual([]);
+  });
+
+  it("reads a routed leg as walked minutes, and skips a leg with no middle or no length", () => {
+    const fc = routeLegTimes([
+      { distanceKm: 0.5, source: "ors", midpoint: [-0.13, 51.51] },
+      { distanceKm: 0.5, source: "straight", midpoint: [-0.12, 51.51] },
+      { distanceKm: 0.5, source: "ors" },
+      { distanceKm: 0, source: "ors", midpoint: [-0.11, 51.51] },
+    ]);
+    expect(fc.features.map((feature) => feature.properties?.label)).toEqual(["7 min", "~7 min"]);
   });
 });
 

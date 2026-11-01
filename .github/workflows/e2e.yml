@@ -271,6 +271,7 @@ jobs:
           e2e/feedback.spec.ts
           e2e/first-run-chrome-share.spec.ts
           e2e/first-run-tour-placement.spec.ts
+          e2e/landing-uk-directory.spec.ts
           e2e/launch-phone-controls.spec.ts
           e2e/map-arrival-card-pins.spec.ts
           e2e/map-arrival.spec.ts

@@ -153,6 +153,15 @@
       "lcpMs": 400
     },
     {
+      "path": "/compass",
+      "readySelector": "main.pcBody",
+      "why": "The Pint Compass, a client shell that asks for nothing until a tap: the pub list, the location and the heading all wait for Start, so these figures are the shell. Seeded 30 Oct 2026 from 11 samples on a local production build under this method, with /near measured beside it: 17 to 43 ms server render, 915 KB decoded, 39 requests on every sample, LCP 320 to 652 ms (median 348). Margins are the file's own: bytes and requests p75 plus 15 percent, server render at the 150 ms floor, LCP the worst sample plus 25 percent, because no ceiling here may sit below a figure we have measured. /near read 340 to 616 ms LCP on the same box against its 400 ms ceiling, so this box runs slow and CI should take this LCP down at the next sweep.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 1052,
+      "requests": 45,
+      "lcpMs": 815
+    },
+    {
       "path": "/login",
       "readySelector": "main.loginPage",
       "why": "The door. Every account this product ever gets comes through it, and it is the one surface where a slow paint costs a person rather than a page view.",
@@ -349,6 +358,15 @@
       "lcpMs": 400
     },
     {
+      "path": "/time-machine",
+      "readySelector": "main.timeMachinePage",
+      "why": "The pint price time machine (launch review F1): the /historic listing shell plus its own small MapLibre map, which loads after the slider and the list, so the engine starts past the counting boundary and is not in these figures. Measured 30 October 2026 keyless in a Linux container on a production build of this branch at b67983ad, through e2e/performance-budget.spec.ts under this file's method (Chromium 153 build 1243 standing in for CI's 1248; other agents' builds shared the box), three samples after one warm-up: server render 32/33/36 ms, 788 KB decoded JS and 35 requests on every sample, LCP 456/484/464 ms. Ceilings use this file's margins: bytes and requests p75 plus 15 percent, rounded up, server render the 150 ms floor, LCP the worst sample plus 25 percent. They replace the unmeasured seed of 30 October (2,600 KB, 50 requests, 800 ms LCP). The macOS CI sweep is the oracle and these come down to its figure at the next one.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 907,
+      "requests": 41,
+      "lcpMs": 605
+    },
+    {
       "path": "/pint-index",
       "readySelector": "main.pintIndexPage",
       "why": "The live Pint Index: the page every trust claim and every citation points at.",
@@ -370,6 +388,15 @@
       "path": "/contributors",
       "readySelector": "main.contributorMain",
       "why": "The contributor leaderboard.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 960,
+      "requests": 43,
+      "lcpMs": 400
+    },
+    {
+      "path": "/dog-of-the-week",
+      "readySelector": "main.dogOfTheWeekMain",
+      "why": "Dog of the week, the photo wall's newest approved Dog photo, a page people are sent to. Added 30 October 2026 before any sweep had measured it: the ceilings are the /contributors row's, the nearest page in shape (a request-time store read under SiteNav and one Screen). Measured above the seed on 30 October 2026: LCP 452/376/296/316/328 ms (median 328, worst 452 against the 400 ms ceiling); ceiling held, cause to be found. Measured 30 October 2026 keyless in a Linux container on a production build of this branch at b67983ad, through e2e/performance-budget.spec.ts under this file's method (Chromium 153 build 1243 standing in for CI's 1248; other agents' builds shared the box), so the page measured is the keyless empty state. The median of the first three LCP samples (376 ms) sat within 10 percent of the ceiling, so the run took its two resamples, five samples after one warm-up; the 156 ms span of those three sat under the 250 ms LCP spread floor, so the spread rule did not fire: server render 26/35/27/20/29 ms, 776 KB decoded JS and 32 requests on every sample. This file's margin (worst LCP sample plus 25 percent, 565 ms) would raise the LCP ceiling, so the whole row stays at its seed; /contributors read LCP 348 to 564 ms on the same box against the same 400 ms. The macOS CI sweep is the oracle and decides this row at the next one.",
       "serverRenderMs": 150,
       "jsDecodedKB": 960,
       "requests": 43,
@@ -418,6 +445,24 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 910,
       "requests": 37,
+      "lcpMs": 500
+    },
+    {
+      "path": "/press",
+      "readySelector": "main.legalPage",
+      "why": "Press and citations, the page a writer is sent to for a quotable London pint figure (docs/growth/BACKLINK_PLAYBOOK.md). It is the legal shell plus SiteNav and reads the Pint Index snapshot and its dated editions, the same reads /pint-index makes. Seeded 30 October 2026 unmeasured, in family with /how-we-estimate and /credits: the CI sweep is the oracle and these ceilings come down at the next one.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 910,
+      "requests": 37,
+      "lcpMs": 500
+    },
+    {
+      "path": "/pub-crawl-cost",
+      "readySelector": "main.legalPage",
+      "why": "The free pub crawl cost calculator (docs/growth/BACKLINK_PLAYBOOK.md, tactic 38). The legal shell plus SiteNav and one small client form, and it reads the live Pint Index snapshot for its one suggested price. Seeded 30 October 2026 unmeasured, in family with /how-we-estimate plus the form's island: the CI sweep is the oracle and these ceilings come down at the next one.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 960,
+      "requests": 40,
       "lcpMs": 500
     },
     {
@@ -475,6 +520,15 @@
       "lcpMs": 700
     },
     {
+      "path": "/routes/victorian-soho",
+      "readySelector": "main.routePage",
+      "why": "The named route family (/routes/{slug}, SEO audit #2126): four curated crawls of four to six stops each. Victorian Soho is the instance because it is the featured crawl. Measured 30 October 2026, while it still rendered per request with its nonce; it joined the CDN document list the same day, so a CDN copy can only be cheaper on the server. Measured in a Linux container on a production build of its branch, with the e2e/helpers/perfMeasurement.ts method (one warm-up, three samples): 28/29/28 ms server render, 775 KB decoded JS and 32 requests on every sample, LCP 220/276/268 ms. Ceilings use this file's margins: bytes and requests p75 plus 15%, server render the 150 ms floor, LCP the worst sample plus 25%. That box is not CI's runner, so CI's sweep is the oracle and these come DOWN at the next one.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 892,
+      "requests": 37,
+      "lcpMs": 345
+    },
+    {
       "path": "/bar-tab/venue-eltcmh",
       "readySelector": "main.barTabPage",
       "why": "The public bar tab for one pub. It is NOT sitemap-listed, being an app surface rather than a crawlable landing, and it is budgeted anyway: it is a page a stranger opens from a shared link and it renders one tile per visible Pint Drop, so it grows with the drops. Seeded 7 September 2026: 15 ms, 924 KB, 46 requests, 608 ms LCP (samples 580/660/608).",
@@ -502,9 +556,18 @@
       "lcpMs": 800
     },
     {
+      "path": "/area/piccadilly-soho",
+      "readySelector": "main.drinkBrandAreaLanding",
+      "why": "The area root family (/area/{slug}, SEO audit #2126, captain's floor of 15 priced pubs). Piccadilly & Soho is the instance because it has the most priced pubs of any published area (71); every area with 20 or more prints 20 rows. It is prerendered and CDN-held like the area-by-drink pages below it; a per-request render of the same page measured 227 to 288 ms, which is why it is not. Measured 30 October 2026 in a Linux container on a production build of its branch, with the e2e/helpers/perfMeasurement.ts method (one warm-up, three samples): 82/84/82 ms server render, 776 KB decoded JS and 32 requests on every sample, LCP 316/384/300 ms. Ceilings use this file's margins: bytes and requests p75 plus 15%, server render the 150 ms floor, LCP the worst sample plus 25%. That box is not CI's runner, so CI's sweep is the oracle and these come DOWN at the next one.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 892,
+      "requests": 37,
+      "lcpMs": 480
+    },
+    {
       "path": "/area/clapham/drink/guinness",
       "readySelector": "main.drinkBrandAreaLanding",
-      "why": "One governed brand-by-area landing, measuring the /area/{slug}/drink/{brand} family. The parent /area/{slug} page is HELD and 404s, so this is the only page that family publishes. Seeded 7 September 2026: 18 ms, 884 KB, 42 requests, 672 ms LCP (samples 572/672/680).",
+      "why": "One governed brand-by-area landing, measuring the /area/{slug}/drink/{brand} family. Its parent /area/{slug} has its own row since 30 October 2026. Seeded 7 September 2026: 18 ms, 884 KB, 42 requests, 672 ms LCP (samples 572/672/680).",
       "serverRenderMs": 150,
       "jsDecodedKB": 1050,
       "requests": 48,
@@ -545,6 +608,15 @@
       "jsDecodedKB": 900,
       "requests": 37,
       "lcpMs": 500
+    },
+    {
+      "path": "/board/venue-eltcmh",
+      "readySelector": "main.boardPage",
+      "why": "The board reader for one pub (review item A4): photograph a price board, check the lines the Pal proposes, and log each one through the community price write. It is NOT sitemap-listed, being a private tool behind sign-in, and it is budgeted anyway because the venue sheet links every pub to it. The Blackfriar is the instance because it is the ledger row's own anchor pub. Measured 30 October 2026 keyless in a Linux container on a production build of this branch at b67983ad, through e2e/performance-budget.spec.ts under this file's method (Chromium 153 build 1243 standing in for CI's 1248; other agents' builds shared the box), so the page measured is the reader's keyless state that says it needs its key. Three samples after one warm-up: server render 24/20/38 ms, 833 KB decoded JS and 37 requests on every sample, LCP 420/352/496 ms. Ceilings use this file's margins: bytes and requests p75 plus 15 percent, rounded up, server render the 150 ms floor, LCP the worst sample plus 25 percent. They replace the unmeasured seed of 30 October, in family with /bar-tab/venue-eltcmh (1,070 KB, 54 requests, 850 ms LCP). The macOS CI sweep is the oracle and these come down to its figure at the next one.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 958,
+      "requests": 43,
+      "lcpMs": 620
     }
   ]
 }
