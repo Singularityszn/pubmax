@@ -1200,6 +1200,13 @@ export function pillIconKey(bucket: number): string {
   return `${PILL_ICON_KEY_PREFIX}${bucket}`;
 }
 
+/** The selected pub's inverted pill: `selected-0` .. `selected-3`. */
+export const SELECTED_PILL_ICON_KEY_PREFIX = "selected-";
+
+export function selectedPillIconKey(bucket: number): string {
+  return `${SELECTED_PILL_ICON_KEY_PREFIX}${bucket}`;
+}
+
 /** The aging glass's key suffix: `pint-0-aging` beside `pint-0`. */
 export const AGING_ICON_KEY_SUFFIX = "-aging";
 
@@ -1352,34 +1359,88 @@ function drawBasePub(ctx: CanvasRenderingContext2D, t: IconTokens): void {
 }
 
 // ---------------------------------------------------------------------------
-// The price pill (ns: "pill"). From PIN_PRICE_LABEL_MIN_ZOOM a priced pub's
-// mark is its price on a pill, as a street of prices reads faster than a street
-// of glasses with numbers hung under them. The GLASS stays drawn beneath it on
+// The price pill (ns: "pill"). From the pin floor a priced pub's mark is its
+// price on a pill, as a street of prices reads faster than a street of glasses
+// with numbers hung under them (Airbnb's price markers on a calm map, launch
+// plan 1 Nov 2026 section 5). The GLASS stays drawn beneath it on
 // `pubs-point`: where the pill cannot find room the glass takes the spot, so a
 // pub is never lost to make its price fit.
 //
-// Colour: the body is the plaque surface the price tag has always used, and the
-// band is a 3px foot inside the rim, because the band is a hint and the figure
-// is the claim. One image per band, because an icon's colour is not a data
-// property. There is no tail: a pill is centred on its pub like the glass is,
-// so the painted-pin probe, the hit box and the camera all keep one answer to
-// "where is this pub" and a tail would give them a second.
+// Colour: the body is the raised panel and the figure is ink, so a street of
+// pills is as quiet as the paper under it. The band is the pill's OUTLINE, a
+// ring of the band's own fill inside an ink hairline, because the band is a
+// hint and the figure is the claim. Colour is never the only signal: the
+// figure is the price, and the pips at the pill's left end count the band the
+// way the map key's codes do (one for £, two for ££, three for £££), so a
+// reader who cannot tell green from red still reads the band. A pill with no
+// band wears one hollow pip. One image per band, because an icon's colour is
+// not a data property. There is no tail: a pill is centred on its pub like the
+// glass is, so the painted-pin probe, the hit box and the camera all keep one
+// answer to "where is this pub" and a tail would give them a second.
+//
+// The SELECTED pub's pill is the same shape inverted: an ink body, the figure
+// in paper (the layer's text colour) and the same pips. A selection reads in
+// ink and never in coral (docs/DESIGN_SYSTEM.md, "Coral is spent twice").
 // ---------------------------------------------------------------------------
 
 /** The pill's box in CSS px. The text's rectangle below sets the real size. */
-export const PILL_BOX = { width: 40, height: 26 } as const;
-const PILL_RADIUS = 8;
-/** The band's foot, in px, drawn inside the rim. */
-export const PILL_BAND_PX = 3;
+export const PILL_BOX = { width: 44, height: 26 } as const;
+/** The pill's corner radius in CSS px: round enough to read as a pill. */
+export const PILL_RADIUS = 10;
+/** The band outline's width in CSS px, drawn just inside the hairline. */
+export const PILL_BAND_RING_PX = 1.5;
+/** How many pips each band wears, in band order: cheap, average, dear, none. */
+export const PILL_BAND_PIPS: readonly [number, number, number, number] = [1, 2, 3, 0];
+/** The pip column's centre and each pip's radius and pitch, in CSS px. */
+export const PILL_PIP = { x: 7.5, radius: 1.35, pitch: 4.2 } as const;
 /**
- * The nine-slice. Corners are PILL_RADIUS wide, so each cap is 10px, and the
- * foot stays inside the bottom cap so a stretched pill keeps a 3px band.
+ * The nine-slice. The left cap holds the corner and the pip column, so it is
+ * 14px and never stretches; the right cap holds the corner. The vertical run
+ * is the straight part of the edge between the corners, and the text's
+ * rectangle starts just clear of the pips.
  */
 export const PILL_STRETCH: IconStretch = {
-  x: [[10, 30]],
+  x: [[14, 34]],
   y: [[10, 16]],
-  content: [8, 5, 32, 21],
+  content: [12, 5, 35, 21],
 };
+
+/** The band's pip count: 1, 2 or 3 for the three bands, 0 for no band. */
+export function pillBandPipCount(bucket: number): number {
+  return bucket === 0 || bucket === 1 || bucket === 2 ? PILL_BAND_PIPS[bucket] : PILL_BAND_PIPS[3];
+}
+
+/** The pips' centres on the pill's own y axis, stacked about its middle. */
+export function pillPipCentres(count: number): number[] {
+  const middle = PILL_BOX.height / 2;
+  const first = middle - ((count - 1) * PILL_PIP.pitch) / 2;
+  return Array.from({ length: count }, (_, i) => first + i * PILL_PIP.pitch);
+}
+
+function drawPillPips(ctx: CanvasRenderingContext2D, t: IconTokens, bucket: number): void {
+  const count = pillBandPipCount(bucket);
+  if (count === 0) {
+    // No band: one hollow pip, so the figure keeps its place and the pill
+    // still says "no band" in a shape rather than in a missing colour.
+    ctx.beginPath();
+    ctx.arc(PILL_PIP.x, PILL_BOX.height / 2, PILL_PIP.radius, 0, Math.PI * 2);
+    ctx.strokeStyle = UNPRICED_PIN_FILL;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    return;
+  }
+  ctx.fillStyle = priceFill(t, bucket);
+  for (const y of pillPipCentres(count)) {
+    ctx.beginPath();
+    ctx.arc(PILL_PIP.x, y, PILL_PIP.radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function pillOutlinePath(ctx: CanvasRenderingContext2D): void {
+  const { width, height } = PILL_BOX;
+  roundRectPath(ctx, 0.5, 0.5, width - 1, height - 1, PILL_RADIUS);
+}
 
 function makePillDraw(bucket: number) {
   return (ctx: CanvasRenderingContext2D, t: IconTokens): void => {
@@ -1387,19 +1448,38 @@ function makePillDraw(bucket: number) {
     const body = t.pillSurface ?? t.paper;
     const rim = t.pillRim ?? t.ink;
     ctx.save();
-    roundRectPath(ctx, 0.5, 0.5, width - 1, height - 1, PILL_RADIUS);
+    pillOutlinePath(ctx);
     ctx.fillStyle = body;
     ctx.fill();
-    // The foot, clipped to the body so it follows the corners.
-    ctx.save();
-    ctx.clip();
-    ctx.fillStyle = priceFill(t, bucket);
-    ctx.fillRect(0, height - PILL_BAND_PX - 0.5, width, PILL_BAND_PX + 0.5);
-    ctx.restore();
-    roundRectPath(ctx, 0.5, 0.5, width - 1, height - 1, PILL_RADIUS);
+    // The band outline, just inside the hairline so the hairline stays the
+    // edge against the ground (amber on pale paper is under 3:1 on its own).
+    const inset = 1 + PILL_BAND_RING_PX / 2;
+    roundRectPath(ctx, inset, inset, width - inset * 2, height - inset * 2, PILL_RADIUS - inset + 0.5);
+    ctx.strokeStyle = priceFill(t, bucket);
+    ctx.lineWidth = PILL_BAND_RING_PX;
+    ctx.stroke();
+    pillOutlinePath(ctx);
     ctx.strokeStyle = rim;
     ctx.lineWidth = 1;
     ctx.stroke();
+    drawPillPips(ctx, t, bucket);
+    ctx.restore();
+  };
+}
+
+function makeSelectedPillDraw(bucket: number) {
+  return (ctx: CanvasRenderingContext2D, t: IconTokens): void => {
+    ctx.save();
+    pillOutlinePath(ctx);
+    ctx.fillStyle = t.ink;
+    ctx.fill();
+    // A paper hairline, so the inverted pill keeps its edge where it overlaps
+    // a neighbouring pill (the selected pill may overlap; the rest may not).
+    pillOutlinePath(ctx);
+    ctx.strokeStyle = t.paper;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    drawPillPips(ctx, t, bucket);
     ctx.restore();
   };
 }
@@ -1484,6 +1564,15 @@ export const MAP_ICON_SPECS: IconSpec[] = [
     height: PILL_BOX.height,
     stretch: PILL_STRETCH,
     draw: makePillDraw(bucket),
+  })),
+  // The selected pub's inverted pill, one per band.
+  ...DRINK_BUCKETS.map((bucket): IconSpec => ({
+    key: selectedPillIconKey(bucket),
+    ns: "pill",
+    size: PILL_BOX.width,
+    height: PILL_BOX.height,
+    stretch: PILL_STRETCH,
+    draw: makeSelectedPillDraw(bucket),
   })),
   // The route time bubble.
   {

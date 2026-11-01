@@ -255,8 +255,11 @@ kicker, heading, one painted primary and at most one secondary, in that order at
 every width. The screen table is `docs/design/LAUNCH_SCREENS.md`.
 
 The map has a deliberate style-layer contract. Dark mode uses a neon-noir
-near-black field with slate water and restrained roads; light mode uses warm
-paper land with quieter washes. Pub marks lead the hierarchy: basemap pub POI
+near-black field with slate water and restrained roads; light mode is a calm
+map for price pills (launch plan, 1 November 2026): warm near-grey ground,
+white roads whose rank is their width and grey casing, a pale sage park, a
+grey-blue river and grey labels, and no price-band hue anywhere on the ground,
+so the only colour on a light map is a price. Pub marks lead the hierarchy: basemap pub POI
 labels are prominent, generic venue-label layers receive the same priority,
 neighbourhood labels are smaller and quieter, and road labels remain
 contextual. This pass changes palette and label paint/layout
@@ -560,9 +563,10 @@ way, and the choice is made in this order:
    not need a card.
 4. **Nothing.** Most containers are in this row.
 
-Coral (`--brass`) is not a selection colour. It belongs to the primary CTA
-and the selected pin ring; an active tab reads in
-`--state-selected-*` ink. See Launch tokens > Coral is spent twice.
+Coral (`--brass`) is not a selection colour. It belongs to the primary CTA;
+an active tab reads in `--state-selected-*` ink, and the selected pin on the
+map is a solid ink price pill or an ink ring. See Launch tokens > Coral is
+spent twice.
 
 Two traps this repo has hit:
 

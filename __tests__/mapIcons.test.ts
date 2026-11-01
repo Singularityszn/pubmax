@@ -9,14 +9,21 @@ import {
   UNPRICED_PIN_FILL,
   VENUE_PIN_EDGE_WIDTH,
   VENUE_PIN_ICON_KEYS,
-  PILL_BAND_PX,
+  PILL_BAND_PIPS,
+  PILL_BAND_RING_PX,
   PILL_BOX,
   PILL_ICON_KEY_PREFIX,
+  PILL_PIP,
+  PILL_RADIUS,
   PILL_STRETCH,
   ROUTE_TIME_ICON_KEY,
+  SELECTED_PILL_ICON_KEY_PREFIX,
   drinkPinKindFromCategories,
   iconId,
+  pillBandPipCount,
   pillIconKey,
+  pillPipCentres,
+  selectedPillIconKey,
   venuePinIconKey,
   type IconSpec,
   type IconTokens,
@@ -403,17 +410,26 @@ describe("spec.draw (recording stub)", () => {
 describe("price pill (ns: pill)", () => {
   const PILL_TOKENS: IconTokens = {
     ...TOKENS,
-    pillSurface: "#f4ead5",
+    pillSurface: "#fffdf9",
     pillRim: "rgba(23, 23, 26, 0.7)",
   };
+  const BAND_FILLS = [PILL_TOKENS.pint, PILL_TOKENS.amber, PILL_TOKENS.brick] as const;
   const pills = MAP_ICON_SPECS.filter((spec) => spec.ns === "pill");
+  const pill = (bucket: number) => pills.find((s) => s.key === pillIconKey(bucket))!;
+  const selectedPill = (bucket: number) =>
+    pills.find((s) => s.key === selectedPillIconKey(bucket))!;
 
-  it("has one image per price band, keyed the way the layer's expression builds the id", () => {
-    expect(pills.map((spec) => spec.key)).toEqual([0, 1, 2, 3].map(pillIconKey));
+  it("has one image per price band and one inverted image per band for the selected pub", () => {
+    expect(pills.map((spec) => spec.key)).toEqual([
+      ...[0, 1, 2, 3].map(pillIconKey),
+      ...[0, 1, 2, 3].map(selectedPillIconKey),
+    ]);
+    // Keyed the way each layer's expression builds the id.
     expect(iconId("pill", pillIconKey(2))).toBe(`pill:${PILL_ICON_KEY_PREFIX}2`);
+    expect(iconId("pill", selectedPillIconKey(2))).toBe(`pill:${SELECTED_PILL_ICON_KEY_PREFIX}2`);
   });
 
-  it("is a 40x26 box, not a square, and states its nine-slice inside it", () => {
+  it("is a 44x26 box, not a square, and states its nine-slice inside it", () => {
     for (const spec of pills) {
       expect(spec.size, `${spec.key} width`).toBe(PILL_BOX.width);
       expect(spec.height, `${spec.key} height`).toBe(PILL_BOX.height);
@@ -422,41 +438,83 @@ describe("price pill (ns: pill)", () => {
     const [x0, x1] = defined(PILL_STRETCH.x[0]);
     const [y0, y1] = defined(PILL_STRETCH.y[0]);
     const [left, top, right, bottom] = PILL_STRETCH.content;
-    // The caps hold the 8px corner radius, so the stretch may not begin sooner.
-    expect(x0).toBeGreaterThanOrEqual(8);
-    expect(y0).toBeGreaterThanOrEqual(8);
-    expect(x1).toBeLessThanOrEqual(PILL_BOX.width - 8);
-    expect(y1).toBeLessThanOrEqual(PILL_BOX.height - PILL_BAND_PX - 4);
-    // The text's rectangle sits inside the box and inside the stretchable run.
+    // The caps hold the corner radius, so no stretch may begin inside a corner.
+    expect(x0).toBeGreaterThanOrEqual(PILL_RADIUS);
+    expect(y0).toBeGreaterThanOrEqual(PILL_RADIUS);
+    expect(x1).toBeLessThanOrEqual(PILL_BOX.width - PILL_RADIUS);
+    expect(y1).toBeLessThanOrEqual(PILL_BOX.height - PILL_RADIUS);
+    // The pip column sits wholly in the fixed left cap, so a stretched pill
+    // never smears its pips, and the figure's rectangle starts clear of them.
+    expect(PILL_PIP.x + PILL_PIP.radius).toBeLessThan(x0);
+    expect(PILL_PIP.x + PILL_PIP.radius).toBeLessThan(left);
+    // The text's rectangle sits inside the box.
     expect(left).toBeLessThan(right);
     expect(top).toBeLessThan(bottom);
     expect(right).toBeLessThanOrEqual(PILL_BOX.width);
-    expect(bottom).toBeLessThanOrEqual(PILL_BOX.height - PILL_BAND_PX);
+    expect(bottom).toBeLessThanOrEqual(PILL_BOX.height);
   });
 
-  it("paints the plaque surface, then the band as its foot, then the rim", () => {
-    for (const bucket of [0, 1, 2] as const) {
-      const spec = pills.find((s) => s.key === pillIconKey(bucket))!;
-      const painted = exercise(spec, PILL_TOKENS);
-      // body first, band second; a stroke for the rim and none for anything else.
-      expect(painted.fillStyles.slice(0, 2), `bucket ${bucket}`).toEqual([
-        PILL_TOKENS.pillSurface,
-        [PILL_TOKENS.pint, PILL_TOKENS.amber, PILL_TOKENS.brick][bucket],
-      ]);
-      expect(painted.strokeStyles).toEqual([PILL_TOKENS.pillRim]);
+  it("counts the band in pips, as the key counts it in pound signs, so colour is never the only cue", () => {
+    expect(PILL_BAND_PIPS).toEqual([1, 2, 3, 0]);
+    expect([0, 1, 2, 3, 7, -1].map(pillBandPipCount)).toEqual([1, 2, 3, 0, 0, 0]);
+    for (const count of [1, 2, 3]) {
+      const centres = pillPipCentres(count);
+      expect(centres).toHaveLength(count);
+      // Stacked about the pill's middle, a pitch apart, inside the box.
+      const middle = PILL_BOX.height / 2;
+      expect((defined(centres[0]) + defined(centres.at(-1))) / 2).toBeCloseTo(middle, 6);
+      for (let i = 1; i < centres.length; i++) {
+        expect(defined(centres[i]) - defined(centres[i - 1])).toBeCloseTo(PILL_PIP.pitch, 6);
+      }
+      expect(defined(centres[0]) - PILL_PIP.radius).toBeGreaterThan(0);
+      expect(defined(centres.at(-1)) + PILL_PIP.radius).toBeLessThan(PILL_BOX.height);
     }
   });
 
-  it("gives an unpriced pub the neutral foot, never a price band's", () => {
-    const spec = pills.find((s) => s.key === pillIconKey(3))!;
-    expect(exercise(spec, PILL_TOKENS).fillStyles[1]).toBe(UNPRICED_PIN_FILL);
+  it("paints the panel body, the band as its outline, the ink hairline, then one pip per band step", () => {
+    for (const bucket of [0, 1, 2] as const) {
+      const painted = exercise(pill(bucket), PILL_TOKENS);
+      const band = BAND_FILLS[bucket];
+      // The body, then a filled pip for each step of the band, in the band.
+      expect(painted.fillStyles, `bucket ${bucket}`).toEqual([
+        PILL_TOKENS.pillSurface,
+        ...Array.from({ length: bucket + 1 }, () => band),
+      ]);
+      // The band outline inside the hairline, then the hairline itself.
+      expect(painted.strokeStyles, `bucket ${bucket}`).toEqual([band, PILL_TOKENS.pillRim]);
+      expect(painted.strokeWidths, `bucket ${bucket}`).toEqual([PILL_BAND_RING_PX, 1]);
+    }
+  });
+
+  it("gives a pill with no band the neutral outline and one hollow pip, never a price band's", () => {
+    const painted = exercise(pill(3), PILL_TOKENS);
+    expect(painted.fillStyles).toEqual([PILL_TOKENS.pillSurface]);
+    expect(painted.strokeStyles).toEqual([UNPRICED_PIN_FILL, PILL_TOKENS.pillRim, UNPRICED_PIN_FILL]);
+    for (const band of BAND_FILLS) expect(painted.strokeStyles).not.toContain(band);
+  });
+
+  it("inverts the selected pub's pill to an ink body, keeps its pips, and never reaches for coral", () => {
+    for (const bucket of [0, 1, 2] as const) {
+      const painted = exercise(selectedPill(bucket), PILL_TOKENS);
+      expect(painted.fillStyles, `bucket ${bucket}`).toEqual([
+        PILL_TOKENS.ink,
+        ...Array.from({ length: bucket + 1 }, () => BAND_FILLS[bucket]),
+      ]);
+      // A paper hairline keeps its edge where it overlaps a neighbouring pill.
+      expect(painted.strokeStyles, `bucket ${bucket}`).toEqual([PILL_TOKENS.paper]);
+      const all = [...painted.fillStyles, ...painted.strokeStyles];
+      expect(all).not.toContain(PILL_TOKENS.brass);
+      expect(all).not.toContain(PILL_TOKENS.brassBright);
+    }
+    const none = exercise(selectedPill(3), PILL_TOKENS);
+    expect(none.fillStyles).toEqual([PILL_TOKENS.ink]);
+    expect(none.strokeStyles).toEqual([PILL_TOKENS.paper, UNPRICED_PIN_FILL]);
   });
 
   it("falls back to paper and ink when a theme publishes no pill tokens", () => {
-    const spec = pills.find((s) => s.key === pillIconKey(0))!;
-    const painted = exercise(spec, TOKENS);
+    const painted = exercise(pill(0), TOKENS);
     expect(painted.fillStyles[0]).toBe(TOKENS.paper);
-    expect(painted.strokeStyles).toEqual([TOKENS.ink]);
+    expect(painted.strokeStyles).toEqual([TOKENS.pint, TOKENS.ink]);
   });
 });
 

@@ -5,6 +5,7 @@ import {
   applySelectionMute,
   buildPalette,
   isBasemapSelectionMuteLayer,
+  LIGHT_BASEMAP,
   mixHex,
   muteOpacityExpr,
   SELECTION_MUTE_OPACITY,
@@ -128,7 +129,8 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
     expect(dark.land).toBe("#0a0c11");
     expect(dark.land).not.toBe(darkTokens.ink);
     expect(lumSum(dark.land)).toBeLessThan(40); // unmistakably near-black
-    expect(light.land).toBe(mixHex(tokens.paper, "#f4efe6", 0.35));
+    // The calm light ground is the light map's own constant, not a token mix.
+    expect(light.land).toBe(LIGHT_BASEMAP.ground);
   });
 
   it("keeps dark roads legible but subordinate to product marks", () => {
@@ -187,27 +189,136 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
     const n = parseInt(dark.park.slice(1), 16);
     expect((n >> 8) & 255).toBeGreaterThan((n >> 16) & 255); // green > red → reads green
     expect((n >> 8) & 255).toBeGreaterThan(n & 255); // green > blue
-    // Light park is UNTOUCHED by Wave A — still the parkTint wash.
+    // The calm light park is a pale sage: it reads green, never as a pint pin.
     expect(light.park).not.toBe(withAlpha(tokens.pint, 0.26));
-    expect(light.park).toContain("126, 160, 82"); // tokens.parkTint rgb
+    expect(saturationPct(light.park)).toBeLessThan(30);
+    expect(saturationPct(light.park)).toBeLessThan(saturationPct(tokens.pint));
+    const p = parseInt(light.park.slice(1), 16);
+    expect((p >> 8) & 255).toBeGreaterThan((p >> 16) & 255); // green > red
+  });
+});
+
+// The calm light map (launch plan 1 Nov 2026, section 5): price pills on a calm
+// map. The ground is Positron's own quiet family and owns no price-band hue, so
+// the only colour on a light map is a price.
+describe("calm light basemap", () => {
+  const light = buildPalette(tokens, false);
+  const tones = {
+    land: light.land,
+    landSoft: light.landSoft,
+    residential: light.residential,
+    park: light.park,
+    building: light.building,
+    water: light.water,
+    roadMinor: light.roadMinor,
+    road: light.road,
+    roadMajor: light.roadMajor,
+  };
+
+  it("paints every tone opaque and from its own constants, whatever the brand tokens say", () => {
+    for (const [name, tone] of Object.entries(tones)) {
+      expect(tone, name).toMatch(/^#[0-9a-f]{6}$/);
+    }
+    // A brand retune moves no light basemap pixel.
+    const retuned = buildPalette(
+      { ...tokens, amber: "#ff0000", pint: "#00ff00", river: "#0000ff", parkTint: "#00ff00" },
+      false,
+    );
+    expect(retuned).toEqual(light);
   });
 
-  it("M4 — light water is a calmer translucent wash, not the loud opaque cyan", () => {
-    const light = buildPalette(tokens, false);
-    // Old behaviour painted the fully-opaque riverBright cyan directly.
-    expect(light.water).not.toBe(tokens.riverBright);
-    expect(light.water).toMatch(/^rgba\(/);
-    expect(light.water).toContain("47, 111, 143"); // tokens.river rgb
+  it("keeps the ground, the roads and the buildings neutral, so no road reads as a price", () => {
+    // The old light roads were mixed toward --amber (the average band) and the
+    // residential blocks washed in --pint (the cheap band).
+    // Chroma, not HSL saturation: near-white greys read as saturated in HSL.
+    const chroma = (hex: string) => {
+      const c = channels(hex).map((v) => Math.round(v * 255));
+      return Math.max(...c) - Math.min(...c);
+    };
+    for (const name of ["land", "landSoft", "residential", "building", "roadMinor", "road", "roadMajor"] as const) {
+      expect(chroma(tones[name]), name).toBeLessThanOrEqual(8);
+    }
+    for (const band of [tokens.pint, tokens.amber, tokens.brick]) {
+      expect(Object.values(tones)).not.toContain(band);
+    }
   });
 
-  it("M4 — light roads read brighter than land, with a major/minor tier", () => {
-    const light = buildPalette(tokens, false);
-    // Neither tier is the old flat brass/coral wash.
-    expect(light.road).not.toContain("176, 129, 58"); // old brass rgb
-    expect(light.roadMajor).not.toContain("176, 129, 58");
-    // Major tier is a distinct, warmer step from the near-white minor tier.
-    expect(light.road).not.toBe(light.roadMajor);
+  it("draws roads brighter than the land, and a major road at least as bright as a minor one", () => {
+    expect(relativeLuminance(light.roadMinor)).toBeGreaterThan(relativeLuminance(light.land));
+    expect(relativeLuminance(light.roadMajor)).toBeGreaterThanOrEqual(relativeLuminance(light.road));
+    expect(relativeLuminance(light.road)).toBeGreaterThanOrEqual(relativeLuminance(light.roadMinor));
   });
+
+  it("keeps the river a quiet blue that still reads as water against the land", () => {
+    const n = parseInt(light.water.slice(1), 16);
+    expect(n & 255).toBeGreaterThan((n >> 16) & 255); // blue > red
+    expect(contrast(light.water, light.land)).toBeGreaterThan(1.2);
+    expect(saturationPct(light.water)).toBeLessThan(35);
+  });
+
+  it("prints basemap labels in a warm grey a pill's ink figure outranks", () => {
+    // Ink on the pill reads darker than any basemap label on the ground.
+    expect(relativeLuminance(LIGHT_BASEMAP.label)).toBeGreaterThan(relativeLuminance(tokens.ink));
+    expect(contrast(LIGHT_BASEMAP.label, light.land)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("paints light labels grey and quiet, and road shields quieter than road names", () => {
+    const paints: Array<[string, string, unknown]> = [];
+    const layers = [
+      { id: "label_city", type: "symbol" },
+      { id: "label_other", type: "symbol" },
+      { id: "highway-name-major", type: "symbol" },
+      { id: "highway-shield-non-us", type: "symbol" },
+      { id: "highway_major_subtle", type: "line" },
+    ];
+    const map = {
+      getLayer: (id: string) => layers.find((layer) => layer.id === id),
+      setPaintProperty: (layerId: string, name: string, value: unknown) => {
+        paints.push([layerId, name, value]);
+      },
+      setLayoutProperty: () => {},
+      getStyle: () => ({ layers }),
+    };
+    applyBasemapTaste(map, tokens, false);
+    const paint = (id: string, prop: string) =>
+      paints.find(([layer, name]) => layer === id && name === prop)?.[2];
+    expect(paint("label_city", "text-color")).toBe(LIGHT_BASEMAP.label);
+    const city = paint("label_city", "text-opacity") as number;
+    const road = paint("highway-name-major", "text-opacity") as number;
+    const neighbourhood = paint("label_other", "text-opacity") as number;
+    expect(city).toBeGreaterThan(road);
+    expect(road).toBeGreaterThan(neighbourhood);
+    // The white "A1" box steps back with its number, behind the road names.
+    const shield = paint("highway-shield-non-us", "icon-opacity") as number;
+    expect(paint("highway-shield-non-us", "text-opacity")).toBe(shield);
+    expect(shield).toBeGreaterThan(0);
+    expect(shield).toBeLessThan(road);
+    // Positron's low-zoom grey road lines are left as drawn.
+    expect(paint("highway_major_subtle", "line-color")).toBeUndefined();
+  });
+
+  it("leaves the dark styles' labels and lines to the dark palette", () => {
+    const paints: Array<[string, string, unknown]> = [];
+    const layers = [
+      { id: "highway-shield-non-us", type: "symbol" },
+      { id: "highway_major_subtle", type: "line" },
+    ];
+    const map = {
+      getLayer: (id: string) => layers.find((layer) => layer.id === id),
+      setPaintProperty: (layerId: string, name: string, value: unknown) => {
+        paints.push([layerId, name, value]);
+      },
+      getStyle: () => ({ layers }),
+    };
+    applyBasemapTaste(map, darkTokens, true);
+    expect(paints.find(([id]) => id === "highway-shield-non-us")).toBeUndefined();
+    expect(
+      paints.find(([id, prop]) => id === "highway_major_subtle" && prop === "line-color")?.[2],
+    ).toBe(buildPalette(darkTokens, true).roadMajor);
+  });
+});
+
+describe("mapBasemapTaste (Wave A, continued)", () => {
 
   it("applies land/water/road/building paints when layers exist", () => {
     const paints: Array<[string, string, unknown]> = [];
@@ -975,9 +1086,10 @@ describe("deferred scene taste (assembleSceneDeferred, buildScene.ts)", () => {
     expect(paint["text-halo-color"]).toBe(dark ? themeTokens.ink : themeTokens.inkDeep);
     expect(paint["text-opacity"]).toBe(1);
     expect(paint).toEqual(built);
-    // The pass did run: the basemap's own POI label took the theme's ink.
+    // The pass did run: the basemap's own POI label took the theme's label
+    // colour (the cream ink at night, the calm light map's warm grey by day).
     expect(defined(layers.get("poi_label")).paint["text-color"]).toBe(
-      dark ? themeTokens.ink : themeTokens.inkDeep,
+      dark ? themeTokens.ink : LIGHT_BASEMAP.label,
     );
   });
 });

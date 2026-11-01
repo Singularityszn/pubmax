@@ -513,13 +513,13 @@
   "pill:bucket-0": {
     "x": 186,
     "y": 434,
-    "width": 80,
+    "width": 88,
     "height": 52,
     "pixelRatio": 2,
     "stretchX": [
       [
-        20,
-        60
+        28,
+        68
       ]
     ],
     "stretchY": [
@@ -529,22 +529,22 @@
       ]
     ],
     "content": [
-      16,
+      24,
       10,
-      64,
+      70,
       42
     ]
   },
   "pill:bucket-1": {
-    "x": 268,
+    "x": 276,
     "y": 434,
-    "width": 80,
+    "width": 88,
     "height": 52,
     "pixelRatio": 2,
     "stretchX": [
       [
-        20,
-        60
+        28,
+        68
       ]
     ],
     "stretchY": [
@@ -554,22 +554,22 @@
       ]
     ],
     "content": [
-      16,
+      24,
       10,
-      64,
+      70,
       42
     ]
   },
   "pill:bucket-2": {
-    "x": 350,
+    "x": 366,
     "y": 434,
-    "width": 80,
+    "width": 88,
     "height": 52,
     "pixelRatio": 2,
     "stretchX": [
       [
-        20,
-        60
+        28,
+        68
       ]
     ],
     "stretchY": [
@@ -579,22 +579,22 @@
       ]
     ],
     "content": [
-      16,
+      24,
       10,
-      64,
+      70,
       42
     ]
   },
   "pill:bucket-3": {
-    "x": 432,
+    "x": 456,
     "y": 434,
-    "width": 80,
+    "width": 88,
     "height": 52,
     "pixelRatio": 2,
     "stretchX": [
       [
-        20,
-        60
+        28,
+        68
       ]
     ],
     "stretchY": [
@@ -604,15 +604,115 @@
       ]
     ],
     "content": [
-      16,
+      24,
       10,
-      64,
+      70,
+      42
+    ]
+  },
+  "pill:selected-0": {
+    "x": 546,
+    "y": 434,
+    "width": 88,
+    "height": 52,
+    "pixelRatio": 2,
+    "stretchX": [
+      [
+        28,
+        68
+      ]
+    ],
+    "stretchY": [
+      [
+        20,
+        32
+      ]
+    ],
+    "content": [
+      24,
+      10,
+      70,
+      42
+    ]
+  },
+  "pill:selected-1": {
+    "x": 0,
+    "y": 496,
+    "width": 88,
+    "height": 52,
+    "pixelRatio": 2,
+    "stretchX": [
+      [
+        28,
+        68
+      ]
+    ],
+    "stretchY": [
+      [
+        20,
+        32
+      ]
+    ],
+    "content": [
+      24,
+      10,
+      70,
+      42
+    ]
+  },
+  "pill:selected-2": {
+    "x": 90,
+    "y": 496,
+    "width": 88,
+    "height": 52,
+    "pixelRatio": 2,
+    "stretchX": [
+      [
+        28,
+        68
+      ]
+    ],
+    "stretchY": [
+      [
+        20,
+        32
+      ]
+    ],
+    "content": [
+      24,
+      10,
+      70,
+      42
+    ]
+  },
+  "pill:selected-3": {
+    "x": 180,
+    "y": 496,
+    "width": 88,
+    "height": 52,
+    "pixelRatio": 2,
+    "stretchX": [
+      [
+        28,
+        68
+      ]
+    ],
+    "stretchY": [
+      [
+        20,
+        32
+      ]
+    ],
+    "content": [
+      24,
+      10,
+      70,
       42
     ]
   },
   "route:route-time": {
-    "x": 514,
-    "y": 434,
+    "x": 270,
+    "y": 496,
     "width": 80,
     "height": 44,
     "pixelRatio": 2,
@@ -636,14 +736,14 @@
     ]
   },
   "base:pub": {
-    "x": 0,
+    "x": 352,
     "y": 496,
     "width": 60,
     "height": 60,
     "pixelRatio": 2
   },
   "base:coffee": {
-    "x": 62,
+    "x": 414,
     "y": 496,
     "width": 60,
     "height": 60,

@@ -48,7 +48,13 @@ describe("sun dots follow their pins", () => {
       },
     };
     expect([...paintedPinIds(map as never)]).toEqual(["shown"]);
-    expect(asked).toEqual([PUB_PIN_LAYERS.filter((id) => id !== "pubs-point-selected")]);
+    expect(asked).toEqual([
+      PUB_PIN_LAYERS.filter((id) => id === "pubs-point" || id === "pubs-price-pill"),
+    ]);
+    // The selected pub's own layers are pin layers too: a selected pill or a
+    // selected glass keeps its sun dot.
+    expect(PUB_PIN_LAYERS).toContain("pubs-price-pill-selected");
+    expect(PUB_PIN_LAYERS).toContain("pubs-point-selected");
   });
 
   it("reads no pins before the pin layers exist", () => {

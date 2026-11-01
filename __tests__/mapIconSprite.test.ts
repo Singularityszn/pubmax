@@ -117,7 +117,7 @@ describe("iconTokensMatch", () => {
 
   it("accepts another browser's rounding of a computed colour", () => {
     expect(
-      iconTokensMatch(drawn, { ...live, pillSurface: "rgb(255, 243, 226)", ink: "#18171A" }),
+      iconTokensMatch(drawn, { ...live, pillSurface: "rgb(255, 252, 249)", ink: "#18171A" }),
     ).toBe(true);
   });
 

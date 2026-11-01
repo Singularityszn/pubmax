@@ -117,7 +117,7 @@ import {
   ambientMotionLevel, ambientMotionResting, routeLineShowsDash,
   pinEntranceIconOpacityExpr,
   selectedPinIconSizeExpr, selectedPinFilter, pinSortKeyExpr, pinPriceLabelExpr, pricePillFilter,
-  clusterEntranceProgress,
+  selectedPricePillFilter, clusterEntranceProgress,
 } from "@/components/map/canvas/filters";
 import {
   hoverPriceBandClass,
@@ -615,6 +615,7 @@ const PUB_PIN_LAYERS = [
   "pubs-point",
   "pubs-price-pill",
   "pubs-point-selected",
+  "pubs-price-pill-selected",
   "pubs-selected-glow",
   "pubs-selected",
   "pubs-provisional-badge",
@@ -4337,8 +4338,11 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         ["get", "id"],
         selectedIdRef.current,
       ];
+      // The two ink rings ring a selected GLASS. A selected pub that is a pill
+      // is drawn inverted on pubs-price-pill-selected and wears no ring.
+      const selectedGlassFilter = selectedPinFilter(selectedIdRef.current);
       if (map.getLayer("pubs-selected-glow")) {
-        map.setFilter("pubs-selected-glow", selectedFilter);
+        map.setFilter("pubs-selected-glow", selectedGlassFilter);
         // Reset to the static baseline on every selection change; the RAF
         // loop takes over from here again next frame if a venue is selected,
         // and a deselect leaves the ring at this baseline (not mid-pulse).
@@ -4350,7 +4354,10 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         );
       }
       if (map.getLayer("pubs-selected")) {
-        map.setFilter("pubs-selected", selectedFilter);
+        map.setFilter("pubs-selected", selectedGlassFilter);
+      }
+      if (map.getLayer("pubs-price-pill-selected")) {
+        map.setFilter("pubs-price-pill-selected", selectedPricePillFilter(selectedIdRef.current));
       }
       // The UK base layer answers a tap with its own quieter ring; the same
       // selected id drives it, so exactly one of the two ever matches.

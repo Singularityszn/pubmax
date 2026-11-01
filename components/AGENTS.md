@@ -16,7 +16,7 @@ Full rules: [`docs/rules/components-map-canvas-and-pins.md`](../docs/rules/compo
 - [Map decomposition keeps source fences with their owner.](../docs/rules/components-map-canvas-and-pins.md#a-god-component-is-decomposed-in-place-because-the-map-s-own-tests-read-its-sour)
 - [A pin's COLOUR may be a hint; a pin's FIGURE may not.](../docs/rules/components-map-canvas-and-pins.md#a-pin-s-colour-may-be-a-hint-a-pin-s-figure-may-not)
 - [A pin's fill says the price; its EDGE is what makes it findable, and dark mode needs two tones for that.](../docs/rules/components-map-canvas-and-pins.md#a-pin-s-fill-says-the-price-its-edge-is-what-makes-it-findable-and-dark-mode-nee)
-- [A CLUSTER IS A NEUTRAL DISC THAT READS "FROM" ITS CHEAPEST PRICE, AND A PRICED PIN IS A PILL FROM STREET ZOOM.](../docs/rules/components-map-canvas-and-pins.md#a-cluster-is-a-neutral-disc-that-reads-from-its-cheapest-price-and-a-priced-pin-)
+- [A CLUSTER IS A NEUTRAL DISC THAT READS "FROM" ITS CHEAPEST PRICE, AND A PRICED PIN IS A PILL FROM THE PIN FLOOR.](../docs/rules/components-map-canvas-and-pins.md#a-cluster-is-a-neutral-disc-that-reads-from-its-cheapest-price-and-a-priced-pin-)
 - [AN AGING PRICE LOOKS AGING, NEVER FRESH.](../docs/rules/components-map-canvas-and-pins.md#an-aging-price-looks-aging-never-fresh)
 - [THE MAP DRAWS ITS ICONS AT BUILD TIME, AND A PHONE DRAWS ONLY WHAT THE SPRITE CANNOT ANSWER FOR.](../docs/rules/components-map-canvas-and-pins.md#the-map-draws-its-icons-at-build-time-and-a-phone-draws-only-what-the-sprite-can)
 - [The live Pint Index arrival must full-load the map.](../docs/rules/components-map-canvas-and-pins.md#the-live-pint-index-arrival-must-full-load-the-map)
