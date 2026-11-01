@@ -168,6 +168,18 @@ Not shipped: an edge cache for `/api/whats-on`, because it conflicts with the sh
 
 S1 (first pin under 3 s) is unchanged. The map agent found that the 8 s style timeout fires only when the style fails, so the real wait is MapLibre, the style, tiles and the venue index; self-hosted London PMTiles is the next step.
 
+### Week 3, built on 1 November 2026 (branch `claude/launch-week-3`)
+
+- The hunt's winners must now be seen at that pub: a £2.09 row the pub's own page never showed, and a Birmingham row read off another branch's page, used to win. Britain's cheapest is £2.43 for Bud Light at J.J. Moon's, Kingsbury, one of 19 London pubs at that price (week 2 branch, `lib/cheapestHunt.ts`).
+- A seasonal "Christmas crawl" planner template leads the list from 15 November to 24 December.
+- The "Dry round" (review item B4) plans alcohol-free stops only, from listed alcohol-free prices, with the pint price beside each. Only 13 London pubs list one today and no area has more than one, so a 3-stop Dry round answers "too few" everywhere and says so; a 1-stop round works.
+- The launch kit for 17 November is `docs/growth/LAUNCH_KIT_2026-11-17.md`, with every figure read from the code by `npm run launch:figures` and marked to recompute on 16 November.
+
+### Week 3 operations
+
+- The launch-week order is section 8 of [`SOFT_LAUNCH_RUNBOOK.md`](../SOFT_LAUNCH_RUNBOOK.md): the owner actions before Monday 16 November, the Monday freeze, release, sweeps and smoke walk, the PostHog check of the four crew-night events, the Tuesday watch list, rollback and the trigger to upgrade Supabase.
+- R3, the monitor half: `.github/workflows/uptime.yml` asks `/api/health` and `/api/version` every five minutes and alerts through `alert-on-failure.yml` when a route fails twice in a row. It reaches nobody until the captain sets the `PUBMAX_ALERT_WEBHOOK_URL` repository secret. The PostHog `$exception` alert and the emergency contacts are owner actions in the runbook, and neither is done.
+
 ---
 
 ## 10. How to know it works

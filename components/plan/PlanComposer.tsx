@@ -51,7 +51,8 @@ import {
   resolveNightPatch,
   type NightPatch,
 } from "@/lib/nightPatches";
-import { PLAN_TEMPLATES, type PlanTemplate } from "@/lib/planTemplates";
+import PlanTemplateRow from "@/components/plan/PlanTemplateRow";
+import { cleanDryRoundPrices, type DryRoundStopPrices } from "@/lib/dryRound";
 import {
   planVenueOptions,
   type PlanVenueOption,
@@ -147,6 +148,7 @@ const PlanResultProvenance = dynamic(() => import("@/components/plan/PlanResultP
 });
 const PlanTuneSheet = dynamic(() => import("@/components/plan/PlanTuneSheet"), { ssr: false });
 const PlanBudgetLedger = dynamic(() => import("@/components/plan/PlanBudgetLedger"), { ssr: false });
+const PlanDryRoundLedger = dynamic(() => import("@/components/plan/PlanDryRoundLedger"), { ssr: false });
 const PlanRouteMiniMap = dynamic(() => import("@/components/plan/PlanRouteMiniMap"), { ssr: false });
 
 type RouteRevision = string | number;
@@ -1654,6 +1656,9 @@ function PlanComposerForm({
   // Culture Crawl opener for the CURRENT generated route only. It is never
   // saved with the plan: it is a thing to see beside the route, not a Stop.
   const [cultureOpener, setCultureOpener] = useState<CultureOpenerDTO | null>(null);
+  // A dry round's listed alcohol-free price and pint, by pub (lib/dryRound.ts).
+  // Null when the last route was not a dry round.
+  const [dryRoundPrices, setDryRoundPrices] = useState<ReadonlyMap<string, DryRoundStopPrices> | null>(null);
   const usualLot = useSyncExternalStore(subscribeLastCrew, readLastCrew, () => null);
   const nameInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -2255,6 +2260,7 @@ function PlanComposerForm({
         stops?: unknown;
         alternatives?: unknown;
         cultureOpener?: unknown;
+        dryRound?: unknown;
         inferredContext?: NightContext;
         groundingProof?: unknown;
         constraintReport?: unknown;
@@ -2287,6 +2293,7 @@ function PlanComposerForm({
       setStops(suggested);
       setRouteSorted(true);
       setCultureOpener(cleanCultureOpener(body.cultureOpener));
+      setDryRoundPrices(cleanDryRoundPrices(body.dryRound));
       const reportLine = planReportLine(body.constraintReport);
       generatedReportRef.current = reportLine
         ? { line: reportLine, venueIds: suggested.map((stop) => stop.venueId).join(",") }
@@ -2597,35 +2604,27 @@ function PlanComposerForm({
           </button>
         </div>
       ) : null}
-      <div className="planComposer__templateRow">
-        {PLAN_TEMPLATES.map((template: PlanTemplate) => (
-          <button
-            key={template.id}
-            type="button"
-            className="planComposer__template"
-            title={template.blurb}
-            onClick={() => {
-              const merged = mergePlanTemplateFields({
-                title,
-                conciergeQuery,
-                conciergeNote,
-                template,
-                hasAcceptedGeography: Boolean(
-                  handoff?.answeredArea
-                  || planIntake.answers.area
-                  || nightContext?.nightArea
-                  || explicitNightContext.nightArea,
-                ),
-              });
-              setTitle(merged.title);
-              setConciergeQuery(merged.conciergeQuery);
-              setConciergeNote(merged.conciergeNote);
-            }}
-          >
-            {template.label}
-          </button>
-        ))}
-      </div>
+      {/* The row reads London's date itself, so a seasonal template leads it
+          in its window and is absent outside it (lib/planTemplates.ts). */}
+      <PlanTemplateRow
+        onPick={(template) => {
+          const merged = mergePlanTemplateFields({
+            title,
+            conciergeQuery,
+            conciergeNote,
+            template,
+            hasAcceptedGeography: Boolean(
+              handoff?.answeredArea
+              || planIntake.answers.area
+              || nightContext?.nightArea
+              || explicitNightContext.nightArea,
+            ),
+          });
+          setTitle(merged.title);
+          setConciergeQuery(merged.conciergeQuery);
+          setConciergeNote(merged.conciergeNote);
+        }}
+      />
     </section>
   );
   const coverageBlock = (
@@ -2815,6 +2814,14 @@ function PlanComposerForm({
       }))}
     />
   ) : null;
+  // A dry round prints each stop's listed alcohol-free price with its pint
+  // beside it. A pub added by hand that lists none says so on its own row.
+  const dryRoundLedger = dryRoundPrices && viewStops.length > 0 ? (
+    <PlanDryRoundLedger
+      prices={dryRoundPrices}
+      stops={viewStops.map((stop) => ({ venueId: stop.venueId, venueName: stop.venueName }))}
+    />
+  ) : null;
   // THE STOPS COME FIRST. The fine print and the map strip used to sit between
   // the summary and the pubs, so on a phone the first stop started below the
   // fold. They now follow the stops, and the two caveats read as one line.
@@ -2866,6 +2873,7 @@ function PlanComposerForm({
               {resultHeader}
               {stopsBlock}
               {budgetLedger}
+              {dryRoundLedger}
               {resultFinePrint}
               {resultStrip}
               {fieldsBlock}

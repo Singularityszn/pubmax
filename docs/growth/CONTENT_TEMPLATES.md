@@ -128,6 +128,82 @@ Each template lists the exact data source lib to pull the fact from.
 - CTA: "Share your link. When they add you back, you are each other's lot."
 - Provenance: private by default. Nothing public unless you share it. Say so.
 
+## 11. What does a pint cost here? (street video)
+
+Added for the Product Hunt launch on 17 November 2026
+(`docs/growth/LAUNCH_KIT_2026-11-17.md`). A person on the street guesses what a
+pint costs in the pub behind them, then the app shows what the pub lists, who
+listed it and the day we read it. The guess is theirs; the figure is the app's.
+
+- Hook: "What does a pint cost here?"
+- Format: one question, one guess, one reveal on the phone screen. Under 30
+  seconds.
+- On screen: the pub, the listed price, who listed it and the day the source
+  was read, held long enough to read. If the pub has no price, the app's own
+  empty line, never a guess of ours.
+- Data source: the pub's sheet on the map (`lib/venuePriceLane.ts` for the
+  wording), and for the hunt's figures `lib/cheapestHunt.ts`, printed by
+  `npm run launch:figures`.
+- CTA: "Every price in the app says who listed it and when."
+- Provenance: say "listed" and "read on", never "live" or "today's price". A
+  source read does not confirm what the bar charges tonight.
+
+Rules for filming people, on top of the house rules above:
+
+- Film only adults who clearly look over 25, and get a signed release from
+  anyone who can be recognised. Blur everyone else.
+- Never film anyone drinking heavily or who seems drunk. No "drink up", no
+  "down it", no "another round".
+- Film outside on the street. Inside a pub only with the landlord's yes,
+  asked first.
+- Before filming at a pub, check its price at the bar. If the bar charges
+  something different from the app, say so on camera and log the new price
+  with the bill. That correction is the video.
+- [CAPTAIN: check the alcohol section of the CAP Code with the legal adviser
+  you are booking for the age check before the first post.]
+
+### Script A: guess the Soho pint
+
+- 0 to 3 s. Outside a Soho pub, the pub's sign in shot, no faces but the
+  guest's. Text:
+  "What does a pint cost here?"
+- 3 to 10 s. The guest guesses out loud. Text: their guess, as they said it.
+- 10 to 20 s. The phone opens the pub on the map. The sheet's price, its
+  source and its read day fill the frame.
+- 20 to 25 s. Text: "Every price in the app says who listed it and when."
+- If the pub has no price in the app, keep the shot: the sheet says "No price
+  yet." Then the guest logs one with the bill, if they have bought a pint.
+
+### Script B: the cheapest and the dearest
+
+Two pubs, two guesses, filmed the same day. Use the recomputed figures F1 and
+F2 from the launch kit, section 0.
+
+- 0 to 3 s. Outside J.J. Moon's, 553 Kingsbury Road, Kingsbury. Not another
+  J.J. Moon's: there are several, and the hunt names Kingsbury. Text: "What
+  does a pint cost here?"
+- 3 to 8 s. A guess.
+- 8 to 14 s. The app's hero card on the phone. Text: "£2.43, a Bud Light at
+  J.J. Moon's, Kingsbury. Listed by Pint Prices, source read 2 October 2026.
+  One of 19 London pubs at this price." [F1, recompute on 16 November]
+- 14 to 17 s. Outside Baccarat Bar, Brompton Road. Same question.
+- 17 to 21 s. A guess.
+- 21 to 27 s. The venue's sheet on the phone. Text: "£9.50, a pint of Aspall
+  Cyder. Listed by Pint Prices, source read 2 October 2026." [F2, recompute on
+  16 November]
+- 27 to 30 s. Text: "The cheapest we can find, and the dearest we hold."
+- Check both prices at the bar before you film (launch kit, section 0, risks 1
+  and 3). If either has moved, film the correction instead.
+
+### Script C: your local
+
+- 0 to 3 s. Anywhere in London. Text: "What does a pint cost at your local?"
+- 3 to 10 s. The guest names their local and guesses its price.
+- 10 to 22 s. Search the pub in the app. Show what the sheet says: the listed
+  price with its source and read day, or "No price yet."
+- 22 to 28 s. Text: "No price for your local yet? Log the first one." Only if
+  the sheet really has no price.
+
 ---
 
 ## Posting cadence (suggested, owner-led)
@@ -136,3 +212,5 @@ Each template lists the exact data source lib to pull the fact from.
 - One heritage template a week (2, 7) is the evergreen bank; film several at once.
 - One social template a week (3, 10) drives the crew loop.
 - Weather (4) is opportunistic: post it on the first proper beer-garden day.
+- The street video (11) runs three times on launch day, 17 November 2026, then
+  once a week while people still stop to answer.

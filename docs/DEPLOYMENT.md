@@ -404,7 +404,9 @@ The command needs `gh` signed in with permission to run workflows in `Singularit
 
 ### Uptime monitor
 
-Point a free external monitor at `https://pubmaxxing.com/api/health`, every 1 to 5 minutes, and alert on any status that is not 200. UptimeRobot, Better Stack and Cronitor all have a free tier for this. A 503 means the deployment is up and its database is not answering. `/api/version` stays a memory-only check and cannot tell you that, so monitor both if the monitor allows two checks.
+`.github/workflows/uptime.yml` checks production every five minutes from GitHub Actions. It reads `/api/health` and `/api/version` on the canonical origin in `lib/siteUrlConfig.mjs`, asks a failed route once more 30 seconds later, and fails the run only when a route fails twice. `.github/workflows/alert-on-failure.yml` posts that failed run to the [alert webhook](#alert-webhook), so the `PUBMAX_ALERT_WEBHOOK_URL` repository secret must be set or the failure reaches nobody. The [monitor rule](rules/scripts-deploys-and-uploads.md#production-is-asked-every-five-minutes-and-only-a-route-that-fails-twice-is-an-outage) owns the details, and the [launch-week runbook](SOFT_LAUNCH_RUNBOOK.md#8-launch-week-16-and-17-november-2026) section 8.6 owns what to set and what to do when it fires.
+
+GitHub can start a scheduled run late or drop it, so an external monitor is an optional second opinion. Point a free one at `https://pubmaxxing.com/api/health`, every 1 to 5 minutes, and alert on any status that is not 200. UptimeRobot, Better Stack and Cronitor all have a free tier for this. A 503 means the deployment is up and its database is not answering. `/api/version` stays a memory-only check and cannot tell you that, so monitor both if the monitor allows two checks.
 
 The body is `{ "ok": true, "deploymentId": "dpl_...", "database": "ok" }`. The route reads one row of `rate_limits` and holds the answer for 15 seconds per instance, so a one-minute monitor costs the database little. Pin: `__tests__/healthRoute.test.ts`.
 

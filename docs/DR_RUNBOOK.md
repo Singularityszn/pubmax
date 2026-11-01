@@ -186,7 +186,7 @@ no dump for the application itself. A dump only brings the data back.
 6. **Domain.** Add `pubmaxxing.com` and `www.pubmaxxing.com` to the project. See section 6 for DNS.
 7. **Release.** `npm run release:prod`. It deploys, promotes and runs the production smoke suite.
 8. **GitHub.** Repository secrets: `SMOKE_USER_HANDLE`, `SMOKE_USER_PASSWORD`, `PUBMAX_ALERT_WEBHOOK_URL`, plus the harvest keys the scheduled workflows name. Recreate the smoke account as [`e2e/prod-smoke/README.md`](../e2e/prod-smoke/README.md) describes.
-9. **Monitoring.** Point the uptime monitor at `/api/health` (see [`DEPLOYMENT.md`](DEPLOYMENT.md) "Uptime monitor"), and set `PUBMAX_ALERT_WEBHOOK_URL` in Vercel.
+9. **Monitoring.** `.github/workflows/uptime.yml` checks `/api/health` and `/api/version` every five minutes from the default branch, and alerts through the `PUBMAX_ALERT_WEBHOOK_URL` repository secret from step 8. It reads the origin from `PRODUCTION_SITE_ORIGIN` in `lib/siteUrlConfig.mjs`, so a replacement domain (section 6) changes that constant too. Set `PUBMAX_ALERT_WEBHOOK_URL` in Vercel too. An external monitor is optional (see [`DEPLOYMENT.md`](DEPLOYMENT.md) "Uptime monitor").
 10. **Backups.** Re-point `PUBMAX_BACKUP_DB_URL` and the bucket variables at the new project and run one backup.
 
 ## 4. Account lockout

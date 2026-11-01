@@ -1,7 +1,7 @@
 "use client";
 
 import { LocateFixed, MapPin } from "lucide-react";
-import { KeyboardEvent, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { KeyboardEvent, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { Chip } from "@/components/ui/chip";
 import Screen from "@/components/ui/screen";
@@ -9,6 +9,7 @@ import WantedPlanChips from "@/components/wanted/WantedPlanChips";
 import { trackEvent } from "@/lib/analytics";
 import { CULTURE_CRAWL_CHIPS } from "@/lib/cultureCrawl";
 import { DESCRIBE_FIRST_CHIPS } from "@/lib/describeFirstChips";
+import { DRY_ROUND_LABEL, DRY_ROUND_NOTE, dryRoundFromSearch, dryRoundQuery } from "@/lib/dryRound";
 import { tryGetNightArea } from "@/lib/nightAreas";
 import { readRememberedArea } from "@/lib/nightPatches";
 import { NEAR_ME_LOCATION_OPTIONS, nearMeLocationFailure } from "@/lib/nearMeLocation";
@@ -102,7 +103,27 @@ export default function PlanDescribeFirst({
   // The £20 crawl is a budget OPTION, not an example: it rides on whatever is
   // asked next, as words the generator already reads (lib/planBudgetCrawl.ts).
   const [budgetCrawl, setBudgetCrawl] = useState(false);
-  const withBudget = (ask: string) => (budgetCrawl ? planBudgetCrawlQuery(ask) : ask);
+  // The Dry round is the second OPTION, words the generator reads the same way
+  // (lib/dryRound.ts): only pubs that list an alcohol-free price.
+  const [dryRound, setDryRound] = useState(false);
+  const dryRoundTouched = useRef(false);
+  const withOptions = (ask: string) => {
+    const dry = dryRound ? dryRoundQuery(ask) : ask;
+    return budgetCrawl ? planBudgetCrawlQuery(dry) : dry;
+  };
+  // Tonight's Dry round door opens /plan?dry=1. The server knows no address,
+  // so the chip paints off and turns on once the browser holds the address.
+  // A layout effect, because on a client navigation the router has written
+  // the new address by then, and a render-phase read would still see the page
+  // the reader came from. The reader's own tap always wins.
+  useLayoutEffect(() => {
+    if (dryRoundTouched.current || !dryRoundFromSearch(window.location.search)) return;
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (!cancelled && !dryRoundTouched.current) setDryRound(true);
+    });
+    return () => { cancelled = true; };
+  }, []);
   const onQueryChangeRef = useRef(onQueryChange);
   const onPrefillQueryChangeRef = useRef(onPrefillQueryChange);
   useEffect(() => {
@@ -141,7 +162,7 @@ export default function PlanDescribeFirst({
     if (!ready) return;
     const trimmed = queryOverride.trim();
     if (!trimmed) return;
-    onSubmit(withBudget(trimmed), stopCount);
+    onSubmit(withOptions(trimmed), stopCount);
   }
 
   // An untouched default carries nothing, so a count the guide already holds
@@ -165,7 +186,7 @@ export default function PlanDescribeFirst({
     // Typed text wins: a chip may fill an empty field and submit, but it must
     // never wipe or auto-submit over a query the drinker already typed.
     if (hadTypedQuery) return;
-    onSubmit(withBudget(resolved.query), resolved.stopCount);
+    onSubmit(withOptions(resolved.query), resolved.stopCount);
   }
 
   // One tap to a route. It submits a sentence through the same path as typing,
@@ -176,7 +197,7 @@ export default function PlanDescribeFirst({
     setOneTapNote("");
     if (rememberedArea) {
       trackEvent("plan_one_tap", { outcome: "remembered" });
-      onSubmit(withBudget(oneTapQuery(rememberedArea)), stopCount);
+      onSubmit(withOptions(oneTapQuery(rememberedArea)), stopCount);
       return;
     }
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -196,7 +217,7 @@ export default function PlanDescribeFirst({
           return;
         }
         trackEvent("plan_one_tap", { outcome: "located" });
-        onSubmit(withBudget(oneTapQuery(area)), stopCount);
+        onSubmit(withOptions(oneTapQuery(area)), stopCount);
       },
       (error) => {
         setLocating(false);
@@ -306,6 +327,21 @@ export default function PlanDescribeFirst({
           {PLAN_BUDGET_CRAWL_LABEL}
         </Chip>
         <p id="plan-describe-first-budget-note" className="planDescribeFirst__budgetNote">{PLAN_BUDGET_CRAWL_NOTE}</p>
+      </div>
+      <div className="planDescribeFirst__dry">
+        <Chip
+          aria-pressed={dryRound}
+          aria-describedby="plan-describe-first-dry-note"
+          aria-disabled={ready ? undefined : true}
+          onClick={() => {
+            if (!ready) return;
+            dryRoundTouched.current = true;
+            setDryRound((on) => !on);
+          }}
+        >
+          {DRY_ROUND_LABEL}
+        </Chip>
+        <p id="plan-describe-first-dry-note" className="planDescribeFirst__budgetNote">{DRY_ROUND_NOTE}</p>
       </div>
       {/* Gone once the reader types: their words are the plan, and a tap that
           replaced them would be the chip rule broken (see submitChip). */}

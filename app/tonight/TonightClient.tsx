@@ -97,6 +97,7 @@ import {
 } from "@/lib/nightPatches";
 import { VibeChipButton, VibeChipLink, VibeChips } from "@/components/vibe/VibeChips";
 import { planOccasionHref, TONIGHT_SOFT_PLAN_CHIPS } from "@/lib/planOccasion";
+import { DRY_ROUND_LABEL, dryRoundPlanHref } from "@/lib/dryRound";
 import { palChatHref, visibleTonightVibeChips } from "@/lib/vibeChips";
 import { dealDigestNote } from "@/lib/dealsDigest";
 import {
@@ -1127,6 +1128,12 @@ export default function TonightClient({
               </VibeChipLink>
             ),
           )}
+          {/* The Dry round is an option on the planner, so this door opens the
+              planner with it on (lib/dryRound.ts). It shows in every hour,
+              because a night off the drink is not a quiet-hour idea. */}
+          <VibeChipLink href={dryRoundPlanHref("tonight-vibes")}>
+            {DRY_ROUND_LABEL}
+          </VibeChipLink>
           {/* In a quiet hour the Ideas list below carries these same three
               plans as rows, so the chips do not say them a second time. */}
           {(softPlansWindow ? [] : TONIGHT_SOFT_PLAN_CHIPS).map((chip) => (

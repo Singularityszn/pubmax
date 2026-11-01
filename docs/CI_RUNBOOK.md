@@ -222,6 +222,7 @@ gh run list --workflow self-hosted-probe.yml --limit 1
 | Drink price PR | `drink-price-refresh.yml` |
 | London Tavily pass PR | `tavily-london-nightly.yml` (see `docs/TAVILY_LONDON_NIGHTLY.md`) |
 | Performance budgets | `performance.yml` |
+| Production uptime, every five minutes | `uptime.yml` (alerts through `alert-on-failure.yml`) |
 | Browser law pins, layout pins + nightly suite | `e2e.yml` |
 
 If the repository does not let GitHub Actions open pull requests, the weather
