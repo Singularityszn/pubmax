@@ -15,9 +15,11 @@ const OWNER = "memory-owner";
 const first = { id: "first-memory", title: "First night", createdAt: "2026-10-30T20:00:00Z" };
 const selected = { id: "selected-memory", title: "Chosen night", createdAt: "2026-10-30T21:00:00Z" };
 const brought = { id: "brought-memory", title: "Brought private recap", createdAt: "2026-10-31T22:00:00Z" };
+const created = { id: "created-memory", title: "New private night", createdAt: "2026-11-01T00:00:00Z" };
 let host: HTMLDivElement;
 let root: Root;
 let readMemories: (init: RequestInit) => Promise<Response>;
+let mutateMemory: (path: string, init: RequestInit) => Promise<Response>;
 
 async function render(memoriesRevision = 0, userId = OWNER) {
   await act(async () => {
@@ -60,8 +62,10 @@ beforeEach(() => {
   setProviderIdentity("supabase", OWNER);
   publishAuthActionState({ status: "signed-in", identityResolved: true });
   readMemories = async () => Response.json({ memories: [first, selected] });
+  mutateMemory = async (path) => { throw new Error(`Unexpected Memory mutation: ${path}`); };
   vi.stubGlobal("fetch", vi.fn<typeof fetch>(async (input, init = {}) => {
     const path = String(input);
+    if (init.method === "POST" || init.method === "DELETE") return mutateMemory(path, init);
     if (path === "/api/night-memories") return readMemories(init);
     if (path === "/api/night-stories") return Response.json({ stories: [] });
     if (path.endsWith("/moments")) return Response.json({ moments: [] });
@@ -140,4 +144,57 @@ it("does not show an old owner's late Memory response after the owner changes", 
   await act(async () => { await stale.finish([first]); });
   expect(host.querySelector('[aria-label="Your private Memories"]')?.textContent).not.toContain(first.title);
   expect(host.querySelector(".memoryStudioShelf strong")?.textContent).toBe("1");
+});
+
+it("retains a newly created Memory and its selection when an earlier shelf refresh finishes", async () => {
+  await render();
+  await vi.waitFor(() => expect(host.textContent).toContain(selected.title));
+  const stale = delayedMemoryBody();
+  readMemories = async () => stale.response;
+  await render(1);
+  mutateMemory = async (path, init) => {
+    expect(path).toBe("/api/night-memories");
+    expect(JSON.parse(String(init.body))).toEqual({ title: created.title });
+    readMemories = async () => Response.json({ memories: [created, brought, first, selected] });
+    return Response.json({ memory: created }, { status: 201 });
+  };
+  await type(host.querySelector<HTMLInputElement>('input[placeholder="Friday detour"]')!, created.title);
+  await act(async () => { host.querySelector<HTMLButtonElement>('form button[type="submit"]')!.click(); });
+  await vi.waitFor(() => expect(host.querySelector('[aria-label="Your private Memories"]')?.textContent).toContain(created.title));
+
+  await act(async () => { await stale.finish([brought, first, selected]); });
+  expect(host.querySelector('[aria-label="Your private Memories"]')?.textContent).toContain(created.title);
+  expect(host.querySelector<HTMLSelectElement>("select")?.value).toBe(created.id);
+  await vi.waitFor(() => expect(host.querySelector('[aria-label="Your private Memories"]')?.textContent).toContain(brought.title));
+  expect(host.querySelector(".memoryStudioShelf strong")?.textContent).toBe("4");
+});
+
+it("does not resurrect a deleted Memory when an earlier shelf refresh finishes", async () => {
+  await render();
+  await vi.waitFor(() => expect(host.textContent).toContain(selected.title));
+  const selection = host.querySelector<HTMLSelectElement>("select")!;
+  await act(async () => {
+    selection.value = selected.id;
+    selection.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  const stale = delayedMemoryBody();
+  readMemories = async () => stale.response;
+  await render(1);
+  mutateMemory = async (path, init) => {
+    expect(path).toBe(`/api/night-memories/${first.id}`);
+    expect(init.method).toBe("DELETE");
+    readMemories = async () => Response.json({ memories: [brought, selected] });
+    return Response.json({});
+  };
+  const row = [...host.querySelectorAll('[aria-label="Your private Memories"] > li')]
+    .find((item) => item.textContent?.includes(first.title))!;
+  await act(async () => { row.querySelector<HTMLButtonElement>(".memoryKeepRemove")!.click(); });
+  await act(async () => { row.querySelector<HTMLButtonElement>(".memoryKeepConfirm button")!.click(); });
+  await vi.waitFor(() => expect(host.textContent).toContain("Memory removed."));
+
+  await act(async () => { await stale.finish([first, selected]); });
+  expect(host.querySelector('[aria-label="Your private Memories"]')?.textContent).not.toContain(first.title);
+  expect(selection.value).toBe(selected.id);
+  await vi.waitFor(() => expect(host.querySelector('[aria-label="Your private Memories"]')?.textContent).toContain(brought.title));
+  expect(host.querySelector(".memoryStudioShelf strong")?.textContent).toBe("2");
 });

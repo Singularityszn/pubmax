@@ -58,6 +58,8 @@ const MOMENT_LABELS: Record<MemoryStudioDraft["momentKind"], string> = {
 export default function NightMemoryStudio({ userId, memoriesRevision = 0 }: { userId: string; memoriesRevision?: number }) {
   const [draft, setDraft] = useState<MemoryStudioDraft>(() => readMemoryStudioDraft(userId));
   const [memories, setMemories] = useState<Memory[]>([]);
+  const [memoryReload, setMemoryReload] = useState(0);
+  const memoryReadRevisionRef = useRef(0);
   const [moments, setMoments] = useState<Moment[]>([]);
   const [stories, setStories] = useState<Story[]>([]);
   const [message, setMessage] = useState("");
@@ -90,10 +92,12 @@ export default function NightMemoryStudio({ userId, memoriesRevision = 0 }: { us
 
   useEffect(() => {
     const controller = new AbortController();
+    const readRevision = ++memoryReadRevisionRef.current;
+    const isCurrentRead = () => !controller.signal.aborted && readRevision === memoryReadRevisionRef.current;
     void authedActionFetch("/api/night-memories", { signal: controller.signal }, { requiresIdentity: true }).then(async (response) => {
       if (!response.ok) throw new Error("Memory read failed");
       const nextMemories = ((await response.json()) as { memories?: Memory[] }).memories ?? [];
-      if (controller.signal.aborted) return;
+      if (!isCurrentRead()) return;
       setMemories(nextMemories);
       setMemoriesLoaded(true);
       setDraft((current) => ({
@@ -103,13 +107,13 @@ export default function NightMemoryStudio({ userId, memoriesRevision = 0 }: { us
           : (nextMemories[0]?.id ?? ""),
       }));
     }).catch(() => {
-      if (!controller.signal.aborted) {
+      if (isCurrentRead()) {
         setMessage("Your memories could not be loaded. Try again.");
         setMemoriesLoaded(true);
       }
     });
     return () => controller.abort();
-  }, [userId, memoriesRevision]);
+  }, [userId, memoriesRevision, memoryReload]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -216,6 +220,12 @@ export default function NightMemoryStudio({ userId, memoriesRevision = 0 }: { us
     setConfirmation(null);
   }
 
+  function refreshMemoriesAfterMutation() {
+    // Retire older reads before the successful write changes the local shelf.
+    memoryReadRevisionRef.current += 1;
+    setMemoryReload((current) => current + 1);
+  }
+
   async function createMemory(event: FormEvent) {
     event.preventDefault();
     setSaving(true);
@@ -227,6 +237,7 @@ export default function NightMemoryStudio({ userId, memoriesRevision = 0 }: { us
     const body = await response.json().catch(() => ({})) as { memory?: Memory; error?: string };
     setSaving(false);
     if (!response.ok || !body.memory) return setMessage(errorMessageFrom(body, "Could not create that Memory."));
+    refreshMemoriesAfterMutation();
     setMemories((current) => [body.memory!, ...current]);
     update({ memoryTitle: "", selectedMemoryId: body.memory.id, storyTitle: body.memory.title });
     setMessage("Private Memory created. Add the parts worth keeping.");
@@ -292,14 +303,11 @@ export default function NightMemoryStudio({ userId, memoriesRevision = 0 }: { us
       );
       const body = await response.json().catch(() => ({})) as { error?: string };
       if (!response.ok) throw new Error(errorMessageFrom(body, "That Memory could not be removed."));
+      refreshMemoriesAfterMutation();
       setPendingRemoval(null);
-      const remaining = memories.filter((memory) => memory.id !== memoryId);
-      setMemories(remaining);
+      setMemories((current) => current.filter((memory) => memory.id !== memoryId));
       setStories((current) => current.filter((story) => story.memoryId !== memoryId));
-      if (draft.selectedMemoryId === memoryId) {
-        setMoments([]);
-        update({ selectedMemoryId: remaining[0]?.id ?? "" });
-      }
+      setDraft((current) => current.selectedMemoryId === memoryId ? { ...current, selectedMemoryId: "" } : current);
       setMessage("Memory removed. Its Moments and their photos went with it.");
     } catch (caught) {
       setMessage(caught instanceof Error ? caught.message : "That Memory could not be removed.");
