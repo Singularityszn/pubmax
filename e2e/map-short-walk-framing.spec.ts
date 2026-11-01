@@ -619,6 +619,21 @@ for (const { theme, motion } of [
         expect(point.y).toBeGreaterThanOrEqual(geometry!.canvas.top + 22);
         expect(point.y).toBeLessThanOrEqual(geometry!.canvas.bottom - 22);
       }
+      if (viewport.name === "compact-phone") {
+        const lion = geometry!.points.find((point) => point.id === "venue-15i2wst")!;
+        // This fixture's displayed name needs a 140px lane left of its disc.
+        // Check the name's full height, not only the numbered stop's hit area.
+        const nameClear = await page.evaluate(({ x, y }) => {
+          const canvas = document.querySelector(".mapCanvasWrap .maplibregl-canvas");
+          for (let dx = -140; dx <= -24; dx += 2) {
+            for (let dy = -10; dy <= 10; dy += 2) {
+              if (document.elementFromPoint(x + dx, y + dy) !== canvas) return false;
+            }
+          }
+          return true;
+        }, lion);
+        expect(nameClear, "Golden Lion's displayed name clears the left map controls").toBe(true);
+      }
       for (let first = 0; first < geometry!.points.length; first += 1) {
         for (const other of geometry!.points.slice(first + 1)) {
           const point = geometry!.points[first]!;

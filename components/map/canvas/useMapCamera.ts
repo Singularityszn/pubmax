@@ -50,8 +50,14 @@ function routeFitPadding(
   const utilityBounds = isPhone
     ? document.querySelector(".mobileMapUtilityCorner")?.getBoundingClientRect()
     : null;
+  const attributionBounds = isPhone
+    ? container.querySelector(".maplibregl-ctrl-attrib")?.getBoundingClientRect()
+    : null;
   const padding = isPhone
     ? { ...PHONE_ROUTE_PADDING,
+        // Names extend beyond their discs. Keep them above the credit control.
+        bottom: Math.max(PHONE_ROUTE_PADDING.bottom, attributionBounds?.height
+          ? container.getBoundingClientRect().bottom - attributionBounds.top + 8 : 0),
         // Keep the full numbered disc clear of Near me and transport controls.
         right: Math.max(PHONE_ROUTE_PADDING.right, utilityBounds?.width
           ? container.getBoundingClientRect().right - utilityBounds.left + 24 : 0),

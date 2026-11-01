@@ -22,7 +22,8 @@ vi.mock("@/components/auth/AuthProvider", () => ({
 vi.mock("@/components/nav/SiteNav", () => ({
   default: () => createElement("nav", null, "Navigation"),
 }));
-vi.mock("@/components/pal/PubPalMascot", () => ({
+vi.mock("@/components/pal/PubPalMascot", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/components/pal/PubPalMascot")>()),
   PubPalMascot: () => createElement("span", null, "Pal"),
 }));
 vi.mock("@/components/map/useWhatsOnTonight", () => ({
