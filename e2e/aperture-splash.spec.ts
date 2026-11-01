@@ -89,11 +89,16 @@ async function fragmentedLandingProxy(baseURL: string) {
   const delivery = { originalSha256: "", htmlBytes: 0, splitAt: 0, heldFonts: 0, errors: [] as string[] };
   // Open from the header split until the HTML tail is written. A font the
   // browser asks for in that window is held until the tail, decided when the
-  // request arrives so a slow upstream reply cannot slip past the hold.
+  // request arrives so a slow upstream reply cannot slip past the hold. Only
+  // one face is preloaded; the others are asked for once the header text is
+  // laid out, which a loaded runner can push past 500 ms. So the tail waits
+  // for at least 500 ms AND two font requests, and never longer than 5 s.
   let headerStreaming = false;
-  let releaseTimer: ReturnType<typeof setTimeout> | undefined;
+  let fontsRequested = 0;
+  let releaseTimer: ReturnType<typeof setInterval> | undefined;
   const server = createServer((incoming, outgoing) => {
     const fontRequestedWhileStreaming = headerStreaming && /\.woff2?$/.test(new URL(incoming.url ?? "/", upstreamOrigin).pathname);
+    if (fontRequestedWhileStreaming) fontsRequested += 1;
     const upstreamURL = new URL(upstreamOrigin);
     const path = new URL(incoming.url ?? "/", upstreamOrigin);
     upstreamURL.pathname = path.pathname;
@@ -147,11 +152,15 @@ async function fragmentedLandingProxy(baseURL: string) {
         headerStreaming = true;
         outgoing.flushHeaders();
         outgoing.write(body.subarray(0, delivery.splitAt));
-        releaseTimer = setTimeout(() => {
+        const splitAt = Date.now();
+        releaseTimer = setInterval(() => {
+          const waited = Date.now() - splitAt;
+          if (waited < 500 || (fontsRequested < 2 && waited < 5_000)) return;
+          clearInterval(releaseTimer);
           headerStreaming = false;
           for (const release of waitingFonts.splice(0)) release();
           outgoing.end(body.subarray(delivery.splitAt));
-        }, 500);
+        }, 25);
       });
     });
     requests.add(upstream);
@@ -177,7 +186,7 @@ async function fragmentedLandingProxy(baseURL: string) {
     origin: `http://127.0.0.1:${address.port}`,
     delivery,
     async close() {
-      clearTimeout(releaseTimer);
+      clearInterval(releaseTimer);
       waitingFonts.length = 0;
       for (const pending of requests) pending.destroy();
       const closed = new Promise<void>((resolve) => server.close(() => resolve()));
