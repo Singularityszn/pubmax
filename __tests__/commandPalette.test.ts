@@ -204,6 +204,8 @@ describe("real command registry", () => {
 
   it("finds Tonight (Out folded into it), Places, Near, Pal, Drink Wall and the Pint Index", () => {
     const expected: Record<string, string> = {
+      // Explore is the map's tab name (captain, 1 Nov 2026).
+      explore: "/map",
       tonight: "/tonight",
       places: "/places",
       out: "/tonight",

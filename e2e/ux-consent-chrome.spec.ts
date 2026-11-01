@@ -135,7 +135,7 @@ test("mobile consent never covers the tab bar, before or after dismiss", async (
   expect(fit.scrollHeight).toBeLessThanOrEqual(CONSENT_ROW_CEILING);
 
   const mapTab = page.getByRole("navigation", { name: "Primary" }).getByRole("link", {
-    name: "Map",
+    name: "Explore",
     exact: true,
   });
   await expect(mapTab).toBeVisible();
@@ -391,7 +391,7 @@ for (const height of PHONE_HEIGHTS) {
     await expect(prompt).toBeVisible({ timeout: 30_000 });
 
     const mapTab = page.getByRole("navigation", { name: "Primary" }).getByRole("link", {
-      name: "Map",
+      name: "Explore",
       exact: true,
     });
     await expect(mapTab).toBeVisible();

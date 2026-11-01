@@ -206,7 +206,7 @@ for (const width of PHONE_WIDTHS) {
     await expectStoryBodyHonest(page, '.mobileSheetPortal[data-sheet-kind="landmark"]');
 
     // The last nearby row is reachable by scrolling the sheet body alone, and
-    // nothing (planning pill, create action, tab bar) covers it.
+    // nothing (planning pill, tab bar) covers it.
     // Distances arrive after the first paint and the list replaces its
     // buttons, so a scroll grabbed in that gap hits a detached node.
     const lastRow = portal.locator(".landmarkStoryPubs button").last();

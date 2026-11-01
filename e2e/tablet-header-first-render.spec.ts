@@ -258,7 +258,7 @@ test("tablet Map clears its first real header and toolbar through loading at 641
         expect(control.height, `${control.name} height`).toBeGreaterThanOrEqual(44);
         expect(control.centreOwned, `${control.name} hit ownership`).toBe(true);
       }
-      for (const name of ["Map", "Plan", "Social", "You", "Pub Pal", "Activity", "Messages"]) {
+      for (const name of ["Explore", "Plan", "Social", "You", "Pub Pal", "Activity", "Messages"]) {
         await expect(nav.getByRole("link", { name, exact: true })).toBeVisible();
       }
       await expect(nav.locator('.siteNavLinks a[href="/today"], .siteNavLinks a[href="/tonight"]')).toHaveCount(1);

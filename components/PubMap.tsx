@@ -64,6 +64,7 @@ import {
 } from "@/lib/venuePriceLane";
 import { dropLaneInputsFor } from "@/lib/pintTrust";
 import { PINT_COMPASS_DOOR_NAME, PINT_COMPASS_HREF, PINT_COMPASS_LABEL } from "@/lib/pintCompassDoor";
+import MapPriceLogDoor from "@/components/map/MapPriceLogDoor";
 import {
   isMapSearchField,
   typedSearchCameraMove,
@@ -6275,9 +6276,13 @@ export default function PubMap({
               <List size={16} aria-hidden="true" />
               {mapListOpen ? "Hide venue list" : "List view"}
             </Button>
+            {/* Log a price without a pub picked yet: the map asks which pub.
+                It left the floating create button for the map (1 Nov 2026). */}
+            <MapPriceLogDoor />
             {/* Pub Pal left the one top bar so the place name beside the
                 wordmark stays whole (finding 2.3). It keeps a named
-                shortcut here, beside the map's other destinations. */}
+                shortcut here, beside the map's other destinations, and its
+                door on the map edge above Near me. */}
             <Button
               asChild
               variant="secondary"

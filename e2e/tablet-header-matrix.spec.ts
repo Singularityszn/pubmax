@@ -37,7 +37,7 @@ for (const width of [641, 768, 900]) {
             const nav = page.getByRole("navigation", { name: "Site navigation", exact: true });
             if (signedIn) await expect(nav.getByRole("button", { name: `Account options for ${ACCOUNTS.A.name}`, exact: true })).toBeEnabled();
             else await expect(nav.getByRole("button", { name: "Sign in", exact: true }).or(nav.getByRole("link", { name: "Sign in", exact: true }))).toBeEnabled();
-            for (const [name, href] of [["Map", "/map"], ["Plan", "/plan"], ["Social", "/social"], ["You", "/u/you"], ["Pub Pal", "/pal"]] as const) {
+            for (const [name, href] of [["Explore", "/map"], ["Plan", "/plan"], ["Social", "/social"], ["You", "/u/you"], ["Pub Pal", "/pal"]] as const) {
               await expect(nav.getByRole("link", { name, exact: true })).toHaveAttribute("href", href);
             }
             await expect(nav.locator('.siteNavLinks a[href="/today"], .siteNavLinks a[href="/tonight"]')).toHaveCount(1);

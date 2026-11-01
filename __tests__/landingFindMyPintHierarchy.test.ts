@@ -135,7 +135,8 @@ describe("landing hierarchy: the price receipt door", () => {
     const rendered = render();
     const landingNav = rendered.match(/<nav class="lpPrimaryNav"[^>]*>[\s\S]*?<\/nav>/)?.[0];
     expect(landingNav, "landing navigation present").toBeTruthy();
-    expect(landingNav).toMatch(/href="\/map"[^>]*>Map<\/a>/);
+    // The map's door is named Explore (captain, 1 Nov 2026) and still opens /map.
+    expect(landingNav).toMatch(/href="\/map"[^>]*>Explore<\/a>/);
 
     const openMapLinks = [
       ...rendered.matchAll(/<a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g),

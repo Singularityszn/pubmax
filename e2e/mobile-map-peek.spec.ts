@@ -333,14 +333,14 @@ for (const width of [320, 360, 390]) {
       return {
         card: box(".mapPeek"),
         nearMe: box(".mobileMapLocateFab"),
-        create: box(".createFab"),
+        palDoor: box(".mobileMapPalDoor"),
         credit: box(".maplibregl-ctrl-attrib"),
       };
     });
     expect(clearance.card, "the card is painted").not.toBeNull();
     expect(clearance.nearMe, "Near me is painted").not.toBeNull();
-    expect(clearance.create, "the Create action is painted").not.toBeNull();
-    for (const name of ["nearMe", "create", "credit"] as const) {
+    expect(clearance.palDoor, "the Pal door above Near me is painted").not.toBeNull();
+    for (const name of ["nearMe", "palDoor", "credit"] as const) {
       const other = clearance[name];
       if (!other) continue;
       const overlap =
@@ -400,17 +400,14 @@ for (const reducedMotion of ["reduce", "no-preference"] as const) {
     await touchDrag(cdp, from, { x: from.x, y: from.y - 120 });
     await expect(page.locator(".mapVenueList--open")).toBeVisible({ timeout: 10_000 });
     // Closing the list finds the card home, not parked where the finger left
-    // it, and the Create action back and tappable.
+    // it, and the map edge's Pal door back above Near me.
     await page.keyboard.press("Escape");
     await expect(page.locator(".mapVenueList--open")).toHaveCount(0);
     const card = page.locator(".mapPeek");
     await expect(card).toBeVisible();
     await expect(card).not.toHaveAttribute("data-dragging", "true");
     expect(Math.abs((await cardBox(page)).y - box.y)).toBeLessThan(1);
-    const fab = page.locator(".createFabRoot");
-    await expect(fab).toHaveCSS("opacity", "1", { timeout: 5_000 });
-    // The root never takes taps (createFab.css); the button opts back in.
-    await expect(fab.locator(".createFab")).not.toHaveCSS("pointer-events", "none");
+    await expect(page.locator(".mobileMapPalDoor")).toBeVisible({ timeout: 5_000 });
   });
 
   test(`a short pull follows the finger and springs back without opening anything (${reducedMotion})`, async ({
@@ -431,20 +428,6 @@ for (const reducedMotion of ["reduce", "no-preference"] as const) {
       await send("touchMove", from.y - step * 5);
       await new Promise((resolve) => setTimeout(resolve, 16));
     }
-    // The Create action steps out of the card's way while it travels (it lives
-    // in another stacking context, so the card cannot pass over it).
-    const fab = page.locator(".createFabRoot");
-    await expect(fab).toHaveCSS("opacity", "0", { timeout: 5_000 });
-    // Gone means no hit target either: a tap at its centre misses it.
-    const fabHit = await fab.locator(".createFab").evaluate((button) => {
-      const rect = button.getBoundingClientRect();
-      const hit = document.elementFromPoint(
-        rect.left + rect.width / 2,
-        rect.top + rect.height / 2,
-      );
-      return !!hit && button.contains(hit);
-    });
-    expect(fabHit).toBe(false);
     // 1:1 with the finger while it is held (30px up), within a frame of slack.
     const held = await cardBox(page);
     expect(rest.y - held.y).toBeGreaterThan(24);
@@ -456,7 +439,6 @@ for (const reducedMotion of ["reduce", "no-preference"] as const) {
       .toBeLessThan(1);
     await expect(page.locator(".mapVenueList--open")).toHaveCount(0);
     await expect(card).toBeVisible();
-    await expect(fab).toHaveCSS("opacity", "1", { timeout: 5_000 });
   });
 }
 
@@ -490,10 +472,9 @@ test("a flick opens the list even when the distance is short", async ({ page }) 
   await expect(page.locator(".mapVenueList--open")).toBeVisible({ timeout: 10_000 });
 });
 
-test("an interrupted return still settles and restores Create after a tap or cancellation", async ({ page }) => {
+test("an interrupted return still settles after a tap or cancellation", async ({ page }) => {
   await openMap(page, { reducedMotion: "no-preference" });
   const card = await answeredCard(page);
-  const fab = page.locator(".createFabRoot");
   for (const release of ["pointerup", "pointercancel"]) {
     await card.evaluate(async (element, releaseType) => {
       const fire = (type: string, y: number) => element.dispatchEvent(new PointerEvent(type, {
@@ -508,16 +489,11 @@ test("an interrupted return still settles and restores Create after a tap or can
     }, release);
     await expect(card).not.toHaveAttribute("data-dragging", "true", { timeout: 5000 });
     expect(await card.evaluate((element) => (element as HTMLElement).style.transform)).toBe("");
-    await expect(fab).toHaveCSS("opacity", "1");
-    expect(await fab.locator(".createFab").evaluate((button) => {
-      const rect = button.getBoundingClientRect();
-      return button.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
-    })).toBe(true);
     await expect(page.locator(".mapVenueList--open")).toHaveCount(0);
   }
 });
 
-test("a mouse release outside an interrupted card returns it to rest and restores Create", async ({ page }) => {
+test("a mouse release outside an interrupted card returns it to rest", async ({ page }) => {
   await openMap(page, { reducedMotion: "no-preference" });
   const card = await answeredCard(page);
   const rest = await cardBox(page);
@@ -540,15 +516,7 @@ test("a mouse release outside an interrupted card returns it to rest and restore
     await expect(card).not.toHaveAttribute("data-dragging", "true", { timeout: 5000 });
     expect(Math.abs((await cardBox(page)).y - rest.y)).toBeLessThan(1);
     await expect(page.locator(".mapVenueList--open")).toHaveCount(0);
-    const create = page.getByRole("button", { name: "Create", exact: true });
-    await expect(page.locator(".createFabRoot")).toHaveCSS("opacity", "1");
-    expect(await create.evaluate((button) => {
-      const rect = button.getBoundingClientRect();
-      return button.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
-    })).toBe(true);
   }
-  await page.getByRole("button", { name: "Create", exact: true }).click();
-  await expect(page.locator(".createFabMenu")).toBeVisible();
 });
 
 test("a native pointer click on the peek plan door opens the planner", async ({ page }) => {
@@ -586,7 +554,6 @@ for (const control of [
       await expect(page.getByRole("dialog")).toHaveCount(0);
       await expect(card).toBeVisible();
       await expect(card).not.toHaveAttribute("data-dragging", "true");
-      await expect(page.locator(".createFabRoot")).toHaveCSS("opacity", "1");
 
       await page.mouse.move(child.x + child.width / 2, child.y + child.height / 2);
       await page.mouse.down();
@@ -633,7 +600,6 @@ for (const control of [
     await expect(page.locator(".mapVenueList--open")).toHaveCount(0);
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await expect(card).not.toHaveAttribute("data-dragging", "true", { timeout: 5000 });
-    await expect(page.locator(".createFabRoot")).toHaveCSS("opacity", "1");
 
     await button.focus();
     await page.keyboard.press("Enter");

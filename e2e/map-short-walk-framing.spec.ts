@@ -528,7 +528,7 @@ for (const { theme, motion } of [
     const walking = page.getByRole("link", { name: "See the walking route", exact: true });
     await expect(walking).toHaveAttribute("href", SOHO_FOUR_MAP_HREF);
     await expect(page.getByRole("navigation", { name: "Site navigation", exact: true })
-      .getByRole("link", { name: "Map", exact: true })).toHaveAttribute("href", SOHO_FOUR_MAP_HREF);
+      .getByRole("link", { name: "Explore", exact: true })).toHaveAttribute("href", SOHO_FOUR_MAP_HREF);
     const originalDocument = await page.evaluateHandle(() => document);
     await walking.click();
     await expect(page).toHaveURL(new URL(SOHO_FOUR_MAP_HREF, baseURL!).href);

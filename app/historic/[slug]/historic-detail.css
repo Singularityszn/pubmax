@@ -249,15 +249,6 @@
   font-size: var(--text-xs);
 }
 
-/* The price's source and date opt in to the compose action's lane, as a price
-   column does (lib/createFabScrollTuck.ts): running prose relies on the
-   control tucking away, but a price's provenance may not sit under it. */
-@media (max-width: 640px) {
-  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .hdPriceSource {
-    padding-right: max(0px, calc(var(--create-fab-lane) - var(--page-gutter)));
-  }
-}
-
 /* The credits link sits inside a sentence. It stays inline so the line keeps
    its height, and its padding gives the thumb the 44px the phone tap-target
    pin measures (e2e/phone-tap-targets.spec.ts). */

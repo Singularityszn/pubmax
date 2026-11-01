@@ -450,14 +450,11 @@ function AnswerCard({
   // one, and none for a row that records no read.
   const observedOn = typeof evidence === "object" ? evidence.observedOn : null;
   return (
-    // createFabLane: at rest on a phone the compose disc floats over this
-    // card's right edge, and "collected 2 October 2026" ran under it (taste
-    // plan, 18 Oct 2026), so the card keeps the control's lane.
     <article
       className={
         photo
-          ? "lpPubCard lpAnswerCard lpPubCard--photo createFabLane"
-          : "lpPubCard lpAnswerCard createFabLane"
+          ? "lpPubCard lpAnswerCard lpPubCard--photo"
+          : "lpPubCard lpAnswerCard"
       }
       aria-labelledby="lp-answer-name"
     >
@@ -553,10 +550,7 @@ function AnswerRail({ answer }: { answer: Answer }) {
       <ol className="lpRailList">
         {answer.rail.map((row) => (
           <li key={row.id} className="lpRailRow">
-            {/* The compose action floats over this row's right cell on a phone,
-                and that cell is the price. It takes the control's own lane
-                (createFab.css). */}
-            <Link prefetch={false} href={pintDropDoorHref(row.id, row.priceGbp)} className="lpRailLink createFabLane">
+            <Link prefetch={false} href={pintDropDoorHref(row.id, row.priceGbp)} className="lpRailLink">
               <span className="lpRailMain">
                 <span className="lpRailName">{row.name}</span>
                 {row.walkMinutes != null ? (

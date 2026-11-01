@@ -16,11 +16,12 @@ import type { Command } from "./types";
  */
 export const commands: Command[] = [
   // ── Navigate ────────────────────────────────────────────────────────────
+  // Explore is the map (captain, 1 Nov 2026), so the old word still finds it.
   {
     id: "nav-map",
-    label: "Map",
+    label: "Explore",
     hint: "/map",
-    keywords: ["explore", "pubs near me", "pints", "london"],
+    keywords: ["map", "pubs near me", "pints", "london"],
     group: "Navigate",
     run: (ctx) => ctx.navigate("/map"),
   },

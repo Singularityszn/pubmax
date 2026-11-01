@@ -126,7 +126,6 @@ test("mobile Plan flow stays tappable and usable at 390px", async ({ page }) => 
     if (!hit) return "nothing";
     if (hit === button || button.contains(hit)) return "lock";
     if (hit.closest(".mobileTabBar")) return "tab bar";
-    if (hit.closest(".createFabRoot")) return "create action";
     return hit.tagName.toLowerCase();
   });
   expect(lockOwner).toBe("lock");

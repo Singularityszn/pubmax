@@ -2604,17 +2604,15 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
        and the tab bar, so Retry could never be scrolled up to where a thumb
        can reach it. --float-stack-top-plan is the top edge of that stack. */
     padding-bottom: calc(var(--float-stack-top-plan, 136px) + 18px);
+    /* Scrolling venue prices and links clear the map-edge column (Near me and
+       the Pal's door), which stays on the right edge over the card. */
+    padding-right: max(32px, var(--mobile-map-corner-lane));
   }
 
-  /* Scrolling venue prices and links must clear the floating Create action. */
-  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .mapFallback {
-    padding-right: max(32px, var(--create-fab-lane));
+  .mapFallbackRetry {
+    margin-inline: max(0px, calc(var(--mobile-map-corner-lane) - var(--page-gutter)));
   }
 }
-  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .mapFallbackRetry {
-    margin-inline: max(0px, calc(var(--create-fab-lane) - var(--page-gutter)));
-  }
-
 
 .mapFallback strong {
   font-family: var(--serif);

@@ -70,7 +70,7 @@ test.describe("locked plan route map", () => {
     await page.keyboard.press("Enter");
     await page.getByRole("button", { name: /^Swap stop 1,/ }).click();
     const mapLink = page.getByRole("navigation", { name: "Site navigation" })
-      .getByRole("link", { name: "Map", exact: true });
+      .getByRole("link", { name: "Explore", exact: true });
     await expect(mapLink).toHaveAttribute("href", originalHref!);
 
     let releaseResponse = () => {};
@@ -178,8 +178,8 @@ test.describe("locked plan route map", () => {
     const planUrl = page.url();
 
     const navigation = page.getByRole("navigation", { name: "Site navigation" });
-    await expect(navigation.getByRole("link", { name: "Map", exact: true })).toHaveAttribute("href", routeHref!);
-    await navigation.getByRole("link", { name: "Map", exact: true }).click();
+    await expect(navigation.getByRole("link", { name: "Explore", exact: true })).toHaveAttribute("href", routeHref!);
+    await navigation.getByRole("link", { name: "Explore", exact: true }).click();
     await expect(page.locator(".mapLoading")).toHaveCount(0, { timeout: 60_000 });
     await expect(page.locator(".mapCanvasWrap[data-route-stops]")).toHaveAttribute("data-route-stops", String(routeStops.length), { timeout: 60_000 });
 
@@ -192,7 +192,7 @@ test.describe("locked plan route map", () => {
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(planUrl);
-    const mobileMap = page.getByRole("navigation", { name: "Primary", exact: true }).getByRole("link", { name: "Map", exact: true });
+    const mobileMap = page.getByRole("navigation", { name: "Primary", exact: true }).getByRole("link", { name: "Explore", exact: true });
     await expect(mobileMap).toHaveAttribute("href", routeHref!);
     await mobileMap.click();
     await expect(page.locator(".mapCanvasWrap[data-route-stops]")).toHaveAttribute("data-route-stops", String(routeStops.length), { timeout: 60_000 });

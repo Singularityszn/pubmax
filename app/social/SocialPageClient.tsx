@@ -17,6 +17,7 @@ import FindYourLot from "@/components/social/FindYourLot";
 import PeopleDirectory from "@/components/social/PeopleDirectory";
 import ReelsViewer from "@/components/social/ReelsViewer";
 import SharedSocialPostCard from "@/components/social/SocialPostCard";
+import SocialMomentLink from "@/components/social/SocialMomentLink";
 import StarterPacks from "@/components/social/StarterPacks";
 import {
   SOCIAL_SIGN_IN_HREF,
@@ -836,6 +837,7 @@ function SocialPageAccountState({
               <Link prefetch={false} href="/messages">Messages</Link>
               <Link prefetch={false} href="/pal">Your Pub Pal</Link>
               <Link prefetch={false} href="/plan">Plan a crawl</Link>
+              <SocialMomentLink />
             </nav>
           ) : null}
         </div>

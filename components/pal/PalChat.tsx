@@ -827,7 +827,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
       <Screen
         as="main"
         id="main"
-        className="palChat pageHidesCreateFab"
+        className="palChat"
         kicker={
           <>
             <PubPalMascot size={18} circular />

@@ -99,7 +99,7 @@ test("/feed mounts the social feed scaffold without uncaught errors", async ({ p
   expect(response?.status()).toBe(200);
   // The feed fetches /api/pint-drops and degrades to a social empty state on
   // failure, so we assert the always-present scaffold (site nav), not content.
-  await expect(page.getByRole("link", { name: "Map", exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("link", { name: "Explore", exact: true }).first()).toBeVisible();
   expect(errors).toEqual([]);
 });
 

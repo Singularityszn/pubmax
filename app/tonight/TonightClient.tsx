@@ -1188,7 +1188,7 @@ export default function TonightClient({
             {QUIET_ALTERNATIVES.map((alt) => (
               <RowListItem
                 key={alt.title}
-                className="tonightQuietRow createFabLane"
+                className="tonightQuietRow"
                 href={alt.href}
                 title={alt.title}
                 meta={alt.sub}

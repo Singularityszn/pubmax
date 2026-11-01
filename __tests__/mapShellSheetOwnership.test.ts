@@ -15,6 +15,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // press - the dialog closed AND the surface trail was sent Home behind it.
 
 vi.mock("next/link", () => ({
+  // The map edge's Pal door is a Link with a pending indicator inside it.
+  useLinkStatus: () => ({ pending: false }),
   default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) =>
     createElement("a", { href, ...rest }, children),
 }));

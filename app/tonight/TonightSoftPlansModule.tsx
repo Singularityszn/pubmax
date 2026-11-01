@@ -47,7 +47,7 @@ export default function TonightSoftPlansModule({ hasQuietPint = false }: Props) 
           />
         ))}
         {hasQuietPint ? (
-          <li className="rowListItem rowListItem--link tonightSoftPlansRow createFabLane">
+          <li className="rowListItem rowListItem--link tonightSoftPlansRow">
             <span className="rowListBody">
               <Link href="#tonight-quiet-pint" className="rowListTitle rowListTitleLink">
                 A quiet pint
@@ -74,7 +74,7 @@ export default function TonightSoftPlansModule({ hasQuietPint = false }: Props) 
 
 function PlanRow({ href, label }: { href: Route; label: string }) {
   return (
-    <li className="rowListItem rowListItem--link tonightSoftPlansRow createFabLane">
+    <li className="rowListItem rowListItem--link tonightSoftPlansRow">
       <span className="rowListBody">
         <IntentLink href={href} className="rowListTitle rowListTitleLink">
           {label}

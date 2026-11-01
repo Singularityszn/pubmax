@@ -5,12 +5,14 @@ import { navPathMatches } from "@/components/nav/navigationModel";
 import { socialSurfaceName } from "@/lib/socialLaunch";
 import { defined } from "@/__tests__/helpers/defined";
 
-// Five-tab contract for the mobile bar, in the order of the loop: Map, Tonight,
-// Plan, Social, You (Social by the captain's call, 16 Oct 2026). Out folded
-// into Tonight (/out 308s there at the edge) and Places is the city setting
-// reached from the map's chip, so neither is a tab. Moment is a floating +
-// action, never a destination. The URL preserves each explicit
-// Day | Tonight choice. Both pages belong to the Tonight tab.
+// Five-tab contract for the mobile bar, in the order of the loop: Explore,
+// Tonight, Plan, Social, You (captain, 1 Nov 2026, launch plan decision 13;
+// Social by the captain's call, 16 Oct 2026). Explore is the map and routes to
+// /map. Out folded into Tonight (/out 308s there at the edge) and Places is the
+// city setting reached from the map's chip, so neither is a tab. Moment is a
+// compose action, never a destination, and nothing but the five tabs rides in
+// the row. The URL preserves each explicit Day | Tonight choice. Both pages
+// belong to the Tonight tab.
 
 function activeLabel(pathname: string): string | undefined {
   const tabs = buildTabs();
@@ -30,7 +32,8 @@ describe("mobile tab bar contract", () => {
 
   it("renders exactly five tabs in the loop order", () => {
     const tabs = buildTabs();
-    expect(tabs.map((tab) => tab.label)).toEqual(["Map", "Tonight", "Plan", "Social", "You"]);
+    expect(tabs.map((tab) => tab.label)).toEqual(["Explore", "Tonight", "Plan", "Social", "You"]);
+    expect(tabs.map((tab) => tab.key)).toEqual(["map", "now", "plan", "social", "you"]);
   });
 
   it("names every tab on the link itself, so hiding the word at large text costs nothing", () => {
@@ -61,7 +64,8 @@ describe("mobile tab bar contract", () => {
     const byLabel = Object.fromEntries(tabs.map((tab) => [tab.label, tab]));
     expect(defined(byLabel.Tonight).href).toBe("/tonight");
     expect(defined(byLabel.Tonight).match).toEqual(["/today", "/tonight"]);
-    expect(defined(byLabel.Map).href).toBe("/map");
+    expect(defined(byLabel.Explore).href).toBe("/map");
+    expect(defined(byLabel.Explore).match).toEqual(["/map"]);
     expect(defined(byLabel.Plan).href).toBe("/plan");
     expect(defined(byLabel.Social).href).toBe("/social");
     expect(defined(byLabel.You).href).toBe("/u/you");
@@ -72,9 +76,9 @@ describe("mobile tab bar contract", () => {
       .toMatchObject({ href: "/today", label: "Tonight", ariaLabel: "Tonight" });
   });
 
-  it("accepts the preferred-city Map destination", () => {
+  it("accepts the preferred-city Explore destination", () => {
     const tabs = buildTabs("/u/you" as Route, "/map/glasgow" as Route);
-    expect(tabs.find((tab) => tab.label === "Map")?.href).toBe("/map/glasgow");
+    expect(tabs.find((tab) => tab.label === "Explore")?.href).toBe("/map/glasgow");
   });
 
   it("points You at the device handle when known (skips /u/you sentinel hop)", () => {
@@ -99,5 +103,9 @@ describe("mobile tab bar contract", () => {
     expect(activeLabel("/crawls/soho")).toBe("Plan");
     expect(activeLabel("/crawls")).toBe("Plan");
     expect(activeLabel("/moment")).toBeUndefined();
+    expect(activeLabel("/map")).toBe("Explore");
+    expect(activeLabel("/map/manchester")).toBe("Explore");
+    // The Pal is a door in the top bar, never a tab, so its page lights none.
+    expect(activeLabel("/pal")).toBeUndefined();
   });
 });

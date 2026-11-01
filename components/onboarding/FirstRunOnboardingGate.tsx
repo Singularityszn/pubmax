@@ -77,7 +77,7 @@ export default function FirstRunOnboardingGate({
   if (!skipHref) {
     return <main
         id="main"
-        className="firstRunOnboarding firstRunOnboardingGate pageHidesCreateFab"
+        className="firstRunOnboarding firstRunOnboardingGate"
         aria-busy="true"
       />;
   }

@@ -10,8 +10,9 @@ import { describe, expect, it } from "vitest";
 //
 // Two laws, both read off the shipped stylesheets so a token retune or a new
 // surface re-runs them:
-//   1. A coral FILL is the one primary action per screen and the floating
-//      create disc. A selection (active tab, pressed chip, chosen segment, the
+//   1. A coral FILL is the one primary action per screen (the floating create
+//      disc, its second spend, retired on 1 Nov 2026). A selection (active
+//      tab, pressed chip, chosen segment, the
 //      page you are on) reads through --state-selected-*, a suggestion chip is
 //      a neutral outline, and a kicker or eyebrow is muted ink.
 //   2. The data face (--font-data, JetBrains Mono) sets figures alone. A label,

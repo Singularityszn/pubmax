@@ -39,11 +39,14 @@ const PLAN_NAV_MATCH: readonly string[] = ["/plan", "/crawls"];
  * every bar that names them: the phone dock, the desktop SiteNav and the
  * landing bar all render this list, so their labels cannot drift apart again.
  *
- * The phone dock keeps the five-door loop (Map, Tonight, Plan, Social, You)
- * plus the Pub Pal's own door, six buttons in all: the Oct 2026 UX audit found
- * more too many for a phone. Spoons, the published value ranking, is a desktop
- * door only (`desktopOnly`), by the captain's call (1 Nov 2026); on a phone it
- * is reached from the Drink sheet. Moment remains a compose action.
+ * The phone dock is five tabs and nothing else (Explore, Tonight, Plan,
+ * Social, You), by the captain's call (1 Nov 2026, launch plan decision 13).
+ * The Pub Pal's door left the dock for the phone top bar (PalNavButton.tsx),
+ * and the floating create button is gone: Post a moment, Log a price and
+ * Start a plan each live on the surface they belong to. Spoons, the published
+ * value ranking, is a desktop door only (`desktopOnly`), by the captain's call
+ * (1 Nov 2026); on a phone it is reached from the Drink sheet. Moment remains
+ * a compose action, never a destination.
  *
  * Two former tabs left primary navigation. Out IS Tonight now: /out 308s to
  * /tonight at the edge (proxy.ts), and Tonight carries the Tomorrow and Weekend
@@ -57,7 +60,9 @@ const PLAN_NAV_MATCH: readonly string[] = ["/plan", "/crawls"];
  * Both pages belong to this tab. Explicit page links keep their destination.
  */
 export const PRIMARY_NAV_ITEMS: readonly PrimaryNavItem[] = [
-  { key: "map", href: "/map", label: "Map", match: ["/map"] },
+  // Explore is the map (captain, 1 Nov 2026): the word says what a reader does
+  // there. The key and the route stay `map` and /map.
+  { key: "map", href: "/map", label: "Explore", match: ["/map"] },
   { key: "now", href: "/tonight", label: "Tonight", match: ["/today", "/tonight"] },
   // Plan owns the composer, a shared plan at /plan/[id] and the crawl routes
   // (PLAN_NAV_MATCH).
@@ -130,4 +135,20 @@ export function safeMomentReturnTo(value: string | null | undefined): MomentRetu
 
 export function momentHref(returnTo: string | null | undefined): Route {
   return `${MOMENT_NAV_ACTION.href}?returnTo=${encodeURIComponent(safeMomentReturnTo(returnTo))}`;
+}
+
+/**
+ * Where "back" is, read off the live address bar.
+ *
+ * Read at the action boundary because the Map's native-history writes can
+ * precede the router's next render. The router value is the fallback before
+ * a browser location exists.
+ */
+export function returnToFromLocation(
+  location: { pathname?: string; search?: string } | null | undefined,
+  fallback: string,
+): string {
+  const pathname = location?.pathname;
+  if (!pathname || !pathname.startsWith("/")) return fallback;
+  return `${pathname}${location?.search ?? ""}`;
 }
