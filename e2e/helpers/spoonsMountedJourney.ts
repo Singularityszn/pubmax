@@ -104,8 +104,10 @@ export async function clickLuciaAndReturn(page: Page, documentStartedAt: number,
 export async function clickRankingAndCheckRecordedCosts(page: Page, documentStartedAt: number, testInfo: TestInfo): Promise<void> {
   await drinkSheet(page).getByRole("link", { name: "See the ranking", exact: true }).tap();
   await expect(page).toHaveURL(/\/spoons-value$/);
+  // The phone dock keeps its six doors: Spoons is a desktop link only, so the
+  // ranking is reached through the Drink sheet, never a dock tab.
   const nav = page.getByRole("navigation", { name: "Primary", exact: true });
-  await expect(nav.getByRole("link", { name: "Spoons", exact: true })).toHaveAttribute("aria-current", "page");
+  await expect(nav.getByRole("link", { name: "Spoons", exact: true })).toHaveCount(0);
   await page.getByRole("searchbox", { name: "Find a Spoons" }).fill("Teignmouth");
   const row = page.locator(".spoonsTable tbody tr");
   await expect(row).toHaveCount(1);
@@ -117,10 +119,11 @@ export async function clickRankingAndCheckRecordedCosts(page: Page, documentStar
   await expect(row).toContainText("Source read 2026-08-30");
   await expect(page.getByRole("link", { name: /SpoonMe/ }).first()).toHaveAttribute("href", /^https:\/\//);
   await row.screenshot({ path: testInfo.outputPath("spoons-recorded-cost-source-date.png") });
-  // Exercise the added primary destination too, after reaching its page via the sheet link.
+  // Return through Map, the Drink chip and "See the ranking", as a phone reader does.
   await nav.getByRole("link", { name: "Map", exact: true }).tap();
   await expectMobileMapShellReady(page);
-  await nav.getByRole("link", { name: "Spoons", exact: true }).tap();
+  const again = await openDrink(page);
+  await again.getByRole("link", { name: "See the ranking", exact: true }).tap();
   await expect(page).toHaveURL(/\/spoons-value$/);
   await expect(page.getByRole("searchbox", { name: "Find a Spoons" })).toBeVisible();
   await expect.poll(() => page.evaluate(() => performance.timeOrigin)).toBe(documentStartedAt);
