@@ -4562,8 +4562,9 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     marker.nextStop({ stop: 1, name: palNextName, open: () => onRouteStopClickRef.current(palNextVenueId) });
     marker.say(palLeadLine(shownLeg.option));
     // Once per chosen way: a map rebuilt mid-walk leads again, but it is the
-    // same lead, so it is not counted again.
-    if (palLeadReportedRef.current !== key) {
+    // same lead, so it is not counted again. A Pal that is not drawn (none
+    // made, or hidden) leads nobody, so nothing is counted.
+    if (marker.drawn && palLeadReportedRef.current !== key) {
       palLeadReportedRef.current = key;
       trackEvent("pal_lead_started");
     }

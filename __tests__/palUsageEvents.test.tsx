@@ -120,6 +120,20 @@ describe("the Pal's usage events on screen", () => {
     expect(sent("pal_quest_stamped")).toBe(0);
   });
 
+  it("counts no stamp when the store refuses the write", async () => {
+    const setItem = vi.spyOn(Storage.prototype, "setItem").mockImplementation((key) => {
+      if (key === PAL_QUEST_STAMPS_KEY) throw new DOMException("full", "QuotaExceededError");
+    });
+    try {
+      await render(createElement(NearPriceEvidenceMission, { cards, enabled: true }));
+      await act(async () => host.querySelector<HTMLButtonElement>(".answer")!.click());
+      expect(sent("pal_quest_asked")).toBe(1);
+      expect(sent("pal_quest_stamped")).toBe(0);
+    } finally {
+      setItem.mockRestore();
+    }
+  });
+
   it("counts a passport view only when the book has a stamp", async () => {
     await render(createElement(PalQuestStamps, { pal: ripley, print: [] }));
     expect(host.querySelector("[data-testid='pal-stamp-book']")).not.toBeNull();
@@ -141,10 +155,16 @@ describe("pal_lead_started on the map", () => {
 
   it("is sent once for each chosen way, not again when a rebuilt map leads the same way", () => {
     expect(canvas).toMatch(
-      /if \(palLeadReportedRef\.current !== key\) \{\s*palLeadReportedRef\.current = key;\s*trackEvent\("pal_lead_started"\);\s*\}/,
+      /if \(marker\.drawn && palLeadReportedRef\.current !== key\) \{\s*palLeadReportedRef\.current = key;\s*trackEvent\("pal_lead_started"\);\s*\}/,
     );
     // The teardown clears the lead key so a rebuilt map leads again; it must
     // never clear the reported key, or every rebuild would count a new lead.
     expect(canvas).not.toMatch(/palLeadReportedRef\.current = null/);
+  });
+
+  it("is never sent for a Pal that is not drawn on the map", () => {
+    const marker = readFileSync(join(process.cwd(), "components/map/canvas/palMarker.ts"), "utf8");
+    expect(marker).toMatch(/const NO_PAL: PalMapMarker = \{\s*drawn: false,/);
+    expect(marker).toMatch(/const api: PalMapMarker = \{\s*drawn: true,/);
   });
 });

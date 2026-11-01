@@ -133,8 +133,11 @@ export default function NearPriceEvidenceMission({
             venueName: names.get(answer.venueId) ?? venueName,
             area: areas.get(answer.venueId),
           });
-          if (added) trackEvent("pal_quest_stamped");
-          setQuest({ owner, today: palQuestStampToday(readPalQuestStamps()), now: added });
+          const today = palQuestStampToday(readPalQuestStamps());
+          // The cheer plays even when the store refused the write, but only a
+          // stamp the book really kept is counted as stamped.
+          if (added && today?.day === added.day && today.venueId === added.venueId) trackEvent("pal_quest_stamped");
+          setQuest({ owner, today, now: added });
         }}
       />
     </>
