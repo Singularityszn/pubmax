@@ -55,7 +55,7 @@ const MOMENT_LABELS: Record<MemoryStudioDraft["momentKind"], string> = {
   side_quest: "Detour",
 };
 
-export default function NightMemoryStudio({ userId, memoriesRevision = 0 }: { userId: string; memoriesRevision?: number }) {
+export default function NightMemoryStudio({ userId, memoriesRevision }: { userId: string; memoriesRevision?: number }) {
   const [draft, setDraft] = useState<MemoryStudioDraft>(() => readMemoryStudioDraft(userId));
   const [memories, setMemories] = useState<Memory[]>([]);
   const [memoryReload, setMemoryReload] = useState(0);
