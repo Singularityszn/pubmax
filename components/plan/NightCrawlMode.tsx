@@ -483,12 +483,6 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
       </div>
 
       <div className="nightCrawl__stack">
-        <PlanTableBeacon planId={planId} memberToken={memberToken} ownerKey={ownerKey} refreshKey={planNightRefreshKey(plan)} />
-        <details className="nightCrawl__extras">
-          <summary>Clues and mystery stops</summary>
-          <PlanMysteryControls />
-          <PlanNightClues planId={planId} ownerKey={ownerKey} stops={stops} />
-        </details>
         {stack.map((view) => {
           if (view.slot === "done") {
             const disposition = view.disposition ?? "none";
@@ -572,6 +566,15 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
           );
         })}
 
+        {/* The current stop's actions come first: the table beacon and the
+            clues sit below the route so they never push We are here and
+            Skip it under the pinned Get me home on a short phone. */}
+        <PlanTableBeacon planId={planId} memberToken={memberToken} ownerKey={ownerKey} refreshKey={planNightRefreshKey(plan)} />
+        <details className="nightCrawl__extras">
+          <summary>Clues and mystery stops</summary>
+          <PlanMysteryControls />
+          <PlanNightClues planId={planId} ownerKey={ownerKey} stops={stops} />
+        </details>
         {stops.length === 0 ? (
           <p className="nightCrawl__final">This plan has no stops yet. Open the full plan to build the route.</p>
         ) : null}
