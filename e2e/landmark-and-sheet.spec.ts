@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+import { openOverviewFold } from "./helpers/overviewFolds";
 
 // Landmark/heritage STORY surface + the mobile drag bottom-sheet's accessible
 // state (PRD "Testing Decisions": landmark story card opens with image/credit/
@@ -178,7 +179,9 @@ test("venue sheet offers a start-a-crawl affordance in build mode (non-canvas jo
     await expect(addToCrawl).toHaveAttribute("aria-pressed", /true|false/);
     expect((await addToCrawl.innerText()).trim().length).toBeGreaterThan(0);
   } else {
-    // Fallback crawl/list journey entry always present on Overview.
+    // Fallback crawl/list journey entry always present on Overview, in the
+    // Your record fold (lib/venueOverviewFolds.ts).
+    await openOverviewFold(overviewPanel, "record");
     const saveToList = overviewPanel.locator(".saveToListToggle, .saveToList");
     await expect(saveToList.first()).toBeVisible();
   }
@@ -267,7 +270,13 @@ test("mobile drag-sheet traps focus at half and contains it at full (#17)", asyn
   const reducedMotionHeight = await sheet.evaluate((node) =>
     Number.parseFloat((node as HTMLElement).style.maxHeight),
   );
-  expect(reducedMotionHeight).toBeCloseTo(844 * 0.92 - 64, 0);
+  // The full cap is 92% of the viewport less the dock (lib/sheetSnap.ts
+  // sheetSnapCaps). At or under 640px the dock is the phone tab bar,
+  // max(64px, 2.1 * --text-2xs + 48px) in components/nav/mobileNav.css, with
+  // --text-2xs at 0.68rem: 70.848px, because the tab labels may wrap to two
+  // lines (08b08bd4). The bar was 64px when this pin was written.
+  const phoneTabBarPx = Math.max(64, 2.1 * 0.68 * 16 + 48);
+  expect(reducedMotionHeight).toBeCloseTo(844 * 0.92 - phoneTabBarPx, 0);
 
   expect(errors).toEqual([]);
 });

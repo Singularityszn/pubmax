@@ -4,6 +4,8 @@ import { SURFACE_NAV_HOME_ICON_SIZE } from "@/components/ui/surface-nav";
 
 import { routeHygieneBadge } from "./helpers/hygieneBadge";
 import { routeLateVenueRows } from "./helpers/lateVenueRows";
+import { openOverviewFold } from "./helpers/overviewFolds";
+import { OVERVIEW_FOLDS } from "@/lib/venueOverviewFolds";
 
 function stableVenueIdFromKey(key: string): string {
   let hash = 0x811c9dc5;
@@ -40,7 +42,7 @@ const TABS: ReadonlyArray<{ label: string; panelId: string }> = [
   { label: "Overview", panelId: "venuePanel-overview" },
   { label: "Photos", panelId: "venuePanel-photos" },
   { label: "Menu", panelId: "venuePanel-menu" },
-  { label: "Stories", panelId: "venuePanel-pints" },
+  { label: "Prices", panelId: "venuePanel-pints" },
   { label: "Lore", panelId: "venuePanel-story" },
 ];
 
@@ -199,12 +201,23 @@ test("mobile venue sheet tabs remain tappable and keep primary controls reachabl
   await expectNoPageHorizontalOverflow(page);
 
   await expect(tablist.getByRole("tab")).toHaveCount(TABS.length);
-  const overviewMore = portal.locator("details.venueOverviewMore");
-  await expect(overviewMore).not.toHaveAttribute("open", "");
-  await expect(
-    overviewMore.getByText("Details and practical info", { exact: true }),
-  ).toBeVisible();
-  await expect(overviewMore.locator(".venueOverviewMoreBody")).toBeHidden();
+  // The Overview is five folds (lib/venueOverviewFolds.ts), in table order,
+  // and only Price is open on arrival. Every summary is a thumb-sized row.
+  const folds = portal.locator("#venuePanel-overview details.venueOverviewFold");
+  await expect(folds).toHaveCount(OVERVIEW_FOLDS.length);
+  for (const [index, fold] of OVERVIEW_FOLDS.entries()) {
+    const rendered = folds.nth(index);
+    await expect(rendered).toHaveAttribute("data-overview-fold", fold.key);
+    const summary = rendered.locator(":scope > summary");
+    await expect(summary.locator(".venueOverviewFoldLabel")).toHaveText(fold.label);
+    if (fold.defaultOpen) {
+      await expect(rendered).toHaveAttribute("open", "");
+    } else {
+      await expect(rendered).not.toHaveAttribute("open", "");
+      await expect(rendered.locator(":scope > .venueOverviewFoldBody")).toBeHidden();
+    }
+    await expectTapTarget(summary, `${fold.label} fold`);
+  }
   // The price ENTRY POINT is reachable: the Overview's ONE price door
   // (lib/pintTrust.ts, `overviewPriceDoor`), which folds the form behind it.
   // Its accessible name names the pub so a screen reader hears which one.
@@ -448,17 +461,20 @@ test("the getting-home fold and Ask are one tap from their tabs", async ({ page 
   const overview = portal.locator("#venuePanel-overview");
   await expect(overview).toBeVisible();
 
+  // The Overview rows that land after their own reads (the area price line
+  // and the food hygiene rating) arrive three to five seconds after the sheet
+  // opens on a slow runner. Wait for both, so nothing in the Overview is still
+  // landing when the tap goes in. The hygiene rating lives in "The pub".
+  await expect(overview.locator(".venueAreaPriceCompare")).toBeVisible({ timeout: 20_000 });
+  await openOverviewFold(overview, "pub");
+  await expect(overview.locator(".venueHygiene")).toBeVisible({ timeout: 20_000 });
+  // The getting-home fold sits inside "Getting there and home", and keeps its
+  // own "Last train" summary there.
+  await openOverviewFold(overview, "journey");
   const fold = overview.locator("#venueSection-getting-home");
   const summary = fold.locator(":scope > summary");
   await expect(summary).toHaveText("Last train");
   await expect(fold).not.toHaveAttribute("open", "");
-  // The Overview rows that land after their own reads (the area price line
-  // and the food hygiene rating) arrive three to five seconds after the sheet
-  // opens on a slow runner. They sit below the fold now (the pin below holds
-  // that), but wait for both anyway, so nothing in the Overview is still
-  // landing when the tap goes in.
-  await expect(overview.locator(".venueAreaPriceCompare")).toBeVisible({ timeout: 20_000 });
-  await expect(overview.locator(".venueHygiene")).toBeVisible({ timeout: 20_000 });
   await summary.scrollIntoViewIfNeeded();
   await expectTapTarget(summary, "Last train fold");
   // The sheet keeps changing height after it opens (the command bar lands in
@@ -482,11 +498,12 @@ test("the getting-home fold and Ask are one tap from their tabs", async ({ page 
 
 /**
  * The Overview rows that render only after their own read answers (the Spoons
- * value row, "What it used to cost", the area price line and the food hygiene
- * rating) sit below the getting-home fold, so the fold's summary does not move
- * under a finger once it is painted.
+ * value row, "What it used to cost" and the area price line) land at the FOOT
+ * of the Price fold, under the one price door, so the door does not move under
+ * a finger once it is painted. The food hygiene rating lands in "The pub",
+ * which is shut on arrival, so it moves nothing at all.
  */
-test("the getting-home fold stays put while the late Overview rows land", async ({ page }) => {
+test("the price door stays put while the late Overview rows land", async ({ page }) => {
   // The pin needs every late row to land. The hygiene row may not hang on the
   // live FSA service, and Arnos Arms is neither a ranked Wetherspoons nor a pub
   // with a dated history price, so it borrows real answers for both.
@@ -499,24 +516,26 @@ test("the getting-home fold stays put while the late Overview rows land", async 
   await expect(portal).toBeVisible();
   const overview = portal.locator("#venuePanel-overview");
   await expect(overview).toBeVisible();
-  const summary = overview.locator("#venueSection-getting-home > summary");
-  await expect(summary).toHaveText("Last train");
+  const door = overview.locator("#venueFold-price [data-price-door]");
+  await expect(door).toBeVisible();
   // Measured against the panel, so scrolling the sheet does not move it.
   const offset = (target: Locator) =>
     target.evaluate((element) => {
       const panel = element.closest("#venuePanel-overview");
       return Math.round(element.getBoundingClientRect().top - (panel?.getBoundingClientRect().top ?? 0));
     });
-  const before = await offset(summary);
+  const before = await offset(door);
 
+  const priceFold = overview.locator("#venueFold-price");
   const lateRows = [
-    overview.locator(".venueSpoonsValue"),
-    overview.locator(".venuePriceThen"),
-    overview.locator(".venueAreaPriceCompare"),
-    overview.locator(".venueHygiene"),
+    priceFold.locator(".venueSpoonsValue"),
+    priceFold.locator(".venuePriceThen"),
+    priceFold.locator(".venueAreaPriceCompare"),
   ];
   for (const row of lateRows) await expect(row).toBeVisible({ timeout: 20_000 });
 
-  expect(await offset(summary), "the fold summary did not move").toBe(before);
+  expect(await offset(door), "the price door did not move").toBe(before);
   for (const row of lateRows) expect(await offset(row)).toBeGreaterThan(before);
+  // The hygiene rating is in "The pub", out of the price area altogether.
+  await expect(overview.locator("#venueFold-pub .venueHygiene")).toBeAttached({ timeout: 20_000 });
 });

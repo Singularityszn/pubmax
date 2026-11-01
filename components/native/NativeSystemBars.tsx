@@ -42,6 +42,9 @@ export default function NativeSystemBars(): null {
 
     const media = window.matchMedia?.(SYSTEM_DARK_QUERY);
     const followSystem = () => {
+      // A choice made on this page wins even when storage refused to keep it
+      // (lib/useThemeChoice.ts marks it on the document).
+      if (document.documentElement.dataset.themeChosen === "1") return;
       let storage: Storage | null = null;
       try {
         storage = window.localStorage;

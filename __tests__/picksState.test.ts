@@ -12,7 +12,6 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import type { TonightPickDto } from "@/lib/todayBrief";
 
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 vi.mock("@/components/nav/NowSegment", () => ({ default: () => null }));
@@ -23,8 +22,7 @@ vi.mock("@/components/auth/useViewerHandle", () => ({
 import TodayClient from "@/app/today/TodayClient";
 import TonightListingsNotice from "@/app/tonight/TonightListingsNotice";
 import { TODAY_PINTS_DEFAULT_PATCH_ID } from "@/app/today/todayPints";
-import { buildDayGreeting, PICKS_DEGRADED_LINE, PICKS_EMPTY_LINE } from "@/lib/dayGreeting";
-import type { PicksListReadStatus } from "@/lib/dayGreeting";
+import { buildDayGreeting, PICKS_EMPTY_LINE } from "@/lib/dayGreeting";
 import {
   PICKS_ALTERNATIVE_LABEL,
   PICKS_REFRESHING_LINE,
@@ -372,13 +370,13 @@ describe("Tonight listings notice, one render per state", () => {
   });
 });
 
-// ── Today, rendered, at each state it can reach ──────────────────────────
+// ── Today no longer carries tonight's picks ─────────────────────────────
+//
+// Launch review, 30 Oct 2026 (design V1): /today repeated Tonight's picks and
+// pub of the day. Tonight's picks now live on /tonight alone, so Today renders
+// no picks section in any state, and the four states are Tonight's to word.
 
-function renderToday(
-  picksStatus: PicksListReadStatus,
-  picks: Parameters<typeof TodayClient>[0]["picks"] = [],
-  lane: { picksReason?: string | null; picksRetryable?: boolean } = {},
-): string {
+function renderToday(): string {
   return decode(
     renderToStaticMarkup(
       createElement(TodayClient, {
@@ -392,11 +390,6 @@ function renderToday(
         }),
         weather: null,
         weatherByArea: {},
-        picks,
-        picksStatus,
-        picksCheckedAt: OBSERVED,
-        picksReason: lane.picksReason ?? null,
-        picksRetryable: lane.picksRetryable ?? true,
         fact: null,
         pintsIndex: {
           [TODAY_PINTS_DEFAULT_PATCH_ID]: {
@@ -411,65 +404,15 @@ function renderToday(
   );
 }
 
-const READY_PICK = {
-  id: "fixture-quiz-1",
-  kind: "quiz" as const,
-  kindLabel: "Quiz",
-  title: "Tuesday pub quiz",
-  placeName: "The Fixture Arms",
-  lat: 51.5142,
-  lng: -0.1204,
-  priceGbp: null,
-  href: "/map?sel=venue-london-0001",
-  external: false,
-  sourceLabel: "pubmaxx",
-  venueNote: null,
-} satisfies TonightPickDto;
-
-describe("Today picks card, one render per reachable state", () => {
-  it("ready shows the picks and offers no way out of a full card", () => {
-    const markup = renderToday("ready", [READY_PICK]);
-    expect(markup).toContain('data-picks-state="ready"');
-    expect(markup).toContain("Tuesday pub quiz");
-    expect(markup).not.toContain(PICKS_ALTERNATIVE_LABEL);
-  });
-
-  it("genuinely empty offers the two non-event doors beside its map exit", () => {
-    const markup = renderToday("ready");
-    expect(markup).toContain('data-picks-state="genuinely_empty"');
-    expect(markup).toContain(PICKS_EMPTY_LINE.night);
-    expect(markup).toContain("Meanwhile, the map knows the cheap pints");
-    expect(markup).toContain(PICKS_ALTERNATIVE_LABEL);
-    expect(markup).toContain("Pubs near you");
-    expect(markup).toContain("Plan the night instead");
-  });
-
-  it("temporarily unavailable names the read and never the empty city", () => {
-    const markup = renderToday("degraded");
-    expect(markup).toContain('data-picks-state="temporarily_unavailable"');
-    expect(markup).toContain(PICKS_DEGRADED_LINE);
-    expect(markup).toContain(PICKS_ALTERNATIVE_LABEL);
-    expect(markup).not.toContain("Nothing on tonight");
-  });
-
-  // Battle test M07, on the real card: a preview with no listings keys must not
-  // print the empty-night sentence over a question nobody put.
-  it("a lane nobody asked is told, never worded as an empty night", () => {
-    const markup = renderToday("ready", [], {
-      picksReason: "We don\u2019t have listings to show yet.",
-      picksRetryable: false,
-    });
-    expect(markup).toContain('data-picks-state="temporarily_unavailable"');
-    expect(markup).toContain("We don\u2019t have listings to show yet.");
+describe("Today carries no picks section", () => {
+  it("renders no picks state, no picks copy and no picks doors", () => {
+    const markup = renderToday();
+    expect(markup).not.toContain('data-testid="today-picks"');
+    expect(markup).not.toContain("data-picks-state");
+    expect(markup).not.toContain("Top picks for tonight");
     expect(markup).not.toContain(PICKS_EMPTY_LINE.night);
-    // Still not a dead end.
-    expect(markup).toContain(PICKS_ALTERNATIVE_LABEL);
-  });
-
-  it("keeps the three-state attribute the earlier honesty fence reads", () => {
-    // data-picks-status is the older vocabulary and stays for the surfaces and
-    // specs already reading it. The two must never disagree about a failed read.
-    expect(renderToday("degraded")).toContain('data-picks-status="degraded"');
-    expect(renderToday("ready")).toContain('data-picks-status="empty"');
+    expect(markup).not.toContain(PICKS_ALTERNATIVE_LABEL);
+    // The way to tonight's listings is one link to the page that owns them.
+    expect(markup).toContain('href="/tonight"');
   });
 });
