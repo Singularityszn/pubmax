@@ -230,6 +230,10 @@ _Avoid_: Night Story, Pint Drop, Night Moment, public venue fact, price observat
 A public Social Post whose author chose, when posting, that readers see "a PUBMAXXER" instead of their handle. It is hidden from readers and never from PUBMAXX: the PUBMAXX User ID stays on the post for moderation, reports and blocks. It names no exact Venue, tags nobody and never appears in the Following lane. `lib/socialHiddenName.ts`.
 _Avoid_: Anonymous post, untraceable post, anonymous account
 
+**London Lane**:
+The read-only lane of Social Posts a signed-out visitor reads on `/social` (captain decision, 1 November 2026). It holds only public, moderated Social Posts tagged with a London patch, from accounts whose profile is public and who are still on PUBMAXX. It names no Venue, shows no face and says nothing about the reader. Posting, cheers, comments, saves, follows and messages still need an account. It closes when Social is rolled back or frozen. `lib/socialLondonLane.ts`.
+_Avoid_: Public feed, open feed, guest mode, preview feed
+
 **Mute**:
 One Pubmaxxer&rsquo;s private choice to stop seeing another&rsquo;s Social Posts in their own lanes. It is one-way and the muted account is never told: their follow, their own view and a direct link are untouched. A Block is the two-way version, and neither is a Report. `public.social_mutes`, `components/social/ProfileMuteBlock.tsx`.
 _Avoid_: Shadowban, hide, report, downrank

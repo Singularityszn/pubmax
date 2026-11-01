@@ -23,7 +23,14 @@ import { projectSocialVenueName, projectSocialVenueNames, resolveSocialVenueId, 
 import { enrichSocialPostAuthors, isSocialPostArea, normalizeSocialHashtag, type SocialPostDTO, type SocialPostFields } from "@/lib/socialPosts";
 import { normalizeHandle } from "@/lib/profiles";
 import { isProfileTombstoned, profileStore } from "@/lib/profileStore";
-import { hashActor } from "@/lib/supabase";
+import { clientIp, hashActor, hashIp } from "@/lib/supabase";
+import {
+  londonLanePost,
+  SOCIAL_LONDON_LANE,
+  SOCIAL_LONDON_LANE_COPY,
+  type SocialLondonLanePost,
+} from "@/lib/socialLondonLane";
+import { socialLondonLaneOpen } from "@/lib/socialLondonLane.server";
 import { boundedFormData, boundedJson } from "@/lib/boundedRequest.server";
 import { socialPhotoMediaId, socialPostRequestDigest, validSocialPostIdempotencyKey } from "@/lib/socialPostIdempotency.server";
 import { readSocialPostCreateRequest } from "@/lib/socialPostCreateRequest.server";
@@ -117,17 +124,66 @@ function storeError(error: unknown): Response {
   return publicApiError("Social posts are unavailable right now.", "SOCIAL_POSTS_UNAVAILABLE", 503, { retryable: true, headers: { "Cache-Control": "private, no-store" } });
 }
 
+/**
+ * A photo's tags are the ones the tagged person approved for the post's current
+ * audience, read for this viewer, or for nobody (null) on the signed-out lane.
+ * ONE step for every read, so the consent rule has one owner.
+ */
+async function withApprovedTags(posts: SocialPostDTO[], viewer: SocialPostActor | null): Promise<SocialPostDTO[]> {
+  const photoPostIds = posts.filter((post) => post.photo).map((post) => post.id);
+  if (photoPostIds.length === 0) return posts;
+  const tags = await socialPostConsentStore.approvedTags(viewer, photoPostIds);
+  return posts.map((post) => post.photo
+    ? { ...post, photo: { ...post.photo, tags: tags.get(post.id) ?? [] } }
+    : post);
+}
+
 /** Everything a page of posts carries beyond the row, the same for every read. */
 async function projectPage(posts: SocialPostDTO[], viewer: SocialPostActor): Promise<SocialPostDTO[]> {
-  const photoPostIds = posts.filter((post) => post.photo).map((post) => post.id);
-  const tags = photoPostIds.length > 0
-    ? await socialPostConsentStore.approvedTags(viewer, photoPostIds)
-    : new Map();
   return withExtraPhotos(await withVideos(await withReviews(await enrichSocialPostAuthors(
-    await projectSocialVenueNames(posts.map((post) => post.photo
-      ? { ...post, photo: { ...post.photo, tags: tags.get(post.id) ?? [] } }
-      : post)),
+    await projectSocialVenueNames(await withApprovedTags(posts, viewer)),
   )), viewer), viewer);
+}
+
+/**
+ * THE LONDON LANE, READ SIGNED OUT (captain decision 7, 1 Nov 2026; closes D2).
+ *
+ * It is decided BEFORE identity and reads none: the answer is the same for
+ * every caller, a bearer included, so nothing in it can describe the reader.
+ * The store owns which posts are in it (`londonLane`); this route adds the
+ * consented photo tags read for nobody, drops withdrawn authors without adding
+ * a face, and copies each post onto the allow-listed stranger's shape.
+ *
+ * It answers no-store like every Social read: the posts come from a store that
+ * changes between two requests, so no shared cache may hold them
+ * (`__tests__/sharedCacheHonesty.test.ts`). It is limited per IP, the reader
+ * having no account to key on, and it closes with Social: the launch switch
+ * and the freeze both pause it (`socialLondonLaneOpen`).
+ */
+async function londonLaneRead(request: Request, params: URLSearchParams): Promise<Response> {
+  if (!socialLondonLaneOpen()) {
+    return publicApiError(SOCIAL_LONDON_LANE_COPY.paused, "SOCIAL_LANE_PAUSED", 503, { retryable: true, headers: { "Cache-Control": "private, no-store" } });
+  }
+  if ([...params.keys()].some((key) => key !== "lane" && key !== "cursor" && key !== "limit")) {
+    return publicApiError("Choose a Social feed.", "INVALID_LANE", 400, { headers: { "Cache-Control": "private, no-store" } });
+  }
+  const rawLimit = params.get("limit");
+  const limit = rawLimit === null ? 20 : Number(rawLimit);
+  if (!Number.isInteger(limit) || limit < 1 || limit > 50) {
+    return publicApiError("Feed size must be between 1 and 50.", "INVALID_LIMIT", 400, { headers: { "Cache-Control": "private, no-store" } });
+  }
+  const limitKey = `social-london-lane:${hashIp(clientIp(request))}`;
+  if (await isLimited(limitKey, limitKey, FEED_RATE_LIMIT, FEED_RATE_WINDOW_MS)) {
+    return publicApiError("Too many Social feed requests. Slow down.", "RATE_LIMITED", 429, { retryable: true, headers: { "Cache-Control": "private, no-store" } });
+  }
+  try {
+    const page = await socialPostStore().londonLane({ cursor: params.get("cursor"), limit });
+    const named = await enrichSocialPostAuthors(await withApprovedTags(page.posts, null), { faces: false });
+    const posts: SocialLondonLanePost[] = named.map(londonLanePost);
+    return privateJson({ posts, nextCursor: page.nextCursor });
+  } catch (error) {
+    return storeError(error);
+  }
 }
 
 /**
@@ -166,9 +222,12 @@ async function authorRead(
 }
 
 export async function GET(request: Request): Promise<Response> {
+  const params = new URL(request.url).searchParams;
+  // The one read a stranger may make. Every other read below needs a verified
+  // Social account, exactly as before.
+  if (params.get("lane") === SOCIAL_LONDON_LANE) return londonLaneRead(request, params);
   const access = await requireVerifiedSocialActor(request);
   if (!access.ok) return accessError(access);
-  const params = new URL(request.url).searchParams;
   const author = params.get("author");
   if (author !== null) {
     const rawLimit = params.get("limit");

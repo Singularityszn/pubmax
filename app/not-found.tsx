@@ -23,9 +23,6 @@ export const metadata: Metadata = {
 export default function NotFound() {
   return (
     <main id="main"
-      // A dead link is not a place to compose from, and this page has no
-      // pathname of its own to be named by (components/nav/createFab.css).
-      className="pageHidesCreateFab"
       style={{
         minHeight: "100svh",
         display: "grid",

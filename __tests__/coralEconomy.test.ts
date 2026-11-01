@@ -7,8 +7,10 @@ import { describe, expect, it } from "vitest";
 // THE CORAL RATCHET (docs/DESIGN_SYSTEM.md "Coral is spent twice"; taste plan,
 // 18 Oct 2026, change 1).
 //
-// Coral is spent on the ONE primary action per screen and the floating create
-// disc. __tests__/visualDiscipline.test.ts pins the selections, suggestion
+// Coral is spent on the ONE primary action per screen. The floating create
+// disc that was its second spend left with the five-tab dock (captain, 1 Nov
+// 2026), and its allowance went with it. __tests__/visualDiscipline.test.ts
+// pins the selections, suggestion
 // chips and kickers by name, and __tests__/mapCoralEconomy.test.ts pins the
 // map. This file holds the rest of the tree to a COUNT: every declaration in
 // app/ and components/ CSS that paints coral, outside the allowlist below.
@@ -33,11 +35,9 @@ const CORAL =
 const ALLOWED: ReadonlyArray<readonly [pattern: RegExp, reason: string]> = [
   // The one primary per screen, by the names the tree gives it.
   [/primary|Primary|(?:\b|_|-)cta\b|Cta\b|CTA|data-primary-action/, "a screen's one primary action"],
-  [/createFab/, "the floating create disc"],
-  [/\.priceDoor\b/, "the venue sheet's one painted price action"],
   [/\.planBtn\b/, "the map toolbar's Plan an outing primary"],
   [/\.vpsubLog\b/, "the price form's one commit, opened by the price door"],
-  [/\.mobileVenuePeekSummary button/, "the phone peek's one plan door (lib/venuePlanDoor.ts)"],
+  [/\.mobileVenuePeekSummary button/, "the venue sheet's one plan door, on its action card at every width (lib/venuePlanDoor.ts)"],
   [/\.mobilePalSummon a\b/, "the Pal summon sheet's one action"],
   [/\.momentDecoratorActions button:first-child/, "the photo decorator's one apply"],
   [/\.composerSend\b|\.messagesNewGroupCreate\b/, "the messages screen's send and the new-group dialog's create"],
@@ -102,7 +102,7 @@ const marks = stylesheets().flatMap(restingCoral);
 // --plan-accent; each is a debt to pay down, never a licence to add.
 const CEILING = 158;
 
-describe("coral is spent on the one primary and the create disc", () => {
+describe("coral is spent on the one primary", () => {
   it("finds a corpus large enough to mean something", () => {
     expect(stylesheets().length).toBeGreaterThan(150);
   });

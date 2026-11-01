@@ -67,7 +67,7 @@ export const MAP_ICON_TOKEN_CSS_PROPERTIES = {
   amber: "--amber",
   brick: "--brick",
   muted: "--muted",
-  pricePlaqueSurface: "--price-plaque-surface",
+  panelRaised: "--panel-raised",
 };
 
 const printer = ts.createPrinter({ removeComments: true });

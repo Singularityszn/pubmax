@@ -28,8 +28,8 @@
   "images": {
     "light": {
       "path": "/landing/map-opening/london-light.webp",
-      "bytes": 114310,
-      "sha256": "20e7cddaf1593c370882bda359d09e758ff5cd83de8759d6495ca5064dfc4eb0",
+      "bytes": 100520,
+      "sha256": "64a167dd7081e829eed0487de0b9918d574679d20ac09c6d0c213d156e137dbb",
       "width": 805,
       "height": 1695
     },
@@ -41,7 +41,7 @@
       "height": 1695
     }
   },
-  "capturedOn": "2026-10-19",
+  "capturedOn": "2026-11-01",
   "attribution": "OpenFreeMap © OpenMapTiles Data from OpenStreetMap",
   "regenerate": "npm run build:map-opening-snapshot -- --base-url=<a production server of this tree>"
 }

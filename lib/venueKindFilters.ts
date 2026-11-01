@@ -69,9 +69,19 @@ const NON_PUBLIC_VENUE_NAME = new RegExp(
 // "SU" alone is a students' union only in capitals, so it is matched with case.
 const STUDENTS_UNION_INITIALS = /(?:^|[\s(\-–,])SU(?:$|[\s)\-–,])/;
 
+// A university's initials run into the SU ("Eagle & Ball by BCUSU", Birmingham
+// City University SU, which won Birmingham's cheapest pint in the 1 Nov 2026
+// hunt). Capitals only and a whole word, two to six letters before the SU: on
+// 1 Nov 2026 that matched exactly one of about 40,000 pub names we hold.
+const STUDENTS_UNION_JOINED_INITIALS = /(?:^|[\s(\-–,])[A-Z]{2,6}SU(?:$|[\s)\-–,])/;
+
 /** True when the venue's own name says it is not open to the public. */
 export function isNonPublicVenueName(name: string): boolean {
-  return NON_PUBLIC_VENUE_NAME.test(name) || STUDENTS_UNION_INITIALS.test(name);
+  return (
+    NON_PUBLIC_VENUE_NAME.test(name) ||
+    STUDENTS_UNION_INITIALS.test(name) ||
+    STUDENTS_UNION_JOINED_INITIALS.test(name)
+  );
 }
 
 /**

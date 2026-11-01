@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   buildCityRivalrySnapshot,
@@ -12,6 +12,15 @@ import { listEnabledCities } from "@/lib/cities";
 import { cityMapShareUrl } from "@/lib/cityShare";
 import { demoPintDropsForCity } from "@/lib/pintDropSeeds";
 import { defined } from "@/__tests__/helpers/defined";
+
+// Demo content is opt-in (lib/demoContent.ts), and these tests read the seeds.
+beforeEach(() => {
+  vi.stubEnv("NEXT_PUBLIC_DEMO_CONTENT", "on");
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe("rivalryScore", () => {
   it("weights drops×3 + crawls×5 + min(venues,200)/10", () => {

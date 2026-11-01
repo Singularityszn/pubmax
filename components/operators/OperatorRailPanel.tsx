@@ -1,14 +1,17 @@
 "use client";
 
-// Operator rail (Wayfinder 3.5) — a QUIET footer affordance on the Ledger for the
-// person who actually runs the pub. Value-first, nothing loud:
+// Operator rail (Wayfinder 3.5) — a QUIET affordance for the person who actually
+// runs the pub: on the venue sheet's pub fold (behind "Run this pub?", mounted
+// by components/operators/VenueFromThePub.tsx) and in the Ledger footer.
+// Value-first, nothing loud:
 //   • signed out            → a plain "Run this pub?" line that explains sign-in.
 //   • signed in, no claim    → "Run this pub?" opens a small verify form (how they
 //                              can prove it + a note). Submitting files a claim.
 //   • claim pending          → a calm "Verification pending" confirmation.
 //   • claim rejected/revoked → the verify form again (re-open for review).
 //   • verified operator      → a compact propose form (correction / event / offer
-//                              / response) whose submissions route through REVIEW.
+//                              / response) whose submissions route through REVIEW,
+//                              and the pub's "Ask for a table" requests.
 //
 // Trusted data is never touched here: a proposal is a REQUEST an admin reviews.
 // All writes use authedActionFetch so the server binds the account to the verified JWT.
@@ -27,6 +30,8 @@ import {
   OPERATOR_PROPOSAL_TYPES,
   type OperatorProposalType,
 } from "@/lib/operatorProposals";
+
+import OperatorTableRequests from "./OperatorTableRequests";
 
 import "./operatorRail.css";
 
@@ -69,6 +74,7 @@ export default function OperatorRailPanel({ venueId, venueName }: OperatorRailPa
   const [field, setField] = useState("");
   const [title, setTitle] = useState("");
   const [startsAt, setStartsAt] = useState("");
+  const [onDate, setOnDate] = useState("");
   const [pbody, setPbody] = useState("");
   const [savingProposal, setSavingProposal] = useState(false);
   const [proposalFeedback, setProposalFeedback] = useState<Feedback>(null);
@@ -129,6 +135,7 @@ export default function OperatorRailPanel({ venueId, venueName }: OperatorRailPa
     setField("");
     setTitle("");
     setStartsAt("");
+    setOnDate("");
     setPbody("");
   };
 
@@ -137,6 +144,9 @@ export default function OperatorRailPanel({ venueId, venueName }: OperatorRailPa
     if (field.trim()) payload.field = field.trim();
     if (title.trim()) payload.title = title.trim();
     if (startsAt.trim()) payload.startsAt = startsAt.trim();
+    if (onDate.trim() && (proposalType === "event" || proposalType === "offer")) {
+      payload.onDate = onDate.trim();
+    }
     if (pbody.trim()) payload.body = pbody.trim();
     setSavingProposal(true);
     setProposalFeedback(null);
@@ -245,6 +255,17 @@ export default function OperatorRailPanel({ venueId, venueName }: OperatorRailPa
                 </label>
               ) : null}
 
+              {proposalType === "event" || proposalType === "offer" ? (
+                <label className="operatorRailField">
+                  <span>Date, if it&rsquo;s one night only</span>
+                  <input
+                    type="date"
+                    value={onDate}
+                    onChange={(e) => setOnDate(e.target.value)}
+                  />
+                </label>
+              ) : null}
+
               {proposalType === "event" ? (
                 <label className="operatorRailField">
                   <span>When</span>
@@ -289,6 +310,7 @@ export default function OperatorRailPanel({ venueId, venueName }: OperatorRailPa
                   {proposalFeedback.text}
                 </span>
               ) : null}
+              <OperatorTableRequests venueId={venueId} />
             </div>
           ) : (
             <div className="operatorRailForm">

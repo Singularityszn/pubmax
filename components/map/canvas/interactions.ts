@@ -214,7 +214,12 @@ export function wirePubHover(
     if (typeof id !== "string" || typeof name !== "string") return;
     setHoveredVenue({ id, name, x: event.point.x, y: event.point.y });
   };
-  for (const layer of ["pubs-point", "pubs-price-pill", "pubs-point-selected"] as const) {
+  for (const layer of [
+    "pubs-point",
+    "pubs-price-pill",
+    "pubs-point-selected",
+    "pubs-price-pill-selected",
+  ] as const) {
     map.on("mouseenter", layer, onPubHover);
     map.on("mousemove", layer, onPubHover);
     map.on("mouseleave", layer, () => setHoveredVenue(null));
@@ -226,6 +231,7 @@ export function wireCursor(map: maplibregl.Map) {
     "pubs-point",
     "pubs-price-pill",
     "pubs-point-selected",
+    "pubs-price-pill-selected",
     "clusters",
     ...CLUSTER_RIM_LAYERS,
     "route-stops",

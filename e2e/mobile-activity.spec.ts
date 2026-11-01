@@ -119,9 +119,9 @@ test.describe("mobile Activity", () => {
 
     const primaryNav = page.getByRole("navigation", { name: "Primary" });
     await expect(primaryNav).toBeVisible();
-    await expectTappable(primaryNav.getByRole("link", { name: "Map", exact: true }), "bottom Map tab");
+    await expectTappable(primaryNav.getByRole("link", { name: "Explore", exact: true }), "bottom Explore tab");
     await expectTappable(primaryNav.getByRole("link", { name: "Tonight", exact: true }), "bottom Tonight tab");
-    await expectTappable(page.getByRole("button", { name: "Create" }), "create action");
+    await expectTappable(siteNav.getByRole("link", { name: /^Pub Pal/ }), "header Pal button");
     await expectTappable(primaryNav.getByRole("link", { name: "You", exact: true }), "bottom You tab");
 
     await expectNoHorizontalOverflow(page);

@@ -25,6 +25,21 @@ in [`docs/SOFT_LAUNCH_RUNBOOK.md`](../SOFT_LAUNCH_RUNBOOK.md) §7.
 
 Captain owns the production release (`npm run release:prod`) and the human WhatsApp cohort. PR #747 (the runner change) closed unmerged; runbook §1.1 says the captain decides runner changes. Agents keep product + this checklist current.
 
+## Product Hunt launch, 17 November 2026
+
+The launch kit is [`LAUNCH_KIT_2026-11-17.md`](LAUNCH_KIT_2026-11-17.md): the
+Product Hunt copy, the gallery shot list, the film, the press release, the
+community posts, the pub pitch, the seasonal lines and the day's schedule. Every
+figure in it is marked for recompute. On 16 November, on the launch head, run:
+
+```sh
+npm run launch:figures
+```
+
+It prints the hunt's figures (Britain's cheapest, each city, London's dearest)
+and the priced-pub count, each with its pub, its source and its read day. It
+reads the committed packs and writes nothing.
+
 ## Do not do in this wave
 
 - Keep `PUBMAX_SOCIAL_FRIENDS_LAUNCH` unset for live Social; set it to `0` only for a full emergency rollback.

@@ -1,0 +1,199 @@
+/* The playful pair on /near: Cheapest anything (under the answer) and Pint
+   roulette (under the whole Pint surface). Tokens only. A figure stays in ink
+   unless it is a pint, where the plaque wears its price band. */
+
+.nmnPlayfulTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+/* — Cheapest anything — */
+.nmnAnything {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-inline: var(--space-2);
+}
+
+.nmnAnythingChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.nmnAnythingAnswer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.nmnAnythingHeading {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.nmnAnythingNote,
+.nmnAnythingEmpty {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.nmnAnythingList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nmnAnythingRow {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.nmnAnythingPub {
+  color: var(--ink);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.nmnAnythingFigure {
+  font-family: var(--font-data);
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+.nmnAnythingMeasure {
+  font-family: var(--font-body);
+  color: var(--muted);
+}
+
+.nmnAnythingDrink {
+  font-size: var(--text-xs);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.nmnAnythingMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.nmnAnythingSource {
+  font-size: var(--text-2xs);
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.nmnAnythingMore {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.nmnAnythingMore a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+/* — Pint roulette — */
+.nmnRoulette {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.nmnRouletteLede,
+.nmnRouletteStatus {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.nmnRouletteCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  width: 100%;
+}
+
+.nmnRouletteKicker {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.nmnRouletteName {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 700;
+}
+
+.nmnRouletteName a {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.nmnRoulettePrice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.nmnRouletteSource {
+  font-size: var(--text-2xs);
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.nmnRouletteWalk {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.nmnRouletteFact {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+.nmnRouletteActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.nmnRouletteMap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  color: var(--ink);
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}

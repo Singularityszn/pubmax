@@ -16,6 +16,10 @@ name: Alert on scheduled failure
 # added later must be named in `workflows` below; __tests__/alertSink.test.ts
 # fails until it is. A Preview deployment status skips those workflows' jobs, and
 # a skipped run is not a failure, so only a production run can post.
+#
+# Production uptime runs every five minutes, so it is also why this workflow
+# shows a skipped run every five minutes. During an outage it posts once for
+# each failed check, about every five minutes, until the site answers again.
 
 on:
   workflow_run:
@@ -25,6 +29,7 @@ on:
       - Drink price refresh
       - Performance
       - Production smoke
+      - Production uptime
       - Security CI
       - Tavily London nightly
       - Weather cache refresh

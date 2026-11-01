@@ -228,6 +228,40 @@ const DARK = {
   roadCasing: "#050506",
 } as const;
 
+// ── The calm LIGHT basemap (launch plan 1 Nov 2026, section 5) ───────────────
+// "Price pills on a calm map": the light map used to tint OpenFreeMap's
+// Positron toward the brand, which painted every major road amber-yellow, the
+// residential blocks a pint-green wash and the buildings an amber wash, so the
+// street network spoke in the very hues the price bands own and the pills had
+// to shout over it. Now the light ground is Positron's own quiet family: warm
+// near-greys, white roads whose hierarchy is WIDTH and the stock grey casing
+// (never hue), a sage park and a grey-blue river that still read as geography,
+// and grey labels. No colour on this ground is a price-band hue, so the only
+// colour on a light map is a price.
+//
+// Named constants, decoupled from the DOM token scale for the reason the DARK
+// block above gives. They are the light map's own palette and its one tuning
+// surface. A change here also changes the opening picture under the document's
+// first prices: re-run `npm run build:map-opening-snapshot`.
+const LIGHT = {
+  ground: "#f2f1ee",
+  landSoft: "#efeeea",
+  residential: "#eeede9",
+  // Sage, low in saturation and lighter than any band: geography, not a price.
+  park: "#dfe6d9",
+  building: "#e5e3de",
+  // The Thames is London's strongest wayfinder, so it keeps a blue cast.
+  water: "#c8d5de",
+  roadMinor: "#fbfaf8",
+  road: "#ffffff",
+  roadMajor: "#ffffff",
+  /** Basemap label text: a warm grey that names a place without outranking a price. */
+  label: "#64635f",
+} as const;
+
+/** Exported for unit tests: the light basemap's own constants. */
+export const LIGHT_BASEMAP = LIGHT;
+
 /** Exported for unit tests — dark land must never equal cream ink. */
 export function buildPalette(tokens: BasemapTasteTokens, dark: boolean): TastePalette {
   if (dark) {
@@ -246,22 +280,18 @@ export function buildPalette(tokens: BasemapTasteTokens, dark: boolean): TastePa
       roadMajor: DARK.roadMajor,
     };
   }
-  // Light-theme hierarchy audit (M4) — warm paper guidebook: calmer water, roads
-  // brighter than land, park uses parkTint never pint.
-  const warmPaper = mixHex(tokens.paper, "#f4efe6", 0.35);
-  const lightRoad = withAlpha(mixHex(tokens.panelRaised, tokens.amber, 0.08), 0.85);
+  // The calm light ground: see the LIGHT constant block above. Roads are white
+  // over a warm near-grey, so their hierarchy is width and the stock casing.
   return {
-    land: warmPaper,
-    landSoft: withAlpha(tokens.amber, 0.14),
-    residential: withAlpha(tokens.pint, 0.1),
-    park: withAlpha(tokens.parkTint, 0.26),
-    building: withAlpha(tokens.buildingEmissive, 0.22),
-    water: withAlpha(tokens.river, 0.6),
-    // Light minor + secondary roads share the near-white base (no behaviour
-    // change vs pre-Wave-A, which had a single non-major tier).
-    roadMinor: lightRoad,
-    road: lightRoad,
-    roadMajor: withAlpha(mixHex(tokens.panelRaised, tokens.amber, 0.4), 0.95),
+    land: LIGHT.ground,
+    landSoft: LIGHT.landSoft,
+    residential: LIGHT.residential,
+    park: LIGHT.park,
+    building: LIGHT.building,
+    water: LIGHT.water,
+    roadMinor: LIGHT.roadMinor,
+    road: LIGHT.road,
+    roadMajor: LIGHT.roadMajor,
   };
 }
 
@@ -453,8 +483,35 @@ function paintDiscoveredLine(
     tryPaint(map, layerId, "line-color", withAlpha(DARK.roadCasing, 0.45));
     return;
   }
+  // Positron's low-zoom "subtle" road lines are already a translucent grey: on
+  // the calm light ground a white repaint would erase them at city zoom.
+  if (!dark && id.includes("subtle")) return;
   tryPaint(map, layerId, "line-color", roadLineColor(id, palette));
 }
+
+/** A road-number shield (Positron's `highway-shield-*`, `road_shield_us`). */
+function isRoadShield(id: string): boolean {
+  return id.includes("shield");
+}
+
+/**
+ * The light map's road-number shields step back behind the road names, box and
+ * number alike: a white "A1" box at full strength is the loudest thing on a
+ * calm ground after the prices, and a pill is a white box too. The dark styles
+ * ship no shield layer.
+ */
+function paintRoadShield(map: PaintMap, layerId: string, dark: boolean): void {
+  if (dark) return;
+  tryPaint(map, layerId, "icon-opacity", LIGHT_ROAD_SHIELD_OPACITY);
+  tryPaint(map, layerId, "text-opacity", LIGHT_ROAD_SHIELD_OPACITY);
+}
+
+/** Light label strengths: places, then pub POIs, then roads, then neighbourhoods. */
+const LIGHT_PLACE_LABEL_OPACITY = 0.9;
+const LIGHT_PUB_POI_LABEL_OPACITY = 0.9;
+const LIGHT_ROAD_LABEL_OPACITY = 0.72;
+const LIGHT_ROAD_SHIELD_OPACITY = 0.5;
+const LIGHT_NEIGHBOURHOOD_LABEL_OPACITY = 0.6;
 
 function paintDiscoveredSymbol(
   map: PaintMap,
@@ -464,10 +521,15 @@ function paintDiscoveredSymbol(
   dark: boolean,
 ): void {
   // Retint basemap place/road labels so dark mode doesn't keep Liberty's
-  // washed-out grey (or light-theme ink) against night land.
+  // washed-out grey against night land, and so the light map's labels are a
+  // quiet warm grey that names a place without fighting a price pill.
+  if (isRoadShield(id)) {
+    paintRoadShield(map, layerId, dark);
+    return;
+  }
   if (!id.includes("label") && !id.includes("place") && !id.includes("name") && !id.includes("poi")) return;
   if (id.includes("icon")) return;
-  const text = dark ? tokens.ink : tokens.inkDeep || tokens.ink;
+  const text = dark ? tokens.ink : LIGHT.label;
   const halo = dark ? tokens.inkDeep || tokens.paper : tokens.paper;
   tryPaint(map, layerId, "text-color", text);
   tryPaint(map, layerId, "text-halo-color", halo);
@@ -487,18 +549,18 @@ function paintDiscoveredSymbol(
   const opacity = isPubPoi
     ? dark
       ? 0.86
-      : 0.96
+      : LIGHT_PUB_POI_LABEL_OPACITY
     : isRoadLabel
       ? dark
         ? 0.45
-        : 0.62
+        : LIGHT_ROAD_LABEL_OPACITY
       : isNeighbourhood
         ? dark
           ? 0.38
-          : 0.52
+          : LIGHT_NEIGHBOURHOOD_LABEL_OPACITY
         : dark
           ? 0.72
-          : 0.88;
+          : LIGHT_PLACE_LABEL_OPACITY;
   tryPaint(map, layerId, "text-opacity", opacity);
   if (isNeighbourhood) {
     tryLayout(map, layerId, "text-size", dark ? 9 : 9.5);

@@ -160,8 +160,8 @@ test("Copy invite link shows for the host's own session and never for an anonymo
 
   // AND NO FLOATING CONTROL STANDS ON IT AT 390. PlanAstra could not click
   // this control in 30 seconds: Playwright resolved it and reported it
-  // obscured, the create action sitting over the card's right edge. The page
-  // now carries the marker that stands that control down.
+  // obscured, the create action sitting over the card's right edge. That
+  // control left with the five-tab dock (captain, 1 Nov 2026).
   //
   // The owner check admits the night-mode surface by name. A plan whose first
   // pint is a few hours out engages Night Mode, which is deliberately the
@@ -169,7 +169,7 @@ test("Copy invite link shows for the host's own session and never for an anonymo
   // card stands down under it for the same reason). That is a surface, not a
   // control floating over one, and it is not what this row is about.
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.locator(".createFabRoot")).toBeHidden();
+  await expect(page.locator(".createFabRoot")).toHaveCount(0);
   await expect(copyButton).toBeVisible();
   await copyButton.scrollIntoViewIfNeeded();
   const copyOwner = await copyButton.evaluate((button) => {

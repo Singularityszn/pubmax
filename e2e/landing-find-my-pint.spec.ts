@@ -55,7 +55,7 @@ test("landing nav speaks the app's vocabulary and the footer keeps Social", asyn
   await openLanding(page, { width: 1440, height: 900 });
 
   const nav = page.getByRole("navigation", { name: "Landing navigation" });
-  await expect(nav.getByRole("link")).toHaveText(["Map", "Tonight", "Plan", "Spoons", "Social", "You"]);
+  await expect(nav.getByRole("link")).toHaveText(["Explore", "Tonight", "Plan", "Spoons", "Social", "You"]);
   await expect(nav.locator('a[href^="/social"]')).toHaveCount(1);
   await expect(nav.locator('a[href^="/moment"]')).toHaveCount(0);
 
@@ -77,13 +77,14 @@ test.describe("landing hierarchy", () => {
     await expect(primaries.first()).toHaveAttribute("href", LANDING_PRIMARY_HREF);
     await expect(primaries.first()).toHaveText(LANDING_PRIMARY_NAME);
 
-    // One quiet row, two doors: the receipt door, then Tonight (#1488).
+    // One quiet row, two doors: the receipt door, then Plan a crawl (captain
+    // decision 2, 1 Nov 2026; Tonight lives in the five-tab dock).
     const secondary = hero.locator(".screenSecondary a");
     await expect(secondary).toHaveCount(2);
     await expect(secondary.first()).toHaveAttribute("href", LANDING_RECEIPT_HREF);
     await expect(secondary.first()).toHaveText(LANDING_RECEIPT_NAME);
-    await expect(secondary.nth(1)).toHaveAttribute("href", "/tonight");
-    await expect(secondary.nth(1)).toHaveText("What's on tonight");
+    await expect(secondary.nth(1)).toHaveAttribute("href", "/plan");
+    await expect(secondary.nth(1)).toHaveText("Plan a crawl");
 
     // Nothing else on the page is a filled button.
     await expect(page.locator("main [data-primary-action]")).toHaveCount(1);
@@ -231,8 +232,8 @@ test.describe("landing hierarchy", () => {
 
   // Both viewports, because a mobile-only check cannot see a hero that shrinks
   // on a wide layout and a desktop-only check cannot see the fold on a phone.
-  // 320x568 is the shortest phone: there the fixed tab bar and the create
-  // action, not the viewport's edge, are what the primary has to clear.
+  // 320x568 is the shortest phone: there the fixed tab bar, not the
+  // viewport's edge, is what the primary has to clear.
   for (const viewport of [
     { width: 1440, height: 900 },
     { width: 390, height: 844 },
@@ -253,8 +254,8 @@ test.describe("landing hierarchy", () => {
       expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(viewport.height + 1);
 
       // On a phone the fixed chrome owns part of that first screen: the primary
-      // ends above the tab bar, stays out of the create action's box, and a tap
-      // on its centre lands on it rather than on a tab.
+      // ends above the tab bar, and a tap on its centre lands on it rather than
+      // on a tab. No floating create action stands on it (captain, 1 Nov 2026).
       if (viewport.width <= 640) {
         const primaryNav = page.getByRole("navigation", { name: "Primary", exact: true });
         await expect(primaryNav).toHaveCount(1);
@@ -262,13 +263,7 @@ test.describe("landing hierarchy", () => {
         const tabBar = await primaryNav.boundingBox();
         expect(tabBar).not.toBeNull();
         expect(box!.y + box!.height).toBeLessThanOrEqual(tabBar!.y);
-        const create = await page.getByTestId("create-fab").boundingBox();
-        expect(create).not.toBeNull();
-        const clearOfCreate =
-          box!.x + box!.width <= create!.x ||
-          box!.y + box!.height <= create!.y ||
-          box!.y >= create!.y + create!.height;
-        expect(clearOfCreate).toBe(true);
+        await expect(page.getByTestId("create-fab")).toHaveCount(0);
         const hitsPrimary = await primary.evaluate((anchor) => {
           const rect = anchor.getBoundingClientRect();
           const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
@@ -289,10 +284,10 @@ test.describe("landing hierarchy", () => {
     });
   }
 
-  test("reads the same order on a phone as on a desktop: heading, line, picture, primary, quiet row, pub, rail", async ({ page }) => {
+  test("reads the same order on a phone as on a desktop: heading, line, hunt card, primary, quiet row, pub, rail", async ({ page }) => {
     await openLanding(page, { width: 390, height: 844 });
     const tops = await page.evaluate(() =>
-      ["#hero-title", ".lpHero .screenLede", ".lpHero .lpLondonFigure", ".lpHero [data-primary-action]", ".lpHero .screenSecondary", ".lpHero .lpPubCard", ".lpHero .lpRail"].map(
+      ["#hero-title", ".lpHero .screenLede", ".lpHero .lpHuntCard", ".lpHero [data-primary-action]", ".lpHero .screenSecondary", ".lpHero .lpPubCard", ".lpHero .lpRail"].map(
         (selector) => document.querySelector(selector)?.getBoundingClientRect().top ?? Number.NaN,
       ),
     );
@@ -353,7 +348,7 @@ async function expectLandingPrimaryClear(page: Page, viewport: { width: number; 
   expect(primaryBox.y + primaryBox.height).toBeLessThanOrEqual(viewport.height);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(viewport.width);
 
-  for (const floating of await page.locator(".createFab, .palSummon").all()) {
+  for (const floating of await page.locator(".palSummon").all()) {
     if (!await floating.isVisible()) continue;
     const box = (await floating.boundingBox())!;
     const overlaps = primaryBox.x < box.x + box.width
@@ -373,19 +368,19 @@ async function expectLandingPrimaryClear(page: Page, viewport: { width: number; 
 }
 
 for (const textSize of [16, 32]) {
-test(`homepage quiet actions remain clickable beside Create on a narrow phone with ${textSize}px text`, async ({ page }) => {
+// The floating Create these actions once had to clear left with the five-tab
+// dock (captain, 1 Nov 2026); they still own every point of their own box.
+test(`homepage quiet actions remain clickable on a narrow phone with ${textSize}px text`, async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 });
   await prepareClearanceLanding(page, "dark", false);
   await page.goto("/");
-  const create = page.getByRole("button", { name: "Create", exact: true });
-  await expect(create).toBeEnabled();
+  await expect(page.locator(".lpHero [data-primary-action]").getByRole("link", { name: LANDING_PRIMARY_NAME })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Create", exact: true })).toHaveCount(0);
   await page.evaluate((size) => { document.documentElement.style.fontSize = `${size}px`; }, textSize);
   await page.evaluate(() => document.fonts.ready);
   if (page.context().browser()?.browserType().name() === "chromium") {
     await expect.poll(() => page.evaluate(() => window.innerWidth - document.documentElement.clientWidth)).toBeGreaterThan(0);
   }
-  await create.focus();
-  await expect(page.locator(".createFabRoot")).toHaveCSS("opacity", "1");
 
   for (const link of await page.locator(".lpHero .screenSecondary a").all()) {
     await link.scrollIntoViewIfNeeded();
@@ -398,8 +393,8 @@ test(`homepage quiet actions remain clickable beside Create on a narrow phone wi
     expect(hits, await link.innerText()).toEqual(Array<boolean>(9).fill(true));
   }
 
-  await page.getByRole("link", { name: "What's on tonight", exact: true }).click();
-  await expect(page).toHaveURL(/\/tonight$/);
+  await page.locator(".lpHero").getByRole("link", { name: "Plan a crawl", exact: true }).click();
+  await expect(page).toHaveURL(/\/plan$/);
 });
 }
 
@@ -416,22 +411,18 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
         }
 
         const primary = page.locator(".lpHero [data-primary-action]").getByRole("link", { name: LANDING_PRIMARY_NAME });
-        const create = page.getByRole("button", { name: "Create", exact: true });
-        const dock = page.getByRole("navigation", { name: "Primary" });
-        const palDoor = dock.getByRole("link", { name: withPal ? "Pub Pal, Ripley" : "Pub Pal", exact: true });
+        // The Pal's door is in the landing's top bar now, and no floating
+        // create action stands over the first pub card (captain, 1 Nov 2026).
+        const topBar = page.locator("header.lpNav");
+        const palDoor = topBar.getByRole("link", { name: withPal ? "Pub Pal, Ripley" : "Pub Pal", exact: true });
         await expect(primary).toHaveAttribute("href", LANDING_PRIMARY_HREF);
-        await expect(create).toBeVisible();
+        await expect(page.getByRole("button", { name: "Create", exact: true })).toHaveCount(0);
         await expect(palDoor).toBeVisible();
         await expect(palDoor).toHaveAttribute("href", "/pal");
+        // The top bar carries the Pal, so the floating Pal shortcut stays down.
+        await expect(page.locator(".palSummon")).toBeHidden();
 
         await expectLandingPrimaryClear(page, viewport);
-
-        await expect(async () => {
-          await create.click();
-          await expect(page.locator(".createFabMenu")).toBeVisible({ timeout: 1_000 });
-        }).toPass();
-        await page.keyboard.press("Escape");
-        await expect(page.locator(".createFabMenu")).toBeHidden();
       });
     }
   }
@@ -476,9 +467,7 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
     // reachable and readable when the reader scrolls to it.
     await primary.evaluate((link) => link.scrollIntoView({ block: "center", behavior: "instant" }));
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
-    const create = page.getByRole("button", { name: "Create", exact: true });
-    await create.focus();
-    await expect(page.locator(".createFabRoot")).toHaveCSS("opacity", "1");
+    await expect(page.locator(".createFabRoot")).toHaveCount(0);
     await expectLandingPrimaryClear(page, viewport);
 
     const textFits = await primary.evaluate((link) => {
@@ -492,7 +481,7 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
       );
     });
     expect(textFits, "The whole enlarged label stays inside the primary button").toBe(true);
-    const palDoor = page.getByRole("navigation", { name: "Primary" })
+    const palDoor = page.locator("header.lpNav")
       .getByRole("link", { name: "Pub Pal, Ripley", exact: true });
     await expect(palDoor).toBeVisible();
     await expect(palDoor).toHaveAttribute("href", "/pal");

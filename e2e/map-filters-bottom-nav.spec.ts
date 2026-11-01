@@ -37,7 +37,7 @@ test.describe("map filters sheet and bottom navigation", () => {
     await filters.click();
     const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
     await expect(sheet).toBeVisible();
-    const map = primaryNav(page).getByRole("link", { name: "Map", exact: true });
+    const map = primaryNav(page).getByRole("link", { name: "Explore", exact: true });
     await expect(map).toHaveAttribute("aria-current", "page");
     await map.click();
     await expect(sheet).toHaveCount(0);

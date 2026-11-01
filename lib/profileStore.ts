@@ -424,6 +424,16 @@ export type ProfileStore = {
     handles: readonly string[],
   ): Promise<ReadonlyMap<string, ProfilePublicCard>>;
   /**
+   * One query: the account choice (`lib/accountVisibility.ts`) for a set of
+   * profile ids, read through `parseAccountVisibility`. An id with no row, or
+   * a deleted account's tombstone, is simply ABSENT, and a reader that needs
+   * a public account treats absent as not public. A store that cannot answer
+   * throws rather than guessing public.
+   */
+  getAccountVisibilitiesByIds(
+    ids: readonly string[],
+  ): Promise<ReadonlyMap<string, AccountVisibility>>;
+  /**
    * Resolve the handle linked to an auth user id, or null when no profile has
    * claimed that uid yet. Used by messaging (and similar) so an authenticated
    * caller is identified by their linked profile rather than a self-asserted
@@ -925,6 +935,26 @@ export const supabaseProfileStore: ProfileStore = {
     );
   },
 
+  async getAccountVisibilitiesByIds(ids) {
+    const keys = [...new Set(ids.map((id) => (typeof id === "string" ? id.trim() : "")).filter(Boolean))];
+    const out = new Map<string, AccountVisibility>();
+    for (let at = 0; at < keys.length; at += HANDLE_BATCH_SIZE) {
+      // Only the two columns the answer needs. A deploy ahead of migration 0154
+      // has no `visibility` column, and the read then FAILS rather than calling
+      // every account public.
+      const { data, error } = await admin()
+        .from(TABLE)
+        .select("id, visibility")
+        .in("id", keys.slice(at, at + HANDLE_BATCH_SIZE))
+        .is("tombstoned_at", null);
+      if (error) throw new Error(error.message);
+      for (const row of (data ?? []) as Array<{ id?: unknown; visibility?: unknown }>) {
+        if (typeof row.id === "string") out.set(row.id, parseAccountVisibility(row.visibility));
+      }
+    }
+    return out;
+  },
+
   async getHandleByUserId(userId) {
     if (!userId) return null;
     const { data, error } = await admin()
@@ -1360,6 +1390,16 @@ export const memoryProfileStore: ProfileStore = {
       const profile = memoryProfiles.get(key);
       if (!profile) continue;
       out.set(profile.handle, publicCardForProfile(profile));
+    }
+    return out;
+  },
+
+  async getAccountVisibilitiesByIds(ids) {
+    const wanted = new Set(ids.map((id) => (typeof id === "string" ? id.trim() : "")).filter(Boolean));
+    const out = new Map<string, AccountVisibility>();
+    for (const profile of memoryProfiles.values()) {
+      if (!wanted.has(profile.id) || isProfileTombstoned(profile)) continue;
+      out.set(profile.id, parseAccountVisibility(profile.visibility));
     }
     return out;
   },

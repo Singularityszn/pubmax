@@ -34,7 +34,12 @@ import {
 } from "@/lib/messageGroupThread";
 import { broadcastMessageSent, deferMessagesSignal } from "@/lib/messagesBroadcast.server";
 import { attachParticipantCards } from "@/lib/messageParticipantCards.server";
-import { messageAdultRefusal, messageBlockRefusal } from "@/lib/messageSafety.server";
+import {
+  messageAdultRefusal,
+  messageBlockRefusal,
+  messageMatesRefusal,
+  messageNewPairMatesRefusal,
+} from "@/lib/messageSafety.server";
 import { messagesStore } from "@/lib/messagesStore";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { isLimited } from "@/lib/pintDrops";
@@ -164,6 +169,10 @@ export async function POST(request: Request): Promise<Response> {
     // nobody: the sender is never told which side set it.
     const blockRefusal = await messageBlockRefusal([handle, other]);
     if (blockRefusal) return blockRefusal;
+    // Mates only for a NEW conversation until the age check is live
+    // (lib/messageSafety.ts); a pair that already has one keeps reaching it.
+    const matesRefusal = await messageNewPairMatesRefusal(handle, other);
+    if (matesRefusal) return matesRefusal;
   }
 
   const store = messagesStore();
@@ -241,6 +250,9 @@ async function openGroup(
   // them, with the same sentence a pair gets, so it names nobody.
   const blockRefusal = await messageBlockRefusal([handle, ...members]);
   if (blockRefusal) return blockRefusal;
+  // The opener must be mates with every member until the age check is live.
+  const matesRefusal = await messageMatesRefusal(handle, members);
+  if (matesRefusal) return matesRefusal;
   const opened = await store.openGroupConversation(
     handle,
     members,

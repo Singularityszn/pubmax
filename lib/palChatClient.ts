@@ -19,6 +19,7 @@ import {
 } from "@/lib/palChatStream";
 import { recentPalSessionTurns, PAL_SESSION_RECENT_TURNS } from "@/lib/palSessionTurns";
 import { isPubPalConversationId } from "@/lib/pubPalConversationId";
+import { readProviderAccountSignal } from "@/lib/authProviderRevision";
 
 export type PalChatResult =
   | (PalAnswer & { proposals: AskProposal[] })
@@ -27,14 +28,9 @@ export type PalChatResult =
 export const PAL_CHAT_TIMEOUT_MS = 25_000;
 
 type SessionOptions = {
+  signal?: AbortSignal;
   timeoutMs?: number;
   fetchImpl?: typeof fetch;
-  /**
-   * Called once, synchronously, when an ask starts and before its first await.
-   * It returns the fetch bound to the account that asked, so a switch during
-   * the preparation cannot lend the request another account's credentials.
-   */
-  bindFetch?: () => typeof fetch | undefined;
   initialTurns?: readonly AskTurn[];
   initialConversationId?: string;
   onConversationId?: (id: string) => void;
@@ -115,6 +111,19 @@ export function palChatResultFromBody(body: unknown): PalChatResult {
   return { ...legacy, proposals: [] };
 }
 
+function palChatHttpError(response: Response, body: unknown): Extract<PalChatResult, { status: "error" }> {
+  const record =
+    body && typeof body === "object" && !Array.isArray(body)
+      ? (body as Record<string, unknown>)
+      : {};
+  return {
+    status: "error",
+    message:
+      typeof record.error === "string" ? record.error : PAL_ERROR_FALLBACK,
+    ...(response.status === 401 ? { needsSignIn: true } : {}),
+  };
+}
+
 /**
  * Create a chat ask session with latest-wins ordering and in-thread memory.
  */
@@ -122,6 +131,7 @@ export function createPalChatSession(options: SessionOptions = {}) {
   const timeoutMs = options.timeoutMs ?? PAL_CHAT_TIMEOUT_MS;
   const fetchImpl = options.fetchImpl ?? signedInFetch;
   let currentId = 0;
+  let activeController: AbortController | null = null;
   let turns: AskTurn[] = [...(options.initialTurns ?? [])];
   let threadId = options.initialConversationId && isPubPalConversationId(options.initialConversationId) ? options.initialConversationId : "";
 
@@ -130,26 +140,28 @@ export function createPalChatSession(options: SessionOptions = {}) {
    * the answer text so far as it arrives ("" clears a checking line). The result
    * is the same either way, and a server that answers one JSON body still works.
    */
-  let activeController: AbortController | null = null;
-  let retired = false;
-  const ask = async function ask(
+  return async function ask(
     query: string,
     cityId: string,
     onText?: (text: string) => void,
   ): Promise<(PalChatResult & { routedQuery?: string }) | null> {
-    if (retired) return null;
     const requestId = ++currentId;
-    const requestFetch = options.bindFetch?.() ?? fetchImpl;
+    activeController?.abort();
+    const accountSignal = readProviderAccountSignal();
+    const controller = new AbortController();
+    activeController = controller;
+    const cancel = () => controller.abort();
+    accountSignal.addEventListener("abort", cancel, { once: true });
+    options.signal?.addEventListener("abort", cancel, { once: true });
+    const cancelled = () => requestId !== currentId || accountSignal.aborted || options.signal?.aborted;
     try {
-      const controller = new AbortController();
-      activeController?.abort();
-      activeController = controller;
+      if (cancelled()) return null;
       let timeoutId: ReturnType<typeof setTimeout>;
+      let rejectAborted!: () => void;
       const deadline = new Promise<never>((_resolve, reject) => {
-        timeoutId = setTimeout(() => {
-          controller.abort();
-          reject(new DOMException("Aborted", "AbortError"));
-        }, timeoutMs);
+        rejectAborted = () => reject(new DOMException("Aborted", "AbortError"));
+        controller.signal.addEventListener("abort", rejectAborted, { once: true });
+        timeoutId = setTimeout(cancel, timeoutMs);
       });
       const withinDeadline = <T,>(work: Promise<T>): Promise<T> => Promise.race([work, deadline]);
       let response: Response;
@@ -161,7 +173,8 @@ export function createPalChatSession(options: SessionOptions = {}) {
         const { refineRoutedAskQuery } = await withinDeadline(import("@/lib/ask/router"));
         const priorUsers = recent.filter((turn) => turn.role === "user").map((turn) => turn.content);
         routedQuery = refineRoutedAskQuery(query, priorUsers.at(-1), priorUsers);
-        response = await withinDeadline(requestFetch("/api/pub-pal/chat", {
+        if (cancelled() || controller.signal.aborted) return null;
+        response = await withinDeadline(fetchImpl("/api/pub-pal/chat", {
           method: "POST",
           headers: {
             "content-type": "application/json",
@@ -183,7 +196,7 @@ export function createPalChatSession(options: SessionOptions = {}) {
             else if (event.type === "error") streamError = event.error;
             else {
               text = event.type === "delta" ? text + event.text : "";
-              if (requestId === currentId && !controller.signal.aborted) onText?.(text);
+              if (!cancelled() && !controller.signal.aborted) onText?.(text);
             }
           }));
           // A stream that ends without its final event was cut off.
@@ -192,19 +205,10 @@ export function createPalChatSession(options: SessionOptions = {}) {
         } else {
           body = await withinDeadline(response.json());
         }
-        if (requestId !== currentId) return null;
+        if (cancelled() || controller.signal.aborted) return null;
         if (streamError !== null) return { status: "error", message: streamError };
         if (!response.ok) {
-          const record =
-            body && typeof body === "object" && !Array.isArray(body)
-              ? (body as Record<string, unknown>)
-              : {};
-          return {
-            status: "error",
-            message:
-              typeof record.error === "string" ? record.error : PAL_ERROR_FALLBACK,
-            ...(response.status === 401 ? { needsSignIn: true } : {}),
-          };
+          return palChatHttpError(response, body);
         }
         const result = palChatResultFromBody(body);
         const conversationId =
@@ -217,7 +221,7 @@ export function createPalChatSession(options: SessionOptions = {}) {
             { role: "user", content: query },
             { role: "assistant", content: result.message },
           ]));
-          if (requestId !== currentId) return null;
+          if (cancelled() || controller.signal.aborted) return null;
           turns = recent;
           options.onTurns?.(turns.map((turn) => ({ ...turn })));
         }
@@ -228,26 +232,18 @@ export function createPalChatSession(options: SessionOptions = {}) {
         return result.status === "error" ? result : { ...result, routedQuery };
       } finally {
         clearTimeout(timeoutId!);
+        controller.signal.removeEventListener("abort", rejectAborted);
       }
     } catch (error) {
-      if (requestId !== currentId) return null;
+      if (cancelled()) return null;
       return {
         status: "error",
         message: error instanceof AuthActionSessionError ? error.message : PAL_ERROR_FALLBACK,
       };
+    } finally {
+      accountSignal.removeEventListener("abort", cancel);
+      options.signal?.removeEventListener("abort", cancel);
+      if (activeController === controller) activeController = null;
     }
   };
-  /**
-   * Retire the session: the in-flight ask is aborted and answers null, and no
-   * later ask runs. The chat calls this when its account leaves, so a request
-   * prepared for one account can never go out or land after another arrives.
-   */
-  return Object.assign(ask, {
-    cancel(): void {
-      retired = true;
-      currentId += 1;
-      activeController?.abort();
-      activeController = null;
-    },
-  });
 }

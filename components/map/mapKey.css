@@ -264,20 +264,22 @@
   border: 2px dashed var(--ink);
 }
 
+/* A selection reads in ink on the canvas, never coral (buildScene.ts), so its
+   key does too. */
 .mapKeyMarker--base-selected::before {
   width: 19px;
   height: 19px;
-  border: 2px solid var(--brass);
+  border: 2px solid var(--ink);
 }
 
 .mapKeyMarker--selected::before {
-  border-color: var(--brass-bright);
+  border-color: var(--ink);
 }
 
 .mapKeyMarker--selected::after {
   width: 21px;
   height: 21px;
-  border: 2px solid var(--brass);
+  border: 2px solid color-mix(in srgb, var(--ink) 35%, transparent);
 }
 
 .mapKeyMarker--story-band::before {

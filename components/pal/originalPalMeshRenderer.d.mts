@@ -5,6 +5,8 @@ export type PalMeshSurface = {
   renderPose(pose: ReturnType<typeof palHeadTarget>, now: number): boolean;
   setYaw(degrees: number): void;
   turnYaw(degrees: number): void;
+  /** End a drag in progress and release its pointer capture. */
+  endDrag(): void;
   setVisible(visible: boolean): void;
   dispose(): void;
 };

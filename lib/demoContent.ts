@@ -1,21 +1,31 @@
-// Kill switch for DEMO content (seeded pint drops, ambient presence counts).
+// Switch for DEMO content (seeded pint drops, ambient presence counts).
 //
 // Demo seeds bootstrapped the product's surfaces while no real users existed,
 // and every seeded row is labelled DEMO in the UI. But for a launch built on
 // data honesty, seeded liveness ("2 spilling right now") is a credibility
-// risk the moment real users arrive — so the seams below let the owner turn
-// ALL demo content off with one env flip, without touching the seed data.
+// risk the moment real users arrive.
 //
-// Default is ON (unchanged behavior) until `NEXT_PUBLIC_DEMO_CONTENT=off` is
-// set. The flag is a public build-time env because the seeds render on both
-// server and client surfaces and must agree.
+// Demo content is OPT-IN. It renders only where `NEXT_PUBLIC_DEMO_CONTENT=on`
+// asks for it: local development, a keyless demo, or the e2e server. It used
+// to be on unless a deployment set the literal value `off`, so one forgotten
+// setting in Vercel put seeded activity in front of the public (launch plan,
+// 1 November 2026). The same reasoning made demo drinks opt-in in #1427.
+//
+// The flag is a public build-time env because the seeds render on both server
+// and client surfaces and must agree.
 export function demoContentEnabled(): boolean {
-  return process.env.NEXT_PUBLIC_DEMO_CONTENT !== "off";
+  return process.env.NEXT_PUBLIC_DEMO_CONTENT === "on";
+}
+
+// `off` is still honoured as a kill switch for the demo drink rows below, so a
+// deployment that already sets it keeps every demo lane closed.
+function demoContentKilled(): boolean {
+  return process.env.NEXT_PUBLIC_DEMO_CONTENT === "off";
 }
 
 // Narrower gate for DEMO DRINK ROWS (seeded venue menus and the demo lane of
-// the drink-price overlay), which is the OPPOSITE default to the kill switch
-// above and deliberately so.
+// the drink-price overlay). It has its own opt-in, so a developer can turn on
+// demo drinks without the seeded drops.
 //
 // A demo pour used to render whenever the owner had not remembered to set
 // NEXT_PUBLIC_DEMO_CONTENT=off, so a forgotten deployment setting put seeded
@@ -27,5 +37,5 @@ export function demoContentEnabled(): boolean {
 // The kill switch still kills: NEXT_PUBLIC_DEMO_CONTENT=off turns these off
 // whatever this flag says.
 export function demoDrinksEnabled(): boolean {
-  return demoContentEnabled() && process.env.NEXT_PUBLIC_DEMO_DRINKS === "on";
+  return !demoContentKilled() && process.env.NEXT_PUBLIC_DEMO_DRINKS === "on";
 }

@@ -58,9 +58,9 @@ test("the landing card shows its own pub's photograph, or no photograph at all",
     await expect(card.locator("#lp-answer-name a")).toBeVisible();
     await expect(card.locator(".lpPubPrice")).toContainText(/£\d+\.\d{2}/);
     await expect(card.locator(".lpPubSource")).toBeVisible();
-    await expect(
-      page.getByRole("img", { name: "Tower Bridge and the Thames in London from above" }),
-    ).toBeVisible();
+    // The stock photograph left the hero with the hunt (1 Nov 2026), so a text
+    // card leaves the first screen with no image at all.
+    await expect(page.locator(".lpHero img")).toHaveCount(0);
     expect(cardPhotoRequests).toEqual([]);
     return;
   }
@@ -88,66 +88,30 @@ test("the landing card shows its own pub's photograph, or no photograph at all",
   await expect(credit).toContainText(resolved.photo.credit.author);
 });
 
-test.describe("responsive London skyline", () => {
-  test.use({ deviceScaleFactor: 2 });
-
-  // A phone's photograph spends the height above its tab bar (and, on a short
-  // phone, the consent lane) across the figure's whole width, so its crop may
-  // be wider than 3:2 but never taller. Wider screens keep a 3:2 box.
-  for (const { viewport, sourceWidth, phoneCrop } of [
-    { viewport: { width: 320, height: 568 }, sourceWidth: 1024, phoneCrop: true },
-    { viewport: { width: 390, height: 844 }, sourceWidth: 1024, phoneCrop: true },
-    { viewport: { width: 768, height: 1024 }, sourceWidth: 1024, phoneCrop: false },
-    { viewport: { width: 1150, height: 900 }, sourceWidth: 1024, phoneCrop: false },
-    { viewport: { width: 1440, height: 900 }, sourceWidth: 1600, phoneCrop: false },
+// The hunt card took the stock photograph's place (captain decisions 2 and 3,
+// 1 Nov 2026). What a browser proves that the unit render cannot: the card
+// paints at every width with its figure, its source and its day, the stock
+// photograph is never fetched, and nothing spills sideways.
+test.describe("the hunt card in the photograph's place", () => {
+  for (const viewport of [
+    { width: 320, height: 568 },
+    { width: 390, height: 844 },
+    { width: 768, height: 1024 },
+    { width: 1150, height: 900 },
+    { width: 1440, height: 900 },
   ]) {
-    test(`reserves photo space and fetches the right width at ${viewport.width}`, async ({ page }) => {
-      const requested = new Set<string>();
-      let releasePhoto!: () => void;
-      const photoHeld = new Promise<void>((resolve) => { releasePhoto = resolve; });
-      await page.route("**/landing/hero-thames-*", async (route) => {
-        requested.add(route.request().url());
-        await photoHeld;
-        await route.continue();
+    test(`shows the cheapest pint with its source and day at ${viewport.width}`, async ({ page }) => {
+      const stockPhoto: string[] = [];
+      page.on("request", (request) => {
+        if (request.url().includes("/landing/hero-thames")) stockPhoto.push(request.url());
       });
-      await open(page, "/", viewport, "domcontentloaded");
-      await page.evaluate(() => document.fonts.ready);
-      const photo = page.getByRole("img", { name: "Tower Bridge and the Thames in London from above" });
-      await expect(photo).toBeVisible();
-      const reserved = await photo.boundingBox();
-      const primary = page.locator(".lpHero [data-primary-action] a");
-      const before = await primary.boundingBox();
-      try {
-        expect(reserved).not.toBeNull();
-        expect(reserved!.width).toBeGreaterThan(0);
-        expect(reserved!.height).toBeGreaterThan(0);
-        if (phoneCrop) {
-          const figure = await page.locator(".lpHero .lpLondonFigure").boundingBox();
-          expect(figure).not.toBeNull();
-          expect(reserved!.width).toBeCloseTo(figure!.width, 0);
-          expect(reserved!.height).toBeLessThanOrEqual((reserved!.width * 2) / 3 + 1);
-        } else {
-          expect(reserved!.width / reserved!.height).toBeCloseTo(1.5, 2);
-        }
-        expect(await photo.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(0);
-        expect(before).not.toBeNull();
-      } finally {
-        releasePhoto();
-      }
-
-      await expect.poll(() => photo.evaluate((image: HTMLImageElement) =>
-        image.complete && image.naturalWidth > 0 && image.naturalHeight > 0)).toBe(true);
-      await photo.evaluate((image: HTMLImageElement) => image.decode());
-      const src = await photo.evaluate((image: HTMLImageElement) => image.currentSrc);
-      expect(src).toContain(`/landing/hero-thames-${sourceWidth}.`);
-      expect([...requested]).toEqual([src]);
-      const painted = await photo.boundingBox();
-      const after = await primary.boundingBox();
-      expect(painted).not.toBeNull();
-      expect(painted!.width).toBeCloseTo(reserved!.width, 1);
-      expect(painted!.height).toBeCloseTo(reserved!.height, 1);
-      expect(after).not.toBeNull();
-      expect(after!.y).toBeCloseTo(before!.y, 1);
+      await open(page, "/", viewport);
+      const card = page.locator(".lpHero .lpHuntCard");
+      await expect(card).toBeVisible();
+      await expect(card.locator(".lpHuntFigure")).toContainText(/£\d+\.\d{2}/);
+      await expect(card.locator(".lpHuntSource a")).toBeVisible();
+      await expect(card.locator(".lpHuntSource time")).toHaveAttribute("datetime", /^\d{4}-\d{2}-\d{2}$/);
+      expect(stockPhoto).toEqual([]);
       await expect(page.locator("svg.lpMapSnapshot")).toHaveCount(0);
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
       expect(overflow).toBeLessThanOrEqual(0);
@@ -183,7 +147,7 @@ test("text over a landing photograph ships the alpha the contrast contract is pr
   expect(creditAlpha).toBeGreaterThanOrEqual(0.72);
 });
 
-test("the picture costs the primary action nothing: it stays above the fold", async ({ page }) => {
+test("the hunt card costs the primary action nothing: it stays above the fold", async ({ page }) => {
   await open(page, "/", { width: 390, height: 844 });
   await page.evaluate(() => window.scrollTo(0, 0));
   const primary = page.locator(".lpHero [data-primary-action] a");

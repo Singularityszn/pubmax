@@ -538,7 +538,26 @@ async function measureSurfaceAssertions(
     const stack = names
       .map((name) => panels.find((candidate) => candidate.name === name))
       .filter((candidate): candidate is PanelMeasurement => Boolean(candidate));
-    assertMeasured(
+    // From 1024px the list sits beside the map (components/map/MapSplitList.tsx)
+    // and the nav spans the window above both columns. The toolbar is centred
+    // on the map lane with the nav's own gutter, so the two share their RIGHT
+    // edge and the toolbar's gap from the list equals the nav's gutter.
+    const splitList =
+      viewport.width > 640
+        ? panels.find((candidate) => candidate.name === "desktop split list")
+        : undefined;
+    if (splitList && stack.length === names.length) {
+      const [nav, toolbar] = stack;
+      assertMeasured(
+        assertions,
+        surface,
+        viewport.width,
+        "floating map stack shares its right edge beside the list",
+        Math.abs(nav.right - toolbar.right) <= 0.5 &&
+          Math.abs(toolbar.left - splitList.right - nav.left) <= 0.5,
+        `${nav.name} ${nav.left}-${nav.right}px; ${toolbar.name} ${toolbar.left}-${toolbar.right}px; list ends ${splitList.right}px`,
+      );
+    } else assertMeasured(
       assertions,
       surface,
       viewport.width,
@@ -791,6 +810,7 @@ async function captureSurface(
     panel(page, "analytics notice", ".analyticsConsentPrompt"),
     panel(page, "desktop map navigation", ".siteNavBarFloating"),
     panel(page, "desktop map toolbar", ".mapToolbar"),
+    panel(page, "desktop split list", ".mapSplitList"),
     panel(page, "map credit", ".maplibregl-ctrl-bottom-right"),
     panel(page, "page main", "main"),
   ]);

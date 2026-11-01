@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import DataCreditsLink from "@/components/legal/DataCreditsLink";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useSyncExternalStore, type ReactNode } from "react";
 
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 // The landing bar isn't the SiteNav component, but it flies the same wordmark
@@ -61,9 +61,22 @@ export default function LandingPage({
   collagePrices = {},
   answers = null,
   ukCoverage = null,
+  huntCard = null,
+  huntCities = null,
   // Server-threaded friends-launch flag. Explicit 0 is the rollback state.
   socialFriendsLaunchEnabled = true,
 }: {
+  /**
+   * The cheapest pint we can find in Britain, rendered on the server
+   * (components/landing/LandingHuntCard.tsx) and seated where the hero's
+   * photograph stood. A slot, so its code never ships to the browser.
+   */
+  huntCard?: ReactNode;
+  /**
+   * Britain's cheapest pint, city by city, and London's dearest pint, rendered
+   * on the server (components/landing/LandingHuntCities.tsx).
+   */
+  huntCities?: ReactNode;
   /** The one real pub above the fold, or null when the data cannot back one. */
   card?: LandingPubCardData | null;
   /** The archive's then rows, keyed by venue id, built beside the card. */
@@ -143,19 +156,24 @@ export default function LandingPage({
       </header>
 
       <main id="main">
-        {/* The whole first screen, at every width: the claim, the saving line
-            under it, the picture of London, one primary action (Cheapest pints
-            near me), the quiet row of the receipt door and Tonight, then the
-            one real pub and three next-cheapest rows. The DOM order is the
-            phone order; the desktop only seats the picture and the rows beside
-            the copy. */}
-        <LandingHero card={card} archive={archive} rail={rail} />
+        {/* The whole first screen, at every width: the claim, the line under
+            it, the cheapest pint we can find in Britain, one primary action
+            (Cheapest pints near me), the quiet row of the receipt door and
+            Plan a crawl, then the one real pub and three next-cheapest rows.
+            The DOM order is the phone order; the desktop only seats the hunt
+            card and the rows beside the copy. */}
+        <LandingHero card={card} archive={archive} rail={rail} hunt={huntCard} />
 
         {/* The founder's own photographs of London, each patch with the
             cheapest listed pint a short walk from where it was taken. Straight
             after the answer, so the second thing a visitor sees is the city
             the prices come from (captain 18 Oct 2026). */}
         <LandingLondonCollage areaPrices={collagePrices} />
+
+        {/* UK hunt, London deep (captain decision 3, 1 Nov 2026): every city on
+            the map with its cheapest listed pint or the honest empty line, and
+            London's dearest pint for the press. */}
+        {huntCities}
 
         {answers ? <LandingAnswerCards answers={answers} /> : null}
 

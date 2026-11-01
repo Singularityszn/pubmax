@@ -30,6 +30,10 @@ describe("isNonPublicVenueName", () => {
     "Royal British Legion Hendon",
     "The Staff Bar",
     "Members Only Bar",
+    // A university's initials joined to SU (Birmingham's hunt winner, 1 Nov 2026).
+    "Eagle & Ball by BCUSU",
+    "The Three Tuns, LSESU",
+    "Students Union Bar",
   ])("reads %s as not open to the public", (name) => {
     expect(isNonPublicVenueName(name)).toBe(true);
   });
@@ -45,6 +49,10 @@ describe("isNonPublicVenueName", () => {
     "Sun Inn",
     "The Surrey Docks",
     "Nags Head, Peckham",
+    // Capitals that merely end in SU, or initials in lower case, are not a union.
+    "Misu Bar",
+    "The Bcusu Arms",
+    "SUSHI SAMBA",
   ])("leaves %s in the rankings", (name) => {
     expect(isNonPublicVenueName(name)).toBe(false);
   });

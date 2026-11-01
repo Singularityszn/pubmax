@@ -19,7 +19,37 @@ const state = {
   imageState: "valid" as "valid" | "missing" | "corrupt", paths: [] as string[],
   refreshFailures: 0,
   revoked: false,
+  // The signed-out door: the rows holding this photo, the author's account
+  // choice, and the reader the media read is asked for (null is nobody).
+  lanePosts: [] as Array<Record<string, unknown>>,
+  authorVisibility: "public" as string | null,
+  mediaViewer: PROFILE_ID as string | null,
 };
+
+function londonLaneRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    id: "77777777-7777-4777-8777-777777777777",
+    author_profile_id: PROFILE_ID,
+    author_handle: "alice",
+    kind: "standard",
+    visibility: "public",
+    status: "visible",
+    body: "Proper pint at the Lamb",
+    area_slug: "camden",
+    venue_id: null,
+    hashtags: [],
+    comment_policy: "open",
+    photo_media_id: MEDIA_ID,
+    photo_alt_text: "A pint on the bar",
+    author_name_hidden: false,
+    moderation_state: "approved",
+    revision: 0,
+    mutation_version: 0,
+    created_at: "2026-11-01T19:00:00.000Z",
+    updated_at: "2026-11-01T19:00:00.000Z",
+    ...overrides,
+  };
+}
 
 // Only the external Auth, PostgREST and Storage responses are fixtures. The
 // GET handlers, identity checks, stores, limiter and image reader remain real.
@@ -59,14 +89,16 @@ const fixtureFetch: typeof fetch = async (input, init) => {
     return json([{ id: ACCOUNT_ID, clerk_user_id: "fixture-account", profile_id: PROFILE_ID, ownership_state: "active" }]);
   }
   if (url.pathname === "/rest/v1/profiles") {
-    return json([{ id: PROFILE_ID, handle: "alice", user_id: USER_ID }]);
+    return json([{ id: PROFILE_ID, handle: "alice", user_id: USER_ID, visibility: state.authorVisibility }]);
   }
   if (url.pathname === "/rest/v1/private_account_identities") return json([{ date_of_birth: "1990-01-01" }]);
   if (url.pathname === "/rest/v1/adult_self_assertions") return json([]);
   if (url.pathname === "/rest/v1/rpc/check_rate_limit") return json(state.limited);
+  if (url.pathname === "/rest/v1/social_posts") return json(state.lanePosts);
+  if (url.pathname === "/rest/v1/rpc/public_withdrawn_profiles") return json([]);
   if (url.pathname === "/rest/v1/rpc/read_social_post_media") {
-    const body = JSON.parse(String(init?.body)) as { p_viewer: string; p_media_id: string };
-    expect(body).toEqual({ p_viewer: PROFILE_ID, p_media_id: MEDIA_ID });
+    const body = JSON.parse(String(init?.body)) as { p_viewer: string | null; p_media_id: string };
+    expect(body).toEqual({ p_viewer: state.mediaViewer, p_media_id: MEDIA_ID });
     return json(state.authorized ? [{ object_key: OBJECT_KEY }] : []);
   }
   if (url.pathname === "/rest/v1/rpc/read_social_post_media_admin") {
@@ -94,6 +126,9 @@ beforeEach(() => {
   state.paths = [];
   state.refreshFailures = 0;
   state.revoked = false;
+  state.lanePosts = [];
+  state.authorVisibility = "public";
+  state.mediaViewer = PROFILE_ID;
   vi.stubEnv("SUPABASE_URL", "https://social-media.test");
   vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "fixture-key");
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://social-media.test");
@@ -186,11 +221,58 @@ it("preserves the moderator session-cookie image request", async () => {
   }), { params: Promise.resolve({ mediaId: MEDIA_ID }) }));
 });
 
-it("refuses an anonymous retained URL without consulting media or Storage", async () => {
+it("refuses an anonymous retained URL the London lane does not show, without consulting media or Storage", async () => {
+  // The signed-out door asks the lane's own rule first. No post in the lane
+  // holds this photo, so the media read and Storage are never reached.
   const response = await serve({});
   expect(response.status).toBe(404);
   expect(response.headers.get("location")).toBeNull();
-  expect(state.paths).toEqual([]);
+  expect(state.paths).not.toContain("/rest/v1/rpc/read_social_post_media");
+  expect(downloads()).toEqual([]);
+});
+
+it("serves a London lane photo to a signed-out reader, and only while the post stays in the lane", async () => {
+  state.mediaViewer = null;
+  state.lanePosts = [londonLaneRow()];
+  await expectPhoto(await serve({}));
+  expect(state.paths).not.toContain("/auth/v1/user");
+  expect(downloads()).toHaveLength(1);
+
+  const refusals: Array<[string, () => void]> = [
+    ["a patch outside London", () => { state.lanePosts = [londonLaneRow({ area_slug: "manchester-city-centre" })]; }],
+    ["no area at all", () => { state.lanePosts = [londonLaneRow({ area_slug: null })]; }],
+    ["a mutuals-only post", () => { state.lanePosts = [londonLaneRow({ visibility: "friends" })]; }],
+    ["a post still in review", () => { state.lanePosts = [londonLaneRow({ moderation_state: "needs_review" })]; }],
+    ["a hidden post", () => { state.lanePosts = [londonLaneRow({ status: "hidden" })]; }],
+    ["a private account", () => { state.lanePosts = [londonLaneRow()]; state.authorVisibility = "private"; }],
+  ];
+  for (const [label, arrange] of refusals) {
+    state.authorVisibility = "public";
+    arrange();
+    const refused = await serve({});
+    expect(refused.status, label).toBe(404);
+  }
+  expect(downloads(), "no refused photo reaches Storage").toHaveLength(1);
+
+  state.lanePosts = [londonLaneRow()];
+  state.authorVisibility = "public";
+  vi.stubEnv("PUBMAX_SOCIAL_FREEZE", "social");
+  expect((await serve({})).status, "the freeze pauses the signed-out door").toBe(404);
+  vi.stubEnv("PUBMAX_SOCIAL_FREEZE", "");
+  vi.stubEnv("PUBMAX_SOCIAL_FRIENDS_LAUNCH", "0");
+  expect((await serve({})).status, "the launch rollback pauses it").toBe(404);
+  expect(downloads()).toHaveLength(1);
+});
+
+it("keeps the signed-out photo door's per-IP budget ahead of the lane rule and Storage", async () => {
+  state.mediaViewer = null;
+  state.lanePosts = [londonLaneRow()];
+  state.limited = true;
+  const response = await serve({});
+  expect(response.status).toBe(404);
+  expect(state.paths).toContain("/rest/v1/rpc/check_rate_limit");
+  expect(state.paths).not.toContain("/rest/v1/social_posts");
+  expect(downloads()).toEqual([]);
 });
 
 it("keeps the read budget ahead of media authorization and download", async () => {

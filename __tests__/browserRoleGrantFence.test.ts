@@ -107,6 +107,22 @@ const COLUMN_SELECT: Readonly<
       "created_at",
     ],
   },
+  // 0217: a published operator fact is the pub's own public word. The
+  // operator's account id, the proposal id and the withdrawal stamp stay off.
+  operator_facts: {
+    roles: EVERYONE,
+    columns: [
+      "id",
+      "venue_id",
+      "kind",
+      "title",
+      "body",
+      "field",
+      "when_text",
+      "on_date",
+      "published_at",
+    ],
+  },
   plan_crew_members: {
     roles: SIGNED_IN,
     columns: ["id", "plan_id", "name", "status", "user_id", "joined_at", "updated_at"],

@@ -47,11 +47,16 @@ const MAX_PROPOSAL_VENUE_ID = 120;
 //   event:      title + startsAt (+ optional body)
 //   offer:      title + body (the details)
 //   response:   body (the operator's reply; optional title as a subject)
+// An event or an offer may also carry `onDate`, the one London calendar date
+// it is on (YYYY-MM-DD). It is the only structured date a proposal holds, and
+// it is what lets Tonight show a published event on its night. `startsAt` stays
+// the operator's own words ("Thursdays, 8pm") and is never parsed into a date.
 export type OperatorProposalPayload = {
   title?: string;
   body?: string;
   field?: string;
   startsAt?: string;
+  onDate?: string;
 };
 
 export type OperatorProposal = {
@@ -105,19 +110,50 @@ export function isOperatorProposalStatus(v: unknown): v is OperatorProposalStatu
   return typeof v === "string" && (OPERATOR_PROPOSAL_STATUSES as readonly string[]).includes(v);
 }
 
-type RawPayload = { title?: unknown; body?: unknown; field?: unknown; startsAt?: unknown };
+type RawPayload = {
+  title?: unknown;
+  body?: unknown;
+  field?: unknown;
+  startsAt?: unknown;
+  onDate?: unknown;
+};
 
-/** Clean the four optional payload strings; empties collapse to absent. */
-function cleanPayload(raw: RawPayload): OperatorProposalPayload {
+/** The two kinds that can be on one night. */
+function takesOnDate(type: OperatorProposalType): boolean {
+  return type === "event" || type === "offer";
+}
+
+/**
+ * A real calendar date written YYYY-MM-DD, or null. A shape that names no day
+ * (2026-02-30) is refused rather than rolled into March.
+ */
+function operatorCalendarDate(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const date = value.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  const [year, month, day] = date.split("-").map(Number);
+  if (!year || !month || !day) return null;
+  const probe = new Date(Date.UTC(year, month - 1, day));
+  return probe.getUTCFullYear() === year &&
+    probe.getUTCMonth() === month - 1 &&
+    probe.getUTCDate() === day
+    ? date
+    : null;
+}
+
+/** Clean the optional payload strings; empties collapse to absent. */
+function cleanPayload(raw: RawPayload, type: OperatorProposalType): OperatorProposalPayload {
   const title = cleanText(raw.title, MAX_PROPOSAL_TITLE);
   const body = cleanText(raw.body, MAX_PROPOSAL_BODY);
   const field = cleanText(raw.field, MAX_PROPOSAL_FIELD);
   const startsAt = cleanText(raw.startsAt, MAX_PROPOSAL_WHEN);
+  const onDate = takesOnDate(type) ? operatorCalendarDate(raw.onDate) : null;
   const payload: OperatorProposalPayload = {};
   if (title) payload.title = title;
   if (body) payload.body = body;
   if (field) payload.field = field;
   if (startsAt) payload.startsAt = startsAt;
+  if (onDate) payload.onDate = onDate;
   return payload;
 }
 
@@ -172,9 +208,15 @@ export function validateOperatorProposal(
 
   const rawPayload =
     raw.payload && typeof raw.payload === "object" ? (raw.payload as RawPayload) : {};
-  const payload = cleanPayload(rawPayload);
+  const payload = cleanPayload(rawPayload, type);
   if (!payloadComplete(type, payload)) {
     return { ok: false, error: INCOMPLETE_MESSAGE[type] };
+  }
+  // A date that was sent and is not a real day is refused, never dropped: the
+  // operator meant a night, and a proposal without it would read as standing.
+  const sentDate = typeof rawPayload.onDate === "string" ? rawPayload.onDate.trim() : "";
+  if (takesOnDate(type) && sentDate && !payload.onDate) {
+    return { ok: false, error: "Pick a real date, or leave the date empty." };
   }
 
   return {

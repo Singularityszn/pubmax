@@ -7,7 +7,6 @@ import ConsentAwareVercelAnalytics from "@/components/ConsentAwareVercelAnalytic
 import ConsentAwareVercelSpeedInsights from "@/components/ConsentAwareVercelSpeedInsights";
 import "./root-shell.css";
 import { PlanMapNavigationProvider } from "@/components/nav/PlanMapNavigation";
-import CreateFab from "@/components/nav/CreateFab";
 import MobileTabBar, {
   MobileTabBarClearanceFallback,
 } from "@/components/nav/MobileTabBar";
@@ -424,7 +423,6 @@ export default async function RootLayout({
                   <Suspense fallback={<MobileTabBarClearanceFallback />}>
                     <MobileTabBar />
                   </Suspense>
-                  <CreateFab />
                   {/* Night Mode card, Pub Pal summon, first-run tour, A2HS prompt and
                       native push explainer all render nothing on first paint, so they
                       load lazily after hydration — see DeferredShellExtras. */}
@@ -454,7 +452,6 @@ export default async function RootLayout({
                 <Suspense fallback={<MobileTabBarClearanceFallback />}>
                   <MobileTabBar />
                 </Suspense>
-                <CreateFab />
                 <DeferredShellExtras />
                 <OfflineReady />
                 <ClientErrorReporter />

@@ -40,12 +40,15 @@ import {
   AGED_PRICE_LINE,
   PROVISIONAL_PRICE_LINE,
   PRICE_PENDING_LINE,
+  UNCHECKED_PRICE_LINE,
   baselineTrustCaption,
+  uncheckedPriceLine,
   venueBundlePrices,
   venuePriceLane,
   venuePriceFallbackPending,
   venuePriceLaneIsDrinkerLog,
   venuePriceLaneObservedGbp,
+  venuePriceLaneUncheckedBy,
   type DisputedPriceInput,
   type ProvisionalPriceInput,
   type VenuePriceLane,
@@ -93,11 +96,11 @@ import VenueGettingThere, {
 import VenueOccupancyRow from "@/components/map/VenueOccupancyRow";
 import DiaryLogPanel from "@/components/diary/DiaryLogPanel";
 import VisitReportPanel from "@/components/visits/VisitReportPanel";
+import VenueFromThePub from "@/components/operators/VenueFromThePub";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import { cuisineTagsForVenue } from "@/lib/cuisineTags";
 import type { CityId } from "@/lib/cities";
 import type { JourneyPoint } from "@/lib/venueJourney";
-import type { CrawlMode } from "@/components/map/ControlRail";
 import type { TabKey } from "@/lib/venueInspectorTabs";
 import type { PresenceState } from "./usePresence";
 import { useSheetPromptSlot } from "./useSheetPromptSlot";
@@ -112,7 +115,6 @@ import { type DrinkCategory } from "@/lib/drinks";
 import { overviewDisplayablePintGbp } from "@/lib/overviewDisplayablePint";
 import { confirmPintActionName } from "@/lib/pintDropSecondDrinker";
 import type { ZonePintIndex } from "@/lib/zones";
-import { useSheetFooterSlot } from "@/components/mobile/sheetFooterContext";
 import SunChaserVenueLine from "@/components/map/sunChaser/SunChaserVenueLine";
 
 /**
@@ -350,6 +352,13 @@ function PriceDoorRow(props: Parameters<typeof PriceDoor>[0]) {
  * and the band simply do not render there: two prices have no one number and no
  * one colour. `priceStanding` is deliberately not consulted for any of the
  * three, because a drinker's log is not a published price.
+ *
+ * AN UNCHECKED LOG (a typed price with no bill, captain decision 9) prints in
+ * the same block, visibly weaker and in words rather than a colour: the
+ * drinker is named as "Logged by @handle, not checked", the figure sits on the
+ * NEUTRAL plaque, and the line says what it is waiting for. Colour means the
+ * price band and never trust, so the weakness is the band withheld, never a
+ * hue of its own.
  */
 function DrinkerLogBlock({
   lane,
@@ -368,6 +377,7 @@ function DrinkerLogBlock({
 }) {
   const split = lane.lane === "disputed" ? lane.split : null;
   const figure = venuePriceLaneObservedGbp(lane);
+  const uncheckedBy = venuePriceLaneUncheckedBy(lane);
   const observedAt = lane.lane === "aged" || lane.lane === "provisional" || lane.lane === "disputed"
     ? lane.observedAt
     : null;
@@ -376,15 +386,28 @@ function DrinkerLogBlock({
     ? pintPriceSplitLine(split)
     : lane.lane === "aged"
       ? AGED_PRICE_LINE
-      : PROVISIONAL_PRICE_LINE;
+      : uncheckedBy !== null
+        ? UNCHECKED_PRICE_LINE
+        : PROVISIONAL_PRICE_LINE;
   return (
-    <div className="contributorPrice" {...trustChipAttrs}>
+    <div
+      className="contributorPrice"
+      {...trustChipAttrs}
+      data-price-check={uncheckedBy !== null ? "unchecked" : undefined}
+    >
       <span className={chromeRevealClass}>
         <ClaimBadge kind="contributor" />{" "}
-        {split ? "Logged by PUBMAXXERS" : "Logged by a PUBMAXXER"}
+        {uncheckedBy !== null
+          ? uncheckedPriceLine(uncheckedBy)
+          : split
+            ? "Logged by PUBMAXXERS"
+            : "Logged by a PUBMAXXER"}
       </span>
       {figure !== null ? (
-        <PriceBadge variant="current" band={priceBand(figure, bandArea)}>
+        <PriceBadge
+          variant="current"
+          band={uncheckedBy !== null ? null : priceBand(figure, bandArea)}
+        >
           {formatPrice(figure)}
         </PriceBadge>
       ) : null}
@@ -907,8 +930,6 @@ export default function VenueOverviewTab({
   venue,
   tab,
   cityId,
-  mode,
-  inCrawl,
   latestContributorPrice,
   latestPintDropAt,
   confirmedPrice,
@@ -919,7 +940,6 @@ export default function VenueOverviewTab({
   communityPrices,
   experienceLens,
   drinkLensCategory = null,
-  onToggleStop,
   presenceState,
   markPresenceHere,
   userLocation,
@@ -945,8 +965,6 @@ export default function VenueOverviewTab({
   venue: Venue;
   tab: TabKey;
   cityId: CityId;
-  mode: CrawlMode;
-  inCrawl: boolean;
   latestContributorPrice: number | null | undefined;
   /** Epoch ms of the latest Pint Drop (unmerged drop signal) - lets the
    *  submit receipt refuse to claim the map when a newer drop outranks the
@@ -973,7 +991,6 @@ export default function VenueOverviewTab({
   experienceLens: MapExperienceLens;
   /** Selected-drink map lens (e.g. coffee). Never the no-alcohol experience. */
   drinkLensCategory?: DrinkCategory | null;
-  onToggleStop: (id: string) => void;
   presenceState: PresenceState;
   markPresenceHere: () => void;
   userLocation: JourneyPoint | null;
@@ -1007,8 +1024,6 @@ export default function VenueOverviewTab({
   revealRecordLate?: boolean;
   now?: number;
 }) {
-  // The phone portal sheet hands down its footer slot; desktop has none.
-  const phoneSheet = useSheetFooterSlot() !== null;
   // Known-true accessibility facts only (PRD issue #28). Unknown/known-false
   // facets render nothing — never a "No" — per the provenance-honesty rule.
   const accessChips = accessibilityChipLabels(venue);
@@ -1298,19 +1313,9 @@ export default function VenueOverviewTab({
           </>
         ) : null}
       </OverviewFold>
-      {/* Desktop only: on a phone the peek's ONE plan door owns the crawl
-          toggle (lib/venuePlanDoor.ts), and this would be a second. It stays
-          outside the folds, under the price, so a planner never opens a fold
-          to add the pub. */}
-      {mode === "build" && isPubVenue(venue) && !phoneSheet ? (
-        <button
-          className="addStopBtn"
-          aria-pressed={inCrawl}
-          onClick={() => onToggleStop(venue.id)}
-        >
-          {inCrawl ? "Remove from crawl" : "Add to crawl"}
-        </button>
-      ) : null}
+      {/* No plan action here at any width: the action card's ONE plan door
+          (components/map/inspector/VenueActionCard.tsx, lib/venuePlanDoor.ts)
+          owns adding this pub, and stays in view while this tab scrolls. */}
       <OverviewFold foldKey="tonight">
         <VenueOccupancyRow
           venueId={venue.id}
@@ -1413,6 +1418,8 @@ export default function VenueOverviewTab({
           offerPrice={isPubVenue(venue)}
           where="details"
         />
+        {/* "From the pub" and the quiet "Run this pub?" door: one row. */}
+        <VenueFromThePub venueId={venue.id} venueName={venue.name} offerClaim={isPubVenueKind(venue.kind)} />
         <CityPlaceStrip
           venueId={venue.id}
           venueName={venue.name}

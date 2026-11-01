@@ -96,7 +96,7 @@ What did not run here, and must run before merge: the PostgreSQL suites (`npm ru
 5. The dietary warning's second sentence wording.
 6. "Quiet pint" as a Pal label: the Pal copy test now allows that one approved label and blocks carnage, sesh and session.
 7. Blocks inside an existing group thread: checked at creation only, so a later block does not reveal itself. Keep, or close the thread.
-8. Author posts on a profile need a signed-in Social reader; opening them to strangers is decision D2.
+8. Author posts on a profile need a signed-in Social reader; opening them to strangers is decision D2. The captain decided D2 on 1 November 2026 (launch plan decision 7): only the read-only London lane on `/social` opened to strangers, and author posts on a profile stay signed-in.
 9. Account deletion removes the person's venue corrections. The other choice keeps the note and drops the owner link.
 10. Secure email change must be on in Supabase Auth or the "old address gets a note" line is untrue.
 11. With tags: the native share extension (iOS) and SEND intent filter (Android) are listed in builder 8's report for the native rebuild.

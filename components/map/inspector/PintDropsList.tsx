@@ -7,8 +7,10 @@ import PriceBadge, { PintPriceBadge } from "@/components/PriceBadge";
 import { ProvenanceChip } from "@/components/map/venueInspectorBits";
 import { Flag } from "lucide-react";
 
-import { RECEIPT_PHOTO_LABEL } from "@/lib/pintDropReceipt";
+import { RECEIPT_PHOTO_LABEL, isUncheckedPrice } from "@/lib/pintDropReceipt";
 import { drinkMeasureName, measureIsPint } from "@/lib/drinkMeasure";
+import { formatTrustDay } from "@/lib/trustPill";
+import { uncheckedPriceLine } from "@/lib/venuePriceLane";
 import { formatPrice, type Venue } from "@/lib/venues";
 import { lastTrainBadge } from "@/lib/lastTrainBadge";
 import type { LastPintDecision } from "@/lib/tfl";
@@ -26,6 +28,21 @@ import type { DropWithPhotos, PintDropsState } from "@/components/map/usePintDro
 function nonPintMeasureName(drop: DropWithPhotos): string {
   if (measureIsPint(drop.measure)) return "";
   return drinkMeasureName(drop.measure, drop.measureLabel);
+}
+
+/**
+ * The drop's own dated line when its price was typed with NO BILL (captain
+ * decision 9, 1 Nov 2026): "Logged by @handle, not checked · 1 Nov". Null on
+ * every other drop. The day is London's, printed the way the trust pill prints
+ * one, so two surfaces never date one report two ways.
+ */
+function uncheckedDropLine(drop: DropWithPhotos): { label: string; day: string } | null {
+  if (drop.priceGbp === null || !isUncheckedPrice(drop)) return null;
+  const at = Date.parse(drop.createdAt);
+  return {
+    label: uncheckedPriceLine(drop.handle),
+    day: Number.isFinite(at) ? formatTrustDay(at) : "",
+  };
 }
 
 export default function PintDropsList({
@@ -57,6 +74,7 @@ export default function PintDropsList({
         // live Getting-home session for older rows that never stored them.
         // See lib/lastTrainBadge.ts — no live kind / leave-by → no badge.
         const withSummary = summaries.get(drop.id);
+        const unchecked = uncheckedDropLine(drop);
         const trainBadge = lastTrainBadge(
           drop.createdAt,
           drop.leaveByIso ?? lastTrainDecision?.leaveByIso,
@@ -71,8 +89,12 @@ export default function PintDropsList({
               <span className="dropHandle">{drop.handle}</span>
               <span style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
                 {/* One price look: a pint wears its band, any other measure
-                    stays on the neutral plaque (components/PriceBadge.tsx). */}
-                {drop.priceGbp === null ? null : measureIsPint(drop.measure) ? (
+                    stays on the neutral plaque (components/PriceBadge.tsx).
+                    So does an UNCHECKED pint: colour means the price band and
+                    never trust, and a figure nobody has checked is not given
+                    one (captain decision 9). Its weakness is said in words,
+                    on the line below. */}
+                {drop.priceGbp === null ? null : measureIsPint(drop.measure) && !unchecked ? (
                   <PintPriceBadge priceGbp={drop.priceGbp} venueId={venue.id} />
                 ) : (
                   <PriceBadge>{formatPrice(drop.priceGbp)}</PriceBadge>
@@ -80,6 +102,19 @@ export default function PintDropsList({
                 <ProvenanceChip provenance={drop.provenance} />
               </span>
             </div>
+            {unchecked ? (
+              <p className="dropCaption" data-price-check="unchecked">
+                <small>
+                  {unchecked.label}
+                  {unchecked.day ? (
+                    <>
+                      {" · "}
+                      <time dateTime={drop.createdAt}>{unchecked.day}</time>
+                    </>
+                  ) : null}
+                </small>
+              </p>
+            ) : null}
             {/* InstaPint: the pint + the cheeky bar selfie shown as a
                 framed image pair (Instagram-ish), the note/tags below as a
                 caption. A single photo fills the frame; a drop with no

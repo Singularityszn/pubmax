@@ -106,7 +106,7 @@ for (const platform of ["ios", "android"] as const) {
                 price: rect(node.querySelector(".mapPeekPrice")!),
                 name: rect(node.querySelector(".mapPeekName")!),
                 near: control(".mobileMapLocateFab"),
-                create: control(".createFab"),
+                palDoor: control(".mobileMapPalDoor"),
                 credit: control(".maplibregl-ctrl-attrib"),
                 pal: control(".palSummon"),
                 doorHit: door.contains(document.elementFromPoint(
@@ -127,7 +127,7 @@ for (const platform of ["ios", "android"] as const) {
             expect(geometry.name.bottom).toBeLessThanOrEqual(geometry.door.top);
             expect(geometry.door.height).toBeGreaterThanOrEqual(48);
             expect(geometry.doorHit).toBe(true);
-            for (const control of [geometry.near, geometry.create, geometry.credit, geometry.pal]) {
+            for (const control of [geometry.near, geometry.palDoor, geometry.credit, geometry.pal]) {
               if (control) expect(control.bottom).toBeLessThanOrEqual(geometry.card.top);
             }
             if (scale === 1) expect(geometry.card.height).toBe(112);

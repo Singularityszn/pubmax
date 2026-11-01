@@ -13,6 +13,9 @@
 //     visibility, "private"). Only the owner's own Been read carries them. A
 //     mate or a reader of a public account sees the Pint Drops the drop store
 //     already lets them read, and nothing else.
+//   - The "Been here" saved list (lib/beenHere.ts) joins the owner's own read
+//     alone, as rows with NO DATE that say so. It is never given a day, and
+//     the passport never shows it to a mate or a stranger.
 //   - The taste card holds stored facts with a date. No inference and no
 //     personality word. An empty line is left out and an empty card is no card.
 //   - The share card carries names in rank order and nothing else: no score,
@@ -20,14 +23,21 @@
 
 import { londonDayKey } from "@/lib/pintContributions";
 
-const BEEN_SOURCES = ["diary", "pint_drop", "plan"] as const;
+const BEEN_SOURCES = ["diary", "pint_drop", "plan", "been_here"] as const;
 export type BeenSource = (typeof BEEN_SOURCES)[number];
 
-/** One record that the owner was at a pub on a London day. */
+/**
+ * The one source that carries no day: the owner's own "Been here" saved list
+ * (lib/beenHere.ts), where a tap says "I have been" and never when. Every other
+ * source is a dated record, and an undated record from one of them is dropped.
+ */
+const UNDATED_SOURCE: BeenSource = "been_here";
+
+/** One record that the owner was at a pub, on a London day when it has one. */
 export type BeenSighting = {
   venueId: string;
   venueName: string;
-  /** London calendar day, YYYY-MM-DD. */
+  /** London calendar day, YYYY-MM-DD; "" only for an undated "been_here" row. */
   date: string;
   source: BeenSource;
 };
@@ -36,7 +46,11 @@ export type BeenSighting = {
 export type BeenVenue = {
   venueId: string;
   venueName: string;
-  /** The latest London day any source puts the owner there. */
+  /**
+   * The latest London day any source puts the owner there, or "" when only
+   * the undated "Been here" list does. A row with no day prints "No date" and
+   * is never given one.
+   */
   lastDate: string;
   /** Which records say so, in BEEN_SOURCES order. */
   sources: BeenSource[];
@@ -52,16 +66,18 @@ export function passportDay(value: string | null | undefined): string {
 }
 
 /**
- * Fold the three sources into one row per pub. A pub logged in the diary, in a
- * drop and on a plan is ONE pub you have been to, so the count is distinct
- * venues, never records. Newest day first, then name.
+ * Fold the sources into one row per pub. A pub logged in the diary, in a drop,
+ * on a plan and on the Been here list is ONE pub you have been to, so the
+ * count is distinct venues, never records. Newest day first, then the undated
+ * rows, each group by name.
  */
 export function aggregateBeen(sightings: readonly BeenSighting[]): BeenVenue[] {
   const byVenue = new Map<string, { row: BeenVenue; nameDate: string }>();
   for (const sighting of sightings) {
     const venueId = sighting.venueId?.trim();
-    const date = passportDay(sighting.date);
-    if (!venueId || !date) continue;
+    const undated = sighting.source === UNDATED_SOURCE;
+    const date = undated ? "" : passportDay(sighting.date);
+    if (!venueId || (!date && !undated)) continue;
     const name = sighting.venueName?.trim() ?? "";
     const held = byVenue.get(venueId);
     if (!held) {
@@ -309,10 +325,13 @@ export const PASSPORT_COPY = {
   shareFailed: "That link did not work. Try again.",
   overlapTop: "Pubs you both rank in your top five",
   overlapWanted: "Pubs you both want to try",
+  /** A row only the undated Been here list holds. Never a guessed day. */
+  undated: "No date",
   sourceLabel: {
     diary: "Diary",
     pint_drop: "Pint Drop",
     plan: "Plan",
+    been_here: "Been here",
   } satisfies Record<BeenSource, string>,
 } as const;
 

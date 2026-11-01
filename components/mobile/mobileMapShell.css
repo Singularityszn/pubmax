@@ -29,7 +29,7 @@
       var(--mobile-map-chrome-h) + 6px + var(--mobile-map-chip-row-h)
     );
     /* The floating stack's own base (mobileNav.css owns it), so the map's
-       bottom band and the create action above it cannot drift apart. */
+       bottom band and the members above it cannot drift apart. */
     --mobile-map-dock-clearance: var(--float-stack-base);
     /* The map-edge controls (TfL at the top, Near me at the thumb) are fixed
        to the right map edge. Publish their footprint as a LANE so any
@@ -550,8 +550,9 @@
     position: fixed;
     right: var(--mobile-map-corner-inset);
     top: calc(var(--mobile-map-chrome-h) + 12px);
-    /* Stack member: mobileNav.css publishes this berth and the Near me FAB's
-       height, so the create action can sit clear of it. */
+    /* Stack member: mobileNav.css publishes this berth, the Near me FAB's
+       height and the Pal door above it, so the first-visit ask can park clear
+       of the column. */
     bottom: var(--map-corner-bottom);
     z-index: var(--z-map-toolbar);
     display: flex;
@@ -563,8 +564,7 @@
   }
 
   /* Near me leads on place, not on weight or the accent: coral belongs to the
-     one primary and the create disc alone (design judgement 2026-08-01,
-     finding 2.1). It wears the same quiet surface as the bar and the drink
+     one primary alone (design judgement 2026-08-01, finding 2.1). It wears the same quiet surface as the bar and the drink
      chip: the raised panel, a hairline edge and the tight map shadow. */
   .mobileMapLocateFab {
     position: relative;
@@ -616,6 +616,29 @@
     width: auto;
     margin-bottom: auto;
     padding-inline: 7px;
+  }
+  /* The Pub Pal's door (PalNavButton.tsx), one gap above Near me, where the
+     floating create button used to stand (captain, 1 Nov 2026). It wears the
+     edge's quiet surface, a 44px circle centred over the 52px Near me, and
+     mobileNav.css adds it to the column's published top edge
+     (--map-corner-pal-door-h). Beside the Pub Pal pill, which is already a
+     door to the Pal, it stands down. */
+  .mobileMapUtilityCorner > .mobileMapPalDoor {
+    align-self: flex-end;
+    margin-right: calc((var(--map-corner-locate-size) - var(--control-height)) / 2);
+    border-color: var(--hairline);
+    pointer-events: auto;
+    box-shadow: var(--map-overlay-shadow-tight);
+  }
+  body:has(.palSummon) .mobileMapUtilityCorner > .mobileMapPalDoor {
+    display: none;
+  }
+  /* The first-visit ask parks one gap above the column and is the one banner
+     on screen until the reader answers it. The door stands down with it, so
+     the ask stays docked low (e2e/mobile-map-first-visit.spec.ts, 320x568),
+     and comes back with the answer. mobileNav.css drops its height too. */
+  body:has(.mapArrivalCard) .mobileMapUtilityCorner > .mobileMapPalDoor {
+    display: none;
   }
   .mobileMapCornerSuffix { font-size: var(--text-2xs); font-weight: 700; margin-left: 2px; }
   .mobileMapCornerBadge {
@@ -772,26 +795,7 @@
        the page or pan the map behind it. */
     touch-action: none;
   }
-  /* While it is held or settling the card travels through the Create action's
-     berth, and that action lives in a different stacking context from the map
-     chrome, so the card cannot pass over it. It steps aside instead: it fades
-     out while the card moves and back in once the card is home. Opacity only,
-     and never a hit target while it is gone. */
   .mapPeek[data-dragging="true"] { will-change: transform; }
-  body:has(.mapPeek) .createFabRoot {
-    transition: opacity 160ms var(--ease-out-strong);
-  }
-  body:has(.mapPeek[data-dragging="true"]) .createFabRoot {
-    opacity: 0;
-  }
-  /* The root never takes taps; the control opts back in, so the opt-in is
-     what has to go (createFab.css). */
-  body:has(.mapPeek[data-dragging="true"]) .createFabRoot :is(.createFab, .createFabMenu) {
-    pointer-events: none;
-  }
-  @media (prefers-reduced-motion: reduce) {
-    body:has(.mapPeek) .createFabRoot { transition: none; }
-  }
   /* The grabber is a cue, not a control: the List button beside the answer is
      the operable way in, and the card answers the pull anywhere. */
   .mapPeekGrab {
@@ -1190,7 +1194,7 @@
     display: none;
   }
   /* Footer slot — a real flex child OUTSIDE the scroll body. The venue command
-     bar (VenueStickyBar) portals into this via SheetFooterContext, so it rides
+     card (VenueActionCard) portals into this via SheetFooterContext, so it rides
      1:1 with the sheet on drag/snap (in flow, no fixed positioning) and is
      always visible above a scrolling body. Empty for contextual/planner sheets,
      where it collapses to nothing. */

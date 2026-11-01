@@ -34,6 +34,7 @@ import {
 } from "@/lib/profileStore";
 // Messaging asks the one adult gate, so every seeded account has answered it.
 import { memoryAdultSelfAssertionStore } from "@/lib/adultSelfAssertionStore";
+import { treatEveryoneAsMates } from "@/__tests__/helpers/messageMates";
 
 const BASE = "http://localhost/api/messages";
 
@@ -69,6 +70,7 @@ function postThread(id: string, body: unknown): Promise<Response> {
 }
 
 beforeEach(async () => {
+  treatEveryoneAsMates();
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   authState.userId = null;

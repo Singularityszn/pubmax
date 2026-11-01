@@ -27,6 +27,7 @@ at 1440 and 1280 with a venue drawer open over a mapped two-stop route.
 | Key | The question | Where it stands |
 |---|---|---|
 | `map-kind-chips-behind-filters` | The kind chips row at 641px and up belongs behind a desktop `Filters` control (PlanAstra item 9). | A map lane. It needs a new control and it moves every spec that clicks a chip today. |
+| `near-and-pubs-split-view` | Should `/near` and `/pubs` take Explore's desktop list beside a map (launch plan 1 Nov 2026, section 5)? Explore has it from 1024px (`components/map/MapSplitList.tsx`). | Not a small change, so both pages keep their layouts for now. Neither page draws a map today, and a map is the MapLibre chunk plus a pin loader: `/near` is budgeted at 1130 KB of script and `/pubs` at 1200 KB against `/map`'s 3400 (`perf/route-budgets.json`). It would take: a map that loads only from 1024px and only after the page's answer has painted, drawing the page's own rows as pins (no viewport cells), the list rows and price reading shared with `MapSplitList`, a hover ring and a row-to-pin open, and a measured budget for each route with the map deferred. `/near` also needs its cards owner's agreement, because its chips and roulette are another lane's; `/pubs` paginates a city-wide chain list, so its map would show the page, not the view. |
 
 ## Closed
 

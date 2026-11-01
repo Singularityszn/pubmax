@@ -39,7 +39,7 @@ export async function enterMountedSoftDrinks(page: Page): Promise<number> {
   await expect(page.getByRole("button", { name: /Switch to .* theme/ }).first()).toBeEnabled();
   const documentStartedAt = await page.evaluate(() => performance.timeOrigin);
   await page.getByRole("navigation", { name: "Primary", exact: true })
-    .getByRole("link", { name: "Map", exact: true }).tap();
+    .getByRole("link", { name: "Explore", exact: true }).tap();
   await expect(page).toHaveURL(/\/map$/);
   await expect.poll(() => page.evaluate(() => performance.timeOrigin)).toBe(documentStartedAt);
   const sheet = await openDrink(page);
@@ -119,8 +119,8 @@ export async function clickRankingAndCheckRecordedCosts(page: Page, documentStar
   await expect(row).toContainText("Source read 2026-08-30");
   await expect(page.getByRole("link", { name: /SpoonMe/ }).first()).toHaveAttribute("href", /^https:\/\//);
   await row.screenshot({ path: testInfo.outputPath("spoons-recorded-cost-source-date.png") });
-  // Return through Map, the Drink chip and "See the ranking", as a phone reader does.
-  await nav.getByRole("link", { name: "Map", exact: true }).tap();
+  // Return through Explore, the Drink chip and "See the ranking", as a phone reader does.
+  await nav.getByRole("link", { name: "Explore", exact: true }).tap();
   await expectMobileMapShellReady(page);
   const again = await openDrink(page);
   await again.getByRole("link", { name: "See the ranking", exact: true }).tap();

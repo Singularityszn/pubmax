@@ -99,7 +99,7 @@ test("/feed mounts the social feed scaffold without uncaught errors", async ({ p
   expect(response?.status()).toBe(200);
   // The feed fetches /api/pint-drops and degrades to a social empty state on
   // failure, so we assert the always-present scaffold (site nav), not content.
-  await expect(page.getByRole("link", { name: "Map", exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("link", { name: "Explore", exact: true }).first()).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -118,7 +118,8 @@ test("/feed redirects to Social and renders its reachable boundary state (issue 
   await expect(
     page.getByRole("heading", { name: "Plans, photos and people" }),
   ).toBeVisible();
-  await expect(page.getByText("Sign in to use Social.")).toBeVisible();
+  // A stranger reads the London lane (captain decision 7, 1 Nov 2026).
+  await expect(page.getByRole("heading", { name: "Across London", exact: true })).toBeVisible();
   expect(errors).toEqual([]);
 });
 

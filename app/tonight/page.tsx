@@ -22,6 +22,7 @@ import {
 } from "@/lib/tonightCheapPints";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
 import { matchedWetherspoonsVenueIds } from "@/lib/wetherspoonsMatch.server";
+import { loadTonightOperatorFacts } from "@/lib/tonightOperatorFacts.server";
 import TonightClient from "./TonightClient";
 import { initialTonightOutAnswer } from "./initialOutAnswer";
 
@@ -103,7 +104,16 @@ export default async function TonightPage() {
   // Same fail-soft compose as /today: heritage-cited candidates joined to
   // verified pint prices. buildQuietPint returns null outside a quiet window
   // or when cited candidates are too few; the card then renders nothing.
-  const [pricedVenues, historicPubs, mapSelectableVenueIds, hyped, spoonsValue, whatsOn, out] =
+  const [
+    pricedVenues,
+    historicPubs,
+    mapSelectableVenueIds,
+    hyped,
+    spoonsValue,
+    whatsOn,
+    out,
+    operatorFacts,
+  ] =
     await Promise.all([
       getPricedVenues(),
       loadHistoricPubs(),
@@ -117,6 +127,10 @@ export default async function TonightPage() {
       readSpoonsValue(),
       loadTodayWhatsOnAnswer(now.getTime(), { pubOnly: true, limit: 60 }),
       loadTodayOutAnswer(now.getTime()),
+      // What the pubs themselves published for tonight (operator facts). Read
+      // here so the block costs the reader no request; it never joins the
+      // listings and never leads (TonightFromThePubs).
+      loadTonightOperatorFacts(now.getTime()),
     ]);
   // One row per chain in the cheapest list. The first-party Wetherspoon
   // directory join and the SpoonMe pack name a Wetherspoon the price listing
@@ -183,6 +197,7 @@ export default async function TonightPage() {
         mapSelectableVenueIds ? [...mapSelectableVenueIds] : null
       }
       hypedPubs={hypedPubs}
+      operatorFacts={operatorFacts}
       photos={tonightPhotos(hypedPubs.map((row) => row.venueId))}
       // What a quiet night answers with: real pubs at a listed price, composed
       // from the dataset this page already read for the quiet-pint module.

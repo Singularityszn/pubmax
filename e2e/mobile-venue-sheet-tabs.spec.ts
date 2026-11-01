@@ -148,10 +148,10 @@ async function expectPrimaryActions(page: Page): Promise<void> {
   );
 
   // The toolbar carries no price action: the Overview's one price door owns
-  // that (lib/pintTrust.ts, `overviewPriceDoor`). On a phone it carries no plan
-  // action either, in build mode too: the peek's ONE plan door owns those
-  // (lib/venuePlanDoor.ts), so the Crawl and Stop 1 ghosts are desktop's alone.
-  expect(actions.map((action) => action.name)).toEqual(["Share Arnos Arms"]);
+  // that (lib/pintTrust.ts, `overviewPriceDoor`). It carries no plan action
+  // either, in build mode too: the action card's ONE plan door, on the row
+  // above it, owns those (lib/venuePlanDoor.ts).
+  expect(actions.map((action) => action.name)).toEqual(["Ask Arnos Arms for a table", "Share Arnos Arms"]);
   const planDoors = page
     .locator('.mobileSheetPortal[data-sheet-kind="venue"]')
     .getByRole("button", { name: /Stop 1$|^Plan stop$|^In plan$|crawl$|^Crawl$|^Remove$/ });
@@ -269,18 +269,22 @@ test("the peek price plaque hugs its figure and stays inside its own row", async
 
   const geometry = await plaque.evaluate((element) => {
     const cell = element.parentElement as HTMLElement;
-    const scroller = element.closest(".mobileSharedSheetBody") as HTMLElement | null;
+    // The plaque's frame: the action card in the sheet footer since the card
+    // took the peek row (launch plan, 1 Nov 2026), else the scrolling body it
+    // used to head. Either way nothing may cut the plaque at that top edge.
+    const frame = (element.closest(".venueActionCard") ??
+      element.closest(".mobileSharedSheetBody")) as HTMLElement | null;
     const range = document.createRange();
     range.selectNodeContents(element);
     const box = element.getBoundingClientRect();
     const figure = range.getBoundingClientRect();
     const cellBox = cell.getBoundingClientRect();
-    const scrollerBox = scroller?.getBoundingClientRect();
+    const frameBox = frame?.getBoundingClientRect();
     return {
       width: box.width,
       figureWidth: figure.width,
       paintedAboveRow: cellBox.top - box.top,
-      clearanceUnderHeader: scrollerBox ? box.top - scrollerBox.top : null,
+      clearanceUnderFrameTop: frameBox ? box.top - frameBox.top : null,
     };
   });
 
@@ -290,7 +294,8 @@ test("the peek price plaque hugs its figure and stays inside its own row", async
   // reach the hairline the peek row draws over it. The -1.5deg tilt that used
   // to put a fraction of a pixel up there is retired (captain 6 Sep 2026).
   expect(geometry.paintedAboveRow).toBeLessThan(1.5);
-  expect(geometry.clearanceUnderHeader ?? 0).toBeGreaterThan(4);
+  expect(geometry.clearanceUnderFrameTop, "the plaque has a frame").not.toBeNull();
+  expect(geometry.clearanceUnderFrameTop ?? 0).toBeGreaterThan(4);
 });
 
 /**

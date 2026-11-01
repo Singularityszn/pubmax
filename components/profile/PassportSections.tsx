@@ -77,7 +77,10 @@ function PassportBeenList({
                 {venue.venueName || "A London pub"}
               </Link>
               <span className="passportRowMeta">
-                <span className="passportRowDate">{passportDayLabel(venue.lastDate)}</span>
+                {/* A pub only the Been here list holds has no day, and says so. */}
+                <span className="passportRowDate">
+                  {venue.lastDate ? passportDayLabel(venue.lastDate) : PASSPORT_COPY.undated}
+                </span>
                 {isOwner ? ` · ${venue.sources.map((source) => PASSPORT_COPY.sourceLabel[source]).join(", ")}` : null}
               </span>
             </li>

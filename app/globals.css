@@ -1737,10 +1737,23 @@ input[type="range"] {
   }
 }
 
+/* The list beside the map takes no room below 1024px; the query below gives
+   it its width (components/map/MapSplitList.tsx). */
+:root {
+  --desktop-split-list-width: 0px;
+}
+
 /* Desktop map chrome needs one measured source for the planner lane. The
    drawer's rendered width is 376px at this breakpoint; toolbar and banners
    consume this variable so their free-lane geometry cannot drift from it. */
 @media (min-width: 1024px) {
+  /* The list beside the map (components/map/MapSplitList.tsx). Declared on
+     :root rather than the shell, because the document's opening prices stand
+     on the same map before the shell exists (mapOpeningPreview.css). */
+  :root {
+    --desktop-split-list-width: clamp(400px, 30vw, 440px);
+  }
+
   .appShell {
     --desktop-planner-rail-width: 376px;
   }
@@ -2609,17 +2622,15 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
        and the tab bar, so Retry could never be scrolled up to where a thumb
        can reach it. --float-stack-top-plan is the top edge of that stack. */
     padding-bottom: calc(var(--float-stack-top-plan, 136px) + 18px);
+    /* Scrolling venue prices and links clear the map-edge column (Near me and
+       the Pal's door), which stays on the right edge over the card. */
+    padding-right: max(32px, var(--mobile-map-corner-lane));
   }
 
-  /* Scrolling venue prices and links must clear the floating Create action. */
-  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .mapFallback {
-    padding-right: max(32px, var(--create-fab-lane));
+  .mapFallbackRetry {
+    margin-inline: max(0px, calc(var(--mobile-map-corner-lane) - var(--page-gutter)));
   }
 }
-  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .mapFallbackRetry {
-    margin-inline: max(0px, calc(var(--create-fab-lane) - var(--page-gutter)));
-  }
-
 
 .mapFallback strong {
   font-family: var(--serif);
@@ -3515,10 +3526,14 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 /* THE ONE PRICE DOOR (lib/pintTrust.ts, `overviewPriceDoor`): the log door on
    an unpriced, listed, baseline, modelled or confirmed pub, and the second
    drinker's "Still £4.50?" on a logged-once or aged report. One class, because
-   it is one button: the same flat accent the sheet's own primary and every
-   launch primary wear (components/ui/screen.css), no gradient and no glow, so a
-   door is a door on every screen. It wears the ACTION accent and never a
-   price band, because a door is not a price. */
+   it is one button, and it is still the Overview's ONE price action.
+
+   IT IS DRAWN IN INK. The venue sheet's action card stays in view at every
+   width and spends the sheet's one coral on its plan door
+   (components/map/inspector/VenueActionCard.tsx, launch plan 1 Nov 2026,
+   section 5), so a coral door here would put two painted buttons on one
+   screen. It wears the secondary control row the sheet's other commands wear,
+   never a price band, because a door is not a price. */
 .priceDoor {
   flex: 0 0 auto;
   display: inline-flex;
@@ -3527,10 +3542,10 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   gap: 6px;
   min-height: var(--control-height);
   padding: 0 16px;
-  border: 1px solid var(--accent-action);
+  border: 1px solid var(--control-secondary-border);
   border-radius: var(--control-radius);
-  background: var(--accent-action);
-  color: var(--color-on-accent-strong);
+  background: var(--control-secondary-surface);
+  color: var(--ink);
   font: inherit;
   font-size: var(--control-font-size);
   font-weight: var(--control-font-weight);
@@ -3547,9 +3562,8 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 
 @media (hover: hover) and (pointer: fine) {
   .priceDoor:hover {
-    background: var(--accent-action-strong);
-    border-color: var(--accent-action-strong);
-    color: var(--color-on-accent-strong);
+    border-color: var(--hairline-strong);
+    color: var(--ink);
   }
 }
 

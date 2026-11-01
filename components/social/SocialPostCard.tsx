@@ -9,6 +9,7 @@ import ReviewStars from "@/components/social/ReviewStars";
 import SocialPostActions from "@/components/social/SocialPostActions";
 import SocialPostCarousel from "@/components/social/SocialPostCarousel";
 import SocialPostVideoPlayer from "@/components/social/SocialPostVideoPlayer";
+import { SOCIAL_SIGN_IN_HREF } from "@/components/social/SocialViewerState";
 import { profilePath } from "@/lib/appLink";
 import { getNightArea } from "@/lib/nightAreas";
 import { relativeTime } from "@/lib/relativeTime";
@@ -18,6 +19,7 @@ import {
   HIDDEN_NAME_OWN_LINE,
   HIDDEN_NAME_READER_LINE,
 } from "@/lib/socialHiddenName";
+import { SOCIAL_LONDON_LANE_COPY } from "@/lib/socialLondonLane";
 import type { SocialPostDTO } from "@/lib/socialPosts";
 import {
   SOCIAL_POST_CONTROL_LINE,
@@ -36,9 +38,29 @@ import { venueMapUrl } from "@/lib/venueMapUrl";
 // composer rides in through `editor` and this card never imports it.
 //
 // A HASHTAG IS A WAY IN: each one links to the Across-town lane filtered to it.
+//
+// A SIGNED-OUT CARD READS AND DOES NOTHING ELSE (the London lane, captain
+// decision 7, 1 Nov 2026). Where a reader's cheer and comment row sits it
+// prints one quiet way to sign in, and its hashtags are words rather than links,
+// because the lane they lead to needs an account.
+
+/**
+ * What the card reads. A full `SocialPostDTO` is one; so is a London lane post
+ * (`lib/socialLondonLane.ts`), which carries no word about its reader, no pub,
+ * no score and no face.
+ */
+export type SocialPostCardPost = Pick<
+  SocialPostDTO,
+  "id" | "kind" | "visibility" | "body" | "area" | "hashtags" | "photo" | "nameHidden" | "createdAt" | "editedAt"
+> & {
+  author: { handle: string | null; avatarUrl?: string };
+} & Partial<Pick<
+  SocialPostDTO,
+  "ownedByViewer" | "venueId" | "venueName" | "venueProjected" | "review" | "video" | "extraPhotos"
+>>;
 
 /** The post's media: a carousel, one photo, or a reel, edge to edge. */
-function PostMedia({ post, onOpenVideo }: { post: SocialPostDTO; onOpenVideo?: (postId: string) => void }) {
+function PostMedia({ post, onOpenVideo }: { post: SocialPostCardPost; onOpenVideo?: (postId: string) => void }) {
   return (
     <>
       {post.photo && post.extraPhotos && post.extraPhotos.length > 0 ? (
@@ -79,12 +101,12 @@ function PostMedia({ post, onOpenVideo }: { post: SocialPostDTO; onOpenVideo?: (
  * A disclosure, not a control: the lane rule that let this post in, read back
  * by `lib/socialPostReason.ts`. Nothing on the card is ranked.
  */
-function PostWhy({ lane, post, areaName }: { lane: SocialPostLane; post: SocialPostDTO; areaName: string | null }) {
+function PostWhy({ lane, post, areaName }: { lane: SocialPostLane; post: SocialPostCardPost; areaName: string | null }) {
   return (
     <details className="socialPostWhy">
       <summary>{SOCIAL_POST_REASON_SUMMARY}</summary>
       <p>
-        {socialPostReasonLine(socialPostReason(lane, post), {
+        {socialPostReasonLine(socialPostReason(lane, { ownedByViewer: post.ownedByViewer === true, visibility: post.visibility }), {
           handle: post.author.handle ?? HIDDEN_NAME_AUTHOR_LABEL,
           visibility: post.visibility,
           areaName,
@@ -108,10 +130,34 @@ function PostPlace({ venueId, venueName, areaName }: { venueId: string | null; v
   );
 }
 
-export default function SocialPostCard({ post, lane, editor = null, interactive = false, onOpenVideo }: { post: SocialPostDTO; lane?: SocialPostLane; editor?: ReactNode; interactive?: boolean; onOpenVideo?: (postId: string) => void }) {
+/** Each hashtag is a way into Across town, or a plain word on a signed-out card. */
+function PostTags({ hashtags, signedOut }: { hashtags: string[]; signedOut: boolean }) {
+  if (hashtags.length === 0) return null;
+  return (
+    <p className="socialPostTags">
+      {hashtags.map((tag) => signedOut
+        ? <span key={tag}>#{tag}</span>
+        : <Link key={tag} prefetch={false} href={socialTagHref(tag)}>#{tag}</Link>)}
+    </p>
+  );
+}
+
+/** The row under a post: a reader's cheers and comments, or one quiet way to sign in. */
+function PostActionRow({ postId, interactive, signedOut }: { postId: string; interactive: boolean; signedOut: boolean }) {
+  if (signedOut) {
+    return (
+      <p className="socialPostSignIn">
+        <Link prefetch={false} href={SOCIAL_SIGN_IN_HREF}>{SOCIAL_LONDON_LANE_COPY.signIn}</Link>
+      </p>
+    );
+  }
+  return interactive ? <SocialPostActions postId={postId} /> : null;
+}
+
+export default function SocialPostCard({ post, lane, editor = null, interactive = false, signedOut = false, onOpenVideo }: { post: SocialPostCardPost; lane?: SocialPostLane; editor?: ReactNode; interactive?: boolean; signedOut?: boolean; onOpenVideo?: (postId: string) => void }) {
   const area = post.area ? getNightArea(post.area) : null;
-  const exactVenueId = post.venueProjected ? post.venueId : null;
-  const venueName = exactVenueId ? post.venueName : null;
+  const exactVenueId = post.venueProjected ? post.venueId ?? null : null;
+  const venueName = exactVenueId ? post.venueName ?? null : null;
   const review = exactVenueId && post.review ? post.review : null;
   const when = relativeTime(post.createdAt);
   return (
@@ -160,14 +206,8 @@ export default function SocialPostCard({ post, lane, editor = null, interactive 
           <Link prefetch={false} href={venueMapUrl(exactVenueId)}>Open venue</Link>
         </p>
       ) : null}
-      {post.hashtags.length > 0 ? (
-        <p className="socialPostTags">
-          {post.hashtags.map((tag) => (
-            <Link key={tag} prefetch={false} href={socialTagHref(tag)}>#{tag}</Link>
-          ))}
-        </p>
-      ) : null}
-      {interactive ? <SocialPostActions postId={post.id} /> : null}
+      <PostTags hashtags={post.hashtags} signedOut={signedOut} />
+      <PostActionRow postId={post.id} interactive={interactive} signedOut={signedOut} />
       {post.editedAt ? <p className="socialPostEdited">Edited</p> : null}
       {lane ? <PostWhy lane={lane} post={post} areaName={area?.name ?? null} /> : null}
       {editor}

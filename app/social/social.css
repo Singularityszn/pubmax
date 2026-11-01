@@ -227,7 +227,9 @@ html[data-text-scale="large"] .socialPage .screenHead {
 .socialLaneNav a:focus-visible,
 .socialAreaField select:focus-visible,
 .socialButton:focus-visible,
-.socialPostPlace a:focus-visible {
+.socialPostPlace a:focus-visible,
+.socialPostSignIn a:focus-visible,
+.socialLondonMore:focus-visible {
   outline: 3px solid var(--river);
   outline-offset: -3px;
 }
@@ -967,6 +969,55 @@ span.socialPostAvatar {
   justify-content: center;
 }
 
+/* THE LONDON LANE, read signed out. Where a reader's cheer and comment row
+   sits, one quiet line: a link in the action ink, never a filled control,
+   because the Screen's door is the page's one filled action. */
+.socialPostSignIn {
+  margin: 4px 0 0;
+  font-size: var(--text-sm);
+}
+
+.socialPostSignIn a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  color: var(--river);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .socialPostSignIn a:hover {
+    text-decoration: underline;
+  }
+}
+
+/* The lane's way to the next page is a bordered secondary, the EmptyState
+   action's shape, so the lane paints no second fill under the door. */
+.socialLondonMore {
+  display: flex;
+  width: min(100%, 220px);
+  min-height: 44px;
+  margin: 18px auto 0;
+  padding: 0 var(--space-4);
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--control-radius);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.socialLondonMore:disabled {
+  cursor: progress;
+  opacity: 0.72;
+}
+
 .socialSkeletons {
   display: grid;
   gap: 14px;
@@ -1243,11 +1294,6 @@ span.socialPostAvatar {
 @media (max-width: 640px) {
   .socialPage .screenPrimary {
     width: 100%;
-  }
-
-  /* Keep the Create lane reserved while consent temporarily hides Create. */
-  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .socialPage .screenPrimary {
-    padding-right: max(0px, calc(var(--create-fab-lane) - var(--page-gutter)));
   }
 
   /* While the analytics card is mounted, globals.css owns the scroll padding

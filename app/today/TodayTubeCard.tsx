@@ -73,9 +73,7 @@ export default function TodayTubeCard({
   if (!disruption) return null;
 
   return (
-    // createFabLane: the warning's last words ran under the compose disc on a
-    // phone at rest (taste plan, 18 Oct 2026), so the section keeps its lane.
-    <section className="todayCard createFabLane" aria-labelledby="today-tube-title" data-testid="today-tube">
+    <section className="todayCard" aria-labelledby="today-tube-title" data-testid="today-tube">
       <h2 className="todayCardTitle" id="today-tube-title">
         The Tube {TUBE_WHEN_LABEL[slot]}, near {disruption.patchLabel}
       </h2>

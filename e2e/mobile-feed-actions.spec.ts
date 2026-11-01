@@ -55,7 +55,8 @@ test.describe("mobile Social actions", () => {
     await expect(
       page.getByRole("status").getByRole("link", { name: "Sign in" }),
     ).toHaveCount(0);
-    await expect(page.getByText("Sign in to use Social.")).toBeVisible();
+    // The read-only London lane sits under the door (captain decision 7).
+    await expect(page.getByRole("heading", { name: "Across London", exact: true })).toBeVisible();
 
     await expectNoHorizontalOverflow(page);
     expect(errors).toEqual([]);

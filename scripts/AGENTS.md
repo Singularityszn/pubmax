@@ -36,6 +36,7 @@ Full rules: [`docs/rules/scripts-harvest-and-source-permission.md`](../docs/rule
 - [A PUB'S OWN FOOD MENU IS READ LIKE ITS DRINKS LIST, AND ONLY ITS PRICE FACT SHIPS.](../docs/rules/scripts-harvest-and-source-permission.md#a-pub-s-own-food-menu-is-read-like-its-drinks-list-and-only-its-price-fact-ships)
 - [AN EXA WEBSITE IS READ FOR A PRICE ONLY WHEN ITS OWN PAGE STATES THE PUB'S ADDRESS.](../docs/rules/scripts-harvest-and-source-permission.md#an-exa-website-is-read-for-a-price-only-when-its-own-page-states-the-pub-s-address)
 - [A MENU IS THE PUB'S WHOSE WEBSITE IT IS, AND A SHARED NAME IS NOT A MATCH.](../docs/rules/scripts-harvest-and-source-permission.md#a-menu-is-the-pub-s-whose-website-it-is-and-a-shared-name-is-not-a-match)
+- [A PAGE THAT NAMES ANOTHER BRANCH IS NOT THIS PUB'S PRICE, EVEN ON A ONE-PUB HOST.](../docs/rules/scripts-harvest-and-source-permission.md#a-page-that-names-another-branch-is-not-this-pub-s-price-even-on-a-one-pub-host)
 
 ## Builders and publishers
 
@@ -55,4 +56,5 @@ Full rules: [`docs/rules/scripts-deploys-and-uploads.md`](../docs/rules/scripts-
 - [A DEPLOY NAMES ITS OWN COMMIT, AND A CLI DEPLOY HAS TO CARRY IT.](../docs/rules/scripts-deploys-and-uploads.md#a-deploy-names-its-own-commit-and-a-cli-deploy-has-to-carry-it)
 - [A PRODUCTION RELEASE IS ONE COMMAND, AND IT ENDS AT THE SMOKE VERDICT.](../docs/rules/scripts-deploys-and-uploads.md#a-production-release-is-one-command-and-it-ends-at-the-smoke-verdict)
 - [THE RELEASE REFUSES WHEN PRODUCTION LACKS A MIGRATION, AND THE CHECK COMPARES NAMES.](../docs/rules/scripts-deploys-and-uploads.md#the-release-refuses-when-production-lacks-a-migration-and-the-check-compares-names)
+- [PRODUCTION IS ASKED EVERY FIVE MINUTES, AND ONLY A ROUTE THAT FAILS TWICE IS AN OUTAGE.](../docs/rules/scripts-deploys-and-uploads.md#production-is-asked-every-five-minutes-and-only-a-route-that-fails-twice-is-an-outage)
 - [THE ONLY DATABASE BACKUP IS A PRIVATE COPY ON THE CAPTAIN'S MAC, AND IT IS NEVER A WORKFLOW ARTIFACT.](../docs/rules/scripts-deploys-and-uploads.md#the-only-database-backup-is-a-private-copy-on-the-captain-s-mac)

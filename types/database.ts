@@ -1568,6 +1568,59 @@ export type Database = {
         };
         Relationships: [];
       };
+      operator_facts: {
+        Row: {
+          id: string;
+          proposal_id: string;
+          venue_id: string;
+          account_id: string;
+          kind: string;
+          title: string | null;
+          body: string | null;
+          field: string | null;
+          when_text: string | null;
+          on_date: string | null;
+          published_at: string;
+          withdrawn_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          proposal_id: string;
+          venue_id: string;
+          account_id: string;
+          kind: string;
+          title?: string | null;
+          body?: string | null;
+          field?: string | null;
+          when_text?: string | null;
+          on_date?: string | null;
+          published_at?: string;
+          withdrawn_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          proposal_id?: string;
+          venue_id?: string;
+          account_id?: string;
+          kind?: string;
+          title?: string | null;
+          body?: string | null;
+          field?: string | null;
+          when_text?: string | null;
+          on_date?: string | null;
+          published_at?: string;
+          withdrawn_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "operator_facts_proposal_id_fkey";
+            columns: ["proposal_id"];
+            isOneToOne: true;
+            referencedRelation: "operator_proposals";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       operator_proposals: {
         Row: {
           id: string;
@@ -1883,6 +1936,7 @@ export type Database = {
           measure_label: string | null;
           author_retired_at: string | null;
           receipt_photo_key: string | null;
+          price_evidence: string | null;
         };
         Insert: {
           id?: string;
@@ -1917,6 +1971,7 @@ export type Database = {
           measure_label?: string | null;
           author_retired_at?: string | null;
           receipt_photo_key?: string | null;
+          price_evidence?: string | null;
         };
         Update: {
           id?: string;
@@ -1951,6 +2006,7 @@ export type Database = {
           measure_label?: string | null;
           author_retired_at?: string | null;
           receipt_photo_key?: string | null;
+          price_evidence?: string | null;
         };
         Relationships: [];
       };
@@ -6107,6 +6163,62 @@ export type Database = {
           author_retired_at?: string | null;
         };
         Relationships: [];
+      };
+      table_requests: {
+        Row: {
+          id: string;
+          requester_user_id: string;
+          venue_id: string;
+          requester_name: string;
+          party_size: number;
+          requested_date: string;
+          requested_time: string;
+          note: string | null;
+          contact_kind: string;
+          contact_value: string;
+          delivery: string;
+          created_at: string;
+          delivered_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          requester_user_id: string;
+          venue_id: string;
+          requester_name: string;
+          party_size: number;
+          requested_date: string;
+          requested_time: string;
+          note?: string | null;
+          contact_kind: string;
+          contact_value: string;
+          delivery?: string;
+          created_at?: string;
+          delivered_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          requester_user_id?: string;
+          venue_id?: string;
+          requester_name?: string;
+          party_size?: number;
+          requested_date?: string;
+          requested_time?: string;
+          note?: string | null;
+          contact_kind?: string;
+          contact_value?: string;
+          delivery?: string;
+          created_at?: string;
+          delivered_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "table_requests_requester_user_id_fkey";
+            columns: ["requester_user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       venue_corrections: {
         Row: {

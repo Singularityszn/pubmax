@@ -1,9 +1,11 @@
 import { jsonNoStore } from "@/lib/apiResponses";
 import { publicApiError } from "@/lib/apiError";
 import { DEFAULT_CITY_ID, parseCityId } from "@/lib/cities";
+import type { ConciergeVenue } from "@/lib/concierge/rank";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { cultureOutingCosts, type CultureOpenerDTO } from "@/lib/cultureCrawl";
 import { planCultureOpenerFields } from "@/lib/cultureCrawl.server";
+import { dryRoundWire, type DryRoundAlcoholFree, type DryRoundWire } from "@/lib/dryRound";
 import type { PlanBudgetSummary, PlanningConfidence, PlanRouteTotals } from "@/lib/planIntelligence";
 import { estimatePlanWalking, estimateStraightLinePlanWalking } from "@/lib/walkRouteLegs";
 import { pubStreetWalkKm } from "@/lib/pubWalkPairs.server";
@@ -26,8 +28,9 @@ import {
 	planGenerationEvidenceGaps,
 	planScoringDrinkCategory,
 } from "@/lib/planGenerationRanking";
-import { planRouteRefusalMessage, selectPlanGenerationCandidates } from "@/lib/planGenerationSelection.server";
+import { planGenerationRefusalMessage, selectPlanGenerationCandidates } from "@/lib/planGenerationSelection.server";
 import { priceEvidenceUsableForCeiling, type PlanPriceEvidence } from "@/lib/planRouteEvidence";
+import { planPriceEvidenceForVenues } from "@/lib/planRouteEvidence.server";
 import type { PlanConstraintReport, SelectedGroundedPlanStop } from "@/lib/planRouteOptimizer";
 import type { PlanningIntentSource } from "@/lib/planningIntent";
 import { mintPlanGroundingProof, mintPlanGroundingProofV2 } from "@/lib/planGrounding.server";
@@ -84,6 +87,26 @@ function cultureOutingFields(
 	};
 }
 
+/**
+ * The dry round's half of the response (lib/dryRound.ts): each pub's listed
+ * alcohol-free price and, beside it, its pint from the same canonical evidence
+ * a pint night carries, printed only where that pint names its publisher and
+ * its day. It covers the stops and every swap offered, since a swap may only
+ * bring in another pub that lists one. Nothing at all for any other night.
+ */
+async function dryRoundResponse(
+	listed: ReadonlyMap<string, DryRoundAlcoholFree> | null,
+	stops: readonly { venueId: string; alternatives: readonly { venueId: string }[] }[],
+	venues: readonly ConciergeVenue[],
+	now: number,
+): Promise<{ fields: { dryRound?: DryRoundWire }; effects: string[] }> {
+	if (!listed) return { fields: {}, effects: [] };
+	const venueIds = stops.flatMap((stop) => [stop.venueId, ...stop.alternatives.map(({ venueId }) => venueId)]);
+	const wanted = new Set(venueIds);
+	const pints = await planPriceEvidenceForVenues(venues.filter(({ id }) => wanted.has(id)), now);
+	return { fields: { dryRound: dryRoundWire(venueIds, listed, pints) }, effects: ["dryRound"] };
+}
+
 export async function POST(request: Request): Promise<Response> {
   try {
 	const preparation = await preparePlanGeneration(request);
@@ -104,6 +127,7 @@ export async function POST(request: Request): Promise<Response> {
 		naLensPrices,
 		drinkPriceCoverageNote,
 		dietaryMenu,
+		dryRoundListed,
 		candidates,
 		anchor: anchorRequest,
 	} = preparation.prepared;
@@ -119,7 +143,7 @@ export async function POST(request: Request): Promise<Response> {
 	// without one retain the generic, unanchored selection path.
 	if (anchorRequest) {
 		const anchored = await runAnchoredGeneration({
-			cityId, anchor: anchorRequest, candidates, context, intake, requestNow, operationKey, area, coverage,
+			cityId, anchor: anchorRequest, candidates, context, intake, requestNow, operationKey, area, coverage, dryRoundListed,
 		});
 		if ("done" in anchored) return anchored.done;
 		chosen = anchored.route.chosen;
@@ -132,13 +156,14 @@ export async function POST(request: Request): Promise<Response> {
 	} else {
 		const generatedSelection = await selectPlanGenerationCandidates(candidates, context, intake, requestNow);
 		if (!generatedSelection.ok) {
-			// Name the words that refused it, so the reader knows what to drop.
-			const { mustHaves } = generatedSelection;
+			// Name the words that refused it, so the reader knows what to drop,
+			// or, under a budget, the cheapest route found and its total.
+			const { mustHaves, cheapestRoute } = generatedSelection;
 			return publicApiError(
-				planRouteRefusalMessage(normalizePlanStopCount(context.stopCount), area.name, mustHaves),
+				planGenerationRefusalMessage(context, area.name, mustHaves, cheapestRoute),
 				"GROUNDED_CONSTRAINTS_UNSATISFIED",
 				422,
-				{ details: { nightArea: area.slug, availableVenueCount: candidates.length, mustHaves, ...generatedSelection.selection } },
+				{ details: { nightArea: area.slug, availableVenueCount: candidates.length, mustHaves, cheapestRoute, ...generatedSelection.selection } },
 			);
 		}
 		chosen = generatedSelection.chosen;
@@ -165,7 +190,9 @@ export async function POST(request: Request): Promise<Response> {
 		hasDatedWindow: Boolean(intake?.routeWindow),
 		allOpeningListed: Boolean(groundedStops?.every((stop) => stop.opening.state === "listed_open")),
 		hasCompletePriceEvidence,
-		allZeroProofConfirmed: chosen.every(({ venue }) => naLensPrices.has(venue.id) || venue.amenities.nonAlcoholic === true),
+		allZeroProofConfirmed: chosen.every(({ venue }) => naLensPrices.has(venue.id)
+			|| venue.amenities.nonAlcoholic === true
+			|| dryRoundListed?.has(venue.id) === true),
 		hasTonightEvidence: chosen.some(({ tonightEvents }) => tonightEvents.length > 0),
 		hasWeatherEvidence: Boolean(planningWeather),
 	});
@@ -244,6 +271,8 @@ export async function POST(request: Request): Promise<Response> {
 		planningWeather,
 		priceContext: context,
 	});
+	// A dry round prints each pub's listed alcohol-free price with its pint beside it.
+	const dryRound = await dryRoundResponse(dryRoundListed, stops, candidates.map(({ venue }) => venue), requestNow);
 	const { cultureFields, budgetSummary: routeBudgetSummary } = cultureOutingFields(
 		cultureOpenerFields.cultureOpener,
 		stops,
@@ -307,6 +336,7 @@ export async function POST(request: Request): Promise<Response> {
 		routeTiming: planRouteTimingDisclosure(groundedTiming),
 		endingRecommendations,
 		...cultureFields,
+		...dryRound.fields,
 		weatherEvidence: planningWeather,
 		nightArea,
 		...(constraintReport ? { constraintReport } : {}),
@@ -323,6 +353,7 @@ export async function POST(request: Request): Promise<Response> {
 	      ...(context.foodNeeds.length ? ["foodNeeds"] : []),
 			...(context.budgetLimitPence ? ["budgetLimitPence"] : []),
 			...(context.zeroProof ? ["zeroProof"] : []),
+			...dryRound.effects,
 			...(planScoringDrinkCategory(context) && (context.budget === "value" || context.zeroProof) ? ["drinkCategory"] : []),
 			...(context.wetherspoonsPreferred ? ["wetherspoonsPreferred"] : []),
 			...(planningWeather ? ["weather"] : []),

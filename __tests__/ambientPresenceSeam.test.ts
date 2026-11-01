@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // The hard seam of the ambient demo layer (PRD next-wave P2): when Supabase IS
 // configured, recentPresenceWithAmbient must return REAL presence only — the
@@ -44,6 +44,15 @@ import { defined } from "@/__tests__/helpers/defined";
 // 22:00 London (BST) — peak hour, so the ambient layer WOULD be non-empty if it
 // leaked past the Supabase gate.
 const PEAK = Date.UTC(2026, 6, 7, 21, 5, 0);
+
+// Demo content is opt-in (lib/demoContent.ts), and these tests read the seeds.
+beforeEach(() => {
+  vi.stubEnv("NEXT_PUBLIC_DEMO_CONTENT", "on");
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe("recentPresenceWithAmbient — Supabase configured", () => {
   it("returns real presence only; no demo rows even at peak hour", async () => {

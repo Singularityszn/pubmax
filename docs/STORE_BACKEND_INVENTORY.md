@@ -14,9 +14,9 @@ Counted on 31 October 2026 with the V1 night stores included.
 Recount it with `ls lib/*Store.ts` and a grep for `selectStore(` and
 `createDualBackendStore` whenever a store is added.
 
-- The repository has 65 `lib/*Store.ts` modules.
+- The repository has 66 `lib/*Store.ts` modules.
 - 44 modules call `selectStore` directly.
-- 14 modules use `createDualBackendStore`.
+- 15 modules use `createDualBackendStore`.
 - 8 modules keep memory state on `globalThis` so it survives a development
   server reload. That state pattern is separate from backend selection.
 - The remaining 7 modules use an explicit backend, a file or static data path,
@@ -72,6 +72,7 @@ silently stale.
 | nightProfileStore | factory-ready | Night Profile preference rows with shared backend selection. |
 | notificationsStore | factory-ready | Notification rows with shared backend selection. |
 | occupancyStore | factory-eligible, policy-heavy | Time window, retake, reporting, and moderation policy. |
+| operatorFactsStore | factory-ready | What a moderator's acceptance of an operator proposal publishes: one fact per proposal, withdrawn by a later decline, read by the venue sheet and Tonight. |
 | operatorProposalsStore | factory-ready | Operator proposal state has one backend selector. |
 | pendingPlanRecapStore | factory-ready | Small pending-plan recap store. |
 | pintDropsStore | legacy-exception | Inline Supabase configuration branch around Pint Drop and Storage work. |
@@ -106,6 +107,7 @@ silently stale.
 | socialPostVideoStore | factory-eligible, policy-heavy | Upload intents, held-until-watched review and signed playback. |
 | socialPubRankingStore | factory-eligible, policy-heavy | Adjacent-neighbour placement and stale-list refusal (0186). |
 | stepOutNudgeStore | factory-ready | Nudge preference and send-stamp rows with shared backend selection. |
+| tableRequestsStore | factory-ready | "Ask the pub for a table" requests PUBMAXX emailed to a verified operator: stored pending, stamped emailed or discarded, listed to that operator alone, and read back for the requester's own export. |
 | venueCorrectionsStore | factory-ready | "That's wrong" notes about a pub (shut, hours, other) and the moderator's resolve or dismiss. |
 | venueOperatorsStore | factory-eligible, policy-heavy | Venue claim ownership and operator moderation policy. |
 | venuePhotoStore | factory-eligible, policy-heavy | Photo cap, author projection, reports, and moderation policy. |
@@ -206,6 +208,7 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/nightProfileStore.ts",
     "lib/nightSignalStore.server.ts",
     "lib/notificationsStore.ts",
+    "lib/operatorAccountAddress.server.ts",
     "lib/operatorProposalsStore.ts",
     "lib/pendingPlanRecapStore.ts",
     "lib/pintDropLookup.ts",
@@ -279,8 +282,8 @@ and Supabase implementations keep their existing fail-soft behavior.
 
 The current branch also has `createDualBackendStore` in
 `adultSelfAssertionStore`, `diaryStore`, `feedFreshnessStore`,
-`harvestOverlayStore`, `kitchenReportsStore`, `occupancyStore`, `priceTrustEventStore`,
-`pubPalToolTurnStore`, `regularNightReportsStore`, `stepOutNudgeStore`, `venueCorrectionsStore`, `venueSubmissionStore`,
+`harvestOverlayStore`, `kitchenReportsStore`, `occupancyStore`, `operatorFactsStore`, `priceTrustEventStore`,
+`pubPalToolTurnStore`, `regularNightReportsStore`, `stepOutNudgeStore`, `tableRequestsStore`, `venueCorrectionsStore`, `venueSubmissionStore`,
 `walkRouteStore` and `wantedStore`. This inventory records that current state; it does not require
 other stores to migrate.
 

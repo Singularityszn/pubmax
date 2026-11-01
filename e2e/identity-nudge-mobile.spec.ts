@@ -51,7 +51,7 @@ test("Plan identity nudge keeps one sign-in email action on a 390px phone", asyn
   await expect(page.locator("#plan-composer")).toBeVisible();
 
   const primaryNav = page.getByRole("navigation", { name: "Primary" });
-  const focusOrigin = primaryNav.getByRole("link", { name: "Map" });
+  const focusOrigin = primaryNav.getByRole("link", { name: "Explore" });
   await expect(async () => {
     await focusOrigin.focus();
     await expect(focusOrigin).toBeFocused({ timeout: 1_000 });

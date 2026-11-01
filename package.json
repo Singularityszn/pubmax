@@ -38,6 +38,7 @@
     "backup:install-launchd": "node scripts/install-backup-launchd.mjs",
     "check:freshness": "node scripts/check_freshness.mjs",
     "check:migration-ledger": "node scripts/check-migration-ledger.mjs",
+    "launch:figures": "node --conditions=react-server --import tsx scripts/launch_figures.mjs",
     "build:pint-index-snapshot": "node --conditions=react-server --import tsx scripts/build_pint_index_snapshot.mjs",
     "build:map-opening-snapshot": "node --import tsx scripts/build_map_opening_snapshot.mjs",
     "ingest:hyped-pubs": "node scripts/hyped-pubs-ingest.mjs",

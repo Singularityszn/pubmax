@@ -1,13 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { ContributionGateDialog } from "@/components/identity/ContributionGateDialog";
 import { type Venue } from "@/lib/venues";
 import type { PintDropsState } from "@/components/map/usePintDrops";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
-import type { CrawlMode } from "@/components/map/ControlRail";
 import type { LastPintDecision } from "@/lib/tfl";
 import { landmarks as londonLandmarks, type Landmark } from "@/lib/landmarks";
 import { STORY_BANDS, type StoryBand } from "@/lib/storyBands";
@@ -52,7 +51,7 @@ import VenueMenuTab from "./inspector/VenueMenuTab";
 import VenueStoryTab from "./inspector/VenueStoryTab";
 import VenueAskSection from "./inspector/VenueAskTab";
 import VenueGettingHomeSection from "./inspector/VenueGettingHomeTab";
-import VenueStickyBar from "./inspector/VenueStickyBar";
+import VenueActionCard from "./inspector/VenueActionCard";
 
 import "./venueSheet.css";
 import "./accessibilityFilters.css";
@@ -63,8 +62,12 @@ export type { TabKey };
 
 type VenueInspectorProps = {
   venue: Venue;
-  mode: CrawlMode;
-  inCrawl: boolean;
+  /**
+   * The action card's first row: the price, the walk and the ONE plan door,
+   * read by the map (components/map/inspector/VenueActionSummary.tsx). The
+   * card owns every plan action, so the sheet takes no crawl props of its own.
+   */
+  actionSummary?: ReactNode;
   latestContributorPrice: number | null | undefined;
   /** Epoch ms of the latest Pint Drop, from the unmerged drop signal - see
    *  VenueOverviewTab, which hands it to the submit receipt. */
@@ -86,10 +89,8 @@ type VenueInspectorProps = {
   shareLoggedPintGbp?: number | null;
   /** Epoch ms for shareLoggedPintGbp. */
   shareLoggedAt?: number | null;
-  onToggleStop: (id: string) => void;
   onSelectVenue?: (id: string) => void;
-  /** Trusted-handoff §4.8 "Make it Stop 1": accept this Venue into a Plan. */
-  onAcceptStop1?: () => void;
+  /** Why the last "Make it Stop 1" could not hand the pub to Plan, or null. */
   acceptanceError?: string | null;
   /** A tab, or the "getting-home" fold on Overview. */
   initialTab?: VenueTabRequest;
@@ -161,8 +162,7 @@ function browserStorage(): Storage | null {
 
 export default function VenueInspector({
   venue,
-  mode,
-  inCrawl,
+  actionSummary,
   latestContributorPrice,
   latestPintDropAt,
   confirmedPrice,
@@ -171,9 +171,7 @@ export default function VenueInspector({
   disputedPrice,
   shareLoggedPintGbp = null,
   shareLoggedAt = null,
-  onToggleStop,
   onSelectVenue,
-  onAcceptStop1,
   acceptanceError = null,
   initialTab = DEFAULT_TAB,
   gettingHomeRequestId = 0,
@@ -461,13 +459,22 @@ export default function VenueInspector({
         revealCheckedLate={revealRecordLate}
       />
 
-      {/* Overview — identity, latest price, add-to-crawl, "I'm here tonight". */}
+      {/* The action card: price, walk, the one plan door, "Ask for a table"
+          and Share. On a phone it moves into the shared sheet footer; from
+          641px it is the sticky top of the drawer, under this head. */}
+      <VenueActionCard
+        venue={venue}
+        summary={actionSummary}
+        shareVenue={shareVenue}
+        currentShareFeedback={currentShareFeedback}
+        acceptanceError={acceptanceError}
+      />
+
+      {/* Overview — identity, latest price, "I'm here tonight". */}
       <VenueOverviewTab
         venue={venue}
         tab={tab}
         cityId={cityId}
-        mode={mode}
-        inCrawl={inCrawl}
         latestContributorPrice={latestContributorPrice}
         latestPintDropAt={latestPintDropAt}
         confirmedPrice={confirmedPrice}
@@ -480,7 +487,6 @@ export default function VenueInspector({
         communityPrices={communityPrices}
         experienceLens={experienceLens}
         drinkLensCategory={drinkLensCategory}
-        onToggleStop={onToggleStop}
         presenceState={presenceState}
         markPresenceHere={markPresenceHere}
         userLocation={userLocation}
@@ -555,18 +561,6 @@ export default function VenueInspector({
         ask={<VenueAskSection venue={venue} />}
       />
 
-      {/* Venue command bar. On phones it moves into the shared sheet footer;
-          on desktop it stays pinned at the bottom of this inspector. */}
-      <VenueStickyBar
-        venue={venue}
-        mode={mode}
-        inCrawl={inCrawl}
-        onToggleStop={onToggleStop}
-        onAcceptStop1={onAcceptStop1}
-        acceptanceError={acceptanceError}
-        shareVenue={shareVenue}
-        currentShareFeedback={currentShareFeedback}
-      />
       {priceOnboardingOpen ? (
         <ContributionGateDialog
           mode="onboarding_required"

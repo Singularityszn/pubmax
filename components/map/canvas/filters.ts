@@ -206,6 +206,11 @@ export function pinSortKeyExpr(selectedId: string): maplibregl.ExpressionSpecifi
 // Placement still decides per pin - `text-optional` means a label that cannot
 // fit is dropped and its pin stays. This constant only decides when the map
 // STARTS asking.
+//
+// It gates the TAG hung under a glass, not the price pill: since the cluster
+// discs print their cheapest price, a pub that stands alone in the mixed band
+// is a pill from PRICE_PILL_MIN_ZOOM (below), and the glass and its tag are
+// the fallback where the pill finds no room.
 export const PIN_PRICE_LABEL_MIN_ZOOM = 14;
 
 /** The label text for one feature, "" where the pub has no sayable price. */
@@ -381,27 +386,32 @@ export const CLUSTER_COUNT_BADGE_FILTER: maplibregl.FilterSpecification = [
 ];
 
 /**
- * Filter for the price pill layer (`pubs-price-pill`): every unclustered pub
- * with a sayable price that has nothing riding on its glass, and not the
- * selected one.
+ * The zoom from which a priced pub's mark is a pill: the pin floor itself
+ * (`PIN_MIN_ZOOM` in ./buildScene, which imports this module, so the number is
+ * restated here and __tests__/mapSymbolCollision.test.ts holds the two equal).
+ * A pin only exists where it had room to leave its cluster, and every cluster
+ * disc already prints its cheapest price, so from the first zoom a pub stands
+ * alone its mark is its price too (launch plan 1 Nov 2026, section 5: price
+ * pills on a calm map). The glass's own tag keeps PIN_PRICE_LABEL_MIN_ZOOM.
+ */
+export const PRICE_PILL_MIN_ZOOM = 12;
+
+/**
+ * What makes a pub a pill rather than a glass, whether or not it is selected:
+ * an unclustered pub with a sayable price that has nothing riding on its glass.
  *
  * - Absent `priceLabel` is the same "this pub says nothing" the tag reads, so an
  *   unpriced pub never gets a pill.
- * - The selected pub keeps its enlarged glass, its glow and its own tag on
- *   `pubs-point-selected`.
  * - A pub whose printed price is aging is NOT a pill: its glass wears the
  *   broken rim that says so (`pinPriceAging`, ./geojson).
  * - A pub wearing a mark is NOT a pill. The Pint Drops ring, the what's-on
- *   ring, the story-band halo and the provisional and confirmed dots are all
- *   drawn round or on a 28px glass, and a 48px pill would bury every one of
- *   them (or, for the two dots, sit them over the figure). Those pubs keep the
- *   glass and the tag exactly as they were, so no signal is lost to a shape.
+ *   ring and the provisional and confirmed dots are all drawn round or on a
+ *   28px glass, and a 48px pill would bury every one of them (or, for the two
+ *   dots, sit them over the figure). Those pubs keep the glass and the tag
+ *   exactly as they were, so no signal is lost to a shape.
  */
-export function pricePillFilter(
-  selectedId: string,
-  bandMemberIds: readonly string[] = [],
-): maplibregl.FilterSpecification {
-  const conditions: maplibregl.ExpressionSpecification[] = [
+function pricePillEligible(): maplibregl.ExpressionSpecification[] {
+  return [
     ["!", ["has", "point_count"]],
     ["has", "priceLabel"],
     ["!", ["coalesce", ["get", "drops"], false]],
@@ -412,6 +422,23 @@ export function pricePillFilter(
     // would print the price on a clean edge and read as fresh.
     ["!", ["coalesce", ["get", "aging"], false]],
   ];
+}
+
+/**
+ * Filter for the price pill layer (`pubs-price-pill`): every pill-eligible pub
+ * (above) that is not a story-band member and not the selected one.
+ *
+ * - A story-band member keeps its glass, because the band halo is drawn round
+ *   the 28px glass.
+ * - The selected pub is drawn once, on its own layer: the inverted pill
+ *   (`pubs-price-pill-selected`) or, where it is not pill-eligible, its
+ *   enlarged glass and tag (`pubs-point-selected`).
+ */
+export function pricePillFilter(
+  selectedId: string,
+  bandMemberIds: readonly string[] = [],
+): maplibregl.FilterSpecification {
+  const conditions = pricePillEligible();
   if (bandMemberIds.length > 0) {
     conditions.push(["!", ["in", ["get", "id"], ["literal", [...bandMemberIds]]]]);
   }
@@ -420,18 +447,33 @@ export function pricePillFilter(
 }
 
 /**
- * Filter for the dedicated selected-pin layer (`pubs-point-selected`): exactly
- * the selected unclustered pub, or nothing while no venue is selected. The
- * style spec makes `icon-allow-overlap` data-constant (no feature-data
- * expressions), so "only the selected pin may overlap" has to be its own layer
- * with a constant `true` behind this filter — the base pubs-point layer keeps
- * `icon-allow-overlap: false` and the density contract for every other pin.
+ * Filter for the selected pub's inverted pill (`pubs-price-pill-selected`):
+ * exactly the selected pub, when it is pill-eligible. Selection outranks a
+ * story band here, as it does everywhere else on the map: the pub the reader
+ * is looking at keeps the shape it had, inverted, rather than turning into a
+ * glass the moment it is tapped.
+ */
+export function selectedPricePillFilter(selectedId: string): maplibregl.FilterSpecification {
+  return ["all", ...pricePillEligible(), ["==", ["get", "id"], selectedId]];
+}
+
+/**
+ * Filter for the dedicated selected-pin layer (`pubs-point-selected`) and its
+ * two ink rings: exactly the selected unclustered pub when it is NOT a pill,
+ * or nothing while no venue is selected. A pill-eligible selected pub is drawn
+ * by `selectedPricePillFilter` instead, so the two filters split the selected
+ * pub between them and it is never drawn twice. The style spec makes
+ * `icon-allow-overlap` data-constant (no feature-data expressions), so "only
+ * the selected pin may overlap" has to be its own layer with a constant `true`
+ * behind this filter — the base pubs-point layer keeps `icon-allow-overlap:
+ * false` and the density contract for every other pin.
  */
 export function selectedPinFilter(selectedId: string): maplibregl.FilterSpecification {
   return [
     "all",
     ["!", ["has", "point_count"]],
     ["==", ["get", "id"], selectedId],
+    ["!", ["all", ...pricePillEligible()]],
   ];
 }
 

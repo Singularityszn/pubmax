@@ -102,16 +102,12 @@ delete process.env.SUPABASE_SERVICE_ROLE_KEY;
 delete process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 delete process.env.CLERK_SECRET_KEY;
 
-// Same trap, different flag: the Production Vercel project sets
-// NEXT_PUBLIC_DEMO_CONTENT=off, and `npm run ci` runs vitest inside that
-// build. Seed-behaviour tests (demoPintDropsForCity and friends) assume the
-// documented default (demo content ON), so letting the deployment flag leak
-// in turns them red on Production builds only — Previews (no flag) stay
-// green. First seen when the flag was set on Production after #395.
-//
-// Strip it here so the test baseline is the documented default regardless of
-// ambient env. Tests that assert the off behaviour stub the flag explicitly
-// (see __tests__/demoContent.test.ts) and are unaffected.
+// Same trap, different flag: a deployment may set NEXT_PUBLIC_DEMO_CONTENT,
+// and `npm run ci` runs vitest inside that build. Demo content is opt-in
+// (lib/demoContent.ts), so the baseline is OFF, which is the production
+// default. A seed-behaviour test (demoPintDropsForCity and friends) asks for
+// the seeds by setting the flag to `on` itself, so a developer's local
+// `on` cannot make a production-default test pass.
 delete process.env.NEXT_PUBLIC_DEMO_CONTENT;
 
 // The demo DRINK gate is the opposite default (opt-in, #1427), so the same

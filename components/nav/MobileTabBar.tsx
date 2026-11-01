@@ -4,7 +4,7 @@ import type { Route as NextRoute } from "next";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
-import { Fragment, useCallback, useMemo, useSyncExternalStore, type CSSProperties } from "react";
+import { useCallback, useMemo, useSyncExternalStore, type CSSProperties } from "react";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import { profilePath } from "@/lib/appLink";
@@ -16,7 +16,6 @@ import {
   primaryNavLabel,
   type PrimaryNavKey,
 } from "@/components/nav/navigationModel";
-import { PalDockButton } from "@/components/nav/PalNavButton";
 import { navIcon } from "@/components/nav/navIcons";
 import NavPendingIndicator from "@/components/nav/NavPendingIndicator";
 import { socialSurfaceName } from "@/lib/socialLaunch";
@@ -45,15 +44,15 @@ import "./navigation.css";
 // (see mobileNav.css). On desktop it is display:none, leaving existing desktop
 // navs untouched.
 //
-// Five durable destinations in the order of the loop (navigationModel): Map,
-// Tonight, Plan, Social, You. Out folded into Tonight and Places is a setting
-// reached from the map's city chip, so neither is a tab any more. Compose lives
-// on the floating + action, never in this row.
+// Five tabs and nothing else, in the order of the loop (navigationModel):
+// Explore, Tonight, Plan, Social, You (captain, 1 Nov 2026, launch plan
+// decision 13). Explore is the map. Out folded into Tonight and Places is a
+// setting reached from the map's city chip, so neither is a tab any more.
 //
-// Between Tonight and Plan the Pub Pal rises out of the rail (PalNavButton.tsx):
-// the person's own Pal, a door to /pal rather than a sixth destination, by the
-// captain's call (19 Oct 2026). It takes its own column, so the row has
-// PAL_DOCK_COLUMN + 1 more columns than tabs, and the gliding highlight skips it.
+// Nothing else rides in this row. The Pub Pal's door is in the phone top bar
+// (PalNavButton.tsx) and on the map edge, and compose lives where each thing
+// is made: Post a moment on Social and You, Log a price on the map and the
+// venue sheet, Start a plan on Plan.
 //
 // Social is named for its launch state. While the friends launch is rolled
 // back, its accessible name is "Social preview" and the dock shows the word
@@ -78,17 +77,9 @@ type Tab = {
 };
 
 const warmedTabs = new Set<string>();
-
-/** The column the Pal's raised button takes, between Tonight and Plan. */
-export const PAL_DOCK_COLUMN = 2;
-
-/** The rail column a tab sits in, once the Pal has taken its own. */
-export function dockColumnForTab(tabIndex: number): number {
-  return tabIndex < PAL_DOCK_COLUMN ? tabIndex : tabIndex + 1;
-}
 const subscribeHydration = () => () => {};
 
-// Map follows preferred city after mount, with /map as the server fallback.
+// Explore follows preferred city after mount, with /map as the server fallback.
 // Exported for the tab contract test.
 export function buildTabs(
   youHref: NextRoute = "/u/you" as NextRoute,
@@ -183,9 +174,8 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
   // wrong tab.
   const activeIndex = tabs.findIndex((tab) => isActive(pathname, tab));
   // With no tab lit (the Pal's own page, or a route no tab owns) the well
-  // fades out where it stands, at a real column, so it never slides out of
-  // the rail on its way.
-  const activeColumn = activeIndex === -1 ? 0 : dockColumnForTab(activeIndex);
+  // fades out at a real column, so it never slides out of the rail on its way.
+  const activeColumn = activeIndex === -1 ? 0 : activeIndex;
   const warmTab = useCallback(
     (href: NextRoute) => {
       warmNavRoute(router, href, warmedTabs);
@@ -214,7 +204,7 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
           --tab-inset), so the CSS never assumes a tab total. */}
       <ul
         className="mobileTabList"
-        style={{ "--tab-count": tabs.length + 1 } as CSSProperties}
+        style={{ "--tab-count": tabs.length } as CSSProperties}
       >
         {/* Gliding active-tab highlight. A decorative li (not a nav item) so it
             can sit inside the ul without breaking the list semantics; screen
@@ -231,49 +221,42 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
             } as CSSProperties
           }
         />
-        {tabs.map((tab, index) => {
+        {tabs.map((tab) => {
           const active = isActive(pathname, tab);
           const { Icon } = tab;
           return (
-            <Fragment key={tab.label}>
-              {index === PAL_DOCK_COLUMN ? (
-                <li className="mobileTabPalItem">
-                  <PalDockButton pathname={pathname} onNavigate={onPrimaryTabNavigate} />
-                </li>
-              ) : null}
-              <li className="mobileTabItem">
-                <Link
-                  href={tab.href}
-                  // The bar sits in the viewport on every page, so Next's
-                  // automatic prefetch fires for all five tab destinations while the
-                  // current page is still painting. This component already owns a
-                  // intent warm below replaces it. Leaving the automatic one on
-                  // top downloads unrelated route code before the current page is
-                  // useful.
-                  prefetch={false}
-                  className={"mobileTab pressable navPendingLink" + (active ? " isActive" : "")}
-                  aria-label={tab.ariaLabel}
-                  aria-current={active ? "page" : undefined}
-                  onPointerDown={() => warmTab(tab.href)}
-                  onClick={onPrimaryTabNavigate}
-                  onMouseEnter={() => warmTab(tab.href)}
-                  onFocus={() => warmTab(tab.href)}
-                  onTouchStart={() => warmTab(tab.href)}
-                >
-                  <span className="mobileTabIcon" aria-hidden="true">
-                    <Icon
-                      size={20}
-                      fill="none"
-                    />
-                  </span>
-                  <span className="mobileTabLabel">
-                    <span className="mobileTabLabelText">{tab.label}</span>
-                    {tab.preview ? <span className="mobileTabPreviewDot" aria-hidden="true" /> : null}
-                  </span>
-                  <NavPendingIndicator />
-                </Link>
-              </li>
-            </Fragment>
+            <li key={tab.key} className="mobileTabItem">
+              <Link
+                href={tab.href}
+                // The bar sits in the viewport on every page, so Next's
+                // automatic prefetch fires for all five tab destinations while the
+                // current page is still painting. This component already owns a
+                // intent warm below replaces it. Leaving the automatic one on
+                // top downloads unrelated route code before the current page is
+                // useful.
+                prefetch={false}
+                className={"mobileTab pressable navPendingLink" + (active ? " isActive" : "")}
+                aria-label={tab.ariaLabel}
+                aria-current={active ? "page" : undefined}
+                onPointerDown={() => warmTab(tab.href)}
+                onClick={onPrimaryTabNavigate}
+                onMouseEnter={() => warmTab(tab.href)}
+                onFocus={() => warmTab(tab.href)}
+                onTouchStart={() => warmTab(tab.href)}
+              >
+                <span className="mobileTabIcon" aria-hidden="true">
+                  <Icon
+                    size={20}
+                    fill="none"
+                  />
+                </span>
+                <span className="mobileTabLabel">
+                  <span className="mobileTabLabelText">{tab.label}</span>
+                  {tab.preview ? <span className="mobileTabPreviewDot" aria-hidden="true" /> : null}
+                </span>
+                <NavPendingIndicator />
+              </Link>
+            </li>
           );
         })}
       </ul>

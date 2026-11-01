@@ -7,6 +7,7 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { useAuth } from "@/components/auth/authContext";
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
 import NavPendingIndicator from "@/components/nav/NavPendingIndicator";
+import { IconButton } from "@/components/ui/icon-button";
 import { readLocalPal, subscribeLocalPal } from "@/lib/localPal";
 import { palGenomeFor, palGenomeStyle } from "@/lib/palGenome";
 import { subscribePalMoments } from "@/lib/palMoments";
@@ -14,11 +15,17 @@ import type { PubPal } from "@/lib/pubPal";
 import { pubPalMascotSlugFor } from "@/lib/pubPalMascot";
 import "./navigation.css";
 
-// The Pub Pal's own door in the navigation: the raised button in the middle of
-// the phone dock (MobileTabBar.tsx) and the Pal button in the desktop bar
-// (SiteNav.tsx). It opens /pal, where a stranger meets a Pal and a person with
-// one talks to it. It is a door, not a sixth destination in the loop
+// The Pub Pal's own door in the navigation. It opens /pal, where a stranger
+// meets a Pal and a person with one talks to it. It is a door, not a tab
 // (navigationModel.ts keeps the five), and it is there from the first paint.
+// By the captain's call (1 Nov 2026, launch plan decision 13) it left the
+// phone dock, so it has three forms:
+// - PalTopBarButton, an icon button in the phone top bar (SiteNav.tsx), on
+//   every page that carries the bar, Plan included;
+// - PalMapEdgeButton, the same icon button on the phone map's edge column
+//   (components/mobile/MobileMapShell.tsx), because the map draws its own top
+//   bar and that bar has no room for a sixth control;
+// - PalSiteNavButton, the face and the Pal's name in the desktop bar.
 //
 // Only a person's OWN stored Pal puts a face on it: the Pal stored on this
 // device must belong to the account signed in now, because signing out does
@@ -83,11 +90,11 @@ function usePalForNav(pathname: string): { pal: PubPal | null; cheering: boolean
   return { pal: palForNav(pal, accountId), cheering };
 }
 
-function PalNavFace({ pal, size }: { pal: PubPal | null; size: 48 | 32 }) {
+function PalNavFace({ pal, size }: { pal: PubPal | null; size: 32 }) {
   if (!pal) {
     return (
       <span className="palNavFace palNavFace--bird" aria-hidden="true">
-        {size === 48 ? <Bird size={24} /> : <Bird size={20} />}
+        <Bird size={20} />
       </span>
     );
   }
@@ -104,26 +111,51 @@ function PalNavFace({ pal, size }: { pal: PubPal | null; size: 48 | 32 }) {
   );
 }
 
-/** The raised Pal button in the middle of the phone dock. */
-export function PalDockButton({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
+/**
+ * The Pal's door as the shared icon button (components/ui/icon-button.tsx):
+ * the Pal's face, or the drawn bird, in a 44px circle, with the Pal's name in
+ * the accessible name.
+ */
+function PalIconDoor({
+  pathname,
+  className,
+  variant,
+}: {
+  pathname: string;
+  className: string;
+  variant: "ghost" | "secondary";
+}) {
   const { pal, cheering } = usePalForNav(pathname);
   const active = palNavActive(pathname);
   return (
-    <Link
-      href={PAL_NAV_HREF}
-      prefetch={false}
-      className={"mobileTabPal pressable navPendingLink" + (active ? " isActive" : "") + (cheering ? " isCheering" : "")}
-      aria-label={palNavLabel(pal)}
-      aria-current={active ? "page" : undefined}
-      onClick={onNavigate}
+    <IconButton
+      asChild
+      variant={variant}
+      className={"palIconDoor " + className + (active ? " isActive" : "") + (cheering ? " isCheering" : "")}
     >
-      <PalNavFace pal={pal} size={48} />
-      <span className="mobileTabLabel">
-        <span className="mobileTabLabelText">Pal</span>
-      </span>
-      <NavPendingIndicator />
-    </Link>
+      <Link
+        href={PAL_NAV_HREF}
+        prefetch={false}
+        className="navPendingLink"
+        aria-label={palNavLabel(pal)}
+        aria-current={active ? "page" : undefined}
+        title={palNavLabel(pal)}
+      >
+        <PalNavFace pal={pal} size={32} />
+        <NavPendingIndicator />
+      </Link>
+    </IconButton>
   );
+}
+
+/** The Pal's door in the phone top bar, beside the theme and account controls. */
+export function PalTopBarButton({ pathname }: { pathname: string }) {
+  return <PalIconDoor pathname={pathname} className="palTopBarDoor" variant="ghost" />;
+}
+
+/** The Pal's door on the phone map's edge column, above Near me. */
+export function PalMapEdgeButton({ pathname }: { pathname: string }) {
+  return <PalIconDoor pathname={pathname} className="mobileMapPalDoor" variant="secondary" />;
 }
 
 /** The Pal button in the desktop bar: the face and the Pal's name. */

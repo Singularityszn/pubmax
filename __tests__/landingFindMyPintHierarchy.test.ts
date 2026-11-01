@@ -101,8 +101,9 @@ describe("landing hierarchy: the price receipt door", () => {
   it("counts the landing's own calls to action: one primary, one quiet row, one text link", () => {
     const rendered = render();
     expect(rendered.match(/data-primary-action/g)).toHaveLength(1);
-    // ONE quiet row: the receipt door, then Tonight (#1488). Two is that row's
-    // cap (components/ui/screen.tsx, `secondary`), so a third way onward fails
+    // ONE quiet row: the receipt door, then Plan a crawl (captain decision 2,
+    // 1 Nov 2026, in the place #1488 gave Tonight). Two is that row's cap
+    // (components/ui/screen.tsx, `secondary`), so a third way onward fails
     // here rather than in a browser nobody opens.
     expect(rendered.match(/class="screenSecondary"/g)).toHaveLength(1);
     const secondary = rendered.match(/<div class="screenSecondary">([\s\S]*?)<\/div>/)?.[1] ?? "";
@@ -111,7 +112,7 @@ describe("landing hierarchy: the price receipt door", () => {
     );
     expect(quietDoors).toEqual([
       ["/map?log=1", "Log what you paid"],
-      ["/tonight", "What's on tonight"],
+      ["/plan", "Plan a crawl"],
     ]);
     // The STATIC half of the row is the table
     // in lib/landingHero.ts, which is what e2e/mobile-button-system.spec.ts
@@ -122,20 +123,25 @@ describe("landing hierarchy: the price receipt door", () => {
     expect(textLinks).toEqual(["Browse pubs across the UK", "Open the map"]);
   });
 
-  it("gives Tonight a tap on the phone's home screen that the dead nav never had", () => {
-    // The landing bar hides its link list under 960px and the six-tab dock
-    // carried Now rather than Tonight, so before #1488 the only rendered
-    // /tonight link on `/` sat in the footer, thousands of pixels down.
-    const hero = render().match(/<section class="screen lpHero"[\s\S]*?<\/section>/)?.[0] ?? "";
-    expect(hero).toMatch(/href="\/tonight"/);
-    expect(hero).toMatch(/class="lpTonightDoor"/);
+  it("puts Plan a crawl under the hunt, beside the near-you primary", () => {
+    // Captain decision 2 (1 Nov 2026): under the cheapest pint we can find,
+    // the front door offers the cheapest near you and a crawl. Tonight keeps
+    // its tap in the five-tab dock (decision 13) and the footer.
+    const rendered = render();
+    const hero = rendered.match(/<section class="screen lpHero"[\s\S]*?<\/section>/)?.[0] ?? "";
+    expect(hero).toMatch(/<a[^>]*href="\/plan"[^>]*>Plan a crawl<\/a>/);
+    expect(hero).toMatch(/<a[^>]*class="lpPlanDoor"[^>]*>Plan a crawl<\/a>/);
+    expect(hero).not.toMatch(/href="\/tonight"/);
+    const footerNav = rendered.match(/<nav class="lpFooterNav"[^>]*>[\s\S]*?<\/nav>/)?.[0] ?? "";
+    expect(footerNav).toMatch(/href="\/tonight"/);
   });
 
   it("opens the Map directly for a stranger and keeps city choice explicit", () => {
     const rendered = render();
     const landingNav = rendered.match(/<nav class="lpPrimaryNav"[^>]*>[\s\S]*?<\/nav>/)?.[0];
     expect(landingNav, "landing navigation present").toBeTruthy();
-    expect(landingNav).toMatch(/href="\/map"[^>]*>Map<\/a>/);
+    // The map's door is named Explore (captain, 1 Nov 2026) and still opens /map.
+    expect(landingNav).toMatch(/href="\/map"[^>]*>Explore<\/a>/);
 
     const openMapLinks = [
       ...rendered.matchAll(/<a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g),

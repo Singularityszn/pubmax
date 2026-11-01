@@ -742,6 +742,12 @@
    6px one (the 6 Sep 2026 design review). */
 .planStopCount__choices { display: flex; flex-wrap: wrap; gap: 6px; }
 .planDescribeFirst__chips { margin: var(--space-2) 0 0; display: flex; flex-wrap: wrap; gap: 8px; }
+/* The £20 crawl and Dry round options: the shared chip
+   (components/ui/chip.css) with its one line beside it, wrapping under it on
+   a phone. */
+.planDescribeFirst__budget,
+.planDescribeFirst__dry { margin: var(--space-2) 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.planDescribeFirst__budgetNote { margin: 0; color: var(--muted); font-size: var(--text-xs); }
 .planDescribeFirst__chip {
   min-height: 44px;
   border: 1px solid var(--hairline-strong);
@@ -826,17 +832,6 @@
     background: var(--accent-action-strong);
   }
 }
-/* The floating create action owns a lane at the right edge, and Continue sits
-   in it: MEASURED at 390px, the button spanned x 199-368 while the control
-   held x 322-378, so its right 46px was not tappable. The row reserves that
-   lane the way a scrolling answer list does (components/nearme/nearMeNow.css),
-   reading the control's OWN published berth rather than a second copy of it. */
-@media (max-width: 640px) {
-  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .planIntake > footer {
-    padding-right: max(0px, calc(var(--create-fab-lane) - var(--page-gutter)));
-  }
-}
-
 /* Quiet secondary intake buttons when disabled. */
 .planIntake button:disabled { opacity: 0.5; cursor: not-allowed; }
 /* A Continue that cannot act yet is the neutral surface, as the composer's

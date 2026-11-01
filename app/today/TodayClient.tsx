@@ -103,7 +103,7 @@ function WeatherCard({ weather }: { weather: WeatherBrief | null }) {
   const title =
     weather.verdictLine || (weather.stale ? "Last weather reading on file." : "The weather tonight.");
   return (
-    <section className="todayCard createFabLane" aria-labelledby="today-weather-title" data-testid="today-weather">
+    <section className="todayCard" aria-labelledby="today-weather-title" data-testid="today-weather">
       <h2 className="todayCardTitle" id="today-weather-title">
         {title}
       </h2>

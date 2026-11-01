@@ -25,7 +25,7 @@ import VenueOverviewTab, {
   overviewComposerOpen,
 } from "@/components/map/inspector/VenueOverviewTab";
 import FirstDropNudge from "@/components/map/inspector/FirstDropNudge";
-import VenueStickyBar from "@/components/map/inspector/VenueStickyBar";
+import VenueActionCard from "@/components/map/inspector/VenueActionCard";
 import { SheetFooterContext } from "@/components/mobile/sheetFooterContext";
 import type { PricedVenue } from "@/lib/priceUpdates";
 import type { VenueDropReadStatus } from "@/lib/venueDropRead";
@@ -171,6 +171,8 @@ const FIXTURES: Record<PintTrustState, () => SummaryDrop[]> = {
     drop({ handle: "second", priceGbp: 4.5, createdAt: daysAgo(2) }),
   ],
   "logged-once": () => [drop()],
+  // A typed price with no bill (captain decision 9, 1 Nov 2026).
+  unchecked: () => [drop({ priceEvidence: "unchecked", authorityKey: "key-a" })],
   "aged-out": () => [drop({ createdAt: daysAgo(90) })],
   none: () => [],
 };
@@ -199,7 +201,7 @@ function communityPrices(venueId: string, readStatus: VenuePriceReadStatus = "re
 function renderOverview(
   drops: SummaryDrop[],
   base: Venue = venue(),
-  options: { priceFocusRequest?: number; priceSignInRequested?: boolean; withConfirm?: boolean; priceReadStatus?: VenuePriceReadStatus; dropReadStatus?: VenueDropReadStatus; communityState?: CommunityPricesState; mode?: "suggest" | "build"; phoneSheet?: boolean } = {},
+  options: { priceFocusRequest?: number; priceSignInRequested?: boolean; withConfirm?: boolean; priceReadStatus?: VenuePriceReadStatus; dropReadStatus?: VenueDropReadStatus; communityState?: CommunityPricesState; phoneSheet?: boolean } = {},
 ): string {
   const [merged] = mergeVenueDrops([base], new Map([[VENUE_ID, drops]]), NOW);
   const signal = pintTrustSignalFields(pintTrustFor(drops, NOW));
@@ -207,19 +209,20 @@ function renderOverview(
       venue: defined(merged),
       tab: "overview",
       cityId: "london",
-      mode: options.mode ?? "suggest",
-      inCrawl: false,
       latestContributorPrice: signal.latestContributorPrice,
       latestPintDropAt: signal.latestContributorAt,
       confirmedPrice: signal.confirmedPrice,
-      provisionalPrice: dropLaneInput(signal.provisionalContributorPrice, signal.provisionalContributorAt),
-      agedPrice: dropLaneInput(signal.agedContributorPrice, signal.agedContributorAt),
+      provisionalPrice: dropLaneInput(
+        signal.provisionalContributorPrice,
+        signal.provisionalContributorAt,
+        signal.uncheckedBy,
+      ),
+      agedPrice: dropLaneInput(signal.agedContributorPrice, signal.agedContributorAt, signal.uncheckedBy),
       disputedPrice: splitLaneInput(signal.disputedPrices, signal.disputedAt),
       communityPrices: options.communityState ?? communityPrices(VENUE_ID, options.priceReadStatus),
       dropReadStatus: options.dropReadStatus,
       experienceLens: "all",
       drinkLensCategory: null,
-      onToggleStop: noop,
       presenceState: "idle",
       markPresenceHere: noop,
       userLocation: null,
@@ -478,6 +481,7 @@ describe("overviewPriceDoor: one door per trust state", () => {
       corroborated: "log",
       disputed: "choose",
       "logged-once": "confirm",
+      unchecked: "confirm",
       "aged-out": "confirm",
       none: "log",
     });
@@ -568,6 +572,15 @@ describe("the rendered Overview carries exactly one price door", () => {
     for (const retired of RETIRED_DOORS) {
       expect(html, `${state}: ${retired}`).not.toContain(retired);
     }
+  });
+
+  it("an unchecked price is offered the same confirm door, over its own figure", () => {
+    // Captain decision 9: a second drinker's agreeing report is the only way a
+    // typed price with no bill reaches the map, so it gets "Still £4.50?".
+    const html = renderOverview(FIXTURES.unchecked());
+    expect(html).toContain('data-pint-trust="unchecked"');
+    expect(html).toContain('data-price-door="confirm"');
+    expect(html).toContain(confirmPintActionLabel(4.5));
   });
 
   it("the confirm door keeps its #1492 words and accessible name", () => {
@@ -779,34 +792,28 @@ describe("price precedence in the rendered Overview", () => {
 });
 
 describe("the Overview's crawl toggle", () => {
-  // ONE PLAN DOOR ON A PHONE (lib/venuePlanDoor.ts): the peek's door owns the
-  // crawl toggle there, so the Overview's own "Add to crawl" is desktop's alone.
+  // ONE PLAN DOOR AT EVERY WIDTH (lib/venuePlanDoor.ts): the action card's door
+  // owns the crawl toggle, so the Overview carries no "Add to crawl" at all.
   const crawlButtons = (html: string) => {
     const view = document.createElement("div");
     view.innerHTML = html;
     return [...view.querySelectorAll("button")].filter((button) => /crawl/i.test(button.textContent ?? ""));
   };
 
-  it("shows in build mode on desktop", () => {
-    expect(crawlButtons(renderOverview([], venue(), { mode: "build" })).map((b) => b.textContent)).toEqual(["Add to crawl"]);
-  });
-
-  it("is not a second plan door inside the phone sheet", () => {
-    expect(crawlButtons(renderOverview([], venue(), { mode: "build", phoneSheet: true }))).toEqual([]);
+  it("is gone on desktop and inside the phone sheet", () => {
+    expect(crawlButtons(renderOverview([], venue()))).toEqual([]);
+    expect(crawlButtons(renderOverview([], venue(), { phoneSheet: true }))).toEqual([]);
   });
 });
 
 describe("price actions beside the Overview", () => {
   it.each([
-    { mode: "suggest" as const, inCrawl: false, accept: false, names: ["Share"] },
-    { mode: "suggest" as const, inCrawl: false, accept: true, names: ["Make it Stop 1", "Share"] },
-    { mode: "build" as const, inCrawl: false, accept: true, names: ["Make it Stop 1", "Crawl", "Share"] },
-    { mode: "build" as const, inCrawl: true, accept: true, names: ["Make it Stop 1", "Remove", "Share"] },
-  ])("the sticky bar offers only venue actions in $mode, inCrawl=$inCrawl, accept=$accept", ({ mode, inCrawl, accept, names }) => {
+    { kind: "pub" as const, names: ["Ask for a table", "Share"] },
+    { kind: "bar" as const, names: ["Share"] },
+  ])("the action card's own row offers no price action for a $kind", ({ kind, names }) => {
     const view = document.createElement("div");
-    view.innerHTML = renderToStaticMarkup(createElement(VenueStickyBar, {
-      venue: venue(), mode, inCrawl, onToggleStop: noop,
-      onAcceptStop1: accept ? noop : undefined,
+    view.innerHTML = renderToStaticMarkup(createElement(VenueActionCard, {
+      venue: venue({ kind }),
       shareVenue: async () => {}, currentShareFeedback: null,
     }));
     expect(Array.from(view.querySelectorAll("button"), (button) => button.textContent?.trim())).toEqual(names);

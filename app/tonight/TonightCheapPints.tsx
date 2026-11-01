@@ -53,7 +53,7 @@ export default function TonightCheapPints({
           {rows.map((row) => (
             <RowListItem
               key={row.venueId}
-              className="tonightCheapPintsRow createFabLane"
+              className="tonightCheapPintsRow"
               href={`/map?sel=${encodeURIComponent(row.venueId)}` as Route}
               title={row.name}
               meta={

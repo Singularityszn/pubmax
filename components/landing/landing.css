@@ -572,49 +572,16 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
   .lpPrimaryNav a { padding: 0 6px; font-size: var(--text-xs); }
 }
 
-/* Under 641px the six-tab dock owns primary navigation, so the link row goes. */
+/* Under 641px the five-tab dock owns primary navigation, so the link row goes. */
 @media (max-width: 640px) {
   .lpNav { grid-template-columns: auto 1fr; }.lpPrimaryNav { display: none; }.lpNavActions { justify-self: end; }
 }
 
 @media (max-width: 640px) {
-  /* The answer card's kicker line keeps out of the same published compose
-     lane the rail rows already reserve, so the floating + never sits on it. */
-  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .lpAnswerHead {
-    padding-right: max(
-      var(--space-4),
-      calc(var(--create-fab-lane) - var(--page-gutter))
-    );
-  }
-
-  /* Reserve the full compose lane, including when a scrollbar narrows the
-     page. The shared button can shrink below 14rem inside this column. */
-  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .lpHero :is(.screenPrimary, .screenSecondary) {
-    width: 100%;
-    min-width: 0;
-    padding-right: calc(var(--create-fab-lane) - var(--page-gutter));
-  }
-
-  /* The phone dock already provides the Pal door. Keep the desktop shortcut,
-     but remove its duplicate and its compose-stack berth on the homepage. */
-  body:has(.lpHero):has(.mobileTabPalItem) {
-    --create-fab-bottom: var(--float-stack-base);
-  }
-
-  body:has(.lpHero):has(.mobileTabPalItem) .palSummon {
+  /* The phone top bar already carries the Pal's door (SiteNavActions), so the
+     front door does not float a second one over the answer. */
+  body:has(.lpHero) .palSummon {
     display: none;
-  }
-
-  /* The prose runs to the gutter, so a paragraph that came to rest in the
-     control's band lost the end of its lines under it (UX sprint, 15 Oct
-     2026, 390x844: the FAQ answers and the saving line). The copy column
-     keeps the same published lane.
-     The lane goes on the TEXT, never on the list that holds it: on the list
-     it sized the row divider's content box too, and every FAQ hairline
-     stopped a control's width short of the gutter. */
-  body:has(.createFabRoot):not(:has(.pageHidesCreateFab))
-    :is(.lpWorth p, .lpFaqQuestion, .lpFaqAnswer) {
-    padding-right: calc(var(--create-fab-lane) - var(--page-gutter));
   }
 }
 
@@ -676,7 +643,7 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
 }
 
 @media (prefers-contrast: more) {
-  .lpNav, .lpPubCard, .dropStripCard { border: 1px solid currentColor; }
+  .lpNav, .lpPubCard, .lpHuntCard, .lpHuntDearest, .dropStripCard { border: 1px solid currentColor; }
 }
 
 /* CAP Code section 18 responsible floor (docs/CAP_COPY_AUDIT_2026-07-21.md,
@@ -686,9 +653,9 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
 /* ── The answer, the Near me control and the rail ───────────────────────── */
 
 .lpAnswerCard { width: 100%; }
-/* The photograph above them takes the same measure, or its right edge ran
-   20px past the card's and the rail's on a desktop. */
-@media (min-width: 960px) { .lpAnswerCard, .lpRail, .lpHero .lpLondonFigure { width: min(100%, 32rem); } }
+/* The hunt card above them takes the same measure, so its right edge lines
+   up with the card's and the rail's on a desktop. */
+@media (min-width: 960px) { .lpAnswerCard, .lpRail, .lpHero .lpHuntCard { width: min(100%, 32rem); } }
 
 .lpAnswerHead {
   display: flex;
@@ -703,12 +670,12 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
 .lpNearLine { margin: 0; color: var(--ink-soft); font-size: var(--text-sm); line-height: var(--leading-normal); }
 .lpNearLine:empty { display: none; }
 
-/* The second quiet door on the hero row (#1488). It takes the shared quiet-link
-   weight from .screenSecondary; all it states here is the width half of the
-   44px tap floor, because "Tonight" is one short word and a 44px height alone
-   is not a tap target. e2e/mobile-landing-entry.spec.ts measures the rendered
-   box at 320, 360, 390 and 430. */
-.lpTonightDoor { min-width: 44px; justify-content: center; }
+/* The second quiet door on the hero row (#1488, Plan a crawl since 1 Nov
+   2026). It takes the shared quiet-link weight from .screenSecondary; all it
+   states here is the width half of the 44px tap floor, which a short label
+   alone does not promise. e2e/mobile-landing-entry.spec.ts measures the
+   rendered box at 320, 360, 390 and 430. */
+.lpPlanDoor { min-width: 44px; justify-content: center; }
 
 /* Variant B: three rows under the answer, one column at every width. Rows,
    not cards: a hairline between each, and the price stamp on the right. */
@@ -747,45 +714,16 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
   .lpAnswerCard { width: 100%; }
 }
 
-/* Below the desktop grid the picture sits between the lede and the one filled
-   action, so it is sized from the screen's height rather than its width: the
-   primary stays above the fold on a short phone, and the figure stops short of
-   the compose action's lane. */
-@media (max-width: 959px) {
-  .lpHero .lpLondonFigure {
-    width: min(
-      calc(100% + var(--page-gutter) - var(--create-fab-lane)),
-      34rem,
-      max(14rem, calc(24svh * 3 / 2))
-    );
-  }
-}
-
-/* On a phone the fixed tab bar owns the bottom of the screen, so the photo's
-   share is taken from the height above the bar, with no floor: at 320x568 the
-   14rem floor pushed the primary under the bar and a tap landed on a tab. The
-   photo spends that height budget across the figure's whole width as a wider
-   crop, rather than narrowing to a 3:2 thumbnail stranded on the left of the
-   column, and never grows taller than 3:2 of that width (100cqi is the
-   figure's width). Its edges line up with the primary under it. */
-@media (max-width: 640px) {
-  .lpHero .lpLondonFigure {
-    width: min(calc(100% + var(--page-gutter) - var(--create-fab-lane)), 34rem);
-    container-type: inline-size;
-  }
-  .lpHero .lpLondonPhoto {
-    width: 100%;
-    aspect-ratio: auto;
-    height: min(100cqi * 2 / 3, calc((100svh - var(--tabbar-h) - env(safe-area-inset-bottom, 0px)) * .22));
-  }
-}
-
 /* Phone: the answer sits between the heading and the tap, so the heading
-   gives up one size step and the card its outer padding, and the whole
-   screen still reads kicker, claim, answer, action inside 844px. */
+   gives up one size step and the cards their outer padding, and the whole
+   screen still reads claim, hunt card, action inside 844px. The hunt card is
+   text, so it takes its own height and never a share of the screen the way
+   the photograph it replaced had to. */
 @media (max-width: 640px) {
   .lpHero { padding-top: 80px; gap: var(--space-5); }
   .lpHero .screenTitle { font-size: clamp(2.125rem, 10vw, 2.75rem); line-height: .94; }
+  .lpHero .lpHuntCard { width: 100%; gap: var(--space-1); padding: var(--space-3) var(--space-4); }
+  .lpHero .lpHuntFigure .priceBadge { font-size: var(--text-base); min-block-size: 2.1rem; }
   .lpHero .lpAnswerCard { gap: var(--space-1); padding: var(--space-4); }
   .lpHero .lpPubName { font-size: var(--text-lg); }
   .lpHero .lpPubPrice .priceBadge { font-size: var(--text-base); min-block-size: 2.1rem; }
@@ -801,38 +739,127 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
   .lpHero { padding-top: calc(var(--tabbar-h, 64px) + var(--space-2)); }
   .lpHero .screenHead { gap: var(--space-1); }
   .lpHero .screenAnswer { margin-top: 0; }
-  .lpHero .lpLondonPhoto {
-    height: min(100cqi * 2 / 3, calc(
-      (100svh - var(--tabbar-h, 64px) - env(safe-area-inset-bottom, 0px)
-        - var(--analytics-consent-mobile-clearance)) * .22
-    ));
-  }
 }
 
-/* ── The London photograph ──────────────────────────────────────────────── */
+/* ── The hunt: the cheapest pint we can find in Britain ─────────────────── */
 
-.lpLondonFigure {
-  margin: 0;
+/* Where the photograph stood (captain decisions 2 and 3, 1 Nov 2026). A text
+   card on the same raised surface as the pub card, so the first screen holds
+   one kind of card. Its heading is a small label and the figure is the
+   loudest thing in it; the figure wears its band and no other colour. */
+.lpHuntCard,
+.lpHuntDearest {
   display: grid;
   gap: var(--space-2);
   width: min(100%, 34rem);
-}
-
-.lpLondonPhoto {
-  display: block;
-  width: 100%;
-  height: auto;
-  aspect-ratio: 3 / 2;
-  object-fit: cover;
+  padding: var(--space-4) var(--space-5);
   border-radius: var(--radius-lg);
-  background: var(--panel);
-  border: 1px solid var(--line-soft);
+  background: var(--panel-raised);
+  box-shadow: var(--shadow);
 }
 
-.lpLondonCaption {
-  color: var(--muted);
-  font-size: var(--text-xs);
+.lpHuntTitle,
+.lpHuntDearestTitle {
+  margin: 0;
+  color: var(--ink-soft);
+  font: 700 var(--text-sm)/1.3 var(--font-body);
+}
+
+.lpHuntFigure {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.lpHuntFigure .priceBadge { font-size: var(--text-lg); }
+
+.lpHuntWhere {
+  min-width: 0;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  font-weight: 700;
+  letter-spacing: var(--tracking-tight);
+  overflow-wrap: anywhere;
+}
+
+.lpHuntWhere a,
+.lpHuntCityPub a,
+.lpHuntSource a,
+.lpHuntCitySource a,
+.lpHuntCityEmpty a { color: inherit; text-underline-offset: 3px; }
+
+.lpHuntSource,
+.lpHuntCitySource {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
   line-height: var(--leading-normal);
+}
+
+/* Britain's cheapest pint, city by city: rows, not cards, with a hairline
+   between each, the same rhythm as the rail under the pub card. */
+.lpHunt {
+  width: min(var(--lp-max), calc(100% - 2 * var(--page-gutter)));
+  margin: 0 auto;
+  padding: clamp(32px, 5vw, 64px) 0 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.lpHuntCitiesTitle {
+  margin: 0;
+  font: 700 clamp(1.25rem, 2.4vw, 1.6rem)/1.1 var(--font-display);
+  letter-spacing: -.02em;
+}
+
+.lpHuntDek {
+  margin: 0;
+  max-width: 60ch;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.lpHuntCityList { margin: 0; padding: 0; list-style: none; display: grid; }
+
+.lpHuntCityRow {
+  display: grid;
+  grid-template-columns: minmax(0, 9rem) auto minmax(0, 1fr);
+  column-gap: var(--space-3);
+  row-gap: 2px;
+  align-items: center;
+  min-height: 52px;
+  padding: var(--space-2) 0;
+}
+.lpHuntCityRow + .lpHuntCityRow { border-top: 1px solid var(--line-soft); }
+
+.lpHuntCityName {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: var(--tracking-tight);
+}
+.lpHuntCityPrice .priceBadge { font-size: var(--text-sm); }
+.lpHuntCityPub { min-width: 0; overflow-wrap: anywhere; }
+.lpHuntCitySource { grid-column: 2 / -1; font-size: var(--text-xs); }
+.lpHuntCityEmpty {
+  grid-column: 2 / -1;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+/* London's dearest pint, for the press: one card under the list. */
+.lpHuntDearest { margin-top: var(--space-3); }
+
+/* A phone gives the city its own line, so the figure and the pub keep the
+   width a long pub name needs. */
+@media (max-width: 640px) {
+  .lpHuntCityRow { grid-template-columns: auto minmax(0, 1fr); }
+  .lpHuntCityName { grid-column: 1 / -1; }
+  .lpHuntCitySource,
+  .lpHuntCityEmpty { grid-column: 1 / -1; }
+  .lpHuntDearest { width: 100%; padding: var(--space-3) var(--space-4); }
 }
 
 /* ── Today and tonight: two answers, one sentence each ──────────────────── */

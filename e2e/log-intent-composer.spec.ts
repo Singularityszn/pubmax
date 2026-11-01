@@ -47,7 +47,7 @@ test("the log intent lands the reader on the composer's price step", async ({ pa
   expect(response?.status()).toBe(200);
 
   // With no `sel=`, the intent offers the nearby picker; take the pub it leads
-  // with, which is the ordinary path from the create action's "Log a price".
+  // with, which is the ordinary path from More map controls' "Log a price".
   // The picker needs the viewport's shards and the venue index before it can
   // name a pub, and that wait is load-bound: 11 to 17 seconds on a quiet box,
   // past 20 under a fleet build. The budget below is a wait for the index,

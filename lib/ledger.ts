@@ -36,6 +36,12 @@ export type LedgerPintPrice = {
   handle: string;
   state: Exclude<PintTrustState, "none">;
   split: PintPriceSplit | null;
+  /**
+   * True when the report's figure was typed with no bill (captain decision 9,
+   * lib/pintDropReceipt.ts), so the record names it "not checked" and prints
+   * it with no band. Absent on every billed or pre-0218 report.
+   */
+  unchecked?: true;
 };
 
 export type LedgerEntry = {

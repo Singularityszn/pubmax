@@ -35,6 +35,8 @@ test("map arrival and visible map controls retain their targets at root16 and ro
     await expectLayoutSettled(page.getByRole("navigation", { name: "Site navigation", exact: true }));
     await expectLayoutSettled(page.locator(".mapToolbar"));
     await expectLayoutSettled(arrival);
+    await expect(page.locator(".maplibregl-ctrl-zoom-in")).toBeVisible();
+    await expect(page.locator(".maplibregl-ctrl-zoom-out")).toBeVisible();
     const snapshot = await page.evaluate(() => {
       const card = document.querySelector<HTMLElement>(".mapArrivalCard")!;
       const shell = card.closest<HTMLElement>(".appShell")!;
@@ -109,6 +111,8 @@ test("map controls restore their berth after toolbar hiding and public arrival d
   await page.evaluate(() => document.fonts.ready.then(() => undefined));
   const capture = async (name: string) => {
     await expectLayoutSettled(page.locator(".mapToolbar"));
+    await expect(page.locator(".maplibregl-ctrl-zoom-in")).toBeVisible();
+    await expect(page.locator(".maplibregl-ctrl-zoom-out")).toBeVisible();
     const geometry = await page.evaluate(() => {
       const shell = document.querySelector<HTMLElement>(".appShell")!;
       const card = document.querySelector<HTMLElement>(".mapArrivalCard");

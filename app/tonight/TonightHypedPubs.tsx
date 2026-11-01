@@ -134,8 +134,8 @@ function HypedRow({
     <li
       className={
         mapHref
-          ? "rowListItem rowListItem--link tonightHypedRow createFabLane"
-          : "rowListItem tonightHypedRow createFabLane"
+          ? "rowListItem rowListItem--link tonightHypedRow"
+          : "rowListItem tonightHypedRow"
       }
       data-testid="tonight-hyped-row"
     >

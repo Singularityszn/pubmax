@@ -1,5 +1,7 @@
 "use client";
 
+import { useMapArrivalTurn } from "@/components/map/canvas/useMapArrivalTurn";
+
 import dynamic from "next/dynamic";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./map/mapColor.css";
@@ -117,7 +119,7 @@ import {
   ambientMotionLevel, ambientMotionResting, routeLineShowsDash,
   pinEntranceIconOpacityExpr,
   selectedPinIconSizeExpr, selectedPinFilter, pinSortKeyExpr, pinPriceLabelExpr, pricePillFilter,
-  clusterEntranceProgress,
+  selectedPricePillFilter, clusterEntranceProgress,
 } from "@/components/map/canvas/filters";
 import {
   hoverPriceBandClass,
@@ -159,7 +161,7 @@ import {
 } from "@/components/map/canvas/pinRevealCoordinator";
 import { applyMapFocusMute } from "@/lib/mapBasemapTaste";
 import { orientRouteStopLabels } from "@/lib/routeStopLabel";
-import { MAP_PIN_REVEAL_EVENT } from "@/lib/mapPinRevealEvent";
+import { MAP_PIN_READY_CEILING_MS, MAP_PIN_REVEAL_EVENT } from "@/lib/mapPinRevealEvent";
 import {
   wireClickRouting, wireHoverPrefetch, wirePubHover, wireCursor,
 } from "@/components/map/canvas/interactions";
@@ -175,7 +177,12 @@ import {
   whenBottomSheetSettles,
 } from "@/components/map/canvas/useMapCamera";
 import { easeOutCubic, PUB_SELECT_PITCH, PUB_SELECT_PITCH_MOBILE, PUB_SELECT_DURATION_MS } from "@/components/map/canvas/easing";
-import { deepLinkSelectionCamera, mobileSelectCameraOffset } from "@/lib/sheetSnap";
+import {
+  deepLinkSelectionCamera,
+  desktopSelectCameraOffset,
+  mobileSelectCameraOffset,
+  restingRightDrawerLeft,
+} from "@/lib/sheetSnap";
 import { nearMeMapVenues } from "@/lib/nearMeMapFrame";
 import {
   isUkBaseId,
@@ -256,11 +263,7 @@ import {
   streetsInViewDrawn,
   type OpeningCameraPose,
 } from "@/lib/mapOpeningPreview";
-import {
-  ARRIVAL_BEARING_POLL_MS,
-  nextArrivalBearingWait,
-  type ArrivalBearingWait,
-} from "@/lib/mapArrivalBearing";
+
 
 // MapLibre 6 is ESM-only. Its worker imports a sibling shared module, which
 // Next's asset URL transform does not emit beside the worker. The copy step
@@ -557,13 +560,6 @@ type PubMapCanvasProps = {
 // the pub layers cannot hang hidden indefinitely. This runs behind the
 // still-present parent skeleton and never lifts the chrome.
 const PIN_REVEAL_TIMEOUT_MS = 3000;
-// Honest upper bound for the visible-map handoff. Desktop and phone both
-// degrade to the existing basemap retry toast; neither unmounts the canvas.
-// Phone still requires a confirmed visible frame before a successful reveal.
-// Keep the ceiling above the measured slow stream. The phone can reveal local
-// pins from their own painted source before basemap tiles settle; this ceiling
-// remains only for the honest parent loading handoff when that signal fails.
-const PIN_READY_CEILING_MS = 12_000;
 // How long a spent pin Retry is given before it reports back. Long enough for a
 // re-fetched venue index plus a MapLibre source settle, short enough that the
 // reader is not left watching an empty map with nothing to read.
@@ -615,6 +611,7 @@ const PUB_PIN_LAYERS = [
   "pubs-point",
   "pubs-price-pill",
   "pubs-point-selected",
+  "pubs-price-pill-selected",
   "pubs-selected-glow",
   "pubs-selected",
   "pubs-provisional-badge",
@@ -1441,14 +1438,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   // name. A reader who reached a pub by link is excluded, because the fly-to
   // into that pub owns the camera. lib/mapArrivalBearing.ts holds every other
   // case, reduced motion included.
-  const arrivalBearingSpentRef = useRef(false);
-  // Read by the camera probe; written beside the near-me framing effect below.
+  const firstPinRevealFinishedRef = useRef(false);
   const nearbyFramingOwedRef = useRef(false);
-  // The deep link as it was on ARRIVAL. Reading the live prop would answer for
-  // a pin the reader tapped a moment ago, which is a different question.
-  const arrivalDeepLinkRef = useRef(
-    Boolean(selectedVenueId) || Boolean(initialLandmarkId),
-  );
   const focusKeyRef = useRef<string | null>(null);
   const focusPointRef = useRef(focusPoint);
   const nearMePendingRef = useRef(Boolean(nearMePending));
@@ -1460,46 +1451,20 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     focusPointRef.current = focusPoint;
     openingCameraSettledRef.current = openingCameraSettled;
   }, [focusPoint, openingCameraSettled]);
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || arrivalBearingSpentRef.current) return;
-    let cancelled = false;
-    let wait: ArrivalBearingWait | null = { stillPolls: 0, waitedMs: 0 };
-    // The turn waits for the map to STOP. Measured without the wait: the
-    // opening-location answer schedules its own move a frame or so after the
-    // map is ready, the camera lane is latest-wins, and it cancelled the
-    // turn's pending frame outright - four runs of four came to rest at
-    // exactly the bearing they arrived at, with no `arrival` intent emitted.
-    //
-    // It polls rather than waiting on MapLibre's `idle`, because `idle` also
-    // waits on every requested tile and a basemap that never finishes would
-    // mean a map that never turns. The ceiling is the same judgement: past it
-    // the turn happens anyway, and `scheduleCamera` still refuses it if the
-    // reader has taken the map.
-    const tick = () => {
-      if (cancelled || arrivalBearingSpentRef.current || !wait) return;
-      wait = nextArrivalBearingWait(wait, {
-        moving: map.isMoving() || cameraLanePending(),
-        openingPending:
-          !openingCameraSettledRef.current ||
-          mapCameraFocusMoves(focusPointRef.current, focusKeyRef.current),
-      });
-      if (wait) {
-        timer = setTimeout(tick, ARRIVAL_BEARING_POLL_MS);
-        return;
-      }
-      arrivalBearingSpentRef.current = true;
-      easeArrivalBearing(arrivalDeepLinkRef.current);
-    };
-    let timer: ReturnType<typeof setTimeout> | null = setTimeout(
-      tick,
-      ARRIVAL_BEARING_POLL_MS,
-    );
-    return () => {
-      cancelled = true;
-      if (timer) clearTimeout(timer);
-    };
-  }, [mapInstanceReady, easeArrivalBearing, cameraLanePending]);
+  const sampleArrivalCamera = useCallback(() => ({
+    moving: Boolean(mapRef.current?.isMoving()) || cameraLanePending(),
+    pinsPending: !firstPinRevealFinishedRef.current,
+    openingPending: !openingCameraSettledRef.current
+      || mapCameraFocusMoves(focusPointRef.current, focusKeyRef.current),
+  }), [cameraLanePending]);
+  const arrivalBearingSpentRef = useMapArrivalTurn({
+    mapRef,
+    mapInstanceReady,
+    mapError,
+    deepLinked: Boolean(selectedVenueId) || Boolean(initialLandmarkId),
+    sample: sampleArrivalCamera,
+    easeArrivalBearing,
+  });
 
   // The parent owns the selection and renders the story (the phone's shared
   // sheet, the desktop's left drawer); the canvas only reports a pin tap here
@@ -2403,7 +2368,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
 
     const pinRevealCoordinator = createPinRevealCoordinator({
       pinRevealTimeoutMs: PIN_REVEAL_TIMEOUT_MS,
-      readyCeilingMs: PIN_READY_CEILING_MS,
+      readyCeilingMs: MAP_PIN_READY_CEILING_MS,
       hasBasemapPainted: () => basemapTileReadyForPaint,
       hasPinsPaintable: () =>
         pubsDeferredUntilZoom() || !phoneFirstImpression || hasPinsPaintable(),
@@ -2444,6 +2409,9 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         retireTilesNotice();
       },
       onReveal: (reason, generation) => {
+        // The coordinator confirms the first visible phone frame, or names
+        // its bounded fallback. Neither may wait for the decorative turn.
+        firstPinRevealFinishedRef.current = true;
         const timeoutNotice = revealTimeoutNotice(reason, tileNoticeOwner, {
           basemapPainted: basemapTileReadyForPaint,
           venueData: venueDataFailedRef.current
@@ -3999,6 +3967,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     // sync in their own effect — toggling showLandmarks must not remount MapLibre.
     cinematic,
     cameraLanePending,
+    arrivalBearingSpentRef,
     cityId,
     selectLandmark,
     initAttempt,
@@ -4310,13 +4279,13 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   // Route + selection ring → sources/filter.
   const routeCoordKey = route.map((v) => `${v.longitude},${v.latitude}`).join(";");
   useEffect(() => {
-    // The straight estimate draws at once; the street line, once routed, holds
-    // for as long as the stops are the same (a parent re-render hands over a new
-    // array for the same stops, and used to put the dashed estimate back).
-    // Selection and venue-data refreshes must retain a routed road line.
-    routeLineKeyRef.current = routeCoordKey;
     const routed = routedLineRef.current?.key === routeCoordKey ? routedLineRef.current : null;
-    routeLineRef.current = routed?.line ?? routeToLine(route);
+    // Selection and venue-data refreshes must retain a routed road line.
+    // Only a different ordered coordinate sequence needs a new fallback.
+    if (routeLineKeyRef.current !== routeCoordKey) {
+      routeLineKeyRef.current = routeCoordKey;
+      routeLineRef.current = routed?.line ?? routeToLine(route);
+    }
     routeStopsRef.current = routeToStops(route);
     routeLegTimesRef.current = routed?.legTimes ?? routeToLegTimes(route);
     selectedIdRef.current = selectedVenueId;
@@ -4337,8 +4306,11 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         ["get", "id"],
         selectedIdRef.current,
       ];
+      // The two ink rings ring a selected GLASS. A selected pub that is a pill
+      // is drawn inverted on pubs-price-pill-selected and wears no ring.
+      const selectedGlassFilter = selectedPinFilter(selectedIdRef.current);
       if (map.getLayer("pubs-selected-glow")) {
-        map.setFilter("pubs-selected-glow", selectedFilter);
+        map.setFilter("pubs-selected-glow", selectedGlassFilter);
         // Reset to the static baseline on every selection change; the RAF
         // loop takes over from here again next frame if a venue is selected,
         // and a deselect leaves the ring at this baseline (not mid-pulse).
@@ -4350,7 +4322,10 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         );
       }
       if (map.getLayer("pubs-selected")) {
-        map.setFilter("pubs-selected", selectedFilter);
+        map.setFilter("pubs-selected", selectedGlassFilter);
+      }
+      if (map.getLayer("pubs-price-pill-selected")) {
+        map.setFilter("pubs-price-pill-selected", selectedPricePillFilter(selectedIdRef.current));
       }
       // The UK base layer answers a tap with its own quieter ring; the same
       // selected id drives it, so exactly one of the two ever matches.
@@ -4772,9 +4747,14 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       // rather than the window, and it takes the sheet's own settled top edge
       // when there is one - the venue sheet is content-height, so its snap
       // fraction is a cap rather than the height it rests at.
+      // Desktop, from 1024px: the venue drawer rests on the right of the map,
+      // and beside the list (MapSplitList) the lane's centre is under it, so
+      // the pin is carried into the map left of the drawer (lib/sheetSnap.ts).
       const offset = isPhone
         ? mobileSelectCameraOffset(bandHeight, "half", sheetTopPx)
-        : undefined;
+        : window.matchMedia("(min-width: 1024px)").matches
+          ? desktopSelectCameraOffset(currentContainer, restingRightDrawerLeft())
+          : undefined;
       cinematic({
         center,
         zoom: Math.max(map.getZoom(), 14),

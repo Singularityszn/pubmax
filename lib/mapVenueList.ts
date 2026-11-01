@@ -387,6 +387,9 @@ type LondonRestaurantListRow = {
   name: string;
   priceLabel: "Restaurant · no listed price";
   distanceKm?: number;
+  /** Where the pin is, so the list beside the map can point at it (MapSplitList). */
+  lng?: number;
+  lat?: number;
 };
 
 /** The DOM parallel to the London restaurant pins (lib/londonRestaurants.ts). */
@@ -418,6 +421,8 @@ export function buildLondonRestaurantListModel(
     id: restaurant.id,
     name: restaurant.name,
     priceLabel: "Restaurant · no listed price",
+    lng: restaurant.lng,
+    lat: restaurant.lat,
     ...(origin
       ? { distanceKm: haversineKm(origin, [restaurant.lng, restaurant.lat]) }
       : {}),

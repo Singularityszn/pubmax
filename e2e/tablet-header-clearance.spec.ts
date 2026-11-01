@@ -26,7 +26,7 @@ for (const path of ["/plan", "/map"]) {
     await expect(nav.getByRole("button", { name: `Account options for ${ACCOUNTS.A.name}`, exact: true })).toBeEnabled();
     // The desktop SiteNav uses navigationModel's literal /u/you.
     // The account-resolved mobile/profile link is a different public control.
-    for (const [name, href] of [["Map", "/map"], ["Plan", "/plan"], ["Social", "/social"], ["You", "/u/you"], ["Pub Pal", "/pal"]] as const) {
+    for (const [name, href] of [["Explore", "/map"], ["Plan", "/plan"], ["Social", "/social"], ["You", "/u/you"], ["Pub Pal", "/pal"]] as const) {
       const link = nav.getByRole("link", { name, exact: true });
       await expect(link).toBeVisible();
       await expect(link).toHaveAttribute("href", href);

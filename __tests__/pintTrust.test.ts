@@ -41,6 +41,8 @@ import { peekPriceChip } from "@/lib/pubMap";
 import {
   AGED_PRICE_LINE,
   PROVISIONAL_PRICE_LINE,
+  UNCHECKED_PRICE_LINE,
+  uncheckedPriceLine,
   venueBundlePrices,
   venuePriceLane,
   venueSourcedPrice,
@@ -165,11 +167,17 @@ function splitPair(): SummaryDrop[] {
   ];
 }
 
+/** A typed price with no bill (captain decision 9, 1 Nov 2026). */
+function uncheckedDrop(overrides: Partial<SummaryDrop> = {}): SummaryDrop {
+  return drop({ priceEvidence: "unchecked", authorityKey: "account-tester", ...overrides });
+}
+
 const FIXTURES: Record<PintTrustState, () => SummaryDrop[]> = {
   confirmed: () => confirmedPair(),
   corroborated: () => corroboratedPair(),
   disputed: splitPair,
   "logged-once": () => [drop()],
+  unchecked: () => [uncheckedDrop()],
   "aged-out": () => [drop({ createdAt: daysAgo(90) })],
   none: () => [],
 };
@@ -204,18 +212,19 @@ function renderOverview(drops: SummaryDrop[], base: Venue = venue()): string {
       venue: defined(merged),
       tab: "overview",
       cityId: "london",
-      mode: "suggest",
-      inCrawl: false,
       latestContributorPrice: signal.latestContributorPrice,
       latestPintDropAt: signal.latestContributorAt,
       confirmedPrice: signal.confirmedPrice,
-      provisionalPrice: dropLaneInput(signal.provisionalContributorPrice, signal.provisionalContributorAt),
-      agedPrice: dropLaneInput(signal.agedContributorPrice, signal.agedContributorAt),
+      provisionalPrice: dropLaneInput(
+        signal.provisionalContributorPrice,
+        signal.provisionalContributorAt,
+        signal.uncheckedBy,
+      ),
+      agedPrice: dropLaneInput(signal.agedContributorPrice, signal.agedContributorAt, signal.uncheckedBy),
       disputedPrice: splitLaneInput(signal.disputedPrices, signal.disputedAt),
       communityPrices: communityPrices(VENUE_ID),
       experienceLens: "all",
       drinkLensCategory: null,
-      onToggleStop: noop,
       presenceState: "idle",
       markPresenceHere: noop,
       userLocation: null,
@@ -243,8 +252,8 @@ function peekChip(drops: SummaryDrop[], base: Venue = venue()) {
       signal.latestContributorPrice,
       venueSourcedPrice(defined(merged)),
       bundle,
-      dropLaneInput(signal.provisionalContributorPrice, signal.provisionalContributorAt),
-      dropLaneInput(signal.agedContributorPrice, signal.agedContributorAt),
+      dropLaneInput(signal.provisionalContributorPrice, signal.provisionalContributorAt, signal.uncheckedBy),
+      dropLaneInput(signal.agedContributorPrice, signal.agedContributorAt, signal.uncheckedBy),
       splitLaneInput(signal.disputedPrices, signal.disputedAt),
     ),
     bundle,
@@ -268,13 +277,14 @@ const ABSENCES = [
   firstDropNudgeCopy(VENUE_ID).line,
 ];
 
-describe("pintTrustFor: six states, one order", () => {
+describe("pintTrustFor: seven states, one order", () => {
   it("names the closed set weakest last", () => {
     expect(PINT_TRUST_STATES).toEqual([
       "confirmed",
       "corroborated",
       "disputed",
       "logged-once",
+      "unchecked",
       "aged-out",
       "none",
     ]);
@@ -285,7 +295,7 @@ describe("pintTrustFor: six states, one order", () => {
   });
 
   it("carries the figure and the drop's own day on every priced state", () => {
-    for (const state of ["confirmed", "corroborated", "logged-once", "aged-out"] as const) {
+    for (const state of ["confirmed", "corroborated", "logged-once", "unchecked", "aged-out"] as const) {
       const reading = pintTrustFor(FIXTURES[state](), NOW);
       expect(reading.priceGbp, state).toBe(4.5);
       expect(reading.drop, state).not.toBeNull();
@@ -298,7 +308,7 @@ describe("pintTrustFor: six states, one order", () => {
     const reading = pintTrustFor(confirmedPair(3), NOW);
     expect(reading.confirmedPrice).toEqual({ priceGbp: 4.5, observedAt: daysAgo(3) });
     expect(priceStandingFor({ confirmed: reading.confirmedPrice }, NOW).standing).toBe("confirmed");
-    for (const state of ["corroborated", "disputed", "logged-once", "aged-out", "none"] as const) {
+    for (const state of ["corroborated", "disputed", "logged-once", "unchecked", "aged-out", "none"] as const) {
       expect(pintTrustFor(FIXTURES[state](), NOW).confirmedPrice, state).toBeNull();
     }
   });
@@ -336,6 +346,67 @@ describe("pintTrustFor: six states, one order", () => {
   });
 });
 
+// Captain decision 9 (1 Nov 2026): a typed price without a bill saves and shows
+// as "logged by @handle, not checked" with its date. It does not colour the pin
+// until a second, independent person confirms it.
+describe("an unchecked price (no bill): the sheet, never the map, until a second drinker", () => {
+  it("a billed report outranks it, and it outranks a report past the window", () => {
+    expect(pintTrustFor([uncheckedDrop(), drop({ handle: "billed", createdAt: daysAgo(2) })], NOW).state).toBe(
+      "logged-once",
+    );
+    expect(pintTrustFor([uncheckedDrop(), drop({ createdAt: daysAgo(90) })], NOW).state).toBe("unchecked");
+  });
+
+  it("alone it never marks the pin, paints a band or prints a figure on it", () => {
+    const lone = pin([uncheckedDrop()]);
+    expect(lone.priceLabel).toBeUndefined();
+    expect(lone.provisional).toBe(false);
+    expect(lone.standing).toBeUndefined();
+    // The same price WITH a bill marks the pin: that is what the bill buys.
+    expect(pin([drop()]).provisional).toBe(true);
+  });
+
+  it("alone it never enters a cheapest claim: the merge leaves the pub's price as it was", () => {
+    const [merged] = mergeVenueDrops([venue({ cheapestPrice: 6.2 })], new Map([[VENUE_ID, [uncheckedDrop({ priceGbp: 3.1 })]]]), NOW);
+    expect(defined(merged).cheapestPrice).toBe(6.2);
+    expect(defined(merged).latestContributorPrice).toBeNull();
+  });
+
+  it("two of them from ONE account are still one unchecked price", () => {
+    const sameAccount = [uncheckedDrop(), uncheckedDrop({ createdAt: daysAgo(2) })];
+    expect(pintTrustFor(sameAccount, NOW).state).toBe("unchecked");
+    expect(pin(sameAccount).priceLabel).toBeUndefined();
+  });
+
+  it("a second independent drinker agreeing paints it, billed or not", () => {
+    for (const second of [
+      drop({ handle: "second_drinker", authorityKey: "account-second", createdAt: daysAgo(2) }),
+      uncheckedDrop({ handle: "second_drinker", authorityKey: "account-second", createdAt: daysAgo(2) }),
+    ]) {
+      const pair = [uncheckedDrop(), second];
+      expect(pintTrustFor(pair, NOW).state).toBe("corroborated");
+      const painted = pin(pair);
+      expect(painted.priceLabel).toBe("£4.50");
+      expect(painted.provisional).toBe(false);
+      const [merged] = mergeVenueDrops([venue({ cheapestPrice: 6.2 })], new Map([[VENUE_ID, pair]]), NOW);
+      expect(defined(merged).cheapestPrice).toBe(4.5);
+    }
+  });
+
+  it("a minted confirmation over it paints it and reads confirmed", () => {
+    const pair = confirmedPair(1).map((row) => ({ ...row, priceEvidence: "unchecked" as const }));
+    expect(pintTrustFor(pair, NOW).state).toBe("confirmed");
+    expect(pin(pair).priceLabel).toBe("£4.50");
+  });
+
+  it("past the window it ages out like any report, and keeps its name off the band", () => {
+    const aged = [uncheckedDrop({ createdAt: daysAgo(90) })];
+    expect(pintTrustFor(aged, NOW).state).toBe("aged-out");
+    expect(pintTrustSignalFields(pintTrustFor(aged, NOW)).uncheckedBy).toBe("tester");
+    expect(pin(aged).provisional).toBe(false);
+  });
+});
+
 describe("what each state paints on the pin", () => {
   it("is written once, in the paint table", () => {
     expect(PINT_TRUST_PIN_PAINT).toEqual({
@@ -345,6 +416,8 @@ describe("what each state paints on the pin", () => {
       // report wears and reaches no band.
       disputed: "mark",
       "logged-once": "mark",
+      // Captain decision 9: a price with no bill touches the pin not at all.
+      unchecked: "none",
       "aged-out": "none",
       none: "none",
     });
@@ -364,6 +437,10 @@ describe("what each state paints on the pin", () => {
     expect(loggedOnce.priceLabel).toBeUndefined();
     expect(loggedOnce.provisional).toBe(true);
 
+    const unchecked = pin([uncheckedDrop()]);
+    expect(unchecked.priceLabel).toBeUndefined();
+    expect(unchecked.provisional).toBe(false);
+
     const aged = pin([drop({ createdAt: daysAgo(90) })]);
     expect(aged.priceLabel).toBeUndefined();
     expect(aged.provisional).toBe(false);
@@ -378,7 +455,7 @@ describe("what each state paints on the pin", () => {
     expect(pin(corroboratedPair()).standing).toBeUndefined();
     expect(pin([drop()]).standing).toBeUndefined();
     expect(pintTrustPinStanding("confirmed")).toBe("confirmed");
-    for (const state of ["corroborated", "logged-once", "aged-out", "none"] as const) {
+    for (const state of ["corroborated", "logged-once", "unchecked", "aged-out", "none"] as const) {
       expect(pintTrustPinStanding(state), state).toBeNull();
     }
   });
@@ -410,14 +487,19 @@ describe("the signal projection gives each state its reach and no more", () => {
     const paint = PINT_TRUST_PIN_PAINT[state];
     expect(fields.pintTrust).toBe(state);
     expect(fields.latestContributorPrice).toBe(paint === "authority" ? 4.5 : null);
-    expect(fields.provisionalContributorPrice).toBe(state === "logged-once" ? 4.5 : null);
+    // An unchecked report sits in the lone-report slot beside a billed one, and
+    // `uncheckedBy` is the only field that tells them apart.
+    expect(fields.provisionalContributorPrice).toBe(
+      state === "logged-once" || state === "unchecked" ? 4.5 : null,
+    );
+    expect(fields.uncheckedBy).toBe(state === "unchecked" ? "tester" : null);
     expect(fields.agedContributorPrice).toBe(state === "aged-out" ? 4.5 : null);
     expect(fields.confirmedPrice === null).toBe(state !== "confirmed");
   });
 });
 
 describe("the Overview chip", () => {
-  it.each(["confirmed", "corroborated", "logged-once", "aged-out"] as const)(
+  it.each(["confirmed", "corroborated", "logged-once", "unchecked", "aged-out"] as const)(
     "carries data-pint-trust=%s and the venue id, and words no absence",
     (state) => {
       const html = renderOverview(FIXTURES[state]());
@@ -439,10 +521,36 @@ describe("the Overview chip", () => {
 
   it("prints each state's one line", () => {
     expect(PINT_TRUST_LINE["logged-once"]).toBe(PROVISIONAL_PRICE_LINE);
+    expect(PINT_TRUST_LINE.unchecked).toBe(UNCHECKED_PRICE_LINE);
     expect(PINT_TRUST_LINE["aged-out"]).toBe(AGED_PRICE_LINE);
     expect(renderOverview([drop()])).toContain(PROVISIONAL_PRICE_LINE);
+    expect(renderOverview([uncheckedDrop()])).toContain(UNCHECKED_PRICE_LINE);
     expect(renderOverview([drop({ createdAt: daysAgo(90) })])).toContain(AGED_PRICE_LINE);
     expect(renderOverview(corroboratedPair())).toContain("Latest price from a drinker");
+  });
+
+  it("prints an unchecked price as a dated, named row on the neutral plaque", () => {
+    const html = renderOverview([uncheckedDrop()]);
+    expect(html).toContain("Logged by @tester, not checked");
+    expect(html).toContain("logged 4 days ago");
+    expect(html).toContain('data-price-check="unchecked"');
+    // Colour means the price band, never trust: the figure wears no band.
+    const row = /<div class="contributorPrice"[^>]*data-price-check="unchecked"[\s\S]*?<\/div>/.exec(html)?.[0] ?? "";
+    expect(row).toContain("£4.50");
+    expect(row).not.toMatch(/priceBand-(cheap|average|expensive)/);
+    // The same price with a bill wears its band, and says nothing about checking.
+    const billed = renderOverview([drop()]);
+    expect(billed).toMatch(/priceBand-(cheap|average|expensive)/);
+    expect(billed).not.toContain("not checked");
+  });
+
+  it("reads the unchecked state off the lane, never off a branch of its own", () => {
+    const lane = { lane: "provisional" as const, provisionalPrice: 4.5, observedAt: null };
+    expect(trustChipStateFor(lane, "none")).toBe("logged-once");
+    expect(trustChipStateFor({ ...lane, uncheckedBy: "tester" }, "none")).toBe("unchecked");
+    expect(trustChipStateFor({ lane: "aged", agedPrice: 4.5, observedAt: null, uncheckedBy: "tester" }, "none")).toBe(
+      "aged-out",
+    );
   });
 
   it("words the absence only when there is no public drop at all", () => {
@@ -469,6 +577,16 @@ describe("the phone peek chip", () => {
       expect(chip!.caption).toBe(PINT_TRUST_LINE[state] ?? "current recorded price");
     },
   );
+
+  it("prints an unchecked price named and unbanded", () => {
+    const chip = peekChip([uncheckedDrop()]);
+    expect(chip).not.toBeNull();
+    expect(chip!.figure).toBe("£4.50");
+    expect(chip!.trust).toBe("unchecked");
+    expect(chip!.caption).toBe(uncheckedPriceLine("tester"));
+    // `priceGbp` is what the chip bands, so withholding it keeps the band off.
+    expect(chip!.priceGbp).toBeNull();
+  });
 
   it("answers null, the one branch that may word an absence, only on none", () => {
     expect(peekChip([])).toBeNull();
@@ -504,6 +622,12 @@ describe("the Pint Index cites the same confirmations this module calls confirme
     const expired = snapshotFor(confirmedPair(CONFIRMED_MAX_AGE_DAYS + 1));
     expect(pintTrustFor(confirmedPair(CONFIRMED_MAX_AGE_DAYS + 1), NOW).state).toBe("aged-out");
     expect(expired.published).toBe(0);
+  });
+
+  it("an unchecked price alone is never cited; once a second drinker's confirmation is minted, it is", () => {
+    expect(snapshotFor([uncheckedDrop()]).published).toBe(0);
+    const confirmed = confirmedPair(3).map((row) => ({ ...row, priceEvidence: "unchecked" as const }));
+    expect(snapshotFor(confirmed).published).toBeGreaterThan(0);
   });
 });
 

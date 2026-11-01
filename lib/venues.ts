@@ -15,6 +15,7 @@ import {
   type PintPriceSplit,
 } from "@/lib/pintDropAgreement";
 import { measureIsPint, type DrinkMeasure } from "@/lib/drinkMeasure";
+import { isUncheckedPrice, type PriceEvidence } from "@/lib/pintDropReceipt";
 import { formatGbp } from "@/lib/formatGbp";
 import { haversineKm } from "@/lib/haversine";
 import { firstHttp } from "@/lib/httpUrl";
@@ -792,6 +793,11 @@ export type SummaryDrop = {
   // re-derived: lib/pintDropConfirm.server.ts is the one writer and it works
   // over the stored rows, where every authority key is present.
   confirmation?: PintDropConfirmation | null;
+  // What stands behind the figure (lib/pintDropReceipt.ts). `unchecked` is a
+  // typed price with no bill (captain decision 9, 1 Nov 2026): it still counts
+  // as one independent drinker in a corroboration or a confirmation, and on
+  // its own it reaches the sheet alone, never the pin's mark or band.
+  priceEvidence?: PriceEvidence;
 };
 
 // Honesty note the venue detail can render alongside a community-updated price,
@@ -983,6 +989,14 @@ export function authoritativePriceDrop<D extends SummaryDrop>(
 // is not claiming independence from anybody. The production row this was found
 // over carries a null key, because it came through the unlinked-handle door.
 //
+// AN UNCHECKED PRICE IS NOT ONE OF THESE (captain decision 9, 1 Nov 2026). A
+// typed price with no bill lands in `uncheckedPriceDrop` below instead, and
+// because this lane is what feeds the pin's provisional MARK
+// (`provisionalPintDropVenueIds`), leaving it out here is the whole of why an
+// unchecked price alone never marks the pin. It still counts in the two
+// authority lanes above as one independent drinker, so a second person
+// agreeing with it paints the pin exactly as a second drinker always has.
+//
 // Ties keep the earlier (newest-first) drop, matching the store's ordering.
 export function provisionalPriceDrop<D extends SummaryDrop>(
   drops: readonly D[],
@@ -996,6 +1010,7 @@ export function provisionalPriceDrop<D extends SummaryDrop>(
   let bestAt = Number.NEGATIVE_INFINITY;
   for (const drop of drops) {
     if (!isPintPricedDrop(drop)) continue;
+    if (isUncheckedPrice(drop)) continue;
     const at = Date.parse(drop.createdAt);
     if (!isWithinMaxAge({ submittedAt: at }, now)) continue;
     if (!Number.isFinite(at) || at <= bestAt) continue;
@@ -1025,6 +1040,12 @@ export function provisionalPriceDrop<D extends SummaryDrop>(
 // corroboration now needs the same drink and the same pennies
 // (`corroboratedPriceDrop` above), so a corroborated pub and a split pub are
 // disjoint by construction rather than by ordering.
+//
+// The LEAD is a billed (or pre-0218) report, because it is the provisional
+// lane's; an unchecked figure from another drinker still joins the group, since
+// a second person who paid a different price has spoken whatever they kept.
+// Two unchecked figures alone make no split here: neither has earned the mark a
+// split wears, so the pub reads as the freshest unchecked price instead.
 export function disputedPintPrices<D extends SummaryDrop>(
   drops: readonly D[],
   now: number = Date.now(),
@@ -1043,6 +1064,43 @@ export function disputedPintPrices<D extends SummaryDrop>(
   return { split, drops: group, observedAtMs: Date.parse(lead.createdAt) };
 }
 
+// THE IN-WINDOW PRICE NOBODY HAS CHECKED, or null. Captain decision 9 (1 Nov
+// 2026): a typed price with no bill saves and shows on the pub's own sheet as
+// "Logged by @handle, not checked", dated, and does not colour the pin until a
+// second, independent drinker agrees with it.
+//
+// The weakest in-window read, below `provisionalPriceDrop`, and it answers null
+// whenever a stronger lane speaks, so one pub never offers two figures. What it
+// is for is the sheet: a pub holding only an unchecked price must not read as
+// "No price yet" over the drop its own list prints (captain's cut, 5 Sept
+// 2026). What it is NOT is a mark, a band, a bucket, a cheapest claim or an
+// Index citation: nothing that paints asks this lane, and
+// `provisionalPintDropVenueIds` is derived from the lane above, not this one.
+//
+// A second drinker is the way out of it. Their agreeing report, billed or not,
+// is the second authority key `corroboratedPriceDrop` counts and the peer the
+// confirmation producer mints over, so this lane then answers null because an
+// authoritative one is speaking.
+//
+// Ties keep the earlier (newest-first) drop, matching the store's ordering.
+export function uncheckedPriceDrop<D extends SummaryDrop>(
+  drops: readonly D[],
+  now: number = Date.now(),
+): D | null {
+  if (authoritativePriceDrop(drops, now) || provisionalPriceDrop(drops, now)) return null;
+  let best: D | null = null;
+  let bestAt = Number.NEGATIVE_INFINITY;
+  for (const drop of drops) {
+    if (!isPintPricedDrop(drop) || !isUncheckedPrice(drop)) continue;
+    const at = Date.parse(drop.createdAt);
+    if (!isWithinMaxAge({ submittedAt: at }, now)) continue;
+    if (!Number.isFinite(at) || at <= bestAt) continue;
+    best = drop;
+    bestAt = at;
+  }
+  return best;
+}
+
 // The freshest public priced organic drop that is PAST the window, or null.
 //
 // The third and weakest read of the drop lane, beside the two above. A report
@@ -1059,6 +1117,11 @@ export function disputedPintPrices<D extends SummaryDrop>(
 // its pair are older than it, so the pub reads as aged-out at read time and
 // nothing is written.
 //
+// AN UNCHECKED DROP AGES OUT LIKE ANY OTHER. Past the window it is a record of
+// a night like every aged report, and it paints nothing either way; the
+// surfaces that print it read `isUncheckedPrice` off the drop to keep its
+// band off and its "not checked" on.
+//
 // Answers null while any in-window read is speaking, so one pub never offers
 // two figures. Ties keep the earlier (newest-first) drop, matching the store's
 // ordering.
@@ -1066,7 +1129,13 @@ export function agedPriceDrop<D extends SummaryDrop>(
   drops: readonly D[],
   now: number = Date.now(),
 ): D | null {
-  if (authoritativePriceDrop(drops, now) || provisionalPriceDrop(drops, now)) return null;
+  if (
+    authoritativePriceDrop(drops, now) ||
+    provisionalPriceDrop(drops, now) ||
+    uncheckedPriceDrop(drops, now)
+  ) {
+    return null;
+  }
   let best: D | null = null;
   let bestAt = Number.NEGATIVE_INFINITY;
   for (const drop of drops) {
@@ -1088,7 +1157,9 @@ export function agedPriceDrop<D extends SummaryDrop>(
 //
 // Derived from `provisionalPriceDrop` rather than restating its predicates, so
 // the pin's mark and the sheet's figure can never disagree about which pubs
-// hold a pending report.
+// hold a pending report. An UNCHECKED price (no bill, captain decision 9) is
+// not in that lane, so on its own it earns no mark: the sheet prints it, and
+// the map waits for a second drinker.
 export function provisionalPintDropVenueIds<D extends SummaryDrop>(
   dropsByVenueId: ReadonlyMap<string, readonly D[]>,
   now: number = Date.now(),

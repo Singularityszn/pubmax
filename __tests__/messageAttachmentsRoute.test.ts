@@ -86,6 +86,7 @@ import { __resetMemoryProfiles, __seedMemoryOwnedProfile } from "@/lib/profileSt
 // Messaging asks the one adult gate, so every seeded account has answered it.
 import { memoryAdultSelfAssertionStore } from "@/lib/adultSelfAssertionStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
+import { treatEveryoneAsMates } from "@/__tests__/helpers/messageMates";
 
 const BASE = "http://localhost/api/messages";
 const VENUE = "ldn-coach-and-horses";
@@ -216,6 +217,7 @@ function getPhoto(id: string, messageId: string, handle: string): Promise<Respon
 }
 
 beforeEach(() => {
+  treatEveryoneAsMates();
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   authState.userId = null;

@@ -1,0 +1,370 @@
+/* THE LIST BESIDE THE MAP (components/map/MapSplitList.tsx). From 1024px the
+   venues in the current view sit in a column on the left and the map fills the
+   rest, the way a search page lays out a list and a map side by side. Below
+   1024px nothing here applies: PubMap mounts the column only from 1024px and
+   the phone and tablet keep List view (MapVenueList).
+
+   The column is NOT laid over the map. The map stage starts at its right edge,
+   so the canvas, its projection and every control on the stage measure the map
+   the reader can actually see: a pin under the list is not "in view", and the
+   toolbar, banners and chips centre on the map lane they always centred on.
+   The width is one figure, --desktop-split-list-width, declared on :root in
+   app/globals.css so the document's opening prices (mapOpeningPreview.css) can
+   stand on the same map before this stylesheet has loaded.
+
+   The drawers keep their edges. The planner and a landmark story open from the
+   column's right edge rather than over it, and the venue drawer narrows so a
+   strip of map stays between it and the list: 248px at 1024, the same lane the
+   planner leaves there. Nothing overlaps the list. */
+
+.mapSplitList {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .appShell:has(> .mapSplitList) {
+    --desktop-venue-drawer-width: clamp(
+      376px,
+      min(46vw, calc(100vw - var(--desktop-split-list-width) - 248px)),
+      640px
+    );
+    --desktop-venue-drawer-half-width: calc(var(--desktop-venue-drawer-width) / 2);
+  }
+
+  .appShell:has(> .mapSplitList) > .mapStage {
+    left: var(--desktop-split-list-width);
+    /* The bar lives in the map lane, never over the list (mapToolbar.css).
+       Set on the stage, not the shell: the floating site nav reads the
+       shell's figure and still spans the window above both columns
+       (siteNav.css). The bar stays centred on the lane (MapToolbar.tsx sets
+       that transform inline) and takes the NAV'S gutter on both sides, so
+       its right edge is the nav's right edge, as it is without the list
+       (e2e/ui-consistency-layout.spec.ts). */
+    --split-nav-gutter: calc((100vw - min(1240px, 100vw - 32px)) / 2);
+    --desktop-map-surface-width: calc(
+      100vw - var(--desktop-split-list-width) - 2 * var(--split-nav-gutter)
+    );
+  }
+
+  .appShell:has(> .mapSplitList) > .mapDrawer.left {
+    left: var(--desktop-split-list-width);
+  }
+
+  /* Two members of the stage sized themselves on the WINDOW, which is the map
+     only when nothing sits beside it. The Tonight chip docks on the bar's own
+     left edge, and the arrival ask may not run past the map lane. Both read
+     the stage instead. An open drawer's own rules (mapBannerStaging.css) are
+     more specific and still win. */
+  .appShell:has(> .mapSplitList) .tonightLane {
+    left: calc((100% - var(--desktop-map-surface-width)) / 2);
+  }
+
+  .appShell:has(> .mapSplitList) .mapArrivalCard {
+    width: min(680px, calc(100% - 40px));
+  }
+
+  /* The basemap retry notice is centred on the stage's foot. Beside the list,
+     the stage's centre is inside the planner's reach, so while a left drawer
+     is open the notice centres on the lane the drawer leaves, as the banners
+     at the top do (mapBannerStaging.css). */
+  .appShell:has(> .mapSplitList).planning-open .mapSoftRetry,
+  .appShell:has(> .mapSplitList).story-open .mapSoftRetry {
+    left: calc((100% + var(--desktop-planner-rail-width)) / 2);
+    max-width: min(360px, calc(100% - var(--desktop-planner-rail-width) - 32px));
+  }
+
+  .mapSplitList {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    /* Above the left drawers, so the planner slides out from under the list
+       rather than across it. Nothing else shares this edge. */
+    z-index: calc(var(--z-map-panel) + 1);
+    display: flex;
+    flex-direction: column;
+    width: var(--desktop-split-list-width);
+    box-sizing: border-box;
+    /* The floating site nav sits over the top of the column, as it sits over
+       the top of the map; the list starts where the drawers do. */
+    padding-top: var(--map-top-clearance);
+    border-right: 1px solid var(--line-soft);
+    background: var(--color-surface);
+    color: var(--ink);
+  }
+
+  .mapSplitList:focus-visible {
+    outline: 2px solid var(--brass);
+    outline-offset: -2px;
+  }
+}
+
+/* The right rail (mapDesktopRail.css) stays up beside the planner because the
+   two hold opposite edges. With the list beside the map, the lane between them
+   is 248px at 1024 and the 300px rail would run under the planner, so below
+   1280 it steps aside while a left drawer is open, as it already does for the
+   venue drawer. From 1280 the lane is wide enough for both. */
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .appShell:has(> .mapSplitList).planning-open .desktopRail.mapRail,
+  .appShell:has(> .mapSplitList).story-open .desktopRail.mapRail {
+    display: none;
+  }
+
+  /* The map lane is 624px at 1024, narrower than the 901px row the bar's five
+     controls were laid out for, so the bar takes the treatment it already
+     takes beside an open drawer (mapToolbar.css, [data-drawer-lane]): search
+     on a line of its own, the four buttons under it, nothing drawn over
+     anything. The rail docks under the bar's published height, the way the
+     banners do, rather than under a one-row bar it no longer is. */
+  .appShell:has(> .mapSplitList) .mapToolbarRow {
+    flex-wrap: wrap;
+  }
+
+  .appShell:has(> .mapSplitList) .mapToolbarSearch {
+    flex: 1 1 100%;
+  }
+
+  .appShell:has(> .mapSplitList) .mapSearchSuggest--toolbar {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .appShell:has(> .mapSplitList) .desktopRail.mapRail {
+    top: calc(var(--map-top-clearance) + var(--map-toolbar-resting-height) + 12px);
+  }
+}
+
+.mapSplitListHead {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.mapSplitListHeadline {
+  display: grid;
+  gap: 2px;
+}
+
+.mapSplitListTitle {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 850;
+  color: var(--ink);
+}
+
+.mapSplitListCount {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.mapSplitListControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.mapSplitListSort {
+  display: flex;
+  gap: 6px;
+}
+
+.mapSplitListSortChip,
+.mapSplitListSearchHere,
+.mapSplitListMore {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  min-width: 44px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  border-radius: var(--control-radius);
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: 750;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+/* A chosen order is a selection, so it reads in ink, never coral
+   (docs/DESIGN_SYSTEM.md, "Coral is spent twice"). */
+.mapSplitListSortChip[aria-pressed="true"] {
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
+}
+
+.mapSplitListSearchHere,
+.mapSplitListMore {
+  color: var(--ink);
+}
+
+.mapSplitListMore {
+  width: calc(100% - 24px);
+  margin: 4px 12px 16px;
+}
+
+.mapSplitListFollow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.mapSplitListFollow input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--state-selected-ink);
+}
+
+.mapSplitListNote,
+.mapSplitListEmpty {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.mapSplitListEmpty {
+  padding: 16px;
+}
+
+.mapSplitListScroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+/* The consent bar is docked over the bottom of every map width; the last rows
+   scroll clear of it instead of sitting under it. */
+body:has(.analyticsConsentPrompt) .mapSplitListScroll {
+  padding-bottom: 72px;
+}
+
+.mapSplitListGroup + .mapSplitListGroup {
+  border-top: 1px solid var(--line-soft);
+}
+
+/* A kicker: sentence case, muted ink, never spaced caps and never coral. */
+.mapSplitListGroupTitle {
+  margin: 0;
+  padding: 12px 16px 4px;
+  color: var(--color-text-muted);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+
+.mapSplitListRows {
+  list-style: none;
+  margin: 0;
+  padding: 4px 8px 8px;
+}
+
+.mapSplitListRows li + li {
+  border-top: 1px solid var(--line-soft);
+}
+
+.mapSplitListRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 8px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .mapSplitListRow:hover {
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+  }
+}
+
+.mapSplitListRow:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: -2px;
+}
+
+.mapSplitListRowMain {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mapSplitListRowName {
+  font-size: var(--text-sm);
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
+.mapSplitListRowFacts {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.mapSplitListRowAside {
+  display: grid;
+  justify-items: end;
+  align-content: start;
+  gap: 2px;
+  font-size: var(--text-sm);
+}
+
+.mapSplitListRowWalk {
+  font-size: var(--text-xs);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* The trust caption takes the row's full width and wraps; it never ellipses
+   (components/AGENTS.md, phone chrome rule: a trust caption never ellipses). */
+.mapSplitListRowTrust {
+  grid-column: 1 / -1;
+  font-size: var(--text-2xs);
+  line-height: 1.4;
+  color: var(--muted);
+  overflow-wrap: break-word;
+  white-space: normal;
+}
+
+/* The ring a row puts round its pin while the reader points at the row. It is
+   a DOM mark over the canvas, never a change to the pin's own style. A pointed
+   row is not a selection, so it is drawn in ink on a paper halo. */
+.mapSplitListHalo {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 3;
+  width: 40px;
+  height: 40px;
+  margin: -20px 0 0 -20px;
+  box-sizing: border-box;
+  border: 3px solid var(--state-selected-ink);
+  border-radius: 50%;
+  /* The paper halo is an outline, which follows the ring's radius. */
+  outline: 3px solid var(--paper);
+  pointer-events: none;
+}
+
+.mapSplitListHalo[hidden] {
+  display: none;
+}

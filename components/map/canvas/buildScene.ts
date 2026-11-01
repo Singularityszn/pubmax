@@ -11,6 +11,7 @@ import {
   iconId,
   PILL_ICON_KEY_PREFIX,
   ROUTE_TIME_ICON_KEY,
+  SELECTED_PILL_ICON_KEY_PREFIX,
   UK_BASE_ICON_KEY,
   venuePinIconKey,
 } from "@/lib/mapIcons";
@@ -50,6 +51,8 @@ import {
   pinSortKeyExpr,
   pinPriceLabelExpr,
   pricePillFilter,
+  PRICE_PILL_MIN_ZOOM,
+  selectedPricePillFilter,
   CLUSTER_COUNT_BADGE_FILTER,
   CLUSTER_COUNT_CAPTION_EXPR,
   CLUSTER_FIGURE_EXPR,
@@ -340,7 +343,9 @@ export const PIN_PRICE_LABEL_PADDING = 4;
 /** The plaque halo behind a pin tag, shared by the curated and base layers. */
 const PIN_PRICE_LABEL_HALO_WIDTH = 2.1;
 
-// The pill's text, in px. 12 at the first zoom it draws, 13 by street level.
+// The pill's text, in px. 12 from the first zoom it draws to street zoom, 13 by
+// street level. Never under 12: the pill's nine-slice is drawn for a 12px
+// figure, and a smaller one would shrink its fixed ends and their pips.
 const PIN_PRICE_PILL_TEXT_SIZE_EXPR: maplibregl.ExpressionSpecification = [
   "interpolate",
   ["linear"],
@@ -349,6 +354,18 @@ const PIN_PRICE_PILL_TEXT_SIZE_EXPR: maplibregl.ExpressionSpecification = [
   12,
   16.5,
   13,
+];
+// The selected pub's pill is one step larger: the scale half of "this is the
+// one you are on", where the ink body is the other half.
+export const SELECTED_PRICE_PILL_SCALE = 1.15;
+const SELECTED_PRICE_PILL_TEXT_SIZE_EXPR: maplibregl.ExpressionSpecification = [
+  "interpolate",
+  ["linear"],
+  ["zoom"],
+  PIN_PRICE_LABEL_MIN_ZOOM,
+  12 * SELECTED_PRICE_PILL_SCALE,
+  16.5,
+  13 * SELECTED_PRICE_PILL_SCALE,
 ];
 // [top, right, bottom, left] px added round the text's rectangle on top of the
 // image's own content box.
@@ -1057,9 +1074,9 @@ export function buildUkBase(ctx: SceneCtx) {
       attribution: OSM_ATTRIBUTION,
     });
   }
-  // The tapped base pub. A quieter ring than the curated `pubs-selected` brass
-  // (this pin has nothing to be proud of yet), but a tap must always be
-  // answered on the map, not only in the sheet.
+  // The tapped base pub. A quieter ring than the curated `pubs-selected` double
+  // ring (this pin has nothing to be proud of yet), but a tap must always be
+  // answered on the map, not only in the sheet. Ink, like every selection.
   addLayerOnce({
     id: "uk-base-selected",
     type: "circle",
@@ -1069,7 +1086,7 @@ export function buildUkBase(ctx: SceneCtx) {
     paint: {
       "circle-color": "rgba(0,0,0,0)",
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 7, 17, 12],
-      "circle-stroke-color": tokens.brass,
+      "circle-stroke-color": tokens.ink,
       "circle-stroke-width": 2,
       "circle-stroke-opacity": dark ? 0.85 : 0.8,
     },
@@ -1217,7 +1234,8 @@ export function buildLondonRestaurants(ctx: SceneCtx) {
     paint: {
       "circle-color": "rgba(0,0,0,0)",
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 8, 17, 13],
-      "circle-stroke-color": tokens.brass,
+      // A selection reads in ink, never coral.
+      "circle-stroke-color": tokens.ink,
       "circle-stroke-width": 2,
       "circle-stroke-opacity": dark ? 0.85 : 0.8,
     },
@@ -1268,7 +1286,8 @@ export function buildCoffeePilot(ctx: SceneCtx) {
     paint: {
       "circle-color": "rgba(0,0,0,0)",
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 9, 17, 14],
-      "circle-stroke-color": tokens.brass,
+      // A selection reads in ink, never coral.
+      "circle-stroke-color": tokens.ink,
       "circle-stroke-width": 2.4,
       "circle-stroke-opacity": dark ? 0.9 : 0.85,
     },
@@ -1575,24 +1594,26 @@ export function buildPubs(ctx: SceneCtx) {
       "text-opacity-transition": { duration: 250, delay: 0 },
     },
   });
-  // THE PRICE PILL. From PIN_PRICE_LABEL_MIN_ZOOM a priced pub's mark is its
-  // price on a pill, with the band as a 3px foot (lib/mapIcons.ts, the pill
-  // section). It is the pin ABOVE the glass in the layer stack, so MapLibre
-  // places it first; the glass (and the tag hung under it) then collide with
-  // the pill that stands on the very same point and drop, and where the pill
-  // finds no room the glass places as it always did. A pub is therefore never
-  // lost to make its price fit, which is the rule the tag on `pubs-point` was
-  // written to keep.
+  // THE PRICE PILL. From PRICE_PILL_MIN_ZOOM, the pin floor, a priced pub's
+  // mark is its price on a quiet pill: a raised-panel body, the figure in ink,
+  // the band as the pill's outline and as one, two or three pips at its left
+  // end, so colour is never the only thing saying the band (lib/mapIcons.ts,
+  // the pill section). It is the pin ABOVE the glass in the layer stack, so
+  // MapLibre places it first; the glass (and the tag hung under it) then
+  // collide with the pill that stands on the very same point and drop, and
+  // where the pill finds no room the glass places as it always did. A pub is
+  // therefore never lost to make its price fit, which is the rule the tag on
+  // `pubs-point` was written to keep.
   //
   // Same collision deal as every other symbol (nothing here ignores
   // placement), same priority as the glass (pinSortKeyExpr), same dimming
-  // (pubIconOpacityExpr). The selected pub is filtered out: it keeps its
-  // enlarged glass, its glow and its own tag on `pubs-point-selected`.
+  // (pubIconOpacityExpr). The selected pub is filtered out: it is drawn once,
+  // inverted, on `pubs-price-pill-selected`.
   addLayerOnce({
     id: "pubs-price-pill",
     type: "symbol",
     source: "pubs",
-    minzoom: PIN_PRICE_LABEL_MIN_ZOOM,
+    minzoom: PRICE_PILL_MIN_ZOOM,
     filter: pricePillFilter(selectedId, bandMemberIds),
     layout: {
       "icon-image": [
@@ -1602,7 +1623,8 @@ export function buildPubs(ctx: SceneCtx) {
       ],
       "icon-text-fit": "both",
       // The pill's own nine-slice already holds the padding (its content box
-      // is inset 8px / 5px), so this only trues the height up to 26px.
+      // is inset past the pips and 5px top and bottom), so this only trues the
+      // height up to 26px.
       "icon-text-fit-padding": PIN_PRICE_PILL_FIT_PADDING,
       "icon-allow-overlap": false,
       "icon-ignore-placement": false,
@@ -1619,7 +1641,9 @@ export function buildPubs(ctx: SceneCtx) {
     paint: {
       "icon-opacity": pubIconOpacityExpr(selectedId),
       "icon-opacity-transition": { duration: 250, delay: 0 },
-      "text-color": tokens.pricePlaqueInk,
+      // Ink, a constant: the figure is the claim and wears no band, exactly as
+      // the cluster's "from" and count do. The band is the pill's outline.
+      "text-color": tokens.ink,
       "text-opacity": pubIconOpacityExpr(selectedId),
       "text-opacity-transition": { duration: 250, delay: 0 },
     },
@@ -1666,9 +1690,9 @@ export function buildPubs(ctx: SceneCtx) {
     paint: {
       "icon-opacity": 1,
       // The selected pub's tag is the one INVERTED figure on the map: paper on
-      // ink, where every other tag is ink on paper. It is the pill the selected
-      // pub does not get (its enlarged glass and its glow are the selection),
-      // and the inversion is what says "this is the one you are on".
+      // ink, where every other tag is ink on paper. This layer only draws a
+      // selected pub that is not a pill (a mark rides its glass, or its price
+      // is aging), and the inversion is what says "this is the one you are on".
       "text-color": dark ? tokens.inkDeep : tokens.paper,
       "text-halo-color": dark ? tokens.ink : tokens.inkDeep,
       "text-halo-width": PIN_PRICE_LABEL_HALO_WIDTH,
@@ -1676,21 +1700,64 @@ export function buildPubs(ctx: SceneCtx) {
       "text-opacity": 1,
     },
   });
-  // Selected pin: a confident double brass ring — a soft outer wash plus a
-  // bright inner edge — that lifts the choice above every other pin. M1 adds
-  // a breathing pulse (stroke-opacity + stroke-width), driven every frame by
-  // the existing RAF loop in PubMapCanvas — paint transitions are disabled
-  // here (duration 0) so the manual per-frame writes aren't smoothed/lagged.
+  // THE SELECTED PILL. A selected pub that would be a pill stays a pill and is
+  // inverted: an ink body with its figure in paper and its band pips, one size
+  // up (SELECTED_PRICE_PILL_SCALE). Ink, never coral: a selection is not an
+  // action (docs/DESIGN_SYSTEM.md, "Coral is spent twice"). It carries the one
+  // feature selectedPricePillFilter names, and it may overlap like the selected
+  // glass may, figure and all, because a pill's figure sits inside its own
+  // pill on its own pub and cannot be read as a neighbour's price; dropping it
+  // would drop the selected pub. `*-ignore-placement` stays false, so its box
+  // still reserves its space and the pins round it yield to it.
+  addLayerOnce({
+    id: "pubs-price-pill-selected",
+    type: "symbol",
+    source: "pubs",
+    minzoom: PRICE_PILL_MIN_ZOOM,
+    filter: selectedPricePillFilter(selectedId),
+    layout: {
+      "icon-image": [
+        "concat",
+        iconId("pill", SELECTED_PILL_ICON_KEY_PREFIX),
+        ["to-string", ["coalesce", ["get", "spoonsBucket"], ["get", "bucket"]]],
+      ],
+      "icon-text-fit": "both",
+      "icon-text-fit-padding": PIN_PRICE_PILL_FIT_PADDING,
+      "icon-allow-overlap": true,
+      "icon-ignore-placement": false,
+      "icon-padding": 2,
+      "text-field": ["get", "priceLabel"],
+      "text-font": textFont,
+      "text-size": SELECTED_PRICE_PILL_TEXT_SIZE_EXPR,
+      "text-letter-spacing": 0.01,
+      "text-allow-overlap": true,
+      "text-ignore-placement": false,
+      "text-padding": 0,
+    },
+    paint: {
+      "icon-opacity": 1,
+      "text-color": dark ? tokens.inkDeep : tokens.paper,
+      "text-opacity": 1,
+    },
+  });
+  // Selected pin that is not a pill: a double INK ring — a soft outer wash plus
+  // a crisp inner edge — that lifts the choice above every other pin. Ink, never
+  // coral: a selection reads in ink (docs/DESIGN_SYSTEM.md, "Coral is spent
+  // twice"). M1 adds a breathing pulse (stroke-opacity + stroke-width), driven
+  // every frame by the existing RAF loop in PubMapCanvas — paint transitions
+  // are disabled here (duration 0) so the manual per-frame writes aren't
+  // smoothed/lagged. The rings are drawn round a 28px glass, so a selected pill
+  // wears none (selectedPinFilter).
   addLayerOnce({
     id: "pubs-selected-glow",
     type: "circle",
     source: "pubs",
     minzoom: PIN_MIN_ZOOM,
-    filter: ["==", ["get", "id"], selectedId],
+    filter: selectedPinFilter(selectedId),
     paint: {
       "circle-color": "rgba(0,0,0,0)",
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 11, 15, 15],
-      "circle-stroke-color": tokens.brass,
+      "circle-stroke-color": tokens.ink,
       "circle-stroke-width": selectedId ? GLOW_SELECTED_STROKE_WIDTH : GLOW_BASE_STROKE_WIDTH,
       "circle-stroke-opacity": GLOW_BASE_STROKE_OPACITY,
       "circle-stroke-width-transition": { duration: 0, delay: 0 },
@@ -1703,18 +1770,18 @@ export function buildPubs(ctx: SceneCtx) {
     type: "circle",
     source: "pubs",
     minzoom: PIN_MIN_ZOOM,
-    filter: ["==", ["get", "id"], selectedId],
+    filter: selectedPinFilter(selectedId),
     paint: {
       "circle-color": "rgba(0,0,0,0)",
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 8, 15, 11],
-      "circle-stroke-color": tokens.brassBright,
+      "circle-stroke-color": tokens.ink,
       "circle-stroke-width": 2.2,
       "circle-stroke-opacity": 0.98,
     },
   });
   // The provisional-report badge, drawn LAST of the per-pin layers so it reads
   // over the glass silhouette, over the enlarged selected pin and over the
-  // brass selection rings — a badge that a ring can hide is not a badge.
+  // ink selection rings — a badge that a ring can hide is not a badge.
   //
   // River-toned, because that is this map's community lane (the Pint Drops halo
   // is the same family): the badge means "a drinker has been here", and it is

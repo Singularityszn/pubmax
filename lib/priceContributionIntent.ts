@@ -38,6 +38,20 @@ export function withPriceContributionIntent(input: string): string {
   return relativeUrl(url);
 }
 
+/**
+ * Where "Log a price" goes from `from`: the map the reader is on, with its
+ * city and drink kept, or `fallbackMapHref` (the remembered city's map) from
+ * anywhere else. A one-pub log request or a typed figure is dropped, because
+ * this asks which pub first.
+ */
+export function priceContributionMapHref(from: string, fallbackMapHref: string): string {
+  const base = /^\/map(?:\/[^/?#]+)?(?:[?#]|$)/.test(from) ? from : fallbackMapHref;
+  const url = new URL(base, "https://pubmaxxing.com");
+  url.searchParams.delete("log");
+  url.searchParams.delete("price");
+  return withPriceContributionIntent(url.href);
+}
+
 export function withoutPriceContributionIntent(input: string): string {
   const url = parseUrl(input);
   if (!url) return input;
