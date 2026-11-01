@@ -1029,7 +1029,8 @@
 .planComposer__concierge h2 { margin: 0; max-width: 600px; font-size: clamp(1.6rem, 4vw, 2.7rem); line-height: 1; }
 .planComposer__conciergeInput { margin-top: 20px; display: grid; grid-template-columns: 1fr auto; gap: 8px; }
 /* Plan my night — same --accent-action fill as mobile Find my pint / Claim handle. */
-.planComposer__conciergeInput button { min-height: 48px; border: 1px solid var(--control-secondary-border); border-radius: var(--radius); padding: 0 20px; background: var(--control-secondary-surface); color: var(--ink); font: inherit; font-weight: 800; cursor: pointer; }
+/* position: relative seats the pour line (components/plan/PourLine.tsx) on the button's edge while a plan is being made. */
+.planComposer__conciergeInput button { position: relative; min-height: 48px; border: 1px solid var(--control-secondary-border); border-radius: var(--radius); padding: 0 20px; background: var(--control-secondary-surface); color: var(--ink); font: inherit; font-weight: 800; cursor: pointer; }
 @media (hover: hover) and (pointer: fine) {
   .planComposer__conciergeInput button:hover:not(:disabled):not([aria-disabled="true"]) {
     background: color-mix(in srgb, var(--ink) 6%, var(--control-secondary-surface));

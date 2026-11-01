@@ -17,6 +17,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import PlanIntake from "@/components/plan/PlanIntake";
 import PlanDescribeFirst from "@/components/plan/PlanDescribeFirst";
+import PourLine from "@/components/plan/PourLine";
 import PlanCultureOpener from "@/components/plan/PlanCultureOpener";
 import dynamic from "next/dynamic";
 import { SlidersHorizontal } from "lucide-react";
@@ -2490,6 +2491,7 @@ function PlanComposerForm({
           aria-disabled={sorting || undefined}
           aria-busy={sorting}
         >
+          <PourLine busy={sorting} />
           {sorting ? "Planning…" : routeSorted ? PLAN_RESUBMIT_LABEL : "Make a plan"}
         </button>
       </div>
