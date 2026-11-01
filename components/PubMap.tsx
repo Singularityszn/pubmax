@@ -722,6 +722,8 @@ import {
 import { VENUE_ACCEPTANCE_STORAGE_ERROR } from "@/lib/venueAcceptance";
 import { phoneVenuePlanDoor } from "@/lib/venuePlanDoor";
 import VenuePeekPlanDoor from "@/components/map/inspector/VenuePeekPlanDoor";
+import VenueActionSummary from "@/components/map/inspector/VenueActionSummary";
+import { venueActionCardPriceDate, venueActionCardWalkMinutes } from "@/lib/venueActionCard";
 import { useLastOrdersVenueIds } from "@/components/map/pubmap/useLastOrdersVenueIds";
 import { lastOrdersMapRequested } from "@/lib/lastOrdersList";
 
@@ -5964,9 +5966,12 @@ export default function PubMap({
     </>
   ) : null;
 
-  /* The peek row: the price this lens can vouch for, the walk from the reader's
-     own point, and the phone sheet's ONE plan door (lib/venuePlanDoor.ts). */
-  function renderVenuePeekSummary(selectedVenue: Venue) {
+  /* The action card's first row (components/map/inspector/VenueActionCard.tsx):
+     the price this lens can vouch for, with its date, the walk from the
+     reader's own point, and the sheet's ONE plan door (lib/venuePlanDoor.ts).
+     It was the phone peek's row at the top of the body; it now rides in the
+     card at every width, so it renders nowhere else. */
+  function renderVenueActionSummary(selectedVenue: Venue) {
     const selectedLensPrice = activeLensPrices?.get(selectedVenue.id) ?? null;
     // THE PEEK ASKS THE ONE PRECEDENCE. It used to test `cheapestPrice` itself
     // and word every other answer as "No price yet", so a pub carrying one
@@ -5987,12 +5992,14 @@ export default function PubMap({
       peekDropLanes.aged,
       peekDropLanes.disputed,
     );
-    // The frame is the peek's size container: the row measures itself in em, so
+    // The frame is the row's size container: the row measures itself in em, so
     // large text moves the plan door onto its own line (mobileMapShell.css).
     return (
-      <div className="mobileVenuePeekFrame">
-        <div className="mobileVenuePeekSummary" aria-label={selectedVenueLabels.summaryLabel}>
-          {activeLensPrices !== null ? (
+      <VenueActionSummary
+        label={selectedVenueLabels.summaryLabel}
+        walkMinutes={venueActionCardWalkMinutes(userLocation, selectedVenue)}
+        price={
+          activeLensPrices !== null ? (
             <span>
               {selectedLensPrice ? (
                 <PriceBadge
@@ -6026,28 +6033,14 @@ export default function PubMap({
               priceReadStatus={communityPrices.venuePriceStatus.get(selectedVenue.id) ?? "idle"}
               dropReadStatus={pintDrops.venueDropStatus.get(selectedVenue.id) ?? "idle"}
               onLog={openComposerForLog}
+              dated={venueActionCardPriceDate(peekLane, selectedVenue)}
             />
-          )}
-          <span>
-            <strong
-              className={
-                userLocation
-                  ? "mobileVenuePeekNearMe"
-                  : "mobileVenuePeekNearMe isPhrase"
-              }
-            >
-              {userLocation
-                ? `${Math.max(1, Math.ceil(haversineKm(
-                    [userLocation.lng, userLocation.lat],
-                    [selectedVenue.longitude, selectedVenue.latitude],
-                  ) * 12.5))} min`
-                : "Near me"}
-            </strong>
-            <small>{userLocation ? "walk" : "Turn on location for walk times"}</small>
-          </span>
-          {/* ONE plan door, and it follows the crawl (lib/venuePlanDoor.ts): no
-              crawl in progress hands the pub to Plan as Stop 1, a crawl in
-              progress adds it to or takes it off the crawl on the map. */}
+          )
+        }
+        planDoor={
+          // ONE plan door, and it follows the crawl (lib/venuePlanDoor.ts): no
+          // crawl in progress hands the pub to Plan as Stop 1, a crawl in
+          // progress adds it to or takes it off the crawl on the map.
           <VenuePeekPlanDoor
             door={phoneVenuePlanDoor({
               isPub: selectedVenueIsPub,
@@ -6061,8 +6054,8 @@ export default function PubMap({
             onAcceptStop1={acceptStop1}
             onToggleStop={toggleBuiltStop}
           />
-        </div>
-      </div>
+        }
+      />
     );
   }
 
@@ -6108,7 +6101,6 @@ export default function PubMap({
             Kept for tonight. Make it Stop 1 when you are ready.
           </p>
         ) : null}
-        {renderVenuePeekSummary(selectedVenue)}
         {selectedDetailStatus === "loading" ? (
           <VenueSheetSkeleton
             loadingLabel={selectedVenueLabels.loadingLabel}
@@ -6123,8 +6115,7 @@ export default function PubMap({
         ) : null}
         <VenueInspector
           venue={selectedVenue}
-          mode={mode}
-          inCrawl={builtIds.includes(selectedVenue.id)}
+          actionSummary={renderVenueActionSummary(selectedVenue)}
           // The UNMERGED drop signal on purpose: the sheet gives every source its
           // own row, so the "Latest Pint Drop price" line must stay the Pint Drop
           // price. The community submission gets its own dated row alongside it.
@@ -6141,9 +6132,7 @@ export default function PubMap({
           // pins), dated — never a sheet-only uncorroborated report.
           shareLoggedPintGbp={venueSignals.get(selectedVenue.id)?.latestContributorPrice}
           shareLoggedAt={venueSignals.get(selectedVenue.id)?.latestContributorAt ?? null}
-          onToggleStop={toggleBuiltStop}
           onSelectVenue={selectVenue}
-          onAcceptStop1={selectedVenueIsPub ? acceptStop1 : undefined}
           acceptanceError={acceptanceError}
           initialTab={venueInitialTab}
           gettingHomeRequestId={gettingHomeRequestId}

@@ -666,11 +666,13 @@ test.describe("map keyboard and screen-reader venue path", () => {
       const share = actions.getByRole("button", { name: "Share Arnos Arms", exact: true });
       await expect(planDoor).toBeVisible();
       await expect(priceDoor).toHaveCount(1);
-      await expect(actions.getByRole("button")).toHaveText(["Share"]);
+      await expect(actions.getByRole("button")).toHaveText(["Ask for a table", "Share"]);
+      // ONE coral on the sheet: the action card's plan door. The price door is
+      // drawn in ink beside it since the card (lib/venueActionCard.ts).
       for (const theme of ["light", "dark"] as const) {
         await applyTheme(page, theme, [planDoor, priceDoor, share]);
         await expectLockedCoralContrast(planDoor);
-        await expectLockedCoralContrast(priceDoor);
+        await expectReadableGhostContrast(priceDoor);
         await expectReadableGhostContrast(share);
       }
     }

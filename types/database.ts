@@ -6164,6 +6164,62 @@ export type Database = {
         };
         Relationships: [];
       };
+      table_requests: {
+        Row: {
+          id: string;
+          requester_user_id: string;
+          venue_id: string;
+          requester_name: string;
+          party_size: number;
+          requested_date: string;
+          requested_time: string;
+          note: string | null;
+          contact_kind: string;
+          contact_value: string;
+          delivery: string;
+          created_at: string;
+          delivered_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          requester_user_id: string;
+          venue_id: string;
+          requester_name: string;
+          party_size: number;
+          requested_date: string;
+          requested_time: string;
+          note?: string | null;
+          contact_kind: string;
+          contact_value: string;
+          delivery?: string;
+          created_at?: string;
+          delivered_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          requester_user_id?: string;
+          venue_id?: string;
+          requester_name?: string;
+          party_size?: number;
+          requested_date?: string;
+          requested_time?: string;
+          note?: string | null;
+          contact_kind?: string;
+          contact_value?: string;
+          delivery?: string;
+          created_at?: string;
+          delivered_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "table_requests_requester_user_id_fkey";
+            columns: ["requester_user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       venue_corrections: {
         Row: {
           id: string;

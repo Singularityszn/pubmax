@@ -682,7 +682,7 @@
 }
 
 /* ── Portal sheet footer slot (systemic rebuild) ─────────────────────────────
-   The venue command bar (VenueStickyBar) no longer lives inside the scroll body
+   The venue action card (VenueActionCard) no longer lives inside the scroll body
    with fixed/sticky positioning against a transformed sheet (the five-patch
    #536 machinery is gone). It now portals into `.mobileSharedSheetFooter` — a
    real flex child of the bottom-anchored sheet column (mobileMapShell.css). So

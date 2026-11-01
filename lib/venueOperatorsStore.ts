@@ -50,6 +50,10 @@ export type VenueOperatorStore = {
   /** Whether this account is a VERIFIED operator of this venue (the propose gate).
    *  Fail-soft: false on any storage error (no proposal slips through on a wobble). */
   isVerifiedOperator(accountId: string, venueId: string): Promise<boolean>;
+  /** The accounts that are VERIFIED operators of this venue, under any id it
+   *  was stored under (the table-request delivery's audience). Fail-soft: [] on
+   *  any storage error, so a wobble delivers nothing rather than to anybody. */
+  verifiedOperatorAccountIds(venueId: string): Promise<string[]>;
   /** Moderator review queue: claims in a state, newest-first. Fail-soft ([]). */
   listForReview(state: OperatorVerificationState): Promise<OperatorClaim[]>;
   /** Moderator decision: set the verification state + stamp the review. False =
@@ -122,6 +126,14 @@ export const memoryVenueOperatorStore: VenueOperatorStore = {
     const id = await memoryClaimIdForPair(accountId, venueId);
     const claim = id ? byId.get(id) : undefined;
     return claim?.verificationState === "verified";
+  },
+
+  async verifiedOperatorAccountIds(venueId) {
+    const venueIds = await storedVenueIds(venueId);
+    const accounts = Array.from(byId.values())
+      .filter((c) => c.verificationState === "verified" && venueIds.includes(c.venueId))
+      .map((c) => c.accountId);
+    return [...new Set(accounts)];
   },
 
   async listForReview(state) {
@@ -277,6 +289,26 @@ export const supabaseVenueOperatorStore: VenueOperatorStore = {
       run: async () => {
         const claim = await selectByPair(accountId, venueId);
         return claim?.verificationState === "verified";
+      },
+    });
+  },
+
+  async verifiedOperatorAccountIds(venueId) {
+    return guard<string[]>({
+      context: "verifiedOperatorAccountIds",
+      onSchemaMiss: () => memoryVenueOperatorStore.verifiedOperatorAccountIds(venueId),
+      message: "verifiedOperatorAccountIds failed, returning none (fail closed)",
+      onError: () => [],
+      run: async () => {
+        const { data, error } = await whereVenueIdIn(
+          admin().from(TABLE).select("account_id").eq("verification_state", "verified"),
+          await storedVenueIds(venueId),
+        );
+        if (error) throw new Error(error.message);
+        const accounts = ((data ?? []) as Record<string, unknown>[])
+          .map((row) => (typeof row.account_id === "string" ? row.account_id : ""))
+          .filter(Boolean);
+        return [...new Set(accounts)];
       },
     });
   },

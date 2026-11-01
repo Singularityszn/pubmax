@@ -148,10 +148,10 @@ async function expectPrimaryActions(page: Page): Promise<void> {
   );
 
   // The toolbar carries no price action: the Overview's one price door owns
-  // that (lib/pintTrust.ts, `overviewPriceDoor`). On a phone it carries no plan
-  // action either, in build mode too: the peek's ONE plan door owns those
-  // (lib/venuePlanDoor.ts), so the Crawl and Stop 1 ghosts are desktop's alone.
-  expect(actions.map((action) => action.name)).toEqual(["Share Arnos Arms"]);
+  // that (lib/pintTrust.ts, `overviewPriceDoor`). It carries no plan action
+  // either, in build mode too: the action card's ONE plan door, on the row
+  // above it, owns those (lib/venuePlanDoor.ts).
+  expect(actions.map((action) => action.name)).toEqual(["Ask Arnos Arms for a table", "Share Arnos Arms"]);
   const planDoors = page
     .locator('.mobileSheetPortal[data-sheet-kind="venue"]')
     .getByRole("button", { name: /Stop 1$|^Plan stop$|^In plan$|crawl$|^Crawl$|^Remove$/ });

@@ -3508,10 +3508,14 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 /* THE ONE PRICE DOOR (lib/pintTrust.ts, `overviewPriceDoor`): the log door on
    an unpriced, listed, baseline, modelled or confirmed pub, and the second
    drinker's "Still £4.50?" on a logged-once or aged report. One class, because
-   it is one button: the same flat accent the sheet's own primary and every
-   launch primary wear (components/ui/screen.css), no gradient and no glow, so a
-   door is a door on every screen. It wears the ACTION accent and never a
-   price band, because a door is not a price. */
+   it is one button, and it is still the Overview's ONE price action.
+
+   IT IS DRAWN IN INK. The venue sheet's action card stays in view at every
+   width and spends the sheet's one coral on its plan door
+   (components/map/inspector/VenueActionCard.tsx, launch plan 1 Nov 2026,
+   section 5), so a coral door here would put two painted buttons on one
+   screen. It wears the secondary control row the sheet's other commands wear,
+   never a price band, because a door is not a price. */
 .priceDoor {
   flex: 0 0 auto;
   display: inline-flex;
@@ -3520,10 +3524,10 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   gap: 6px;
   min-height: var(--control-height);
   padding: 0 16px;
-  border: 1px solid var(--accent-action);
+  border: 1px solid var(--control-secondary-border);
   border-radius: var(--control-radius);
-  background: var(--accent-action);
-  color: var(--color-on-accent-strong);
+  background: var(--control-secondary-surface);
+  color: var(--ink);
   font: inherit;
   font-size: var(--control-font-size);
   font-weight: var(--control-font-weight);
@@ -3540,9 +3544,8 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 
 @media (hover: hover) and (pointer: fine) {
   .priceDoor:hover {
-    background: var(--accent-action-strong);
-    border-color: var(--accent-action-strong);
-    color: var(--color-on-accent-strong);
+    border-color: var(--hairline-strong);
+    color: var(--ink);
   }
 }
 

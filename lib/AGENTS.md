@@ -43,6 +43,6 @@ Full rules: [`docs/rules/lib-observability.md`](../docs/rules/lib-observability.
 
 ## Shared seams: stores, http, freshness, brand
 
-Enrichment cron, freshness spine, Context.dev, brand naming, icons, contact, rate limits, stores, messaging, email delivery.
+Enrichment cron, freshness spine, Context.dev, brand naming, icons, contact, rate limits, stores, messaging, email delivery, table requests.
 
 Full rules: [`docs/rules/lib-shared-seams-stores-http-freshness-brand.md`](../docs/rules/lib-shared-seams-stores-http-freshness-brand.md).

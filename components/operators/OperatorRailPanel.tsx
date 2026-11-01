@@ -10,7 +10,8 @@
 //   • claim pending          → a calm "Verification pending" confirmation.
 //   • claim rejected/revoked → the verify form again (re-open for review).
 //   • verified operator      → a compact propose form (correction / event / offer
-//                              / response) whose submissions route through REVIEW.
+//                              / response) whose submissions route through REVIEW,
+//                              and the pub's "Ask for a table" requests.
 //
 // Trusted data is never touched here: a proposal is a REQUEST an admin reviews.
 // All writes use authedActionFetch so the server binds the account to the verified JWT.
@@ -29,6 +30,8 @@ import {
   OPERATOR_PROPOSAL_TYPES,
   type OperatorProposalType,
 } from "@/lib/operatorProposals";
+
+import OperatorTableRequests from "./OperatorTableRequests";
 
 import "./operatorRail.css";
 
@@ -307,6 +310,7 @@ export default function OperatorRailPanel({ venueId, venueName }: OperatorRailPa
                   {proposalFeedback.text}
                 </span>
               ) : null}
+              <OperatorTableRequests venueId={venueId} />
             </div>
           ) : (
             <div className="operatorRailForm">

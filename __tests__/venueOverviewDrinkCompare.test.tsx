@@ -65,14 +65,11 @@ describe("VenueOverviewTab drink comparison", () => {
       }),
       tab: "overview",
       cityId: "london",
-      mode: "build",
-      inCrawl: false,
       latestContributorPrice: null,
       dropReadStatus: "ready",
       communityPrices,
       experienceLens: "all",
       drinkLensCategory: null,
-      onToggleStop: noop,
       presenceState: "idle",
       markPresenceHere: noop,
       userLocation: null,
@@ -137,8 +134,6 @@ describe("VenueOverviewTab drink comparison", () => {
         container.querySelector(".saveToListToggle"),
         container.querySelector(".wantedSaveBtn"),
         container.querySelector('button[aria-label^="Mark that you"]'),
-        [...container.querySelectorAll("button")]
-          .find((button) => button.textContent === "Add to crawl"),
       ];
       for (const action of actions) {
         expect(action).toBeTruthy();

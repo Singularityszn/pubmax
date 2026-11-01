@@ -1194,7 +1194,7 @@
     display: none;
   }
   /* Footer slot — a real flex child OUTSIDE the scroll body. The venue command
-     bar (VenueStickyBar) portals into this via SheetFooterContext, so it rides
+     card (VenueActionCard) portals into this via SheetFooterContext, so it rides
      1:1 with the sheet on drag/snap (in flow, no fixed positioning) and is
      always visible above a scrolling body. Empty for contextual/planner sheets,
      where it collapses to nothing. */

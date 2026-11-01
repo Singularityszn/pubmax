@@ -3,7 +3,16 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { installAuthDoubles } from "./helpers/authDoubles";
 
 /**
- * THE VENUE COMMAND BAR NEVER COVERS A PRICE ROW, AT THE TABLET WIDTHS (#1516).
+ * THE VENUE ACTION CARD NEVER COVERS A PRICE ROW, AT THE TABLET WIDTHS (#1516).
+ *
+ * Since the action card (launch plan 1 Nov 2026, section 5) the command bar is
+ * the card's second row and, from 641px, the card is the STICKY TOP of the
+ * drawer, under its head (components/map/inspector/venueActionCard.css). The
+ * history below is why the shell may never scroll; the card is now held to the
+ * top of the drawer rather than to its bottom edge, and the drawer's
+ * scroll-padding-top clears it.
+ *
+ * The 1 Nov 2026 history:
  *
  * At 641-768 the venue drawer is the legacy inline bottom sheet: viewport-tall,
  * translated down by its snap fraction, so 45dvh of its scrollport hangs under
@@ -28,16 +37,18 @@ import { installAuthDoubles } from "./helpers/authDoubles";
 const LISTED_ONLY = "venue-133bdp8";
 const PRICE_ROWS = ".contributorPrice, [data-price-door], .venueDrinkPriceRow";
 const DRAWER = ".mapDrawer.right.open";
-const BAR = `${DRAWER} .venueSheetStickyBar`;
+const BAR = `${DRAWER} .venueActionCard`;
+const HEAD = `${DRAWER} .mapDrawerHead`;
 
-// The bar rests in flow a gutter above the edge at the very end of the scroll
-// (venueSheet.css gives the inspector an 8px gutter under it).
-const BOTTOM_EDGE_TOLERANCE_PX = 24;
+// Once the drawer has scrolled past the pub's own head, the card rests under
+// the drawer's sticky head (54px: 10px above a 44px row), within a hairline.
+const TOP_EDGE_TOLERANCE_PX = 4;
 
 type BarReading = {
   shellScrollTop: number;
   viewportHeight: number;
   bar: { top: number; bottom: number } | null;
+  headBottom: number | null;
   drawerScrollTop: number;
   rowsBelowViewport: number;
   rowsUnderBar: string[];
@@ -45,11 +56,12 @@ type BarReading = {
 
 async function readBar(page: Page): Promise<BarReading> {
   return page.evaluate(
-    ({ drawerSel, barSel, rowsSel }) => {
+    ({ drawerSel, barSel, headSel, rowsSel }) => {
       const shell = document.querySelector<HTMLElement>("main.appShell");
       const drawer = document.querySelector<HTMLElement>(drawerSel);
       const bar = document.querySelector<HTMLElement>(barSel);
       const barBox = bar?.getBoundingClientRect() ?? null;
+      const headBox = document.querySelector<HTMLElement>(headSel)?.getBoundingClientRect() ?? null;
       const rows = Array.from(document.querySelectorAll<HTMLElement>(rowsSel)).filter(
         (row) => row.getBoundingClientRect().height > 0,
       );
@@ -57,6 +69,7 @@ async function readBar(page: Page): Promise<BarReading> {
         shellScrollTop: shell?.scrollTop ?? -1,
         viewportHeight: window.innerHeight,
         bar: barBox ? { top: Math.round(barBox.top), bottom: Math.round(barBox.bottom) } : null,
+        headBottom: headBox ? Math.round(headBox.bottom) : null,
         drawerScrollTop: drawer?.scrollTop ?? -1,
         rowsBelowViewport: rows.filter(
           (row) => row.getBoundingClientRect().top >= window.innerHeight,
@@ -71,21 +84,28 @@ async function readBar(page: Page): Promise<BarReading> {
           : [],
       };
     },
-    { drawerSel: DRAWER, barSel: BAR, rowsSel: PRICE_ROWS },
+    { drawerSel: DRAWER, barSel: BAR, headSel: HEAD, rowsSel: PRICE_ROWS },
   );
 }
 
 function holdBar(reading: BarReading, step: string): void {
-  expect(reading.bar, `${step}: the command bar is on the page`).not.toBeNull();
+  expect(reading.bar, `${step}: the action card is on the page`).not.toBeNull();
   const bar = reading.bar!;
   expect(reading.shellScrollTop, `${step}: the map shell never scrolls`).toBe(0);
-  expect(bar.bottom, `${step}: the bar is inside the viewport`).toBeLessThanOrEqual(
+  expect(bar.top, `${step}: the card is inside the viewport`).toBeGreaterThanOrEqual(-1);
+  expect(bar.bottom, `${step}: the card is inside the viewport`).toBeLessThanOrEqual(
     reading.viewportHeight + 1,
   );
+}
+
+/** Scrolled well past the pub's own head, the card rests under the drawer's head. */
+function holdBarStuck(reading: BarReading, step: string): void {
+  expect(reading.headBottom, `${step}: the drawer head is on the page`).not.toBeNull();
+  const bar = reading.bar!;
   expect(
-    reading.viewportHeight - bar.bottom,
-    `${step}: the bar hugs the bottom edge (bar ${bar.top}..${bar.bottom} in ${reading.viewportHeight})`,
-  ).toBeLessThanOrEqual(BOTTOM_EDGE_TOLERANCE_PX);
+    Math.abs(bar.top - reading.headBottom!),
+    `${step}: the card rests under the drawer head (card ${bar.top}..${bar.bottom}, head ends ${reading.headBottom})`,
+  ).toBeLessThanOrEqual(TOP_EDGE_TOLERANCE_PX);
 }
 
 /** The row a reader (or a script) brought into view is not under the bar. */
@@ -147,7 +167,7 @@ for (const viewport of [
   test.describe(`${viewport.width}x${viewport.height}: ${viewport.band}`, () => {
     test.use({ viewport: { width: viewport.width, height: viewport.height } });
 
-    test("the command bar stays on the bottom edge and off the price row in view while the sheet scrolls", async ({
+    test("the action card stays at the top of the drawer and off the price row in view while the sheet scrolls", async ({
       page,
     }) => {
       await openListedVenue(page);
@@ -194,16 +214,17 @@ for (const viewport of [
       }
 
       // At the end of the scroll every price row has been reachable and sits
-      // above the bar: none is parked below the viewport in the part of the
-      // scrollport the translate used to hide, and none is under the bar.
+      // below the card: none is parked below the viewport in the part of the
+      // scrollport the translate used to hide, and none is under the card.
       await drawer.evaluate((node) => {
         node.scrollTop = node.scrollHeight;
       });
       await page.waitForTimeout(250);
       const end = await readBar(page);
       holdBar(end, "scrolled to the end");
+      if (end.drawerScrollTop > 400) holdBarStuck(end, "scrolled to the end");
       expect(end.rowsBelowViewport, "every price row can be scrolled into view").toBe(0);
-      expect(end.rowsUnderBar, "at the end no price row is under the bar").toEqual([]);
+      expect(end.rowsUnderBar, "at the end no price row is under the card").toEqual([]);
     });
   });
 }

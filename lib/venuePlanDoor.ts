@@ -19,8 +19,13 @@ import type { CrawlMode } from "@/lib/venues";
  * latch: removing the last stop ends the crawl, and the door reads
  * `Make it Stop 1` again on the same render.
  *
- * Desktop is untouched: its sheet has no peek, and its command bar keeps the
- * Stop 1 and Crawl ghosts (components/map/inspector/VenueStickyBar.tsx).
+ * SINCE THE ACTION CARD (launch plan 1 Nov 2026, section 5) THIS IS THE
+ * SHEET'S ONE PLAN DOOR AT EVERY WIDTH. The peek row became the first row of
+ * the venue sheet's action card (components/map/inspector/VenueActionCard.tsx),
+ * which is the phone sheet's footer and the desktop drawer's sticky top, so
+ * desktop reads this same table: its Stop 1 and Crawl ghosts and its Overview
+ * "Add to crawl" were second and third doors onto these actions and are gone.
+ * The name keeps "phone" because the rule was the phone's first.
  */
 
 const MAKE_IT_STOP_1_LABEL = "Make it Stop 1";

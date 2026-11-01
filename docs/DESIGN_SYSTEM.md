@@ -142,7 +142,10 @@ hairlines for structure (see "Edges: the de-box rule").
 **Accent.** One coral: `--brass` as `--color-accent` and `--accent-action`,
 `--brass-bright` as `--color-accent-strong` and `--accent-action-strong`.
 `--brass-accessible` is the login primary alone. A Screen paints exactly one
-control with `--accent-action`; nothing else on that screen wears it.
+control with `--accent-action`; nothing else on that screen wears it. On the
+venue sheet that control is the action card's plan door at every width
+(`components/map/inspector/VenueActionCard.tsx`), so the Overview's price
+door is drawn in ink beside it.
 
 **Coral as a fill and coral as a word are two tokens.** `--brass` is 2.5:1 to
 2.9:1 as TEXT on the light elevation ladder, below AA at every step, so accent

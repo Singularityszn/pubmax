@@ -60,7 +60,7 @@ vi.mock("@/components/map/inspector/VenuePintsTab", () => ({ default: () => null
 vi.mock("@/components/map/inspector/VenueMenuTab", () => ({ default: () => null }));
 vi.mock("@/components/map/inspector/VenueStoryTab", () => ({ default: () => null }));
 vi.mock("@/components/map/inspector/VenueAskTab", () => ({ default: () => null }));
-vi.mock("@/components/map/inspector/VenueStickyBar", () => ({ default: () => null }));
+vi.mock("@/components/map/inspector/VenueActionCard", () => ({ default: () => null }));
 
 import VenueInspector from "@/components/map/VenueInspector";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
@@ -127,10 +127,7 @@ async function renderInspector(initialTab: VenueTabRequest, gettingHomeRequestId
     root.render(
       createElement(VenueInspector, {
         venue,
-        mode: "cheap" as never,
-        inCrawl: false,
         latestContributorPrice: null,
-        onToggleStop: noop,
         initialTab,
         gettingHomeRequestId,
         pintDrops,
