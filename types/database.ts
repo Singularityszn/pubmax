@@ -1936,6 +1936,7 @@ export type Database = {
           measure_label: string | null;
           author_retired_at: string | null;
           receipt_photo_key: string | null;
+          price_evidence: string | null;
         };
         Insert: {
           id?: string;
@@ -1970,6 +1971,7 @@ export type Database = {
           measure_label?: string | null;
           author_retired_at?: string | null;
           receipt_photo_key?: string | null;
+          price_evidence?: string | null;
         };
         Update: {
           id?: string;
@@ -2004,6 +2006,7 @@ export type Database = {
           measure_label?: string | null;
           author_retired_at?: string | null;
           receipt_photo_key?: string | null;
+          price_evidence?: string | null;
         };
         Relationships: [];
       };
