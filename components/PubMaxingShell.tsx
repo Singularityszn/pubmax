@@ -158,7 +158,7 @@ export default function PubMaxingShell({
             mounts here, outside the edit-locked PubMap, and portals into the
             map stage so the banner staging rules reach it. A UK place arrival
             or national browse already explains its own coverage. */}
-        {placeArrival || ukNationalBrowse ? null : <CityPubsOnlyNoteMount key={cityId} cityId={cityId} />}
+        {placeArrival || ukNationalBrowse ? null : <CityPubsOnlyNoteMount key={`coverage:${cityId}`} cityId={cityId} />}
       </MapPricesReadContext.Provider>
     </MapSkeletonCityContext.Provider>
   );
