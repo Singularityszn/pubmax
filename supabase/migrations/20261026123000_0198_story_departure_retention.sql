@@ -131,8 +131,8 @@ begin
      where contributor_handle = any(v_handles);
   end if;
 
-  -- Wall photo ROWS. The objects they name were removed through the Storage
-  -- API before this row delete ran; see 0145's header.
+  -- Delete wall photo rows. The account route collects their object keys before
+  -- deleting the auth user, then removes the bytes through Storage after success.
   delete from public.venue_photos vp
    using public.profiles p
    where p.id = vp.author_profile_id

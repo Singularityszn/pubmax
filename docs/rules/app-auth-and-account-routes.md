@@ -30,6 +30,8 @@ This service-only snapshot covers account-route, admin, and GoTrue deletions.
 The public Story readers combine retained departures with profile deletion and consent withdrawal when they redact content and identity.
 Previously deleted accounts receive no historical identity backfill.
 Apply `0198` before the application reader. Without its columns, the public Story readers return `unavailable`.
+The `0198` rollback makes affected shared Stories private drafts before it removes the retained departure facts.
+Apply that rollback before reverting the reader. Reapplying the migration does not republish those Stories.
 Pins: `__tests__/accountDeletionStoryRedactionEffective.test.ts`, `__tests__/publicRecapReadUnavailable.test.tsx`.
 
 <a id="a-private-night-can-be-taken-back-and-only-its-owner-takes-it"></a>

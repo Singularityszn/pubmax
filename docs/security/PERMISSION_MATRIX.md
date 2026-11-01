@@ -119,7 +119,7 @@ the honest refusal for that route (401, 403, 400 or 409) and no change.
 Migration `0216` limits raw Story reads to the host for every publication state.
 It retains the authenticated SELECT grant because contributor, proposal and Moment-link policies query the Story table.
 The service role continues to read source rows for the application projection.
-Migration `0198` retains source text and departure facts, which the public projection uses to remove departed identities.
+Story departure retention follows the [account-deletion rule](../rules/app-auth-and-account-routes.md#an-account-leaves-in-two-phases-the-storage-api-owns-the-bytes-the-trigger-owns-).
 The `0216` rollback restores raw public Story reads for unrelated authenticated accounts, including retained names.
 It changes no source text or grants.
 `accountDeletionStoryRedactionEffective.test.ts` checks deletion, public redaction, raw reads and rollback over every migration.

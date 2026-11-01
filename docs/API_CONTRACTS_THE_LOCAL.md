@@ -58,6 +58,11 @@ THE LOCAL follows the existing plans pattern: **value before sign-in.** There is
   - Canonical transport: `Authorization: Bearer <memberToken>` header. Body field `memberToken` is accepted as a migration fallback. Helper: `lib/planMemberCapability.ts` (`planMemberCapability(request, body.memberToken)`). IMPLEMENTED LOCALLY.
   - `POST /api/plans/:id/actions` accepts the Bearer header and retains `body.memberToken` only as a migration fallback.
 - **Save a private recap** (`POST /api/plans/:id/recap`): the bearer authenticates the account. The request must also carry the Plan member token in its member cookie or body field `memberToken`. This route never uses the bearer as the Plan member token. The saved Memory belongs to the authenticated account. See [`planRecapPromote.server.ts`](../lib/planRecapPromote.server.ts) for completion matching and replay handling.
+
+  Account Hub sends each confirmed recap to its Plan-specific endpoint, where the browser can attach that Plan's path-scoped HttpOnly cookie. The cookie stays inaccessible to scripts and keeps its existing scope. The legacy `POST /api/me/pending-plan-recaps` claim endpoint also separates account authentication from Plan authority. Browsers do not send the Plan cookie to that account-wide path, so legacy clients must supply each item's separate `memberToken`. Both endpoints prefer a supplied Plan cookie over the body token.
+
+  Completion matching compares `completedAt` as an instant, so equivalent timestamp formats match. Each account saves at most one Memory per Plan completion.
+
 - **Authenticated profile** (`/api/me/night-profile`): verified Supabase Auth bearer session; the caller id is server-derived and never accepted from body/query.
 
 The member token is never logged or serialised back after the initial mint (`planMemberCapability` comment; `planStore` stores `token_hash` only).
