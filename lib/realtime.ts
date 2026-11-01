@@ -157,14 +157,20 @@ function subscribePintDropSignal(
     stopPollTimer = null;
   }
 
-  /** The channel joined: stop polling, but keep a poll a hidden tab held. */
+  /**
+   * The channel joined: stop polling, but keep a poll a hidden tab held. The
+   * subscription owes at most ONE catch-up read, and it stays owed until it
+   * runs or the subscription ends: a later join with nothing held of its own
+   * (a sign-out and sign-in while hidden) keeps the earlier one.
+   */
   function handOverToChannel() {
     const stop = stopPollTimer;
     stopPollTimer = null;
-    if (!stop) return;
-    stop({ keepHeld: true });
+    if (!stop || !stop({ keepHeld: true })) return;
     dropHeldPoll?.();
-    dropHeldPoll = () => stop();
+    dropHeldPoll = () => {
+      stop();
+    };
   }
 
   function dropChannel() {

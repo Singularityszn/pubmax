@@ -10,14 +10,17 @@
  * another source of updates (a live channel that has just joined). The interval
  * stops, but a tick already held still runs once when the page comes back,
  * because the new source only reports changes from now on. A later plain stop
- * drops that held tick too.
+ * drops that held tick too. Stop answers whether it kept a held tick.
  */
-export type StopVisibleInterval = (options?: { keepHeld?: boolean }) => void;
+export type StopVisibleInterval = (options?: { keepHeld?: boolean }) => boolean;
 
 export function visibleInterval(tick: () => void, intervalMs: number): StopVisibleInterval {
   if (typeof document === "undefined") {
     const id = setInterval(tick, intervalMs);
-    return () => clearInterval(id);
+    return () => {
+      clearInterval(id);
+      return false;
+    };
   }
   let held = false;
   let stopped = false;
@@ -38,9 +41,10 @@ export function visibleInterval(tick: () => void, intervalMs: number): StopVisib
   return (options) => {
     clearInterval(id);
     stopped = true;
-    if (options?.keepHeld && held) return;
+    if (options?.keepHeld && held) return true;
     held = false;
     document.removeEventListener("visibilitychange", visibility);
+    return false;
   };
 }
 

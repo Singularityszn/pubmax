@@ -342,6 +342,29 @@ describe("subscribeToNewDrops: a hidden tab and the live channel", () => {
     unsub();
   });
 
+  it("keeps one owed poll across a sign-out and a second join while hidden", async () => {
+    const poll = vi.fn();
+    const unsub = await coldClientHiddenTickThenJoin(poll);
+
+    // Still hidden: sign out (the poll lane restarts), then sign in and join
+    // again before that lane's first tick, so the second join holds nothing.
+    authChanged?.("SIGNED_OUT", null);
+    await vi.advanceTimersByTimeAsync(0);
+    authChanged?.("SIGNED_IN", {});
+    await vi.advanceTimersByTimeAsync(0);
+    subscribeCb?.("SUBSCRIBED");
+    expect(poll).not.toHaveBeenCalled();
+
+    setVisibility("visible");
+    expect(poll).toHaveBeenCalledTimes(1);
+
+    unsub();
+    setVisibility("hidden");
+    await vi.advanceTimersByTimeAsync(60_000);
+    setVisibility("visible");
+    expect(poll).toHaveBeenCalledTimes(1);
+  });
+
   it("drops the held poll when the subscription is torn down first", async () => {
     const poll = vi.fn();
     const unsub = await coldClientHiddenTickThenJoin(poll);

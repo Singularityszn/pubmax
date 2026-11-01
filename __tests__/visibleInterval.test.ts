@@ -84,7 +84,7 @@ describe("visibleInterval", () => {
 
     setVisibility("hidden");
     vi.advanceTimersByTime(30_000);
-    stop({ keepHeld: true });
+    expect(stop({ keepHeld: true })).toBe(true);
     vi.advanceTimersByTime(60_000);
     expect(tick).not.toHaveBeenCalled();
 
@@ -99,7 +99,7 @@ describe("visibleInterval", () => {
     const tick = vi.fn();
     const stop = visibleInterval(tick, 30_000);
 
-    stop({ keepHeld: true });
+    expect(stop({ keepHeld: true })).toBe(false);
     setVisibility("hidden");
     vi.advanceTimersByTime(30_000);
     setVisibility("visible");
