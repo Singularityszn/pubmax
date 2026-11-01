@@ -70,6 +70,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { FINE_POINTER_QUERY } from "@/lib/useFinePointer";
 import { cn } from "@/lib/utils";
 
 /** The resting size of an item: the 44px tap floor. */
@@ -82,7 +83,6 @@ const LABEL_ROOM = 40;
 const DEFAULT_SPRING: SpringOptions = { mass: 0.1, stiffness: 150, damping: 12 };
 /** The same curve as --ease-out-strong in app/globals.css. */
 const EASE_OUT_STRONG = [0.23, 1, 0.32, 1] as const;
-const FINE_POINTER_QUERY = "(hover: hover) and (pointer: fine)";
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 const DOCK_CONTROL_SELECTOR =
   "[data-dock-item] :is(a[href], button:not([disabled]))";
