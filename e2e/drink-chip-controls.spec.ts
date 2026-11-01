@@ -289,12 +289,8 @@ for (const width of [390, 320]) {
     await expect(arc).toBeVisible({ timeout: 45_000 });
     const row = arc.locator(".tonightArcRow");
     const chips = row.locator(".tonightArcChip");
-    // Four, not five. The `Clubs` chip is gone (7 Sep 2026, walk finding B9):
-    // it stood here permanently `aria-disabled`, explained by a `title` no
-    // phone shows, and it could never be enabled. Clubs show with the Bars
-    // chip: `curatedVenueKind` in lib/venueKindFilters.ts files a club under
-    // the bars.
-    await expect(chips).toHaveCount(4);
+    // All five shared controls are enabled, including independent Clubs.
+    await expect(chips).toHaveCount(5);
 
     const layout = await row.evaluate((element) => {
       const rowRect = element.getBoundingClientRect();

@@ -354,7 +354,10 @@ async function storeCrawlPack(paths) {
         headers: { Accept: "text/html" },
       }));
       const type = response.headers.get("content-type") ?? "";
-      if (!response.ok || response.redirected || !type.includes("text/html")) continue;
+      if (!response.ok || response.redirected || !type.includes("text/html")) {
+        void response.body?.cancel().catch(() => {});
+        continue;
+      }
       for (const href of crawlPackStylesheets(await response.clone().text())) {
         if (!stylesheets.includes(href)) stylesheets.push(href);
       }

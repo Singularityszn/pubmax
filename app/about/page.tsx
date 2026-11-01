@@ -17,6 +17,8 @@ import { loadPublicPintIndexSnapshot } from "@/lib/publicPintIndexSnapshot.serve
 import { HELLO_EMAIL, HELLO_MAILTO } from "@/lib/siteContact";
 import { SITE_ORGANIZATION_ID, SITE_WEBSITE_ID } from "@/lib/siteJsonLd";
 import { SITE_PRODUCT_DESCRIPTION } from "@/lib/siteProductCopy";
+import { loadUkDirectoryCoverage } from "@/lib/ukDirectoryCoverage.server";
+import { UK_NATIONAL_ENTRY_LABEL, UK_NATIONAL_MAP_HREF } from "@/lib/ukNationalBrowse";
 
 import "./about.css";
 
@@ -103,6 +105,7 @@ export default async function AboutPage() {
     ? buildLeagueTable(pintIndexSnapshot)
     : [];
   const pintIndexSummary = indexSummary(pintIndexRows);
+  const ukCoverage = loadUkDirectoryCoverage();
   const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   // The root layout publishes both referenced identities.
@@ -191,8 +194,17 @@ export default async function AboutPage() {
           </li>
           <li>
             <strong>Coverage varies by city.</strong> We started with listed
-            prices in London. OpenStreetMap adds pubs across the country, but
-            a pub on the map doesn&rsquo;t mean we hold its drink prices.
+            prices in London.{" "}
+            {ukCoverage ? (
+              <>
+                The UK directory has {fmtInt(ukCoverage.pubListings)} pub listings
+                and {fmtInt(ukCoverage.barListings)} bar listings from OpenStreetMap.{" "}
+              </>
+            ) : null}
+            A listing doesn&rsquo;t mean we have its prices or know it&rsquo;s open.{" "}
+            <Link prefetch={false} href={UK_NATIONAL_MAP_HREF} className="aboutLink">
+              {UK_NATIONAL_ENTRY_LABEL}
+            </Link>
           </li>
           <li>
             <strong>The price order is not for sale.</strong> No slot is

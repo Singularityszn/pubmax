@@ -1,5 +1,7 @@
 "use client";
 
+import { Beer, ForkKnife, Martini, Music, Utensils, type LucideIcon } from "lucide-react";
+
 import {
   offeredVenueKinds,
   toggleVenueKind,
@@ -10,19 +12,18 @@ import type { MapExperienceLens } from "@/lib/mapExperienceLens";
 
 import "./tonightArcChips.css";
 
-// The kinds the map's own filter offers, and no more. A "Clubs" chip stood
-// here permanently disabled, explained by a `title` attribute no phone shows
-// (docs/proof/astra-live-walk/report.md B9). It could never be enabled, so it
-// went: `curatedVenueKind` in lib/venueKindFilters.ts files a club under the
-// bars, and the Bars chip shows and hides clubs with them.
+// One reachable control for each kind the map offers. Legacy Club visibility
+// follows Bars until the reader makes an explicit Club choice.
 const CHIPS: ReadonlyArray<{
   kind: CuratedVenueKind;
   label: string;
+  Icon: LucideIcon;
 }> = [
-  { kind: "pub", label: "Pints" },
-  { kind: "bar", label: "Bars" },
-  { kind: "food", label: "Food" },
-  { kind: "restaurant", label: "Restaurants" },
+  { kind: "pub", label: "Pubs", Icon: Beer },
+  { kind: "bar", label: "Bars", Icon: Martini },
+  { kind: "club", label: "Clubs", Icon: Music },
+  { kind: "food", label: "Late food", Icon: Utensils },
+  { kind: "restaurant", label: "Restaurants", Icon: ForkKnife },
 ];
 
 export default function TonightArcChips({
@@ -67,7 +68,10 @@ export default function TonightArcChips({
     >
       <div className="tonightArcRow">
         {chips.map((chip) => {
-          const on = visibility[chip.kind];
+          const on = chip.kind === "club"
+            ? (visibility.club ?? visibility.bar)
+            : visibility[chip.kind];
+          const Icon = chip.Icon;
           return (
             <button
               key={chip.kind}
@@ -83,10 +87,9 @@ export default function TonightArcChips({
                   ✓
                 </span>
               ) : null}
+              <Icon size={14} aria-hidden="true" />
               <span className="tonightArcChipLabel">
-                {experienceLens !== "all" && chip.kind === "pub"
-                  ? "Pubs"
-                  : chip.label}
+                {chip.label}
               </span>
             </button>
           );

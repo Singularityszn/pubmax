@@ -23,13 +23,13 @@ describe("calculateCrawlCost, normal inputs", () => {
       perStopPence: 2_340,
       roundPence: 2_340,
       roundsTotal: 5,
-      rounds: { fewest: 1, buyingOneMore: 1, gapPence: 2_340, roundsToEven: 3 },
+      rounds: { fewest: 1, buyingOneMore: 1, gapPence: 2_340 },
     });
   });
 
   it("says rounds are even when the rounds divide by the group", () => {
     const result = calculateCrawlCost({ people: 3, stops: 3, drinksPerStop: 2, pricePence: 600 });
-    expect(result.ok && result.rounds).toEqual({ fewest: 2, buyingOneMore: 0, gapPence: 0, roundsToEven: 0 });
+    expect(result.ok && result.rounds).toEqual({ fewest: 2, buyingOneMore: 0, gapPence: 0 });
   });
 
   it("keeps the total equal to the per-person cost times the group", () => {
@@ -45,12 +45,12 @@ describe("calculateCrawlCost, normal inputs", () => {
 describe("calculateCrawlCost, unusual inputs", () => {
   it("handles one person drinking alone: every round is theirs", () => {
     const result = calculateCrawlCost({ people: 1, stops: 3, drinksPerStop: 1, pricePence: 500 });
-    expect(result.ok && result.rounds).toEqual({ fewest: 3, buyingOneMore: 0, gapPence: 0, roundsToEven: 0 });
+    expect(result.ok && result.rounds).toEqual({ fewest: 3, buyingOneMore: 0, gapPence: 0 });
   });
 
   it("handles a group bigger than the number of rounds", () => {
     const result = calculateCrawlCost({ people: 10, stops: 2, drinksPerStop: 1, pricePence: 500 });
-    expect(result.ok && result.rounds).toEqual({ fewest: 0, buyingOneMore: 2, gapPence: 5_000, roundsToEven: 8 });
+    expect(result.ok && result.rounds).toEqual({ fewest: 0, buyingOneMore: 2, gapPence: 5_000 });
   });
 
   it("accepts every limit itself", () => {

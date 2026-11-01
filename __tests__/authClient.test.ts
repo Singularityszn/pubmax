@@ -134,10 +134,80 @@ describe("browser auth client", () => {
 });
 
 describe("getAccessToken", () => {
+  it.each([
+    ["account-a", "account-b"],
+    ["account-b", "account-a"],
+  ])("withholds %s's SDK token while %s owns the provider", async (sdkOwner, providerOwner) => {
+    vi.stubGlobal("window", {});
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-key");
+    const getSession = vi.fn()
+      .mockResolvedValueOnce({ data: { session: { access_token: "wrong-owner-token", user: { id: sdkOwner } } } })
+      .mockResolvedValueOnce({ data: { session: { access_token: "current-owner-token", user: { id: providerOwner } } } });
+    createClient.mockReturnValue({ auth: { getSession } });
+    const { setProviderIdentity, readProviderAccountRevision } = await import("@/lib/authProviderRevision");
+    setProviderIdentity("supabase", providerOwner);
+    const revision = readProviderAccountRevision();
+    const { getAccessToken } = await loadAuthClient();
+
+    await expect(getAccessToken()).resolves.toBeNull();
+    await expect(getAccessToken()).resolves.toBe("current-owner-token");
+    expect(readProviderAccountRevision()).toBe(revision);
+  });
+
   it("returns null when browser auth is unavailable", async () => {
     const { getAccessToken } = await loadAuthClient();
 
     await expect(getAccessToken()).resolves.toBeNull();
+  });
+
+  it("does not use a Clerk identity to accept an unowned Supabase session", async () => {
+    vi.stubGlobal("window", {});
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-key");
+    createClient.mockReturnValue({ auth: { getSession: vi.fn().mockResolvedValue({
+      data: { session: { access_token: "old-supabase-token", user: { id: "account-a" } } },
+    }) } });
+    const { setProviderIdentity } = await import("@/lib/authProviderRevision");
+    setProviderIdentity("clerk", "account-a");
+    const { getAccessToken } = await loadAuthClient();
+
+    await expect(getAccessToken()).resolves.toBeNull();
+  });
+
+  it("keeps a matching Supabase session independent of the Clerk identity", async () => {
+    vi.stubGlobal("window", {});
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-key");
+    createClient.mockReturnValue({ auth: { getSession: vi.fn().mockResolvedValue({
+      data: { session: { access_token: "current-supabase-token", user: { id: "account-a" } } },
+    }) } });
+    const { setProviderIdentity } = await import("@/lib/authProviderRevision");
+    setProviderIdentity("supabase", "account-a");
+    setProviderIdentity("clerk", "different-clerk-account");
+    const { getAccessToken } = await loadAuthClient();
+
+    await expect(getAccessToken()).resolves.toBe("current-supabase-token");
+  });
+
+  it("withholds a session read that crosses sign-out and return to the same account", async () => {
+    vi.stubGlobal("window", {});
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-key");
+    let finish!: (value: unknown) => void;
+    const getSession = vi.fn(() => new Promise((resolve) => { finish = resolve; }));
+    createClient.mockReturnValue({ auth: { getSession } });
+    const { setProviderIdentity } = await import("@/lib/authProviderRevision");
+    setProviderIdentity("supabase", "account-a");
+    const { ensureSupabaseBrowser, getAccessToken } = await loadAuthClient();
+    await ensureSupabaseBrowser();
+    const token = getAccessToken();
+    await vi.waitFor(() => expect(getSession).toHaveBeenCalledOnce());
+    setProviderIdentity("supabase", null);
+    setProviderIdentity("supabase", "account-a");
+    finish({ data: { session: { access_token: "previous-generation-token", user: { id: "account-a" } } } });
+
+    await expect(token).resolves.toBeNull();
   });
 
   it("returns the current access token and treats a signed-out session as anonymous", async () => {
@@ -146,9 +216,11 @@ describe("getAccessToken", () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-key");
     const getSession = vi
       .fn()
-      .mockResolvedValueOnce({ data: { session: { access_token: "jwt-token" } } })
+      .mockResolvedValueOnce({ data: { session: { access_token: "jwt-token", user: { id: "account-a" } } } })
       .mockResolvedValueOnce({ data: { session: null } });
     createClient.mockReturnValue({ auth: { getSession } });
+    const { setProviderIdentity } = await import("@/lib/authProviderRevision");
+    setProviderIdentity("supabase", "account-a");
     const { getAccessToken } = await loadAuthClient();
 
     await expect(getAccessToken()).resolves.toBe("jwt-token");
