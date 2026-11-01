@@ -20,6 +20,7 @@ import {
   type PintDropDTO,
 } from "@/lib/pintDropsStore";
 import { pintTrustFor } from "@/lib/pintTrust";
+import { isUncheckedPrice } from "@/lib/pintDropReceipt";
 import { isSupabaseConfigured } from "@/lib/supabase";
 
 // THE LEDGER'S LIVE HALF (task vercel-f2-seo-cdn, option a). The /ledger/[id]
@@ -83,6 +84,8 @@ export async function readLedgerLog(
     handle: trust.drop.handle,
     state: trust.state,
     split: trust.split,
+    // A typed price with no bill is named as such on the record (decision 9).
+    ...(isUncheckedPrice(trust.drop) ? { unchecked: true as const } : {}),
   } : null;
   // The Family Table (issue #27): LEGACY drops, read via the ledger-only
   // listLegacyForVenue capability (issue #29), deliberately a SEPARATE store

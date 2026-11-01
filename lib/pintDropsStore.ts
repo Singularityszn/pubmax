@@ -34,6 +34,7 @@ import {
   isPintDropConfirmationBasis,
   type PintDropConfirmation,
 } from "@/lib/pintDropConfirmation";
+import { cleanPriceEvidence, priceEvidenceFor } from "@/lib/pintDropReceipt";
 import {
   authorRetiredAtFromRow,
   contributorHasRetired,
@@ -340,6 +341,9 @@ function toRow(drop: PersistableDrop, capDay: string | null = null) {
     measure: cleanDrinkMeasure(drop.measure),
     measure_label: drop.measureLabel ?? null,
     price_gbp: drop.priceGbp,
+    // What stands behind the figure (migration 0218, lib/pintDropReceipt.ts).
+    // Stamped by create() from what arrived, never carried in from a client.
+    price_evidence: drop.priceEvidence ?? null,
     passed_down_note: drop.passedDownNote,
     era: drop.era,
     // Persisted as a dedicated text[]/jsonb column (`vibe_tags`) — the values
@@ -436,6 +440,9 @@ function fromRow(row: Record<string, unknown>): PersistableDrop {
     measure: cleanDrinkMeasure(row.measure),
     measureLabel: measureLabelFromRow(row),
     priceGbp: row.price_gbp === null || row.price_gbp === undefined ? null : Number(row.price_gbp),
+    // Absent on a cluster without 0218 and on every row written before it,
+    // which read exactly as they always have (lib/pintDropReceipt.ts).
+    priceEvidence: cleanPriceEvidence(row.price_evidence),
     passedDownNote: String(row.passed_down_note ?? ""),
     era: String(row.era ?? ""),
     // Re-filter on the way out too (defence in depth): a hand-edited or legacy
@@ -621,6 +628,11 @@ export function toDTO(
     receiptPhotoUrl: visible ? (photoUrls?.receipt ?? null) : null,
   };
   if (drop.measureLabel) dto.measureLabel = drop.measureLabel;
+  // PUBLIC, like the measure and for the same reason: the browser's own drop
+  // lanes (lib/venues.ts) hold an unchecked price away from the pin's mark and
+  // band, and a DTO that withheld it would read every typed price as a billed
+  // one. It names no account and no photo.
+  if (drop.priceEvidence) dto.priceEvidence = drop.priceEvidence;
   // The authority key is a per-venue pseudonym for one verified account, so on
   // an ANONYMOUS drop it would name the drinker: the same account's public drop
   // at that pub carries the same key beside its real handle. The key rides the
@@ -799,7 +811,11 @@ async function attributedAuthorVenueIds(
 }
 
 export const memoryPintDropStore: PintDropStore = {
-  async create(drop, _photos, options) {
+  async create(input, photos, options) {
+    // The evidence is EARNED here, from what arrived, exactly as the Supabase
+    // backend earns it: a priced drop with no bill is `unchecked`, whatever the
+    // caller's object said (lib/pintDropReceipt.ts, captain decision 9).
+    const drop = withEarnedEvidence(input, photos);
     // The same hard guard the Supabase backend gets from
     // pint_drops_priced_day_unique_idx (0141), over the same writes: the route's
     // pre-check and this create sit either side of an await, so two in-flight
@@ -811,7 +827,9 @@ export const memoryPintDropStore: PintDropStore = {
     ) {
       throw new PintDropDailyCapError();
     }
-    addPintDrop(drop); // photos ignored: there is no Storage without Supabase
+    // Photos are not stored: there is no Storage without Supabase. Only the
+    // FACT that a bill arrived is kept, as the drop's evidence above.
+    addPintDrop(drop);
     return toDTO(drop);
   },
   async listVisible(venueId, viewer, authorHandle, cityId) {
@@ -1040,6 +1058,42 @@ export function isPintDropDailyCapError(error: unknown): error is PintDropDailyC
   return error instanceof PintDropDailyCapError;
 }
 
+/**
+ * The drop as a create path stores it: its evidence EARNED from what arrived
+ * (lib/pintDropReceipt.ts `priceEvidenceFor`), never carried in. Both backends
+ * ask this, so a caller's object, a client body or a seed cannot claim a bill
+ * that was not sent, and a priced drop with no bill is `unchecked` everywhere.
+ */
+function withEarnedEvidence(drop: PintDrop, photos: PintDropPhotos): PintDrop {
+  const { priceEvidence: _claimed, ...rest } = drop;
+  void _claimed;
+  const earned = priceEvidenceFor(drop.priceGbp, Boolean(photos.receipt));
+  return earned ? { ...rest, priceEvidence: earned } : rest;
+}
+
+/**
+ * An UNCHECKED price this store cannot mark as unchecked (migration 0218 not
+ * yet applied). Refused rather than saved, because a row with no evidence
+ * column reads as a billed one, so saving it would give a typed price the pin's
+ * mark: decision 9 reversed by a retry. The route answers exactly what it
+ * answered before the decision (a bill is asked for), and the refusal ends the
+ * moment the captain applies the migration.
+ */
+export class UncheckedPriceNotStorableError extends Error {
+  readonly code = "PINT_DROP_UNCHECKED_PRICE_NOT_STORABLE";
+  constructor() {
+    super("This price store cannot record an unchecked price yet (apply migration 0218).");
+    this.name = "UncheckedPriceNotStorableError";
+  }
+}
+
+/** The one question a caller asks about that refusal. */
+export function isUncheckedPriceNotStorableError(
+  error: unknown,
+): error is UncheckedPriceNotStorableError {
+  return error instanceof UncheckedPriceNotStorableError;
+}
+
 // 23505 on the daily-cap index alone. Named, because pint_drops carries other
 // unique indexes (the primary key) and a bare 23505 would answer 409 for a
 // collision that is not this rule at all.
@@ -1118,6 +1172,23 @@ export function isMissingReceiptColumnError(error: { code?: string; message?: st
   return (code === "42703" || code === "PGRST204") && message.includes("receipt_photo_key");
 }
 
+/**
+ * Additive-rollout guard for the evidence column (migration 0218).
+ *
+ * A BILLED price retries without the column, because an absent evidence reads
+ * exactly as a billed row always has. An UNCHECKED price is refused instead
+ * (`UncheckedPriceNotStorableError`): stored without its word it would read as
+ * billed and mark the pin, which is the measure guard's reasoning about a half.
+ */
+function isMissingPriceEvidenceColumnError(
+  error: { code?: string; message?: string } | null,
+): boolean {
+  if (!error) return false;
+  const code = error.code ?? "";
+  const message = (error.message ?? "").toLowerCase();
+  return (code === "42703" || code === "PGRST204") && message.includes("price_evidence");
+}
+
 // Additive-rollout guard for Wave G1 Last Train columns (migration 0021).
 function isMissingLastTrainColumnError(error: { code?: string; message?: string } | null): boolean {
   if (!error) return false;
@@ -1130,7 +1201,12 @@ function isMissingLastTrainColumnError(error: { code?: string; message?: string 
 
 // ── Supabase implementation ──────────────────────────────────────────────────
 export const supabasePintDropStore: PintDropStore = {
-  async create(drop, photos, options) {
+  async create(input, photos, options) {
+    // The evidence is EARNED from what arrived (lib/pintDropReceipt.ts). It
+    // follows the REQUEST, not the upload: a bill Storage failed to keep below
+    // was still sent, and the rule beside that branch is that our outage may
+    // not cost the drinker anything, including the standing they earned.
+    const drop = withEarnedEvidence(input, photos);
     const persistable: PersistableDrop = { ...drop };
     const uploaded: string[] = [];
     try {
@@ -1245,6 +1321,22 @@ export const supabasePintDropStore: PintDropStore = {
         row = rowWithoutReceipt as typeof row;
         error = await insert(row);
       }
+      if (error && isMissingPriceEvidenceColumnError(error)) {
+        if (persistable.priceEvidence === "unchecked") {
+          // The one retry this rung refuses. Without its word an unchecked
+          // price reads as billed and would mark the pin (decision 9 reversed).
+          throw new UncheckedPriceNotStorableError();
+        }
+        console.warn(
+          "[pint-drops] price_evidence missing - saving this drop without it (apply migration 0218):",
+          error.message,
+        );
+        const { price_evidence: _omitEvidence, ...rowWithoutEvidence } = row;
+        void _omitEvidence;
+        delete persistable.priceEvidence;
+        row = rowWithoutEvidence as typeof row;
+        error = await insert(row);
+      }
       if (error && isMissingMeasureColumnError(error)) {
         if (!measureIsPint(persistable.measure)) {
           // The one retry this ladder refuses. See the guard's own note: a half
@@ -1305,6 +1397,17 @@ export const supabasePintDropStore: PintDropStore = {
       // still rethrows, and the route answers the ordinary 409.
       if (isPintDropDailyCapError(err)) {
         log("warn", "pint_drops.daily_cap_conflict", {
+          dropId: drop.id,
+          venueId: drop.venueId,
+          uploadedCount: uploaded.length,
+        });
+        await deletePhotos(uploaded);
+        throw err;
+      }
+      // A pending migration, not an outage: warned once per refusal, the
+      // photos cleaned up, and the route answers with the bill rule.
+      if (isUncheckedPriceNotStorableError(err)) {
+        log("warn", "pint_drops.unchecked_price_needs_0218", {
           dropId: drop.id,
           venueId: drop.venueId,
           uploadedCount: uploaded.length,

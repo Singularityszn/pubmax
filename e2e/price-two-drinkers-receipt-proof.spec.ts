@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { RECEIPT_OPTIONAL_LINE } from "@/lib/pintDropReceipt";
+
 import { installAuthDoubles } from "./helpers/authDoubles";
 import {
   COMMUNITY_SHEET_FIXTURE_VENUE_ID,
@@ -212,9 +214,10 @@ for (const viewport of VIEWPORTS) {
 
     await form.getByLabel("What did it cost?").fill("4.50");
     const bill = form.getByTestId("spill-receipt-step");
-    // In front of the drinker, not behind "Add a photo or story".
+    // In front of the drinker, not behind "Add a photo or story", and OPTIONAL
+    // since captain decision 9 (1 Nov 2026): one line that offers, never asks.
     await expect(bill).toBeVisible();
-    await expect(bill).toContainText("Add a photo of the bill");
+    await expect(bill).toContainText(RECEIPT_OPTIONAL_LINE);
     await bill.scrollIntoViewIfNeeded();
     await shoot(bill, `${PROOF}/spill-bill-asked-${viewport.name}.png`);
 

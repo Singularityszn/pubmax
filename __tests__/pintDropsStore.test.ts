@@ -81,6 +81,7 @@ import {
   memoryPintDropStore,
   supabasePintDropStore,
   MAX_PUBLIC_DROPS,
+  UncheckedPriceNotStorableError,
 } from "@/lib/pintDropsStore";
 import { UPLOAD_PHOTO_MAX_BYTES, UPLOAD_PHOTO_MAX_LABEL } from "@/lib/uploadBodyLimit";
 import type { PersistableDrop } from "@/lib/pintDropsStore";
@@ -275,6 +276,36 @@ describe("toDTO", () => {
     expect(dto).not.toHaveProperty("reportedAt");
     expect(dto).not.toHaveProperty("moderatorNote");
     expect(dto).not.toHaveProperty("moderatedAt");
+  });
+
+  it("publishes a priced drop's evidence, and omits it where there is none", () => {
+    expect(toDTO(drop({ priceEvidence: "unchecked" })).priceEvidence).toBe("unchecked");
+    expect(toDTO(drop({ priceEvidence: "receipt" })).priceEvidence).toBe("receipt");
+    expect(toDTO(drop())).not.toHaveProperty("priceEvidence");
+  });
+});
+
+describe("the memory store earns a priced drop's evidence from what arrived", () => {
+  const bill = new File([new Uint8Array([0xff, 0xd8, 0xff, 0xd9])], "bill.jpg", { type: "image/jpeg" });
+
+  it("stamps receipt with a bill, unchecked without one, and nothing on a note", async () => {
+    const billed = await memoryPintDropStore.create(drop({ id: "m-billed" }), {
+      pint: null,
+      venue: null,
+      receipt: bill,
+    });
+    expect(billed.priceEvidence).toBe("receipt");
+    const typed = await memoryPintDropStore.create(drop({ id: "m-typed", priceEvidence: "receipt" }), {
+      pint: null,
+      venue: null,
+      receipt: null,
+    });
+    expect(typed.priceEvidence).toBe("unchecked");
+    const note = await memoryPintDropStore.create(
+      drop({ id: "m-note", priceGbp: null, passedDownNote: "Old local." }),
+      { pint: null, venue: null, receipt: null },
+    );
+    expect(note.priceEvidence).toBeUndefined();
   });
 });
 
@@ -656,6 +687,70 @@ describe("supabasePintDropStore.create (vibe_tags rollout resilience)", () => {
       ),
     ).rejects.toThrow(/statement timeout/);
     expect(insertMock).toHaveBeenCalledTimes(1);
+  });
+
+  // Captain decision 9 (1 Nov 2026), migration 0218. The store EARNS a priced
+  // drop's evidence from what arrived, and a typed price with no bill is the
+  // one row a missing column may not quietly drop the word from.
+  it("stamps a priced drop sent without a bill as unchecked, whatever the caller claimed", async () => {
+    insertMock.mockReset();
+    insertMock.mockResolvedValueOnce({ error: null });
+    const dto = await supabasePintDropStore.create(
+      drop({ priceEvidence: "receipt" }) as Parameters<typeof supabasePintDropStore.create>[0],
+      noPhotos,
+    );
+    expect(defined(insertMock.mock.calls[0])[0]).toHaveProperty("price_evidence", "unchecked");
+    expect(dto.priceEvidence).toBe("unchecked");
+  });
+
+  it("writes no evidence on a drop with no price", async () => {
+    insertMock.mockReset();
+    insertMock.mockResolvedValueOnce({ error: null });
+    const dto = await supabasePintDropStore.create(
+      drop({ priceGbp: null, passedDownNote: "Old local." }) as Parameters<
+        typeof supabasePintDropStore.create
+      >[0],
+      noPhotos,
+    );
+    expect(defined(insertMock.mock.calls[0])[0]).toHaveProperty("price_evidence", null);
+    expect(dto.priceEvidence).toBeUndefined();
+  });
+
+  it("missing evidence column: an UNCHECKED price is refused, never saved as if billed", async () => {
+    insertMock.mockReset();
+    insertMock.mockResolvedValueOnce({
+      error: {
+        code: "PGRST204",
+        message: "Could not find the 'price_evidence' column of 'pint_drops' in the schema cache",
+      },
+    });
+    await expect(
+      supabasePintDropStore.create(
+        drop() as Parameters<typeof supabasePintDropStore.create>[0],
+        noPhotos,
+      ),
+    ).rejects.toBeInstanceOf(UncheckedPriceNotStorableError);
+    expect(insertMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("missing evidence column: a row that is not unchecked retries without it", async () => {
+    insertMock.mockReset();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    insertMock
+      .mockResolvedValueOnce({
+        error: { code: "42703", message: 'column "price_evidence" of relation "pint_drops" does not exist' },
+      })
+      .mockResolvedValueOnce({ error: null });
+    await supabasePintDropStore.create(
+      drop({ priceGbp: null, passedDownNote: "Old local." }) as Parameters<
+        typeof supabasePintDropStore.create
+      >[0],
+      noPhotos,
+    );
+    expect(insertMock).toHaveBeenCalledTimes(2);
+    expect(defined(insertMock.mock.calls[1])[0]).not.toHaveProperty("price_evidence");
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("migration 0218"), expect.any(String));
+    warn.mockRestore();
   });
 
   it("an unrelated insert error still throws (not swallowed as a missing column)", async () => {

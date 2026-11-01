@@ -191,9 +191,10 @@ import {
   memoryPintDropStore,
   PhotoRefusalError,
   supabasePintDropStore,
+  UncheckedPriceNotStorableError,
   UNREADABLE_PHOTO_REFUSAL,
 } from "@/lib/pintDropsStore";
-import { RECEIPT_REQUIRED_LINE, priceNeedsReceipt } from "@/lib/pintDropReceipt";
+import { RECEIPT_REQUIRED_LINE, isPricedWrite } from "@/lib/pintDropReceipt";
 import { memoryProfileStore } from "@/lib/profileStore";
 import { memoryPrivateIdentityStore } from "@/lib/privateIdentityStore";
 import { defined } from "@/__tests__/helpers/defined";
@@ -207,13 +208,14 @@ function jpegFile(name: string): File {
 
 /**
  * A POST as a real client makes it. A PRICED body goes multipart and carries
- * the bill, because the route refuses a price without one (captain 7 Sept
- * 2026, lib/pintDropReceipt.ts). An unpriced body stays JSON, which is what
- * the note and memory lanes send.
+ * the bill, which is the composer's ordinary path and keeps every route test
+ * below on a billed price (lib/pintDropReceipt.ts). An unpriced body stays
+ * JSON, which is what the note and memory lanes send. A typed price with NO
+ * bill (captain decision 9) goes through `postWithoutBill`.
  */
 function post(body: unknown): Promise<Response> {
   const fields = (body ?? {}) as Record<string, unknown>;
-  if (!priceNeedsReceipt(fields.priceGbp)) {
+  if (!isPricedWrite(fields.priceGbp)) {
     return POST(new Request(URL_BASE, { method: "POST", body: JSON.stringify(body) }));
   }
   const form = new FormData();
@@ -227,6 +229,11 @@ function post(body: unknown): Promise<Response> {
   }
   form.set("receipt_photo", jpegFile("bill.jpg"));
   return POST(new Request(URL_BASE, { method: "POST", body: form }));
+}
+
+/** The bare JSON body of a typed price with no photo of the bill. */
+function postWithoutBill(body: unknown): Promise<Response> {
+  return POST(new Request(URL_BASE, { method: "POST", body: JSON.stringify(body) }));
 }
 
 function get(venueId?: string): Promise<Response> {
@@ -545,18 +552,91 @@ describe("POST /api/pint-drops (create)", () => {
     expect(defined(stored).authorityKey).not.toContain("account-anon");
   });
 
-  it("refuses a priced drop with no photo of the bill", async () => {
+  // CAPTAIN DECISION 9 (1 Nov 2026). A typed price WITHOUT a receipt photo is
+  // accepted. It saves and shows as "logged by @handle, not checked" with its
+  // date, and it does not colour the pin until a receipt or a second,
+  // independent person confirms it. This used to be a 400 (the 7 Sept bill
+  // rule); the verified-actor gate, the rate limit and the daily cap stand.
+  it("takes a priced drop with no photo of the bill from a verified account, as unchecked", async () => {
     reportAuth.userId = "account-noproof";
     await memoryProfileStore.createOwned("no_proof", reportAuth.userId);
-    // The bare JSON body a client that has not been updated would send.
-    const res = await POST(
-      new Request(URL_BASE, {
-        method: "POST",
-        body: JSON.stringify({ venueId: VENUE, handle: "no_proof", priceGbp: 4.5 }),
-      }),
-    );
-    expect(res.status).toBe(400);
-    expect(((await res.json()) as { error?: string }).error).toBe(RECEIPT_REQUIRED_LINE);
+    const res = await postWithoutBill({ venueId: VENUE, handle: "no_proof", priceGbp: 4.5 });
+    expect(res.status).toBe(201);
+    const { drop, confirmationOutcome } = await res.json();
+    expect(drop.priceGbp).toBe(4.5);
+    expect(drop.priceEvidence).toBe("unchecked");
+    expect(drop.receiptPhotoUrl).toBeNull();
+    // Still a verified account's price, so a second drinker can agree with it.
+    expect(drop.authorityKey).toMatch(/^[a-f0-9]{64}$/);
+    expect(confirmationOutcome).toMatchObject({ status: "awaiting_second_drinker" });
+
+    // The public read carries the word, so every browser lane can hold it back.
+    const [listed] = (await (await get(VENUE)).json()).drops;
+    expect(listed.id).toBe(drop.id);
+    expect(listed.priceEvidence).toBe("unchecked");
+  });
+
+  it("refuses an unchecked price through the unlinked handle door, as it refuses any price", async () => {
+    reportAuth.userId = null;
+    gateActor.userId = null;
+    const refused = await postWithoutBill({ venueId: VENUE, handle: "typed_only", priceGbp: 4.5 });
+    expect(refused.status).toBe(401);
+    expect(await refused.json()).toMatchObject({ code: "UNAUTHENTICATED" });
+    expect((await (await get(VENUE)).json()).drops).toEqual([]);
+  });
+
+  it("stamps a price that came with the bill as receipt, exactly as before", async () => {
+    reportAuth.userId = "account-billed";
+    await memoryProfileStore.createOwned("billed_drinker", reportAuth.userId);
+    const res = await post({ venueId: VENUE, handle: "billed_drinker", priceGbp: 4.5 });
+    expect(res.status).toBe(201);
+    expect((await res.json()).drop.priceEvidence).toBe("receipt");
+  });
+
+  it("never lets a body claim a bill it did not send", async () => {
+    reportAuth.userId = "account-claimer";
+    await memoryProfileStore.createOwned("claimer", reportAuth.userId);
+    const res = await postWithoutBill({
+      venueId: VENUE,
+      handle: "claimer",
+      priceGbp: 4.5,
+      priceEvidence: "receipt",
+    });
+    expect(res.status).toBe(201);
+    expect((await res.json()).drop.priceEvidence).toBe("unchecked");
+  });
+
+  it("carries no evidence at all on a drop with no price", async () => {
+    reportAuth.userId = "account-note";
+    await memoryProfileStore.createOwned("note_only", reportAuth.userId);
+    const res = await postWithoutBill({ venueId: VENUE, handle: "note_only", passedDownNote: "Old local." });
+    expect(res.status).toBe(201);
+    expect((await res.json()).drop.priceEvidence).toBeUndefined();
+  });
+
+  it("an unchecked price stays under the daily cap like any other", async () => {
+    reportAuth.userId = "account-capped";
+    await memoryProfileStore.createOwned("capped", reportAuth.userId);
+    expect((await postWithoutBill({ venueId: VENUE, handle: "capped", priceGbp: 4.5 })).status).toBe(201);
+    expect((await postWithoutBill({ venueId: VENUE, handle: "capped", priceGbp: 4.6 })).status).toBe(409);
+  });
+
+  it("a second independent account agreeing with an unchecked price confirms the pair", async () => {
+    reportAuth.userId = "account-typed-first";
+    await memoryProfileStore.createOwned("typed_first", reportAuth.userId);
+    const first = await postWithoutBill({ venueId: VENUE, handle: "typed_first", priceGbp: 4.4 });
+    expect(first.status).toBe(201);
+
+    reportAuth.userId = "account-typed-second";
+    await memoryProfileStore.createOwned("typed_second", reportAuth.userId);
+    const second = await postWithoutBill({ venueId: VENUE, handle: "typed_second", priceGbp: 4.4 });
+    expect(second.status).toBe(201);
+    // Neither sent a bill. Two independent people agreeing is the decision's
+    // other door onto the map, and the server mints it as any pair.
+    expect(await second.json()).toMatchObject({
+      confirmation: { basis: "second_reporter" },
+      confirmationOutcome: { status: "confirmed" },
+    });
   });
 
   it("takes a drop that carries no price without asking for a bill", async () => {
@@ -1069,16 +1149,22 @@ describe("GET + moderation", () => {
   });
 
   it("lists all visible drops when venueId is omitted (organic + demo seeds)", async () => {
-    process.env.NEXT_PUBLIC_DEMO_CONTENT = "on";
-    await post({ venueId: "first", handle: "ale", priceGbp: 4.2 });
-    await post({ venueId: "second", handle: "mild", passedDownNote: "my dad's old local" });
+    // Demo content is opt-in (lib/demoContent.ts), and this read counts the
+    // seeds. Restored before the next test, whose beforeEach re-stubs NODE_ENV.
+    vi.stubEnv("NEXT_PUBLIC_DEMO_CONTENT", "on");
+    try {
+      await post({ venueId: "first", handle: "ale", priceGbp: 4.2 });
+      await post({ venueId: "second", handle: "mild", passedDownNote: "my dad's old local" });
 
-    const res = await get();
-    expect(res.status).toBe(200);
-    const { drops } = (await res.json()) as { drops: Array<{ provenance: string }> };
-    // The two organic drops plus the seeded demo drops, all through one read path.
-    expect(drops.filter((d) => d.provenance !== "demo")).toHaveLength(2);
-    expect(drops.filter((d) => d.provenance === "demo").length).toBeGreaterThanOrEqual(8);
+      const res = await get();
+      expect(res.status).toBe(200);
+      const { drops } = (await res.json()) as { drops: Array<{ provenance: string }> };
+      // The two organic drops plus the seeded demo drops, all through one read path.
+      expect(drops.filter((d) => d.provenance !== "demo")).toHaveLength(2);
+      expect(drops.filter((d) => d.provenance === "demo").length).toBeGreaterThanOrEqual(8);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("lists organic drops only when demo content is not asked for", async () => {
@@ -1618,5 +1704,33 @@ describe("a photo we cannot read", () => {
 
     expect(res.status).toBe(503);
     expect(await res.json()).toMatchObject({ retryable: true });
+  });
+});
+
+// ── A DEPLOY AHEAD OF MIGRATION 0218 ─────────────────────────────────────────
+//
+// Until the captain applies 0218 the store cannot write the word "unchecked",
+// and a typed price saved without it would read as billed and mark the pin. So
+// the store refuses it and the route answers what it answered before decision
+// 9: add the bill. Not a retryable outage, and not a lost price either.
+describe("an unchecked price before migration 0218 is applied", () => {
+  beforeEach(() => {
+    supaGuard.configured = true;
+    process.env.SUPABASE_URL = "https://stub.supabase.co";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "stub-key";
+    storeCreate.mockReset();
+  });
+
+  it("is asked for the bill in the old line, and is not told to retry", async () => {
+    storeCreate.mockRejectedValue(new UncheckedPriceNotStorableError());
+
+    const res = await postWithoutBill({ venueId: VENUE, handle: "early", priceGbp: 4.2 });
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({
+      error: RECEIPT_REQUIRED_LINE,
+      code: "RECEIPT_REQUIRED",
+      retryable: false,
+    });
   });
 });
