@@ -30,8 +30,8 @@ const SITE_URL = "https://pubmaxxing.com";
 
 // A PUBLIC READING SURFACE, gated exactly as a price surface is: that is, not
 // at all. lib/adultGate.ts governs CONTRIBUTING (a price, a photo, a Social
-// post), and this page takes nothing from anybody. It states what a published
-// menu costs, which is the same kind of claim /borough and /pint-index make.
+// post), and this page takes nothing from anybody. It reports each published
+// round cost on its source date, without claiming a complete current menu.
 export const metadata: Metadata = {
   title: SPOONS_VALUE_PAGE_TITLE,
   description:
@@ -130,9 +130,14 @@ export default async function SpoonsValuePage() {
             </p>
           ) : null}
 
-          <SpoonsValueHistogram rows={rows} />
-
+          <p className="spoonsSourceNote">
+            Recorded rounds and costs from <a href={pack.provenance.sourceUrl} target="_blank" rel="noopener noreferrer">SpoonMe</a>,
+            published {pack.provenance.publishedAt}. Prices may have changed.
+            {" "}<Link prefetch={false} href={SPOONS_VALUE_MAP_HREF}>Open the Spoons map</Link>
+          </p>
           <SpoonsValueTable rows={rows} cuts={cuts} />
+
+          <SpoonsValueHistogram rows={rows} />
 
           <section className="spoonsCredit" aria-label="Where these figures come from">
             <h2 className="spoonsCreditTitle">Where these figures come from</h2>

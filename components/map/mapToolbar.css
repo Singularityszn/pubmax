@@ -658,7 +658,12 @@ html[data-theme="dark"] .drinkShapeChipLabel {
    real gap below the independently-positioned Tonight Arc. */
 @media (min-width: 641px) and (max-width: 900px) {
   .appShell {
-    --map-top-clearance: calc(171px + env(safe-area-inset-top, 0px));
+    /* Keep the existing berth until the enlarged header needs more room.
+       The rem fallback reserves space before the client publishes its height. */
+    --map-top-clearance: max(
+      calc(171px + env(safe-area-inset-top, 0px)),
+      calc(var(--topbar-inset) + var(--site-nav-floating-height, calc(6rem + 44px)) + 12px)
+    );
     --map-overlay-top: calc(var(--map-top-clearance) + 58px);
     --map-toolbar-resting-height: 155px;
   }
@@ -673,11 +678,12 @@ html[data-theme="dark"] .drinkShapeChipLabel {
   .mapToolbarRow {
     width: 100%;
     min-width: 0;
+    flex-wrap: wrap;
   }
 
   .mapToolbarSearch {
-    flex: 1 1 8rem;
-    min-width: 0;
+    flex: 1 1 176px;
+    min-width: min(100%, 176px);
     overflow: visible;
   }
 
@@ -856,5 +862,17 @@ html[data-theme="dark"] .drinkShapeChipLabel {
 
   .mapToolbarSearch .mapSearchSuggest--toolbar {
     width: 100%;
+  }
+}
+
+/* The tablet zoom column clears the arrival card's actual occupied berth.
+   Without a card, -12px cancels its top gap so the existing max terms win. */
+@media (min-width: 641px) and (max-width: 900px) {
+  .appShell:not(.detail-open) .mapStage .maplibregl-ctrl-top-right {
+    top: max(
+      calc(var(--map-overlay-top) + var(--map-camera-stack-height) + var(--map-chrome-gap)),
+      calc(var(--map-top-clearance) + var(--map-toolbar-resting-height) + var(--map-chrome-gap)),
+      calc(var(--map-top-clearance) + var(--map-toolbar-resting-height) + 12px + var(--map-arrival-occupied-height, -12px) + var(--map-chrome-gap))
+    );
   }
 }

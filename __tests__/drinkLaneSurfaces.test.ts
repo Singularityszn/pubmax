@@ -88,6 +88,9 @@ describe("DrinkLanePicker", () => {
       expect(html).toContain(`>${lane.label}</button>`);
     }
     expect(html).toContain("Pints");
+    expect(html).toContain("Lucia 🐐");
+    expect(html).toContain("Coke Zero and Diet Coke prices");
+    expect(html).toContain('href="/soft-drinks-and-water?sub=soft-drink-lucia-special"');
   });
 
   it("does not offer Other as a map lane", () => {

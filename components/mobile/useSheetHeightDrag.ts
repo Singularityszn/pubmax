@@ -27,6 +27,8 @@ export interface SheetHeightDrag {
   settleToRest: (snap?: SheetSnap) => void;
   openAtSnap: (snap: SheetSnap) => void;
   requestDismiss: (presentedHeight?: number) => void;
+  /** Retire a pending gesture dismissal when another close action takes ownership. */
+  cancelDismiss: () => void;
   recapToViewport: () => void;
   sheetHeight: number;
   dragging: boolean;
@@ -248,6 +250,13 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
     [animateTo, jumpTo, setRestingSnap],
   );
 
+  const cancelDismiss = useCallback(() => {
+    if (!dismissingRef.current) return;
+    dismissingRef.current = false;
+    // stop clears the spring's onRest callback without requesting another snap.
+    stop();
+  }, [stop]);
+
   const requestDismiss = useCallback(
     (presentedHeight?: number) => {
       dismissWithVelocity(0, presentedHeight);
@@ -361,6 +370,7 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
     settleToRest,
     openAtSnap,
     requestDismiss,
+    cancelDismiss,
     recapToViewport,
     sheetHeight,
     dragging,
