@@ -25,6 +25,7 @@ const SURFACE_READ_EXEMPTIONS = [
   { path: "app/social/SocialComposer.tsx", fetchCount: 2, reason: "Social composer venue search is no-store, and a video PUT goes straight to its signed Storage URL with no bearer; other mutations use the shared auth transport" },
   { path: "app/admin/SocialVideoModeration.tsx", fetchCount: 2, reason: "admin held-video queue reads and decisions use the admin lane" },
   { path: "app/social/crews/[crewId]/CrewDetailClient.tsx", fetchCount: 2, reason: "Social crew access and actions are no-store by policy" },
+  { path: "app/social/SocialLondonLane.tsx", fetchCount: 1, reason: "the signed-out London lane is a Social no-store read with its own signed paging cursor, paused by the launch rollback flag and the freeze" },
   { path: "app/u/[handle]/ProfilePageClient.tsx", fetchCount: 2, reason: "handle alias resolution is never cached. Authenticated Passport geography has an account-scoped lifecycle and bypasses the shared public cache" },
   { path: "components/ClientErrorReporter.tsx", fetchCount: 1, reason: "the client error report is fire-and-forget telemetry behind sendBeacon, never painted data" },
   { path: "components/LandlordPanel.tsx", fetchCount: 1, reason: "heritage question is a user-submitted request, not a painted reload surface" },
