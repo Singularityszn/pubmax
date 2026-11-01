@@ -179,11 +179,13 @@ Rules for filming people, on top of the house rules above:
 Two pubs, two guesses, filmed the same day. Use the recomputed figures F1 and
 F2 from the launch kit, section 0.
 
-- 0 to 3 s. Outside J.J. Moon's, Tooting. Text: "What does a pint cost here?"
+- 0 to 3 s. Outside J.J. Moon's, 553 Kingsbury Road, Kingsbury. Not another
+  J.J. Moon's: there are several, and the hunt names Kingsbury. Text: "What
+  does a pint cost here?"
 - 3 to 8 s. A guess.
-- 8 to 14 s. The app's hero card on the phone. Text: "£2.09. J.J. Moon's,
-  Tooting. Listed by Pint Prices, source read 2 October 2026." [F1, recompute
-  on 16 November]
+- 8 to 14 s. The app's hero card on the phone. Text: "£2.43, a Bud Light at
+  J.J. Moon's, Kingsbury. Listed by Pint Prices, source read 2 October 2026.
+  One of 19 London pubs at this price." [F1, recompute on 16 November]
 - 14 to 17 s. Outside Baccarat Bar, Brompton Road. Same question.
 - 17 to 21 s. A guess.
 - 21 to 27 s. The venue's sheet on the phone. Text: "£9.50, a pint of Aspall

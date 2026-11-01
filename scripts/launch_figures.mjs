@@ -23,7 +23,12 @@
 import process from "node:process";
 
 import { loadCheapestHunt } from "../lib/cheapestHunt.server.ts";
-import { HUNT_CITY_EMPTY_LINE, HUNT_CITY_UNNAMED_LINE, huntSourceVerb } from "../lib/cheapestHunt.ts";
+import {
+  HUNT_CITY_EMPTY_LINE,
+  HUNT_CITY_UNNAMED_LINE,
+  huntSourceVerb,
+  londonHuntPints,
+} from "../lib/cheapestHunt.ts";
 import { pricedPubsSentence } from "../lib/pricedPubCount.ts";
 import { loadPricedPubCount } from "../lib/pricedPubCount.server.ts";
 import { ukPriceBundleRowsByVenue } from "../lib/ukPriceBundle.server.ts";
@@ -86,6 +91,17 @@ async function main() {
 
   lines.push("Britain's cheapest pint (the hero card):");
   lines.push(hunt.britain ? `  ${describePint(hunt.britain, details)}` : "  No winner. The hero makes no claim.");
+  if (hunt.britain) {
+    // A tie is a fact a press line has to carry: the hero names ONE pub, by
+    // the hunt's own order (price, freshest read, name, id), and every other
+    // pub in our London pub list that stands in the hunt at the same price is
+    // just as cheap. Counted over the London lane the hunt itself reads.
+    const winner = hunt.britain;
+    const tied = londonHuntPints(venues).filter((pint) => samePrice(pint.priceGbp, winner.priceGbp));
+    lines.push(
+      `  Pubs in our London pub list at £${winner.priceGbp.toFixed(2)} in the hunt: ${tied.length}. The hero names one by the tie-break (freshest read, then name, then id).`,
+    );
+  }
   lines.push("");
 
   lines.push("City by city:");

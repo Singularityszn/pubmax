@@ -51,8 +51,10 @@ keep this file and the figures honest.
 
 ### Figures as of 1 November 2026
 
-Computed at 15:49 UTC on 1 November 2026 from commit `bbd03ad6` with
-`npm run launch:figures` (`scripts/launch_figures.mjs`). The script only reads
+Computed at 16:17 UTC on 1 November 2026 on the head at commit `fe8bfdc1`,
+which carries the hunt fix `2b921c89` (a winner's price must have been seen at
+that pub), with `npm run launch:figures` (`scripts/launch_figures.mjs`). These
+replace the figures first written here at `bbd03ad6`. The script only reads
 `lib/cheapestHunt.ts` and `lib/pricedPubCount.ts`, the same modules the front
 door, `/about` and `/pint-index` read. It writes nothing and fetches nothing.
 Every figure comes from the committed packs under `public/data`, so it needs
@@ -67,7 +69,7 @@ the marker itself before anything is posted.
 
 | Marker | Figure | Pub and drink | Source and read day | Map |
 | --- | --- | --- | --- | --- |
-| F1 | **£2.09**, the cheapest pint we can find in Britain (the front-door card) | J.J. Moon's, 56a High Street, Tooting, SW17 0RN (a Wetherspoon). The source names the drink "Jaipur". | Listed by Pint Prices, source read 2 October 2026 | `https://pubmaxxing.com/map?sel=venue-o98nz5` |
+| F1 | **£2.43**, the cheapest pint we can find in Britain (the front-door card). **A tie: 19 pubs in our London pub list stand in the hunt at £2.43**, and the card names this one by the tie-break. | J.J. Moon's, 553 Kingsbury Road, Kingsbury, NW9 9EL, in Brent (a Wetherspoon, by the source's own listing). The source names the drink "Bud Light". | Listed by Pint Prices on its page for this pub, source read 2 October 2026 | `https://pubmaxxing.com/map?sel=venue-cbqtvi` |
 | F2 | **£9.50**, London's dearest pint: the venue in our London pub list whose cheapest pint is the dearest we hold | Baccarat Bar, 87-135 Brompton Rd, London SW1X 7XL. The source names the drink "ASPALL CYDER", so it is a pint of cider. | Listed by Pint Prices, source read 2 October 2026 | `https://pubmaxxing.com/map?sel=venue-3pjert` |
 | F3 | **959 of the 2,033 pubs in our London pub list have a pint price on record.** | Not one pub. Use this exact sentence; it names its base. | The committed London list, menu bundle and update packs | `/about`, `/pint-index` |
 | F4 | City by city (below) | | | |
@@ -76,28 +78,39 @@ F4, the city rows exactly as the hunt prints them:
 
 | City | What the hunt says | Use it? |
 | --- | --- | --- |
-| London | £2.09 at J.J. Moon's (F1) | Yes |
+| London | £2.43 at J.J. Moon's, Kingsbury (F1), one of 19 London pubs at that price | Yes, always naming Kingsbury |
 | Leeds | £3.80 at The Chemic Tavern. The source names "John Smith's". Listed by chemictavern.co.uk, source read 4 September 2026. | Yes |
 | Liverpool | £3.70 at Shenanigans. The source names "Shenanigans Lager 4.0%". Listed by shenanigansliverpool.co.uk, source read 4 September 2026. | Yes, with care (see risks) |
-| Birmingham | £4.95 at The Botanist Gas Street Basin. The source names "Pint of Pravha or Aspall Cyder". Listed by thebotanist.uk.com, source read 4 September 2026. | **No. Hold.** The source page is `thebotanist.uk.com/locations/barnsley/whats-on`, the Barnsley branch's offers page, not the Birmingham pub. |
 | Oxford, Glasgow, Bristol, Cambridge | "Prices listed, but none says which pint." | Say exactly that |
-| Manchester, Durham, Bath, Llandudno | "No prices yet." | Say exactly that |
+| Manchester, Birmingham, Durham, Bath, Llandudno | "No prices yet." | Say exactly that (Birmingham: see risk 7) |
 
 ### Risks in the figures, read before quoting any of them
 
-1. **F1 is a thin row.** The £2.09 Jaipur row at J.J. Moon's carries the
-   dataset notes `AUTO_ADDED_PINT` and `not_found_on_individual_pub_page_extract`:
-   Pint Prices' own page for the pub did not show it when we read the site, and
-   its link is a different page from the pub's other rows. A pint of Jaipur at
-   £2.09 is a low figure for that beer. Before the press release goes out,
-   [CAPTAIN: check the price at the bar, or in the Wetherspoon app, and log what
-   you find with the bill]. If the bar charges more, the hunt moves, the release
-   moves with it, and the honest correction is a better story than a wrong one.
-2. **£2.09 sits just above the floor.** Any figure under £2.00 is read as a deal,
-   a half or a typo and is held out (`PINT_PRICE_BAND_GBP`,
-   `lib/priceRowEligibility.mjs`). Pint Prices lists £1.99 Bud Light rows at
-   several Wetherspoons. A journalist may find them. The answer: we do not call
-   a figure under £2.00 a pint price, and we say why.
+1. **F1 is now corroborated on the pub's own page.** Since the hunt fix
+   `2b921c89`, a London figure can win only when the price site's own page for
+   that pub showed it, or when it was read off the pub's own website
+   (`huntPriceIsCorroborated`, `lib/cheapestHunt.ts`). The £2.43 Bud Light row
+   at J.J. Moon's, Kingsbury, passes: Pint Prices' page for that pub showed it
+   when we read the site on 2 October 2026. The first figure written here,
+   £2.09 for Jaipur at J.J. Moon's, Tooting, failed that bar and is out of the
+   hunt. A read is still not today's price, so before the press release goes
+   out, [CAPTAIN: check the Kingsbury price at the bar, or in the Wetherspoon
+   app, and log what you find with the bill]. If the bar charges more, the hunt
+   moves, the release moves with it, and the honest correction is a better
+   story than a wrong one.
+2. **F1 is a tie.** 19 pubs in our London pub list stand in the hunt at £2.43
+   (recounted from `londonHuntPints`; `npm run launch:figures` prints the
+   count). All 19 were listed by Pint Prices and read on 2 October 2026, so
+   J.J. Moon's, Kingsbury wins only on the rest of the hunt's tie-break: the
+   name, then the id. There are several J.J. Moon's
+   branches, and another of them, in Ruislip Manor, is also at £2.43. So every
+   press and video line names Kingsbury, and where it fits says it is one of 19
+   London pubs at £2.43 [F1]. Never "the cheapest pub in London", and never
+   name the other 18 in copy without recounting them on the day. Separately,
+   Pint Prices lists £1.99 Bud Light rows at several Wetherspoons. Any figure
+   under £2.00 is read as a deal, a half or a typo and is held out
+   (`PINT_PRICE_BAND_GBP`, `lib/priceRowEligibility.mjs`). A journalist may ask;
+   the answer is that we do not call a figure under £2.00 a pint price.
 3. **F2 is a cider at a bar, not a beer at a pub.** Baccarat Bar is in our
    London pub list, so the hunt counts it. Its address, 87-135 Brompton Road, is
    a department-store address. [CAPTAIN: confirm what the venue is before a
@@ -105,23 +118,27 @@ F4, the city rows exactly as the hunt prints them:
    Cyder", never "a pub" and never "a pint of beer". The dataset's comment field
    on that row names `cheapestpint.uk`, so Pint Prices may have taken it from
    another site.
-4. **"Cheapest in Britain" is only as wide as the hunt.** Four of the twelve
+4. **"Cheapest in Britain" is only as wide as the hunt.** Five of the twelve
    cities have no prices yet and four more name no pint. A cheaper pint almost
    certainly exists somewhere we have not read. Always "the cheapest pint we can
-   find", never "Britain's cheapest pint is in Tooting".
-5. **The read days are old by launch.** London's two figures were read on 2
-   October 2026 and the city rows on 4 September 2026. By launch day that is
-   more than six weeks and more than ten weeks. Say the read day every time.
+   find", never "Britain's cheapest pint is in Kingsbury".
+5. **The read days are old by launch.** London's two figures, £2.43 at
+   Kingsbury and £9.50 at Baccarat Bar, were read on 2 October 2026, and the
+   Leeds and Liverpool rows on 4 September 2026 [F1, F2, F4]. By launch day that
+   is more than six weeks and more than ten weeks. Say the read day every time.
 6. **Liverpool's source is a loosely parsed menu.** Other rows from the same
    Shenanigans page read "WKD Blue 3.4%" as vodka and a breakfast line as a soft
    drink. The lager row itself reads cleanly. Quote it only with its source and
    read day.
-7. **The front door prints the Birmingham row today.** The hunt's own city
-   list shows £4.95 at The Botanist Gas Street Basin from the Barnsley branch's
-   page. That row should be corrected or held out of the UK price bundle before
-   16 November, and the figures recomputed. Until then, no line in this kit
-   names Birmingham. [CAPTAIN: ask an agent to fix the row in
-   `public/data/uk_prices/rows.json` through its builder.]
+7. **Birmingham now shows "No prices yet."** The hunt holds out a row whose
+   source page names another branch, so The Botanist Gas Street Basin's figure,
+   read off the chain's Barnsley page, no longer stands, and Birmingham's row
+   says "No prices yet." The same check holds out Simmons in Camden, read off
+   the Shoreditch page. The fix is the hunt's alone: the map and those two
+   venue sheets still show the wrong-branch figures until the data is
+   corrected. That data fix for the wrong-branch sheets (The Botanist and
+   Simmons in Camden) is queued as a separate task. Until it lands, no line in
+   this kit quotes either venue's price.
 8. **Rule 1 of [`BACKLINK_PLAYBOOK.md`](BACKLINK_PLAYBOOK.md)** says a pitch
    uses only a figure from `/press` or a dated Pint Index edition. F1 and F2 come
    from the front-door hunt card instead, which the captain's launch plan names
@@ -184,16 +201,18 @@ Post it at 08:01 UK, the moment the page is live.
 > prices yet. And it turns the pubs you pick into a crawl your mates open from
 > one link, with no account and no app.
 >
-> Right now the cheapest pint we can find is £2.09 [F1] at J.J. Moon's in
-> Tooting, listed by Pint Prices, source read 2 October 2026. London's dearest
-> we hold is £9.50 [F2] for a pint of Aspall Cyder at Baccarat Bar on Brompton
-> Road, also listed by Pint Prices, source read 2 October 2026. A source read is
-> not a promise about tonight, so every price on the site says when we read it.
+> Right now the cheapest pint we can find is £2.43 [F1], a pint of Bud Light at
+> J.J. Moon's in Kingsbury, listed by Pint Prices, source read 2 October 2026.
+> It's a tie: 19 London pubs on our list stand at £2.43 [F1], and the front page
+> shows Kingsbury. London's dearest we hold is £9.50 [F2] for a pint of Aspall
+> Cyder at Baccarat Bar on Brompton Road, also listed by Pint Prices, source
+> read 2 October 2026. A source read is not a promise about tonight, so every
+> price on the site says when we read it.
 >
 > It's a UK hunt, but London is where we go deep: 959 of the 2,033 pubs in our
 > London pub list have a pint price on record [F3]. Leeds and Liverpool have a
-> named cheapest pint. Manchester, Durham, Bath and Llandudno have no prices
-> yet [F4]. If you drink there, you can log the first one.
+> named cheapest pint. Manchester, Birmingham, Durham, Bath and Llandudno have
+> no prices yet [F4]. If you drink there, you can log the first one.
 >
 > Nobody pays to rank. If a pub ever buys a slot, it says "Sponsored", sits in
 > its own space, and can't change a price or a ranking. Drinkers pay for
@@ -208,13 +227,15 @@ Post it at 08:01 UK, the moment the page is live.
 From pubs' own websites and menus, from published price lists such as Pint
 Prices, and from drinkers who log a price in the app. Every price names who
 listed it and the day we read the source, and we never say a price is live.
-Some pubs show an estimate instead. It is labelled an estimate, and an estimate
+A price can win the cheapest line only if it was seen at that pub: on the
+price site's own page for the pub, or on the pub's own website. Some pubs show
+an estimate instead. It is labelled an estimate, and an estimate
 can never be called the cheapest.
 
 **2. Is this only London?**
 It's a UK hunt and London is deep. The hunt reads London and eleven other
 cities on our map. Today Leeds and Liverpool have a named cheapest pint [F4],
-four cities hold prices that don't say which pint, and four have no prices
+four cities hold prices that don't say which pint, and five have no prices
 yet. Each city says which of those it is. In London, 959 of the 2,033 pubs in
 our London pub list have a pint price on record [F3].
 
@@ -243,7 +264,8 @@ cheapest line until a second drinker agrees with it. And a listed figure under
 
 Five images, each at two widths: 390 by 844 (a phone) and 1440 by 900 (a
 laptop). The images are not taken in this commit. The commands below were
-written from the code at `bbd03ad6` and were not run, because the machine is
+written from the code at `bbd03ad6` (the hunt fix after it changed no screen)
+and were not run, because the machine is
 shared. [CAPTAIN or agent: take them on a quiet machine on 16 November, after
 the figures are recomputed, and nudge a selector if the screen has moved.]
 
@@ -406,7 +428,8 @@ npm run e2e:cli -- -s=ph close
 Captions sit under each image. No joke beside a figure.
 
 1. Hero card: "The cheapest pint we can find in Britain, with the pub, the
-   source and the day we read it."
+   source and the day we read it. J.J. Moon's, Kingsbury, is one of 19 London
+   pubs at £2.43." [F1]
 2. Map: "Prices on the map, in Soho and across London."
 3. Chat: "One link to the group chat. Your mates open it without an account."
 4. Night mode: "On the night: big buttons, one thumb, the next pub up top."
@@ -425,8 +448,9 @@ Bold.
 
 - **Version A, the figure stamp.** A round stamp in the band colour the hero
   card gives F1 (`lib/priceBand.ts`), tilted a few degrees. Line 1, large:
-  `£2.09` [F1]. Line 2, small, inside or under the stamp: `J.J. Moon's, Tooting.
-  Pint Prices, read 2 Oct 2026.` [F1]. The mark chip in one corner.
+  `£2.43` [F1]. Line 2, small, inside or under the stamp: `J.J. Moon's,
+  Kingsbury. Pint Prices, read 2 Oct 2026.` [F1]. The tie (one of 19 London
+  pubs) does not fit a thumbnail, so it goes in the first gallery caption. The mark chip in one corner.
 - **Version B, the question stamp.** The same stamp reading `£?.??`, with no
   pub, no source and no date, because it claims nothing.
 
@@ -449,7 +473,7 @@ enough to read. Never say "live".
 | Seconds | Picture | On-screen text |
 | --- | --- | --- |
 | 0 to 3 | A London street at dusk, a pub sign, no faces. | What does a pint cost in London? |
-| 3 to 9 | The phone opens `pubmaxxing.com`. The hero card fills the frame. | £2.09 [F1]. J.J. Moon's, Tooting. Listed by Pint Prices, source read 2 October 2026. |
+| 3 to 9 | The phone opens `pubmaxxing.com`. The hero card fills the frame. | £2.43 [F1]. Bud Light at J.J. Moon's, Kingsbury. Listed by Pint Prices, source read 2 October 2026. One of 19 London pubs at this price. |
 | 9 to 13 | Cut to the map pin for Baccarat Bar. Its sheet opens. | £9.50 [F2]. Baccarat Bar, Brompton Road. A pint of Aspall Cyder. Listed by Pint Prices, source read 2 October 2026. |
 | 13 to 18 | The map over Soho, price pills, a slow pan. A tap on a pill opens a sheet with its price and date. | Every price says who listed it and when. |
 | 18 to 25 | `/plan`: type "Quiet in Clapham for 4, not pricey", tap "Plan it", the priced route appears, tap "Lock it in". | Plan a crawl in a sentence. |
@@ -460,13 +484,14 @@ enough to read. Never say "live".
 
 ### Voice-over
 
-Read at a calm pace, about 95 words.
+Read at a calm pace, about 105 words. If it runs long, cut "Every price says
+who listed it and when", because the screen already says it.
 
 > What does a pint cost in London?
 >
-> The cheapest we can find in Britain right now is two pounds nine, at J.J.
-> Moon's in Tooting. Pint Prices listed it. We read it on the second of
-> October. [F1]
+> The cheapest we can find in Britain right now is two pounds forty-three, for
+> a Bud Light at J.J. Moon's in Kingsbury. Nineteen London pubs tie at that
+> price. Pint Prices listed it. We read it on the second of October. [F1]
 >
 > The dearest we hold in London is nine pounds fifty, for a pint of cider at
 > Baccarat Bar on Brompton Road. Same source, same day. [F2]
@@ -488,7 +513,7 @@ recomputed, with the embargo lifting at 08:01 UK on Tuesday 17 November. Log
 each pitch in [`backlinks/ledger.csv`](backlinks/ledger.csv) as kind
 `journalist`, status `pitched`, before you send it
 ([`BACKLINK_PLAYBOOK.md`](BACKLINK_PLAYBOOK.md), rule 4). Read risks 1, 3 and
-8 in section 0 first.
+8 in section 0 first. Read risk 2 as well: F1 is a tie.
 
 ### Press release
 
@@ -500,9 +525,11 @@ each pitch in [`backlinks/ledger.csv`](backlinks/ledger.csv) as kind
 > listed them and when, launches on Product Hunt today.*
 >
 > LONDON, 17 November 2026. The cheapest pint PUBMAXX can find in Britain is
-> £2.09 [F1], for a pint of Jaipur at J.J. Moon's, a Wetherspoon on Tooting
-> High Street. Pint Prices listed it, and PUBMAXX read that source on 2 October
-> 2026.
+> £2.43 [F1], for a pint of Bud Light at J.J. Moon's, a Wetherspoon at 553
+> Kingsbury Road, Kingsbury, in Brent. Pint Prices listed it on its page for
+> that pub, and PUBMAXX read that source on 2 October 2026. It is a tie: 19
+> pubs in PUBMAXX's London pub list stand at £2.43 [F1], and the site shows J.J.
+> Moon's, Kingsbury, by a fixed tie-break.
 >
 > The dearest pint in London that PUBMAXX holds is £9.50 [F2], for a pint of
 > Aspall Cyder at Baccarat Bar, 87-135 Brompton Road. That is the venue in its
@@ -517,8 +544,8 @@ each pitch in [`backlinks/ledger.csv`](backlinks/ledger.csv) as kind
 > pint in Leeds (£3.80 at The Chemic Tavern, listed by the pub's own website,
 > read 4 September 2026) and Liverpool (£3.70 at Shenanigans, listed by the
 > pub's own website, read 4 September 2026) [F4]. Oxford, Glasgow, Bristol and
-> Cambridge hold prices that do not say which pint. Manchester, Durham, Bath and
-> Llandudno have no prices yet, and the site says so [F4].
+> Cambridge hold prices that do not say which pint. Manchester, Birmingham,
+> Durham, Bath and Llandudno have no prices yet, and the site says so [F4].
 >
 > "[CAPTAIN: a quote in your own words. Do not let anyone write it for you.]"
 > said [CAPTAIN: your name and role, as you want them printed].
@@ -533,7 +560,8 @@ each pitch in [`backlinks/ledger.csv`](backlinks/ledger.csv) as kind
 >
 > 1. What can win. Only a listed or confirmed price can be called the cheapest
 >    or the dearest: a price published by a named source, with the day PUBMAXX
->    read it. Estimates are labelled as estimates and never win. A figure under
+>    read it, and seen at that pub, on the price site's own page for it or on
+>    the pub's own website. Estimates are labelled as estimates and never win. A figure under
 >    £2.00 or over £12.00 is not read as a pint price. A bar the public cannot
 >    walk into, such as a students' union bar, is left out. The source's own
 >    words must name the drink, or state that it is a pint.
@@ -544,8 +572,8 @@ each pitch in [`backlinks/ledger.csv`](backlinks/ledger.csv) as kind
 > 4. Where the hunt looks. London and the eleven other cities on the PUBMAXX
 >    map. A cheaper pint may exist somewhere PUBMAXX has not read.
 > 5. Links. The hunt is on the front page, `https://pubmaxxing.com`. Each pub
->    opens on the map: J.J. Moon's at
->    `https://pubmaxxing.com/map?sel=venue-o98nz5` [F1], Baccarat Bar at
+>    opens on the map: J.J. Moon's, Kingsbury, at
+>    `https://pubmaxxing.com/map?sel=venue-cbqtvi` [F1], Baccarat Bar at
 >    `https://pubmaxxing.com/map?sel=venue-3pjert` [F2]. Findings and method
 >    for journalists are at `https://pubmaxxing.com/press`.
 > 6. About PUBMAXX. [CAPTAIN: two sentences on who runs it and since when.]
@@ -559,9 +587,9 @@ each pitch in [`backlinks/ledger.csv`](backlinks/ledger.csv) as kind
 No contact details here. [CAPTAIN: find the right desk at each outlet and log
 the pitch first.]
 
-- **Evening Standard.** The money story: a pint is £2.09 at J.J. Moon's in
-  Tooting and £9.50 at Baccarat Bar on Brompton Road, both listed by Pint
-  Prices and read 2 October 2026 [F1, F2]. The cost of a night out, told with
+- **Evening Standard.** The money story: a pint is £2.43 at J.J. Moon's in
+  Kingsbury, one of 19 London pubs at that price, and £9.50 at Baccarat Bar on
+  Brompton Road, both listed by Pint Prices and read 2 October 2026 [F1, F2]. The cost of a night out, told with
   figures a reader can open and check.
   Offer the method (notes to editors 1 to 3) up front, because a news desk will
   ask how "cheapest" is decided.
@@ -577,8 +605,9 @@ the pitch first.]
   (Guinness, house wine, Coke, coffee and alcohol-free). Light, shareable, and
   every figure still dated.
 - **MyLondon.** The borough story: what a pint costs in the reader's own
-  borough. The cheapest we can find is in Wandsworth (Tooting) and the dearest
-  we hold is in Kensington and Chelsea [F1, F2]. Each borough has its own page
+  borough. The pub the front page shows for the cheapest we can find is in
+  Brent (J.J. Moon's, Kingsbury, one of 19 London pubs at £2.43), and the
+  dearest we hold is in Kensington and Chelsea (Baccarat Bar) [F1, F2]. Each borough has its own page
   (`/borough/<slug>`). Invite readers to log their local's price with the bill.
 
 ---
@@ -602,8 +631,9 @@ say plainly that you made it. Reply to every question for the first two hours.
 > bill) and the day the source was read. You can plan a crawl and send your
 > mates one link that works without an account.
 >
-> The cheapest pint I can find in Britain right now is £2.09 at J.J. Moon's in
-> Tooting, listed by Pint Prices, read 2 October 2026 [F1]. The dearest in
+> The cheapest pint I can find in Britain right now is £2.43 for a Bud Light at
+> J.J. Moon's in Kingsbury, listed by Pint Prices, read 2 October 2026 [F1].
+> It's a tie: 19 London pubs on my list are at £2.43 [F1]. The dearest in
 > London that I hold is £9.50 for a pint of Aspall Cyder at Baccarat Bar on
 > Brompton Road, same source, same day [F2]. Prices move, which is why each one
 > carries its date.
