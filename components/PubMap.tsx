@@ -1278,15 +1278,15 @@ export default function PubMap({
     ukPlacesPromiseRef.current = pending;
     return pending;
   }, []);
-  const [lastKnownLocation] = useState(() =>
-    currentSearch() ? null : readMapOpeningLocation(),
-  );
   const { search: arrivalSearch, frame: arrival, area: namedAreaArrival } = useMapOpeningArrival({
     placeArrival: ukPlaceArrival,
     nationalBrowse: ukNationalBrowse,
     cityId,
     cityDisplayName: city.displayName,
   });
+  const [lastKnownLocation] = useState(() =>
+    arrivalSearch ? null : readMapOpeningLocation(),
+  );
   const namedAreaViewport = useMemo(
     () => mapAreaOpeningView(namedAreaArrival, city.mapView),
     [city.mapView, namedAreaArrival],
@@ -1373,9 +1373,10 @@ export default function PubMap({
   // URL is the only share/restore source — do NOT resurrect a previous hand-built
   // crawl from localStorage on a clean /map tab click (that bloated the address
   // bar with stale ?mode=build&pubs=… every time someone returned to Map).
-  const [seed] = useState<MapSeed>(() => buildMapSeed(currentSearch(), cityId));
+  // One frozen incoming query owns the seed and restoration decisions.
+  const [seed] = useState<MapSeed>(() => buildMapSeed(arrivalSearch, cityId));
   const [restoredMobileSession] = useState(() => {
-    if (currentSearch()) return null;
+    if (arrivalSearch) return null;
     const saved = readMobileMapSession();
     return saved?.cityId === cityId ? saved : null;
   });
@@ -1389,13 +1390,13 @@ export default function PubMap({
   // PlanningIntent is always explicit Map intent.
   const [explicitArrivalIntent] = useState(() =>
     explicitMapIntent({
-      search: currentSearch(),
+      search: arrivalSearch,
       planningIntent: readPlanningIntent(),
       restoredMobileSession,
     }),
   );
   const [mapResumeSeed] = useState(() =>
-    currentSearch() ? null : readMapResumeSync(cityId),
+    arrivalSearch ? null : readMapResumeSync(cityId),
   );
   const shouldResolveOpeningLocation = shouldResolveOpeningLocationFor({
     needsOpeningResolution: arrival.needsOpeningResolution,

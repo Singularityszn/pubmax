@@ -34,6 +34,7 @@ import {
 } from "@/lib/pintDropConfirmation";
 import {
   authorRetiredAtFromRow,
+  contributorHasRetired,
   publicContributorHandle,
 } from "@/lib/retiredContributor";
 import {
@@ -168,18 +169,20 @@ export type PintDropStore = {
    *
    * The returned set is what `viewer` is allowed to see on a PUBLIC surface:
    *   • public + anonymous → always (anonymous handle already withheld in the DTO);
-   *   • friends → only if the viewer is the author or one of the author's followers;
-   *   • legacy → excluded (ledger-only, via listLegacyForVenue) — except the author.
+   *   • friends → only if the viewer is the author or a mutual follower;
+   *   • legacy → excluded for everyone (ledger-only, via listLegacyForVenue).
    *
-   * `viewer` is the requester's self-asserted identity (handle + the handles they
-   * follow). Omitted/anonymous viewer ⇒ public + anonymous only. This is an
-   * honest-best-effort courtesy curtain (self-asserted handles, no auth yet), the
-   * same trust posture as lib/notifications.ts.
-   */
-  /**
-   * @param authorHandle When set, only drops authored by this handle (normalized)
-   *   are returned — used by passport / profile surfaces so clients never pull
-   *   the global public feed just to filter client-side.
+   * Callers establish viewer identity before this store applies visibility.
+   * `lib/pintDropViewer.ts` owns request verification and the dev/test fallback.
+   * An omitted viewer permits only public and anonymous drops, subject to the
+   * author filter below. This store does not verify bearer tokens itself.
+   *
+   * @param authorHandle Returns only drops authored by this normalized handle.
+   *   Passport and profile surfaces use this filter instead of downloading the
+   *   global public feed. A stranger's read keeps only the rows whose public
+   *   DTO still carries the handle, so it never attributes an anonymous or
+   *   retired drop. The author's own read (`viewer` is the author) keeps them,
+   *   because their account export and their contribution stats are that read.
    */
   listVisible(
     venueId?: string,
@@ -753,6 +756,29 @@ function wornHandleList(author: AuthorIdentity): string[] {
   return [...author.worn].sort();
 }
 
+/** An author-filtered read must not recover an identity the public DTO withholds. */
+function matchesAttributedAuthor(drop: PersistableDrop, author: string): boolean {
+  return visibilityOf(drop) !== "anonymous"
+    && !contributorHasRetired(drop.authorRetiredAt)
+    && normalizeViewerHandle(drop.handle) === author;
+}
+
+/**
+ * The `listVisible` author filter. The request itself names the author, so a
+ * row the public DTO withholds the name from would be attributed by the filter.
+ * Only the author's own read may keep those rows.
+ */
+function matchesAuthorFilter(
+  drop: PersistableDrop,
+  author: string,
+  viewer: ViewerContext | undefined,
+): boolean {
+  if (normalizeViewerHandle(viewer?.handle) === author) {
+    return normalizeViewerHandle(drop.handle) === author;
+  }
+  return matchesAttributedAuthor(drop, author);
+}
+
 async function attributedAuthorVenueIds(
   rows: PersistableDrop[],
   authorIdentity: AuthorIdentity,
@@ -761,10 +787,9 @@ async function attributedAuthorVenueIds(
   const author = authorIdentity.current;
   const permitted = asAuthorDrops(rows, authorIdentity).filter(
     (drop) =>
-      normalizeViewerHandle(drop.handle) === author &&
+      matchesAttributedAuthor(drop, author) &&
       visibilityOf(drop) !== "legacy" &&
-      canViewOnPublicSurface(drop, viewer) &&
-      normalizeViewerHandle(toDTO(drop).handle) === author,
+      canViewOnPublicSurface(drop, viewer),
   );
   const published = await dropWithdrawnFromViewer(permitted, viewer);
   return [...new Set(published.map((drop) => drop.venueId))].sort();
@@ -800,7 +825,8 @@ export const memoryPintDropStore: PintDropStore = {
     const permitted = rows.filter(
       (d) =>
         visibilityOf(d) !== "legacy" &&
-        canViewOnPublicSurface(d, viewer),
+        canViewOnPublicSurface(d, viewer) &&
+        (!author || matchesAuthorFilter(d, author.current, viewer)),
     );
     const published = await dropWithdrawnFromViewer(permitted, viewer);
     return newestFirstCapped(published).map((d) => toDTO(withVerifiedReportCount(d)));
@@ -1347,7 +1373,8 @@ export const supabasePintDropStore: PintDropStore = {
     const permitted = (author ? asAuthorDrops(organic, author) : organic)
       .concat(seeds)
       .filter((d) => venueId || dropMatchesCityScope(d.venueId, cityId))
-      .filter((d) => canViewOnPublicSurface(d, viewer));
+      .filter((d) => canViewOnPublicSurface(d, viewer))
+      .filter((d) => !author || matchesAuthorFilter(d, author.current, viewer));
     const published = await dropWithdrawnFromViewer(permitted, viewer);
     const capped = newestFirstCapped(published);
     return toDTOsWithBatchedPhotos(capped);

@@ -22,16 +22,17 @@ import {
  */
 describe("the venue-type filter counts what the panel offers", () => {
   it("offers the curated kinds in every view", () => {
-    expect(offeredVenueKinds("all")).toEqual(["pub", "bar", "food", "restaurant"]);
+    expect(offeredVenueKinds("all")).toEqual(["pub", "bar", "club", "food", "restaurant"]);
     expect(offeredVenueKinds("no-alcohol")).toEqual([
       "pub",
       "bar",
+      "club",
       "food",
       "restaurant",
     ]);
     // Food service can be stated by pubs and bars too. The badge and chips
-    // offer the same four kinds while the lens narrows venue eligibility.
-    expect(offeredVenueKinds("food")).toEqual(["pub", "bar", "food", "restaurant"]);
+    // offer the same five kinds while the lens narrows venue eligibility.
+    expect(offeredVenueKinds("food")).toEqual(["pub", "bar", "club", "food", "restaurant"]);
   });
 
   it("counts the offered kinds that are switched off", () => {
@@ -49,10 +50,17 @@ describe("the venue-type filter counts what the panel offers", () => {
     expect(showAllVenueKinds(held, "food")).toEqual({
       pub: true,
       bar: true,
+      club: true,
       food: true,
       restaurant: true,
     });
-    expect(showAllVenueKinds(held, "all")).toEqual(defaultVenueKindVisibility());
+    expect(showAllVenueKinds(held, "all")).toEqual({
+      pub: true,
+      bar: true,
+      club: true,
+      food: true,
+      restaurant: true,
+    });
   });
 
   it("carries the count on the closed control, in words and in the label", () => {
@@ -112,6 +120,7 @@ describe("the control the desktop map opens", () => {
     const html = render({
       pub: true,
       bar: false,
+      club: true,
       food: false,
       restaurant: true,
     });

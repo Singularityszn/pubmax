@@ -247,3 +247,31 @@ describe("service worker crawl offline pack", () => {
     expect(saved[0]).toBe(`${ORIGIN}/pubs/venue-6`);
   });
 });
+
+it.each(["error", "redirect", "non-html"])("releases a rejected %s body and still saves the next stop", async (reason) => {
+  const cancel = vi.fn();
+  const rejected = new Response(new ReadableStream({ cancel }), {
+    status: reason === "error" ? 404 : 200,
+    headers: { "content-type": reason === "non-html" ? "application/json" : "text/html" },
+  });
+  if (reason === "redirect") Object.defineProperty(rejected, "redirected", { value: true });
+  const { listeners, stores } = workerHarness({
+    "/pubs/venue-rejected": () => rejected,
+    "/pubs/venue-kept": () => pubPage("kept"),
+  });
+  await sendPack(listeners, { type: CRAWL_OFFLINE_PACK_MESSAGE, venueIds: ["venue-rejected", "venue-kept"] });
+  expect(cancel).toHaveBeenCalledOnce();
+  expect([...stores.get(PUB_CACHE)!.keys()]).toEqual([`${ORIGIN}/pubs/venue-kept`]);
+});
+
+it.each(["null body", "failed cancellation"])("continues after rejecting a response with %s", async (kind) => {
+  const response = new Response(kind === "null body" ? null : new ReadableStream({
+    cancel: async () => { throw new Error("Connection already closed"); },
+  }), { status: 404 });
+  const { listeners, stores } = workerHarness({
+    "/pubs/venue-rejected": () => response,
+    "/pubs/venue-kept": () => pubPage("kept"),
+  });
+  await sendPack(listeners, { type: CRAWL_OFFLINE_PACK_MESSAGE, venueIds: ["venue-rejected", "venue-kept"] });
+  expect([...stores.get(PUB_CACHE)!.keys()]).toEqual([`${ORIGIN}/pubs/venue-kept`]);
+});

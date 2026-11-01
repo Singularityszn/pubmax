@@ -199,10 +199,10 @@ export const commands: Command[] = [
   {
     id: "action-build-crawl",
     label: "Build a crawl on the map",
-    hint: "/map",
+    hint: "/map?mode=build&plan=1",
     keywords: ["route", "plan crawl", "stops"],
     group: "Actions",
-    run: (ctx) => ctx.navigate("/map"),
+    run: (ctx) => ctx.navigate("/map?mode=build&plan=1"),
   },
   {
     id: "action-toggle-theme",
