@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { expectLayoutSettled } from "./helpers/layoutSettled";
 
 // The V0.1 phone pass for the surfaces OUTSIDE the map shell. The map already
 // has its own rendered-geometry fence (e2e/mobile-map-chrome-fit.spec.ts); these
@@ -326,23 +327,30 @@ for (const hasTouch of [false, true]) {
           await discover.locator("#cheap-title").scrollIntoViewIfNeeded();
 
           const measurements = [];
-          for (const selector of [".discoverBrandChip", "a.leaderboardPub", "a.tonightPub"]) {
-            const targets = discover.locator(selector);
-            await expect(targets.first()).toBeVisible({ timeout: REQUIRED_SELECTOR_TIMEOUT_MS });
-            const sizes = await targets.evaluateAll((elements) => elements.map((element) => {
-              const rect = element.getBoundingClientRect();
-              return { width: rect.width, height: rect.height };
-            }));
-            measurements.push({ selector, sizes });
-            for (const size of sizes) {
-              expect(size.height, `${route} @${width}: ${selector}`).toBeGreaterThanOrEqual(MIN_TAP_HEIGHT_PX);
-              expect(size.width, `${route} @${width}: ${selector}`).toBeGreaterThanOrEqual(MIN_TAP_WIDTH_PX);
+          try {
+            for (const selector of [".discoverBrandChip", "a.leaderboardPub", "a.tonightPub"]) {
+              const targets = discover.locator(selector);
+              await expect(targets.first()).toBeVisible({ timeout: REQUIRED_SELECTOR_TIMEOUT_MS });
+              // Visibility can precede an ancestor's reveal transition finishing.
+              for (const target of await targets.all()) {
+                await expectLayoutSettled(target, { timeout: SETTLE_CEILING_MS });
+              }
+              const sizes = await targets.evaluateAll((elements) => elements.map((element) => {
+                const rect = element.getBoundingClientRect();
+                return { width: rect.width, height: rect.height };
+              }));
+              measurements.push({ selector, sizes });
+              for (const size of sizes) {
+                expect(size.height, `${route} @${width}: ${selector}`).toBeGreaterThanOrEqual(MIN_TAP_HEIGHT_PX);
+                expect(size.width, `${route} @${width}: ${selector}`).toBeGreaterThanOrEqual(MIN_TAP_WIDTH_PX);
+              }
             }
+          } finally {
+            await testInfo.attach("Discover target geometry", {
+              body: JSON.stringify({ route, width, hasTouch, reportedPointer, measurements }, null, 2),
+              contentType: "application/json",
+            });
           }
-          await testInfo.attach("Discover target geometry", {
-            body: JSON.stringify({ route, width, hasTouch, reportedPointer, measurements }, null, 2),
-            contentType: "application/json",
-          });
           await discover.locator(".discoverBrandChip").first().scrollIntoViewIfNeeded();
           await testInfo.attach("Discover brand targets", {
             body: await page.screenshot(),
