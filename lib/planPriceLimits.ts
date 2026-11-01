@@ -24,6 +24,11 @@ const SUPPORTED_DRINK_SUBJECT = new RegExp(String.raw`^(?:(?:an?|each|one|1)\s+)
 const EXPLICIT_ROUTE_BUDGET = new RegExp(String.raw`\b(?:(?:pubs?(?:\s+route)?|bars?|stops?|crawl|route|total|per[ -]person)\s+budget|(?:pubs?|crawl|route)\s+total)(?:\s+of)?(?:\s+${LIMIT})?\s*$`, "i");
 const ROUTE_BUDGET_PREFIX = new RegExp(String.raw`\bbudget(?:\s+of)?(?:\s+${LIMIT})?\s*$`, "i");
 const ROUTE_LIMIT_PREFIX = new RegExp(String.raw`\b${LIMIT}\s*$`, "i");
+// "a £20 crawl", "£20 pub crawl": the figure names the whole crawl, so it is the
+// route budget (the planner's "£20 crawl" chip, lib/planBudgetCrawl.ts, says it
+// this way). A drink between the figure and the word ("£5 pint crawl") is a
+// drink price instead, and PLAN_DRINK_AFTER_PRICE reads it first.
+const ROUTE_BUDGET_SUFFIX = /^\s*(?:pub[ -])?crawl\b/i;
 
 export const PLAN_FOOD_SUBJECT = String.raw`(?:each\s+)?(?:(?!(?:${PLAN_PRICE_SUBJECT_BOUNDARY}|\b(?:serves|for|priced|cost(?:s|ing)?|${LIMIT})\b))[^,£;!?])*\b${PLAN_FOOD_ITEM}\b`;
 export const PLAN_UNTYPED_ITEM_WORD = String.raw`(?!(?:${PLAN_PRICE_SUBJECT_BOUNDARY}|\b(?:serves|for|priced|cost(?:s|ing)?|${LIMIT}|and|plus|an?|one|two|pubs?|bars?|stops?|venues?|crawl|route|budget|total|person|people)\b))[a-z]+`;
@@ -105,7 +110,7 @@ export function planPriceAmounts(query: string): Array<{
       index: amount.index,
       end,
       pence: Math.round(Number((amount[1] ?? amount[2]!).replace(",", ".")) * 100),
-      routeBudget: explicitRouteBudget ? "explicit"
+      routeBudget: explicitRouteBudget || (!afterDrink && ROUTE_BUDGET_SUFFIX.test(after)) ? "explicit"
         : ROUTE_BUDGET_PREFIX.test(before) || (!beforeDrink && !afterDrink && (ROUTE_LIMIT_PREFIX.test(before) || /^\s*(?:per\s+person|each)\b/i.test(after))) ? "limit" : null,
       drink: beforeDrink || afterDrink ? {
         beforeStart: beforeDrink?.index ?? null,

@@ -24,6 +24,9 @@ vi.mock("@/lib/landingAnswers.server", () => ({
 vi.mock("@/lib/trustedHandoffFlags.server", () => ({
   readTrustedHandoffFlag: () => false,
 }));
+vi.mock("@/lib/cheapestHunt.server", () => ({
+  loadCheapestHunt: async () => ({ britain: null, cities: [], londonDearest: null }),
+}));
 vi.mock("@/components/landing/LandingPage", () => ({ default: () => null }));
 vi.mock("@/components/native/AppEntryRoute", () => ({ default: () => null }));
 
@@ -31,7 +34,6 @@ import Home from "@/app/page";
 import BoroughScreen from "@/app/borough/BoroughScreen";
 import { boroughPlacePhoto } from "@/components/listing/placePhotoRules";
 import LandingHero from "@/components/landing/LandingHero";
-import LandingSkylinePreload from "@/components/landing/LandingSkylinePreload";
 import { LANDING_PHOTOS, LONDON_PHOTO_ID, PUB_PHOTOS } from "@/lib/landingImagery";
 import type { LandingArchiveIndex } from "@/lib/landingHero";
 import type { LandingPubCardData } from "@/lib/landingPubCard";
@@ -76,56 +78,28 @@ function hero(overrides: Partial<LandingPubCardData> = {}): string {
   );
 }
 
-/** The pub card alone, so the page's own skyline never answers for it. */
+/** The pub card alone, so nothing else on the page answers for it. */
 function answerCard(html: string): string {
   const match = html.match(/<article[^>]*aria-labelledby="lp-answer-name"[^>]*>[\s\S]*?<\/article>/);
   if (!match) throw new Error("the pub card did not render");
   return match[0];
 }
 
-describe("the home document ships the skyline preload", () => {
-  it("mounts exactly one high-priority skyline preload on /", async () => {
-    const html = renderToStaticMarkup(await Home());
-    expect(html.match(/rel="preload"/g)?.length ?? 0).toBe(1);
-    expect(html).toContain("/landing/hero-thames-1024.avif 1024w");
-    expect(html).toContain('fetchPriority="high"');
-    // Fail-soft: no answer card, so the skyline preload is not gated to desktop.
-    expect(html).not.toContain('media="(min-width: 960px)"');
-  });
-
-  it("gates the skyline preload to desktop only when an answer card will render", () => {
-    const preload = renderToStaticMarkup(
-      createElement(LandingSkylinePreload, { phoneAnswerOwnsLcp: true }),
-    );
-    expect(preload).toContain('media="(min-width: 960px)"');
-    const allWidths = renderToStaticMarkup(
-      createElement(LandingSkylinePreload, { phoneAnswerOwnsLcp: false }),
-    );
-    expect(allWidths).not.toContain('media="(min-width: 960px)"');
-  });
-
-  it("keeps the skyline preload on every width when the card holds no photograph of its pub", async () => {
-    heroData.card = { ...card, id: "venue-not-in-the-set", name: "The Moon on the Hill" };
-    try {
-      const html = renderToStaticMarkup(await Home());
-      expect(html.match(/rel="preload"/g)?.length ?? 0).toBe(1);
-      expect(html).toContain("/landing/hero-thames-1024.avif 1024w");
-      // A text card paints no photograph, so the skyline is the phone's largest
-      // paint too and its preload is not gated to desktop.
-      expect(html).not.toContain('media="(min-width: 960px)"');
-    } finally {
-      heroData.card = null;
-    }
-  });
-
-  it("gates the skyline preload to desktop when the card stands on its pub's own photograph", async () => {
-    heroData.card = card;
-    try {
-      const html = renderToStaticMarkup(await Home());
-      expect(html.match(/rel="preload"/g)?.length ?? 0).toBe(1);
-      expect(html).toContain('media="(min-width: 960px)"');
-    } finally {
-      heroData.card = null;
+describe("the home document ships no stock photograph", () => {
+  // The skyline preload left with the Tower Bridge photograph (captain
+  // decisions 2 and 3, 1 Nov 2026): the hero's first card is the hunt, which
+  // is text, so the document itself preloads nothing and only the pub card's
+  // own photograph, where there is one, is preloaded beside its picture.
+  it("preloads nothing of its own on /, with or without a pub card", async () => {
+    for (const next of [null, card, { ...card, id: "venue-not-in-the-set", name: "The Moon on the Hill" }]) {
+      heroData.card = next;
+      try {
+        const html = renderToStaticMarkup(await Home());
+        expect(html).not.toContain('rel="preload"');
+        expect(html).not.toContain("/landing/hero-thames");
+      } finally {
+        heroData.card = null;
+      }
     }
   });
 });
@@ -156,27 +130,24 @@ describe("the landing hero stands on a photograph", () => {
     expect(html).toContain("data:image/webp;base64,");
   });
 
-  it("preloads the skyline on desktop only and keeps it the high-priority image element", () => {
-    const preload = renderToStaticMarkup(
-      createElement(LandingSkylinePreload, { phoneAnswerOwnsLcp: true }),
-    );
-    expect(preload.match(/rel="preload"/g)?.length ?? 0).toBe(1);
-    expect(preload).toContain("/landing/hero-thames-1024.avif 1024w");
-    expect(preload).toContain('media="(min-width: 960px)"');
+  it("carries no stock photograph, so the pub's own picture is the hero's only image", () => {
     const images = html.match(/<img [^>]*>/g) ?? [];
-    const highImages = images.filter((img) => /fetchpriority="high"/i.test(img));
-    expect(highImages).toHaveLength(1);
-    expect(highImages[0]).toContain('class="lpLondonPhoto"');
-    expect(highImages[0]).toContain('decoding="sync"');
+    expect(images).toHaveLength(1);
+    expect(images[0]).toContain('class="landingPhoto__img"');
+    expect(html).not.toContain("lpLondonPhoto");
+    expect(html).not.toContain("/landing/hero-thames");
   });
 
-  it("preloads the answer photograph on phone only and leaves its element lazy for desktop", () => {
+  it("preloads the answer photograph at every width and leaves its element lazy", () => {
+    // The Thames picture was the desktop's largest paint, so this preload was
+    // phone-only; with the hunt card (text) in its place, the pub's own
+    // photograph is the largest image left at any width.
     const answerImg = html.match(/<img class="landingPhoto__img"[^>]*>/)?.[0] ?? "";
     expect(answerImg).toContain('loading="lazy"');
     expect(answerImg).not.toMatch(/fetchpriority="high"/i);
     const preloads = html.match(/<link rel="preload"[^>]*>/g) ?? [];
     expect(preloads).toHaveLength(1);
-    expect(preloads[0]).toContain('media="(max-width: 959px)"');
+    expect(preloads[0]).toContain('media="all"');
     expect(preloads[0]).toContain(`/landing/london/${anchorPhoto.id}-640.avif 640w`);
     expect(preloads[0]).toMatch(/fetchpriority="high"/i);
   });
@@ -236,13 +207,10 @@ describe("a pub card we hold no photograph of is text and price", () => {
     expect(own).not.toContain("No photo yet");
   });
 
-  it("keeps the page's own London skyline, captioned, as the one image", () => {
-    expect(html).toContain('alt="Tower Bridge and the Thames in London from above"');
-    expect(html).toContain("Tower Bridge and the Thames, looking across London.");
-    const images = html.match(/<img [^>]*>/g) ?? [];
-    expect(images).toHaveLength(1);
-    expect(images[0]).toContain('class="lpLondonPhoto"');
-    expect(images[0]).toMatch(/fetchpriority="high"/i);
+  it("leaves the hero with no image at all: no pub picture and no stock photograph", () => {
+    expect(html).not.toContain("Tower Bridge");
+    expect(html.match(/<img [^>]*>/g) ?? []).toHaveLength(0);
+    expect(html).not.toContain('rel="preload"');
   });
 });
 

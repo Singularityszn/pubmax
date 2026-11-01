@@ -18,6 +18,7 @@ export const CLUSTER_RIM_LAYERS = ["cluster-count-badge", "clusters-casing"] as 
 // restaurant comes after the base pubs for the same reason: it is drawn under
 // them.
 export const PUB_FIRST_LAYERS = [
+  "pubs-price-pill-selected",
   "pubs-point-selected",
   "pubs-price-pill",
   "pubs-point",

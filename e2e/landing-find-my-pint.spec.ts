@@ -77,13 +77,14 @@ test.describe("landing hierarchy", () => {
     await expect(primaries.first()).toHaveAttribute("href", LANDING_PRIMARY_HREF);
     await expect(primaries.first()).toHaveText(LANDING_PRIMARY_NAME);
 
-    // One quiet row, two doors: the receipt door, then Tonight (#1488).
+    // One quiet row, two doors: the receipt door, then Plan a crawl (captain
+    // decision 2, 1 Nov 2026; Tonight lives in the five-tab dock).
     const secondary = hero.locator(".screenSecondary a");
     await expect(secondary).toHaveCount(2);
     await expect(secondary.first()).toHaveAttribute("href", LANDING_RECEIPT_HREF);
     await expect(secondary.first()).toHaveText(LANDING_RECEIPT_NAME);
-    await expect(secondary.nth(1)).toHaveAttribute("href", "/tonight");
-    await expect(secondary.nth(1)).toHaveText("What's on tonight");
+    await expect(secondary.nth(1)).toHaveAttribute("href", "/plan");
+    await expect(secondary.nth(1)).toHaveText("Plan a crawl");
 
     // Nothing else on the page is a filled button.
     await expect(page.locator("main [data-primary-action]")).toHaveCount(1);
@@ -283,10 +284,10 @@ test.describe("landing hierarchy", () => {
     });
   }
 
-  test("reads the same order on a phone as on a desktop: heading, line, picture, primary, quiet row, pub, rail", async ({ page }) => {
+  test("reads the same order on a phone as on a desktop: heading, line, hunt card, primary, quiet row, pub, rail", async ({ page }) => {
     await openLanding(page, { width: 390, height: 844 });
     const tops = await page.evaluate(() =>
-      ["#hero-title", ".lpHero .screenLede", ".lpHero .lpLondonFigure", ".lpHero [data-primary-action]", ".lpHero .screenSecondary", ".lpHero .lpPubCard", ".lpHero .lpRail"].map(
+      ["#hero-title", ".lpHero .screenLede", ".lpHero .lpHuntCard", ".lpHero [data-primary-action]", ".lpHero .screenSecondary", ".lpHero .lpPubCard", ".lpHero .lpRail"].map(
         (selector) => document.querySelector(selector)?.getBoundingClientRect().top ?? Number.NaN,
       ),
     );
@@ -392,8 +393,8 @@ test(`homepage quiet actions remain clickable on a narrow phone with ${textSize}
     expect(hits, await link.innerText()).toEqual(Array<boolean>(9).fill(true));
   }
 
-  await page.getByRole("link", { name: "What's on tonight", exact: true }).click();
-  await expect(page).toHaveURL(/\/tonight$/);
+  await page.locator(".lpHero").getByRole("link", { name: "Plan a crawl", exact: true }).click();
+  await expect(page).toHaveURL(/\/plan$/);
 });
 }
 

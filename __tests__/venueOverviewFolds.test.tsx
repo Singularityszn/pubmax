@@ -56,14 +56,11 @@ function props(
     }),
     tab: "overview",
     cityId: "london",
-    mode: "suggest",
-    inCrawl: false,
     latestContributorPrice: null,
     dropReadStatus: "ready",
     communityPrices: communityPrices(venueId),
     experienceLens: "all",
     drinkLensCategory: null,
-    onToggleStop: noop,
     presenceState: "idle",
     markPresenceHere: noop,
     userLocation: null,
@@ -195,13 +192,13 @@ describe("the rendered Overview", () => {
     expect(unkeyed.querySelector("#venueFold-journey")?.hasAttribute("open")).toBe(false);
   });
 
-  it("keeps the desktop Add to crawl between the Price fold and the rest", () => {
-    const host = render(props("pub", { mode: "build" }));
-    const add = [...host.querySelectorAll("button")].find(
-      (button) => button.textContent === "Add to crawl",
+  it("holds no plan action at any width: the action card's one door owns adding the pub", () => {
+    const host = render(props("pub"));
+    const plan = [...host.querySelectorAll("button")].filter((button) =>
+      /crawl|stop 1|plan stop|in plan/i.test(button.textContent ?? ""),
     );
-    expect(add).toBeTruthy();
-    expect(add?.closest(".venueOverviewFold")).toBeNull();
-    expect(add?.previousElementSibling?.id).toBe("venueFold-price");
+    expect(plan).toEqual([]);
+    // The tonight fold follows the price fold directly: no block sits between.
+    expect(host.querySelector("#venueFold-price")?.nextElementSibling?.id).toBe("venueFold-tonight");
   });
 });

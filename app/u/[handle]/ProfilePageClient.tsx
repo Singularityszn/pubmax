@@ -45,6 +45,7 @@ import { syncDeviceHandle } from "@/lib/identityClient";
 import { isPubmaxxHandleImpersonationBlock } from "@/lib/pubmaxxIdentity";
 import { accountClaimReturnToFromUrl } from "@/lib/accountClaimReturnTo";
 import { BADGE_EVENTS } from "@/lib/badgeEvents";
+import { beenHereRevision, subscribeBeenHere } from "@/lib/beenHere";
 import {
   BADGE_EVENT_OPT_INS_STORAGE_KEY,
   addBadgeEventOptIn,
@@ -104,6 +105,10 @@ const DiaryList = dynamic(() => import("@/components/diary/DiaryList"), { ssr: f
 const PassportCover = dynamic(() => import("@/components/profile/PassportCover"), { ssr: false });
 const PassportSections = dynamic(() => import("@/components/profile/PassportSections"), { ssr: false });
 const BoroughBingo = dynamic(() => import("@/components/profile/BoroughBingo"), { ssr: false });
+// "Tap the pubs you've been to": once per device, read from this device's own
+// store, so it never belongs to the server paint. Signed in on the owner's own
+// page it also moves waiting taps to the account.
+const BeenHereFirstRun = dynamic(() => import("@/components/profile/BeenHereFirstRun"), { ssr: false });
 
 // A person's Social posts. Loaded after the document, like the timeline, and
 // only when the Social launch flag is on, so a closed Social adds nothing here.
@@ -698,6 +703,10 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     return () => controller.abort();
   }, [accountRevision, geographyIdentityReady, geographyReadKey, geographyUserId, routeHandle]);
 
+  // A carry of the first-run Been here taps moves this account's lists, so the
+  // saved read below asks again when it lands (lib/beenHere.ts).
+  const beenHereMoves = useSyncExternalStore(subscribeBeenHere, beenHereRevision, () => 0);
+
   // Load this handle's saved venues: durable first (the API resolves real venue
   // names for the profile's handle), falling back to the viewer's localStorage
   // view mapped into DTOs. Done in an async callback (not the synchronous effect
@@ -730,7 +739,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     }
     void loadSaved();
     return () => controller.abort();
-  }, [accountRevision, routeHandle, sessionLoading]);
+  }, [accountRevision, routeHandle, sessionLoading, beenHereMoves]);
 
   // Followed saved lists are public social context for this handle's saved view:
   // "Ken follows Sam's Date Night list" appears on /u/ken. Reads are fail-soft,
@@ -1615,6 +1624,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
               {isOwnProfile ? (
                 <>
                   <ClaimMomentWelcome />
+                  <BeenHereFirstRun handle={routeHandle} />
                   <FirstActionsRow />
                   <ContributionLanesCard handle={routeHandle} />
                   <OutTonightToggle handle={routeHandle} />
@@ -1762,6 +1772,9 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         {surface === "identity-loading" ? (
           <WantedList key="you-wanted-panel" body={false} />
         ) : null}
+        {/* Signed out, the taps stay on this device until an account can
+            hold them (lib/beenHere.ts). */}
+        {surface === "you-invitation" && documentComplete ? <BeenHereFirstRun /> : null}
         {surface === "you-invitation" && documentComplete ? (
           <div id="account-settings">
             <PubmaxxAccountHub />

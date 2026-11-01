@@ -163,3 +163,49 @@
     color: #e5806c;
   }
 }
+
+/* The verified operator's table requests (OperatorTableRequests.tsx): a plain
+   list under the propose form, one request a row, the reply as a link. */
+.operatorRailRequests {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--hairline);
+}
+
+.operatorRailRequestsHeading {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 650;
+  color: var(--ink);
+}
+
+.operatorRailRequestList {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.operatorRailRequest {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.operatorRailRequestLine {
+  margin: 0;
+  font-weight: 650;
+  color: var(--ink);
+}
+
+.operatorRailRequestReply {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--color-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  overflow-wrap: anywhere;
+}

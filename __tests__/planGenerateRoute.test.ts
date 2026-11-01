@@ -2798,6 +2798,41 @@ describe("POST /api/plans/generate", () => {
     }
   });
 
+  it("plans a £20 crawl inside its total, and names the cheapest route found when a crawl budget fits nothing", async () => {
+    const clock = vi.spyOn(Date, "now").mockReturnValue(PLAN_GENERATION_TEST_NOW);
+    try {
+      const fits = await POST(new Request("http://localhost/api/plans/generate", {
+        method: "POST",
+        body: JSON.stringify({ query: "Clapham, a £20 crawl" }),
+      }));
+      expect(fits.status).toBe(200);
+      const route = await fits.json();
+      expect(route.inferredContext.budgetLimitPence).toBe(2000);
+      expect(route.budgetSummary).toMatchObject({ limitPence: 2000, withinLimit: true });
+      expect(route.budgetSummary.estimatedPerPersonPence).toBeLessThanOrEqual(2000);
+      // Every stop carries the listed price and the day it was read.
+      for (const stop of route.stops) {
+        expect(stop.priceEvidence?.source?.observedAt).toEqual(expect.any(String));
+      }
+
+      const tight = await POST(new Request("http://localhost/api/plans/generate", {
+        method: "POST",
+        body: JSON.stringify({ query: "Clapham, a £5 crawl" }),
+      }));
+      expect(tight.status).toBe(422);
+      const body = await tight.json();
+      expect(body.code).toBe("GROUNDED_CONSTRAINTS_UNSATISFIED");
+      const cheapest = body.details.cheapestRoute;
+      expect(cheapest.stops).toHaveLength(3);
+      expect(cheapest.totalPence).toBeGreaterThan(500);
+      expect(cheapest.totalPence).toBe(cheapest.stops.reduce((sum: number, stop: { pricePence: number }) => sum + stop.pricePence, 0));
+      expect(body.error).toContain("No 3-stop route in Clapham fits £5.00 for one listed pint at each stop.");
+      expect(body.error).toContain(`The cheapest we found is £${(cheapest.totalPence / 100).toFixed(2)}`);
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
   it("fails an alcohol-free ceiling closed rather than pricing it with pints", async () => {
     const clock = vi.spyOn(Date, "now").mockReturnValue(PLAN_GENERATION_TEST_NOW);
     try {

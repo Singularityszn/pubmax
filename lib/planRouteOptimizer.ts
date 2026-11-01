@@ -663,6 +663,44 @@ export function selectGroundedPlanRoute<T>(
   return { ok: true, stops, alternatives, timing: best.timing, constraintReport: report(best, applied) };
 }
 
+/** The cheapest route found when no route fits a budget: its stops and its total. */
+export type CheapestGroundedPlanRoute<T> = {
+  stops: readonly SelectedGroundedPlanStop<T>[];
+  totalPence: number;
+};
+
+/**
+ * The cheapest route the bounded search can find under every hard rule EXCEPT
+ * the budget, for the refusal that says a budget does not fit (the £20 crawl,
+ * lib/planBudgetCrawl.ts). Every stop still needs a listed, attributable,
+ * non-stale pint, because a total built on a guess is not a total. The search
+ * is the same one a route takes, scored by price instead of fit, so "the
+ * cheapest we found" means exactly that: the cheapest route this search found,
+ * never a claim that no cheaper one exists. Null when none is fully priced.
+ */
+export function cheapestGroundedPlanRoute<T>(
+  candidates: readonly GroundedPlanRouteCandidate<T>[],
+  constraints: GroundedPlanRouteConstraints,
+): CheapestGroundedPlanRoute<T> | null {
+  if (constraints.budgetLimitPence === null) return null;
+  const priced = candidates.flatMap((candidate) => priceEvidenceUsableForCeiling(candidate.price)
+    ? [{ ...candidate, score: -candidate.price.pence! }]
+    : []);
+  // No ceiling but the evidence rule: the largest safe total keeps every
+  // budget branch (usable evidence on every stop) without refusing on price.
+  const unbounded: GroundedPlanRouteConstraints = { ...constraints, budgetLimitPence: Number.MAX_SAFE_INTEGER };
+  const rejected = { safety: 0, exclusions: 0, accessibility: 0, budgetEvidence: 0, budgetCeiling: 0 };
+  const eligible = routeEligibleCandidates(priced, unbounded, rejected);
+  if (eligible.length < planStopCount(constraints.stopCount)) return null;
+  const { best } = withOperatorFallback(unbounded, (rule) => findBestRoute(eligible, rule));
+  if (!best) return null;
+  const stops = selectedStops(best).map((stop) => {
+    const original = candidates.find((candidate) => candidate.venueId === stop.venueId);
+    return original ? { ...stop, score: original.score } : stop;
+  });
+  return { stops, totalPence: best.route.reduce((total, stop) => total + stop.price.pence!, 0) };
+}
+
 export type AnchoredGroundedPlanRouteSelection<T> =
   | {
       ok: true;

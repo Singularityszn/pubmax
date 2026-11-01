@@ -7,6 +7,7 @@ import type { NightContext } from "@/lib/nightPlanning";
 import { planUsesPintPrices, type PlanConstraintReport } from "@/lib/planGenerationDto";
 import { PLAN_NEAR_STATION_METRES, planNearStationName } from "@/lib/planGenerationRanking";
 import { formatGbp } from "@/lib/formatGbp";
+import { planBudgetMissLine } from "@/lib/planBudgetCrawl";
 import {
   PLAN_ACCESSIBILITY_NEEDS,
   type PlanAccessibilityNeed,
@@ -19,6 +20,7 @@ import {
   planPriceEvidenceForVenues,
 } from "@/lib/planRouteEvidence.server";
 import {
+  cheapestGroundedPlanRoute,
   selectAnchoredGroundedPlanRoute,
   selectGroundedPlanRoute,
   type AnchoredGroundedPlanRouteSelection,
@@ -51,7 +53,19 @@ export type PlanGenerationSelection<T extends ScoredPlanCandidate> =
       selection: Extract<GroundedPlanRouteSelection<T>, { ok: false }>;
       /** The must-have words the reader set, named in the refusal. Never a transport word. */
       mustHaves: string[];
+      /**
+       * Under a per-person budget, the cheapest fully priced route the search
+       * found under every other rule, so the refusal can name it and its total.
+       * Null without a budget, or when no route is fully priced.
+       */
+      cheapestRoute: PlanCheapestRoute | null;
     };
+
+/** The cheapest route a budget refusal names, as the wire carries it. */
+export type PlanCheapestRoute = {
+  totalPence: number;
+  stops: { venueId: string; venueName: string; pricePence: number; observedAt: string | null }[];
+};
 
 export type AnchoredPlanGenerationSelection<T extends ScoredPlanCandidate> =
   | {
@@ -201,7 +215,7 @@ function mustHaveWords(
 }
 
 /** The refusal that names the must-haves the reader set, so they know what to drop. */
-export function planRouteRefusalMessage(stopCount: number, areaName: string, mustHaves: readonly string[]): string {
+function planRouteRefusalMessage(stopCount: number, areaName: string, mustHaves: readonly string[]): string {
   if (mustHaves.length === 0) {
     return `No ${stopCount}-stop route in ${areaName} meets every must-have need with the information available.`;
   }
@@ -209,6 +223,48 @@ export function planRouteRefusalMessage(stopCount: number, areaName: string, mus
     ? `${mustHaves.slice(0, -1).join(", ")} and ${mustHaves.at(-1)}`
     : mustHaves[0];
   return `No ${stopCount}-stop route in ${areaName} fits ${named} with the information we have. Try dropping one.`;
+}
+
+/**
+ * The one sentence a refused generation reads. Under a budget, a fully priced
+ * route that meets every other rule and still costs more means the budget is
+ * what refused it, so the sentence names that route and its total (the £20
+ * crawl, lib/planBudgetCrawl.ts). Otherwise it names the must-haves to drop.
+ */
+export function planGenerationRefusalMessage(
+  context: Pick<NightContext, "stopCount" | "budgetLimitPence">,
+  areaName: string,
+  mustHaves: readonly string[],
+  cheapestRoute: PlanCheapestRoute | null,
+): string {
+  const stopCount = normalizePlanStopCount(context.stopCount);
+  if (cheapestRoute && context.budgetLimitPence !== null && cheapestRoute.totalPence > context.budgetLimitPence) {
+    return planBudgetMissLine({
+      stopCount,
+      areaName,
+      limitPence: context.budgetLimitPence,
+      cheapest: cheapestRoute.stops,
+    });
+  }
+  return planRouteRefusalMessage(stopCount, areaName, mustHaves);
+}
+
+/** The cheapest fully priced route under every rule but the budget, for the refusal. */
+function cheapestRouteForRefusal<T>(
+  grounded: readonly GroundedPlanRouteCandidate<T>[],
+  constraints: GroundedPlanRouteConstraints,
+): PlanCheapestRoute | null {
+  const cheapest = cheapestGroundedPlanRoute(grounded, constraints);
+  if (!cheapest) return null;
+  return {
+    totalPence: cheapest.totalPence,
+    stops: cheapest.stops.map((stop) => ({
+      venueId: stop.venueId,
+      venueName: stop.venueName,
+      pricePence: stop.price.pence!,
+      observedAt: stop.price.source?.observedAt ?? null,
+    })),
+  };
 }
 
 /** Join canonical evidence and run the hard-constraint optimizer. */
@@ -233,10 +289,9 @@ export async function selectPlanGenerationCandidates<T extends ScoredPlanCandida
   // say the walk was heard, but it never turns a route into a refusal.
   const transportOnly = !intake && !hasContextHardConstraint;
   if (transportOnly && context.transportConstraints.length === 0) return legacy();
-  const selection = selectGroundedPlanRoute(
-    await groundedRouteCandidates(candidates, now, planUsesPintPrices(context)),
-    groundedConstraints(context, intake, accessibilityNeeds, now),
-  );
+  const grounded = await groundedRouteCandidates(candidates, now, planUsesPintPrices(context));
+  const constraints = groundedConstraints(context, intake, accessibilityNeeds, now);
+  const selection = selectGroundedPlanRoute(grounded, constraints);
   if (selection.ok) {
     return {
       ok: true,
@@ -247,7 +302,12 @@ export async function selectPlanGenerationCandidates<T extends ScoredPlanCandida
     };
   }
   if (transportOnly) return legacy();
-  return { ok: false, selection, mustHaves: mustHaveWords(context, intake, accessibilityNeeds) };
+  return {
+    ok: false,
+    selection,
+    mustHaves: mustHaveWords(context, intake, accessibilityNeeds),
+    cheapestRoute: cheapestRouteForRefusal(grounded, constraints),
+  };
 }
 
 /**

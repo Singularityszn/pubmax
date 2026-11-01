@@ -7,8 +7,10 @@
    with the centre in the middle of the map. A CSS perspective of 150cqh,
    centred, over a plane tilted by the same pitch is that same projection, so a
    disc laid at its world-pixel offset lands where the engine will draw it at
-   any viewport size. The map fills the viewport on every layout /map has, so
-   the preview does too. */
+   any viewport size. The preview covers exactly the box the map fills: the
+   whole viewport below 1024px, and from 1024px the lane right of the list
+   beside the map (components/map/mapSplitList.css), so its centre is still the
+   engine's centre. */
 
 .mapOpeningPreview {
   display: none;
@@ -19,6 +21,12 @@
   overflow: hidden;
   pointer-events: none;
   container-type: size;
+}
+
+@media (min-width: 1024px) {
+  .mapOpeningPreview {
+    left: var(--desktop-split-list-width);
+  }
 }
 
 html[data-map-preview="on"] .mapOpeningPreview,

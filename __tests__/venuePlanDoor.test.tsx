@@ -5,14 +5,24 @@
 // is `Make it Stop 1` and hands the pub to Plan. A crawl in progress: it is
 // `Plan stop` / `In plan` and adds the pub to or takes it off the crawl on the
 // map. In build mode the phone sheet shows that one door and nothing else
-// that plans: the footer bar's Stop 1 and Crawl ghosts are desktop's alone.
+// that plans.
+//
+// Since the action card (launch plan 1 Nov 2026, section 5) the door is the
+// card's, at every width: on a phone the card is the sheet's footer, and from
+// 641px it is the drawer's sticky top. Desktop's Stop 1 and Crawl ghosts left
+// with the old command bar, so the card's door is the one plan door there too.
 
 import { act, createElement, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/components/auth/AuthProvider", () => ({
+  useAuth: () => ({ user: null, handle: null, loading: false, configured: false }),
+}));
+
+import VenueActionCard from "@/components/map/inspector/VenueActionCard";
+import VenueActionSummary from "@/components/map/inspector/VenueActionSummary";
 import VenuePeekPlanDoor from "@/components/map/inspector/VenuePeekPlanDoor";
-import VenueStickyBar from "@/components/map/inspector/VenueStickyBar";
 import { SheetFooterContext } from "@/components/mobile/sheetFooterContext";
 import type { CrawlMode, Venue } from "@/lib/venues";
 import { crawlInProgress, phoneVenuePlanDoor } from "@/lib/venuePlanDoor";
@@ -84,21 +94,24 @@ describe("phoneVenuePlanDoor: the mapping, exactly", () => {
 });
 
 /**
- * The phone sheet as PubMap composes it: the peek's door plus the command bar
- * portalled into the sheet footer, over the same mode and built list. The
- * toggle is PubMap's own shape (components/PubMap.tsx, `toggleBuiltStop`):
- * a picked stop puts the map in build mode.
+ * The sheet as PubMap composes it: the action card, its first row built from
+ * the one plan door, portalled into the phone sheet's footer (or rendered in
+ * place with no footer, as on desktop), over the same mode and built list. The
+ * toggle is PubMap's own shape (components/PubMap.tsx, `toggleBuiltStop`): a
+ * picked stop puts the map in build mode.
  */
 function PhoneSheet({
   initialMode,
   initialBuiltIds,
   onAcceptStop1,
   onToggle,
+  phone = true,
 }: {
   initialMode: CrawlMode;
   initialBuiltIds: string[];
   onAcceptStop1: () => void;
   onToggle?: (id: string) => void;
+  phone?: boolean;
 }) {
   const [mode, setMode] = useState<CrawlMode>(initialMode);
   const [builtIds, setBuiltIds] = useState<string[]>(initialBuiltIds);
@@ -109,36 +122,30 @@ function PhoneSheet({
     setMode("build");
   };
   const pub = venue();
-  return createElement(
-    "div",
-    null,
-    createElement(
-      "div",
-      { className: "mobileVenuePeekSummary" },
-      createElement(VenuePeekPlanDoor, {
+  const card = createElement(VenueActionCard, {
+    venue: pub,
+    summary: createElement(VenueActionSummary, {
+      label: "The Plan Door summary",
+      price: createElement("span", null, "£4.80"),
+      walkMinutes: null,
+      planDoor: createElement(VenuePeekPlanDoor, {
         door: phoneVenuePlanDoor({ isPub: true, mode, builtIds, venueId: pub.id, canAcceptStop1: true }),
         venueId: pub.id,
         venueName: pub.name,
         onAcceptStop1,
         onToggleStop: toggle,
       }),
-    ),
+    }),
+    shareVenue: async () => {},
+    currentShareFeedback: null,
+  });
+  if (!phone) return createElement("div", { className: "mapDrawer right" }, card);
+  return createElement(
+    "div",
+    null,
+    createElement("div", { className: "mobileSharedSheetBody" }),
     createElement("div", { className: "mobileSharedSheetFooter", ref: setFooter }),
-    footer
-      ? createElement(
-          SheetFooterContext.Provider,
-          { value: footer },
-          createElement(VenueStickyBar, {
-            venue: pub,
-            mode,
-            inCrawl: builtIds.includes(pub.id),
-            onToggleStop: toggle,
-            onAcceptStop1,
-            shareVenue: async () => {},
-            currentShareFeedback: null,
-          }),
-        )
-      : null,
+    footer ? createElement(SheetFooterContext.Provider, { value: footer }, card) : null,
   );
 }
 
@@ -213,31 +220,36 @@ describe("the phone sheet shows one plan door that follows state", () => {
     expect(accept).toHaveBeenCalledTimes(1);
   });
 
-  it("the phone footer bar keeps Share and no plan control, in either mode", () => {
+  it("the card in the phone footer holds the one door, Ask for a table and Share, in either mode", () => {
     for (const mode of ["suggest", "build"] as const) {
       act(() => root.render(createElement(PhoneSheet, {
         key: mode, initialMode: mode, initialBuiltIds: [VENUE_ID], onAcceptStop1: vi.fn(),
       })));
       const footer = host.querySelector(".mobileSharedSheetFooter");
-      const names = Array.from(footer?.querySelectorAll("button") ?? [], (button) =>
+      expect(footer?.querySelector(".venueActionCard")).toBeTruthy();
+      const toolbar = footer?.querySelector('[role="toolbar"][aria-label="Venue actions"]');
+      const names = Array.from(toolbar?.querySelectorAll("button") ?? [], (button) =>
         button.getAttribute("aria-label") ?? button.textContent?.trim());
-      expect(names).toEqual(["Share The Plan Door"]);
+      expect(names).toEqual(["Ask The Plan Door for a table", "Share The Plan Door"]);
+      expect(planControls()).toHaveLength(1);
+      // Nothing that plans is left in the body above the footer.
+      expect(host.querySelector(".mobileSharedSheetBody button")).toBeNull();
     }
   });
 });
 
-describe("desktop is unchanged", () => {
-  it("outside the phone sheet the bar still carries the Stop 1 and Crawl ghosts beside Share", () => {
+describe("desktop reads the same one door", () => {
+  it("with no footer slot the card renders in place with the one door and no Stop 1 or Crawl ghosts", () => {
     const accept = vi.fn();
     const toggle = vi.fn();
-    act(() => root.render(createElement(VenueStickyBar, {
-      venue: venue(), mode: "build", inCrawl: false, onToggleStop: toggle,
-      onAcceptStop1: accept, shareVenue: async () => {}, currentShareFeedback: null,
+    act(() => root.render(createElement(PhoneSheet, {
+      initialMode: "build", initialBuiltIds: [OTHER_ID], onAcceptStop1: accept, onToggle: toggle, phone: false,
     })));
-    expect(buttons().map((button) => button.textContent?.trim())).toEqual(["Make it Stop 1", "Crawl", "Share"]);
-    act(() => buttons()[0]?.click());
-    act(() => buttons()[1]?.click());
-    expect(accept).toHaveBeenCalledTimes(1);
+    expect(host.querySelector(".mapDrawer .venueActionCard")).toBeTruthy();
+    expect(buttons().map((button) => button.textContent?.trim())).toEqual(["Plan stop", "Ask for a table", "Share"]);
+    expect(planControls()).toHaveLength(1);
+    act(() => peekDoor().click());
     expect(toggle).toHaveBeenCalledWith(VENUE_ID);
+    expect(accept).not.toHaveBeenCalled();
   });
 });

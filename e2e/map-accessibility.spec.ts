@@ -3,6 +3,11 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { COMMUNITY_SHEET_FIXTURE_VENUE_ID } from "@/e2e/helpers/communitySheetFixture";
 
 const DESKTOP = { width: 1440, height: 900 };
+// The widest screen the floating List view still opens on. From 1024px the
+// venue list is the column beside the map (components/map/MapSplitList.tsx),
+// which re-reads the view once the camera settles; the floating list follows
+// the camera frame by frame, and these width-specific cases pin that.
+const NARROW_DESKTOP = { width: 1000, height: 900 };
 const MOBILE = { width: 390, height: 844 };
 const ARNOS_ARMS_ID = "venue-xjf3n0";
 const LOCKED_DARK_INK = [22, 18, 42] as const;
@@ -206,6 +211,33 @@ async function openVenueListFromLayers(page: Page): Promise<void> {
   await expect(firstVenue).toBeVisible();
 }
 
+/**
+ * From 1024px the list beside the map is the venue list, and Layers' List view
+ * hands keyboard focus to its current row.
+ */
+async function focusSplitListWithKeyboard(page: Page): Promise<Locator> {
+  const layers = page.getByRole("button", { name: /Map layers:/ });
+  await expect(layers).toBeVisible({ timeout: 30_000 });
+  // The rows land once the map has projected its first view.
+  await expect
+    .poll(() => page.locator(".mapSplitListRow").count(), { timeout: 90_000 })
+    .toBeGreaterThan(0);
+  await tabTo(page, layers);
+  await page.keyboard.press("Enter");
+  const list = page.getByRole("button", { name: "List view" });
+  await expect(list).toBeVisible();
+  await tabTo(page, list);
+  await page.keyboard.press("Enter");
+
+  const focusedVenue = page.locator(".mapSplitList .mapSplitListRow:focus");
+  await expect(focusedVenue).toHaveCount(1);
+  const venueId = await focusedVenue.getAttribute("data-venue-id");
+  expect(venueId).toBeTruthy();
+  const venue = page.locator(`.mapSplitListRow[data-venue-id=${JSON.stringify(venueId)}]`);
+  await expect(venue).toBeFocused();
+  return venue;
+}
+
 async function openVenueListWithKeyboard(page: Page): Promise<Locator> {
   const layers = page.getByRole("button", { name: /Map layers:/ });
   await expect(layers).toBeVisible({ timeout: 30_000 });
@@ -255,16 +287,17 @@ test.describe("map keyboard and screen-reader venue path", () => {
     test.setTimeout(90_000);
     await page.goto("/map");
 
-    const firstVenue = await openVenueListWithKeyboard(page);
-    const venueName = (await firstVenue.locator(".mapVenueListItemName").innerText()).trim();
+    const firstVenue = await focusSplitListWithKeyboard(page);
+    const venueName = (await firstVenue.locator(".mapSplitListRowName").innerText()).trim();
     const venueId = await firstVenue.getAttribute("data-venue-id");
     const accessibleName = await firstVenue.getAttribute("aria-label");
 
     expect(venueName.length).toBeGreaterThan(0);
     expect(venueId).toBeTruthy();
     expect(accessibleName).toBeNull();
-    await expect(firstVenue).toContainText(/Pub|Bar|Late food|Restaurant/);
-    await expect(firstVenue).toContainText(/£|Price|no price/i);
+    // The row's own words carry the price, its standing or its absence.
+    await expect(firstVenue.locator(".mapSplitListRowTrust")).not.toHaveText("");
+    await expect(firstVenue).toContainText(/£|price/i);
 
     await page.keyboard.press("Enter");
 
@@ -279,6 +312,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
     page,
   }) => {
     test.setTimeout(180_000);
+    await page.setViewportSize(NARROW_DESKTOP);
     await page.goto("/map");
     await openVenueListWithKeyboard(page);
 
@@ -345,6 +379,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
     page,
   }) => {
     test.setTimeout(120_000);
+    await page.setViewportSize(NARROW_DESKTOP);
     await page.goto("/map");
 
     const canvas = page.locator(".maplibregl-canvas").first();
@@ -375,10 +410,11 @@ test.describe("map keyboard and screen-reader venue path", () => {
 
     // One quick multi-screen drag leaves the next 180 ms shard request
     // pending. DOM membership must still follow camera projection immediately.
+    // Right of the open list's panel, which reaches about 352px in.
     for (let drag = 0; drag < 3; drag += 1) {
-      await page.mouse.move(1_300, 500);
+      await page.mouse.move(980, 500);
       await page.mouse.down();
-      await page.mouse.move(400, 500);
+      await page.mouse.move(370, 500);
       await page.mouse.up();
     }
     await page.waitForTimeout(50);
@@ -421,14 +457,17 @@ test.describe("map keyboard and screen-reader venue path", () => {
     const canvas = page.locator(".maplibregl-canvas").first();
     await expect(canvas).toBeVisible({ timeout: 30_000 });
 
-    // List view opens from Layers; keyboard Tab into the list is covered by the
-    // sibling spec. This case pins Escape on the venue drawer with the list
-    // still open underneath. The non-modal drawer also keeps the toolbar live.
-    await openVenueListFromLayers(page);
-    const chosenVenueId = await page.locator(".mapVenueListItem").first().getAttribute("data-venue-id");
+    // From 1024px the venue list is the column beside the map; keyboard Tab
+    // into it is covered by the sibling spec. This case pins Escape on the
+    // venue drawer with the list still beside it. The non-modal drawer also
+    // keeps the toolbar live.
+    await expect
+      .poll(() => page.locator(".mapSplitListRow").count(), { timeout: 90_000 })
+      .toBeGreaterThan(0);
+    const chosenVenueId = await page.locator(".mapSplitListRow").first().getAttribute("data-venue-id");
     expect(chosenVenueId).toBeTruthy();
     const chosenVenue = page.locator(
-      `.mapVenueListItem[data-venue-id="${chosenVenueId}"]`,
+      `.mapSplitListRow[data-venue-id="${chosenVenueId}"]`,
     );
     await chosenVenue.focus();
     await expect(chosenVenue).toBeFocused();
@@ -595,6 +634,9 @@ test.describe("map keyboard and screen-reader venue path", () => {
     page,
   }) => {
     test.setTimeout(90_000);
+    // The floating List view's own row ids are what focus returns to, and it
+    // opens below 1024px only.
+    await page.setViewportSize(NARROW_DESKTOP);
     await page.goto("/map");
     await page.evaluate(() => {
       const back = window.history.back.bind(window.history);
@@ -666,11 +708,13 @@ test.describe("map keyboard and screen-reader venue path", () => {
       const share = actions.getByRole("button", { name: "Share Arnos Arms", exact: true });
       await expect(planDoor).toBeVisible();
       await expect(priceDoor).toHaveCount(1);
-      await expect(actions.getByRole("button")).toHaveText(["Share"]);
+      await expect(actions.getByRole("button")).toHaveText(["Ask for a table", "Share"]);
+      // ONE coral on the sheet: the action card's plan door. The price door is
+      // drawn in ink beside it since the card (lib/venueActionCard.ts).
       for (const theme of ["light", "dark"] as const) {
         await applyTheme(page, theme, [planDoor, priceDoor, share]);
         await expectLockedCoralContrast(planDoor);
-        await expectLockedCoralContrast(priceDoor);
+        await expectReadableGhostContrast(priceDoor);
         await expectReadableGhostContrast(share);
       }
     }

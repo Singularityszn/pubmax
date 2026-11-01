@@ -182,6 +182,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/social/tags/with`
 - `POST app/api/social/videos/uploads`
 - `POST app/api/starter-packs/[slug]/follow`
+- `POST app/api/table-requests`
 - `POST app/api/venue-corrections`
 - `POST app/api/regular-nights`
 - `POST app/api/kitchen-reports`
@@ -849,6 +850,48 @@ loss or a block; owner leave remains a durable conflict until ownership moves.
   `auth.users` with ON DELETE CASCADE and the confirmer with ON DELETE SET
   NULL, and has no browser grant. A hard store failure answers 503, never a
   fake success. No admin verb: a report is two fixed words and no free text.
+
+### `app/api/table-requests` - a crew asks a pub for a table
+
+- **Route / method:** `POST app/api/table-requests/route.ts` takes one JSON
+  request for a crew of 6 to 20: `venueId`, `name`, `partySize`, `date`,
+  `time`, an optional `note` and ONE `contact` (`{ kind: "email" | "phone",
+  value }`) the pub can reply to. It answers `201 { outcome: "sent" }` only
+  when an email to the pub's VERIFIED operator was sent through
+  `lib/emailProvider.ts`, and `200 { outcome: "not_sent" }` otherwise (no
+  verified operator, no address on the operator's account, a keyless
+  deployment where the seam answers `skipped`, a failed send, or a store that
+  could not keep the request). The sheet then hands the person a prefilled
+  email to the pub's own published address, or its phone, and says plainly
+  that PUBMAXX did not send it. The `GET ?venueId=` read lists that pub's
+  emailed requests to a verified operator of THAT pub alone (401 signed out,
+  403 anybody else), without the requester's account id.
+- **What it never writes:** a booking, a hold, a fee, a payment, a venue, a pin,
+  a price or an order. A fee per seated group is a later decision under
+  ADR 0011 and the 0219 table has no column for one. The answer never echoes a
+  contact: neither the operator's address nor the person's own.
+- **Validation:** `validateTableRequest` (`lib/tableRequests.ts`), shared with
+  the form: a cleaned name, an integer party of 6 to 20, a real London day from
+  today to 120 days ahead, an HH:MM time, a note of at most 300 characters,
+  and a contact that parses as an email (`lib/emailAddress.ts`) or a telephone
+  number (`parsePhoneNumber`). The venue must be a curated pub in the index.
+  The body is capped at 2 KB. Migration 0219's CHECKs hold the party size, the
+  contact kind, the delivery state and its stamp together.
+- **Rate limit (boundary):** durable `isLimited` per profile + hashed IP
+  (`table-request:${actor}:${ipHash}`) on every request, then four an hour and
+  ten a day per account, both failing CLOSED, then twenty an hour per pub. The
+  operator read is metered at 30 a minute per account.
+- **Auth stance:** `resolveContributionIdentity` derives the requester from the
+  session (sign_in_required, onboarding_required and the adult check answer
+  first, in the house envelope with their `status`); a body owner is ignored.
+  The operator is found through `venueOperatorsStore().verifiedOperatorAccountIds`
+  and their address is read from Supabase Auth on the service role
+  (`lib/operatorAccountAddress.server.ts`), never from a body or a venue
+  record. The 0219 table keys the requester to `auth.users` with ON DELETE
+  CASCADE and has no browser grant. A request that was stored and then not
+  sent is deleted, so the operator panel never lists one the person was told
+  PUBMAXX did not send. The requester's account export carries their own
+  requests (the `tableRequests` lane), and nothing about the operator.
 
 ### `app/api/visit-reports` — structured Visit Reports (route 66)
 

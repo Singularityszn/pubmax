@@ -1,0 +1,174 @@
+/* "Ask the pub for a table": the dialog behind the action card's door
+   (TableRequestDialog.tsx). A solid panel on a dimmed page, one column that
+   reads top to bottom, one primary (the send, or the pub's own address once
+   PUBMAXX has said it did not send), and a quiet way out. No blur: translucency
+   belongs to the sheet material alone (docs/VOICE.md, template patterns). */
+
+.tableRequestBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-overlay-top) + 1);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: color-mix(in srgb, var(--ink-deep) 62%, transparent);
+}
+
+.tableRequestDialog {
+  display: grid;
+  gap: 0.85rem;
+  width: min(30rem, 100%);
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  padding: 1.15rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel-raised);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+
+.tableRequestDialog:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.tableRequestDialog h2 {
+  margin: 0;
+  font-size: var(--text-lg);
+  line-height: 1.15;
+}
+
+.tableRequestForm {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.tableRequestHint {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+
+.tableRequestField {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.tableRequestField input,
+.tableRequestField select,
+.tableRequestField textarea {
+  min-width: 0;
+  min-height: var(--control-height);
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius);
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  /* 16px stops iOS zooming the page when a field takes focus. */
+  font-size: max(16px, var(--text-base));
+  font-weight: 500;
+}
+
+.tableRequestField textarea {
+  resize: vertical;
+}
+
+.tableRequestField [aria-invalid="true"] {
+  border-color: var(--brick);
+}
+
+/* Size, day and time share a row where it fits and stack where it does not. */
+.tableRequestRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.tableRequestRow > .tableRequestField {
+  flex: 1 1 8rem;
+}
+
+.tableRequestContact {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.tableRequestContact legend {
+  padding: 0;
+  margin-bottom: 0.3rem;
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.tableRequestContactKinds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.tableRequestContactKind {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 44px;
+  font-size: var(--text-base);
+}
+
+.tableRequestContactKind input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--ink);
+}
+
+.tableRequestError {
+  margin: 0;
+  color: var(--tint-ink-negative);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.tableRequestPrimary {
+  width: 100%;
+}
+
+.tableRequestClose {
+  justify-self: center;
+}
+
+.tableRequestOutcome {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.tableRequestOutcomeLead {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+/* The request as the person reads it out or copies it, when there is no
+   prefilled email to carry it. Ink on the recessed panel, no second card. */
+.tableRequestScript {
+  display: grid;
+  gap: 0.4rem;
+  padding-left: 0.8rem;
+  border-left: 2px solid var(--hairline-strong);
+  color: var(--ink);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  user-select: text;
+}
+
+.tableRequestScript p {
+  margin: 0;
+}

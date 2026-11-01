@@ -35,10 +35,9 @@ const CORAL =
 const ALLOWED: ReadonlyArray<readonly [pattern: RegExp, reason: string]> = [
   // The one primary per screen, by the names the tree gives it.
   [/primary|Primary|(?:\b|_|-)cta\b|Cta\b|CTA|data-primary-action/, "a screen's one primary action"],
-  [/\.priceDoor\b/, "the venue sheet's one painted price action"],
   [/\.planBtn\b/, "the map toolbar's Plan an outing primary"],
   [/\.vpsubLog\b/, "the price form's one commit, opened by the price door"],
-  [/\.mobileVenuePeekSummary button/, "the phone peek's one plan door (lib/venuePlanDoor.ts)"],
+  [/\.mobileVenuePeekSummary button/, "the venue sheet's one plan door, on its action card at every width (lib/venuePlanDoor.ts)"],
   [/\.mobilePalSummon a\b/, "the Pal summon sheet's one action"],
   [/\.momentDecoratorActions button:first-child/, "the photo decorator's one apply"],
   [/\.composerSend\b|\.messagesNewGroupCreate\b/, "the messages screen's send and the new-group dialog's create"],

@@ -144,9 +144,17 @@ test.describe("UI empty states and layout fit", () => {
     await expect(
       dialog.getByText("Loading tonight's route…"),
     ).toBeHidden({ timeout: 15_000 });
-    const hasStop = await dialog.locator(".nightCard__now").count();
-    const hasEmpty = await dialog.getByText("Tonight's route isn't open here yet.").count();
-    expect(hasStop + hasEmpty).toBeGreaterThan(0);
+    // The loading line going away does not mean the next state has painted:
+    // the panel can spend a frame between the two, so wait for one of its two
+    // end states rather than reading both at that instant.
+    await expect
+      .poll(
+        async () =>
+          (await dialog.locator(".nightCard__now").count()) +
+          (await dialog.getByText("Tonight's route isn't open here yet.").count()),
+        { message: "the panel shows the route or says it is not open", timeout: 15_000 },
+      )
+      .toBeGreaterThan(0);
     await dialog.getByRole("button", { name: "Hide tonight's plan" }).click();
     await expect(dialog).toBeHidden();
     await expect.poll(padding).toBe(before);

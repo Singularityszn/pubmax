@@ -5,10 +5,11 @@
 // Keyed to the signed-in account: a sign-out or a switch reads again rather
 // than painting the last account's private list.
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { authedFetch } from "@/lib/authedFetch";
+import { beenHereRevision, subscribeBeenHere } from "@/lib/beenHere";
 import type { BeenVenue, PassportVenue, TasteFact } from "@/lib/profilePassport";
 
 export type PassportBeenRead = {
@@ -62,6 +63,12 @@ function readOnce<T>(kind: Kind, handle: string, account: string): Promise<T | n
 export function usePassportRead<T>(kind: Kind, handle: string, enabled = true): T | null {
   const { user } = useAuth();
   const account = user?.id ?? "anon";
+  // The Been read asks again when this tab moves the owner's Been here list
+  // (the first-run card's carry), so the count and the list never lag it.
+  // The answer on screen stays while the new one is asked for, and a failed
+  // second read keeps it rather than blanking the section.
+  const beenHereMoves = useSyncExternalStore(subscribeBeenHere, beenHereRevision, () => 0);
+  const asksAgain = kind === "been" ? beenHereMoves : 0;
   const key = `${kind}:${handle}:${account}`;
   const [state, setState] = useState<{ key: string; body: T | null } | null>(null);
 
@@ -69,12 +76,13 @@ export function usePassportRead<T>(kind: Kind, handle: string, enabled = true): 
     if (!enabled || !handle || handle === "you") return;
     let live = true;
     void readOnce<T>(kind, handle, account).then((body) => {
-      if (live) setState({ key, body });
+      if (!live) return;
+      setState((held) => ({ key, body: body ?? (held?.key === key ? held.body : null) }));
     });
     return () => {
       live = false;
     };
-  }, [kind, handle, account, key, enabled]);
+  }, [kind, handle, account, key, enabled, asksAgain]);
 
   return state?.key === key ? state.body : null;
 }

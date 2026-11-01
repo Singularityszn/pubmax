@@ -26,7 +26,7 @@ import {
 	planGenerationEvidenceGaps,
 	planScoringDrinkCategory,
 } from "@/lib/planGenerationRanking";
-import { planRouteRefusalMessage, selectPlanGenerationCandidates } from "@/lib/planGenerationSelection.server";
+import { planGenerationRefusalMessage, selectPlanGenerationCandidates } from "@/lib/planGenerationSelection.server";
 import { priceEvidenceUsableForCeiling, type PlanPriceEvidence } from "@/lib/planRouteEvidence";
 import type { PlanConstraintReport, SelectedGroundedPlanStop } from "@/lib/planRouteOptimizer";
 import type { PlanningIntentSource } from "@/lib/planningIntent";
@@ -132,13 +132,14 @@ export async function POST(request: Request): Promise<Response> {
 	} else {
 		const generatedSelection = await selectPlanGenerationCandidates(candidates, context, intake, requestNow);
 		if (!generatedSelection.ok) {
-			// Name the words that refused it, so the reader knows what to drop.
-			const { mustHaves } = generatedSelection;
+			// Name the words that refused it, so the reader knows what to drop,
+			// or, under a budget, the cheapest route found and its total.
+			const { mustHaves, cheapestRoute } = generatedSelection;
 			return publicApiError(
-				planRouteRefusalMessage(normalizePlanStopCount(context.stopCount), area.name, mustHaves),
+				planGenerationRefusalMessage(context, area.name, mustHaves, cheapestRoute),
 				"GROUNDED_CONSTRAINTS_UNSATISFIED",
 				422,
-				{ details: { nightArea: area.slug, availableVenueCount: candidates.length, mustHaves, ...generatedSelection.selection } },
+				{ details: { nightArea: area.slug, availableVenueCount: candidates.length, mustHaves, cheapestRoute, ...generatedSelection.selection } },
 			);
 		}
 		chosen = generatedSelection.chosen;

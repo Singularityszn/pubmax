@@ -51,11 +51,19 @@ describe("Lane H plan discoverability", () => {
     expect(nav).toMatch(/href="\/plan"[^>]*>Plan<\/a>/);
   });
 
-  it("keeps Plan in the footer directory and out of the hero", () => {
+  // Captain decision 2 (1 Nov 2026, docs/plans/LAUNCH_PLAN_2026-11-01.md):
+  // under the hunt card the hero offers "Cheapest near you" and "Plan a crawl".
+  // Plan is a QUIET door in the hero's secondary row, never its filled primary,
+  // so it still does not compete with the one primary action.
+  it("keeps Plan in the footer directory and a quiet door in the hero, never its primary", () => {
     const footer = renderedLanding.match(/<nav class="lpFooterNav"[\s\S]*?<\/nav>/)?.[0] ?? "";
     expect(footer).toMatch(/href="\/plan"[^>]*>Plan a night<\/a>/);
     const hero = renderedLanding.match(/<section class="screen lpHero"[\s\S]*?<\/section>/)?.[0] ?? "";
-    expect(hero).not.toMatch(/href="\/plan"/);
+    const primary = hero.match(/data-primary-action="">[\s\S]*?<\/div>/)?.[0] ?? "";
+    expect(primary).not.toMatch(/href="\/plan"/);
+    const quietRow = hero.match(/<div class="screenSecondary">[\s\S]*?<\/div>/)?.[0] ?? "";
+    expect(quietRow).toMatch(/href="\/plan"[^>]*>Plan a crawl<\/a>/);
+    expect(hero.match(/href="\/plan"/g) ?? []).toHaveLength(1);
   });
 
   it("offers Pub Pal as an alternate entry on the plan intake surface", () => {

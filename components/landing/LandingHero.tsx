@@ -2,7 +2,7 @@
 
 import type { Route } from "next";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
 import PriceBadge from "@/components/PriceBadge";
 import Kicker from "@/components/ui/kicker";
@@ -40,22 +40,17 @@ import type { NearMeCard } from "@/lib/nearMeAnswer";
 import { PRICE_NOT_COMPARED_LINE } from "@/lib/priceMovementLine";
 import { priceStandingLabel, priceStandingNote, type PriceStanding } from "@/lib/priceTier";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
-import {
-  LANDING_SKYLINE_HERO_AVIF_SRCSET,
-  LANDING_SKYLINE_HERO_JPG_FALLBACK,
-  LANDING_SKYLINE_HERO_SIZES,
-  LANDING_SKYLINE_HERO_WEBP_SRCSET,
-} from "@/lib/landingSkylineHero";
 import { formatPrice } from "@/lib/venues";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
 import LandingPhoto, { LandingPhotoCredit } from "./LandingPhoto";
 
-// The landing hero (issue #1357, rebuilt on the captain's 7 Sep 2026 ask, and
-// trimmed after the 16 Oct 2026 UX audit): the claim, one line under it, the
-// PICTURE, then the one filled action, then the quiet row, then the pub card
-// and the three next-cheapest rows. The DOM order is the phone order; the
-// desktop seats the picture and the rows beside the copy.
+// The landing hero (issue #1357, rebuilt on the captain's 7 Sep 2026 ask,
+// trimmed after the 16 Oct 2026 UX audit, and given the hunt on 1 Nov 2026):
+// the claim, one line under it, THE CHEAPEST PINT WE CAN FIND IN BRITAIN, then
+// the one filled action, then the quiet row, then the pub card and the three
+// next-cheapest rows. The DOM order is the phone order; the desktop seats the
+// hunt card and the rows beside the copy.
 //
 // No brand kicker over the claim: the wordmark in the bar already says it, and
 // a second PUBMAXX six lines lower was the page repeating its own name.
@@ -67,8 +62,12 @@ import LandingPhoto, { LandingPhotoCredit } from "./LandingPhoto";
 // dataset too small to back it falls back to the map line the share card and
 // the meta description carry.
 //
-// The hero shows the London skyline the captain selected. The responsive files
-// are committed under public/landing; the live map is still one tap away.
+// THE HUNT CARD REPLACED THE PHOTOGRAPH (captain decisions 2 and 3, 1 Nov
+// 2026). Where Tower Bridge stood, one live card names the cheapest pint we can
+// find in Britain, with its pub, its price, its source and its day. It is a
+// SERVER component (components/landing/LandingHuntCard.tsx) that app/page.tsx
+// renders at prerender and hands in through `hunt`, so this client module never
+// carries its code, and lib/cheapestHunt.ts alone decides which pint wins.
 //
 // THE PRIMARY GIVES BEFORE IT ASKS. The receipt door was the primary until
 // today and it ends in a sign-in ask, so it is the first QUIET door now and
@@ -89,8 +88,12 @@ import LandingPhoto, { LandingPhotoCredit } from "./LandingPhoto";
 
 /** What the card really paints at: the answer column, capped at the card. */
 const ANSWER_PHOTO_SIZES = "(max-width: 959px) calc(100vw - 2rem), 480px";
-/** Phone and tablet only: on desktop the Thames picture is the largest paint. */
-const ANSWER_PHOTO_PRELOAD_MEDIA = "(max-width: 959px)";
+/**
+ * Every width. The Thames picture used to be the desktop's largest paint, so
+ * this preload was phone-only; with the hunt card (text) in its place, the
+ * pub's own photograph is the largest image left at any width.
+ */
+const ANSWER_PHOTO_PRELOAD_MEDIA = "all";
 const LONDON_DAY = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
   month: "long",
@@ -207,11 +210,17 @@ export default function LandingHero({
   card,
   archive,
   rail,
+  hunt = null,
 }: {
   /** The one real pub, or null when the data cannot back one. */
   card: LandingPubCardData | null;
   archive: LandingArchiveIndex;
   rail: LandingRailRow[];
+  /**
+   * The cheapest pint we can find in Britain, already rendered on the server
+   * (components/landing/LandingHuntCard.tsx), or null when no pint may win.
+   */
+  hunt?: ReactNode;
 }) {
   const [answer, setAnswer] = useState<Answer | null>(() =>
     card ? anchorAnswer(card, rail, archive) : null,
@@ -344,40 +353,13 @@ export default function LandingHero({
       title="What a pint costs, pub by pub."
       titleId="hero-title"
       lede={LANDING_INTRO}
-      answer={
-        <figure className="lpLondonFigure">
-          <picture>
-            <source
-              type="image/avif"
-              srcSet={LANDING_SKYLINE_HERO_AVIF_SRCSET}
-              sizes={LANDING_SKYLINE_HERO_SIZES}
-            />
-            <source
-              type="image/webp"
-              srcSet={LANDING_SKYLINE_HERO_WEBP_SRCSET}
-              sizes={LANDING_SKYLINE_HERO_SIZES}
-            />
-            <img
-              className="lpLondonPhoto"
-              src={LANDING_SKYLINE_HERO_JPG_FALLBACK}
-              width={1600}
-              height={1067}
-              alt="Tower Bridge and the Thames in London from above"
-              decoding="sync"
-              loading="eager"
-              fetchPriority="high"
-            />
-          </picture>
-          <figcaption className="lpLondonCaption">
-            Tower Bridge and the Thames, looking across London.
-          </figcaption>
-        </figure>
-      }
+      answer={hunt ?? undefined}
       primary={primary}
       secondary={
         // Two quiet doors on one row. The receipt door comes first, because
         // it was the primary once and a returning drinker looks for it there;
-        // Tonight keeps the tap #1488 gave it.
+        // Plan a crawl follows it (lib/landingHero.ts says why it took the
+        // Tonight door's place).
         <>
           {receipt}
           {LANDING_QUIET_DOORS.map((door) => (

@@ -7,7 +7,12 @@ import type * as maplibregl from "maplibre-gl";
 import { segmentAt, type SunEstimate } from "@/lib/sunChaser";
 
 /** The pub pin layers, as the click router and the painted-pin probe name them. */
-export const PUB_PIN_LAYERS = ["pubs-point-selected", "pubs-price-pill", "pubs-point"] as const;
+export const PUB_PIN_LAYERS = [
+  "pubs-price-pill-selected",
+  "pubs-point-selected",
+  "pubs-price-pill",
+  "pubs-point",
+] as const;
 
 /**
  * The ids of the pub pins the map is drawing right now. Rendered-feature

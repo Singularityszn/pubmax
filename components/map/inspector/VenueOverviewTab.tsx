@@ -101,7 +101,6 @@ import { isPubVenueKind } from "@/lib/venueKindFilters";
 import { cuisineTagsForVenue } from "@/lib/cuisineTags";
 import type { CityId } from "@/lib/cities";
 import type { JourneyPoint } from "@/lib/venueJourney";
-import type { CrawlMode } from "@/components/map/ControlRail";
 import type { TabKey } from "@/lib/venueInspectorTabs";
 import type { PresenceState } from "./usePresence";
 import { useSheetPromptSlot } from "./useSheetPromptSlot";
@@ -116,7 +115,6 @@ import { type DrinkCategory } from "@/lib/drinks";
 import { overviewDisplayablePintGbp } from "@/lib/overviewDisplayablePint";
 import { confirmPintActionName } from "@/lib/pintDropSecondDrinker";
 import type { ZonePintIndex } from "@/lib/zones";
-import { useSheetFooterSlot } from "@/components/mobile/sheetFooterContext";
 import SunChaserVenueLine from "@/components/map/sunChaser/SunChaserVenueLine";
 
 /**
@@ -932,8 +930,6 @@ export default function VenueOverviewTab({
   venue,
   tab,
   cityId,
-  mode,
-  inCrawl,
   latestContributorPrice,
   latestPintDropAt,
   confirmedPrice,
@@ -944,7 +940,6 @@ export default function VenueOverviewTab({
   communityPrices,
   experienceLens,
   drinkLensCategory = null,
-  onToggleStop,
   presenceState,
   markPresenceHere,
   userLocation,
@@ -970,8 +965,6 @@ export default function VenueOverviewTab({
   venue: Venue;
   tab: TabKey;
   cityId: CityId;
-  mode: CrawlMode;
-  inCrawl: boolean;
   latestContributorPrice: number | null | undefined;
   /** Epoch ms of the latest Pint Drop (unmerged drop signal) - lets the
    *  submit receipt refuse to claim the map when a newer drop outranks the
@@ -998,7 +991,6 @@ export default function VenueOverviewTab({
   experienceLens: MapExperienceLens;
   /** Selected-drink map lens (e.g. coffee). Never the no-alcohol experience. */
   drinkLensCategory?: DrinkCategory | null;
-  onToggleStop: (id: string) => void;
   presenceState: PresenceState;
   markPresenceHere: () => void;
   userLocation: JourneyPoint | null;
@@ -1032,8 +1024,6 @@ export default function VenueOverviewTab({
   revealRecordLate?: boolean;
   now?: number;
 }) {
-  // The phone portal sheet hands down its footer slot; desktop has none.
-  const phoneSheet = useSheetFooterSlot() !== null;
   // Known-true accessibility facts only (PRD issue #28). Unknown/known-false
   // facets render nothing — never a "No" — per the provenance-honesty rule.
   const accessChips = accessibilityChipLabels(venue);
@@ -1323,19 +1313,9 @@ export default function VenueOverviewTab({
           </>
         ) : null}
       </OverviewFold>
-      {/* Desktop only: on a phone the peek's ONE plan door owns the crawl
-          toggle (lib/venuePlanDoor.ts), and this would be a second. It stays
-          outside the folds, under the price, so a planner never opens a fold
-          to add the pub. */}
-      {mode === "build" && isPubVenue(venue) && !phoneSheet ? (
-        <button
-          className="addStopBtn"
-          aria-pressed={inCrawl}
-          onClick={() => onToggleStop(venue.id)}
-        >
-          {inCrawl ? "Remove from crawl" : "Add to crawl"}
-        </button>
-      ) : null}
+      {/* No plan action here at any width: the action card's ONE plan door
+          (components/map/inspector/VenueActionCard.tsx, lib/venuePlanDoor.ts)
+          owns adding this pub, and stays in view while this tab scrolls. */}
       <OverviewFold foldKey="tonight">
         <VenueOccupancyRow
           venueId={venue.id}

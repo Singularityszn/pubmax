@@ -73,7 +73,9 @@ test("mobile venue Share clipboard fallback and the one Plan door stay tappable 
     `/map?sel=${ARNOS_ARMS_ID}`,
   );
 
-  await expect(stickyActions.getByRole("button")).toHaveText(["Share"]);
+  // The action card's second row: "Ask for a table" and Share. The plan door
+  // is the card's first row (components/map/inspector/VenueActionCard.tsx).
+  await expect(stickyActions.getByRole("button")).toHaveText(["Ask for a table", "Share"]);
   await portal.getByRole("tab", { name: "Overview", exact: true }).click();
   const planDoor = portal.locator(".mobileVenuePeekSummary").getByRole("button", { name: "Plan stop", exact: true });
   await expect(planDoor).toHaveAttribute("aria-pressed", "false");

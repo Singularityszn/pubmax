@@ -164,8 +164,6 @@ function renderSelectedVenue(
       venue: defined(merged),
       tab: "overview",
       cityId: "london",
-      mode: "suggest",
-      inCrawl: false,
       latestContributorPrice: corroborated?.priceGbp ?? null,
       provisionalPrice: provisional
         ? {
@@ -179,7 +177,6 @@ function renderSelectedVenue(
       communityPrices: communityPrices(VENUE_ID),
       experienceLens: "all",
       drinkLensCategory,
-      onToggleStop: noop,
       presenceState: "idle",
       markPresenceHere: noop,
       userLocation: null,

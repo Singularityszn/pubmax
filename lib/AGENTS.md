@@ -19,7 +19,7 @@ Full rules: [`docs/rules/lib-images-uploads-and-photo-walls.md`](../docs/rules/l
 
 ## Prices, trust and drinks
 
-Community prices, bands, trust states, confirmations, measures, missions, drink lanes, pint index, spoons value lens, the London counter soft-drink lane.
+Community prices, bands, trust states, confirmations, measures, missions, drink lanes, pint index, the cheapest-pint hunt, spoons value lens, the London counter soft-drink lane.
 
 Full rules: [`docs/rules/lib-prices-trust-and-drinks.md`](../docs/rules/lib-prices-trust-and-drinks.md).
 
@@ -31,7 +31,7 @@ Full rules: [`docs/rules/lib-venues-areas-listings-and-nights.md`](../docs/rules
 
 ## Saves, nudges, rounds, reports and Pub Pal
 
-Visit reports, venue corrections, With tags, the profile passport, the rank card and Tell your lot, occupancy, wanted, nudges, community signals, rounds, ask and concierge routing, Pub Pal tools.
+Visit reports, venue corrections, With tags, the profile passport, the first-run Been here card, the rank card and Tell your lot, occupancy, wanted, nudges, community signals, rounds, ask and concierge routing, Pub Pal tools.
 
 Full rules: [`docs/rules/lib-saves-nudges-rounds-reports-and-pub-pal.md`](../docs/rules/lib-saves-nudges-rounds-reports-and-pub-pal.md).
 
@@ -43,6 +43,6 @@ Full rules: [`docs/rules/lib-observability.md`](../docs/rules/lib-observability.
 
 ## Shared seams: stores, http, freshness, brand
 
-Enrichment cron, freshness spine, Context.dev, brand naming, icons, contact, rate limits, stores, messaging, email delivery.
+Enrichment cron, freshness spine, Context.dev, brand naming, icons, contact, rate limits, stores, messaging, email delivery, table requests.
 
 Full rules: [`docs/rules/lib-shared-seams-stores-http-freshness-brand.md`](../docs/rules/lib-shared-seams-stores-http-freshness-brand.md).

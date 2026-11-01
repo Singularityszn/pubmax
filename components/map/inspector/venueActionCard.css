@@ -1,0 +1,162 @@
+/* THE VENUE SHEET'S ACTION CARD (VenueActionCard.tsx; launch plan 1 Nov 2026,
+   section 5). One card at every width: the price with its date, the walk and
+   the ONE plan door on the first row, "Ask for a table" and Share under it.
+
+   On a phone it is the portal sheet's footer (a flex child below the scroll
+   body), so it is always in view and sits above the safe area the portal
+   already reserves. From 641px it is the sticky top of the drawer, under the
+   drawer's own head, so it stays in view while the Overview scrolls. Its plan
+   door is the sheet's one coral fill at every width; everything else on the
+   card is a ghost, and the Overview's price door is drawn in ink
+   (app/globals.css `.priceDoor`). */
+
+.venueActionCard {
+  display: grid;
+  gap: 8px;
+}
+
+/* The old command bar's row, now the card's second row. It keeps the bar's
+   class and its toolbar name, and drops the bar's own pinning, rule and scrim:
+   the card is the thing that is pinned. */
+.venueActionCard .venueActionCardActions {
+  position: static;
+  margin: 0;
+  padding: 0;
+  border-top: 0;
+  background: none;
+}
+
+/* ── Phone: the sheet footer ─────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .mobileSharedSheetFooter .venueActionCard {
+    padding: 10px 16px 12px;
+    border-top: 1px solid var(--line);
+    background: var(--color-surface-raised);
+  }
+
+  .mobileSharedSheetFooter .venueActionCard .venueSheetStickyBar {
+    padding: 0;
+    border-top: 0;
+    background: none;
+  }
+
+  /* The row keeps the peek's grid and type; it loses the rules and the
+     margin it needed when it sat in the body above the photo. */
+  .mobileSharedSheetFooter .venueActionCard .mobileVenuePeekSummary {
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+}
+
+/* ── 641px and wider: the sticky top of the drawer ───────────────────────── */
+@media (min-width: 641px) {
+  .mapDrawer.right .venueActionCard {
+    position: sticky;
+    /* Under the drawer's sticky head: 10px above its 44px row. */
+    top: 54px;
+    z-index: 6;
+    margin: 0 0 4px;
+    padding: 10px 0 12px;
+    border-bottom: 1px solid var(--line);
+    background: var(--panel);
+  }
+
+  /* The bar no longer rests on the drawer's foot, so the foot reserves
+     nothing for it, and a row scrolled into view clears the head AND the
+     card at the top instead (venueSheet.css owns the variables). */
+  .mapDrawer.right.open:not(.mobileSharedSheet):has(.venueActionCard) {
+    --venue-command-bar-h: 0px;
+    scroll-padding-top: 196px;
+  }
+
+  /* The phone peek's row, which the phone styles alone (mobileMapShell.css
+     hides it from 641px), dressed here for the card. Same grid, same faces,
+     same one painted door. */
+  .venueActionCard .mobileVenuePeekSummary {
+    display: grid;
+    grid-template-columns: minmax(0, auto) minmax(min-content, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .venueActionCard .mobileVenuePeekSummary > span {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+  }
+
+  .venueActionCard .mobileVenuePeekSummary > span > .priceBadge {
+    justify-self: start;
+  }
+
+  .venueActionCard .mobileVenuePeekSummary strong {
+    font-family: var(--font-data);
+    font-size: var(--text-md);
+  }
+
+  .venueActionCard .mobileVenuePeekSummary .mobileVenuePeekNearMe {
+    white-space: nowrap;
+  }
+
+  .venueActionCard .mobileVenuePeekSummary .mobileVenuePeekNearMe.isPhrase {
+    font-family: var(--font-body);
+    font-size: var(--text-base);
+  }
+
+  .venueActionCard .mobileVenuePeekSummary small {
+    max-inline-size: 26ch;
+    color: var(--color-text-muted);
+    font-size: var(--text-2xs);
+    line-height: 1.25;
+    white-space: normal;
+    overflow-wrap: break-word;
+  }
+
+  .venueActionCard .mobileVenuePeekSummary button {
+    min-height: var(--control-height);
+    padding: 6px var(--control-pad-x);
+    border: 0;
+    border-radius: var(--control-radius);
+    background: var(--color-accent);
+    color: var(--color-on-accent-strong);
+    font: inherit;
+    font-size: var(--control-font-size);
+    font-weight: var(--control-font-weight);
+    line-height: 1.15;
+    cursor: pointer;
+  }
+
+  .venueActionCard .mobileVenuePeekSummary button:focus-visible {
+    outline: 2px solid var(--brass);
+    outline-offset: 2px;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .venueActionCard .mobileVenuePeekSummary button:hover {
+      background: var(--color-accent-strong);
+    }
+
+    .venueActionCard .mobileVenuePeekSummary .mobileVenuePeekDrop:hover {
+      background: transparent;
+    }
+  }
+
+  /* "No price yet. Be the first" is a quiet invitation, not a second fill. */
+  .venueActionCard .mobileVenuePeekSummary .mobileVenuePeekDrop {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+    justify-items: start;
+    align-content: center;
+    min-height: 44px;
+    padding: 6px 0;
+    text-align: left;
+    background: transparent;
+    color: inherit;
+  }
+
+  .venueActionCard .mobileVenuePeekSummary .mobileVenuePeekDrop small {
+    font-weight: 700;
+  }
+}

@@ -165,9 +165,13 @@ test("venue sheet offers a start-a-crawl affordance in build mode (non-canvas jo
   const overviewPanel = page.locator("#venuePanel-overview");
   await expect(overviewPanel).toBeVisible();
 
-  // The presence button shares the addStopBtn class — target the crawl entry
+  // Since the action card the crawl entry is the card's ONE plan door
+  // (lib/venuePlanDoor.ts), above the Overview at every width: `Plan stop` /
+  // `In plan` with a crawl in progress, `Make it Stop 1` without one. Target it
   // by its accessible name, the way a user finds it.
-  const addToCrawl = overviewPanel.getByRole("button", { name: "Add to crawl" });
+  const addToCrawl = page
+    .locator(".venueActionCard")
+    .getByRole("button", { name: /^Plan stop$|^In plan$|^Make .+ Stop 1$/ });
   // The add-to-crawl button is build-mode-only (its aria-pressed toggle is the
   // "start a crawl here" journey entry). ?mode=build should seed build mode, but
   // if the seed didn't take (e.g. a shared-crawl restore overrode it), the
@@ -176,7 +180,6 @@ test("venue sheet offers a start-a-crawl affordance in build mode (non-canvas jo
   // false-fail on mode-seed timing. We never click either (no mutation).
   if ((await addToCrawl.count()) > 0) {
     await expect(addToCrawl).toBeVisible();
-    await expect(addToCrawl).toHaveAttribute("aria-pressed", /true|false/);
     expect((await addToCrawl.innerText()).trim().length).toBeGreaterThan(0);
   } else {
     // Fallback crawl/list journey entry always present on Overview, in the

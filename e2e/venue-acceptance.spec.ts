@@ -103,7 +103,8 @@ for (const width of [320, 390] as const) {
       }).toPass({ timeout: 10_000 });
       const share = toolbar.getByRole("button", { name: `Share ${VENUE_NAME}` });
       await expect(share).toBeVisible();
-      await expect(toolbar.getByRole("button")).toHaveCount(1);
+      // "Ask for a table" and Share: the action card's second row.
+      await expect(toolbar.getByRole("button")).toHaveCount(2);
 
       const door = portal
         .locator(".mobileVenuePeekSummary")
@@ -122,7 +123,7 @@ for (const width of [320, 390] as const) {
         const label = document.createRange();
         label.selectNodeContents(door);
         const bar = portalRoot.querySelector(".venueSheetStickyBar")!;
-        const share = bar.querySelector("button")!;
+        const share = bar.querySelector('button[aria-label^="Share"]')!;
         const [price, walk] = Array.from(row.querySelectorAll(":scope > span, :scope > .mobileVenuePeekDrop"));
         return {
           row: box(row),
@@ -153,10 +154,11 @@ for (const width of [320, 390] as const) {
       expect(apart(price, walk), "price and walk").toBe(true);
       expect(apart(walk, doorCell), "walk and door").toBe(true);
       expect(apart(price, doorCell), "price and door").toBe(true);
-      // A lone Share is the size of its label, not the width of the bar.
+      // Share shares its row with "Ask for a table": a thumb target, never the
+      // whole width of the card.
       expect(geometry.share.height).toBeGreaterThanOrEqual(44);
       expect(geometry.share.width).toBeGreaterThanOrEqual(44);
-      expect(geometry.share.width).toBeLessThan(geometry.bar.width / 2);
+      expect(geometry.share.width).toBeLessThan(geometry.bar.width);
       expect(geometry.overflow).toBeLessThanOrEqual(1);
 
       if (textScale === 1 || textScale === 2) {

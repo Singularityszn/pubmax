@@ -116,7 +116,8 @@ const MAP_SHAPES: MapKeyEntry[] = [
   {
     id: "pub-drink",
     label: "Pint, wine, cocktail or spirit glass",
-    detail: "Pub. The glass follows its recorded drinks or the drink view you chose.",
+    detail:
+      "Pub. The glass follows its recorded drinks or the drink view you chose. Where there is room, a priced pub shows its price on a pill. The dots on the pill give its band: one for the cheapest band, three for the dearest.",
   },
   { id: "bar", label: "Coupe glass", detail: "Bar." },
   { id: "late-food", label: "Skewer", detail: "Late food." },
@@ -170,12 +171,14 @@ const MAP_MARKS: [MapKeyEntry, ...MapKeyEntry[]] = [
   },
   {
     id: "base-selected",
-    label: "Single brass selection ring",
+    label: "Single selection ring",
     detail: "UK base pub you selected.",
   },
   {
+    // A selection reads in ink, never coral: a solid ink pill, or two ink
+    // rings round a glass that is not a pill (components/map/canvas/buildScene.ts).
     id: "selected",
-    label: "Double brass ring",
+    label: "Solid price pill or double ring",
     detail: "Pub you selected.",
   },
 ];

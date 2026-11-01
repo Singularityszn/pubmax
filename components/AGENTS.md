@@ -16,7 +16,7 @@ Full rules: [`docs/rules/components-map-canvas-and-pins.md`](../docs/rules/compo
 - [Map decomposition keeps source fences with their owner.](../docs/rules/components-map-canvas-and-pins.md#a-god-component-is-decomposed-in-place-because-the-map-s-own-tests-read-its-sour)
 - [A pin's COLOUR may be a hint; a pin's FIGURE may not.](../docs/rules/components-map-canvas-and-pins.md#a-pin-s-colour-may-be-a-hint-a-pin-s-figure-may-not)
 - [A pin's fill says the price; its EDGE is what makes it findable, and dark mode needs two tones for that.](../docs/rules/components-map-canvas-and-pins.md#a-pin-s-fill-says-the-price-its-edge-is-what-makes-it-findable-and-dark-mode-nee)
-- [A CLUSTER IS A NEUTRAL DISC THAT READS "FROM" ITS CHEAPEST PRICE, AND A PRICED PIN IS A PILL FROM STREET ZOOM.](../docs/rules/components-map-canvas-and-pins.md#a-cluster-is-a-neutral-disc-that-reads-from-its-cheapest-price-and-a-priced-pin-)
+- [A CLUSTER IS A NEUTRAL DISC THAT READS "FROM" ITS CHEAPEST PRICE, AND A PRICED PIN IS A PILL FROM THE PIN FLOOR.](../docs/rules/components-map-canvas-and-pins.md#a-cluster-is-a-neutral-disc-that-reads-from-its-cheapest-price-and-a-priced-pin-)
 - [AN AGING PRICE LOOKS AGING, NEVER FRESH.](../docs/rules/components-map-canvas-and-pins.md#an-aging-price-looks-aging-never-fresh)
 - [THE MAP DRAWS ITS ICONS AT BUILD TIME, AND A PHONE DRAWS ONLY WHAT THE SPRITE CANNOT ANSWER FOR.](../docs/rules/components-map-canvas-and-pins.md#the-map-draws-its-icons-at-build-time-and-a-phone-draws-only-what-the-sprite-can)
 - [The live Pint Index arrival must full-load the map.](../docs/rules/components-map-canvas-and-pins.md#the-live-pint-index-arrival-must-full-load-the-map)
@@ -42,6 +42,7 @@ Full rules: [`docs/rules/components-sheets-chrome-and-navigation.md`](../docs/ru
 - [THE PRIMARY ROW IS FIVE DOORS, AND THE HEADER CARRIES ONLY WHAT HAS SOMETHING BEHIND IT.](../docs/rules/components-sheets-chrome-and-navigation.md#the-primary-row-is-five-doors-and-the-header-carries-only-what-has-something-beh)
 - [THE PUB PAL IS A DOOR IN THE TOP BAR AND ON THE MAP EDGE, NEVER A TAB.](../docs/rules/components-sheets-chrome-and-navigation.md#the-pub-pal-is-a-door-in-the-top-bar-and-on-the-map-edge-never-a-tab)
 - [THE VENUE SHEET NAMES A TAB BY WHAT IT HOLDS, AND SAYS A FACT ONCE.](../docs/rules/components-sheets-chrome-and-navigation.md#the-venue-sheet-names-a-tab-by-what-it-holds-and-says-a-fact-once)
+- [FROM 1024PX THE LIST SITS BESIDE THE MAP, AND THE TWO MOVE TOGETHER.](../docs/rules/components-sheets-chrome-and-navigation.md#from-1024px-the-list-sits-beside-the-map-and-the-two-move-together)
 
 ## Venue, plan and message surfaces
 
@@ -51,6 +52,7 @@ Full rules: [`docs/rules/components-venue-plan-and-message-surfaces.md`](../docs
 - [THE OVERVIEW HAS ONE PRICE DOOR PER TRUST STATE, AND THE COMPOSER IS FOLDED BEHIND IT.](../docs/rules/components-venue-plan-and-message-surfaces.md#the-overview-has-one-price-door-per-trust-state-and-the-composer-is-folded-behin)
 - [THE PINT NEEDLE POINTS WHERE THE PIN IS PAINTED, AND THE PAL ONLY WATCHES IT.](../docs/rules/components-venue-plan-and-message-surfaces.md#the-pint-needle-points-where-the-pin-is-painted-and-the-pal-only-watches-it)
 - [THE PINT COMPASS POINTS AT A LISTED PINT, AND THE PHONE KEEPS WHERE YOU STAND.](../docs/rules/components-venue-plan-and-message-surfaces.md#the-pint-compass-points-at-a-listed-pint-and-the-phone-keeps-where-you-stand)
+- [THE VENUE SHEET HAS ONE ACTION CARD, AND IT SPENDS THE SHEET'S ONE CORAL.](../docs/rules/components-venue-plan-and-message-surfaces.md#the-venue-sheet-has-one-action-card-and-it-spends-the-sheet-s-one-coral)
 - [THE BILL IS ASKED FOR IN FRONT OF THE PRICE, NEVER INSIDE THE DISCLOSURE.](../docs/rules/components-venue-plan-and-message-surfaces.md#the-bill-is-asked-for-in-front-of-the-price-never-inside-the-disclosure)
 - [`/plan` opens on one describe-first question, not the wizard.](../docs/rules/components-venue-plan-and-message-surfaces.md#plan-opens-on-one-describe-first-question-not-the-wizard)
 - [A describe chip is a promise of a route, and the promise is made through the DESCRIBE-FIRST body.](../docs/rules/components-venue-plan-and-message-surfaces.md#a-describe-chip-is-a-promise-of-a-route-and-the-promise-is-made-through-the-desc)
@@ -65,7 +67,7 @@ Full rules: [`docs/rules/components-venue-plan-and-message-surfaces.md`](../docs
 Full rules: [`docs/rules/components-design-system-and-launch-primitives.md`](../docs/rules/components-design-system-and-launch-primitives.md).
 
 - [Pub Pal artwork follows the Circuit Robin family.](../docs/rules/components-design-system-and-launch-primitives.md#every-pub-pal-is-a-rendered-master-and-the-family-is-the-circuit-robin)
-- [THE FRONT DOOR SHOWS LONDON, THEN ANSWERS IN ONE TAP.](../docs/rules/components-design-system-and-launch-primitives.md#the-front-door-shows-london-then-answers-in-one-tap)
+- [THE FRONT DOOR SHOWS THE CHEAPEST PINT WE CAN FIND, THEN ANSWERS IN ONE TAP.](../docs/rules/components-design-system-and-launch-primitives.md#the-front-door-shows-london-then-answers-in-one-tap)
 - [A launch screen is built from the launch tokens and the four primitives, and template patterns are fenced.](../docs/rules/components-design-system-and-launch-primitives.md#a-launch-screen-is-built-from-the-launch-tokens-and-the-four-primitives-and-temp)
 - [CORAL IS A FILL AND CORAL IS A WORD, AND THOSE ARE TWO TOKENS.](../docs/rules/components-design-system-and-launch-primitives.md#coral-is-a-fill-and-coral-is-a-word-and-those-are-two-tokens)
 - [CORAL IS SPENT TWICE, A SELECTION READS IN INK, AND MONOSPACE IS FOR FIGURES.](../docs/rules/components-design-system-and-launch-primitives.md#coral-is-spent-twice-a-selection-reads-in-ink-and-monospace-is-for-figures)
