@@ -91,7 +91,7 @@ export function mountOriginalPalMesh(host, { modelUrl, onStatus }) {
     renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
   } catch {
     status("graphics-unavailable");
-    return { renderPose() { return false; }, setYaw() {}, turnYaw() {}, setVisible() {}, dispose() { disposed = true; controller.abort(); } };
+    return { renderPose() { return false; }, setYaw() {}, turnYaw() {}, endDrag() {}, setVisible() {}, dispose() { disposed = true; controller.abort(); } };
   }
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -210,6 +210,13 @@ export function mountOriginalPalMesh(host, { modelUrl, onStatus }) {
     setYaw(degrees) {
       yaw = radians(degrees);
       draw(performance.now(), true);
+    },
+    endDrag() {
+      // A drag begun before the photograph took the frame keeps its pointer
+      // capture, which pointer-events: none does not revoke, so end it here.
+      if (!drag) return;
+      if (canvas.hasPointerCapture?.(drag.id)) canvas.releasePointerCapture(drag.id);
+      drag = null;
     },
     turnYaw(degrees) {
       yaw += radians(degrees);

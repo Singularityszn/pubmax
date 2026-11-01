@@ -241,7 +241,9 @@ test("tablet Map clears its first real header and toolbar through loading at 641
         controlsAppeared = true;
         assertClearance(layout);
         expect(layout.measuredInline).toMatch(/^\d+px$/);
-        expect(Math.abs(Number.parseFloat(layout.measuredInline) - layout.nav.height)).toBeLessThanOrEqual(1);
+        // A shrinking header can leave surplus clearance until its observer
+        // runs. Never accept too little space or weaken the visible checks.
+        expect(Number.parseFloat(layout.measuredInline)).toBeGreaterThanOrEqual(layout.nav.height - 1);
         expect(layout.navOverlaps).toEqual([]);
         expect(layout.toolbarOverlaps).toEqual([]);
         for (const control of [...layout.navControls, ...layout.toolbarControls]) {

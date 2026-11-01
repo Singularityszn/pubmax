@@ -7,3 +7,10 @@
  * coordinator; listeners that only need "the map has painted" ignore it.
  */
 export const MAP_PIN_REVEAL_EVENT = "pubmax:pin-reveal";
+
+/**
+ * Existing upper bound for the first pin frame or its honest retry surface.
+ * The phone confirms a visible frame. Failed readiness shows a retry surface
+ * without unmounting the canvas or waiting for the decorative arrival turn.
+ */
+export const MAP_PIN_READY_CEILING_MS = 12_000;

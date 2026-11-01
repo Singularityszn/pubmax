@@ -8,6 +8,7 @@ import { useActiveCuratedCrawl, useMapPlanCoordinator } from "@/components/map/p
 import { EMPTY_MAP_SURFACE_STATE, useMapSurfaceNavigation } from "@/components/map/pubmap/useMapSurfaceNavigation";
 import { useSelParamSync } from "@/components/map/pubmap/useSelParamSync";
 import { CRAWL_URL_DEBOUNCE_MS, useCrawlUrlSync } from "@/components/map/useCrawlUrl";
+import { stampMapSurfaceHistory } from "@/lib/mapSurfaceHistory";
 import { buildMapSeed } from "@/lib/pubMap";
 import { initialFilters } from "@/lib/venues";
 
@@ -86,8 +87,13 @@ function SelectedWalk({ search }: { search: string }) {
     walkRequest: plan.walkRequest,
     clearSelection,
   });
+  const flush = useCrawlUrlSync(useMemo(
+    () => ({ mode: plan.mode, filters: initialFilters, builtIds: plan.builtIds, selectedVenueId }),
+    [plan.mode, plan.builtIds, selectedVenueId],
+  ));
   return planView(
     plan,
+    createElement("button", { type: "button", onClick: flush }, "Flush URL"),
     selectedVenueId ? createElement("aside", null, `Showing ${selectedVenueId}`) : null,
     createElement("button", { type: "button", onClick: () => setSelectedVenueId("pub-x") }, "Open pub-x"),
   );
@@ -146,9 +152,21 @@ async function render(element: ReactElement) {
   await act(async () => root.render(element));
 }
 
+it("opens a walking route when its history entry has undefined state", async () => {
+  const search = "mode=build&pubs=pub-a,pub-b";
+  window.history.replaceState(undefined, "", `/map?${search}`);
+  await render(createElement(WalkingRoute, { arrival: search, search }));
+  expect(host.querySelector("output")?.textContent).toBe("build mapped pub-a,pub-b");
+});
+
 // The router lands a search's entry before it hands the search to the map.
 function arrive(search: string, arrival = "") {
   window.history.pushState(null, "", search ? `/map?${search}` : "/map");
+  return render(createElement(WalkingRoute, { arrival, search }));
+}
+
+function own(search: string, arrival = "") {
+  window.history.replaceState(stampMapSurfaceHistory(window.history.state, [], ""), "", `/map?${search}`);
   return render(createElement(WalkingRoute, { arrival, search }));
 }
 
@@ -198,8 +216,8 @@ it("keeps a hidden walk hidden through its own selection and query writes", asyn
   await arrive("mode=build&pubs=pub-a,pub-b,pub-c");
   press("Hide route");
   expect(shown()).toBe("build hidden pub-a,pub-b,pub-c");
-  await arrive("mode=build&pubs=pub-a,pub-b,pub-c&sel=pub-b");
-  await arrive("mode=build&q=Soho&pubs=pub-a,pub-b,pub-c&sel=pub-b");
+  await own("mode=build&pubs=pub-a,pub-b,pub-c&sel=pub-b");
+  await own("mode=build&q=Soho&pubs=pub-a,pub-b,pub-c&sel=pub-b");
   expect(shown()).toBe("build hidden pub-a,pub-b,pub-c");
 });
 
@@ -208,13 +226,13 @@ it("keeps the reader's reversed and shortened stops when the URL sync echoes the
   await arrive("mode=build&pubs=pub-a,pub-b,pub-c");
   press("Reverse route");
   expect(shown()).toBe("build mapped pub-c,pub-b,pub-a");
-  await arrive("mode=build&pubs=pub-c,pub-b,pub-a");
+  await own("mode=build&pubs=pub-c,pub-b,pub-a");
   expect(shown()).toBe("build mapped pub-c,pub-b,pub-a");
   press("Remove last stop");
-  await arrive("mode=build&pubs=pub-c,pub-b");
+  await own("mode=build&pubs=pub-c,pub-b");
   expect(shown()).toBe("build mapped pub-c,pub-b");
   press("Hide route");
-  await arrive("mode=build&pubs=pub-c,pub-b&sel=pub-c");
+  await own("mode=build&pubs=pub-c,pub-b&sel=pub-c");
   expect(shown()).toBe("build hidden pub-c,pub-b");
 });
 
@@ -222,7 +240,6 @@ it("maps a hidden walk again when the reader follows its link back from the plan
   await arrive("");
   await arrive("mode=build&pubs=pub-a,pub-b");
   press("Hide route");
-  await arrive("");
   await arrive("mode=build&pubs=pub-a,pub-b");
   expect(shown()).toBe("build mapped pub-a,pub-b");
 });
@@ -265,7 +282,7 @@ it("leaves a reloaded walk the reader hid hidden", async () => {
   await arrive(link, link);
   expect(shown()).toBe("build mapped pub-a,pub-b");
   press("Hide route");
-  await arrive(`${link}&sel=pub-a`, link);
+  await own(`${link}&sel=pub-a`, link);
   expect(shown()).toBe("build hidden pub-a,pub-b");
 });
 
@@ -395,4 +412,43 @@ it("never paints an adopted walk under the curated crawl it replaced, and keeps 
   press("Pick Riverside");
   await render(createElement(CuratedWalk, { arrival: link, search: `${next}&sel=pub-c` }));
   expect(committed).toEqual(["pub-a,pub-b Soho classic", "pub-c,pub-d no crawl", "pub-c,pub-d Riverside"]);
+});
+
+it("consecutive same-walk entries clear the old pub and remap a hidden walk without a stale URL write", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  await select("");
+  const link = "mode=build&pubs=pub-a,pub-b,pub-c";
+  window.history.pushState(null, "", `/map?${link}`);
+  await select(link);
+  press("Open pub-x");
+  press("Hide route");
+  window.history.pushState(null, "", `/map?${link}`);
+  letUrlSyncWrite();
+  press("Flush URL");
+  expect(window.location.search).toBe(`?${link}`);
+  await select(link);
+  expect(shown()).toBe("build mapped pub-a,pub-b,pub-c");
+  expect(drawer()).toBeNull();
+  letUrlSyncWrite();
+  expect(addressParam("sel")).toBeNull();
+  press("Open pub-x");
+  press("Hide route");
+  window.history.replaceState({ externalEntry: 2 }, "", `/map?${link}`);
+  await select(link);
+  expect(shown()).toBe("build mapped pub-a,pub-b,pub-c");
+  expect(drawer()).toBeNull();
+});
+
+it("a fresh entry with the same sel parameter restores its pub after a local selection", async () => {
+  await select("");
+  const link = "mode=build&pubs=pub-a,pub-b&sel=pub-b";
+  window.history.pushState(null, "", `/map?${link}`);
+  await select(link);
+  expect(drawer()).toBe("Showing pub-b");
+  press("Open pub-x");
+  press("Hide route");
+  window.history.pushState(null, "", `/map?${link}`);
+  await select(link);
+  expect(drawer()).toBe("Showing pub-b");
+  expect(shown()).toBe("build mapped pub-a,pub-b");
 });

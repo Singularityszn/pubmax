@@ -132,7 +132,9 @@ test.describe("O1", () => {
       await expect(page.locator(".authAccountMenu")).toBeVisible();
       await page.getByRole("button", { name: "Switch account", exact: true }).click();
       const row = page.locator(".authSwitcherList .authSwitcherRow").filter({ hasText: "@" + ACCOUNTS.B.handle });
-      await expect(row).toHaveCount(1); await row.click();
+      await expect(row).toHaveCount(1);
+      const switchOrdinal = seen.events.length;
+      await row.click();
       await expect.poll(() => fx.ownerReads.includes(ACCOUNTS.B.id)).toBe(true);
       await expect(page.getByRole("img", { name: /Robin in 3D/ })).toHaveCount(0);
       await expect.poll(() => old.evaluate(node => node.isConnected)).toBe(false);
@@ -159,6 +161,7 @@ test.describe("O1", () => {
         return hit === node;
       }), { message: "The current fox canvas is unobscured at its centre" }).toBe(true);
       await shot(page, info, "owner-b"); await old.dispose();
+      seen.ownerRetirements.push({ from: ROBIN, to: FOX, switchOrdinal });
     });
   });
 });

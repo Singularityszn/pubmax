@@ -3,7 +3,7 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PalMeshStatus, PalMeshSurface } from "@/components/pal/originalPalMeshRenderer.mjs";
-import type { PubPalSpecies } from "@/lib/pubPal";
+import type { PalAnimationState, PubPalSpecies } from "@/lib/pubPal";
 
 const renderer = vi.hoisted(() => ({ mount: vi.fn() }));
 vi.mock("@/components/pal/originalPalMeshRenderer.mjs", () => ({ mountOriginalPalMesh: renderer.mount }));
@@ -12,6 +12,7 @@ import PalVoiceFace from "@/components/pubpal/PalVoiceFace";
 import PalPortrait from "@/components/pal/PalPortrait";
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
 import { pubPalMascotModelSrc } from "@/lib/pubPalMascot";
+import { palGenomeFor, type PalGenome } from "@/lib/palGenome";
 import { createPalVoiceSignal, type PalVoiceSignal } from "@/lib/palVoiceSignal";
 
 let root: Root;
@@ -25,16 +26,18 @@ let frameId = 0;
 let frames: Map<number, FrameRequestCallback>;
 let mounted: Array<{ surface: PalMeshSurface; status: (value: PalMeshStatus) => void }>;
 
-function Portrait({ species = "robin", decorative = false, compact = false, signal }: {
+function Portrait({ species = "robin", decorative = false, compact = false, signal, state = "idle", genome }: {
   species?: PubPalSpecies;
   decorative?: boolean;
   compact?: boolean;
   signal?: PalVoiceSignal;
+  state?: PalAnimationState;
+  genome?: PalGenome;
 }) {
   const appearance = { ...DEFAULT_PAL_DRAFT.appearance, species };
   return decorative
-    ? <PalVoiceFace appearance={appearance} state="idle" signal={signal} />
-    : <PalPortrait name="Nova" appearance={appearance} compact={compact} signal={signal} />;
+    ? <PalVoiceFace appearance={appearance} state={state} signal={signal} genome={genome} />
+    : <PalPortrait name="Nova" appearance={appearance} compact={compact} signal={signal} state={state} genome={genome} />;
 }
 
 async function render(props: Parameters<typeof Portrait>[0] = {}) {
@@ -64,7 +67,7 @@ beforeEach(() => {
   frames = new Map();
   mounted = [];
   renderer.mount.mockReset().mockImplementation((_host, options) => {
-    const surface: PalMeshSurface = { renderPose: vi.fn(() => true), setYaw: vi.fn(), turnYaw: vi.fn(), setVisible: vi.fn(), dispose: vi.fn() };
+    const surface: PalMeshSurface = { renderPose: vi.fn(() => true), setYaw: vi.fn(), turnYaw: vi.fn(), endDrag: vi.fn(), setVisible: vi.fn(), dispose: vi.fn() };
     mounted.push({ surface, status: options.onStatus });
     options.onStatus("loading");
     return surface;
@@ -160,6 +163,33 @@ describe("the selected Pal model lifecycle", () => {
     expect(modelHost().getAttribute("aria-hidden")).toBe("true");
   });
 
+  it("retires the faded model's focus, exposure and keys while the Pal talks, and restores them after", async () => {
+    await render({ state: "idle" });
+    markReady();
+    const host = modelHost();
+    host.focus();
+    expect(document.activeElement).toBe(host);
+    expect(mounted[0]!.surface.endDrag).not.toHaveBeenCalled();
+    for (const talkingState of ["speaking", "listening"] as const) {
+      await render({ state: talkingState });
+      // A drag begun on the idle model ends when the photograph takes the frame.
+      expect(mounted[0]!.surface.endDrag).toHaveBeenCalled();
+      expect(host.getAttribute("aria-hidden")).toBe("true");
+      expect(host.hasAttribute("tabindex")).toBe(false);
+      expect(document.activeElement).not.toBe(host);
+      host.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", cancelable: true }));
+      host.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", cancelable: true }));
+      expect(mounted[0]!.surface.turnYaw).not.toHaveBeenCalled();
+      expect(mounted[0]!.surface.setYaw).not.toHaveBeenCalled();
+    }
+    await render({ state: "idle" });
+    expect(host.getAttribute("aria-hidden")).toBe("false");
+    expect(host.tabIndex).toBe(0);
+    host.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", cancelable: true }));
+    expect(mounted[0]!.surface.turnYaw).toHaveBeenCalledWith(15);
+    expect(renderer.mount).toHaveBeenCalledOnce();
+  });
+
   it("uses the existing real voice signal for mesh poses and restores the picture after graphics loss", async () => {
     const signal = createPalVoiceSignal();
     signal.attach({ mode: "speaking", getInputVolume: () => 0, getOutputByteFrequencyData: () => new Uint8Array([255, 255, 255]) });
@@ -224,4 +254,41 @@ describe("the selected Pal model lifecycle", () => {
     expect(frames.size).toBe(0);
     expect(renderer.mount).toHaveBeenCalledOnce();
   });
+});
+
+it.each([false, true])("retains the mounted voice mouth and genome through model transitions, decorative=%s", async (decorative) => {
+  const genome = { ...palGenomeFor("saved-pal"), flip: -1 as const, zoom: 1.15, focusX: 3, focusY: -2, tilt: 4 };
+  const signal = createPalVoiceSignal();
+  await render({ decorative, genome, signal });
+  markReady();
+  expect(modelHost().dataset.modelState).toBe("ready");
+  const portrait = container.querySelector<HTMLElement>("[data-genome]")!;
+  expect(portrait.style.getPropertyValue("--genome-flip")).toBe("-1");
+  expect(portrait.style.getPropertyValue("--genome-zoom")).toBe("1.15");
+  expect(portrait.style.getPropertyValue("--genome-x")).toBe("3%");
+  expect(portrait.style.getPropertyValue("--genome-y")).toBe("-2%");
+  expect(portrait.style.getPropertyValue("--genome-tilt")).toBe("4deg");
+  signal.attach({ mode: "speaking", getInputVolume: () => 0, getOutputByteFrequencyData: () => new Uint8Array([255, 255, 255]) });
+  await render({ decorative, genome, signal, state: "speaking" });
+  frame(1000);
+  // The model stays loaded but faded (app/pal/pal.css): out of the tree and
+  // the tab order, while the photograph and its mouth frame show.
+  expect(modelHost().dataset.modelState).toBe("ready");
+  expect(modelHost().getAttribute("aria-hidden")).toBe("true");
+  expect(modelHost().hasAttribute("tabindex")).toBe(false);
+  expect(mounted[0]!.surface.dispose).not.toHaveBeenCalled();
+  expect(container.querySelector(".palMascotMouth img")).not.toBeNull();
+  expect(Number(portrait.style.getPropertyValue("--pal-mouth"))).toBeGreaterThan(0.5);
+  signal.attach({ mode: "listening", getInputVolume: () => 1, getOutputByteFrequencyData: () => new Uint8Array([0, 0, 0]) });
+  await render({ decorative, genome, signal, state: "listening" });
+  for (let index = 0; index < 20; index += 1) frame(1100 + index * 16);
+  expect(modelHost().dataset.modelState).toBe("ready");
+  expect(Number(portrait.style.getPropertyValue("--pal-mouth"))).toBeLessThan(0.01);
+  expect(renderer.mount).toHaveBeenCalledOnce();
+  signal.attach(null);
+  await render({ decorative, genome, signal, state: "idle" });
+  expect(modelHost().dataset.modelState).toBe("ready");
+  expect(modelHost().getAttribute("aria-hidden")).toBe(decorative ? "true" : "false");
+  expect(renderer.mount).toHaveBeenCalledOnce();
+  expect(portrait.style.getPropertyValue("--genome-x")).toBe("3%");
 });

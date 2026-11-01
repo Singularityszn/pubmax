@@ -892,7 +892,7 @@ test("/map states a TileJSON metadata failure instead of revealing a blank field
 test("/map shows a readable fallback when the phone render loop never draws a frame", async ({
   page,
 }) => {
-  test.setTimeout(60_000);
+  test.setTimeout(90_000);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => {
     // Frame loop never runs: rAF registers callbacks but never invokes them.
@@ -912,8 +912,10 @@ test("/map shows a readable fallback when the phone render loop never draws a fr
   await expect(fallback).toBeVisible({ timeout: 25_000 });
   await expect(fallback).toContainText("Map couldn't draw");
   await expect(fallback).toContainText("The map opened but did not draw anything.");
-  await page.waitForTimeout(6_000);
+  await page.waitForTimeout(20_000);
   await expect(fallback).toContainText("The map opened but did not draw anything.");
+  await expect(page.locator('[data-map-canvas="unavailable-timeout"]')).toHaveCount(0);
+  await expect(page.locator(".mapLoading")).toHaveCount(0);
   await expect(page.locator(".mapSoftRetry")).toHaveCount(0);
   await expect(fallback.getByRole("button", { name: "Technical details" })).toHaveAttribute(
     "aria-expanded",

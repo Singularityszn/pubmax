@@ -67,9 +67,11 @@ export function useSelParamSync({
   useEffect(() => {
     if (walkRequestRef.current === walkRequest) return;
     walkRequestRef.current = walkRequest;
-    if (!walkRequest || walkRequest.selectedVenueId) return;
+    if (!walkRequest) return;
     queueMicrotask(() => {
-      if (selectedVenueIdRef.current) clearSelectionRef.current?.();
+      if (walkRequest.selectedVenueId) {
+        if (walkRequest.selectedVenueId !== selectedVenueIdRef.current) selectVenueRef.current(walkRequest.selectedVenueId);
+      } else if (selectedVenueIdRef.current) clearSelectionRef.current?.();
     });
   }, [walkRequest]);
 }

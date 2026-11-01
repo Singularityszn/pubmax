@@ -66,6 +66,7 @@ export function capture(page: Page) {
   const events: Array<Record<string, unknown>> = [], models: Array<{ requestId: number; url: string; sha256: string }> = [];
   const errors: Array<{ requestId: number; url: string; message: string }> = [];
   const readyProofs: Array<{ requestId: number; url: string; sha256: string; readyVisibleMesh: true }> = [];
+  const ownerRetirements: Array<{ from: Character; to: Character; switchOrdinal: number }> = [];
   const tracked = new Map<Request, number>();
   page.on("request", request => {
     if (request.frame() === page.mainFrame() && new URL(request.frame().url()).pathname === "/pal" && modelPath(request.url())) {
@@ -84,7 +85,7 @@ export function capture(page: Page) {
       models.push({ requestId: id, url: response.url(), sha256: createHash("sha256").update(await response.body()).digest("hex") });
     })().catch(error => { errors.push({ requestId: id, url: response.url(), message: String(error) }); }));
   });
-  return { requests, models, events, errors, readyProofs, settle: () => Promise.all(bodies) };
+  return { requests, models, events, errors, readyProofs, ownerRetirements, settle: () => Promise.all(bodies) };
 }
 export type Capture = ReturnType<typeof capture>;
 
@@ -190,6 +191,7 @@ export async function requireDeliveredInput(page: Page, pointerType: string, ges
 
 function classifyBodyErrors(seen: Capture) {
   const cancelledReplaced: Array<Record<string, unknown>> = [];
+  const cancelledRetired: Array<Record<string, unknown>> = [];
   const fatal: typeof seen.errors = [];
   for (const error of seen.errors) {
     const abortedOrdinal = seen.events.findIndex(event => event.event === "requestfailed" && event.id === error.requestId && event.failure === "net::ERR_ABORTED");
@@ -197,12 +199,24 @@ function classifyBodyErrors(seen: Capture) {
     const replacement = seen.models.find(model => model.requestId !== error.requestId && model.url === error.url && expectedSHA !== null && model.sha256 === expectedSHA
       && abortedOrdinal >= 0 && seen.events.findIndex(event => event.event === "requestfinished" && event.id === model.requestId) > abortedOrdinal
       && seen.readyProofs.some(proof => proof.requestId === model.requestId && proof.url === model.url && proof.sha256 === expectedSHA && proof.readyVisibleMesh));
+    // O1 records this only after proving disposal, the new account identity,
+    // its saved Pal and its unobscured, exact-byte model. A retired owner's
+    // aborted duplicate does not need to be fetched again under the new owner.
+    const retirement = seen.ownerRetirements.find(({ from, to, switchOrdinal }) =>
+      from.ownerId !== to.ownerId && from.file !== to.file && error.url.endsWith(from.file)
+      && abortedOrdinal >= switchOrdinal
+      && seen.readyProofs.some(proof => proof.url.endsWith(from.file) && proof.sha256 === from.sha
+        && seen.events.findIndex(event => event.event === "requestfinished" && event.id === proof.requestId) < switchOrdinal)
+      && seen.readyProofs.some(proof => proof.url.endsWith(to.file) && proof.sha256 === to.sha
+        && seen.events.findIndex(event => event.event === "requestfinished" && event.id === proof.requestId) > abortedOrdinal));
     if (replacement) {
       const replacementFinishedOrdinal = seen.events.findIndex(event => event.event === "requestfinished" && event.id === replacement.requestId);
       cancelledReplaced.push({ error, recordedFailure: "net::ERR_ABORTED", abortedOrdinal, replacementFinishedOrdinal, replacement, readyVisibleMesh: true, cause: "UNKNOWN" });
+    } else if (retirement) {
+      cancelledRetired.push({ error, recordedFailure: "net::ERR_ABORTED", abortedOrdinal, retirement });
     } else fatal.push(error);
   }
-  return { cancelledReplaced, fatal };
+  return { cancelledReplaced, cancelledRetired, fatal };
 }
 
 
