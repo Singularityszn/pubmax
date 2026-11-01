@@ -140,9 +140,9 @@ describe("the 3D Pal shows its talking mouth and its genome", () => {
     );
   });
 
-  it("fades the model out while the Pal talks, and only under motion", () => {
+  it("fades the model out while the Pal talks, takes no drag on it, and fades only under motion", () => {
     expect(sheet).toMatch(
-      /\.palPortrait:is\(\[data-pal-state="speaking"\], \[data-pal-state="listening"\]\) \.palOriginalModelHost\[data-model-state="ready"\],\s*\.palVoiceFace:is\(\[data-pal-state="speaking"\], \[data-pal-state="listening"\]\) \.palOriginalModelHost\[data-model-state="ready"\] \{\s*opacity: 0;\s*\}/,
+      /\.palPortrait:is\(\[data-pal-state="speaking"\], \[data-pal-state="listening"\]\) \.palOriginalModelHost\[data-model-state="ready"\],\s*\.palVoiceFace:is\(\[data-pal-state="speaking"\], \[data-pal-state="listening"\]\) \.palOriginalModelHost\[data-model-state="ready"\] \{\s*opacity: 0;\s*pointer-events: none;\s*\}/,
     );
     const reduced = mediaBlock(sheet, "(prefers-reduced-motion: reduce)", sheet.indexOf(`.palVoiceFace${talking} .palOriginalModelHost`));
     expect(reduced).toContain('.palOriginalModelHost[data-model-state="ready"] { transition: none; }');

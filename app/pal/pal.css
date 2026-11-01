@@ -642,6 +642,7 @@ body:has(.analyticsConsentPrompt) .palHomeCopy h1 { font-size: var(--text-xl); l
 .palPortrait:is([data-pal-state="speaking"], [data-pal-state="listening"]) .palOriginalModelHost[data-model-state="ready"],
 .palVoiceFace:is([data-pal-state="speaking"], [data-pal-state="listening"]) .palOriginalModelHost[data-model-state="ready"] {
   opacity: 0;
+  pointer-events: none;
 }
 @media (prefers-reduced-motion: reduce) {
   .palOriginalModelHost[data-model-state="ready"] { transition: none; }
