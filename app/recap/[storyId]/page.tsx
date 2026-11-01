@@ -9,6 +9,7 @@ import PlanReadUnavailable from "@/components/plan/PlanReadUnavailable";
 import RecapShareButton from "@/components/plan/RecapShareButton";
 import RecapViewAnalytics from "@/components/plan/RecapViewAnalytics";
 import RecapVideoSection from "@/components/recap/RecapVideoSection";
+import RecapWashingLine, { type WashingLinePhoto } from "@/components/recap/RecapWashingLine";
 import type { RecapVisibility } from "@/lib/analyticsEvents";
 import { readPublishedRecapSource } from "@/lib/nightMemoryStore";
 import { PUBLIC_RECAP_PHOTO_TTL_SECONDS, signedNightMomentPhotoUrl } from "@/lib/nightMomentMedia";
@@ -134,6 +135,20 @@ export default async function PublicRecapPage({ params }: Props) {
     }),
   );
 
+  // The washing line hangs exactly the photos the grid would show: each one
+  // signed above, in the same order, with its own caption and pub.
+  const washingLinePhotos: WashingLinePhoto[] = view.photos.flatMap((photo) => {
+    const url = photoUrls.get(photo.id);
+    return url
+      ? [{
+          id: photo.id,
+          url,
+          caption: photo.caption,
+          venueName: photo.venueId ? venueNames.get(photo.venueId) ?? null : null,
+        }]
+      : [];
+  });
+
   // The video shows only what this page shows: the same published moments.
   const video = recapVideoEnabled()
     ? buildRecapVideoInput({
@@ -213,21 +228,26 @@ export default async function PublicRecapPage({ params }: Props) {
           <h2 id="recap-photos-title" className="type-card-title recapSection__title">
             Moments the crew shared
           </h2>
-          <div className="recapPhotos">
-            {view.photos.map((photo) => {
-              const url = photoUrls.get(photo.id);
-              return (
-                <figure key={photo.id} className="recapPhoto">
-                  {/* Approved photos only — every one cleared the consent gate. */}
-                  {url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img className="recapPhoto__img" src={url} alt={photo.caption ?? "A moment from the night"} loading="lazy" />
-                  ) : null}
-                  {photo.caption ? <figcaption className="recapPhoto__caption type-meta">{photo.caption}</figcaption> : null}
-                </figure>
-              );
-            })}
-          </div>
+          {washingLinePhotos.length > 1 ? (
+            // Two or more photos hang on the line; one keeps the plain figure.
+            <RecapWashingLine photos={washingLinePhotos} />
+          ) : (
+            <div className="recapPhotos">
+              {view.photos.map((photo) => {
+                const url = photoUrls.get(photo.id);
+                return (
+                  <figure key={photo.id} className="recapPhoto">
+                    {/* Approved photos only — every one cleared the consent gate. */}
+                    {url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img className="recapPhoto__img" src={url} alt={photo.caption ?? "A moment from the night"} loading="lazy" />
+                    ) : null}
+                    {photo.caption ? <figcaption className="recapPhoto__caption type-meta">{photo.caption}</figcaption> : null}
+                  </figure>
+                );
+              })}
+            </div>
+          )}
         </section>
       ) : null}
 
