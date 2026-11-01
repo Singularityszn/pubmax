@@ -12,6 +12,7 @@ import { followMapPixelRatio, mapPixelRatio, probeWebGl2 } from "@/components/ma
 import { createPalMapMarker, palPinIsCheap, type PalMapMarker } from "@/components/map/canvas/palMarker";
 import { legRouteToLines } from "@/components/map/canvas/legRouteScene";
 import { legRouteForCurrentLeg, readLegRouteOnMap, subscribeLegRouteOnMap } from "@/lib/legRouteOnMap";
+import { trackEvent } from "@/lib/analytics";
 import { palLeadLine, palLeadPath, planWalkAfterLead } from "@/lib/palLead";
 import { palFirstLegLabel, palPerchSpeechForPin, palWalkLine } from "@/lib/palMapLines";
 import { crewPalLook, type CrewPal } from "@/lib/crewPals";
@@ -1278,6 +1279,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   // Pal leads the way: while it walks the way the reader chose in Night Mode,
   // the plan's own walk and stops wait for it (the effect below).
   const palLeadKeyRef = useRef<string | null>(null);
+  const palLeadReportedRef = useRef<string | null>(null);
   // The Pal speaks on the map (lib/palMapLines.ts): once as it sets off on a
   // crawl, with the first leg's own time, and once beside a cheapest-band pin.
   // These keys hold what it last spoke about, so a re-render never repeats it.
@@ -4556,7 +4558,17 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     const key = `lead:${shownLeg.legKey}:${shownLeg.option.id}`;
     if (palLeadKeyRef.current === key) return;
     palLeadKeyRef.current = key;
-    marker.walk({ key, stops: [path[0]!, path.at(-1)!], path, road: true, cheer: true });
+    // Counted when the Pal is first placed on the way, never before: a map
+    // retired or rebuilt before that frame cancels the walk and its count.
+    // Once per chosen way: a map rebuilt mid-walk leads again, but it is the
+    // same lead, so it is not counted again. A Pal that is not drawn (none
+    // made, or hidden) never walks, so nothing is counted.
+    const reportLead = () => {
+      if (palLeadReportedRef.current === key) return;
+      palLeadReportedRef.current = key;
+      trackEvent("pal_lead_started");
+    };
+    marker.walk({ key, stops: [path[0]!, path.at(-1)!], path, road: true, cheer: true, onStarted: reportLead });
     marker.nextStop({ stop: 1, name: palNextName, open: () => onRouteStopClickRef.current(palNextVenueId) });
     marker.say(palLeadLine(shownLeg.option));
   }, [shownLeg, palNextVenueId, palNextName, routeCoordKey, mapReady]);
