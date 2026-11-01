@@ -264,6 +264,17 @@ it("serves a London lane photo to a signed-out reader, and only while the post s
   expect(downloads()).toHaveLength(1);
 });
 
+it("keeps the signed-out photo door's per-IP budget ahead of the lane rule and Storage", async () => {
+  state.mediaViewer = null;
+  state.lanePosts = [londonLaneRow()];
+  state.limited = true;
+  const response = await serve({});
+  expect(response.status).toBe(404);
+  expect(state.paths).toContain("/rest/v1/rpc/check_rate_limit");
+  expect(state.paths).not.toContain("/rest/v1/social_posts");
+  expect(downloads()).toEqual([]);
+});
+
 it("keeps the read budget ahead of media authorization and download", async () => {
   state.limited = true;
   const response = await serve();

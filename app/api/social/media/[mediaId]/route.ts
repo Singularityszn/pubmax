@@ -44,8 +44,10 @@ async function serve(access: VerifiedAccess, context: Context): Promise<Response
  */
 async function serveLondonLane(request: Request, context: Context): Promise<Response> {
   if (!socialLondonLaneOpen()) return missing();
+  // One lane page can carry 20 photos, so this takes the photo-read budget
+  // (`social-extra-photo-read`, 240 a minute) rather than the signing one.
   const limitKey = `social-london-media:${hashIp(clientIp(request))}`;
-  if (await isLimited(limitKey, limitKey, 120, 60_000)) return missing();
+  if (await isLimited(limitKey, limitKey, 240, 60_000)) return missing();
   const { mediaId } = await context.params;
   if (!UUID.test(mediaId)) return missing();
   try {
