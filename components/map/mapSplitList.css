@@ -33,12 +33,16 @@
 
   .appShell:has(> .mapSplitList) > .mapStage {
     left: var(--desktop-split-list-width);
-    /* The bar spans the map lane, never the whole window (mapToolbar.css).
-       Set on the stage, not the shell: the floating site nav reads the same
-       figure and still spans the window above both columns (siteNav.css). */
-    --desktop-map-surface-width: min(
-      1240px,
-      calc(100vw - var(--desktop-split-list-width) - 32px)
+    /* The bar lives in the map lane, never over the list (mapToolbar.css).
+       Set on the stage, not the shell: the floating site nav reads the
+       shell's figure and still spans the window above both columns
+       (siteNav.css). The bar stays centred on the lane (MapToolbar.tsx sets
+       that transform inline) and takes the NAV'S gutter on both sides, so
+       its right edge is the nav's right edge, as it is without the list
+       (e2e/ui-consistency-layout.spec.ts). */
+    --split-nav-gutter: calc((100vw - min(1240px, 100vw - 32px)) / 2);
+    --desktop-map-surface-width: calc(
+      100vw - var(--desktop-split-list-width) - 2 * var(--split-nav-gutter)
     );
   }
 

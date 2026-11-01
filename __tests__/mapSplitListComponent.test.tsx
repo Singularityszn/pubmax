@@ -309,7 +309,10 @@ describe("where the list sits", () => {
     expect(desktopBlock).toMatch(/\.appShell:has\(> \.mapSplitList\) > \.mapDrawer\.left \{\s*left: var\(--desktop-split-list-width\);/);
     // The bar spans the map lane, set on the stage so the floating site nav,
     // which reads the same figure from the shell, still spans the window.
-    expect(desktopBlock).toMatch(/> \.mapStage \{[^}]*--desktop-map-surface-width: min\(/);
+    // Centred on the lane with the nav's own gutter on both sides, so its
+    // right edge is the floating nav's right edge.
+    expect(desktopBlock).toMatch(/> \.mapStage \{[^}]*--split-nav-gutter: calc\(\(100vw - min\(1240px, 100vw - 32px\)\) \/ 2\);/);
+    expect(desktopBlock).toMatch(/> \.mapStage \{[^}]*--desktop-map-surface-width: calc\(\s*100vw - var\(--desktop-split-list-width\) - 2 \* var\(--split-nav-gutter\)\s*\);/);
     expect(desktopBlock).not.toMatch(/\.appShell:has\(> \.mapSplitList\) \{[^}]*--desktop-map-surface-width/);
     // The venue drawer narrows so a strip of map stays between it and the list.
     expect(desktopBlock).toMatch(/--desktop-venue-drawer-width: clamp\(\s*376px,\s*min\(46vw, calc\(100vw - var\(--desktop-split-list-width\) - 248px\)\),\s*640px\s*\)/);

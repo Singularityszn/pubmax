@@ -51,7 +51,6 @@ type BarReading = {
   headBottom: number | null;
   drawerScrollTop: number;
   rowsBelowViewport: number;
-  rowsUnderBar: string[];
 };
 
 async function readBar(page: Page): Promise<BarReading> {
@@ -74,14 +73,6 @@ async function readBar(page: Page): Promise<BarReading> {
         rowsBelowViewport: rows.filter(
           (row) => row.getBoundingClientRect().top >= window.innerHeight,
         ).length,
-        rowsUnderBar: barBox
-          ? rows
-              .filter((row) => {
-                const box = row.getBoundingClientRect();
-                return box.bottom > barBox.top + 1 && box.top < barBox.bottom - 1;
-              })
-              .map((row) => `${row.className} "${row.textContent?.trim().slice(0, 40)}"`)
-          : [],
       };
     },
     { drawerSel: DRAWER, barSel: BAR, headSel: HEAD, rowsSel: PRICE_ROWS },
@@ -213,9 +204,13 @@ for (const viewport of [
         previous = reading.drawerScrollTop;
       }
 
-      // At the end of the scroll every price row has been reachable and sits
-      // below the card: none is parked below the viewport in the part of the
-      // scrollport the translate used to hide, and none is under the card.
+      // At the end of the scroll every price row has been reachable: none is
+      // parked below the viewport in the part of the scrollport the translate
+      // used to hide. The card is the drawer's sticky TOP now, so a row the
+      // reader is scrolling past slides under it as under any sticky head,
+      // and "under the card" at one scroll position says nothing; what the
+      // card may never do is cover a row the reader brought into view, which
+      // each row above was held to, one by one.
       await drawer.evaluate((node) => {
         node.scrollTop = node.scrollHeight;
       });
@@ -224,7 +219,6 @@ for (const viewport of [
       holdBar(end, "scrolled to the end");
       if (end.drawerScrollTop > 400) holdBarStuck(end, "scrolled to the end");
       expect(end.rowsBelowViewport, "every price row can be scrolled into view").toBe(0);
-      expect(end.rowsUnderBar, "at the end no price row is under the card").toEqual([]);
     });
   });
 }
