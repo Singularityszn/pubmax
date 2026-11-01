@@ -51,8 +51,8 @@ export type HandleActionOptions = {
   /**
    * Messages and notifications reads. An unowned row and a tombstone (the
    * owner column cleared on account deletion) are the same refusal as a
-   * handle owned by somebody else. The demo path stays open for every other
-   * caller.
+   * handle owned by somebody else. The rules above govern demo access when this
+   * option is absent.
    */
   requireAccountOwner?: boolean;
 };

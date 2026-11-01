@@ -55,11 +55,12 @@ async function warnBeforeRequestCap(lane: PaidSpendLane, budget: number): Promis
 /**
  * Spend one call from a paid lane's deployment-wide daily ceiling.
  *
- * Returns true when the caller may spend and false when the lane is spent. The
- * lane key names the lane alone (`lib/paidSpendBudget.ts` owns why), so every
- * caller of a lane shares one budget and no header can widen it. Fail closed on
- * purpose: a configured Supabase whose durable limiter cannot answer refuses
- * rather than dropping to a per-instance budget a cold start resets.
+ * Returns true when the paid call is admitted. A spent address share, spent
+ * lane, or unavailable configured limiter returns false. The lane key names
+ * only the lane (`lib/paidSpendBudget.ts` owns why). Every caller shares one
+ * budget, which no header can widen. If the configured Supabase limiter cannot
+ * answer, admission fails closed. It never uses a process-local fallback that
+ * resets on a cold start.
  *
  * Pass the `request` on a lane any anonymous caller can reach. The caller
  * address's share (`paidSpendAddressShare`) is then spent FIRST, so one address
