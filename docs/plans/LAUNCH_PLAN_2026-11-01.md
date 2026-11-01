@@ -157,6 +157,17 @@ Week 1 agent work, built on 1 November 2026 and held on one branch for review:
 
 Not shipped: an edge cache for `/api/whats-on`, because it conflicts with the shared-cache rule in `__tests__/sharedCacheHonesty.test.ts`. Still to build from week 1: map first pin under 3 s (S1), the `/plan/[id]` budget (S3), plan push identity, the rate-limit fallback (R2) and monitoring (R3).
 
+### Week 2, built on 1 November 2026 (branch `claude/launch-week-2`)
+
+- The front door leads with the cheapest pint we can find in Britain, city by city, and London's dearest (decisions 2 and 3, `lib/cheapestHunt.ts`). A winner must name its drink or state a pint serving, students' union bars are held out, and the Britain winner comes only from the cities the page names. A city with listed prices that name no pint says so, and a city with none says "No prices yet".
+- `/near` has pint roulette (a random pub under your price within 15 minutes), cheapest anything (Guinness, wine, Coke, coffee, alcohol-free) and the planner reads "a £20 crawl" as a per-person budget.
+- The venue sheet has one action card that stays in view: price with its date, walk time, the one plan door, "Ask for a table" and Share. "Ask the pub for a table" (section 7, item 3) stores and emails a request to a verified operator. Migration 0219.
+- The map shows prices as pills from z12 on a calm light basemap. The selected pin is solid ink, so coral is spent on the one primary alone.
+- From 1024px the map has a list beside it, with "Search as I move the map" (section 5, desktop fix 1). `/near` and `/pubs` have no map yet, so the steps are in `docs/design/BACKLOG.md`.
+- The You tab offers an optional first-run "Tap the pubs you've been to" card. A tap is an undated "Been here" saved list, never a diary entry.
+
+S1 (first pin under 3 s) is unchanged. The map agent found that the 8 s style timeout fires only when the style fails, so the real wait is MapLibre, the style, tiles and the venue index; self-hosted London PMTiles is the next step.
+
 ---
 
 ## 10. How to know it works
