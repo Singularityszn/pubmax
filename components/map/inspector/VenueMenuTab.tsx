@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Venue } from "@/lib/venues";
 import DrinkMenu from "@/components/drinks/DrinkMenu";
 import FoodMenu from "@/components/food/FoodMenu";
+import MenuBasket from "@/components/food/MenuBasket";
 import MenuCategoryGrid from "@/components/drinks/MenuCategoryGrid";
 import VenueActionStrip from "@/components/map/VenueActionStrip";
 import { venueMenuForInspector } from "@/lib/venueMenu";
@@ -48,12 +49,10 @@ export default function VenueMenuTab({
 
   // The Menu tab's full drink list (beer from venue.prices + seeded non-beer
   // drinks), plus public Pint Drops already loaded by the Venue sheet.
+  const listedMenuDrinks = useMemo(() => venueMenuForInspector(venue, drinkUpdates), [venue, drinkUpdates]);
   const menuDrinks = useMemo(
-    () => {
-      const curated = venueMenuForInspector(venue, drinkUpdates);
-      return [...curated, ...pintDropDrinksForMenu(pintDrops, curated)];
-    },
-    [venue, drinkUpdates, pintDrops],
+    () => [...listedMenuDrinks, ...pintDropDrinksForMenu(pintDrops, listedMenuDrinks)],
+    [listedMenuDrinks, pintDrops],
   );
   const menuFood = useMemo(
     () => venueFoodMenuForInspector(venue, foodUpdates),
@@ -134,6 +133,7 @@ export default function VenueMenuTab({
           backLabel="Menus"
         />
       )}
+      <MenuBasket key={venue.id} venueId={venue.id} food={menuFood} drinks={listedMenuDrinks} />
     </div>
   );
 }

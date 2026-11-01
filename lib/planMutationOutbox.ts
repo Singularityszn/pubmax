@@ -32,7 +32,7 @@ export type PlanMutationOutboxEntry = {
   idempotencyKey: string;
   method: "POST";
   path: string;
-  body: { type: NightCrawlActionType; stopPosition: number; memberToken: string };
+  body: { type: NightCrawlActionType; stopPosition: number; memberToken: string; expectedRouteRevision?: number; venueId?: string };
   /** Cursor before the optimistic advance — needed to roll back after a failed replay. */
   previousCursor: number;
   /** Cursor after the optimistic advance. */
@@ -190,7 +190,7 @@ async function enqueuePlanMutation(input: {
   scope: string;
   idempotencyKey: string;
   path: string;
-  body: { type: NightCrawlActionType; stopPosition: number };
+  body: { type: NightCrawlActionType; stopPosition: number; expectedRouteRevision?: number; venueId?: string };
   previousCursor: number;
   optimisticCursor: number;
   venueName: string;
@@ -215,6 +215,8 @@ async function enqueuePlanMutation(input: {
       type: input.body.type,
       stopPosition: input.body.stopPosition,
       memberToken: PLAN_HTTP_ONLY_SESSION,
+      ...(input.body.expectedRouteRevision !== undefined ? { expectedRouteRevision: input.body.expectedRouteRevision } : {}),
+      ...(input.body.venueId !== undefined ? { venueId: input.body.venueId } : {}),
     },
     previousCursor: input.previousCursor,
     optimisticCursor: input.optimisticCursor,
@@ -241,6 +243,7 @@ export async function enqueueNightCrawlAction(input: {
   planId: string;
   type: NightCrawlActionType;
   stop: PlanStopDTO;
+  expectedRouteRevision: number;
   idempotencyKey: string;
   fingerprint: string;
   previousCursor: number;
@@ -252,7 +255,7 @@ export async function enqueueNightCrawlAction(input: {
     scope,
     idempotencyKey: input.idempotencyKey,
     path: `/api/plans/${input.planId}/actions`,
-    body: { type: input.type, stopPosition: input.stop.position },
+    body: { type: input.type, stopPosition: input.stop.position, expectedRouteRevision: input.expectedRouteRevision, venueId: input.stop.venueId },
     previousCursor: input.previousCursor,
     optimisticCursor: input.optimisticCursor,
     venueName: input.stop.venueName,

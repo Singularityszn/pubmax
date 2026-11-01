@@ -100,8 +100,9 @@ export function advanceNightCrawl(cursor: number, stopCount: number): number {
 export function nightCrawlActionPayload(
   type: NightCrawlActionType,
   stop: PlanStopDTO,
-): { type: NightCrawlActionType; stopPosition: number } {
-  return { type, stopPosition: stop.position };
+  expectedRouteRevision: number,
+): { type: NightCrawlActionType; stopPosition: number; expectedRouteRevision: number; venueId: string } {
+  return { type, stopPosition: stop.position, expectedRouteRevision, venueId: stop.venueId };
 }
 
 /**

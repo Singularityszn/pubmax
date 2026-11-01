@@ -83,6 +83,9 @@ the honest refusal for that route (401, 403, 400 or 409) and no change.
 | The seat token column (`plan_crew_members.token_hash`) | denied | denied | denied | denied |
 | Edit A's Plan (`PATCH` stops, invite rotate, presence) | denied | denied | denied with a bare bearer | saving the route, deciding a proposal, rotating the link, removing an RSVP and completing the night: host token only (403 for a guest); vote, propose, add a need and check in: host or guest member token |
 | Plan writes at the table | denied | denied | denied | denied |
+| Plan beacon and mystery reads (`GET /api/plans/[id]/beacon`, `presentation`) | denied | denied with a bare bearer | denied with a bare bearer | live collaboration-authorised member token only |
+| Plan beacon PUT/DELETE and mystery PUT | denied | denied with a bare bearer | denied with a bare bearer | host only, with current route checks |
+| Plan beacon and mystery tables or RPCs | denied | denied | denied | browser roles denied, service-mediated routes only |
 | Read A's crew Pals (`GET /api/plans/[id]/pals`, "Crew Pals") | preview only | preview only | preview only with a bare account bearer | host or guest member token: the Pals of the OTHER members whose owners set `pub_pals.crew_visible` and did not hide them, by Pal name and look only, never an account id, seat id or handle |
 | Another member's Pal at the table (`pub_pals`, including `crew_visible`) | denied | no rows | own row only | n/a |
 | Invite acceptance (`POST /api/plans/[id]/join`, a Going RSVP at `POST /api/invite/[token]/rsvp`) | invite required: a bare plan id is 403 `PLAN_INVITE_REQUIRED` | one seat per account, spent invite refused | n/a | the host's current invite token: ONE guest capability, a seat that may vote, propose, add a need and check in, never edit; a rotated token lets nobody new in |

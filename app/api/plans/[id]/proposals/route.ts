@@ -32,6 +32,8 @@ export async function POST(request: Request, context: Context): Promise<Response
     reason: typeof body.reason === "string" ? body.reason : "",
     expectedRouteRevision: typeof body.expectedRouteRevision === "number" ? body.expectedRouteRevision : 0,
     stops: hintedStops ?? [],
+    groundingProof: body.groundingProof,
+    operationKey: body.operationKey,
     resolvedConstraintIds: Array.isArray(body.resolvedConstraintIds) ? body.resolvedConstraintIds.filter((value): value is string => typeof value === "string") : [],
     idempotencyKey: collaborationIdempotencyKey(request, body),
   });

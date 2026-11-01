@@ -321,7 +321,7 @@ vocabularies. The column here is the question the event exists to answer.
 | `venue_accepted` | A pub was accepted into a plan, and what context came with it. |
 | `planning_handoff_opened` | A surface handed the planner a pub. |
 | `night_description_submitted` | The describe-first field was used. |
-| `planned_night_action` | An action was taken on a planned night. |
+| `planned_night_action` | An action was taken on a planned night. `swapped` also records a confirmed host acceptance of a route proposal. It is an action count, not a count of unique crews. No proposal, venue, member, or Plan identifier is included. |
 | `draft_recovered` | A recovered draft was offered and taken. |
 | `plan_vibe_vote` | The crew voted on the mood. |
 | `tour_complete` | The guided tour finished, or did not. |
@@ -332,7 +332,7 @@ vocabularies. The column here is the question the event exists to answer.
 | Event | Answers |
 |---|---|
 | `invite_created` | A host minted an invite link. |
-| `invite_redeemed` | A guest unlocked collaboration with it. The k-factor pair. |
+| `invite_redeemed` | A guest unlocked collaboration with it. See the [invitation response definitions](METRICS.md#32-invitation-response-measures). |
 | `plan_invite_sent` | An invite left through a channel. |
 | `content_shared` | Something left through a share channel, and which surface it came from. |
 | `plan_invite_opened` | An invite was opened by someone other than the host. The host's own landing after Lock is not counted. |

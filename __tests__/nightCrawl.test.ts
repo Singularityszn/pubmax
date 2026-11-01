@@ -169,8 +169,8 @@ describe("stopDisposition", () => {
 
 describe("action payload + idempotency scope", () => {
   it("builds the POST body against the hero stop's position", () => {
-    expect(nightCrawlActionPayload("arrived", stop(1))).toEqual({ type: "arrived", stopPosition: 1 });
-    expect(nightCrawlActionPayload("skipped", stop(2))).toEqual({ type: "skipped", stopPosition: 2 });
+    expect(nightCrawlActionPayload("arrived", stop(1), 3)).toEqual({ type: "arrived", stopPosition: 1, expectedRouteRevision: 3, venueId: stop(1).venueId });
+    expect(nightCrawlActionPayload("skipped", stop(2), 3)).toEqual({ type: "skipped", stopPosition: 2, expectedRouteRevision: 3, venueId: stop(2).venueId });
   });
 
   it("scopes idempotency per plan, action, and position (stable per tap, distinct across taps)", () => {
