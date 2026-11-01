@@ -29,14 +29,14 @@ export function MappedRouteChip({
     >
       <RouteIcon size={16} aria-hidden="true" />
       <div>
-        <strong>{stopCount} stops mapped</strong>
+        <strong>{stopCount} stops</strong>
         <span>
           <Footprints size={14} aria-hidden="true" />
-          {totalKm.toFixed(1)} km, {totalMinutes} min walk
+          Approx. {totalKm.toFixed(1)} km · {totalMinutes} min walk
         </span>
       </div>
       <button type="button" onClick={onEdit}>
-        Edit
+        Edit stops
       </button>
       <button
         type="button"

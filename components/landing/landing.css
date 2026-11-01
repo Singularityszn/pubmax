@@ -589,7 +589,7 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
 
   /* Reserve the full compose lane, including when a scrollbar narrows the
      page. The shared button can shrink below 14rem inside this column. */
-  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .lpHero .screenPrimary {
+  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .lpHero :is(.screenPrimary, .screenSecondary) {
     width: 100%;
     min-width: 0;
     padding-right: calc(var(--create-fab-lane) - var(--page-gutter));

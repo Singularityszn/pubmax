@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
+import { usePlanMapAccountKey, usePlanMapScope, useRegisterPlanMapRoute } from "@/components/nav/PlanMapNavigation";
+import { buildCrawlMapHref } from "@/lib/crawlUrl";
+
 import type { PlanState } from "@/lib/plan";
 import PlanRoute from "@/components/plan/PlanRoute";
 import PlanCollaborationPanel from "@/components/plan/PlanCollaborationPanel";
@@ -14,7 +17,7 @@ import RoundStarter from "@/components/round/RoundStarter";
 import { planViewModel } from "@/components/plan/planPresentation";
 import { anchorConflictMessage, routeStopsFromGenerated } from "@/components/plan/PlanComposer";
 import { parsePlanCapabilitySnapshot, planCapabilityEvent, readPlanCapabilitySnapshot, restorePlanCapability } from "@/lib/planSessionCapability";
-import { readPlanMemberProjection, usePlanMemberRead } from "@/components/plan/usePlanMemberRead";
+import { clearPlanMemberProjectionRead, readPlanMemberProjection, usePlanMemberRead } from "@/components/plan/usePlanMemberRead";
 import { setActivePlanRole } from "@/lib/activePlan";
 import { isPlanPreviewProjection, type PlanPrivacyPreviewDTO } from "@/lib/planPrivacy";
 import { planUsesPintPrices } from "@/lib/planGenerationDto";
@@ -324,7 +327,13 @@ export default function PlanSummary({
   initialPreview: PlanPrivacyPreviewDTO;
   vibeTally?: VibeTally | null;
 }) {
+  const scope = usePlanMapScope(planId);
+  const accountKey = usePlanMapAccountKey();
   const [state, setState] = useState<PlanState | null>(null);
+  const [memberScope, setMemberScope] = useState("");
+  const [memberAccountKey, setMemberAccountKey] = useState("");
+  const readScope = `${accountKey}:${scope}`;
+  const lastReadScope = useRef(readScope);
   const { identityResolved } = useAuth();
   // The session lane, gated the way PlanCrew gates its own: asking before
   // identity has resolved cannot spend the recovery write, so it would be a
@@ -336,14 +345,25 @@ export default function PlanSummary({
     void restorePlanCapability(planId).catch(() => undefined);
   }, [identityResolved, planId]);
   const readPlan = useCallback((isActive: () => boolean) => {
+    // A previous account or capability cannot lend its pending read to this one.
+    if (lastReadScope.current !== readScope) {
+      clearPlanMemberProjectionRead(planId);
+      lastReadScope.current = readScope;
+    }
     // One request per Plan, shared with every other surface asking (F-34).
     void readPlanMemberProjection(planId).then((body) => {
       if (!isActive()) return;
       const canonical = canonicalStateFromBody(body);
-      if (canonical) setState(canonical);
-      else if (isPlanPreviewProjection(body)) setState(null);
+      if (canonical) {
+        setState(canonical);
+        setMemberScope(scope);
+        setMemberAccountKey(accountKey);
+      } else if (isPlanPreviewProjection(body)) {
+        setState(null);
+        setMemberScope("");
+      }
     });
-  }, [planId]);
+  }, [planId, scope, accountKey, readScope]);
   usePlanMemberRead(planId, readPlan);
 
   // No rail on the teaser: the rail is the ROUTE's spine, and a preview has no
@@ -361,10 +381,10 @@ export default function PlanSummary({
     );
   }
 
-  return <PlanSummaryMember planId={planId} state={state} />;
+  return <PlanSummaryMember key={`${planId}:${memberAccountKey}`} planId={planId} state={state} scope={memberScope} />;
 }
 
-function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState }) {
+function PlanSummaryMember({ planId, state, scope }: { planId: string; state: PlanState; scope: string }) {
   const { user, accountRevision } = useAuth();
   const ownerKey = `${user?.id ?? "guest"}:${accountRevision}`;
   const view = planViewModel(state);
@@ -404,6 +424,7 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
   }, [pendingRaw, pending, planId]);
   const initialStops = orderedRouteStops(cleanStops(view.stops));
   const [canonicalStops, setCanonicalStops] = useState<EditableStop[]>(initialStops);
+  useRegisterPlanMapRoute(planId, scope, buildCrawlMapHref(canonicalStops.map((stop) => stop.venueId)));
   const [localStops, setLocalStops] = useState<EditableStop[]>(initialStops);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -420,9 +441,10 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
   // focus on the document. Focus returns to the control that reopens the
   // editor, so a keyboard or screen-reader host keeps their place.
   const editControl = useRef<HTMLButtonElement | null>(null);
+  const restoreEditFocus = useRef(false);
   const closeEditor = () => {
+    restoreEditFocus.current = true;
     setEditing(false);
-    editControl.current?.focus({ preventScroll: true });
   };
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [localAuthority, setLocalAuthority] = useState<RouteGenerationAuthority | null>(null);
@@ -481,6 +503,13 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
     isHost,
     anchoredPlan,
   });
+  useEffect(() => {
+    if (!restoreEditFocus.current || editing || pending || saving || loadingPreview) return;
+    const control = editControl.current;
+    if (!canBeginEditing || !control || control.disabled) return;
+    restoreEditFocus.current = false;
+    control.focus({ preventScroll: true });
+  }, [canBeginEditing, editing, pending, saving, loadingPreview]);
   useEffect(() => {
     if (memberToken && role) setActivePlanRole(planId, role);
   }, [memberToken, planId, role]);
@@ -694,7 +723,7 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
     return (
       <div className="planSummary__editor" aria-labelledby="plan-route-editor-title" aria-busy={saving || loadingPreview}>
         <h3 id="plan-route-editor-title">Route preview</h3>
-        <p>{anchoredPlan ? "Review the fresh route with Stop 1 kept." : "Swap a stop to make a private draft."} {isHost ? `Save only when it differs and still has ${PLAN_STOP_COUNT_RANGE_SENTENCE} distinct stops.` : "The route stays unchanged until the host accepts your proposal."}</p>
+        <p>{anchoredPlan ? "Review the new route. Stop 1 stays put." : "Swap a stop to try a different pub."} {isHost ? "Nothing changes for the crew until you save." : "The route stays unchanged until the host accepts your proposal."}</p>
         <ol className="planSummary__editStops">
           {draftStops.map((stop, index) => (
             <li key={`${stop.position}-${stop.venueId}`}>
@@ -722,8 +751,8 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
             <button type="button" className="planSummary__save" onClick={() => void saveRoute()} disabled={saving || !canSaveDraft} aria-disabled={saving || !canSaveDraft}>
               {saving ? "Saving…" : canSaveDraft ? "Save route changes" : "Choose a route change"}
             </button>
-            <button type="button" className="planSummary__cancel" onClick={() => { clearPendingRoute(planId); setLocalStops(canonicalStops); setLocalAuthority(null); closeEditor(); announce("Unsaved route changes discarded."); }} disabled={saving}>
-              Discard draft
+            <button type="button" className="planSummary__cancel" onClick={() => { clearPendingRoute(planId); setLocalStops(canonicalStops); setLocalAuthority(null); closeEditor(); announce(hasRouteChanged ? "Unsaved route changes discarded." : "Your saved route is unchanged."); }} disabled={saving}>
+              {hasRouteChanged ? "Discard changes" : "Close editor"}
             </button>
           </div>
         ) : <p className="planSummary__editorNote">Explain the change in Crew decisions. Only the host can make it the plan&apos;s route.</p>}
