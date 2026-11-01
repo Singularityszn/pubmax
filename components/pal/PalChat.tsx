@@ -33,7 +33,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import IntentLink from "@/components/nav/IntentLink";
 import SiteNav from "@/components/nav/SiteNav";
-import { accountBoundFetch, captureAccountAuth } from "@/lib/accountBoundFetch";
+import { captureAccountAuth } from "@/lib/accountBoundFetch";
 import { trackEvent } from "@/lib/analytics";
 import type { AskProposal, AskTurn } from "@/lib/ask/types";
 import { occupancyReceiptLine } from "@/lib/occupancy";
@@ -72,6 +72,7 @@ import { PLAN_FIELD_LABEL } from "@/lib/planCopy";
 import { planPalRouteHandoffHref } from "@/lib/planOccasion";
 import { writePlanningIntent } from "@/lib/planningIntent";
 import { authedActionFetch } from "@/lib/authedFetch";
+import { readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { palChatResultFromBody } from "@/lib/palChatClient";
 import { palOpeningMessage } from "@/lib/palOpening";
 import { createPalChatSession, PAL_CHAT_TIMEOUT_MS } from "@/lib/palChatClient";
@@ -322,22 +323,24 @@ function PalChatBody({ owner }: { owner: string | null }) {
   const turnsRef = useRef<AskTurn[]>([]);
   const savedEntriesRef = useRef<Entry[] | null>(null);
   // The chat is keyed by account (PalChat above), so this body only ever asks
-  // as `owner`. Each ask binds its request to this account's credentials
-  // before any await, and the session is retired when the body unmounts.
-  const authRef = useRef(auth);
-  useEffect(() => { authRef.current = auth; }, [auth]);
-  useEffect(() => () => { sessionRef.current?.cancel?.(); }, []);
+  // as `owner`. Each ask holds the provider's account signal from the moment
+  // it starts: a sign-in, sign-out or switch before its request goes out
+  // stops it, and the request itself keeps the usual signed-in transport
+  // (readiness wait and token refresh), bound to that same account.
+  const retiredRef = useRef(false);
   const createSession = useCallback((initial?: Pick<PalChatThread, "turns" | "conversationId">) => createPalChatSession({
     bindFetch: () => {
-      if (!owner || owner === "anonymous") return undefined;
-      const snapshot = authRef.current?.userId === owner ? authRef.current : null;
-      return ((input, init) => accountBoundFetch(snapshot, input, init)) as typeof fetch;
+      const accountSignal = readProviderAccountSignal();
+      return (async (input, init) => {
+        if (accountSignal.aborted) throw new DOMException("The account changed.", "AbortError");
+        return authedActionFetch(input, init ?? {}, { requiresIdentity: true });
+      }) as typeof fetch;
     },
     initialTurns: initial?.turns,
     initialConversationId: initial?.conversationId,
     onConversationId(id) { conversationRef.current = { id, at: Date.now() }; },
     onTurns(turns) { turnsRef.current = turns; },
-  }), [owner]);
+  }), []);
 
   useEffect(() => {
     if (!owner || pending || !entries.length || entries === savedEntriesRef.current) return;
@@ -462,6 +465,13 @@ function PalChatBody({ owner }: { owner: string | null }) {
   // "Take me there" and "where is The Lamb?" open that one pub when the chat
   // can name it, and otherwise reach the Pal, unless they ask for the map too.
   const mapAskRef = useRef(0);
+  // Leaving retires this body's asks: the session, any map lookup, and an ask
+  // still waiting for one, even before a session exists.
+  useEffect(() => () => {
+    retiredRef.current = true;
+    mapAskRef.current += 1;
+    sessionRef.current?.cancel?.();
+  }, []);
   const entriesRef = useRef<Entry[]>([]);
   useEffect(() => {
     entriesRef.current = entries;
@@ -532,8 +542,12 @@ function PalChatBody({ owner }: { owner: string | null }) {
     async (raw: string, options: { preserveDraft?: boolean } = {}) => {
       const text = raw.trim();
       if (!text || pending || !owner || !threadReady) return;
+      // The account this question was asked as. A switch while the map lookup
+      // runs, or this body leaving, ends the question here.
+      const accountSignal = readProviderAccountSignal();
       openingReadRef.current += 1;
       if (await openMapFromAsk(text)) return;
+      if (retiredRef.current || accountSignal.aborted) return;
       sessionRef.current ??= createSession();
       // Read the recall BEFORE this ask joins the transcript, so the Pal never
       // recalls the question it is answering.
