@@ -50,12 +50,12 @@ flowchart LR
 | Asset already shipped | Growth role | Gap |
 |---|---|---|
 | Map + honest price lanes | Core utility / aha | Landing undersells (PR [#787](https://github.com/Singularityszn/pubmax/pull/787)); cold map is dense |
-| Plan + `/invite/[token]` RSVP | Collaboration virality | Hardening merged in [#800](https://github.com/Singularityszn/pubmax/pull/800); k-factor not yet the product obsession |
+| Plan + `/invite/[token]` RSVP | Collaboration virality | Hardening merged in [#800](https://github.com/Singularityszn/pubmax/pull/800); invite conversion not yet the product focus |
 | Pint Index + OG cards | Press / content virality | Must convert to map with intent (`components/pintindex/PintIndexArrival.tsx`) |
 | Community prices (2-person corroboration) | Data network effect | Cold-start: uncorroborated prices do not paint pins |
 | ShareBar / WhatsApp builders | Distribution | Sharing is available; not forced at the moment of value |
 | Social / crews / presence / referrals | Identity network | Live by default; `=0` is emergency rollback; referral marks confer nothing; densifies *after* loops A/B work |
-| PostHog funnels ([docs/METRICS_FUNNEL.md](docs/METRICS_FUNNEL.md)) | Measurement | Instrument invite k-factor and price flywheel as weekly operating metrics |
+| PostHog funnels ([docs/METRICS_FUNNEL.md](docs/METRICS_FUNNEL.md)) | Measurement | Track invitation response using the [canonical definitions](../analytics/METRICS.md#32-invitation-response-measures), alongside price coverage |
 
 **Unknown factors you must treat as risks, not vibes**
 
@@ -79,7 +79,7 @@ flowchart LR
 
 **Weekly scoreboard (already mostly instrumented)**
 
-1. Invite **k-factor**: `invite_created` × conversion via `invite_redeemed` / RSVP engagement
+1. Invitation response: read private redemption, public RSVP and public map-open ratios separately. Use the [canonical definitions](../analytics/METRICS.md#32-invitation-response-measures).
 2. **Corroborated pint coverage** density (borough / Night Area), not raw submissions
 3. **Meaningful Pubmaxxers** (plan accepted/saved/completed, memory, story — from funnel doc)
 4. Pint Index → map reach rate
@@ -121,7 +121,7 @@ Signup only at the contribution gate, with one clear bargain: “Log tonight’s
 
 ### Wave 3 — Lot density (true network effect), still not “Twitter”
 
-Only after Waves 1–2 show k-factor and coverage moving:
+Only after Waves 1–2 show invitation response and coverage improving:
 
 - **We’re out / presence** scoped to Mutuals / crew on a plan — never city-wide stranger radar
 - Reuse plan invite → optional “add to lot” (`/add/[handle]`) after the night, not before value
@@ -163,7 +163,7 @@ Expand city packs only when London’s price graph and invite loop are obviously
 
 ## Market cap framing (sober)
 
-Public comps are not “Twitter for pubs.” Closer economic story: **category-defining consumer data network** (local price graph) + **workflow monopoly for planning a night** (shared link). Valuation follows (1) habitual usage in a dense geo, (2) data others cannot cheaply replicate, (3) distribution inside WhatsApp, (4) brand that means “honest pint prices.” That is a long game. Near-term “market cap” is the wrong KPI; **owned London density + invite k-factor** are the right ones.
+Public comps are not “Twitter for pubs.” Closer economic story: **category-defining consumer data network** (local price graph) + **workflow monopoly for planning a night** (shared link). Valuation follows (1) habitual usage in a dense geo, (2) data others cannot cheaply replicate, (3) distribution inside WhatsApp, (4) brand that means “honest pint prices.” That is a long game. Near-term “market cap” is the wrong KPI; **owned London density + invitation response** are the right ones.
 
 ---
 
@@ -172,7 +172,15 @@ Public comps are not “Twitter for pubs.” Closer economic story: **category-d
 1. DONE (2026-08-07): landing acquisition implemented ([#787](https://github.com/Singularityszn/pubmax/pull/787), landed as #813; invite hardening via [#800](https://github.com/Singularityszn/pubmax/pull/800))
 2. Wave 1: post-plan WhatsApp-first share step + invite revoke/cap
 3. Wave 2: contribution-gate time-to-first-price + one borough coverage campaign in-product
-4. Instrument a single weekly dashboard from existing PostHog events (k-factor, coverage, meaningful users)
+4. Instrument a single weekly dashboard from existing PostHog events (invitation response, coverage, meaningful users)
 5. Only then touch lot/presence densification
 
 **Do not start build work from this file until you name the wave / items to ship.**
+
+## Wave 0: execution pack price slice
+
+The [29 October implementation record](../evidence/uk-execution-2026-10-29/implementation.md) tracks the first UK pack slice.
+The [README basket guidance](../../README.md#features) owns the user instructions and subtotal limits.
+`lib/outingQuote.ts` owns the reviewed offer contract. No synthetic offer enters published data.
+Complete result-card and plan quotes depend on approved branch terms, fees and availability.
+The existing source, consent, consumer-free and London release rules remain binding.

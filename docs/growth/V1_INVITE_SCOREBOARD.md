@@ -42,8 +42,8 @@ Project: `https://eu.posthog.com/project/219466`.
 |---|---|
 | **Crew nights (per-night metric)** | `crew_committed` where `participants >= 2`, one row per night; rate over `plan_saved` |
 | Invite share after `plan_saved` | `plan_invite_sent` + `plan_invite_link_copied` |
-| Invite k-factor (public page) | `invite_rsvp_submitted` / `invite_page_viewed`; also `invite_map_opened` / `invite_page_viewed` |
-| Classic invite redeem (if used) | `invite_redeemed` / `invite_created` |
+| Public invite response | Read the RSVP and map-open ratios separately. See the [canonical definitions](../analytics/METRICS.md#32-invitation-response-measures). |
+| Private invite redemption (if used) | See the [canonical definition and replay limits](../analytics/METRICS.md#32-invitation-response-measures). |
 | Price conversion (signed-in) | `price_submitted` / `price_submit_viewed` |
 | Landing CTA mix | `landing_cta_clicked` by `target` (`map` / `near` / `plan`) |
 | Meaningful plan actions | `plan_saved`, crew joins, invite share; also `meaningful_core_action` |
