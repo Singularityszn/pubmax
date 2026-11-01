@@ -3,6 +3,12 @@
 // only the production origin or the `pubmaxx://` fallback scheme, and only
 // explicitly supported route families.
 
+import {
+  AUTH_ATTEMPT_PARAM,
+  isActiveLocalAuthAttempt,
+  isAuthResponseFragment,
+  type AuthFragmentStorage,
+} from "@/lib/authRedirect";
 import { IOS_EMAIL_AUTH_MODE } from "@/lib/nativeEmailPkce";
 import { isNativeApp } from "@/lib/nativePlatform";
 import { navigateNativeBrowser } from "@/lib/nativeNavigation";
@@ -70,9 +76,14 @@ export const NATIVE_DEEP_LINK_EXACT_PATHS: readonly string[] = ALLOWED_EXACT_PAT
  *
  * It opens the same families as the verified links, written only as
  * `pubmaxx://map?sel=<id>`, the family in the host. This navigation router
- * rejects authentication. The separate native email consumer accepts only
- * verifier-bound PKCE returns. Other apps can register the same scheme,
- * but an intercepted code cannot be exchanged without the app's verifier.
+ * is a credential fence. Any app on the phone can send the shell an explicit
+ * intent or a scheme link, so it refuses a sign-in response fragment (tokens
+ * or an error) on every other path in both forms. The HTTPS `/auth/callback`
+ * accepts one only when its single `_authAttempt` is the live, unclaimed
+ * attempt this device started, for Android provider and email sign-in. The
+ * separate native email consumer accepts only verifier-bound PKCE returns.
+ * Other apps can register the same scheme, but an intercepted code cannot be
+ * exchanged without the app's verifier.
  */
 export const NATIVE_URL_SCHEME = "pubmaxx";
 const SCHEME_REFUSED_PATHS: readonly string[] = ["/auth/callback"];
@@ -107,11 +118,36 @@ function schemeLinkPath(url: URL): string | null {
   if (!isAllowedPath(pathname) && !SCHEME_ONLY_EXACT_PATHS.some((path) => pathname === path)) {
     return null;
   }
+  if (isAuthResponseFragment(url.hash)) return null;
   return `${pathname}${url.search}${url.hash}`;
 }
 
+export type NativeDeepLinkOptions = {
+  /** The browser-wide sign-in attempt record. Defaults to the WebView's localStorage. */
+  persistentStorage?: AuthFragmentStorage | null;
+  now?: number;
+};
+
+function webViewAttemptStorage(): AuthFragmentStorage | null {
+  try {
+    return typeof window === "undefined" ? null : window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+// The sign-in return is admitted only for the one attempt this device started.
+// A cross-device link or another app's tokens would otherwise reach the
+// WebView as an unowned callback and ask for a one-tap confirmation.
+function isOwnAuthCallback(url: URL, options: NativeDeepLinkOptions): boolean {
+  const attempts = url.searchParams.getAll(AUTH_ATTEMPT_PARAM);
+  if (attempts.length !== 1) return false;
+  const storage = options.persistentStorage === undefined ? webViewAttemptStorage() : options.persistentStorage;
+  return isActiveLocalAuthAttempt(attempts[0] ?? null, storage, options.now);
+}
+
 /** Convert a native-open URL to an internal Next path, or reject it. */
-export function nativeDeepLinkPath(rawUrl: string): string | null {
+export function nativeDeepLinkPath(rawUrl: string, options: NativeDeepLinkOptions = {}): string | null {
   try {
     const url = new URL(rawUrl);
     if (url.protocol === `${NATIVE_URL_SCHEME}:`) return schemeLinkPath(url);
@@ -119,6 +155,11 @@ export function nativeDeepLinkPath(rawUrl: string): string | null {
     // The separate email auth consumer owns this mode, including direct universal-link delivery.
     if (url.pathname === "/auth/callback" && url.searchParams.getAll("native").includes(IOS_EMAIL_AUTH_MODE)) return null;
     if (!isAllowedPath(url.pathname)) return null;
+    if (url.pathname === "/auth/callback") {
+      if (!isOwnAuthCallback(url, options)) return null;
+    } else if (isAuthResponseFragment(url.hash)) {
+      return null;
+    }
     return `${url.pathname}${url.search}${url.hash}`;
   } catch {
     return null;

@@ -4,6 +4,9 @@
 //   POST { action: "addStop", handle, venueId, venueName, dropRef? }
 //                                    → 200 RoundState | 400/403/404/409
 //   POST { action: "close",  handle } → 200 RoundState | 400/403/404
+//   POST { action: "recordSpend", ... } as JSON, or multipart with a `payload`
+//   JSON field and the `receipt_photo` bill. Only a billed drink line becomes a
+//   community price; without the bill every line stays in the Round's diary.
 //
 // The GET is what the Round page polls (~10s while open + on focus) — live-ness by
 // polling, the repo convention (the notifications bell polls; no websockets). It is
@@ -18,6 +21,7 @@
 
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { boundedFormData } from "@/lib/boundedRequest.server";
 import {
   resolveContributionIdentity,
   type ContributionIdentityResolution,
@@ -25,7 +29,9 @@ import {
 import { submitCommunityPrice } from "@/lib/communityPriceStore";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { isLimited } from "@/lib/pintDrops";
+import { priceNeedsReceipt } from "@/lib/pintDropReceipt";
 import { gateHandleAction } from "@/lib/profileOwnership";
+import { receiptPhotoRefusal } from "@/lib/receiptPhoto.server";
 import {
   ROUND_PRICE_DEGRADED_RETRY_SECONDS,
   chargeRoundPriceLines,
@@ -36,6 +42,7 @@ import {
   cleanNewRoundSpend,
   firstPartyPriceItems,
   isValidRoundCode,
+  type NewRoundSpendItem,
   type RoundSpendDTO,
   type RoundState,
 } from "@/lib/rounds";
@@ -49,6 +56,7 @@ import { assertServerEnv } from "@/lib/serverEnv";
 import { isRoundsReadLimited } from "@/lib/roundsReadRateLimit";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
+import { FUNCTION_REQUEST_BODY_LIMIT_BYTES } from "@/lib/uploadBodyLimit";
 import { lookupCanonicalVenue } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 
@@ -209,13 +217,32 @@ async function promoteReadyRoundPrices(input: {
   return roundStateResponse(input.request, state);
 }
 
+// The account a drink line is promoted under, or null when the spend stays in
+// the diary. Without the bill a drink line is a diary figure, never a price.
+function billedPromotionOwner(
+  contributor: ContributionIdentityResolution | null,
+  observed: readonly NewRoundSpendItem[],
+  receipt: File | null,
+): string | null {
+  if (!contributor?.ok) return null;
+  const unbilled =
+    !receipt && observed.some((item) => priceNeedsReceipt(item.pricePence / 100));
+  return unbilled ? null : contributor.actor;
+}
+
 // One immutable buying turn, plus the price submissions its drink lines earn.
 async function recordSpend(
   request: Request,
   code: string,
   handle: string,
   body: Record<string, unknown>,
+  receipt: File | null,
 ): Promise<Response> {
+  // A NEW PRICE COMES WITH THE BILL (captain 7 Sept 2026, lib/pintDropReceipt.ts),
+  // here as at the other two price doors. A bill that is not a photo is
+  // refused before anything is written.
+  const receiptRefusal = await receiptPhotoRefusal(receipt);
+  if (receiptRefusal) return publicApiError(receiptRefusal, "INVALID_REQUEST", 400);
   const store = roundsStore();
   const requestedVenueId = readString(body.venueId) ?? "";
   const venueLookup = await lookupCanonicalVenue(requestedVenueId);
@@ -257,9 +284,10 @@ async function recordSpend(
   ) {
     return jsonNoStore(contributor.body, { status: contributor.httpStatus });
   }
-  const promotionOwner = contributor?.ok ? contributor.actor : null;
+  const promotionOwner = billedPromotionOwner(contributor, observed, receipt);
   const result = await store.recordSpend(code, {
     ...spendInput,
+    receipt,
     initialPromotionStatus:
       observed.length > 0 && promotionOwner ? "pending" : "diary_only",
     ...(promotionOwner ? { promotionActor: promotionOwner } : {}),
@@ -273,7 +301,7 @@ async function recordSpend(
   if (!contributor.ok) {
     return jsonNoStore(contributor.body, { status: contributor.httpStatus });
   }
-  if (!promotionOwner) return errorResponse("error");
+  if (!promotionOwner) return roundStateResponse(request, result.state);
   const owner = await store.claimSpendPromotionOwner(
     code,
     clean.clientRef,
@@ -313,18 +341,42 @@ async function recordSpend(
   });
 }
 
+/**
+ * JSON, or multipart with the action in a `payload` JSON field beside the
+ * `receipt_photo` bill. The multipart read is bounded to the platform ceiling.
+ */
+async function readRoundPostBody(
+  request: Request,
+): Promise<{ body: Record<string, unknown>; receipt: File | null } | null> {
+  try {
+    if ((request.headers.get("content-type") ?? "").includes("multipart/form-data")) {
+      const form = await boundedFormData(request, FUNCTION_REQUEST_BODY_LIMIT_BYTES);
+      const payload = form.get("payload");
+      const body: unknown = typeof payload === "string" ? JSON.parse(payload) : null;
+      if (!body || typeof body !== "object" || Array.isArray(body)) return null;
+      const receipt = form.get("receipt_photo");
+      return {
+        body: body as Record<string, unknown>,
+        receipt: receipt instanceof File && receipt.size > 0 ? receipt : null,
+      };
+    }
+    return { body: (await request.json()) as Record<string, unknown>, receipt: null };
+  } catch {
+    return null;
+  }
+}
+
 export async function POST(request: Request, ctx: Ctx): Promise<Response> {
   const { code } = await ctx.params;
   if (!isValidRoundCode(code)) {
     return publicApiError("That Round doesn't exist.", "NOT_FOUND", 404);
   }
 
-  let body: Record<string, unknown>;
-  try {
-    body = (await request.json()) as Record<string, unknown>;
-  } catch {
+  const parsed = await readRoundPostBody(request);
+  if (!parsed) {
     return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
+  const { body, receipt } = parsed;
 
   const action = readString(body.action);
   const handle = await resolveMessageHandle(request, readString(body.handle) ?? "");
@@ -373,7 +425,7 @@ export async function POST(request: Request, ctx: Ctx): Promise<Response> {
         : errorResponse(result.error);
     }
     case "recordSpend":
-      return recordSpend(request, code, memberHandle, body);
+      return recordSpend(request, code, memberHandle, body, receipt);
     case "close": {
       const result = await store.close(code, memberHandle);
       return result.ok

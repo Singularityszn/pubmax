@@ -34,8 +34,9 @@ import { buildTodayPintsIndex, type TodayPintsIndex } from "./todayPints";
 // Weather, the pub fact, the cheapest-pints index and the daytime modules are
 // composed on the server, one small module per night patch, so the browser
 // takes no venue data of its own. Independent reads run in parallel. The
-// get-there strip needs the viewer's rough location. The Tube card starts with
-// central London, then refreshes for the viewer's remembered area.
+// get-there strip needs the viewer's rough location, so it owns its own fetch.
+// The Tube card starts with central London, then refreshes for the viewer's
+// remembered area.
 
 export const metadata: Metadata = {
   title: "Today in London",
@@ -139,6 +140,7 @@ export default async function TodayPage() {
     loadTodayDeskPack(),
     // The Shoreditch coffee pilot, hand-checked rows.
     loadTodayCoffeePilot(),
+    // Central London's first Tube notice, so it is in the shared document.
     fetchLineStatuses(),
   ]);
 

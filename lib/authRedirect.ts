@@ -144,6 +144,29 @@ function parseAuthResponseFragment(hash: string): AuthResponseFragment | null {
   }
 }
 
+/** True when the hash is a Supabase implicit-flow response: tokens or an error. */
+export function isAuthResponseFragment(hash: string): boolean {
+  return parseAuthResponseFragment(hash) !== null;
+}
+
+/**
+ * True only when this browser started the named attempt, and it is live and
+ * not yet claimed. A callback for any other attempt was not asked for here.
+ */
+export function isActiveLocalAuthAttempt(
+  attemptId: string | null,
+  persistentStorage: AuthFragmentStorage | null | undefined,
+  now: number = Date.now(),
+): boolean {
+  if (!isAuthAttemptId(attemptId) || !persistentStorage) return false;
+  try {
+    const active = readActiveAttempt(persistentStorage);
+    return active?.id === attemptId && active.expiresAt > now && !active.callbackClaimed;
+  } catch {
+    return false;
+  }
+}
+
 export type CapturedAuthCallback = {
   attempt: AuthCallbackAttempt;
   cleanUrl: string;

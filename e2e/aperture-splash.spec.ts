@@ -87,9 +87,18 @@ async function fragmentedLandingProxy(baseURL: string) {
   const requests = new Set<ClientRequest>();
   const waitingFonts: Array<() => void> = [];
   const delivery = { originalSha256: "", htmlBytes: 0, splitAt: 0, heldFonts: 0, errors: [] as string[] };
-  let fontReleaseAt = 0;
-  let releaseTimer: ReturnType<typeof setTimeout> | undefined;
+  // Open from the header split until the HTML tail is written. A font the
+  // browser asks for in that window is held until the tail, decided when the
+  // request arrives so a slow upstream reply cannot slip past the hold. Only
+  // one face is preloaded; the others are asked for once the header text is
+  // laid out, which a loaded runner can push past 500 ms. So the tail waits
+  // for at least 500 ms AND two font requests, and never longer than 5 s.
+  let headerStreaming = false;
+  let fontsRequested = 0;
+  let releaseTimer: ReturnType<typeof setInterval> | undefined;
   const server = createServer((incoming, outgoing) => {
+    const fontRequestedWhileStreaming = headerStreaming && /\.woff2?$/.test(new URL(incoming.url ?? "/", upstreamOrigin).pathname);
+    if (fontRequestedWhileStreaming) fontsRequested += 1;
     const upstreamURL = new URL(upstreamOrigin);
     const path = new URL(incoming.url ?? "/", upstreamOrigin);
     upstreamURL.pathname = path.pathname;
@@ -100,7 +109,7 @@ async function fragmentedLandingProxy(baseURL: string) {
     }, (reply) => {
       const isLanding = path.pathname === "/" && reply.statusCode === 200 &&
         String(reply.headers["content-type"]).includes("text/html");
-      const holdFont = /\.woff2?$/.test(path.pathname) && reply.statusCode === 200 && Date.now() < fontReleaseAt;
+      const holdFont = fontRequestedWhileStreaming && reply.statusCode === 200;
       if (!isLanding && !holdFont) {
         outgoing.writeHead(reply.statusCode ?? 502, reply.headers);
         reply.pipe(outgoing);
@@ -119,7 +128,8 @@ async function fragmentedLandingProxy(baseURL: string) {
             outgoing.writeHead(reply.statusCode ?? 502, reply.headers);
             outgoing.end(body);
           };
-          if (Date.now() < fontReleaseAt) waitingFonts.push(() => { delivery.heldFonts += 1; release(); });
+          delivery.heldFonts += 1;
+          if (headerStreaming) waitingFonts.push(release);
           else release();
           return;
         }
@@ -139,13 +149,18 @@ async function fragmentedLandingProxy(baseURL: string) {
         delete headers["content-length"];
         delete headers["transfer-encoding"];
         outgoing.writeHead(200, headers);
-        fontReleaseAt = Date.now() + 500;
+        headerStreaming = true;
         outgoing.flushHeaders();
         outgoing.write(body.subarray(0, delivery.splitAt));
-        releaseTimer = setTimeout(() => {
+        const splitAt = Date.now();
+        releaseTimer = setInterval(() => {
+          const waited = Date.now() - splitAt;
+          if (waited < 500 || (fontsRequested < 2 && waited < 5_000)) return;
+          clearInterval(releaseTimer);
+          headerStreaming = false;
           for (const release of waitingFonts.splice(0)) release();
           outgoing.end(body.subarray(delivery.splitAt));
-        }, 500);
+        }, 25);
       });
     });
     requests.add(upstream);
@@ -171,7 +186,7 @@ async function fragmentedLandingProxy(baseURL: string) {
     origin: `http://127.0.0.1:${address.port}`,
     delivery,
     async close() {
-      clearTimeout(releaseTimer);
+      clearInterval(releaseTimer);
       waitingFonts.length = 0;
       for (const pending of requests) pending.destroy();
       const closed = new Promise<void>((resolve) => server.close(() => resolve()));

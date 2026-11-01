@@ -89,7 +89,7 @@ export async function loadAccountOnboardingStatusWithRetry(
 
 export async function checkAccountHandleAvailability(
   handle: string,
-  request: AccountOnboardingRequest = fetch,
+  request: AccountOnboardingRequest = accountBoundOnboardingRequest,
   signal?: AbortSignal,
 ): Promise<AccountHandleAvailability> {
   try {

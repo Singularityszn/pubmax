@@ -16,6 +16,9 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
     isSupabaseConfigured: () => false,
     requiresSupabaseStore: () => false,
     getSupabaseAdmin: () => ({ auth: { getUser: authState.getUser } }),
+    requireSupabaseAdmin: () => ({
+      storage: { from: () => ({ upload: async () => ({ error: null }) }) },
+    }),
   };
 });
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
@@ -64,6 +67,26 @@ function bearer(url: string, token: string, body: unknown): Request {
       "content-type": "application/json",
     },
     body: JSON.stringify(body),
+  });
+}
+
+/** A priced Round spend carries the photo of the bill, as every price door does. */
+function billedBearer(url: string, token: string, body: unknown): Request {
+  const form = new FormData();
+  form.set("payload", JSON.stringify(body));
+  form.set(
+    "receipt_photo",
+    new File([new Uint8Array(Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4//8/AAX+Av4N70a4AAAAAElFTkSuQmCC",
+      "base64",
+    ))], "bill.png", {
+      type: "image/png",
+    }),
+  );
+  return new Request(url, {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}` },
+    body: form,
   });
 }
 
@@ -139,7 +162,7 @@ describe("one auth.getUser per Request", () => {
 
     authState.getUser.mockClear();
     const spend = await postRoundAction(
-      bearer(roundUrl, "token-round", {
+      billedBearer(roundUrl, "token-round", {
         action: "recordSpend",
         handle: "q2round",
         payerHandle: "q2round",

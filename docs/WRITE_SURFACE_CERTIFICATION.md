@@ -1090,7 +1090,8 @@ commit.
   price. It is no longer the only door: a Round's itemised
   drink lines (`POST /api/rounds/[code] { action: "recordSpend" }`) reach
   `submitCommunityPrice` only when the writer passes the same authenticated
-  account and public-handle boundary. Anonymous lines remain in the private
+  account and public-handle boundary. The [bill rule](rules/lib-images-uploads-and-photo-walls.md#a-new-price-comes-with-the-bill-and-the-pint-photo-is-the-fun-one)
+  governs evidence for both price writers. Anonymous lines remain in the private
   Round diary. Direct and Round price
   writes use the account's stable profile actor. The same POST also carries the
   community VENUE SIGNAL shape (`{ kind: "venue-signal", venueId, signalKey,

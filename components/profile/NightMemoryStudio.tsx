@@ -55,16 +55,20 @@ const MOMENT_LABELS: Record<MemoryStudioDraft["momentKind"], string> = {
   side_quest: "Detour",
 };
 
-export default function NightMemoryStudio({ userId }: { userId: string }) {
+export default function NightMemoryStudio({ userId, memoriesRevision }: { userId: string; memoriesRevision?: number }) {
   const [draft, setDraft] = useState<MemoryStudioDraft>(() => readMemoryStudioDraft(userId));
   const [memories, setMemories] = useState<Memory[]>([]);
+  const [memoryReload, setMemoryReload] = useState(0);
+  const memoryReadRevisionRef = useRef(0);
   const [moments, setMoments] = useState<Moment[]>([]);
   const [stories, setStories] = useState<Story[]>([]);
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
-  // True once the initial memories+stories fetch settles (success or error).
+  // True once both initial reads settle (success or error).
   // Gates the first-run onboarding callout so it never flickers during load.
-  const [studioLoaded, setStudioLoaded] = useState(false);
+  const [memoriesLoaded, setMemoriesLoaded] = useState(false);
+  const [storiesLoaded, setStoriesLoaded] = useState(false);
+  const studioLoaded = memoriesLoaded && storiesLoaded;
   const [selectedStoryId, setSelectedStoryId] = useState("");
   const [workspace, setWorkspace] = useState<StoryWorkspace | null>(null);
   const [selectedMomentIds, setSelectedMomentIds] = useState<string[]>([]);
@@ -88,20 +92,38 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
 
   useEffect(() => {
     const controller = new AbortController();
-    void Promise.all([
-      authedActionFetch("/api/night-memories", { signal: controller.signal }, { requiresIdentity: true }),
-      authedActionFetch("/api/night-stories", { signal: controller.signal }, { requiresIdentity: true }),
-    ]).then(async ([memoryResponse, storyResponse]) => {
-      if (controller.signal.aborted) return;
-      const nextMemories = memoryResponse.ok
-        ? ((await memoryResponse.json()) as { memories?: Memory[] }).memories ?? []
-        : [];
-      const nextStories = storyResponse.ok
-        ? ((await storyResponse.json()) as { stories?: Story[] }).stories ?? []
-        : [];
+    const readRevision = ++memoryReadRevisionRef.current;
+    const isCurrentRead = () => !controller.signal.aborted && readRevision === memoryReadRevisionRef.current;
+    void authedActionFetch("/api/night-memories", { signal: controller.signal }, { requiresIdentity: true }).then(async (response) => {
+      if (!response.ok) throw new Error("Memory read failed");
+      const nextMemories = ((await response.json()) as { memories?: Memory[] }).memories ?? [];
+      if (!isCurrentRead()) return;
       setMemories(nextMemories);
+      setMemoriesLoaded(true);
+      setDraft((current) => ({
+        ...current,
+        selectedMemoryId: nextMemories.some((item) => item.id === current.selectedMemoryId)
+          ? current.selectedMemoryId
+          : (nextMemories[0]?.id ?? ""),
+      }));
+    }).catch(() => {
+      if (isCurrentRead()) {
+        setMessage("Your memories could not be loaded. Try again.");
+        setMemoriesLoaded(true);
+      }
+    });
+    return () => controller.abort();
+  }, [userId, memoriesRevision, memoryReload]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void authedActionFetch("/api/night-stories", { signal: controller.signal }, { requiresIdentity: true }).then(async (response) => {
+      const nextStories = response.ok
+        ? ((await response.json()) as { stories?: Story[] }).stories ?? []
+        : [];
+      if (controller.signal.aborted) return;
       setStories(nextStories);
-      setStudioLoaded(true);
+      setStoriesLoaded(true);
       const current = selectedStoryIdRef.current;
       const nextStoryId = nextStories.some((story) => story.id === current && story.membership?.status !== "invited")
         ? current
@@ -110,20 +132,14 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
           ?? "");
       selectedStoryIdRef.current = nextStoryId;
       setSelectedStoryId(nextStoryId);
-      setDraft((current) => ({
-        ...current,
-        selectedMemoryId: nextMemories.some((item) => item.id === current.selectedMemoryId)
-          ? current.selectedMemoryId
-          : (nextMemories[0]?.id ?? ""),
-      }));
     }).catch(() => {
       if (!controller.signal.aborted) {
         setMessage("Your memories could not be loaded. Try again.");
-        setStudioLoaded(true);
+        setStoriesLoaded(true);
       }
     });
     return () => controller.abort();
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     writeMemoryStudioDraft(userId, draft);
@@ -204,6 +220,12 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
     setConfirmation(null);
   }
 
+  function refreshMemoriesAfterMutation() {
+    // Retire older reads before the successful write changes the local shelf.
+    memoryReadRevisionRef.current += 1;
+    setMemoryReload((current) => current + 1);
+  }
+
   async function createMemory(event: FormEvent) {
     event.preventDefault();
     setSaving(true);
@@ -215,6 +237,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
     const body = await response.json().catch(() => ({})) as { memory?: Memory; error?: string };
     setSaving(false);
     if (!response.ok || !body.memory) return setMessage(errorMessageFrom(body, "Could not create that Memory."));
+    refreshMemoriesAfterMutation();
     setMemories((current) => [body.memory!, ...current]);
     update({ memoryTitle: "", selectedMemoryId: body.memory.id, storyTitle: body.memory.title });
     setMessage("Private Memory created. Add the parts worth keeping.");
@@ -280,14 +303,11 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
       );
       const body = await response.json().catch(() => ({})) as { error?: string };
       if (!response.ok) throw new Error(errorMessageFrom(body, "That Memory could not be removed."));
+      refreshMemoriesAfterMutation();
       setPendingRemoval(null);
-      const remaining = memories.filter((memory) => memory.id !== memoryId);
-      setMemories(remaining);
+      setMemories((current) => current.filter((memory) => memory.id !== memoryId));
       setStories((current) => current.filter((story) => story.memoryId !== memoryId));
-      if (draft.selectedMemoryId === memoryId) {
-        setMoments([]);
-        update({ selectedMemoryId: remaining[0]?.id ?? "" });
-      }
+      setDraft((current) => current.selectedMemoryId === memoryId ? { ...current, selectedMemoryId: "" } : current);
       setMessage("Memory removed. Its Moments and their photos went with it.");
     } catch (caught) {
       setMessage(caught instanceof Error ? caught.message : "That Memory could not be removed.");

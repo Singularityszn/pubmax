@@ -1,6 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 
 vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
@@ -18,6 +16,7 @@ import {
   getNightStory,
   getNightStoryWorkspace,
   getPublishedRecapSource,
+  listNightMoments,
   listNightStoryInbox,
   markContributorsDepartedByProfileId,
   proposeNightStoryPublication,
@@ -96,14 +95,21 @@ describe("collaborative Night Story storage", () => {
     expect((await getNightStory(story!.id, null))?.publishedMomentIds).toEqual([]);
   });
 
-  it("ships an atomic configured-backend draft authorization check", () => {
-    const sql = readFileSync(join(process.cwd(), "supabase/migrations/20260716150000_0032_night_story_draft_atomic.sql"), "utf8");
-    expect(sql).toContain("update_night_story_draft_atomic");
-    expect(sql).toContain("contributor.role in ('host', 'editor')");
-    expect(sql).toContain("contributor.status = 'accepted'");
-    expect(sql).toContain("create_plan_recap_atomic");
-    expect(sql).toContain("pg_advisory_xact_lock");
-    expect(sql).toContain("revoke all on function");
+  it("keeps a contributor's unconsented Moment out of the host's Memory list", async () => {
+    // The workspace withholds it before consent; the Memory list is the same
+    // Moment through a second door and must not disclose it either.
+    const memory = await createNightMemory("host", { title: "Crew night" });
+    const own = await addNightMoment("host", memory!.id, { kind: "event", caption: "Host note" });
+    const contributed = await addNightMoment("friend", memory!.id, {
+      kind: "photo", caption: "FRIEND-PRIVATE-CAPTION rooftop at midnight",
+    }, { allowContributor: true, mediaObjectKey: `night-moments/friend/${memory!.id}/photo.webp` });
+    const story = await createNightStory("host", { memoryId: memory!.id, title: "Crew night" });
+    expect((await getNightStoryWorkspace("host", story!.id))?.moments.map((moment) => moment.id)).toEqual([own!.id]);
+
+    const listed = await listNightMoments("host", memory!.id);
+    expect(listed.map((moment) => moment.id)).toEqual([own!.id]);
+    expect(JSON.stringify(listed)).not.toContain("FRIEND-PRIVATE-CAPTION");
+    expect(contributed).not.toBeNull();
   });
 
   it("lets no editor demote the host or another accepted member", async () => {

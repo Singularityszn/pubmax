@@ -1032,7 +1032,7 @@ function RoundSpendComposer({
               A known price only fills the line below. Check it against what you
               paid, then add it.
               {draftSource === "demo"
-                ? " This line still reads our demo menu, so it goes in the diary and is not logged as a price. Change the figure to what you paid and it counts as yours."
+                ? " This line still reads our demo menu. Change the figure to what you paid."
                 : ""}
             </p>
 
@@ -1090,7 +1090,7 @@ function RoundSpendComposer({
                       <strong>{item.drinkName}</strong>
                       <small>
                         {categoryLabel(item.drinkCategory)}
-                        {item.priceSource === "demo" ? " · diary only" : ""}
+                        {item.priceSource === "demo" ? " · demo menu" : ""}
                       </small>
                     </span>
                     <span className="roundDraftItemPrice">
@@ -1114,9 +1114,8 @@ function RoundSpendComposer({
             ) : null}
 
             <p className="roundPriceTrust">
-              Drink lines you type count as your own price logs. One person&apos;s
-              log stays off the price map until another drinker backs it. A line
-              marked diary only is never logged as a price.
+              Drink lines stay in this Round&apos;s diary. A price goes on the
+              map only with a photo of the bill.
             </p>
           </div>
         )}
