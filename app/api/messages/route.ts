@@ -38,6 +38,7 @@ import {
   messageAdultRefusal,
   messageBlockRefusal,
   messageMatesRefusal,
+  messageNewPairMatesRefusal,
 } from "@/lib/messageSafety.server";
 import { messagesStore } from "@/lib/messagesStore";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
@@ -168,8 +169,9 @@ export async function POST(request: Request): Promise<Response> {
     // nobody: the sender is never told which side set it.
     const blockRefusal = await messageBlockRefusal([handle, other]);
     if (blockRefusal) return blockRefusal;
-    // Mates only until the age check is live (lib/messageSafety.ts).
-    const matesRefusal = await messageMatesRefusal(handle, [other]);
+    // Mates only for a NEW conversation until the age check is live
+    // (lib/messageSafety.ts); a pair that already has one keeps reaching it.
+    const matesRefusal = await messageNewPairMatesRefusal(handle, other);
     if (matesRefusal) return matesRefusal;
   }
 

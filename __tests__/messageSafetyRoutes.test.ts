@@ -23,7 +23,7 @@ import {
 } from "@/lib/adultSelfAssertionStore";
 import { __resetMemoryFollows, memoryFollowStore } from "@/lib/followStore";
 import { MESSAGE_BLOCKED_LINE, MESSAGE_MATES_ONLY_LINE } from "@/lib/messageSafety";
-import { __resetMemoryMessages } from "@/lib/messagesStore";
+import { __resetMemoryMessages, memoryMessagesStore } from "@/lib/messagesStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
 import {
   __resetMemoryPrivateIdentities,
@@ -264,6 +264,30 @@ describe("a new conversation needs mates until the age check is live", () => {
 
     expect(res.status).toBe(403);
     expect((await res.json()).error).toBe(MESSAGE_BLOCKED_LINE);
+  });
+
+  it("keeps an existing pair reachable after they stop being mates", async () => {
+    const conversationId = await openPair("ken", "sam");
+    await memoryFollowStore.unfollow("sam", "ken");
+
+    asUser("ken");
+    const reopened = await postInbox({ action: "open", handle: "ken", other: "sam" });
+    expect(reopened.status).toBe(200);
+    expect((await reopened.json()).conversationId).toBe(conversationId);
+
+    const sent = await postInbox({ action: "send", handle: "ken", other: "sam", body: "Still on?" });
+    expect(sent.status).toBe(201);
+    expect((await sent.json()).conversationId).toBe(conversationId);
+  });
+
+  it("refuses with a retryable 503 when the store cannot say whether the pair has a conversation", async () => {
+    vi.spyOn(memoryMessagesStore, "findConversation").mockRejectedValueOnce(new Error("down"));
+
+    asUser("ken");
+    const res = await postInbox({ action: "open", handle: "ken", other: "sam" });
+
+    expect(res.status).toBe(503);
+    expect((await res.json()).retryable).toBe(true);
   });
 
   it("refuses with a retryable 503 when the follow store cannot answer", async () => {
