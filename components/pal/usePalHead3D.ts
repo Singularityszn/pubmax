@@ -108,6 +108,7 @@ export function usePalHead3D(
     enabled?: boolean;
   },
 ): void {
+  const voiceImage = state === "speaking" || state === "listening";
   const stateRef = useRef(state);
   const temperamentRef = useRef(temperament);
   useEffect(() => {
@@ -118,7 +119,7 @@ export function usePalHead3D(
   useEffect(() => {
     const frame = frameRef.current;
     if (!frame || !enabled) return;
-    const host = modelUrl ? frame.querySelector<HTMLElement>("[data-pal-model-host]") : null;
+    const host = modelUrl && !voiceImage ? frame.querySelector<HTMLElement>("[data-pal-model-host]") : null;
     const drawing = host?.querySelector<HTMLElement>("[data-pal-model-drawing]");
     let motion: MediaQueryList | null = null;
     try { motion = window.matchMedia("(prefers-reduced-motion: reduce)"); } catch { /* The still artwork remains available. */ }
@@ -372,5 +373,5 @@ export function usePalHead3D(
       frame.removeAttribute("data-head-3d");
       clearCssPose();
     };
-  }, [decorative, enabled, frameRef, modelUrl, signal]);
+  }, [decorative, enabled, frameRef, modelUrl, signal, voiceImage]);
 }

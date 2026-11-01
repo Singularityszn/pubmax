@@ -32,6 +32,7 @@ export default function PalVoiceFace({
     <span
       ref={frameRef}
       className="palVoiceFace"
+      data-pal-state={state}
       aria-hidden="true"
       {...(genome ? { "data-genome": "", style: palGenomeStyle(genome) as React.CSSProperties } : {})}
     >

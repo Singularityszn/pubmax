@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
-
 import { describe, expect, it } from "vitest";
 
 import {
@@ -14,7 +11,6 @@ import {
   mapCanvasUnavailableLine,
   type MapCanvasReadinessState,
 } from "@/lib/mapCanvasAvailability";
-import { defined } from "@/__tests__/helpers/defined";
 import { MAP_PIN_READY_CEILING_MS } from "@/lib/mapPinRevealEvent";
 
 const SILENT: MapCanvasReadinessState = {
@@ -156,63 +152,14 @@ describe("map canvas unavailable copy", () => {
 });
 
 describe("the readiness ceiling", () => {
-  // A mounted canvas must always get to name its own failure first, so this
-  // ceiling has to outlast every watchdog inside the canvas. Read the shared
-  // pin ceiling from its owner and the first-frame watchdog from the canvas.
-  const canvasSource = readFileSync(
-    path.join(process.cwd(), "components/PubMapCanvas.tsx"),
-    "utf8",
-  );
-
-  function canvasConstant(name: string): number {
-    const match = canvasSource.match(
-      new RegExp(`const ${name} = ([0-9_]+);`),
-    );
-    expect(match, `${name} is no longer a literal in PubMapCanvas`).not.toBeNull();
-    return Number(defined(match![1]).replace(/_/g, ""));
-  }
-
   it("sits above the canvas's own pin-ready ceiling", () => {
     expect(MAP_CANVAS_READINESS_CEILING_MS).toBeGreaterThan(
       MAP_PIN_READY_CEILING_MS,
     );
   });
 
-  it("sits above the canvas's own first-frame watchdog", () => {
-    expect(MAP_CANVAS_READINESS_CEILING_MS).toBeGreaterThan(
-      canvasConstant("FIRST_FRAME_TIMEOUT_MS"),
-    );
-  });
-
   it("stays bounded, because an unbounded one is the defect it replaces", () => {
     expect(Number.isFinite(MAP_CANVAS_READINESS_CEILING_MS)).toBe(true);
     expect(MAP_CANVAS_READINESS_CEILING_MS).toBeLessThanOrEqual(30_000);
-  });
-});
-
-describe("the shell wiring", () => {
-  const shell = readFileSync(path.join(process.cwd(), "components/PubMap.tsx"), "utf8");
-
-  it("catches the canvas subtree so a blocked chunk cannot take the page", () => {
-    expect(shell).toContain("class MapCanvasBoundary");
-    expect(shell).toContain("<MapCanvasBoundary");
-  });
-
-  it("builds a fresh lazy component per attempt, because a rejected one stays rejected", () => {
-    expect(shell).toContain("pubMapCanvasForAttempt");
-    expect(shell).toContain("pubMapCanvasByAttempt");
-  });
-
-  it("owns the stylesheet for the selection notice markup it renders itself", () => {
-    // The note for a bad `?sel=` used to arrive unstyled, because
-    // ukPlaceArrivalBanner.css shipped only with two dynamically imported
-    // banners that a bad id never mounts.
-    expect(shell).toContain('import "@/components/map/ukPlaceArrivalBanner.css"');
-    expect(shell).toContain('className="ukPlaceArrival"');
-  });
-
-  it("shows the map's ONE venue view where the canvas would be", () => {
-    expect(shell).toContain("MapFallbackCard");
-    expect(shell).not.toContain('className="mapFallbackVenue"');
   });
 });

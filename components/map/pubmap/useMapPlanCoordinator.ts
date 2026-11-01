@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { CrawlMode } from "@/components/map/ControlRail";
 import { ownsCrawlUrlEntry } from "@/components/map/useCrawlUrl";
+import { readMapSurfaceHistory } from "@/lib/mapSurfaceHistory";
 import { buildMapSeed } from "@/lib/pubMap";
 import { buildRouteLegs } from "@/lib/routeLegs";
 import type { NightAreaSlug } from "@/lib/nightAreas";
@@ -48,15 +49,22 @@ export function useMapPlanCoordinator(initial: InitialPlanState, search = "") {
   // a walk they hid.
   const request = useMemo(() => buildMapSeed(search), [search]);
   const requestKey = requestedWalk(request);
-  const observedWalk = useRef(requestedWalk(initial));
+  const observedEntry = useRef<{ state: unknown; length: number; search: string } | null>(null);
   useEffect(() => {
-    if (observedWalk.current === requestKey) return;
+    const entry = { state: window.history.state as unknown, length: window.history.length, search: window.location.search };
+    const previous = observedEntry.current;
+    if (previous?.state === entry.state && previous.length === entry.length && previous.search === entry.search) return;
+    if (!previous && requestKey === requestedWalk(initial)) {
+      observedEntry.current = entry;
+      return;
+    }
     let cancelled = false;
     queueMicrotask(() => {
-      if (cancelled) return;
-      observedWalk.current = requestKey;
-      if (!requestKey || requestedWalk(buildMapSeed(window.location.search)) !== requestKey
-        || ownsCrawlUrlEntry(window.history.state)) return;
+      if (cancelled
+        || new URLSearchParams(search).toString() !== new URLSearchParams(window.location.search).toString()) return;
+      observedEntry.current = entry;
+      if (!requestKey || ownsCrawlUrlEntry(window.history.state)
+        || readMapSurfaceHistory(window.history.state)) return;
       setMode("build");
       setBuiltIds(request.builtIds);
       setRouteMapped(true);
@@ -68,7 +76,7 @@ export function useMapPlanCoordinator(initial: InitialPlanState, search = "") {
     return () => {
       cancelled = true;
     };
-  }, [request, requestKey]);
+  });
 
   const activateGeneratedPlan = useCallback((nightArea: NightAreaSlug | null, venueIds: string[]) => {
     setMode("build");

@@ -1,7 +1,11 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+// @vitest-environment jsdom
 
-import { describe, expect, it } from "vitest";
+import { act, createElement, useCallback } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import type { Map as LibreMap } from "maplibre-gl";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { useMapCamera } from "@/components/map/canvas/useMapCamera";
+import { useMapArrivalTurn } from "@/components/map/canvas/useMapArrivalTurn";
 
 import {
   ARRIVAL_BEARING_POLL_MS,
@@ -14,7 +18,6 @@ import {
   nextArrivalBearingWait,
   type ArrivalBearingWait,
 } from "@/lib/mapArrivalBearing";
-import { REACTIVE_CAMERA_INTENTS } from "@/lib/mapGestureGuard";
 import { MAP_PIN_READY_CEILING_MS } from "@/lib/mapPinRevealEvent";
 
 const flat = {
@@ -58,59 +61,160 @@ describe("the map's opening turn", () => {
   });
 });
 
-describe("the opening turn is not the idle orbit", () => {
-  const camera = readFileSync(
-    resolve(process.cwd(), "components/map/canvas/useMapCamera.ts"),
-    "utf8",
-  );
-  const canvas = readFileSync(
-    resolve(process.cwd(), "components/PubMapCanvas.tsx"),
-    "utf8",
-  );
+describe("the mounted opening turn through the camera owner", () => {
+  let root: Root;
+  let container: HTMLDivElement;
+  let frames: Map<number, FrameRequestCallback>;
+  let nextFrame: number;
+  let bearing: number;
+  let moving: boolean;
+  let pinsPending: boolean;
+  let openingPending: boolean;
+  let reduced: { current: boolean };
+  let gesture: { current: { active: boolean; endedAt: number | null } };
+  let mapRef: { current: LibreMap | null };
+  const easeTo = vi.fn();
+  const stop = vi.fn();
 
-  it("moves once, through the one camera lane", () => {
-    expect(camera).toContain("mapArrivalBearingPlan");
-    expect(camera).toMatch(/scheduleCamera\(\s*"arrival"/);
+  function Turn({ ready = true, error = false, selected = false } = {}) {
+    const camera = useMapCamera({
+      mapRef,
+      reducedRef: reduced,
+      gestureCameraRef: gesture,
+      cityViewRef: { current: { center: [-0.13, 51.51], zoom: 12, pitch: 40, bearing: 0 } },
+      cityBoundsRef: { current: [[-0.3, 51.4], [0.1, 51.7]] },
+      routeRef: { current: [] },
+      routeLineRef: { current: { type: "FeatureCollection", features: [] } },
+      venuesRef: { current: [] },
+    });
+    const sample = useCallback(() => ({
+      moving: moving || camera.cameraLanePending(), pinsPending, openingPending,
+    }), [camera.cameraLanePending]);
+    useMapArrivalTurn({ mapRef, mapInstanceReady: ready, mapError: error,
+      deepLinked: selected, sample, easeArrivalBearing: camera.easeArrivalBearing });
+    return null;
+  }
+
+  const render = (props: Parameters<typeof Turn>[0] = {}) => act(() => root.render(createElement(Turn, props)));
+  const advance = (milliseconds: number) => act(() => { vi.advanceTimersByTime(milliseconds); });
+  const paint = () => act(() => {
+    const pending = [...frames.values()];
+    frames.clear();
+    for (const callback of pending) callback(performance.now());
   });
 
-  it("stands down while a reader holds the map", () => {
-    expect(REACTIVE_CAMERA_INTENTS).toContain("arrival");
+  beforeEach(() => {
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    vi.useFakeTimers();
+    frames = new Map();
+    nextFrame = 0;
+    bearing = 0;
+    moving = false;
+    pinsPending = false;
+    openingPending = false;
+    reduced = { current: false };
+    gesture = { current: { active: false, endedAt: null } };
+    mapRef = { current: { getBearing: () => bearing, stop, easeTo } as unknown as LibreMap };
+    easeTo.mockReset().mockImplementation((options: { bearing: number }) => { bearing = options.bearing; });
+    stop.mockReset();
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => { frames.set(++nextFrame, callback); return nextFrame; });
+    vi.stubGlobal("cancelAnimationFrame", (id: number) => frames.delete(id));
+    container = document.createElement("div");
+    root = createRoot(container);
   });
 
-  it("is spent once per mounted map, so a context rebuild cannot re-turn it", () => {
-    expect(canvas).toContain("arrivalBearingSpentRef");
-    expect(canvas).toMatch(/arrivalBearingSpentRef\.current = true/);
+  afterEach(() => {
+    act(() => root.unmount());
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
-  it("waits for the map to be still, so no other camera writer cancels it", () => {
-    // Measured without the wait: the opening-location answer schedules its move
-    // a frame later, the camera lane is latest-wins, and it cancelled the
-    // turn's pending frame. Three runs of three came to rest at exactly the
-    // bearing they arrived at.
-    expect(canvas).toContain("map.isMoving()");
-    // Not MapLibre's `idle`: that also waits on every requested tile, so a
-    // basemap that never finishes would be a map that never turns.
-    expect(canvas).not.toMatch(/once\("idle"[\s\S]{0,40}?arrival/i);
+  it("waits for pins, then makes one four-degree, one-second turn per mount despite a context rebuild", () => {
+    pinsPending = true;
+    render();
+    advance(12_000);
+    paint();
+    expect(easeTo).not.toHaveBeenCalled();
+    pinsPending = false;
+    advance(100);
+    paint();
+    expect(easeTo).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ bearing: 4, duration: 1_000 }));
+    expect(stop).toHaveBeenCalledOnce();
+    render({ ready: false });
+    bearing = 0;
+    render({ ready: true });
+    advance(20_000);
+    paint();
+    expect(easeTo).toHaveBeenCalledOnce();
   });
 
-  it("keeps the wait window in the rule, because the browser spec waits it out too", () => {
-    // The canvas held its own copies. The browser spec then slept for the eased
-    // second alone and read the bearing during the stillness wait, BEFORE the
-    // turn: it reported a flat map on a build whose map turns to four degrees
-    // in 3.9 seconds, measured. One window, one home.
-    expect(canvas).toMatch(
-      /ARRIVAL_BEARING_POLL_MS[\s\S]{0,200}?from "@\/lib\/mapArrivalBearing"/,
-    );
-    expect(canvas).not.toMatch(/const ARRIVAL_BEARING_POLL_MS\s*=/);
-    expect(MAP_ARRIVAL_BEARING_SETTLED_BY_MS).toBe(
-      Math.max(ARRIVAL_BEARING_WAIT_CEILING_MS, MAP_PIN_READY_CEILING_MS) +
-        ARRIVAL_BEARING_STILL_POLLS * ARRIVAL_BEARING_POLL_MS +
-        MAP_ARRIVAL_BEARING_DURATION_MS,
-    );
+  it("waits for an opening move and releases an unsettled camera within six seconds", () => {
+    moving = true;
+    openingPending = true;
+    render();
+    advance(5_900);
+    paint();
+    expect(easeTo).not.toHaveBeenCalled();
+    advance(100);
+    paint();
+    expect(easeTo).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ bearing: 4, duration: 1_000 }));
+    expect(MAP_ARRIVAL_BEARING_SETTLED_BY_MS).toBeLessThanOrEqual(20_000);
   });
 
-  it("reads the deep link as it was on arrival, not as it is now", () => {
-    expect(canvas).toContain("arrivalDeepLinkRef");
+  it.each(["reduced", "deep-link", "rotated", "gesture"])("preserves the %s camera", (owner) => {
+    reduced.current = owner === "reduced";
+    gesture.current.active = owner === "gesture";
+    if (owner === "rotated") bearing = -8;
+    render({ selected: owner === "deep-link" });
+    advance(20_000);
+    paint();
+    expect(easeTo).not.toHaveBeenCalled();
+    expect(stop).not.toHaveBeenCalled();
+  });
+
+  it("reads selection only on arrival and refuses a gesture begun before the queued camera frame", () => {
+    pinsPending = true;
+    render();
+    render({ selected: true });
+    pinsPending = false;
+    advance(100);
+    gesture.current.active = true;
+    paint();
+    expect(stop).not.toHaveBeenCalled();
+    expect(easeTo).not.toHaveBeenCalled();
+    gesture.current.active = false;
+    render({ ready: false });
+    render({ ready: true });
+    advance(20_000);
+    paint();
+    expect(easeTo).not.toHaveBeenCalled();
+  });
+
+  it("keeps the arrival deep link after that selection disappears", () => {
+    pinsPending = true;
+    render({ selected: true });
+    render({ selected: false });
+    pinsPending = false;
+    advance(20_000);
+    paint();
+    expect(easeTo).not.toHaveBeenCalled();
+  });
+
+  it("spends a failed map's turn and cancels an unmounted map's pending turn", () => {
+    render({ error: true });
+    render({ error: false });
+    advance(20_000);
+    paint();
+    expect(easeTo).not.toHaveBeenCalled();
+    act(() => root.render(null));
+    pinsPending = true;
+    render();
+    advance(100);
+    act(() => root.render(null));
+    pinsPending = false;
+    advance(20_000);
+    paint();
+    expect(easeTo).not.toHaveBeenCalled();
   });
 });
 

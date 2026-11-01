@@ -448,7 +448,9 @@ body:has(.analyticsConsentPrompt) .palPrintRow { display: none; }
    rests its head at. The photograph is never redrawn or recoloured; the zoom
    never drops under 1.08, so a framing shift never shows its edge. */
 .palPortrait[data-genome] .palPortraitMascot img,
-.palVoiceFace[data-genome] .palVoiceFaceImg img {
+.palVoiceFace[data-genome] .palVoiceFaceImg img,
+.palPortrait[data-genome] .palOriginalModelFraming,
+.palVoiceFace[data-genome] .palOriginalModelFraming {
   transform-origin: 50% 55%;
   transform: translate(var(--genome-x, 0%), var(--genome-y, 0%)) scale(var(--genome-zoom, 1)) scaleX(var(--genome-flip, 1));
   rotate: var(--genome-tilt, 0deg);

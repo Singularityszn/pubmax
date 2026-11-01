@@ -1,5 +1,7 @@
 "use client";
 
+import { useMapArrivalTurn } from "@/components/map/canvas/useMapArrivalTurn";
+
 import dynamic from "next/dynamic";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./map/mapColor.css";
@@ -255,11 +257,7 @@ import {
   streetsInViewDrawn,
   type OpeningCameraPose,
 } from "@/lib/mapOpeningPreview";
-import {
-  ARRIVAL_BEARING_POLL_MS,
-  nextArrivalBearingWait,
-  type ArrivalBearingWait,
-} from "@/lib/mapArrivalBearing";
+
 
 // MapLibre 6 is ESM-only. Its worker imports a sibling shared module, which
 // Next's asset URL transform does not emit beside the worker. The copy step
@@ -1432,15 +1430,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   // name. A reader who reached a pub by link is excluded, because the fly-to
   // into that pub owns the camera. lib/mapArrivalBearing.ts holds every other
   // case, reduced motion included.
-  const arrivalBearingSpentRef = useRef(false);
   const firstPinRevealFinishedRef = useRef(false);
-  // Read by the camera probe; written beside the near-me framing effect below.
   const nearbyFramingOwedRef = useRef(false);
-  // The deep link as it was on ARRIVAL. Reading the live prop would answer for
-  // a pin the reader tapped a moment ago, which is a different question.
-  const arrivalDeepLinkRef = useRef(
-    Boolean(selectedVenueId) || Boolean(initialLandmarkId),
-  );
   const focusKeyRef = useRef<string | null>(null);
   const focusPointRef = useRef(focusPoint);
   const nearMePendingRef = useRef(Boolean(nearMePending));
@@ -1452,51 +1443,20 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     focusPointRef.current = focusPoint;
     openingCameraSettledRef.current = openingCameraSettled;
   }, [focusPoint, openingCameraSettled]);
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || arrivalBearingSpentRef.current) return;
-    if (mapError) {
-      arrivalBearingSpentRef.current = true;
-      return;
-    }
-    let cancelled = false;
-    let wait: ArrivalBearingWait | null = { stillPolls: 0, waitedMs: 0 };
-    // The turn waits for the map to STOP. Measured without the wait: the
-    // opening-location answer schedules its own move a frame or so after the
-    // map is ready, the camera lane is latest-wins, and it cancelled the
-    // turn's pending frame outright - four runs of four came to rest at
-    // exactly the bearing they arrived at, with no `arrival` intent emitted.
-    //
-    // It polls rather than waiting on MapLibre's `idle`, because `idle` also
-    // waits on every requested tile and a basemap that never finishes would
-    // mean a map that never turns. The ceiling is the same judgement: past it
-    // the turn happens anyway, and `scheduleCamera` still refuses it if the
-    // reader has taken the map.
-    const tick = () => {
-      if (cancelled || arrivalBearingSpentRef.current || !wait) return;
-      wait = nextArrivalBearingWait(wait, {
-        moving: map.isMoving() || cameraLanePending(),
-        pinsPending: !firstPinRevealFinishedRef.current,
-        openingPending:
-          !openingCameraSettledRef.current ||
-          mapCameraFocusMoves(focusPointRef.current, focusKeyRef.current),
-      });
-      if (wait) {
-        timer = setTimeout(tick, ARRIVAL_BEARING_POLL_MS);
-        return;
-      }
-      arrivalBearingSpentRef.current = true;
-      easeArrivalBearing(arrivalDeepLinkRef.current);
-    };
-    let timer: ReturnType<typeof setTimeout> | null = setTimeout(
-      tick,
-      ARRIVAL_BEARING_POLL_MS,
-    );
-    return () => {
-      cancelled = true;
-      if (timer) clearTimeout(timer);
-    };
-  }, [mapInstanceReady, mapError, easeArrivalBearing, cameraLanePending]);
+  const sampleArrivalCamera = useCallback(() => ({
+    moving: Boolean(mapRef.current?.isMoving()) || cameraLanePending(),
+    pinsPending: !firstPinRevealFinishedRef.current,
+    openingPending: !openingCameraSettledRef.current
+      || mapCameraFocusMoves(focusPointRef.current, focusKeyRef.current),
+  }), [cameraLanePending]);
+  const arrivalBearingSpentRef = useMapArrivalTurn({
+    mapRef,
+    mapInstanceReady,
+    mapError,
+    deepLinked: Boolean(selectedVenueId) || Boolean(initialLandmarkId),
+    sample: sampleArrivalCamera,
+    easeArrivalBearing,
+  });
 
   // The parent owns the selection and renders the story (the phone's shared
   // sheet, the desktop's left drawer); the canvas only reports a pin tap here
