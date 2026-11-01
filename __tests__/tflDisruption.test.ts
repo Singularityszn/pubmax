@@ -368,3 +368,106 @@ describe("disruptionForPatch (end-to-end, pure)", () => {
     expect(result?.lineId).toBe("victoria");
   });
 });
+
+describe("planned dates received as JSON", () => {
+  it.each(["fromDate", "toDate"] as const)(
+    "treats an unconvertible JSON %s as absent without rejecting the notice parser",
+    (field) => {
+      const body: RawLineStatus[] = JSON.parse(JSON.stringify([{
+        id: "victoria",
+        name: "Victoria",
+        lineStatuses: [{
+          statusSeverity: 4,
+          validityPeriods: [{
+            fromDate: "2026-07-24T22:30:00Z",
+            toDate: "2026-07-25T00:45:00Z",
+            [field]: { toString: null },
+          }],
+        }],
+      }]));
+      expect(disruptionForPatch(body, "soho", FRIDAY_EVENING)).toBeNull();
+    },
+  );
+
+  it.each(["fromDate", "toDate"] as const)(
+    "ignores non-string %s while retaining the current-status fallback",
+    (field) => {
+      const dates = {
+        fromDate: "2026-07-24T22:30:00Z",
+        toDate: "2026-07-25T00:45:00Z",
+      };
+      const malformed = [42, true, [dates[field]], {}, { toString: null }, null];
+      const severities = [
+        { code: 4, line: "Victoria line closed tonight for planned works, plan another way home" },
+        { code: 5, line: "Victoria line part closed tonight for planned works, check your branch" },
+        { code: 11, line: "Victoria line part closed tonight for planned works, check your branch" },
+      ];
+      for (const severity of severities) {
+        const fallbacks = [
+          { isNow: undefined, line: null },
+          { isNow: false, line: null },
+          { isNow: true, line: severity.line },
+        ];
+        for (const fallback of fallbacks) {
+          for (const value of malformed) {
+            const body: RawLineStatus[] = JSON.parse(JSON.stringify([{
+              id: "victoria",
+              name: "Victoria",
+              lineStatuses: [{
+                statusSeverity: severity.code,
+                validityPeriods: [{ ...dates, [field]: value, isNow: fallback.isNow }],
+              }],
+            }]));
+            const result = disruptionForPatch(body, "soho", FRIDAY_EVENING);
+            const detail = JSON.stringify({ field, value, isNow: fallback.isNow, severity: severity.code });
+            if (fallback.line === null) {
+              expect(result, detail).toBeNull();
+            } else {
+              expect(result, detail).toMatchObject({ lineId: "victoria", line: fallback.line });
+            }
+          }
+        }
+      }
+    },
+  );
+
+  it.each([
+    {
+      name: "a valid period tonight",
+      fromDate: "2026-07-24T22:30:00Z",
+      toDate: "2026-07-25T00:45:00Z",
+      isNow: false,
+      expected: "Victoria line closed tonight for planned works, plan another way home",
+    },
+    {
+      name: "a valid period next week despite isNow",
+      fromDate: "2026-07-31T22:30:00Z",
+      toDate: "2026-08-01T00:45:00Z",
+      isNow: true,
+      expected: null,
+    },
+    {
+      name: "a period ending exactly when tonight opens despite isNow",
+      fromDate: "2026-07-24T14:00:00Z",
+      toDate: "2026-07-24T16:00:00Z",
+      isNow: true,
+      expected: null,
+    },
+    {
+      name: "a period starting exactly when tonight closes despite isNow",
+      fromDate: "2026-07-25T01:00:00Z",
+      toDate: "2026-07-25T02:00:00Z",
+      isNow: true,
+      expected: null,
+    },
+  ])("preserves $name", ({ expected, fromDate, toDate, isNow }) => {
+    const body: RawLineStatus[] = JSON.parse(JSON.stringify([{
+      id: "victoria",
+      name: "Victoria",
+      lineStatuses: [{ statusSeverity: 4, validityPeriods: [{ fromDate, toDate, isNow }] }],
+    }]));
+    const result = disruptionForPatch(body, "soho", FRIDAY_EVENING);
+    if (expected === null) expect(result).toBeNull();
+    else expect(result).toMatchObject({ lineId: "victoria", line: expected });
+  });
+});

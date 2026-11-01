@@ -236,8 +236,8 @@ export function periodOverlapsTonight(
   period: LineStatusPeriod,
   window: { start: number; end: number },
 ): boolean {
-  const from = period.fromDate ? Date.parse(period.fromDate) : NaN;
-  const to = period.toDate ? Date.parse(period.toDate) : NaN;
+  const from = typeof period.fromDate === "string" ? Date.parse(period.fromDate) : NaN;
+  const to = typeof period.toDate === "string" ? Date.parse(period.toDate) : NaN;
   if (Number.isFinite(from) && Number.isFinite(to)) {
     return from < window.end && to > window.start;
   }
