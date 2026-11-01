@@ -27,6 +27,9 @@ export type Database = {
           night_memory_ids: string[];
           night_moment_ids: string[];
           venue_photo_ids: string[];
+          retired_display_name: string | null;
+          retired_handles: string[];
+          night_story_ids: string[];
         };
         Insert: {
           account_user_id: string;
@@ -40,6 +43,9 @@ export type Database = {
           night_memory_ids?: string[];
           night_moment_ids?: string[];
           venue_photo_ids?: string[];
+          retired_display_name?: string | null;
+          retired_handles?: string[];
+          night_story_ids?: string[];
         };
         Update: {
           account_user_id?: string;
@@ -53,6 +59,9 @@ export type Database = {
           night_memory_ids?: string[];
           night_moment_ids?: string[];
           venue_photo_ids?: string[];
+          retired_display_name?: string | null;
+          retired_handles?: string[];
+          night_story_ids?: string[];
         };
         Relationships: [];
       };
@@ -500,6 +509,8 @@ export type Database = {
           review: string;
           visibility: string;
           created_at: string;
+          usual_drink: string;
+          with_names: string;
         };
         Insert: {
           id?: string;
@@ -511,6 +522,8 @@ export type Database = {
           review?: string;
           visibility?: string;
           created_at?: string;
+          usual_drink?: string;
+          with_names?: string;
         };
         Update: {
           id?: string;
@@ -522,6 +535,8 @@ export type Database = {
           review?: string;
           visibility?: string;
           created_at?: string;
+          usual_drink?: string;
+          with_names?: string;
         };
         Relationships: [
           {
@@ -813,6 +828,51 @@ export type Database = {
           folded_at?: string;
         };
         Relationships: [];
+      };
+      kitchen_reports: {
+        Row: {
+          id: string;
+          venue_id: string;
+          state: string;
+          reporter_user_id: string;
+          reported_at: string;
+          confirmed_by: string | null;
+          confirmed_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          state: string;
+          reporter_user_id: string;
+          reported_at?: string;
+          confirmed_by?: string | null;
+          confirmed_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          venue_id?: string;
+          state?: string;
+          reporter_user_id?: string;
+          reported_at?: string;
+          confirmed_by?: string | null;
+          confirmed_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "kitchen_reports_confirmed_by_fkey";
+            columns: ["confirmed_by"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "kitchen_reports_reporter_user_id_fkey";
+            columns: ["reporter_user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       map_search_events: {
         Row: {
@@ -1721,6 +1781,74 @@ export type Database = {
           },
         ];
       };
+      pint_drop_with_tags: {
+        Row: {
+          id: string;
+          drop_id: string | null;
+          tagger_profile_id: string;
+          tagger_handle: string;
+          target_profile_id: string;
+          target_handle: string;
+          state: string;
+          created_at: string;
+          decided_at: string | null;
+          diary_entry_id: string | null;
+        };
+        Insert: {
+          id?: string;
+          drop_id?: string | null;
+          tagger_profile_id: string;
+          tagger_handle: string;
+          target_profile_id: string;
+          target_handle: string;
+          state?: string;
+          created_at?: string;
+          decided_at?: string | null;
+          diary_entry_id?: string | null;
+        };
+        Update: {
+          id?: string;
+          drop_id?: string | null;
+          tagger_profile_id?: string;
+          tagger_handle?: string;
+          target_profile_id?: string;
+          target_handle?: string;
+          state?: string;
+          created_at?: string;
+          decided_at?: string | null;
+          diary_entry_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "pint_drop_with_tags_diary_entry_id_fkey";
+            columns: ["diary_entry_id"];
+            isOneToOne: false;
+            referencedRelation: "diary_entries";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pint_drop_with_tags_drop_id_fkey";
+            columns: ["drop_id"];
+            isOneToOne: false;
+            referencedRelation: "pint_drops";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pint_drop_with_tags_tagger_profile_id_fkey";
+            columns: ["tagger_profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pint_drop_with_tags_target_profile_id_fkey";
+            columns: ["target_profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       pint_drops: {
         Row: {
           id: string;
@@ -1837,6 +1965,8 @@ export type Database = {
           created_at: string;
           idempotency_key_hash: string | null;
           request_hash: string | null;
+          route_revision: number | null;
+          venue_id: string | null;
         };
         Insert: {
           id: string;
@@ -1848,6 +1978,8 @@ export type Database = {
           created_at?: string;
           idempotency_key_hash?: string | null;
           request_hash?: string | null;
+          route_revision?: number | null;
+          venue_id?: string | null;
         };
         Update: {
           id?: string;
@@ -1859,6 +1991,8 @@ export type Database = {
           created_at?: string;
           idempotency_key_hash?: string | null;
           request_hash?: string | null;
+          route_revision?: number | null;
+          venue_id?: string | null;
         };
         Relationships: [
           {
@@ -2031,6 +2165,7 @@ export type Database = {
           membership_revoked_at: string | null;
           recovery_key_hash: string | null;
           recovery_request_hash: string | null;
+          usual_drink: string | null;
         };
         Insert: {
           id?: string;
@@ -2048,6 +2183,7 @@ export type Database = {
           membership_revoked_at?: string | null;
           recovery_key_hash?: string | null;
           recovery_request_hash?: string | null;
+          usual_drink?: string | null;
         };
         Update: {
           id?: string;
@@ -2065,6 +2201,7 @@ export type Database = {
           membership_revoked_at?: string | null;
           recovery_key_hash?: string | null;
           recovery_request_hash?: string | null;
+          usual_drink?: string | null;
         };
         Relationships: [
           {
@@ -2332,6 +2469,29 @@ export type Database = {
           },
         ];
       };
+      plan_presentation_settings: {
+        Row: {
+          plan_id: string;
+          mystery_enabled: boolean;
+        };
+        Insert: {
+          plan_id: string;
+          mystery_enabled?: boolean;
+        };
+        Update: {
+          plan_id?: string;
+          mystery_enabled?: boolean;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "plan_presentation_settings_plan_id_fkey";
+            columns: ["plan_id"];
+            isOneToOne: true;
+            referencedRelation: "plans";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       plan_route_proposals: {
         Row: {
           id: string;
@@ -2347,6 +2507,11 @@ export type Database = {
           decision_idempotency_key: string | null;
           created_at: string;
           decided_at: string | null;
+          grounding_proof: string | null;
+          grounding_operation_key: string | null;
+          grounding_expires_at: string | null;
+          grounding_anchor_venue_id: string | null;
+          grounding_anchor_source: string | null;
         };
         Insert: {
           id: string;
@@ -2362,6 +2527,11 @@ export type Database = {
           decision_idempotency_key?: string | null;
           created_at: string;
           decided_at?: string | null;
+          grounding_proof?: string | null;
+          grounding_operation_key?: string | null;
+          grounding_expires_at?: string | null;
+          grounding_anchor_venue_id?: string | null;
+          grounding_anchor_source?: string | null;
         };
         Update: {
           id?: string;
@@ -2377,6 +2547,11 @@ export type Database = {
           decision_idempotency_key?: string | null;
           created_at?: string;
           decided_at?: string | null;
+          grounding_proof?: string | null;
+          grounding_operation_key?: string | null;
+          grounding_expires_at?: string | null;
+          grounding_anchor_venue_id?: string | null;
+          grounding_anchor_source?: string | null;
         };
         Relationships: [
           {
@@ -2425,6 +2600,51 @@ export type Database = {
             foreignKeyName: "plan_stops_plan_id_fkey";
             columns: ["plan_id"];
             isOneToOne: false;
+            referencedRelation: "plans";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      plan_table_beacons: {
+        Row: {
+          plan_id: string;
+          arrival_id: string;
+          route_revision: number;
+          symbol: string;
+          note: string;
+          created_at: string;
+          expires_at: string;
+        };
+        Insert: {
+          plan_id: string;
+          arrival_id: string;
+          route_revision: number;
+          symbol: string;
+          note: string;
+          created_at: string;
+          expires_at: string;
+        };
+        Update: {
+          plan_id?: string;
+          arrival_id?: string;
+          route_revision?: number;
+          symbol?: string;
+          note?: string;
+          created_at?: string;
+          expires_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "plan_table_beacons_arrival_id_fkey";
+            columns: ["arrival_id"];
+            isOneToOne: false;
+            referencedRelation: "plan_actions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "plan_table_beacons_plan_id_fkey";
+            columns: ["plan_id"];
+            isOneToOne: true;
             referencedRelation: "plans";
             referencedColumns: ["id"];
           },
@@ -3776,6 +3996,98 @@ export type Database = {
           },
         ];
       };
+      regular_night_report_still_on: {
+        Row: {
+          report_id: string;
+          user_id: string;
+          created_at: string;
+        };
+        Insert: {
+          report_id: string;
+          user_id: string;
+          created_at?: string;
+        };
+        Update: {
+          report_id?: string;
+          user_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "regular_night_report_still_on_report_id_fkey";
+            columns: ["report_id"];
+            isOneToOne: false;
+            referencedRelation: "regular_night_reports";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "regular_night_report_still_on_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      regular_night_reports: {
+        Row: {
+          id: string;
+          venue_id: string;
+          kind: string;
+          weekday: number;
+          start_time: string | null;
+          note: string;
+          photo_key: string;
+          reporter_user_id: string;
+          created_at: string;
+          last_seen_at: string;
+          expires_at: string;
+          status: string;
+          confirmed_by: string | null;
+          confirmed_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          kind: string;
+          weekday: number;
+          start_time?: string | null;
+          note?: string;
+          photo_key: string;
+          reporter_user_id: string;
+          created_at?: string;
+          last_seen_at?: string;
+          expires_at?: string;
+          status?: string;
+          confirmed_by?: string | null;
+          confirmed_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          venue_id?: string;
+          kind?: string;
+          weekday?: number;
+          start_time?: string | null;
+          note?: string;
+          photo_key?: string;
+          reporter_user_id?: string;
+          created_at?: string;
+          last_seen_at?: string;
+          expires_at?: string;
+          status?: string;
+          confirmed_by?: string | null;
+          confirmed_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "regular_night_reports_reporter_user_id_fkey";
+            columns: ["reporter_user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       round_members: {
         Row: {
           id: string;
@@ -3847,6 +4159,7 @@ export type Database = {
           items: Json;
           recorded_at: string;
           promotion_actor: string | null;
+          receipt_photo_key: string | null;
         };
         Insert: {
           id?: string;
@@ -3860,6 +4173,7 @@ export type Database = {
           items?: Json;
           recorded_at?: string;
           promotion_actor?: string | null;
+          receipt_photo_key?: string | null;
         };
         Update: {
           id?: string;
@@ -3873,6 +4187,7 @@ export type Database = {
           items?: Json;
           recorded_at?: string;
           promotion_actor?: string | null;
+          receipt_photo_key?: string | null;
         };
         Relationships: [
           {
@@ -4403,6 +4718,9 @@ export type Database = {
           authority_revision: number;
           created_at: string;
           updated_at: string;
+          capacity: number | null;
+          meeting_venue_id: string | null;
+          description: string | null;
         };
         Insert: {
           id?: string;
@@ -4412,6 +4730,9 @@ export type Database = {
           authority_revision?: number;
           created_at?: string;
           updated_at?: string;
+          capacity?: number | null;
+          meeting_venue_id?: string | null;
+          description?: string | null;
         };
         Update: {
           id?: string;
@@ -4421,6 +4742,9 @@ export type Database = {
           authority_revision?: number;
           created_at?: string;
           updated_at?: string;
+          capacity?: number | null;
+          meeting_venue_id?: string | null;
+          description?: string | null;
         };
         Relationships: [
           {
@@ -5784,6 +6108,50 @@ export type Database = {
         };
         Relationships: [];
       };
+      venue_corrections: {
+        Row: {
+          id: string;
+          owner_user_id: string;
+          venue_id: string;
+          kind: string;
+          note: string;
+          status: string;
+          resolved_at: string | null;
+          resolved_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          owner_user_id: string;
+          venue_id: string;
+          kind: string;
+          note?: string;
+          status?: string;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          owner_user_id?: string;
+          venue_id?: string;
+          kind?: string;
+          note?: string;
+          status?: string;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "venue_corrections_owner_user_id_fkey";
+            columns: ["owner_user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       venue_occupancy_flags: {
         Row: {
           id: string;
@@ -6702,6 +7070,8 @@ export type Database = {
           p_idempotency_key_hash: string | null;
           p_request_hash: string | null;
           p_created_at: string | null;
+          p_expected_route_revision?: number | null;
+          p_venue_id?: string | null;
         };
         Returns: string;
       };
@@ -7066,6 +7436,27 @@ export type Database = {
         };
         Returns: undefined;
       };
+      create_plan_grounded_proposal_atomic: {
+        Args: {
+          p_plan_id: string | null;
+          p_proposal_id: string | null;
+          p_proposed_by_member_id: string | null;
+          p_token_hash: string | null;
+          p_expected_route_revision: number | null;
+          p_stops: Json;
+          p_reason: string | null;
+          p_resolved_constraint_ids: Json;
+          p_unresolved_constraint_ids: Json;
+          p_idempotency_key: string | null;
+          p_created_at: string | null;
+          p_grounding_proof: string | null;
+          p_grounding_operation_key: string | null;
+          p_grounding_expires_at: string | null;
+          p_grounding_anchor_venue_id: string | null;
+          p_grounding_anchor_source: string | null;
+        };
+        Returns: Json;
+      };
       create_plan_idempotent_atomic: {
         Args: {
           p_id: string | null;
@@ -7118,6 +7509,7 @@ export type Database = {
           p_unresolved_constraint_ids: Json;
           p_idempotency_key: string | null;
           p_created_at: string | null;
+          p_token_hash: string | null;
         };
         Returns: Json;
       };
@@ -7476,6 +7868,14 @@ export type Database = {
         };
         Returns: boolean;
       };
+      list_open_plan_crawls: {
+        Args: {
+          p_from: string | null;
+          p_until: string | null;
+          p_limit: number | null;
+        };
+        Returns: Json;
+      };
       list_open_social_crews: {
         Args: {
           p_from: string | null;
@@ -7580,6 +7980,19 @@ export type Database = {
         };
         Returns: boolean;
       };
+      open_social_crew_with_plan_atomic: {
+        Args: {
+          p_actor_account_id: string | null;
+          p_plan_id: string | null;
+          p_host_token_hash: string | null;
+          p_capacity: number | null;
+          p_meeting_venue_id: string | null;
+          p_description: string | null;
+          p_idempotency_key: string | null;
+          p_payload_digest: string | null;
+        };
+        Returns: Json;
+      };
       owns_issued_pub_pal_voice_conversation: {
         Args: {
           p_owner_id: string | null;
@@ -7600,6 +8013,27 @@ export type Database = {
           band: string;
           rank_key: number;
         }[];
+      };
+      plan_presentation: {
+        Args: {
+          p_plan_id: string | null;
+          p_token_hash: string | null;
+          p_mystery_enabled?: boolean | null;
+          p_expected_route_revision?: number | null;
+        };
+        Returns: Json;
+      };
+      plan_table_beacon: {
+        Args: {
+          p_plan_id: string | null;
+          p_token_hash: string | null;
+          p_operation: string | null;
+          p_symbol?: string | null;
+          p_note?: string | null;
+          p_expected_route_revision?: number | null;
+          p_expected_arrival_id?: string | null;
+        };
+        Returns: Json;
       };
       prepay_pub_pal_voice_grant: {
         Args: {
@@ -7767,6 +8201,12 @@ export type Database = {
           p_cursor_joined_at: string | null;
           p_cursor_member_id: string | null;
           p_limit: number | null;
+        };
+        Returns: Json;
+      };
+      read_social_crew_open_crawl: {
+        Args: {
+          p_crew_id: string | null;
         };
         Returns: Json;
       };
@@ -8118,6 +8558,19 @@ export type Database = {
           p_weather_shelter_required: boolean | null;
           p_idempotency_key: string | null;
           p_pref_id: string | null;
+          p_created_at: string | null;
+        };
+        Returns: Json;
+      };
+      record_plan_member_vote_atomic: {
+        Args: {
+          p_plan_id: string | null;
+          p_proposal_id: string | null;
+          p_member_id: string | null;
+          p_token_hash: string | null;
+          p_value: string | null;
+          p_idempotency_key: string | null;
+          p_vote_id: string | null;
           p_created_at: string | null;
         };
         Returns: Json;

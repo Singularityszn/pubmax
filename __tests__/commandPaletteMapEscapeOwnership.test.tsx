@@ -81,10 +81,8 @@ describe("global popups close before the held map journey", () => {
     await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", {
       key: "k", metaKey: true, bubbles: true, cancelable: true,
     })));
-    await vi.waitFor(async () => {
-      await act(async () => { await Promise.resolve(); });
-      expect(host.querySelector('[aria-label="Search commands"]')).not.toBeNull();
-    });
+    await act(async () => { await import("@/components/command/CommandPalette"); });
+    expect(host.querySelector('[aria-label="Search commands"]')).not.toBeNull();
     const lazyPanel = panel === "arrival"
       ? <MapArrivalCard onUseLocation={() => {}} onChooseArea={() => {}} onDismiss={dismiss} />
       : panel === "area"
@@ -143,11 +141,9 @@ describe("global popups close before the held map journey", () => {
     await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", {
       key: "k", metaKey: true, bubbles: true, cancelable: true,
     })));
-    // The provider deliberately lazy-loads the real palette on first use.
-    await vi.waitFor(async () => {
-      await act(async () => { await Promise.resolve(); });
-      expect(host.querySelector('[aria-label="Search commands"]')).not.toBeNull();
-    });
+    // Keep completion of the provider's real lazy import inside act.
+    await act(async () => { await import("@/components/command/CommandPalette"); });
+    expect(host.querySelector('[aria-label="Search commands"]')).not.toBeNull();
     await act(async () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
     const input = control<HTMLInputElement>('[aria-label="Search commands"]');
     expect(document.activeElement).toBe(input);

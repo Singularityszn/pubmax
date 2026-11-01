@@ -2,6 +2,18 @@
 
 This is the current horizon order. It records sequence, not dates.
 
+## Shipped
+
+- Message attach sheet.
+- Message attachments for useful, shareable Night Moments: venue-pin
+  **Location** share, handle-card **Contact**, plan-card **Event** and **Poll**
+  (`components/messages/MessageAttachmentPicker.tsx`).
+- The public or private account toggle, set in the profile editor
+  (`lib/accountVisibility.ts`, `components/profile/ProfileEditor.tsx`). Privacy
+  is a visible account choice, not an implied property of a surface.
+- The honest `/add` promise: an add link asks for an account first and makes the
+  add on the way back (`lib/addLink.ts`).
+
 ## Building
 
 ### V0 fix - building
@@ -10,14 +22,6 @@ Stability and polish remain the immediate launch work. Deployment is Sol-gated.
 
 ### Messaging wave - building
 
-Shipped: attach sheet.
-
-Building around useful, shareable Night Moments:
-
-- venue-pin **Location** share
-- handle-card **Contact**
-- plan-card **Event**
-- **Poll**
 - group threads formed around Plan Crews
 - a continue-on-WhatsApp export
 - AI images: parked
@@ -26,15 +30,13 @@ Building around useful, shareable Night Moments:
 
 ### Account-privacy wave - next
 
-Add a public/private toggle and IG-shaped profiles. Privacy is a visible
-account choice, not an implied property of a surface.
+IG-shaped profiles, built on the shipped public or private toggle.
 
 ## Later
 
 ### Activity-history layer - later
 
-Show follow activity for public accounts. Rewrite the `/add` promise so it is
-honest about there being no public list.
+Show follow activity for public accounts.
 
 ### B2B operator channel - later
 

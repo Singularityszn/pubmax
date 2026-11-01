@@ -84,37 +84,16 @@ All three build their props through the one seam `nextNightCommittedProps`
 a venue id or a coordinate. `crew_committed >= 2` measures one night;
 `next_night_committed` measures the loop.
 
-## 1. Nights planned / week
+## 1. Plan creations and crew milestones
 
-**Events (both pre-existing, reused as-is):**
-- `plan_created` fires client-side in `components/plan/PlanComposer.tsx` on
-  a confirmed `POST /api/plans` success (the host's own plan).
-- `crew_committed` fires client-side in `components/plan/PlanCrew.tsx` on the
-  join that first takes a plan roster to two, with `source: "shared-plan"`.
+The [canonical definitions](analytics/METRICS.md#31-plan-creations-and-crew-milestones) explain how these events differ and why their sum cannot count unique outings.
+Their emitters are:
 
-**Dedupe:** the two events are structurally exclusive. A host's own plan
-never re-fires `crew_committed` for itself (the host is a member at
-creation, not a joiner), and a guest join never fires `plan_created`. So:
+- `plan_created` records a successful host creation in `PlanComposer`.
+- `crew_committed` records the first join that creates a two-person crew in `PlanCrew`.
+- `plan_completed` records an explicit saved ending through the verified delivery lane.
 
-```
-nights_planned_per_week = count(plan_created, window=7d)
-                        + count(crew_committed WHERE source = "shared-plan", window=7d)
-```
-
-grouped by the anonymous id (the `distinct_id` PostHog receives) to
-get a per-planner rate.
-
-**What the §0 change did to this figure.** The total is now one row per night
-rather than one per person on it, which is what the name already promised: a
-host plus three guests used to add 4 to this figure for one night, and now adds
-2 (the host's `plan_created` and the crew night). The per-planner grouping
-narrows with it: only the guest whose join formed the crew registers a planned
-night, so the later guests on a big crew no longer appear here. Read this
-figure as nights, not as people who went out. There is no per-guest event to
-restore that reading, and inventing one would need its own privacy review
-against §7.
-
-## 2. Invites per planner (k-factor)
+## 2. Invites per planner and invite redemption ratio
 
 **New events:**
 - `invite_created` — `{ inviteId }`. Fires in
@@ -135,21 +114,14 @@ gets its own format-only validator (`isUuidLike` in
 the sanitizer (unknown props dropped, unknown events rejected) still
 applies.
 
-`upgradeMemberInvite` in `lib/planCollaborationStore.ts` was extended to
-return this `inviteId` (via a read-only lookup, no RPC/schema change) so the
-redeem route can hand it back to the client; it's `null` on an
-already-authorized replay, which correctly emits no event (an invite already
-counted once should not double-count).
+`upgradeMemberInvite` in `lib/planCollaborationStore.ts` supplies the row identifier through a read-only lookup.
+This slice does not prove exactly-once delivery for `invite_redeemed`.
+The store accepts an already-authorised result and can return the identifier again.
+The client avoids the request when its local capability already records authorisation.
+A dedicated durable-store and client replay test remains required before treating raw event counts as unique invitations.
 
-```
-invites_created_per_planner   = count(invite_created)   / distinct planners
-invites_redeemed_per_planner  = count(invite_redeemed)  / distinct planners
-k_factor                      = count(invite_redeemed) / count(invite_created)
-```
-
-joining `invite_created.inviteId` to `invite_redeemed.inviteId` gives
-per-invite conversion (time-to-redeem, redemption rate per planner) beyond
-the raw ratio.
+The [invitation response definitions](analytics/METRICS.md#32-invitation-response-measures) own the ratios, denominators and limits.
+The non-secret `inviteId` permits per-invitation joins between creation and redemption events.
 
 ## 3. Return rate (daily basis)
 
@@ -326,7 +298,7 @@ second_session_rate = count(distinct ids with pint_index_viewed on day D
 
 ## 7. Invite loop (a Plan's public invite page)
 
-The invite k-factor in §2 counts a redeemed invite, but says nothing about
+The private invite redemption events in §2 say nothing about
 the separate public invite page itself (`/invite/[token]`, a Partiful-style
 card any guest with the link can open, RSVP on, and react to with no
 account). These events measure that page as its own funnel: copy/rotate on

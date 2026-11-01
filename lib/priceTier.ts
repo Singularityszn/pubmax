@@ -64,6 +64,7 @@ export type ListedPriceInput = {
   priceGbp: number;
   sourceUrl: string;
   observedAt: string;
+  publisher?: string | null;
 };
 
 /**

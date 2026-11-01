@@ -343,6 +343,25 @@ function fakeDeps(overrides: Partial<AccountExportDeps> = {}): AccountExportDeps
       { venueId: "venue-2", band: "fine" as const, rankKey: 1, updatedAt: "2026-09-05T21:00:00.000Z" },
       { venueId: "venue-1f5ygjb", band: "loved" as const, rankKey: 1, updatedAt: "2026-09-05T21:00:00.000Z" },
     ],
+    venueCorrections: async () => ({ status: "ready" as const, corrections: [] }),
+    regularNightReports: async () => ({ status: "ready" as const, reports: [] }),
+    kitchenReports: async (userId) => ({
+      status: "ready" as const,
+      reports:
+        userId === USER
+          ? [
+              {
+                id: "kitchen-1",
+                venueId: "venue-2",
+                state: "open" as const,
+                reporterUserId: USER,
+                reportedAt: "2026-10-30T19:00:00.000Z",
+                confirmedBy: "other-account",
+                confirmedAt: "2026-10-30T19:10:00.000Z",
+              },
+            ]
+          : [],
+    }),
     pubListNightDrafts: async () => [],
     venueSubmissions: async (userId) => ({
       status: "ready" as const,
@@ -440,6 +459,12 @@ describe("buildAccountExport", () => {
     ]);
     expect(JSON.stringify(document.venueSubmissions)).not.toContain("venue-submissions/");
     expect(document.venueSubmissions.items[0]).not.toHaveProperty("ownerUserId");
+    // A kitchen tap: the word, the minute and whether one other confirmed it,
+    // never who that other account was.
+    expect(document.kitchenReports.items).toEqual([
+      { id: "kitchen-1", venueId: "venue-2", state: "open", reportedAt: "2026-10-30T19:00:00.000Z", confirmed: true },
+    ]);
+    expect(JSON.stringify(document.kitchenReports)).not.toContain("other-account");
     expect(document.socialLinks.items).toEqual([socialLink]);
     expect(document.nightProfile.items).toEqual([nightProfileRow]);
   });
@@ -872,9 +897,15 @@ const STORE_EXPORT_COVERAGE: Record<string, ExportCoverage> = {
     excluded: "A queue of recaps waiting to be written; a published recap rides its Plan, and the queue row is ours.",
   },
   "lib/pintDropsStore.ts": { lane: "pintDrops" },
+  "lib/pintDropWithTagsStore.ts": {
+    excluded:
+      "A With tag is a consent record between two accounts: the proposal names another person and the approval is that person's, so no row here is this caller's alone.",
+  },
+  "lib/planBeaconStore.ts": { excluded: "An expiring table sign belongs to a shared Plan and can contain another member's private note, not this account's data." },
   "lib/planCollaborationStore.ts": { excluded: "A Plan is shared: its crew rows name other people." },
   "lib/planGroupPrefsStore.ts": { excluded: "Group preferences on a shared Plan, named by other members." },
   "lib/planInviteRsvpStore.ts": { excluded: "RSVPs on a shared Plan, named by other members." },
+  "lib/planPresentationStore.ts": { excluded: "Mystery settings belong to a shared Plan and its host member capability, not an account. Device reveals are not stored here." },
   "lib/planStore.ts": { excluded: "A Plan is shared with the crew that joined it, so its rows are not one account's to take away." },
   "lib/presenceStore.ts": { excluded: "Ambient presence expires within the night and is never a durable record." },
   "lib/priceTrustEventStore.ts": {
@@ -920,6 +951,9 @@ const STORE_EXPORT_COVERAGE: Record<string, ExportCoverage> = {
   "lib/venueOperatorsStore.ts": { excluded: "Venue operator claims, keyed on a venue rather than on a drinker's own account." },
   "lib/venuePhotoStore.ts": { lane: "wallPhotos" },
   "lib/venueSubmissionStore.ts": { lane: "venueSubmissions" },
+  "lib/venueCorrectionsStore.ts": { lane: "venueCorrections" },
+  "lib/regularNightReportsStore.ts": { lane: "regularNightReports" },
+  "lib/kitchenReportsStore.ts": { lane: "kitchenReports" },
   "lib/pubListImportDraftStore.server.ts": { lane: "pubListNightDrafts" },
   "lib/visitReportsStore.ts": { lane: "visitReports" },
   "lib/walkRouteStore.ts": { excluded: "Cached walking routes between two points, shared by every reader who asks for them." },

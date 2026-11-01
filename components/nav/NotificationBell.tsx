@@ -26,7 +26,11 @@ export default function NotificationBell(): React.JSX.Element | null {
   const { user, handle: authHandle } = useAuth();
   const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
   const [handle, setHandle] = useState("");
-  const [unread, setUnread] = useState(0);
+  const [unreadResult, setUnreadResult] = useState<{
+    userId: string;
+    handle: string;
+    count: number;
+  } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -43,13 +47,16 @@ export default function NotificationBell(): React.JSX.Element | null {
   }, [authHandle, socialFriendsLaunchEnabled]);
 
   const effectiveHandle = normalizeHandle(authHandle ?? "") || handle.trim();
+  const unread = unreadResult?.userId === user?.id && unreadResult?.handle === effectiveHandle
+    ? unreadResult.count
+    : 0;
 
   const refresh = useCallback(async () => {
     if (document.visibilityState === "hidden") return;
     if (abortRef.current && !abortRef.current.signal.aborted) return;
     if (!socialFriendsLaunchEnabled) return;
     if (!user) {
-      setUnread(0);
+      setUnreadResult(null);
       return;
     }
     const h = effectiveHandle;
@@ -67,7 +74,11 @@ export default function NotificationBell(): React.JSX.Element | null {
       }
       const body = (await res.json()) as { unread?: number };
       if (controller.signal.aborted || abortRef.current !== controller) return;
-      setUnread(typeof body.unread === "number" ? body.unread : 0);
+      setUnreadResult({
+        userId: user.id,
+        handle: h,
+        count: typeof body.unread === "number" ? body.unread : 0,
+      });
     } catch {
       // Aborted / offline — leave the badge as-is; the nav never breaks on this.
     } finally {
@@ -79,7 +90,7 @@ export default function NotificationBell(): React.JSX.Element | null {
     if (!socialFriendsLaunchEnabled) return;
     // A signed-out visitor has nothing to poll: the inbox refuses them.
     if (!user) {
-      void Promise.resolve().then(() => setUnread(0));
+      void Promise.resolve().then(() => setUnreadResult(null));
       return;
     }
     if (!effectiveHandle) return;

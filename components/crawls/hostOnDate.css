@@ -1,0 +1,89 @@
+/* E2 "Host this on a date" (components/crawls/HostOnDate.tsx): a date, a
+   start time and one ink button. No coral; the card's own link stays primary. */
+
+.hostOnDate {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.hostOnDate__heading,
+.hostOnDate__summary {
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.hostOnDate__summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.hostOnDate__summary:focus-visible,
+.hostOnDate__go:focus-visible,
+.hostOnDate__field input:focus-visible {
+  outline: 2px solid var(--color-text);
+  outline-offset: 2px;
+}
+
+.hostOnDate__form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-3);
+}
+
+.hostOnDate__field {
+  display: grid;
+  gap: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+
+.hostOnDate__field input {
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--text-base);
+}
+
+.hostOnDate__go {
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.hostOnDate__go:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.hostOnDate__line,
+.hostOnDate__problem {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.hostOnDate__problem {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.hostOnDate__line a {
+  color: var(--color-text);
+  text-decoration: underline;
+}

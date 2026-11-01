@@ -81,11 +81,33 @@ describe("landing price honesty", () => {
     const worth = landing.querySelector('section[aria-label="What it saves you"]');
     expect(worth).not.toBeNull();
     expect(copy).not.toContain("The cheapest listed pint near you, on one map.");
-    expect(worth?.querySelector("a")?.textContent).toBe("Open the map");
-    expect(worth?.querySelector("a")?.getAttribute("href")).toBe("/map");
+    expect(Array.from(worth?.querySelectorAll("a") ?? [], (link) => [
+      link.textContent, link.getAttribute("href"),
+    ])).toEqual([
+      ["Browse pubs across the UK", "/map?uk=1"],
+      ["Open the map", "/map"],
+    ]);
     expect(worth?.querySelector("[data-primary-action]")).toBeNull();
     expect(worth?.querySelector('a[href="/plan"]')).toBeNull();
     expect(faqText).toContain("Prices can change, so check at the bar.");
+  });
+
+  it("keeps UK directory counts separate from the priced London sample", () => {
+    const rendered = new JSDOM(renderToStaticMarkup(createElement(LandingPage, {
+      ukCoverage: { pubListings: 6, barListings: 3 },
+      averages: { sampleSize: 42, averageGbp: 6, cheapAverageGbp: 5 },
+    }))).window.document;
+    const directory = rendered.querySelector("[data-uk-coverage]")?.textContent;
+    expect(directory).toContain("6 UK pub listings and 3 bar listings from OpenStreetMap.");
+    expect(directory).toContain("A listing doesn't mean we have its prices or know it's open.");
+    expect(rendered.body.textContent).toContain("42 pubs in our London pub list with a listed price is £6.00");
+    expect(rendered.body.textContent).toContain("The cheapest third averages £5.00");
+  });
+
+  it("keeps UK browse available without inventing a count when metadata is unavailable", () => {
+    expect(landing.querySelector("[data-uk-coverage]")).toBeNull();
+    expect(landing.querySelector('a[href="/map?uk=1"]')?.textContent)
+      .toBe("Browse pubs across the UK");
   });
 
   it("stays out of the marketing register", () => {

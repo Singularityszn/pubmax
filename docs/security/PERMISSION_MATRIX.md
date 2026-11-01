@@ -81,18 +81,26 @@ the honest refusal for that route (401, 403, 400 or 409) and no change.
 | Read A's Plan (`GET /api/plans/[id]`, getin, recap) | preview only | preview only | preview only with a bare account bearer | host or guest member token: member state |
 | Read A's Plan at the table (`plans`, `plan_stops`, `plan_crew_members`) | denied | no rows | own rows | seat bound to an account: rows while the seat is live |
 | The seat token column (`plan_crew_members.token_hash`) | denied | denied | denied | denied |
-| Edit A's Plan (`PATCH` stops, invite rotate, presence) | denied | denied | denied with a bare bearer | host token only; a guest may not rotate |
+| Edit A's Plan (`PATCH` stops, invite rotate, presence) | denied | denied | denied with a bare bearer | saving the route, deciding a proposal, rotating the link, removing an RSVP and completing the night: host token only (403 for a guest); vote, propose, add a need and check in: host or guest member token |
 | Plan writes at the table | denied | denied | denied | denied |
+| Plan beacon and mystery reads (`GET /api/plans/[id]/beacon`, `presentation`) | denied | denied with a bare bearer | denied with a bare bearer | live collaboration-authorised member token only |
+| Plan beacon PUT/DELETE and mystery PUT | denied | denied with a bare bearer | denied with a bare bearer | host only, with current route checks |
+| Plan beacon and mystery tables or RPCs | denied | denied | denied | browser roles denied, service-mediated routes only |
 | Read A's crew Pals (`GET /api/plans/[id]/pals`, "Crew Pals") | preview only | preview only | preview only with a bare account bearer | host or guest member token: the Pals of the OTHER members whose owners set `pub_pals.crew_visible` and did not hide them, by Pal name and look only, never an account id, seat id or handle |
 | Another member's Pal at the table (`pub_pals`, including `crew_visible`) | denied | no rows | own row only | n/a |
-| Invite acceptance (`POST /api/plans/[id]/join`) | invite required | one seat per account, spent invite refused | n/a | invite token as a bearer: preview and no edit |
+| Invite acceptance (`POST /api/plans/[id]/join`, a Going RSVP at `POST /api/invite/[token]/rsvp`) | invite required: a bare plan id is 403 `PLAN_INVITE_REQUIRED` | one seat per account, spent invite refused | n/a | the host's current invite token: ONE guest capability, a seat that may vote, propose, add a need and check in, never edit; a rotated token lets nobody new in |
 | Removed member | n/a | preview at the route and no rows at the table, immediately | n/a | revoked token: preview, presence refused |
 | Unfurler (`/api/plan-card`) | PNG from the preview only | same | same | same |
 | List Night Memories (`GET /api/night-memories`) | 401 | own only | own only | n/a |
 | A's Moments (`GET /api/night-memories/[id]/moments`) | 401 | empty list | own rows | n/a |
+| A Story contributor's Moment in A's Memory, listed by A (`GET /api/night-memories/[id]/moments`) | n/a | n/a | absent: the list holds A's own Moments only, with no caption and no signed photo URL for the contributor's | n/a |
 | Add a Moment to A's Memory | 401 | denied | allowed | n/a |
 | Describe A's photo Moment (`PATCH alt-text`) | 401 | 403 | allowed | n/a |
 | `night_moments` at the table | denied | no rows, no writes | own rows, no writes | n/a |
+| `night_stories` source text at the table, including published public Stories | denied | no rows, including accepted editors | host rows only, no writes | service role reads all rows |
+| Story contributors and publication proposals at the table | denied | own contributor row or requested proposal only | host reads all rows for the Story | no browser writes |
+| Story Moment links at the table | denied | no rows | host rows only | no browser writes |
+| Published public or unlisted Story through the application reader | redacted public fields | redacted public fields for non-members | host retains source text | private drafts stay private |
 | A's upload object (`storage.objects` and the bucket paths) | invisible | invisible | invisible; only a server-minted signed URL serves it | n/a |
 | Log a price (`POST /api/price-submit`, `POST /api/pint-drops`) | 401 | allowed under own actor | allowed under own actor | n/a |
 | Confirmation | 401, no row; anon and authenticated inserts refused at the table | a matching figure confirms and `pintTrust` becomes `confirmed` | a different figure does not confirm and `pintTrust` stays `disputed` | n/a |
@@ -110,6 +118,14 @@ the honest refusal for that route (401, 403, 400 or 409) and no change.
 | A's `profiles` row at the table, the choice included | denied | no rows | own row | n/a |
 | Write A's `profiles` row at the table (handle, founding number, avatar moderation, report count, moderator note, or delete) | denied | denied | denied | n/a |
 | Insert an ownerless `profiles` row at the table | denied | denied | denied | n/a |
+
+Migration `0216` limits raw Story reads to the host for every publication state.
+It retains the authenticated SELECT grant because contributor, proposal and Moment-link policies query the Story table.
+The service role continues to read source rows for the application projection.
+Story departure retention follows the [account-deletion rule](../rules/app-auth-and-account-routes.md#an-account-leaves-in-two-phases-the-storage-api-owns-the-bytes-the-trigger-owns-).
+The `0216` rollback restores raw public Story reads for unrelated authenticated accounts, including retained names.
+It changes no source text or grants.
+`accountDeletionStoryRedactionEffective.test.ts` checks deletion, public redaction, raw reads and rollback over every migration.
 
 ## Cells added for the wider roles
 
@@ -138,6 +154,12 @@ no side effect, as above.
 | Attach a menu file (`POST /api/venue-submissions`, multipart) | 401 | 404 on another account's submission | 404 on another account's submission | n/a | n/a | n/a | own pending submission, up to three files |
 | `venue_submissions`, `venue_submission_files` at the table | denied | denied | denied | n/a | n/a | n/a | denied: no browser grant, service role only (0189) |
 | Decide a submission, read the queue (`/api/admin/venue-submissions`) | 403 | 403 | 403 | 403 | 403 | 403 | 403; `ADMIN_TOKEN` only |
+| Send a "That's wrong" note (`POST /api/venue-corrections`) | 401 | written as their OWN note; a body owner is ignored | written as their own note | n/a | n/a | n/a | own note; nobody reads it back but staff |
+| `venue_corrections` at the table | denied | denied | denied | n/a | n/a | n/a | denied: no browser grant, service role only (0203) |
+| Read the corrections queue, resolve or dismiss (`/api/admin/venue-corrections`) | 403 | 403 | 403 | 403 | 403 | 403 | 403; `ADMIN_TOKEN` only, and the queue names no reporter |
+| Add a regular night, or say one is still on (`POST`, `PATCH /api/regular-nights`) | 401 | written as their OWN report; a body owner is ignored; "still on" once, never on their own | the same | n/a | n/a | n/a | own report; the public read prints the handle and never the account id or photo key |
+| `regular_night_reports`, `regular_night_report_still_on` at the table | denied | denied | denied | n/a | n/a | n/a | denied: no browser grant, service role only (0206) |
+| Read the regular nights queue, confirm or hide (`/api/admin/regular-nights`) | 403 | 403 | 403 | 403 | 403 | 403 | 403; `ADMIN_TOKEN` only |
 | Read a saved-pub list (`GET /api/saved-pubs`) | public by design |||||||
 | Write a saved-pub list (`POST /api/saved-pubs`) | 403 on a claimed handle, 404 on a handle with no profile row (no row is minted) | writes to their OWN list, never the named one ||||| allowed |
 | `saved_pubs` at the table | denied | no rows, and a write is refused at the grant (0172) ||||| own rows, SELECT only; a write is refused at the grant |

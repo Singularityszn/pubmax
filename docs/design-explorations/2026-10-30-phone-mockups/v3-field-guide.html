@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<title>V3 field guide, phone mockup</title>
+<style>
+/* Launch tokens, copied by name from app/globals.css (light, with the DOM
+   body remap) and app/theme.css (dark). Values are the product's own on
+   30 October 2026. Diff this block against those files, never against a guess. */
+:root {
+  color-scheme: light;
+  --ink: #17171a;
+  --ink-soft: #3f3f46;
+  --muted: #666670;
+  --hairline: #e2e0e3;
+  --line: var(--hairline);
+  --line-soft: #ece9eb;
+  --paper: #f8f2ec;
+  --panel: #eee7df;
+  --panel-raised: #fdf9f4;
+  --panel-overlay: #ffffff;
+  --ink-deep: #0b0b0d;
+  --pint: #18a76d;
+  --amber: #f2a71b;
+  --brick: #b8323c;
+  --brass: #ff5a5f;
+  --brass-ink: #b43b1d;
+  --river: #2864d8;
+  --color-on-accent-strong: #16122a;
+  --color-on-accent: var(--color-on-accent-strong);
+  --color-on-inverse: #fdfaf2;
+  --color-accent: var(--brass);
+  --color-text: var(--ink);
+  --color-text-soft: var(--ink-soft);
+  --color-text-muted: var(--muted);
+  --color-surface: var(--paper);
+  --color-surface-panel: var(--panel);
+  --color-surface-raised: var(--panel-raised);
+  --color-surface-overlay: var(--panel-overlay);
+  --color-border: var(--line);
+  --color-border-soft: var(--line-soft);
+  --sheet-material-solid: var(--panel-overlay);
+  --badge-surface: color-mix(in srgb, var(--ink) 6%, var(--panel-raised));
+  --badge-border: color-mix(in srgb, var(--ink) 15%, var(--line));
+  --badge-ink: var(--ink-soft);
+  --state-selected-surface: color-mix(in srgb, var(--ink) 9%, var(--panel-raised));
+  --state-selected-border: color-mix(in srgb, var(--ink) 55%, var(--line));
+  --state-selected-ink: var(--ink);
+  --price-band-cheap: var(--pint);
+  --price-band-average: var(--amber);
+  --price-band-expensive: var(--brick);
+  --price-band-cheap-ink: color-mix(in srgb, var(--pint) 60%, var(--ink));
+  --price-band-average-ink: color-mix(in srgb, var(--amber) 45%, var(--ink));
+  --price-band-expensive-ink: color-mix(in srgb, var(--brick) 85%, var(--ink));
+  --tint-ink-info: color-mix(in srgb, var(--river) 70%, var(--ink));
+
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-body: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-data: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --text-2xs: 0.68rem;
+  --text-xs: 0.76rem;
+  --text-sm: 0.85rem;
+  --text-base: 1rem;
+  --text-md: 1.16rem;
+  --text-lg: 1.42rem;
+  --text-xl: 1.74rem;
+  --text-2xl: 2.13rem;
+  --leading-tight: 1.12;
+  --leading-snug: 1.35;
+  --leading-normal: 1.5;
+  --tracking-tight: -0.01em;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --radius: 8px;
+  --radius-sm: 6px;
+  --radius-lg: 18px;
+  --radius-pill: 999px;
+  --control-radius: var(--radius);
+  --control-height: 44px;
+  --control-pad-x: 16px;
+  --control-font-size: var(--text-sm);
+  --control-font-weight: 700;
+  --shadow-sm: 0 7px 18px rgba(60, 30, 20, 0.09);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --ink: #eef3ef;
+    --ink-soft: #c9c9ce;
+    --muted: #9a9aa0;
+    --hairline: #3b3a37;
+    --line-soft: #242428;
+    --paper: #0a0a0b;
+    --panel: #141416;
+    --panel-raised: #202024;
+    --panel-overlay: #2b2b30;
+    --ink-deep: #060607;
+    --pint: #5fb389;
+    --amber: #f0a01a;
+    --brick: #d47a82;
+    --brass: #ff5a5f;
+    --brass-ink: #ff5a5f;
+    --river: #7aa6cc;
+    --color-on-accent: var(--ink-deep);
+    --price-band-cheap-ink: color-mix(in srgb, var(--pint) 85%, var(--ink));
+    --price-band-average-ink: color-mix(in srgb, var(--amber) 85%, var(--ink));
+    --price-band-expensive-ink: color-mix(in srgb, var(--brick) 85%, var(--ink));
+    --tint-ink-info: color-mix(in srgb, var(--river) 75%, var(--ink));
+    --shadow-sm: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 0 0 1px rgba(0, 0, 0, 0.45), 0 6px 18px rgba(0, 0, 0, 0.5);
+  }
+}
+
+/* ── Page and frame ──────────────────────────────────────────────────────── */
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  width: 390px;
+  margin: 0 auto;
+  background: var(--panel);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, p, ul, ol, dl, dd, figure { margin: 0; padding: 0; }
+ul, ol { list-style: none; }
+a { color: inherit; }
+
+.intro { padding: var(--space-6) var(--space-4) var(--space-4); }
+.intro h1 { font-family: var(--font-display); font-size: var(--text-xl); line-height: var(--leading-tight); letter-spacing: var(--tracking-tight); }
+.intro p { margin-top: var(--space-2); color: var(--color-text-soft); font-size: var(--text-sm); line-height: var(--leading-snug); }
+.legend { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+
+.screenLabel { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-6) var(--space-4) var(--space-2); font-size: var(--text-sm); font-weight: 700; }
+.tag { display: inline-flex; align-items: center; min-height: 22px; padding: 0 var(--space-2); border-radius: var(--radius-pill); border: 1px solid var(--badge-border); background: var(--badge-surface); color: var(--badge-ink); font-size: var(--text-2xs); font-weight: 700; }
+.tag.isProposed { border-style: dashed; border-color: var(--river); color: var(--tint-ink-info); background: transparent; }
+.proposed { outline: 1px dashed var(--river); outline-offset: 3px; border-radius: var(--radius-sm); }
+
+.phone {
+  position: relative;
+  width: 390px;
+  height: 844px;
+  overflow: hidden;
+  background: var(--color-surface);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.page { padding: var(--space-4) var(--space-4) 120px; }
+.topbar { display: flex; align-items: center; justify-content: space-between; height: 52px; padding: 0 var(--space-4); border-bottom: 1px solid var(--line-soft); }
+.wordmark { font-family: var(--font-display); font-weight: 700; font-size: var(--text-sm); letter-spacing: 0.02em; }
+.topbar small { color: var(--color-text-muted); font-size: var(--text-xs); }
+
+/* ── Primitives as the product draws them ───────────────────────────────── */
+.kicker { color: var(--color-text-muted); font-size: var(--text-xs); font-weight: 600; line-height: var(--leading-snug); }
+.h1 { font-family: var(--font-display); font-size: var(--text-xl); line-height: var(--leading-tight); letter-spacing: var(--tracking-tight); }
+.h2 { font-family: var(--font-display); font-size: var(--text-lg); line-height: var(--leading-tight); letter-spacing: var(--tracking-tight); }
+.muted { color: var(--color-text-muted); }
+.soft { color: var(--color-text-soft); }
+.small { font-size: var(--text-sm); line-height: var(--leading-snug); }
+.xs { font-size: var(--text-xs); line-height: var(--leading-snug); }
+.figure { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); min-height: var(--control-height); padding: 0 var(--control-pad-x); border-radius: var(--control-radius); border: 1px solid var(--line); background: var(--panel-raised); color: var(--color-text); font: inherit; font-size: var(--control-font-size); font-weight: var(--control-font-weight); text-decoration: none; }
+.btn.isPrimary { border-color: var(--color-accent); background: var(--color-accent); color: var(--color-on-accent); }
+.btn.isQuiet { border-color: transparent; background: transparent; text-decoration: underline; text-underline-offset: 0.18em; }
+.btn.isWide { width: 100%; }
+.row2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+
+.plaque { display: inline-flex; align-items: center; min-height: 28px; padding: 0 var(--space-2); border-radius: var(--radius); font-weight: 700; font-variant-numeric: tabular-nums; color: var(--price-band-ink); background: color-mix(in srgb, var(--price-band-hue) 14%, var(--panel-raised)); border: 1px solid color-mix(in srgb, var(--price-band-hue) 50%, var(--line)); }
+.plaque.isLarge { min-height: 40px; padding: 0 var(--space-3); font-size: var(--text-lg); }
+.band-cheap { --price-band-hue: var(--price-band-cheap); --price-band-ink: var(--price-band-cheap-ink); }
+.band-average { --price-band-hue: var(--price-band-average); --price-band-ink: var(--price-band-average-ink); }
+.band-expensive { --price-band-hue: var(--price-band-expensive); --price-band-ink: var(--price-band-expensive-ink); }
+
+.trust { display: inline-flex; align-items: center; min-height: 22px; padding: 0 var(--space-2); border-radius: var(--radius-pill); border: 1px solid var(--badge-border); background: var(--badge-surface); color: var(--badge-ink); font-size: var(--text-2xs); font-weight: 700; }
+
+.list > li { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); min-height: 52px; padding: var(--space-2) 0; border-top: 1px solid var(--line-soft); }
+.list > li > span:first-child { min-width: 0; }
+.list strong { display: block; font-size: var(--text-base); line-height: var(--leading-snug); }
+.list small { display: block; color: var(--color-text-muted); font-size: var(--text-xs); line-height: var(--leading-snug); }
+
+.tabs { display: flex; gap: var(--space-1); overflow: hidden; padding: var(--space-1); border-radius: var(--radius); background: var(--panel); }
+.tabs span { flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; min-height: 36px; padding: 0 var(--space-2); border-radius: var(--radius-sm); color: var(--color-text-muted); font-size: var(--text-xs); font-weight: 700; white-space: nowrap; }
+.tabs span[aria-selected="true"] { background: var(--state-selected-surface); color: var(--state-selected-ink); box-shadow: inset 0 0 0 1px var(--state-selected-border); }
+
+.fold { border-bottom: 1px solid var(--line-soft); }
+.fold:first-child { border-top: 1px solid var(--line-soft); }
+.foldHead { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); min-height: 52px; padding: var(--space-2) 0; }
+.foldHead strong { display: block; font-size: var(--text-base); font-weight: 750; line-height: var(--leading-snug); }
+.foldHead small { display: block; color: var(--muted); font-size: var(--text-xs); line-height: var(--leading-snug); }
+.foldHead i { font-style: normal; color: var(--muted); font-size: var(--text-md); }
+.foldBody { padding: 2px 0 14px; display: grid; gap: var(--space-3); }
+
+/* A map is a flat field with two roads and a few pins: enough to place a sheet. */
+.map { position: absolute; inset: 0; background: color-mix(in srgb, var(--panel) 70%, var(--paper)); }
+.map::before, .map::after { content: ""; position: absolute; background: var(--panel-raised); }
+.map::before { left: -10%; right: -10%; top: 120px; height: 14px; transform: rotate(-8deg); }
+.map::after { top: -10%; bottom: -10%; left: 220px; width: 12px; transform: rotate(10deg); }
+.pin { position: absolute; z-index: 1; display: inline-flex; align-items: center; min-height: 24px; padding: 0 var(--space-2); border-radius: var(--radius-pill); font-size: var(--text-2xs); font-weight: 800; color: var(--price-band-ink); background: color-mix(in srgb, var(--price-band-hue) 14%, var(--panel-raised)); border: 1.5px solid var(--price-band-hue); }
+
+.sheet { position: absolute; left: 0; right: 0; bottom: 0; top: 168px; z-index: 2; padding: var(--space-3) var(--space-4) 112px; border-radius: var(--radius-lg) var(--radius-lg) 0 0; background: var(--sheet-material-solid); box-shadow: var(--shadow-sm); overflow: hidden; }
+.grab { width: 44px; height: 5px; margin: 0 auto var(--space-3); border-radius: var(--radius-pill); background: color-mix(in srgb, var(--color-text-muted) 55%, transparent); }
+
+/* ── The dock: five doors and the Pal rising out of the rail ─────────────── */
+.dock { position: absolute; left: 0; right: 0; bottom: 0; z-index: 5; padding: 0 12px 6px; background: linear-gradient(to top, var(--paper) 0, var(--paper) 33px, transparent); }
+.rail { display: flex; align-items: flex-end; padding: 4px; border: 1px solid var(--hairline); border-radius: 20px; background: var(--panel-raised); }
+.rail span { flex: 1 1 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 2px; min-height: 44px; padding-bottom: 4px; color: var(--color-text-muted); font-size: var(--text-2xs); font-weight: 700; }
+.rail span.isActive { color: var(--ink); }
+.rail span b { display: block; width: 18px; height: 18px; border-radius: var(--radius-sm); border: 2px solid currentColor; }
+.rail span.pal b { width: 48px; height: 48px; margin-top: -26px; border: 3px solid var(--ink); border-radius: 50%; background: color-mix(in srgb, var(--amber) 30%, var(--panel-raised)); }
+
+.note { padding: var(--space-4); color: var(--color-text-muted); font-size: var(--text-xs); line-height: var(--leading-snug); }
+
+/* ── Proposed pieces, still launch tokens only ──────────────────────────── */
+.faces { display: inline-flex; flex: 0 0 auto; }
+.faces b { display: inline-grid; place-items: center; width: 32px; height: 32px; margin-left: -8px; border: 2px solid var(--panel-overlay); border-radius: 50%; background: var(--badge-surface); color: var(--badge-ink); font-size: var(--text-xs); font-weight: 800; }
+.faces b:first-child { margin-left: 0; }
+.faces.isLarge b { width: 44px; height: 44px; font-size: var(--text-sm); }
+.person { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); }
+.btn.big { min-height: 64px; font-size: var(--text-md); border-color: var(--state-selected-border); }
+.listBar { position: absolute; left: 0; right: 0; bottom: 82px; z-index: 3; display: flex; gap: var(--space-2); padding: var(--space-2) var(--space-4); background: var(--sheet-material-solid); border-top: 1px solid var(--line); }
+.listBar .btn { flex: 1 1 0; padding: 0 var(--space-2); }
+.chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.chips span { display: inline-flex; align-items: center; min-height: 36px; padding: 0 var(--space-3); border-radius: var(--radius-pill); border: 1px solid var(--line); color: var(--color-text-soft); font-size: var(--text-xs); font-weight: 700; }
+.chips span[aria-current="true"] { background: var(--state-selected-surface); border-color: var(--state-selected-border); color: var(--state-selected-ink); }
+</style>
+</head>
+<body>
+<header class="intro">
+  <p class="kicker">Design record, 30 October 2026</p>
+  <h1>V3. The field guide</h1>
+  <p>The profile is a passport book and the lists are its spine; the map is the index into them. It ships as sections inside V1's profile, never as a new home, because the map is the product.</p>
+  <div class="legend"><span class="tag">Shipped in rounds 1 to 3</span><span class="tag isProposed">Proposed</span></div>
+</header>
+
+<div class="screenLabel"><span>1. The venue sheet</span><span class="tag isProposed">Proposed: three list actions at the foot</span></div>
+<section class="phone" aria-label="Venue sheet">
+  <div class="map" aria-hidden="true"></div>
+  <span class="pin band-cheap" style="left:40px;top:70px">£5.60</span>
+  <span class="pin band-average" style="left:250px;top:40px">£6.40</span>
+  <div class="sheet">
+    <div class="grab" aria-hidden="true"></div>
+    <div style="display:flex;justify-content:space-between;gap:var(--space-3)">
+      <span><p class="kicker">Pub · Bloomsbury</p><h2 class="h2">The Lamb</h2></span>
+      <a class="btn isQuiet" aria-label="More, including Share" style="text-decoration:none">&#8943;</a>
+    </div>
+    <p class="small muted">94 Lamb's Conduit Street · 6 min walk</p>
+    <div class="tabs" role="tablist" style="margin-top:var(--space-3)">
+      <span aria-selected="true">Overview</span><span>Prices</span><span>Lore</span><span>Photos</span><span>Menu</span>
+    </div>
+    <div style="margin-top:var(--space-3)">
+      <div class="fold">
+        <div class="foldHead"><span><strong>Price</strong><small>Listed, and one drinker this week</small></span><i aria-hidden="true">&#8722;</i></div>
+        <div class="foldBody">
+          <div style="display:flex;align-items:center;gap:var(--space-3)">
+            <span class="plaque isLarge band-cheap">£5.60</span>
+            <span class="small"><strong>Young's Original, a pint</strong><br><span class="muted xs">Listed on the menu, read 12 October</span></span>
+          </div>
+        </div>
+      </div>
+      <div class="fold"><div class="foldHead"><span><strong>Tonight</strong><small>Quiet now. Quiz at 8.</small></span><i aria-hidden="true">+</i></div></div>
+      <div class="fold"><div class="foldHead"><span><strong>The pub</strong><small>Address, hours, step-free entrance</small></span><i aria-hidden="true">+</i></div></div>
+      <div class="fold"><div class="foldHead"><span><strong>Your record</strong><small>Been twice. Ranked 3rd of 23.</small></span><i aria-hidden="true">+</i></div></div>
+    </div>
+  </div>
+  <div class="proposed listBar">
+    <a class="btn isPrimary">Been</a>
+    <a class="btn">Pubs to try</a>
+    <a class="btn">Rank it</a>
+  </div>
+  <nav class="dock" aria-label="Primary"><div class="rail"><span class="isActive"><b aria-hidden="true"></b>Map</span><span><b aria-hidden="true"></b>Tonight</span><span class="pal"><b aria-hidden="true"></b>Pal</span><span><b aria-hidden="true"></b>Plan</span><span><b aria-hidden="true"></b>Social</span><span><b aria-hidden="true"></b>You</span></div></nav>
+</section>
+
+<div class="screenLabel"><span>2. Tonight</span><span class="tag isProposed">Proposed: try one of yours</span></div>
+<section class="phone" aria-label="Tonight">
+  <div class="topbar"><span class="wordmark">PUBMAXX</span><small>London</small></div>
+  <div class="page">
+    <p class="kicker">Thursday 30 October</p>
+    <h1 class="h1">Tonight</h1>
+    <section class="proposed" style="margin-top:var(--space-4)">
+      <h2 class="kicker">Try one of these, open tonight</h2>
+      <p class="xs muted">From your Pubs to try list</p>
+      <ul class="list" style="margin-top:var(--space-2)">
+        <li><span><strong>Ye Olde Cheshire Cheese</strong><small>Fleet Street · 14 min walk</small></span><span class="plaque band-cheap">£4.90</span></li>
+        <li><span><strong>The Blackfriar</strong><small>Queen Victoria Street · 18 min walk</small></span><span class="plaque band-average">£6.30</span></li>
+      </ul>
+    </section>
+    <ul style="display:flex;flex-direction:column;gap:var(--space-3);margin-top:var(--space-4)">
+      <li style="border-top:1px solid var(--line-soft);padding-top:var(--space-3)">
+        <p class="kicker">Cheapest near you</p>
+        <p style="display:flex;align-items:center;gap:var(--space-2);margin-top:var(--space-1)"><span class="plaque band-cheap">£4.95</span><strong>The Harp</strong></p>
+      </li>
+      <li style="border-top:1px solid var(--line-soft);padding-top:var(--space-3)">
+        <p class="kicker">On tonight</p>
+        <p style="margin-top:var(--space-1)"><strong>Quiz night at The Lamb, 8pm</strong></p>
+      </li>
+      <li style="border-top:1px solid var(--line-soft);padding-top:var(--space-3)">
+        <p class="kicker">Last train</p>
+        <p style="margin-top:var(--space-1)"><strong class="figure">23:41</strong> from Russell Square</p>
+      </li>
+    </ul>
+    <a class="btn isPrimary isWide" style="margin-top:var(--space-5)">Plan tonight</a>
+  </div>
+  <nav class="dock" aria-label="Primary"><div class="rail"><span><b aria-hidden="true"></b>Map</span><span class="isActive"><b aria-hidden="true"></b>Tonight</span><span class="pal"><b aria-hidden="true"></b>Pal</span><span><b aria-hidden="true"></b>Plan</span><span><b aria-hidden="true"></b>Social</span><span><b aria-hidden="true"></b>You</span></div></nav>
+</section>
+
+<div class="screenLabel"><span>3. The locked plan</span><span class="tag">Shipped card, one proposed line</span></div>
+<section class="phone" aria-label="Locked plan">
+  <div class="topbar"><span class="wordmark">PUBMAXX</span><small>Plan</small></div>
+  <div class="page">
+    <article style="border:1px solid var(--hairline);border-radius:var(--radius-lg);background:var(--panel-raised);overflow:hidden">
+      <figure style="position:relative;aspect-ratio:16/8;background:color-mix(in srgb, var(--amber) 22%, var(--panel))">
+        <span style="position:absolute;left:var(--space-3);bottom:var(--space-3);padding:var(--space-1) var(--space-3);border-radius:var(--radius-pill);background:var(--paper);font-size:var(--text-sm)">First stop: The Lamb</span>
+      </figure>
+      <div style="display:grid;gap:var(--space-3);padding:var(--space-4) var(--space-5) var(--space-5)">
+        <p class="figure small muted">Friday 31 October, 19:30</p>
+        <h1 class="h2">Bloomsbury, four stops</h1>
+        <ul style="display:flex;flex-wrap:wrap;gap:var(--space-2)">
+          <li class="tag" style="font-size:var(--text-sm);min-height:28px">@sam</li>
+          <li class="tag" style="font-size:var(--text-sm);min-height:28px">@priya</li>
+        </ul>
+        <div class="row2">
+          <a class="btn isPrimary" style="grid-column:1/-1">Send to the crew</a>
+          <a class="btn">Who's in</a>
+          <a class="btn">Night mode</a>
+        </div>
+      </div>
+    </article>
+    <ol class="list" style="margin-top:var(--space-4)">
+      <li><span><strong>1. The Lamb</strong><small>Been twice</small></span><span class="plaque band-cheap">£5.60</span></li>
+      <li><span><strong>2. The Rugby Tavern</strong><small>On your Pubs to try list</small></span><span class="plaque band-average">£6.20</span></li>
+    </ol>
+    <a class="btn isQuiet proposed" style="padding:0;margin-top:var(--space-2)">Keep these four as a list</a>
+  </div>
+  <nav class="dock" aria-label="Primary"><div class="rail"><span><b aria-hidden="true"></b>Map</span><span><b aria-hidden="true"></b>Tonight</span><span class="pal"><b aria-hidden="true"></b>Pal</span><span class="isActive"><b aria-hidden="true"></b>Plan</span><span><b aria-hidden="true"></b>Social</span><span><b aria-hidden="true"></b>You</span></div></nav>
+</section>
+
+<div class="screenLabel"><span>4. The profile</span><span class="tag isProposed">Proposed: a passport book in sections</span></div>
+<section class="phone" aria-label="Profile">
+  <div class="topbar"><span class="wordmark">PUBMAXX</span><small>You</small></div>
+  <div class="page">
+    <p class="kicker">Your passport</p>
+    <h1 class="h1">@karan</h1>
+    <nav class="proposed chips" aria-label="Passport sections" style="margin-top:var(--space-3)">
+      <span aria-current="true">Been 23</span><span>Pubs to try 9</span><span>Ranked</span><span>Lists</span><span>Stamps</span>
+    </nav>
+    <section class="proposed" style="margin-top:var(--space-4);padding:var(--space-4);border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--panel-raised)">
+      <p class="kicker">After The Lamb</p>
+      <h2 style="font-size:var(--text-md);margin-top:var(--space-1)">Which did you prefer?</h2>
+      <div class="row2" style="margin-top:var(--space-3)">
+        <a class="btn" style="flex-direction:column;min-height:64px"><span>The Lamb</span><span class="xs soft">£5.60</span></a>
+        <a class="btn" style="flex-direction:column;min-height:64px"><span>The Harp</span><span class="xs soft">£4.95</span></a>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:var(--space-1)">
+        <a class="btn isQuiet" style="padding:0">Too close to call</a>
+        <a class="btn isQuiet" style="padding:0">Skip</a>
+      </div>
+    </section>
+    <h2 class="kicker" style="margin-top:var(--space-5)">Your pubs, ranked</h2>
+    <ol class="list" style="margin-top:var(--space-2)">
+      <li><span><strong>1. The Harp</strong><small>Covent Garden · been 4 times</small></span><span class="plaque band-cheap">£4.95</span></li>
+      <li><span><strong>2. The Princess Louise</strong><small>High Holborn · been twice</small></span><span class="plaque band-cheap">£5.10</span></li>
+    </ol>
+  </div>
+  <nav class="dock" aria-label="Primary"><div class="rail"><span><b aria-hidden="true"></b>Map</span><span><b aria-hidden="true"></b>Tonight</span><span class="pal"><b aria-hidden="true"></b>Pal</span><span><b aria-hidden="true"></b>Plan</span><span><b aria-hidden="true"></b>Social</span><span class="isActive"><b aria-hidden="true"></b>You</span></div></nav>
+</section>
+
+<p class="note">Mockup. The prices, counts and handles are illustrative, not records. A rank is the reader's own; nothing in the product branches on it.</p>
+</body>
+</html>

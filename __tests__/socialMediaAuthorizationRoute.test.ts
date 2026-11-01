@@ -3,7 +3,9 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { GET } from "@/app/api/social/media/[mediaId]/route";
 import { GET as adminGET } from "@/app/api/admin/social-posts/media/[mediaId]/route";
 import { POST as createModeratorSession } from "@/app/api/admin/session/route";
+import { POST as createSocialPost } from "@/app/api/social/posts/route";
 import { AUTH_RESUME_COOKIE, decodeAuthResumeCookie, encodeAuthResumeCookie } from "@/lib/authSessionResume";
+import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
 
 const MEDIA_ID = "11111111-1111-4111-8111-111111111111";
 const PROFILE_ID = "22222222-2222-4222-8222-222222222222";
@@ -16,6 +18,7 @@ const state = {
   authorized: true, staffActive: true, limited: false,
   imageState: "valid" as "valid" | "missing" | "corrupt", paths: [] as string[],
   refreshFailures: 0,
+  revoked: false,
 };
 
 // Only the external Auth, PostgREST and Storage responses are fixtures. The
@@ -31,6 +34,7 @@ const fixtureFetch: typeof fetch = async (input, init) => {
       ? json({ id: USER_ID }) : json({ code: "bad_jwt", msg: "Invalid token" }, 401);
   }
   if (url.pathname === "/auth/v1/token") {
+    if (state.revoked) return json({ error: "invalid_grant" }, 400);
     const body = JSON.parse(String(init?.body)) as { refresh_token?: string };
     if (body.refresh_token === "fixture-refresh-token") return json({ user: { id: USER_ID } });
     // A rotating token answers the way GoTrue does: a fresh pair, the old one spent.
@@ -89,6 +93,7 @@ beforeEach(() => {
   state.imageState = "valid";
   state.paths = [];
   state.refreshFailures = 0;
+  state.revoked = false;
   vi.stubEnv("SUPABASE_URL", "https://social-media.test");
   vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "fixture-key");
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://social-media.test");
@@ -207,7 +212,7 @@ it.each(["missing", "corrupt"] as const)("withholds %s Storage objects without i
 });
 
 // Each test below presents its own token: the cookie lane remembers a verified
-// token for a minute, so a shared one would answer from memory.
+// token briefly, so a shared one would answer from memory.
 it("writes the rotated refresh token back to the resume cookie on the photo", async () => {
   const response = await serve(resumeCookie("fixture-rotating-write"));
   const setCookie = response.headers.get("set-cookie") ?? "";
@@ -239,11 +244,33 @@ it("redeems one token once for a page of concurrent photos", async () => {
     );
     await expectPhoto(response);
   }
-  // A later photo inside the window answers from memory and spends nothing,
-  // and so does the next photo carrying the token the browser was just handed.
   await expectPhoto(await serve(resumeCookie("fixture-rotating-page")));
-  await expectPhoto(await serve(resumeCookie("fixture-rotating-page-rotated")));
   expect(refreshes()).toBe(1);
+  await expectPhoto(await serve(resumeCookie("fixture-rotating-page-rotated")));
+  expect(refreshes()).toBe(2);
+});
+
+it("refuses a revoked rotated token before serving another photo", async () => {
+  await expectPhoto(await serve(resumeCookie("fixture-rotating-revoked")));
+  state.revoked = true;
+  const response = await serve(resumeCookie("fixture-rotating-revoked-rotated"));
+  expect(response.status).toBe(404);
+  expect(await response.text()).not.toContain(OBJECT_KEY);
+  expect(refreshes()).toBe(2);
+  expect(downloads()).toHaveLength(1);
+});
+
+it("refuses a revoked presented token after three seconds", async () => {
+  const start = Date.now();
+  const now = vi.spyOn(Date, "now").mockReturnValue(start);
+  await expectPhoto(await serve(resumeCookie("fixture-rotating-expired")));
+  state.revoked = true;
+  now.mockReturnValue(start + 3_001);
+  const response = await serve(resumeCookie("fixture-rotating-expired"));
+  expect(response.status).toBe(404);
+  expect(await response.text()).not.toContain(OBJECT_KEY);
+  expect(refreshes()).toBe(2);
+  expect(downloads()).toHaveLength(1);
 });
 
 it("never remembers a refused refresh as a sign-in", async () => {
@@ -253,4 +280,34 @@ it("never remembers a refused refresh as a sign-in", async () => {
   expect(refused.headers.get("set-cookie")).toBeNull();
   await expectPhoto(await serve(resumeCookie("fixture-rotating-refused")));
   expect(refreshes()).toBe(2);
+});
+
+it("never lets the resume cookie alone write to Social", async () => {
+  // October 2026 audit: the lane remembered a verified token for a minute, so a
+  // token GoTrue had since revoked still wrote as the account. The cookie is an
+  // ambient credential; a write must carry a bearer GoTrue checks every time.
+  const post = (headers: HeadersInit) => createSocialPost(new Request("https://app.test/api/social/posts", {
+    method: "POST",
+    headers: { ...headers, "content-type": "application/json" },
+    body: "{}",
+  }));
+  await expectPhoto(await serve(resumeCookie("fixture-rotating-writes")));
+  expect(refreshes()).toBe(1);
+
+  for (const token of ["fixture-rotating-writes", "fixture-rotating-writes-rotated"]) {
+    const refused = await post(resumeCookie(token));
+    expect(refused.status).toBe(401);
+    expect(await refused.json()).toMatchObject({ code: "SOCIAL_SIGN_IN_REQUIRED" });
+  }
+  for (const method of ["POST", "PUT", "PATCH", "DELETE"]) {
+    const request = new Request("https://app.test/api/social/crews", { method, headers: resumeCookie("fixture-rotating-writes") });
+    expect(await requireVerifiedSocialActor(request)).toMatchObject({ ok: false, status: 401, code: "SOCIAL_SIGN_IN_REQUIRED" });
+  }
+  // No redeem is attempted for a write.
+  expect(refreshes()).toBe(1);
+
+  // A write with a bearer still resolves the actor, then meets the route's own checks.
+  const signedIn = await post({ authorization: "Bearer fixture-user-token" });
+  expect(signedIn.status).toBe(400);
+  expect(await signedIn.json()).toMatchObject({ code: "INVALID_IDEMPOTENCY_KEY" });
 });

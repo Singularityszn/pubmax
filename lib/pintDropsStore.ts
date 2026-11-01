@@ -7,6 +7,8 @@ import "server-only";
 // function assumes admin access exists — if getSupabaseAdmin() is null we
 // throw, we don't silently no-op, so the route can 503 deliberately.
 
+import { createHash } from "node:crypto";
+
 import sharp from "sharp";
 
 import { dropWithdrawnAuthors } from "@/lib/accountPublicAccess.server";
@@ -15,9 +17,15 @@ import type { Provenance } from "@/lib/curation";
 import {
   cleanDrinkMeasure,
   cleanDrinkMeasureLabel,
+  DRINK_MEASURE_LABEL,
   measureIsPint,
 } from "@/lib/drinkMeasure";
 import { detectImageKind, magicBytesOk as magicBytesOkPure, stripImageMetadata } from "@/lib/imageSafety";
+import {
+  memoryIdentityHandleStore,
+  supabaseIdentityHandleStore,
+  type WornHandles,
+} from "@/lib/identityHandleStore";
 import { log } from "@/lib/log";
 import { loadVenueAliasResolver, storedVenueIds } from "@/lib/venueAliases";
 import { demoDropsFor, demoPintDropsForCity } from "@/lib/pintDropSeeds";
@@ -28,6 +36,7 @@ import {
 } from "@/lib/pintDropConfirmation";
 import {
   authorRetiredAtFromRow,
+  contributorHasRetired,
   publicContributorHandle,
 } from "@/lib/retiredContributor";
 import {
@@ -71,6 +80,7 @@ import { PRICE_AUTHORITY_MAX_AGE_MS } from "@/lib/priceAuthorityWindow";
 import { UPLOAD_PHOTO_MAX_BYTES, uploadPhotoSizeLabel } from "@/lib/uploadBodyLimit";
 import { admin, selectStore, whereVenueIdIn } from "@/lib/storeBackend";
 import { STORAGE_BUCKET } from "@/lib/supabase";
+import { proveUploadedImageWrite, readUploadedImageObject, uploadUploadedImageObject } from "@/lib/uploadedImage.server";
 import { isLiveLastTrainDecision } from "@/lib/lastTrainBadge";
 import { londonDayKey } from "@/lib/pintContributions";
 import { PINT_DROPS_TABLE } from "@/lib/pintDropTable";
@@ -162,18 +172,20 @@ export type PintDropStore = {
    *
    * The returned set is what `viewer` is allowed to see on a PUBLIC surface:
    *   • public + anonymous → always (anonymous handle already withheld in the DTO);
-   *   • friends → only if the viewer is the author or one of the author's followers;
-   *   • legacy → excluded (ledger-only, via listLegacyForVenue) — except the author.
+   *   • friends → only if the viewer is the author or a mutual follower;
+   *   • legacy → excluded for everyone (ledger-only, via listLegacyForVenue).
    *
-   * `viewer` is the requester's self-asserted identity (handle + the handles they
-   * follow). Omitted/anonymous viewer ⇒ public + anonymous only. This is an
-   * honest-best-effort courtesy curtain (self-asserted handles, no auth yet), the
-   * same trust posture as lib/notifications.ts.
-   */
-  /**
-   * @param authorHandle When set, only drops authored by this handle (normalized)
-   *   are returned — used by passport / profile surfaces so clients never pull
-   *   the global public feed just to filter client-side.
+   * Callers establish viewer identity before this store applies visibility.
+   * `lib/pintDropViewer.ts` owns request verification and the dev/test fallback.
+   * An omitted viewer permits only public and anonymous drops, subject to the
+   * author filter below. This store does not verify bearer tokens itself.
+   *
+   * @param authorHandle Returns only drops authored by this normalized handle.
+   *   Passport and profile surfaces use this filter instead of downloading the
+   *   global public feed. A stranger's read keeps only the rows whose public
+   *   DTO still carries the handle, so it never attributes an anonymous or
+   *   retired drop. The author's own read (`viewer` is the author) keeps them,
+   *   because their account export and their contribution stats are that read.
    */
   listVisible(
     venueId?: string,
@@ -703,17 +715,84 @@ async function hasPricedDropTodayAcrossIds(
   return (await storedVenueIds(venueId)).some((id) => hasPricedDropTodayMemory(id, handle, day));
 }
 
+/**
+ * The account behind an author read. A Pint Drop keeps the handle text it was
+ * posted under and a rename does not rewrite it, so an author read matches
+ * every handle the account has worn (`worn`) and reads each match as the
+ * account's handle today (`current`). A handle with no alias history is its
+ * own account, which is the read as it was before the alias table.
+ */
+type AuthorIdentity = { current: string; worn: ReadonlySet<string> };
+
+async function resolveAuthor(
+  authorHandle: string | undefined,
+  wornHandles: (handle: string) => Promise<WornHandles | null>,
+): Promise<AuthorIdentity | null> {
+  const author = normalizeViewerHandle(authorHandle);
+  if (!author) return null;
+  const account = await wornHandles(author);
+  const current = normalizeViewerHandle(account?.currentHandle) || author;
+  const worn = new Set(
+    [author, current, ...(account?.handles ?? []).map(normalizeViewerHandle)].filter(Boolean),
+  );
+  return { current, worn };
+}
+
+/**
+ * Keep only the account's drops, each read under the handle it wears today.
+ * Every rule after this (visibility, the author's own lane, withdrawal) then
+ * asks about ONE author, so a drop posted before a rename is gated exactly
+ * like one posted after it, and a viewer is the author only when they ARE
+ * the account today, never because they type an old handle.
+ */
+function asAuthorDrops<T extends { handle: string }>(
+  drops: readonly T[],
+  author: AuthorIdentity,
+): T[] {
+  return drops.flatMap((drop) =>
+    author.worn.has(normalizeViewerHandle(drop.handle)) ? [{ ...drop, handle: author.current }] : [],
+  );
+}
+
+/** The handles an author query matches on the stored `handle` column. */
+function wornHandleList(author: AuthorIdentity): string[] {
+  return [...author.worn].sort();
+}
+
+/** An author-filtered read must not recover an identity the public DTO withholds. */
+function matchesAttributedAuthor(drop: PersistableDrop, author: string): boolean {
+  return visibilityOf(drop) !== "anonymous"
+    && !contributorHasRetired(drop.authorRetiredAt)
+    && normalizeViewerHandle(drop.handle) === author;
+}
+
+/**
+ * The `listVisible` author filter. The request itself names the author, so a
+ * row the public DTO withholds the name from would be attributed by the filter.
+ * Only the author's own read may keep those rows.
+ */
+function matchesAuthorFilter(
+  drop: PersistableDrop,
+  author: string,
+  viewer: ViewerContext | undefined,
+): boolean {
+  if (normalizeViewerHandle(viewer?.handle) === author) {
+    return normalizeViewerHandle(drop.handle) === author;
+  }
+  return matchesAttributedAuthor(drop, author);
+}
+
 async function attributedAuthorVenueIds(
   rows: PersistableDrop[],
-  author: string,
+  authorIdentity: AuthorIdentity,
   viewer?: ViewerContext,
 ): Promise<string[]> {
-  const permitted = rows.filter(
+  const author = authorIdentity.current;
+  const permitted = asAuthorDrops(rows, authorIdentity).filter(
     (drop) =>
-      normalizeViewerHandle(drop.handle) === author &&
+      matchesAttributedAuthor(drop, author) &&
       visibilityOf(drop) !== "legacy" &&
-      canViewOnPublicSurface(drop, viewer) &&
-      normalizeViewerHandle(toDTO(drop).handle) === author,
+      canViewOnPublicSurface(drop, viewer),
   );
   const published = await dropWithdrawnFromViewer(permitted, viewer);
   return [...new Set(published.map((drop) => drop.venueId))].sort();
@@ -736,10 +815,11 @@ export const memoryPintDropStore: PintDropStore = {
     return toDTO(drop);
   },
   async listVisible(venueId, viewer, authorHandle, cityId) {
-    const rows = venueId
+    const venueRows = venueId
       ? (await storedVenueIds(venueId)).flatMap((id) => listVisiblePintDrops(id))
       : listAllVisiblePintDrops(cityId);
-    const author = normalizeViewerHandle(authorHandle);
+    const author = await resolveAuthor(authorHandle, (h) => memoryIdentityHandleStore.wornHandles(h));
+    const rows = author ? asAuthorDrops(venueRows, author) : venueRows;
     // Visibility applied server-side (issue #29). Legacy is EXCLUDED from the
     // public surface for EVERYONE (including the author — they read it via the
     // ledger's listLegacyForVenue, not the feed), matching the Supabase backend's
@@ -749,13 +829,13 @@ export const memoryPintDropStore: PintDropStore = {
       (d) =>
         visibilityOf(d) !== "legacy" &&
         canViewOnPublicSurface(d, viewer) &&
-        (!author || normalizeViewerHandle(d.handle) === author),
+        (!author || matchesAuthorFilter(d, author.current, viewer)),
     );
     const published = await dropWithdrawnFromViewer(permitted, viewer);
     return newestFirstCapped(published).map((d) => toDTO(withVerifiedReportCount(d)));
   },
   async listVisibleAuthorVenueIds(authorHandle, viewer, cityId, venueId) {
-    const author = normalizeViewerHandle(authorHandle);
+    const author = await resolveAuthor(authorHandle, (h) => memoryIdentityHandleStore.wornHandles(h));
     if (!author) return [];
     const rows = venueId
       ? (await storedVenueIds(venueId)).flatMap((id) => listVisiblePintDrops(id))
@@ -1000,6 +1080,28 @@ function isMissingMeasureColumnError(error: {
   return (code === "42703" || code === "PGRST204") && mentions;
 }
 
+/** The measures the CHECK held before 0210, and holds again after its rollback. */
+const PRE_0210_MEASURES: ReadonlySet<string> = new Set(["pint", "half", "other"]);
+
+/**
+ * Rollback guard for the measure CHECK (migration 0210, review P3d, PR 2402).
+ *
+ * The 0210 rollback narrows `pint_drops_measure_known` back to pint, half and
+ * other. An app still offering 175 ml or Bottle in that window would lose the
+ * price to a 23514. The size is not a pint, so it may land as `other` with its
+ * own printed word as the label, exactly where the rollback moves such rows.
+ * Only a size the narrow CHECK does not know is retried; a pint or a half
+ * refused by this CHECK is some other fault and still throws.
+ */
+function isUnknownMeasureCheckError(
+  error: { code?: string; message?: string } | null,
+  measure: string,
+): boolean {
+  if (!error || error.code !== "23514") return false;
+  if (!(error.message ?? "").includes("pint_drops_measure_known")) return false;
+  return !PRE_0210_MEASURES.has(measure);
+}
+
 /**
  * Additive-rollout guard for the receipt column (migration 0153).
  *
@@ -1009,7 +1111,7 @@ function isMissingMeasureColumnError(error: {
  * the key: the drop is saved without it, and a photo is lost where a price
  * would have been.
  */
-function isMissingReceiptColumnError(error: { code?: string; message?: string } | null): boolean {
+export function isMissingReceiptColumnError(error: { code?: string; message?: string } | null): boolean {
   if (!error) return false;
   const code = error.code ?? "";
   const message = (error.message ?? "").toLowerCase();
@@ -1079,6 +1181,18 @@ export const supabasePintDropStore: PintDropStore = {
       // First attempt includes vibe_tags + Last Train columns. Once migrations
       // 0005 / 0021 are applied this is the only path that ever runs.
       let error = await insert(row);
+      if (error && isUnknownMeasureCheckError(error, row.measure)) {
+        // One retry, and the log names the size only, never an account.
+        console.warn(
+          "[pint-drops] measure CHECK refused a size - saving it as other with its label (0210 rolled back?):",
+          row.measure,
+        );
+        const label = DRINK_MEASURE_LABEL[row.measure];
+        persistable.measure = "other";
+        persistable.measureLabel = label;
+        row = { ...row, measure: "other", measure_label: label };
+        error = await insert(row);
+      }
       if (error && isMissingPriceDayColumnError(error)) {
         console.warn(
           "[pint-drops] price_day missing - the daily cap is the pre-check alone until migration 0141 is applied:",
@@ -1216,7 +1330,8 @@ export const supabasePintDropStore: PintDropStore = {
   /** Demo seeds (in-repo, never written to Supabase) merge with the organic
    *  rows in newestFirstCapped so both backends serve one read-merge path. */
   async listVisible(venueId, viewer, authorHandle, cityId) {
-    const author = normalizeViewerHandle(authorHandle);
+    const author = await resolveAuthor(authorHandle, (h) => supabaseIdentityHandleStore.wornHandles(h));
+    const authorHandles = author ? wornHandleList(author) : [];
     const venueIds = venueId ? await storedVenueIds(venueId) : [];
     // Base visible read, newest-first, capped. Split from the visibility filter
     // so we can retry WITHOUT it if migration 0012 isn't applied to this DB yet
@@ -1230,7 +1345,8 @@ export const supabasePintDropStore: PintDropStore = {
         .limit(MAX_PUBLIC_DROPS);
       if (venueIds.length === 1) q = q.eq("venue_id", venueIds[0]);
       else if (venueIds.length > 1) q = q.in("venue_id", venueIds);
-      if (author) q = q.eq("handle", author);
+      if (authorHandles.length === 1) q = q.eq("handle", authorHandles[0]);
+      else if (authorHandles.length > 1) q = q.in("handle", authorHandles);
       return q;
     };
     // Legacy (family/heirloom) drops NEVER ride the public surface — they read
@@ -1248,28 +1364,29 @@ export const supabasePintDropStore: PintDropStore = {
     if (error) throw new Error(error.message);
     // Per-venue: all city seeds for that id. Unscoped: city-scoped seeds so
     // Manchester demo drops never noise the London feed/landing.
-    const seeds = (
-      venueId ? venueIds.flatMap((id) => demoDropsFor(id)) : demoPintDropsForCity(cityId)
-    ).filter(
-      (d) => !author || normalizeViewerHandle(d.handle) === author,
-    );
+    const allSeeds = venueId
+      ? venueIds.flatMap((id) => demoDropsFor(id))
+      : demoPintDropsForCity(cityId);
+    const seeds = author ? asAuthorDrops(allSeeds, author) : allSeeds;
     // Apply the same pure predicate the memory store uses over the fetched page.
     // Legacy is already excluded above; public + anonymous always pass, friends
     // gate on the viewer's follow graph. Unscoped reads also city-scope organic
     // rows by venue id prefix (venue-mcr- ↔ Manchester).
-    const permitted = (data ?? [])
-      .map(fromRow)
+    const organic = (data ?? []).map(fromRow);
+    const permitted = (author ? asAuthorDrops(organic, author) : organic)
       .concat(seeds)
       .filter((d) => venueId || dropMatchesCityScope(d.venueId, cityId))
-      .filter((d) => canViewOnPublicSurface(d, viewer));
+      .filter((d) => canViewOnPublicSurface(d, viewer))
+      .filter((d) => !author || matchesAuthorFilter(d, author.current, viewer));
     const published = await dropWithdrawnFromViewer(permitted, viewer);
     const capped = newestFirstCapped(published);
     return toDTOsWithBatchedPhotos(capped);
   },
 
   async listVisibleAuthorVenueIds(authorHandle, viewer, cityId, venueId) {
-    const author = normalizeViewerHandle(authorHandle);
+    const author = await resolveAuthor(authorHandle, (h) => supabaseIdentityHandleStore.wornHandles(h));
     if (!author) return [];
+    const authorHandles = wornHandleList(author);
     const venueIds = venueId ? await storedVenueIds(venueId) : [];
     const visited = new Set<string>();
     let afterId: string | undefined;
@@ -1281,7 +1398,7 @@ export const supabasePintDropStore: PintDropStore = {
           .from(TABLE)
           .select("*")
           .eq("status", "visible")
-          .eq("handle", author)
+          .in("handle", authorHandles)
           .order("id", { ascending: true })
           .limit(MAX_PUBLIC_DROPS);
         if (afterId) query = query.gt("id", afterId);
@@ -1652,24 +1769,30 @@ export async function uploadPhoto(
 
   const key = `${venueId}/${dropId}/${slot}.${NORMALIZED_EXT}`;
 
-  const { error } = await admin()
-    .storage.from(STORAGE_BUCKET)
-    .upload(key, processed, { contentType: NORMALIZED_CONTENT_TYPE, upsert: false });
+  const error = await uploadUploadedImageObject(key, processed, NORMALIZED_CONTENT_TYPE, { upsert: false });
   if (error) {
     log("error", "pint_drops.photo_upload_failed", {
       slot,
       venueId,
       dropId,
-      error: error.message,
+      error,
     });
-    throw new Error(error.message);
+    throw new Error(error);
+  }
+  const proof = await proveUploadedImageWrite(
+    key,
+    { sha256: createHash("sha256").update(processed).digest("hex"), byteSize: processed.byteLength },
+    readUploadedImageObject,
+  );
+  if (proof === "corrupt") {
+    await deletePhotos([key]);
+    throw new Error("That photo did not save correctly. Try uploading it again.");
   }
   return key;
 }
 
-/** Best-effort delete of uploaded objects — called to undo orphans when the
- *  DB insert fails after upload. Never throws: cleanup must not mask the
- *  original 503. */
+/** Best-effort cleanup of corrupt or unreferenced uploaded objects.
+ *  Never throws: cleanup must not mask the original failure. */
 export async function deletePhotos(keys: string[]): Promise<void> {
   const present = keys.filter(Boolean);
   if (!present.length) return;

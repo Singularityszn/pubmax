@@ -4,6 +4,7 @@ import type { ConciergeVenue } from "@/lib/concierge/rank";
 import type { MapLensPrice } from "@/lib/mapExperienceLens";
 import type { NightContext } from "@/lib/nightPlanning";
 import {
+  planDietaryMenuWarning,
   planGenerationEvidenceGaps,
   scoreVenueForPlan,
   WETHERSPOONS_DIRECTORY_PREFER_BOOST,
@@ -342,5 +343,38 @@ describe("Plan generation evidence gaps", () => {
       allZeroProofConfirmed: true,
     });
     expect(contextEvidenceGaps).toEqual([]);
+  });
+});
+
+describe("named preferences that never refuse a route", () => {
+  const score = (context: NightContext, place: ConciergeVenue, menus?: ReadonlySet<string>) =>
+    scoreVenueForPlan(place, context, 0, [], [], null, undefined, undefined, undefined, menus);
+
+  it("lifts a pub near a listed station when the reader names the tube", () => {
+    const camden = venue(true, "camden-town");
+    const plain = score(AFTER_WORK_GROUP, camden);
+    const tube = score({ ...AFTER_WORK_GROUP, transportConstraints: ["tube"] }, camden);
+    expect(tube.score).toBeGreaterThan(plain.score);
+    expect(tube.reasons).toContain("within 600 m of Camden Town station");
+    const farOut = { ...camden, lat: 51.40, lng: -0.30 };
+    expect(score({ ...AFTER_WORK_GROUP, transportConstraints: ["tube"] }, farOut).score)
+      .toBe(score(AFTER_WORK_GROUP, farOut).score);
+  });
+
+  it("lifts a pub that publishes a menu link for a dietary word", () => {
+    const pub = venue(true, "menu-pub");
+    const vegan = { ...AFTER_WORK_GROUP, foodNeeds: ["vegan"] };
+    expect(score(vegan, pub, new Set(["menu-pub"])).score).toBeGreaterThan(score(vegan, pub, new Set()).score);
+  });
+
+  it("says once that a dietary menu is unchecked, and how many stops publish a menu", () => {
+    const menus = new Set(["a", "b"]);
+    expect(planDietaryMenuWarning({ need: "vegan", menuLinkVenueIds: menus }, ["a", "b"]))
+      .toEqual(["We can't check vegan menus or allergens. These stops publish a menu link."]);
+    expect(planDietaryMenuWarning({ need: "halal", menuLinkVenueIds: menus }, ["a", "c"]))
+      .toEqual(["We can't check halal menus or allergens. Some of these stops publish a menu link. Ask the others before you order."]);
+    expect(planDietaryMenuWarning({ need: "allergy", menuLinkVenueIds: menus }, ["c"]))
+      .toEqual(["We can't check menus for allergies. Ask each pub before you order."]);
+    expect(planDietaryMenuWarning(null, ["a"])).toEqual([]);
   });
 });

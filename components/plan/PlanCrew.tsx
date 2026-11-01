@@ -163,13 +163,11 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
       history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
       setHashInviteToken(null);
     };
-    // Classic multi-use tokens authorize crew join only. Collaboration upgrade
-    // needs a one-use invite from PlanCollaborationPanel — never POST redeem
-    // with the classic token (it is a different capability shape).
-    if (isClassicPlanInviteToken(inviteToken)) {
-      if (role === "host" || collaborationAuthorized) clearInviteHash();
-      return;
-    }
+    // One guest capability (launch review 3.5): the host's classic link and a
+    // one-use private invite both let a guest vote, propose, add a need and
+    // check in. A guest seated through the classic link before that rule
+    // re-opens it and the redeem route lifts the seat; the server checks the
+    // link is still the plan's current one.
     if (collaborationAuthorized || role === "host") {
       clearInviteHash();
       return;
@@ -185,10 +183,8 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
       .then(({ response, body }) => {
         if (!response.ok) throw new Error(errorMessageFrom(body, "Could not load crew decisions."));
         writePlanCapability(planId, { token: memberToken, collaborationAuthorized: true, role: "guest" });
-        // body.inviteId is the invite's own row id (see upgradeMemberInvite in
-        // lib/planCollaborationStore.ts) — links back to invite_created for
-        // k-factor; null on a replayed/already-authorized redemption, so no
-        // event fires (an already-counted invite should not double count).
+        // Only the non-secret invite row id may link this event to invite_created.
+        // Replay and counting limits live in docs/METRICS_FUNNEL.md section 2.
         if (typeof body?.inviteId === "string" && body.inviteId) {
           trackEvent("invite_redeemed", { inviteId: body.inviteId });
         }
@@ -345,7 +341,7 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
   }
 
   return (
-    <section className="planCrew" aria-labelledby="plan-crew-title">
+    <section id="crew" className="planCrew" aria-labelledby="plan-crew-title">
       <div className="planCrew__heading">
         <div><h2 id="plan-crew-title">Who&rsquo;s in</h2></div>
         {crew.length > 0 ? <span>{crew.length}</span> : null}

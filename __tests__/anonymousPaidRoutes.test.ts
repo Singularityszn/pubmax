@@ -5,7 +5,10 @@
 // client must carry a probe below: a real request, sent with no session, that
 // has to get its expected answer without any paid call. Most answers are a
 // refusal; a route open to anonymous callers by design, such as an image
-// report on a seeded profile, answers for real. Every paid client reaches its
+// report on a seeded profile, answers for real, and so does a route whose
+// closed ceiling withholds only the model (Ask and The Landlord answer from
+// their deterministic or grounded path) or that calls no paid model at all
+// (plan generation). Every paid client reaches its
 // provider through the global fetch, so that fetch records the calls: a call to
 // a provider domain is a paid call, however its host is spelled in the source.
 // Every provider key is set, every paid-spend ceiling is closed and every
@@ -19,7 +22,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   PAID_SPEND_LANES,
-  PAID_SPEND_REFUSAL_CODE,
   paidSpendBudgetEnvName,
 } from "@/lib/paidSpendBudget";
 import { __resetPintDrops } from "@/lib/pintDrops";
@@ -96,11 +98,12 @@ function photoPost(url: string): Request {
 const params = <T,>(value: T) => ({ params: Promise.resolve(value) });
 
 const UNAUTHENTICATED = { status: 401, body: { code: "UNAUTHENTICATED" } };
-const CEILING_SPENT = { status: 429, body: { code: PAID_SPEND_REFUSAL_CODE } };
 const SIGN_IN_TO_CONTRIBUTE = { status: 401, body: { status: "sign_in_required" } };
 const SIGN_IN_AS_OWNER = { status: 403, body: { code: "FORBIDDEN" } };
 const CRON_UNAUTHORIZED = { status: 401, body: { code: "CRON_UNAUTHORIZED" } };
 const REPORT_ACCEPTED = { status: 200, body: { ok: true } };
+const ANSWERED_WITHOUT_MODEL = { status: 200, body: { answer: expect.any(String) } };
+const PLANNED = { status: 200, body: { grounded: true } };
 
 const REPORTED_HANDLE = "reported";
 const REPORTED_GALLERY_COVER_ID = "77777777-7777-4777-8777-777777777771";
@@ -148,6 +151,22 @@ const cronProbe = (job: string): PaidRouteCase => ({
 /** Every route handler that can reach a paid provider, called with no session. */
 const PAID_ROUTES: PaidRouteCase[] = [
   {
+    route: "app/api/board-reads/route.ts",
+    call: async () => {
+      const form = new FormData();
+      form.set("venueId", "venue-eltcmh");
+      form.set("photo", new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], "board.jpg", { type: "image/jpeg" }));
+      return (await import("@/app/api/board-reads/route")).POST(
+        new Request("http://localhost/api/board-reads", {
+          method: "POST",
+          headers: { "x-forwarded-for": "203.0.113.7" },
+          body: form,
+        }),
+      );
+    },
+    answer: SIGN_IN_TO_CONTRIBUTE,
+  },
+  {
     route: "app/api/pub-list-import/route.ts",
     call: async () =>
       (await import("@/app/api/pub-list-import/route")).POST(
@@ -167,7 +186,7 @@ const PAID_ROUTES: PaidRouteCase[] = [
       request.headers.set("host", "localhost");
       return (await import("@/app/api/mcp/route")).POST(request);
     },
-    answer: { status: 200, body: { result: { isError: true, structuredContent: { error: { code: PAID_SPEND_REFUSAL_CODE } } } } },
+    answer: { status: 200, body: { result: { structuredContent: { venueIds: expect.any(Array) } } } },
   },
   {
     route: "app/api/ask/route.ts",
@@ -175,7 +194,7 @@ const PAID_ROUTES: PaidRouteCase[] = [
       (await import("@/app/api/ask/route")).POST(
         jsonPost("http://localhost/api/ask", { query: "Where is a quiet pint" }),
       ),
-    answer: CEILING_SPENT,
+    answer: ANSWERED_WITHOUT_MODEL,
   },
   {
     route: "app/api/heritage/route.ts",
@@ -186,7 +205,7 @@ const PAID_ROUTES: PaidRouteCase[] = [
           question: "How old is this pub?",
         }),
       ),
-    answer: CEILING_SPENT,
+    answer: ANSWERED_WITHOUT_MODEL,
   },
   {
     route: "app/api/plans/generate/route.ts",
@@ -194,7 +213,7 @@ const PAID_ROUTES: PaidRouteCase[] = [
       (await import("@/app/api/plans/generate/route")).POST(
         jsonPost("http://localhost/api/plans/generate", { query: "A quiet crawl in Soho" }),
       ),
-    answer: CEILING_SPENT,
+    answer: PLANNED,
   },
   {
     route: "app/api/pub-pal/chat/route.ts",
@@ -368,6 +387,7 @@ const PAID_CLIENTS: Record<string, string> = {
   "@/lib/ask/modelLoop": "OpenRouter (ask)",
   "@/lib/heritage": "OpenRouter (heritage)",
   "@/lib/pubListImport.server": "OpenRouter (pub list import)",
+  "@/lib/boardRead.server": "OpenRouter (board read)",
   "@/lib/palElevenLabsChat.server": "ElevenLabs (chat)",
   "@/lib/palClaudeChat.server": "Anthropic (chat)",
   "@/app/api/pub-pal/voice-token/route": "ElevenLabs (voice)",
