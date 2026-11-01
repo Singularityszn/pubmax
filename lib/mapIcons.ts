@@ -50,7 +50,7 @@ export type IconTokens = {
   pillRim?: string;
 };
 
-export type IconNamespace = "lm" | "tfl" | "drink" | "base" | "pill";
+export type IconNamespace = "lm" | "tfl" | "drink" | "base" | "pill" | "route";
 
 /**
  * MapLibre's nine-slice for a stretchable image (`addImage` options), in CSS
@@ -67,7 +67,7 @@ export type IconStretch = {
 
 export type IconSpec = {
   key: string; // e.g. "clock-tower", "underground", "pint-0"
-  ns: IconNamespace; // "lm" | "tfl" | "drink" | "base" | "pill"
+  ns: IconNamespace; // "lm" | "tfl" | "drink" | "base" | "pill" | "route"
   size: number; // intended CSS px of the icon box (e.g. 30)
   /** Overrides `size` as the box height. Only the stretchable pill is not square. */
   height?: number;
@@ -1404,6 +1404,36 @@ function makePillDraw(bucket: number) {
   };
 }
 
+// The route time bubble (ns: "route"). Each leg of a crawl route carries its
+// minutes on foot ("6 min") on a small round-ended bubble at the leg's middle,
+// as a maps app labels a walking route. Paper with an ink hairline, no band:
+// it is a time, not a price.
+// ---------------------------------------------------------------------------
+
+/** The route time bubble's image key. */
+export const ROUTE_TIME_ICON_KEY = "route-time";
+
+/** The bubble's box in CSS px. The text's rectangle below sets the real size. */
+const ROUTE_TIME_BOX = { width: 40, height: 22 } as const;
+const ROUTE_TIME_RADIUS = 10;
+const ROUTE_TIME_STRETCH: IconStretch = {
+  x: [[11, 29]],
+  y: [[10, 12]],
+  content: [8, 3, 32, 19],
+};
+
+function drawRouteTime(ctx: CanvasRenderingContext2D, t: IconTokens): void {
+  const { width, height } = ROUTE_TIME_BOX;
+  ctx.save();
+  roundRectPath(ctx, 0.5, 0.5, width - 1, height - 1, ROUTE_TIME_RADIUS);
+  ctx.fillStyle = t.pillSurface ?? t.paper;
+  ctx.fill();
+  ctx.strokeStyle = t.pillRim ?? t.ink;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.restore();
+}
+
 // ---------------------------------------------------------------------------
 // The registry. `MAP_ICON_SPECS` is the single ordered list the caller iterates
 // to register every icon via `map.addImage(iconId(ns, key), rasterize(spec, …))`.
@@ -1455,6 +1485,15 @@ export const MAP_ICON_SPECS: IconSpec[] = [
     stretch: PILL_STRETCH,
     draw: makePillDraw(bucket),
   })),
+  // The route time bubble.
+  {
+    key: ROUTE_TIME_ICON_KEY,
+    ns: "route",
+    size: ROUTE_TIME_BOX.width,
+    height: ROUTE_TIME_BOX.height,
+    stretch: ROUTE_TIME_STRETCH,
+    draw: drawRouteTime,
+  },
   // The unpriced UK base layer's single glyph.
   { key: UK_BASE_ICON_KEY, ns: "base", size: BOX, draw: drawBasePub },
   // The coffee pilot cafe's single glyph.

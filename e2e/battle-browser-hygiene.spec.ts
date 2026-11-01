@@ -28,18 +28,30 @@ for (const width of [1280, 390]) {
   test(`Tonight explains a pub through the keyboard at ${width}px`, async ({ page }, info) => {
     await page.setViewportSize({ width, height: 844 });
     await page.goto("/tonight", { waitUntil: "domcontentloaded" });
-    const details = page.locator("details").filter({ has: page.locator("summary", { hasText: "Why this pub" }) }).first();
-    const summary = details.locator("summary");
-    await expect(summary).toBeVisible();
-    await expect(details).not.toHaveAttribute("open");
-    await summary.focus();
-    await page.keyboard.press("Enter");
-    await expect(details).toHaveAttribute("open", "");
-    await expect(details.locator("p").first()).toBeVisible();
-    await expect(details.locator("p").first()).not.toBeEmpty();
+    // A real button, reachable by role on desktop and phone (live walk F20).
+    const toggle = page.getByRole("button", { name: "Why this pub" }).first();
+    await expect(toggle).toBeVisible();
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    const panel = page.locator(`[id="${await toggle.getAttribute("aria-controls")}"]`);
+    // The button is painted on the server, so an Enter before hydration is
+    // dropped. Retry the key press with its result (e2e/AGENTS.md), and press
+    // only while the state is still the old one, so a slow answer is never
+    // toggled back.
+    const pressEnterUntil = async (expanded: "true" | "false") => {
+      await expect(async () => {
+        if ((await toggle.getAttribute("aria-expanded")) !== expanded) {
+          await toggle.focus();
+          await page.keyboard.press("Enter");
+        }
+        await expect(toggle).toHaveAttribute("aria-expanded", expanded, { timeout: 1_000 });
+      }).toPass({ timeout: 20_000 });
+    };
+    await pressEnterUntil("true");
+    await expect(panel.locator("p").first()).toBeVisible();
+    await expect(panel.locator("p").first()).not.toBeEmpty();
     await page.screenshot({ path: info.outputPath("tonight-why-keyboard.png"), fullPage: true });
-    await page.keyboard.press("Enter");
-    await expect(details).not.toHaveAttribute("open");
+    await pressEnterUntil("false");
+    await expect(panel).toBeHidden();
   });
 
   test(`analytics denial survives the Home, map and Tonight journey at ${width}px`, async ({ page }, info) => {
@@ -63,7 +75,14 @@ for (const width of [1280, 390]) {
     await expect(prompt).toBeVisible({ timeout: 30_000 });
     await prompt.getByRole("button", { name: "No thanks", exact: true }).click();
     await expect(prompt).toHaveCount(0);
-    for (const path of ["/map?log=1", "/tonight", "/"]) {
+    // The live walk's own routes (F19, 30 Oct): a pub selected on the map, a
+    // pub ledger, Tonight and Pal.
+    const ledgerId = await page.evaluate(async () => {
+      const response = await fetch("/sitemap.xml");
+      return /\/ledger\/([^<"]+)/.exec(await response.text())?.[1] ?? null;
+    });
+    expect(ledgerId).not.toBeNull();
+    for (const path of ["/map?log=1", `/map?sel=${ledgerId}`, `/ledger/${ledgerId}`, "/tonight", "/pal", "/"]) {
       await page.goto(path, { waitUntil: "domcontentloaded" });
       await expect.poll(() => page.evaluate(() => localStorage.getItem("pubmaxx:analytics-consent:v1"))).toBe("denied");
       await expect(prompt).toHaveCount(0);

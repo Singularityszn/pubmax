@@ -176,3 +176,94 @@
   color: var(--brick);
   font-size: var(--text-sm);
 }
+
+/* "Your usual here": one line, the same box as the date and the note. */
+.diaryUsualInput {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+
+/* "Tell your lot": off by default, one line of what it shares. */
+.diaryLotToggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  min-height: 44px;
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.diaryLotToggle input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--river);
+}
+
+.diaryLotToggle span {
+  display: grid;
+  gap: 2px;
+}
+
+.diaryLotToggle small {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: 400;
+}
+
+.diaryRow__usual {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+/* Who you were with, on the edit form: the tags already asked, each with its
+   own untag control, then the field for one more. */
+.diaryWithEdit {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-2);
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.diaryWithEdit legend {
+  padding: 0;
+  color: var(--color-text);
+  font-size: var(--text-xs);
+  font-weight: 650;
+}
+
+.diaryWithEdit__list {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.diaryWithEdit__tag {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+}
+
+.diaryWithEdit__tag[data-off] span {
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+}

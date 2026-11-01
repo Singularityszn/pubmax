@@ -31,8 +31,11 @@ import type { Route } from "next";
 import { categoryLabel, DRINK_CATEGORIES, type DrinkCategory } from "@/lib/drinks";
 import type { CropTarget } from "@/lib/profileImagePicker";
 
-/** Closed drink-wall categories — mirrored in migration 0158. */
-export const DRINK_WALL_CATEGORIES = ["pint", "london", "pub"] as const;
+/**
+ * Closed drink-wall categories, mirrored in the CHECK of migration 0158 as
+ * widened by 0212 ("dog", launch review F7, for the Dog of the week page).
+ */
+export const DRINK_WALL_CATEGORIES = ["pint", "london", "pub", "dog"] as const;
 export type DrinkWallCategory = (typeof DRINK_WALL_CATEGORIES)[number];
 
 const DRINK_WALL_CATEGORY_SET = new Set<string>(DRINK_WALL_CATEGORIES);
@@ -41,6 +44,7 @@ export const DRINK_WALL_CATEGORY_LABEL: Record<DrinkWallCategory, string> = {
   pint: "Pint",
   london: "London",
   pub: "Pub",
+  dog: "Dog",
 };
 
 export const DRINK_WALL_PLACE_LABEL_MAX = 80;
@@ -297,8 +301,16 @@ export function parseVenuePhotoDrinkCategory(
   return CATEGORY_SET.has(value) ? (value as DrinkCategory) : undefined;
 }
 
+/**
+ * The categories a pub's own photo wall may post under: a pint (the default,
+ * what the wall has always taken) or a dog met at the pub (Dog of the week).
+ */
+export const VENUE_PHOTO_WALL_CATEGORIES = ["pint", "dog"] as const satisfies readonly DrinkWallCategory[];
+export type VenuePhotoWallCategory = (typeof VENUE_PHOTO_WALL_CATEGORIES)[number];
+
 type VenuePhotoSubmission = {
   venueId: string;
+  wallCategory: VenuePhotoWallCategory;
   drinkCategory: DrinkCategory | null;
   caption: string;
   /** The author asked for it; whether it happens is a separate question. */
@@ -317,6 +329,9 @@ export function validateVenuePhotoSubmission(input: unknown): VenuePhotoValidati
   if (!isVenuePhotoVenueId(raw.venueId)) {
     return { ok: false, error: "Choose a pub." };
   }
+  // A pub's wall takes a pint unless the photo is a dog. Any other word from
+  // the client is ignored rather than refused, as it always was.
+  const wallCategory: VenuePhotoWallCategory = raw.wallCategory === "dog" ? "dog" : "pint";
   const drinkCategory = parseVenuePhotoDrinkCategory(raw.drinkCategory);
   if (drinkCategory === undefined) {
     return { ok: false, error: "Choose a listed drink." };
@@ -325,7 +340,9 @@ export function validateVenuePhotoSubmission(input: unknown): VenuePhotoValidati
     ok: true,
     value: {
       venueId: raw.venueId,
-      drinkCategory,
+      wallCategory,
+      // A dog photo carries no drink.
+      drinkCategory: wallCategory === "dog" ? null : drinkCategory,
       caption: cleanVenuePhotoCaption(raw.caption),
       shareToFeed: raw.shareToFeed === true,
     },
@@ -350,6 +367,16 @@ export function venuePhotoCursor(photo: Pick<VenuePhoto, "createdAt" | "id">): s
 const VENUE_PHOTO_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
+ * The cursor's timestamp lands in the same `.or()` filter, so it must be a
+ * plain ISO timestamp. `Date.parse` alone is not enough: it skips bracketed
+ * text and accepts commas, so `Jan 1 2026 (a,b)` passed and reshaped the
+ * filter. The text is kept as written, never re-serialised, because a database
+ * row carries microseconds that `toISOString()` would drop and skip a photo.
+ */
+const VENUE_PHOTO_CURSOR_AT =
+  /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}(?::?\d{2})?)?$/;
+
+/**
  * The cursor's id is written into a PostgREST `.or()` filter against a uuid
  * column (the venue wall and the drink wall both), so anything that is not a
  * uuid is refused here: unchecked, it raised a cast error the route answered
@@ -362,7 +389,8 @@ export function parseVenuePhotoCursor(
   const at = value.indexOf("|");
   const createdAt = value.slice(0, at);
   const id = value.slice(at + 1);
-  if (!createdAt || !id || !Number.isFinite(Date.parse(createdAt))) return null;
+  if (!createdAt || !id || !VENUE_PHOTO_CURSOR_AT.test(createdAt)) return null;
+  if (!Number.isFinite(Date.parse(createdAt))) return null;
   if (!VENUE_PHOTO_ID.test(id)) return null;
   return { createdAt, id };
 }

@@ -100,7 +100,7 @@ for (const width of [1440, 390]) {
         // rows are rejected by the real hook before listing credits are built.
         if (scenario === "invalid row date") {
           await expect(page.locator('[data-tonight-provenance="undated-whats-on"]'))
-            .toContainText("The what’s-on source check date is not recorded.");
+            .toContainText("The pub listings source check date is not recorded.");
           await expect(exclusions).toHaveCount(0);
         } else {
           await expect(exclusions).toHaveText(staleLine);
@@ -126,7 +126,7 @@ for (const width of [1440, 390]) {
         await expect(credit).toContainText("Checked 25 Oct");
       } else if (scenario === "undated deal") {
         await expect(page.getByRole("heading", { name: "Sunday food offer", exact: true })).toBeVisible();
-        await expect(whatsOn).toContainText("The what’s-on source check date is not recorded.");
+        await expect(whatsOn).toContainText("The pub listings source check date is not recorded.");
         await expect(whatsOn).not.toContainText("Checked");
         await expect(exclusions).toHaveCount(0);
       } else {
@@ -141,7 +141,7 @@ for (const width of [1440, 390]) {
           await expect(outCredit).toHaveText("No pub-matched events via Ticketmaster · Checked 25 Oct");
           if (scenario === "mixed") {
             await expect(page.getByRole("heading", { name: "Sunday food offer", exact: true })).toBeVisible();
-            await expect(whatsOn).toContainText("The what’s-on source check date is not recorded.");
+            await expect(whatsOn).toContainText("The pub listings source check date is not recorded.");
             await expect(whatsOn).not.toContainText("Checked 25 Oct");
           } else {
             await expect(page.locator('[data-tonight-provenance="undated-whats-on"]')).toHaveCount(0);

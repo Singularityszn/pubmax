@@ -441,6 +441,7 @@ function bundlePriceInputs(rows: readonly UkPriceBundleRow[]): {
           priceGbp: listed.priceGbp,
           sourceUrl: listed.sourceUrl as string,
           observedAt: listed.observedAt,
+          publisher: typeof listed.publisher === "string" ? listed.publisher.trim() || null : null,
         }
       : null,
     estimate: estimate

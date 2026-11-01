@@ -6,9 +6,10 @@ import { offlineOrMessage } from "@/lib/apiErrorMessage";
 // Reuses plan_invite_sent / plan_invite_link_copied from the invite loop.
 // ShareBar stays as overflow under "More ways to share".
 //
-// WhatsApp / ShareBar must carry #invite={classicToken} so guests can tap
-// "I'm in" on PlanCrew after invite-only join. Copy invite stays /invite/{token}
-// for the RSVP page (e2e/plan-invite.spec.ts, soft-launch runbook).
+// ONE LINK (launch review 3.5): WhatsApp, Copy invite link and ShareBar all
+// send the absolute /invite/{classicToken} page (lib/planCrewInviteUrl.ts).
+// A Going RSVP there seats the guest with the full guest capability, and old
+// /plan/{id}#invite= links still join through PlanCrew.
 //
 // The token comes from lib/planInviteTokenClient.ts, never from a copy this
 // component fetched at mount (battle test M04): "New link" in the rotate
@@ -19,11 +20,12 @@ import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import PlanHostInviteLink, {
   INVITE_TOKEN_MISSING_LINE,
   INVITE_TOKEN_UNAVAILABLE_LINE,
+  NOT_IN_CREW_LINE,
 } from "@/components/plan/PlanHostInviteLink";
 import { PlanInviteShareBar } from "@/components/plan/PlanVibe";
 import { trackEvent } from "@/lib/analytics";
 import { openExternalTab } from "@/lib/openExternalTab";
-import { planCrewSharePath } from "@/lib/planCrewInviteUrl";
+import { planInviteSharePath } from "@/lib/planCrewInviteUrl";
 import {
   clearPlanInviteToken,
   ensurePlanInviteToken,
@@ -127,10 +129,8 @@ export default function PlanInviteNextStep({
     return () => window.removeEventListener(eventName, onTop);
   }, [planId]);
 
-  // Crew-join URL: classic invite in the hash. Bare /plan/{id} cannot join.
-  const relativeUrl = inviteToken
-    ? planCrewSharePath(planId, inviteToken, slug)
-    : `/plan/${planId}`;
+  // The one link: the public invite page. Bare /plan/{id} cannot join.
+  const relativeUrl = planInviteSharePath(inviteToken) ?? `/plan/${planId}`;
 
   const openWhatsApp = useCallback(() => {
     if (!inviteToken) return;
@@ -160,7 +160,7 @@ export default function PlanInviteNextStep({
     return (
       <div className="planInviteNext" id="share">
         <p className="planInviteNext__whatsapp planInviteNext__whatsapp--pending" role="status">
-          You&apos;re a guest on this plan. Join the crew to use the invite tools.
+          {NOT_IN_CREW_LINE}
         </p>
       </div>
     );
