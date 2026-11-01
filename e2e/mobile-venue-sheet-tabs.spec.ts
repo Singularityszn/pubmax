@@ -269,18 +269,22 @@ test("the peek price plaque hugs its figure and stays inside its own row", async
 
   const geometry = await plaque.evaluate((element) => {
     const cell = element.parentElement as HTMLElement;
-    const scroller = element.closest(".mobileSharedSheetBody") as HTMLElement | null;
+    // The plaque's frame: the action card in the sheet footer since the card
+    // took the peek row (launch plan, 1 Nov 2026), else the scrolling body it
+    // used to head. Either way nothing may cut the plaque at that top edge.
+    const frame = (element.closest(".venueActionCard") ??
+      element.closest(".mobileSharedSheetBody")) as HTMLElement | null;
     const range = document.createRange();
     range.selectNodeContents(element);
     const box = element.getBoundingClientRect();
     const figure = range.getBoundingClientRect();
     const cellBox = cell.getBoundingClientRect();
-    const scrollerBox = scroller?.getBoundingClientRect();
+    const frameBox = frame?.getBoundingClientRect();
     return {
       width: box.width,
       figureWidth: figure.width,
       paintedAboveRow: cellBox.top - box.top,
-      clearanceUnderHeader: scrollerBox ? box.top - scrollerBox.top : null,
+      clearanceUnderFrameTop: frameBox ? box.top - frameBox.top : null,
     };
   });
 
@@ -290,7 +294,8 @@ test("the peek price plaque hugs its figure and stays inside its own row", async
   // reach the hairline the peek row draws over it. The -1.5deg tilt that used
   // to put a fraction of a pixel up there is retired (captain 6 Sep 2026).
   expect(geometry.paintedAboveRow).toBeLessThan(1.5);
-  expect(geometry.clearanceUnderHeader ?? 0).toBeGreaterThan(4);
+  expect(geometry.clearanceUnderFrameTop, "the plaque has a frame").not.toBeNull();
+  expect(geometry.clearanceUnderFrameTop ?? 0).toBeGreaterThan(4);
 });
 
 /**
