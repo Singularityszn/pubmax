@@ -160,7 +160,7 @@ describe("Ledger price record", () => {
   it.each(["logged-once", "disputed", "aged-out"] as const)("keeps Small Beer's published listing above a %s report and labels both facts", async (state) => {
     const fresh: LedgerPintPrice = { ...report, dropId: "small-beer-report", priceGbp: state === "disputed" ? null : 6,
       createdAt: state === "aged-out" ? "2026-08-23T16:00:00Z" : "2026-10-23T16:00:00Z", state, split: state === "disputed" ? { prices: [6, 6.5], reporters: 2 } : null };
-    const bundle = { listed: { priceGbp: 5, sourceUrl: "https://www.smallbeern8.co.uk/drinks", observedAt: "2026-09-21T18:58:02.492Z" } };
+    const bundle = { listed: { priceGbp: 5, sourceUrl: "https://www.smallbeern8.co.uk/drinks", publisher: "smallbeern8.co.uk", observedAt: "2026-09-21T18:58:02.492Z" } };
     vi.stubGlobal("fetch", vi.fn(async () => answer(fresh)));
     await act(async () => root.render(view(null, "venue-19mn6ss", bundle)));
     const mapLane = venuePriceLane({ cheapestPrice: null }, null, null, bundle,
@@ -174,13 +174,32 @@ describe("Ledger price record", () => {
     expect(container.textContent).toContain("£6.00");
     expect(container.textContent).toContain("Published price");
     expect(container.textContent).toContain("Public pint report");
-    expect(container.querySelector('a[href="https://www.smallbeern8.co.uk/drinks"]')?.textContent).toBe("Published menu");
+    expect(container.querySelector('a[href="https://www.smallbeern8.co.uk/drinks"]')?.textContent).toBe("smallbeern8.co.uk");
     expect(container.querySelector('a[href="/p/small-beer-report"]')?.textContent).toBe("View Pint Drop");
     expect([...container.querySelectorAll("time")].map((time) => time.dateTime)).toEqual([bundle.listed.observedAt, fresh.createdAt]);
   });
+  it.each([undefined, null, "", "   "])("discloses a missing publisher without inventing one (%s)", async (publisher) => {
+    vi.stubGlobal("fetch", vi.fn(async () => answer(null)));
+    await act(async () => root.render(view(null, "venue-19mn6ss", { listed: {
+      priceGbp: 5, sourceUrl: "https://www.smallbeern8.co.uk/drinks", publisher, observedAt: "2026-09-21T18:58:02.492Z",
+    } })));
+    expect(container.textContent).toContain("Publisher not recorded");
+    expect(container.querySelector('a[href="https://www.smallbeern8.co.uk/drinks"]')).toBeNull();
+    expect(container.textContent).toContain("£5.00");
+  });
+  it("keeps a recorded publisher as text when its URL is unsafe", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => answer(null)));
+    await act(async () => root.render(view(null, "venue-19mn6ss", { listed: {
+      priceGbp: 5, sourceUrl: "javascript:alert(1)", publisher: "Small Beer", observedAt: "2026-09-21T18:58:02.492Z",
+    } })));
+    expect(container.textContent).toContain("Listed by Small Beer");
+    expect(container.textContent).toContain("Link unavailable.");
+    expect(container.querySelector('a[href^="javascript:"]')).toBeNull();
+    expect(container.textContent).not.toContain("Publisher not recorded");
+  });
   it.each(["corroborated", "confirmed"] as const)("keeps the %s report above a published listing", async (state) => {
     vi.stubGlobal("fetch", vi.fn(async () => answer({ ...report, priceGbp: 6, createdAt: "2026-10-23T16:00:00Z", state })));
-    const bundle = { listed: { priceGbp: 5, sourceUrl: "https://www.smallbeern8.co.uk/drinks", observedAt: "2026-09-21T18:58:02.492Z" } };
+    const bundle = { listed: { priceGbp: 5, sourceUrl: "https://www.smallbeern8.co.uk/drinks", publisher: "smallbeern8.co.uk", observedAt: "2026-09-21T18:58:02.492Z" } };
     await act(async () => root.render(view(null, "venue-19mn6ss", bundle)));
     expect(container.querySelector(".priceBadge")?.textContent).toBe("£6.00");
     expect(container.querySelector("[data-current-price]")?.getAttribute("data-current-price")).toBe("6");
@@ -190,7 +209,7 @@ describe("Ledger price record", () => {
   it("keeps the published price while the public read is pending or fails", async () => {
     let rejectRead: (error: Error) => void = () => {};
     vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>((_resolve, reject) => { rejectRead = reject; })));
-    const bundle = { listed: { priceGbp: 5, sourceUrl: "https://www.smallbeern8.co.uk/drinks", observedAt: "2026-09-21T18:58:02.492Z" } };
+    const bundle = { listed: { priceGbp: 5, sourceUrl: "https://www.smallbeern8.co.uk/drinks", publisher: "smallbeern8.co.uk", observedAt: "2026-09-21T18:58:02.492Z" } };
     await act(async () => root.render(view(null, "venue-19mn6ss", bundle)));
     expect(container.querySelector(".priceBadge")?.textContent).toBe("£5.00");
     expect(container.textContent).not.toContain("Public pint report");
