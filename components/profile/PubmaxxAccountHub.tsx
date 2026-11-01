@@ -76,10 +76,8 @@ import {
   subscribeAnyPendingPlanRecap,
   type PendingPlanRecap,
 } from "@/lib/planRecap";
-import {
-  PLAN_HTTP_ONLY_SESSION,
-  restorePlanCapability,
-} from "@/lib/planSessionCapability";
+import { restorePlanCapability } from "@/lib/planSessionCapability";
+import { readProviderIdentityRevision, readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { listEnabledCities, type CityId } from "@/lib/cities";
 import { getNightAreasForCity } from "@/lib/nightAreas";
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
@@ -620,54 +618,60 @@ export default function PubmaxxAccountHub() {
       setMessage("Your private Memories were left unchanged. The recap stays on this device.");
       return;
     }
-    const items: Array<{ recap: PendingPlanRecap; memberToken: string }> = [];
-    for (const recap of confirmed.recaps) {
-      let memberToken = "";
-      try {
-        const capability = await restorePlanCapability(recap.planId);
-        if (capability?.token) memberToken = capability.token;
-      } catch {
-        memberToken = "";
-      }
-      if (!memberToken) {
-        setMessage(
-          "Open the Plan in this browser before bringing the recap. Your local draft is safe.",
-        );
-        return;
-      }
-      items.push({
-        recap,
-        memberToken: memberToken === PLAN_HTTP_ONLY_SESSION ? PLAN_HTTP_ONLY_SESSION : memberToken,
-      });
-    }
-    const response = await authedActionFetch("/api/me/pending-plan-recaps", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ action: "claim", choice: "bring-device", items }),
-    }, { requiresIdentity: true });
-    const body = (await response.json().catch(() => ({}))) as {
-      memories?: Array<{ memory?: { id: string; planCompletionId?: string | null } }>;
-      error?: string;
-    };
-    if (!response.ok) {
-      setMessage(errorMessageFrom(body, "Your private recap could not be brought onto your account."));
+    const claimAuth = accountAuth;
+    const requestRevision = accountRevision;
+    const signal = readProviderAccountSignal();
+    const isCurrentAccount = () => !signal.aborted && readProviderIdentityRevision() === requestRevision;
+    if (!isCurrentAccount()) return;
+    if (!claimAuth) {
+      setMessage("Sign in again to bring this recap. Your local draft is safe.");
       return;
     }
     const nextIds = new Set(memoryCompletionIds);
-    for (const entry of body.memories ?? []) {
-      const completionId = entry.memory?.planCompletionId;
-      if (completionId) nextIds.add(completionId);
+    try {
+      for (const recap of confirmed.recaps) {
+        if (!isCurrentAccount()) return;
+        const capability = await restorePlanCapability(recap.planId);
+        if (!isCurrentAccount()) return;
+        if (!capability?.token) {
+          setMessage("Open the Plan in this browser before bringing the recap. Your local draft is safe.");
+          return;
+        }
+        // This path receives the Plan's HttpOnly cookie without widening its scope.
+        const response = await accountBoundFetch(claimAuth, `/api/plans/${recap.planId}/recap`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ memberToken: capability.token, recap }),
+          signal,
+        });
+        const body = (await response.json().catch(() => ({}))) as {
+          memory?: { id: string; ownerId?: string; planCompletionId?: string | null };
+          error?: string;
+        };
+        if (!isCurrentAccount()) return;
+        if (!response.ok || !body.memory?.id || body.memory.ownerId !== claimAuth.userId
+          || body.memory.planCompletionId !== recap.completionId) {
+          setMessage(errorMessageFrom(body, "Your private recap could not be brought onto your account."));
+          return;
+        }
+        nextIds.add(recap.completionId);
+      }
+      if (!isCurrentAccount()) return;
+      // Keep every local draft until the whole batch succeeds. Earlier saves retry idempotently.
+      for (const recap of confirmed.recaps) {
+        resolvePendingPlanRecap(recap, "saved");
+      }
+      setMemoryCompletionIds([...nextIds]);
+      setDevicePlanRecaps(listPendingPlanRecaps());
+      setMessage(
+        confirmed.recaps.length > 1
+          ? "Your device recaps are now private Memories. Nothing was published."
+          : "Your device recap is now a private Memory. Nothing was published.",
+      );
+    } catch {
+      if (!isCurrentAccount()) return;
+      setMessage("Your private recap could not be brought onto your account. Your local drafts are safe.");
     }
-    for (const recap of confirmed.recaps) {
-      resolvePendingPlanRecap(recap, "saved");
-    }
-    setMemoryCompletionIds([...nextIds]);
-    setDevicePlanRecaps(listPendingPlanRecaps());
-    setMessage(
-      (body.memories?.length ?? 0) > 1
-        ? "Your device recaps are now private Memories. Nothing was published."
-        : "Your device recap is now a private Memory. Nothing was published.",
-    );
   }
 
   async function saveAccountNightProfile() {
