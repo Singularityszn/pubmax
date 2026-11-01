@@ -87,9 +87,13 @@ async function fragmentedLandingProxy(baseURL: string) {
   const requests = new Set<ClientRequest>();
   const waitingFonts: Array<() => void> = [];
   const delivery = { originalSha256: "", htmlBytes: 0, splitAt: 0, heldFonts: 0, errors: [] as string[] };
-  let fontReleaseAt = 0;
+  // Open from the header split until the HTML tail is written. A font the
+  // browser asks for in that window is held until the tail, decided when the
+  // request arrives so a slow upstream reply cannot slip past the hold.
+  let headerStreaming = false;
   let releaseTimer: ReturnType<typeof setTimeout> | undefined;
   const server = createServer((incoming, outgoing) => {
+    const fontRequestedWhileStreaming = headerStreaming && /\.woff2?$/.test(new URL(incoming.url ?? "/", upstreamOrigin).pathname);
     const upstreamURL = new URL(upstreamOrigin);
     const path = new URL(incoming.url ?? "/", upstreamOrigin);
     upstreamURL.pathname = path.pathname;
@@ -100,7 +104,7 @@ async function fragmentedLandingProxy(baseURL: string) {
     }, (reply) => {
       const isLanding = path.pathname === "/" && reply.statusCode === 200 &&
         String(reply.headers["content-type"]).includes("text/html");
-      const holdFont = /\.woff2?$/.test(path.pathname) && reply.statusCode === 200 && Date.now() < fontReleaseAt;
+      const holdFont = fontRequestedWhileStreaming && reply.statusCode === 200;
       if (!isLanding && !holdFont) {
         outgoing.writeHead(reply.statusCode ?? 502, reply.headers);
         reply.pipe(outgoing);
@@ -119,7 +123,8 @@ async function fragmentedLandingProxy(baseURL: string) {
             outgoing.writeHead(reply.statusCode ?? 502, reply.headers);
             outgoing.end(body);
           };
-          if (Date.now() < fontReleaseAt) waitingFonts.push(() => { delivery.heldFonts += 1; release(); });
+          delivery.heldFonts += 1;
+          if (headerStreaming) waitingFonts.push(release);
           else release();
           return;
         }
@@ -139,10 +144,11 @@ async function fragmentedLandingProxy(baseURL: string) {
         delete headers["content-length"];
         delete headers["transfer-encoding"];
         outgoing.writeHead(200, headers);
-        fontReleaseAt = Date.now() + 500;
+        headerStreaming = true;
         outgoing.flushHeaders();
         outgoing.write(body.subarray(0, delivery.splitAt));
         releaseTimer = setTimeout(() => {
+          headerStreaming = false;
           for (const release of waitingFonts.splice(0)) release();
           outgoing.end(body.subarray(delivery.splitAt));
         }, 500);
