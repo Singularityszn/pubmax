@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 // Lock-In / Ledger was intentionally retired from the global product chrome.
 // A stale preference may still exist on returning devices, but it must not
-// replace the stable six-destination mobile navigation or turn Moment into a
+// replace the stable five-destination mobile navigation or turn Moment into a
 // destination. The public Ledger route remains available from venue context.
 test("legacy view-mode state cannot replace the current mobile navigation", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -15,7 +15,7 @@ test("legacy view-mode state cannot replace the current mobile navigation", asyn
   await page.goto("/feed");
 
   const nav = page.getByRole("navigation", { name: "Primary" });
-  for (const label of ["Map", "Tonight", "Plan", "Spoons", "Social", "You"]) {
+  for (const label of ["Map", "Tonight", "Plan", "Social", "You"]) {
     await expect(nav.getByRole("link", { name: label, exact: true })).toBeVisible();
   }
   // The create action is a sibling of the bar, never inside it: compose is an

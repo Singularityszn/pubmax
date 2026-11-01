@@ -305,14 +305,14 @@ test("the first-run dock leads with the loop and only Social may ask a stranger 
 
   const dock = page.getByRole("navigation", { name: "Primary" });
   const tabs = dock.getByRole("link");
-  // Six destinations, and the Pub Pal's own door between Tonight and Plan.
-  await expect(tabs).toHaveText(["Map", "Tonight", "Pal", "Plan", "Spoons", "Social", "You"]);
+  // Five destinations, and the Pub Pal's own door between Tonight and Plan.
+  await expect(tabs).toHaveText(["Map", "Tonight", "Pal", "Plan", "Social", "You"]);
   await expect(dock.locator('a[href^="/moment"]')).toHaveCount(0);
 
   const hrefs = await tabs.evaluateAll((links) =>
     links.map((link) => link.getAttribute("href") ?? ""),
   );
-  expect(hrefs).toHaveLength(7);
+  expect(hrefs).toHaveLength(6);
   for (const href of hrefs.filter((candidate) => !candidate.startsWith("/social"))) {
     const response = await page.goto(href, { waitUntil: "domcontentloaded" });
     expect(response?.status(), `${href} answers`).toBeLessThan(400);

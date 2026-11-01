@@ -56,7 +56,7 @@ for (const width of WIDTHS) {
         await nav
           .locator(".mobileTab")
           .evaluateAll((links) => links.map((link) => link.getAttribute("aria-label"))),
-      ).toEqual(["Map", "Tonight", "Plan", "Spoons", "Social", "You"]);
+      ).toEqual(["Map", "Tonight", "Plan", "Social", "You"]);
     });
   });
 }

@@ -163,7 +163,7 @@ for (const width of [320, 390]) {
             rects: text.map((rect) => ({ left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom })),
           };
         }));
-        expect(labels.map((label) => label.text)).toEqual(["Map", "Tonight", "Pal", "Plan", "Spoons", "Social", "You"]);
+        expect(labels.map((label) => label.text)).toEqual(["Map", "Tonight", "Pal", "Plan", "Social", "You"]);
         expect(labels.find((label) => label.text === "Tonight")?.href).toBe("/tonight");
         expect(labels.find((label) => label.text === "Pal")?.href).toBe("/pal");
         for (const label of labels) {

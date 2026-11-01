@@ -151,7 +151,7 @@ test.describe("keyboard: the core loop is operable with no pointer", () => {
     // sheet is covering. Its one way out is the primary navigation. A half or
     // full shared sheet is not a strict modal, so it drops aria-modal, and
     // the tab bar carries the focus-trap exemption. Tab from the sheet's last
-    // control reaches the six destinations and comes back to the sheet
+    // control reaches the five doors and comes back to the sheet
     // (docs/rules/components-sheets-chrome-and-navigation.md, "A MAP CONTROL
     // BESIDE THE VENUE DRAWER IS AN EXEMPT SURFACE"). Anything else is a hole.
     // 40 presses leave room for at least one full cycle, plus the tab bar.
@@ -175,8 +175,8 @@ test.describe("keyboard: the core loop is operable with no pointer", () => {
     }
     // The exemption is a way out, so the loop must actually take it: a trap
     // that cycles only inside the sheet would pass every check above.
-    expect(navNames, "Tab reaches the six destinations of the exempt primary navigation").toEqual(
-      expect.arrayContaining(["Map", "Tonight", "Plan", "Spoons", "Social", "You"]),
+    expect(navNames, "Tab reaches the five doors of the exempt primary navigation").toEqual(
+      expect.arrayContaining(["Map", "Tonight", "Plan", "Social", "You"]),
     );
     // A ring that never repeats is not a ring: the cycle proves it wraps.
     expect(new Set(names).size, "the sheet's focus ring cycles").toBeLessThan(
