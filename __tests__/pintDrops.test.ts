@@ -328,6 +328,9 @@ beforeEach(() => {
   reportAuth.userId = null;
   gateActor.userId = "demo-account";
   delete process.env.RATE_LIMIT_STRICT;
+  // Demo content is opt-in (lib/demoContent.ts). A test that reads the seeds
+  // turns it on itself, and this resets it for the next one.
+  delete process.env.NEXT_PUBLIC_DEMO_CONTENT;
 });
 
 afterAll(() => {
@@ -1066,6 +1069,7 @@ describe("GET + moderation", () => {
   });
 
   it("lists all visible drops when venueId is omitted (organic + demo seeds)", async () => {
+    process.env.NEXT_PUBLIC_DEMO_CONTENT = "on";
     await post({ venueId: "first", handle: "ale", priceGbp: 4.2 });
     await post({ venueId: "second", handle: "mild", passedDownNote: "my dad's old local" });
 
@@ -1075,6 +1079,17 @@ describe("GET + moderation", () => {
     // The two organic drops plus the seeded demo drops, all through one read path.
     expect(drops.filter((d) => d.provenance !== "demo")).toHaveLength(2);
     expect(drops.filter((d) => d.provenance === "demo").length).toBeGreaterThanOrEqual(8);
+  });
+
+  it("lists organic drops only when demo content is not asked for", async () => {
+    await post({ venueId: "first", handle: "ale", priceGbp: 4.2 });
+    await post({ venueId: "second", handle: "mild", passedDownNote: "my dad's old local" });
+
+    const res = await get();
+    expect(res.status).toBe(200);
+    const { drops } = (await res.json()) as { drops: Array<{ provenance: string }> };
+    expect(drops).toHaveLength(2);
+    expect(drops.some((d) => d.provenance === "demo")).toBe(false);
   });
 
   it("city-scopes and enriches non-London venue ids", async () => {
