@@ -1082,10 +1082,9 @@ export default function MessageThread({
   return (
     <div className="messageThread">
       {/* The shell is `display: contents`: it carries the keyboard facts as
-          data for the stylesheet and the marker that hides the compose
-          control, and draws no box of its own. */}
+          data for the stylesheet, and draws no box of its own. */}
       <div
-        className="messageThreadShell pageHidesCreateFab"
+        className="messageThreadShell"
         data-keyboard-open={keyboardOpen ? "" : undefined}
         style={{ "--keyboard-inset": `${keyboardInset}px` } as React.CSSProperties}
       >

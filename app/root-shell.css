@@ -3,7 +3,6 @@
 @import "./theme.css";
 @import "./auth/auth.css";
 @import "../components/nav/mobileNav.css";
-@import "../components/nav/createFab.css";
 @import "../components/founding/foundersDiscordLink.css";
 @import "../components/auth/arrivalWelcome.css";
 @import "../components/identity/identityNudge.css";

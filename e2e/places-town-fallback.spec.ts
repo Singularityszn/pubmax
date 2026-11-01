@@ -68,10 +68,10 @@ test("a town typed at the picker still opens its own arrival", async ({ page }) 
 // DEFECT (UI test, 2026-09-12, 390x844): the ODbL credit the town answer owes
 // printed its tail under the floating create action, so "ODbL." and the full
 // stop were painted beneath the button. A licence line is the one line that may
-// never be partly hidden. The remedies are the control's own published lane
-// (`.createFabLane`, components/nav/createFab.css) and a credit whose tap floor
-// no longer grows its line box into the tab bar's band. Rendered geometry is
-// what proves it, never the stylesheet's text.
+// never be partly hidden. The floating create action has since left with the
+// five-tab dock (captain, 1 Nov 2026), and the credit's tap floor no longer
+// grows its line box into the tab bar's band. Rendered geometry is what
+// proves it, never the stylesheet's text.
 test("the town answer's licence credit is clear of the floating chrome", async ({ page }) => {
   test.setTimeout(90_000);
   await page.setViewportSize({ width: 390, height: 844 });

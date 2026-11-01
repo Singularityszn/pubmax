@@ -27,7 +27,7 @@ const path = "/map";
     await expect(nav.getByRole("button", { name: `Account options for ${ACCOUNTS.A.name}`, exact: true })).toBeEnabled();
     // The desktop SiteNav uses navigationModel's literal /u/you.
     // The account-resolved mobile/profile link is a different public control.
-    for (const [name, href] of [["Map", "/map"], ["Plan", "/plan"], ["Spoons", "/spoons-value"], ["Social", "/social"], ["You", "/u/you"], ["Pub Pal", "/pal"]] as const) {
+    for (const [name, href] of [["Explore", "/map"], ["Plan", "/plan"], ["Spoons", "/spoons-value"], ["Social", "/social"], ["You", "/u/you"], ["Pub Pal", "/pal"]] as const) {
       const link = nav.getByRole("link", { name, exact: true });
       await expect(link).toBeVisible();
       await expect(link).toHaveAttribute("href", href);
@@ -77,7 +77,7 @@ const path = "/map";
     await testInfo.attach("header-geometry", { path: geometryPath, contentType: "application/json" });
     await testInfo.attach("header", { path: screenshotPath, contentType: "image/png" });
     expect(geometry.rootFontSize).toBe("32px");
-    expect(geometry.labels.map((label) => label.name)).toEqual(["Map", "Tonight", "Plan", "Spoons", "Social", "You"]);
+    expect(geometry.labels.map((label) => label.name)).toEqual(["Explore", "Tonight", "Plan", "Spoons", "Social", "You"]);
     for (const label of geometry.labels) {
       expect(label.label.width, `${label.name} visible label`).toBeGreaterThan(0);
       expect(label.scrollWidth, `${label.name} whole label`).toBeLessThanOrEqual(label.clientWidth);

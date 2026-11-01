@@ -347,7 +347,6 @@ export default async function BoroughPage({ params }: PageProps) {
               {pubs.map((pub, index) => (
                 <RowListItem
                   key={pub.id}
-                  className="createFabLane"
                   href={venueMapUrl(pub.id)}
                   lead={<span className="boroughRank">{index + 1}</span>}
                   title={pub.name}

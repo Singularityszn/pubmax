@@ -7,7 +7,7 @@ Long-form incident history, measured proof and review finding IDs live under [`d
 
 ## Identity, accounts and sessions
 
-Accounts, adult gate, direct-message safety, contribution identity, founding marks, referrals, starter packs, directory, add links, visibility.
+Accounts, adult gate, direct-message safety, contribution identity, founding marks, referrals, starter packs, directory, add links, visibility, the signed-out London lane.
 
 Full rules: [`docs/rules/lib-identity-accounts-and-sessions.md`](../docs/rules/lib-identity-accounts-and-sessions.md).
 
@@ -43,6 +43,6 @@ Full rules: [`docs/rules/lib-observability.md`](../docs/rules/lib-observability.
 
 ## Shared seams: stores, http, freshness, brand
 
-Enrichment cron, freshness spine, Context.dev, brand naming, icons, contact, rate limits, stores, messaging.
+Enrichment cron, freshness spine, Context.dev, brand naming, icons, contact, rate limits, stores, messaging, email delivery.
 
 Full rules: [`docs/rules/lib-shared-seams-stores-http-freshness-brand.md`](../docs/rules/lib-shared-seams-stores-http-freshness-brand.md).

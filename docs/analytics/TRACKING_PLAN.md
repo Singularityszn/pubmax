@@ -356,7 +356,6 @@ vocabularies. The column here is the question the event exists to answer.
 | `tonight_result_opened` | A tonight row was opened, and on what locality basis. |
 | `out_filter_select` | A Tomorrow or Weekend window was chosen on Tonight. |
 | `out_card_opened` | A Tomorrow or Weekend listing on Tonight was opened, and from which source. |
-| `create_fab_action` | The compose action was used. |
 | `night_moment_saved` | A moment was kept, and how visible. |
 | `night_memory_created` | A memory was created. |
 | `night_story_published` | A night story was published. |

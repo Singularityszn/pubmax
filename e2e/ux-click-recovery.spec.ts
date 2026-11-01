@@ -77,8 +77,7 @@ async function prepareWineMap(page: Page, width: number): Promise<void> {
     sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
   });
   await installDeterministicMapBasemap(page);
-  // The phone Create action is hidden while a pub detail sheet is selected.
-  // Start the phone case without a pub. Desktop still proves selected-pub return.
+  // The phone case starts without a pub. Desktop still proves selected-pub return.
   await page.goto(width === 390 ? "/map" : "/map?sel=venue-eltcmh");
   await expectMapLoadingFrameReleased(page);
   if (width === 390) {
@@ -154,17 +153,15 @@ test.describe("Wine Moment return", () => {
     await returnFromMoment(page, 1440, returnTo);
   });
 
-  test("390px Create Moment returns to an unselected Wine map despite saved Pints", async ({ page }) => {
+  // The phone reaches the Moment composer from Social and You now (the
+  // floating Create left with the five-tab dock, 1 Nov 2026). The composer
+  // still carries the map it was asked to come back to.
+  test("390px Moment returns to an unselected Wine map despite saved Pints", async ({ page }) => {
     await prepareWineMap(page, 390);
     const returnTo = new URL(page.url()).pathname + new URL(page.url()).search;
     expect(new URL(page.url()).searchParams.has("sel")).toBe(false);
-    const create = page.getByRole("button", { name: "Create", exact: true });
-    await expect(create).toBeVisible();
-    await expect(async () => {
-      await create.click();
-      await expect(page.locator(".createFabMenu")).toBeVisible({ timeout: 1_000 });
-    }).toPass();
-    await page.locator(".createFabMenu").getByRole("link", { name: "Post a moment", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Create", exact: true })).toHaveCount(0);
+    await page.goto(`/moment?returnTo=${encodeURIComponent(returnTo)}`);
     await returnFromMoment(page, 390, returnTo);
   });
 });

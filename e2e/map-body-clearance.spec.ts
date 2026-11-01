@@ -49,11 +49,12 @@ for (const width of [390, 768, 1440]) {
       // The list view names one city and paints one door to it (taste plan,
       // 18 Oct 2026), so the rows at the foot of the page are the town
       // lookup's answers now. A short query answers with several towns, and
-      // the last of them is the row that has to clear the card and Create.
+      // the last of them is the row that has to clear the card and the tab
+      // bar (the floating Create left with the five-tab dock, 1 Nov 2026).
       await page.getByLabel("Find a town").fill("man");
       const lastCity = page.getByRole("list", { name: "Places" }).locator(".placesCityLink").last();
       await expect(lastCity).toBeVisible({ timeout: 20_000 });
-      const obstruction = consent ? prompt : page.locator(".createFabRoot");
+      const obstruction = consent ? prompt : page.locator(".mobileTabList");
       if (consent || width === 390) await expect(obstruction).toBeVisible();
       await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
       const last = await lastCity.boundingBox();
@@ -75,21 +76,22 @@ for (const width of [390, 768, 1440]) {
   }
 }
 
-test("a page without Create only reserves its mobile tab bar", async ({ page }) => {
+test("every phone page reserves its mobile tab bar and nothing more", async ({ page }) => {
+  // The floating Create left with the five-tab dock (captain, 1 Nov 2026), so
+  // no page reserves a second band for it.
   await page.setViewportSize({ width: 390, height: 900 });
   await returningVisitor(page);
   await page.goto("/places");
-  const create = page.getByRole("button", { name: "Create", exact: true });
-  await expect(create).toBeVisible();
-  const createBox = (await create.boundingBox())!;
-  const withCreate = await page.evaluate(() => Number.parseFloat(getComputedStyle(document.body).paddingBottom));
-  await page.goto("/pal");
   await expect(page.locator(".createFabRoot")).toHaveCount(0);
   const bar = page.getByRole("navigation", { name: "Primary" });
   await expect(bar).toBeVisible();
   const barBox = await bar.boundingBox();
   expect(barBox).not.toBeNull();
-  const withoutCreate = await page.evaluate(() => Number.parseFloat(getComputedStyle(document.body).paddingBottom));
-  expect(withoutCreate).toBeGreaterThanOrEqual(barBox!.height);
-  expect(withCreate - withoutCreate).toBeGreaterThanOrEqual(createBox.height);
+  const onPlaces = await page.evaluate(() => Number.parseFloat(getComputedStyle(document.body).paddingBottom));
+  expect(onPlaces).toBeGreaterThanOrEqual(barBox!.height);
+  await page.goto("/pal");
+  await expect(page.locator(".createFabRoot")).toHaveCount(0);
+  await expect(bar).toBeVisible();
+  const onPal = await page.evaluate(() => Number.parseFloat(getComputedStyle(document.body).paddingBottom));
+  expect(onPal).toBeCloseTo(onPlaces, 0);
 });

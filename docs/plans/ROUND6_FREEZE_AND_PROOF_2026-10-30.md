@@ -23,7 +23,7 @@ Round 6a (builders 32 and 33) lands on PR 2412 because it proves round 5's own r
 - No migration. Migrations 0203 to 0211 (PR 2402) and 0212 (PR 2412) wait for the captain.
 - No product code. A defect found by the smoke walk or a sweep is a finding in the table, fixed in its own PR.
 - No pint refresh run. The refresh cadence is captain decision 6 in the launch review; this round only makes sure the date the site prints is the date the data carries.
-- No new feature from the week 3 leftovers (roulette, the dry round, quiz teams). They wait behind captain decision D2.
+- No new feature from the week 3 leftovers (roulette, the dry round, quiz teams). They wait behind captain decision D2 (decided on 1 November 2026, launch plan decision 7).
 
 ## 3. The sweep that is still owed
 
@@ -32,7 +32,7 @@ Every figure in this round is measured on `main` or on PR 2412's head. The launc
 ## 4. What the captain must do
 
 - Read the smoke table in the runbook when builder 34 lands it, and decide each FAIL: fix before launch, or accept with a note.
-- Decide the four launch-review questions that gate copy and flows: the public London lane on Social (D2), the age assurance route, the receipt rule, and whether Clerk stays.
+- Decide the four launch-review questions that gate copy and flows: the public London lane on Social (D2, decided on 1 November 2026: a read-only lane for signed-out visitors), the age assurance route, the receipt rule, and whether Clerk stays.
 - After PRs 2402 and 2412 merge, say so, and the launch-head sweep runs.
 - Record the release metric on the launch head, following the runbook block.
 

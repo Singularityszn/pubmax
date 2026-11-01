@@ -62,8 +62,9 @@ import {
   venuePriceLane,
   venueSourcedPrice,
 } from "@/lib/venuePriceLane";
-import { dropLaneInput, splitLaneInput } from "@/lib/pintTrust";
+import { dropLaneInputsFor } from "@/lib/pintTrust";
 import { PINT_COMPASS_DOOR_NAME, PINT_COMPASS_HREF, PINT_COMPASS_LABEL } from "@/lib/pintCompassDoor";
+import MapPriceLogDoor from "@/components/map/MapPriceLogDoor";
 import {
   isMapSearchField,
   typedSearchCameraMove,
@@ -5974,17 +5975,17 @@ export default function PubMap({
     // this chip may word as an absence (lib/venuePriceLane.ts).
     const peekDropSignal = dropSignals.get(selectedVenue.id);
     const peekBundle = venueBundlePrices(selectedVenue);
+    // ONE builder for the three drop-lane inputs, shared with the sheet below,
+    // so an unchecked figure is named and unbanded on both (decision 9).
+    const peekDropLanes = dropLaneInputsFor(peekDropSignal);
     const peekLane = venuePriceLane(
       selectedVenue,
       peekDropSignal?.latestContributorPrice,
       venueSourcedPrice(selectedVenue),
       peekBundle,
-      dropLaneInput(
-        peekDropSignal?.provisionalContributorPrice,
-        peekDropSignal?.provisionalContributorAt,
-      ),
-      dropLaneInput(peekDropSignal?.agedContributorPrice, peekDropSignal?.agedContributorAt),
-      splitLaneInput(peekDropSignal?.disputedPrices, peekDropSignal?.disputedAt),
+      peekDropLanes.provisional,
+      peekDropLanes.aged,
+      peekDropLanes.disputed,
     );
     // The frame is the peek's size container: the row measures itself in em, so
     // large text moves the plan door onto its own line (mobileMapShell.css).
@@ -6096,6 +6097,9 @@ export default function PubMap({
       !venueRevealRequest.interrupted
         ? venueRevealRequest
         : null;
+    // The sheet's three drop-lane inputs, built by the same helper as the peek,
+    // so a typed price with no bill prints "not checked" and no band on both.
+    const sheetDropLanes = dropLaneInputsFor(dropSignals.get(selectedVenue.id));
 
     return (
       <>
@@ -6130,18 +6134,9 @@ export default function PubMap({
           // The venue's own minted confirmation, unmerged like the drop price
           // beside it: the standing reports what a drinker confirmed HERE.
           confirmedPrice={dropSignals.get(selectedVenue.id)?.confirmedPrice}
-          provisionalPrice={dropLaneInput(
-            dropSignals.get(selectedVenue.id)?.provisionalContributorPrice,
-            dropSignals.get(selectedVenue.id)?.provisionalContributorAt,
-          )}
-          agedPrice={dropLaneInput(
-            dropSignals.get(selectedVenue.id)?.agedContributorPrice,
-            dropSignals.get(selectedVenue.id)?.agedContributorAt,
-          )}
-          disputedPrice={splitLaneInput(
-            dropSignals.get(selectedVenue.id)?.disputedPrices,
-            dropSignals.get(selectedVenue.id)?.disputedAt,
-          )}
+          provisionalPrice={sheetDropLanes.provisional}
+          agedPrice={sheetDropLanes.aged}
+          disputedPrice={sheetDropLanes.disputed}
           // Share copy prefers the MERGED map-authority figure (same seam as
           // pins), dated — never a sheet-only uncorroborated report.
           shareLoggedPintGbp={venueSignals.get(selectedVenue.id)?.latestContributorPrice}
@@ -6281,9 +6276,13 @@ export default function PubMap({
               <List size={16} aria-hidden="true" />
               {mapListOpen ? "Hide venue list" : "List view"}
             </Button>
+            {/* Log a price without a pub picked yet: the map asks which pub.
+                It left the floating create button for the map (1 Nov 2026). */}
+            <MapPriceLogDoor />
             {/* Pub Pal left the one top bar so the place name beside the
                 wordmark stays whole (finding 2.3). It keeps a named
-                shortcut here, beside the map's other destinations. */}
+                shortcut here, beside the map's other destinations, and its
+                door on the map edge above Near me. */}
             <Button
               asChild
               variant="secondary"

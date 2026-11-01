@@ -146,14 +146,11 @@ for (const theme of ["light", "dark"] as const) {
       await expect.poll(() => page.evaluate(() =>
         parseFloat(getComputedStyle(document.documentElement).fontSize))).toBe(fontSize);
 
-      const create = page.getByRole("button", { name: "Create", exact: true });
-      await expect(create).toBeVisible();
+      // The floating Create left with the five-tab dock (captain, 1 Nov 2026).
+      await expect(page.getByRole("button", { name: "Create", exact: true })).toHaveCount(0);
       const primaryBox = await primary.boundingBox();
-      const createBox = await create.boundingBox();
       expect(primaryBox).not.toBeNull();
-      expect(createBox).not.toBeNull();
-      expect(boxesOverlap(primaryBox!, createBox!), "Create covers the Social primary").toBe(false);
-      for (const box of [primaryBox!, createBox!]) {
+      for (const box of [primaryBox!]) {
         expect(box.width).toBeGreaterThanOrEqual(44);
         expect(box.height).toBeGreaterThanOrEqual(44);
         expect(box.x).toBeGreaterThanOrEqual(0);
@@ -172,20 +169,12 @@ for (const theme of ["light", "dark"] as const) {
         ].every(([x, y]) => element.contains(document.elementFromPoint(x, y)));
       });
       expect(primaryOwnsHits, "Social primary owns its centre and edge hit targets").toBe(true);
-      expect(await create.evaluate((element) => {
-        const box = element.getBoundingClientRect();
-        return element.contains(document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2));
-      }), "Create owns its centre hit target").toBe(true);
       const overflow = await page.evaluate(() =>
         Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth);
       expect(overflow, "Social horizontal overflow").toBeLessThanOrEqual(0);
       expect(await page.evaluate(() => localStorage.getItem("pubmaxx:analytics-consent:v1"))).toBe("denied");
       expect(beacons, "analytics fired without Allow").toEqual([]);
 
-      await create.click();
-      await expect(page.locator(".createFabMenu")).toBeVisible();
-      await page.getByRole("button", { name: "Close create menu", exact: true }).click();
-      await expect(page.locator(".createFabMenu")).toHaveCount(0);
       await primary.click();
       await expect(page).toHaveURL(/\/login\?mode=signin&from=%2Fsocial/);
       expect(beacons, "analytics fired after denied reader actions").toEqual([]);
@@ -452,7 +441,7 @@ test("consent refreshes after a Places city selection and pointer return from Ma
   await prompt.getByRole("button", { name: "No thanks", exact: true }).click();
   await expect(prompt).toHaveCount(0);
   await page.getByRole("navigation", { name: "Site navigation", exact: true })
-    .getByRole("link", { name: "Map", exact: true }).click();
+    .getByRole("link", { name: "Explore", exact: true }).click();
   await expect(page).toHaveURL(/\/map(?:\?|$)/);
   await openPlacesFromMapChip(page);
   await expect(prompt).toHaveCount(0);

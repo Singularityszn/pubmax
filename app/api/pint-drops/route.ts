@@ -18,7 +18,7 @@ import { enrichItemsWithAvatarUrls } from "@/lib/avatarResolve";
 import { boundedFormData, boundedJson } from "@/lib/boundedRequest.server";
 import { parseCityId } from "@/lib/cities";
 import { cityIdFromVenueId } from "@/lib/cityVenueIds";
-import { RECEIPT_REQUIRED_LINE, priceNeedsReceipt } from "@/lib/pintDropReceipt";
+import { RECEIPT_REQUIRED_LINE } from "@/lib/pintDropReceipt";
 import { resolveViewerContextFromRequest } from "@/lib/pintDropViewer";
 import { log } from "@/lib/log";
 import { LONDON_BOROUGH_NAMES } from "@/lib/londonBoroughNames.mjs";
@@ -35,6 +35,7 @@ import {
 } from "@/lib/pintDrops";
 import {
   isPintDropDailyCapError,
+  isUncheckedPriceNotStorableError,
   PhotoRefusalError,
   pintDropsStore,
   type PintDropDTO,
@@ -461,13 +462,13 @@ export async function POST(request: Request): Promise<Response> {
       401,
     );
   }
-  // AND A PRICE COMES WITH THE BILL (captain 7 Sept 2026). Asked before the
-  // rate limit and the daily cap, so a refusal spends neither. An unpriced
-  // drop - a note, a memory, a photo of the pub - is asked for nothing, for
-  // the same reason it keeps the demo path: no price lane reads it.
-  if (priceNeedsReceipt(canonicalDrop.priceGbp) && !photos.receipt) {
-    return publicApiError(RECEIPT_REQUIRED_LINE, "RECEIPT_REQUIRED", 400);
-  }
+  // A PRICE WITHOUT THE BILL IS UNCHECKED, NOT REFUSED (captain decision 9,
+  // 1 Nov 2026, amending the 7 Sept bill rule at this door). The verified
+  // actor above, the rate limit and the daily cap below all still apply to
+  // it. The store EARNS the drop's evidence from what arrived
+  // (lib/pintDropReceipt.ts `priceEvidenceFor`), so nothing here stamps it and
+  // no body field can claim a bill: a typed price lands `unchecked`, shows on
+  // the pub's own sheet, and reaches the pin only through a second drinker.
   const dropPayload = {
     ...canonicalDrop,
     handle: ownership.handle,
@@ -551,6 +552,13 @@ export async function POST(request: Request): Promise<Response> {
     // to tell which enforcer answered.
     if (isPintDropDailyCapError(err)) {
       return publicApiError(DAILY_PRICE_CAP_REFUSAL, "CONFLICT", 409);
+    }
+    // THE DEPLOY RAN AHEAD OF MIGRATION 0218. The store cannot write the word
+    // "unchecked", and a typed price saved without it would read as billed and
+    // mark the pin, so the drinker gets exactly the answer this door gave
+    // before decision 9: add the bill. It stops the moment 0218 is applied.
+    if (isUncheckedPriceNotStorableError(err)) {
+      return publicApiError(RECEIPT_REQUIRED_LINE, "RECEIPT_REQUIRED", 400);
     }
     // A REFUSED FILE IS THE DRINKER'S TO FIX, and the CLASS says which one it
     // is. This asked whether the message started with "Photo must", so the one

@@ -307,12 +307,18 @@ export function socialPostModerationClaim(
  * reaches here with no handle was already checked for a withdrawn author by
  * the store, which still knows the account (`dropWithdrawnHiddenNamePosts`),
  * and it gets no avatar, because a face is a name.
+ *
+ * `faces: false` drops the withdrawn authors and adds no avatar at all: the
+ * signed-out London lane prints handles only, because whether a public card
+ * wears a face is still the captain's open question.
  */
 export async function enrichSocialPostAuthors(
   posts: readonly SocialPostDTO[],
+  options: { faces?: boolean } = {},
 ): Promise<SocialPostDTO[]> {
   const visible = await dropWithdrawnAuthors(posts, (post) => post.author.handle);
   if (visible.length === 0) return [];
+  if (options.faces === false) return visible;
   const named = visible.flatMap((post) => post.author.handle ? [post.author.handle] : []);
   const urls = named.length > 0 ? await resolveAvatarUrlsForHandles(named) : new Map<string, string>();
   return visible.map((post) => {

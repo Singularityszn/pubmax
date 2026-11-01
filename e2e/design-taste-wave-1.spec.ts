@@ -173,7 +173,8 @@ test.describe("desktop taste wave 1", () => {
       const storiesPrimary = page.locator("[data-primary-action]").filter({ visible: true });
       await expect(storiesPrimary).toHaveCount(1);
       await expect(storiesPrimary.getByRole("link", { name: "Sign in" })).toBeVisible();
-      await expect(page.getByRole("status").getByText("Sign in to use Social.")).toBeVisible();
+      // The body is the read-only London lane (captain decision 7, 1 Nov 2026).
+      await expect(page.getByRole("heading", { name: "Across London", exact: true })).toBeVisible();
       await expect(page.getByRole("status").getByRole("link", { name: "Sign in" })).toHaveCount(0);
       const boundaryStyle = await storiesPrimary.evaluate(
         (element) => getComputedStyle(element).borderStyle,

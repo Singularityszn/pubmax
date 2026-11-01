@@ -97,11 +97,11 @@ test.describe("places tab @390", () => {
 
     // Map follows: the phone tab's own href, and the landing Map link.
     await expect(
-      primaryNav(page).getByRole("link", { name: "Map", exact: true }),
+      primaryNav(page).getByRole("link", { name: "Explore", exact: true }),
     ).toHaveAttribute("href", "/map/manchester");
     await page.goto("/");
     await expect(
-      primaryNav(page).getByRole("link", { name: "Map", exact: true }),
+      primaryNav(page).getByRole("link", { name: "Explore", exact: true }),
     ).toHaveAttribute("href", "/map/manchester");
 
     // Near follows: it reads the same stored city for its ranked pint list.
@@ -155,15 +155,19 @@ test.describe("places tab @390", () => {
 test.describe("places tab @320", () => {
   test.use({ viewport: { width: 320, height: 844 } });
 
-  test("all six dock controls fit, each keeps its tap floor, and nothing scrolls sideways", async ({
+  test("all five dock tabs fit, each keeps its tap floor, and nothing scrolls sideways", async ({
     page,
   }) => {
     await page.goto("/places");
     const tabs = primaryNav(page).getByRole("link");
-    await expect(tabs).toHaveCount(6);
-    for (const name of ["Map", "Tonight", "Pub Pal", "Plan", "Social", "You"]) {
+    await expect(tabs).toHaveCount(5);
+    for (const name of ["Explore", "Tonight", "Plan", "Social", "You"]) {
       await expect(primaryNav(page).getByRole("link", { name, exact: true })).toHaveCount(1);
     }
+    // The Pub Pal's door left the dock for the top bar (captain, 1 Nov 2026).
+    await expect(
+      page.getByRole("navigation", { name: "Site navigation" }).getByRole("link", { name: "Pub Pal", exact: true }),
+    ).toBeVisible();
     await expect(page.locator(".authCompactTrigger")).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
     for (const tab of await tabs.all()) {
@@ -207,7 +211,7 @@ for (const width of [768, 1440]) {
 
     const map = page
       .getByRole("navigation", { name: "Site navigation" })
-      .getByRole("link", { name: "Map", exact: true });
+      .getByRole("link", { name: "Explore", exact: true });
     await expect(map).toHaveAttribute("href", "/map/manchester");
     const otherTab = await page.context().newPage();
     await otherTab.goto("/places?city=london");

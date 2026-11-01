@@ -364,10 +364,11 @@ test("a wrong current password and a reused password each name their fault", asy
   );
 });
 
-test("the create action steps aside on the profile page it used to cover", async ({ page }) => {
+test("no floating create action covers the profile page", async ({ page }) => {
   await installOwnedAccount(page, { hasPassword: true });
   await page.goto(`/u/${HANDLE}`);
   await expect(page.getByRole("heading", { name: "Your diary" })).toBeVisible();
   // The floating + sat over the Pint Passport hero and the diary date at 390.
-  await expect(page.locator(".createFabRoot")).toBeHidden();
+  // It left with the five-tab dock (captain, 1 Nov 2026).
+  await expect(page.locator(".createFabRoot")).toHaveCount(0);
 });

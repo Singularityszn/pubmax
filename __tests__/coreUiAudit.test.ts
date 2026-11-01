@@ -182,9 +182,15 @@ describe("core UI audit fixes", () => {
     expect(mobileMapCss).not.toMatch(
       /body:has\(\.mapArrivalCard\) \.mobileMapChipRow/,
     );
+    // The one exception is the Pub Pal's door on the column (captain, 1 Nov
+    // 2026): it is a door to another page, not a map tool, and it stands down
+    // while the ask is up, as it does beside the Pub Pal pill, so the ask
+    // stays docked low at 320x568 (e2e/mobile-map-first-visit.spec.ts).
+    // Near me and the column itself stay up.
     expect(mobileMapCss).not.toMatch(
-      /body:has\(\.mapArrivalCard\) \.mobileMapUtilityCorner/,
+      /body:has\(\.mapArrivalCard\) \.mobileMapUtilityCorner(?!\s*>\s*\.mobileMapPalDoor\b)/,
     );
+    expect(mobileMapCss).not.toMatch(/body:has\(\.mapArrivalCard\)[^{]*\.mobileMapLocateFab/);
   });
 
   it("does not ship removed Next experimental options", () => {
@@ -289,6 +295,8 @@ const LAUNCH_SURFACES: ReadonlyArray<[string, () => string]> = [
           rivalry: [],
           heritageCrawls: [],
           friendsLaunchEnabled: true,
+          // A first visit meets the read-only London lane (captain decision 7).
+          londonLaneOpen: true,
         }),
       ),
   ],

@@ -117,7 +117,6 @@ export const ANALYTICS_EVENTS = {
   tonight_screen_view: [],
   tonight_filter_select: ["kind"],
   out_filter_select: ["kind"],
-  create_fab_action: ["action"],
   // Vibe layer (docs/VIBE_LAYER_SPEC_2026-07-19.md): which mood chip was
   // pressed. The vibe id only — never free text, never location.
   tonight_vibe_select: ["vibe"],

@@ -12,11 +12,10 @@ import { useClientReady } from "@/lib/useClientReady";
 import ThemeToggle from "@/components/ThemeToggle";
 import IntentLink from "@/components/nav/IntentLink";
 import MessagesLink from "@/components/nav/MessagesLink";
-import { PalSiteNavButton } from "@/components/nav/PalNavButton";
+import { PalSiteNavButton, PalTopBarButton } from "@/components/nav/PalNavButton";
 import NotificationBell from "@/components/nav/NotificationBell";
 import SiteNavMore from "@/components/nav/SiteNavMore";
 import SignInButton from "@/components/auth/SignInButton";
-import { returnToFromLocation } from "@/components/nav/createFabActions";
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 import { useCommandPalette } from "@/components/command/CommandPaletteProvider";
 import {
@@ -24,6 +23,7 @@ import {
   momentHref,
   navPathMatches,
   primaryNavLabel,
+  returnToFromLocation,
 } from "@/components/nav/navigationModel";
 import { useSocialSurfaceName } from "@/lib/useSocialFriendsLaunch";
 import { FOCUS_TRAP_EXEMPT_ATTRIBUTE } from "@/lib/useFocusTrap";
@@ -43,10 +43,10 @@ import "./navigation.css";
 // controls.
 //
 // The mobile fix: at ≤640px the app already renders a fixed bottom tab bar
-// (MobileTabBar: Map/Tonight/Plan/Social/You). Repeating the full link list up top
-// there caused the old `.appNav` pill to overflow the viewport on /map.
-// Mobile renders the wordmark, theme, account controls and signed-in activity.
-// It hides the full link list (siteNav.css, @media ≤640px).
+// (MobileTabBar: Explore/Tonight/Plan/Social/You). Repeating the full link list
+// up top there caused the old `.appNav` pill to overflow the viewport on /map.
+// Mobile renders the wordmark, the Pub Pal's door, theme, account controls and
+// signed-in activity. It hides the full link list (siteNav.css, @media ≤640px).
 // On desktop the full links + active state show. Nothing may
 // horizontally overflow at 390px.
 //
@@ -129,17 +129,19 @@ export function SiteNavActions({ className = "siteNavActions" }: { className?: s
 
   return (
     <div className={className}>
-      {/* The Pub Pal's own door (PalNavButton.tsx): the person's Pal and its
-          name, first among the actions. Hidden <=640px, where it rises out of
-          the phone dock instead. */}
+      {/* The Pub Pal's own door (PalNavButton.tsx), first among the actions:
+          the person's Pal and its name on desktop, and from 640px down the
+          same door as an icon button, because the phone dock is five tabs and
+          nothing else (captain, 1 Nov 2026). Each hides at the other's widths
+          (palNav.css). */}
       <PalSiteNavButton pathname={pathname} />
+      <PalTopBarButton pathname={pathname} />
       <SiteNavMore />
       <ThemeToggle />
-      {/* Moment compose (desktop). On phones the floating create action owns
-          this; the top bar has no such affordance, so desktop users reach
-          /moment here. Carries the same returnTo the mobile action uses
-          (momentHref) so composing returns to the current page. Hidden ≤640px
-          in siteNavMoment.css. */}
+      {/* Moment compose (desktop). On phones a Moment is saved from Social and
+          from You, so the phone top bar carries no such affordance. Carries
+          the returnTo of the live page (momentHref) so composing returns to
+          the current page. Hidden ≤640px in siteNavMoment.css. */}
       <Link prefetch={false}
         href={momentHref(pathname)}
         className="siteNavMoment"

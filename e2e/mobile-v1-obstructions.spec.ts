@@ -61,19 +61,20 @@ test.describe("Today mobile block geometry", () => {
         const main = document.querySelector<HTMLElement>(".todayPage")!;
         const entry = document.querySelector<HTMLElement>(".todayNearEntry")!;
         const tabBar = document.querySelector<HTMLElement>(".mobileTabBar")!;
-        // The body's one reserve is the create action's published top edge
+        // The body's one reserve is the published foot clearance
         // (components/nav/mobileNav.css): the tab bar, the home indicator and
-        // the lane the floating create action owns above the bar.
+        // one gap. The floating create action that also owned a lane above the
+        // bar left with the five-tab dock (captain, 1 Nov 2026).
         const lane = document.createElement("div");
-        lane.style.paddingBottom = "var(--float-stack-top-create)";
+        lane.style.paddingBottom = "var(--chrome-bottom-clearance)";
         lane.style.paddingTop = "var(--tabbar-h)";
         document.body.append(lane);
-        const createLaneTop = Number.parseFloat(getComputedStyle(lane).paddingBottom);
+        const clearance = Number.parseFloat(getComputedStyle(lane).paddingBottom);
         const tabBarHeight = Number.parseFloat(getComputedStyle(lane).paddingTop);
         lane.remove();
         return {
           bodyPaddingBottom: Number.parseFloat(getComputedStyle(document.body).paddingBottom),
-          createLaneTop,
+          clearance,
           mainPaddingBottom: Number.parseFloat(getComputedStyle(main).paddingBottom),
           nearEntryMargin: Number.parseFloat(getComputedStyle(entry).marginBlockStart),
           tabBarHeight,
@@ -82,9 +83,9 @@ test.describe("Today mobile block geometry", () => {
         };
       });
 
-      await expect(page.locator(".createFabRoot")).toHaveCount(1);
+      await expect(page.locator(".createFabRoot")).toHaveCount(0);
       expect(geometry.bodyPaddingBottom).toBeGreaterThan(geometry.tabBarHeight);
-      expect(geometry.bodyPaddingBottom).toBeCloseTo(geometry.createLaneTop, 0);
+      expect(geometry.bodyPaddingBottom).toBeCloseTo(geometry.clearance, 0);
       expect(
         geometry.mainPaddingBottom,
         "Today must not reserve the fixed tab bar a second time",
@@ -135,15 +136,16 @@ test.describe("Today mobile block geometry", () => {
   });
 });
 
-// The last line of a page ends above the create disc and the tab bar when the
-// page is scrolled to the very bottom, and the body is the only thing that
-// reserved the room (components/nav/mobileNav.css, --chrome-bottom-clearance;
-// source fence __tests__/chromeBottomClearance.test.ts).
+// The last line of a page ends above the tab bar when the page is scrolled to
+// the very bottom, and the body is the only thing that reserved the room
+// (components/nav/mobileNav.css, --chrome-bottom-clearance; source fence
+// __tests__/chromeBottomClearance.test.ts). The create disc that also stood
+// there left with the five-tab dock (captain, 1 Nov 2026).
 test.describe("the foot of a scrolling page clears the phone chrome", () => {
   test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
 
   for (const route of ["/", "/today", "/tonight", "/founders", "/historic"]) {
-    test(`${route} ends above the create disc and the tab bar`, async ({ page }) => {
+    test(`${route} ends above the tab bar`, async ({ page }) => {
       await page.addInitScript(() => {
         localStorage.setItem("pubmax-tour-v1-done", "1");
         localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
@@ -151,7 +153,7 @@ test.describe("the foot of a scrolling page clears the phone chrome", () => {
       await page.goto(route);
       const tabBar = page.getByRole("navigation", { name: "Primary" });
       await expect(tabBar).toBeVisible({ timeout: 45_000 });
-      await expect(page.locator(".createFab")).toBeVisible();
+      await expect(page.locator(".createFab")).toHaveCount(0);
 
       const foot = await page.evaluate(async () => {
         const settle = () => new Promise((resolve) => setTimeout(resolve, 300));
@@ -171,7 +173,7 @@ test.describe("the foot of a scrolling page clears the phone chrome", () => {
           const node = walker.currentNode;
           const owner = node.parentElement;
           if (!node.textContent?.trim() || !owner) continue;
-          if (owner.closest(".mobileTabBar, .createFabRoot, nextjs-portal, [aria-hidden='true']")) continue;
+          if (owner.closest(".mobileTabBar, nextjs-portal, [aria-hidden='true']")) continue;
           const style = getComputedStyle(owner);
           if (style.position === "fixed" || style.visibility === "hidden") continue;
           const range = document.createRange();
@@ -184,16 +186,12 @@ test.describe("the foot of a scrolling page clears the phone chrome", () => {
           token,
           bodyPaddingBottom: Number.parseFloat(getComputedStyle(document.body).paddingBottom),
           lowestText: lowest,
-          fabTop: document.querySelector(".createFab")!.getBoundingClientRect().top,
           railTop: document.querySelector(".mobileTabList")!.getBoundingClientRect().top,
         };
       });
 
       expect(foot.token, "the phone publishes a clearance").toBeGreaterThan(0);
       expect(foot.bodyPaddingBottom).toBeCloseTo(foot.token, 0);
-      expect(foot.lowestText, "the last line ends above the create disc").toBeLessThanOrEqual(
-        foot.fabTop + 0.5,
-      );
       expect(foot.lowestText, "the last line ends above the tab bar").toBeLessThanOrEqual(
         foot.railTop + 0.5,
       );

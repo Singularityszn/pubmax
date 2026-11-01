@@ -171,6 +171,8 @@ const FIXTURES: Record<PintTrustState, () => SummaryDrop[]> = {
     drop({ handle: "second", priceGbp: 4.5, createdAt: daysAgo(2) }),
   ],
   "logged-once": () => [drop()],
+  // A typed price with no bill (captain decision 9, 1 Nov 2026).
+  unchecked: () => [drop({ priceEvidence: "unchecked", authorityKey: "key-a" })],
   "aged-out": () => [drop({ createdAt: daysAgo(90) })],
   none: () => [],
 };
@@ -212,8 +214,12 @@ function renderOverview(
       latestContributorPrice: signal.latestContributorPrice,
       latestPintDropAt: signal.latestContributorAt,
       confirmedPrice: signal.confirmedPrice,
-      provisionalPrice: dropLaneInput(signal.provisionalContributorPrice, signal.provisionalContributorAt),
-      agedPrice: dropLaneInput(signal.agedContributorPrice, signal.agedContributorAt),
+      provisionalPrice: dropLaneInput(
+        signal.provisionalContributorPrice,
+        signal.provisionalContributorAt,
+        signal.uncheckedBy,
+      ),
+      agedPrice: dropLaneInput(signal.agedContributorPrice, signal.agedContributorAt, signal.uncheckedBy),
       disputedPrice: splitLaneInput(signal.disputedPrices, signal.disputedAt),
       communityPrices: options.communityState ?? communityPrices(VENUE_ID, options.priceReadStatus),
       dropReadStatus: options.dropReadStatus,
@@ -478,6 +484,7 @@ describe("overviewPriceDoor: one door per trust state", () => {
       corroborated: "log",
       disputed: "choose",
       "logged-once": "confirm",
+      unchecked: "confirm",
       "aged-out": "confirm",
       none: "log",
     });
@@ -568,6 +575,15 @@ describe("the rendered Overview carries exactly one price door", () => {
     for (const retired of RETIRED_DOORS) {
       expect(html, `${state}: ${retired}`).not.toContain(retired);
     }
+  });
+
+  it("an unchecked price is offered the same confirm door, over its own figure", () => {
+    // Captain decision 9: a second drinker's agreeing report is the only way a
+    // typed price with no bill reaches the map, so it gets "Still £4.50?".
+    const html = renderOverview(FIXTURES.unchecked());
+    expect(html).toContain('data-pint-trust="unchecked"');
+    expect(html).toContain('data-price-door="confirm"');
+    expect(html).toContain(confirmPintActionLabel(4.5));
   });
 
   it("the confirm door keeps its #1492 words and accessible name", () => {

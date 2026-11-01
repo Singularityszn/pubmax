@@ -121,6 +121,9 @@ export const E2E_SERVER_ENV = {
   // `local`. Keep GitHub's GITHUB_SHA from rewriting those tracked
   // fixtures and tripping the restored-build guard.
   NEXT_PUBLIC_SW_VERSION: "local",
+  // Demo content is opt-in (lib/demoContent.ts). Specs read seeded drops by id
+  // (for example /p/seed-prospect-1), so the e2e server asks for them by name.
+  NEXT_PUBLIC_DEMO_CONTENT: "on",
   NEXT_PUBLIC_POSTHOG_E2E_ALLOW_BOT: "1",
   NEXT_PUBLIC_VAPID_PUBLIC_KEY: E2E_VAPID_PUBLIC_KEY,
   NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: E2E_POSTHOG_PROJECT_TOKEN,

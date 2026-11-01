@@ -892,6 +892,9 @@ const STORE_EXPORT_COVERAGE: Record<string, ExportCoverage> = {
     excluded: "Notifications we generated for the account out of other people's actions; nothing here was written by them.",
   },
   "lib/occupancyStore.ts": { lane: "crowdReports" },
+  "lib/operatorFactsStore.ts": {
+    excluded: "What a moderator published from a venue operator's proposal, keyed on a venue and shown as the pub's word, not a drinker's.",
+  },
   "lib/operatorProposalsStore.ts": { excluded: "Venue operator proposals, keyed on a venue and answered by a moderator." },
   "lib/pendingPlanRecapStore.ts": {
     excluded: "A queue of recaps waiting to be written; a published recap rides its Plan, and the queue row is ours.",

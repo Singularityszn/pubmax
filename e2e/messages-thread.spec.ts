@@ -234,8 +234,9 @@ test.describe("the message thread on a phone", () => {
     await expectSendCentred(page);
     await expectNoHorizontalOverflow(page, PHONE.width);
 
-    // The page hides the floating compose control: it sat over Send.
-    await expect(page.locator(".createFabRoot")).toBeHidden();
+    // No floating compose control sits over Send: it left with the five-tab
+    // dock (captain, 1 Nov 2026).
+    await expect(page.locator(".createFabRoot")).toHaveCount(0);
   });
 
   test("a send lands in view at once, then stays in view when the server answers", async ({ page }) => {

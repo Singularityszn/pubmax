@@ -21,6 +21,7 @@ import { trustedSigningKey } from "@/lib/trustedSigningKey.server";
 import { socialRelationshipBetweenProfiles } from "@/lib/socialRelationships.server";
 import { signSocialPhotoObject } from "@/lib/socialPostMedia.server";
 import { socialMemoryBlockedProfiles, socialMemoryMutedProfiles } from "@/lib/socialBlockMemory";
+import { isLondonLaneArea } from "@/lib/socialLondonLane";
 
 export type SocialPostActor = {
   accountId: string;
@@ -134,7 +135,7 @@ export class SocialPostStoreError extends Error {
 }
 
 type RelationshipResolver = (actor: SocialPostActor) => Promise<SocialPostRelationships>;
-type CursorLane = SocialPostFeedLane | "author";
+type CursorLane = SocialPostFeedLane | "author" | "london";
 type Cursor = {
   v: 1;
   lane: CursorLane;
@@ -179,6 +180,20 @@ export type SocialPostStore = {
     author: SocialPostAuthor,
     input: SocialPostAuthorInput,
   ): Promise<SocialPostFeedPage>;
+  /**
+   * THE LONDON LANE, read by nobody (captain decision 7, 1 Nov 2026): the
+   * Across-town rule for a reader who follows, blocks and mutes nobody, narrowed
+   * to posts tagged a London patch whose author's account is PUBLIC and still
+   * here. `keepLondonLane` is the whole rule. Newest first, paged like a lane,
+   * and every post is projected for no viewer: no pub, no ownership.
+   */
+  londonLane(input: SocialPostAuthorInput): Promise<SocialPostFeedPage>;
+  /**
+   * Whether this photo is the first photo of a post the London lane shows, by
+   * the same `keepLondonLane` rule, so the signed-out photo door can never
+   * serve a picture the lane would not.
+   */
+  londonLaneHasPhoto(mediaId: string): Promise<boolean>;
   processModerationQueue(
     adapter: SocialPostModerationAdapter,
     limit?: number,
@@ -261,20 +276,25 @@ function serverProjection(post: SocialPost): SocialPostServerProjection {
   };
 }
 
-function cursorSignature(encoded: string, viewerProfileId: string): Buffer {
+/**
+ * A cursor is signed under a SCOPE: the viewer's profile id for every signed-in
+ * lane, and `LONDON_LANE_CURSOR_SCOPE` for the signed-out lane, so a cursor
+ * minted for one reader never pages another reader's lane.
+ */
+function cursorSignature(encoded: string, scope: string): Buffer {
   return createHmac("sha256", trustedSigningKey())
-    .update(`social-post-cursor:v1:${viewerProfileId}:${encoded}`)
+    .update(`social-post-cursor:v1:${scope}:${encoded}`)
     .digest();
 }
 
-function encodeCursor(cursor: Cursor, viewerProfileId: string): string {
+function encodeCursor(cursor: Cursor, scope: string): string {
   const encoded = Buffer.from(JSON.stringify(cursor), "utf8").toString("base64url");
-  return `${encoded}.${cursorSignature(encoded, viewerProfileId).toString("base64url")}`;
+  return `${encoded}.${cursorSignature(encoded, scope).toString("base64url")}`;
 }
 
 function decodeCursor(
   raw: string | null | undefined,
-  viewer: SocialPostActor,
+  scope: string,
   lane: CursorLane,
   area: string | null,
 ): Cursor | null {
@@ -285,7 +305,7 @@ function decodeCursor(
     if (parts.length !== 2 || !parts[0] || !parts[1]) throw new Error("invalid");
     const [encoded, signatureText] = parts;
     const signature = Buffer.from(signatureText, "base64url");
-    const expected = cursorSignature(encoded, viewer.profileId);
+    const expected = cursorSignature(encoded, scope);
     if (signature.length !== expected.length || !timingSafeEqual(signature, expected)) {
       throw new Error("invalid");
     }
@@ -412,6 +432,58 @@ function feedAllows(
     (post.visibility === "friends" && relationships.mutualProfileIds.has(post.authorProfileId));
 }
 
+/**
+ * NOBODY: the reader of the signed-out London lane. They match no author,
+ * follow nobody, are nobody's mutual and block or mute nobody, so every lane
+ * rule read for them is the public rule and nothing else. The durable read
+ * passes SQL null for the same reader, which `social_post_readable` answers
+ * with visible, approved, public posts only.
+ */
+const SIGNED_OUT_READER: SocialPostActor = Object.freeze({ accountId: "", profileId: "", handle: "" });
+
+function noRelationships(): SocialPostRelationships {
+  return { followingProfileIds: new Set(), mutualProfileIds: new Set() };
+}
+
+/** The scope the London lane's cursors are signed under; never a profile id. */
+const LONDON_LANE_CURSOR_SCOPE = "signed-out:london";
+
+/**
+ * THE LONDON LANE'S RULE, in one place for both backends and the photo door.
+ *
+ *   1. The Across-town rule read for nobody (`feedAllows`): visible, approved
+ *      by moderation, public. A hidden or removed post, one still in review,
+ *      and every friends-only or private post stay out.
+ *   2. London: an area tag from London's patches (`isLondonLaneArea`).
+ *   3. The author's ACCOUNT is public (`lib/accountVisibility.ts`). An account
+ *      the store cannot find answers absent and stays out: an account that
+ *      chose private is not shown to strangers, even by a public post.
+ *   4. The author is still here: a withdrawn author leaves every public read
+ *      (`withdrawnHandles`), checked by the REAL handle, so a hidden-name post
+ *      is checked too.
+ *
+ * It keeps the posts in the order given and asks the profile store once.
+ */
+async function keepLondonLane(posts: readonly SocialPost[]): Promise<SocialPost[]> {
+  const london = posts.filter((post) =>
+    feedAllows(post, SIGNED_OUT_READER, noRelationships(), "discover", null) && isLondonLaneArea(post.area));
+  if (london.length === 0) return [];
+  const visibilities = await profileStore().getAccountVisibilitiesByIds(
+    [...new Set(london.map((post) => post.authorProfileId))],
+  );
+  const open = london.filter((post) => visibilities.get(post.authorProfileId) === "public");
+  if (open.length === 0) return [];
+  const withdrawn = await withdrawnHandles(open.map((post) => post.authorHandle));
+  return withdrawn.size === 0
+    ? open
+    : open.filter((post) => !withdrawn.has(normalizeHandle(post.authorHandle)));
+}
+
+/** A London lane post as nobody reads it: no pub, owned by nobody. */
+function signedOutPost(post: SocialPost): SocialPostDTO {
+  return socialPostDTO(post, { exactVenue: false, viewerProfileId: null });
+}
+
 function contentActuallyChanged(current: SocialPost, next: SocialPostFields): boolean {
   return current.kind !== next.kind ||
     current.body !== next.body ||
@@ -526,7 +598,7 @@ function makePage(
   if (input.lane === "nearby" && !area) {
     throw new SocialPostStoreError("INVALID_CURSOR", "Choose an area for nearby posts.");
   }
-  const cursor = decodeCursor(input.cursor, viewer, input.lane, area);
+  const cursor = decodeCursor(input.cursor, viewer.profileId, input.lane, area);
   const matches = rows
     .filter((post) => feedAllows(post, viewer, relationships, input.lane, area, input.tag))
     .filter((post) => isBefore(post, cursor))
@@ -690,7 +762,7 @@ export function createMemorySocialPostStore(options: {
     },
     async authorFeed(viewer, author, input) {
       const limit = resolvedLimit(input.limit);
-      const cursor = decodeCursor(input.cursor, viewer, "author", author.profileId);
+      const cursor = decodeCursor(input.cursor, viewer.profileId, "author", author.profileId);
       const graph = await relationships(viewer);
       const relationship = viewer.profileId === author.profileId ? "self"
         : graph.blockedProfileIds?.has(author.profileId) ? "blocked"
@@ -707,6 +779,24 @@ export function createMemorySocialPostStore(options: {
           ? encodeCursor({ v: 1, lane: "author", area: author.profileId, createdAt: last.createdAt, id: last.id }, viewer.profileId)
           : null,
       };
+    },
+    async londonLane(input) {
+      const limit = resolvedLimit(input.limit);
+      const cursor = decodeCursor(input.cursor, LONDON_LANE_CURSOR_SCOPE, "london", null);
+      const matches = (await keepLondonLane([...rows.values()].filter((post) => isBefore(post, cursor))))
+        .sort(newest);
+      const pageRows = matches.slice(0, limit);
+      const last = pageRows.at(-1);
+      return {
+        posts: pageRows.map(signedOutPost),
+        nextCursor: matches.length > limit && last
+          ? encodeCursor({ v: 1, lane: "london", area: null, createdAt: last.createdAt, id: last.id }, LONDON_LANE_CURSOR_SCOPE)
+          : null,
+      };
+    },
+    async londonLaneHasPhoto(mediaId) {
+      const holders = [...rows.values()].filter((post) => post.photo?.mediaId === mediaId);
+      return holders.length > 0 && (await keepLondonLane(holders)).length > 0;
     },
     async applyFeatureRequestUpdate(id, status, staffResponse) {
       const post = rows.get(id);
@@ -835,29 +925,37 @@ async function durableOrMemory<T>(operation: () => Promise<T>, fallback: () => P
   }
 }
 
-/** How many lane pages a tagged read scans before it hands back a cursor. */
+/** How many lane pages a narrowed read scans before it hands back a cursor. */
 const TAG_SCAN_PAGES = 4;
 const TAG_SCAN_PAGE_SIZE = 51;
 
+type DiscoverScan = {
+  matched: SocialPost[];
+  /** The last row the lane READ, where the next page starts. */
+  before: { createdAt: string; id: string } | null;
+  exhausted: boolean;
+};
+
 /**
- * THE ACROSS-TOWN LANE, FILTERED TO ONE TAG. The lane's own read
- * (`read_social_post_feed`) decides who may see what; the tag only narrows
- * what it returns. It scans at most TAG_SCAN_PAGES pages of the lane per
- * request, so a rare tag costs a bounded read, and the cursor is always a
- * row the lane really read, so the next page neither skips nor repeats.
+ * THE ACROSS-TOWN LANE, NARROWED. The lane's own read (`read_social_post_feed`)
+ * decides who may see what, for `readerProfileId` or, given null, for nobody;
+ * `keep` only narrows what it returns. It scans at most TAG_SCAN_PAGES pages of
+ * the lane per request, so a rare match costs a bounded read, and the cursor is
+ * always a row the lane really read, so the next page neither skips nor
+ * repeats. One scan serves the tag filter and the signed-out London lane.
  */
-async function taggedDiscoverPage(
-  viewer: SocialPostActor,
-  tag: string,
+async function scanDiscoverLane(
+  readerProfileId: string | null,
+  keep: (rows: SocialPost[]) => SocialPost[] | Promise<SocialPost[]>,
   cursor: Cursor | null,
   limit: number,
-): Promise<SocialPostFeedPage> {
+): Promise<DiscoverScan> {
   const matched: SocialPost[] = [];
   let before = cursor ? { createdAt: cursor.createdAt, id: cursor.id } : null;
   let exhausted = false;
   for (let page = 0; page < TAG_SCAN_PAGES && matched.length < limit; page += 1) {
     const { data, error } = await requireSupabaseAdmin().rpc("read_social_post_feed", {
-      p_viewer_profile_id: viewer.profileId,
+      p_viewer_profile_id: readerProfileId,
       p_lane: "discover",
       p_area_slug: null,
       p_before_created_at: before?.createdAt ?? null,
@@ -866,9 +964,10 @@ async function taggedDiscoverPage(
     });
     if (error) throw error;
     const rows: SocialPost[] = (data ?? []).map(socialPostFromRow);
+    const kept = new Set((await keep(rows)).map((post) => post.id));
     for (const post of rows) {
       before = { createdAt: post.createdAt, id: post.id };
-      if (tagAllows(post, tag)) matched.push(post);
+      if (kept.has(post.id)) matched.push(post);
       if (matched.length === limit) break;
     }
     if (rows.length < TAG_SCAN_PAGE_SIZE && matched.length < limit) {
@@ -876,6 +975,22 @@ async function taggedDiscoverPage(
       break;
     }
   }
+  return { matched, before, exhausted };
+}
+
+/** THE ACROSS-TOWN LANE, FILTERED TO ONE TAG, for a signed-in reader. */
+async function taggedDiscoverPage(
+  viewer: SocialPostActor,
+  tag: string,
+  cursor: Cursor | null,
+  limit: number,
+): Promise<SocialPostFeedPage> {
+  const { matched, before, exhausted } = await scanDiscoverLane(
+    viewer.profileId,
+    (rows) => rows.filter((post) => tagAllows(post, tag)),
+    cursor,
+    limit,
+  );
   const shown = await dropWithdrawnHiddenNamePosts(matched, viewer);
   return {
     posts: shown.map((post) => socialPostDTO(post, {
@@ -1080,7 +1195,7 @@ export const supabaseSocialPostStore: SocialPostStore = {
     const limit = resolvedLimit(input.limit);
     const area = input.area ?? null;
     if (input.lane === "nearby" && !area) throw new SocialPostStoreError("INVALID_CURSOR", "Choose an area for nearby posts.");
-    const cursor = decodeCursor(input.cursor, viewer, input.lane, area);
+    const cursor = decodeCursor(input.cursor, viewer.profileId, input.lane, area);
     const tag = input.lane === "discover" ? input.tag ?? null : null;
     if (tag) {
       return durableOrMemory(
@@ -1118,7 +1233,7 @@ export const supabaseSocialPostStore: SocialPostStore = {
   },
   async authorFeed(viewer, author, input) {
     const limit = resolvedLimit(input.limit);
-    const cursor = decodeCursor(input.cursor, viewer, "author", author.profileId);
+    const cursor = decodeCursor(input.cursor, viewer.profileId, "author", author.profileId);
     return durableOrMemory(async () => {
       const relationship = viewer.profileId === author.profileId
         ? "self"
@@ -1162,6 +1277,33 @@ export const supabaseSocialPostStore: SocialPostStore = {
           : null,
       };
     }, () => memorySocialPostStore.authorFeed(viewer, author, input), false);
+  },
+  async londonLane(input) {
+    const limit = resolvedLimit(input.limit);
+    const cursor = decodeCursor(input.cursor, LONDON_LANE_CURSOR_SCOPE, "london", null);
+    return durableOrMemory(async () => {
+      // The signed-in Across-town read, asked for NOBODY (SQL null), then the
+      // London rule over what it returns.
+      const { matched, before, exhausted } = await scanDiscoverLane(null, keepLondonLane, cursor, limit);
+      return {
+        posts: matched.map(signedOutPost),
+        nextCursor: !exhausted && before
+          ? encodeCursor({ v: 1, lane: "london", area: null, createdAt: before.createdAt, id: before.id }, LONDON_LANE_CURSOR_SCOPE)
+          : null,
+      };
+    }, () => memorySocialPostStore.londonLane(input), false);
+  },
+  async londonLaneHasPhoto(mediaId) {
+    return durableOrMemory(async () => {
+      const { data, error } = await requireSupabaseAdmin()
+        .from("social_posts")
+        .select("*")
+        .eq("photo_media_id", mediaId)
+        .eq("status", "visible")
+        .limit(5);
+      if (error) throw error;
+      return (await keepLondonLane((data ?? []).map(socialPostFromRow))).length > 0;
+    }, () => memorySocialPostStore.londonLaneHasPhoto(mediaId), false);
   },
   async processModerationQueue(adapter, limit = 20) {
     return durableOrMemory(async () => {

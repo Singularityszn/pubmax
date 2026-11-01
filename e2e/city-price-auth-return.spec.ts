@@ -7,6 +7,7 @@ import {
   installAuthDoubles,
 } from "./helpers/authDoubles";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+import { tapMapLogPrice } from "./helpers/mobileMapShell";
 
 test.setTimeout(90_000);
 
@@ -28,18 +29,9 @@ for (const { city, drink } of [
     await installDeterministicMapBasemap(page);
     await page.goto(`/map/${city}?drink=${drink}`);
 
-    await expect(async () => {
-      await page.getByTestId("create-fab").click();
-      await expect(
-        page
-          .locator(".createFabMenu")
-          .getByRole("link", { name: "Log a price" }),
-      ).toBeVisible({ timeout: 1_000 });
-    }).toPass({ timeout: 20_000 });
-    await page
-      .locator(".createFabMenu")
-      .getByRole("link", { name: "Log a price" })
-      .click();
+    // "Log a price" in More map controls (it rode the floating create button
+    // until the five-tab dock, 1 Nov 2026).
+    await tapMapLogPrice(page);
     await expect(page.getByText("Pick a pub to log a price")).toBeVisible({
       timeout: 45_000,
     });

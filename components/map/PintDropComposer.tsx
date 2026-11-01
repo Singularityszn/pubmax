@@ -19,7 +19,7 @@ import {
   resolveDestination,
   type SpillDestination,
 } from "@/lib/spillPreview";
-import { priceNeedsReceipt } from "@/lib/pintDropReceipt";
+import { isPricedWrite } from "@/lib/pintDropReceipt";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
 import type { LastPintDecision } from "@/lib/tfl";
 import type { PintDropsState } from "@/components/map/usePintDrops";
@@ -255,10 +255,11 @@ export default function PintDropComposer({
         lastKnownPrice={lastKnownPrice}
       />
 
-      {/* THE BILL, under the price and never behind the disclosure: it is the
-          one thing a price cannot go without, so a drinker may not have to go
-          looking for it (captain 7 Sept 2026). */}
-      {priceNeedsReceipt(dropForm.price) ? (
+      {/* THE BILL, under the price and never behind the disclosure, because it
+          is evidence about this figure and nothing else. OPTIONAL since
+          captain decision 9 (1 Nov 2026): Log it never waits for it, and its
+          one line says what it buys rather than asking twice. */}
+      {isPricedWrite(dropForm.price) ? (
         <SpillReceiptStep
           receiptPhoto={receiptPhoto}
           receiptInputRef={receiptInputRef}

@@ -2842,11 +2842,9 @@ function PlanComposerForm({
       {error ? <PlanComposerErrorNotice message={error} /> : null}
       {/* THE ANSWER IS PINNED. On a phone this action sat at the natural end of
           a page several screens long, which is under the tab bar and under the
-          floating create action: PlanAstra measured it 40% covered at 390. It
-          is now a full-width bar above the reserved chrome, carrying the one
-          line that qualifies it, so the two can never separate. The create
-          action stands down while it is up, on the same terms as the consent
-          card (components/nav/createFab.css). */}
+          old floating create action: PlanAstra measured it 40% covered at 390.
+          It is now a full-width bar above the reserved chrome, carrying the one
+          line that qualifies it, so the two can never separate. */}
       <div className="planComposer__lock" data-name-seat={nameInLockBar ? "true" : undefined}>
         {nameInLockBar ? nameField : null}
         <button

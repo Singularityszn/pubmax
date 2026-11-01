@@ -134,17 +134,19 @@ for (const viewport of VIEWPORTS) {
       const chromeRows = page.locator(".mobileMapChrome > :visible");
       await expect(chromeRows).toHaveCount(2);
       const navLinks = page.getByRole("navigation", { name: "Primary" }).getByRole("link");
-      // Five destinations, and the Pub Pal's own door between Tonight and Plan.
-      await expect(navLinks).toHaveCount(6);
-      await expect(navLinks).toHaveText(["Map", "Tonight", "Pal", "Plan", "Social", "You"]);
-      await expect(navLinks.filter({ hasText: "Map" })).toHaveAttribute("aria-current", "page");
+      // Five tabs and nothing else (captain, 1 Nov 2026): Explore is the map.
+      await expect(navLinks).toHaveCount(5);
+      await expect(navLinks).toHaveText(["Explore", "Tonight", "Plan", "Social", "You"]);
+      await expect(navLinks.filter({ hasText: "Explore" })).toHaveAttribute("aria-current", "page");
 
       const utilityCorner = page.locator(".mobileMapUtilityCorner");
       await expect(utilityCorner).toBeVisible();
-      // The map edge holds the Near me FAB at the thumb, and nothing else on a
-      // routine night: TfL comes to the edge only for a badly disrupted line
-      // (components/mobile/MobileMapShell.tsx MapEdgeControls).
+      // The map edge holds the Near me FAB at the thumb and the Pub Pal's door
+      // above it, and nothing else on a routine night: TfL comes to the edge
+      // only for a badly disrupted line (components/mobile/MobileMapShell.tsx
+      // MapEdgeControls).
       await expect(utilityCorner.getByRole("button")).toHaveCount(1);
+      await expect(utilityCorner.getByRole("link", { name: "Pub Pal", exact: true })).toHaveCount(1);
       await expect(await mobileMapShellControl(page, "tfl")).toHaveCount(0);
       await expect(nearMe).toHaveAttribute("aria-pressed", "true");
       await expect(utilityCorner.getByRole("button", { name: "List view of venues on the map" })).toHaveCount(0);
@@ -213,16 +215,22 @@ for (const viewport of VIEWPORTS) {
         .getByRole("button", { name: "List view of venues on the map" });
       await expect(listShortcut).toBeVisible();
       await expectTouchTargets(listShortcut);
+      // Log a price left the floating create button for the map's own
+      // destinations (captain, 1 Nov 2026).
+      const priceShortcut = page
+        .locator('.mobileSheetPortal[data-sheet-kind="layers"]:visible')
+        .getByRole("link", { name: "Log a price", exact: true });
+      await expect(priceShortcut).toBeVisible();
+      await expectTouchTargets(priceShortcut);
       await listShortcut.click();
       await expect(page.locator(".mobileSheetPortal:visible")).toHaveCount(0);
       await expect(page.locator(".mapVenueListPanel")).toBeVisible();
-      await expect(page.getByTestId("create-fab")).toBeHidden();
       await expect(page.getByRole("heading", { name: "Venues on the map" })).toBeVisible();
       // Opened from Map controls, the list offers Back, so its close names the map
       // it returns to (components/map/MapVenueList.tsx).
       await page.getByRole("button", { name: "Close and return to the London map" }).click();
       await expect(page.locator(".mapVenueListPanel")).toHaveCount(0);
-      await expect(page.getByTestId("create-fab")).toBeVisible();
+      await expect(page.getByTestId("create-fab")).toHaveCount(0);
 
       await more.click();
       await page.getByRole("button", { name: "Close Map controls" }).click();

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { expectLayoutSettled } from "./helpers/layoutSettled";
+import { expectLayoutSettled, expectPageAtRest } from "./helpers/layoutSettled";
 
 // The V0.1 phone pass for the surfaces OUTSIDE the map shell. The map already
 // has its own rendered-geometry fence (e2e/mobile-map-chrome-fit.spec.ts); these
@@ -89,6 +89,10 @@ async function settle(
         ).toBeVisible({ timeout: REQUIRED_SELECTOR_TIMEOUT_MS }),
       ),
     );
+    // The walk above trips the scroll entrances, so the sweep waits for them
+    // to land: a link read mid-rise measured 43.99px against the 44px floor
+    // on CI (Discover's editorial links, 1 Nov 2026) and passed at rest.
+    await expectPageAtRest(page, { timeout: SETTLE_CEILING_MS });
     return;
   }
 
@@ -103,10 +107,11 @@ async function settle(
       previous = count;
       quietSince = Date.now();
     } else if (Date.now() - quietSince >= SETTLE_QUIET_MS) {
-      return;
+      break;
     }
     await page.waitForTimeout(150);
   }
+  await expectPageAtRest(page, { timeout: SETTLE_CEILING_MS });
 }
 
 // A PHONE, not a narrow desktop window. The floors these pages state are

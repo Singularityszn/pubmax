@@ -143,10 +143,10 @@ test("The French House lists no price: its £3.40 is a half pint (390x844)", asy
   await expect(row).toHaveCount(1);
   await expect(row).toContainText("No price yet");
   await expect(panel).not.toContainText("£3.40");
-  // The tab bar and the create button float over the page; leave them out of
-  // a shot of the whole list so no row is hidden behind them.
+  // The tab bar floats over the page; leave it out of
+  // a shot of the whole list so no row is hidden behind it.
   await panel.screenshot({
     path: "artifacts/last-orders/last-orders-soho-full-390.png",
-    style: ".mobileTabBar, .createFab { visibility: hidden !important; }",
+    style: ".mobileTabBar { visibility: hidden !important; }",
   });
 });

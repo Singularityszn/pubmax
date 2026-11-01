@@ -15,15 +15,18 @@ test.describe("UI empty states and layout fit", () => {
     });
   });
 
-  test("signed-out Social Posts door is worded at 390", async ({ page }) => {
+  test("signed-out Social Posts lane is worded at 390", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/social");
     await expect(page.getByRole("link", { name: "Posts", exact: true })).toHaveAttribute(
       "aria-current",
       "page",
     );
-    await expect(page.getByText("Sign in to use Social.")).toBeVisible();
-    await expect(page.locator(".socialDoorSlot")).toBeVisible();
+    // A stranger reads the London lane (captain decision 7, 1 Nov 2026) in the
+    // slot the sign-in wall used to hold.
+    await expect(page.getByRole("heading", { name: "Across London", exact: true })).toBeVisible();
+    await expect(page.locator(".socialLondonLane")).toBeVisible();
+    await expect(page.getByText("Sign in to use Social.")).toHaveCount(0);
   });
 
   test("night crawl actions sit below the stop name without a dead band", async ({
@@ -123,27 +126,20 @@ test.describe("UI empty states and layout fit", () => {
       sessionStorage.setItem(`pubmax-plan-member:${id}`, token);
     }, { id: planId, start: planStart, token: created.memberToken });
     await page.goto("/tonight");
-    const create = page.getByRole("button", { name: "Create", exact: true });
-    await expect(create).toBeVisible();
-    // The active-plan pill mounts after Create and lifts it, so sample the
-    // float stack only once the pill is in it and the body reserves Create's
-    // lifted top edge.
+    // No floating Create rides over the plan (it left with the five-tab dock,
+    // 1 Nov 2026), so the body's foot is the tab bar's lane alone, with the
+    // panel open or closed.
+    await expect(page.getByRole("button", { name: "Create", exact: true })).toHaveCount(0);
     const showPlan = page.getByRole("button", { name: "Show tonight's plan" });
     await expect(showPlan).toBeVisible();
-    const createBox = (await create.boundingBox())!;
     const padding = () => page.evaluate(() =>
       Number.parseFloat(getComputedStyle(document.body).paddingBottom),
     );
-    await expect.poll(padding).toBeCloseTo(844 - createBox.y, 0);
-    const withCreate = await padding();
+    const before = await padding();
     await showPlan.click();
     const dialog = page.getByRole("dialog", { name: "Tonight's plan" });
     await expect(dialog).toBeVisible();
-    await expect(create).toBeHidden();
     const barBox = (await page.getByRole("navigation", { name: "Primary" }).boundingBox())!;
-    // The panel's card can mount a frame after Create hides, and the lane is
-    // released only once it has.
-    await expect.poll(padding).toBeLessThanOrEqual(withCreate - createBox.height);
     expect(await padding()).toBeGreaterThanOrEqual(barBox.height);
     await expect(
       dialog.getByText("Loading tonight's route…"),
@@ -153,7 +149,6 @@ test.describe("UI empty states and layout fit", () => {
     expect(hasStop + hasEmpty).toBeGreaterThan(0);
     await dialog.getByRole("button", { name: "Hide tonight's plan" }).click();
     await expect(dialog).toBeHidden();
-    await expect(create).toBeVisible();
-    await expect.poll(padding).toBe(withCreate);
+    await expect.poll(padding).toBe(before);
   });
 });

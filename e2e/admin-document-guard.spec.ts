@@ -11,7 +11,7 @@ for (const width of [390, 1280]) {
       await expect(page.getByRole("heading", { name: "Moderator sign-in" })).toBeVisible();
       await expect(page.getByRole("tablist", { name: "Admin sections" })).toHaveCount(0);
       const link = exit === "primary"
-        ? page.getByRole("navigation", { name: width === 390 ? "Primary" : "Site navigation", exact: true }).getByRole("link", { name: "Map", exact: true })
+        ? page.getByRole("navigation", { name: width === 390 ? "Primary" : "Site navigation", exact: true }).getByRole("link", { name: "Explore", exact: true })
         : page.getByRole("link", { name: "Back to the map", exact: true });
       if (exit === "keyboard") {
         await link.focus();

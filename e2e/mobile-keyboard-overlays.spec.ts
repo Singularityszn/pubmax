@@ -102,21 +102,13 @@ test("venue and planner sheets preserve primary navigation and Enter submits", a
   expect(body.context.budgetLimitPence).toBe(2250);
 });
 
-test("create menu owns outside taps and leaves compose routes clear", async ({ page }) => {
+// The create menu and its scrim left with the five-tab dock (captain, 1 Nov
+// 2026), so no page carries a floating compose control to hide over a field.
+test("no floating compose control rides over the compose routes", async ({ page }) => {
   await page.setViewportSize({ width: 412, height: 844 });
-  await page.goto("/tonight");
-  const trigger = page.getByTestId("create-fab");
-  await expect(async () => {
-    await trigger.click();
-    await expect(page.locator(".createFabMenu")).toBeVisible({ timeout: 1_000 });
-  }).toPass();
-  await expect(trigger).toHaveAttribute("aria-label", "Close create menu");
-  const scrimOwnsTap = await page.evaluate(() => document.elementFromPoint(10, 200)?.classList.contains("createFabScrim"));
-  expect(scrimOwnsTap).toBe(true);
-  await page.mouse.click(10, 200);
-  await expect(page.locator(".createFabMenu")).toHaveCount(0);
-  for (const path of ["/moment", "/plan"]) {
+  for (const path of ["/tonight", "/moment", "/plan"]) {
     await page.goto(path);
-    await expect(page.locator(".createFabRoot")).toHaveCount(0);
+    await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
+    await expect(page.locator(".createFabRoot, .createFabMenu")).toHaveCount(0);
   }
 });

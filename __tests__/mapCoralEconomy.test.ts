@@ -5,9 +5,10 @@ import { describe, expect, it } from "vitest";
 import { defined } from "@/__tests__/helpers/defined";
 
 // The coral economy (design judgement 2026-08-01, findings 2.1 / 2.2 / 2.9).
-// On the map, coral (--brass) may survive in exactly three places: the primary
-// CTA, the floating create disc and the selected pin ring. The active tab
-// glyph was the fourth until P2-A moved every selection to ink
+// On the map, coral (--brass) may survive in exactly two places: the primary
+// CTA and the selected pin ring. The floating create disc was a third until
+// the five-tab dock retired it (captain, 1 Nov 2026), and the active tab
+// glyph a fourth until P2-A moved every selection to ink
 // (docs/DESIGN_SYSTEM.md "Coral is spent twice"). Every other former
 // coral surface is pinned neutral here, and every changed text pair must
 // measure at least 4.5:1 in both themes. The values are read from the shipped
@@ -130,7 +131,7 @@ describe("finding 2.1 — map chrome holds no coral fills", () => {
     expect(tab).toMatch(/color:\s*var\(--ink\)/);
     expect(tab).not.toMatch(/--brass/);
     // The glyph was the last coral mark in the tab bar. An active tab is a
-    // selection, and coral is spent on the one primary and the create disc
+    // selection, and coral is spent on the one primary
     // (docs/DESIGN_SYSTEM.md "Coral is spent twice").
     expect(navCss).toMatch(
       /\.mobileTab\.isActive \.mobileTabIcon\s*\{[^}]*color:\s*var\(--state-selected-ink\)/,
@@ -139,9 +140,9 @@ describe("finding 2.1 — map chrome holds no coral fills", () => {
 
   it("the tab bar holds NO resting coral mark", () => {
     // The Moment circle and its glow used to be one, the active glyph the
-    // last. Compose left the row for the floating create action and the glyph
-    // went to ink, so the budget is a count of zero: any coral in this
-    // stylesheet is a mark the bar may not wear.
+    // last. Compose left the row and the glyph went to ink, so the budget is a
+    // count of zero: any coral in this stylesheet is a mark the bar may not
+    // wear.
     const coralRules: string[] = [];
     for (const match of navCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
       const selector = match[1]!.trim();

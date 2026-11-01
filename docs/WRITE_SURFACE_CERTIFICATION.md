@@ -1070,12 +1070,20 @@ commit.
   it disagrees with the observed corpus, never a silent overwrite. A fence test
   (`__tests__/operatorProposalFence.test.ts`) asserts the proposal store/module
   import NO venue-fact module — the acceptance route is the sole bridge.
+- **Published fact:** the `accept` branch also publishes ONE operator fact
+  (`lib/operatorFactsStore.ts`, migration 0217, unique per proposal) BEFORE it
+  stamps the status, so a failed publish leaves the proposal pending and answers
+  503; a failed stamp withdraws the fact. `decline` withdraws any published fact
+  first. The fact is shown as "From the pub" and changes no rank, pin colour,
+  price band or order (`__tests__/operatorFactsFence.test.ts`).
 - **Freeze stance:** NOT under the SOCIAL freeze (venue-business content), same
   exemption as route 68.
 - **Rollback / kill:** durable rows live in `public.operator_proposals` (migration
   0048, RLS on, anon/authenticated revoked, service_role only); `truncate` is a
   safe reset. Fails soft to process-memory until 0048 lands
-  (`lib/operatorProposalsStore.ts`); a hard write failure answers 503.
+  (`lib/operatorProposalsStore.ts`); a hard write failure answers 503. Published
+  facts live in `public.operator_facts` (0217); its rollback drops the table and
+  keeps every proposal's review status.
 
 ### `app/api/price-submit` - community price and venue-signal submissions (route 70)
 

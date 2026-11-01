@@ -297,7 +297,7 @@ describe("Places sets the one city Map and Near follow", () => {
     installWindow();
   });
 
-  it("writes the preferred city, and Map follows it", () => {
+  it("writes the preferred city, and Explore follows it", () => {
     expect(readPreferredCity()).toBeNull();
     expect(preferredCityMapHref()).toBe("/map");
 
@@ -307,7 +307,7 @@ describe("Places sets the one city Map and Near follow", () => {
     expect(window.localStorage.getItem(STORAGE_KEY)).toBe("manchester");
     expect(preferredCityMapHref()).toBe("/map/manchester");
     expect(buildTabs("/u/you" as Route, preferredCityMapHref()).find(
-      (tab) => tab.label === "Map",
+      (tab) => tab.label === "Explore",
     )?.href).toBe("/map/manchester");
   });
 
@@ -359,9 +359,9 @@ describe("Places sets the one city Map and Near follow", () => {
 
 describe("Places is a setting, not a tab", () => {
   it("is in neither the phone tab row nor the desktop nav model", () => {
-    // Product owner, Oct 2026: the phone row is Map, Tonight, Plan, Social, You;
-    // Spoons joins the desktop model only (captain, 1 Nov 2026). The picker is
-    // reached from the map's city chip and the footer's "Pick your city".
+    // Captain, 1 Nov 2026: the phone row is Explore (the map), Tonight, Plan,
+    // Social, You; Spoons joins the desktop model only. The picker is reached
+    // from the map's city chip and the footer's "Pick your city".
     expect(PRIMARY_NAV_ITEMS.map((item) => item.key)).toEqual([
       "map",
       "now",
@@ -371,7 +371,7 @@ describe("Places is a setting, not a tab", () => {
       "you",
     ]);
     expect(buildTabs().map((tab) => tab.label)).toEqual([
-      "Map",
+      "Explore",
       "Tonight",
       "Plan",
       "Social",

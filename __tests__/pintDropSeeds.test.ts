@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   demoDropsFor,
@@ -14,6 +14,15 @@ import { defined } from "@/__tests__/helpers/defined";
 
 const venues = groupVenuePrices(dataset as VenuePrice[]);
 const venueById = new Map(venues.map((venue) => [venue.id, venue]));
+
+// Demo content is opt-in (lib/demoContent.ts), and these tests read the seeds.
+beforeEach(() => {
+  vi.stubEnv("NEXT_PUBLIC_DEMO_CONTENT", "on");
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe("demo Pint Drop seeds", () => {
   it("London seeds are 8-16 drops, all provenance-tagged demo and visible", () => {

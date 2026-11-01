@@ -5,6 +5,7 @@ import { Ellipsis, GlassWater, LocateFixed, LocateOff, Route, Search, SlidersHor
 
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 import CitySwitcher from "@/components/map/CitySwitcher";
+import { PalMapEdgeButton } from "@/components/nav/PalNavButton";
 import { IconButton } from "@/components/ui/icon-button";
 import { Sheet } from "@/components/ui/sheet";
 import { buildFiltersChip, buildNearMeChip, buildTflCorner, type CornerUtilityModel, type PrimaryChipModel } from "@/lib/mapChromeTiers";
@@ -53,6 +54,13 @@ const CONTEXTUAL_SHEETS: readonly MapSheetKind[] = [
  * controls, the same panel the TfL sheet shows. It comes back to the map edge
  * only with something urgent to say, because a closed or suspended line is
  * news a reader needs before they set out, not after they think to look.
+ *
+ * The Pub Pal's door rides one gap above Near me (captain, 1 Nov 2026, launch
+ * plan decision 13). The Pal left the phone dock for the top bar, and this
+ * map draws its own top bar, measured at five slots with no room for a sixth
+ * (mobileMapShell.css), so the map's door stands where the floating create
+ * button used to. A person whose Pal pill is on screen already has a door to
+ * the Pal, so the CSS stands this one down beside the pill.
  */
 function MapEdgeControls({
   tfl,
@@ -78,6 +86,7 @@ function MapEdgeControls({
           {tfl.badge ? <span className="mobileMapCornerBadge">{tfl.badge}</span> : null}
         </IconButton>
       ) : null}
+      <PalMapEdgeButton pathname="/map" />
       <button
         type="button"
         className="mobileMapLocateFab"

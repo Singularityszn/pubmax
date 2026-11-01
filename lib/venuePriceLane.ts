@@ -15,6 +15,8 @@ import { answerEvidenceFor, type AnswerPublisher } from "@/lib/landingHero";
 import type { PricedVenue } from "@/lib/priceUpdates";
 import type { EstimatedPriceInput, ListedPriceInput, PriceStanding } from "@/lib/priceTier";
 import { formatTrustDay, trustPillLabel } from "@/lib/trustPill";
+import { displayHandle } from "@/lib/handleDisplay";
+import { ANON_HANDLE_LABEL } from "@/lib/pintDropShared";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import type { Venue } from "@/lib/venues";
 import type { VenuePriceReadStatus } from "@/lib/mapExperienceLens";
@@ -39,6 +41,26 @@ export const PRICE_PENDING_LINE = "Checking prices…";
  */
 export const AGED_PRICE_LINE = `Over ${PRICE_AUTHORITY_MAX_AGE_DAYS} days old, needs a fresh drinker`;
 
+/**
+ * The ONE line an UNCHECKED report prints beside its figure (captain decision
+ * 9, 1 Nov 2026): a typed price with no bill. It says what the price is still
+ * waiting for and what that buys, in the words the rest of this lane uses.
+ * Copy may claim the map only through the second drinker, never through the
+ * drinker who typed it.
+ */
+export const UNCHECKED_PRICE_LINE = "Counts on the map once a second drinker agrees";
+
+/**
+ * Who logged an unchecked price, in the captain's own words for it: "Logged by
+ * @handle, not checked". A withheld name (an anonymous drop, a retired author,
+ * or none at all) reads as the label every public surface already prints for
+ * one, never as a made-up handle.
+ */
+export function uncheckedPriceLine(handle: string | null | undefined): string {
+  const name = !handle?.trim() || handle === ANON_HANDLE_LABEL ? ANON_HANDLE_LABEL : displayHandle(handle);
+  return `Logged by ${name}, not checked`;
+}
+
 /** The price claim the overview area prints, in precedence order. */
 export type VenuePriceLaneName =
   | "anchor"
@@ -60,7 +82,20 @@ export type VenuePriceLaneName =
 export type ProvisionalPriceInput = {
   priceGbp: number;
   observedAt: string | number | null;
+  /**
+   * The public handle an UNCHECKED report was logged under (a typed price with
+   * no bill, captain decision 9), or absent on a report with a bill and on
+   * every row written before the decision. Its presence is the whole signal:
+   * the lane that carries it prints no band, and the trust chip reads
+   * `unchecked` on the in-window lane (lib/pintTrust.ts `trustChipStateFor`).
+   */
+  uncheckedBy?: string | null;
 };
+
+/** The `uncheckedBy` key a lane carries, or nothing, so a billed lane's shape is unchanged. */
+function uncheckedField(input: ProvisionalPriceInput): { uncheckedBy?: string } {
+  return typeof input.uncheckedBy === "string" ? { uncheckedBy: input.uncheckedBy } : {};
+}
 
 /**
  * The figures a pub's in-window drinkers DISAGREE about, as
@@ -108,6 +143,8 @@ export type VenuePriceLane =
       lane: "provisional";
       provisionalPrice: number;
       observedAt: string | number | null;
+      /** Present when this report has no bill (see `ProvisionalPriceInput`). */
+      uncheckedBy?: string;
     }
   | {
       lane: "disputed";
@@ -132,6 +169,8 @@ export type VenuePriceLane =
       lane: "aged";
       agedPrice: number;
       observedAt: string | number | null;
+      /** Present when this report has no bill (see `ProvisionalPriceInput`). */
+      uncheckedBy?: string;
     }
   | { lane: "estimate"; estimate: EstimatedPriceInput };
 
@@ -199,10 +238,16 @@ export function venuePriceLane(
     typeof provisional.priceGbp === "number" &&
     Number.isFinite(provisional.priceGbp)
   ) {
+    // AN UNCHECKED REPORT TAKES THIS SAME SLOT (captain decision 9): it is
+    // this month's drinker saying what they paid, so it outranks a
+    // hand-stamped baseline exactly as one with a bill does. What it does not
+    // get is the band or the provisional mark, and the lane says so by
+    // carrying `uncheckedBy` for every surface that prints it.
     return {
       lane: "provisional",
       provisionalPrice: provisional.priceGbp,
       observedAt: provisional.observedAt,
+      ...uncheckedField(provisional),
     };
   }
   if (cheapestPrice !== null) {
@@ -219,7 +264,12 @@ export function venuePriceLane(
   // than nothing for the reason in AGED_PRICE_LINE: the drop is still printed,
   // dated, in the list below, so "No price yet" here would be untrue.
   if (aged && typeof aged.priceGbp === "number" && Number.isFinite(aged.priceGbp)) {
-    return { lane: "aged", agedPrice: aged.priceGbp, observedAt: aged.observedAt };
+    return {
+      lane: "aged",
+      agedPrice: aged.priceGbp,
+      observedAt: aged.observedAt,
+      ...uncheckedField(aged),
+    };
   }
   // AND A MODELLED FIGURE IS LAST, below every price somebody observed. It is
   // still a lane rather than nothing, because a pub we can say something honest
@@ -328,4 +378,15 @@ export function venuePriceLaneIsDrinkerLog(lane: VenuePriceLane): boolean {
     lane.lane === "disputed" ||
     lane.lane === "aged"
   );
+}
+
+/**
+ * The handle behind an UNCHECKED drinker's log (captain decision 9), or null
+ * when the lane is not one or its report came with a bill. ONE reader, so a
+ * surface asks this rather than testing the field, and every surface that
+ * prints the figure keeps the band off it the same way.
+ */
+export function venuePriceLaneUncheckedBy(lane: VenuePriceLane | null): string | null {
+  if (lane?.lane !== "provisional" && lane?.lane !== "aged") return null;
+  return typeof lane.uncheckedBy === "string" ? lane.uncheckedBy : null;
 }

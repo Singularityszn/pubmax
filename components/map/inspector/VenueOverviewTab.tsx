@@ -40,12 +40,15 @@ import {
   AGED_PRICE_LINE,
   PROVISIONAL_PRICE_LINE,
   PRICE_PENDING_LINE,
+  UNCHECKED_PRICE_LINE,
   baselineTrustCaption,
+  uncheckedPriceLine,
   venueBundlePrices,
   venuePriceLane,
   venuePriceFallbackPending,
   venuePriceLaneIsDrinkerLog,
   venuePriceLaneObservedGbp,
+  venuePriceLaneUncheckedBy,
   type DisputedPriceInput,
   type ProvisionalPriceInput,
   type VenuePriceLane,
@@ -93,6 +96,7 @@ import VenueGettingThere, {
 import VenueOccupancyRow from "@/components/map/VenueOccupancyRow";
 import DiaryLogPanel from "@/components/diary/DiaryLogPanel";
 import VisitReportPanel from "@/components/visits/VisitReportPanel";
+import VenueFromThePub from "@/components/operators/VenueFromThePub";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import { cuisineTagsForVenue } from "@/lib/cuisineTags";
 import type { CityId } from "@/lib/cities";
@@ -350,6 +354,13 @@ function PriceDoorRow(props: Parameters<typeof PriceDoor>[0]) {
  * and the band simply do not render there: two prices have no one number and no
  * one colour. `priceStanding` is deliberately not consulted for any of the
  * three, because a drinker's log is not a published price.
+ *
+ * AN UNCHECKED LOG (a typed price with no bill, captain decision 9) prints in
+ * the same block, visibly weaker and in words rather than a colour: the
+ * drinker is named as "Logged by @handle, not checked", the figure sits on the
+ * NEUTRAL plaque, and the line says what it is waiting for. Colour means the
+ * price band and never trust, so the weakness is the band withheld, never a
+ * hue of its own.
  */
 function DrinkerLogBlock({
   lane,
@@ -368,6 +379,7 @@ function DrinkerLogBlock({
 }) {
   const split = lane.lane === "disputed" ? lane.split : null;
   const figure = venuePriceLaneObservedGbp(lane);
+  const uncheckedBy = venuePriceLaneUncheckedBy(lane);
   const observedAt = lane.lane === "aged" || lane.lane === "provisional" || lane.lane === "disputed"
     ? lane.observedAt
     : null;
@@ -376,15 +388,28 @@ function DrinkerLogBlock({
     ? pintPriceSplitLine(split)
     : lane.lane === "aged"
       ? AGED_PRICE_LINE
-      : PROVISIONAL_PRICE_LINE;
+      : uncheckedBy !== null
+        ? UNCHECKED_PRICE_LINE
+        : PROVISIONAL_PRICE_LINE;
   return (
-    <div className="contributorPrice" {...trustChipAttrs}>
+    <div
+      className="contributorPrice"
+      {...trustChipAttrs}
+      data-price-check={uncheckedBy !== null ? "unchecked" : undefined}
+    >
       <span className={chromeRevealClass}>
         <ClaimBadge kind="contributor" />{" "}
-        {split ? "Logged by PUBMAXXERS" : "Logged by a PUBMAXXER"}
+        {uncheckedBy !== null
+          ? uncheckedPriceLine(uncheckedBy)
+          : split
+            ? "Logged by PUBMAXXERS"
+            : "Logged by a PUBMAXXER"}
       </span>
       {figure !== null ? (
-        <PriceBadge variant="current" band={priceBand(figure, bandArea)}>
+        <PriceBadge
+          variant="current"
+          band={uncheckedBy !== null ? null : priceBand(figure, bandArea)}
+        >
           {formatPrice(figure)}
         </PriceBadge>
       ) : null}
@@ -1413,6 +1438,8 @@ export default function VenueOverviewTab({
           offerPrice={isPubVenue(venue)}
           where="details"
         />
+        {/* "From the pub" and the quiet "Run this pub?" door: one row. */}
+        <VenueFromThePub venueId={venue.id} venueName={venue.name} offerClaim={isPubVenueKind(venue.kind)} />
         <CityPlaceStrip
           venueId={venue.id}
           venueName={venue.name}

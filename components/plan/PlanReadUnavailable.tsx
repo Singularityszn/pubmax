@@ -34,7 +34,7 @@ export default function PlanReadUnavailable({
   title?: string;
 }): React.JSX.Element {
   return (
-    <main id="main" className="planPage planPage--composer pageHidesCreateFab">
+    <main id="main" className="planPage planPage--composer">
       <SiteNav />
       <header className="planPage__masthead">
         <span>Plan</span>

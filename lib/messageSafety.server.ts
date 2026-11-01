@@ -4,9 +4,14 @@ import { accountIsAdult, needsAdultSelfAssertion } from "@/lib/adultGate";
 import { adultSelfAssertionStore } from "@/lib/adultSelfAssertionStore";
 import { publicApiError } from "@/lib/apiError";
 import { contributionAdultRefusal } from "@/lib/contributionGateStatus";
+import { isMutual, resolveFollowRelation } from "@/lib/followRelation";
+import { followStore } from "@/lib/followStore";
+import { messagesStore } from "@/lib/messagesStore";
 import {
   MESSAGE_ADULT_REFUSAL,
   MESSAGE_BLOCKED_LINE,
+  MESSAGE_MATES_ONLY,
+  MESSAGE_MATES_ONLY_LINE,
   MESSAGE_UNDER_18_REFUSAL,
 } from "@/lib/messageSafety";
 import { privateIdentityStore } from "@/lib/privateIdentityStore";
@@ -108,4 +113,61 @@ export async function messageBlockRefusal(handles: readonly string[]): Promise<R
     });
   }
   return blocked ? publicApiError(MESSAGE_BLOCKED_LINE, "MESSAGE_BLOCKED", 403) : null;
+}
+
+/**
+ * The mates-only refusal for a NEW conversation (`MESSAGE_MATES_ONLY`). The
+ * opener must be mates with every other person in it: a pair, or each member
+ * of a group. One bounded read of the follow edges, and `lib/followRelation.ts`
+ * stays the only place that decides what "mates" means. A follow store we
+ * cannot read refuses with a retryable 503 rather than admitting.
+ */
+export async function messageMatesRefusal(
+  opener: string,
+  others: readonly string[],
+): Promise<Response | null> {
+  if (!MESSAGE_MATES_ONLY) return null;
+  const people = [...new Set(others.filter((other) => other && other !== opener))];
+  if (people.length === 0) return null;
+  let edges: Awaited<ReturnType<ReturnType<typeof followStore>["edgesWith"]>>;
+  try {
+    edges = await followStore().edgesWith(opener, people);
+  } catch {
+    return publicApiError("Messages are unavailable right now. Try again.", "UNAVAILABLE", 503, {
+      retryable: true,
+    });
+  }
+  const allMates = people.every((other) =>
+    isMutual(
+      resolveFollowRelation({
+        viewerFollowing: edges.following.has(other),
+        followsViewer: edges.followers.has(other),
+      }),
+    ),
+  );
+  return allMates ? null : publicApiError(MESSAGE_MATES_ONLY_LINE, "MESSAGE_MATES_ONLY", 403);
+}
+
+/**
+ * The mates-only refusal for a direct pair. Only a NEW conversation needs
+ * mates: a pair that already has one keeps reaching it (the profile Message
+ * button and the recipient dialog open it by pair), as sending into it by id
+ * always could. A store that cannot say whether the pair has one refuses with
+ * a retryable 503 rather than guessing.
+ */
+export async function messageNewPairMatesRefusal(
+  opener: string,
+  other: string,
+): Promise<Response | null> {
+  if (!MESSAGE_MATES_ONLY) return null;
+  let existing: string | null;
+  try {
+    existing = await messagesStore().findConversation(opener, other);
+  } catch {
+    return publicApiError("Messages are unavailable right now. Try again.", "UNAVAILABLE", 503, {
+      retryable: true,
+    });
+  }
+  if (existing) return null;
+  return messageMatesRefusal(opener, [other]);
 }

@@ -65,7 +65,12 @@ import {
 import type { LastPintDecision } from "@/lib/tfl";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import type { PintPriceSplit } from "@/lib/pintDropAgreement";
-import { RECEIPT_REQUIRED_LINE, photoRefusal, priceNeedsReceipt } from "@/lib/pintDropReceipt";
+import {
+  UNCHECKED_RECEIPT_LINE,
+  isUncheckedPrice,
+  photoRefusal,
+  priceEvidenceFor,
+} from "@/lib/pintDropReceipt";
 import { pintTrustFor, pintTrustSignalFields, type PintTrustState } from "@/lib/pintTrust";
 
 // The API DTO carries photo URLs on every drop; lib/pintDrops owns the base
@@ -229,10 +234,12 @@ function rereadLaneOnMint(
   if (outcome?.status === "confirmed") reread();
 }
 
-function dropReceiptText(
+export function dropReceiptText(
   addedToNight: boolean,
   outcome: PintDropConfirmationOutcome | null,
   submittedPrice: string,
+  /** The server stamped the landed drop `unchecked` (captain decision 9). */
+  unchecked = false,
 ): string {
   const receipt = addedToNight
     ? "Cheers. Added to your night."
@@ -242,7 +249,10 @@ function dropReceiptText(
     outcome,
     Number.isFinite(submittedGbp) ? submittedGbp : null,
   );
-  return outcomeLine ? `${receipt} ${outcomeLine}` : receipt;
+  // The pass's own sentence wins (a mint over two typed prices says so). With
+  // nothing stronger to say, a typed price is told once why its pin is quiet.
+  const line = outcomeLine ?? (unchecked ? UNCHECKED_RECEIPT_LINE : null);
+  return line ? `${receipt} ${line}` : receipt;
 }
 
 export function usePintDrops(
@@ -595,14 +605,10 @@ export function usePintDrops(
       });
       return;
     }
-    // A NEW PRICE COMES WITH THE BILL (captain 7 Sept 2026). Said here as well
-    // as at the route, so a drinker learns it before the upload rather than
-    // after it (lib/pintDropReceipt.ts owns the rule and the line).
-    if (priceNeedsReceipt(dropForm.price) && !receiptPhoto) {
-      setSubmitting(false);
-      setDropMsg({ ok: false, text: RECEIPT_REQUIRED_LINE });
-      return;
-    }
+    // THE BILL IS OPTIONAL HERE (captain decision 9, 1 Nov 2026). A price sent
+    // without one lands `unchecked`: on the pub's own sheet, dated and named,
+    // and on the map only once a second drinker agrees. Nothing is refused and
+    // nothing nags; the composer's one line says what the bill buys.
     const passedDownNote = appendWithSuffix(dropForm.note, dropForm.withWho);
     // "With" handles become tag proposals once the drop has an id; they are
     // never part of the note (lib/pintDropWithTags.ts). They ride the retry
@@ -649,6 +655,13 @@ export function usePintDrops(
       // flashes through the pint lane between the tap and the answer.
       ...measureFieldsOf(dropForm),
       priceGbp: optimisticDrop.priceGbp,
+      // And its evidence, by the same rule the store applies to the answer,
+      // so a typed price never flashes the pin's mark before the server says
+      // it is unchecked (lib/pintDropReceipt.ts).
+      ...(() => {
+        const priceEvidence = priceEvidenceFor(optimisticDrop.priceGbp, Boolean(receiptPhoto));
+        return priceEvidence ? { priceEvidence } : {};
+      })(),
       passedDownNote: optimisticDrop.passedDownNote,
       era: optimisticDrop.era,
       vibeTags: optimisticDrop.vibeTags as VibeTag[],
@@ -825,7 +838,7 @@ export function usePintDrops(
       rereadLaneOnMint(outcome, () => refreshVenueDrops(venueId));
       setDropMsg({
         ok: true,
-        text: dropReceiptText(addedToNight, outcome, submittedPrice),
+        text: dropReceiptText(addedToNight, outcome, submittedPrice, isUncheckedPrice(data.drop)),
         links,
       });
     } catch {
@@ -938,6 +951,8 @@ export function usePintDrops(
         agedContributorPrice: number | null;
         /** Epoch ms that aged report was logged, or null. */
         agedContributorAt: number | null;
+        /** The handle behind either figure above when it has no bill, or null. */
+        uncheckedBy: string | null;
         /** The figures this pub's drinkers disagree about, for the sheet and
          *  the peek. Never a band, a bucket or a pin figure: two prices have
          *  no one number (lib/pintDropAgreement.ts). */

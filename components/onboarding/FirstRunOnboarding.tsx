@@ -407,10 +407,7 @@ export default function FirstRunOnboarding({
   return (
     <main
       id="main"
-      // The one screen with no price to add: compose stands down here rather
-      // than parking a round + over the reviewed-area list
-      // (components/nav/createFab.css).
-      className="firstRunOnboarding pageHidesCreateFab"
+      className="firstRunOnboarding"
       data-stage={step}
     >
       <header className="firstRunTopbar">

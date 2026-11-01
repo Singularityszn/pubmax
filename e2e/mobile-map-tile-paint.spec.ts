@@ -176,7 +176,10 @@ test.describe("mobile map tile paint", () => {
     await expect(page.getByRole("button", { name: "Plan a pub crawl" })).toBeVisible();
     await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
     await expect(page.locator(".palSummon")).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator(".createFab")).toBeVisible();
+    // The Pal pill is the door to the Pal here, so the edge door stands down,
+    // and the floating create action left with the five-tab dock (1 Nov 2026).
+    await expect(page.locator(".mobileMapPalDoor")).toBeHidden();
+    await expect(page.locator(".createFab")).toHaveCount(0);
 
     const boxes = await page.evaluate(() => {
       const read = (selector: string, name: string) => {
@@ -196,13 +199,12 @@ test.describe("mobile map tile paint", () => {
       return [
         read(".mobilePlanActivation", "plan activation"),
         read(".palSummon", "Pub Pal pill"),
-        read(".createFab", "create action"),
         read(".mobileMapLocateFab", "locate FAB"),
       ].filter(Boolean);
     });
 
     expect(boxes.map((box) => box!.name)).toEqual(
-      expect.arrayContaining(["plan activation", "Pub Pal pill", "create action", "locate FAB"]),
+      expect.arrayContaining(["plan activation", "Pub Pal pill", "locate FAB"]),
     );
 
     for (const box of boxes) {
@@ -234,7 +236,6 @@ test.describe("mobile map tile paint", () => {
         if (!hit) return "nothing";
         if (hit.closest(".mobilePlanActivation")) return "plan activation";
         if (hit.closest(".palSummon")) return "Pub Pal pill";
-        if (hit.closest(".createFabRoot")) return "create action";
         if (hit.closest(".mobileMapLocateFab")) return "locate FAB";
         return hit.className || hit.tagName;
       }, centre);

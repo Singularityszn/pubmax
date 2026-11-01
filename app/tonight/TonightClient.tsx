@@ -45,6 +45,7 @@ import TonightCheapPints from "./TonightCheapPints";
 import TonightConditionsStrip from "./TonightConditionsStrip";
 import TonightHypedPubs from "./TonightHypedPubs";
 import TonightListingsNotice from "./TonightListingsNotice";
+import TonightFromThePubs from "./TonightFromThePubs";
 import TonightProvenanceLines from "./TonightProvenanceLines";
 import TonightGetHomeStrip from "./TonightGetHomeStrip";
 import TonightLastOrdersDoor from "./TonightLastOrdersDoor";
@@ -128,6 +129,7 @@ import type { LoadWhatsOnResult } from "@/lib/whatsOnStore";
 import type { TonightOutAnswer } from "@/lib/tonightOutListings";
 import type { HypedPub } from "@/lib/hypedPubs";
 import type { TonightCheapPint } from "@/lib/tonightCheapPints";
+import type { TonightOperatorFact } from "@/lib/operatorFacts";
 import { withoutTonightChainRows } from "@/lib/tonightChainLanes";
 import type { PicksContext } from "@/lib/picksState";
 import { parsePlanOccasionIdFromSearch } from "@/lib/planOccasion";
@@ -303,6 +305,7 @@ export default function TonightClient({
   cheapPints,
   initialListings,
   photos,
+  operatorFacts,
 }: {
   initialListings?: InitialListings;
   /** Server-composed quiet-pint module; null outside a quiet window. */
@@ -317,6 +320,8 @@ export default function TonightClient({
   cheapPints?: readonly TonightCheapPint[];
   /** Honest photographs only: a pub's own, an area's, London's. */
   photos?: TonightPhotos;
+  /** Published operator events and offers for tonight, read when the page was prepared. */
+  operatorFacts?: readonly TonightOperatorFact[];
 }) {
   const [activeKind, setActiveKind] = useState<WhatsOnKind | null>(null);
   const [origin, setOrigin] = useState<Origin | null>(null);
@@ -1006,6 +1011,15 @@ export default function TonightClient({
       ) : null}
 
       </div>
+      {/* The pubs' own words for tonight sit under the confirmed listings, in
+          their own dated block, and never lead: they are not a listing we
+          checked (TonightFromThePubs). Held until the first listings read
+          settles, so the block never stands where the lede is still growing. */}
+      <TonightFromThePubs
+        facts={operatorFacts}
+        preparedAt={pagePreparedAt}
+        held={firstListingsRead}
+      />
       {/* Last orders sits under the lede, never in it: the answer comes first
           and clears the docked consent card on the smallest phone, and its
           list can name a chain pub, which the lede rule keeps out. From 21:30
@@ -1174,7 +1188,7 @@ export default function TonightClient({
             {QUIET_ALTERNATIVES.map((alt) => (
               <RowListItem
                 key={alt.title}
-                className="tonightQuietRow createFabLane"
+                className="tonightQuietRow"
                 href={alt.href}
                 title={alt.title}
                 meta={alt.sub}

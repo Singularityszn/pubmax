@@ -70,11 +70,12 @@ test("/map surfaces an honest fallback with a detail line when WebGL is disabled
     .withRules(["color-contrast"]).analyze();
   expect(contrast.violations).toEqual([]);
 
-  // The bottom card lifts Create after the fallback appears. Check the settled
-  // price text itself, since the row centre can remain tappable under an overlap.
+  // The map-edge column (Near me and the Pal's door above it) stays on the
+  // right edge over the fallback card. Check the settled price text itself,
+  // since the row centre can remain tappable under an overlap.
   await expect(page.locator(".mobileMapChrome")).toBeVisible();
   await expect(page.locator(".mapPeek")).toBeVisible();
-  await expect(page.getByTestId("create-fab")).toBeVisible();
+  await expect(page.locator(".mobileMapPalDoor")).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
   for (const row of await page.locator(".mapFallbackVenue").all()) {
     await row.scrollIntoViewIfNeeded();

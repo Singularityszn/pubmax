@@ -13,10 +13,11 @@
   --tabbar-h: 64px;
 
   /* THE FOOT EVERY SCROLLING PAGE RESERVES, AND ONLY THE BODY RESERVES IT.
-     On a phone the tab bar, the home indicator and the floating create disc
-     all stand over the bottom of the page. The body pads its foot by this one
-     token (the phone rules further down), so the last line of a page scrolls
-     clear of all three. A page never adds the bar's height to its own bottom
+     On a phone the tab bar and the home indicator stand over the bottom of the
+     page. The body pads its foot by this one token (the phone rules further
+     down), so the last line of a page scrolls clear of both. The floating
+     create disc that also stood there is gone (captain, 1 Nov 2026, launch
+     plan decision 13). A page never adds the bar's height to its own bottom
      padding: that drew a second empty band, up to 200px deep on /social and
      /u/<handle>. A page that needs the number for another reason (a sticky
      foot, a min-height that should end above the chrome) reads this token,
@@ -28,16 +29,18 @@
      Every fixed control that parks above the tab bar is a MEMBER, and every
      member publishes its own bottom offset and its own height here. That is
      what makes the stack derivable: a member's TOP edge is bottom + height, and
-     the create action takes the berth one gap above the topmost member that is
-     actually on screen (this file reads them through body:has()).
+     a member above it parks one gap over that edge (this file reads them
+     through body:has()). On the phone map the Pub Pal pill parks over the plan
+     door, the map-edge column over the pill, and the first-visit ask over the
+     column.
 
      Owning the numbers here rather than at each member's own rule is the point.
-     The create action first shipped assuming only the tab bar was below it, then
-     assuming only the Pub Pal pill was, and each time it landed on a control
-     whose offset it had never read - the map's planning pill, then the Near me
-     FAB. A member that stops declaring its geometry through these cannot be
-     stacked, and the rendered overlap proof in e2e/mobile-map-chrome-fit.spec.ts
-     is what catches that. */
+     The floating create action (retired 1 Nov 2026) first shipped assuming only
+     the tab bar was below it, then assuming only the Pub Pal pill was, and each
+     time it landed on a control whose offset it had never read - the map's
+     planning pill, then the Near me FAB. A member that stops declaring its
+     geometry through these cannot be stacked, and the rendered overlap proof in
+     e2e/mobile-map-chrome-fit.spec.ts is what catches that. */
   --float-stack-gap: 12px;
   /* The band every member measures from: the reserved tab-bar lane plus a gap.
      mobileMapShell.css's --mobile-map-dock-clearance IS this. */
@@ -54,8 +57,8 @@
   /* Member: the Night Mode pill, the way back into a plan that is on tonight.
      It parks on the base band on every in-app route but /map and /, and it was
      the one member that published its geometry in its OWN stylesheet instead of
-     here, so the create action never read it and landed straight on top of it,
-     swallowing its taps at 320px. Both numbers now live here, with the pill's
+     here, so the old create action never read it and landed straight on top of
+     it, swallowing its taps at 320px. Both numbers live here, with the pill's
      rule and its own published clearance reading them back
      (components/night/nightMode.css). */
   /* Measured with border + label at 390: 44px min-height plus the 1px frame. */
@@ -76,12 +79,16 @@
   --map-peek-clearance-h: max(var(--map-peek-rendered-h, 0px), var(--map-peek-h));
 
   /* Member: the map-edge corner column. Its box spans most of the viewport, but
-     what sits in this band is the Near me FAB parked at the column's own bottom
-     (justify-content: space-between). The consent variant keeps the column one
-     gap above the analytics card docked on the tab bar: its own berth while the
-     card is the 56px row, higher only when the card's measured lane grows. The create action does not stack above that card at all,
-     it stands down (createFab.css). */
+     what sits in this band is the Near me FAB parked at the column's own
+     bottom, with the Pub Pal's door one 10px gap above it (the column's own
+     gap, components/mobile/mobileMapShell.css). The consent variant keeps the
+     column one gap above the analytics card docked on the tab bar: its own
+     berth while the card is the 56px row, higher only when the card's measured
+     lane grows. */
   --map-corner-locate-size: 52px;
+  /* What the Pal's door adds to the column's top edge: its 44px circle and the
+     column's 10px gap. Zero until the door is in the document (below). */
+  --map-corner-pal-door-h: 0px;
   --map-corner-bottom: calc(var(--float-stack-base) + 72px);
   --map-corner-bottom-consent: max(
     var(--map-corner-bottom),
@@ -92,34 +99,10 @@
      256px panel at the foot of the phone, and every member above it read a
      published berth to step clear. It is a compact pill now
      (components/map/mapArrivalCard.css) that parks on the map-edge column's
-     published top edge, so it reads this stack and nothing steps around it.
-
-  /* Member: the create action itself. It publishes its geometry here like every
-     member below it, because the BODY has to reserve its lane: the bottom
-     clearance reserved the tab bar alone, so the last 68px of every scrollable
-     page sat under the compose control at rest. The founders wall lost the
-     right of its final row and /today lost the title of its third card. */
-  --create-fab-h: 56px;
-  --create-fab-bottom: var(--float-stack-base);
-  /* The control's own inset from the right edge, published here rather than
-     restated at createFab.css, because a surface that has to keep content out
-     from under it needs the same number this control parks on. */
-  --create-fab-right: calc(12px + env(safe-area-inset-right, 0px));
-  /* The horizontal band the control owns, measured from the viewport's right
-     edge: its inset, its width and one gap. A scrolling list reserves this the
-     way the map chrome reserves --mobile-map-corner-lane, minus its own gutter,
-     because every row of a list passes under this control while it scrolls and
-     the row's right cell is where /near prints the price. */
-  --create-fab-lane: calc(
-    var(--create-fab-right) + var(--create-fab-h) + var(--float-stack-gap)
-  );
+     published top edge, so it reads this stack and nothing steps around it. */
 
   /* Each member's top edge, which is the only thing a control above it needs. */
-  --float-stack-top-create: calc(var(--create-fab-bottom) + var(--create-fab-h));
   --float-stack-top-pal: calc(var(--pal-summon-bottom) + var(--pal-summon-h));
-  --float-stack-top-night-pill: calc(
-    var(--night-pill-bottom) + var(--night-pill-h)
-  );
   --float-stack-top-plan: calc(
     var(--plan-activation-bottom) + var(--plan-activation-h)
   );
@@ -136,8 +119,19 @@
   ));
 }
 
+/* The Pub Pal's door rides the map-edge column above Near me
+   (components/mobile/MobileMapShell.tsx), so the column's top edge is the
+   door's. Declared on the body, where the door is found, and re-derived there,
+   because a custom property is resolved where it is declared. The door stands
+   down while the first-visit ask is up (mobileMapShell.css), so it adds
+   nothing then and the ask parks one gap above Near me. */
+body:has(.mobileMapPalDoor):not(:has(.mapArrivalCard)) {
+  --map-corner-pal-door-h: calc(var(--control-height) + 10px);
+}
 body {
-  --float-stack-top-create: calc(var(--create-fab-bottom) + var(--create-fab-h));
+  --float-stack-top-map-corner: calc(
+    var(--map-corner-bottom) + var(--map-corner-locate-size) + var(--map-corner-pal-door-h)
+  );
 }
 
 /* With the bottom card on screen the stack's plan member is the CARD: its top
@@ -148,7 +142,9 @@ body {
 body:has(.mapStage):has(.mapPeek):not(:has(.analyticsConsentPrompt)) {
   --float-stack-top-plan: calc(var(--plan-activation-bottom) - 8px + var(--map-peek-clearance-h));
   --map-corner-bottom: calc(var(--float-stack-top-plan) + 14px);
-  --float-stack-top-map-corner: calc(var(--map-corner-bottom) + var(--map-corner-locate-size));
+  --float-stack-top-map-corner: calc(
+    var(--map-corner-bottom) + var(--map-corner-locate-size) + var(--map-corner-pal-door-h)
+  );
 }
 /* The Pub Pal pill parks above the card, and the column follows it, as it did
    above the bare pill. */
@@ -164,7 +160,8 @@ body:has(.mapStage) {
 }
 
 /* When a member lifts the map-edge column, its published top edge must move
-   with it or the create action reads a stale berth and lands on Near me. */
+   with it or the first-visit ask reads a stale berth and lands on Near me. The
+   Pal's door stands down beside the Pub Pal pill, so it adds nothing here. */
 body:has(.mapStage):has(.palSummon) {
   --float-stack-top-map-corner: calc(
     var(--float-stack-top-pal) + var(--float-stack-gap) + var(--map-corner-locate-size)
@@ -176,7 +173,7 @@ body:has(.mapStage):has(.analyticsConsentPrompt) {
     calc(var(--float-stack-base) + var(--analytics-consent-reserve, var(--analytics-consent-mobile-clearance, 56px)))
   );
   --float-stack-top-map-corner: calc(
-    var(--map-corner-bottom-consent) + var(--map-corner-locate-size)
+    var(--map-corner-bottom-consent) + var(--map-corner-locate-size) + var(--map-corner-pal-door-h)
   );
 }
 /* The column follows the Pub Pal pill over the consent berth
@@ -185,26 +182,6 @@ body:has(.mapStage):has(.analyticsConsentPrompt):has(.palSummon) {
   --float-stack-top-map-corner: calc(
     var(--float-stack-top-pal) + var(--float-stack-gap) + var(--map-corner-locate-size)
   );
-}
-
-/* First of the four, because source order is what settles a tie and every
-   member below it parks higher: the Night pill never shares a screen with the
-   two map members (NightModeCard stands down on /map), and where it does share
-   one with the Pub Pal pill, on /plan, that pill's top edge is the higher of
-   the two and must win. */
-body:has(.nightPill) {
-  --create-fab-bottom: calc(
-    var(--float-stack-top-night-pill) + var(--float-stack-gap)
-  );
-}
-body:has(.mobilePlanActivation) {
-  --create-fab-bottom: calc(var(--float-stack-top-plan) + var(--float-stack-gap));
-}
-body:has(.palSummon) {
-  --create-fab-bottom: calc(var(--float-stack-top-pal) + var(--float-stack-gap));
-}
-body:has(.mobileMapUtilityCorner) {
-  --create-fab-bottom: calc(var(--float-stack-top-map-corner) + var(--float-stack-gap));
 }
 
 /* Instant primary-tab loading shell (App Router loading.tsx). Paper/ink bars
@@ -337,29 +314,18 @@ body:has(.mobileMapUtilityCorner) {
   }
 
   /* The bar alone: its lane, the home indicator and one gap, so the last line
-     of a page that hides the create disc ends a gap above the rail instead of
-     touching it. */
+     of a page ends a gap above the rail instead of touching it. Nothing else
+     floats over the foot of the page since the create disc left (1 Nov 2026). */
   :root:has(.mobileTabBar, .mobileTabBarClearance):not(:has(.mapStage)) {
     --chrome-bottom-clearance: calc(
       var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + var(--float-stack-gap)
     );
   }
 
-  /* The create action floats one gap ABOVE the bar's lane, so a page whose
-     content simply ends there had its last row occluded at rest with no way to
-     scroll clear. While the control is on screen the reserve is its own
-     published top edge, never a number restated here. It is declared on the
-     body because the body is where every member that lifts the control (the
-     Night pill, the Pub Pal pill) publishes its berth. A page that hides the
-     control keeps the bar's clearance and nothing more. */
-  body:has(.createFabRoot):not(:has(.mapStage)):not(:has(.pageHidesCreateFab)):not(:has(.analyticsConsentPrompt)):not(:has(.planComposer__lock)):not(:has(.mapArrivalCard)):not(:has(.appShell.detail-open)):not(:has(.appShell.planning-open)):not(:has(.nightCard)):not(:has(.createFabRoot.isKeyboardHidden)) {
-    --chrome-bottom-clearance: var(--float-stack-top-create);
-  }
-
   /* The one reserve. The fixed-height map shell never scrolls its body, so it
      keeps its own geometry and reserves nothing here. While the analytics
      consent card is up, globals.css adds the card's measured lane instead. */
-  body:has(.mobileTabBar, .mobileTabBarClearance, .createFabRoot):not(:has(.mapStage)) {
+  body:has(.mobileTabBar, .mobileTabBarClearance):not(:has(.mapStage)) {
     padding-bottom: var(--chrome-bottom-clearance);
   }
 
@@ -438,7 +404,7 @@ body:has(.mobileMapUtilityCorner) {
        the live tab array; --tab-inset is the pill's inner padding. Every
        equal-rhythm rule below (column width, highlight geometry) derives from
        these two, so adding or removing a tab can never desync the CSS. */
-    --tab-count: 6;
+    --tab-count: 5;
     --tab-inset: 4px;
     /* THE PRESSED RAIL. The dock is a raised mat and the page you are on is a
        well pressed into it (the bar-mat tactility in docs/DESIGN_SYSTEM.md),
@@ -455,11 +421,11 @@ body:has(.mobileMapUtilityCorner) {
     box-shadow:
       0 -2px 10px color-mix(in srgb, var(--ink-deep) 6%, transparent),
       0 10px 24px -10px color-mix(in srgb, var(--ink-deep) 32%, transparent);
-    /* The rail does not clip: the Pub Pal's face rises out of it
-       (PalNavButton.tsx). The gliding highlight stays inside the rounded rect
-       by its own geometry (#1544): it is inset by --tab-inset, one column
-       wide, and with no tab lit it fades where it stands rather than sliding
-       to a column outside the rail. */
+    /* The rail does not clip, so a tab's pending indicator and focus ring are
+       never cut. The gliding highlight stays inside the rounded rect by its
+       own geometry (#1544): it is inset by --tab-inset, one column wide, and
+       with no tab lit it fades at a real column rather than sliding to a
+       column outside the rail. */
     overflow: visible;
     pointer-events: auto;
   }
@@ -601,8 +567,8 @@ body:has(.mobileMapUtilityCorner) {
 @media (max-width: 640px) {
   /* Active = ink GLYPH + ink label over the gliding neutral highlight. The
      glyph used to be coral; an active tab is a selection, and coral is spent
-     on the one primary action and the create disc alone (docs/DESIGN_SYSTEM.md
-     "Coral is spent twice"). The ink label is what closed the 2.91:1
+     on the one primary action alone (docs/DESIGN_SYSTEM.md "Coral is spent
+     twice"). The ink label is what closed the 2.91:1
      light-theme failure (finding 2.2). */
   .mobileTab.isActive {
     color: var(--ink);

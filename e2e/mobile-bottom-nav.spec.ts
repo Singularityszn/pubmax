@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
-import { mobileMapShellControl } from "./helpers/mobileMapShell";
+import { mobileMapShellControl, tapMapLogPrice } from "./helpers/mobileMapShell";
 
 // Mobile bottom-tab navigation coverage. The assertions deliberately target
 // route DOM and accessible controls, never MapLibre's canvas or WebGL state.
@@ -72,17 +72,20 @@ test.describe("mobile bottom-tab navigation", () => {
     await expect(nav).toHaveCSS("opacity", "1");
   });
 
-  test("Map tab routes to /map and exposes the map search control", async ({ page }) => {
+  test("Explore tab routes to /map and exposes the map search control", async ({ page }) => {
     await page.goto("/tonight");
 
-    await primaryNav(page).getByRole("link", { name: "Map", exact: true }).click();
+    await primaryNav(page).getByRole("link", { name: "Explore", exact: true }).click();
 
     await expect(page).toHaveURL(/\/map$/);
     await (await mobileMapShellControl(page, "search")).click();
     await expect(page.getByRole("combobox", { name: "Search pubs" })).toBeVisible();
   });
 
-  test("Create logs a price in the city chosen from Places", async ({ page }) => {
+  // The floating Create left with the five-tab dock (captain, 1 Nov 2026).
+  // Log a price is one of the map's own destinations now, in More map
+  // controls, and it asks which pub on the city map the reader is on.
+  test("Explore logs a price in the city chosen from Places", async ({ page }) => {
     test.slow();
     await installDeterministicMapBasemap(page);
     // Manchester is no longer a row on the list (it has no listed prices), so
@@ -90,22 +93,13 @@ test.describe("mobile bottom-tab navigation", () => {
     await page.goto("/places?city=manchester");
     await page.getByTestId("places-set-city").click();
     await expect(page.getByText("The map and Near now open on Manchester.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Create", exact: true })).toHaveCount(0);
 
-    const create = page.getByRole("button", { name: "Create", exact: true });
-    await create.click();
-    const price = page.getByRole("link", { name: "Log a price", exact: true });
-    await expect(price).toHaveAttribute("href", "/map/manchester?contribute=price");
-
-    const otherTab = await page.context().newPage();
-    await otherTab.goto("/places?city=london");
-    await otherTab.getByTestId("places-set-city").click();
-    await expect(price).toHaveAttribute("href", "/map?contribute=price");
-    await otherTab.goto("/places?city=manchester");
-    await otherTab.getByTestId("places-set-city").click();
-    await expect(price).toHaveAttribute("href", "/map/manchester?contribute=price");
-    await otherTab.close();
-
-    await price.click();
+    const explore = primaryNav(page).getByRole("link", { name: "Explore", exact: true });
+    await expect(explore).toHaveAttribute("href", "/map/manchester");
+    await explore.click();
+    await expect(page).toHaveURL(/\/map\/manchester$/);
+    await tapMapLogPrice(page);
     await expect(page).toHaveURL(/\/map\/manchester\?contribute=price$/);
     const picker = page.getByRole("list", { name: "Pubs near the map centre" });
     await expect(picker).toBeVisible({ timeout: 45_000 });
@@ -130,7 +124,7 @@ test.describe("mobile bottom-tab navigation", () => {
     await expect(tabs).toHaveCount(5);
     expect(
       await tabs.evaluateAll((links) => links.map((link) => link.getAttribute("aria-label"))),
-    ).toEqual(["Map", "Tonight", "Plan", "Social", "You"]);
+    ).toEqual(["Explore", "Tonight", "Plan", "Social", "You"]);
     await expect(primaryNav(page).getByRole("link", { name: "Out", exact: true })).toHaveCount(0);
     await expect(primaryNav(page).getByRole("link", { name: "Places", exact: true })).toHaveCount(0);
 
@@ -143,11 +137,10 @@ test.describe("mobile bottom-tab navigation", () => {
     ).toHaveAttribute("aria-current", "page");
   });
 
-  test("create action opens Moment with the live return path", async ({ page }) => {
-    await page.goto("/map");
-
-    await page.getByRole("button", { name: "Create" }).click();
-    await page.getByRole("link", { name: "Post a moment", exact: true }).click();
+  // The Moment composer keeps its route and its way back now that Social and
+  // You carry its door (the floating create action left on 1 Nov 2026).
+  test("the Moment route opens with its return path", async ({ page }) => {
+    await page.goto("/moment?returnTo=%2Fmap");
 
     await expect(page).toHaveURL(/\/moment\?returnTo=%2Fmap$/);
     await expect(page.getByRole("heading", { name: "Keep this one." })).toBeVisible();

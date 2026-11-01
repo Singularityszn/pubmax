@@ -2,12 +2,14 @@ import { join } from "node:path";
 
 import type { Locator, Page, Request } from "@playwright/test";
 
-// THE BILL EVERY LOGGED PRICE CARRIES (captain 7 Sept 2026).
+// THE BILL A LOGGED PRICE CARRIES (captain 7 Sept 2026).
 //
-// Since `lib/pintDropReceipt.ts` a new price does not leave the composer, and
-// is not accepted by either write route, without a photo of the bill. Every
-// spec that taps "Log it" therefore attaches one first, exactly as a drinker
-// standing at the bar does.
+// The one-tap composer and `/api/price-submit` still refuse a new price without
+// a photo of the bill (`lib/pintDropReceipt.ts` `priceNeedsReceipt`). The full
+// Pint Drop composer takes a typed price without one since captain decision 9
+// (1 Nov 2026), and lands it "not checked". Every spec that taps "Log it" on
+// the one-tap door attaches one first, exactly as a drinker at the bar does,
+// and a spec on the Pint Drop door attaches one when it means a billed price.
 //
 // ONE helper rather than a stub per spec, so the day the picker moves there is
 // one place to follow it, and so no spec quietly starts asserting against a

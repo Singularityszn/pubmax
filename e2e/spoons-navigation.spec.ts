@@ -2,18 +2,18 @@ import { expect, test } from "@playwright/test";
 import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 import { expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobileMapShell";
 
-// Captain, 1 Nov 2026: phones keep the six-button dock (five destinations and
-// the Pub Pal's door); Spoons is a desktop door only. On a phone the ranking is
+// Captain, 1 Nov 2026: the phone dock is five tabs and nothing else (launch
+// plan decision 13); Spoons is a desktop door only. On a phone the ranking is
 // reached from the Drink sheet, and Lucia sits under soft drinks on both.
 for (const width of [320, 390]) {
-  test(`${width}px phone dock keeps six buttons and no Spoons tab`, async ({ page }) => {
+  test(`${width}px phone dock keeps five tabs and no Spoons tab`, async ({ page }) => {
     await page.setViewportSize({ width, height: 844 });
     await page.goto("/privacy");
     const nav = page.getByRole("navigation", { name: "Primary", exact: true });
     await expect(nav).toBeVisible();
     const links = nav.getByRole("link");
-    await expect(links).toHaveCount(6);
-    await expect(links).toHaveText(["Map", "Tonight", "Pal", "Plan", "Social", "You"]);
+    await expect(links).toHaveCount(5);
+    await expect(links).toHaveText(["Explore", "Tonight", "Plan", "Social", "You"]);
     await expect(nav.getByRole("link", { name: "Spoons", exact: true })).toHaveCount(0);
   });
 }

@@ -650,26 +650,6 @@
   padding-inline: 0;
 }
 
-/* The create action floats over a phone's right edge, and a listing's way on
-   sat under it (measured 6 Sep 2026 at 390, signed in). The row reserves the
-   control's own published lane, the shape the /near list and the landing's
-   rail take, and holds it whenever the control is in the document rather
-   than only while it is painted. */
-@media (max-width: 640px) {
-  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .tonightRowLink {
-    padding-right: max(
-      var(--space-3),
-      calc(var(--create-fab-lane) - var(--page-gutter))
-    );
-  }
-
-  /* The status line runs to the gutter, and its way back to the map sat
-     under the control at rest (UX sprint, 15 Oct 2026, 390x844). */
-  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .tonightStatus {
-    padding-right: calc(var(--create-fab-lane) - var(--page-gutter));
-  }
-}
-
 /* Quiet-pint section: after the listing spine, before the thin-night doors.
    Spacing only; the section owns its look through TodayQuietPintCard's sheet. */
 .tonightQuietPint {

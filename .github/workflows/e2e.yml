@@ -309,8 +309,6 @@ jobs:
           e2e/plan-invite.spec.ts
           e2e/plan-join-reveal.spec.ts
           e2e/price-caption-integrity.spec.ts
-          e2e/price-pulse-create-action.spec.ts
-          e2e/price-source-create-action.spec.ts
           e2e/profile-avatar.spec.ts
           e2e/profile-hero-desktop.spec.ts
           e2e/public-updates.spec.ts

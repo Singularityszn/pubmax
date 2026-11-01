@@ -93,7 +93,7 @@ describe("npm run backup:install-launchd", () => {
     }
   });
 
-  it("installs a weekly agent that reads its secrets from the env file and runs this checkout's backup", () => {
+  it("installs a nightly agent that reads its secrets from the env file and runs this checkout's backup", () => {
     writeEnvFile(0o600);
     const result = install();
     expect(result.status).toBe(0);
@@ -107,7 +107,7 @@ describe("npm run backup:install-launchd", () => {
       ],
       WorkingDirectory: ROOT,
       EnvironmentVariables: { PATH: `${bin}:${process.env.PATH ?? ""}` },
-      StartCalendarInterval: { Weekday: 0, Hour: 3, Minute: 30 },
+      StartCalendarInterval: { Hour: 3, Minute: 30 },
       StandardOutPath: path.join(home, "Library", "Logs", "pubmax-backup.log"),
     });
     expect(JSON.stringify(agent())).not.toContain("postgresql://");

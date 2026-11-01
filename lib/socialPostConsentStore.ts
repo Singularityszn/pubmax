@@ -205,8 +205,15 @@ function rows(value: unknown): Record<string, unknown>[] {
 }
 
 export type SocialPostConsentStore = {
-  approvedTags(viewer: SocialPostActor, postIds: string[]): Promise<Map<string, SocialPostTag[]>>;
-  mediaObjectKey(viewer: SocialPostActor, mediaId: string): Promise<string | null>;
+  /**
+   * The photo tags the tagged person approved for each post's current audience,
+   * as `viewer` may read them. A null viewer is NOBODY, the signed-out London
+   * lane's reader: SQL null matches no author, no tagged person and no block,
+   * so only approved tags on public posts come back.
+   */
+  approvedTags(viewer: SocialPostActor | null, postIds: string[]): Promise<Map<string, SocialPostTag[]>>;
+  /** The stored object behind a post's first photo, as `viewer` (or nobody) may read it. */
+  mediaObjectKey(viewer: SocialPostActor | null, mediaId: string): Promise<string | null>;
   tagInbox(viewer: SocialPostActor, input: TagPageInput): Promise<SocialPostTagInboxPage>;
   actOnTag(
     viewer: SocialPostActor,
@@ -234,7 +241,7 @@ export function createSocialPostConsentStore(): SocialPostConsentStore {
       if (postIds.length === 0) return new Map();
       const result = new Map<string, SocialPostTag[]>();
       for (const item of rows(await rpc("read_social_post_tags_many", {
-        p_viewer: viewer.profileId,
+        p_viewer: viewer?.profileId ?? null,
         p_post_ids: postIds,
       }))) {
         if (typeof item.post_id !== "string" || typeof item.handle !== "string") {
@@ -248,7 +255,7 @@ export function createSocialPostConsentStore(): SocialPostConsentStore {
     },
     async mediaObjectKey(viewer, mediaId) {
       const result = rows(await rpc("read_social_post_media", {
-        p_viewer: viewer.profileId,
+        p_viewer: viewer?.profileId ?? null,
         p_media_id: mediaId,
       }));
       if (result.length === 0) return null;

@@ -17,6 +17,7 @@ import FindYourLot from "@/components/social/FindYourLot";
 import PeopleDirectory from "@/components/social/PeopleDirectory";
 import ReelsViewer from "@/components/social/ReelsViewer";
 import SharedSocialPostCard from "@/components/social/SocialPostCard";
+import SocialMomentLink from "@/components/social/SocialMomentLink";
 import StarterPacks from "@/components/social/StarterPacks";
 import {
   SOCIAL_SIGN_IN_HREF,
@@ -55,6 +56,7 @@ import type { SocialPostLane } from "@/lib/socialPostReason";
 
 import "./social.css";
 import SocialComposer from "./SocialComposer";
+import SocialLondonLane from "./SocialLondonLane";
 import SocialTagInbox from "./SocialTagInbox";
 import SocialOutbox from "./SocialOutbox";
 
@@ -84,6 +86,12 @@ type SocialPageClientProps = {
   rivalry: CityRivalryEntry[];
   heritageCrawls: CuratedCrawl[];
   friendsLaunchEnabled?: boolean;
+  /**
+   * Whether a stranger reads the London lane (`socialLondonLaneOpen`, read by
+   * the server page). Absent means closed: a caller that does not say so gets
+   * the sign-in door, never a public read it did not ask for.
+   */
+  londonLaneOpen?: boolean;
 };
 
 type SocialPostPage = {
@@ -370,6 +378,7 @@ function SocialPageAccountState({
   rivalry,
   heritageCrawls,
   friendsLaunchEnabled = true,
+  londonLaneOpen = false,
 }: SocialPageClientProps) {
   const surfaceName = socialSurfaceName(friendsLaunchEnabled);
   const { accountRevision, identityResolved } = useAuth();
@@ -675,10 +684,13 @@ function SocialPageAccountState({
   // wears the fill.
   //
   // A STRANGER'S PRIMARY FOLLOWS WHAT THE BODY UNDER IT ACTUALLY SAYS. On the
-  // posts tab under the friends launch the body is the sign-in boundary and
-  // nothing else a stranger can act on, so the door is their first kept action
-  // and the head paints it, leaving the boundary to print its line without a
-  // second link to the same page. Everywhere else the body answers with public
+  // posts tab under the friends launch the body is the sign-in boundary, or,
+  // since captain decision 7 (1 Nov 2026), the read-only London lane, where
+  // every action a stranger could take (post, cheer, comment) needs an account.
+  // Either way the door is their first kept action and the head paints it, as
+  // the page's one filled control: the boundary prints its line without a
+  // second link to the same page, and each lane card offers only a quiet
+  // sign-in line where its cheer row would be. Everywhere else the body answers with public
   // value - the Pubs and pints tab's listings, or the map behind the
   // invite-only preview - and the launch table's opening rule stands: no
   // primary action on a public route is "Sign in". While the session or the
@@ -734,6 +746,11 @@ function SocialPageAccountState({
   // used to be a 260px rail holding all of that beside a body holding the one
   // line, which left most of a desktop empty (taste plan, 18 Oct 2026).
   const doorMode = friendsLaunchEnabled && isPosts && viewerPhase !== "resolved";
+  // THE LONDON LANE takes the door's slot once the session has answered
+  // nobody. Until then the slot holds its size, because a surface that routes
+  // the viewer may not guess who they are, and a signed-in reader must not
+  // meet a stranger's lane on the way to their own feed.
+  const londonLane = doorMode && londonLaneOpen && viewerPhase === "signed-out";
   const switcher = (
     <nav className="socialSwitcher" aria-label={`${surfaceName} view`}>
       <IntentLink href="/social" aria-current={isPosts ? "page" : undefined}>
@@ -762,10 +779,14 @@ function SocialPageAccountState({
         {doorMode ? (
           <div className="socialDoor">
             {switcher}
-            {/* The boundary prints its line ONCE, under the head that carries
+            {londonLane ? (
+              <SocialLondonLane />
+            ) : (
+            /* The boundary prints its line ONCE, under the head that carries
                 the door, and says what Social holds rather than asking again.
                 The slot keeps its size while the account answers, so nothing
-                under it moves when the title appears. */}
+                under it moves when the title appears. It is the whole body when
+                the London lane is paused (rollback or freeze). */
             <section
               className="socialDoorSlot"
               aria-label={`${surfaceName} posts`}
@@ -796,6 +817,7 @@ function SocialPageAccountState({
                 </div>
               ) : null}
             </section>
+            )}
             {/* The packs are public, so a stranger meeting the door sees who is
                 already here. Read-only: following is an account action, and a
                 button that answered 401 would be a second door. */}
@@ -815,6 +837,7 @@ function SocialPageAccountState({
               <Link prefetch={false} href="/messages">Messages</Link>
               <Link prefetch={false} href="/pal">Your Pub Pal</Link>
               <Link prefetch={false} href="/plan">Plan a crawl</Link>
+              <SocialMomentLink />
             </nav>
           ) : null}
         </div>

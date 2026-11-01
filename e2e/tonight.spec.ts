@@ -295,8 +295,8 @@ test("a failed listings request can be retried", async ({ page }) => {
 // First-run chrome leads with the loop (find, plan, go), never with Moment. A
 // stranger on the phone home screen meets this dock first. Social is a main tab
 // by the captain's call (16 Oct 2026) and is the one tab that may ask a
-// stranger to sign in ("Sign in to use Social."); every other tab answers
-// without asking.
+// stranger to sign in (its head door over a read-only London lane, captain
+// decision 7 of 1 Nov 2026); every other tab answers without asking.
 test("the first-run dock leads with the loop and only Social may ask a stranger to sign in", async ({
   page,
 }) => {
@@ -305,14 +305,16 @@ test("the first-run dock leads with the loop and only Social may ask a stranger 
 
   const dock = page.getByRole("navigation", { name: "Primary" });
   const tabs = dock.getByRole("link");
-  // Five destinations, and the Pub Pal's own door between Tonight and Plan.
-  await expect(tabs).toHaveText(["Map", "Tonight", "Pal", "Plan", "Social", "You"]);
+  // Five tabs and nothing else (captain, 1 Nov 2026): the Pal's door is in the
+  // top bar now.
+  await expect(tabs).toHaveText(["Explore", "Tonight", "Plan", "Social", "You"]);
   await expect(dock.locator('a[href^="/moment"]')).toHaveCount(0);
+  await expect(dock.locator('a[href="/pal"]')).toHaveCount(0);
 
   const hrefs = await tabs.evaluateAll((links) =>
     links.map((link) => link.getAttribute("href") ?? ""),
   );
-  expect(hrefs).toHaveLength(6);
+  expect(hrefs).toHaveLength(5);
   for (const href of hrefs.filter((candidate) => !candidate.startsWith("/social"))) {
     const response = await page.goto(href, { waitUntil: "domcontentloaded" });
     expect(response?.status(), `${href} answers`).toBeLessThan(400);

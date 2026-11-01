@@ -137,7 +137,8 @@ Social ships behind one server-checked launch switch:
 2. Confirm `OPENAI_API_KEY`, `SUPABASE_*`, `ADMIN_TOKEN`, and `RATE_LIMIT_SALT` are already set (avatar scan + moderation queue).
 3. Promote a fresh production deployment (`vercel --prod` or dashboard promote). The flag is read at request time, but a redeploy is the audited change record.
 4. Run the captain demo script below on the production host (or a staging env with the same flag and secrets).
-5. Keep `PUBMAX_SOCIAL_FREEZE` unset unless ops needs to pause writes without hiding the surface.
+5. Keep `PUBMAX_SOCIAL_FREEZE` unset unless ops needs to pause writes without hiding the surface. The freeze also pauses the signed-out London lane (captain decision 7, 1 November 2026): strangers see the sign-in wall until it is unset.
+6. Open `/social` signed out and confirm the read-only **Across London** lane shows public posts tagged a London patch, each card with one quiet "Sign in to cheer or comment" link and no cheer, comment or compose control.
 
 **Emergency rollback (captain act):**
 
@@ -195,7 +196,7 @@ Run each check on the production host after every promoted deploy.
 | Plan invite share | After locking in a plan on `/plan/[id]` | "Send on WhatsApp" is the primary next action; "Copy invite link" works for the host session and never for an anonymous visitor to the same URL. |
 | Public invite RSVP | `/invite/[token]` from the host copy | Guest can RSVP with a name only; "Open these stops on the map" is present before and after the RSVP, and opens `/map?mode=build&pubs=<ordered stops>` (one stop opens `/map?sel=<id>`). |
 | Host Remove (cookie path) | Host revisits `/invite/[token]` after a guest RSVP | Remove appears for the host; after Remove the guest row is gone and stays gone on reload. Guest browsers never see Remove. |
-| Social tab | `https://pubmaxxing.com/social` | With `PUBMAX_SOCIAL_FRIENDS_LAUNCH` unset, empty, `1`, or `true`: verified adults see the feed; everyone else sees the correct `sign_in_required` or `SOCIAL_ADULT_VERIFICATION_REQUIRED` state with `Adult verification is needed for Social.`. With `=0`: the surface is named `Social preview`, safe preview copy only, no post content, and no sign-in-required content leak. |
+| Social tab | `https://pubmaxxing.com/social` | With `PUBMAX_SOCIAL_FRIENDS_LAUNCH` unset, empty, `1`, or `true`: verified adults see the feed; a signed-out visitor reads the read-only Across London lane under the Sign in door; a signed-in account that is not verified sees the correct `SOCIAL_ADULT_VERIFICATION_REQUIRED` state with `Adult verification is needed for Social.`. With `=0`: the surface is named `Social preview`, safe preview copy only, no post content, and no sign-in-required content leak. |
 
 ---
 

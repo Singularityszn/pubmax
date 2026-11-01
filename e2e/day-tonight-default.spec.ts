@@ -102,7 +102,7 @@ for (const platform of ["ios", "android"] as const) {
     const tab = dock(page).getByRole("link", { name: "Tonight", exact: true });
     await expect(tab).toHaveAttribute("href", "/today");
     await expect(page.locator("html")).toHaveAttribute("data-native-shell", platform);
-    await expect(dock(page).getByRole("link", { name: "Map", exact: true })).toHaveAttribute("href", "/map/glasgow");
+    await expect(dock(page).getByRole("link", { name: "Explore", exact: true })).toHaveAttribute("href", "/map/glasgow");
     await tab.click();
     await expect(page).toHaveURL(/\/today$/);
     expect(await page.evaluate(() => localStorage.getItem("pubmax:preferredCity:v1"))).toBe("glasgow");

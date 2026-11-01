@@ -1,3 +1,53 @@
+/**
+ * Run `tick` every `intervalMs` while the page is visible. A tick that falls due
+ * while the page is hidden is held, and runs once when the page comes back.
+ *
+ * It never runs at start, so a caller that already fetched on mount does not
+ * fetch twice. A hidden map tab used to poll the database every 30 seconds for
+ * a page nobody was looking at.
+ *
+ * The returned stop takes `{ keepHeld: true }` when the caller hands over to
+ * another source of updates (a live channel that has just joined). The interval
+ * stops, but a tick already held still runs once when the page comes back,
+ * because the new source only reports changes from now on. A later plain stop
+ * drops that held tick too. Stop answers whether it kept a held tick.
+ */
+export type StopVisibleInterval = (options?: { keepHeld?: boolean }) => boolean;
+
+export function visibleInterval(tick: () => void, intervalMs: number): StopVisibleInterval {
+  if (typeof document === "undefined") {
+    const id = setInterval(tick, intervalMs);
+    return () => {
+      clearInterval(id);
+      return false;
+    };
+  }
+  let held = false;
+  let stopped = false;
+  const id = setInterval(() => {
+    if (document.visibilityState === "hidden") {
+      held = true;
+      return;
+    }
+    tick();
+  }, intervalMs);
+  const visibility = () => {
+    if (document.visibilityState === "hidden" || !held) return;
+    held = false;
+    if (stopped) document.removeEventListener("visibilitychange", visibility);
+    tick();
+  };
+  document.addEventListener("visibilitychange", visibility);
+  return (options) => {
+    clearInterval(id);
+    stopped = true;
+    if (options?.keepHeld && held) return true;
+    held = false;
+    document.removeEventListener("visibilitychange", visibility);
+    return false;
+  };
+}
+
 /** Poll visible pages only and refresh once when a hidden page returns. */
 export function subscribeVisiblePolling(
   refresh: () => void,

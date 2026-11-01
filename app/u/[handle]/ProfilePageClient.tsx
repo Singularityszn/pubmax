@@ -1753,7 +1753,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     <div className="lp profilePage">
       <SiteNav active="profile" />
 
-      <main id="main" className="container profileMain pageHidesCreateFab">
+      <main id="main" className="container profileMain">
         {surfaceBody()}
         {/* The list's title paints while identity is still answering, so a
             signed-in owner's page does not jump when it lands. A signed-out

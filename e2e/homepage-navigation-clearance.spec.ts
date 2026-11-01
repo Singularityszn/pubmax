@@ -86,21 +86,17 @@ test("homepage styles do not lower Create onto Tonight after client navigation",
   expect(await landingSheet.evaluate((sheet) => sheet !== null && [...document.styleSheets].includes(sheet)),
     "The homepage stylesheet must remain attached after client navigation").toBe(true);
 
+  // The Tonight pill owns its own tap after leaving the homepage. The floating
+  // Create that once stood over it left with the five-tab dock (1 Nov 2026).
   const tonight = page.getByRole("button", { name: "Show tonight's plan", exact: true });
-  const create = page.getByRole("button", { name: "Create", exact: true });
   await expect(tonight).toBeVisible();
-  await create.focus();
-  await expect(page.locator(".createFabRoot")).toHaveCSS("opacity", "1");
-  await expect(create).toBeVisible();
+  await expect(page.getByRole("button", { name: "Create", exact: true })).toHaveCount(0);
   await page.evaluate(() => document.fonts.ready);
-  const nightBox = await tonight.boundingBox();
-  const createBox = await create.boundingBox();
-  expect(nightBox).not.toBeNull();
-  expect(createBox).not.toBeNull();
-  const overlaps = nightBox!.x < createBox!.x + createBox!.width
-    && nightBox!.x + nightBox!.width > createBox!.x
-    && nightBox!.y < createBox!.y + createBox!.height
-    && nightBox!.y + nightBox!.height > createBox!.y;
-  expect(overlaps, "Create must not cover the Tonight pill after leaving the homepage").toBe(false);
+  const ownsTap = await tonight.evaluate((button) => {
+    const rect = button.getBoundingClientRect();
+    const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    return hit !== null && button.contains(hit);
+  });
+  expect(ownsTap, "nothing covers the Tonight pill after leaving the homepage").toBe(true);
   await landingSheet.dispose();
 });
