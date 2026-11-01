@@ -169,15 +169,14 @@ export type PintDropStore = {
    *
    * The returned set is what `viewer` is allowed to see on a PUBLIC surface:
    *   • public + anonymous → always (anonymous handle already withheld in the DTO);
-   *   • friends → only if the viewer is the author or one of the author's followers;
-   *   • legacy → excluded (ledger-only, via listLegacyForVenue) — except the author.
+   *   • friends → only if the viewer is the author or a mutual follower;
+   *   • legacy → excluded for everyone (ledger-only, via listLegacyForVenue).
    *
-   * `viewer` is the requester's self-asserted identity (handle + the handles they
-   * follow). Omitted/anonymous viewer ⇒ public + anonymous only. This is an
-   * honest-best-effort courtesy curtain (self-asserted handles, no auth yet), the
-   * same trust posture as lib/notifications.ts.
-   */
-  /**
+   * Callers establish viewer identity before this store applies visibility.
+   * `lib/pintDropViewer.ts` owns request verification and the dev/test fallback.
+   * An omitted viewer permits only public and anonymous drops, subject to the
+   * author filter below. This store does not verify bearer tokens itself.
+   *
    * @param authorHandle Returns only drops authored by this normalized handle.
    *   Passport and profile surfaces use this filter instead of downloading the
    *   global public feed. A stranger's read keeps only the rows whose public

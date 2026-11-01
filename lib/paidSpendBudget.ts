@@ -2,10 +2,10 @@
  * A CEILING NO HEADER CAN WIDEN.
  *
  * Paid routes carry a deployment-wide spend ceiling: `/api/ask` and
- * `/api/heritage` call OpenRouter when keyed; signed-in `/api/pub-pal/chat`
- * opens an ElevenLabs conversation when keyed, and `/api/pub-pal/voice-token`
- * issues the signed voice session the same provider bills by the minute. Each
- * was rate-limited on the hashed caller address ALONE, so the budget an
+ * `/api/heritage` call OpenRouter when keyed. Signed-in chat provider selection
+ * belongs to `app/api/pub-pal/chat/route.ts`. `/api/pub-pal/voice-token`
+ * issues the signed ElevenLabs voice session the provider bills by the minute.
+ * Each was rate-limited on the hashed caller address ALONE, so the budget an
  * attacker got was the budget they chose: a different `x-forwarded-for` value
  * is a different bucket, and 200 values are 200 budgets. `lib/clientIpTrust.ts`
  * closes the header half of that, but a rule about which header to read is
