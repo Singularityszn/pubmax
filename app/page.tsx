@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 
+import LandingHuntCard from "@/components/landing/LandingHuntCard";
+import LandingHuntCities from "@/components/landing/LandingHuntCities";
 import LandingPage from "@/components/landing/LandingPage";
-import LandingSkylinePreload from "@/components/landing/LandingSkylinePreload";
 import AppEntryRoute from "@/components/native/AppEntryRoute";
+import { loadCheapestHunt } from "@/lib/cheapestHunt.server";
 import { loadLandingAnswers } from "@/lib/landingAnswers.server";
 import { HISTORIC_PUB_COUNT } from "@/components/landing/londonMapGeometry";
-import { landingPhotoFor } from "@/lib/landingImagery";
 import { loadLandingHeroData } from "@/lib/landingPubCard.server";
 import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 import { homeProductDescription } from "@/lib/siteProductCopy";
@@ -92,27 +93,25 @@ export default async function Home() {
   // price archive. A null card renders no card and the plain receipt door,
   // never an invented pub. Passed as plain serialisable props into the client
   // LandingPage.
-  const [{ card, archive, rail, averages, priceReadLine, collagePrices }, answers] = await Promise.all([
+  const [{ card, archive, rail, averages, priceReadLine, collagePrices }, answers, hunt] = await Promise.all([
     loadLandingHeroData(),
     // What is on today and what is on tonight, read at prerender from the same
     // lanes /today and /tonight read. Both fail soft to an honest line, so a
     // provider that is down cannot fail the build or invent a night.
     loadLandingAnswers(),
+    // The cheapest pint we can find in Britain, every map city's cheapest and
+    // London's dearest (lib/cheapestHunt.ts). A read that fails renders no
+    // claim and no city rows, never an invented pint.
+    loadCheapestHunt(),
   ]);
   // Soft launch keeps friends-launch unset/off. Thread the same gate the Social
   // APIs use so Memory CTAs never promise "Open Social" while /social still
   // answers "not open yet."
   const socialFriendsLaunchEnabled = readTrustedHandoffFlag("socialFriendsLaunch");
-  // A phone's largest paint is the pub card's photograph only when the card
-  // stands on its pub's own one. A text card leaves the skyline the largest
-  // paint on every width, so its preload is not gated to desktop.
-  const cardHasOwnPhoto =
-    card !== null && landingPhotoFor({ venueId: card.id }).scope === "pub";
 
   return (
     <>
       <JsonLd data={homeJsonLd} />
-      <LandingSkylinePreload phoneAnswerOwnsLcp={cardHasOwnPhoto} />
       {/* The only route the entry decision may rewrite (issue #439): shell
           opens (Capacitor wrap, installed PWA) land on /tonight, a genuine
           native first-run opens onboarding until Skip or Plan my night, browser visits
@@ -128,6 +127,10 @@ export default async function Home() {
         answers={answers}
         socialFriendsLaunchEnabled={socialFriendsLaunchEnabled}
         ukCoverage={loadUkDirectoryCoverage()}
+        // Server components handed in as finished elements, so the hunt costs
+        // the landing no client JavaScript (perf/route-budgets.json).
+        huntCard={hunt.britain ? <LandingHuntCard pint={hunt.britain} /> : null}
+        huntCities={<LandingHuntCities hunt={hunt} />}
       />
     </>
   );

@@ -19,7 +19,7 @@ Full rules: [`docs/rules/lib-images-uploads-and-photo-walls.md`](../docs/rules/l
 
 ## Prices, trust and drinks
 
-Community prices, bands, trust states, confirmations, measures, missions, drink lanes, pint index, spoons value lens, the London counter soft-drink lane.
+Community prices, bands, trust states, confirmations, measures, missions, drink lanes, pint index, the cheapest-pint hunt, spoons value lens, the London counter soft-drink lane.
 
 Full rules: [`docs/rules/lib-prices-trust-and-drinks.md`](../docs/rules/lib-prices-trust-and-drinks.md).
 

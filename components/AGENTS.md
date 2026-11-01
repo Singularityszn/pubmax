@@ -65,7 +65,7 @@ Full rules: [`docs/rules/components-venue-plan-and-message-surfaces.md`](../docs
 Full rules: [`docs/rules/components-design-system-and-launch-primitives.md`](../docs/rules/components-design-system-and-launch-primitives.md).
 
 - [Pub Pal artwork follows the Circuit Robin family.](../docs/rules/components-design-system-and-launch-primitives.md#every-pub-pal-is-a-rendered-master-and-the-family-is-the-circuit-robin)
-- [THE FRONT DOOR SHOWS LONDON, THEN ANSWERS IN ONE TAP.](../docs/rules/components-design-system-and-launch-primitives.md#the-front-door-shows-london-then-answers-in-one-tap)
+- [THE FRONT DOOR SHOWS THE CHEAPEST PINT WE CAN FIND, THEN ANSWERS IN ONE TAP.](../docs/rules/components-design-system-and-launch-primitives.md#the-front-door-shows-london-then-answers-in-one-tap)
 - [A launch screen is built from the launch tokens and the four primitives, and template patterns are fenced.](../docs/rules/components-design-system-and-launch-primitives.md#a-launch-screen-is-built-from-the-launch-tokens-and-the-four-primitives-and-temp)
 - [CORAL IS A FILL AND CORAL IS A WORD, AND THOSE ARE TWO TOKENS.](../docs/rules/components-design-system-and-launch-primitives.md#coral-is-a-fill-and-coral-is-a-word-and-those-are-two-tokens)
 - [CORAL IS SPENT TWICE, A SELECTION READS IN INK, AND MONOSPACE IS FOR FIGURES.](../docs/rules/components-design-system-and-launch-primitives.md#coral-is-spent-twice-a-selection-reads-in-ink-and-monospace-is-for-figures)
