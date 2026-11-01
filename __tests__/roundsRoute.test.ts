@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const receiptStorage = vi.hoisted(() => ({
+  upload: vi.fn(async (): Promise<{
+    error: { message: string } | null;
+  }> => ({ error: null })),
+}));
+
 // Handler-level coverage for the Round routes. Backend selection is the
 // roundsStore() seam (Supabase when configured, memory otherwise). We pin the
 // in-memory store deterministically by mocking isSupabaseConfigured() === false
@@ -8,7 +14,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // see profileOwnershipRoute.test.ts / pintDrops.test.ts for the house pattern).
 vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
-  return { ...actual, isSupabaseConfigured: () => false };
+  return {
+    ...actual,
+    isSupabaseConfigured: () => false,
+    requireSupabaseAdmin: () => ({
+      storage: { from: () => ({ upload: receiptStorage.upload }) },
+    }),
+  };
 });
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 const venueLookupState = vi.hoisted(() => ({ unavailable: false }));
@@ -270,6 +282,27 @@ function action(
   );
 }
 
+const BILL_PNG = new Uint8Array(Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4//8/AAX+Av4N70a4AAAAAElFTkSuQmCC",
+  "base64",
+));
+
+/** A recordSpend that carries the photo of the bill, as the two price doors do. */
+function billedAction(
+  code: string,
+  body: unknown,
+  headers?: Record<string, string>,
+  bill: File = new File([BILL_PNG], "bill.png", { type: "image/png" }),
+): Promise<Response> {
+  const form = new FormData();
+  form.set("payload", JSON.stringify(body));
+  form.set("receipt_photo", bill);
+  return POST(
+    new Request(`http://localhost/api/rounds/${code}`, { method: "POST", body: form, headers }),
+    ctx(code),
+  );
+}
+
 async function newRound(handle = "ken"): Promise<RoundState> {
   const res = await create({ handle });
   return (await res.json()) as RoundState;
@@ -290,6 +323,7 @@ async function authorizeContributor(
 }
 
 beforeEach(() => {
+  receiptStorage.upload.mockReset().mockResolvedValue({ error: null });
   __resetMemoryRounds();
   __resetMemoryIdentityHandles();
   __resetMemoryProfiles();
@@ -565,9 +599,9 @@ describe("POST /api/rounds/[code] — actions", () => {
       items: [{ drinkName: "Guinness", drinkCategory: "beer", priceGbp: 6.2 }],
     };
 
-    expect((await action(round.code, body)).status).toBe(200);
+    expect((await billedAction(round.code, body)).status).toBe(200);
     await authorizeContributor("user-ken", "ken");
-    expect((await action(round.code, body)).status).toBe(403);
+    expect((await billedAction(round.code, body)).status).toBe(403);
     expect(await readCommunityPrices("venue-1")).toEqual([]);
   });
 
@@ -683,6 +717,97 @@ describe("POST /api/rounds/[code] — actions", () => {
     expect(await readCommunityPrices("venue-1")).toEqual([]);
   });
 
+  it("keeps a signed-in account's drink line in the diary when no bill comes with it", async () => {
+    // October 2026 audit: a Round drink line was a third price door with no
+    // bill, beside the two that refuse a price without one.
+    await authorizeContributor("user-ken", "ken");
+    const { round } = await newRound("ken");
+    await action(round.code, { action: "addStop", handle: "ken", venueId: "venue-1" });
+
+    const res = await action(round.code, {
+      action: "recordSpend",
+      handle: "ken",
+      payerHandle: "ken",
+      venueId: "venue-1",
+      clientRef: "spend-no-bill-1",
+      items: [{ drinkName: "Guinness", drinkCategory: "beer", priceGbp: 6.2 }],
+    });
+
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as RoundState).spends[0]?.items[0]).toMatchObject({
+      pricePence: 620,
+      source: "round",
+      promotionStatus: "diary_only",
+    });
+    expect(await readCommunityPrices("venue-1")).toEqual([]);
+  });
+
+  it("refuses a bill that is not a photo before keeping anything", async () => {
+    await authorizeContributor("user-ken", "ken");
+    const { round } = await newRound("ken");
+    await action(round.code, { action: "addStop", handle: "ken", venueId: "venue-1" });
+
+    const res = await billedAction(
+      round.code,
+      {
+        action: "recordSpend",
+        handle: "ken",
+        payerHandle: "ken",
+        venueId: "venue-1",
+        clientRef: "spend-bad-bill-1",
+        items: [{ drinkName: "Guinness", drinkCategory: "beer", priceGbp: 6.2 }],
+      },
+      undefined,
+      new File([new Uint8Array([1, 2, 3, 4])], "bill.jpg", { type: "image/jpeg" }),
+    );
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ code: "INVALID_REQUEST" });
+    expect(((await (await get(round.code)).json()) as RoundState).spends).toEqual([]);
+    expect(await readCommunityPrices("venue-1")).toEqual([]);
+  });
+
+  it("refuses a truncated image before saving the spend or promoting a price", async () => {
+    await authorizeContributor("user-ken", "ken");
+    const { round } = await newRound("ken");
+    await action(round.code, { action: "addStop", handle: "ken", venueId: "venue-1" });
+    const response = await billedAction(round.code, {
+      action: "recordSpend", handle: "ken", payerHandle: "ken", venueId: "venue-1",
+      clientRef: "truncated-receipt",
+      items: [{ drinkName: "Guinness", drinkCategory: "beer", priceGbp: 6.2 }],
+    }, undefined, new File([BILL_PNG.slice(0, 16)], "bill.png", { type: "image/png" }));
+    expect(response.status).toBe(400);
+    expect(((await (await get(round.code)).json()) as RoundState).spends).toEqual([]);
+    expect(await readCommunityPrices("venue-1")).toEqual([]);
+    expect(receiptStorage.upload).not.toHaveBeenCalled();
+  });
+
+  it("keeps the spend and logs a receipt Storage failure", async () => {
+    await authorizeContributor("user-ken", "ken");
+    const { round } = await newRound("ken");
+    await action(round.code, { action: "addStop", handle: "ken", venueId: "venue-1" });
+    receiptStorage.upload.mockResolvedValueOnce({ error: { message: "Storage unavailable" } });
+    const logged = vi.spyOn(console, "log").mockImplementation(() => {});
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const response = await billedAction(round.code, {
+        action: "recordSpend", handle: "ken", payerHandle: "ken", venueId: "venue-1",
+        clientRef: "receipt-outage",
+        items: [{ drinkName: "Guinness", drinkCategory: "beer", priceGbp: 6.2 }],
+      });
+      expect(response.status).toBe(200);
+      const state = await response.json() as RoundState;
+      expect(state.spends).toHaveLength(1);
+      expect(state.spends[0]?.receiptPhotoKey).toBeUndefined();
+      expect(state.spends[0]?.items[0]?.promotionStatus).toBe("promoted");
+      expect(await readCommunityPrices("venue-1")).toHaveLength(1);
+      expect(logged).toHaveBeenCalledWith(expect.stringContaining('"event":"rounds.receipt_upload_failed"'));
+    } finally {
+      logged.mockRestore();
+      errors.mockRestore();
+    }
+  });
+
   it("attributes an account's itemised Round price to its public handle", async () => {
     await authorizeContributor("user-ken", "ken");
     const { round } = await newRound("ken");
@@ -692,7 +817,7 @@ describe("POST /api/rounds/[code] — actions", () => {
       venueId: "venue-1",
     });
 
-    const res = await action(round.code, {
+    const res = await billedAction(round.code, {
       action: "recordSpend",
       handle: "spoofed",
       payerHandle: "ken",
@@ -702,6 +827,15 @@ describe("POST /api/rounds/[code] — actions", () => {
     });
 
     expect(res.status).toBe(200);
+    const saved = ((await res.clone().json()) as RoundState).spends[0];
+    expect(saved?.receiptPhotoKey).toBe(`venue-1/${saved?.id}/receipt.jpg`);
+    expect(receiptStorage.upload).toHaveBeenCalledWith(
+      saved?.receiptPhotoKey,
+      expect.any(Blob),
+      { contentType: "image/jpeg", upsert: false },
+    );
+    const reloaded = ((await (await get(round.code)).json()) as RoundState).spends[0];
+    expect(reloaded?.receiptPhotoKey).toBe(saved?.receiptPhotoKey);
     const rows = await readCommunityPrices("venue-1");
     expect(rows).toHaveLength(1);
     expect(
@@ -760,17 +894,20 @@ describe("POST /api/rounds/[code] — actions", () => {
     };
 
     priceWriteState.failuresRemaining = 1;
-    const failed = await action(round.code, body);
+    const failed = await billedAction(round.code, body);
     expect(failed.status).toBe(503);
     const held = (await (await get(round.code)).json()) as RoundState;
     expect(held.spends).toHaveLength(1);
     expect(held.spends[0]?.items[0]?.promotionStatus).toBe("ready");
 
-    const retried = await action(round.code, body);
+    const retried = await billedAction(round.code, body);
     expect(retried.status).toBe(200);
     const state = (await retried.json()) as RoundState;
     expect(state.spends).toHaveLength(1);
     expect(state.spends[0]?.items[0]?.promotionStatus).toBe("promoted");
+    expect(state.spends[0]?.receiptPhotoKey).toBe(held.spends[0]?.receiptPhotoKey);
+    expect(state.spends[0]?.receiptPhotoKey).toBeTruthy();
+    expect(receiptStorage.upload).toHaveBeenCalledTimes(1);
     expect(await readCommunityPrices("venue-1")).toHaveLength(1);
   });
 
@@ -792,7 +929,7 @@ describe("POST /api/rounds/[code] — actions", () => {
     };
 
     priceWriteState.failuresRemaining = 1;
-    expect((await action(round.code, body)).status).toBe(503);
+    expect((await billedAction(round.code, body)).status).toBe(503);
     expect(
       await memoryIdentityHandleStore.rename("user-ken", "new_ken"),
     ).toMatchObject({ ok: true, previousHandle: "ken", handle: "new_ken" });
@@ -802,7 +939,7 @@ describe("POST /api/rounds/[code] — actions", () => {
     ).json()) as RoundState & { viewerMemberHandle?: string };
     expect(viewed.viewerMemberHandle).toBe("ken");
 
-    const retried = await action(round.code, {
+    const retried = await billedAction(round.code, {
       ...body,
       handle: "new_ken",
     });
@@ -834,7 +971,7 @@ describe("POST /api/rounds/[code] — actions", () => {
 
     expect(
       (
-        await action(round.code, {
+        await billedAction(round.code, {
           action: "recordSpend",
           handle: "ken",
           payerHandle: "ken",
@@ -850,7 +987,7 @@ describe("POST /api/rounds/[code] — actions", () => {
         })
       ).status,
     ).toBe(200);
-    const latest = await action(round.code, {
+    const latest = await billedAction(round.code, {
       action: "recordSpend",
       handle: "ken",
       payerHandle: "ken",
@@ -895,7 +1032,7 @@ describe("POST /api/rounds/[code] — actions", () => {
     });
     expect(
       (
-        await action(round.code, {
+        await billedAction(round.code, {
           action: "recordSpend",
           handle: "ken",
           payerHandle: "ken",
@@ -930,7 +1067,7 @@ describe("POST /api/rounds/[code] — actions", () => {
       allowed: false,
       mode: "memory" as const,
     });
-    expect((await action(round.code, replacement)).status).toBe(429);
+    expect((await billedAction(round.code, replacement)).status).toBe(429);
     let held = (await (await get(round.code)).json()) as RoundState;
     expect(
       held.spends.map((spend) => spend.items[0]?.promotionStatus),
@@ -941,7 +1078,7 @@ describe("POST /api/rounds/[code] — actions", () => {
 
     budgetOverride.fn = null;
     priceWriteState.failuresRemaining = 1;
-    expect((await action(round.code, replacement)).status).toBe(503);
+    expect((await billedAction(round.code, replacement)).status).toBe(503);
     held = (await (await get(round.code)).json()) as RoundState;
     expect(
       held.spends.map((spend) => spend.items[0]?.promotionStatus),
@@ -975,7 +1112,7 @@ describe("POST /api/rounds/[code] — actions", () => {
     };
 
     priceWriteState.failuresRemaining = 1;
-    expect((await action(round.code, staleBody)).status).toBe(503);
+    expect((await billedAction(round.code, staleBody)).status).toBe(503);
 
     let releaseWrite = (): void => {};
     let signalWriteStarted = (): void => {};
@@ -990,13 +1127,13 @@ describe("POST /api/rounds/[code] — actions", () => {
       await writeReleased;
     };
 
-    const staleRetry = action(round.code, staleBody);
+    const staleRetry = billedAction(round.code, staleBody);
     await writeStarted;
     budgetOverride.fn = async () => ({
       allowed: false,
       mode: "memory" as const,
     });
-    const newer = await action(round.code, {
+    const newer = await billedAction(round.code, {
       ...staleBody,
       clientRef: "newer-pending-source",
       items: [
@@ -1042,7 +1179,7 @@ describe("POST /api/rounds/[code] — actions", () => {
     };
 
     priceWriteState.failuresRemaining = 1;
-    expect((await action(round.code, body)).status).toBe(503);
+    expect((await billedAction(round.code, body)).status).toBe(503);
 
     let releaseWrite = (): void => {};
     let signalWriteStarted = (): void => {};
@@ -1057,9 +1194,9 @@ describe("POST /api/rounds/[code] — actions", () => {
       await writeReleased;
     };
 
-    const firstReplay = action(round.code, body);
+    const firstReplay = billedAction(round.code, body);
     await writeStarted;
-    const secondReplay = await action(round.code, body);
+    const secondReplay = await billedAction(round.code, body);
     releaseWrite();
 
     expect(secondReplay.status).toBe(200);
@@ -1081,7 +1218,7 @@ describe("POST /api/rounds/[code] — actions", () => {
     });
     transitionOverride.failCompleted = true;
 
-    const response = await action(round.code, {
+    const response = await billedAction(round.code, {
       action: "recordSpend",
       handle: "ken",
       payerHandle: "ken",
@@ -1113,7 +1250,7 @@ describe("POST /api/rounds/[code] — actions", () => {
       venueId: "venue-1",
     });
 
-    const promoted = await action(round.code, {
+    const promoted = await billedAction(round.code, {
       action: "recordSpend",
       handle: "ken",
       payerHandle: "ken",
@@ -1158,7 +1295,7 @@ describe("POST /api/rounds/[code] — actions", () => {
     };
 
     priceWriteState.failuresRemaining = 1;
-    expect((await action(round.code, body)).status).toBe(503);
+    expect((await billedAction(round.code, body)).status).toBe(503);
     const held = (await (await get(round.code)).json()) as RoundState;
     const readySource = held.spends[0]!;
     await memoryCommunityPriceStore.submit(
@@ -1172,7 +1309,7 @@ describe("POST /api/rounds/[code] — actions", () => {
       Date.parse(readySource.recordedAt) + 1,
     );
 
-    const retried = await action(round.code, body);
+    const retried = await billedAction(round.code, body);
     expect(retried.status).toBe(200);
     const state = (await retried.json()) as RoundState;
     expect(state.spends[0]?.items[0]?.promotionStatus).toBe("superseded");
@@ -1199,7 +1336,7 @@ describe("POST /api/rounds/[code] — actions", () => {
       items: [{ drinkName: "Guinness", drinkCategory: "beer", priceGbp: 6.2 }],
     };
     priceWriteState.failuresRemaining = 1;
-    expect((await action(round.code, body)).status).toBe(503);
+    expect((await billedAction(round.code, body)).status).toBe(503);
 
     await authorizeContributor("user-molly", "molly");
     const other = await action(round.code, {
@@ -1224,7 +1361,7 @@ describe("POST /api/rounds/[code] — actions", () => {
       ["spend-address-1", 6.2, "198.51.100.71"],
       ["spend-address-2", 6.4, "198.51.100.72"],
     ] as const) {
-      const res = await action(
+      const res = await billedAction(
         round.code,
         {
           action: "recordSpend",
@@ -1290,7 +1427,7 @@ describe("POST /api/rounds/[code] — actions", () => {
       venueId: "venue-1",
     });
 
-    const res = await action(round.code, {
+    const res = await billedAction(round.code, {
       action: "recordSpend",
       handle: "grown_person",
       payerHandle: "grown_person",
@@ -1317,7 +1454,7 @@ describe("POST /api/rounds/[code] — actions", () => {
       handle: drinker.handle,
       venueId: "venue-16pnwmm",
     });
-    const res = await action(
+    const res = await billedAction(
       round.code,
       {
         action: "recordSpend",
@@ -1408,7 +1545,7 @@ describe("POST /api/rounds/[code] — actions", () => {
       venueId: "venue-1",
     });
     const keep = (clientRef: string, count: number, from: number) =>
-      action(
+      billedAction(
         round.code,
         {
           action: "recordSpend",
@@ -1440,7 +1577,7 @@ describe("POST /api/rounds/[code] — actions", () => {
       venueId: "venue-1",
     });
 
-    const res = await action(
+    const res = await billedAction(
       round.code,
       {
         action: "recordSpend",
@@ -1467,7 +1604,7 @@ describe("POST /api/rounds/[code] — actions", () => {
     ).toEqual(["superseded", "pending"]);
 
     // The quick total needs no price budget, so the night is still recordable.
-    const total = await action(
+    const total = await billedAction(
       round.code,
       {
         action: "recordSpend",

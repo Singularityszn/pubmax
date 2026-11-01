@@ -172,12 +172,13 @@ export async function uploadUploadedImageObject(
   objectKey: string,
   bytes: Buffer,
   contentType: string,
+  options: { upsert?: boolean } = {},
 ): Promise<string | null> {
   const { error } = await requireSupabaseAdmin()
     .storage.from(STORAGE_BUCKET)
     .upload(objectKey, uploadedImageStorageBody(bytes, contentType), {
       contentType,
-      upsert: true,
+      upsert: options.upsert ?? true,
     });
   if (!error) return null;
   const detail = error.message || "storage refused the write";
