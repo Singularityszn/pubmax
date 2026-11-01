@@ -7,7 +7,6 @@ import {
   HUNT_CITY_UNNAMED_ACTION,
   HUNT_CITY_UNNAMED_LINE,
   HUNT_DEAREST_TITLE,
-  HUNT_ELSEWHERE_LABEL,
   type CheapestHunt,
   type HuntPint,
 } from "@/lib/cheapestHunt";
@@ -29,8 +28,9 @@ import { HuntPrice, HuntSource } from "./LandingHuntCard";
 // a priced city prints its cheapest listed pint with who listed it and the day
 // that source was read, and a city with none says so and hands over its own
 // price door. A city whose prices name no pint (the hunt's headline bar) is not
-// a city with no prices, and its row says which of the two it is. A row for a
-// pub outside every map city follows, when we hold one.
+// a city with no prices, and its row says which of the two it is. There is no
+// row for a pub outside every map city: the list, like the hero above it,
+// names only the cities on the map (lib/cheapestHunt.ts says why).
 //
 // London's dearest pint is a press card: it sits here, beside the list, and
 // never on the map or in a pin colour (lib/cheapestHunt.ts says which pub, and
@@ -51,7 +51,6 @@ function PricedCity({ name, pint }: { name: string; pint: HuntPint }) {
         <Link prefetch={false} href={pint.mapHref}>
           {pint.pubName}
         </Link>
-        {pint.cityId === null ? `, ${pint.placeName}` : null}
       </span>
       <HuntSource pint={pint} className="lpHuntCitySource" />
     </>
@@ -90,11 +89,6 @@ export default function LandingHuntCities({ hunt }: { hunt: CheapestHunt | null 
             )}
           </li>
         ))}
-        {hunt.elsewhere ? (
-          <li className="lpHuntCityRow" data-city="elsewhere">
-            <PricedCity name={HUNT_ELSEWHERE_LABEL} pint={hunt.elsewhere} />
-          </li>
-        ) : null}
       </ul>
 
       {dearest ? (

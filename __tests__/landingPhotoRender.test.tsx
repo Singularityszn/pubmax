@@ -25,7 +25,7 @@ vi.mock("@/lib/trustedHandoffFlags.server", () => ({
   readTrustedHandoffFlag: () => false,
 }));
 vi.mock("@/lib/cheapestHunt.server", () => ({
-  loadCheapestHunt: async () => ({ britain: null, cities: [], elsewhere: null, londonDearest: null }),
+  loadCheapestHunt: async () => ({ britain: null, cities: [], londonDearest: null }),
 }));
 vi.mock("@/components/landing/LandingPage", () => ({ default: () => null }));
 vi.mock("@/components/native/AppEntryRoute", () => ({ default: () => null }));

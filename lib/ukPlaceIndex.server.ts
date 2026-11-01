@@ -70,16 +70,6 @@ function placeIndex(): Map<string, UkPlace[]> | null {
 }
 
 /**
- * Every place the index holds, for a reader that names the town nearest a
- * point (lib/cheapestHunt.ts), or null when the index cannot be read. The
- * names are the index's own, so nothing a stranger typed can come back out.
- */
-export function ukPlaces(): UkPlace[] | null {
-  const index = placeIndex();
-  return index ? [...index.values()].flat() : null;
-}
-
-/**
  * The arrival for a `/map` query string, or null when the place is not one of
  * ours. Never returns a name or a coordinate that did not come from the index.
  */

@@ -136,7 +136,8 @@ describe("Britain's cheapest pint, city by city", () => {
       pubName: "Vessel",
       cityId: null,
       placeName: "Edinburgh",
-      priceGbp: 2,
+      // Cheaper than every city row, and outside every map city.
+      priceGbp: 1.5,
       publisher: { label: "vesselbars.co.uk", url: "https://vesselbars.co.uk/menu.pdf" },
       observedOn: "2026-09-04",
       mapHref: "/map?sel=venue-uk-n2&at=55.9540,-3.1972" as Route,
@@ -183,11 +184,14 @@ describe("Britain's cheapest pint, city by city", () => {
     expect(oxford).not.toMatch(/£\d/);
   });
 
-  it("names the place of a priced pub outside every map city", () => {
-    const elsewhere = part(html, /<li class="lpHuntCityRow" data-city="elsewhere">[\s\S]*?<\/li>/);
-    expect(text(elsewhere)).toBe(
-      "Elsewhere in Britain£2.00Vessel, EdinburghListed by vesselbars.co.uk, source read 4 September 2026.",
-    );
+  it("renders no row, and no hero, for a pub outside every map city, however cheap", () => {
+    expect(html).not.toContain('data-city="elsewhere"');
+    expect(html).not.toContain("Elsewhere in Britain");
+    expect(html).not.toContain("Vessel");
+    expect(hunt.britain).toMatchObject({ pubName: "The Scolt Head", priceGbp: 2 });
+    const hero = renderToStaticMarkup(createElement(LandingHuntCard, { pint: hunt.britain }));
+    expect(hero).toContain("The Scolt Head");
+    expect(hero).not.toContain("Vessel");
   });
 
   it("carries London's dearest pint as a press card with its source and day", () => {
@@ -203,7 +207,7 @@ describe("Britain's cheapest pint, city by city", () => {
   });
 
   it("calls no city empty on the strength of a read that failed", () => {
-    const unread: CheapestHunt = { britain: null, cities: [], elsewhere: null, londonDearest: null };
+    const unread: CheapestHunt = { britain: null, cities: [], londonDearest: null };
     expect(renderToStaticMarkup(createElement(LandingHuntCities, { hunt: unread }))).toBe("");
   });
 

@@ -10,7 +10,6 @@ import {
   huntPlaceResolver,
   huntRowNamesItsDrink,
   londonHuntPints,
-  nearestTownName,
   type HuntPint,
   type HuntPlaceSources,
 } from "@/lib/cheapestHunt";
@@ -105,14 +104,9 @@ const SOURCES: HuntPlaceSources = {
     ["venue-uk-n1", { name: "The Test Arms", lat: 53.48, lng: -2.24 }],
     // Edinburgh: on no city map of ours.
     ["venue-uk-n2", { name: "The Far Inn", lat: 55.9533, lng: -3.1883 }],
-    // A remote pub further than any town's reach.
-    ["venue-uk-n3", { name: "The Lonely Pub", lat: 58.5, lng: -6.2 }],
-    ["venue-uk-n4", { name: "The Edge Inn", lat: 51.2, lng: -2.75 }],
+    // Bermondsey, inside London's box: where the Enid Street row came from.
+    ["venue-uk-n5", { name: "Enid Street Tavern", lat: 51.4973, lng: -0.0716 }],
   ]),
-  towns: [
-    { name: "Edinburgh", lat: 55.953, lng: -3.188 },
-    { name: "Glastonbury", lat: 51.148, lng: -2.714 },
-  ],
 };
 
 const placeOf = huntPlaceResolver(SOURCES);
@@ -192,7 +186,7 @@ describe("what may win a cheapest line", () => {
 describe("the headline bar: a winner names its drink", () => {
   it("never lets the Enid Street row shape win: beer, £2, no label, no serving", () => {
     const pints = bundle([
-      unnamedRow({ venueId: "venue-uk-n2", name: "Enid Street Tavern" }),
+      unnamedRow({ venueId: "venue-uk-n5", name: "Enid Street Tavern" }),
       row({ priceGbp: 3.4, drinkLabel: "Neck Oil" }),
     ]);
     expect(pints.map((pint) => [pint.pubName, pint.priceGbp])).toEqual([["The Test Arms", 3.4]]);
@@ -252,23 +246,23 @@ describe("the headline bar: a winner names its drink", () => {
 });
 
 describe("where a pint is", () => {
-  it("places a base pub by its own point: in a map city, or by its nearest town", () => {
+  it("places a base pub by its own point, inside a map city and nowhere else", () => {
     const pints = bundle([
       row({ priceGbp: 3.1 }),
+      row({ venueId: "venue-uk-n5", name: "Enid Street Tavern", priceGbp: 4.6, drinkLabel: "Lager" }),
+      // Edinburgh is on no city map of ours, so this pub is not placed at all.
       row({ venueId: "venue-uk-n2", name: "The Far Inn", priceGbp: 2.5 }),
-      row({ venueId: "venue-uk-n3", name: "The Lonely Pub", priceGbp: 1 }),
-      row({ venueId: "venue-uk-n4", name: "The Edge Inn", priceGbp: 2.8 }),
+      // A base pub the catalogue does not know is not placed either.
       row({ venueId: "venue-uk-n9", name: "The Unknown", priceGbp: 0.9 }),
     ]);
     const where = Object.fromEntries(pints.map((pint) => [pint.pubName, [pint.cityId, pint.placeName]]));
     expect(where).toEqual({
       "The Test Arms": ["manchester", "Manchester"],
-      "The Far Inn": [null, "Edinburgh"],
-      "The Edge Inn": [null, "near Glastonbury"],
+      "Enid Street Tavern": ["london", "London"],
     });
     // A base pub opens on the map at its own point, so the map can find it.
-    expect(pints.find((pint) => pint.pubName === "The Far Inn")?.mapHref).toBe(
-      "/map?sel=venue-uk-n2&at=55.9533,-3.1883",
+    expect(pints.find((pint) => pint.pubName === "The Test Arms")?.mapHref).toBe(
+      "/map?sel=venue-uk-n1&at=53.4800,-2.2400",
     );
   });
 
@@ -283,11 +277,6 @@ describe("where a pint is", () => {
     ]);
   });
 
-  it("says near past three kilometres and names no town past its reach", () => {
-    expect(nearestTownName({ lat: 55.95, lng: -3.19 }, SOURCES.towns)).toBe("Edinburgh");
-    expect(nearestTownName({ lat: 51.2, lng: -2.75 }, SOURCES.towns)).toBe("near Glastonbury");
-    expect(nearestTownName({ lat: 58.5, lng: -6.2 }, SOURCES.towns)).toBeNull();
-  });
 });
 
 describe("the hunt", () => {
@@ -324,8 +313,32 @@ describe("the hunt", () => {
     expect(byCity.london?.logHref).toBe("/map?log=1");
   });
 
-  it("keeps a priced pub outside every map city in its own row", () => {
-    expect(hunt.elsewhere).toMatchObject({ pubName: "The Far Inn", cityId: null, placeName: "Edinburgh" });
+  it("names no pub outside every map city, in the hero or in a row of its own", () => {
+    expect(hunt).not.toHaveProperty("elsewhere");
+    expect(hunt.cities.some((city) => city.pint?.pubName === "The Far Inn")).toBe(false);
+  });
+
+  // The Bell Inn's "(red bull + Jägermeister) Baby Guinness" (£2.20, 1 Nov
+  // 2026) was cheaper than every city winner and named a drink, so it cleared
+  // the headline bar. Only the rows the page names may reach the front door.
+  it("never lets an unplaced row win the hero, however cheap", () => {
+    const unplaced: HuntPint = {
+      venueId: "venue-uk-w343053676",
+      pubName: "The Bell Inn",
+      cityId: null,
+      placeName: "St Pauls Road",
+      priceGbp: 1.2,
+      publisher: { label: "the-bellinn.com", url: "https://the-bellinn.com/drinks" },
+      observedOn: "2026-10-30",
+      standing: "listed",
+      lane: "uk-bundle",
+      mapHref: "/map?sel=venue-uk-w343053676" as HuntPint["mapHref"],
+    };
+    const withUnplaced = buildCheapestHunt([...london, ...uk, unplaced]);
+    expect(withUnplaced.britain).toMatchObject({ pubName: "The Brum Tap", priceGbp: 2.09 });
+    expect(withUnplaced.britain?.cityId).not.toBeNull();
+    expect(withUnplaced.cities.some((city) => city.pint?.venueId === unplaced.venueId)).toBe(false);
+    expect(buildCheapestHunt([unplaced]).britain).toBeNull();
   });
 
   it("reads London's dearest pint from our London pub list alone", () => {
@@ -347,7 +360,6 @@ describe("the hunt", () => {
     const empty = buildCheapestHunt([]);
     expect(empty.britain).toBeNull();
     expect(empty.londonDearest).toBeNull();
-    expect(empty.elsewhere).toBeNull();
     expect(empty.cities.every((city) => city.pint === null)).toBe(true);
   });
 });

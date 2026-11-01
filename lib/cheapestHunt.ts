@@ -45,8 +45,17 @@
 // first, and nothing is ever scaled.
 //
 // A bar the public cannot walk into never wins (`isPublicRankablePub`, which
-// also reads a students' union from its initials), and a pub we cannot place
-// in a town is not named: the claim prints a place every time.
+// also reads a students' union from its initials).
+//
+// THE FRONT DOOR NAMES ONLY THE PLACES THE PAGE NAMES. Britain's cheapest is
+// taken from London and the named cities on the map and from nothing else: a
+// pub outside every map city is not placed at all (the resolver answers null),
+// and `buildCheapestHunt` refuses an unplaced row a second time, so a row with
+// no city can never reach the hero. The first build kept an "Elsewhere in
+// Britain" row, and on 1 Nov 2026 its winner was a misfiled shot, "(red bull +
+// Jägermeister) Baby Guinness" at £2.20, placed at "St Pauls Road" by the
+// nearest-town guess. Outside the map cities we hold no review of the rows
+// and no city page to check them against, so they make no claim here.
 //
 // Pure: no fs, no React. lib/cheapestHunt.server.ts wires the real reads.
 
@@ -88,16 +97,8 @@ export const HUNT_CITY_EMPTY_ACTION = "Log the first one.";
 export const HUNT_CITY_UNNAMED_LINE = "Prices listed, but none says which pint.";
 export const HUNT_CITY_UNNAMED_ACTION = "Log yours.";
 
-/** The row for a priced pub outside every city on the map. */
-export const HUNT_ELSEWHERE_LABEL = "Elsewhere in Britain";
-
 /** The press card's heading. Never a pin colour and never on the map. */
 export const HUNT_DEAREST_TITLE = "London's dearest pint";
-
-/** A pub further than this from every town and city is not named by one. */
-const TOWN_REACH_KM = 25;
-/** Within this, the pub is IN the town; past it, the line says "near". */
-const IN_TOWN_KM = 3;
 
 export type HuntStanding = "listed" | "confirmed";
 
@@ -108,9 +109,12 @@ type HuntLane = "london-list" | "uk-bundle";
 export type HuntPint = {
   venueId: string;
   pubName: string;
-  /** The map city the pub stands in, or null outside every one. */
+  /**
+   * The map city the pub stands in. Null only for a row no lane should emit
+   * (a pub outside every map city), which `buildCheapestHunt` refuses.
+   */
   cityId: CityId | null;
-  /** "Manchester", "Edinburgh" or "near Glastonbury": where the claim says the pub is. */
+  /** "London", "Manchester": the city the claim says the pub is in. */
   placeName: string;
   priceGbp: number;
   publisher: { label: string; url: string };
@@ -122,9 +126,9 @@ export type HuntPint = {
   mapHref: Route;
 };
 
-/** Where a pub stands, as the claim prints it. */
+/** Where a pub stands, as the claim prints it: always a city on the map. */
 type HuntPlace = {
-  cityId: CityId | null;
+  cityId: CityId;
   placeName: string;
   /** The pub's name when the bundle row does not state one. */
   pubName: string | null;
@@ -143,8 +147,6 @@ export type HuntPlaceSources = {
   londonPubNames: ReadonlyMap<string, string>;
   /** Every open national base pub, by venue id, with its own point. */
   basePubs: ReadonlyMap<string, { name: string; lat: number; lng: number }>;
-  /** Towns and cities from the UK place index. */
-  towns: readonly { name: string; lat: number; lng: number }[];
 };
 
 /** One row of the city-by-city list: the cheapest pint, or the honest empty line. */
@@ -163,12 +165,14 @@ type HuntCityRow = {
 };
 
 export type CheapestHunt = {
-  /** The cheapest pint we can find anywhere in Britain, or null. */
+  /**
+   * The cheapest pint we can find in Britain, or null: the cheapest of the
+   * city rows the page names (London and the cities on the map), never an
+   * unplaced row.
+   */
   britain: HuntPint | null;
   /** Every city on the map, in the map's own order, priced or not. */
   cities: HuntCityRow[];
-  /** The cheapest priced pub outside every city on the map, or null. */
-  elsewhere: HuntPint | null;
   /** The London pub whose cheapest pint is the dearest we hold, or null. */
   londonDearest: HuntPint | null;
 };
@@ -317,9 +321,9 @@ function bundleFigures(rows: readonly UkPriceBundleRow[], now: number): BundleFi
 
 /**
  * The bundle lane: one pint per pub, the cheapest figure that pub may claim,
- * placed in a town by `placeOf`. A pub the resolver cannot place is left out
- * rather than printed with no town. Only rows that clear the headline bar
- * (`huntRowNamesItsDrink`) are read.
+ * placed in a map city by `placeOf`. A pub the resolver cannot place in one is
+ * left out. Only rows that clear the headline bar (`huntRowNamesItsDrink`)
+ * are read.
  */
 export function bundleHuntPints(
   byVenue: ReadonlyMap<string, readonly UkPriceBundleRow[]>,
@@ -392,33 +396,12 @@ function bundlePubPints(
   return pints;
 }
 
-function distanceKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
-  const kmPerDegree = 111.32;
-  const dLat = (a.lat - b.lat) * kmPerDegree;
-  const dLng = (a.lng - b.lng) * kmPerDegree * Math.cos(((a.lat + b.lat) / 2) * (Math.PI / 180));
-  return Math.hypot(dLat, dLng);
-}
-
-/** The town a point is in or near, in the claim's own words, or null past reach. */
-export function nearestTownName(
-  point: { lat: number; lng: number },
-  towns: HuntPlaceSources["towns"],
-): string | null {
-  let best: { name: string; km: number } | null = null;
-  for (const town of towns) {
-    const km = distanceKm(point, town);
-    if (!best || km < best.km) best = { name: town.name, km };
-  }
-  if (!best || best.km > TOWN_REACH_KM) return null;
-  return best.km <= IN_TOWN_KM ? best.name : `near ${best.name}`;
-}
-
 /**
- * Where a bundle pub stands. A curated id names its own city; a national base
- * pub is placed by its own point, inside a map city where it falls in one and
- * by its nearest town where it does not. A base id on its own says nothing
- * about where the pub is (lib/cityVenueIds.ts), so a base pub with no point is
- * not placed at all.
+ * Where a bundle pub stands: always a city on the map, or nowhere. A curated
+ * id names its own city; a national base pub is placed by its own point, and
+ * only inside a map city. A base id on its own says nothing about where the
+ * pub is (lib/cityVenueIds.ts), so a base pub with no point, or one outside
+ * every map city, is not placed and makes no claim.
  */
 export function huntPlaceResolver(sources: HuntPlaceSources): HuntPlaceResolver {
   return (venueId, rows) => {
@@ -429,9 +412,7 @@ export function huntPlaceResolver(sources: HuntPlaceSources): HuntPlaceResolver 
       if (!base) return null;
       const point = own ? { lat: own.lat as number, lng: own.lng as number } : { lat: base.lat, lng: base.lng };
       const city = enabledCityContainingPoint(point.lat, point.lng);
-      if (city) return { cityId: city.id, placeName: city.displayName, pubName: base.name, point };
-      const town = nearestTownName(point, sources.towns);
-      return town ? { cityId: null, placeName: town, pubName: base.name, point } : null;
+      return city ? { cityId: city.id, placeName: city.displayName, pubName: base.name, point } : null;
     }
     const cityId = cityIdFromVenueId(venueId);
     if (cityId) return { cityId, placeName: CITIES[cityId].displayName, pubName: null, point: null };
@@ -455,9 +436,9 @@ function cheapestOf(pints: readonly HuntPint[]): HuntPint | null {
 }
 
 /**
- * The whole hunt from both lanes: Britain's cheapest, every map city's
- * cheapest (or its honest empty line), the cheapest outside every map city,
- * and the London pub whose cheapest pint is the dearest we hold.
+ * The whole hunt from both lanes: every map city's cheapest (or its honest
+ * empty line), Britain's cheapest taken from those city winners alone, and
+ * the London pub whose cheapest pint is the dearest we hold.
  *
  * THE DEAREST IS A PUB'S CHEAPEST PINT, READ FROM OUR LONDON PUB LIST ALONE.
  * "The dearest pint" over every row would crown a cocktail or a bottle; the
@@ -483,7 +464,7 @@ export function buildCheapestHunt(
       logHref: cityAwareMapPath(city.id, "log=1"),
     };
   });
-  const londonList = pints.filter((pint) => pint.lane === "london-list");
+  const londonList = pints.filter((pint) => pint.lane === "london-list" && pint.cityId === "london");
   const londonDearest =
     [...londonList].sort(
       (a, b) =>
@@ -492,12 +473,12 @@ export function buildCheapestHunt(
         a.pubName.localeCompare(b.pubName, "en-GB") ||
         a.venueId.localeCompare(b.venueId),
     )[0] ?? null;
-  return {
-    britain: cheapestOf(perPub),
-    cities,
-    elsewhere: cheapestOf(perPub.filter((pint) => pint.cityId === null)),
-    londonDearest,
-  };
+  // The hero names only what the page names: the winner of a city row. A row
+  // with no city, from any lane, never reaches the front door.
+  const britain = cheapestOf(
+    cities.flatMap((row) => (row.pint ? [row.pint] : [])),
+  );
+  return { britain, cities, londonDearest };
 }
 
 /** "Listed by" or "Confirmed by", the verb the standing has earned. */
