@@ -149,7 +149,7 @@ describe("real command registry", () => {
     expect(recordedPaths["nav-profile"]).toBe("/u/you");
     expect(recordedPaths["action-pint-drop"]).toBe("/map?log=1");
     expect(recordedPaths["action-start-plan"]).toBe("/plan");
-    expect(recordedPaths["action-build-crawl"]).toBe("/map");
+    expect(recordedPaths["action-build-crawl"]).toBe("/map?mode=build&plan=1");
   });
 
   // QA journeys F16: "histor" answered "No matches" because the palette listed

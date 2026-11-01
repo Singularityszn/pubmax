@@ -6,6 +6,7 @@ import Link from "next/link";
 import { type ContributionSummary } from "@/lib/pintContributions";
 import { nightsKeptLabel, readNightsKept } from "@/lib/nightsKept";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
+import { getAccessToken } from "@/lib/authClient";
 
 import "./yourContributionsCard.css";
 
@@ -71,10 +72,12 @@ export default function YourContributionsCard({ handle, claimNudge = false }: Pr
     if (!handle) return;
     const controller = new AbortController();
     (async () => {
+      const token = await getAccessToken();
       const outcome = await loadSurfaceJson<{ stats?: ContributionSummary }>(
         `/api/pint-drops/stats?handle=${encodeURIComponent(handle)}`,
         {
           signal: controller.signal,
+          init: { headers: token ? { authorization: `Bearer ${token}` } : {} },
           validate: (body) => Boolean(body?.stats),
         },
         (body) => {

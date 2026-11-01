@@ -1,14 +1,21 @@
 "use client";
 
 import { useEffect, useRef, useState, type RefObject } from "react";
+import { useSearchParams } from "next/navigation";
 
-import { mapArrivalFrame } from "@/lib/pubMap";
+import { mapArrivalFrame, searchParamsQuery } from "@/lib/pubMap";
 import { parseMapAreaArrival } from "@/lib/mapAreaArrival";
 import type { NightArea } from "@/lib/nightAreas";
 
 export function useMapOpeningArrival(input: Omit<Parameters<typeof mapArrivalFrame>[0], "search">) {
+  const routerParams = useSearchParams();
   const [arrival] = useState(() => {
-    const search = typeof window === "undefined" ? "" : window.location.search;
+    // The router destination can precede its browser-history commit. Snapshot
+    // it once so the map's own later query writes do not become new arrivals.
+    const query = searchParamsQuery(routerParams);
+    const search = routerParams == null
+      ? (typeof window === "undefined" ? "" : window.location.search)
+      : (query ? `?${query}` : "");
     return {
       search,
       frame: mapArrivalFrame({ ...input, search }),

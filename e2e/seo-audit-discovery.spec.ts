@@ -65,6 +65,49 @@ test.describe("completed public discovery documents without JavaScript", () => {
     expect(nodes.map((node) => node["@type"])).not.toContain("FAQPage");
   });
 
+  for (const record of [
+    { slug: "prospect-of-whitby", sameAs: ["https://en.wikipedia.org/wiki/Prospect_of_Whitby"] },
+    { slug: "the-grapes", sameAs: ["https://en.wikipedia.org/wiki/The_Grapes,_Limehouse"] },
+    { slug: "black-lion", sameAs: null },
+  ] as const) {
+    test(`historic ${record.slug} serves its grounded identity and canonical without JavaScript`, async ({ page }) => {
+      expect((await page.goto(`/historic/${record.slug}`))?.status()).toBe(200);
+      const canonical = `https://pubmaxxing.com/historic/${record.slug}`;
+      const link = page.locator('link[rel="canonical"]');
+      await expect(link).toHaveCount(1);
+      await expect(link).toHaveAttribute("href", canonical);
+      const graphs = await page.locator('script[type="application/ld+json"]').allTextContents();
+      const nodes = graphs.flatMap((text) => {
+        const parsed = JSON.parse(text) as Record<string, unknown> | Array<Record<string, unknown>>;
+        return Array.isArray(parsed) ? parsed : [parsed];
+      });
+      const landmarks = nodes.filter((node) => node["@type"] === "LandmarksOrHistoricalBuildings");
+      if (record.slug === "black-lion") {
+        // The two cited identities remain unresolved. The served page must not
+        // assert that their descriptions or locations identify one building.
+        expect(landmarks).toHaveLength(0);
+        const pages = nodes.filter((node) => node["@type"] === "WebPage" && node.url === canonical);
+        expect(pages).toHaveLength(1);
+        expect(pages[0]?.name).toBe("Black Lion");
+        for (const claim of ["sameAs", "description", "address", "geo"]) {
+          expect(pages[0]).not.toHaveProperty(claim);
+        }
+      } else {
+        expect(landmarks).toHaveLength(1);
+        expect(landmarks[0]?.url).toBe(canonical);
+        expect(landmarks[0]?.sameAs).toEqual(record.sameAs);
+      }
+      if (record.slug === "the-grapes") {
+        await expect(page.locator('a[href="https://www.alastairhiltonphotographer.com/product-page/the-grapes"]').first()).toBeVisible();
+      }
+      if (record.slug === "black-lion") {
+        for (const source of ["https://en.wikipedia.org/wiki/Black_Lion,_Kilburn", "https://en.wikipedia.org/wiki/Black_Lion,_Hammersmith"]) {
+          await expect(page.locator(`a[href="${source}"]`).first()).toBeVisible();
+        }
+      }
+    });
+  }
+
   test("About explains anonymous saves and account features without JavaScript", async ({ page }) => {
     expect((await page.goto("/about"))?.status()).toBe(200);
     const description = page.locator('section[aria-labelledby="map"]');

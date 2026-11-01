@@ -4,6 +4,7 @@ const SAFE_FALLBACK_MESSAGE = "Something went wrong. Try again.";
 
 export const OFFLINE_RETRY_MESSAGE = "You look offline. Reconnect, then try again.";
 export const INVITE_LINK_FALLBACK_MESSAGE = "Could not mint an invite link.";
+export const RATE_LIMIT_RETRY_MESSAGE = "Please wait a moment before trying again.";
 
 function isBrowserOffline(): boolean {
   return typeof navigator !== "undefined" && navigator.onLine === false;
@@ -47,10 +48,13 @@ export function errorMessageFrom(body: unknown, fallback: string): string {
   if (!body || typeof body !== "object") return safeMessage;
 
   const error = (body as { error?: unknown }).error;
-  if (typeof error === "string" && error.trim()) return error.trim();
-  if (error && typeof error === "object") {
-    const message = (error as { message?: unknown }).message;
-    if (typeof message === "string" && message.trim()) return message.trim();
+  const message = typeof error === "string" ? error
+    : error && typeof error === "object" ? (error as { message?: unknown }).message
+      : undefined;
+  if (typeof message === "string" && message.trim()) {
+    return /^too many requests[.!]?$/i.test(message.trim())
+      ? RATE_LIMIT_RETRY_MESSAGE
+      : message.trim();
   }
   return safeMessage;
 }

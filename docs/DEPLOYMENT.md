@@ -675,12 +675,9 @@ Before pushing a branch:
 
 ## Identity boundary (demo vs production private actions)
 
-Linked handles are JWT-gated via `gateHandleAction` / `requireLinkedActor`.
-Unlinked handles still allow the **demo / anonymous self-asserted** path for
-Pint Drops and legacy social writes. Community price and venue-signal writes
-instead require a signed-in account and derive their stable profile actor and
-public handle on the server. The remaining demo path is intentional product
-behaviour, not a privacy model.
+The [profile ownership decision table](../lib/profileOwnership.ts) owns the linked-handle and demo rules, including deleted accounts and retired aliases.
+The [contribution identity rules](rules/lib-identity-accounts-and-sessions.md) govern community price and venue-signal writes.
+The remaining demo path is intentional product behaviour, not a privacy model.
 
 Production private actions that must not be forgeable:
 
@@ -693,6 +690,6 @@ See `lib/profileOwnership.ts` header comment for the exact decision table.
 
 ## Trust boundary: `x-forwarded-for`
 
-Rate-limit IPs come from the `x-forwarded-for` header (`lib/supabase.ts` → `clientIp`), which is **client-suppliable**. This is safe **only** because Vercel's edge normalises the header (left-most entry = the real client). The IP is a *secondary* limiter signal — write keys lead with the contributor handle — so a spoofed header only widens one actor's own budget.
-
-**A self-hosted deployment must front the app with a trusted proxy** that overwrites `x-forwarded-for`. Do not trust the header behind an untrusted network.
+[`lib/clientIpTrust.ts`](../lib/clientIpTrust.ts) owns header precedence, proxy requirements and address grouping.
+The [rate-limit rules](rules/lib-shared-seams-stores-http-freshness-brand.md#a-limiter-keyed-on-an-address-the-caller-chooses-guards-nothing-and-four-routes-) own paid-spend admission and fallback behaviour.
+A self-hosted deployment must use a trusted proxy that controls the headers this resolver trusts.
