@@ -41,10 +41,12 @@ async function readCheapestHunt(): Promise<CheapestHunt> {
   const basePubs = new Map(
     catalog.pubs
       .filter((pub) => !pub.closed)
-      .map((pub) => [pub.id, { name: pub.name, lat: pub.lat, lng: pub.lng }] as const),
+      .map((pub) => [pub.id, { name: pub.name, address: pub.address, lat: pub.lat, lng: pub.lng }] as const),
   );
   const placeOf = huntPlaceResolver({
-    londonPubNames: new Map(venues.map((venue) => [venue.id, venue.name] as const)),
+    londonPubs: new Map(
+      venues.map((venue) => [venue.id, { name: venue.name, address: venue.address }] as const),
+    ),
     basePubs,
   });
   return buildCheapestHunt(

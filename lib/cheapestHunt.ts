@@ -44,6 +44,32 @@
 // names none cannot win. The measure law still holds out a half or a third
 // first, and nothing is ever scaled.
 //
+// THE SECOND HEADLINE BAR: A WINNER'S PRICE WAS SEEN AT THAT PUB
+// (`huntPriceIsCorroborated`). A figure may stand in any line here only when
+// the pub's own page showed it, or a first-party source that names that same
+// branch published it. Two winners failed this on 1 Nov 2026:
+//
+//   - London: £2.09 for Jaipur at J.J. Moon's, Tooting. Its row came from the
+//     price site's raw embedded map alone; the pub's own page on that site
+//     never showed it, which the London list builder records on the row
+//     (`has_individual_pub_page_row` false and the note
+//     `not_found_on_individual_pub_page_extract`, scripts/build_app_dataset.py).
+//     613 London rows carry that note. A London row now wins only when the
+//     pub's own page showed it, or when it was read off the pub's own website
+//     (the note `price:first_party_web|<its own page>`). A pub whose cheapest
+//     figure fails the bar drops out of the hunt rather than competing with a
+//     dearer row, so the hero never quotes a figure the pub's sheet does not.
+//   - Birmingham: £4.95 at The Botanist Gas Street Basin, read off the chain's
+//     Barnsley page (`/locations/barnsley/`). A bundle source URL that names a
+//     branch (a path segment after `locations`, `venues`, `pubs` and kin) must
+//     name THIS one, by a word of the pub's name, its city or its address; a
+//     URL that names no branch is the pub's own site and passes, because the
+//     harvest already refuses an estate page that names no pub. Simmons in
+//     Camden was read off the Shoreditch page the same way.
+//
+// The bar is the headline's alone: the map and the venue sheet show what they
+// showed before.
+//
 // A bar the public cannot walk into never wins (`isPublicRankablePub`, which
 // also reads a students' union from its initials).
 //
@@ -132,6 +158,8 @@ type HuntPlace = {
   placeName: string;
   /** The pub's name when the bundle row does not state one. */
   pubName: string | null;
+  /** The pub's own address where a list holds one, for the branch check. */
+  address: string | null;
   /** The pub's own point, for a base pub the map opens from a hint. */
   point: { lat: number; lng: number } | null;
 };
@@ -143,10 +171,10 @@ export type HuntPlaceResolver = (
 
 /** What the resolver reads, loaded by the server wiring. */
 export type HuntPlaceSources = {
-  /** Our London pub list, by venue id, for a row that states no name. */
-  londonPubNames: ReadonlyMap<string, string>;
-  /** Every open national base pub, by venue id, with its own point. */
-  basePubs: ReadonlyMap<string, { name: string; lat: number; lng: number }>;
+  /** Our London pub list, by venue id: the name a row may not state, and the address. */
+  londonPubs: ReadonlyMap<string, { name: string; address: string }>;
+  /** Every open national base pub, by venue id, with its own point and address. */
+  basePubs: ReadonlyMap<string, { name: string; address: string; lat: number; lng: number }>;
 };
 
 /** One row of the city-by-city list: the cheapest pint, or the honest empty line. */
@@ -229,34 +257,117 @@ export function huntRowNamesItsDrink(row: {
   return servingStatesAPint(row.servingSize) || labelNamesADrink(row.drinkLabel);
 }
 
+/** What the London list builder wrote when the pub's own page never showed the row. */
+const NOT_ON_OWN_PAGE_NOTE = "not_found_on_individual_pub_page_extract";
+
+/** Path words after which a chain's URL names one of its branches. */
+const BRANCH_PATH_WORDS: ReadonlySet<string> = new Set([
+  "location", "locations", "venue", "venues", "pub", "pubs", "branch", "branches",
+  "bar", "bars", "restaurant", "restaurants", "our-pubs", "our-venues", "find-us",
+]);
+
+/** Words that say nothing about WHICH branch: page words, pub words, street words. */
+const NOT_A_BRANCH_WORD: ReadonlySet<string> = new Set([
+  "the", "and", "pub", "pubs", "bar", "bars", "inn", "arms", "tavern", "hotel", "house",
+  "club", "kitchen", "cocktail", "cocktails", "restaurant", "menu", "menus", "drink",
+  "drinks", "food", "whats", "what", "offers", "events", "page", "home", "index", "html",
+  "street", "road", "lane", "avenue", "square", "place", "high", "upper", "lower",
+]);
+
+/** The distinctive words of a name, a city or an address, lower case. */
+function branchWords(...texts: readonly (string | null | undefined)[]): string[] {
+  return texts
+    .flatMap((text) =>
+      (text ?? "").toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "").split(/[^a-z]+/),
+    )
+    .filter((word) => word.length >= 3 && !NOT_A_BRANCH_WORD.has(word));
+}
+
+/** Whether a source URL names a branch, and if so whether it is this one. */
+function sourceNamesNoOtherBranch(sourceUrl: string, ownWords: readonly string[]): boolean {
+  let segments: string[];
+  try {
+    segments = new URL(sourceUrl).pathname.toLowerCase().split("/").filter(Boolean);
+  } catch {
+    return false;
+  }
+  const at = segments.findIndex((segment) => BRANCH_PATH_WORDS.has(segment));
+  if (at === -1) return true;
+  const named = branchWords(...segments.slice(at + 1));
+  if (named.length === 0) return true;
+  const own = new Set(ownWords);
+  return named.some((word) => own.has(word));
+}
+
+/** The evidence one candidate row carries, in the lane it came down. */
+export type HuntEvidence =
+  | {
+      lane: "london-list";
+      row: Pick<Venue["prices"][number], "has_individual_pub_page_row" | "data_quality_notes" | "pub_url">;
+    }
+  | {
+      lane: "uk-bundle";
+      sourceUrl: string | null;
+      /** The pub's own name, its city and its address, as `branchWords` reads them. */
+      pub: { name: string; placeName: string; address: string | null };
+    };
+
 /**
- * The London list's own evidence for the bar: a row that carries the figure
- * and names its pint, with no half or third in that name. The list states no
- * serving field, so the name is the only evidence it holds.
+ * THE SECOND HEADLINE BAR (see the header): was this price seen AT THIS PUB?
+ * A London row passes when the pub's own page on the price site showed it, or
+ * when it was read off the pub's own website; a bundle row passes when its
+ * source URL names no branch, or names this one. Everything else may stay on
+ * the map and the sheet, and may not stand in a cheapest or dearest line.
  */
-function londonFigureNamesItsPint(venue: Venue, priceGbp: number): boolean {
-  return venue.prices.some(
+export function huntPriceIsCorroborated(evidence: HuntEvidence): boolean {
+  if (evidence.lane === "london-list") {
+    const { row } = evidence;
+    const notes = String(row.data_quality_notes ?? "");
+    const ownPage = row.has_individual_pub_page_row === true && !notes.split("|").includes(NOT_ON_OWN_PAGE_NOTE);
+    const ownSite =
+      typeof row.pub_url === "string" &&
+      row.pub_url.length > 0 &&
+      notes.includes(`price:first_party_web|${row.pub_url}|`);
+    return ownPage || ownSite;
+  }
+  if (!evidence.sourceUrl) return false;
+  const { name, placeName, address } = evidence.pub;
+  return sourceNamesNoOtherBranch(evidence.sourceUrl, branchWords(name, placeName, address));
+}
+
+/**
+ * The London list's own evidence for both headline bars: the rows that carry
+ * the figure, name their pint with no half or third in that name, and were
+ * seen at this pub. The list states no serving field, so the name is the only
+ * evidence of the drink it holds.
+ */
+function londonFigureRows(venue: Venue, priceGbp: number): Venue["prices"] {
+  return venue.prices.filter(
     (price) =>
       typeof price.price_gbp === "number" &&
       Math.abs(price.price_gbp - priceGbp) < 0.005 &&
       huntRowNamesItsDrink({ drinkLabel: price.pint_name }) &&
-      measureNamedInDrinkText(price.pint_name) === null,
+      measureNamedInDrinkText(price.pint_name) === null &&
+      huntPriceIsCorroborated({ lane: "london-list", row: price }),
   );
 }
 
 /**
  * The London lane: each pub in our list with its own listed cheapest pint,
  * read the way the landing's pub card reads it. A pub whose figure does not
- * stand as `listed` with a publisher and a read day, or whose figure names no
- * pint, is not a candidate.
+ * stand as `listed` with a publisher and a read day, names no pint, or was
+ * not seen at the pub, is not a candidate: it does not compete with a dearer
+ * row, so the hero never quotes a figure the pub's own sheet does not show.
  */
 export function londonHuntPints(venues: readonly Venue[], now: number = Date.now()): HuntPint[] {
   const pints: HuntPint[] = [];
   for (const venue of listedPriceCohort(venues)) {
     if (!isPublicRankablePub(venue)) continue;
     const priceGbp = venue.cheapestPrice as number;
-    if (!londonFigureNamesItsPint(venue, priceGbp)) continue;
-    const evidence = answerEvidenceFor({ priceGbp, prices: venue.prices }, now);
+    const rows = londonFigureRows(venue, priceGbp);
+    if (rows.length === 0) continue;
+    // The publisher and the day come from the corroborated row itself.
+    const evidence = answerEvidenceFor({ priceGbp, prices: rows }, now);
     const observedOn = isoDay(evidence.observedOn);
     if (evidence.standing !== "listed" || !evidence.publisher || !observedOn) continue;
     pints.push({
@@ -358,12 +469,20 @@ function bundlePubPints(
 ): HuntPint[] {
   const pints: HuntPint[] = [];
   for (const [venueId, all] of byVenue) {
-    // The sheet's own reading, taken over the rows that are pints by the
-    // measure law and, for a winner, rows that name their drink.
-    const beer = authoritativeBundleRows(all).filter(
+    const pintRows = authoritativeBundleRows(all).filter(
+      (row) => row.category === BUNDLE_DEFAULT_CATEGORY && rowIsAPint(row),
+    );
+    if (pintRows.length === 0) continue;
+    const place = placeOf(venueId, pintRows);
+    if (!place) continue;
+    const pubName = pintRows.find((row) => row.name?.trim())?.name?.trim() ?? place.pubName;
+    if (!pubName || !isPublicRankablePub({ name: pubName })) continue;
+    // The sheet's own reading, taken over the rows that were seen at THIS pub
+    // and, for a winner, rows that name their drink.
+    const pub = { name: pubName, placeName: place.placeName, address: place.address };
+    const beer = pintRows.filter(
       (row) =>
-        row.category === BUNDLE_DEFAULT_CATEGORY &&
-        rowIsAPint(row) &&
+        huntPriceIsCorroborated({ lane: "uk-bundle", sourceUrl: row.sourceUrl, pub }) &&
         (!namedOnly || huntRowNamesItsDrink(row)),
     );
     if (beer.length === 0) continue;
@@ -371,10 +490,6 @@ function bundlePubPints(
       (a, b) => a.priceGbp - b.priceGbp || b.observedOn.localeCompare(a.observedOn),
     )[0];
     if (!figure) continue;
-    const place = placeOf(venueId, beer);
-    if (!place) continue;
-    const pubName = beer.find((row) => row.name?.trim())?.name?.trim() ?? place.pubName;
-    if (!pubName || !isPublicRankablePub({ name: pubName })) continue;
     // A base pub opens from its own point (`at=`, lib/mapSelectionHistory.ts),
     // the way the map's own share of a base pub does.
     const pubHref: string = venueMapUrl(venueId);
@@ -412,12 +527,22 @@ export function huntPlaceResolver(sources: HuntPlaceSources): HuntPlaceResolver 
       if (!base) return null;
       const point = own ? { lat: own.lat as number, lng: own.lng as number } : { lat: base.lat, lng: base.lng };
       const city = enabledCityContainingPoint(point.lat, point.lng);
-      return city ? { cityId: city.id, placeName: city.displayName, pubName: base.name, point } : null;
+      return city
+        ? { cityId: city.id, placeName: city.displayName, pubName: base.name, address: base.address, point }
+        : null;
     }
     const cityId = cityIdFromVenueId(venueId);
-    if (cityId) return { cityId, placeName: CITIES[cityId].displayName, pubName: null, point: null };
-    const londonName = sources.londonPubNames.get(venueId) ?? null;
-    return { cityId: "london", placeName: CITIES.london.displayName, pubName: londonName, point: null };
+    if (cityId) {
+      return { cityId, placeName: CITIES[cityId].displayName, pubName: null, address: null, point: null };
+    }
+    const london = sources.londonPubs.get(venueId);
+    return {
+      cityId: "london",
+      placeName: CITIES.london.displayName,
+      pubName: london?.name ?? null,
+      address: london?.address ?? null,
+      point: null,
+    };
   };
 }
 

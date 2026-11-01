@@ -8,6 +8,7 @@ import {
   bundleHuntPints,
   citiesWithUnnamedPints,
   huntPlaceResolver,
+  huntPriceIsCorroborated,
   huntRowNamesItsDrink,
   londonHuntPints,
   type HuntPint,
@@ -33,6 +34,10 @@ function londonVenue(
     pubUrl = "https://www.pint-prices.com/pub/x",
     readAt = "2026-10-02T11:48:33+00:00",
     pintName = "JAIPUR",
+    // The pub's own page on the price site showed this row, unless a test
+    // says otherwise (scripts/build_app_dataset.py).
+    ownPage = true,
+    notes = "",
   } = {},
 ): Venue {
   return {
@@ -55,6 +60,8 @@ function londonVenue(
         longitude: -0.1,
         pub_url: pubUrl,
         scraped_at_values: readAt,
+        has_individual_pub_page_row: ownPage,
+        data_quality_notes: notes,
       } as Venue["prices"][number],
     ],
     cheapestPrice: price,
@@ -98,14 +105,16 @@ function byVenue(rows: UkPriceBundleRow[]): Map<string, UkPriceBundleRow[]> {
 }
 
 const SOURCES: HuntPlaceSources = {
-  londonPubNames: new Map([["venue-lon1", "The Listed Lion"]]),
+  londonPubs: new Map([["venue-lon1", { name: "The Listed Lion", address: "1 Test Street, London, SE1 1AA" }]]),
   basePubs: new Map([
     // Inside Manchester's box (lib/cityBounds.mjs).
-    ["venue-uk-n1", { name: "The Test Arms", lat: 53.48, lng: -2.24 }],
+    ["venue-uk-n1", { name: "The Test Arms", address: "1 Test Street, Manchester", lat: 53.48, lng: -2.24 }],
     // Edinburgh: on no city map of ours.
-    ["venue-uk-n2", { name: "The Far Inn", lat: 55.9533, lng: -3.1883 }],
+    ["venue-uk-n2", { name: "The Far Inn", address: "2 Far Road, Edinburgh", lat: 55.9533, lng: -3.1883 }],
     // Bermondsey, inside London's box: where the Enid Street row came from.
-    ["venue-uk-n5", { name: "Enid Street Tavern", lat: 51.4973, lng: -0.0716 }],
+    ["venue-uk-n5", { name: "Enid Street Tavern", address: "Enid Street, London", lat: 51.4973, lng: -0.0716 }],
+    // Camden, inside London's box: Simmons, read off the Shoreditch page.
+    ["venue-uk-w225442612", { name: "Simmons", address: "Camden High Street, London, NW1 7JE", lat: 51.5347, lng: -0.1392 }],
   ]),
 };
 
@@ -242,6 +251,122 @@ describe("the headline bar: a winner names its drink", () => {
     ]);
     const birmingham = buildCheapestHunt(pints).cities.find((city) => city.cityId === "birmingham");
     expect(birmingham?.pint).toMatchObject({ pubName: "The Botanist Gas Street Basin", priceGbp: 4.95 });
+  });
+});
+
+// THE SECOND HEADLINE BAR: the price was seen at this pub. On 1 Nov 2026 the
+// hero quoted £2.09 for Jaipur at J.J. Moon's, Tooting, a row the price site's
+// own pub page never showed, and Birmingham's row quoted The Botanist's
+// Barnsley page for its Gas Street Basin branch.
+describe("the second headline bar: the price was seen at this pub", () => {
+  const TOOTING_NOTES =
+    "raw_embedded_includes_site_anomaly_borough|not_visible_in_borough_leaderboard|not_found_on_individual_pub_page_extract";
+
+  it("never lets the Tooting row shape win: raw map only, never on the pub's own page", () => {
+    const pints = londonHuntPints(
+      [
+        londonVenue("venue-o98nz5", "J.J. Moon's", 2.09, {
+          pintName: "Jaipur",
+          pubUrl: "https://www.pint-prices.com/pub/Tooting%20Broadway/J.J.%20Moons",
+          ownPage: false,
+          notes: TOOTING_NOTES,
+        }),
+        londonVenue("venue-cbqtvi", "The Corroborated Moon", 2.43, { pintName: "Bud Light" }),
+      ],
+      NOW,
+    );
+    expect(pints.map((pint) => [pint.pubName, pint.priceGbp])).toEqual([["The Corroborated Moon", 2.43]]);
+    expect(buildCheapestHunt(pints).britain).toMatchObject({ pubName: "The Corroborated Moon", priceGbp: 2.43 });
+  });
+
+  it("lets a row the pub's own page showed win, or one read off the pub's own website", () => {
+    const ownSite = "https://tattoo-bar.co.uk/menu";
+    const pints = londonHuntPints(
+      [
+        londonVenue("venue-lon1", "The Listed Lion", 3.2),
+        londonVenue("venue-lon2", "Tattoo Bar", 6, {
+          pintName: "Aspall Draught Cyder",
+          pubUrl: ownSite,
+          ownPage: false,
+          notes: `outer_london_osm|sourced|price:first_party_web|${ownSite}|observed=2026-07-18`,
+        }),
+      ],
+      NOW,
+    );
+    expect(pints.map((pint) => pint.pubName)).toEqual(["The Listed Lion", "Tattoo Bar"]);
+  });
+
+  it("refuses a London row whose notes say the pub's own page never showed it, whatever its flag says", () => {
+    expect(
+      huntPriceIsCorroborated({
+        lane: "london-list",
+        row: { has_individual_pub_page_row: true, data_quality_notes: TOOTING_NOTES, pub_url: "https://www.pint-prices.com/pub/x" },
+      }),
+    ).toBe(false);
+    expect(
+      huntPriceIsCorroborated({
+        lane: "london-list",
+        row: { has_individual_pub_page_row: false, data_quality_notes: "", pub_url: "https://www.pint-prices.com/pub/x" },
+      }),
+    ).toBe(false);
+  });
+
+  it("never lets a source naming another branch win a city", () => {
+    const pints = bundle([
+      row({
+        venueId: "venue-bhm-1kho5a7",
+        name: "The Botanist Gas Street Basin",
+        priceGbp: 4.95,
+        drinkLabel: "Pint of Pravha or Aspall Cyder",
+        sourceUrl: "https://thebotanist.uk.com/locations/barnsley/whats-on",
+        publisher: "thebotanist.uk.com",
+      }),
+      row({
+        venueId: "venue-bhm-abc123",
+        name: "The Brum Tap",
+        priceGbp: 5.2,
+        drinkLabel: "Brum Bitter",
+        sourceUrl: "https://brumtap.co.uk/drinks",
+        publisher: "brumtap.co.uk",
+      }),
+    ]);
+    const birmingham = buildCheapestHunt(pints).cities.find((city) => city.cityId === "birmingham");
+    expect(birmingham?.pint).toMatchObject({ pubName: "The Brum Tap", priceGbp: 5.2 });
+  });
+
+  it("reads a branch in the source URL against the pub's name, city and address", () => {
+    const pub = (name: string, placeName: string, address: string | null = null) => ({ name, placeName, address });
+    const check = (sourceUrl: string, of: ReturnType<typeof pub>) =>
+      huntPriceIsCorroborated({ lane: "uk-bundle", sourceUrl, pub: of });
+    const botanist = pub("The Botanist Gas Street Basin", "Birmingham");
+    expect(check("https://thebotanist.uk.com/locations/barnsley/whats-on", botanist)).toBe(false);
+    expect(check("https://thebotanist.uk.com/locations/birmingham/whats-on", botanist)).toBe(true);
+    expect(check("https://thebotanist.uk.com/locations/gas-street-basin/menu", botanist)).toBe(true);
+    // A URL that names no branch is the pub's own site.
+    expect(check("https://www.thescolthead.co.uk/drinks-menu", pub("The Scolt Head", "London"))).toBe(true);
+    expect(check("https://www.thesouthern.co.uk/wp-content/uploads/sites/5/2026/05/Drink.pdf", pub("The Southern", "Edinburgh"))).toBe(true);
+    // A chain's region then its pub: the pub's own name answers.
+    expect(check("https://www.greeneking.co.uk/pubs/west-midlands/the-brum-tap/", pub("The Brum Tap", "Birmingham"))).toBe(true);
+    // Simmons in Camden, read off the Shoreditch page.
+    const simmons = pub("Simmons", "London", "Camden High Street, London, NW1 7JE");
+    expect(check("https://www.simmonsbar.co.uk/venues/shoreditch-cocktail-bar/", simmons)).toBe(false);
+    expect(check("https://www.simmonsbar.co.uk/venues/camden-cocktail-bar/", simmons)).toBe(true);
+    expect(huntPriceIsCorroborated({ lane: "uk-bundle", sourceUrl: null, pub: simmons })).toBe(false);
+  });
+
+  it("holds the Simmons row out through the lane, by the base pub's own address", () => {
+    expect(
+      bundle([
+        row({
+          venueId: "venue-uk-w225442612",
+          name: "Simmons",
+          priceGbp: 4,
+          drinkLabel: "Peroni",
+          sourceUrl: "https://www.simmonsbar.co.uk/venues/shoreditch-cocktail-bar/",
+          publisher: "simmonsbar.co.uk",
+        }),
+      ]),
+    ).toEqual([]);
   });
 });
 
