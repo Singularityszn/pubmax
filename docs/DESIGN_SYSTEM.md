@@ -632,7 +632,7 @@ inside a labelled button, field or heading, 20 for an icon alone in a control
 (the create disc, full-screen viewer chrome). Every icon keeps Lucide's own
 stroke of 2 and passes no `strokeWidth`: at 14 and 16px it draws the same stem
 as the Inter beside it, where 1.75 drew thinner than the words. A selected tab
-reads by its ink, its label weight and the gliding well, not by a heavier
+reads by its ink, its label weight and the pressed well, not by a heavier
 stroke. The only icons off the scale are the named display marks in that file,
 glyphs that stand in for a picture or open an empty state.
 

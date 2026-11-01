@@ -1,14 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
-import { mkdir } from "node:fs/promises";
 
 import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
 import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 
 // The Pub Pal's own door (components/nav/PalNavButton.tsx) sits between Tonight
 // and Plan, inside narrow phone cells and raised above wider phone rails.
-// Shots land in artifacts/pal-nav-button/ (gitignored).
-
-const SHOTS = "artifacts/pal-nav-button";
+// Shots follow the configured Playwright evidence directory.
 
 async function seed(
   page: Page,
@@ -49,7 +46,7 @@ async function seed(
 for (const width of [320, 390]) {
   for (const theme of ["light", "dark"] as const) {
     for (const withPal of [false, true]) {
-      test(`the phone dock ${width === 320 ? "contains" : "raises"} the Pal at ${width}px, ${theme}, ${withPal ? "with a Pal" : "a stranger"}`, async ({ page }) => {
+      test(`the phone dock ${width === 320 ? "contains" : "raises"} the Pal at ${width}px, ${theme}, ${withPal ? "with a Pal" : "a stranger"}`, async ({ page }, testInfo) => {
         test.setTimeout(120_000);
         await page.setViewportSize({ width, height: 700 });
         await seed(page, { theme, withPal });
@@ -88,9 +85,8 @@ for (const width of [320, 390]) {
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
 
         await page.waitForTimeout(600);
-        await mkdir(SHOTS, { recursive: true });
         await page.screenshot({
-          path: `${SHOTS}/dock-${width}-${theme}-${withPal ? "pal" : "stranger"}.png`,
+          path: testInfo.outputPath(`dock-${width}-${theme}-${withPal ? "pal" : "stranger"}.png`),
           clip: { x: 0, y: Math.max(0, rail.y - 40), width, height: 700 - Math.max(0, rail.y - 40) },
         });
 
@@ -102,7 +98,7 @@ for (const width of [320, 390]) {
   }
 }
 
-test("on a short phone the face sits inside the rail, clear of the page above it", async ({ page }) => {
+test("on a short phone the face sits inside the rail, clear of the page above it", async ({ page }, testInfo) => {
   test.setTimeout(120_000);
   await page.setViewportSize({ width: 320, height: 568 });
   await seed(page, { theme: "light", withPal: true });
@@ -118,15 +114,14 @@ test("on a short phone the face sits inside the rail, clear of the page above it
   const doorBox = (await door.boundingBox())!;
   expect(Math.min(doorBox.width, doorBox.height)).toBeGreaterThanOrEqual(44);
   await page.waitForTimeout(600);
-  await mkdir(SHOTS, { recursive: true });
-  await page.screenshot({ path: `${SHOTS}/dock-320x568.png`, clip: { x: 0, y: rail.y - 40, width: 320, height: 568 - (rail.y - 40) } });
+  await page.screenshot({ path: testInfo.outputPath("dock-320x568.png"), clip: { x: 0, y: rail.y - 40, width: 320, height: 568 - (rail.y - 40) } });
 });
 
 // The tablet bar was measured with no room to spare, and a signed-in bar also
 // carries alerts, messages and the account. The door is a face-only disc there,
 // so every destination stays pressable and the bar never scrolls sideways.
 for (const width of [641, 700, 768, 900] as const) {
-  test(`${width}px: the Pal's door fits the signed-in tablet bar`, async ({ page }) => {
+  test(`${width}px: the Pal's door fits the signed-in tablet bar`, async ({ page }, testInfo) => {
     test.setTimeout(120_000);
     await page.setViewportSize({ width, height: 900 });
     // A name at the 32-character limit of the Pal form (lib/pubPal.ts).
@@ -149,20 +144,40 @@ for (const width of [641, 700, 768, 900] as const) {
         const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
         if (!hit || !link.contains(hit)) covered.push(link.textContent?.trim() ?? "?");
       }
-      const primaryRight = Math.max(...Array.from(document.querySelectorAll(".siteNavLinks .siteNavLink"), (link) => link.getBoundingClientRect().right));
-      const actionsLeft = document.querySelector(".siteNavActions")!.getBoundingClientRect().left;
-      return { covered, primaryRight, actionsLeft, overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth };
+      // The header may wrap. The independent contract is separate 44px
+      // controls, not the horizontal order of controls on different rows.
+      const controls = Array.from(document.querySelectorAll<HTMLElement>(".siteNavBar a, .siteNavBar button"))
+        .filter((control) => control.getClientRects().length > 0 && getComputedStyle(control).visibility !== "hidden")
+        .map((control) => {
+          const box = control.getBoundingClientRect();
+          return { name: control.getAttribute("aria-label") ?? control.textContent?.trim(),
+            left: box.left, right: box.right, top: box.top, bottom: box.bottom,
+            width: box.width, height: box.height,
+            centreOwned: control.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)) };
+        });
+      const overlaps = controls.flatMap((first, index) => controls.slice(index + 1).flatMap((second) => {
+        const overlapWidth = Math.min(first.right, second.right) - Math.max(first.left, second.left);
+        const overlapHeight = Math.min(first.bottom, second.bottom) - Math.max(first.top, second.top);
+        return overlapWidth > 0.5 && overlapHeight > 0.5 ? [{ first: first.name, second: second.name }] : [];
+      }));
+      return { covered, controls, overlaps, overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth };
     });
     expect(findings.covered).toEqual([]);
-    expect(findings.primaryRight).toBeLessThanOrEqual(findings.actionsLeft);
+    expect(findings.overlaps).toEqual([]);
+    for (const control of findings.controls) {
+      expect(control.width, `${control.name} width`).toBeGreaterThanOrEqual(44);
+      expect(control.height, `${control.name} height`).toBeGreaterThanOrEqual(44);
+      expect(control.centreOwned, `${control.name} hit target`).toBe(true);
+      expect(control.left).toBeGreaterThanOrEqual(0);
+      expect(control.right).toBeLessThanOrEqual(width);
+    }
     expect(findings.overflow).toBeLessThanOrEqual(0);
-    await mkdir(SHOTS, { recursive: true });
     const barBox = (await bar.boundingBox())!;
-    await page.screenshot({ path: `${SHOTS}/tablet-${width}.png`, clip: { x: 0, y: barBox.y, width, height: barBox.height + 8 } });
+    await page.screenshot({ path: testInfo.outputPath(`tablet-${width}.png`), clip: { x: 0, y: barBox.y, width, height: barBox.height + 8 } });
   });
 }
 
-test("the desktop bar names the person's Pal and opens /pal", async ({ page }) => {
+test("the desktop bar names the person's Pal and opens /pal", async ({ page }, testInfo) => {
   test.setTimeout(120_000);
   await page.setViewportSize({ width: 1280, height: 800 });
   await seed(page, { theme: "light", withPal: true });
@@ -173,8 +188,7 @@ test("the desktop bar names the person's Pal and opens /pal", async ({ page }) =
   await expect(door).toHaveText("Ripley");
   await expect(page.getByRole("navigation", { name: "Primary" })).toBeHidden();
   const box = (await bar.boundingBox())!;
-  await mkdir(SHOTS, { recursive: true });
-  await page.screenshot({ path: `${SHOTS}/desktop-1280.png`, clip: { x: 0, y: box.y, width: 1280, height: box.height + 8 } });
+  await page.screenshot({ path: testInfo.outputPath("desktop-1280.png"), clip: { x: 0, y: box.y, width: 1280, height: box.height + 8 } });
   await door.click();
   await expect(page).toHaveURL(/\/pal$/);
 });

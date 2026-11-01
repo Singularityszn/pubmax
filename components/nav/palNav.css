@@ -80,12 +80,9 @@
   }
 }
 
-/* A SHORT PHONE HAS NO ROOM ABOVE THE RAIL. At 568px tall a page's primary
-   action can end on the rail's own top edge (the Social Sign in does at the
-   large text scale, e2e/consent-after-first-answer.spec.ts), and a face risen
-   26px over it would cover half of it. Below 600px tall the face sits inside
-   the rail, and its word is kept for the accessible name only, because the
-   face and the word do not both fit the rail's 44px. */
+/* A raised face can cover a short phone's page actions above the rail.
+   The short-phone rule keeps it inside the rail. The dock layout rule in
+   docs/rules/components-sheets-chrome-and-navigation.md owns label visibility. */
 @media (max-width: 640px) and (max-height: 600px) {
   .mobileTabPal {
     justify-content: center;

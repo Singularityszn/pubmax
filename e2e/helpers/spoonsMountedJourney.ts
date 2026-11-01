@@ -38,9 +38,15 @@ export async function enterMountedSoftDrinks(page: Page): Promise<number> {
   await auth.signedInAs(null);
   await expect(page.getByRole("button", { name: /Switch to .* theme/ }).first()).toBeEnabled();
   const documentStartedAt = await page.evaluate(() => performance.timeOrigin);
-  await page.getByRole("navigation", { name: "Primary", exact: true })
-    .getByRole("link", { name: "Map", exact: true }).tap();
-  await expect(page).toHaveURL(/\/map$/);
+  // The shared header can hydrate before the separately loaded phone dock.
+  // Retry its first tap only while the source document is still displayed.
+  await expect(async () => {
+    if (new URL(page.url()).pathname === "/privacy") {
+      await page.getByRole("navigation", { name: "Primary", exact: true })
+        .getByRole("link", { name: "Map", exact: true }).tap();
+    }
+    await expect(page).toHaveURL(/\/map$/, { timeout: 1_000 });
+  }).toPass({ timeout: 30_000 });
   await expect.poll(() => page.evaluate(() => performance.timeOrigin)).toBe(documentStartedAt);
   const sheet = await openDrink(page);
   await sheet.getByRole("button", { name: "Soft drinks", exact: true }).tap();
