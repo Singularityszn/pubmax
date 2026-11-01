@@ -168,6 +168,11 @@ Not shipped: an edge cache for `/api/whats-on`, because it conflicts with the sh
 
 S1 (first pin under 3 s) is unchanged. The map agent found that the 8 s style timeout fires only when the style fails, so the real wait is MapLibre, the style, tiles and the venue index; self-hosted London PMTiles is the next step.
 
+### Week 3 operations, built on 1 November 2026
+
+- The launch-week order is section 8 of [`SOFT_LAUNCH_RUNBOOK.md`](../SOFT_LAUNCH_RUNBOOK.md): the owner actions before Monday 16 November, the Monday freeze, release, sweeps and smoke walk, the PostHog check of the four crew-night events, the Tuesday watch list, rollback and the trigger to upgrade Supabase.
+- R3, the monitor half: `.github/workflows/uptime.yml` asks `/api/health` and `/api/version` every five minutes and alerts through `alert-on-failure.yml` when a route fails twice in a row. It reaches nobody until the captain sets the `PUBMAX_ALERT_WEBHOOK_URL` repository secret. The PostHog `$exception` alert and the emergency contacts are owner actions in the runbook, and neither is done.
+
 ---
 
 ## 10. How to know it works
