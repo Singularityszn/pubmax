@@ -152,6 +152,13 @@ async function render(element: ReactElement) {
   await act(async () => root.render(element));
 }
 
+it("opens a walking route when its history entry has undefined state", async () => {
+  const search = "mode=build&pubs=pub-a,pub-b";
+  window.history.replaceState(undefined, "", `/map?${search}`);
+  await render(createElement(WalkingRoute, { arrival: search, search }));
+  expect(host.querySelector("output")?.textContent).toBe("build mapped pub-a,pub-b");
+});
+
 // The router lands a search's entry before it hands the search to the map.
 function arrive(search: string, arrival = "") {
   window.history.pushState(null, "", search ? `/map?${search}` : "/map");

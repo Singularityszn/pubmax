@@ -76,7 +76,9 @@ describe("the mounted opening turn through the camera owner", () => {
   const easeTo = vi.fn();
   const stop = vi.fn();
 
-  function Turn({ ready = true, error = false, selected = false } = {}) {
+  function Turn({ ready = true, error = false, selected = false }: {
+    ready?: boolean; error?: boolean; selected?: boolean;
+  }) {
     const camera = useMapCamera({
       mapRef,
       reducedRef: reduced,
@@ -89,7 +91,7 @@ describe("the mounted opening turn through the camera owner", () => {
     });
     const sample = useCallback(() => ({
       moving: moving || camera.cameraLanePending(), pinsPending, openingPending,
-    }), [camera.cameraLanePending]);
+    }), [camera]);
     useMapArrivalTurn({ mapRef, mapInstanceReady: ready, mapError: error,
       deepLinked: selected, sample, easeArrivalBearing: camera.easeArrivalBearing });
     return null;

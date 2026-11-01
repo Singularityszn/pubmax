@@ -47,8 +47,15 @@ function routeFitPadding(
   const recoveryBounds = isPhone
     ? document.querySelector(".mapRecenterBtn")?.getBoundingClientRect()
     : null;
+  const utilityBounds = isPhone
+    ? document.querySelector(".mobileMapUtilityCorner")?.getBoundingClientRect()
+    : null;
   const padding = isPhone
-    ? { ...PHONE_ROUTE_PADDING, top: Math.max(PHONE_ROUTE_PADDING.top,
+    ? { ...PHONE_ROUTE_PADDING,
+        // Keep the full numbered disc clear of Near me and transport controls.
+        right: Math.max(PHONE_ROUTE_PADDING.right, utilityBounds?.width
+          ? container.getBoundingClientRect().right - utilityBounds.left + 24 : 0),
+        top: Math.max(PHONE_ROUTE_PADDING.top,
         measureTopChromeBottom(containerTop, PHONE_ROUTE_PADDING.top),
         recoveryBounds?.height ? recoveryBounds.bottom - containerTop + 16 : 0) }
     : { top: desktopTop, right: 72, bottom: desktopBottom, left: 72 };

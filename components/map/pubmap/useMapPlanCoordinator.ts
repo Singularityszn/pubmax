@@ -53,7 +53,7 @@ export function useMapPlanCoordinator(initial: InitialPlanState, search = "") {
   useEffect(() => {
     const entry = { state: window.history.state as unknown, length: window.history.length, search: window.location.search };
     const previous = observedEntry.current;
-    if (previous?.state === entry.state && previous.length === entry.length && previous.search === entry.search) return;
+    if (previous && previous.state === entry.state && previous.length === entry.length && previous.search === entry.search) return;
     if (!previous && requestKey === requestedWalk(initial)) {
       observedEntry.current = entry;
       return;

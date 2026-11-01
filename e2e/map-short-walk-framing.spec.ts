@@ -3,6 +3,7 @@ import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 import { expectMapLoadingFrameReleased } from "./helpers/mobileMapShell";
 import { expectMapToolbarReady } from "./helpers/mapToolbar";
 import { expectLayoutSettled } from "./helpers/layoutSettled";
+import { openOverviewFold } from "./helpers/overviewFolds";
 import { expect, test } from "@playwright/test";
 import sharp from "sharp";
 import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
@@ -458,6 +459,7 @@ const SOHO_FOUR_ORDER = "venue-nyowgc,venue-xiesdn,venue-15i2wst,venue-phqazo";
 const SOHO_VIEWPORTS = [
   { name: "desktop", width: 1440, height: 900 },
   { name: "portrait", width: 390, height: 844 },
+  { name: "compact-phone", width: 320, height: 568 },
   { name: "landscape", width: 844, height: 390 },
 ] as const;
 
@@ -702,6 +704,7 @@ for (const { theme, motion } of [
           throw error;
         }
         await expect.poll(() => new URL(page.url()).searchParams.get("sel")).toBe(pub.id);
+        await openOverviewFold(page.locator(".venueInspector:visible"), "pub");
         const address = page.locator(".venueAddress:visible");
         await expect(address).toHaveCount(1);
         await expect(address).toHaveText(pub.address);
