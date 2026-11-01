@@ -3,6 +3,7 @@
 import { LocateFixed, MapPin } from "lucide-react";
 import { KeyboardEvent, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
+import { Chip } from "@/components/ui/chip";
 import Screen from "@/components/ui/screen";
 import WantedPlanChips from "@/components/wanted/WantedPlanChips";
 import { trackEvent } from "@/lib/analytics";
@@ -12,6 +13,11 @@ import { tryGetNightArea } from "@/lib/nightAreas";
 import { readRememberedArea } from "@/lib/nightPatches";
 import { NEAR_ME_LOCATION_OPTIONS, nearMeLocationFailure } from "@/lib/nearMeLocation";
 import { inferNightContext } from "@/lib/nightPlanning";
+import {
+  PLAN_BUDGET_CRAWL_LABEL,
+  PLAN_BUDGET_CRAWL_NOTE,
+  planBudgetCrawlQuery,
+} from "@/lib/planBudgetCrawl";
 import { resolveDescribeChipSubmit } from "@/lib/planComposerChipFill";
 import {
   PLAN_FIELD_LABEL,
@@ -93,6 +99,10 @@ export default function PlanDescribeFirst({
   );
   const [locating, setLocating] = useState(false);
   const [oneTapNote, setOneTapNote] = useState("");
+  // The £20 crawl is a budget OPTION, not an example: it rides on whatever is
+  // asked next, as words the generator already reads (lib/planBudgetCrawl.ts).
+  const [budgetCrawl, setBudgetCrawl] = useState(false);
+  const withBudget = (ask: string) => (budgetCrawl ? planBudgetCrawlQuery(ask) : ask);
   const onQueryChangeRef = useRef(onQueryChange);
   const onPrefillQueryChangeRef = useRef(onPrefillQueryChange);
   useEffect(() => {
@@ -131,7 +141,7 @@ export default function PlanDescribeFirst({
     if (!ready) return;
     const trimmed = queryOverride.trim();
     if (!trimmed) return;
-    onSubmit(trimmed, stopCount);
+    onSubmit(withBudget(trimmed), stopCount);
   }
 
   // An untouched default carries nothing, so a count the guide already holds
@@ -155,7 +165,7 @@ export default function PlanDescribeFirst({
     // Typed text wins: a chip may fill an empty field and submit, but it must
     // never wipe or auto-submit over a query the drinker already typed.
     if (hadTypedQuery) return;
-    onSubmit(resolved.query, resolved.stopCount);
+    onSubmit(withBudget(resolved.query), resolved.stopCount);
   }
 
   // One tap to a route. It submits a sentence through the same path as typing,
@@ -166,7 +176,7 @@ export default function PlanDescribeFirst({
     setOneTapNote("");
     if (rememberedArea) {
       trackEvent("plan_one_tap", { outcome: "remembered" });
-      onSubmit(oneTapQuery(rememberedArea), stopCount);
+      onSubmit(withBudget(oneTapQuery(rememberedArea)), stopCount);
       return;
     }
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -186,7 +196,7 @@ export default function PlanDescribeFirst({
           return;
         }
         trackEvent("plan_one_tap", { outcome: "located" });
-        onSubmit(oneTapQuery(area), stopCount);
+        onSubmit(withBudget(oneTapQuery(area)), stopCount);
       },
       (error) => {
         setLocating(false);
@@ -286,6 +296,17 @@ export default function PlanDescribeFirst({
           setStopCount(next);
         }}
       />
+      <div className="planDescribeFirst__budget">
+        <Chip
+          aria-pressed={budgetCrawl}
+          aria-describedby="plan-describe-first-budget-note"
+          aria-disabled={ready ? undefined : true}
+          onClick={() => { if (ready) setBudgetCrawl((on) => !on); }}
+        >
+          {PLAN_BUDGET_CRAWL_LABEL}
+        </Chip>
+        <p id="plan-describe-first-budget-note" className="planDescribeFirst__budgetNote">{PLAN_BUDGET_CRAWL_NOTE}</p>
+      </div>
       {/* Gone once the reader types: their words are the plan, and a tap that
           replaced them would be the chip rule broken (see submitChip). */}
       {query.trim() ? null : (

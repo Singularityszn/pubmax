@@ -24,13 +24,16 @@ import {
   subscribeRememberedNearMode,
   writeRememberedNearMode,
 } from "@/lib/nearModePreference";
+import type { NearDrinkLanes } from "@/lib/nearCheapestAnything";
 import type { NearGuinnessPrice } from "@/lib/nearMeAnswer";
+import type { PintRouletteFact } from "@/lib/pintRoulette";
 import { resolveNightPatch } from "@/lib/nightPatches";
 
 import NearDeskNow from "./NearDeskNow";
 import NearMeNow from "./NearMeNow";
 import NearModeSwitch from "./NearModeSwitch";
 import NearOnboardingChip from "./NearOnboardingChip";
+import NearPintRoulette from "./NearPintRoulette";
 import PosterLandingNote from "./PosterLandingNote";
 import "./nearPage.css";
 
@@ -69,9 +72,13 @@ export function resolveNearPageMode({
 type NearPageClientProps = {
   /** Listed Guinness rows for the "Cheapest Guinness" line (lib/nearGuinness.server.ts). */
   guinnessPrices?: readonly NearGuinnessPrice[];
+  /** Listed wine, cola, coffee and alcohol-free rows for Cheapest anything. */
+  drinkLanes?: NearDrinkLanes;
+  /** Stored grades and dates the roulette card may print (lib/pintRouletteFacts.server.ts). */
+  rouletteFacts?: readonly PintRouletteFact[];
 };
 
-function NearPageBody({ guinnessPrices }: NearPageClientProps) {
+function NearPageBody({ guinnessPrices, drinkLanes, rouletteFacts = [] }: NearPageClientProps) {
   const preferredCity = useSyncExternalStore(
     subscribePreferredCity,
     readPreferredCity,
@@ -159,8 +166,12 @@ function NearPageBody({ guinnessPrices }: NearPageClientProps) {
             allowVenueAcceptance
             showPriceTrust
             guinnessPrices={guinnessPrices}
+            drinkLanes={drinkLanes}
           />
         )}
+        {/* Pint roulette sits under the whole Pint answer, never in front of
+            it: the answer is the page, and a random pick is the aside. */}
+        {mode === "desk" ? null : <NearPintRoulette facts={rouletteFacts} cityId={cityId} />}
         {/* The first-run setup is offered here, under the answer, and never
             stands in front of it (owner decision 16 Oct 2026). */}
         <NearOnboardingChip />
@@ -169,10 +180,14 @@ function NearPageBody({ guinnessPrices }: NearPageClientProps) {
   );
 }
 
-export default function NearPageClient({ guinnessPrices }: NearPageClientProps = {}) {
+export default function NearPageClient({
+  guinnessPrices,
+  drinkLanes,
+  rouletteFacts,
+}: NearPageClientProps = {}) {
   return (
     <Suspense fallback={<div className="nmnPage" aria-busy="true" />}>
-      <NearPageBody guinnessPrices={guinnessPrices} />
+      <NearPageBody guinnessPrices={guinnessPrices} drinkLanes={drinkLanes} rouletteFacts={rouletteFacts} />
     </Suspense>
   );
 }

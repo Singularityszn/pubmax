@@ -27,7 +27,7 @@ export function nearGuinnessPrices(venues: readonly Venue[]): NearGuinnessPrice[
     const candidate = drinkBrandCandidateForVenue(venue, brand);
     if (!candidate) return [];
     const observedOn = candidate.observedAt ? candidate.observedAt.slice(0, 10) : null;
-    return [[candidate.venueId, candidate.priceGbp, observedOn]];
+    return [[candidate.venueId, candidate.priceGbp, observedOn, candidate.publisher?.label ?? null]];
   });
 }
 

@@ -352,9 +352,16 @@ export const NEAR_GUINNESS_HREF = "/drink/guinness" as const;
 
 /**
  * One venue's listed Guinness: [venue id, price in pounds, the day the row
- * was last read as `YYYY-MM-DD`, or null when the row records no read].
+ * was last read as `YYYY-MM-DD`, or null when the row records no read, and
+ * the publisher of that row when it names one]. The publisher rides along for
+ * the Cheapest anything chips (lib/nearCheapestAnything.ts), which print it.
  */
-export type NearGuinnessPrice = readonly [venueId: string, priceGbp: number, observedOn: string | null];
+export type NearGuinnessPrice = readonly [
+  venueId: string,
+  priceGbp: number,
+  observedOn: string | null,
+  publisher?: string | null,
+];
 
 export type NearGuinnessAnswer = {
   id: string;

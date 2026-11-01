@@ -146,6 +146,7 @@ const PlanResultProvenance = dynamic(() => import("@/components/plan/PlanResultP
   loading: () => <span aria-hidden="true">&nbsp;</span>,
 });
 const PlanTuneSheet = dynamic(() => import("@/components/plan/PlanTuneSheet"), { ssr: false });
+const PlanBudgetLedger = dynamic(() => import("@/components/plan/PlanBudgetLedger"), { ssr: false });
 const PlanRouteMiniMap = dynamic(() => import("@/components/plan/PlanRouteMiniMap"), { ssr: false });
 
 type RouteRevision = string | number;
@@ -156,6 +157,8 @@ type RouteAlternative = {
   /** The generator prices alternatives too, so a swap keeps the night's total honest. */
   estimatedPintPricePence?: number;
   priceKind?: "listed" | "estimated";
+  /** The day a listed price was read, for the budget ledger (lib/planBudgetCrawl.ts). */
+  priceObservedAt?: string;
 };
 export type DraftStop = {
   key: number;
@@ -168,6 +171,8 @@ export type DraftStop = {
   walkFromVenueId?: string;
   estimatedPintPricePence?: number | null;
   priceKind?: "listed" | "estimated";
+  /** The day a listed price was read, for the budget ledger (lib/planBudgetCrawl.ts). */
+  priceObservedAt?: string;
   alternatives: RouteAlternative[];
 };
 
@@ -257,6 +262,7 @@ const NO_TIMING_OR_PRICE = {
   walkFromVenueId: undefined,
   estimatedPintPricePence: undefined,
   priceKind: undefined,
+  priceObservedAt: undefined,
 } satisfies Partial<DraftStop>;
 
 function venueNightArea(venue: PlanVenueOption | undefined, cityId: CityId): NightContext["nightArea"] {
@@ -515,6 +521,7 @@ function cleanRouteAlternative(value: unknown): RouteAlternative | null {
     estimatedPintPricePence?: unknown;
     priceEvidence?: unknown;
     priceKind?: unknown;
+    priceObservedAt?: unknown;
   };
   const venueId = typeof row.venueId === "string" ? row.venueId.trim() : "";
   const venueName = typeof row.venueName === "string"
@@ -551,11 +558,12 @@ function generatedStopTiming(
     estimatedPintPricePence?: unknown;
     priceEvidence?: unknown;
     priceKind?: unknown;
+    priceObservedAt?: unknown;
     operationalEvidence?: unknown;
   },
   previousCandidate: unknown,
   index: number,
-): Pick<DraftStop, "walkingMinutesFromPrevious" | "walkFromVenueId" | "estimatedPintPricePence" | "priceKind"> {
+): Pick<DraftStop, "walkingMinutesFromPrevious" | "walkFromVenueId" | "estimatedPintPricePence" | "priceKind" | "priceObservedAt"> {
   const previous = previousCandidate as { venueId?: unknown } | undefined;
   const stored = typeof row.walkFromVenueId === "string" && row.walkFromVenueId.trim()
     ? row.walkFromVenueId.trim() : undefined;
@@ -575,19 +583,34 @@ function generatedStopTiming(
   };
 }
 
+/**
+ * The day a listed price was read: the wire's evidence source, or the day a
+ * stored draft kept. Null when neither parses.
+ */
+function generatedPriceObservedAt(row: { priceEvidence?: unknown; priceObservedAt?: unknown }): string | null {
+  const source = row.priceEvidence && typeof row.priceEvidence === "object"
+    ? (row.priceEvidence as { source?: unknown }).source
+    : null;
+  const wire = source && typeof source === "object" ? (source as { observedAt?: unknown }).observedAt : undefined;
+  const value = typeof wire === "string" ? wire : row.priceObservedAt;
+  return typeof value === "string" && value.length <= 40 && Number.isFinite(Date.parse(value)) ? value : null;
+}
+
 /** The pint price the generator gave a stop or an alternative, read defensively. */
 function generatedStopPrice(row: {
   estimatedPintPricePence?: unknown;
   priceEvidence?: unknown;
   priceKind?: unknown;
-}): { estimatedPintPricePence?: number; priceKind?: "listed" | "estimated" } {
+  priceObservedAt?: unknown;
+}): { estimatedPintPricePence?: number; priceKind?: "listed" | "estimated"; priceObservedAt?: string } {
   const pence = row.estimatedPintPricePence;
   if (typeof pence !== "number" || !Number.isSafeInteger(pence) || pence <= 0 || pence > 100_000) return {};
   const recorded = Boolean(row.priceEvidence && typeof row.priceEvidence === "object"
     && (row.priceEvidence as { source?: unknown }).source);
   const priceKind = row.priceKind === "listed" || row.priceKind === "estimated" ? row.priceKind
     : recorded ? "listed" : "estimated";
-  return { estimatedPintPricePence: pence, priceKind };
+  const observedAt = priceKind === "listed" ? generatedPriceObservedAt(row) : null;
+  return { estimatedPintPricePence: pence, priceKind, ...(observedAt ? { priceObservedAt: observedAt } : {}) };
 }
 
 /** Keep the generator's alternatives attached to their stop for preview swaps. */
@@ -616,6 +639,7 @@ export function routeStopsFromGenerated(value: unknown, alternativePool?: unknow
       estimatedPintPricePence?: unknown;
       priceEvidence?: unknown;
       priceKind?: unknown;
+      priceObservedAt?: unknown;
       operationalEvidence?: unknown;
       alternatives?: unknown;
       options?: unknown;
@@ -661,7 +685,11 @@ export function swapDraftStop(stop: DraftStop, excludedVenueIds: ReadonlySet<str
     // the price was the generator's for this pub, so it comes with it.
     ...NO_TIMING_OR_PRICE,
     ...(next.estimatedPintPricePence !== undefined
-      ? { estimatedPintPricePence: next.estimatedPintPricePence, priceKind: next.priceKind } : {}),
+      ? {
+        estimatedPintPricePence: next.estimatedPintPricePence,
+        priceKind: next.priceKind,
+        ...(next.priceObservedAt ? { priceObservedAt: next.priceObservedAt } : {}),
+      } : {}),
     alternatives: [
       ...remaining,
       {
@@ -669,7 +697,11 @@ export function swapDraftStop(stop: DraftStop, excludedVenueIds: ReadonlySet<str
         venueName: stop.venueName,
         ...(stop.selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence: stop.selectedDrinkPriceEvidence } : {}),
         ...(typeof stop.estimatedPintPricePence === "number"
-          ? { estimatedPintPricePence: stop.estimatedPintPricePence, priceKind: stop.priceKind } : {}),
+          ? {
+            estimatedPintPricePence: stop.estimatedPintPricePence,
+            priceKind: stop.priceKind,
+            ...(stop.priceObservedAt ? { priceObservedAt: stop.priceObservedAt } : {}),
+          } : {}),
       },
     ],
   };
@@ -2768,6 +2800,21 @@ function PlanComposerForm({
       {routeStaleNotice}
     </section>
   );
+  // A per-person budget (the £20 crawl chip, or one the reader typed) gets its
+  // running total under the stops: one listed pint a stop, each with its day.
+  const budgetLimitPence = nightContext && planUsesPintPrices(nightContext)
+    && typeof nightContext.budgetLimitPence === "number" ? nightContext.budgetLimitPence : null;
+  const budgetLedger = budgetLimitPence !== null && viewStops.length > 0 ? (
+    <PlanBudgetLedger
+      limitPence={budgetLimitPence}
+      stops={viewStops.map((stop) => ({
+        venueName: stop.venueName,
+        pricePence: stop.estimatedPintPricePence,
+        priceKind: stop.priceKind,
+        priceObservedAt: stop.priceObservedAt ?? null,
+      }))}
+    />
+  ) : null;
   // THE STOPS COME FIRST. The fine print and the map strip used to sit between
   // the summary and the pubs, so on a phone the first stop started below the
   // fold. They now follow the stops, and the two caveats read as one line.
@@ -2818,6 +2865,7 @@ function PlanComposerForm({
             <>
               {resultHeader}
               {stopsBlock}
+              {budgetLedger}
               {resultFinePrint}
               {resultStrip}
               {fieldsBlock}
