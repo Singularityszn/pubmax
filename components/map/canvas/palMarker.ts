@@ -64,6 +64,12 @@ type PalMapWalk = {
   road?: boolean;
   /** Arrive with a jump for joy, not a landing: the end of a way it led. */
   cheer?: boolean;
+  /**
+   * Called once, when the Pal is first placed on this walk: on its first
+   * painted frame, or at once when it waits instead of walking. A walk ended
+   * or replaced before then, or a marker destroyed, never calls it.
+   */
+  onStarted?: () => void;
 };
 
 /**
@@ -78,11 +84,6 @@ export function palPinIsCheap(properties: { bucket?: unknown; spoonsBucket?: unk
 }
 
 export type PalMapMarker = {
-  /**
-   * True when a Pal is really drawn on the map. A missing or hidden Pal gets a
-   * marker that does nothing, and nothing may be counted as its doing.
-   */
-  readonly drawn: boolean;
   /**
    * Perch beside this point, or step off the map with null. Ends any walk.
    * Beside a pin painted in the cheapest band it lands with a happy hop.
@@ -110,7 +111,6 @@ export type PalMapMarker = {
 type PalNextStop = { stop: number; name: string; open: () => void };
 
 const NO_PAL: PalMapMarker = {
-  drawn: false,
   perch: () => {},
   walk: () => {},
   visit: () => {},
@@ -244,7 +244,16 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
     visit: Visit | null;
     /** Jump for joy at the end of the walk instead of landing. */
     cheer: boolean;
+    /** Not yet called: the walk has not been placed on a painted frame. */
+    onStarted: (() => void) | null;
   } | null = null;
+  // Spend a walk's one start call, if it is still owed.
+  const reportStarted = () => {
+    const started = walk?.onStarted;
+    if (!walk || !started) return;
+    walk.onStarted = null;
+    started();
+  };
   let frame = 0;
   let lastFrameAt = 0;
   let pausedAt: number | null = null;
@@ -360,6 +369,7 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
   const step = (now: number) => {
     frame = 0;
     if (!walk) return;
+    reportStarted();
     const delta = Math.min(MAX_FRAME_MS, Math.max(0, now - lastFrameAt));
     lastFrameAt = now;
     if (walk.visit) {
@@ -430,7 +440,6 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
   };
 
   const api: PalMapMarker = {
-    drawn: true,
     perch: (lngLat, pin) => {
       if (walk) {
         stopWalking();
@@ -487,6 +496,7 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
           restAt: null,
           visit: null,
           cheer: route.cheer === true,
+          onStarted: route.onStarted ?? null,
         };
       }
       // A sleeping (muted) Pal, like reduced motion, waits at the first stop,
@@ -499,6 +509,7 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
         element.dataset.palWalk = "waiting";
         place(route.stops[waitAt]!, perchOffset);
         syncTap();
+        reportStarted();
         return;
       }
       const start = () => {

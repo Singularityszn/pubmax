@@ -4558,16 +4558,19 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     const key = `lead:${shownLeg.legKey}:${shownLeg.option.id}`;
     if (palLeadKeyRef.current === key) return;
     palLeadKeyRef.current = key;
-    marker.walk({ key, stops: [path[0]!, path.at(-1)!], path, road: true, cheer: true });
-    marker.nextStop({ stop: 1, name: palNextName, open: () => onRouteStopClickRef.current(palNextVenueId) });
-    marker.say(palLeadLine(shownLeg.option));
+    // Counted when the Pal is first placed on the way, never before: a map
+    // retired or rebuilt before that frame cancels the walk and its count.
     // Once per chosen way: a map rebuilt mid-walk leads again, but it is the
     // same lead, so it is not counted again. A Pal that is not drawn (none
-    // made, or hidden) leads nobody, so nothing is counted.
-    if (marker.drawn && palLeadReportedRef.current !== key) {
+    // made, or hidden) never walks, so nothing is counted.
+    const reportLead = () => {
+      if (palLeadReportedRef.current === key) return;
       palLeadReportedRef.current = key;
       trackEvent("pal_lead_started");
-    }
+    };
+    marker.walk({ key, stops: [path[0]!, path.at(-1)!], path, road: true, cheer: true, onStarted: reportLead });
+    marker.nextStop({ stop: 1, name: palNextName, open: () => onRouteStopClickRef.current(palNextVenueId) });
+    marker.say(palLeadLine(shownLeg.option));
   }, [shownLeg, palNextVenueId, palNextName, routeCoordKey, mapReady]);
 
   // The crew's Pals: made when the crew read lands, walked on the route the
