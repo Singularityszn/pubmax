@@ -135,7 +135,7 @@ function refuse(field: TableRequestField, error: string): TableRequestValidation
 }
 
 /** A real London calendar day in YYYY-MM-DD, or null. */
-export function parseRequestDate(raw: unknown): string | null {
+function parseRequestDate(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw.trim());
   if (!match) return null;
@@ -152,21 +152,21 @@ export function parseRequestDate(raw: unknown): string | null {
 }
 
 /** A 24-hour time in HH:MM, or null. */
-export function parseRequestTime(raw: unknown): string | null {
+function parseRequestTime(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
   const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(raw.trim());
   return match ? `${match[1]}:${match[2]}` : null;
 }
 
 /** A party size the form offers, or null. */
-export function parsePartySize(raw: unknown): number | null {
+function parsePartySize(raw: unknown): number | null {
   const value = typeof raw === "string" && raw.trim() ? Number(raw) : raw;
   if (typeof value !== "number" || !Number.isInteger(value)) return null;
   return value >= TABLE_REQUEST_MIN_PARTY && value <= TABLE_REQUEST_MAX_PARTY ? value : null;
 }
 
 /** The contact the pub replies to, normalised, or null when it is not one of its kind. */
-export function parseRequestContact(
+function parseRequestContact(
   kind: unknown,
   value: unknown,
 ): { kind: TableRequestContactKind; value: string } | null {
@@ -274,7 +274,7 @@ type MessageInput = Pick<
   "name" | "partySize" | "date" | "time" | "note" | "contactKind" | "contactValue"
 >;
 
-export function tableRequestSubject(venueName: string, request: MessageInput): string {
+function tableRequestSubject(venueName: string, request: MessageInput): string {
   return `Table for ${request.partySize} at ${venueName}, ${tableRequestDayLabel(request.date)}`;
 }
 

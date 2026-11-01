@@ -24,7 +24,7 @@ import { tableRequestOperatorEmail, type TableRequestFields } from "@/lib/tableR
 import { tableRequestsStore, type TableRequestsStore } from "@/lib/tableRequestsStore";
 import { venueOperatorsStore } from "@/lib/venueOperatorsStore";
 
-export type TableRequestNotSentReason =
+type TableRequestNotSentReason =
   | "no_operator"
   | "no_operator_address"
   | "store_unavailable"

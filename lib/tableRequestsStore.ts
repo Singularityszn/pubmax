@@ -47,7 +47,7 @@ const MIGRATION_HINT = "apply migration 0219";
 const STORE_TAG = "table-requests";
 
 /** Bounded reads: the operator panel lists at most this many requests. */
-export const MAX_TABLE_REQUEST_ROWS = 50;
+const MAX_TABLE_REQUEST_ROWS = 50;
 
 type TableRequestsRead = { status: "ready" | "degraded"; requests: TableRequest[] };
 
