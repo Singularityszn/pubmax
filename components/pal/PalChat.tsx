@@ -467,10 +467,15 @@ function PalChatBody({ owner }: { owner: string | null }) {
   const mapAskRef = useRef(0);
   // Leaving retires this body's asks: the session, any map lookup, and an ask
   // still waiting for one, even before a session exists.
-  useEffect(() => () => {
-    retiredRef.current = true;
-    mapAskRef.current += 1;
-    sessionRef.current?.cancel?.();
+  // Setup clears the flag again, so a development StrictMode replay
+  // (setup, cleanup, setup) leaves a live body that still answers.
+  useEffect(() => {
+    retiredRef.current = false;
+    return () => {
+      retiredRef.current = true;
+      mapAskRef.current += 1;
+      sessionRef.current?.cancel?.();
+    };
   }, []);
   const entriesRef = useRef<Entry[]>([]);
   useEffect(() => {
@@ -479,6 +484,11 @@ function PalChatBody({ owner }: { owner: string | null }) {
   const openMapFromAsk = useCallback(
     async (text: string): Promise<boolean> => {
       const request = ++mapAskRef.current;
+      // The account this map ask belongs to. The provider can publish a switch
+      // before React unmounts this body, so the signal is checked before the
+      // map opens, not only the generation.
+      const accountSignal = readProviderAccountSignal();
+      const stale = () => request !== mapAskRef.current || accountSignal.aborted;
       const plan = readActivePlan();
       const intent = palVoiceMapIntent(text, isPlanActiveNow(plan, Date.now()));
       if (!intent) return false;
@@ -502,7 +512,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
           palLines: last.palLines,
           loadVenues: () => loadSlimVenuesForCity(DEFAULT_CITY_ID),
         });
-        if (request !== mapAskRef.current) return true;
+        if (stale()) return true;
         if (venue) {
           href = resolvePalVenueOpenTarget(venue.id, knownVenueIds).href;
           line = `Opening ${venue.name}`;
@@ -514,7 +524,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
       setQuery((current) => current.trim() === text ? "" : current);
       if (intent === "next-stop" && plan) {
         const body = await readPlanMemberProjection(plan.id);
-        if (request !== mapAskRef.current) return true;
+        if (stale()) return true;
         const next = palNextStop(palNightStopsFrom(body), plan.stopIndex);
         if (next) {
           href = next.href;
@@ -532,6 +542,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
           recall: null,
         },
       ]);
+      if (stale()) return true;
       router.push(href as Route);
       return true;
     },
