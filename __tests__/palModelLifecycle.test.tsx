@@ -65,7 +65,7 @@ beforeEach(() => {
   frames = new Map();
   mounted = [];
   renderer.mount.mockReset().mockImplementation((_host, options) => {
-    const surface: PalMeshSurface = { renderPose: vi.fn(() => true), setYaw: vi.fn(), turnYaw: vi.fn(), setVisible: vi.fn(), dispose: vi.fn() };
+    const surface: PalMeshSurface = { renderPose: vi.fn(() => true), setYaw: vi.fn(), turnYaw: vi.fn(), endDrag: vi.fn(), setVisible: vi.fn(), dispose: vi.fn() };
     mounted.push({ surface, status: options.onStatus });
     options.onStatus("loading");
     return surface;
@@ -167,8 +167,11 @@ describe("the selected Pal model lifecycle", () => {
     const host = modelHost();
     host.focus();
     expect(document.activeElement).toBe(host);
+    expect(mounted[0]!.surface.endDrag).not.toHaveBeenCalled();
     for (const talkingState of ["speaking", "listening"] as const) {
       await render({ state: talkingState });
+      // A drag begun on the idle model ends when the photograph takes the frame.
+      expect(mounted[0]!.surface.endDrag).toHaveBeenCalled();
       expect(host.getAttribute("aria-hidden")).toBe("true");
       expect(host.hasAttribute("tabindex")).toBe(false);
       expect(document.activeElement).not.toBe(host);

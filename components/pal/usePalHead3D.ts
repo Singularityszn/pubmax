@@ -183,6 +183,7 @@ export function usePalHead3D(
       }
       if (document.activeElement === host) host.blur();
       host.removeAttribute("tabindex");
+      mesh?.endDrag();
     };
     const setModelState = (status: PalMeshStatus | "poster") => {
       meshReady = status === "ready";
