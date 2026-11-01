@@ -157,6 +157,20 @@ describe.each([
     expect((await store.listEmailedForVenue("venue-crown")).requests).toEqual([]);
   });
 
+  it("reads the requester's own requests, pending and emailed, newest first, and nobody else's", async () => {
+    const pending = await store.create(fields(), NOW);
+    const emailed = await store.create(fields({ venueId: "venue-other" }), NOW + 60_000);
+    await store.markEmailed(emailed.id, NOW + 61_000);
+    await store.create(fields({ requesterUserId: "b1111111-1111-4111-8111-111111111111" }), NOW + 120_000);
+    const read = await store.listForRequester("a1111111-1111-4111-8111-111111111111");
+    expect(read.status).toBe("ready");
+    expect(read.requests.map((r) => [r.id, r.delivery])).toEqual([
+      [emailed.id, "emailed"],
+      [pending.id, "pending"],
+    ]);
+    expect((await store.listForRequester("a1111111-1111-4111-8111-111111111111", 1)).requests).toHaveLength(1);
+  });
+
   it("lists a pub under every id it was stored under, newest first, and no other pub", async () => {
     const older = await store.create(fields({ venueId: "venue-old" }), NOW);
     const newer = await store.create(fields({ venueId: "venue-new" }), NOW + 60_000);
@@ -200,6 +214,21 @@ describe("the Supabase table requests store on a bad day", () => {
     ];
     const read = await supabaseTableRequestsStore.listEmailedForVenue("venue-crown");
     expect(read).toEqual({ status: "ready", requests: [] });
+  });
+
+  it("answers the requester's read degraded and empty when the query fails", async () => {
+    await supabaseTableRequestsStore.create(fields(), NOW);
+    db.schemaMiss = false;
+    const original = db.rows;
+    db.rows = new Proxy([] as Row[], {
+      get(target, key) {
+        if (key === "filter") throw new Error("read boom");
+        return Reflect.get(target, key);
+      },
+    });
+    const read = await supabaseTableRequestsStore.listForRequester("a1111111-1111-4111-8111-111111111111");
+    expect(read).toEqual({ status: "degraded", requests: [] });
+    db.rows = original;
   });
 
   it("falls back to memory when the table is missing outside production", async () => {

@@ -107,7 +107,7 @@ silently stale.
 | socialPostVideoStore | factory-eligible, policy-heavy | Upload intents, held-until-watched review and signed playback. |
 | socialPubRankingStore | factory-eligible, policy-heavy | Adjacent-neighbour placement and stale-list refusal (0186). |
 | stepOutNudgeStore | factory-ready | Nudge preference and send-stamp rows with shared backend selection. |
-| tableRequestsStore | factory-ready | "Ask the pub for a table" requests PUBMAXX emailed to a verified operator: stored pending, stamped emailed or discarded, listed to that operator alone. |
+| tableRequestsStore | factory-ready | "Ask the pub for a table" requests PUBMAXX emailed to a verified operator: stored pending, stamped emailed or discarded, listed to that operator alone, and read back for the requester's own export. |
 | venueCorrectionsStore | factory-ready | "That's wrong" notes about a pub (shut, hours, other) and the moderator's resolve or dismiss. |
 | venueOperatorsStore | factory-eligible, policy-heavy | Venue claim ownership and operator moderation policy. |
 | venuePhotoStore | factory-eligible, policy-heavy | Photo cap, author projection, reports, and moderation policy. |

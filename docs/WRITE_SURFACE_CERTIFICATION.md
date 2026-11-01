@@ -890,7 +890,8 @@ loss or a block; owner leave remains a durable conflict until ownership moves.
   record. The 0219 table keys the requester to `auth.users` with ON DELETE
   CASCADE and has no browser grant. A request that was stored and then not
   sent is deleted, so the operator panel never lists one the person was told
-  PUBMAXX did not send.
+  PUBMAXX did not send. The requester's account export carries their own
+  requests (the `tableRequests` lane), and nothing about the operator.
 
 ### `app/api/visit-reports` — structured Visit Reports (route 66)
 

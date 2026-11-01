@@ -118,6 +118,12 @@ import {
   type KitchenReportOwnerFields,
 } from "@/lib/kitchenReports";
 import { kitchenReportsStore } from "@/lib/kitchenReportsStore";
+import {
+  tableRequestOwnerFields,
+  type TableRequest,
+  type TableRequestOwnerFields,
+} from "@/lib/tableRequests";
+import { tableRequestsStore } from "@/lib/tableRequestsStore";
 import type { WantedDTO } from "@/lib/wanted";
 import { wantedStore } from "@/lib/wantedStore";
 
@@ -189,6 +195,10 @@ export type AccountExportDeps = {
     userId: string,
     limit: number,
   ): Promise<{ status: "ready" | "degraded"; reports: KitchenReport[] }>;
+  tableRequests(
+    userId: string,
+    limit: number,
+  ): Promise<{ status: "ready" | "degraded"; requests: TableRequest[] }>;
   pubListNightDrafts(userId: string, limit: number): Promise<PubListNightDraft[]>;
   socialLinks(userId: string): Promise<PublicSocialConnection[]>;
   nightProfile(userId: string): Promise<NightProfile | null>;
@@ -317,6 +327,7 @@ function storeDeps(): AccountExportDeps {
     venueCorrections: (userId, limit) => venueCorrectionsStore().listForOwner(userId, limit),
     regularNightReports: (userId, limit) => regularNightReportsStore().listForOwner(userId, limit),
     kitchenReports: (userId, limit) => kitchenReportsStore().listForOwner(userId, limit),
+    tableRequests: (userId, limit) => tableRequestsStore().listForRequester(userId, limit),
     pubListNightDrafts: listPubListNightDrafts,
     async socialLinks(userId) {
       return (await socialConnectionStore().list(userId)).map(publicSocialConnection);
@@ -811,6 +822,16 @@ export async function buildAccountExport(
     };
   });
 
+  const tableRequests = await lane<TableRequestOwnerFields>(async () => {
+    const read = await deps.tableRequests(userId, ACCOUNT_EXPORT_LANE_CAP + 1);
+    return {
+      degraded: read.status === "degraded",
+      items: read.requests
+        .filter((request) => request.requesterUserId === userId)
+        .map(tableRequestOwnerFields),
+    };
+  });
+
   const pubListNightDrafts = await lane<PubListNightDraft>(async () => ({
     degraded: false,
     items: await deps.pubListNightDrafts(userId, ACCOUNT_EXPORT_LANE_CAP + 1),
@@ -856,6 +877,7 @@ export async function buildAccountExport(
     venueCorrections,
     regularNightReports,
     kitchenReports,
+    tableRequests,
     pubListNightDrafts,
     socialLinks,
     nightProfile,

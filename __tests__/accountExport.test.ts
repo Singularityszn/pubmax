@@ -42,6 +42,7 @@ import type { VenuePhoto } from "@/lib/venuePhotos";
 import type { VisitReportDTO } from "@/lib/visitReports";
 import type { DiaryEntryDTO } from "@/lib/diary";
 import type { VenueSubmission } from "@/lib/venueSubmissions";
+import type { TableRequest } from "@/lib/tableRequests";
 import type { WantedDTO } from "@/lib/wanted";
 
 const USER = "u0000000-0000-4000-8000-000000000001";
@@ -323,6 +324,34 @@ const crowdReport = {
   hiddenAt: null,
 } as const;
 
+/** A table request the caller sent: their own words, crew and the contact they gave. */
+const ownTableRequest: TableRequest = {
+  id: "table-1",
+  venueId: "venue-2",
+  requesterUserId: USER,
+  name: "Night Owl",
+  partySize: 8,
+  date: "2026-11-14",
+  time: "19:30",
+  note: "A birthday, nothing loud.",
+  contactKind: "email",
+  contactValue: "owl@example.com",
+  delivery: "emailed",
+  createdAt: "2026-11-02T18:00:00.000Z",
+  deliveredAt: "2026-11-02T18:00:01.000Z",
+};
+
+/** Another account's request for the same pub. It may never reach this file. */
+const strangerTableRequest: TableRequest = {
+  ...ownTableRequest,
+  id: "table-stranger",
+  requesterUserId: "stranger-account",
+  name: "Somebody Else",
+  contactKind: "phone",
+  contactValue: "+447700900999",
+  note: null,
+};
+
 function fakeDeps(overrides: Partial<AccountExportDeps> = {}): AccountExportDeps {
   return {
     profileForUser: async () => profileRow,
@@ -361,6 +390,10 @@ function fakeDeps(overrides: Partial<AccountExportDeps> = {}): AccountExportDeps
               },
             ]
           : [],
+    }),
+    tableRequests: async (userId) => ({
+      status: "ready" as const,
+      requests: userId === USER ? [ownTableRequest, strangerTableRequest] : [strangerTableRequest],
     }),
     pubListNightDrafts: async () => [],
     venueSubmissions: async (userId) => ({
@@ -465,8 +498,45 @@ describe("buildAccountExport", () => {
       { id: "kitchen-1", venueId: "venue-2", state: "open", reportedAt: "2026-10-30T19:00:00.000Z", confirmed: true },
     ]);
     expect(JSON.stringify(document.kitchenReports)).not.toContain("other-account");
+    // A table request: the caller's own name, crew, day, time, note, the contact
+    // they gave and where it got to. Never the operator, never the account id.
+    expect(document.tableRequests.items).toEqual([
+      {
+        id: "table-1",
+        venueId: "venue-2",
+        name: "Night Owl",
+        partySize: 8,
+        date: "2026-11-14",
+        time: "19:30",
+        note: "A birthday, nothing loud.",
+        contactKind: "email",
+        contactValue: "owl@example.com",
+        status: "emailed",
+        createdAt: "2026-11-02T18:00:00.000Z",
+      },
+    ]);
     expect(document.socialLinks.items).toEqual([socialLink]);
     expect(document.nightProfile.items).toEqual([nightProfileRow]);
+  });
+
+  it("carries the caller's own table request and never another account's", async () => {
+    const document = await buildAccountExport(USER, fakeDeps(), NOW);
+    expect(document.tableRequests.status).toBe("complete");
+    expect(document.tableRequests.truncated).toBe(false);
+    expect(document.tableRequests.items.map((item) => item.id)).toEqual(["table-1"]);
+    const lane = JSON.stringify(document.tableRequests);
+    for (const stranger of ["table-stranger", "stranger-account", "Somebody Else", "+447700900999"]) {
+      expect(lane).not.toContain(stranger);
+    }
+    expect(document.tableRequests.items[0]).not.toHaveProperty("requesterUserId");
+    expect(document.tableRequests.items[0]).not.toHaveProperty("deliveredAt");
+
+    // Another account's export carries none of the caller's request either.
+    const other = await buildAccountExport("stranger-account", fakeDeps({
+      profileForUser: async () => null,
+    }), NOW);
+    expect(JSON.stringify(other.tableRequests)).not.toContain("table-1");
+    expect(JSON.stringify(other.tableRequests)).not.toContain("owl@example.com");
   });
 
   it("carries the profile fields, the posts and the crowd reports the file used to leave out (F15)", async () => {
@@ -643,6 +713,7 @@ describe("buildAccountExport", () => {
       follows: { follows: async () => { throw new Error("follow graph unreadable"); } },
       socialPosts: { socialPosts: async () => { throw new Error("posts unreadable"); } },
       crowdReports: { crowdReports: async () => ({ degraded: true, reports: [] }) },
+      tableRequests: { tableRequests: async () => ({ status: "degraded" as const, requests: [] }) },
     } satisfies Record<string, Partial<AccountExportDeps>>;
 
     for (const [lane, override] of Object.entries(lanesUnderTest)) {
@@ -957,6 +1028,7 @@ const STORE_EXPORT_COVERAGE: Record<string, ExportCoverage> = {
   "lib/venueCorrectionsStore.ts": { lane: "venueCorrections" },
   "lib/regularNightReportsStore.ts": { lane: "regularNightReports" },
   "lib/kitchenReportsStore.ts": { lane: "kitchenReports" },
+  "lib/tableRequestsStore.ts": { lane: "tableRequests" },
   "lib/pubListImportDraftStore.server.ts": { lane: "pubListNightDrafts" },
   "lib/visitReportsStore.ts": { lane: "visitReports" },
   "lib/walkRouteStore.ts": { excluded: "Cached walking routes between two points, shared by every reader who asks for them." },

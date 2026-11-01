@@ -48,6 +48,8 @@ const STORE_TAG = "table-requests";
 
 /** Bounded reads: the operator panel lists at most this many requests. */
 const MAX_TABLE_REQUEST_ROWS = 50;
+/** The account export's read of the requester's own rows, at most. */
+const MAX_OWNER_ROWS = 200;
 
 type TableRequestsRead = { status: "ready" | "degraded"; requests: TableRequest[] };
 
@@ -60,6 +62,8 @@ export type TableRequestsStore = {
   discard(id: string): Promise<boolean>;
   /** Emailed requests for one pub under any of its ids, newest first. Fail-soft (degraded, []). */
   listEmailedForVenue(venueId: string): Promise<TableRequestsRead>;
+  /** The requester's own stored requests, newest first (the account export). Fail-soft (degraded, []). */
+  listForRequester(requesterUserId: string, limit?: number): Promise<TableRequestsRead>;
 };
 
 function byNewest(left: TableRequest, right: TableRequest): number {
@@ -100,6 +104,15 @@ export const memoryTableRequestsStore: TableRequestsStore = {
       .filter((request) => venueIds.includes(request.venueId) && request.delivery === "emailed")
       .sort(byNewest)
       .slice(0, MAX_TABLE_REQUEST_ROWS)
+      .map((request) => ({ ...request }));
+    return { status: "ready", requests };
+  },
+
+  async listForRequester(requesterUserId, limit = MAX_OWNER_ROWS) {
+    const requests = [...byId.values()]
+      .filter((request) => request.requesterUserId === requesterUserId)
+      .sort(byNewest)
+      .slice(0, Math.max(1, Math.floor(limit)))
       .map((request) => ({ ...request }));
     return { status: "ready", requests };
   },
@@ -256,6 +269,30 @@ export const supabaseTableRequestsStore: TableRequestsStore = {
           .map((row) => fromRow(row as Record<string, unknown>))
           .filter((request): request is TableRequest => request !== null && request.delivery === "emailed")
           .sort(byNewest);
+        return { status: "ready" as const, requests };
+      },
+    });
+  },
+
+  async listForRequester(requesterUserId, limit = MAX_OWNER_ROWS) {
+    return guard({
+      context: "list-requester",
+      onSchemaMiss: () => memoryTableRequestsStore.listForRequester(requesterUserId, limit),
+      onError: async () => ({ status: "degraded" as const, requests: [] }),
+      message: "requester read failed",
+      run: async () => {
+        const { data, error } = await admin()
+          .from(TABLE)
+          .select("*")
+          .eq("requester_user_id", requesterUserId)
+          .order("created_at", { ascending: false })
+          .limit(Math.max(1, Math.floor(limit)));
+        if (error) throw new Error(error.message);
+        const requests = (Array.isArray(data) ? data : [])
+          .map((row) => fromRow(row as Record<string, unknown>))
+          .filter((request): request is TableRequest => request !== null && request.requesterUserId === requesterUserId)
+          .sort(byNewest)
+          .slice(0, Math.max(1, Math.floor(limit)));
         return { status: "ready" as const, requests };
       },
     });

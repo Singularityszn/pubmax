@@ -85,6 +85,43 @@ export type OperatorTableRequest = {
   createdAt: string;
 };
 
+/**
+ * What the account export carries for a request the account sent: its own
+ * name, crew, day, time, note and the contact it gave, and where the request
+ * got to. A stored request is `pending` until its email goes and `emailed`
+ * once it went; one that was not sent was discarded and is not stored, so it
+ * is not here either. Nothing about the operator it went to.
+ */
+export type TableRequestOwnerFields = {
+  id: string;
+  venueId: string;
+  name: string;
+  partySize: number;
+  date: string;
+  time: string;
+  note: string | null;
+  contactKind: TableRequestContactKind;
+  contactValue: string;
+  status: TableRequestDelivery;
+  createdAt: string;
+};
+
+export function tableRequestOwnerFields(request: TableRequest): TableRequestOwnerFields {
+  return {
+    id: request.id,
+    venueId: request.venueId,
+    name: request.name,
+    partySize: request.partySize,
+    date: request.date,
+    time: request.time,
+    note: request.note,
+    contactKind: request.contactKind,
+    contactValue: request.contactValue,
+    status: request.delivery,
+    createdAt: request.createdAt,
+  };
+}
+
 export function toOperatorTableRequest(request: TableRequest): OperatorTableRequest {
   return {
     id: request.id,
