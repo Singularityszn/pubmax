@@ -93,6 +93,7 @@ const THREE_COLUMN_CONTROLS = [
   "components/drink-wall/drinkWall.css", // photo grid
   "components/map/mapExperienceLens.css", // lens option buttons
   "components/mobile/mobileMapShell.css", // drink shape chips
+  "components/nav/mobileNav.css", // enlarged-text navigation controls
   "components/moment/moment.css", // decorator action buttons
   "components/night/routeEndingCard.css", // three ending choices
   "components/venue/venuePhotoWall.css", // photo grid
