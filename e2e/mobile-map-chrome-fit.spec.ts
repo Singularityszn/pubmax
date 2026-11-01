@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-import { PRIMARY_NAV_ITEMS } from "../components/nav/navigationModel";
+import { PHONE_NAV_ITEMS } from "../components/nav/navigationModel";
 import { PERFORMANCE_BUDGETS } from "../lib/performanceBudgets";
 import { expectStreamedPageSettled } from "./helpers/streamedPage";
 import {
@@ -2003,7 +2003,7 @@ for (const viewport of VIEWPORTS) {
     await expect(primary.getByRole("link", { name: "Tonight", exact: true })).toHaveCount(1);
     await expect(primary.locator('a[href="/social"]')).toHaveCount(1);
     await expect(primary.locator('a[href="/pal"]')).toHaveCount(1);
-    await expect(primary.locator("a")).toHaveCount(PRIMARY_NAV_ITEMS.length + 1);
+    await expect(primary.locator("a")).toHaveCount(PHONE_NAV_ITEMS.length + 1);
     for (const tab of await primary.locator("a").all()) {
       const box = await tab.boundingBox();
       expect(box, "every primary tab has a box").not.toBeNull();
