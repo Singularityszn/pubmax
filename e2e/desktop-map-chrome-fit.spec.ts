@@ -275,6 +275,11 @@ for (const width of DESKTOP_WIDTHS) {
     await expect(toolbar).toBeVisible({ timeout: 20_000 });
     const search = toolbar.getByRole("combobox", { name: "Search pubs" });
     await search.fill("Shoreditch");
+    // From 1024 to 1279 the list beside the map wraps the bar, so its four
+    // buttons sit under the field and the open suggestions cover them, as they
+    // already do beside an open drawer. A reader closes the suggestions first;
+    // Escape in the bar keeps the typed query (MapSearchSuggest.tsx).
+    await search.press("Escape");
     await toolbar.getByRole("button", { name: "Plan an outing" }).click();
 
     const rail = page.locator(".mapDrawer.left.open");

@@ -342,7 +342,9 @@ for (const viewport of VIEWPORTS) {
     await inactiveTab.hover();
     measurements.sheetHoverTab = await expectRenderedTextContrast(inactiveTab);
 
-    await sheetPrimary.click();
+    // The price door (ink beside the plan door since the action card) still
+    // opens the price form's sign-in gate for a stranger.
+    await sheet.locator("[data-price-door]").click();
     await expect(sheet.locator(".venuePriceSignInGate")).toBeVisible();
     await expect(sheet.locator(".venuePriceSubmit")).toHaveCount(0);
     await expectNoHorizontalOverflow(page);
