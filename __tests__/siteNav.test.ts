@@ -110,6 +110,11 @@ describe("SiteNav More overflow (Wave D2.2)", () => {
   });
 });
 
+// From 1024px each door draws its icon before its word (components/nav/navIcons.ts),
+// so a door's markup is the tag, the icon's <svg>, then the word.
+const DOOR_ICON = String.raw`(?:<svg(?:(?!<\/svg>)[\s\S])*<\/svg>)?`;
+const currentDoor = (word: string) => new RegExp(String.raw`aria-current="page"[^>]*>` + DOOR_ICON + word + "<", "g");
+
 describe("SiteNav current page state", () => {
   afterEach(() => {
     navigationState.pathname = "/tonight";
@@ -126,15 +131,15 @@ describe("SiteNav current page state", () => {
     navigationState.pathname = pathname;
     const markup = await renderSiteNav();
     const row = markup.match(/<ul class="siteNavLinks">[\s\S]*?<\/ul>/)?.[0] ?? "";
-    expect(row.match(/aria-current="page"[^>]*>Social</g) ?? []).toHaveLength(1);
+    expect(row.match(currentDoor("Social")) ?? []).toHaveLength(1);
   });
 
   it.each(["/crawls", "/crawls/soho"])("marks Plan, never Social, current on %s", async (pathname) => {
     navigationState.pathname = pathname;
     const markup = await renderSiteNav("crawls");
     const row = markup.match(/<ul class="siteNavLinks">[\s\S]*?<\/ul>/)?.[0] ?? "";
-    expect(row.match(/aria-current="page"[^>]*>Plan</g) ?? []).toHaveLength(1);
-    expect(row).not.toMatch(/aria-current="page"[^>]*>Social</);
+    expect(row.match(currentDoor("Plan")) ?? []).toHaveLength(1);
+    expect(row).not.toMatch(currentDoor("Social"));
   });
 
   it("marks Tonight current when the host page is Tonight", async () => {

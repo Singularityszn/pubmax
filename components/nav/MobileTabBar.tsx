@@ -3,7 +3,7 @@
 import type { Route as NextRoute } from "next";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Map, UserRound, Route, CalendarClock, Images } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Fragment, useCallback, useMemo, useSyncExternalStore, type CSSProperties } from "react";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import { useViewerSession } from "@/components/auth/useViewerSession";
@@ -17,6 +17,7 @@ import {
   type PrimaryNavKey,
 } from "@/components/nav/navigationModel";
 import { PalDockButton } from "@/components/nav/PalNavButton";
+import { navIcon } from "@/components/nav/navIcons";
 import NavPendingIndicator from "@/components/nav/NavPendingIndicator";
 import { socialSurfaceName } from "@/lib/socialLaunch";
 import { useSocialSurfaceName } from "@/lib/useSocialFriendsLaunch";
@@ -66,7 +67,7 @@ type Tab = {
   key: PrimaryNavKey;
   href: NextRoute;
   label: string;
-  Icon: typeof Map;
+  Icon: LucideIcon;
   /** The link's accessible name. The large text bucket hides the tab word
    *  (mobileNav.css), so the name must live on the link, not in that word. */
   ariaLabel: string;
@@ -95,13 +96,6 @@ export function buildTabs(
   socialLabel: string = socialSurfaceName(true),
   nowHref: "/today" | "/tonight" = "/tonight",
 ): Tab[] {
-  const icons = {
-    now: CalendarClock,
-    map: Map,
-    plan: Route,
-    social: Images,
-    you: UserRound,
-  };
   return PHONE_NAV_ITEMS
     .map((item) => ({
       ...item,
@@ -115,8 +109,8 @@ export function buildTabs(
             : item.key === "now"
               ? nowHref
               : item.href,
-      // PHONE_NAV_ITEMS never carries a desktop-only key (navigationModel.ts).
-      Icon: icons[item.key as keyof typeof icons],
+      // One icon per door, shared with the desktop SiteNav (navIcons.ts).
+      Icon: navIcon(item.key),
     }));
 }
 
