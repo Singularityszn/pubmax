@@ -156,9 +156,14 @@ it.each([1, null])("replaces the previous account's canonical stops even with ro
   const previous = memberState(["old-a", "old-b", "old-c"]);
   const next = memberState(["new-a", "new-b", "new-c"]);
   const withRevision = (state: ReturnType<typeof memberState>) => ({ ...state, plan: { ...state.plan, routeRevision: revision } });
-  vi.stubGlobal("fetch", vi.fn()
-    .mockResolvedValueOnce(Response.json(withRevision(previous)))
-    .mockResolvedValueOnce(Response.json(withRevision(next))));
+  // Only the member read takes the queued answers: the night panels under the
+  // summary (presentation, clues, table beacon) ask their own endpoints.
+  const memberReads = [withRevision(previous), withRevision(next)];
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (/^\/api\/plans\/[^/?]+$/.test(url)) return Response.json(memberReads.shift() ?? withRevision(next));
+    return Response.json({ error: "not_found" }, { status: 404 });
+  }));
   await renderSummary();
   expect(href()).toBe("/map?mode=build&pubs=old-a%2Cold-b%2Cold-c");
   await act(async () => setProviderIdentity("supabase", `same-revision-account-${revision}`));
