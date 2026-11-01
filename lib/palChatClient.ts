@@ -29,6 +29,12 @@ export const PAL_CHAT_TIMEOUT_MS = 25_000;
 type SessionOptions = {
   timeoutMs?: number;
   fetchImpl?: typeof fetch;
+  /**
+   * Called once, synchronously, when an ask starts and before its first await.
+   * It returns the fetch bound to the account that asked, so a switch during
+   * the preparation cannot lend the request another account's credentials.
+   */
+  bindFetch?: () => typeof fetch | undefined;
   initialTurns?: readonly AskTurn[];
   initialConversationId?: string;
   onConversationId?: (id: string) => void;
@@ -124,14 +130,20 @@ export function createPalChatSession(options: SessionOptions = {}) {
    * the answer text so far as it arrives ("" clears a checking line). The result
    * is the same either way, and a server that answers one JSON body still works.
    */
-  return async function ask(
+  let activeController: AbortController | null = null;
+  let retired = false;
+  const ask = async function ask(
     query: string,
     cityId: string,
     onText?: (text: string) => void,
   ): Promise<(PalChatResult & { routedQuery?: string }) | null> {
+    if (retired) return null;
     const requestId = ++currentId;
+    const requestFetch = options.bindFetch?.() ?? fetchImpl;
     try {
       const controller = new AbortController();
+      activeController?.abort();
+      activeController = controller;
       let timeoutId: ReturnType<typeof setTimeout>;
       const deadline = new Promise<never>((_resolve, reject) => {
         timeoutId = setTimeout(() => {
@@ -149,7 +161,7 @@ export function createPalChatSession(options: SessionOptions = {}) {
         const { refineRoutedAskQuery } = await withinDeadline(import("@/lib/ask/router"));
         const priorUsers = recent.filter((turn) => turn.role === "user").map((turn) => turn.content);
         routedQuery = refineRoutedAskQuery(query, priorUsers.at(-1), priorUsers);
-        response = await withinDeadline(fetchImpl("/api/pub-pal/chat", {
+        response = await withinDeadline(requestFetch("/api/pub-pal/chat", {
           method: "POST",
           headers: {
             "content-type": "application/json",
@@ -225,4 +237,17 @@ export function createPalChatSession(options: SessionOptions = {}) {
       };
     }
   };
+  /**
+   * Retire the session: the in-flight ask is aborted and answers null, and no
+   * later ask runs. The chat calls this when its account leaves, so a request
+   * prepared for one account can never go out or land after another arrives.
+   */
+  return Object.assign(ask, {
+    cancel(): void {
+      retired = true;
+      currentId += 1;
+      activeController?.abort();
+      activeController = null;
+    },
+  });
 }

@@ -33,7 +33,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import IntentLink from "@/components/nav/IntentLink";
 import SiteNav from "@/components/nav/SiteNav";
-import { captureAccountAuth } from "@/lib/accountBoundFetch";
+import { accountBoundFetch, captureAccountAuth } from "@/lib/accountBoundFetch";
 import { trackEvent } from "@/lib/analytics";
 import type { AskProposal, AskTurn } from "@/lib/ask/types";
 import { occupancyReceiptLine } from "@/lib/occupancy";
@@ -321,12 +321,23 @@ function PalChatBody({ owner }: { owner: string | null }) {
   const conversationRef = useRef({ id: "", at: 0 });
   const turnsRef = useRef<AskTurn[]>([]);
   const savedEntriesRef = useRef<Entry[] | null>(null);
+  // The chat is keyed by account (PalChat above), so this body only ever asks
+  // as `owner`. Each ask binds its request to this account's credentials
+  // before any await, and the session is retired when the body unmounts.
+  const authRef = useRef(auth);
+  useEffect(() => { authRef.current = auth; }, [auth]);
+  useEffect(() => () => { sessionRef.current?.cancel?.(); }, []);
   const createSession = useCallback((initial?: Pick<PalChatThread, "turns" | "conversationId">) => createPalChatSession({
+    bindFetch: () => {
+      if (!owner || owner === "anonymous") return undefined;
+      const snapshot = authRef.current?.userId === owner ? authRef.current : null;
+      return ((input, init) => accountBoundFetch(snapshot, input, init)) as typeof fetch;
+    },
     initialTurns: initial?.turns,
     initialConversationId: initial?.conversationId,
     onConversationId(id) { conversationRef.current = { id, at: Date.now() }; },
     onTurns(turns) { turnsRef.current = turns; },
-  }), []);
+  }), [owner]);
 
   useEffect(() => {
     if (!owner || pending || !entries.length || entries === savedEntriesRef.current) return;
@@ -696,19 +707,27 @@ function PalChatBody({ owner }: { owner: string | null }) {
   // fire under StrictMode re-mounts.
   const autoAskedRef = useRef(false);
   useEffect(() => {
-    if (!owner || autoAskedRef.current) return;
-    autoAskedRef.current = true;
+    // The one shot is spent only when the ask can run: ask() refuses until the
+    // thread history is ready, so spending it earlier dropped the linked
+    // question for good. It is marked inside the deferred callback, so a
+    // cleanup that clears the timer leaves the shot for the next run.
+    if (!owner || !threadReady || autoAskedRef.current) return;
     const preset = new URLSearchParams(window.location.search).get("ask");
     const text = preset?.trim() ?? "";
-    if (!text || text.length > 500) return;
+    if (!text || text.length > 500) {
+      autoAskedRef.current = true;
+      return;
+    }
     // Defer out of the effect body (React 19 idiom, as TonightClient's
     // settle()): ask() sets state, which must not run synchronously here.
     const timer = setTimeout(() => {
+      if (autoAskedRef.current) return;
+      autoAskedRef.current = true;
       if (priorAsksRef.current.at(-1) !== text) void ask(text);
     }, 0);
     return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- fire once after owner settlement
-  }, [owner]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fire once after owner and thread settlement
+  }, [owner, threadReady]);
 
   const empty = entries.length === 0 && !pending;
   const mappedAnswer = palChatMapAnswer(entries);
@@ -802,6 +821,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
         openingReadRef.current += 1;
         if (owner) clearPalChatThread(owner);
         mapAskRef.current += 1;
+        sessionRef.current?.cancel?.();
         sessionRef.current = null;
         priorAsksRef.current = [];
         conversationRef.current = { id: "", at: 0 };

@@ -616,6 +616,23 @@ body:has(.analyticsConsentPrompt) .palHomeCopy h1 { font-size: var(--text-xl); l
   .palPortrait[data-pal-state="error"] .palOriginalModelHost[data-model-state="ready"] { animation: palMascotError .32s steps(2, end) 3; }
 }
 
+/* Once the 3D model is ready the photograph is hidden, so the saved genome
+   (flip, zoom, focus and tilt) is held by the visible drawing frame instead
+   of an image nobody sees. The canvas keeps its own fit below. */
+.palPortrait[data-genome] .palOriginalModelHost[data-model-state="ready"] > .palOriginalModelFraming {
+  transform-origin: 50% 55%;
+  transform: translate(var(--genome-x, 0%), var(--genome-y, 0%)) scale(var(--genome-zoom, 1)) scaleX(var(--genome-flip, 1));
+  rotate: var(--genome-tilt, 0deg);
+}
+
+/* The GLB has no mouth to move, and the talking-mouth photograph is hidden
+   with the rest of the art, so a speaking model breathes with the voice level
+   (--pal-mouth, 0 under reduced motion) rather than standing mute. */
+.palPortrait[data-pal-state="speaking"] .palOriginalModelHost[data-model-state="ready"] > .palOriginalModelFraming,
+.palPortrait[data-pal-state="listening"] .palOriginalModelHost[data-model-state="ready"] > .palOriginalModelFraming {
+  scale: calc(1 + var(--pal-mouth, 0) * .035);
+}
+
 /* First match the original art's baseline composition. The outer drawing frame
    then applies the Pal's genome independently of this model normalization. */
 .palOriginalModelFraming { position: absolute; inset: 0; }

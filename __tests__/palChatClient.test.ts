@@ -455,3 +455,37 @@ describe("createPalChatSession", () => {
     });
   });
 });
+
+describe("an ask stays with the account that asked it (Codex review P1, #2389)", () => {
+  it("binds the request before any await, so a switch during preparation cannot lend the next account's credentials", async () => {
+    let account = "account-a";
+    const sentWith: string[] = [];
+    const ask = createPalChatSession({
+      bindFetch: () => {
+        const owner = account;
+        return (async () => {
+          sentWith.push(owner);
+          return jsonResponse({ ok: true, answer: "A sourced answer.", cards: [] });
+        }) as typeof fetch;
+      },
+    });
+    const pending = ask("Cheapest pint in Soho", "london");
+    account = "account-b"; // the switch lands while the turns and router load
+    await pending;
+    expect(sentWith).toEqual(["account-a"]);
+  });
+
+  it("a retired session answers null and sends nothing, in flight or later", async () => {
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      if (init?.signal?.aborted) throw new DOMException("Aborted", "AbortError");
+      return jsonResponse({ ok: true, answer: "Too late.", cards: [] });
+    }) as unknown as typeof fetch;
+    const ask = createPalChatSession({ fetchImpl });
+    const inFlight = ask("Cheapest pint in Soho", "london");
+    ask.cancel();
+    expect(await inFlight).toBeNull();
+    expect(await ask("Another question", "london")).toBeNull();
+    expect(vi.mocked(fetchImpl).mock.calls.length).toBeLessThanOrEqual(1);
+  });
+});
