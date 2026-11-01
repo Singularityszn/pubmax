@@ -72,7 +72,7 @@ The map is one 7,419 line client component (`components/PubMap.tsx`) declared ed
 
 | Surface | Works | Will draw this complaint |
 | --- | --- | --- |
-| `/social` signed out | A sign-in wall with handle search and a founders link. | PlanAstra 4 and 7.1 "London tonight lane, public" is still open and still the biggest social complaint: a stranger sees nothing. It is blocked on decision D2. |
+| `/social` signed out | A sign-in wall with handle search and a founders link. | PlanAstra 4 and 7.1 "London tonight lane, public" is still open and still the biggest social complaint: a stranger sees nothing. It is blocked on decision D2. **Decided by the captain on 1 November 2026** ([launch plan](LAUNCH_PLAN_2026-11-01.md), decision 7): a signed-out visitor reads a London lane, read-only. |
 | `/social` signed in | Following, Nearby (area select), Across town. Composer with visibility (default mutuals), venue, 1 to 5 score with a venue, hashtags, photo tags with consent, four photos with descriptions, or one reel. Cheers, comments, saves, reports. OpenAI moderation before anyone else sees it. Rankings panel, crews panel, starter packs, people directory. | Posts never appear on a profile; the profile "Moments" tab is the Pint Drop timeline. Hashtags render as spans and are not tappable. Feature-request posts never show their status or the staff reply. Repost and quote exist in the API with no button. The Pubs & pints tab ranks "UK cities" from demo seed counts and prints "Seeded only where we've got demo data" on the live site. |
 | Crews | Start a crew: name, start time, first pub, invite only or your lot can ask or anyone can ask. Join requests with accept and decline. Open crews listed on `/tonight` as "Open plans". | A crew page has no link to its own plan, no stop list and no chat. The host is told "Hand the crew to somebody else first" and there is no control for it; transfer, remove and close exist only as API routes. |
 | Messages | DMs, groups of 3 to 12, photo, pub card, contact card, plan card (paste a link), poll. Realtime with a safety poll. | Any claimed handle can DM any other: no mutual requirement, no adult check and no block check in `app/api/messages/**`. Blocking someone on Social does not stop their DMs. There is no push for a DM, a follow, a comment or a crew invite. The "Document" attachment is a photo picker. Plan cards are paste-only; there is no "my plans" picker. |
@@ -119,7 +119,7 @@ The map is one 7,419 line client component (`components/PubMap.tsx`) declared ed
 
 These are the sentences real users will type into the mailto. Each names the fix that pre-empts it. Items marked **hygiene** are small and should ship before launch. Items marked **decision** wait on the captain.
 
-1. **"Social is just a sign-in screen."** Public London-tonight lane on `/social` (PlanAstra 7.1). Decision D2.
+1. **"Social is just a sign-in screen."** Public London-tonight lane on `/social` (PlanAstra 7.1). Decision D2, decided on 1 November 2026 (launch plan decision 7).
 2. **"Nothing on tonight?"** See 3.3 and idea E4. Hygiene: when the store is empty, lead with pubs that have a quiz or sport flag and say "regular nights, not tonight's listing".
 3. **"The price is wrong / from October / the pub shut."** Hygiene: a "That's wrong" door on every price and on the hours line (idea D6). Ops: a dated weekly refresh.
 4. **"Why do I need a photo of my receipt?"** Decision: keep the rule (ADR 0010) and cut the friction with the bill reader (idea F3). Alternative decision: allow a priced write without a bill as "logged, unchecked" that never paints a pin.
@@ -306,7 +306,7 @@ After launch, in order: D5 and F5 (both need push identity), E3 host mode, B2 Ho
 
 ## 6. Things to decide before any of this
 
-1. **D2.** A public, readable London lane on `/social`. Everything in 4.3 and 4.5 is louder with it and still works without it.
+1. **D2.** A public, readable London lane on `/social`. Everything in 4.3 and 4.5 is louder with it and still works without it. **Decided by the captain on 1 November 2026** ([launch plan](LAUNCH_PLAN_2026-11-01.md), decision 7): signed-out visitors can read a London lane. It is read-only: posting, cheers, comments, saves, follows and DMs still need sign-in. The rule is in [`docs/rules/lib-identity-accounts-and-sessions.md`](../rules/lib-identity-accounts-and-sessions.md#a-stranger-reads-the-london-lane-and-nothing-in-it-describes-the-reader).
 2. **Age assurance route.** Route A or B from `docs/LEGAL_UNKNOWNS_2026-07-21.md`, recorded before DMs and the feed open to the public.
 3. **The receipt rule.** Keep (with the bill reader) or allow an unchecked write that never paints.
 4. **One invite.** Which link wins, and whether a WhatsApp guest is a collaborator.

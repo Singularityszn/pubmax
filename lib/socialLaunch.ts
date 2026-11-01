@@ -76,6 +76,10 @@ export function socialBoundaryCopy(
  * sits under the sign-in primary rather than in the Screen's lede, because at
  * 320x568 and 32px type a lede pushes that primary off the first screen
  * (e2e/consent-after-first-answer.spec.ts).
+ *
+ * Since captain decision 7 (1 Nov 2026) a stranger reads the London lane in
+ * this slot instead (`app/social/SocialLondonLane.tsx`), so this line shows
+ * only while that lane is paused by the launch rollback or the freeze.
  */
 export const SOCIAL_SIGNED_OUT_VALUE_LINE =
   "Nights your lot post land here, in the order they went up, with crews for a regular round. It is an invite beta for people 18 and over.";

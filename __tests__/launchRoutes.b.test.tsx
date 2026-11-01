@@ -119,13 +119,37 @@ describe("launch routes (group b) carry one primary action", () => {
     expect(rendered).toMatch(/class="screenSecondary"><a[^>]*href="\/map"[^>]*>Back to the map<\/a>/);
   });
 
-  it("/social carries one primary action", () => {
+  it("/social carries one primary action over the read-only London lane", () => {
+    // Captain decision 7 (1 Nov 2026): a stranger reads the London lane. Every
+    // action on it (post, cheer, comment) needs an account, so the door is still
+    // their first kept action and the page's one filled control.
     const rendered = renderToStaticMarkup(
       createElement(SocialPageClient, {
         initialState: { valid: true, tab: "posts", feed: "following", area: null },
         rivalry: [],
         heritageCrawls: [],
         friendsLaunchEnabled: true,
+        londonLaneOpen: true,
+      }),
+    );
+    expect(primaryCount(rendered)).toBe(1);
+    expect(rendered).toMatch(
+      /data-primary-action=""><a[^>]*href="\/login\?mode=signin&amp;from=%2Fsocial"[^>]*>Sign in<\/a>/,
+    );
+    expect(rendered).toContain('aria-labelledby="social-london-lane-title"');
+    expect(rendered).toContain(">Across London</h2>");
+    expect(rendered).not.toContain("Sign in to use Social.");
+    expect(rendered).not.toContain("socialButton");
+  });
+
+  it("/social carries one primary action over the sign-in wall while the lane is paused", () => {
+    const rendered = renderToStaticMarkup(
+      createElement(SocialPageClient, {
+        initialState: { valid: true, tab: "posts", feed: "following", area: null },
+        rivalry: [],
+        heritageCrawls: [],
+        friendsLaunchEnabled: true,
+        londonLaneOpen: false,
       }),
     );
     expect(primaryCount(rendered)).toBe(1);
@@ -134,6 +158,7 @@ describe("launch routes (group b) carry one primary action", () => {
     expect(rendered).toMatch(
       /data-primary-action=""><a[^>]*href="\/login\?mode=signin&amp;from=%2Fsocial"[^>]*>Sign in<\/a>/,
     );
+    expect(rendered).not.toContain("social-london-lane-title");
     expect(rendered).toContain('class="emptyStateTitle">Sign in to use Social.');
     expect(rendered).not.toMatch(
       /class="emptyStateAction"><a[^>]*href="\/login\?mode=signin&amp;from=%2Fsocial"[^>]*>Sign in<\/a>/,

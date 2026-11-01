@@ -289,6 +289,8 @@ const LAUNCH_SURFACES: ReadonlyArray<[string, () => string]> = [
           rivalry: [],
           heritageCrawls: [],
           friendsLaunchEnabled: true,
+          // A first visit meets the read-only London lane (captain decision 7).
+          londonLaneOpen: true,
         }),
       ),
   ],

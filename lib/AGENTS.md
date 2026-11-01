@@ -7,7 +7,7 @@ Long-form incident history, measured proof and review finding IDs live under [`d
 
 ## Identity, accounts and sessions
 
-Accounts, adult gate, direct-message safety, contribution identity, founding marks, referrals, starter packs, directory, add links, visibility.
+Accounts, adult gate, direct-message safety, contribution identity, founding marks, referrals, starter packs, directory, add links, visibility, the signed-out London lane.
 
 Full rules: [`docs/rules/lib-identity-accounts-and-sessions.md`](../docs/rules/lib-identity-accounts-and-sessions.md).
 

@@ -204,7 +204,9 @@ describe("/api/social/posts", () => {
     await expect(response.json()).resolves.toMatchObject({ code: "INVALID_IDEMPOTENCY_KEY" });
   });
 
-  it("requires verified Social access for every feed read", async () => {
+  // The signed-out London lane is the one exception, proved in
+  // __tests__/socialLondonLaneRoute.test.ts.
+  it("requires verified Social access for every signed-in lane read", async () => {
     state.access = {
       ok: false,
       status: 403,

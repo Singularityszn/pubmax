@@ -6,6 +6,7 @@ import { buildCityRivalrySnapshot } from "@/lib/cityRivalry";
 import { loadHeritageCrawls } from "@/lib/heritageCrawls";
 import { parseSocialShellSearch } from "@/lib/socialShell";
 import { socialDocumentRobots, socialSurfaceName } from "@/lib/socialLaunch";
+import { socialLondonLaneOpen } from "@/lib/socialLondonLane.server";
 import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 
 import SocialPageClient from "./SocialPageClient";
@@ -72,6 +73,8 @@ export default async function SocialPage({
   if (!state.valid) redirect("/social");
 
   const friendsLaunchEnabled = readTrustedHandoffFlag("socialFriendsLaunch");
+  // A stranger reads the London lane unless Social is rolled back or frozen.
+  const londonLaneOpen = socialLondonLaneOpen();
 
   const [rivalry, heritageCrawls] =
     friendsLaunchEnabled && state.tab === "discover"
@@ -84,6 +87,7 @@ export default async function SocialPage({
       rivalry={rivalry}
       heritageCrawls={heritageCrawls}
       friendsLaunchEnabled={friendsLaunchEnabled}
+      londonLaneOpen={londonLaneOpen}
     />
   );
 }
