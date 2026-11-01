@@ -3,7 +3,7 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
-import type { PlanStopDTO } from "@/lib/plan";
+import type { PlanState, PlanStopDTO } from "@/lib/plan";
 import type { PlanConstraint, PlanConstraintKind, PlanInvite, PlanRouteProposal, PlanVote } from "@/lib/planCollaborationStore";
 import { discardBody } from "@/lib/responseBody";
 import { publishPlanCollaborationChange, subscribePlanCollaborationChange, type PlanCollaborationChangeKind } from "@/lib/planContinuity";
@@ -11,6 +11,7 @@ import { trackEvent } from "@/lib/analytics";
 import { recordPlanHighIntentAction } from "@/lib/nativePushPrompt";
 import { formatInviteExpiry, invitePrivacyBlurb } from "@/lib/planInviteUi";
 import MatchGroupPrefs from "@/components/plan/MatchGroupPrefs";
+import SlidingDoors from "@/components/plan/SlidingDoors";
 
 type CollaborationState = {
   memberId: string;
@@ -28,6 +29,8 @@ type Props = {
   routeRevision: string | number | null;
   canPropose: boolean;
   onProposalCreated(): void;
+  planState?: PlanState;
+  ownerKey?: string;
 };
 
 const CONSTRAINT_KINDS: Array<{ value: PlanConstraintKind; label: string }> = [
@@ -43,7 +46,11 @@ function operationKey(): string {
   return typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-export default function PlanCollaborationPanel({ planId, memberToken, isHost, draftStops, routeRevision, canPropose, onProposalCreated }: Props) {
+export default function PlanCollaborationPanel(props: Props) {
+  return <PlanCollaborationContent key={`${props.planId}:${props.memberToken}:${props.ownerKey ?? "device"}`} {...props} />;
+}
+
+function PlanCollaborationContent({ planId, memberToken, isHost, draftStops, routeRevision, canPropose, onProposalCreated, planState, ownerKey }: Props) {
   const [state, setState] = useState<CollaborationState>({ memberId: "", invites: [], constraints: [], proposals: [], votes: [] });
   const [kind, setKind] = useState<PlanConstraintKind>("other");
   const [priority, setPriority] = useState<PlanConstraint["priority"]>("preference");
@@ -58,6 +65,8 @@ export default function PlanCollaborationPanel({ planId, memberToken, isHost, dr
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const refreshRequestRef = useRef<{ generation: number; controller: AbortController } | null>(null);
+  const proposalMutationInFlight = useRef(false);
+  const proposalMutationKeys = useRef(new Map<string, string>());
 
   const refresh = useCallback(async () => {
     if (!memberToken) return;
@@ -228,16 +237,23 @@ export default function PlanCollaborationPanel({ planId, memberToken, isHost, dr
   }
 
   async function mutateProposal(proposalId: string, operation: "approve" | "reject" | "accepted" | "rejected") {
+    if (proposalMutationInFlight.current) return;
+    proposalMutationInFlight.current = true;
+    const scope = `${proposalId}:${operation}`;
+    const key = proposalMutationKeys.current.get(scope) ?? operationKey();
+    proposalMutationKeys.current.set(scope, key);
     setPending(`${proposalId}:${operation}`); setError("");
     const decision = operation === "accepted" || operation === "rejected";
     try {
       const response = await fetch(`/api/plans/${planId}/proposals/${proposalId}/${decision ? "decision" : "votes"}`, {
         method: "POST",
-        headers: { "content-type": "application/json", authorization: `Bearer ${memberToken}`, "idempotency-key": operationKey() },
+        headers: { "content-type": "application/json", authorization: `Bearer ${memberToken}`, "idempotency-key": key },
         body: JSON.stringify(decision ? { decision: operation } : { value: operation }),
       });
       const body = await response.json();
       if (!response.ok) throw new Error(errorMessageFrom(body, decision ? "The route was not changed." : "Could not record your vote."));
+      proposalMutationKeys.current.delete(scope);
+      if (operation === "accepted") trackEvent("planned_night_action", { type: "swapped" });
       announce(decision ? "decision" : "vote");
       setStatus(decision ? `Proposal ${operation}.` : "Your vote is in.");
       await refresh();
@@ -249,7 +265,7 @@ export default function PlanCollaborationPanel({ planId, memberToken, isHost, dr
         window.location.reload();
       }
     } catch (caught) { setError(caught instanceof Error ? caught.message : decision ? "The route was not changed." : "Could not record your vote."); }
-    finally { setPending(""); }
+    finally { proposalMutationInFlight.current = false; setPending(""); }
   }
 
   const pendingProposals = state.proposals.filter((proposal) => proposal.status === "pending");
@@ -311,6 +327,8 @@ export default function PlanCollaborationPanel({ planId, memberToken, isHost, dr
           candidateStops={draftStops}
         />
       ) : null}
+
+      {planState && state.memberId ? <SlidingDoors planState={planState} memberToken={memberToken} ownerKey={ownerKey} onProposalCreated={() => { announce("proposal"); void refresh(); }} /> : null}
 
       <form className="planCollab__form" onSubmit={addConstraint}>
         <strong>Add a need</strong>

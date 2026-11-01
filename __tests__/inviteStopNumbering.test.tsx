@@ -1,5 +1,6 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { JSDOM } from "jsdom";
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 
@@ -25,8 +26,18 @@ function planCardNumbers(): Array<[string, number]> {
   const html = renderToStaticMarkup(
     createElement(PlanRoute, { planId: "plan-1", startTime: "2026-10-30T19:00:00.000Z", stops: sorted }),
   );
-  const markers = [...html.matchAll(/planSummary__marker">(\d+)<\/span>.*?<strong>([^<]+)<\/strong>/g)];
-  return markers.map((match) => [match[2]!, Number(match[1])]);
+  const dom = new JSDOM(html);
+  try {
+    const stops = [...dom.window.document.querySelectorAll("ol > li")];
+    return stops.map((stop, index) => {
+      const name = stop.querySelector("strong")?.textContent;
+      const number = stop.querySelector("span")?.textContent;
+      expect(name).toBeTruthy();
+      // The visible marker must agree with the accessible ordered-list number.
+      expect(number).toBe(String(index + 1));
+      return [name!, Number(number)];
+    });
+  } finally { dom.window.close(); }
 }
 
 describe("stop numbers on the invite and the plan card", () => {

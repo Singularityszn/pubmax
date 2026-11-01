@@ -7,6 +7,15 @@
 
 ---
 
+## V1 night features, 31 October 2026
+
+The V1 implementation extends the existing Plan and active-night views.
+The [README](../../README.md#features) owns usage instructions for Sliding Doors, Find our table, London Clue Hunt and Mystery Envelopes.
+The [Plan API reference](../API_CONTRACTS_THE_LOCAL.md#55-night-feature-contracts) owns their request and persistence contracts.
+The [proof record](../proof/v1-night-features/README.md) records local verification and its limits, including unverified physical-device acceptance.
+
+The later ideas remain deferred: Fork and rejoin, Pub Radio, The Morning After Gazette, and Rewalk My London.
+
 ## Honest answers first
 
 **Are you building something useful?** Yes, for a real pain: London drinkers pay £6–£8 for a pint with no honest, comparable, map-native record. The curated map, community corroboration model ([docs/adr/0010-community-price-trust.md](docs/adr/0010-community-price-trust.md)), plan→invite without an account, and Pint Index are useful. Usefulness is not the same as spontaneous signup or virality.
