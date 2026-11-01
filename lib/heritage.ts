@@ -391,9 +391,11 @@ export async function answerHeritage(input: {
   venueKind?: VenueKind;
   question: string;
   overlayVenueResolution?: HarvestOverlayVenueResolution;
+  /** Answer from the grounded facts alone, with no model call (a spent paid lane). */
+  skipModel?: boolean;
 }): Promise<HeritageResponse> {
   const venueNoun = venueKindNoun(input.venueKind);
-  const useLlm = Boolean(process.env.OPENROUTER_API_KEY);
+  const useLlm = !input.skipModel && Boolean(process.env.OPENROUTER_API_KEY);
   const venueResolution = input.overlayVenueResolution ?? (input.venueId
     ? await resolveHarvestOverlayVenue(input.venueId)
     : null);
