@@ -187,6 +187,7 @@ Useful scripts:
 | `npm run ci:isolated` | Collision-safe keyless `ci` in a unique temporary Next dist directory; restores Next-managed tracked files |
 | `npm test` | Vitest unit suite ([PostgreSQL suite inventory](scripts/rls/postgresSuites.mjs); those suites boot throwaway PostgreSQL 16 clusters, `PUBMAX_PG_MAX_CLUSTERS` caps concurrency, and `PUBMAX_RLS_NO_PG=1` skips them) |
 | `npm run test:chatgpt-map` | Installs the pinned local MCP package and runs its Node tests; included in `verify`. Separate browser proof is described in the [setup guide](scripts/chatgpt-map/README.md) |
+| `npm run test:landing-transport` | Checks font transport ordering with synthetic HTTP fixtures. Included in `verify`. Real-font browser checks remain in [the landing spec](e2e/aperture-splash.spec.ts). |
 | `npm run test:e2e` | Playwright browser suite, including UI and accessibility guards (builds, starts, drives Chromium) |
 | `node scripts/e2e/run-disposable-plan-browser.mjs` | Wine and cocktail persistence and forged-hint browser checks against disposable PostgreSQL/PostgREST. Requires local PostgreSQL 16, PostgREST, and Playwright Chromium. Builds an isolated production server, applies the [fixture's migration range](scripts/e2e/disposable-plan-db.mjs) only to its temporary database, and cleans up its server, database, and build directory. Results stay in `test-results/`. |
 | [Signed-in review harness](docs/testing/signed-in-review.md) | Seeded local authenticated browser review |
