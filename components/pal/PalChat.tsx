@@ -34,6 +34,7 @@ import { useViewerSession } from "@/components/auth/useViewerSession";
 import IntentLink from "@/components/nav/IntentLink";
 import SiteNav from "@/components/nav/SiteNav";
 import { captureAccountAuth } from "@/lib/accountBoundFetch";
+import { readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { trackEvent } from "@/lib/analytics";
 import type { AskProposal, AskTurn } from "@/lib/ask/types";
 import { occupancyReceiptLine } from "@/lib/occupancy";
@@ -72,7 +73,6 @@ import { PLAN_FIELD_LABEL } from "@/lib/planCopy";
 import { planPalRouteHandoffHref } from "@/lib/planOccasion";
 import { writePlanningIntent } from "@/lib/planningIntent";
 import { authedActionFetch } from "@/lib/authedFetch";
-import { readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { palChatResultFromBody } from "@/lib/palChatClient";
 import { palOpeningMessage } from "@/lib/palOpening";
 import { createPalChatSession, PAL_CHAT_TIMEOUT_MS } from "@/lib/palChatClient";
@@ -316,26 +316,16 @@ function PalChatBody({ owner }: { owner: string | null }) {
   const composerInput = useRef<HTMLInputElement | null>(null);
   const openingReadRef = useRef(0);
   const sessionRef = useRef<ReturnType<typeof createPalChatSession> | null>(null);
+  const sessionControllerRef = useRef<AbortController | null>(null);
+  const askRequestRef = useRef(0);
   const counterRef = useRef(0);
   // Every ask this thread has carried, oldest first. In-thread only.
   const priorAsksRef = useRef<string[]>([]);
   const conversationRef = useRef({ id: "", at: 0 });
   const turnsRef = useRef<AskTurn[]>([]);
   const savedEntriesRef = useRef<Entry[] | null>(null);
-  // The chat is keyed by account (PalChat above), so this body only ever asks
-  // as `owner`. Each ask holds the provider's account signal from the moment
-  // it starts: a sign-in, sign-out or switch before its request goes out
-  // stops it, and the request itself keeps the usual signed-in transport
-  // (readiness wait and token refresh), bound to that same account.
-  const retiredRef = useRef(false);
   const createSession = useCallback((initial?: Pick<PalChatThread, "turns" | "conversationId">) => createPalChatSession({
-    bindFetch: () => {
-      const accountSignal = readProviderAccountSignal();
-      return (async (input, init) => {
-        if (accountSignal.aborted) throw new DOMException("The account changed.", "AbortError");
-        return authedActionFetch(input, init ?? {}, { requiresIdentity: true });
-      }) as typeof fetch;
-    },
+    signal: (sessionControllerRef.current ??= new AbortController()).signal,
     initialTurns: initial?.turns,
     initialConversationId: initial?.conversationId,
     onConversationId(id) { conversationRef.current = { id, at: Date.now() }; },
@@ -465,17 +455,11 @@ function PalChatBody({ owner }: { owner: string | null }) {
   // "Take me there" and "where is The Lamb?" open that one pub when the chat
   // can name it, and otherwise reach the Pal, unless they ask for the map too.
   const mapAskRef = useRef(0);
-  // Leaving retires this body's asks: the session, any map lookup, and an ask
-  // still waiting for one, even before a session exists.
-  // Setup clears the flag again, so a development StrictMode replay
-  // (setup, cleanup, setup) leaves a live body that still answers.
-  useEffect(() => {
-    retiredRef.current = false;
-    return () => {
-      retiredRef.current = true;
-      mapAskRef.current += 1;
-      sessionRef.current?.cancel?.();
-    };
+  useEffect(() => () => {
+    askRequestRef.current += 1;
+    mapAskRef.current += 1;
+    sessionControllerRef.current?.abort();
+    sessionControllerRef.current = null;
   }, []);
   const entriesRef = useRef<Entry[]>([]);
   useEffect(() => {
@@ -484,11 +468,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
   const openMapFromAsk = useCallback(
     async (text: string): Promise<boolean> => {
       const request = ++mapAskRef.current;
-      // The account this map ask belongs to. The provider can publish a switch
-      // before React unmounts this body, so the signal is checked before the
-      // map opens, not only the generation.
       const accountSignal = readProviderAccountSignal();
-      const stale = () => request !== mapAskRef.current || accountSignal.aborted;
       const plan = readActivePlan();
       const intent = palVoiceMapIntent(text, isPlanActiveNow(plan, Date.now()));
       if (!intent) return false;
@@ -512,7 +492,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
           palLines: last.palLines,
           loadVenues: () => loadSlimVenuesForCity(DEFAULT_CITY_ID),
         });
-        if (stale()) return true;
+        if (request !== mapAskRef.current || accountSignal.aborted) return true;
         if (venue) {
           href = resolvePalVenueOpenTarget(venue.id, knownVenueIds).href;
           line = `Opening ${venue.name}`;
@@ -524,7 +504,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
       setQuery((current) => current.trim() === text ? "" : current);
       if (intent === "next-stop" && plan) {
         const body = await readPlanMemberProjection(plan.id);
-        if (stale()) return true;
+        if (request !== mapAskRef.current || accountSignal.aborted) return true;
         const next = palNextStop(palNightStopsFrom(body), plan.stopIndex);
         if (next) {
           href = next.href;
@@ -542,7 +522,6 @@ function PalChatBody({ owner }: { owner: string | null }) {
           recall: null,
         },
       ]);
-      if (stale()) return true;
       router.push(href as Route);
       return true;
     },
@@ -553,12 +532,11 @@ function PalChatBody({ owner }: { owner: string | null }) {
     async (raw: string, options: { preserveDraft?: boolean } = {}) => {
       const text = raw.trim();
       if (!text || pending || !owner || !threadReady) return;
-      // The account this question was asked as. A switch while the map lookup
-      // runs, or this body leaving, ends the question here.
+      const request = ++askRequestRef.current;
       const accountSignal = readProviderAccountSignal();
       openingReadRef.current += 1;
       if (await openMapFromAsk(text)) return;
-      if (retiredRef.current || accountSignal.aborted) return;
+      if (request !== askRequestRef.current || accountSignal.aborted) return;
       sessionRef.current ??= createSession();
       // Read the recall BEFORE this ask joins the transcript, so the Pal never
       // recalls the question it is answering.
@@ -570,9 +548,13 @@ function PalChatBody({ owner }: { owner: string | null }) {
       }
       setPending(true);
       trackEvent("concierge_ask");
-      const result = await sessionRef.current(text, DEFAULT_CITY_ID, setStreamText);
+      const result = await sessionRef.current(text, DEFAULT_CITY_ID, (text) => {
+        if (request === askRequestRef.current && !accountSignal.aborted) setStreamText(text);
+      });
+      if (request !== askRequestRef.current) return;
       setPending(false);
       setStreamText("");
+      if (accountSignal.aborted) return;
       if (result === null) return; // superseded by a newer ask — do nothing
       if (result.status === "error") {
         setEntries((prev) => [
@@ -732,17 +714,13 @@ function PalChatBody({ owner }: { owner: string | null }) {
   // fire under StrictMode re-mounts.
   const autoAskedRef = useRef(false);
   useEffect(() => {
-    // The one shot is spent only when the ask can run: ask() refuses until the
-    // thread history is ready, so spending it earlier dropped the linked
-    // question for good. It is marked inside the deferred callback, so a
-    // cleanup that clears the timer leaves the shot for the next run.
+    // The one shot is spent inside the deferred callback, so a cleanup that
+    // clears the timer (a development StrictMode replay) leaves it for the
+    // next run instead of dropping the linked question.
     if (!owner || !threadReady || autoAskedRef.current) return;
     const preset = new URLSearchParams(window.location.search).get("ask");
     const text = preset?.trim() ?? "";
-    if (!text || text.length > 500) {
-      autoAskedRef.current = true;
-      return;
-    }
+    if (!text || text.length > 500) return;
     // Defer out of the effect body (React 19 idiom, as TonightClient's
     // settle()): ask() sets state, which must not run synchronously here.
     const timer = setTimeout(() => {
@@ -751,7 +729,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
       if (priorAsksRef.current.at(-1) !== text) void ask(text);
     }, 0);
     return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- fire once after owner and thread settlement
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fire once after owner and history settlement
   }, [owner, threadReady]);
 
   const empty = entries.length === 0 && !pending;
@@ -846,7 +824,9 @@ function PalChatBody({ owner }: { owner: string | null }) {
         openingReadRef.current += 1;
         if (owner) clearPalChatThread(owner);
         mapAskRef.current += 1;
-        sessionRef.current?.cancel?.();
+        askRequestRef.current += 1;
+        sessionControllerRef.current?.abort();
+        sessionControllerRef.current = null;
         sessionRef.current = null;
         priorAsksRef.current = [];
         conversationRef.current = { id: "", at: 0 };

@@ -3,6 +3,7 @@ import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 import { expectMapLoadingFrameReleased } from "./helpers/mobileMapShell";
 import { expectMapToolbarReady } from "./helpers/mapToolbar";
 import { expectLayoutSettled } from "./helpers/layoutSettled";
+import { openOverviewFold } from "./helpers/overviewFolds";
 import { expect, test } from "@playwright/test";
 import sharp from "sharp";
 import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
@@ -458,6 +459,7 @@ const SOHO_FOUR_ORDER = "venue-nyowgc,venue-xiesdn,venue-15i2wst,venue-phqazo";
 const SOHO_VIEWPORTS = [
   { name: "desktop", width: 1440, height: 900 },
   { name: "portrait", width: 390, height: 844 },
+  { name: "compact-phone", width: 320, height: 568 },
   { name: "landscape", width: 844, height: 390 },
 ] as const;
 
@@ -617,6 +619,21 @@ for (const { theme, motion } of [
         expect(point.y).toBeGreaterThanOrEqual(geometry!.canvas.top + 22);
         expect(point.y).toBeLessThanOrEqual(geometry!.canvas.bottom - 22);
       }
+      if (viewport.name === "compact-phone") {
+        const lion = geometry!.points.find((point) => point.id === "venue-15i2wst")!;
+        // This fixture's displayed name needs a 140px lane left of its disc.
+        // Check the name's full height, not only the numbered stop's hit area.
+        const nameClear = await page.evaluate(({ x, y }) => {
+          const canvas = document.querySelector(".mapCanvasWrap .maplibregl-canvas");
+          for (let dx = -140; dx <= -24; dx += 2) {
+            for (let dy = -10; dy <= 10; dy += 2) {
+              if (document.elementFromPoint(x + dx, y + dy) !== canvas) return false;
+            }
+          }
+          return true;
+        }, lion);
+        expect(nameClear, "Golden Lion's displayed name clears the left map controls").toBe(true);
+      }
       for (let first = 0; first < geometry!.points.length; first += 1) {
         for (const other of geometry!.points.slice(first + 1)) {
           const point = geometry!.points[first]!;
@@ -702,6 +719,7 @@ for (const { theme, motion } of [
           throw error;
         }
         await expect.poll(() => new URL(page.url()).searchParams.get("sel")).toBe(pub.id);
+        await openOverviewFold(page.locator(".venueInspector:visible"), "pub");
         const address = page.locator(".venueAddress:visible");
         await expect(address).toHaveCount(1);
         await expect(address).toHaveText(pub.address);

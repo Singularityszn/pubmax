@@ -21,6 +21,13 @@ const DESKTOP_BOTTOM_INSET = 110;
 const PHONE_ROUTE_PADDING = { top: 160, right: 28, bottom: 200, left: 28 };
 const MIN_ROUTE_CONTENT_PX = 48;
 
+function desktopStatusSize(style: CSSStyleDeclaration | null) {
+  return {
+    gap: Number.parseFloat(style?.getPropertyValue("--city-status-desktop-gap") ?? "") || 82,
+    height: Number.parseFloat(style?.getPropertyValue("--city-status-desktop-height") ?? "") || 58,
+  };
+}
+
 function routeFitPadding(
   map: maplibregl.Map,
   isPhone: boolean,
@@ -32,8 +39,7 @@ function routeFitPadding(
   const toolbar = isPhone ? null : document.querySelector(".mapToolbar");
   const toolbarBounds = toolbar?.getBoundingClientRect();
   const chromeStyle = toolbar ? getComputedStyle(toolbar) : null;
-  const statusGap = Number.parseFloat(chromeStyle?.getPropertyValue("--city-status-desktop-gap") ?? "") || 82;
-  const statusHeight = Number.parseFloat(chromeStyle?.getPropertyValue("--city-status-desktop-height") ?? "") || 58;
+  const { gap: statusGap, height: statusHeight } = desktopStatusSize(chromeStyle);
   // Reserve the banner below the actual toolbar, including its lower tablet
   // position, before transport data arrives. Clear taller visible content too.
   const reservedBottom = toolbarBounds?.height
@@ -47,8 +53,21 @@ function routeFitPadding(
   const recoveryBounds = isPhone
     ? document.querySelector(".mapRecenterBtn")?.getBoundingClientRect()
     : null;
+  const utilityBounds = isPhone
+    ? document.querySelector(".mobileMapUtilityCorner")?.getBoundingClientRect()
+    : null;
+  const attributionBounds = isPhone
+    ? container.querySelector(".maplibregl-ctrl-attrib")?.getBoundingClientRect()
+    : null;
   const padding = isPhone
-    ? { ...PHONE_ROUTE_PADDING, top: Math.max(PHONE_ROUTE_PADDING.top,
+    ? { ...PHONE_ROUTE_PADDING,
+        // Names extend beyond their discs. Keep them above the credit control.
+        bottom: Math.max(PHONE_ROUTE_PADDING.bottom, attributionBounds?.height
+          ? container.getBoundingClientRect().bottom - attributionBounds.top + 8 : 0),
+        // Keep the full numbered disc clear of Near me and transport controls.
+        right: Math.max(PHONE_ROUTE_PADDING.right, utilityBounds?.width
+          ? container.getBoundingClientRect().right - utilityBounds.left + 24 : 0),
+        top: Math.max(PHONE_ROUTE_PADDING.top,
         measureTopChromeBottom(containerTop, PHONE_ROUTE_PADDING.top),
         recoveryBounds?.height ? recoveryBounds.bottom - containerTop + 16 : 0) }
     : { top: desktopTop, right: 72, bottom: desktopBottom, left: 72 };
@@ -226,10 +245,8 @@ type CameraRefs = {
   gestureCameraRef: MutableRefObject<GestureCameraState>;
 };
 
-// The four camera helpers, extracted verbatim from PubMapCanvas. Each reads live
-// refs and keeps EMPTY dep arrays — that is intentional and load-bearing: the
-// helpers must always act on the latest map/route/venues without being recreated
-// (recreating them would re-fire the arrival/refit effects that consume them).
+// Camera helpers read live refs and keep stable callback identities. Recreating
+// them for each route or venue array would repeat the arrival and refit effects.
 export function useMapCamera(refs: CameraRefs) {
   const {
     mapRef,

@@ -275,6 +275,34 @@ test.describe("a blocked map library keeps the pubs reachable", () => {
     await shot(page, "after-library-blocked-log-390");
   });
 
+  test("a silent chunk times out within thirty seconds and Retry recovers the map", async ({ page, mapLibraryChunk }) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize(DESKTOP);
+    await quietFirstRun(page);
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    let requests = 0;
+    await page.route(mapLibraryChunk, async (route) => {
+      requests += 1;
+      await held;
+      await route.continue();
+    });
+    try {
+      await page.goto("/map", { waitUntil: "domcontentloaded" });
+      await expect.poll(() => requests).toBeGreaterThan(0);
+      await expect(page.locator('[data-map-canvas="unavailable-timeout"]')).toBeVisible({ timeout: 30_000 });
+      await expect(fallback(page)).toContainText("Map didn't finish loading");
+      await expect(page.locator(".mapLoading")).toHaveCount(0);
+      await expect(spilled(page)).toHaveCount(0);
+      release();
+      await fallback(page).getByRole("button", { name: "Retry", exact: true }).click();
+      await expect(page.locator(".maplibreMap")).toBeVisible({ timeout: 45_000 });
+      await expect(page.locator('[data-map-canvas="unavailable-timeout"]')).toHaveCount(0);
+    } finally {
+      release();
+    }
+  });
+
   test("Retry re-asks for the chunk rather than replaying the rejection", async ({
     page,
     mapLibraryChunk,

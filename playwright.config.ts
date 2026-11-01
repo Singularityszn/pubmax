@@ -241,6 +241,7 @@ export default defineConfig({
         "**/map-opening-preview.spec.ts",
         "**/map-arrival.spec.ts",
         "**/map-arrival-turn.spec.ts",
+        "**/tablet-map-control-clearance.spec.ts",
         "**/map-you-are-here.spec.ts",
         "**/map-arrival-card-pins.spec.ts",
         "**/map-desktop-arrival-chrome.spec.ts",
@@ -378,6 +379,7 @@ export default defineConfig({
         // read a real camera and a real painted-pin probe.
         "**/map-arrival.spec.ts",
         "**/map-arrival-turn.spec.ts",
+        "**/tablet-map-control-clearance.spec.ts",
         "**/map-arrival-card-pins.spec.ts",
         // The reader's own dot: a real GeoJSON source on a real scene, and a
         // real camera to hold still while the dot moves.

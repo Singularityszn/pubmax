@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
-import { canvas, capture, evidence, fixture, portrait, ready } from "./helpers/originalMeshAcceptance";
+import { palGenomeFor } from "../lib/palGenome";
+import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
+import { canvas, capture, evidence, fixture, portrait, ready, ROBIN } from "./helpers/originalMeshAcceptance";
 
 test("the owned original Robin paints and responds to arrows and Home", async ({ page }, testInfo) => {
   test.setTimeout(60_000);
@@ -11,6 +13,18 @@ test("the owned original Robin paints and responds to arrows and Home", async ({
   await evidence(page, testInfo, seen, fx, async () => {
     await page.goto("/pal");
     await ready(page, seen);
+    const genome = palGenomeFor(ROBIN.id, DEFAULT_PAL_DRAFT.personality);
+    const framing = await portrait(page).locator(".palOriginalModelFraming").evaluate((element) => {
+      const style = getComputedStyle(element);
+      const matrix = new DOMMatrix(style.transform);
+      return { a: matrix.a, d: matrix.d, x: matrix.e, y: matrix.f, tilt: style.rotate,
+        width: parseFloat(style.width), height: parseFloat(style.height) };
+    });
+    expect(framing.a).toBeCloseTo(genome.flip * genome.zoom, 4);
+    expect(framing.d).toBeCloseTo(genome.zoom, 4);
+    expect(framing.x).toBeCloseTo(genome.focusX * framing.width / 100, 2);
+    expect(framing.y).toBeCloseTo(genome.focusY * framing.height / 100, 2);
+    expect(framing.tilt).toBe(`${genome.tilt}deg`);
     const model = portrait(page).getByRole("img", { name: /Robin in 3D/ });
     await expect(model).toBeVisible();
     const picture = canvas(page);

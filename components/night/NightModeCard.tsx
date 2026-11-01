@@ -1183,6 +1183,36 @@ function NightModeSheet({
     );
   }
 
+  function renderAwakeControls() {
+    return wakeLock.supported ? (
+      <>
+        <button
+          type="button"
+          className="nightCard__awake"
+          role="switch"
+          aria-checked={keepAwake}
+          onClick={() => setKeepAwake((value) => !value)}
+        >
+          <span className="nightCard__awakeLabel">
+            <MonitorSmartphone size={16} aria-hidden="true" />
+            Keep screen awake
+          </span>
+          <span
+            className="nightCard__awakeState"
+            data-on={keepAwake ? "" : undefined}
+          >
+            {keepAwake ? "On" : "Off"}
+          </span>
+        </button>
+        {wakeLock.error ? (
+          <p className="nightCard__endingStatus" role="status">
+            {wakeLock.error}
+          </p>
+        ) : null}
+      </>
+    ) : null;
+  }
+
   return (
     <section
       className="nightCard"
@@ -1299,33 +1329,7 @@ function NightModeSheet({
       <SafeNightStrip planId={id} />
       <CrawlBingoCard planId={id} plan={plan} stopIndex={cursor} lastTrainVenueId={lastTrainLeaveBy ? (currentStop?.venueId ?? null) : null} />
 
-      {wakeLock.supported ? (
-        <>
-          <button
-            type="button"
-            className="nightCard__awake"
-            role="switch"
-            aria-checked={keepAwake}
-            onClick={() => setKeepAwake((value) => !value)}
-          >
-            <span className="nightCard__awakeLabel">
-              <MonitorSmartphone size={16} aria-hidden="true" />
-              Keep screen awake
-            </span>
-            <span
-              className="nightCard__awakeState"
-              data-on={keepAwake ? "" : undefined}
-            >
-              {keepAwake ? "On" : "Off"}
-            </span>
-          </button>
-          {wakeLock.error ? (
-            <p className="nightCard__endingStatus" role="status">
-              {wakeLock.error}
-            </p>
-          ) : null}
-        </>
-      ) : null}
+      {renderAwakeControls()}
 
       {arrived.length > 0 ? (
         <div className="nightCard__crew">
