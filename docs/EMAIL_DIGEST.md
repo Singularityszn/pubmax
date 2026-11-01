@@ -9,9 +9,9 @@ and per-user opt-in exist.
 
 | Concern | File | Notes |
 | --- | --- | --- |
-| Delivery provider | `lib/emailProvider.ts` | `EmailProvider.send(messages)`; `noopEmailProvider` (active until keys) / `resendEmailProvider` (stub). `selectEmailProvider()` picks by env — same shape as `lib/pushProvider.ts` and `lib/storeBackend.ts`. `isResendConfigured` and the digest script's send gate both read `lib/emailProviderConfigured.mjs`. |
+| Delivery provider | `lib/emailProvider.ts` | `EmailProvider.send(messages)`; `noopEmailProvider` (active until keys) / `resendEmailProvider` (the Resend HTTP sender). `selectEmailProvider()` picks by env — same shape as `lib/pushProvider.ts` and `lib/storeBackend.ts`. `isResendConfigured` and the digest script's send gate both read `lib/emailProviderConfigured.mjs`. |
 | Content generator + render | `lib/weeklyDigest.ts` | Pure + unit-tested. `generateWeeklyDigest(input)` → structured digest; `renderWeeklyDigestHtml` / `renderWeeklyDigestText`; `resolveDigestRecipients` (opt-in gate). Imports no store/env/fs. |
-| Trigger | `scripts/send_weekly_digest.mjs` + `.github/workflows/weekly-digest.yml` | Batch orchestration + safety gates. Cron is commented out until keys land; manual dispatch exercises the safe no-op. |
+| Trigger | `scripts/send_weekly_digest.mjs` + `.github/workflows/weekly-digest.yml` | Batch orchestration + safety gates. The Monday cron stays commented out: keys alone do not turn it on, and sending to people is the captain's call. Manual dispatch exercises the safe no-op. |
 
 The generator is deliberately decoupled from the app's large `Venue` type: the
 script normalises real datasets into small `Digest*` input records (prices in
@@ -27,10 +27,19 @@ domain. Set:
 - `EMAIL_FROM` — a **verified** sender, e.g. `hello@pubmaxxing.com` (already on
   the owner queue).
 
-The real transport is a later drop-in inside `resendEmailProvider.send` (shape
-fully specified in `lib/emailProvider.ts`): per-message POST with
-`Authorization: Bearer <key>` and `{ from, to, subject, html, text }`, mapping
-`200 → sent`, invalid-recipient `4xx → invalid`, `429/5xx → error`.
+`resendEmailProvider.send` is the transport, and `lib/emailProvider.ts` holds
+its full contract. It sends one POST to `https://api.resend.com/emails` for each
+message, one after another, with `Authorization: Bearer <key>`, a 10 second
+deadline, and an `Idempotency-Key` header when the message carries
+`idempotencyKey`. The body is `{ from, to, subject, html, text }` plus
+`reply_to` and `headers` when the message carries them. A 2xx answer is
+`sent` with the Resend id. A 400 or 422 `validation_error` on the `to` field,
+or an address that fails `lib/emailAddress.ts`, is `invalid`. Every other
+answer, a timeout and a network failure are `error`, because a refusal about
+our key, our sender domain or our quota must never suppress a good address.
+With no keys it answers every message `skipped`, exactly as the no-op does.
+The logs carry a masked recipient and never the key. Pins:
+`__tests__/emailProvider.test.ts`.
 
 **Alternative: Postmark.** Same seam — only `isResendConfigured` /
 `resendEmailProvider` swap for Postmark equivalents: `POST
