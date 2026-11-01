@@ -57,6 +57,7 @@ THE LOCAL follows the existing plans pattern: **value before sign-in.** There is
 - **Member-scoped writes** (`PATCH /api/plans/:id`, `POST /api/plans/:id/actions`, `POST /api/plans/:id/complete`, `POST /api/plans/:id/presence`): require the caller to present their member token, proving they belong to the crew.
   - Canonical transport: `Authorization: Bearer <memberToken>` header. Body field `memberToken` is accepted as a migration fallback. Helper: `lib/planMemberCapability.ts` (`planMemberCapability(request, body.memberToken)`). IMPLEMENTED LOCALLY.
   - `POST /api/plans/:id/actions` accepts the Bearer header and retains `body.memberToken` only as a migration fallback.
+- **Save a private recap** (`POST /api/plans/:id/recap`): the bearer authenticates the account. The request must also carry the Plan member token in its member cookie or body field `memberToken`. This route never uses the bearer as the Plan member token. The saved Memory belongs to the authenticated account. See [`planRecapPromote.server.ts`](../lib/planRecapPromote.server.ts) for completion matching and replay handling.
 - **Authenticated profile** (`/api/me/night-profile`): verified Supabase Auth bearer session; the caller id is server-derived and never accepted from body/query.
 
 The member token is never logged or serialised back after the initial mint (`planMemberCapability` comment; `planStore` stores `token_hash` only).
