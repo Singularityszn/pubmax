@@ -204,6 +204,12 @@ body:has(.palExperience) {
 .palPortrait .palPortraitCore:has(> .palPortraitMascot) { background: var(--ink-deep); }
 .palPortraitCore > .palPortraitMascot { scale: 1.1; }
 .palPortraitMascot img { width: 100%; height: 100%; object-fit: cover; }
+
+/* The talking frame (PubPalMascotMouth): the same photograph with the mouth
+   open, laid exactly over the still and shown as much as the head loop's
+   --pal-mouth says. Under reduced motion the loop never runs, so it stays 0. */
+.palMascotMouth { position: absolute; inset: 0; pointer-events: none; opacity: var(--pal-mouth, 0); }
+.palMascotMouth img { width: 100%; height: 100%; display: block; object-fit: cover; }
 .palPortraitAccessory { position: absolute; z-index: 3; bottom: 22%; left: 50%; transform: translateX(-50%); padding: .35rem .65rem; border: 1px solid color-mix(in srgb, var(--signal) 40%, transparent); border-radius: 2rem; background: color-mix(in srgb, var(--ink-deep) 82%, transparent); color: color-mix(in srgb, var(--signal) 70%, white); font: 650 .59rem/1 var(--font-body); letter-spacing: .08em; text-transform: uppercase; }
 
 
@@ -374,7 +380,7 @@ body:has(.palExperience) {
 /* The Pal's live head in the panel (PalVoiceFace): phone width only, where
    the big portrait has scrolled away. It turns on the same CSS properties as
    the big head, scaled down so a 56px face does not lunge at the reader. */
-.palVoiceFace { display: none; flex: none; width: 3.5rem; height: 3.5rem; }
+.palVoiceFace { display: none; position: relative; flex: none; width: 3.5rem; height: 3.5rem; }
 .palVoiceFaceImg { width: 100%; height: 100%; display: block; border-radius: 50%; overflow: hidden; }
 .palVoiceFace[data-head-3d="live"] { perspective: 14rem; }
 .palVoiceFace[data-head-3d="live"] .palVoiceFaceImg {

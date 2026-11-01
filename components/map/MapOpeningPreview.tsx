@@ -1,21 +1,23 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 import { donutFigureFontSize, DONUT_OUTER_RADIUS_LARGE } from "@/lib/donutClusterGeometry";
 import {
+  frameCameraMatchesPreview,
   frameMatchesPreview,
   MAP_OPENING_FRAME_EVENT,
   MAP_OPENING_PREVIEW_CAMERA,
   MAP_OPENING_PREVIEW_DONE_MARK,
   MAP_OPENING_PREVIEW_RETRACT_EVENT,
+  MAP_OPENING_PREVIEW_TURN_EVENT,
   readPublishedOpeningFrame,
   type MapOpeningFrame,
 } from "@/lib/mapOpeningPreview";
 import type { OpeningPreviewDisc } from "@/lib/mapOpeningPreviewDiscs";
-import type { OpeningGround } from "@/lib/mapOpeningSnapshot";
-import { PINS_VISIBLE_EVENT } from "@/lib/performanceMarks";
+import { largestCoveredTurn, type OpeningGround } from "@/lib/mapOpeningSnapshot";
+import { BASEMAP_DRAWN_EVENT, PINS_VISIBLE_EVENT } from "@/lib/performanceMarks";
 
 import "./mapOpeningPreview.css";
 
@@ -39,6 +41,8 @@ import "./mapOpeningPreview.css";
 // waits for the loading frame to lift: the canvas is covered until then, and
 // standing down at the reveal itself put the loading frame back on screen for
 // the 1.2 to 1.9 s the reveal took to unmount it (measured, 390x844, 4x CPU).
+// It also waits for the streets in view to be drawn, or the pins stood on bare
+// paper while the street tiles were still arriving.
 //
 // The disc is the canvas's: neutral paper, a plain ring, "from" over the
 // cheapest figure in that figure's own band ink (components/map/canvas/
@@ -55,8 +59,15 @@ const FIGURE_INKS = [
 
 /** The map's own loading frame (MapLoadingFrame), over the canvas until the reveal unmounts it. */
 const MAP_LOADING_FRAME_SELECTOR = ".mapLoading";
-/** The longest the preview waits, after the reveal, for that frame to lift. */
-const LOADING_FRAME_LIFT_CEILING_MS = 3000;
+/** The longest the preview waits, after the reveal, for the streets to be drawn. */
+const MAP_SHOWS_CEILING_MS = 3000;
+/**
+ * The longest it waits, after the reveal, for anything. The loading frame is
+ * the shell's to lift and the shell bounds that itself
+ * (MAP_CANVAS_READINESS_CEILING_MS), so this only stops a preview outliving a
+ * frame that somehow never goes.
+ */
+const MAP_SHOWS_BACKSTOP_MS = 10_000;
 
 function standDown(): void {
   const root = document.documentElement;
@@ -70,33 +81,77 @@ function standDown(): void {
 }
 
 /**
- * After the reveal, stand down in the frame the loading frame lifts off the
- * canvas, so the reader goes from the preview straight to the engine's own
- * frame. Returns the cleanup.
+ * After the reveal, stand down in the frame the map is there to be seen: the
+ * loading frame has lifted off the canvas AND the streets in view are drawn
+ * (BASEMAP_DRAWN_EVENT). Standing down on the lift alone showed the engine's
+ * pins on bare paper while its street tiles were still arriving, a blank
+ * frame between the picture and the map.
+ *
+ * The streets have a ceiling, for a map whose tiles fail: after
+ * MAP_SHOWS_CEILING_MS the lift alone will do. The lift has none of its own,
+ * because standing down while the loading frame is still up shows that frame
+ * on bare paper, which is never better than the picture: a busy phone took
+ * 3.1 to 3.6 s to lift it after the reveal and showed exactly that.
+ * MAP_SHOWS_BACKSTOP_MS is the last word.
+ *
+ * The streets wait is only for a picture that still shows the prices. When
+ * the discs have gone (data-map-preview-discs), the picture held the streets
+ * without a price for 2.5 to 3.5 s while the map's own pins waited under it
+ * (every cold run, 390x844), so it stands down when the frame lifts.
+ * Returns the cleanup.
  */
 function standDownWhenTheMapShows(): () => void {
-  if (!document.querySelector(MAP_LOADING_FRAME_SELECTOR)) {
+  const frameLifted = () => !document.querySelector(MAP_LOADING_FRAME_SELECTOR);
+  // A picture whose prices have gone holds streets and nothing else, and the
+  // map has its prices ready: it waits for no street tile.
+  const streetsDrawn = () =>
+    document.documentElement.dataset.mapPreviewDiscs === "off" ||
+    performance.getEntriesByName(BASEMAP_DRAWN_EVENT).length > 0;
+  if (frameLifted() && streetsDrawn()) {
     standDown();
     return () => {};
   }
-  let timer = 0;
-  // A mutation callback runs before the next paint, so the frame that drops
-  // the loading frame is the frame that drops the preview.
-  const observer = new MutationObserver(() => {
-    if (!document.querySelector(MAP_LOADING_FRAME_SELECTOR)) finish();
-  });
-  const finish = () => {
+  let streetsWaived = false;
+  let ceiling = 0;
+  let backstop = 0;
+  // A mutation callback runs before the next paint, and the streets mark is
+  // set inside the engine's own render, so either way the frame that shows
+  // the map is the frame that drops the preview.
+  const check = () => {
+    if (frameLifted() && (streetsDrawn() || streetsWaived)) finish();
+  };
+  const observer = new MutationObserver(check);
+  const stop = () => {
     observer.disconnect();
-    window.clearTimeout(timer);
+    window.removeEventListener(BASEMAP_DRAWN_EVENT, check);
+    window.clearTimeout(ceiling);
+    window.clearTimeout(backstop);
+  };
+  const finish = () => {
+    stop();
     standDown();
   };
   observer.observe(document.body, { childList: true, subtree: true });
-  timer = window.setTimeout(finish, LOADING_FRAME_LIFT_CEILING_MS);
-  return () => {
-    observer.disconnect();
-    window.clearTimeout(timer);
-  };
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-map-preview-discs"] });
+  window.addEventListener(BASEMAP_DRAWN_EVENT, check);
+  ceiling = window.setTimeout(() => {
+    streetsWaived = true;
+    check();
+  }, MAP_SHOWS_CEILING_MS);
+  backstop = window.setTimeout(finish, MAP_SHOWS_BACKSTOP_MS);
+  return stop;
 }
+
+/**
+ * How many previews are mounted. The document's preview belongs to the cold
+ * first load only, so leaving /map before the handoff stands it down: on a
+ * return through the app's own navigation the root still says "on", and the
+ * marks the first map left (`pubmax:pins-visible`, and the streets mark the
+ * canvas clears for each new map) would hand over a frame no map has drawn.
+ * Counted rather than flagged so React's development double mount, which
+ * unmounts and mounts again in the same turn, is not a departure.
+ */
+let mountedPreviews = 0;
 
 export default function MapOpeningPreview({
   discs,
@@ -105,6 +160,19 @@ export default function MapOpeningPreview({
   discs: readonly OpeningPreviewDisc[];
   ground?: OpeningGround | null;
 }) {
+  const groundRef = useRef<HTMLDivElement>(null);
+  const discsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    mountedPreviews += 1;
+    return () => {
+      mountedPreviews -= 1;
+      window.setTimeout(() => {
+        if (mountedPreviews === 0) standDown();
+      }, 0);
+    };
+  }, []);
+
   useEffect(() => {
     if (document.documentElement.dataset.mapPreview !== "on") return;
     // The map may already have revealed, or published, before this hydrated.
@@ -116,20 +184,62 @@ export default function MapOpeningPreview({
       stopWaiting ??= standDownWhenTheMapShows();
     };
     const check = (frame: MapOpeningFrame | null) => {
-      if (frame && !frameMatchesPreview(frame, discs)) standDown();
+      if (!frame || frameMatchesPreview(frame, discs)) return;
+      // The map will draw other prices from the same camera (a fuller venue
+      // index has landed): the discs go, but the picture under them is still
+      // the ground the map draws, so it stays until the map shows. Leaving it
+      // put the loading frame back on bare paper until the reveal.
+      if (
+        ground &&
+        document.documentElement.dataset.mapGround === "on" &&
+        frameCameraMatchesPreview(frame)
+      ) {
+        document.documentElement.dataset.mapPreviewDiscs = "off";
+        return;
+      }
+      standDown();
     };
     check(readPublishedOpeningFrame());
     const onFrame = (event: Event) => check((event as CustomEvent<MapOpeningFrame>).detail ?? null);
+    // The arrival turn: the picture and the discs turn with the camera, so the
+    // ground stays under the reader instead of the loading paper. The picture
+    // is drawn for a north-up screen, so on a screen whose turned corners
+    // would see past its edge (the largest phones) it turns only as far as it
+    // still covers, and the map's own frame takes the last degree or two at
+    // the handoff. Standing down there left the loading frame on bare paper
+    // for 2 to 3 s until the reveal.
+    const onTurn = (event: Event) => {
+      const bearing = (event as CustomEvent<number>).detail;
+      if (typeof bearing !== "number" || !Number.isFinite(bearing)) return;
+      let turn = bearing - MAP_OPENING_PREVIEW_CAMERA.bearing;
+      if (ground && document.documentElement.dataset.mapGround === "on") {
+        turn = largestCoveredTurn(
+          ground.rect,
+          MAP_OPENING_PREVIEW_CAMERA.pitch,
+          window.innerWidth,
+          window.innerHeight,
+          turn,
+        );
+      }
+      // Set on the two layers, never the root: a custom property on the root
+      // restyles the whole document on every frame of the turn, and that cost
+      // the engine about a second of its reveal on a phone.
+      for (const layer of [groundRef.current, discsRef.current]) {
+        layer?.style.setProperty("--map-preview-bearing", `${turn}deg`);
+      }
+    };
     window.addEventListener(PINS_VISIBLE_EVENT, onReveal);
     window.addEventListener(MAP_OPENING_PREVIEW_RETRACT_EVENT, standDown);
+    window.addEventListener(MAP_OPENING_PREVIEW_TURN_EVENT, onTurn);
     window.addEventListener(MAP_OPENING_FRAME_EVENT, onFrame);
     return () => {
       stopWaiting?.();
       window.removeEventListener(PINS_VISIBLE_EVENT, onReveal);
       window.removeEventListener(MAP_OPENING_PREVIEW_RETRACT_EVENT, standDown);
+      window.removeEventListener(MAP_OPENING_PREVIEW_TURN_EVENT, onTurn);
       window.removeEventListener(MAP_OPENING_FRAME_EVENT, onFrame);
     };
-  }, [discs]);
+  }, [discs, ground]);
 
   if (discs.length === 0) return null;
   const pitch = `${MAP_OPENING_PREVIEW_CAMERA.pitch}deg`;
@@ -137,6 +247,7 @@ export default function MapOpeningPreview({
     <>
       {ground ? (
         <div
+          ref={groundRef}
           className="mapOpeningGround"
           aria-hidden="true"
           style={
@@ -165,6 +276,7 @@ export default function MapOpeningPreview({
         </div>
       ) : null}
       <div
+        ref={discsRef}
         className="mapOpeningPreview"
         aria-hidden="true"
         style={{ "--map-preview-pitch": pitch } as CSSProperties}

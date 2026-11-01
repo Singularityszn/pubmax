@@ -1,8 +1,10 @@
+export { normalizeSocialHashtag } from "@/lib/socialHashtag";
 import { NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
 import { dropWithdrawnAuthors } from "@/lib/accountPublicAccess.server";
 import { resolveAvatarUrlsForHandles } from "@/lib/avatarResolve";
 import { normalizeHandle } from "@/lib/profiles";
 import { hiddenNamePostRefusal } from "@/lib/socialHiddenName";
+import { normalizeSocialHashtag } from "@/lib/socialHashtag";
 import type { SocialPostReview } from "@/lib/socialPostReviews";
 import type { SocialPostVideo } from "@/lib/socialPostVideos";
 import type { SocialPostExtraPhoto } from "@/lib/socialPostPhotos";
@@ -111,7 +113,6 @@ const EDIT_KEYS = new Set([
 ]);
 const MODERATION_SENSITIVE_KEYS = new Set(["kind", "body", "hashtags"]);
 const AREA_SET = new Set<string>(NIGHT_AREA_SLUGS);
-const HASHTAG = /^[a-z0-9_]{1,40}$/;
 
 function record(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -148,9 +149,8 @@ function parseHashtags(value: unknown): string[] | null {
   const tags: string[] = [];
   const seen = new Set<string>();
   for (const raw of value) {
-    if (typeof raw !== "string") return null;
-    const tag = raw.trim().toLowerCase().replace(/^#/, "");
-    if (!HASHTAG.test(tag)) return null;
+    const tag = normalizeSocialHashtag(raw);
+    if (!tag) return null;
     if (!seen.has(tag)) {
       seen.add(tag);
       tags.push(tag);

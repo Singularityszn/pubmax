@@ -6,8 +6,12 @@
 
 import type { TonightProvenanceCredits } from "@/lib/tonightOutListings";
 
-/** Said instead of a dated chain segment when a lane carries no date. */
-const UNDATED_WHATS_ON_LINE = "The what’s-on source check date is not recorded.";
+/**
+ * Said instead of a dated chain segment when a lane carries no date. Each line
+ * names the source it is about, so a missing what's-on date never reads as
+ * contradicting a dated Ticketmaster line beside it (live walk F6, 30 Oct).
+ */
+const UNDATED_WHATS_ON_LINE = "The pub listings source check date is not recorded.";
 const UNDATED_OUT_LINE = "The live listings source check date is not recorded.";
 
 export default function TonightProvenanceLines({

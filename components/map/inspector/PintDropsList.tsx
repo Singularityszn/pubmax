@@ -1,4 +1,8 @@
+"use client";
+
 import VenueImage from "@/components/media/VenueImage";
+import PintDropWithLine from "@/components/map/composer/PintDropWithLine";
+import { useWithSummaries, type WithSummaryMap } from "@/components/map/composer/useWithSummaries";
 import PriceBadge, { PintPriceBadge } from "@/components/PriceBadge";
 import { ProvenanceChip } from "@/components/map/venueInspectorBits";
 import { Flag } from "lucide-react";
@@ -29,12 +33,19 @@ export default function PintDropsList({
   drops,
   lastTrainDecision,
   reportDrop,
+  withSummaries,
 }: {
   venue: Venue;
   drops: DropWithPhotos[];
   lastTrainDecision: LastPintDecision | null;
   reportDrop: PintDropsState["reportDrop"];
+  /** Injected by a test; the list otherwise reads them itself. */
+  withSummaries?: WithSummaryMap;
 }) {
+  // ONE read for the whole list, after the drops paint: a card never waits
+  // for its "with" line, and a failed read prints none.
+  const read = useWithSummaries(drops);
+  const summaries = withSummaries ?? read;
   return (
     <div className="dropList">
       {drops.map((drop) => {
@@ -45,6 +56,7 @@ export default function PintDropsList({
         // fields captured on the drop at compose time; fall back to the
         // live Getting-home session for older rows that never stored them.
         // See lib/lastTrainBadge.ts — no live kind / leave-by → no badge.
+        const withSummary = summaries.get(drop.id);
         const trainBadge = lastTrainBadge(
           drop.createdAt,
           drop.leaveByIso ?? lastTrainDecision?.leaveByIso,
@@ -118,6 +130,11 @@ export default function PintDropsList({
             ) : null}
             {drop.passedDownNote ? (
               <p className="dropCaption">{drop.passedDownNote}</p>
+            ) : null}
+            {/* "with @sam" after consent, "with 1 person" before it, and
+                nothing when nobody is tagged (lib/pintDropWithTags.ts). */}
+            {withSummary ? (
+              <PintDropWithLine summary={withSummary} className="dropCaption dropWithLine" />
             ) : null}
             {drop.vibeTags && drop.vibeTags.length > 0 ? (
               <div className="dropVibeTags">

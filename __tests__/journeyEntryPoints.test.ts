@@ -25,8 +25,6 @@ describe("contextual Plan and Near entry points", () => {
         },
         weather: null,
         weatherByArea: {},
-        picks: [],
-        picksStatus: "ready",
         fact: null,
         pintsIndex: {},
         quietPint: null,

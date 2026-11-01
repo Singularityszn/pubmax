@@ -30,7 +30,7 @@ import { isNativeApp } from "@/lib/nativePlatform";
  * photographed. Each one has a web input beside it that does the same job off
  * the shell.
  */
-export const NATIVE_PHOTO_SURFACES = ["moment", "pint", "venue"] as const;
+export const NATIVE_PHOTO_SURFACES = ["moment", "pint", "venue", "board"] as const;
 
 export type NativePhotoSurface = (typeof NATIVE_PHOTO_SURFACES)[number];
 

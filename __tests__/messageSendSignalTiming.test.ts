@@ -74,6 +74,8 @@ import { POST as POST_THREAD } from "@/app/api/messages/[id]/route";
 import { __resetMemoryMessages } from "@/lib/messagesStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
 import { __resetMemoryProfiles, __seedMemoryOwnedProfile } from "@/lib/profileStore";
+// Messaging asks the one adult gate, so every seeded account has answered it.
+import { memoryAdultSelfAssertionStore } from "@/lib/adultSelfAssertionStore";
 import { defined } from "@/__tests__/helpers/defined";
 
 const BASE = "http://localhost/api/messages";
@@ -107,7 +109,10 @@ beforeEach(() => {
   __resetMemoryMessages();
   __resetMemoryProfiles();
   __resetPintDrops();
-  for (const handle of ["ken", "sam"]) __seedMemoryOwnedProfile(handle, `user-${handle}`);
+  for (const handle of ["ken", "sam"]) {
+    __seedMemoryOwnedProfile(handle, `user-${handle}`);
+    void memoryAdultSelfAssertionStore.record(`user-${handle}`);
+  }
 });
 
 describe("POST /api/messages - the inbox send", () => {
@@ -153,12 +158,14 @@ describe("POST /api/messages/[id] - the thread send", () => {
     expect(signals.settled).toBe(0);
   });
 
-  it("takes the pair from the WRITE, so the conversation is never re-read", async () => {
+  it("takes the pair from the WRITE, so the conversation is not re-read after it", async () => {
     const conversationId = await openConversation();
 
     await postThread(conversationId, { action: "send", handle: "ken", body: "On my way" });
 
-    expect(storeCalls.participants).toBe(0);
+    // ONE read, and it is the block check BEFORE the write (a block closes a
+    // direct thread both ways). The signal still takes its pair from the write.
+    expect(storeCalls.participants).toBe(1);
     expect(defined(signals.sent[0]).conversationId).toBe(conversationId);
     expect([...defined(signals.sent[0]).participants].sort()).toEqual(["ken", "sam"]);
   });

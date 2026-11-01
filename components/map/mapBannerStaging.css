@@ -28,7 +28,8 @@
   .appShell.onboarding-open .cityStatusStack,
   .appShell.onboarding-open .cityStatusBanner,
   .appShell.onboarding-open .tonightLaneCollapsed,
-  .appShell.onboarding-open .tonightLane--open {
+  .appShell.onboarding-open .tonightLane--open,
+  .appShell.onboarding-open .cityPubsOnlyNote {
     display: none;
   }
 
@@ -58,7 +59,8 @@
   body:has(.mapArrivalCard) .palSummon,
   body:has(.mapArrivalCard) .tonightLaneCollapsed,
   body:has(.mapArrivalCard) .tonightLane--open,
-  body:has(.mapArrivalCard) .mapConciergeAsk {
+  body:has(.mapArrivalCard) .mapConciergeAsk,
+  body:has(.mapArrivalCard) .cityPubsOnlyNote {
     display: none;
   }
 
@@ -122,6 +124,36 @@
     display: none;
   }
 
+  /* THE PUBS-ONLY LINE IS THE LAST OF THE TOP LANE (launch review, 30 Oct
+     2026, item 13; lib/cityPubsOnlyNote.ts). It is a standing fact about the
+     city rather than a prompt, so it never dismisses and never holds a banner
+     back: it shares the city suggest banner's berth and yields to every
+     eligible banner above it, and to an open toolbar panel, keyed on presence
+     like the rest. The concierge ask docks in the bottom lane and does not
+     wait for it, because a line that never leaves would hide the ask on every
+     city map for good. */
+  .mapStage:has(.citySuggestBanner) .cityPubsOnlyNote,
+  .mapStage:has(.cityStatusStack) .cityPubsOnlyNote,
+  .mapStage:has(.cityStatusBanner) .cityPubsOnlyNote,
+  .mapStage:has(.tonightLaneCollapsed) .cityPubsOnlyNote,
+  .mapStage:has(.tonightLane--open) .cityPubsOnlyNote,
+  .mapStage:has(.mapToolbar [aria-expanded="true"]) .cityPubsOnlyNote {
+    display: none;
+  }
+
+}
+
+/* The phone keeps one top bar, and a sheet, the search row, the Near me
+   message, an active-search chip or the arrival pill owns the band under it,
+   so the pubs-only line waits for each of them. */
+@media (max-width: 640px) {
+  body:has(.mobileSheetPortal) .cityPubsOnlyNote,
+  body:has(.mapArrivalCard) .cityPubsOnlyNote,
+  body:has(.mobileMapSearchRow) .cityPubsOnlyNote,
+  body:has(.mobileMapNearMeAlert) .cityPubsOnlyNote,
+  body:has(.mobileMapQueryRow) .cityPubsOnlyNote {
+    display: none;
+  }
 }
 
 /* 2b. THE READER'S OWN ANSWER HOLDS THE CENTRE SLOT. From 901px the transient
@@ -133,7 +165,9 @@
    status rail sits a row lower and never shared the slot. */
 @media (min-width: 901px) {
   .mapStage:has(.poiLabelCard) .citySuggestBanner,
-  .mapStage:has(.mapResumeUpdating) .citySuggestBanner {
+  .mapStage:has(.mapResumeUpdating) .citySuggestBanner,
+  .mapStage:has(.poiLabelCard) .cityPubsOnlyNote,
+  .mapStage:has(.mapResumeUpdating) .cityPubsOnlyNote {
     display: none;
   }
 }
@@ -144,7 +178,8 @@
    toolbar above them does (mapToolbar.css). */
 @media (min-width: 1024px) {
   .appShell.detail-open .cityStatusStack,
-  .appShell.detail-open .citySuggestBanner {
+  .appShell.detail-open .citySuggestBanner,
+  .appShell.detail-open .cityPubsOnlyNote {
     left: calc((100% - var(--desktop-venue-drawer-width)) / 2);
     max-width: calc(100% - var(--desktop-venue-drawer-width) - 32px);
   }
@@ -153,8 +188,10 @@
      the remaining map lane using the same centre and width as the toolbar. */
   .appShell.planning-open .cityStatusStack,
   .appShell.planning-open .citySuggestBanner,
+  .appShell.planning-open .cityPubsOnlyNote,
   .appShell.story-open .cityStatusStack,
-  .appShell.story-open .citySuggestBanner {
+  .appShell.story-open .citySuggestBanner,
+  .appShell.story-open .cityPubsOnlyNote {
     left: calc((100% + var(--desktop-planner-rail-width)) / 2);
     max-width: calc(100% - var(--desktop-planner-rail-width) - 32px);
   }

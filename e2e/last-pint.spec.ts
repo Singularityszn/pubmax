@@ -1,6 +1,7 @@
 import { test, expect, type Page, type Route } from "@playwright/test";
 
 import type { LastPintDecisionKind, LastTrainResult } from "../lib/tfl";
+import { openOverviewFold } from "./helpers/overviewFolds";
 
 // "Last Pint" card (components/map/LastTrainCard.tsx, app/api/last-train/route.ts,
 // user stories 19-24). The card lives in the venue sheet's "Last train" tab
@@ -178,8 +179,10 @@ async function openGettingHomeTab(page: Page): Promise<void> {
   const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
   expect(response?.status()).toBe(200);
   // Getting home is a fold on the Overview now, not a tab (site audit 13 Sep
-  // 2026, D10), and its body mounts only once the fold is open.
-  const fold = page.locator("#venuePanel-overview #venueSection-getting-home");
+  // 2026, D10), and its body mounts only once the fold is open. It sits inside
+  // the "Getting there and home" fold (lib/venueOverviewFolds.ts).
+  const journey = await openOverviewFold(page.locator("#venuePanel-overview"), "journey");
+  const fold = journey.locator("#venueSection-getting-home");
   await fold.locator("summary").click();
   await expect(fold).toHaveAttribute("open", "");
 }

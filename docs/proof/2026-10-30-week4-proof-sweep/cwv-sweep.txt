@@ -1,0 +1,69 @@
+
+> pubmaxxing@0.1.0 perf:cwv-sweep
+> PUBMAX_CWV_SWEEP=1 playwright test --project=chromium-cwv --output=<scratch>/pw-cwv
+
+
+Running 2 tests using 2 workers
+
+  ✓  1 [chromium-cwv] › e2e/cwv-baseline.spec.ts:405:7 › Core Web Vitals baseline › every measured route names a primary action to interact with (9ms)
+[cwv] map cold-open script served from public/map-first-paint-init.js
+[cwv] mobile:cold:/                      LCP   2348  INP    40  CLS 0.000   LCP samples 2448/2348/2296
+[cwv] mobile:warm:/                      LCP   2388  INP    56  CLS 0.000   LCP samples 2392/2340/2388
+[cwv] mobile:cold:/map                   LCP   1152  INP    16  CLS 0.053   LCP samples 1236/1152/1144
+[cwv] mobile:warm:/map                   LCP   1224  INP    16  CLS 0.022   LCP samples 1284/1132/1224
+[cwv] mobile:cold:/map?sel=venue-4xlgb0  LCP  10696  INP    64  CLS 0.026   LCP samples 10696/10232/14624
+[cwv] mobile:warm:/map?sel=venue-4xlgb0  LCP  13832  INP    96  CLS 0.026   LCP samples 13704/13832/14856
+[cwv] mobile:cold:/tonight               LCP   1468  INP    48  CLS 0.002   LCP samples 3060/1448/1468
+[cwv] mobile:warm:/tonight               LCP   1456  INP    48  CLS 0.002   LCP samples 1456/1492/1452
+[cwv] mobile:cold:/today                 LCP   1320  INP    48  CLS 0.035   LCP samples 2152/1320/1316
+[cwv] mobile:warm:/today                 LCP   1204  INP    48  CLS 0.035   LCP samples 1220/1204/1188
+[cwv] mobile:cold:/plan                  LCP   1272  INP    72  CLS 0.000   LCP samples 1272/1344/1212
+[cwv] mobile:warm:/plan                  LCP   1216  INP    72  CLS 0.000   LCP samples 1216/1244/1204
+[cwv] desktop:cold:/                     LCP    476  INP    16  CLS 0.000   LCP samples 476/476/472
+[cwv] desktop:warm:/                     LCP    468  INP    16  CLS 0.000   LCP samples 484/468/456
+[cwv] desktop:cold:/map                  LCP   2788  INP    16  CLS 0.013   LCP samples 2788/2752/3052
+[cwv] desktop:warm:/map                  LCP   3804  INP    16  CLS 0.000   LCP samples 3804/3600/3812
+[cwv] desktop:cold:/pal                  LCP    420  INP    40  CLS 0.000   LCP samples 488/420/416
+[cwv] desktop:warm:/pal                  LCP    412  INP    16  CLS 0.000   LCP samples 412/432/412
+[cwv][product] mobile:map-usable-venues             21691 ms   runs 20332/21691/22618
+[cwv][product] mobile:map-venue-sheet               14609 ms   runs 14185/14609/14685
+[cwv][product] mobile:plan-editable                  3793 ms   runs 4460/3793/3777
+[cwv][product] mobile:plan-acknowledged-save         2358 ms   runs 1780/2358/2482
+[cwv][product] desktop:map-usable-venues            14363 ms   runs 9870/14363/15751
+[cwv][product] desktop:map-venue-sheet               6800 ms   runs 12501/6800/6559
+[cwv][product] desktop:plan-editable                 1447 ms   runs 3184/1441/1447
+[cwv][product] desktop:plan-acknowledged-save        1132 ms   runs 629/1178/1132
+  ✘  2 [chromium-cwv] › e2e/cwv-baseline.spec.ts:225:7 › Core Web Vitals baseline › records or defends every route's LCP, INP, CLS and the product timings (16.7m)
+
+
+  1) [chromium-cwv] › e2e/cwv-baseline.spec.ts:225:7 › Core Web Vitals baseline › records or defends every route's LCP, INP, CLS and the product timings 
+
+    Error: The primary action never appeared on these rows, so their INP is the Event Timing floor rather than a measurement: mobile:cold:/map, mobile:warm:/map, desktop:cold:/map, desktop:warm:/map
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 6
+
+    - Array []
+    + Array [
+    +   "mobile:cold:/map",
+    +   "mobile:warm:/map",
+    +   "desktop:cold:/map",
+    +   "desktop:warm:/map",
+    + ]
+
+      326 |       "The primary action never appeared on these rows, so their INP is the " +
+      327 |         `Event Timing floor rather than a measurement: ${uninteracted.join(", ")}`,
+    > 328 |     ).toEqual([]);
+          |       ^
+      329 |
+      330 |     console.log(`\n[cwv] routes\n${formatBaselineTable(routeRecords)}`);
+      331 |     console.log(`\n[cwv] product timings\n${formatProductTimingTable(productRecords)}`);
+        at <worktree>/e2e/cwv-baseline.spec.ts:328:7
+
+    Error Context: ../../../../../..<scratch>/pw-cwv/cwv-baseline-Core-Web-Vita-561b5-CLS-and-the-product-timings-chromium-cwv/error-context.md
+
+  1 failed
+    [chromium-cwv] › e2e/cwv-baseline.spec.ts:225:7 › Core Web Vitals baseline › records or defends every route's LCP, INP, CLS and the product timings 
+  1 passed (16.8m)
