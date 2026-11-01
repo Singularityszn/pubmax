@@ -1,8 +1,7 @@
-import { execFileSync } from "node:child_process";
-import { existsSync, promises as fs, readFileSync } from "node:fs";
+import { promises as fs, readFileSync } from "node:fs";
 import path from "node:path";
 
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   clearVenueDetailEntriesForTests,
@@ -29,8 +28,6 @@ import {
 } from "@/lib/venues";
 
 const ROOT = path.resolve(__dirname, "..");
-const BUILD_SLIM_SCRIPT = path.join(ROOT, "scripts", "build_slim_index.mjs");
-const DETAIL_INDEX = path.join(ROOT, "data", "generated", "venue_detail_index.json");
 const RAW_PATH = path.join(ROOT, "public", "data", "pint_prices_app_dataset.json");
 const SEED_VENUE_ID = "venue-16pnwmm";
 const FAMOUS_BAR_ID = "bar-american-bar-savoy";
@@ -65,17 +62,6 @@ vi.mock("@/lib/venueIndex", async (importOriginal) => {
       return { status: "found" as const, canonicalId: id, venue: slimVenue, slimVenue };
     },
   };
-});
-
-beforeAll(() => {
-  if (!existsSync(DETAIL_INDEX)) {
-    // --details-only writes just the two gitignored detail files. The full
-    // build would also rewrite every committed map pack with a "local" stamp.
-    execFileSync("node", [BUILD_SLIM_SCRIPT, "--details-only"], {
-      cwd: ROOT,
-      env: { ...process.env, DEPLOYMENT_VERSION: "local" },
-    });
-  }
 });
 
 beforeEach(() => {

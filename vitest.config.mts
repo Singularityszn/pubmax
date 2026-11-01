@@ -22,7 +22,8 @@ export default defineConfig({
     // Strips Vercel deployment env vars (VERCEL_ENV, VERCEL) so build-pipeline
     // test runs don't masquerade as production runtimes — see vitest.setup.ts.
     setupFiles: ["./vitest.setup.ts"],
-    globalSetup: ["./__tests__/helpers/preparePlacesEnrichment.ts"],
+    // In order: the detail index reads the places enrichment.
+    globalSetup: ["./__tests__/helpers/preparePlacesEnrichment.ts", "./__tests__/helpers/prepareVenueDetailIndex.ts"],
     include: ["__tests__/**/*.test.{ts,tsx}"],
     // v8 coverage instrumentation plus concurrent agent worktrees can starve
     // repository-wide scans and subprocess validation past the default 5s.
