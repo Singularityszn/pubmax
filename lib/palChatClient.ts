@@ -111,6 +111,19 @@ export function palChatResultFromBody(body: unknown): PalChatResult {
   return { ...legacy, proposals: [] };
 }
 
+function palChatHttpError(response: Response, body: unknown): Extract<PalChatResult, { status: "error" }> {
+  const record =
+    body && typeof body === "object" && !Array.isArray(body)
+      ? (body as Record<string, unknown>)
+      : {};
+  return {
+    status: "error",
+    message:
+      typeof record.error === "string" ? record.error : PAL_ERROR_FALLBACK,
+    ...(response.status === 401 ? { needsSignIn: true } : {}),
+  };
+}
+
 /**
  * Create a chat ask session with latest-wins ordering and in-thread memory.
  */
@@ -195,16 +208,7 @@ export function createPalChatSession(options: SessionOptions = {}) {
         if (cancelled() || controller.signal.aborted) return null;
         if (streamError !== null) return { status: "error", message: streamError };
         if (!response.ok) {
-          const record =
-            body && typeof body === "object" && !Array.isArray(body)
-              ? (body as Record<string, unknown>)
-              : {};
-          return {
-            status: "error",
-            message:
-              typeof record.error === "string" ? record.error : PAL_ERROR_FALLBACK,
-            ...(response.status === 401 ? { needsSignIn: true } : {}),
-          };
+          return palChatHttpError(response, body);
         }
         const result = palChatResultFromBody(body);
         const conversationId =

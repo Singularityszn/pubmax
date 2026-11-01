@@ -10,7 +10,10 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock("next/link", () => ({
-  default: ({ children, prefetch: _prefetch, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { prefetch?: boolean }) => createElement("a", props, children),
+  default: ({ children, prefetch, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { prefetch?: boolean }) => {
+    void prefetch;
+    return createElement("a", props, children);
+  },
   useLinkStatus: () => ({ pending: false }),
 }));
 vi.mock("@/lib/authClient", () => ({ getAccessToken: vi.fn() }));

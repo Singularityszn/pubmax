@@ -21,6 +21,13 @@ const DESKTOP_BOTTOM_INSET = 110;
 const PHONE_ROUTE_PADDING = { top: 160, right: 28, bottom: 200, left: 28 };
 const MIN_ROUTE_CONTENT_PX = 48;
 
+function desktopStatusSize(style: CSSStyleDeclaration | null) {
+  return {
+    gap: Number.parseFloat(style?.getPropertyValue("--city-status-desktop-gap") ?? "") || 82,
+    height: Number.parseFloat(style?.getPropertyValue("--city-status-desktop-height") ?? "") || 58,
+  };
+}
+
 function routeFitPadding(
   map: maplibregl.Map,
   isPhone: boolean,
@@ -32,8 +39,7 @@ function routeFitPadding(
   const toolbar = isPhone ? null : document.querySelector(".mapToolbar");
   const toolbarBounds = toolbar?.getBoundingClientRect();
   const chromeStyle = toolbar ? getComputedStyle(toolbar) : null;
-  const statusGap = Number.parseFloat(chromeStyle?.getPropertyValue("--city-status-desktop-gap") ?? "") || 82;
-  const statusHeight = Number.parseFloat(chromeStyle?.getPropertyValue("--city-status-desktop-height") ?? "") || 58;
+  const { gap: statusGap, height: statusHeight } = desktopStatusSize(chromeStyle);
   // Reserve the banner below the actual toolbar, including its lower tablet
   // position, before transport data arrives. Clear taller visible content too.
   const reservedBottom = toolbarBounds?.height
