@@ -389,4 +389,14 @@ describe("a malformed TfL body", () => {
     expect(() => materialDisruptionsFor(broken, new Set(["central", "victoria"]), window)).not.toThrow();
     expect(materialDisruptionsFor({ not: "a list" } as never, new Set(["central"]), window)).toEqual([]);
   });
+
+  it("reads no date from a planned period whose dates are not strings", async () => {
+    const { periodOverlapsTonight } = await import("@/lib/tflDisruption");
+    const window = { start: 0, end: Number.MAX_SAFE_INTEGER };
+    const hostile = { fromDate: { toString: null }, toDate: { toString: null } } as never;
+    expect(() => periodOverlapsTonight(hostile, window)).not.toThrow();
+    expect(periodOverlapsTonight(hostile, window)).toBe(false);
+    expect(periodOverlapsTonight({ ...(hostile as object), isNow: true } as never, window)).toBe(true);
+    expect(periodOverlapsTonight({ fromDate: "2026-11-01T18:00:00Z", toDate: "2026-11-02T04:00:00Z" }, window)).toBe(true);
+  });
 });
