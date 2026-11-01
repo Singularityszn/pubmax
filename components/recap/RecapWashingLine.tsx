@@ -247,7 +247,7 @@ export default function RecapWashingLine({ photos }: { photos: readonly WashingL
           aria-disabled={index === 0 || undefined}
           onClick={() => go(index - 1)}
         >
-          <ChevronLeft size={18} aria-hidden="true" />
+          <ChevronLeft size={20} aria-hidden="true" />
         </IconButton>
         <p className="washingLineCount" aria-live="polite">
           {counterLabel(index, total)}
@@ -257,7 +257,7 @@ export default function RecapWashingLine({ photos }: { photos: readonly WashingL
           aria-disabled={index === total - 1 || undefined}
           onClick={() => go(index + 1)}
         >
-          <ChevronRight size={18} aria-hidden="true" />
+          <ChevronRight size={20} aria-hidden="true" />
         </IconButton>
       </div>
     </div>
