@@ -8,6 +8,10 @@ import { buildCrawlMapHref } from "@/lib/crawlUrl";
 import type { PlanState } from "@/lib/plan";
 import PlanRoute from "@/components/plan/PlanRoute";
 import PlanCollaborationPanel from "@/components/plan/PlanCollaborationPanel";
+import PlanNightPresentation, { PlanMysteryControls } from "@/components/plan/PlanNightPresentation";
+import PlanNightClues from "@/components/plan/PlanNightClues";
+import PlanTableBeacon from "@/components/plan/PlanTableBeacon";
+import { planNightRefreshKey, planVisitedRevealPositions } from "@/lib/planPresentation";
 import InvitePrivacyPreview from "@/components/plan/InvitePrivacyPreview";
 import RoundStarter from "@/components/round/RoundStarter";
 import { planViewModel } from "@/components/plan/planPresentation";
@@ -381,6 +385,8 @@ export default function PlanSummary({
 }
 
 function PlanSummaryMember({ planId, state, scope }: { planId: string; state: PlanState; scope: string }) {
+  const { user, accountRevision } = useAuth();
+  const ownerKey = `${user?.id ?? "guest"}:${accountRevision}`;
   const view = planViewModel(state);
   const tokenEvent = planCapabilityEvent(planId);
   const pendingEvent = `pubmax:pending-route:${planId}`;
@@ -520,6 +526,7 @@ function PlanSummaryMember({ planId, state, scope }: { planId: string; state: Pl
     position: typeof stop.position === "number" ? stop.position : index,
     ...(stop.selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence: stop.selectedDrinkPriceEvidence } : {}),
   }));
+  const currentPlanState: PlanState = { ...state, plan: { ...state.plan, routeRevision: Number(routeRevision) }, stops: canonicalRouteStops };
 
   function adoptCanonical(canonical: PlanState): void {
     const savedStops = orderedRouteStops(cleanStops(canonical.stops));
@@ -762,6 +769,7 @@ function PlanSummaryMember({ planId, state, scope }: { planId: string; state: Pl
   }
 
   return (
+    <PlanNightPresentation planId={planId} memberToken={memberToken} ownerKey={ownerKey} revision={Number(routeRevision)}>
     <section className="planSummary" aria-labelledby="plan-stops-title">
       <div className="planSummary__heading">
         <p className="planPage__eyebrow">{state.context && !planUsesPintPrices(state.context) ? "First stop" : "First pint"} · {view.startLabel}</p>
@@ -778,11 +786,15 @@ function PlanSummaryMember({ planId, state, scope }: { planId: string; state: Pl
       {renderNotice()}
       {!editing && !pending ? (
         <>
+          <PlanMysteryControls />
           <PlanRoute
             planId={planId}
             startTime={state.plan.startTime}
             stops={canonicalRouteStops}
+            visitedPositions={planVisitedRevealPositions(currentPlanState)}
           />
+          <PlanNightClues planId={planId} ownerKey={ownerKey} stops={canonicalRouteStops} />
+          <PlanTableBeacon planId={planId} memberToken={memberToken} ownerKey={ownerKey} refreshKey={planNightRefreshKey(currentPlanState)} />
           {memberToken ? (
             /* Round has no Plan-constraint fields, so this bridge carries only title and ordered venue identity. */
             <RoundStarter
@@ -797,6 +809,8 @@ function PlanSummaryMember({ planId, state, scope }: { planId: string; state: Pl
       ) : null}
       {memberToken && canCollaborate ? (
         <PlanCollaborationPanel
+          planState={currentPlanState}
+          ownerKey={ownerKey}
           planId={planId}
           memberToken={memberToken}
           isHost={isHost}
@@ -816,5 +830,6 @@ function PlanSummaryMember({ planId, state, scope }: { planId: string; state: Pl
         />
       ) : null}
     </section>
+    </PlanNightPresentation>
   );
 }

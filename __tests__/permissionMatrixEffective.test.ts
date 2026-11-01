@@ -1049,6 +1049,111 @@ describe("invite capability", () => {
 describe("private Night Memory, Moment and its object", () => {
   let bobMemory = "";
 
+  it("keeps Story source text host-only across every publication state and dependent policy", async () => {
+    const memoryStore = await import("@/lib/nightMemoryStore");
+    for (const visibility of ["private", "unlisted", "public"] as const) {
+      const story = await memoryStore.createNightStory(ALICE, {
+        memoryId: ALICE_MEMORY, title: "Retained Story source", summary: "Host source text",
+      });
+      if (!story) throw new Error("Story fixture failed");
+      if (visibility !== "private") {
+        truth(`update public.night_stories set status='published', visibility='${visibility}', published_at=now()
+          where id='${story.id}' returning id`);
+      }
+      truth(`insert into public.night_story_contributors(story_id,profile_id,role,status,joined_at)
+        values ('${story.id}','${BOB}','editor','accepted',now());
+        insert into public.night_story_moments(story_id,moment_id,position)
+        values ('${story.id}','${ALICE_MOMENT}',0);
+        insert into public.night_story_publish_proposals(id,story_id,requested_by,moment_ids,visibility,token_hash,expires_at)
+        values (gen_random_uuid(),'${story.id}','${BOB}',array['${ALICE_MOMENT}'::uuid],'public',repeat('a',64),now()+interval '1 hour')`);
+
+      const path = `/night_stories?id=eq.${story.id}&select=title,summary`;
+      const host = await requireSession().rest(path, { sub: ALICE });
+      expect(host.status).toBe(200);
+      expect(host.body).toEqual([{ title: "Retained Story source", summary: "Host source text" }]);
+      for (const sub of [BOB, CAROL, DAVE]) {
+        const refused = await requireSession().rest(path, { sub });
+        expect(refused.status).toBe(200);
+        expect(refused.body).toEqual([]);
+      }
+      const anonymous = await requireSession().rest(path);
+      expect(anonymous.status).toBe(401);
+      expect(anonymous.text).not.toContain("Retained Story source");
+      expect(anonymous.text).not.toContain("Host source text");
+
+      for (const table of ["night_story_contributors", "night_story_publish_proposals", "night_story_moments"]) {
+        const count = `select count(*) from public.${table} where story_id='${story.id}'`;
+        const total = Number(truth(count));
+        expect(total).toBeGreaterThan(0);
+        expect(visibleRows("authenticated", ALICE, count)).toBe(total);
+        expect(visibleRows("authenticated", BOB, count)).toBe(table === "night_story_moments" ? 0 : 1);
+        expect(visibleRows("authenticated", CAROL, count)).toBe(0);
+        expect(visibleRows("anon", null, count)).toBe(0);
+      }
+      const before = truth(`select row_to_json(s)::text from public.night_stories s where id='${story.id}'`);
+      for (const [role, sub] of [["anon", null], ["authenticated", ALICE], ["authenticated", BOB]] as const) {
+        for (const statement of [
+          `update public.night_stories set title='overwritten' where id='${story.id}'`,
+          `delete from public.night_stories where id='${story.id}'`,
+          `insert into public.night_stories(id,memory_id,host_editor_id,title)
+            values(gen_random_uuid(),'${ALICE_MEMORY}','${ALICE}','forged')`,
+        ]) {
+          expect(attemptAsRole(role, sub, statement).ok).toBe(false);
+        }
+      }
+      expect(truth(`select row_to_json(s)::text from public.night_stories s where id='${story.id}'`)).toBe(before);
+      const service = requireSession().sql(`select title from public.night_stories where id='${story.id}'`, { asRole: "service_role" });
+      expect(service.ok).toBe(true);
+      expect(service.out).toBe("Retained Story source");
+      for (const actor of [null, CAROL]) {
+        const publicRead = await memoryStore.readNightStory(story.id, actor);
+        if (visibility === "private") {
+          expect(publicRead).toEqual({ status: "absent" });
+        } else {
+          expect(publicRead).toMatchObject({ status: "found", story: { title: "Retained Story source" } });
+        }
+      }
+    }
+  });
+
+  it("executes draft authorisation atomically and refuses browser-role RPC calls", async () => {
+    const memoryStore = await import("@/lib/nightMemoryStore");
+    const story = await memoryStore.createNightStory(ALICE, { memoryId: ALICE_MEMORY, title: "Original draft" });
+    if (!story) throw new Error("Story fixture failed");
+    const edit = (actor: string, title: string) => `select public.update_night_story_draft_atomic(
+      '${story.id}','${actor}','${title}','Draft summary',now())`;
+    const serviceEdit = (actor: string, title: string) => {
+      const result = requireSession().sql(edit(actor, title), { asRole: "service_role" });
+      if (!result.ok) throw new Error(result.err);
+      return result.out;
+    };
+    expect(serviceEdit(ALICE, "Host edit")).toBe("true");
+    expect(await memoryStore.upsertStoryContributor(ALICE, story.id, { handle: "bobpm", role: "editor" })).not.toBeNull();
+    expect(serviceEdit(BOB, "Unaccepted edit")).toBe("false");
+    expect(await memoryStore.acceptStoryContribution(BOB, story.id)).not.toBeNull();
+    expect(serviceEdit(BOB, "Accepted editor edit")).toBe("true");
+    for (const [role, status] of [["contributor", "accepted"], ["editor", "removed"]]) {
+      truth(`update public.night_story_contributors set role='${role}',status='${status}'
+        where story_id='${story.id}' and profile_id='${BOB}' returning story_id`);
+      expect(serviceEdit(BOB, "Refused edit")).toBe("false");
+      expect(truth(`select title from public.night_stories where id='${story.id}'`)).toBe("Accepted editor edit");
+    }
+    expect(serviceEdit(CAROL, "Stranger edit")).toBe("false");
+    for (const [role, sub] of [["anon", null], ["authenticated", ALICE], ["authenticated", BOB]] as const) {
+      for (const statement of [
+        edit(ALICE, "Browser edit"),
+        `select public.create_plan_recap_atomic('${ALICE}','00000000-0000-4000-8000-000000000000',
+          'Browser recap',now(),'[]'::jsonb)`,
+      ]) {
+        const refused = requireSession().sql(statement, { asRole: role, sub });
+        expect(refused.ok).toBe(false);
+        expect(refused.err).toMatch(/permission denied for function/);
+      }
+    }
+    expect(serviceEdit(ALICE, "Final host edit")).toBe("true");
+    expect(truth(`select title from public.night_stories where id='${story.id}'`)).toBe("Final host edit");
+  });
+
   it("the memory list is the caller's own: anonymous is refused, B sees none of A's, A sees hers", async () => {
     const anonymous = await defined(handlers.listMemories)(request("/api/night-memories"), context({}));
     expect(anonymous.status).toBe(401);
@@ -1095,6 +1200,106 @@ describe("private Night Memory, Moment and its object", () => {
     );
     expect(intruded.status).toBe(400);
     expect(truth(`select count(*) from public.night_moments where memory_id = '${ALICE_MEMORY}'`)).toBe("1");
+  });
+
+  it("a contributor's unconsented Moment in A's Memory stays out of A's Moment list", async () => {
+    // October 2026 audit: a Story contributor's private Moment lands in the
+    // host's Memory, and the workspace withholds it until consent. The Memory
+    // list must not hand the host its caption and a signed photo URL anyway.
+    const contributed = "f3000000-0000-4000-8000-0000000000c1";
+    const secret = "BOB-PRIVATE-CAPTION rooftop at midnight";
+    const object = `night-moments/${BOB}/${ALICE_MEMORY}/photo.webp`;
+    truth(`insert into public.night_moments (id, memory_id, owner_id, kind, caption, media_object_key)
+      values ('${contributed}', '${ALICE_MEMORY}', '${BOB}', 'photo', '${secret}', '${object}')
+      returning id`);
+    try {
+      const alice = await defined(handlers.listMoments)(
+        request(`/api/night-memories/${ALICE_MEMORY}/moments`, { bearer: BEARER_ALICE }),
+        context({ id: ALICE_MEMORY }),
+      );
+      expect(alice.status).toBe(200);
+      const body = await readJson<{ moments: Array<{ id: string }> }>(alice);
+      expect(body.moments.map((row) => row.id)).toEqual([ALICE_MOMENT]);
+      expect(JSON.stringify(body)).not.toContain(secret);
+      expect(JSON.stringify(body)).not.toContain(object);
+    } finally {
+      truth(`delete from public.night_moments where id = '${contributed}' returning id`);
+    }
+  });
+
+  it("Plan recap replay excludes a contributor's unconsented Moment", async () => {
+    const { planStore } = await import("@/lib/planStore");
+    const { pendingPlanRecapFromCompletion } = await import("@/lib/planRecap");
+    const memoryStore = await import("@/lib/nightMemoryStore");
+    const { POST } = await import("@/app/api/plans/[id]/recap/route");
+    const store = planStore();
+    const created = await store.create({
+      title: "Private recap replay",
+      creatorName: "Alice",
+      startTime: "2026-10-28T19:00:00.000Z",
+      stops: ROUTE.map((stop, index) => ({ ...stop, venueName: `Pub ${index + 1}` })),
+    });
+    if (!created.ok) throw new Error("Plan fixture failed");
+    const planId = created.plan.plan.id;
+    const arrived = await store.addAction(planId, created.memberToken, {
+      type: "arrived", stopPosition: 0, idempotencyKey: "recap-replay-arrival",
+    });
+    expect(arrived.ok).toBe(true);
+    const completed = await store.complete(planId, created.memberToken, {
+      expectedRouteRevision: 1,
+      ending: "get_home",
+      endingSelection: {
+        kind: "get_home",
+        optionId: "transport:nearest-station",
+        evidenceSnapshot: { label: "Nearest station", confidence: "unknown" },
+      },
+    });
+    if (!completed.ok) throw new Error("Completion fixture failed");
+    const recap = pendingPlanRecapFromCompletion(completed.completion, "Private recap replay");
+    const save = () => POST(request(`/api/plans/${planId}/recap`, {
+      bearer: BEARER_ALICE,
+      body: { memberToken: created.memberToken, recap },
+    }), { params: Promise.resolve({ id: planId }) });
+    const [initial, concurrentRetry] = await Promise.all([save(), save()]);
+    expect(initial.status).toBe(201);
+    expect(concurrentRetry.status).toBe(201);
+    const saved = await readJson<{ memory: { id: string }; moments: Array<{ id: string }> }>(initial);
+    expect(saved.moments).toHaveLength(3);
+    const retried = await readJson<{ memory: { id: string }; moments: Array<{ id: string }> }>(concurrentRetry);
+    expect(retried.memory.id).toBe(saved.memory.id);
+    expect(retried.moments.map((moment) => moment.id).sort()).toEqual(saved.moments.map((moment) => moment.id).sort());
+    expect(truth(`select count(*) from public.night_memories where owner_id='${ALICE}'
+      and plan_completion_id='${completed.completion.id}'`)).toBe("1");
+    const story = await memoryStore.createNightStory(ALICE, {
+      memoryId: saved.memory.id, title: "Shared Story",
+    });
+    if (!story) throw new Error("Story fixture failed");
+    expect(await memoryStore.upsertStoryContributor(ALICE, story.id, {
+      handle: "bobpm", role: "contributor",
+    })).not.toBeNull();
+    expect(await memoryStore.acceptStoryContribution(BOB, story.id)).not.toBeNull();
+    const secret = "BOB-PRIVATE-RECAP-CAPTION";
+    const contributed = await memoryStore.addStoryMoment(BOB, story.id, {
+      kind: "event", caption: secret,
+    });
+    if (!contributed) throw new Error("Contributor Moment fixture failed");
+    const owned = await memoryStore.addNightMoment(ALICE, saved.memory.id, {
+      kind: "event", caption: "Alice keeps this Moment",
+    });
+    if (!owned) throw new Error("Owner Moment fixture failed");
+
+    const replay = await save();
+    expect(replay.status).toBe(201);
+    const body = await readJson<{ memory: { id: string }; moments: Array<{ id: string }> }>(replay);
+    expect(body.memory.id).toBe(saved.memory.id);
+    expect(body.moments.map((moment) => moment.id).sort()).toEqual(
+      [...saved.moments.map((moment) => moment.id), owned.id].sort(),
+    );
+    expect(JSON.stringify(body)).not.toContain(secret);
+    const contributorView = await memoryStore.getNightStoryWorkspace(BOB, story.id);
+    expect(contributorView?.moments).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: contributed.id, caption: secret, consent: "pending" }),
+    ]));
   });
 
   it("only the owner may describe a photo Moment", async () => {

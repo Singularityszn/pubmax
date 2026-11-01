@@ -2,7 +2,11 @@ import "server-only";
 
 import { parseFoundingMemberNumber } from "@/lib/foundingMembers";
 import { isProfileWithdrawnFromPublic } from "@/lib/accountPublicAccess.server";
-import { isProfileTombstoned, profileStore } from "@/lib/profileStore";
+import {
+  isProfileTombstoned,
+  profileStore,
+  renameMemoryOwnedProfile,
+} from "@/lib/profileStore";
 import {
   assessPubmaxxHandle,
   evaluateHandleRename,
@@ -63,6 +67,7 @@ type HandleResolution = {
 };
 
 export type IdentityHandleStore = {
+  aliasProfileId(handle: string): Promise<string | null>;
   availability(handle: string): Promise<HandleAvailability>;
   claim(ownerId: string, handle: string): Promise<HandleClaimResult>;
   rename(ownerId: string, handle: string): Promise<HandleRenameResult>;
@@ -108,11 +113,14 @@ function rpcClaim(row: Record<string, unknown>): HandleClaimResult {
 }
 
 export const memoryIdentityHandleStore: IdentityHandleStore = {
+  async aliasProfileId(handle) {
+    return memoryAliases.get(handle)?.profileId ?? null;
+  },
   async availability(handle) {
     if (isReservedContributorHandle(handle)) {
       return { handle, available: false, reason: "taken" };
     }
-    if (memoryAliases.has(handle)) return { handle, available: false, reason: "taken" };
+    if (await this.aliasProfileId(handle)) return { handle, available: false, reason: "taken" };
     const profile = await profileStore().getByHandle(handle);
     return profile
       ? { handle, available: false, reason: "taken" }
@@ -261,6 +269,14 @@ export const memoryIdentityHandleStore: IdentityHandleStore = {
       isCurrent: true,
       changedAt,
     };
+    try {
+      renameMemoryOwnedProfile(owned.profileId, ownerId, handle);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return /not available/i.test(message)
+        ? { ok: false, code: "taken", error: "That handle is already taken." }
+        : { ok: false, code: "storage", error: "Profile storage is unavailable." };
+    }
     memoryAliases.set(previousHandle, retired);
     memoryAliases.set(handle, current);
     currentByOwner.set(ownerId, current);
@@ -270,12 +286,7 @@ export const memoryIdentityHandleStore: IdentityHandleStore = {
   async resolve(handle) {
     const alias = memoryAliases.get(handle);
     if (alias) {
-      // Memory rename keeps aliases but may not move the profiles.handle
-      // column; prefer owner lookup so a live rename still resolves.
-      const current =
-        (await profileStore().getByHandle(alias.currentHandle)) ??
-        (await profileStore().getByUserId(alias.ownerId)) ??
-        (await profileStore().getByHandle(handle));
+      const current = await profileStore().getById(alias.profileId);
       if (!current) return null;
       // Auth-deletion stamp only — legacy user_id null stays live.
       if (await isProfileWithdrawnFromPublic(current)) return null;
@@ -283,7 +294,7 @@ export const memoryIdentityHandleStore: IdentityHandleStore = {
         return {
           profileId: alias.profileId,
           requestedHandle: handle,
-          currentHandle: alias.currentHandle,
+          currentHandle: current.handle,
           redirect: false,
           status: "gone",
         };
@@ -291,8 +302,8 @@ export const memoryIdentityHandleStore: IdentityHandleStore = {
       return {
         profileId: alias.profileId,
         requestedHandle: handle,
-        currentHandle: alias.currentHandle,
-        redirect: handle !== alias.currentHandle,
+        currentHandle: current.handle,
+        redirect: handle !== current.handle,
         status: "live",
       };
     }
@@ -352,21 +363,21 @@ export const memoryIdentityHandleStore: IdentityHandleStore = {
 };
 
 export const supabaseIdentityHandleStore: IdentityHandleStore = {
+  async aliasProfileId(handle) {
+    const { data, error } = await requireSupabaseAdmin()
+      .from("profile_handle_aliases")
+      .select("profile_id")
+      .eq("handle", handle)
+      .limit(1);
+    if (error) throw new Error(error.message);
+    return data?.[0]?.profile_id ? String(data[0].profile_id) : null;
+  },
   async availability(handle) {
     if (isReservedContributorHandle(handle)) {
       return { handle, available: false, reason: "taken" };
     }
     const admin = requireSupabaseAdmin();
-    const { data, error } = await admin
-      .from("profile_handle_aliases")
-      .select("profile_id,is_current")
-      .eq("handle", handle)
-      .limit(1);
-    if (error) throw new Error(error.message);
-    const alias = (data ?? [])[0] as
-      | { profile_id?: unknown; is_current?: unknown }
-      | undefined;
-    if (alias?.profile_id) {
+    if (await this.aliasProfileId(handle)) {
       return { handle, available: false, reason: "taken" };
     }
     const { data: profiles, error: profileError } = await admin

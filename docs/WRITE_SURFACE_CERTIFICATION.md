@@ -1,12 +1,17 @@
 # Mutating API surface certification
 
+The Plan beacon and presentation entries declare the handler inventory.
+Their route tests and `__tests__/planNightStorePermissions.test.ts` exercise the permission contracts.
+Source names and syntax do not establish their runtime protection.
+
+
 Wave 0 treats every exported `POST`, `PUT`, `PATCH`, or `DELETE` handler as a
 reviewed surface—even when a POST is semantically read-only. The regression test
 `__tests__/writeSurfaceCertification.test.ts` scans the complete `app/api` tree.
 Adding a mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 173 mutating handlers across 139 route files.** Each exported
+> **Inventory: 176 mutating handlers across 141 route files.** Each exported
 > `POST`, `PUT`, `PATCH`, or `DELETE` is one reviewed surface. A file with two
 > mutation methods contributes two entries. Read-only handlers do not enter this
 > inventory. Both counts are merge-conflict coordination points.
@@ -29,6 +34,9 @@ Protection in a sibling method cannot certify another method.
 - `DELETE app/api/crawls/[slug]`
 - `DELETE app/api/night-stories/[id]/contributors`
 - `DELETE app/api/plans/[id]/group-prefs`
+- `DELETE app/api/plans/[id]/beacon`
+- `PUT app/api/plans/[id]/beacon`
+- `PUT app/api/plans/[id]/presentation`
 - `DELETE app/api/plans/[id]/invite-rsvp`
 - `DELETE app/api/plans/[id]/invites/[inviteId]`
 - `DELETE app/api/profiles/[handle]`
@@ -253,8 +261,9 @@ bodies.
 
 ## Failure posture
 
-- Anonymous paid spend (`concierge`, narrated `heritage`) and Plan creation pass
-  `{ failClosed: true }` to the durable limiter.
+- Paid-provider admission follows the
+  [paid-spend rules](rules/lib-shared-seams-stores-http-freshness-brand.md#a-limiter-keyed-on-an-address-the-caller-chooses-guards-nothing-and-four-routes-).
+  Those rules own limiter failures and fallback behaviour.
 - Keyless local development remains usable through the bounded process-local
   limiter when Supabase is not configured.
 - Public community contribution paths use durable limits in production and a
@@ -1081,7 +1090,8 @@ commit.
   price. It is no longer the only door: a Round's itemised
   drink lines (`POST /api/rounds/[code] { action: "recordSpend" }`) reach
   `submitCommunityPrice` only when the writer passes the same authenticated
-  account and public-handle boundary. Anonymous lines remain in the private
+  account and public-handle boundary. The [bill rule](rules/lib-images-uploads-and-photo-walls.md#a-new-price-comes-with-the-bill-and-the-pint-photo-is-the-fun-one)
+  governs evidence for both price writers. Anonymous lines remain in the private
   Round diary. Direct and Round price
   writes use the account's stable profile actor. The same POST also carries the
   community VENUE SIGNAL shape (`{ kind: "venue-signal", venueId, signalKey,
@@ -1758,9 +1768,9 @@ inventory count and boundary assertions in CI.
 
 POST is a stateless MCP transport. It accepts no account credentials or plan writes.
 Each request passes origin checks, a 32 KiB body limit and the hashed-address rate limit.
-Generation delegates to the existing plan route and retains its paid-spend ceiling.
+Generation delegates to the existing plan route and follows the [paid-spend rules](rules/lib-shared-seams-stores-http-freshness-brand.md#a-limiter-keyed-on-an-address-the-caller-chooses-guards-nothing-and-four-routes-).
 Tool errors use the MCP result contract. HTTP errors use the public API envelope.
-The anonymous paid-route probe proves that a spent generation ceiling makes no paid provider call.
+The anonymous paid-route probe checks generation with every paid-spend ceiling closed and rejects any paid provider call.
 
 ### `app/api/pub-list-import` - signed-in pub list matching
 
