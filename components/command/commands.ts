@@ -115,6 +115,14 @@ export const commands: Command[] = [
     run: (ctx) => ctx.navigate("/pubs"),
   },
   {
+    id: "nav-spoons",
+    label: "Spoons",
+    hint: "/spoons-value",
+    keywords: ["wetherspoons", "recorded prices", "round cost"],
+    group: "Navigate",
+    run: (ctx) => ctx.navigate("/spoons-value"),
+  },
+  {
     id: "nav-social",
     label: "Social",
     hint: "/social",

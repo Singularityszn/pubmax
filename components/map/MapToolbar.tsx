@@ -455,7 +455,7 @@ export default function MapToolbar({
         {searchProps || searchContent ? (
           <div className="mapToolbarSearch">
             {searchProps ? (
-              <MapSearchSuggest {...searchProps} />
+              <MapSearchSuggest {...searchProps} placeholder="Search" />
             ) : searchContent}
           </div>
         ) : null}
