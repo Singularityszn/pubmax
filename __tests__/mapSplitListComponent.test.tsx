@@ -315,11 +315,13 @@ describe("where the list sits", () => {
     expect(desktopBlock).toMatch(/--desktop-venue-drawer-width: clamp\(\s*376px,\s*min\(46vw, calc\(100vw - var\(--desktop-split-list-width\) - 248px\)\),\s*640px\s*\)/);
   });
 
-  it("declares the width once, where the document's opening prices can read it too", () => {
+  it("declares the width on :root, where the document's opening prices can read it too", () => {
     const globals = readFileSync(join(process.cwd(), "app/globals.css"), "utf8");
-    expect(globals).toMatch(/:root \{\s*--desktop-split-list-width: clamp\(400px, 30vw, 440px\);/);
+    // 0px below 1024px, so a reader needs no fallback (__tests__/tokenDebt.test.ts).
+    expect(globals).toMatch(/^:root \{\s*--desktop-split-list-width: 0px;\s*\}/m);
+    expect(globals).toMatch(/@media \(min-width: 1024px\) \{[\s\S]*?:root \{\s*--desktop-split-list-width: clamp\(400px, 30vw, 440px\);/);
     const preview = readFileSync(join(process.cwd(), "components/map/mapOpeningPreview.css"), "utf8");
-    expect(preview).toMatch(/@media \(min-width: 1024px\) \{\s*\.mapOpeningPreview \{\s*left: var\(--desktop-split-list-width, 0px\);/);
+    expect(preview).toMatch(/@media \(min-width: 1024px\) \{\s*\.mapOpeningPreview \{\s*left: var\(--desktop-split-list-width\);/);
   });
 });
 
