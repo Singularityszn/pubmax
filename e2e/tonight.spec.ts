@@ -295,8 +295,8 @@ test("a failed listings request can be retried", async ({ page }) => {
 // First-run chrome leads with the loop (find, plan, go), never with Moment. A
 // stranger on the phone home screen meets this dock first. Social is a main tab
 // by the captain's call (16 Oct 2026) and is the one tab that may ask a
-// stranger to sign in ("Sign in to use Social."); every other tab answers
-// without asking.
+// stranger to sign in (its head door over a read-only London lane, captain
+// decision 7 of 1 Nov 2026); every other tab answers without asking.
 test("the first-run dock leads with the loop and only Social may ask a stranger to sign in", async ({
   page,
 }) => {

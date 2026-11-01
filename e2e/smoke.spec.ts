@@ -118,7 +118,8 @@ test("/feed redirects to Social and renders its reachable boundary state (issue 
   await expect(
     page.getByRole("heading", { name: "Plans, photos and people" }),
   ).toBeVisible();
-  await expect(page.getByText("Sign in to use Social.")).toBeVisible();
+  // A stranger reads the London lane (captain decision 7, 1 Nov 2026).
+  await expect(page.getByRole("heading", { name: "Across London", exact: true })).toBeVisible();
   expect(errors).toEqual([]);
 });
 

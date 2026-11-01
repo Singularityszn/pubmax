@@ -15,15 +15,18 @@ test.describe("UI empty states and layout fit", () => {
     });
   });
 
-  test("signed-out Social Posts door is worded at 390", async ({ page }) => {
+  test("signed-out Social Posts lane is worded at 390", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/social");
     await expect(page.getByRole("link", { name: "Posts", exact: true })).toHaveAttribute(
       "aria-current",
       "page",
     );
-    await expect(page.getByText("Sign in to use Social.")).toBeVisible();
-    await expect(page.locator(".socialDoorSlot")).toBeVisible();
+    // A stranger reads the London lane (captain decision 7, 1 Nov 2026) in the
+    // slot the sign-in wall used to hold.
+    await expect(page.getByRole("heading", { name: "Across London", exact: true })).toBeVisible();
+    await expect(page.locator(".socialLondonLane")).toBeVisible();
+    await expect(page.getByText("Sign in to use Social.")).toHaveCount(0);
   });
 
   test("night crawl actions sit below the stop name without a dead band", async ({

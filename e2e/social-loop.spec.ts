@@ -51,7 +51,9 @@ test("legacy /feed opens signed-out Social, not the retired feed", async ({
   await expect(
     page.getByRole("heading", { name: "Plans, photos and people" }),
   ).toBeVisible();
-  await expect(page.getByText("Sign in to use Social.")).toBeVisible();
+  // A stranger reads the London lane under the Sign in door (captain
+  // decision 7, 1 Nov 2026).
+  await expect(page.getByRole("heading", { name: "Across London", exact: true })).toBeVisible();
   await expect(
     page.locator("[data-primary-action]").getByRole("link", { name: "Sign in" }),
   ).toBeVisible();
