@@ -163,6 +163,20 @@ describe("AccountHub's confirmed private recap claim", () => {
     expect(posts.slice(2).map((entry) => entry.path).sort()).toEqual(expectedPaths);
   });
 
+  it("waits for the account write gate before sending the confirmed recap", async () => {
+    await mount();
+    publishAuthActionState({ status: "unknown", identityResolved: false });
+    await choose("Bring this device");
+    expect(posts).toEqual([]);
+    expect(listPendingPlanRecaps().map((recap) => recap.completionId)).toEqual([COMPLETION_A]);
+    await act(async () => {
+      publishAuthActionState({ status: "signed-in", identityResolved: true });
+    });
+    await vi.waitFor(() => expect(listPendingPlanRecaps()).toEqual([]));
+    expect(posts).toHaveLength(1);
+    expect(posts[0]?.path).toBe(`/api/plans/${PLAN_A}/recap`);
+  });
+
   it("continues under the captured owner when that owner's access token refreshes", async () => {
     let release: (response: Response) => void = () => {};
     save = async (path) => posts.length === 1
@@ -182,10 +196,10 @@ describe("AccountHub's confirmed private recap claim", () => {
     await vi.waitFor(() => expect(listPendingPlanRecaps()).toEqual([]));
     expect(posts).toHaveLength(2);
     expect(posts.map((entry) => new Headers(entry.init.headers).get("authorization")))
-      .toEqual(["Bearer account-token-a", "Bearer account-token-a"]);
+      .toEqual(["Bearer account-token-a", "Bearer refreshed-token-a"]);
   });
 
-  it("keeps drafts when the captured token expires and retries with the refreshed token", async () => {
+  it("keeps drafts after an authentication refusal and retries with the refreshed token", async () => {
     save = async (path) => posts.length === 1
       ? Response.json({ error: "Sign in again." }, { status: 401 })
       : saved(path);

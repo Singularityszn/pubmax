@@ -618,12 +618,12 @@ export default function PubmaxxAccountHub() {
       setMessage("Your private Memories were left unchanged. The recap stays on this device.");
       return;
     }
-    const claimAuth = accountAuth;
+    const claimOwnerId = user?.id;
     const requestRevision = accountRevision;
     const signal = readProviderAccountSignal();
     const isCurrentAccount = () => !signal.aborted && readProviderIdentityRevision() === requestRevision;
     if (!isCurrentAccount()) return;
-    if (!claimAuth) {
+    if (!claimOwnerId) {
       setMessage("Sign in again to bring this recap. Your local draft is safe.");
       return;
     }
@@ -638,18 +638,18 @@ export default function PubmaxxAccountHub() {
           return;
         }
         // This path receives the Plan's HttpOnly cookie without widening its scope.
-        const response = await accountBoundFetch(claimAuth, `/api/plans/${recap.planId}/recap`, {
+        const response = await authedActionFetch(`/api/plans/${recap.planId}/recap`, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ memberToken: capability.token, recap }),
           signal,
-        });
+        }, { requiresIdentity: true });
         const body = (await response.json().catch(() => ({}))) as {
           memory?: { id: string; ownerId?: string; planCompletionId?: string | null };
           error?: string;
         };
         if (!isCurrentAccount()) return;
-        if (!response.ok || !body.memory?.id || body.memory.ownerId !== claimAuth.userId
+        if (!response.ok || !body.memory?.id || body.memory.ownerId !== claimOwnerId
           || body.memory.planCompletionId !== recap.completionId) {
           setMessage(errorMessageFrom(body, "Your private recap could not be brought onto your account."));
           return;
