@@ -98,7 +98,7 @@ export default function CrawlCostCalculator({ suggestion }: { suggestion: PriceS
             <p className="legalBody" data-rounds-verdict>
               {result.rounds.buyingOneMore === 0
                 ? `In rounds, it is even: each person buys ${plural(result.rounds.fewest, "round", "rounds")}.`
-                : `In rounds, ${plural(result.rounds.buyingOneMore, "person buys", "people buy")} ${plural(result.rounds.fewest + 1, "round", "rounds")} and the others buy ${result.rounds.fewest}. They pay ${formatPence(result.rounds.gapPence)} more. Add ${plural(result.rounds.roundsToEven, "round", "rounds")} to make it even, or split the bill.`}
+                : `In rounds, ${plural(result.rounds.buyingOneMore, "person buys", "people buy")} ${plural(result.rounds.fewest + 1, "round", "rounds")} and the others buy ${result.rounds.fewest}. They pay ${formatPence(result.rounds.gapPence)} more. Split the bill to balance the drinks you chose.`}
             </p>
           </>
         )}
