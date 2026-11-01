@@ -51,7 +51,6 @@ import PalNightQuestion from "./PalNightQuestion";
 import PalQuestStamps from "./PalQuestStamps";
 import PalYear from "./PalYear";
 import PalPrint from "./PalPrint";
-import { usePalHead3D } from "./usePalHead3D";
 import { palGenomeFor } from "@/lib/palGenome";
 import { createPalVoiceSignal } from "@/lib/palVoiceSignal";
 import PubPalVoice from "@/components/pubpal/PubPalVoice";
@@ -332,15 +331,13 @@ function PalHomeScreen({
   // The voice panel publishes its live levels here and the portrait reads
   // them, so the head turns, leans and nods with the conversation.
   const [voiceSignal] = useState(createPalVoiceSignal);
-  const headRef = useRef<HTMLDivElement>(null);
   // Seeded by the Pal's own id: the same genome on every device and visit.
   const genome = useMemo(() => palGenomeFor(pal.id, pal.personality), [pal.id, pal.personality]);
-  usePalHead3D(headRef, { signal: voiceSignal, state: visiblePalState, temperament: genome.temperament });
   return (
     <main id="main" className="palExperience palHome">
       <section className="palHomeHero" aria-labelledby="pal-home-title">
-        <div className="palHomePortrait" ref={headRef}>
-          <PalPortrait appearance={pal.appearance} name={pal.name} state={visiblePalState} genome={genome} />
+        <div className="palHomePortrait">
+          <PalPortrait appearance={pal.appearance} name={pal.name} state={visiblePalState} genome={genome} signal={voiceSignal} />
           <p className="palSpeech">{palStateSpeech[visiblePalState]}</p>
         </div>
         <div className="palHomeCopy">

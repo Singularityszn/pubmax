@@ -37,6 +37,7 @@ import {
   serverStrictModalFocusTrap,
   subscribeStrictModalFocusTrap,
 } from "@/lib/useFocusTrap";
+import { usePlanMapHref } from "@/components/nav/PlanMapNavigation";
 import "./navigation.css";
 
 // Mobile-first bottom tab bar. Mounted on every route and visible only ≤640px
@@ -147,7 +148,7 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
     readPreferredCity,
     () => null,
   );
-  const mapHref = preferredCity ? preferredCityMapHref() : "/map";
+  const mapHref = usePlanMapHref(preferredCity ? preferredCityMapHref() : "/map");
   // A confirmed account with a canonical handle goes straight to its profile.
   // A device handle alone cannot prove that the viewer is signed in. Keep
   // signed-out and unresolved viewers on /u/you, where the account page owns

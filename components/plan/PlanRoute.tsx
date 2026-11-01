@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import type { Route } from "next";
 import { useEffect, useState, type CSSProperties } from "react";
-import { CalendarClock, Music, Tag, Ticket, Tv, type LucideIcon } from "lucide-react";
+import { ArrowUpRight, CalendarClock, Music, Tag, Ticket, Tv, type LucideIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 // Type-only import of the wire contract — the API and this component share one
 // source of truth (lib/planGetIn) so the shapes cannot drift. Erased at build,
@@ -106,18 +108,12 @@ export default function PlanRoute({
 
   const signals = new Map((report?.stops ?? []).map((stop) => [stop.venueId, stop]));
   const groupSize = report?.groupSize ?? 0;
-  // Deep link the whole ordered crawl onto the map, where the route now follows
-  // real walking roads. The per-stop "Open on the map" links below still jump to
-  // a single pin; this shows the walk between every stop.
+  // Keep the ordered walk when selecting one stop. A mixed-city list falls
+  // back to individual venue links rather than implying a walk between cities.
   const walkRouteHref = buildCrawlMapHref(stops.map((stop) => stop.venueId));
 
   return (
     <div className="planRoute">
-      {state === "ready" && groupSize > 0 ? (
-        <p className="planRoute__basis">
-          Get-in estimate for {groupSize === 1 ? "one" : groupSize} going. Never a guarantee of entry.
-        </p>
-      ) : null}
       {/* Route card (T8): a read-only MapLibre preview of the crawl, numbered
           stops on the walking line, straight-then-routed with the same
           solid/dashed honesty rule as the big map. Tapping it opens the same
@@ -127,12 +123,19 @@ export default function PlanRoute({
         <PlanRouteMiniMap stops={stops} mapHref={walkRouteHref} />
       ) : null}
       {walkRouteHref ? (
-        <Link className="planRoute__walk" href={walkRouteHref}>
-          See the walking route
-        </Link>
+        <Button asChild variant="secondary" className="planRoute__walk">
+          <Link href={walkRouteHref}>
+            See the walking route
+            <ArrowUpRight size={20} aria-hidden="true" />
+          </Link>
+        </Button>
+      ) : null}
+      {state === "ready" && groupSize > 0 ? (
+        <p className="planRoute__basis">
+          Get-in estimate for {groupSize === 1 ? "one" : groupSize} going. Never a guarantee of entry.
+        </p>
       ) : null}
       <div className="planRoute__stopsTrack">
-        <div className="planSummary__rail" aria-hidden="true" />
         <ol className="planSummary__stops">
           {stops.map((stop, index) => {
             const signal = signals.get(stop.venueId);
@@ -144,7 +147,9 @@ export default function PlanRoute({
                   <MysteryStopTitle venueId={stop.venueId} name={stop.venueName} position={stop.position} alreadyVisited={visitedPositions.includes(stop.position)} />
                   {priceLine ? <small className="planRoute__selectedDrinkPrice">{priceLine}</small> : null}
                   <StopEventBadge event={events.get(stop.venueId)} />
-                  <Link href={venueMapUrl(stop.venueId)}>Open on the map</Link>
+                  <Link href={walkRouteHref
+                    ? `${walkRouteHref}&sel=${encodeURIComponent(stop.venueId)}` as Route
+                    : venueMapUrl(stop.venueId)}>Open on the map</Link>
                   <StopGetIn state={state} signal={signal} />
                 </div>
               </li>

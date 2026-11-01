@@ -157,7 +157,8 @@ import {
   type BasemapNoticeOwner,
   type PinRevealNoticeKind,
 } from "@/components/map/canvas/pinRevealCoordinator";
-import { applySelectionMute } from "@/lib/mapBasemapTaste";
+import { applyMapFocusMute } from "@/lib/mapBasemapTaste";
+import { orientRouteStopLabels } from "@/lib/routeStopLabel";
 import { MAP_PIN_REVEAL_EVENT } from "@/lib/mapPinRevealEvent";
 import {
   wireClickRouting, wireHoverPrefetch, wirePubHover, wireCursor,
@@ -1209,6 +1210,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     type: "FeatureCollection",
     features: [],
   });
+  const routeLineKeyRef = useRef<string | null>(null);
   const routeStopsRef = useRef<GeoJSON.FeatureCollection>({
     type: "FeatureCollection",
     features: [],
@@ -1372,6 +1374,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       (m.getSource("route-line") as maplibregl.GeoJSONSource | undefined)?.setData(
         routeLineRef.current,
       );
+      routeStopsRef.current = orientRouteStopLabels(routeStopsRef.current,
+        (point) => m.project(point).x, m.getContainer().clientWidth / 2);
       (m.getSource("route-stops") as maplibregl.GeoJSONSource | undefined)?.setData(
         routeStopsRef.current,
       );
@@ -1414,6 +1418,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     cameraLanePending,
     easeArrivalBearing,
     fitRoute,
+    fitOwnedRoute,
     fitCityBounds,
     fitQueryVenues,
     fitNearby,
@@ -1423,6 +1428,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     cityViewRef,
     cityBoundsRef,
     routeRef,
+    routeLineRef,
     venuesRef,
     queryVenuesRef,
     gestureCameraRef,
@@ -1988,6 +1994,12 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     }
     let ambientMotionCameraKey = "";
     map.on("moveend", () => {
+      const inwardStops = orientRouteStopLabels(routeStopsRef.current,
+        (point) => map.project(point).x, map.getContainer().clientWidth / 2);
+      if (inwardStops !== routeStopsRef.current) {
+        routeStopsRef.current = inwardStops;
+        (map.getSource("route-stops") as maplibregl.GeoJSONSource | undefined)?.setData(inwardStops);
+      }
       // Audit F5: every camera move (programmatic flys included) ends on a
       // fresh present. A repaint moves no camera, so this cannot re-fire
       // moveend; deliberately NOT hooked on `idle` (that would loop).
@@ -2605,6 +2617,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       const withLiveSelection = (ctx: typeof sceneCtx) => ({
         ...ctx,
         selectedId: selectedIdRef.current,
+        routeStops: routeStopsRef.current,
         selectionMuteStore: selectionMuteStoreRef.current,
       });
       const scheduleDeferredScene = () => {
@@ -4295,12 +4308,14 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   }, [poiHidden, mapReady]);
 
   // Route + selection ring → sources/filter.
+  const routeCoordKey = route.map((v) => `${v.longitude},${v.latitude}`).join(";");
   useEffect(() => {
     // The straight estimate draws at once; the street line, once routed, holds
     // for as long as the stops are the same (a parent re-render hands over a new
     // array for the same stops, and used to put the dashed estimate back).
-    const coordKey = route.map((v) => `${v.longitude},${v.latitude}`).join(";");
-    const routed = routedLineRef.current?.key === coordKey ? routedLineRef.current : null;
+    // Selection and venue-data refreshes must retain a routed road line.
+    routeLineKeyRef.current = routeCoordKey;
+    const routed = routedLineRef.current?.key === routeCoordKey ? routedLineRef.current : null;
     routeLineRef.current = routed?.line ?? routeToLine(route);
     routeStopsRef.current = routeToStops(route);
     routeLegTimesRef.current = routed?.legTimes ?? routeToLegTimes(route);
@@ -4417,15 +4432,12 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
           selectedPinIconSizeExpr(selectedIdRef.current),
         );
       }
-      // M2 POI-at-initiation gating — while a venue is selected the selected pub
-      // must dominate: heavy-mute the POI/landmark/transport app layers AND the
-      // basemap-baked transit roundels / street / POI labels. Deselect restores
-      // the exact originals so the city overview reads unchanged. Opacity-only
-      // via paint transitions (MapLibre's default 300ms ease) — no new RAF, no
-      // React re-render, and it composes with the POI/tube visibility toggles.
-      applySelectionMute(map, Boolean(selectedIdRef.current), selectionMuteStoreRef.current);
+      // Selection owns the strongest focus. A walking route quiets transport
+      // and places but keeps street names. Browsing restores the original paint.
+      applyMapFocusMute(map, selectedIdRef.current ? "selection"
+        : route.length >= 2 ? "route" : "browse", selectionMuteStoreRef.current);
     });
-  }, [route, selectedVenueId, mapReady, applyToMap, applyRouteData]);
+  }, [route, routeCoordKey, selectedVenueId, mapReady, applyToMap, applyRouteData]);
 
   // Road-following upgrade (T4). The effect above paints the straight line
   // instantly (routeToLine, drawn dashed as "approximate"); here we ask
@@ -4436,7 +4448,6 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   // last route (mirrors the hover-detail fetch above). `routeCoordKey` is the
   // ordered `lng,lat;lng,lat` wire format /api/walk-route decodes (parseStops),
   // and re-fires only when the stop coordinates actually change.
-  const routeCoordKey = route.map((v) => `${v.longitude},${v.latitude}`).join(";");
   useEffect(() => {
     if (!mapReady) return;
     if (routeCoordKey.split(";").length < 2) return;
@@ -4447,6 +4458,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     })
       .then((response) => (response.ok ? response.json() : null))
       .then((body: { line?: GeoJSON.FeatureCollection; source?: string; legs?: unknown } | null) => {
+        if (controller.signal.aborted || routeLineKeyRef.current !== routeCoordKey) return;
         // Only upgrade when the server actually routed roads; a "straight"
         // response is the same geometry we already painted, so leave it dashed.
         if (!body || body.source !== "ors" || !body.line?.features?.length) return;
@@ -4456,6 +4468,9 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         if (Array.isArray(body.legs)) routeLegTimesRef.current = routeLegTimes(body.legs);
         routedLineRef.current = { key: routeCoordKey, line: body.line, legTimes: routeLegTimesRef.current };
         applyRouteData();
+        // A pavement bend can extend beyond the stops. Fit the upgraded line
+        // only while the reader has not taken the camera during this request.
+        if (!selectedIdRef.current) fitOwnedRoute();
         const stops = palWalkStopsFromKey(routeCoordKey);
         walkPals({ key: routeCoordKey, stops, path: palWalkPathFrom(body.line), road: true });
       })
@@ -4470,7 +4485,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       window.clearTimeout(timeout);
       controller.abort();
     };
-  }, [routeCoordKey, mapReady, applyRouteData, walkPals]);
+  }, [routeCoordKey, mapReady, applyRouteData, walkPals, fitOwnedRoute]);
 
   // The Pal walks a crawl route of two or more stops (the road line takes over
   // above once routed), and goes to a stop the reader taps; with no crawl it
@@ -4666,6 +4681,22 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     if (selectedVenueId) return;
     fitRoute();
   }, [routeKey, mapReady, fitRoute, selectedVenueId]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!mapReady || !map) return;
+    const container = map.getContainer();
+    let width = container.clientWidth;
+    let height = container.clientHeight;
+    const refit = () => {
+      if (width === container.clientWidth && height === container.clientHeight) return;
+      width = container.clientWidth;
+      height = container.clientHeight;
+      if (!selectedIdRef.current) fitOwnedRoute();
+    };
+    map.on("resize", refit);
+    return () => { map.off("resize", refit); };
+  }, [mapReady, fitOwnedRoute]);
 
   // Cinematic fly-to on venue selection (after the route framing above).
   // `selectedPresent` closes the ?sel= deep-link race: on first load the
@@ -5135,17 +5166,17 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
           <button
             type="button"
             className="mapRecenterBtn"
-            onClick={fitRoute}
-            aria-label="Recenter route"
-            title="Recenter route"
+            onClick={() => fitRoute("route-recovery")}
+            aria-label="Show whole walk"
+            title="Show whole walk"
           >
             <Crosshair size={14} aria-hidden />
-            Recenter
+            Show whole walk
           </button>
         </div>
       ) : null}
       {hoveredVenue ? renderVenueHoverCard(hoveredVenue) : null}
-      {heroVenue && !heroDismissed ? (
+      {heroVenue && !heroDismissed && route.length < 2 ? (
         <MapHeroCard
           venue={heroVenue}
           onDismiss={() => setHeroDismissed(true)}

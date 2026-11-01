@@ -1,0 +1,44 @@
+{
+  "circuit-robin": {
+    "scale": 0.84607,
+    "x": -0.875033,
+    "y": -2.548295,
+    "file": "circuit-robin-c69915c4a4df.glb"
+  },
+  "circuit-greyhound": {
+    "scale": 1.030905,
+    "x": -0.094001,
+    "y": -0.681013,
+    "file": "circuit-greyhound-da3e419643d6.glb"
+  },
+  "circuit-cat": {
+    "scale": 0.988907,
+    "x": 1.291007,
+    "y": -2.423373,
+    "file": "circuit-cat-670f87fb3ef4.glb"
+  },
+  "circuit-fox": {
+    "scale": 0.962723,
+    "x": 12.535766,
+    "y": -4.863787,
+    "file": "circuit-fox-80d07a250094.glb"
+  },
+  "circuit-pigeon": {
+    "scale": 0.948291,
+    "x": 1.233794,
+    "y": -3.028373,
+    "file": "circuit-pigeon-8176ffb4669b.glb"
+  },
+  "circuit-badger": {
+    "scale": 0.916169,
+    "x": 1.441723,
+    "y": -1.558407,
+    "file": "circuit-badger-fc2985451408.glb"
+  },
+  "circuit-corgi": {
+    "scale": 1.056422,
+    "x": 10.165855,
+    "y": -7.796623,
+    "file": "circuit-corgi-d1976c8a1f13.glb"
+  }
+}

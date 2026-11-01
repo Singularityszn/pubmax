@@ -371,6 +371,14 @@ describe("crawlUrl", () => {
   });
 
   describe("buildCrawlMapHref", () => {
+    it("keeps a crawl on its own city map and refuses a walk between cities", () => {
+      const href = buildCrawlMapHref(["venue-mcr-abc", "venue-mcr-def"]);
+      const target = new URL(href!, "http://localhost");
+      expect(target.pathname).toBe("/map/manchester");
+      expect(target.searchParams.get("pubs")).toBe("venue-mcr-abc,venue-mcr-def");
+      expect(buildCrawlMapHref(["venue-abc", "venue-mcr-def"])).toBeNull();
+    });
+
     it("deep links the whole ordered crawl into build mode", () => {
       const href = buildCrawlMapHref(["venue-abc", "venue-def", "venue-ghi"]);
       expect(href).toMatch(/^\/map\?mode=build&pubs=/);

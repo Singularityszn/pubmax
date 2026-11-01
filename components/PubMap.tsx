@@ -385,7 +385,7 @@ const LogIntentFallback = dynamic(
 );
 import { useActivePlanPalNextStop, useActivePlanRoute } from "@/components/map/pubmap/useActivePlanRoute";
 import { useCrewPals } from "@/components/map/pubmap/useCrewPals";
-import { useMapPlanCoordinator, useMapPlanPresentation } from "@/components/map/pubmap/useMapPlanCoordinator";
+import { useActiveCuratedCrawl, useMapPlanCoordinator, useMapPlanPresentation } from "@/components/map/pubmap/useMapPlanCoordinator";
 import { planStopsToRouteVenues } from "@/lib/activePlanRoute";
 import { seedCrawlState, useCrawlUrlSync } from "@/components/map/useCrawlUrl";
 import type { AltCrawlStyle } from "@/lib/crawlUrl";
@@ -1834,13 +1834,14 @@ export default function PubMap({
     setPlanningOpen,
     plannedNightArea,
     activateGeneratedPlan,
+    walkRequest,
   } = useMapPlanCoordinator({
     mode: seed.mode,
     builtIds: seed.builtIds,
     routeMapped: seed.routeMapped,
     nightArea: restoredSession.nightArea,
     planningOpen: restoredSession.plannerOpen,
-  });
+  }, reactiveAcceptanceSearch);
   // Issue #15 story bands: the active band id ("" = none), seeded from the URL
   // and synced back so a band link reproduces. The band overlay + picker live
   // inside PubMapCanvas; PubMap only owns the shareable state.
@@ -1896,8 +1897,9 @@ export default function PubMap({
   const [locationRequestStatus, setLocationRequestStatus] =
     useState<LocationRequestStatus>("idle");
   // The curated crawl whose blurb is shown under the route title. Seeded from
-  // ?crawl= / matching pubs= on curated arrival; cleared when the user mutates stops.
-  const [activeCrawl, setActiveCrawl] = useState<CuratedCrawl | null>(seed.activeCrawl);
+  // ?crawl= / matching pubs= on curated arrival; cleared when the user mutates stops
+  // or the mounted map adopts a walking-route link.
+  const [activeCrawl, setActiveCrawl] = useActiveCuratedCrawl<CuratedCrawl>(seed.activeCrawl, walkRequest);
   // Issue #31 alt crawl style ("kind of night" label). Seeded from the URL and
   // synced back so a shared link reproduces it. Only shapes copy + the .ics
   // export noun; the scoring crawlStyle is untouched.
@@ -1973,6 +1975,7 @@ export default function PubMap({
     arrivalSearch,
     cityId,
     seed,
+    setActiveCrawl,
     setBuiltIds,
     setCrawlHydrationPending,
     setFilters,
@@ -3821,7 +3824,20 @@ export default function PubMap({
 
   // ?sel= client-nav sync — verbatim in components/map/pubmap/useSelParamSync.ts.
   const selParam = searchParamValue(searchParams, "sel");
-  useSelParamSync({ selParam, selectedVenueId, selectVenue });
+  // A walking-route link that names no pub lets go of the one left open before
+  // it, and the entry the link landed becomes the map's root.
+  const [landedWalkEntry, setLandedWalkEntry] = useState(0);
+  const retireSelectionForWalk = useCallback(() => {
+    setSelectedVenueId("");
+    setLandedWalkEntry((count) => count + 1);
+  }, []);
+  useSelParamSync({
+    selParam,
+    selectedVenueId,
+    selectVenue,
+    walkRequest,
+    clearSelection: retireSelectionForWalk,
+  });
 
   // W3 cheap-round / vertical deep links: /map?src=whats-on-deal opens the
   // Tonight lane already filtered to that kind (exact allowlisted tokens only).
@@ -4595,7 +4611,7 @@ export default function PubMap({
     setMode("build");
     setRouteMapped(true);
     setActiveCrawl(null); // a manual stop change is no longer "the curated crawl"
-  }, [builtIds, setBuiltIds, setMode, setRouteMapped, venueById]);
+  }, [builtIds, setActiveCrawl, setBuiltIds, setMode, setRouteMapped, venueById]);
 
   // Reverse the hand-built route: start from the opposite end. Event handler, so
   // setState is fine; URL-sync picks up the new builtIds order automatically.
@@ -4603,7 +4619,7 @@ export default function PubMap({
     setBuiltIds((current) => [...current].reverse());
     setRouteMapped(true);
     setActiveCrawl(null);
-  }, [setBuiltIds, setRouteMapped]);
+  }, [setActiveCrawl, setBuiltIds, setRouteMapped]);
 
   const clearBuilt = useCallback(() => {
     setBuiltIds([]);
@@ -4611,7 +4627,7 @@ export default function PubMap({
     setActiveCrawl(null);
     // Explicit Clear also drops the refresh-safety net.
     if (typeof window !== "undefined") window.localStorage.removeItem(BUILT_STORAGE_KEY);
-  }, [setBuiltIds, setRouteMapped]);
+  }, [setActiveCrawl, setBuiltIds, setRouteMapped]);
 
   // Trust fix (§4.3): a pin tap INSPECTS ONLY, in both modes. It never mutates
   // the crawl — otherwise browsing pubs in build mode silently adds/removes
@@ -5441,6 +5457,7 @@ export default function PubMap({
     onRestore: restoreMapSurface,
     onHome: closeEverySurface,
     onSurfaceClose: syncLandedCrawlContext,
+    landedEntry: landedWalkEntry,
   });
   const {
     rejectSelection: rejectMapSelection,

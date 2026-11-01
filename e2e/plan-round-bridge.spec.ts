@@ -85,23 +85,38 @@ test("an active Plan starts a Round with its ordered stops", async ({ page }) =>
   const route = page.getByRole("region", { name: "The route" });
   await expect(route).toBeVisible();
   const collabRailOverlap = await page.evaluate(() => {
-    const rail = document.querySelector<HTMLElement>(".planSummary__rail");
+    const railRects = Array.from(document.querySelectorAll<HTMLElement>(".planRoute__stopsTrack .planSummary__stops > li"))
+      .flatMap((row) => {
+        const style = getComputedStyle(row, "::before");
+        if (style.content === "none" || style.display === "none") return [];
+        const rowRect = row.getBoundingClientRect();
+        return [new DOMRect(
+          rowRect.left + Number.parseFloat(style.left),
+          rowRect.top + Number.parseFloat(style.top),
+          Number.parseFloat(style.width),
+          Number.parseFloat(style.height),
+        )];
+      });
     const collab = document.querySelector<HTMLElement>(".planCollab");
-    if (!rail || !collab) return { missing: true };
-    const railRect = rail.getBoundingClientRect();
+    if (!railRects.length || !collab) return { missing: true };
     const collabRect = collab.getBoundingClientRect();
     const overlaps = (a: DOMRect, b: DOMRect) =>
       a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
     return {
       missing: false,
-      overlaps: overlaps(railRect, collabRect),
-      overInvite: overlaps(
-        railRect,
+      valid: railRects.every(rect => [rect.x, rect.y, rect.width, rect.height].every(Number.isFinite)
+        && rect.width > 0 && rect.height > 0),
+      count: railRects.length,
+      overlaps: railRects.some(rect => overlaps(rect, collabRect)),
+      overInvite: railRects.some(rect => overlaps(
+        rect,
         collab.querySelector(".planCollab__invite")?.getBoundingClientRect() ?? collabRect,
-      ),
+      )),
     };
   });
   expect(collabRailOverlap.missing, "route rail and crew panel must both render").toBe(false);
+  expect(collabRailOverlap.valid, "route segments must have visible geometry").toBe(true);
+  expect(collabRailOverlap.count).toBe(stops.length - 1);
   expect(collabRailOverlap.overlaps, "route rail must not cross the crew card (#1539)").toBe(false);
   expect(collabRailOverlap.overInvite, "route rail must not cross the invite URL (#1539)").toBe(false);
   for (const stop of stops) {
@@ -114,7 +129,7 @@ test("an active Plan starts a Round with its ordered stops", async ({ page }) =>
   await expect(page.locator(".planSummary__editStops strong")).toHaveText(
     stops.map((stop) => stop.venueName),
   );
-  await page.getByRole("button", { name: "Discard draft" }).click();
+  await page.getByRole("button", { name: "Close editor" }).click();
 
   const startRound = page.getByRole("button", { name: "Start the round", exact: true });
   await expect(startRound).toBeEnabled();
@@ -125,15 +140,25 @@ test("an active Plan starts a Round with its ordered stops", async ({ page }) =>
     });
     const geometry = await page.locator(".planSummary").evaluate((summary) => {
       const starter = summary.querySelector<HTMLElement>(".roundStarter");
-      const rail = summary.querySelector<HTMLElement>(".planSummary__rail");
+      const rails = Array.from(summary.querySelectorAll<HTMLElement>(".planRoute__stopsTrack .planSummary__stops > li"))
+        .flatMap((row) => {
+          const style = getComputedStyle(row, "::before");
+          if (style.content === "none" || style.display === "none") return [];
+          const rect = row.getBoundingClientRect();
+          return [new DOMRect(
+            rect.left + Number.parseFloat(style.left),
+            rect.top + Number.parseFloat(style.top),
+            Number.parseFloat(style.width),
+            Number.parseFloat(style.height),
+          )];
+        });
       const input = summary.querySelector<HTMLInputElement>(".roundStarterRow input");
       const action = summary.querySelector<HTMLButtonElement>(".roundStarterRow button");
-      if (!starter || !rail || !input || !action) {
+      if (!starter || !rails.length || !input || !action) {
         throw new Error("Plan RoundStarter geometry is incomplete");
       }
 
       const starterRect = starter.getBoundingClientRect();
-      const railRect = rail.getBoundingClientRect();
       const actionRect = action.getBoundingClientRect();
       const overlaps = (first: DOMRect, second: DOMRect) =>
         first.left < second.right &&
@@ -142,11 +167,16 @@ test("an active Plan starts a Round with its ordered stops", async ({ page }) =>
         first.bottom > second.top;
 
       return {
-        starterRailOverlap: overlaps(starterRect, railRect),
-        actionRailOverlap: overlaps(actionRect, railRect),
+        railCount: rails.length,
+        validRails: rails.every(rect => [rect.x, rect.y, rect.width, rect.height].every(Number.isFinite)
+          && rect.width > 0 && rect.height > 0),
+        starterRailOverlap: rails.some(rect => overlaps(starterRect, rect)),
+        actionRailOverlap: rails.some(rect => overlaps(actionRect, rect)),
       };
     });
 
+    expect(geometry.railCount).toBe(stops.length - 1);
+    expect(geometry.validRails).toBe(true);
     expect
       .soft(
         geometry.starterRailOverlap,
