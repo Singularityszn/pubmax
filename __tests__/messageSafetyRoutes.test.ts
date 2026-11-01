@@ -21,7 +21,8 @@ import {
   __resetMemoryAdultSelfAssertions,
   memoryAdultSelfAssertionStore,
 } from "@/lib/adultSelfAssertionStore";
-import { MESSAGE_BLOCKED_LINE } from "@/lib/messageSafety";
+import { __resetMemoryFollows, memoryFollowStore } from "@/lib/followStore";
+import { MESSAGE_BLOCKED_LINE, MESSAGE_MATES_ONLY_LINE } from "@/lib/messageSafety";
 import { __resetMemoryMessages } from "@/lib/messagesStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
 import {
@@ -85,9 +86,17 @@ beforeEach(async () => {
   __resetMemoryAdultSelfAssertions();
   __resetMemoryPrivateIdentities();
   clearSocialMemoryBlocks();
+  __resetMemoryFollows();
   for (const handle of PEOPLE) {
     __seedMemoryOwnedProfile(handle, `user-${handle}`);
     await memoryAdultSelfAssertionStore.record(`user-${handle}`);
+  }
+  // Everybody here starts as mates, so each block and adult test proves its
+  // own door. The mates-only describe below takes edges away to prove that one.
+  for (const from of PEOPLE) {
+    for (const to of PEOPLE) {
+      if (from !== to) await memoryFollowStore.follow(from, to);
+    }
   }
 });
 
@@ -193,7 +202,7 @@ describe("messaging asks the one adult gate", () => {
 });
 
 describe("the happy path is unchanged", () => {
-  it("opens, sends and replies between two adults with no block, mutual or not", async () => {
+  it("opens, sends and replies between two adult mates with no block", async () => {
     const conversationId = await openPair("ken", "sam");
     asUser("ken");
     expect((await postThread(conversationId, { action: "send", handle: "ken", body: "Pint?" })).status).toBe(201);
@@ -209,5 +218,61 @@ describe("the happy path is unchanged", () => {
     const conversationId = await openPair("ken", "sam");
     asUser("ken");
     expect((await postThread(conversationId, { action: "send", handle: "ken", body: "Pint?" })).status).toBe(201);
+  });
+});
+
+describe("a new conversation needs mates until the age check is live", () => {
+  it("refuses to open a conversation when the other side does not follow back", async () => {
+    await memoryFollowStore.unfollow("sam", "ken");
+
+    asUser("ken");
+    const res = await postInbox({ action: "open", handle: "ken", other: "sam" });
+
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({
+      error: MESSAGE_MATES_ONLY_LINE,
+      code: "MESSAGE_MATES_ONLY",
+    });
+  });
+
+  it("refuses a send-by-handle when only the recipient follows", async () => {
+    await memoryFollowStore.unfollow("ken", "sam");
+
+    asUser("ken");
+    const res = await postInbox({ action: "send", handle: "ken", other: "sam", body: "Pint?" });
+
+    expect(res.status).toBe(403);
+    expect((await res.json()).code).toBe("MESSAGE_MATES_ONLY");
+  });
+
+  it("refuses a whole group when the opener is not mates with one member", async () => {
+    await memoryFollowStore.unfollow("max", "ken");
+
+    asUser("ken");
+    const res = await postInbox({ action: "open-group", handle: "ken", participants: ["sam", "max"] });
+
+    expect(res.status).toBe(403);
+    expect((await res.json()).error).toBe(MESSAGE_MATES_ONLY_LINE);
+  });
+
+  it("lets a block answer first, so the refusal still names nobody", async () => {
+    await memoryFollowStore.unfollow("sam", "ken");
+    await block("sam", "ken");
+
+    asUser("ken");
+    const res = await postInbox({ action: "open", handle: "ken", other: "sam" });
+
+    expect(res.status).toBe(403);
+    expect((await res.json()).error).toBe(MESSAGE_BLOCKED_LINE);
+  });
+
+  it("refuses with a retryable 503 when the follow store cannot answer", async () => {
+    vi.spyOn(memoryFollowStore, "edgesWith").mockRejectedValueOnce(new Error("down"));
+
+    asUser("ken");
+    const res = await postInbox({ action: "open", handle: "ken", other: "sam" });
+
+    expect(res.status).toBe(503);
+    expect((await res.json()).retryable).toBe(true);
   });
 });

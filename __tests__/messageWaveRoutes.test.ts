@@ -48,6 +48,7 @@ import { __resetPintDrops } from "@/lib/pintDrops";
 import { __resetMemoryProfiles, __seedMemoryOwnedProfile } from "@/lib/profileStore";
 // Messaging asks the one adult gate, so every seeded account has answered it.
 import { memoryAdultSelfAssertionStore } from "@/lib/adultSelfAssertionStore";
+import { treatEveryoneAsMates } from "@/__tests__/helpers/messageMates";
 
 const BASE = "http://localhost/api/messages";
 const PLAN_ID = "3f1d1ad0-1111-4111-8111-111111111111";
@@ -92,6 +93,7 @@ async function openGroup(
 }
 
 beforeEach(() => {
+  treatEveryoneAsMates();
   __resetMemoryMessages();
   __resetMemoryProfiles();
   __resetPintDrops();

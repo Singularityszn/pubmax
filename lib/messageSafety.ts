@@ -16,3 +16,16 @@ export const MESSAGE_ADULT_REFUSAL = "Confirm you are 18 or over before messagin
 /** The account answered under 18. There is no tap behind this one. */
 export const MESSAGE_UNDER_18_REFUSAL =
   "The date of birth on your account is under 18, so messages are not open to you.";
+
+/**
+ * MATES ONLY, UNTIL THE AGE CHECK IS LIVE. Captain decision 8 (1 November
+ * 2026) puts a third-party age check in front of posting, comments and direct
+ * messages. Until that check ships, a NEW conversation opens only between
+ * mates: two accounts that follow each other (`lib/followRelation.ts`). It
+ * lifts by setting this to false in the commit that ships the age check.
+ */
+export const MESSAGE_MATES_ONLY = true;
+
+/** The refusal when the people in a new conversation do not all follow each other. */
+export const MESSAGE_MATES_ONLY_LINE =
+  "For now you can message mates only: people you follow who follow you back.";
