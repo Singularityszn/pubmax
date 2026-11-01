@@ -91,6 +91,8 @@ describe("the washing line", () => {
     const viewport = host.querySelector<HTMLElement>(".washingLineViewport");
     expect(viewport?.style.height).toBe(`${washingLineHeight(520)}px`);
     expect(washingLineHeight(520)).toBeGreaterThan(520);
+    // A short caption keeps the box the line held before it measured.
+    expect(washingLineHeight(200)).toBe(284);
     offsetHeight.mockRestore();
   });
 

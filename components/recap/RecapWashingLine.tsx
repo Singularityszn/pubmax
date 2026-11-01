@@ -53,9 +53,16 @@ export function washingLineDrop(x: number, width: number, sag = SAG): number {
   return 4 * sag * t * (1 - t);
 }
 
-/** The line's box for a polaroid this tall: the string, its deepest sag, the card and a margin. */
+/** The box the line holds before it has measured (recapWashingLine.css). */
+const LINE_MIN_HEIGHT = 284;
+
+/**
+ * The line's box for a polaroid this tall: the string, its deepest sag, the
+ * card and a margin. It never drops below the box it held before measuring,
+ * so a short caption does not shift the page once the line has measured.
+ */
 export function washingLineHeight(cardHeight: number): number {
-  return LINE_TOP + SAG + cardHeight + LINE_FOOT;
+  return Math.max(LINE_MIN_HEIGHT, LINE_TOP + SAG + cardHeight + LINE_FOOT);
 }
 
 function counterLabel(index: number, total: number): string {
