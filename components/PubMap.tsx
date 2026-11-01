@@ -38,6 +38,8 @@ import "@/components/map/citySuggestBanner.css";
 import "@/components/map/cityStatusBanner.css";
 import "@/components/map/mapConciergeAsk.css";
 import "@/components/map/mapDesktopRail.css";
+// The list beside the map lays out the stage, so its sheet loads with the map.
+import "@/components/map/mapSplitList.css";
 import "@/components/map/tonightLane.css";
 const UkPlaceArrivalBanner = dynamic(
   () => import("@/components/map/UkPlaceArrivalBanner"),
@@ -105,6 +107,7 @@ import {
   buildUkBasePubListModel,
   type MapVenueListSortMode,
 } from "@/lib/mapVenueList";
+import { floatingMapListOpen, focusMapSplitList } from "@/lib/mapSplitListFocus";
 import { UK_BOUNDS, type BasemapProvider } from "@/components/map/canvas/tokens";
 import MapFallbackCard from "@/components/map/MapFallbackCard";
 import { selectMapFallbackPubs } from "@/lib/mapFallbackVenues";
@@ -315,6 +318,13 @@ const MapDesktopRail = dynamic(() => import("@/components/map/MapDesktopRail"), 
 // it renders on demand, so it must not enter the eager map chunk (#306 budget).
 const MapVenueList = dynamic(() => import("@/components/map/MapVenueList"), {
   ssr: false,
+});
+// The list beside the map, from 1024px only, so a phone never loads it. Its
+// empty frame holds the lane while the chunk loads, so the map stage never
+// opens full width and then shrinks under the reader.
+const MapSplitList = dynamic(() => import("@/components/map/MapSplitList"), {
+  ssr: false,
+  loading: () => <section className="mapSplitList" aria-busy="true" aria-label="Pubs in this view" />,
 });
 const CitySuggestBanner = dynamic(
   () => import("@/components/map/CitySuggestBanner"),
@@ -2012,7 +2022,10 @@ export default function PubMap({
   const [tonightLaneOpen, setTonightLaneOpen] = useState(false);
   /** Once the viewer collapses a deep-linked lane, don't keep forcing it open. */
   const [dismissedTonightSrc, setDismissedTonightSrc] = useState<string | null>(null);
-  const [mapListOpen, setMapListOpen] = useState(() => mapListOpenFromSearch(currentSearch()));
+  const [mapListOpenRequested, setMapListOpen] = useState(() => mapListOpenFromSearch(currentSearch()));
+  // From 1024px the list beside the map IS the venue list (MapSplitList), so
+  // the floating List view never opens over the map there.
+  const mapListOpen = floatingMapListOpen(mapListOpenRequested, railViewport);
   const [mapListSortMode, setMapListSortMode] =
     useState<MapVenueListSortMode>("nearest");
   const [visibleVenueState, setVisibleVenueState] = useState<{
@@ -6699,6 +6712,37 @@ export default function PubMap({
     );
   }
 
+  /* From 1024px Explore is a list beside the map: the venues in view, priced
+     the way the venue sheet prices them, opened the way a pin tap opens them.
+     No map, no "in view", so a canvas that cannot draw takes the list with it. */
+  function renderDesktopSplitList() {
+    return railViewport && !mapCanvasErrored && !mapCanvasUnavailable ? (
+      <MapSplitList
+        cityName={mapContextName}
+        visibleVenues={mapVenueListVenues}
+        filteredVenues={kindVisibleMapVenues}
+        ukBaseModel={ukBasePubListModel}
+        restaurantModel={londonRestaurantListModel}
+        ukBaseStatus={ukBaseStatus}
+        dropSignals={dropSignals}
+        lensPrices={activeLensPrices}
+        lensNoun={activeLensNoun}
+        lensStatus={drinkIndexStatus}
+        viewportCenter={mapViewport.center}
+        reader={userLocation}
+        loaded={
+          loaded &&
+          loadedCityId === cityId &&
+          visibleVenueState?.cityId === cityId
+        }
+        map={liveMap}
+        onSelectVenue={handleVenueClick}
+        onSelectUkBasePub={handleUkBasePubClick}
+        onPrefetchVenue={prefetchVenueDetail}
+      />
+    ) : null;
+  }
+
   /* Desktop reader controls. Both live inside Layers rather than on the map
      surface, which keeps its budget at search plus one toast. The phone reaches
      the same two through the More sheet's Key and Prices tabs. */
@@ -6972,7 +7016,7 @@ export default function PubMap({
         venueDataFailed={venueIndexFailed}
         onReloadVenueData={reloadVenueIndex}
         listOpen={mapListOpen}
-        onListOpenChange={setMapListOpen}
+        onListOpenChange={railViewport ? focusMapSplitList : setMapListOpen}
         listCount={
           mapVenueListModel.total + ukBasePubListModel.total + londonRestaurantListModel.total
         }
@@ -7410,6 +7454,10 @@ export default function PubMap({
       })}
     >
       {renderSiteNav()}
+
+      {/* From 1024px the list sits beside the map, before it in reading order;
+          the stage starts at its right edge (components/map/mapSplitList.css). */}
+      {renderDesktopSplitList()}
 
       {/* Full-bleed map is the base layer; every panel slides in over it.
           Named region so AT users get a landmark for the map surface (the

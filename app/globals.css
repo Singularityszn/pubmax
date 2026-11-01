@@ -1736,6 +1736,13 @@ input[type="range"] {
    drawer's rendered width is 376px at this breakpoint; toolbar and banners
    consume this variable so their free-lane geometry cannot drift from it. */
 @media (min-width: 1024px) {
+  /* The list beside the map (components/map/MapSplitList.tsx). Declared on
+     :root rather than the shell, because the document's opening prices stand
+     on the same map before the shell exists (mapOpeningPreview.css). */
+  :root {
+    --desktop-split-list-width: clamp(400px, 30vw, 440px);
+  }
+
   .appShell {
     --desktop-planner-rail-width: 376px;
   }

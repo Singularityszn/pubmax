@@ -116,20 +116,23 @@ test.describe("keyboard: the core loop is operable with no pointer", () => {
     await page.waitForTimeout(3_000);
 
     // The pins are painted into a WebGL canvas, so the DOM parallel is the
-    // venue list, and the way in is the Layers control
-    // (components/map/MapVenueList.tsx says so in its own header).
+    // venue list. From 1024px it is the column beside the map
+    // (components/map/MapSplitList.tsx), and the Layers control's List view
+    // still leads there, as it leads to the floating list on a narrower screen.
     const layers = await tabTo(page, /Map layers/i);
     expect(layers.hasFocusIndicator, "the Layers control shows focus").toBe(true);
     await page.keyboard.press("Enter");
 
     await tabTo(page, /List view/i, { limit: 25 });
     await page.keyboard.press("Enter");
-    await expect(page.locator(".mapVenueList")).toBeVisible();
+    await expect(page.locator(".mapSplitList")).toBeVisible();
 
-    // Opening the list puts focus on its first pub, so a reader is not left
-    // hunting for where the new surface went.
+    // List view puts focus on the list's current pub, so a reader is not left
+    // hunting for where the list is.
+    await expect(page.locator(".mapSplitList .mapSplitListRow:focus")).toHaveCount(1);
     const firstRow = await readFocus(page);
     expect(firstRow, "focus moved into the venue list").not.toBeNull();
+    expect(firstRow?.hasFocusIndicator, "the focused pub shows focus").toBe(true);
     expect(firstRow?.height ?? 0).toBeGreaterThanOrEqual(TARGET_SIZE_FLOOR);
 
     await page.keyboard.press("Enter");

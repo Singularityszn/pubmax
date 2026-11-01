@@ -30,6 +30,17 @@ async function renderedBox(locator: Locator, label: string) {
   return box;
 }
 
+/**
+ * Where the map lane starts. From 1024px the list beside the map holds the
+ * window's left edge (components/map/MapSplitList.tsx), the map stage starts at
+ * its right edge, and the planner opens from there rather than over the list.
+ */
+async function mapLaneLeft(page: Page): Promise<number> {
+  const stage = page.locator(".mapStage");
+  await expect(page.locator(".mapSplitList")).toBeVisible({ timeout: 20_000 });
+  return (await renderedBox(stage, "map stage")).x;
+}
+
 async function prepareDesktopMap(page: Page, width = DESKTOP.width) {
   await page.setViewportSize({ width, height: DESKTOP.height });
   await page.addInitScript(() => {
@@ -273,9 +284,11 @@ for (const width of DESKTOP_WIDTHS) {
     const clearSearch = searchCell.getByRole("button", { name: "Clear search" });
     await expect(rail).toBeVisible({ timeout: 20_000 });
     await expect(clearSearch).toBeVisible();
+    // The rail opens from the list's right edge, never over the list.
+    const laneLeft = await mapLaneLeft(page);
     await expect
-      .poll(async () => Math.abs((await rail.boundingBox())?.x ?? -1000), {
-        message: "planner rail has finished its slide to the viewport edge",
+      .poll(async () => Math.abs(((await rail.boundingBox())?.x ?? -1000) - laneLeft), {
+        message: "planner rail has finished its slide to the list's edge",
       })
       .toBeLessThanOrEqual(1);
     // The rail's spring and the toolbar's shift are measured at rest.
@@ -334,7 +347,9 @@ test("1440px planner hands ownership to venue and Back restores composed state",
   await prepareDesktopMap(page);
   await stubCityStatus(page);
 
-  const response = await page.goto("/map?list=1&desktop-drawer-exchange=1440", {
+  // From 1024px the venue list is the column beside the map, so it needs no
+  // `?list=1` to be open (components/map/MapSplitList.tsx).
+  const response = await page.goto("/map?desktop-drawer-exchange=1440", {
     waitUntil: "domcontentloaded",
   });
   expect(response?.status()).toBe(200);
@@ -342,13 +357,13 @@ test("1440px planner hands ownership to venue and Back restores composed state",
   const toolbar = page.locator(".mapToolbar");
   await expect(toolbar).toBeVisible({ timeout: 20_000 });
   const retargetVenue = page
-    .locator(".mapVenueListItem")
+    .locator(".mapSplitListRow")
     .filter({ hasNotText: "Three Sheets Soho" })
     .first();
   // The list says "Counting them up…" until its rows have loaded, and a slow
   // runner can spend longer than the row wait below on that read alone.
-  await expect(page.locator(".mapVenueListCount")).toBeVisible();
-  await expect(page.locator(".mapVenueListCount")).not.toHaveText(
+  await expect(page.locator(".mapSplitListCount")).toBeVisible();
+  await expect(page.locator(".mapSplitListCount")).not.toHaveText(
     "Counting them up…",
     { timeout: 90_000 },
   );
@@ -364,9 +379,11 @@ test("1440px planner hands ownership to venue and Back restores composed state",
   await expect(planner.locator("#railSearchInput")).toBeVisible();
   await expect(planner.locator(".controlRail")).toHaveCount(1);
   await expect(planner.getByRole("group", { name: "Crawl mode" })).toBeVisible();
+  // The planner opens at the list's right edge, never over the list.
+  const laneLeft = await mapLaneLeft(page);
   await expect
     .poll(async () => (await renderedBox(planner, "planner rail")).x)
-    .toBeCloseTo(0, 0);
+    .toBeCloseTo(laneLeft, 0);
 
   const mapBefore = await renderedBox(mapStage, "map stage before exchange");
 
@@ -414,8 +431,9 @@ test("1440px planner hands ownership to venue and Back restores composed state",
     Math.abs(ownershipChange.after - ownershipChange.before),
   ).toBeLessThan(16);
 
-  // Fully off-screen is also x < -1, so wait for a frame that is still
-  // crossing rather than sampling after the spring has finished. Under load the
+  // Fully off-screen is also x < laneLeft - 1 (the planner leaves under the
+  // list beside the map), so wait for a frame that is still crossing rather
+  // than sampling after the spring has finished. Under load the
   // spring can finish before the first sample, so mid-exchange geometry is
   // asserted only when a crossing frame is caught.
   //
@@ -439,7 +457,8 @@ test("1440px planner hands ownership to venue and Back restores composed state",
             renderedBox(toolbar, "moving toolbar"),
           ]);
           const crossing =
-            plannerBox.x < -1 && plannerBox.x > -plannerBox.width * 0.8;
+            plannerBox.x < laneLeft - 1 &&
+            plannerBox.x > laneLeft - plannerBox.width * 0.8;
           if (crossing) {
             plannerMid = plannerBox;
             venueMid = venueBox;
@@ -458,8 +477,8 @@ test("1440px planner hands ownership to venue and Back restores composed state",
     caughtMidExchange = false;
   }
   if (caughtMidExchange && plannerMid && venueMid && toolbarMid) {
-    expect(plannerMid.x).toBeLessThan(0);
-    expect(plannerMid.x).toBeGreaterThan(-plannerMid.width * 0.8);
+    expect(plannerMid.x).toBeLessThan(laneLeft);
+    expect(plannerMid.x).toBeGreaterThan(laneLeft - plannerMid.width * 0.8);
     expect(venueMid.x).toBeGreaterThan(800);
     expect(venueMid.x).toBeLessThan(DESKTOP.width);
     await captureDrawerExchange(page, "mid-exchange");
@@ -474,7 +493,7 @@ test("1440px planner hands ownership to venue and Back restores composed state",
   );
   const retargetVenueName = await retargetVenue.evaluate((button) => {
     const name = button
-      .querySelector<HTMLElement>(".mapVenueListItemName")
+      .querySelector<HTMLElement>(".mapSplitListRowName")
       ?.innerText.trim();
     if (!name) throw new Error("retarget venue name is missing");
     (button as HTMLElement).click();
@@ -545,7 +564,7 @@ test("1440px planner hands ownership to venue and Back restores composed state",
     .toBe(1);
   await expect
     .poll(async () => (await renderedBox(planner, "restored planner")).x)
-    .toBeCloseTo(0, 0);
+    .toBeCloseTo(laneLeft, 0);
   await captureDrawerExchange(page, "back-restored-planner");
 });
 
@@ -697,7 +716,10 @@ test("1440px reduced motion swaps desktop drawer ownership immediately", async (
     renderedBox(planner, "reduced-motion planner"),
     renderedBox(venue, "reduced-motion venue"),
   ]);
-  expect(plannerBox.x).toBeCloseTo(-EXPECTED_PLANNER_RAIL_WIDTHS[1440], 0);
+  // The closed planner rests under the list beside the map, one rail width
+  // left of the lane it opens into.
+  const laneLeft = await mapLaneLeft(page);
+  expect(plannerBox.x).toBeCloseTo(laneLeft - EXPECTED_PLANNER_RAIL_WIDTHS[1440], 0);
   expect(venueBox.x).toBeCloseTo(800, 0);
 });
 
@@ -761,14 +783,19 @@ for (const width of FIRST_RUN_BANNER_WIDTHS) {
       locationPrompt,
       "first-run location prompt",
     );
+    // The map's centre is the stage's: from 1024px the list beside the map
+    // holds the window's left edge and the stage starts after it.
+    const stageBox = await renderedBox(page.locator(".mapStage"), "map stage");
     expect(
-      Math.abs(locationBox.x + locationBox.width / 2 - width / 2),
+      Math.abs(
+        locationBox.x + locationBox.width / 2 - (stageBox.x + stageBox.width / 2),
+      ),
       "location prompt owns map centre",
     ).toBeLessThanOrEqual(1);
     expect(
       locationBox.x,
-      "location prompt stays inside the viewport",
-    ).toBeGreaterThanOrEqual(EDGE_GUTTER - SUBPIXEL_TOLERANCE);
+      "location prompt stays inside the map lane",
+    ).toBeGreaterThanOrEqual(stageBox.x + EDGE_GUTTER - SUBPIXEL_TOLERANCE);
     expect(
       locationBox.x + locationBox.width,
       "location prompt stays inside the viewport",

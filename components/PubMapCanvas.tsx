@@ -175,7 +175,12 @@ import {
   whenBottomSheetSettles,
 } from "@/components/map/canvas/useMapCamera";
 import { easeOutCubic, PUB_SELECT_PITCH, PUB_SELECT_PITCH_MOBILE, PUB_SELECT_DURATION_MS } from "@/components/map/canvas/easing";
-import { deepLinkSelectionCamera, mobileSelectCameraOffset } from "@/lib/sheetSnap";
+import {
+  deepLinkSelectionCamera,
+  desktopSelectCameraOffset,
+  mobileSelectCameraOffset,
+  restingRightDrawerLeft,
+} from "@/lib/sheetSnap";
 import { nearMeMapVenues } from "@/lib/nearMeMapFrame";
 import {
   isUkBaseId,
@@ -4779,9 +4784,14 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       // rather than the window, and it takes the sheet's own settled top edge
       // when there is one - the venue sheet is content-height, so its snap
       // fraction is a cap rather than the height it rests at.
+      // Desktop, from 1024px: the venue drawer rests on the right of the map,
+      // and beside the list (MapSplitList) the lane's centre is under it, so
+      // the pin is carried into the map left of the drawer (lib/sheetSnap.ts).
       const offset = isPhone
         ? mobileSelectCameraOffset(bandHeight, "half", sheetTopPx)
-        : undefined;
+        : window.matchMedia("(min-width: 1024px)").matches
+          ? desktopSelectCameraOffset(currentContainer, restingRightDrawerLeft())
+          : undefined;
       cinematic({
         center,
         zoom: Math.max(map.getZoom(), 14),

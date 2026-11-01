@@ -437,11 +437,14 @@ export default function MapToolbar({
       // an exempt surface of the drawer's focus trap (lib/useFocusTrap.ts).
       // Below 1024px the drawer has no free lane for it and the trap keeps it.
       {...(desktopLaneActive ? { [FOCUS_TRAP_EXEMPT_ATTRIBUTE]: "" } : null)}
+      // The lane is measured on the map stage, not the window: from 1024px the
+      // list beside the map takes the window's left edge (MapSplitList), so the
+      // stage, and the bar centred on it, start at the list's right edge.
       style={
         desktopLaneActive
           ? {
               transform: `translateX(calc(-50% + ${laneOffset}px))`,
-              width: `min(var(--desktop-map-surface-width), calc(100vw - 32px - ${Math.abs(laneOffset) * 2}px))`,
+              width: `min(var(--desktop-map-surface-width), calc(100% - 32px - ${Math.abs(laneOffset) * 2}px))`,
               maxWidth: "none",
               transition: "none",
             }
