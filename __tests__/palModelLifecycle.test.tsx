@@ -10,7 +10,7 @@ vi.mock("@/components/pal/originalPalMeshRenderer.mjs", () => ({ mountOriginalPa
 
 import PalVoiceFace from "@/components/pubpal/PalVoiceFace";
 import PalPortrait from "@/components/pal/PalPortrait";
-import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
+import { DEFAULT_PAL_DRAFT, type PalAnimationState } from "@/lib/pubPal";
 import { pubPalMascotModelSrc } from "@/lib/pubPalMascot";
 import { createPalVoiceSignal, type PalVoiceSignal } from "@/lib/palVoiceSignal";
 
@@ -25,16 +25,17 @@ let frameId = 0;
 let frames: Map<number, FrameRequestCallback>;
 let mounted: Array<{ surface: PalMeshSurface; status: (value: PalMeshStatus) => void }>;
 
-function Portrait({ species = "robin", decorative = false, compact = false, signal }: {
+function Portrait({ species = "robin", decorative = false, compact = false, signal, state }: {
   species?: PubPalSpecies;
   decorative?: boolean;
   compact?: boolean;
   signal?: PalVoiceSignal;
+  state?: PalAnimationState;
 }) {
   const appearance = { ...DEFAULT_PAL_DRAFT.appearance, species };
   return decorative
     ? <PalVoiceFace appearance={appearance} state="idle" signal={signal} />
-    : <PalPortrait name="Nova" appearance={appearance} compact={compact} signal={signal} />;
+    : <PalPortrait name="Nova" appearance={appearance} compact={compact} signal={signal} state={state} />;
 }
 
 async function render(props: Parameters<typeof Portrait>[0] = {}) {
@@ -64,7 +65,7 @@ beforeEach(() => {
   frames = new Map();
   mounted = [];
   renderer.mount.mockReset().mockImplementation((_host, options) => {
-    const surface: PalMeshSurface = { renderPose: vi.fn(() => true), setYaw: vi.fn(), turnYaw: vi.fn(), setVisible: vi.fn(), dispose: vi.fn() };
+    const surface: PalMeshSurface = { renderPose: vi.fn(() => true), setYaw: vi.fn(), turnYaw: vi.fn(), endDrag: vi.fn(), setVisible: vi.fn(), dispose: vi.fn() };
     mounted.push({ surface, status: options.onStatus });
     options.onStatus("loading");
     return surface;
@@ -158,6 +159,33 @@ describe("the selected Pal model lifecycle", () => {
     expect(mounted[1]!.surface.turnYaw).not.toHaveBeenCalled();
     expect(modelHost().hasAttribute("tabindex")).toBe(false);
     expect(modelHost().getAttribute("aria-hidden")).toBe("true");
+  });
+
+  it("retires the faded model's focus, exposure and keys while the Pal talks, and restores them after", async () => {
+    await render({ state: "idle" });
+    markReady();
+    const host = modelHost();
+    host.focus();
+    expect(document.activeElement).toBe(host);
+    expect(mounted[0]!.surface.endDrag).not.toHaveBeenCalled();
+    for (const talkingState of ["speaking", "listening"] as const) {
+      await render({ state: talkingState });
+      // A drag begun on the idle model ends when the photograph takes the frame.
+      expect(mounted[0]!.surface.endDrag).toHaveBeenCalled();
+      expect(host.getAttribute("aria-hidden")).toBe("true");
+      expect(host.hasAttribute("tabindex")).toBe(false);
+      expect(document.activeElement).not.toBe(host);
+      host.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", cancelable: true }));
+      host.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", cancelable: true }));
+      expect(mounted[0]!.surface.turnYaw).not.toHaveBeenCalled();
+      expect(mounted[0]!.surface.setYaw).not.toHaveBeenCalled();
+    }
+    await render({ state: "idle" });
+    expect(host.getAttribute("aria-hidden")).toBe("false");
+    expect(host.tabIndex).toBe(0);
+    host.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", cancelable: true }));
+    expect(mounted[0]!.surface.turnYaw).toHaveBeenCalledWith(15);
+    expect(renderer.mount).toHaveBeenCalledOnce();
   });
 
   it("uses the existing real voice signal for mesh poses and restores the picture after graphics loss", async () => {

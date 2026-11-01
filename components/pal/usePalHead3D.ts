@@ -24,6 +24,11 @@ const REST: HeadPose = { yaw: 0, pitch: 0, roll: 0, lean: 0, lift: 0, scale: 1 }
 const EVEN_TEMPERAMENT: PalTemperament = { pace: 1, sway: 1, nod: 1, keen: 1 };
 const POINTER_IDLE_MS = 3_000;
 
+/** The states in which the Pal talks, and its photograph shows instead of the model. */
+function talking(state: PalAnimationState): boolean {
+  return state === "speaking" || state === "listening";
+}
+
 function voiceModeFor(state: PalAnimationState): PalVoiceSignalMode {
   if (state === "speaking") return "speaking";
   if (state === "listening") return "listening";
@@ -110,9 +115,13 @@ export function usePalHead3D(
 ): void {
   const stateRef = useRef(state);
   const temperamentRef = useRef(temperament);
+  // Set by the model lifetime below: re-reads whether the ready model is the
+  // thing on screen, after the Pal starts or stops talking.
+  const syncExposureRef = useRef<(() => void) | null>(null);
   useEffect(() => {
     stateRef.current = state;
     temperamentRef.current = temperament;
+    syncExposureRef.current?.();
   }, [state, temperament]);
 
   useEffect(() => {
@@ -159,15 +168,27 @@ export function usePalHead3D(
       if (frame.getAttribute("data-head-3d") !== value) frame.setAttribute("data-head-3d", value);
       if (meshReady) clearCssPose();
     };
+    // While the Pal talks, the photograph and its moving mouth own the frame
+    // (app/pal/pal.css), so the faded model takes no focus, is out of the
+    // accessibility tree, and turns for no key until the talk ends.
+    const showsModel = () => meshReady && !talking(stateRef.current);
+    const syncExposure = () => {
+      if (!host) return;
+      const exposed = showsModel() && !decorative;
+      const hidden = exposed ? "false" : "true";
+      if (host.getAttribute("aria-hidden") !== hidden) host.setAttribute("aria-hidden", hidden);
+      if (exposed) {
+        host.tabIndex = 0;
+        return;
+      }
+      if (document.activeElement === host) host.blur();
+      host.removeAttribute("tabindex");
+      mesh?.endDrag();
+    };
     const setModelState = (status: PalMeshStatus | "poster") => {
       meshReady = status === "ready";
-      if (host) {
-        if (host.dataset.modelState !== status) host.dataset.modelState = status;
-        const hidden = meshReady && !decorative ? "false" : "true";
-        if (host.getAttribute("aria-hidden") !== hidden) host.setAttribute("aria-hidden", hidden);
-        if (meshReady && !decorative) host.tabIndex = 0;
-        else host.removeAttribute("tabindex");
-      }
+      if (host && host.dataset.modelState !== status) host.dataset.modelState = status;
+      syncExposure();
       setDrawingMode();
     };
     const stop = () => {
@@ -331,7 +352,7 @@ export function usePalHead3D(
       updateActivity();
     };
     const onTurnKey = (event: KeyboardEvent) => {
-      if (!meshReady || !mesh) return;
+      if (!showsModel() || !mesh) return;
       if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
         event.preventDefault();
         mesh.turnYaw(event.key === "ArrowLeft" ? -15 : 15);
@@ -355,10 +376,12 @@ export function usePalHead3D(
     document.addEventListener("visibilitychange", onVisibility);
     motion?.addEventListener("change", onMotion);
     if (!decorative) host?.addEventListener("keydown", onTurnKey);
+    syncExposureRef.current = syncExposure;
     updateActivity();
 
     return () => {
       disposed = true;
+      if (syncExposureRef.current === syncExposure) syncExposureRef.current = null;
       stop();
       retireModel();
       observer?.disconnect();
