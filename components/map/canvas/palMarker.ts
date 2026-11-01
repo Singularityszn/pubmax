@@ -81,6 +81,11 @@ export function palPinIsCheap(properties: { bucket?: unknown; spoonsBucket?: unk
 
 export type PalMapMarker = {
   /**
+   * True for a supported Pal marker API. It can still be waiting for placement.
+   * A missing or hidden Pal gets a no-op API with drawn:false.
+   */
+  readonly drawn: boolean;
+  /**
    * Perch beside this point, or step off the map with null. Ends any walk.
    * Beside a pin painted in the cheapest band it lands with a happy hop.
    */
@@ -107,6 +112,7 @@ export type PalMapMarker = {
 type PalNextStop = { stop: number; name: string; open: () => void };
 
 const NO_PAL: PalMapMarker = {
+  drawn: false,
   perch: () => {},
   walk: () => {},
   visit: () => {},
@@ -432,6 +438,7 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
   };
 
   const api: PalMapMarker = {
+    drawn: true,
     perch: (lngLat, pin) => {
       if (walk) {
         stopWalking();

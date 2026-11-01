@@ -134,7 +134,8 @@ export default function NearPriceEvidenceMission({
             area: areas.get(answer.venueId),
           });
           const today = palQuestStampToday(readPalQuestStamps());
-          // A blocked write can still show the cheer, but it did not stamp the book.
+          // The cheer plays even when the store refused the write, but only a
+          // stamp the book really kept is counted as stamped.
           if (added && today?.day === added.day && today.venueId === added.venueId) trackEvent("pal_quest_stamped");
           setQuest({ owner, today, now: added });
         }}

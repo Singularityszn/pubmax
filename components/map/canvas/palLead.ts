@@ -12,8 +12,7 @@ export function leadPalOnMap({ marker, walk, next, line, reportedKey }: {
   marker.walk({
     ...walk,
     onVisible: () => {
-      // A rebuilt map leads the same way again without counting another lead.
-      if (reportedKey.current !== walk.key) {
+      if (marker.drawn && reportedKey.current !== walk.key) {
         reportedKey.current = walk.key;
         trackEvent("pal_lead_started");
       }

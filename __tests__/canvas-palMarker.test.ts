@@ -744,10 +744,10 @@ describe("the Pal on the map", () => {
 
 describe("the current leg lead's usage event", () => {
   const key = "lead:venue-a>venue-b:walk";
-  const start = (marker: ReturnType<typeof createPalMapMarker>, reportedKey = { current: null as string | null }) => {
+  const start = (marker: ReturnType<typeof createPalMapMarker>, reportedKey = { current: null as string | null }, choiceKey = key) => {
     leadPalOnMap({
       marker,
-      walk: { key, stops: [crawl[0]!, crawl[1]!], path: [crawl[0]!, crawl[1]!], road: true, cheer: true },
+      walk: { key: choiceKey, stops: [crawl[0]!, crawl[1]!], path: [crawl[0]!, crawl[1]!], road: true, cheer: true },
       next: { stop: 1, name: "The Lamb", open: vi.fn() },
       line: "Free and cheapest. Legs it is.",
       reportedKey,
@@ -758,7 +758,9 @@ describe("the current leg lead's usage event", () => {
   it.each(["missing", "hidden", "invalid"])("does not report a lead when the Pal is %s", (kind) => {
     if (kind === "hidden") store(pal({ hidden: true }));
     if (kind === "invalid") store({ id: "invalid", appearance: {} });
-    const reported = start(createPalMapMarker(map));
+    const marker = createPalMapMarker(map);
+    expect(marker.drawn).toBe(false);
+    const reported = start(marker);
     runFrames(5);
     expect(markerHarness.instances).toHaveLength(0);
     expect(markerHarness.events).toEqual([]);
@@ -768,6 +770,8 @@ describe("the current leg lead's usage event", () => {
   it("reports a visible lead once and preserves the next stop and line across a map rebuild", () => {
     store(pal());
     const marker = createPalMapMarker(map);
+    expect(marker.drawn).toBe(true);
+    expect(markerHarness.instances).toHaveLength(0);
     const reported = start(marker);
     expect(markerHarness.events).toEqual([]);
     runFrames(1);
@@ -814,6 +818,54 @@ describe("the current leg lead's usage event", () => {
     expect(markerHarness.instances[0]!.options.element.dataset.palWalk).toBe("visited");
     expect(markerHarness.instances[0]!.lngLat).toEqual(crawl[1]);
     expect(markerHarness.events).toEqual(["pal_lead_started"]);
+    marker.destroy();
+  });
+
+  it("retires a loading lead before either a stale idle callback or its fallback can report it", () => {
+    vi.useFakeTimers();
+    try {
+      store(pal());
+      const handlers = new Set<() => void>();
+      const loading = {
+        loaded: () => false,
+        once: (_event: string, handler: () => void) => handlers.add(handler),
+        off: (_event: string, handler: () => void) => handlers.delete(handler),
+      } as unknown as maplibregl.Map;
+      const marker = createPalMapMarker(loading);
+      expect(marker.drawn).toBe(true);
+      expect(markerHarness.instances).toHaveLength(0);
+      const reported = start(marker);
+      const [staleReady] = [...handlers];
+      expect(staleReady).toBeTypeOf("function");
+      expect(markerHarness.instances[0]!.options.element.dataset.palWalk).toBe("setting-off");
+      expect(vi.getTimerCount()).toBe(1);
+      marker.destroy();
+      expect(handlers.size).toBe(0);
+      expect(vi.getTimerCount()).toBe(0);
+      staleReady!();
+      vi.runAllTimers();
+      runFrames(2);
+      expect(markerHarness.instances).toHaveLength(1);
+      expect(markerHarness.instances[0]!.remove).toHaveBeenCalledOnce();
+      expect(markerHarness.events).toEqual([]);
+      expect(reported.current).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("reports only the replacement choice when the old lead is superseded before placement", () => {
+    store(pal());
+    const marker = createPalMapMarker(map);
+    const reported = start(marker);
+    const replacement = "lead:venue-a>venue-b:other-choice";
+    start(marker, reported, replacement);
+    expect(markerHarness.instances).toHaveLength(0);
+    expect(markerHarness.events).toEqual([]);
+    runFrames(1);
+    expect(markerHarness.instances).toHaveLength(1);
+    expect(markerHarness.events).toEqual(["pal_lead_started"]);
+    expect(reported.current).toBe(replacement);
     marker.destroy();
   });
 

@@ -153,6 +153,20 @@ describe("the Pal's usage events on screen", () => {
     expect(sent("pal_quest_stamped")).toBe(0);
   });
 
+  it("counts no stamp when the store refuses the write", async () => {
+    const setItem = vi.spyOn(Storage.prototype, "setItem").mockImplementation((key) => {
+      if (key === PAL_QUEST_STAMPS_KEY) throw new DOMException("full", "QuotaExceededError");
+    });
+    try {
+      await render(createElement(NearPriceEvidenceMission, { cards, enabled: true }));
+      await act(async () => host.querySelector<HTMLButtonElement>(".answer")!.click());
+      expect(sent("pal_quest_asked")).toBe(1);
+      expect(sent("pal_quest_stamped")).toBe(0);
+    } finally {
+      setItem.mockRestore();
+    }
+  });
+
   it("counts a passport view only when the book has a stamp", async () => {
     await render(createElement(PalQuestStamps, { pal: ripley, print: [] }));
     expect(host.querySelector("[data-testid='pal-stamp-book']")).not.toBeNull();
