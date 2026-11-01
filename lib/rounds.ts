@@ -180,6 +180,7 @@ export type RoundSpendDTO = {
   totalPence: number;
   items: RoundSpendItemDTO[];
   recordedAt: string;
+  receiptPhotoKey?: string;
 };
 
 export type RoundDTO = {

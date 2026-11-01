@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { beginAuthAttempt } from "@/lib/authRedirect";
 import { isNativeApp } from "@/lib/nativePlatform";
 import {
   NATIVE_URL_SCHEME,
@@ -27,9 +28,20 @@ vi.mock("@capacitor/browser", () => ({ Browser: { close: browserMocks.close } })
 const native = vi.mocked(isNativeApp);
 let activateNativeDeepLinks: typeof import("@/lib/nativeDeepLinks").activateNativeDeepLinks;
 
+function startLocalAttempt(): string {
+  const started = beginAuthAttempt("https://pubmaxxing.com/map?sel=venue-1", undefined, {
+    persistentStorage: localStorage,
+    tabStorage: sessionStorage,
+    cryptoProvider: crypto,
+  });
+  if (!started.ok) throw new Error(started.message);
+  return started.id;
+}
+
 beforeEach(async () => {
   vi.resetModules();
   sessionStorage.clear();
+  localStorage.clear();
   ({ activateNativeDeepLinks } = await import("@/lib/nativeDeepLinks"));
   vi.clearAllMocks();
   native.mockReturnValue(true);
@@ -43,10 +55,6 @@ describe("nativeDeepLinkPath", () => {
     ["https://pubmaxxing.com/plan/abc", "/plan/abc"],
     ["https://pubmaxxing.com/rounds/invite?from=push", "/rounds/invite?from=push"],
     ["https://pubmaxxing.com/p/pub-1#prices", "/p/pub-1#prices"],
-    [
-      "https://pubmaxxing.com/auth/callback?next=%2Fmap#access_token=token",
-      "/auth/callback?next=%2Fmap#access_token=token",
-    ],
     // The pin a person actually shares: the pub rides the query.
     ["https://pubmaxxing.com/map?sel=venue-1", "/map?sel=venue-1"],
     // The night a push already opens.
@@ -118,6 +126,73 @@ describe("the pubmaxx:// scheme", () => {
   });
 });
 
+describe("sign-in credentials in a deep link", () => {
+  // October 2026 security audit: another app on the phone can open any allowed
+  // path with its own account's tokens in the fragment. The WebView then asks
+  // the person to confirm somebody else's sign-in (login CSRF).
+  const TOKENS = "access_token=DUMMY_AT&refresh_token=DUMMY_RT&token_type=bearer&type=magiclink";
+  const ERROR = "error=access_denied&error_code=otp_expired&error_description=Expired";
+
+  it.each([
+    `${NATIVE_URL_SCHEME}://map?sel=venue-1#${TOKENS}`,
+    `${NATIVE_URL_SCHEME}://tonight#${TOKENS}`,
+    `${NATIVE_URL_SCHEME}://plan/abc#${TOKENS}`,
+    `${NATIVE_URL_SCHEME}://tonight#${ERROR}`,
+    `${NATIVE_URL_SCHEME}://share?text=The%20Ship#${TOKENS}`,
+    `${NATIVE_URL_SCHEME}://share?text=The%20Ship#${ERROR}`,
+    `https://pubmaxxing.com/map?sel=venue-1#${TOKENS}`,
+    `https://pubmaxxing.com/tonight#${TOKENS}`,
+    `https://pubmaxxing.com/plan/abc#${TOKENS}`,
+    `https://pubmaxxing.com/r/CODE1#${ERROR}`,
+  ])("refuses a token or error fragment on an allowed path in both forms: %s", (url) => {
+    expect(nativeDeepLinkPath(url)).toBeNull();
+  });
+
+  it("still refuses a token fragment while this device has a sign-in in flight", () => {
+    startLocalAttempt();
+    expect(nativeDeepLinkPath(`https://pubmaxxing.com/map?sel=venue-1#${TOKENS}`)).toBeNull();
+    expect(nativeDeepLinkPath(`${NATIVE_URL_SCHEME}://map?sel=venue-1#${TOKENS}`)).toBeNull();
+  });
+
+  it.each([
+    `https://pubmaxxing.com/auth/callback?next=%2Fmap#${TOKENS}`,
+    `https://pubmaxxing.com/auth/callback#${TOKENS}`,
+    `https://pubmaxxing.com/auth/callback?_authAttempt=${"a".repeat(32)}#${TOKENS}`,
+    "https://pubmaxxing.com/auth/callback?code=abc",
+    "https://pubmaxxing.com/auth/callback?error=access_denied&next=%2Ftonight",
+  ])("refuses the https callback when this device started no matching attempt: %s", (url) => {
+    expect(nativeDeepLinkPath(url)).toBeNull();
+  });
+
+  it("refuses the https callback for an attempt this device did not start", () => {
+    startLocalAttempt();
+    const foreign = `https://pubmaxxing.com/auth/callback?_authAttempt=${"b".repeat(32)}#${TOKENS}`;
+    expect(nativeDeepLinkPath(foreign)).toBeNull();
+  });
+
+  it("admits the https callback for the attempt this device started", () => {
+    const attempt = startLocalAttempt();
+    const own = `https://pubmaxxing.com/auth/callback?_authAttempt=${attempt}#${TOKENS}`;
+    expect(nativeDeepLinkPath(own)).toBe(`/auth/callback?_authAttempt=${attempt}#${TOKENS}`);
+    const ownError = `https://pubmaxxing.com/auth/callback?_authAttempt=${attempt}&error=access_denied`;
+    expect(nativeDeepLinkPath(ownError)).toBe(`/auth/callback?_authAttempt=${attempt}&error=access_denied`);
+  });
+
+  it("refuses the https callback once the local attempt has expired", () => {
+    const attempt = startLocalAttempt();
+    const later = Date.now() + 2 * 60 * 60 * 1000;
+    const own = `https://pubmaxxing.com/auth/callback?_authAttempt=${attempt}#${TOKENS}`;
+    expect(nativeDeepLinkPath(own, { now: later })).toBeNull();
+  });
+
+  it("keeps ordinary app fragments", () => {
+    expect(nativeDeepLinkPath(`${NATIVE_URL_SCHEME}://share?text=The%20Ship#details`))
+      .toBe("/share?text=The%20Ship#details");
+    expect(nativeDeepLinkPath("https://pubmaxxing.com/p/pub-1#prices")).toBe("/p/pub-1#prices");
+    expect(nativeDeepLinkPath(`${NATIVE_URL_SCHEME}://plan/abc#crew`)).toBe("/plan/abc#crew");
+  });
+});
+
 describe("activateNativeDeepLinks", () => {
   it("is a plugin-free no-op on the web", async () => {
     native.mockReturnValue(false);
@@ -168,13 +243,14 @@ describe("activateNativeDeepLinks", () => {
     browserMocks.close.mockImplementation(() => new Promise<void>((resolve) => { finishClose = resolve; }));
     const navigate = vi.fn();
     const cleanup = await activateNativeDeepLinks(navigate);
+    const attempt = startLocalAttempt();
 
-    onOpen?.({ url: "https://pubmaxxing.com/auth/callback?error=access_denied&next=%2Ftonight" });
+    onOpen?.({ url: `https://pubmaxxing.com/auth/callback?_authAttempt=${attempt}&error=access_denied&next=%2Ftonight` });
     await vi.waitFor(() => expect(browserMocks.close).toHaveBeenCalledOnce());
     expect(navigate).not.toHaveBeenCalled();
     finishClose?.();
     await vi.waitFor(() => expect(navigate).toHaveBeenCalledExactlyOnceWith(
-      "/auth/callback?error=access_denied&next=%2Ftonight",
+      `/auth/callback?_authAttempt=${attempt}&error=access_denied&next=%2Ftonight`,
     ));
     cleanup();
   });
