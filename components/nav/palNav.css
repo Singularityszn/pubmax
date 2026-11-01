@@ -33,7 +33,9 @@
 /* ── The icon doors: the phone top bar and the phone map edge ───────────── */
 /* The shared icon button (components/ui/icon-button.tsx) gives the 44px
    circle; the face inside it is 32px with a 2px ring, so the ring never meets
-   the button's own edge. The page you are on reads in ink, never coral. */
+   the button's own edge. The page you are on reads in ink, never coral, and
+   by the border alone: a ghost button keeps a transparent surface
+   (e2e/mobile-button-system.spec.ts reads every rendered Button). */
 .palIconDoor {
   position: relative;
 }
@@ -44,7 +46,6 @@
 }
 .palIconDoor.isActive {
   border-color: var(--state-selected-border);
-  background: var(--state-selected-surface);
 }
 
 /* The top-bar door is a phone control. From 641px the desktop bar's own door
