@@ -1,0 +1,277 @@
+/* The Price Glass (components/wild/PriceGlass.tsx), round-two wild idea 01.
+   It loads only while the wild switch is on, so nothing here reaches a reader
+   who has not turned it on.
+
+   One object, no card around it: the glass stands on the hero's own paper
+   beside its figure, and the chips sit under both. Every colour is a token,
+   so the glass reads in both themes. The figure and the two band edges wear
+   the band classes (lib/priceBand.ts) and take their colour from there; the
+   beer, the foam and the glass take none of the band hues. */
+
+.wildGlass {
+  --wild-glass-w: 96px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    "stage read"
+    "chips chips";
+  column-gap: var(--space-3);
+  row-gap: var(--space-3);
+  align-items: center;
+  width: 100%;
+  margin-block-end: var(--space-4);
+  color: var(--ink);
+}
+
+.wildGlassStage {
+  grid-area: stage;
+  display: grid;
+  grid-template-columns: var(--wild-glass-w) 2.6rem;
+  align-items: stretch;
+}
+
+.wildGlassPour {
+  display: block;
+  width: var(--wild-glass-w);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--duration-base) var(--ease-out);
+}
+
+/* The press is app/globals.css's one shared scale for every button. */
+
+.wildGlassPour:focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 4px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .wildGlassPour:hover { transform: translateY(-3px); }
+}
+
+.wildGlassSvg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  transform-origin: 50% 96%;
+}
+
+/* The glass itself. */
+.wildGlassInside { fill: color-mix(in srgb, var(--ink) 4%, transparent); }
+.wildGlassOutline,
+.wildGlassBase {
+  stroke: color-mix(in srgb, var(--ink) 55%, transparent);
+  stroke-width: 2.6;
+  stroke-linejoin: round;
+}
+.wildGlassOutline { fill: none; }
+.wildGlassBase { fill: color-mix(in srgb, var(--ink) 9%, transparent); }
+.wildGlassSheen {
+  fill: none;
+  stroke: white;
+  stroke-opacity: 0.36;
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+.wildGlassSheen--thin { stroke-width: 3; stroke-opacity: 0.28; }
+
+/* The beer. Lager gold at the top, deeper at the foot, and a shade at each
+   side so the pint reads round. */
+.wildGlassStopTop { stop-color: color-mix(in srgb, var(--amber) 76%, white); }
+.wildGlassStopMid { stop-color: var(--amber); }
+.wildGlassStopDeep { stop-color: color-mix(in srgb, var(--amber) 66%, black); }
+.wildGlassShade { stop-color: black; }
+.wildGlassStream { fill: var(--amber); }
+.wildGlassFoam { fill: color-mix(in srgb, white 88%, var(--amber)); }
+.wildGlassFizz circle { fill: color-mix(in srgb, white 82%, var(--amber)); }
+
+/* London's band edges: dashed across the glass, and the three bands up its
+   side in their own hues. */
+.wildGlassEdge {
+  stroke: var(--ink);
+  stroke-opacity: 0.42;
+  stroke-width: 1.4;
+  stroke-dasharray: 4 5;
+}
+.wildGlassBand { stroke-width: 6; stroke-linecap: round; }
+.wildGlassBand--cheap { stroke: var(--price-band-cheap); }
+.wildGlassBand--average { stroke: var(--price-band-average); }
+.wildGlassBand--expensive { stroke: var(--price-band-expensive); }
+.wildGlassPointer { fill: var(--ink); }
+
+/* The scale's figures, beside the bands. A band edge takes its band's ink
+   from the class it wears; the two ends are muted. */
+.wildGlassScale { position: relative; }
+.wildGlassMark {
+  position: absolute;
+  left: 3px;
+  transform: translateY(-50%);
+  font: 650 var(--text-2xs)/1 var(--font-data);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.wildGlassMark--top,
+.wildGlassMark--floor { color: var(--muted); }
+.wildGlassMark--upper { transform: translateY(-88%); }
+.wildGlassMark--lower { transform: translateY(-12%); }
+
+/* The reading: what it is, the figure, then what it means and who said so. */
+.wildGlassRead {
+  grid-area: read;
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  align-content: start;
+}
+
+.wildGlassTitle {
+  margin: 0;
+  color: var(--ink-soft);
+  font: 650 var(--text-sm)/1.2 var(--font-body);
+}
+
+.wildGlassFigureLine { margin: 0; color: var(--ink); line-height: 1; }
+
+.wildGlassFigure {
+  display: inline-block;
+  min-width: 4.6ch;
+  font: 750 2.5rem/1 var(--font-data);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
+}
+
+.wildGlassLines { display: grid; gap: var(--space-1); align-content: start; }
+
+/* Each pour's words share one cell; the chosen one shows. Hidden words are
+   out of the tab order and the accessibility tree, as well as out of sight. */
+.wildGlassStack { display: grid; }
+.wildGlassStack > * { grid-area: 1 / 1; }
+.wildGlassStack > [data-active="false"] { visibility: hidden; }
+
+.wildGlassWhat,
+.wildGlassSource {
+  margin: 0;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+
+.wildGlassWhat { color: var(--ink-soft); font-size: var(--text-xs); line-height: 1.4; }
+.wildGlassSource { color: var(--muted); font-size: var(--text-xs); line-height: 1.4; }
+
+.wildGlassWhat a,
+.wildGlassSource a {
+  color: inherit;
+  font-weight: 650;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.wildGlassStack > [data-active="true"] {
+  animation: wildGlassIn var(--duration-slow) var(--ease-out-strong) both;
+}
+
+@keyframes wildGlassIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* The chips: London's own three, then the boroughs. On a phone both run as
+   one row that scrolls sideways, so the glass keeps the primary action on the
+   first screen, and each row's name is read out rather than shown. From a
+   tablet up they sit beside the glass, under the figure, a named row each. */
+.wildGlassChips {
+  grid-area: chips;
+  display: flex;
+  gap: var(--space-4);
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  padding-block: 2px;
+}
+.wildGlassChips::-webkit-scrollbar { display: none; }
+
+.wildGlassChipRow {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.wildGlassChipRowName {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* The smallest phones give the words a little more of the row. */
+@media (max-width: 360px) {
+  .wildGlass { --wild-glass-w: 82px; column-gap: var(--space-2); }
+  .wildGlassStage { grid-template-columns: var(--wild-glass-w) 2.4rem; }
+  .wildGlassFigure { font-size: 2.2rem; }
+}
+
+@media (min-width: 641px) {
+  .wildGlass {
+    --wild-glass-w: 138px;
+    grid-template-areas:
+      "stage read"
+      "stage chips";
+    max-width: 34rem;
+    column-gap: var(--space-4);
+    row-gap: var(--space-4);
+    align-items: start;
+  }
+  .wildGlassStage { grid-template-columns: var(--wild-glass-w) 3rem; align-self: center; }
+  .wildGlassMark { font-size: var(--text-xs); }
+  .wildGlassFigure { font-size: 3.4rem; }
+  .wildGlassTitle { font-size: var(--text-base); }
+  .wildGlassWhat { font-size: var(--text-sm); }
+  .wildGlassChips { display: grid; gap: var(--space-3); overflow-x: visible; }
+  .wildGlassChipRow { flex: initial; flex-wrap: wrap; row-gap: var(--space-1); }
+  .wildGlassChipRowName {
+    position: static;
+    flex-basis: 100%;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    color: var(--muted);
+    font: 650 var(--text-xs)/1.2 var(--font-body);
+  }
+}
+
+/* From a narrow tablet to a small desktop the hero's answer column is too
+   narrow to seat the chips beside the glass, so they take the full width
+   under it, a named row each. */
+@media (min-width: 901px) and (max-width: 1279px) {
+  .wildGlass {
+    grid-template-areas:
+      "stage read"
+      "chips chips";
+  }
+}
+
+@media (min-width: 1024px) {
+  .wildGlass { max-width: 32rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wildGlassPour { transition: none; }
+  .wildGlassStack > [data-active="true"] { animation: none; }
+}
