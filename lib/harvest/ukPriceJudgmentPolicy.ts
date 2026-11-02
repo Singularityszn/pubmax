@@ -182,18 +182,25 @@ function probabilitiesFromAnswers(answers: {
 }
 
 type BatchAnswerRow = {
-  probabilities?: Record<string, number>;
-  noul?: number;
+  readonly probabilities?: Readonly<Record<string, number>>;
+  readonly noul?: number;
 };
+
+// The SDK's answer union also carries box answers, which share no field with
+// a batch row, so each answer comes in as a plain object and only the fields
+// this reader uses are read back.
+function batchAnswerRow(answer: object | undefined): BatchAnswerRow | undefined {
+  return answer as BatchAnswerRow | undefined;
+}
 
 /** Read one candidate's probabilities out of a batched System One answer map. */
 export function probabilitiesFromBatchIndex(
-  answers: Record<string, BatchAnswerRow | undefined>,
+  answers: Readonly<Record<string, object | undefined>>,
   index: number,
 ): UkPriceJudgmentProbabilities | null {
-  const whatIsPriced = answers[`whatIsPriced_${index}`];
-  const isPromotionalPrice = answers[`isPromotionalPrice_${index}`];
-  const drinkCategory = answers[`drinkCategory_${index}`];
+  const whatIsPriced = batchAnswerRow(answers[`whatIsPriced_${index}`]);
+  const isPromotionalPrice = batchAnswerRow(answers[`isPromotionalPrice_${index}`]);
+  const drinkCategory = batchAnswerRow(answers[`drinkCategory_${index}`]);
   if (
     !whatIsPriced?.probabilities ||
     typeof isPromotionalPrice?.noul !== "number" ||

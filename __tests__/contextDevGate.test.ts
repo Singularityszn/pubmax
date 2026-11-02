@@ -311,6 +311,11 @@ describe("batchSubmit", () => {
       sleepImpl: noSleep,
     });
     expect(result).toEqual({ status: "ok", batchId: "batch_1", submitted: 1, invalidUrls: 1 });
+    // The batch asks for Markdown the way a single scrape does.
+    const init = (fetchImpl.mock.calls[0] as unknown as [unknown, RequestInit])[1];
+    const body = JSON.parse(String(init.body)) as { input: { data: Record<string, unknown> } };
+    expect(body.input.data.formats).toEqual({ markdown: true });
+    expect(body.input.data).not.toHaveProperty("format");
   });
 
   it("refuses the WHOLE submission when one url is refused", async () => {
