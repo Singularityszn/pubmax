@@ -73,6 +73,24 @@ describe("selectPalMemoriesForAsk", () => {
     expect(chosen.slice(0, 2)).toEqual(["I moved from Hackney to Brixton", "Brings a guide dog"]);
   });
 
+  it("brings food memories forward for a food ask, and leaves them for a drink ask", () => {
+    const withFood: Memory[] = [
+      ...FILLER,
+      { kind: "food_preference", value: "Coeliac, so nothing with gluten" },
+      { kind: "food_preference", value: "Loves a Sunday roast" },
+      ...ELEVEN,
+    ];
+    const roast = values(selectPalMemoriesForAsk(withFood, "Where does a good Sunday roast?"));
+    expect(roast.slice(0, 3)).toEqual(["Brings a guide dog", "Loves a Sunday roast", "Coeliac, so nothing with gluten"]);
+
+    const hungry = values(selectPalMemoriesForAsk(withFood, "I'm starving, anywhere to eat near Borough?"));
+    expect(hungry).toContain("Coeliac, so nothing with gluten");
+    expect(hungry).toContain("Loves a Sunday roast");
+
+    const stout = values(selectPalMemoriesForAsk(withFood, "What stout should I drink?"));
+    expect(stout).not.toContain("Coeliac, so nothing with gluten");
+  });
+
   it("returns the same objects it was given, so labels and kinds ride along", () => {
     const tagged = ELEVEN.map((memory) => ({ ...memory, label: memory.kind }));
     const chosen = selectPalMemoriesForAsk(tagged, "drink");

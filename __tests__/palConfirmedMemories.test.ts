@@ -187,6 +187,17 @@ describe("confirmed Pub Pal memories in the agent loop", () => {
     expect(wine[0]).toBe("Allergic to sulphites, so no wine");
   });
 
+  it("recalls a confirmed food memory under its own label, and puts it first for a food ask", async () => {
+    await palWithMemories(OWNER, [
+      { kind: "food_preference", value: "Vegetarian, and loves a proper pie" },
+      ...Array.from({ length: PAL_RECALL_MEMORY_LIMIT + 2 }, (_, index) => ({ kind: "venue_preference", value: `Pub note ${index}` })),
+    ]);
+    const plain = ((await readConfirmedPalMemories(OWNER)) ?? []).map((memory) => memory.value);
+    const hungry = (await readConfirmedPalMemories(OWNER, "Where can I get dinner tonight?")) ?? [];
+    expect(plain).not.toContain("Vegetarian, and loves a proper pie");
+    expect(hungry[0]).toEqual({ kind: "food_preference", label: "Food", value: "Vegetarian, and loves a proper pie" });
+  });
+
   it("reports a memory store failure as unavailable, never as nothing confirmed", async () => {
     await palWithMemories(OWNER, [{ kind: "drink_preference", value: "Cask ale" }]);
     await bindPubPalToolTurn("conv_ownervoice01", OWNER, "london");
