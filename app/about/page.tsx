@@ -33,6 +33,14 @@ import "./about.css";
 // — no invented users, revenue, or growth metrics. The prose sticks to public
 // product decisions and founder-led wording already on this page; no invented
 // biography, co-founder names, or fake counts (docs/VOICE.md).
+//
+// The founder story ("Why I built it") is the founder's own reason, in his own
+// earlier words (docs/VOICE.md, before/after row 11) with the dash taken out.
+// Its one figure, the round of four, is arithmetic on the cheapest and dearest
+// listed pints loadAboutStats already returns; nothing in it is typed in. Its
+// Pub Pal lines say only what the Pal code does: a memory exists only once the
+// person confirms its card (lib/palMemoryProposal.server.ts), and a new fact
+// can offer to update an old one (lib/palMemoryRelation.ts).
 
 const PAGE_TITLE = "About PUBMAXX";
 const PAGE_DESCRIPTION =
@@ -92,6 +100,25 @@ function Pint({ gbp }: { gbp: number | null }) {
   return <PriceBadge band={priceBand(gbp)}>{fmtGbp(gbp)}</PriceBadge>;
 }
 
+/** How many pints the founder story's round holds. */
+const ROUND_SIZE = 4;
+
+/**
+ * The same round of four at the cheapest and at the dearest listed pint we
+ * hold, rounded to pence. Null when either end is missing or the two are
+ * equal, because a line with no gap in it says nothing. A round total is not a
+ * pint price, so it is printed as a plain figure and never wears a price band.
+ */
+function roundOfFour(
+  cheapestPint: number | null,
+  dearestPint: number | null,
+): { cheapest: number; dearest: number } | null {
+  if (cheapestPint === null || dearestPint === null) return null;
+  if (!(dearestPint > cheapestPint)) return null;
+  const round = (pint: number) => Math.round(pint * ROUND_SIZE * 100) / 100;
+  return { cheapest: round(cheapestPint), dearest: round(dearestPint) };
+}
+
 export default async function AboutPage() {
   const [stats, pintIndexSnapshot, pricedPubs] = await Promise.all([
     loadAboutStats(),
@@ -106,6 +133,7 @@ export default async function AboutPage() {
     : [];
   const pintIndexSummary = indexSummary(pintIndexRows);
   const ukCoverage = loadUkDirectoryCoverage();
+  const round = roundOfFour(stats.cheapestPint, stats.dearestPint);
   const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   // The root layout publishes both referenced identities.
@@ -136,12 +164,7 @@ export default async function AboutPage() {
         as="section"
         className="aboutHero"
         kicker="About"
-        title={
-          <>
-            A pint in London can cost eight quid. Nobody tells you where it
-            doesn&rsquo;t.
-          </>
-        }
+        title={<>Finding a cheap pint shouldn&rsquo;t take three apps.</>}
         titleId="about-title"
         lede={
           <>
@@ -151,6 +174,48 @@ export default async function AboutPage() {
         primary={<Link prefetch={false} href="/map">Open the map</Link>}
         secondary={<a href={HELLO_MAILTO}>Contact</a>}
       >
+
+      {/* The founder story, first person and signed. It answers why the app
+          exists before the page explains what it does. */}
+      <section className="aboutSection" aria-labelledby="why">
+        <h2 id="why" className="aboutH2">Why I built it</h2>
+        <p className="aboutBody">
+          After a hard day&rsquo;s work I wanted a cheap pint nearby. Finding
+          one meant bouncing between Google Maps, other maps and ChatGPT. So I
+          put the pubs, their listed prices and a plan for your mates in one
+          app.
+        </p>
+        {round ? (
+          <p className="aboutBody">
+            London prices are all over the place. A round of four at the
+            cheapest listed pint on the map comes to{" "}
+            <Figure>{fmtGbp(round.cheapest)}</Figure>. At the dearest, it&rsquo;s{" "}
+            <Figure>{fmtGbp(round.dearest)}</Figure>. Better to know which is
+            which before you get to the bar.
+          </p>
+        ) : null}
+        <p className="aboutBody">
+          I build PUBMAXX on my own, working with AI coding agents. Most AI
+          gets built for companies. I&rsquo;d rather build it for someone on a
+          night out, and that&rsquo;s what{" "}
+          <Link prefetch={false} href="/pal" className="aboutLink">
+            Pub&nbsp;Pal
+          </Link>{" "}
+          is.
+        </p>
+        <p className="aboutBody">
+          You pick how it looks and sounds, then type or talk to it, and it
+          finds you a pub or plans a route.
+        </p>
+        <p className="aboutBody">
+          Tell it you can&rsquo;t stand loud pubs and it asks whether to
+          remember that. Tap yes and it bears that in mind next time. Go off
+          lager and it offers to update what it knew. Nothing becomes a memory
+          without that yes, and you can correct or delete any of them.
+        </p>
+        <p className="aboutBody">It&rsquo;s free, and nobody pays to rank.</p>
+        <p className="aboutFounderSig">Karan Manoharan, founder of PUBMAXX</p>
+      </section>
 
       <section className="aboutSection" aria-labelledby="map">
         <h2 id="map" className="aboutH2">What the map does</h2>

@@ -263,3 +263,81 @@ describe("About outings story (Wave S1)", () => {
     expect(html).not.toMatch(/team scars|Discord|thousands of/iu);
   });
 });
+
+// The founder story (owner's ask, 2 Nov 2026): why the app exists, how it is
+// made and what it saves, in the founder's own words. It may print one
+// figure, the round of four, and that figure is arithmetic on the cheapest
+// and dearest listed pints loadAboutStats returns. Every Pub Pal claim in it
+// is one the Pal code backs (lib/palMemoryKinds.mjs has no food kind, so the
+// story may not say it remembers food).
+describe("About founder story", () => {
+  beforeEach(() => {
+    fixtures.snapshot = snapshot([]);
+  });
+
+  async function storyText(): Promise<string> {
+    const document = new JSDOM(await renderAbout()).window.document;
+    const story = document.querySelector('section[aria-labelledby="why"]');
+    expect(story).not.toBeNull();
+    return story?.textContent?.replace(/\s+/gu, " ").trim() ?? "";
+  }
+
+  it("tells why it exists before what the map does, and is signed", async () => {
+    const html = await renderAbout();
+    const whyAt = html.indexOf('aria-labelledby="why"');
+    const mapAt = html.indexOf('aria-labelledby="map"');
+    expect(whyAt).toBeGreaterThan(-1);
+    expect(mapAt).toBeGreaterThan(whyAt);
+
+    const story = await storyText();
+    expect(story).toContain("Google Maps, other maps and ChatGPT");
+    expect(story).toContain("working with AI coding agents");
+    expect(story).toContain("Most AI gets built for companies.");
+    expect(story).toContain("Pub Pal");
+    expect(story).toContain("Nothing becomes a memory without that yes");
+    expect(story).toContain("nobody pays to rank");
+    expect(story).toMatch(/Karan Manoharan, founder of PUBMAXX$/u);
+  });
+
+  it("prints the round of four from the stats and never as a banded pint", async () => {
+    const html = await renderAbout();
+    const start = html.indexOf('aria-labelledby="why"');
+    const story = html.slice(start, html.indexOf("</section>", start));
+    // Fixture: cheapest £4, dearest £8, so a round of four is £16 and £32.
+    expect(story).toContain("£16.00");
+    expect(story).toContain("£32.00");
+    expect(story).not.toContain("priceBadge");
+  });
+
+  it("drops the round line when either end of the price range is missing", async () => {
+    const saved = fixtures.stats;
+    fixtures.stats = { ...saved, cheapestPint: null } as unknown as typeof saved;
+    try {
+      const story = await storyText();
+      expect(story).not.toContain("round of four");
+      expect(story).not.toContain("£");
+      expect(story).toContain("Why I built it");
+    } finally {
+      fixtures.stats = saved;
+    }
+  });
+
+  it("claims nothing the data or the Pal code cannot back", async () => {
+    const story = await storyText();
+    // No invented time saving, biography, team or traction.
+    expect(story).not.toMatch(/\b\d+\s*(?:minutes?|mins?|hours?)\b/iu);
+    expect(story).not.toMatch(/\b(19|20)\d\d\b/u);
+    expect(story).not.toMatch(/university|school|degree|ex-|previously (at|worked)|our team|co-founder/iu);
+    expect(story).not.toMatch(
+      /\b(?:thousands?|millions?|followers?|downloads?|revenue|growth|customers?|users)\b/iu,
+    );
+    // The Pal has no food memory kind, and the screen never says graph or AI-powered.
+    expect(story).not.toMatch(/\bfood\b|knowledge graph|AI-powered/iu);
+    // House voice (docs/VOICE.md).
+    expect(story).not.toContain("—");
+    expect(story).not.toContain("!");
+    expect(story).not.toMatch(
+      /\b(experience|discover|elevate|seamless|curated|unleash|empower|journey|unlock|effortless|we believe|our mission)\b/iu,
+    );
+  });
+});
