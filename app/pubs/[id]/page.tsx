@@ -15,6 +15,9 @@ import VenuePhotoWall from "@/components/venue/VenuePhotoWall";
 import VenueReadUnavailable from "@/components/venue/VenueReadUnavailable";
 import VisitReportPanel from "@/components/visits/VisitReportPanel";
 import ListedPriceSource from "@/components/venue/ListedPriceSource";
+import LastOrdersBellSlot from "@/components/wild/LastOrdersBellSlot";
+import PubSignSlot from "@/components/wild/PubSignSlot";
+import { loadHistoricPubs } from "@/lib/historic";
 import { answerEvidenceFor } from "@/lib/landingHero";
 import { venueListedPint } from "@/lib/venueListedPint";
 import type { VenuePrice } from "@/lib/venues";
@@ -24,6 +27,7 @@ import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 import { venueAreaLabel } from "@/lib/venueDisplay";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import { venueAmenityStatus, venueContacts, type Venue } from "@/lib/venues";
+import { signFoundingYear } from "@/lib/wildPubSign";
 
 import "./pubPage.css";
 
@@ -133,6 +137,14 @@ export default async function PubPage({ params }: PageProps) {
   const band = venue.priceBand === undefined ? null : BANDS[venue.priceBand];
   const hours = venue.openingHours;
   const story = venue.curation.heritageNote?.trim() ?? "";
+  // The wild Sign Foundry letters "Since <year>" only from a FOUNDING year the
+  // historic record states. The server cannot see the wild switch (it lives in
+  // the reader's browser), so every pub page looks the year up, switch on or
+  // off: lib/historic.ts reads and parses historic_pubs.json once per server
+  // process and caches it, and each page searches that list. The year rides to
+  // the browser as the sign slot's prop; only the sign, drawn while the switch
+  // is on, prints it.
+  const foundingYear = signFoundingYear((await loadHistoricPubs()).find((pub) => pub.venueId === venue.id));
 
   const primary = contacts.bookingHref ? (
     <a href={contacts.bookingHref} target="_blank" rel="noopener noreferrer" data-booking-link="true" data-tier="direct" data-venue-id={venue.id}>
@@ -156,7 +168,9 @@ export default async function PubPage({ params }: PageProps) {
             height={540}
             priority
           />
-        ) : null}
+        ) : (
+          <PubSignSlot name={venue.name} venueId={venue.id} listedPint={listedPint} foundingYear={foundingYear} photoDoor />
+        )}
         <Screen
           as="section"
           kicker={venueAreaLabel(venue)}
@@ -181,6 +195,8 @@ export default async function PubPage({ params }: PageProps) {
           }
           primary={primary}
         />
+
+        <LastOrdersBellSlot venueId={venue.id} venueName={venue.name} lat={venue.latitude} lng={venue.longitude} />
 
         <div className="pubPage__actions">
           {contacts.bookingHref ? (

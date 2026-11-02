@@ -15,6 +15,7 @@ import { ImageOff } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
 
+import { PubSignFallbackSlot } from "@/components/wild/PubSignSlot";
 import {
   isProxiedVenueImageUrl,
   resolveVenueImage,
@@ -79,17 +80,21 @@ export default function VenueImage({
   const resolved = resolveVenueImage(sources, failedUrls);
 
   if (!resolved) {
+    // With the wild switch on, a pub the alt names gets its drawn sign
+    // (components/wild/PubSign.tsx); off, this is the plain fallback as it was.
     return (
-      <div
-        className={`venueImage venueImage--empty ${className}`.trim()}
-        role="img"
-        aria-label={alt}
-      >
-        <span aria-hidden="true">
-          <ImageOff size={14} aria-hidden="true" />
-          No photo yet
-        </span>
-      </div>
+      <PubSignFallbackSlot alt={alt} className={className}>
+        <div
+          className={`venueImage venueImage--empty ${className}`.trim()}
+          role="img"
+          aria-label={alt}
+        >
+          <span aria-hidden="true">
+            <ImageOff size={14} aria-hidden="true" />
+            No photo yet
+          </span>
+        </div>
+      </PubSignFallbackSlot>
     );
   }
 

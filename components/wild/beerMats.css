@@ -1,0 +1,304 @@
+/* Beer mats that flip (components/wild/BeerMats.tsx), the wild switch's
+   version of Tonight's cheapest listed pints. Tokens only, so both themes
+   print their own mat: card stock by day, a dark board by night.
+
+   While the mats are on the page they are the answer, so the list they
+   replace steps back. Before their chunk arrives the list is still there. */
+.tonightCheapPintsAnswer:has(> .beerMats) > .tonightCheapPintsBeltList {
+  display: none;
+}
+
+/* From 641px the mats sit on the bar in a grid: two across the 360px rail,
+   four across a tablet column. */
+.beerMats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--space-4);
+  margin: var(--space-2) 0 0;
+  padding: var(--space-3) 0 var(--space-5);
+  list-style: none;
+}
+
+/* A phone swipes them: one snap row out to the screen's edges, with the
+   next mat peeking in so the row says it goes on. */
+@media (max-width: 640px) {
+  .beerMats {
+    display: flex;
+    gap: var(--space-3);
+    margin-inline: calc(-1 * var(--page-gutter));
+    padding: var(--space-3) var(--page-gutter) var(--space-6);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: var(--page-gutter);
+    scrollbar-width: none;
+    touch-action: manipulation;
+  }
+
+  .beerMats::-webkit-scrollbar {
+    display: none;
+  }
+
+  .beerMatSlot {
+    flex: 0 0 min(64vw, 240px);
+    scroll-snap-align: start;
+  }
+}
+
+.beerMatSlot {
+  --mat-rest: 0deg;
+  --mat-delay: 0ms;
+  display: grid;
+  justify-items: center;
+  min-width: 0;
+}
+
+/* The mat. Its rest angle comes from the row, a mouse's lean from the
+   script, and its faces turn inside it. */
+.beerMat {
+  --mat-lean-x: 0deg;
+  --mat-lean-y: 0deg;
+  position: relative;
+  width: 100%;
+  max-width: 220px;
+  aspect-ratio: 1;
+  container-type: inline-size;
+  perspective: 900px;
+  transform: perspective(800px) rotateX(var(--mat-lean-x)) rotateY(var(--mat-lean-y))
+    rotate(var(--mat-rest));
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* The ring wears the band. A figure nobody banded (lib/priceBand.ts answers
+   null) rings in the plain line instead. */
+.beerMat:not(.priceBand-cheap, .priceBand-average, .priceBand-expensive) {
+  --price-band-hue: var(--line);
+}
+
+/* The one control: the whole mat, under its own print. */
+.beerMatToggle {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.beerMatToggle:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 4px;
+}
+
+.beerMatSpin {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  pointer-events: none;
+}
+
+.beerMat[data-flipped] .beerMatSpin {
+  transform: rotateY(180deg);
+}
+
+.beerMatFace {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  overflow: hidden;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+/* FRONT: pressed card stock, a band-coloured ring, the pub round the rim and
+   the price in the middle. */
+.beerMatFront {
+  background: radial-gradient(
+    circle at 50% 36%,
+    var(--panel-raised) 0 48%,
+    color-mix(in srgb, var(--panel-raised) 88%, var(--ink-deep)) 100%
+  );
+  color: var(--ink);
+}
+
+/* The printed sunburst behind the price, in the band's own hue. */
+.beerMatFront::before {
+  content: "";
+  position: absolute;
+  inset: 19.5%;
+  border-radius: 50%;
+  background: repeating-conic-gradient(
+    color-mix(in srgb, var(--price-band-hue) 13%, transparent) 0 5deg,
+    transparent 5deg 10deg
+  );
+}
+
+.beerMatPrint {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.beerMatGrain {
+  fill: var(--ink);
+  opacity: 0.6;
+}
+
+.beerMatBand {
+  fill: none;
+  stroke: var(--price-band-hue);
+  stroke-width: 9;
+}
+
+.beerMatHairline {
+  fill: none;
+  stroke: color-mix(in srgb, var(--ink) 28%, transparent);
+  stroke-width: 1;
+}
+
+.beerMatRimText {
+  fill: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.beerMatFigure {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 1.5cqi;
+}
+
+.beerMatPrice {
+  font-family: var(--font-data);
+  font-size: clamp(var(--text-lg), 16cqi, var(--text-3xl));
+  font-weight: 700;
+  font-feature-settings: "tnum";
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.beerMatDay {
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+  font-size: clamp(var(--text-2xs), 6cqi, var(--text-sm));
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.beerMatTurn {
+  color: var(--color-text-muted);
+}
+
+/* BACK: the plain side, ringed in the band, with the price, the drink, who
+   listed it and when, and the way to log a better one. */
+.beerMatBack {
+  transform: rotateY(180deg);
+  border: 4px solid var(--price-band-hue);
+  background: var(--panel);
+  color: var(--ink);
+}
+
+/* The back's inner ring, a hairline in the band. */
+.beerMatBack::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border: 1px solid color-mix(in srgb, var(--price-band-hue) 55%, transparent);
+  border-radius: 50%;
+}
+
+.beerMatBackBody {
+  display: grid;
+  justify-items: center;
+  gap: 2cqi;
+  width: 76%;
+  text-align: center;
+}
+
+.beerMatDrink {
+  display: -webkit-box;
+  overflow: hidden;
+  font-family: var(--font-display);
+  font-size: clamp(var(--text-xs), 8.5cqi, var(--text-md));
+  font-weight: 700;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.beerMatSource {
+  color: var(--color-text-muted);
+  font-size: clamp(var(--text-2xs), 6.2cqi, var(--text-sm));
+  line-height: 1.25;
+}
+
+.beerMatLog {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--control-radius);
+  background: var(--panel-raised);
+  color: var(--ink);
+  font-size: clamp(var(--text-2xs), 6.4cqi, var(--text-sm));
+  font-weight: 700;
+  line-height: 1.1;
+  text-decoration: none;
+  white-space: nowrap;
+  /* The faces let taps through to the mat's button; the log door takes its own. */
+  pointer-events: auto;
+}
+
+.beerMatLog:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+/* Motion: the mats land on the bar one after another, a mat flicks over with
+   a little overshoot, and a mouse's lean eases in. A reader who asked for
+   less motion gets the mats already down and a flip with no travel. */
+@media (prefers-reduced-motion: no-preference) {
+  .beerMatSlot {
+    animation: beerMatLand 560ms var(--ease-weighted) var(--mat-delay) both;
+  }
+
+  .beerMat {
+    transition: transform var(--duration-lift) var(--ease-out);
+  }
+
+  .beerMatSpin {
+    transition: transform 720ms var(--ease-spring);
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .beerMatLog:hover {
+    border-color: var(--ink-soft);
+  }
+}
+
+@keyframes beerMatLand {
+  from {
+    opacity: 0;
+    transform: translateY(-16px) scale(1.08) rotate(-8deg);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
