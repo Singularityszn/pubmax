@@ -348,14 +348,19 @@ export default function ActivityClient(): React.JSX.Element {
           // painted out (components/ui/sample-skeleton.tsx): a plain list on
           // phones, rail and two-up timeline from 1024px, at the size the
           // answer will take.
-          <SampleSkeleton label="Loading your activity" className="activityGrid">
-            <ActivityGridBody
-              total={SAMPLE_NOTIFICATIONS.length}
-              {...activityTallies(SAMPLE_NOTIFICATIONS)}
-              visibleItems={SAMPLE_NOTIFICATIONS}
-              kindFilter="all"
-              onKindFilter={ignoreSampleFilter}
-            />
+          // The grid sits INSIDE the region: below 1024px .activityGrid is
+          // `display: contents`, which draws no box, so on the region itself
+          // it would drop the 600 ms hold and the pulse.
+          <SampleSkeleton label="Loading your activity">
+            <div className="activityGrid">
+              <ActivityGridBody
+                total={SAMPLE_NOTIFICATIONS.length}
+                {...activityTallies(SAMPLE_NOTIFICATIONS)}
+                visibleItems={SAMPLE_NOTIFICATIONS}
+                kindFilter="all"
+                onKindFilter={ignoreSampleFilter}
+              />
+            </div>
           </SampleSkeleton>
         ) : !visibleHandle.trim() ? (
           <EmptyState title="This corner is yours. Claim it." action={<SignInButton />}>

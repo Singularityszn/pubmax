@@ -20,12 +20,16 @@ import "./sampleSkeleton.css";
  * busy region rather than inside it, because `aria-busy` holds back a live
  * region beneath it, and the line fills after mount, because a live region
  * speaks a change and not the text it was born with (the sign-in skeleton
- * found both, __tests__/loginSkeletonAnnouncement.test.ts).
+ * found both, __tests__/loginSkeletonAnnouncement.test.ts). It fills after
+ * the same 600 ms grace as the shapes, so a fast read is not announced.
  *
  * The shapes wait 600 ms before they show, the grace the listings wait uses,
  * so a fast read never flashes a skeleton. Under reduced motion they hold
  * still.
  */
+/** The grace before the shapes show (sampleSkeleton.css) and the label is spoken. */
+const SAMPLE_SKELETON_GRACE_MS = 600;
+
 export default function SampleSkeleton({
   label,
   className,
@@ -42,7 +46,13 @@ export default function SampleSkeleton({
 
   useEffect(() => {
     const node = announcement.current;
-    if (node) node.textContent = label;
+    if (!node) return;
+    // The words wait as long as the shapes, so a fast read is neither seen
+    // nor heard.
+    const timer = window.setTimeout(() => {
+      node.textContent = label;
+    }, SAMPLE_SKELETON_GRACE_MS);
+    return () => window.clearTimeout(timer);
   }, [label]);
 
   const classes = ["sampleSkeleton", className].filter(Boolean).join(" ");

@@ -20,7 +20,7 @@ import postcss, { type AtRule, type Declaration, type Rule } from "postcss";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import SampleSkeleton from "@/components/ui/sample-skeleton";
 import { useIsSample } from "@/components/ui/sample-skeleton-context";
@@ -97,7 +97,12 @@ describe("the screen-reader line", () => {
     const spoken: string[] = [];
     const observer = new MutationObserver(() => {});
     observer.observe(host, { subtree: true, childList: true, characterData: true });
+    vi.useFakeTimers();
     mount();
+    act(() => {
+      vi.advanceTimersByTime(600);
+    });
+    vi.useRealTimers();
     for (const record of observer.takeRecords()) {
       const target = record.target instanceof HTMLElement ? record.target : record.target.parentElement;
       if (target?.getAttribute("role") === "status") spoken.push(target.textContent ?? "");
@@ -107,8 +112,28 @@ describe("the screen-reader line", () => {
     expect(spoken).toContain("Loading the timeline");
   });
 
-  it("stands outside every busy or hidden ancestor, and the sample's words are never in it", () => {
+  it("says nothing while a read answers inside the 600 ms grace", () => {
+    vi.useFakeTimers();
     mount();
+    act(() => {
+      vi.advanceTimersByTime(599);
+    });
+    expect(host.querySelector('[role="status"]')?.textContent).toBe("");
+    act(() => root.render(null));
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    vi.useRealTimers();
+    expect(host.querySelector('[role="status"]')).toBeNull();
+  });
+
+  it("stands outside every busy or hidden ancestor, and the sample's words are never in it", () => {
+    vi.useFakeTimers();
+    mount();
+    act(() => {
+      vi.advanceTimersByTime(600);
+    });
+    vi.useRealTimers();
     const status = host.querySelector<HTMLElement>('[role="status"]');
     expect(status?.textContent).toBe("Loading the timeline");
     expect(status?.className).toBe("sr-only");

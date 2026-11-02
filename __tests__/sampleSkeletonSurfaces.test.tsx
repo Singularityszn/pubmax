@@ -93,6 +93,13 @@ async function mount(node: ReactNode): Promise<void> {
   });
 }
 
+/** Lets the 600 ms grace pass, after which the status line speaks. */
+async function afterGrace(): Promise<void> {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 650));
+  });
+}
+
 function sampleOf(region: Element | null): Element | null {
   const sample = region?.firstElementChild ?? null;
   expect(sample?.className).toBe("sampleSkeletonSample");
@@ -120,6 +127,7 @@ describe("the profile timeline", () => {
     // The timeline's usual card is the photo Spill.
     expect(sample?.querySelectorAll(".feedSpill img.feedSpillPhoto")).toHaveLength(2);
     expectNoSamplePrefetch(sample);
+    await afterGrace();
     expect(host.querySelector('p.sr-only[role="status"]')?.textContent).toBe("Loading the timeline");
   });
 
@@ -169,7 +177,7 @@ describe("the profile timeline", () => {
     expect(page).not.toContain("feedCardSkeleton");
   });
 
-  it("keeps the same timeline instance from the wait to the answer", async () => {
+  it("draws the wait and the answer from the same timeline component", async () => {
     await mount(createElement(ProfileTimeline, { drops: [], loading: true }));
     expect(host.querySelector("[data-sample-skeleton]")).not.toBeNull();
 
@@ -217,6 +225,7 @@ describe("the profile header while the viewer is unresolved", () => {
     const text = host.textContent ?? "";
     expect(text).not.toContain("@you");
     expect(text).not.toContain("£");
+    await afterGrace();
     expect(host.querySelector('p.sr-only[role="status"]')?.textContent).toBe("Loading profile");
   });
 });
@@ -226,11 +235,14 @@ describe("the Activity grid", () => {
     await mount(createElement(ActivityClient));
 
     const region = host.querySelector("[data-sample-skeleton]");
-    expect(region?.className).toBe("sampleSkeleton activityGrid");
+    // The grid is a child of the region, never the region: below 1024px
+    // .activityGrid is `display: contents`, which would drop the grace.
+    expect(region?.className).toBe("sampleSkeleton");
     const sample = sampleOf(region);
-    expect(sample?.querySelector(":scope > aside.activityRail .activityFilters")).not.toBeNull();
-    expect(sample?.querySelectorAll(":scope > ul.activityList > li.activityItem")).toHaveLength(6);
+    expect(sample?.querySelector(":scope > div.activityGrid > aside.activityRail .activityFilters")).not.toBeNull();
+    expect(sample?.querySelectorAll(":scope > div.activityGrid > ul.activityList > li.activityItem")).toHaveLength(6);
     expectNoSamplePrefetch(sample);
+    await afterGrace();
     expect(host.querySelector('p.sr-only[role="status"]')?.textContent).toBe("Loading your activity");
     expect(fetchMock).not.toHaveBeenCalled();
   });
