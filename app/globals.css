@@ -540,6 +540,14 @@
   font-variant-numeric: normal;
 }
 
+/* No grey flash on a tap, anywhere in the app (design plan step 0.6). The
+   property inherits, so this one line covers every page; a control's own
+   pressed and focus states are its feedback, as in a native app. The copies
+   on single sheets predate it. */
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
 body {
   margin: 0;
   background: var(--gradient-party);
@@ -5337,7 +5345,11 @@ button:disabled {
     right: 0;
     width: 100%;
     max-width: 100%;
+    /* dvh (the visible viewport) with a vh fallback, as the snap transforms
+       below: 82vh is the height with the browser bars hidden, so with the
+       bars showing the sheet's foot sat under them. */
     max-height: 82vh;
+    max-height: 82dvh;
     border: 0;
     border-radius: 18px 18px 0 0;
     box-shadow: 0 -10px 30px rgba(15, 28, 22, 0.28);

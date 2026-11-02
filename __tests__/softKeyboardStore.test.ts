@@ -235,6 +235,47 @@ describe("what the keyboard store listens to", () => {
     off();
   });
 
+  // Design plan step 0.6: app/layout.tsx asks for
+  // interactive-widget=resizes-content, so Chrome on Android shrinks the
+  // layout viewport with the visual one, as the Android shell does. A touch
+  // screen therefore reads the keyboard against its unfocused baseline.
+  it("hides chrome when a touch browser resizes both viewports for the keyboard", () => {
+    (window as unknown as { matchMedia: (query: string) => { matches: boolean } }).matchMedia = (query) => ({
+      matches: query === "(pointer: coarse)",
+    });
+    const [, off] = subscribe();
+    activeElement = textInput();
+    fire(documentHandlers, "focusin");
+    vi.runAllTimers();
+    window.innerHeight = WITH_KEYBOARD;
+    setViewportHeight(WITH_KEYBOARD);
+    fire(viewportHandlers, "resize");
+    expect(readSoftKeyboardOpen()).toBe(true);
+    activeElement = { tagName: "BODY" };
+    window.innerHeight = LAYOUT_HEIGHT;
+    setViewportHeight(LAYOUT_HEIGHT);
+    fire(documentHandlers, "focusout");
+    vi.runAllTimers();
+    fire(viewportHandlers, "resize");
+    expect(readSoftKeyboardOpen()).toBe(false);
+    off();
+  });
+
+  it("still reads a fine pointer's resized window with a focused field as a window", () => {
+    (window as unknown as { matchMedia: (query: string) => { matches: boolean } }).matchMedia = () => ({
+      matches: false,
+    });
+    const [, off] = subscribe();
+    activeElement = textInput();
+    fire(documentHandlers, "focusin");
+    vi.runAllTimers();
+    window.innerHeight = WITH_KEYBOARD;
+    setViewportHeight(WITH_KEYBOARD);
+    fire(viewportHandlers, "resize");
+    expect(readSoftKeyboardOpen()).toBe(false);
+    off();
+  });
+
   it("takes the caret from the document and the height from the visual viewport", () => {
     const [, off] = subscribe();
     expect([...documentHandlers.keys()].sort()).toEqual(["focusin", "focusout"]);
