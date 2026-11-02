@@ -4,6 +4,7 @@ export const PUB_PAL_MEMORY_KINDS: readonly [
   "accessibility_preference",
   "transport_preference",
   "drink_preference",
+  "food_preference",
   "night_outcome",
   "correction",
 ];

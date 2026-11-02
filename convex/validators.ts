@@ -82,6 +82,7 @@ export const memoryKind = v.union(
   v.literal("accessibility_preference"),
   v.literal("transport_preference"),
   v.literal("drink_preference"),
+  v.literal("food_preference"),
   v.literal("night_outcome"),
   v.literal("correction"),
 );
