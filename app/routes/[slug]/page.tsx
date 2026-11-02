@@ -6,6 +6,8 @@ import SiteNav from "@/components/nav/SiteNav";
 import { displayDrinkName, plainDashes } from "@/components/listing/displayCase";
 import { RowList, RowListItem } from "@/components/ui/row-list";
 import Screen from "@/components/ui/screen";
+import CrawlReceiptGate from "@/components/wild/CrawlReceiptGate";
+import PintLineGate from "@/components/wild/PintLineGate";
 import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
 import { formatGbp } from "@/lib/formatGbp";
 import { listedPriceReceipt } from "@/lib/listedPriceReceipt";
@@ -21,6 +23,7 @@ import {
   type NamedRouteStop,
 } from "@/lib/namedRoutes";
 import { loadGroupedVenues } from "@/lib/venueDataset";
+import { wildCrawlFromNamedRoute } from "@/lib/wildPintLineRoute";
 
 import "@/components/listing/listing.css";
 
@@ -103,6 +106,10 @@ export default async function NamedRoutePage({ params }: PageProps) {
   if (!route) notFound();
   const { crawl, stops, totalKm } = route;
   const stopCount = crawl.venueIds.length;
+  // The same stops, prices and walks as plain data for the two wild surfaces
+  // (the Pint Line and the crawl receipt). Each gate renders nothing while the
+  // wild switch is off (lib/wildMode.ts), so the page reads as it always has.
+  const wildCrawl = wildCrawlFromNamedRoute(route, venues, displayDrinkName);
 
   return (
     <main id="main" className="routePage listingShell">
@@ -118,6 +125,7 @@ export default async function NamedRoutePage({ params }: PageProps) {
         }
         secondary={<Link href="/crawls">All crawl routes</Link>}
       >
+        <PintLineGate crawl={wildCrawl} />
         <p className="listingSectionDek">
           {stopCount} stops, first to last.{" "}
           {totalKm !== null
@@ -137,6 +145,7 @@ export default async function NamedRoutePage({ params }: PageProps) {
             />
           ))}
         </RowList>
+        <CrawlReceiptGate crawl={wildCrawl} />
       </Screen>
     </main>
   );

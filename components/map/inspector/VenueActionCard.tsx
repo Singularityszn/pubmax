@@ -29,6 +29,7 @@ import { Share2, Users } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { ContributionGateDialog } from "@/components/identity/ContributionGateDialog";
 import { useSheetFooterSlot } from "@/components/mobile/sheetFooterContext";
+import LastOrdersBellSlot from "@/components/wild/LastOrdersBellSlot";
 import type { ContributionGateStatus } from "@/lib/contributionGateStatus";
 import { TABLE_REQUEST_ACTION_LABEL } from "@/lib/tableRequests";
 import type { ShareFeedback } from "@/lib/venueShare";
@@ -87,6 +88,14 @@ export default function VenueActionCard({
       role="group"
       aria-label={`${venue.name}, price and actions`}
     >
+      {/* The wild Last Orders Bell: nothing while the wild switch is off. */}
+      <LastOrdersBellSlot
+        venueId={venue.id}
+        venueName={venue.name}
+        lat={venue.latitude}
+        lng={venue.longitude}
+        variant="sheet"
+      />
       {summary}
       <div className="venueSheetStickyBar venueActionCardActions" role="toolbar" aria-label="Venue actions">
         {pub ? (

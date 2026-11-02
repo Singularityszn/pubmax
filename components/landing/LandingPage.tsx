@@ -17,6 +17,7 @@ import type { LandingArchiveIndex, LandingRailRow } from "@/lib/landingHero";
 import type { LondonCollageAreaPrice } from "@/lib/landingLondonCollage";
 import type { LandingPubCardData } from "@/lib/landingPubCard";
 import { strangerSavingLine, type PintPriceAverages } from "@/lib/pintSavings";
+import { PUB_LIST_BASE } from "@/lib/pubListBase";
 import {
   preferredCityMapHref,
   readPreferredCity,
@@ -31,6 +32,9 @@ import type { LandingCtaTarget } from "@/lib/analyticsEvents";
 import { socialSurfaceName } from "@/lib/socialLaunch";
 import type { UkDirectoryCoverage } from "@/lib/ukDirectoryCoverage";
 import { UK_NATIONAL_ENTRY_LABEL, UK_NATIONAL_MAP_HREF } from "@/lib/ukNationalBrowse";
+import { useWildMode } from "@/lib/useWildMode";
+import type { WildPriceGlass } from "@/lib/wildPriceGlass";
+import type { DotFooterCount } from "@/components/wild/DotFooter";
 
 import LandingAnswerCards from "./LandingAnswerCards";
 import LandingFaq from "./LandingFaq";
@@ -52,6 +56,19 @@ const PintDropStrip = dynamic(() => import("./PintDropStrip"), {
   loading: () => null,
 });
 
+// The round-two wild ideas (lib/wildMode.ts): the Price Glass in the hero and
+// the dot wordmark over the footer. Each is its own chunk, fetched only once
+// the wild switch is on in this browser, so with the switch off the landing
+// renders exactly as it did and its first load carries none of their code.
+const PriceGlass = dynamic(() => import("@/components/wild/PriceGlass"), {
+  ssr: false,
+  loading: () => null,
+});
+const DotFooter = dynamic(() => import("@/components/wild/DotFooter"), {
+  ssr: false,
+  loading: () => null,
+});
+
 export default function LandingPage({
   card = null,
   archive = {},
@@ -63,6 +80,7 @@ export default function LandingPage({
   ukCoverage = null,
   huntCard = null,
   huntCities = null,
+  priceGlass = null,
   // Server-threaded friends-launch flag. Explicit 0 is the rollback state.
   socialFriendsLaunchEnabled = true,
 }: {
@@ -93,6 +111,11 @@ export default function LandingPage({
   answers?: LandingAnswers | null;
   /** UK directory listings, never the denominator of a price comparison. */
   ukCoverage?: UkDirectoryCoverage | null;
+  /**
+   * The Price Glass's pours (lib/wildPriceGlass.ts), built at prerender. Drawn
+   * only while the wild switch is on; null pours nothing.
+   */
+  priceGlass?: WildPriceGlass | null;
   socialFriendsLaunchEnabled?: boolean;
 }) {
   const router = useRouter();
@@ -116,6 +139,35 @@ export default function LandingPage({
     : {};
 
   const socialLabel = socialSurfaceName(socialFriendsLaunchEnabled);
+  const wild = useWildMode();
+  // The dot footer's one line repeats counts this page already prints, from
+  // the same figures and in the same words.
+  const dotCounts: DotFooterCount[] = [
+    ...(averages
+      ? [{
+          figure: averages.sampleSize.toLocaleString("en-GB"),
+          words: `${averages.sampleSize === 1 ? "pub" : "pubs"} in ${PUB_LIST_BASE} with a listed price`,
+        }]
+      : []),
+    ...(ukCoverage
+      ? [{
+          figure: ukCoverage.pubListings.toLocaleString("en-GB"),
+          words: "UK pub listings from OpenStreetMap",
+        }]
+      : []),
+  ];
+  // With the switch on, the glass stands over the hunt card in the hero's
+  // answer slot: under the claim on a phone, beside it on a desktop, and
+  // always before the one primary action, never in its place.
+  const heroAnswer =
+    wild && priceGlass ? (
+      <>
+        <PriceGlass glass={priceGlass} />
+        {huntCard}
+      </>
+    ) : (
+      huntCard
+    );
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -162,7 +214,7 @@ export default function LandingPage({
             Plan a crawl, then the one real pub and three next-cheapest rows.
             The DOM order is the phone order; the desktop only seats the hunt
             card and the rows beside the copy. */}
-        <LandingHero card={card} archive={archive} rail={rail} hunt={huntCard} />
+        <LandingHero card={card} archive={archive} rail={rail} hunt={heroAnswer} />
 
         {/* The founder's own photographs of London, each patch with the
             cheapest listed pint a short walk from where it was taken. Straight
@@ -216,6 +268,7 @@ export default function LandingPage({
       </main>
 
       <footer className="lpFooter">
+        {wild ? <DotFooter counts={dotCounts} /> : null}
         <div className="lpFooterInner">
           <div className="lpFooterBrand">
             <Link prefetch={false} href="/" className="lpWordmark" aria-label="PUBMAXX home">

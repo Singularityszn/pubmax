@@ -260,3 +260,12 @@
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+
+/* The wild Sign Foundry's cover (components/wild/PubSign.tsx), drawn only
+   while the wild switch is on, for a pub we hold no photograph of. It hangs
+   under the bar, inside the page gutter. */
+.hdPage .hdSign {
+  box-sizing: border-box;
+  margin-top: var(--space-5);
+  padding-inline: var(--page-gutter);
+}

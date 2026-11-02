@@ -54,7 +54,12 @@ describe("public profile card", () => {
     const markup = header({ handle: "you", displayName: "You" }, "loading");
 
     expect(markup).toContain("profileHeaderLoading");
-    expect(markup).toContain("profileSkeleton");
+    // The neutral shapes are the real card drawn from sample values and painted
+    // out by the SampleSkeleton primitive: the card sits in an inert,
+    // aria-hidden sample inside the busy region.
+    expect(markup).toMatch(
+      /<div class="sampleSkeleton profileHeaderLoading" aria-busy="true" data-sample-skeleton=""><div class="sampleSkeletonSample" inert="" aria-hidden="true"><header class="profileHeader">/,
+    );
     expect(markup).not.toContain(">You<");
     expect(markup).not.toContain("@you");
     expect(markup).not.toMatch(/<dd>0<\/dd>/);

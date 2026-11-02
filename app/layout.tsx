@@ -33,6 +33,7 @@ import PosthogPageviews from "@/components/PosthogPageviews";
 import SkipLink from "@/components/a11y/SkipLink";
 import SplashAperture from "@/components/splash/SplashAperture";
 import DeploymentSkewRecovery from "@/components/DeploymentSkewRecovery";
+import NightFallGate from "@/components/wild/NightFallGate";
 import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 import { SocialFriendsLaunchProvider } from "@/lib/useSocialFriendsLaunch";
 import OptionalClerkProvider from "@/components/auth/OptionalClerkProvider";
@@ -480,6 +481,9 @@ export default async function RootLayout({
         </Suspense>
         <AnalyticsConsentPrompt />
         <DeploymentSkewRecovery />
+        {/* Wild switch preview (lib/wildMode.ts): Night falls. Renders nothing
+            and loads nothing more while the switch is off. */}
+        <NightFallGate />
       </body>
     </html>
   );

@@ -1,0 +1,372 @@
+/* Pal hops (wild idea 08). The button lives on the map edge; the robin, its
+   footprints and its bubble live on a stage over the whole screen that takes
+   no pointer events, so every pin under the robin stays tappable. Only the
+   bubble takes taps. Motion is transform and opacity alone. */
+
+/* ---- the button --------------------------------------------------------- */
+
+.palHopLauncher {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  box-shadow: var(--map-overlay-shadow-tight);
+  font: 600 var(--text-sm) / 1 var(--font-body);
+  pointer-events: auto;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  /* The press is the shared feedback seam's (app/globals.css, "Global press
+     feedback"), pressed a touch firmer, as a small icon control may be. */
+  --shared-press-scale: var(--press-scale-firm);
+}
+
+.palHopLauncher:focus-visible {
+  outline: 2px solid var(--color-text);
+  outline-offset: 3px;
+}
+
+/* In the phone map-edge column, a circle like Near me and the Pal's door. */
+.palHopLauncher--edge {
+  flex: 0 0 auto;
+  align-self: flex-end;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+}
+
+/* On a wide map, a labelled pill standing on the right edge above the map's
+   own Layers control. It is portalled to the body, because the toolbar it is
+   mounted from is a transformed box that would carry a fixed child with it. */
+.palHopLauncher--desktop {
+  position: fixed;
+  right: 16px;
+  bottom: 96px;
+  z-index: var(--z-map-hover);
+  padding: 4px 16px 4px 4px;
+  min-height: 48px;
+}
+
+/* The robin sits in a ringed perch; it leaves the perch empty while it is out. */
+.palHopLauncherPerch {
+  position: relative;
+  display: block;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  outline: 2px solid var(--ink);
+}
+
+.palHopLauncher--desktop .palHopLauncherPerch {
+  width: 38px;
+  height: 38px;
+}
+
+.palHopLauncherRobin {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background-position: center;
+  background-size: cover;
+  transform-origin: 50% 100%;
+  animation: palHopIdle 7s var(--ease-out) 2s infinite;
+}
+
+.palHopLauncher[data-out="true"] .palHopLauncherRobin {
+  opacity: 0;
+  transform: scale(0.6);
+  animation: none;
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.palHopLauncher[data-out="true"] .palHopLauncherPerch {
+  outline-color: var(--hairline-strong);
+}
+
+/* A little coin on the robin's shoulder: this robin goes for the price. */
+.palHopLauncherCoin {
+  position: absolute;
+  right: -5px;
+  bottom: -4px;
+  display: grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border: 1.5px solid var(--color-surface-raised);
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--paper);
+  font: 700 10px / 1 var(--font-display);
+}
+
+.palHopLauncherText {
+  white-space: nowrap;
+}
+
+/* The arrival ask is the one banner on a first visit, and the Pal's door
+   stands down for it (mobileMapShell.css); so does this. */
+body:has(.mapArrivalCard) .palHopLauncher--edge {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .palHopLauncher--desktop {
+    display: none;
+  }
+}
+
+/* ---- the stage ---------------------------------------------------------- */
+
+.palHopStage {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-map-toolbar);
+  pointer-events: none;
+  overflow: hidden;
+  transition: opacity 200ms var(--ease-out);
+}
+
+.palHopStage[data-leaving="true"] {
+  opacity: 0;
+}
+
+.palHopRobin,
+.palHopShadow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  will-change: transform;
+}
+
+.palHopRobin {
+  width: 52px;
+  height: 52px;
+  transform-origin: 50% 100%;
+}
+
+.palHopRobinBody {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background-position: center;
+  background-size: cover;
+  outline: 2px solid var(--ink);
+  box-shadow: var(--map-overlay-shadow-tight);
+  animation: palHopPop 260ms var(--ease-spring) both;
+}
+
+.palHopRobinBody[data-looking="true"] {
+  animation:
+    palHopPop 260ms var(--ease-spring) both,
+    palHopLook 900ms ease-in-out 260ms infinite;
+}
+
+.palHopStage[data-phase="empty"] .palHopRobinBody {
+  animation: palHopShake 620ms ease-in-out both;
+}
+
+.palHopShadow {
+  width: 36px;
+  height: 10px;
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse,
+    color-mix(in srgb, var(--ink-deep) 55%, transparent),
+    transparent 70%
+  );
+  opacity: 0.55;
+}
+
+/* A footprint: a little three-toed track that fades after the robin. */
+.palHopStep {
+  position: absolute;
+  display: block;
+  width: 10px;
+  height: 12px;
+  color: var(--ink);
+  filter: drop-shadow(0 0 1.5px var(--paper));
+  opacity: 0;
+  animation: palHopStep 3400ms var(--ease-out) both;
+}
+
+.palHopStep svg {
+  display: block;
+}
+
+/* ---- the bubble --------------------------------------------------------- */
+
+.palHopBubbleAnchor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: min(320px, calc(100vw - 24px));
+  pointer-events: auto;
+}
+
+.palHopBubble {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-3) var(--space-2) var(--space-4);
+  border: 1px solid var(--hairline);
+  border-radius: 20px;
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  box-shadow: var(--map-overlay-shadow);
+  transform-origin: 50% 100%;
+  animation: palHopBubbleIn 320ms var(--ease-spring) both;
+}
+
+.palHopBubbleAnchor[data-side="below"] .palHopBubble {
+  transform-origin: 50% 0;
+}
+
+.palHopBubbleTail {
+  position: absolute;
+  bottom: -7px;
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
+  border-right: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+  background: var(--color-surface-raised);
+  rotate: 45deg;
+}
+
+.palHopBubbleAnchor[data-side="below"] .palHopBubbleTail {
+  top: -7px;
+  bottom: auto;
+  rotate: 225deg;
+}
+
+.palHopBubbleSay {
+  margin: 0;
+  font: 700 var(--text-lg) / var(--leading-tight) var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+.palHopBubbleKicker {
+  margin: 0;
+  color: var(--color-text-muted);
+  font: 600 var(--text-xs) / var(--leading-snug) var(--font-body);
+}
+
+.palHopBubbleHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-1);
+}
+
+.palHopBubblePrice {
+  flex: 0 0 auto;
+}
+
+.palHopBubbleWhat {
+  display: grid;
+  min-width: 0;
+  margin: 0;
+}
+
+.palHopBubbleDrink {
+  font: 600 var(--text-sm) / var(--leading-snug) var(--font-body);
+}
+
+.palHopBubblePub {
+  overflow-wrap: anywhere;
+  color: var(--color-text-soft);
+  font: 500 var(--text-sm) / var(--leading-snug) var(--font-body);
+}
+
+/* Who listed it and when: wraps, never ellipses (a trust caption). */
+.palHopBubbleSource {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-muted);
+  font: 500 var(--text-xs) / var(--leading-snug) var(--font-body);
+  overflow-wrap: anywhere;
+}
+
+.palHopBubbleLine {
+  margin: 0;
+  color: var(--color-text-soft);
+  font: 500 var(--text-sm) / var(--leading-snug) var(--font-body);
+}
+
+.palHopBubbleActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.palHopBubbleActions > :last-child {
+  margin-left: auto;
+}
+
+/* ---- motion ------------------------------------------------------------- */
+
+@keyframes palHopIdle {
+  0%, 88%, 100% { transform: translateY(0) scale(1, 1); }
+  90% { transform: translateY(0) scale(1.08, 0.9); }
+  93% { transform: translateY(-5px) scale(0.95, 1.06); }
+  96% { transform: translateY(0) scale(1.05, 0.94); }
+}
+
+@keyframes palHopPop {
+  0% { opacity: 0; transform: scale(0.5); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes palHopLook {
+  0%, 100% { rotate: 0deg; }
+  30% { rotate: -9deg; }
+  70% { rotate: 9deg; }
+}
+
+@keyframes palHopShake {
+  0%, 100% { rotate: 0deg; }
+  20% { rotate: -12deg; }
+  40% { rotate: 10deg; }
+  60% { rotate: -7deg; }
+  80% { rotate: 4deg; }
+}
+
+@keyframes palHopStep {
+  0% { opacity: 0; transform: scale(0.4); }
+  10% { opacity: 0.8; transform: scale(1.15); }
+  70% { opacity: 0.7; transform: scale(1.15); }
+  100% { opacity: 0; }
+}
+
+@keyframes palHopBubbleIn {
+  0% { opacity: 0; transform: scale(0.7); }
+  60% { opacity: 1; transform: scale(1.03); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* Reduced motion: the robin is simply there, and nothing travels. */
+@media (prefers-reduced-motion: reduce) {
+  .palHopStage {
+    transition: none;
+  }
+
+  .palHopLauncherRobin,
+  .palHopRobinBody,
+  .palHopRobinBody[data-looking="true"],
+  .palHopStage[data-phase="empty"] .palHopRobinBody,
+  .palHopBubble {
+    animation: none;
+  }
+
+  .palHopStep {
+    display: none;
+  }
+}

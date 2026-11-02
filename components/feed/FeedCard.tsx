@@ -12,6 +12,7 @@ import { DrinkGlyph } from "@/components/drinks/DrinkGlyph";
 import HandleAvatar from "@/components/profile/HandleAvatar";
 import CommentThread from "@/components/pintdrop/CommentThread";
 import ShareBar from "@/components/share/ShareBar";
+import { useIsSample } from "@/components/ui/sample-skeleton-context";
 import { categoryColor } from "@/lib/categoryColors";
 import { computeChaosScore } from "@/lib/chaosScore";
 import { categoryLabel, type DrinkCategory } from "@/lib/drinks";
@@ -219,6 +220,10 @@ export default function FeedCard({
   // One normalized "@handle" used everywhere this card names the author, so a
   // seed handle that already carries a leading "@" can't render as "@@".
   const shownHandle = displayHandle(item.handle);
+  // A sampled card (SampleSkeleton) is drawn while the real read is out, and
+  // it never asks the server for its sample pages.
+  const sampled = useIsSample();
+  const samplePrefetch = sampled ? false : undefined;
 
   // Chaos Score (issue #30) — cheap, single-drop reading (one stop, this
   // drop's own vibe tags + posted hour). A full crawl-level score needs a
@@ -354,6 +359,7 @@ export default function FeedCard({
                 <Link
                   className="feedSpillVenueLink"
                   href={item.venueMapUrl}
+                  prefetch={samplePrefetch}
                   onPointerEnter={() => prefetchVenue(item.venueId)}
                 >
                   {item.venueName}
@@ -385,6 +391,7 @@ export default function FeedCard({
               <Link
                 className="feedSpillBarTab"
                 href={`/bar-tab/${encodeURIComponent(item.venueId)}`}
+                prefetch={samplePrefetch}
               >
                 See the bar tab
               </Link>
@@ -411,6 +418,7 @@ export default function FeedCard({
               <Link
                 className="feedVenueLink feedVenueLinkHead"
                 href={item.venueMapUrl}
+                prefetch={samplePrefetch}
                 onPointerEnter={() => prefetchVenue(item.venueId)}
               >
                 {item.venueName}
@@ -523,6 +531,7 @@ export default function FeedCard({
             <Link
               className="feedPermalink feedPermalinkIcon"
               href={`/p/${item.id}`}
+              prefetch={samplePrefetch}
               aria-label="Open pint"
               title="Open pint"
             >

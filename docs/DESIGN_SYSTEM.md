@@ -84,6 +84,7 @@ refuses, and add your assertion there rather than minting a second gate.
 | The map retry notice uses semantic ink for readable text in both themes | `.mapSoftRetry` in `app/globals.css` | `__tests__/mapSoftRetryContrast.test.ts` |
 | A price wears its band and no other colour | `docs/PRICE_BANDS.md` | `__tests__/priceBand.test.ts`, `__tests__/priceBandSurfaces.test.ts` |
 | The template-pattern ban list | `docs/VOICE.md` > Template patterns | `__tests__/templatePatterns.test.ts` |
+| A loading card is the real card drawn from sample values: inert, hidden, a 600 ms grace and still under reduced motion | Motion > Loading: the sample skeleton | `__tests__/sampleSkeleton.test.tsx`, `__tests__/sampleSkeletonSurfaces.test.tsx` |
 | Copy voice: no em dash, British spelling, no hedge line | `docs/VOICE.md` | `__tests__/emDashLaw.test.ts`, `__tests__/frictionVoice.test.ts` |
 
 Open design debt and raised design decisions live in
@@ -660,6 +661,19 @@ velocity carries into the settling spring.
 Shared non-map press feedback is a low-specificity base layer. Components with
 their own positioning transform keep local ownership and neutralise the shared
 scale through the documented custom-property seam in `app/globals.css`.
+
+### Loading: the sample skeleton
+
+A wait that will become a card is drawn from that card.
+`components/ui/sample-skeleton.tsx` renders the real component with sample
+values, inert and hidden from assistive technology, and
+`components/ui/sampleSkeleton.css` paints it out: each line of text becomes a
+bar in `--line`, and pictures, icons and controls become `--line-soft` blocks
+in their own shape. The wait therefore has the answer's size. It shows after
+the listings wait's 600 ms grace and reuses the loading shell's `pulse` under
+`prefers-reduced-motion: no-preference`, so it adds no motion rule of its own.
+The [rule](rules/components-design-system-and-launch-primitives.md#a-wait-is-drawn-from-the-real-card-and-nothing-moves-when-the-answer-lands)
+names where it is used and where it is not.
 
 ## Stacking (z-index)
 

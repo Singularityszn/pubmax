@@ -9,6 +9,8 @@ import FoundingMemberMark from "@/components/founding/FoundingMemberMark";
 import ProfileCoverCarousel from "@/components/profile/ProfileCoverCarousel";
 import HandleAvatar from "@/components/profile/HandleAvatar";
 import ProfileSocialLinks from "@/components/profile/ProfileSocialLinks";
+import SampleSkeleton from "@/components/ui/sample-skeleton";
+import { SAMPLE_PIXEL, useIsSample } from "@/components/ui/sample-skeleton-context";
 import { profilePath } from "@/lib/appLink";
 import { displayHandle } from "@/lib/handleDisplay";
 import { profileCoverUrls } from "@/lib/profileCovers";
@@ -39,15 +41,6 @@ type ProfileHeaderProps = {
   sectionLinks?: { timeline: boolean; crawls: boolean; memories: boolean };
 };
 
-const PROFILE_STAT_LABELS = [
-  "Pints logged",
-  "Cheapest pint",
-  "Followers",
-  "Following",
-  "Crawls",
-  "Memories",
-] as const;
-
 /**
  * One statistic and the surface it counts. The visible text stays the bare
  * label and figure, so the grid still scans as a grid; the accessible name
@@ -65,11 +58,13 @@ function ProfileStatTile({
   href?: Route;
   hint: string;
 }) {
+  // A sampled tile never asks the server for its sample page.
+  const sampled = useIsSample();
   const content = <><span className="profileStatLabel">{label}</span><strong className="profileStatValue">{value}</strong></>;
   return (
     <div className="profileStat" role="listitem">
       {href ? (
-        <Link className="profileStatLink" data-pressable href={href} aria-label={`${label}: ${value}. ${hint}.`}>
+        <Link className="profileStatLink" data-pressable href={href} prefetch={sampled ? false : undefined} aria-label={`${label}: ${value}. ${hint}.`}>
           {content}
         </Link>
       ) : <div className="profileStatLink" aria-label={`${label}: ${value}.`}>{content}</div>}
@@ -77,42 +72,33 @@ function ProfileStatTile({
   );
 }
 
-function ProfileStatSkeletonTile({ label }: { label: string }) {
-  return (
-    <div className="profileStat" role="listitem">
-      <div className="profileStatLink" aria-hidden="true">
-        <span className="profileStatLabel">{label}</span>
-        <strong className="profileStatValue">
-          <span className="profileSkeleton profileSkeletonStat" />
-        </strong>
-      </div>
-    </div>
-  );
-}
+// The loading header is the real card with these values, painted out by
+// SampleSkeleton: the same cover band, face, name, handle and six tiles the
+// answer will fill, so nothing moves when it lands. Neutral on purpose, and a
+// clear pixel for the face so the circle draws as a block.
+const SAMPLE_PROFILE: Profile = {
+  handle: "handle",
+  displayName: "Display name",
+  avatarUrl: SAMPLE_PIXEL,
+};
+
+const SAMPLE_STATS: ProfileStats = {
+  pintsLogged: 0,
+  cheapestPintGbp: null,
+  crawlsPosted: 0,
+  memoriesPosted: 0,
+};
 
 function ProfileHeaderLoading() {
   return (
-    <header className="profileHeader profileHeaderLoading" aria-busy="true" aria-label="Loading profile">
-      <div className="profileCover profileSkeleton" aria-hidden="true">
-        <span className="profileCoverFalloff" />
-      </div>
-
-      <div className="profileHeroBody">
-        <div className="profileIdentity">
-          <div className="profileAvatar profileSkeleton" aria-hidden="true" />
-          <div className="profileNames" aria-hidden="true">
-            <span className="profileSkeleton profileSkeletonLine profileSkeletonName" />
-            <span className="profileSkeleton profileSkeletonLine profileSkeletonHandle" />
-          </div>
-        </div>
-      </div>
-
-      <div className="profileStats" role="list" aria-hidden="true">
-        {PROFILE_STAT_LABELS.map((label) => (
-          <ProfileStatSkeletonTile key={label} label={label} />
-        ))}
-      </div>
-    </header>
+    <SampleSkeleton label="Loading profile" className="profileHeaderLoading">
+      <ProfileHeaderCard
+        profile={SAMPLE_PROFILE}
+        stats={SAMPLE_STATS}
+        followers={0}
+        following={0}
+      />
+    </SampleSkeleton>
   );
 }
 
@@ -131,9 +117,16 @@ function cardFacts(profile: Profile): Array<{ id: string; label: string; value: 
 }
 
 export default function ProfileHeader({
+  viewerState = "resolved",
+  ...props
+}: ProfileHeaderProps) {
+  if (viewerState === "loading") return <ProfileHeaderLoading />;
+  return <ProfileHeaderCard {...props} />;
+}
+
+function ProfileHeaderCard({
   profile,
   stats,
-  viewerState = "resolved",
   socialLinks,
   crawls,
   memories,
@@ -142,9 +135,8 @@ export default function ProfileHeader({
   drops,
   actions,
   sectionLinks,
-}: ProfileHeaderProps) {
+}: Omit<ProfileHeaderProps, "viewerState">) {
   const { handle, displayName, homeCity, bio, avatarUrl, foundingMemberNumber } = profile;
-  if (viewerState === "loading") return <ProfileHeaderLoading />;
 
   // The backdrop is a rotation of up to five, and `profileCoverUrls` is the ONE
   // place the list and the single back-compat cover are reconciled.
@@ -176,7 +168,7 @@ export default function ProfileHeader({
           fixed height over a fluid width is exactly how a name gets cut in
           half. An unfilled slot keeps the brass treatment, so an initials-era
           profile still reads as a card rather than a gap. */}
-      <div className="profileCover" aria-hidden="true">
+      <div className="profileCover" aria-hidden="true" data-sample-block="">
         <ProfileCoverCarousel covers={covers} />
         <span className="profileCoverFalloff" />
       </div>
