@@ -288,4 +288,18 @@ describe("browser CI policy", () => {
       }
     }
   });
+
+  it("skips each browser build's own type check, which the CI TypeScript 6 job already runs wider", () => {
+    // next build type-checks with TypeScript 6. The CI Typecheck (TypeScript 6) job
+    // runs that compiler over a superset of the files on the same commit, and
+    // on a macOS runner the build's copy took over 6 minutes and pushed the
+    // Playwright web server past its 10 minute start limit (captain, 2 Nov
+    // 2026; docs/CI_RUNBOOK.md, "Build cache and type check").
+    const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
+    for (const jobName of ["law-pins", ...LAYOUT_PIN_JOBS, ...FULL_SUITE_JOBS]) {
+      for (const step of playwrightSteps(defined(jobs[jobName]))) {
+        expect(step.env?.PUBMAX_CI_SKIP_BUILD_TYPECHECK, jobName).toBe("1");
+      }
+    }
+  });
 });

@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // the process-memory pushTokenStore, pinned deterministically at the
 // @/lib/supabase seam (isSupabaseConfigured() === false) — the house pattern
 // (see commentsRoute.test.ts). The per-IP limiter is mocked at the
-// @/lib/pintDrops seam exactly like planGenerateRoute.test.ts so the 429 path
+// @/lib/pintDrops seam exactly like helpers/planGenerateRoute.ts so the 429 path
 // and key derivation are asserted without a live budget.
 const { isLimitedMock } = vi.hoisted(() => ({
   isLimitedMock: vi.fn(async (...args: [

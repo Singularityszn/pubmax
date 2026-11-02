@@ -218,3 +218,21 @@ All eleven documented upstream repositories were checked at their default branch
 [mryll/skills](https://github.com/mryll/skills), commit `e0bacd42498b18e4c5472689bd7a0c19bd72da68`, MIT (licence copied into the skill directory). `ste`: Simplified Technical English (ASD-STE100), with a dictionary checker script (`scripts/ste-check.sh`, POSIX shell and gawk, no network access). The root `AGENTS.md` law "Talk to the captain in Simplified Technical English" points here. Agents write their replies in STE style from memory. They run the skill when the captain asks for a checked rewrite or an STE compliance check.
 
 Local corrections in `scripts/ste-check.sh` (pull request 2184, from Codex review findings): a technical-verb category must be exactly 1 to 4 with an optional letter (`tv12` was accepted), and a word plus apostrophe-s is checked as a possessive under rule GR-8 instead of always being reported as a contraction. A pronoun or adverb plus apostrophe-s (`it's`, `there's`, `let's`) is still a contraction.
+
+## Faster CI, 2 Nov 2026
+
+### starslingdev/skills
+
+[starslingdev/skills](https://github.com/starslingdev/skills), commit `48db0635bdebc298e022a986376da04de93fce13` (`main`), MIT (licence copied into each skill directory). The captain asked for `npx skills add starslingdev/skills` and for agents to use it for faster CI. The trees were copied by hand from that commit, the same way as every pack above, so no install script ran and the source is pinned.
+
+| Directory | What it answers |
+| --- | --- |
+| `ci-speedup` | Why is CI slow? It measures the merge-gating critical path from run history and matches 91 patterns. |
+| `ci-score` | Does the workflow configuration follow 11 best-practice checks? Offline. |
+| `ci-secure` | Can someone attack us through CI? Ten critical attack vectors. Offline. |
+
+Copied: each `SKILL.md`, `ARCHITECTURE.md`, `references/`, `scripts/`, `ci-secure/scaffold/`, and the one runtime verifier `tests/verify_report.py` that `ci-speedup` and `ci-secure` call in their verify step. Not copied: the other tests and fixtures, `evals/`, `CHANGELOG.md`, and the upstream `examples/`.
+
+Left upstream: `sling`. It sends org, repo and run identifiers to StarSling's service and stores a credential in `~/.config/sling/credentials`. The three audit skills send nothing to StarSling.
+
+The scripts need `python3` 3.9+ and PyYAML. They reach the network only through the `gh` CLI. `ci-speedup` reads run history with `gh api`; where an agent has no `gh` access (a cloud session uses the GitHub MCP tools instead), run the static scan alone (`scripts/scan.py --root .`) and read job timings with the MCP `actions_list` tool. The rule that tells agents when to use these skills is in [`docs/rules/scripts-ci-gates-and-audits.md`](../../docs/rules/scripts-ci-gates-and-audits.md#ci-speed-work-starts-from-a-measured-critical-path).

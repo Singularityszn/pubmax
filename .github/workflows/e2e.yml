@@ -102,6 +102,9 @@ jobs:
         env:
           PUBMAX_TRACKED_OUTPUTS: public/data
           NODE_OPTIONS: "--max-old-space-size=6144"
+          # The build skips its own type check; the CI Typecheck (TypeScript 6)
+          # job checks a wider set (docs/CI_RUNBOOK.md, "Build cache and type check").
+          PUBMAX_CI_SKIP_BUILD_TYPECHECK: "1"
           PUBMAX_E2E_KEYLESS: "1"
           PW_SKIP_KEYLESS_WEBSERVER: "1"
           # The gate below judges the RUN, so the run has to write a report.
@@ -253,6 +256,9 @@ jobs:
         env:
           PUBMAX_TRACKED_OUTPUTS: public/data
           NODE_OPTIONS: "--max-old-space-size=6144"
+          # The build skips its own type check; the CI Typecheck (TypeScript 6)
+          # job checks a wider set (docs/CI_RUNBOOK.md, "Build cache and type check").
+          PUBMAX_CI_SKIP_BUILD_TYPECHECK: "1"
           PUBMAX_E2E_KEYLESS: "1"
           PW_SKIP_KEYLESS_WEBSERVER: "1"
           PLAYWRIGHT_JSON_OUTPUT_NAME: "playwright-layout-pins-${{ env.LAYOUT_SHARD }}.json"
@@ -407,6 +413,9 @@ jobs:
         env:
           PUBMAX_TRACKED_OUTPUTS: public/data
           NODE_OPTIONS: "--max-old-space-size=6144"
+          # The build skips its own type check; the CI Typecheck (TypeScript 6)
+          # job checks a wider set (docs/CI_RUNBOOK.md, "Build cache and type check").
+          PUBMAX_CI_SKIP_BUILD_TYPECHECK: "1"
           PUBMAX_E2E_KEYLESS: "1"
           PW_SKIP_KEYLESS_WEBSERVER: "1"
           PLAYWRIGHT_JSON_OUTPUT_NAME: "playwright-default-${{ matrix.shard }}.json"
@@ -456,6 +465,9 @@ jobs:
         env:
           PUBMAX_TRACKED_OUTPUTS: public/data
           NODE_OPTIONS: "--max-old-space-size=6144"
+          # The build skips its own type check; the CI Typecheck (TypeScript 6)
+          # job checks a wider set (docs/CI_RUNBOOK.md, "Build cache and type check").
+          PUBMAX_CI_SKIP_BUILD_TYPECHECK: "1"
           PUBMAX_E2E_KEYLESS: "1"
           PLAYWRIGHT_JSON_OUTPUT_NAME: "playwright-default-gl.json"
         run: >-

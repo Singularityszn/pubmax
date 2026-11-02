@@ -7,6 +7,8 @@ import { defined } from "@/__tests__/helpers/defined";
 
 type CiStep = {
   name?: string;
+  if?: string;
+  uses?: string;
   run?: string;
   env?: Record<string, string>;
   with?: Record<string, unknown>;

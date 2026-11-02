@@ -18,6 +18,7 @@ Full rules: [`docs/rules/scripts-ci-gates-and-audits.md`](../docs/rules/scripts-
 - [The no-mistakes Test step runs `npm run verify:no-mistakes:changed` as its own command.](../docs/rules/scripts-ci-gates-and-audits.md#the-no-mistakes-test-step-runs-npm-run-verify-as-its-own-command)
 - [The local no-mistakes Test step uses scoped checks unless the change requires full verification.](../docs/rules/scripts-ci-gates-and-audits.md#the-no-mistakes-test-step-runs-change-scoped-checks-and-ci-runs-the-full-suite)
 - [Generated database types are cut from the harness cluster, and verify refuses drift.](../docs/rules/scripts-ci-gates-and-audits.md#generated-database-types-are-cut-from-the-harness-cluster-and-verify-refuses-drift)
+- [CI SPEED WORK STARTS FROM A MEASURED CRITICAL PATH, AND A CHECK NAME IS THE CAPTAIN'S.](../docs/rules/scripts-ci-gates-and-audits.md#ci-speed-work-starts-from-a-measured-critical-path)
 
 ## Harvest and source permission
 
