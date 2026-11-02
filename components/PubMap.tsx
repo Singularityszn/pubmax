@@ -210,8 +210,30 @@ const DrinkLanePicker = dynamic(() => import("@/components/map/DrinkLanePicker")
 const DrinkShapeChips = dynamic(() => import("@/components/map/DrinkShapeChips"), {
   ssr: false,
 });
-const MapKey = dynamic(() => import("@/components/map/MapKey"), { ssr: false });
-const MapCredits = dynamic(() => import("@/components/map/MapCredits"), { ssr: false });
+// THE MORE SHEET KEEPS ITS HEIGHT WHILE A PANEL'S CHUNK LOADS. The phone sheet
+// is as tall as its content, up to its snap cap (mobileMapShell.css). The Key
+// and Layers tabs are made of the lazy panels below, so the sheet opened at
+// 158px (its header and tab row only) and grew to its 704px cap when the
+// chunks landed, half a second to three seconds later (390x844, production
+// build). The tab row went with the sheet's top edge, from the bottom of the
+// screen to the top. A tap pressed on Layers in that window was released on
+// the panel behind it, so the tab never changed (layout shard 2, PR #2471).
+// While a panel loads, this placeholder asks for more than the cap, so the
+// sheet sits at its resting height from its first frame. It is the venue
+// sheet's skeleton reservation (`.venueSheetSkeleton`), without the shimmer.
+// Outside the phone sheet (the desktop Layers popover) it is not drawn.
+// Pin: e2e/quality-floor.spec.ts, the POI toggle test.
+function MoreSheetPanelReserve() {
+  return <div className="mobileSheetPanelReserve" aria-hidden="true" />;
+}
+const MapKey = dynamic(() => import("@/components/map/MapKey"), {
+  ssr: false,
+  loading: MoreSheetPanelReserve,
+});
+const MapCredits = dynamic(() => import("@/components/map/MapCredits"), {
+  ssr: false,
+  loading: MoreSheetPanelReserve,
+});
 const MapPriceFilterChips = dynamic(() => import("@/components/map/MapPriceFilterChips"), {
   ssr: false,
 });
@@ -239,8 +261,10 @@ import { useTonightLaneCue } from "@/components/map/usePersonaTonight";
 import type { WhatsOnKind } from "@/lib/whatsOn";
 import { findPersonaByIdAsync, personaHighlightsPubs, loadPersonaDrinksModule } from "@/lib/personaDrinks.async";
 import type { PersonaDrink } from "@/lib/personaDrinks";
+// Holds the More sheet at its cap while it loads; see MoreSheetPanelReserve.
 const MapLayersControl = dynamic(() => import("@/components/map/MapLayersControl"), {
   ssr: false,
+  loading: MoreSheetPanelReserve,
 });
 const TonightArcChips = dynamic(() => import("@/components/map/TonightArcChips"), {
   ssr: false,

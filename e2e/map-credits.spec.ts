@@ -42,6 +42,16 @@ for (const theme of ["light", "dark"] as const) {
       await expect(credits).toContainText(provider === "carto" ? "CARTO" : "OpenFreeMap");
       await expect(credits).not.toContainText(provider === "carto" ? "OpenFreeMap" : "CARTO");
       if (provider === "carto") await expect(credits).not.toContainText("OpenMapTiles");
+      // MapLibre's own credit control prints the loaded style's credit, and the
+      // fixture answers each provider with the credit its live style ships
+      // (LIVE_BASEMAP_CREDITS). After the swap to CARTO it must name CARTO
+      // alone, never the OpenFreeMap line of the style that did not load.
+      const mapCredit = page.locator(".maplibregl-ctrl-attrib-inner");
+      await expect(mapCredit).toContainText("Pub data © OpenStreetMap contributors (ODbL)");
+      await expect(mapCredit).toContainText(
+        provider === "carto" ? "© OpenStreetMap contributors © CARTO" : "OpenFreeMap © OpenMapTiles Data from OpenStreetMap",
+      );
+      await expect(mapCredit).not.toContainText(provider === "carto" ? "OpenFreeMap" : "CARTO");
     });
   }
 }
