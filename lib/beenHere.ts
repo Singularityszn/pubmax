@@ -131,6 +131,17 @@ export function hasSeenBeenHereFirstRun(storage?: KeyStore | null): boolean {
   }
 }
 
+/**
+ * Whether this visit was sent to one section of the page, such as the price
+ * receipt's link to `/u/<handle>#contribution-impact`. The card opens above
+ * the sections it shares the You tab with, so it would push that section off
+ * the screen just after the page scrolled to it. It waits for a visit with no
+ * section in its address, and that visit is not counted as its one showing.
+ */
+export function beenHereFirstRunWaits(hash: string): boolean {
+  return /^#[A-Za-z][\w-]*$/.test(hash);
+}
+
 export function markBeenHereFirstRunSeen(storage?: KeyStore | null): void {
   const target = store(storage);
   if (!target) return;

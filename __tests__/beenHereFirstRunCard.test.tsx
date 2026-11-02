@@ -157,6 +157,21 @@ describe("the Been here first-run card", () => {
     expect(window.localStorage.getItem(BEEN_HERE_FIRST_RUN_SEEN_KEY)).toBeNull();
   });
 
+  it("never pushes a reader off the section a link sent them to, and shows on the next visit", async () => {
+    // The price receipt links to /u/<handle>#contribution-impact, and the
+    // page scrolls there before this card would open above it.
+    window.history.replaceState(null, "", "#contribution-impact");
+    try {
+      await render();
+      expect(card()).toBeNull();
+      expect(window.localStorage.getItem(BEEN_HERE_FIRST_RUN_SEEN_KEY)).toBeNull();
+    } finally {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+    await remount();
+    expect(card()).not.toBeNull();
+  });
+
   it("puts a tap on this device's Been here list at once, and a second tap takes it off", async () => {
     await render();
     await tap(FIRST!.venueId);

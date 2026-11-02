@@ -30,6 +30,7 @@ import Kicker from "@/components/ui/kicker";
 import {
   BEEN_HERE_COPY,
   BEEN_HERE_FIRST_RUN_PUBS,
+  beenHereFirstRunWaits,
   hasSeenBeenHereFirstRun,
   markBeenHereFirstRunSeen,
 } from "@/lib/beenHere";
@@ -77,7 +78,7 @@ export default function BeenHereFirstRun({
     if (!identityResolved || decided.current) return;
     decided.current = true;
     void Promise.resolve().then(() => {
-      if (hasSeenBeenHereFirstRun()) {
+      if (hasSeenBeenHereFirstRun() || beenHereFirstRunWaits(window.location.hash)) {
         setPhase("closed");
         return;
       }
