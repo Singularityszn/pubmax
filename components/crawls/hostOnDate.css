@@ -83,7 +83,14 @@
   font-weight: 600;
 }
 
+/* A 44px target that reaches past its line (app/today/today.css
+   `.todayProvenanceLink`, e2e/ui-ux-battle-test.spec.ts). */
 .hostOnDate__line a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-block: calc(-1 * var(--space-3));
+  vertical-align: middle;
   color: var(--color-text);
   text-decoration: underline;
 }

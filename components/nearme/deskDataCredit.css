@@ -1,0 +1,21 @@
+/* The ODbL credit under a work-spot answer (DeskDataCredit.tsx). Its own
+   stylesheet, imported by the credit itself: /today prints the credit
+   without /near's stylesheet, and there it had no styles at all. */
+.ndnSource {
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+}
+
+/* A 44px target that reaches past its line (app/today/today.css
+   `.todayProvenanceLink`, e2e/ui-ux-battle-test.spec.ts). */
+.ndnSource a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-block: calc(-1 * var(--space-3));
+  vertical-align: middle;
+  color: inherit;
+  text-decoration: underline;
+}

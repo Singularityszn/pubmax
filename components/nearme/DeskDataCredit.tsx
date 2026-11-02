@@ -1,5 +1,7 @@
 import DataCreditsLink from "@/components/legal/DataCreditsLink";
 
+import "./deskDataCredit.css";
+
 /**
  * The ODbL credit a work-spot answer owes.
  *
