@@ -43,7 +43,8 @@ import "./about.css";
 // (__tests__/cheapestHunt.test.ts), and a second rule here would print a
 // third answer to the same question. Its
 // Pub Pal lines say only what the Pal code does: a memory exists only once the
-// person confirms its card (lib/palMemoryProposal.server.ts), and a new fact
+// person confirms its card (lib/palMemoryProposal.server.ts), a food need is a
+// kind of its own (food_preference, lib/palMemoryKinds.mjs), and a new fact
 // can offer to update an old one (lib/palMemoryRelation.ts).
 
 const PAGE_TITLE = "About PUBMAXX";
@@ -204,8 +205,9 @@ export default async function AboutPage() {
           finds you a pub or plans a route.
         </p>
         <p className="aboutBody">
-          Tell it you can&rsquo;t stand loud pubs and it asks whether to
-          remember that. Tap yes and it bears that in mind next time. Go off
+          Tell it you can&rsquo;t stand loud pubs, or that you&rsquo;re
+          vegetarian, and it asks whether to remember that. Tap yes and it
+          bears that in mind next time. Go off
           lager and it offers to update what it knew. Nothing becomes a memory
           without that yes, and you can correct or delete any of them.
         </p>

@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PintIndexSnapshot } from "@/lib/pintIndex";
+import { PUB_PAL_MEMORY_KINDS } from "@/lib/palMemoryKinds.mjs";
 
 const fixtures = vi.hoisted(() => ({
   snapshot: null as unknown,
@@ -338,8 +339,11 @@ describe("About founder story", () => {
     expect(story).not.toMatch(
       /\b(?:thousands?|millions?|followers?|downloads?|revenue|growth|customers?|users)\b/iu,
     );
-    // The Pal has no food memory kind, and the screen never says graph or AI-powered.
-    expect(story).not.toMatch(/\bfood\b|knowledge graph|AI-powered/iu);
+    // The vegetarian line is backed by the Pal's food memory kind
+    // (lib/palMemoryKinds.mjs), and the screen never says graph or AI-powered.
+    expect(story).toContain("vegetarian");
+    expect(PUB_PAL_MEMORY_KINDS).toContain("food_preference");
+    expect(story).not.toMatch(/knowledge graph|AI-powered/iu);
     // House voice (docs/VOICE.md).
     expect(story).not.toContain("—");
     expect(story).not.toContain("!");
