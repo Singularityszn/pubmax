@@ -1,0 +1,308 @@
+/* THE SIGN FOUNDRY (wild idea 03): a hanging pub sign drawn from the pub's
+   name, on a wrought iron bracket, with the listed pint on a plaque under it.
+   The paints are a sign-writer's heritage colours and belong to the drawing,
+   not to the interface, so they are the one set of raw colours here; every
+   word around the sign reads the page's own tokens in both themes. */
+
+.pubSign {
+  --sign-iron: color-mix(in srgb, var(--ink) 84%, var(--paper));
+  --sign-paint: #5c1b22;
+  --sign-ink: #d9b464;
+  --sign-shade: color-mix(in srgb, #000000 46%, transparent);
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+html[data-theme="dark"] .pubSign {
+  --sign-iron: color-mix(in srgb, var(--ink) 46%, var(--paper));
+}
+
+.pubSign[data-paint="oxblood"] { --sign-paint: #5c1b22; }
+.pubSign[data-paint="bottle"] { --sign-paint: #1d3d2c; }
+.pubSign[data-paint="navy"] { --sign-paint: #1b2a49; }
+.pubSign[data-paint="pitch"] { --sign-paint: #1c1915; }
+.pubSign[data-paint="plum"] { --sign-paint: #44203c; }
+.pubSign[data-paint="umber"] { --sign-paint: #422b18; }
+.pubSign[data-paint="peacock"] { --sign-paint: #0f3d41; }
+.pubSign[data-ink="gilt"] { --sign-ink: #d9b464; }
+.pubSign[data-ink="cream"] { --sign-ink: #efe2c4; }
+
+.pubSign__stage {
+  position: relative;
+  width: 100%;
+  container-type: inline-size;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.pubSign__art {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.pubSign__swing {
+  transform-box: view-box;
+  will-change: transform;
+}
+
+/* The iron. */
+.pubSign__iron rect,
+.pubSign__eye {
+  fill: var(--sign-iron);
+}
+
+.pubSign__rivet {
+  fill: color-mix(in srgb, var(--sign-iron) 55%, var(--paper));
+}
+
+.pubSign__ironLine {
+  fill: none;
+  stroke: var(--sign-iron);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pubSign__ring {
+  fill: none;
+  stroke: var(--sign-iron);
+  stroke-width: 2.6;
+}
+
+.pubSign__ring--small {
+  stroke-width: 2;
+}
+
+.pubSign__chain {
+  fill: none;
+  stroke: var(--sign-iron);
+  stroke-width: 2.8;
+  stroke-dasharray: 4.6 2.4;
+  stroke-linecap: round;
+}
+
+/* The board: a dark edge, the paint, a little grain and the gilt frame. */
+.pubSign__edge {
+  fill: none;
+  stroke: color-mix(in srgb, var(--sign-paint) 50%, #000000);
+  stroke-width: 5;
+  stroke-linejoin: round;
+}
+
+html[data-theme="dark"] .pubSign__edge {
+  stroke: color-mix(in srgb, var(--ink) 26%, var(--sign-paint));
+}
+
+.pubSign__paint {
+  fill: var(--sign-paint);
+}
+
+.pubSign__grain path {
+  fill: none;
+  stroke: color-mix(in srgb, #000000 22%, transparent);
+  stroke-width: 1.1;
+}
+
+.pubSign__frame {
+  fill: none;
+  stroke: var(--sign-ink);
+  stroke-width: 2.3;
+  stroke-linejoin: round;
+}
+
+.pubSign__frame--fine {
+  stroke-width: 0.9;
+  opacity: 0.75;
+}
+
+.pubSign__ornament path {
+  fill: none;
+  stroke: var(--sign-ink);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+
+.pubSign__ornament--fill path {
+  fill: var(--sign-ink);
+  stroke: none;
+}
+
+/* The lettering: a system serif, never a downloaded face. */
+.pubSign__letters text {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 400;
+  fill: var(--sign-ink);
+}
+
+.pubSign__letters .pubSign__shadow {
+  fill: var(--sign-shade);
+}
+
+.pubSign__letters .pubSign__the,
+.pubSign__letters .pubSign__theShadow {
+  font-style: italic;
+}
+
+.pubSign__letters .pubSign__name,
+.pubSign__letters .pubSign__nameShadow {
+  font-weight: 700;
+}
+
+/* The plaque, hung under the board on its own two chains. It swings with the
+   board (the overlay turns about the same ring) and a beat behind it. */
+.pubSign__overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.pubSign__plaque {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: grid;
+  justify-items: center;
+  width: max-content;
+  margin-inline: auto;
+  transform-origin: 50% 0;
+  will-change: transform;
+}
+
+.pubSign__plaqueChains {
+  display: block;
+  width: 17cqw;
+  height: auto;
+  overflow: visible;
+}
+
+.pubSign__plaqueChains path {
+  fill: none;
+  stroke: var(--sign-iron);
+  stroke-width: 2.4;
+  stroke-dasharray: 4 2.2;
+  stroke-linecap: round;
+}
+
+.pubSign__plaqueBoard {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45em;
+  padding: 0.34em 0.38em 0.34em 0.65em;
+  border: 1.5px solid var(--sign-ink);
+  border-radius: var(--radius-sm);
+  background: var(--sign-paint);
+  box-shadow: var(--shadow-sm);
+  font-size: clamp(var(--text-2xs), 3.5cqw, var(--text-base));
+  line-height: 1;
+}
+
+.pubSign__plaqueWord {
+  font-family: Georgia, "Times New Roman", serif;
+  font-style: italic;
+  color: var(--sign-ink);
+}
+
+.pubSign__plaqueBoard .price-plaque {
+  font-size: 1.12em;
+}
+
+/* Around the sign: who listed the pint, and that this is a drawing. */
+.pubSign--cover {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  max-width: 440px;
+  margin-inline: auto;
+}
+
+.pubSign__caption {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-1);
+  max-width: 34rem;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--leading-snug);
+  text-align: center;
+}
+
+.pubSign__caption p {
+  margin: 0;
+}
+
+.pubSign__source {
+  font-size: var(--text-xs);
+}
+
+.pubSign__door {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  border: 0;
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  font-weight: 650;
+  text-decoration: underline;
+  text-decoration-color: var(--hairline-strong);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.pubSign__door:focus-visible {
+  outline: 2px solid var(--color-text);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* In a photo's frame (the venue sheet header, a thumbnail). */
+.pubSign--compact {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-1);
+  width: 100%;
+  height: 100%;
+}
+
+.pubSign--compact .pubSign__stage {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  min-height: 0;
+}
+
+.pubSign--compact .pubSign__art {
+  height: 100%;
+  max-height: 168px;
+}
+
+.pubSign__tag {
+  color: var(--color-text-muted);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+}
+
+.venueImage--sign {
+  display: grid;
+  place-items: center;
+  padding: var(--space-2) var(--space-2) var(--space-1);
+}
+
+.venueImage--header.venueImage--sign {
+  padding: var(--space-1) 0 var(--space-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pubSign__swing,
+  .pubSign__overlay,
+  .pubSign__plaque {
+    transform: none !important;
+  }
+}
