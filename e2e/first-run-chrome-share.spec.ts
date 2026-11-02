@@ -383,6 +383,23 @@ test("the page foot clears the tab bar and the painted consent card at default a
       card: el.getBoundingClientRect().height,
     }));
 
+  // The body lane is a :has() rule, and Chromium commits that used padding a
+  // frame after the card paints. A read in that gap saw 82.8px under a 126.3px
+  // row on pull request 2468, so the default-text read waits for the frame,
+  // as the large-text read below always has. A lane that never clears the
+  // card still fails, here, within five seconds.
+  await page.waitForFunction(
+    () => {
+      const el = document.querySelector('[aria-label="Anonymous analytics choice"]');
+      if (!(el instanceof HTMLElement)) return false;
+      const card = el.getBoundingClientRect().height;
+      const padding = Number.parseFloat(getComputedStyle(document.body).paddingBottom);
+      const dock = window.innerHeight - el.getBoundingClientRect().bottom;
+      return padding >= dock + card - 0.5;
+    },
+    undefined,
+    { timeout: 5_000 },
+  );
   const ordinary = await foot();
   expect(ordinary.card).toBeLessThanOrEqual(CONSENT_ROW_HEIGHT + 0.5);
   expect(ordinary.padding).toBeGreaterThanOrEqual(ordinary.dock + ordinary.card - 0.5);
