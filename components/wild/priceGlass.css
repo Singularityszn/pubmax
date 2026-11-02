@@ -222,7 +222,7 @@
 @media (max-width: 360px) {
   .wildGlass { --wild-glass-w: 82px; column-gap: var(--space-2); }
   .wildGlassStage { grid-template-columns: var(--wild-glass-w) 2.4rem; }
-  .wildGlassFigure { font-size: 2.2rem; }
+  .wildGlassFigure { font-size: var(--text-2xl); }
 }
 
 @media (min-width: 641px) {
@@ -238,7 +238,7 @@
   }
   .wildGlassStage { grid-template-columns: var(--wild-glass-w) 3rem; align-self: center; }
   .wildGlassMark { font-size: var(--text-xs); }
-  .wildGlassFigure { font-size: 3.4rem; }
+  .wildGlassFigure { font-size: calc(var(--text-3xl) * 1.3); }
   .wildGlassTitle { font-size: var(--text-base); }
   .wildGlassWhat { font-size: var(--text-sm); }
   .wildGlassChips { display: grid; gap: var(--space-3); overflow-x: visible; }

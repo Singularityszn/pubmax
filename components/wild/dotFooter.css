@@ -4,7 +4,7 @@
    width, so the word fits any screen. */
 
 .wildDots {
-  width: min(var(--lp-max, var(--content-max-wide)), 100%);
+  width: min(var(--content-max-wide), 100%);
   margin: 0 auto clamp(32px, 5vw, 56px);
 }
 

@@ -46,6 +46,8 @@
 }
 
 .beerMatSlot {
+  --mat-rest: 0deg;
+  --mat-delay: 0ms;
   display: grid;
   justify-items: center;
   min-width: 0;
@@ -54,14 +56,16 @@
 /* The mat. Its rest angle comes from the row, a mouse's lean from the
    script, and its faces turn inside it. */
 .beerMat {
+  --mat-lean-x: 0deg;
+  --mat-lean-y: 0deg;
   position: relative;
   width: 100%;
   max-width: 220px;
   aspect-ratio: 1;
   container-type: inline-size;
   perspective: 900px;
-  transform: perspective(800px) rotateX(var(--mat-lean-x, 0deg)) rotateY(var(--mat-lean-y, 0deg))
-    rotate(var(--mat-rest, 0deg));
+  transform: perspective(800px) rotateX(var(--mat-lean-x)) rotateY(var(--mat-lean-y))
+    rotate(var(--mat-rest));
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -270,7 +274,7 @@
    less motion gets the mats already down and a flip with no travel. */
 @media (prefers-reduced-motion: no-preference) {
   .beerMatSlot {
-    animation: beerMatLand 560ms var(--ease-weighted) var(--mat-delay, 0ms) both;
+    animation: beerMatLand 560ms var(--ease-weighted) var(--mat-delay) both;
   }
 
   .beerMat {
