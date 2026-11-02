@@ -22,6 +22,12 @@ const SERVER_HREF = "/map?contribute=price" as Route;
  * five-tab dock (captain, 1 Nov 2026). The map writes its own address with
  * history.pushState, so the destination is read off the live address bar at
  * the tap, as SiteNav's Moment door does.
+ *
+ * The door REPLACES the More map controls entry rather than adding one. The
+ * map's surface trail (components/map/pubmap/useMapSurfaceNavigation.ts)
+ * counts only the entries it writes, and an extra entry under the price
+ * picker sent Home back to More map controls, where the open sheet held the
+ * map's top bar, and Back from the picker to a bare map one step short.
  */
 export default function MapPriceLogDoor() {
   const router = useRouter();
@@ -34,13 +40,14 @@ export default function MapPriceLogDoor() {
     <Button asChild variant="secondary" className="w-full uiButton--start">
       <Link
         prefetch={false}
+        replace
         href={SERVER_HREF}
         onPointerDown={(event) => { event.currentTarget.href = liveHref(); }}
         onClick={(event) => { event.currentTarget.href = liveHref(); }}
         onContextMenu={(event) => { event.currentTarget.href = liveHref(); }}
         onNavigate={(event) => {
           event.preventDefault();
-          router.push(liveHref());
+          router.replace(liveHref());
         }}
       >
         <PlusCircle size={16} aria-hidden="true" />
