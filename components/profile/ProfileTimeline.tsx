@@ -6,7 +6,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import type { Route } from "next";
+
 import FeedCard from "@/components/feed/FeedCard";
+import SampleSkeleton from "@/components/ui/sample-skeleton";
+import { SAMPLE_PIXEL } from "@/components/ui/sample-skeleton-context";
 import { getAnonId } from "@/lib/anonId";
 import type { Provenance } from "@/lib/curation";
 import {
@@ -25,6 +29,48 @@ import {
 import { postReactionToggle } from "@/lib/optimisticToggle";
 
 const EMPTY_SUMMARY: ReactionSummary = { counts: {}, mine: [] };
+
+/**
+ * Two photo drops, the timeline's usual card, for the wait while this handle's
+ * drops are read. SampleSkeleton paints them out, so the values only have to
+ * lay the card out: no price, no real pub or person, and a date far enough
+ * back that it prints the same on the server and in the browser.
+ */
+const SAMPLE_DROPS: readonly FeedItem[] = ["sample-drop-1", "sample-drop-2"].map((id) => ({
+  type: "pint_drop",
+  id,
+  createdAt: "1970-01-15T12:00:00.000Z",
+  handle: "handle",
+  avatarUrl: SAMPLE_PIXEL,
+  venueId: "sample",
+  venueName: "Pub name",
+  venueMapUrl: "/map" as Route,
+  photoUrls: [SAMPLE_PIXEL],
+  caption: "",
+  priceGbp: null,
+  vibeTags: [],
+  provenance: "contributor",
+  drink: "",
+  era: "",
+}));
+
+function ignoreSampleReaction(): void {}
+
+/** The timeline's wait: the real cards, sampled. */
+function ProfileTimelineSample(): React.JSX.Element {
+  return (
+    <SampleSkeleton label="Loading the timeline" className="profileTimelineSkel feedList">
+      {SAMPLE_DROPS.map((item) => (
+        <FeedCard
+          key={item.id}
+          item={item}
+          summary={EMPTY_SUMMARY}
+          onToggleReaction={ignoreSampleReaction}
+        />
+      ))}
+    </SampleSkeleton>
+  );
+}
 
 type SummaryMap = ReactionSummaryMap;
 
@@ -69,8 +115,15 @@ function toPintDropDTO(drop: Record<string, unknown>): PintDropDTO | null {
 
 export default function ProfileTimeline({
   drops,
+  loading = false,
 }: {
   drops: Array<Record<string, unknown>>;
+  /**
+   * The drops are still being read: draw the sampled cards. The page keeps
+   * this one component in place from the wait to the answer, so the lazy
+   * chunk is never asked for twice and no frame falls between the two.
+   */
+  loading?: boolean;
 }): React.JSX.Element {
   const items = useMemo(() => {
     const out: FeedItem[] = [];
@@ -173,6 +226,8 @@ export default function ProfileTimeline({
     });
     return false;
   }, [actorId]);
+
+  if (loading) return <ProfileTimelineSample />;
 
   return (
     <div className="profileTimeline feedList" role="feed" aria-label="Memory timeline">

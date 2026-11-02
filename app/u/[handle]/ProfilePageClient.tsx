@@ -1434,19 +1434,12 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
             Timeline
           </h2>
 
+          {/* The wait is the timeline's own cards, sampled
+              (components/ui/sample-skeleton.tsx). It is the same lazy
+              component in the same place as the answer, so the swap is one
+              commit and the chunk stays out of the first document. */}
           {state === "loading" ? (
-            <div className="profileTimelineSkel feedList" aria-hidden="true">
-              {Array.from({ length: 2 }).map((_, i) => (
-                <div key={i} className="feedCard feedCardSkeleton">
-                  <div className="feedSkelHead">
-                    <span className="feedSkelAvatar" />
-                    <span className="feedSkelLine feedSkelLineShort" />
-                  </div>
-                  <div className="feedSkelPhoto" />
-                  <div className="feedSkelLine" />
-                </div>
-              ))}
-            </div>
+            <ProfileTimeline drops={[]} loading />
           ) : drops.length === 0 ? (
             <p className="profileEmpty">No pints logged under @{routeHandle} yet.</p>
           ) : (
