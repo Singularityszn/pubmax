@@ -124,6 +124,23 @@ html[data-theme="dark"] .ledgerPrimaryLink {
   margin-bottom: 44px;
 }
 
+/* The publisher named in the price record's source sentence ("Listed by
+   blacklionkilburn.co.uk, collected 21 September 2026."). It is a link in a
+   line of text, never the map button: it wore .ledgerMapLink, and a 48px
+   black button split the sentence in two. Its 44px tap area reaches past the
+   line instead of growing it, as components/venue/ListedPriceSource does. */
+.ledgerSourceLink {
+  display: inline-flex;
+  align-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  margin-block: calc(-1 * var(--space-3));
+  vertical-align: middle;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .ledgerSectionTitle {
   font-family: var(--serif);
   font-weight: 700;

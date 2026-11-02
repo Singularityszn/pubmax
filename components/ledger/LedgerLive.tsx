@@ -168,7 +168,7 @@ function LedgerPublishedPriceRecord({ publishedLane, listedPint, venueId }: {
     </p>
     <p>
       {sourceLabel ? <>Listed by {sourceUrl
-        ? <a className="ledgerMapLink" href={sourceUrl} target="_blank" rel="noopener noreferrer">{sourceLabel}</a>
+        ? <a className="ledgerSourceLink" href={sourceUrl} target="_blank" rel="noopener noreferrer">{sourceLabel}</a>
         : <>{sourceLabel}. Link unavailable.</>}</> : "Publisher not recorded"}, collected{" "}
       <time dateTime={publication.observedAt}>{formatLedgerDate(publication.observedAt)}</time>.
     </p>
