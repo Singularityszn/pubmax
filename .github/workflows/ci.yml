@@ -181,11 +181,34 @@ jobs:
           npm ci
           npm run deps:install-scripts
 
+      # BUILD CACHE (docs/CI_RUNBOOK.md, "Build cache"). Next keeps Turbopack's
+      # build work in .next/cache, and a hosted runner starts empty, so every
+      # CI build was cold and wrote a cache no run read. A pull request
+      # restores the newest cache a main push saved for the same lockfile.
+      # Only a push to main saves one, so pull requests never fill the
+      # repository's cache space with a copy each and never write a cache
+      # that main reads.
+      - name: Restore the Next.js build cache
+        if: steps.scope.outputs.scope == 'code'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .next/cache
+          key: next-build-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
+          restore-keys: |
+            next-build-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
+
       - name: Build
         if: steps.scope.outputs.scope == 'code'
         env:
           NODE_OPTIONS: "--max-old-space-size=6144"
         run: npm run build
+
+      - name: Save the Next.js build cache
+        if: steps.scope.outputs.scope == 'code' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .next/cache
+          key: next-build-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
 
   # The unit shards start at once, beside lint and the production build: they
   # build their own slim data and read nothing those jobs make. Each shard

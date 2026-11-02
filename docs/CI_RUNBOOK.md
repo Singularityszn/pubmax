@@ -155,6 +155,10 @@ that TypeScript 6 compiler API at build time; see
 [`next.config.mjs`](../next.config.mjs) for why both exist. `npx tsc` resolves
 to TypeScript 7, so call the TypeScript 6 compiler by its path.
 
+### Build cache
+
+Next.js 16 keeps Turbopack's build work in `.next/cache` (`turbopackFileSystemCacheForBuild`, on by default). A hosted runner starts empty, so before 2 Nov 2026 every `Production build` was cold and wrote a cache that no run read. The job now restores `.next/cache` before `Build` with `actions/cache/restore`, keyed on the runner OS, the `package-lock.json` hash and the commit. A pull request restores the newest cache that a push to `main` saved for the same lockfile. Only a push to `main` saves one, with `actions/cache/save` after `Build`. So pull requests never fill the repository's 10 GB cache space with a copy each (a cache is about 500 MB), and a pull request never writes a cache that `main` reads. A lockfile change starts a new cache line, and the first build after it is cold. `__tests__/ciReleaseGateWorkflow.test.ts` holds the two steps. The measured gain and the next levers are in [`docs/plans/CI_SPEED_PLAN.md`](plans/CI_SPEED_PLAN.md).
+
 ### What a pull request runs
 
 A pull request that changes only docs or only data skips the heavy jobs (owner decision, 16 Oct 2026). Each heavy job's second step, `Classify the change`, diffs the pull request's merge commit against its first parent and names the scope:

@@ -14,6 +14,7 @@ Strategy and sequencing docs. Prefer one plan per concern; do not implement from
 | [`PLG_STRATEGY.md`](./PLG_STRATEGY.md) | READY FOR REVIEW | Invite k-factor, price flywheel, lot density |
 | [`PAVEMENT_ANSWERS_WAVE.md`](./PAVEMENT_ANSWERS_WAVE.md) | SHIPPING | Research-led: open now, mug-check, cheapest-in-view, saved pubs, Tonight cold-start |
 | [`PRODUCT_UTILITY_WAVE.md`](./PRODUCT_UTILITY_WAVE.md) | SHIPPING | Sheet/journey usefulness: signals, hygiene, visits, Safe Night, quiet pint, Social honesty |
+| [`CI_SPEED_PLAN.md`](./CI_SPEED_PLAN.md) | LEVER 1 SHIPPING, CAPTAIN DECIDES THE REST | Measured CI wait, the ten StarSling CI playbooks mapped to this repo, and seven levers ranked by minutes off the slowest chain |
 | [`RECAP_VIDEO_EXPORT.md`](./RECAP_VIDEO_EXPORT.md) | PROPOSAL, CAPTAIN DECIDES | MP4 export of the recap video: Remotion Lambda versus a render script, with cost for each 1,000 renders |
 | [`ROUND6_FREEZE_AND_PROOF_2026-10-30.md`](./ROUND6_FREEZE_AND_PROOF_2026-10-30.md) | BUILDING | Week 4 of the launch plan: smoke walk, dated ops checklist, release metric block, route and CWV sweeps with ceilings only moving down |
 | [`desktop-feature-parity.md`](./desktop-feature-parity.md) | FINAL — parked | Desktop parity waves D1–D6 (no implementation until unblocked) |

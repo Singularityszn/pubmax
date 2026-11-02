@@ -194,6 +194,28 @@ describe("clean-main CI release gate", () => {
     expect(jobs["validate-data"]?.name).toBe("Data validation");
   });
 
+  it("restores the Next.js build cache, and only a main push saves one", () => {
+    // Next keeps Turbopack's build work in .next/cache. Without a restore
+    // every CI build is cold; a pull request that saved its own copy would
+    // fill the repository's cache space and could write a cache main reads.
+    const build = defined(ciJobs()["production-build"], "production-build job");
+    const names = (build.steps ?? []).map((step) => step.name);
+    const restore = jobStep(build, "Restore the Next.js build cache");
+    const save = jobStep(build, "Save the Next.js build cache");
+    expect(names.indexOf(restore.name)).toBeLessThan(names.indexOf("Build"));
+    expect(names.indexOf(save.name)).toBeGreaterThan(names.indexOf("Build"));
+    expect(restore.uses).toMatch(/^actions\/cache\/restore@[0-9a-f]{40}$/);
+    expect(save.uses).toMatch(/^actions\/cache\/save@[0-9a-f]{40}$/);
+    for (const step of [restore, save]) expect(step.with?.path, step.name).toBe(".next/cache");
+    expect(save.with?.key).toBe(restore.with?.key);
+    expect(String(restore.with?.key)).toContain("hashFiles('package-lock.json')");
+    expect(String(restore.with?.["restore-keys"])).toContain("hashFiles('package-lock.json')");
+    expect(restore.if).toBe("steps.scope.outputs.scope == 'code'");
+    expect(save.if).toBe(
+      "steps.scope.outputs.scope == 'code' && github.event_name == 'push' && github.ref == 'refs/heads/main'",
+    );
+  });
+
   it("starts the unit shards at once and in parallel", () => {
     // The shards build their own slim data and read nothing lint or the
     // production build make, so waiting on them only lengthens the path.
