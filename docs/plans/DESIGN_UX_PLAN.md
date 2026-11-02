@@ -53,6 +53,8 @@ The screenshot script is a scratch tool. Step 0.4 makes it a repo command.
 | Demo content on social pages | `lib/demoContent.ts` | Off unless `NEXT_PUBLIC_DEMO_CONTENT=on`, so social pages look empty |
 | Ledger large-text view | `app/globals.css`, `lib/viewMode.ts` | No control turns it on |
 | Animated Pub Pal (Remotion, Blender) | `components/pal/PalStage.tsx` | No page uses it |
+| Reviews, ranking, reels and multi-photo posts (#2186) | `app/social/`, `components/social/` | Behind the friends launch, which is paused, and behind video moderation |
+| Recap video | `docs/plans/RECAP_VIDEO_EXPORT.md` | Off unless `PUBMAX_RECAP_VIDEO=1` |
 | London film on the home page | `components/landing/LandingLondonFilm.tsx` | Below the FAQ, behind a Play button |
 
 ## 4. What the app looks like today
@@ -164,6 +166,7 @@ Sizes: S is up to one day, M is two to three days, L is about one week.
 | 0.3 | Captain: deploy `main` after 0.1 and 0.2. | Captain |
 | 0.4 | Add a design proof command: one run takes the screenshot sheet for named pages at both widths and both themes. Every design pull request attaches the sheet. | S |
 | 0.5 | Captain picks one answer for each disagreement: (a) price stamp tilt (the map pins still tilt; the page prices do not); (b) the price typeface (the docs say JetBrains Mono, the code uses Inter bold); (c) one motion system (`framer-motion` from #2456, or the house spring code only); (d) the night colours (muted green `#5fb389` or the brighter pint green of the mockups); (e) the venue sheet tab names; (f) the home page primary action. | Captain |
+| 0.6 | Close the four mobile-native gaps in section 10: the tap flash for the whole app, no pull-to-refresh on the map, the keyboard on Android, and one `82vh` sheet. Check each on a real phone. | S |
 
 ### Phase 1. The first ten seconds: home and map (L, week 1)
 
@@ -266,5 +269,95 @@ rule.
 4. The pub sign cover for pubs with no photo (step 2.1): yes or no?
 5. Three page shapes instead of one template (step 3.1): yes or no?
 6. The six answers in step 0.5.
+7. Turn on the social features built in #2186 (reviews, ranking, reels)
+   for everyone, or keep them behind the friends launch?
 
 When the captain answers 1 to 3, Phase 0 and Phase 1 can start the same day.
+
+## 10. Added 2 November: past chats, outside references, mobile check
+
+### What the captain asked for in earlier chats
+
+These asks come from the captain's design chats between 16 October and
+1 November 2026. The concept screens (section 11) answer each one.
+
+| Ask | When | What happened then | Concept |
+|---|---|---|---|
+| "OpenTable-style pub pages" | 16 Oct, 1 Nov | A text-only pub page shipped | 03 Pub page |
+| Social like Instagram, TikTok and Beli | 16 Oct | Built in #2186, hidden behind the paused friends launch | 06 Social |
+| Airbnb style: price pills, photo-first cards, list beside the map | 1 Nov | Pills only from zoom 12; the rest is open | 01, 02, 09 |
+| "Remove slop", "think about taste", "wacky inside the rules" | 5 or more chats | Mostly rules and removals | Pub sign, beer mats, passport |
+| Pub Pal as the defining feature, like Duolingo | 18 Oct to 1 Nov | Features merged; the Pal was opened 4 times in 30 days | Pal in the top bar |
+| What brings people back, from the top consumer apps | 17 Oct | Became token polish | 05 Plan, 07 You |
+| "Show me before and after" | 16 and 18 Oct | Screenshots in a few PRs only | Every concept |
+
+### Outside references
+
+Mobbin first refused every call ("requires a paid plan"). The captain then
+connected a Pro account, and about 30 Mobbin searches ran. App Store
+screenshots and live websites filled the gap before that. What the screens
+show, with one Mobbin link for each pattern:
+
+- Map: price pills on about ten pubs, every other pub as a small dot, and the
+  chosen pill drawn solid
+  ([Airbnb](https://mobbin.com/screens/24072f6f-71d3-47f1-92e3-3b63bf4b1b43),
+  [Blackbird](https://mobbin.com/screens/bbc0255d-f9e2-418c-b1b5-c5c893d23e4c)).
+  Never overlapping pills.
+- Location ask: two buttons, "Use my location" and "Continue with" the area on
+  screen ([Zomato](https://mobbin.com/screens/010b165e-10fe-4665-8c15-fbb66f20d263)).
+- Pub page: the OpenTable shape: cover, icon rows, sticky tabs and one pinned
+  action ([OpenTable](https://mobbin.com/screens/c3625d03-b440-465c-890a-5d0bbe91e275)).
+  A price list that ends with "Last updated" and its source
+  ([OpenTable menu](https://mobbin.com/screens/0c76fa81-d160-4ff8-b9de-a542761f0e79)).
+- A pub with no photo: a faded map behind the name in large type
+  ([Beli](https://mobbin.com/screens/d99b0e41-0c26-4ebf-b694-6c773701ddbc)).
+- Plan: one card with Going, Maybe and Can't
+  ([Apple Invites](https://mobbin.com/screens/5a5a0fdb-b99a-4352-bd57-80680ca6862d)),
+  and the walk time on each leg of the map
+  ([Apple Maps](https://mobbin.com/screens/96e38ea2-fbca-4384-86c4-1dabe933a43a)).
+- Social: a post reads as a sentence about a person and a place
+  ([Beli](https://mobbin.com/screens/3ee1c49d-56c5-45e6-9ec5-b6cf2e059ffa)).
+  The closest match to the candle paper style is
+  [Places](https://mobbin.com/screens/a81e60e2-d5d5-4e75-8f59-62f37cccd7c7).
+- You: a first-run list of real tasks
+  ([Slopes](https://mobbin.com/screens/f715af0d-0836-4283-b87a-0e6a3f54034d))
+  and outline stamps that name their rule
+  ([Fitbit](https://mobbin.com/screens/ba698d97-e42d-46b1-9e98-628021e131e4)),
+  never a grid of zeros.
+- Pint Index: one chart whose colours key a ranked list
+  ([Perplexity](https://mobbin.com/screens/80b27139-21a2-4791-8f47-3f93766fc12d)),
+  with the sample size stated
+  ([eBay](https://mobbin.com/screens/1d0ddbd1-5f0f-4c9a-91b8-47de7700ddeb)).
+- Pub Pal: the mascot hands over the answer on the home screen
+  ([Alan](https://mobbin.com/screens/9b7df83f-8153-4f66-a7cf-38301cf32846),
+  [Tiimo](https://mobbin.com/screens/4e81e386-1b0f-46a4-a668-6f3ed721a78a)).
+- Desktop: a list panel floats over a full-width map
+  ([Sweatpals](https://mobbin.com/screens/9b710af5-456b-4ee9-9b83-605ebace769f)).
+- Avoid: invite gates (Beli's onboarding), streaks, points tiers, discount
+  banners, seeded activity counts and paid placement inside a price list.
+
+### Mobile-native check (Emil Kowalski's list)
+
+The app already has most of the list: a 16px input floor
+(`__tests__/iosFormZoomFloor.test.ts`), safe areas, a theme colour for each
+scheme, no text selection on controls, hover gated to mouse screens, and no tap
+delay on controls. Four gaps remain:
+
+1. The grey tap flash is switched off on only 14 stylesheets. One line on
+   `html` in `app/globals.css` fixes it.
+2. Nothing stops pull-to-refresh on the map screen. The map shell needs
+   `overscroll-behavior: none` (`components/mobile/mobileMapShell.css`).
+3. The Android keyboard can cover the message and Pal composers. Add
+   `interactiveWidget: "resizes-content"` to the viewport in `app/layout.tsx`.
+4. One phone sheet uses `max-height: 82vh` (`app/globals.css`). It should use
+   `dvh`.
+
+These are read from the code. Each one needs a check on a real phone.
+
+## 11. Concept screens
+
+Nine concepts (home, map, pub page, Tonight, plan, social, you, Pint Index,
+desktop map) are on one page, each beside the screen it replaces. The pubs,
+prices, streets and dates in them are real; people, plans and posts are marked
+as examples. Link: https://claude.ai/artifact/Qk1tHZWGX8Juf3FA2dN6qZ
+(private until the captain shares it).
