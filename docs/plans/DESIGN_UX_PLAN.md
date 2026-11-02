@@ -361,3 +361,35 @@ desktop map) are on one page, each beside the screen it replaces. The pubs,
 prices, streets and dates in them are real; people, plans and posts are marked
 as examples. Link: https://claude.ai/artifact/Qk1tHZWGX8Juf3FA2dN6qZ
 (private until the captain shares it).
+
+## 12. Round two: wild ideas (2 November)
+
+The captain asked for wilder, more creative ideas. Ten animated concepts run on
+one page: https://claude.ai/artifact/SDz7Af4eVCbzdvie8CK34t (private until the
+captain shares it). Each one uses real prices, hours and pubs. Each one says
+which house rule it bends, if any.
+
+| Idea | What it is | Real data | Rule it bends | Size |
+|---|---|---|---|---|
+| Price Glass | The home hero is a pint glass; the price is how full it is | Average, borough medians, cheapest and dearest | "The map is the hero" | M |
+| Pint Line | A crawl drawn as a line diagram, pubs as stations | The Victorian Soho route | None (our own style, no Tube branding) | M |
+| Sign Foundry | Every pub with no photo gets a hanging sign drawn from its name | Six real pubs; "since 1520" only where recorded | "No decoration" | M |
+| Pour loader | Loading as a pint pour; a stout surges for the planner | The real result count | None | S |
+| Crawl receipt | The plan's cost prints from a till slot, split per person | Five listed pints, £31.00, £10.33 each for three | None | S |
+| Beer mats | Tonight's cheapest pints as mats that flip to show the source | Three Soho pints with source and date | None (a phone version of the desktop belt) | S |
+| Last orders bell | One bell at 22:45 for the pub you are in, with an open-later pub | OpenStreetMap hours, read 5 Oct 2026 | Push: opt-in, once a night, live plans only | M |
+| Pal hops | The Pub Pal robin hops price to price and lands on the cheapest | Soho prices at their real places | "Only the reader moves the camera": the Pal moves, the map does not | M |
+| Night falls | The 21:30 dark switch becomes a visible moment | The real 21:30 London rule | None | S |
+| Giant footer | A dot wordmark that scatters under a finger | Real counts in the footer | None | S |
+
+The sources for this round were the 15 design galleries the captain shared on
+2 November, among them [godly.website](https://godly.website),
+[60fps.design](https://60fps.design), [footer.design](https://footer.design),
+[cta.gallery](https://cta.gallery), [scrolltide.co](https://scrolltide.co),
+[supahero.io](https://supahero.io) and [land-book.com](https://land-book.com).
+The shared trends: giant type, giant footers, tactile animated details and a
+product that acts as its own hero.
+
+Decision 8 for the captain: which of the ten go into Phases 1 to 6. A
+suggested start: Price Glass (step 1.1), Sign Foundry (step 2.1), Pint Line
+and the receipt (step 3.3), beer mats (step 4.4) and Pal hops (Phase 6).
