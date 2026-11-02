@@ -200,12 +200,23 @@ for (const width of [641, 700, 768, 900] as const) {
         const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
         if (!hit || !link.contains(hit)) covered.push(link.textContent?.trim() ?? "?");
       }
-      const primaryRight = Math.max(...Array.from(document.querySelectorAll(".siteNavLinks .siteNavLink"), (link) => link.getBoundingClientRect().right));
-      const actionsLeft = document.querySelector(".siteNavActions")!.getBoundingClientRect().left;
-      return { covered, primaryRight, actionsLeft, overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth };
+      // From 641px to 900px the bar may wrap its actions onto a row of their
+      // own (siteNav.css), so a door is held clear of the actions in both
+      // directions, not only to their left.
+      const actions = document.querySelector(".siteNavActions")!.getBoundingClientRect();
+      const overlapping = Array.from(document.querySelectorAll(".siteNavLinks .siteNavLink"))
+        .filter((link) => {
+          const rect = link.getBoundingClientRect();
+          const apart =
+            rect.right <= actions.left + 0.5 || actions.right <= rect.left + 0.5 ||
+            rect.bottom <= actions.top + 0.5 || actions.bottom <= rect.top + 0.5;
+          return !apart;
+        })
+        .map((link) => link.textContent?.trim() ?? "?");
+      return { covered, overlapping, overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth };
     });
     expect(findings.covered).toEqual([]);
-    expect(findings.primaryRight).toBeLessThanOrEqual(findings.actionsLeft);
+    expect(findings.overlapping).toEqual([]);
     expect(findings.overflow).toBeLessThanOrEqual(0);
     await mkdir(SHOTS, { recursive: true });
     const barBox = (await bar.boundingBox())!;

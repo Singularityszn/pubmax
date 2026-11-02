@@ -141,14 +141,25 @@ test.describe("desktop toolbar beside the venue drawer", () => {
     await drinkButton.click();
     const tray = page.locator(".drinkLanePicker");
     await expect(tray).toBeVisible();
-    // One set of drink choices (F24): no second strip of chips under the tabs,
-    // and the eleven tabs share a row at 1440 instead of "Shots" alone below.
+    // One set of drink choices (F24): no second strip of chips under the tabs.
+    // From 1024px the list beside the map (MapSplitList) and the drawer leave
+    // the bar a lane of about 368px at 1440, so the eleven choices wrap there:
+    // each one stays whole inside the tray, in no more than three rows.
     await expect(page.locator(".mapToolbar .drinkShapeChips")).toHaveCount(0);
-    const tops = await tray
-      .locator(".drinkLanePickerOption")
-      .evaluateAll((nodes) => nodes.map((node) => Math.round(node.getBoundingClientRect().top)));
-    expect(tops.length).toBe(11);
-    expect(new Set(tops).size).toBe(1);
+    const options = await tray.locator(".drinkLanePickerOption").evaluateAll((nodes) => {
+      const box = nodes[0]?.closest(".drinkLanePicker")?.getBoundingClientRect();
+      return nodes.map((node) => {
+        const rect = node.getBoundingClientRect();
+        return {
+          top: Math.round(rect.top),
+          inside: !!box && rect.left >= box.left - 0.5 && rect.right <= box.right + 0.5,
+          clipped: node.scrollWidth > node.clientWidth + 1,
+        };
+      });
+    });
+    expect(options.length).toBe(11);
+    expect(options.filter((option) => !option.inside || option.clipped)).toEqual([]);
+    expect(new Set(options.map((option) => option.top)).size).toBeLessThanOrEqual(3);
 
     const wine = tray.getByRole("button", { name: "Wine", exact: true });
     await wine.click();
@@ -239,10 +250,18 @@ for (const { width, height } of [
     await expectSoleDesktopDrawer(page, "venue");
     const toolbar = page.locator(".mapToolbar");
     const search = toolbar.getByRole("combobox", { name: "Search pubs" });
+    // The field keeps 176px wherever the lane beside the pub has room for it.
+    // From 1024px to about 1300px the list beside the map (MapSplitList) and
+    // the pub drawer leave the bar a 248px lane, where 176px cannot fit: there
+    // the field must own the bar's whole row and still show a dozen letters.
     await expect.poll(async () => search.evaluate((node) => {
       const rect = node.getBoundingClientRect();
       const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
-      return rect.left >= 0 && rect.width >= 176 && rect.right <= innerWidth && hit === node;
+      const cell = node.closest(".mapToolbarSearch")?.getBoundingClientRect();
+      const row = node.closest(".mapToolbarRow")?.getBoundingClientRect();
+      const ownsRow = !!cell && !!row && cell.width >= row.width - 1;
+      const wideEnough = rect.width >= 176 || (ownsRow && rect.width >= 96);
+      return rect.left >= 0 && wideEnough && rect.right <= innerWidth && hit === node;
     })).toBe(true);
     await search.click();
     await expect(page.getByRole("listbox", { name: "Search suggestions" })).toBeVisible();

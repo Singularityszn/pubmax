@@ -47,9 +47,17 @@ for (const viewport of viewports) {
       expect(arrived.pathname).toBe("/map");
       expect(arrived.searchParams.get("list")).toBe("1");
       expect(response!.request().redirectedFrom()?.url()).toMatch(/\/map\/list$/);
-      await expect(page.locator('[id^="map-venue-list-item-"]').first()).toBeVisible({
-        timeout: 30_000,
-      });
+      // From 1024px the list beside the map IS the venue list, so the
+      // floating List view never opens over the map there
+      // (lib/mapSplitListFocus.ts floatingMapListOpen).
+      const firstRow =
+        viewport.width >= 1024
+          ? page.locator("#map-split-list [data-split-row]")
+          : page.locator('[id^="map-venue-list-item-"]');
+      await expect(firstRow.first()).toBeVisible({ timeout: 30_000 });
+      if (viewport.width >= 1024) {
+        await expect(page.locator('[id^="map-venue-list-item-"]')).toHaveCount(0);
+      }
     });
 
     test("cold /map opens on London, not the whole UK, and makes its opening turn", async ({ page, context }) => {

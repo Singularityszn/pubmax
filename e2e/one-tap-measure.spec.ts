@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { BEER_MEASURES, WINE_AND_SPIRIT_MEASURES } from "../lib/drinkMeasure";
+
 import { installAuthDoubles } from "./helpers/authDoubles";
 import { attachBill, readPriceSubmission } from "./helpers/priceBill";
 
@@ -114,9 +116,11 @@ test("a half logged through the one-tap door travels as a half and moves no pin 
   // focus is the sign the composer has settled where it will be measured.
   await expect(submit.getByRole("textbox", { name: /Price of a beer at/ })).toBeFocused();
 
-  // The closed question stands above the figure.
+  // The closed question stands above the figure: the beer measures, the
+  // wine and spirit glasses under their own heading, and Other
+  // (components/map/composer/MeasureChips.tsx).
   const chips = submit.locator(".measureChip");
-  await expect(chips).toHaveCount(3);
+  await expect(chips).toHaveCount(BEER_MEASURES.length + WINE_AND_SPIRIT_MEASURES.length + 1);
   const chipBox = await chips.first().boundingBox();
   const priceBox = await submit.locator(".vpsubField").boundingBox();
   expect(chipBox?.y ?? 0).toBeLessThan(priceBox?.y ?? 0);

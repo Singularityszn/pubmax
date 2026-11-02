@@ -120,8 +120,18 @@ function dismissFirstRunChrome(page: Page): Promise<void> {
   });
 }
 
+// The Overview's own chip. From 641px the action card (VenueActionCard) sits
+// in place at the top of the same sheet and repeats the price with its trust
+// state, so it is left out here and read on its own below.
 const chip = (page: Page, state: TrustState) =>
-  page.locator(`.venueInspector [data-pint-trust="${state}"][data-venue-id="${VENUE_ID}"]`);
+  page.locator(
+    `.venueInspector [data-pint-trust="${state}"][data-venue-id="${VENUE_ID}"]:not(.venueActionCard *)`,
+  );
+
+const actionCardChip = (page: Page, state: TrustState) =>
+  page.locator(
+    `.venueInspector .venueActionCard [data-pint-trust="${state}"][data-venue-id="${VENUE_ID}"]`,
+  );
 
 const EXPECTED_LINE: Record<TrustState, string> = {
   "logged-once": PROVISIONAL_LINE,
@@ -170,6 +180,13 @@ for (const viewport of [
           await expect(peek).toBeVisible({ timeout: 15_000 });
           await expect(peek).toContainText("£4.50");
           await expect(page.locator(".mobileVenuePeekSummary")).not.toContainText("No price yet");
+        } else {
+          // The action card at the top of the desktop sheet carries the same
+          // state, so the two prices on one sheet can never disagree.
+          const card = actionCardChip(page, state);
+          await expect(card).toBeVisible({ timeout: 15_000 });
+          await expect(card).toContainText("£4.50");
+          await expect(page.locator(".venueInspector .venueActionCard")).not.toContainText("No price yet");
         }
       });
     }

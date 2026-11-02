@@ -35,13 +35,42 @@ async function changedPixelRatio(first: Buffer, second: Buffer): Promise<number>
   return changed / pixels;
 }
 
-const MOBILE_CLUSTER_COLOURS = [
-  [24, 167, 109],
-  [242, 167, 27],
-  [255, 90, 95],
-] as const;
+/**
+ * The price figures a phone cluster disc prints, in the page's own band inks.
+ * Since the calm map (1 Nov 2026) a disc is the raised panel with an ink
+ * casing and its "from" price in its band's ink: no band colour is painted as
+ * a fill any more, so the figures are what say a disc carries a price. Read
+ * from the stylesheet, as the canvas reads them (components/map/canvas/tokens.ts).
+ */
+async function clusterFigureInks(page: Page): Promise<number[][]> {
+  const colours = await page.evaluate(() =>
+    ["--price-band-cheap-ink", "--price-band-average-ink", "--price-band-expensive-ink"].map((name) => {
+      const probe = document.createElement("span");
+      probe.style.color = `var(${name})`;
+      document.body.append(probe);
+      const colour = getComputedStyle(probe).color;
+      probe.remove();
+      return colour;
+    }),
+  );
+  return colours.map((colour) => {
+    // rgb(23, 109, 76), or color(srgb 0.09 0.43 0.3) for a color-mix().
+    const srgb = /color\(srgb ([\d.]+) ([\d.]+) ([\d.]+)/.exec(colour);
+    if (srgb) return srgb.slice(1, 4).map((channel) => Math.round(Number(channel) * 255));
+    const rgb = /rgba?\((\d+), (\d+), (\d+)/.exec(colour);
+    if (rgb) return rgb.slice(1, 4).map(Number);
+    throw new Error(`unreadable band ink ${colour}`);
+  });
+}
 
-async function mobileClusterColourPixelCount(frame: Buffer): Promise<number> {
+/**
+ * The least band-ink figure a settled phone frame shows. Six discs at the
+ * London opening printed 111 to 212 such pixels under SwiftShader (2 Nov 2026);
+ * an empty map, or discs without their prices, prints none.
+ */
+const CLUSTER_FIGURE_PIXEL_FLOOR = 60;
+
+async function mobileClusterFigurePixelCount(frame: Buffer, inks: readonly number[][]): Promise<number> {
   const { data } = await sharp(frame)
     .extract({ left: 0, top: 180, width: 390, height: 510 })
     .removeAlpha()
@@ -51,7 +80,7 @@ async function mobileClusterColourPixelCount(frame: Buffer): Promise<number> {
   let count = 0;
   for (let index = 0; index < data.length; index += 3) {
     if (
-      MOBILE_CLUSTER_COLOURS.some(
+      inks.some(
         ([red, green, blue]) =>
           Math.abs(data[index] - red) <= 26 &&
           Math.abs(data[index + 1] - green) <= 26 &&
@@ -154,9 +183,9 @@ test("/map phone handoff contains real price clusters before loading retires", a
   await expect(page.locator(".mapFallback")).toHaveCount(0);
   const frame = await page.screenshot();
   expect(
-    await mobileClusterColourPixelCount(frame),
-    "settled phone frame must contain the shipped price-cluster colours",
-  ).toBeGreaterThanOrEqual(500);
+    await mobileClusterFigurePixelCount(frame, await clusterFigureInks(page)),
+    "settled phone frame must contain the price clusters' figures",
+  ).toBeGreaterThanOrEqual(CLUSTER_FIGURE_PIXEL_FLOOR);
 });
 
 test("three-stop invite handoff fits the mobile map canvas", async ({ page }) => {
@@ -381,15 +410,16 @@ test("/map keeps its pins visible while a slow basemap misses the phone readines
   await expect(page.locator(".mapFallback")).toHaveCount(0);
   await expect(page.locator(".mapSoftRetry")).toHaveCount(0);
 
+  const inks = await clusterFigureInks(page);
   await expect
     .poll(
-      async () => mobileClusterColourPixelCount(await page.screenshot()),
+      async () => mobileClusterFigurePixelCount(await page.screenshot(), inks),
       {
         timeout: 20_000,
         message: "phone pins remain visible while a slow basemap is still pending",
       },
     )
-    .toBeGreaterThanOrEqual(500);
+    .toBeGreaterThanOrEqual(CLUSTER_FIGURE_PIXEL_FLOOR);
 
   // The delayed raster request then lands. The timing contract must remain true
   // after the response as well as before it.
