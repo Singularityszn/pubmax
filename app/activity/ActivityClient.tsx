@@ -11,6 +11,8 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import SignInButton from "@/components/auth/SignInButton";
 import SiteNav from "@/components/nav/SiteNav";
+import SampleSkeleton from "@/components/ui/sample-skeleton";
+import { useIsSample } from "@/components/ui/sample-skeleton-context";
 import NextBadgeChips from "@/components/profile/NextBadgeChips";
 import { profilePath } from "@/lib/appLink";
 import { authedActionFetch } from "@/lib/authedFetch";
@@ -66,6 +68,126 @@ function subjectHref(n: NotificationDTO): Route | null {
     default:
       return null;
   }
+}
+
+// Per-kind tallies drive which filters render and the rail summary.
+function activityTallies(items: readonly NotificationDTO[]): {
+  kindCounts: Record<string, number>;
+  unreadCount: number;
+} {
+  const kindCounts = items.reduce<Record<string, number>>((acc, n) => {
+    acc[n.kind] = (acc[n.kind] ?? 0) + 1;
+    return acc;
+  }, {});
+  const unreadCount = items.reduce((n, item) => (item.read ? n : n + 1), 0);
+  return { kindCounts, unreadCount };
+}
+
+// Six rows across the four kinds, for the wait while the real ones are read.
+// SampleSkeleton paints them out, so they only lay the grid out: a neutral
+// handle, no subject name, and a date far enough back that it prints the same
+// on the server and in the browser.
+const SAMPLE_KINDS: readonly NotificationKind[] = [
+  "follow",
+  "reaction",
+  "comment",
+  "crawl_save",
+  "reaction",
+  "follow",
+];
+const SAMPLE_NOTIFICATIONS: readonly NotificationDTO[] = SAMPLE_KINDS.map((kind, index) => ({
+  id: `sample-${index}`,
+  actorHandle: "handle",
+  kind,
+  subjectRef: "sample",
+  createdAt: "1970-01-15T12:00:00.000Z",
+  read: true,
+}));
+
+function ignoreSampleFilter(): void {}
+
+/**
+ * The ready grid: the desktop rail (kind filters and a quick tally, hidden
+ * below 1024px, so the phone layout stays the single list it always was) and
+ * the list. The wait draws this same body from sample rows.
+ */
+function ActivityGridBody({
+  total,
+  kindCounts,
+  unreadCount,
+  visibleItems,
+  kindFilter,
+  onKindFilter,
+}: {
+  total: number;
+  kindCounts: Record<string, number>;
+  unreadCount: number;
+  visibleItems: readonly NotificationDTO[];
+  kindFilter: NotificationKind | "all";
+  onKindFilter: (kind: NotificationKind | "all") => void;
+}): React.JSX.Element {
+  // Sample rows never ask the server for their sample pages.
+  const prefetch = useIsSample() ? false : undefined;
+  return (
+    <>
+      <aside className="activityRail" aria-label="Filter activity">
+        <div className="activityFilters" role="group" aria-label="Filter by kind">
+          <Chip
+            aria-pressed={kindFilter === "all"}
+            onClick={() => onKindFilter("all")}
+          >
+            All
+          </Chip>
+          {KIND_FILTERS.filter((f) => (kindCounts[f.kind] ?? 0) > 0).map((f) => (
+            <Chip
+              key={f.kind}
+              aria-pressed={kindFilter === f.kind}
+              onClick={() => onKindFilter(f.kind)}
+            >
+              {f.label} ({kindCounts[f.kind]})
+            </Chip>
+          ))}
+        </div>
+        <dl className="activitySummary">
+          <div className="activitySummaryRow">
+            <dt>Total</dt>
+            <dd>{total}</dd>
+          </div>
+          <div className="activitySummaryRow">
+            <dt>Unread</dt>
+            <dd>{unreadCount}</dd>
+          </div>
+        </dl>
+      </aside>
+
+      <ul className="activityList">
+        {visibleItems.map((n) => {
+          const href = subjectHref(n);
+          return (
+            <li key={n.id} className={n.read ? "activityItem" : "activityItem isUnread"}>
+              <Link
+                href={`/u/${encodeURIComponent(n.actorHandle)}`}
+                prefetch={prefetch}
+                className="activityActor"
+              >
+                @{n.actorHandle}
+              </Link>{" "}
+              <span className="activityVerb">{verb(n.kind)}</span>
+              {n.subjectLabel ? (
+                <span className="activitySubject">: {n.subjectLabel}</span>
+              ) : null}
+              <span className="activityTime"> · {relativeTime(n.createdAt)}</span>
+              {href ? (
+                <Link href={href} prefetch={prefetch} className="activityLink">
+                  View
+                </Link>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+    </>
+  );
 }
 
 export default function ActivityClient(): React.JSX.Element {
@@ -191,11 +313,7 @@ export default function ActivityClient(): React.JSX.Element {
   // derived from the already-loaded feed (no extra fetch). The visible list is
   // the full feed unless a desktop filter narrows it.
   const accountItems = itemsRevision === accountRevision ? items : [];
-  const kindCounts = accountItems.reduce<Record<string, number>>((acc, n) => {
-    acc[n.kind] = (acc[n.kind] ?? 0) + 1;
-    return acc;
-  }, {});
-  const unreadCount = accountItems.reduce((n, item) => (item.read ? n : n + 1), 0);
+  const { kindCounts, unreadCount } = activityTallies(accountItems);
   const visibleItems =
     kindFilter === "all" ? accountItems : accountItems.filter((n) => n.kind === kindFilter);
   const visibleHandle = itemsRevision === accountRevision ? handle : "";
@@ -226,32 +344,19 @@ export default function ActivityClient(): React.JSX.Element {
         {!socialFriendsLaunchEnabled ? (
           <EmptyState title="Social preview">{socialBoundaryCopy("preview", false)}</EmptyState>
         ) : viewerSession.unresolved || !handleReady || loading ? (
-          // Skeleton mirrors the ready-state grid so first paint already carries
-          // the page's shape — a plain list on phones, rail + two-up timeline at
-          // ≥1024 — instead of a jump from one line of text. Same block idiom as
-          // the feed; the shimmer is gated behind prefers-reduced-motion in CSS.
-          <div className="activityGrid activitySkeleton" role="status" aria-label="Loading your activity">
-            <aside className="activityRail" aria-hidden="true">
-              <div className="activityFilters">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <span key={i} className="activitySkelChip" />
-                ))}
-              </div>
-              <div className="activitySkelSummary">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <span key={i} className="activitySkelLine activitySkelLineShort" />
-                ))}
-              </div>
-            </aside>
-            <ul className="activityList" aria-hidden="true">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <li key={i} className="activityItem activitySkelItem">
-                  <span className="activitySkelLine" />
-                  <span className="activitySkelLine activitySkelLineShort" />
-                </li>
-              ))}
-            </ul>
-          </div>
+          // The wait is the ready grid itself, drawn from sample rows and
+          // painted out (components/ui/sample-skeleton.tsx): a plain list on
+          // phones, rail and two-up timeline from 1024px, at the size the
+          // answer will take.
+          <SampleSkeleton label="Loading your activity" className="activityGrid">
+            <ActivityGridBody
+              total={SAMPLE_NOTIFICATIONS.length}
+              {...activityTallies(SAMPLE_NOTIFICATIONS)}
+              visibleItems={SAMPLE_NOTIFICATIONS}
+              kindFilter="all"
+              onKindFilter={ignoreSampleFilter}
+            />
+          </SampleSkeleton>
         ) : !visibleHandle.trim() ? (
           <EmptyState title="This corner is yours. Claim it." action={<SignInButton />}>
             Sign in and choose a handle to see follows, cheers, comments and
@@ -278,60 +383,14 @@ export default function ActivityClient(): React.JSX.Element {
           </EmptyState>
         ) : (
           <div className="activityGrid">
-            {/* Desktop rail: kind filters + a quick tally. Hidden below 1024px,
-                so the phone layout stays the single list it always was. */}
-            <aside className="activityRail" aria-label="Filter activity">
-              <div className="activityFilters" role="group" aria-label="Filter by kind">
-                <Chip
-                  aria-pressed={kindFilter === "all"}
-                  onClick={() => setKindFilter("all")}
-                >
-                  All
-                </Chip>
-                {KIND_FILTERS.filter((f) => (kindCounts[f.kind] ?? 0) > 0).map((f) => (
-                  <Chip
-                    key={f.kind}
-                    aria-pressed={kindFilter === f.kind}
-                    onClick={() => setKindFilter(f.kind)}
-                  >
-                    {f.label} ({kindCounts[f.kind]})
-                  </Chip>
-                ))}
-              </div>
-              <dl className="activitySummary">
-                <div className="activitySummaryRow">
-                  <dt>Total</dt>
-                  <dd>{items.length}</dd>
-                </div>
-                <div className="activitySummaryRow">
-                  <dt>Unread</dt>
-                  <dd>{unreadCount}</dd>
-                </div>
-              </dl>
-            </aside>
-
-            <ul className="activityList">
-              {visibleItems.map((n) => {
-                const href = subjectHref(n);
-                return (
-                  <li key={n.id} className={n.read ? "activityItem" : "activityItem isUnread"}>
-                    <Link href={`/u/${encodeURIComponent(n.actorHandle)}`} className="activityActor">
-                      @{n.actorHandle}
-                    </Link>{" "}
-                    <span className="activityVerb">{verb(n.kind)}</span>
-                    {n.subjectLabel ? (
-                      <span className="activitySubject">: {n.subjectLabel}</span>
-                    ) : null}
-                    <span className="activityTime"> · {relativeTime(n.createdAt)}</span>
-                    {href ? (
-                      <Link href={href} className="activityLink">
-                        View
-                      </Link>
-                    ) : null}
-                  </li>
-                );
-              })}
-            </ul>
+            <ActivityGridBody
+              total={items.length}
+              kindCounts={kindCounts}
+              unreadCount={unreadCount}
+              visibleItems={visibleItems}
+              kindFilter={kindFilter}
+              onKindFilter={setKindFilter}
+            />
           </div>
         )}
       </Screen>
