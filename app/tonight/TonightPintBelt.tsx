@@ -1,6 +1,5 @@
 "use client";
 
-import type { Route } from "next";
 import Link from "next/link";
 import { Pause, Play } from "lucide-react";
 import {
@@ -16,7 +15,11 @@ import {
 import { PintPriceBadge } from "@/components/PriceBadge";
 import { IconButton } from "@/components/ui/icon-button";
 import { beltLapMs, beltPath, beltPerimeter, beltPoint, type BeltTrack } from "@/lib/pintBelt";
-import { tonightCheapPintChainLabel, type TonightCheapPint } from "@/lib/tonightCheapPints";
+import {
+  tonightCheapPintChainLabel,
+  tonightCheapPintHref,
+  type TonightCheapPint,
+} from "@/lib/tonightCheapPints";
 
 import "./tonightPintBelt.css";
 
@@ -256,7 +259,7 @@ export default function TonightPintBelt({ rows }: { rows: readonly TonightCheapP
               matRefs.current[index] = node;
             }}
             prefetch={false}
-            href={`/map?sel=${encodeURIComponent(row.venueId)}` as Route}
+            href={tonightCheapPintHref(row)}
             className="pintBeltMat"
             style={{ width: MAT_SIZE, height: MAT_SIZE }}
             draggable={false}

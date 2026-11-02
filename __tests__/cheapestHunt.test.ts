@@ -7,6 +7,7 @@ import {
   buildCheapestHunt,
   bundleHuntPints,
   citiesWithUnnamedPints,
+  huntCityPints,
   huntPlaceResolver,
   huntPriceIsCorroborated,
   huntRowNamesItsDrink,
@@ -404,6 +405,47 @@ describe("where a pint is", () => {
 
 });
 
+describe("a city's list", () => {
+  const TOOTING_NOTES =
+    "raw_embedded_includes_site_anomaly_borough|not_visible_in_borough_leaderboard|not_found_on_individual_pub_page_extract";
+  const london = londonHuntPints(
+    [
+      londonVenue("venue-o98nz5", "J.J. Moon's", 2.09, {
+        pubUrl: "https://www.pint-prices.com/pub/Tooting%20Broadway/J.J.%20Moons",
+        ownPage: false,
+        notes: TOOTING_NOTES,
+      }),
+      londonVenue("venue-qall4d", "The Moon on the Hill", 2.43, { readAt: "2026-09-02T10:00:00+00:00" }),
+      londonVenue("venue-cbqtvi", "J.J. Moon's", 2.43),
+      londonVenue("venue-lon1", "The Listed Lion", 2.43),
+      londonVenue("venue-lon2", "The Middle Mile", 5.2),
+    ],
+    NOW,
+  );
+  // The bundle knows The Middle Mile too, cheaper: one pint per pub, its cheaper claim.
+  const pints = [...london, ...bundle([row({ venueId: "venue-lon2", name: "The Middle Mile", priceGbp: 3.6 })])];
+
+  it("lists one pint per pub in the hunt's order: price, freshest read, name, id", () => {
+    expect(huntCityPints(pints, "london").map((pint) => [pint.venueId, pint.priceGbp])).toEqual([
+      ["venue-cbqtvi", 2.43],
+      ["venue-lon1", 2.43],
+      ["venue-qall4d", 2.43],
+      ["venue-lon2", 3.6],
+    ]);
+  });
+
+  it("opens on the pub the city's row names, and never on a row the bars hold out", () => {
+    const list = huntCityPints(pints, "london");
+    const londonRow = buildCheapestHunt(pints).cities.find((city) => city.cityId === "london");
+    expect(list[0]).toEqual(londonRow?.pint);
+    expect(list.map((pint) => pint.priceGbp)).not.toContain(2.09);
+  });
+
+  it("holds no other city's pints", () => {
+    expect(huntCityPints(pints, "manchester")).toEqual([]);
+  });
+});
+
 describe("the hunt", () => {
   const london = londonHuntPints(
     [
@@ -489,8 +531,9 @@ describe("the hunt", () => {
   });
 });
 
-// NEVER A PIN COLOUR, NEVER ON THE MAP. The hunt is read by the front door and
-// nothing else, so London's dearest pint can only ever be a press card.
+// NEVER A PIN COLOUR, NEVER ON THE MAP. The hunt is read by the front door,
+// and Tonight reads London's list from it and nothing else, so London's
+// dearest pint can only ever be a press card.
 describe("the hunt's readers", () => {
   const ROOT = join(__dirname, "..");
   const ALLOWED = new Set([
@@ -499,6 +542,11 @@ describe("the hunt's readers", () => {
     "components/landing/LandingHuntCard.tsx",
     "components/landing/LandingHuntCities.tsx",
   ]);
+  // Design plan step 0.2b (2 Nov 2026): Tonight said "Cheapest in London,
+  // £2.09" while the front door said £2.43, because Tonight ranked raw
+  // figures. It now lists the hunt's London pints, and that loader is the one
+  // name it may take: never the builder, never London's dearest.
+  const LONDON_LIST_READERS = new Map([["app/tonight/page.tsx", "loadLondonHuntPints"]]);
 
   function walk(dir: string, out: string[] = []): string[] {
     for (const entry of readdirSync(dir)) {
@@ -516,6 +564,17 @@ describe("the hunt's readers", () => {
       .filter((file) => /from\s+["']@\/lib\/cheapestHunt(\.server)?["']/.test(readFileSync(file, "utf8")))
       .map((file) => relative(ROOT, file).split("\\").join("/"));
     expect(readers.length).toBeGreaterThan(0);
-    expect(readers.filter((file) => !ALLOWED.has(file))).toEqual([]);
+    expect(readers.filter((file) => !ALLOWED.has(file) && !LONDON_LIST_READERS.has(file))).toEqual([]);
+  });
+
+  it("hands Tonight London's list and nothing else", () => {
+    for (const [file, name] of LONDON_LIST_READERS) {
+      const source = readFileSync(join(ROOT, file), "utf8");
+      const taken = [
+        ...source.matchAll(/import\s+(?:type\s+)?\{([^}]*)\}\s+from\s+["']@\/lib\/cheapestHunt(\.server)?["']/g),
+      ].map((match) => `${match[2] ?? ""}:${(match[1] ?? "").split(",").map((part) => part.trim()).filter(Boolean).join(",")}`);
+      expect(taken, file).toEqual([`.server:${name}`]);
+      expect(source, file).not.toMatch(/londonDearest|buildCheapestHunt|loadCheapestHunt/);
+    }
   });
 });

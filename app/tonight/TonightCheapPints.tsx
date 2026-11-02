@@ -1,5 +1,3 @@
-import type { Route } from "next";
-
 import { PintPriceBadge } from "@/components/PriceBadge";
 import { RowList, RowListItem } from "@/components/ui/row-list";
 import TonightPintBelt from "./TonightPintBelt";
@@ -8,6 +6,7 @@ import { oldestPintRead } from "@/lib/drinks";
 import {
   TONIGHT_CHEAP_PINTS_TITLE,
   tonightCheapPintChainLabel,
+  tonightCheapPintHref,
   type TonightCheapPint,
 } from "@/lib/tonightCheapPints";
 
@@ -54,7 +53,7 @@ export default function TonightCheapPints({
             <RowListItem
               key={row.venueId}
               className="tonightCheapPintsRow"
-              href={`/map?sel=${encodeURIComponent(row.venueId)}` as Route}
+              href={tonightCheapPintHref(row)}
               title={row.name}
               meta={
                 <>

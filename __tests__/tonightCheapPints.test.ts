@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 
+import { buildCheapestHunt, huntCityPints, type HuntPint } from "@/lib/cheapestHunt";
+import { tonightCheapestAnswer } from "@/lib/tonightAnswers";
 import {
+  tonightCheapPintCandidates,
   tonightCheapPintChain,
   tonightCheapPintChainLabel,
+  tonightCheapPintHref,
   tonightCheapPints,
   TONIGHT_CHEAP_PINTS_LIMIT,
 } from "@/lib/tonightCheapPints";
@@ -180,5 +184,95 @@ describe("tonight cheap pint chain", () => {
         NONE,
       ),
     ).toBeNull();
+  });
+});
+
+/**
+ * ONE RULE FOR "CHEAPEST IN LONDON" (design plan step 0.2b, 2 Nov 2026).
+ * Tonight said "Cheapest in London, J.J. Moon's, £2.09" while the front door
+ * said £2.43: Tonight ranked each pub's raw figure, and the £2.09 row was never
+ * on the pub's own page, so the hunt (lib/cheapestHunt.ts) holds it out. The
+ * list now takes the hunt's London pints in the hunt's own order.
+ */
+describe("tonight cheap pints, the hunt's London list", () => {
+  function huntPint(overrides: Partial<HuntPint> & Pick<HuntPint, "venueId" | "pubName" | "priceGbp">): HuntPint {
+    return {
+      cityId: "london",
+      placeName: "London",
+      publisher: { label: "Pint Prices", url: "https://www.pint-prices.com/" },
+      observedOn: "2026-10-02",
+      standing: "listed",
+      lane: "london-list",
+      mapHref: `/map?sel=${overrides.venueId}` as HuntPint["mapHref"],
+      ...overrides,
+    };
+  }
+
+  const PINTS: HuntPint[] = [
+    huntPint({ venueId: "venue-qall4d", pubName: "The Moon on the Hill", priceGbp: 2.43, observedOn: "2026-09-02" }),
+    huntPint({ venueId: "venue-cbqtvi", pubName: "J.J. Moon's", priceGbp: 2.43 }),
+    huntPint({ venueId: "venue-g5uud9", pubName: "J.J. Moon's", priceGbp: 2.43 }),
+    huntPint({ venueId: "venue-19vregq", pubName: "Nags Head, Peckham", priceGbp: 2.9 }),
+    huntPint({
+      venueId: "venue-uk-w921298161",
+      pubName: "The Artichoke",
+      priceGbp: 4,
+      lane: "uk-bundle",
+      observedOn: "2026-09-21",
+      mapHref: "/map?sel=venue-uk-w921298161&at=51.5,-0.1" as HuntPint["mapHref"],
+    }),
+  ];
+  const LONDON_LIST = new Map([
+    ["venue-cbqtvi", { id: "venue-cbqtvi", website: "", prices: [], primaryBorough: "Brent" }],
+    ["venue-g5uud9", { id: "venue-g5uud9", website: "", prices: [], primaryBorough: "Hillingdon" }],
+    ["venue-qall4d", { id: "venue-qall4d", website: "", prices: [], primaryBorough: "Sutton" }],
+    ["venue-19vregq", { id: "venue-19vregq", website: "", prices: [], primaryBorough: "Southwark" }],
+  ]);
+  const SPOONS = new Set(["venue-cbqtvi", "venue-g5uud9", "venue-qall4d"]);
+
+  const rows = tonightCheapPints(
+    tonightCheapPintCandidates(huntCityPints(PINTS, "london"), LONDON_LIST, SPOONS),
+  );
+
+  it("opens on the pub the front door's London row names", () => {
+    const londonRow = buildCheapestHunt(PINTS).cities.find((city) => city.cityId === "london")?.pint;
+    expect(rows[0]?.venueId).toBe(londonRow?.venueId);
+    expect(tonightCheapestAnswer({ origin: null, patch: null, nearby: [], cityRows: rows })).toMatchObject({
+      venueId: londonRow?.venueId,
+      priceGbp: londonRow?.priceGbp,
+      basis: "city",
+    });
+  });
+
+  it("keeps the hunt's order and one row per chain", () => {
+    expect(rows.map((row) => [row.venueId, row.chain])).toEqual([
+      ["venue-cbqtvi", "wetherspoon"],
+      ["venue-19vregq", null],
+      ["venue-uk-w921298161", null],
+    ]);
+  });
+
+  it("takes the borough from our pub list, else the city the hunt placed the pub in", () => {
+    expect(rows.map((row) => row.borough)).toEqual(["Brent", "Southwark", "London"]);
+  });
+
+  it("dates each row by the hunt's read day, at London midday", () => {
+    expect(rows[0]?.observedAt).toBe("2026-10-02T12:00:00.000Z");
+  });
+
+  it("opens a base pub from its own point, through the hunt's own map link", () => {
+    expect(tonightCheapPintHref(rows[2]!)).toBe("/map?sel=venue-uk-w921298161&at=51.5,-0.1");
+    expect(tonightCheapPintHref({ venueId: "venue-a" })).toBe("/map?sel=venue-a");
+    expect(
+      tonightCheapestAnswer({ origin: null, patch: null, nearby: [], cityRows: [rows[2]!] })?.mapHref,
+    ).toBe("/map?sel=venue-uk-w921298161&at=51.5,-0.1");
+  });
+
+  it("breaks a tie at one price by the freshest read before the name", () => {
+    const tied = tonightCheapPints([
+      { id: "venue-a", name: "The Alpha", primaryBorough: "Brent", cheapestPrice: 3, observedAt: "2026-09-01T12:00:00.000Z" },
+      { id: "venue-b", name: "The Beta", primaryBorough: "Brent", cheapestPrice: 3, observedAt: "2026-10-01T12:00:00.000Z" },
+    ]);
+    expect(tied.map((row) => row.name)).toEqual(["The Beta", "The Alpha"]);
   });
 });

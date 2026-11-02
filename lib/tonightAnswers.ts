@@ -28,6 +28,8 @@ export type TonightCheapestAnswer = {
   placeLine: string;
   /** How the pub was chosen, so the card never claims "near you" it cannot back. */
   basis: "walk" | "area" | "city";
+  /** The city row's own map link (a base pub's carries its point); absent for a nearby pick. */
+  mapHref?: string;
 };
 
 /** The fields a slim venue carries that the pick reads. */
@@ -117,6 +119,7 @@ export function tonightCheapestAnswer(input: {
     observedAt: city.observedAt ?? null,
     placeLine: city.borough,
     basis: "city",
+    ...(city.mapHref ? { mapHref: city.mapHref } : {}),
   };
 }
 
