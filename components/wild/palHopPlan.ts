@@ -50,7 +50,7 @@ export type PalHopStop = {
 export type PalHopAnchor = { lng: number; lat: number; x: number; y: number; reach: number };
 
 /** One landing: the pub and the mark the robin stands on. */
-export type PalHopLeg = { stop: PalHopStop; anchor: PalHopAnchor };
+type PalHopLeg = { stop: PalHopStop; anchor: PalHopAnchor };
 
 /** The robin's route: dearer pints first, the cheapest last. */
 export type PalHopRoute = {
@@ -198,9 +198,9 @@ export function palHopRoute(
 // --- one hop ----------------------------------------------------------------
 
 /** The crouch before take-off. */
-export const PAL_HOP_CROUCH_MS = 110;
+const PAL_HOP_CROUCH_MS = 110;
 /** The squash on landing and the spring back. */
-export const PAL_HOP_LAND_MS = 200;
+const PAL_HOP_LAND_MS = 200;
 /** The pause on each pin before the next hop. */
 export const PAL_HOP_PAUSE_MS = 220;
 

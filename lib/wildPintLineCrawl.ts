@@ -14,9 +14,9 @@
 //      split five pints three ways (£10.33 each), which is not what three
 //      people drinking at five pubs spend.
 
-export type WildCrawlBand = "cheap" | "average" | "expensive";
+type WildCrawlBand = "cheap" | "average" | "expensive";
 
-export type WildCrawlPint = {
+type WildCrawlPint = {
   priceGbp: number;
   /** The drink's display name, for example "Heineken". */
   drink: string;
@@ -152,11 +152,6 @@ export function sourcesText(sources: readonly string[]): string | null {
   if (sources.length === 0) return null;
   if (sources.length === 1) return sources[0]!;
   return `${sources.slice(0, -1).join(", ")} and ${sources[sources.length - 1]}`;
-}
-
-/** "about 7 min": the house's word for a straight-line estimate. */
-export function aboutMinutes(minutes: number): string {
-  return `about ${Math.max(1, Math.round(minutes))} min`;
 }
 
 /** 0.4498 → "0.4 km"; under 100 m reads in metres. */

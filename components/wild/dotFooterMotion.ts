@@ -16,9 +16,9 @@ export type WordDot = {
 };
 
 /** Spring toward home, per 60 Hz step. */
-export const DOT_SPRING = 0.055;
+const DOT_SPRING = 0.055;
 /** Velocity kept per 60 Hz step. */
-export const DOT_DAMPING = 0.84;
+const DOT_DAMPING = 0.84;
 
 /** How far a pointer reaches, from the canvas width: wider canvas, wider hand. */
 export function pushRadius(width: number): number {

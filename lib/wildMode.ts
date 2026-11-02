@@ -14,7 +14,7 @@
 import { safeLocalStorage } from "./safeStorage";
 
 export const WILD_MODE_STORAGE_KEY = "pubmax-wild";
-export const WILD_MODE_PARAM = "wild";
+const WILD_MODE_PARAM = "wild";
 
 const listeners = new Set<() => void>();
 

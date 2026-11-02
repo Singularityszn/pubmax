@@ -47,7 +47,7 @@ export type PriceGlassText = {
   url?: string;
 };
 
-export type PriceGlassPour = {
+type PriceGlassPour = {
   /** Stable key: `london`, `cheapest`, `borough-<slug>`, `dearest`. */
   id: string;
   /** Which row of chips it sits in: the city's own three, or a borough. */
@@ -74,7 +74,7 @@ export type WildPriceGlass = {
 };
 
 /** A full glass. Every London figure we hold today sits under it. */
-export const PRICE_GLASS_SCALE_MAX_GBP = 10;
+const PRICE_GLASS_SCALE_MAX_GBP = 10;
 
 /** At most this many boroughs get a chip. */
 export const PRICE_GLASS_MAX_BOROUGHS = 3;

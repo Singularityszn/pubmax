@@ -121,11 +121,11 @@ export type PintLineStopInput = {
 
 export type Rect = { x: number; y: number; w: number; h: number };
 
-export type PintLineTextLine =
+type PintLineTextLine =
   | { kind: "name"; text: string; y: number }
   | { kind: "detail"; price: string | null; text: string | null; missing: boolean; y: number };
 
-export type PintLineLabel = {
+type PintLineLabel = {
   index: number;
   side: "above" | "below" | "left" | "right";
   anchor: "start" | "middle" | "end";
@@ -135,9 +135,9 @@ export type PintLineLabel = {
   box: Rect;
 };
 
-export type PintLineStation = { x: number; y: number; lane: number };
+type PintLineStation = { x: number; y: number; lane: number };
 
-export type PintLineLeg = {
+type PintLineLeg = {
   /** The stop the leg arrives at. */
   index: number;
   text: string;
@@ -223,7 +223,7 @@ export function routeLanes(points: ReadonlyArray<Point | null>, maxLanes: number
 }
 
 /** Round each corner of a polyline with a quadratic curve. */
-export function roundedPath(vertices: ReadonlyArray<Point>, radius: number): string {
+function roundedPath(vertices: ReadonlyArray<Point>, radius: number): string {
   const f = (value: number) => Number(value.toFixed(1));
   if (vertices.length === 0) return "";
   const [first, ...rest] = vertices;
@@ -314,7 +314,7 @@ const DETAIL_BASELINE = 12.5;
 const NAME_TO_DETAIL = 3;
 
 /** The words of one label, wrapped to `maxWidth`, with each line's baseline offset. */
-export function draftLabel(stop: PintLineStopInput, maxWidth: number, measure: MeasureText): Draft {
+function draftLabel(stop: PintLineStopInput, maxWidth: number, measure: MeasureText): Draft {
   const lines: Draft["lines"] = [];
   let top = 0;
   for (const text of wrapText(stop.name, maxWidth, "name", measure)) {
