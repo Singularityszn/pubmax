@@ -175,7 +175,9 @@ describe("clean-main CI release gate", () => {
     for (const job of ["production-build", "unit-tests", "coverage"]) {
       expect(jobAncestors(job, needs).has("freshness"), job).toBe(false);
     }
-    expect(needs["production-build"]).toEqual(["lint-and-types"]);
+    // The build starts beside lint (captain, 2 Nov 2026): it reads nothing
+    // lint makes, and waiting put the two end to end on the slowest chain.
+    expect(needs["production-build"]).toEqual([]);
     expect(needs.coverage).toEqual(["unit-tests"]);
     expect(needs.freshness).toEqual([]);
     expect(needs["validate-data"]).toEqual([]);
@@ -216,6 +218,45 @@ describe("clean-main CI release gate", () => {
     );
   });
 
+  it("skips the CI build's own type check only where a wider check already ran", () => {
+    // next build type-checks tsconfig.build.json with TypeScript 6. The Lint
+    // and typecheck job runs the same compiler over tsconfig.json, so the CI
+    // build skips its copy. This holds only while tsconfig.json covers every
+    // file tsconfig.build.json does, with the same compiler options.
+    const build = defined(ciJobs()["production-build"], "production-build job");
+    expect(jobStep(build, "Build").env?.PUBMAX_CI_SKIP_BUILD_TYPECHECK).toBe("1");
+    const lint = defined(ciJobs()["lint-and-types"], "lint-and-types job");
+    expect(jobStep(lint, "Typecheck (TypeScript 6)").run?.trim()).toBe(
+      "node node_modules/typescript/bin/tsc --noEmit",
+    );
+    expect(jobStep(lint, "Typecheck (TypeScript 6)").if).toBe("steps.scope.outputs.scope != 'docs'");
+
+    const readJson = (file: string) =>
+      JSON.parse(readFileSync(join(process.cwd(), file), "utf8")) as {
+        extends?: string;
+        compilerOptions?: unknown;
+        include?: string[];
+      };
+    const full = readJson("tsconfig.json");
+    const buildConfig = readJson("tsconfig.build.json");
+    expect(buildConfig.extends).toBe("./tsconfig.json");
+    expect(buildConfig.compilerOptions).toBeUndefined();
+    for (const pattern of buildConfig.include ?? []) {
+      const covered =
+        (full.include ?? []).includes(pattern) ||
+        (/\.ts$/.test(pattern) && (full.include ?? []).includes("**/*.ts")) ||
+        (/\.tsx$/.test(pattern) && (full.include ?? []).includes("**/*.tsx"));
+      expect(covered, pattern).toBe(true);
+    }
+
+    // A Vercel dashboard variable reaches Vercel builds too, so the skip is
+    // refused on Vercel and a deploy build always type-checks.
+    const nextConfig = readFileSync(join(process.cwd(), "next.config.mjs"), "utf8");
+    expect(nextConfig).toContain(
+      'ignoreBuildErrors: process.env.PUBMAX_CI_SKIP_BUILD_TYPECHECK === "1" && !process.env.VERCEL,',
+    );
+  });
+
   it("starts the unit shards at once and in parallel", () => {
     // The shards build their own slim data and read nothing lint or the
     // production build make, so waiting on them only lengthens the path.
@@ -224,12 +265,13 @@ describe("clean-main CI release gate", () => {
   });
 
   it("gates coverage on the merged shards and freshness independently", () => {
-    // Each shard collects coverage for its half and writes a blob. A half
-    // cannot meet the whole-suite thresholds, so a shard turns them off and
-    // the Coverage job enforces them over the merged blobs. The suite runs
-    // once per CI run, not once in the shards and again for coverage.
+    // Each of the three shards (captain, 2 Nov 2026) collects coverage for
+    // its third and writes a blob. A third cannot meet the whole-suite
+    // thresholds, so a shard turns them off and the Coverage job enforces
+    // them over the merged blobs. The suite runs once per CI run, not once in
+    // the shards and again for coverage.
     const shards = unitShards();
-    expect(shards.map(({ shard }) => shard)).toEqual([1, 2]);
+    expect(shards.map(({ shard }) => shard)).toEqual([1, 2, 3]);
     for (const { shard, total, words, env } of shards) {
       expect(words.slice(0, 4), `shard ${shard}`).toEqual(["npm", "run", "coverage", "--"]);
       expect(words.slice(4), `shard ${shard}`).toEqual(

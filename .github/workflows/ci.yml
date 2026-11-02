@@ -127,9 +127,11 @@ jobs:
         # route types come from the step above. `npx tsc` is TypeScript 7.
         run: node node_modules/typescript/bin/tsc --noEmit
 
+  # The production build starts beside lint (captain, 2 Nov 2026): it reads
+  # nothing lint makes, and waiting on lint put the two end to end on the
+  # slowest chain a pull request waits for. docs/plans/CI_SPEED_PLAN.md.
   production-build:
     name: Production build
-    needs: [lint-and-types]
     runs-on: ubuntu-latest
     timeout-minutes: 28
     steps:
@@ -181,7 +183,7 @@ jobs:
           npm ci
           npm run deps:install-scripts
 
-      # BUILD CACHE (docs/CI_RUNBOOK.md, "Build cache"). Next keeps Turbopack's
+      # BUILD CACHE (docs/CI_RUNBOOK.md, "Build cache and type check"). Next keeps Turbopack's
       # build work in .next/cache, and a hosted runner starts empty, so every
       # CI build was cold and wrote a cache no run read. A pull request
       # restores the newest cache a main push saved for the same lockfile.
@@ -197,10 +199,16 @@ jobs:
           restore-keys: |
             next-build-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
 
+      # The Lint and typecheck job checks tsconfig.json, which covers every
+      # file tsconfig.build.json does, with the same TypeScript 6 compiler, so
+      # this build skips its own copy of that check (captain, 2 Nov 2026;
+      # docs/CI_RUNBOOK.md, "Build cache and type check"). next.config.mjs
+      # honours the variable only off Vercel, so a deploy build keeps it.
       - name: Build
         if: steps.scope.outputs.scope == 'code'
         env:
           NODE_OPTIONS: "--max-old-space-size=6144"
+          PUBMAX_CI_SKIP_BUILD_TYPECHECK: "1"
         run: npm run build
 
       - name: Save the Next.js build cache
@@ -211,19 +219,20 @@ jobs:
           key: next-build-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
 
   # The unit shards start at once, beside lint and the production build: they
-  # build their own slim data and read nothing those jobs make. Each shard
-  # collects coverage for its half of the suite into a blob report, and the
-  # Coverage job merges the two blobs and enforces the thresholds in
-  # vitest.config.mts. A shard's own half cannot meet them, so the shards
-  # turn thresholds off and the merge holds the whole-suite gate.
+  # build their own slim data and read nothing those jobs make. Each of the
+  # three shards (captain, 2 Nov 2026) collects coverage for its third of the
+  # suite into a blob report, and the Coverage job merges the blobs and
+  # enforces the thresholds in vitest.config.mts. A shard's own third cannot
+  # meet them, so the shards turn thresholds off and the merge holds the
+  # whole-suite gate.
   unit-tests:
-    name: Unit tests (${{ matrix.shard }}/2)
+    name: Unit tests (${{ matrix.shard }}/3)
     runs-on: ubuntu-latest
     timeout-minutes: 22
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        shard: [1, 2, 3]
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -294,7 +303,7 @@ jobs:
         run: >-
           npm run coverage --
           --without-postgres
-          --shard=${{ matrix.shard }}/2
+          --shard=${{ matrix.shard }}/3
           --coverage.thresholds.statements=0
           --coverage.thresholds.branches=0
           --coverage.thresholds.functions=0

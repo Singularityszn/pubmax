@@ -1,6 +1,6 @@
 # CI speed plan
 
-Status: PROPOSAL, CAPTAIN DECIDES. Lever 1 ships in the pull request that adds this plan. Levers 2 to 7 wait for the captain.
+Status: LEVERS 1 TO 4 SHIPPING, CAPTAIN DECIDES THE REST. Lever 1 ships in the pull request that adds this plan. On 2 Nov 2026 the captain approved levers 2, 3 and 4 (three unit shards), and they ship in the same pull request. Levers 5 to 7 wait for the captain.
 
 Rule: [CI SPEED WORK STARTS FROM A MEASURED CRITICAL PATH](../rules/scripts-ci-gates-and-audits.md#ci-speed-work-starts-from-a-measured-critical-path). Skills: `.agents/skills/ci-speedup`, `.agents/skills/ci-score` and `.agents/skills/ci-secure` ([provenance](../../.agents/skills/SOURCES.md)).
 
@@ -55,12 +55,12 @@ The twelve techniques that appear in the most playbooks, and where this reposito
 | Technique | Playbooks | Here |
 | --- | --- | --- |
 | Cache dependencies | 9 of 10 | Done: `setup-node` caches npm in every job. |
-| Measure test concurrency | 9 of 10 | Not measured. Vitest picks its worker count; measure before lever 4. |
+| Measure test concurrency | 9 of 10 | Not measured. Vitest picks its worker count. Measure it before adding a fourth shard. |
 | Shard long test jobs | 8 of 10 | Done: two unit shards, three layout-pin shards, eight nightly shards. |
-| Run independent steps in parallel | 7 of 10 | Partly: the build waits for lint (lever 3). |
+| Run independent steps in parallel | 7 of 10 | Done in this pull request: the build no longer waits for lint (lever 3). |
 | Move slow jobs to faster runners | 6 of 10 | Not now: it costs money. |
-| Remove duplicate commands | 5 of 10 | One found: the TS6 check runs in the lint job and inside `next build` (lever 2). |
-| Balance test shards | 5 of 10 | Not done (lever 4). |
+| Remove duplicate commands | 5 of 10 | One found and removed in this pull request: the TS6 check ran in the lint job and inside `next build` (lever 2). |
+| Balance test shards | 5 of 10 | Three shards in this pull request (lever 4). |
 | Check out shallow history | 5 of 10 | Done: two commits for the scoped jobs. Review scope keeps full history because it diffs the branch. |
 | Run only the affected apps | 5 of 10 | Done in our own way: each job reads the change scope (docs, data or code). |
 | Cancel superseded runs | 5 of 10 | Done on every pull request workflow. Main pushes of `Browser tests` share one group. |
@@ -76,39 +76,40 @@ Today the slowest chain is lint and typecheck (5:02 to 8:14), then the productio
 | Lever | Minutes off the slowest chain | Status |
 | --- | --- | --- |
 | 1. Restore the Next.js build cache | about 0.3 to 0.5 | Ships in this pull request |
-| 2. Type-check the app code once, not twice | about 3 | Captain decides |
-| 3. Start the production build beside lint | 1 to 2 now, more after lever 2 | Captain decides |
-| 4. Balance the unit shards | 2.5 to 3 off the unit chain | Captain decides (check names) |
+| 2. Type-check the app code once, not twice | about 3 | Approved 2 Nov 2026, ships in this pull request |
+| 3. Start the production build beside lint | 1 to 2 now, more after lever 2 | Approved 2 Nov 2026, ships in this pull request |
+| 4. Balance the unit shards | 2.5 to 3 off the unit chain | Approved 2 Nov 2026 as three shards, ships in this pull request; the captain updates the required checks |
 | 5. Cache ESLint's work | up to about 2 | Captain decides |
 | 6. Spread Dependabot over the day | up to 5 of queue, only in a burst | Captain decides |
 | 7. Smaller wins in Browser tests | 0.2 to 2.5 per browser job | Captain decides |
 
 ### Lever 1. Restore the Next.js build cache (ships in this pull request)
 
-- **Change:** the `Production build` job restores `.next/cache` before `Build`. Only a push to `main` saves a cache. A pull request reads the newest `main` cache for the same lockfile. See [`docs/CI_RUNBOOK.md`](../CI_RUNBOOK.md#build-cache).
+- **Change:** the `Production build` job restores `.next/cache` before `Build`. Only a push to `main` saves a cache. A pull request reads the newest `main` cache for the same lockfile. See [`docs/CI_RUNBOOK.md`](../CI_RUNBOOK.md#build-cache-and-type-check).
 - **Measured on this machine:** the same `next build`, run twice into one empty build directory. The Turbopack compile took 53 seconds cold and 16.9 seconds warm. The cache is 505 MB. The whole `next build` took 377 seconds cold and 343 seconds warm, so the cache saved 34 seconds. In both runs the TypeScript check took 5.1 minutes, and the cache does not touch it.
 - **Expected in CI:** the CI compile took 46 seconds cold, so a warm cache saves about 30 seconds, less the time to download the cache. The first pull requests after merge stay cold until a `main` push saves a cache. The log line `No build cache found` goes away.
 - **Risk:** low. Next validates its own cache. A lockfile change starts a new cache line. Only `main` writes a cache, so a pull request cannot write a cache that `main` reads, and pull requests do not fill the repository's 10 GB cache space.
 - **Why ship it although it is small:** four playbooks (Anthropic, DoorDash, Ramp, Uber) name it, it changes no check, and it costs nothing on a pull request.
 
-### Lever 2. Type-check the app code once, not twice (captain decides)
+### Lever 2. Type-check the app code once, not twice (approved 2 Nov 2026)
 
-- **Change:** the CI build skips its own type check, because the lint job's TS6 step already checks a superset with the same compiler. One way: `next.config.mjs` sets `typescript.ignoreBuildErrors` only when a CI-only variable is set on the `Build` step. Deploy builds on Vercel do not set it, so they keep the check.
+- **Change:** the CI build skips its own type check, because the lint job's TS6 step already checks a superset with the same compiler. The CI `Build` step sets `PUBMAX_CI_SKIP_BUILD_TYPECHECK=1`, and `next.config.mjs` then sets `typescript.ignoreBuildErrors`. `next.config.mjs` ignores the variable on Vercel, so a deploy build keeps the check.
+- **Measured on this machine:** the whole `next build` took 83 seconds with the skip, against 377 seconds cold with the check. The log says `Skipping validation of types`.
 - **Saving:** about 3 minutes off the slowest chain on every code pull request (the measured `Running TypeScript` phase).
 - **What it gives up:** the CI build no longer proves the types on its own. `Lint and typecheck` is a required check, so a type error still blocks the merge.
 - **Why the captain decides:** it changes what a check proves, even though nothing new can go red.
 
-### Lever 3. Start the production build beside lint (captain decides)
+### Lever 3. Start the production build beside lint (approved 2 Nov 2026)
 
 - **Change:** remove `needs: [lint-and-types]` from `production-build`. `__tests__/ciReleaseGateWorkflow.test.ts` pins that line, so the change edits the pin too.
 - **Saving:** the slowest chain becomes the longer of lint, build and the unit chain. That is 1 to 2 minutes now and about 4 minutes after lever 2.
 - **Cost:** when lint fails, the build still runs: about 5 extra runner minutes on a failed pull request. The check names do not change.
 
-### Lever 4. Balance the unit shards (captain decides)
+### Lever 4. Three unit shards (approved 2 Nov 2026)
 
-- **Change:** either three shards instead of two, or a duration-balanced split of the test files across two shards.
+- **Change:** three shards instead of two (the captain's choice). The Coverage job merges all three blobs, so the whole-suite coverage gate is unchanged.
 - **Saving:** the slower shard ran 2.5 to 3 minutes longer than the faster one in two of three runs. Three shards would bring each to about 5 to 6 minutes of tests.
-- **Cost:** three shards change the check names (`Unit tests (1/3)` and so on). The captain updates branch protection on the same day. A balanced two-shard split keeps the names but needs a timing file kept current.
+- **Cost:** about 1 extra runner minute per run for the third job's setup. The check names change from `Unit tests (1/2)` and `(2/2)` to `Unit tests (1/3)`, `(2/3)` and `(3/3)`. The captain updates branch protection when this merges.
 
 ### Lever 5. Cache ESLint's work between runs (captain decides)
 
@@ -140,9 +141,9 @@ Today the slowest chain is lint and typecheck (5:02 to 8:14), then the productio
 
 ## 6. Decisions for the captain
 
-1. Lever 2: may the CI build skip its own type check? This is the largest saving, about 3 minutes.
-2. Lever 3: may the production build start beside lint?
-3. Lever 4: three unit shards (you update branch protection), or a balanced two-shard split?
-4. Lever 5: may CI cache ESLint's work from `main`?
-5. Lever 6: spread Dependabot over the day?
-6. Faster paid runners (Linear, Ramp, Mastra): not now, or try one job?
+Decided on 2 Nov 2026: levers 2 and 3, and lever 4 as three unit shards.
+
+1. Branch protection: when this merges, replace the required checks `Unit tests (1/2)` and `Unit tests (2/2)` with `Unit tests (1/3)`, `Unit tests (2/3)` and `Unit tests (3/3)`.
+2. Lever 5: may CI cache ESLint's work from `main`?
+3. Lever 6: spread Dependabot over the day?
+4. Faster paid runners (Linear, Ramp, Mastra): not now, or try one job?

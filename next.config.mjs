@@ -197,6 +197,12 @@ const nextConfig = {
   deploymentId,
   typescript: {
     tsconfigPath: "./tsconfig.build.json",
+    // CI only (docs/CI_RUNBOOK.md, "Build cache and type check"). The CI
+    // Lint and typecheck job already checks tsconfig.json, which covers every
+    // file this one does, with the same TypeScript 6 compiler, so the CI
+    // build skips its own copy of that check. A Vercel dashboard variable
+    // reaches Vercel builds too, so a Vercel build always keeps the check.
+    ignoreBuildErrors: process.env.PUBMAX_CI_SKIP_BUILD_TYPECHECK === "1" && !process.env.VERCEL,
   },
   // Checks next/link hrefs and router.push/replace/prefetch against the App
   // Router. A string built at runtime is typed `Route` where it is built, never
