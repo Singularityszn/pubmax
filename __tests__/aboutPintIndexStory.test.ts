@@ -271,8 +271,8 @@ describe("About outings story (Wave S1)", () => {
 // listed pint loadAboutStats returns. It names no cheapest pint, because the
 // homepage's cheapest is the hunt's answer and the hunt's readers are fenced to
 // the landing (__tests__/cheapestHunt.test.ts). Every Pub Pal claim in it
-// is one the Pal code backs (lib/palMemoryKinds.mjs has no food kind, so the
-// story may not say it remembers food).
+// is one the Pal code backs: the vegetarian example stands only while
+// lib/palMemoryKinds.mjs has a food kind (food_preference, pull request 2472).
 describe("About founder story", () => {
   beforeEach(() => {
     fixtures.snapshot = snapshot([]);
