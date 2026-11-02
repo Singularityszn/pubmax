@@ -486,8 +486,10 @@ test.describe("map keyboard and screen-reader venue path", () => {
       )
       .toBe(true);
 
+    // A fold's <summary> takes Tab like a button, and the Overview's folds
+    // now close the sheet under its board link, so they are counted too.
     const focusableSelector =
-      'a[href]:visible, button:not([disabled]):visible, input:not([disabled]):visible, select:not([disabled]):visible, textarea:not([disabled]):visible, [tabindex]:not([tabindex="-1"]):visible';
+      'a[href]:visible, button:not([disabled]):visible, summary:visible, input:not([disabled]):visible, select:not([disabled]):visible, textarea:not([disabled]):visible, [tabindex]:not([tabindex="-1"]):visible';
     const focusables = drawer.locator(focusableSelector);
     const firstFocusable = focusables.first();
     const lastFocusable = focusables.last();

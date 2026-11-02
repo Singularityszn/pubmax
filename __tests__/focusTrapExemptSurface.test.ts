@@ -195,6 +195,56 @@ describe("useFocusTrap with an exempt surface", () => {
     },
   );
 
+  it("counts a fold's heading and not its hidden content, so Tab from a sheet that ends on a fold stays in the cycle", async () => {
+    (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
+      .IS_REACT_ACT_ENVIRONMENT = true;
+    Object.defineProperty(HTMLElement.prototype, "offsetParent", {
+      configurable: true,
+      get() {
+        return (this as HTMLElement).parentElement;
+      },
+    });
+    // A closed fold's content stays laid out in Chromium (offsetParent answers
+    // for it) but the browser does not show it, and Tab skips it.
+    const checkVisibility = Object.getOwnPropertyDescriptor(Element.prototype, "checkVisibility");
+    Object.defineProperty(Element.prototype, "checkVisibility", {
+      configurable: true,
+      value(this: Element) {
+        return !this.closest("details:not([open]) > :not(summary)");
+      },
+    });
+    const { byId } = buildShell();
+    // The venue Overview closes on its folds, under its last link.
+    byId("drawer").insertAdjacentHTML(
+      "beforeend",
+      '<details><summary id="fold">Your record</summary><button id="hidden">Save</button></details>',
+    );
+    const host = document.createElement("div");
+    document.body.append(host);
+    root = createRoot(host);
+    await act(async () => {
+      root!.render(createElement(Trap, { containerRef: { current: byId("drawer") } }));
+    });
+
+    const tab = (id: string, shiftKey = false) => {
+      byId(id).focus();
+      const event = new KeyboardEvent("keydown", {
+        key: "Tab", shiftKey, bubbles: true, cancelable: true,
+      });
+      byId(id).dispatchEvent(event);
+      return { prevented: event.defaultPrevented, active: document.activeElement };
+    };
+
+    // From the plan button the next stop is the fold, inside the sheet.
+    expect(tab("plan").prevented).toBe(false);
+    // From the fold, the last stop, Tab moves on to the exempt surface.
+    expect(tab("fold")).toEqual({ prevented: true, active: byId("edit") });
+    // And Shift+Tab from the exempt surface's first stop comes back to it.
+    expect(tab("edit", true)).toEqual({ prevented: true, active: byId("fold") });
+    if (checkVisibility) Object.defineProperty(Element.prototype, "checkVisibility", checkVisibility);
+    else delete (Element.prototype as { checkVisibility?: unknown }).checkVisibility;
+  });
+
   it("returns focus to the container when the focused surface leaves", async () => {
     (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
       .IS_REACT_ACT_ENVIRONMENT = true;
