@@ -1,0 +1,84 @@
+/* The sample skeleton (components/ui/sample-skeleton.tsx): the real card,
+   drawn with sample data and painted out into shapes by this sheet alone.
+   The skin overrides whatever the card's own sheet says, so it is
+   !important: a card rule that outranks it would print a sample word. */
+
+/* The region keeps the card's layout and holds back for 600 ms, the grace
+   components/out/listingsSkeleton.css gives the listings wait, so a read that
+   answers quickly never flashes a skeleton. */
+.sampleSkeleton {
+  opacity: 0;
+  animation: sampleSkeletonAppear 1ms linear 600ms forwards;
+}
+
+@keyframes sampleSkeletonAppear {
+  to {
+    opacity: 1;
+  }
+}
+
+/* The sample wrapper draws no box, so the cards sit in the region exactly as
+   they sit in the real container. */
+.sampleSkeletonSample {
+  display: contents;
+}
+
+/* Every word becomes a bar: the ink goes, and a thick strike covers each line
+   of text at the width the text takes. A background cannot do this, because
+   text that sits straight in a block or a flex item has no inline box to
+   paint. The bar is one step stronger than a block, so a name over a photo
+   still reads as a line on it. Nothing inside moves. */
+.sampleSkeletonSample *,
+.sampleSkeletonSample *::before,
+.sampleSkeletonSample *::after {
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  text-shadow: none !important;
+  text-decoration-line: line-through !important;
+  text-decoration-style: solid !important;
+  text-decoration-color: var(--line) !important;
+  text-decoration-thickness: 0.8em !important;
+  text-decoration-skip-ink: none !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  transition: none !important;
+  animation: none !important;
+}
+
+/* The card keeps its own surface and edge. Inside it no fill reads through,
+   so no tint, band or category colour does, and every edge is a hairline in
+   the skeleton tone. */
+.sampleSkeletonSample * *,
+.sampleSkeletonSample *::before,
+.sampleSkeletonSample *::after {
+  background-color: transparent !important;
+  border-color: var(--line-soft) !important;
+  outline-color: transparent !important;
+}
+
+/* Pictures, icons and controls become blocks in their own shape. A component
+   names any other block with data-sample-block. A real picture is moved out
+   of its own box, so only the block shows. */
+.sampleSkeletonSample :is(img, svg, video, canvas, picture, iframe, button, input, select, textarea, [role="button"], [data-sample-block]) {
+  background-color: var(--line-soft) !important;
+  border-color: transparent !important;
+}
+
+.sampleSkeletonSample img {
+  object-position: 200vw 200vh !important;
+}
+
+.sampleSkeletonSample svg * {
+  fill: transparent !important;
+  stroke: transparent !important;
+}
+
+/* The one movement is the loading shell's breath (app/globals.css, pulse),
+   and only for a reader who has not asked for less motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .sampleSkeleton {
+    animation:
+      sampleSkeletonAppear 1ms linear 600ms forwards,
+      pulse 1.6s ease-in-out 600ms infinite;
+  }
+}

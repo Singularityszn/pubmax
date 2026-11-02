@@ -94,6 +94,9 @@ const KEPT_OUT_OF_THE_SHELL = [
   "components/auth/ArrivalWelcome.tsx",
   "components/identity/AccountOnboarding.tsx",
   "lib/foundingMembers.ts",
+  // A loading state for one surface's card, with its own stylesheet; only the
+  // surfaces that wait behind it load it (components/ui/sample-skeleton.tsx).
+  "components/ui/sample-skeleton.tsx",
 ];
 
 describe("the root shell's eager import graph", () => {
