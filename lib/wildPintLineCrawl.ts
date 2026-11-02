@@ -8,7 +8,8 @@
 //
 // Two honesty rules ride with the sums here:
 //   1. A stop with no listed price is left out of every total, and the count of
-//      such stops is returned so the surface can say so.
+//      such stops is returned so the surface can say so. A planned stop the
+//      dataset no longer holds counts as one: it has no price here either.
 //   2. A round is a pint for every person at every priced stop. The share each
 //      person pays is therefore one pint at each priced stop. The prototype
 //      split five pints three ways (£10.33 each), which is not what three
@@ -73,7 +74,10 @@ export function clampPeople(people: number): number {
 export type CrawlRound = {
   people: number;
   pricedStops: number;
+  /** Planned stops with no listed price, the missing stops among them. */
   unpricedStops: number;
+  /** Planned stops the dataset no longer holds. Not drawn, not listed, in no total. */
+  missingStops: number;
   /** One pint at each priced stop, pence. What one person drinks. */
   pintEachStopPence: number;
   /** A pint for every person at every priced stop, pence. */
@@ -84,15 +88,27 @@ export type CrawlRound = {
   pints: number;
 };
 
-export function crawlRound(stops: readonly WildCrawlStop[], people: number): CrawlRound {
+/**
+ * The sums for `people` drinking at every priced stop. `plannedStops` is how
+ * many stops the crawl plans (WildCrawl.plannedStops); any the dataset no
+ * longer holds are counted as missing, so no surface says "every stop" over a
+ * crawl that has lost one.
+ */
+export function crawlRound(
+  stops: readonly WildCrawlStop[],
+  people: number,
+  plannedStops: number = stops.length,
+): CrawlRound {
   const count = clampPeople(people);
   const priced = stops.filter((stop) => stop.pint && Number.isFinite(stop.pint.priceGbp) && stop.pint.priceGbp > 0);
   const pintEachStopPence = priced.reduce((sum, stop) => sum + toPence(stop.pint!.priceGbp), 0);
   const roundPence = pintEachStopPence * count;
+  const missingStops = Number.isFinite(plannedStops) ? Math.max(0, Math.floor(plannedStops) - stops.length) : 0;
   return {
     people: count,
     pricedStops: priced.length,
-    unpricedStops: stops.length - priced.length,
+    unpricedStops: stops.length - priced.length + missingStops,
+    missingStops,
     pintEachStopPence,
     roundPence,
     eachPence: Math.round(roundPence / count),
@@ -138,6 +154,20 @@ export function crawlPriceListing(stops: readonly WildCrawlStop[]): CrawlPriceLi
     undated,
     unsourced,
   };
+}
+
+/** The missing stops said plainly, or null when the crawl has lost none. */
+export function missingStopsText(missing: number): string | null {
+  if (missing <= 0) return null;
+  return missing === 1
+    ? "1 planned stop is missing from our pub list, so it is not shown or counted."
+    : `${missing} planned stops are missing from our pub list, so they are not shown or counted.`;
+}
+
+/** "1 price names no publisher.", or null when every price names one. */
+export function unsourcedText(unsourced: number): string | null {
+  if (unsourced <= 0) return null;
+  return `${unsourced} ${unsourced === 1 ? "price names" : "prices name"} no publisher.`;
 }
 
 /** "2 October 2026", or "2 October 2026 to 9 October 2026", or null. */

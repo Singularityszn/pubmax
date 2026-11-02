@@ -208,7 +208,19 @@ describe("what the robin says", () => {
   });
 
   it("calls a figure people logged since the listing people-logged, and claims no publisher for it", () => {
-    expect(palHopAnswer({ ...stop("c", 3.8), peopleLogged: true }, null).provenance).toBe("People-logged price");
+    expect(palHopAnswer({ ...stop("c", 3.8), peopleLogged: true }, null).provenance).toBe(
+      "People-logged price · Date not known",
+    );
+  });
+
+  it("never dates a people-logged figure with the listing's read day, and says its day is not known", () => {
+    const listed = palHopAnswer(stop("c", 3.8), null).provenance;
+    expect(listed).toContain("Pint Prices");
+    expect(listed).toMatch(/read 2 Oct/);
+    const logged = palHopAnswer({ ...stop("c", 3.6), peopleLogged: true }, null).provenance;
+    expect(logged).not.toContain("Pint Prices");
+    expect(logged).not.toMatch(/Oct|2026|read/);
+    expect(logged).toContain("Date not known");
   });
 
   it("reads the slim pack around what the camera shows, wider for a tilted camera", () => {

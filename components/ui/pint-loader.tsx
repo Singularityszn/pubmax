@@ -1,9 +1,7 @@
-"use client";
-
 import { useId } from "react";
 
-import PourGlass, { type PourKind } from "@/components/wild/PourLoader";
-import { useWildMode } from "@/lib/useWildMode";
+import type { PourKind } from "@/components/wild/PourLoader";
+import PourLoaderSlot from "@/components/wild/PourLoaderSlot";
 
 import "./pintLoader.css";
 
@@ -22,12 +20,12 @@ import "./pintLoader.css";
  * itself twice. `label` is the visible line and is optional. `labelSize`
  * "quiet" is the smaller line a route shell prints under its skeleton.
  *
- * While the wild switch is on (lib/wildMode.ts) the glass is drawn as THE
- * POUR instead (components/wild/PourLoader.tsx): the same box, the same label
- * and the same silence, with a lager or, where the caller asks with `pour`, a
- * stout. It is plain SVG and CSS inside this component, not a lazy chunk,
- * because a loader that waited for its own chunk would show nothing while
- * the page loads. With the switch off the drawing is exactly the glass below.
+ * The glass goes through PourLoaderSlot, the wild switch's door
+ * (lib/wildMode.ts). With the switch off the slot hands back this glass
+ * unchanged and nothing of the wild pour is loaded. With it on, the slot
+ * fetches THE POUR (components/wild/PourLoader.tsx) as a lazy chunk and draws
+ * it in the same box, with the same label and the same silence; `pour` picks a
+ * lager or a stout, and this glass stays in place until the chunk arrives.
  */
 export type PintLoaderSize = "sm" | "md";
 export type PintLoaderLabelSize = "default" | "quiet";
@@ -55,7 +53,6 @@ export default function PintLoader({
   pour?: PourKind;
 }) {
   const id = useId();
-  const wild = useWildMode();
   const beerId = `${id}-beer`;
   const insideId = `${id}-inside`;
   const classes = [
@@ -68,9 +65,7 @@ export default function PintLoader({
     .join(" ");
   return (
     <span className={classes}>
-      {wild ? (
-        <PourGlass kind={pour} idBase={id} />
-      ) : (
+      <PourLoaderSlot kind={pour} idBase={id}>
         <svg
           className="pintLoaderGlass"
           viewBox="0 0 80 112"
@@ -109,7 +104,7 @@ export default function PintLoader({
             d="M16 10 H64 L58 100 Q57.6 104 53 104 H27 Q22.4 104 22 100 Z"
           />
         </svg>
-      )}
+      </PourLoaderSlot>
       {label ? <span className="pintLoaderLabel">{label}</span> : null}
     </span>
   );

@@ -35,8 +35,9 @@ export type PalHopStop = {
   priceObservedAt: string | null;
   /**
    * True when the map's own card shows a figure people logged since the
-   * listing (a community price): the figure is theirs, so no publisher or read
-   * day is claimed for it.
+   * listing (a community price): the figure is theirs, so no publisher is
+   * claimed for it. `priceSource` and `priceObservedAt` still describe the
+   * LISTED figure it replaced, so neither is shown beside it.
    */
   peopleLogged?: boolean;
 };
@@ -369,13 +370,21 @@ export function palHopDrinkLine(beer: string | null | undefined): string {
   return name ? `A pint of ${name}` : "A pint";
 }
 
+/**
+ * The line under a figure people logged. The robin reads that figure off the
+ * map's bottom card, which carries no day for it, and the slim row's read day
+ * belongs to the listed figure it replaced. So the line says the day is not
+ * known here rather than borrow the listing's.
+ */
+const PAL_HOP_PEOPLE_LOGGED_LINE = "People-logged price · Date not known";
+
 export function palHopAnswer(winner: PalHopStop, beer: string | null): PalHopAnswer {
   return {
     kicker: "Cheapest pint on screen",
     drink: palHopDrinkLine(beer),
     pub: winner.name,
     provenance: winner.peopleLogged
-      ? "People-logged price"
+      ? PAL_HOP_PEOPLE_LOGGED_LINE
       : compassPriceLabel({
           priceSource: winner.priceSource ?? undefined,
           priceObservedAt: winner.priceObservedAt ?? undefined,

@@ -32,9 +32,11 @@ import {
   crawlRound,
   formatPence,
   listedDaysText,
+  missingStopsText,
   sourcesText,
   stopsText,
   toPence,
+  unsourcedText,
   type WildCrawl,
 } from "@/lib/wildPintLineCrawl";
 
@@ -296,7 +298,10 @@ export default function PintLine({ crawl }: { crawl: WildCrawl }) {
   const [shared, setShared] = useState<string | null>(null);
 
   const stops = crawl.stops;
-  const round = crawlRound(stops, 1);
+  // Counted against the stops the crawl plans, so a stop the dataset has lost
+  // keeps "every stop" off the poster.
+  const round = crawlRound(stops, 1, crawl.plannedStops);
+  const listedUnpriced = round.unpricedStops - round.missingStops;
   const listing = crawlPriceListing(stops);
   const listedDays = listedDaysText(listing);
   const listedBy = sourcesText(listing.sources);
@@ -491,10 +496,11 @@ export default function PintLine({ crawl }: { crawl: WildCrawl }) {
             .{" "}
           </>
         ) : null}
-        {round.unpricedStops > 0
-          ? `${round.unpricedStops} ${round.unpricedStops === 1 ? "stop has" : "stops have"} no listed price. `
+        {listedUnpriced > 0
+          ? `${listedUnpriced} ${listedUnpriced === 1 ? "stop has" : "stops have"} no listed price. `
           : null}
-        {listing.unsourced > 0 ? `${listing.unsourced} ${listing.unsourced === 1 ? "price names" : "prices name"} no publisher. ` : null}
+        {round.missingStops > 0 ? `${missingStopsText(round.missingStops)} ` : null}
+        {listing.unsourced > 0 ? `${unsourcedText(listing.unsourced)} ` : null}
         {crawl.totalMinutes !== null
           ? "Walk times are straight-line estimates, so allow for the streets."
           : "We cannot place every stop, so there is no walking total."}

@@ -138,7 +138,12 @@ export default async function PubPage({ params }: PageProps) {
   const hours = venue.openingHours;
   const story = venue.curation.heritageNote?.trim() ?? "";
   // The wild Sign Foundry letters "Since <year>" only from a FOUNDING year the
-  // historic record states; with the wild switch off nothing reads it.
+  // historic record states. The server cannot see the wild switch (it lives in
+  // the reader's browser), so every pub page looks the year up, switch on or
+  // off: lib/historic.ts reads and parses historic_pubs.json once per server
+  // process and caches it, and each page searches that list. The year rides to
+  // the browser as the sign slot's prop; only the sign, drawn while the switch
+  // is on, prints it.
   const foundingYear = signFoundingYear((await loadHistoricPubs()).find((pub) => pub.venueId === venue.id));
 
   const primary = contacts.bookingHref ? (

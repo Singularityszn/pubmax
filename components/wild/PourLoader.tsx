@@ -6,14 +6,16 @@ import "./pourLoader.css";
  * The drawing the shared pint loader (components/ui/pint-loader.tsx) paints in
  * place of its glass while the wild switch is on. It is the same glass in the
  * same box, so the loader keeps its sizes, its label and its silence to
- * assistive tech; only the picture changes.
+ * assistive tech; only the picture changes. It arrives as a lazy chunk through
+ * PourLoaderSlot.tsx, so with the switch off neither this file nor its
+ * stylesheet is downloaded, and the classic glass holds the box until it lands.
  *
  * A lager fills from a stream falling from the top, bubbles rise through it
  * and a foam head forms and swells over the rim. A stout surges tan, then
  * settles dark from the bottom up under a creamy head.
  *
- * Hand-built SVG plus CSS (pourLoader.css): no runtime, no script, nothing to
- * load. Every moving part is a transform or an opacity change. With reduced
+ * Hand-built SVG plus CSS (pourLoader.css): no runtime and no script of its
+ * own. Every moving part is a transform or an opacity change. With reduced
  * motion, and wherever the animation is held still, the drawing at rest is a
  * full, settled glass.
  */

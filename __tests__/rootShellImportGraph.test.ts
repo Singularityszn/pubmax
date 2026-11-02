@@ -135,3 +135,35 @@ describe("the always-mounted plan outbox chunk", () => {
     expect(graph.has(target), chainTo(graph, target)).toBe(false);
   });
 });
+
+// The held frames a cold /map, /feed and /social paint first, and the map's own
+// loading frame. Every reader sees the pint loader there, so whatever it reaches
+// through STATIC imports rides those routes' first load. The wild pour
+// (components/wild/PourLoader.tsx and its stylesheet) is for readers who turned
+// the wild switch on, and reaches them only as the lazy chunk
+// components/wild/PourLoaderSlot.tsx asks for.
+describe("the loading frames' eager import graph", () => {
+  const FRAMES = [
+    "app/map/loading.tsx",
+    "app/feed/loading.tsx",
+    "app/social/loading.tsx",
+    "components/map/MapLoadingFrame.tsx",
+  ];
+  const WILD_POUR = ["components/wild/PourLoader.tsx", "components/wild/pourLoader.css"];
+
+  it.each(FRAMES)("%s still reaches the pint loader and its classic stylesheet", (frame) => {
+    const graph = staticGraph(frame);
+    expect(graph.has(join(REPO_ROOT, "components/ui/pint-loader.tsx"))).toBe(true);
+    expect(graph.has(join(REPO_ROOT, "components/ui/pintLoader.css"))).toBe(true);
+  });
+
+  it.each(FRAMES.flatMap((frame) => WILD_POUR.map((file) => [frame, file] as const)))(
+    "%s does not reach %s",
+    (frame, file) => {
+      const target = join(REPO_ROOT, file);
+      expect(existsSync(target), `${file} no longer exists; drop it from the list`).toBe(true);
+      const graph = staticGraph(frame);
+      expect(graph.has(target), chainTo(graph, target)).toBe(false);
+    },
+  );
+});

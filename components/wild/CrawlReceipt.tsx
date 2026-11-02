@@ -5,7 +5,8 @@
 // The crawl's cost prints out of a till slot: every stop with its drink and
 // its listed price, a round at every stop for however many of you there are,
 // the split, the walk, and the honest footer. A stop with no listed price says
-// so and stays out of the sum (lib/wildPintLineCrawl.ts holds the maths).
+// so and stays out of the sum, and so does a planned stop the dataset no longer
+// holds (lib/wildPintLineCrawl.ts holds the maths).
 //
 // Loaded only while the wild switch is on (CrawlReceiptGate.tsx). The paper
 // prints when the till scrolls into view: it slides down out of the slot in
@@ -28,8 +29,10 @@ import {
   formatKm,
   formatPence,
   listedDaysText,
+  missingStopsText,
   sourcesText,
   toPence,
+  unsourcedText,
   type WildCrawl,
 } from "@/lib/wildPintLineCrawl";
 
@@ -110,12 +113,17 @@ export default function CrawlReceipt({ crawl }: { crawl: WildCrawl }) {
   }, []);
 
   const stops = crawl.stops;
-  const round = crawlRound(stops, people);
+  const round = crawlRound(stops, people, crawl.plannedStops);
   const listing = crawlPriceListing(stops);
   const listedDays = listedDaysText(listing);
   const listedBy = sourcesText(listing.sources);
+  const unsourced = unsourcedText(listing.unsourced);
   const hasWalk = crawl.totalMinutes !== null && crawl.totalKm !== null;
   const priced = round.pricedStops > 0;
+  /** Stops on the receipt with no listed price; the missing ones are said apart. */
+  const listedUnpriced = round.unpricedStops - round.missingStops;
+  const missing = missingStopsText(round.missingStops);
+  const missingWarn = missing ? <p className="crawlReceipt__warn">{missing}</p> : null;
 
   return (
     <section className="crawlReceipt" aria-labelledby={headingId}>
@@ -123,7 +131,8 @@ export default function CrawlReceipt({ crawl }: { crawl: WildCrawl }) {
         The crawl receipt
       </h2>
       <p className="crawlReceipt__dek">
-        What the night costs at the listed prices, with a pint for each of you at every stop.
+        What the night costs at the listed prices, with a pint for each of you at every{" "}
+        {round.unpricedStops > 0 ? "priced " : ""}stop.
       </p>
 
       <div className="crawlReceipt__till" ref={tillRef}>
@@ -176,12 +185,13 @@ export default function CrawlReceipt({ crawl }: { crawl: WildCrawl }) {
                     </span>
                     <span className="crawlReceipt__sumValue">{formatPence(round.pintEachStopPence)}</span>
                   </p>
-                  {round.unpricedStops > 0 ? (
+                  {listedUnpriced > 0 ? (
                     <p className="crawlReceipt__warn">
-                      {round.unpricedStops} {round.unpricedStops === 1 ? "stop has" : "stops have"} no listed price, so
-                      the total leaves {round.unpricedStops === 1 ? "it" : "them"} out.
+                      {listedUnpriced} {listedUnpriced === 1 ? "stop has" : "stops have"} no listed price, so the
+                      total leaves {listedUnpriced === 1 ? "it" : "them"} out.
                     </p>
                   ) : null}
+                  {missingWarn}
 
                   <div className="crawlReceipt__people" role="group" aria-label="How many of you are going">
                     <IconButton
@@ -241,9 +251,12 @@ export default function CrawlReceipt({ crawl }: { crawl: WildCrawl }) {
                   </div>
                 </>
               ) : (
-                <p className="crawlReceipt__warn">
-                  No stop on this crawl has a listed price yet, so there is nothing to add up.
-                </p>
+                <>
+                  <p className="crawlReceipt__warn">
+                    No stop on this crawl has a listed price yet, so there is nothing to add up.
+                  </p>
+                  {missingWarn}
+                </>
               )}
 
               <p className="crawlReceipt__row">
@@ -277,6 +290,7 @@ export default function CrawlReceipt({ crawl }: { crawl: WildCrawl }) {
                   {listing.undated > 0
                     ? ` ${listing.undated} ${listing.undated === 1 ? "price has" : "prices have"} no read date.`
                     : ""}
+                  {unsourced ? ` ${unsourced}` : ""}
                 </p>
               ) : null}
               <p className="crawlReceipt__foot crawlReceipt__foot--strong">Pay what the bar charges.</p>

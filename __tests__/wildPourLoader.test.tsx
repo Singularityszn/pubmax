@@ -4,6 +4,9 @@
 // loader draws a pour instead of its glass (components/wild/PourLoader.tsx).
 // The loader keeps its box, its label and its silence to assistive tech, the
 // drawing at rest is a full glass, and with the switch off nothing changes.
+// The pour is a lazy chunk (components/wild/PourLoaderSlot.tsx), so the
+// classic glass holds the box until it arrives and the loader never shows
+// nothing.
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -11,7 +14,7 @@ import postcss, { type AtRule, type Declaration, type Rule } from "postcss";
 import { act, createElement, isValidElement, type ReactElement, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import MapLoadingFrame from "@/components/map/MapLoadingFrame";
 import RouteLoadingShell from "@/components/nav/RouteLoadingShell";
@@ -40,6 +43,17 @@ function render(element: ReactElement): void {
   act(() => root.render(element));
 }
 
+/** Renders, then waits for the lazy pour chunk to land in place of the glass. */
+async function renderPoured(element: ReactElement): Promise<void> {
+  render(element);
+  await vi.waitFor(async () => {
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(host.querySelector(".pourGlass")).not.toBeNull();
+  });
+}
+
 function idsIn(html: string): string[] {
   return [...html.matchAll(/\sid="([^"]+)"/g)].map((match) => match[1] ?? "");
 }
@@ -55,6 +69,13 @@ describe("the pint loader with the wild switch off", () => {
     expect(host.querySelector(".pourGlass")).toBeNull();
   });
 
+  it("adds nothing around the classic glass: the switch's door renders no element of its own", () => {
+    const html = renderToStaticMarkup(createElement(PintLoader, { label: "Out" }));
+    expect(html).toMatch(/^<span class="pintLoader pintLoader--md"><svg class="pintLoaderGlass" viewBox="0 0 80 112"/);
+    expect(html).toMatch(/<\/svg><span class="pintLoaderLabel">Out<\/span><\/span>$/);
+    expect(html).not.toContain("pour");
+  });
+
   it("renders the same markup on the server whatever pint is asked for", () => {
     expect(renderToStaticMarkup(createElement(PintLoader, { label: "Social", pour: "stout" }))).toBe(
       renderToStaticMarkup(createElement(PintLoader, { label: "Social" })),
@@ -67,8 +88,26 @@ describe("the pint loader with the wild switch on", () => {
     window.localStorage.setItem(WILD_MODE_STORAGE_KEY, "1");
   });
 
-  it("pours a lager in the same box, label and silence", () => {
-    render(createElement(PintLoader, { label: "Out", size: "sm", className: "routeLoadingShellLabel" }));
+  it("keeps the classic glass in the box while the pour's chunk loads", async () => {
+    // A fresh module graph, so the pour's lazy chunk has not been fetched yet.
+    vi.resetModules();
+    const { default: FreshLoader } = await import("@/components/ui/pint-loader");
+    render(createElement(FreshLoader, { label: "Out" }));
+    expect(host.querySelector(".pintLoaderFill")).not.toBeNull();
+    expect(host.querySelector(".pourGlass")).toBeNull();
+    expect(host.querySelector(".pintLoaderLabel")?.textContent).toBe("Out");
+    await vi.waitFor(async () => {
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(host.querySelector(".pourGlass")).not.toBeNull();
+    });
+    expect(host.querySelector(".pintLoaderFill")).toBeNull();
+    expect(host.querySelectorAll("svg")).toHaveLength(1);
+  });
+
+  it("pours a lager in the same box, label and silence", async () => {
+    await renderPoured(createElement(PintLoader, { label: "Out", size: "sm", className: "routeLoadingShellLabel" }));
     const loader = host.querySelector<HTMLElement>(".pintLoader");
     expect(loader?.className).toBe("pintLoader pintLoader--sm routeLoadingShellLabel");
     const glass = host.querySelector("svg");
@@ -83,17 +122,18 @@ describe("the pint loader with the wild switch on", () => {
     expect(glass?.textContent).toBe("");
   });
 
-  it("pours a stout where the caller asks for one", () => {
-    render(createElement(PintLoader, { pour: "stout" }));
+  it("pours a stout where the caller asks for one", async () => {
+    await renderPoured(createElement(PintLoader, { pour: "stout" }));
     expect(host.querySelector("svg.pourGlass--stout")).not.toBeNull();
     expect(host.querySelector(".pourSettle")).not.toBeNull();
   });
 
-  it("gives every pour its own gradient and clip, and points each glass at its own", () => {
-    render(
+  it("gives every pour its own gradient and clip, and points each glass at its own", async () => {
+    await renderPoured(
       createElement("div", null, createElement(PintLoader), createElement(PintLoader, { pour: "stout" })),
     );
     const html = host.innerHTML;
+    expect(host.querySelectorAll("svg.pourGlass")).toHaveLength(2);
     const ids = idsIn(html);
     expect(ids).toHaveLength(4);
     expect(new Set(ids).size).toBe(4);
@@ -105,8 +145,8 @@ describe("the pint loader with the wild switch on", () => {
     }
   });
 
-  it("pours on the map's held frame and keeps its one announced line", () => {
-    render(createElement(MapLoadingFrame, { mapDisplayName: "London", progress: 20 }));
+  it("pours on the map's held frame and keeps its one announced line", async () => {
+    await renderPoured(createElement(MapLoadingFrame, { mapDisplayName: "London", progress: 20 }));
     expect(host.querySelector(".mapLoadingCopy svg.pourGlass--lager")).not.toBeNull();
     const labels = [...host.querySelectorAll("[aria-label]")].map((node) => node.getAttribute("aria-label"));
     expect(labels).toEqual(["Loading the London pub map."]);

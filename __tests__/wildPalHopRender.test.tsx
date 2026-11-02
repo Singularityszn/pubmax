@@ -181,7 +181,7 @@ describe("Pal hops on the map", () => {
     const text = bubble()?.textContent ?? "";
     expect(text).toContain("at The A");
     expect(bubble()!.querySelector(".price-plaque")?.textContent).toBe("£3.90");
-    expect(text).toContain("People-logged price");
+    expect(text).toContain("People-logged price · Date not known");
     expect(text).not.toContain("Pint Prices");
     // The record's beer is at another price, so no beer is named.
     expect(text).toContain("A pint");
