@@ -1,0 +1,365 @@
+/* The pour (components/wild/PourLoader.tsx): the pint loader's wild drawing.
+   All colour comes from existing tokens, and the glass's shadow, gleam and
+   rim reuse the classic loader's own classes (components/ui/pintLoader.css).
+
+   AT REST THE GLASS IS FULL. Every declaration outside the motion query below
+   draws the settled pint: liquid to the top, the head formed and swelling
+   over the rim, no stream, no bubbles. That is what a reader who asked for
+   less motion sees, and what any frame that holds the animation still sees. */
+
+.pourBeerTop {
+  stop-color: var(--amber);
+}
+
+.pourBeerBottom {
+  stop-color: color-mix(in srgb, var(--amber) 62%, var(--brick));
+}
+
+.pourHead,
+.pourCap {
+  fill: color-mix(in srgb, var(--color-on-inverse) 90%, var(--amber));
+}
+
+/* The head over the rim is drawn in the rim's own line, so cream foam still
+   reads on a cream page. */
+.pourCap {
+  stroke: color-mix(in srgb, var(--ink) 40%, transparent);
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+}
+
+.pourStream {
+  fill: color-mix(in srgb, var(--amber) 82%, var(--color-on-inverse));
+  opacity: 0;
+}
+
+.pourBubble {
+  fill: color-mix(in srgb, var(--color-on-inverse) 72%, transparent);
+  opacity: 0;
+}
+
+/* The stout: a tan surge under a dark body that settles from the bottom up,
+   and a creamy head. */
+.pourGlass--stout .pourBody {
+  fill: color-mix(
+    in srgb,
+    color-mix(in srgb, var(--amber) 45%, color-mix(in srgb, var(--color-on-inverse) 60%, var(--brick))) 78%,
+    var(--ink-deep)
+  );
+}
+
+.pourGlass--stout .pourSettle,
+.pourGlass--stout .pourStream {
+  fill: color-mix(in srgb, var(--ink-deep) 84%, var(--brick));
+}
+
+/* On a near-black page a near-black pint would vanish, so at night the stout
+   keeps more of its ruby. */
+html[data-theme="dark"] .pourGlass--stout .pourSettle,
+html[data-theme="dark"] .pourGlass--stout .pourStream {
+  fill: color-mix(in srgb, var(--brick) 34%, var(--ink-deep));
+}
+
+.pourGlass--stout .pourHead,
+.pourGlass--stout .pourCap {
+  fill: color-mix(in srgb, var(--color-on-inverse) 82%, var(--amber));
+}
+
+.pourGlass--stout .pourBubble {
+  fill: color-mix(in srgb, var(--color-on-inverse) 58%, transparent);
+}
+
+/* Each moving part scales about its own edge: the stream from the tap down,
+   the head and the settling body from their foot up, the cap from the rim. */
+.pourLiquid {
+  transform-box: view-box;
+}
+
+.pourStream {
+  transform-box: fill-box;
+  transform-origin: 50% 0;
+}
+
+.pourHead,
+.pourSettle,
+.pourCap {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+
+/* The pour. One loop is a pint: the stream falls, the liquid climbs with the
+   stream's foot on its surface (the two share keyframes and curves, so the
+   stream always ends where the beer is), the tap shuts, the head forms and
+   swells, it holds, and the glass clears for the next one. Only transform and
+   opacity move. */
+@media (prefers-reduced-motion: no-preference) {
+  .pourGlass--lager .pourFill {
+    animation: pourLagerClear 3.6s linear infinite;
+  }
+
+  .pourGlass--lager .pourLiquid {
+    animation: pourLagerRise 3.6s infinite;
+  }
+
+  .pourGlass--lager .pourStream {
+    animation: pourLagerStream 3.6s infinite;
+  }
+
+  .pourGlass--lager .pourHead {
+    animation: pourLagerHead 3.6s infinite;
+  }
+
+  .pourGlass--lager .pourCap {
+    animation: pourLagerCap 3.6s infinite;
+  }
+
+  .pourGlass--lager .pourBubble {
+    animation-name: pourBubbleRise;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.9, 0.6);
+    animation-iteration-count: infinite;
+  }
+
+  .pourGlass--stout .pourFill {
+    animation: pourStoutClear 4.4s linear infinite;
+  }
+
+  .pourGlass--stout .pourLiquid {
+    animation: pourStoutRise 4.4s infinite;
+  }
+
+  .pourGlass--stout .pourStream {
+    animation: pourStoutStream 4.4s infinite;
+  }
+
+  .pourGlass--stout .pourSettle {
+    animation: pourStoutSettle 4.4s infinite;
+  }
+
+  .pourGlass--stout .pourHead {
+    animation: pourStoutHead 4.4s infinite;
+  }
+
+  .pourGlass--stout .pourCap {
+    animation: pourStoutCap 4.4s infinite;
+  }
+
+  .pourGlass--stout .pourBubble {
+    animation-name: pourBubbleCascade;
+    animation-timing-function: cubic-bezier(0.3, 0, 0.6, 1);
+    animation-iteration-count: infinite;
+  }
+}
+
+/* The map's opening picture: while it stands behind the loading line, the
+   glass holds still, because every frame of a pour repainted the picture
+   (the same hold the classic glass takes in the map's opening styles). */
+html[data-map-preview="on"][data-map-ground="on"]:has(.mapOpeningGround)
+  :is(.mapSkeleton, .mapLoading)
+  .pourGlass
+  * {
+  animation: none;
+}
+
+/* The liquid climbs 84 units from the glass's foot to its brim. */
+@keyframes pourLagerRise {
+  0%,
+  6% {
+    transform: translateY(84px);
+    animation-timing-function: cubic-bezier(0.3, 0.1, 0.3, 1);
+  }
+  58%,
+  100% {
+    transform: translateY(0);
+  }
+}
+
+/* The stream is 104 units from the tap to the glass's foot. Its length is
+   20 units plus the liquid's drop, so 20/104 when the glass is full. */
+@keyframes pourLagerStream {
+  0% {
+    opacity: 1;
+    transform: scaleY(0);
+    animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45);
+  }
+  6% {
+    opacity: 1;
+    transform: scaleY(1);
+    animation-timing-function: cubic-bezier(0.3, 0.1, 0.3, 1);
+  }
+  58% {
+    opacity: 1;
+    transform: scaleY(0.1923);
+  }
+  63%,
+  100% {
+    opacity: 0;
+    transform: scaleY(0.1923);
+  }
+}
+
+@keyframes pourLagerHead {
+  0%,
+  6% {
+    transform: scaleY(0.35);
+  }
+  58% {
+    transform: scaleY(0.6);
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  74%,
+  100% {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes pourLagerCap {
+  0%,
+  60% {
+    opacity: 0;
+    transform: scale(0.5, 0);
+    animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  74% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  88% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+@keyframes pourLagerClear {
+  0%,
+  88% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes pourStoutRise {
+  0%,
+  5% {
+    transform: translateY(84px);
+    animation-timing-function: cubic-bezier(0.25, 0.1, 0.35, 1);
+  }
+  40%,
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes pourStoutStream {
+  0% {
+    opacity: 1;
+    transform: scaleY(0);
+    animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45);
+  }
+  5% {
+    opacity: 1;
+    transform: scaleY(1);
+    animation-timing-function: cubic-bezier(0.25, 0.1, 0.35, 1);
+  }
+  40% {
+    opacity: 1;
+    transform: scaleY(0.1923);
+  }
+  45%,
+  100% {
+    opacity: 0;
+    transform: scaleY(0.1923);
+  }
+}
+
+/* The surge settles: the dark body climbs out of the tan from the bottom. */
+@keyframes pourStoutSettle {
+  0%,
+  38% {
+    transform: scaleY(0);
+    animation-timing-function: cubic-bezier(0.45, 0, 0.25, 1);
+  }
+  84%,
+  100% {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes pourStoutHead {
+  0%,
+  5% {
+    transform: scaleY(0.3);
+  }
+  40% {
+    transform: scaleY(0.45);
+    animation-timing-function: cubic-bezier(0.45, 0, 0.25, 1);
+  }
+  86%,
+  100% {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes pourStoutCap {
+  0%,
+  78% {
+    opacity: 0;
+    transform: scale(0.6, 0);
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  88% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  92% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+@keyframes pourStoutClear {
+  0%,
+  92% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes pourBubbleRise {
+  0% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+  15% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-70px);
+  }
+}
+
+@keyframes pourBubbleCascade {
+  0% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+  25% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(34px);
+  }
+}

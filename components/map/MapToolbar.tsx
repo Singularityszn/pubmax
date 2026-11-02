@@ -18,6 +18,7 @@ import VenueFeatureFilters, { activeVenueFeatureCount } from "@/components/map/V
 import MapVenueKindFilter from "@/components/map/MapVenueKindFilter";
 import FavoritePintPicker from "@/components/map/FavoritePintPicker";
 import PersonaLensPicker from "@/components/map/PersonaLensPicker";
+import PalHopGate from "@/components/wild/PalHopGate";
 import type { CityId } from "@/lib/cities";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
 import { FINE_POINTER_QUERY } from "@/lib/useFinePointer";
@@ -611,6 +612,9 @@ export default function MapToolbar({
         </div>
       ) : null}
 
+      {/* Wild switch preview (components/wild/PalHopGate.tsx): renders nothing
+          while the switch is off. The control itself is portalled to the map edge. */}
+      <PalHopGate placement="desktop" cityId={cityId} drinkLaneSelected={activeLane !== DEFAULT_DRINK_LANE} experienceView={experienceLens} />
     </div>
   );
 }

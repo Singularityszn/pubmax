@@ -15,6 +15,7 @@ import { planActivationPill } from "@/lib/planActivationPill";
 import { DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 
 import MapPeekSheet from "./MapPeekSheet";
+import PalHopGate from "@/components/wild/PalHopGate";
 
 import "./mobileMapShell.css";
 
@@ -69,6 +70,7 @@ function MapEdgeControls({
   nearMe,
   nearbyCount,
   onNearMe,
+  palHop,
 }: {
   tfl: CornerUtilityModel | null;
   tflOpen: boolean;
@@ -76,6 +78,8 @@ function MapEdgeControls({
   nearMe: PrimaryChipModel;
   nearbyCount: number;
   onNearMe: () => void;
+  /** Wild switch preview only (components/wild/PalHopGate.tsx): renders nothing while it is off. */
+  palHop?: React.ReactNode;
 }) {
   return (
     <div className="mobileMapUtilityCorner" aria-label="Map utilities">
@@ -86,6 +90,7 @@ function MapEdgeControls({
           {tfl.badge ? <span className="mobileMapCornerBadge">{tfl.badge}</span> : null}
         </IconButton>
       ) : null}
+      {palHop}
       <PalMapEdgeButton pathname="/map" />
       <button
         type="button"
@@ -548,6 +553,16 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
           nearMe={nearMe}
           nearbyCount={nearbyCount}
           onNearMe={onNearMe}
+          palHop={
+            <PalHopGate
+              placement="edge"
+              cityId={cityId}
+              onShowVenue={onPeekOpenVenue}
+              peek={peek}
+              drinkLaneSelected={drinkLaneSelected}
+              experienceView={experienceFilterLabel}
+            />
+          }
         />
       ) : null}
       <MapFoot

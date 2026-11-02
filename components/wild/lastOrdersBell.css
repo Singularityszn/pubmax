@@ -1,0 +1,188 @@
+/* THE LAST ORDERS BELL (wild idea 07). A brass bell and the card it rings
+   for. The card is a caution, so it takes the caution hue as a faint tint and
+   an edge, and every word stays in the page's own inks in both themes. The
+   brass is the drawing's own metal. Motion is the bell's one damped swing and
+   the card's short arrival; a reader who asked for less motion gets neither. */
+
+.lastOrdersBell {
+  --bell-brass: #d6a63f;
+  --bell-brass-light: #f6dd98;
+  --bell-brass-dark: #8f6a22;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-3);
+  margin: 0;
+  color: var(--color-text-soft);
+  animation: lastOrdersBellArrive var(--duration-slow) var(--ease-out-strong) both;
+}
+
+.lastOrdersBell--page {
+  padding: var(--space-3) var(--space-4) var(--space-3) var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--color-caution) 42%, var(--line));
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-caution) 9%, var(--panel-raised));
+}
+
+.lastOrdersBell--sheet {
+  gap: var(--space-2);
+  padding: var(--space-1) 0 var(--space-2);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.lastOrdersBell__ring {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: none;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lastOrdersBell--sheet .lastOrdersBell__ring {
+  width: 44px;
+  height: 44px;
+}
+
+.lastOrdersBell__ring:focus-visible {
+  outline: 2px solid var(--color-text);
+  outline-offset: 2px;
+}
+
+.lastOrdersBell__bell {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.lastOrdersBell__swing {
+  transform-box: view-box;
+  transform-origin: 24px 5px;
+  will-change: transform;
+}
+
+.lastOrdersBell__clapperSwing {
+  transform-box: view-box;
+  transform-origin: 24px 26px;
+}
+
+.lastOrdersBell__brass { stop-color: var(--bell-brass); }
+.lastOrdersBell__brassLight { stop-color: var(--bell-brass-light); }
+.lastOrdersBell__brassDark { stop-color: var(--bell-brass-dark); }
+
+.lastOrdersBell__yoke,
+.lastOrdersBell__crown {
+  fill: var(--bell-brass-dark);
+}
+
+.lastOrdersBell__clapperRod {
+  fill: none;
+  stroke: var(--bell-brass-dark);
+  stroke-width: 2;
+}
+
+.lastOrdersBell__clapper {
+  fill: var(--bell-brass-dark);
+}
+
+.lastOrdersBell__lip {
+  fill: none;
+  stroke: var(--bell-brass-dark);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+
+.lastOrdersBell__shine {
+  fill: none;
+  stroke: color-mix(in srgb, #ffffff 60%, transparent);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+
+.lastOrdersBell__body {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  padding-top: var(--space-1);
+}
+
+.lastOrdersBell__body p {
+  margin: 0;
+}
+
+.lastOrdersBell__title {
+  color: var(--color-text);
+  font-size: var(--text-base);
+  font-weight: 700;
+  line-height: var(--leading-snug);
+}
+
+.lastOrdersBell--sheet .lastOrdersBell__title {
+  font-size: var(--text-sm);
+}
+
+.lastOrdersBell__line,
+.lastOrdersBell__nearby {
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+}
+
+.lastOrdersBell--sheet .lastOrdersBell__line,
+.lastOrdersBell--sheet .lastOrdersBell__nearby {
+  font-size: var(--text-xs);
+}
+
+.lastOrdersBell__figure {
+  color: var(--color-text);
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.lastOrdersBell__link {
+  color: var(--color-text);
+  font-weight: 650;
+  text-decoration: underline;
+  text-decoration-color: var(--hairline-strong);
+  text-underline-offset: 3px;
+}
+
+.lastOrdersBell__link:focus-visible {
+  outline: 2px solid var(--color-text);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.lastOrdersBell__source {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--leading-snug);
+}
+
+.lastOrdersBell--sheet .lastOrdersBell__source {
+  font-size: var(--text-2xs);
+}
+
+@keyframes lastOrdersBellArrive {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lastOrdersBell {
+    animation: none;
+  }
+
+  .lastOrdersBell__swing,
+  .lastOrdersBell__clapperSwing {
+    transform: none !important;
+  }
+}
