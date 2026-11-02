@@ -289,8 +289,8 @@ describe("browser CI policy", () => {
     }
   });
 
-  it("skips each browser build's own type check, which the CI lint job already runs wider", () => {
-    // next build type-checks with TypeScript 6. The CI Lint and typecheck job
+  it("skips each browser build's own type check, which the CI TypeScript 6 job already runs wider", () => {
+    // next build type-checks with TypeScript 6. The CI Typecheck (TypeScript 6) job
     // runs that compiler over a superset of the files on the same commit, and
     // on a macOS runner the build's copy took over 6 minutes and pushed the
     // Playwright web server past its 10 minute start limit (captain, 2 Nov

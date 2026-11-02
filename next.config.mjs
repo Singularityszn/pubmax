@@ -198,9 +198,9 @@ const nextConfig = {
   typescript: {
     tsconfigPath: "./tsconfig.build.json",
     // CI only (docs/CI_RUNBOOK.md, "Build cache and type check"). The CI
-    // Lint and typecheck job already checks tsconfig.json, which covers every
-    // file this one does, with the same TypeScript 6 compiler, so the CI
-    // build skips its own copy of that check. A Vercel dashboard variable
+    // Typecheck (TypeScript 6) job already checks tsconfig.json, which covers
+    // every file this one does, with the same compiler, so the CI build skips
+    // its own copy of that check. A Vercel dashboard variable
     // reaches Vercel builds too, so a Vercel build always keeps the check.
     ignoreBuildErrors: process.env.PUBMAX_CI_SKIP_BUILD_TYPECHECK === "1" && !process.env.VERCEL,
   },

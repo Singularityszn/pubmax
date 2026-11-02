@@ -248,21 +248,28 @@ jobs:
       # build work in .next/cache, and a hosted runner starts empty, so every
       # CI build was cold and wrote a cache no run read. A pull request
       # restores the newest cache a main push saved for the same lockfile.
-      # Only a push to main saves one, so pull requests never fill the
-      # repository's cache space with a copy each and never write a cache
-      # that main reads.
+      # Only a push to main saves one, and at most one a day (the key ends
+      # in the UTC date), so pull requests never write a cache main reads,
+      # and a cache of about 500 MB per push cannot crowd out the other
+      # caches in the repository's 10 GB, such as the nightly Tavily cursor.
+      - name: Name the build cache for today
+        id: cache-day
+        if: steps.scope.outputs.scope == 'code'
+        run: echo "day=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+
       - name: Restore the Next.js build cache
+        id: build-cache
         if: steps.scope.outputs.scope == 'code'
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .next/cache
-          key: next-build-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
+          key: next-build-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ steps.cache-day.outputs.day }}
           restore-keys: |
             next-build-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
 
-      # The Lint and typecheck job checks tsconfig.json, which covers every
-      # file tsconfig.build.json does, with the same TypeScript 6 compiler, so
-      # this build skips its own copy of that check (captain, 2 Nov 2026;
+      # The Typecheck (TypeScript 6) job checks tsconfig.json, which covers
+      # every file tsconfig.build.json does, with the same compiler, so this
+      # build skips its own copy of that check (captain, 2 Nov 2026;
       # docs/CI_RUNBOOK.md, "Build cache and type check"). next.config.mjs
       # honours the variable only off Vercel, so a deploy build keeps it.
       - name: Build
@@ -273,11 +280,11 @@ jobs:
         run: npm run build
 
       - name: Save the Next.js build cache
-        if: steps.scope.outputs.scope == 'code' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: steps.scope.outputs.scope == 'code' && github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.build-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .next/cache
-          key: next-build-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
+          key: next-build-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ steps.cache-day.outputs.day }}
 
   # The unit shards start at once, beside lint and the production build: they
   # build their own slim data and read nothing those jobs make. Each of the

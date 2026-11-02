@@ -93,10 +93,10 @@ Today the slowest chain is lint and typecheck (5:02 to 8:14), then the productio
 
 ### Lever 2. Type-check the app code once, not twice (approved 2 Nov 2026)
 
-- **Change:** the CI build skips its own type check, because the lint job's TS6 step already checks a superset with the same compiler. The CI `Build` step sets `PUBMAX_CI_SKIP_BUILD_TYPECHECK=1`, and `next.config.mjs` then sets `typescript.ignoreBuildErrors`. `next.config.mjs` ignores the variable on Vercel, so a deploy build keeps the check.
+- **Change:** the CI build skips its own type check, because the CI TypeScript 6 check already checks a superset with the same compiler; since lever B it runs in its own job, `Typecheck (TypeScript 6)`. The CI `Build` step sets `PUBMAX_CI_SKIP_BUILD_TYPECHECK=1`, and `next.config.mjs` then sets `typescript.ignoreBuildErrors`. `next.config.mjs` ignores the variable on Vercel, so a deploy build keeps the check.
 - **Measured on this machine:** the whole `next build` took 83 seconds with the skip, against 377 seconds cold with the check. The log says `Skipping validation of types`.
 - **Saving:** about 3 minutes off the slowest chain on every code pull request (the measured `Running TypeScript` phase).
-- **What it gives up:** the CI build no longer proves the types on its own. `Lint and typecheck` is a required check, so a type error still blocks the merge.
+- **What it gives up:** the CI build no longer proves the types on its own. A type error still fails `Typecheck (TypeScript 6)`. That check must be required in branch protection (section 7, item 1); until it is, a TypeScript 6 error could merge green and then fail the Vercel deploy build.
 - **Why the captain decides:** it changes what a check proves, even though nothing new can go red.
 
 ### Lever 3. Start the production build beside lint (approved 2 Nov 2026)

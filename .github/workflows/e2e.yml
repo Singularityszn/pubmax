@@ -102,7 +102,7 @@ jobs:
         env:
           PUBMAX_TRACKED_OUTPUTS: public/data
           NODE_OPTIONS: "--max-old-space-size=6144"
-          # The build skips its own type check; the CI Lint and typecheck
+          # The build skips its own type check; the CI Typecheck (TypeScript 6)
           # job checks a wider set (docs/CI_RUNBOOK.md, "Build cache and type check").
           PUBMAX_CI_SKIP_BUILD_TYPECHECK: "1"
           PUBMAX_E2E_KEYLESS: "1"
@@ -256,7 +256,7 @@ jobs:
         env:
           PUBMAX_TRACKED_OUTPUTS: public/data
           NODE_OPTIONS: "--max-old-space-size=6144"
-          # The build skips its own type check; the CI Lint and typecheck
+          # The build skips its own type check; the CI Typecheck (TypeScript 6)
           # job checks a wider set (docs/CI_RUNBOOK.md, "Build cache and type check").
           PUBMAX_CI_SKIP_BUILD_TYPECHECK: "1"
           PUBMAX_E2E_KEYLESS: "1"
@@ -413,7 +413,7 @@ jobs:
         env:
           PUBMAX_TRACKED_OUTPUTS: public/data
           NODE_OPTIONS: "--max-old-space-size=6144"
-          # The build skips its own type check; the CI Lint and typecheck
+          # The build skips its own type check; the CI Typecheck (TypeScript 6)
           # job checks a wider set (docs/CI_RUNBOOK.md, "Build cache and type check").
           PUBMAX_CI_SKIP_BUILD_TYPECHECK: "1"
           PUBMAX_E2E_KEYLESS: "1"
@@ -465,7 +465,7 @@ jobs:
         env:
           PUBMAX_TRACKED_OUTPUTS: public/data
           NODE_OPTIONS: "--max-old-space-size=6144"
-          # The build skips its own type check; the CI Lint and typecheck
+          # The build skips its own type check; the CI Typecheck (TypeScript 6)
           # job checks a wider set (docs/CI_RUNBOOK.md, "Build cache and type check").
           PUBMAX_CI_SKIP_BUILD_TYPECHECK: "1"
           PUBMAX_E2E_KEYLESS: "1"

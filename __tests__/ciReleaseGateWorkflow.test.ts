@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -197,10 +198,13 @@ describe("clean-main CI release gate", () => {
     expect(jobs["validate-data"]?.name).toBe("Data validation");
   });
 
-  it("restores the Next.js build cache, and only a main push saves one", () => {
+  it("restores the Next.js build cache, and only a main push saves one, at most once a day", () => {
     // Next keeps Turbopack's build work in .next/cache. Without a restore
     // every CI build is cold; a pull request that saved its own copy would
     // fill the repository's cache space and could write a cache main reads.
+    // A cache of about 500 MB saved on every main push (12 to 32 a day) could
+    // also crowd the nightly Tavily cursor out of the 10 GB, so the key ends
+    // in the UTC date and an exact hit saves nothing.
     const build = defined(ciJobs()["production-build"], "production-build job");
     const names = (build.steps ?? []).map((step) => step.name);
     const restore = jobStep(build, "Restore the Next.js build cache");
@@ -212,16 +216,21 @@ describe("clean-main CI release gate", () => {
     for (const step of [restore, save]) expect(step.with?.path, step.name).toBe(".next/cache");
     expect(save.with?.key).toBe(restore.with?.key);
     expect(String(restore.with?.key)).toContain("hashFiles('package-lock.json')");
+    expect(String(restore.with?.key)).toMatch(/\$\{\{ steps\.cache-day\.outputs\.day \}\}$/);
+    expect(String(restore.with?.key)).not.toContain("github.sha");
+    const day = jobStep(build, "Name the build cache for today");
+    expect(names.indexOf(day.name)).toBeLessThan(names.indexOf(restore.name));
+    expect(day.run).toContain("date -u +%Y-%m-%d");
     expect(String(restore.with?.["restore-keys"])).toContain("hashFiles('package-lock.json')");
     expect(restore.if).toBe("steps.scope.outputs.scope == 'code'");
     expect(save.if).toBe(
-      "steps.scope.outputs.scope == 'code' && github.event_name == 'push' && github.ref == 'refs/heads/main'",
+      "steps.scope.outputs.scope == 'code' && github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.build-cache.outputs.cache-hit != 'true'",
     );
   });
 
   it("skips the CI build's own type check only where a wider check already ran", () => {
-    // next build type-checks tsconfig.build.json with TypeScript 6. The Lint
-    // and typecheck job runs the same compiler over tsconfig.json, so the CI
+    // next build type-checks tsconfig.build.json with TypeScript 6. The
+    // Typecheck (TypeScript 6) job runs the same compiler over tsconfig.json, so the CI
     // build skips its copy. This holds only while tsconfig.json covers every
     // file tsconfig.build.json does, with the same compiler options.
     const build = defined(ciJobs()["production-build"], "production-build job");
@@ -245,17 +254,26 @@ describe("clean-main CI release gate", () => {
         compilerOptions?: unknown;
         include?: string[];
       };
-    const full = readJson("tsconfig.json");
     const buildConfig = readJson("tsconfig.build.json");
     expect(buildConfig.extends).toBe("./tsconfig.json");
     expect(buildConfig.compilerOptions).toBeUndefined();
-    for (const pattern of buildConfig.include ?? []) {
-      const covered =
-        (full.include ?? []).includes(pattern) ||
-        (/\.ts$/.test(pattern) && (full.include ?? []).includes("**/*.ts")) ||
-        (/\.tsx$/.test(pattern) && (full.include ?? []).includes("**/*.tsx"));
-      expect(covered, pattern).toBe(true);
-    }
+    // Compare what TypeScript itself resolves, not the include lists: an
+    // exclude added to tsconfig.json alone would otherwise drop app files
+    // from the wider check without a word.
+    const resolved = (file: string) =>
+      JSON.parse(
+        execFileSync(process.execPath, ["node_modules/typescript/bin/tsc", "--showConfig", "-p", file], {
+          cwd: process.cwd(),
+          encoding: "utf8",
+        }),
+      ) as { files?: string[]; compilerOptions?: unknown };
+    const fullResolved = resolved("tsconfig.json");
+    const buildResolved = resolved("tsconfig.build.json");
+    const fullFiles = new Set(fullResolved.files ?? []);
+    const uncovered = (buildResolved.files ?? []).filter((file) => !fullFiles.has(file));
+    expect(buildResolved.files?.length ?? 0).toBeGreaterThan(0);
+    expect(uncovered).toEqual([]);
+    expect(buildResolved.compilerOptions).toEqual(fullResolved.compilerOptions);
 
     // A Vercel dashboard variable reaches Vercel builds too, so the skip is
     // refused on Vercel and a deploy build always type-checks.
