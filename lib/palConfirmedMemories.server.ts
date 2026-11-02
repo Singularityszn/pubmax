@@ -26,6 +26,7 @@ const KIND_LABELS: Record<PubPalMemoryKind, string> = {
   accessibility_preference: "Access",
   transport_preference: "Getting around",
   drink_preference: "Drinks",
+  food_preference: "Food",
   night_outcome: "A past night",
   correction: "Correction",
 };
