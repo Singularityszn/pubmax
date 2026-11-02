@@ -1,0 +1,310 @@
+/* THE CRAWL RECEIPT (components/wild/CrawlReceipt.tsx).
+   A till slip on the page: the slot, the paper under it, a torn edge. The
+   paper follows the theme (a card surface in each), so every price band ink
+   keeps the contrast it was tuned for. The words are set in the UI sans in
+   till capitals; the data face sets the figures alone (docs/DESIGN_SYSTEM.md,
+   "Monospace is for figures"). A price wears its band through the
+   .priceBand-* class family. */
+
+.crawlReceipt {
+  max-width: var(--content-max);
+  margin: var(--space-8) 0 var(--space-6);
+}
+
+.crawlReceipt__heading {
+  margin: 0 0 var(--space-2);
+  color: var(--color-text);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+}
+
+.crawlReceipt__dek {
+  margin: 0;
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  text-wrap: pretty;
+}
+
+.crawlReceipt__till {
+  position: relative;
+  width: min(100%, 24rem);
+  margin: var(--space-5) auto var(--space-2);
+  padding-top: 10px;
+}
+
+/* The slot sits after the paper in the document, so it paints over the paper's
+   top edge with no stacking order of its own. */
+.crawlReceipt__slot {
+  position: absolute;
+  top: 0;
+  left: -2px;
+  right: -2px;
+  height: 20px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-pill);
+  background: var(--ink-deep);
+  box-shadow: var(--shadow-inset-press);
+}
+
+.crawlReceipt__mouth {
+  position: relative;
+  overflow: hidden;
+  padding: 0 16px 24px;
+}
+
+.crawlReceipt__paper {
+  filter: drop-shadow(0 8px 12px color-mix(in srgb, var(--ink-deep) 18%, transparent));
+}
+
+.crawlReceipt__paper[data-print="wait"] {
+  transform: translateY(-101%);
+}
+
+/* A printer feeds paper in steps, so the slip arrives in steps too. */
+.crawlReceipt__paper[data-print="run"] {
+  animation: crawlReceiptPrint 2400ms steps(28, end) both;
+}
+
+@keyframes crawlReceiptPrint {
+  from {
+    transform: translateY(-101%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.crawlReceipt__sheet {
+  padding: var(--space-6) var(--space-4) var(--space-4);
+  background: var(--panel-raised);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.crawlReceipt__tear {
+  display: block;
+  margin-top: -1px;
+}
+
+.crawlReceipt__tear path {
+  fill: var(--panel-raised);
+}
+
+.crawlReceipt__sheet p {
+  margin: 0;
+}
+
+.crawlReceipt__brand {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-align: center;
+}
+
+.crawlReceipt__route {
+  margin-top: var(--space-1);
+  font-weight: 700;
+  text-align: center;
+  text-wrap: balance;
+}
+
+.crawlReceipt__meta {
+  margin-top: var(--space-1);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.crawlReceipt__printedTime,
+.crawlReceipt__itemNum,
+.crawlReceipt__itemPrice,
+.crawlReceipt__sumValue,
+.crawlReceipt__peopleCount,
+.crawlReceipt__walkTime,
+.crawlReceipt__listedDate {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+.crawlReceipt__rule {
+  margin: var(--space-3) 0;
+  border: 0;
+  border-top: 1.5px dashed var(--hairline-strong);
+}
+
+.crawlReceipt__items {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.crawlReceipt__item {
+  display: grid;
+  grid-template-columns: 1.6em minmax(0, 1fr) auto;
+  column-gap: var(--space-2);
+  align-items: baseline;
+}
+
+.crawlReceipt__itemNum {
+  color: var(--color-text-muted);
+  font-weight: 700;
+}
+
+.crawlReceipt__itemName {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.crawlReceipt__itemPrice {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  text-align: right;
+}
+
+.crawlReceipt__itemNone {
+  color: var(--color-text-muted);
+  font-style: italic;
+  text-align: right;
+}
+
+.crawlReceipt__itemDrink {
+  grid-column: 2 / -1;
+  color: var(--color-text-soft);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.crawlReceipt__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.crawlReceipt__row + .crawlReceipt__row {
+  margin-top: var(--space-1);
+}
+
+.crawlReceipt__row--total {
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.crawlReceipt__sumValue {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.crawlReceipt__row--total .crawlReceipt__sumValue {
+  font-size: var(--text-md);
+}
+
+.crawlReceipt__warn,
+.crawlReceipt__small {
+  margin-top: var(--space-1);
+  color: var(--color-text-muted);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.crawlReceipt__warn {
+  color: var(--color-text-soft);
+  font-style: italic;
+}
+
+.crawlReceipt__people {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin: var(--space-3) 0;
+  padding: var(--space-2);
+  border: 1.5px dashed var(--hairline-strong);
+  border-radius: var(--radius-sm);
+}
+
+.crawlReceipt__peopleText {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  text-align: center;
+}
+
+.crawlReceipt__people .crawlReceipt__peopleCount {
+  font-size: var(--text-md);
+}
+
+.crawlReceipt__sums {
+  margin-bottom: var(--space-3);
+}
+
+.crawlReceipt__walkTime {
+  text-align: right;
+}
+
+.crawlReceipt__listedDate,
+.crawlReceipt__printedTime {
+  white-space: nowrap;
+}
+
+.crawlReceipt__foot {
+  text-align: center;
+  text-wrap: balance;
+}
+
+.crawlReceipt__foot + .crawlReceipt__foot {
+  margin-top: var(--space-1);
+}
+
+.crawlReceipt__foot--strong {
+  font-weight: 700;
+}
+
+.crawlReceipt__barcode {
+  display: block;
+  width: 78%;
+  height: 34px;
+  margin: var(--space-3) auto 0;
+  fill: var(--color-text);
+}
+
+.crawlReceipt__actions {
+  display: flex;
+  justify-content: center;
+}
+
+/* A changed figure drops into place, like a till's drum. */
+@media (prefers-reduced-motion: no-preference) {
+  .crawlReceipt__sums .crawlReceipt__sumValue {
+    display: inline-block;
+    animation: crawlReceiptTick 260ms var(--ease-weighted);
+  }
+}
+
+@keyframes crawlReceiptTick {
+  from {
+    opacity: 0;
+    transform: translateY(-45%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crawlReceipt__paper[data-print] {
+    animation: none;
+    transform: none;
+  }
+}
