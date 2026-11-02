@@ -119,6 +119,7 @@ describe("the change scope", () => {
       "ci.yml / coverage",
       "ci.yml / lint-and-types",
       "ci.yml / production-build",
+      "ci.yml / typecheck-ts6",
       "ci.yml / unit-tests",
       "e2e.yml / change-scope",
       "e2e.yml / law-pins",
@@ -218,6 +219,7 @@ describe("what each scope runs", () => {
     // by TypeScript. Only a docs-only change skips them.
     expect(step("ci.yml / lint-and-types", "Lint").if).toBe("steps.scope.outputs.scope != 'docs'");
     expect(step("ci.yml / lint-and-types", "Typecheck").if).toBe("steps.scope.outputs.scope != 'docs'");
+    expect(step("ci.yml / typecheck-ts6", "Typecheck (TypeScript 6)").if).toBe("steps.scope.outputs.scope != 'docs'");
   });
 
   it("skips the macOS layout pins whole, by fixed name, only for a classified change with no screen code", () => {

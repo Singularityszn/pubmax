@@ -119,12 +119,73 @@ jobs:
         # Generates the typedRoutes link types before the native tsc pass.
         run: npm run typecheck
 
+
+  # The TypeScript 6 check runs in a job of its own, beside lint (captain,
+  # 2 Nov 2026): it took 2:15 to 5:38 on hosted runners, and inside the lint
+  # job it put lint and both compilers end to end on the slowest chain. It is
+  # the bridge compiler Next builds with, over the full tsconfig; `next
+  # typegen` writes the route types it reads. `npx tsc` is TypeScript 7.
+  typecheck-ts6:
+    name: Typecheck (TypeScript 6)
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # Two commits: the merge and its base, for the change scope below.
+          fetch-depth: 2
+
+      # CHANGE SCOPE (docs/CI_RUNBOOK.md, "What a pull request runs"). A pull
+      # request is checked out as its merge commit, whose first parent is the
+      # base, so one diff names every file the merge would change. Only every
+      # changed file being docs (docs/**, *.md) or data (data/**/*.json,
+      # public/data/**) makes it "docs" or "data"; anything else, an empty diff
+      # and every event other than a pull request is "code" and runs in full.
+      # The job always runs and reports, so a required check never waits on a
+      # job that was skipped. Every copy of this step is identical
+      # (__tests__/ciChangeScope.test.ts).
+      - name: Classify the change
+        id: scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          scope=code
+          if [ "$EVENT_NAME" = pull_request ]; then
+            scope="$(git diff --no-renames --name-only HEAD^1 HEAD | awk '
+              NF == 0 { next }
+              /^docs\// || /\.md$/ { docs++; next }
+              /^data\/.*\.json$/ || /^public\/data\// { data++; next }
+              { code++ }
+              END { if (code || !(docs + data)) print "code"; else if (data) print "data"; else print "docs" }')"
+          fi
+          echo "scope=$scope" >> "$GITHUB_OUTPUT"
+          echo "Change scope: $scope"
+
+      - name: Setup Node
+        if: steps.scope.outputs.scope != 'docs'
+        timeout-minutes: 5
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        if: steps.scope.outputs.scope != 'docs'
+        run: |
+          npm ci
+          npm run deps:install-scripts
+
+      - name: Generate the route types
+        if: steps.scope.outputs.scope != 'docs'
+        run: npx next typegen
+
       - name: Typecheck (TypeScript 6)
         if: steps.scope.outputs.scope != 'docs'
         env:
           NODE_OPTIONS: "--max-old-space-size=6144"
-        # The bridge compiler Next builds with, over the full tsconfig. The
-        # route types come from the step above. `npx tsc` is TypeScript 7.
         run: node node_modules/typescript/bin/tsc --noEmit
 
   # The production build starts beside lint (captain, 2 Nov 2026): it reads

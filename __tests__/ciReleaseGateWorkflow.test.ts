@@ -181,6 +181,7 @@ describe("clean-main CI release gate", () => {
     expect(needs.coverage).toEqual(["unit-tests"]);
     expect(needs.freshness).toEqual([]);
     expect(needs["validate-data"]).toEqual([]);
+    expect(needs["typecheck-ts6"]).toEqual([]);
   });
 
   it("validates every bundled dataset in its own job", () => {
@@ -225,11 +226,18 @@ describe("clean-main CI release gate", () => {
     // file tsconfig.build.json does, with the same compiler options.
     const build = defined(ciJobs()["production-build"], "production-build job");
     expect(jobStep(build, "Build").env?.PUBMAX_CI_SKIP_BUILD_TYPECHECK).toBe("1");
-    const lint = defined(ciJobs()["lint-and-types"], "lint-and-types job");
-    expect(jobStep(lint, "Typecheck (TypeScript 6)").run?.trim()).toBe(
+    // The wider check is its own required job, beside lint (captain, 2 Nov 2026).
+    const ts6 = defined(ciJobs()["typecheck-ts6"], "typecheck-ts6 job");
+    expect(ts6.name).toBe("Typecheck (TypeScript 6)");
+    const names = (ts6.steps ?? []).map((step) => step.name);
+    expect(names.indexOf("Generate the route types")).toBeLessThan(names.indexOf("Typecheck (TypeScript 6)"));
+    expect(jobStep(ts6, "Generate the route types").run?.trim()).toBe("npx next typegen");
+    expect(jobStep(ts6, "Typecheck (TypeScript 6)").run?.trim()).toBe(
       "node node_modules/typescript/bin/tsc --noEmit",
     );
-    expect(jobStep(lint, "Typecheck (TypeScript 6)").if).toBe("steps.scope.outputs.scope != 'docs'");
+    expect(jobStep(ts6, "Typecheck (TypeScript 6)").if).toBe("steps.scope.outputs.scope != 'docs'");
+    const lint = defined(ciJobs()["lint-and-types"], "lint-and-types job");
+    expect((lint.steps ?? []).map((step) => step.name)).not.toContain("Typecheck (TypeScript 6)");
 
     const readJson = (file: string) =>
       JSON.parse(readFileSync(join(process.cwd(), file), "utf8")) as {

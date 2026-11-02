@@ -139,11 +139,23 @@ Today the slowest chain is lint and typecheck (5:02 to 8:14), then the productio
 2. Name the slowest chain, then compare it with section 2.
 3. Run `python3 .agents/skills/ci-score/scripts/collect_config.py --repo . --out <scratch>/score.json` to re-score the configuration.
 
-## 6. Decisions for the captain
+## 6. After the first measurement (2 Nov 2026)
 
-Decided on 2 Nov 2026: levers 2 and 3, and lever 4 as three unit shards.
+The first CI run with levers 1 to 4 (run 41468260511) took 11:28. The build fell to 2:25, but two things held the total:
 
-1. Branch protection: when this merges, replace the required checks `Unit tests (1/2)` and `Unit tests (2/2)` with `Unit tests (1/3)`, `Unit tests (2/3)` and `Unit tests (3/3)`.
+1. Vitest shares files out by a hash of their path, so one unit shard held 1,052 seconds of tests and the others 532 and 622. Two test files of 499 and 423 seconds had already been split by topic, with identical test names before and after.
+2. The TypeScript 6 check in the lint job took between 2:15 and 5:38 from run to run.
+
+The captain approved both fixes:
+
+- **A. Balanced shards.** `vitest.config.mts` shares the files out by measured time, from `scripts/ci/vitest-shard-durations.json`. On the measured suite the three shards differ by less than 10 per cent.
+- **B. A separate TypeScript 6 job,** `Typecheck (TypeScript 6)`, beside lint.
+
+## 7. Decisions for the captain
+
+Decided on 2 Nov 2026: levers 2 and 3, lever 4 as three unit shards, balanced shards, and a separate TypeScript 6 job.
+
+1. Branch protection: when this merges, replace the required checks `Unit tests (1/2)` and `Unit tests (2/2)` with `Unit tests (1/3)`, `Unit tests (2/3)` and `Unit tests (3/3)`, and add `Typecheck (TypeScript 6)`.
 2. Lever 5: may CI cache ESLint's work from `main`?
 3. Lever 6: spread Dependabot over the day?
 4. Faster paid runners (Linear, Ramp, Mastra): not now, or try one job?

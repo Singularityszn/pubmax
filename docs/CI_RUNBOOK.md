@@ -123,8 +123,8 @@ Each workflow has its own concurrency group. A newer pull request head supersede
 
 Main pushes of Browser tests (`e2e.yml`) share one group, `main-push` (owner decision, 19 Oct 2026). The run in progress always finishes. Only the newest push waits behind it, and GitHub cancels an older waiting push. Each main push holds 3 of the 5 macOS runners for the layout pins. On 19 Oct 2026, 22 merges queued 66 macOS jobs. The first layout shard of the 08:57 push started at 13:42, and a pull request's last layout shard waited 72 minutes for a runner. The newest main commit holds every older one, so main is still tested. When a main run fails, it can cover several merges: read the merges since the last green main run. The nightly full suite still runs on its own group.
 
-`ci.yml` starts lint, `production-build` and the three unit shards at once
-(captain, 2 Nov 2026). None of them reads what another makes: the build and
+`ci.yml` starts lint, the TypeScript 6 check, `production-build` and the
+three unit shards at once (captain, 2 Nov 2026). None of them reads what another makes: the build and
 the unit shards build their own data. Before that day the build waited for
 lint, which put the two end to end on the slowest chain, and the suite ran in
 two shards that finished up to 3 minutes apart. Each shard runs
@@ -144,6 +144,20 @@ through a helper in `__tests__/helpers/`. The plan generation route tests
 (499 seconds) and the pub website amenities runner tests (423 seconds) were
 split this way on 2 Nov 2026.
 
+The shards share out the files by measured time, not by count (captain,
+2 Nov 2026). Vitest's own `--shard` cuts the files by a hash of their path
+into equal counts, and on CI run 41468260511 one shard held 1,052 seconds of
+tests while the others held 532 and 622. `vitest.config.mts` now uses
+`scripts/ci/vitestShardBalance.mjs`, which places the longest file first, each
+on the shard with the least time so far, from the per-file times in
+`scripts/ci/vitest-shard-durations.json`. A file the list does not know weighs
+the list's median, so a new test still runs. Every shard computes the same
+split, so each file runs exactly once; `__tests__/vitestShardBalance.test.ts`
+holds that. Refresh the times about once a month, or after a large change to
+the suite: run `npm run coverage -- --without-postgres --reporter=json
+--outputFile=<scratch>/unit.json`, then `npm run ci:shard-durations --
+<scratch>/unit.json`. Only the relative sizes matter, so a local run is enough.
+
 Locally, `npm run verify` runs `npm run coverage -- --without-postgres` and
 then `npm run test:rls`, so each PostgreSQL suite runs once. The suites
 `--without-postgres` excludes are the closed list in
@@ -157,9 +171,11 @@ which writes only the gitignored venue detail files.
 
 The lint-and-types job and the merge bar `npm run verify` both run
 [`npm run typecheck`](../package.json). It runs `next typegen` first, so the
-`typedRoutes` link types exist, then the TypeScript 7 native `tsc`. The
-lint-and-types job then checks the same full tsconfig with the TypeScript 6
-bridge compiler, `node node_modules/typescript/bin/tsc --noEmit`. Next resolves
+`typedRoutes` link types exist, then the TypeScript 7 native `tsc`. A
+separate job, `Typecheck (TypeScript 6)` (captain, 2 Nov 2026), runs
+`next typegen` and then checks the same full tsconfig with the TypeScript 6
+bridge compiler, `node node_modules/typescript/bin/tsc --noEmit`. It took 2:15
+to 5:38 on hosted runners, so it runs beside lint rather than after it. Next resolves
 that TypeScript 6 compiler API at build time; see
 [`next.config.mjs`](../next.config.mjs) for why both exist. `npx tsc` resolves
 to TypeScript 7, so call the TypeScript 6 compiler by its path. Because this
@@ -203,6 +219,7 @@ An empty diff and every event other than a pull request read `ui`. A push to `ma
 | --- | --- | --- | --- |
 | CI / Review scope | runs | runs | runs |
 | CI / Lint and typecheck | green, steps skipped (ESLint reads no `.md`) | runs (a JSON pack can be imported by TypeScript) | runs |
+| CI / Typecheck (TypeScript 6) | green, steps skipped | runs (a JSON pack can be imported by TypeScript) | runs |
 | CI / Production build | green, steps skipped | green, steps skipped | runs |
 | CI / Unit tests (1/3) | unit tests whose source names a changed file, PostgreSQL suites aside | same | whole third, with coverage |
 | CI / Unit tests (2/3) | green, steps skipped | green, steps skipped | whole third, with coverage |
