@@ -784,11 +784,24 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
   overflow-wrap: anywhere;
 }
 
+/* Each link is a 44px target that reaches past its line rather than
+   spacing the sentence out (e2e/ui-ux-battle-test.spec.ts, the same pattern
+   as app/today/today.css `.todayProvenanceLink`). */
 .lpHuntWhere a,
 .lpHuntCityPub a,
 .lpHuntSource a,
 .lpHuntCitySource a,
-.lpHuntCityEmpty a { color: inherit; text-underline-offset: 3px; }
+.lpHuntCityEmpty a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  margin-block: calc(-1 * var(--space-3));
+  vertical-align: middle;
+  color: inherit;
+  text-underline-offset: 3px;
+}
 
 .lpHuntSource,
 .lpHuntCitySource {

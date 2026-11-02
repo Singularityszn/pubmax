@@ -82,6 +82,15 @@ describe("Log a price lives on the map and the venue sheet", () => {
     expect(read("components/PubMap.tsx")).toContain("<MapPriceLogDoor />");
   });
 
+  it("replaces the More map controls entry, so Home and Back from the picker land where they say", () => {
+    // The surface trail counts only the entries it writes; a pushed entry
+    // under the price picker sent Home back to More map controls
+    // (e2e/price-intent-lifecycle.spec.ts).
+    const source = read("components/map/MapPriceLogDoor.tsx");
+    expect(source).toMatch(/router\.replace\(liveHref\(\)\)/);
+    expect(source).not.toMatch(/router\.push\(/);
+  });
+
   it("keeps the venue sheet's one price door", () => {
     expect(read("components/map/inspector/VenueOverviewTab.tsx")).toContain('data-price-door="log"');
   });

@@ -111,8 +111,11 @@ async function openLiveVoice(page: Page, memoryProposals = false, firstMessage?:
   const start = page.getByRole("button", { name: "Start voice chat", exact: true });
   await expect(start).toBeVisible({ timeout: 30_000 });
   await expect(page.locator(".palVoiceEmpty")).toContainText("the conversation shows up here");
+  // Only a dropped tap is tapped again. A taken tap swaps Start for End, and
+  // a session that is slow to say it is listening must not be re-tapped
+  // through a button that is gone (e2e/price-intent-lifecycle.spec.ts).
   await expect(async () => {
-    await start.click();
+    if (await start.isVisible()) await start.click({ timeout: 2_000 });
     await expect(page.getByRole("status").filter({ hasText: /Pal is (listening|talking)/ })).toBeVisible({ timeout: 2_000 });
   }).toPass({ timeout: 30_000 });
   return opened;
@@ -270,19 +273,25 @@ for (const [width, theme] of [[390, "light"], [1280, "dark"]] as const) {
 
     // On a phone the panel carries its own live head; on a desktop the big
     // portrait stays in view beside the panel, so the small one is hidden.
+    // A head draws in one of two live modes (components/pal/usePalHead3D.ts):
+    // "mesh" where the browser draws the 3D model, "live" where the posed
+    // photograph stands in for it. Either is a head that moves.
+    const LIVE_HEAD = /^(?:live|mesh)$/;
     const face = page.locator(".palVoiceFace");
     if (width === 390) {
       await expect(face).toBeVisible();
-      await expect(face).toHaveAttribute("data-head-3d", "live");
+      await expect(face).toHaveAttribute("data-head-3d", LIVE_HEAD);
     } else {
       await expect(face).toBeHidden();
     }
 
     // The portrait is a 3D head that lifts and nods on the Pal's own voice.
     // Off screen its loop sleeps, so the head is brought into view first.
-    const head = page.locator(".palHomePortrait");
+    // The hook poses the portrait's own frame (components/pal/PalPortrait.tsx),
+    // not the hero cell around it, so the frame is what is read.
+    const head = page.locator(".palHomePortrait .palPortrait");
     await head.scrollIntoViewIfNeeded();
-    await expect(head).toHaveAttribute("data-head-3d", "live");
+    await expect(head).toHaveAttribute("data-head-3d", LIVE_HEAD);
     say(socket, "Evening. I'm Ripley. Tell me the night you want and I'll find it.");
     await expect.poll(
       () => head.evaluate((element) => Number.parseFloat(getComputedStyle(element).getPropertyValue("--pal-lift")) || 0),

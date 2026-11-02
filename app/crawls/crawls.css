@@ -248,6 +248,15 @@
 /* A crawl with its own /routes page links its name there; the name keeps its
    colour and reads as a link by its underline. */
 .curatedName a {
+  /* A 44px target that reaches past the name's line rather than spacing the
+     card out (e2e/ui-ux-battle-test.spec.ts). */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  margin-block: calc(-1 * var(--space-3));
+  vertical-align: middle;
   color: inherit;
   text-underline-offset: 0.15em;
 }
