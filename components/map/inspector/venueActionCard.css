@@ -24,6 +24,21 @@
   padding: 0;
   border-top: 0;
   background: none;
+  container: venue-actions / inline-size;
+}
+
+/* TWO GHOSTS THAT CANNOT SHARE A ROW ARE EACH THE SIZE OF THEIR LABEL, as a
+   lone ghost is (venueSheet.css `:only-of-type`). At 320px with 1.5x text
+   "Ask for a table" and Share wrap, and `flex: 1 1 0` stretched each into an
+   edge-to-edge slab that read as the sheet's primary. The two labels need
+   about 8.25em + 91px side by side (measured at 1x to 2x text: the em part is
+   the words, the px part the padding, icon and gap), so this query starts a
+   little before that, and a row that still fits only loses its stretch. */
+@container venue-actions (max-width: calc(9em + 96px)) {
+  .venueActionCardActions .venueSheetStickyGhost {
+    flex: 0 0 auto;
+    padding-inline: var(--control-pad-x);
+  }
 }
 
 /* ── Phone: the sheet footer ─────────────────────────────────────────────── */
