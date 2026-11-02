@@ -266,8 +266,10 @@ describe("About outings story (Wave S1)", () => {
 
 // The founder story (owner's ask, 2 Nov 2026): why the app exists, how it is
 // made and what it saves, in the founder's own words. It may print one
-// figure, the round of four, and that figure is arithmetic on the cheapest
-// and dearest listed pints loadAboutStats returns. Every Pub Pal claim in it
+// figure, the round of four, and that figure is arithmetic on the average
+// listed pint loadAboutStats returns. It names no cheapest pint, because the
+// homepage's cheapest is the hunt's answer and the hunt's readers are fenced to
+// the landing (__tests__/cheapestHunt.test.ts). Every Pub Pal claim in it
 // is one the Pal code backs (lib/palMemoryKinds.mjs has no food kind, so the
 // story may not say it remembers food).
 describe("About founder story", () => {
@@ -299,19 +301,24 @@ describe("About founder story", () => {
     expect(story).toMatch(/Karan Manoharan, founder of PUBMAXX$/u);
   });
 
-  it("prints the round of four from the stats and never as a banded pint", async () => {
+  it("prints the round of four from the average pint and never as a banded pint", async () => {
     const html = await renderAbout();
     const start = html.indexOf('aria-labelledby="why"');
     const story = html.slice(start, html.indexOf("</section>", start));
-    // Fixture: cheapest £4, dearest £8, so a round of four is £16 and £32.
-    expect(story).toContain("£16.00");
-    expect(story).toContain("£32.00");
+    // Fixture: average £6, so a round of four is £24.
+    expect(story).toContain("A round of four at the average listed pint is");
+    expect(story).toContain("£24.00");
     expect(story).not.toContain("priceBadge");
+    // No third answer to "the cheapest pint": the story names no cheapest or
+    // dearest figure (fixture cheapest £4 x 4 = £16, dearest £8 x 4 = £32).
+    expect(story).not.toMatch(/cheapest|dearest/iu);
+    expect(story).not.toContain("£16.00");
+    expect(story).not.toContain("£32.00");
   });
 
-  it("drops the round line when either end of the price range is missing", async () => {
+  it("drops the round line when there is no average pint", async () => {
     const saved = fixtures.stats;
-    fixtures.stats = { ...saved, cheapestPint: null } as unknown as typeof saved;
+    fixtures.stats = { ...saved, averagePint: null } as unknown as typeof saved;
     try {
       const story = await storyText();
       expect(story).not.toContain("round of four");

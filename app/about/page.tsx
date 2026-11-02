@@ -36,8 +36,12 @@ import "./about.css";
 //
 // The founder story ("Why I built it") is the founder's own reason, in his own
 // earlier words (docs/VOICE.md, before/after row 11) with the dash taken out.
-// Its one figure, the round of four, is arithmetic on the cheapest and dearest
-// listed pints loadAboutStats already returns; nothing in it is typed in. Its
+// Its one figure, the round of four, is arithmetic on the average listed pint
+// loadAboutStats already returns; nothing in it is typed in. It names no
+// cheapest pint: the homepage's cheapest is the hunt's answer
+// (lib/cheapestHunt.ts), whose readers are fenced to the landing
+// (__tests__/cheapestHunt.test.ts), and a second rule here would print a
+// third answer to the same question. Its
 // Pub Pal lines say only what the Pal code does: a memory exists only once the
 // person confirms its card (lib/palMemoryProposal.server.ts), and a new fact
 // can offer to update an old one (lib/palMemoryRelation.ts).
@@ -104,19 +108,13 @@ function Pint({ gbp }: { gbp: number | null }) {
 const ROUND_SIZE = 4;
 
 /**
- * The same round of four at the cheapest and at the dearest listed pint we
- * hold, rounded to pence. Null when either end is missing or the two are
- * equal, because a line with no gap in it says nothing. A round total is not a
- * pint price, so it is printed as a plain figure and never wears a price band.
+ * A round of four at the average listed pint, rounded to pence, or null when
+ * there is no average. A round total is not a pint price, so it is printed as
+ * a plain figure and never wears a price band.
  */
-function roundOfFour(
-  cheapestPint: number | null,
-  dearestPint: number | null,
-): { cheapest: number; dearest: number } | null {
-  if (cheapestPint === null || dearestPint === null) return null;
-  if (!(dearestPint > cheapestPint)) return null;
-  const round = (pint: number) => Math.round(pint * ROUND_SIZE * 100) / 100;
-  return { cheapest: round(cheapestPint), dearest: round(dearestPint) };
+function roundOfFour(averagePint: number | null): number | null {
+  if (averagePint === null || !Number.isFinite(averagePint) || averagePint <= 0) return null;
+  return Math.round(averagePint * ROUND_SIZE * 100) / 100;
 }
 
 export default async function AboutPage() {
@@ -133,7 +131,7 @@ export default async function AboutPage() {
     : [];
   const pintIndexSummary = indexSummary(pintIndexRows);
   const ukCoverage = loadUkDirectoryCoverage();
-  const round = roundOfFour(stats.cheapestPint, stats.dearestPint);
+  const round = roundOfFour(stats.averagePint);
   const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   // The root layout publishes both referenced identities.
@@ -185,13 +183,11 @@ export default async function AboutPage() {
           put the pubs, their listed prices and a plan for your mates in one
           app.
         </p>
-        {round ? (
+        {round !== null ? (
           <p className="aboutBody">
-            London prices are all over the place. A round of four at the
-            cheapest listed pint on the map comes to{" "}
-            <Figure>{fmtGbp(round.cheapest)}</Figure>. At the dearest, it&rsquo;s{" "}
-            <Figure>{fmtGbp(round.dearest)}</Figure>. Better to know which is
-            which before you get to the bar.
+            A round of four at the average listed pint is{" "}
+            <Figure>{fmtGbp(round)}</Figure>. The map shows which pubs list a
+            pint for less, so you know before you get to the bar.
           </p>
         ) : null}
         <p className="aboutBody">
