@@ -6,6 +6,7 @@ import {
   pubPlacePhoto,
   type PlacePhoto,
 } from "@/components/listing/placePhotoRules";
+import { loadLondonHuntPints } from "@/lib/cheapestHunt.server";
 import { venueCheapestPintObservedAt } from "@/lib/drinks";
 import { loadHistoricPubs } from "@/lib/historic";
 import { hypedPubPriceIndex, hypedPubsForPage } from "@/lib/hypedPubs";
@@ -16,7 +17,7 @@ import { buildQuietPint, isQuietPintWindow } from "@/lib/quietPint";
 import { loadTodayOutAnswer, loadTodayWhatsOnAnswer } from "@/lib/todayListings.server";
 import { readSpoonsValue } from "@/lib/spoonsValue.server";
 import {
-  tonightCheapPintChain,
+  tonightCheapPintCandidates,
   tonightCheapPints,
   tonightWetherspoonVenueIds,
 } from "@/lib/tonightCheapPints";
@@ -113,6 +114,7 @@ export default async function TonightPage() {
     whatsOn,
     out,
     operatorFacts,
+    londonHuntPints,
   ] =
     await Promise.all([
       getPricedVenues(),
@@ -131,6 +133,9 @@ export default async function TonightPage() {
       // here so the block costs the reader no request; it never joins the
       // listings and never leads (TonightFromThePubs).
       loadTonightOperatorFacts(now.getTime()),
+      // London's pints the front door's hunt lets stand, in its own order:
+      // the one rule for "Cheapest in London" (lib/tonightCheapPints.ts).
+      loadLondonHuntPints(),
     ]);
   // One row per chain in the cheapest list. The first-party Wetherspoon
   // directory join and the SpoonMe pack name a Wetherspoon the price listing
@@ -199,17 +204,15 @@ export default async function TonightPage() {
       hypedPubs={hypedPubs}
       operatorFacts={operatorFacts}
       photos={tonightPhotos(hypedPubs.map((row) => row.venueId))}
-      // What a quiet night answers with: real pubs at a listed price, composed
-      // from the dataset this page already read for the quiet-pint module.
+      // What a quiet night answers with: real pubs at a listed price. The
+      // rows are the hunt's London pints, so "Cheapest in London" here and
+      // the landing's London row name the same pub.
       cheapPints={tonightCheapPints(
-        pricedVenues.map((venue) => ({
-          id: venue.id,
-          name: venue.name,
-          primaryBorough: venue.primaryBorough,
-          cheapestPrice: venue.cheapestPrice,
-          observedAt: venueCheapestPintObservedAt(venue),
-          chain: tonightCheapPintChain(venue, wetherspoonVenueIds),
-        })),
+        tonightCheapPintCandidates(
+          londonHuntPints,
+          new Map(pricedVenues.map((venue) => [venue.id, venue] as const)),
+          wetherspoonVenueIds,
+        ),
       )}
     />
   );

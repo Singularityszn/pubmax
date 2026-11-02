@@ -1,3 +1,13 @@
+/* The map is an app surface, not a document: a drag that starts on its
+   chrome or a sheet never pulls the page down to reload it, and never
+   bounces the whole shell (design plan step 0.6). The viewport takes its
+   overscroll from the root element, so the rule sits on html while the map
+   shell is on the page. Document pages keep pull-to-refresh, and inner
+   scrollers keep their own overscroll-behavior: contain. */
+html:has(.appShell) {
+  overscroll-behavior: none;
+}
+
 @media (min-width: 641px) {
   .mobileMapChrome,
   .mobileMapUtilityCorner,

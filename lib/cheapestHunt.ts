@@ -560,6 +560,24 @@ function cheapestOf(pints: readonly HuntPint[]): HuntPint | null {
   return [...pints].sort(compareHuntPints)[0] ?? null;
 }
 
+/** One city's pints, already one per pub, in the hunt's own order. */
+function cityPintsOf(perPub: readonly HuntPint[], cityId: CityId): HuntPint[] {
+  return perPub.filter((candidate) => candidate.cityId === cityId).sort(compareHuntPints);
+}
+
+/**
+ * Every pint that may stand in one map city's "cheapest" line, one per pub
+ * (its cheaper claim when both lanes know it), cheapest first in the hunt's
+ * own order: the price, then the freshest read, the pub's name and its id.
+ * The city's row in `buildCheapestHunt` is the first of these, so a page that
+ * lists a city's cheapest pints (Tonight's "Cheapest in London") opens on the
+ * pub the front door names for that city, and never on a row the headline
+ * bars hold out. It carries no dearest: that stays the press card's.
+ */
+export function huntCityPints(pints: readonly HuntPint[], cityId: CityId): HuntPint[] {
+  return cityPintsOf(cheapestPerPub(pints), cityId);
+}
+
 /**
  * The whole hunt from both lanes: every map city's cheapest (or its honest
  * empty line), Britain's cheapest taken from those city winners alone, and
@@ -580,7 +598,7 @@ export function buildCheapestHunt(
 ): CheapestHunt {
   const perPub = cheapestPerPub(pints);
   const cities = listEnabledCities().map((city): HuntCityRow => {
-    const pint = cheapestOf(perPub.filter((candidate) => candidate.cityId === city.id));
+    const pint = cityPintsOf(perPub, city.id)[0] ?? null;
     return {
       cityId: city.id,
       cityName: city.displayName,

@@ -294,12 +294,17 @@ export const metadata: Metadata = {
 
 // The browser bar matches the page under it: the light page floor by day and
 // the dark one by night (lib/browserBarColor.ts). viewport-fit=cover for
-// standalone PWA / notched phones.
+// standalone PWA / notched phones. interactive-widget=resizes-content makes
+// the Android keyboard shrink the layout viewport, so a composer pinned to
+// its foot sits above the keys rather than behind them (design plan step
+// 0.6). iOS ignores it, and lib/keyboardInset.ts still lifts a pinned
+// composer there; lib/softKeyboard.ts reads either shape as a keyboard.
 export const viewport: Viewport = {
   themeColor: BROWSER_BAR_THEME_COLORS,
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  interactiveWidget: "resizes-content",
 };
 
 export default async function RootLayout({

@@ -11,9 +11,12 @@
   padding: 20px var(--page-gutter) 96px;
 }
 
+/* The bar keeps the width and the side inset every other page gives it
+   (components/nav/siteNav.css): this page sets only the space under it. A
+   760px cap here crushed the desktop link row, whose icons need more room,
+   and an auto side margin moved the phone bar off the shared inset. */
 .pubPage .siteNavBar {
-  margin: 0 auto 20px;
-  max-width: 760px;
+  margin-bottom: 20px;
 }
 
 .pubPage__inner {

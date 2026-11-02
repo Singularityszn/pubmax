@@ -65,7 +65,11 @@ function CheapestCard({ cheapest }: { cheapest: TonightCheapestAnswer | null }) 
     <li className="tonightAnswer" data-testid="tonight-answer-cheapest" data-basis={cheapest.basis}>
       <h2 className="tonightAnswerTitle">{tonightCheapestHeading(cheapest.basis)}</h2>
       <p className="tonightAnswerLead">
-        <Link prefetch={false} href={mapHref(cheapest.venueId)} className="tonightAnswerLink">
+        <Link
+          prefetch={false}
+          href={(cheapest.mapHref as Route | undefined) ?? mapHref(cheapest.venueId)}
+          className="tonightAnswerLink"
+        >
           {cheapest.name}
         </Link>
         <PintPriceBadge priceGbp={cheapest.priceGbp} venueId={cheapest.venueId} />

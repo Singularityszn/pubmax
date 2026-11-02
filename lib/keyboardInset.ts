@@ -14,9 +14,10 @@
  * deliberately a separate leaf so a page that never pins a composer pays for
  * neither.
  *
- * When both viewports shrink together, including in the Android native shell,
- * this inset is zero. The resized layout already places the composer above
- * the keyboard.
+ * When both viewports shrink together, in the Android native shell and in
+ * Chrome on Android (app/layout.tsx asks for
+ * `interactive-widget=resizes-content`), this inset is zero. The resized
+ * layout already places the composer above the keyboard.
  */
 
 import { useSyncExternalStore } from "react";

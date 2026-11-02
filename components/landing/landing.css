@@ -322,7 +322,14 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
   min-width: 44px;
   min-height: 44px;
 }
+/* A link inside a source or credit sentence keeps its 44px box but reaches
+   past its line rather than growing it, as the hunt card's links do below: a
+   44px box on the baseline made the line 44px tall and dropped a wrapped
+   "2026." a full line under the rest. The pint link is a flex item beside
+   the price, not in a sentence, so it keeps its own row height. */
 .lpPubSource a, .lpPubThenSource a, .lpPhotoCredit a, .landingPhotoCredit a {
+  margin-block: calc(-1 * var(--space-3));
+  vertical-align: middle;
   color: inherit;
   text-decoration: underline;
   text-underline-offset: 3px;

@@ -1,4 +1,3 @@
-import type { Route } from "next";
 import dynamic from "next/dynamic";
 
 import { PintPriceBadge } from "@/components/PriceBadge";
@@ -10,6 +9,7 @@ import { useWildMode } from "@/lib/useWildMode";
 import {
   TONIGHT_CHEAP_PINTS_TITLE,
   tonightCheapPintChainLabel,
+  tonightCheapPintHref,
   type TonightCheapPint,
 } from "@/lib/tonightCheapPints";
 
@@ -66,7 +66,7 @@ export default function TonightCheapPints({
             <RowListItem
               key={row.venueId}
               className="tonightCheapPintsRow"
-              href={`/map?sel=${encodeURIComponent(row.venueId)}` as Route}
+              href={tonightCheapPintHref(row)}
               title={row.name}
               meta={
                 <>

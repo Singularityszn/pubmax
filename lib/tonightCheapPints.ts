@@ -21,6 +21,18 @@
 // its name on that row, and the other rows go to other pubs. It is the lede's
 // demotion rule (`lib/tonightChainLanes.ts`) read for a price list: the chain
 // is shown and labelled, never allowed to fill the list.
+//
+// ONE RULE FOR "CHEAPEST IN LONDON" (design plan step 0.2b, 2 Nov 2026). The
+// rows are the pints the front door's hunt lets stand in London
+// (`loadLondonHuntPints`, lib/cheapestHunt.server.ts), in the hunt's own
+// order, so this list's first row and the landing's London row name one pub.
+// Before, this list read each pub's raw cheapest figure: Tonight said
+// "Cheapest in London, J.J. Moon's, £2.09" (Tooting) while the landing said
+// £2.43, because the £2.09 row was never on the pub's own page and the hunt
+// holds it out. A row here is listed, dated, names its pint and was seen at
+// that pub, or it is not a row.
+
+import type { Route } from "next";
 
 import type { TonightChainLaneKey } from "@/lib/tonightChainLanes";
 import { isPublicRankablePub } from "@/lib/venueKindFilters";
@@ -35,6 +47,8 @@ export type TonightCheapPint = {
   chain: TonightChainLaneKey | null;
   /** When that cheapest pint was last read at its source. Absent or null when it records none. */
   observedAt?: string | null;
+  /** The hunt's own link to the pub on the map; a base pub's carries its point. */
+  mapHref?: string;
 };
 
 export type TonightCheapPintCandidate = {
@@ -44,7 +58,29 @@ export type TonightCheapPintCandidate = {
   cheapestPrice: number | null;
   observedAt?: string | null;
   chain?: TonightChainLaneKey | null;
+  mapHref?: string;
 };
+
+/**
+ * What Tonight reads of one pint the hunt lets stand in London: the fields of
+ * `HuntPint` (lib/cheapestHunt.ts) this list prints. Named here rather than
+ * imported, because only the landing and the page's own wiring may import the
+ * hunt (__tests__/cheapestHunt.test.ts, "the hunt's readers").
+ */
+export type TonightHuntPint = {
+  venueId: string;
+  pubName: string;
+  placeName: string;
+  priceGbp: number;
+  /** ISO day (`YYYY-MM-DD`) the publisher's own row was read. */
+  observedOn: string;
+  mapHref: string;
+};
+
+/** Where a row opens the pub: the hunt's own map link, else the pub by its id. */
+export function tonightCheapPintHref(row: Pick<TonightCheapPint, "venueId" | "mapHref">): Route {
+  return (row.mapHref ?? `/map?sel=${encodeURIComponent(row.venueId)}`) as Route;
+}
 
 /** How many rows the quiet page carries. Enough to choose from, short enough to read. */
 export const TONIGHT_CHEAP_PINTS_LIMIT = 4;
@@ -138,11 +174,43 @@ export function tonightCheapPintChain(
 }
 
 /**
- * Cheapest first, then by name so two pubs at one price keep one order on every
- * machine. A pub with no listed figure is not a row: "no price logged here yet"
- * is the honest line elsewhere, and this list is only about the ones we hold.
- * A bar the public cannot walk into is not a row either (`isPublicRankablePub`).
- * A chain answers with its first branch in that order and no other.
+ * The hunt's London pints as rows of this list. The borough and the chain come
+ * from our London pub list where it holds the pub; a pub only the UK price
+ * bundle holds is placed in the city the hunt placed it in, and is a chain
+ * only where the Wetherspoon membership names it. The read day is the hunt's
+ * own, at midday so it prints the same London date at any hour.
+ */
+export function tonightCheapPintCandidates(
+  pints: readonly TonightHuntPint[],
+  venues: ReadonlyMap<string, TonightCheapPintSource & { primaryBorough: string }>,
+  matchedWetherspoonVenueIds: ReadonlySet<string>,
+): TonightCheapPintCandidate[] {
+  return pints.map((pint) => {
+    const venue = venues.get(pint.venueId);
+    return {
+      id: pint.venueId,
+      name: pint.pubName,
+      primaryBorough: venue?.primaryBorough || pint.placeName,
+      cheapestPrice: pint.priceGbp,
+      observedAt: `${pint.observedOn}T12:00:00.000Z`,
+      chain: tonightCheapPintChain(
+        venue ?? { id: pint.venueId, website: "", prices: [] },
+        matchedWetherspoonVenueIds,
+      ),
+      mapHref: pint.mapHref,
+    };
+  });
+}
+
+/**
+ * The hunt's order (lib/cheapestHunt.ts `compareHuntPints`): cheapest first,
+ * then the freshest read, then the name, then the id, so two pubs at one price
+ * keep one order on every machine and the first row is the pub the landing's
+ * London row names. A pub with no listed figure is not a row: "no price logged
+ * here yet" is the honest line elsewhere, and this list is only about the ones
+ * we hold. A bar the public cannot walk into is not a row either
+ * (`isPublicRankablePub`). A chain answers with its first branch in that order
+ * and no other.
  */
 export function tonightCheapPints(
   venues: readonly TonightCheapPintCandidate[],
@@ -165,12 +233,16 @@ export function tonightCheapPints(
       priceGbp: venue.cheapestPrice,
       chain: venue.chain ?? null,
       observedAt: venue.observedAt ?? null,
+      ...(venue.mapHref ? { mapHref: venue.mapHref } : {}),
     });
   }
-  rows.sort((left, right) => {
-    if (left.priceGbp !== right.priceGbp) return left.priceGbp - right.priceGbp;
-    return left.name.localeCompare(right.name, "en-GB");
-  });
+  rows.sort(
+    (left, right) =>
+      left.priceGbp - right.priceGbp ||
+      (right.observedAt ?? "").localeCompare(left.observedAt ?? "") ||
+      left.name.localeCompare(right.name, "en-GB") ||
+      left.venueId.localeCompare(right.venueId),
+  );
   const max = Math.max(0, Math.floor(limit));
   const chainsShown = new Set<TonightChainLaneKey>();
   const shown: TonightCheapPint[] = [];

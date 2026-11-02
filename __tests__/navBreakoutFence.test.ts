@@ -164,6 +164,8 @@ const HOSTS: Array<{
   { route: "/messages", file: "app/messages/messages.css", className: "messagesPage", centering: "full-bleed" },
   { route: "/moment", file: "components/moment/moment.css", className: "momentPage", centering: "full-bleed" },
   { route: "/u/[handle]", file: "app/u/[handle]/profile.css", className: "profilePage", centering: "full-bleed" },
+  // A full-width block padded by --page-gutter on both sides, so symmetric.
+  { route: "/pubs/[id]", file: "app/pubs/[id]/pubPage.css", className: "pubPage", centering: "full-bleed" },
 ];
 
 describe("nav breakout fence (D6): the formula", () => {
@@ -225,6 +227,25 @@ describe("nav breakout fence (D6): host shells stay symmetric", () => {
 
       it("still exists as a styled shell", () => {
         expect(hostRules.length).toBeGreaterThan(0);
+      });
+
+      // DESIGN_UX_PLAN step 0.1: the pub page capped the bar at 760px and
+      // re-centred it with an auto margin, so the desktop link row crushed
+      // into "Explor Tonigl Plar" and the phone bar left the 10px inset. The
+      // bar's width and side margins belong to siteNav.css on every page; a
+      // host may set the space above or below it, never its inline geometry.
+      it("leaves the bar's width and side margins to siteNav.css", () => {
+        const barRules = parseRules(css).filter((rule) => targetsClass(rule.selector, "siteNavBar"));
+        for (const rule of barRules) {
+          for (const { prop, value } of declarationsOf(rule.body)) {
+            expect(prop, `${host.file}: ${rule.selector} declares ${prop}`).not.toMatch(
+              /^(width|max-width|min-width|margin-inline|margin-left|margin-right)$/,
+            );
+            if (prop === "margin") {
+              expect(splitValue(value), `${host.file}: ${rule.selector} { margin: ${value} }`).toHaveLength(1);
+            }
+          }
+        }
       });
 
       it("declares no per-side inline padding or margin longhands", () => {
