@@ -1,0 +1,144 @@
+/* Night falls (wild idea 09). A full-screen moment that takes no pointer
+   events and sits on the night-card layer: over the map and its chrome, under
+   the planning drawer, the sheets and every modal. Everything moves by
+   transform and opacity alone, and it is all gone in 2.5 seconds. */
+
+.nightFall {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-night-card);
+  pointer-events: none;
+  overflow: hidden;
+  contain: strict;
+}
+
+/* Dusk: the edges of the screen sink into the night for a beat. */
+.nightFallVeil {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      ellipse 120% 90% at 50% 40%,
+      transparent 35%,
+      color-mix(in srgb, var(--ink-deep) 62%, transparent) 100%
+    );
+  opacity: 0;
+  animation: nightFallVeil 2500ms var(--ease-out) both;
+}
+
+/* A street lamp coming on: a warm glow that blooms out of a bright core,
+   holds, and then lets the page have its night. */
+.nightFallLamp {
+  position: absolute;
+  margin: 0;
+  border-radius: 50%;
+  translate: -50% -50%;
+  background:
+    radial-gradient(
+      circle,
+      color-mix(in srgb, var(--night-amber) 95%, transparent) 0 3%,
+      color-mix(in srgb, var(--night-amber) 58%, transparent) 10%,
+      color-mix(in srgb, var(--night-amber) 24%, transparent) 36%,
+      color-mix(in srgb, var(--night-amber) 8%, transparent) 54%,
+      transparent 70%
+    );
+  mix-blend-mode: screen;
+  opacity: 0;
+  transform: scale(0.3);
+  animation-name: nightFallLamp;
+  animation-timing-function: var(--ease-out);
+  animation-fill-mode: both;
+  will-change: transform, opacity;
+}
+
+.nightFallToast {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 76px);
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: max-content;
+  max-width: min(340px, calc(100vw - 32px));
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  box-shadow: var(--map-overlay-shadow);
+  translate: -50% 0;
+  opacity: 0;
+  animation: nightFallToast 2500ms var(--ease-out) both;
+}
+
+/* On a wide screen the top band is the toolbar's; the note sits lower, over
+   the map itself. */
+@media (min-width: 641px) {
+  .nightFallToast {
+    top: 28%;
+  }
+}
+
+.nightFallToastIcon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--night-amber) 18%, transparent);
+  color: var(--night-amber);
+}
+
+.nightFallToastText {
+  margin: 0;
+  font: 500 var(--text-sm) / var(--leading-snug) var(--font-body);
+  text-wrap: pretty;
+}
+
+.nightFallToastTime {
+  font-family: var(--font-data);
+  font-weight: 700;
+  color: var(--night-amber);
+}
+
+@keyframes nightFallVeil {
+  0% { opacity: 0; }
+  22% { opacity: 1; }
+  74% { opacity: 0.85; }
+  100% { opacity: 0; }
+}
+
+@keyframes nightFallLamp {
+  0% { opacity: 0; transform: scale(0.3); }
+  28% { opacity: 1; transform: scale(1.08); }
+  44% { opacity: 1; transform: scale(1); }
+  76% { opacity: 0.85; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.04); }
+}
+
+@keyframes nightFallToast {
+  0%, 8% { opacity: 0; transform: translateY(-12px) scale(0.96); }
+  22% { opacity: 1; transform: translateY(0) scale(1); }
+  82% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-6px) scale(0.98); }
+}
+
+/* Reduced motion: no blooms and no travel. The toast is simply there for the
+   moment's 2.5 seconds, then gone. */
+@media (prefers-reduced-motion: reduce) {
+  .nightFallVeil,
+  .nightFallLamp {
+    display: none;
+  }
+
+  .nightFallToast {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+.nightFall[data-reduced="true"] .nightFallToast {
+  animation: none;
+  opacity: 1;
+}

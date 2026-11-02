@@ -1,5 +1,8 @@
 import { useId } from "react";
 
+import type { PourKind } from "@/components/wild/PourLoader";
+import PourLoaderSlot from "@/components/wild/PourLoaderSlot";
+
 import "./pintLoader.css";
 
 /**
@@ -16,6 +19,13 @@ import "./pintLoader.css";
  * `role="status"` and the one accessible name, so a frame never announces
  * itself twice. `label` is the visible line and is optional. `labelSize`
  * "quiet" is the smaller line a route shell prints under its skeleton.
+ *
+ * The glass goes through PourLoaderSlot, the wild switch's door
+ * (lib/wildMode.ts). With the switch off the slot hands back this glass
+ * unchanged and nothing of the wild pour is loaded. With it on, the slot
+ * fetches THE POUR (components/wild/PourLoader.tsx) as a lazy chunk and draws
+ * it in the same box, with the same label and the same silence; `pour` picks a
+ * lager or a stout, and this glass stays in place until the chunk arrives.
  */
 export type PintLoaderSize = "sm" | "md";
 export type PintLoaderLabelSize = "default" | "quiet";
@@ -33,11 +43,14 @@ export default function PintLoader({
   label,
   labelSize = "default",
   className,
+  pour = "lager",
 }: {
   size?: PintLoaderSize;
   label?: string;
   labelSize?: PintLoaderLabelSize;
   className?: string;
+  /** Which pint the wild pour draws. Read only while the wild switch is on. */
+  pour?: PourKind;
 }) {
   const id = useId();
   const beerId = `${id}-beer`;
@@ -52,44 +65,46 @@ export default function PintLoader({
     .join(" ");
   return (
     <span className={classes}>
-      <svg
-        className="pintLoaderGlass"
-        viewBox="0 0 80 112"
-        aria-hidden="true"
-        focusable="false"
-      >
-        <defs>
-          <linearGradient id={beerId} x1="0" y1="0" x2="0" y2="1">
-            <stop className="pintLoaderBeerTop" offset="0" />
-            <stop className="pintLoaderBeerBottom" offset="1" />
-          </linearGradient>
-          <clipPath id={insideId}>
-            <path d="M16 10 H64 L58 100 Q57.6 104 53 104 H27 Q22.4 104 22 100 Z" />
-          </clipPath>
-        </defs>
-        <ellipse className="pintLoaderShadow" cx="40" cy="108" rx="24" ry="3" />
-        <g clipPath={`url(#${insideId})`}>
-          <g className="pintLoaderFill">
-            <rect x="10" y="10" width="60" height="100" fill={`url(#${beerId})`} />
-            <path className="pintLoaderHead" d="M10 10 H70 V19 Q55 23 40 19 T10 19 Z" />
-            {BUBBLES.map((bubble) => (
-              <circle
-                key={bubble.x}
-                className="pintLoaderBubble"
-                cx={bubble.x}
-                cy={96}
-                r={bubble.r}
-                style={{ animationDelay: `${bubble.delay}s`, animationDuration: `${bubble.dur}s` }}
-              />
-            ))}
+      <PourLoaderSlot kind={pour} idBase={id}>
+        <svg
+          className="pintLoaderGlass"
+          viewBox="0 0 80 112"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <defs>
+            <linearGradient id={beerId} x1="0" y1="0" x2="0" y2="1">
+              <stop className="pintLoaderBeerTop" offset="0" />
+              <stop className="pintLoaderBeerBottom" offset="1" />
+            </linearGradient>
+            <clipPath id={insideId}>
+              <path d="M16 10 H64 L58 100 Q57.6 104 53 104 H27 Q22.4 104 22 100 Z" />
+            </clipPath>
+          </defs>
+          <ellipse className="pintLoaderShadow" cx="40" cy="108" rx="24" ry="3" />
+          <g clipPath={`url(#${insideId})`}>
+            <g className="pintLoaderFill">
+              <rect x="10" y="10" width="60" height="100" fill={`url(#${beerId})`} />
+              <path className="pintLoaderHead" d="M10 10 H70 V19 Q55 23 40 19 T10 19 Z" />
+              {BUBBLES.map((bubble) => (
+                <circle
+                  key={bubble.x}
+                  className="pintLoaderBubble"
+                  cx={bubble.x}
+                  cy={96}
+                  r={bubble.r}
+                  style={{ animationDelay: `${bubble.delay}s`, animationDuration: `${bubble.dur}s` }}
+                />
+              ))}
+            </g>
+            <path className="pintLoaderGleam" d="M22 16 L25 96" />
           </g>
-          <path className="pintLoaderGleam" d="M22 16 L25 96" />
-        </g>
-        <path
-          className="pintLoaderRim"
-          d="M16 10 H64 L58 100 Q57.6 104 53 104 H27 Q22.4 104 22 100 Z"
-        />
-      </svg>
+          <path
+            className="pintLoaderRim"
+            d="M16 10 H64 L58 100 Q57.6 104 53 104 H27 Q22.4 104 22 100 Z"
+          />
+        </svg>
+      </PourLoaderSlot>
       {label ? <span className="pintLoaderLabel">{label}</span> : null}
     </span>
   );
