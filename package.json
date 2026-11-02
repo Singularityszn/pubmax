@@ -87,6 +87,7 @@
     "pubpal:stage": "node scripts/pubpal/render-pal-stage.mjs",
     "generate:pub-copy": "node --conditions=react-server --import tsx scripts/generate_pub_record_copy.mjs",
     "gen:store-screenshots": "node scripts/gen-store-screenshots.mjs",
+    "proof:design": "node scripts/design-proof.mjs",
     "ios:build": "node scripts/ios-simulator.mjs",
     "ios:run": "node scripts/ios-simulator.mjs --run",
     "android:build": "node scripts/android/build.mjs",
