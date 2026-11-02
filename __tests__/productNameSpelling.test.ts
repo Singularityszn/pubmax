@@ -46,7 +46,7 @@ const TEXT_EXTENSIONS = new Set([
 
 /**
  * Build output and the scratch trees other tests write while this one runs.
- * `test-results/` holds copies of `lib/` (pubWebsiteAmenitiesRunner) that are
+ * `test-results/` holds copies of `lib/` (the pubWebsiteAmenitiesRunner suites) that are
  * deleted mid-walk, so scanning it is both wrong and a race.
  */
 const SKIP_DIR_NAMES = new Set([

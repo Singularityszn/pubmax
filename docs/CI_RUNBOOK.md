@@ -137,6 +137,13 @@ suite once, not once in the shards and again for coverage. The freshness job
 runs on its own: a calendar breach is that job's red mark and does not skip the
 build, the unit shards or coverage.
 
+A shard cannot finish before its slowest test file. Vitest gives each file to
+one worker and does not divide the tests in a file. So a test file that grows
+past about 90 seconds on CI is split by topic. The parts share their setup
+through a helper in `__tests__/helpers/`. The plan generation route tests
+(499 seconds) and the pub website amenities runner tests (423 seconds) were
+split this way on 2 Nov 2026.
+
 Locally, `npm run verify` runs `npm run coverage -- --without-postgres` and
 then `npm run test:rls`, so each PostgreSQL suite runs once. The suites
 `--without-postgres` excludes are the closed list in
