@@ -125,6 +125,9 @@ jobs:
       - name: Measure budgeted routes
         env:
           NODE_OPTIONS: "--max-old-space-size=6144"
+          # The build skips its own type check; the CI Lint and typecheck
+          # job checks a wider set (docs/CI_RUNBOOK.md, "Build cache and type check").
+          PUBMAX_CI_SKIP_BUILD_TYPECHECK: "1"
           PUBMAX_PERF_BUDGET: "1"
           PUBMAX_E2E_KEYLESS: "1"
           PW_SKIP_KEYLESS_WEBSERVER: "1"
@@ -160,6 +163,9 @@ jobs:
         if: failure()
         env:
           NODE_OPTIONS: "--max-old-space-size=6144"
+          # The build skips its own type check; the CI Lint and typecheck
+          # job checks a wider set (docs/CI_RUNBOOK.md, "Build cache and type check").
+          PUBMAX_CI_SKIP_BUILD_TYPECHECK: "1"
           PUBMAX_E2E_KEYLESS: "1"
           BUDGET_BASE_BRANCH: ${{ github.base_ref || 'main' }}
           # This job's own `timeout-minutes` in milliseconds. The install, the
@@ -223,6 +229,9 @@ jobs:
       - name: Report UX lane routes
         env:
           NODE_OPTIONS: "--max-old-space-size=6144"
+          # The build skips its own type check; the CI Lint and typecheck
+          # job checks a wider set (docs/CI_RUNBOOK.md, "Build cache and type check").
+          PUBMAX_CI_SKIP_BUILD_TYPECHECK: "1"
           PUBMAX_PERF_BUDGET: "1"
           PUBMAX_E2E_KEYLESS: "1"
           PW_SKIP_KEYLESS_WEBSERVER: "1"
