@@ -13,6 +13,8 @@
 .ndnSource a {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  min-width: 44px;
   min-height: 44px;
   margin-block: calc(-1 * var(--space-3));
   vertical-align: middle;
