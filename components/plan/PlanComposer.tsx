@@ -1876,10 +1876,11 @@ function PlanComposerForm({
       ...(requestedStopCount !== undefined ? { requestedStopCount } : {}),
       ...(persistedAcceptedAnchor ? { acceptedAnchor: persistedAcceptedAnchor } : {}),
     }, persistedAcceptedAnchor ? "planning-intent" : "manual", safeSessionStorage(), savedAt);
-    const intakeSaved = hasDurableIntakeDraft || planIntake !== recoveredIntake
+    const intakeChanged = JSON.stringify(planIntake) !== JSON.stringify(recoveredIntake);
+    const intakeSaved = hasDurableIntakeDraft || intakeChanged
       ? writePlanIntakeDraft(planIntake, undefined, savedAt)
       : false;
-    const hasWork = planIntake !== recoveredIntake || stops.some((stop) => stop.venueId || stop.venueName);
+    const hasWork = intakeChanged || stops.some((stop) => stop.venueId || stop.venueName);
     let cancelled = false;
     void Promise.resolve().then(() => {
       if (!cancelled) setDraftSaveFailure(
