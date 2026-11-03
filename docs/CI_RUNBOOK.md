@@ -208,12 +208,12 @@ The layout scope uses a denylist (captain, 23 Oct 2026). A pull request reads `n
 - Data files under `data/` or `public/data/`.
 - Database migrations and rollbacks under `supabase/migrations/` or `supabase/rollbacks/`.
 - Files under `docs/` and Markdown files ending in `.md`.
-- Files under `scripts/` that no layout spec directly runs. No current layout spec directly runs a repository script.
+- Files under `scripts/` except `scripts/e2e/canonical-price-server.ts`. The registered web first-run journey directly starts that fixture for its fixed-time price checks.
 - API-only files under `app/api/` and JavaScript or TypeScript `route` handlers under `app/` that render no page.
 
 Every other changed file reads `ui` and runs all three layout jobs. This includes every `lib/` module, components, pages, styles, browser specs, helpers, fixtures, and workflows. The Playwright port action, configuration, `package.json`, lockfiles, and unknown paths also read `ui`.
 
-An empty diff and every event other than a pull request read `ui`. A push to `main`, a schedule, and a dispatch therefore run every layout pin. A failed classifier also runs the layout jobs. `__tests__/ciChangeScope.test.ts` executes the classifier on sample diffs and on each spec selected by the layout job.
+An empty diff and every event other than a pull request read `ui`. The [browser job schedule](#timeouts-and-job-shape) controls which jobs run for each event. `__tests__/ciChangeScope.test.ts` executes the classifier on sample diffs and on each spec selected by the layout job.
 
 | Check | docs only | data only | code |
 | --- | --- | --- | --- |
