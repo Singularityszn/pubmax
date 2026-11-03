@@ -1,6 +1,6 @@
 "use client";
 
-// Borough bingo on a profile (launch review D8). The owner sees the card: 33
+// Normal borough bingo on a profile (launch review D8). The owner sees the card: 33
 // squares, one for each London borough and the City, each filled by the
 // passport's own borough stamp. A mutual sees the count line only. Anybody
 // else sees nothing. Breadth, never volume: a second pint in a borough fills
@@ -8,8 +8,11 @@
 //
 // At 11, 22 and 33 the owner may share the mark. The server counts the stamps
 // itself and signs the link (app/api/profiles/[handle]/borough-bingo).
+// See README.md for the selected owner preview's separate behaviour.
 
 import { useState } from "react";
+import BoroughBingoGate from "@/components/wild/BoroughBingoGate";
+import { useWildNightPreview } from "@/lib/useWildNightPreview";
 
 import { Button } from "@/components/ui/button";
 import { authedFetch } from "@/lib/authedFetch";
@@ -36,8 +39,10 @@ export default function BoroughBingo({
 }): React.JSX.Element | null {
   const [shareLine, setShareLine] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
+  const preview = useWildNightPreview("borough-bingo");
   const view = boroughBingoView({ isOwner, isMutual });
   if (view === "none" || !handle || handle === "you") return null;
+  if (preview && view === "card") return <BoroughBingoGate handle={handle} />;
   const card = buildBoroughBingo(boroughs);
   const countLine = boroughBingoCountLine(card.filled);
 
