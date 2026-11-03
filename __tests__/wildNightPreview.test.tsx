@@ -22,8 +22,8 @@ afterEach(() => {
 describe("wild night preview", () => {
   it("starts off and permits one preview at a time", () => {
     expect(readWildNightPreview()).toBeNull();
-    writeWildNightPreview("pub-tarot");
-    expect(readWildNightPreview()).toBe("pub-tarot");
+    writeWildNightPreview("borough-bingo");
+    expect(readWildNightPreview()).toBe("borough-bingo");
     writeWildNightPreview("round-rota");
     expect(readWildNightPreview()).toBe("round-rota");
     writeWildNightPreview(null);
@@ -31,16 +31,23 @@ describe("wild night preview", () => {
   });
 
   it("adopts and removes only its parameter, preserving history, query and hash", () => {
-    window.history.replaceState({ retained: true }, "", "/near?wild=1&q=a%20b&wildpreview=pub-tarot#top");
+    window.history.replaceState({ retained: true }, "", "/near?wild=1&q=a%20b&wildpreview=borough-bingo#top");
     const length = window.history.length;
     adoptWildNightPreviewFromAddress();
-    expect(readWildNightPreview()).toBe("pub-tarot");
+    expect(readWildNightPreview()).toBe("borough-bingo");
     expect(window.location.pathname + window.location.search + window.location.hash).toBe("/near?wild=1&q=a%20b#top");
     expect(window.history.state).toEqual({ retained: true });
     expect(window.history.length).toBe(length);
     window.history.replaceState(null, "", "/near?wildpreview=off");
     adoptWildNightPreviewFromAddress();
     expect(readWildNightPreview()).toBeNull();
+  });
+
+  it("keeps an unavailable idea off when its old link is opened", () => {
+    window.history.replaceState(null, "", "/near?wildpreview=pub-tarot&area=soho#top");
+    adoptWildNightPreviewFromAddress();
+    expect(readWildNightPreview()).toBeNull();
+    expect(window.location.search + window.location.hash).toBe("?area=soho#top");
   });
 
   it("rejects unknown selections and notifies other tabs", () => {
@@ -57,7 +64,7 @@ describe("wild night preview", () => {
     (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     const seen: boolean[] = [];
     function Probe() {
-      const enabled = useWildNightPreview("pub-tarot");
+      const enabled = useWildNightPreview("borough-bingo");
       seen.push(enabled);
       return enabled ? createElement("div", { "data-preview-child": "" }, "Preview") : null;
     }
@@ -66,7 +73,7 @@ describe("wild night preview", () => {
     act(() => root.render(createElement(Probe)));
     expect(seen.at(-1)).toBe(false);
     expect(host.querySelector("[data-preview-child]")).toBeNull();
-    act(() => writeWildNightPreview("pub-tarot"));
+    act(() => writeWildNightPreview("borough-bingo"));
     expect(seen.at(-1)).toBe(false);
     act(() => writeWildMode(true));
     expect(seen.at(-1)).toBe(true);
