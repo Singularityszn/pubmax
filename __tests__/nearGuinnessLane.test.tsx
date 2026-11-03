@@ -19,6 +19,7 @@ import { loadPintPriceLandingVenues } from "@/lib/pintPriceLandingDataset.server
 import { pricedLandingMapHref } from "@/lib/pricedLanding";
 import { walkMinutesFromKm } from "@/lib/walkMinutes";
 import { haversineKm } from "@/lib/haversine";
+import type { Venue, VenuePrice } from "@/lib/venues";
 
 // Launch review B3: "Cheapest Guinness within 15 minutes" on /near, built from
 // the venues the near answer already ranks and the drink page's own Guinness
@@ -56,9 +57,9 @@ describe("cheapestGuinnessNearby", () => {
 
   it("picks the cheapest listed Guinness within 15 minutes", () => {
     const prices: NearGuinnessPrice[] = [
-      ["near", 6.2, "2026-09-14"],
-      ["edge", 5.4, "2026-10-02"],
-      ["far", 3.9, "2026-10-02"],
+      ["near", 6.2, "2026-09-14", "Fixture publisher"],
+      ["edge", 5.4, "2026-10-02", "Fixture publisher"],
+      ["far", 3.9, "2026-10-02", "Fixture publisher"],
     ];
     const answer = cheapestGuinnessNearby(here.lat, here.lng, [near, edge, far], prices);
     expect(answer).toMatchObject({ id: "edge", name: "Pub edge", priceGbp: 5.4, observedOn: "2026-10-02" });
@@ -66,23 +67,30 @@ describe("cheapestGuinnessNearby", () => {
 
   it("breaks a tie on price by the shorter walk", () => {
     const prices: NearGuinnessPrice[] = [
-      ["near", 5.5, "2026-09-14"],
-      ["nearer", 5.5, "2026-09-14"],
+      ["near", 5.5, "2026-09-14", "Fixture publisher"],
+      ["nearer", 5.5, "2026-09-14", "Fixture publisher"],
     ];
     expect(cheapestGuinnessNearby(here.lat, here.lng, [near, nearer], prices)?.id).toBe("nearer");
   });
 
   it("reads only the venues the near answer ranks, never a venue it has no row for", () => {
-    const prices: NearGuinnessPrice[] = [["not-in-the-index", 2.5, "2026-10-02"]];
+    const prices: NearGuinnessPrice[] = [["not-in-the-index", 2.5, "2026-10-02", "Fixture publisher"]];
     expect(cheapestGuinnessNearby(here.lat, here.lng, [near], prices)).toBeNull();
     // An unpriced venue does not qualify for the near answer, so not for this line either.
     expect(
-      cheapestGuinnessNearby(here.lat, here.lng, [at("unpriced", 0.001, null)], [["unpriced", 4, null]]),
+      cheapestGuinnessNearby(here.lat, here.lng, [at("unpriced", 0.001, null)], [["unpriced", 4, null, "Fixture publisher"]]),
     ).toBeNull();
   });
 
+  it("qualifies the Guinness row without borrowing the anchor evidence", () => {
+    expect(cheapestGuinnessNearby(here.lat, here.lng, [near], [["near", 5, "2026-10-02", "Pub menu"]])?.priceGbp).toBe(5);
+    for (const row of [["near", 5, "2026-10-02", null], ["near", 5, null, "Pub menu"], ["near", 5, "2999-01-01", "Pub menu"]] as NearGuinnessPrice[]) {
+      expect(cheapestGuinnessNearby(here.lat, here.lng, [near], [row])).toBeNull();
+    }
+  });
+
   it("returns nothing when no Guinness is listed within 15 minutes", () => {
-    expect(cheapestGuinnessNearby(here.lat, here.lng, [far], [["far", 3.9, "2026-10-02"]])).toBeNull();
+    expect(cheapestGuinnessNearby(here.lat, here.lng, [far], [["far", 3.9, "2026-10-02", "Fixture publisher"]])).toBeNull();
     expect(cheapestGuinnessNearby(here.lat, here.lng, [near], [])).toBeNull();
   });
 });
@@ -125,6 +133,25 @@ describe("nearGuinnessPrices (the server half)", () => {
     for (const row of landing!.rows) {
       expect(byVenue.get(row.venueId)).toBe(row.priceGbp);
     }
+  });
+
+  it("publishes only the selected Guinness row with its own serving and evidence", () => {
+    const listed = (id: string, row: Partial<VenuePrice> = {}): Venue => ({
+      id, name: `Pub ${id}`, primaryBorough: "Westminster", cheapestPrice: 3,
+      prices: [{ app_price_id: id, pint_name: "Guinness", price_gbp: 5, pub_url: "https://example.com/menu", scraped_at_values: "2026-01-01", ...row }],
+    } as Venue);
+    const controls = Array.from({ length: 20 }, (_, i) => listed(`control-${i}`));
+    const candidates = [
+      listed("own-row"),
+      listed("half", { pint_name: "Half-pint Guinness" }),
+      listed("bottle", { pint_name: "Guinness 330ml bottle" }),
+      listed("missing-source", { pub_url: "" }),
+      listed("missing-day", { scraped_at_values: "" }),
+      listed("future", { scraped_at_values: "2999-01-01" }),
+    ];
+    const rows = nearGuinnessPrices([...controls, ...candidates]);
+    expect(rows).toHaveLength(21);
+    expect(rows.filter(([id]) => !id.startsWith("control-"))).toEqual([["own-row", 5, "2026-01-01", "example.com"]]);
   });
 
   it("hands over nothing when the drink page does not publish", () => {

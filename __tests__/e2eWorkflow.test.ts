@@ -183,6 +183,9 @@ describe("browser CI policy", () => {
       "e2e/ui-consistency-layout.spec.ts",
       "e2e/landing-uk-directory.spec.ts",
       "e2e/map-desktop-arrival-chrome.spec.ts",
+      // The venue-type chips and the map credit. Two chip changes (29 and
+      // 31 Oct 2026) merged green while this spec ran only nightly.
+      "e2e/drink-chip-controls.spec.ts",
     ]) {
       expect(run).toContain(spec);
     }

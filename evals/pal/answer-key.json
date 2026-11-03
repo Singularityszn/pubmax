@@ -2,9 +2,7 @@
   "now": "2026-07-21T18:00:00.000Z",
   "cases": {
     "cheapest-camden": {
-      "minCards": 1,
-      "topVenueId": "venue-18uogns",
-      "topPrice": 3.4,
+      "expectEmpty": true,
       "expectedTools": [
         "cheapest_pint_near"
       ]
@@ -43,8 +41,8 @@
     },
     "cheapest-near-lamb": {
       "minCards": 1,
-      "topVenueId": "venue-59ibpp",
-      "topPrice": 4,
+      "topVenueId": "venue-1rzudoh",
+      "topPrice": 7.1,
       "expectedTools": [
         "cheapest_pint_near"
       ]
@@ -195,9 +193,7 @@
       ]
     },
     "desk-then-cheapest": {
-      "minCards": 1,
-      "topVenueId": "venue-18uogns",
-      "topPrice": 3.4,
+      "expectEmpty": true,
       "expectedTools": [
         "cheapest_pint_near"
       ]

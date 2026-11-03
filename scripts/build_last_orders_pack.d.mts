@@ -15,6 +15,8 @@ export function isSourcedPint(slim: {
   priceSource?: unknown;
   priceObservedAt?: unknown;
   anchorLabel?: unknown;
+  cheapestPint?: unknown;
+  measure?: unknown;
 }): boolean;
 
 export function buildLastOrdersPacks(input: {
@@ -35,6 +37,8 @@ export function buildLastOrdersPacks(input: {
     priceSource?: string;
     priceObservedAt?: string;
     anchorLabel?: string;
+    cheapestPint?: string;
+    measure?: string;
   }>;
   closed: { osmRefs?: readonly string[]; curatedVenueIds?: readonly string[] };
 }): {

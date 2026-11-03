@@ -28,7 +28,7 @@ import {
 import type { SlimVenue } from "@/lib/venuesSlim";
 
 function row(id: string, cheapestPrice: number | null, extra: Partial<SlimVenue> = {}): SlimVenue {
-  return { id, name: `Pub ${id}`, lat: 51.51, lng: -0.13, cheapestPrice, borough: "Westminster", ...extra };
+  return { id, name: `Pub ${id}`, lat: 51.51, lng: -0.13, cheapestPrice, borough: "Westminster", priceSource: "Pub menu", priceObservedAt: "2026-01-01", ...extra };
 }
 
 function mark(id: string, x: number, y: number, kind: PalHopPoint["kind"] = "pin"): PalHopPoint {

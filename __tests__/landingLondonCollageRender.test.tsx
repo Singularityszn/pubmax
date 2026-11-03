@@ -60,9 +60,9 @@ describe("the founder London collage on the landing", () => {
     const southwark = LONDON_JOURNAL_PHOTOS.find((photo) => photo.area === "southwark");
     const [lat, lng] = southwark?.spot ?? [0, 0];
     const prices = buildLondonCollageAreaPrices([
-      { name: "Near and dear", latitude: lat + 0.001, longitude: lng, cheapestPrice: 6.2 },
-      { name: "Near and cheap", latitude: lat - 0.002, longitude: lng, cheapestPrice: 4.4 },
-      { name: "Far and cheaper", latitude: lat + 0.05, longitude: lng, cheapestPrice: 2.1 },
+      { name: "Near and dear", latitude: lat + 0.001, longitude: lng, cheapestPrice: 6.2, priceSource: "Pub menu", priceObservedAt: "2026-01-01" },
+      { name: "Near and cheap", latitude: lat - 0.002, longitude: lng, cheapestPrice: 4.4, priceSource: "Pub menu", priceObservedAt: "2026-01-01" },
+      { name: "Far and cheaper", latitude: lat + 0.05, longitude: lng, cheapestPrice: 2.1, priceSource: "Pub menu", priceObservedAt: "2026-01-01" },
       { name: "Near, no price", latitude: lat, longitude: lng, cheapestPrice: null },
     ]);
     expect(prices.southwark).toEqual({ cheapestPrice: 4.4, pubName: "Near and cheap", pubCount: 2 });

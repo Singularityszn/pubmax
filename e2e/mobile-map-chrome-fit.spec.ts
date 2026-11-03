@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { PHONE_NAV_ITEMS } from "../components/nav/navigationModel";
 import { PERFORMANCE_BUDGETS } from "../lib/performanceBudgets";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 import { expectStreamedPageSettled } from "./helpers/streamedPage";
 import {
   expectMobileMapShellReady,
@@ -1363,8 +1364,20 @@ for (const width of [641, 1440]) {
   });
 }
 
+// The credit measured here is MapLibre's own control, and it prints whatever
+// the loaded style credits. On the live network the OpenFreeMap style did not
+// load on a macOS runner (layout shard 3, PR #2473): it took longer than the
+// 8s style-load timeout or failed, the map took its CARTO fallback, and the
+// credit read "© OpenStreetMap contributors © CARTO". So a layout pin failed
+// on a third-party server. (Aborting the OpenFreeMap style on top of the
+// fixture gives that same failure, word for word.) The fixture answers both
+// providers' style URLs at once, each with the credit its live style ships
+// (LIVE_BASEMAP_CREDITS), so the map loads OpenFreeMap every time and the
+// credit is the full-length line a reader sees. The service worker is blocked
+// because a worker that controls the page fetches tiles.openfreemap.org
+// itself, past page.route().
 test.describe("story and credit placement", () => {
-  test.use({ storageState: { cookies: [], origins: [] } });
+  test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: "block" });
 
   for (const viewport of VIEWPORTS) {
     for (const consentVisible of [false, true]) {
@@ -1372,6 +1385,7 @@ test.describe("story and credit placement", () => {
         page,
       }, testInfo) => {
         await seedAnsweredConsentAndPal(page, consentVisible);
+        await installDeterministicMapBasemap(page);
         await preparePhoneMap(page, viewport, "reduce", "/map/glasgow?band=subcrawl");
         await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
         const chip = page.locator(".bandOnboardingChip");

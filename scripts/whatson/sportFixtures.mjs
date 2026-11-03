@@ -64,7 +64,8 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { resolveVenueId, loadCanonicalVenueIndex } from "./resolveVenueId.mjs";
+import { resolveVenueId } from "./resolveVenueId.mjs";
+import { loadCanonicalVenueIndex } from "./loadCanonicalVenueIndex.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const ATTRS_PATH = join(ROOT, "public", "data", "whats_on", "sport_attributes.json");

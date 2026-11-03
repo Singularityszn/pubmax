@@ -36,7 +36,7 @@ const east = (metres: number) => ({
 });
 
 function pub(id: string, point: { lat: number; lng: number }, price: number | null, extra: Partial<CompassVenue> = {}): CompassVenue {
-  return { id, name: `The ${id}`, borough: "Westminster", cheapestPrice: price, ...point, ...extra };
+  return { id, name: `The ${id}`, borough: "Westminster", cheapestPrice: price, priceSource: "Pub menu", priceObservedAt: "2026-01-01", ...point, ...extra };
 }
 
 describe("bearing and distance", () => {

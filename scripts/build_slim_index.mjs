@@ -34,13 +34,13 @@ import {
 import { loadStationZones, nearestStationZone } from "./lib/stationZones.mjs";
 import { isCurrentFamousVenue } from "./lib/currentFamousVenue.mjs";
 import { nightOutPlaceRowValidationErrors } from "../lib/nightOutPlaceContract.mjs";
-import { legacyCheapestPriceEvidence } from "../lib/legacyPriceEvidence.mjs";
+import { legacyCheapestPriceEvidence, legacyCheapestPriceReadDay } from "../lib/legacyPriceEvidence.mjs";
+import { isComparablePintServing } from "../lib/comparablePint.mjs";
 import { isCurrentVenueRow, isLivePriceRow } from "../lib/priceRowEligibility.mjs";
 import { legacyOsmVenueKind } from "../lib/legacyOsmVenueKind.mjs";
 import { buildVenueFeatureHints } from "./lib/venueFeatureHints.mjs";
 import { readPlacesEnrichmentPacks } from "./lib/placesEnrichmentStamp.mjs";
 import { UK_OSM_PUBS_FILE } from "../lib/ukOsmPubsFile.mjs";
-import { cheapestPriceReadDay } from "../lib/priceReadDay.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -859,6 +859,17 @@ function applyFeatureHints(venue, feature) {
     }
 }
 
+export function buildSlimPriceEvidence(prices, cheapestPrice) {
+  const priceObservedAt = legacyCheapestPriceReadDay(prices, cheapestPrice);
+  const { priceSource, cheapestPint, measure } = legacyCheapestPriceEvidence(prices, cheapestPrice);
+  return {
+    ...(cheapestPint && !isComparablePintServing({ cheapestPint, measure }) ? { cheapestPint } : {}),
+    ...(measure != null ? { measure } : {}),
+    ...(priceSource ? { priceSource } : {}),
+    ...(priceObservedAt ? { priceObservedAt } : {}),
+  };
+}
+
 async function main() {
   const rawText = await readFile(RAW_PATH, "utf8");
   const rows = JSON.parse(rawText);
@@ -941,11 +952,9 @@ async function main() {
     const cheapestPrice = numericPrices.length
       ? Math.min(...numericPrices)
       : null;
-    // The day that figure was last read at its source, so the pin can show an
-    // aging price as aging (lib/priceTier.ts `priceAgeFor`). Absent when no row
-    // carrying the figure records a read: such a price cannot claim to be fresh.
-    const priceObservedAt = cheapestPriceReadDay(prices, cheapestPrice);
-    const { priceSource } = legacyCheapestPriceEvidence(prices, cheapestPrice);
+    // The publisher and day both come from the same minimum-price row.
+    // A second row at the same price cannot supply this publisher's date.
+    const priceEvidence = buildSlimPriceEvidence(prices, cheapestPrice);
     const id = stableVenueIdFromKey(key);
     const locality = groupRows
       .map((row) => String(row.locality ?? "").trim())
@@ -967,8 +976,7 @@ async function main() {
       lat,
       lng,
       cheapestPrice,
-      ...(priceSource ? { priceSource } : {}),
-      ...(priceObservedAt ? { priceObservedAt } : {}),
+      ...priceEvidence,
       borough: String(first.primary_borough || ""),
       locality: locality ?? "",
       // Nearest-station fare zone (1–6, occasionally 7–9 at the London edge).

@@ -88,8 +88,8 @@ export default function NewPlanPage() {
           action) is the describe-first Screen inside PlanComposer, so nothing
           is printed twice here. */}
       <SiteNav />
-      <PubListImport />
       <PlanComposer />
+      <PubListImport />
     </main>
   );
 }

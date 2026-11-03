@@ -62,7 +62,7 @@ export function buildMapPeek(input: {
   lensPrices?: ReadonlyMap<string, MapLensPrice> | null;
   /** How far the active lens's cross-venue index has read. */
   lensStatus?: CategoryPriceIndexStatus;
-  venueSignals?: ReadonlyMap<string, { latestContributorPrice: number | null }> | null;
+  venueSignals?: ReadonlyMap<string, { latestContributorPrice: number | null; latestContributorAt?: number | null }> | null;
   /** The reader's own fix. A map centre is not where they stand. */
   reader?: { lat: number; lng: number } | null;
 }): MapPeekModel {

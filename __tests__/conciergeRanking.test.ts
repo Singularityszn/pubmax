@@ -17,6 +17,8 @@ function venue(
     lat: 51.51,
     lng: -0.09,
     cheapestPrice: 6.5,
+    priceSource: "Pub menu",
+    priceObservedAt: "2026-01-01",
     amenities: {
       beerGarden: false,
       cocktails: false,

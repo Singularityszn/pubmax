@@ -1,5 +1,5 @@
 /* THE SIGN FOUNDRY (wild idea 03): a hanging pub sign drawn from the pub's
-   name, on a wrought iron bracket, with the listed pint on a plaque under it.
+   name, on a wrought iron bracket. A cover can also have a pint plaque.
    The paints are a sign-writer's heritage colours and belong to the drawing,
    not to the interface, so they are the one set of raw colours here; every
    word around the sign reads the page's own tokens in both themes. */
@@ -265,10 +265,13 @@ html[data-theme="dark"] .pubSign__edge {
 /* In a photo's frame (the venue sheet header, a thumbnail). */
 .pubSign--compact {
   display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
   justify-items: center;
   gap: var(--space-1);
   width: 100%;
   height: 100%;
+  min-width: 0;
+  min-height: 0;
 }
 
 .pubSign--compact .pubSign__stage {
@@ -276,10 +279,12 @@ html[data-theme="dark"] .pubSign__edge {
   place-items: center;
   height: 100%;
   min-height: 0;
+  cursor: default;
 }
 
 .pubSign--compact .pubSign__art {
   height: 100%;
+  min-height: 0;
   max-height: 168px;
 }
 
@@ -287,6 +292,9 @@ html[data-theme="dark"] .pubSign__edge {
   color: var(--color-text-muted);
   font-size: var(--text-2xs);
   font-weight: 600;
+  line-height: var(--leading-snug);
+  text-align: center;
+  overflow-wrap: anywhere;
 }
 
 .venueImage--sign {
@@ -297,6 +305,10 @@ html[data-theme="dark"] .pubSign__edge {
 
 .venueImage--header.venueImage--sign {
   padding: var(--space-1) 0 var(--space-2);
+}
+
+.venueImage--header .pubSign--compact .pubSign__art {
+  max-height: 80px;
 }
 
 @media (prefers-reduced-motion: reduce) {

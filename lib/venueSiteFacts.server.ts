@@ -4,7 +4,6 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { venueSiteFactsFromRow, type VenueSiteFacts } from "@/lib/venueSiteFacts";
-import { VENUE_SITE_FACTS_TRACING_INCLUDE } from "@/lib/venueSiteFactsFile.mjs";
 
 let cachedByVenueId: Promise<ReadonlyMap<string, VenueSiteFacts>> | undefined;
 
@@ -12,7 +11,7 @@ async function readByVenueId(): Promise<ReadonlyMap<string, VenueSiteFacts>> {
   const byVenueId = new Map<string, VenueSiteFacts>();
   const conflicted = new Set<string>();
   try {
-    const file = JSON.parse(await readFile(path.join(process.cwd(), VENUE_SITE_FACTS_TRACING_INCLUDE), "utf8"));
+    const file = JSON.parse(await readFile(path.join(process.cwd(), "data/amenities/london_pub_website_hours_dogs.json"), "utf8"));
     if (file.version !== 1 || !Array.isArray(file.rows)) return byVenueId;
     for (const row of file.rows) {
       const venueId = (row as { venueId?: unknown } | null)?.venueId;

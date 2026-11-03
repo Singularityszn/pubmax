@@ -465,6 +465,8 @@ describe("venues_slim.json", () => {
               ![
                 "zone",
                 "priceSource",
+                "cheapestPint",
+                "measure",
                 // The day the cheapest figure was last read (lib/priceReadDay.mjs).
                 "priceObservedAt",
                 "kind",

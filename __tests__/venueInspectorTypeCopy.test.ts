@@ -49,31 +49,49 @@ function venue(kind: Venue["kind"]): Venue {
   };
 }
 
+function headerMarkup(value: Venue): string {
+  return renderToStaticMarkup(
+    createElement(VenueInspectorHeader, {
+      venue: value,
+      TABS: [],
+      tab: "overview",
+      tabRefs: {
+        current: {
+          overview: null,
+          photos: null,
+          pints: null,
+          menu: null,
+          story: null,
+        },
+      },
+      selectTab: () => {},
+      onTabKeyDown: () => {},
+    }),
+  );
+}
+
 describe("shared inspector venue copy", () => {
   it("gives late-food photos a kind-honest accessible name", () => {
-    const html = renderToStaticMarkup(
-      createElement(VenueInspectorHeader, {
-        venue: venue("food"),
-        TABS: [],
-        tab: "overview",
-        tabRefs: {
-          current: {
-            overview: null,
-            photos: null,
-            pints: null,
-            menu: null,
-            story: null,
-          },
-        },
-        selectTab: () => {},
-        onTabKeyDown: () => {},
-      }),
-    );
+    const html = headerMarkup({
+      ...venue("food"),
+      imageUrl: "https://fixture-venue.example/exterior.jpg",
+    });
 
     expect(html).toContain(
-      'aria-label="Fixture Venue exterior or late-food venue interior photo"',
+      'alt="Fixture Venue exterior or late-food venue interior photo"',
     );
+    expect(html).toContain("Photo: pub website");
     expect(html).not.toContain("bar photo");
+  });
+
+  it("names the real venue without claiming a photo or photo credit when none is available", () => {
+    const html = headerMarkup(venue("food"));
+
+    expect(html).toContain('aria-label="No photo available for Fixture Venue"');
+    expect(html).toContain("No photo yet");
+    expect(html).not.toContain("interior photo");
+    expect(html).not.toContain("Photo:");
+    expect(html).not.toContain("venueImage__provenance");
   });
 
   it("gives late-food Ask actions kind-honest accessible copy", () => {

@@ -17,7 +17,8 @@ import { loadPalEvalVenueIndex } from "@/evals/pal/venueIndex";
  * `__tests__/fixtures/aimock/ask-model-loop.json`, `OPENROUTER_BASE_URL` points
  * the loop at it, and every case runs through `runAsk` with the real tool
  * handlers. Every other host stays on the Pal eval's offline stub, and the Pal
- * eval's pinned `now` keeps the tools on an evening the fixtures cover.
+ * eval's pinned `now` keeps event tools on an evening the fixtures cover.
+ * The pint-card case uses a later instant, after the published price observations.
  */
 
 type SentMessage = { role: string; content: string | null; tool_call_id?: string };
@@ -71,7 +72,10 @@ beforeEach(() => {
 
 describe("runAsk against a mock OpenRouter", () => {
   it("runs a single allowlisted tool call and keeps its grounded cards", async () => {
-    const body = await ask("Cheapest pint in Camden tonight");
+    // The committed Camden price observations are dated 2 October 2026.
+    const body = await ask("Cheapest pint in Camden tonight", {
+      now: Date.parse("2026-10-02T18:00:00.000Z"),
+    });
 
     const requests = modelRequests();
     expect(requests.map((entry) => entry.response.status)).toEqual([200, 200]);
