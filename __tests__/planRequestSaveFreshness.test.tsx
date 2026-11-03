@@ -35,7 +35,7 @@ vi.mock("@/components/wanted/WantedPlanChips", () => ({ default: () => null }));
 vi.mock("@/components/plan/PlanRouteMiniMap", () => ({ default: () => null }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: () => undefined, trackMeaningfulCoreAction: () => undefined, laneSourceFromSearch: () => null }));
 import PlanComposer from "@/components/plan/PlanComposer";
-import { createPlanIntakeDraft, readPlanIntakeDraftWithMetadata, reopenPlanIntakeStep, skipRemainingPlanIntake, writePlanIntakeDraft } from "@/lib/planIntake";
+import { createPlanIntakeDraft, PLAN_INTAKE_STORAGE_KEY, readPlanIntakeDraftWithMetadata, reopenPlanIntakeStep, skipRemainingPlanIntake, writePlanIntakeDraft } from "@/lib/planIntake";
 import { readPlanDraftEnvelope, writePlanDraftEnvelope } from "@/lib/planDraft";
 import { PLAN_ROUTE_DRAFT_KEY, PLAN_ROUTE_DRAFT_V2_KEY } from "@/lib/planRouteDraft";
 import { inferNightContext } from "@/lib/nightPlanning";
@@ -163,7 +163,7 @@ function seedStaleRoute(wizard = false): void {
     stops: [{ key: 1, venueId: "venue-a", venueName: "Pub A" }],
   }, "manual", sessionStorage, T0);
   localStorage.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify({
-    savedAt: new Date(T0).toISOString(), stops: GENERATED.stops,
+    savedAt: new Date(T0).toISOString(), stops: GENERATED.stops.map((stop, index) => ({ key: index + 1, ...stop, alternatives: [] })),
     nightContext: GENERATED.inferredContext, routeNight: null, routeRevision: 1,
     routeStale: true, groundingProof: "old-proof", createOperationKey: "old-operation", planAnchor: null,
   }));
@@ -203,6 +203,107 @@ async function saveRoute(): Promise<Record<string, unknown>> {
 }
 
 describe("request save age with an unchanged stale route", () => {
+  it.each([false, true].flatMap((localBlocked) => [false, true].map((legacy) => ({ localBlocked, legacy }))))("preserves missing-intake count across reloads, blocked: $localBlocked, legacy: $legacy", async ({ localBlocked, legacy }) => {
+    const advance = pinClock();
+    seedStaleRoute();
+    localStorage.removeItem(PLAN_INTAKE_STORAGE_KEY);
+    const draft = readPlanDraftEnvelope(sessionStorage)!.draft;
+    writePlanDraftEnvelope({ ...draft, requestedStopCount: 5 }, "manual", sessionStorage, T0);
+    if (legacy) {
+      const undated = JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!);
+      delete undated.savedAt;
+      localStorage.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify(undated));
+    }
+    const session = blockStorageWrites("sessionStorage");
+    const local = localBlocked ? blockStorageWrites("localStorage") : localStorage;
+    const route = local.getItem(PLAN_ROUTE_DRAFT_KEY);
+    advance(1000);
+    await mountComposer();
+    advance(2000);
+    await remountComposer();
+    advance(3000);
+    await remountComposer();
+    await openTune();
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("5");
+    expect(local.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(route);
+    expect(readPlanDraftEnvelope(session)?.draft.requestedStopCount).toBe(5);
+    if (localBlocked) {
+      expect(readPlanIntakeDraftWithMetadata(local)).toBeNull();
+      expect(document.body.textContent).toContain("Your changes could not be saved on this device");
+    } else {
+      expect(readPlanIntakeDraftWithMetadata(local)).toMatchObject({
+        savedAt: "2026-11-03T12:00:00.000Z", draft: { answers: { stopCount: 5 } },
+      });
+    }
+    await editInput("#plan-concierge-query", "Clapham tonight");
+    await sortAgainFromTune();
+    const generation = fetchMock.mock.calls.find(([input]) => String(input).includes("/api/plans/generate"))!;
+    expect(JSON.parse(String(generation[1]?.body))).toMatchObject({ intake: { stopCount: 5 }, context: { stopCount: 5 } });
+  });
+
+  it("does not overwrite a newer competing route during a request-only edit", async () => {
+    const advance = pinClock();
+    seedStaleRoute();
+    await mountComposer();
+    advance(1000);
+    const competing = {
+      ...JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!),
+      savedAt: "2026-11-03T12:00:01.000Z", groundingProof: "competing-proof", createOperationKey: "competing-operation",
+      nightContext: { ...GENERATED.inferredContext, nightArea: "soho" },
+    };
+    localStorage.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify(competing));
+    advance(2000);
+    await editInput("#plan-title", "Our night");
+    expect(JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!)).toEqual(competing);
+    expect(readPlanDraftEnvelope(sessionStorage)).toMatchObject({
+      savedAt: "2026-11-03T12:00:02.000Z", draft: { title: "Our night" },
+    });
+  });
+
+  it("does not overwrite a newer route saved between recovery and the first copy", async () => {
+    const advance = pinClock();
+    seedStaleRoute();
+    const local = localStorage;
+    const competing = JSON.stringify({
+      ...JSON.parse(local.getItem(PLAN_ROUTE_DRAFT_KEY)!),
+      savedAt: "2026-11-03T12:00:01.000Z", groundingProof: "competing-proof", createOperationKey: "competing-operation",
+    });
+    let reads = 0;
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => {
+        if (key === PLAN_ROUTE_DRAFT_KEY && ++reads === 2) local.setItem(key, competing);
+        return local.getItem(key);
+      },
+      setItem: local.setItem.bind(local), removeItem: local.removeItem.bind(local),
+      clear: local.clear.bind(local), key: local.key.bind(local), get length() { return local.length; },
+    } satisfies Storage);
+    advance(2000);
+    await mountComposer();
+    expect(local.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(competing);
+    expect(document.body.textContent).toContain("route details, checks and starting pub could not be saved");
+  });
+
+  it("keeps generated proof and route age while saving a later request edit", async () => {
+    const advance = pinClock();
+    seedStaleRoute();
+    await mountComposer();
+    await openTune();
+    await editInput("#plan-concierge-query", "Clapham tonight");
+    advance(1000);
+    await sortAgainFromTune();
+    const route = localStorage.getItem(PLAN_ROUTE_DRAFT_KEY);
+    expect(JSON.parse(route!)).toMatchObject({
+      savedAt: "2026-11-03T12:00:01.000Z", groundingProof: "new-proof", routeStale: false,
+    });
+    advance(2000);
+    await editInput("#plan-title", "Our night");
+    expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(route);
+    expect(readPlanDraftEnvelope(sessionStorage)).toMatchObject({
+      savedAt: "2026-11-03T12:00:02.000Z", draft: { title: "Our night" },
+    });
+    expect(await saveRoute()).toMatchObject({ title: "Our night", groundingProof: "new-proof" });
+  });
+
   it("restores the latest session start time after an earlier local-only exact-time edit", async () => {
     const advance = pinClock();
     seedStaleRoute();
@@ -238,10 +339,10 @@ describe("request save age with an unchanged stale route", () => {
     { field: "description", selector: "#plan-concierge-query", value: "Clapham tonight", stored: "conciergeQuery" },
     { field: "title", selector: "#plan-title", value: "Our night", stored: "title" },
     { field: "creator", selector: "#plan-name", value: "Alex", stored: "creatorName" },
-  ])("dates a $field edit without redating the route", async ({ selector, value, stored }) => {
+  ].flatMap((testCase) => [false, true].map((routeBlocked) => ({ ...testCase, routeBlocked }))))("dates a $field edit without redating the route, blocked: $routeBlocked", async ({ selector, value, stored, routeBlocked }) => {
     const advance = pinClock();
     seedStaleRoute();
-    const local = rejectRouteWrites([PLAN_ROUTE_DRAFT_KEY, PLAN_ROUTE_DRAFT_V2_KEY]);
+    const local = routeBlocked ? rejectRouteWrites([PLAN_ROUTE_DRAFT_KEY, PLAN_ROUTE_DRAFT_V2_KEY]) : localStorage;
     const route = local.getItem(PLAN_ROUTE_DRAFT_KEY);
     await mountComposer();
     if (selector === "#plan-concierge-query") await openTune();
