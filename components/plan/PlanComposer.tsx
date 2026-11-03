@@ -749,10 +749,10 @@ export function applyPlanStopCount(
   stopCount: PlanStopCount,
 ): { draft: PlanIntakeDraft; context: NightContext | null } {
   return {
-    draft: normalizePlanStopCount(draft.answers.stopCount) === stopCount
+    draft: draft.answers.stopCount === stopCount
       ? draft
       : { ...draft, answers: { ...draft.answers, stopCount } },
-    context: !context || normalizePlanStopCount(context.stopCount) === stopCount
+    context: !context || context.stopCount === stopCount
       ? context
       : { ...context, stopCount },
   };
@@ -2189,9 +2189,9 @@ function PlanComposerForm({
       setRouteStale(true);
       setRouteStatus("Route needs refreshing after that context change.");
     }
-    const reconciled = next.stopCount === undefined
+    const reconciled = patch.stopCount === undefined
       ? { draft: planIntake, context: next }
-      : applyPlanStopCount(planIntake, next, next.stopCount);
+      : applyPlanStopCount(planIntake, next, patch.stopCount);
     setNightContext(reconciled.context);
     setPlanIntake(reconciled.draft);
     setExplicitNightContext((current) => ({ ...current, ...patch }));
