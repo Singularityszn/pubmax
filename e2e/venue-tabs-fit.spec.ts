@@ -148,14 +148,14 @@ test("phone 390 at 200% text: the tab strip wraps with every label whole inside 
   }
 });
 
-// A PUB WITH NO PHOTO GETS A ROW, NOT A BOX (site audit 13 Sep 2026, D10): the
-// 16:9 frame drew a 220px "No photo yet" panel, the largest thing on the sheet.
+// Named photo fallbacks now draw a sign in a short reserved frame. The old
+// placeholder was one line. The price and the five tabs must remain usable.
 // The Sir Christopher Hatton has no photo.
 for (const viewport of [
   { width: 390, height: 844, scope: PORTAL },
   { width: 1440, height: 900, scope: ".venueInspector" },
 ] as const) {
-  test(`${viewport.width}: the empty header photo is one line`, async ({ page }) => {
+  test(`${viewport.width}: the illustrated header is short and the tabs remain usable`, async ({ page }) => {
     test.slow();
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await preparePage(page);
@@ -166,13 +166,53 @@ for (const viewport of [
       .filter({ visible: true })
       .first();
     await expect(photo).toBeVisible({ timeout: 30_000 });
+    await expect(photo.getByRole("img", { name: /Illustrated sign for The Sir Christopher Hatton/ })).toBeVisible();
+    await expect(photo.locator(".venueImage__provenance")).toHaveCount(0);
+    await expect(photo.locator(".pubSign__plaque, .pubSign__since")).toHaveCount(0);
     const box = await photo.evaluate((element) => {
       const rect = element.getBoundingClientRect();
-      const column = (element.parentElement as HTMLElement).getBoundingClientRect();
-      return { width: rect.width, height: rect.height, columnWidth: column.width };
+      const column = element.parentElement as HTMLElement;
+      const style = getComputedStyle(column);
+      return {
+        width: rect.width,
+        height: rect.height,
+        columnWidth: column.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight),
+        scrollWidth: element.scrollWidth,
+        clientWidth: element.clientWidth,
+      };
     });
-    expect(box.height).toBeGreaterThan(16);
-    expect(box.height).toBeLessThan(40);
-    expect(box.width).toBeGreaterThan(box.columnWidth / 2);
+    expect(box.height).toBeCloseTo(112, 0);
+    expect(Math.abs(box.width - box.columnWidth)).toBeLessThanOrEqual(2);
+    expect(box.scrollWidth).toBeLessThanOrEqual(box.clientWidth + 1);
+
+    const photosTab = page.locator(`${viewport.scope} .venueTabs`).getByRole("tab", { name: "Photos", exact: true });
+    await photosTab.scrollIntoViewIfNeeded();
+    await photosTab.focus();
+    await expect(photosTab).toBeFocused();
+    await expect(async () => {
+      await photosTab.click();
+      await expect(photosTab).toHaveAttribute("aria-selected", "true", { timeout: 1_000 });
+    }).toPass({ timeout: 20_000 });
+  });
+
+  test(`${viewport.width}: a real photo retains its existing frame`, async ({ page }) => {
+    test.slow();
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await preparePage(page);
+    // Keep the real pub's photo path, but serve local image bytes so this
+    // geometry check does not depend on the pub website answering.
+    await page.route("**/api/image-proxy?**", (route) => route.fulfill({
+      path: "public/landing/hero-thames-1024.jpg", contentType: "image/jpeg",
+    }));
+    await page.goto("/map?sel=venue-1eycmcw");
+    const photo = page.locator(`${viewport.scope} .venueBaselinePhoto:not(.venueImage--empty)`).filter({ visible: true }).first();
+    await expect(photo).toBeVisible({ timeout: 30_000 });
+    await expect.poll(() => photo.locator("img").evaluate((image) => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+    await expect(photo.locator(".pubSign")).toHaveCount(0);
+    await expect(photo.locator(".venueImage__provenance")).toHaveText("Photo: pub website");
+    const frame = await photo.boundingBox();
+    expect(frame).not.toBeNull();
+    if (viewport.width >= 1024) expect(frame!.height).toBeCloseTo(220, 0);
+    else expect(frame!.width / frame!.height).toBeCloseTo(16 / 9, 1);
   });
 }

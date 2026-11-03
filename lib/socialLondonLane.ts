@@ -15,7 +15,7 @@
 //   - WHICH photo tags ride a post: the consent store, read for nobody.
 //
 // What lives here is the area half of "London", the wire shape, the allow-list
-// projection onto it and every sentence the lane prints.
+// projection onto it and the shared feed notices.
 
 import { LONDON_NIGHT_AREA_SLUGS } from "@/lib/nightAreaSlugs";
 import type { SocialPostDTO } from "@/lib/socialPosts";

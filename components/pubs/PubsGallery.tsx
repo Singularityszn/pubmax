@@ -49,23 +49,18 @@ export function pubsCountLabel({
   return parts.join(" · ");
 }
 
-// The chain's own photograph of the pub, and nothing painted over it. The card
-// used to lay a drink glyph and a word ("Shots", "Whisky", "Alcohol-free") on
-// top, picked by hashing the venue id: decoration that read as a fact about
-// what the pub pours, so it is gone. So is the dark wash, and the "Photo: pub
-// website" pill that sat on the picture: the credit is a caption UNDER it
-// (taste plan, 18 Oct 2026). VenueImage still prints its own on-image label,
-// which pubsGallery.css hides here because this caption says the same thing;
-// a photo that fails to load shows VenueImage's own "No photo yet", and the
-// caption hides with it.
-function PubPhoto({ photoUrl }: { photoUrl: string }) {
+// The shared image tries the real photograph first, then illustrates the pub.
+// Only a photograph has a credit, which hides if that photograph fails.
+function PubPhoto({ pub }: { pub: ScrapedPub }) {
   return (
     <figure className="pubsCardFigure">
       <div className="pubsCardArt">
         <VenueImage
           className="pubsCardPhoto"
-          sources={[{ url: photoUrl, provenance: "chain" }]}
+          sources={[{ url: pub.photoUrl, provenance: "chain" }]}
           alt=""
+          venueName={pub.name}
+          venueArea={pub.borough}
           fill
           // One column at 420 and under, two up to 640, and a column of at
           // most 344px above that. Capped at 640: a 3x phone has no use for a
@@ -74,7 +69,7 @@ function PubPhoto({ photoUrl }: { photoUrl: string }) {
           maxWidth={640}
         />
       </div>
-      <figcaption className="pubsCardCredit">{VENUE_IMAGE_PROVENANCE_LABEL.chain}</figcaption>
+      {pub.photoUrl ? <figcaption className="pubsCardCredit">{VENUE_IMAGE_PROVENANCE_LABEL.chain}</figcaption> : null}
     </figure>
   );
 }
@@ -143,13 +138,9 @@ export default function PubsGallery({
             menuUrl: pub.menuUrl,
             areaHint: pub.borough,
           });
-          const hasPhoto = Boolean(pub.photoUrl);
-          const cardClassName = hasPhoto
-            ? "pubsCard"
-            : "pubsCard pubsCard--no-art";
           return (
-            <li key={pub.id} id={`pubsCard-${pub.id}`} className={cardClassName}>
-              {pub.photoUrl ? <PubPhoto photoUrl={pub.photoUrl} /> : null}
+            <li key={pub.id} id={`pubsCard-${pub.id}`} className="pubsCard">
+              <PubPhoto pub={pub} />
               <div className="pubsCardBody">
                 <h2 className="pubsCardName">{pub.name}</h2>
                 {/* One meta line in one style: chain, borough, fare zone. It
