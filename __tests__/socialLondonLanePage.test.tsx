@@ -49,6 +49,8 @@ vi.mock("@/app/social/SocialTagInbox", () => ({ default: () => null }));
 import SocialPageClient from "@/app/social/SocialPageClient";
 import { SOCIAL_SIGN_IN_HREF } from "@/components/social/SocialViewerState";
 import { SOCIAL_LONDON_LANE_COPY } from "@/lib/socialLondonLane";
+import type { SocialAlternatives } from "@/lib/socialAlternatives";
+import { namedRoutePath } from "@/lib/namedRoutes";
 
 const LANE_PAGE = {
   posts: [
@@ -83,6 +85,15 @@ const LANE_PAGE = {
 };
 
 const posts = { valid: true as const, tab: "posts" as const, feed: "following" as const, area: null };
+const ALTERNATIVES = {
+  crawls: [{ name: "Victorian Soho", href: namedRoutePath("victorian-soho"), stops: 5 }],
+  prices: [{
+    venueId: "venue-lamb", name: "The Lamb", href: "/map?sel=venue-lamb", drink: "House lager",
+    serving: "a pint", priceGbp: 5.5, publisher: { label: "The Lamb", url: "https://lamb.example/menu" },
+    observedOn: "2026-10-30",
+  }],
+  priceRead: "ready",
+} as const;
 let host: HTMLDivElement;
 let root: Root;
 let laneRequests: Array<{ url: string; init: RequestInit | undefined }>;
@@ -123,7 +134,7 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-async function renderSocial(londonLaneOpen: boolean): Promise<void> {
+async function renderSocial(londonLaneOpen: boolean, publicAlternatives?: SocialAlternatives): Promise<void> {
   await act(async () => {
     root.render(createElement(SocialPageClient, {
       initialState: posts,
@@ -131,6 +142,7 @@ async function renderSocial(londonLaneOpen: boolean): Promise<void> {
       londonLaneOpen,
       rivalry: [],
       heritageCrawls: [],
+      publicAlternatives,
     }));
   });
   // Let the lane's read settle.
@@ -140,6 +152,63 @@ async function renderSocial(londonLaneOpen: boolean): Promise<void> {
 }
 
 describe("/social signed out, London lane open", () => {
+  it("puts real crawls, dated prices and a plan action before the empty lane's sign-in offer", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ posts: [], nextCursor: null })));
+    await renderSocial(true, ALTERNATIVES);
+    const offer = host.querySelector(".socialEmptySignIn a");
+    expect(offer?.getAttribute("href")).toBe(SOCIAL_SIGN_IN_HREF);
+    for (const href of ["/routes/victorian-soho", "/map?sel=venue-lamb", "/plan"]) {
+      const choice = host.querySelector(`a[href='${href}']`);
+      expect(choice, href).not.toBeNull();
+      expect(choice!.compareDocumentPosition(offer!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    }
+    expect(host.textContent).toContain("Latest prices we hold");
+    expect(host.textContent).toContain("a pint");
+    expect(host.querySelector("a[href='https://lamb.example/menu']")?.textContent).toBe("The Lamb");
+    expect(host.querySelector("time[dateTime='2026-10-30']")).not.toBeNull();
+    expect(host.querySelector("[data-primary-action] a")?.textContent).toBe("Plan a night");
+  });
+
+  it("keeps the loading sign-in link in place while it holds focus", async () => {
+    let answer!: (response: Response) => void;
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>((resolve) => { answer = resolve; })));
+    await renderSocial(true, ALTERNATIVES);
+    const original = host.querySelector<HTMLAnchorElement>("[data-primary-action] a")!;
+    expect(original.textContent).toBe("Sign in");
+    expect(host.querySelector(".socialLondonEmpty")).toBeNull();
+    await act(async () => { original.focus(); });
+    await act(async () => {
+      answer(Response.json({ posts: [], nextCursor: null }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(document.activeElement).toBe(original);
+    expect(original.getAttribute("href")).toBe(SOCIAL_SIGN_IN_HREF);
+    expect(original.textContent).toBe("Sign in");
+    expect(host.querySelector(".socialEmptySignIn")).toBeNull();
+    await act(async () => { host.querySelector<HTMLAnchorElement>(".socialSwitcher a")!.focus(); });
+    expect(host.querySelector("[data-primary-action] a")?.textContent).toBe("Plan a night");
+    expect(host.querySelector(".socialEmptySignIn a")).not.toBeNull();
+  });
+
+  it.each(["ready", "unavailable"] as const)("keeps a real browse action when the price read is %s and has no eligible rows", async (priceRead) => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ posts: [], nextCursor: null })));
+    await renderSocial(true, { ...ALTERNATIVES, prices: [], priceRead });
+    const text = host.querySelector(".socialLondonEmpty")?.textContent ?? "";
+    expect(text).toContain(priceRead === "ready" ? "No dated menu prices to show here yet." : "We could not read the listed prices.");
+    expect(host.querySelector(".socialAlternativeBrowse")?.getAttribute("href")).toBe("/pubs");
+    expect(host.querySelector(".socialEmptySignIn a")).not.toBeNull();
+  });
+
+  it("does not call a page with a continuation cursor an empty London feed", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ posts: [], nextCursor: "next-page" })));
+    await renderSocial(true, ALTERNATIVES);
+    expect(host.querySelector(".socialLondonEmpty")).toBeNull();
+    expect(host.querySelector(".socialEmptySignIn")).toBeNull();
+    expect(host.querySelector("[data-primary-action] a")?.textContent).toBe("Sign in");
+    expect(host.querySelector(".socialLondonMore")).not.toBeNull();
+  });
+
+
   it("reads the lane with no credentials and renders its posts read-only", async () => {
     await renderSocial(true);
 

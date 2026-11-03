@@ -1,9 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import Link from "next/link";
 
 import SocialPostCard from "@/components/social/SocialPostCard";
 import EmptyState from "@/components/ui/empty-state";
+import { SOCIAL_SIGN_IN_HREF } from "@/components/social/SocialViewerState";
+import type { SocialAlternatives } from "@/lib/socialAlternatives";
 import { discardBody } from "@/lib/responseBody";
 import {
   parseSocialLondonLanePage,
@@ -12,6 +15,7 @@ import {
   type SocialLondonLanePage,
   type SocialLondonLanePost,
 } from "@/lib/socialLondonLane";
+import SocialLondonEmpty from "./SocialLondonEmpty";
 
 type LoadState = "loading" | "ready" | "error";
 
@@ -64,10 +68,18 @@ function keepFocusBelowInView(lane: HTMLElement | null): void {
  * THE LONDON LANE, AS A STRANGER READS IT (captain decision 7, 1 Nov 2026).
  *
  * Read-only: each card prints one quiet way to sign in where a reader's cheer
- * and comment row sits, and the page's one filled action stays the Screen's
- * door above. Nothing here posts, cheers, comments, saves or follows.
+ * and comment row sits. A confirmed empty lane offers public alternatives
+ * before a quiet sign-in offer. Nothing here writes Social data.
  */
-export default function SocialLondonLane() {
+export default function SocialLondonLane({
+  alternatives,
+  onEmptyChange,
+  showSignInOffer = false,
+}: {
+  alternatives?: SocialAlternatives;
+  onEmptyChange?: (empty: boolean) => void;
+  showSignInOffer?: boolean;
+}) {
   const [status, setStatus] = useState<LoadState>("loading");
   const [posts, setPosts] = useState<SocialLondonLanePost[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -76,11 +88,18 @@ export default function SocialLondonLane() {
   const requestId = useRef(0);
   const moreController = useRef<AbortController | null>(null);
   const laneRef = useRef<HTMLElement | null>(null);
+  const confirmedEmpty = status === "ready" && posts.length === 0 && nextCursor === null;
+
+  useEffect(() => {
+    onEmptyChange?.(confirmedEmpty);
+  }, [confirmedEmpty, onEmptyChange]);
+
+  useEffect(() => () => onEmptyChange?.(false), [onEmptyChange]);
 
   // On mount (the lane replaced the slot) and on every change of its height.
   useLayoutEffect(() => {
     keepFocusBelowInView(laneRef.current);
-  }, [status, posts.length, nextCursor, loadingMore]);
+  }, [status, posts.length, nextCursor, loadingMore, showSignInOffer]);
 
   useEffect(() => {
     const id = ++requestId.current;
@@ -173,10 +192,16 @@ export default function SocialLondonLane() {
             }
           />
         </div>
-      ) : posts.length === 0 ? (
-        <div className="socialFeedEmpty" role="status">
-          <EmptyState title={COPY.emptyTitle}>{COPY.emptyLine}</EmptyState>
+      ) : confirmedEmpty ? (
+        <div className="socialFeedEmpty socialFeedEmpty--london">
+          <p className="socialLondonEmptyNotice" role="status">{COPY.emptyTitle}</p>
+          <SocialLondonEmpty alternatives={alternatives} />
+          {showSignInOffer ? <p className="socialEmptySignIn">
+            Want to share your own night? <Link prefetch={false} href={SOCIAL_SIGN_IN_HREF}>Sign in</Link>.
+          </p> : null}
         </div>
+      ) : posts.length === 0 ? (
+        <p className="socialLondonEmptyNotice">No posts on this page. You can read more London posts below.</p>
       ) : (
         <div className="socialPostList">
           {posts.map((post) => (
