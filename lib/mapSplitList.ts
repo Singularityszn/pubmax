@@ -13,7 +13,7 @@
 
 import type { VenueSignal } from "@/components/map/canvas/types";
 import { peekPriceAging } from "@/components/map/VenuePeekPintPrice";
-import { comparablePint } from "@/lib/comparablePint.mjs";
+import { comparablePint, pintObservationTime } from "@/lib/comparablePint.mjs";
 import { comparableLensPrice, comparableVenuePint } from "@/lib/comparableVenuePint";
 import { measureFromServingSize } from "@/lib/drinkMeasure";
 import { haversineKm } from "@/lib/haversine";
@@ -34,6 +34,7 @@ import { peekPriceChip } from "@/lib/pubMap";
 import { formatTrustDay } from "@/lib/trustPill";
 import type { UkBasePub } from "@/lib/ukBasePubs";
 import { isPubVenueKind, venueKindLabel } from "@/lib/venueKindFilters";
+import { anchorSourceLabel, compactVenueAnchor, type CompactVenueAnchor } from "@/lib/venueAnchorPresentation";
 import {
   venueBundlePrices,
   venuePriceLane,
@@ -56,11 +57,13 @@ export type MapSplitListSort = "cheapest" | "nearest";
 export const MAP_SPLIT_LIST_NO_PRICE = "No price on the map yet";
 
 export type MapSplitListPrice = {
+  /** The selected anchor details, when the row displays an anchor. */
+  anchor?: CompactVenueAnchor;
   /** The printed figure, or null when this reading holds none. */
   figure: string | null;
   /** The figure a band is read from, or null when the reading withholds a band. */
   bandGbp: number | null;
-  /** A figure somebody observed wears the price badge; an estimate stays plain. */
+  /** An observed non-anchor figure uses the price badge. Anchors and estimates stay plain. */
   observed: boolean;
   /** The trust wording, from the sheet's own reading. */
   caption: string;
@@ -157,19 +160,31 @@ function laneObservedAt(
   }
 }
 
+function anchorPresentation(venue: Venue, label: string): CompactVenueAnchor {
+  const observedAt = pintObservationTime(venue.anchorObservedAt);
+  const day = observedAt === null ? null : mapSplitListDay(observedAt);
+  return {
+    ...(compactVenueAnchor(venue) ?? {
+      label,
+      sourceLabel: anchorSourceLabel(venue.anchorSourceUrl) || "Publisher not recorded",
+      sourceUrl: venue.anchorSourceUrl ?? "",
+    }),
+    observedLabel: day && observedAt !== null
+      ? `read ${day} ${new Date(observedAt).getUTCFullYear()}`
+      : venue.anchorObservedAt ? "Read date unavailable" : "Read date not recorded",
+  };
+}
+
 /**
  * One curated venue's price, as the venue sheet would print it.
  *
- * The lane, the figure, the caption and the aging are the peek's own
- * (`renderVenuePeekSummary` in components/PubMap.tsx): the same drop signal,
- * the same bundle and sourced inputs, the same chip. Two things are added and
- * neither decides anything. The day the lane's own figure was read rides
- * beside the caption. And a baseline figure on a slim map pin, whose price rows
- * the map has not loaded, is worded by the dataset reading the pub list
- * already prints for exactly that evidence (`nearPriceTrustLabel`: the
- * publisher the slim index names and the day it read the row), because the
- * sheet's own caption would say "publisher not recorded" about a publisher the
- * index does record.
+ * The presentation contract is in
+ * docs/rules/components-sheets-chrome-and-navigation.md, under
+ * "FROM 1024PX THE LIST SITS BESIDE THE MAP, AND THE TWO MOVE TOGETHER".
+ *
+ * A slim pin can have a recorded publisher before its price rows load.
+ * Use nearPriceTrustLabel for that baseline so the sheet's fallback caption
+ * does not incorrectly report that the publisher is missing.
  */
 export function mapSplitListPrice(
   venue: Venue,
@@ -221,6 +236,7 @@ export function mapSplitListPrice(
   const slimBaseline =
     lane.lane === "baseline" && lane.publisher === null && venue.prices.length === 0;
   return {
+    ...(lane.lane === "anchor" ? { anchor: anchorPresentation(venue, lane.anchorLabel) } : {}),
     figure: chip.figure,
     bandGbp: chip.priceGbp,
     observed: chip.observed,

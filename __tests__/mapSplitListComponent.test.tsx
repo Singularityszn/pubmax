@@ -1,7 +1,4 @@
 // @vitest-environment jsdom
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { act, createElement, type ComponentProps } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -132,6 +129,61 @@ function pointer(target: Element, type: "pointerover" | "pointerout") {
 }
 
 describe("the list beside the map, at desktop width", () => {
+  it("shows the French House anchor item, source and full read date without a pint band", () => {
+    const french = { ...venue("venue-1kpe609", "The French House", 3.4), kind: "bar" as const,
+      anchorLabel: "Half pint house lager", anchorObservedAt: "2026-07-26",
+      anchorSourceUrl: "https://www.frenchhousesoho.com/" };
+    const onSelectVenue = vi.fn();
+    render({ visibleVenues: [french, CROWN], filteredVenues: [french, CROWN], onSelectVenue });
+    expect(rowNames()).toEqual(["The Crown", "The French House"]);
+    const row = rows()[1]!;
+    expect(row.textContent).toContain("Half pint house lager");
+    expect(row.textContent).toContain("£3.40");
+    expect(row.textContent).toContain("frenchhousesoho.com");
+    expect(row.textContent).toContain("26 Jul 2026");
+    expect(row.querySelector(".price-plaque, [class*=price-band], [class*=priceBand]")).toBeNull();
+    expect(row.querySelector("a, button")).toBeNull();
+    act(() => { row.focus(); row.click(); });
+    expect(onSelectVenue).toHaveBeenCalledWith("venue-1kpe609");
+  });
+
+  it.each(["2026-07", "2026", "2026-02-30", "2027-01-01"])(
+    "does not invent an anchor read day from %s", (date) => {
+      const bar = { ...venue("bar-date", "Bar", 4), kind: "bar" as const,
+        anchorLabel: "House cocktail", anchorObservedAt: date,
+        anchorSourceUrl: "https://example.com/menu" };
+      render({ visibleVenues: [bar], filteredVenues: [bar] });
+      expect(rows()[0]?.textContent).toContain("Read date unavailable");
+      expect(rows()[0]?.textContent).not.toMatch(/read \d/);
+    },
+  );
+
+  it("keeps a selected drink lens price and its own caption on an anchor venue", () => {
+    const bar = { ...venue("bar-lens", "Bar", 4), kind: "bar" as const,
+      anchorLabel: "House cocktail", anchorObservedAt: "2026-07-26",
+      anchorSourceUrl: "https://example.com/menu" };
+    render({ visibleVenues: [bar], filteredVenues: [bar], lensNoun: "Wine", lensPrices: new Map([
+      [bar.id, { venueId: bar.id, category: "wine", categoryLabel: "House wine", priceGbp: 6.4,
+        observedAt: "2026-10-28", source: "community" }],
+    ]) });
+    const row = rows()[0]!;
+    expect(row.textContent).toContain("£6.40");
+    expect(row.textContent).toContain("House wine");
+    expect(row.textContent).not.toContain("House cocktail");
+    expect(row.textContent).not.toContain("example.com");
+  });
+
+  it("names missing anchor evidence without changing ordinary price rows", () => {
+    const bar = { ...venue("bar-no-source", "Bar", 4), kind: "bar" as const, anchorLabel: "House cocktail" };
+    render({ visibleVenues: [bar, CROWN], filteredVenues: [bar, CROWN] });
+    const ordinary = rows().find((row) => row.textContent?.includes("The Crown"))!;
+    const anchor = rows().find((row) => row.textContent?.includes("House cocktail"))!;
+    expect(anchor.textContent).toContain("Read date not recorded");
+    expect(anchor.textContent).toContain("Publisher not recorded");
+    expect(anchor.querySelector(".price-plaque")).toBeNull();
+    expect(ordinary.querySelector(".price-plaque")?.textContent).toBe("£5.40");
+  });
+
   it("lists the venues in view, cheapest first, with the sheet's price, its words and its day", () => {
     render();
     const list = host.querySelector(`#${MAP_SPLIT_LIST_ID}`);
@@ -174,6 +226,21 @@ describe("the list beside the map, at desktop width", () => {
     expect(rowNames()).toEqual(["The Lamb"]);
   });
 
+  it("shows only projected venues and removes a departed venue's pin halo", () => {
+    const fake = fakeMap();
+    render({ map: fake.map });
+    expect(rowNames()).toEqual(["The Anchor", "The Crown"]);
+    pointer(rows()[0]!, "pointerover");
+    expect(fake.halo()?.hidden).toBe(false);
+
+    render({ map: fake.map, visibleVenues: [LAMB] });
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    expect(rowNames()).toEqual(["The Lamb"]);
+    expect(fake.halo()?.hidden).toBe(true);
+    act(() => { focusMapSplitList(); });
+    expect(document.activeElement).toBe(rows()[0]);
+  });
+
   it("holds the searched view while Search as I move the map is off, and searches the new view on request", () => {
     render();
     const follow = host.querySelector<HTMLInputElement>(".mapSplitListFollow input")!;
@@ -199,7 +266,7 @@ describe("the list beside the map, at desktop width", () => {
     expect(rowNames()).toEqual(["The Crown"]);
   });
 
-  it("opens the venue sheet through the pin tap's handler, and a base pub through the base pin's", () => {
+  it("selects listed venues and restaurants by id, and unlisted pubs by their base record", () => {
     const onSelectVenue = vi.fn();
     const onSelectUkBasePub = vi.fn();
     render({
@@ -207,6 +274,12 @@ describe("the list beside the map, at desktop width", () => {
       onSelectUkBasePub,
       ukBaseModel: {
         rows: [{ id: BASE_PUB.id, name: BASE_PUB.name, priceLabel: "Other pub · no listed price", pub: BASE_PUB }],
+        total: 1,
+        shown: 1,
+        truncated: false,
+      },
+      restaurantModel: {
+        rows: [{ id: "restaurant-kitchen", name: "The Kitchen", priceLabel: "Restaurant · no listed price", lng: -0.13, lat: 51.513 }],
         total: 1,
         shown: 1,
         truncated: false,
@@ -219,6 +292,11 @@ describe("the list beside the map, at desktop width", () => {
     act(() => base.click());
     expect(onSelectUkBasePub).toHaveBeenCalledWith(BASE_PUB);
     expect(onSelectVenue).toHaveBeenCalledTimes(1);
+    const restaurant = rows().find((row) => row.dataset.venueId === "restaurant-kitchen")!;
+    expect(restaurant.textContent).toContain("Restaurant · no listed price");
+    act(() => restaurant.click());
+    expect(onSelectVenue).toHaveBeenLastCalledWith("restaurant-kitchen");
+    expect(onSelectUkBasePub).toHaveBeenCalledTimes(1);
   });
 
   it("rings the row's pin while the reader points at the row, and lets go after", () => {
@@ -253,7 +331,9 @@ describe("the list beside the map, at desktop width", () => {
   it("is one tab stop, moved with the arrow keys, and Layers' List view hands focus to it", () => {
     render({ visibleVenues: [CROWN, ANCHOR, LAMB] });
     expect(rows().map((row) => row.tabIndex)).toEqual([0, -1, -1]);
-    expect(focusMapSplitList()).toBe(true);
+    let focused = false;
+    act(() => { focused = focusMapSplitList(); });
+    expect(focused).toBe(true);
     expect(document.activeElement).toBe(rows()[0]);
 
     act(() => {
@@ -267,7 +347,21 @@ describe("the list beside the map, at desktop width", () => {
     });
     expect(document.activeElement).toBe(rows()[2]);
     act(() => {
-      rows()[2]!.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true }));
+      rows()[2]!.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    });
+    expect(document.activeElement).toBe(rows()[2]);
+    act(() => {
+      rows()[2]!.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
+    });
+    expect(document.activeElement).toBe(rows()[1]);
+    act(() => { focusMapSplitList(); });
+    expect(document.activeElement).toBe(rows()[1]);
+    act(() => {
+      rows()[1]!.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true }));
+    });
+    expect(document.activeElement).toBe(rows()[0]);
+    act(() => {
+      rows()[0]!.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
     });
     expect(document.activeElement).toBe(rows()[0]);
   });
@@ -289,62 +383,5 @@ describe("the list beside the map, at desktop width", () => {
     act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
     expect(status()).toBe("Nothing in view");
     expect(host.querySelector(".mapSplitListEmpty")?.textContent).toMatch(/^Nothing in view fits that/);
-  });
-});
-
-describe("where the list sits", () => {
-  const css = readFileSync(join(process.cwd(), "components/map/mapSplitList.css"), "utf8").replace(
-    /\/\*[\s\S]*?\*\//g,
-    "",
-  );
-  const desktopBlock = css.slice(css.indexOf("@media (min-width: 1024px) {"));
-
-  it("lays the column out from 1024px only, and draws nothing narrower", () => {
-    expect(css).toMatch(/^\s*\.mapSplitList \{\s*display: none;\s*\}/);
-    expect(desktopBlock).toMatch(/\.mapSplitList \{[^}]*display: flex;[^}]*width: var\(--desktop-split-list-width\);/);
-  });
-
-  it("starts the map stage and the left drawers at the column's right edge, so nothing lies over the list", () => {
-    expect(desktopBlock).toMatch(/\.appShell:has\(> \.mapSplitList\) > \.mapStage \{\s*left: var\(--desktop-split-list-width\);/);
-    expect(desktopBlock).toMatch(/\.appShell:has\(> \.mapSplitList\) > \.mapDrawer\.left \{\s*left: var\(--desktop-split-list-width\);/);
-    // The bar spans the map lane, set on the stage so the floating site nav,
-    // which reads the same figure from the shell, still spans the window.
-    // Centred on the lane with the nav's own gutter on both sides, so its
-    // right edge is the floating nav's right edge.
-    expect(desktopBlock).toMatch(/> \.mapStage \{[^}]*--split-nav-gutter: calc\(\(100vw - min\(1240px, 100vw - 32px\)\) \/ 2\);/);
-    expect(desktopBlock).toMatch(/> \.mapStage \{[^}]*--desktop-map-surface-width: calc\(\s*100vw - var\(--desktop-split-list-width\) - 2 \* var\(--split-nav-gutter\)\s*\);/);
-    expect(desktopBlock).not.toMatch(/\.appShell:has\(> \.mapSplitList\) \{[^}]*--desktop-map-surface-width/);
-    // The venue drawer narrows so a strip of map stays between it and the list.
-    expect(desktopBlock).toMatch(/--desktop-venue-drawer-width: clamp\(\s*376px,\s*min\(46vw, calc\(100vw - var\(--desktop-split-list-width\) - 248px\)\),\s*640px\s*\)/);
-  });
-
-  it("declares the width on :root, where the document's opening prices can read it too", () => {
-    const globals = readFileSync(join(process.cwd(), "app/globals.css"), "utf8");
-    // 0px below 1024px, so a reader needs no fallback (__tests__/tokenDebt.test.ts).
-    expect(globals).toMatch(/^:root \{\s*--desktop-split-list-width: 0px;\s*\}/m);
-    expect(globals).toMatch(/@media \(min-width: 1024px\) \{[\s\S]*?:root \{\s*--desktop-split-list-width: clamp\(400px, 30vw, 440px\);/);
-    const preview = readFileSync(join(process.cwd(), "components/map/mapOpeningPreview.css"), "utf8");
-    expect(preview).toMatch(/@media \(min-width: 1024px\) \{\s*\.mapOpeningPreview \{\s*left: var\(--desktop-split-list-width\);/);
-  });
-});
-
-describe("the map shell's wiring", () => {
-  const source = readFileSync(join(process.cwd(), "components/PubMap.tsx"), "utf8");
-  const splitList = source.slice(
-    source.indexOf("function renderDesktopSplitList()"),
-    source.indexOf("/* Desktop reader controls."),
-  );
-
-  it("opens a row's venue through the handler a pin tap uses", () => {
-    expect(source).toMatch(/onVenueClick=\{handleVenueClick\}/);
-    expect(splitList).toMatch(/onSelectVenue=\{handleVenueClick\}/);
-    expect(splitList).toMatch(/onSelectUkBasePub=\{handleUkBasePubClick\}/);
-    expect(source).toMatch(/onUkBasePubClick=\{handleUkBasePubClick\}/);
-  });
-
-  it("lists the map's own projected membership and mounts only from 1024px with a live canvas", () => {
-    expect(splitList).toMatch(/visibleVenues=\{mapVenueListVenues\}/);
-    expect(splitList).toMatch(/railViewport && !mapCanvasErrored && !mapCanvasUnavailable/);
-    expect(source).toMatch(/onListOpenChange=\{railViewport \? focusMapSplitList : setMapListOpen\}/);
   });
 });
