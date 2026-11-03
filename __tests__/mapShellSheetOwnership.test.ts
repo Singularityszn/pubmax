@@ -111,6 +111,26 @@ function mount(overrides: Record<string, unknown> = {}) {
   return props;
 }
 
+it("shows the Near me failure outside map controls and opens the area picker", () => {
+  // Oracle: a location failure must not add a row inside the map controls.
+  // This rejects a nested alert and a recovery button that does not open Area.
+  const props = mount({
+    overlay: null,
+    nearMeStatus: "error",
+    nearMeError: "Location access was denied. Pick an area or allow location in your browser settings.",
+  });
+  const alert = container.querySelector('[role="alert"]')!;
+  const controls = container.querySelector('[aria-label="Map controls"]')!;
+  expect(alert).not.toBeNull();
+  expect(controls).not.toBeNull();
+  expect(controls.contains(alert)).toBe(false);
+  expect(alert.textContent).toContain("Location access was denied.");
+  const area = [...alert.querySelectorAll("button")].find(button => button.textContent === "Pick an area")!;
+  act(() => area.click());
+  expect(props.onDismissNearMeError).toHaveBeenCalledOnce();
+  expect(props.onOverlayChange).toHaveBeenCalledWith("choose-area");
+});
+
 function pressEscape(): KeyboardEvent {
   const event = new KeyboardEvent("keydown", {
     key: "Escape",

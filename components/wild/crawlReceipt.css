@@ -252,8 +252,7 @@
   text-align: right;
 }
 
-.crawlReceipt__listedDate,
-.crawlReceipt__printedTime {
+.crawlReceipt__listedDate {
   white-space: nowrap;
 }
 

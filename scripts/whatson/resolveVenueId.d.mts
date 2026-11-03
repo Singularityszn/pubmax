@@ -44,8 +44,6 @@ export declare function resolveVenueId(
   index: VenueResolverIndex | null | undefined,
 ): string | null;
 
-export declare function loadCanonicalVenueIndex(datasetPath?: string): VenueResolverIndex;
-
 export declare function haversineMeters(
   aLat: number,
   aLng: number,

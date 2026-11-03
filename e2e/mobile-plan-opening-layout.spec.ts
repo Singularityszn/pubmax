@@ -13,6 +13,33 @@ async function prepareBlankPlan(page: Page): Promise<void> {
   });
 }
 
+test("a new phone plan starts with the description before pub-list import", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await prepareBlankPlan(page);
+  await page.goto("/plan");
+
+  const description = page.getByRole("textbox", { name: "Where, how many, what budget" });
+  const submit = page.getByRole("button", { name: "Plan it", exact: true });
+  const importDoor = page.getByRole("button", { name: "Import a pub list", exact: true });
+  await expect(description).toBeVisible();
+  await expect(submit).toBeInViewport();
+  const descriptionBox = await description.boundingBox();
+  const submitBox = await submit.boundingBox();
+  const importBox = await importDoor.boundingBox();
+  expect(descriptionBox).not.toBeNull();
+  expect(submitBox).not.toBeNull();
+  expect(importBox).not.toBeNull();
+  expect(importBox!.y).toBeGreaterThan(submitBox!.y + submitBox!.height);
+  expect(descriptionBox!.y + descriptionBox!.height).toBeLessThan(844);
+
+  await expect(async () => {
+    await importDoor.click();
+    await expect(page.getByRole("dialog", { name: "Import a pub list" })).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 20_000 });
+  await page.getByRole("button", { name: "Close Import a pub list", exact: true }).click();
+  await expect(importDoor).toBeFocused();
+});
+
 for (const viewport of MOBILE_VIEWPORTS) {
   test(`Plan opening screen clears fixed navigation at ${viewport.width}px`, async ({
     page,

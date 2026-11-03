@@ -135,17 +135,4 @@ describe("the phone shows the near me failure", () => {
     expect(text, "a reason is never truncated").not.toMatch(/text-overflow:\s*ellipsis/);
   });
 
-  it("stays out of the chrome grid, which the phone keeps at one bar", () => {
-    // The chrome is ONE bar (design judgement 2026-08-01, finding 2.3), so a
-    // row added inside it would put the reader back in front of a stack.
-    const start = mobileShell.lastIndexOf('<div className="mobileMapChrome"');
-    const end = mobileShell.indexOf("\n      </div>", start);
-    expect(start, "the map chrome container").toBeGreaterThan(-1);
-    expect(end, "its closing tag").toBeGreaterThan(start);
-    const chrome = mobileShell.slice(start, end);
-    expect(chrome, "the chrome still holds the top bar").toContain("mobileMapTopbar");
-    expect(chrome, "the alert is a sibling, not a second row").not.toContain(
-      "mobileMapNearMeAlert",
-    );
-  });
 });

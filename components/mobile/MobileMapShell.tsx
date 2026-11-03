@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useLayoutEffect, useRef } from "react";
 import { Ellipsis, GlassWater, LocateFixed, LocateOff, Route, Search, SlidersHorizontal, TrainFront, X } from "lucide-react";
 
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
@@ -16,6 +17,8 @@ import { DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 
 import MapPeekSheet from "./MapPeekSheet";
 import PalHopGate from "@/components/wild/PalHopGate";
+import { MobileWildNightPreviewGate } from "@/components/wild/WildNightPreviewGate";
+import { useWildMode } from "@/lib/useWildMode";
 
 import "./mobileMapShell.css";
 
@@ -245,6 +248,16 @@ function MapFoot({
   return doorVisible ? <>{door}</> : null;
 }
 
+/** The map foot yields to surfaces that occupy its lane. */
+function planDoorIsVisible(
+  overlay: MapOverlay,
+  planOpen: boolean,
+  venueListOpen: boolean,
+  bandNoticeOpen: boolean,
+): boolean {
+  return overlay === "none" && !planOpen && !venueListOpen && !bandNoticeOpen;
+}
+
 export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, limitedCoverage, overlay, onOverlayChange, backLabel, onBack, onHome, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tflCount, tflUrgentCount = 0, tflStatus, peek = null, onPeekOpenVenue, onPeekOpenList, priceLabel, drinkFiltersActive, drinkLaneLabel, drinkLaneSelected, experienceFilterLabel, priceCapActive, zoneActive, savedOnlyActive = false, openNowActive, lastOrdersActive, beerGardenActive, outdoorSeatingActive, planOpen, planActive, planStopCount, builtStopCount = 0, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchProps, searchContent, filtersContent, drinkContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent, chooseAreaContent, chooseAreaOpening = false, sheetsEnabled = true }: {
   cityId?: CityId;
   cityLabel: string;
@@ -342,6 +355,25 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
    */
   sheetsEnabled?: boolean;
 }) {
+  const chromeRef = useRef<HTMLDivElement>(null);
+  const wild = useWildMode();
+  useLayoutEffect(() => {
+    const chrome = chromeRef.current;
+    const shell = chrome?.closest<HTMLElement>(".appShell");
+    if (!wild || !sheetsEnabled || !chrome || !shell) return;
+    const property = "--wild-preview-map-chrome-h";
+    const sync = () => {
+      shell.style.setProperty(property, `${chrome.getBoundingClientRect().bottom - shell.getBoundingClientRect().top}px`);
+    };
+    sync();
+    const observer = new ResizeObserver(sync);
+    observer.observe(chrome);
+    return () => {
+      observer.disconnect();
+      shell.style.removeProperty(property);
+    };
+  }, [wild, sheetsEnabled, limitedCoverage]);
+
   // The glyph is half the claim. LocateFixed is this map's "you are here" mark
   // (the Near me chip wears it), so it may appear only when a granted location
   // sits inside the named area. Otherwise the chip wears the map itself.
@@ -352,6 +384,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
 
     return (
       <div
+        ref={chromeRef}
         className="mobileMapChrome"
         aria-label="Map controls"
       >
@@ -373,6 +406,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
             <Search size={20} />
           </IconButton>
         </header>
+        {sheetsEnabled ? <MobileWildNightPreviewGate /> : null}
         {overlay === "search" ? (
           <div className="mobileMapSearchRow">
             {searchProps ? (
@@ -408,7 +442,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
   const sheetKind = contextualSheetKind(overlay, sheetsEnabled, cityId);
   // The plan door and the bottom card it rides in stand down for everything
   // that takes the foot of the map: a sheet, the planner, List view, a story.
-  const planDoorVisible = overlay === "none" && !planOpen && !venueListOpen && !bandNoticeOpen;
+  const planDoorVisible = planDoorIsVisible(overlay, planOpen, venueListOpen, bandNoticeOpen);
   const planDoor = (
     <button
       type="button"
@@ -440,7 +474,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
 
   return (
     <>
-      <div className="mobileMapChrome"
+      <div ref={chromeRef} className="mobileMapChrome"
         aria-label="Map controls"
         data-plan-active={planPill.active ? "true" : undefined}
       >
@@ -476,6 +510,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
           </IconButton>
           <IconButton aria-label="More map controls" aria-expanded={overlay === "layers"} onClick={() => set("layers")}><Ellipsis size={20} /></IconButton>
         </header>
+        {sheetsEnabled ? <MobileWildNightPreviewGate /> : null}
 
         {overlay === "search" ? (
           <div className="mobileMapSearchRow">

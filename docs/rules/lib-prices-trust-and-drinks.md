@@ -120,6 +120,8 @@ A different row at the same price cannot supply missing evidence.
 Slim-only records use their flat evidence. The slim builder preserves refused serving text so readers can reject the same figure.
 
 A refused figure cannot rank. Its venue and ordinary price display remain available. Last Orders can retain hours without a qualifying price.
+Named routes also apply this policy to the selected pint in the stop list, Pint Line and receipt.
+A refused price leaves the stop in place and outside the selected-pint subtotal. See `__tests__/namedRouteServing.test.tsx`.
 Community corroboration, other drink-lens rules, area averages and medians, and the stronger cheapest hunt keep their existing contracts.
 Behaviour regressions cover these boundaries in `__tests__/comparablePintRankingBoundaries.test.ts` and `__tests__/comparablePintProducer.test.ts`.
 The separate source-read contract and its limits are documented beside `cheapestPriceReads` in `__tests__/helpers/cheapestPriceReadFence.ts`.

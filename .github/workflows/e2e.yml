@@ -276,6 +276,7 @@ jobs:
           e2e/desktop-map-chrome-fit.spec.ts
           e2e/desktop-map-rail.spec.ts
           e2e/desktop-sheet-chrome-fit.spec.ts
+          e2e/drink-chip-controls.spec.ts
           e2e/feedback.spec.ts
           e2e/first-run-chrome-share.spec.ts
           e2e/first-run-tour-placement.spec.ts

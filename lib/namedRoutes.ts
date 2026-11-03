@@ -14,8 +14,8 @@ import type { Route } from "next";
 
 import { curatedCrawlById, curatedCrawlMapHref, type CuratedCrawl } from "@/lib/curatedCrawls";
 import { haversineKm } from "@/lib/haversine";
-import { legacyCheapestPriceEvidence } from "@/lib/legacyPriceEvidence.mjs";
-import { cheapestPriceReadDay } from "@/lib/priceReadDay.mjs";
+import { legacyCheapestPriceEvidence, legacyCheapestPriceReadDay } from "@/lib/legacyPriceEvidence.mjs";
+import { comparablePint } from "@/lib/comparablePint.mjs";
 import { WALK_KMH } from "@/lib/routeLegs";
 import type { Venue } from "@/lib/venues";
 
@@ -82,12 +82,18 @@ function stopPint(venue: Venue): NamedRouteStop["pint"] {
   const price = venue.cheapestPrice;
   if (typeof price !== "number" || !Number.isFinite(price)) return null;
   const row = venue.prices.find((candidate) => candidate.price_gbp === price);
+  if (!row) return null;
   const evidence = legacyCheapestPriceEvidence(venue.prices, price);
+  if (comparablePint({
+    cheapestPrice: price,
+    ...evidence,
+    anchorLabel: venue.anchorLabel,
+  }) === null) return null;
   return {
     priceGbp: price,
-    drinkName: row?.pint_name?.trim() || venue.cheapestPint,
+    drinkName: row.pint_name?.trim() || "Pint",
     source: evidence.priceSource ?? null,
-    readDay: cheapestPriceReadDay(venue.prices, price),
+    readDay: legacyCheapestPriceReadDay(venue.prices, price),
   };
 }
 
