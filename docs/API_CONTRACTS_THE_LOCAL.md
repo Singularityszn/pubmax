@@ -229,9 +229,9 @@ export type NightArea = {
 };
 ```
 
-The catalogue supplies area geography, not evidence of a route review. No review evidence source is available, so every area remains unreviewed and its required checks remain unpassed. `isNightAreaRouteReady` fails closed, including for arbitrary references. `validateNightAreaCatalogue` checks unique slugs and aliases, coordinates, and anchor shape. An anchor list may be empty. Area readiness is a confidence label, not a Plan generation gate. A draft can still use canonical pub and price data. Check opening times and travel before departure.
+The catalogue supplies public area geography. It has no review evidence source. Every area remains unreviewed, with a zero coverage score, no review dates, and no passed required checks. Each check has an unknown observation and no evidence references. `nightAreaHasRouteReadyProof` and `isNightAreaRouteReady` return false, including for fixtures, arbitrary URLs, or renamed references. `validateNightAreaCatalogue` checks unique slugs and aliases, coordinates, and anchor shape. An anchor list may be empty. Named stations remain geographic candidates, without checked live journeys or last-service times.
 
-Area-and-brand price pages retain their review gate. Against the committed dataset at this change, the old catalogue admitted Clapham, Victoria and Canary Wharf. It published these eight pairs: `clapham/guinness`, `clapham/amstel`, `victoria/guinness`, `victoria/neck-oil`, `victoria/estrella`, `victoria/peroni`, `victoria/amstel` and `victoria/birra-moretti`. The unreviewed catalogue publishes no pairs. London-wide brand pages and area price pages use separate price floors.
+Area readiness describes confidence and does not gate Plan generation. A draft can still use canonical pub and price data under the [generation constraints](#3-post-apiplansgenerate--grounded-plan-generation). The [priced-landing contract](specs/governed-priced-landings/PRODUCT.md#which-pages-exist) owns publication rules.
 
 ---
 
@@ -302,6 +302,10 @@ type GeneratePlanResponse = {
 [The generation route](../app/api/plans/generate/route.ts) owns which inputs appear in `contextEffects` and under which conditions.
 
 Generation reports ranking inputs in `contextEffects`, per-stop grounding in `reason`, and inferred context in `explanations`. `missingContextEvidence` names constraints the engine could not ground.
+
+`planningConfidence.missingEvidence` also names area and operational gaps. Planning confidence, generated stops, anchor-only stops, and get-home options carry no `night_area_review` provenance without supported review evidence. Venue and signal provenance retain their own sources. An anchored result's top-level `routeReady` records its grounded-route lifecycle, separately from area confidence. It does not certify an area review.
+
+The [Plan result contract](rules/components-venue-plan-and-message-surfaces.md#the-plan-result-is-a-route-and-the-settings-sit-behind-it) owns the visible opening and travel notice and draft recovery behaviour.
 
 The response excerpt above omits price fields. [`buildPlanGenerationStops`](../lib/planGenerationDto.ts) owns their projection on ordinary stops and alternatives. [`planScoringDrinkCategory`](../lib/planGenerationRanking.ts) decides which selected category [`scoreVenueForPlan`](../lib/planGenerationRanking.ts) may rank on: any non-beer category without zero-proof, and only `soft-drink` with zero-proof. A non-beer value request uses corroborated community prices for that category. Its price reason names the category and amount. An explicit Soft drinks zero-proof request ranks only matching corroborated Soft drinks reports under every budget, with one price reason per stop. Other zero-proof requests keep the generic alcohol-free report and Venue Dataset amenity signals, and an alcoholic category gains no category ranking. `contextEffects` names `drinkCategory` when either category path applies. Ranking on a category price does not create selected-drink evidence or a budget total. Non-beer responses contain no pint estimate or pint evidence. Zero-proof requests also suppress pint output. Partial or degraded selected-category reads add a coverage warning.
 
@@ -549,7 +553,7 @@ The captain controls migration application. The [proof record](proof/v1-night-fe
 
 ## 6. `GET /api/night-areas` and `GET /api/night-areas/:slug`
 
-**Status: IMPLEMENTED LOCALLY.** Keyless read of the reviewed catalogue.
+**Status: IMPLEMENTED LOCALLY.** Keyless read of the [NightArea catalogue](#24-nightarea-catalogue).
 
 ### `GET /api/night-areas?city=<cityId>` (#252 shape)
 
@@ -570,7 +574,7 @@ type NightAreaDetailResponse = NightArea;
 ```
 - `404` if `slug` is not a known `NightAreaSlug` (`isNightAreaSlug`).
 
-Neither response serialises `routeReady`. It is derived state because it changes when the review window expires. Read `lastReviewedAt` and `reviewExpiresAt` from the cached body, then call `isNightAreaRouteReady(area, new Date())` at read time. That helper checks the evidence gate and review timestamps; do not cache or persist its boolean result.
+Neither response serialises `routeReady`. Call `isNightAreaRouteReady(area, new Date())` at read time rather than storing its result. The [catalogue contract](#24-nightarea-catalogue) owns the review policy.
 
 ### Rate limit
 

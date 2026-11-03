@@ -313,16 +313,10 @@ export function nightAreaForPoint(
 }
 
 /**
- * Whether an area may carry an INDEXED price page.
+ * Whether an area may carry an indexed brand-by-area price page.
  *
- * Keeps the gate version and completeness predicates from
- * `isNightAreaRouteReady` and drops only the review-expiry clauses
- * (`reviewExpiresAt` and the dated window). Route readiness governs PLANNING a
- * crawl: unchecked transport and opening hours must stop a route. A priced list
- * is not a route. It carries its own collection date, so letting a review
- * window lapse would 404 URLs already in the sitemap and deindex them, which is
- * a worse answer than a price list somebody last reviewed a while ago. The
- * renewal alarm lives in `__tests__/nightAreaReviewRenewal.test.ts`.
+ * The evidence decision is independent of the dated review window.
+ * See docs/specs/governed-priced-landings/TECH.md for the publication contract.
  */
 export function nightAreaPublishesPrices(area: NightArea): boolean {
   return nightAreaHasRouteReadyProof(area);
