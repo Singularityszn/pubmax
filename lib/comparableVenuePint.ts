@@ -10,6 +10,17 @@ export type ComparablePintVenue = Pick<Venue, "cheapestPrice"> & Partial<Pick<Ve
   | "cheapestPint" | "measure"
 >> & { prices?: readonly LegacyPriceEvidenceRow[]; sourcedPrice?: { sourceLabel: string; observedAt: string } | null };
 
+export function selectedVenuePintEvidence(venue: ComparablePintVenue) {
+  return venue.prices?.length
+    ? legacyCheapestPriceEvidence(venue.prices, venue.cheapestPrice)
+    : {
+        priceSource: venue.priceSource,
+        priceObservedAt: venue.priceObservedAt,
+        cheapestPint: venue.cheapestPint,
+        measure: venue.measure,
+      };
+}
+
 /** Other drink lenses retain their own serving and ranking rules. */
 export function comparableLensPrice(price: MapLensPrice, venue: Venue): number | null {
   if (price.category !== "beer") return price.priceGbp;
@@ -56,14 +67,9 @@ export function comparableVenuePint(
     priceSource: sourced.sourceLabel,
     priceObservedAt: sourced.observedAt,
   });
-  const evidence = venue.prices?.length ? legacyCheapestPriceEvidence(venue.prices, venue.cheapestPrice) : {};
-  const slimEvidence = venue.priceSource !== undefined || venue.priceObservedAt !== undefined;
   return comparablePint({
     cheapestPrice: venue.cheapestPrice,
-    priceSource: slimEvidence ? venue.priceSource : evidence.priceSource,
-    priceObservedAt: slimEvidence ? venue.priceObservedAt : evidence.priceObservedAt,
+    ...selectedVenuePintEvidence(venue),
     anchorLabel: venue.anchorLabel,
-    cheapestPint: evidence.cheapestPint ?? venue.cheapestPint,
-    measure: evidence.measure ?? venue.measure,
   });
 }
