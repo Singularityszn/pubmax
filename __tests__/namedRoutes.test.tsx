@@ -98,6 +98,42 @@ describe("named route pages", () => {
     expect(buildNamedRoute("victorian-soho", [{ ...sourced, prices: [{ ...sourced.prices[0]!, scraped_at_values: "2999-01-01T12:00:00Z" }] }])!.stops[0]?.pint).toBeNull();
   });
 
+  it.each([
+    { pint_name: "Lager", measure: "bottle" },
+    { pint_name: "Lager 330ml bottle" },
+    { pint_name: "Lager 330ml bottle", measure: "pint" },
+    { pint_name: "Lager", measure: "half" },
+  ])("refuses the selected non-pint row without borrowing a tied pint: $pint_name / $measure", (serving) => {
+    const id = curatedCrawlById("victorian-soho")!.venueIds[0]!;
+    const first = venue(id, -0.1, 51.5);
+    const template = dataset[0]!.prices[0]!;
+    const route = buildNamedRoute("victorian-soho", [{
+      ...first,
+      cheapestPrice: 5,
+      prices: [
+        { ...template, measure: undefined, ...serving, price_gbp: 5, pub_url: "https://bottle.example/menu", scraped_at_values: "2026-10-02" },
+        { ...template, pint_name: "House lager", measure: "pint", price_gbp: 5, pub_url: "https://pint.example/menu", scraped_at_values: "2026-10-03" },
+      ],
+    }])!;
+    expect(route.stops).toHaveLength(1);
+    expect(route.stops[0]).toMatchObject({ venueId: id, position: 1, pint: null });
+    expect(route.missingVenueIds).not.toContain(id);
+  });
+
+  it("keeps an explicit pint with its own publisher and full read day", () => {
+    const id = curatedCrawlById("victorian-soho")!.venueIds[0]!;
+    const template = dataset[0]!.prices[0]!;
+    const route = buildNamedRoute("victorian-soho", [{
+      ...venue(id, -0.1, 51.5),
+      cheapestPrice: 5,
+      prices: [
+        { ...template, pint_name: "House lager", measure: "pint", price_gbp: 5, pub_url: "https://pint.example/menu", scraped_at_values: "2026-10-02" },
+        { ...template, pint_name: "Other lager", measure: "bottle", price_gbp: 5, pub_url: "https://bottle.example/menu", scraped_at_values: "2026-10-03" },
+      ],
+    }])!;
+    expect(route.stops[0]?.pint).toEqual({ priceGbp: 5, drinkName: "House lager", source: "pint.example", readDay: "2026-10-02" });
+  });
+
   it("carry one canonical, the free and self-guided title, and no index for an unknown slug", async () => {
     const metadata = await generateMetadata({ params: Promise.resolve({ slug: "victorian-soho" }) });
     expect(metadata.title).toBe("Victorian Soho: a free, self-guided London pub crawl");
