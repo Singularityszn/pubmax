@@ -1,13 +1,18 @@
 # Deferred night previews, 3 November 2026
 
 Status: dated record. These previews did not meet the approved data contracts.
-No implementation was added for them in this record.
+This documentation-only branch adds no preview feature or placeholder.
+Under the approved rule, a missing data contract means recording the gap and
+shipping no feature or placeholder.
+
+This record extends the existing waves in [the PLG strategy](PLG_STRATEGY.md).
 
 The review used main `35cc1a7d786d3e71cdc0a942aa6b85ec89418d15` and draft plan
 [PR 2479](https://github.com/Singularityszn/pubmax/pull/2479) at head
 `36e52d22cbe2ca046ee9ff1b34cbb6d791157c70`. The Pub Tarot check used worktree
 head `d5b040559a14232eb253670ddfda2d34f1c65c59`, which includes A1
 `05e19cb24bf980987d54cf47024df39072db5182` and the two preview selector commits.
+The findings describe only those inspected heads.
 
 ## Missing contracts
 
@@ -36,21 +41,23 @@ head `d5b040559a14232eb253670ddfda2d34f1c65c59`, which includes A1
   estimates and does not have covered-path evidence. The rain claim needs a
   time-bounded forecast. A covered-path claim needs route coverage evidence.
 
-The existing browser preview selector is not an access control. A preview must
-still enforce the privacy boundary of every underlying read.
+At the probe head, the browser preview selector controlled visibility.
+It did not authorise data access. A preview must still enforce the privacy
+boundary of every underlying read.
 
-## Ideas outside this build
+## Deferred ideas
 
 - Price Heist needs a submission path built on Pint Drops and photo moderation.
-- Hold-a-Table waits for the venue rail in `docs/adr/0011-venue-operator-rail.md`.
+- Hold-a-Table waits for the [venue rail](../adr/0011-venue-operator-rail.md).
 - Night liner notes, Morning After Gazette, and fork and rejoin need privacy designs.
 - A new home page with a static London map waits for evidence from the pilot.
-- New Wave B analytics names wait for the commit that makes a preview normal.
-  Each name needs a registered event and an emitter in that same commit.
+- New Wave B analytics registration stays deferred. Future registration follows
+  [the tracking plan's emitter rule](../analytics/TRACKING_PLAN.md#6-every-registered-name-has-an-emitter).
 
 ## Pilot targets
 
-The plan proposes a pilot with 10 crews in Soho, Shoreditch, and London Bridge.
+The approved pilot covers 10 crews in Soho, Shoreditch, and London Bridge.
+This record authorises no outreach.
 The approved targets are:
 
 - 30% of plan makers send a link on their first visit.
