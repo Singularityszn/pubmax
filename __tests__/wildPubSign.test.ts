@@ -15,7 +15,6 @@ import {
   signBoardPath,
   signFoundingYear,
   signLetteringName,
-  signNameFromAlt,
   signRows,
   signSafeBox,
   signSeed,
@@ -133,17 +132,6 @@ describe("Since is a founding year and nothing else", () => {
     expect(spec.since).toBe("Since 1520");
     expect(signRows(spec).at(-1)).toMatchObject({ kind: "since", text: "SINCE 1520" });
     expect(pubSignSpec("Prospect of Whitby", { foundingYear: "c.1520" }).since).toBeNull();
-  });
-});
-
-describe("the venue sheet's fallback reads the pub from its alt", () => {
-  it("knows the alt each photo frame writes, and nothing else", () => {
-    expect(signNameFromAlt("The Dog and Duck exterior or pub interior photo")).toBe("The Dog and Duck");
-    expect(signNameFromAlt("The French House, outside or in")).toBe("The French House");
-    expect(signNameFromAlt("The Lamb, the first stop")).toBe("The Lamb");
-    expect(signNameFromAlt("The Lamb, first on Pubs to try")).toBe("The Lamb");
-    expect(signNameFromAlt("")).toBeNull();
-    expect(signNameFromAlt("Pint at The Lamb shared by sam")).toBeNull();
   });
 });
 

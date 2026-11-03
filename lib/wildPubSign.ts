@@ -460,26 +460,3 @@ export function signAtRest(state: SignSwing): boolean {
     Math.abs(state.plaqueVelocity) < 0.15
   );
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// The venue sheet's photo header hands the fallback only its alt text, so the
-// pub's name is read back out of the alt each caller writes. A shape it does
-// not know gets no sign, only the plain "No photo yet".
-// ─────────────────────────────────────────────────────────────────────────────
-
-const ALT_SHAPES: readonly RegExp[] = [
-  /^(.+?) exterior or .+ interior photo$/,
-  /^(.+?), outside or in$/,
-  /^(.+?), the first stop$/,
-  /^(.+?), first on .+$/,
-];
-
-export function signNameFromAlt(alt: string): string | null {
-  const text = alt.trim();
-  for (const shape of ALT_SHAPES) {
-    const match = shape.exec(text);
-    const name = match?.[1]?.trim();
-    if (name) return name;
-  }
-  return null;
-}

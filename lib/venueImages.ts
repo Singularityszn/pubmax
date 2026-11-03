@@ -166,6 +166,7 @@ export function resolveVenueImage(
   excludeUrls?: ReadonlySet<string>,
 ): ResolvedVenueImage | null {
   for (const source of sources) {
+    if (source.provenance !== "chain" && source.provenance !== "community") continue;
     if (!source.url) continue;
     // Some server-side loaders (e.g. lib/scrapedPubs.server.ts) already ran
     // the chain photo through proxiedVenueImageUrl before handing it to a

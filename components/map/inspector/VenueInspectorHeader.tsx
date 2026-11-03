@@ -80,6 +80,8 @@ export default function VenueInspectorHeader({
           { url: communityPhotoUrl, provenance: "community" },
         ]}
         alt={`${venue.name} exterior or ${venueKindNoun(venue.kind)} interior photo`}
+        venueName={venue.name}
+        venueArea={venueAreaLabel(venue)}
         width={720}
         height={420}
       />
