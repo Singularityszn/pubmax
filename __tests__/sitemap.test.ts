@@ -319,6 +319,27 @@ describe("sitemap()", () => {
     }
   });
 
+  it("gives each advertised area-brand page its parent when review is simulated", async () => {
+    vi.resetModules();
+    vi.doMock("@/lib/nightAreas", async (importOriginal) => {
+      const { simulatedNightAreas } = await import("./helpers/simulatedNightAreaReview");
+      return simulatedNightAreas(importOriginal);
+    });
+    try {
+      const { default: simulatedSitemap } = await import("@/app/sitemap");
+      const simulatedUrls = (await simulatedSitemap()).map((entry) => entry.url);
+      const areaUrls = simulatedUrls.filter((url) => /\/area\/[^/]+\/drink\/[^/]+$/.test(url));
+      expect(areaUrls.length).toBeGreaterThan(0);
+      for (const url of areaUrls) {
+        const brandSlug = url.slice(url.lastIndexOf("/") + 1);
+        expect(simulatedUrls, `${url} has no published /drink/${brandSlug} parent`).toContain(`${SITE}/drink/${brandSlug}`);
+      }
+    } finally {
+      vi.doUnmock("@/lib/nightAreas");
+      vi.resetModules();
+    }
+  });
+
   it("advertises an /area/{slug} page only for an area that clears the area floor", () => {
     // The area root publishes on PRICED_LANDING_PUBLICATION_FLOORS.area priced
     // pubs alone (lib/areaLanding.ts). An area below it redirects to the map,

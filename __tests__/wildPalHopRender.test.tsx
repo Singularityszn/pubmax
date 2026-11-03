@@ -198,6 +198,8 @@ describe("Pal hops on the map", () => {
     const offer = [...bubble()!.querySelectorAll("button")].find((button) => button.textContent?.startsWith("Show me "));
     // R6 leaves every catalogue area's price-coverage check unpassed.
     expect(offer).toBeUndefined();
+    expect(bubble()!.querySelector(".price-plaque")).toBeNull();
+    expect(bubble()!.querySelector('[aria-label="Send the Pal home"]')).not.toBeNull();
     expect(window.location.href).toBe(href);
   });
 
