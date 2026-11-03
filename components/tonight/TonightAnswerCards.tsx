@@ -145,6 +145,15 @@ function DrinkerNightRow({ night }: { night: DrinkerRegularNight }) {
  * own under it, each "per a drinker, seen <date>".
  */
 function TonightRegularNights({ view }: { view: TonightRegularNightsView }) {
+  return (
+    <details className="tonightRegular">
+      <summary className="tonightRegularSummary" id="tonight-regular-heading">{REGULAR_NIGHTS_HEADING}</summary>
+      <RegularNightsContent view={view} />
+    </details>
+  );
+}
+
+function RegularNightsContent({ view }: { view: TonightRegularNightsView }) {
   if (view.status === "loading") {
     return <p className="tonightAnswerMeta" role="status">Checking the regular nights.</p>;
   }
@@ -155,16 +164,15 @@ function TonightRegularNights({ view }: { view: TonightRegularNightsView }) {
   const shown = answer.nights.slice(0, TONIGHT_REGULAR_NIGHTS_SHOWN);
   const rest = answer.nights.slice(TONIGHT_REGULAR_NIGHTS_SHOWN);
   const drinker = answer.drinker ?? [];
-  if (shown.length === 0 && answer.sport.length === 0 && drinker.length === 0) return null;
+  if (shown.length === 0 && answer.sport.length === 0 && drinker.length === 0) {
+    return <p className="tonightAnswerMeta">No regular nights recorded for this day.</p>;
+  }
   return (
     <section
-      className="tonightRegular"
+      className="tonightRegularContent"
       aria-labelledby="tonight-regular-heading"
       data-testid="tonight-regular-nights"
     >
-      <h3 className="tonightRegularHeading" id="tonight-regular-heading">
-        {REGULAR_NIGHTS_HEADING}
-      </h3>
       <p className="tonightAnswerMeta">{regularNightsLead(answer)}</p>
       {shown.length > 0 ? (
         <ul className="tonightRegularList">
