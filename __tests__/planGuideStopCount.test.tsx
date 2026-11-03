@@ -63,6 +63,7 @@ vi.mock("@/lib/analyticsErrorShown", async (importOriginal) => {
 import PlanComposer, { planComposerVenueIndexPath } from "@/components/plan/PlanComposer";
 import { NIGHT_PATCHES } from "@/lib/nightPatches";
 import { PLAN_INTAKE_STORAGE_KEY } from "@/lib/planIntake";
+import { parsePlanDraft, PLAN_DRAFT_KEY } from "@/lib/planDraft";
 
 const GENERATE_PATH = "/api/plans/generate";
 const DIAGNOSTIC_STOP_BODY = JSON.stringify({ error: "Q2 diagnostic stop" });
@@ -436,6 +437,28 @@ function emitDiagnostic(record: Record<string, unknown>): void {
 }
 
 describe("the requested pub-stop count on its way to the generate request", () => {
+  it.each([1, 3, 6])("recovers a guide request for %s instead of the earlier picker choice", async (requested) => {
+    installNoGeolocation();
+    await mountComposer();
+    await typeInto(await waitForLiveDescribeField(), "Clapham tonight");
+    await press(onlyStopCountChoice(5));
+    await press(prerequisite(buttonByText("Step by step"), "the Step by step action"));
+    await waitForQuestion(QUESTION.area);
+    await press(onlyStopCountChoice(requested));
+    await press(prerequisite(buttonByText("Describe instead"), "the Describe instead action"));
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(requested);
+    const current = root!;
+    await act(async () => { current.unmount(); });
+    root = null;
+    host?.remove();
+    host = null;
+    await mountComposer();
+    expect(pressedStopCounts()).toEqual([[requested]]);
+    await press(prerequisite(buttonByText("Make a plan"), "the Make a plan action"));
+    expect(posts).toHaveLength(1);
+    expect(requestCountFields(posts[0])?.contextStopCount).toBe(requested);
+  });
+
   it("direct control: an explicit five on the describe-first form reaches both count fields", async () => {
     expectFreshPlanState();
     const geolocationCalls = installPendingGeolocation();
