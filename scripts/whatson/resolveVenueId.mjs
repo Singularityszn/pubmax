@@ -12,8 +12,8 @@
 // canonical dataset.
 //
 // This module is PURE: no fs reads happen inside it. Callers load the
-// canonical dataset once (loadCanonicalVenueIndex, or buildVenueResolverIndex
-// with an already-loaded array) and pass the built index into resolveVenueId
+// canonical dataset once (loadCanonicalVenueIndex in the separate loader, or
+// buildVenueResolverIndex with an already-loaded array) and pass the built index into resolveVenueId
 // per row.
 //
 // Conservative-by-design, mirroring venueCanonicalization.mjs's own merge
@@ -26,8 +26,6 @@
 //     proximity). If the normalized name matches more than one candidate and
 //     more than one (or none) of them also confirms via postcode/proximity,
 //     the match is ambiguous and this returns null rather than guessing.
-
-import { readFileSync } from "node:fs";
 
 import {
   normaliseVenueKeyPart,
@@ -168,16 +166,6 @@ export function resolveVenueId(row, index) {
   if (confirmed.length === 1) return confirmed[0].venueId;
   // Zero or multiple confirmations — either unresolvable or ambiguous.
   return null;
-}
-
-/**
- * Load the canonical venue dataset from disk and build a resolver index.
- * Convenience for the generator scripts' main()/top-level orchestration
- * (fs work stays out of the pure resolve/build functions above).
- */
-export function loadCanonicalVenueIndex() {
-  const rows = JSON.parse(readFileSync(new URL("../../public/data/pint_prices_app_dataset.json", import.meta.url), "utf8"));
-  return buildVenueResolverIndex(Array.isArray(rows) ? rows : []);
 }
 
 export { normaliseVenueKeyPart };
