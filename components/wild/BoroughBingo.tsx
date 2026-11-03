@@ -24,12 +24,12 @@ export default function BoroughBingo({ been }: { been: readonly BeenVenue[] }) {
   if (unavailable) return <p>London boroughs are unavailable right now.</p>;
   if (!venues) return <p role="status">Loading London boroughs…</p>;
   return (
-    <section className="boroughBingo" aria-labelledby="borough-bingo-title">
-      <h2 id="borough-bingo-title">Borough Bingo</h2>
+    <section className="boroughBingoPreview" aria-labelledby="borough-bingo-preview-title">
+      <h2 id="borough-bingo-preview-title">Borough Bingo</h2>
       <p>Your Been list marks the boroughs. Only you can see this card.</p>
-      <ul className="boroughBingoGrid">
+      <ul className="boroughBingoPreviewGrid">
         {squares.map((square) => (
-          <li key={square.borough} className={`boroughBingoSquare boroughBingoSquare--${square.kind}`}>
+          <li key={square.borough} className={`boroughBingoPreviewSquare boroughBingoPreviewSquare--${square.kind}`}>
             {square.kind === "visited" ? <Link prefetch={false} href={venueMapUrl(square.venueId)}>{square.borough}<span>{square.venueName || "View pub"}</span></Link> : <><span>{square.borough}</span>{square.kind === "free" ? <small>Free square</small> : null}</>}
           </li>
         ))}

@@ -16,7 +16,6 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Button } from "@/components/ui/button";
 import EmptyState from "@/components/ui/empty-state";
-import BoroughBingoGate from "@/components/wild/BoroughBingoGate";
 import { authedFetch } from "@/lib/authedFetch";
 import { buildCrawlMapHref } from "@/lib/crawlUrl";
 import {
@@ -88,7 +87,6 @@ function PassportBeenList({
           ))}
         </ul>
       )}
-      {isOwner ? <BoroughBingoGate been={been.venues} /> : null}
       {!showAll && been.venues.length > BEEN_SHOWN ? (
         <p className="passportQuiet">
           <Button type="button" variant="ghost" onClick={() => setShowAll(true)}>

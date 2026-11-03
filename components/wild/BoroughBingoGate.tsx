@@ -1,11 +1,11 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useWildNightPreview } from "@/lib/useWildNightPreview";
-import type { BeenVenue } from "@/lib/profilePassport";
+import { usePassportRead, type PassportBeenRead } from "@/components/profile/PassportData";
 
 const BoroughBingo = dynamic(() => import("./BoroughBingo"), { ssr: false, loading: () => null });
 
-export default function BoroughBingoGate({ been }: { been: readonly BeenVenue[] }) {
-  return useWildNightPreview("borough-bingo") ? <BoroughBingo been={been} /> : null;
+export default function BoroughBingoGate({ handle }: { handle: string }) {
+  const been = usePassportRead<PassportBeenRead>("been", handle);
+  return been?.access === "full" ? <BoroughBingo been={been.venues} /> : null;
 }

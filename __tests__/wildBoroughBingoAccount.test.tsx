@@ -11,17 +11,18 @@ vi.mock("@/lib/authedFetch", () => ({ authedFetch: (path: string) => {
   if (path.endsWith("/been")) return new Promise(() => {});
   return Promise.resolve({ ok: false });
 } }));
-vi.mock("@/components/wild/BoroughBingoGate", async () => ({ default: (await import("@/components/wild/BoroughBingo")).default }));
-import PassportSections from "@/components/profile/PassportSections";
+vi.mock("next/dynamic", () => ({ default: () => (props: { been: never[] }) => createElement(BoroughBingo, props) }));
+import BoroughBingo from "@/components/wild/BoroughBingo";
+import BoroughBingoGate from "@/components/wild/BoroughBingoGate";
 
 it("clears the old owner's card immediately on account switch", async () => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   const host = document.createElement("div");
   const root = createRoot(host);
-  await act(async () => { root.render(createElement(PassportSections, { handle: "karan", isOwner: true })); });
+  await act(async () => { root.render(createElement(BoroughBingoGate, { handle: "karan" })); });
   expect(host.textContent).toContain("Loading London boroughs");
   auth.id = "account-b";
-  act(() => root.render(createElement(PassportSections, { handle: "karan", isOwner: true })));
+  act(() => root.render(createElement(BoroughBingoGate, { handle: "karan" })));
   expect(host.textContent).not.toContain("Loading London boroughs");
   await act(async () => { auth.resolveIndex?.({ status: "ready", rows: [{ id: "lamb", borough: "Camden" }] }); });
   expect(host.textContent).not.toContain("The Lamb");
