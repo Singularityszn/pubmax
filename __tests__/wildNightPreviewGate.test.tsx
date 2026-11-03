@@ -31,3 +31,53 @@ it("mounts the picker only when the wild master is on", () => {
   expect(host.querySelector("[data-picker]")).toBeNull();
   act(() => root.unmount());
 });
+
+it("adopts an off link when Next changes the query while the gate stays mounted", async () => {
+  const { SearchParamsContext } = await import("next/dist/shared/lib/hooks-client-context.shared-runtime");
+  const { useWildNightPreview } = await import("@/lib/useWildNightPreview");
+  const { readWildNightPreview, writeWildNightPreview } = await import("@/lib/wildNightPreview");
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  writeWildMode(true);
+  writeWildNightPreview("borough-bingo");
+  const host = document.createElement("div");
+  const root = createRoot(host);
+  function Preview() { return useWildNightPreview("borough-bingo") ? createElement("div", { "data-preview": "" }) : null; }
+  function tree(query: string) {
+    return createElement(SearchParamsContext.Provider, { value: new URLSearchParams(query) }, createElement(WildNightPreviewGate), createElement(Preview));
+  }
+  act(() => root.render(tree("")));
+  expect(host.querySelector("[data-preview]")).not.toBeNull();
+  act(() => {
+    window.history.pushState({ retained: true }, "", "/today?keep=1&wildpreview=off#top");
+    root.render(tree("keep=1&wildpreview=off"));
+  });
+  expect(host.querySelector("[data-preview]")).toBeNull();
+  expect(readWildNightPreview()).toBeNull();
+  expect(window.location.search + window.location.hash).toBe("?keep=1#top");
+  expect(window.history.state).toEqual({ retained: true });
+  act(() => root.unmount());
+});
+
+it("applies a query-only master-off link before showing a preview", async () => {
+  const { SearchParamsContext } = await import("next/dist/shared/lib/hooks-client-context.shared-runtime");
+  const { useWildNightPreview } = await import("@/lib/useWildNightPreview");
+  const { writeWildNightPreview } = await import("@/lib/wildNightPreview");
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  writeWildMode(true);
+  writeWildNightPreview("borough-bingo");
+  const host = document.createElement("div");
+  const root = createRoot(host);
+  function Preview() { return useWildNightPreview("borough-bingo") ? createElement("div", { "data-preview": "" }) : null; }
+  function tree(query: string) {
+    return createElement(SearchParamsContext.Provider, { value: new URLSearchParams(query) }, createElement(WildNightPreviewGate), createElement(Preview));
+  }
+  act(() => root.render(tree("")));
+  expect(host.querySelector("[data-preview]")).not.toBeNull();
+  act(() => {
+    window.history.pushState(null, "", "/today?wild=0&keep=1");
+    root.render(tree("wild=0&keep=1"));
+  });
+  expect(host.querySelector("[data-preview]")).toBeNull();
+  expect(window.location.search).toBe("?keep=1");
+  act(() => root.unmount());
+});

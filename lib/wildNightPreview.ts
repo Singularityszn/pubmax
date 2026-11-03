@@ -13,6 +13,13 @@ function parse(value: string | null): WildNightPreview | null {
 }
 
 export function readWildNightPreview(): WildNightPreview | null {
+  if (typeof window !== "undefined") {
+    const params = new URLSearchParams(window.location.search);
+    const master = params.get("wild");
+    if (master === "0" || master === "off") return null;
+    const value = params.get(PARAM);
+    if (value !== null) return parse(value);
+  }
   if (useFallback) return fallback;
   try { return parse(safeLocalStorage()?.getItem(WILD_NIGHT_PREVIEW_KEY) ?? null); }
   catch { return null; }

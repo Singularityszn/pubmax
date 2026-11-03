@@ -5,7 +5,7 @@ import { useWildMode } from "./useWildMode";
 import { adoptWildNightPreviewFromAddress, readWildNightPreview, subscribeWildNightPreview, type WildNightPreview } from "./wildNightPreview";
 
 export function useWildNightPreviewSelection(): WildNightPreview | null {
-  useEffect(() => { adoptWildNightPreviewFromAddress(); }, []);
+  useEffect(() => { adoptWildNightPreviewFromAddress(); });
   return useSyncExternalStore(subscribeWildNightPreview, readWildNightPreview, () => null);
 }
 

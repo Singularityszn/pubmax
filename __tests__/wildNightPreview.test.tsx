@@ -84,3 +84,27 @@ describe("wild night preview", () => {
     act(() => root.unmount());
   });
 });
+
+it("applies an off link while the preview hook stays mounted", () => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  writeWildMode(true);
+  writeWildNightPreview("borough-bingo");
+  const host = document.createElement("div");
+  const root = createRoot(host);
+  function Probe({ revision }: { revision: number }) {
+    const enabled = useWildNightPreview("borough-bingo");
+    return enabled ? createElement("div", { "data-preview-child": revision }, "Preview") : null;
+  }
+  act(() => root.render(createElement(Probe, { revision: 1 })));
+  expect(host.querySelector("[data-preview-child]")).not.toBeNull();
+  act(() => {
+    window.history.pushState({ retained: true }, "", "/near?keep=1&wildpreview=off#here");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    root.render(createElement(Probe, { revision: 2 }));
+  });
+  expect(host.querySelector("[data-preview-child]")).toBeNull();
+  expect(readWildNightPreview()).toBeNull();
+  expect(window.location.search + window.location.hash).toBe("?keep=1#here");
+  expect(window.history.state).toEqual({ retained: true });
+  act(() => root.unmount());
+});
