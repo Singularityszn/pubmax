@@ -10,8 +10,6 @@ import { useViewerSession } from "@/components/auth/useViewerSession";
 import FoundersWallLink from "@/components/founding/FoundersWallLink";
 import IntentLink from "@/components/nav/IntentLink";
 import SiteNav from "@/components/nav/SiteNav";
-import CrewsPanel from "@/components/social/CrewsPanel";
-import PubRankingPanel from "@/components/social/PubRankingPanel";
 import CreatorListsLane from "@/components/social/CreatorListsLane";
 import FindYourLot from "@/components/social/FindYourLot";
 import PeopleDirectory from "@/components/social/PeopleDirectory";
@@ -59,6 +57,8 @@ import SocialLondonLane from "./SocialLondonLane";
 import { socialLazy } from "./SocialLazy";
 
 const SocialComposer = socialLazy(() => import("./SocialComposer"), "Post controls", <button type="button" disabled>Loading post controls…</button>);
+const CrewsPanel = socialLazy(() => import("@/components/social/CrewsPanel"), "Your crews", <p role="status">Loading your crews…</p>);
+const PubRankingPanel = socialLazy(() => import("@/components/social/PubRankingPanel"), "Your pub ranking", <p role="status">Loading your pub ranking…</p>);
 const SocialTagInbox = socialLazy(() => import("./SocialTagInbox"), "Tags", <p role="status">Loading tags…</p>);
 const SocialOutbox = socialLazy(() => import("./SocialOutbox"), "Your posts", <p role="status">Loading your posts…</p>);
 const ReelsViewer = socialLazy(() => import("@/components/social/ReelsViewer"), "Video", <p role="status">Loading video…</p>);

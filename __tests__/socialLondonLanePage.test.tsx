@@ -16,7 +16,7 @@ const viewer = vi.hoisted(() => ({
   session: {} as ViewerSession,
 }));
 const transport = vi.hoisted(() => ({ request: vi.fn() }));
-const loadedPrivateTools = vi.hoisted(() => ({ composer: 0, outbox: 0, tags: 0 }));
+const loadedPrivateTools = vi.hoisted(() => ({ composer: 0, outbox: 0, tags: 0, ranking: 0, crews: 0 }));
 
 vi.mock("next/link", () => ({
   useLinkStatus: () => ({ pending: false }),
@@ -36,7 +36,8 @@ vi.mock("@/lib/authedFetch", () => ({ authedActionFetch: transport.request, auth
 vi.mock("@/lib/deviceAccountIdentity", () => ({ subscribeDeviceIdentity: () => () => undefined }));
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 vi.mock("@/components/profile/HandleAvatar", () => ({ default: () => null }));
-vi.mock("@/components/social/CrewsPanel", () => ({ default: () => null }));
+vi.mock("@/components/social/CrewsPanel", () => { loadedPrivateTools.crews++; return { default: () => null }; });
+vi.mock("@/components/social/PubRankingPanel", () => { loadedPrivateTools.ranking++; return { default: () => null }; });
 vi.mock("@/components/social/CreatorListsLane", () => ({ default: () => null }));
 vi.mock("@/components/social/PeopleDirectory", () => ({ default: () => null }));
 vi.mock("@/components/social/StarterPacks", () => ({ default: () => null }));
@@ -156,7 +157,7 @@ describe("/social signed out, London lane open", () => {
   it("shows the public lane without loading private posting tools", async () => {
     await renderSocial(true);
     expect(host.textContent).toContain("Proper pint at the Lamb");
-    expect(loadedPrivateTools).toEqual({ composer: 0, outbox: 0, tags: 0 });
+    expect(loadedPrivateTools).toEqual({ composer: 0, outbox: 0, tags: 0, ranking: 0, crews: 0 });
   });
   it("puts real crawls, dated prices and a plan action before the empty lane's sign-in offer", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => Response.json({ posts: [], nextCursor: null })));
