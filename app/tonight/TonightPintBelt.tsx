@@ -239,7 +239,10 @@ export default function TonightPintBelt({ rows }: { rows: readonly TonightCheapP
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
-        onPointerCancel={endDrag}
+        onPointerCancel={(event) => {
+          endDrag(event);
+          draggedRef.current = false;
+        }}
         onClickCapture={(event) => {
           // The press that spun the belt is not a tap on the mat under it.
           if (!draggedRef.current) return;
