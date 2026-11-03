@@ -102,7 +102,7 @@ describe("requested-count recovery", () => {
   it("recovers the route and request together without turning returned stops into intent", () => {
     const older = v2Plan(NOW, { conciergeQuery: "Six pubs in Soho tonight", requestedStopCount: 6 });
     const recovered = recoverPlanDrafts({
-      plan: older, legacyDraft: older.draft, intake: localCount(5, NOW), route: { savedAt: new Date(NOW + 1).toISOString() },
+      plan: older, legacyDraft: older.draft, intake: localCount(5, NOW), route: routeDraft(NOW + 1),
     });
     expect(recovered.routeWins).toBe(true);
     expect(recovered.planDraft).toBeNull();
@@ -115,7 +115,7 @@ describe("requested-count recovery", () => {
     const current = v2Plan(NOW, { conciergeQuery: "One pub in Clapham tonight", requestedStopCount: 1 });
     const recovered = recoverPlanDrafts({
       plan: current, legacyDraft: current.draft, intake: localCount(5, NOW - 1),
-      route: { savedAt: routeTime === null ? null : new Date(routeTime).toISOString() },
+      route: { ...routeDraft(NOW), savedAt: routeTime === null ? null : new Date(routeTime).toISOString() },
     });
     expect(recovered.routeWins).toBe(false);
     expect(recovered.intent).toEqual({ stopCount: 1, conciergeQuery: "One pub in Clapham tonight", descriptionUnavailable: false });
@@ -126,7 +126,7 @@ describe("requested-count recovery", () => {
     const current = v2Plan(NOW, { conciergeQuery: "One pub in Clapham tonight", requestedStopCount: 1 });
     const recovered = recoverPlanDrafts({
       plan: current, legacyDraft: current.draft, intake: localCount(1, NOW),
-      route: { savedAt: null, conflicting: false },
+      route: { ...routeDraft(NOW), savedAt: null, conflicting: false },
     });
     expect(recovered.routeWins).toBe(false);
     expect(recovered.sessionWins).toBe(true);
@@ -137,7 +137,7 @@ describe("requested-count recovery", () => {
     const older = v2Plan(NOW, { conciergeQuery: "One pub in Soho tonight", requestedStopCount: 1 });
     const recovered = recoverPlanDrafts({
       plan: older, legacyDraft: older.draft, intake: localCount(5, savedAt),
-      route: { savedAt: new Date(NOW + 1).toISOString() },
+      route: routeDraft(NOW + 1),
     });
     expect(recovered.intent).toEqual({ stopCount: 5, conciergeQuery: "", descriptionUnavailable: true });
   });
