@@ -155,8 +155,9 @@ export function isQuietPintWindow(now = new Date()): boolean {
 
 export type BuildQuietPintInput = {
   candidates: readonly QuietPintCandidate[];
-  /** venueId → verified cheapest pint in pounds. Absent = no verified price. */
+  /** Display prices in pounds. These figures do not determine candidate order. */
   priceById?: ReadonlyMap<string, number>;
+  /** Qualified pint prices for the price tie-break, separate from display prices. */
   rankingPriceById?: ReadonlyMap<string, number>;
   now?: Date;
   limit?: number;
