@@ -48,8 +48,11 @@ Intake save time does not establish route freshness.
 A validated V2 route supplies its own date only when its complete shared record matches the V1 route.
 Matching pub IDs alone do not establish that identity. Conflicting or undated records keep the local route without an ordering claim.
 When V1 and V2 conflict, undated V1 routes need refreshing and retain no proof or anchor.
-Map and import handoffs use the matching V2 route date before the composer saves either draft.
-If a local route write fails after both session copies save, the composer removes superseded undated route records.
+Map and import writers record the same date and anchor identity in both existing route records.
+An older V2 cannot supply an anchor or date to a different V1 record after a partial write.
+A winning handoff replaces the older description and requested count together. An unavailable count remains UNKNOWN.
+If a local route write fails after both session copies save, deletion requires a changed route and an undated captured route.
+Both stored records must still equal the captured records. A newer handoff prevents deletion.
 The session then restores a refreshable preview. A dated local route remains available for timestamp comparison.
 The validated session stops must also match the recovered session draft.
 The composer restores those stops as one record, even when their venue IDs match the older route.

@@ -1,6 +1,6 @@
 "use client";
 
-import { resolveRequestedPlanIntent } from "@/lib/planDraftArbitration";
+import { recoverPlanDrafts, resolveRequestedPlanIntent } from "@/lib/planDraftArbitration";
 
 import {
   FormEvent,
@@ -78,7 +78,7 @@ import {
 } from "@/lib/planStopCount";
 import { planHasRoute, type PlanState } from "@/lib/plan";
 import { parsePlanDraft, PLAN_DRAFT_KEY, readPlanDraftEnvelope, writePlanDraftEnvelope } from "@/lib/planDraft";
-import { parsePlanRouteDraftEnvelope, PLAN_ROUTE_DRAFT_V2_KEY, readPlanRouteDraftEnvelope } from "@/lib/planRouteDraft";
+import { reconcilePlanRouteDrafts, PLAN_ROUTE_DRAFT_V2_KEY, type ParsedPlanRouteDraft } from "@/lib/planRouteDraft";
 import {
   PLANNING_INTENT_SOURCES,
   readPlanningIntent,
@@ -804,51 +804,40 @@ export function parsePlanRouteDraft(raw: string | null): StoredRouteDraft | null
   }
 }
 
-function routeRecordIdentity(route: StoredRouteDraft): string {
-  return JSON.stringify({
-    stops: route.stops,
-    nightContext: route.nightContext,
-    routeRevision: route.routeRevision,
-    routeStale: route.routeStale,
-    groundingProof: route.groundingProof,
-    createOperationKey: route.createOperationKey,
-  });
-}
-
 function readComposerRouteDraft(): {
   route: StoredRouteDraft | null;
-  envelope: ReturnType<typeof readPlanRouteDraftEnvelope>;
+  envelope: ParsedPlanRouteDraft | null;
+  rawV1: string | null;
+  rawV2: string | null;
 } {
   const storage = safeLocalStorage();
-  const raw = storage?.getItem(PLAN_ROUTE_DRAFT_KEY) ?? null;
+  let raw: string | null = null;
+  let rawV2: string | null = null;
+  try { raw = storage?.getItem(PLAN_ROUTE_DRAFT_KEY) ?? null; } catch {}
+  try { rawV2 = storage?.getItem(PLAN_ROUTE_DRAFT_V2_KEY) ?? null; } catch {}
   const route = parsePlanRouteDraft(raw);
-  const envelope = readPlanRouteDraftEnvelope(storage);
-  const legacy = parsePlanRouteDraftEnvelope(null, raw);
-  if (!envelope || envelope.legacy) return { route, envelope: legacy };
-  const value = envelope.value;
-  const planAnchor: GeneratedPlanAnchor | null = value.anchorVenueId && value.anchorSource && value.outcome !== "unanchored"
+  const { envelope, conflicting } = reconcilePlanRouteDrafts(rawV2, raw);
+  const snapshot = { rawV1: raw, rawV2 };
+  const value = envelope?.value;
+  const planAnchor: GeneratedPlanAnchor | null = value?.anchorVenueId && value.anchorSource && value.outcome !== "unanchored"
     ? { venueId: value.anchorVenueId, source: value.anchorSource, outcome: value.outcome }
     : null;
+  if (!envelope || envelope.legacy) return {
+    ...snapshot,
+    route: conflicting && route && !route.savedAt
+      ? { ...route, routeStale: true, groundingProof: null, createOperationKey: null, planAnchor: null }
+      : route && { ...route, planAnchor: envelope ? planAnchor : route.planAnchor },
+    envelope: conflicting && !envelope?.savedAt ? null : envelope,
+  };
   const canonical = parsePlanRouteDraft(JSON.stringify({
-    ...value,
-    createOperationKey: value.operationKey,
+    ...envelope.value,
+    savedAt: envelope.savedAt,
+    createOperationKey: envelope.value.operationKey,
     planAnchor,
   }));
-  const matches = route && canonical
-    && routeRecordIdentity(route) === routeRecordIdentity(canonical)
-    && JSON.stringify(route.routeNight) === JSON.stringify(canonical.routeNight)
-    && (!Object.prototype.hasOwnProperty.call(JSON.parse(raw ?? "{}"), "planAnchor")
-      || JSON.stringify(route.planAnchor) === JSON.stringify(planAnchor));
-  if (!canonical || (raw !== null && !matches)) return {
-    route: route && !route.savedAt
-      ? { ...route, routeStale: true, groundingProof: null, createOperationKey: null, planAnchor: null }
-      : route,
-    envelope: null,
-  };
-  const savedAt = route?.savedAt && Date.parse(route.savedAt) > Date.parse(envelope.savedAt ?? "")
-    ? route.savedAt : envelope.savedAt ?? undefined;
   return {
-    route: { ...(route ?? canonical), savedAt, planAnchor },
+    ...snapshot,
+    route: canonical && { ...(route ?? canonical), savedAt: canonical.savedAt, planAnchor },
     envelope,
   };
 }
@@ -1490,6 +1479,7 @@ function explicitContextForPlan(
 function PlanComposerForm({
   recoveredDraft,
   recoveredRouteDraft,
+  routeSnapshot,
   recoveredIntake,
   recoveredIntent,
   hasDurableIntakeDraft,
@@ -1498,6 +1488,7 @@ function PlanComposerForm({
 }: {
   recoveredDraft: ReturnType<typeof parsePlanDraft>;
   recoveredRouteDraft: StoredRouteDraft | null;
+  routeSnapshot: ReturnType<typeof readComposerRouteDraft> | null;
   recoveredIntake: PlanIntakeDraft;
   recoveredIntent: ReturnType<typeof resolveRequestedPlanIntent>;
   hasDurableIntakeDraft: boolean;
@@ -1937,25 +1928,33 @@ function PlanComposerForm({
     const routeStorage = safeLocalStorage();
     let routeSaved = false;
     if (hasRoute) {
+      const routeDraft: StoredRouteDraft = {
+        stops,
+        nightContext,
+        routeNight,
+        routeRevision,
+        routeStale,
+        groundingProof,
+        createOperationKey,
+        planAnchor,
+      };
       try {
         if (routeStorage) {
           routeStorage.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify({
             savedAt: new Date(savedAt).toISOString(),
-            stops,
-            nightContext,
-            routeNight,
-            routeRevision,
-            routeStale,
-            groundingProof,
-            createOperationKey,
-            planAnchor,
+            ...routeDraft,
           } satisfies StoredRouteDraft));
           routeSaved = true;
         }
       } catch {
       }
       try {
-        if (!routeSaved && sessionWrite.v1 && sessionWrite.v2 && !readComposerRouteDraft().route?.savedAt) {
+        if (!routeSaved && sessionWrite.v1 && sessionWrite.v2
+          && routeSnapshot?.route && !routeSnapshot.route.savedAt
+          && JSON.stringify(routeDraft) !== JSON.stringify(routeSnapshot.route)
+          && routeSnapshot.rawV1
+          && routeStorage?.getItem(PLAN_ROUTE_DRAFT_KEY) === routeSnapshot.rawV1
+          && routeStorage?.getItem(PLAN_ROUTE_DRAFT_V2_KEY) === routeSnapshot.rawV2) {
           routeStorage?.removeItem(PLAN_ROUTE_DRAFT_V2_KEY);
           routeStorage?.removeItem(PLAN_ROUTE_DRAFT_KEY);
         }
@@ -1980,7 +1979,7 @@ function PlanComposerForm({
       );
     });
     return () => { cancelled = true; };
-  }, [canPersist, conciergeQuery, createOperationKey, creatorName, groundingProof, handoff?.acceptedAnchor, hasDurableIntakeDraft, nightContext, planAnchor, planIntake, recoveredIntake, requestedStopCount, routeNight, routeRevision, routeStale, startTime, stops, title]);
+  }, [canPersist, conciergeQuery, createOperationKey, creatorName, groundingProof, handoff?.acceptedAnchor, hasDurableIntakeDraft, nightContext, planAnchor, planIntake, recoveredIntake, requestedStopCount, routeSnapshot, routeNight, routeRevision, routeStale, startTime, stops, title]);
 
   useEffect(() => {
     if (hasDurableIntakeDraft) return;
@@ -3075,22 +3074,25 @@ export default function PlanComposer() {
     () => true,
     () => false,
   );
-  const recoveredDraft = useMemo(() => {
-    if (!hydrated) return null;
-    try { return parsePlanDraft(safeSessionStorage()?.getItem(PLAN_DRAFT_KEY) ?? null); } catch { return null; }
-  }, [hydrated]);
-  const routeRecovery = useMemo<ReturnType<typeof readComposerRouteDraft> | null>(() => {
+  const recovery = useMemo(() => {
     if (!hydrated) return null;
     try {
-      const recovered = readComposerRouteDraft();
-      const { route } = recovered;
-      const plan = readPlanDraftEnvelope(safeSessionStorage());
-      if (plan && !plan.legacy
-        && (!route || Date.parse(plan.savedAt ?? "") > Date.parse(route.savedAt ?? ""))
-        && JSON.stringify(plan.draft.stops) === JSON.stringify(recoveredDraft?.stops)) return {
+      let legacyDraft: ReturnType<typeof parsePlanDraft> = null;
+      try { legacyDraft = parsePlanDraft(safeSessionStorage()?.getItem(PLAN_DRAFT_KEY) ?? null); } catch {}
+      const routeRecovery = readComposerRouteDraft();
+      const resolved = recoverPlanDrafts({
+        plan: readPlanDraftEnvelope(safeSessionStorage()),
+        legacyDraft,
+        intake: readPlanIntakeDraftWithMetadata(),
+        route: routeRecovery.envelope ?? (routeRecovery.route ? {
+          savedAt: routeRecovery.route.savedAt ?? null,
+        } : null),
+      });
+      const route = resolved.sessionWins && resolved.planDraft ? {
+        ...routeRecovery,
         envelope: null,
         route: {
-          stops: plan.draft.stops.map((stop) => ({ ...stop, alternatives: [] })),
+          stops: resolved.planDraft.draft.stops.map((stop) => ({ ...stop, alternatives: [] })),
           nightContext: null,
           routeNight: null,
           routeRevision: null,
@@ -3099,40 +3101,30 @@ export default function PlanComposer() {
           createOperationKey: null,
           planAnchor: null,
         },
-      };
-      return recovered;
+      } : routeRecovery;
+      let handoff: ComposerHydration | null = null;
+      try {
+        const candidate = resolveComposerHydration({
+          planDraft: resolved.planDraft,
+          routeDraft: route.envelope,
+          intakeDraft: resolved.intakeDraft,
+          planningIntent: resolved.routeWins ? null : readPlanningIntent(),
+          rememberedArea: resolved.routeWins ? null : readRememberedArea(),
+        });
+        handoff = candidate.active ? candidate : null;
+      } catch {}
+      return { ...resolved, route, routeSnapshot: routeRecovery, handoff };
     } catch { return null; }
-  }, [hydrated, recoveredDraft]);
-  const recoveredRouteDraft = routeRecovery?.route ?? null;
-  const handoff = useMemo<ComposerHydration | null>(() => {
-    if (!hydrated) return null;
-    try {
-      const plan = readPlanDraftEnvelope(safeSessionStorage());
-      const route = routeRecovery?.envelope ?? null;
-      const routeWins = route && !route.legacy
-        && (!plan || plan.legacy || Date.parse(recoveredRouteDraft?.savedAt ?? "") > Date.parse(plan.savedAt ?? ""));
-      const resolved = resolveComposerHydration({
-        planDraft: routeWins ? null : plan,
-        routeDraft: route,
-        intakeDraft: readPlanIntakeDraftWithMetadata(),
-        planningIntent: readPlanningIntent(),
-        rememberedArea: readRememberedArea(),
-      });
-      return resolved.active ? resolved : null;
-    } catch {
-      return null;
-    }
-  }, [hydrated, recoveredRouteDraft?.savedAt, routeRecovery]);
-  const recoveredIntake = useMemo(() => {
-    if (!hydrated) return { draft: createPlanIntakeDraft(), hasDurableDraft: false, intent: resolveRequestedPlanIntent(null, null, null) };
-    const intake = readPlanIntakeDraftWithMetadata();
-    const plan = readPlanDraftEnvelope(safeSessionStorage());
-    return {
-      draft: intake?.draft ?? createPlanIntakeDraft(),
-      hasDurableDraft: Boolean(intake),
-      intent: resolveRequestedPlanIntent(plan, recoveredDraft, intake),
-    };
-  }, [hydrated, recoveredDraft]);
+  }, [hydrated]);
+  const recoveredDraft = recovery?.recoveredDraft ?? null;
+  const recoveredRouteDraft = recovery?.route.route ?? null;
+  const handoff = recovery?.handoff ?? null;
+  const recoveredIntake = useMemo(() => ({
+    draft: recovery?.intakeDraft?.draft ?? (recovery?.routeWins
+      ? skipRemainingPlanIntake(createPlanIntakeDraft()) : createPlanIntakeDraft()),
+    hasDurableDraft: recovery?.hasStoredIntake ?? false,
+    intent: recovery?.intent ?? resolveRequestedPlanIntent(null, null, null),
+  }), [recovery]);
   // The form is MOUNTED AGAIN once hydrated when there is something to recover,
   // so its state initialisers read the recovered drafts and the URL's ask.
   // Whatever the server-painted form held is thrown away with it, so that form
@@ -3164,6 +3156,7 @@ export default function PlanComposer() {
       key={remount ? "hydrated" : "server"}
       recoveredDraft={recoveredDraft}
       recoveredRouteDraft={recoveredRouteDraft}
+      routeSnapshot={recovery?.routeSnapshot ?? null}
       recoveredIntake={recoveredIntake.draft}
       recoveredIntent={recoveredIntake.intent}
       hasDurableIntakeDraft={recoveredIntake.hasDurableDraft}
