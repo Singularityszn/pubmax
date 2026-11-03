@@ -3,11 +3,12 @@
 // THE SIGN FOUNDRY (wild idea 03). A pub with no photograph gets a hanging
 // sign drawn from its own name: lib/wildPubSign.ts decides the board, the
 // paint and the lettering from the name, and this file draws it on a wrought
-// iron bracket with the listed pint on a plaque hanging underneath.
+// iron bracket. Only the cover variant can add a listed-pint plaque.
 //
 // It is a DRAWING and says so: it is lettered, framed and captioned "drawn
-// from its name", never a picture that could pass for a photograph. The price
-// on the plaque is the page's own listed pint, painted through the price band
+// from its name" on a cover or "Illustrated sign" in a photo frame.
+// It must never pass for a photograph. A cover's optional plaque uses the
+// page's own listed pint, painted through the price band
 // (PintPriceBadge), and the line under the sign says who listed it and when.
 //
 // Motion: the sign swings as a damped pendulum when it comes into view and
