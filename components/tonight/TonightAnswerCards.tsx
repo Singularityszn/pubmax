@@ -4,7 +4,7 @@ import { ArrowRight, ExternalLink, LocateFixed } from "lucide-react";
 
 import { PintPriceBadge } from "@/components/PriceBadge";
 import { ReadyButton } from "@/components/ui/ready-button";
-import { formatSnapshotFrom } from "@/lib/dataFreshness";
+import { formatSnapshotFrom } from "@/lib/dataFreshnessFormat";
 import AddRegularNight from "@/components/tonight/AddRegularNight";
 import RegularNightStillOn from "@/components/tonight/RegularNightStillOn";
 import {

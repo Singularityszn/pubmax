@@ -6,9 +6,39 @@ import { describe, expect, it } from "vitest";
 import {
   formatMonthYear,
   formatObservedDate,
+  formatObservedDayShort,
+  formatSnapshotFrom,
   isoDate,
   PINT_DATASET_OBSERVED_AT,
 } from "@/lib/dataFreshness";
+import * as dateFormat from "@/lib/dataFreshnessFormat";
+
+describe("London date formatters", () => {
+  it("keeps the observed day and snapshot wording across the summer clock", () => {
+    const date = new Date("2026-07-03T23:10:47Z");
+    expect(formatMonthYear(date)).toBe("July 2026");
+    expect(formatObservedDayShort(date)).toBe("4 Jul");
+    expect(formatObservedDate(date)).toBe("4 July 2026");
+    expect(formatSnapshotFrom(date)).toBe("Records from 4 July 2026");
+    expect(isoDate(date)).toBe("2026-07-03");
+  });
+
+  it("keeps the observed day in winter and rejects invalid dates", () => {
+    const date = new Date("2026-01-03T23:10:47Z");
+    expect(formatObservedDayShort(date)).toBe("3 Jan");
+    expect(formatObservedDate(date)).toBe("3 January 2026");
+    expect(() => formatObservedDate(new Date("invalid"))).toThrow(RangeError);
+  });
+
+  it("keeps the existing exports and the lightweight formatter in step", () => {
+    const date = new Date("2026-07-03T23:10:47Z");
+    expect(dateFormat.formatMonthYear(date)).toBe(formatMonthYear(date));
+    expect(dateFormat.formatObservedDayShort(date)).toBe(formatObservedDayShort(date));
+    expect(dateFormat.formatObservedDate(date)).toBe(formatObservedDate(date));
+    expect(dateFormat.formatSnapshotFrom(date)).toBe(formatSnapshotFrom(date));
+    expect(dateFormat.isoDate(date)).toBe(isoDate(date));
+  });
+});
 
 type FreshnessRegistryFile = {
   datasets: { id: string; stamp: { kind: string; value?: string } | null }[];
