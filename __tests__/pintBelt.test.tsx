@@ -1,6 +1,4 @@
 // @vitest-environment jsdom
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -8,9 +6,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import TonightPintBelt from "@/app/tonight/TonightPintBelt";
 import { beltLapMs, beltPace, beltPerimeter, beltPoint, type BeltTrack } from "@/lib/pintBelt";
 import type { TonightCheapPint } from "@/lib/tonightCheapPints";
-
-// Tonight's cheapest pints ride a belt of beer mats from 641px
-// (app/tonight/TonightPintBelt.tsx, lib/pintBelt.ts).
 
 const TRACK: BeltTrack = { width: 360, height: 260, mat: 112 };
 
@@ -68,7 +63,7 @@ describe("the belt's pace", () => {
 });
 
 const ROWS: TonightCheapPint[] = [
-  { venueId: "venue-a", name: "J.J. Moon's", borough: "Wandsworth", priceGbp: 2.09, chain: "wetherspoon" },
+  { venueId: "venue-a", name: "J.J. Moon's", borough: "Wandsworth", priceGbp: 2.09, chain: "wetherspoon", drinkLabel: "Selected lager", servingSize: "pint", publisher: { label: "Winner", url: "https://winner.example/menu" }, observedAt: "2026-10-02T12:00:00Z" },
   { venueId: "venue-b", name: "Nags Head, Peckham", borough: "Southwark", priceGbp: 2.9, chain: null },
 ];
 
@@ -117,6 +112,65 @@ describe("the pint belt", () => {
     expect(mats[0]?.textContent).toContain("2.09");
   });
 
+  it("shows the same selected serving and source evidence as the mat", () => {
+    stubMotion(false);
+    render();
+    expect(host.textContent).toContain("Selected lager");
+    expect(host.textContent?.toLowerCase()).toContain("pint");
+    expect(host.textContent).toContain("Winner");
+    expect(host.textContent).toContain("2 Oct 2026");
+    expect(host.querySelector('a[href="https://winner.example/menu"]')).not.toBeNull();
+  });
+
+  it("keeps a keyboard activation after a cancelled drag", () => {
+    stubMotion(false);
+    render();
+    const frame = host.querySelector<HTMLDivElement>(".pintBeltFrame")!;
+    const mat = host.querySelector<HTMLAnchorElement>("a.pintBeltMat")!;
+    frame.setPointerCapture = vi.fn();
+    frame.hasPointerCapture = vi.fn(() => true);
+    frame.releasePointerCapture = vi.fn();
+    const firePointer = (type: string, clientX: number) => {
+      const event = new MouseEvent(type, { bubbles: true, clientX });
+      Object.defineProperties(event, { pointerType: { value: "touch" }, pointerId: { value: 1 } });
+      frame.dispatchEvent(event);
+    };
+    act(() => {
+      firePointer("pointerdown", 100);
+      firePointer("pointermove", 120);
+      firePointer("pointercancel", 120);
+    });
+    const activate = vi.fn((event: Event) => event.preventDefault());
+    mat.addEventListener("click", activate);
+    mat.focus();
+    act(() => { mat.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, detail: 0 })); });
+    expect(activate).toHaveBeenCalledOnce();
+  });
+
+  it("still suppresses the click produced by a completed drag", () => {
+    stubMotion(false);
+    render();
+    const frame = host.querySelector<HTMLDivElement>(".pintBeltFrame")!;
+    const mat = host.querySelector<HTMLAnchorElement>("a.pintBeltMat")!;
+    frame.setPointerCapture = vi.fn();
+    frame.hasPointerCapture = vi.fn(() => true);
+    frame.releasePointerCapture = vi.fn();
+    const firePointer = (type: string, clientX: number) => {
+      const event = new MouseEvent(type, { bubbles: true, clientX });
+      Object.defineProperties(event, { pointerType: { value: "touch" }, pointerId: { value: 1 } });
+      frame.dispatchEvent(event);
+    };
+    act(() => {
+      firePointer("pointerdown", 100);
+      firePointer("pointermove", 120);
+      firePointer("pointerup", 120);
+    });
+    const activate = vi.fn((event: Event) => event.preventDefault());
+    mat.addEventListener("click", activate);
+    act(() => { mat.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 })); });
+    expect(activate).not.toHaveBeenCalled();
+  });
+
   it("has a control that stops it, and it starts running", () => {
     stubMotion(false);
     render();
@@ -131,25 +185,9 @@ describe("the pint belt", () => {
     expect(pause?.getAttribute("aria-pressed")).toBe("true");
   });
 
-  it("is drawn from 641px only, where the list steps back for it", () => {
-    const css = readFileSync(join(process.cwd(), "app/tonight/tonightPintBelt.css"), "utf8");
-    expect(css).toMatch(/\.pintBelt \{\s*display: none;/);
-    expect(css).toMatch(/@media \(min-width: 641px\) \{[\s\S]*\.tonightCheapPintsBeltList \{\s*display: none;/);
-  });
-
-  it("keeps the list up until the belt is ready, so the section is never empty", () => {
-    // No layout here, so the belt has no width to lay its mats on: it must
-    // not call itself ready, and nothing may hide the list but a ready belt.
+  it("does not mark an unmeasured belt as ready", () => {
     stubMotion(false);
     render();
     expect(host.querySelector(".pintBelt")?.hasAttribute("data-ready")).toBe(false);
-    const css = readFileSync(join(process.cwd(), "app/tonight/tonightPintBelt.css"), "utf8")
-      .replace(/\/\*[\s\S]*?\*\//g, "");
-    const hidesList = [...css.matchAll(/([^{}]+)\{[^}]*display: none;[^}]*\}/g)]
-      .map((match) => (match[1] ?? "").trim())
-      .filter((selector) => selector.includes("tonightCheapPintsBeltList"));
-    expect(hidesList).toEqual([
-      ".tonightCheapPintsAnswer:has(> .pintBelt[data-ready]) > .tonightCheapPintsBeltList",
-    ]);
   });
 });

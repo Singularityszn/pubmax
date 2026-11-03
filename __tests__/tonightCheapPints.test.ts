@@ -243,6 +243,16 @@ describe("tonight cheap pints, the hunt's London list", () => {
     expect(candidates.map((row) => row.id)).toEqual(["valid"]);
   });
 
+  it("carries the hunt's selected serving and source through to the presentation row", () => {
+    const selected = huntPint({ venueId: "valid", pubName: "Valid", priceGbp: 5 });
+    const candidate = tonightCheapPintCandidates([{ ...selected, drinkLabel: "Selected lager", servingSize: "pint" }], LONDON_LIST, SPOONS);
+    expect(tonightCheapPints(candidate)[0]).toMatchObject({
+      drinkLabel: "Selected lager", servingSize: "pint",
+      publisher: { label: "Pint Prices", url: "https://www.pint-prices.com/" },
+      observedAt: "2026-10-02T12:00:00.000Z",
+    });
+  });
+
   it("opens on the pub the front door's London row names", () => {
     const londonRow = buildCheapestHunt(PINTS).cities.find((city) => city.cityId === "london")?.pint;
     expect(rows[0]?.venueId).toBe(londonRow?.venueId);
