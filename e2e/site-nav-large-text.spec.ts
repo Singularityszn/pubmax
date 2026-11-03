@@ -108,16 +108,20 @@ async function expectMapClearance(page: Page, width: number) {
     await expectWholeLabel(city, city.locator(".citySwitcherLabelFull"));
     return;
   }
-  const header = page.locator(".siteNavBar");
-  await expect(header).toBeVisible();
-  const headerBox = await header.boundingBox();
-  expect(headerBox).not.toBeNull();
-  for (const item of [page.locator(".mapToolbar"), page.locator(".mapSplitListTitle"), page.locator(".mapSplitListRow").first()]) {
-    await expect(item).toBeVisible();
-    const box = await item.boundingBox();
-    expect(box).not.toBeNull();
-    expect(box!.y).toBeGreaterThanOrEqual(headerBox!.y + headerBox!.height);
-  }
+  // Map arrivals can replace the first keyed row between visibility and
+  // rectangle reads. Re-read every required rectangle together after a redraw.
+  await expect(async () => {
+    const header = page.locator(".siteNavBar");
+    await expect(header).toBeVisible();
+    const headerBox = await header.boundingBox();
+    expect(headerBox).not.toBeNull();
+    for (const item of [page.locator(".mapToolbar"), page.locator(".mapSplitListTitle"), page.locator(".mapSplitListRow").first()]) {
+      await expect(item).toBeVisible();
+      const box = await item.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.y).toBeGreaterThanOrEqual(headerBox!.y + headerBox!.height);
+    }
+  }).toPass({ timeout: 10_000 });
 }
 
 async function expectPreviewState(page: Page, width: number, selected: boolean) {
