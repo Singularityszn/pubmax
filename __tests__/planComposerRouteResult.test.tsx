@@ -46,7 +46,7 @@ import { createPlanIntakeDraft, PLAN_INTAKE_STORAGE_KEY, readPlanIntakeDraft, re
 import { readPlanningIntent, writePlanningIntent } from "@/lib/planningIntent";
 import { parsePlanGenerationRequest } from "@/lib/planGenerationRequest";
 import { reconcilePlanContext } from "@/lib/planGenerationContext";
-import { parsePlanDraft, PLAN_DRAFT_KEY, readPlanDraftEnvelope, writePlanDraftEnvelope } from "@/lib/planDraft";
+import { parsePlanDraft, PLAN_DRAFT_KEY, PLAN_DRAFT_V2_KEY, readPlanDraftEnvelope, writePlanDraftEnvelope } from "@/lib/planDraft";
 import { writeAskPlanDraft } from "@/lib/conciergeAskClient";
 import { ASK_PLAN_DRAFT_STORAGE_KEY } from "@/lib/ask/types";
 import { inferNightContext, type NightContext } from "@/lib/nightPlanning";
@@ -248,6 +248,278 @@ async function submitRecoveredRoute(): Promise<Record<string, unknown>> {
 }
 
 describe("the Plan result", () => {
+  it("dates a new session Ask after a locally saved picker edit on an unchanged route", async () => {
+    let now = Date.now();
+    const clock = vi.spyOn(Date, "now").mockImplementation(() => now);
+    onTestFinished(() => clock.mockRestore());
+    await mountComposer();
+    await sortIt("Clapham tonight");
+    const session = blockStorageWrites("sessionStorage");
+    const local = rejectRouteWrites([PLAN_ROUTE_DRAFT_KEY, PLAN_ROUTE_DRAFT_V2_KEY]);
+    now += 1000;
+    await openTune();
+    await act(async () => {
+      const picker = document.querySelector<HTMLSelectElement>("#plan-context-stops")!;
+      picker.value = "5";
+      picker.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(readPlanIntakeDraft(local)?.answers.stopCount).toBe(5);
+    expect(readPlanDraftEnvelope(session)?.draft.requestedStopCount).toBeUndefined();
+    const pickerTime = readPlanIntakeDraftWithMetadata(local)!.savedAt;
+    vi.stubGlobal("sessionStorage", session);
+    vi.stubGlobal("localStorage", local);
+    blockStorageWrites("localStorage");
+    now += 1000;
+    await remountComposer();
+    expect(readPlanDraftEnvelope(session)?.draft.requestedStopCount).toBe(5);
+    expect(readPlanDraftEnvelope(session)?.savedAt).toBe(new Date(now).toISOString());
+    expect(document.body.textContent).toContain(ROUTE_DETAILS_SAVE_FAILURE);
+    now += 1000;
+    writeAskPlanDraft({ query: "Clapham tonight", stopIds: [], stopNames: [], createdAt: new Date(now).toISOString() });
+    await remountComposer();
+    expect(readPlanDraftEnvelope(session)?.savedAt).toBe(new Date(now).toISOString());
+    expect(readPlanIntakeDraftWithMetadata(local)?.savedAt).toBe(pickerTime);
+    await remountComposer();
+    await openTune();
+    expectTuneDescriptionAndCount("Clapham tonight", undefined);
+    await sortAgainFromTune();
+    const generation = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate")).at(-1)!;
+    const sent = JSON.parse(String(generation[1]?.body));
+    expect(sent.query).toBe("Clapham tonight");
+    expect(sent.context.stopCount).toBeUndefined();
+    expect(sent.intake.stopCount).toBeUndefined();
+    expect(readPlanDraftEnvelope(session)?.draft.requestedStopCount).toBeUndefined();
+    const saved = await submitRecoveredRoute();
+    expect(saved.context).toMatchObject({ nightArea: "clapham", stopCount: 2 });
+    expect(saved.anchor).toBeUndefined();
+  });
+
+  it("does not borrow acceptance or context from equal-time session and route conflicts", async () => {
+    seedOlderSession();
+    const savedAt = Date.now() - 1000;
+    const plan = parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))!;
+    expect(writePlanDraftEnvelope({
+      ...plan,
+      acceptedAnchor: {
+        venueId: "venue-a", source: "near", cityId: "london",
+        acceptedArea: { kind: "night-patch", id: "soho" }, startsAt: null,
+        expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+      },
+    }, "planning-intent", sessionStorage, savedAt).v2).toBe(true);
+    expect(transferGeneratedRouteToDraft(handoffRoute(false), localStorage, "map-generated", savedAt)).toBe(true);
+    await mountComposer();
+    expectDisplayedRoute(["Handoff A", "Handoff B"], ["handoff-a", "handoff-b"]);
+    expect(document.body.textContent).not.toContain("Release this pub");
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.acceptedAnchor).toBeUndefined();
+    expect(JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!)).toMatchObject({
+      nightContext: null, routeNight: null, routeRevision: null, routeStale: true,
+      groundingProof: null, createOperationKey: null, planAnchor: null,
+    });
+    await nameRouteCreator();
+    await openTune();
+    await typeTuneQuery("Clapham tonight");
+    await sortAgainFromTune();
+    const generation = fetchMock.mock.calls.find(([input]) => String(input).includes("/api/plans/generate"))!;
+    expect(JSON.parse(String(generation[1]?.body)).anchor).toBeUndefined();
+    const saved = await submitRecoveredRoute();
+    expect(saved.anchor).toBeUndefined();
+    expect(saved.groundingProof).toBe("test-proof");
+  });
+
+  it.each([
+    { age: "equal", sameIds: true, sameAnchor: true, preview: false, held: "venue-a" },
+    { age: "equal", sameIds: true, sameAnchor: false, preview: true, held: null },
+    { age: "equal", sameIds: false, sameAnchor: false, preview: true, held: null },
+    { age: "undated", sameIds: true, sameAnchor: true, preview: true, held: null },
+    { age: "undated", sameIds: false, sameAnchor: false, preview: true, held: null },
+    { age: "older", sameIds: true, sameAnchor: false, preview: false, held: "venue-a" },
+    { age: "older", sameIds: false, sameAnchor: false, preview: false, held: "venue-a" },
+    { age: "newer", sameIds: true, sameAnchor: false, preview: true, held: "venue-a" },
+    { age: "newer", sameIds: false, sameAnchor: false, preview: true, held: "session-a" },
+    { age: "newer", sameIds: false, sameAnchor: false, preview: true, held: "session-a", localConflict: true },
+  ])("keeps recovery coherent for $age session, same IDs $sameIds, same anchor $sameAnchor", async ({ age, sameIds, sameAnchor, preview, held, ...options }) => {
+    const savedAt = Date.now() - 2000;
+    const response = handoffRoute(true);
+    expect(transferGeneratedRouteToDraft(response, localStorage, "map-generated", savedAt)).toBe(true);
+    if ("localConflict" in options) {
+      const previousV2 = localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)!;
+      expect(transferGeneratedRouteToDraft({ ...response, operationKey: "conflicting-operation", anchorSource: "map-search" }, localStorage, "map-generated", savedAt)).toBe(true);
+      localStorage.setItem(PLAN_ROUTE_DRAFT_V2_KEY, previousV2);
+    }
+    const stops = sameIds ? [
+      { key: 1, venueId: "venue-a", venueName: "Pub A" }, { key: 2, venueId: "venue-b", venueName: "Pub B" },
+    ] : [
+      { key: 1, venueId: "session-a", venueName: "Session A" }, { key: 2, venueId: "session-b", venueName: "Session B" },
+    ];
+    const sessionTime = savedAt + (age === "older" ? -1000 : age === "newer" ? 1000 : 0);
+    expect(writePlanDraftEnvelope({
+      title: "Night", creatorName: "Captain", startTime: new Date(Date.now() + 86_400_000).toISOString().slice(0, 16),
+      conciergeQuery: "Clapham tonight", stops,
+      acceptedAnchor: {
+        venueId: stops[0]!.venueId, source: sameAnchor ? "near" : "map-search", cityId: "london",
+        acceptedArea: { kind: "night-patch", id: "clapham" }, startsAt: null,
+        expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+      },
+    }, "planning-intent", sessionStorage, sessionTime).v2).toBe(true);
+    writePlanIntakeDraft(skipRemainingPlanIntake(createPlanIntakeDraft()), localStorage, sessionTime);
+    if (age === "undated") {
+      sessionStorage.removeItem(PLAN_DRAFT_V2_KEY);
+      localStorage.removeItem(PLAN_ROUTE_DRAFT_V2_KEY);
+      const raw = JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!);
+      delete raw.savedAt;
+      localStorage.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify(raw));
+    }
+    const originalRoute = localStorage.getItem(PLAN_ROUTE_DRAFT_KEY);
+    await mountComposer();
+    const sessionSelected = age === "newer";
+    expectDisplayedRoute(sessionSelected && !sameIds ? ["Session A", "Session B"] : ["Pub A", "Pub B"],
+      sessionSelected && !sameIds ? ["session-a", "session-b"] : ["venue-a", "venue-b"]);
+    expect(Boolean(document.querySelector('[aria-label="Accepted plan context"]'))).toBe(held !== null);
+    if (age === "undated") expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(originalRoute);
+    else expect(JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!)).toMatchObject(preview ? {
+      nightContext: null, routeNight: null, routeRevision: null, routeStale: true,
+      groundingProof: null, createOperationKey: null, planAnchor: null,
+    } : {
+      nightContext: { nightArea: "clapham", transportConstraints: [] }, groundingProof: response.groundingProof,
+      createOperationKey: "handoff-operation", planAnchor: { venueId: "venue-a", source: "near" },
+    });
+    if (sessionSelected) {
+      await remountComposer();
+      expectDisplayedRoute(sameIds ? ["Pub A", "Pub B"] : ["Session A", "Session B"],
+        sameIds ? ["venue-a", "venue-b"] : ["session-a", "session-b"]);
+      expect(document.querySelector('[aria-label="Accepted plan context"]')).not.toBeNull();
+    }
+    await nameRouteCreator();
+    if (preview) {
+      await act(async () => document.querySelector<HTMLFormElement>("#plan-composer")!.requestSubmit());
+      expect(fetchMock.mock.calls.filter(([input]) => String(input) === "/api/plans")).toHaveLength(0);
+    } else {
+      const saved = await submitRecoveredRoute();
+      expect(saved.groundingProof).toBe(response.groundingProof);
+      expect(saved.anchor).toEqual({ venueId: "venue-a", source: "near", outcome: "route" });
+    }
+    await openTune();
+    await typeTuneQuery("Clapham tonight");
+    await sortAgainFromTune();
+    const generation = fetchMock.mock.calls.find(([input]) => String(input).includes("/api/plans/generate"))!;
+    const sent = JSON.parse(String(generation[1]?.body));
+    expect(sent.anchor?.venueId ?? null).toBe(held);
+    expect(sent.context.transportConstraints ?? []).toEqual([]);
+    expect(sent.context.stopCount).toBeUndefined();
+    expect(sent.intake.stopCount).toBeUndefined();
+  });
+
+  it.each(["URL", "Ask"])("preserves a current %s request over conflicting saved acceptance", async (source) => {
+    seedOlderSession(6);
+    const savedAt = Date.now() - 1000;
+    const session = parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))!;
+    expect(writePlanDraftEnvelope({
+      ...session,
+      acceptedAnchor: {
+        venueId: "venue-a", source: "map-search", cityId: "london",
+        acceptedArea: { kind: "night-patch", id: "soho" }, startsAt: null,
+        expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+      },
+    }, "planning-intent", sessionStorage, savedAt).v2).toBe(true);
+    expect(transferGeneratedRouteToDraft(handoffRoute(true), localStorage, "map-generated", savedAt)).toBe(true);
+    const query = "One pub in Clapham tonight";
+    fetchMock.mockImplementation(async (input) => new Response(JSON.stringify(
+      String(input).includes("/api/plans/generate") ? {
+        ...GENERATED, stops: [GENERATED.stops[0]], groundingProof: "current-query-proof",
+        inferredContext: { ...GENERATED.inferredContext, stopCount: 1, transportConstraints: [] },
+      } : [],
+    ), { status: 200, headers: { "content-type": "application/json" } }));
+    if (source === "URL") window.history.replaceState({}, "", `/plan?query=${encodeURIComponent(query)}`);
+    else writeAskPlanDraft({ query, stopIds: [], stopNames: [], createdAt: new Date().toISOString() });
+    await mountComposer();
+    if (source === "Ask") {
+      await openTune();
+      await sortAgainFromTune();
+    }
+    const generation = fetchMock.mock.calls.find(([input]) => String(input).includes("/api/plans/generate"))!;
+    expect(generation).toBeDefined();
+    const sent = JSON.parse(String(generation[1]?.body));
+    expect(sent.query).toBe(query);
+    expect(sent.context.stopCount).toBe(1);
+    expect(sent.intake.stopCount).toBe(1);
+    expect(sent.anchor).toBeUndefined();
+    expect(readPlanDraftEnvelope(sessionStorage)?.draft.requestedStopCount).toBe(1);
+    await nameRouteCreator();
+    await openTune();
+    await sortAgainFromTune();
+    const saved = await submitRecoveredRoute();
+    expect(saved.context).toMatchObject({ nightArea: "clapham", stopCount: 1, transportConstraints: [] });
+    expect(saved.stops).toEqual([{ venueId: "venue-a", venueName: "Pub A" }]);
+    expect(saved.groundingProof).toBe("current-query-proof");
+    expect(saved.anchor).toBeUndefined();
+    expect(saved.status).toBeUndefined();
+    expect(saved.routeReadyAt).toBeUndefined();
+  });
+
+  it.each(["URL", "Ask"])("keeps the current session anchor with a new %s request", async (source) => {
+    const savedAt = Date.now() - 2000;
+    expect(transferGeneratedRouteToDraft(handoffRoute(false), localStorage, "map-generated", savedAt)).toBe(true);
+    const query = "One pub in Clapham tonight";
+    expect(writePlanDraftEnvelope({
+      title: "Current night", creatorName: "Captain", startTime: new Date(Date.now() + 86_400_000).toISOString().slice(0, 16),
+      conciergeQuery: query, requestedStopCount: 1,
+      stops: [{ key: 1, venueId: "venue-a", venueName: "Pub A" }],
+      acceptedAnchor: {
+        venueId: "venue-a", source: "near", cityId: "london",
+        acceptedArea: { kind: "night-patch", id: "clapham" }, startsAt: null,
+        expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+      },
+    }, "planning-intent", sessionStorage, savedAt + 1000).v2).toBe(true);
+    const response = {
+      ...handoffRoute(true), stops: [GENERATED.stops[0]], operationKey: "current-operation",
+      inferredContext: { ...GENERATED.inferredContext, stopCount: 1, transportConstraints: [] },
+      anchored: true,
+    };
+    fetchMock.mockImplementation(async (input) => new Response(JSON.stringify(
+      String(input).includes("/api/plans/generate") ? response : [],
+    ), { status: 200, headers: { "content-type": "application/json" } }));
+    if (source === "URL") window.history.replaceState({}, "", `/plan?query=${encodeURIComponent(query)}`);
+    else writeAskPlanDraft({ query, stopIds: ["venue-a"], stopNames: ["Pub A"], createdAt: new Date().toISOString() });
+    await mountComposer();
+    if (source === "Ask") {
+      await openTune();
+      await sortAgainFromTune();
+    }
+    const generation = fetchMock.mock.calls.find(([input]) => String(input).includes("/api/plans/generate"))!;
+    expect(JSON.parse(String(generation[1]?.body))).toMatchObject({
+      query, anchor: { venueId: "venue-a", source: "near" }, context: { stopCount: 1 }, intake: { stopCount: 1 },
+    });
+    const saved = await submitRecoveredRoute();
+    expect(saved.stops).toEqual([{ venueId: "venue-a", venueName: "Pub A" }]);
+    expect(saved.anchor).toEqual({ venueId: "venue-a", source: "near", outcome: "route" });
+    expect(saved.groundingProof).toBe(response.groundingProof);
+    expect(saved.status).toBeUndefined();
+    expect(saved.routeReadyAt).toBeUndefined();
+  });
+
+  it("keeps a newer requested count while discarding conflicting route context", async () => {
+    seedOlderSession(6);
+    const savedAt = Date.now() - 2000;
+    const session = parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))!;
+    expect(writePlanDraftEnvelope(session, "manual", sessionStorage, savedAt).v2).toBe(true);
+    expect(transferGeneratedRouteToDraft(handoffRoute(false), localStorage, "map-generated", savedAt)).toBe(true);
+    const intake = skipRemainingPlanIntake(createPlanIntakeDraft());
+    expect(writePlanIntakeDraft({ ...intake, answers: { ...intake.answers, area: "soho", stopCount: 5 } }, localStorage, savedAt + 1000)).toBe(true);
+    await mountComposer();
+    await openTune();
+    expectTuneDescriptionAndCount("", 5);
+    expect(document.querySelector("#plan-context-area")).toBeNull();
+    expect(document.body.textContent).toContain("Your latest description could not be restored. Enter it again.");
+    await typeTuneQuery("Clapham tonight");
+    await sortAgainFromTune();
+    const generation = fetchMock.mock.calls.find(([input]) => String(input).includes("/api/plans/generate"))!;
+    expect(JSON.parse(String(generation[1]?.body))).toMatchObject({
+      query: "Clapham tonight", context: { nightArea: "clapham", stopCount: 5 }, intake: { stopCount: 5 },
+    });
+    expect(readPlanDraftEnvelope(sessionStorage)?.draft.requestedStopCount).toBe(5);
+    expect(readPlanIntakeDraft()?.answers.stopCount).toBe(5);
+  });
+
   describe.each(["Map", "import"])("the %s route handoff", (source) => {
     it.each([false, true])("restores a V2-only handoff as one complete record (same pubs: %s)", async (samePubs) => {
       let now = Date.now();
@@ -373,7 +645,7 @@ describe("the Plan result", () => {
     expectDisplayedRoute(["Pub A", "Pub B"], ["venue-a", "venue-b"]);
     expect(JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!)).toMatchObject({
       routeStale: true, groundingProof: null, createOperationKey: null, planAnchor: null,
-      nightContext: { nightArea: "clapham", transportConstraints: [] },
+      nightContext: null,
     });
     expect(localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).toBe(oldV2);
     await openTune();
@@ -522,7 +794,7 @@ describe("the Plan result", () => {
     expectDisplayedRoute(["Pub A", "Pub B"], ["venue-a", "venue-b"]);
     const stored = JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!);
     expect(stored.createOperationKey).toBeNull();
-    expect(stored.nightContext.nightArea).toBe(written === "V1" ? "piccadilly-soho" : "clapham");
+    expect(stored.nightContext).toBeNull();
     expect(stored.groundingProof).toBeNull();
     expect(stored.routeStale).toBe(true);
     expect(stored.planAnchor).toBeNull();
@@ -1182,6 +1454,7 @@ describe("the Plan result", () => {
       const route = JSON.parse(localStorage.getItem(routeKey)!);
       route.savedAt = new Date().toISOString();
       localStorage.setItem(routeKey, JSON.stringify(route));
+      expect(writePlanIntakeDraft(readPlanIntakeDraft()!, localStorage, Date.parse(route.savedAt))).toBe(true);
       expect(writePlanDraftEnvelope(oldDraft, "manual", sessionStorage, Date.now() - 1000).v2).toBe(true);
       sessionStorage.setItem(PLAN_DRAFT_KEY, JSON.stringify({ ...oldDraft, conciergeQuery: "One pub in Clapham tonight" }));
     }

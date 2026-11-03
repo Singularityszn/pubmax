@@ -44,7 +44,8 @@ A new generated route replaces the notice from its own evidence.
 
 Each successful local route save records its own `savedAt`.
 When both route and V2 session saves have valid dates, a strictly newer session save replaces the local route.
-A session copy of an unchanged complete route keeps that route's writer date when local route writes fail.
+A session copy keeps the route's writer date only when its description and requested count are also unchanged.
+New descriptions and requested counts keep their actual save time, even when the route is unchanged.
 If that session copy saves, its paired intake save uses the same date.
 A failed session save leaves a successful intake edit dated at its actual save time.
 Intake save time does not establish route freshness.
@@ -53,6 +54,10 @@ A matching shared record can supply a missing V1 date from its validated V2 copy
 Matching pub IDs alone do not establish that identity.
 Undated conflicts and equal-time conflicts remain unverified previews without proof or anchor.
 Those conflicts also exclude session acceptance and PlanningIntent acceptance from recovery.
+Session and route conflicts follow the same rule, including equal-time records with different stops or accepted anchors.
+An ambiguous preview retains stops alone, without context, walking inputs, proof, revision, operation key or acceptance.
+A strictly newer validated session can retain its own accepted pub with its own stops-only preview.
+An equally dated stops-only copy cannot supply generated context or proof to that session.
 Map and import writers record the same date and anchor identity in both existing route records.
 An older V2 cannot supply an anchor or date to a different V1 record after a partial write.
 A winning handoff replaces the older description and requested count together. An unavailable count remains UNKNOWN.

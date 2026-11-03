@@ -833,7 +833,7 @@ function readComposerRouteDraft(): {
       } : {}),
       planAnchor: envelope ? planAnchor : route.planAnchor,
     },
-    envelope: conflicting && !envelope?.savedAt ? null : envelope,
+    envelope,
   };
   const canonical = parsePlanRouteDraft(JSON.stringify({
     ...envelope.value,
@@ -850,7 +850,7 @@ function readComposerRouteDraft(): {
   };
 }
 
-function persistComposerRouteDraft(routeDraft: StoredRouteDraft, savedAt: number) {
+function persistComposerRouteDraft(routeDraft: StoredRouteDraft, savedAt: number, requestChanged: boolean) {
   const hasRouteDetails = Boolean(routeDraft.nightContext || routeDraft.routeNight || routeDraft.routeRevision !== null
     || routeDraft.groundingProof || routeDraft.createOperationKey || routeDraft.planAnchor
     || routeDraft.stops.some((stop) => stop.alternatives.length > 0));
@@ -859,8 +859,9 @@ function persistComposerRouteDraft(routeDraft: StoredRouteDraft, savedAt: number
   let previewSaved = false;
   let sessionSavedAt = savedAt;
   if (hasRouteDetails || routeDraft.routeStale) {
-    const stored = readComposerRouteDraft().route;
-    previewSaved = !hasRouteDetails && Boolean(stored && stored.stops.length === routeDraft.stops.length
+    const storedRecovery = readComposerRouteDraft();
+    const stored = storedRecovery.route;
+    previewSaved = !hasRouteDetails && !storedRecovery.ambiguous && Boolean(stored && stored.stops.length === routeDraft.stops.length
       && stored.stops.every((stop, index) => stop.venueId === routeDraft.stops[index]?.venueId
         && stop.venueName === routeDraft.stops[index]?.venueName));
     try {
@@ -878,7 +879,8 @@ function persistComposerRouteDraft(routeDraft: StoredRouteDraft, savedAt: number
       previewSaved = previewSaved && JSON.stringify(remaining) === JSON.stringify(stored);
       routeSaved = Boolean(remaining && JSON.stringify({ ...remaining, savedAt: undefined })
         === JSON.stringify(parsePlanRouteDraft(JSON.stringify(routeDraft))));
-      if (routeSaved && remaining?.savedAt) sessionSavedAt = Date.parse(remaining.savedAt);
+      if (routeSaved && remaining?.savedAt && !requestChanged) sessionSavedAt = Date.parse(remaining.savedAt);
+      else if (requestChanged) routeSaved = false;
     }
   }
   return { hasRouteDetails, routeSaved, previewSaved, sessionSavedAt };
@@ -1954,6 +1956,11 @@ function PlanComposerForm({
       ? { ...acceptedAnchor, expiresAt: acceptedAnchor.expiresAt }
       : null;
     const savedAt = Date.now();
+    const intakeChanged = JSON.stringify(planIntake) !== JSON.stringify(recoveredIntake);
+    const requestChanged = conciergeQuery !== recoveredIntent.conciergeQuery
+      || requestedStopCount !== recoveredIntent.stopCount
+      || Boolean(recoveredDraft && (conciergeQuery !== recoveredDraft.conciergeQuery
+        || requestedStopCount !== recoveredDraft.requestedStopCount));
     const { hasRouteDetails, routeSaved, previewSaved, sessionSavedAt } = persistComposerRouteDraft({
       stops,
       nightContext,
@@ -1963,7 +1970,7 @@ function PlanComposerForm({
       groundingProof,
       createOperationKey,
       planAnchor,
-    }, savedAt);
+    }, savedAt, requestChanged);
     const sessionWrite = writePlanDraftEnvelope({
       title,
       creatorName,
@@ -1973,7 +1980,6 @@ function PlanComposerForm({
       ...(requestedStopCount !== undefined ? { requestedStopCount } : {}),
       ...(persistedAcceptedAnchor ? { acceptedAnchor: persistedAcceptedAnchor } : {}),
     }, persistedAcceptedAnchor ? "planning-intent" : "manual", safeSessionStorage(), sessionSavedAt);
-    const intakeChanged = JSON.stringify(planIntake) !== JSON.stringify(recoveredIntake);
     const intakeSaved = hasDurableIntakeDraft || intakeChanged
       ? writePlanIntakeDraft(planIntake, undefined, sessionWrite.v1 || sessionWrite.v2 ? sessionSavedAt : savedAt)
       : false;
@@ -1990,7 +1996,7 @@ function PlanComposerForm({
       );
     });
     return () => { cancelled = true; };
-  }, [canPersist, conciergeQuery, createOperationKey, creatorName, groundingProof, handoff?.acceptedAnchor, hasDurableIntakeDraft, nightContext, planAnchor, planIntake, recoveredIntake, requestedStopCount, routeNight, routeRevision, routeStale, startTime, stops, title]);
+  }, [canPersist, conciergeQuery, createOperationKey, creatorName, groundingProof, handoff?.acceptedAnchor, hasDurableIntakeDraft, nightContext, planAnchor, planIntake, recoveredDraft, recoveredIntake, recoveredIntent, requestedStopCount, routeNight, routeRevision, routeStale, startTime, stops, title]);
 
   useEffect(() => {
     if (hasDurableIntakeDraft) return;
@@ -3097,17 +3103,18 @@ export default function PlanComposer() {
         plan: readPlanDraftEnvelope(safeSessionStorage()),
         legacyDraft,
         intake: readPlanIntakeDraftWithMetadata(),
-        route: routeRecovery.envelope || routeRecovery.route ? {
-          savedAt: routeRecovery.envelope?.savedAt ?? routeRecovery.route?.savedAt ?? null,
+        route: routeRecovery.envelope ? {
+          ...routeRecovery.envelope,
           conflicting: routeRecovery.conflicting,
           ambiguous: routeRecovery.ambiguous,
         } : null,
       });
-      const route = resolved.sessionWins && resolved.planDraft && routeRecovery.route ? {
+      const route = (resolved.sessionWins || resolved.acceptanceUnavailable) && routeRecovery.route ? {
         ...routeRecovery,
         envelope: null,
         route: {
-          stops: resolved.planDraft.draft.stops.map((stop) => ({ ...stop, alternatives: [] })),
+          stops: (resolved.sessionWins && resolved.planDraft ? resolved.planDraft.draft.stops : routeRecovery.route.stops)
+            .map(({ key, venueId, venueName }) => ({ key, venueId, venueName, alternatives: [] })),
           nightContext: null,
           routeNight: null,
           routeRevision: null,
@@ -3135,7 +3142,7 @@ export default function PlanComposer() {
   const recoveredRouteDraft = recovery?.route.route ?? null;
   const handoff = recovery?.handoff ?? null;
   const recoveredIntake = useMemo(() => ({
-    draft: recovery?.intakeDraft?.draft ?? (recovery?.routeWins
+    draft: recovery?.intakeDraft?.draft ?? (recovery?.route.route
       ? skipRemainingPlanIntake(createPlanIntakeDraft()) : createPlanIntakeDraft()),
     hasDurableDraft: recovery?.hasStoredIntake ?? false,
     intent: recovery?.intent ?? resolveRequestedPlanIntent(null, null, null),
