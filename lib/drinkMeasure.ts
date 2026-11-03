@@ -15,10 +15,8 @@
 // price the two apart, and doubling a figure would publish a price nobody paid
 // under the word of the drinker who paid the other one.
 //
-// This module imports NOTHING, on the leaf law in AGENTS.md: the composer, the
-// validator, the store mapper, the read lanes and the Index producer all need
-// the same answer, and a browser bundle that needs the word "Half" must not
-// pull the venue index in behind it.
+// This module re-exports the shared serving-text leaf. The composer, readers,
+// and Node builders use that interpretation without importing the venue index.
 
 /**
  * The closed set. `other` carries a free label; every other measure names
