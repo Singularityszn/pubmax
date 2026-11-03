@@ -1,4 +1,5 @@
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -59,6 +60,11 @@ describe("GET /api/venue/[id]", () => {
     expect(Array.isArray(body.venue.prices)).toBe(true);
     expect(body.venue.prices.length).toBeGreaterThan(0);
     expect(body.venue.address.length).toBeGreaterThan(0);
+    const identity = createHash("sha256").update(readFileSync(path.join(ROOT, "public", "data", "pint_prices_app_dataset.json")));
+    for (const file of ["scripts/build_slim_index.mjs", "lib/venues.ts", "lib/priceRowEligibility.mjs", "lib/legacyPriceEvidence.mjs", "lib/comparablePint.mjs", "lib/priceReadDay.mjs"]) {
+      identity.update(readFileSync(path.join(ROOT, file)));
+    }
+    expect(body.priceDatasetDigest).toBe(identity.digest("base64url").slice(0, 22));
   });
 
   // WHAT THE BUNDLE HOLDS RIDES ON THE DETAIL THE SHEET ALREADY FETCHES, so a

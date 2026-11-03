@@ -47,6 +47,7 @@ export type ShardEntry = {
 export type ShardManifest = {
   version: number;
   revision?: string;
+  priceDatasetDigest?: string;
   grid?: { originLat: number; originLon: number; latStep: number; lonStep: number };
   shards: ShardEntry[];
 };
@@ -62,6 +63,7 @@ export type MapBounds = {
 type SlimShardLoadResult = {
   rows: SlimVenue[];
   status: "ready" | "unavailable";
+  priceDatasetDigest?: string;
 };
 
 const LEGACY_SHARD_MANIFEST_VERSION = 1;
@@ -141,6 +143,7 @@ export function parseShardManifest(
   return {
     version: obj.version,
     ...(typeof obj.revision === "string" ? { revision: obj.revision } : {}),
+    ...(typeof obj.priceDatasetDigest === "string" && /^[A-Za-z0-9_-]{22}$/.test(obj.priceDatasetDigest) ? { priceDatasetDigest: obj.priceDatasetDigest } : {}),
     ...(obj.grid ? { grid: obj.grid } : {}),
     shards,
   };
@@ -731,8 +734,10 @@ export function createSlimShardLoader(
     url: string,
     speculative = false,
     foreground = false,
+    expectedPriceDatasetDigest?: string,
   ): Promise<SlimShardLoadResult> {
-    const key = shardRequestPath(url, packRequestRevision);
+    const requestPath = shardRequestPath(url, packRequestRevision);
+    const key = expectedPriceDatasetDigest ? `${requestPath}#${expectedPriceDatasetDigest}` : requestPath;
     let p = shardPromises.get(key);
     if (p && foreground) {
       const queuedIndex = queuedShardReads.findIndex((read) => read.key === key);
@@ -745,19 +750,20 @@ export function createSlimShardLoader(
       const expectedRevision = packRevision;
       const shardOptions =
         expectedRevision === undefined
-          ? options
+          ? { ...options, ...(expectedPriceDatasetDigest ? { expectedPriceDatasetDigest, bypassInFlight: true } : {}) }
           : {
               ...options,
               expectedRevision,
+              ...(expectedPriceDatasetDigest ? { expectedPriceDatasetDigest, bypassInFlight: true } : {}),
               onRevisionSkew: (served: unknown) => shardSkews.set(key, { served }),
             };
       shardSkews.delete(key);
-      const created = readShardWithSlot(key, shardOptions, foreground)
+      const created = readShardWithSlot(requestPath, shardOptions, foreground)
         .then((result) => {
           if (result.status === "ready") {
             // A read that lands after another pack was adopted contributed
             // rows, but it does not cover anything in the adopted pack.
-            if (key === shardRequestPath(url, packRequestRevision)) loadedUrls.add(url);
+            if (requestPath === shardRequestPath(url, packRequestRevision)) loadedUrls.add(url);
           } else {
             shardPromises.delete(key);
           }
@@ -878,15 +884,16 @@ export function createSlimShardLoader(
         true,
       ).filter((s) => s.partition !== "kind" && !loadedUrls.has(s.url));
       if (needed.length === 0) return { rows: [], status: "ready" };
-      let results = await Promise.all(needed.map((s) => loadShard(s.url)));
+      let results = await Promise.all(needed.map((s) => loadShard(s.url, false, false, m.priceDatasetDigest)));
       const unavailable = needed.filter((s, index) => results[index]?.status === "unavailable");
       if (unavailable.length > 0) {
-        const retries = await Promise.all(unavailable.map((s) => loadShard(s.url)));
+        const retries = await Promise.all(unavailable.map((s) => loadShard(s.url, false, false, m.priceDatasetDigest)));
         const retryByUrl = new Map(unavailable.map((s, index) => [s.url, retries[index]]));
         results = results.map((result, index) => retryByUrl.get(needed[index]?.url ?? "") ?? result);
       }
       return {
         rows: results.flatMap((result) => result.rows),
+        ...(m.priceDatasetDigest ? { priceDatasetDigest: m.priceDatasetDigest } : {}),
         status: results.every((result) => result.status === "ready")
           ? "ready"
           : "unavailable",

@@ -20,7 +20,6 @@
 // otherwise treat a truncated index as the whole city.
 
 import { discardBody } from "@/lib/responseBody";
-import { isHttpUrl } from "@/lib/httpUrl.mjs";
 import { takeEarlyWarmJson } from "@/lib/mapEarlyWarm";
 import { getCity, type CityId, DEFAULT_CITY_ID } from "@/lib/cities";
 import { isFoodCategory, type FoodCategory } from "@/lib/food";
@@ -59,7 +58,6 @@ export type SlimVenue = {
   measure?: string;
   /** Publisher named by the exact listed minimum price row. */
   priceSource?: string;
-  priceSourceUrl?: string;
   /**
    * `YYYY-MM-DD` the cheapest figure was last read at its source (build_slim_index,
    * lib/priceReadDay.mjs). Absent when no row carrying it records a read, which
@@ -189,13 +187,6 @@ function hasValidAnchor(row: Record<string, unknown>): boolean {
 
 // Light runtime guard: a row must have a non-empty id + name, finite coords, a
 // borough string, and a cheapestPrice that is either a finite number or null.
-function hasValidPriceEvidence(row: Record<string, unknown>): boolean {
-  return (row.priceSource === undefined || (typeof row.priceSource === "string" && row.priceSource.trim().length > 0)) &&
-    (row.priceSourceUrl === undefined || typeof row.priceSourceUrl === "string") &&
-    (row.cheapestPint === undefined || typeof row.cheapestPint === "string") &&
-    (row.measure === undefined || typeof row.measure === "string");
-}
-
 function isValidSlimVenue(value: unknown): value is SlimVenue {
   if (typeof value !== "object" || value === null) return false;
   const row = value as Record<string, unknown>;
@@ -226,7 +217,7 @@ function isValidSlimVenue(value: unknown): value is SlimVenue {
     row.priceBand === 2;
   return (
     priceOk &&
-    hasValidPriceEvidence(row) &&
+    (row.priceSource === undefined || (typeof row.priceSource === "string" && row.priceSource.trim().length > 0)) &&
     observedOk &&
     localityOk &&
     zoneOk &&
@@ -256,7 +247,6 @@ function normalizeRows(data: unknown): SlimVenue[] {
     ...(typeof venue.cheapestPint === "string" ? { cheapestPint: venue.cheapestPint } : {}),
     ...(typeof venue.measure === "string" ? { measure: venue.measure } : {}),
     ...(venue.priceSource !== undefined ? { priceSource: venue.priceSource } : {}),
-    ...(isHttpUrl(venue.priceSourceUrl) ? { priceSourceUrl: venue.priceSourceUrl } : {}),
     ...(venue.priceObservedAt !== undefined
       ? { priceObservedAt: venue.priceObservedAt }
       : {}),
@@ -298,6 +288,7 @@ function normalizeRows(data: unknown): SlimVenue[] {
 export type SlimVenueLoadOptions = {
   bypassInFlight?: boolean;
   expectedRevision?: string;
+  expectedPriceDatasetDigest?: string;
   /**
    * A self-contained pack (a whole index, never one shard of a manifest) whose
    * revision still disagrees after a cache-bypassed read is painted as served
@@ -373,7 +364,11 @@ function rowsFromPayload(
 function normalizedRowsFromPayload(
   value: unknown,
   expectedRevision?: string,
+  expectedPriceDatasetDigest?: string,
 ): { rows: SlimVenue[]; complete: boolean } | null {
+  if (expectedPriceDatasetDigest !== undefined &&
+      (!value || typeof value !== "object" || Array.isArray(value) ||
+        (value as { d?: unknown }).d !== expectedPriceDatasetDigest)) return null;
   const payloadRows = rowsFromPayload(value, expectedRevision);
   if (!payloadRows) return null;
   const rows = normalizeRows(payloadRows);
@@ -401,9 +396,10 @@ function revisionSkewedRows(
 async function readOfflineFallback(
   offlineKey: string,
   expectedRevision?: string,
+  expectedPriceDatasetDigest?: string,
 ): Promise<SlimVenue[] | null> {
   const stored = await offlineCache.get<unknown>(offlineKey);
-  const payload = normalizedRowsFromPayload(stored, expectedRevision);
+  const payload = normalizedRowsFromPayload(stored, expectedRevision, expectedPriceDatasetDigest);
   return payload?.complete && payload.rows.length > 0 ? payload.rows : null;
 }
 
@@ -440,25 +436,26 @@ async function loadSlimVenuesFromPathUnshared(
   const offlineKey = offlineKeyForPath(path);
   try {
     let data: unknown = await readSlimPayload(path, options);
-    let payload = normalizedRowsFromPayload(data, options.expectedRevision);
+    let payload = normalizedRowsFromPayload(data, options.expectedRevision, options.expectedPriceDatasetDigest);
     if (
-      options.expectedRevision !== undefined &&
+      (options.expectedRevision !== undefined || options.expectedPriceDatasetDigest !== undefined) &&
       (!payload || !payload.complete)
     ) {
       data = await readSlimPayload(path, options, "no-store");
-      payload = normalizedRowsFromPayload(data, options.expectedRevision);
+      payload = normalizedRowsFromPayload(data, options.expectedRevision, options.expectedPriceDatasetDigest);
     }
     if (
       !payload ||
-      (options.expectedRevision !== undefined && !payload.complete)
+      ((options.expectedRevision !== undefined || options.expectedPriceDatasetDigest !== undefined) && !payload.complete)
     ) {
       const fallback = await readOfflineFallback(
         offlineKey,
         options.expectedRevision,
+        options.expectedPriceDatasetDigest,
       );
       if (fallback) return { rows: omitClosedCuratedVenues(fallback), status: "ready" };
       const skewed = !payload ? revisionSkewedRows(data, options.expectedRevision) : null;
-      if (skewed && options.acceptRevisionSkew) {
+      if (skewed && options.acceptRevisionSkew && options.expectedPriceDatasetDigest === undefined) {
         reportMapDataRevisionSkew({
           asset: "index",
           outcome: "adopted",
@@ -475,8 +472,8 @@ async function loadSlimVenuesFromPathUnshared(
     const { rows: parsedRows, complete } = payload;
     const rows = omitClosedCuratedVenues(parsedRows);
     if (complete && rows.length > 0) {
-      const stored = options.expectedRevision
-        ? { revision: options.expectedRevision, rows }
+      const stored = options.expectedRevision || options.expectedPriceDatasetDigest
+        ? { ...(options.expectedRevision ? { revision: options.expectedRevision } : {}), ...(options.expectedPriceDatasetDigest ? { d: options.expectedPriceDatasetDigest } : {}), rows }
         : rows;
       void offlineCache.set(offlineKey, stored);
     }
@@ -488,6 +485,7 @@ async function loadSlimVenuesFromPathUnshared(
     const fallback = await readOfflineFallback(
       offlineKey,
       options.expectedRevision,
+      options.expectedPriceDatasetDigest,
     );
     if (fallback) return { rows: omitClosedCuratedVenues(fallback), status: "ready" };
     throw error;

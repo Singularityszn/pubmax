@@ -78,7 +78,7 @@ function CheapestCard({ cheapest }: { cheapest: TonightCheapestAnswer | null }) 
         <PintPriceBadge priceGbp={cheapest.priceGbp} venueId={cheapest.venueId} />
       </p>
       <p className="tonightAnswerMeta">
-        {cheapest.placeLine} · {cheapest.drinkLabel || "Drink not recorded"} · {cheapest.servingSize || "Serving not recorded"} ·{" "}
+        {cheapest.placeLine} · {cheapest.drinkLabel || (cheapest.evidenceUnavailable ? "Drink unavailable" : "Drink not recorded")} · {cheapest.servingSize || (cheapest.evidenceUnavailable ? "Serving unavailable" : "Serving not recorded")} ·{" "}
         {cheapest.publisher?.label ? (sourceUrl ? (
           <a className="tonightAnswerSource" href={sourceUrl} target="_blank" rel="noreferrer noopener">{cheapest.publisher.label}</a>
         ) : <>{cheapest.publisher.label} (link unavailable)</>) : "Publisher not recorded"} ·{" "}

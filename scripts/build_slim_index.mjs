@@ -17,6 +17,7 @@
 // the real TS, so the mirror can never silently drift.
 
 import { mkdir, readdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -34,34 +35,13 @@ import {
 import { loadStationZones, nearestStationZone } from "./lib/stationZones.mjs";
 import { isCurrentFamousVenue } from "./lib/currentFamousVenue.mjs";
 import { nightOutPlaceRowValidationErrors } from "../lib/nightOutPlaceContract.mjs";
-import { legacyPintPriceObservedAt, namedLegacyPintPriceSource } from "../lib/legacyPriceEvidence.mjs";
-import { priceRowReadDay } from "../lib/priceReadDay.mjs";
+import { legacyCheapestPriceEvidence, legacyCheapestPriceReadDay } from "../lib/legacyPriceEvidence.mjs";
+import { isComparablePintServing } from "../lib/comparablePint.mjs";
 import { isCurrentVenueRow, isLivePriceRow } from "../lib/priceRowEligibility.mjs";
 import { legacyOsmVenueKind } from "../lib/legacyOsmVenueKind.mjs";
 import { buildVenueFeatureHints } from "./lib/venueFeatureHints.mjs";
 import { readPlacesEnrichmentPacks } from "./lib/placesEnrichmentStamp.mjs";
 import { UK_OSM_PUBS_FILE } from "../lib/ukOsmPubsFile.mjs";
-
-export function selectSlimPriceRow(prices) {
-  return prices.reduce((best, row) => {
-    const price = row.price_gbp;
-    if (typeof price !== "number" || !Number.isFinite(price)) return best;
-    return !best || price < best.price_gbp ? row : best;
-  }, null);
-}
-
-export function buildSlimPriceEvidence(row) {
-  if (!row) return {};
-  const source = namedLegacyPintPriceSource(row);
-  const observedAt = legacyPintPriceObservedAt(row);
-  const priceObservedAt = observedAt ? priceRowReadDay({ scraped_at_values: observedAt }) : null;
-  return {
-    ...(source ? { priceSource: source.label, priceSourceUrl: source.url } : {}),
-    ...(row.pint_name ? { cheapestPint: row.pint_name } : {}),
-    ...(row.measure ? { measure: row.measure } : {}),
-    ...(priceObservedAt ? { priceObservedAt } : {}),
-  };
-}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -880,8 +860,26 @@ function applyFeatureHints(venue, feature) {
     }
 }
 
+export function buildSlimPriceEvidence(prices, cheapestPrice) {
+  const priceObservedAt = legacyCheapestPriceReadDay(prices, cheapestPrice);
+  const { priceSource, cheapestPint, measure } = legacyCheapestPriceEvidence(prices, cheapestPrice);
+  return {
+    ...(cheapestPint && !isComparablePintServing({ cheapestPint, measure }) ? { cheapestPint } : {}),
+    ...(measure != null ? { measure } : {}),
+    ...(priceSource ? { priceSource } : {}),
+    ...(priceObservedAt ? { priceObservedAt } : {}),
+  };
+}
+
 async function main() {
   const rawText = await readFile(RAW_PATH, "utf8");
+  // Bind the ordered rows and both selection implementations to this snapshot.
+  // The 132-bit SHA-256 prefix travels with each small shard and the detail pack.
+  const identity = createHash("sha256").update(rawText);
+  for (const file of ["scripts/build_slim_index.mjs", "lib/venues.ts", "lib/priceRowEligibility.mjs", "lib/legacyPriceEvidence.mjs", "lib/comparablePint.mjs", "lib/priceReadDay.mjs"]) {
+    identity.update(await readFile(path.join(ROOT, file)));
+  }
+  const priceDatasetDigest = identity.digest("base64url").slice(0, 22);
   const rows = JSON.parse(rawText);
   if (!Array.isArray(rows)) {
     throw new Error(`Expected an array in ${RAW_PATH}, got ${typeof rows}`);
@@ -927,6 +925,7 @@ async function main() {
   const detailLines = [];
   const detailIndex = {
     version: 1,
+    priceDatasetDigest,
     detailsFile: "venue_details.jsonl",
     count: 0,
     venues: {},
@@ -956,11 +955,15 @@ async function main() {
         Math.abs(row.lng - Number(first.longitude)) < 0.001,
     );
     if (duplicateFamousVenue) continue;
-    const selectedPrice = selectSlimPriceRow(prices);
-    const cheapestPrice = selectedPrice?.price_gbp ?? null;
+    const numericPrices = prices
+      .map((p) => p.price_gbp)
+      .filter((p) => typeof p === "number" && Number.isFinite(p));
+    const cheapestPrice = numericPrices.length
+      ? Math.min(...numericPrices)
+      : null;
     // The publisher and day both come from the same minimum-price row.
     // A second row at the same price cannot supply this publisher's date.
-    const priceEvidence = buildSlimPriceEvidence(selectedPrice);
+    const priceEvidence = buildSlimPriceEvidence(prices, cheapestPrice);
     const id = stableVenueIdFromKey(key);
     const locality = groupRows
       .map((row) => String(row.locality ?? "").trim())
@@ -1047,6 +1050,7 @@ async function main() {
   // Compact JSON (no whitespace) — the map never reads this file by hand.
   const slimText = JSON.stringify({
     ...buildShardPayload(slim),
+    d: priceDatasetDigest,
     generatedAt: builtAt.toISOString(),
   });
   const detailText = detailLines.join("");
@@ -1077,9 +1081,10 @@ async function main() {
     SPATIAL_GRID,
   );
   const manifest = buildSpatialShardManifest(cells, SPATIAL_GRID, coreId);
+  manifest.priceDatasetDigest = priceDatasetDigest;
   const coreCell = cells.get(coreId);
   if (!coreCell) throw new Error(`Spatial core cell ${coreId} is missing`);
-  const coreText = JSON.stringify(buildShardPayload(coreCell.venues));
+  const coreText = JSON.stringify({ ...buildShardPayload(coreCell.venues), d: priceDatasetDigest });
   const manifestText = JSON.stringify(manifest);
   await writeFile(path.join(DATA_DIR, CORE_FILE), coreText);
   await writeFile(path.join(DATA_DIR, MANIFEST_FILE), manifestText);
@@ -1095,7 +1100,7 @@ async function main() {
   const shardReport = [];
   for (const [id, { lat, lon, venues }] of cells) {
     if (id === coreId) continue;
-    const text = JSON.stringify(buildShardPayload(venues));
+    const text = JSON.stringify({ ...buildShardPayload(venues), d: priceDatasetDigest });
     spatialBytesTotal += Buffer.byteLength(text);
     await writeFile(path.join(DATA_DIR, spatialShardFile(lat, lon, SPATIAL_GRID)), text);
     shardReport.push({
