@@ -15,6 +15,7 @@ import { useNowHref } from "@/lib/useNowHref";
 import { useClientReady } from "@/lib/useClientReady";
 
 import ThemeToggle from "@/components/ThemeToggle";
+import WildNightPreviewGate from "@/components/wild/WildNightPreviewGate";
 import IntentLink from "@/components/nav/IntentLink";
 import { navIcon } from "@/components/nav/navIcons";
 import MessagesLink from "@/components/nav/MessagesLink";
@@ -143,6 +144,7 @@ export function SiteNavActions({ className = "siteNavActions" }: { className?: s
           same door as an icon button, because the phone dock is five tabs and
           nothing else (captain, 1 Nov 2026). Each hides at the other's widths
           (palNav.css). */}
+      <WildNightPreviewGate />
       <PalSiteNavButton pathname={pathname} />
       <PalTopBarButton pathname={pathname} />
       <SiteNavMore />
