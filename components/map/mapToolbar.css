@@ -856,8 +856,15 @@ html[data-theme="dark"] .drinkShapeChipLabel {
    (the tablet band below already does). It still shrinks first when a drawer
    narrows the row, since the open-drawer rules above keep its min-width 0. */
 @media (min-width: 901px) {
+  /* A larger browser font can make the controls wider than the map lane.
+     Wrap them before the search field paints over the next control. */
+  .mapToolbarRow {
+    flex-wrap: wrap;
+  }
+
   .mapToolbarSearch {
     flex: 1 1 auto;
+    min-width: min(100%, 176px);
   }
 
   .mapToolbarSearch .mapSearchSuggest--toolbar {
