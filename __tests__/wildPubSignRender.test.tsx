@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
 
-// THE SIGN FOUNDRY and THE LAST ORDERS BELL as a reader meets them. With the
-// wild switch off the slots render nothing (or the plain photo fallback they
-// were handed, unchanged), so every page is the page it was. With it on, the
-// sign letters the pub's name and hangs the listed pint through the price
-// band, and the bell rings only inside the last 45 minutes of sourced hours.
+// Historic sign covers and the Last Orders Bell remain wild features.
+// Normal photo fallbacks illustrate only an explicitly named pub.
 
 import { act, createElement, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -96,7 +93,7 @@ describe("with the wild switch off", () => {
     expect(renderToStaticMarkup(createElement(LastOrdersBellSlot, { venueId: "venue-x", venueName: "X" }))).toBe("");
     expect(
       renderToStaticMarkup(
-        <PubSignFallbackSlot alt="The Dog and Duck exterior or pub interior photo">{plain}</PubSignFallbackSlot>,
+        <PubSignFallbackSlot>{plain}</PubSignFallbackSlot>,
       ),
     ).toBe(renderToStaticMarkup(plain));
   });
@@ -159,12 +156,12 @@ describe("the sign", () => {
     expect(container.querySelector<SVGGElement>("g.pubSign__swing")?.style.transform).toMatch(/^rotate\(-?\d/);
   });
 
-  it("stands in for VenueImage's fallback only when the alt names the pub", async () => {
+  it("stands in for VenueImage's fallback only with an explicit pub name", async () => {
     const plain = createElement("p", { className: "plain" }, "No photo yet");
-    await render(<PubSignFallback alt="The Lamb exterior or pub interior photo">{plain}</PubSignFallback>);
+    await render(<PubSignFallback name="The Lamb" area="Camden">{plain}</PubSignFallback>);
     expect(container.querySelector(".venueImage--sign svg.pubSign__art")).not.toBeNull();
     expect(container.querySelector(".plain")).toBeNull();
-    await render(<PubSignFallback alt="">{plain}</PubSignFallback>);
+    await render(<PubSignFallback>{plain}</PubSignFallback>);
     expect(container.querySelector(".plain")).not.toBeNull();
     expect(container.querySelector(".pubSign")).toBeNull();
   });

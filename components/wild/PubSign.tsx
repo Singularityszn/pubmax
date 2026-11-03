@@ -15,7 +15,8 @@
 // transform moves, one frame loop per sign, and it stops when the sign hangs
 // still. A reader who asked for less motion gets a sign that never moves.
 //
-// Loaded only behind the wild switch (components/wild/PubSignSlot.tsx).
+// Photo fallbacks load this drawing lazily for everyone. The historic cover
+// remains behind the wild switch (components/wild/PubSignSlot.tsx).
 
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, type ReactNode } from "react";
 
@@ -37,7 +38,6 @@ import {
   signBottomCentre,
   signChainAnchors,
   signLineLimit,
-  signNameFromAlt,
   signRows,
   signSafeBox,
   signSeed,
@@ -51,6 +51,7 @@ import "./pubSign.css";
 
 export type PubSignProps = {
   name: string;
+  area?: string;
   /** Decides whose price terciles the plaque's band is cut against. */
   venueId?: string | null;
   /** The page's listed pint. Absent or null, no plaque hangs. */
@@ -347,6 +348,7 @@ function PhotoDoor() {
 
 export default function PubSign({
   name,
+  area,
   venueId = null,
   listedPint = null,
   foundingYear = null,
@@ -359,7 +361,9 @@ export default function PubSign({
   const plaque = variant === "cover" && listedPint ? listedPint : null;
   const stageHeight = plaque ? PLAQUE_STAGE_HEIGHT : BARE_STAGE_HEIGHT;
   const { stageRef, swingRef, overlayRef, plaqueRef, onPointerDown } = useSignSwing(true, signSeed(spec.name));
-  const label = `${spec.name}: a sign drawn from its name${spec.since ? `, ${spec.since.toLowerCase()}` : ""}. No photo yet.`;
+  const label = variant === "compact"
+    ? `Illustrated sign for ${spec.name}${area?.trim() ? `, ${area.trim()}` : ""}`
+    : `${spec.name}: a sign drawn from its name${spec.since ? `, ${spec.since.toLowerCase()}` : ""}. No photo yet.`;
   const ringTop = ((signBottomCentre(spec.shape) + 7) / stageHeight) * 100;
 
   return (
@@ -368,7 +372,8 @@ export default function PubSign({
       data-shape={spec.shape}
       data-paint={spec.paint}
       data-ink={spec.ink}
-      data-wild-sign=""
+      data-pub-sign=""
+      data-wild-sign={variant === "cover" ? "" : undefined}
     >
       <div className="pubSign__stage" ref={stageRef} onPointerDown={onPointerDown}>
         <svg
@@ -411,7 +416,7 @@ export default function PubSign({
         </figcaption>
       ) : (
         <span className="pubSign__tag" aria-hidden="true">
-          Drawn sign. No photo yet
+          Illustrated sign{area?.trim() ? ` · ${area.trim()}` : ""}
         </span>
       )}
     </figure>
@@ -419,23 +424,24 @@ export default function PubSign({
 }
 
 /**
- * VenueImage's no-photo fallback with the switch on: the sign, when the alt
- * names the pub; otherwise the plain fallback it was handed, unchanged.
+ * The normal photo fallback uses the real name and area only. It accepts no
+ * price or founding year, so the drawing cannot introduce an unsupported fact.
  */
 export function PubSignFallback({
-  alt,
+  name,
+  area,
   className = "",
   children,
 }: {
-  alt: string;
+  name?: string;
+  area?: string;
   className?: string;
   children: ReactNode;
 }) {
-  const name = signNameFromAlt(alt);
-  if (!name) return <>{children}</>;
+  if (!name?.trim()) return <>{children}</>;
   return (
-    <div className={`venueImage venueImage--empty venueImage--sign ${className}`.trim()} data-wild-sign-fallback="">
-      <PubSign name={name} variant="compact" />
+    <div className={`venueImage venueImage--empty venueImage--named venueImage--sign ${className}`.trim()} data-pub-sign-fallback="">
+      <PubSign name={name} area={area} variant="compact" />
     </div>
   );
 }

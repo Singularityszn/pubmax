@@ -1,4 +1,5 @@
 .venueImage {
+  box-sizing: border-box;
   position: relative;
   margin: 0;
   overflow: hidden;
@@ -74,6 +75,18 @@
   border: 0;
   background: transparent;
   box-shadow: none;
+}
+
+/* Reserve the named illustration's space before its lazy chunk loads.
+   The sheet keeps a short frame so its price remains close to the title. */
+.venueImage--header.venueImage--empty.venueImage--named {
+  height: 112px;
+  padding: var(--space-1) 0;
+}
+
+.venueImage--cover.venueImage--empty.venueImage--named {
+  aspect-ratio: auto;
+  height: 224px;
 }
 
 /* N3 desktop inspector photo header — taller, edge-to-edge under title.
