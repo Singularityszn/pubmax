@@ -1,11 +1,11 @@
-import dynamic from "next/dynamic";
+"use client";
+
+import { Component, useEffect, useState, useSyncExternalStore, type ComponentType, type ReactNode } from "react";
 
 import { PintPriceBadge } from "@/components/PriceBadge";
 import { RowList, RowListItem } from "@/components/ui/row-list";
-import TonightPintBelt from "./TonightPintBelt";
 import { formatSnapshotFrom } from "@/lib/dataFreshness";
 import { oldestPintRead } from "@/lib/drinks";
-import { useWildMode } from "@/lib/useWildMode";
 import {
   TONIGHT_CHEAP_PINTS_TITLE,
   tonightCheapPintChainLabel,
@@ -13,76 +13,79 @@ import {
   type TonightCheapPint,
 } from "@/lib/tonightCheapPints";
 
-// Round-two wild idea 06 (components/wild/BeerMats.tsx). Its chunk is asked
-// for only while the wild switch is on, so the route's first load is unchanged.
-const BeerMats = dynamic(() => import("@/components/wild/BeerMats"), { ssr: false });
+const WIDTH_QUERY = "(min-width: 600px)";
+const READ_DAY = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" });
 
-/**
- * Real pubs on a quiet night, above the mood chips.
- *
- * A night with nothing listed is still a night out, and the answer to it is a
- * pub with a price on it rather than a question about a vibe. The section
- * line uses the oldest source read so a newer row cannot redate older prices.
- * If any row has no read date, the section prints no date.
- * Each figure wears its band through the one price badge, never a bare coloured number.
- * From 641px the rows ride a belt of beer mats instead (TonightPintBelt).
- *
- * While the wild switch is on (lib/wildMode.ts) the same rows are beer mats
- * that flip at every width instead (BeerMats below), and the block shows on
- * any night rather than only a quiet one, so the mats can be seen whatever
- * tonight's listings hold.
- */
-export default function TonightCheapPints({
-  rows = [],
-  show = true,
-}: {
+function subscribeWidth(onChange: () => void): () => void {
+  if (typeof window.matchMedia !== "function") {
+    window.addEventListener("resize", onChange);
+    return () => window.removeEventListener("resize", onChange);
+  }
+  const media = window.matchMedia(WIDTH_QUERY);
+  media.addEventListener("change", onChange);
+  return () => media.removeEventListener("change", onChange);
+}
+
+function wideScreen(): boolean {
+  return typeof window.matchMedia === "function" ? window.matchMedia(WIDTH_QUERY).matches : window.innerWidth >= 600;
+}
+
+type Presentation = ComponentType<{ rows: readonly TonightCheapPint[] }>;
+
+class PresentationBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  render() { return this.state.failed ? null : this.props.children; }
+}
+
+/** The list remains visible until the matching presentation is ready. */
+function PintPresentation({ rows }: { rows: readonly TonightCheapPint[] }) {
+  const wide = useSyncExternalStore<boolean | null>(subscribeWidth, wideScreen, () => null);
+  const [loaded, setLoaded] = useState<{ wide: boolean; component: Presentation } | null>(null);
+  useEffect(() => {
+    if (wide === null) return;
+    let active = true;
+    const request = wide ? import("./TonightPintBelt") : import("@/components/wild/BeerMats");
+    void request.then((module) => {
+      if (active) setLoaded({ wide, component: module.default });
+    }).catch(() => {
+      if (active) setLoaded(null);
+    });
+    return () => { active = false; };
+  }, [wide]);
+  if (!loaded || loaded.wide !== wide) return null;
+  const View = loaded.component;
+  return <PresentationBoundary key={wide ? "belt" : "mats"}><View rows={rows} /></PresentationBoundary>;
+}
+
+/** The selected row's own evidence, shown even when a presentation cannot load. */
+function TonightPintEvidence({ row }: { row: TonightCheapPint }) {
+  const date = row.observedAt ? new Date(row.observedAt) : null;
+  const readable = date && Number.isFinite(date.getTime());
+  return <>
+    {row.drinkLabel || "Drink not recorded"} · {row.servingSize || "Serving not recorded"} ·{" "}
+    {row.publisher ? <a className="tonightPintPublisher" href={row.publisher.url} target="_blank" rel="noreferrer">{row.publisher.label}</a> : "Publisher not recorded"} ·{" "}
+    {readable ? <time dateTime={row.observedAt ?? undefined}>{READ_DAY.format(date)}</time> : "Read date not recorded"}
+  </>;
+}
+
+export default function TonightCheapPints({ rows = [], show = true }: {
   rows?: readonly TonightCheapPint[];
-  /** The quiet night this list answers. A busy night keeps its listings. */
   show?: boolean;
 }) {
-  const wild = useWildMode();
-  if ((!show && !wild) || rows.length === 0) return null;
+  if (!show || rows.length === 0) return null;
   const observedAt = oldestPintRead(rows.map((row) => row.observedAt));
   return (
-    <section
-      className="tonightCheapPints tonightSection"
-      aria-labelledby="tonight-cheap-pints-title"
-    >
-      <h2 className="tonightCheapPintsTitle tonightSectionTitle" id="tonight-cheap-pints-title">
-        {TONIGHT_CHEAP_PINTS_TITLE}
-      </h2>
-      {observedAt ? (
-        <p className="tonightCheapPintsCredit tonightSectionLine">
-          {formatSnapshotFrom(new Date(observedAt))}
-        </p>
-      ) : null}
+    <section className="tonightCheapPints tonightSection" aria-labelledby="tonight-cheap-pints-title">
+      <h2 className="tonightCheapPintsTitle tonightSectionTitle" id="tonight-cheap-pints-title">{TONIGHT_CHEAP_PINTS_TITLE}</h2>
+      {observedAt ? <p className="tonightCheapPintsCredit tonightSectionLine">{formatSnapshotFrom(new Date(observedAt))}</p> : null}
       <div className="tonightCheapPintsAnswer" data-testid="tonight-cheap-pints">
-        {/* From 641px the same rows ride the belt and this list steps back
-            once the belt is ready (tonightPintBelt.css); on a phone, and
-            until the belt is placed, the list is the answer. */}
-        {wild ? <BeerMats rows={rows} /> : <TonightPintBelt rows={rows} />}
+        <PintPresentation rows={rows} />
         <RowList className="tonightCheapPintsList tonightCheapPintsBeltList">
           {rows.map((row) => (
-            <RowListItem
-              key={row.venueId}
-              className="tonightCheapPintsRow"
-              href={tonightCheapPintHref(row)}
-              title={row.name}
-              meta={
-                <>
-                  {row.borough}
-                  {/* The chain is named on its one row, so a Wetherspoon price
-                      never reads as a free house's. */}
-                  {row.chain ? (
-                    <>
-                      {" · "}
-                      <span data-chain={row.chain}>{tonightCheapPintChainLabel(row.chain)}</span>
-                    </>
-                  ) : null}
-                </>
-              }
-              trailing={<PintPriceBadge priceGbp={row.priceGbp} venueId={row.venueId} />}
-            />
+            <RowListItem key={row.venueId} className="tonightCheapPintsRow" href={tonightCheapPintHref(row)} title={row.name}
+              meta={<>{row.borough}{row.chain ? <> · <span data-chain={row.chain}>{tonightCheapPintChainLabel(row.chain)}</span></> : null}<br /><TonightPintEvidence row={row} /></>}
+              trailing={<PintPriceBadge priceGbp={row.priceGbp} venueId={row.venueId} />} />
           ))}
         </RowList>
       </div>
