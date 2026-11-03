@@ -166,11 +166,19 @@ export default function CrawlReceipt({ crawl }: { crawl: WildCrawl }) {
                         {formatPence(toPence(stop.pint.priceGbp))}
                       </span>
                     ) : (
-                      <span className="crawlReceipt__itemNone">No price</span>
+                      <span className="crawlReceipt__itemNone">No price yet</span>
                     )}
                     <span className="crawlReceipt__itemDrink">
                       {stop.pint ? `${stop.pint.drink}, a pint` : "Not listed, so not in the total"}
                     </span>
+                    {stop.pint ? (
+                      <span className="crawlReceipt__itemDrink">
+                        {stop.pint.source ?? "Publisher not recorded"}.{" "}
+                        {stop.pint.readDayLabel ? (
+                          <>Read <time dateTime={stop.pint.readDay ?? undefined}>{stop.pint.readDayLabel}</time>.</>
+                        ) : "Read date not recorded."}
+                      </span>
+                    ) : null}
                   </li>
                 ))}
               </ol>
