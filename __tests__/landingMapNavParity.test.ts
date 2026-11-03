@@ -17,6 +17,7 @@ vi.mock("next/link", () => ({
     createElement("a", { href, ...props }, children),
 }));
 vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
   useRouter: () => ({ prefetch: () => Promise.resolve(), push: () => undefined }),
   usePathname: () => "/",
 }));

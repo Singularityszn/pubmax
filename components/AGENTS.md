@@ -43,6 +43,7 @@ Full rules: [`docs/rules/components-sheets-chrome-and-navigation.md`](../docs/ru
 - [THE PUB PAL IS A DOOR IN THE TOP BAR AND ON THE MAP EDGE, NEVER A TAB.](../docs/rules/components-sheets-chrome-and-navigation.md#the-pub-pal-is-a-door-in-the-top-bar-and-on-the-map-edge-never-a-tab)
 - [THE VENUE SHEET NAMES A TAB BY WHAT IT HOLDS, AND SAYS A FACT ONCE.](../docs/rules/components-sheets-chrome-and-navigation.md#the-venue-sheet-names-a-tab-by-what-it-holds-and-says-a-fact-once)
 - [FROM 1024PX THE LIST SITS BESIDE THE MAP, AND THE TWO MOVE TOGETHER.](../docs/rules/components-sheets-chrome-and-navigation.md#from-1024px-the-list-sits-beside-the-map-and-the-two-move-together)
+- [A LAZY PANEL IN A PHONE SHEET KEEPS THE SHEET AT ITS SNAP UNTIL IT LANDS.](../docs/rules/components-sheets-chrome-and-navigation.md#a-lazy-panel-in-a-phone-sheet-keeps-the-sheet-at-its-snap-until-it-lands)
 
 ## Venue, plan and message surfaces
 

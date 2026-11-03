@@ -10,6 +10,7 @@ import { useFocusTrap } from "@/lib/useFocusTrap";
 import { useMapKeyboardShortcuts } from "@/components/map/pubmap/useMapKeyboardShortcuts";
 
 vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
   usePathname: () => "/map",
   useRouter: () => ({ prefetch: vi.fn(), push: vi.fn() }),
 }));

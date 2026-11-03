@@ -12,6 +12,7 @@ import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 // and every app page offer one set of controls. SiteNav's module brings the
 // shared styles with it.
 import { SiteNavActions } from "@/components/nav/SiteNav";
+import { MobileWildNightPreviewGate } from "@/components/wild/WildNightPreviewGate";
 import type { LandingAnswers } from "@/lib/landingAnswers";
 import type { LandingArchiveIndex, LandingRailRow } from "@/lib/landingHero";
 import type { LondonCollageAreaPrice } from "@/lib/landingLondonCollage";
@@ -206,6 +207,7 @@ export default function LandingPage({
         {/* Paint the header only after its complete action subtree is parsed. */}
         <span hidden data-lp-nav-complete="" />
       </header>
+      <MobileWildNightPreviewGate />
 
       <main id="main">
         {/* The whole first screen, at every width: the claim, the line under

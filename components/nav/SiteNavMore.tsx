@@ -265,6 +265,7 @@ export default function SiteNavMore({
                   className="siteNavMoreItem"
                   onClick={() => {
                     close();
+                    buttonRef.current?.focus();
                     void item.onSelect?.();
                   }}
                 >

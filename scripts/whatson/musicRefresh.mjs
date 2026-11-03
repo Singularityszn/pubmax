@@ -75,7 +75,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { nextWeeklyOccurrence } from "./quizParsers.mjs";
-import { resolveVenueId, loadCanonicalVenueIndex } from "./resolveVenueId.mjs";
+import { resolveVenueId } from "./resolveVenueId.mjs";
+import { loadCanonicalVenueIndex } from "./loadCanonicalVenueIndex.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT_PATH = join(ROOT, "public", "data", "whats_on", "music_london.json");

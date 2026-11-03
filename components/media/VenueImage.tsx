@@ -7,9 +7,8 @@
 // Honest by construction: `sources` are tried in priority order; when the
 // preferred candidate's <img> fails to load, that URL is excluded and
 // resolution advances to the next candidate (a dead chain proxy falls back
-// to the community photo, not straight to "No photo yet"). The winning
-// source's provenance is always labelled on-image — a photo whose provenance
-// is unknown is never rendered, only the gradient fallback.
+// to the community photo before the fallback). Only a resolved photograph
+// receives a photo credit. See resolveVenueImage for the provenance policy.
 
 import { ImageOff } from "lucide-react";
 import Image from "next/image";
@@ -31,6 +30,9 @@ type VenueImageProps = {
   /** Candidate sources in priority order — first one that resolves wins. */
   sources: VenueImageSource[];
   alt: string;
+  /** Real pub identity for the illustrated fallback. Never inferred from alt. */
+  venueName?: string;
+  venueArea?: string;
   className?: string;
   /** Optional extra caption under the image (e.g. "the pint", "at the bar"). */
   caption?: string;
@@ -55,6 +57,8 @@ type VenueImageProps = {
 export default function VenueImage({
   sources,
   alt,
+  venueName,
+  venueArea,
   className = "",
   caption,
   width = 640,
@@ -80,14 +84,14 @@ export default function VenueImage({
   const resolved = resolveVenueImage(sources, failedUrls);
 
   if (!resolved) {
-    // With the wild switch on, a pub the alt names gets its drawn sign
-    // (components/wild/PubSign.tsx); off, this is the plain fallback as it was.
+    // A named pub gets its illustrated sign after the lazy chunk arrives.
+    // Unnamed media keeps the plain fallback, including uploaded pint photos.
     return (
-      <PubSignFallbackSlot alt={alt} className={className}>
+      <PubSignFallbackSlot name={venueName} area={venueArea} className={className}>
         <div
-          className={`venueImage venueImage--empty ${className}`.trim()}
+          className={`venueImage venueImage--empty${venueName?.trim() ? " venueImage--named" : ""} ${className}`.trim()}
           role="img"
-          aria-label={alt}
+          aria-label={venueName ? `No photo available for ${venueName}` : alt}
         >
           <span aria-hidden="true">
             <ImageOff size={14} aria-hidden="true" />

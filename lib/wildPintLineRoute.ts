@@ -24,7 +24,11 @@ export function readDayLabel(readDay: string | null, now = Date.now()): string |
   if (!readDay || !/^\d{4}-\d{2}-\d{2}$/.test(readDay)) return null;
   // Noon UTC is the same calendar day in London in every season.
   const at = Date.parse(`${readDay}T12:00:00Z`);
-  if (!Number.isFinite(at) || at > now) return null;
+  if (!Number.isFinite(at) || new Date(at).toISOString().slice(0, 10) !== readDay) return null;
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/London", year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(new Date(now));
+  if (readDay > today) return null;
   return formatObservedDate(new Date(at));
 }
 
