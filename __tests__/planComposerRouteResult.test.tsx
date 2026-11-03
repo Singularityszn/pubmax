@@ -191,10 +191,14 @@ function handoffRoute(samePubs: boolean): MapGeneratedRouteResponse {
   };
 }
 
-function seedOlderSession(): void {
-  seedCountRecovery();
+function seedOlderSession(requestedStopCount?: 6): void {
+  seedCountRecovery(requestedStopCount);
+  const savedAt = Date.now() - 2000;
   const plan = parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))!;
-  expect(writePlanDraftEnvelope(plan, "manual", sessionStorage, Date.now() - 2000).v2).toBe(true);
+  const draft = { ...plan, conciergeQuery: requestedStopCount ? "Six pubs in Soho tonight" : plan.conciergeQuery };
+  expect(writePlanDraftEnvelope(draft, "manual", sessionStorage, savedAt).v2).toBe(true);
+  const intake = readPlanIntakeDraft()!;
+  expect(writePlanIntakeDraft(intake, localStorage, savedAt)).toBe(true);
 }
 
 function expectDisplayedRoute(names: string[], ids: string[]): void {
@@ -221,12 +225,38 @@ async function submitRecoveredRoute(): Promise<Record<string, unknown>> {
 
 describe("the Plan result", () => {
   describe.each(["Map", "import"])("the %s route handoff", (source) => {
+    it.each([false, true])("replaces the old request through generation and reload (local writes blocked: %s)", async (blocked) => {
+      seedOlderSession(6);
+      const response = handoffRoute(false);
+      if (source === "Map") carryRouteToPlan(response);
+      else expect(transferGeneratedRouteToDraft(response, localStorage)).toBe(true);
+      if (blocked) blockStorageWrites("localStorage");
+      await mountComposer();
+      await openTune();
+      expectTuneDescriptionAndCount("", undefined);
+      await sortAgainFromTune();
+      const generation = fetchMock.mock.calls.find(([input]) => String(input).includes("/api/plans/generate"))!;
+      expect(generation).toBeDefined();
+      const sent = JSON.parse(String(generation[1]?.body));
+      expect(sent.query).toBeUndefined();
+      expect(sent.context.nightArea).toBe("clapham");
+      expect(sent.context.stopCount).toBeUndefined();
+      expect(sent.intake.stopCount).toBeUndefined();
+      expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))).toMatchObject({ conciergeQuery: "" });
+      expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBeUndefined();
+      await remountComposer();
+      expectDisplayedRoute(["Pub A", "Pub B"], ["venue-a", "venue-b"]);
+      await openTune();
+      expectTuneDescriptionAndCount("", undefined);
+    });
+
     it.each([false, true])("keeps the new route ahead of an older session (same pubs: %s)", async (samePubs) => {
-      seedOlderSession();
+      seedOlderSession(6);
       const response = handoffRoute(samePubs);
       if (source === "Map") carryRouteToPlan(response);
       else expect(transferGeneratedRouteToDraft(response, localStorage)).toBe(true);
-      expect(JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!).savedAt).toBeUndefined();
+      expect(JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!).savedAt)
+        .toBe(JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)!).savedAt);
       expect(JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)!).savedAt).toBeDefined();
       await mountComposer();
       const names = samePubs ? ["Pub A", "Pub B"] : ["Handoff A", "Handoff B"];
@@ -252,7 +282,40 @@ describe("the Plan result", () => {
     });
   });
 
-  it.each(["V1", "V2"])("does not combine conflicting records after only %s of a handoff saves", async (written) => {
+  it.each(["changed", "absent"])("keeps the V1 handoff's %s anchor when its V2 write fails", async (anchor) => {
+    seedOlderSession(6);
+    const response = handoffRoute(true);
+    expect(transferGeneratedRouteToDraft(response, localStorage, "map-generated", Date.now() - 1000)).toBe(true);
+    const oldV2 = localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)!;
+    const next = anchor === "changed"
+      ? { ...response, anchorSource: "map-search" }
+      : { ...response, outcome: "unanchored", anchorVenueId: null, anchorSource: null };
+    expect(transferGeneratedRouteToDraft(next, {
+      getItem: localStorage.getItem.bind(localStorage),
+      setItem: (key, value) => {
+        if (key === PLAN_ROUTE_DRAFT_V2_KEY) throw new DOMException("Storage is full", "QuotaExceededError");
+        localStorage.setItem(key, value);
+      },
+    }, "map-generated")).toBe(false);
+    const current = JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!);
+    expect(Date.parse(current.savedAt)).toBeGreaterThan(Date.parse(JSON.parse(oldV2).savedAt));
+    await mountComposer();
+    expectDisplayedRoute(["Pub A", "Pub B"], ["venue-a", "venue-b"]);
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBeUndefined();
+    const saved = await submitRecoveredRoute();
+    expect(saved.groundingProof).toBe(response.groundingProof);
+    expect(saved.context).toMatchObject({ nightArea: "clapham", stopCount: 2, transportConstraints: [] });
+    expect(saved.anchor).toEqual(anchor === "changed"
+      ? { venueId: "venue-a", source: "map-search", outcome: "route" } : undefined);
+    expect(saved.status).toBeUndefined();
+    expect(saved.routeReadyAt).toBeUndefined();
+    expect(localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).toBe(oldV2);
+    await remountComposer();
+    await openTune();
+    expectTuneDescriptionAndCount("", undefined);
+  });
+
+  it.each(["V1", "V2"])("does not combine conflicting legacy records after only %s of a handoff saves", async (written) => {
     seedOlderSession();
     expect(transferGeneratedRouteToDraft(handoffRoute(true), localStorage, "plan-generated", Date.now() - 1000)).toBe(true);
     const previousV2 = localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)!;
@@ -268,6 +331,9 @@ describe("the Plan result", () => {
       },
     })).toBe(written === "V2");
     const writtenV2 = localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY);
+    const undated = JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!);
+    delete undated.savedAt;
+    localStorage.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify(undated));
     await mountComposer();
     expectDisplayedRoute(["Pub A", "Pub B"], ["venue-a", "venue-b"]);
     const stored = JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!);
@@ -349,6 +415,43 @@ describe("the Plan result", () => {
     expectDisplayedRoute(["Pub A", "Pub B"], ["venue-a", "venue-b"]);
     await openTune();
     expectTuneDescriptionAndCount("", 6);
+  });
+
+  it.each([false, true])("preserves a newer handoff during a failed legacy route save (undated V1: %s)", async (undated) => {
+    seedCountRecovery();
+    const local = localStorage;
+    const replacements: Array<{ v1: string; v2: string }> = [];
+    vi.stubGlobal("localStorage", {
+      getItem: local.getItem.bind(local),
+      setItem: (key: string, value: string) => {
+        if (key !== PLAN_ROUTE_DRAFT_KEY) return local.setItem(key, value);
+        if (JSON.parse(value).createOperationKey === "new-operation" && replacements.length === 0) {
+          expect(transferGeneratedRouteToDraft(handoffRoute(false), local, "map-generated", Date.now() + 1000)).toBe(true);
+          const record = JSON.parse(local.getItem(PLAN_ROUTE_DRAFT_KEY)!);
+          if (undated) delete record.savedAt;
+          local.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify(record));
+          replacements.push({ v1: local.getItem(PLAN_ROUTE_DRAFT_KEY)!, v2: local.getItem(PLAN_ROUTE_DRAFT_V2_KEY)! });
+        }
+        throw new DOMException("Storage is full", "QuotaExceededError");
+      },
+      removeItem: local.removeItem.bind(local), clear: local.clear.bind(local),
+      key: local.key.bind(local), get length() { return local.length; },
+    } satisfies Storage);
+    fetchMock.mockImplementation(async (input) => new Response(JSON.stringify(
+      String(input).includes("/api/plans/generate") ? { ...GENERATED, operationKey: "new-operation" } : [],
+    ), { status: 200, headers: { "content-type": "application/json" } }));
+    await mountComposer();
+    await openTune();
+    await sortAgainFromTune();
+    expect(replacements).toHaveLength(1);
+    const replacement = replacements[0]!;
+    expect(local.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(replacement.v1);
+    expect(local.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).toBe(replacement.v2);
+    await remountComposer();
+    expectDisplayedRoute(["Handoff A", "Handoff B"], ["handoff-a", "handoff-b"]);
+    const saved = await submitRecoveredRoute();
+    expect(saved.groundingProof).toBe(JSON.parse(replacement.v2).groundingProof);
+    expect(saved.anchor).toEqual({ venueId: "handoff-a", source: "near", outcome: "route" });
   });
 
   it.each([false, true])("restores the new Ask route when only session storage saves generation (same pubs: %s)", async (samePubs) => {

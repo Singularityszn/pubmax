@@ -11,7 +11,7 @@ import {
   type ParsedPlanDraft,
   type StoredPlanDraft,
 } from "@/lib/planDraft";
-import { arbitratePlanDrafts, resolveRequestedPlanIntent } from "@/lib/planDraftArbitration";
+import { arbitratePlanDrafts, recoverPlanDrafts, resolveRequestedPlanIntent } from "@/lib/planDraftArbitration";
 import {
   PLAN_INTAKE_MAX_RAW_BYTES,
   PLAN_INTAKE_STORAGE_KEY,
@@ -28,6 +28,7 @@ import {
   parsePlanRouteDraftEnvelope,
   parsePlanRouteDraftV2,
   readPlanRouteDraftEnvelope,
+  reconcilePlanRouteDrafts,
   writePlanRouteDraftEnvelope,
   type ParsedPlanRouteDraft,
 } from "@/lib/planRouteDraft";
@@ -97,6 +98,37 @@ describe("requested-count recovery", () => {
   const localCount = (count: 1 | 3 | 5, savedAt: number): ParsedPlanIntakeDraft => ({
     ...local, savedAt: new Date(savedAt).toISOString(),
     draft: { ...local.draft, answers: { ...local.draft.answers, stopCount: count } },
+  });
+  it("recovers the route and request together without turning returned stops into intent", () => {
+    const older = v2Plan(NOW, { conciergeQuery: "Six pubs in Soho tonight", requestedStopCount: 6 });
+    const recovered = recoverPlanDrafts({
+      plan: older, legacyDraft: older.draft, intake: localCount(5, NOW), route: { savedAt: new Date(NOW + 1).toISOString() },
+    });
+    expect(recovered.routeWins).toBe(true);
+    expect(recovered.planDraft).toBeNull();
+    expect(recovered.recoveredDraft).toBeNull();
+    expect(recovered.intakeDraft).toBeNull();
+    expect(recovered.intent).toEqual({ stopCount: undefined, conciergeQuery: "", descriptionUnavailable: false });
+  });
+
+  it.each([NOW - 1, NOW, null])("preserves the request when the route date is %s", (routeTime) => {
+    const current = v2Plan(NOW, { conciergeQuery: "One pub in Clapham tonight", requestedStopCount: 1 });
+    const recovered = recoverPlanDrafts({
+      plan: current, legacyDraft: current.draft, intake: localCount(5, NOW - 1),
+      route: { savedAt: routeTime === null ? null : new Date(routeTime).toISOString() },
+    });
+    expect(recovered.routeWins).toBe(false);
+    expect(recovered.intent).toEqual({ stopCount: 1, conciergeQuery: "One pub in Clapham tonight", descriptionUnavailable: false });
+    expect(recovered.sessionWins).toBe(routeTime === NOW - 1);
+  });
+
+  it.each([NOW + 1, NOW + 2])("preserves a local request saved at %s while reporting its unavailable description", (savedAt) => {
+    const older = v2Plan(NOW, { conciergeQuery: "One pub in Soho tonight", requestedStopCount: 1 });
+    const recovered = recoverPlanDrafts({
+      plan: older, legacyDraft: older.draft, intake: localCount(5, savedAt),
+      route: { savedAt: new Date(NOW + 1).toISOString() },
+    });
+    expect(recovered.intent).toEqual({ stopCount: 5, conciergeQuery: "", descriptionUnavailable: true });
   });
   it("uses the available store and compares the versioned save times", () => {
     expect(resolveRequestedPlanIntent(plan, plan.draft, null).stopCount).toBe(1);
@@ -240,6 +272,45 @@ describe("V2 Plan draft migration", () => {
 });
 
 describe("V2 Route draft migration", () => {
+  it.each(["changed", "absent"])("does not borrow a stale envelope's anchor or date after the anchor is %s", (anchor) => {
+    const storage = memoryStorage();
+    writePlanRouteDraftEnvelope(routeValue(), "map-generated", storage, NOW);
+    const oldV2 = storage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)!;
+    const next = routeValue(anchor === "changed"
+      ? { anchorSource: "map-search" }
+      : { anchorVenueId: null, anchorSource: null, outcome: "unanchored" });
+    const partial = {
+      getItem: storage.getItem.bind(storage),
+      setItem: (key: string, value: string) => {
+        if (key === PLAN_ROUTE_DRAFT_V2_KEY) throw new Error("quota");
+        storage.setItem(key, value);
+      },
+    };
+    expect(writePlanRouteDraftEnvelope(next, "map-generated", partial, NOW + 1)).toMatchObject({ v1: true, v2: false });
+    const recovered = readPlanRouteDraftEnvelope(storage, NOW + 1);
+    expect(recovered?.savedAt).toBe("2026-07-24T12:00:00.001Z");
+    expect(recovered?.value.anchorSource).toBe(anchor === "changed" ? "map-search" : null);
+    expect(recovered?.value.groundingProof).toBe(next.groundingProof);
+    expect(storage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).toBe(oldV2);
+  });
+
+  it("keeps an undated conflicting route as an unverified preview", () => {
+    const storage = memoryStorage();
+    writePlanRouteDraftEnvelope(routeValue(), "map-generated", storage, NOW);
+    const raw = JSON.parse(storage.getItem(PLAN_ROUTE_DRAFT_KEY)!);
+    delete raw.savedAt;
+    delete raw.anchorVenueId;
+    delete raw.anchorSource;
+    delete raw.outcome;
+    const recovered = reconcilePlanRouteDrafts(storage.getItem(PLAN_ROUTE_DRAFT_V2_KEY), JSON.stringify(raw), NOW);
+    expect(recovered.conflicting).toBe(true);
+    expect(recovered.envelope).toMatchObject({
+      savedAt: null,
+      value: { anchorVenueId: null, anchorSource: null, groundingProof: null, operationKey: null, routeStale: true },
+    });
+    expect(recovered.envelope?.value.stops.map((stop) => stop.venueId)).toEqual(["venue-a", "venue-b", "venue-c"]);
+  });
+
   it("keeps selected wine price evidence on stops and swaps through both draft formats", () => {
     const storage = memoryStorage();
     const wine = {

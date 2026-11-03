@@ -35,6 +35,34 @@ export function resolveRequestedPlanIntent(
   return intakeTime > planTime ? { stopCount: intakeCount, ...unavailable } : recovered;
 }
 
+export function recoverPlanDrafts(input: {
+  plan: ParsedPlanDraft | null;
+  legacyDraft: StoredPlanDraft | null;
+  intake: ParsedPlanIntakeDraft | null;
+  route: Pick<ParsedPlanRouteDraft, "savedAt"> | null;
+}) {
+  const { plan, legacyDraft, intake, route } = input;
+  const routeTime = Date.parse(route?.savedAt ?? "");
+  const planTime = Date.parse(plan?.savedAt ?? "");
+  const routeWins = Number.isFinite(routeTime)
+    && (!plan || plan.legacy || routeTime > planTime);
+  const intakeDraft = routeWins && !(Date.parse(intake?.savedAt ?? "") >= routeTime) ? null : intake;
+  const planDraft = routeWins ? null : plan;
+  const recoveredDraft = routeWins ? null : legacyDraft;
+  const intent = resolveRequestedPlanIntent(planDraft, recoveredDraft, intakeDraft);
+  return {
+    routeWins,
+    sessionWins: Boolean(plan && !plan.legacy
+      && (!route || planTime > routeTime)
+      && JSON.stringify(plan.draft.stops) === JSON.stringify(legacyDraft?.stops)),
+    planDraft,
+    recoveredDraft,
+    intakeDraft,
+    hasStoredIntake: Boolean(intake),
+    intent: routeWins && intakeDraft ? { ...intent, descriptionUnavailable: true } : intent,
+  };
+}
+
 type DraftSurface = "map" | "plan" | "route";
 
 export type DraftArbitrationProvenance =

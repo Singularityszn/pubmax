@@ -454,11 +454,20 @@ function parseLegacyPlanRouteDraft(
   try {
     const value: unknown = JSON.parse(raw);
     if (!isRecord(value)) return null;
-    const parsed = cleanEnvelopeValue(value, now, false);
+    const anchor = isRecord(value.planAnchor) ? value.planAnchor : null;
+    const parsed = cleanEnvelopeValue({
+      ...value,
+      ...(Object.hasOwn(value, "planAnchor") ? {
+        anchorVenueId: anchor?.venueId ?? null,
+        anchorSource: anchor?.source ?? null,
+        outcome: anchor?.outcome ?? "unanchored",
+      } : {}),
+    }, now, false);
+    const savedAt = canonicalTimestamp(value.savedAt);
     return parsed
       ? {
           storageVersion: 1,
-          savedAt: null,
+          savedAt: savedAt && savedAt.time <= now + PLAN_ROUTE_DRAFT_MAX_FUTURE_SKEW_MS ? savedAt.value : null,
           expiresAt: null,
           origin: "manual",
           value: parsed,
@@ -470,12 +479,56 @@ function parseLegacyPlanRouteDraft(
   }
 }
 
+export function reconcilePlanRouteDrafts(
+  rawV2: string | null,
+  rawV1: string | null,
+  now = Date.now(),
+): { envelope: ParsedPlanRouteDraft | null; conflicting: boolean } {
+  const canonical = parsePlanRouteDraftV2(rawV2, now);
+  const legacy = parseLegacyPlanRouteDraft(rawV1, now);
+  if (!canonical) return { envelope: legacy, conflicting: false };
+  if (rawV1 === null) return { envelope: canonical, conflicting: false };
+  const projection = (route: ParsedPlanRouteDraft) => ({
+    ...legacyValue(route.value),
+    anchorVenueId: route.value.anchorVenueId,
+    anchorSource: route.value.anchorSource,
+    outcome: route.value.outcome,
+  });
+  const rawLegacy: unknown = legacy ? JSON.parse(rawV1 ?? "{}") : null;
+  const context = canonical.value.nightContext;
+  const routeNight = !canonical.value.routeStale && (context?.nightArea || context?.daypart) ? {
+    ...(context.nightArea ? { nightArea: context.nightArea } : {}),
+    ...(context.daypart ? { daypart: context.daypart } : {}),
+  } : null;
+  const matches = legacy
+    && (!legacy.savedAt || legacy.savedAt === canonical.savedAt)
+    && JSON.stringify(projection(legacy)) === JSON.stringify(projection(canonical))
+    && (!isRecord(rawLegacy) || !Object.hasOwn(rawLegacy, "routeNight")
+      || JSON.stringify(rawLegacy.routeNight) === JSON.stringify(routeNight));
+  if (matches) return { envelope: canonical, conflicting: false };
+  return {
+    envelope: legacy && !legacy.savedAt ? {
+      ...legacy,
+      value: {
+        ...legacy.value,
+        anchorVenueId: null,
+        anchorSource: null,
+        outcome: "unanchored",
+        groundingProof: null,
+        operationKey: null,
+        routeStale: true,
+      },
+    } : legacy,
+    conflicting: true,
+  };
+}
+
 export function parsePlanRouteDraftEnvelope(
   rawV2: string | null,
   rawV1: string | null,
   now = Date.now(),
 ): ParsedPlanRouteDraft | null {
-  return parsePlanRouteDraftV2(rawV2, now) ?? parseLegacyPlanRouteDraft(rawV1, now);
+  return reconcilePlanRouteDrafts(rawV2, rawV1, now).envelope;
 }
 
 export function readPlanRouteDraftEnvelope(
@@ -530,7 +583,13 @@ export function writePlanRouteDraftEnvelope(
     origin,
     ...candidate,
   };
-  const rawV1 = JSON.stringify(legacyValue(candidate));
+  const rawV1 = JSON.stringify({
+    ...legacyValue(candidate),
+    savedAt: envelope.savedAt,
+    anchorVenueId: candidate.anchorVenueId,
+    anchorSource: candidate.anchorSource,
+    outcome: candidate.outcome,
+  });
   const rawV2 = JSON.stringify(envelope);
   if (byteLength(rawV1) > PLAN_ROUTE_DRAFT_MAX_RAW_BYTES || byteLength(rawV2) > PLAN_ROUTE_DRAFT_MAX_RAW_BYTES) {
     return { v1: false, v2: false, envelope: null };
