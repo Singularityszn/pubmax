@@ -109,6 +109,9 @@ async function mountComposer(): Promise<void> {
     root.render(createElement(PlanComposer));
   });
   await settle();
+  if (document.querySelector(".planStops__placeholder")) {
+    await vi.waitFor(() => expect(document.querySelector(".planStops__placeholder")).toBeNull(), { timeout: 4000 });
+  }
 }
 
 async function remountComposer(): Promise<void> {
@@ -228,6 +231,11 @@ async function nameRouteCreator(): Promise<void> {
     const name = document.querySelector<HTMLInputElement>("#plan-name")!;
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(name, "Captain");
     name.dispatchEvent(new Event("input", { bubbles: true }));
+    const time = document.querySelector<HTMLInputElement>("#plan-time")!;
+    if (!time.value) {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(time, new Date(Date.now() + 86_400_000).toISOString().slice(0, 16));
+      time.dispatchEvent(new Event("input", { bubbles: true }));
+    }
   });
 }
 
@@ -242,6 +250,9 @@ async function submitRecoveredRoute(): Promise<Record<string, unknown>> {
 describe("the Plan result", () => {
   describe.each(["Map", "import"])("the %s route handoff", (source) => {
     it.each([false, true])("restores a V2-only handoff as one complete record (same pubs: %s)", async (samePubs) => {
+      let now = Date.now();
+      const clock = vi.spyOn(Date, "now").mockImplementation(() => now);
+      onTestFinished(() => clock.mockRestore());
       seedOlderSession(6);
       const old = handoffRoute(true);
       old.inferredContext = { ...GENERATED.inferredContext, nightArea: "piccadilly-soho", stopCount: 6, transportConstraints: ["walking"] };
@@ -259,13 +270,17 @@ describe("the Plan result", () => {
         operationKey: "replacement-operation", anchorVenueId: null, routeRevision: 2,
         nightContext: { nightArea: "clapham", stopCount: 2, transportConstraints: [] },
       });
+      now += 100;
       await mountComposer();
+      expect(readPlanDraftEnvelope(sessionStorage)?.savedAt)
+        .toBe(JSON.parse(local.getItem(PLAN_ROUTE_DRAFT_V2_KEY)!).savedAt);
       const ids = samePubs ? ["venue-a", "venue-b"] : ["handoff-a", "handoff-b"];
       const names = samePubs ? ["Pub A", "Pub B"] : ["Handoff A", "Handoff B"];
       expectDisplayedRoute(names, ids);
       expect(document.body.textContent).not.toContain(ROUTE_DETAILS_SAVE_FAILURE);
       await openTune();
       expectTuneDescriptionAndCount("", undefined);
+      now += 100;
       await remountComposer();
       expectDisplayedRoute(names, ids);
       const saved = await submitRecoveredRoute();
@@ -369,6 +384,72 @@ describe("the Plan result", () => {
     expect(document.querySelector("#plan-lock-hint")?.textContent).toBe("Refresh the route before locking it in.");
     await act(async () => document.querySelector<HTMLFormElement>("#plan-composer")!.requestSubmit());
     expect(fetchMock.mock.calls.filter(([input]) => String(input) === "/api/plans")).toHaveLength(0);
+  });
+
+  it.each([
+    { age: "undated", samePubs: false }, { age: "undated", samePubs: true },
+    { age: "equal", samePubs: false }, { age: "equal", samePubs: true },
+  ])("excludes companion acceptance across $age conflicts (same pubs: $samePubs)", async ({ age, samePubs }) => {
+    seedOlderSession();
+    const savedAt = Date.now() - 1000;
+    expect(writePlanningIntent({
+      source: "near", cityId: "london", acceptedVenueId: "venue-a",
+      acceptedArea: { kind: "night-patch", id: "soho" }, startsAt: null,
+      displayEvidence: { kind: "directory", observedAt: null },
+    })).not.toBeNull();
+    const session = parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))!;
+    expect(writePlanDraftEnvelope({
+      ...session,
+      acceptedAnchor: {
+        venueId: "venue-a", source: "near", cityId: "london",
+        acceptedArea: { kind: "night-patch", id: "soho" }, startsAt: null,
+        expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+      },
+    }, "planning-intent", sessionStorage, savedAt).v2).toBe(true);
+    expect(transferGeneratedRouteToDraft(handoffRoute(true), localStorage, "map-generated", savedAt)).toBe(true);
+    const oldV2 = localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)!;
+    expect(transferGeneratedRouteToDraft({
+      ...handoffRoute(samePubs), operationKey: "replacement-operation", anchorSource: "map-search",
+    }, localStorage, "map-generated", savedAt)).toBe(true);
+    localStorage.setItem(PLAN_ROUTE_DRAFT_V2_KEY, oldV2);
+    if (age === "undated") {
+      const route = JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!);
+      delete route.savedAt;
+      localStorage.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify(route));
+    }
+    await mountComposer();
+    expectDisplayedRoute(samePubs ? ["Pub A", "Pub B"] : ["Handoff A", "Handoff B"],
+      samePubs ? ["venue-a", "venue-b"] : ["handoff-a", "handoff-b"]);
+    expect(document.body.textContent).not.toContain("Release this pub");
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.acceptedAnchor).toBeUndefined();
+    const stored = JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!);
+    expect(stored).toMatchObject({ routeStale: true, groundingProof: null, createOperationKey: null, planAnchor: null });
+    await openTune();
+    await typeTuneQuery("Clapham tonight");
+    await sortAgainFromTune();
+    const generation = fetchMock.mock.calls.find(([input]) => String(input).includes("/api/plans/generate"))!;
+    expect(JSON.parse(String(generation[1]?.body)).anchor).toBeUndefined();
+  });
+
+  it("preserves a complete handoff through session copies when all local writes fail", async () => {
+    seedOlderSession(6);
+    const savedAt = Date.now() - 500;
+    const response = handoffRoute(false);
+    expect(transferGeneratedRouteToDraft(response, localStorage, "map-generated", savedAt)).toBe(true);
+    const local = blockStorageWrites("localStorage");
+    const original = local.getItem(PLAN_ROUTE_DRAFT_V2_KEY);
+    await mountComposer();
+    expect(readPlanDraftEnvelope(sessionStorage)?.savedAt).toBe(new Date(savedAt).toISOString());
+    await remountComposer();
+    expectDisplayedRoute(["Handoff A", "Handoff B"], ["handoff-a", "handoff-b"]);
+    expect(document.body.textContent).not.toContain(ROUTE_DETAILS_SAVE_FAILURE);
+    const saved = await submitRecoveredRoute();
+    expect(saved.context).toMatchObject({ nightArea: "clapham", stopCount: 2, transportConstraints: [] });
+    expect(saved.groundingProof).toBe(response.groundingProof);
+    expect(saved.anchor).toEqual({ venueId: "handoff-a", source: "near", outcome: "route" });
+    expect(saved.status).toBeUndefined();
+    expect(saved.routeReadyAt).toBeUndefined();
+    expect(local.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).toBe(original);
   });
 
   it("does not merge a valid V2 handoff with a malformed V1 route", async () => {
@@ -548,6 +629,38 @@ describe("the Plan result", () => {
     expectDisplayedRoute(["Pub A", "Pub B"], ["venue-a", "venue-b"]);
     await openTune();
     expectTuneDescriptionAndCount("", 6);
+  });
+
+  it("checks the remaining route after a handoff replaces a failed persistence copy", async () => {
+    seedOlderSession();
+    const savedAt = Date.now() - 1000;
+    expect(transferGeneratedRouteToDraft(handoffRoute(true), localStorage, "map-generated", savedAt)).toBe(true);
+    const local = localStorage;
+    const next = { ...handoffRoute(false), operationKey: "replacement-operation" };
+    let replaced = false;
+    vi.stubGlobal("localStorage", {
+      getItem: local.getItem.bind(local),
+      setItem: (key: string, value: string) => {
+        if (key !== PLAN_ROUTE_DRAFT_KEY) return local.setItem(key, value);
+        if (!replaced) {
+          replaced = true;
+          expect(transferGeneratedRouteToDraft(next, local, "map-generated", Date.now() + 1000)).toBe(true);
+        }
+        throw new DOMException("Storage is full", "QuotaExceededError");
+      },
+      removeItem: local.removeItem.bind(local), clear: local.clear.bind(local),
+      key: local.key.bind(local), get length() { return local.length; },
+    } satisfies Storage);
+    await mountComposer();
+    expectDisplayedRoute(["Pub A", "Pub B"], ["venue-a", "venue-b"]);
+    expect(document.body.textContent).toContain(ROUTE_DETAILS_SAVE_FAILURE);
+    expect(JSON.parse(local.getItem(PLAN_ROUTE_DRAFT_V2_KEY)!)).toMatchObject({ operationKey: "replacement-operation" });
+    await remountComposer();
+    expectDisplayedRoute(["Handoff A", "Handoff B"], ["handoff-a", "handoff-b"]);
+    expect(document.body.textContent).not.toContain(ROUTE_DETAILS_SAVE_FAILURE);
+    const saved = await submitRecoveredRoute();
+    expect(saved.groundingProof).toBe(next.groundingProof);
+    expect(saved.anchor).toEqual({ venueId: "handoff-a", source: "near", outcome: "route" });
   });
 
   it.each([false, true])("preserves a newer handoff during a failed legacy route save (undated V1: %s)", async (undated) => {
@@ -886,9 +999,9 @@ describe("the Plan result", () => {
     { age: "older", offset: -1000, sessionWins: true },
     { age: "equal", offset: 0, sessionWins: false },
     { age: "newer", offset: 1000, sessionWins: false },
-    { age: "undated", offset: null, sessionWins: false },
-    { age: "invalid", offset: NaN, sessionWins: false },
-    { age: "future", offset: 600_000, sessionWins: false },
+    { age: "undated", offset: null, sessionWins: true },
+    { age: "invalid", offset: NaN, sessionWins: true },
+    { age: "future", offset: 600_000, sessionWins: true },
   ])("uses the route record's $age date independently of intake saves", async ({ age, offset, sessionWins }) => {
     seedCountRecovery(6);
     const savedAt = Date.now() - 2000;
@@ -905,6 +1018,15 @@ describe("the Plan result", () => {
     await mountComposer();
     expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent))
       .toEqual(sessionWins ? ["Session pub"] : ["Pub A", "Pub B"]);
+    if (sessionWins) {
+      if (offset !== null && Number.isFinite(offset) && offset < 600_000) {
+        expect(JSON.parse(localStorage.getItem(routeKey)!)).toMatchObject({
+          nightContext: null, groundingProof: null, createOperationKey: null, planAnchor: null, routeStale: true,
+        });
+      }
+      expect(document.querySelector(".planBudgetLedger")).toBeNull();
+      expect(document.body.textContent).toContain("Opening and travel checks are unavailable for this restored draft.");
+    }
   });
 
   it("keeps matching older dated stops as a refreshable preview without carrying unverified proof", async () => {
@@ -970,6 +1092,8 @@ describe("the Plan result", () => {
         expect(notices()).toContain(localCanSave
           ? "Your description could not be saved on this device. Keep this page open to keep it."
           : "Your changes could not be saved on this device. Keep this page open to keep them.");
+      } else if (source === "URL" && !localCanSave) {
+        expect(notices()).toContain(ROUTE_DETAILS_SAVE_FAILURE);
       } else {
         expect(notices().some((notice) => notice?.includes("could not be saved"))).toBe(false);
       }
