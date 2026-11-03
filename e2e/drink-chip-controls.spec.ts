@@ -569,7 +569,13 @@ for (const width of [1280, 1440]) {
       .getByRole("link", { name: "OpenStreetMap", exact: true })
       .last();
     await expect(openStreetMap).toBeVisible();
-    const hit = await openStreetMap.evaluate((credit) => {
+    // Source credits can replace the anchor between locator resolution and
+    // evaluation. Resolve it inside the same task that measures and hit-tests it.
+    const hit = await attribution.evaluate((control) => {
+      const credit = control.querySelector<HTMLAnchorElement>(
+        'a[href="https://www.openstreetmap.org/copyright"]',
+      );
+      if (!credit) throw new Error("The current OpenStreetMap credit is missing");
       const box = credit.getBoundingClientRect();
       const x = box.x + box.width / 2;
       const y = box.y + box.height / 2;
