@@ -166,12 +166,10 @@ export type BuildQuietPintInput = {
  * window, or fewer than QUIET_PINT_MIN candidates carry a cited (non-seed)
  * heritage fact.
  *
- * Ranking (heritage-cited + quiet-band + verified price):
+ * Ranking (heritage-cited + quiet-band):
  *   1. listed-grade weight, highest first (Grade I over II* over II over none)
  *   2. era, oldest first (an undated pub sorts last)
- *   3. a verified price present, before none
- *   4. cheaper verified price first
- *   5. slug, for a stable, locale-independent final order
+ *   3. slug, for a stable, locale-independent final order
  *
  * The quiet band is global to the hour (the typical-pattern estimate is the same
  * honest signal for every venue), so it gates the module rather than reordering
@@ -206,12 +204,6 @@ export function buildQuietPint(input: BuildQuietPintInput): QuietPintModule | nu
       if (byGrade !== 0) return byGrade;
       const byEra = eraStartYear(a.candidate.era) - eraStartYear(b.candidate.era);
       if (Number.isFinite(byEra) && byEra !== 0) return byEra;
-      const aPrice = priceById.get(a.candidate.venueId);
-      const bPrice = priceById.get(b.candidate.venueId);
-      const aHas = typeof aPrice === "number";
-      const bHas = typeof bPrice === "number";
-      if (aHas !== bHas) return aHas ? -1 : 1;
-      if (aHas && bHas && aPrice !== bPrice) return (aPrice as number) - (bPrice as number);
       return a.candidate.slug < b.candidate.slug ? -1 : a.candidate.slug > b.candidate.slug ? 1 : 0;
     });
 

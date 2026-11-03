@@ -1,3 +1,4 @@
+import { comparablePint } from "@/lib/comparablePint.mjs";
 // Tonight Conditions summary — pure composition of the strip's four lines.
 //
 // Ties today's date, the cached weather, a drink-weather verdict and a nearby
@@ -126,7 +127,8 @@ export function tallyLensMatches(
     if (!predicate(venue)) continue;
     if (haversineKm(point, [venue.lng, venue.lat]) > radiusKm) continue;
     count += 1;
-    if (typeof venue.cheapestPrice === "number" && venue.cheapestPrice < PINT_CEILING_GBP) {
+    const price = comparablePint(venue);
+    if (price !== null && price < PINT_CEILING_GBP) {
       underCeiling += 1;
     }
   }

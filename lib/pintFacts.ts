@@ -1,3 +1,6 @@
+import { comparableVenuePint, type ComparablePintVenue } from "@/lib/comparableVenuePint";
+import { legacyCheapestPriceEvidence } from "@/lib/legacyPriceEvidence.mjs";
+import { isNonPublicVenueName } from "@/lib/venueKindFilters";
 // Programmatic fact layer (Wave S3.1 / S3.2) — the pure, React-free core behind
 // the borough/city "Fact block" prose + stat table and the FAQ block.
 //
@@ -19,7 +22,7 @@ import { formatPrice } from "@/lib/venues";
 // The minimal venue shape the stats need. Both the full Venue and the slim
 // city SlimVenue satisfy it (name + per-pub cheapest tracked pint), so the same
 // computation drives borough pages and city map pages.
-export type PricedPubLike = {
+export type PricedPubLike = ComparablePintVenue & {
   name: string;
   cheapestPrice: number | null;
   /** The pub's price rows, so a claim about its cheapest pint carries that row's own read. */
@@ -77,6 +80,10 @@ export function pintFactStats(
       name: pub.name,
       price: pub.cheapestPrice as number,
       observedAt: venueCheapestPintObservedAt({ cheapestPrice: pub.cheapestPrice, prices: pub.prices ?? [] }),
+      comparable: !isNonPublicVenueName(pub.name) && comparableVenuePint(pub, null, false) !== null,
+      selectedObservedAt: pub.sourcedPrice?.observedAt ?? (pub.priceSource !== undefined || pub.priceObservedAt !== undefined
+        ? pub.priceObservedAt
+        : legacyCheapestPriceEvidence(pub.prices ?? [], pub.cheapestPrice).priceObservedAt) ?? null,
     }));
 
   const base: PintFactStats = {
@@ -95,11 +102,10 @@ export function pintFactStats(
     newestObservedAt: null,
     undatedCount: 0,
   };
-  const [first] = priced;
-  if (!first) return base;
+  if (priced.length === 0) return base;
 
-  let min = first;
-  let max = first;
+  let min: (typeof priced)[number] | null = null;
+  let max: (typeof priced)[number] | null = null;
   let sum = 0;
   let oldest: string | null = null;
   let newest: string | null = null;
@@ -111,16 +117,16 @@ export function pintFactStats(
       if (oldest === null || pub.observedAt < oldest) oldest = pub.observedAt;
       if (newest === null || pub.observedAt > newest) newest = pub.observedAt;
     }
-    if (
-      pub.price < min.price ||
+    if (pub.comparable && (
+      min === null || pub.price < min.price ||
       (pub.price === min.price && pub.name.localeCompare(min.name) < 0)
-    ) {
+    )) {
       min = pub;
     }
-    if (
-      pub.price > max.price ||
+    if (pub.comparable && (
+      max === null || pub.price > max.price ||
       (pub.price === max.price && pub.name.localeCompare(max.name) < 0)
-    ) {
+    )) {
       max = pub;
     }
   }
@@ -128,12 +134,12 @@ export function pintFactStats(
   return {
     ...base,
     averageGbp: roundPence(sum / priced.length),
-    minGbp: min.price,
-    minPubName: min.name,
-    minObservedAt: min.observedAt,
-    maxGbp: max.price,
-    maxPubName: max.name,
-    maxObservedAt: max.observedAt,
+    minGbp: min?.price ?? null,
+    minPubName: min?.name ?? null,
+    minObservedAt: min?.selectedObservedAt ?? null,
+    maxGbp: max?.price ?? null,
+    maxPubName: max?.name ?? null,
+    maxObservedAt: max?.selectedObservedAt ?? null,
     oldestObservedAt: oldest,
     newestObservedAt: newest,
     undatedCount: undated,
@@ -178,7 +184,9 @@ export function factBlockSentences(
   const min = formatPrice(stats.minGbp);
   const sentences: string[] = [
     averageSentence(stats),
-    `The cheapest tracked pint is ${min} at ${stats.minPubName}.`,
+    ...(stats.minGbp !== null && stats.minPubName
+      ? [`The cheapest tracked pint is ${min} at ${stats.minPubName}.`]
+      : []),
   ];
   // Range only reads honestly when min and max actually differ.
   if (

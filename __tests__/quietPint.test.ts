@@ -68,12 +68,12 @@ describe("buildQuietPint", () => {
     expect(mod!.rows.map((r) => r.id)).toEqual(["venue-old", "venue-mid", "venue-new"]);
   });
 
-  it("breaks a grade+era tie by priced-before-unpriced, then cheaper first", () => {
+  it("breaks a grade+era tie by slug regardless of display prices", () => {
     const mod = buildQuietPint({
       candidates: [
         candidate({ venueId: "venue-none", slug: "none", listed: "II", era: "1700" }),
         candidate({ venueId: "venue-dear", slug: "dear", listed: "II", era: "1700" }),
-        candidate({ venueId: "venue-cheap", slug: "cheap", listed: "II", era: "1700" }),
+        candidate({ venueId: "venue-cheap", slug: "z-cheap", listed: "II", era: "1700" }),
       ],
       priceById: new Map([
         ["venue-dear", 6],
@@ -81,7 +81,7 @@ describe("buildQuietPint", () => {
       ]),
       now: QUIET_TUESDAY,
     });
-    expect(mod!.rows.map((r) => r.id)).toEqual(["venue-cheap", "venue-dear", "venue-none"]);
+    expect(mod!.rows.map((r) => r.id)).toEqual(["venue-dear", "venue-none", "venue-cheap"]);
   });
 
   it("skips candidates whose only fact is seed example material", () => {

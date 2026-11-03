@@ -1518,8 +1518,10 @@ export function scoreVenue(
   style: CrawlStyle,
   naLensPrices?: ReadonlyMap<string, MapLensPrice>,
 ): number {
-  const price = venue.cheapestPrice ?? 8;
-  const cheapness = Math.max(0, 10 - price);
+  const price = style === "noAlcoholFirst"
+    ? venue.cheapestPrice ?? 8
+    : comparableVenuePint(venue);
+  const cheapness = price === null ? 0 : Math.max(0, 10 - price);
   const amenityScore =
     Number(venue.amenities.beerGarden) * 1.5 +
     Number(venue.amenities.liveSports) +
@@ -1575,7 +1577,8 @@ export function buildCrawlRoute(
   naLensPrices?: ReadonlyMap<string, MapLensPrice>,
 ): Venue[] {
   if (!venues.length) return [];
-  const sorted = [...venues]
+  const sorted = venues
+    .filter((venue) => filters.crawlStyle !== "cheapest" || comparableVenuePint(venue) !== null)
     .sort(
       (a, b) =>
         scoreVenue(b, filters.crawlStyle, naLensPrices) -
