@@ -16,7 +16,7 @@
 // React 19: every setState lands in an async resolution, never in the effect
 // body, and an AbortController or a cancelled flag drops a late answer.
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { readProviderAccountRevision, readProviderAccountSignal, subscribeProviderIdentityRevision } from "@/lib/authProviderRevision";
 
 import { useAuth } from "@/components/auth/authContext";
@@ -89,10 +89,11 @@ export function useTonightNearbyVenues(near: Coord | null): { rows: readonly Ton
 
 /** Read only the selected venue's detail, and only for the same source snapshot. */
 export function useTonightPintEvidence(venueId: string | null, digest: string | null) {
-  const key = venueId && digest ? `${venueId}:${digest}` : null;
-  const [answer, setAnswer] = useState<{ key: string; drinkLabel: string | null; servingSize: string | null; publisher: { label: string; url: string } | null; observedAt: string | null } | null>(null);
+  const request = useMemo(() => venueId && digest ? { venueId, digest } : null, [venueId, digest]);
+  const [answer, setAnswer] = useState<{ request: NonNullable<typeof request>; drinkLabel: string | null; servingSize: string | null; publisher: { label: string; url: string } | null; observedAt: string | null } | null>(null);
   useEffect(() => {
-    if (!key || !venueId || !digest) return;
+    if (!request) return;
+    const { venueId, digest } = request;
     const controller = new AbortController();
     void fetch(`/api/venue/${encodeURIComponent(venueId)}`, { signal: controller.signal })
       .then(async (response) => response.ok ? response.json() as Promise<unknown> : null)
@@ -104,13 +105,13 @@ export function useTonightPintEvidence(venueId: string | null, digest: string | 
         if (!row || typeof row !== "object") return;
         const { legacyPintPriceObservedAt, namedLegacyPintPriceSource } = await import("@/lib/legacyPriceEvidence.mjs");
         if (controller.signal.aborted) return;
-        setAnswer({ key, drinkLabel: typeof row.pint_name === "string" && row.pint_name.trim() ? row.pint_name : null,
+        setAnswer({ request, drinkLabel: typeof row.pint_name === "string" && row.pint_name.trim() ? row.pint_name : null,
           servingSize: typeof row.measure === "string" && row.measure.trim() ? row.measure : null,
           publisher: namedLegacyPintPriceSource(row), observedAt: legacyPintPriceObservedAt(row) });
       }).catch(() => undefined);
     return () => controller.abort();
-  }, [key, venueId, digest]);
-  return answer?.key === key ? answer : null;
+  }, [request]);
+  return request && answer?.request === request ? answer : null;
 }
 
 export type RegularNightsRead = {

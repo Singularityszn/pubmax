@@ -48,10 +48,12 @@ describe("Tonight's selected pint evidence", () => {
         drinkLabel: "Other lager", servingSize: "Pint", publisher: { label: "Other menu", url: "https://example.org/other" }, observedAt: "2026-10-02" }],
     });
     const card = await show(cheapest);
-    expect(card.textContent).toContain("Drink not recorded");
-    expect(card.textContent).toContain("Serving not recorded");
-    expect(card.textContent).toContain("Near source (link unavailable)");
-    expect(card.textContent).toContain("3 Jul 2026");
+    expect(card.textContent).toContain("Drink unavailable");
+    expect(card.textContent).toContain("Serving unavailable");
+    expect(card.textContent).toContain("Publisher not recorded");
+    expect(card.textContent).not.toContain("Near source");
+    expect(card.textContent).toContain("Read date not recorded");
+    expect(card.textContent).not.toContain("3 Jul 2026");
     expect(card.textContent).not.toContain("Other menu");
     expect(card.textContent).not.toContain("Other lager");
   });
@@ -136,5 +138,61 @@ describe("Tonight's selected pint evidence", () => {
     expect(container.textContent).toBe("Second lager");
     await act(async () => { finishFirst(body("first", "First lager")); await new Promise((resolve) => setTimeout(resolve, 20)); });
     expect(container.textContent).toBe("Second lager");
+  });
+});
+
+
+describe("selected evidence request lifetime", () => {
+  const digest = "abcdefghijklmnopqrstuv";
+  const otherDigest = "zyxwvutsrqponmlkjihgfed";
+
+  it.each(["venue", "snapshot"])("retires an earlier %s request before a late response", async (change) => {
+    const pending: Array<{ signal: AbortSignal; resolve: (response: Response) => void }> = [];
+    vi.stubGlobal("fetch", vi.fn((_input: RequestInfo | URL, init?: RequestInit) =>
+      new Promise<Response>((resolve) => pending.push({ signal: init?.signal as AbortSignal, resolve })),
+    ));
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    mounted.push(root);
+    function Probe({ id, snapshot }: { id: string; snapshot: string }) {
+      const evidence = useTonightPintEvidence(id, snapshot);
+      return createElement("span", null, evidence?.drinkLabel ?? "unavailable");
+    }
+    const response = (id: string, snapshot: string, name: string) => ({ ok: true, json: async () => ({
+      priceDatasetDigest: snapshot, venue: { id, prices: [{ pint_name: name }] },
+    }) } as Response);
+    await act(async () => root.render(createElement(Probe, { id: "near", snapshot: digest })));
+    const first = pending[0];
+    expect(first).toBeDefined();
+    const nextId = change === "venue" ? "other" : "near";
+    const nextDigest = change === "snapshot" ? otherDigest : digest;
+    await act(async () => root.render(createElement(Probe, { id: nextId, snapshot: nextDigest })));
+    expect(first?.signal.aborted).toBe(true);
+    await act(async () => { pending[1]?.resolve(response(nextId, nextDigest, "Current lager")); });
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+    expect(container.textContent).toBe("Current lager");
+    await act(async () => { first?.resolve(response("near", digest, "Stale lager")); });
+    expect(container.textContent).toBe("Current lager");
+  });
+
+  it.each(["venue", "snapshot"])("does not reuse evidence after a failed return to the same %s", async (change) => {
+    const body = { ok: true, json: async () => ({ priceDatasetDigest: digest,
+      venue: { id: "near", prices: [{ pint_name: "Old lager" }] },
+    }) };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(body).mockRejectedValue(new Error("offline")));
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    mounted.push(root);
+    function Probe({ id, snapshot = digest }: { id: string | null; snapshot?: string }) {
+      const evidence = useTonightPintEvidence(id, snapshot);
+      return createElement("span", null, evidence?.drinkLabel ?? "unavailable");
+    }
+    await act(async () => root.render(createElement(Probe, { id: "near" })));
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+    expect(container.textContent).toBe("Old lager");
+    await act(async () => root.render(createElement(Probe, change === "venue" ? { id: null } : { id: "near", snapshot: otherDigest })));
+    expect(container.textContent).toBe("unavailable");
+    await act(async () => root.render(createElement(Probe, { id: "near" })));
+    expect(container.textContent).toBe("unavailable");
   });
 });
