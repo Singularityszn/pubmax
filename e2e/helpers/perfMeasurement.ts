@@ -316,8 +316,11 @@ export async function resetPerfState(page: Page): Promise<void> {
 
 /** Loads the route and returns the interactive moment on the page's own clock. */
 export async function loadPerfRoute(page: Page, route: PerfRoute): Promise<number> {
+  const expectedStatus = "expectedStatus" in route ? route.expectedStatus : 200;
+  if (expectedStatus !== 200 && expectedStatus !== 404) {
+    throw new Error(`${route.path} expectedStatus must be numeric 200 or 404 when configured.`);
+  }
   const response = await page.goto(route.path, { waitUntil: "load" });
-  const expectedStatus = route.expectedStatus ?? 200;
   expect(
     response?.status(),
     `${route.path} must answer HTTP ${expectedStatus} before its cost is measured.`,
