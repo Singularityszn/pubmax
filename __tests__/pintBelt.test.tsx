@@ -127,6 +127,55 @@ describe("the pint belt", () => {
     expect(host.querySelector('a[href="https://winner.example/menu"]')).not.toBeNull();
   });
 
+  it("keeps a keyboard activation after a cancelled drag", () => {
+    stubMotion(false);
+    render();
+    const frame = host.querySelector<HTMLDivElement>(".pintBeltFrame")!;
+    const mat = host.querySelector<HTMLAnchorElement>("a.pintBeltMat")!;
+    frame.setPointerCapture = vi.fn();
+    frame.hasPointerCapture = vi.fn(() => true);
+    frame.releasePointerCapture = vi.fn();
+    const firePointer = (type: string, clientX: number) => {
+      const event = new MouseEvent(type, { bubbles: true, clientX });
+      Object.defineProperties(event, { pointerType: { value: "touch" }, pointerId: { value: 1 } });
+      frame.dispatchEvent(event);
+    };
+    act(() => {
+      firePointer("pointerdown", 100);
+      firePointer("pointermove", 120);
+      firePointer("pointercancel", 120);
+    });
+    const activate = vi.fn((event: Event) => event.preventDefault());
+    mat.addEventListener("click", activate);
+    mat.focus();
+    act(() => { mat.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, detail: 0 })); });
+    expect(activate).toHaveBeenCalledOnce();
+  });
+
+  it("still suppresses the click produced by a completed drag", () => {
+    stubMotion(false);
+    render();
+    const frame = host.querySelector<HTMLDivElement>(".pintBeltFrame")!;
+    const mat = host.querySelector<HTMLAnchorElement>("a.pintBeltMat")!;
+    frame.setPointerCapture = vi.fn();
+    frame.hasPointerCapture = vi.fn(() => true);
+    frame.releasePointerCapture = vi.fn();
+    const firePointer = (type: string, clientX: number) => {
+      const event = new MouseEvent(type, { bubbles: true, clientX });
+      Object.defineProperties(event, { pointerType: { value: "touch" }, pointerId: { value: 1 } });
+      frame.dispatchEvent(event);
+    };
+    act(() => {
+      firePointer("pointerdown", 100);
+      firePointer("pointermove", 120);
+      firePointer("pointerup", 120);
+    });
+    const activate = vi.fn((event: Event) => event.preventDefault());
+    mat.addEventListener("click", activate);
+    act(() => { mat.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 })); });
+    expect(activate).not.toHaveBeenCalled();
+  });
+
   it("has a control that stops it, and it starts running", () => {
     stubMotion(false);
     render();
