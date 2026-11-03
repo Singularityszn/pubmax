@@ -267,7 +267,8 @@ describe("sitemap()", () => {
     expect(expected.areas).toBeGreaterThan(0);
     expect(familyCount("/routes/")).toBe(expected.namedRoutes);
     expect(expected.drinkBrands).toBeGreaterThan(0);
-    expect(expected.drinkBrandAreas).toBeGreaterThan(0);
+    // No shipped area has review evidence, so none passes the publication gate.
+    expect(expected.drinkBrandAreas).toBe(0);
     // Sanity floors so a "0 expected" (dataset wipe) can't make the test pass.
     expect(expected.boroughs).toBeGreaterThan(0);
     expect(expected.historic).toBeGreaterThan(0);
@@ -308,15 +309,32 @@ describe("sitemap()", () => {
     expect(below).toBeGreaterThan(0);
   });
 
-  it("gives every advertised brand-by-area page an advertised parent brand page", () => {
+  it("withholds brand-by-area pages when no area has reviewed evidence", () => {
     const areaUrls = urls.filter((url) => /\/area\/[^/]+\/drink\/[^/]+$/.test(url));
-    expect(areaUrls.length).toBeGreaterThan(0);
+    expect(areaUrls).toEqual([]);
+  });
 
-    for (const url of areaUrls) {
-      const brandSlug = url.slice(url.lastIndexOf("/") + 1);
-      expect(urls, `${url} crumbs onto an unpublished /drink/${brandSlug}`).toContain(
-        `${SITE}/drink/${brandSlug}`,
-      );
+  it("gives each advertised area-brand page its parent when review is simulated", async () => {
+    vi.resetModules();
+    vi.doMock("@/lib/nightAreas", async (importOriginal) => {
+      const { simulatedNightAreas } = await import("./helpers/simulatedNightAreaReview");
+      return simulatedNightAreas(importOriginal);
+    });
+    try {
+      const { default: simulatedSitemap } = await import("@/app/sitemap");
+      const simulatedUrls = (await simulatedSitemap()).map((entry) => entry.url);
+      const areaUrls = simulatedUrls.filter((url) => /\/area\/[^/]+\/drink\/[^/]+$/.test(url));
+      expect(areaUrls.length).toBeGreaterThan(0);
+
+      for (const url of areaUrls) {
+        const brandSlug = url.slice(url.lastIndexOf("/") + 1);
+        expect(simulatedUrls, `${url} crumbs onto an unpublished /drink/${brandSlug}`).toContain(
+          `${SITE}/drink/${brandSlug}`,
+        );
+      }
+    } finally {
+      vi.doUnmock("@/lib/nightAreas");
+      vi.resetModules();
     }
   });
 
