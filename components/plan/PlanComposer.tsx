@@ -3033,9 +3033,7 @@ export default function PlanComposer() {
       // session save replaces the whole route. Session stores no generated context or proof.
       if (route && plan && !plan.legacy && intake
         && Date.parse(plan.savedAt ?? "") > Date.parse(intake.savedAt)
-        && JSON.stringify(plan.draft.stops) === JSON.stringify(recoveredDraft?.stops)
-        && (route.stops.length !== plan.draft.stops.length || route.stops.some((stop, index) =>
-          stop.venueId !== plan.draft.stops[index]?.venueId))) return {
+        && JSON.stringify(plan.draft.stops) === JSON.stringify(recoveredDraft?.stops)) return {
         stops: plan.draft.stops.map((stop) => ({ ...stop, alternatives: [] })),
         nightContext: null,
         routeNight: null,
