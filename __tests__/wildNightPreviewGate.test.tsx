@@ -10,7 +10,7 @@ vi.mock("@/components/nav/SiteNavMore", () => ({
   default: () => createElement("span", { "data-more": "" }, "More"),
 }));
 
-import WildNightPreviewGate from "@/components/wild/WildNightPreviewGate";
+import WildNightPreviewGate, { MobileWildNightPreviewGate } from "@/components/wild/WildNightPreviewGate";
 import { writeWildMode } from "@/lib/wildMode";
 
 afterEach(() => {
@@ -32,7 +32,7 @@ it("mounts the picker only when the wild master is on", () => {
   act(() => root.unmount());
 });
 
-it("adopts an off link when Next changes the query while the gate stays mounted", async () => {
+it.each([WildNightPreviewGate, MobileWildNightPreviewGate])("adopts an off link when Next changes the query while %s stays mounted", async (Gate) => {
   const { SearchParamsContext } = await import("next/dist/shared/lib/hooks-client-context.shared-runtime");
   const { useWildNightPreview } = await import("@/lib/useWildNightPreview");
   const { readWildNightPreview, writeWildNightPreview } = await import("@/lib/wildNightPreview");
@@ -43,7 +43,7 @@ it("adopts an off link when Next changes the query while the gate stays mounted"
   const root = createRoot(host);
   function Preview() { return useWildNightPreview("borough-bingo") ? createElement("div", { "data-preview": "" }) : null; }
   function tree(query: string) {
-    return createElement(SearchParamsContext.Provider, { value: new URLSearchParams(query) }, createElement(WildNightPreviewGate), createElement(Preview));
+    return createElement(SearchParamsContext.Provider, { value: new URLSearchParams(query) }, createElement(Gate), createElement(Preview));
   }
   act(() => root.render(tree("")));
   expect(host.querySelector("[data-preview]")).not.toBeNull();
@@ -58,7 +58,7 @@ it("adopts an off link when Next changes the query while the gate stays mounted"
   act(() => root.unmount());
 });
 
-it("applies a query-only master-off link before showing a preview", async () => {
+it.each([WildNightPreviewGate, MobileWildNightPreviewGate])("applies a query-only master-off link through %s before showing a preview", async (Gate) => {
   const { SearchParamsContext } = await import("next/dist/shared/lib/hooks-client-context.shared-runtime");
   const { useWildNightPreview } = await import("@/lib/useWildNightPreview");
   const { writeWildNightPreview } = await import("@/lib/wildNightPreview");
@@ -69,7 +69,7 @@ it("applies a query-only master-off link before showing a preview", async () => 
   const root = createRoot(host);
   function Preview() { return useWildNightPreview("borough-bingo") ? createElement("div", { "data-preview": "" }) : null; }
   function tree(query: string) {
-    return createElement(SearchParamsContext.Provider, { value: new URLSearchParams(query) }, createElement(WildNightPreviewGate), createElement(Preview));
+    return createElement(SearchParamsContext.Provider, { value: new URLSearchParams(query) }, createElement(Gate), createElement(Preview));
   }
   act(() => root.render(tree("")));
   expect(host.querySelector("[data-preview]")).not.toBeNull();

@@ -33,5 +33,9 @@ export default function WildNightPreviewGate() {
 
 export function MobileWildNightPreviewGate() {
   const wild = useWildMode();
-  return wild ? <MobilePicker /> : null;
+  useWildNightPreviewSelection();
+  return <>
+    <Suspense fallback={null}><PreviewAddressObserver /></Suspense>
+    {wild ? <MobilePicker /> : null}
+  </>;
 }
