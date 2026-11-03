@@ -169,6 +169,52 @@ async function typeTuneQuery(query: string): Promise<void> {
 }
 
 describe("the Plan result", () => {
+  it.each([
+    { reload: false, localWritesBlocked: false },
+    { reload: false, localWritesBlocked: true },
+    { reload: true, localWritesBlocked: false },
+    { reload: true, localWritesBlocked: true },
+  ])("uses a new unsized Ask without retyping after reload $reload with blocked local writes $localWritesBlocked", async ({ reload, localWritesBlocked }) => {
+    sessionStorage.setItem(PLAN_DRAFT_KEY, JSON.stringify({
+      title: "Night", creatorName: "", startTime: "", conciergeQuery: "Six pubs in Clapham tonight",
+      requestedStopCount: 6,
+      stops: GENERATED.stops.map((stop, index) => ({ key: index + 1, venueId: stop.venueId, venueName: stop.venueName })),
+    }));
+    const local = localWritesBlocked ? blockStorageWrites("localStorage") : localStorage;
+    writeAskPlanDraft({ query: "Clapham tonight", stopIds: [], stopNames: [], createdAt: new Date().toISOString() });
+    await mountComposer();
+    expect(sessionStorage.getItem(ASK_PLAN_DRAFT_STORAGE_KEY)).toBeNull();
+    expect(document.querySelector<HTMLInputElement>("#plan-describe-first-query")?.value).toBe("Clapham tonight");
+    expect(document.querySelector('[aria-label="Number of pub stops"] button[aria-pressed="true"]')?.textContent?.trim()).toBe("3");
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))).toMatchObject({ conciergeQuery: "Clapham tonight" });
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBeUndefined();
+    if (reload) await remountComposer();
+    expect(document.querySelector<HTMLInputElement>("#plan-concierge-query")?.value).toBe("Clapham tonight");
+    expect(fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"))).toHaveLength(0);
+    const generate = [...document.querySelectorAll<HTMLButtonElement>(".planComposer__concierge button")]
+      .find((button) => button.textContent?.trim() === "Make a plan")!;
+    expect(generate.disabled).toBe(false);
+    await act(async () => { generate.click(); });
+    await settle();
+    const generations = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"));
+    expect(generations).toHaveLength(1);
+    const sent = JSON.parse(String(generations[0]![1]?.body));
+    expect(sent.query).toBe("Clapham tonight");
+    expect(sent.context.stopCount).toBeUndefined();
+    expect(sent.intake.stopCount).toBeUndefined();
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))).toMatchObject({ conciergeQuery: "Clapham tonight" });
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBeUndefined();
+    if (localWritesBlocked) expect(local.getItem(PLAN_INTAKE_STORAGE_KEY)).toBeNull();
+    else {
+      expect(readPlanIntakeDraft(local)).not.toBeNull();
+      expect(readPlanIntakeDraft(local)?.answers.stopCount).toBeUndefined();
+    }
+    expect(document.body.textContent).not.toContain("Your changes could not be saved");
+    await openTune();
+    expect(document.querySelector<HTMLInputElement>("#plan-concierge-query")?.value).toBe("Clapham tonight");
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("3");
+  });
+
   it.each(["Ask", "URL"])("keeps a new unsized %s handoff authoritative over unwritable old intake", async (source) => {
     seedCountRecovery(6);
     const local = blockStorageWrites("localStorage");

@@ -1582,11 +1582,7 @@ function PlanComposerForm({
         const query = typeof parsed?.query === "string" ? parsed.query.trim().slice(0, 500) : "";
         if (!query) return;
         setAskDraftQuery(query);
-        if (!planComposerShowsDescribeFirst({
-          heldVenueId,
-          completed: recoveredIntake.completed,
-          entryMode: hasDurableIntakeDraft && !recoveredIntake.completed ? "wizard" : "describe",
-        })) setConciergeQuery(query);
+        setConciergeQuery(query);
         const stopCount = matchPlanStopCount(query);
         setPlanIntake((current) => applyPlanStopCount(current, null, stopCount).draft);
         if (hasDurableIntakeDraft && !recoveredIntake.completed) setEntryMode("describe");
@@ -1594,7 +1590,7 @@ function PlanComposerForm({
         /* private mode or bad JSON */
       }
     });
-  }, [canPersist, hasDurableIntakeDraft, heldVenueId, recoveredIntake.completed]);
+  }, [canPersist, hasDurableIntakeDraft, recoveredIntake.completed]);
   const palHandoffAutoGenerateStartedRef = useRef(false);
   // D3: a generated route must be SEEN. The reveal is requested by the
   // generation success path and runs in an effect, because on a describe-first

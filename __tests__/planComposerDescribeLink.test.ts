@@ -385,7 +385,7 @@ describe("PlanComposer describe prefill", () => {
     expect(sessionStorage.getItem(ASK_PLAN_DRAFT_STORAGE_KEY)).toBeNull();
   });
 
-  it("does not replace a recovered concierge line when a session ask prefill lands in describe-first", async () => {
+  it("replaces the recovered concierge line when a confirmed session ask lands in describe-first", async () => {
     writePlanDraftEnvelope(
       {
         title: "Friday plan",
@@ -410,7 +410,7 @@ describe("PlanComposer describe prefill", () => {
     await settleComposerEffects();
 
     expect(describeFieldValue()).toBe("session-only ask");
-    expect(await conciergeFieldValue()).toBe(DRAFT_ASK);
+    expect(await conciergeFieldValue()).toBe("session-only ask");
   });
 
   it("still lands the URL ask when the browser refuses site data", async () => {
