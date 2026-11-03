@@ -84,7 +84,7 @@ test("fixture-backed visitor and signed-out views do not show the private card",
 });
 
 for (const theme of ["light", "dark"] as const) {
-  test(`fixture-backed owner sees the card at 390px in ${theme} with large text`, async ({ page }, testInfo) => {
+  test(`fixture-backed owner sees the card at 390px in ${theme} with 200% root text`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await storeThemeChoice(page, theme);
     await installAuthDoubles(page);
@@ -98,11 +98,11 @@ for (const theme of ["light", "dark"] as const) {
     await expect(page.locator("#passport-been")).toBeVisible();
     await expect(page.locator(CARD)).toHaveCount(0);
     expect(indexReads).toBe(0);
-    await page.evaluate(() => { document.documentElement.style.fontSize = "125%"; });
+    await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
     await expect(page.locator("#borough-bingo")).toBeVisible();
-    const normalPath = testInfo.outputPath(`borough-normal-fixture-${theme}-390-large-text.png`);
+    const normalPath = testInfo.outputPath(`borough-normal-fixture-${theme}-390-200pct.png`);
     await page.locator("#borough-bingo").screenshot({ path: normalPath });
-    await testInfo.attach(`normal-${theme}-fixture`, { path: normalPath, contentType: "image/png" });
+    await testInfo.attach(`normal-${theme}-200pct-fixture`, { path: normalPath, contentType: "image/png" });
     await page.getByLabel("Night preview").selectOption("borough-bingo");
     const card = page.locator(CARD);
     await expect(card).toBeVisible();
@@ -116,13 +116,13 @@ for (const theme of ["light", "dark"] as const) {
     await expect(card.getByText("Unknown pub")).toHaveCount(0);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(1);
-    const previewPath = testInfo.outputPath(`borough-bingo-fixture-${theme}-390-large-text.png`);
+    const previewPath = testInfo.outputPath(`borough-bingo-fixture-${theme}-390-200pct.png`);
     await card.screenshot({ path: previewPath });
-    await testInfo.attach(`preview-${theme}-fixture`, { path: previewPath, contentType: "image/png" });
+    await testInfo.attach(`preview-${theme}-200pct-fixture`, { path: previewPath, contentType: "image/png" });
     await card.locator("h2").scrollIntoViewIfNeeded();
-    const viewportPath = testInfo.outputPath(`borough-preview-viewport-fixture-${theme}.png`);
+    const viewportPath = testInfo.outputPath(`borough-preview-viewport-fixture-${theme}-200pct.png`);
     await page.screenshot({ path: viewportPath });
-    await testInfo.attach(`preview-${theme}-viewport-fixture`, { path: viewportPath, contentType: "image/png" });
+    await testInfo.attach(`preview-${theme}-viewport-200pct-fixture`, { path: viewportPath, contentType: "image/png" });
     const lastSquare = card.locator("li").last();
     await lastSquare.scrollIntoViewIfNeeded();
     await expect.poll(async () => {
@@ -130,14 +130,20 @@ for (const theme of ["light", "dark"] as const) {
       const nav = await page.locator(".mobileTabBar").boundingBox();
       return square !== null && (nav === null || square.y + square.height <= nav.y);
     }).toBe(true);
-    const lastRowPath = testInfo.outputPath(`borough-preview-last-row-fixture-${theme}.png`);
+    const lastRowPath = testInfo.outputPath(`borough-preview-last-row-fixture-${theme}-200pct.png`);
     await page.screenshot({ path: lastRowPath });
-    await testInfo.attach(`preview-${theme}-last-row-fixture`, { path: lastRowPath, contentType: "image/png" });
+    await testInfo.attach(`preview-${theme}-last-row-200pct-fixture`, { path: lastRowPath, contentType: "image/png" });
     await page.getByLabel("Night preview").selectOption("off");
     await expect(card).toHaveCount(0);
     await expect(page.locator("#borough-bingo")).toBeVisible();
     await expect(page.locator("#borough-bingo-title")).toHaveCount(1);
     await expect(page.locator("#borough-bingo-preview-title")).toHaveCount(0);
+    await page.getByLabel("Night preview").selectOption("borough-bingo");
+    const link = page.locator(CARD).getByRole("link", { name: /Camden.*The Lamb/ });
+    await link.focus();
+    await expect(link).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(/\/map\?sel=venue-test-lamb/);
   });
 }
 
