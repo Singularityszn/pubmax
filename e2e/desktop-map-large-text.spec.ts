@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import type { ThingsToDoResult } from "../lib/citymcp/client";
+import type { WhatsOnRow } from "../lib/whatsOn";
 import { expectMapLoadingFrameReleased } from "./helpers/mobileMapShell";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 import { storeThemeChoice } from "./helpers/themeClock";
@@ -20,8 +22,10 @@ for (const theme of ["light", "dark"] as const) for (const fontSize of [16, 32])
     });
     const cdp = await context.newCDPSession(page);
     await cdp.send("Page.setFontSizes", { fontSizes: { standard: fontSize } });
+    await installDeterministicMapBasemap(page);
     await page.goto("/map?wild=0");
     await expectMapLoadingFrameReleased(page);
+    await expect(page.locator(".mapLoading")).toHaveCount(0, { timeout: 45_000 });
     await expect(page.locator(".mapSplitList")).toBeVisible();
     await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe(`${fontSize}px`);
     const toolbar = page.locator(".mapToolbar");
@@ -73,9 +77,11 @@ for (const theme of ["light", "dark"] as const) for (const fontSize of [16, 32])
     });
     const cdp = await context.newCDPSession(page);
     await cdp.send("Page.setFontSizes", { fontSizes: { standard: fontSize } });
+    await installDeterministicMapBasemap(page);
     await page.goto("/map?wild=0");
     const card = page.locator(".mapArrivalCard");
     await expect(card).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator(".mapLoading")).toHaveCount(0, { timeout: 45_000 });
     await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe(`${fontSize}px`);
     const children = [card.locator(".mapArrivalCardTitle"), card.locator(".mapArrivalCardLead"),
       card.getByRole("button", { name: "Use my location" }), card.getByRole("button", { name: "Choose an area" }),
@@ -127,6 +133,33 @@ test("Soho Tonight lane clears the wrapped toolbar at 32px browser text", async 
   const cdp = await context.newCDPSession(page);
   await cdp.send("Page.setFontSizes", { fontSizes: { standard: 32 } });
   await installDeterministicMapBasemap(page);
+  const now = "2026-11-03T18:00:00.000Z";
+  await page.clock.setFixedTime(new Date(now));
+  const opportunities: ThingsToDoResult = {
+    window: "tonight",
+    asOf: now,
+    opportunities: [{
+      title: "An evening at The French House",
+      kind: "food_drink",
+      place: {
+        id: "venue-1kpe609",
+        name: "The French House",
+        area: "Soho",
+        location: { lat: 51.51312, lng: -0.13196 },
+      },
+    }],
+  };
+  const listings: { rows: WhatsOnRow[]; servedAt: string; asOf: null } = {
+    rows: [],
+    servedAt: now,
+    asOf: null,
+  };
+  await page.route("**/api/citymcp/things-to-do?**", (route) =>
+    route.fulfill({ json: opportunities }),
+  );
+  await page.route("**/api/whats-on?**", (route) =>
+    route.fulfill({ json: listings }),
+  );
   await page.goto("/map?area=piccadilly-soho");
   await expect(page.locator(".mapLoading")).toHaveCount(0, { timeout: 45_000 });
   await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe("32px");
@@ -134,6 +167,8 @@ test("Soho Tonight lane clears the wrapped toolbar at 32px browser text", async 
   await expect(lane).toBeVisible({ timeout: 30_000 });
   await expect(lane).toContainText("Tonight nearby");
   await expect(lane).toContainText("Pins");
+  const activePins = lane.getByRole("button", { name: "Hide Pins", exact: true });
+  await expect(activePins).toHaveAttribute("aria-pressed", "true");
   const toolbar = (await page.locator(".mapToolbar").boundingBox())!;
   const laneBox = (await lane.boundingBox())!;
   const shot = await page.screenshot();
