@@ -1059,7 +1059,7 @@ for (const width of [599, 600, 641]) {
   });
 }
 
-for (const width of [599, 600, 641]) {
+for (const width of [390, 599, 600, 641]) {
   test("the neutral pint list survives a pending and failed chunk at " + width + "px", async ({ page }) => {
     await page.setViewportSize({ width: width < 600 ? 641 : 599, height: 844 });
     await page.emulateMedia({ reducedMotion: "reduce" });
@@ -1093,7 +1093,16 @@ for (const width of [599, 600, 641]) {
         await expect(row.locator("time")).toHaveText(selected.day!);
         await expect(row.locator("time")).toHaveAttribute("datetime", selected.dateTime!);
         await row.locator(".rowListTitle").click({ trial: true });
-        await row.locator(".rowListMeta a").click({ trial: true });
+        const sources = list.locator(".rowListMeta a");
+        expect(await sources.count()).toBeGreaterThan(0);
+        for (const source of await sources.all()) {
+          await source.scrollIntoViewIfNeeded();
+          const box = await source.boundingBox();
+          expect(box, "fallback publisher link has a rendered hit target").not.toBeNull();
+          expect(box!.width, "fallback publisher link is at least 44px wide").toBeGreaterThanOrEqual(44);
+          expect(box!.height, "fallback publisher link is at least 44px tall").toBeGreaterThanOrEqual(44);
+          await source.click({ trial: true });
+        }
       };
       await expectUsableList();
       const failed = page.waitForEvent("requestfailed", (request) => blocked.has(request.url()));

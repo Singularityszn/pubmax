@@ -312,6 +312,19 @@
   padding-inline: 0;
 }
 
+/* The fallback remains interactive while the optional presentation loads. */
+.tonightPintPublisher {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  min-width: var(--control-height);
+  min-height: var(--control-height);
+  max-width: 100%;
+  vertical-align: middle;
+  overflow-wrap: anywhere;
+}
+
 /* Your pubs
    ------------------------------------------------------------------
    The reader's own saves (app/tonight/TonightYourPubs.tsx), in the same list
