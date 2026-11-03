@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { expectMapLoadingFrameReleased } from "./helpers/mobileMapShell";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 import { storeThemeChoice } from "./helpers/themeClock";
 
 test.use({ serviceWorkers: "block" });
@@ -111,3 +112,36 @@ for (const theme of ["light", "dark"] as const) for (const fontSize of [16, 32])
     await expect(card).toHaveCount(0);
   });
 }
+
+
+test("Soho Tonight lane clears the wrapped toolbar at 32px browser text", async ({ page, context }, info) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await storeThemeChoice(page, "dark");
+  await page.addInitScript(() => {
+    localStorage.setItem("pubmax-tour-v1-done", "1");
+    localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+    localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+    sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+  });
+  const cdp = await context.newCDPSession(page);
+  await cdp.send("Page.setFontSizes", { fontSizes: { standard: 32 } });
+  await installDeterministicMapBasemap(page);
+  await page.goto("/map?area=piccadilly-soho");
+  await expect(page.locator(".mapLoading")).toHaveCount(0, { timeout: 45_000 });
+  await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe("32px");
+  const lane = page.locator(".tonightLane");
+  await expect(lane).toBeVisible({ timeout: 30_000 });
+  await expect(lane).toContainText("Tonight nearby");
+  await expect(lane).toContainText("Pins");
+  const toolbar = (await page.locator(".mapToolbar").boundingBox())!;
+  const laneBox = (await lane.boundingBox())!;
+  const shot = await page.screenshot();
+  await info.attach("soho-32-tonight-viewport", { body: shot, contentType: "image/png" });
+  if (process.env.R5_PROOF_DIR) {
+    await mkdir(process.env.R5_PROOF_DIR, { recursive: true });
+    await writeFile(path.join(process.env.R5_PROOF_DIR, "soho-32-tonight.png"), shot);
+    await writeFile(path.join(process.env.R5_PROOF_DIR, "soho-32-tonight.json"), JSON.stringify({ toolbar, lane: laneBox }, null, 2));
+  }
+  expect(laneBox.y).toBeGreaterThanOrEqual(toolbar.y + toolbar.height - 0.5);
+});
