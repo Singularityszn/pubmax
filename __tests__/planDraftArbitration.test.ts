@@ -283,6 +283,42 @@ describe("V2 Plan draft migration", () => {
 });
 
 describe("V2 Route draft migration", () => {
+  it("does not publish unfinished stops as a complete route envelope", () => {
+    const storage = memoryStorage();
+    const result = writePlanRouteDraftEnvelope(routeValue({ stops: [
+      { key: 1, venueId: "", venueName: "", alternatives: [] },
+    ] }), "manual", storage, NOW);
+    expect(result).toMatchObject({ v1: false, v2: false, envelope: null });
+    expect(storage.length).toBe(0);
+  });
+
+  it.each([null, NOW - 1, NOW, NOW + 1].flatMap((savedAt) => [0, 1, 3].map((blankIndex) => ({ savedAt, blankIndex }))))(
+    "recovers an unfinished V1 slot at $blankIndex with date $savedAt conservatively",
+    ({ savedAt, blankIndex }) => {
+      const storage = memoryStorage();
+      writePlanRouteDraftEnvelope(routeValue(), "map-generated", storage, NOW);
+      const unfinished = JSON.parse(storage.getItem(PLAN_ROUTE_DRAFT_KEY)!);
+      unfinished.stops.splice(blankIndex, 0, { key: blankIndex + 1, venueId: "", venueName: "", alternatives: [] });
+      if (savedAt === null) delete unfinished.savedAt;
+      else unfinished.savedAt = new Date(savedAt).toISOString();
+      storage.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify(unfinished));
+      const recovered = readPlanRouteDraftEnvelope(storage, NOW + 1)!;
+      if (savedAt === NOW - 1) {
+        expect(recovered.value.stops).toHaveLength(3);
+        expect(recovered.value.anchorVenueId).toBe("venue-a");
+      } else {
+        expect(recovered.savedAt).toBe(savedAt === null ? null : new Date(savedAt).toISOString());
+        expect(recovered.value.stops).toHaveLength(4);
+        expect(recovered.value.stops[blankIndex]).toMatchObject({ venueId: "", venueName: "" });
+        expect(recovered.value).toMatchObject({
+          nightContext: null, routeTotals: null, transportBasis: null, planningConfidence: null,
+          groundingProof: null, operationKey: null, anchorVenueId: null, anchorSource: null,
+          routeRevision: null, routeStale: true, outcome: "unanchored",
+        });
+      }
+    },
+  );
+
   it.each(["changed", "absent"])("does not borrow a stale envelope's anchor or date after the anchor is %s", (anchor) => {
     const storage = memoryStorage();
     writePlanRouteDraftEnvelope(routeValue(), "map-generated", storage, NOW);

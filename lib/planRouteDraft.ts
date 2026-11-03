@@ -192,7 +192,7 @@ function cleanAlternatives(value: unknown, exactKeys: boolean, context: NightCon
   return unique;
 }
 
-function cleanStops(value: unknown, exactKeys: boolean, context: NightContext | null): StoredRouteStop[] | null {
+function cleanStops(value: unknown, exactKeys: boolean, context: NightContext | null, unfinished: boolean): StoredRouteStop[] | null {
   if (!Array.isArray(value) || value.length < 1 || value.length > 12) return null;
   const stops = value.map((candidate, index) => {
     if (!isRecord(candidate)) return null;
@@ -207,6 +207,9 @@ function cleanStops(value: unknown, exactKeys: boolean, context: NightContext | 
     const venueId = text(candidate.venueId, 200);
     const venueName = text(candidate.venueName ?? candidate.name, 200);
     const alternatives = cleanAlternatives(candidate.alternatives ?? candidate.options ?? [], exactKeys, context);
+    if (unfinished && candidate.venueId === "" && candidate.venueName === "" && alternatives) {
+      return { key: index + 1, venueId: "", venueName: "", alternatives: [] };
+    }
     if (!venueId || !venueName || !alternatives) return null;
     const reason = nullableText(candidate.reason ?? null, 500);
     if (reason === undefined) return null;
@@ -333,9 +336,10 @@ type CleanedRouteIdentity = Pick<
 function cleanRouteFields(
   value: Record<string, unknown>,
   exactKeys: boolean,
+  unfinished: boolean,
 ): CleanedRouteFields | null {
   const nightContext = value.nightContext === null ? null : cleanNightContext(value.nightContext);
-  const stops = cleanStops(value.stops, exactKeys, nightContext);
+  const stops = cleanStops(value.stops, exactKeys, nightContext, unfinished);
   const alternatives = cleanAlternatives(value.alternatives ?? [], exactKeys, nightContext);
   const routeTotals = cleanRouteTotals(value.routeTotals ?? null);
   const planningConfidence = cleanPlanningConfidence(value.planningConfidence ?? null);
@@ -397,9 +401,26 @@ function cleanEnvelopeValue(
   value: Record<string, unknown>,
   now: number,
   exactKeys: boolean,
+  unfinished = false,
 ): ParsedPlanRouteDraft["value"] | null {
-  const fields = cleanRouteFields(value, exactKeys);
+  const fields = cleanRouteFields(value, exactKeys, unfinished);
   if (!fields) return null;
+  if (fields.stops.some((stop) => !stop.venueId || !stop.venueName)) return {
+    stops: fields.stops.map(({ key, venueId, venueName }) => ({ key, venueId, venueName, alternatives: [] })),
+    alternatives: [],
+    nightContext: null,
+    routeTotals: null,
+    transportBasis: null,
+    planningConfidence: null,
+    warnings: [],
+    operationKey: null,
+    routeRevision: null,
+    anchorVenueId: null,
+    anchorSource: null,
+    outcome: "unanchored",
+    groundingProof: null,
+    routeStale: true,
+  };
   const identity = cleanRouteIdentity(value, fields.stops);
   if (!identity) return null;
   const inspectedProof = proofState(value.groundingProof, fields.operationKey, now);
@@ -462,7 +483,7 @@ function parseLegacyPlanRouteDraft(
         anchorSource: anchor?.source ?? null,
         outcome: anchor?.outcome ?? "unanchored",
       } : {}),
-    }, now, false);
+    }, now, false, true);
     const savedAt = canonicalTimestamp(value.savedAt);
     return parsed
       ? {
