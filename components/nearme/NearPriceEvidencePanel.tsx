@@ -16,18 +16,23 @@ function MissionFocus({ children, transfer }: { children: ReactNode; transfer: R
   const end = useRef<HTMLSpanElement>(null);
   useLayoutEffect(() => {
     const anchor = start.current;
-    const nodes: HTMLElement[] = [];
-    for (let node = start.current?.nextElementSibling; node && node !== end.current; node = node.nextElementSibling) {
-      if (node instanceof HTMLElement) nodes.push(node);
-    }
+    const boundary = end.current;
+    const phaseNodes = () => {
+      const nodes: HTMLElement[] = [];
+      for (let node = anchor?.nextElementSibling; node && node !== boundary; node = node.nextElementSibling) {
+        if (node instanceof HTMLElement) nodes.push(node);
+      }
+      return nodes;
+    };
+    const holdsFocus = () => document.activeElement === anchor || phaseNodes().some((node) => node.contains(document.activeElement));
     if (transfer.current) {
       const selector = 'button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]';
-      const target = nodes.flatMap((node) => [node, ...node.querySelectorAll<HTMLElement>(selector)])
+      const target = phaseNodes().flatMap((node) => [node, ...node.querySelectorAll<HTMLElement>(selector)])
         .find((node) => node.matches(selector) && !node.closest('[hidden], [inert], [aria-hidden="true"]'));
       (target ?? anchor)?.focus();
     }
     return () => {
-      transfer.current = document.activeElement === anchor || nodes.some((node) => node.contains(document.activeElement));
+      transfer.current = holdsFocus();
     };
   }, [transfer]);
   return <><span ref={start} className="sr-only" tabIndex={-1}>Price check</span>{children}<span ref={end} hidden /></>;

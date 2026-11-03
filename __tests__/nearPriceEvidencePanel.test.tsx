@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { createNearPriceEvidencePanel } from "@/components/nearme/NearPriceEvidencePanel";
+import * as missionRequests from "@/lib/authedFetch";
 import type { NearMeCard } from "@/lib/nearMeAnswer";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -207,7 +208,10 @@ it("keeps focus in the price check through a focused retry and restores a useful
 });
 
 
-it.each(["ready", "failed"] as const)("does not pull focus back after the reader leaves a retry (%s)", async (outcome) => {
+it.each([
+  ["ready", "outside control"], ["failed", "outside control"],
+  ["ready", "blur"], ["failed", "blur"],
+] as const)("does not pull focus back after the reader leaves a retry (%s, %s)", async (outcome, departure) => {
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   let resolve!: (module: MissionModule) => void;
   let reject!: (reason: Error) => void;
@@ -223,14 +227,17 @@ it.each(["ready", "failed"] as const)("does not pull focus back after the reader
   act(() => retry.click());
   await settle();
   const outside = host.querySelector<HTMLButtonElement>("#outside")!;
-  outside.focus();
+  if (departure === "outside control") outside.focus();
+  else (document.activeElement as HTMLElement).blur();
+  const retainedFocus = departure === "outside control" ? outside : document.body;
+  expect(document.activeElement).toBe(retainedFocus);
   function Mission() { return <button type="button">Log a price</button>; }
   await act(async () => {
     if (outcome === "ready") resolve({ default: Mission });
     else reject(new Error("ChunkLoadError"));
   });
   await settle();
-  expect(document.activeElement).toBe(outside);
+  expect(document.activeElement).toBe(retainedFocus);
   expect(host.querySelector('[role="status"]')).toBeNull();
   if (outcome === "ready") expect(host.textContent).toContain("Log a price");
   else expect(host.querySelector('[role="alert"]')?.textContent).toContain("Try again");
@@ -262,5 +269,144 @@ it("discards retry focus when verified identity disappears", async () => {
   function Mission() { return <button type="button">Log a price</button>; }
   await act(async () => resolve({ default: Mission }));
   await settle();
+  expect(document.activeElement).toBe(outside);
+});
+
+async function retryWithPendingMissionRead() {
+  vi.spyOn(console, "error").mockImplementation(() => undefined);
+  sessionStorage.clear();
+  localStorage.clear();
+  const missionModule = await import("@/components/nearme/NearPriceEvidenceMission");
+  let resolveRead!: (response: Response) => void;
+  let rejectRead!: (error: Error) => void;
+  const request = vi.spyOn(missionRequests, "authedActionFetch")
+    .mockImplementation(() => new Promise<Response>((resolve, reject) => { resolveRead = resolve; rejectRead = reject; }));
+  let resolveImport!: (module: MissionModule) => void;
+  const load = vi.fn<() => Promise<MissionModule>>()
+    .mockRejectedValueOnce(new Error("ChunkLoadError"))
+    .mockImplementation(() => new Promise<MissionModule>((resolve) => { resolveImport = resolve; }));
+  const Panel = createNearPriceEvidencePanel(load);
+  let failRender = false;
+  function Mission(props: MissionProps) {
+    if (failRender) throw new Error("Mission render failed");
+    return <missionModule.default {...props} />;
+  }
+  const view = (currentCards: readonly NearMeCard[] = cards, enabled = true) => <>
+    <h1>Primary Pint answer</h1>
+    <button type="button" id="outside">Change area</button>
+    <Panel cards={currentCards} enabled={enabled} />
+  </>;
+  host = document.createElement("div"); document.body.appendChild(host); root = createRoot(host);
+  await act(async () => root!.render(view()));
+  await settle();
+  const retry = host.querySelector<HTMLButtonElement>('[role="alert"] button')!;
+  retry.focus();
+  act(() => retry.click());
+  await settle();
+  expect(load).toHaveBeenCalledTimes(2);
+  expect(document.activeElement?.textContent).toBe("Price check");
+  await act(async () => resolveImport({ default: Mission }));
+  await settle();
+  expect(request).toHaveBeenCalledTimes(1);
+  expect(host.querySelector('[role="status"]')).toBeNull();
+  expect(host.querySelector(".pemSlot")).toBeNull();
+  expect(document.activeElement?.textContent).toBe("Price check");
+  return {
+    view,
+    request,
+    succeed: () => resolveRead(Response.json({ status: "ready", mission: { venueId: "pub-one", reason: "missing" } })),
+    fail: () => rejectRead(new Error("Mission read failed")),
+    failRender: () => { failRender = true; },
+  };
+}
+
+it("retains the named retry position when real mission controls arrive after their data read", async () => {
+  const pending = await retryWithPendingMissionRead();
+  const anchor = document.activeElement;
+  await act(async () => pending.succeed());
+  await settle();
+  const log = host!.querySelector<HTMLButtonElement>(".pemOpen")!;
+  expect(log?.textContent).toBe("Log it");
+  expect(document.activeElement).toBe(anchor);
+  expect(document.activeElement).not.toBe(document.body);
+  expect(document.activeElement?.textContent).toBe("Price check");
+  const skip = host!.querySelector<HTMLButtonElement>(".pemSkip")!;
+  skip.focus();
+  await act(async () => root!.render(pending.view([{ ...cards[0], cheapestPrice: 5.5 }])));
+  expect(host!.querySelector(".pemSkip")).toBe(skip);
+  expect(document.activeElement).toBe(skip);
+  pending.failRender();
+  await act(async () => root!.render(pending.view()));
+  await settle();
+  expect(document.activeElement).toBe(host!.querySelector('[role="alert"] button'));
+  expect(document.activeElement?.textContent).toBe("Try again");
+  expect(host!.querySelector("h1")?.textContent).toBe("Primary Pint answer");
+});
+
+it("retains the named retry position when the mission data read fails", async () => {
+  const pending = await retryWithPendingMissionRead();
+  const anchor = document.activeElement;
+  await act(async () => pending.fail());
+  await settle();
+  expect(host!.querySelector(".pemSlot")).toBeNull();
+  expect(document.activeElement).toBe(anchor);
+  expect(document.activeElement).not.toBe(document.body);
+  expect(document.activeElement?.textContent).toBe("Price check");
+});
+
+it.each([
+  ["success", "outside control"], ["failure", "outside control"],
+  ["success", "blur"], ["failure", "blur"],
+] as const)("preserves focus after departure during the mission data read (%s, %s)", async (outcome, departure) => {
+  const pending = await retryWithPendingMissionRead();
+  const outside = host!.querySelector<HTMLButtonElement>("#outside")!;
+  if (departure === "outside control") outside.focus();
+  else (document.activeElement as HTMLElement).blur();
+  const retainedFocus = departure === "outside control" ? outside : document.body;
+  expect(document.activeElement).toBe(retainedFocus);
+  await act(async () => {
+    if (outcome === "success") pending.succeed();
+    else pending.fail();
+  });
+  await settle();
+  expect(document.activeElement).toBe(retainedFocus);
+  if (outcome === "success") expect(host!.querySelector(".pemOpen")?.textContent).toBe("Log it");
+  else expect(host!.querySelector(".pemSlot")).toBeNull();
+  pending.failRender();
+  await act(async () => root!.render(pending.view()));
+  await settle();
+  expect(host!.querySelector('[role="alert"]')?.textContent).toContain("Try again");
+  expect(document.activeElement).toBe(retainedFocus);
+});
+
+it("retains the named retry position if the reader returns before the data read settles", async () => {
+  const pending = await retryWithPendingMissionRead();
+  const anchor = document.activeElement as HTMLElement;
+  host!.querySelector<HTMLButtonElement>("#outside")!.focus();
+  anchor.focus();
+  await act(async () => pending.succeed());
+  await settle();
+  expect(host!.querySelector(".pemOpen")?.textContent).toBe("Log it");
+  expect(document.activeElement).toBe(anchor);
+});
+
+it.each(["signed-out", "unverified", "different-owner", "disabled"] as const)("discards the data-pending focus position on %s", async (transition) => {
+  const pending = await retryWithPendingMissionRead();
+  const anchor = document.activeElement;
+  if (transition === "signed-out") auth.user = null;
+  if (transition === "unverified") auth.identityResolved = false;
+  if (transition === "different-owner") auth.user = { id: "owner-two" };
+  await act(async () => root!.render(pending.view(cards, transition !== "disabled")));
+  expect(anchor?.isConnected).toBe(false);
+  const outside = host!.querySelector<HTMLButtonElement>("#outside")!;
+  outside.focus();
+  await act(async () => pending.succeed());
+  await settle();
+  expect(document.activeElement).toBe(outside);
+  pending.request.mockResolvedValue(Response.json({ status: "ready", mission: { venueId: "pub-one", reason: "missing" } }));
+  auth.user = { id: "owner-one" }; auth.identityResolved = true;
+  await act(async () => root!.render(pending.view()));
+  await settle();
+  expect(host!.querySelector(".pemOpen")?.textContent).toBe("Log it");
   expect(document.activeElement).toBe(outside);
 });
