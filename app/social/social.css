@@ -1397,7 +1397,7 @@ span.socialPostAvatar {
     min-height: 96px;
   }
 
-  .socialDiscoverBody
+  .socialPage
     :is(a, button, input, select, textarea, [tabindex]):not([tabindex="-1"]) {
     scroll-margin-bottom: calc(var(--chrome-bottom-clearance) + var(--space-4));
   }

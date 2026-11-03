@@ -108,13 +108,24 @@ for (const theme of ["light", "dark"] as const) {
       const beacons = await prepareUnanswered(page, { width: 320, height: 568 });
       await storeThemeChoice(page, theme);
       await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
+      let releaseLane!: () => void;
+      const lanePending = new Promise<void>((resolve) => { releaseLane = resolve; });
+      await page.route("**/api/social/posts?lane=london**", async (route) => {
+        await lanePending;
+        await route.fulfill({ json: { posts: [], nextCursor: null } });
+      });
       await page.goto("/social", { waitUntil: "domcontentloaded" });
       await firstRouteRecorded(page);
       await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
       const prompt = page.getByLabel("Anonymous analytics choice");
       await expect(prompt).toHaveCount(0);
-      const primary = page.locator(".socialPage .screenPrimary").getByRole("link", { name: "Sign in", exact: true });
+      const primarySlot = page.locator(".socialPage .screenPrimary").filter({ visible: true });
+      await expect(primarySlot.getByRole("link", { name: "Sign in", exact: true })).toBeVisible();
+      releaseLane();
+      const primary = primarySlot.getByRole("link", { name: "Plan a night", exact: true });
       await expect(primary).toBeVisible();
+      const bodySignIn = page.locator(".socialEmptySignIn").getByRole("link", { name: "Sign in", exact: true });
+      await expect(bodySignIn).toBeVisible();
       await page.evaluate(() => document.fonts.ready);
       const freshBox = await primary.boundingBox();
       expect(freshBox).not.toBeNull();
@@ -176,6 +187,9 @@ for (const theme of ["light", "dark"] as const) {
       expect(beacons, "analytics fired without Allow").toEqual([]);
 
       await primary.click();
+      await expect(page).toHaveURL(/\/plan\/?$/);
+      await page.goto("/social", { waitUntil: "domcontentloaded" });
+      await bodySignIn.click();
       await expect(page).toHaveURL(/\/login\?mode=signin&from=%2Fsocial/);
       expect(beacons, "analytics fired after denied reader actions").toEqual([]);
     });
