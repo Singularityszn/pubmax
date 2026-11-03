@@ -15,6 +15,10 @@ html:has(.appShell) {
   .mobileSheetPortal { display: none; }
 }
 
+/* A More sheet panel's loading placeholder (MoreSheetPanelReserve in
+   components/PubMap.tsx). It takes room only inside the phone sheet, below. */
+.mobileSheetPanelReserve { display: none; }
+
 @media (max-width: 640px) {
   :root {
     /* Top offset for the mobile map chrome. Adopts the shared --topbar-inset
@@ -1185,6 +1189,16 @@ html:has(.appShell) {
      asks for more than the largest snap so the sheet sits at its cap from the
      first frame; `--sheet-cap` still clamps it, so peek stays peek. */
   .mobileSharedSheet .venueSheetSkeleton {
+    min-height: 92dvh;
+  }
+  /* The same reservation for the More sheet. Its Key and Layers panels each
+     arrive in their own chunk, so the sheet hugged its header and tab row
+     (158px at 390x844) and then grew to its cap when they landed. The tab row
+     rode up most of the screen, and a tap pressed on a tab was released on
+     the panel behind it. While a panel loads, its placeholder asks for more
+     than the largest snap, and `--sheet-cap` clamps the sheet to its snap. */
+  .mobileSharedSheet .mobileSheetPanelReserve {
+    display: block;
     min-height: 92dvh;
   }
   /* Two waits can overlap — the venue read and the panel chunk each own a

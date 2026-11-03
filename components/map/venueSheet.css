@@ -271,9 +271,8 @@
    placeholder they painted a gradient band that read as an image that had
    failed to load; the placeholder keeps the flat surface venueImage.css
    gives it. */
-/* A pub with no photo gets a ROW, not a picture-sized box. The 16:9 frame drew
-   a 220px "No photo yet" panel on a 390px phone, the largest thing on the sheet
-   of a pub with nothing to show (site audit 13 Sep 2026, D10). */
+/* Do not inherit real-photo geometry. venueImage.css owns the named sign
+   frame and the unnamed placeholder dimensions. */
 .venueBaselinePhoto.venueImage--empty {
   aspect-ratio: auto;
   height: auto;

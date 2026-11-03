@@ -44,7 +44,8 @@ export default function PubListImport() {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   return <div className="pubImportDoor">
-    <Button ref={triggerRef} type="button" variant="secondary" onClick={() => setOpen(true)}>Import a pub list</Button>
+    <p className="pubImportDoor__hint">Already have a list of pubs?</p>
+    <Button ref={triggerRef} type="button" variant="ghost" onClick={() => setOpen(true)}>Import a pub list</Button>
     {open ? <ImportSession key={user?.id ?? phase} phase={phase} returnFocusRef={triggerRef} onClose={() => setOpen(false)} /> : null}
   </div>;
 }

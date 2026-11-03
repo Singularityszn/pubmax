@@ -1,4 +1,5 @@
 .pubImportDoor { max-width: var(--content-max); margin: var(--space-4) auto; }
+.pubImportDoor__hint { margin: 0 0 var(--space-2); color: var(--ink-soft); font-size: var(--text-sm); line-height: 1.5; }
 .pubImport { color: var(--ink); overflow-wrap: anywhere; padding-bottom: var(--space-6); }
 .pubImport label { display: block; font-weight: 650; margin: var(--space-3) 0 var(--space-2); }
 .pubImport textarea, .pubImport input, .pubImport select {

@@ -53,6 +53,7 @@ import {
 } from "@/lib/socialShell";
 import type { SocialPostDTO } from "@/lib/socialPosts";
 import type { SocialPostLane } from "@/lib/socialPostReason";
+import type { SocialAlternatives } from "@/lib/socialAlternatives";
 
 import "./social.css";
 import SocialComposer from "./SocialComposer";
@@ -92,6 +93,7 @@ type SocialPageClientProps = {
    * the sign-in door, never a public read it did not ask for.
    */
   londonLaneOpen?: boolean;
+  publicAlternatives?: SocialAlternatives;
 };
 
 type SocialPostPage = {
@@ -379,6 +381,7 @@ function SocialPageAccountState({
   heritageCrawls,
   friendsLaunchEnabled = true,
   londonLaneOpen = false,
+  publicAlternatives,
 }: SocialPageClientProps) {
   const surfaceName = socialSurfaceName(friendsLaunchEnabled);
   const { accountRevision, identityResolved } = useAuth();
@@ -414,6 +417,14 @@ function SocialPageAccountState({
   const activityRequestId = useRef(0);
   const feedRequestId = useRef(0);
   const moreController = useRef<AbortController | null>(null);
+  const headerSignInRef = useRef<HTMLAnchorElement | null>(null);
+  const emptyLanePending = useRef(false);
+  const [emptyLanePromoted, setEmptyLanePromoted] = useState(false);
+  const onLondonEmptyChange = useCallback((empty: boolean) => {
+    emptyLanePending.current = empty;
+    if (empty && headerSignInRef.current === document.activeElement) return;
+    setEmptyLanePromoted(empty);
+  }, []);
   const feedHref = useMemo(
     () => socialFeedRequestHref(initialState),
     [initialState],
@@ -677,25 +688,18 @@ function SocialPageAccountState({
   // there rather than in the narrow rail, where they left the column empty.
   const packsBesideTheDoor =
     friendsLaunchEnabled && isPosts && viewerPhase === "signed-out";
+  const showEmptyAlternatives = friendsLaunchEnabled && isPosts && londonLaneOpen
+    && viewerPhase === "signed-out" && emptyLanePromoted;
 
   // The route's one primary action is Post (docs/design/LAUNCH_SCREENS.md).
   // For a verified account it IS the composer: the trigger sits in the Screen's
   // primary slot and the sheet it opens is fixed, so nothing else on the page
   // wears the fill.
   //
-  // A STRANGER'S PRIMARY FOLLOWS WHAT THE BODY UNDER IT ACTUALLY SAYS. On the
-  // posts tab under the friends launch the body is the sign-in boundary, or,
-  // since captain decision 7 (1 Nov 2026), the read-only London lane, where
-  // every action a stranger could take (post, cheer, comment) needs an account.
-  // Either way the door is their first kept action and the head paints it, as
-  // the page's one filled control: the boundary prints its line without a
-  // second link to the same page, and each lane card offers only a quiet
-  // sign-in line where its cheer row would be. Everywhere else the body answers with public
-  // value - the Pubs and pints tab's listings, or the map behind the
-  // invite-only preview - and the launch table's opening rule stands: no
-  // primary action on a public route is "Sign in". While the session or the
-  // access answer is still open the control waits, because a surface that
-  // routes the viewer may not guess who they are.
+  // A stranger keeps the sign-in door while posts load, fail or exist.
+  // A confirmed empty London lane offers a night first, with sign-in below.
+  // A focused header door stays in place until focus leaves it. Unresolved
+  // identity, the rollback and the freeze keep their existing boundaries.
   const composeReady = showPostsControls && draftScope !== null;
   const primary: ReactElement = composeReady ? (
     <SocialComposer
@@ -716,9 +720,18 @@ function SocialPageAccountState({
     // whatever the flag says, and the preview boundary keeps its own quiet
     // sign-in way onward underneath.
     isPosts && friendsLaunchEnabled ? (
-      <Link prefetch={false} href={SOCIAL_SIGN_IN_HREF}>
-        Sign in
-      </Link>
+      showEmptyAlternatives ? <Link prefetch={false} href="/plan">Plan a night</Link> : (
+        <Link
+          ref={headerSignInRef}
+          prefetch={false}
+          href={SOCIAL_SIGN_IN_HREF}
+          onBlur={() => {
+            if (emptyLanePending.current) setEmptyLanePromoted(true);
+          }}
+        >
+          Sign in
+        </Link>
+      )
     ) : (
       <Link prefetch={false} href="/map">
         Open the map
@@ -780,7 +793,11 @@ function SocialPageAccountState({
           <div className="socialDoor">
             {switcher}
             {londonLane ? (
-              <SocialLondonLane />
+              <SocialLondonLane
+                alternatives={publicAlternatives}
+                onEmptyChange={onLondonEmptyChange}
+                showSignInOffer={showEmptyAlternatives}
+              />
             ) : (
             /* The boundary prints its line ONCE, under the head that carries
                 the door, and says what Social holds rather than asking again.

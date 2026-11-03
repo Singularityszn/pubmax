@@ -15,6 +15,13 @@ assertServerEnv();
 type Context = { params: Promise<{ id: string }> };
 const ACTIONS: PlanActionDTO["type"][] = ["arrived", "skipped", "swapped"];
 
+function actionFailure(error: string): Response {
+  const status = error === "forbidden" ? 403 : error === "not_found" ? 404 : error === "error" ? 503 : error === "conflict" ? 409 : 400;
+  const message = error === "forbidden" ? "That member token cannot update this Plan." : error === "not_found" ? "That Plan doesn't exist." : error === "error" ? "The Plan update is temporarily unavailable." : "Could not record the action.";
+  const code = error === "forbidden" ? "PLAN_ACTION_FORBIDDEN" : error === "not_found" ? "PLAN_NOT_FOUND" : error === "error" ? "PLAN_ACTION_UNAVAILABLE" : error === "conflict" ? "PLAN_IDEMPOTENCY_CONFLICT" : "PLAN_ACTION_INVALID";
+  return publicApiError(message, code, status, { retryable: error === "error" });
+}
+
 export async function POST(request: Request, context: Context): Promise<Response> {
   const limiterKey = `plan-actions:${hashIp(clientIp(request))}`;
   if (await isLimited(limiterKey, limiterKey, 30)) {
@@ -38,10 +45,7 @@ export async function POST(request: Request, context: Context): Promise<Response
   if (!idempotencyKey) return publicApiError(PLAN_IDEMPOTENCY_ERROR.error, PLAN_IDEMPOTENCY_ERROR.code, 400);
   const result = await planStore().addAction(id, planMemberCapability(request, body.memberToken), { type, stopPosition, idempotencyKey, ...binding });
   if (!result.ok) {
-    const status = result.error === "forbidden" ? 403 : result.error === "not_found" ? 404 : result.error === "error" ? 503 : result.error === "conflict" ? 409 : 400;
-    const error = result.error === "forbidden" ? "That member token cannot update this Plan." : result.error === "not_found" ? "That Plan doesn't exist." : result.error === "error" ? "The Plan update is temporarily unavailable." : "Could not record the action.";
-    const code = result.error === "forbidden" ? "PLAN_ACTION_FORBIDDEN" : result.error === "not_found" ? "PLAN_NOT_FOUND" : result.error === "error" ? "PLAN_ACTION_UNAVAILABLE" : result.error === "conflict" ? "PLAN_IDEMPOTENCY_CONFLICT" : "PLAN_ACTION_INVALID";
-    return publicApiError(error, code, status, { retryable: result.error === "error" });
+    return actionFailure(result.error);
   }
 
   // Quiet Wanted fulfilment when a signed-in owner arrives at a saved stop.
