@@ -34,7 +34,7 @@ describe("Social data-file tracing", () => {
       expect(artifact).toBeTruthy();
       expected.push(`./${artifact}`);
     }
-    expected.push("./public/data/pint_prices_app_dataset.json", "./public/data/uk_prices/rows.json");
+    expected.push("./public/data/pint_prices_app_dataset.json", "./public/data/uk_prices/rows.json", "./data/generated/uk_pub_search.json");
     expect(new Set(files)).toEqual(new Set(expected));
   });
 });
