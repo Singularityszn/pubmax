@@ -33,7 +33,7 @@ import {
   oneTapQuery,
   rememberedOneTapArea,
 } from "@/lib/planOneTap";
-import { DEFAULT_PLAN_STOP_COUNT, normalizePlanStopCount, type PlanStopCount } from "@/lib/planStopCount";
+import { matchPlanStopCount, normalizePlanStopCount, type PlanStopCount } from "@/lib/planStopCount";
 import PlanStopCountPicker from "@/components/plan/PlanStopCountPicker";
 
 export { DESCRIBE_FIRST_CHIPS };
@@ -168,13 +168,11 @@ export default function PlanDescribeFirst({
     if (!ready) return;
     const trimmed = queryOverride.trim();
     if (!trimmed) return;
-    onSubmit(withOptions(trimmed), stopCount);
+    onSubmit(withOptions(trimmed), requestedCountForQuery(trimmed));
   }
 
-  // An untouched default carries nothing, so a count the guide already holds
-  // keeps its own. A count the reader picked, or one their words named, goes.
-  function guideStopCount(): PlanStopCount | undefined {
-    return stopCountTouched || stopCount !== DEFAULT_PLAN_STOP_COUNT ? stopCount : undefined;
+  function requestedCountForQuery(ask: string): PlanStopCount | undefined {
+    return stopCountTouched ? stopCount : matchPlanStopCount(ask);
   }
 
   function submitChip(value: string) {
@@ -192,7 +190,7 @@ export default function PlanDescribeFirst({
     // Typed text wins: a chip may fill an empty field and submit, but it must
     // never wipe or auto-submit over a query the drinker already typed.
     if (hadTypedQuery) return;
-    onSubmit(withOptions(resolved.query), resolved.stopCount);
+    onSubmit(withOptions(resolved.query), requestedCountForQuery(resolved.query));
   }
 
   // One tap to a route. It submits a sentence through the same path as typing,
@@ -203,7 +201,7 @@ export default function PlanDescribeFirst({
     setOneTapNote("");
     if (rememberedArea) {
       trackEvent("plan_one_tap", { outcome: "remembered" });
-      onSubmit(withOptions(oneTapQuery(rememberedArea)), stopCount);
+      onSubmit(withOptions(oneTapQuery(rememberedArea)), requestedCountForQuery(oneTapQuery(rememberedArea)));
       return;
     }
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -223,7 +221,7 @@ export default function PlanDescribeFirst({
           return;
         }
         trackEvent("plan_one_tap", { outcome: "located" });
-        onSubmit(withOptions(oneTapQuery(area)), stopCount);
+        onSubmit(withOptions(oneTapQuery(area)), requestedCountForQuery(oneTapQuery(area)));
       },
       (error) => {
         setLocating(false);
@@ -276,7 +274,7 @@ export default function PlanDescribeFirst({
         <button
           type="button"
           aria-disabled={ready ? undefined : true}
-          onClick={() => { if (ready) onGuideMeInstead(guideStopCount()); }}
+          onClick={() => { if (ready) onGuideMeInstead(requestedCountForQuery(query)); }}
         >
           {PLAN_STEP_BY_STEP_LABEL}
         </button>
