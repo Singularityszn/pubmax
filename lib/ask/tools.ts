@@ -126,12 +126,13 @@ async function toolSearchVenues(
     const ceiling = parsed.intent.maxPintPrice;
     const requiresPintPrice = resolveAskPriceIntent(query).kind === "pint";
     const eligible = ceiling === undefined && !requiresPintPrice ? venues : venues.filter((venue) => {
-      const price = comparablePint(venue);
+      const price = comparablePint(venue, ctx.now);
       return price !== null && (ceiling === undefined || price <= ceiling);
     });
     const ranked = rankConciergeVenues(eligible, parsed.intent, {
       limit,
       areaCircle: areaCircleForAsk(ctx.cityId, parsed.intent.area),
+      now: ctx.now,
     });
     const cards = ranked.map((row) =>
       venueCard(row.venue, rankedNote(row), row.venue.id, ctx.now),
@@ -709,6 +710,7 @@ async function toolProposePlan(
     const ranked = rankConciergeVenues(venues, parsed.intent, {
       limit: 3,
       areaCircle: areaCircleForAsk(ctx.cityId, parsed.intent.area),
+      now: ctx.now,
     });
     if (ranked.length < 3) {
       return {

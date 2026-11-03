@@ -7,6 +7,7 @@
 // thin render over these models. No fs, no serverEnv, no route imports — safe
 // to import on the client and to unit test without a DOM.
 
+import { comparablePint } from "@/lib/comparablePint.mjs";
 import type { CityId } from "@/lib/cities";
 import type { MapChosenAreaSelection } from "@/lib/mapChosenArea";
 import { formatGbp } from "@/lib/formatGbp";
@@ -23,7 +24,7 @@ import {
 } from "@/lib/nightAreas";
 import type { MapBounds } from "@/lib/slimShards";
 import type { Venue } from "@/lib/venues";
-import { comparableLensPrice, comparableVenuePint } from "@/lib/comparableVenuePint";
+import { comparableLensPrice, selectedComparableVenuePint } from "@/lib/comparableVenuePint";
 
 /** Top of the area's pub list — the ten cheapest, mirroring the plan intake. */
 export const AREA_PUB_LIMIT = 10;
@@ -289,14 +290,19 @@ export function formatAreaDistance(
 function verifiedPrice(
   venue: Venue,
   lensPrices: ReadonlyMap<string, MapLensPrice> | null,
-): number | null {
+): { price: number | null; observedAt: string | null } {
   const lensPrice = lensPrices?.get(venue.id);
-  const price = lensPrices === null
-    ? comparableVenuePint(venue)
+  const selected = lensPrices === null ? selectedComparableVenuePint(venue) : null;
+  const candidatePrice = lensPrices === null
+    ? selected ? comparablePint(selected) : null
     : lensPrice ? comparableLensPrice(lensPrice, venue) : null;
-  return typeof price === "number" && Number.isFinite(price) && price > 0
-    ? price
-    : null;
+  const price = typeof candidatePrice === "number" && Number.isFinite(candidatePrice) && candidatePrice > 0 ? candidatePrice : null;
+  const observedAt = selected?.priceObservedAt ?? lensPrice?.observedAt ?? (
+    typeof lensPrice?.submittedAt === "number" && Number.isFinite(new Date(lensPrice.submittedAt).getTime())
+      ? new Date(lensPrice.submittedAt).toISOString()
+      : null
+  );
+  return { price, observedAt: price === null ? null : observedAt ?? null };
 }
 
 function withinRadius(
@@ -318,6 +324,7 @@ export type AreaPubRow = {
   name: string;
   /** Verified price for active drink lens, or null when none is priced yet. */
   price: number | null;
+  observedAt?: string | null;
   /** "£5.20" or the honest fail-soft copy — never a fabricated number. */
   priceLabel: string;
   distanceKm: number;
@@ -346,7 +353,7 @@ function rankCheapestDrinks(
     .filter((venue) => withinRadius(centre, radiusKm, venue))
     .map((venue) => ({
       venue,
-      price: verifiedPrice(venue, lensPrices),
+      ...verifiedPrice(venue, lensPrices),
       distanceKm: haversineKm([venue.longitude, venue.latitude], origin),
     }))
     .sort((left, right) => {
@@ -366,10 +373,11 @@ function rankCheapestDrinks(
 
   return ranked
     .slice(0, Math.max(0, limit))
-    .map(({ venue, price, distanceKm }) => ({
+    .map(({ venue, price, observedAt, distanceKm }) => ({
       id: venue.id,
       name: venue.name,
       price,
+      observedAt,
       priceLabel:
         price !== null
           ? lensPrices === null

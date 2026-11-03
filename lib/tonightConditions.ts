@@ -118,6 +118,7 @@ export function tallyLensMatches(
   lens: VenueLens,
   point: [number, number],
   radiusKm = NEAR_RADIUS_KM,
+  now?: number,
 ): VenueLensTally {
   const predicate = lensVenuePredicate(lens);
   if (!predicate) return null;
@@ -127,7 +128,7 @@ export function tallyLensMatches(
     if (!predicate(venue)) continue;
     if (haversineKm(point, [venue.lng, venue.lat]) > radiusKm) continue;
     count += 1;
-    const price = comparablePint(venue);
+    const price = comparablePint(venue, now);
     if (price !== null && price < PINT_CEILING_GBP) {
       underCeiling += 1;
     }

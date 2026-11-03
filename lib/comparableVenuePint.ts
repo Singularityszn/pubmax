@@ -10,9 +10,9 @@ export type ComparablePintVenue = Pick<Venue, "cheapestPrice"> & Partial<Pick<Ve
   | "cheapestPint" | "measure"
 >> & { prices?: readonly LegacyPriceEvidenceRow[]; sourcedPrice?: { sourceLabel: string; observedAt: string } | null };
 
-export function selectedVenuePintEvidence(venue: ComparablePintVenue) {
+export function selectedVenuePintEvidence(venue: ComparablePintVenue, now?: number) {
   return venue.prices?.length
-    ? legacyCheapestPriceEvidence(venue.prices, venue.cheapestPrice)
+    ? legacyCheapestPriceEvidence(venue.prices, venue.cheapestPrice, now)
     : {
         priceSource: venue.priceSource,
         priceObservedAt: venue.priceObservedAt,
@@ -38,11 +38,12 @@ export function comparableLensPrice(price: MapLensPrice, venue: Venue): number |
 }
 
 /** Compare the selected figure with evidence belonging to that same figure. */
-export function comparableVenuePint(
+export function selectedComparableVenuePint(
   venue: ComparablePintVenue,
   signal?: { latestContributorPrice: number | null; latestContributorAt?: number | null } | null,
   allowVenueContributor = true,
-): number | null {
+  now?: number,
+) {
   if (!isPubVenueKind(venue.kind) && !(venue.kind === "bar" && venue.legacyOsmBar === true)) {
     return null;
   }
@@ -52,24 +53,35 @@ export function comparableVenuePint(
     const at = signal?.latestContributorPrice != null
       ? signal.latestContributorAt
       : venue.latestContributorAt;
-    const observed = typeof at === "number" && Number.isFinite(new Date(at).getTime())
-      ? new Date(at).toISOString()
+    const observed = typeof at === "number"
+      ? Number.isFinite(new Date(at).getTime()) ? new Date(at).toISOString() : null
       : at;
-    return comparablePint({
+    return {
       cheapestPrice: price,
       priceSource: "Corroborated Pint Drop",
       priceObservedAt: observed,
-    });
+    };
   }
   const sourced = venue.sourcedPrice;
-  if (sourced) return comparablePint({
+  if (sourced) return {
     cheapestPrice: venue.cheapestPrice,
     priceSource: sourced.sourceLabel,
     priceObservedAt: sourced.observedAt,
-  });
-  return comparablePint({
+  };
+  return {
     cheapestPrice: venue.cheapestPrice,
-    ...selectedVenuePintEvidence(venue),
+    ...selectedVenuePintEvidence(venue, now),
     anchorLabel: venue.anchorLabel,
-  });
+  };
+}
+
+/** Compare the selected figure with its own complete evidence. */
+export function comparableVenuePint(
+  venue: ComparablePintVenue,
+  signal?: { latestContributorPrice: number | null; latestContributorAt?: number | null } | null,
+  allowVenueContributor = true,
+  now?: number,
+): number | null {
+  const selected = selectedComparableVenuePint(venue, signal, allowVenueContributor, now);
+  return selected ? comparablePint(selected, now) : null;
 }
