@@ -20,7 +20,7 @@ describe("comparable pint evidence", () => {
     }
   });
 
-  it.each(["BOTTLED BEER", "Lager bottle", "330ml Lager", "Lager 50 cl", "Lager 0.5l", "Half pint lager", "Lager half", "1/2 Lager", "Lager ⅔", "Third of lager", "Small pint"])("refuses an explicit non-pint serving: %s", (cheapestPint) => {
+  it.each(["BOTTLED BEER", "Lager bottle", "330ml Lager", "Lager 50 cl", "Lager 0.5l", "Half pint lager", "Half-pint lager", "half_pint lager", "Half–pint lager", "2 halves of stout", "Lager half", "1/2 Lager", "Lager ⅔", "Third of lager", "Small pint"])("refuses an explicit non-pint serving: %s", (cheapestPint) => {
     expect(comparablePint({ ...pint, cheapestPint })).toBeNull();
   });
 

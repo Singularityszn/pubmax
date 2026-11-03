@@ -51,6 +51,9 @@ describe("discovery claims use complete same-row pint evidence", () => {
   it.each([
     { anchorLabel: "Half pint" },
     { cheapestPint: "BOTTLED BEER" },
+    { cheapestPint: "Half-pint lager" },
+    { cheapestPint: "half_pint lager" },
+    { cheapestPint: "2 halves of stout" },
     { measure: "bottle" },
     { priceSource: undefined },
     { priceObservedAt: undefined },
