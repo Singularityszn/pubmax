@@ -70,11 +70,12 @@ test("an old Tarot link is scrubbed and leaves previews off", async ({ page }) =
 for (const host of [
   { name: "SiteNav", path: "/today", header: ".siteNavBar", map: false },
   { name: "Home", path: "/", header: ".lpNav", map: false },
+  { name: "Plan", path: "/plan", header: ".siteNavBar", map: false },
   { name: "Map", path: "/map", header: ".mobileMapTopbar", map: true },
   { name: "town Map", path: "/map?place=Sheffield&lat=53.3800941&lng=-1.4789213", header: ".mobileMapTopbar", map: true },
 ]) {
   for (const theme of ["light", "dark"] as const) {
-    test(`${host.name} phone picker follows the header in ${theme} with enlarged text`, async ({ page }) => {
+    test(`${host.name} phone picker follows the header in ${theme} with enlarged text`, async ({ page }, testInfo) => {
       test.setTimeout(90_000);
       await page.setViewportSize({ width: 390, height: 844 });
       await storeThemeChoice(page, theme);
@@ -89,11 +90,13 @@ for (const host of [
       await page.goto(`${host.path}${host.path.includes("?") ? "&" : "?"}wild=1`);
       if (host.map) await expectMobileMapShellReady(page);
       await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
-      await page.addStyleTag({ content: "html { font-size: 200% !important; }" });
-      expect(await page.locator("html").evaluate((element) => parseFloat(getComputedStyle(element).fontSize))).toBeGreaterThanOrEqual(32);
       const select = picker(page);
       await expect(select).toHaveCount(1);
       await expect(select).toBeVisible();
+      // Wait for the client picker and applied text size before measuring layout.
+      await page.addStyleTag({ content: "html { font-size: 200% !important; }" });
+      await expect.poll(() => page.locator("html").evaluate((element) => parseFloat(getComputedStyle(element).fontSize))).toBeGreaterThanOrEqual(32);
+      await page.evaluate(() => document.fonts.ready);
       await expect(select).toHaveValue("off");
       await expect(select.locator("option")).toHaveText(["Previews off", "Round Rota", "Borough Bingo"]);
       const nav = page.locator(host.header);
@@ -125,6 +128,7 @@ for (const host of [
       await page.keyboard.press("b");
       await page.keyboard.press("Enter");
       await expect(select).toHaveValue("borough-bingo");
+      await page.screenshot({ path: testInfo.outputPath("phone-picker-200.png") });
 
       if (host.map) {
         const chrome = page.locator(".mobileMapChrome");

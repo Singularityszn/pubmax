@@ -1,7 +1,5 @@
 // @vitest-environment jsdom
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -10,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("next/navigation", () => ({
   usePathname: () => "/",
   useRouter: () => ({ prefetch: () => Promise.resolve() }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
 vi.mock("@/components/nav/MessagesLink", () => ({ default: () => null }));
@@ -21,6 +20,7 @@ import LandingPage from "@/components/landing/LandingPage";
 import DotFooter from "@/components/wild/DotFooter";
 import PriceGlass from "@/components/wild/PriceGlass";
 import type { WildPriceGlass } from "@/lib/wildPriceGlass";
+import { writeWildMode } from "@/lib/wildMode";
 
 // Round-two wild ideas 01 and 10 on the front door. With the wild switch off
 // (and on the server, where it always reads off) the landing renders exactly
@@ -77,8 +77,6 @@ const GLASS: WildPriceGlass = {
   ],
 };
 
-const ROOT = join(__dirname, "..");
-
 describe("with the switch off", () => {
   it("renders the landing with no wild markup at all", () => {
     const html = renderToStaticMarkup(createElement(LandingPage, { priceGlass: GLASS }));
@@ -100,14 +98,28 @@ describe("with the switch off", () => {
     }
   });
 
-  it("fetches each wild piece as its own chunk, never in the landing's first load", () => {
-    const source = readFileSync(join(ROOT, "components/landing/LandingPage.tsx"), "utf8");
-    expect(source).toMatch(/dynamic\(\(\) => import\("@\/components\/wild\/PriceGlass"\), \{\s*ssr: false/);
-    expect(source).toMatch(/dynamic\(\(\) => import\("@\/components\/wild\/DotFooter"\), \{\s*ssr: false/);
-    // A type may be named; a value may not be imported eagerly.
-    expect(source).not.toMatch(/^import (?!type )[^;]*@\/components\/wild\//m);
-    expect(source).toMatch(/wild && priceGlass \?/);
-    expect(source).toMatch(/\{wild \? <DotFooter/);
+  it("shows wild content only while the mounted browser switch is on", async () => {
+    // Oracle: the master switch must hide both optional landing ideas by default.
+    // This rejects an eager render or content that survives switching off.
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    const host = document.createElement("div");
+    const root = createRoot(host);
+    try {
+      act(() => root.render(createElement(LandingPage, { priceGlass: GLASS })));
+      expect(host.querySelector(".wildGlass")).toBeNull();
+      expect(host.querySelector(".wildDots")).toBeNull();
+      await act(async () => { writeWildMode(true); });
+      await vi.waitFor(() => {
+        expect(host.querySelector(".wildGlass")).not.toBeNull();
+        expect(host.querySelector(".wildDots")).not.toBeNull();
+      });
+      act(() => writeWildMode(false));
+      expect(host.querySelector(".wildGlass")).toBeNull();
+      expect(host.querySelector(".wildDots")).toBeNull();
+    } finally {
+      act(() => root.unmount());
+      window.localStorage.clear();
+    }
   });
 });
 

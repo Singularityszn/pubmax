@@ -19,10 +19,16 @@
 
 @media (max-width: 640px) {
   .lp:has(> .wildNightPreviewMobile) > .lpNav {
+    display: flex;
+    flex-wrap: wrap;
     position: relative;
     inset: auto;
     margin: var(--topbar-inset, max(10px, env(safe-area-inset-top))) auto 0;
     transform: none;
+  }
+
+  .lp:has(> .wildNightPreviewMobile) > .lpNav > .lpNavActions {
+    margin-inline-start: auto;
   }
 
   .appShell:has(.mobileMapChrome .wildNightPreviewMobile) {
