@@ -871,15 +871,18 @@ export function buildSlimPriceEvidence(prices, cheapestPrice) {
   };
 }
 
+export function slimLocalityField(locality) {
+  return locality ? { locality } : {};
+}
+
+export function priceDatasetDigestFor(slim, detailText, selectionSources) {
+  const identity = createHash("sha256").update(JSON.stringify(slim)).update(detailText);
+  for (const source of selectionSources) identity.update(source);
+  return identity.digest("base64url").slice(0, 22);
+}
+
 async function main() {
   const rawText = await readFile(RAW_PATH, "utf8");
-  // Bind the ordered rows and both selection implementations to this snapshot.
-  // The 132-bit SHA-256 prefix travels with each small shard and the detail pack.
-  const identity = createHash("sha256").update(rawText);
-  for (const file of ["scripts/build_slim_index.mjs", "lib/venues.ts", "lib/priceRowEligibility.mjs", "lib/legacyPriceEvidence.mjs", "lib/comparablePint.mjs", "lib/priceReadDay.mjs"]) {
-    identity.update(await readFile(path.join(ROOT, file)));
-  }
-  const priceDatasetDigest = identity.digest("base64url").slice(0, 22);
   const rows = JSON.parse(rawText);
   if (!Array.isArray(rows)) {
     throw new Error(`Expected an array in ${RAW_PATH}, got ${typeof rows}`);
@@ -925,7 +928,6 @@ async function main() {
   const detailLines = [];
   const detailIndex = {
     version: 1,
-    priceDatasetDigest,
     detailsFile: "venue_details.jsonl",
     count: 0,
     venues: {},
@@ -938,6 +940,7 @@ async function main() {
       offset: detailOffset,
       length: detailLength,
       rowCount,
+      rowDigest: createHash("sha256").update(detailLine).digest("base64url").slice(0, 22),
     };
     detailOffset += detailLength;
     detailLines.push(detailLine);
@@ -987,7 +990,7 @@ async function main() {
       cheapestPrice,
       ...priceEvidence,
       borough: String(first.primary_borough || ""),
-      locality: locality ?? "",
+      ...slimLocalityField(locality),
       // Nearest-station fare zone (1–6, occasionally 7–9 at the London edge).
       // null when no station is comparable — kept honest, never bucketed.
       ...(zone !== null ? { zone } : {}),
@@ -1013,7 +1016,6 @@ async function main() {
       lng: row.lng,
       cheapestPrice: row.anchor.price,
       borough: row.borough,
-      locality: "",
       ...(nearest ? { zone: nearest.zone } : {}),
       kind: row.kind,
       priceBand: famousPriceBands.get(row.id),
@@ -1046,6 +1048,15 @@ async function main() {
     applyFeatureHints(venue, feature);
   }
   detailIndex.count = detailLines.length;
+  const detailText = detailLines.join("");
+  // Bind the generated ordered details and actual slim selections, plus the
+  // detail reader's selection rules, rather than guessing their inputs.
+  const selectionSources = await Promise.all(
+    ["lib/venues.ts", "lib/priceRowEligibility.mjs", "lib/legacyPriceEvidence.mjs", "lib/comparablePint.mjs", "lib/priceReadDay.mjs"]
+      .map((file) => readFile(path.join(ROOT, file))),
+  );
+  const priceDatasetDigest = priceDatasetDigestFor(slim, detailText, selectionSources);
+  detailIndex.priceDatasetDigest = priceDatasetDigest;
 
   // Compact JSON (no whitespace) — the map never reads this file by hand.
   const slimText = JSON.stringify({
@@ -1053,7 +1064,6 @@ async function main() {
     d: priceDatasetDigest,
     generatedAt: builtAt.toISOString(),
   });
-  const detailText = detailLines.join("");
   const detailIndexText = JSON.stringify(detailIndex);
   await mkdir(GENERATED_DIR, { recursive: true });
   // The monolithic index stays the canonical artifact server-side name

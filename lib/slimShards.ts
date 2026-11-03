@@ -882,7 +882,7 @@ export function createSlimShardLoader(
         boundsForRadius(lat, lng, WALKABLE_RADIUS_KM),
         0,
         true,
-      ).filter((s) => s.partition !== "kind" && !loadedUrls.has(s.url));
+      ).filter((s) => s.partition !== "kind");
       if (needed.length === 0) return { rows: [], status: "ready" };
       let results = await Promise.all(needed.map((s) => loadShard(s.url, false, false, m.priceDatasetDigest)));
       const unavailable = needed.filter((s, index) => results[index]?.status === "unavailable");
