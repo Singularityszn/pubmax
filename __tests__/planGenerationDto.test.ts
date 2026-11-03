@@ -225,7 +225,6 @@ describe("plan generation response projection", () => {
       .not.toContain("unused-fallback");
     expect(defined(stops[0]).provenance).toEqual([
       { kind: "venue_dataset", label: "PUBMAXX venue record for Venue selected" },
-      { kind: "night_area_review", label: "Test Area route review", asOf: AREA.lastReviewedAt },
       { kind: "night_signal", label: "Venue calendar: Thursday quiz", asOf: "2026-08-21T12:00:00.000Z" },
       { kind: "night_signal", label: "Venue operator: Garden open", asOf: "2026-08-22T12:00:00.000Z" },
       { kind: "night_signal", label: "Published hours", asOf: "2026-08-18T12:00:00.000Z" },

@@ -49,7 +49,6 @@ import {
   PLANNING_INTENT_STORAGE_KEY,
   readPlanningIntent,
 } from "@/lib/planningIntent";
-import { defined } from "@/__tests__/helpers/defined";
 
 describe("PlanComposer PlanningIntent settlement", () => {
   const intent = { acceptedVenueId: "venue-accepted" };
@@ -436,16 +435,12 @@ describe("PlanComposer anchor-only telemetry", () => {
 describe("PlanComposer Night Area coverage states", () => {
   const groups = nightAreaSelectorGroups(new Date("2026-07-13T12:00:00.000Z"));
 
-  it("keeps route-ready areas available in the context selector", () => {
+  it("does not present unreviewed areas as route-ready", () => {
     const ready = groups.find((group) => group.label === "Crawl-ready");
 
     expect(ready).toMatchObject({ disabled: false });
-    expect(ready?.areas.map((area) => area.slug)).toEqual([
-      "clapham",
-      "victoria",
-      "canary-wharf",
-    ]);
-    expect(nightAreaOptionLabel(defined(ready!.areas[0]), false)).toBe("Clapham");
+    expect(ready?.areas).toEqual([]);
+    expect(nightAreaOptionLabel(getNightArea("clapham"), false)).toBe("Clapham, not crawl-ready yet");
   });
 
   it("keeps unchecked areas available with an honest label", () => {
@@ -482,42 +477,29 @@ describe("PlanComposer Night Area coverage states", () => {
     );
   });
 
-  it("shows the review window instead of presenting coverage as timeless", () => {
+  it("does not invent review windows", () => {
     const now = new Date("2026-07-13T12:00:00.000Z");
 
     expect(nightAreaCoverageMeta(getNightArea("clapham"), now)).toBe(
-      "Last checked 13 Jul 2026 · review through 1 Jan 2027.",
+      "Not checked yet.",
     );
     expect(nightAreaCoverageMeta(getNightArea("shoreditch"), now)).toBe(
       "Not checked yet.",
     );
     expect(nightAreaCoverageMeta(getNightArea("richmond"), now)).toBe(
-      "Last checked 1 Jan 2026 · review expired 1 Jun 2026.",
+      "Not checked yet.",
     );
   });
 
-  it("keeps every capture state explicit and names the evidence gap", () => {
+  it("labels unreviewed areas without claiming checks", () => {
     const now = new Date("2026-07-13T12:00:00.000Z");
-
-    expect(nightAreaCoverageSummary(getNightArea("clapham"), now)).toMatchObject({
-      label: "Route-ready",
-      tone: "ready",
-    });
-    expect(nightAreaCoverageSummary(getNightArea("shoreditch"), now)).toMatchObject({
-      label: "Not all checked",
-      detail: "Some checks complete. Missing opening hours and route feasibility + 2 more.",
-      tone: "capture",
-    });
-    expect(nightAreaCoverageSummary(getNightArea("barnes"), now)).toMatchObject({
-      label: "Not all checked",
-      detail: "Checked with gaps. Missing opening hours and the route home.",
-      tone: "review",
-    });
-    expect(nightAreaCoverageSummary(getNightArea("dalston"), now)).toMatchObject({
-      label: "Rough guess",
-      detail: "We haven't checked this area yet. The route stays yours to change.",
-      tone: "discovery",
-    });
+    for (const slug of ["clapham", "shoreditch", "barnes", "dalston"] as const) {
+      expect(nightAreaCoverageSummary(getNightArea(slug), now)).toMatchObject({
+        label: "Rough guess",
+        detail: "We haven't checked this area yet. The route stays yours to change.",
+        tone: "discovery",
+      });
+    }
   });
 
   it("keeps map exploration available for route-ready and queued areas", () => {

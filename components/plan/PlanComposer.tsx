@@ -1159,7 +1159,7 @@ export function nightAreaCoverageSummary(
   const remaining = area.missingEvidence.length - missing.length;
   const missingEvidenceDetail = missing.length > 0
     ? `missing ${missing.join(" and ")}${remaining > 0 ? ` + ${remaining} more` : ""}.`
-    : "We're still checking this area before route planning opens.";
+    : "Area review is unavailable. Check each stop before you go.";
 
   switch (area.coverageStatus) {
     case "captured":
@@ -2639,7 +2639,7 @@ function PlanComposerForm({
           </span>
         </summary>
         <p className="planComposer__coverageIntro">
-          We only call an area crawl-ready when its prices are fresh and checked. The rest are yours to browse.
+          Area reviews are unavailable. You can still make a draft and check each stop.
         </p>
         <div className="planComposer__coverageGroups">
           <section aria-labelledby="plan-coverage-ready">

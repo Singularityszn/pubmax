@@ -161,7 +161,6 @@ export function buildPlanGenerationStops(params: {
     groundedStops,
     groundedAlternatives,
     walkingEstimate,
-    area,
     planningWeather,
     priceContext,
   } = params;
@@ -202,7 +201,6 @@ export function buildPlanGenerationStops(params: {
       },
       provenance: [
         { kind: "venue_dataset", label: `PUBMAXX venue record for ${venue.name}` },
-        { kind: "night_area_review", label: `${area.name} route review`, asOf: area.lastReviewedAt },
         ...tonightEvents.map((event) => ({
           kind: "night_signal" as const,
           label: `${event.source.label}: ${event.title}`,
