@@ -64,7 +64,7 @@ vi.mock("@/lib/authSessionResumeClient", () => ({
   clearPersistedSession: async () => {}, persistSessionForResume: async () => "stored", markResumePersisted: () => {},
   resumeAlreadyPersisted: () => true, requestResumeLink: vi.fn(),
 }));
-import { deviceAccountOwner } from "@/lib/deviceAccountIdentity";
+import { bindDeviceAccountOwner, deviceAccountOwner, releaseDeviceAccountOwner } from "@/lib/deviceAccountIdentity";
 import { readDeviceAccounts, rememberDeviceAccount } from "@/lib/deviceAccountSessions";
 import { setProviderAuthState } from "@/lib/authProviderRevision";
 import { AuthProvider, useAuth } from "@/components/auth/AuthProvider";
@@ -111,6 +111,56 @@ beforeEach(async () => {
 afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
+});
+
+describe("tab-local private state across account events", () => {
+  const rotaKey = "pubmax:wild-round-rota:v1";
+  const savedOrder = JSON.stringify({ version: 1, ownerId: "original", rounds: [
+    { roundId: "round-a", names: ["Sam", "Priya"], current: 1 },
+  ] });
+
+  it("clears this tab's names when another tab has already stamped the replacement account", async () => {
+    h.platform = null;
+    await act(async () => { h.session = original; h.subscriber?.("SIGNED_IN", original); });
+    sessionStorage.setItem(rotaKey, savedOrder);
+    await act(async () => { h.subscriber?.("TOKEN_REFRESHED", original); });
+    expect(sessionStorage.getItem(rotaKey)).toBe(savedOrder);
+
+    // Another tab shares localStorage, but cannot clear this tab's sessionStorage.
+    bindDeviceAccountOwner("replacement", localStorage);
+    localStorage.setItem("pubmax_handle", "replacement_owner");
+    await act(async () => { h.session = replacement; h.subscriber?.("SIGNED_IN", replacement); });
+    expect(container.textContent).toBe("replacement");
+    expect(sessionStorage.getItem(rotaKey)).toBeNull();
+    expect(deviceAccountOwner(localStorage)).toBe("replacement");
+    expect(localStorage.getItem("pubmax_handle")).toBe("replacement_owner");
+
+    bindDeviceAccountOwner("original", localStorage);
+    await act(async () => { h.session = original; h.subscriber?.("SIGNED_IN", original); });
+    expect(sessionStorage.getItem(rotaKey)).toBeNull();
+  });
+
+  it("clears this tab's names after a sign-out from another tab", async () => {
+    h.platform = null;
+    await act(async () => { h.session = original; h.subscriber?.("SIGNED_IN", original); });
+    sessionStorage.setItem(rotaKey, savedOrder);
+    releaseDeviceAccountOwner(localStorage);
+    await act(async () => { h.session = null; h.subscriber?.("SIGNED_OUT", null); });
+    expect(container.textContent).toBe("signed-out");
+    expect(sessionStorage.getItem(rotaKey)).toBeNull();
+    expect(deviceAccountOwner(localStorage)).toBeNull();
+  });
+
+  it("keeps this tab's names during an ordinary same-account provider remount", async () => {
+    h.platform = null;
+    await act(async () => { h.session = original; h.subscriber?.("SIGNED_IN", original); });
+    sessionStorage.setItem(rotaKey, savedOrder);
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    await act(async () => { root.render(createElement(AuthProvider, { clerkIntegrationConfigured: false }, createElement(Probe))); });
+    expect(container.textContent).toBe("original");
+    expect(sessionStorage.getItem(rotaKey)).toBe(savedOrder);
+  });
 });
 
 describe("AuthProvider's installed iPhone OAuth consumer", () => {
