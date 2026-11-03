@@ -414,6 +414,7 @@ test("390px food and All views retain the five venue kinds and explicit exclusio
   await expect(pubs).toHaveAttribute("aria-pressed", "false");
 
   await mapView.getByRole("button", { name: "All", exact: true }).click();
+  await expect(mapView.getByRole("button", { name: "All", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect
     .poll(async () => labels(), { timeout: 20_000 })
     .toEqual(VENUE_KIND_LABELS);
