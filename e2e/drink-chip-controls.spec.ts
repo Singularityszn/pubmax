@@ -431,8 +431,10 @@ for (const width of [390, 320]) {
   }) => {
     test.setTimeout(90_000);
     await page.setViewportSize({ width, height: 844 });
+    await installDeterministicMapBasemap(page);
     const response = await page.goto("/map");
     expect(response?.status()).toBe(200);
+    await expectMapLoadingFrameReleased(page);
 
     const attribution = page.locator(".maplibregl-ctrl-attrib");
     await expect(attribution).toBeVisible({ timeout: 45_000 });
