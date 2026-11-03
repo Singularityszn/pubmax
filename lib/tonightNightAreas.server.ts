@@ -1,3 +1,5 @@
+import "server-only";
+
 import { getNightAreasForCity } from "@/lib/nightAreas";
 import type { CompactNightArea } from "@/lib/nightAreaGeometry";
 
