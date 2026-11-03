@@ -49,7 +49,10 @@ export function planStopCountPhrase(stopCount: unknown): string {
   return `${count} stop${count === 1 ? "" : "s"}`;
 }
 
-export function inferPlanStopCount(query: string, numberWords: Readonly<Record<string, number>>): PlanStopCount {
+export function matchPlanStopCount(
+  query: string,
+  numberWords: Readonly<Record<string, number>> = Object.fromEntries(NUMBER_WORDS.map((word, count) => [word, count])),
+): PlanStopCount | undefined {
   const explicitNumeric = query.match(/\b([1-6])\s*(?:pubs?|stops?|venues?)\b/i);
   if (explicitNumeric) return Number(explicitNumeric[1]) as PlanStopCount;
   for (const [word, value] of Object.entries(numberWords)) {
@@ -58,5 +61,9 @@ export function inferPlanStopCount(query: string, numberWords: Readonly<Record<s
       return value as PlanStopCount;
     }
   }
-  return /\bbig\s+crawl\b/i.test(query) ? MAX_PLAN_STOP_COUNT : DEFAULT_PLAN_STOP_COUNT;
+  return /\bbig\s+crawl\b/i.test(query) ? MAX_PLAN_STOP_COUNT : undefined;
+}
+
+export function inferPlanStopCount(query: string, numberWords: Readonly<Record<string, number>>): PlanStopCount {
+  return matchPlanStopCount(query, numberWords) ?? DEFAULT_PLAN_STOP_COUNT;
 }

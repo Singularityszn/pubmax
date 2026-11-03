@@ -66,6 +66,7 @@ export { selectedDrinkPriceDescription } from "@/lib/planSelectedDrinkPriceEvide
 import { CITIES, DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 import {
   isPlanStopCount,
+  matchPlanStopCount,
   MAX_PLAN_STOP_COUNT,
   normalizePlanStopCount,
   planOutingNoun,
@@ -1534,9 +1535,11 @@ function PlanComposerForm({
     // is queued after this one and the URL ask still lands first.
     void Promise.resolve().then(() => {
       setAskDraftQuery(ask);
-      const stopCount = normalizePlanStopCount(inferNightContext(ask).context.stopCount);
+      const stopCount = matchPlanStopCount(ask);
       setRequestedStopCount(stopCount);
-      setPlanIntake((current) => applyPlanStopCount(current, null, stopCount).draft);
+      setPlanIntake((current) => stopCount === undefined
+        ? { ...current, answers: { ...current.answers, stopCount: undefined } }
+        : applyPlanStopCount(current, null, stopCount).draft);
       if (opensDescribeFirstForHandoff) setEntryMode("describe");
       if (askNeedsConciergeSurface) setConciergeQuery(ask);
     });
