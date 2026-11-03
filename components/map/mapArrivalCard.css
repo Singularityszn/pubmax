@@ -165,11 +165,9 @@
    under it as a single row: the copy on the left, the two actions on the right.
    The desktop map's own bottom-right lane (the ODbL credit, the Layers
    control) is untouched by it, which is why the berths this file used to
-   publish for them are gone. The height is capped, so the pin field below it
-   is a fact rather than a hope. */
+   publish for them are gone. The strip grows when its text needs more room. */
 @media (min-width: 641px) {
   .mapArrivalCard {
-    --map-arrival-strip-max-h: 76px;
     /* Under the toolbar's own lane: a panel the reader OPENS from the toolbar
        must paint over the ask, never under it. */
     z-index: calc(var(--z-map-panel) - 1);
@@ -186,11 +184,23 @@
     left: 50%;
     width: min(680px, calc(100vw - 40px));
     min-height: 0;
-    max-height: var(--map-arrival-strip-max-h);
+    display: flex;
+    flex-wrap: wrap;
     gap: 6px 10px;
     padding: 10px 44px 10px 12px;
     border-radius: var(--radius);
     transform: translateX(-50%);
+  }
+
+  .mapArrivalCardSay {
+    flex: 1 1 12rem;
+    min-width: min(100%, 12rem);
+  }
+
+  .mapArrivalCardActions {
+    flex: 0 1 auto;
+    min-width: 0;
+    flex-wrap: wrap;
   }
 
   .mapArrivalCardTitle {
@@ -261,25 +271,4 @@ body:has(.mapArrivalCard) .mapToolbar .planBtn:not(.active) {
   border: 1px solid var(--hairline);
   background: var(--panel-raised);
   color: var(--ink);
-}
-
-/* Tablet copy and both answers keep their intrinsic size when text grows. */
-@media (min-width: 641px) and (max-width: 900px) {
-  .mapArrivalCard {
-    display: flex;
-    flex-wrap: wrap;
-    max-height: none;
-    padding-right: 48px;
-  }
-
-  .mapArrivalCardSay {
-    flex: 1 1 12rem;
-    min-width: min(100%, 12rem);
-  }
-
-  .mapArrivalCardActions {
-    flex: 0 1 auto;
-    min-width: 0;
-    flex-wrap: wrap;
-  }
 }

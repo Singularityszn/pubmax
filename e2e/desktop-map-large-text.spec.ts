@@ -58,3 +58,56 @@ for (const theme of ["light", "dark"] as const) for (const fontSize of [16, 32])
     }
   });
 }
+
+for (const theme of ["light", "dark"] as const) for (const fontSize of [16, 32]) {
+  test(`first location prompt contains its text and controls at ${fontSize}px in ${theme}`, async ({ page, context }, info) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await storeThemeChoice(page, theme);
+    await page.addInitScript(() => {
+      localStorage.setItem("pubmax-tour-v1-done", "1");
+      localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+      localStorage.removeItem("pubmax:map-first-visit-arrival:v1");
+      sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    });
+    const cdp = await context.newCDPSession(page);
+    await cdp.send("Page.setFontSizes", { fontSizes: { standard: fontSize } });
+    await page.goto("/map?wild=0");
+    const card = page.locator(".mapArrivalCard");
+    await expect(card).toBeVisible({ timeout: 30_000 });
+    await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe(`${fontSize}px`);
+    const children = [card.locator(".mapArrivalCardTitle"), card.locator(".mapArrivalCardLead"),
+      card.getByRole("button", { name: "Use my location" }), card.getByRole("button", { name: "Choose an area" }),
+      card.getByRole("button", { name: "Close" })];
+    for (const child of children) await expect(child).toBeVisible();
+    const box = (await card.boundingBox())!;
+    const boxes = await Promise.all(children.map((child) => child.boundingBox()));
+    const shot = await page.screenshot();
+    await info.attach(`arrival-${theme}-${fontSize}-viewport`, { body: shot, contentType: "image/png" });
+    if (process.env.R5_PROOF_DIR) {
+      await mkdir(process.env.R5_PROOF_DIR, { recursive: true });
+      await writeFile(path.join(process.env.R5_PROOF_DIR, `arrival-${theme}-${fontSize}.png`), shot);
+      await writeFile(path.join(process.env.R5_PROOF_DIR, `arrival-${theme}-${fontSize}.json`), JSON.stringify({ box, boxes }, null, 2));
+    }
+    for (let i = 0; i < boxes.length; i += 1) {
+      const a = boxes[i]!;
+      expect(a.x).toBeGreaterThanOrEqual(box.x - 1);
+      expect(a.y).toBeGreaterThanOrEqual(box.y - 1);
+      expect(a.x + a.width).toBeLessThanOrEqual(box.x + box.width + 1);
+      expect(a.y + a.height).toBeLessThanOrEqual(box.y + box.height + 1);
+      for (let j = i + 1; j < boxes.length; j += 1) {
+        const b = boxes[j]!;
+        const overlap = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x) > 0.5 &&
+          Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y) > 0.5;
+        expect(overlap, `prompt elements ${i} and ${j} overlap`).toBe(false);
+      }
+    }
+    await children[2]!.focus();
+    await page.keyboard.press("Tab");
+    await expect(children[3]!).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(children[4]!).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(card).toHaveCount(0);
+  });
+}
