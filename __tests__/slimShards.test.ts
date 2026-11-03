@@ -667,6 +667,7 @@ describe("createSlimShardLoader (London)", () => {
   });
 
   it("does not wait for the speculative shard when the manifest names another core", async () => {
+    let finishSpeculative!: (response: Response) => void;
     const renamedCore: ShardManifest = {
       version: 2,
       grid: MANIFEST.grid,
@@ -679,7 +680,7 @@ describe("createSlimShardLoader (London)", () => {
     globalThis.fetch = ((input: RequestInfo | URL) => {
       const url = String(input);
       fetched.push(url);
-      if (url === "/data/venues_slim.core.json") return new Promise<Response>(() => {});
+      if (url === "/data/venues_slim.core.json") return new Promise<Response>((resolve) => { finishSpeculative = resolve; });
       if (url === "/data/venues_slim.manifest.json") {
         return Promise.resolve({
           ok: true,
@@ -707,6 +708,8 @@ describe("createSlimShardLoader (London)", () => {
       "c1",
       "c2",
     ]);
+    finishSpeculative({ ok: true, json: async () => BODIES["/data/venues_slim.core.json"] } as Response);
+    await new Promise((resolve) => setTimeout(resolve, 0));
   });
 
   it("falls back to the single city file when there is no manifest", async () => {

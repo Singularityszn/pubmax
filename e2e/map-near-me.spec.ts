@@ -242,9 +242,11 @@ for (const action of ["map", "crawl"] as const) {
       const nearby = page.getByRole("button", { name: "Build a crawl from the pubs nearest to me", exact: true });
       await expect(nearby).toBeVisible();
       await nearby.click();
+      await page.getByRole("button", { name: "Edit stops", exact: true }).click();
       await expect(page.locator(".routePanel ol.routeList > li").first()).toBeVisible({ timeout: 20_000 });
       await expect(nearby).toBeEnabled();
       await nearby.click();
+      await page.getByRole("button", { name: "Edit stops", exact: true }).click();
       await expect(nearby).toBeEnabled({ timeout: 20_000 });
       await expect(page.locator(".routePanel ol.routeList > li").first()).toBeVisible();
     }
