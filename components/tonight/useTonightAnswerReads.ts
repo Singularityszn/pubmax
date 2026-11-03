@@ -1,22 +1,9 @@
 "use client";
 
-// The three small reads behind Tonight's answer cards. Each one starts only
-// when its card needs it, settles once, and owns nothing the page does not
-// already know.
-//
-// 1. The pubs within a walk of the reader, from the same slim venue cells the
-//    map and /near read (lib/slimShards.ts), and only once a position or a
-//    remembered area exists. No position, no read: the card answers from the
-//    city's cheapest listed pint the page already holds.
-// 2. The regular nights, from the three committed what's-on files, and only
-//    when the what's-on read has no confirmed listing to show.
-// 3. The last train, through the same /api/last-train read the get-home strip
-//    makes. The surface cache joins the two into one request.
-//
 // React 19: every setState lands in an async resolution, never in the effect
 // body, and an AbortController or a cancelled flag drops a late answer.
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { readProviderAccountRevision, readProviderAccountSignal, subscribeProviderIdentityRevision } from "@/lib/authProviderRevision";
 
 import { useAuth } from "@/components/auth/authContext";
@@ -87,12 +74,17 @@ export function useTonightNearbyVenues(near: Coord | null): { rows: readonly Ton
   return answer && answer.key === key ? answer : EMPTY;
 }
 
-/** Read only the selected venue's detail, and only for the same source snapshot. */
+/**
+ * Use the first ordered detail row only after venue and snapshot identities match.
+ * The slim producer selects that row, including ties. A numeric price match cannot
+ * establish row identity. A retired request must not publish evidence.
+ */
 export function useTonightPintEvidence(venueId: string | null, digest: string | null) {
-  const key = venueId && digest ? `${venueId}:${digest}` : null;
-  const [answer, setAnswer] = useState<{ key: string; drinkLabel: string | null; servingSize: string | null; publisher: { label: string; url: string } | null; observedAt: string | null } | null>(null);
+  const request = useMemo(() => venueId && digest ? { venueId, digest } : null, [venueId, digest]);
+  const [answer, setAnswer] = useState<{ request: NonNullable<typeof request>; drinkLabel: string | null; servingSize: string | null; publisher: { label: string; url: string } | null; observedAt: string | null } | null>(null);
   useEffect(() => {
-    if (!key || !venueId || !digest) return;
+    if (!request) return;
+    const { venueId, digest } = request;
     const controller = new AbortController();
     void fetch(`/api/venue/${encodeURIComponent(venueId)}`, { signal: controller.signal })
       .then(async (response) => response.ok ? response.json() as Promise<unknown> : null)
@@ -104,13 +96,13 @@ export function useTonightPintEvidence(venueId: string | null, digest: string | 
         if (!row || typeof row !== "object") return;
         const { legacyPintPriceObservedAt, namedLegacyPintPriceSource } = await import("@/lib/legacyPriceEvidence.mjs");
         if (controller.signal.aborted) return;
-        setAnswer({ key, drinkLabel: typeof row.pint_name === "string" && row.pint_name.trim() ? row.pint_name : null,
+        setAnswer({ request, drinkLabel: typeof row.pint_name === "string" && row.pint_name.trim() ? row.pint_name : null,
           servingSize: typeof row.measure === "string" && row.measure.trim() ? row.measure : null,
           publisher: namedLegacyPintPriceSource(row), observedAt: legacyPintPriceObservedAt(row) });
       }).catch(() => undefined);
     return () => controller.abort();
-  }, [key, venueId, digest]);
-  return answer?.key === key ? answer : null;
+  }, [request]);
+  return request && answer?.request === request ? answer : null;
 }
 
 export type RegularNightsRead = {

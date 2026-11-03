@@ -429,6 +429,18 @@ export async function loadSlimVenuesFromPath(
   return result.rows;
 }
 
+function offlineSnapshotIdentity(data: unknown): {
+  revision: string | undefined;
+  digest: string | undefined;
+} {
+  const identity = data && typeof data === "object" && !Array.isArray(data)
+    ? data as { revision?: unknown; d?: unknown }
+    : {};
+  const revision = typeof identity.revision === "string" ? identity.revision : undefined;
+  const digest = typeof identity.d === "string" && identity.d.length > 0 ? identity.d : undefined;
+  return { revision, digest };
+}
+
 async function loadSlimVenuesFromPathUnshared(
   path: string,
   options: SlimVenueLoadOptions = {},
@@ -472,10 +484,14 @@ async function loadSlimVenuesFromPathUnshared(
     const { rows: parsedRows, complete } = payload;
     const rows = omitClosedCuratedVenues(parsedRows);
     if (complete && rows.length > 0) {
-      const stored = options.expectedRevision || options.expectedPriceDatasetDigest
-        ? { ...(options.expectedRevision ? { revision: options.expectedRevision } : {}), ...(options.expectedPriceDatasetDigest ? { d: options.expectedPriceDatasetDigest } : {}), rows }
-        : rows;
-      void offlineCache.set(offlineKey, stored);
+      const { revision, digest } = offlineSnapshotIdentity(data);
+      const existing = digest ? null : await offlineCache.get<{ d?: unknown }>(offlineKey);
+      if (digest || !existing?.d) {
+        const stored = revision || digest
+          ? { ...(revision ? { revision } : {}), ...(digest ? { d: digest } : {}), rows }
+          : rows;
+        void offlineCache.set(offlineKey, stored);
+      }
     }
     return {
       rows,
