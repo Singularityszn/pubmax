@@ -58,7 +58,7 @@ import {
   planVenueOptions,
   type PlanVenueOption,
 } from "@/lib/planVenueOptions";
-import { cleanNightContext, cleanNightContextPatch, inferNightContext, type NightContext } from "@/lib/nightPlanning";
+import { cleanNightContext, cleanNightContextPatch, type NightContext } from "@/lib/nightPlanning";
 import { planUsesPintPrices } from "@/lib/planGenerationDto";
 import { categoryLabel, DRINK_CATEGORIES, type DrinkCategory } from "@/lib/drinks";
 import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
@@ -1573,11 +1573,18 @@ function PlanComposerForm({
         const query = typeof parsed?.query === "string" ? parsed.query.trim().slice(0, 500) : "";
         if (!query) return;
         setAskDraftQuery(query);
+        setConciergeQuery(query);
+        const stopCount = matchPlanStopCount(query);
+        setRequestedStopCount(stopCount);
+        setPlanIntake((current) => stopCount === undefined
+          ? { ...current, answers: { ...current.answers, stopCount: undefined } }
+          : applyPlanStopCount(current, null, stopCount).draft);
+        if (hasDurableIntakeDraft && !recoveredIntake.completed) setEntryMode("describe");
       } catch {
         /* private mode or bad JSON */
       }
     });
-  }, [canPersist]);
+  }, [canPersist, hasDurableIntakeDraft, recoveredIntake.completed]);
   const palHandoffAutoGenerateStartedRef = useRef(false);
   // D3: a generated route must be SEEN. The reveal is requested by the
   // generation success path and runs in an effect, because on a describe-first
@@ -1996,7 +2003,7 @@ function PlanComposerForm({
 
   function submitFromEntry(
     query: string,
-    stopCount: PlanStopCount = normalizePlanStopCount(inferNightContext(query).context.stopCount),
+    stopCount: PlanStopCount | undefined = matchPlanStopCount(query),
     intakeBase: PlanIntakeDraft = planIntake,
   ) {
     // Computed once and threaded through explicitly: setPlanIntake has not
@@ -2012,12 +2019,10 @@ function PlanComposerForm({
       },
     });
     setConciergeQuery(query);
+    setRequestedStopCount(stopCount);
+    setExplicitNightContext((current) => ({ ...current, stopCount }));
     updatePlanIntake(skippedIntake);
-    sortWithConcierge(
-      query,
-      skippedIntake,
-      { stopCount },
-    );
+    sortWithConcierge(query, skippedIntake);
   }
 
   function updatePlanStartTime(value: string) {
@@ -2226,18 +2231,18 @@ function PlanComposerForm({
   async function sortWithConcierge(
     queryOverride?: string,
     intakeOverride?: PlanIntakeDraft,
-    explicitContextOverride?: Partial<NightContext>,
   ) {
     // Both overrides (from the describe-first entry surface) are threaded
     // through explicitly before React re-renders, so state reads here cannot
     // send the pre-skip intake to the server.
     const query = queryOverride ?? conciergeQuery;
     const queryArea = nightAreaFromPlanQuery(query);
-    const stopCount = explicitContextOverride?.stopCount ?? requestedStopCount;
+    const stopCount = intakeOverride
+      ? intakeOverride.answers.stopCount
+      : requestedStopCount;
     const explicitContextBase = {
       ...explicitNightContext,
-      ...explicitContextOverride,
-      ...(stopCount !== undefined ? { stopCount } : {}),
+      stopCount,
     };
     const explicitContext = Object.prototype.hasOwnProperty.call(explicitContextBase, "nightArea")
       ? explicitContextBase
@@ -2604,7 +2609,7 @@ function PlanComposerForm({
             <option value="solo">Solo</option><option value="friends">Friends</option><option value="work">Work</option>
           </select></label>
           <label htmlFor="plan-context-people">People<input id="plan-context-people" aria-describedby="plan-route-status" type="number" min="1" max="30" value={nightContext.groupSize ?? ""} onChange={(event) => updateNightContext({ groupSize: event.target.value ? Number(event.target.value) : null })} /></label>
-          <label htmlFor="plan-context-stops">Stops<select id="plan-context-stops" aria-describedby="plan-route-status" value={normalizePlanStopCount(nightContext.stopCount)} onChange={(event) => updateNightContext({ stopCount: normalizePlanStopCount(Number(event.target.value)) })}>{PLAN_STOP_COUNTS.map((count) => <option key={count} value={count}>{count}</option>)}</select></label>
+          <label htmlFor="plan-context-stops">Stops<select id="plan-context-stops" aria-describedby="plan-route-status" value={normalizePlanStopCount(requestedStopCount)} onChange={(event) => updateNightContext({ stopCount: normalizePlanStopCount(Number(event.target.value)) })}>{PLAN_STOP_COUNTS.map((count) => <option key={count} value={count}>{count}</option>)}</select></label>
           <label htmlFor="plan-context-budget">Budget<select id="plan-context-budget" aria-describedby="plan-route-status" value={nightContext.budget} onChange={(event) => updateNightContext({ budget: event.target.value as NightContext["budget"] })}>
             <option value="value">Value</option><option value="standard">Standard</option><option value="treat">Treat</option>
           </select></label>

@@ -187,6 +187,22 @@ describe("the describe-first field on the form PlanComposer replaces", () => {
     expect(onSubmit).toHaveBeenLastCalledWith("One pub in Clapham tonight", 4);
   });
 
+  it.each([
+    { query: "Clapham tonight", requested: undefined },
+    { query: "One pub in Clapham tonight", requested: 1 },
+    { query: "Three pubs in Clapham tonight", requested: 3 },
+  ])("transfers only requested intent for $query through submit and guide", async ({ query, requested }) => {
+    const onSubmit = vi.fn();
+    const onGuideMeInstead = vi.fn();
+    await render(true, onSubmit, onGuideMeInstead);
+    await act(async () => typeInto(field(), query));
+    expect(button(String(requested ?? 3)).getAttribute("aria-pressed")).toBe("true");
+    await act(async () => button("Plan it").click());
+    expect(onSubmit).toHaveBeenLastCalledWith(query, requested);
+    await act(async () => button("Step by step").click());
+    expect(onGuideMeInstead).toHaveBeenLastCalledWith(requested);
+  });
+
   it("is painted read-only by the server and takes a query once PlanComposer hydrates", async () => {
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
     const fetchMock = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({ error: "offline" }), { status: 503 }));
