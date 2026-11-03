@@ -21,6 +21,16 @@ function optionalBool(record: Record<string, unknown>, key: string): boolean | u
   return typeof record[key] === "boolean" ? record[key] as boolean : undefined;
 }
 
+function pintEvidence(row: SlimRow): Pick<ConciergeVenue, "priceSource" | "priceObservedAt" | "anchorLabel" | "cheapestPint" | "measure"> {
+  return {
+    ...(typeof row.priceSource === "string" ? { priceSource: row.priceSource } : {}),
+    ...(typeof row.priceObservedAt === "string" ? { priceObservedAt: row.priceObservedAt } : {}),
+    ...(typeof row.anchorLabel === "string" ? { anchorLabel: row.anchorLabel } : {}),
+    ...(typeof row.cheapestPint === "string" ? { cheapestPint: row.cheapestPint } : {}),
+    ...(typeof row.measure === "string" ? { measure: row.measure } : {}),
+  };
+}
+
 function toVenue(value: unknown): ConciergeVenue | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const row = value as SlimRow;
@@ -51,11 +61,7 @@ function toVenue(value: unknown): ConciergeVenue | null {
     lat: row.lat,
     lng: row.lng,
     cheapestPrice: row.cheapestPrice as number | null,
-    ...(typeof row.priceSource === "string" ? { priceSource: row.priceSource } : {}),
-    ...(typeof row.priceObservedAt === "string" ? { priceObservedAt: row.priceObservedAt } : {}),
-    ...(typeof row.anchorLabel === "string" ? { anchorLabel: row.anchorLabel } : {}),
-    ...(typeof row.cheapestPint === "string" ? { cheapestPint: row.cheapestPint } : {}),
-    ...(typeof row.measure === "string" ? { measure: row.measure } : {}),
+    ...pintEvidence(row),
     amenities: {
       beerGarden: bool(amenities, "beerGarden"),
       cocktails: bool(amenities, "cocktails"),
