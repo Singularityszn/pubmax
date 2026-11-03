@@ -28,6 +28,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   If a last-train refresh fails, Tonight keeps its previous answer for the same location until that answer becomes out of date. It then hides the train time. The **Last orders** panel asks you to check TfL. A different location does not use the previous location's answer.
 
+  When Tonight has two or fewer confirmed primary listings, **Cheapest listed pints** shows qualifying London prices when available. Below 600 pixels, the prices appear on beer mats. At 600 pixels and wider, they appear on the pint belt. Each presentation carries the selected price's drink, serving, publisher link and full read date, or says when a fact is missing. The list remains available while a presentation loads or if it fails. Press Enter or Space to turn a beer mat over. With reduced motion, the back appears without a flip animation.
+
   Quizzes at different pubs remain separate cards, even when their titles and times match. Duplicate quiz listings at one pub share one card when their title, source and schedule match.
 
   Source credits count displayed primary and music groups once, rather than every returned event. When an Out read succeeds with venue matching ready and no pub matches, its credit says **No pub-matched events**. Matches hidden by display filters, including stale matches, prevent that claim. With no displayed groups, matched What's-on results use **Pub-matched listings**, including chain-only results. Each feed reports its own source date. A missing date says **The what’s-on source check date is not recorded.** or **The live listings source check date is not recorded.**
