@@ -5,6 +5,7 @@
 import dynamic from "next/dynamic";
 
 import type { WildCrawl } from "@/lib/wildPintLineCrawl";
+import CrawlPresentationBoundary from "./CrawlPresentationBoundary";
 
 const PintLine = dynamic(() => import("./PintLine"), {
   ssr: false,
@@ -12,5 +13,7 @@ const PintLine = dynamic(() => import("./PintLine"), {
 });
 
 export default function PintLineGate({ crawl }: { crawl: WildCrawl }) {
-  return <PintLine crawl={crawl} />;
+  return <CrawlPresentationBoundary key={crawl.name} fallback={
+    <p role="status">The route diagram could not load. The stops and map link are still available.</p>
+  }><PintLine crawl={crawl} /></CrawlPresentationBoundary>;
 }
