@@ -1141,13 +1141,16 @@ test("a cancelled belt drag still permits native keyboard activation", async ({ 
 
 for (const width of [390, 600]) {
   for (const theme of ["light", "dark"] as const) {
-    test(`200 percent pint evidence at ${width}px in ${theme}`, async ({ page }) => {
+    test(`200 percent pint evidence at ${width}px in ${theme}`, async ({ page, context }, testInfo) => {
       await page.setViewportSize({ width, height: 844 });
       await page.emulateMedia({ reducedMotion: "reduce" });
+      // Use the browser's font preference. CSP correctly blocks an injected
+      // style tag, which left this test exercising the default text size.
+      const session = await context.newCDPSession(page);
+      await session.send("Page.setFontSizes", { fontSizes: { standard: 32, fixed: 26 } });
       await storeThemeChoice(page, theme);
       await openQuietNight(page);
       await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
-      await page.addStyleTag({ content: "html { font-size: 200% !important; }" });
       expect(await page.locator("html").evaluate((el) => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(32);
       const area = page.getByTestId("tonight-cheap-pints");
       if (width === 390) {
@@ -1186,6 +1189,8 @@ for (const width of [390, 600]) {
         expect(await evidence.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
       }
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+      await area.screenshot({ path: testInfo.outputPath(`pint-evidence-${width}-${theme}-200-percent.png`) });
+      await session.detach();
     });
   }
 }

@@ -59,7 +59,7 @@ function PintPresentation({ rows }: { rows: readonly TonightCheapPint[] }) {
 }
 
 /** The selected row's own evidence, shown even when a presentation cannot load. */
-export function TonightPintEvidence({ row }: { row: TonightCheapPint }) {
+function TonightPintEvidence({ row }: { row: TonightCheapPint }) {
   const date = row.observedAt ? new Date(row.observedAt) : null;
   const readable = date && Number.isFinite(date.getTime());
   return <>
