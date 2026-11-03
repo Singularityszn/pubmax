@@ -1,3 +1,5 @@
+import { comparableVenuePint } from "@/lib/comparableVenuePint";
+import { isPublicRankablePub } from "@/lib/venueKindFilters";
 // The arrival: national figure to "what about my patch" in one tap.
 //
 // Someone lands on the Pint Index from a press link or a shared card. They read
@@ -49,8 +51,8 @@ export type ArrivalArea = {
 export function arrivalAreas(venues: readonly Venue[], limit = ARRIVAL_AREA_LIMIT): ArrivalArea[] {
   const areas = new Map<string, ArrivalArea>();
   for (const venue of venues) {
-    const price = venue.cheapestPrice;
-    if (typeof price !== "number" || !venue.id) continue;
+    const price = comparableVenuePint(venue, null, false);
+    if (price === null || !venue.id || !isPublicRankablePub(venue)) continue;
     const name = canonicalBorough(venue);
     if (!name) continue;
     const slug = slugifyBorough(name);

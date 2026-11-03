@@ -8,7 +8,7 @@
 // itself, stopping at every station like a train. No roundel, no transport
 // colours, no line names: it is our line.
 //
-// Loaded only while the wild switch is on (PintLineGate.tsx). The geometry is
+// Loaded on named routes through PintLineGate.tsx. The geometry is
 // lib/wildPintLine.ts; this file paints it and runs the glass. The run mutates
 // the SVG directly from one animation frame loop, so React renders once per
 // layout and never per frame. With reduced motion the line is drawn whole and
@@ -323,7 +323,7 @@ export default function PintLine({ crawl }: { crawl: WildCrawl }) {
     if (crawl.totalMinutes !== null) parts.push(`about ${crawl.totalMinutes} min on foot`);
     if (round.pricedStops > 0) {
       parts.push(
-        `${formatPence(round.pintEachStopPence)} for a pint at ${round.unpricedStops > 0 ? "each priced" : "every"} stop${
+        `${formatPence(round.pintEachStopPence)} subtotal for a pint at ${round.unpricedStops > 0 ? "each priced" : "every"} stop${
           listedDays ? ` (prices listed ${listedDays})` : ""
         }`,
       );
@@ -366,6 +366,7 @@ export default function PintLine({ crawl }: { crawl: WildCrawl }) {
             <p className="pintLine__stat">
               <span className="pintLine__statFigure">{formatPence(round.pintEachStopPence)}</span>
               <span className="pintLine__statWord">
+                Selected pints subtotal: {" "}
                 {round.unpricedStops > 0
                   ? `a pint at the ${round.pricedStops} priced ${round.pricedStops === 1 ? "stop" : "stops"}`
                   : "a pint at every stop"}

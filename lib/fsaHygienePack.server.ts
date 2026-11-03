@@ -12,14 +12,10 @@ import {
   type FsaHygieneRatings,
   type OsmFhrsLinks,
 } from "@/lib/fsaHygienePack";
-import {
-  FSA_HYGIENE_PACK_TRACING_INCLUDE,
-  OSM_FHRS_LINKS_TRACING_INCLUDE,
-} from "@/lib/fsaHygienePackFile.mjs";
 
-async function readPack(include: string): Promise<unknown> {
+async function readPack(contents: Promise<string>): Promise<unknown> {
   try {
-    return JSON.parse(await readFile(path.join(process.cwd(), include), "utf8"));
+    return JSON.parse(await contents);
   } catch {
     // A pack that is absent or unreadable states nothing.
     return null;
@@ -30,8 +26,8 @@ let cached: Promise<{ links: OsmFhrsLinks | null; ratings: FsaHygieneRatings | n
 
 function packs() {
   cached ??= Promise.all([
-    readPack(OSM_FHRS_LINKS_TRACING_INCLUDE),
-    readPack(FSA_HYGIENE_PACK_TRACING_INCLUDE),
+    readPack(readFile(path.join(process.cwd(), "public/data/osm_fhrs/london.json"), "utf8")),
+    readPack(readFile(path.join(process.cwd(), "public/data/fsa_hygiene/london.json"), "utf8")),
   ]).then(([links, ratings]) => ({ links: parseOsmFhrsLinks(links), ratings: parseFsaHygieneRatings(ratings) }));
   return cached;
 }

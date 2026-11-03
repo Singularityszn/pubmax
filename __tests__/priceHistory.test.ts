@@ -149,6 +149,8 @@ function currentVenue(id: string, name: string, over: Partial<Venue> = {}): Venu
     prices: [],
     cheapestPrice: 5.4,
     cheapestPint: "Lager",
+    priceSource: "Fixture publisher",
+    priceObservedAt: "2026-01-01",
     averagePrice: 5.4,
     hasStory: false,
     latestContributorPrice: null,

@@ -1,3 +1,4 @@
+import { pintFactStats } from "@/lib/pintFacts";
 import { ImageResponse } from "next/og";
 
 import { loadPintPriceLandingVenues } from "@/lib/pintPriceLandingDataset.server";
@@ -94,9 +95,7 @@ export default async function Image({
 
   const pubs = resolved ? pubsInBorough(venues, slug) : [];
   const priced = pubs.filter((p) => typeof p.cheapestPrice === "number");
-  // pubsInBorough already sorts cheapest-first, so the first priced pub carries
-  // the borough's cheapest tracked pint.
-  const cheapest = priceStamp(priced[0]?.cheapestPrice ?? null);
+  const cheapest = priceStamp(pintFactStats(pubs, name, slug).minGbp);
   const avgRaw = priced.length
     ? priced.reduce((sum, p) => sum + (p.averagePrice ?? p.cheapestPrice ?? 0), 0) /
       priced.length
@@ -238,8 +237,9 @@ export default async function Image({
                   marginTop: 14,
                 }}
               >
-                Real prices land as the area gets walked.
+                {priced.length > 0 ? "No comparable pint price yet." : "Real prices land as the area gets walked."}
               </div>
+              {avg ? <StatTile value={avg} label="average pint" /> : null}
             </div>
           )}
         </div>

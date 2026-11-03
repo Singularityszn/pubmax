@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 
 import {
   buildVenueResolverIndex,
@@ -125,5 +125,25 @@ describe("resolveVenueId", () => {
     const index = buildVenueResolverIndex([canonicalRow()]);
     expect(resolveVenueId({ name: "" }, index)).toBeNull();
     expect(resolveVenueId(null as unknown as { name: string }, index)).toBeNull();
+  });
+});
+
+describe("the canonical index loader", () => {
+  it("loads the real dataset for the shared resolver", async () => {
+    const { loadCanonicalVenueIndex } = await import("@/scripts/whatson/loadCanonicalVenueIndex.mjs");
+    const index = loadCanonicalVenueIndex();
+    expect(resolveVenueId({ name: "Arnos Arms", lat: 51.6162, lng: -0.132117 }, index)).toBe("venue-xjf3n0");
+  });
+
+  it("fails closed when the canonical dataset cannot be read", async () => {
+    vi.resetModules();
+    vi.doMock("node:fs", () => ({ readFileSync: () => { throw new Error("dataset unavailable"); } }));
+    try {
+      const { loadCanonicalVenueIndex } = await import("@/scripts/whatson/loadCanonicalVenueIndex.mjs");
+      expect(() => loadCanonicalVenueIndex()).toThrow("dataset unavailable");
+    } finally {
+      vi.doUnmock("node:fs");
+      vi.resetModules();
+    }
   });
 });

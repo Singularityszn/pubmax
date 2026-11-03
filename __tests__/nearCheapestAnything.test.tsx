@@ -112,6 +112,7 @@ describe("the pint and Guinness lanes", () => {
       near,
       point("no-source", 0.001, { priceSource: undefined }),
       point("no-day", 0.001, { priceObservedAt: undefined }),
+      point("half", 0.001, { anchorLabel: "Half pint house lager" }),
       point("unpriced", 0.001, { cheapestPrice: null }),
     ]);
     expect(rows).toEqual([["near", 5, "2026-10-02", "Pint Prices", null, "pint"]]);

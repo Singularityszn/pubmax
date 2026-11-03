@@ -151,21 +151,20 @@ function validatedProxiedVenueImageUrl(url: string): string {
 }
 
 /**
- * Picks the first source (in priority order) with a usable URL and resolves
- * it to a render-ready URL for that provenance. Returns null when nothing in
- * `sources` resolves — callers must show the honest gradient/empty fallback,
- * never a photo of unknown origin.
+ * Picks the first source with chain or community provenance and a usable URL.
+ * Resolves that URL for its provenance. Unknown provenance is rejected even
+ * when its URL is valid. Returns null when no candidate resolves.
  *
  * `excludeUrls` lets a renderer skip candidates whose resolved URL already
  * failed to load, so a dead chain proxy advances to the next known source
- * (e.g. the community fallback) instead of ending at "No photo yet". See
- * VenueImage's onError path.
+ * (e.g. the community fallback). VenueImage owns the final no-photo state.
  */
 export function resolveVenueImage(
   sources: VenueImageSource[],
   excludeUrls?: ReadonlySet<string>,
 ): ResolvedVenueImage | null {
   for (const source of sources) {
+    if (source.provenance !== "chain" && source.provenance !== "community") continue;
     if (!source.url) continue;
     // Some server-side loaders (e.g. lib/scrapedPubs.server.ts) already ran
     // the chain photo through proxiedVenueImageUrl before handing it to a

@@ -24,6 +24,7 @@ import {
 } from "@/lib/namedRoutes";
 import { loadGroupedVenues } from "@/lib/venueDataset";
 import { wildCrawlFromNamedRoute } from "@/lib/wildPintLineRoute";
+import { missingStopsText } from "@/lib/wildPintLineCrawl";
 
 import "@/components/listing/listing.css";
 
@@ -106,9 +107,7 @@ export default async function NamedRoutePage({ params }: PageProps) {
   if (!route) notFound();
   const { crawl, stops, totalKm } = route;
   const stopCount = crawl.venueIds.length;
-  // The same stops, prices and walks as plain data for the two wild surfaces
-  // (the Pint Line and the crawl receipt). Each gate renders nothing while the
-  // wild switch is off (lib/wildMode.ts), so the page reads as it always has.
+  // The same stops, prices and walks feed the diagram and the receipt.
   const wildCrawl = wildCrawlFromNamedRoute(route, venues, displayDrinkName);
 
   return (
@@ -133,6 +132,9 @@ export default async function NamedRoutePage({ params }: PageProps) {
             : "We cannot place every stop, so we show no route total."}{" "}
           Free to follow, and nobody leads it.
         </p>
+        {missingStopsText(route.missingVenueIds.length) ? (
+          <p className="listingSectionDek">{missingStopsText(route.missingVenueIds.length)}</p>
+        ) : null}
         <RowList label={`${crawl.name} stops`} className="listingRead">
           {stops.map((stop) => (
             <RowListItem

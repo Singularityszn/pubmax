@@ -17,7 +17,7 @@ import { defined } from "@/__tests__/helpers/defined";
 
 // Only the fields the arrival reads; the rest of Venue is irrelevant here.
 function venue(id: string, borough: string, cheapestPrice: number | null): Venue {
-  return { id, name: id, primaryBorough: borough, cheapestPrice } as unknown as Venue;
+  return { id, name: id, primaryBorough: borough, cheapestPrice, priceSource: "Pub menu", priceObservedAt: "2026-01-01" } as unknown as Venue;
 }
 
 function areaOf(borough: string, priced: number, from = 500): Venue[] {

@@ -1,15 +1,13 @@
-// The wild switch. The ten round-two design ideas (docs/plans/DESIGN_UX_PLAN.md,
-// section 12) render only while it is on, so the captain can see each one in
-// the real app and pick which to keep before any reader meets them.
+// The wild switch controls the remaining round-two previews from
+// docs/plans/DESIGN_UX_PLAN.md section 12. The normal Sign Foundry photo
+// fallback is independent of this switch. PubSignSlot owns that distinction.
 //
 // It is a per-browser preference, not a flag on the server: `?wild=1` on any
 // page turns it on and keeps it on in this browser, `?wild=0` turns it off.
 // Once read, the param is taken off the address (adoptWildModeFromAddress),
 // so a link copied or shared from that page cannot switch it on for someone
 // else.
-// With it off, no wild component is loaded at all: every one of them is a
-// dynamic import that waits for this switch, so the routes' first-load
-// script is unchanged.
+// Gated previews use dynamic imports that wait for this switch.
 //
 // This module imports only the storage leaf, so a bundle that asks for the
 // switch pulls nothing else in behind it.

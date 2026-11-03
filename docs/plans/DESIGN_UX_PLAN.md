@@ -45,7 +45,7 @@ The screenshot script is a scratch tool. Step 0.4 makes it a repo command.
 
 | Design | Where it is | What hides it |
 |---|---|---|
-| Drink taps on a Dock, pour line, pint belt, washing line, menu icons (#2456) | `components/ui/dock.tsx`, `app/tonight/TonightPintBelt.tsx`, `components/nav/siteNav.css` | Not deployed. Then: taps need a desktop mouse; the belt needs 641px or wider and a thin night; the menu icons need 1024px or wider |
+| Drink taps on a Dock, pour line, pint belt, washing line, menu icons (#2456) | `components/ui/dock.tsx`, `app/tonight/TonightPintBelt.tsx`, `components/nav/siteNav.css` | Not deployed. Taps need a desktop mouse. Menu icons need 1024px or wider. See the [Tonight feature guide](../../README.md#features) for pint presentations. |
 | Night Out dark theme | `lib/themePreference.ts` | Default only from 21:30 to 04:00 London time, or by a tap on the moon |
 | List beside the map, two-pane messages, the command palette | `components/map/MapSplitList.tsx`, `app/messages/messages.css` | Desktop only (1024px or wider) |
 | Price pills on the map | `components/map/canvas/filters.ts` (`PRICE_PILL_MIN_ZOOM = 12`) | Only from zoom 12. The map opens on all of London, below that zoom |
@@ -182,7 +182,7 @@ Sizes: S is up to one day, M is two to three days, L is about one week.
 
 | Step | Work | Size |
 |---|---|---|
-| 2.1 | **A pub sign cover for every pub with no photo.** The pub name in the display face on a panel, the area, the price band as a strip, and a small crop of the street map. It is clearly not a photo, so it is honest. Use it on the pub page, the map peek row, the list rows and the share card. | M |
+| 2.1 | **Normal pub sign fallback (A4).** The [pub pictures guide](../../README.md#features) owns the implemented behaviour. Map peek rows and share cards remain separate proposals. | M |
 | 2.2 | **Rebuild the pub page.** Cover (photo or sign), a map crop, one price table with bands, opening hours and the same action card as the venue sheet. Do the same for `/historic/[slug]`, with a licensed Wikimedia photo where one exists, as the landmark pages do. | M |
 | 2.3 | **A 56px photo or sign on each map peek row and list row.** | S |
 | 2.4 | **Ask for a photo on the sign.** One tap: "Add a photo of this pub". This feeds the photo supply. | S |
@@ -375,7 +375,7 @@ which house rule it bends, if any.
 | Pint Line | A crawl drawn as a line diagram, pubs as stations | The Victorian Soho route | None (our own style, no Tube branding) | M |
 | Sign Foundry | Every pub with no photo gets a hanging sign drawn from its name | Six real pubs; "since 1520" only where recorded | "No decoration" | M |
 | Pour loader | Loading as a pint pour; a stout surges for the planner | The real result count | None | S |
-| Crawl receipt | The plan's cost prints from a till slot, split per person | Five listed pints, £31.00, £10.33 each for three | None | S |
+| Crawl receipt | A receipt prints from a till slot | See [curated route behaviour](../../README.md#features) for prices and group totals | None | S |
 | Beer mats | Tonight's cheapest pints as mats that flip to show the source | Three Soho pints with source and date | None (a phone version of the desktop belt) | S |
 | Last orders bell | One bell at 22:45 for the pub you are in, with an open-later pub | OpenStreetMap hours, read 5 Oct 2026 | Push: opt-in, once a night, live plans only | M |
 | Pal hops | The Pub Pal robin hops price to price and lands on the cheapest | Soho prices at their real places | "Only the reader moves the camera": the Pal moves, the map does not | M |

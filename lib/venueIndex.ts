@@ -96,6 +96,17 @@ export function buildVenueIndex(venues: Venue[]): Map<string, VenueRef> {
   return index;
 }
 
+function pintEvidence(row: SlimRow): Pick<SlimVenue, "cheapestPint" | "measure" | "priceSource" | "priceObservedAt"> {
+  return {
+    ...(typeof row.cheapestPint === "string" ? { cheapestPint: row.cheapestPint } : {}),
+    ...(typeof row.measure === "string" ? { measure: row.measure } : {}),
+    ...(typeof row.priceSource === "string" ? { priceSource: row.priceSource } : {}),
+    ...(typeof row.priceObservedAt === "string" && row.priceObservedAt
+      ? { priceObservedAt: row.priceObservedAt }
+      : {}),
+  };
+}
+
 function buildVenueIndexFromSlim(rows: SlimRow[]): Map<string, IndexedVenue> {
   const index = new Map<string, IndexedVenue>();
   for (const row of rows) {
@@ -129,9 +140,7 @@ function buildVenueIndexFromSlim(rows: SlimRow[]): Map<string, IndexedVenue> {
       lat,
       lng,
       cheapestPrice,
-      ...(typeof row.priceObservedAt === "string" && row.priceObservedAt
-        ? { priceObservedAt: row.priceObservedAt }
-        : {}),
+      ...pintEvidence(row),
       ...(typeof row.locality === "string" ? { locality: row.locality } : {}),
       ...(typeof row.zone === "number" &&
       Number.isInteger(row.zone) &&

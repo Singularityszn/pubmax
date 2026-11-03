@@ -33,6 +33,7 @@
 // that pub, or it is not a row.
 
 import type { Route } from "next";
+import { comparablePint } from "@/lib/comparablePint.mjs";
 
 import type { TonightChainLaneKey } from "@/lib/tonightChainLanes";
 import { isPublicRankablePub } from "@/lib/venueKindFilters";
@@ -43,6 +44,9 @@ export type TonightCheapPint = {
   borough: string;
   /** Cheapest listed pint in pounds. Always a real figure, never a guess. */
   priceGbp: number;
+  drinkLabel?: string | null;
+  servingSize?: string | null;
+  publisher?: { label: string; url: string } | null;
   /** The chain that runs the pub, or null. The list holds one row per chain. */
   chain: TonightChainLaneKey | null;
   /** When that cheapest pint was last read at its source. Absent or null when it records none. */
@@ -56,6 +60,9 @@ export type TonightCheapPintCandidate = {
   name: string;
   primaryBorough: string;
   cheapestPrice: number | null;
+  drinkLabel?: string | null;
+  servingSize?: string | null;
+  publisher?: { label: string; url: string } | null;
   observedAt?: string | null;
   chain?: TonightChainLaneKey | null;
   mapHref?: string;
@@ -72,8 +79,11 @@ export type TonightHuntPint = {
   pubName: string;
   placeName: string;
   priceGbp: number;
+  drinkLabel?: string | null;
+  servingSize?: string | null;
   /** ISO day (`YYYY-MM-DD`) the publisher's own row was read. */
   observedOn: string;
+  publisher: { label: string; url: string };
   mapHref: string;
 };
 
@@ -185,13 +195,20 @@ export function tonightCheapPintCandidates(
   venues: ReadonlyMap<string, TonightCheapPintSource & { primaryBorough: string }>,
   matchedWetherspoonVenueIds: ReadonlySet<string>,
 ): TonightCheapPintCandidate[] {
-  return pints.map((pint) => {
+  return pints.filter((pint) => comparablePint({
+    cheapestPrice: pint.priceGbp,
+    priceSource: pint.publisher?.label,
+    priceObservedAt: pint.observedOn,
+  }) !== null).map((pint) => {
     const venue = venues.get(pint.venueId);
     return {
       id: pint.venueId,
       name: pint.pubName,
       primaryBorough: venue?.primaryBorough || pint.placeName,
       cheapestPrice: pint.priceGbp,
+      drinkLabel: pint.drinkLabel ?? null,
+      servingSize: pint.servingSize ?? null,
+      publisher: pint.publisher,
       observedAt: `${pint.observedOn}T12:00:00.000Z`,
       chain: tonightCheapPintChain(
         venue ?? { id: pint.venueId, website: "", prices: [] },
@@ -231,6 +248,9 @@ export function tonightCheapPints(
       name: venue.name,
       borough: venue.primaryBorough,
       priceGbp: venue.cheapestPrice,
+      ...(venue.drinkLabel !== undefined ? { drinkLabel: venue.drinkLabel } : {}),
+      ...(venue.servingSize !== undefined ? { servingSize: venue.servingSize } : {}),
+      ...(venue.publisher !== undefined ? { publisher: venue.publisher } : {}),
       chain: venue.chain ?? null,
       observedAt: venue.observedAt ?? null,
       ...(venue.mapHref ? { mapHref: venue.mapHref } : {}),

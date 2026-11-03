@@ -21,6 +21,7 @@
 
 import type { Route } from "next";
 import { estimateBusyness } from "@/lib/busyness";
+import { comparableVenuePint, type ComparablePintVenue } from "@/lib/comparableVenuePint";
 import { formatGbp } from "@/lib/formatGbp";
 import { isFeaturedHeritageSource, type HeritageFact } from "@/lib/heritageFacts";
 import { eraStartYear, heritageSourceLabel, listedBadge } from "@/lib/historicFilter";
@@ -154,11 +155,24 @@ export function isQuietPintWindow(now = new Date()): boolean {
 
 export type BuildQuietPintInput = {
   candidates: readonly QuietPintCandidate[];
-  /** venueId → verified cheapest pint in pounds. Absent = no verified price. */
+  /** Display prices in pounds. These figures do not determine candidate order. */
   priceById?: ReadonlyMap<string, number>;
+  /** Qualified pint prices for the price tie-break, separate from display prices. */
+  rankingPriceById?: ReadonlyMap<string, number>;
   now?: Date;
   limit?: number;
 };
+
+export function quietPintRankingPrices(
+  venues: readonly (ComparablePintVenue & { id: string })[],
+): Map<string, number> {
+  const prices = new Map<string, number>();
+  for (const venue of venues) {
+    const price = comparableVenuePint(venue, null, false);
+    if (price !== null) prices.set(venue.id, price);
+  }
+  return prices;
+}
 
 /**
  * Rank heritage-cited candidates that read as quiet right now, or null when
@@ -166,12 +180,11 @@ export type BuildQuietPintInput = {
  * window, or fewer than QUIET_PINT_MIN candidates carry a cited (non-seed)
  * heritage fact.
  *
- * Ranking (heritage-cited + quiet-band + verified price):
+ * Ranking (heritage-cited + quiet-band):
  *   1. listed-grade weight, highest first (Grade I over II* over II over none)
  *   2. era, oldest first (an undated pub sorts last)
- *   3. a verified price present, before none
- *   4. cheaper verified price first
- *   5. slug, for a stable, locale-independent final order
+ *   3. qualified pint price, lowest first (unpriced pubs sort last)
+ *   4. slug, for a stable, locale-independent final order
  *
  * The quiet band is global to the hour (the typical-pattern estimate is the same
  * honest signal for every venue), so it gates the module rather than reordering
@@ -181,6 +194,7 @@ export function buildQuietPint(input: BuildQuietPintInput): QuietPintModule | nu
   const now = input.now ?? new Date();
   const limit = Math.max(1, Math.floor(input.limit ?? QUIET_PINT_LIMIT));
   const priceById = input.priceById ?? new Map<string, number>();
+  const rankingPriceById = input.rankingPriceById ?? new Map<string, number>();
 
   // Quiet window gate: only surface a "quiet pint" set when the same typical
   // pattern the plan pages show reads quiet at `now`. A recent community "quiet"
@@ -206,12 +220,9 @@ export function buildQuietPint(input: BuildQuietPintInput): QuietPintModule | nu
       if (byGrade !== 0) return byGrade;
       const byEra = eraStartYear(a.candidate.era) - eraStartYear(b.candidate.era);
       if (Number.isFinite(byEra) && byEra !== 0) return byEra;
-      const aPrice = priceById.get(a.candidate.venueId);
-      const bPrice = priceById.get(b.candidate.venueId);
-      const aHas = typeof aPrice === "number";
-      const bHas = typeof bPrice === "number";
-      if (aHas !== bHas) return aHas ? -1 : 1;
-      if (aHas && bHas && aPrice !== bPrice) return (aPrice as number) - (bPrice as number);
+      const byPrice = (rankingPriceById.get(a.candidate.venueId) ?? Infinity) -
+        (rankingPriceById.get(b.candidate.venueId) ?? Infinity);
+      if (byPrice) return byPrice;
       return a.candidate.slug < b.candidate.slug ? -1 : a.candidate.slug > b.candidate.slug ? 1 : 0;
     });
 

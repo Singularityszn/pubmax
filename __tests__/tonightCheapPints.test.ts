@@ -234,6 +234,25 @@ describe("tonight cheap pints, the hunt's London list", () => {
     tonightCheapPintCandidates(huntCityPints(PINTS, "london"), LONDON_LIST, SPOONS),
   );
 
+  it("keeps only hunt pints with a valid day and named publisher", () => {
+    const candidates = tonightCheapPintCandidates([
+      huntPint({ venueId: "valid", pubName: "Valid", priceGbp: 5 }),
+      huntPint({ venueId: "bad-day", pubName: "Bad day", priceGbp: 3, observedOn: "2026-02-30" }),
+      huntPint({ venueId: "no-publisher", pubName: "No publisher", priceGbp: 2, publisher: { label: "", url: "" } }),
+    ], LONDON_LIST, SPOONS);
+    expect(candidates.map((row) => row.id)).toEqual(["valid"]);
+  });
+
+  it("carries the hunt's selected serving and source through to the presentation row", () => {
+    const selected = huntPint({ venueId: "valid", pubName: "Valid", priceGbp: 5 });
+    const candidate = tonightCheapPintCandidates([{ ...selected, drinkLabel: "Selected lager", servingSize: "pint" }], LONDON_LIST, SPOONS);
+    expect(tonightCheapPints(candidate)[0]).toMatchObject({
+      drinkLabel: "Selected lager", servingSize: "pint",
+      publisher: { label: "Pint Prices", url: "https://www.pint-prices.com/" },
+      observedAt: "2026-10-02T12:00:00.000Z",
+    });
+  });
+
   it("opens on the pub the front door's London row names", () => {
     const londonRow = buildCheapestHunt(PINTS).cities.find((city) => city.cityId === "london")?.pint;
     expect(rows[0]?.venueId).toBe(londonRow?.venueId);

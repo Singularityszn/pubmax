@@ -1,6 +1,6 @@
 import { legacyOsmVenueKind } from "@/lib/legacyOsmVenueKind.mjs";
-import { legacyCheapestPriceEvidence } from "@/lib/legacyPriceEvidence.mjs";
-import { cheapestPriceReadDay } from "@/lib/priceReadDay.mjs";
+import { comparableVenuePint } from "@/lib/comparableVenuePint";
+import { legacyCheapestPriceEvidence, legacyCheapestPriceReadDay } from "@/lib/legacyPriceEvidence.mjs";
 import {
   COMMUNITY_PRICE_CORROBORATION_THRESHOLD,
   isWithinMaxAge,
@@ -79,6 +79,7 @@ export type VenuePrice = {
   app_price_id: string;
   pub_name: string;
   pint_name: string;
+  measure?: string;
   price_gbp: number | null;
   price_text: string;
   address: string;
@@ -200,6 +201,7 @@ export type Venue = {
   prices: VenuePrice[];
   cheapestPrice: number | null;
   cheapestPint: string;
+  measure?: string;
   averagePrice: number | null;
   // Derived summary signal for map markers, filters and scoring. Lights from an
   // editorial heritage note OR a contributor Pint Drop, so mergeVenueDrops never
@@ -703,7 +705,7 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
     const kind = legacyOsmVenueKind(groupRows);
     const cheapestPrice = numericPrices.length ? Math.min(...numericPrices) : null;
     const { priceSource } = kind ? legacyCheapestPriceEvidence(sortedPrices, cheapestPrice) : {};
-    const priceObservedAt = kind ? cheapestPriceReadDay(sortedPrices, cheapestPrice) : null;
+    const priceObservedAt = kind ? legacyCheapestPriceReadDay(sortedPrices, cheapestPrice) : null;
     return {
       id: stableVenueIdFromKey(key),
       ...(kind ? {
@@ -723,6 +725,7 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
       prices: sortedPrices,
       cheapestPrice,
       cheapestPint: sortedPrices[0]?.pint_name ?? "",
+      ...(sortedPrices[0]?.measure != null ? { measure: sortedPrices[0].measure } : {}),
       averagePrice: numericPrices.length
         ? numericPrices.reduce((sum, price) => sum + price, 0) / numericPrices.length
         : null,
@@ -1452,10 +1455,13 @@ export function filterVenues(
     // maxPrice is explicitly the maximum pint-price control. Cocktail and food
     // anchors use their own type-relative bands and must not be compared with
     // a pub pint's absolute price cap.
+    const comparablePrice = filters.maxPrice === NO_PINT_PRICE_CAP
+      ? null
+      : comparableVenuePint(venue);
     const matchesPrice =
       !hasPintPriceSemantics(venue) ||
-      venue.cheapestPrice === null ||
-      venue.cheapestPrice <= filters.maxPrice;
+      comparablePrice === null ||
+      comparablePrice <= filters.maxPrice;
 
     const matchesPintDrops =
       !filters.requirePintDrops ||
@@ -1512,8 +1518,10 @@ export function scoreVenue(
   style: CrawlStyle,
   naLensPrices?: ReadonlyMap<string, MapLensPrice>,
 ): number {
-  const price = venue.cheapestPrice ?? 8;
-  const cheapness = Math.max(0, 10 - price);
+  const price = style === "noAlcoholFirst"
+    ? venue.cheapestPrice ?? 8
+    : comparableVenuePint(venue);
+  const cheapness = price === null ? 0 : Math.max(0, 10 - price);
   const amenityScore =
     Number(venue.amenities.beerGarden) * 1.5 +
     Number(venue.amenities.liveSports) +
@@ -1569,7 +1577,8 @@ export function buildCrawlRoute(
   naLensPrices?: ReadonlyMap<string, MapLensPrice>,
 ): Venue[] {
   if (!venues.length) return [];
-  const sorted = [...venues]
+  const sorted = venues
+    .filter((venue) => filters.crawlStyle !== "cheapest" || comparableVenuePint(venue) !== null)
     .sort(
       (a, b) =>
         scoreVenue(b, filters.crawlStyle, naLensPrices) -

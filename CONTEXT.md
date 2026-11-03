@@ -231,7 +231,7 @@ A public Social Post whose author chose, when posting, that readers see "a PUBMA
 _Avoid_: Anonymous post, untraceable post, anonymous account
 
 **London Lane**:
-The read-only lane of Social Posts a signed-out visitor reads on `/social` (captain decision, 1 November 2026). It holds only public, moderated Social Posts tagged with a London patch, from accounts whose profile is public and who are still on PUBMAXX. It names no Venue, shows no face and says nothing about the reader. Posting, cheers, comments, saves, follows and messages still need an account. It closes when Social is rolled back or frozen. `lib/socialLondonLane.ts`.
+The read-only lane of Social Posts a signed-out visitor reads on `/social` (captain decision, 1 November 2026). It holds only public, moderated Social Posts tagged with a London patch, from accounts whose profile is public and who are still on PUBMAXX. Its posts name no Venue, show no face and say nothing about the reader. Posting, cheers, comments, saves, follows and messages still need an account. It closes when Social is rolled back or frozen. `lib/socialLondonLane.ts`.
 _Avoid_: Public feed, open feed, guest mode, preview feed
 
 **Mute**:

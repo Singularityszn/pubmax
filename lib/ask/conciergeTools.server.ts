@@ -131,6 +131,11 @@ function toPricedPoints(venues: readonly ConciergeVenue[]): PricedPoint[] {
     lat: venue.lat,
     lng: venue.lng,
     cheapestPrice: venue.cheapestPrice,
+    priceSource: venue.priceSource,
+    priceObservedAt: venue.priceObservedAt,
+    anchorLabel: venue.anchorLabel,
+    cheapestPint: venue.cheapestPint,
+    measure: venue.measure,
     borough: venue.area,
   }));
 }
@@ -237,6 +242,7 @@ export async function toolCheapestPintNear(
   if (anchorVenue && (anchor.kind === "venue" || anchorVenue.id.startsWith("night-area:"))) {
     const answer = rankNearMe(anchorVenue.lat, anchorVenue.lng, points, {
       maxAnswers: limit + 1,
+      now: ctx.now,
     });
     // The anchor itself is not an answer to "cheapest pint NEAR it".
     rows = answer.cards.filter((card) => card.id !== anchorVenue.id).slice(0, limit);
@@ -244,8 +250,8 @@ export async function toolCheapestPintNear(
   } else {
     rows =
       anchor.area.toLowerCase() === "london"
-        ? rankCityCheapest(points, limit)
-        : rankBoroughCheapest(points, anchor.area, limit);
+        ? rankCityCheapest(points, limit, ctx.now)
+        : rankBoroughCheapest(points, anchor.area, limit, ctx.now);
     scope = rows.length > 0 ? "walkable" : "none";
   }
 
