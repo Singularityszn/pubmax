@@ -17,7 +17,12 @@ Rules the table obeys:
   then prints its line alone rather than repeating the same link. On the
   Social posts tab a stranger reads the London lane (captain decision 7,
   1 November 2026), and every action on it (post, cheer, comment) needs an
-  account, so the door is still the first kept action. Each lane card prints
+  account, so the door remains the first kept action while posts load or exist.
+  The captain approved a confirmed-empty exception on 3 November 2026. That
+  branch paints "Plan a night" in the head. Named crawls and dated serving
+  prices precede a quiet body sign-in offer. The parent waits for an empty
+  response and preserves a focused header sign-in link until focus leaves.
+  Each lane card prints
   one quiet "Sign in to cheer or comment" link where its cheer row sits, never
   a filled control. While the lane is paused (`PUBMAX_SOCIAL_FREEZE=social`)
   the body is the sign-in boundary again. The rule
@@ -31,7 +36,8 @@ Rules the table obeys:
   PUBMAXX keeps its capitals.
 - British English, no em dashes, no exclamation marks.
 - A route that is a list (Out, Social, Messages) keeps its primary in the
-  head; its empty state uses `EmptyState` with at most one quiet way onward.
+  head. Its empty state uses `EmptyState` with at most one quiet way onward,
+  except the approved Social London alternatives described above.
 - A FORM SCREEN PAINTS NO HEAD PRIMARY (captain, 7 September 2026). Its one
   painted control is the form's own submit, beside the field it submits,
   carrying `data-primary-action` itself, so `Screen`'s `primary` is omitted.
@@ -57,7 +63,7 @@ Rules the table obeys:
 | `/near` | Near you | Cheapest pints within a short walk. | Find my pint | Pick a patch |
 | `/today` | Today in London | What's on across London today. | Find my pint | Open the map |
 | `/tonight` | Tonight in London | What's on across London tonight. (or: What's on near you tonight.) | Open the map | Find my pint |
-| `/social` | Social | Pubs and pints (Discover tab), otherwise Plans, photos and people | Post (a verified account); Sign in (a stranger on the posts tab, over the read-only London lane); Open the map (a stranger on `?tab=discover`, and a stranger while `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0`) | Find your lot |
+| `/social` | Social | Pubs and pints (Discover tab), otherwise Plans, photos and people | Post (a verified account); Plan a night (a confirmed empty London lane); Sign in (a stranger while the posts tab loads, contains posts or is paused); Open the map (a stranger on `?tab=discover`, and a stranger while `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0`) | Find your lot |
 | `/plan` | Plan | Plan a pub crawl | Plan it (submit the ask) | Step by step |
 | `/plan/[id]` | Your plan | (the plan's own name) | Send to the crew | Open the map |
 | `/pal` | Your Pub Pal | Plan your night with Pub Pal | Meet your Pub Pal | Back to the map |
