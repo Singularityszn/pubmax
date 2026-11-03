@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useLayoutEffect, useRef } from "react";
 import { Ellipsis, GlassWater, LocateFixed, LocateOff, Route, Search, SlidersHorizontal, TrainFront, X } from "lucide-react";
 
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
@@ -16,6 +17,8 @@ import { DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 
 import MapPeekSheet from "./MapPeekSheet";
 import PalHopGate from "@/components/wild/PalHopGate";
+import { MobileWildNightPreviewGate } from "@/components/wild/WildNightPreviewGate";
+import { useWildMode } from "@/lib/useWildMode";
 
 import "./mobileMapShell.css";
 
@@ -342,6 +345,25 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
    */
   sheetsEnabled?: boolean;
 }) {
+  const chromeRef = useRef<HTMLDivElement>(null);
+  const wild = useWildMode();
+  useLayoutEffect(() => {
+    const chrome = chromeRef.current;
+    const shell = chrome?.closest<HTMLElement>(".appShell");
+    if (!wild || !sheetsEnabled || !chrome || !shell) return;
+    const property = "--wild-preview-map-chrome-h";
+    const sync = () => {
+      shell.style.setProperty(property, `${chrome.getBoundingClientRect().bottom - shell.getBoundingClientRect().top}px`);
+    };
+    sync();
+    const observer = new ResizeObserver(sync);
+    observer.observe(chrome);
+    return () => {
+      observer.disconnect();
+      shell.style.removeProperty(property);
+    };
+  }, [wild, sheetsEnabled, limitedCoverage]);
+
   // The glyph is half the claim. LocateFixed is this map's "you are here" mark
   // (the Near me chip wears it), so it may appear only when a granted location
   // sits inside the named area. Otherwise the chip wears the map itself.
@@ -352,6 +374,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
 
     return (
       <div
+        ref={chromeRef}
         className="mobileMapChrome"
         aria-label="Map controls"
       >
@@ -373,6 +396,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
             <Search size={20} />
           </IconButton>
         </header>
+        {sheetsEnabled ? <MobileWildNightPreviewGate /> : null}
         {overlay === "search" ? (
           <div className="mobileMapSearchRow">
             {searchProps ? (
@@ -440,7 +464,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
 
   return (
     <>
-      <div className="mobileMapChrome"
+      <div ref={chromeRef} className="mobileMapChrome"
         aria-label="Map controls"
         data-plan-active={planPill.active ? "true" : undefined}
       >
@@ -476,6 +500,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
           </IconButton>
           <IconButton aria-label="More map controls" aria-expanded={overlay === "layers"} onClick={() => set("layers")}><Ellipsis size={20} /></IconButton>
         </header>
+        {sheetsEnabled ? <MobileWildNightPreviewGate /> : null}
 
         {overlay === "search" ? (
           <div className="mobileMapSearchRow">
