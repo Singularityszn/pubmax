@@ -25,6 +25,9 @@ export type TonightCheapestAnswer = {
   priceGbp: number;
   /** When that price was read at its source; null when the record names no day. */
   observedAt: string | null;
+  drinkLabel?: string | null;
+  servingSize?: string | null;
+  publisher?: { label: string; url?: string | null } | null;
   /** "~6 min walk", "Around Soho" or the borough. */
   placeLine: string;
   /** How the pub was chosen, so the card never claims "near you" it cannot back. */
@@ -43,6 +46,7 @@ export type TonightCheapestCandidate = {
   priceSource?: string;
   priceObservedAt?: string;
   anchorLabel?: string;
+  priceSourceUrl?: string;
   cheapestPint?: string;
   measure?: string;
   kind?: VenueKind;
@@ -100,6 +104,9 @@ export function tonightCheapestAnswer(input: {
         name: pick.venue.name,
         priceGbp: pick.venue.cheapestPrice as number,
         observedAt: pick.venue.priceObservedAt ?? null,
+        drinkLabel: pick.venue.cheapestPint ?? null,
+        servingSize: pick.venue.measure ?? null,
+        publisher: pick.venue.priceSource ? { label: pick.venue.priceSource, url: pick.venue.priceSourceUrl } : null,
         placeLine: minutes === null ? "Within a walk" : `~${minutes} min walk`,
         basis: "walk",
       };
@@ -112,6 +119,9 @@ export function tonightCheapestAnswer(input: {
         name: pick.venue.name,
         priceGbp: pick.venue.cheapestPrice as number,
         observedAt: pick.venue.priceObservedAt ?? null,
+        drinkLabel: pick.venue.cheapestPint ?? null,
+        servingSize: pick.venue.measure ?? null,
+        publisher: pick.venue.priceSource ? { label: pick.venue.priceSource, url: pick.venue.priceSourceUrl } : null,
         placeLine: `Around ${patch.label}`,
         basis: "area",
       };
@@ -124,6 +134,9 @@ export function tonightCheapestAnswer(input: {
     name: city.name,
     priceGbp: city.priceGbp,
     observedAt: city.observedAt ?? null,
+    drinkLabel: city.drinkLabel ?? null,
+    servingSize: city.servingSize ?? null,
+    publisher: city.publisher ?? null,
     placeLine: city.borough,
     basis: "city",
     ...(city.mapHref ? { mapHref: city.mapHref } : {}),

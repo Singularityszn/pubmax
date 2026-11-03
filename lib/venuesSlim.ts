@@ -20,6 +20,7 @@
 // otherwise treat a truncated index as the whole city.
 
 import { discardBody } from "@/lib/responseBody";
+import { isHttpUrl } from "@/lib/httpUrl.mjs";
 import { takeEarlyWarmJson } from "@/lib/mapEarlyWarm";
 import { getCity, type CityId, DEFAULT_CITY_ID } from "@/lib/cities";
 import { isFoodCategory, type FoodCategory } from "@/lib/food";
@@ -58,6 +59,7 @@ export type SlimVenue = {
   measure?: string;
   /** Publisher named by the exact listed minimum price row. */
   priceSource?: string;
+  priceSourceUrl?: string;
   /**
    * `YYYY-MM-DD` the cheapest figure was last read at its source (build_slim_index,
    * lib/priceReadDay.mjs). Absent when no row carrying it records a read, which
@@ -187,6 +189,13 @@ function hasValidAnchor(row: Record<string, unknown>): boolean {
 
 // Light runtime guard: a row must have a non-empty id + name, finite coords, a
 // borough string, and a cheapestPrice that is either a finite number or null.
+function hasValidPriceEvidence(row: Record<string, unknown>): boolean {
+  return (row.priceSource === undefined || (typeof row.priceSource === "string" && row.priceSource.trim().length > 0)) &&
+    (row.priceSourceUrl === undefined || typeof row.priceSourceUrl === "string") &&
+    (row.cheapestPint === undefined || typeof row.cheapestPint === "string") &&
+    (row.measure === undefined || typeof row.measure === "string");
+}
+
 function isValidSlimVenue(value: unknown): value is SlimVenue {
   if (typeof value !== "object" || value === null) return false;
   const row = value as Record<string, unknown>;
@@ -217,7 +226,7 @@ function isValidSlimVenue(value: unknown): value is SlimVenue {
     row.priceBand === 2;
   return (
     priceOk &&
-    (row.priceSource === undefined || (typeof row.priceSource === "string" && row.priceSource.trim().length > 0)) &&
+    hasValidPriceEvidence(row) &&
     observedOk &&
     localityOk &&
     zoneOk &&
@@ -247,6 +256,7 @@ function normalizeRows(data: unknown): SlimVenue[] {
     ...(typeof venue.cheapestPint === "string" ? { cheapestPint: venue.cheapestPint } : {}),
     ...(typeof venue.measure === "string" ? { measure: venue.measure } : {}),
     ...(venue.priceSource !== undefined ? { priceSource: venue.priceSource } : {}),
+    ...(isHttpUrl(venue.priceSourceUrl) ? { priceSourceUrl: venue.priceSourceUrl } : {}),
     ...(venue.priceObservedAt !== undefined
       ? { priceObservedAt: venue.priceObservedAt }
       : {}),
