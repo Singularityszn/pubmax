@@ -3032,9 +3032,10 @@ export default function PlanComposer() {
     try {
       const route = parsePlanRouteDraft(safeLocalStorage()?.getItem(PLAN_ROUTE_DRAFT_KEY) ?? null);
       const plan = readPlanDraftEnvelope(safeSessionStorage());
-      const intake = readPlanIntakeDraftWithMetadata();
+      // An undated route cannot certify the session's stops or generated proof.
+      // Keep the session draft as a refreshable preview without assuming its age.
       if (route && plan && !plan.legacy
-        && Date.parse(plan.savedAt ?? "") > Date.parse(route.savedAt ?? intake?.savedAt ?? "")
+        && (!route.savedAt || Date.parse(plan.savedAt ?? "") > Date.parse(route.savedAt))
         && JSON.stringify(plan.draft.stops) === JSON.stringify(recoveredDraft?.stops)) return {
         stops: plan.draft.stops.map((stop) => ({ ...stop, alternatives: [] })),
         nightContext: null,

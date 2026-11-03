@@ -282,7 +282,8 @@ describe("the Plan result", () => {
     { quota: true, requested: undefined },
     { quota: false, requested: 6 },
     { quota: true, requested: 6 },
-  ] as const)("restores the generated route with selective route quota $quota and requested count $requested", async ({ quota, requested }) => {
+    { quota: true, requested: 6, legacy: true },
+  ] as const)("restores the generated route with selective route quota $quota and requested count $requested", async ({ quota, requested, ...options }) => {
     let now = Date.now();
     const clock = vi.spyOn(Date, "now").mockImplementation(() => now++);
     onTestFinished(() => clock.mockRestore());
@@ -303,6 +304,11 @@ describe("the Plan result", () => {
     await sortIt("One pub in Soho tonight, walking, £20 each");
     const local = localStorage;
     const routeKey = "pubmaxx:plan-route-draft:v1";
+    if ("legacy" in options) {
+      const legacyRoute = JSON.parse(local.getItem(routeKey)!);
+      delete legacyRoute.savedAt;
+      local.setItem(routeKey, JSON.stringify(legacyRoute));
+    }
     const oldRoute = local.getItem(routeKey)!;
     expect(JSON.parse(oldRoute)).toMatchObject({
       groundingProof: "old-proof", createOperationKey: "old-operation",
@@ -441,6 +447,10 @@ describe("the Plan result", () => {
   it.each(["older", "equal", "legacy", "missing intake"])("keeps local route recovery when the session save is %s", async (age) => {
     seedCountRecovery(6);
     const savedAt = Date.now() - 2000;
+    const routeKey = "pubmaxx:plan-route-draft:v1";
+    const route = JSON.parse(localStorage.getItem(routeKey)!);
+    route.savedAt = new Date(savedAt + (age === "missing intake" ? 2000 : 0)).toISOString();
+    localStorage.setItem(routeKey, JSON.stringify(route));
     expect(writePlanIntakeDraft(readPlanIntakeDraft()!, localStorage, savedAt)).toBe(true);
     const plan = {
       ...parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))!,
@@ -461,9 +471,9 @@ describe("the Plan result", () => {
     { age: "older", offset: -1000, sessionWins: true },
     { age: "equal", offset: 0, sessionWins: false },
     { age: "newer", offset: 1000, sessionWins: false },
-    { age: "undated", offset: null, sessionWins: false },
-    { age: "invalid", offset: NaN, sessionWins: false },
-    { age: "future", offset: 600_000, sessionWins: false },
+    { age: "undated", offset: null, sessionWins: true },
+    { age: "invalid", offset: NaN, sessionWins: true },
+    { age: "future", offset: 600_000, sessionWins: true },
   ])("uses the route record's $age date independently of intake saves", async ({ age, offset, sessionWins }) => {
     seedCountRecovery(6);
     const savedAt = Date.now() - 2000;
@@ -480,6 +490,17 @@ describe("the Plan result", () => {
     await mountComposer();
     expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent))
       .toEqual(sessionWins ? ["Session pub"] : ["Pub A", "Pub B"]);
+  });
+
+  it("keeps matching legacy stops as a refreshable preview without carrying unverified proof", async () => {
+    seedCountRecovery(6);
+    const plan = parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))!;
+    expect(writePlanDraftEnvelope(plan, "manual", sessionStorage).v2).toBe(true);
+    await mountComposer();
+    expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent)).toEqual(["Pub A", "Pub B"]);
+    const route = JSON.parse(localStorage.getItem("pubmaxx:plan-route-draft:v1")!);
+    expect(route).toMatchObject({ routeStale: true, nightContext: null, groundingProof: null, planAnchor: null });
+    expect(document.body.textContent).toContain("Opening and travel checks are unavailable for this restored draft.");
   });
 
   describe.each(["both", "local", "session", "neither"])("description recovery when %s stores can save", (available) => {
@@ -601,6 +622,10 @@ describe("the Plan result", () => {
     sessionStorage.setItem(PLAN_DRAFT_KEY, JSON.stringify(oldDraft));
     if (kind === "conflicting copies") {
       // Keep the local route authoritative while the session copies disagree.
+      const routeKey = "pubmaxx:plan-route-draft:v1";
+      const route = JSON.parse(localStorage.getItem(routeKey)!);
+      route.savedAt = new Date().toISOString();
+      localStorage.setItem(routeKey, JSON.stringify(route));
       expect(writePlanDraftEnvelope(oldDraft, "manual", sessionStorage, Date.now() - 1000).v2).toBe(true);
       sessionStorage.setItem(PLAN_DRAFT_KEY, JSON.stringify({ ...oldDraft, conciergeQuery: "One pub in Clapham tonight" }));
     }
