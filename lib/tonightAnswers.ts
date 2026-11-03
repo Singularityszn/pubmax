@@ -23,7 +23,7 @@ export type TonightCheapestAnswer = {
   venueId: string;
   name: string;
   priceGbp: number;
-  /** When that price was read at its source; null when the record names no day. */
+  /** The selected price row's observation date, or null when unavailable or undated. */
   observedAt: string | null;
   drinkLabel?: string | null;
   servingSize?: string | null;
