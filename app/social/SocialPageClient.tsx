@@ -245,7 +245,7 @@ export function SocialAccessBoundary({
  * The Social page's card: the shared card plus the composer for the viewer's
  * own post. Kept under this name so every caller and test reads it unchanged.
  */
-export function SocialPostCard({ post, lane, canEdit = false, draftScope, onEdited, interactive = false, onOpenVideo }: { post: SocialPostDTO; lane?: SocialPostLane; canEdit?: boolean; draftScope?: string | null; onEdited?: (post?: SocialPostDTO) => void; interactive?: boolean; onOpenVideo?: (postId: string) => void }) {
+export function SocialPostCard({ post, lane, canEdit = false, draftScope, onEdited, interactive = false, onOpenVideo }: { post: SocialPostDTO; lane?: SocialPostLane; canEdit?: boolean; draftScope?: string | null; onEdited?: (post?: SocialPostDTO) => void; interactive?: boolean; onOpenVideo?: (postId: string, opener: HTMLButtonElement) => void }) {
   return (
     <SharedSocialPostCard
       post={post}
@@ -411,7 +411,8 @@ function SocialPageAccountState({
     useState<ActivityLoadState>("idle");
   const [activityItems, setActivityItems] = useState<SocialActivityItem[]>([]);
   const [posts, setPosts] = useState<SocialPostDTO[]>([]);
-  const [reelStart, setReelStart] = useState<string | null>(null);
+  const [reelStart, setReelStart] = useState<{ postId: string; opener: HTMLButtonElement } | null>(null);
+  const openReel = (postId: string, opener: HTMLButtonElement) => setReelStart({ postId, opener });
   const reelPosts = useMemo(() => posts.filter((post) => post.video), [posts]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -991,20 +992,20 @@ function SocialPageAccountState({
               ) : (
                 <div className="socialPostList">
                   {reelPosts.length > 0 ? (
-                    <button type="button" className="socialReelsEntry" onClick={() => setReelStart(reelPosts[0]!.id)}>
+                    <button type="button" className="socialReelsEntry" onClick={(event) => openReel(reelPosts[0]!.id, event.currentTarget)}>
                       Watch reels <span>{reelPosts.length}</span>
                     </button>
                   ) : null}
                   {posts.map((post) => (
                     <SocialPostCard key={post.id} post={post} lane={initialState.feed ?? undefined} canEdit={post.ownedByViewer} draftScope={draftScope} interactive
-                      onOpenVideo={setReelStart}
+                      onOpenVideo={openReel}
                       onEdited={(updated) => updated
                         ? setPosts((current) => chronological(current.map((item) => item.id === updated.id
                           ? { ...updated, review: updated.review ?? item.review, video: updated.video ?? item.video, extraPhotos: updated.extraPhotos ?? item.extraPhotos }
                           : item)))
                         : setFeedAttempt((value) => value + 1)} />
                   ))}
-                  {reelStart ? <ReelsViewer posts={reelPosts} startPostId={reelStart} onClose={() => setReelStart(null)} /> : null}
+                  {reelStart ? <ReelsViewer posts={reelPosts} startPostId={reelStart.postId} opener={reelStart.opener} onClose={() => setReelStart(null)} /> : null}
                 </div>
               )}
               {feedStatus === "ready" && nextCursor ? (
