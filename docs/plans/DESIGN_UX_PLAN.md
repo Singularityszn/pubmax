@@ -375,7 +375,7 @@ which house rule it bends, if any.
 | Pint Line | A crawl drawn as a line diagram, pubs as stations | The Victorian Soho route | None (our own style, no Tube branding) | M |
 | Sign Foundry | Every pub with no photo gets a hanging sign drawn from its name | Six real pubs; "since 1520" only where recorded | "No decoration" | M |
 | Pour loader | Loading as a pint pour; a stout surges for the planner | The real result count | None | S |
-| Crawl receipt | The plan's cost prints from a till slot, split per person | Five listed pints, £31.00, £10.33 each for three | None | S |
+| Crawl receipt | A receipt prints from a till slot | See [curated route behaviour](../../README.md#features) for prices and group totals | None | S |
 | Beer mats | Tonight's cheapest pints as mats that flip to show the source | Three Soho pints with source and date | None (a phone version of the desktop belt) | S |
 | Last orders bell | One bell at 22:45 for the pub you are in, with an open-later pub | OpenStreetMap hours, read 5 Oct 2026 | Push: opt-in, once a night, live plans only | M |
 | Pal hops | The Pub Pal robin hops price to price and lands on the cheapest | Soho prices at their real places | "Only the reader moves the camera": the Pal moves, the map does not | M |
