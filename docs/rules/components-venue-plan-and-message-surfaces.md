@@ -45,15 +45,17 @@ A new generated route replaces the notice from its own evidence.
 Each successful local route save records its own `savedAt`.
 When both route and V2 session saves have valid dates, a strictly newer session save replaces the local route.
 Intake save time does not establish route freshness.
-A validated V2 route supplies its own date only when its complete shared record matches the V1 route.
-Matching pub IDs alone do not establish that identity. Conflicting or undated records keep the local route without an ordering claim.
-When V1 and V2 conflict, undated V1 routes need refreshing and retain no proof or anchor.
+When both valid route records have different dates, recovery selects the newer complete record.
+A matching shared record can supply a missing V1 date from its validated V2 copy.
+Matching pub IDs alone do not establish that identity.
+Undated conflicts and equal-time conflicts remain unverified previews without proof or anchor.
 Map and import writers record the same date and anchor identity in both existing route records.
 An older V2 cannot supply an anchor or date to a different V1 record after a partial write.
 A winning handoff replaces the older description and requested count together. An unavailable count remains UNKNOWN.
-If a local route write fails after both session copies save, deletion requires a changed route and an undated captured route.
-Both stored records must still equal the captured records. A newer handoff prevents deletion.
-The session then restores a refreshable preview. A dated local route remains available for timestamp comparison.
+Recovery does not delete conflicting route records.
+A validated session can restore a refreshable preview when the local route date is unavailable.
+Session stops do not certify a complete route save.
+If local route writes fail, a notice identifies the route details, checks and starting pub that cannot survive reload.
 The validated session stops must also match the recovered session draft.
 The composer restores those stops as one record, even when their venue IDs match the older route.
 Session drafts store no generated context or proof.
