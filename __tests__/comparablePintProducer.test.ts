@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { comparablePint } from "@/lib/comparablePint.mjs";
 import { measureNamedInDrinkText } from "@/lib/drinkMeasure";
-import { buildSlimPriceEvidence } from "@/scripts/build_slim_index.mjs";
+import { buildSlimPriceEvidence, selectSlimPriceRow } from "@/scripts/build_slim_index.mjs";
 import { buildLastOrdersPacks } from "@/scripts/build_last_orders_pack.mjs";
 
 describe("selected serving evidence in the published price packs", () => {
@@ -18,11 +18,11 @@ describe("selected serving evidence in the published price packs", () => {
     ["stout 2/3", "other"],
   ])("retains %s for display and refuses its figure as a pint", (pint_name, measure) => {
     expect(measureNamedInDrinkText(pint_name)).toBe(measure);
-    const evidence = buildSlimPriceEvidence([
+    const evidence = buildSlimPriceEvidence(selectSlimPriceRow([
       { price_gbp: 3.4, pint_name, pub_url: "https://pub.example/menu", scraped_at_values: "2026-01-01" },
       { price_gbp: 3.4, pint_name: "Lager", measure: "pint", pub_url: "https://other.example/menu", scraped_at_values: "2026-01-02" },
-    ], 3.4);
-    expect(evidence).toEqual({ cheapestPint: pint_name, priceSource: "pub.example", priceObservedAt: "2026-01-01" });
+    ]));
+    expect(evidence).toEqual({ cheapestPint: pint_name, priceSource: "pub.example", priceSourceUrl: "https://pub.example/menu", priceObservedAt: "2026-01-01" });
     const slimRows = [
       { id: "half", cheapestPrice: 3.4, ...evidence },
       { id: "pint", cheapestPrice: 5, priceSource: "Pub menu", priceObservedAt: "2026-01-01" },
@@ -40,18 +40,18 @@ describe("selected serving evidence in the published price packs", () => {
   });
 
   it.each(["BOTTLED BEER", "Lager can", "330ml Lager", "Lager 50 cl", "Lager 0.5l"])("preserves the existing refusal for %s", (pint_name) => {
-    const evidence = buildSlimPriceEvidence([
+    const evidence = buildSlimPriceEvidence(selectSlimPriceRow([
       { price_gbp: 3.4, pint_name, pub_url: "https://pub.example/menu", scraped_at_values: "2026-01-01" },
-    ], 3.4);
+    ]));
     expect(evidence.cheapestPint).toBe(pint_name);
     expect(comparablePint({ cheapestPrice: 3.4, ...evidence })).toBeNull();
   });
 
   it.each(["Lager", "Other Half Green Diamond", "Half Moon IPA", "Small Beer Lager", "Third Wheel Bitter", "Lager 568 ml"])("keeps the legacy pint price for %s", (pint_name) => {
-    const evidence = buildSlimPriceEvidence([
+    const evidence = buildSlimPriceEvidence(selectSlimPriceRow([
       { price_gbp: 5, pint_name, pub_url: "https://pub.example/menu", scraped_at_values: "2026-01-01" },
-    ], 5);
-    expect(evidence).toEqual({ priceSource: "pub.example", priceObservedAt: "2026-01-01" });
+    ]));
+    expect(evidence).toEqual({ cheapestPint: pint_name, priceSource: "pub.example", priceSourceUrl: "https://pub.example/menu", priceObservedAt: "2026-01-01" });
     expect(comparablePint({ cheapestPrice: 5, ...evidence })).toBe(5);
   });
 });
