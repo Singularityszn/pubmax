@@ -1,6 +1,4 @@
 // @vitest-environment jsdom
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -8,9 +6,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import TonightPintBelt from "@/app/tonight/TonightPintBelt";
 import { beltLapMs, beltPace, beltPerimeter, beltPoint, type BeltTrack } from "@/lib/pintBelt";
 import type { TonightCheapPint } from "@/lib/tonightCheapPints";
-
-// Tonight's cheapest pints ride a belt of beer mats from 641px
-// (app/tonight/TonightPintBelt.tsx, lib/pintBelt.ts).
 
 const TRACK: BeltTrack = { width: 360, height: 260, mat: 112 };
 
@@ -190,25 +185,9 @@ describe("the pint belt", () => {
     expect(pause?.getAttribute("aria-pressed")).toBe("true");
   });
 
-  it("is drawn from 600px only, where the list steps back for it", () => {
-    const css = readFileSync(join(process.cwd(), "app/tonight/tonightPintBelt.css"), "utf8");
-    expect(css).toMatch(/\.pintBelt \{\s*display: none;/);
-    expect(css).toMatch(/@media \(min-width: 600px\) \{[\s\S]*\.tonightCheapPintsBeltList \{\s*display: none;/);
-  });
-
-  it("keeps the list up until the belt is ready, so the section is never empty", () => {
-    // No layout here, so the belt has no width to lay its mats on: it must
-    // not call itself ready, and nothing may hide the list but a ready belt.
+  it("does not mark an unmeasured belt as ready", () => {
     stubMotion(false);
     render();
     expect(host.querySelector(".pintBelt")?.hasAttribute("data-ready")).toBe(false);
-    const css = readFileSync(join(process.cwd(), "app/tonight/tonightPintBelt.css"), "utf8")
-      .replace(/\/\*[\s\S]*?\*\//g, "");
-    const hidesList = [...css.matchAll(/([^{}]+)\{[^}]*display: none;[^}]*\}/g)]
-      .map((match) => (match[1] ?? "").trim())
-      .filter((selector) => selector.includes("tonightCheapPintsBeltList"));
-    expect(hidesList).toEqual([
-      ".tonightCheapPintsAnswer:has(> .pintBelt[data-ready]) > .tonightCheapPintsBeltList",
-    ]);
   });
 });

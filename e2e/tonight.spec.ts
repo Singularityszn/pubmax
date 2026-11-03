@@ -988,13 +988,39 @@ test("the cheapest listed pints carry one row per chain and name it", async ({ p
   }
 });
 
+async function firstPintEvidence(page: Page) {
+  const row = page.getByTestId("tonight-cheap-pints").locator(".tonightCheapPintsBeltList > li").first();
+  const parts = await row.locator(".rowListMeta").evaluate((meta) => {
+    const nodes = Array.from(meta.childNodes);
+    return nodes.slice(nodes.findIndex((node) => node.nodeName === "BR") + 1)
+      .map((node) => node.textContent ?? "").join("").split(" · ").map((part) => part.trim());
+  });
+  expect(parts).toHaveLength(4);
+  const source = row.locator(".rowListMeta a");
+  const day = row.locator("time");
+  return {
+    name: await row.locator(".rowListTitle").innerText(),
+    pubHref: await row.locator(".rowListTitle").getAttribute("href"),
+    price: await row.locator(".price-plaque").textContent(),
+    drink: parts[0],
+    serving: parts[1],
+    publisher: await source.textContent(),
+    sourceHref: await source.getAttribute("href"),
+    day: await day.textContent(),
+    dateTime: await day.getAttribute("datetime"),
+  };
+}
+
 for (const width of [599, 600, 641]) {
   test(`the pint presentation works at ${width}px with reduced motion`, async ({ page }) => {
     await page.setViewportSize({ width, height: 844 });
     await page.emulateMedia({ reducedMotion: "reduce" });
     await openQuietNight(page);
     const area = page.getByTestId("tonight-cheap-pints");
+    const selected = await firstPintEvidence(page);
+    await expect(area.locator(".tonightCheapPintsBeltList")).toBeHidden();
     if (width < 600) {
+      await expect(area.locator(".pintBelt")).toHaveCount(0);
       const mat = area.locator(".beerMat").first();
       const toggle = mat.locator("button.beerMatToggle");
       await expect(toggle).toBeVisible();
@@ -1004,13 +1030,114 @@ for (const width of [599, 600, 641]) {
       await expect(mat.locator(".beerMatBack")).toBeVisible();
       await expect(mat.locator(".beerMatFront")).toBeHidden();
       await expect(mat.locator(".beerMatBack time")).toBeVisible();
+      const back = mat.locator(".beerMatBack");
+      await expect(back.locator(".price-plaque")).toHaveText(selected.price!);
+      await expect(back.locator(".beerMatDrink")).toHaveText(selected.drink!);
+      await expect(back.locator(".beerMatSource").first()).toHaveText(selected.serving!);
+      await expect(back.locator(".beerMatSource a")).toHaveText(selected.publisher!);
+      await expect(back.locator(".beerMatSource a")).toHaveAttribute("href", selected.sourceHref!);
+      await expect(back.locator("time")).toHaveText(selected.day!);
+      await expect(back.locator("time")).toHaveAttribute("datetime", selected.dateTime!);
+      await back.locator(".beerMatSource a").click({ trial: true });
+      expect(await mat.locator(".beerMatSpin").evaluate((el) => getComputedStyle(el).transform)).toBe("none");
     } else {
-      await expect(area.locator(".pintBelt[data-ready]")).toBeVisible();
-      await expect(area.locator(".pintBeltEvidence time").first()).toBeVisible();
+      const belt = area.locator(".pintBelt[data-ready]");
+      await expect(belt).toBeVisible();
+      await expect(belt.locator(".pintBeltMat").first()).toHaveAttribute("href", selected.pubHref!);
+      await expect(belt.locator(".price-plaque").first()).toHaveText(selected.price!);
+      const evidence = belt.locator(".pintBeltEvidence li").first();
+      await expect(evidence).toContainText(selected.drink!);
+      await expect(evidence).toContainText(selected.serving!);
+      await expect(evidence.locator("a")).toHaveText(selected.publisher!);
+      await expect(evidence.locator("a")).toHaveAttribute("href", selected.sourceHref!);
+      await expect(evidence.locator("time")).toBeVisible();
+      await expect(evidence.locator("time")).toHaveText(selected.day!);
+      await expect(evidence.locator("time")).toHaveAttribute("datetime", selected.dateTime!);
+      await evidence.locator("a").click({ trial: true });
       await expect(area.locator(".beerMats")).toHaveCount(0);
     }
   });
 }
+
+for (const width of [599, 600, 641]) {
+  test("the neutral pint list survives a pending and failed chunk at " + width + "px", async ({ page }) => {
+    await page.setViewportSize({ width: width < 600 ? 641 : 599, height: 844 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await openQuietNight(page);
+    const area = page.getByTestId("tonight-cheap-pints");
+    await expect(area.locator(width < 600 ? ".pintBelt[data-ready]" : ".beerMats")).toBeVisible();
+    const selected = await firstPintEvidence(page);
+    const blocked = new Set<string>();
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    await page.route(/\/_next\/static\/.*\.js(?:\?.*)?$/, async (route) => {
+      blocked.add(route.request().url());
+      await gate;
+      await route.abort("failed");
+    });
+    try {
+      await page.setViewportSize({ width, height: 844 });
+      await expect.poll(() => blocked.size).toBeGreaterThan(0);
+      const list = area.locator(".tonightCheapPintsBeltList");
+      const row = list.locator("li").first();
+      const expectUsableList = async () => {
+        await expect(list).toBeVisible();
+        await expect(area.locator(".beerMats, .pintBelt")).toHaveCount(0);
+        await expect(row.locator(".rowListTitle")).toHaveText(selected.name);
+        await expect(row.locator(".rowListTitle")).toHaveAttribute("href", selected.pubHref!);
+        await expect(row.locator(".price-plaque")).toHaveText(selected.price!);
+        await expect(row).toContainText(selected.drink!);
+        await expect(row).toContainText(selected.serving!);
+        await expect(row.locator(".rowListMeta a")).toHaveText(selected.publisher!);
+        await expect(row.locator(".rowListMeta a")).toHaveAttribute("href", selected.sourceHref!);
+        await expect(row.locator("time")).toHaveText(selected.day!);
+        await expect(row.locator("time")).toHaveAttribute("datetime", selected.dateTime!);
+        await row.locator(".rowListTitle").click({ trial: true });
+        await row.locator(".rowListMeta a").click({ trial: true });
+      };
+      await expectUsableList();
+      const failed = page.waitForEvent("requestfailed", (request) => blocked.has(request.url()));
+      release();
+      await failed;
+      await expectUsableList();
+    } finally {
+      release();
+    }
+  });
+}
+
+test("a cancelled belt drag still permits native keyboard activation", async ({ page, context }) => {
+  await page.setViewportSize({ width: 641, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await openQuietNight(page);
+  const belt = page.getByTestId("tonight-cheap-pints").locator(".pintBelt[data-ready]");
+  await expect(belt).toBeVisible();
+  const frame = belt.locator(".pintBeltFrame");
+  await frame.scrollIntoViewIfNeeded();
+  const box = await frame.boundingBox();
+  expect(box).not.toBeNull();
+  const mat = belt.locator("a.pintBeltMat").first();
+  const before = await mat.evaluate((element) => getComputedStyle(element).transform);
+  const session = await context.newCDPSession(page);
+  try {
+    const touch = { x: box!.x + box!.width / 2, y: box!.y + box!.height / 2 };
+    await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [touch] });
+    await session.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ ...touch, x: touch.x + 30 }] });
+    await expect(mat).not.toHaveCSS("transform", before);
+    await session.send("Input.dispatchTouchEvent", { type: "touchCancel", touchPoints: [] });
+    await mat.evaluate((element) => {
+      element.addEventListener("click", (event) => {
+        event.preventDefault();
+        element.setAttribute("data-keyboard-click", String((event as MouseEvent).detail));
+      });
+    });
+    await mat.focus();
+    await mat.press("Enter");
+    await expect(mat).toHaveAttribute("data-keyboard-click", "0");
+  } finally {
+    await session.detach();
+  }
+});
 
 for (const width of [390, 600]) {
   for (const theme of ["light", "dark"] as const) {
