@@ -16,7 +16,6 @@ import { curatedCrawlById, curatedCrawlMapHref, type CuratedCrawl } from "@/lib/
 import { haversineKm } from "@/lib/haversine";
 import { legacyCheapestPriceEvidence, legacyCheapestPriceReadDay } from "@/lib/legacyPriceEvidence.mjs";
 import { comparablePint } from "@/lib/comparablePint.mjs";
-import { measureNamedInDrinkText } from "@/lib/drinkMeasure";
 import { WALK_KMH } from "@/lib/routeLegs";
 import type { Venue } from "@/lib/venues";
 
@@ -87,10 +86,8 @@ function stopPint(venue: Venue): NamedRouteStop["pint"] {
   const evidence = legacyCheapestPriceEvidence(venue.prices, price);
   if (comparablePint({
     cheapestPrice: price,
-    priceSource: evidence.priceSource,
-    priceObservedAt: evidence.priceObservedAt,
+    ...evidence,
     anchorLabel: venue.anchorLabel,
-    measure: measureNamedInDrinkText(row.pint_name),
   }) === null) return null;
   return {
     priceGbp: price,
