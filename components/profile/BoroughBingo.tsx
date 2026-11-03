@@ -10,6 +10,8 @@
 // itself and signs the link (app/api/profiles/[handle]/borough-bingo).
 
 import { useState } from "react";
+import BoroughBingoGate from "@/components/wild/BoroughBingoGate";
+import { useWildNightPreview } from "@/lib/useWildNightPreview";
 
 import { Button } from "@/components/ui/button";
 import { authedFetch } from "@/lib/authedFetch";
@@ -36,8 +38,10 @@ export default function BoroughBingo({
 }): React.JSX.Element | null {
   const [shareLine, setShareLine] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
+  const preview = useWildNightPreview("borough-bingo");
   const view = boroughBingoView({ isOwner, isMutual });
   if (view === "none" || !handle || handle === "you") return null;
+  if (preview && view === "card") return <BoroughBingoGate handle={handle} />;
   const card = buildBoroughBingo(boroughs);
   const countLine = boroughBingoCountLine(card.filled);
 
