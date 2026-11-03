@@ -294,6 +294,7 @@ const PLAN_ROUTE_DRAFT_KEY = "pubmaxx:plan-route-draft:v1";
 type RouteNight = Pick<Partial<NightContext>, "nightArea" | "daypart">;
 
 export type StoredRouteDraft = {
+  savedAt?: string;
   stops: DraftStop[];
   nightContext: NightContext | null;
   routeNight: RouteNight | null;
@@ -776,7 +777,13 @@ export function parsePlanRouteDraft(raw: string | null): StoredRouteDraft | null
     if (!stops.length) return null;
     const nightContext = cleanNightContext(value.nightContext) ?? null;
     const routeStale = value.routeStale === true;
+    const savedAtTime = typeof value.savedAt === "string" ? Date.parse(value.savedAt) : NaN;
+    const savedAt = Number.isFinite(savedAtTime)
+      && new Date(savedAtTime).toISOString() === value.savedAt
+      && savedAtTime <= Date.now() + 5 * 60 * 1000
+      ? value.savedAt : undefined;
     return {
+      ...(savedAt ? { savedAt } : {}),
       stops,
       nightContext,
       routeNight: value.routeNight === undefined && !routeStale
@@ -1876,6 +1883,22 @@ function PlanComposerForm({
       ...(requestedStopCount !== undefined ? { requestedStopCount } : {}),
       ...(persistedAcceptedAnchor ? { acceptedAnchor: persistedAcceptedAnchor } : {}),
     }, persistedAcceptedAnchor ? "planning-intent" : "manual", safeSessionStorage(), savedAt);
+    if (nightContext || routeRevision !== null || routeStale || stops.some((stop) => stop.alternatives.length > 0)) {
+      try {
+        safeLocalStorage()?.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify({
+          savedAt: new Date(savedAt).toISOString(),
+          stops,
+          nightContext,
+          routeNight,
+          routeRevision,
+          routeStale,
+          groundingProof,
+          createOperationKey,
+          planAnchor,
+        } satisfies StoredRouteDraft));
+      } catch {
+      }
+    }
     const intakeChanged = JSON.stringify(planIntake) !== JSON.stringify(recoveredIntake);
     const intakeSaved = hasDurableIntakeDraft || intakeChanged
       ? writePlanIntakeDraft(planIntake, undefined, savedAt)
@@ -1890,26 +1913,7 @@ function PlanComposerForm({
       );
     });
     return () => { cancelled = true; };
-  }, [canPersist, conciergeQuery, creatorName, handoff?.acceptedAnchor, hasDurableIntakeDraft, planIntake, recoveredIntake, requestedStopCount, startTime, stops, title]);
-
-  useEffect(() => {
-    if (!canPersist) return;
-    if (!nightContext && routeRevision === null && !routeStale && !stops.some((stop) => stop.alternatives.length > 0)) return;
-    try {
-      safeLocalStorage()?.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify({
-        stops,
-        nightContext,
-        routeNight,
-        routeRevision,
-        routeStale,
-        groundingProof,
-        createOperationKey,
-        planAnchor,
-      } satisfies StoredRouteDraft));
-    } catch {
-      // A blocked localStorage should not make the route editor unusable.
-    }
-  }, [canPersist, createOperationKey, groundingProof, nightContext, planAnchor, routeNight, routeRevision, routeStale, stops]);
+  }, [canPersist, conciergeQuery, createOperationKey, creatorName, groundingProof, handoff?.acceptedAnchor, hasDurableIntakeDraft, nightContext, planAnchor, planIntake, recoveredIntake, requestedStopCount, routeNight, routeRevision, routeStale, startTime, stops, title]);
 
   useEffect(() => {
     if (hasDurableIntakeDraft) return;
@@ -3029,10 +3033,8 @@ export default function PlanComposer() {
       const route = parsePlanRouteDraft(safeLocalStorage()?.getItem(PLAN_ROUTE_DRAFT_KEY) ?? null);
       const plan = readPlanDraftEnvelope(safeSessionStorage());
       const intake = readPlanIntakeDraftWithMetadata();
-      // Paired saves date the local intake and session stops together. A newer
-      // session save replaces the whole route. Session stores no generated context or proof.
-      if (route && plan && !plan.legacy && intake
-        && Date.parse(plan.savedAt ?? "") > Date.parse(intake.savedAt)
+      if (route && plan && !plan.legacy
+        && Date.parse(plan.savedAt ?? "") > Date.parse(route.savedAt ?? intake?.savedAt ?? "")
         && JSON.stringify(plan.draft.stops) === JSON.stringify(recoveredDraft?.stops)) return {
         stops: plan.draft.stops.map((stop) => ({ ...stop, alternatives: [] })),
         nightContext: null,
