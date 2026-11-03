@@ -182,7 +182,7 @@ Sizes: S is up to one day, M is two to three days, L is about one week.
 
 | Step | Work | Size |
 |---|---|---|
-| 2.1 | **A pub sign cover for every pub with no photo.** The pub name in the display face on a panel, the area, the price band as a strip, and a small crop of the street map. It is clearly not a photo, so it is honest. Use it on the pub page, the map peek row, the list rows and the share card. | M |
+| 2.1 | **Normal pub sign fallback (A4).** The [pub pictures guide](../../README.md#features) owns the implemented behaviour. Map peek rows and share cards remain separate proposals. | M |
 | 2.2 | **Rebuild the pub page.** Cover (photo or sign), a map crop, one price table with bands, opening hours and the same action card as the venue sheet. Do the same for `/historic/[slug]`, with a licensed Wikimedia photo where one exists, as the landmark pages do. | M |
 | 2.3 | **A 56px photo or sign on each map peek row and list row.** | S |
 | 2.4 | **Ask for a photo on the sign.** One tap: "Add a photo of this pub". This feeds the photo supply. | S |
