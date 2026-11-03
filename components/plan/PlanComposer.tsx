@@ -855,26 +855,34 @@ function samePlanRequest(left: StoredPlanDraft, right: StoredPlanDraft | null | 
     .every((field) => JSON.stringify(left[field]) === JSON.stringify(right[field])));
 }
 
-function persistComposerRouteDraft(routeDraft: StoredRouteDraft, savedAt: number, requestChanged: boolean) {
+function composerRouteContent(routeDraft: StoredRouteDraft | null): string {
+  return JSON.stringify(parsePlanRouteDraft(JSON.stringify({ ...routeDraft, savedAt: undefined })));
+}
+
+function planRequestSaveTime(changed: boolean, now: number, savedTimes: number[]): number {
+  const dated = savedTimes.filter(Number.isFinite);
+  return changed || !dated.length ? now : Math.max(...dated);
+}
+
+function persistComposerRouteDraft(routeDraft: StoredRouteDraft, mayWrite: boolean) {
   const hasRouteDetails = Boolean(routeDraft.nightContext || routeDraft.routeNight || routeDraft.routeRevision !== null
     || routeDraft.groundingProof || routeDraft.createOperationKey || routeDraft.planAnchor
     || routeDraft.stops.some((stop) => stop.alternatives.length > 0));
   const routeStorage = safeLocalStorage();
   let routeSaved = false;
   let previewSaved = false;
-  let sessionSavedAt = savedAt;
   if (hasRouteDetails || routeDraft.routeStale) {
     const storedRecovery = readComposerRouteDraft();
     const stored = storedRecovery.route;
+    const storedTime = Date.parse(stored?.savedAt ?? "");
+    const copyTime = Date.parse(routeDraft.savedAt ?? "");
+    const newerStoredRoute = Number.isFinite(storedTime) && (!Number.isFinite(copyTime) || storedTime > copyTime);
     previewSaved = !hasRouteDetails && !storedRecovery.ambiguous && Boolean(stored && stored.stops.length === routeDraft.stops.length
       && stored.stops.every((stop, index) => stop.venueId === routeDraft.stops[index]?.venueId
         && stop.venueName === routeDraft.stops[index]?.venueName));
     try {
-      if (routeStorage && (hasRouteDetails || !previewSaved || stored?.savedAt)) {
-        routeStorage.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify({
-          savedAt: new Date(savedAt).toISOString(),
-          ...routeDraft,
-        } satisfies StoredRouteDraft));
+      if (routeStorage && mayWrite && !newerStoredRoute && (hasRouteDetails || !previewSaved || stored?.savedAt)) {
+        routeStorage.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify({ savedAt: routeDraft.savedAt, ...routeDraft }));
         routeSaved = true;
       }
     } catch {
@@ -882,13 +890,11 @@ function persistComposerRouteDraft(routeDraft: StoredRouteDraft, savedAt: number
     if (!routeSaved) {
       const remaining = readComposerRouteDraft().route;
       previewSaved = previewSaved && JSON.stringify(remaining) === JSON.stringify(stored);
-      routeSaved = Boolean(remaining && JSON.stringify({ ...remaining, savedAt: undefined })
-        === JSON.stringify(parsePlanRouteDraft(JSON.stringify(routeDraft))));
-      if (routeSaved && remaining?.savedAt && !requestChanged) sessionSavedAt = Date.parse(remaining.savedAt);
-      else if (requestChanged) routeSaved = false;
+      routeSaved = Boolean(remaining && remaining.savedAt === routeDraft.savedAt
+        && composerRouteContent(remaining) === composerRouteContent(routeDraft));
     }
   }
-  return { hasRouteDetails, routeSaved, previewSaved, sessionSavedAt };
+  return { hasRouteDetails, routeSaved, previewSaved };
 }
 
 export type NightAreaSelectorGroup = {
@@ -1781,6 +1787,12 @@ function PlanComposerForm({
   const [groundingProof, setGroundingProof] = useState(routeDraftFields.groundingProof);
   const [createOperationKey, setCreateOperationKey] = useState(routeDraftFields.createOperationKey);
   const [planAnchor, setPlanAnchor] = useState(routeDraftFields.planAnchor);
+  const routeCopy = useRef({
+    content: composerRouteContent(recoveredRouteDraft),
+    savedAt: recoveredRouteDraft?.savedAt,
+    generation: 0,
+    pending: true,
+  });
   const [sorting, setSorting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   // Walk minutes the browser measured between stops, merged over the route's
@@ -1996,7 +2008,7 @@ function PlanComposerForm({
         acceptedAnchor: recoveredDraft?.acceptedAnchor,
         stops: [],
       });
-    const { hasRouteDetails, routeSaved: routeCopySaved, previewSaved, sessionSavedAt: routeSavedAt } = persistComposerRouteDraft({
+    const routeDraft = {
       stops,
       nightContext,
       routeNight,
@@ -2005,17 +2017,25 @@ function PlanComposerForm({
       groundingProof,
       createOperationKey,
       planAnchor,
-    }, savedAt, requestChanged);
+    };
+    const content = composerRouteContent(routeDraft);
+    const routeChanged = content !== routeCopy.current.content || routeRevealTick !== routeCopy.current.generation;
+    const mayWrite = routeChanged || routeCopy.current.pending;
+    if (routeChanged) routeCopy.current = { content, savedAt: new Date(savedAt).toISOString(), generation: routeRevealTick, pending: false };
+    routeCopy.current.pending = false;
+    const { hasRouteDetails, routeSaved: routeCopySaved, previewSaved } = persistComposerRouteDraft({
+      ...routeDraft,
+      savedAt: routeCopy.current.savedAt,
+    }, mayWrite);
+    const routeSavedAt = Date.parse(routeCopy.current.savedAt ?? "");
     const previousRequestTime = sameRequest && previousSession ? Date.parse(previousSession.savedAt ?? "") : NaN;
     const previousIntakeTime = sameIntake ? Date.parse(previousIntake.savedAt) : NaN;
-    const sessionSavedAt = Math.max(routeSavedAt,
-      Number.isFinite(previousRequestTime) ? previousRequestTime : routeSavedAt,
-      Number.isFinite(previousIntakeTime) ? previousIntakeTime : routeSavedAt);
+    const sessionSavedAt = planRequestSaveTime(requestChanged, savedAt, [routeSavedAt, previousRequestTime, previousIntakeTime]);
     const routeSaved = routeCopySaved && sessionSavedAt === routeSavedAt;
     const sessionWrite = writePlanDraftEnvelope(sessionDraft,
       persistedAcceptedAnchor ? "planning-intent" : "manual", safeSessionStorage(), sessionSavedAt);
-    const intakeSaved = hasDurableIntakeDraft || intakeChanged
-      ? writePlanIntakeDraft(planIntake, undefined, sessionWrite.v1 || sessionWrite.v2 ? sessionSavedAt : savedAt)
+    const intakeSaved = hasDurableIntakeDraft || intakeChanged || (!previousIntake && requestedStopCount !== undefined)
+      ? writePlanIntakeDraft(planIntake, undefined, sessionSavedAt)
       : false;
     const hasStops = stops.some((stop) => stop.venueId || stop.venueName);
     const hasWork = intakeChanged || hasStops;
@@ -2030,7 +2050,7 @@ function PlanComposerForm({
       );
     });
     return () => { cancelled = true; };
-  }, [canPersist, conciergeQuery, createOperationKey, creatorName, groundingProof, handoff?.acceptedAnchor, hasDurableIntakeDraft, nightContext, planAnchor, planIntake, recoveredDraft, recoveredIntake, recoveredIntent, recoveredRequestCreator, recoveredRequestStart, recoveredRequestTitle, requestedStopCount, routeNight, routeRevision, routeStale, startTime, stops, title]);
+  }, [canPersist, conciergeQuery, createOperationKey, creatorName, groundingProof, handoff?.acceptedAnchor, hasDurableIntakeDraft, nightContext, planAnchor, planIntake, recoveredDraft, recoveredIntake, recoveredIntent, recoveredRequestCreator, recoveredRequestStart, recoveredRequestTitle, requestedStopCount, routeNight, routeRevision, routeStale, routeRevealTick, startTime, stops, title]);
 
   useEffect(() => {
     if (hasDurableIntakeDraft) return;
@@ -2684,11 +2704,14 @@ function PlanComposerForm({
         ? "Your stops were saved, but your route details, checks and starting pub could not be saved. Keep this page open to keep them."
         : draftSaveFailure === "description"
           ? "Your description could not be saved on this device. Keep this page open to keep it."
-          : recoveredIntent.descriptionUnavailable && !conciergeQuery.trim() && !askDraftQuery.trim()
-            ? "Your latest description could not be restored. Enter it again."
-            : "";
-  const draftSaveNotice = draftSaveMessage ? (
-    <p className="planComposer__error" role="alert">{draftSaveMessage}</p>
+          : "";
+  const descriptionRestoreMessage = recoveredIntent.descriptionUnavailable && !conciergeQuery.trim() && !askDraftQuery.trim()
+    ? "Your latest description could not be restored. Enter it again." : "";
+  const draftSaveNotice = draftSaveMessage || descriptionRestoreMessage ? (
+    <>
+      {draftSaveMessage ? <p className="planComposer__error" role="alert">{draftSaveMessage}</p> : null}
+      {descriptionRestoreMessage ? <p className="planComposer__error" role="alert">{descriptionRestoreMessage}</p> : null}
+    </>
   ) : null;
   const stopCountControl = (
       <label htmlFor="plan-context-stops">Stops<select id="plan-context-stops" aria-describedby="plan-route-status" value={normalizePlanStopCount(requestedStopCount)} onChange={(event) => {
@@ -3147,6 +3170,7 @@ export default function PlanComposer() {
         ...routeRecovery,
         envelope: null,
         route: {
+          savedAt: resolved.sessionWins ? resolved.planDraft?.savedAt ?? undefined : routeRecovery.route.savedAt,
           stops: (resolved.sessionWins && resolved.planDraft ? resolved.planDraft.draft.stops : routeRecovery.route.stops)
             .map(({ key, venueId, venueName }) => ({ key, venueId, venueName, alternatives: [] })),
           nightContext: null,
