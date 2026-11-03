@@ -346,6 +346,21 @@ body:has(.analyticsConsentPrompt) .mapSplitListScroll {
   white-space: normal;
 }
 
+.mapSplitListAnchor,
+.mapSplitListAnchor small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.mapSplitListAnchor > span {
+  color: var(--ink);
+  font-size: var(--text-sm);
+}
+
+.mapSplitListAnchor small {
+  font-size: inherit;
+}
+
 /* The ring a row puts round its pin while the reader points at the row. It is
    a DOM mark over the canvas, never a change to the pin's own style. A pointed
    row is not a selection, so it is drawn in ink on a paper halo. */

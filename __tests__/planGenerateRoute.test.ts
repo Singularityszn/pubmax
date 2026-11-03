@@ -1312,7 +1312,7 @@ describe("POST /api/plans/generate", () => {
     expect(body.stops).toHaveLength(3);
   });
 
-  it("always returns an editable route with honest confidence for a reviewed area", async () => {
+  it("returns an editable route with honest confidence for an unreviewed area", async () => {
     const response = await POST(new Request("http://localhost/api/plans/generate", {
       method: "POST",
       body: JSON.stringify({ query: "A quiet night in Barnes" }),
@@ -1329,15 +1329,17 @@ describe("POST /api/plans/generate", () => {
       },
       nightArea: {
         id: "barnes",
-        coverageStatus: "reviewed",
-        coverageScore: expect.any(Number),
+        coverageStatus: "discovered",
+        coverageScore: 0,
         missingEvidence: expect.arrayContaining(["opening_hours"]),
         routeReady: false,
-        lastReviewedAt: expect.any(String),
+        lastReviewedAt: null,
       },
     });
     expect(body.district).toMatchObject(body.nightArea);
+    expect(body.planningConfidence.provenance.some((source: { kind: string }) => source.kind === "night_area_review")).toBe(false);
     expect(body.stops).toHaveLength(3);
+    expect(body.stops.every((stop: { provenance: { kind: string }[] }) => stop.provenance.every((source) => source.kind !== "night_area_review"))).toBe(true);
   });
 
   it("does not invent weather when the scheduled cache has no active observation", async () => {

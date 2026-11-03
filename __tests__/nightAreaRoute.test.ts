@@ -4,7 +4,7 @@ import { GET as LIST } from "@/app/api/night-areas/route";
 import { GET } from "@/app/api/night-areas/[slug]/route";
 
 describe("GET /api/night-areas", () => {
-  it("lists the reviewed London catalogue without authentication", async () => {
+  it("lists the unreviewed London catalogue without authentication", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-07-13T12:00:00.000Z"));
     try {
@@ -20,17 +20,17 @@ describe("GET /api/night-areas", () => {
       expect(body.areas).toEqual(expect.arrayContaining([
         expect.objectContaining({
           slug: "clapham",
-          coverageStatus: "route_ready",
-          coverageScore: expect.any(Number),
-          routeReadyReasons: expect.any(Array),
-          missingEvidence: [],
-          gate: expect.objectContaining({ version: 1, passed: true }),
-          lastReviewedAt: expect.any(String),
-          reviewExpiresAt: expect.any(String),
+          coverageStatus: "discovered",
+          coverageScore: 0,
+          routeReadyReasons: [],
+          missingEvidence: expect.arrayContaining(["opening_hours", "terminal_get_home"]),
+          gate: expect.objectContaining({ version: 1, passed: false }),
+          lastReviewedAt: null,
+          reviewExpiresAt: null,
         }),
         expect.objectContaining({
           slug: "barnes",
-          coverageStatus: "reviewed",
+          coverageStatus: "discovered",
           missingEvidence: expect.arrayContaining(["opening_hours"]),
         }),
         expect.objectContaining({ slug: "camden", demandWave: 1 }),
@@ -76,15 +76,15 @@ describe("GET /api/night-areas/:slug", () => {
       transportAnchors: expect.any(Array),
       daypartGuidance: { after_work: expect.any(String), late_night: expect.any(String) },
       recentSignals: [],
-      coverageStatus: "route_ready",
-      gate: expect.objectContaining({ version: 1, passed: true }),
-      lastReviewedAt: expect.any(String),
-      reviewExpiresAt: expect.any(String),
+      coverageStatus: "discovered",
+      gate: expect.objectContaining({ version: 1, passed: false }),
+      lastReviewedAt: null,
+      reviewExpiresAt: null,
     });
     expect(body).not.toHaveProperty("routeReady");
   });
 
-  it("returns reviewed expansion areas while keeping their route gate visible", async () => {
+  it("returns unreviewed expansion areas with their route gate visible", async () => {
     const response = await GET(new Request("http://localhost/api/night-areas/camden"), {
       params: Promise.resolve({ slug: "camden" }),
     });
@@ -92,7 +92,7 @@ describe("GET /api/night-areas/:slug", () => {
     const body = await response.json();
     expect(body).toMatchObject({
       slug: "camden",
-      coverageStatus: "captured",
+      coverageStatus: "discovered",
       gate: expect.objectContaining({ passed: false }),
     });
     expect(body).not.toHaveProperty("routeReady");

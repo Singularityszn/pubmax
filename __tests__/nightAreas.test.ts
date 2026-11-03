@@ -10,9 +10,9 @@ import {
 } from "@/lib/nightAreas";
 
 describe("Night Area catalogue", () => {
-  it("keeps route readiness explicit and rejects an expired review snapshot", () => {
+  it("does not infer route readiness from unreviewed catalogue data", () => {
     const clapham = getNightArea("clapham");
-    expect(isNightAreaRouteReady(clapham, new Date("2026-07-13T12:00:00.000Z"))).toBe(true);
+    expect(isNightAreaRouteReady(clapham, new Date("2026-07-13T12:00:00.000Z"))).toBe(false);
     expect(isNightAreaRouteReady(clapham, new Date("2027-02-01T12:00:00.000Z"))).toBe(false);
 
     const barnes = getNightArea("barnes");
@@ -101,12 +101,11 @@ describe("nearestRouteReadyNightArea", () => {
       [kingsCross.centre.lng, kingsCross.centre.lat],
       now,
     );
-    expect(found).not.toBeNull();
-    expect(isNightAreaRouteReady(found!, now)).toBe(true);
+    expect(found).toBeNull();
   });
 
-  it("answers the nearest checked area for the Soho patch, while Soho's pint prices are missing", () => {
-    expect(nearestRouteReadyNightArea("london", [-0.1365, 51.5136], now)?.slug).toBe("victoria");
+  it("does not infer a checked area for the Soho patch", () => {
+    expect(nearestRouteReadyNightArea("london", [-0.1365, 51.5136], now)).toBeNull();
   });
 
   it("answers nothing once every area's review has lapsed", () => {
