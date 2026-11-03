@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
@@ -78,15 +76,6 @@ const QUIET_PINT: QuietPintModule = {
 };
 
 describe("Tonight quiet pint module", () => {
-  it("composes buildQuietPint on the server the same way /today does", () => {
-    const page = readFileSync(join(process.cwd(), "app/tonight/page.tsx"), "utf8");
-    expect(page).toMatch(/import \{ buildQuietPint[^}]*\} from "@\/lib\/quietPint"/);
-    expect(page).toContain("loadHistoricPubs()");
-    expect(page).toContain("getPricedVenues()");
-    expect(page).toContain("quietPint={quietPint}");
-    expect(page).toMatch(/buildQuietPint\(\{[\s\S]*candidates:[\s\S]*priceById[\s\S]*now/);
-  });
-
   it("includes the quiet pint module when quietPint is non-null", () => {
     const html = renderToStaticMarkup(
       createElement(TonightClient, {

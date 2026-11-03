@@ -35,6 +35,9 @@ const rejected = [
   { cheapestPrice: Number.NaN },
   { cheapestPint: "BOTTLED BEER" },
   { cheapestPint: "Half pint lager" },
+  { cheapestPint: "Half-pint lager" },
+  { cheapestPint: "half_pint lager" },
+  { cheapestPint: "2 halves of stout" },
   { measure: "bottle" },
 ];
 
@@ -131,7 +134,7 @@ describe("the captain's comparable-pint contract at ranking boundaries", () => {
     expect(points).toHaveLength(2);
   });
 
-  it.each(["BOTTLED BEER", "Half pint lager", "330ml Lager"])("keeps a listed %s visible through slim pins and map answers", (cheapestPint) => {
+  it.each(["BOTTLED BEER", "Half pint lager", "Half-pint lager", "half_pint lager", "2 halves of stout", "330ml Lager"])("keeps a listed %s visible through slim pins and map answers", (cheapestPint) => {
     const rows = [
       { id: "rejected", name: "Rejected", lat: 51.5136, lng: -0.1365, cheapestPrice: 2.49, cheapestPint, borough: "Westminster", ...evidence },
       { id: "pint", name: "Pint", lat: 51.5136, lng: -0.1365, cheapestPrice: 5, cheapestPint: "Lager", borough: "Westminster", ...evidence },

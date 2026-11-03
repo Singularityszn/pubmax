@@ -6,7 +6,14 @@ The invariant is that every cheapest-pint rank or claim uses its selected price'
 
 R6 was a missing-boundary defect. Compass, borough summaries, facts, FAQs, metadata, and share images accepted numeric prices without the policy.
 The audit also found sibling price decisions in the leaderboard, arrival links, fallback order, Pal hops, roulette, route scoring, and Tonight conditions.
-These decisions now use the shared policy. The quiet pick no longer sorts its display-only price map.
+These decisions now use the shared policy. The quiet pick uses a separate qualified price map for its price preference.
+
+R7 was a duplicate serving-rule defect. The TypeScript reader and Node builders now share the existing drink-text interpretation.
+Bottle and volume checks remain in the comparable-pint policy. Legacy rows with no stated measure retain their pint contract.
+The slim producer retains refused serving text with its selected publisher and day. Last Orders withholds its price without hiding the venue.
+
+R8 was a projection defect. Today and Tonight now supply qualified ranking prices alongside their existing display prices.
+Grade and age retain priority. A cheaper qualified pint breaks their tie before the stable slug order.
 
 Refused prices remain visible in ordinary venue rows. Area averages, medians, other drink rules, and the stronger hunt remain unchanged.
 No published dataset was regenerated during this review phase.
@@ -27,9 +34,9 @@ Command: `rg -n cheapestPrice lib components app scripts --glob '!**/*.json'`
 | `app/crawls/routeSummary.ts` | Predetermined or reader-chosen route display and estimates. No cheapest-pint winner selection. |
 | `app/invite/[token]/opengraph-image.tsx` | Display, transport, persistence, or typed data. No numerical cheapest-pint selection at this consumer. |
 | `app/ledger/[id]/page.tsx` | Display, transport, persistence, or typed data. No numerical cheapest-pint selection at this consumer. |
-| `app/today/page.tsx` | Quiet-pick price projection remains display-only after removing its price tiebreak. Tonight hunt and A5 row presentation remain unchanged. |
+| `app/today/page.tsx` | Supplies separate display prices and qualified quiet-pick ranking prices. |
 | `app/today/todayPints.ts` | Display, transport, persistence, or typed data. No numerical cheapest-pint selection at this consumer. |
-| `app/tonight/page.tsx` | Quiet-pick price projection remains display-only after removing its price tiebreak. Tonight hunt and A5 row presentation remain unchanged. |
+| `app/tonight/page.tsx` | Supplies separate display prices and qualified quiet-pick ranking prices. Tonight hunt and A5 row presentation remain unchanged. |
 | `components/PubMap.tsx` | Selected serving, publisher, and day survive the existing projection. Venue visibility remains separate. |
 | `components/compass/PintCompass.tsx` | Passes complete slim rows to rankCompassTargets and renders qualified targets. |
 | `components/discovery/LeaderboardTable.tsx` | Discover producer consumes qualified cheapestPints. Table renders its result. Comparison baselines remain unchanged. |
@@ -75,6 +82,7 @@ Command: `rg -n cheapestPrice lib components app scripts --glob '!**/*.json'`
 | `lib/discoverBoard.ts` | Discover producer consumes qualified cheapestPints. Table renders its result. Comparison baselines remain unchanged. |
 | `lib/drinkCoverage.ts` | Coverage or link availability. No numerical cheapest winner. |
 | `lib/drinks.ts` | Read-day or drink conversion. Ranking qualification uses legacyPriceEvidence and the shared policy first. |
+| `lib/drinkMeasure.ts`, `lib/drinkMeasureText.mjs` | One shared serving-text interpretation for the TypeScript reader and Node policy. |
 | `lib/harvest/tavilyNightlyPass.ts` | Harvest input validation. No public cheapest-pint answer. |
 | `lib/hypedPubs.ts` | Display, transport, persistence, or typed data. No numerical cheapest-pint selection at this consumer. |
 | `lib/landingLondonCollage.ts` | Existing policy call remains the ranking boundary. |
@@ -123,7 +131,7 @@ Command: `rg -n cheapestPrice lib components app scripts --glob '!**/*.json'`
 | `lib/pricedPubCount.ts` | Area statistics, price bands, or shard statistics. Outside cheapest-answer scope. |
 | `lib/pubListImport.server.ts` | Coverage or link availability. No numerical cheapest winner. |
 | `lib/pubMap.ts` | Display, transport, persistence, or typed data. No numerical cheapest-pint selection at this consumer. |
-| `lib/quietPint.ts` | Removed the optional numerical price tiebreak. Heritage and slug decide order. Display prices remain. |
+| `lib/quietPint.ts` | Grade, age, qualified price, then slug decide order. Display prices remain separate. |
 | `lib/savedListShare.server.ts` | Display, transport, persistence, or typed data. No numerical cheapest-pint selection at this consumer. |
 | `lib/scrapedPubs.server.ts` | Display, transport, persistence, or typed data. No numerical cheapest-pint selection at this consumer. |
 | `lib/scrapedPubs.ts` | Display, transport, persistence, or typed data. No numerical cheapest-pint selection at this consumer. |
@@ -162,13 +170,20 @@ Command: `rg -n cheapestPrice lib components app scripts --glob '!**/*.json'`
 The regressions use the captain's contract as their oracle. A valid £5 pint must beat a refused cheaper figure.
 They cover serving, publisher, full dates, future dates, prices, same-row ties, retained visibility, and the published Moon & Stars record.
 They also exercise borough metadata, share-image content, fact prose, FAQs, and unchanged area averages.
+Serving regressions include hyphenated halves, underscored halves, fractions, and the existing brewery-name exceptions.
+Producer tests execute the slim evidence projection and Last Orders builder. Page tests execute both Today and Tonight server pages.
 
 The review permits one final focused test command. Full verification and browser acceptance belong to the outer executor.
 The final command and result appear in the phase tool transcript. This record does not claim release acceptance.
 
-The single focused run completed with 417 passing tests and one failure across 21 files.
+The previous round's focused run completed with 417 passing tests and one failure across 21 files.
 All new discovery regressions passed. The failure concerned an existing alcohol-free scoring fixture.
 A broad fixture edit gave only one comparison row price evidence. That fixture edit is now removed.
 The alcohol-free crawl score also retains its original pint tiebreak, as required by the other-drink constraint.
-These final corrections were traced through the callers but were not tested again in this phase.
-The outer executor must check the final files. This review does not claim a passing final check.
+Those corrections were traced through the callers but were not tested again in that round.
+The current round's final scoped check passed all 213 tests across nine files. It ran after all source and test edits.
+The command exited with code 0. Full verification remains with the outer executor.
+
+```sh
+node node_modules/vitest/vitest.mjs run __tests__/comparablePint.test.ts __tests__/comparablePintDiscovery.test.tsx __tests__/comparablePintRankingBoundaries.test.ts __tests__/comparablePintProducer.test.ts __tests__/legacyPriceEvidence.test.ts __tests__/drinkMeasure.test.ts __tests__/quietPint.test.ts __tests__/quietPintPages.test.tsx __tests__/tonightQuietPint.test.ts
+```

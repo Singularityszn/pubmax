@@ -859,6 +859,17 @@ function applyFeatureHints(venue, feature) {
     }
 }
 
+export function buildSlimPriceEvidence(prices, cheapestPrice) {
+  const priceObservedAt = legacyCheapestPriceReadDay(prices, cheapestPrice);
+  const { priceSource, cheapestPint, measure } = legacyCheapestPriceEvidence(prices, cheapestPrice);
+  return {
+    ...(cheapestPint && !isComparablePintServing({ cheapestPint, measure }) ? { cheapestPint } : {}),
+    ...(measure != null ? { measure } : {}),
+    ...(priceSource ? { priceSource } : {}),
+    ...(priceObservedAt ? { priceObservedAt } : {}),
+  };
+}
+
 async function main() {
   const rawText = await readFile(RAW_PATH, "utf8");
   const rows = JSON.parse(rawText);
@@ -943,8 +954,7 @@ async function main() {
       : null;
     // The publisher and day both come from the same minimum-price row.
     // A second row at the same price cannot supply this publisher's date.
-    const priceObservedAt = legacyCheapestPriceReadDay(prices, cheapestPrice);
-    const { priceSource, cheapestPint, measure } = legacyCheapestPriceEvidence(prices, cheapestPrice);
+    const priceEvidence = buildSlimPriceEvidence(prices, cheapestPrice);
     const id = stableVenueIdFromKey(key);
     const locality = groupRows
       .map((row) => String(row.locality ?? "").trim())
@@ -966,10 +976,7 @@ async function main() {
       lat,
       lng,
       cheapestPrice,
-      ...(cheapestPint && !isComparablePintServing({ cheapestPint, measure }) ? { cheapestPint } : {}),
-      ...(measure != null ? { measure } : {}),
-      ...(priceSource ? { priceSource } : {}),
-      ...(priceObservedAt ? { priceObservedAt } : {}),
+      ...priceEvidence,
       borough: String(first.primary_borough || ""),
       locality: locality ?? "",
       // Nearest-station fare zone (1–6, occasionally 7–9 at the London edge).
