@@ -1,7 +1,7 @@
 import type { Page, Request } from "@playwright/test";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { aggregatePerfMetric, waitForQuietNetwork } from "../e2e/helpers/perfMeasurement";
+import { aggregatePerfMetric, loadPerfRoute, waitForQuietNetwork } from "../e2e/helpers/perfMeasurement";
 import { PERFORMANCE_BUDGETS, type BudgetMethod } from "../lib/performanceBudgets";
 
 // The quiet window is scaled to the tracked network profile, so these cases
@@ -123,5 +123,48 @@ describe("the quiet window follows the tracked network profile", () => {
 describe("performance measurement aggregation", () => {
   it("keeps an absent metric unmeasured instead of treating it as zero", () => {
     expect(Number.isNaN(aggregatePerfMetric([Number.NaN, 700, 710]))).toBe(true);
+  });
+});
+
+
+// Double the browser boundary, not the helper or its assertion implementation.
+function navigationPage(status: number): Page {
+  const locator = {
+    _apiName: "Locator",
+    first() { return this; },
+    async _expect() { return { matches: true }; },
+  };
+  return {
+    goto: async () => ({ status: () => status }),
+    locator: () => locator,
+    evaluate: async () => 125,
+  } as unknown as Page;
+}
+
+describe("route navigation status", () => {
+  const retiredRoute = PERFORMANCE_BUDGETS.routes.find(
+    (route) => route.path === "/area/clapham/drink/guinness",
+  )!;
+
+  it("measures the configured retired URL when it returns HTTP 404", async () => {
+    await expect(loadPerfRoute(navigationPage(404), retiredRoute)).resolves.toBe(125);
+  });
+
+  it("refuses a success response when the budget measures a retired page", async () => {
+    await expect(loadPerfRoute(navigationPage(200), retiredRoute)).rejects.toThrow("must answer HTTP 404");
+  });
+
+  it("refuses an unexpected HTTP 404 on an ordinary page", async () => {
+    await expect(loadPerfRoute(navigationPage(404), {
+      path: "/about",
+      readySelector: "main",
+    })).rejects.toThrow("must answer HTTP 200");
+  });
+
+  it("still measures an ordinary successful page without a status override", async () => {
+    await expect(loadPerfRoute(navigationPage(200), {
+      path: "/about",
+      readySelector: "main",
+    })).resolves.toBe(125);
   });
 });
