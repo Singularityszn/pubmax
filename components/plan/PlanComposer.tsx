@@ -77,7 +77,7 @@ import {
   type PlanStopCount,
 } from "@/lib/planStopCount";
 import { planHasRoute, type PlanState } from "@/lib/plan";
-import { parsePlanDraft, PLAN_DRAFT_KEY, readPlanDraftEnvelope, writePlanDraftEnvelope } from "@/lib/planDraft";
+import { parsePlanDraft, PLAN_DRAFT_KEY, readPlanDraftEnvelope, writePlanDraftEnvelope, type StoredPlanDraft } from "@/lib/planDraft";
 import { reconcilePlanRouteDrafts, PLAN_ROUTE_DRAFT_V2_KEY, type ParsedPlanRouteDraft } from "@/lib/planRouteDraft";
 import {
   PLANNING_INTENT_SOURCES,
@@ -850,6 +850,11 @@ function readComposerRouteDraft(): {
   };
 }
 
+function samePlanRequest(left: StoredPlanDraft, right: StoredPlanDraft | null | undefined): boolean {
+  return Boolean(right && (["title", "creatorName", "startTime", "conciergeQuery", "requestedStopCount", "acceptedAnchor"] as const)
+    .every((field) => JSON.stringify(left[field]) === JSON.stringify(right[field])));
+}
+
 function persistComposerRouteDraft(routeDraft: StoredRouteDraft, savedAt: number, requestChanged: boolean) {
   const hasRouteDetails = Boolean(routeDraft.nightContext || routeDraft.routeNight || routeDraft.routeRevision !== null
     || routeDraft.groundingProof || routeDraft.createOperationKey || routeDraft.planAnchor
@@ -1558,6 +1563,9 @@ function PlanComposerForm({
   const [title, setTitle] = useState(draftFields.title);
   const [creatorName, setCreatorName] = useState(draftFields.creatorName);
   const [startTime, setStartTime] = useState(draftFields.startTime);
+  const recoveredRequestTitle = recoveredDraft?.title ?? draftFields.title;
+  const recoveredRequestCreator = recoveredDraft?.creatorName ?? draftFields.creatorName;
+  const recoveredRequestStart = recoveredDraft?.startTime ?? (typeof draftFields.startTime === "string" ? draftFields.startTime : startTime);
   const [stops, setStops] = useState<DraftStop[]>(
     initialComposerStops(recoveredRouteDraft, recoveredDraft, handoff),
   );
@@ -1596,8 +1604,13 @@ function PlanComposerForm({
   const [conciergeQuery, setConciergeQuery] = useState(
     (askNeedsConciergeField ? urlAsk ?? "" : "") || recoveredIntent.conciergeQuery,
   );
-  const [planIntake, setPlanIntake] = useState(() =>
-    applyPlanStopCount(recoveredIntake, null, recoveredStopCount).draft);
+  const [planIntake, setPlanIntake] = useState(() => {
+    const draft = applyPlanStopCount(recoveredIntake, null, recoveredStopCount).draft;
+    const exactStartIso = londonDateTimeInputToIso(startTime, new Date());
+    return draft.answers.timeWindow && exactStartIso && draft.answers.exactStartIso !== exactStartIso
+      ? { ...draft, answers: { ...draft.answers, exactStartIso } }
+      : draft;
+  });
   const requestedStopCount = planIntake.answers.stopCount;
   const [draftSaveFailure, setDraftSaveFailure] = useState<"all" | "route" | "route-details" | "description" | null>(null);
   const [entryMode, setEntryMode] = useState<"describe" | "wizard">(initialEntryMode);
@@ -1956,12 +1969,34 @@ function PlanComposerForm({
       ? { ...acceptedAnchor, expiresAt: acceptedAnchor.expiresAt }
       : null;
     const savedAt = Date.now();
-    const intakeChanged = JSON.stringify(planIntake) !== JSON.stringify(recoveredIntake);
-    const requestChanged = conciergeQuery !== recoveredIntent.conciergeQuery
-      || requestedStopCount !== recoveredIntent.stopCount
-      || Boolean(recoveredDraft && (conciergeQuery !== recoveredDraft.conciergeQuery
-        || requestedStopCount !== recoveredDraft.requestedStopCount));
-    const { hasRouteDetails, routeSaved, previewSaved, sessionSavedAt } = persistComposerRouteDraft({
+    const intakeChanged = JSON.stringify(planIntake)
+      !== JSON.stringify(applyPlanStopCount(recoveredIntake, null, recoveredIntent.stopCount).draft);
+    const previousIntake = readPlanIntakeDraftWithMetadata();
+    const sameIntake = previousIntake && JSON.stringify(planIntake) === JSON.stringify(previousIntake.draft);
+    const sessionDraft = {
+      title,
+      creatorName,
+      startTime,
+      conciergeQuery,
+      stops,
+      ...(requestedStopCount !== undefined ? { requestedStopCount } : {}),
+      ...(persistedAcceptedAnchor ? { acceptedAnchor: persistedAcceptedAnchor } : {}),
+    };
+    const previousSession = readPlanDraftEnvelope(safeSessionStorage());
+    const sameRequest = samePlanRequest(sessionDraft, previousSession?.draft);
+    const intakeWasEdited = previousIntake && JSON.stringify(previousIntake.draft) !== JSON.stringify(recoveredIntake);
+    const requestChanged = intakeChanged || Boolean(recoveredDraft && intakeWasEdited && !sameIntake)
+      || Boolean(recoveredDraft && previousSession && !sameRequest)
+      || !samePlanRequest(sessionDraft, {
+        title: recoveredRequestTitle,
+        creatorName: recoveredRequestCreator,
+        startTime: recoveredRequestStart,
+        conciergeQuery: recoveredIntent.conciergeQuery,
+        requestedStopCount: recoveredIntent.stopCount,
+        acceptedAnchor: recoveredDraft?.acceptedAnchor,
+        stops: [],
+      });
+    const { hasRouteDetails, routeSaved: routeCopySaved, previewSaved, sessionSavedAt: routeSavedAt } = persistComposerRouteDraft({
       stops,
       nightContext,
       routeNight,
@@ -1971,15 +2006,14 @@ function PlanComposerForm({
       createOperationKey,
       planAnchor,
     }, savedAt, requestChanged);
-    const sessionWrite = writePlanDraftEnvelope({
-      title,
-      creatorName,
-      startTime,
-      conciergeQuery,
-      stops,
-      ...(requestedStopCount !== undefined ? { requestedStopCount } : {}),
-      ...(persistedAcceptedAnchor ? { acceptedAnchor: persistedAcceptedAnchor } : {}),
-    }, persistedAcceptedAnchor ? "planning-intent" : "manual", safeSessionStorage(), sessionSavedAt);
+    const previousRequestTime = sameRequest && previousSession ? Date.parse(previousSession.savedAt ?? "") : NaN;
+    const previousIntakeTime = sameIntake ? Date.parse(previousIntake.savedAt) : NaN;
+    const sessionSavedAt = Math.max(routeSavedAt,
+      Number.isFinite(previousRequestTime) ? previousRequestTime : routeSavedAt,
+      Number.isFinite(previousIntakeTime) ? previousIntakeTime : routeSavedAt);
+    const routeSaved = routeCopySaved && sessionSavedAt === routeSavedAt;
+    const sessionWrite = writePlanDraftEnvelope(sessionDraft,
+      persistedAcceptedAnchor ? "planning-intent" : "manual", safeSessionStorage(), sessionSavedAt);
     const intakeSaved = hasDurableIntakeDraft || intakeChanged
       ? writePlanIntakeDraft(planIntake, undefined, sessionWrite.v1 || sessionWrite.v2 ? sessionSavedAt : savedAt)
       : false;
@@ -1996,7 +2030,7 @@ function PlanComposerForm({
       );
     });
     return () => { cancelled = true; };
-  }, [canPersist, conciergeQuery, createOperationKey, creatorName, groundingProof, handoff?.acceptedAnchor, hasDurableIntakeDraft, nightContext, planAnchor, planIntake, recoveredDraft, recoveredIntake, recoveredIntent, requestedStopCount, routeNight, routeRevision, routeStale, startTime, stops, title]);
+  }, [canPersist, conciergeQuery, createOperationKey, creatorName, groundingProof, handoff?.acceptedAnchor, hasDurableIntakeDraft, nightContext, planAnchor, planIntake, recoveredDraft, recoveredIntake, recoveredIntent, recoveredRequestCreator, recoveredRequestStart, recoveredRequestTitle, requestedStopCount, routeNight, routeRevision, routeStale, startTime, stops, title]);
 
   useEffect(() => {
     if (hasDurableIntakeDraft) return;
