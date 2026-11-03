@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { storeThemeChoice } from "./helpers/themeClock";
 
 // The Plan result reads as a route. After "Plan it" the first thing on the page
 // is a heading, ONE summary line, the stops as cards with the walk between
@@ -51,6 +52,36 @@ async function sortARoute(page: Page): Promise<void> {
 
 test.describe("the Plan result is a route", () => {
   test.use({ viewport: { width: 390, height: 844 } });
+
+  for (const theme of ["light", "dark"] as const) {
+    test(`enlarged stop text and prices do not overlap in ${theme} theme`, async ({ page }) => {
+      await storeThemeChoice(page, theme);
+      await sortARoute(page);
+      await page.addStyleTag({ content: ":root { font-size: 32px !important; }" });
+      await page.evaluate(() => document.fonts.ready);
+
+      // The 390px accessibility contract requires separate, readable text.
+      // Text rectangles catch overflow even when element boxes do not overlap.
+      const overlaps = await page.locator(".planStop").evaluateAll((stops) => {
+        const ink = (element: Element) => {
+          const range = document.createRange();
+          range.selectNodeContents(element);
+          return [...range.getClientRects()].filter((rect) => rect.width && rect.height);
+        };
+        return stops.flatMap((stop) => {
+          const price = stop.querySelector(".planStop__price")!;
+          const fields = [...stop.querySelectorAll(".planStop__name, .planStop__meta")];
+          return fields.flatMap((field) => ink(field).flatMap((text) =>
+            ink(price).filter((amount) => text.left < amount.right && amount.left < text.right
+              && text.top < amount.bottom && amount.top < text.bottom)
+              .map(() => field.textContent),
+          ));
+        });
+      });
+      await expect(page.locator(".planStop__price")).toHaveText(["£5.60", "£5.20", "£6.60"]);
+      expect(overlaps).toEqual([]);
+    });
+  }
 
   test("heading, one summary line, three cards, two walks, and no venue-name field", async ({ page }) => {
     await sortARoute(page);
