@@ -5,3 +5,4 @@ export function comparablePint(input?: {
   anchorLabel?: unknown;
   measure?: unknown;
 }): number | null;
+export function pintObservationTime(value: unknown): number | null;

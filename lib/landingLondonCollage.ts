@@ -4,6 +4,7 @@
 // public/landing/london-collage/README.md.
 
 import { haversineMeters } from "./greatCircle.mjs";
+import { comparableVenuePint, type ComparablePintVenue } from "./comparableVenuePint";
 
 type LondonCollageLayout = "tall" | "hero" | "standard";
 
@@ -212,11 +213,10 @@ export type LondonCollageAreaPrice = {
   pubCount: number;
 };
 
-type PricedPoint = {
+type PricedPoint = ComparablePintVenue & {
   name: string;
   latitude: number;
   longitude: number;
-  cheapestPrice: number | null;
 };
 
 /**
@@ -236,7 +236,7 @@ export function buildLondonCollageAreaPrices(
     let best: PricedPoint | null = null;
     let count = 0;
     for (const venue of venues) {
-      if (typeof venue.cheapestPrice !== "number" || !Number.isFinite(venue.cheapestPrice)) continue;
+      if (comparableVenuePint(venue, null, false) === null) continue;
       if (haversineMeters(lat, lng, venue.latitude, venue.longitude) > LONDON_COLLAGE_WALK_METRES) continue;
       count += 1;
       if (

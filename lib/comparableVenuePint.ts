@@ -4,6 +4,11 @@ import { isPubVenueKind } from "@/lib/venueKindFilters";
 import type { Venue } from "@/lib/venues";
 import type { MapLensPrice } from "@/lib/mapExperienceLens";
 
+export type ComparablePintVenue = Pick<Venue, "cheapestPrice"> & Partial<Pick<Venue,
+  "kind" | "legacyOsmBar" | "prices" | "priceSource" | "priceObservedAt" |
+  "anchorLabel" | "latestContributorPrice" | "latestContributorAt"
+>> & { sourcedPrice?: { sourceLabel: string; observedAt: string } | null };
+
 /** Other drink lenses retain their own serving and ranking rules. */
 export function comparableLensPrice(price: MapLensPrice, venue: Venue): number | null {
   if (price.category !== "beer") return price.priceGbp;
@@ -22,7 +27,7 @@ export function comparableLensPrice(price: MapLensPrice, venue: Venue): number |
 
 /** Compare the selected figure with evidence belonging to that same figure. */
 export function comparableVenuePint(
-  venue: Venue,
+  venue: ComparablePintVenue,
   signal?: { latestContributorPrice: number | null; latestContributorAt?: number | null } | null,
   allowVenueContributor = true,
 ): number | null {
@@ -44,7 +49,7 @@ export function comparableVenuePint(
       priceObservedAt: observed,
     });
   }
-  const sourced = (venue as Venue & { sourcedPrice?: { sourceLabel: string; observedAt: string } | null }).sourcedPrice;
+  const sourced = venue.sourcedPrice;
   if (sourced) return comparablePint({
     cheapestPrice: venue.cheapestPrice,
     priceSource: sourced.sourceLabel,
