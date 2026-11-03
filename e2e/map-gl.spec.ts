@@ -875,6 +875,8 @@ test("/map spends its one bounded style reload, then surfaces the honest tile ca
 
 test("/map keeps a successful fallback after the primary style fails", async ({ page }) => {
   test.setTimeout(45_000);
+  await page.addInitScript(() => localStorage.setItem("pubmaxx:analytics-consent:v1", "denied"));
+  await page.route("**/*", (route) => ["GET", "HEAD"].includes(route.request().method()) ? route.continue() : route.abort("blockedbyclient"));
   await installDeterministicMapBasemap(page);
   let fallbackRequests = 0;
   page.on("request", (request) => {
@@ -889,6 +891,8 @@ test("/map keeps a successful fallback after the primary style fails", async ({ 
 
 test("/map keeps waiting while the fallback style request is pending", async ({ page }) => {
   test.setTimeout(35_000);
+  await page.addInitScript(() => localStorage.setItem("pubmaxx:analytics-consent:v1", "denied"));
+  await page.route("**/*", (route) => ["GET", "HEAD"].includes(route.request().method()) ? route.continue() : route.abort("blockedbyclient"));
   await installDeterministicMapBasemap(page);
   let fallbackRequested = false;
   await page.route(/tiles\.openfreemap\.org\/styles\//, (route) => route.abort("failed"));
@@ -901,6 +905,35 @@ test("/map keeps waiting while the fallback style request is pending", async ({ 
   await expect.poll(() => fallbackRequested, { timeout: 20_000 }).toBe(true);
   await page.waitForTimeout(4_000);
   await expect(page.locator(".mapFallback")).toHaveCount(0);
+});
+
+test("/map ignores a failed fallback after a newer theme style is queued", async ({ page }) => {
+  test.setTimeout(35_000);
+  await page.addInitScript(() => localStorage.setItem("pubmaxx:analytics-consent:v1", "denied"));
+  await page.route("**/*", (route) => ["GET", "HEAD"].includes(route.request().method()) ? route.continue() : route.abort("blockedbyclient"));
+  let fallbackRequested = false;
+  let releaseFallback!: () => void;
+  const held = new Promise<void>((resolve) => { releaseFallback = resolve; });
+  await page.route(/tiles\.openfreemap\.org\/styles\//, (route) => route.abort("failed"));
+  await page.route(/basemaps\.cartocdn\.com\/gl\/.*\/style\.json/, async (route) => {
+    fallbackRequested = true;
+    await held;
+    await route.abort("failed");
+  });
+  try {
+    await page.goto("/map");
+    await expect.poll(() => fallbackRequested, { timeout: 20_000 }).toBe(true);
+    await page.evaluate(async () => {
+      const root = document.documentElement;
+      root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    });
+    releaseFallback();
+    await page.waitForTimeout(4_000);
+    await expect(page.locator(".mapFallback")).toHaveCount(0);
+  } finally {
+    releaseFallback();
+  }
 });
 
 test("/map states a TileJSON metadata failure instead of revealing a blank field", async ({
