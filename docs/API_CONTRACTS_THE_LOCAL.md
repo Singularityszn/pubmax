@@ -229,7 +229,9 @@ export type NightArea = {
 };
 ```
 
-Catalogue is **reviewed application data**, not inferred at request time (per #252). `validateNightAreaCatalogue` runs at import (unique slugs/aliases, valid coords, ≥1 transport anchor). `isNightAreaRouteReady(area, now?)` remains a confidence label rather than a generation gate. **Status: IMPLEMENTED LOCALLY.** All 20 London areas are represented.
+The catalogue supplies area geography, not evidence of a route review. No review evidence source is available, so every area remains unreviewed and its required checks remain unpassed. `isNightAreaRouteReady` fails closed, including for arbitrary references. `validateNightAreaCatalogue` checks unique slugs and aliases, coordinates, and anchor shape. An anchor list may be empty. Area readiness is a confidence label, not a Plan generation gate. A draft can still use canonical pub and price data. Check opening times and travel before departure.
+
+Area-and-brand price pages retain their review gate. Against the committed dataset at this change, the old catalogue admitted Clapham, Victoria and Canary Wharf. It published these eight pairs: `clapham/guinness`, `clapham/amstel`, `victoria/guinness`, `victoria/neck-oil`, `victoria/estrella`, `victoria/peroni`, `victoria/amstel` and `victoria/birra-moretti`. The unreviewed catalogue publishes no pairs. London-wide brand pages and area price pages use separate price floors.
 
 ---
 

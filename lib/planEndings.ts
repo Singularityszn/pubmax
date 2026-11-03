@@ -87,14 +87,14 @@ export function buildPlanEndingRecommendations({
         : `Keep ${transportAnchor} visible as the route's transport anchor.`,
       preselected: preferred === "get_home",
       requiresConfirmation: true,
-      confidence: "medium",
-      warnings: ["Live status, destination routing, and last-service times load during the night."],
+      confidence: "low",
+      warnings: ["The live journey and last-service times are not checked. Check TfL before travel."],
       options: [{
         id: `transport:${transportAnchor.toLocaleLowerCase().replaceAll(" ", "-")}`,
         label: transportAnchor,
         detail: "Open TfL only after you confirm.",
         href: "https://tfl.gov.uk/plan-a-journey/",
-        provenance: [{ kind: "night_area_review", label: `${transportAnchor} transport anchor` }],
+        provenance: [],
       }],
     },
     {

@@ -163,6 +163,9 @@ describe("POST /api/plans/generate — anchored", () => {
     });
     expect(body.stops[0].venueId).toBe("anchor-venue");
     expect(body.stops[0].alternatives).toEqual([]);
+    expect(body.nightArea.gate.passed).toBe(false);
+    expect(body.planningConfidence.provenance.some((source: { kind: string }) => source.kind === "night_area_review")).toBe(false);
+    expect(body.stops[0].provenance.some((source: { kind: string }) => source.kind === "night_area_review")).toBe(false);
     const verdict = verifyAnchoredPlanGroundingProofV2(
       body.groundingProof,
       body.stops.map((stop: { venueId: string }) => stop.venueId),
@@ -207,6 +210,8 @@ describe("POST /api/plans/generate — anchored", () => {
     });
     expect(body.stops).toHaveLength(1);
     expect(body.stops[0].venueId).toBe("anchor-venue");
+    expect(body.nightArea.gate.passed).toBe(false);
+    expect(body.stops[0].provenance.some((source: { kind: string }) => source.kind === "night_area_review")).toBe(false);
     const verdict = verifyAnchoredPlanGroundingProofV2(body.groundingProof, ["anchor-venue"], body.operationKey);
     expect(verdict).toMatchObject({ ok: true, outcome: "anchor-only", anchored: true });
   });

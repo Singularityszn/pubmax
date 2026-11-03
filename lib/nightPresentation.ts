@@ -4,7 +4,7 @@ export function nightAreaCoverageDetail(area: NightArea, now: Date): string {
   if (isNightAreaRouteReady(area, now)) {
     return "Enough checked information to plan a crawl.";
   }
-  return "Not enough checked information to plan a crawl here yet.";
+  return "Area review is unavailable. Check opening times and travel before you go.";
 }
 
 export function getHomeEndingDescription(
