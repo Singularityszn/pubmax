@@ -1,0 +1,70 @@
+.wildNightPreviewMobile {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  color: var(--color-text);
+  background: var(--color-surface-overlay);
+}
+
+.wildNightPreviewMobile select {
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+  font: inherit;
+  color: var(--color-text);
+  background: var(--color-surface-raised);
+}
+
+@media (max-width: 640px) {
+  .lp:has(> .wildNightPreviewMobile) > .lpNav {
+    display: flex;
+    flex-wrap: wrap;
+    position: relative;
+    inset: auto;
+    margin: var(--topbar-inset, max(10px, env(safe-area-inset-top))) auto 0;
+    transform: none;
+  }
+
+  .lp:has(> .wildNightPreviewMobile) > .lpNav > .lpNavActions {
+    margin-inline-start: auto;
+  }
+
+  .appShell:has(.mobileMapChrome .wildNightPreviewMobile) {
+    --mobile-map-chrome-h: var(--wild-preview-map-chrome-h);
+    --mobile-map-chrome-full-h: var(--wild-preview-map-chrome-h);
+  }
+
+  .mapStage:has(.mobileMapChrome .wildNightPreviewMobile) {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .mapStage:has(.wildNightPreviewMobile) > .mobileMapChrome {
+    position: relative;
+    inset: auto;
+    margin: var(--mobile-map-top) var(--mobile-map-stack-right) var(--space-2) var(--mobile-map-stack-left);
+    flex: none;
+    order: -1;
+  }
+
+  .mobileMapChrome > .wildNightPreviewMobile {
+    pointer-events: auto;
+  }
+
+  .mapStage:has(.mobileMapChrome .wildNightPreviewMobile) > .mapCanvasWrap {
+    --mobile-map-chrome-full-h: 0px;
+    flex: 1;
+    min-height: 0;
+    height: auto;
+  }
+
+  .mapStage:has(.mobileMapChrome .wildNightPreviewMobile) .mapCameraControls {
+    top: calc(66px - var(--space-2));
+  }
+}
+
+@media (min-width: 641px) {
+  .wildNightPreviewMobile { display: none; }
+}

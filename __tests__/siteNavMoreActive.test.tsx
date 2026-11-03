@@ -19,6 +19,8 @@ vi.mock("next/link", async () => {
 });
 
 import SiteNavMore, { siteNavMoreItems } from "@/components/nav/SiteNavMore";
+import WildNightPreviewPicker from "@/components/wild/WildNightPreviewPicker";
+import { readWildNightPreview, writeWildNightPreview } from "@/lib/wildNightPreview";
 
 // The More menu marks the secondary destination a reader is on, with
 // aria-current="page", and never a lookalike prefix. Social is a primary tab
@@ -38,6 +40,7 @@ beforeEach(() => {
 
 afterEach(async () => {
   await act(async () => root.unmount());
+  writeWildNightPreview(null);
   container.remove();
 });
 
@@ -83,5 +86,45 @@ describe("the More menu marks where a reader is", () => {
     expect(current(await openMoreOn("/near"))).toEqual(["Near"]);
     expect(current(await openMoreOn("/nearby"))).toEqual([]);
     expect(current(await openMoreOn("/tonight"))).toEqual([]);
+  });
+});
+
+
+describe("More menu action focus", () => {
+  it.each([
+    ["Previews off", null],
+    ["Round Rota", "round-rota"],
+    ["Borough Bingo", "borough-bingo"],
+  ] as const)("returns focus to More after selecting %s", async (label, value) => {
+    writeWildNightPreview("round-rota");
+    await act(async () => root.render(<WildNightPreviewPicker />));
+    const trigger = container.querySelector<HTMLButtonElement>(".siteNavMoreBtn")!;
+    await act(async () => trigger.click());
+    const item = [...document.querySelectorAll<HTMLButtonElement>('button[role="menuitem"]')]
+      .find((button) => button.querySelector(".siteNavMoreLabel")?.textContent === label)!;
+    expect(item).toBeTruthy();
+    item.focus();
+    expect(document.activeElement).toBe(item);
+    await act(async () => item.click());
+    expect(readWildNightPreview()).toBe(value);
+    expect(document.querySelector('[role="menu"]')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it("lets a menu action move focus to its own destination", async () => {
+    const destination = document.createElement("button");
+    document.body.append(destination);
+    try {
+      await act(async () => root.render(<SiteNavMore items={[{ id: "action", label: "Open action", description: "Open a destination", onSelect: () => destination.focus() }]} />));
+      const trigger = container.querySelector<HTMLButtonElement>(".siteNavMoreBtn")!;
+      await act(async () => trigger.click());
+      const item = document.querySelector<HTMLButtonElement>('button[role="menuitem"]')!;
+      item.focus();
+      await act(async () => item.click());
+      expect(document.querySelector('[role="menu"]')).toBeNull();
+      expect(document.activeElement).toBe(destination);
+    } finally {
+      destination.remove();
+    }
   });
 });
