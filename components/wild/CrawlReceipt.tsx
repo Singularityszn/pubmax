@@ -8,7 +8,7 @@
 // so and stays out of the sum, and so does a planned stop the dataset no longer
 // holds (lib/wildPintLineCrawl.ts holds the maths).
 //
-// Loaded only while the wild switch is on (CrawlReceiptGate.tsx). The paper
+// Loaded on named routes through CrawlReceiptGate.tsx. The paper
 // prints when the till scrolls into view: it slides down out of the slot in
 // printer steps, a transform alone. With reduced motion it is simply there.
 
@@ -131,7 +131,7 @@ export default function CrawlReceipt({ crawl }: { crawl: WildCrawl }) {
         The crawl receipt
       </h2>
       <p className="crawlReceipt__dek">
-        What the night costs at the listed prices, with a pint for each of you at every{" "}
+        Selected pints subtotal. It covers one pint for each person at every{" "}
         {round.unpricedStops > 0 ? "priced " : ""}stop.
       </p>
 
@@ -255,6 +255,11 @@ export default function CrawlReceipt({ crawl }: { crawl: WildCrawl }) {
                   <p className="crawlReceipt__warn">
                     No stop on this crawl has a listed price yet, so there is nothing to add up.
                   </p>
+                  {listedUnpriced > 0 ? (
+                    <p className="crawlReceipt__warn">
+                      {listedUnpriced} {listedUnpriced === 1 ? "stop has" : "stops have"} no listed price.
+                    </p>
+                  ) : null}
                   {missingWarn}
                 </>
               )}
