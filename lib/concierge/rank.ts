@@ -43,6 +43,7 @@ export type ConciergeVenue = {
   cheapestPrice: number | null;
   priceSource?: string;
   priceObservedAt?: string;
+  anchorLabel?: string;
   amenities: {
     beerGarden: boolean;
     cocktails: boolean;

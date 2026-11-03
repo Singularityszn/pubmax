@@ -30,6 +30,8 @@ function at(
     lat: here.lat + dLat,
     lng: here.lng + dLng,
     cheapestPrice: price,
+    priceSource: "Pub menu",
+    priceObservedAt: "2026-01-01",
     borough,
     ...(kind !== undefined ? { kind } : {}),
   };
@@ -71,6 +73,15 @@ describe("rankNearMe — walkable answer", () => {
   it("excludes pubs with no price observation (the quality bar)", () => {
     const answer = rankNearMe(here.lat, here.lng, venues);
     expect(answer.cards.some((c) => c.id === "no-price")).toBe(false);
+  });
+
+  it("does not rank an anchor or a figure without its own evidence", () => {
+    const answer = rankNearMe(here.lat, here.lng, [
+      { ...at("half", 0, 0, 3.4), anchorLabel: "Half pint house lager" },
+      { ...at("unknown", 0, 0, 3.5), priceSource: undefined },
+      at("pint", 0, 0, 5),
+    ]);
+    expect(answer.cards.map((card) => card.id)).toEqual(["pint"]);
   });
 
   it("excludes priced cocktail and food anchors", () => {

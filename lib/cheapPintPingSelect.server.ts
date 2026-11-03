@@ -10,6 +10,7 @@ import { nightProfileStore } from "@/lib/nightProfileStore";
 import { accountIdForOwnerActor } from "@/lib/stepOutNudgeSelect.server";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
 import type { Venue } from "@/lib/venues";
+import { legacyCheapestPriceEvidence } from "@/lib/legacyPriceEvidence.mjs";
 
 export type CheapPintPingSelectDeps = {
   nightAreaForAccount: (accountId: string) => Promise<NightAreaSlug | null>;
@@ -17,6 +18,8 @@ export type CheapPintPingSelectDeps = {
 };
 
 function toPricedPoint(venue: Venue): PricedPoint {
+  const evidence = legacyCheapestPriceEvidence(venue.prices ?? [], venue.cheapestPrice);
+  const slimEvidence = venue.priceSource !== undefined || venue.priceObservedAt !== undefined;
   return {
     id: venue.id,
     name: venue.name,
@@ -25,6 +28,9 @@ function toPricedPoint(venue: Venue): PricedPoint {
     cheapestPrice: venue.cheapestPrice,
     borough: venue.primaryBorough,
     kind: "pub",
+    priceSource: slimEvidence ? venue.priceSource : evidence.priceSource,
+    priceObservedAt: slimEvidence ? venue.priceObservedAt : evidence.priceObservedAt,
+    anchorLabel: venue.anchorLabel,
   };
 }
 

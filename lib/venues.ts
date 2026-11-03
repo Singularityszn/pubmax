@@ -1,6 +1,6 @@
 import { legacyOsmVenueKind } from "@/lib/legacyOsmVenueKind.mjs";
-import { legacyCheapestPriceEvidence } from "@/lib/legacyPriceEvidence.mjs";
-import { cheapestPriceReadDay } from "@/lib/priceReadDay.mjs";
+import { comparableVenuePint } from "@/lib/comparableVenuePint";
+import { legacyCheapestPriceEvidence, legacyCheapestPriceReadDay } from "@/lib/legacyPriceEvidence.mjs";
 import {
   COMMUNITY_PRICE_CORROBORATION_THRESHOLD,
   isWithinMaxAge,
@@ -703,7 +703,7 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
     const kind = legacyOsmVenueKind(groupRows);
     const cheapestPrice = numericPrices.length ? Math.min(...numericPrices) : null;
     const { priceSource } = kind ? legacyCheapestPriceEvidence(sortedPrices, cheapestPrice) : {};
-    const priceObservedAt = kind ? cheapestPriceReadDay(sortedPrices, cheapestPrice) : null;
+    const priceObservedAt = kind ? legacyCheapestPriceReadDay(sortedPrices, cheapestPrice) : null;
     return {
       id: stableVenueIdFromKey(key),
       ...(kind ? {
@@ -1452,10 +1452,13 @@ export function filterVenues(
     // maxPrice is explicitly the maximum pint-price control. Cocktail and food
     // anchors use their own type-relative bands and must not be compared with
     // a pub pint's absolute price cap.
+    const comparablePrice = filters.maxPrice === NO_PINT_PRICE_CAP
+      ? null
+      : comparableVenuePint(venue);
     const matchesPrice =
       !hasPintPriceSemantics(venue) ||
-      venue.cheapestPrice === null ||
-      venue.cheapestPrice <= filters.maxPrice;
+      comparablePrice === null ||
+      comparablePrice <= filters.maxPrice;
 
     const matchesPintDrops =
       !filters.requirePintDrops ||

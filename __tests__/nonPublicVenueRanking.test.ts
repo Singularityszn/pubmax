@@ -75,8 +75,8 @@ describe("every cheapest-pint ranking reads the one rule", () => {
 
   it("Near me and the city ranking skip it too", () => {
     const points: PricedPoint[] = [
-      { id: "tuns", name: THREE_TUNS, borough: "Westminster", lat: 51.5145, lng: -0.1165, cheapestPrice: 2.95 },
-      { id: "edward", name: "The Prince Edward", borough: "Westminster", lat: 51.5146, lng: -0.1166, cheapestPrice: 3.5 },
+      { id: "tuns", name: THREE_TUNS, borough: "Westminster", lat: 51.5145, lng: -0.1165, cheapestPrice: 2.95, priceSource: "Pub menu", priceObservedAt: "2026-01-01" },
+      { id: "edward", name: "The Prince Edward", borough: "Westminster", lat: 51.5146, lng: -0.1166, cheapestPrice: 3.5, priceSource: "Pub menu", priceObservedAt: "2026-01-01" },
     ];
     expect(rankCityCheapest(points).map((card) => card.id)).toEqual(["edward"]);
     expect(rankNearMe(51.5145, -0.1165, points, { minAnswers: 1 }).cards.map((card) => card.id)).toEqual([

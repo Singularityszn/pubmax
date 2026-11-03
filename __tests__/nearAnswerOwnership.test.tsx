@@ -31,6 +31,7 @@ function deferred<T>() {
 const pints: PricedPoint[] = [{
   id: "test-pub", name: "Test Pub", lat: 51.5136, lng: -0.1365,
   cheapestPrice: 4, borough: "Westminster",
+  priceSource: "Pub menu", priceObservedAt: "2026-01-01",
 }];
 const desks: DeskVenueLoad = {
   status: "ready", source: "osm", observedAt: "2026-10-08",

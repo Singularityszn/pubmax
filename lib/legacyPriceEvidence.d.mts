@@ -6,3 +6,4 @@ type LegacyPriceEvidenceRow = {
 export declare function legacyPintPriceObservedAt(price: LegacyPriceEvidenceRow): string | null;
 export declare function namedLegacyPintPriceSource(price: LegacyPriceEvidenceRow): { label: string; url: string } | null;
 export declare function legacyCheapestPriceEvidence(prices: readonly LegacyPriceEvidenceRow[], cheapestPrice: number | null): { priceSource?: string; priceObservedAt?: string };
+export declare function legacyCheapestPriceReadDay(prices: readonly LegacyPriceEvidenceRow[], cheapestPrice: number | null): string | null;

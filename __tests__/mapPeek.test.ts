@@ -11,6 +11,8 @@ function pub(overrides: Partial<Venue> & { id: string }): Venue {
     latitude: 51.5,
     longitude: -0.12,
     cheapestPrice: null,
+    priceSource: "Pub menu",
+    priceObservedAt: "2026-01-01",
     kind: "pub",
     ...overrides,
   } as Venue;
@@ -81,7 +83,7 @@ describe("buildMapPeek", () => {
     const model = buildMapPeek({
       ready: true,
       venues: [pub({ id: "a", cheapestPrice: 4 }), pub({ id: "b", cheapestPrice: 3.5 })],
-      venueSignals: new Map([["a", { latestContributorPrice: 3 }]]),
+      venueSignals: new Map([["a", { latestContributorPrice: 3, latestContributorAt: Date.parse("2026-01-01T12:00:00Z") }]]),
     });
     expect(model).toMatchObject({ status: "answer", answer: { venueId: "a", priceGbp: 3 } });
   });
@@ -103,7 +105,7 @@ describe("buildMapPeek", () => {
     anchorSourceUrl: "https://example.com/menu",
   };
 
-  it("ranks a non-pub only as List view does: a bare figure never, a provenance-complete anchor on its price", () => {
+  it("leaves non-pint anchors out of the default pint answer", () => {
     const bare = buildMapPeek({
       ready: true,
       venues: [
@@ -119,17 +121,7 @@ describe("buildMapPeek", () => {
         pub({ id: "p", cheapestPrice: 5.2 }),
       ],
     });
-    expect(anchored).toMatchObject({
-      answer: {
-        venueId: "anchor",
-        priceLabel: "£4.00",
-        anchor: { label: "Set lunch" },
-        isPub: false,
-        lineLabel: "Set lunch",
-        figureLabel: "£4.00",
-      },
-    });
-    expect(mapPeekSummary(anchored)).toMatch(/^Cheapest in this view: Set lunch · £4\.00 \(.+ · example\.com\) at Pub anchor$/);
+    expect(anchored).toMatchObject({ answer: { venueId: "p", priceLabel: "£5.20" } });
   });
 
   describe("agrees with the first row of List view's cheapest sort", () => {
