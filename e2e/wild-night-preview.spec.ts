@@ -114,6 +114,20 @@ test("desktop choices stay in More and work with the keyboard", async ({ page })
   await expect(reopened.getByRole("menuitem", { name: /^Borough Bingo/ })).toContainText("Selected on this browser");
 });
 
+test("phone native picker opens, selects and commits with the keyboard", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/today?wild=1");
+  const select = picker(page);
+  await expect(select).toBeVisible();
+  await expect(select).toHaveValue("off");
+  await select.focus();
+  await expect(select).toBeFocused();
+  await page.keyboard.press("Space");
+  await page.keyboard.press("b");
+  await page.keyboard.press("Enter");
+  await expect(select).toHaveValue("borough-bingo");
+});
+
 test("two tabs receive real storage changes from the other tab", async ({ page, context }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/today?wild=1");
