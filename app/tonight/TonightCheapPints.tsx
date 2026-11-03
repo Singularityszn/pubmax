@@ -64,7 +64,7 @@ function TonightPintEvidence({ row }: { row: TonightCheapPint }) {
   const readable = date && Number.isFinite(date.getTime());
   return <>
     {row.drinkLabel || "Drink not recorded"} · {row.servingSize || "Serving not recorded"} ·{" "}
-    {row.publisher ? <a href={row.publisher.url} target="_blank" rel="noreferrer" style={{ position: "relative", zIndex: 1 }}>{row.publisher.label}</a> : "Publisher not recorded"} ·{" "}
+    {row.publisher ? <a className="tonightPintPublisher" href={row.publisher.url} target="_blank" rel="noreferrer">{row.publisher.label}</a> : "Publisher not recorded"} ·{" "}
     {readable ? <time dateTime={row.observedAt ?? undefined}>{READ_DAY.format(date)}</time> : "Read date not recorded"}
   </>;
 }
