@@ -9,13 +9,13 @@ import {
   type PricedPubLike,
 } from "@/lib/pintFacts";
 
-// Small readable fixtures. pintFactStats only reads name + cheapestPrice, so a
-// plain object satisfies PricedPubLike without spelling out a whole Venue.
+const evidence = { priceSource: "Pub menu", priceObservedAt: "2026-01-01" };
+
 const HACKNEY: PricedPubLike[] = [
-  { name: "The Cheap One", cheapestPrice: 5.0 },
-  { name: "The Middle", cheapestPrice: 6.0 },
-  { name: "The Dear One", cheapestPrice: 7.0 },
-  { name: "No Price Yet", cheapestPrice: null },
+  { ...evidence, name: "The Cheap One", cheapestPrice: 5.0 },
+  { ...evidence, name: "The Middle", cheapestPrice: 6.0 },
+  { ...evidence, name: "The Dear One", cheapestPrice: 7.0 },
+  { ...evidence, name: "No Price Yet", cheapestPrice: null },
 ];
 
 describe("pintFactStats", () => {
@@ -33,9 +33,9 @@ describe("pintFactStats", () => {
   it("rounds the average to pence", () => {
     const stats = pintFactStats(
       [
-        { name: "A", cheapestPrice: 5.0 },
-        { name: "B", cheapestPrice: 5.0 },
-        { name: "C", cheapestPrice: 6.0 },
+        { ...evidence, name: "A", cheapestPrice: 5.0 },
+        { ...evidence, name: "B", cheapestPrice: 5.0 },
+        { ...evidence, name: "C", cheapestPrice: 6.0 },
       ],
       "Test",
       "test",
@@ -47,8 +47,8 @@ describe("pintFactStats", () => {
   it("breaks min/max ties on pub name (A–Z), deterministically", () => {
     const stats = pintFactStats(
       [
-        { name: "Zebra", cheapestPrice: 5.0 },
-        { name: "Apple", cheapestPrice: 5.0 },
+        { ...evidence, name: "Zebra", cheapestPrice: 5.0 },
+        { ...evidence, name: "Apple", cheapestPrice: 5.0 },
       ],
       "Ties",
       "ties",
@@ -60,7 +60,7 @@ describe("pintFactStats", () => {
 
   it("returns null figures when no pub carries a price", () => {
     const stats = pintFactStats(
-      [{ name: "Unpriced", cheapestPrice: null }],
+      [{ ...evidence, name: "Unpriced", cheapestPrice: null }],
       "Empty",
       "empty",
     );
@@ -74,7 +74,7 @@ describe("pintFactStats", () => {
 
   it("handles a single priced pub (min === max)", () => {
     const stats = pintFactStats(
-      [{ name: "Solo", cheapestPrice: 4.5 }],
+      [{ ...evidence, name: "Solo", cheapestPrice: 4.5 }],
       "One",
       "one",
     );
@@ -114,7 +114,7 @@ describe("factBlockSentences", () => {
 
   it("omits the range sentence when min === max", () => {
     const stats = pintFactStats(
-      [{ name: "Solo", cheapestPrice: 4.5 }],
+      [{ ...evidence, name: "Solo", cheapestPrice: 4.5 }],
       "One",
       "one",
     );
@@ -123,12 +123,12 @@ describe("factBlockSentences", () => {
   });
 
   it("returns nothing when there's no priced data", () => {
-    const stats = pintFactStats([{ name: "x", cheapestPrice: null }], "E", "e");
+    const stats = pintFactStats([{ ...evidence, name: "x", cheapestPrice: null }], "E", "e");
     expect(factBlockSentences(stats, opts)).toEqual([]);
   });
 
   it("uses singular 'pub' for a single tracked pub", () => {
-    const stats = pintFactStats([{ name: "Solo", cheapestPrice: 5 }], "One", "one");
+    const stats = pintFactStats([{ ...evidence, name: "Solo", cheapestPrice: 5 }], "One", "one");
     expect(factBlockSentences(stats, opts)[0]).toContain("across 1 tracked pub.");
   });
 });
@@ -153,7 +153,7 @@ describe("faqItems", () => {
   });
 
   it("skips every question when no answer data exists", () => {
-    const stats = pintFactStats([{ name: "x", cheapestPrice: null }], "E", "e");
+    const stats = pintFactStats([{ ...evidence, name: "x", cheapestPrice: null }], "E", "e");
     expect(faqItems(stats, opts)).toEqual([]);
   });
 });

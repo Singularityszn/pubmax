@@ -1,4 +1,4 @@
-type LegacyPriceEvidenceRow = {
+export type LegacyPriceEvidenceRow = {
   price_gbp?: number | null;
   pub_url?: string | null;
   scraped_at_values?: string | null;

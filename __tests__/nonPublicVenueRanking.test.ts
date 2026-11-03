@@ -86,7 +86,7 @@ describe("every cheapest-pint ranking reads the one rule", () => {
 
   it("a borough page keeps the row but never ranks it on price", () => {
     const v = (over: Partial<Venue>): Venue =>
-      ({ primaryBorough: "Westminster", visibleBoroughs: [], cheapestPint: "", ...over }) as Venue;
+      ({ primaryBorough: "Westminster", visibleBoroughs: [], cheapestPint: "", priceSource: "Pub menu", priceObservedAt: "2026-01-01", ...over }) as Venue;
     const venues = [
       v({ id: "tuns", name: THREE_TUNS, cheapestPrice: 2.95 }),
       v({ id: "edward", name: "The Prince Edward", cheapestPrice: 3.5 }),

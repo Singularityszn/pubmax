@@ -1,14 +1,14 @@
 import { comparablePint } from "@/lib/comparablePint.mjs";
-import { legacyCheapestPriceEvidence } from "@/lib/legacyPriceEvidence.mjs";
+import { legacyCheapestPriceEvidence, type LegacyPriceEvidenceRow } from "@/lib/legacyPriceEvidence.mjs";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import type { Venue } from "@/lib/venues";
 import type { MapLensPrice } from "@/lib/mapExperienceLens";
 
 export type ComparablePintVenue = Pick<Venue, "cheapestPrice"> & Partial<Pick<Venue,
-  "kind" | "legacyOsmBar" | "prices" | "priceSource" | "priceObservedAt" |
+  "kind" | "legacyOsmBar" | "priceSource" | "priceObservedAt" |
   "anchorLabel" | "latestContributorPrice" | "latestContributorAt"
   | "cheapestPint" | "measure"
->> & { sourcedPrice?: { sourceLabel: string; observedAt: string } | null };
+>> & { prices?: readonly LegacyPriceEvidenceRow[]; sourcedPrice?: { sourceLabel: string; observedAt: string } | null };
 
 /** Other drink lenses retain their own serving and ranking rules. */
 export function comparableLensPrice(price: MapLensPrice, venue: Venue): number | null {

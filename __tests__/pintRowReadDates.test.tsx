@@ -79,11 +79,11 @@ describe("a price is dated by its own row's read", () => {
     expect(defined(cheapest).answer).toBe(
       "The cheapest tracked pint in Camden is £3.50 at The cheap, as collected on 3 July 2026.",
     );
-    const [unread] = faqItems(
+    const unread = faqItems(
       pintFactStats([venue("cheap", 3.5, undefined)], "Camden", "camden"),
       { monthYear: "October 2026", year: "2026" },
     );
-    expect(defined(unread).answer).toBe("The cheapest tracked pint in Camden is £3.50 at The cheap.");
+    expect(unread.some((item) => item.question === "What is the cheapest pint in Camden?")).toBe(false);
   });
 
   it("dates a borough's average by the reads it averages, never by the list's refresh", () => {

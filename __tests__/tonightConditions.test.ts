@@ -27,6 +27,8 @@ function venue(overrides: VenueOverrides = {}): ConciergeVenue {
     lat: overrides.lat ?? 51.512,
     lng: overrides.lng ?? -0.135,
     cheapestPrice: overrides.cheapestPrice ?? null,
+    priceSource: "Pub menu",
+    priceObservedAt: "2026-01-01",
     amenities: {
       beerGarden: false,
       cocktails: false,

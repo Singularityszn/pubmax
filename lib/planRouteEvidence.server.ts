@@ -1,3 +1,4 @@
+import { comparableVenuePint } from "@/lib/comparableVenuePint";
 import "server-only";
 
 import { readFile } from "node:fs/promises";
@@ -42,7 +43,7 @@ async function readPriceIndex(): Promise<Map<string, { pence: unknown; label: un
     const attributed = cheapest && cheapest.source_datasets.trim()
       && (cheapest.pub_url.trim() || cheapest.constructed_pub_url.trim());
     return [venue.id, {
-      pence: canonicalGbpToPence(venue.cheapestPrice),
+      pence: canonicalGbpToPence(comparableVenuePint(venue, null, false)),
       // The label is the publisher's name alone. The raw dataset ids stay
       // in this evidence object for anyone debugging a figure: printed,
       // they read as plumbing beside a price on the invite stop list.
