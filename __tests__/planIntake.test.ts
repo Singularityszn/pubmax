@@ -171,7 +171,7 @@ describe("bounded Plan intake persistence", () => {
       ...createPlanIntakeDraft(),
       answers: { ...createPlanIntakeDraft().answers, area: "clapham" },
     });
-    writePlanIntakeDraft(draft, storage, NOW);
+    expect(writePlanIntakeDraft(draft, storage, NOW)).toBe(true);
     const raw = storage.getItem(PLAN_INTAKE_STORAGE_KEY);
     expect(raw).toContain('"storageVersion":1');
     expect(raw).toContain('"expiresAt":"2026-07-21T12:00:00.000Z"');
@@ -190,6 +190,15 @@ describe("bounded Plan intake persistence", () => {
     writePlanIntakeDraft(answeredDraft(), storage, NOW);
     clearPlanIntakeDraft(storage);
     expect(storage.getItem(PLAN_INTAKE_STORAGE_KEY)).toBeNull();
+  });
+
+  it("reports a failed write without replacing the stored intake", () => {
+    const storage = memoryStorage();
+    const original = createPlanIntakeDraft();
+    expect(writePlanIntakeDraft(original, storage, NOW)).toBe(true);
+    storage.setItem = () => { throw new DOMException("Storage is full", "QuotaExceededError"); };
+    expect(writePlanIntakeDraft(answeredDraft(), storage, NOW)).toBe(false);
+    expect(readPlanIntakeDraft(storage, NOW)).toEqual(original);
   });
 });
 
