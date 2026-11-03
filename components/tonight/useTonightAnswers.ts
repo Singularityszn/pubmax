@@ -73,7 +73,7 @@ export function useTonightAnswers(input: {
   const cheapest = tonightCheapestAnswer({ origin, patch, nearby: nearby.rows, cityRows: cheapPints ?? [] });
   const detail = useTonightPintEvidence(cheapest && cheapest.basis !== "city" ? cheapest.venueId : null, nearby.priceDatasetDigest);
   const cheapestWithEvidence = cheapest && cheapest.basis !== "city"
-    ? detail ? { ...cheapest, ...detail } : { ...cheapest, evidenceUnavailable: true }
+    ? detail ? { ...cheapest, ...detail, evidenceUnavailable: false } : cheapest
     : cheapest;
 
   const row = useMemo(() => tonightOnTonightListing(listingRows), [listingRows]);

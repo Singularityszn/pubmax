@@ -572,6 +572,7 @@ export function createSlimShardLoader(
     path: string,
     readOptions: Parameters<typeof loadSlimVenuesFromPathResult>[1],
     foreground: boolean,
+    key: string,
   ): Promise<SlimShardLoadResult> {
     await new Promise<void>((resolve) => {
       const start = () => {
@@ -579,7 +580,7 @@ export function createSlimShardLoader(
         resolve();
       };
       if (activeShardReads < shardReadLimit) start();
-      else (foreground ? queuedForegroundShardReads : queuedShardReads).push({ key: path, start });
+      else (foreground ? queuedForegroundShardReads : queuedShardReads).push({ key, start });
     });
     try {
       return await loadSlimVenuesFromPathResult(path, readOptions);
@@ -698,6 +699,7 @@ export function createSlimShardLoader(
   function manifest(): Promise<ShardManifest | null> {
     if (!manifestPromise) {
       manifestPromise = fetchManifest().then((parsed) => {
+        loadedUrls.clear();
         settledManifest = parsed;
         manifestAnswered = true;
         return parsed;
@@ -734,8 +736,8 @@ export function createSlimShardLoader(
     url: string,
     speculative = false,
     foreground = false,
-    expectedPriceDatasetDigest?: string,
   ): Promise<SlimShardLoadResult> {
+    const expectedPriceDatasetDigest = settledManifest?.priceDatasetDigest;
     const requestPath = shardRequestPath(url, packRequestRevision);
     const key = expectedPriceDatasetDigest ? `${requestPath}#${expectedPriceDatasetDigest}` : requestPath;
     let p = shardPromises.get(key);
@@ -755,18 +757,12 @@ export function createSlimShardLoader(
               ...options,
               expectedRevision,
               ...(expectedPriceDatasetDigest ? { expectedPriceDatasetDigest, bypassInFlight: true } : {}),
-              onRevisionSkew: (served: unknown) => shardSkews.set(key, { served }),
+              onRevisionSkew: (served: unknown) => shardSkews.set(requestPath, { served }),
             };
-      shardSkews.delete(key);
-      const created = readShardWithSlot(requestPath, shardOptions, foreground)
+      shardSkews.delete(requestPath);
+      const created = readShardWithSlot(requestPath, shardOptions, foreground, key)
         .then((result) => {
-          if (result.status === "ready") {
-            // A read that lands after another pack was adopted contributed
-            // rows, but it does not cover anything in the adopted pack.
-            if (requestPath === shardRequestPath(url, packRequestRevision)) loadedUrls.add(url);
-          } else {
-            shardPromises.delete(key);
-          }
+          if (result.status !== "ready") shardPromises.delete(key);
           return result;
         })
         .catch(() => {
@@ -776,11 +772,16 @@ export function createSlimShardLoader(
       shardPromises.set(key, created);
       p = created;
     }
-    if (speculative) return p;
     return p.then((result) => {
-      const skew = shardSkews.get(key);
+      if (
+        requestPath !== shardRequestPath(url, packRequestRevision) ||
+        expectedPriceDatasetDigest !== settledManifest?.priceDatasetDigest
+      ) return loadShard(url, speculative, foreground);
+      if (result.status === "ready" && manifestAnswered) loadedUrls.add(url);
+      if (speculative) return result;
+      const skew = shardSkews.get(requestPath);
       if (result.status === "unavailable" && skew) {
-        shardSkews.delete(key);
+        shardSkews.delete(requestPath);
         reportMapDataRevisionSkew({
           asset: "shard",
           outcome: "refused",
@@ -846,8 +847,7 @@ export function createSlimShardLoader(
       // The guess was asked under the baked revision; once a skewed manifest
       // is adopted its core must carry the manifest's revision instead.
       if (core.url === guessedCoreUrl && packRequestRevision === MAP_DATA_REVISION) {
-        const result = await guessedRows;
-        if (result.rows.length > 0) return result.rows;
+        await guessedRows;
       }
       return (await loadShard(core.url)).rows;
     },
@@ -884,10 +884,10 @@ export function createSlimShardLoader(
         true,
       ).filter((s) => s.partition !== "kind");
       if (needed.length === 0) return { rows: [], status: "ready" };
-      let results = await Promise.all(needed.map((s) => loadShard(s.url, false, false, m.priceDatasetDigest)));
+      let results = await Promise.all(needed.map((s) => loadShard(s.url)));
       const unavailable = needed.filter((s, index) => results[index]?.status === "unavailable");
       if (unavailable.length > 0) {
-        const retries = await Promise.all(unavailable.map((s) => loadShard(s.url, false, false, m.priceDatasetDigest)));
+        const retries = await Promise.all(unavailable.map((s) => loadShard(s.url)));
         const retryByUrl = new Map(unavailable.map((s, index) => [s.url, retries[index]]));
         results = results.map((result, index) => retryByUrl.get(needed[index]?.url ?? "") ?? result);
       }
