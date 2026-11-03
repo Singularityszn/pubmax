@@ -130,7 +130,7 @@ describe("loadSlimVenues caches only complete payloads", () => {
         json: async () => ({
           version: 2,
           revision: "target",
-          priceDatasetDigest: matching ? digest : "zyxwvutsrqponmlkjihgfed",
+          priceDatasetDigest: matching ? digest : "zyxwvutsrqponmlkjihgfe",
           grid: { originLat: 0, originLon: 0, latStep: 1, lonStep: 1 },
           shards: [{ id: "core", core: true, url: corePath, count: 1, bbox: [-0.2, 51.45, 0, 51.55] }],
         }),
