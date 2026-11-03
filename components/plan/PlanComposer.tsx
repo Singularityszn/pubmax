@@ -1666,7 +1666,8 @@ function PlanComposerForm({
   const [error, setError] = useState("");
   const [routeStatus, setRouteStatus] = useState(routeDraftFields.routeStatus);
   const [routeCheckNoticeText, setRouteCheckNoticeText] = useState(
-    recoveredRouteDraft ? "Opening and travel checks are unavailable for this restored draft." : "",
+    recoveredRouteDraft?.stops.length || recoveredDraft?.stops.length
+      ? "Opening and travel checks are unavailable for this restored draft." : "",
   );
   // Culture Crawl opener for the CURRENT generated route only. It is never
   // saved with the plan: it is a thing to see beside the route, not a Stop.
@@ -2794,6 +2795,7 @@ function PlanComposerForm({
         onReorder={reorderStops}
         onAdd={addStop}
       />
+      {routeCheckNoticeText ? <p className="planResult__provenance">{routeCheckNoticeText}</p> : null}
     </fieldset>
   );
   const resultStrip = stripStops.length >= 2 ? (
@@ -2846,7 +2848,6 @@ function PlanComposerForm({
   // fold. They now follow the stops, and the two caveats read as one line.
   const resultFinePrint = (
     <p className="planResult__provenance">
-      {routeCheckNoticeText ? <><span>{routeCheckNoticeText}</span>{" "}</> : null}
       {viewStops.some((stop) => typeof stop.estimatedPintPricePence === "number" && stop.estimatedPintPricePence > 0) && (
         <><span>One pint per person at each stop. Meal prices are not verified.</span>{" "}</>
       )}
