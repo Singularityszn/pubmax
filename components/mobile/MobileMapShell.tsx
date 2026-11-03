@@ -248,6 +248,16 @@ function MapFoot({
   return doorVisible ? <>{door}</> : null;
 }
 
+/** The map foot yields to surfaces that occupy its lane. */
+function planDoorIsVisible(
+  overlay: MapOverlay,
+  planOpen: boolean,
+  venueListOpen: boolean,
+  bandNoticeOpen: boolean,
+): boolean {
+  return overlay === "none" && !planOpen && !venueListOpen && !bandNoticeOpen;
+}
+
 export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, limitedCoverage, overlay, onOverlayChange, backLabel, onBack, onHome, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tflCount, tflUrgentCount = 0, tflStatus, peek = null, onPeekOpenVenue, onPeekOpenList, priceLabel, drinkFiltersActive, drinkLaneLabel, drinkLaneSelected, experienceFilterLabel, priceCapActive, zoneActive, savedOnlyActive = false, openNowActive, lastOrdersActive, beerGardenActive, outdoorSeatingActive, planOpen, planActive, planStopCount, builtStopCount = 0, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchProps, searchContent, filtersContent, drinkContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent, chooseAreaContent, chooseAreaOpening = false, sheetsEnabled = true }: {
   cityId?: CityId;
   cityLabel: string;
@@ -432,7 +442,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
   const sheetKind = contextualSheetKind(overlay, sheetsEnabled, cityId);
   // The plan door and the bottom card it rides in stand down for everything
   // that takes the foot of the map: a sheet, the planner, List view, a story.
-  const planDoorVisible = overlay === "none" && !planOpen && !venueListOpen && !bandNoticeOpen;
+  const planDoorVisible = planDoorIsVisible(overlay, planOpen, venueListOpen, bandNoticeOpen);
   const planDoor = (
     <button
       type="button"
