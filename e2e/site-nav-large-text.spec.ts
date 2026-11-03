@@ -1,41 +1,159 @@
-import { expect, test, type Locator } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
-import { expectMapLoadingFrameReleased } from "./helpers/mobileMapShell";
+import { expectMapLoadingFrameReleased, expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobileMapShell";
 import { storeThemeChoice } from "./helpers/themeClock";
 
 test.use({ serviceWorkers: "block" });
 
-/** Check the painted text, not only the link's accessible name. */
-async function expectWholeLabel(link: Locator) {
+async function expectHitTarget(link: Locator) {
   await expect(link).toBeVisible();
   const geometry = await link.evaluate((node) => {
-    const range = document.createRange();
-    range.selectNodeContents(node);
-    const text = range.getBoundingClientRect();
     const box = node.getBoundingClientRect();
     const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
     return {
       label: node.textContent?.trim(),
-      textLeft: text.left, textRight: text.right,
       left: box.left, right: box.right,
+      top: box.top, bottom: box.bottom,
+      width: box.width, height: box.height,
       scrollWidth: node.scrollWidth, clientWidth: node.clientWidth,
-      viewportWidth: innerWidth,
+      scrollHeight: node.scrollHeight, clientHeight: node.clientHeight,
+      viewportWidth: innerWidth, viewportHeight: innerHeight,
       ownsCentre: hit !== null && node.contains(hit),
     };
   });
-  expect(geometry.textLeft, `${geometry.label}: left edge`).toBeGreaterThanOrEqual(geometry.left - 1);
-  expect(geometry.textRight, `${geometry.label}: right edge`).toBeLessThanOrEqual(geometry.right + 1);
   expect(geometry.scrollWidth, `${geometry.label}: clipped content`).toBeLessThanOrEqual(geometry.clientWidth + 1);
+  expect(geometry.scrollHeight, `${geometry.label}: clipped height`).toBeLessThanOrEqual(geometry.clientHeight + 1);
   expect(geometry.left).toBeGreaterThanOrEqual(0);
   expect(geometry.right).toBeLessThanOrEqual(geometry.viewportWidth);
+  expect(geometry.top).toBeGreaterThanOrEqual(0);
+  expect(geometry.bottom).toBeLessThanOrEqual(geometry.viewportHeight);
+  expect(geometry.width).toBeGreaterThanOrEqual(44);
+  expect(geometry.height).toBeGreaterThanOrEqual(44);
   expect(geometry.ownsCentre, `${geometry.label}: covered hit target`).toBe(true);
+  return geometry;
+}
+
+async function expectWholeLabel(link: Locator, paintedLabel: Locator = link) {
+  const geometry = await expectHitTarget(link);
+  const textRects = await paintedLabel.evaluate((node) => {
+    const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+    const rects = [];
+    while (walker.nextNode()) {
+      if (!walker.currentNode.textContent?.trim()) continue;
+      const range = document.createRange();
+      range.selectNodeContents(walker.currentNode);
+      const { left, right, top, bottom, width, height } = range.getBoundingClientRect();
+      rects.push({ left, right, top, bottom, width, height });
+    }
+    return rects;
+  });
+  expect(textRects.length, `${geometry.label}: painted label`).toBeGreaterThan(0);
+  for (const text of textRects) {
+    expect(text.width).toBeGreaterThan(0);
+    expect(text.height).toBeGreaterThan(0);
+    expect(text.left, `${geometry.label}: left edge`).toBeGreaterThanOrEqual(geometry.left - 1);
+    expect(text.right, `${geometry.label}: right edge`).toBeLessThanOrEqual(geometry.right + 1);
+    expect(text.top, `${geometry.label}: top edge`).toBeGreaterThanOrEqual(geometry.top - 1);
+    expect(text.bottom, `${geometry.label}: bottom edge`).toBeLessThanOrEqual(geometry.bottom + 1);
+  }
+}
+
+async function expectDestinations(page: Page, primary: Locator, destinations: string[]) {
+  const links = primary.locator("a");
+  await expect(links).toHaveCount(destinations.length);
+  for (const destination of destinations) {
+    const link = primary.locator(`a[href^="${destination}"]`).first();
+    await expectWholeLabel(link);
+    await expect(link).toHaveAccessibleName(/\S/);
+    await link.focus();
+    await expect(link).toBeFocused();
+  }
+  await links.first().focus();
+  for (let index = 1; index < destinations.length; index++) {
+    await page.keyboard.press("Tab");
+    await expect(links.nth(index)).toBeFocused();
+  }
+}
+
+async function expectMapClearance(page: Page, width: number) {
+  if (width === 390) {
+    await expectMobileMapShellReady(page);
+    const topbar = page.locator(".mobileMapTopbar");
+    const topbarBox = await topbar.boundingBox();
+    expect(topbarBox).not.toBeNull();
+    expect(topbarBox!.x).toBeGreaterThanOrEqual(0);
+    expect(topbarBox!.x + topbarBox!.width).toBeLessThanOrEqual(width);
+    const brand = topbar.getByRole("link", { name: "Open PUBMAXX landing page", exact: true });
+    const city = topbar.locator(".citySwitcherTrigger");
+    const controls = [
+      brand,
+      city,
+      await mobileMapShellControl(page, "search"),
+      await mobileMapShellControl(page, "filters"),
+      await mobileMapShellControl(page, "more"),
+    ];
+    let previousRight = topbarBox!.x;
+    for (const control of controls) {
+      await expectHitTarget(control);
+      await expect(control).toHaveAccessibleName(/\S/);
+      const box = await control.boundingBox();
+      expect(box!.x).toBeGreaterThanOrEqual(previousRight - 1);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(topbarBox!.x + topbarBox!.width + 1);
+      expect(box!.y).toBeGreaterThanOrEqual(topbarBox!.y);
+      expect(box!.y + box!.height).toBeLessThanOrEqual(topbarBox!.y + topbarBox!.height + 1);
+      previousRight = box!.x + box!.width;
+    }
+    await expectWholeLabel(brand, brand.locator(".pubmaxxWordmarkLetters"));
+    await expectWholeLabel(city, city.locator(".citySwitcherLabelFull"));
+    return;
+  }
+  const header = page.locator(".siteNavBar");
+  await expect(header).toBeVisible();
+  const headerBox = await header.boundingBox();
+  expect(headerBox).not.toBeNull();
+  for (const item of [page.locator(".mapToolbar"), page.locator(".mapSplitListTitle"), page.locator(".mapSplitListRow").first()]) {
+    await expect(item).toBeVisible();
+    const box = await item.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.y).toBeGreaterThanOrEqual(headerBox!.y + headerBox!.height);
+  }
+}
+
+async function expectPreviewState(page: Page, width: number, selected: boolean) {
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("pubmax-wild"))).toBe(selected ? "1" : null);
+  if (width === 390) {
+    const picker = page.getByLabel("Night preview", { exact: true });
+    if (selected) {
+      await expect(picker).toBeVisible();
+      await expect(picker).toHaveValue("borough-bingo");
+    } else {
+      await expect(picker).toHaveCount(0);
+    }
+  } else {
+    const trigger = page.getByRole("button", { name: "More pages", exact: true });
+    await expect(trigger).toBeEnabled();
+    await trigger.click();
+    const menu = page.getByRole("menu", { name: "More pages", exact: true });
+    await expect(menu).toBeVisible();
+    if (selected) {
+      await expect(menu.getByRole("menuitem", { name: /^Borough Bingo/ })).toContainText("Selected on this browser");
+    } else {
+      for (const name of [/^Previews off/, /^Round Rota/, /^Borough Bingo/]) {
+        await expect(menu.getByRole("menuitem", { name })).toHaveCount(0);
+      }
+    }
+    await page.keyboard.press("Escape");
+    await expect(trigger).toBeFocused();
+  }
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("pubmax-wild-night-preview"))).toBe("borough-bingo");
 }
 
 for (const theme of ["light", "dark"] as const) {
   for (const fontSize of [16, 32]) {
     for (const width of [390, 1440]) {
       test(`navigation preserves full destinations at ${width}px/${fontSize}px in ${theme}`, async ({ page, context }, info) => {
+        test.setTimeout(90_000);
         await page.setViewportSize({ width, height: 900 });
         await page.emulateMedia({ reducedMotion: fontSize === 32 ? "reduce" : "no-preference" });
         await context.route("**/*", (route) => {
@@ -46,6 +164,7 @@ for (const theme of ["light", "dark"] as const) {
         await page.clock.install({ time: new Date("2026-11-03T18:00:00Z") });
         await page.addInitScript(() => {
           localStorage.setItem("pubmax-tour-v1-done", "1");
+          localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
           localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
           sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
           sessionStorage.setItem("pubmax:citySuggestDismiss:v1", "1");
@@ -53,43 +172,34 @@ for (const theme of ["light", "dark"] as const) {
         const cdp = await context.newCDPSession(page);
         await cdp.send("Page.setFontSizes", { fontSizes: { standard: fontSize } });
         await installDeterministicMapBasemap(page);
-        await page.goto(`/map?wild=${fontSize === 32 ? "1" : "0"}`);
+        await page.goto("/map?wild=1");
         await expectMapLoadingFrameReleased(page);
+        if (width === 390) await expectMobileMapShellReady(page);
         await page.evaluate(() => document.fonts.ready);
         await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe(`${fontSize}px`);
-        await info.attach("map-navigation-arrival", { body: await page.screenshot(), contentType: "image/png" });
+        await info.attach("map-navigation-arrival-fixture-proof", { body: await page.screenshot(), contentType: "image/png" });
 
         const primary = width === 390 ? page.locator(".mobileTabBar") : page.locator(".siteNavLinks");
         const destinations = width === 390
           ? ["/map", "/tonight", "/plan", "/social", "/u/you"]
           : ["/map", "/tonight", "/plan", "/spoons-value", "/social", "/u/you"];
-        for (const destination of destinations) {
-          const link = primary.locator(`a[href^="${destination}"]`).first();
-          await expectWholeLabel(link);
-          await link.focus();
-          await expect(link).toBeFocused();
-        }
-        const links = primary.locator("a");
-        await links.first().focus();
-        for (let index = 1; index < destinations.length; index++) {
-          await page.keyboard.press("Tab");
-          await expect(links.nth(index)).toBeFocused();
-        }
-
-        const header = page.locator(".siteNavBar");
-        const headerBox = await header.boundingBox();
-        const toolbarBox = await page.locator(".mapToolbar").boundingBox();
-        expect(headerBox).not.toBeNull();
-        expect(toolbarBox).not.toBeNull();
-        expect(toolbarBox!.y).toBeGreaterThanOrEqual(headerBox!.y + headerBox!.height);
         if (width === 1440) {
-          for (const item of [page.locator(".mapSplitListTitle"), page.locator(".mapSplitListRow").first()]) {
-            await expect(item).toBeVisible();
-            const box = await item.boundingBox();
-            expect(box!.y).toBeGreaterThanOrEqual(headerBox!.y + headerBox!.height);
-          }
+          const header = page.locator(".siteNavBar");
+          const links = primary.locator("a");
+          await expectDestinations(page, primary, destinations);
+          const boxes = await links.evaluateAll((nodes) => nodes.map((node) => {
+            const { x, y, width, height } = node.getBoundingClientRect();
+            return { x, y, width, height };
+          }));
+          const otherRow = boxes.findIndex((box) =>
+            box.y >= boxes[0].y + boxes[0].height - 1 || box.y + box.height <= boxes[0].y + 1);
+          const endpoint = otherRow === -1 ? boxes.length - 1 : otherRow;
+          await info.attach("hover-row-geometry", {
+            body: JSON.stringify({ boxes, endpoint, crossRow: otherRow !== -1 }),
+            contentType: "application/json",
+          });
           const pill = header.locator(".siteNavGlide");
-          for (const link of [links.first(), links.last()]) {
+          for (const link of [links.first(), links.nth(endpoint)]) {
             await link.hover();
             await expect(pill).toHaveAttribute("data-visible", "true");
             const linkBox = await link.boundingBox();
@@ -98,34 +208,67 @@ for (const theme of ["light", "dark"] as const) {
               return box ? Math.max(Math.abs(box.x - linkBox!.x), Math.abs(box.y - linkBox!.y), Math.abs(box.width - linkBox!.width), Math.abs(box.height - linkBox!.height)) : Infinity;
             }).toBeLessThan(1);
           }
-          await header.getByRole("button", { name: "More pages", exact: true }).click();
-          if (fontSize === 32) {
-            await expect(page.getByRole("menuitem", { name: /Borough Bingo/ })).toBeVisible();
-          } else {
-            await expect(page.getByRole("menuitem", { name: /Borough Bingo/ })).toHaveCount(0);
-          }
-          await page.keyboard.press("Escape");
-          await expect(header.getByRole("button", { name: "More pages", exact: true })).toBeFocused();
+          const more = header.getByRole("button", { name: "More pages", exact: true });
+          await expect(more).toBeEnabled();
+          await more.click();
+          const menu = page.getByRole("menu", { name: "More pages", exact: true });
+          await menu.getByRole("menuitem", { name: /^Borough Bingo/ }).click();
+          await expect(menu).toHaveCount(0);
         } else {
-          if (fontSize === 32) {
-            await expect(page.getByLabel("Night preview", { exact: true })).toBeVisible();
-          } else {
-            await expect(page.getByLabel("Night preview", { exact: true })).toHaveCount(0);
-          }
+          const picker = page.getByLabel("Night preview", { exact: true });
+          await expect(picker).toHaveValue("off");
+          await picker.selectOption("borough-bingo");
         }
-        await info.attach("map-navigation", { body: await page.screenshot(), contentType: "image/png" });
 
-        await primary.locator('a[href="/tonight"]').click();
-        await expect(page).toHaveURL(/\/tonight/);
-        await expect(page.locator(".siteNavBar")).toBeVisible();
-        const contentHeading = page.getByRole("heading", { level: 1 });
-        await expect(contentHeading).toBeVisible();
-        const navBox = await page.locator(".siteNavBar").boundingBox();
-        const headingBox = await contentHeading.boundingBox();
-        expect(headingBox!.y).toBeGreaterThanOrEqual(navBox!.y + navBox!.height);
-        for (const link of await primary.locator("a").all()) await expectWholeLabel(link);
-        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
-        await info.attach("tonight-navigation", { body: await page.screenshot(), contentType: "image/png" });
+        for (const selected of [true, false]) {
+          const state = selected ? "selected-preview" : "master-off";
+          if (!selected) {
+            await page.goto("/map?wild=0");
+            await expectMapLoadingFrameReleased(page);
+          }
+          await page.evaluate(() => document.fonts.ready);
+          await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe(`${fontSize}px`);
+          await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+          await expectPreviewState(page, width, selected);
+          await expectDestinations(page, primary, destinations);
+          await expectMapClearance(page, width);
+          if (width === 390 && selected) {
+            const topbarBox = await page.locator(".mobileMapTopbar").boundingBox();
+            const pickerBox = await page.locator(".wildNightPreviewMobile").boundingBox();
+            const chromeBox = await page.locator(".mobileMapChrome").boundingBox();
+            const canvasBox = await page.locator(".mapStage > .mapCanvasWrap").boundingBox();
+            expect(pickerBox).not.toBeNull();
+            expect(chromeBox).not.toBeNull();
+            expect(canvasBox).not.toBeNull();
+            expect(pickerBox!.y).toBeGreaterThanOrEqual(topbarBox!.y + topbarBox!.height - 1);
+            expect(canvasBox!.y).toBeGreaterThanOrEqual(chromeBox!.y + chromeBox!.height - 1);
+            expect(canvasBox!.height).toBeGreaterThan(0);
+          }
+          await info.attach(`map-navigation-${state}-fixture-proof`, { body: await page.screenshot(), contentType: "image/png" });
+
+          await primary.locator('a[href="/tonight"]').click();
+          await expect(page).toHaveURL(/\/tonight/);
+          const nav = page.locator(".siteNavBar");
+          await expect(nav).toBeVisible();
+          expect(await nav.evaluate((node) => getComputedStyle(node).position)).not.toMatch(/^(absolute|fixed)$/);
+          const contentHeading = page.getByRole("heading", { level: 1 });
+          await expect(contentHeading).toBeVisible();
+          await expectPreviewState(page, width, selected);
+          await page.evaluate(() => document.fonts.ready);
+          await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe(`${fontSize}px`);
+          await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+          const navBox = await nav.boundingBox();
+          const headingBox = await contentHeading.boundingBox();
+          expect(headingBox!.y).toBeGreaterThanOrEqual(navBox!.y + navBox!.height);
+          if (width === 390 && selected) {
+            const pickerBox = await page.locator(".wildNightPreviewMobile").boundingBox();
+            expect(pickerBox).not.toBeNull();
+            expect(headingBox!.y).toBeGreaterThanOrEqual(pickerBox!.y + pickerBox!.height);
+          }
+          await expectDestinations(page, primary, destinations);
+          expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+          await info.attach(`tonight-navigation-${state}`, { body: await page.screenshot(), contentType: "image/png" });
+        }
       });
     }
   }
