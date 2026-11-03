@@ -213,7 +213,7 @@ The layout scope uses a denylist (captain, 23 Oct 2026). A pull request reads `n
 
 Every other changed file reads `ui` and runs all three layout jobs. This includes every `lib/` module, components, pages, styles, browser specs, helpers, fixtures, and workflows. The Playwright port action, configuration, `package.json`, lockfiles, and unknown paths also read `ui`.
 
-An empty diff and every event other than a pull request read `ui`. A push to `main`, a schedule, and a dispatch therefore run every layout pin. A failed classifier also runs the layout jobs. `__tests__/ciChangeScope.test.ts` executes the classifier on sample diffs and on each spec selected by the layout job.
+An empty diff and every event other than a pull request read `ui`. The [browser job schedule](#timeouts-and-job-shape) controls which jobs run for each event. `__tests__/ciChangeScope.test.ts` executes the classifier on sample diffs and on each spec selected by the layout job.
 
 | Check | docs only | data only | code |
 | --- | --- | --- | --- |
