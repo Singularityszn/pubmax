@@ -81,7 +81,9 @@ it("uses the latest venue props and current owner when a held import arrives", a
   await act(async () => resolve({ default: Mission }));
   await settle();
 
-  expect(host.textContent).toBe("owner-two: pub-two");
+  expect(host.textContent).toContain("owner-two: pub-two");
+  expect(host.textContent).not.toContain("owner-one");
+  expect(host.textContent).not.toContain("pub-one");
   expect(host.querySelector('[role="status"]')).toBeNull();
 });
 
@@ -126,7 +128,9 @@ it("requests fresh code when an eligible panel reopens after failure", async () 
   await act(async () => root!.render(<Panel cards={laterCards} enabled />));
   await settle();
 
-  expect(host.textContent).toBe("Price check for The Second Pub");
+  expect(host.textContent).toContain("Price check for The Second Pub");
+  expect(host.textContent).not.toContain("The First Pub");
+  expect(host.querySelector('[role="alert"]')).toBeNull();
   expect(load).toHaveBeenCalledTimes(2);
 });
 
@@ -169,8 +173,94 @@ it("hides a held mission immediately on sign-out and resets a loaded receipt for
   auth.user = { id: "owner-one" };
   await act(async () => root!.render(<Panel cards={cards} enabled />));
   act(() => host!.querySelector<HTMLButtonElement>("button")!.click());
-  expect(host.textContent).toBe("Private draft");
+  expect(host.querySelector("button")?.textContent).toBe("Private draft");
   auth.user = { id: "owner-two" };
   await act(async () => root!.render(<Panel cards={laterCards} enabled />));
-  expect(host.textContent).toBe("New receipt");
+  expect(host.querySelector("button")?.textContent).toBe("New receipt");
+  expect(host.textContent).not.toContain("Private draft");
+});
+
+
+it("keeps focus in the price check through a focused retry and restores a useful control", async () => {
+  vi.spyOn(console, "error").mockImplementation(() => undefined);
+  let resolve!: (module: MissionModule) => void;
+  const load = vi.fn<() => Promise<MissionModule>>()
+    .mockRejectedValueOnce(new Error("ChunkLoadError"))
+    .mockImplementation(() => new Promise<MissionModule>((done) => { resolve = done; }));
+  const Panel = createNearPriceEvidencePanel(load);
+  host = document.createElement("div"); document.body.appendChild(host); root = createRoot(host);
+  await act(async () => root!.render(<Panel cards={cards} enabled />));
+  await settle();
+  const retry = host.querySelector<HTMLButtonElement>("button")!;
+  retry.focus();
+  expect(document.activeElement).toBe(retry);
+  act(() => retry.click());
+  await settle();
+  expect(document.activeElement).not.toBe(document.body);
+  expect(host.contains(document.activeElement)).toBe(true);
+  expect(document.activeElement?.textContent).toBe("Price check");
+  function Mission() { return <button type="button">Log a price</button>; }
+  await act(async () => resolve({ default: Mission }));
+  await settle();
+  expect(document.activeElement).toBe(host.querySelector("button"));
+  expect(document.activeElement?.textContent).toBe("Log a price");
+});
+
+
+it.each(["ready", "failed"] as const)("does not pull focus back after the reader leaves a retry (%s)", async (outcome) => {
+  vi.spyOn(console, "error").mockImplementation(() => undefined);
+  let resolve!: (module: MissionModule) => void;
+  let reject!: (reason: Error) => void;
+  const load = vi.fn<() => Promise<MissionModule>>()
+    .mockRejectedValueOnce(new Error("ChunkLoadError"))
+    .mockImplementation(() => new Promise<MissionModule>((done, fail) => { resolve = done; reject = fail; }));
+  const Panel = createNearPriceEvidencePanel(load);
+  host = document.createElement("div"); document.body.appendChild(host); root = createRoot(host);
+  await act(async () => root!.render(<><button type="button" id="outside">Change area</button><Panel cards={cards} enabled /></>));
+  await settle();
+  const retry = host.querySelector<HTMLButtonElement>('[role="alert"] button')!;
+  retry.focus();
+  act(() => retry.click());
+  await settle();
+  const outside = host.querySelector<HTMLButtonElement>("#outside")!;
+  outside.focus();
+  function Mission() { return <button type="button">Log a price</button>; }
+  await act(async () => {
+    if (outcome === "ready") resolve({ default: Mission });
+    else reject(new Error("ChunkLoadError"));
+  });
+  await settle();
+  expect(document.activeElement).toBe(outside);
+  expect(host.querySelector('[role="status"]')).toBeNull();
+  if (outcome === "ready") expect(host.textContent).toContain("Log a price");
+  else expect(host.querySelector('[role="alert"]')?.textContent).toContain("Try again");
+});
+
+
+it("discards retry focus when verified identity disappears", async () => {
+  vi.spyOn(console, "error").mockImplementation(() => undefined);
+  let resolve!: (module: MissionModule) => void;
+  const load = vi.fn<() => Promise<MissionModule>>()
+    .mockRejectedValueOnce(new Error("ChunkLoadError"))
+    .mockImplementation(() => new Promise<MissionModule>((done) => { resolve = done; }));
+  const Panel = createNearPriceEvidencePanel(load);
+  const view = () => <><button type="button" id="outside">Change area</button><Panel cards={cards} enabled /></>;
+  host = document.createElement("div"); document.body.appendChild(host); root = createRoot(host);
+  await act(async () => root!.render(view()));
+  await settle();
+  const retry = host.querySelector<HTMLButtonElement>('[role="alert"] button')!;
+  retry.focus();
+  act(() => retry.click());
+  await settle();
+  auth.user = null;
+  await act(async () => root!.render(view()));
+  const outside = host.querySelector<HTMLButtonElement>("#outside")!;
+  outside.focus();
+  auth.user = { id: "owner-one" };
+  await act(async () => root!.render(view()));
+  expect(document.activeElement).toBe(outside);
+  function Mission() { return <button type="button">Log a price</button>; }
+  await act(async () => resolve({ default: Mission }));
+  await settle();
+  expect(document.activeElement).toBe(outside);
 });
