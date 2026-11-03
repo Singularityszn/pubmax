@@ -181,9 +181,24 @@ describe("the receipt as it renders", () => {
 
   it("prints every stop, and says a missing price rather than guessing one", () => {
     for (const name of ["Pub 1", "Pub 2", "Pub 3", "Pub 4"]) expect(html).toContain(name);
-    expect(html).toContain("No price");
+    expect(html).toContain("No price yet");
     expect(html).toContain("Not listed, so not in the total");
     expect(html).toContain("1 stop has no listed price, so the total leaves it out.");
+  });
+
+  it("keeps each publisher and read day beside its own stop", () => {
+    const mixed = renderToStaticMarkup(createElement(CrawlReceipt, { crawl: {
+      ...CRAWL,
+      stops: [stop(1, 6.1, { source: "First source", readDay: "2026-07-04", readDayLabel: "4 July 2026" }),
+        stop(2, 6.2, { source: "Second source", readDay: "2026-10-02", readDayLabel: "2 October 2026" })],
+    } }));
+    const rows = mixed.match(/<li class="crawlReceipt__item">[\s\S]*?<\/li>/g) ?? [];
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toContain("First source");
+    expect(rows[0]).toContain('dateTime="2026-07-04"');
+    expect(rows[0]).not.toContain("Second source");
+    expect(rows[1]).toContain("Second source");
+    expect(rows[1]).toContain('dateTime="2026-10-02"');
   });
 
   it("paints each price through its band class", () => {
