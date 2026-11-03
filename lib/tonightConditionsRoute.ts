@@ -61,7 +61,7 @@ export async function resolveTonightConditions(
   if (verdict && point && lensVenuePredicate(verdict.venueLens)) {
     try {
       const venues = await loadVenues(DEFAULT_CITY_ID);
-      tally = tallyLensMatches(venues, verdict.venueLens, point);
+      tally = tallyLensMatches(venues, verdict.venueLens, point, undefined, now.getTime());
     } catch {
       tally = null;
     }

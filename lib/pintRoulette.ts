@@ -1,3 +1,4 @@
+import { comparableVenuePint, type ComparablePintVenue } from "@/lib/comparableVenuePint";
 // PINT ROULETTE: "Just pick one." (launch review D2, launch plan section 3).
 //
 // One tap on /near picks ONE pub at random from the pubs within a 15 minute
@@ -57,7 +58,7 @@ export function seededRouletteRandom(seed: number): RouletteRandom {
 }
 
 /** The slim-index fields the wheel reads. SlimVenue satisfies it directly. */
-export type PintRoulettePoint = {
+export type PintRoulettePoint = ComparablePintVenue & {
   id: string;
   name: string;
   lat: number;
@@ -128,8 +129,7 @@ function cleanText(value: unknown): string {
 }
 
 function listedPrice(point: PintRoulettePoint): number | null {
-  const price = point.cheapestPrice;
-  return typeof price === "number" && Number.isFinite(price) && price > 0 ? price : null;
+  return comparableVenuePint(point, null, false);
 }
 
 /**
@@ -157,7 +157,7 @@ export function pintRoulettePool(
     const priceGbp = listedPrice(point);
     const publisher = cleanText(point.priceSource);
     const observedAt = cleanText(point.priceObservedAt);
-    if (priceGbp === null || !publisher || !Number.isFinite(Date.parse(observedAt))) continue;
+    if (priceGbp === null) continue;
     if (cap !== null && priceGbp > cap) continue;
     const walkMinutes = walkMinutesFromKm(haversineKm([lng, lat], [point.lng, point.lat]));
     if (walkMinutes > maxWalk) continue;

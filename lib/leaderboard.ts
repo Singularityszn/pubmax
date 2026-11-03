@@ -1,3 +1,4 @@
+import { comparableVenuePint } from "@/lib/comparableVenuePint";
 import { DAY_MS } from "@/lib/dayMs";
 import { answerEvidenceFor } from "@/lib/landingHero";
 import type { PriceStanding } from "@/lib/priceTier";
@@ -63,7 +64,7 @@ function hasPrice(venue: Venue): venue is PricedVenue {
 // A board of the cheapest pints ranks only bars the public can walk into
 // (lib/venueKindFilters.ts, `isPublicRankablePub`).
 function isRankablePricedVenue(venue: Venue): venue is PricedVenue {
-  return hasPrice(venue) && isPublicRankablePub(venue);
+  return hasPrice(venue) && isPublicRankablePub(venue) && comparableVenuePint(venue, null, false) !== null;
 }
 
 /**
@@ -204,7 +205,7 @@ export function cheapestByArea(venues: Venue[]): LeaderboardEntry[] {
   const cheapestPerArea = new Map<string, PricedVenue>();
 
   for (const venue of venues) {
-    if (!hasPrice(venue)) continue;
+    if (!isRankablePricedVenue(venue)) continue;
     const area = venueArea(venue);
     const current = cheapestPerArea.get(area);
     if (

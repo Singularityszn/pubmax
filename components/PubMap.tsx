@@ -2,6 +2,7 @@
 
 import VenueFeatureFilters from "@/components/map/VenueFeatureFilters";
 import { mapDrinkCoverage } from "@/lib/drinkCoverage";
+import { venueToPricedPoint } from "@/lib/nearMeAnswer";
 
 import { CalendarClock, ChevronRight, Compass, List, MapPinned, Navigation2, ShieldCheck, X } from "lucide-react";
 import { formatGbp } from "@/lib/formatGbp";
@@ -6663,14 +6664,7 @@ export default function PubMap({
               onSelectVenue={selectVenue}
               titledByHost
               initialLocation={userLocation}
-              venues={filteredPubVenues.map((venue) => ({
-                id: venue.id,
-                name: venue.name,
-                lat: venue.latitude,
-                lng: venue.longitude,
-                cheapestPrice: venue.cheapestPrice,
-                borough: venue.primaryBorough,
-              }))}
+              venues={filteredPubVenues.map(venueToPricedPoint)}
             />
           ) : null
         }

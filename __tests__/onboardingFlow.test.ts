@@ -128,6 +128,8 @@ describe("pricedWithinWalk", () => {
     lat,
     lng,
     cheapestPrice: price,
+    priceSource: "Pub menu",
+    priceObservedAt: "2026-01-01",
     borough: "Westminster",
     ...extra,
   });

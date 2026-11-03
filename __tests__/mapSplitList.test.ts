@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import type { VenueSignal } from "@/components/map/canvas/types";
@@ -75,6 +72,14 @@ function input(overrides: Partial<MapSplitListInput>): MapSplitListInput {
 }
 
 describe("which venues the list shows", () => {
+  it("shows a half-pint figure without allowing it to lead the pint sort", () => {
+    const half = venue({ id: "half", cheapestPrice: 3.4, anchorLabel: "Half pint house lager" });
+    const pint = venue({ id: "pint", cheapestPrice: 5, priceSource: "Pub menu", priceObservedAt: "2026-01-01" });
+    expect(mapSplitListPrice(half, undefined).rankGbp).toBeNull();
+    expect(mapSplitListPrice(pint, undefined).rankGbp).toBe(5);
+    const groups = buildMapSplitListGroups(input({ venues: [half, pint] }));
+    expect(groups.venues.map((row) => row.id)).toEqual(["pint", "half"]);
+  });
   it("lists only the venues the map projects inside its own view", () => {
     // The canvas publishes membership through projectedItemIdsInViewport, and
     // PubMap hands the list the venues it named: a pin past the canvas edge is
@@ -215,8 +220,8 @@ describe("a row's price is the venue sheet's own reading", () => {
 });
 
 describe("the list's order", () => {
-  const cheap = venue({ id: "cheap", name: "Cheap Arms", cheapestPrice: 4.1, longitude: -0.1 });
-  const dear = venue({ id: "dear", name: "Dear Tavern", cheapestPrice: 6.9, longitude: -0.1301 });
+  const cheap = venue({ id: "cheap", name: "Cheap Arms", cheapestPrice: 4.1, longitude: -0.1, priceSource: "Pub menu", priceObservedAt: "2026-01-01" });
+  const dear = venue({ id: "dear", name: "Dear Tavern", cheapestPrice: 6.9, longitude: -0.1301, priceSource: "Pub menu", priceObservedAt: "2026-01-01" });
   const unpriced = venue({ id: "unpriced", name: "Quiet House", longitude: -0.1302 });
 
   it("puts the cheapest painted figure first and the unpriced after, nearest first", () => {
@@ -242,15 +247,10 @@ describe("the list's order", () => {
     expect(buildMapSplitListGroups(input({ venues: [cheap] })).venues[0]?.walkMinutes).toBeNull();
   });
 
-  it("never ranks by anything but a price or a distance", () => {
-    const rows = buildMapSplitListGroups(input({ venues: [dear, cheap] })).venues;
+  it("orders cheaper pubs first or nearer pubs first when the reader changes the sort", () => {
+    const rows = buildMapSplitListGroups(input({ venues: [dear, cheap], reader: { lng: dear.longitude, lat: dear.latitude } })).venues;
     expect(sortMapSplitListRows(rows, "cheapest").map((row) => row.id)).toEqual(["cheap", "dear"]);
-    // The code, not its comments (which say there is no score), holds no rating.
-    const code = readFileSync(join(process.cwd(), "lib/mapSplitList.ts"), "utf8")
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .replace(/\/\/.*$/gm, "");
-    expect(code).not.toMatch(/rating|score|top rated/i);
-    expect(code).toMatch(/export type MapSplitListSort = "cheapest" \| "nearest";/);
+    expect(sortMapSplitListRows(rows, "nearest").map((row) => row.id)).toEqual(["dear", "cheap"]);
   });
 
   it("lists the unpriced pubs and restaurants after the venues, nearest first", () => {

@@ -198,14 +198,13 @@ describe("landing pub card", () => {
     expect(buildLandingPubCard([], rows, { now: NOW })).toBeNull();
   });
 
-  it("names no publisher when the row carries no page, and the standing falls to none", () => {
+  it("chooses no cheapest-pint card when the row carries no publisher page", () => {
     const card = buildLandingPubCard(
       [venue("venue-a", "Quiet Arms", 5, "")],
       history([{ venueId: "venue-a", priceGbp: 3, observedOn: "2014-01-01" }]),
       { now: NOW },
     );
-    expect(card?.publisher).toBeNull();
-    expect(card?.standing).toBe("none");
+    expect(card).toBeNull();
   });
 
   it("lets a listed price expire: past a year the standing is none, the figure still prints", () => {
