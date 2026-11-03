@@ -8,6 +8,8 @@ import { answerFirstRunQuestions } from "./helpers/firstRunJourney";
 import { installNativeShell } from "./helpers/nativeShell";
 import { mobileMapShellControl } from "./helpers/mobileMapShell";
 
+test.use({ serviceWorkers: "block" });
+
 const VIEWPORTS = [
   { width: 360, height: 800 },
   { width: 390, height: 844 },
@@ -503,14 +505,24 @@ for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
     expect(response?.status()).toBe(200);
     await expect(page).toHaveURL(/\/onboarding$/);
 
-    const reviewedSources = page.getByText("PUBMAXX reviewed", { exact: true });
-    await expect(reviewedSources).toHaveCount(3);
-    for (let index = 0; index < 3; index += 1) {
-      await expectUnclippedCaption(reviewedSources.nth(index), "PUBMAXX reviewed");
-      await expect(reviewedSources.nth(index)).toBeVisible();
-    }
+    await expect(page.getByRole("progressbar", { name: "Onboarding progress" }))
+      .toHaveAttribute("aria-valuenow", "1");
+    const primary = page.getByRole("button", { name: "Use London" });
+    await expect(primary).toBeVisible();
+    await expect(primary).toBeEnabled();
+    // The catalogue has no area-review evidence. Check the real caption and
+    // the usable journey without inventing reviewed areas for this test.
+    await expect(page.getByText("PUBMAXX reviewed", { exact: true })).toHaveCount(0);
+    const photoCaption = page.locator(".firstRunLondonPhoto figcaption");
+    await expect(photoCaption).toBeVisible();
+    await expectUnclippedCaption(photoCaption, "London, and your way home from it.");
 
     await answerFirstRunQuestions(page);
+    await expect.poll(() => page.evaluate(
+      () => localStorage.getItem("pubmax:preferredCity:v1"),
+    )).toBe("london");
+    await expect(page.getByRole("progressbar", { name: "Onboarding progress" }))
+      .toHaveAttribute("aria-valuenow", "5");
     for (const note of FIRST_RUN_COMPANION_NOTES) {
       const qualifier = page.getByText(note, { exact: true });
       await expect(qualifier).toBeVisible();
