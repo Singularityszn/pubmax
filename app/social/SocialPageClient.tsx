@@ -15,7 +15,6 @@ import PubRankingPanel from "@/components/social/PubRankingPanel";
 import CreatorListsLane from "@/components/social/CreatorListsLane";
 import FindYourLot from "@/components/social/FindYourLot";
 import PeopleDirectory from "@/components/social/PeopleDirectory";
-import ReelsViewer from "@/components/social/ReelsViewer";
 import SharedSocialPostCard from "@/components/social/SocialPostCard";
 import SocialMomentLink from "@/components/social/SocialMomentLink";
 import StarterPacks from "@/components/social/StarterPacks";
@@ -56,10 +55,13 @@ import type { SocialPostLane } from "@/lib/socialPostReason";
 import type { SocialAlternatives } from "@/lib/socialAlternatives";
 
 import "./social.css";
-import SocialComposer from "./SocialComposer";
 import SocialLondonLane from "./SocialLondonLane";
-import SocialTagInbox from "./SocialTagInbox";
-import SocialOutbox from "./SocialOutbox";
+import { socialLazy } from "./SocialLazy";
+
+const SocialComposer = socialLazy(() => import("./SocialComposer"), "Post controls", <button type="button" disabled>Loading post controls…</button>);
+const SocialTagInbox = socialLazy(() => import("./SocialTagInbox"), "Tags", <p role="status">Loading tags…</p>);
+const SocialOutbox = socialLazy(() => import("./SocialOutbox"), "Your posts", <p role="status">Loading your posts…</p>);
+const ReelsViewer = socialLazy(() => import("@/components/social/ReelsViewer"), "Video", <p role="status">Loading video…</p>);
 
 export type SocialBoundaryState = SocialBoundaryCopyState;
 
