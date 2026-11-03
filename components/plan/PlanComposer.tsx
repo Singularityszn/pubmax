@@ -58,7 +58,7 @@ import {
   planVenueOptions,
   type PlanVenueOption,
 } from "@/lib/planVenueOptions";
-import { cleanNightContext, cleanNightContextPatch, type NightContext } from "@/lib/nightPlanning";
+import { cleanNightContext, cleanNightContextPatch, inferNightContext, type NightContext } from "@/lib/nightPlanning";
 import { planUsesPintPrices } from "@/lib/planGenerationDto";
 import { categoryLabel, DRINK_CATEGORIES, type DrinkCategory } from "@/lib/drinks";
 import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
@@ -1468,7 +1468,9 @@ function PlanComposerForm({
   );
   const urlAsk = urlPrefill.ask;
   const [requestedStopCount, setRequestedStopCount] = useState<PlanStopCount | undefined>(
-    urlAsk ? undefined : recoveredDraft?.requestedStopCount,
+    urlAsk
+      ? undefined
+      : recoveredDraft?.requestedStopCount ?? recoveredIntake.answers.stopCount,
   );
   // Describe-first is the default open. A returning visitor with real,
   // unfinished wizard progress lands back on the wizard instead, so their
@@ -1494,8 +1496,10 @@ function PlanComposerForm({
   const [conciergeQuery, setConciergeQuery] = useState(
     (askNeedsConciergeField ? urlAsk ?? "" : "") || draftFields.conciergeQuery,
   );
-  const [planIntake, setPlanIntake] = useState(recoveredIntake);
-  const initialPlanIntakeRef = useRef(recoveredIntake);
+  const [planIntake, setPlanIntake] = useState(() => requestedStopCount === undefined
+    ? recoveredIntake
+    : applyPlanStopCount(recoveredIntake, null, requestedStopCount).draft);
+  const initialPlanIntakeRef = useRef(planIntake);
   const [entryMode, setEntryMode] = useState<"describe" | "wizard">(initialEntryMode);
   const [askDraftQuery, setAskDraftQuery] = useState(urlAsk ?? "");
   const askDraftConsumedRef = useRef(false);
@@ -1530,6 +1534,9 @@ function PlanComposerForm({
     // is queued after this one and the URL ask still lands first.
     void Promise.resolve().then(() => {
       setAskDraftQuery(ask);
+      const stopCount = normalizePlanStopCount(inferNightContext(ask).context.stopCount);
+      setRequestedStopCount(stopCount);
+      setPlanIntake((current) => applyPlanStopCount(current, null, stopCount).draft);
       if (opensDescribeFirstForHandoff) setEntryMode("describe");
       if (askNeedsConciergeSurface) setConciergeQuery(ask);
     });
@@ -1960,6 +1967,7 @@ function PlanComposerForm({
     // surface, so the describe-first question never reappears mid-edit.
     if (!reconciled.draft.completed) setEntryMode("wizard");
     if (next.answers.stopCount !== undefined) {
+      setRequestedStopCount(next.answers.stopCount);
       setExplicitNightContext((current) => ({ ...current, stopCount: next.answers.stopCount }));
       setNightContext(reconciled.context);
     }
@@ -1985,7 +1993,7 @@ function PlanComposerForm({
 
   function submitFromEntry(
     query: string,
-    requestedStopCount?: PlanStopCount,
+    stopCount: PlanStopCount = normalizePlanStopCount(inferNightContext(query).context.stopCount),
     intakeBase: PlanIntakeDraft = planIntake,
   ) {
     // Computed once and threaded through explicitly: setPlanIntake has not
@@ -1997,16 +2005,15 @@ function PlanComposerForm({
       ...areaSynced,
       answers: {
         ...areaSynced.answers,
-        ...(requestedStopCount !== undefined ? { stopCount: requestedStopCount } : {}),
+        stopCount,
       },
     });
     setConciergeQuery(query);
-    setRequestedStopCount(requestedStopCount);
     updatePlanIntake(skippedIntake);
     sortWithConcierge(
       query,
       skippedIntake,
-      requestedStopCount === undefined ? undefined : { stopCount: requestedStopCount },
+      { stopCount },
     );
   }
 
@@ -2173,6 +2180,7 @@ function PlanComposerForm({
 
   function updateNightContext(patch: Partial<NightContext>) {
     if (!nightContext) return;
+    if (patch.stopCount !== undefined) setRequestedStopCount(patch.stopCount);
     const next = { ...nightContext, ...patch };
     if (nightContextChanged(nightContext, next)) {
       setRouteStale(true);
@@ -2219,9 +2227,12 @@ function PlanComposerForm({
     // send the pre-skip intake to the server.
     const query = queryOverride ?? conciergeQuery;
     const queryArea = nightAreaFromPlanQuery(query);
-    const explicitContextBase = explicitContextOverride
-      ? { ...explicitNightContext, ...explicitContextOverride }
-      : explicitNightContext;
+    const stopCount = explicitContextOverride?.stopCount ?? requestedStopCount;
+    const explicitContextBase = {
+      ...explicitNightContext,
+      ...explicitContextOverride,
+      ...(stopCount !== undefined ? { stopCount } : {}),
+    };
     const explicitContext = Object.prototype.hasOwnProperty.call(explicitContextBase, "nightArea")
       ? explicitContextBase
       : nightContext?.nightArea
@@ -2233,7 +2244,11 @@ function PlanComposerForm({
         nightArea: queryArea.kind === "unsupported-patch" ? null : queryArea.slug,
       }));
     }
-    const intake = syncPlanIntakeAreaFromQuery(intakeOverride ?? planIntake, query);
+    const intakeBase = intakeOverride ?? planIntake;
+    const intake = syncPlanIntakeAreaFromQuery(
+      stopCount === undefined ? intakeBase : applyPlanStopCount(intakeBase, null, stopCount).draft,
+      query,
+    );
     if (queryOverride === undefined && intake !== planIntake) {
       updatePlanIntake(intake);
     }

@@ -104,6 +104,15 @@ async function mountComposer(): Promise<void> {
   await settle();
 }
 
+async function remountComposer(): Promise<void> {
+  const current = root!;
+  await act(async () => { current.unmount(); });
+  root = null;
+  host?.remove();
+  host = null;
+  await mountComposer();
+}
+
 function venueIndexReads(): number {
   const path = planComposerVenueIndexPath();
   return fetchMock.mock.calls.filter(([input]) => String(input) === path).length;
@@ -152,12 +161,7 @@ describe("the Plan result", () => {
     expect(sent.context?.stopCount).toBe(requested);
     expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(requested);
     expect(document.querySelectorAll(".planStop__name")).toHaveLength(1);
-    const current = root!;
-    await act(async () => { current.unmount(); });
-    root = null;
-    host?.remove();
-    host = null;
-    await mountComposer();
+    await remountComposer();
     expect(document.body.textContent).toContain("Pub A");
     expect(countButton().getAttribute("aria-pressed")).toBe("true");
     const field = document.querySelector<HTMLInputElement>("#plan-describe-first-query")!;
@@ -166,6 +170,14 @@ describe("the Plan result", () => {
       field.dispatchEvent(new Event("input", { bubbles: true }));
     });
     expect(countButton().getAttribute("aria-pressed")).toBe("true");
+    const makePlan = [...document.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.textContent?.trim() === "Make a plan")!;
+    await act(async () => { makePlan.click(); });
+    await settle();
+    const generations = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"));
+    expect(generations).toHaveLength(2);
+    expect(JSON.parse(String(generations[1]![1]?.body)).context.stopCount).toBe(requested);
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(requested);
   });
 
   it.each([undefined, 7])("keeps the route and uses the default picker for legacy or invalid count %s", async (count) => {
@@ -184,7 +196,8 @@ describe("the Plan result", () => {
     expect(generation).toBeDefined();
     const sent = JSON.parse(String(generation![1]?.body));
     expect(sent.query).toBe("quiet in Soho for 3 pubs");
-    expect(sent.context?.stopCount).not.toBe(1);
+    expect(sent.context?.stopCount).toBe(3);
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(3);
   });
 
   it("lets an incoming one-pub handoff supersede a recovered request for three", async () => {
@@ -195,8 +208,39 @@ describe("the Plan result", () => {
     expect(generation).toBeDefined();
     const sent = JSON.parse(String(generation![1]?.body));
     expect(sent.query).toBe("One pub in Clapham tonight");
-    expect(sent.context?.stopCount).not.toBe(3);
-    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBeUndefined();
+    expect(sent.context?.stopCount).toBe(1);
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(1);
+    window.history.replaceState({}, "", "/plan");
+    await remountComposer();
+    await openTune();
+    const generate = [...document.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.textContent?.trim() === "Plan it again")!;
+    await act(async () => { generate.click(); });
+    await settle();
+    const generations = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"));
+    expect(generations).toHaveLength(2);
+    expect(JSON.parse(String(generations[1]![1]?.body)).context.stopCount).toBe(1);
+  });
+
+  it.each([1, 3, 6])("preserves a Tune request for %s through reload and regeneration", async (requested) => {
+    await mountComposer();
+    await sortIt("Clapham tonight");
+    await openTune();
+    const select = document.querySelector<HTMLSelectElement>("#plan-context-stops")!;
+    await act(async () => {
+      select.value = String(requested);
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(requested);
+    await remountComposer();
+    await openTune();
+    const generate = [...document.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.textContent?.trim() === "Plan it again")!;
+    await act(async () => { generate.click(); });
+    await settle();
+    const generations = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"));
+    expect(generations).toHaveLength(2);
+    expect(JSON.parse(String(generations[1]![1]?.body)).context.stopCount).toBe(requested);
   });
 
   it("shows the generated opening and travel gaps and replaces them on a new route", async () => {
