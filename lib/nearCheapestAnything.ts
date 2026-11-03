@@ -26,6 +26,7 @@
 // lib/nearCheapestAnything.server.ts.
 
 import { DRINK_MEASURES, DRINK_MEASURE_LABEL, type DrinkMeasure } from "@/lib/drinkMeasure";
+import { comparablePint } from "@/lib/comparablePint.mjs";
 import { haversineKm } from "@/lib/haversine";
 import { isPublicRankablePub } from "@/lib/venueKindFilters";
 import type { VenueKind } from "@/lib/venues";
@@ -73,6 +74,9 @@ export type NearDrinkPoint = {
   cheapestPrice: number | null;
   priceSource?: string;
   priceObservedAt?: string;
+  anchorLabel?: string;
+  cheapestPint?: string;
+  measure?: string;
   kind?: VenueKind;
 };
 
@@ -109,8 +113,7 @@ export function nearPintRows(venues: readonly NearDrinkPoint[]): NearDrinkRow[] 
     const price = venue.cheapestPrice;
     const publisher = typeof venue.priceSource === "string" ? venue.priceSource.trim() : "";
     const observedOn = nearDrinkReadDay(venue.priceObservedAt);
-    if (typeof price !== "number" || !Number.isFinite(price) || price <= 0) continue;
-    if (!publisher || !observedOn) continue;
+    if (comparablePint(venue) === null || typeof price !== "number" || !publisher || !observedOn) continue;
     rows.push([venue.id, price, observedOn, publisher, null, "pint"]);
   }
   return rows;

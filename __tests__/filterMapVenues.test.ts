@@ -146,6 +146,8 @@ describe("filterMapVenues", () => {
       id: "pub-pricey-pint",
       kind: "pub",
       cheapestPrice: 14,
+      priceSource: "Pub menu",
+      priceObservedAt: "2026-01-01",
     });
 
     expect(filterMapVenues([bar, pub], filters, () => false)).toEqual([bar]);

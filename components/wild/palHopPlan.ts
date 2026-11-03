@@ -1,3 +1,4 @@
+import { comparableVenuePint } from "@/lib/comparableVenuePint";
 // Pal hops (wild idea 08): the pure half. Which painted pins the robin visits,
 // in what order, how a hop moves, where it lands and what it says.
 //
@@ -77,12 +78,7 @@ const DOT_REACH_PX = 6;
  * anchor (a set lunch or a dish), whose figure is not a pint.
  */
 export function slimRowPintPrice(row: SlimVenue): number | null {
-  const pintSemantics =
-    row.kind === undefined || row.kind === "pub" || (row.kind === "bar" && row.legacyOsmBar === true);
-  if (!pintSemantics) return null;
-  if (row.anchorLabel) return null;
-  const price = row.cheapestPrice;
-  return typeof price === "number" && Number.isFinite(price) && price > 0 ? price : null;
+  return comparableVenuePint(row, null, false);
 }
 
 /** The part of the screen the map shows, clear of its top bar. */

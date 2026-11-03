@@ -51,7 +51,8 @@ import {
 } from "../whatson/dealsRefresh.mjs";
 import { readExistingOwnSiteRows } from "../whatson/eventsRefresh.mjs";
 import { nextWeeklyOccurrence } from "../whatson/quizParsers.mjs";
-import { loadCanonicalVenueIndex, resolveVenueId } from "../whatson/resolveVenueId.mjs";
+import { resolveVenueId } from "../whatson/resolveVenueId.mjs";
+import { loadCanonicalVenueIndex } from "../whatson/loadCanonicalVenueIndex.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 nextEnv.loadEnvConfig(ROOT);

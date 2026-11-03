@@ -23,7 +23,7 @@ import { loadWildPriceGlass } from "@/lib/wildPriceGlass.server";
 // kinds of pour to the readers they come from, and the real build to the very
 // average the landing's saving line prints.
 
-type Pub = PriceGlassVenue & { prices: LegacyPintPrice[] };
+type Pub = Omit<PriceGlassVenue, "prices"> & { prices: LegacyPintPrice[] };
 
 function pub(name: string, borough: string, price: number, readAt: string | null): Pub {
   return {

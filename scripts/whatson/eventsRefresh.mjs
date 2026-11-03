@@ -62,7 +62,8 @@ import {
 } from "../../lib/whatson/eventNormalise.mjs";
 import { isPullRequestPermissionError } from "../lib/pullRequestPermission.mjs";
 import { eventsOutputPath } from "./eventsOutputPath.mjs";
-import { loadCanonicalVenueIndex, resolveVenueId } from "./resolveVenueId.mjs";
+import { resolveVenueId } from "./resolveVenueId.mjs";
+import { loadCanonicalVenueIndex } from "./loadCanonicalVenueIndex.mjs";
 
 export { eventsOutputPath } from "./eventsOutputPath.mjs";
 // Statically imported, and deliberately so: the lane is a TypeScript module and

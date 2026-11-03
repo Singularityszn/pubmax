@@ -65,6 +65,8 @@ export type ListedPriceInput = {
   sourceUrl: string;
   observedAt: string;
   publisher?: string | null;
+  drinkLabel?: string;
+  servingSize?: string;
 };
 
 /**

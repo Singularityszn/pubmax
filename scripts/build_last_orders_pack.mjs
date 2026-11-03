@@ -24,6 +24,7 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { comparablePint } from "../lib/comparablePint.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const FACTS_PATH = path.join(ROOT, "data", "osm", "facts", "london_pub_facts.json");
@@ -45,28 +46,15 @@ function compactOsmRef(osmId) {
 }
 
 const round5 = (n) => Math.round(n * 1e5) / 1e5;
-const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
- * A curated price is a PINT we can show only when the row names its source and
- * the day it was read, and carries no anchor label. An anchor label marks a
- * figure that is not a pint (a half, a cocktail, a house serve): The French
- * House lists "Half pint house lager" at £3.40 with no source or date, and
- * read as a pint it would lead every Soho list as the cheapest.
+ * Price admission follows docs/rules/lib-prices-trust-and-drinks.md#comparable-pint-rankings.
+ * Refusing a price leaves the pub's hours available in the separate hours pack.
  *
- * @param {{ cheapestPrice?: unknown, priceSource?: unknown, priceObservedAt?: unknown, anchorLabel?: unknown }} slim
+ * @param {{ cheapestPrice?: unknown, priceSource?: unknown, priceObservedAt?: unknown, anchorLabel?: unknown, cheapestPint?: unknown, measure?: unknown }} slim
  */
 export function isSourcedPint(slim) {
-  return (
-    typeof slim.cheapestPrice === "number"
-    && Number.isFinite(slim.cheapestPrice)
-    && slim.cheapestPrice > 0
-    && typeof slim.priceSource === "string"
-    && slim.priceSource.trim() !== ""
-    && typeof slim.priceObservedAt === "string"
-    && DAY.test(slim.priceObservedAt)
-    && (slim.anchorLabel === undefined || slim.anchorLabel === null || slim.anchorLabel === "")
-  );
+  return comparablePint(slim) !== null;
 }
 
 /**
@@ -109,7 +97,7 @@ export function buildLastOrdersPacks({ facts, pubs, slimRows, closed }) {
     seen.add(id);
     rows.push([id, pub.name.trim(), round5(pub.lat), round5(pub.lng), fact.openingHours.trim(), fact.hoursCheckDate ?? ""]);
     const slim = curatedId ? slimById.get(curatedId) : null;
-    if (slim && isSourcedPint(slim)) prices[id] = [slim.cheapestPrice, slim.priceObservedAt];
+    if (slim && isSourcedPint(slim)) prices[id] = [slim.cheapestPrice, slim.priceObservedAt.slice(0, 10)];
   }
   rows.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
 

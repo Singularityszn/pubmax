@@ -1,3 +1,10 @@
+import type { LegacyPriceEvidenceRow } from "../lib/legacyPriceEvidence.mjs";
+
+export function buildSlimPriceEvidence(
+  prices: readonly LegacyPriceEvidenceRow[],
+  cheapestPrice: number | null,
+): { cheapestPint?: string; measure?: string; priceSource?: string; priceObservedAt?: string };
+
 export type SlimCurationInput = {
   pub_name?: unknown;
   address?: unknown;

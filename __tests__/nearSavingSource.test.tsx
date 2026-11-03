@@ -43,6 +43,7 @@ vi.mock("@/components/nearme/useNearPriceTrust", () => ({
 const here = { lat: 51.5136, lng: -0.1365 };
 const at = (id: string, dLat: number, price: number): PricedPoint => ({
   id, name: `Pub ${id}`, lat: here.lat + dLat, lng: here.lng, cheapestPrice: price, borough: "Westminster",
+  priceSource: "Pub menu", priceObservedAt: "2026-01-01",
 });
 // Five cheaper pubs a few hundred metres off, and a nearer, dearer sixth: the
 // sixth is the doorstep and falls outside the five cards.
