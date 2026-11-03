@@ -37,7 +37,7 @@ for (const theme of ["light", "dark"] as const) {
     for (const width of [390, 1440]) {
       test(`navigation preserves full destinations at ${width}px/${fontSize}px in ${theme}`, async ({ page, context }, info) => {
         await page.setViewportSize({ width, height: 900 });
-        await page.emulateMedia({ reducedMotion: "reduce" });
+        await page.emulateMedia({ reducedMotion: fontSize === 32 ? "reduce" : "no-preference" });
         await context.route("**/*", (route) => {
           if (["GET", "HEAD"].includes(route.request().method())) return route.continue();
           return route.abort("blockedbyclient");
@@ -53,7 +53,7 @@ for (const theme of ["light", "dark"] as const) {
         const cdp = await context.newCDPSession(page);
         await cdp.send("Page.setFontSizes", { fontSizes: { standard: fontSize } });
         await installDeterministicMapBasemap(page);
-        await page.goto("/map?wild=1");
+        await page.goto(`/map?wild=${fontSize === 32 ? "1" : "0"}`);
         await expectMapLoadingFrameReleased(page);
         await page.evaluate(() => document.fonts.ready);
         await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe(`${fontSize}px`);
@@ -88,20 +88,30 @@ for (const theme of ["light", "dark"] as const) {
             const box = await item.boundingBox();
             expect(box!.y).toBeGreaterThanOrEqual(headerBox!.y + headerBox!.height);
           }
-          const lastLink = links.last();
-          await lastLink.hover();
           const pill = header.locator(".siteNavGlide");
-          await expect(pill).toHaveAttribute("data-visible", "true");
-          const linkBox = await lastLink.boundingBox();
-          await expect.poll(async () => {
-            const box = await pill.boundingBox();
-            return box ? Math.max(Math.abs(box.x - linkBox!.x), Math.abs(box.y - linkBox!.y), Math.abs(box.height - linkBox!.height)) : Infinity;
-          }).toBeLessThan(1);
+          for (const link of [links.first(), links.last()]) {
+            await link.hover();
+            await expect(pill).toHaveAttribute("data-visible", "true");
+            const linkBox = await link.boundingBox();
+            await expect.poll(async () => {
+              const box = await pill.boundingBox();
+              return box ? Math.max(Math.abs(box.x - linkBox!.x), Math.abs(box.y - linkBox!.y), Math.abs(box.width - linkBox!.width), Math.abs(box.height - linkBox!.height)) : Infinity;
+            }).toBeLessThan(1);
+          }
           await header.getByRole("button", { name: "More pages", exact: true }).click();
-          await expect(page.getByRole("menuitem", { name: /Borough Bingo/ })).toBeVisible();
+          if (fontSize === 32) {
+            await expect(page.getByRole("menuitem", { name: /Borough Bingo/ })).toBeVisible();
+          } else {
+            await expect(page.getByRole("menuitem", { name: /Borough Bingo/ })).toHaveCount(0);
+          }
           await page.keyboard.press("Escape");
+          await expect(header.getByRole("button", { name: "More pages", exact: true })).toBeFocused();
         } else {
-          await expect(page.getByLabel("Night preview", { exact: true })).toBeVisible();
+          if (fontSize === 32) {
+            await expect(page.getByLabel("Night preview", { exact: true })).toBeVisible();
+          } else {
+            await expect(page.getByLabel("Night preview", { exact: true })).toHaveCount(0);
+          }
         }
         await info.attach("map-navigation", { body: await page.screenshot(), contentType: "image/png" });
 
