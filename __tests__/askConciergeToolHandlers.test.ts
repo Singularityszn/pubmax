@@ -69,6 +69,8 @@ function venue(overrides: Partial<ConciergeVenue> & { id: string; name: string }
     lat: 51.5,
     lng: -0.13,
     cheapestPrice: 5,
+    priceSource: "Pub menu",
+    priceObservedAt: "2026-01-01",
     amenities: {
       beerGarden: false,
       cocktails: false,

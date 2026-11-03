@@ -29,6 +29,8 @@ function venue(overrides: Partial<ConciergeVenue> & { id: string; name: string }
     lat: 51.511,
     lng: -0.134,
     cheapestPrice: null,
+    priceSource: "Pub menu",
+    priceObservedAt: "2026-01-01",
     amenities: { beerGarden: false, cocktails: false, food: false, liveSports: false, liveMusic: false },
     nearWater: false,
     hasStory: false,
@@ -39,6 +41,24 @@ function venue(overrides: Partial<ConciergeVenue> & { id: string; name: string }
 
 beforeEach(() => {
   state.venues = [];
+});
+
+describe("search_venues comparable-pint contract", () => {
+  it.each(["pubs in Soho under £6", "pints in Soho"])("refuses incomplete or half-pint evidence for %s", async (query) => {
+    const listed = venue({ id: "pint", name: "The Pint", cheapestPrice: 5 });
+    state.venues = [
+      venue({ id: "half", name: "The French House", cheapestPrice: 3.4, anchorLabel: "Half pint house lager" }),
+      venue({ id: "unnamed", name: "No Publisher", cheapestPrice: 2.49, priceSource: undefined }),
+      venue({ id: "undated", name: "No Day", cheapestPrice: 2.5, priceObservedAt: undefined }),
+      venue({ id: "bad-day", name: "Invalid Day", cheapestPrice: 2.6, priceObservedAt: "2026-02-30" }),
+      listed,
+    ];
+    const result = await runAskTool("search_venues", { query }, ctx(query));
+    expect(result.ok).toBe(true);
+    expect(result.cards.map((card) => [card.venueId, card.price])).toEqual([["pint", 5]]);
+    const discovery = await runAskTool("search_venues", { query: "pubs in Soho", limit: 6 }, ctx("pubs in Soho"));
+    expect(discovery.cards.map((card) => card.venueId).sort()).toEqual(["bad-day", "half", "pint", "undated", "unnamed"]);
+  });
 });
 
 describe("a pub named inside a sentence", () => {

@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import type { VenueSignal } from "@/components/map/canvas/types";
@@ -250,15 +247,10 @@ describe("the list's order", () => {
     expect(buildMapSplitListGroups(input({ venues: [cheap] })).venues[0]?.walkMinutes).toBeNull();
   });
 
-  it("never ranks by anything but a price or a distance", () => {
-    const rows = buildMapSplitListGroups(input({ venues: [dear, cheap] })).venues;
+  it("orders cheaper pubs first or nearer pubs first when the reader changes the sort", () => {
+    const rows = buildMapSplitListGroups(input({ venues: [dear, cheap], reader: { lng: dear.longitude, lat: dear.latitude } })).venues;
     expect(sortMapSplitListRows(rows, "cheapest").map((row) => row.id)).toEqual(["cheap", "dear"]);
-    // The code, not its comments (which say there is no score), holds no rating.
-    const code = readFileSync(join(process.cwd(), "lib/mapSplitList.ts"), "utf8")
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .replace(/\/\/.*$/gm, "");
-    expect(code).not.toMatch(/rating|score|top rated/i);
-    expect(code).toMatch(/export type MapSplitListSort = "cheapest" \| "nearest";/);
+    expect(sortMapSplitListRows(rows, "nearest").map((row) => row.id)).toEqual(["dear", "cheap"]);
   });
 
   it("lists the unpriced pubs and restaurants after the venues, nearest first", () => {

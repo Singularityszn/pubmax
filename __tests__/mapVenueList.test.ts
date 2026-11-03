@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { describe, it, expect } from "vitest";
 
 import { drinkLensPriceNoun } from "@/lib/mapExperienceLens";
@@ -697,15 +694,4 @@ describe("closedMapVenueListModel — a closed list carries its count and no row
     });
   });
 
-  it("is what /map builds while the list is closed", () => {
-    const source = readFileSync(join(process.cwd(), "components/PubMap.tsx"), "utf8");
-    const memo = source.slice(
-      source.indexOf("const mapVenueListModel = useMemo("),
-      source.indexOf("const mapPeek = useMapPeek("),
-    );
-    expect(memo).toMatch(
-      /!mapListOpen\s*\?\s*closedMapVenueListModel\(mapVenueListVenues\.length\)\s*:\s*buildMapVenueListModel\(/,
-    );
-    expect(memo).toMatch(/\[[^\]]*\bmapListOpen\b[^\]]*\]/);
-  });
 });

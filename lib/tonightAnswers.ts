@@ -8,6 +8,7 @@
 // never borrows the word "tonight's listing".
 
 import { haversineKm } from "@/lib/haversine";
+import { comparablePint } from "@/lib/comparablePint.mjs";
 import { WALKABLE_RADIUS_KM } from "@/lib/nearMeAnswer";
 import { walkMinutes } from "@/lib/tonight";
 import type { TonightCheapPint } from "@/lib/tonightCheapPints";
@@ -39,7 +40,9 @@ export type TonightCheapestCandidate = {
   lat: number;
   lng: number;
   cheapestPrice: number | null;
+  priceSource?: string;
   priceObservedAt?: string;
+  anchorLabel?: string;
   kind?: VenueKind;
   retired?: true;
 };
@@ -56,8 +59,7 @@ export function cheapestPintNear(
 ): { venue: TonightCheapestCandidate; km: number } | null {
   let best: { venue: TonightCheapestCandidate; km: number } | null = null;
   for (const venue of venues) {
-    if (venue.retired || typeof venue.cheapestPrice !== "number") continue;
-    if (!Number.isFinite(venue.cheapestPrice) || venue.cheapestPrice <= 0) continue;
+    if (venue.retired || comparablePint(venue) === null) continue;
     if (!isPublicRankablePub(venue)) continue;
     const km = haversineKm([near.lng, near.lat], [venue.lng, venue.lat]);
     if (!Number.isFinite(km) || km > radiusKm) continue;
