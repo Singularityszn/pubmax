@@ -439,6 +439,16 @@ describe("createSlimShardLoader (London)", () => {
     expect(rows.map((venue) => venue.id).sort()).toEqual(["c1", "c2", "g1"]);
   });
 
+  it("nearPoint() returns cached rows on repeat and overlapping reads", async () => {
+    const loader = createSlimShardLoader("london");
+    const first = await loader.nearPoint(51.5, -0.001);
+    const repeat = await loader.nearPoint(51.5, -0.001);
+    const overlap = await loader.nearPoint(51.5, 0.001);
+    expect(first.rows.map((v) => v.id).sort()).toEqual(["c1", "c2", "g1"]);
+    expect(repeat.rows.map((v) => v.id).sort()).toEqual(["c1", "c2", "g1"]);
+    expect(overlap.rows.map((v) => v.id).sort()).toEqual(["c1", "c2", "g1"]);
+  });
+
   it("nearPoint() reports unavailable when a radius shard cannot load", async () => {
     installFetch({ "/data/venues_slim.enfield.json": "fail" });
     const loader = createSlimShardLoader("london");
@@ -446,6 +456,18 @@ describe("createSlimShardLoader (London)", () => {
 
     expect(result.rows).toEqual([]);
     expect(result.status).toBe("unavailable");
+  });
+
+  it("reports a partial overlap as unavailable and recovers the missing cell", async () => {
+    installFetch({ "/data/venues_slim.greenwich.json": "fail" });
+    const loader = createSlimShardLoader("london");
+    const partial = await loader.nearPoint(51.5, 0.001);
+    expect(partial.status).toBe("unavailable");
+    expect(partial.rows.map((venue) => venue.id).sort()).toEqual(["c1", "c2"]);
+    installFetch();
+    const recovered = await loader.nearPoint(51.5, 0.001);
+    expect(recovered.status).toBe("ready");
+    expect(recovered.rows.map((venue) => venue.id).sort()).toEqual(["c1", "c2", "g1"]);
   });
 
   it("all() loads core plus every outer shard", async () => {
