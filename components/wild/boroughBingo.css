@@ -1,0 +1,22 @@
+.boroughBingo { margin-top: var(--space-6); }
+.boroughBingoGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: var(--space-2);
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+}
+.boroughBingoSquare {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-2);
+  border: 1px solid var(--hairline-strong);
+  background: var(--color-surface-raised);
+}
+.boroughBingoSquare--visited {
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
+}
+.boroughBingoSquare a, .boroughBingoSquare small { display: flex; flex-direction: column; }
