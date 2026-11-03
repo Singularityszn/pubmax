@@ -1,6 +1,4 @@
-/* The pint belt (TonightPintBelt.tsx). From 600px the quiet night's cheapest
-   pints ride a conveyor as beer mats; below it the list beside the belt is
-   the answer, one tap at the bar, and the belt is not drawn.
+/* TonightCheapPints mounts the belt from 600px and phone mats below it.
 
    The list steps back only for a belt that is READY, measured and with its
    mats placed. Until then (no script, a slow script, a failed chunk) the list
@@ -9,15 +7,13 @@
   display: none;
 }
 
-@media (min-width: 600px) {
-  .pintBelt[data-ready] {
-    display: grid;
-    gap: var(--space-1);
-  }
+.pintBelt[data-ready] {
+  display: grid;
+  gap: var(--space-1);
+}
 
-  .tonightCheapPintsAnswer:has(> .pintBelt[data-ready]) > .tonightCheapPintsBeltList {
-    display: none;
-  }
+.tonightCheapPintsAnswer:has(> .pintBelt[data-ready]) > .tonightCheapPintsBeltList {
+  display: none;
 }
 
 .pintBeltEvidence {
