@@ -7,7 +7,7 @@ import { pinLondonEvening, setFirstPintIn } from "./helpers/planFirstPint";
 test("concierge picks become a public Plan that a mate joins with only a name", async ({
   browser,
   page,
-}) => {
+}, testInfo) => {
   let createIdempotencyKey: string | null = null;
   page.on("request", (request) => {
     if (request.method() === "POST" && new URL(request.url()).pathname === "/api/plans") {
@@ -65,13 +65,12 @@ test("concierge picks become a public Plan that a mate joins with only a name", 
   await expect.poll(() => createIdempotencyKey).toMatch(/^create-[0-9a-f-]{36}$/);
   await expect(page).toHaveURL(/\/plan\/[0-9a-f-]{36}(?:#share)?$/);
   await expect(page.getByRole("heading", { name: /Who.s in/ })).toBeVisible();
-  await expect(page.getByText("Karan", { exact: true })).toBeVisible();
+  await expect(page.locator("#crew").getByText("Karan", { exact: true })).toBeVisible();
   expect(await page.evaluate(() => window.localStorage.getItem("pubmax:plan-intake:v1"))).toBeNull();
   expect(await page.evaluate(() => window.localStorage.getItem("pubmaxx:plan-route-draft:v1"))).toBeNull();
   const publicUrl = page.url();
 
   const mate = await browser.newContext();
-  let joinIdempotencyKey: string | null = null;
   await mate.addInitScript(() => {
     window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -84,20 +83,12 @@ test("concierge picks become a public Plan that a mate joins with only a name", 
     window.localStorage.setItem("pubmax:identityNudge:dismissedAt:v1", String(Date.now()));
   });
   const matePage = await mate.newPage();
-  matePage.on("request", (request) => {
-    if (request.method() === "POST" && /\/api\/plans\/[0-9a-f-]{36}\/join$/.test(new URL(request.url()).pathname)) {
-      joinIdempotencyKey = request.headers()["idempotency-key"] ?? null;
-    }
-  });
   await matePage.setViewportSize({ width: 390, height: 844 });
-  // The mate opens the link the host actually shares, not the host's own
-  // post-lock URL. A bare /plan/<uuid> offers no join form on purpose: the
-  // classic invite token is the capability, and PlanCrew reads it from
-  // #invite= (lib/planCrewInviteUrl.ts) rather than reopening the bare-UUID
-  // IDOR. Taking it off the host's own WhatsApp CTA keeps this end to end.
+  // Open the public invite path from the host's actual share message.
+  // Keep it on the isolated server rather than the canonical production host.
   const shareHref = await page.getByRole("link", { name: "Send on WhatsApp" }).getAttribute("href");
   const sharedPath = decodeURIComponent(new URL(shareHref ?? "").searchParams.get("text") ?? "")
-    .match(/\/plan\/[0-9a-f-]{36}#invite=[0-9a-f]{32}/)?.[0];
+    .match(/\/invite\/[0-9a-f]{32}/)?.[0];
   expect(sharedPath).toBeTruthy();
   await matePage.goto(new URL(sharedPath as string, publicUrl).toString());
   // Night mode (components/plan/NightCrawlMode.tsx) auto-opens on mobile
@@ -108,7 +99,8 @@ test("concierge picks become a public Plan that a mate joins with only a name", 
   // Give it a beat to make sure it truly never opens, not just that it isn't
   // open at this exact instant.
   const nightMode = matePage.getByRole("dialog", { name: "Night mode" });
-  await expect(matePage.getByText("Your name is enough.")).toBeVisible();
+  await expect(matePage.getByRole("textbox", { name: "Your name", exact: true })).toBeVisible();
+  await expect(matePage.getByRole("link", { name: "Open the plan", exact: true })).toHaveCount(0);
   await matePage.waitForTimeout(500);
   await expect(nightMode).toBeHidden();
   await expect
@@ -116,17 +108,29 @@ test("concierge picks become a public Plan that a mate joins with only a name", 
       matePage.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth),
     )
     .toBeLessThanOrEqual(1);
-  await matePage.getByLabel("Your name is enough.").fill("Luna");
+  await matePage.getByRole("textbox", { name: "Your name", exact: true }).fill("Luna");
   await expect(nightMode).toBeHidden();
-  await matePage.getByRole("button", { name: /I.m in/ }).click();
-  await expect.poll(() => joinIdempotencyKey).toMatch(/^join:[0-9a-f-]{36}-[0-9a-f-]{36}$/);
-  await expect(matePage.getByText("Luna", { exact: true })).toBeVisible();
-  // Once accepted, the mate is on the night same as the host - joining wrote
+  await matePage.getByRole("button", { name: "Going", exact: true }).click();
+  await matePage.getByRole("button", { name: "RSVP", exact: true }).click();
+  const guestRow = matePage.locator(".inviteRsvp__guest", { hasText: "Luna" });
+  await expect(guestRow).toBeVisible();
+  await expect(guestRow.locator(".inviteRsvp__guestStatus")).toHaveText("Going");
+  await expect(matePage.getByRole("link", { name: "Open the plan", exact: true })).toBeVisible();
+  await matePage.screenshot({ path: testInfo.outputPath("shared-invite-before-reload-390.png"), fullPage: true });
+  await matePage.reload();
+  await expect(guestRow).toBeVisible();
+  await matePage.screenshot({ path: testInfo.outputPath("shared-invite-after-reload-390.png"), fullPage: true });
+  await expect(matePage.getByRole("link", { name: "Open the plan", exact: true })).toBeVisible();
+  await matePage.getByRole("link", { name: "Open the plan", exact: true }).click();
+  await expect(matePage).toHaveURL(publicUrl.replace(/#.*$/, ""));
+  // Once accepted, the mate is on the night same as the host - the RSVP wrote
   // "guest" capability, so Night Mode is now allowed to reach them too.
   if (await nightMode.isVisible().catch(() => false)) {
     await nightMode.getByRole("button", { name: "View full plan" }).click();
     await expect(nightMode).toBeHidden();
   }
+  await expect(matePage.locator("#crew").getByText("Luna", { exact: true })).toBeVisible();
+  await matePage.screenshot({ path: testInfo.outputPath("guest-return-to-plan-390.png"), fullPage: true });
   await mate.close();
 });
 
