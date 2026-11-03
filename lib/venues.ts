@@ -79,6 +79,7 @@ export type VenuePrice = {
   app_price_id: string;
   pub_name: string;
   pint_name: string;
+  measure?: string;
   price_gbp: number | null;
   price_text: string;
   address: string;
@@ -200,6 +201,7 @@ export type Venue = {
   prices: VenuePrice[];
   cheapestPrice: number | null;
   cheapestPint: string;
+  measure?: string;
   averagePrice: number | null;
   // Derived summary signal for map markers, filters and scoring. Lights from an
   // editorial heritage note OR a contributor Pint Drop, so mergeVenueDrops never
@@ -723,6 +725,7 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
       prices: sortedPrices,
       cheapestPrice,
       cheapestPint: sortedPrices[0]?.pint_name ?? "",
+      ...(sortedPrices[0]?.measure != null ? { measure: sortedPrices[0].measure } : {}),
       averagePrice: numericPrices.length
         ? numericPrices.reduce((sum, price) => sum + price, 0) / numericPrices.length
         : null,

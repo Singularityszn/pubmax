@@ -75,6 +75,8 @@ export type NearDrinkPoint = {
   priceSource?: string;
   priceObservedAt?: string;
   anchorLabel?: string;
+  cheapestPint?: string;
+  measure?: string;
   kind?: VenueKind;
 };
 

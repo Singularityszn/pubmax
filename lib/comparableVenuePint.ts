@@ -7,6 +7,7 @@ import type { MapLensPrice } from "@/lib/mapExperienceLens";
 export type ComparablePintVenue = Pick<Venue, "cheapestPrice"> & Partial<Pick<Venue,
   "kind" | "legacyOsmBar" | "prices" | "priceSource" | "priceObservedAt" |
   "anchorLabel" | "latestContributorPrice" | "latestContributorAt"
+  | "cheapestPint" | "measure"
 >> & { sourcedPrice?: { sourceLabel: string; observedAt: string } | null };
 
 /** Other drink lenses retain their own serving and ranking rules. */
@@ -62,5 +63,7 @@ export function comparableVenuePint(
     priceSource: slimEvidence ? venue.priceSource : evidence.priceSource,
     priceObservedAt: slimEvidence ? venue.priceObservedAt : evidence.priceObservedAt,
     anchorLabel: venue.anchorLabel,
+    cheapestPint: evidence.cheapestPint ?? venue.cheapestPint,
+    measure: evidence.measure ?? venue.measure,
   });
 }

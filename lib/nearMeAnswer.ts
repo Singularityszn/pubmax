@@ -2,8 +2,10 @@ import { formatGbp } from "@/lib/formatGbp";
 import { haversineKm } from "@/lib/haversine";
 import { WALK_KMH } from "@/lib/routeLegs";
 import { isPublicRankablePub } from "@/lib/venueKindFilters";
-import type { VenueKind } from "@/lib/venues";
+import type { Venue, VenueKind } from "@/lib/venues";
 import { comparablePint } from "@/lib/comparablePint.mjs";
+import { legacyCheapestPriceEvidence } from "@/lib/legacyPriceEvidence.mjs";
+import type { PricedVenue } from "@/lib/priceUpdates";
 import { walkMinutesFromKm } from "@/lib/walkMinutes";
 
 // Pure ranking core for the "Near me now" instant answer (Cycle 3, Lane 1).
@@ -91,7 +93,39 @@ export type PricedPoint = {
   priceSource?: string;
   priceObservedAt?: string;
   anchorLabel?: string;
+  cheapestPint?: string;
+  measure?: string;
 };
+
+export function venueToPricedPoint(venue: Venue): PricedPoint {
+  const evidence = legacyCheapestPriceEvidence(venue.prices ?? [], venue.cheapestPrice);
+  const slimEvidence = venue.priceSource !== undefined || venue.priceObservedAt !== undefined;
+  const contributorSelected = venue.latestContributorPrice != null && venue.latestContributorPrice === venue.cheapestPrice;
+  const sourced = (venue as Partial<PricedVenue>).sourcedPrice;
+  return {
+    id: venue.id,
+    name: venue.name,
+    lat: venue.latitude,
+    lng: venue.longitude,
+    cheapestPrice: venue.cheapestPrice,
+    borough: venue.primaryBorough,
+    kind: venue.kind,
+    ...(contributorSelected ? {
+      priceSource: "Corroborated Pint Drop",
+      priceObservedAt: venue.latestContributorAt ?? undefined,
+      cheapestPint: venue.cheapestPint,
+    } : sourced ? {
+      priceSource: sourced.sourceLabel,
+      priceObservedAt: sourced.observedAt,
+    } : {
+      priceSource: slimEvidence ? venue.priceSource : evidence.priceSource,
+      priceObservedAt: slimEvidence ? venue.priceObservedAt : evidence.priceObservedAt,
+      anchorLabel: venue.anchorLabel,
+      cheapestPint: evidence.cheapestPint ?? venue.cheapestPint,
+      measure: evidence.measure ?? venue.measure,
+    }),
+  };
+}
 
 export type NearMeCard = {
   id: string;

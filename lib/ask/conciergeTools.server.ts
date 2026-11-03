@@ -134,6 +134,8 @@ function toPricedPoints(venues: readonly ConciergeVenue[]): PricedPoint[] {
     priceSource: venue.priceSource,
     priceObservedAt: venue.priceObservedAt,
     anchorLabel: venue.anchorLabel,
+    cheapestPint: venue.cheapestPint,
+    measure: venue.measure,
     borough: venue.area,
   }));
 }

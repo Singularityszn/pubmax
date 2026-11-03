@@ -19,4 +19,12 @@ describe("comparable pint evidence", () => {
       expect(comparablePint({ ...pint, ...change })).toBeNull();
     }
   });
+
+  it.each(["BOTTLED BEER", "Lager bottle", "330ml Lager", "Lager 50 cl", "Lager 0.5l", "Half pint lager", "Lager half", "1/2 Lager", "Lager ⅔", "Third of lager", "Small pint"])("refuses an explicit non-pint serving: %s", (cheapestPint) => {
+    expect(comparablePint({ ...pint, cheapestPint })).toBeNull();
+  });
+
+  it.each([undefined, "", "Lager", "Other Half Green Diamond", "Half Moon IPA", "Small Beer Lager", "Third Wheel Bitter", "Lager 568 ml", "Lager 0.568l"])("keeps the legacy pint contract for %s", (cheapestPint) => {
+    expect(comparablePint({ ...pint, cheapestPint })).toBe(5);
+  });
 });

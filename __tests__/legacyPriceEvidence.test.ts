@@ -39,4 +39,11 @@ describe("listed minimum price projection", () => {
       { price_gbp: 3, pub_url: "https://new.example/menu", scraped_at_values: "2026-10-02T12:00:00Z" },
     ], 3)).toBe("2026-07-04");
   });
+
+  it("keeps the selected row's serving without borrowing a tied row's pint measure", () => {
+    expect(legacyCheapestPriceEvidence([
+      { price_gbp: 3, pint_name: "BOTTLED BEER", measure: "bottle", pub_url: "https://pub.example/menu", scraped_at_values: "2026-10-01" },
+      { price_gbp: 3, pint_name: "Lager", measure: "pint", pub_url: "https://pub.example/menu", scraped_at_values: "2026-10-02" },
+    ], 3)).toEqual({ cheapestPint: "BOTTLED BEER", measure: "bottle", priceSource: "pub.example", priceObservedAt: "2026-10-01T00:00:00.000Z" });
+  });
 });
