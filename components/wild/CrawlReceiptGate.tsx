@@ -5,6 +5,7 @@
 import dynamic from "next/dynamic";
 
 import type { WildCrawl } from "@/lib/wildPintLineCrawl";
+import CrawlPresentationBoundary from "./CrawlPresentationBoundary";
 
 const CrawlReceipt = dynamic(() => import("./CrawlReceipt"), {
   ssr: false,
@@ -12,5 +13,7 @@ const CrawlReceipt = dynamic(() => import("./CrawlReceipt"), {
 });
 
 export default function CrawlReceiptGate({ crawl }: { crawl: WildCrawl }) {
-  return <CrawlReceipt crawl={crawl} />;
+  return <CrawlPresentationBoundary key={crawl.name} fallback={
+    <p role="status">The selected pints subtotal could not load. The stops still show each listed price.</p>
+  }><CrawlReceipt crawl={crawl} /></CrawlPresentationBoundary>;
 }
