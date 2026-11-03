@@ -22,8 +22,10 @@ for (const theme of ["light", "dark"] as const) for (const fontSize of [16, 32])
     });
     const cdp = await context.newCDPSession(page);
     await cdp.send("Page.setFontSizes", { fontSizes: { standard: fontSize } });
+    await installDeterministicMapBasemap(page);
     await page.goto("/map?wild=0");
     await expectMapLoadingFrameReleased(page);
+    await expect(page.locator(".mapLoading")).toHaveCount(0, { timeout: 45_000 });
     await expect(page.locator(".mapSplitList")).toBeVisible();
     await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe(`${fontSize}px`);
     const toolbar = page.locator(".mapToolbar");
@@ -75,9 +77,11 @@ for (const theme of ["light", "dark"] as const) for (const fontSize of [16, 32])
     });
     const cdp = await context.newCDPSession(page);
     await cdp.send("Page.setFontSizes", { fontSizes: { standard: fontSize } });
+    await installDeterministicMapBasemap(page);
     await page.goto("/map?wild=0");
     const card = page.locator(".mapArrivalCard");
     await expect(card).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator(".mapLoading")).toHaveCount(0, { timeout: 45_000 });
     await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe(`${fontSize}px`);
     const children = [card.locator(".mapArrivalCardTitle"), card.locator(".mapArrivalCardLead"),
       card.getByRole("button", { name: "Use my location" }), card.getByRole("button", { name: "Choose an area" }),
@@ -163,7 +167,8 @@ test("Soho Tonight lane clears the wrapped toolbar at 32px browser text", async 
   await expect(lane).toBeVisible({ timeout: 30_000 });
   await expect(lane).toContainText("Tonight nearby");
   await expect(lane).toContainText("Pins");
-  await expect(lane.getByRole("button", { name: "Show Pins", exact: true })).toBeVisible();
+  const activePins = lane.getByRole("button", { name: "Hide Pins", exact: true });
+  await expect(activePins).toHaveAttribute("aria-pressed", "true");
   const toolbar = (await page.locator(".mapToolbar").boundingBox())!;
   const laneBox = (await lane.boundingBox())!;
   const shot = await page.screenshot();

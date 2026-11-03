@@ -61,6 +61,9 @@ not a borough: Soho is part of Westminster, and Shoreditch spans four boroughs.
   15 priced pubs of any pint. A brand-by-area page
   needs 10, AND its brand's own London page must publish: that page is its
   parent crumb, so a pair without one would link a reader to a 404.
+- A brand-by-area page also requires `nightAreaPublishesPrices` to accept the area.
+  No area currently qualifies under the [catalogue review policy](../../API_CONTRACTS_THE_LOCAL.md#24-nightarea-catalogue), so no brand-by-area pair publishes.
+  London brand pages, ordinary area pages, and map visibility retain their separate rules.
 - One pub counts once, at its own cheapest matching row.
 - Only pub venue kinds, only finite positive prices.
 - Ranked cheapest first, then pub name, then pub id. At most 20 rows printed.

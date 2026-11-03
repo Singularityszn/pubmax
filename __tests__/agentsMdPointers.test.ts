@@ -104,6 +104,8 @@ const NOT_REPO_PATHS = new Set([
   "source.label",
   // A venue field, named in the Google Places content entry, not a repository path.
   "venue.openingHours",
+  // A plan response field, named in the plan stop-list entry, not a repository path.
+  "planningConfidence.missingEvidence",
   // A provider host named in the Out listing entry, not a repository path.
   "universe.com",
   // Analytics event name, not a repository path.

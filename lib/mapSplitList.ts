@@ -63,7 +63,7 @@ export type MapSplitListPrice = {
   figure: string | null;
   /** The figure a band is read from, or null when the reading withholds a band. */
   bandGbp: number | null;
-  /** A figure somebody observed wears the price badge; an estimate stays plain. */
+  /** An observed non-anchor figure uses the price badge. Anchors and estimates stay plain. */
   observed: boolean;
   /** The trust wording, from the sheet's own reading. */
   caption: string;
@@ -178,16 +178,13 @@ function anchorPresentation(venue: Venue, label: string): CompactVenueAnchor {
 /**
  * One curated venue's price, as the venue sheet would print it.
  *
- * The lane, the figure, the caption and the aging are the peek's own
- * (`renderVenuePeekSummary` in components/PubMap.tsx): the same drop signal,
- * the same bundle and sourced inputs, the same chip. Two things are added and
- * neither decides anything. The day the lane's own figure was read rides
- * beside the caption. And a baseline figure on a slim map pin, whose price rows
- * the map has not loaded, is worded by the dataset reading the pub list
- * already prints for exactly that evidence (`nearPriceTrustLabel`: the
- * publisher the slim index names and the day it read the row), because the
- * sheet's own caption would say "publisher not recorded" about a publisher the
- * index does record.
+ * The presentation contract is in
+ * docs/rules/components-sheets-chrome-and-navigation.md, under
+ * "FROM 1024PX THE LIST SITS BESIDE THE MAP, AND THE TWO MOVE TOGETHER".
+ *
+ * A slim pin can have a recorded publisher before its price rows load.
+ * Use nearPriceTrustLabel for that baseline so the sheet's fallback caption
+ * does not incorrectly report that the publisher is missing.
  */
 export function mapSplitListPrice(
   venue: Venue,

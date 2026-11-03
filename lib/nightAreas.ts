@@ -167,12 +167,9 @@ export function validateNightAreaCatalogue(areas: readonly unknown[]): void {
     else slugs.add(slug);
     const centre = value.centre as { lat?: unknown; lng?: unknown } | undefined;
     if (!centre || typeof centre.lat !== "number" || typeof centre.lng !== "number" || !Number.isFinite(centre.lat) || !Number.isFinite(centre.lng) || centre.lat < -90 || centre.lat > 90 || centre.lng < -180 || centre.lng > 180) errors.push(`Invalid coordinates for Night Area ${slug || "(unknown)"}.`);
-    // An anchor list may be EMPTY, and for a derived area it has to be: the
-    // base layer states no station, and naming one we have not read is the
-    // invention this whole lane exists to avoid. An area with no anchor carries
-    // `transport_anchor` in its own missingEvidence and can never be route
-    // ready, so nothing plans a night out of one. What is still refused is a
-    // list holding something that is not a station name.
+    // The base layer names no stations, so derived areas keep an empty list.
+    // Missing transport evidence lowers confidence without blocking a described draft.
+    // Supplied anchor names must still be non-empty strings.
     if (!Array.isArray(value.transportAnchors) || value.transportAnchors.some((anchor) => typeof anchor !== "string" || !anchor.trim())) errors.push(`Night Area ${slug || "(unknown)"} has an invalid transport anchor.`);
     if (!Array.isArray(value.aliases)) errors.push(`Night Area ${slug || "(unknown)"} aliases must be an array.`);
     else for (const alias of value.aliases) {
