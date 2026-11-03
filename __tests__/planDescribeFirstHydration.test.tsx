@@ -146,6 +146,47 @@ describe("the describe-first field on the form PlanComposer replaces", () => {
     expect(button(String(requested)).getAttribute("aria-pressed")).toBe("true");
   });
 
+  it.each([1, 3, 6] as const)("uses a changed controlled count of %s across submit, guide and chip actions", async (requested) => {
+    const onSubmit = vi.fn();
+    const onGuideMeInstead = vi.fn();
+    const onStopCountChange = vi.fn();
+    await render(true, onSubmit, onGuideMeInstead);
+    const paint = async (initialStopCount: 1 | 2 | 3 | 6) => {
+      await act(async () => {
+        root!.render(createElement(PlanDescribeFirst, {
+          initialQuery: "One pub in Clapham tonight", initialStopCount,
+          onSubmit, onGuideMeInstead, onStopCountChange,
+        }));
+      });
+    };
+    await paint(2);
+    await paint(requested);
+    expect(button(String(requested)).getAttribute("aria-pressed")).toBe("true");
+    await act(async () => typeInto(field(), "One pub in Clapham tonight"));
+    await act(async () => button("Plan it").click());
+    expect(onSubmit).toHaveBeenLastCalledWith("One pub in Clapham tonight", requested);
+    await act(async () => button("Step by step").click());
+    expect(onGuideMeInstead).toHaveBeenLastCalledWith(requested);
+    await act(async () => typeInto(field(), ""));
+    const chip = host!.querySelector<HTMLButtonElement>(".planDescribeFirst__chip:not(.planDescribeFirst__chip--culture)")!;
+    await act(async () => chip.click());
+    expect(onSubmit.mock.calls.at(-1)?.[1]).toBe(requested);
+    expect(onStopCountChange).not.toHaveBeenCalled();
+    await act(async () => button("4").click());
+    expect(onStopCountChange).toHaveBeenLastCalledWith(4);
+    expect(button(String(requested)).getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("keeps an uncontrolled picker choice over later typed count words", async () => {
+    const onSubmit = vi.fn();
+    await render(true, onSubmit);
+    await act(async () => button("4").click());
+    await act(async () => typeInto(field(), "One pub in Clapham tonight"));
+    expect(button("4").getAttribute("aria-pressed")).toBe("true");
+    await act(async () => button("Plan it").click());
+    expect(onSubmit).toHaveBeenLastCalledWith("One pub in Clapham tonight", 4);
+  });
+
   it("is painted read-only by the server and takes a query once PlanComposer hydrates", async () => {
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
     const fetchMock = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({ error: "offline" }), { status: 503 }));
