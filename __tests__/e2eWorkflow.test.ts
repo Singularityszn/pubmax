@@ -186,6 +186,9 @@ describe("browser CI policy", () => {
       // The venue-type chips and the map credit. Two chip changes (29 and
       // 31 Oct 2026) merged green while this spec ran only nightly.
       "e2e/drink-chip-controls.spec.ts",
+      // The desktop toolbar, the first location prompt and the Tonight lane
+      // at 32px browser text. #2495 merged with this spec in no CI job.
+      "e2e/desktop-map-large-text.spec.ts",
     ]) {
       expect(run).toContain(spec);
     }

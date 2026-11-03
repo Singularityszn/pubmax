@@ -5,6 +5,14 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
+// The downstream tests simulate a future review decision. The production
+// review policy remains fail-closed and is checked separately.
+vi.mock("@/lib/nightAreas", async (importOriginal) => {
+  const { simulatedNightAreas } = await import("./helpers/simulatedNightAreaReview");
+  return simulatedNightAreas(importOriginal);
+});
+
+
 vi.mock("next/og", () => ({
   ImageResponse: class ImageResponse {
     element: unknown;

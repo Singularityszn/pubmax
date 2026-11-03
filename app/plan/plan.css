@@ -1870,6 +1870,28 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
+/* At enlarged text sizes, give pub text a row above the price and controls. */
+@container plan-stops (max-width: 20em) {
+  .planStop__card:not(.planStop__card--empty) .planStop__surface {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr) auto auto;
+  }
+  .planStop__body {
+    grid-column: 2 / -1;
+  }
+  .planStop__price {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .planStops .planStop__swap {
+    grid-column: 3;
+    grid-row: 2;
+  }
+  .planStops .planStop__more {
+    grid-column: 4;
+    grid-row: 2;
+  }
+}
 .planStops .planStop__swap,
 .planStops .planStop__more {
   flex: none;

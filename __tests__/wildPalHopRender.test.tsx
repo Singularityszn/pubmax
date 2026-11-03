@@ -188,7 +188,7 @@ describe("Pal hops on the map", () => {
     expect(text).not.toContain("Camden Hells");
   });
 
-  it("says so plainly when no priced pub is on screen, and offers an area only as a tap", async () => {
+  it("says when no priced pub is on screen without offering an area with unknown price coverage", async () => {
     slim.rows = [pub("venue-d", null, -0.122, 51.507)];
     const href = window.location.href;
     await render(createElement(PalHop, { cityId: "london", placement: "edge" }));
@@ -196,8 +196,8 @@ describe("Pal hops on the map", () => {
     const text = bubble()?.textContent ?? "";
     expect(text).toContain("No listed pint price on screen here.");
     const offer = [...bubble()!.querySelectorAll("button")].find((button) => button.textContent?.startsWith("Show me "));
-    // The nearest London patch with prices, named; nothing moved on its own.
-    expect(offer?.textContent).toMatch(/^Show me \S/);
+    // R6 leaves every catalogue area's price-coverage check unpassed.
+    expect(offer).toBeUndefined();
     expect(window.location.href).toBe(href);
   });
 

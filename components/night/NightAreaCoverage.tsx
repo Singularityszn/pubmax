@@ -158,7 +158,7 @@ export default function NightAreaCoverage() {
       </header>
 
       <p className="nightAreaCoverage__intro">
-        Browse pubs across London. Crawl planning is available where we have enough checked information.
+        Browse pubs across London. You can make a draft and check the details before you go.
       </p>
 
       <div className="nightAreaCoverage__quickRead">
@@ -173,7 +173,7 @@ export default function NightAreaCoverage() {
           <span className="nightAreaCoverage__detailsMeta">{areas.length} areas</span>
         </summary>
         <p className="nightAreaCoverage__detailsIntro">
-          Each area shows whether you can plan a crawl or browse its pubs.
+          Area reviews are unavailable. You can browse pubs or make a draft.
         </p>
         <ul className="nightAreaCoverage__list" aria-label="All area coverage">
           {areas.map((area) => <CoverageRow key={area.slug} area={area} now={now} />)}

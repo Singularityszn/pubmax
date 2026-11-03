@@ -215,7 +215,6 @@ export async function POST(request: Request): Promise<Response> {
 		],
 		provenance: [
 			{ kind: "venue_dataset", label: "PUBMAXX Venue Dataset" },
-			{ kind: "night_area_review", label: `${area.name} route review`, asOf: area.lastReviewedAt },
 			...(planningWeather ? [{
 				kind: "night_signal" as const,
 				label: `${planningWeather.source.publisher}: ${planningWeather.condition}`,

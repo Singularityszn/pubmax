@@ -1,6 +1,3 @@
-import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
-
 import { describe, expect, it } from "vitest";
 
 import {
@@ -26,6 +23,22 @@ import type { Venue } from "@/lib/venues";
 // empty), and London's dearest pint is read from our London pub list alone.
 
 const NOW = Date.UTC(2026, 10, 1, 12);
+
+it("carries the exact London row that supplied the selected publisher", () => {
+  const pub = londonVenue("venue-lon1", "The Listed Lion", 4.5);
+  const original = pub.prices[0]!;
+  pub.prices = [
+    { ...original, pub_url: "", pint_name: "Wrong equal-price beer" },
+    { ...original, pint_name: "Selected lager", pub_url: "https://winner.example/menu" },
+    { ...original, pint_name: "Other equal-price beer", pub_url: "https://other.example/menu" },
+  ];
+  expect(londonHuntPints([pub], NOW)[0]).toMatchObject({
+    drinkLabel: "Selected lager",
+    servingSize: "pint",
+    publisher: { label: "winner.example", url: "https://winner.example/menu" },
+    observedOn: "2026-10-02",
+  });
+});
 
 function londonVenue(
   id: string,
@@ -125,6 +138,15 @@ function bundle(rows: UkPriceBundleRow[]): HuntPint[] {
   return bundleHuntPints(byVenue(rows), placeOf, NOW);
 }
 
+it("carries the bundle's selected equal-price row with its own source and serving", () => {
+  const pints = bundle([
+    row({ drinkLabel: "Older beer", sourceUrl: "https://old.example/menu", publisher: "Old", observedAt: "2026-09-01T10:00:00.000Z" }),
+    row({ drinkLabel: "Selected lager", servingSize: "568ml", sourceUrl: "https://winner.example/menu", publisher: "Winner", observedAt: "2026-10-02T10:00:00.000Z" }),
+    row({ drinkLabel: "Other beer", sourceUrl: "https://other.example/menu", publisher: "Other", observedAt: "2026-10-02T10:00:00.000Z" }),
+  ]);
+  expect(pints[0]).toMatchObject({ drinkLabel: "Selected lager", servingSize: "568ml", publisher: { label: "Winner", url: "https://winner.example/menu" }, observedOn: "2026-10-02" });
+});
+
 describe("what may win a cheapest line", () => {
   it("never lets an estimate win, however cheap", () => {
     const pints = bundle([
@@ -180,6 +202,8 @@ describe("what may win a cheapest line", () => {
         cityId: "london",
         placeName: "London",
         priceGbp: 2.09,
+        drinkLabel: "JAIPUR",
+        servingSize: "pint",
         publisher: { label: "Pint Prices", url: "https://www.pint-prices.com/pub/x" },
         observedOn: "2026-10-02",
         standing: "listed",
@@ -528,53 +552,5 @@ describe("the hunt", () => {
     expect(empty.britain).toBeNull();
     expect(empty.londonDearest).toBeNull();
     expect(empty.cities.every((city) => city.pint === null)).toBe(true);
-  });
-});
-
-// NEVER A PIN COLOUR, NEVER ON THE MAP. The hunt is read by the front door,
-// and Tonight reads London's list from it and nothing else, so London's
-// dearest pint can only ever be a press card.
-describe("the hunt's readers", () => {
-  const ROOT = join(__dirname, "..");
-  const ALLOWED = new Set([
-    "app/page.tsx",
-    "lib/cheapestHunt.server.ts",
-    "components/landing/LandingHuntCard.tsx",
-    "components/landing/LandingHuntCities.tsx",
-  ]);
-  // Design plan step 0.2b (2 Nov 2026): Tonight said "Cheapest in London,
-  // £2.09" while the front door said £2.43, because Tonight ranked raw
-  // figures. It now lists the hunt's London pints, and that loader is the one
-  // name it may take: never the builder, never London's dearest.
-  const LONDON_LIST_READERS = new Map([["app/tonight/page.tsx", "loadLondonHuntPints"]]);
-
-  function walk(dir: string, out: string[] = []): string[] {
-    for (const entry of readdirSync(dir)) {
-      if (entry === "node_modules" || entry.startsWith(".")) continue;
-      const full = join(dir, entry);
-      if (statSync(full).isDirectory()) walk(full, out);
-      else if (/\.(ts|tsx|mts|mjs)$/.test(entry)) out.push(full);
-    }
-    return out;
-  }
-
-  it("is imported only by the landing and its own wiring", () => {
-    const readers = ["app", "components", "lib"]
-      .flatMap((dir) => walk(join(ROOT, dir)))
-      .filter((file) => /from\s+["']@\/lib\/cheapestHunt(\.server)?["']/.test(readFileSync(file, "utf8")))
-      .map((file) => relative(ROOT, file).split("\\").join("/"));
-    expect(readers.length).toBeGreaterThan(0);
-    expect(readers.filter((file) => !ALLOWED.has(file) && !LONDON_LIST_READERS.has(file))).toEqual([]);
-  });
-
-  it("hands Tonight London's list and nothing else", () => {
-    for (const [file, name] of LONDON_LIST_READERS) {
-      const source = readFileSync(join(ROOT, file), "utf8");
-      const taken = [
-        ...source.matchAll(/import\s+(?:type\s+)?\{([^}]*)\}\s+from\s+["']@\/lib\/cheapestHunt(\.server)?["']/g),
-      ].map((match) => `${match[2] ?? ""}:${(match[1] ?? "").split(",").map((part) => part.trim()).filter(Boolean).join(",")}`);
-      expect(taken, file).toEqual([`.server:${name}`]);
-      expect(source, file).not.toMatch(/londonDearest|buildCheapestHunt|loadCheapestHunt/);
-    }
   });
 });

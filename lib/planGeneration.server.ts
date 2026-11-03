@@ -223,7 +223,6 @@ export async function runAnchoredGeneration<T extends ScoredPlanCandidate & { se
 				},
 				provenance: [
 					{ kind: "venue_dataset", label: `PUBMAXX venue record for ${stop.venueName}` },
-					{ kind: "night_area_review", label: `${area.name} route review`, asOf: area.lastReviewedAt },
 				],
 				alternatives: [],
 			}],

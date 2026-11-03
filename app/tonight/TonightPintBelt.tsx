@@ -30,6 +30,7 @@ const DRAG_SLOP = 6;
 /** Momentum left after each 16ms frame of a flick. */
 const FRICTION = 0.94;
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+const READ_DAY = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" });
 
 function subscribeReducedMotion(onChange: () => void): () => void {
   if (typeof window.matchMedia !== "function") return () => {};
@@ -46,10 +47,9 @@ function readReducedMotion(): boolean {
  * Tonight's cheapest listed pints as beer mats riding a bar's conveyor belt.
  *
  * Bookmarked on 21st.dev as the Sushi Conveyor Belt Menu and rebuilt for a
- * quiet night: the mats are the same real rows the list beside it prints (the
- * phone keeps that list, and so does every reader the belt is hidden from),
- * each wearing the one price badge, its pub's name and its chain where it has
- * one. The belt runs faster as last orders comes near (lib/pintBelt.ts).
+ * quiet night: the mats use the same real rows as the neutral price list.
+ * Each mat uses the one price badge, its pub's name and its chain where it
+ * has one. The belt runs faster as last orders comes near (lib/pintBelt.ts).
  *
  * A pointer resting on the belt stops it, and so does focus on a mat. A press
  * and drag spins it by hand and a flick carries on with momentum. The pause
@@ -238,7 +238,10 @@ export default function TonightPintBelt({ rows }: { rows: readonly TonightCheapP
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
-        onPointerCancel={endDrag}
+        onPointerCancel={(event) => {
+          endDrag(event);
+          draggedRef.current = false;
+        }}
         onClickCapture={(event) => {
           // The press that spun the belt is not a tap on the mat under it.
           if (!draggedRef.current) return;
@@ -272,6 +275,16 @@ export default function TonightPintBelt({ rows }: { rows: readonly TonightCheapP
           </Link>
         ))}
       </div>
+      <ul className="pintBeltEvidence" aria-label="Pint sources">
+        {rows.map((row) => {
+          const date = row.observedAt ? new Date(row.observedAt) : null;
+          return <li key={row.venueId}>
+            {row.name}: {row.drinkLabel || "Drink not recorded"} · {row.servingSize || "Serving not recorded"} ·{" "}
+            {row.publisher ? <a href={row.publisher.url} target="_blank" rel="noreferrer">{row.publisher.label}</a> : "Publisher not recorded"} ·{" "}
+            {date && Number.isFinite(date.getTime()) ? <time dateTime={row.observedAt ?? undefined}>{READ_DAY.format(date)}</time> : "Read date not recorded"}
+          </li>;
+        })}
+      </ul>
       <IconButton
         variant="ghost"
         className="pintBeltPause"
