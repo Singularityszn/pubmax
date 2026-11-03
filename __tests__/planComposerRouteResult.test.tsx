@@ -452,7 +452,8 @@ describe("the Plan result", () => {
     const oldDraft = { ...parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))!, conciergeQuery: "Six pubs in Clapham tonight" };
     sessionStorage.setItem(PLAN_DRAFT_KEY, JSON.stringify(oldDraft));
     if (kind === "conflicting copies") {
-      expect(writePlanDraftEnvelope(oldDraft, "manual", sessionStorage).v2).toBe(true);
+      // Keep the local route authoritative while the session copies disagree.
+      expect(writePlanDraftEnvelope(oldDraft, "manual", sessionStorage, Date.now() - 1000).v2).toBe(true);
       sessionStorage.setItem(PLAN_DRAFT_KEY, JSON.stringify({ ...oldDraft, conciergeQuery: "One pub in Clapham tonight" }));
     }
     await mountComposer();
