@@ -22,6 +22,7 @@
 // agree, and derived, so a re-collected dataset moves the pick.
 
 import type { Route } from "next";
+import { comparableVenuePint } from "@/lib/comparableVenuePint";
 import { buildDrinkBrandLanding, DRINK_BRAND_LANDING_CATALOG } from "@/lib/drinkBrandLanding";
 import { haystackMatchesBrand } from "@/lib/drinkBrands";
 import {
@@ -117,8 +118,7 @@ export function buildLandingPubCard(
   const candidates = venues.filter(
     (venue) =>
       isPublicRankablePub(venue) &&
-      typeof venue.cheapestPrice === "number" &&
-      venue.cheapestPrice > 0 &&
+      comparableVenuePint(venue, null, false, now) !== null &&
       history.has(venue.id),
   );
   if (candidates.length === 0) return null;
@@ -226,8 +226,7 @@ export function buildLandingAnchorRail(
         venue.id !== anchor.id &&
         isPublicRankablePub(venue) &&
         venue.primaryBorough === anchor.primaryBorough &&
-        typeof venue.cheapestPrice === "number" &&
-        venue.cheapestPrice > 0,
+        comparableVenuePint(venue, null, false) !== null,
     )
     .sort((a, b) => (a.cheapestPrice as number) - (b.cheapestPrice as number) || a.name.localeCompare(b.name))
     .slice(0, HERO_RAIL_SIZE)

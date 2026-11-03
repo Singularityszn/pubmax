@@ -6,7 +6,9 @@ import { mobileMapShellControl } from "@/e2e/helpers/mobileMapShell";
 
 const VIEWPORT = { width: 390, height: 844 };
 const CHIP_LABELS = ["Beer", "Wine", "Cocktails", "Whisky", "Gin", "Rum", "Coffee", "Alcohol-free", "Soft drinks"];
-// The venue-type chips in every map view (components/map/TonightArcChips.tsx).
+// The venue-type chips (components/map/TonightArcChips.tsx), in the order the
+// sheet draws them. Every view offers all five (offeredVenueKinds in
+// lib/venueKindFilters.ts), and Clubs has its own chip since 31 Oct 2026.
 const VENUE_KIND_LABELS = ["Pubs", "Bars", "Clubs", "Late food", "Restaurants"];
 
 test.use({
@@ -332,6 +334,7 @@ for (const width of [390, 320]) {
 
     const pubs = arc.getByRole("button", { name: "Pubs", exact: true });
     const bars = arc.getByRole("button", { name: "Bars", exact: true });
+    const clubs = arc.getByRole("button", { name: "Clubs", exact: true });
     // Every kind is shown at arrival, and the tick is how selection reads
     // without colour (design judgement 2026-08-01, finding 2.1). So all five
     // carry one. This line demanded NO tick anywhere and passed only because
@@ -364,6 +367,9 @@ for (const width of [390, 320]) {
     expect(unselectedStyle.selected).toBe(false);
     expect(selectedStyle.fontWeight).toBeGreaterThan(unselectedStyle.fontWeight);
     await expect(pubs).toHaveAttribute("aria-pressed", "true");
+    // Clubs once rode on Bars. The map now starts with its own Club choice
+    // (defaultVenueKindVisibility), so switching Bars off leaves Clubs on.
+    await expect(clubs).toHaveAttribute("aria-pressed", "true");
 
     // Nothing in this group explains itself through a tooltip any more: the one
     // control that needed explaining is deleted rather than narrated.
@@ -375,9 +381,8 @@ test("390px food and All views retain the five venue kinds and explicit exclusio
   page,
 }) => {
   test.setTimeout(90_000);
-  // Every lens offers the same five venue kinds under the same names
-  // (offeredVenueKinds in lib/venueKindFilters.ts). The lens decides which
-  // venues qualify inside a kind, never which kinds the reader can reach.
+  // Every lens keeps the same five venue kinds reachable, under the same
+  // names: the chip labels no longer change with the lens (29 Oct 2026).
   const sheet = await openFilters(page);
   const arc = sheet.getByRole("group", { name: "Venue types" });
   await expect(arc).toBeVisible({ timeout: 45_000 });
@@ -395,17 +400,24 @@ test("390px food and All views retain the five venue kinds and explicit exclusio
   await bars.click();
   await expect(bars).toHaveAttribute("aria-pressed", "false");
 
-  // Food switches the two food kinds on and keeps the reader's own exclusions.
+  // Food admits every kind that states food service, so pubs, bars and clubs
+  // with food stand alongside the two food kinds (filterVenuesForExperienceLens
+  // in lib/mapExperienceLens.ts).
   await mapView.getByRole("button", { name: "Food", exact: true }).click();
+  await expect
+    .poll(async () => labels(), { timeout: 20_000 })
+    .toEqual(VENUE_KIND_LABELS);
   await expect(mapView.getByRole("button", { name: "Food", exact: true })).toHaveAttribute("aria-pressed", "true");
-  expect(await labels()).toEqual(VENUE_KIND_LABELS);
+  // The Food view keeps the reader's own exclusion: Bars stays off.
   await expect(bars).toHaveAttribute("aria-pressed", "false");
   await pubs.click();
   await expect(pubs).toHaveAttribute("aria-pressed", "false");
 
   await mapView.getByRole("button", { name: "All", exact: true }).click();
   await expect(mapView.getByRole("button", { name: "All", exact: true })).toHaveAttribute("aria-pressed", "true");
-  expect(await labels()).toEqual(VENUE_KIND_LABELS);
+  await expect
+    .poll(async () => labels(), { timeout: 20_000 })
+    .toEqual(VENUE_KIND_LABELS);
   // All restores its original kind snapshot rather than the temporary Food choices.
   await expect(pubs).toHaveAttribute("aria-pressed", "true");
   await expect(bars).toHaveAttribute("aria-pressed", "false");

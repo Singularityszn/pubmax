@@ -293,6 +293,79 @@ html[data-text-scale="large"] .socialPage .screenHead {
   min-height: 360px;
 }
 
+.socialFeedEmpty--london {
+  min-height: 0;
+}
+
+.socialLondonEmptyNotice {
+  margin: 0 0 var(--space-4);
+  color: var(--color-text-muted);
+}
+
+.socialLondonEmpty {
+  display: grid;
+  gap: var(--space-5);
+  overflow-wrap: anywhere;
+}
+
+.socialLondonEmpty h3 {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  line-height: var(--leading-snug);
+}
+
+.socialAlternativeList {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.socialAlternativeList li {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.socialLondonEmpty a,
+.socialEmptySignIn a {
+  color: var(--color-text);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.socialAlternativeList > li > a,
+.socialAlternativeBrowse {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  width: fit-content;
+}
+
+.socialAlternativeMeta,
+.socialAlternativeSource,
+.socialEmptySignIn {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.socialAlternativeMeta {
+  margin: 0;
+}
+
+.socialEmptySignIn {
+  margin: var(--space-5) 0 0;
+}
+
+.socialLondonEmpty a:focus-visible,
+.socialEmptySignIn a:focus-visible {
+  outline: 2px solid var(--color-text);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+
 .socialPostList {
   display: grid;
   gap: 14px;
@@ -1324,7 +1397,7 @@ span.socialPostAvatar {
     min-height: 96px;
   }
 
-  .socialDiscoverBody
+  .socialPage
     :is(a, button, input, select, textarea, [tabindex]):not([tabindex="-1"]) {
     scroll-margin-bottom: calc(var(--chrome-bottom-clearance) + var(--space-4));
   }

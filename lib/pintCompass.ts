@@ -1,3 +1,4 @@
+import { comparableVenuePint, type ComparablePintVenue } from "@/lib/comparableVenuePint";
 import { haversineKm } from "@/lib/haversine";
 import { nearPriceTrustLabel } from "@/lib/nearPriceTrust";
 import { WALK_KMH } from "@/lib/routeLegs";
@@ -45,7 +46,7 @@ export const ALIGNED_ENTER_DEGREES = 12;
 export const ALIGNED_LEAVE_DEGREES = 20;
 
 /** The minimal venue shape the compass needs. `SlimVenue` satisfies it. */
-export type CompassVenue = {
+export type CompassVenue = ComparablePintVenue & {
   id: string;
   name: string;
   lat: number;
@@ -225,8 +226,7 @@ export function headingFromOrientation(
 }
 
 function priceOf(venue: CompassVenue): number | null {
-  const price = venue.cheapestPrice;
-  return typeof price === "number" && Number.isFinite(price) && price > 0 ? price : null;
+  return comparableVenuePint(venue, null, false);
 }
 
 function qualifies(venue: CompassVenue): boolean {

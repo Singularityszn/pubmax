@@ -7,6 +7,7 @@ import { loadHeritageCrawls } from "@/lib/heritageCrawls";
 import { parseSocialShellSearch } from "@/lib/socialShell";
 import { socialDocumentRobots, socialSurfaceName } from "@/lib/socialLaunch";
 import { socialLondonLaneOpen } from "@/lib/socialLondonLane.server";
+import { loadSocialAlternatives } from "@/lib/socialAlternatives.server";
 import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 
 import SocialPageClient from "./SocialPageClient";
@@ -80,6 +81,9 @@ export default async function SocialPage({
     friendsLaunchEnabled && state.tab === "discover"
       ? await Promise.all([buildCityRivalrySnapshot(), loadHeritageCrawls()])
       : [[], []];
+  const publicAlternatives = londonLaneOpen && state.tab === "posts"
+    ? await loadSocialAlternatives()
+    : undefined;
 
   return (
     <SocialPageClient
@@ -88,6 +92,7 @@ export default async function SocialPage({
       heritageCrawls={heritageCrawls}
       friendsLaunchEnabled={friendsLaunchEnabled}
       londonLaneOpen={londonLaneOpen}
+      publicAlternatives={publicAlternatives}
     />
   );
 }

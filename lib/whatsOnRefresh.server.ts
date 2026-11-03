@@ -50,7 +50,7 @@ import {
   QUESTION_ONE_SOURCE_ID,
   readQuestionOneDirectory,
 } from "../scripts/whatson/questionOneDirectory.mjs";
-import { loadCanonicalVenueIndex } from "../scripts/whatson/resolveVenueId.mjs";
+import { loadCanonicalVenueIndex } from "../scripts/whatson/loadCanonicalVenueIndex.mjs";
 import {
   createPermittedFetch,
   HarvestRefusal,

@@ -227,52 +227,88 @@ test("quality floor: the non-alcoholic filter checkbox flips its checked state",
 // ---------------------------------------------------------------------------
 // POI category toggles live in the coordinated Layers sheet and remain usable
 // even when the basemap falls back.
-test("quality floor: a POI category toggle flips in the coordinated Layers sheet", async ({
-  page,
-}) => {
-  test.setTimeout(MAP_JOURNEY_TIMEOUT_MS);
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.addInitScript(() => {
-    window.localStorage.setItem("pubmax-tour-v1-done", "1");
-    window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
-    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+//
+// The service worker is kept out because this test holds back the sheet's own
+// chunks (below), and a worker that controls the page fetches them itself,
+// past page.route(). In 3 of 4 local runs it had taken control by the time
+// More map controls was tapped, and the hold saw no request at all.
+test.describe(() => {
+  test.use({ serviceWorkers: "block" });
+
+  test("quality floor: a POI category toggle flips in the coordinated Layers sheet", async ({
+    page,
+  }) => {
+    test.setTimeout(MAP_JOURNEY_TIMEOUT_MS);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.addInitScript(() => {
+      window.localStorage.setItem("pubmax-tour-v1-done", "1");
+      window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+      window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    });
+
+    const response = await page.goto("/map");
+    expect(response?.status()).toBe(200);
+    await expect(page.locator(".mapCanvasWrap")).toBeVisible({ timeout: 20_000 });
+
+    // The phone shell, and this control with it, is held back until the map's
+    // loading frame lets go (`mobileShellReady` in components/PubMap.tsx), and
+    // `.mapCanvasWrap` above is already visible on the loading skeleton. That
+    // release waits on the canvas's first painted pins, bounded by the shell's
+    // own readiness ceiling, so the default 10s expect timeout raced a slow
+    // runner's first frame rather than testing the toggle.
+    const layersFab = await mobileMapShellControl(page, "more");
+    await expect(layersFab).toBeVisible();
+
+    // THE TAB ROW HOLDS STILL WHILE THE SHEET'S PANELS LOAD. The Key and Layers
+    // panels each arrive in their own chunk, first asked for when the sheet
+    // shows them. The sheet used to hug its header until the Key panel landed
+    // and then grow most of the screen, and the tab row rode up with it. A tap
+    // pressed on Layers at y=713 was released on the panel behind it, the tab
+    // stayed on Key, and this group never came (layout shard 2, PR #2471; the
+    // same tap failed 1 in 20 locally). Each chunk asked for from here on is
+    // held for a moment, the way a slow phone network holds it, so a panel
+    // that loads after the tap lands after the row is measured. The sheet
+    // takes its resting snap in one update (`sheet-full`, components/mobile/
+    // useSheetHeightDrag.ts), and MoreSheetPanelReserve (components/PubMap.tsx)
+    // keeps it at that height until the panel is in. A panel already loaded
+    // before the tap moves nothing either way.
+    await page.route(/\/_next\/static\/chunks\/.+\.js(?:\?|$)/, async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1_500));
+      await route.fallback();
+    });
+    await layersFab.click();
+
+    const layers = page.locator('.mobileSheetPortal[data-sheet-kind="layers"]');
+    await expect(layers).toBeVisible();
+    await expect(layers.locator(".mobileSharedSheet.sheet-full")).toBeVisible();
+    const tabRow = layers.getByRole("tablist", { name: "Map control sections" });
+    const rowAtOpen = await tabRow.boundingBox();
+    expect(rowAtOpen).not.toBeNull();
+    await layers.getByRole("tab", { name: "Layers" }).click();
+
+    const poiGroup = layers.getByRole("group", { name: "Points of interest" });
+    await expect(poiGroup).toBeVisible();
+    const rowWithLayers = await tabRow.boundingBox();
+    expect(
+      Math.abs((rowWithLayers?.y ?? Number.NaN) - rowAtOpen!.y),
+      `the tab row moved from ${JSON.stringify(rowAtOpen)} to ${JSON.stringify(rowWithLayers)}`,
+    ).toBeLessThanOrEqual(1);
+
+    const firstToggle = poiGroup.locator("button.mapLayersChip").first();
+    await expect(firstToggle).toBeVisible();
+
+    const before = await firstToggle.getAttribute("aria-pressed");
+    expect(before === "true" || before === "false").toBe(true);
+    await firstToggle.click();
+    await expect(firstToggle).toHaveAttribute(
+      "aria-pressed",
+      before === "true" ? "false" : "true",
+    );
+    await firstToggle.click();
+    await expect(firstToggle).toHaveAttribute("aria-pressed", before ?? "true");
+
+    const groupText = (await poiGroup.innerText()).trim();
+    expect(groupText).not.toMatch(RAW_VENUE_ID);
   });
-
-  const response = await page.goto("/map");
-  expect(response?.status()).toBe(200);
-  await expect(page.locator(".mapCanvasWrap")).toBeVisible({ timeout: 20_000 });
-
-  // The phone shell, and this control with it, is held back until the map's
-  // loading frame lets go (`mobileShellReady` in components/PubMap.tsx), and
-  // `.mapCanvasWrap` above is already visible on the loading skeleton. That
-  // release waits on the canvas's first painted pins, bounded by the shell's
-  // own readiness ceiling, so the default 10s expect timeout raced a slow
-  // runner's first frame rather than testing the toggle.
-  const layersFab = await mobileMapShellControl(page, "more");
-  await expect(layersFab).toBeVisible();
-  await layersFab.click();
-
-  const layers = page.locator('.mobileSheetPortal[data-sheet-kind="layers"]');
-  await expect(layers).toBeVisible();
-  await layers.getByRole("tab", { name: "Layers" }).click();
-
-  const poiGroup = layers.getByRole("group", { name: "Points of interest" });
-  await expect(poiGroup).toBeVisible();
-
-  const firstToggle = poiGroup.locator("button.mapLayersChip").first();
-  await expect(firstToggle).toBeVisible();
-
-  const before = await firstToggle.getAttribute("aria-pressed");
-  expect(before === "true" || before === "false").toBe(true);
-  await firstToggle.click();
-  await expect(firstToggle).toHaveAttribute(
-    "aria-pressed",
-    before === "true" ? "false" : "true",
-  );
-  await firstToggle.click();
-  await expect(firstToggle).toHaveAttribute("aria-pressed", before ?? "true");
-
-  const groupText = (await poiGroup.innerText()).trim();
-  expect(groupText).not.toMatch(RAW_VENUE_ID);
 });

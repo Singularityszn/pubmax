@@ -52,6 +52,7 @@ function priceRow(venueId: string, pintName: string, price: number): VenuePrice 
     rank_visible_borough: "",
     estimated_average_price_text: "",
     pub_url: "https://www.pint-prices.com/pub/x",
+    scraped_at_values: "2026-07-03",
     constructed_pub_url: "",
     borough_urls: "",
     phone_number: "",

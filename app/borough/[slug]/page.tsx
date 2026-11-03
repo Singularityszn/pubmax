@@ -135,7 +135,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const title = `The cheapest pints and best pubs in ${name}`;
   const cardTitle = appPageTitle(title);
   const pubs = pubsInBorough(venues, slug);
-  const cheapest = pubs.find((pub) => typeof pub.cheapestPrice === "number")?.cheapestPrice;
+  const cheapest = pintFactStats(pubs, name, slug).minGbp;
   const description =
     typeof cheapest === "number"
       ? `${pubs.length} pubs in ${name}, ranked cheapest-first. Pints from ${formatPrice(
@@ -247,11 +247,8 @@ export default async function BoroughPage({ params }: PageProps) {
     ...boroughNightAreaLinks(slug, venues),
     ...boroughNamedRouteLinks(slug, venues),
   ];
-  // Cheapest-first sort already applied by pubsInBorough — first numeric
-  // price is our dataset's cheapest pint here. Used only for the CityMCP
-  // card's optional "vs our map" one-liner.
-  const ourCheapestPrice =
-    pubs.find((pub) => typeof pub.cheapestPrice === "number")?.cheapestPrice ?? null;
+  const factStats = pintFactStats(pubs, name, slug);
+  const ourCheapestPrice = factStats.minGbp;
   // Borough-heritage rollup (Wave H): cited historic pubs in this area. null
   // when the borough has none — the section then renders nothing (no empty box).
   const heritage = await loadBoroughHeritage(slug);
@@ -271,7 +268,6 @@ export default async function BoroughPage({ params }: PageProps) {
     boroughSlug,
     freshAreaNews(areaNewsRead.entries),
   ).slice(0, NEW_ROUND_HERE_CAP) : [];
-  const factStats = pintFactStats(pubs, name, boroughSlug);
   const faq = faqItems(factStats, {
     monthYear: formatMonthYear(observedAt),
     year: String(observedAt.getFullYear()),

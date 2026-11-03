@@ -10,7 +10,6 @@
 // an empty box). Pure and node-testable — no fs, no serverEnv, no DOM.
 
 import type { Route } from "next";
-import { venueCheapestPintObservedAt } from "@/lib/drinks";
 import { areaUnderCentre, cheapestDrinksInArea } from "@/lib/areaButton";
 import {
   CENTRAL_PATCH,
@@ -100,9 +99,7 @@ export function buildTodayPintsForPatch(
         priceLabel: row.priceLabel,
         mapHref: venueMapUrl(row.id),
         areaRelation: venue ? venueAreaClaim(venue, [area]).relation : "unplaced",
-        observedAt: venue
-          ? venueCheapestPintObservedAt({ cheapestPrice: row.price, prices: venue.prices })
-          : null,
+        observedAt: row.observedAt ?? null,
       };
     }),
   };

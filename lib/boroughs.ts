@@ -1,3 +1,4 @@
+import { comparableVenuePint } from "@/lib/comparableVenuePint";
 import { LONDON_BOROUGH_NAMES } from "@/lib/londonBoroughNames.mjs";
 import { isNonPublicVenueName } from "@/lib/venueKindFilters";
 import { slugifyVenueName } from "@/lib/venuePermalinkSlug";
@@ -108,8 +109,8 @@ export function listBoroughs(venues: Venue[]): BoroughSummary[] {
     const slug = slugifyBorough(name);
     const entry = byKey.get(slug) ?? { name, pubCount: 0, cheapestGbp: null };
     entry.pubCount += 1;
-    const price = venue.cheapestPrice;
-    if (typeof price === "number" && !isNonPublicVenueName(venue.name)) {
+    const price = comparableVenuePint(venue, null, false);
+    if (price !== null && !isNonPublicVenueName(venue.name)) {
       entry.cheapestGbp =
         entry.cheapestGbp === null ? price : Math.min(entry.cheapestGbp, price);
     }
@@ -126,7 +127,7 @@ export function listBoroughs(venues: Venue[]): BoroughSummary[] {
 // (lib/venueKindFilters.ts, `isNonPublicVenueName`).
 function rankablePrice(venue: Venue): number {
   return !isNonPublicVenueName(venue.name)
-    ? venue.cheapestPrice ?? Number.POSITIVE_INFINITY
+    ? comparableVenuePint(venue, null, false) ?? Number.POSITIVE_INFINITY
     : Number.POSITIVE_INFINITY;
 }
 

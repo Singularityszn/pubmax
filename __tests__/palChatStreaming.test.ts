@@ -290,7 +290,7 @@ describe("first-open summaries carry their own receipts", () => {
     expect(tonight?.textContent).toContain("Venue listing");
     expect(tonight?.textContent).toContain("Oldest listing observed 11 July 2026");
     expect(tonight?.querySelector('a[href="/tonight"]')).not.toBeNull();
-    expect(price?.textContent).toContain("Lowest listed price within 1 km of central London");
+    expect(price?.textContent).toContain("Lowest listed price among nearby pubs around central London");
     expect(price?.textContent).toContain("£2.95 at The Cheapside Arms");
     expect(price?.textContent).toContain("Pint Prices");
     expect(price?.textContent).toContain("Source read 2 October 2026");
@@ -301,14 +301,12 @@ describe("first-open summaries carry their own receipts", () => {
     expect(createSession).not.toHaveBeenCalled();
   });
 
-  it("keeps publisher and read date unknown for an older slim payload", async () => {
+  it("does not rank an older slim payload without publisher or read date", async () => {
     slimLoad.mockResolvedValue([{ id: "old", name: "Old Arms", lat: 51.51, lng: -0.128, borough: "Westminster", cheapestPrice: 4 }]);
     await act(async () => root?.render(createElement(PalChat, { key: "unknown-receipts" })));
     const price = container.querySelector('[aria-label="Listed price nearby"]');
-    expect(price?.textContent).toContain("Lowest listed price among nearby pubs around central London");
-    expect(price?.textContent).toContain("Publisher not recorded");
-    expect(price?.textContent).toContain("Source read date unknown");
-    expect(price?.textContent).not.toContain("2 October");
+    expect(price).toBeNull();
+    expect(container.textContent).not.toContain("Old Arms");
   });
 });
 
