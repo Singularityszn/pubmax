@@ -16,18 +16,49 @@ function MissionFocus({ children, transfer }: { children: ReactNode; transfer: R
   const end = useRef<HTMLSpanElement>(null);
   useLayoutEffect(() => {
     const anchor = start.current;
-    const nodes: HTMLElement[] = [];
-    for (let node = start.current?.nextElementSibling; node && node !== end.current; node = node.nextElementSibling) {
-      if (node instanceof HTMLElement) nodes.push(node);
-    }
-    if (transfer.current) {
+    const boundary = end.current;
+    const phaseNodes = () => {
+      const nodes: HTMLElement[] = [];
+      for (let node = anchor?.nextElementSibling; node && node !== boundary; node = node.nextElementSibling) {
+        if (node instanceof HTMLElement) nodes.push(node);
+      }
+      return nodes;
+    };
+    const holdsFocus = () => document.activeElement === anchor || phaseNodes().some((node) => node.contains(document.activeElement));
+    let observer: MutationObserver | undefined;
+    const stop = () => {
+      observer?.disconnect();
+      document.removeEventListener("focusin", onFocus);
+    };
+    const onFocus = () => {
+      if (holdsFocus()) return;
+      transfer.current = false;
+      stop();
+    };
+    const handoff = () => {
       const selector = 'button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]';
-      const target = nodes.flatMap((node) => [node, ...node.querySelectorAll<HTMLElement>(selector)])
+      const target = phaseNodes().flatMap((node) => [node, ...node.querySelectorAll<HTMLElement>(selector)])
         .find((node) => node.matches(selector) && !node.closest('[hidden], [inert], [aria-hidden="true"]'));
-      (target ?? anchor)?.focus();
+      if (!target) return;
+      target.focus();
+      transfer.current = false;
+      stop();
+    };
+    if (transfer.current && anchor?.parentElement) {
+      observer = new MutationObserver(handoff);
+      observer.observe(anchor.parentElement, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ["disabled", "hidden", "inert", "aria-hidden", "tabindex", "href"],
+      });
+      document.addEventListener("focusin", onFocus);
+      anchor.focus();
+      handoff();
     }
     return () => {
-      transfer.current = document.activeElement === anchor || nodes.some((node) => node.contains(document.activeElement));
+      stop();
+      transfer.current = holdsFocus();
     };
   }, [transfer]);
   return <><span ref={start} className="sr-only" tabIndex={-1}>Price check</span>{children}<span ref={end} hidden /></>;
