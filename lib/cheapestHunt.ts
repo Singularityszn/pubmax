@@ -100,7 +100,6 @@ import {
   authoritativeBundleRows,
   BUNDLE_DEFAULT_CATEGORY,
   bundlePricesForCategory,
-  bundleRowSupersedes,
   type UkPriceBundleRow,
 } from "@/lib/ukPriceBundle";
 import { isPublicRankablePub } from "@/lib/venueKindFilters";
@@ -413,14 +412,10 @@ function bundleFigures(rows: readonly UkPriceBundleRow[], now: number): BundleFi
   const listed = bundlePricesForCategory(rows, BUNDLE_DEFAULT_CATEGORY).listed;
   const listedDay = isoDay(listed?.observedAt);
   if (listed?.publisher && listedDay && priceStandingFor({ listed }, now).standing === "listed") {
-    let selected: UkPriceBundleRow | undefined;
-    for (const row of rows) {
-      if (row.standing === "listed" && row.sourceUrl && bundleRowSupersedes(row, selected)) selected = row;
-    }
     figures.push({
       priceGbp: listed.priceGbp,
-      drinkLabel: selected?.drinkLabel?.trim() || null,
-      servingSize: selected?.servingSize ?? "pint",
+      drinkLabel: listed.drinkLabel?.trim() || null,
+      servingSize: listed.servingSize ?? "pint",
       publisher: { label: listed.publisher, url: listed.sourceUrl },
       observedOn: listedDay,
       standing: "listed",
