@@ -13,30 +13,35 @@ import {
 } from "@/lib/dataFreshness";
 import * as dateFormat from "@/lib/dataFreshnessFormat";
 
-describe("London date formatters", () => {
+describe.each([
+  ["dataFreshness", { formatMonthYear, formatObservedDayShort, formatObservedDate, formatSnapshotFrom, isoDate }],
+  ["dataFreshnessFormat", dateFormat],
+] as const)("London date formatters through %s", (_entryPoint, formatters) => {
   it("keeps the observed day and snapshot wording across the summer clock", () => {
     const date = new Date("2026-07-03T23:10:47Z");
-    expect(formatMonthYear(date)).toBe("July 2026");
-    expect(formatObservedDayShort(date)).toBe("4 Jul");
-    expect(formatObservedDate(date)).toBe("4 July 2026");
-    expect(formatSnapshotFrom(date)).toBe("Records from 4 July 2026");
-    expect(isoDate(date)).toBe("2026-07-03");
+    expect(formatters.formatMonthYear(date)).toBe("July 2026");
+    expect(formatters.formatObservedDayShort(date)).toBe("4 Jul");
+    expect(formatters.formatObservedDate(date)).toBe("4 July 2026");
+    expect(formatters.formatSnapshotFrom(date)).toBe("Records from 4 July 2026");
+    expect(formatters.isoDate(date)).toBe("2026-07-03");
   });
 
-  it("keeps the observed day in winter and rejects invalid dates", () => {
+  it("keeps the observed day and snapshot wording in winter", () => {
     const date = new Date("2026-01-03T23:10:47Z");
-    expect(formatObservedDayShort(date)).toBe("3 Jan");
-    expect(formatObservedDate(date)).toBe("3 January 2026");
-    expect(() => formatObservedDate(new Date("invalid"))).toThrow(RangeError);
+    expect(formatters.formatMonthYear(date)).toBe("January 2026");
+    expect(formatters.formatObservedDayShort(date)).toBe("3 Jan");
+    expect(formatters.formatObservedDate(date)).toBe("3 January 2026");
+    expect(formatters.formatSnapshotFrom(date)).toBe("Records from 3 January 2026");
+    expect(formatters.isoDate(date)).toBe("2026-01-03");
   });
 
-  it("keeps the existing exports and the lightweight formatter in step", () => {
-    const date = new Date("2026-07-03T23:10:47Z");
-    expect(dateFormat.formatMonthYear(date)).toBe(formatMonthYear(date));
-    expect(dateFormat.formatObservedDayShort(date)).toBe(formatObservedDayShort(date));
-    expect(dateFormat.formatObservedDate(date)).toBe(formatObservedDate(date));
-    expect(dateFormat.formatSnapshotFrom(date)).toBe(formatSnapshotFrom(date));
-    expect(dateFormat.isoDate(date)).toBe(isoDate(date));
+  it("rejects invalid dates in every formatter", () => {
+    const date = new Date("invalid");
+    expect(() => formatters.formatMonthYear(date)).toThrow(RangeError);
+    expect(() => formatters.formatObservedDayShort(date)).toThrow(RangeError);
+    expect(() => formatters.formatObservedDate(date)).toThrow(RangeError);
+    expect(() => formatters.formatSnapshotFrom(date)).toThrow(RangeError);
+    expect(() => formatters.isoDate(date)).toThrow(RangeError);
   });
 });
 

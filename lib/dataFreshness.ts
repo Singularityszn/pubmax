@@ -13,8 +13,9 @@
 //     re-exports), never when prices were collected; app/sitemap.ts derives its
 //     `lastModified` from that mtime with its own local helper.
 //
-// Pure formatters keep no disk access, so they can be unit-tested on fixed
-// Dates.
+// Pure formatters live in lib/dataFreshnessFormat.ts. This module re-exports
+// them for compatibility. Formatter-only callers import that leaf directly
+// to avoid loading the registry.
 
 import freshnessRegistry from "@/data/freshness_registry.json";
 import { resolveObservedAt, type FreshnessRegistry } from "@/lib/freshness";
