@@ -11,6 +11,7 @@ import {
   closedMapVenueListModel,
   summarizeListGroups,
   projectedItemIdsInViewport,
+  mapVenueListCheapest,
   MAP_VENUE_LIST_LIMIT,
 } from "@/lib/mapVenueList";
 import type { UkBasePub } from "@/lib/ukBasePubs";
@@ -24,11 +25,19 @@ function venue(overrides: Partial<Venue> & { id: string }): Venue {
     latitude: 51.5,
     longitude: -0.12,
     cheapestPrice: null,
+    priceSource: "Pub menu",
+    priceObservedAt: "2026-01-01",
     ...overrides,
   } as Venue;
 }
 
 describe("buildMapVenueListModel — the list-toggle gate", () => {
+  it("keeps a half pint visible without naming it the cheapest pint", () => {
+    const half = venue({ id: "half", cheapestPrice: 3.4, anchorLabel: "Half pint house lager" });
+    const pint = venue({ id: "pint", cheapestPrice: 5, priceSource: "Pub menu", priceObservedAt: "2026-01-01" });
+    expect(buildMapVenueListModel([half, pint], null).rows.map((row) => row.id)).toContain("half");
+    expect(mapVenueListCheapest([half, pint])?.venue.id).toBe("pint");
+  });
   it("is honest-empty on no venues (empty list, no truncation)", () => {
     const model = buildMapVenueListModel([], [-0.12, 51.5]);
     expect(model.rows).toEqual([]);
@@ -305,7 +314,7 @@ describe("buildMapVenueListModel — ordering (mirrors the eye)", () => {
     const venueSignals = new Map([
       [
         "contributor-cheaper",
-        { hasPintDrops: true, latestContributorPrice: 3.5 },
+        { hasPintDrops: true, latestContributorPrice: 3.5, latestContributorAt: Date.parse("2026-01-01T12:00:00Z") },
       ],
     ]);
     const model = buildMapVenueListModel(
@@ -360,7 +369,7 @@ describe("buildMapVenueListModel — ordering (mirrors the eye)", () => {
       cheapestPrice: 7,
     });
     const venueSignals = new Map([
-      ["cheap-via-signal", { hasPintDrops: false, latestContributorPrice: 3.2 }],
+      ["cheap-via-signal", { hasPintDrops: false, latestContributorPrice: 3.2, latestContributorAt: Date.parse("2026-01-01T12:00:00Z") }],
     ]);
     const model = buildMapVenueListModel(
       [dearBaseline, cheapViaSignal],

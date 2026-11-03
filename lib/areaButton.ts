@@ -23,6 +23,7 @@ import {
 } from "@/lib/nightAreas";
 import type { MapBounds } from "@/lib/slimShards";
 import type { Venue } from "@/lib/venues";
+import { comparableLensPrice, comparableVenuePint } from "@/lib/comparableVenuePint";
 
 /** Top of the area's pub list — the ten cheapest, mirroring the plan intake. */
 export const AREA_PUB_LIMIT = 10;
@@ -282,18 +283,17 @@ export function formatAreaDistance(
 }
 
 /**
- * The price the map's pins already show for a venue: a contributor's verified
- * drop overrides the baseline. Zero / non-finite / null all read as "no price"
- * so the row fails soft rather than inventing a number.
+ * The comparable price for the selected drink. A contributor's verified pint
+ * uses its own observation date rather than the baseline's source and date.
  */
 function verifiedPrice(
   venue: Venue,
   lensPrices: ReadonlyMap<string, MapLensPrice> | null,
 ): number | null {
-  const price =
-    lensPrices === null
-      ? venue.latestContributorPrice ?? venue.cheapestPrice
-      : lensPrices.get(venue.id)?.priceGbp ?? null;
+  const lensPrice = lensPrices?.get(venue.id);
+  const price = lensPrices === null
+    ? comparableVenuePint(venue)
+    : lensPrice ? comparableLensPrice(lensPrice, venue) : null;
   return typeof price === "number" && Number.isFinite(price) && price > 0
     ? price
     : null;

@@ -13,6 +13,8 @@
 
 import type { VenueSignal } from "@/components/map/canvas/types";
 import { peekPriceAging } from "@/components/map/VenuePeekPintPrice";
+import { comparablePint } from "@/lib/comparablePint.mjs";
+import { comparableLensPrice, comparableVenuePint } from "@/lib/comparableVenuePint";
 import { haversineKm } from "@/lib/haversine";
 import {
   drinkLensUnknownRowLabel,
@@ -197,7 +199,7 @@ export function mapSplitListPrice(
       day: mapSplitListDay(lensPrice.observedAt ?? lensPrice.submittedAt ?? null),
       aging: false,
       trust: null,
-      rankGbp: lensPrice.priceGbp,
+      rankGbp: comparableLensPrice(lensPrice, venue),
     };
   }
 
@@ -234,7 +236,9 @@ export function mapSplitListPrice(
       ? priceAgeFor("published", venue.priceObservedAt ?? null) === "aging"
       : peekPriceAging(lane),
     trust: chip.trust,
-    rankGbp: RANKED_LANES.has(lane.lane) ? chip.priceGbp : null,
+    rankGbp: !RANKED_LANES.has(lane.lane) ? null : lane.lane === "listed"
+      ? comparablePint({ cheapestPrice: lane.listed.priceGbp, priceSource: lane.listed.sourceUrl, priceObservedAt: lane.listed.observedAt })
+      : comparableVenuePint(venue, signal, false),
   };
 }
 

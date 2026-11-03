@@ -3,6 +3,7 @@ import { haversineKm } from "@/lib/haversine";
 import { WALK_KMH } from "@/lib/routeLegs";
 import { isPublicRankablePub } from "@/lib/venueKindFilters";
 import type { VenueKind } from "@/lib/venues";
+import { comparablePint } from "@/lib/comparablePint.mjs";
 import { walkMinutesFromKm } from "@/lib/walkMinutes";
 
 // Pure ranking core for the "Near me now" instant answer (Cycle 3, Lane 1).
@@ -14,7 +15,7 @@ import { walkMinutesFromKm } from "@/lib/walkMinutes";
 // pure and deterministic so it unit-tests against tiny fixtures.
 //
 // Honesty contract (PRD §3): "quality" is NOT a made-up score. A pub qualifies
-// iff it carries a real price observation (cheapestPrice is a finite number).
+// only when its price is a comparable, sourced and dated pint.
 // The slim index has no per-venue "closed" flag, so a priced pub is the whole
 // of the quality bar here; when a closed flag lands, extend `qualifies`.
 
@@ -87,6 +88,9 @@ export type PricedPoint = {
   cheapestPrice: number | null;
   borough: string;
   kind?: VenueKind;
+  priceSource?: string;
+  priceObservedAt?: string;
+  anchorLabel?: string;
 };
 
 export type NearMeCard = {
@@ -151,9 +155,7 @@ export type RankNearMeOptions = {
 function qualifies(point: PricedPoint): boolean {
   return (
     isPublicRankablePub(point) &&
-    typeof point.cheapestPrice === "number" &&
-    Number.isFinite(point.cheapestPrice) &&
-    point.cheapestPrice > 0 &&
+    comparablePint(point) !== null &&
     Number.isFinite(point.lat) &&
     Number.isFinite(point.lng)
   );

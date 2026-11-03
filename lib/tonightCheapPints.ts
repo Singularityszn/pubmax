@@ -33,6 +33,7 @@
 // that pub, or it is not a row.
 
 import type { Route } from "next";
+import { comparablePint } from "@/lib/comparablePint.mjs";
 
 import type { TonightChainLaneKey } from "@/lib/tonightChainLanes";
 import { isPublicRankablePub } from "@/lib/venueKindFilters";
@@ -74,6 +75,7 @@ export type TonightHuntPint = {
   priceGbp: number;
   /** ISO day (`YYYY-MM-DD`) the publisher's own row was read. */
   observedOn: string;
+  publisher: { label: string; url: string };
   mapHref: string;
 };
 
@@ -185,7 +187,11 @@ export function tonightCheapPintCandidates(
   venues: ReadonlyMap<string, TonightCheapPintSource & { primaryBorough: string }>,
   matchedWetherspoonVenueIds: ReadonlySet<string>,
 ): TonightCheapPintCandidate[] {
-  return pints.map((pint) => {
+  return pints.filter((pint) => comparablePint({
+    cheapestPrice: pint.priceGbp,
+    priceSource: pint.publisher?.label,
+    priceObservedAt: pint.observedOn,
+  }) !== null).map((pint) => {
     const venue = venues.get(pint.venueId);
     return {
       id: pint.venueId,
