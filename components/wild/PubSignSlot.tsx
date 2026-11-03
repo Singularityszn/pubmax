@@ -1,9 +1,7 @@
 "use client";
 
-// The door the Sign Foundry comes through. With the wild switch off this
-// renders nothing (or, for the photo fallback, exactly what it was handed), and
-// the sign's own chunk is never fetched; with it on, the sign loads lazily on
-// the client. lib/wildMode.ts explains the switch.
+// The historic cover remains a wild feature. Named venue photo fallbacks load
+// the same drawing for everyone, with a plain placeholder while it loads.
 
 import { lazy, Suspense, type ReactNode } from "react";
 
@@ -26,23 +24,24 @@ export default function PubSignSlot(props: PubSignProps) {
 }
 
 /**
- * VenueImage's "No photo yet" with the switch on becomes the pub's sign; with
- * it off, and while the sign loads, it is the plain fallback it was handed.
+ * Only explicit pub identity can create a sign. Uploaded pint photographs and
+ * other unnamed media keep the plain fallback.
  */
 export function PubSignFallbackSlot({
-  alt,
+  name,
+  area,
   className,
   children,
 }: {
-  alt: string;
+  name?: string;
+  area?: string;
   className?: string;
   children: ReactNode;
 }) {
-  const wild = useWildMode();
-  if (!wild) return <>{children}</>;
+  if (!name?.trim()) return <>{children}</>;
   return (
     <Suspense fallback={children}>
-      <PubSignFallback alt={alt} className={className}>
+      <PubSignFallback name={name} area={area} className={className}>
         {children}
       </PubSignFallback>
     </Suspense>

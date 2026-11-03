@@ -2,8 +2,8 @@
 // the crawl receipt, docs/plans/DESIGN_UX_PLAN.md section 12).
 //
 // The server page builds this from the route it already renders
-// (lib/wildPintLineRoute.ts) and hands it to client components that load only
-// while the wild switch is on (lib/wildMode.ts). It is a leaf: no runtime
+// (lib/wildPintLineRoute.ts) and hands it to client components on named routes.
+// It is a leaf: no runtime
 // import, so a client chunk that reads it pulls nothing in behind it.
 //
 // Two honesty rules ride with the sums here:

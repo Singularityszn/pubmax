@@ -50,10 +50,10 @@ const openPlanner = vi.fn<(handoff: PlannerHandoff) => void>();
 // Pubs around Soho (51.5136, -0.1365), cheapest first by price. Three sit inside
 // the walkable ring so the answer is not widened.
 const SOHO_PUBS = [
-  { id: "a", name: "The Crown", lat: 51.514, lng: -0.137, cheapestPrice: 4.9, borough: "Westminster" },
-  { id: "b", name: "The Lamb", lat: 51.5142, lng: -0.1355, cheapestPrice: 5.8, borough: "Westminster" },
-  { id: "c", name: "The Anchor", lat: 51.5125, lng: -0.1372, cheapestPrice: 6.6, borough: "Westminster" },
-  { id: "d", name: "The Swan", lat: 51.5131, lng: -0.1361, cheapestPrice: 7.4, borough: "Westminster" },
+  { id: "a", name: "The Crown", lat: 51.514, lng: -0.137, cheapestPrice: 4.9, borough: "Westminster", priceSource: "Fixture publisher", priceObservedAt: "2026-01-01" },
+  { id: "b", name: "The Lamb", lat: 51.5142, lng: -0.1355, cheapestPrice: 5.8, borough: "Westminster", priceSource: "Fixture publisher", priceObservedAt: "2026-01-01" },
+  { id: "c", name: "The Anchor", lat: 51.5125, lng: -0.1372, cheapestPrice: 6.6, borough: "Westminster", priceSource: "Fixture publisher", priceObservedAt: "2026-01-01" },
+  { id: "d", name: "The Swan", lat: 51.5131, lng: -0.1361, cheapestPrice: 7.4, borough: "Westminster", priceSource: "Fixture publisher", priceObservedAt: "2026-01-01" },
 ];
 
 function buttonContaining(text: string): HTMLButtonElement {
@@ -767,7 +767,7 @@ describe("first-run handoff to the planner", () => {
   });
   it("shows nearby listed prices outside planner-area discs", async () => {
     slim.load.mockResolvedValueOnce({ status: "ready", rows: [
-      { id: "arnos-arms", name: "Arnos Arms", lat: 51.6162, lng: -0.132117, cheapestPrice: 5.5, borough: "Enfield" },
+      { id: "arnos-arms", name: "Arnos Arms", lat: 51.6162, lng: -0.132117, cheapestPrice: 5.5, borough: "Enfield", priceSource: "Fixture publisher", priceObservedAt: "2026-01-01" },
     ] });
     stubGeolocation((ok) => ok({ coords: { latitude: 51.6162, longitude: -0.132117 } } as GeolocationPosition));
     await reachLocation();

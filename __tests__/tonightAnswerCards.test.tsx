@@ -113,8 +113,8 @@ describe("tonightOnTonightListing", () => {
 
 describe("tonightCheapestAnswer", () => {
   const venues = [
-    { id: "venue-a", name: "The Anchor", lat: 51.5136, lng: -0.1365, cheapestPrice: 5.2, priceObservedAt: "2026-10-02" },
-    { id: "venue-b", name: "The Bell", lat: 51.5140, lng: -0.1370, cheapestPrice: 4.6, priceObservedAt: "2026-10-02" },
+    { id: "venue-a", name: "The Anchor", lat: 51.5136, lng: -0.1365, cheapestPrice: 5.2, priceSource: "Pub menu", priceObservedAt: "2026-10-02" },
+    { id: "venue-b", name: "The Bell", lat: 51.5140, lng: -0.1370, cheapestPrice: 4.6, priceSource: "Pub menu", priceObservedAt: "2026-10-02" },
     { id: "venue-c", name: "Far Away Arms", lat: 51.6, lng: -0.2, cheapestPrice: 3.0 },
   ];
   const city = [{ venueId: "venue-z", name: "The Zed", borough: "Camden", priceGbp: 3.5, chain: null, observedAt: "2026-10-02" }];

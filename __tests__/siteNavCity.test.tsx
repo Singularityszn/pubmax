@@ -7,6 +7,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { writePreferredCity } from "@/lib/cityPreference";
 
 vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
   usePathname: () => "/places",
   useRouter: () => ({ prefetch: () => {} }),
 }));

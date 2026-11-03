@@ -243,6 +243,8 @@ const nextConfig = {
     ),
     // The dynamic feed opens its overlay + venue packs per request (see above).
     "/feed": feedDataFiles,
+    // Empty London Social reads public menu observations and their named pubs.
+    "/social": withRuntimeDataPacks("/social", ["./public/data/pint_prices_app_dataset.json"]),
     // No "/sitemap.xml" key: that route is PRERENDERED at build, and Next skips
     // every include glob for a statically prerendered route (its packs are read
     // from the repository at build time, so there is nothing to ship).

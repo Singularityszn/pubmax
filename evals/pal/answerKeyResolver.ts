@@ -67,6 +67,11 @@ function toPricedPoints(venues: readonly ConciergeVenue[]): PricedPoint[] {
       lat: v.lat,
       lng: v.lng,
       cheapestPrice: v.cheapestPrice as number,
+      priceSource: v.priceSource,
+      priceObservedAt: v.priceObservedAt,
+      anchorLabel: v.anchorLabel,
+      cheapestPint: v.cheapestPint,
+      measure: v.measure,
     }));
 }
 
@@ -83,11 +88,13 @@ function cardFields(
 async function firstSearchVenue(
   query: string,
   cityId: string,
+  now: number,
 ): Promise<{ venueId: string; price: number | null } | null> {
   const venues = await loadConciergeVenues(cityId as "london");
   const parsed = await parseConciergeIntent(query, { skipModel: true });
   const ranked = rankConciergeVenues(venues, parsed.intent, {
     limit: 1,
+    now,
     areaCircle: areaCircleForAsk(cityId as "london", parsed.intent.area),
   });
   const venue = ranked[0]?.venue;
@@ -98,9 +105,10 @@ async function firstSearchVenue(
 async function cheapestInBorough(
   borough: string,
   cityId: string,
+  now: number,
 ): Promise<{ venueId: string; price: number } | null> {
   const venues = await loadConciergeVenues(cityId as "london");
-  const row = rankBoroughCheapest(toPricedPoints(venues), borough, 1)[0];
+  const row = rankBoroughCheapest(toPricedPoints(venues), borough, 1, now)[0];
   if (!row) return null;
   return { venueId: row.id, price: row.cheapestPrice };
 }
@@ -108,12 +116,13 @@ async function cheapestInBorough(
 async function cheapestNearVenueName(
   venueName: string,
   cityId: string,
+  now: number,
 ): Promise<{ venueId: string; price: number } | null> {
   const venues = await loadConciergeVenues(cityId as "london");
   const anchor = matchVenueByNameKeyless(venues, venueName);
   if (!anchor) return null;
   const points = toPricedPoints(venues);
-  const answer = rankNearMe(anchor.lat, anchor.lng, points, { maxAnswers: 5 });
+  const answer = rankNearMe(anchor.lat, anchor.lng, points, { maxAnswers: 5, now });
   const row = answer.cards.find((card) => card.id !== anchor.id);
   if (!row) return null;
   return { venueId: row.id, price: row.cheapestPrice };
@@ -209,11 +218,11 @@ async function resolveGeneratedAnswerKeyFields(
   switch (caseDef.id) {
     case "cheapest-camden":
     case "desk-then-cheapest": {
-      const hit = await cheapestInBorough("Camden", cityId);
+      const hit = await cheapestInBorough("Camden", cityId, ctx.now);
       return hit ? cardFields(hit.venueId, hit.price) : { expectEmpty: true };
     }
     case "cheapest-near-lamb": {
-      const hit = await cheapestNearVenueName("The Lamb", cityId);
+      const hit = await cheapestNearVenueName("The Lamb", cityId, ctx.now);
       return hit ? cardFields(hit.venueId, hit.price) : { expectEmpty: true };
     }
     case "venue-drinks-lamb": {
@@ -232,7 +241,7 @@ async function resolveGeneratedAnswerKeyFields(
     case "plan-soho":
     case "followup-cheaper-camden":
     case "crawl-refine-cheaper": {
-      const hit = await firstSearchVenue(query, cityId);
+      const hit = await firstSearchVenue(query, cityId, ctx.now);
       return hit ? cardFields(hit.venueId, hit.price) : { expectEmpty: true };
     }
     default:

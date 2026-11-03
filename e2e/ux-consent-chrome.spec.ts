@@ -271,6 +271,12 @@ test("mobile consent never covers a control keyboard focus lands on in /social",
     await identityPending;
     await route.fulfill({ json: { hint: null } });
   });
+  let settleLane!: () => void;
+  const lanePending = new Promise<void>((resolve) => { settleLane = resolve; });
+  await page.route("**/api/social/posts?lane=london**", async (route) => {
+    await lanePending;
+    await route.fulfill({ json: { posts: [], nextCursor: null } });
+  });
   await page.goto("/social", { waitUntil: "domcontentloaded" });
 
   const prompt = page.getByLabel("Anonymous analytics choice");
@@ -290,6 +296,10 @@ test("mobile consent never covers a control keyboard focus lands on in /social",
   await expect(socialPage.locator('.socialDoorSlot[aria-busy="true"]')).toBeVisible();
   await page.screenshot({ path: test.info().outputPath("social-focused-pending.png") });
   settleIdentity();
+  await expect(socialPage.locator('.socialLondonLane[aria-busy="true"]')).toBeVisible();
+  await expect(handle).toBeFocused();
+  settleLane();
+  await expect(socialPage.locator(".socialEmptySignIn")).toBeVisible();
   await expect(socialPage.locator('[aria-busy="true"]')).toHaveCount(0, { timeout: 30_000 });
   await expect(handle).toBeFocused();
   await expect.poll(async () => {

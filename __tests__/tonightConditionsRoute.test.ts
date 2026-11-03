@@ -72,6 +72,8 @@ function gardenVenue(id: string, cheapestPrice: number | null): ConciergeVenue {
     lat: 51.512,
     lng: -0.135,
     cheapestPrice,
+    priceSource: "Fixture publisher",
+    priceObservedAt: "2026-07-17",
     amenities: { beerGarden: true, cocktails: false, food: false, liveSports: false, liveMusic: false },
     nearWater: false,
     hasStory: false,

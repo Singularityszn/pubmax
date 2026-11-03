@@ -29,6 +29,33 @@ The `/map` route loads London. Crawl-state rewrites preserve the pathname.
 Legacy `/map/uk` and `/map/uk/1` routes redirect permanently to `/map?uk=1`
 through `next.config.mjs`.
 
+## Browser preview parameters
+
+These parameters also apply to Home and pages with shared navigation.
+The [README](../README.md#features) owns the selector's controls and feature availability.
+[`lib/wildMode.ts`](../lib/wildMode.ts) owns the existing `wild` master switch.
+[`lib/wildNightPreview.ts`](../lib/wildNightPreview.ts) owns `wildpreview` and the accepted idea keys.
+
+`wildpreview` replaces the browser's saved selection with the requested idea.
+Without that parameter, the saved selection applies.
+`wildpreview=off`, an unknown value, or an old `wildpreview=pub-tarot` link clears the selection.
+Selecting an idea does not enable the master switch.
+`useWildNightPreview` permits an idea only when both the master switch and that idea's selection are on.
+The selector does not change the existing master-only design previews.
+
+The shared navigation observer also adopts query-only client navigation while the page stays mounted.
+An explicit preview-off or master-off URL prevents the selected idea from rendering before adoption finishes.
+The preview consumer removes every `wildpreview` parameter with `history.replaceState`.
+It preserves unrelated query bytes, the pathname, the hash, the history state, and the history length.
+The master switch removes its own parameter separately.
+If the browser blocks history changes, the URL can retain the parameter after adoption.
+
+The choice belongs to this browser on this device and survives account changes.
+Storage events update other tabs, including preview removal and cleared storage.
+If preview storage fails, an in-memory choice lasts only for the current document.
+If master-switch storage also fails, the master stays off and the selector remains hidden.
+These preferences provide no access-control boundary.
+
 ## History and filter synchronisation
 
 `useMapOpeningArrival` reads the opening URL once per mounted map. Later `q`

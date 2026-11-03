@@ -54,12 +54,14 @@ export type SlimVenue = {
   lat: number;
   lng: number;
   cheapestPrice: number | null;
+  cheapestPint?: string;
+  measure?: string;
   /** Publisher named by the exact listed minimum price row. */
   priceSource?: string;
   /**
-   * `YYYY-MM-DD` the cheapest figure was last read at its source (build_slim_index,
-   * lib/priceReadDay.mjs). Absent when no row carrying it records a read, which
-   * `priceAgeFor` (lib/priceTier.ts) reads as aging, never as fresh.
+   * `YYYY-MM-DD` from build_slim_index's selected-row evidence contract:
+   * docs/rules/lib-prices-trust-and-drinks.md#comparable-pint-rankings.
+   * `priceAgeFor` reads an absent day as aging, never as fresh.
    */
   priceObservedAt?: string;
   borough: string;
@@ -242,6 +244,8 @@ function normalizeRows(data: unknown): SlimVenue[] {
     lat: venue.lat,
     lng: venue.lng,
     cheapestPrice: venue.cheapestPrice,
+    ...(typeof venue.cheapestPint === "string" ? { cheapestPint: venue.cheapestPint } : {}),
+    ...(typeof venue.measure === "string" ? { measure: venue.measure } : {}),
     ...(venue.priceSource !== undefined ? { priceSource: venue.priceSource } : {}),
     ...(venue.priceObservedAt !== undefined
       ? { priceObservedAt: venue.priceObservedAt }

@@ -26,6 +26,8 @@ function venue(overrides: Partial<Venue> & { id: string }): Venue {
     cheapestPrice: null,
     latestContributorPrice: null,
     prices: [],
+    priceSource: "Fixture publisher",
+    priceObservedAt: "2026-01-01",
     ...overrides,
   } as Venue;
 }
@@ -71,10 +73,26 @@ describe("buildTodayPintsForPatch — the area's cheapest priced pints", () => {
 
   it("prefers a contributor drop over the baseline price", () => {
     const venues = [
-      venue({ id: "dropped", cheapestPrice: 9.0, latestContributorPrice: 3.1 }),
+      venue({ id: "dropped", cheapestPrice: 9.0, latestContributorPrice: 3.1, latestContributorAt: "2026-10-01T12:00:00.000Z" }),
     ];
     const mod = buildTodayPintsForPatch(SOHO, venues);
-    expect(mod?.rows[0]).toMatchObject({ price: 3.1, priceLabel: "£3.10" });
+    expect(mod?.rows[0]).toMatchObject({ price: 3.1, priceLabel: "£3.10", observedAt: "2026-10-01T12:00:00.000Z" });
+  });
+
+  it("keeps the contributor date when a baseline row has the same amount", () => {
+    const selected = venue({
+      id: "tied",
+      cheapestPrice: 3.1,
+      latestContributorPrice: 3.1,
+      latestContributorAt: "2026-10-01T12:00:00.000Z",
+      prices: [{ price_gbp: 3.1, pint_name: "Lager", pub_url: "https://example.com/menu", scraped_at_values: "2026-01-01" }] as Venue["prices"],
+    });
+    expect(buildTodayPintsForPatch(SOHO, [selected])?.rows[0]?.observedAt).toBe("2026-10-01T12:00:00.000Z");
+  });
+
+  it("does not borrow a baseline date for an undated contributor", () => {
+    const selected = venue({ id: "undated", cheapestPrice: 5, latestContributorPrice: 3.1 });
+    expect(buildTodayPintsForPatch(SOHO, [selected])).toBeNull();
   });
 
   it("returns null (no module) when the area has no verified prices", () => {

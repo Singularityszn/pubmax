@@ -54,7 +54,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { nextWeeklyOccurrence, isGreaterLondonPostcode } from "./quizParsers.mjs";
-import { resolveVenueId, loadCanonicalVenueIndex } from "./resolveVenueId.mjs";
+import { resolveVenueId } from "./resolveVenueId.mjs";
+import { loadCanonicalVenueIndex } from "./loadCanonicalVenueIndex.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const WETHERSPOONS_PATH = join(ROOT, "public", "data", "wetherspoons", "pubs.json");

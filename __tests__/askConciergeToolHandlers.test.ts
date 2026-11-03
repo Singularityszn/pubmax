@@ -69,6 +69,8 @@ function venue(overrides: Partial<ConciergeVenue> & { id: string; name: string }
     lat: 51.5,
     lng: -0.13,
     cheapestPrice: 5,
+    priceSource: "Pub menu",
+    priceObservedAt: "2026-01-01",
     amenities: {
       beerGarden: false,
       cocktails: false,
@@ -104,6 +106,17 @@ beforeEach(() => {
   state.desk = { venues: [], status: "ready" };
 });
 
+describe("search price clock", () => {
+  it("applies the supplied instant to budget filtering and price preference", async () => {
+    state.venues = [
+      venue({ id: "valid", name: "Pub Valid", cheapestPrice: 5, priceObservedAt: "2026-08-15T19:00:00Z" }),
+      venue({ id: "future", name: "Pub Future", cheapestPrice: 3, priceObservedAt: "2026-08-15T21:00:00Z" }),
+    ];
+    const result = await runAskTool("search_venues", { query: "Pints under £6 in Camden" }, ctx({ query: "Pints under £6 in Camden" }));
+    expect(result.cards.map((card) => card.venueId)).toEqual(["valid"]);
+  });
+});
+
 describe("original-question tool authority", () => {
   it("keeps the original listing kind and area despite a provider rewrite", async () => {
     const result = await runAskTool("whats_on", { query: "Quiz tonight in Soho" },
@@ -116,6 +129,16 @@ describe("original-question tool authority", () => {
 });
 
 describe("cheapest_pint_near", () => {
+  it.each([{ area: "Camden" }, { area: "London" }, { venueName: "The Lamb" }])("uses the supplied price clock for %j", async (args) => {
+    state.venues = [
+      venue({ id: "anchor", name: "The Lamb", cheapestPrice: null }),
+      venue({ id: "valid", name: "Pub Valid", cheapestPrice: 5, priceObservedAt: "2026-08-15T19:00:00Z" }),
+      venue({ id: "future", name: "Pub Future", cheapestPrice: 3, priceObservedAt: "2026-08-15T21:00:00Z" }),
+    ];
+    const result = await runAskTool("cheapest_pint_near", args, ctx());
+    expect(result.cards.map((card) => card.venueId)).toEqual(["valid"]);
+  });
+
   it("ranks the listed pints round a named pub and leaves the anchor out", async () => {
     state.venues = [
       venue({ id: "anchor", name: "The Lamb", cheapestPrice: 4 }),
