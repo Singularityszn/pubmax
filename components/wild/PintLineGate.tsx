@@ -1,17 +1,16 @@
 "use client";
 
-// The Pint Line's door (lib/wildMode.ts): it renders nothing while the wild
-// switch is off, so the line's code and stylesheet are never fetched and the
-// page renders exactly as it does without it. On, it loads the line on the
-// client alone.
+// Load the Pint Line as its own client chunk on every named route page.
 
 import dynamic from "next/dynamic";
 
-import { useWildMode } from "@/lib/useWildMode";
 import type { WildCrawl } from "@/lib/wildPintLineCrawl";
 
-const PintLine = dynamic(() => import("./PintLine"), { ssr: false });
+const PintLine = dynamic(() => import("./PintLine"), {
+  ssr: false,
+  loading: () => <p>Loading the route diagram. The stops are listed below.</p>,
+});
 
 export default function PintLineGate({ crawl }: { crawl: WildCrawl }) {
-  return useWildMode() ? <PintLine crawl={crawl} /> : null;
+  return <PintLine crawl={crawl} />;
 }

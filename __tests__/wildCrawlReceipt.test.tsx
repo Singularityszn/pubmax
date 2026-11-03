@@ -161,6 +161,8 @@ describe("a named route as a wild crawl", () => {
     const now = Date.parse("2026-11-02T12:00:00Z");
     expect(readDayLabel("2026-10-02", now)).toBe("2 October 2026");
     expect(readDayLabel("2026-12-25", now)).toBeNull();
+    expect(readDayLabel("2026-02-30", now)).toBeNull();
+    expect(readDayLabel("2026-11-02", Date.parse("2026-11-02T09:00:00Z"))).toBe("2 November 2026");
     expect(readDayLabel("October", now)).toBeNull();
     expect(readDayLabel(null, now)).toBeNull();
   });
@@ -195,6 +197,8 @@ describe("the receipt as it renders", () => {
     expect(html).toContain("£55.65");
     expect(html).toMatch(/Split <span class="crawlReceipt__peopleCount">3<\/span> ways/);
     expect(html).toContain("£18.55 each");
+    expect(html).toContain("Selected pints subtotal");
+    expect(html).not.toContain("What the night costs");
   });
 
   it("gives the walk as an estimate and keeps the honest footer", () => {
@@ -249,6 +253,7 @@ describe("the receipt over a crawl that has lost a stop", () => {
       createElement(CrawlReceipt, { crawl: { ...LOST_ONE, stops: [stop(1, null), stop(2, null)], plannedStops: 4 } }),
     ).replace(/<[^>]+>/g, "");
     expect(unpriced).toContain("No stop on this crawl has a listed price yet");
+    expect(unpriced).toContain("2 stops have no listed price.");
     expect(unpriced).toContain("2 planned stops are missing from our pub list, so they are not shown or counted.");
   });
 });
