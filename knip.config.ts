@@ -68,13 +68,14 @@ const config: KnipConfig = {
     // Pint compass contrast defect, so it is kept to re-run the sweep. An
     // entry root, not an ignore: knip traces what it imports.
     "docs/design-explorations/2026-10-30-phone-mockups/contrast.mjs",
-    // The launch video (video/launch/README.md). index.ts is the Remotion
+    // The launch videos (video/launch/README.md). index.ts is the Remotion
     // entry that render.mjs bundles with a renderer installed outside the app,
-    // so no app file imports it; the three .mjs files are the commands the
+    // so no app file imports it; the four .mjs files are the commands the
     // README names to capture the screens, make the sound and render. Entry
     // roots, not ignores: knip traces every scene the entry imports.
     "video/launch/index.ts",
     "video/launch/capture-screens.mjs",
+    "video/launch/capture-pal-screens.mjs",
     "video/launch/make-audio.mjs",
     "video/launch/render.mjs",
   ],

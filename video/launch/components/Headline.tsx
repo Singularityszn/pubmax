@@ -15,9 +15,11 @@ type HeadlineProps = {
   size?: number;
   top: number;
   left: number;
+  /** Wrap onto more lines at this width; omit to keep one line. */
+  maxWidth?: number;
 };
 
-export function Headline({ text, enter, exit, size = 84, top, left }: HeadlineProps) {
+export function Headline({ text, enter, exit, size = 84, top, left, maxWidth }: HeadlineProps) {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const words = text.split(" ");
@@ -42,7 +44,8 @@ export function Headline({ text, enter, exit, size = 84, top, left }: HeadlinePr
         lineHeight: 1.02,
         letterSpacing: "-0.035em",
         color: COLOURS.paper,
-        whiteSpace: "nowrap",
+        whiteSpace: maxWidth === undefined ? "nowrap" : "normal",
+        width: maxWidth,
         opacity: 1 - leave,
         translate: `0px ${-28 * leave}px`,
       }}

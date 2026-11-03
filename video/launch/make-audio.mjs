@@ -290,8 +290,95 @@ function musicBed() {
   return out;
 }
 
+/** A rubber stamp: a low thud under a short slap of paper. */
+function stamp(random) {
+  const out = new Float32Array(Math.ceil(0.5 * RATE));
+  let phase = 0;
+  let low = 0;
+  for (let i = 0; i < out.length; i += 1) {
+    const t = i / RATE;
+    phase += (2 * Math.PI * (52 + 70 * Math.exp(-t * 40))) / RATE;
+    low += 0.25 * (random() * 2 - 1 - low);
+    out[i] = Math.sin(phase) * Math.exp(-t * 14) + low * 2.4 * Math.exp(-t * 55);
+  }
+  return out;
+}
+
+// THE PAL CUT'S BED: 20 seconds, the same 120 BPM, one bar a scene step.
+//   bars 0-1  the job advert: short office-ish stabs on the off-beat
+//   bars 2-6  the Pal at work: the chords and bass of the launch bed
+//   bar 7     out of office: one big chord and a walking bass
+//   bars 8-9  the end card: two held chords, no drums after the first beat
+function palMusicBed() {
+  const seconds = 20;
+  const random = seeded(20261105);
+  const out = buffer(seconds);
+  const kickVoice = kick();
+  const snapVoice = snap(random);
+  const stabs = [
+    { bass: 36, notes: [55, 59, 62, 64] }, // Cmaj9
+    { bass: 45, notes: [55, 60, 64, 67] }, // Am9
+  ];
+  const work = [
+    { bass: 41, notes: [57, 60, 64, 67] }, // Fmaj9
+    { bass: 40, notes: [55, 59, 62, 64] }, // Em7
+    { bass: 38, notes: [53, 57, 60, 64] }, // Dm9
+    { bass: 45, notes: [60, 64, 67, 71] }, // Am9
+    { bass: 43, notes: [53, 57, 60, 62] }, // G9sus
+  ];
+  const drums = (at) => {
+    for (let beat = 0; beat < 4; beat += 1) {
+      const t = at + beat * BEAT;
+      if (beat % 2 === 0) mix(out, kickVoice, t, 0.6);
+      else mix(out, snapVoice, t, 0.32, 0.1);
+      for (let eighth = 0; eighth < 2; eighth += 1) {
+        mix(out, hat(random), t + eighth * (BEAT / 2), eighth ? 0.16 : 0.1, eighth ? 0.35 : -0.35);
+      }
+    }
+  };
+  const chordAt = (chord, at, length, gain = 0.16) => {
+    chord.notes.forEach((note, n) => mix(out, keys(midi(note), length), at + n * 0.006, gain, -0.3 + n * 0.2));
+  };
+
+  stabs.forEach((chord, bar) => {
+    const at = bar * BAR;
+    drums(at);
+    for (let beat = 0; beat < 4; beat += 1) chordAt(chord, at + beat * BEAT + BEAT / 2, 0.16, 0.2);
+    mix(out, bass(midi(chord.bass), BEAT * 0.9), at, 0.5);
+    mix(out, bass(midi(chord.bass), BEAT * 0.9), at + BEAT * 2, 0.4);
+  });
+  work.forEach((chord, index) => {
+    const at = (index + 2) * BAR;
+    drums(at);
+    chordAt(chord, at, BEAT * 2.4);
+    chordAt(chord, at + BEAT * 2.5, BEAT * 1.4);
+    mix(out, bass(midi(chord.bass), BEAT * 2.2), at, 0.55);
+    mix(out, bass(midi(chord.bass + 12), BEAT * 1.2), at + BEAT * 2.5, 0.3);
+  });
+  const outOfOffice = 7 * BAR;
+  drums(outOfOffice);
+  chordAt({ notes: [52, 55, 59, 62, 64] }, outOfOffice, BAR, 0.18);
+  [36, 40, 43, 45].forEach((note, beat) => mix(out, bass(midi(note), BEAT * 0.9), outOfOffice + beat * BEAT, 0.5));
+  const end = 8 * BAR;
+  mix(out, kickVoice, end, 0.5);
+  chordAt({ notes: [57, 60, 64, 67] }, end, BAR, 0.15);
+  mix(out, bass(midi(41), BAR), end, 0.5);
+  chordAt({ notes: [52, 55, 59, 62, 64] }, end + BAR, seconds - end - BAR, 0.15);
+  mix(out, bass(midi(36), 1.8), end + BAR, 0.5);
+
+  const fadeFrom = Math.round((seconds - 1.2) * RATE);
+  for (let i = fadeFrom; i < out[0].length; i += 1) {
+    const gain = 1 - (i - fadeFrom) / (out[0].length - fadeFrom);
+    out[0][i] *= gain;
+    out[1][i] *= gain;
+  }
+  return out;
+}
+
 mkdirSync(OUT, { recursive: true });
 writeWav("music-bed.wav", musicBed(), 0.8);
+writeWav("pal-music-bed.wav", palMusicBed(), 0.8);
+effect("stamp.wav", stamp(seeded(23)), 0.7);
 // The three chat pops climb, one per bubble.
 effect("pop-1.wav", pop(midi(83)), 0.6);
 effect("pop-2.wav", pop(midi(86)), 0.6);

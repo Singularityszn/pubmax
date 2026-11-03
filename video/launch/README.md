@@ -1,15 +1,18 @@
-# PUBMAXX launch video
+# PUBMAXX launch videos
 
-A 15-second square video for an organic post on X. It tells one journey:
-find a pub, build a plan, send it to the group. The words on screen carry the
-story, so it works with the sound off.
+Two square videos for organic posts on X. The words on screen carry each
+story, so both work with the sound off.
 
-| Item | Value |
-| --- | --- |
-| Size | 1080 x 1080, 30 fps, 450 frames, 15 seconds |
-| Video | H.264 (High), yuv420p, BT.709 |
-| Audio | AAC, 48 kHz stereo, about -16 LUFS. The silent cut has no audio track. |
-| Files | `out/pubmaxx-launch.mp4`, `out/pubmaxx-launch-silent.mp4`, `out/pubmaxx-launch-thumbnail.png` |
+| Item | Launch video | Pub Pal cut |
+| --- | --- | --- |
+| Story | Find a pub, build a plan, send it to the group. | Hire the Pub Pal: it does the admin, you do the night. |
+| Length | 15 seconds, 450 frames | 20 seconds, 600 frames |
+| Size | 1080 x 1080, 30 fps | 1080 x 1080, 30 fps |
+| Video | H.264 (High), yuv420p, BT.709 | the same |
+| Audio | AAC, 48 kHz stereo, about -16 LUFS | AAC, 48 kHz stereo, about -17 LUFS |
+| Files | `out/pubmaxx-launch.mp4`, `-silent.mp4`, `-thumbnail.png` | `out/pubmaxx-pubpal.mp4`, `-silent.mp4`, `-thumbnail.png` |
+
+Each silent cut is the same picture with no audio track.
 
 ## What is real and what is drawn
 
@@ -41,13 +44,50 @@ The journey in the captures is one real session on the committed data:
 The planner heads the route with the capture day ("Tue 3 Nov, 18:00"). To
 show a different day, capture again on that day.
 
+## The Pub Pal cut
+
+The idea: most apps are built to sell you something. This one you hire. A
+job advert ("WANTED: Someone to sort tonight.") ticks off what the Pal does,
+and the real 3D Pal takes the job. Then it works, and you clock off.
+
+Every claim in it is shipped behaviour or an approved line:
+
+| On screen | Where it comes from |
+| --- | --- |
+| "Knows the listed pint prices." | The Pal answers from listed prices (captured). |
+| "Shows its sources." | Every Pal card prints its source and date (captured). |
+| "Can't be bought." | `docs/VOICE.md`: "Nobody buys their way to the top." |
+| "Pay: £0." and "Free for drinkers." | Root `AGENTS.md`: a drinker pays for nothing. |
+| "Prices never for sale." | `docs/VOICE.md` and the launch kit's end card. |
+| The ticker | The Pal's four picks, each with its source and the date it was read. |
+
+The 3D Pal is the model the app ships (`public/brand/pals`, copied to
+`public/models/circuit-robin.glb`). `components/PalModel3D.tsx` draws it with
+three.js using the app's own scene from
+`components/pal/originalPalMeshRenderer.mjs`: the same orientation, camera and
+lights. Only the pose belongs to the video, and it is a pure function of the
+frame.
+
+`capture-pal-screens.mjs` records one signed-out journey:
+
+1. `/pal/chat` and the ask "Quick one after work in Clapham under £5".
+2. Four picks, each with its source, and the map of them.
+3. The Pheonix card: £5.00, "Pint Prices. Source read 2 October 2026."
+4. "Use this pub", which keeps it for tonight, then "Make it Stop 1".
+5. The route Plan builds around it (The Pheonix, The Stonhouse, The Belle
+   Vue), "Lock it in" and "Send to the crew".
+
+The cut does not use the Pal's "Open in Plan" draft. That button carries the
+ask over to Plan, not the drafted stops, so Plan can answer with other pubs.
+Showing the draft and then a different route would misdescribe the product.
+
 ## Sound
 
 `make-audio.mjs` synthesises every sound from sine waves and seeded noise:
-the three chat pops, the clicks, the whooshes, the end chime and a 120 BPM
-music bed. Nothing is sampled or downloaded, so there is no third-party
-licence. One bar of the bed is 60 frames, and every scene cut lands on a bar
-line.
+the three chat pops, the clicks, the whooshes, the stamp, the end chime and
+two 120 BPM music beds (15 seconds for the launch video, 20 for the Pal cut).
+Nothing is sampled or downloaded, so there is no third-party licence. One bar
+of a bed is 60 frames, and every scene cut lands on a bar line.
 
 ## Fonts
 
@@ -70,10 +110,15 @@ Then render from the repository root:
 REMOTION_RENDERER_DIR=/tmp/remotion-renderer node video/launch/render.mjs
 ```
 
-The command writes the three files to `video/launch/out` and then checks them
-with ffprobe: 15 seconds, 1080 x 1080, 30 fps, 450 frames, H.264 in yuv420p,
-AAC on the main file and no audio on the silent cut. It stops with an error if
-a check fails.
+```bash
+REMOTION_RENDERER_DIR=/tmp/remotion-renderer node video/launch/render.mjs --cut pal
+```
+
+Each command writes three files to `video/launch/out` and then checks them
+with ffprobe: the composition's length, 1080 x 1080, 30 fps, H.264 in
+yuv420p, AAC on the main file and no audio on the silent cut. It stops with an
+error if a check fails. Chromium renders with SwiftShader's GL, which the 3D
+Pal needs.
 
 To look at single frames while you edit, add `--frames 0,150,449 --frames-only`.
 
@@ -94,8 +139,13 @@ NEXT_DIST_DIR=.next-prod PUBMAX_E2E_KEYLESS=1 PLAN_IDEMPOTENCY_SECRET=$(openssl 
 PUBMAX_CAPTURE_BASE=http://127.0.0.1:34567 node video/launch/capture-screens.mjs
 ```
 
-The script writes the seven captures to `public/screens` and the control
-positions to `screens.json`. If the data changes and Feeley's is no longer in
+```bash
+PUBMAX_CAPTURE_BASE=http://127.0.0.1:34567 node video/launch/capture-pal-screens.mjs
+```
+
+The first script writes the launch video's seven captures to `public/screens`
+and the control positions to `screens.json`; the second writes the Pal cut's
+seven `pal-*.png` captures and `pal-screens.json`. If the data changes and Feeley's is no longer in
 the Clapham view, the script stops and names the step that failed. Choose
 another pub with `PUBMAX_CAPTURE_PUB` and `PUBMAX_CAPTURE_PUB_NAME`, and check
 the crops in `scenes/ProductStage.tsx`.
@@ -104,7 +154,9 @@ the crops in `scenes/ProductStage.tsx`.
 
 | File | What it does |
 | --- | --- |
-| `index.ts`, `Root.tsx` | The Remotion entry and root: the video, the silent cut, the thumbnail still and each scene on its own. |
+| `index.ts`, `Root.tsx` | The Remotion entry and root: both videos, their silent cuts and thumbnails, and the launch video's scenes on their own. |
+| `pal/` | The Pub Pal cut: the job advert, the Pal at work, the price ticker, out of office, the end card and the thumbnail. |
+| `components/PalModel3D.tsx` | The real 3D Pal, drawn frame by frame. |
 | `LaunchVideo.tsx` | The timeline and the sound cues. |
 | `theme.ts` | Colours, fonts, scene timings and the copy, exactly as the brief supplies it. |
 | `scenes/` | The hook, the product stage (find, plan, share), the end card, the thumbnail and the night backdrop. |

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Renders the launch video, its silent cut and its thumbnail, then checks the
-// files with ffprobe.
+// Renders one of the two launch videos, its silent cut and its thumbnail, then
+// checks the files with ffprobe.
 //
 // The renderer is not an app dependency (it pulls in webpack and a compositor
 // binary no page needs), so it is installed once in a scratch folder at the
@@ -11,12 +11,14 @@
 //   REMOTION_RENDERER_DIR=/tmp/remotion-renderer node video/launch/render.mjs
 //
 // Options:
+//   --cut launch|pal     which video (default launch; pal is the Pub Pal cut)
 //   --out <dir>          where the files go (default video/launch/out)
 //   --frames 0,75,140    also write those frames as PNG stills, for review
 //   --frames-only        write only those stills (a quick look while editing)
 //
-// Writes pubmaxx-launch.mp4 (H.264, yuv420p, AAC), pubmaxx-launch-silent.mp4
-// (the same picture with no audio track) and pubmaxx-launch-thumbnail.png.
+// Writes <name>.mp4 (H.264, yuv420p, AAC), <name>-silent.mp4 (the same picture
+// with no audio track) and <name>-thumbnail.png, where <name> is
+// pubmaxx-launch or pubmaxx-pubpal.
 
 import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync } from "node:fs";
@@ -32,6 +34,15 @@ function option(name, fallback) {
   return at === -1 ? fallback : argv[at + 1];
 }
 
+const CUTS = {
+  launch: { id: "PubmaxxLaunch", thumbnail: "PubmaxxLaunchThumbnail", name: "pubmaxx-launch" },
+  pal: { id: "PubPalCut", thumbnail: "PubPalCutThumbnail", name: "pubmaxx-pubpal" },
+};
+const cut = CUTS[option("cut", "launch")];
+if (!cut) {
+  console.error(`--cut must be one of ${Object.keys(CUTS).join(", ")}.`);
+  exit(2);
+}
 const out = resolve(option("out", join(HERE, "out")));
 const frames = (option("frames", "") ?? "").split(",").filter(Boolean).map(Number);
 const rendererDir = env.REMOTION_RENDERER_DIR;
@@ -79,17 +90,23 @@ const serveUrl = await bundle({
 });
 
 mkdirSync(out, { recursive: true });
-const browser = { serveUrl, browserExecutable: env.PLAYWRIGHT_CHROMIUM ?? "/opt/pw-browsers/chromium" };
+// The Pal cut draws the 3D model with WebGL, so Chromium gets SwiftShader's
+// GL, as for the Pal stage render.
+const browser = {
+  serveUrl,
+  browserExecutable: env.PLAYWRIGHT_CHROMIUM ?? "/opt/pw-browsers/chromium",
+  chromiumOptions: { gl: "swangle" },
+};
 
-const video = join(out, "pubmaxx-launch.mp4");
-const silent = join(out, "pubmaxx-launch-silent.mp4");
-const thumbnail = join(out, "pubmaxx-launch-thumbnail.png");
+const video = join(out, `${cut.name}.mp4`);
+const silent = join(out, `${cut.name}-silent.mp4`);
+const thumbnail = join(out, `${cut.name}-thumbnail.png`);
 
-const composition = await selectComposition({ ...browser, id: "PubmaxxLaunch", inputProps: { muted: false } });
+const composition = await selectComposition({ ...browser, id: cut.id, inputProps: { muted: false } });
 
 async function writeFrames() {
   for (const frame of frames) {
-    const path = join(out, `frame-${String(frame).padStart(3, "0")}.png`);
+    const path = join(out, `${cut.name}-frame-${String(frame).padStart(3, "0")}.png`);
     await renderStill({ ...browser, composition, frame, output: path, imageFormat: "png", inputProps: { muted: true } });
     console.log(`wrote ${path}`);
   }
@@ -123,14 +140,14 @@ console.log(`\nwrote ${video}`);
 execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-i", video, "-map", "0:v:0", "-c", "copy", "-an", "-movflags", "+faststart", silent]);
 console.log(`wrote ${silent}`);
 
-const still = await selectComposition({ ...browser, id: "PubmaxxLaunchThumbnail" });
+const still = await selectComposition({ ...browser, id: cut.thumbnail });
 await renderStill({ ...browser, composition: still, output: thumbnail, imageFormat: "png" });
 console.log(`wrote ${thumbnail}`);
 
 await writeFrames();
 
-// The checks the post needs: 15.0 s, 1080 x 1080, 30 fps, H.264 in yuv420p,
-// AAC audio on the main file and no audio on the silent one.
+// The checks the post needs: the composition's length, 1080 x 1080, 30 fps,
+// H.264 in yuv420p, AAC audio on the main file and no audio on the silent one.
 function probe(file) {
   return JSON.parse(
     execFileSync("ffprobe", ["-v", "error", "-show_format", "-show_streams", "-of", "json", file], { encoding: "utf8" }),
@@ -156,7 +173,7 @@ for (const [file, wantsAudio] of [[video, true], [silent, false]]) {
   if (picture?.pix_fmt !== "yuv420p") problems.push(`${summary.file}: pixels are ${picture?.pix_fmt}`);
   if (picture?.width !== 1080 || picture?.height !== 1080) problems.push(`${summary.file}: size is ${summary.size}`);
   if (picture?.r_frame_rate !== "30/1") problems.push(`${summary.file}: frame rate is ${picture?.r_frame_rate}`);
-  if (Number(picture?.nb_frames) !== 450) problems.push(`${summary.file}: ${picture?.nb_frames} frames`);
+  if (Number(picture?.nb_frames) !== composition.durationInFrames) problems.push(`${summary.file}: ${picture?.nb_frames} frames`);
   if (wantsAudio && sound?.codec_name !== "aac") problems.push(`${summary.file}: audio is ${sound?.codec_name ?? "missing"}`);
   if (!wantsAudio && sound) problems.push(`${summary.file}: has an audio track`);
 }
