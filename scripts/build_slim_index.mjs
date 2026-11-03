@@ -34,13 +34,34 @@ import {
 import { loadStationZones, nearestStationZone } from "./lib/stationZones.mjs";
 import { isCurrentFamousVenue } from "./lib/currentFamousVenue.mjs";
 import { nightOutPlaceRowValidationErrors } from "../lib/nightOutPlaceContract.mjs";
-import { legacyCheapestPriceEvidence, legacyCheapestPriceReadDay } from "../lib/legacyPriceEvidence.mjs";
-import { isComparablePintServing } from "../lib/comparablePint.mjs";
+import { legacyPintPriceObservedAt, namedLegacyPintPriceSource } from "../lib/legacyPriceEvidence.mjs";
+import { priceRowReadDay } from "../lib/priceReadDay.mjs";
 import { isCurrentVenueRow, isLivePriceRow } from "../lib/priceRowEligibility.mjs";
 import { legacyOsmVenueKind } from "../lib/legacyOsmVenueKind.mjs";
 import { buildVenueFeatureHints } from "./lib/venueFeatureHints.mjs";
 import { readPlacesEnrichmentPacks } from "./lib/placesEnrichmentStamp.mjs";
 import { UK_OSM_PUBS_FILE } from "../lib/ukOsmPubsFile.mjs";
+
+export function selectSlimPriceRow(prices) {
+  return prices.reduce((best, row) => {
+    const price = row.price_gbp;
+    if (typeof price !== "number" || !Number.isFinite(price)) return best;
+    return !best || price < best.price_gbp ? row : best;
+  }, null);
+}
+
+export function buildSlimPriceEvidence(row) {
+  if (!row) return {};
+  const source = namedLegacyPintPriceSource(row);
+  const observedAt = legacyPintPriceObservedAt(row);
+  const priceObservedAt = observedAt ? priceRowReadDay({ scraped_at_values: observedAt }) : null;
+  return {
+    ...(source ? { priceSource: source.label, priceSourceUrl: source.url } : {}),
+    ...(row.pint_name ? { cheapestPint: row.pint_name } : {}),
+    ...(row.measure ? { measure: row.measure } : {}),
+    ...(priceObservedAt ? { priceObservedAt } : {}),
+  };
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -859,17 +880,6 @@ function applyFeatureHints(venue, feature) {
     }
 }
 
-export function buildSlimPriceEvidence(prices, cheapestPrice) {
-  const priceObservedAt = legacyCheapestPriceReadDay(prices, cheapestPrice);
-  const { priceSource, cheapestPint, measure } = legacyCheapestPriceEvidence(prices, cheapestPrice);
-  return {
-    ...(cheapestPint && !isComparablePintServing({ cheapestPint, measure }) ? { cheapestPint } : {}),
-    ...(measure != null ? { measure } : {}),
-    ...(priceSource ? { priceSource } : {}),
-    ...(priceObservedAt ? { priceObservedAt } : {}),
-  };
-}
-
 async function main() {
   const rawText = await readFile(RAW_PATH, "utf8");
   const rows = JSON.parse(rawText);
@@ -946,15 +956,11 @@ async function main() {
         Math.abs(row.lng - Number(first.longitude)) < 0.001,
     );
     if (duplicateFamousVenue) continue;
-    const numericPrices = prices
-      .map((p) => p.price_gbp)
-      .filter((p) => typeof p === "number" && Number.isFinite(p));
-    const cheapestPrice = numericPrices.length
-      ? Math.min(...numericPrices)
-      : null;
+    const selectedPrice = selectSlimPriceRow(prices);
+    const cheapestPrice = selectedPrice?.price_gbp ?? null;
     // The publisher and day both come from the same minimum-price row.
     // A second row at the same price cannot supply this publisher's date.
-    const priceEvidence = buildSlimPriceEvidence(prices, cheapestPrice);
+    const priceEvidence = buildSlimPriceEvidence(selectedPrice);
     const id = stableVenueIdFromKey(key);
     const locality = groupRows
       .map((row) => String(row.locality ?? "").trim())
