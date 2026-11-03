@@ -45,7 +45,7 @@ The screenshot script is a scratch tool. Step 0.4 makes it a repo command.
 
 | Design | Where it is | What hides it |
 |---|---|---|
-| Drink taps on a Dock, pour line, pint belt, washing line, menu icons (#2456) | `components/ui/dock.tsx`, `app/tonight/TonightPintBelt.tsx`, `components/nav/siteNav.css` | Not deployed. Then: taps need a desktop mouse; the belt needs 641px or wider and a thin night; the menu icons need 1024px or wider |
+| Drink taps on a Dock, pour line, pint belt, washing line, menu icons (#2456) | `components/ui/dock.tsx`, `app/tonight/TonightPintBelt.tsx`, `components/nav/siteNav.css` | Not deployed. Taps need a desktop mouse. Menu icons need 1024px or wider. See the [Tonight feature guide](../../README.md#features) for pint presentations. |
 | Night Out dark theme | `lib/themePreference.ts` | Default only from 21:30 to 04:00 London time, or by a tap on the moon |
 | List beside the map, two-pane messages, the command palette | `components/map/MapSplitList.tsx`, `app/messages/messages.css` | Desktop only (1024px or wider) |
 | Price pills on the map | `components/map/canvas/filters.ts` (`PRICE_PILL_MIN_ZOOM = 12`) | Only from zoom 12. The map opens on all of London, below that zoom |
