@@ -208,7 +208,10 @@ it("keeps focus in the price check through a focused retry and restores a useful
 });
 
 
-it.each(["ready", "failed"] as const)("does not pull focus back after the reader leaves a retry (%s)", async (outcome) => {
+it.each([
+  ["ready", "outside control"], ["failed", "outside control"],
+  ["ready", "blur"], ["failed", "blur"],
+] as const)("does not pull focus back after the reader leaves a retry (%s, %s)", async (outcome, departure) => {
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   let resolve!: (module: MissionModule) => void;
   let reject!: (reason: Error) => void;
@@ -224,14 +227,17 @@ it.each(["ready", "failed"] as const)("does not pull focus back after the reader
   act(() => retry.click());
   await settle();
   const outside = host.querySelector<HTMLButtonElement>("#outside")!;
-  outside.focus();
+  if (departure === "outside control") outside.focus();
+  else (document.activeElement as HTMLElement).blur();
+  const retainedFocus = departure === "outside control" ? outside : document.body;
+  expect(document.activeElement).toBe(retainedFocus);
   function Mission() { return <button type="button">Log a price</button>; }
   await act(async () => {
     if (outcome === "ready") resolve({ default: Mission });
     else reject(new Error("ChunkLoadError"));
   });
   await settle();
-  expect(document.activeElement).toBe(outside);
+  expect(document.activeElement).toBe(retainedFocus);
   expect(host.querySelector('[role="status"]')).toBeNull();
   if (outcome === "ready") expect(host.textContent).toContain("Log a price");
   else expect(host.querySelector('[role="alert"]')?.textContent).toContain("Try again");
@@ -314,13 +320,16 @@ async function retryWithPendingMissionRead() {
   };
 }
 
-it("hands retry focus to the real mission controls after its independent data read", async () => {
+it("retains the named retry position when real mission controls arrive after their data read", async () => {
   const pending = await retryWithPendingMissionRead();
+  const anchor = document.activeElement;
   await act(async () => pending.succeed());
   await settle();
   const log = host!.querySelector<HTMLButtonElement>(".pemOpen")!;
   expect(log?.textContent).toBe("Log it");
-  expect(document.activeElement).toBe(log);
+  expect(document.activeElement).toBe(anchor);
+  expect(document.activeElement).not.toBe(document.body);
+  expect(document.activeElement?.textContent).toBe("Price check");
   const skip = host!.querySelector<HTMLButtonElement>(".pemSkip")!;
   skip.focus();
   await act(async () => root!.render(pending.view([{ ...cards[0], cheapestPrice: 5.5 }])));
@@ -334,26 +343,43 @@ it("hands retry focus to the real mission controls after its independent data re
   expect(host!.querySelector("h1")?.textContent).toBe("Primary Pint answer");
 });
 
-it.each(["success", "failure"] as const)("cancels retry focus when the reader leaves during the mission data read (%s)", async (outcome) => {
+it("retains the named retry position when the mission data read fails", async () => {
+  const pending = await retryWithPendingMissionRead();
+  const anchor = document.activeElement;
+  await act(async () => pending.fail());
+  await settle();
+  expect(host!.querySelector(".pemSlot")).toBeNull();
+  expect(document.activeElement).toBe(anchor);
+  expect(document.activeElement).not.toBe(document.body);
+  expect(document.activeElement?.textContent).toBe("Price check");
+});
+
+it.each([
+  ["success", "outside control"], ["failure", "outside control"],
+  ["success", "blur"], ["failure", "blur"],
+] as const)("preserves focus after departure during the mission data read (%s, %s)", async (outcome, departure) => {
   const pending = await retryWithPendingMissionRead();
   const outside = host!.querySelector<HTMLButtonElement>("#outside")!;
-  outside.focus();
+  if (departure === "outside control") outside.focus();
+  else (document.activeElement as HTMLElement).blur();
+  const retainedFocus = departure === "outside control" ? outside : document.body;
+  expect(document.activeElement).toBe(retainedFocus);
   await act(async () => {
     if (outcome === "success") pending.succeed();
     else pending.fail();
   });
   await settle();
-  expect(document.activeElement).toBe(outside);
+  expect(document.activeElement).toBe(retainedFocus);
   if (outcome === "success") expect(host!.querySelector(".pemOpen")?.textContent).toBe("Log it");
   else expect(host!.querySelector(".pemSlot")).toBeNull();
   pending.failRender();
   await act(async () => root!.render(pending.view()));
   await settle();
   expect(host!.querySelector('[role="alert"]')?.textContent).toContain("Try again");
-  expect(document.activeElement).toBe(outside);
+  expect(document.activeElement).toBe(retainedFocus);
 });
 
-it("keeps a cancelled handoff cancelled if the reader returns to its anchor", async () => {
+it("retains the named retry position if the reader returns before the data read settles", async () => {
   const pending = await retryWithPendingMissionRead();
   const anchor = document.activeElement as HTMLElement;
   host!.querySelector<HTMLButtonElement>("#outside")!.focus();
@@ -364,12 +390,14 @@ it("keeps a cancelled handoff cancelled if the reader returns to its anchor", as
   expect(document.activeElement).toBe(anchor);
 });
 
-it.each(["signed-out", "unverified", "different-owner", "disabled"] as const)("discards a data-pending focus handoff on %s", async (transition) => {
+it.each(["signed-out", "unverified", "different-owner", "disabled"] as const)("discards the data-pending focus position on %s", async (transition) => {
   const pending = await retryWithPendingMissionRead();
+  const anchor = document.activeElement;
   if (transition === "signed-out") auth.user = null;
   if (transition === "unverified") auth.identityResolved = false;
   if (transition === "different-owner") auth.user = { id: "owner-two" };
   await act(async () => root!.render(pending.view(cards, transition !== "disabled")));
+  expect(anchor?.isConnected).toBe(false);
   const outside = host!.querySelector<HTMLButtonElement>("#outside")!;
   outside.focus();
   await act(async () => pending.succeed());

@@ -25,39 +25,13 @@ function MissionFocus({ children, transfer }: { children: ReactNode; transfer: R
       return nodes;
     };
     const holdsFocus = () => document.activeElement === anchor || phaseNodes().some((node) => node.contains(document.activeElement));
-    let observer: MutationObserver | undefined;
-    const stop = () => {
-      observer?.disconnect();
-      document.removeEventListener("focusin", onFocus);
-    };
-    const onFocus = () => {
-      if (holdsFocus()) return;
-      transfer.current = false;
-      stop();
-    };
-    const handoff = () => {
+    if (transfer.current) {
       const selector = 'button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]';
       const target = phaseNodes().flatMap((node) => [node, ...node.querySelectorAll<HTMLElement>(selector)])
         .find((node) => node.matches(selector) && !node.closest('[hidden], [inert], [aria-hidden="true"]'));
-      if (!target) return;
-      target.focus();
-      transfer.current = false;
-      stop();
-    };
-    if (transfer.current && anchor?.parentElement) {
-      observer = new MutationObserver(handoff);
-      observer.observe(anchor.parentElement, {
-        childList: true,
-        subtree: true,
-        attributes: true,
-        attributeFilter: ["disabled", "hidden", "inert", "aria-hidden", "tabindex", "href"],
-      });
-      document.addEventListener("focusin", onFocus);
-      anchor.focus();
-      handoff();
+      (target ?? anchor)?.focus();
     }
     return () => {
-      stop();
       transfer.current = holdsFocus();
     };
   }, [transfer]);
