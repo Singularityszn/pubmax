@@ -13,7 +13,10 @@ vi.mock("@/app/social/SocialLazy", async (importOriginal) => {
 });
 vi.mock("next/link", () => ({
   useLinkStatus: () => ({ pending: false }),
-  default: ({ href, children, prefetch: _prefetch, ...props }: { href: string; children?: ReactNode; prefetch?: boolean }) => createElement("a", { href, ...props }, children),
+  default: ({ href, children, ...props }: { href: string; children?: ReactNode; prefetch?: boolean }) => {
+    delete props.prefetch;
+    return createElement("a", { href, ...props }, children);
+  },
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), prefetch: vi.fn() }) }));
 vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => ({ accountRevision: 0, identityResolved: true, user: { id: "reader" } }) }));
