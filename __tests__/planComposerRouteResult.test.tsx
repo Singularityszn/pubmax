@@ -169,6 +169,68 @@ async function typeTuneQuery(query: string): Promise<void> {
 }
 
 describe("the Plan result", () => {
+  it("restores the new Ask route when only session storage saves generation", async () => {
+    const sixStops = Array.from({ length: 6 }, (_, index) => ({
+      venueId: `old-${index + 1}`, venueName: `Old pub ${index + 1}`,
+    }));
+    let response = { ...GENERATED, stops: sixStops, inferredContext: { ...GENERATED.inferredContext, stopCount: 6 } };
+    fetchMock.mockImplementation(async (input) => new Response(JSON.stringify(
+      String(input).includes("/api/plans/generate") ? response : [],
+    ), { status: 200, headers: { "content-type": "application/json" } }));
+    await mountComposer();
+    await sortIt("Six pubs in Clapham tonight");
+    expect(document.querySelectorAll(".planStop__name")).toHaveLength(6);
+    const local = blockStorageWrites("localStorage");
+    const oldRoute = local.getItem("pubmaxx:plan-route-draft:v1");
+    response = { ...GENERATED, stops: [{ venueId: "new-one", venueName: "New pub" }], inferredContext: { ...GENERATED.inferredContext, stopCount: 1 } };
+    writeAskPlanDraft({ query: "One pub in Clapham tonight", stopIds: [], stopNames: [], createdAt: new Date().toISOString() });
+    await remountComposer();
+    await openTune();
+    await sortAgainFromTune();
+    expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent)).toEqual(["New pub"]);
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.stops.map((stop) => stop.venueId)).toEqual(["new-one"]);
+    expect(local.getItem("pubmaxx:plan-route-draft:v1")).toBe(oldRoute);
+
+    await remountComposer();
+    // The confirmed Ask owns the restored route, even though the local route is still readable.
+    expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent)).toEqual(["New pub"]);
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.stops.map((stop) => stop.venueId)).toEqual(["new-one"]);
+    expect(document.body.textContent).toContain("Opening and travel checks are unavailable for this restored draft.");
+    await act(async () => {
+      const name = document.querySelector<HTMLInputElement>("#plan-name")!;
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(name, "Captain");
+      name.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(document.querySelector("#plan-lock-hint")?.textContent).toBe("Refresh the route before locking it in.");
+    await openTune();
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("1");
+    await sortAgainFromTune();
+    const generation = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate")).at(-1)!;
+    const sent = JSON.parse(String(generation[1]?.body));
+    expect(sent.query).toBe("One pub in Clapham tonight");
+    expect(sent.context.stopCount).toBe(1);
+    expect(sent.intake.stopCount).toBe(1);
+  });
+
+  it.each(["older", "equal", "legacy", "missing intake"])("keeps local route recovery when the session save is %s", async (age) => {
+    seedCountRecovery(6);
+    const savedAt = Date.now() - 2000;
+    expect(writePlanIntakeDraft(readPlanIntakeDraft()!, localStorage, savedAt)).toBe(true);
+    const plan = {
+      ...parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))!,
+      stops: [{ key: 1, venueId: "session-only", venueName: "Session pub" }],
+    };
+    if (age === "legacy") {
+      sessionStorage.setItem(PLAN_DRAFT_KEY, JSON.stringify(plan));
+    } else {
+      expect(writePlanDraftEnvelope(plan, "manual", sessionStorage, savedAt + (age === "equal" ? 0 : age === "older" ? -1000 : 1000)).v2).toBe(true);
+    }
+    if (age === "missing intake") localStorage.removeItem(PLAN_INTAKE_STORAGE_KEY);
+    await mountComposer();
+    // Without a strictly newer dated session save, keep the established local route preference.
+    expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent)).toEqual(["Pub A", "Pub B"]);
+  });
+
   describe.each(["both", "local", "session", "neither"])("description recovery when %s stores can save", (available) => {
     it.each([
       { source: "Ask", query: "Clapham tonight", requested: undefined },
@@ -181,18 +243,20 @@ describe("the Plan result", () => {
       onTestFinished(() => clock.mockRestore());
       seedCountRecovery(6);
       const oldDraft = { ...parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))!, conciergeQuery: "Six pubs in Clapham tonight" };
-      expect(writePlanDraftEnvelope(oldDraft, "manual", sessionStorage, now - 1000).v2).toBe(true);
-      expect(writePlanIntakeDraft(readPlanIntakeDraft()!, localStorage, now - 1000)).toBe(true);
+      const savedAt = now - 1000;
+      expect(writePlanDraftEnvelope(oldDraft, "manual", sessionStorage, savedAt).v2).toBe(true);
+      expect(writePlanIntakeDraft(readPlanIntakeDraft()!, localStorage, savedAt)).toBe(true);
       if (source === "Ask") {
         writeAskPlanDraft({ query, stopIds: [], stopNames: [], createdAt: new Date(now).toISOString() });
       } else {
-        window.history.replaceState({}, "", `/plan?describe=${encodeURIComponent(query)}`);
+        window.history.replaceState({}, "", `/plan?query=${encodeURIComponent(query)}`);
       }
       const localCanSave = available === "both" || available === "local";
       const sessionCanSave = available === "both" || available === "session";
       const local = localCanSave ? localStorage : blockStorageWrites("localStorage");
       const session = sessionCanSave ? sessionStorage : blockStorageWrites("sessionStorage");
       const notices = () => [...document.querySelectorAll('[role="alert"]')].map((node) => node.textContent);
+      const generations = () => fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"));
 
       await mountComposer();
       await openTune();
@@ -211,11 +275,18 @@ describe("the Plan result", () => {
       if (available === "both") {
         expect(readPlanDraftEnvelope(session)?.savedAt).toBe(readPlanIntakeDraftWithMetadata(local)?.savedAt);
       }
+      if (source === "URL") {
+        expect(generations()).toHaveLength(1);
+        const automatic = JSON.parse(String(generations()[0]![1]?.body));
+        expect(automatic.query).toBe(query);
+        expect(automatic.context.stopCount).toBe(requested);
+        expect(automatic.intake.stopCount).toBe(requested);
+      }
 
       await sortAgainFromTune();
-      const generations = () => fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"));
-      expect(generations()).toHaveLength(1);
-      const immediate = JSON.parse(String(generations()[0]![1]?.body));
+      const initialGenerations = source === "URL" ? 2 : 1;
+      expect(generations()).toHaveLength(initialGenerations);
+      const immediate = JSON.parse(String(generations().at(-1)![1]?.body));
       expect(immediate.query).toBe(query);
       expect(immediate.context.stopCount).toBe(requested);
       expect(immediate.intake.stopCount).toBe(requested);
@@ -225,7 +296,7 @@ describe("the Plan result", () => {
       now += 1000;
       window.history.replaceState({}, "", "/plan");
       await remountComposer();
-      expect(generations()).toHaveLength(1);
+      expect(generations()).toHaveLength(initialGenerations);
       expect(document.querySelectorAll(".planStop__name")).toHaveLength(2);
       await openTune();
       const restoredQuery = available === "local" ? "" : available === "neither" ? oldDraft.conciergeQuery : query;
@@ -236,8 +307,8 @@ describe("the Plan result", () => {
         expect(notices()).toContain("Your latest description could not be restored. Enter it again.");
       }
       await sortAgainFromTune();
-      expect(generations()).toHaveLength(2);
-      const restored = JSON.parse(String(generations()[1]![1]?.body));
+      expect(generations()).toHaveLength(initialGenerations + 1);
+      const restored = JSON.parse(String(generations().at(-1)![1]?.body));
       expect(restored.query).toBe(restoredQuery || undefined);
       expect(restored.context.stopCount).toBe(restoredCount);
       expect(restored.intake.stopCount).toBe(restoredCount);

@@ -3017,8 +3017,32 @@ export default function PlanComposer() {
   }, [hydrated]);
   const recoveredRouteDraft = useMemo(() => {
     if (!hydrated) return null;
-    try { return parsePlanRouteDraft(safeLocalStorage()?.getItem(PLAN_ROUTE_DRAFT_KEY) ?? null); } catch { return null; }
-  }, [hydrated]);
+    try {
+      const route = parsePlanRouteDraft(safeLocalStorage()?.getItem(PLAN_ROUTE_DRAFT_KEY) ?? null);
+      const plan = readPlanDraftEnvelope(safeSessionStorage());
+      const intake = readPlanIntakeDraftWithMetadata();
+      // Paired saves date the local intake and session stops together. A newer
+      // session save can replace an unwritable local route, but not its proof.
+      if (route && plan && !plan.legacy && intake
+        && Date.parse(plan.savedAt ?? "") > Date.parse(intake.savedAt)
+        && JSON.stringify(plan.draft.stops) === JSON.stringify(recoveredDraft?.stops)
+        && (route.stops.length !== plan.draft.stops.length || route.stops.some((stop, index) =>
+          stop.venueId !== plan.draft.stops[index]?.venueId))) return {
+        ...route,
+        stops: plan.draft.stops.map((stop) => ({ ...stop, alternatives: [] })),
+        nightContext: route.nightContext
+          ? { ...route.nightContext, stopCount: normalizePlanStopCount(plan.draft.requestedStopCount) }
+          : null,
+        routeNight: null,
+        routeRevision: null,
+        routeStale: true,
+        groundingProof: null,
+        createOperationKey: null,
+        planAnchor: null,
+      };
+      return route;
+    } catch { return null; }
+  }, [hydrated, recoveredDraft]);
   const recoveredIntake = useMemo(() => {
     if (!hydrated) return { draft: createPlanIntakeDraft(), hasDurableDraft: false, intent: resolveRequestedPlanIntent(null, null, null) };
     const intake = readPlanIntakeDraftWithMetadata();
