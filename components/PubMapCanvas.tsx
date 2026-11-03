@@ -2741,6 +2741,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     let styleLoaded = false;
     let styleEverLoaded = false;
     let usingFallback = false;
+    let pendingFallbackStyleUrl: string | null = null;
     let sceneSettled = false;
     let fallbackTimer: ReturnType<typeof setTimeout> | undefined;
     let hardFailTimer: ReturnType<typeof setTimeout> | undefined;
@@ -3031,6 +3032,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       if (supersede) queuedProtectedStyle = null;
       protectedStyleInFlight = true;
       usingFallback = fallback;
+      pendingFallbackStyleUrl = fallback ? style : null;
       armStyleLoadProtection();
       styleStructureReadyRef.current = false;
       try {
@@ -3070,6 +3072,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       styleStructureReadyRef.current = true;
       styleLoaded = true;
       styleEverLoaded = true;
+      pendingFallbackStyleUrl = null;
       clearStyleLoadProtection();
       if (!protectedStyleInFlight) return;
       protectedStyleInFlight = false;
@@ -3300,9 +3303,36 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         message || "Tile source failure after style load",
       );
     };
+    function isCurrentFallbackStyleError(event: {
+      error?: { url?: unknown };
+      style?: unknown;
+      sourceId?: unknown;
+      tile?: unknown;
+    }): boolean {
+      return mapRef.current === map &&
+        usingFallback &&
+        pendingFallbackStyleUrl !== null &&
+        queuedProtectedStyle === null &&
+        event.error?.url === pendingFallbackStyleUrl &&
+        event.style === map.style &&
+        event.tile === undefined &&
+        event.sourceId === undefined;
+    }
+    function handleInitialStyleFailure(event: Parameters<typeof isCurrentFallbackStyleError>[0], message: string): boolean {
+      if (styleLoaded || styleEverLoaded) return false;
+      // Tile, worker and stale-style errors do not spend the pending timeout.
+      if (isCurrentFallbackStyleError(event)) {
+        clearStyleLoadProtection();
+        surfaceBasemapFailure(message || "Fallback style request failed");
+      } else {
+        swapToBasemapFallback();
+      }
+      return true;
+    }
     map.on("error", (event) => {
       const mapError = event as {
-        error?: { message?: unknown };
+        error?: { message?: unknown; url?: unknown };
+        style?: unknown;
         sourceId?: unknown;
         source?: { type?: unknown };
         tile?: { tileID?: { key?: unknown; canonical?: { x: number; y: number; z: number } } };
@@ -3337,10 +3367,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         mapError.source?.type === "vector" &&
         mapError.tile !== undefined &&
         (silentSourceRetries >= TILE_SILENT_RETRY_MAX || tileSpend.retrySpent);
-      if (!styleLoaded && !styleEverLoaded) {
-        swapToBasemapFallback();
-        return;
-      }
+      if (handleInitialStyleFailure(mapError, message)) return;
       if (tileSpend.surfaced || mapRef.current !== map) return;
       const now = performance.now();
       tileFailureStamps = pruneTileFailures(tileFailureStamps, now);
