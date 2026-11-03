@@ -2,6 +2,7 @@
 
 import { Component, lazy, Suspense, useState, type ComponentProps, type ComponentType, type ReactNode } from "react";
 
+import { useAuth } from "@/components/auth/AuthProvider";
 import { ReadyButton } from "@/components/ui/ready-button";
 
 import type NearPriceEvidenceMission from "./NearPriceEvidenceMission";
@@ -26,10 +27,12 @@ export function createNearPriceEvidencePanel(load: MissionLoader): ComponentType
   const reload = () => { Current = lazy(load); };
   return function NearPriceEvidencePanel(props: MissionProps) {
     const [attempt, setAttempt] = useState(0);
+    const { user, identityResolved } = useAuth();
+    if (!props.enabled || !identityResolved || !user) return null;
     const Mission = Current;
     return (
       <MissionBoundary
-        key={attempt}
+        key={`${user.id}:${attempt}`}
         onFailure={reload}
         failed={<div className="nmnStatus nmnStatusFail" role="alert">
           <p>Price check could not load.</p>

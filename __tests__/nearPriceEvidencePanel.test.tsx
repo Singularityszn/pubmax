@@ -2,12 +2,16 @@
 
 import { act, Component, createContext, useContext, useState, type ComponentType, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { createNearPriceEvidencePanel } from "@/components/nearme/NearPriceEvidencePanel";
 import type { NearMeCard } from "@/lib/nearMeAnswer";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+const auth = vi.hoisted(() => ({ identityResolved: true, user: { id: "owner-one" } as { id: string } | null }));
+vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => auth }));
+beforeEach(() => { auth.identityResolved = true; auth.user = { id: "owner-one" }; });
 
 type MissionProps = { cards: readonly NearMeCard[]; enabled: boolean };
 type MissionModule = { default: ComponentType<MissionProps> };
@@ -135,4 +139,38 @@ it("keeps the Pint answer visible and announces a held price-check import", asyn
 
   expect(host.querySelector("h1")?.textContent).toBe("Primary Pint answer");
   expect(host.querySelector('[role="status"]')?.textContent).toBe("Loading price check.");
+});
+
+it("does not request optional code or show its status before verified sign-in", async () => {
+  const load = vi.fn(() => new Promise<MissionModule>(() => {}));
+  const Panel = createNearPriceEvidencePanel(load);
+  host = document.createElement("div"); document.body.appendChild(host); root = createRoot(host);
+  auth.identityResolved = false;
+  await act(async () => root!.render(<><h1>Primary Pint answer</h1><Panel cards={cards} enabled /></>));
+  expect(load).not.toHaveBeenCalled();
+  expect(host.querySelector('[role="status"]')).toBeNull();
+  auth.identityResolved = true; auth.user = null;
+  await act(async () => root!.render(<><h1>Primary Pint answer</h1><Panel cards={cards} enabled /></>));
+  expect(load).not.toHaveBeenCalled();
+  expect(host.querySelector("h1")?.textContent).toBe("Primary Pint answer");
+});
+
+it("hides a held mission immediately on sign-out and resets a loaded receipt for another owner", async () => {
+  function Mission() { const [draft, setDraft] = useState(""); return <button onClick={() => setDraft("Private draft")}>{draft || "New receipt"}</button>; }
+  let resolve!: (module: MissionModule) => void;
+  const Panel = createNearPriceEvidencePanel(() => new Promise<MissionModule>((done) => { resolve = done; }));
+  host = document.createElement("div"); document.body.appendChild(host); root = createRoot(host);
+  await act(async () => root!.render(<Panel cards={cards} enabled />));
+  auth.user = null;
+  await act(async () => root!.render(<Panel cards={cards} enabled />));
+  expect(host.textContent).toBe("");
+  await act(async () => resolve({ default: Mission }));
+  expect(host.textContent).toBe("");
+  auth.user = { id: "owner-one" };
+  await act(async () => root!.render(<Panel cards={cards} enabled />));
+  act(() => host!.querySelector<HTMLButtonElement>("button")!.click());
+  expect(host.textContent).toBe("Private draft");
+  auth.user = { id: "owner-two" };
+  await act(async () => root!.render(<Panel cards={laterCards} enabled />));
+  expect(host.textContent).toBe("New receipt");
 });
