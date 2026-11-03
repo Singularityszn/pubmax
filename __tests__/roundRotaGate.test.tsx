@@ -8,7 +8,7 @@ import type { Session, User } from "@supabase/supabase-js";
 import { AuthContext, useAuth } from "@/components/auth/authContext";
 import RoundRotaGate from "@/components/wild/RoundRotaGate";
 import { writeWildMode } from "@/lib/wildMode";
-import { writeWildNightPreview } from "@/lib/wildNightPreview";
+import { adoptWildNightPreviewFromAddress, readWildNightPreview, writeWildNightPreview } from "@/lib/wildNightPreview";
 
 const route = vi.hoisted(() => ({ code: "BCDFGH" }));
 vi.mock("next/navigation", () => ({ useParams: () => route }));
@@ -71,7 +71,15 @@ describe("the private turn preview gate", () => {
     expect(host.innerHTML).toBe("");
     await act(async () => { writeWildNightPreview("round-rota"); });
     await expectTracker();
-    await act(async () => { writeWildNightPreview("pub-tarot"); });
+    await act(async () => { writeWildNightPreview("borough-bingo"); });
+    expect(host.innerHTML).toBe("");
+    await act(async () => { writeWildNightPreview("round-rota"); });
+    await expectTracker();
+    await act(async () => {
+      window.history.replaceState(null, "", "/rounds/BCDFGH?wildpreview=not-a-preview");
+      adoptWildNightPreviewFromAddress();
+    });
+    expect(readWildNightPreview()).toBeNull();
     expect(host.innerHTML).toBe("");
   });
 
