@@ -234,22 +234,25 @@ export function buildLondonCollageAreaPrices(
     if (photo.area in prices) continue;
     const [lat, lng] = photo.spot;
     let best: PricedPoint | null = null;
+    let bestPrice = Infinity;
     let count = 0;
     for (const venue of venues) {
-      if (comparableVenuePint(venue, null, false) === null) continue;
+      const price = comparableVenuePint(venue, null, false);
+      if (price === null) continue;
       if (haversineMeters(lat, lng, venue.latitude, venue.longitude) > LONDON_COLLAGE_WALK_METRES) continue;
       count += 1;
       if (
         !best ||
-        venue.cheapestPrice < (best.cheapestPrice as number) ||
-        (venue.cheapestPrice === best.cheapestPrice && venue.name.localeCompare(best.name) < 0)
+        price < bestPrice ||
+        (price === bestPrice && venue.name.localeCompare(best.name) < 0)
       ) {
         best = venue;
+        bestPrice = price;
       }
     }
     if (best) {
       prices[photo.area] = {
-        cheapestPrice: best.cheapestPrice as number,
+        cheapestPrice: bestPrice,
         pubName: best.name,
         pubCount: count,
       };
