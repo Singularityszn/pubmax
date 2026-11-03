@@ -9,7 +9,7 @@
 //
 //   1. ORDER. Nearest first, then ending soonest. The proximity input is the
 //      viewer's coarse night-area CENTRE, never their own point (see
-//      dealProximityAnchor), so ranking by exact metres would be false
+//      lib/nightAreaGeometry.ts), so ranking by exact metres would be false
 //      precision: two pubs 40m apart are the same answer from an anchor that is
 //      already a kilometre out. Distance is therefore bucketed into rings and
 //      `endsAt` orders within a ring. That is what makes "then endsAt" a real
