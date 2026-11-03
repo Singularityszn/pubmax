@@ -55,10 +55,13 @@ test.describe("the Plan result is a route", () => {
 
   for (const theme of ["light", "dark"] as const) {
     test(`enlarged stop text and prices do not overlap in ${theme} theme`, async ({ page }) => {
+      const cdp = await page.context().newCDPSession(page);
+      await cdp.send("Page.setFontSizes", { fontSizes: { standard: 32, fixed: 26 } });
       await storeThemeChoice(page, theme);
       await sortARoute(page);
-      await page.addStyleTag({ content: ":root { font-size: 32px !important; }" });
       await page.evaluate(() => document.fonts.ready);
+      const rootFontSize = await page.locator("html").evaluate((element) => parseFloat(getComputedStyle(element).fontSize));
+      expect(rootFontSize).toBeGreaterThanOrEqual(32);
 
       // The 390px accessibility contract requires separate, readable text.
       // Text rectangles catch overflow even when element boxes do not overlap.
@@ -80,6 +83,7 @@ test.describe("the Plan result is a route", () => {
       });
       await expect(page.locator(".planStop__price")).toHaveText(["£5.60", "£5.20", "£6.60"]);
       expect(overlaps).toEqual([]);
+      await cdp.detach();
     });
   }
 
