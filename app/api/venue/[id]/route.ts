@@ -24,7 +24,7 @@ import { BUNDLE_DEFAULT_CATEGORY, bundlePricesForCategory } from "@/lib/ukPriceB
 import { ukPriceBundleRowsFor } from "@/lib/ukPriceBundle.server";
 import { venuePriceUpdatesFor } from "@/lib/priceUpdates.server";
 import { VENUE_DETAIL_INCLUDE_RETIRED_PARAM } from "@/lib/prefetchVenue";
-import { lookupVenueDetail, venueDetailPriceDatasetDigest } from "@/lib/venueDetailIndex";
+import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 import { venueMenuLookupKeys } from "@/lib/venueMenu";
 import { venueAmenityStatus, venueContacts, type Venue, type VenuePrice } from "@/lib/venues";
 
@@ -122,7 +122,7 @@ export async function GET(
         bundlePrices,
         priceUpdates,
       },
-      priceDatasetDigest: await venueDetailPriceDatasetDigest(),
+      priceDatasetDigest: lookup.status === "found" ? lookup.priceDatasetDigest ?? null : null,
       busyness,
       getIn,
       booking,

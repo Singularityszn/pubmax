@@ -70,7 +70,7 @@ export function useTonightNearbyVenues(near: Coord | null): { rows: readonly Ton
           if (cancelled) return;
           setAnswer({
             key,
-            rows: result.rows.filter((venue) => typeof venue.cheapestPrice === "number"),
+            rows: result.status === "ready" ? result.rows.filter((venue) => typeof venue.cheapestPrice === "number") : [],
             priceDatasetDigest: result.status === "ready" ? result.priceDatasetDigest ?? null : null,
           });
         },
