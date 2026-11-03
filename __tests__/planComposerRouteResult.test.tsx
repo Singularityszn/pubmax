@@ -45,6 +45,7 @@ import PlanComposer, { planComposerVenueIndexPath } from "@/components/plan/Plan
 import { resolveFutureLondonStartIso } from "@/lib/planIntake";
 import { readPlanningIntent, writePlanningIntent } from "@/lib/planningIntent";
 import { parsePlanGenerationRequest } from "@/lib/planGenerationRequest";
+import { parsePlanDraft, PLAN_DRAFT_KEY } from "@/lib/planDraft";
 
 const GENERATED = {
   routeRevision: 1,
@@ -123,6 +124,135 @@ async function sortIt(query: string): Promise<void> {
 }
 
 describe("the Plan result", () => {
+  it("shows the generated opening and travel gaps and replaces them on a new route", async () => {
+    let missingEvidence = ["current_opening_hours", "terminal_get_home"];
+    fetchMock.mockImplementation(async (input) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      return new Response(JSON.stringify(url.includes("/api/plans/generate")
+        ? { ...GENERATED, planningConfidence: { missingEvidence } } : []), { status: 200, headers: { "content-type": "application/json" } });
+    });
+    await mountComposer();
+    await sortIt("Quiet in Clapham for 4");
+    expect(document.body.textContent).toContain("Opening times are not checked.");
+    expect(document.body.textContent).toContain("Check travel before you go.");
+    expect(document.querySelectorAll(".planStop")).toHaveLength(2);
+    const add = [...document.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "Add another stop")!;
+    await act(async () => { add.click(); });
+    expect(document.body.textContent).toContain("Opening and travel checks are unavailable for this draft.");
+    expect(document.body.textContent).not.toContain("Opening times are not checked.");
+    await openTune();
+    missingEvidence = [];
+    await sortAgainFromTune();
+    expect(document.body.textContent).not.toContain("Opening times are not checked.");
+    expect(document.body.textContent).not.toContain("Check travel before you go.");
+    expect(document.querySelectorAll(".planStop")).toHaveLength(2);
+  });
+
+  it("warns that opening and travel checks are unavailable on a restored draft", async () => {
+    localStorage.setItem("pubmaxx:plan-route-draft:v1", JSON.stringify({
+      stops: [{ venueId: "venue-a", venueName: "Pub A" }], nightContext: null,
+    }));
+    await mountComposer();
+    expect(document.body.textContent).toContain("Opening and travel checks are unavailable for this restored draft.");
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Pub A"));
+    fetchMock.mockImplementation(async (input) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      return new Response(JSON.stringify(url.includes("/api/plans/generate")
+        ? { ...GENERATED, planningConfidence: { missingEvidence: [] } } : []), { status: 200, headers: { "content-type": "application/json" } });
+    });
+    await openTune();
+    const field = document.querySelector<HTMLInputElement>("#plan-concierge-query")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(field, "Quiet in Clapham");
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await sortAgainFromTune();
+    expect(document.body.textContent).not.toContain("Opening and travel checks are unavailable for this restored draft.");
+  });
+
+  it.each([
+    { recovery: "session", localWritesFail: true, result: undefined },
+    { recovery: "local", localWritesFail: false, result: "true" },
+  ])("keeps one disclosure beside $recovery-restored stops through edits and regeneration", async ({ localWritesFail, result }) => {
+    const storage = localStorage;
+    const failedWrite = vi.fn(() => { throw new DOMException("Storage is full", "QuotaExceededError"); });
+    if (localWritesFail) {
+      vi.stubGlobal("localStorage", {
+        getItem: storage.getItem.bind(storage),
+        setItem: failedWrite,
+        removeItem: storage.removeItem.bind(storage),
+        clear: storage.clear.bind(storage),
+        key: storage.key.bind(storage),
+        get length() { return storage.length; },
+      } satisfies Storage);
+    }
+    await mountComposer();
+    await sortIt("Quiet in Clapham for 4");
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.stops.map((stop) => stop.venueId))
+      .toEqual(["venue-a", "venue-b"]);
+    if (localWritesFail) {
+      expect(failedWrite).toHaveBeenCalledWith("pubmaxx:plan-route-draft:v1", expect.any(String));
+      expect(localStorage.getItem("pubmaxx:plan-route-draft:v1")).toBeNull();
+    } else {
+      expect(localStorage.getItem("pubmaxx:plan-route-draft:v1")).not.toBeNull();
+    }
+
+    const current = root!;
+    await act(async () => { current.unmount(); });
+    root = null;
+    host?.remove();
+    host = null;
+    await mountComposer();
+    await vi.waitFor(() => expect(document.querySelectorAll(".planStop__name")).toHaveLength(2));
+
+    const notices = () => [...document.querySelectorAll("p")].filter((node) =>
+      node.textContent?.includes("Opening and travel checks are unavailable"));
+    expect(document.querySelector<HTMLElement>("#plan-composer")?.dataset.result).toBe(result);
+    expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent)).toEqual(["Pub A", "Pub B"]);
+    expect(notices()).toHaveLength(1);
+    expect(notices()[0]?.textContent).toBe("Opening and travel checks are unavailable for this restored draft.");
+    expect(notices()[0]?.closest(".planComposer__stops")).not.toBeNull();
+
+    const first = document.querySelector<HTMLElement>(".planStop__open")!;
+    await act(async () => {
+      first.focus();
+      first.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete", bubbles: true, cancelable: true }));
+    });
+    await settle();
+    expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent)).toEqual(["Pub B"]);
+    expect(document.activeElement?.textContent).toBe("Pub B");
+    expect(notices()).toHaveLength(1);
+    expect(notices()[0]?.textContent).toBe("Opening and travel checks are unavailable for this draft.");
+
+    if (result) await openTune();
+    fetchMock.mockImplementation(async (input) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      return new Response(JSON.stringify(url.includes("/api/plans/generate")
+        ? { ...GENERATED, planningConfidence: { missingEvidence: [] } } : []), { status: 200, headers: { "content-type": "application/json" } });
+    });
+    const generate = [...document.querySelectorAll<HTMLButtonElement>(".planComposer__concierge button")]
+      .find((button) => button.textContent?.trim() === (result ? "Plan it again" : "Make a plan"))!;
+    await act(async () => { generate.click(); });
+    await settle();
+    await vi.waitFor(() => expect(document.querySelectorAll(".planStop__name")).toHaveLength(2));
+    expect(notices()).toHaveLength(0);
+    expect(document.activeElement?.id).toBe("plan-route-status");
+  });
+
+  it.each([
+    { gap: "opening_hours", present: "Opening times are not checked.", absent: "Check travel before you go." },
+    { gap: "transport_anchor", present: "Check travel before you go.", absent: "Opening times are not checked." },
+  ])("shows only the applicable $gap warning", async ({ gap, present, absent }) => {
+    fetchMock.mockImplementation(async (input) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      return new Response(JSON.stringify(url.includes("/api/plans/generate")
+        ? { ...GENERATED, planningConfidence: { missingEvidence: [gap] } } : []), { status: 200, headers: { "content-type": "application/json" } });
+    });
+    await mountComposer();
+    await sortIt("Quiet in Clapham for 4");
+    expect(document.body.textContent).toContain(present);
+    expect(document.body.textContent).not.toContain(absent);
+  });
   it("reads the venue index and draws its datalist only once the composer is up", async () => {
     await mountComposer();
     expect(document.querySelector("#plan-describe-first-query")).not.toBeNull();

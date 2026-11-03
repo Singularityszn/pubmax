@@ -22,6 +22,9 @@ describe("buildPlanEndingRecommendations", () => {
     expect(recommendations[0]?.options).toHaveLength(1);
     expect(recommendations[0]?.options[0]).toMatchObject({ closingConfidence: "unknown" });
     expect(recommendations[1]?.options[0]).toMatchObject({ label: "Piccadilly Circus" });
+    expect(recommendations[1]?.confidence).toBe("low");
+    expect(recommendations[1]?.warnings.join(" ")).toContain("not checked");
+    expect(recommendations[1]?.options[0]?.provenance).toEqual([]);
     expect(recommendations[2]?.options).toHaveLength(2);
   });
 

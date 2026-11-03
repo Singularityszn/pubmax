@@ -267,7 +267,8 @@ describe("sitemap()", () => {
     expect(expected.areas).toBeGreaterThan(0);
     expect(familyCount("/routes/")).toBe(expected.namedRoutes);
     expect(expected.drinkBrands).toBeGreaterThan(0);
-    expect(expected.drinkBrandAreas).toBeGreaterThan(0);
+    // R6: no area has supported review evidence, so no area-brand pair publishes.
+    expect(expected.drinkBrandAreas).toBe(0);
     // Sanity floors so a "0 expected" (dataset wipe) can't make the test pass.
     expect(expected.boroughs).toBeGreaterThan(0);
     expect(expected.historic).toBeGreaterThan(0);
@@ -308,13 +309,11 @@ describe("sitemap()", () => {
     expect(below).toBeGreaterThan(0);
   });
 
-  it("gives every advertised brand-by-area page an advertised parent brand page", () => {
+  it("omits area-brand pages without reviews while keeping London brand pages", () => {
     const areaUrls = urls.filter((url) => /\/area\/[^/]+\/drink\/[^/]+$/.test(url));
-    expect(areaUrls.length).toBeGreaterThan(0);
-
-    for (const url of areaUrls) {
-      const brandSlug = url.slice(url.lastIndexOf("/") + 1);
-      expect(urls, `${url} crumbs onto an unpublished /drink/${brandSlug}`).toContain(
+    expect(areaUrls).toEqual([]);
+    for (const brandSlug of ["guinness", "amstel", "neck-oil", "estrella", "peroni", "birra-moretti"]) {
+      expect(urls).toContain(
         `${SITE}/drink/${brandSlug}`,
       );
     }

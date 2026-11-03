@@ -348,22 +348,22 @@ describe("areaSheetOpenDelay — sheet opens as the camera settles", () => {
 describe("areaCoverageLabel + areaElsewhereOptions — honest evidence", () => {
   const now = new Date("2026-07-13T12:00:00.000Z");
 
-  it("shows no warning for a route-ready area", () => {
-    expect(areaCoverageLabel(getNightArea("clapham"), now)).toBeNull();
+  it("shows a warning for an unreviewed area", () => {
+    expect(areaCoverageLabel(getNightArea("clapham"), now)).toEqual({ label: "Rough guess", tone: "discovery" });
   });
 
   it("labels warned areas the way the plan intake does", () => {
     expect(areaCoverageLabel(getNightArea("shoreditch"), now)).toEqual({
-      label: "Not all checked",
-      tone: "capture",
+      label: "Rough guess",
+      tone: "discovery",
     });
     expect(areaCoverageLabel(getNightArea("dalston"), now)).toEqual({
       label: "Rough guess",
       tone: "discovery",
     });
     expect(areaCoverageLabel(getNightArea("richmond"), now)).toEqual({
-      label: "Gone stale",
-      tone: "paused",
+      label: "Rough guess",
+      tone: "discovery",
     });
   });
 
@@ -375,7 +375,7 @@ describe("areaCoverageLabel + areaElsewhereOptions — honest evidence", () => {
       getNightArea("clapham").centre.lng,
       getNightArea("clapham").centre.lat,
     ]);
-    expect(clapham?.coverage).toBeNull();
+    expect(clapham?.coverage).toEqual({ label: "Rough guess", tone: "discovery" });
   });
 });
 
