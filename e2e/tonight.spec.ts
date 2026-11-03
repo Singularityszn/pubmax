@@ -1063,6 +1063,27 @@ for (const width of [390, 600]) {
   }
 }
 
+test("the pint mat turns by keyboard with normal motion", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await storeThemeChoice(page, "light");
+  await openQuietNight(page);
+  const mat = page.getByTestId("tonight-cheap-pints").locator(".beerMat").first();
+  const toggle = mat.locator("button.beerMatToggle");
+  await expect(toggle).toBeVisible();
+  await toggle.focus();
+  await expect(toggle).toBeFocused();
+  await toggle.press("Enter");
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  await expect.poll(() => mat.locator(".beerMatSpin").evaluate((el) => new DOMMatrix(getComputedStyle(el).transform).m11)).toBeLessThan(-0.99);
+  const back = mat.locator(".beerMatBack");
+  await expect(back.locator(".price-plaque")).toBeVisible();
+  await expect(back.locator(".beerMatSource a")).toBeVisible();
+  await expect(back.locator("time")).toBeVisible();
+  await mat.screenshot({ path: testInfo.outputPath("mat-390.png") });
+  await page.screenshot({ path: testInfo.outputPath("tonight-390.png") });
+});
+
 // The walk-times toggle painted at radius 0 (site audit D7, carried by this
 // lane). It is a row control, so it takes the one button system's geometry.
 test("the walk-times toggle wears the button system", async ({ page }) => {
