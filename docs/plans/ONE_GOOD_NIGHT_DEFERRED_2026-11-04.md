@@ -38,3 +38,23 @@ head `d5b040559a14232eb253670ddfda2d34f1c65c59`, which includes A1
 
 The existing browser preview selector is not an access control. A preview must
 still enforce the privacy boundary of every underlying read.
+
+## Ideas outside this build
+
+- Price Heist needs a submission path built on Pint Drops and photo moderation.
+- Hold-a-Table waits for the venue rail in `docs/adr/0011-venue-operator-rail.md`.
+- Night liner notes, Morning After Gazette, and fork and rejoin need privacy designs.
+- A new home page with a static London map waits for evidence from the pilot.
+- New Wave B analytics names wait for the commit that makes a preview normal.
+  Each name needs a registered event and an emitter in that same commit.
+
+## Pilot targets
+
+The plan proposes a pilot with 10 crews in Soho, Shoreditch, and London Bridge.
+The approved targets are:
+
+- 30% of plan makers send a link on their first visit.
+- 30% of invites get an RSVP or map open within 24 hours.
+- 20% of crews plan again within 14 days.
+
+These figures are targets. They are not pilot results.
