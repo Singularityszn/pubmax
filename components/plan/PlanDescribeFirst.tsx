@@ -193,9 +193,7 @@ export default function PlanDescribeFirst({
     onSubmit(withOptions(resolved.query), requestedCountForQuery(resolved.query));
   }
 
-  // One tap to a route. It submits a sentence through the same path as typing,
-  // with the stop count the picker holds, and asks for location only when the
-  // reader taps it with no remembered area to plan.
+  // Location is requested only after a tap, when no remembered area is available.
   function submitOneTap() {
     if (!ready || locating) return;
     setOneTapNote("");
