@@ -11,7 +11,7 @@ import {
   type ParsedPlanDraft,
   type StoredPlanDraft,
 } from "@/lib/planDraft";
-import { arbitratePlanDrafts, resolveRequestedStopCount } from "@/lib/planDraftArbitration";
+import { arbitratePlanDrafts, resolveRequestedPlanIntent } from "@/lib/planDraftArbitration";
 import {
   PLAN_INTAKE_MAX_RAW_BYTES,
   PLAN_INTAKE_STORAGE_KEY,
@@ -99,19 +99,50 @@ describe("requested-count recovery", () => {
     draft: { ...local.draft, answers: { ...local.draft.answers, stopCount: count } },
   });
   it("uses the available store and compares the versioned save times", () => {
-    expect(resolveRequestedStopCount(plan, plan.draft, null)).toBe(1);
-    expect(resolveRequestedStopCount(null, null, localCount(5, NOW))).toBe(5);
-    expect(resolveRequestedStopCount(plan, plan.draft, localCount(5, NOW + 1))).toBe(5);
-    expect(resolveRequestedStopCount(plan, plan.draft, localCount(5, NOW - 1))).toBe(1);
-    expect(resolveRequestedStopCount(plan, plan.draft, localCount(5, NOW))).toBe(1);
+    expect(resolveRequestedPlanIntent(plan, plan.draft, null).stopCount).toBe(1);
+    expect(resolveRequestedPlanIntent(null, null, localCount(5, NOW)).stopCount).toBe(5);
+    expect(resolveRequestedPlanIntent(plan, plan.draft, localCount(5, NOW + 1)).stopCount).toBe(5);
+    expect(resolveRequestedPlanIntent(plan, plan.draft, localCount(5, NOW - 1)).stopCount).toBe(1);
+    expect(resolveRequestedPlanIntent(plan, plan.draft, localCount(5, NOW)).stopCount).toBe(1);
     const unknown = v2Plan(NOW + 1);
-    expect(resolveRequestedStopCount(unknown, unknown.draft, localCount(5, NOW))).toBeUndefined();
+    expect(resolveRequestedPlanIntent(unknown, unknown.draft, localCount(5, NOW)).stopCount).toBeUndefined();
   });
   it("does not invent an ordering for legacy or conflicting session copies", () => {
     const legacy: ParsedPlanDraft = { ...plan, storageVersion: 1, savedAt: null, expiresAt: null, legacy: true };
-    expect(resolveRequestedStopCount(legacy, legacy.draft, localCount(5, NOW + 1))).toBeUndefined();
-    expect(resolveRequestedStopCount(legacy, legacy.draft, localCount(1, NOW + 1))).toBe(1);
-    expect(resolveRequestedStopCount(plan, { ...plan.draft, requestedStopCount: 3 }, localCount(5, NOW + 1))).toBeUndefined();
+    expect(resolveRequestedPlanIntent(legacy, legacy.draft, localCount(5, NOW + 1)).stopCount).toBeUndefined();
+    expect(resolveRequestedPlanIntent(legacy, legacy.draft, localCount(1, NOW + 1)).stopCount).toBe(1);
+    expect(resolveRequestedPlanIntent(plan, { ...plan.draft, requestedStopCount: 3 }, localCount(5, NOW + 1)).stopCount).toBeUndefined();
+  });
+
+  it("discards a description when only newer local intent survives", () => {
+    const stale = v2Plan(NOW, { conciergeQuery: "Six pubs in Clapham tonight", requestedStopCount: 6 });
+    const unknown = { ...local, savedAt: new Date(NOW + 1).toISOString() };
+    expect(resolveRequestedPlanIntent(stale, stale.draft, unknown)).toEqual({
+      stopCount: undefined, conciergeQuery: "", descriptionUnavailable: true,
+    });
+    expect(resolveRequestedPlanIntent(stale, stale.draft, localCount(5, NOW + 1))).toEqual({
+      stopCount: 5, conciergeQuery: "", descriptionUnavailable: true,
+    });
+  });
+
+  it("keeps the session description and count together for equal or newer session saves", () => {
+    const saved = v2Plan(NOW, { conciergeQuery: "One pub in Clapham tonight", requestedStopCount: 1 });
+    for (const savedAt of [NOW - 1, NOW]) {
+      expect(resolveRequestedPlanIntent(saved, saved.draft, localCount(5, savedAt))).toEqual({
+        stopCount: 1, conciergeQuery: "One pub in Clapham tonight", descriptionUnavailable: false,
+      });
+    }
+  });
+
+  it("does not restore uncertain descriptions from undated or conflicting session copies", () => {
+    const saved = v2Plan(NOW, { conciergeQuery: "Six pubs in Clapham tonight", requestedStopCount: 1 });
+    const legacy: ParsedPlanDraft = { ...saved, storageVersion: 1, savedAt: null, expiresAt: null, legacy: true };
+    expect(resolveRequestedPlanIntent(legacy, legacy.draft, localCount(1, NOW))).toEqual({
+      stopCount: 1, conciergeQuery: "", descriptionUnavailable: true,
+    });
+    expect(resolveRequestedPlanIntent(saved, { ...saved.draft, conciergeQuery: "A different description" }, local)).toEqual({
+      stopCount: 1, conciergeQuery: "", descriptionUnavailable: true,
+    });
   });
 });
 

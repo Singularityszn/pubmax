@@ -1,6 +1,6 @@
 "use client";
 
-import { resolveRequestedStopCount } from "@/lib/planDraftArbitration";
+import { resolveRequestedPlanIntent } from "@/lib/planDraftArbitration";
 
 import {
   FormEvent,
@@ -1316,7 +1316,6 @@ type ComposerDraftFields = {
   title: string;
   creatorName: string;
   startTime: string | (() => string);
-  conciergeQuery: string;
 };
 
 /**
@@ -1333,7 +1332,6 @@ function initialComposerDraftFields(
     title: handoff?.title ?? recoveredDraft?.title ?? "Tonight, sorted",
     creatorName: handoff?.creatorName ?? recoveredDraft?.creatorName ?? "",
     startTime: handoff?.startsAt ?? recoveredDraft?.startTime ?? nextEvening,
-    conciergeQuery: recoveredDraft?.conciergeQuery ?? "",
   };
 }
 
@@ -1437,7 +1435,7 @@ function PlanComposerForm({
   recoveredDraft,
   recoveredRouteDraft,
   recoveredIntake,
-  recoveredStopCount: storedStopCount,
+  recoveredIntent,
   hasDurableIntakeDraft,
   handoff: hydratedHandoff,
   canPersist,
@@ -1445,7 +1443,7 @@ function PlanComposerForm({
   recoveredDraft: ReturnType<typeof parsePlanDraft>;
   recoveredRouteDraft: StoredRouteDraft | null;
   recoveredIntake: PlanIntakeDraft;
-  recoveredStopCount: PlanStopCount | undefined;
+  recoveredIntent: ReturnType<typeof resolveRequestedPlanIntent>;
   hasDurableIntakeDraft: boolean;
   handoff: ComposerHydration | null;
   canPersist: boolean;
@@ -1484,7 +1482,7 @@ function PlanComposerForm({
   const urlAsk = urlPrefill.ask;
   const recoveredStopCount = urlAsk
     ? matchPlanStopCount(urlAsk)
-    : storedStopCount;
+    : recoveredIntent.stopCount;
   // Describe-first is the default open. A returning visitor with real,
   // unfinished wizard progress lands back on the wizard instead, so their
   // answers so far are not hidden behind the question they already passed.
@@ -1507,12 +1505,12 @@ function PlanComposerForm({
       entryMode: initialEntryMode,
     });
   const [conciergeQuery, setConciergeQuery] = useState(
-    (askNeedsConciergeField ? urlAsk ?? "" : "") || draftFields.conciergeQuery,
+    (askNeedsConciergeField ? urlAsk ?? "" : "") || recoveredIntent.conciergeQuery,
   );
   const [planIntake, setPlanIntake] = useState(() =>
     applyPlanStopCount(recoveredIntake, null, recoveredStopCount).draft);
   const requestedStopCount = planIntake.answers.stopCount;
-  const [draftSaveFailed, setDraftSaveFailed] = useState(false);
+  const [draftSaveFailure, setDraftSaveFailure] = useState<"all" | "description" | null>(null);
   const [entryMode, setEntryMode] = useState<"describe" | "wizard">(initialEntryMode);
   const [askDraftQuery, setAskDraftQuery] = useState(urlAsk ?? "");
   const askDraftConsumedRef = useRef(false);
@@ -1868,6 +1866,7 @@ function PlanComposerForm({
       && stops[0]?.venueId === acceptedAnchor.venueId
       ? { ...acceptedAnchor, expiresAt: acceptedAnchor.expiresAt }
       : null;
+    const savedAt = Date.now();
     const sessionWrite = writePlanDraftEnvelope({
       title,
       creatorName,
@@ -1876,14 +1875,18 @@ function PlanComposerForm({
       stops,
       ...(requestedStopCount !== undefined ? { requestedStopCount } : {}),
       ...(persistedAcceptedAnchor ? { acceptedAnchor: persistedAcceptedAnchor } : {}),
-    }, persistedAcceptedAnchor ? "planning-intent" : "manual", safeSessionStorage());
-    const intakeSaved = planIntake === recoveredIntake
-      ? hasDurableIntakeDraft
-      : writePlanIntakeDraft(planIntake);
+    }, persistedAcceptedAnchor ? "planning-intent" : "manual", safeSessionStorage(), savedAt);
+    const intakeSaved = hasDurableIntakeDraft || planIntake !== recoveredIntake
+      ? writePlanIntakeDraft(planIntake, undefined, savedAt)
+      : false;
     const hasWork = planIntake !== recoveredIntake || stops.some((stop) => stop.venueId || stop.venueName);
     let cancelled = false;
     void Promise.resolve().then(() => {
-      if (!cancelled) setDraftSaveFailed(hasWork && !sessionWrite.v1 && !sessionWrite.v2 && !intakeSaved);
+      if (!cancelled) setDraftSaveFailure(
+        hasWork && !sessionWrite.v1 && !sessionWrite.v2 && !intakeSaved
+          ? "all"
+          : conciergeQuery.trim() && (!sessionWrite.v1 || !sessionWrite.v2) ? "description" : null,
+      );
     });
     return () => { cancelled = true; };
   }, [canPersist, conciergeQuery, creatorName, handoff?.acceptedAnchor, hasDurableIntakeDraft, planIntake, recoveredIntake, requestedStopCount, startTime, stops, title]);
@@ -2551,8 +2554,15 @@ function PlanComposerForm({
         : routeStatus || (routeStale ? "The route needs refreshing before it can be locked." : "Review the route preview. It stays private until you lock it in.")}
     </p>
   );
-  const draftSaveNotice = draftSaveFailed ? (
-    <p className="planComposer__error" role="alert">Your changes could not be saved on this device. Keep this page open to keep them.</p>
+  const draftSaveMessage = draftSaveFailure === "all"
+    ? "Your changes could not be saved on this device. Keep this page open to keep them."
+    : draftSaveFailure === "description"
+      ? "Your description could not be saved on this device. Keep this page open to keep it."
+      : recoveredIntent.descriptionUnavailable && !conciergeQuery.trim() && !askDraftQuery.trim()
+        ? "Your latest description could not be restored. Enter it again."
+        : "";
+  const draftSaveNotice = draftSaveMessage ? (
+    <p className="planComposer__error" role="alert">{draftSaveMessage}</p>
   ) : null;
   const renderConcierge = (inSheet: boolean) => (
     <section className="planComposer__concierge" {...(inSheet ? { "aria-label": "Describe your outing" } : { "aria-labelledby": "plan-concierge-title" })} aria-busy={sorting}>
@@ -3009,13 +3019,13 @@ export default function PlanComposer() {
     try { return parsePlanRouteDraft(safeLocalStorage()?.getItem(PLAN_ROUTE_DRAFT_KEY) ?? null); } catch { return null; }
   }, [hydrated]);
   const recoveredIntake = useMemo(() => {
-    if (!hydrated) return { draft: createPlanIntakeDraft(), hasDurableDraft: false, stopCount: undefined };
+    if (!hydrated) return { draft: createPlanIntakeDraft(), hasDurableDraft: false, intent: resolveRequestedPlanIntent(null, null, null) };
     const intake = readPlanIntakeDraftWithMetadata();
     const plan = readPlanDraftEnvelope(safeSessionStorage());
     return {
       draft: intake?.draft ?? createPlanIntakeDraft(),
       hasDurableDraft: Boolean(intake),
-      stopCount: resolveRequestedStopCount(plan, recoveredDraft, intake),
+      intent: resolveRequestedPlanIntent(plan, recoveredDraft, intake),
     };
   }, [hydrated, recoveredDraft]);
   // The form is MOUNTED AGAIN once hydrated when there is something to recover,
@@ -3050,7 +3060,7 @@ export default function PlanComposer() {
       recoveredDraft={recoveredDraft}
       recoveredRouteDraft={recoveredRouteDraft}
       recoveredIntake={recoveredIntake.draft}
-      recoveredStopCount={recoveredIntake.stopCount}
+      recoveredIntent={recoveredIntake.intent}
       hasDurableIntakeDraft={recoveredIntake.hasDurableDraft}
       handoff={handoff}
       canPersist={hydrated}

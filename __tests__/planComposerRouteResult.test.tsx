@@ -42,10 +42,10 @@ vi.mock("@/lib/analytics", () => ({
 }));
 
 import PlanComposer, { planComposerVenueIndexPath } from "@/components/plan/PlanComposer";
-import { createPlanIntakeDraft, PLAN_INTAKE_STORAGE_KEY, readPlanIntakeDraft, resolveFutureLondonStartIso, skipRemainingPlanIntake, writePlanIntakeDraft } from "@/lib/planIntake";
+import { createPlanIntakeDraft, PLAN_INTAKE_STORAGE_KEY, readPlanIntakeDraft, readPlanIntakeDraftWithMetadata, resolveFutureLondonStartIso, skipRemainingPlanIntake, writePlanIntakeDraft } from "@/lib/planIntake";
 import { readPlanningIntent, writePlanningIntent } from "@/lib/planningIntent";
 import { parsePlanGenerationRequest } from "@/lib/planGenerationRequest";
-import { parsePlanDraft, PLAN_DRAFT_KEY } from "@/lib/planDraft";
+import { parsePlanDraft, PLAN_DRAFT_KEY, readPlanDraftEnvelope, writePlanDraftEnvelope } from "@/lib/planDraft";
 import { writeAskPlanDraft } from "@/lib/conciergeAskClient";
 import { ASK_PLAN_DRAFT_STORAGE_KEY } from "@/lib/ask/types";
 import { inferNightContext } from "@/lib/nightPlanning";
@@ -169,6 +169,135 @@ async function typeTuneQuery(query: string): Promise<void> {
 }
 
 describe("the Plan result", () => {
+  describe.each(["both", "local", "session", "neither"])("description recovery when %s stores can save", (available) => {
+    it.each([
+      { source: "Ask", query: "Clapham tonight", requested: undefined },
+      { source: "Ask", query: "One pub in Clapham tonight", requested: 1 },
+      { source: "URL", query: "Clapham tonight", requested: undefined },
+      { source: "URL", query: "One pub in Clapham tonight", requested: 1 },
+    ])("keeps query and count authority together for $source: $query", async ({ source, query, requested }) => {
+      let now = Date.now();
+      const clock = vi.spyOn(Date, "now").mockImplementation(() => now++);
+      onTestFinished(() => clock.mockRestore());
+      seedCountRecovery(6);
+      const oldDraft = { ...parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))!, conciergeQuery: "Six pubs in Clapham tonight" };
+      expect(writePlanDraftEnvelope(oldDraft, "manual", sessionStorage, now - 1000).v2).toBe(true);
+      expect(writePlanIntakeDraft(readPlanIntakeDraft()!, localStorage, now - 1000)).toBe(true);
+      if (source === "Ask") {
+        writeAskPlanDraft({ query, stopIds: [], stopNames: [], createdAt: new Date(now).toISOString() });
+      } else {
+        window.history.replaceState({}, "", `/plan?describe=${encodeURIComponent(query)}`);
+      }
+      const localCanSave = available === "both" || available === "local";
+      const sessionCanSave = available === "both" || available === "session";
+      const local = localCanSave ? localStorage : blockStorageWrites("localStorage");
+      const session = sessionCanSave ? sessionStorage : blockStorageWrites("sessionStorage");
+      const notices = () => [...document.querySelectorAll('[role="alert"]')].map((node) => node.textContent);
+
+      await mountComposer();
+      await openTune();
+      expect(document.querySelector<HTMLInputElement>("#plan-concierge-query")?.value).toBe(query);
+      expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe(String(requested ?? 3));
+      expect(document.querySelectorAll(".planStop__name")).toHaveLength(2);
+      if (!sessionCanSave) {
+        expect(notices()).toContain(localCanSave
+          ? "Your description could not be saved on this device. Keep this page open to keep it."
+          : "Your changes could not be saved on this device. Keep this page open to keep them.");
+      } else {
+        expect(notices().some((notice) => notice?.includes("could not be saved"))).toBe(false);
+      }
+      expect(readPlanIntakeDraft(local)?.answers.stopCount).toBe(localCanSave ? requested : 6);
+      expect(parsePlanDraft(session.getItem(PLAN_DRAFT_KEY))?.conciergeQuery).toBe(sessionCanSave ? query : oldDraft.conciergeQuery);
+      if (available === "both") {
+        expect(readPlanDraftEnvelope(session)?.savedAt).toBe(readPlanIntakeDraftWithMetadata(local)?.savedAt);
+      }
+
+      await sortAgainFromTune();
+      const generations = () => fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"));
+      expect(generations()).toHaveLength(1);
+      const immediate = JSON.parse(String(generations()[0]![1]?.body));
+      expect(immediate.query).toBe(query);
+      expect(immediate.context.stopCount).toBe(requested);
+      expect(immediate.intake.stopCount).toBe(requested);
+      expect(readPlanIntakeDraft(local)?.answers.stopCount).toBe(localCanSave ? requested : 6);
+      expect(parsePlanDraft(session.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(sessionCanSave ? requested : 6);
+
+      now += 1000;
+      window.history.replaceState({}, "", "/plan");
+      await remountComposer();
+      expect(generations()).toHaveLength(1);
+      expect(document.querySelectorAll(".planStop__name")).toHaveLength(2);
+      await openTune();
+      const restoredQuery = available === "local" ? "" : available === "neither" ? oldDraft.conciergeQuery : query;
+      const restoredCount = available === "neither" ? 6 : requested;
+      expect(document.querySelector<HTMLInputElement>("#plan-concierge-query")?.value).toBe(restoredQuery);
+      expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe(String(restoredCount ?? 3));
+      if (available === "local") {
+        expect(notices()).toContain("Your latest description could not be restored. Enter it again.");
+      }
+      await sortAgainFromTune();
+      expect(generations()).toHaveLength(2);
+      const restored = JSON.parse(String(generations()[1]![1]?.body));
+      expect(restored.query).toBe(restoredQuery || undefined);
+      expect(restored.context.stopCount).toBe(restoredCount);
+      expect(restored.intake.stopCount).toBe(restoredCount);
+
+      if (available === "local") {
+        await openTune();
+        await typeTuneQuery("One pub in Clapham tonight");
+        expect(notices()).not.toContain("Your latest description could not be restored. Enter it again.");
+        await sortAgainFromTune();
+        expect(JSON.parse(String(generations().at(-1)![1]?.body)).context.stopCount).toBe(1);
+        expect(readPlanIntakeDraft(local)?.answers.stopCount).toBe(1);
+        expect(parsePlanDraft(session.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(6);
+      }
+    });
+  });
+
+  it("keeps equal-time session query and explicit count ahead of conflicting local intake", async () => {
+    seedCountRecovery(6);
+    const savedAt = Date.now() - 1000;
+    const plan = { ...parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))!, conciergeQuery: "One pub in Clapham tonight", requestedStopCount: 3 as const };
+    expect(writePlanDraftEnvelope(plan, "manual", sessionStorage, savedAt).v2).toBe(true);
+    expect(writePlanIntakeDraft(readPlanIntakeDraft()!, localStorage, savedAt)).toBe(true);
+    await mountComposer();
+    await openTune();
+    expect(document.querySelector<HTMLInputElement>("#plan-concierge-query")?.value).toBe(plan.conciergeQuery);
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("3");
+    expect(document.body.textContent).not.toContain("could not be restored");
+    await sortAgainFromTune();
+    const call = fetchMock.mock.calls.find(([input]) => String(input).includes("/api/plans/generate"))!;
+    const sent = JSON.parse(String(call[1]?.body));
+    expect(sent.query).toBe("One pub in Clapham tonight");
+    expect(sent.context.stopCount).toBe(3);
+    expect(sent.intake.stopCount).toBeUndefined();
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(3);
+    expect(readPlanIntakeDraft()?.answers.stopCount).toBe(3);
+  });
+
+  it.each(["undated", "conflicting copies"])("does not infer counts from an uncertain %s session description", async (kind) => {
+    seedCountRecovery();
+    const oldDraft = { ...parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))!, conciergeQuery: "Six pubs in Clapham tonight" };
+    sessionStorage.setItem(PLAN_DRAFT_KEY, JSON.stringify(oldDraft));
+    if (kind === "conflicting copies") {
+      expect(writePlanDraftEnvelope(oldDraft, "manual", sessionStorage).v2).toBe(true);
+      sessionStorage.setItem(PLAN_DRAFT_KEY, JSON.stringify({ ...oldDraft, conciergeQuery: "One pub in Clapham tonight" }));
+    }
+    await mountComposer();
+    await openTune();
+    expect(document.querySelectorAll(".planStop__name")).toHaveLength(2);
+    expect(document.querySelector<HTMLInputElement>("#plan-concierge-query")?.value).toBe("");
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("3");
+    expect(document.body.textContent).toContain("Your latest description could not be restored. Enter it again.");
+    await sortAgainFromTune();
+    const call = fetchMock.mock.calls.find(([input]) => String(input).includes("/api/plans/generate"))!;
+    const sent = JSON.parse(String(call[1]?.body));
+    expect(sent.query).toBeUndefined();
+    expect(sent.context.stopCount).toBeUndefined();
+    expect(sent.intake.stopCount).toBeUndefined();
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBeUndefined();
+  });
+
   it.each([
     { reload: false, localWritesBlocked: false },
     { reload: false, localWritesBlocked: true },
