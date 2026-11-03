@@ -239,7 +239,7 @@ Area readiness describes confidence and does not gate Plan generation. A draft c
 
 **Status: IMPLEMENTED LOCALLY.** (This is `docs/plans/sol.md`'s `/api/plans/generate`; supersedes #252's `/api/companion/recommend`.)
 
-Keyless. Produces a grounded three-stop draft route from a Night Area + NightContext, with per-stop reasons and explicit context attribution. Does **not** persist a Plan — it returns a draft the client can then create/save via `POST /api/plans`.
+The endpoint supports keyless generation. It produces a grounded draft route from a Night Area and NightContext, with per-stop reasons and explicit context attribution. The [stop-count policy](rules/lib-venues-areas-listings-and-nights.md#a-plan-may-be-one-pub-and-lib-planstopcount-ts-is-the-whole-vocabulary) owns the supported counts and default. This endpoint does not persist a Plan. The client can save the returned draft through `POST /api/plans`.
 
 ### Request
 
@@ -276,7 +276,7 @@ unanchored selection path. The anchored lane answers `200` with an `outcome`:
 
 The composer always includes `context` through [`buildPlanGenerationIntakeBody`](../lib/planIntake.ts). It derives transport requirements from the current description, including empty or whitespace-only text. Removing transport wording removes the previous inferred requirement. An `explicitContext.transportConstraints` override still takes precedence. Recovered drink, food, and atmosphere choices remain intact.
 
-Empty or whitespace-only descriptions retain the displayed stop count. New nonempty descriptions can replace the inferred count. Explicit controls and intake answers retain their existing precedence. Request and component coverage live in `__tests__/planIntake.test.ts` and `__tests__/planComposerDescribeLink.test.ts`.
+The composer sends requested stop intent through the [stop-count and draft recovery contract](rules/lib-venues-areas-listings-and-nights.md#a-plan-may-be-one-pub-and-lib-planstopcount-ts-is-the-whole-vocabulary). Request and component coverage live in `__tests__/planIntake.test.ts` and `__tests__/planComposerDescribeLink.test.ts`.
 
 ### Response `200`
 
@@ -288,7 +288,7 @@ type GeneratePlanResponse = {
   stops: Array<{
     venueId: string;
     venueName: string;
-    position: number;                   // 0..2
+    position: number;                   // zero-based stop order
     reason: string;                     // per-stop grounded reason (distance + up to 2 context reasons)
     alternatives: Array<{ venueId: string; venueName: string }>; // next-best swaps
   }>;

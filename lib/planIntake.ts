@@ -809,7 +809,8 @@ export function buildPlanGenerationIntakeBody(
   const sent = skipRemainingPlanIntake(draft);
   // Transport needs come from the current description. Preserve recovered
   // control choices, whose explicit ownership is not stored across reloads.
-  // Clearing the description keeps the stop count currently shown by the composer.
+  // An empty description retains the generated count only without a stopCount override.
+  // The composer supplies requested intent, including undefined, to clear that fallback.
   const retainedStopCount = cleanQuery ? undefined : currentContext?.stopCount;
   const context = {
     ...stripPlanIntakeOwnedContext(currentContext),
