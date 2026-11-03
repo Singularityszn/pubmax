@@ -632,6 +632,10 @@ function generatedStopPrice(row: {
 
 /** Keep the generator's alternatives attached to their stop for preview swaps. */
 export function routeStopsFromGenerated(value: unknown, alternativePool?: unknown): DraftStop[] {
+  return routeStopsFromValue(value, alternativePool, false);
+}
+
+function routeStopsFromValue(value: unknown, alternativePool: unknown, unfinished: boolean): DraftStop[] {
   if (!Array.isArray(value)) return [];
   const candidates = value.slice(0, 6);
   const currentVenueIds = new Set(candidates.flatMap((candidate) => {
@@ -665,7 +669,8 @@ export function routeStopsFromGenerated(value: unknown, alternativePool?: unknow
     const venueName = typeof row.venueName === "string"
       ? row.venueName.trim()
       : typeof row.name === "string" ? row.name.trim() : "";
-    if (!venueId || !venueName) return [];
+    if (!venueId || !venueName) return unfinished && row.venueId === "" && row.venueName === ""
+      ? [{ key: index + 1, venueId: "", venueName: "", alternatives: [] }] : [];
     const nested = routeAlternatives(row.alternatives ?? row.options);
     const alternatives = [...nested, ...pool].filter((alternative, alternativeIndex, all) => (
       !currentVenueIds.has(alternative.venueId)
@@ -773,7 +778,7 @@ export function parsePlanRouteDraft(raw: string | null): StoredRouteDraft | null
   if (!raw || raw.length > 30_000) return null;
   try {
     const value = JSON.parse(raw) as Partial<StoredRouteDraft>;
-    const stops = routeStopsFromGenerated(value.stops);
+    const stops = routeStopsFromValue(value.stops, undefined, true);
     if (!stops.length) return null;
     const nightContext = cleanNightContext(value.nightContext) ?? null;
     const routeStale = value.routeStale === true;
@@ -821,6 +826,22 @@ function readComposerRouteDraft(): {
   const planAnchor: GeneratedPlanAnchor | null = value?.anchorVenueId && value.anchorSource && value.outcome !== "unanchored"
     ? { venueId: value.anchorVenueId, source: value.anchorSource, outcome: value.outcome }
     : null;
+  if (value?.stops.some((stop) => !stop.venueId || !stop.venueName)) return {
+    conflicting,
+    ambiguous,
+    envelope,
+    route: {
+      savedAt: envelope?.savedAt ?? undefined,
+      stops: value.stops,
+      nightContext: null,
+      routeNight: null,
+      routeRevision: null,
+      routeStale: true,
+      groundingProof: null,
+      createOperationKey: null,
+      planAnchor: null,
+    },
+  };
   if (!envelope || envelope.legacy) return {
     conflicting,
     ambiguous,
@@ -1787,7 +1808,9 @@ function PlanComposerForm({
   const [groundingProof, setGroundingProof] = useState(routeDraftFields.groundingProof);
   const [createOperationKey, setCreateOperationKey] = useState(routeDraftFields.createOperationKey);
   const [planAnchor, setPlanAnchor] = useState(routeDraftFields.planAnchor);
+  const [successfulGeneration, setSuccessfulGeneration] = useState(0);
   const routeCopy = useRef({
+    identity: JSON.stringify({ stops: recoveredRouteDraft?.stops, planAnchor: recoveredRouteDraft?.planAnchor }),
     content: composerRouteContent(recoveredRouteDraft),
     savedAt: recoveredRouteDraft?.savedAt,
     generation: 0,
@@ -2018,10 +2041,15 @@ function PlanComposerForm({
       createOperationKey,
       planAnchor,
     };
+    const identity = JSON.stringify({ stops, planAnchor });
     const content = composerRouteContent(routeDraft);
-    const routeChanged = content !== routeCopy.current.content || routeRevealTick !== routeCopy.current.generation;
-    const mayWrite = routeChanged || routeCopy.current.pending;
-    if (routeChanged) routeCopy.current = { content, savedAt: new Date(savedAt).toISOString(), generation: routeRevealTick, pending: false };
+    const routeChanged = identity !== routeCopy.current.identity || successfulGeneration !== routeCopy.current.generation;
+    let mayWrite = content !== routeCopy.current.content || routeCopy.current.pending;
+    if (routeChanged) {
+      routeCopy.current = { identity, content, savedAt: new Date(savedAt).toISOString(), generation: successfulGeneration, pending: false };
+      mayWrite = true;
+    }
+    routeCopy.current.content = content;
     routeCopy.current.pending = false;
     const { hasRouteDetails, routeSaved: routeCopySaved, previewSaved } = persistComposerRouteDraft({
       ...routeDraft,
@@ -2050,7 +2078,7 @@ function PlanComposerForm({
       );
     });
     return () => { cancelled = true; };
-  }, [canPersist, conciergeQuery, createOperationKey, creatorName, groundingProof, handoff?.acceptedAnchor, hasDurableIntakeDraft, nightContext, planAnchor, planIntake, recoveredDraft, recoveredIntake, recoveredIntent, recoveredRequestCreator, recoveredRequestStart, recoveredRequestTitle, requestedStopCount, routeNight, routeRevision, routeStale, routeRevealTick, startTime, stops, title]);
+  }, [canPersist, conciergeQuery, createOperationKey, creatorName, groundingProof, handoff?.acceptedAnchor, hasDurableIntakeDraft, nightContext, planAnchor, planIntake, recoveredDraft, recoveredIntake, recoveredIntent, recoveredRequestCreator, recoveredRequestStart, recoveredRequestTitle, requestedStopCount, routeNight, routeRevision, routeStale, successfulGeneration, startTime, stops, title]);
 
   useEffect(() => {
     if (hasDurableIntakeDraft) return;
@@ -2484,6 +2512,7 @@ function PlanComposerForm({
         return;
       }
       setStops(suggested);
+      setSuccessfulGeneration((generation) => generation + 1);
       setRouteCheckNoticeText(routeCheckNotice(body.planningConfidence));
       setRouteSorted(true);
       setCultureOpener(cleanCultureOpener(body.cultureOpener));

@@ -631,6 +631,77 @@ describe("the Plan result", () => {
     });
   });
 
+  it.each(["Map", "import"])("retains an unfinished %s edit ahead of its complete V2 copy", async (source) => {
+    let now = Date.parse("2026-11-03T12:00:00.000Z");
+    const clock = vi.spyOn(Date, "now").mockImplementation(() => now);
+    onTestFinished(() => clock.mockRestore());
+    seedOlderSession();
+    const response = handoffRoute(true);
+    if (source === "Map") carryRouteToPlan(response);
+    else expect(transferGeneratedRouteToDraft(response, localStorage)).toBe(true);
+    const oldV2 = localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY);
+    const session = blockStorageWrites("sessionStorage");
+    const oldSession = session.getItem(PLAN_DRAFT_V2_KEY);
+    await mountComposer();
+    now += 1000;
+    await act(async () => {
+      [...document.querySelectorAll<HTMLButtonElement>("button")]
+        .find((button) => button.textContent === "Add another stop")!.click();
+    });
+    expect(JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!)).toMatchObject({
+      savedAt: "2026-11-03T12:00:01.000Z",
+      stops: [{ venueId: "venue-a" }, { venueId: "venue-b" }, { venueId: "", venueName: "" }],
+    });
+    expect(readPlanIntakeDraft()?.answers.stopCount).toBe(3);
+    now += 1000;
+    await remountComposer();
+    expectDisplayedRoute(["Pub A", "Pub B"], ["venue-a", "venue-b"]);
+    expect(document.querySelector('input[aria-label="Find a pub for stop 3"]')).not.toBeNull();
+    const preview = JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!);
+    expect(preview).toMatchObject({
+      savedAt: "2026-11-03T12:00:01.000Z", routeStale: true,
+      nightContext: null, routeNight: null, routeRevision: null,
+      groundingProof: null, createOperationKey: null, planAnchor: null,
+    });
+    expect(preview.stops).toEqual([
+      { key: 1, venueId: "venue-a", venueName: "Pub A", alternatives: [] },
+      { key: 2, venueId: "venue-b", venueName: "Pub B", alternatives: [] },
+      { key: 3, venueId: "", venueName: "", alternatives: [] },
+    ]);
+    expect(localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).toBe(oldV2);
+    expect(session.getItem(PLAN_DRAFT_V2_KEY)).toBe(oldSession);
+    expect(readPlanIntakeDraft()?.answers.stopCount).toBe(3);
+    now += 1000;
+    await remountComposer();
+    expect(document.querySelector('input[aria-label="Find a pub for stop 3"]')).not.toBeNull();
+    expect(JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!)).toEqual(preview);
+    expect(readPlanIntakeDraft()?.answers.stopCount).toBe(3);
+    await nameRouteCreator();
+    await act(async () => document.querySelector<HTMLFormElement>("#plan-composer")!.requestSubmit());
+    expect(fetchMock.mock.calls.filter(([input]) => String(input) === "/api/plans")).toHaveLength(0);
+    await openTune();
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("3");
+    await typeTuneQuery("Three pubs in Clapham tonight");
+    expect(document.querySelector<HTMLInputElement>("#plan-concierge-query")?.value).toBe("Three pubs in Clapham tonight");
+    expect(fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"))).toHaveLength(0);
+    fetchMock.mockImplementation(async (input) => new Response(JSON.stringify(String(input).includes("/api/plans/generate") ? {
+      ...GENERATED, groundingProof: "replacement-proof", operationKey: "replacement-operation",
+      stops: [...GENERATED.stops, { venueId: "venue-c", venueName: "Pub C" }],
+    } : []), { status: 200, headers: { "content-type": "application/json" } }));
+    await sortAgainFromTune();
+    const generation = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate")).at(-1)!;
+    expect(JSON.parse(String(generation[1]?.body))).toMatchObject({ context: { stopCount: 3 } });
+    expect(JSON.parse(String(generation[1]?.body)).intake.stopCount).toBeUndefined();
+    expect(JSON.parse(String(generation[1]?.body)).anchor).toBeUndefined();
+    const saved = await submitRecoveredRoute();
+    expect(saved.groundingProof).toBe("replacement-proof");
+    expect(saved.anchor).toBeUndefined();
+    expect(saved.stops).toEqual([
+      { venueId: "venue-a", venueName: "Pub A" }, { venueId: "venue-b", venueName: "Pub B" },
+      { venueId: "venue-c", venueName: "Pub C" },
+    ]);
+  });
+
   it("restores equal-time conflicting route records as an unverified preview", async () => {
     seedOlderSession(6);
     const savedAt = Date.now() - 1000;

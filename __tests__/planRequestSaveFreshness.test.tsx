@@ -203,6 +203,61 @@ async function saveRoute(): Promise<Record<string, unknown>> {
 }
 
 describe("request save age with an unchanged stale route", () => {
+  it("saves failed-generation staleness without advancing the route date", async () => {
+    const advance = pinClock();
+    seedStaleRoute();
+    const route = JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!);
+    localStorage.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify({ ...route, routeStale: false }));
+    await mountComposer();
+    await openTune();
+    advance(1000);
+    fetchMock.mockImplementation(async () => new Response("{}", { status: 503 }));
+    await sortAgainFromTune();
+    expect(JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!)).toMatchObject({
+      savedAt: "2026-11-03T12:00:00.000Z", routeStale: true,
+      stops: [{ venueId: "venue-a", venueName: "Pub A" }],
+    });
+    advance(2000);
+    await remountComposer();
+    expect(document.querySelector(".planStop__name")?.textContent).toBe("Pub A");
+    expect(document.querySelector("#plan-lock-hint")?.textContent).toBe("Refresh the route before locking it in.");
+    expect(readPlanDraftEnvelope(sessionStorage)?.savedAt).toBe("2026-11-03T12:00:00.000Z");
+  });
+
+  it.each(["failure", "empty", "anchor-conflict"].flatMap((outcome) => [false, true].map((samePub) => ({ outcome, samePub }))))(
+    "does not redate an unchanged route after $outcome with matching pubs $samePub", async ({ outcome, samePub }) => {
+    const advance = pinClock();
+    seedStaleRoute();
+    const initial = JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!);
+    localStorage.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify({ ...initial, routeStale: false }));
+    await mountComposer();
+    await openTune();
+    advance(1000);
+    const competing = {
+      ...initial, savedAt: "2026-11-03T12:00:01.000Z",
+      stops: [{ key: 1, venueId: samePub ? "venue-a" : "venue-b", venueName: samePub ? "Pub A" : "Pub B", alternatives: [] }],
+      groundingProof: "competing-proof", createOperationKey: "competing-operation",
+      nightContext: { ...GENERATED.inferredContext, nightArea: "piccadilly-soho", transportConstraints: ["walking"] },
+    };
+    localStorage.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify(competing));
+    fetchMock.mockImplementation(async () => new Response(JSON.stringify(outcome === "anchor-conflict"
+      ? { outcome: "anchor-conflict", message: "Keep this pub" } : { stops: [] }), {
+      status: outcome === "failure" ? 503 : 200,
+      headers: { "content-type": "application/json" },
+    }));
+    advance(2000);
+    await sortAgainFromTune();
+    expect(document.querySelector(".planStop__name")?.textContent).toBe("Pub A");
+    expect(JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!)).toEqual(competing);
+    await remountComposer();
+    expect(document.querySelector(".planStop__name")?.textContent).toBe(samePub ? "Pub A" : "Pub B");
+    expect(JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!)).toMatchObject({
+      savedAt: "2026-11-03T12:00:01.000Z", createOperationKey: "competing-operation",
+      nightContext: { nightArea: "piccadilly-soho", transportConstraints: ["walking"] },
+    });
+    },
+  );
+
   it.each([false, true].flatMap((localBlocked) => [false, true].map((legacy) => ({ localBlocked, legacy }))))("preserves missing-intake count across reloads, blocked: $localBlocked, legacy: $legacy", async ({ localBlocked, legacy }) => {
     const advance = pinClock();
     seedStaleRoute();
