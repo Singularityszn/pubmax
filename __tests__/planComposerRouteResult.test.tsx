@@ -45,6 +45,7 @@ import PlanComposer, { planComposerVenueIndexPath } from "@/components/plan/Plan
 import { createPlanIntakeDraft, PLAN_INTAKE_STORAGE_KEY, readPlanIntakeDraft, readPlanIntakeDraftWithMetadata, resolveFutureLondonStartIso, skipRemainingPlanIntake, writePlanIntakeDraft } from "@/lib/planIntake";
 import { readPlanningIntent, writePlanningIntent } from "@/lib/planningIntent";
 import { parsePlanGenerationRequest } from "@/lib/planGenerationRequest";
+import { reconcilePlanContext } from "@/lib/planGenerationContext";
 import { parsePlanDraft, PLAN_DRAFT_KEY, readPlanDraftEnvelope, writePlanDraftEnvelope } from "@/lib/planDraft";
 import { writeAskPlanDraft } from "@/lib/conciergeAskClient";
 import { ASK_PLAN_DRAFT_STORAGE_KEY } from "@/lib/ask/types";
@@ -170,19 +171,37 @@ async function typeTuneQuery(query: string): Promise<void> {
 
 describe("the Plan result", () => {
   it("restores the new Ask route when only session storage saves generation", async () => {
+    let now = Date.now();
+    const clock = vi.spyOn(Date, "now").mockImplementation(() => now++);
+    onTestFinished(() => clock.mockRestore());
     const sixStops = Array.from({ length: 6 }, (_, index) => ({
       venueId: `old-${index + 1}`, venueName: `Old pub ${index + 1}`,
     }));
-    let response = { ...GENERATED, stops: sixStops, inferredContext: { ...GENERATED.inferredContext, stopCount: 6 } };
+    let response = {
+      ...GENERATED, groundingProof: "old-proof", stops: sixStops.map((stop, index) => ({
+        ...stop, walkingMinutesFromPrevious: index ? 18 : undefined,
+        walkFromVenueId: index ? sixStops[index - 1]!.venueId : undefined,
+      })),
+      operationKey: "old-route-operation", anchored: true, anchorVenueId: "old-1", anchorSource: "near", outcome: "route",
+      inferredContext: { ...GENERATED.inferredContext, nightArea: "piccadilly-soho", stopCount: 6,
+        budgetLimitPence: 2000, transportConstraints: ["walking"] },
+    };
     fetchMock.mockImplementation(async (input) => new Response(JSON.stringify(
       String(input).includes("/api/plans/generate") ? response : [],
     ), { status: 200, headers: { "content-type": "application/json" } }));
     await mountComposer();
-    await sortIt("Six pubs in Clapham tonight");
+    await sortIt("Six pubs in Soho tonight, walking, £20 each");
     expect(document.querySelectorAll(".planStop__name")).toHaveLength(6);
     const local = blockStorageWrites("localStorage");
     const oldRoute = local.getItem("pubmaxx:plan-route-draft:v1");
-    response = { ...GENERATED, stops: [{ venueId: "new-one", venueName: "New pub" }], inferredContext: { ...GENERATED.inferredContext, stopCount: 1 } };
+    expect(JSON.parse(oldRoute!)).toMatchObject({
+      nightContext: { nightArea: "piccadilly-soho", stopCount: 6, transportConstraints: ["walking"] },
+      groundingProof: "old-proof", createOperationKey: "old-route-operation",
+      planAnchor: { venueId: "old-1", outcome: "route" }, routeStale: false,
+    });
+    response = { ...GENERATED, groundingProof: "new-proof", stops: [{ venueId: "new-one", venueName: "New pub", walkingMinutesFromPrevious: undefined, walkFromVenueId: undefined }],
+      operationKey: "new-route-operation", anchored: false, anchorVenueId: "", anchorSource: "", outcome: "route",
+      inferredContext: { ...GENERATED.inferredContext, stopCount: 1, budgetLimitPence: null, transportConstraints: [] } };
     writeAskPlanDraft({ query: "One pub in Clapham tonight", stopIds: [], stopNames: [], createdAt: new Date().toISOString() });
     await remountComposer();
     await openTune();
@@ -202,7 +221,24 @@ describe("the Plan result", () => {
       name.dispatchEvent(new Event("input", { bubbles: true }));
     });
     expect(document.querySelector("#plan-lock-hint")?.textContent).toBe("Refresh the route before locking it in.");
+    await act(async () => document.querySelector<HTMLFormElement>("#plan-composer")!.requestSubmit());
+    expect(fetchMock.mock.calls.filter(([input]) => String(input) === "/api/plans")).toHaveLength(0);
+    // Session stores identity and request intent, but no generated route context.
+    // The old Soho budget and walking preferences must not describe the new pub.
+    expect(document.querySelector(".planBudgetLedger")).toBeNull();
+    expect(document.querySelector('[data-testid="plan-route-summary"]')?.textContent).not.toContain("18 min");
+    // When local writes recover, save the same conservative record before dating the intake.
+    vi.stubGlobal("localStorage", local);
+    await remountComposer();
+    expect(JSON.parse(local.getItem("pubmaxx:plan-route-draft:v1")!)).toEqual({
+      stops: [{ key: 1, venueId: "new-one", venueName: "New pub", alternatives: [] }],
+      nightContext: null, routeNight: null, routeRevision: null, routeStale: true,
+      groundingProof: null, createOperationKey: null, planAnchor: null,
+    });
+    await remountComposer();
+    expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent)).toEqual(["New pub"]);
     await openTune();
+    expect(document.querySelector("#plan-context-area")).toBeNull();
     expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("1");
     await sortAgainFromTune();
     const generation = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate")).at(-1)!;
@@ -210,6 +246,57 @@ describe("the Plan result", () => {
     expect(sent.query).toBe("One pub in Clapham tonight");
     expect(sent.context.stopCount).toBe(1);
     expect(sent.intake.stopCount).toBe(1);
+    expect(sent.context.nightArea).toBe("clapham");
+    expect(sent.context.transportConstraints).toEqual([]);
+    expect(sent.anchor).toBeUndefined();
+    await act(async () => document.querySelector<HTMLFormElement>("#plan-composer")!.requestSubmit());
+    const creation = fetchMock.mock.calls.find(([input]) => String(input) === "/api/plans")!;
+    const saved = JSON.parse(String(creation[1]?.body));
+    expect(saved.stops).toEqual([{ venueId: "new-one", venueName: "New pub" }]);
+    expect(saved.context).toMatchObject({ nightArea: "clapham", stopCount: 1, transportConstraints: [] });
+    expect(saved.groundingProof).toBe("new-proof");
+    expect(saved.anchor).toBeUndefined();
+    expect(saved.status).toBeUndefined();
+    expect(saved.routeReadyAt).toBeUndefined();
+  });
+
+  // The option chips change budget or drinks, never explicit stop-count intent.
+  // These mounted cases reject promoting the visible default or the two returned stops.
+  it.each([
+    { query: "Quiet in Clapham for 4", chips: [], expectedQuery: "Quiet in Clapham for 4", requested: undefined },
+    { query: "Quiet in Clapham for 4", chips: ["£20 crawl"], expectedQuery: "Quiet in Clapham for 4, a £20 crawl", requested: undefined },
+    { query: "Soho for 3, £30.00 per person", chips: ["£20 crawl"], expectedQuery: "Soho for 3, £30.00 per person", requested: undefined },
+    { query: "Quiet in Clapham for 4", chips: ["Dry round"], expectedQuery: "Quiet in Clapham for 4, an alcohol-free dry round", requested: undefined },
+    { query: "Quiet in Clapham for 4", chips: ["Dry round", "£20 crawl"], expectedQuery: "Quiet in Clapham for 4, an alcohol-free dry round, a £20 crawl", requested: undefined },
+    { query: "Camden for 3", chips: [], search: "?dry=1", expectedQuery: "Camden for 3, an alcohol-free dry round", requested: undefined },
+    { query: "One pub in Clapham tonight", chips: ["Dry round", "£20 crawl"], expectedQuery: "One pub in Clapham tonight, an alcohol-free dry round, a £20 crawl", requested: 1 },
+    { query: "One pub in Clapham tonight", chips: ["Dry round", "£20 crawl"], selected: true, expectedQuery: "One pub in Clapham tonight, an alcohol-free dry round, a £20 crawl", requested: 5 },
+  ])("preserves count intent through option submission: $expectedQuery ($requested)", async ({ query, chips, search, selected, expectedQuery, requested }) => {
+    window.history.replaceState({}, "", `/plan${search ?? ""}`);
+    await mountComposer();
+    for (const label of chips) {
+      await act(async () => [...document.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === label)!.click());
+    }
+    if (selected) {
+      await act(async () => [...document.querySelectorAll<HTMLButtonElement>('[aria-label="Number of pub stops"] button')].find((button) => button.textContent?.trim() === "5")!.click());
+    }
+    await sortIt(query);
+    const call = fetchMock.mock.calls.find(([input]) => String(input).includes("/api/plans/generate"))!;
+    const sent = JSON.parse(String(call[1]?.body));
+    expect(sent.query).toBe(expectedQuery);
+    expect(sent.context.stopCount).toBe(requested);
+    expect(sent.intake.stopCount).toBe(requested);
+    const parsed = await parsePlanGenerationRequest(new Request("http://localhost/api/plans/generate", { method: "POST", body: call[1]?.body }));
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) throw new Error(parsed.message);
+    const effective = reconcilePlanContext(parsed.value.query, parsed.value.context, parsed.value.intake, new Date());
+    expect(effective.context.stopCount).toBe(requested ?? 3);
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(requested);
+    expect(readPlanIntakeDraft()?.answers.stopCount).toBe(requested);
+    await remountComposer();
+    await openTune();
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe(String(requested ?? 3));
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(requested);
   });
 
   it.each(["older", "equal", "legacy", "missing intake"])("keeps local route recovery when the session save is %s", async (age) => {

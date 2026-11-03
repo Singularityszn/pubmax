@@ -1894,7 +1894,7 @@ function PlanComposerForm({
 
   useEffect(() => {
     if (!canPersist) return;
-    if (!nightContext && routeRevision === null && !stops.some((stop) => stop.alternatives.length > 0)) return;
+    if (!nightContext && routeRevision === null && !routeStale && !stops.some((stop) => stop.alternatives.length > 0)) return;
     try {
       safeLocalStorage()?.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify({
         stops,
@@ -2565,6 +2565,13 @@ function PlanComposerForm({
   const draftSaveNotice = draftSaveMessage ? (
     <p className="planComposer__error" role="alert">{draftSaveMessage}</p>
   ) : null;
+  const stopCountControl = (
+      <label htmlFor="plan-context-stops">Stops<select id="plan-context-stops" aria-describedby="plan-route-status" value={normalizePlanStopCount(requestedStopCount)} onChange={(event) => {
+        const stopCount = normalizePlanStopCount(Number(event.target.value));
+        if (nightContext) updateNightContext({ stopCount });
+        else updatePlanIntake(applyPlanStopCount(planIntake, null, stopCount).draft);
+      }}>{PLAN_STOP_COUNTS.map((count) => <option key={count} value={count}>{count}</option>)}</select></label>
+  );
   const renderConcierge = (inSheet: boolean) => (
     <section className="planComposer__concierge" {...(inSheet ? { "aria-label": "Describe your outing" } : { "aria-labelledby": "plan-concierge-title" })} aria-busy={sorting}>
       {inSheet ? draftSaveNotice : null}
@@ -2601,6 +2608,7 @@ function PlanComposerForm({
         {conciergeStatus}
       </p>
       {inSheet ? null : routeStaleNotice}
+      {!nightContext ? <div className="planComposer__context">{stopCountControl}</div> : null}
       {nightContext ? (
         <fieldset className="planComposer__context">
           <legend>What PUBMAXX understood. Edit anything.</legend>
@@ -2623,7 +2631,7 @@ function PlanComposerForm({
             <option value="solo">Solo</option><option value="friends">Friends</option><option value="work">Work</option>
           </select></label>
           <label htmlFor="plan-context-people">People<input id="plan-context-people" aria-describedby="plan-route-status" type="number" min="1" max="30" value={nightContext.groupSize ?? ""} onChange={(event) => updateNightContext({ groupSize: event.target.value ? Number(event.target.value) : null })} /></label>
-          <label htmlFor="plan-context-stops">Stops<select id="plan-context-stops" aria-describedby="plan-route-status" value={normalizePlanStopCount(requestedStopCount)} onChange={(event) => updateNightContext({ stopCount: normalizePlanStopCount(Number(event.target.value)) })}>{PLAN_STOP_COUNTS.map((count) => <option key={count} value={count}>{count}</option>)}</select></label>
+          {stopCountControl}
           <label htmlFor="plan-context-budget">Budget<select id="plan-context-budget" aria-describedby="plan-route-status" value={nightContext.budget} onChange={(event) => updateNightContext({ budget: event.target.value as NightContext["budget"] })}>
             <option value="value">Value</option><option value="standard">Standard</option><option value="treat">Treat</option>
           </select></label>
@@ -3022,17 +3030,14 @@ export default function PlanComposer() {
       const plan = readPlanDraftEnvelope(safeSessionStorage());
       const intake = readPlanIntakeDraftWithMetadata();
       // Paired saves date the local intake and session stops together. A newer
-      // session save can replace an unwritable local route, but not its proof.
+      // session save replaces the whole route. Session stores no generated context or proof.
       if (route && plan && !plan.legacy && intake
         && Date.parse(plan.savedAt ?? "") > Date.parse(intake.savedAt)
         && JSON.stringify(plan.draft.stops) === JSON.stringify(recoveredDraft?.stops)
         && (route.stops.length !== plan.draft.stops.length || route.stops.some((stop, index) =>
           stop.venueId !== plan.draft.stops[index]?.venueId))) return {
-        ...route,
         stops: plan.draft.stops.map((stop) => ({ ...stop, alternatives: [] })),
-        nightContext: route.nightContext
-          ? { ...route.nightContext, stopCount: normalizePlanStopCount(plan.draft.requestedStopCount) }
-          : null,
+        nightContext: null,
         routeNight: null,
         routeRevision: null,
         routeStale: true,

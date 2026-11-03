@@ -233,7 +233,7 @@ describe("the Dry round option on the planner", () => {
     expect(button(DRY_ROUND_LABEL).getAttribute("aria-pressed")).toBe("false");
     expect(host!.textContent).toContain(DRY_ROUND_NOTE);
     await act(async () => button("Plan it").click());
-    expect(onSubmit).toHaveBeenCalledWith("Quiet in Clapham for 4", 3);
+    expect(onSubmit).toHaveBeenCalledWith("Quiet in Clapham for 4", undefined);
   });
 
   it("adds the dry round to the ask once tapped, and rides beside the £20 crawl", async () => {
@@ -242,10 +242,10 @@ describe("the Dry round option on the planner", () => {
     await act(async () => button(DRY_ROUND_LABEL).click());
     expect(button(DRY_ROUND_LABEL).getAttribute("aria-pressed")).toBe("true");
     await act(async () => button("Plan it").click());
-    expect(onSubmit).toHaveBeenLastCalledWith("Quiet in Clapham for 4, an alcohol-free dry round", 3);
+    expect(onSubmit).toHaveBeenLastCalledWith("Quiet in Clapham for 4, an alcohol-free dry round", undefined);
     await act(async () => button("£20 crawl").click());
     await act(async () => button("Plan it").click());
-    expect(onSubmit).toHaveBeenLastCalledWith("Quiet in Clapham for 4, an alcohol-free dry round, a £20 crawl", 3);
+    expect(onSubmit).toHaveBeenLastCalledWith("Quiet in Clapham for 4, an alcohol-free dry round, a £20 crawl", undefined);
   });
 
   it("arrives on from Tonight's door, and the server paint leaves it off", async () => {
@@ -259,7 +259,7 @@ describe("the Dry round option on the planner", () => {
     await renderDescribeFirst("Camden for 3", onSubmit);
     expect(button(DRY_ROUND_LABEL).getAttribute("aria-pressed")).toBe("true");
     await act(async () => button("Plan it").click());
-    expect(onSubmit).toHaveBeenCalledWith("Camden for 3, an alcohol-free dry round", 3);
+    expect(onSubmit).toHaveBeenCalledWith("Camden for 3, an alcohol-free dry round", undefined);
     // The reader's own tap still turns it off.
     await act(async () => button(DRY_ROUND_LABEL).click());
     expect(button(DRY_ROUND_LABEL).getAttribute("aria-pressed")).toBe("false");
