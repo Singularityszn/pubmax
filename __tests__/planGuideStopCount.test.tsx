@@ -439,6 +439,10 @@ function emitDiagnostic(record: Record<string, unknown>): void {
 describe("the requested pub-stop count on its way to the generate request", () => {
   it.each([1, 3, 6])("recovers a guide request for %s instead of the earlier picker choice", async (requested) => {
     installNoGeolocation();
+    sessionStorage.setItem(PLAN_DRAFT_KEY, JSON.stringify({
+      title: "Clapham tonight", creatorName: "", startTime: "", conciergeQuery: "Clapham tonight",
+      stops: [{ key: 1, venueId: "venue-a", venueName: "Pub A" }],
+    }));
     await mountComposer();
     await typeInto(await waitForLiveDescribeField(), "Clapham tonight");
     await press(onlyStopCountChoice(5));
