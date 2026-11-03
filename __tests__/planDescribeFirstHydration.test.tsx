@@ -41,6 +41,8 @@ vi.mock("next/navigation", () => ({
 
 import PlanComposer from "@/components/plan/PlanComposer";
 import PlanDescribeFirst from "@/components/plan/PlanDescribeFirst";
+import { PLAN_DRAFT_KEY, PLAN_DRAFT_V2_KEY } from "@/lib/planDraft";
+import { PLAN_INTAKE_STORAGE_KEY, readPlanIntakeDraft } from "@/lib/planIntake";
 
 // PlanComposer paints its form on the server and, when hydration finds a
 // draft or an ask to recover, MOUNTS IT AGAIN so the state initialisers read
@@ -234,21 +236,47 @@ describe("the describe-first field on the form PlanComposer replaces", () => {
 // largest. With nothing to recover the server's form is the form a remount
 // would build, so it is kept and goes live where it stands.
 describe("PlanComposer's hydration remount", () => {
-  async function hydrateAt(search: string) {
+  async function hydrateAt(search: string, clearStorage = true) {
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
     vi.stubGlobal("fetch", vi.fn<typeof fetch>(async () => new Response("{}", { status: 503 })));
     window.history.replaceState(null, "", `/plan${search}`);
     // Drafts an earlier test left behind are exactly what a remount recovers.
-    window.localStorage.clear();
-    window.sessionStorage.clear();
+    if (clearStorage) {
+      window.localStorage.clear();
+      window.sessionStorage.clear();
+    }
     host = document.createElement("div");
     host.innerHTML = renderToString(createElement(PlanComposer));
     document.body.append(host);
     const painted = host.querySelector("#plan-composer");
+    expect(field().readOnly).toBe(true);
     await act(async () => {
       root = hydrateRoot(host!, createElement(PlanComposer));
     });
     return { painted, live: host.querySelector("#plan-composer") };
+  }
+
+  async function reload() {
+    await act(async () => root!.unmount());
+    root = null;
+    host!.remove();
+    host = null;
+    return hydrateAt("", false);
+  }
+
+  function blockStorageWrites() {
+    for (const name of ["localStorage", "sessionStorage"] as const) {
+      const storage = window[name];
+      storage.clear();
+      vi.stubGlobal(name, {
+        getItem: storage.getItem.bind(storage),
+        setItem: () => { throw new DOMException("Storage is full", "QuotaExceededError"); },
+        removeItem: storage.removeItem.bind(storage),
+        clear: storage.clear.bind(storage),
+        key: storage.key.bind(storage),
+        get length() { return storage.length; },
+      } satisfies Storage);
+    }
   }
 
   afterEach(() => {
@@ -261,6 +289,45 @@ describe("PlanComposer's hydration remount", () => {
     expect(painted).not.toBeNull();
     expect(live).toBe(painted);
     expect(field().readOnly).toBe(false);
+  });
+
+  it.each([false, true])("leaves an untouched first visit unsaved across hydration and reload with writes blocked: %s", async (blocked) => {
+    if (blocked) blockStorageWrites();
+    const initial = await hydrateAt("");
+    expect(initial.live).toBe(initial.painted);
+
+    for (let visit = 0; visit < 2; visit += 1) {
+      expect(field()).not.toBeNull();
+      expect(field().readOnly).toBe(false);
+      expect(field().value).toBe("");
+      expect(button("Plan it")).toBeDefined();
+      expect(window.localStorage.getItem(PLAN_INTAKE_STORAGE_KEY)).toBeNull();
+      expect(window.sessionStorage.getItem(PLAN_DRAFT_KEY)).toBeNull();
+      expect(window.sessionStorage.getItem(PLAN_DRAFT_V2_KEY)).toBeNull();
+      expect(host!.textContent).not.toContain("Your changes could not be saved");
+      expect(host!.textContent).not.toContain("Your description could not be saved");
+      if (visit === 0) {
+        const next = await reload();
+        expect(next.live).toBe(next.painted);
+      }
+    }
+  });
+
+  it.each([false, true])("recognises a real stop-count edit after hydration with writes blocked: %s", async (blocked) => {
+    if (blocked) blockStorageWrites();
+    await hydrateAt("");
+    await act(async () => button("5").click());
+
+    expect(button("5").getAttribute("aria-pressed")).toBe("true");
+    if (blocked) {
+      expect(window.localStorage.getItem(PLAN_INTAKE_STORAGE_KEY)).toBeNull();
+      expect(host!.textContent).toContain("Your changes could not be saved on this device. Keep this page open to keep them.");
+    } else {
+      expect(readPlanIntakeDraft()?.answers.stopCount).toBe(5);
+      expect(host!.textContent).not.toContain("Your changes could not be saved");
+      await reload();
+      expect(readPlanIntakeDraft()?.answers.stopCount).toBe(5);
+    }
   });
 
   it("still mounts the form again when the address carries an ask", async () => {
