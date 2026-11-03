@@ -6,7 +6,26 @@ import {
 import type { ParsedPlanDraft, StoredPlanDraft } from "@/lib/planDraft";
 import type { ParsedPlanIntakeDraft } from "@/lib/planIntake";
 import type { ParsedPlanRouteDraft } from "@/lib/planRouteDraft";
+import type { PlanStopCount } from "@/lib/planStopCount";
 import type { PlanningIntentArea, PlanningIntentV1 } from "@/lib/planningIntent";
+
+/** Resolve count intent without assigning an age to unversioned work. */
+export function resolveRequestedStopCount(
+  plan: ParsedPlanDraft | null,
+  legacyDraft: StoredPlanDraft | null,
+  intake: ParsedPlanIntakeDraft | null,
+): PlanStopCount | undefined {
+  const planCount = plan?.draft.requestedStopCount;
+  const intakeCount = intake?.draft.answers.stopCount;
+  if (plan && !plan.legacy && legacyDraft && legacyDraft.requestedStopCount !== planCount) return undefined;
+  if (!plan) return intakeCount;
+  if (!intake) return planCount;
+  if (plan.legacy) return planCount === intakeCount ? planCount : undefined;
+  const planTime = Date.parse(plan.savedAt ?? "");
+  const intakeTime = Date.parse(intake.savedAt);
+  if (!Number.isFinite(planTime) || !Number.isFinite(intakeTime)) return undefined;
+  return intakeTime > planTime ? intakeCount : planCount;
+}
 
 type DraftSurface = "map" | "plan" | "route";
 

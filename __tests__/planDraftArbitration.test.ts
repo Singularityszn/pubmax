@@ -11,7 +11,7 @@ import {
   type ParsedPlanDraft,
   type StoredPlanDraft,
 } from "@/lib/planDraft";
-import { arbitratePlanDrafts } from "@/lib/planDraftArbitration";
+import { arbitratePlanDrafts, resolveRequestedStopCount } from "@/lib/planDraftArbitration";
 import {
   PLAN_INTAKE_MAX_RAW_BYTES,
   PLAN_INTAKE_STORAGE_KEY,
@@ -90,6 +90,30 @@ function intake(savedAt: number, start = "2026-07-24T19:00:00.000Z"): ParsedPlan
   expect(parsed).not.toBeNull();
   return parsed as ParsedPlanIntakeDraft;
 }
+
+describe("requested-count recovery", () => {
+  const plan = v2Plan(NOW, { requestedStopCount: 1 });
+  const local = intake(NOW);
+  const localCount = (count: 1 | 3 | 5, savedAt: number): ParsedPlanIntakeDraft => ({
+    ...local, savedAt: new Date(savedAt).toISOString(),
+    draft: { ...local.draft, answers: { ...local.draft.answers, stopCount: count } },
+  });
+  it("uses the available store and compares the versioned save times", () => {
+    expect(resolveRequestedStopCount(plan, plan.draft, null)).toBe(1);
+    expect(resolveRequestedStopCount(null, null, localCount(5, NOW))).toBe(5);
+    expect(resolveRequestedStopCount(plan, plan.draft, localCount(5, NOW + 1))).toBe(5);
+    expect(resolveRequestedStopCount(plan, plan.draft, localCount(5, NOW - 1))).toBe(1);
+    expect(resolveRequestedStopCount(plan, plan.draft, localCount(5, NOW))).toBe(1);
+    const unknown = v2Plan(NOW + 1);
+    expect(resolveRequestedStopCount(unknown, unknown.draft, localCount(5, NOW))).toBeUndefined();
+  });
+  it("does not invent an ordering for legacy or conflicting session copies", () => {
+    const legacy: ParsedPlanDraft = { ...plan, storageVersion: 1, savedAt: null, expiresAt: null, legacy: true };
+    expect(resolveRequestedStopCount(legacy, legacy.draft, localCount(5, NOW + 1))).toBeUndefined();
+    expect(resolveRequestedStopCount(legacy, legacy.draft, localCount(1, NOW + 1))).toBe(1);
+    expect(resolveRequestedStopCount(plan, { ...plan.draft, requestedStopCount: 3 }, localCount(5, NOW + 1))).toBeUndefined();
+  });
+});
 
 function routeValue(overrides: Partial<ParsedPlanRouteDraft["value"]> = {}): ParsedPlanRouteDraft["value"] {
   return {
