@@ -321,6 +321,9 @@ describe("the layout scope", () => {
     { files: ["e2e/helpers/mobileMapShell.ts"], layout: "ui" },
     { files: ["e2e/fixtures/venue.json"], layout: "ui" },
     { files: ["e2e/conditional-skips.allowlist.json"], layout: "ui" },
+    { files: ["scripts/e2e/canonical-price-server.ts"], layout: "ui" },
+    { files: ["scripts/e2e/canonical-price-server.ts.bak"], layout: "none" },
+    { files: ["scripts/qa/canonical-price-server.ts"], layout: "none" },
     ...[
       "lib/cities.ts", "lib/cityStoryBands.ts", "lib/contentSecurityPolicy.mjs",
       "lib/deviceAccountSessions.ts", "lib/landingHero.ts", "lib/lateFood.ts",

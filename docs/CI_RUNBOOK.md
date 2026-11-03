@@ -208,7 +208,7 @@ The layout scope uses a denylist (captain, 23 Oct 2026). A pull request reads `n
 - Data files under `data/` or `public/data/`.
 - Database migrations and rollbacks under `supabase/migrations/` or `supabase/rollbacks/`.
 - Files under `docs/` and Markdown files ending in `.md`.
-- Files under `scripts/`. This includes `scripts/e2e/canonical-price-server.ts`, which `e2e/web-first-run-journey.spec.ts` starts for its fixed-time price checks.
+- Files under `scripts/` except `scripts/e2e/canonical-price-server.ts`. The registered web first-run journey directly starts that fixture for its fixed-time price checks.
 - API-only files under `app/api/` and JavaScript or TypeScript `route` handlers under `app/` that render no page.
 
 Every other changed file reads `ui` and runs all three layout jobs. This includes every `lib/` module, components, pages, styles, browser specs, helpers, fixtures, and workflows. The Playwright port action, configuration, `package.json`, lockfiles, and unknown paths also read `ui`.
