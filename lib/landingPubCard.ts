@@ -118,7 +118,7 @@ export function buildLandingPubCard(
   const candidates = venues.filter(
     (venue) =>
       isPublicRankablePub(venue) &&
-      comparableVenuePint(venue, null, false) !== null &&
+      comparableVenuePint(venue, null, false, now) !== null &&
       history.has(venue.id),
   );
   if (candidates.length === 0) return null;

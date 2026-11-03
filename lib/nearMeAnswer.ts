@@ -175,16 +175,17 @@ export type NearMeAnswer = {
 };
 
 export type RankNearMeOptions = {
+  now?: number;
   minAnswers?: number;
   maxAnswers?: number;
   walkableRadiusKm?: number;
   widenedRadiusKm?: number;
 };
 
-function qualifies(point: PricedPoint): boolean {
+function qualifies(point: PricedPoint, now?: number): boolean {
   return (
     isPublicRankablePub(point) &&
-    comparablePint(point) !== null &&
+    comparablePint(point, now) !== null &&
     Number.isFinite(point.lat) &&
     Number.isFinite(point.lng)
   );
@@ -227,7 +228,7 @@ export function rankNearMe(
   const wideRadius = Math.max(walkRadius, options.widenedRadiusKm ?? WIDENED_RADIUS_KM);
 
   const measured: Measured[] = venues
-    .filter(qualifies)
+    .filter((point) => qualifies(point, options.now))
     .map((point) => ({ point, km: haversineKm([lng, lat], [point.lng, point.lat]) }))
     .sort((a, b) => a.km - b.km);
 
@@ -308,7 +309,7 @@ export function pricedWithinWalk(
   walkableRadiusKm: number = WALKABLE_RADIUS_KM,
 ): number[] {
   return venues
-    .filter(qualifies)
+    .filter((point) => qualifies(point))
     .filter((point) => haversineKm([lng, lat], [point.lng, point.lat]) <= walkableRadiusKm)
     .map((point) => point.cheapestPrice as number);
 }
@@ -323,12 +324,13 @@ export function rankBoroughCheapest(
   venues: PricedPoint[],
   borough: string,
   max: number = MAX_ANSWERS,
+  now?: number,
 ): NearMeCard[] {
   const target = borough.trim().toLowerCase();
   if (!target) return [];
   const take = Math.max(1, Math.floor(max));
   return venues
-    .filter((point) => qualifies(point) && point.borough.trim().toLowerCase() === target)
+    .filter((point) => qualifies(point, now) && point.borough.trim().toLowerCase() === target)
     .map(toCheapestCard)
     .sort((a, b) => a.cheapestPrice - b.cheapestPrice)
     .slice(0, take);
@@ -337,10 +339,11 @@ export function rankBoroughCheapest(
 export function rankCityCheapest(
   venues: PricedPoint[],
   max: number = MAX_ANSWERS,
+  now?: number,
 ): NearMeCard[] {
   const take = Math.max(1, Math.floor(max));
   return venues
-    .filter(qualifies)
+    .filter((point) => qualifies(point, now))
     .map(toCheapestCard)
     .sort((a, b) => a.cheapestPrice - b.cheapestPrice)
     .slice(0, take);
@@ -403,9 +406,10 @@ export type NearGuinnessAnswer = {
 };
 
 /**
- * The cheapest listed Guinness within a 15 minute walk of (lat, lng), drawn
- * only from the venues the near answer already ranks. Null when none is in
- * reach, so the surface prints nothing rather than "Unknown".
+ * The cheapest sourced Guinness within a 15 minute walk of (lat, lng).
+ * Preserve the original subset: public venues with a positive listed anchor
+ * and valid coordinates in the Near index. Qualify the Guinness row itself,
+ * independently of that anchor's evidence. Null when none is in reach.
  */
 export function cheapestGuinnessNearby(
   lat: number,
@@ -418,7 +422,7 @@ export function cheapestGuinnessNearby(
   const byVenue = new Map<string, NearGuinnessPrice>();
   for (const entry of prices) {
     const [id, priceGbp] = entry;
-    if (typeof id !== "string" || !Number.isFinite(priceGbp) || priceGbp <= 0) continue;
+    if (typeof id !== "string" || comparablePint({ cheapestPrice: priceGbp, priceSource: entry[3], priceObservedAt: entry[2], measure: "pint" }) === null) continue;
     const held = byVenue.get(id);
     if (!held || priceGbp < held[1]) byVenue.set(id, entry);
   }
@@ -427,7 +431,9 @@ export function cheapestGuinnessNearby(
   let bestKm = Number.POSITIVE_INFINITY;
   for (const point of venues) {
     const entry = byVenue.get(point.id);
-    if (!entry || !qualifies(point)) continue;
+    if (!entry || !isPublicRankablePub(point)) continue;
+    if (typeof point.cheapestPrice !== "number" || !Number.isFinite(point.cheapestPrice) || point.cheapestPrice <= 0) continue;
+    if (!Number.isFinite(point.lat) || !Number.isFinite(point.lng)) continue;
     const km = haversineKm([lng, lat], [point.lng, point.lat]);
     const walkMinutes = walkMinutesFromKm(km);
     if (walkMinutes > maxWalkMinutes) continue;

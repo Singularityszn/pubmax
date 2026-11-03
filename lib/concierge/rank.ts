@@ -78,6 +78,7 @@ export type RankedConciergeVenue = {
 };
 
 type RankingOptions = {
+  now?: number;
   limit?: number;
   context?: ConciergeContext;
   /**
@@ -185,6 +186,7 @@ function scoreOne(
   tonightEventKindsByVenue?: ReadonlyMap<string, ReadonlySet<WhatsOnKind>>,
   areaCircleKm?: number,
   areaLabel?: string,
+  now?: number,
 ): RankedConciergeVenue {
   let score = venue.canonical ? 1 : 0;
   const reasons: string[] = [];
@@ -197,7 +199,7 @@ function scoreOne(
   const areaReason = area.reason;
   const nearAreaNote = area.nearAreaNote;
 
-  const pintPrice = comparablePint(venue);
+  const pintPrice = comparablePint(venue, now);
   if (intent.maxPintPrice !== undefined) {
     if (pintPrice === null) {
       score -= 2;
@@ -330,6 +332,7 @@ export function rankConciergeVenues(
       options.tonightEventKindsByVenue,
       circleKm.get(venue.id),
       circle?.label,
+      options.now,
     ))
     .sort((left, right) => right.score - left.score || left.venue.id.localeCompare(right.venue.id, "en-GB"))
     .slice(0, limit);

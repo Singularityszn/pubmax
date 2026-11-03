@@ -20,6 +20,13 @@ describe("comparable pint evidence", () => {
     }
   });
 
+  it("uses the supplied instant and refuses later observations", () => {
+    const now = Date.parse("2026-10-02T12:00:00.000Z");
+    expect(comparablePint({ ...pint, priceObservedAt: "2026-10-02T11:00:00Z" }, now)).toBe(5);
+    expect(comparablePint({ ...pint, priceObservedAt: "2026-10-02T13:00:00Z" }, now)).toBeNull();
+    expect(comparablePint({ ...pint, priceObservedAt: "2026-10-03" }, now)).toBeNull();
+  });
+
   it.each(["BOTTLED BEER", "Lager bottle", "330ml Lager", "Lager 50 cl", "Lager 0.5l", "Half pint lager", "Half-pint lager", "half_pint lager", "Half–pint lager", "2 halves of stout", "Lager half", "1/2 Lager", "Lager ⅔", "Third of lager", "Small pint"])("refuses an explicit non-pint serving: %s", (cheapestPint) => {
     expect(comparablePint({ ...pint, cheapestPint })).toBeNull();
   });
