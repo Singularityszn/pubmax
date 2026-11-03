@@ -11,6 +11,7 @@ import {
 import type * as maplibregl from "maplibre-gl";
 
 import PriceBadge from "@/components/PriceBadge";
+import CompactVenuePrice from "@/components/map/CompactVenuePrice";
 import type { VenueSignal } from "@/components/map/canvas/types";
 import { PEEK_AGING_SUFFIX } from "@/components/map/VenuePeekPintPrice";
 import {
@@ -132,7 +133,7 @@ function usePinHalo(map: MapSplitListMap | null) {
 
 function RowPrice({ row }: { row: MapSplitListRow }) {
   const price = row.price;
-  if (!price?.figure) return null;
+  if (!price?.figure || price.anchor) return null;
   const band = priceBand(price.bandGbp, priceBandAreaForVenue(row.id));
   return price.observed ? (
     <PriceBadge band={band} className={price.aging ? "priceBadge--aging" : undefined}>
@@ -422,7 +423,9 @@ export default function MapSplitList({
                       <span className="mapSplitListRowWalk">{row.walkMinutes} min walk</span>
                     ) : null}
                   </span>
-                  <span className="mapSplitListRowTrust">{rowTrustLine(row)}</span>
+                  <span className="mapSplitListRowTrust">{row.price?.anchor && row.price.figure ? (
+                    <CompactVenuePrice priceLabel={row.price.figure} anchor={row.price.anchor} className="mapSplitListAnchor" />
+                  ) : rowTrustLine(row)}</span>
                 </button>
               </li>
             );
