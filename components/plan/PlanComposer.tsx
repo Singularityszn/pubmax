@@ -807,8 +807,7 @@ export function parsePlanRouteDraft(raw: string | null): StoredRouteDraft | null
 function readComposerRouteDraft(): {
   route: StoredRouteDraft | null;
   envelope: ParsedPlanRouteDraft | null;
-  rawV1: string | null;
-  rawV2: string | null;
+  conflicting: boolean;
 } {
   const storage = safeLocalStorage();
   let raw: string | null = null;
@@ -817,16 +816,21 @@ function readComposerRouteDraft(): {
   try { rawV2 = storage?.getItem(PLAN_ROUTE_DRAFT_V2_KEY) ?? null; } catch {}
   const route = parsePlanRouteDraft(raw);
   const { envelope, conflicting } = reconcilePlanRouteDrafts(rawV2, raw);
-  const snapshot = { rawV1: raw, rawV2 };
   const value = envelope?.value;
   const planAnchor: GeneratedPlanAnchor | null = value?.anchorVenueId && value.anchorSource && value.outcome !== "unanchored"
     ? { venueId: value.anchorVenueId, source: value.anchorSource, outcome: value.outcome }
     : null;
   if (!envelope || envelope.legacy) return {
-    ...snapshot,
-    route: conflicting && route && !route.savedAt
-      ? { ...route, routeStale: true, groundingProof: null, createOperationKey: null, planAnchor: null }
-      : route && { ...route, planAnchor: envelope ? planAnchor : route.planAnchor },
+    conflicting,
+    route: route && {
+      ...route,
+      ...(conflicting && value ? {
+        routeStale: value.routeStale,
+        groundingProof: value.groundingProof,
+        createOperationKey: value.operationKey,
+      } : {}),
+      planAnchor: envelope ? planAnchor : route.planAnchor,
+    },
     envelope: conflicting && !envelope?.savedAt ? null : envelope,
   };
   const canonical = parsePlanRouteDraft(JSON.stringify({
@@ -836,8 +840,9 @@ function readComposerRouteDraft(): {
     planAnchor,
   }));
   return {
-    ...snapshot,
-    route: canonical && { ...(route ?? canonical), savedAt: canonical.savedAt, planAnchor },
+    conflicting,
+    route: canonical && (!conflicting && route
+      ? { ...canonical, stops: route.stops, routeNight: route.routeNight } : canonical),
     envelope,
   };
 }
@@ -1479,7 +1484,6 @@ function explicitContextForPlan(
 function PlanComposerForm({
   recoveredDraft,
   recoveredRouteDraft,
-  routeSnapshot,
   recoveredIntake,
   recoveredIntent,
   hasDurableIntakeDraft,
@@ -1488,7 +1492,6 @@ function PlanComposerForm({
 }: {
   recoveredDraft: ReturnType<typeof parsePlanDraft>;
   recoveredRouteDraft: StoredRouteDraft | null;
-  routeSnapshot: ReturnType<typeof readComposerRouteDraft> | null;
   recoveredIntake: PlanIntakeDraft;
   recoveredIntent: ReturnType<typeof resolveRequestedPlanIntent>;
   hasDurableIntakeDraft: boolean;
@@ -1557,7 +1560,7 @@ function PlanComposerForm({
   const [planIntake, setPlanIntake] = useState(() =>
     applyPlanStopCount(recoveredIntake, null, recoveredStopCount).draft);
   const requestedStopCount = planIntake.answers.stopCount;
-  const [draftSaveFailure, setDraftSaveFailure] = useState<"all" | "route" | "description" | null>(null);
+  const [draftSaveFailure, setDraftSaveFailure] = useState<"all" | "route" | "route-details" | "description" | null>(null);
   const [entryMode, setEntryMode] = useState<"describe" | "wizard">(initialEntryMode);
   const [askDraftQuery, setAskDraftQuery] = useState(urlAsk ?? "");
   const askDraftConsumedRef = useRef(false);
@@ -1923,8 +1926,8 @@ function PlanComposerForm({
       ...(requestedStopCount !== undefined ? { requestedStopCount } : {}),
       ...(persistedAcceptedAnchor ? { acceptedAnchor: persistedAcceptedAnchor } : {}),
     }, persistedAcceptedAnchor ? "planning-intent" : "manual", safeSessionStorage(), savedAt);
-    let sessionRouteRestorable = sessionWrite.v1 && sessionWrite.v2;
-    const hasRoute = Boolean(nightContext || routeRevision !== null || routeStale || stops.some((stop) => stop.alternatives.length > 0));
+    const hasRoute = Boolean(nightContext || routeNight || routeRevision !== null || routeStale
+      || groundingProof || createOperationKey || planAnchor || stops.some((stop) => stop.alternatives.length > 0));
     const routeStorage = safeLocalStorage();
     let routeSaved = false;
     if (hasRoute) {
@@ -1948,18 +1951,10 @@ function PlanComposerForm({
         }
       } catch {
       }
-      try {
-        if (!routeSaved && sessionWrite.v1 && sessionWrite.v2
-          && routeSnapshot?.route && !routeSnapshot.route.savedAt
-          && JSON.stringify(routeDraft) !== JSON.stringify(routeSnapshot.route)
-          && routeSnapshot.rawV1
-          && routeStorage?.getItem(PLAN_ROUTE_DRAFT_KEY) === routeSnapshot.rawV1
-          && routeStorage?.getItem(PLAN_ROUTE_DRAFT_V2_KEY) === routeSnapshot.rawV2) {
-          routeStorage?.removeItem(PLAN_ROUTE_DRAFT_V2_KEY);
-          routeStorage?.removeItem(PLAN_ROUTE_DRAFT_KEY);
-        }
-      } catch {
-        sessionRouteRestorable = false;
+      if (!routeSaved) {
+        const stored = readComposerRouteDraft().route;
+        routeSaved = Boolean(stored && JSON.stringify({ ...stored, savedAt: undefined })
+          === JSON.stringify(parsePlanRouteDraft(JSON.stringify(routeDraft))));
       }
     }
     const intakeChanged = JSON.stringify(planIntake) !== JSON.stringify(recoveredIntake);
@@ -1973,13 +1968,13 @@ function PlanComposerForm({
       if (!cancelled) setDraftSaveFailure(
         hasWork && !sessionWrite.v1 && !sessionWrite.v2 && !intakeSaved
           ? "all"
-          : hasStops && !routeSaved && !sessionRouteRestorable
-            ? "route"
+          : hasStops && !routeSaved && (hasRoute || (!sessionWrite.v1 && !sessionWrite.v2))
+            ? sessionWrite.v1 && sessionWrite.v2 ? "route-details" : "route"
             : conciergeQuery.trim() && (!sessionWrite.v1 || !sessionWrite.v2) ? "description" : null,
       );
     });
     return () => { cancelled = true; };
-  }, [canPersist, conciergeQuery, createOperationKey, creatorName, groundingProof, handoff?.acceptedAnchor, hasDurableIntakeDraft, nightContext, planAnchor, planIntake, recoveredIntake, requestedStopCount, routeSnapshot, routeNight, routeRevision, routeStale, startTime, stops, title]);
+  }, [canPersist, conciergeQuery, createOperationKey, creatorName, groundingProof, handoff?.acceptedAnchor, hasDurableIntakeDraft, nightContext, planAnchor, planIntake, recoveredIntake, requestedStopCount, routeNight, routeRevision, routeStale, startTime, stops, title]);
 
   useEffect(() => {
     if (hasDurableIntakeDraft) return;
@@ -2629,11 +2624,13 @@ function PlanComposerForm({
     ? "Your changes could not be saved on this device. Keep this page open to keep them."
     : draftSaveFailure === "route"
       ? "Your route could not be saved on this device. Keep this page open to keep it."
-      : draftSaveFailure === "description"
-        ? "Your description could not be saved on this device. Keep this page open to keep it."
-        : recoveredIntent.descriptionUnavailable && !conciergeQuery.trim() && !askDraftQuery.trim()
-          ? "Your latest description could not be restored. Enter it again."
-          : "";
+      : draftSaveFailure === "route-details"
+        ? "Your stops were saved, but your route details, checks and starting pub could not be saved. Keep this page open to keep them."
+        : draftSaveFailure === "description"
+          ? "Your description could not be saved on this device. Keep this page open to keep it."
+          : recoveredIntent.descriptionUnavailable && !conciergeQuery.trim() && !askDraftQuery.trim()
+            ? "Your latest description could not be restored. Enter it again."
+            : "";
   const draftSaveNotice = draftSaveMessage ? (
     <p className="planComposer__error" role="alert">{draftSaveMessage}</p>
   ) : null;
@@ -3084,9 +3081,10 @@ export default function PlanComposer() {
         plan: readPlanDraftEnvelope(safeSessionStorage()),
         legacyDraft,
         intake: readPlanIntakeDraftWithMetadata(),
-        route: routeRecovery.envelope ?? (routeRecovery.route ? {
-          savedAt: routeRecovery.route.savedAt ?? null,
-        } : null),
+        route: routeRecovery.envelope || routeRecovery.route ? {
+          savedAt: routeRecovery.envelope?.savedAt ?? routeRecovery.route?.savedAt ?? null,
+          conflicting: routeRecovery.conflicting,
+        } : null,
       });
       const route = resolved.sessionWins && resolved.planDraft ? {
         ...routeRecovery,
@@ -3113,7 +3111,7 @@ export default function PlanComposer() {
         });
         handoff = candidate.active ? candidate : null;
       } catch {}
-      return { ...resolved, route, routeSnapshot: routeRecovery, handoff };
+      return { ...resolved, route, handoff };
     } catch { return null; }
   }, [hydrated]);
   const recoveredDraft = recovery?.recoveredDraft ?? null;
@@ -3156,7 +3154,6 @@ export default function PlanComposer() {
       key={remount ? "hydrated" : "server"}
       recoveredDraft={recoveredDraft}
       recoveredRouteDraft={recoveredRouteDraft}
-      routeSnapshot={recovery?.routeSnapshot ?? null}
       recoveredIntake={recoveredIntake.draft}
       recoveredIntent={recoveredIntake.intent}
       hasDurableIntakeDraft={recoveredIntake.hasDurableDraft}

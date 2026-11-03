@@ -122,6 +122,17 @@ describe("requested-count recovery", () => {
     expect(recovered.sessionWins).toBe(routeTime === NOW - 1);
   });
 
+  it("recovers session stops as a preview without dating an unconflicted legacy route", () => {
+    const current = v2Plan(NOW, { conciergeQuery: "One pub in Clapham tonight", requestedStopCount: 1 });
+    const recovered = recoverPlanDrafts({
+      plan: current, legacyDraft: current.draft, intake: localCount(1, NOW),
+      route: { savedAt: null, conflicting: false },
+    });
+    expect(recovered.routeWins).toBe(false);
+    expect(recovered.sessionWins).toBe(true);
+    expect(recovered.intent).toEqual({ stopCount: 1, conciergeQuery: "One pub in Clapham tonight", descriptionUnavailable: false });
+  });
+
   it.each([NOW + 1, NOW + 2])("preserves a local request saved at %s while reporting its unavailable description", (savedAt) => {
     const older = v2Plan(NOW, { conciergeQuery: "One pub in Soho tonight", requestedStopCount: 1 });
     const recovered = recoverPlanDrafts({
@@ -292,6 +303,56 @@ describe("V2 Route draft migration", () => {
     expect(recovered?.value.anchorSource).toBe(anchor === "changed" ? "map-search" : null);
     expect(recovered?.value.groundingProof).toBe(next.groundingProof);
     expect(storage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).toBe(oldV2);
+  });
+
+  it.each(["V1", "V2"])("selects the complete dated record when only %s saves a new handoff", (written) => {
+    const storage = memoryStorage();
+    writePlanRouteDraftEnvelope(routeValue(), "map-generated", storage, NOW);
+    const oldRecord = storage.getItem(written === "V1" ? PLAN_ROUTE_DRAFT_V2_KEY : PLAN_ROUTE_DRAFT_KEY);
+    const next = routeValue({
+      anchorVenueId: null, anchorSource: null, outcome: "unanchored",
+      operationKey: "new-operation", routeRevision: 2,
+      nightContext: { ...inferNightContext("Clapham tonight").context, nightArea: "clapham", transportConstraints: [] },
+    });
+    const partial = {
+      getItem: storage.getItem.bind(storage),
+      setItem: (key: string, value: string) => {
+        if (key === (written === "V1" ? PLAN_ROUTE_DRAFT_V2_KEY : PLAN_ROUTE_DRAFT_KEY)) throw new Error("quota");
+        storage.setItem(key, value);
+      },
+    };
+    expect(writePlanRouteDraftEnvelope(next, "map-generated", partial, NOW + 1))
+      .toMatchObject({ v1: written === "V1", v2: written === "V2" });
+    const recovered = readPlanRouteDraftEnvelope(storage, NOW + 1);
+    expect(recovered?.savedAt).toBe("2026-07-24T12:00:00.001Z");
+    expect(recovered?.value).toMatchObject({
+      anchorVenueId: null, anchorSource: null, outcome: "unanchored", operationKey: "new-operation",
+      routeRevision: 2, groundingProof: next.groundingProof, routeStale: false,
+      nightContext: { nightArea: "clapham", transportConstraints: [] },
+    });
+    expect(storage.getItem(written === "V1" ? PLAN_ROUTE_DRAFT_V2_KEY : PLAN_ROUTE_DRAFT_KEY)).toBe(oldRecord);
+  });
+
+  it("keeps equally dated conflicting routes unverified", () => {
+    const storage = memoryStorage();
+    writePlanRouteDraftEnvelope(routeValue(), "map-generated", storage, NOW);
+    const oldV2 = storage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)!;
+    writePlanRouteDraftEnvelope(routeValue({ operationKey: "replacement", anchorSource: "map-search" }), "map-generated", storage, NOW);
+    storage.setItem(PLAN_ROUTE_DRAFT_V2_KEY, oldV2);
+    expect(readPlanRouteDraftEnvelope(storage, NOW)).toMatchObject({
+      savedAt: "2026-07-24T12:00:00.000Z",
+      value: { anchorVenueId: null, anchorSource: null, groundingProof: null, operationKey: null, routeStale: true },
+    });
+  });
+
+  it("recovers the valid V2 route when its V1 copy is invalid", () => {
+    const storage = memoryStorage();
+    writePlanRouteDraftEnvelope(routeValue(), "map-generated", storage, NOW);
+    storage.setItem(PLAN_ROUTE_DRAFT_KEY, "invalid");
+    expect(readPlanRouteDraftEnvelope(storage, NOW)).toMatchObject({
+      savedAt: "2026-07-24T12:00:00.000Z", legacy: false,
+      value: { anchorVenueId: "venue-a", operationKey: "operation-1", routeRevision: 1 },
+    });
   });
 
   it("keeps an undated conflicting route as an unverified preview", () => {

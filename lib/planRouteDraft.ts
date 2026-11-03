@@ -487,27 +487,32 @@ export function reconcilePlanRouteDrafts(
   const canonical = parsePlanRouteDraftV2(rawV2, now);
   const legacy = parseLegacyPlanRouteDraft(rawV1, now);
   if (!canonical) return { envelope: legacy, conflicting: false };
-  if (rawV1 === null) return { envelope: canonical, conflicting: false };
+  if (!legacy) return { envelope: canonical, conflicting: rawV1 !== null };
   const projection = (route: ParsedPlanRouteDraft) => ({
     ...legacyValue(route.value),
     anchorVenueId: route.value.anchorVenueId,
     anchorSource: route.value.anchorSource,
     outcome: route.value.outcome,
   });
-  const rawLegacy: unknown = legacy ? JSON.parse(rawV1 ?? "{}") : null;
+  const rawLegacy: unknown = JSON.parse(rawV1 ?? "{}");
   const context = canonical.value.nightContext;
   const routeNight = !canonical.value.routeStale && (context?.nightArea || context?.daypart) ? {
     ...(context.nightArea ? { nightArea: context.nightArea } : {}),
     ...(context.daypart ? { daypart: context.daypart } : {}),
   } : null;
-  const matches = legacy
-    && (!legacy.savedAt || legacy.savedAt === canonical.savedAt)
+  const matches = (!legacy.savedAt || legacy.savedAt === canonical.savedAt)
     && JSON.stringify(projection(legacy)) === JSON.stringify(projection(canonical))
     && (!isRecord(rawLegacy) || !Object.hasOwn(rawLegacy, "routeNight")
       || JSON.stringify(rawLegacy.routeNight) === JSON.stringify(routeNight));
   if (matches) return { envelope: canonical, conflicting: false };
+  if (canonical.savedAt && legacy.savedAt && canonical.savedAt !== legacy.savedAt) {
+    return {
+      envelope: Date.parse(canonical.savedAt) > Date.parse(legacy.savedAt) ? canonical : legacy,
+      conflicting: true,
+    };
+  }
   return {
-    envelope: legacy && !legacy.savedAt ? {
+    envelope: {
       ...legacy,
       value: {
         ...legacy.value,
@@ -518,7 +523,7 @@ export function reconcilePlanRouteDrafts(
         operationKey: null,
         routeStale: true,
       },
-    } : legacy,
+    },
     conflicting: true,
   };
 }
