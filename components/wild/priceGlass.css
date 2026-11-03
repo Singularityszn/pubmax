@@ -188,6 +188,7 @@
    first screen, and each row's name is read out rather than shown. From a
    tablet up they sit beside the glass, under the figure, a named row each. */
 .wildGlassChips {
+  position: relative;
   grid-area: chips;
   display: flex;
   gap: var(--space-4);
