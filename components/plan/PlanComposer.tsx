@@ -1467,6 +1467,9 @@ function PlanComposerForm({
     canPersist ? describeAskFromLocation() : NO_URL_PREFILL,
   );
   const urlAsk = urlPrefill.ask;
+  const [requestedStopCount, setRequestedStopCount] = useState<PlanStopCount | undefined>(
+    urlAsk ? undefined : recoveredDraft?.requestedStopCount,
+  );
   // Describe-first is the default open. A returning visitor with real,
   // unfinished wizard progress lands back on the wizard instead, so their
   // answers so far are not hidden behind the question they already passed.
@@ -1848,9 +1851,10 @@ function PlanComposerForm({
       startTime,
       conciergeQuery,
       stops,
+      ...(requestedStopCount !== undefined ? { requestedStopCount } : {}),
       ...(persistedAcceptedAnchor ? { acceptedAnchor: persistedAcceptedAnchor } : {}),
     }, persistedAcceptedAnchor ? "planning-intent" : "manual", safeSessionStorage());
-  }, [canPersist, conciergeQuery, creatorName, handoff?.acceptedAnchor, startTime, stops, title]);
+  }, [canPersist, conciergeQuery, creatorName, handoff?.acceptedAnchor, requestedStopCount, startTime, stops, title]);
 
   useEffect(() => {
     if (!canPersist) return;
@@ -1997,6 +2001,7 @@ function PlanComposerForm({
       },
     });
     setConciergeQuery(query);
+    setRequestedStopCount(requestedStopCount);
     updatePlanIntake(skippedIntake);
     sortWithConcierge(
       query,
@@ -2872,6 +2877,8 @@ function PlanComposerForm({
         <PlanDescribeFirst
           ready={canPersist}
           initialQuery={askDraftQuery}
+          initialStopCount={requestedStopCount}
+          onStopCountChange={setRequestedStopCount}
           onSubmit={submitFromEntry}
           onQueryChange={setConciergeQuery}
           onPrefillQueryChange={adoptDescribePrefillQuery}

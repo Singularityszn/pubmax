@@ -1,3 +1,4 @@
+import { isPlanStopCount, type PlanStopCount } from "@/lib/planStopCount";
 import { DAY_MS } from "@/lib/dayMs";
 import { CITIES, type CityId } from "@/lib/cities";
 import { LONDON_BOROUGHS } from "@/lib/boroughs";
@@ -25,6 +26,7 @@ export type StoredPlanDraft = {
   startTime: string;
   conciergeQuery: string;
   stops: Array<{ key: number; venueId: string; venueName: string }>;
+  requestedStopCount?: PlanStopCount;
   acceptedAnchor?: {
     venueId: string;
     source: PlanningIntentSource;
@@ -113,10 +115,16 @@ function parseAcceptedArea(area: unknown): PlanningIntentArea | undefined {
         : undefined;
 }
 
+function hasDraftKeys(value: Record<string, unknown>): boolean {
+  const keys = Object.keys(value).filter((key) => key !== "requestedStopCount");
+  return [DRAFT_KEYS, DRAFT_KEYS_WITH_ANCHOR].some((allowed) =>
+    keys.length === allowed.length && keys.every((key) => (allowed as readonly string[]).includes(key)));
+}
+
 function parseStoredPlanDraft(value: unknown, exactKeys: boolean): StoredPlanDraft | null {
   if (
     !isRecord(value)
-    || (exactKeys && !hasExactKeys(value, DRAFT_KEYS) && !hasExactKeys(value, DRAFT_KEYS_WITH_ANCHOR))
+    || (exactKeys && !hasDraftKeys(value))
   ) return null;
   const title = boundedText(value.title, 200);
   const creatorName = boundedText(value.creatorName, 100);
@@ -147,6 +155,7 @@ function parseStoredPlanDraft(value: unknown, exactKeys: boolean): StoredPlanDra
         startTime,
         conciergeQuery,
         stops: stops as StoredPlanDraft["stops"],
+        ...(isPlanStopCount(value.requestedStopCount) ? { requestedStopCount: value.requestedStopCount } : {}),
       };
     }
     if (!hasExactKeys(anchor, ACCEPTED_ANCHOR_KEYS)) return null;
@@ -172,6 +181,7 @@ function parseStoredPlanDraft(value: unknown, exactKeys: boolean): StoredPlanDra
     conciergeQuery,
     stops: stops as StoredPlanDraft["stops"],
     ...(acceptedAnchor ? { acceptedAnchor } : {}),
+    ...(isPlanStopCount(value.requestedStopCount) ? { requestedStopCount: value.requestedStopCount } : {}),
   };
 }
 
@@ -183,6 +193,7 @@ function withoutExpiredAcceptedAnchor(draft: StoredPlanDraft, now: number): Stor
     startTime: draft.startTime,
     conciergeQuery: draft.conciergeQuery,
     stops: draft.stops,
+    ...(draft.requestedStopCount !== undefined ? { requestedStopCount: draft.requestedStopCount } : {}),
   };
 }
 

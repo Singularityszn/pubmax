@@ -129,6 +129,23 @@ describe("the describe-first field on the form PlanComposer replaces", () => {
     expect(onSubmit.mock.calls[0]![0]).toBe("Quiet in Clapham for 4, not pricey");
   });
 
+  it.each([
+    { query: "Clapham tonight", requested: 1 },
+    { query: "One pub in Clapham tonight", requested: 3 },
+  ])("preserves the explicit $requested stop choice with query $query", async ({ query, requested }) => {
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    host = document.createElement("div");
+    document.body.append(host);
+    root = createRoot(host);
+    await act(async () => {
+      root!.render(createElement(PlanDescribeFirst, {
+        onSubmit: vi.fn(), onGuideMeInstead: vi.fn(), initialQuery: query,
+        initialStopCount: requested as 1 | 3,
+      }));
+    });
+    expect(button(String(requested)).getAttribute("aria-pressed")).toBe("true");
+  });
+
   it("is painted read-only by the server and takes a query once PlanComposer hydrates", async () => {
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
     const fetchMock = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({ error: "offline" }), { status: 503 }));
