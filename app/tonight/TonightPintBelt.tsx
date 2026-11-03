@@ -47,10 +47,9 @@ function readReducedMotion(): boolean {
  * Tonight's cheapest listed pints as beer mats riding a bar's conveyor belt.
  *
  * Bookmarked on 21st.dev as the Sushi Conveyor Belt Menu and rebuilt for a
- * quiet night: the mats are the same real rows the list beside it prints (the
- * phone keeps that list, and so does every reader the belt is hidden from),
- * each wearing the one price badge, its pub's name and its chain where it has
- * one. The belt runs faster as last orders comes near (lib/pintBelt.ts).
+ * quiet night: the mats use the same real rows as the neutral price list.
+ * Each mat uses the one price badge, its pub's name and its chain where it
+ * has one. The belt runs faster as last orders comes near (lib/pintBelt.ts).
  *
  * A pointer resting on the belt stops it, and so does focus on a mat. A press
  * and drag spins it by hand and a flick carries on with momentum. The pause
