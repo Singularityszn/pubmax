@@ -294,8 +294,10 @@ export type SlimShardLoader = {
   initial(bounds: MapBounds): Promise<SlimVenue[]>;
   initialResult(bounds: MapBounds): Promise<SlimShardLoadResult>;
   /**
-   * Venues from location shards intersecting the walk radius, loaded (with one
-   * retry) if needed. Status reports whether all required shards loaded.
+   * Return all rows from location shards intersecting the walk radius, including
+   * cached rows on repeated or overlapping queries. Unlike inBounds, this is not
+   * an incremental read. After one retry, status reports whether every required
+   * shard loaded. Partial rows must not establish a nearby cheapest winner.
    */
   nearPoint(lat: number, lng: number): Promise<SlimShardLoadResult>;
   /** Every shard (for by-id / whole-index consumers). */

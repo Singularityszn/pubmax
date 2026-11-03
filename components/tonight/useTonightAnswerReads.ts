@@ -1,18 +1,5 @@
 "use client";
 
-// The three small reads behind Tonight's answer cards. Each one starts only
-// when its card needs it, settles once, and owns nothing the page does not
-// already know.
-//
-// 1. The pubs within a walk of the reader, from the same slim venue cells the
-//    map and /near read (lib/slimShards.ts), and only once a position or a
-//    remembered area exists. No position, no read: the card answers from the
-//    city's cheapest listed pint the page already holds.
-// 2. The regular nights, from the three committed what's-on files, and only
-//    when the what's-on read has no confirmed listing to show.
-// 3. The last train, through the same /api/last-train read the get-home strip
-//    makes. The surface cache joins the two into one request.
-//
 // React 19: every setState lands in an async resolution, never in the effect
 // body, and an AbortController or a cancelled flag drops a late answer.
 
@@ -87,7 +74,11 @@ export function useTonightNearbyVenues(near: Coord | null): { rows: readonly Ton
   return answer && answer.key === key ? answer : EMPTY;
 }
 
-/** Read only the selected venue's detail, and only for the same source snapshot. */
+/**
+ * Use the first ordered detail row only after venue and snapshot identities match.
+ * The slim producer selects that row, including ties. A numeric price match cannot
+ * establish row identity. A retired request must not publish evidence.
+ */
 export function useTonightPintEvidence(venueId: string | null, digest: string | null) {
   const request = useMemo(() => venueId && digest ? { venueId, digest } : null, [venueId, digest]);
   const [answer, setAnswer] = useState<{ request: NonNullable<typeof request>; drinkLabel: string | null; servingSize: string | null; publisher: { label: string; url: string } | null; observedAt: string | null } | null>(null);
