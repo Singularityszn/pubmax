@@ -189,6 +189,9 @@ describe("browser CI policy", () => {
       // The desktop toolbar, the first location prompt and the Tonight lane
       // at 32px browser text. #2495 merged with this spec in no CI job.
       "e2e/desktop-map-large-text.spec.ts",
+      // The Plan result as a route: enlarged stop text and the touch lift,
+      // reorder and scroll. #2500 merged with this spec in no CI job.
+      "e2e/plan-route-result.spec.ts",
     ]) {
       expect(run).toContain(spec);
     }
