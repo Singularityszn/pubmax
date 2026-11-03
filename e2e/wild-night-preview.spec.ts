@@ -72,8 +72,8 @@ for (const theme of ["light", "dark"] as const) {
     await storeThemeChoice(page, theme);
     await page.goto("/today?wild=1");
     await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
-    await page.addStyleTag({ content: "html { font-size: 150% !important; }" });
-    expect(await page.locator("html").evaluate((element) => parseFloat(getComputedStyle(element).fontSize))).toBeGreaterThanOrEqual(24);
+    await page.addStyleTag({ content: "html { font-size: 200% !important; }" });
+    expect(await page.locator("html").evaluate((element) => parseFloat(getComputedStyle(element).fontSize))).toBeGreaterThanOrEqual(32);
     const select = picker(page);
     await expect(select).toBeVisible();
     await expect(select.locator("option")).toHaveText(["Previews off", "Round Rota", "Borough Bingo"]);
