@@ -878,6 +878,14 @@ test("/map keeps a successful fallback after the primary style fails", async ({ 
   await page.addInitScript(() => localStorage.setItem("pubmaxx:analytics-consent:v1", "denied"));
   await page.route("**/*", (route) => ["GET", "HEAD"].includes(route.request().method()) ? route.continue() : route.abort("blockedbyclient"));
   await installDeterministicMapBasemap(page);
+  const fallbackTile = await sharp({
+    create: { width: 256, height: 256, channels: 3, background: "#29b6a8" },
+  }).png().toBuffer();
+  await page.route("**/__empty/**/*.png*", (route) => route.fulfill({
+    status: 200,
+    contentType: "image/png",
+    body: fallbackTile,
+  }));
   let fallbackRequests = 0;
   page.on("request", (request) => {
     if (/basemaps\.cartocdn\.com\/gl\/.*\/style\.json/.test(request.url())) fallbackRequests++;
@@ -885,7 +893,23 @@ test("/map keeps a successful fallback after the primary style fails", async ({ 
   await page.route(/tiles\.openfreemap\.org\/styles\//, (route) => route.abort("failed"));
   await page.goto("/map");
   await expect.poll(() => fallbackRequests, { timeout: 20_000 }).toBe(1);
-  await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({ timeout: 20_000 });
+  await waitForVisibleMap(page);
+  const canvas = page.locator(".maplibreMap canvas").first();
+  await expect.poll(async () => {
+    const { data, info } = await sharp(await canvas.screenshot())
+      .removeAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    let paintedPixels = 0;
+    for (let index = 0; index < data.length; index += 3) {
+      if (
+        Math.abs(data[index] - 41) <= 5 &&
+        Math.abs(data[index + 1] - 182) <= 5 &&
+        Math.abs(data[index + 2] - 168) <= 5
+      ) paintedPixels += 1;
+    }
+    return paintedPixels / (info.width * info.height);
+  }, { timeout: 10_000, message: "the fallback raster must paint the visible map" }).toBeGreaterThan(0.5);
   await expect(page.locator(".mapFallback")).toHaveCount(0);
 });
 
