@@ -67,6 +67,10 @@
 # Design evidence and handoff documents are kept in GitHub, not deployed.
 /docs/
 
+# The launch video's Remotion source, its screen captures and its sound. It is
+# rendered on a laptop (video/launch/README.md); no build or page reads it.
+/video/
+
 # The native shells are built by Xcode and Gradle, never by the web build, and
 # they are the two largest directories in the tree after node_modules.
 /ios/
