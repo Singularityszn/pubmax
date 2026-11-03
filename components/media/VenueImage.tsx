@@ -7,9 +7,8 @@
 // Honest by construction: `sources` are tried in priority order; when the
 // preferred candidate's <img> fails to load, that URL is excluded and
 // resolution advances to the next candidate (a dead chain proxy falls back
-// to the community photo, not straight to "No photo yet"). The winning
-// source's provenance is always labelled on-image — a photo whose provenance
-// is unknown is never rendered, only the gradient fallback.
+// to the community photo before the fallback). Only a resolved photograph
+// receives a photo credit. See resolveVenueImage for the provenance policy.
 
 import { ImageOff } from "lucide-react";
 import Image from "next/image";

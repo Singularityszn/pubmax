@@ -58,14 +58,9 @@
   pointer-events: none;
 }
 
-/* R4 — the sheet header's "No photo yet" fallback used to inherit the same
-   16:9 aspect ratio (and, on desktop, the 180-220px min/max height) as a
-   real photo, so on photo-less pubs it alone ate most of the first
-   viewport and pushed the Golden Thread price block below the fold.
-   Collapse it to a slim fixed-height banner at every width; the real-photo
-   path (.venueImage__img) is untouched. Specificity (0,2,0) beats
-   .venueBaselinePhoto's aspect-ratio (0,1,0) in venueSheet.css regardless
-   of stylesheet load order. */
+/* Unnamed header media keeps a slim placeholder. The named sign frame below
+   overrides it. Both must beat .venueBaselinePhoto's aspect ratio regardless
+   of stylesheet load order, so missing photos cannot inherit photo geometry. */
 .venueImage--header.venueImage--empty {
   aspect-ratio: auto;
   min-height: 0;
@@ -89,9 +84,8 @@
   height: 224px;
 }
 
-/* N3 desktop inspector photo header — taller, edge-to-edge under title.
-   Real-photo path only; the empty fallback stays slim (rule above).
-   ≥1024px matches venueSheet.css / globals "real desktop" cut. */
+/* Desktop photo geometry applies only to real photographs. Fallback frames
+   keep the rules above. The breakpoint matches venueSheet.css. */
 @media (min-width: 1024px) {
   /* The inspector now carries its own 18px inset (venueSheet.css), so the
      header photo is a framed picture inside that column rather than an
@@ -106,9 +100,7 @@
      the drawer at 1440 printed a photograph over a grey band with the
      credit pinned to the band (measured 6 Sep 2026). The frame takes the
      height ceiling and the picture fills whatever frame it is given. */
-  /* The empty fallback is excluded by name: at equal specificity this later
-     rule beat the slim row above and drew a 220px "No photo yet" box at 1440
-     (site audit 13 Sep 2026, D10). */
+  /* Exclude fallback frames so this later rule cannot replace their height. */
   .venueInspector .venueImage--header:not(.venueImage--empty) {
     /* A fixed height rather than a ceiling on the 16:9 ratio: Chromium
        transfers a max-height through aspect-ratio into the WIDTH, so the

@@ -69,10 +69,8 @@ export default function VenueInspectorHeader({
       </div>
       <h3>{venue.name}</h3>
 
-      {/* E3′ — shared provenance-labelled venue photo header: chain (scraped)
-          photo first, honest community Pint Drop fallback, gradient
-          placeholder for photo-less venues. Additive/self-contained so it does
-          not touch the tab strip or grab-zone layout N3 owns below. */}
+      {/* Keep photo selection and the final fallback in VenueImage.
+          The tab strip and grab zone remain independent of the image state. */}
       <VenueImage
         className={`venueImage--header venueBaselinePhoto${revealBloom ? " venueRevealBloom" : ""}`}
         sources={[
