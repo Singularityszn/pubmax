@@ -9,7 +9,6 @@ import { writeWildNightPreview, type WildNightPreview } from "@/lib/wildNightPre
 const choices: ReadonlyArray<{ key: WildNightPreview | null; label: string }> = [
   { key: null, label: "Previews off" },
   { key: "round-rota", label: "Round Rota" },
-  { key: "pub-tarot", label: "Pub Tarot" },
   { key: "borough-bingo", label: "Borough Bingo" },
 ];
 
