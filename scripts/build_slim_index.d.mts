@@ -1,3 +1,10 @@
+import type { LegacyPriceEvidenceRow } from "../lib/legacyPriceEvidence.mjs";
+
+export function buildSlimPriceEvidence(
+  prices: readonly LegacyPriceEvidenceRow[],
+  cheapestPrice: number | null,
+): { cheapestPint?: string; measure?: string; priceSource?: string; priceObservedAt?: string };
+
 export type SlimCurationInput = {
   pub_name?: unknown;
   address?: unknown;
@@ -6,11 +13,6 @@ export type SlimCurationInput = {
   price_gbp?: number | null;
   source_datasets?: unknown;
 };
-
-export function buildSlimPriceEvidence(row: { pub_url?: string | null; scraped_at_values?: string | null; pint_name?: string | null; measure?: string | null } | null): {
-  priceSource?: string; priceSourceUrl?: string; priceObservedAt?: string; cheapestPint?: string; measure?: string;
-};
-export function selectSlimPriceRow<T extends { price_gbp?: number | null }>(prices: readonly T[]): T | null;
 
 export type SlimDrinkHintInput = {
   pint_name?: unknown;

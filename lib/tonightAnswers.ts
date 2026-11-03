@@ -28,6 +28,7 @@ export type TonightCheapestAnswer = {
   drinkLabel?: string | null;
   servingSize?: string | null;
   publisher?: { label: string; url?: string | null } | null;
+  evidenceUnavailable?: boolean;
   /** "~6 min walk", "Around Soho" or the borough. */
   placeLine: string;
   /** How the pub was chosen, so the card never claims "near you" it cannot back. */

@@ -4,9 +4,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import TonightAnswerCards from "@/components/tonight/TonightAnswerCards";
 import { tonightCheapestAnswer } from "@/lib/tonightAnswers";
-import { loadSlimVenuesFromPathResult } from "@/lib/venuesSlim";
-import { offlineCache } from "@/lib/offlineCache";
-import { buildSlimPriceEvidence, selectSlimPriceRow } from "@/scripts/build_slim_index.mjs";
+import { useTonightPintEvidence } from "@/components/tonight/useTonightAnswerReads";
 
 const mounted: Array<ReturnType<typeof createRoot>> = [];
 beforeEach(() => vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true));
@@ -77,24 +75,66 @@ describe("Tonight's selected pint evidence", () => {
     expect(card.querySelector('a[href^="javascript:"]')).toBeNull();
   });
 
-  it("carries one selected row through the slim producer and reader to the nearby card", async () => {
-    const priceRows = [
-      { price_gbp: 4.5, pint_name: "First lager", measure: "pint", pub_url: "https://first.example/menu", scraped_at_values: "2026-07-03T12:00:00Z" },
-      { price_gbp: 4.5, pint_name: "Other lager", measure: "pint", pub_url: "https://other.example/menu", scraped_at_values: "2026-10-02T12:00:00Z" },
-    ];
-    const evidence = buildSlimPriceEvidence(selectSlimPriceRow(priceRows));
-    vi.spyOn(offlineCache, "get").mockResolvedValue(null);
-    vi.spyOn(offlineCache, "set").mockResolvedValue(true);
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => [{
-      id: "near", name: "Near Arms", lat: 51.51, lng: -0.13, borough: "Soho", cheapestPrice: 4.5, ...evidence,
-    }] }));
-    const { rows } = await loadSlimVenuesFromPathResult("/data/tonight-evidence-test.json");
-    const card = await show(tonightCheapestAnswer({ origin: { lat: 51.51, lng: -0.13 }, patch: null, nearby: rows, cityRows: [] }));
-    expect(card.textContent).toContain("First lager");
-    expect(card.textContent).toContain("pint");
-    expect(card.textContent).toContain("3 Jul 2026");
-    expect(card.querySelector('a[href="https://first.example/menu"]')?.textContent).toBe("first.example");
-    expect(card.textContent).not.toContain("Other lager");
-    expect(card.textContent).not.toContain("2 Oct 2026");
+  it("uses only the first selected detail row when snapshot identities agree", async () => {
+    const digest = "abcdefghijklmnopqrstuv";
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({
+      priceDatasetDigest: digest,
+      venue: { id: "near", prices: [
+        { price_gbp: 4.5, pint_name: "First lager", measure: "pint", pub_url: "https://first.example/menu", scraped_at_values: "2026-07-03T12:00:00Z" },
+        { price_gbp: 4.5, pint_name: "Other lager", measure: "pint", pub_url: "https://other.example/menu", scraped_at_values: "2026-10-02T12:00:00Z" },
+      ] },
+    }) }));
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    mounted.push(root);
+    function Probe() {
+      const evidence = useTonightPintEvidence("near", digest);
+      return createElement("span", null, evidence ? JSON.stringify(evidence) : "waiting");
+    }
+    await act(async () => { root.render(createElement(Probe)); await new Promise((resolve) => setTimeout(resolve, 20)); });
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)); });
+    expect(container.textContent).toContain("First lager");
+    expect(container.textContent).toContain("https://first.example/menu");
+    expect(container.textContent).toContain("2026-07-03");
+    expect(container.textContent).not.toContain("Other lager");
+  });
+
+  it("refuses a detail response from a different snapshot", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({
+      priceDatasetDigest: "other", venue: { id: "near", prices: [{ pint_name: "Wrong lager" }] },
+    }) }));
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    mounted.push(root);
+    function Probe() {
+      const evidence = useTonightPintEvidence("near", "abcdefghijklmnopqrstuv");
+      return createElement("span", null, evidence ? JSON.stringify(evidence) : "waiting");
+    }
+    await act(async () => { root.render(createElement(Probe)); await new Promise((resolve) => setTimeout(resolve, 20)); });
+    expect(container.textContent).toBe("waiting");
+  });
+
+  it("does not let a late response replace the new winner's evidence", async () => {
+    const digest = "abcdefghijklmnopqrstuv";
+    let finishFirst: (response: unknown) => void = () => undefined;
+    const first = new Promise((resolve) => { finishFirst = resolve; });
+    const body = (id: string, name: string) => ({ ok: true, json: async () => ({
+      priceDatasetDigest: digest, venue: { id, prices: [{ pint_name: name }] },
+    }) });
+    vi.stubGlobal("fetch", vi.fn().mockImplementationOnce(() => first).mockResolvedValueOnce(body("second", "Second lager")));
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    mounted.push(root);
+    function Probe({ id }: { id: string }) {
+      const evidence = useTonightPintEvidence(id, digest);
+      return createElement("span", null, evidence?.drinkLabel ?? "waiting");
+    }
+    await act(async () => root.render(createElement(Probe, { id: "first" })));
+    await act(async () => { root.render(createElement(Probe, { id: "second" })); await new Promise((resolve) => setTimeout(resolve, 20)); });
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)); });
+    expect(container.textContent).toBe("Second lager");
+    await act(async () => { finishFirst(body("first", "First lager")); await new Promise((resolve) => setTimeout(resolve, 20)); });
+    expect(container.textContent).toBe("Second lager");
   });
 });
