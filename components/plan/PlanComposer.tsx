@@ -33,6 +33,16 @@ import { laneSourceFromSearch, trackEvent, trackMeaningfulCoreAction } from "@/l
 import { errorShownKindFromStatus, trackErrorShown } from "@/lib/analyticsErrorShown";
 import { ASK_PLAN_DRAFT_STORAGE_KEY, type AskPlanDraft } from "@/lib/ask/types";
 import {
+  palDraftAnswers,
+  palDraftAttemptKept,
+  palDraftAttempts,
+  palDraftCheckingLine,
+  palDraftRouteLines,
+  palPlanDraftFor,
+  type PalDraftAttempt,
+  type PalPlanDraft,
+} from "@/lib/palPlanHandoff";
+import {
   parsePlanDescribeFromSearch,
   parsePlanHandoffQueryFromSearch,
   shouldAutoGeneratePalHandoffPlan,
@@ -999,6 +1009,52 @@ export function isMatchingAnchorOnlyPlan(input: {
   );
 }
 
+/**
+ * The crawl an ask drafted for THIS ask, spent once (lib/palPlanHandoff.ts).
+ * The one-shot read of the session draft holds it in `held`; the session copy
+ * is the fallback for a draft that read has not reached yet.
+ */
+function takePalDraft(held: { current: PalPlanDraft | null }, query: string): PalPlanDraft | null {
+  let draft = held.current && palDraftAnswers(held.current, query) ? held.current : null;
+  if (!draft && !held.current) {
+    try {
+      draft = palPlanDraftFor(safeSessionStorage()?.getItem(ASK_PLAN_DRAFT_STORAGE_KEY) ?? null, query);
+    } catch {
+      draft = null;
+    }
+  }
+  if (draft) held.current = null;
+  return draft;
+}
+
+/**
+ * POST /api/plans/generate once per attempt until one is taken. The attempts
+ * always end with the plain ask, which is always taken, so its own success or
+ * error reads as it always did.
+ */
+async function requestPlanGeneration(
+  draft: PalPlanDraft | null,
+  attempts: readonly PalDraftAttempt[],
+  bodyFor: (attempt: PalDraftAttempt) => unknown,
+): Promise<{ response: Response; body: unknown; attempt: PalDraftAttempt }> {
+  let last: { response: Response; body: unknown; attempt: PalDraftAttempt } | null = null;
+  for (const attempt of attempts) {
+    const response = await fetch("/api/plans/generate", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(bodyFor(attempt)),
+    });
+    const body = await readApiJson(response);
+    last = { response, body, attempt };
+    // A refused keeping attempt hands over to the next; the plain ask's own
+    // refusal is the answer, and the caller reads its error as it always did.
+    if (!response.ok && attempt.keeps !== "none") continue;
+    if (palDraftAttemptKept(attempt, draft, response.ok, body as { outcome?: unknown; stops?: unknown } | null)) break;
+  }
+  if (!last) throw new Error("PUBMAXX could not sort this one.");
+  return last;
+}
+
 export function composerCreatePayload(input: {
   title: string;
   creatorName: string;
@@ -1496,6 +1552,10 @@ function PlanComposerForm({
   const [entryMode, setEntryMode] = useState<"describe" | "wizard">(initialEntryMode);
   const [askDraftQuery, setAskDraftQuery] = useState(urlAsk ?? "");
   const askDraftConsumedRef = useRef(false);
+  // The crawl an ask drafted, read from the same one-shot session draft, kept
+  // until the generation that answers that same ask spends it
+  // (lib/palPlanHandoff.ts): Plan keeps those pubs instead of choosing its own.
+  const palDraftRef = useRef<PalPlanDraft | null>(null);
   // An ask the address carries is applied ONCE. This effect re-runs whenever
   // the surface it has to write into can change - releasing a held acceptance
   // flips `heldVenueId` - and a second application would overwrite whatever
@@ -1555,10 +1615,18 @@ function PlanComposerForm({
         // still saw the previous route, so a captured ask would read as none
         // and hand the field back to the draft the URL just beat.
         const askOnScreen = describeAskFromLocation().ask ?? appliedUrlAskRef.current;
-        if (askOnScreen || !raw) return;
+        // The Pal's "Open in Plan" puts its ask in the address; Ask the map
+        // leaves it to prefill the field. Either way the drafted pubs ride
+        // with that ask, and only with it.
+        if (askOnScreen) {
+          palDraftRef.current = palPlanDraftFor(raw, askOnScreen);
+          return;
+        }
+        if (!raw) return;
         const parsed = JSON.parse(raw) as AskPlanDraft;
         const query = typeof parsed?.query === "string" ? parsed.query.trim().slice(0, 500) : "";
         if (!query) return;
+        palDraftRef.current = palPlanDraftFor(raw, query);
         setAskDraftQuery(query);
       } catch {
         /* private mode or bad JSON */
@@ -2256,24 +2324,33 @@ function PlanComposerForm({
       const area = venueNightArea(venues.find((venue) => venue.id === heldVenueId), acceptedCityId);
       if (area) submittedContext.nightArea = area;
     }
+    // A crawl the Pal (or Ask the map) drafted for THIS ask is kept: spent
+    // here, once, by the generation that answers it.
+    const palDraft = takePalDraft(palDraftRef, query);
     setSorting(true);
     setError("");
-    setRouteStatus("Refreshing the route and rechecking every stop for your updated night.");
+    setRouteStatus(palDraftCheckingLine(palDraft, "Refreshing the route and rechecking every stop for your updated night."));
     let responseStatus: number | null = null;
     try {
-      const response = await fetch("/api/plans/generate", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(buildPlanGenerationIntakeBody(
+      // Keep every drafted pub, else keep the first and choose the rest, else
+      // plan from the ask; a plain ask is the last attempt alone.
+      const baseContext = { ...submittedContext };
+      const { response, body: rawBody, attempt: taken } = await requestPlanGeneration(
+        palDraft,
+        palDraftAttempts(palDraft, handoff?.acceptedAnchor),
+        (attempt) => buildPlanGenerationIntakeBody(
           intake,
           query,
           nightContext,
-          submittedContext,
-          handoff?.acceptedAnchor,
-        )),
-      });
+          { ...baseContext, ...attempt.context },
+          attempt.anchor,
+        ),
+      );
       responseStatus = response.status;
-      const body = await readApiJson(response) as {
+      // The kept route's own length is the night it answers.
+      Object.assign(submittedContext, taken.context);
+      const kept = taken.keeps;
+      const body = rawBody as {
         stops?: unknown;
         alternatives?: unknown;
         cultureOpener?: unknown;
@@ -2341,8 +2418,13 @@ function PlanComposerForm({
       }
       trackEvent("plan_started");
       trackEvent("plan_generated", { stops: suggested.length, grounded });
-      setConciergeNote(conciergeNote);
-      setRouteStatus(generationStatus);
+      // Say what happened to the drafted pubs, ahead of the usual line.
+      const shown = palDraftRouteLines(palDraft, kept, suggested.map((stop) => stop.venueName), {
+        conciergeNote,
+        routeStatus: generationStatus,
+      });
+      setConciergeNote(shown.conciergeNote);
+      setRouteStatus(shown.routeStatus);
       setRouteRevealTick((tick) => tick + 1);
       setRouteDrawKey(suggested.map((stop) => stop.venueId).join(">"));
       if (body.inferredContext) {

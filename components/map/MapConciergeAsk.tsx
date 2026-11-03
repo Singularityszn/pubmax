@@ -140,6 +140,7 @@ export default function MapConciergeAsk({
           stopIds: proposal.stopIds,
           stopNames: proposal.stopNames,
           createdAt: new Date().toISOString(),
+          origin: "map",
         });
         router.push("/plan");
         return;
