@@ -13,7 +13,7 @@
 
 import type { VenueSignal } from "@/components/map/canvas/types";
 import { peekPriceAging } from "@/components/map/VenuePeekPintPrice";
-import { comparablePint } from "@/lib/comparablePint.mjs";
+import { comparablePint, pintObservationTime } from "@/lib/comparablePint.mjs";
 import { comparableLensPrice, comparableVenuePint } from "@/lib/comparableVenuePint";
 import { measureFromServingSize } from "@/lib/drinkMeasure";
 import { haversineKm } from "@/lib/haversine";
@@ -161,16 +161,17 @@ function laneObservedAt(
 }
 
 function anchorPresentation(venue: Venue, label: string): CompactVenueAnchor {
-  const day = mapSplitListDay(venue.anchorObservedAt);
+  const observedAt = pintObservationTime(venue.anchorObservedAt);
+  const day = observedAt === null ? null : mapSplitListDay(observedAt);
   return {
     ...(compactVenueAnchor(venue) ?? {
       label,
       sourceLabel: anchorSourceLabel(venue.anchorSourceUrl) || "Publisher not recorded",
       sourceUrl: venue.anchorSourceUrl ?? "",
     }),
-    observedLabel: day && venue.anchorObservedAt
-      ? `read ${day} ${new Date(venue.anchorObservedAt).getUTCFullYear()}`
-      : "Read date not recorded",
+    observedLabel: day && observedAt !== null
+      ? `read ${day} ${new Date(observedAt).getUTCFullYear()}`
+      : venue.anchorObservedAt ? "Read date unavailable" : "Read date not recorded",
   };
 }
 

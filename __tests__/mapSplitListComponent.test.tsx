@@ -145,8 +145,35 @@ describe("the list beside the map, at desktop width", () => {
     expect(row.textContent).toContain("frenchhousesoho.com");
     expect(row.textContent).toContain("26 Jul 2026");
     expect(row.querySelector(".price-plaque, [class*=price-band], [class*=priceBand]")).toBeNull();
+    expect(row.querySelector("a, button")).toBeNull();
     act(() => { row.focus(); row.click(); });
     expect(onSelectVenue).toHaveBeenCalledWith("venue-1kpe609");
+  });
+
+  it.each(["2026-07", "2026", "2026-02-30", "2027-01-01"])(
+    "does not invent an anchor read day from %s", (date) => {
+      const bar = { ...venue("bar-date", "Bar", 4), kind: "bar" as const,
+        anchorLabel: "House cocktail", anchorObservedAt: date,
+        anchorSourceUrl: "https://example.com/menu" };
+      render({ visibleVenues: [bar], filteredVenues: [bar] });
+      expect(rows()[0]?.textContent).toContain("Read date unavailable");
+      expect(rows()[0]?.textContent).not.toMatch(/read \d/);
+    },
+  );
+
+  it("keeps a selected drink lens price and its own caption on an anchor venue", () => {
+    const bar = { ...venue("bar-lens", "Bar", 4), kind: "bar" as const,
+      anchorLabel: "House cocktail", anchorObservedAt: "2026-07-26",
+      anchorSourceUrl: "https://example.com/menu" };
+    render({ visibleVenues: [bar], filteredVenues: [bar], lensNoun: "Wine", lensPrices: new Map([
+      [bar.id, { venueId: bar.id, category: "wine", categoryLabel: "House wine", priceGbp: 6.4,
+        observedAt: "2026-10-28", source: "community" }],
+    ]) });
+    const row = rows()[0]!;
+    expect(row.textContent).toContain("£6.40");
+    expect(row.textContent).toContain("House wine");
+    expect(row.textContent).not.toContain("House cocktail");
+    expect(row.textContent).not.toContain("example.com");
   });
 
   it("names missing anchor evidence without changing ordinary price rows", () => {
