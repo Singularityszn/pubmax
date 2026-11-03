@@ -1,0 +1,88 @@
+name: PR Agent
+
+# PR-Agent (https://github.com/The-PR-Agent/pr-agent, MIT) answers a slash
+# command in a pull request comment: /review, /improve, /describe,
+# /ask "question" and /help. It runs only when a person asks, the same choice
+# .coderabbit.yaml makes for CodeRabbit, so an agent pull request costs nothing
+# until somebody wants a second reader.
+#
+# Why issue_comment and not pull_request: the model key is a secret, and a
+# pull_request workflow does not reference the secrets context
+# (__tests__/ciRunnerIsolation.test.ts). An issue_comment run always uses this
+# file as it is on main, so a pull request cannot change what this job runs.
+# The job checks out nothing and runs no repository code: PR-Agent reads the
+# diff through the API and posts comments.
+#
+# Who can ask: only a comment by the repository owner, an organization member
+# or a collaborator starts the job, so a stranger on this public repository
+# cannot spend the model key. A comment that does not start with "/" never
+# starts a runner.
+#
+# The model key is the ANTHROPIC_KEY repository secret. Without it the job
+# fails with one line that says so.
+#
+# The image is pinned by digest. The upstream action builds FROM the moving
+# pragent/pr-agent:github_action tag, so a pinned action commit would still
+# run whatever code that tag points at today. To move the pin, take a release
+# that is at least seven days old (the Dependabot cooldown), then read its
+# digest and check its attestation:
+#   docker buildx imagetools inspect pragent/pr-agent:<version>-github_action --format '{{.Manifest.Digest}}'
+#   gh attestation verify oci://index.docker.io/pragent/pr-agent@<digest> --repo The-PR-Agent/pr-agent
+# __tests__/prAgentWorkflow.test.ts holds the trigger, the gate and the pin.
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions: {}
+
+jobs:
+  pr-agent:
+    name: Answer a PR-Agent command
+    if: >-
+      github.event.issue.pull_request &&
+      startsWith(github.event.comment.body, '/') &&
+      github.event.sender.type != 'Bot' &&
+      contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # No concurrency group: each command is its own run. GitHub keeps only one
+    # waiting run per group, so a /review and an /improve sent together would
+    # cancel one of them.
+    permissions:
+      contents: read
+      issues: write # the eyes reaction on the command comment
+      pull-requests: write # the review, suggestion and answer comments
+    steps:
+      # v0.49.0, released 25 Oct 2026 (tag commit efdde4afe14aa401a3889012c7f3e9ef3081a430).
+      # Settings use SECTION__KEY names. Change the model on the two CONFIG lines.
+      # The ignore globs keep regenerated data out of the prompt, the same paths
+      # .coderabbit.yaml filters. /describe posts a comment and never rewrites the
+      # pull request body, which an agent writes in Simplified Technical English.
+      - name: Run PR-Agent
+        env:
+          PR_AGENT_IMAGE: pragent/pr-agent@sha256:b1ed6e8de56eb4d6e4169ee0d5c209bb5ed1ef071a01c0c042c64b80192a785c
+          GITHUB_TOKEN: ${{ github.token }}
+          ANTHROPIC__KEY: ${{ secrets.ANTHROPIC_KEY }}
+          CONFIG__MODEL: anthropic/claude-opus-5-5
+          CONFIG__FALLBACK_MODELS: '["anthropic/claude-sonnet-5"]'
+          IGNORE__GLOB: '["data/generated/**", "public/data/**/*.json", "package-lock.json", "**/*.lock"]'
+          PR_DESCRIPTION__PUBLISH_DESCRIPTION_AS_COMMENT: "true"
+          GITHUB_ACTION_CONFIG__ENABLE_OUTPUT: "false"
+        run: |
+          if [ -z "$ANTHROPIC__KEY" ]; then
+            echo "::error::Add the ANTHROPIC_KEY repository secret to run PR-Agent."
+            exit 1
+          fi
+          docker run --rm \
+            --volume "$GITHUB_EVENT_PATH:/github/workflow/event.json:ro" \
+            --env GITHUB_EVENT_PATH=/github/workflow/event.json \
+            --env GITHUB_EVENT_NAME \
+            --env GITHUB_TOKEN \
+            --env ANTHROPIC__KEY \
+            --env CONFIG__MODEL \
+            --env CONFIG__FALLBACK_MODELS \
+            --env IGNORE__GLOB \
+            --env PR_DESCRIPTION__PUBLISH_DESCRIPTION_AS_COMMENT \
+            --env GITHUB_ACTION_CONFIG__ENABLE_OUTPUT \
+            "$PR_AGENT_IMAGE"
