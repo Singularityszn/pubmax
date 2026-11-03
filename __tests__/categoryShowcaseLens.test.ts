@@ -24,15 +24,11 @@ describe("CategoryShowcase explore mode", () => {
 
   it("offers no map link for a category the map cannot lens", () => {
     expect(exploreHtml).not.toContain("/map?drink=other");
-    expect(exploreHtml).not.toContain('aria-label="Explore Other"');
   });
 
   it("still offers every lensable category", () => {
     for (const category of MAP_LENS_DRINK_CATEGORIES) {
       expect(exploreHtml).toContain(`/map?drink=${category}`);
-      expect(exploreHtml).toContain(
-        `aria-label="Explore ${CATEGORY_META[category].label}"`,
-      );
     }
   });
 

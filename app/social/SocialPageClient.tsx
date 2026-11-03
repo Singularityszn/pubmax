@@ -10,12 +10,9 @@ import { useViewerSession } from "@/components/auth/useViewerSession";
 import FoundersWallLink from "@/components/founding/FoundersWallLink";
 import IntentLink from "@/components/nav/IntentLink";
 import SiteNav from "@/components/nav/SiteNav";
-import CrewsPanel from "@/components/social/CrewsPanel";
-import PubRankingPanel from "@/components/social/PubRankingPanel";
 import CreatorListsLane from "@/components/social/CreatorListsLane";
 import FindYourLot from "@/components/social/FindYourLot";
 import PeopleDirectory from "@/components/social/PeopleDirectory";
-import ReelsViewer from "@/components/social/ReelsViewer";
 import SharedSocialPostCard from "@/components/social/SocialPostCard";
 import SocialMomentLink from "@/components/social/SocialMomentLink";
 import StarterPacks from "@/components/social/StarterPacks";
@@ -56,10 +53,15 @@ import type { SocialPostLane } from "@/lib/socialPostReason";
 import type { SocialAlternatives } from "@/lib/socialAlternatives";
 
 import "./social.css";
-import SocialComposer from "./SocialComposer";
 import SocialLondonLane from "./SocialLondonLane";
-import SocialTagInbox from "./SocialTagInbox";
-import SocialOutbox from "./SocialOutbox";
+import { socialLazy } from "./SocialLazy";
+
+const SocialComposer = socialLazy(() => import("./SocialComposer"), "Post controls", <button type="button" disabled>Loading post controls…</button>);
+const CrewsPanel = socialLazy(() => import("@/components/social/CrewsPanel"), "Your crews", <p role="status">Loading your crews…</p>);
+const PubRankingPanel = socialLazy(() => import("@/components/social/PubRankingPanel"), "Your pub ranking", <p role="status">Loading your pub ranking…</p>);
+const SocialTagInbox = socialLazy(() => import("./SocialTagInbox"), "Tags", <p role="status">Loading tags…</p>);
+const SocialOutbox = socialLazy(() => import("./SocialOutbox"), "Your posts", <p role="status">Loading your posts…</p>);
+const ReelsViewer = socialLazy(() => import("@/components/social/ReelsViewer"), "Video", <p role="status">Loading video…</p>);
 
 export type SocialBoundaryState = SocialBoundaryCopyState;
 
@@ -243,7 +245,7 @@ export function SocialAccessBoundary({
  * The Social page's card: the shared card plus the composer for the viewer's
  * own post. Kept under this name so every caller and test reads it unchanged.
  */
-export function SocialPostCard({ post, lane, canEdit = false, draftScope, onEdited, interactive = false, onOpenVideo }: { post: SocialPostDTO; lane?: SocialPostLane; canEdit?: boolean; draftScope?: string | null; onEdited?: (post?: SocialPostDTO) => void; interactive?: boolean; onOpenVideo?: (postId: string) => void }) {
+export function SocialPostCard({ post, lane, canEdit = false, draftScope, onEdited, interactive = false, onOpenVideo }: { post: SocialPostDTO; lane?: SocialPostLane; canEdit?: boolean; draftScope?: string | null; onEdited?: (post?: SocialPostDTO) => void; interactive?: boolean; onOpenVideo?: (postId: string, opener: HTMLButtonElement) => void }) {
   return (
     <SharedSocialPostCard
       post={post}
@@ -409,7 +411,8 @@ function SocialPageAccountState({
     useState<ActivityLoadState>("idle");
   const [activityItems, setActivityItems] = useState<SocialActivityItem[]>([]);
   const [posts, setPosts] = useState<SocialPostDTO[]>([]);
-  const [reelStart, setReelStart] = useState<string | null>(null);
+  const [reelStart, setReelStart] = useState<{ postId: string; opener: HTMLButtonElement } | null>(null);
+  const openReel = (postId: string, opener: HTMLButtonElement) => setReelStart({ postId, opener });
   const reelPosts = useMemo(() => posts.filter((post) => post.video), [posts]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -989,20 +992,20 @@ function SocialPageAccountState({
               ) : (
                 <div className="socialPostList">
                   {reelPosts.length > 0 ? (
-                    <button type="button" className="socialReelsEntry" onClick={() => setReelStart(reelPosts[0]!.id)}>
+                    <button type="button" className="socialReelsEntry" onClick={(event) => openReel(reelPosts[0]!.id, event.currentTarget)}>
                       Watch reels <span>{reelPosts.length}</span>
                     </button>
                   ) : null}
                   {posts.map((post) => (
                     <SocialPostCard key={post.id} post={post} lane={initialState.feed ?? undefined} canEdit={post.ownedByViewer} draftScope={draftScope} interactive
-                      onOpenVideo={setReelStart}
+                      onOpenVideo={openReel}
                       onEdited={(updated) => updated
                         ? setPosts((current) => chronological(current.map((item) => item.id === updated.id
                           ? { ...updated, review: updated.review ?? item.review, video: updated.video ?? item.video, extraPhotos: updated.extraPhotos ?? item.extraPhotos }
                           : item)))
                         : setFeedAttempt((value) => value + 1)} />
                   ))}
-                  {reelStart ? <ReelsViewer posts={reelPosts} startPostId={reelStart} onClose={() => setReelStart(null)} /> : null}
+                  {reelStart ? <ReelsViewer posts={reelPosts} startPostId={reelStart.postId} opener={reelStart.opener} onClose={() => setReelStart(null)} /> : null}
                 </div>
               )}
               {feedStatus === "ready" && nextCursor ? (
