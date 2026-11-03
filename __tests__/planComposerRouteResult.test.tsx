@@ -161,6 +161,11 @@ function seedCountRecovery(requestedStopCount?: 6): void {
   }));
 }
 
+function expectTuneDescriptionAndCount(query: string, requestedStopCount: number | undefined): void {
+  expect(document.querySelector<HTMLInputElement>("#plan-concierge-query")?.value).toBe(query);
+  expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe(String(requestedStopCount ?? 3));
+}
+
 async function typeTuneQuery(query: string): Promise<void> {
   const field = document.querySelector<HTMLInputElement>("#plan-concierge-query")!;
   await act(async () => {
@@ -358,8 +363,7 @@ describe("the Plan result", () => {
 
       await mountComposer();
       await openTune();
-      expect(document.querySelector<HTMLInputElement>("#plan-concierge-query")?.value).toBe(query);
-      expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe(String(requested ?? 3));
+      expectTuneDescriptionAndCount(query, requested);
       expect(document.querySelectorAll(".planStop__name")).toHaveLength(2);
       if (!sessionCanSave) {
         expect(notices()).toContain(localCanSave
@@ -399,8 +403,7 @@ describe("the Plan result", () => {
       await openTune();
       const restoredQuery = available === "local" ? "" : available === "neither" ? oldDraft.conciergeQuery : query;
       const restoredCount = available === "neither" ? 6 : requested;
-      expect(document.querySelector<HTMLInputElement>("#plan-concierge-query")?.value).toBe(restoredQuery);
-      expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe(String(restoredCount ?? 3));
+      expectTuneDescriptionAndCount(restoredQuery, restoredCount);
       if (available === "local") {
         expect(notices()).toContain("Your latest description could not be restored. Enter it again.");
       }
