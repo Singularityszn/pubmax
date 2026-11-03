@@ -314,6 +314,12 @@ describe("sitemap()", () => {
     expect(areaUrls).toEqual([]);
   });
 
+  it("keeps the London brand pages when area reviews are unavailable", () => {
+    for (const brandSlug of ["guinness", "amstel", "neck-oil", "estrella", "peroni", "birra-moretti"]) {
+      expect(urls).toContain(`${SITE}/drink/${brandSlug}`);
+    }
+  });
+
   it("gives each advertised area-brand page its parent when review is simulated", async () => {
     vi.resetModules();
     vi.doMock("@/lib/nightAreas", async (importOriginal) => {
