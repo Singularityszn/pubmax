@@ -5,7 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import RoundRota from "@/components/wild/RoundRota";
-import { ROUND_ROTA_SESSION_KEY } from "@/components/wild/RoundRotaState";
+import { ROUND_ROTA_SESSION_KEY, clearRoundRota, readRoundRota, saveRoundRota } from "@/components/wild/RoundRotaState";
 
 let host: HTMLDivElement;
 let root: Root;
@@ -48,6 +48,38 @@ async function press(label: string) {
 }
 
 describe("a private turn order", () => {
+  it("retains the first and ninth orders when later Rounds are saved, updated and cleared", () => {
+    const storage = window.sessionStorage;
+    expect(saveRoundRota("owner-a", "round-1", { names: ["Sam", "Priya"], current: 1 }, storage)).toBe(true);
+    for (let round = 2; round <= 10; round += 1) {
+      expect(saveRoundRota("owner-a", `round-${round}`, { names: ["Lee"], current: 0 }, storage)).toBe(true);
+    }
+    expect(readRoundRota("owner-a", "round-1", storage)).toEqual({ names: ["Sam", "Priya"], current: 1 });
+    expect(readRoundRota("owner-a", "round-9", storage)).toEqual({ names: ["Lee"], current: 0 });
+    expect(readRoundRota("owner-b", "round-1", storage)).toEqual({ names: [], current: 0 });
+    expect(saveRoundRota("owner-a", "round-9", { names: ["Jo", "Ali"], current: 1 }, storage)).toBe(true);
+    expect(readRoundRota("owner-a", "round-9", storage)).toEqual({ names: ["Jo", "Ali"], current: 1 });
+    expect(readRoundRota("owner-a", "round-1", storage)).toEqual({ names: ["Sam", "Priya"], current: 1 });
+    expect(clearRoundRota("owner-a", "round-9", storage)).toBe(true);
+    expect(readRoundRota("owner-a", "round-9", storage)).toEqual({ names: [], current: 0 });
+    expect(readRoundRota("owner-a", "round-1", storage)).toEqual({ names: ["Sam", "Priya"], current: 1 });
+    expect(readRoundRota("owner-a", "round-10", storage)).toEqual({ names: ["Lee"], current: 0 });
+  });
+
+  it.each([
+    { names: ["Sam"], current: 1 },
+    { names: ["Sam", "sam"], current: 0 },
+    { names: ["A".repeat(41)], current: 0 },
+    { names: Array.from({ length: 13 }, (_, index) => `Person ${index}`), current: 0 },
+  ])("rejects a malformed ninth order without weakening entry validation: %j", (invalid) => {
+    const rounds = Array.from({ length: 8 }, (_, index) => ({ roundId: `round-${index + 1}`, names: ["Sam"], current: 0 }));
+    window.sessionStorage.setItem(ROUND_ROTA_SESSION_KEY, JSON.stringify({
+      version: 1, ownerId: "owner-a", rounds: [...rounds, { roundId: "round-9", ...invalid }],
+    }));
+    expect(readRoundRota("owner-a", "round-9", window.sessionStorage)).toEqual({ names: [], current: 0 });
+    expect(saveRoundRota("owner-a", "round-9", invalid, window.sessionStorage)).toBe(false);
+  });
+
   it("uses the chosen names and advances one person per tap", async () => {
     await show();
     expect(host.textContent).toContain("Add the names in turn order.");
@@ -132,6 +164,25 @@ describe("a private turn order", () => {
     expect(host.querySelector(".roundRotaCurrent")?.textContent).toContain("Priya");
     expect(host.textContent).toContain("cannot keep this order after a reload");
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("reports a quota failure and retains the previously saved order", async () => {
+    await show(); await add("Sam"); await add("Priya"); await press("Next person");
+    const saved = window.sessionStorage.getItem(ROUND_ROTA_SESSION_KEY);
+    const write = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("Quota exceeded", "QuotaExceededError");
+    });
+    await add("Lee");
+    expect(host.textContent).toContain("Your browser cannot keep this order after a reload.");
+    expect(host.querySelectorAll(".roundRotaNames li")).toHaveLength(3);
+    expect(window.sessionStorage.getItem(ROUND_ROTA_SESSION_KEY)).toBe(saved);
+    write.mockRestore();
+    await act(async () => { root.unmount(); });
+    root = createRoot(host);
+    await show();
+    expect(host.querySelector(".roundRotaCurrent")?.textContent).toContain("Priya");
+    expect(host.querySelectorAll(".roundRotaNames li")).toHaveLength(2);
+    expect(host.textContent).not.toContain("Lee");
   });
 
   it("rejects a damaged saved order", async () => {

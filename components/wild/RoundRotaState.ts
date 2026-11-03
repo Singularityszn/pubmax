@@ -1,7 +1,6 @@
 export const ROUND_ROTA_SESSION_KEY = "pubmax:wild-round-rota:v1";
 export const ROUND_ROTA_MAX_NAMES = 12;
 export const ROUND_ROTA_NAME_LIMIT = 40;
-const MAX_ROUNDS = 8;
 
 export type RoundRotaState = { names: string[]; current: number };
 type RotaEntry = RoundRotaState & { roundId: string };
@@ -39,7 +38,7 @@ function readRecord(storage: RotaStorage): RotaRecord | null {
   try {
     const record = JSON.parse(storage?.getItem(ROUND_ROTA_SESSION_KEY) ?? "null") as Partial<RotaRecord> | null;
     if (record?.version !== 1 || typeof record.ownerId !== "string" || !record.ownerId
-      || !Array.isArray(record.rounds) || record.rounds.length > MAX_ROUNDS || !record.rounds.every(validEntry)
+      || !Array.isArray(record.rounds) || !record.rounds.every(validEntry)
       || new Set(record.rounds.map((entry) => entry.roundId)).size !== record.rounds.length) return null;
     return record as RotaRecord;
   } catch {
@@ -60,7 +59,7 @@ export function saveRoundRota(ownerId: string, roundId: string, value: RoundRota
   try {
     storage.setItem(ROUND_ROTA_SESSION_KEY, JSON.stringify({
       version: 1, ownerId,
-      rounds: [...other.slice(-(MAX_ROUNDS - 1)), { roundId, names: value.names, current: value.current }],
+      rounds: [...other, { roundId, names: value.names, current: value.current }],
     } satisfies RotaRecord));
     return true;
   } catch {
