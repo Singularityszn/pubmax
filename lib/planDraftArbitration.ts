@@ -6,7 +6,34 @@ import {
 import type { ParsedPlanDraft, StoredPlanDraft } from "@/lib/planDraft";
 import type { ParsedPlanIntakeDraft } from "@/lib/planIntake";
 import type { ParsedPlanRouteDraft } from "@/lib/planRouteDraft";
+import type { PlanStopCount } from "@/lib/planStopCount";
 import type { PlanningIntentArea, PlanningIntentV1 } from "@/lib/planningIntent";
+
+export function resolveRequestedPlanIntent(
+  plan: ParsedPlanDraft | null,
+  legacyDraft: StoredPlanDraft | null,
+  intake: ParsedPlanIntakeDraft | null,
+): { stopCount: PlanStopCount | undefined; conciergeQuery: string; descriptionUnavailable: boolean } {
+  const planCount = plan?.draft.requestedStopCount;
+  const intakeCount = intake?.draft.answers.stopCount;
+  const recovered = {
+    stopCount: planCount,
+    conciergeQuery: plan?.draft.conciergeQuery ?? "",
+    descriptionUnavailable: false,
+  };
+  const unavailable = { conciergeQuery: "", descriptionUnavailable: true };
+  if (plan && !plan.legacy && legacyDraft
+    && (legacyDraft.requestedStopCount !== planCount || legacyDraft.conciergeQuery !== plan.draft.conciergeQuery)) {
+    return { stopCount: legacyDraft.requestedStopCount === planCount ? planCount : undefined, ...unavailable };
+  }
+  if (!plan) return { ...recovered, stopCount: intakeCount };
+  if (!intake) return recovered;
+  if (plan.legacy) return { stopCount: planCount === intakeCount ? planCount : undefined, ...unavailable };
+  const planTime = Date.parse(plan.savedAt ?? "");
+  const intakeTime = Date.parse(intake.savedAt);
+  if (!Number.isFinite(planTime) || !Number.isFinite(intakeTime)) return { stopCount: undefined, ...unavailable };
+  return intakeTime > planTime ? { stopCount: intakeCount, ...unavailable } : recovered;
+}
 
 type DraftSurface = "map" | "plan" | "route";
 

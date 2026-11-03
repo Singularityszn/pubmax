@@ -42,10 +42,14 @@ vi.mock("@/lib/analytics", () => ({
 }));
 
 import PlanComposer, { planComposerVenueIndexPath } from "@/components/plan/PlanComposer";
-import { resolveFutureLondonStartIso } from "@/lib/planIntake";
+import { createPlanIntakeDraft, PLAN_INTAKE_STORAGE_KEY, readPlanIntakeDraft, readPlanIntakeDraftWithMetadata, resolveFutureLondonStartIso, skipRemainingPlanIntake, writePlanIntakeDraft } from "@/lib/planIntake";
 import { readPlanningIntent, writePlanningIntent } from "@/lib/planningIntent";
 import { parsePlanGenerationRequest } from "@/lib/planGenerationRequest";
-import { parsePlanDraft, PLAN_DRAFT_KEY } from "@/lib/planDraft";
+import { reconcilePlanContext } from "@/lib/planGenerationContext";
+import { parsePlanDraft, PLAN_DRAFT_KEY, readPlanDraftEnvelope, writePlanDraftEnvelope } from "@/lib/planDraft";
+import { writeAskPlanDraft } from "@/lib/conciergeAskClient";
+import { ASK_PLAN_DRAFT_STORAGE_KEY } from "@/lib/ask/types";
+import { inferNightContext, type NightContext } from "@/lib/nightPlanning";
 
 const GENERATED = {
   routeRevision: 1,
@@ -54,7 +58,7 @@ const GENERATED = {
     { venueId: "venue-a", venueName: "Pub A", reason: "Close to the heart of the area." },
     { venueId: "venue-b", venueName: "Pub B", reason: "0.6 km from the area centre." },
   ],
-  inferredContext: { nightArea: "clapham", daypart: "evening", groupSize: 4 },
+  inferredContext: { ...inferNightContext("Quiet in Clapham for 4").context, nightArea: "clapham", daypart: "evening", groupSize: 4 } satisfies NightContext,
 };
 
 let root: Root | null = null;
@@ -104,6 +108,15 @@ async function mountComposer(): Promise<void> {
   await settle();
 }
 
+async function remountComposer(): Promise<void> {
+  const current = root!;
+  await act(async () => { current.unmount(); });
+  root = null;
+  host?.remove();
+  host = null;
+  await mountComposer();
+}
+
 function venueIndexReads(): number {
   const path = planComposerVenueIndexPath();
   return fetchMock.mock.calls.filter(([input]) => String(input) === path).length;
@@ -123,7 +136,865 @@ async function sortIt(query: string): Promise<void> {
   }, { timeout: 4000 });
 }
 
+function blockStorageWrites(name: "localStorage" | "sessionStorage"): Storage {
+  const storage = window[name];
+  vi.stubGlobal(name, {
+    getItem: storage.getItem.bind(storage),
+    setItem: () => { throw new DOMException("Storage is full", "QuotaExceededError"); },
+    removeItem: storage.removeItem.bind(storage), clear: storage.clear.bind(storage),
+    key: storage.key.bind(storage), get length() { return storage.length; },
+  } satisfies Storage);
+  return storage;
+}
+
+function seedCountRecovery(requestedStopCount?: 6): void {
+  const intake = skipRemainingPlanIntake(createPlanIntakeDraft());
+  writePlanIntakeDraft({ ...intake, answers: { ...intake.answers, stopCount: requestedStopCount } });
+  sessionStorage.setItem(PLAN_DRAFT_KEY, JSON.stringify({
+    title: "Night", creatorName: "", startTime: "", conciergeQuery: "Clapham tonight", requestedStopCount,
+    stops: GENERATED.stops.map((stop, index) => ({ key: index + 1, venueId: stop.venueId, venueName: stop.venueName })),
+  }));
+  localStorage.setItem("pubmaxx:plan-route-draft:v1", JSON.stringify({
+    stops: GENERATED.stops,
+    nightContext: { nightArea: "clapham", daypart: "evening", partyType: "friends", budget: "standard", stopCount: 6 },
+    groundingProof: "test-proof", routeStale: true,
+  }));
+}
+
+function expectTuneDescriptionAndCount(query: string, requestedStopCount: number | undefined): void {
+  expect(document.querySelector<HTMLInputElement>("#plan-concierge-query")?.value).toBe(query);
+  expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe(String(requestedStopCount ?? 3));
+}
+
+async function typeTuneQuery(query: string): Promise<void> {
+  const field = document.querySelector<HTMLInputElement>("#plan-concierge-query")!;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(field, query);
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
+
 describe("the Plan result", () => {
+  it.each([false, true])("restores the new Ask route when only session storage saves generation (same pubs: %s)", async (samePubs) => {
+    let now = Date.now();
+    const clock = vi.spyOn(Date, "now").mockImplementation(() => now++);
+    onTestFinished(() => clock.mockRestore());
+    const sixStops = Array.from({ length: 6 }, (_, index) => ({
+      venueId: `old-${index + 1}`, venueName: `Old pub ${index + 1}`,
+    }));
+    const oldContext: NightContext = {
+      ...GENERATED.inferredContext, nightArea: "piccadilly-soho", stopCount: 6,
+      budgetLimitPence: 2000, transportConstraints: ["walking"],
+    };
+    const newStops = samePubs
+      ? sixStops.map((stop, index) => ({ venueId: stop.venueId, venueName: `New pub ${index + 1}` }))
+      : [{ venueId: "new-one", venueName: "New pub" }];
+    const query = samePubs ? "Six pubs in Clapham tonight" : "One pub in Clapham tonight";
+    const requested = samePubs ? 6 : 1;
+    const newIds = newStops.map((stop) => stop.venueId);
+    const newNames = newStops.map((stop) => stop.venueName);
+    let response = {
+      ...GENERATED, groundingProof: "old-proof", stops: sixStops.map((stop, index) => ({
+        ...stop, walkingMinutesFromPrevious: index ? 18 : undefined,
+        walkFromVenueId: index ? sixStops[index - 1]!.venueId : undefined,
+      })),
+      operationKey: "old-route-operation", anchored: true, anchorVenueId: "old-1", anchorSource: "near", outcome: "route",
+      inferredContext: oldContext,
+    };
+    fetchMock.mockImplementation(async (input) => new Response(JSON.stringify(
+      String(input).includes("/api/plans/generate") ? response : [],
+    ), { status: 200, headers: { "content-type": "application/json" } }));
+    await mountComposer();
+    await sortIt("Six pubs in Soho tonight, walking, £20 each");
+    expect(document.querySelectorAll(".planStop__name")).toHaveLength(6);
+    const local = blockStorageWrites("localStorage");
+    const oldRoute = local.getItem("pubmaxx:plan-route-draft:v1");
+    expect(JSON.parse(oldRoute!)).toMatchObject({
+      nightContext: { nightArea: "piccadilly-soho", stopCount: 6, transportConstraints: ["walking"] },
+      groundingProof: "old-proof", createOperationKey: "old-route-operation",
+      planAnchor: { venueId: "old-1", outcome: "route" }, routeStale: false,
+    });
+    response = { ...GENERATED, groundingProof: "new-proof", stops: newStops.map((stop) => ({ ...stop, walkingMinutesFromPrevious: undefined, walkFromVenueId: undefined })),
+      operationKey: "new-route-operation", anchored: false, anchorVenueId: "", anchorSource: "", outcome: "route",
+      inferredContext: { ...GENERATED.inferredContext, stopCount: requested, budgetLimitPence: null, transportConstraints: [] } };
+    writeAskPlanDraft({ query, stopIds: [], stopNames: [], createdAt: new Date().toISOString() });
+    await remountComposer();
+    await openTune();
+    await sortAgainFromTune();
+    expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent)).toEqual(newNames);
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.stops.map((stop) => stop.venueId)).toEqual(newIds);
+    expect(local.getItem("pubmaxx:plan-route-draft:v1")).toBe(oldRoute);
+
+    await remountComposer();
+    // The confirmed Ask owns the restored route, even though the local route is still readable.
+    expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent)).toEqual(newNames);
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.stops.map((stop) => stop.venueId)).toEqual(newIds);
+    expect([...document.querySelectorAll<HTMLAnchorElement>(".planStop__open")].map((node) => new URL(node.href).searchParams.get("sel"))).toEqual(newIds);
+    expect(document.body.textContent).toContain("Opening and travel checks are unavailable for this restored draft.");
+    await act(async () => {
+      const name = document.querySelector<HTMLInputElement>("#plan-name")!;
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(name, "Captain");
+      name.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(document.querySelector("#plan-lock-hint")?.textContent).toBe("Refresh the route before locking it in.");
+    await act(async () => document.querySelector<HTMLFormElement>("#plan-composer")!.requestSubmit());
+    expect(fetchMock.mock.calls.filter(([input]) => String(input) === "/api/plans")).toHaveLength(0);
+    // Session stores identity and request intent, but no generated route context.
+    // The old Soho budget and walking preferences must not describe the new pub.
+    expect(document.querySelector(".planBudgetLedger")).toBeNull();
+    expect(document.querySelector('[data-testid="plan-route-summary"]')?.textContent).not.toContain("18 min");
+    // When local writes recover, save the same conservative record before dating the intake.
+    vi.stubGlobal("localStorage", local);
+    await remountComposer();
+    expect(JSON.parse(local.getItem("pubmaxx:plan-route-draft:v1")!)).toEqual({
+      stops: newStops.map((stop, index) => ({ key: index + 1, ...stop, alternatives: [] })),
+      nightContext: null, routeNight: null, routeRevision: null, routeStale: true,
+      groundingProof: null, createOperationKey: null, planAnchor: null,
+    });
+    await remountComposer();
+    expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent)).toEqual(newNames);
+    await openTune();
+    expect(document.querySelector("#plan-context-area")).toBeNull();
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe(String(requested));
+    await sortAgainFromTune();
+    const generation = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate")).at(-1)!;
+    const sent = JSON.parse(String(generation[1]?.body));
+    expect(sent.query).toBe(query);
+    expect(sent.context.stopCount).toBe(requested);
+    expect(sent.intake.stopCount).toBe(requested);
+    expect(sent.context.nightArea).toBe("clapham");
+    expect(sent.context.transportConstraints).toEqual([]);
+    expect(sent.anchor).toBeUndefined();
+    await act(async () => document.querySelector<HTMLFormElement>("#plan-composer")!.requestSubmit());
+    const creation = fetchMock.mock.calls.find(([input]) => String(input) === "/api/plans")!;
+    const saved = JSON.parse(String(creation[1]?.body));
+    expect(saved.stops).toEqual(newStops);
+    expect(saved.context).toMatchObject({ nightArea: "clapham", stopCount: requested, transportConstraints: [] });
+    expect(saved.groundingProof).toBe("new-proof");
+    expect(saved.anchor).toBeUndefined();
+    expect(saved.status).toBeUndefined();
+    expect(saved.routeReadyAt).toBeUndefined();
+  });
+
+  // The option chips change budget or drinks, never explicit stop-count intent.
+  // These mounted cases reject promoting the visible default or the two returned stops.
+  it.each([
+    { query: "Quiet in Clapham for 4", chips: [], expectedQuery: "Quiet in Clapham for 4", requested: undefined },
+    { query: "Quiet in Clapham for 4", chips: ["£20 crawl"], expectedQuery: "Quiet in Clapham for 4, a £20 crawl", requested: undefined },
+    { query: "Soho for 3, £30.00 per person", chips: ["£20 crawl"], expectedQuery: "Soho for 3, £30.00 per person", requested: undefined },
+    { query: "Quiet in Clapham for 4", chips: ["Dry round"], expectedQuery: "Quiet in Clapham for 4, an alcohol-free dry round", requested: undefined },
+    { query: "Quiet in Clapham for 4", chips: ["Dry round", "£20 crawl"], expectedQuery: "Quiet in Clapham for 4, an alcohol-free dry round, a £20 crawl", requested: undefined },
+    { query: "Camden for 3", chips: [], search: "?dry=1", expectedQuery: "Camden for 3, an alcohol-free dry round", requested: undefined },
+    { query: "One pub in Clapham tonight", chips: ["Dry round", "£20 crawl"], expectedQuery: "One pub in Clapham tonight, an alcohol-free dry round, a £20 crawl", requested: 1 },
+    { query: "One pub in Clapham tonight", chips: ["Dry round", "£20 crawl"], selected: true, expectedQuery: "One pub in Clapham tonight, an alcohol-free dry round, a £20 crawl", requested: 5 },
+  ])("preserves count intent through option submission: $expectedQuery ($requested)", async ({ query, chips, search, selected, expectedQuery, requested }) => {
+    window.history.replaceState({}, "", `/plan${search ?? ""}`);
+    await mountComposer();
+    for (const label of chips) {
+      await act(async () => [...document.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === label)!.click());
+    }
+    if (selected) {
+      await act(async () => [...document.querySelectorAll<HTMLButtonElement>('[aria-label="Number of pub stops"] button')].find((button) => button.textContent?.trim() === "5")!.click());
+    }
+    await sortIt(query);
+    const call = fetchMock.mock.calls.find(([input]) => String(input).includes("/api/plans/generate"))!;
+    const sent = JSON.parse(String(call[1]?.body));
+    expect(sent.query).toBe(expectedQuery);
+    expect(sent.context.stopCount).toBe(requested);
+    expect(sent.intake.stopCount).toBe(requested);
+    const parsed = await parsePlanGenerationRequest(new Request("http://localhost/api/plans/generate", { method: "POST", body: call[1]?.body }));
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) throw new Error(parsed.message);
+    const effective = reconcilePlanContext(parsed.value.query, parsed.value.context, parsed.value.intake, new Date());
+    expect(effective.context.stopCount).toBe(requested ?? 3);
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(requested);
+    expect(readPlanIntakeDraft()?.answers.stopCount).toBe(requested);
+    await remountComposer();
+    await openTune();
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe(String(requested ?? 3));
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(requested);
+  });
+
+  it.each(["older", "equal", "legacy", "missing intake"])("keeps local route recovery when the session save is %s", async (age) => {
+    seedCountRecovery(6);
+    const savedAt = Date.now() - 2000;
+    expect(writePlanIntakeDraft(readPlanIntakeDraft()!, localStorage, savedAt)).toBe(true);
+    const plan = {
+      ...parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))!,
+      stops: [{ key: 1, venueId: "session-only", venueName: "Session pub" }],
+    };
+    if (age === "legacy") {
+      sessionStorage.setItem(PLAN_DRAFT_KEY, JSON.stringify(plan));
+    } else {
+      expect(writePlanDraftEnvelope(plan, "manual", sessionStorage, savedAt + (age === "equal" ? 0 : age === "older" ? -1000 : 1000)).v2).toBe(true);
+    }
+    if (age === "missing intake") localStorage.removeItem(PLAN_INTAKE_STORAGE_KEY);
+    await mountComposer();
+    // Without a strictly newer dated session save, keep the established local route preference.
+    expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent)).toEqual(["Pub A", "Pub B"]);
+  });
+
+  describe.each(["both", "local", "session", "neither"])("description recovery when %s stores can save", (available) => {
+    it.each([
+      { source: "Ask", query: "Clapham tonight", requested: undefined },
+      { source: "Ask", query: "One pub in Clapham tonight", requested: 1 },
+      { source: "URL", query: "Clapham tonight", requested: undefined },
+      { source: "URL", query: "One pub in Clapham tonight", requested: 1 },
+    ])("keeps query and count authority together for $source: $query", async ({ source, query, requested }) => {
+      let now = Date.now();
+      const clock = vi.spyOn(Date, "now").mockImplementation(() => now++);
+      onTestFinished(() => clock.mockRestore());
+      seedCountRecovery(6);
+      const oldDraft = { ...parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))!, conciergeQuery: "Six pubs in Clapham tonight" };
+      const savedAt = now - 1000;
+      expect(writePlanDraftEnvelope(oldDraft, "manual", sessionStorage, savedAt).v2).toBe(true);
+      expect(writePlanIntakeDraft(readPlanIntakeDraft()!, localStorage, savedAt)).toBe(true);
+      if (source === "Ask") {
+        writeAskPlanDraft({ query, stopIds: [], stopNames: [], createdAt: new Date(now).toISOString() });
+      } else {
+        window.history.replaceState({}, "", `/plan?query=${encodeURIComponent(query)}`);
+      }
+      const localCanSave = available === "both" || available === "local";
+      const sessionCanSave = available === "both" || available === "session";
+      const local = localCanSave ? localStorage : blockStorageWrites("localStorage");
+      const session = sessionCanSave ? sessionStorage : blockStorageWrites("sessionStorage");
+      const notices = () => [...document.querySelectorAll('[role="alert"]')].map((node) => node.textContent);
+      const generations = () => fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"));
+
+      await mountComposer();
+      await openTune();
+      expectTuneDescriptionAndCount(query, requested);
+      expect(document.querySelectorAll(".planStop__name")).toHaveLength(2);
+      if (!sessionCanSave) {
+        expect(notices()).toContain(localCanSave
+          ? "Your description could not be saved on this device. Keep this page open to keep it."
+          : "Your changes could not be saved on this device. Keep this page open to keep them.");
+      } else {
+        expect(notices().some((notice) => notice?.includes("could not be saved"))).toBe(false);
+      }
+      expect(readPlanIntakeDraft(local)?.answers.stopCount).toBe(localCanSave ? requested : 6);
+      expect(parsePlanDraft(session.getItem(PLAN_DRAFT_KEY))?.conciergeQuery).toBe(sessionCanSave ? query : oldDraft.conciergeQuery);
+      if (available === "both") {
+        expect(readPlanDraftEnvelope(session)?.savedAt).toBe(readPlanIntakeDraftWithMetadata(local)?.savedAt);
+      }
+      if (source === "URL") {
+        expect(generations()).toHaveLength(1);
+        const automatic = JSON.parse(String(generations()[0]![1]?.body));
+        expect(automatic.query).toBe(query);
+        expect(automatic.context.stopCount).toBe(requested);
+        expect(automatic.intake.stopCount).toBe(requested);
+      }
+
+      await sortAgainFromTune();
+      const initialGenerations = source === "URL" ? 2 : 1;
+      expect(generations()).toHaveLength(initialGenerations);
+      const immediate = JSON.parse(String(generations().at(-1)![1]?.body));
+      expect(immediate.query).toBe(query);
+      expect(immediate.context.stopCount).toBe(requested);
+      expect(immediate.intake.stopCount).toBe(requested);
+      expect(readPlanIntakeDraft(local)?.answers.stopCount).toBe(localCanSave ? requested : 6);
+      expect(parsePlanDraft(session.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(sessionCanSave ? requested : 6);
+
+      now += 1000;
+      window.history.replaceState({}, "", "/plan");
+      await remountComposer();
+      expect(generations()).toHaveLength(initialGenerations);
+      expect(document.querySelectorAll(".planStop__name")).toHaveLength(2);
+      await openTune();
+      const restoredQuery = available === "local" ? "" : available === "neither" ? oldDraft.conciergeQuery : query;
+      const restoredCount = available === "neither" ? 6 : requested;
+      expectTuneDescriptionAndCount(restoredQuery, restoredCount);
+      if (available === "local") {
+        expect(notices()).toContain("Your latest description could not be restored. Enter it again.");
+      }
+      await sortAgainFromTune();
+      expect(generations()).toHaveLength(initialGenerations + 1);
+      const restored = JSON.parse(String(generations().at(-1)![1]?.body));
+      expect(restored.query).toBe(restoredQuery || undefined);
+      expect(restored.context.stopCount).toBe(restoredCount);
+      expect(restored.intake.stopCount).toBe(restoredCount);
+
+      if (available === "local") {
+        await openTune();
+        await typeTuneQuery("One pub in Clapham tonight");
+        expect(notices()).not.toContain("Your latest description could not be restored. Enter it again.");
+        await sortAgainFromTune();
+        expect(JSON.parse(String(generations().at(-1)![1]?.body)).context.stopCount).toBe(1);
+        expect(readPlanIntakeDraft(local)?.answers.stopCount).toBe(1);
+        expect(parsePlanDraft(session.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(6);
+      }
+    });
+  });
+
+  it("keeps equal-time session query and explicit count ahead of conflicting local intake", async () => {
+    seedCountRecovery(6);
+    const savedAt = Date.now() - 1000;
+    const plan = { ...parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))!, conciergeQuery: "One pub in Clapham tonight", requestedStopCount: 3 as const };
+    expect(writePlanDraftEnvelope(plan, "manual", sessionStorage, savedAt).v2).toBe(true);
+    expect(writePlanIntakeDraft(readPlanIntakeDraft()!, localStorage, savedAt)).toBe(true);
+    await mountComposer();
+    await openTune();
+    expect(document.querySelector<HTMLInputElement>("#plan-concierge-query")?.value).toBe(plan.conciergeQuery);
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("3");
+    expect(document.body.textContent).not.toContain("could not be restored");
+    await sortAgainFromTune();
+    const call = fetchMock.mock.calls.find(([input]) => String(input).includes("/api/plans/generate"))!;
+    const sent = JSON.parse(String(call[1]?.body));
+    expect(sent.query).toBe("One pub in Clapham tonight");
+    expect(sent.context.stopCount).toBe(3);
+    expect(sent.intake.stopCount).toBeUndefined();
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(3);
+    expect(readPlanIntakeDraft()?.answers.stopCount).toBe(3);
+  });
+
+  it.each(["undated", "conflicting copies"])("does not infer counts from an uncertain %s session description", async (kind) => {
+    seedCountRecovery();
+    const oldDraft = { ...parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))!, conciergeQuery: "Six pubs in Clapham tonight" };
+    sessionStorage.setItem(PLAN_DRAFT_KEY, JSON.stringify(oldDraft));
+    if (kind === "conflicting copies") {
+      expect(writePlanDraftEnvelope(oldDraft, "manual", sessionStorage).v2).toBe(true);
+      sessionStorage.setItem(PLAN_DRAFT_KEY, JSON.stringify({ ...oldDraft, conciergeQuery: "One pub in Clapham tonight" }));
+    }
+    await mountComposer();
+    await openTune();
+    expect(document.querySelectorAll(".planStop__name")).toHaveLength(2);
+    expect(document.querySelector<HTMLInputElement>("#plan-concierge-query")?.value).toBe("");
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("3");
+    expect(document.body.textContent).toContain("Your latest description could not be restored. Enter it again.");
+    await sortAgainFromTune();
+    const call = fetchMock.mock.calls.find(([input]) => String(input).includes("/api/plans/generate"))!;
+    const sent = JSON.parse(String(call[1]?.body));
+    expect(sent.query).toBeUndefined();
+    expect(sent.context.stopCount).toBeUndefined();
+    expect(sent.intake.stopCount).toBeUndefined();
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBeUndefined();
+  });
+
+  it.each([
+    { reload: false, localWritesBlocked: false },
+    { reload: false, localWritesBlocked: true },
+    { reload: true, localWritesBlocked: false },
+    { reload: true, localWritesBlocked: true },
+  ])("uses a new unsized Ask without retyping after reload $reload with blocked local writes $localWritesBlocked", async ({ reload, localWritesBlocked }) => {
+    sessionStorage.setItem(PLAN_DRAFT_KEY, JSON.stringify({
+      title: "Night", creatorName: "", startTime: "", conciergeQuery: "Six pubs in Clapham tonight",
+      requestedStopCount: 6,
+      stops: GENERATED.stops.map((stop, index) => ({ key: index + 1, venueId: stop.venueId, venueName: stop.venueName })),
+    }));
+    const local = localWritesBlocked ? blockStorageWrites("localStorage") : localStorage;
+    writeAskPlanDraft({ query: "Clapham tonight", stopIds: [], stopNames: [], createdAt: new Date().toISOString() });
+    await mountComposer();
+    expect(sessionStorage.getItem(ASK_PLAN_DRAFT_STORAGE_KEY)).toBeNull();
+    expect(document.querySelector<HTMLInputElement>("#plan-describe-first-query")?.value).toBe("Clapham tonight");
+    expect(document.querySelector('[aria-label="Number of pub stops"] button[aria-pressed="true"]')?.textContent?.trim()).toBe("3");
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))).toMatchObject({ conciergeQuery: "Clapham tonight" });
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBeUndefined();
+    if (reload) await remountComposer();
+    expect(document.querySelector<HTMLInputElement>("#plan-concierge-query")?.value).toBe("Clapham tonight");
+    expect(fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"))).toHaveLength(0);
+    const generate = [...document.querySelectorAll<HTMLButtonElement>(".planComposer__concierge button")]
+      .find((button) => button.textContent?.trim() === "Make a plan")!;
+    expect(generate.disabled).toBe(false);
+    await act(async () => { generate.click(); });
+    await settle();
+    const generations = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"));
+    expect(generations).toHaveLength(1);
+    const sent = JSON.parse(String(generations[0]![1]?.body));
+    expect(sent.query).toBe("Clapham tonight");
+    expect(sent.context.stopCount).toBeUndefined();
+    expect(sent.intake.stopCount).toBeUndefined();
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))).toMatchObject({ conciergeQuery: "Clapham tonight" });
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBeUndefined();
+    if (localWritesBlocked) expect(local.getItem(PLAN_INTAKE_STORAGE_KEY)).toBeNull();
+    else {
+      expect(readPlanIntakeDraft(local)).not.toBeNull();
+      expect(readPlanIntakeDraft(local)?.answers.stopCount).toBeUndefined();
+    }
+    expect(document.body.textContent).not.toContain("Your changes could not be saved");
+    await openTune();
+    expect(document.querySelector<HTMLInputElement>("#plan-concierge-query")?.value).toBe("Clapham tonight");
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("3");
+  });
+
+  it.each(["Ask", "URL"])("keeps a new unsized %s handoff authoritative over unwritable old intake", async (source) => {
+    seedCountRecovery(6);
+    const local = blockStorageWrites("localStorage");
+    if (source === "Ask") {
+      writeAskPlanDraft({ query: "Clapham tonight", stopIds: [], stopNames: [], createdAt: new Date().toISOString() });
+    } else {
+      window.history.replaceState({}, "", "/plan?query=Clapham%20tonight");
+    }
+    await mountComposer();
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBeUndefined();
+    expect(readPlanIntakeDraft(local)?.answers.stopCount).toBe(6);
+    if (source === "URL") {
+      const call = fetchMock.mock.calls.find(([input]) => String(input).includes("/api/plans/generate"))!;
+      const sent = JSON.parse(String(call[1]?.body));
+      expect(sent.context.stopCount).toBeUndefined();
+      expect(sent.intake.stopCount).toBeUndefined();
+    }
+    window.history.replaceState({}, "", "/plan");
+    await remountComposer();
+    await openTune();
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("3");
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBeUndefined();
+    await typeTuneQuery("One pub in Clapham tonight");
+    await sortAgainFromTune();
+    const generations = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"));
+    const sent = JSON.parse(String(generations.at(-1)![1]?.body));
+    expect(sent.context.stopCount).toBe(1);
+    expect(sent.intake.stopCount).toBe(1);
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(1);
+    expect(readPlanIntakeDraft(local)?.answers.stopCount).toBe(6);
+    expect(document.body.textContent).not.toContain("Your changes could not be saved");
+    await remountComposer();
+    await openTune();
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("1");
+    await typeTuneQuery("Clapham tonight");
+    await sortAgainFromTune();
+    const last = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate")).at(-1)!;
+    expect(JSON.parse(String(last[1]?.body)).context.stopCount).toBe(1);
+  });
+
+  describe.each([false, true])("typed Tune count with local writes blocked: %s", (localWritesBlocked) => {
+    it.each([
+      { query: "One pub in Clapham tonight", requested: 1 },
+      { query: "3 pubs in Clapham tonight", requested: 3 },
+    ])("records $requested from Tune text after an unsized generation", async ({ query, requested }) => {
+      if (localWritesBlocked) blockStorageWrites("localStorage");
+      await mountComposer();
+      await sortIt("Clapham tonight");
+      expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBeUndefined();
+      await openTune();
+      await typeTuneQuery(query);
+      await sortAgainFromTune();
+      const calls = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"));
+      expect(calls).toHaveLength(2);
+      const sent = JSON.parse(String(calls[1]![1]?.body));
+      expect(sent.context.stopCount).toBe(requested);
+      expect(sent.intake.stopCount).toBe(requested === 3 ? undefined : requested);
+      expect(document.querySelectorAll(".planStop__name")).toHaveLength(2);
+      expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(requested);
+      await remountComposer();
+      if (!localWritesBlocked) await openTune();
+      const selected = localWritesBlocked
+        ? document.querySelector('[aria-label="Number of pub stops"] button[aria-pressed="true"]')?.textContent?.trim()
+        : document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value;
+      expect(selected).toBe(String(requested));
+    });
+
+    it.each(["button", "Enter", "Regenerate route"])("saves text intent through %s and restores the picker", async (action) => {
+      seedCountRecovery();
+      if (localWritesBlocked) blockStorageWrites("localStorage");
+      await mountComposer();
+      await openTune();
+      await typeTuneQuery("One pub in Clapham tonight");
+      if (action === "button") await sortAgainFromTune();
+      else if (action === "Enter") {
+        await act(async () => {
+          document.querySelector<HTMLInputElement>("#plan-concierge-query")!.dispatchEvent(
+            new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }),
+          );
+        });
+        await settle();
+      } else {
+        const close = document.querySelector<HTMLButtonElement>('button[aria-label="Close Tune details"]')!;
+        await act(async () => { close.click(); });
+        const regenerate = [...document.querySelectorAll<HTMLButtonElement>("button")]
+          .find((button) => button.textContent?.trim() === "Regenerate route")!;
+        await act(async () => { regenerate.click(); });
+        await settle();
+      }
+      const generations = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"));
+      expect(generations).toHaveLength(1);
+      const sent = JSON.parse(String(generations[0]![1]?.body));
+      expect(sent.context.stopCount).toBe(1);
+      expect(sent.intake.stopCount).toBe(1);
+      expect(document.querySelectorAll(".planStop__name")).toHaveLength(2);
+      expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(1);
+      if (!localWritesBlocked) expect(readPlanIntakeDraft()?.answers.stopCount).toBe(1);
+      await remountComposer();
+      await openTune();
+      expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("1");
+      await typeTuneQuery("Clapham tonight");
+      await sortAgainFromTune();
+      const next = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate")).at(-1)!;
+      expect(JSON.parse(String(next[1]?.body)).context.stopCount).toBe(1);
+    });
+  });
+
+  it("recovers the newer local count when session writes fail", async () => {
+    seedCountRecovery();
+    await mountComposer();
+    const session = blockStorageWrites("sessionStorage");
+    await openTune();
+    const picker = document.querySelector<HTMLSelectElement>("#plan-context-stops")!;
+    await act(async () => {
+      picker.value = "5";
+      picker.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(readPlanIntakeDraft()?.answers.stopCount).toBe(5);
+    expect(parsePlanDraft(session.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBeUndefined();
+    await remountComposer();
+    await openTune();
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("5");
+    await typeTuneQuery("Clapham tonight");
+    await sortAgainFromTune();
+    const generation = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate")).at(-1)!;
+    expect(JSON.parse(String(generation[1]?.body)).context.stopCount).toBe(5);
+  });
+
+  it.each(["both", "session", "neither"])("keeps an explicit picker choice when %s storage can save", async (available) => {
+    seedCountRecovery();
+    const local = available === "both" ? localStorage : blockStorageWrites("localStorage");
+    const session = available === "neither" ? blockStorageWrites("sessionStorage") : sessionStorage;
+    await mountComposer();
+    await openTune();
+    const picker = document.querySelector<HTMLSelectElement>("#plan-context-stops")!;
+    await act(async () => {
+      picker.value = "5";
+      picker.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await typeTuneQuery("One pub in Clapham tonight");
+    await sortAgainFromTune();
+    const call = fetchMock.mock.calls.find(([input]) => String(input).includes("/api/plans/generate"))!;
+    const sent = JSON.parse(String(call[1]?.body));
+    expect(sent.context.stopCount).toBe(5);
+    expect(sent.intake.stopCount).toBe(5);
+    await openTune();
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("5");
+    if (available === "neither") {
+      expect([...document.querySelectorAll('[role="alert"]')].some((notice) =>
+        notice.textContent === "Your changes could not be saved on this device. Keep this page open to keep them.")).toBe(true);
+      expect(readPlanIntakeDraft(local)?.answers.stopCount).toBeUndefined();
+      expect(parsePlanDraft(session.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBeUndefined();
+    } else {
+      expect(document.body.textContent).not.toContain("Your changes could not be saved");
+      if (available === "both") {
+        expect(readPlanIntakeDraft(local)?.answers.stopCount).toBe(5);
+      }
+      expect(parsePlanDraft(session.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(5);
+      await remountComposer();
+      await openTune();
+      expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("5");
+    }
+  });
+
+  it.each([undefined, 1])("keeps an unsized automatic handoff unknown after recovering %s", async (recoveredCount) => {
+    sessionStorage.setItem(PLAN_DRAFT_KEY, JSON.stringify({
+      title: "Night", creatorName: "", startTime: "", conciergeQuery: "Earlier night",
+      stops: [{ key: 1, venueId: "venue-a", venueName: "Pub A" }],
+      requestedStopCount: recoveredCount,
+    }));
+    const storage = localStorage;
+    vi.stubGlobal("localStorage", {
+      getItem: storage.getItem.bind(storage),
+      setItem: () => { throw new DOMException("Storage is full", "QuotaExceededError"); },
+      removeItem: storage.removeItem.bind(storage), clear: storage.clear.bind(storage),
+      key: storage.key.bind(storage), get length() { return storage.length; },
+    } satisfies Storage);
+    fetchMock.mockImplementation(async (input) => new Response(JSON.stringify(
+      String(input).includes("/api/plans/generate")
+        ? { ...GENERATED, inferredContext: { ...GENERATED.inferredContext, stopCount: 3 } }
+        : [],
+    ), { status: 200, headers: { "content-type": "application/json" } }));
+    window.history.replaceState({}, "", "/plan?query=Clapham%20tonight");
+    await mountComposer();
+    const generations = () => fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"));
+    expect(generations()).toHaveLength(1);
+    const sent = JSON.parse(String(generations()[0]![1]?.body));
+    expect(sent.query).toBe("Clapham tonight");
+    expect(sent.context.stopCount).toBeUndefined();
+    expect(sent.intake.stopCount).toBeUndefined();
+    expect(inferNightContext(sent.query).context.stopCount).toBe(3);
+    expect(document.querySelectorAll(".planStop__name")).toHaveLength(2);
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBeUndefined();
+    expect(storage.getItem(PLAN_INTAKE_STORAGE_KEY)).toBeNull();
+    window.history.replaceState({}, "", "/plan");
+    await remountComposer();
+    expect(generations()).toHaveLength(1);
+    expect(document.querySelector('[aria-label="Number of pub stops"] button[aria-pressed="true"]')?.textContent?.trim()).toBe("3");
+    const field = document.querySelector<HTMLInputElement>("#plan-describe-first-query")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(field, "One pub in Clapham tonight");
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(document.querySelector('[aria-label="Number of pub stops"] button[aria-pressed="true"]')?.textContent?.trim()).toBe("1");
+    await sortIt("One pub in Clapham tonight");
+    expect(generations()).toHaveLength(2);
+    const next = JSON.parse(String(generations()[1]![1]?.body));
+    expect(next.context.stopCount).toBe(1);
+    expect(next.intake.stopCount).toBe(1);
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(1);
+  });
+
+  describe.each(["session-only", "unfinished intake", "completed intake"])("a new Ask handoff with %s recovery", (recovery) => {
+    it.each([
+      { query: "One pub in Clapham tonight", requested: 1 },
+      { query: "3 pubs in Clapham tonight", requested: 3 },
+      { query: "Three pubs in Clapham tonight", requested: 3 },
+      { query: "Clapham tonight", requested: undefined },
+    ])("replaces the recovered count with $requested for $query", async ({ query, requested }) => {
+      sessionStorage.setItem(PLAN_DRAFT_KEY, JSON.stringify({
+        title: "Night", creatorName: "", startTime: "", conciergeQuery: "Earlier night",
+        stops: [{ key: 1, venueId: "venue-a", venueName: "Pub A" }],
+        requestedStopCount: 6,
+      }));
+      if (recovery === "session-only") {
+        const storage = localStorage;
+        vi.stubGlobal("localStorage", {
+          getItem: storage.getItem.bind(storage),
+          setItem: () => { throw new DOMException("Storage is full", "QuotaExceededError"); },
+          removeItem: storage.removeItem.bind(storage), clear: storage.clear.bind(storage),
+          key: storage.key.bind(storage), get length() { return storage.length; },
+        } satisfies Storage);
+      } else {
+        const intake = createPlanIntakeDraft();
+        const draft = { ...intake, answers: { ...intake.answers, stopCount: 6 as const } };
+        writePlanIntakeDraft(recovery === "completed intake" ? skipRemainingPlanIntake(draft) : draft);
+        if (recovery === "completed intake") {
+          localStorage.setItem("pubmaxx:plan-route-draft:v1", JSON.stringify({
+            stops: GENERATED.stops,
+            nightContext: { nightArea: "clapham", daypart: "evening", partyType: "friends", budget: "standard", stopCount: 6 },
+            groundingProof: "test-proof",
+          }));
+        }
+      }
+      writeAskPlanDraft({ query, stopIds: [], stopNames: [], createdAt: new Date().toISOString() });
+      await mountComposer();
+      expect(sessionStorage.getItem(ASK_PLAN_DRAFT_STORAGE_KEY)).toBeNull();
+      expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(requested);
+      if (recovery !== "session-only") {
+        expect(JSON.parse(localStorage.getItem(PLAN_INTAKE_STORAGE_KEY) ?? "null")?.draft.answers.stopCount).toBe(requested);
+      }
+      expect(fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"))).toHaveLength(0);
+      if (recovery === "completed intake") {
+        await openTune();
+        expect(document.querySelector<HTMLInputElement>("#plan-concierge-query")?.value).toBe(query);
+        expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe(String(requested ?? 3));
+        await sortAgainFromTune();
+      } else {
+        expect(document.querySelector<HTMLInputElement>("#plan-describe-first-query")?.value).toBe(query);
+        expect(document.querySelector('[aria-label="Number of pub stops"] button[aria-pressed="true"]')?.textContent?.trim()).toBe(String(requested ?? 3));
+        await sortIt(query);
+      }
+      const generations = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"));
+      expect(generations).toHaveLength(1);
+      const sent = JSON.parse(String(generations[0]![1]?.body));
+      expect(sent.query).toBe(query);
+      expect(sent.context.stopCount).toBe(requested);
+      expect(sent.intake.stopCount).toBe(requested === 3 ? undefined : requested);
+      expect(document.querySelectorAll(".planStop__name")).toHaveLength(2);
+      expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(requested);
+      await remountComposer();
+      expect(fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"))).toHaveLength(1);
+      expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(requested);
+    });
+  });
+
+  it.each(["typed", "chip"])("keeps an unsized %s request unknown across generation and reload", async (entry) => {
+    await mountComposer();
+    if (entry === "typed") await sortIt("Clapham tonight");
+    else {
+      const chip = document.querySelector<HTMLButtonElement>('[aria-label="Try an example"] .planDescribeFirst__chip:not(.planDescribeFirst__chip--culture)')!;
+      await act(async () => { chip.click(); });
+      await settle();
+    }
+    const generations = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"));
+    expect(generations).toHaveLength(1);
+    const sent = JSON.parse(String(generations[0]![1]?.body));
+    expect(sent.context.stopCount).toBeUndefined();
+    expect(sent.intake.stopCount).toBeUndefined();
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBeUndefined();
+    await remountComposer();
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBeUndefined();
+  });
+
+  it.each([false, true])("keeps an unsized occasion unknown before a typed one-pub request with recovery %s", async (recovered) => {
+    if (recovered) {
+      sessionStorage.setItem(PLAN_DRAFT_KEY, JSON.stringify({
+        title: "Night", creatorName: "", startTime: "", conciergeQuery: "Clapham tonight",
+        stops: GENERATED.stops.map((stop, index) => ({ key: index + 1, venueId: stop.venueId, venueName: stop.venueName })),
+        requestedStopCount: 3,
+      }));
+    }
+    window.history.replaceState({}, "", "/plan?occasion=quiet");
+    await mountComposer();
+    expect(document.querySelector<HTMLInputElement>("#plan-describe-first-query")?.value).toBe("Quiet in Clapham for 4, not pricey");
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBeUndefined();
+    expect(JSON.parse(localStorage.getItem(PLAN_INTAKE_STORAGE_KEY) ?? "null")?.draft.answers.stopCount).toBeUndefined();
+    const field = document.querySelector<HTMLInputElement>("#plan-describe-first-query")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(field, "One pub in Clapham tonight");
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(document.querySelector('[aria-label="Number of pub stops"] button[aria-pressed="true"]')?.textContent?.trim()).toBe("1");
+    await sortIt("One pub in Clapham tonight");
+    const generations = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"));
+    expect(generations).toHaveLength(1);
+    const sent = JSON.parse(String(generations.at(-1)![1]?.body));
+    expect(sent.context.stopCount).toBe(1);
+    expect(sent.intake.stopCount).toBe(1);
+    expect(document.querySelectorAll(".planStop__name")).toHaveLength(2);
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(1);
+    window.history.replaceState({}, "", "/plan");
+    await remountComposer();
+    expect(document.querySelectorAll(".planStop__name")).toHaveLength(2);
+    expect(fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"))).toHaveLength(1);
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(1);
+  });
+
+  it.each([3, 6])("preserves an explicit picker choice of %s after an unsized occasion", async (requested) => {
+    window.history.replaceState({}, "", "/plan?occasion=quiet");
+    await mountComposer();
+    const picker = document.querySelector('[aria-label="Number of pub stops"]')!;
+    const choice = [...picker.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.textContent?.trim() === String(requested))!;
+    await act(async () => { choice.click(); });
+    await sortIt("One pub in Clapham tonight");
+    const generation = fetchMock.mock.calls.find(([input]) => String(input).includes("/api/plans/generate"));
+    const sent = JSON.parse(String(generation![1]?.body));
+    expect(sent.context.stopCount).toBe(requested);
+    expect(sent.intake.stopCount).toBe(requested === 3 ? undefined : requested);
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(requested);
+  });
+
+  it("clears a recovered intake count when an unsized occasion opens the completed composer", async () => {
+    sessionStorage.setItem(PLAN_DRAFT_KEY, JSON.stringify({
+      title: "Night", creatorName: "", startTime: "", conciergeQuery: "Clapham tonight",
+      stops: GENERATED.stops.map((stop, index) => ({ key: index + 1, venueId: stop.venueId, venueName: stop.venueName })),
+      requestedStopCount: 3,
+    }));
+    localStorage.setItem("pubmaxx:plan-route-draft:v1", JSON.stringify({
+      stops: GENERATED.stops,
+      nightContext: { nightArea: "clapham", daypart: "evening", partyType: "friends", budget: "standard", stopCount: 3 },
+      groundingProof: "test-proof",
+    }));
+    const intake = createPlanIntakeDraft();
+    writePlanIntakeDraft(skipRemainingPlanIntake({ ...intake, answers: { ...intake.answers, stopCount: 3 } }));
+    window.history.replaceState({}, "", "/plan?occasion=quiet");
+    await mountComposer();
+    await openTune();
+    expect(document.querySelector<HTMLInputElement>("#plan-concierge-query")?.value).toBe("Quiet in Clapham for 4, not pricey");
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBeUndefined();
+    expect(JSON.parse(localStorage.getItem(PLAN_INTAKE_STORAGE_KEY) ?? "null")?.draft.answers.stopCount).toBeUndefined();
+    await sortAgainFromTune();
+    const generations = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"));
+    expect(generations).toHaveLength(1);
+    const sent = JSON.parse(String(generations[0]![1]?.body));
+    expect(sent.context.stopCount).toBeUndefined();
+    expect(sent.intake.stopCount).toBeUndefined();
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBeUndefined();
+  });
+
+  it("uses a positive pub-count request in typed text without a picker override", async () => {
+    await mountComposer();
+    await sortIt("One pub in Clapham tonight");
+    const generation = fetchMock.mock.calls.find(([input]) => String(input).includes("/api/plans/generate"));
+    expect(generation).toBeDefined();
+    const sent = JSON.parse(String(generation![1]?.body));
+    expect(sent.context.stopCount).toBe(1);
+    expect(sent.intake.stopCount).toBe(1);
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(1);
+  });
+
+  it.each([
+    { action: "remove", requested: 2 },
+    { action: "add", requested: 4 },
+  ])("uses the mounted picker after an explicit $action on a session-restored route", async ({ action, requested }) => {
+    const storage = localStorage;
+    vi.stubGlobal("localStorage", {
+      getItem: storage.getItem.bind(storage),
+      setItem: () => { throw new DOMException("Storage is full", "QuotaExceededError"); },
+      removeItem: storage.removeItem.bind(storage), clear: storage.clear.bind(storage),
+      key: storage.key.bind(storage), get length() { return storage.length; },
+    } satisfies Storage);
+    fetchMock.mockImplementation(async (input) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      return new Response(JSON.stringify(url.includes("/api/plans/generate")
+        ? { ...GENERATED, stops: [...GENERATED.stops, { venueId: "venue-c", venueName: "Pub C" }], inferredContext: { ...GENERATED.inferredContext, stopCount: 3 } }
+        : []), { status: 200, headers: { "content-type": "application/json" } });
+    });
+    const selectedCount = () => document.querySelector('[aria-label="Number of pub stops"] button[aria-pressed="true"]')?.textContent?.trim();
+    await mountComposer();
+    await sortIt("Clapham tonight");
+    await remountComposer();
+    expect(selectedCount()).toBe("3");
+    const control = action === "remove"
+      ? document.querySelector<HTMLButtonElement>('button[aria-label="Remove stop 3"]')!
+      : document.querySelector<HTMLButtonElement>(".planStops__add")!;
+    await act(async () => { control.click(); });
+    await settle();
+    expect(selectedCount()).toBe(String(requested));
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(requested);
+    await sortIt("One pub in Clapham tonight");
+    const generations = () => fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"));
+    expect(generations()).toHaveLength(2);
+    const sent = JSON.parse(String(generations()[1]![1]?.body));
+    expect(sent.context.stopCount).toBe(requested);
+    expect(sent.intake.stopCount).toBe(requested);
+    expect(document.querySelectorAll(".planStop__name")).toHaveLength(3);
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(requested);
+    await remountComposer();
+    expect(selectedCount()).toBe(String(requested));
+    const makePlan = [...document.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.textContent?.trim() === "Make a plan")!;
+    await act(async () => { makePlan.click(); });
+    await settle();
+    expect(generations()).toHaveLength(3);
+    const restored = JSON.parse(String(generations()[2]![1]?.body));
+    expect(restored.context.stopCount).toBe(requested);
+    expect(restored.intake.stopCount).toBe(requested);
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(requested);
+    expect(storage.getItem("pubmaxx:plan-route-draft:v1")).toBeNull();
+  });
+
+  it.each([
+    { field: "budget", value: "value" },
+    { field: "area", value: "piccadilly-soho" },
+    { field: "time", value: "after_work" },
+    { field: "group", value: "solo" },
+    { field: "people", value: "2" },
+    { field: "budget-limit", value: "25" },
+    { field: "zero-proof", value: "zero-proof" },
+  ])("preserves an unknown legacy request after a Tune $field edit, reload and generation", async ({ field, value }) => {
+    sessionStorage.setItem(PLAN_DRAFT_KEY, JSON.stringify({
+      title: "Night", creatorName: "", startTime: "", conciergeQuery: "Clapham tonight",
+      stops: GENERATED.stops.map((stop, index) => ({ key: index + 1, venueId: stop.venueId, venueName: stop.venueName })),
+    }));
+    localStorage.setItem("pubmaxx:plan-route-draft:v1", JSON.stringify({
+      stops: GENERATED.stops,
+      nightContext: { nightArea: "clapham", daypart: "evening", partyType: "friends", budget: "standard", stopCount: 2 },
+      groundingProof: "test-proof",
+    }));
+    await mountComposer();
+    await openTune();
+    const control = document.querySelector<HTMLInputElement | HTMLSelectElement>(`#plan-context-${field}`)!;
+    await act(async () => {
+      if (control instanceof HTMLInputElement) {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(control, value);
+        control.dispatchEvent(new Event("input", { bubbles: true }));
+      } else {
+        control.value = value;
+        control.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    });
+    expect(control.value).toBe(value);
+    expect(JSON.parse(localStorage.getItem(PLAN_INTAKE_STORAGE_KEY) ?? "null")?.draft.answers.stopCount).toBeUndefined();
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBeUndefined();
+    await remountComposer();
+    await openTune();
+    await sortAgainFromTune();
+    const generations = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"));
+    expect(generations).toHaveLength(1);
+    const sent = JSON.parse(String(generations[0]![1]?.body));
+    expect(sent.intake.stopCount).toBeUndefined();
+    expect(sent.context.stopCount).toBeUndefined();
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBeUndefined();
+    await remountComposer();
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBeUndefined();
+  });
+
   it.each([
     { requested: 1, query: "Clapham tonight" },
     { requested: 3, query: "One pub in Clapham tonight" },
@@ -152,12 +1023,7 @@ describe("the Plan result", () => {
     expect(sent.context?.stopCount).toBe(requested);
     expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(requested);
     expect(document.querySelectorAll(".planStop__name")).toHaveLength(1);
-    const current = root!;
-    await act(async () => { current.unmount(); });
-    root = null;
-    host?.remove();
-    host = null;
-    await mountComposer();
+    await remountComposer();
     expect(document.body.textContent).toContain("Pub A");
     expect(countButton().getAttribute("aria-pressed")).toBe("true");
     const field = document.querySelector<HTMLInputElement>("#plan-describe-first-query")!;
@@ -166,6 +1032,14 @@ describe("the Plan result", () => {
       field.dispatchEvent(new Event("input", { bubbles: true }));
     });
     expect(countButton().getAttribute("aria-pressed")).toBe("true");
+    const makePlan = [...document.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.textContent?.trim() === "Make a plan")!;
+    await act(async () => { makePlan.click(); });
+    await settle();
+    const generations = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"));
+    expect(generations).toHaveLength(2);
+    expect(JSON.parse(String(generations[1]![1]?.body)).context.stopCount).toBe(requested);
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(requested);
   });
 
   it.each([undefined, 7])("keeps the route and uses the default picker for legacy or invalid count %s", async (count) => {
@@ -176,15 +1050,16 @@ describe("the Plan result", () => {
     expect(selected?.textContent?.trim()).toBe("3");
   });
 
-  it("lets an explicit handoff URL replace a recovered stop count", async () => {
+  it.each(["3", "three"])("lets an explicit %s-pub handoff URL replace a recovered stop count", async (count) => {
     sessionStorage.setItem(PLAN_DRAFT_KEY, JSON.stringify({ title: "Night", creatorName: "", startTime: "", conciergeQuery: "", stops: [{ key: 1, venueId: "venue-a", venueName: "Pub A" }], requestedStopCount: 1 }));
-    window.history.replaceState({}, "", "/plan?query=quiet%20in%20Soho%20for%203%20pubs");
+    window.history.replaceState({}, "", `/plan?query=${encodeURIComponent(`quiet in Soho for ${count} pubs`)}`);
     await mountComposer();
     const generation = fetchMock.mock.calls.find(([input]) => String(input).includes("/api/plans/generate"));
     expect(generation).toBeDefined();
     const sent = JSON.parse(String(generation![1]?.body));
-    expect(sent.query).toBe("quiet in Soho for 3 pubs");
-    expect(sent.context?.stopCount).not.toBe(1);
+    expect(sent.query).toBe(`quiet in Soho for ${count} pubs`);
+    expect(sent.context?.stopCount).toBe(3);
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(3);
   });
 
   it("lets an incoming one-pub handoff supersede a recovered request for three", async () => {
@@ -195,8 +1070,148 @@ describe("the Plan result", () => {
     expect(generation).toBeDefined();
     const sent = JSON.parse(String(generation![1]?.body));
     expect(sent.query).toBe("One pub in Clapham tonight");
-    expect(sent.context?.stopCount).not.toBe(3);
-    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBeUndefined();
+    expect(sent.context?.stopCount).toBe(1);
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(1);
+    window.history.replaceState({}, "", "/plan");
+    await remountComposer();
+    await openTune();
+    const generate = [...document.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.textContent?.trim() === "Plan it again")!;
+    await act(async () => { generate.click(); });
+    await settle();
+    const generations = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"));
+    expect(generations).toHaveLength(2);
+    expect(JSON.parse(String(generations[1]![1]?.body)).context.stopCount).toBe(1);
+  });
+
+  it.each([1, 3, 6])("preserves a Tune request for %s through reload and regeneration", async (requested) => {
+    await mountComposer();
+    await sortIt("Clapham tonight");
+    await openTune();
+    const select = document.querySelector<HTMLSelectElement>("#plan-context-stops")!;
+    await act(async () => {
+      select.value = String(requested);
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(requested);
+    await remountComposer();
+    await openTune();
+    const generate = [...document.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.textContent?.trim() === "Plan it again")!;
+    await act(async () => { generate.click(); });
+    await settle();
+    const generations = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"));
+    expect(generations).toHaveLength(2);
+    expect(JSON.parse(String(generations[1]![1]?.body)).context.stopCount).toBe(requested);
+  });
+
+  it.each([
+    { action: "remove", requested: 2, localWritesFail: false },
+    { action: "add", requested: 4, localWritesFail: false },
+    { action: "remove", requested: 2, localWritesFail: true },
+    { action: "add", requested: 4, localWritesFail: true },
+  ])("preserves an explicit $action through regeneration and reload with blocked local writes $localWritesFail", async ({ action, requested, localWritesFail }) => {
+    const storage = localStorage;
+    if (localWritesFail) {
+      vi.stubGlobal("localStorage", {
+        getItem: storage.getItem.bind(storage),
+        setItem: () => { throw new DOMException("Storage is full", "QuotaExceededError"); },
+        removeItem: storage.removeItem.bind(storage), clear: storage.clear.bind(storage),
+        key: storage.key.bind(storage), get length() { return storage.length; },
+      } satisfies Storage);
+    }
+    fetchMock.mockImplementation(async (input) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      return new Response(JSON.stringify(url.includes("/api/plans/generate")
+        ? { ...GENERATED, stops: [...GENERATED.stops, { venueId: "venue-c", venueName: "Pub C" }], inferredContext: { ...GENERATED.inferredContext, stopCount: 3 } }
+        : []), { status: 200, headers: { "content-type": "application/json" } });
+    });
+    await mountComposer();
+    await sortIt("Clapham tonight");
+    expect(document.querySelectorAll(".planStop__name")).toHaveLength(3);
+    const control = action === "remove"
+      ? document.querySelector<HTMLButtonElement>('button[aria-label="Remove stop 3"]')!
+      : document.querySelector<HTMLButtonElement>(".planStops__add")!;
+    await act(async () => { control.click(); });
+    await settle();
+    expect(document.querySelectorAll(".planStop")).toHaveLength(requested);
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(requested);
+    await openTune();
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe(String(requested));
+    await sortAgainFromTune();
+    const generations = () => fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"));
+    expect(generations()).toHaveLength(2);
+    const sent = JSON.parse(String(generations()[1]![1]?.body));
+    expect(sent.intake.stopCount).toBe(requested);
+    expect(sent.context.stopCount).toBe(requested);
+    expect(document.querySelectorAll(".planStop__name")).toHaveLength(3);
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(requested);
+    if (localWritesFail) expect(storage.getItem("pubmaxx:plan-route-draft:v1")).toBeNull();
+    await remountComposer();
+    if (!localWritesFail) await openTune();
+    const generate = [...document.querySelectorAll<HTMLButtonElement>(".planComposer__concierge button")]
+      .find((button) => button.textContent?.trim() === (localWritesFail ? "Make a plan" : "Plan it again"))!;
+    await act(async () => { generate.click(); });
+    await settle();
+    expect(generations()).toHaveLength(3);
+    const restored = JSON.parse(String(generations()[2]![1]?.body));
+    expect(restored.intake.stopCount).toBe(requested);
+    expect(restored.context.stopCount).toBe(requested);
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(requested);
+  });
+
+  it.each([undefined, 5])("keeps request %s through same-length reorder and swap actions", async (requestedStopCount) => {
+    sessionStorage.setItem(PLAN_DRAFT_KEY, JSON.stringify({
+      title: "Night", creatorName: "", startTime: "", conciergeQuery: "Clapham tonight", requestedStopCount,
+      stops: GENERATED.stops.map((stop, index) => ({ key: index + 1, venueId: stop.venueId, venueName: stop.venueName })),
+    }));
+    localStorage.setItem("pubmaxx:plan-route-draft:v1", JSON.stringify({
+      stops: GENERATED.stops.map((stop) => ({ ...stop, alternatives: [{ venueId: "venue-c", venueName: "Pub C" }] })),
+      nightContext: null, groundingProof: "test-proof",
+    }));
+    await mountComposer();
+    await vi.waitFor(() => expect(document.querySelectorAll(".planStop__open")).toHaveLength(2));
+    const first = document.querySelector<HTMLElement>(".planStop__open")!;
+    await act(async () => {
+      first.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", altKey: true, bubbles: true, cancelable: true }));
+    });
+    await settle();
+    expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent)).toEqual(["Pub B", "Pub A"]);
+    expect(JSON.parse(localStorage.getItem(PLAN_INTAKE_STORAGE_KEY) ?? "null")?.draft.answers.stopCount).not.toBe(2);
+    const swap = document.querySelector<HTMLButtonElement>('button[aria-label="Swap stop 1, currently Pub B"]')!;
+    await act(async () => { swap.click(); });
+    await settle();
+    expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent)).toEqual(["Pub C", "Pub A"]);
+    expect(JSON.parse(localStorage.getItem(PLAN_INTAKE_STORAGE_KEY) ?? "null")?.draft.answers.stopCount).not.toBe(2);
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(requestedStopCount);
+    await remountComposer();
+    await openTune();
+    await sortAgainFromTune();
+    const generations = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"));
+    expect(generations).toHaveLength(1);
+    expect(JSON.parse(String(generations[0]![1]?.body)).intake.stopCount).toBe(requestedStopCount);
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(requestedStopCount);
+  });
+
+  it.each([undefined, 5])("keeps request %s when a pub fills an existing stop", async (requestedStopCount) => {
+    sessionStorage.setItem(PLAN_DRAFT_KEY, JSON.stringify({
+      title: "Night", creatorName: "", startTime: "", conciergeQuery: "Clapham tonight", requestedStopCount,
+      stops: [{ key: 1, venueId: "venue-a", venueName: "Pub A" }, { key: 2, venueId: "", venueName: "" }],
+    }));
+    fetchMock.mockImplementation(async () => new Response(JSON.stringify([{ id: "venue-b", name: "Pub B" }]), {
+      status: 200, headers: { "content-type": "application/json" },
+    }));
+    await mountComposer();
+    await vi.waitFor(() => expect(document.querySelectorAll("#plan-venue-options option")).toHaveLength(1));
+    const finder = document.querySelector<HTMLInputElement>('input[aria-label="Find a pub for stop 2"]')!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(finder, "Pub B");
+      finder.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await settle();
+    expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent)).toEqual(["Pub A", "Pub B"]);
+    expect(JSON.parse(localStorage.getItem(PLAN_INTAKE_STORAGE_KEY) ?? "null")?.draft.answers.stopCount).not.toBe(2);
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(requestedStopCount);
   });
 
   it("shows the generated opening and travel gaps and replaces them on a new route", async () => {

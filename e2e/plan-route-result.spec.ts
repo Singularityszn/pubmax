@@ -60,8 +60,9 @@ test.describe("the Plan result is a route", () => {
       await storeThemeChoice(page, theme);
       await sortARoute(page);
       await page.evaluate(() => document.fonts.ready);
-      const rootFontSize = await page.locator("html").evaluate((element) => parseFloat(getComputedStyle(element).fontSize));
-      expect(rootFontSize).toBeGreaterThanOrEqual(32);
+      await expect.poll(() => page.locator("html").evaluate((element) =>
+        parseFloat(getComputedStyle(element).fontSize),
+      )).toBeGreaterThanOrEqual(32);
 
       // The 390px accessibility contract requires separate, readable text.
       // Text rectangles catch overflow even when element boxes do not overlap.

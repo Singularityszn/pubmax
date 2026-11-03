@@ -33,7 +33,7 @@ import {
   oneTapQuery,
   rememberedOneTapArea,
 } from "@/lib/planOneTap";
-import { DEFAULT_PLAN_STOP_COUNT, normalizePlanStopCount, type PlanStopCount } from "@/lib/planStopCount";
+import { matchPlanStopCount, normalizePlanStopCount, type PlanStopCount } from "@/lib/planStopCount";
 import PlanStopCountPicker from "@/components/plan/PlanStopCountPicker";
 
 export { DESCRIBE_FIRST_CHIPS };
@@ -86,14 +86,15 @@ export default function PlanDescribeFirst({
   ready?: boolean;
 }) {
   const [query, setQuery] = useState(initialQuery.slice(0, 500));
-  const [stopCount, setStopCount] = useState<PlanStopCount>(normalizePlanStopCount(initialStopCount ?? inferNightContext(initialQuery).context.stopCount));
+  const [localStopCount, setLocalStopCount] = useState<PlanStopCount>(normalizePlanStopCount(initialStopCount ?? inferNightContext(initialQuery).context.stopCount));
   // The prefill arrives AFTER mount: the composer reads the URL in an effect,
   // so an `?occasion=` deep link would otherwise land on an empty field and
   // read as a broken destination. Adopt a later prefill only while the field is
   // untouched, never over something the visitor typed.
   const [touched, setTouched] = useState(false);
-  const [stopCountTouched, setStopCountTouched] = useState(initialStopCount !== undefined);
-  const userSelectedStopCount = useRef(false);
+  const [localStopCountTouched, setLocalStopCountTouched] = useState(initialStopCount !== undefined);
+  const stopCount = onStopCountChange ? initialStopCount ?? localStopCount : localStopCount;
+  const stopCountTouched = onStopCountChange ? initialStopCount !== undefined : localStopCountTouched;
   const appliedPrefill = useRef(initialQuery);
   const reportedPrefill = useRef<string | null>(null);
   const queryInput = useRef<HTMLInputElement>(null);
@@ -154,29 +155,24 @@ export default function PlanDescribeFirst({
     void Promise.resolve().then(() => {
       if (cancelled) return;
       setQuery(nextQuery);
-      if (!userSelectedStopCount.current) {
-        setStopCount(nextStopCount);
-        onStopCountChange?.(nextStopCount);
-      }
+      if (!stopCountTouched) setLocalStopCount(nextStopCount);
       if (nextQuery && reportedPrefill.current !== nextQuery) {
         reportedPrefill.current = nextQuery;
         onPrefillQueryChangeRef.current?.(nextQuery);
       }
     });
     return () => { cancelled = true; };
-  }, [initialQuery, onStopCountChange, touched]);
+  }, [initialQuery, stopCountTouched, touched]);
 
   function submit(queryOverride = query) {
     if (!ready) return;
     const trimmed = queryOverride.trim();
     if (!trimmed) return;
-    onSubmit(withOptions(trimmed), stopCount);
+    onSubmit(withOptions(trimmed), requestedCountForQuery(trimmed));
   }
 
-  // An untouched default carries nothing, so a count the guide already holds
-  // keeps its own. A count the reader picked, or one their words named, goes.
-  function guideStopCount(): PlanStopCount | undefined {
-    return stopCountTouched || stopCount !== DEFAULT_PLAN_STOP_COUNT ? stopCount : undefined;
+  function requestedCountForQuery(ask: string): PlanStopCount | undefined {
+    return stopCountTouched ? stopCount : matchPlanStopCount(ask);
   }
 
   function submitChip(value: string) {
@@ -190,11 +186,11 @@ export default function PlanDescribeFirst({
       chipText: value,
       chipInferredStopCount,
     });
-    if (!stopCountTouched) setStopCount(resolved.stopCount);
+    if (!stopCountTouched) setLocalStopCount(resolved.stopCount);
     // Typed text wins: a chip may fill an empty field and submit, but it must
     // never wipe or auto-submit over a query the drinker already typed.
     if (hadTypedQuery) return;
-    onSubmit(withOptions(resolved.query), resolved.stopCount);
+    onSubmit(withOptions(resolved.query), requestedCountForQuery(resolved.query));
   }
 
   // One tap to a route. It submits a sentence through the same path as typing,
@@ -205,7 +201,7 @@ export default function PlanDescribeFirst({
     setOneTapNote("");
     if (rememberedArea) {
       trackEvent("plan_one_tap", { outcome: "remembered" });
-      onSubmit(withOptions(oneTapQuery(rememberedArea)), stopCount);
+      onSubmit(withOptions(oneTapQuery(rememberedArea)), requestedCountForQuery(oneTapQuery(rememberedArea)));
       return;
     }
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -225,7 +221,7 @@ export default function PlanDescribeFirst({
           return;
         }
         trackEvent("plan_one_tap", { outcome: "located" });
-        onSubmit(withOptions(oneTapQuery(area)), stopCount);
+        onSubmit(withOptions(oneTapQuery(area)), requestedCountForQuery(oneTapQuery(area)));
       },
       (error) => {
         setLocating(false);
@@ -278,7 +274,7 @@ export default function PlanDescribeFirst({
         <button
           type="button"
           aria-disabled={ready ? undefined : true}
-          onClick={() => { if (ready) onGuideMeInstead(guideStopCount()); }}
+          onClick={() => { if (ready) onGuideMeInstead(requestedCountForQuery(query)); }}
         >
           {PLAN_STEP_BY_STEP_LABEL}
         </button>
@@ -304,7 +300,7 @@ export default function PlanDescribeFirst({
             setQuery(value);
             onQueryChange?.(value);
             if (!stopCountTouched) {
-              setStopCount(normalizePlanStopCount(inferNightContext(value).context.stopCount));
+              setLocalStopCount(normalizePlanStopCount(inferNightContext(value).context.stopCount));
             }
           }}
           onKeyDown={handleKeyDown}
@@ -321,10 +317,11 @@ export default function PlanDescribeFirst({
         value={stopCount}
         ready={ready}
         onChange={(next) => {
-          userSelectedStopCount.current = true;
-          setStopCountTouched(true);
-          setStopCount(next);
-          onStopCountChange?.(next);
+          if (onStopCountChange) onStopCountChange(next);
+          else {
+            setLocalStopCountTouched(true);
+            setLocalStopCount(next);
+          }
         }}
       />
       <div className="planDescribeFirst__budget">

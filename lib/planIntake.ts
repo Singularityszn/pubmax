@@ -623,9 +623,9 @@ export function writePlanIntakeDraft(
   draft: PlanIntakeDraft,
   storage?: Storage | null,
   now = Date.now(),
-): void {
+): boolean {
   const store = resolveStorage(storage);
-  if (!store) return;
+  if (!store) return false;
   try {
     const next = JSON.stringify({
       storageVersion: PLAN_INTAKE_VERSION,
@@ -633,12 +633,14 @@ export function writePlanIntakeDraft(
       expiresAt: new Date(now + PLAN_INTAKE_DRAFT_TTL_MS).toISOString(),
       draft,
     } satisfies StoredPlanIntakeEnvelope);
-    if (planIntakeRawBytes(next) > PLAN_INTAKE_MAX_RAW_BYTES) return;
+    if (planIntakeRawBytes(next) > PLAN_INTAKE_MAX_RAW_BYTES) return false;
     if (store.getItem(PLAN_INTAKE_STORAGE_KEY) !== next) {
       store.setItem(PLAN_INTAKE_STORAGE_KEY, next);
     }
+    return true;
   } catch {
     // Planning remains available in memory when storage is blocked or full.
+    return false;
   }
 }
 
@@ -807,7 +809,8 @@ export function buildPlanGenerationIntakeBody(
   const sent = skipRemainingPlanIntake(draft);
   // Transport needs come from the current description. Preserve recovered
   // control choices, whose explicit ownership is not stored across reloads.
-  // Clearing the description keeps the stop count currently shown by the composer.
+  // An empty description retains the generated count only without a stopCount override.
+  // The composer supplies requested intent, including undefined, to clear that fallback.
   const retainedStopCount = cleanQuery ? undefined : currentContext?.stopCount;
   const context = {
     ...stripPlanIntakeOwnedContext(currentContext),
