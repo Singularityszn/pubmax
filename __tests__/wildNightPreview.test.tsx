@@ -56,16 +56,24 @@ describe("wild night preview", () => {
   it("requires both the master switch and the selected preview", () => {
     (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     const seen: boolean[] = [];
-    function Probe() { seen.push(useWildNightPreview("pub-tarot")); return null; }
-    const root = createRoot(document.createElement("div"));
+    function Probe() {
+      const enabled = useWildNightPreview("pub-tarot");
+      seen.push(enabled);
+      return enabled ? createElement("div", { "data-preview-child": "" }, "Preview") : null;
+    }
+    const host = document.createElement("div");
+    const root = createRoot(host);
     act(() => root.render(createElement(Probe)));
     expect(seen.at(-1)).toBe(false);
+    expect(host.querySelector("[data-preview-child]")).toBeNull();
     act(() => writeWildNightPreview("pub-tarot"));
     expect(seen.at(-1)).toBe(false);
     act(() => writeWildMode(true));
     expect(seen.at(-1)).toBe(true);
+    expect(host.querySelector("[data-preview-child]")).not.toBeNull();
     act(() => writeWildNightPreview("round-rota"));
     expect(seen.at(-1)).toBe(false);
+    expect(host.querySelector("[data-preview-child]")).toBeNull();
     act(() => root.unmount());
   });
 });

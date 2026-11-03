@@ -15,13 +15,12 @@ import { useNowHref } from "@/lib/useNowHref";
 import { useClientReady } from "@/lib/useClientReady";
 
 import ThemeToggle from "@/components/ThemeToggle";
-import WildNightPreviewGate from "@/components/wild/WildNightPreviewGate";
+import WildNightPreviewGate, { MobileWildNightPreviewGate } from "@/components/wild/WildNightPreviewGate";
 import IntentLink from "@/components/nav/IntentLink";
 import { navIcon } from "@/components/nav/navIcons";
 import MessagesLink from "@/components/nav/MessagesLink";
 import { PalSiteNavButton, PalTopBarButton } from "@/components/nav/PalNavButton";
 import NotificationBell from "@/components/nav/NotificationBell";
-import SiteNavMore from "@/components/nav/SiteNavMore";
 import SignInButton from "@/components/auth/SignInButton";
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 import { useCommandPalette } from "@/components/command/CommandPaletteProvider";
@@ -144,10 +143,9 @@ export function SiteNavActions({ className = "siteNavActions" }: { className?: s
           same door as an icon button, because the phone dock is five tabs and
           nothing else (captain, 1 Nov 2026). Each hides at the other's widths
           (palNav.css). */}
-      <WildNightPreviewGate />
       <PalSiteNavButton pathname={pathname} />
       <PalTopBarButton pathname={pathname} />
-      <SiteNavMore />
+      <WildNightPreviewGate />
       <ThemeToggle />
       {/* Moment compose (desktop). On phones a Moment is saved from Social and
           from You, so the phone top bar carries no such affordance. Carries
@@ -276,6 +274,7 @@ export default function SiteNav({
   )?.key;
 
   return (
+    <>
     <nav
       ref={floatingNavRef}
       {...(isMap ? { [FOCUS_TRAP_EXEMPT_ATTRIBUTE]: "" } : {})}
@@ -331,5 +330,7 @@ export default function SiteNav({
 
       <SiteNavActions />
     </nav>
+    <MobileWildNightPreviewGate />
+    </>
   );
 }
