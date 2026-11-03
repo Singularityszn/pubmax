@@ -12,6 +12,7 @@ Strategy and sequencing docs. Prefer one plan per concern; do not implement from
 | [`WEEK1_HYGIENE_BUILD_2026-10-30.md`](./WEEK1_HYGIENE_BUILD_2026-10-30.md) | DATED RECORD, BUILDING | Round 1 hygiene builders, the Beli parity ledger and the round 2 plan |
 | [`LANDING_ACQUISITION.md`](./LANDING_ACQUISITION.md) | SUPERSEDED | Historical map-first review; current hierarchy lives in [`2026-08-14-permanent-one-tap-landing.md`](../superpowers/plans/2026-08-14-permanent-one-tap-landing.md) |
 | [`PLG_STRATEGY.md`](./PLG_STRATEGY.md) | READY FOR REVIEW | Invite k-factor, price flywheel, lot density |
+| [`ONE_GOOD_NIGHT_BUILD_2026-11-04.md`](./ONE_GOOD_NIGHT_BUILD_2026-11-04.md) | DATED RECORD, CAPTAIN DECIDES THE DEPLOY | The overnight build for the 4 Nov deploy: one comparable-pint rule, four wild pieces made normal, seven new night ideas behind the wild switch, file ownership for parallel worktrees, and the morning release check |
 | [`DESIGN_UX_PLAN.md`](./DESIGN_UX_PLAN.md) | PROPOSAL, CAPTAIN DECIDES | Why shipped design is not visible, a page-by-page look at the app on 2 Nov 2026, and the order of design work (Phases 0 to 7) with a screenshot proof for each step |
 | [`PAVEMENT_ANSWERS_WAVE.md`](./PAVEMENT_ANSWERS_WAVE.md) | SHIPPING | Research-led: open now, mug-check, cheapest-in-view, saved pubs, Tonight cold-start |
 | [`PRODUCT_UTILITY_WAVE.md`](./PRODUCT_UTILITY_WAVE.md) | SHIPPING | Sheet/journey usefulness: signals, hygiene, visits, Safe Night, quiet pint, Social honesty |
