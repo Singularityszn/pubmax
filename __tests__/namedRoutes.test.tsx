@@ -68,11 +68,70 @@ describe("named route pages", () => {
     const route = buildNamedRoute("victorian-soho", venues)!;
     expect(route.totalKm).toBeNull();
     expect(route.missingVenueIds).toEqual([ids[1], ids[4]]);
+    const mapUrl = new URL(route.mapHref, "https://pubmaxxing.com");
+    expect(mapUrl.searchParams.get("pubs")?.split(",")).toEqual(ids);
     expect(route.stops.map((stop) => [stop.position, stop.legKm === null])).toEqual([
       [1, true],
       [3, true],
       [4, false],
     ]);
+  });
+
+  it("uses one comparable pint row for the price, drink, publisher and day", () => {
+    const ids = curatedCrawlById("victorian-soho")!.venueIds;
+    const first = venue(ids[0]!, -0.1, 51.5);
+    const template = dataset[0]!.prices[0]!;
+    const sourced = {
+      ...first,
+      cheapestPrice: 5,
+      prices: [
+        { ...template, price_gbp: 5, pint_name: "House lager", pub_url: "https://first.example/menu", scraped_at_values: "2026-07-03T23:10:47Z" },
+        { ...template, price_gbp: 5, pint_name: "Other lager", pub_url: "https://second.example/menu", scraped_at_values: "2026-10-02T12:00:00Z" },
+      ],
+    };
+    const result = buildNamedRoute("victorian-soho", [sourced])!;
+    expect(result.stops[0]?.pint).toEqual({ priceGbp: 5, drinkName: "House lager", source: "first.example", readDay: "2026-07-04" });
+    expect(buildNamedRoute("victorian-soho", [{ ...sourced, anchorLabel: "Half pint house lager" }])!.stops[0]?.pint).toBeNull();
+    expect(buildNamedRoute("victorian-soho", [{ ...sourced, prices: [{ ...sourced.prices[0]!, pint_name: "Half pint lager" }] }])!.stops[0]?.pint).toBeNull();
+    expect(buildNamedRoute("victorian-soho", [{ ...sourced, prices: [{ ...sourced.prices[0]!, pub_url: "" }] }])!.stops[0]?.pint).toBeNull();
+    expect(buildNamedRoute("victorian-soho", [{ ...sourced, prices: [{ ...sourced.prices[0]!, scraped_at_values: "" }] }])!.stops[0]?.pint).toBeNull();
+    expect(buildNamedRoute("victorian-soho", [{ ...sourced, prices: [{ ...sourced.prices[0]!, scraped_at_values: "2999-01-01T12:00:00Z" }] }])!.stops[0]?.pint).toBeNull();
+  });
+
+  it.each([
+    { pint_name: "Lager", measure: "bottle" },
+    { pint_name: "Lager 330ml bottle" },
+    { pint_name: "Lager 330ml bottle", measure: "pint" },
+    { pint_name: "Lager", measure: "half" },
+  ])("refuses the selected non-pint row without borrowing a tied pint: $pint_name / $measure", (serving) => {
+    const id = curatedCrawlById("victorian-soho")!.venueIds[0]!;
+    const first = venue(id, -0.1, 51.5);
+    const template = dataset[0]!.prices[0]!;
+    const route = buildNamedRoute("victorian-soho", [{
+      ...first,
+      cheapestPrice: 5,
+      prices: [
+        { ...template, measure: undefined, ...serving, price_gbp: 5, pub_url: "https://bottle.example/menu", scraped_at_values: "2026-10-02" },
+        { ...template, pint_name: "House lager", measure: "pint", price_gbp: 5, pub_url: "https://pint.example/menu", scraped_at_values: "2026-10-03" },
+      ],
+    }])!;
+    expect(route.stops).toHaveLength(1);
+    expect(route.stops[0]).toMatchObject({ venueId: id, position: 1, pint: null });
+    expect(route.missingVenueIds).not.toContain(id);
+  });
+
+  it("keeps an explicit pint with its own publisher and full read day", () => {
+    const id = curatedCrawlById("victorian-soho")!.venueIds[0]!;
+    const template = dataset[0]!.prices[0]!;
+    const route = buildNamedRoute("victorian-soho", [{
+      ...venue(id, -0.1, 51.5),
+      cheapestPrice: 5,
+      prices: [
+        { ...template, pint_name: "House lager", measure: "pint", price_gbp: 5, pub_url: "https://pint.example/menu", scraped_at_values: "2026-10-02" },
+        { ...template, pint_name: "Other lager", measure: "bottle", price_gbp: 5, pub_url: "https://bottle.example/menu", scraped_at_values: "2026-10-03" },
+      ],
+    }])!;
+    expect(route.stops[0]?.pint).toEqual({ priceGbp: 5, drinkName: "House lager", source: "pint.example", readDay: "2026-10-02" });
   });
 
   it("carry one canonical, the free and self-guided title, and no index for an unknown slug", async () => {
