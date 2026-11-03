@@ -11,7 +11,10 @@ type Been = { venueId: string; venueName: string };
 type Venue = { id: string; borough: string; kind?: VenueKind };
 
 export function boroughBingoSquares(been: readonly Been[], venues: readonly Venue[]): BoroughBingoSquare[] {
-  const byId = new Map(venues.filter((venue) => isPubVenueKind(venue.kind)).map((venue) => [venue.id, venue.borough]));
+  const byId = new Map<string, string | null>();
+  for (const venue of venues) {
+    byId.set(venue.id, byId.has(venue.id) || !isPubVenueKind(venue.kind) ? null : venue.borough);
+  }
   const allowed = new Set(LONDON_BOROUGH_NAMES);
   const byBorough = new Map<string, Been>();
   for (const pub of been) {
