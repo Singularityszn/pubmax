@@ -747,13 +747,13 @@ export function nightContextChanged(before: NightContext | null, after: NightCon
 export function applyPlanStopCount(
   draft: PlanIntakeDraft,
   context: NightContext | null,
-  stopCount: PlanStopCount,
+  stopCount: PlanStopCount | undefined,
 ): { draft: PlanIntakeDraft; context: NightContext | null } {
   return {
     draft: draft.answers.stopCount === stopCount
       ? draft
       : { ...draft, answers: { ...draft.answers, stopCount } },
-    context: !context || context.stopCount === stopCount
+    context: !context || stopCount === undefined || context.stopCount === stopCount
       ? context
       : { ...context, stopCount },
   };
@@ -1468,11 +1468,9 @@ function PlanComposerForm({
     canPersist ? describeAskFromLocation() : NO_URL_PREFILL,
   );
   const urlAsk = urlPrefill.ask;
-  const [requestedStopCount, setRequestedStopCount] = useState<PlanStopCount | undefined>(
-    urlAsk
-      ? undefined
-      : recoveredDraft?.requestedStopCount ?? recoveredIntake.answers.stopCount,
-  );
+  const recoveredStopCount = urlAsk
+    ? matchPlanStopCount(urlAsk)
+    : recoveredDraft ? recoveredDraft.requestedStopCount : recoveredIntake.answers.stopCount;
   // Describe-first is the default open. A returning visitor with real,
   // unfinished wizard progress lands back on the wizard instead, so their
   // answers so far are not hidden behind the question they already passed.
@@ -1497,10 +1495,10 @@ function PlanComposerForm({
   const [conciergeQuery, setConciergeQuery] = useState(
     (askNeedsConciergeField ? urlAsk ?? "" : "") || draftFields.conciergeQuery,
   );
-  const [planIntake, setPlanIntake] = useState(() => requestedStopCount === undefined
-    ? recoveredIntake
-    : applyPlanStopCount(recoveredIntake, null, requestedStopCount).draft);
-  const initialPlanIntakeRef = useRef(planIntake);
+  const [planIntake, setPlanIntake] = useState(() =>
+    applyPlanStopCount(recoveredIntake, null, recoveredStopCount).draft);
+  const requestedStopCount = planIntake.answers.stopCount;
+  const [draftSaveFailed, setDraftSaveFailed] = useState(false);
   const [entryMode, setEntryMode] = useState<"describe" | "wizard">(initialEntryMode);
   const [askDraftQuery, setAskDraftQuery] = useState(urlAsk ?? "");
   const askDraftConsumedRef = useRef(false);
@@ -1536,10 +1534,7 @@ function PlanComposerForm({
     void Promise.resolve().then(() => {
       setAskDraftQuery(ask);
       const stopCount = matchPlanStopCount(ask);
-      setRequestedStopCount(stopCount);
-      setPlanIntake((current) => stopCount === undefined
-        ? { ...current, answers: { ...current.answers, stopCount: undefined } }
-        : applyPlanStopCount(current, null, stopCount).draft);
+      setPlanIntake((current) => applyPlanStopCount(current, null, stopCount).draft);
       if (opensDescribeFirstForHandoff) setEntryMode("describe");
       if (askNeedsConciergeSurface) setConciergeQuery(ask);
     });
@@ -1575,10 +1570,7 @@ function PlanComposerForm({
         setAskDraftQuery(query);
         setConciergeQuery(query);
         const stopCount = matchPlanStopCount(query);
-        setRequestedStopCount(stopCount);
-        setPlanIntake((current) => stopCount === undefined
-          ? { ...current, answers: { ...current.answers, stopCount: undefined } }
-          : applyPlanStopCount(current, null, stopCount).draft);
+        setPlanIntake((current) => applyPlanStopCount(current, null, stopCount).draft);
         if (hasDurableIntakeDraft && !recoveredIntake.completed) setEntryMode("describe");
       } catch {
         /* private mode or bad JSON */
@@ -1862,7 +1854,7 @@ function PlanComposerForm({
       && stops[0]?.venueId === acceptedAnchor.venueId
       ? { ...acceptedAnchor, expiresAt: acceptedAnchor.expiresAt }
       : null;
-    writePlanDraftEnvelope({
+    const sessionWrite = writePlanDraftEnvelope({
       title,
       creatorName,
       startTime,
@@ -1871,7 +1863,16 @@ function PlanComposerForm({
       ...(requestedStopCount !== undefined ? { requestedStopCount } : {}),
       ...(persistedAcceptedAnchor ? { acceptedAnchor: persistedAcceptedAnchor } : {}),
     }, persistedAcceptedAnchor ? "planning-intent" : "manual", safeSessionStorage());
-  }, [canPersist, conciergeQuery, creatorName, handoff?.acceptedAnchor, requestedStopCount, startTime, stops, title]);
+    const intakeSaved = planIntake === recoveredIntake
+      ? hasDurableIntakeDraft
+      : writePlanIntakeDraft(planIntake);
+    const hasWork = planIntake !== recoveredIntake || stops.some((stop) => stop.venueId || stop.venueName);
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (!cancelled) setDraftSaveFailed(hasWork && !sessionWrite.v1 && !sessionWrite.v2 && !intakeSaved);
+    });
+    return () => { cancelled = true; };
+  }, [canPersist, conciergeQuery, creatorName, handoff?.acceptedAnchor, hasDurableIntakeDraft, planIntake, recoveredIntake, requestedStopCount, startTime, stops, title]);
 
   useEffect(() => {
     if (!canPersist) return;
@@ -1891,11 +1892,6 @@ function PlanComposerForm({
       // A blocked localStorage should not make the route editor unusable.
     }
   }, [canPersist, createOperationKey, groundingProof, nightContext, planAnchor, routeNight, routeRevision, routeStale, stops]);
-
-  useEffect(() => {
-    if (planIntake === initialPlanIntakeRef.current) return;
-    writePlanIntakeDraft(planIntake);
-  }, [planIntake]);
 
   useEffect(() => {
     if (hasDurableIntakeDraft) return;
@@ -1977,7 +1973,6 @@ function PlanComposerForm({
     // surface, so the describe-first question never reappears mid-edit.
     if (!reconciled.draft.completed) setEntryMode("wizard");
     if (next.answers.stopCount !== undefined) {
-      setRequestedStopCount(next.answers.stopCount);
       setExplicitNightContext((current) => ({ ...current, stopCount: next.answers.stopCount }));
       setNightContext(reconciled.context);
     }
@@ -2019,7 +2014,6 @@ function PlanComposerForm({
       },
     });
     setConciergeQuery(query);
-    setRequestedStopCount(stopCount);
     setExplicitNightContext((current) => ({ ...current, stopCount }));
     updatePlanIntake(skippedIntake);
     sortWithConcierge(query, skippedIntake);
@@ -2099,7 +2093,6 @@ function PlanComposerForm({
     const stopCount = mutation.stops.length;
     if (stops.length !== stopCount && isPlanStopCount(stopCount)) {
       const reconciled = applyPlanStopCount(planIntake, nightContext, stopCount);
-      setRequestedStopCount(stopCount);
       setExplicitNightContext((current) => ({ ...current, stopCount }));
       setPlanIntake(reconciled.draft);
       setNightContext(reconciled.context);
@@ -2191,7 +2184,6 @@ function PlanComposerForm({
 
   function updateNightContext(patch: Partial<NightContext>) {
     if (!nightContext) return;
-    if (patch.stopCount !== undefined) setRequestedStopCount(patch.stopCount);
     const next = { ...nightContext, ...patch };
     if (nightContextChanged(nightContext, next)) {
       setRouteStale(true);
@@ -2237,9 +2229,9 @@ function PlanComposerForm({
     // send the pre-skip intake to the server.
     const query = queryOverride ?? conciergeQuery;
     const queryArea = nightAreaFromPlanQuery(query);
-    const stopCount = intakeOverride
+    const stopCount = (intakeOverride
       ? intakeOverride.answers.stopCount
-      : requestedStopCount;
+      : requestedStopCount) ?? matchPlanStopCount(query);
     const explicitContextBase = {
       ...explicitNightContext,
       stopCount,
@@ -2257,7 +2249,7 @@ function PlanComposerForm({
     }
     const intakeBase = intakeOverride ?? planIntake;
     const intake = syncPlanIntakeAreaFromQuery(
-      stopCount === undefined ? intakeBase : applyPlanStopCount(intakeBase, null, stopCount).draft,
+      applyPlanStopCount(intakeBase, null, stopCount).draft,
       query,
     );
     if (queryOverride === undefined && intake !== planIntake) {
@@ -2278,6 +2270,7 @@ function PlanComposerForm({
       setConciergeNote(conciergeStatusText(false, blockedUnsupportedPatch, ""));
       return;
     }
+    if (queryOverride !== undefined) setPlanIntake(intake);
     const submittedContext = mergeSubmittedNightContext(
       explicitContext,
       intakeContextForSort,
@@ -2552,8 +2545,12 @@ function PlanComposerForm({
         : routeStatus || (routeStale ? "The route needs refreshing before it can be locked." : "Review the route preview. It stays private until you lock it in.")}
     </p>
   );
+  const draftSaveNotice = draftSaveFailed ? (
+    <p className="planComposer__error" role="alert">Your changes could not be saved on this device. Keep this page open to keep them.</p>
+  ) : null;
   const renderConcierge = (inSheet: boolean) => (
     <section className="planComposer__concierge" {...(inSheet ? { "aria-label": "Describe your outing" } : { "aria-labelledby": "plan-concierge-title" })} aria-busy={sorting}>
+      {inSheet ? draftSaveNotice : null}
       {inSheet ? null : (
         <div>
           <span className="planPage__eyebrow">Describe your outing</span>
@@ -2888,6 +2885,7 @@ function PlanComposerForm({
 
   return (
     <form id="plan-composer" className="planComposer" data-result={resultMode ? "true" : undefined} onSubmit={submit} noValidate>
+      {tuneOpen ? null : draftSaveNotice}
       {handoff && (
         <AcceptedContextPanel
           handoff={handoff}
@@ -2904,7 +2902,7 @@ function PlanComposerForm({
           ready={canPersist}
           initialQuery={askDraftQuery}
           initialStopCount={requestedStopCount}
-          onStopCountChange={setRequestedStopCount}
+          onStopCountChange={(count) => setPlanIntake((current) => applyPlanStopCount(current, null, count).draft)}
           onSubmit={submitFromEntry}
           onQueryChange={setConciergeQuery}
           onPrefillQueryChange={adoptDescribePrefillQuery}
