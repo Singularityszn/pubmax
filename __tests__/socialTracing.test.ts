@@ -35,6 +35,12 @@ describe("Social data-file tracing", () => {
       expected.push(`./${artifact}`);
     }
     expected.push("./public/data/pint_prices_app_dataset.json", "./public/data/uk_prices/rows.json", "./data/generated/uk_pub_search.json");
+    // The UK bundle resolves former venue IDs through all three alias packs.
+    expected.push(
+      "./public/data/venue_id_aliases.json",
+      "./public/data/cities/venue_id_aliases.json",
+      "./public/data/uk_base_venue_id_aliases.json",
+    );
     expect(new Set(files)).toEqual(new Set(expected));
   });
 });
