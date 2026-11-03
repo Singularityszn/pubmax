@@ -31,6 +31,9 @@ function venue(overrides: Partial<Venue> & { id: string }): Venue {
     longitude: -0.12,
     cheapestPrice: null,
     latestContributorPrice: null,
+    priceSource: "Pub menu",
+    priceObservedAt: "2026-01-01",
+    latestContributorAt: "2026-01-01T12:00:00Z",
     ...overrides,
   } as Venue;
 }
@@ -115,6 +118,15 @@ describe("cheapestDrinksInArea - ranking + fail-soft pricing", () => {
       ...extra,
     });
 
+  it("keeps a half-pint venue in the area but does not rank its price as a pint", () => {
+    const rows = cheapestDrinksInArea(soho, [
+      inArea("french-house", { cheapestPrice: 3.4, anchorLabel: "Half pint house lager" }),
+      inArea("pint", { cheapestPrice: 5, priceSource: "Pub menu", priceObservedAt: "2026-01-01" }),
+    ], fromMapCentre);
+    expect(rows.map((row) => row.id)).toEqual(["pint", "french-house"]);
+    expect(rows[1]?.price).toBeNull();
+  });
+
   it("ranks verified-priced pubs cheapest first", () => {
     const venues = [
       inArea("dear", { cheapestPrice: 7.2 }),
@@ -134,6 +146,16 @@ describe("cheapestDrinksInArea - ranking + fail-soft pricing", () => {
     const rows = cheapestDrinksInArea(soho, venues, fromMapCentre);
     expect(defined(rows[0]).id).toBe("dropped");
     expect(defined(rows[0]).priceLabel).toBe("£4.20");
+  });
+
+  it("requires the contributor price's own date, even when the baseline is dated", () => {
+    const venues = [
+      inArea("undated-drop", { cheapestPrice: 6, latestContributorPrice: 3, latestContributorAt: null }),
+      inArea("listed", { cheapestPrice: 5 }),
+    ];
+    const rows = cheapestDrinksInArea(soho, venues, fromMapCentre);
+    expect(rows.map((row) => row.id)).toEqual(["listed", "undated-drop"]);
+    expect(rows[1]?.price).toBeNull();
   });
 
   it("keeps unpriced pubs after priced ones and fails their price soft", () => {

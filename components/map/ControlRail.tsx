@@ -17,6 +17,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useMemo } from "react";
+import { comparableVenuePint } from "@/lib/comparableVenuePint";
 
 import {
   nearestPintPriceCap,
@@ -137,7 +138,10 @@ export default function ControlRail({
   const maxPintCapIndex = nearestPintPriceCapIndex(filters.maxPrice);
   const maxPintCap = nearestPintPriceCap(filters.maxPrice);
   const cheapCount = filteredVenues.filter(
-    (venue) => venue.cheapestPrice !== null && venue.cheapestPrice <= 5.5,
+    (venue) => {
+      const price = comparableVenuePint(venue);
+      return price !== null && price <= 5.5;
+    },
   ).length;
   const waterCount = filteredVenues.filter((venue) => venue.curation.nearWater).length;
   const heritageCount = filteredVenues.filter((venue) => venue.hasStory).length;

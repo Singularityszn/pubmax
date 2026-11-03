@@ -20,7 +20,7 @@ import { defined } from "@/__tests__/helpers/defined";
 function v(
   over: Partial<Venue> & { id: string; name: string; cheapestPrice: number | null },
 ): Venue {
-  return { primaryBorough: "", visibleBoroughs: [], cheapestPint: "", ...over } as Venue;
+  return { primaryBorough: "", visibleBoroughs: [], cheapestPint: "", priceSource: "Pub menu", priceObservedAt: "2026-01-01", ...over } as Venue;
 }
 
 describe("slugifyBorough", () => {

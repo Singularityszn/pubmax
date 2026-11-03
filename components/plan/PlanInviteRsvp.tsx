@@ -274,7 +274,6 @@ export default function PlanInviteRsvp({
   const [rsvpError, setRsvpError] = useState<string | null>(null);
   const [rsvpPlanRecovery, setRsvpPlanRecovery] = useState(false);
   const [rsvpCommitted, setRsvpCommitted] = useState(false);
-  const [goingSeat, setGoingSeat] = useState(false);
   const [pendingReaction, setPendingReaction] = useState<ReactionKey | null>(null);
   const [reactionError, setReactionError] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
@@ -425,7 +424,6 @@ export default function PlanInviteRsvp({
           }
           setRsvp(data.summary);
           setRsvpCommitted(true);
-          setGoingSeat(chosen === "going");
           markDeviceRsvpCommitted(planId, deviceStorage());
           trackEvent("invite_rsvp_submitted", { status: chosen, isUpdate: data.isUpdate === true });
           // The night, not the RSVP, is the unit: the server hands back a
@@ -588,7 +586,7 @@ export default function PlanInviteRsvp({
         </p>
       ) : null}
 
-      {goingSeat ? (
+      {memberToken && role === "guest" && !rsvpPlanRecovery ? (
         <p className="inviteRsvp__planDoor">
           You&apos;re in the crew. Vote, suggest a swap and check in on the plan.{" "}
           <Link prefetch={false} href={`/plan/${planId}`}>Open the plan</Link>

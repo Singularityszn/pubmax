@@ -8,6 +8,7 @@
 // never borrows the word "tonight's listing".
 
 import { haversineKm } from "@/lib/haversine";
+import { comparablePint } from "@/lib/comparablePint.mjs";
 import { WALKABLE_RADIUS_KM } from "@/lib/nearMeAnswer";
 import { walkMinutes } from "@/lib/tonight";
 import type { TonightCheapPint } from "@/lib/tonightCheapPints";
@@ -39,7 +40,11 @@ export type TonightCheapestCandidate = {
   lat: number;
   lng: number;
   cheapestPrice: number | null;
+  priceSource?: string;
   priceObservedAt?: string;
+  anchorLabel?: string;
+  cheapestPint?: string;
+  measure?: string;
   kind?: VenueKind;
   retired?: true;
 };
@@ -55,18 +60,20 @@ export function cheapestPintNear(
   radiusKm: number = WALKABLE_RADIUS_KM,
 ): { venue: TonightCheapestCandidate; km: number } | null {
   let best: { venue: TonightCheapestCandidate; km: number } | null = null;
+  let bestPrice = Infinity;
   for (const venue of venues) {
-    if (venue.retired || typeof venue.cheapestPrice !== "number") continue;
-    if (!Number.isFinite(venue.cheapestPrice) || venue.cheapestPrice <= 0) continue;
+    const price = comparablePint(venue);
+    if (venue.retired || price === null) continue;
     if (!isPublicRankablePub(venue)) continue;
     const km = haversineKm([near.lng, near.lat], [venue.lng, venue.lat]);
     if (!Number.isFinite(km) || km > radiusKm) continue;
     if (
       best === null ||
-      venue.cheapestPrice < (best.venue.cheapestPrice as number) ||
-      (venue.cheapestPrice === best.venue.cheapestPrice && km < best.km)
+      price < bestPrice ||
+      (price === bestPrice && km < best.km)
     ) {
       best = { venue, km };
+      bestPrice = price;
     }
   }
   return best;

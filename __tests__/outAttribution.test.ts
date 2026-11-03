@@ -300,6 +300,8 @@ describe("event ticket price stays off price lanes", () => {
           lat: 51.5,
           lng: -0.1,
           cheapestPrice: merged.get("venue-logged")?.latestContributorPrice ?? null,
+          priceSource: "Corroborated community price",
+          priceObservedAt: new Date(now - 60_000).toISOString(),
         },
       ],
       "Southwark",

@@ -1,4 +1,5 @@
 import { formatGbp } from "@/lib/formatGbp";
+import { comparablePint } from "@/lib/comparablePint.mjs";
 import { haversineKm } from "@/lib/haversine";
 import type { WhatsOnKind } from "@/lib/whatsOn";
 import { WHATS_ON_KIND_META } from "@/lib/whatsOnBadges";
@@ -43,6 +44,9 @@ export type ConciergeVenue = {
   cheapestPrice: number | null;
   priceSource?: string;
   priceObservedAt?: string;
+  anchorLabel?: string;
+  cheapestPint?: string;
+  measure?: string;
   amenities: {
     beerGarden: boolean;
     cocktails: boolean;
@@ -74,6 +78,7 @@ export type RankedConciergeVenue = {
 };
 
 type RankingOptions = {
+  now?: number;
   limit?: number;
   context?: ConciergeContext;
   /**
@@ -181,6 +186,7 @@ function scoreOne(
   tonightEventKindsByVenue?: ReadonlyMap<string, ReadonlySet<WhatsOnKind>>,
   areaCircleKm?: number,
   areaLabel?: string,
+  now?: number,
 ): RankedConciergeVenue {
   let score = venue.canonical ? 1 : 0;
   const reasons: string[] = [];
@@ -193,17 +199,18 @@ function scoreOne(
   const areaReason = area.reason;
   const nearAreaNote = area.nearAreaNote;
 
+  const pintPrice = comparablePint(venue, now);
   if (intent.maxPintPrice !== undefined) {
-    if (venue.cheapestPrice === null) {
+    if (pintPrice === null) {
       score -= 2;
-    } else if (venue.cheapestPrice <= intent.maxPintPrice) {
-      score += 10 + Math.min(3, intent.maxPintPrice - venue.cheapestPrice);
-      reasons.push(`${formatGbp(venue.cheapestPrice)} is within budget`);
+    } else if (pintPrice <= intent.maxPintPrice) {
+      score += 10 + Math.min(3, intent.maxPintPrice - pintPrice);
+      reasons.push(`${formatGbp(pintPrice)} is within budget`);
     } else {
-      score -= 3 * (venue.cheapestPrice - intent.maxPintPrice);
+      score -= 3 * (pintPrice - intent.maxPintPrice);
     }
-  } else if (venue.cheapestPrice !== null) {
-    score += Math.max(0, 8 - venue.cheapestPrice);
+  } else if (pintPrice !== null) {
+    score += Math.max(0, 8 - pintPrice);
   }
 
   for (const mood of intent.mood.length ? intent.mood : ["balanced" as const]) {
@@ -325,6 +332,7 @@ export function rankConciergeVenues(
       options.tonightEventKindsByVenue,
       circleKm.get(venue.id),
       circle?.label,
+      options.now,
     ))
     .sort((left, right) => right.score - left.score || left.venue.id.localeCompare(right.venue.id, "en-GB"))
     .slice(0, limit);

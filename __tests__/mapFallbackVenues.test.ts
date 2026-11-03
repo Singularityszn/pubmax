@@ -10,7 +10,7 @@ describe("selectMapFallbackPubs", () => {
       { id: "food-cheap", kind: "food" as const, cheapestPrice: 3 },
       { id: "pub-cheap", kind: undefined, cheapestPrice: 4 },
       { id: "pub-unpriced", kind: "pub" as const, cheapestPrice: null },
-    ];
+    ].map((venue) => ({ ...venue, priceSource: "Pub menu", priceObservedAt: "2026-01-01" }));
 
     expect(selectMapFallbackPubs(venues, 3).map((venue) => venue.id)).toEqual([
       "pub-cheap",

@@ -303,6 +303,20 @@ describe("which price a reader is handed for one pub and one drink", () => {
     });
   });
 
+  it("keeps the selected row's drink and serving without borrowing another row's pint", () => {
+    const half = { ...listedRow("2026-09-01T00:00:00.000Z", 2.6), drinkLabel: "Tonic", servingSize: "half pint" };
+    const pint = { ...listedRow("2026-09-01T00:00:00.000Z", 5), drinkLabel: "Lager", servingSize: "pint" };
+    for (const rows of [[half, pint], [pint, half]]) {
+      expect(bundlePricesForCategory(rows, "beer").listed).toMatchObject({
+        priceGbp: 2.6, drinkLabel: "Tonic", servingSize: "half pint",
+      });
+    }
+    const unstated = listedRow("2026-09-01T00:00:00.000Z", 2.6);
+    expect(bundlePricesForCategory([pint, unstated], "beer").listed).not.toHaveProperty("servingSize");
+    const wine = { ...half, category: "wine", drinkLabel: "House red", servingSize: "175ml" };
+    expect(bundlePricesForCategory([wine, pint], "wine").listed).toMatchObject({ drinkLabel: "House red", servingSize: "175ml" });
+  });
+
   it("still takes the cheapest line WITHIN one reading, because a page states many", () => {
     const dear = listedRow("2026-09-01T00:00:00.000Z", 6.2);
     const cheap = listedRow("2026-09-01T00:00:00.000Z", 5.4);

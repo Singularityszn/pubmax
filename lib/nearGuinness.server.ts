@@ -4,15 +4,17 @@ import {
   buildDrinkBrandLanding,
   drinkBrandCandidateForVenue,
   findDrinkBrandLandingBrand,
+  selectDrinkBrandPriceForVenue,
 } from "@/lib/drinkBrandLanding";
 import type { NearGuinnessPrice } from "@/lib/nearMeAnswer";
 import { loadPintPriceLandingVenues } from "@/lib/pintPriceLandingDataset.server";
+import { comparablePint } from "@/lib/comparablePint.mjs";
 import type { Venue } from "@/lib/venues";
 
 const GUINNESS_SLUG = "guinness";
 
 /**
- * Every listed Guinness price, one per venue, as the compact tuples the near
+ * Every qualifying Guinness price, one per venue, as the compact tuples the near
  * answer reads (lib/nearMeAnswer.ts#cheapestGuinnessNearby).
  *
  * Each row is chosen by the drink page's own selector, so /near and
@@ -26,6 +28,8 @@ export function nearGuinnessPrices(venues: readonly Venue[]): NearGuinnessPrice[
   return venues.flatMap((venue): NearGuinnessPrice[] => {
     const candidate = drinkBrandCandidateForVenue(venue, brand);
     if (!candidate) return [];
+    const selected = selectDrinkBrandPriceForVenue(venue, brand);
+    if (comparablePint({ cheapestPrice: candidate.priceGbp, priceSource: candidate.publisher?.label, priceObservedAt: candidate.observedAt, cheapestPint: selected?.pint_name, measure: selected?.measure }) === null) return [];
     const observedOn = candidate.observedAt ? candidate.observedAt.slice(0, 10) : null;
     return [[candidate.venueId, candidate.priceGbp, observedOn, candidate.publisher?.label ?? null]];
   });

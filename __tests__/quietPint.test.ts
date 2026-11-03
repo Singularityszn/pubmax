@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { HeritageFact } from "@/lib/heritageFacts";
 import {
   buildQuietPint,
+  quietPintRankingPrices,
   QUIET_PINT_LIMIT,
   QUIET_PINT_MIN,
   type QuietPintCandidate,
@@ -68,20 +69,59 @@ describe("buildQuietPint", () => {
     expect(mod!.rows.map((r) => r.id)).toEqual(["venue-old", "venue-mid", "venue-new"]);
   });
 
-  it("breaks a grade+era tie by priced-before-unpriced, then cheaper first", () => {
+  it("breaks a grade+era tie by qualified price before slug", () => {
     const mod = buildQuietPint({
       candidates: [
         candidate({ venueId: "venue-none", slug: "none", listed: "II", era: "1700" }),
         candidate({ venueId: "venue-dear", slug: "dear", listed: "II", era: "1700" }),
-        candidate({ venueId: "venue-cheap", slug: "cheap", listed: "II", era: "1700" }),
+        candidate({ venueId: "venue-cheap", slug: "z-cheap", listed: "II", era: "1700" }),
       ],
       priceById: new Map([
         ["venue-dear", 6],
         ["venue-cheap", 4.2],
       ]),
+      rankingPriceById: quietPintRankingPrices([
+        { id: "venue-dear", cheapestPrice: 6, priceSource: "Pub menu", priceObservedAt: "2026-01-01" },
+        { id: "venue-cheap", cheapestPrice: 4.2, priceSource: "Pub menu", priceObservedAt: "2026-01-01" },
+      ]),
       now: QUIET_TUESDAY,
     });
     expect(mod!.rows.map((r) => r.id)).toEqual(["venue-cheap", "venue-dear", "venue-none"]);
+  });
+
+  it.each([
+    { cheapestPint: "Half-pint lager" },
+    { measure: "bottle" },
+    { priceSource: undefined },
+    { priceObservedAt: "2026-02-30" },
+  ] as const)("retains refused display prices without preferring them: %j", (change) => {
+    const venues = [
+      { id: "a-refused", cheapestPrice: 3.4, priceSource: "Pub menu", priceObservedAt: "2026-01-01", ...change },
+      { id: "z-pint", cheapestPrice: 5, priceSource: "Pub menu", priceObservedAt: "2026-01-01" },
+    ];
+    const mod = buildQuietPint({
+      candidates: [...venues.map((venue) => candidate({ venueId: venue.id })), candidate({ venueId: "unpriced" })],
+      priceById: new Map(venues.map((venue) => [venue.id, venue.cheapestPrice])),
+      rankingPriceById: quietPintRankingPrices(venues),
+      now: QUIET_TUESDAY,
+    });
+    expect(mod!.rows.map((row) => row.id)).toEqual(["z-pint", "a-refused", "unpriced"]);
+    expect(mod!.rows[1]).toMatchObject({ priceLabel: "£3.40", priceGbp: 3.4 });
+  });
+
+  it("keeps grade and era ahead of the qualified price preference", () => {
+    const mod = buildQuietPint({
+      candidates: CANDIDATES,
+      rankingPriceById: new Map([["venue-a", 9], ["venue-b", 2], ["venue-c", 1]]),
+      now: QUIET_TUESDAY,
+    });
+    expect(mod!.rows.map((row) => row.id)).toEqual(["venue-a", "venue-b", "venue-c", "venue-d"]);
+    const eraMod = buildQuietPint({
+      candidates: [candidate({ venueId: "old", era: "1600" }), candidate({ venueId: "new", era: "1800" }), candidate({ venueId: "mid", era: "1700" })],
+      rankingPriceById: new Map([["old", 9], ["mid", 5], ["new", 2]]),
+      now: QUIET_TUESDAY,
+    });
+    expect(eraMod!.rows.map((row) => row.id)).toEqual(["old", "mid", "new"]);
   });
 
   it("skips candidates whose only fact is seed example material", () => {

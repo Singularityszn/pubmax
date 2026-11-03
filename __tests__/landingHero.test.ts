@@ -28,7 +28,7 @@ function venue(id: string, name: string, cheapestPrice: number | null, extra: Pa
     lng: -0.1,
     cheapestPrice,
     cheapestPint: "PRAVHA",
-    prices: [{ app_price_id: `${id}-1`, pint_name: "PRAVHA", price_gbp: cheapestPrice, pub_url: "https://www.pint-prices.com/pub/x" }],
+    prices: [{ app_price_id: `${id}-1`, pint_name: "PRAVHA", price_gbp: cheapestPrice, pub_url: "https://www.pint-prices.com/pub/x", scraped_at_values: "2026-07-03" }],
     ...extra,
   } as Venue;
 }

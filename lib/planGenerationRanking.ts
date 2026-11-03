@@ -1,3 +1,4 @@
+import { comparablePint } from "@/lib/comparablePint.mjs";
 import type { ConciergeVenue } from "@/lib/concierge/rank";
 import { formatGbp } from "@/lib/formatGbp";
 import { canAffectRoute, type NightSignalClaim } from "@/lib/nightSignalClaims";
@@ -38,7 +39,7 @@ function priceAndZeroProof(
         reasons.push(`corroborated community ${CATEGORY_META[category].label.toLowerCase()} price ${formatGbp(price.priceGbp)}`);
       }
     } else if (!context.zeroProof) {
-      const price = venue.cheapestPrice;
+      const price = comparablePint(venue);
       score += price === null ? 0 : Math.max(0, 7 - price);
       if (price !== null) reasons.push(`pints from ${formatGbp(price)}`);
     }

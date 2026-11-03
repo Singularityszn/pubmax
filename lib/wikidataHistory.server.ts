@@ -11,14 +11,10 @@ import {
   type OsmWikidataLinks,
   type WikidataHistory,
 } from "@/lib/wikidataHistory";
-import {
-  OSM_WIKIDATA_LINKS_TRACING_INCLUDE,
-  WIKIDATA_HISTORY_PACK_TRACING_INCLUDE,
-} from "@/lib/wikidataHistoryFile.mjs";
 
-async function readPack(include: string): Promise<unknown> {
+async function readPack(contents: Promise<string>): Promise<unknown> {
   try {
-    return JSON.parse(await readFile(path.join(process.cwd(), include), "utf8"));
+    return JSON.parse(await contents);
   } catch {
     // A pack that is absent or unreadable states nothing.
     return null;
@@ -30,8 +26,8 @@ let cached: Promise<{ links: OsmWikidataLinks | null; history: WikidataHistory |
 /** The dated, cited Wikidata facts the packs hold for this venue, or []. */
 export async function packWikidataHistoryForVenue(venueId: string): Promise<HeritageFact[]> {
   cached ??= Promise.all([
-    readPack(OSM_WIKIDATA_LINKS_TRACING_INCLUDE),
-    readPack(WIKIDATA_HISTORY_PACK_TRACING_INCLUDE),
+    readPack(readFile(path.join(process.cwd(), "public/data/osm_wikidata/london.json"), "utf8")),
+    readPack(readFile(path.join(process.cwd(), "public/data/wikidata_history/london.json"), "utf8")),
   ]).then(([links, history]) => ({ links: parseOsmWikidataLinks(links), history: parseWikidataHistory(history) }));
   const { links, history } = await cached;
   return wikidataHistoryForVenue(venueId, links, history);
