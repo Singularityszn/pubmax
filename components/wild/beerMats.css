@@ -8,45 +8,31 @@
   display: none;
 }
 
-/* The mats fall back to a grid outside the phone-width snap row. */
+/* TonightCheapPints mounts these mats only below 600px.
+   A phone swipes one snap row, with the next mat peeking into view. */
 .beerMats {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: var(--space-4);
-  margin: var(--space-2) 0 0;
-  padding: var(--space-3) 0 var(--space-5);
+  display: flex;
+  gap: var(--space-3);
+  margin: var(--space-2) calc(-1 * var(--page-gutter)) 0;
+  padding: var(--space-3) var(--page-gutter) var(--space-6);
   list-style: none;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: var(--page-gutter);
+  scrollbar-width: none;
+  touch-action: manipulation;
 }
 
-/* A phone swipes them: one snap row out to the screen's edges, with the
-   next mat peeking in so the row says it goes on. */
-@media (max-width: 599px) {
-  .beerMats {
-    display: flex;
-    gap: var(--space-3);
-    margin-inline: calc(-1 * var(--page-gutter));
-    padding: var(--space-3) var(--page-gutter) var(--space-6);
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    scroll-snap-type: x mandatory;
-    scroll-padding-inline: var(--page-gutter);
-    scrollbar-width: none;
-    touch-action: manipulation;
-  }
-
-  .beerMats::-webkit-scrollbar {
-    display: none;
-  }
-
-  .beerMatSlot {
-    flex: 0 0 min(64vw, 240px);
-    scroll-snap-align: start;
-  }
+.beerMats::-webkit-scrollbar {
+  display: none;
 }
 
 .beerMatSlot {
   --mat-rest: 0deg;
   --mat-delay: 0ms;
+  flex: 0 0 min(64vw, 240px);
+  scroll-snap-align: start;
   display: grid;
   justify-items: center;
   min-width: 0;
@@ -224,7 +210,7 @@
    listed it and when, and the way to log a better one. */
 .beerMatBack {
   transform: rotateY(180deg);
-  border-radius: 1.5rem;
+  border-radius: var(--radius-lg);
   border: 4px solid var(--price-band-hue);
   background: var(--panel);
   color: var(--ink);
