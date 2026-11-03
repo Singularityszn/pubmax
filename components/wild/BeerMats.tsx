@@ -16,19 +16,15 @@ import {
 import { PintPriceBadge } from "@/components/PriceBadge";
 import { formatObservedDayShort } from "@/lib/dataFreshness";
 import { formatGbp } from "@/lib/formatGbp";
-import { namedLegacyPintPriceSource } from "@/lib/legacyPriceEvidence.mjs";
-import { venueDetailUrl } from "@/lib/prefetchVenue";
-import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 import { priceBand, priceBandAreaForVenue, priceBandClass } from "@/lib/priceBand";
-import { tonightCheapPintChainLabel, type TonightCheapPint } from "@/lib/tonightCheapPints";
-import { venueMapUrl } from "@/lib/venueMapUrl";
+import { tonightCheapPintChainLabel, tonightCheapPintHref, type TonightCheapPint } from "@/lib/tonightCheapPints";
 import { prefersReducedMotion } from "@/lib/wildMode";
 
 import "./beerMats.css";
 
 /**
  * BEER MATS THAT FLIP (round-two wild idea 06, docs/plans/DESIGN_UX_PLAN.md
- * section 12). Loaded only while the wild switch is on (TonightCheapPints).
+ * section 12). Loaded on a thin night below 600px (TonightCheapPints).
  *
  * Tonight's cheapest listed pints as round beer mats. The front prints the
  * pub's name and its area round the rim, and the price big in the middle in
@@ -38,14 +34,13 @@ import "./beerMats.css";
  *
  * Every word on a mat is a fact the app already holds. The rows are the ones
  * the quiet-night list prints (lib/tonightCheapPints.ts); the drink and the
- * publisher are read off that pub's own detail (`/api/venue/[id]`), from the
- * very row whose figure the mat prints. A fact the record does not hold is
- * said to be missing, never filled in.
+ * publisher and serving travel on the winning hunt row with the figure.
+ * A fact the record does not hold is said to be missing, never filled in.
  *
  * Each mat is a real button: it says the pub and the price, and aria-pressed
  * says which side is up. A phone swipes a snap row with the next mat peeking
- * in; from 641px the mats sit on the bar in a grid, and a mouse tilts the one
- * under it. With reduced motion the mat turns over at once and nothing tilts.
+ * in. A mouse tilts the mat under it. With reduced motion the mat turns over
+ * at once and nothing tilts.
  */
 
 /** The rest angle of each mat, so the row reads as mats put down on a bar. */
@@ -69,38 +64,6 @@ const READ_DAY = new Intl.DateTimeFormat("en-GB", {
   timeZone: "Europe/London",
 });
 
-type MatSource =
-  | { state: "loading" }
-  | { state: "unavailable" }
-  | { state: "read"; drink: string | null; publisher: string | null };
-
-type DetailPrice = {
-  pint_name?: string | null;
-  price_gbp?: number | null;
-  pub_url?: string | null;
-  scraped_at_values?: string | null;
-};
-
-/** What a pub's detail says about the row behind its printed cheapest pint. */
-export function matSourceFromDetail(body: unknown, priceGbp: number): MatSource {
-  const prices = (body as { venue?: { prices?: unknown } } | null)?.venue?.prices;
-  if (!Array.isArray(prices)) return { state: "unavailable" };
-  const row = (prices as DetailPrice[]).find((price) => price?.price_gbp === priceGbp);
-  if (!row) return { state: "unavailable" };
-  const drink = typeof row.pint_name === "string" && row.pint_name.trim() ? row.pint_name.trim() : null;
-  return {
-    state: "read",
-    drink,
-    publisher: namedLegacyPintPriceSource(row)?.label ?? null,
-  };
-}
-
-/** A pub's detail read in the last five minutes is still the answer. */
-const DETAIL_FRESH_MS = 5 * 60_000;
-
-function isVenueDetail(body: unknown): boolean {
-  return Array.isArray((body as { venue?: { prices?: unknown } } | null)?.venue?.prices);
-}
 
 /** The rim's words: the pub, its area and its chain, run once or twice round. */
 export function matRim(row: TonightCheapPint): {
@@ -133,12 +96,6 @@ export function matRim(row: TonightCheapPint): {
     lengthAdjust: roomy ? "spacing" : "spacingAndGlyphs",
     turn: Math.round((90 - nameShare * 180) * 10) / 10,
   };
-}
-
-function sourceLine(source: MatSource): string {
-  if (source.state === "loading") return "Checking who listed it";
-  if (source.state === "unavailable") return "Publisher could not be checked";
-  return source.publisher ? `Listed by ${source.publisher}` : "No publisher recorded";
 }
 
 function MatRim({ row, idBase }: { row: TonightCheapPint; idBase: string }) {
@@ -181,13 +138,11 @@ function BeerMat({
   row,
   index,
   flipped,
-  source,
   onToggle,
 }: {
   row: TonightCheapPint;
   index: number;
   flipped: boolean;
-  source: MatSource;
   onToggle: (venueId: string) => void;
 }) {
   const idBase = useId();
@@ -257,11 +212,10 @@ function BeerMat({
           <div className="beerMatFace beerMatBack" inert={!flipped}>
             <span className="beerMatBackBody">
               <PintPriceBadge priceGbp={row.priceGbp} venueId={row.venueId} />
-              {source.state === "read" && source.drink ? (
-                <span className="beerMatDrink">{source.drink}</span>
-              ) : null}
+              <span className="beerMatDrink">{row.drinkLabel || "Drink not recorded"}</span>
+              <span className="beerMatSource">{row.servingSize || "Serving not recorded"}</span>
               <span className="beerMatSource">
-                {sourceLine(source)}
+                {row.publisher ? <>Listed by <a href={row.publisher.url} target="_blank" rel="noreferrer">{row.publisher.label}</a></> : "No publisher recorded"}
                 <br />
                 {readAt ? (
                   <time dateTime={row.observedAt ?? undefined}>{READ_DAY.format(readAt)}</time>
@@ -272,7 +226,7 @@ function BeerMat({
               <Link
                 prefetch={false}
                 className="beerMatLog"
-                href={`${venueMapUrl(row.venueId)}&log=1` as Route}
+                href={`${tonightCheapPintHref(row)}&log=1` as Route}
               >
                 Paid less? Log it
               </Link>
@@ -286,27 +240,6 @@ function BeerMat({
 
 export default function BeerMats({ rows }: { rows: readonly TonightCheapPint[] }) {
   const [flipped, setFlipped] = useState<ReadonlySet<string>>(() => new Set());
-  const [sources, setSources] = useState<ReadonlyMap<string, MatSource>>(() => new Map());
-
-  // Each mat's back is read from the pub's own detail as the mats land,
-  // through the shared surface read, so the map's sheet and the mats ask once.
-  useEffect(() => {
-    const controller = new AbortController();
-    const settle = (venueId: string, source: MatSource) =>
-      setSources((current) => new Map(current).set(venueId, source));
-    for (const row of rows) {
-      void loadSurfaceJson<unknown>(
-        venueDetailUrl(row.venueId),
-        { signal: controller.signal, freshForMs: DETAIL_FRESH_MS, validate: isVenueDetail },
-        (body) => settle(row.venueId, matSourceFromDetail(body, row.priceGbp)),
-      ).then((outcome) => {
-        if (outcome === "failed" && !controller.signal.aborted) {
-          settle(row.venueId, { state: "unavailable" });
-        }
-      });
-    }
-    return () => controller.abort();
-  }, [rows]);
 
   const toggle = useCallback((venueId: string) => {
     setFlipped((current) => {
@@ -325,7 +258,6 @@ export default function BeerMats({ rows }: { rows: readonly TonightCheapPint[] }
           row={row}
           index={index}
           flipped={flipped.has(row.venueId)}
-          source={sources.get(row.venueId) ?? { state: "loading" }}
           onToggle={toggle}
         />
       ))}

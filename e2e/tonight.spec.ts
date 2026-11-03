@@ -957,7 +957,7 @@ test("phone Tonight in a quiet hour reads the vibe chips, the editorial rail, th
 test("the cheapest listed pints carry one row per chain and name it", async ({ page }) => {
   await openQuietNight(page);
 
-  const rows = page.getByTestId("tonight-cheap-pints").locator("li");
+  const rows = page.getByTestId("tonight-cheap-pints").locator(".tonightCheapPintsBeltList > li");
   await expect(rows).toHaveCount(4);
   const chains = await rows
     .locator("[data-chain]")
@@ -986,6 +986,30 @@ test("the cheapest listed pints carry one row per chain and name it", async ({ p
     if (row.venueId && spoonMeIds.has(row.venueId)) expect(row.chain).toBe("wetherspoon");
   }
 });
+
+for (const width of [599, 600, 641]) {
+  test(`the pint presentation works at ${width}px with reduced motion`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await openQuietNight(page);
+    const area = page.getByTestId("tonight-cheap-pints");
+    if (width < 600) {
+      const mat = area.locator(".beerMat").first();
+      const toggle = mat.locator("button.beerMatToggle");
+      await expect(toggle).toBeVisible();
+      await toggle.focus();
+      await toggle.press("Enter");
+      await expect(toggle).toHaveAttribute("aria-pressed", "true");
+      await expect(mat.locator(".beerMatBack")).toBeVisible();
+      await expect(mat.locator(".beerMatFront")).toBeHidden();
+      await expect(mat.locator(".beerMatBack time")).toBeVisible();
+    } else {
+      await expect(area.locator(".pintBelt[data-ready]")).toBeVisible();
+      await expect(area.locator(".pintBeltEvidence time").first()).toBeVisible();
+      await expect(area.locator(".beerMats")).toHaveCount(0);
+    }
+  });
+}
 
 // The walk-times toggle painted at radius 0 (site audit D7, carried by this
 // lane). It is a row control, so it takes the one button system's geometry.
