@@ -5,7 +5,7 @@ import PlacePhoto from "@/components/listing/PlacePhoto";
 import type { PlacePhoto as PlacePhotoData } from "@/components/listing/placePhotoRules";
 import { PintPriceBadge } from "@/components/PriceBadge";
 import { RowList } from "@/components/ui/row-list";
-import { formatObservedDate, formatObservedDayShort } from "@/lib/dataFreshness";
+import { formatObservedDate, formatObservedDayShort } from "@/lib/dataFreshnessFormat";
 import {
   hypedPubCredit,
   hypedPubMapHref,
