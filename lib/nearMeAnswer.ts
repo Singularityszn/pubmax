@@ -4,7 +4,7 @@ import { WALK_KMH } from "@/lib/routeLegs";
 import { isPublicRankablePub } from "@/lib/venueKindFilters";
 import type { Venue, VenueKind } from "@/lib/venues";
 import { comparablePint } from "@/lib/comparablePint.mjs";
-import { legacyCheapestPriceEvidence } from "@/lib/legacyPriceEvidence.mjs";
+import { selectedVenuePintEvidence } from "@/lib/comparableVenuePint";
 import type { PricedVenue } from "@/lib/priceUpdates";
 import { walkMinutesFromKm } from "@/lib/walkMinutes";
 
@@ -98,8 +98,6 @@ export type PricedPoint = {
 };
 
 export function venueToPricedPoint(venue: Venue): PricedPoint {
-  const evidence = legacyCheapestPriceEvidence(venue.prices ?? [], venue.cheapestPrice);
-  const slimEvidence = venue.priceSource !== undefined || venue.priceObservedAt !== undefined;
   const contributorSelected = venue.latestContributorPrice != null && venue.latestContributorPrice === venue.cheapestPrice;
   const sourced = (venue as Partial<PricedVenue>).sourcedPrice;
   return {
@@ -118,11 +116,8 @@ export function venueToPricedPoint(venue: Venue): PricedPoint {
       priceSource: sourced.sourceLabel,
       priceObservedAt: sourced.observedAt,
     } : {
-      priceSource: slimEvidence ? venue.priceSource : evidence.priceSource,
-      priceObservedAt: slimEvidence ? venue.priceObservedAt : evidence.priceObservedAt,
+      ...selectedVenuePintEvidence(venue),
       anchorLabel: venue.anchorLabel,
-      cheapestPint: evidence.cheapestPint ?? venue.cheapestPint,
-      measure: evidence.measure ?? venue.measure,
     }),
   };
 }

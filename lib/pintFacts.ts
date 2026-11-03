@@ -1,5 +1,4 @@
-import { comparableVenuePint, type ComparablePintVenue } from "@/lib/comparableVenuePint";
-import { legacyCheapestPriceEvidence } from "@/lib/legacyPriceEvidence.mjs";
+import { comparableVenuePint, selectedVenuePintEvidence, type ComparablePintVenue } from "@/lib/comparableVenuePint";
 import { isNonPublicVenueName } from "@/lib/venueKindFilters";
 // Programmatic fact layer (Wave S3.1 / S3.2) — the pure, React-free core behind
 // the borough/city "Fact block" prose + stat table and the FAQ block.
@@ -81,9 +80,7 @@ export function pintFactStats(
       price: pub.cheapestPrice as number,
       observedAt: venueCheapestPintObservedAt({ cheapestPrice: pub.cheapestPrice, prices: pub.prices ?? [] }),
       comparable: !isNonPublicVenueName(pub.name) && comparableVenuePint(pub, null, false) !== null,
-      selectedObservedAt: pub.sourcedPrice?.observedAt ?? (pub.priceSource !== undefined || pub.priceObservedAt !== undefined
-        ? pub.priceObservedAt
-        : legacyCheapestPriceEvidence(pub.prices ?? [], pub.cheapestPrice).priceObservedAt) ?? null,
+      selectedObservedAt: pub.sourcedPrice?.observedAt ?? selectedVenuePintEvidence(pub).priceObservedAt ?? null,
     }));
 
   const base: PintFactStats = {

@@ -12,7 +12,7 @@ import { boroughsWithPrices, pricedWithinWalk, rankBoroughCheapest, rankCityChea
 import { nearPintRows } from "@/lib/nearCheapestAnything";
 import { pinsToSlimVenues, slimVenueToPin } from "@/lib/slimPins";
 import { buildMapVenueListModel, mapVenueListCheapest } from "@/lib/mapVenueList";
-import { mapSplitListPrice } from "@/lib/mapSplitList";
+import { buildMapSplitListGroups, mapSplitListPrice } from "@/lib/mapSplitList";
 import { cheapestDrinksNearPoint } from "@/lib/areaButton";
 import { isSourcedPint } from "@/scripts/build_last_orders_pack.mjs";
 import { selectCheapPintPing } from "@/lib/cheapPintPingSelect.server";
@@ -21,6 +21,9 @@ import { readCityVenueIndex } from "@/lib/venueIndex";
 import { getCity } from "@/lib/cities";
 import { loadSlimVenuesFromPath, type SlimVenue } from "@/lib/venuesSlim";
 import { mergePriceUpdates } from "@/lib/priceUpdates";
+import { bundlePricesForCategory, parseUkPriceBundleRows, type UkPriceBundleRow } from "@/lib/ukPriceBundle";
+import { mergeLazyDetailPins } from "@/lib/lazyVenueDetail";
+import { pintFactStats } from "@/lib/pintFacts";
 
 const NOW = new Date("2026-11-01T12:00:00Z");
 const evidence = { priceSource: "Pub menu", priceObservedAt: "2026-10-01" };
@@ -97,7 +100,7 @@ describe("the captain's comparable-pint contract at ranking boundaries", () => {
   });
 
   it.each(rejected)("the landing card, rail and photo prices refuse %j", (change) => {
-    const venues = [venue("rejected", 2.49, change), venue("pint", 5)];
+    const venues = [venue("rejected", 2.49, { ...change, prices: [] }), venue("pint", 5)];
     const history = {
       version: 1,
       observations: venues.map((pub) => ({
@@ -124,7 +127,7 @@ describe("the captain's comparable-pint contract at ranking boundaries", () => {
   });
 
   it.each(rejected)("Near me projections refuse %j across all answer modes", (change) => {
-    const points = [venue("rejected", 2.49, change), venue("pint", 5)].map(venueToPricedPoint);
+    const points = [venue("rejected", 2.49, { ...change, prices: [] }), venue("pint", 5)].map(venueToPricedPoint);
     expect(rankNearMe(51.5136, -0.1365, points).cards.map((card) => card.id)).toEqual(["pint"]);
     expect(rankBoroughCheapest(points, "Westminster").map((card) => card.id)).toEqual(["pint"]);
     expect(rankCityCheapest(points).map((card) => card.id)).toEqual(["pint"]);
@@ -161,6 +164,66 @@ describe("the captain's comparable-pint contract at ranking boundaries", () => {
     expect(pub).toMatchObject({ cheapestPrice: 3, cheapestPint: "BOTTLED BEER" });
     expect(comparableVenuePint(defined(pub))).toBeNull();
     expect(rankCityCheapest([venueToPricedPoint(defined(pub))])).toEqual([]);
+  });
+
+  it("keeps the published Brownswood half-tonic visible below valid pints in the map sort", () => {
+    const rows = parseUkPriceBundleRows(JSON.parse(readFileSync("public/data/uk_prices/rows.json", "utf8")));
+    const half = defined(rows.find((row) => row.venueId === "venue-1vse4lh" && row.category === "beer" && row.standing === "listed"));
+    expect(half).toMatchObject({ priceGbp: 2.6, drinkLabel: "~ 1/2 pint Tonic, Slim Tonic, Ginger Ale / Beer-" });
+    const pub = { ...venue(half.venueId, 6), bundlePrices: bundlePricesForCategory(rows.filter((row) => row.venueId === half.venueId), "beer") };
+    expect(mapSplitListPrice(pub, undefined)).toMatchObject({ figure: "£2.60", observed: true, rankGbp: null });
+    const groups = buildMapSplitListGroups({ venues: [pub, venue("pint", 5)], basePubs: [], restaurants: [], dropSignals: new Map(), viewportCenter: null, reader: null, sort: "cheapest" });
+    expect(groups.venues.map((row) => row.id)).toEqual(["pint", half.venueId]);
+    expect(groups.total).toBe(2);
+  });
+
+  it.each([
+    [undefined, 3], ["pint", 3], ["Pint", 3], ["568ml", 3], ["568 ml", 3],
+    ["half pint", null], ["bottle", null], ["330ml", null], ["175ml", null], ["Carafe", null],
+  ])("qualifies a selected bundle serving %s without hiding its figure", (servingSize, rankGbp) => {
+    const row: UkPriceBundleRow = { venueId: "bundle", name: "Bundle", category: "beer", priceGbp: 3, lane: "site-harvest", standing: "listed", sourceUrl: "https://pub.example/menu", publisher: "Pub", observedAt: "2026-10-01", basis: null, sampleSize: null, drinkLabel: "Lager", ...(typeof servingSize === "string" ? { servingSize } : {}) };
+    const pub = { ...venue("bundle", 6), bundlePrices: bundlePricesForCategory(parseUkPriceBundleRows([row]), "beer") };
+    expect(mapSplitListPrice(pub, undefined)).toMatchObject({ figure: "£3.00", observed: true, rankGbp });
+  });
+
+  it("keeps the published Red Lion eligible before and after its detail loads", () => {
+    const published = JSON.parse(readFileSync("public/data/venues_slim.json", "utf8")) as { rows: SlimVenue[] };
+    const slim = slimVenueToPin(defined(published.rows.find((row) => row.id === "venue-1iyj2h1")));
+    const artifact = defined(readFileSync("data/generated/venue_details.jsonl", "utf8").trim().split("\n")
+      .map((line) => JSON.parse(line) as { id: string; rows: VenuePrice[] }).find((row) => row.id === slim.id));
+    const detail = defined(groupVenuePrices(artifact.rows)[0]);
+    const hydrated = defined(mergeLazyDetailPins([slim], new Map([[detail.id, detail]]))[0]);
+    expect(hydrated.priceSource).toBeUndefined();
+    expect(hydrated.priceObservedAt).toBe("2026-10-02");
+    for (const pub of [slim, detail, hydrated]) {
+      expect(comparableVenuePint(pub)).toBe(5);
+      expect(mapSplitListPrice(pub, undefined).rankGbp).toBe(5);
+      expect(mapVenueListCheapest([pub])?.venue.id).toBe(slim.id);
+      expect(cheapestDrinksNearPoint([slim.longitude, slim.latitude], [pub]).map((row) => row.id)).toEqual([slim.id]);
+      const points = [venueToPricedPoint(pub)];
+      expect(rankNearMe(slim.latitude, slim.longitude, points).cards.map((row) => row.id)).toEqual([slim.id]);
+      expect(rankBoroughCheapest(points, "Bromley").map((row) => row.id)).toEqual([slim.id]);
+      expect(rankCityCheapest(points).map((row) => row.id)).toEqual([slim.id]);
+    }
+  });
+
+  it.each([
+    { pub_url: undefined }, { scraped_at_values: undefined },
+    { scraped_at_values: "2026-02-30" }, { pint_name: "Half-pint lager" }, { measure: "bottle" },
+    { price_gbp: 6 },
+  ])("never repairs incomplete selected full-row evidence %j with flat evidence", (change) => {
+    const pub = venue("rejected", 3, { prices: [{ price_gbp: 3, pub_url: "https://pub.example/menu", scraped_at_values: "2026-10-01", pint_name: "Lager", ...change } as VenuePrice] });
+    expect(comparableVenuePint(pub)).toBeNull();
+    expect(rankCityCheapest([venueToPricedPoint(pub)])).toEqual([]);
+    expect(mapSplitListPrice(pub, undefined).figure).toBe("£3.00");
+  });
+
+  it("uses the full row's evidence and serving instead of stale flat fields", () => {
+    const pub = venue("pint", 5, { priceSource: undefined, priceObservedAt: "2026-02-30", cheapestPint: "Half-pint lager", measure: "bottle" });
+    expect(comparableVenuePint(pub)).toBe(5);
+    expect(venueToPricedPoint(pub)).toMatchObject({ priceSource: "pub.example", priceObservedAt: "2026-10-01T00:00:00.000Z" });
+    expect(rankCityCheapest([venueToPricedPoint(pub)]).map((row) => row.id)).toEqual(["pint"]);
+    expect(pintFactStats([pub], "Test", "test")).toMatchObject({ minGbp: 5, minObservedAt: "2026-10-01T00:00:00.000Z", maxGbp: 5, maxObservedAt: "2026-10-01T00:00:00.000Z" });
   });
 
   it("keeps the published TânVân bottle visible while refusing it in server and map answers", async () => {
