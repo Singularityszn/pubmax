@@ -93,6 +93,7 @@ import { cityIdFromVenueId, isNationalBaseVenueId } from "@/lib/cityVenueIds";
 import { measureFromServingSize, measureNamedInDrinkText } from "@/lib/drinkMeasure";
 import { answerEvidenceFor } from "@/lib/landingHero";
 import { formatSelectionHint } from "@/lib/mapSelectionHistory";
+import { namedLegacyPintPriceSource } from "@/lib/legacyPriceEvidence.mjs";
 import { listedPriceCohort } from "@/lib/pricedPubCount";
 import { priceStandingFor } from "@/lib/priceTier";
 import {
@@ -143,6 +144,8 @@ export type HuntPint = {
   /** "London", "Manchester": the city the claim says the pub is in. */
   placeName: string;
   priceGbp: number;
+  drinkLabel?: string | null;
+  servingSize?: string | null;
   publisher: { label: string; url: string };
   /** ISO day (`YYYY-MM-DD`) the publisher's own row was read at its source. */
   observedOn: string;
@@ -370,12 +373,15 @@ export function londonHuntPints(venues: readonly Venue[], now: number = Date.now
     const evidence = answerEvidenceFor({ priceGbp, prices: rows }, now);
     const observedOn = isoDay(evidence.observedOn);
     if (evidence.standing !== "listed" || !evidence.publisher || !observedOn) continue;
+    const selected = rows.find((row) => namedLegacyPintPriceSource(row)?.url === evidence.publisher?.url);
     pints.push({
       venueId: venue.id,
       pubName: venue.name,
       cityId: "london",
       placeName: CITIES.london.displayName,
       priceGbp,
+      drinkLabel: selected?.pint_name?.trim() || null,
+      servingSize: "pint",
       publisher: evidence.publisher,
       observedOn,
       standing: "listed",
@@ -398,7 +404,7 @@ function rowIsAPint(row: UkPriceBundleRow): boolean {
   return measureFromServingSize(row.servingSize) === "pint" || /^568 ?ml$/i.test(row.servingSize);
 }
 
-type BundleFigure = Pick<HuntPint, "priceGbp" | "publisher" | "observedOn" | "standing">;
+type BundleFigure = Pick<HuntPint, "priceGbp" | "publisher" | "observedOn" | "standing" | "drinkLabel" | "servingSize">;
 
 /** The figure a pub's own venue sheet quotes, or a confirmed one, if it may win. */
 function bundleFigures(rows: readonly UkPriceBundleRow[], now: number): BundleFigure[] {
@@ -408,6 +414,8 @@ function bundleFigures(rows: readonly UkPriceBundleRow[], now: number): BundleFi
   if (listed?.publisher && listedDay && priceStandingFor({ listed }, now).standing === "listed") {
     figures.push({
       priceGbp: listed.priceGbp,
+      drinkLabel: listed.drinkLabel?.trim() || null,
+      servingSize: listed.servingSize ?? "pint",
       publisher: { label: listed.publisher, url: listed.sourceUrl },
       observedOn: listedDay,
       standing: "listed",
@@ -422,6 +430,8 @@ function bundleFigures(rows: readonly UkPriceBundleRow[], now: number): BundleFi
     if (priceStandingFor({ confirmed }, now).standing !== "confirmed") continue;
     figures.push({
       priceGbp: row.priceGbp,
+      drinkLabel: row.drinkLabel?.trim() || null,
+      servingSize: row.servingSize ?? "pint",
       publisher: { label: publisher, url: row.sourceUrl },
       observedOn: day,
       standing: "confirmed",
