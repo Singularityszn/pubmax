@@ -8,7 +8,7 @@ test.use({ serviceWorkers: "block" });
 // Real pages and interactions, with auth and profile API fixtures where stated.
 test("failed route presentation chunks leave the map link usable", async ({ page }) => {
   const rejected = new Set<string>();
-  await page.route("**/_next/static/chunks/*.js", async (route) => {
+  await page.route("**/_next/static/chunks/*.js*", async (route) => {
     const response = await route.fetch();
     const body = await response.text();
     const matches = ["pintLine__glassBeer", "crawlReceipt__barcode"].filter((marker) => body.includes(marker));
@@ -90,7 +90,7 @@ test("fixture-backed cross-tab account switch clears mounted private turn names"
   await tracker.getByLabel("Add a name").fill("Private Sam");
   await tracker.getByLabel("Add a name").press("Enter");
   await page.reload();
-  await expect(tracker.getByText("Private Sam", { exact: true })).toBeVisible();
+  await expect(tracker.getByRole("list").getByText("Private Sam", { exact: true })).toBeVisible();
   const control = await context.newPage();
   await installAuthDoubles(control);
   await control.goto("/today");
