@@ -39,7 +39,7 @@ import { summariseGetHome, type GetHomeSummary } from "@/lib/tonightGetHome";
 
 type Coord = { lat: number; lng: number };
 
-const EMPTY: readonly TonightCheapestCandidate[] = [];
+const EMPTY: { rows: readonly TonightCheapestCandidate[]; priceDatasetDigest: string | null } = { rows: [], priceDatasetDigest: null };
 
 // One loader for the page's life, made on first use. The shard loader is
 // imported only then, so a reader who never shares a position or remembers an
@@ -54,8 +54,8 @@ function tonightSlimLoader(): Promise<SlimShardLoader> {
 }
 
 /** Priced pubs from the slim cells around `near`; an empty list until they land. */
-export function useTonightNearbyVenues(near: Coord | null): readonly TonightCheapestCandidate[] {
-  const [answer, setAnswer] = useState<{ key: string; rows: TonightCheapestCandidate[] } | null>(null);
+export function useTonightNearbyVenues(near: Coord | null): { rows: readonly TonightCheapestCandidate[]; priceDatasetDigest: string | null } {
+  const [answer, setAnswer] = useState<{ key: string; rows: TonightCheapestCandidate[]; priceDatasetDigest: string | null } | null>(null);
   const lat = near?.lat ?? null;
   const lng = near?.lng ?? null;
   const key = lat === null || lng === null ? null : `${lat.toFixed(3)},${lng.toFixed(3)}`;
@@ -71,11 +71,12 @@ export function useTonightNearbyVenues(near: Coord | null): readonly TonightChea
           setAnswer({
             key,
             rows: result.rows.filter((venue) => typeof venue.cheapestPrice === "number"),
+            priceDatasetDigest: result.status === "ready" ? result.priceDatasetDigest ?? null : null,
           });
         },
         () => {
           // A loader that could not load leaves the card on the city's answer.
-          if (!cancelled) setAnswer({ key, rows: [] });
+          if (!cancelled) setAnswer({ key, rows: [], priceDatasetDigest: null });
         },
       );
     return () => {
@@ -83,7 +84,33 @@ export function useTonightNearbyVenues(near: Coord | null): readonly TonightChea
     };
   }, [lat, lng, key]);
 
-  return answer && answer.key === key ? answer.rows : EMPTY;
+  return answer && answer.key === key ? answer : EMPTY;
+}
+
+/** Read only the selected venue's detail, and only for the same source snapshot. */
+export function useTonightPintEvidence(venueId: string | null, digest: string | null) {
+  const key = venueId && digest ? `${venueId}:${digest}` : null;
+  const [answer, setAnswer] = useState<{ key: string; drinkLabel: string | null; servingSize: string | null; publisher: { label: string; url: string } | null; observedAt: string | null } | null>(null);
+  useEffect(() => {
+    if (!key || !venueId || !digest) return;
+    const controller = new AbortController();
+    void fetch(`/api/venue/${encodeURIComponent(venueId)}`, { signal: controller.signal })
+      .then(async (response) => response.ok ? response.json() as Promise<unknown> : null)
+      .then(async (body) => {
+        if (controller.signal.aborted || !body || typeof body !== "object") return;
+        const payload = body as { priceDatasetDigest?: unknown; venue?: { id?: unknown; prices?: unknown } };
+        if (payload.priceDatasetDigest !== digest || payload.venue?.id !== venueId || !Array.isArray(payload.venue.prices)) return;
+        const row = payload.venue.prices[0];
+        if (!row || typeof row !== "object") return;
+        const { legacyPintPriceObservedAt, namedLegacyPintPriceSource } = await import("@/lib/legacyPriceEvidence.mjs");
+        if (controller.signal.aborted) return;
+        setAnswer({ key, drinkLabel: typeof row.pint_name === "string" && row.pint_name.trim() ? row.pint_name : null,
+          servingSize: typeof row.measure === "string" && row.measure.trim() ? row.measure : null,
+          publisher: namedLegacyPintPriceSource(row), observedAt: legacyPintPriceObservedAt(row) });
+      }).catch(() => undefined);
+    return () => controller.abort();
+  }, [key, venueId, digest]);
+  return answer?.key === key ? answer : null;
 }
 
 export type RegularNightsRead = {

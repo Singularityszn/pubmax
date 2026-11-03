@@ -33,6 +33,7 @@ type VenueDetailManifestEntry = {
 
 type VenueDetailManifest = {
   version: 1;
+  priceDatasetDigest?: string;
   detailsFile: string;
   count: number;
   venues: Record<string, VenueDetailManifestEntry>;
@@ -217,6 +218,14 @@ async function readManifest(): Promise<
     // Leave cache unset so a later request can retry after a transient miss.
     return { status: "unavailable" };
   }
+}
+
+/** Identity of the ordered source rows used by the generated detail pack. */
+export async function venueDetailPriceDatasetDigest(): Promise<string | null> {
+  const result = await readManifest();
+  if (result.status !== "ready") return null;
+  const digest = result.manifest.priceDatasetDigest;
+  return typeof digest === "string" && /^[A-Za-z0-9_-]{22}$/.test(digest) ? digest : null;
 }
 
 async function readVenueFromArtifact(id: string): Promise<ArtifactLookupResult> {
