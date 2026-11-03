@@ -27,6 +27,22 @@ import type { Venue } from "@/lib/venues";
 
 const NOW = Date.UTC(2026, 10, 1, 12);
 
+it("carries the exact London row that supplied the selected publisher", () => {
+  const pub = londonVenue("venue-lon1", "The Listed Lion", 4.5);
+  const original = pub.prices[0]!;
+  pub.prices = [
+    { ...original, pub_url: "", pint_name: "Wrong equal-price beer" },
+    { ...original, pint_name: "Selected lager", pub_url: "https://winner.example/menu" },
+    { ...original, pint_name: "Other equal-price beer", pub_url: "https://other.example/menu" },
+  ];
+  expect(londonHuntPints([pub], NOW)[0]).toMatchObject({
+    drinkLabel: "Selected lager",
+    servingSize: "pint",
+    publisher: { label: "winner.example", url: "https://winner.example/menu" },
+    observedOn: "2026-10-02",
+  });
+});
+
 function londonVenue(
   id: string,
   name: string,
@@ -125,6 +141,15 @@ function bundle(rows: UkPriceBundleRow[]): HuntPint[] {
   return bundleHuntPints(byVenue(rows), placeOf, NOW);
 }
 
+it("carries the bundle's selected equal-price row with its own source and serving", () => {
+  const pints = bundle([
+    row({ drinkLabel: "Older beer", sourceUrl: "https://old.example/menu", publisher: "Old", observedAt: "2026-09-01T10:00:00.000Z" }),
+    row({ drinkLabel: "Selected lager", servingSize: "568ml", sourceUrl: "https://winner.example/menu", publisher: "Winner", observedAt: "2026-10-02T10:00:00.000Z" }),
+    row({ drinkLabel: "Other beer", sourceUrl: "https://other.example/menu", publisher: "Other", observedAt: "2026-10-02T10:00:00.000Z" }),
+  ]);
+  expect(pints[0]).toMatchObject({ drinkLabel: "Selected lager", servingSize: "568ml", publisher: { label: "Winner", url: "https://winner.example/menu" }, observedOn: "2026-10-02" });
+});
+
 describe("what may win a cheapest line", () => {
   it("never lets an estimate win, however cheap", () => {
     const pints = bundle([
@@ -180,6 +205,8 @@ describe("what may win a cheapest line", () => {
         cityId: "london",
         placeName: "London",
         priceGbp: 2.09,
+        drinkLabel: "JAIPUR",
+        servingSize: "pint",
         publisher: { label: "Pint Prices", url: "https://www.pint-prices.com/pub/x" },
         observedOn: "2026-10-02",
         standing: "listed",

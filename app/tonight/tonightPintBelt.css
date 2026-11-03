@@ -1,4 +1,4 @@
-/* The pint belt (TonightPintBelt.tsx). From 641px the quiet night's cheapest
+/* The pint belt (TonightPintBelt.tsx). From 600px the quiet night's cheapest
    pints ride a conveyor as beer mats; below it the list beside the belt is
    the answer, one tap at the bar, and the belt is not drawn.
 
@@ -9,7 +9,7 @@
   display: none;
 }
 
-@media (min-width: 641px) {
+@media (min-width: 600px) {
   .pintBelt[data-ready] {
     display: grid;
     gap: var(--space-1);
@@ -19,6 +19,15 @@
     display: none;
   }
 }
+
+.pintBeltEvidence {
+  margin: 0;
+  padding-left: var(--space-5);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+
+.pintBeltEvidence a { color: inherit; }
 
 .pintBeltFrame {
   position: relative;

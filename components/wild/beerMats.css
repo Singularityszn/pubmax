@@ -1,5 +1,5 @@
-/* Beer mats that flip (components/wild/BeerMats.tsx), the wild switch's
-   version of Tonight's cheapest listed pints. Tokens only, so both themes
+/* Beer mats that flip (components/wild/BeerMats.tsx), the phone view of
+   Tonight's cheapest listed pints. Tokens only, so both themes
    print their own mat: card stock by day, a dark board by night.
 
    While the mats are on the page they are the answer, so the list they
@@ -8,8 +8,7 @@
   display: none;
 }
 
-/* From 641px the mats sit on the bar in a grid: two across the 360px rail,
-   four across a tablet column. */
+/* The mats fall back to a grid outside the phone-width snap row. */
 .beerMats {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -21,7 +20,7 @@
 
 /* A phone swipes them: one snap row out to the screen's edges, with the
    next mat peeking in so the row says it goes on. */
-@media (max-width: 640px) {
+@media (max-width: 599px) {
   .beerMats {
     display: flex;
     gap: var(--space-3);
@@ -243,6 +242,18 @@
   color: var(--color-text-muted);
   font-size: clamp(var(--text-2xs), 6.2cqi, var(--text-sm));
   line-height: 1.25;
+}
+
+.beerMatSource a {
+  color: inherit;
+  pointer-events: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .beerMat[data-flipped] .beerMatSpin { transform: none; }
+  .beerMat[data-flipped] .beerMatFront { display: none; }
+  .beerMat:not([data-flipped]) .beerMatBack { display: none; }
+  .beerMatBack { transform: none; }
 }
 
 .beerMatLog {

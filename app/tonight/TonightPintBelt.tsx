@@ -30,6 +30,7 @@ const DRAG_SLOP = 6;
 /** Momentum left after each 16ms frame of a flick. */
 const FRICTION = 0.94;
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+const READ_DAY = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" });
 
 function subscribeReducedMotion(onChange: () => void): () => void {
   if (typeof window.matchMedia !== "function") return () => {};
@@ -272,6 +273,16 @@ export default function TonightPintBelt({ rows }: { rows: readonly TonightCheapP
           </Link>
         ))}
       </div>
+      <ul className="pintBeltEvidence" aria-label="Pint sources">
+        {rows.map((row) => {
+          const date = row.observedAt ? new Date(row.observedAt) : null;
+          return <li key={row.venueId}>
+            {row.name}: {row.drinkLabel || "Drink not recorded"} · {row.servingSize || "Serving not recorded"} ·{" "}
+            {row.publisher ? <a href={row.publisher.url} target="_blank" rel="noreferrer">{row.publisher.label}</a> : "Publisher not recorded"} ·{" "}
+            {date && Number.isFinite(date.getTime()) ? <time dateTime={row.observedAt ?? undefined}>{READ_DAY.format(date)}</time> : "Read date not recorded"}
+          </li>;
+        })}
+      </ul>
       <IconButton
         variant="ghost"
         className="pintBeltPause"

@@ -68,7 +68,7 @@ describe("the belt's pace", () => {
 });
 
 const ROWS: TonightCheapPint[] = [
-  { venueId: "venue-a", name: "J.J. Moon's", borough: "Wandsworth", priceGbp: 2.09, chain: "wetherspoon" },
+  { venueId: "venue-a", name: "J.J. Moon's", borough: "Wandsworth", priceGbp: 2.09, chain: "wetherspoon", drinkLabel: "Selected lager", servingSize: "pint", publisher: { label: "Winner", url: "https://winner.example/menu" }, observedAt: "2026-10-02T12:00:00Z" },
   { venueId: "venue-b", name: "Nags Head, Peckham", borough: "Southwark", priceGbp: 2.9, chain: null },
 ];
 
@@ -117,6 +117,16 @@ describe("the pint belt", () => {
     expect(mats[0]?.textContent).toContain("2.09");
   });
 
+  it("shows the same selected serving and source evidence as the mat", () => {
+    stubMotion(false);
+    render();
+    expect(host.textContent).toContain("Selected lager");
+    expect(host.textContent?.toLowerCase()).toContain("pint");
+    expect(host.textContent).toContain("Winner");
+    expect(host.textContent).toContain("2 Oct 2026");
+    expect(host.querySelector('a[href="https://winner.example/menu"]')).not.toBeNull();
+  });
+
   it("has a control that stops it, and it starts running", () => {
     stubMotion(false);
     render();
@@ -131,10 +141,10 @@ describe("the pint belt", () => {
     expect(pause?.getAttribute("aria-pressed")).toBe("true");
   });
 
-  it("is drawn from 641px only, where the list steps back for it", () => {
+  it("is drawn from 600px only, where the list steps back for it", () => {
     const css = readFileSync(join(process.cwd(), "app/tonight/tonightPintBelt.css"), "utf8");
     expect(css).toMatch(/\.pintBelt \{\s*display: none;/);
-    expect(css).toMatch(/@media \(min-width: 641px\) \{[\s\S]*\.tonightCheapPintsBeltList \{\s*display: none;/);
+    expect(css).toMatch(/@media \(min-width: 600px\) \{[\s\S]*\.tonightCheapPintsBeltList \{\s*display: none;/);
   });
 
   it("keeps the list up until the belt is ready, so the section is never empty", () => {
