@@ -104,6 +104,26 @@
   transform: rotateY(180deg);
 }
 
+/* The open back grows with its content, while keeping the mat's minimum size. */
+.beerMat[data-flipped] {
+  aspect-ratio: auto;
+}
+
+.beerMat[data-flipped] .beerMatSpin {
+  position: relative;
+  inset: auto;
+  display: grid;
+  min-height: 100cqi;
+}
+
+.beerMat[data-flipped] .beerMatBack {
+  position: relative;
+  inset: auto;
+  min-height: 100cqi;
+  padding: var(--space-4);
+  box-sizing: border-box;
+}
+
 .beerMatFace {
   position: absolute;
   inset: 0;
@@ -204,6 +224,7 @@
    listed it and when, and the way to log a better one. */
 .beerMatBack {
   transform: rotateY(180deg);
+  border-radius: 1.5rem;
   border: 4px solid var(--price-band-hue);
   background: var(--panel);
   color: var(--ink);
@@ -215,7 +236,7 @@
   position: absolute;
   inset: 3px;
   border: 1px solid color-mix(in srgb, var(--price-band-hue) 55%, transparent);
-  border-radius: 50%;
+  border-radius: inherit;
 }
 
 .beerMatBackBody {
@@ -242,6 +263,7 @@
   color: var(--color-text-muted);
   font-size: clamp(var(--text-2xs), 6.2cqi, var(--text-sm));
   line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
 .beerMatSource a {
@@ -270,7 +292,10 @@
   font-weight: 700;
   line-height: 1.1;
   text-decoration: none;
-  white-space: nowrap;
+  max-width: 100%;
+  box-sizing: border-box;
+  text-align: center;
+  white-space: normal;
   /* The faces let taps through to the mat's button; the log door takes its own. */
   pointer-events: auto;
 }
