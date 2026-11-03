@@ -129,6 +129,9 @@ function buildVenueIndexFromSlim(rows: SlimRow[]): Map<string, IndexedVenue> {
       lat,
       lng,
       cheapestPrice,
+      ...(typeof row.cheapestPint === "string" ? { cheapestPint: row.cheapestPint } : {}),
+      ...(typeof row.measure === "string" ? { measure: row.measure } : {}),
+      ...(typeof row.priceSource === "string" ? { priceSource: row.priceSource } : {}),
       ...(typeof row.priceObservedAt === "string" && row.priceObservedAt
         ? { priceObservedAt: row.priceObservedAt }
         : {}),

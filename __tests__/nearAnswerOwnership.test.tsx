@@ -8,6 +8,8 @@ import NearDeskNow from "@/components/nearme/NearDeskNow";
 import { readRememberedArea, writeRememberedArea } from "@/lib/nightPatches";
 import type { PricedPoint } from "@/lib/nearMeAnswer";
 import type { DeskVenueLoad } from "@/lib/nearDeskVenues";
+import { venueToPricedPoint } from "@/lib/nearMeAnswer";
+import { slimVenueToPin } from "@/lib/slimPins";
 
 const boundary = vi.hoisted(() => ({
   pathname: "/near",
@@ -92,6 +94,19 @@ async function completeRead() {
 }
 
 describe("pint answer telemetry", () => {
+  it("shows a valid pint when the map supplies its resident venue projection", async () => {
+    const venues = [
+      { id: "bottle", name: "Bottle Venue", lat: 51.5136, lng: -0.1365, cheapestPrice: 2.49, cheapestPint: "BOTTLED BEER", borough: "Westminster", priceSource: "Pub menu", priceObservedAt: "2026-01-01" },
+      { id: "pint", name: "Pint Venue", lat: 51.5136, lng: -0.1365, cheapestPrice: 5, cheapestPint: "Lager", borough: "Westminster", priceSource: "Pub menu", priceObservedAt: "2026-01-01" },
+    ].map(slimVenueToPin).map(venueToPricedPoint);
+    await act(async () => {
+      root?.render(createElement(NearMeNow, { venues, initialLocation: { lat: 51.5136, lng: -0.1365 }, titledByHost: true }));
+    });
+    expect(host.textContent).toContain("Pint Venue");
+    expect(host.textContent).not.toContain("Bottle Venue");
+    expect(boundary.slim).not.toHaveBeenCalled();
+  });
+
   it("tracks only the newest patch when a superseded read completes", async () => {
     render("pint", "soho");
     render("pint", "camden");

@@ -43,6 +43,8 @@ export type TonightCheapestCandidate = {
   priceSource?: string;
   priceObservedAt?: string;
   anchorLabel?: string;
+  cheapestPint?: string;
+  measure?: string;
   kind?: VenueKind;
   retired?: true;
 };

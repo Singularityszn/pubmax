@@ -73,7 +73,8 @@ export function slimVenueToPin(slim: SlimVenue): Venue {
       : undefined,
     prices: [],
     cheapestPrice: slim.cheapestPrice,
-    cheapestPint: "",
+    cheapestPint: slim.cheapestPint ?? "",
+    ...(slim.measure !== undefined ? { measure: slim.measure } : {}),
     averagePrice: null,
     // Prefer slim filterHints so heritage rings paint before full detail loads
     // (critical for non-London cities that have no detail artifact yet).
@@ -135,6 +136,8 @@ function pinToSlimVenue(pin: Venue): SlimVenue {
     lat: pin.latitude,
     lng: pin.longitude,
     cheapestPrice: pin.cheapestPrice,
+    ...(pin.cheapestPint ? { cheapestPint: pin.cheapestPint } : {}),
+    ...(pin.measure !== undefined ? { measure: pin.measure } : {}),
     borough: pin.primaryBorough,
     ...(pin.locality !== undefined ? { locality: pin.locality } : {}),
     ...(pin.zone !== undefined ? { zone: pin.zone } : {}),

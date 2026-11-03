@@ -35,6 +35,7 @@ import { loadStationZones, nearestStationZone } from "./lib/stationZones.mjs";
 import { isCurrentFamousVenue } from "./lib/currentFamousVenue.mjs";
 import { nightOutPlaceRowValidationErrors } from "../lib/nightOutPlaceContract.mjs";
 import { legacyCheapestPriceEvidence, legacyCheapestPriceReadDay } from "../lib/legacyPriceEvidence.mjs";
+import { isComparablePintServing } from "../lib/comparablePint.mjs";
 import { isCurrentVenueRow, isLivePriceRow } from "../lib/priceRowEligibility.mjs";
 import { legacyOsmVenueKind } from "../lib/legacyOsmVenueKind.mjs";
 import { buildVenueFeatureHints } from "./lib/venueFeatureHints.mjs";
@@ -943,7 +944,7 @@ async function main() {
     // The publisher and day both come from the same minimum-price row.
     // A second row at the same price cannot supply this publisher's date.
     const priceObservedAt = legacyCheapestPriceReadDay(prices, cheapestPrice);
-    const { priceSource } = legacyCheapestPriceEvidence(prices, cheapestPrice);
+    const { priceSource, cheapestPint, measure } = legacyCheapestPriceEvidence(prices, cheapestPrice);
     const id = stableVenueIdFromKey(key);
     const locality = groupRows
       .map((row) => String(row.locality ?? "").trim())
@@ -965,6 +966,8 @@ async function main() {
       lat,
       lng,
       cheapestPrice,
+      ...(cheapestPint && !isComparablePintServing({ cheapestPint, measure }) ? { cheapestPint } : {}),
+      ...(measure != null ? { measure } : {}),
       ...(priceSource ? { priceSource } : {}),
       ...(priceObservedAt ? { priceObservedAt } : {}),
       borough: String(first.primary_borough || ""),
