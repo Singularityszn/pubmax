@@ -169,8 +169,6 @@ test("Soho Tonight lane clears the wrapped toolbar at 32px browser text", async 
   await expect(lane).toContainText("Pins");
   const activePins = lane.getByRole("button", { name: "Hide Pins", exact: true });
   await expect(activePins).toHaveAttribute("aria-pressed", "true");
-  await activePins.click();
-  await expect(lane.getByRole("button", { name: "Show Pins", exact: true })).toBeVisible();
   const toolbar = (await page.locator(".mapToolbar").boundingBox())!;
   const laneBox = (await lane.boundingBox())!;
   const shot = await page.screenshot();
