@@ -44,7 +44,7 @@ beforeEach(() => {
 });
 
 describe("search_venues comparable-pint contract", () => {
-  it.each(["pubs in Soho under £6", "pints in Soho"])("refuses incomplete or half-pint evidence for %s", async (query) => {
+  it.each(["pubs in Soho under £6", "cheapest pint in Soho"])("refuses incomplete or half-pint evidence for %s", async (query) => {
     const listed = venue({ id: "pint", name: "The Pint", cheapestPrice: 5 });
     state.venues = [
       venue({ id: "half", name: "The French House", cheapestPrice: 3.4, anchorLabel: "Half pint house lager" }),
@@ -56,8 +56,14 @@ describe("search_venues comparable-pint contract", () => {
     const result = await runAskTool("search_venues", { query }, ctx(query));
     expect(result.ok).toBe(true);
     expect(result.cards.map((card) => [card.venueId, card.price])).toEqual([["pint", 5]]);
-    const discovery = await runAskTool("search_venues", { query: "pubs in Soho", limit: 6 }, ctx("pubs in Soho"));
-    expect(discovery.cards.map((card) => card.venueId).sort()).toEqual(["bad-day", "half", "pint", "undated", "unnamed"]);
+    // Discovery returns at most four cards. Check each refused row in a small
+    // pool so the result limit cannot conceal ordinary venue visibility.
+    const refused = state.venues.filter((pub) => pub.id !== listed.id);
+    for (const pub of refused) {
+      state.venues = [listed, pub];
+      const discovery = await runAskTool("search_venues", { query: "pubs in Soho" }, ctx("pubs in Soho"));
+      expect(discovery.cards.map((card) => card.venueId).sort()).toEqual([pub.id, listed.id].sort());
+    }
   });
 });
 

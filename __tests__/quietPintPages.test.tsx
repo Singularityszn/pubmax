@@ -35,7 +35,7 @@ beforeEach(() => {
     { id: "a-half", cheapestPrice: 3.4, cheapestPint: "Half-pint lager" },
     { id: "b-dear", cheapestPrice: 6 },
     { id: "z-cheap", cheapestPrice: 4.2 },
-  ].map((row) => slimVenueToPin({ name: row.id, lat: 51.51, lng: -0.13,
+  ].map((row) => slimVenueToPin({ name: row.id, lat: 51.51, lng: -0.13, borough: "Westminster",
     priceSource: "Pub menu", priceObservedAt: "2026-01-01", ...row }));
   data.historic = [...data.venues.map((venue) => venue.id), "c-unpriced"].map((id): HistoricPub => ({
     venueId: id, name: id, slug: id, borough: "Westminster", lat: 51.51, lng: -0.13,

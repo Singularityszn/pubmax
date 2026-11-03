@@ -152,8 +152,8 @@ describe("the captain's comparable-pint contract at ranking boundaries", () => {
       expect(mapSplitListPrice(defined(pubs[1]), undefined)).toMatchObject({ rankGbp: 5 });
       expect(pubs[0]).toMatchObject({ cheapestPrice: 2.49, cheapestPint });
     }
-    expect(isSourcedPint(rows[0])).toBe(false);
-    expect(isSourcedPint(rows[1])).toBe(true);
+    expect(isSourcedPint(defined(rows[0]))).toBe(false);
+    expect(isSourcedPint(defined(rows[1]))).toBe(true);
   });
 
   it("uses the first selected legacy row's serving on a price tie", () => {

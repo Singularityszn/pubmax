@@ -60,17 +60,20 @@ export function cheapestPintNear(
   radiusKm: number = WALKABLE_RADIUS_KM,
 ): { venue: TonightCheapestCandidate; km: number } | null {
   let best: { venue: TonightCheapestCandidate; km: number } | null = null;
+  let bestPrice = Infinity;
   for (const venue of venues) {
-    if (venue.retired || comparablePint(venue) === null) continue;
+    const price = comparablePint(venue);
+    if (venue.retired || price === null) continue;
     if (!isPublicRankablePub(venue)) continue;
     const km = haversineKm([near.lng, near.lat], [venue.lng, venue.lat]);
     if (!Number.isFinite(km) || km > radiusKm) continue;
     if (
       best === null ||
-      venue.cheapestPrice < (best.venue.cheapestPrice as number) ||
-      (venue.cheapestPrice === best.venue.cheapestPrice && km < best.km)
+      price < bestPrice ||
+      (price === bestPrice && km < best.km)
     ) {
       best = { venue, km };
+      bestPrice = price;
     }
   }
   return best;
