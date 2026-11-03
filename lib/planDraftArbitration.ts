@@ -39,7 +39,7 @@ export function recoverPlanDrafts(input: {
   plan: ParsedPlanDraft | null;
   legacyDraft: StoredPlanDraft | null;
   intake: ParsedPlanIntakeDraft | null;
-  route: (Pick<ParsedPlanRouteDraft, "savedAt"> & { conflicting?: boolean }) | null;
+  route: (Pick<ParsedPlanRouteDraft, "savedAt"> & { conflicting?: boolean; ambiguous?: boolean }) | null;
 }) {
   const { plan, legacyDraft, intake, route } = input;
   const routeTime = Date.parse(route?.savedAt ?? "");
@@ -52,6 +52,7 @@ export function recoverPlanDrafts(input: {
   const intent = resolveRequestedPlanIntent(planDraft, recoveredDraft, intakeDraft);
   return {
     routeWins,
+    acceptanceUnavailable: route?.ambiguous === true,
     sessionWins: Boolean(plan && !plan.legacy
       && (!route || planTime > routeTime || (!route.savedAt && route.conflicting === false))
       && JSON.stringify(plan.draft.stops) === JSON.stringify(legacyDraft?.stops)),

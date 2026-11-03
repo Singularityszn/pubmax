@@ -483,11 +483,11 @@ export function reconcilePlanRouteDrafts(
   rawV2: string | null,
   rawV1: string | null,
   now = Date.now(),
-): { envelope: ParsedPlanRouteDraft | null; conflicting: boolean } {
+): { envelope: ParsedPlanRouteDraft | null; conflicting: boolean; ambiguous: boolean } {
   const canonical = parsePlanRouteDraftV2(rawV2, now);
   const legacy = parseLegacyPlanRouteDraft(rawV1, now);
-  if (!canonical) return { envelope: legacy, conflicting: false };
-  if (!legacy) return { envelope: canonical, conflicting: rawV1 !== null };
+  if (!canonical) return { envelope: legacy, conflicting: false, ambiguous: false };
+  if (!legacy) return { envelope: canonical, conflicting: rawV1 !== null, ambiguous: false };
   const projection = (route: ParsedPlanRouteDraft) => ({
     ...legacyValue(route.value),
     anchorVenueId: route.value.anchorVenueId,
@@ -504,11 +504,12 @@ export function reconcilePlanRouteDrafts(
     && JSON.stringify(projection(legacy)) === JSON.stringify(projection(canonical))
     && (!isRecord(rawLegacy) || !Object.hasOwn(rawLegacy, "routeNight")
       || JSON.stringify(rawLegacy.routeNight) === JSON.stringify(routeNight));
-  if (matches) return { envelope: canonical, conflicting: false };
+  if (matches) return { envelope: canonical, conflicting: false, ambiguous: false };
   if (canonical.savedAt && legacy.savedAt && canonical.savedAt !== legacy.savedAt) {
     return {
       envelope: Date.parse(canonical.savedAt) > Date.parse(legacy.savedAt) ? canonical : legacy,
       conflicting: true,
+      ambiguous: false,
     };
   }
   return {
@@ -525,6 +526,7 @@ export function reconcilePlanRouteDrafts(
       },
     },
     conflicting: true,
+    ambiguous: true,
   };
 }
 

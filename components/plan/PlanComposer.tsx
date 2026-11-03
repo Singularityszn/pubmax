@@ -808,6 +808,7 @@ function readComposerRouteDraft(): {
   route: StoredRouteDraft | null;
   envelope: ParsedPlanRouteDraft | null;
   conflicting: boolean;
+  ambiguous: boolean;
 } {
   const storage = safeLocalStorage();
   let raw: string | null = null;
@@ -815,13 +816,14 @@ function readComposerRouteDraft(): {
   try { raw = storage?.getItem(PLAN_ROUTE_DRAFT_KEY) ?? null; } catch {}
   try { rawV2 = storage?.getItem(PLAN_ROUTE_DRAFT_V2_KEY) ?? null; } catch {}
   const route = parsePlanRouteDraft(raw);
-  const { envelope, conflicting } = reconcilePlanRouteDrafts(rawV2, raw);
+  const { envelope, conflicting, ambiguous } = reconcilePlanRouteDrafts(rawV2, raw);
   const value = envelope?.value;
   const planAnchor: GeneratedPlanAnchor | null = value?.anchorVenueId && value.anchorSource && value.outcome !== "unanchored"
     ? { venueId: value.anchorVenueId, source: value.anchorSource, outcome: value.outcome }
     : null;
   if (!envelope || envelope.legacy) return {
     conflicting,
+    ambiguous,
     route: route && {
       ...route,
       ...(conflicting && value ? {
@@ -841,10 +843,45 @@ function readComposerRouteDraft(): {
   }));
   return {
     conflicting,
+    ambiguous,
     route: canonical && (!conflicting && route
       ? { ...canonical, stops: route.stops, routeNight: route.routeNight } : canonical),
     envelope,
   };
+}
+
+function persistComposerRouteDraft(routeDraft: StoredRouteDraft, savedAt: number) {
+  const hasRouteDetails = Boolean(routeDraft.nightContext || routeDraft.routeNight || routeDraft.routeRevision !== null
+    || routeDraft.groundingProof || routeDraft.createOperationKey || routeDraft.planAnchor
+    || routeDraft.stops.some((stop) => stop.alternatives.length > 0));
+  const routeStorage = safeLocalStorage();
+  let routeSaved = false;
+  let previewSaved = false;
+  let sessionSavedAt = savedAt;
+  if (hasRouteDetails || routeDraft.routeStale) {
+    const stored = readComposerRouteDraft().route;
+    previewSaved = !hasRouteDetails && Boolean(stored && stored.stops.length === routeDraft.stops.length
+      && stored.stops.every((stop, index) => stop.venueId === routeDraft.stops[index]?.venueId
+        && stop.venueName === routeDraft.stops[index]?.venueName));
+    try {
+      if (routeStorage && (hasRouteDetails || !previewSaved || stored?.savedAt)) {
+        routeStorage.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify({
+          savedAt: new Date(savedAt).toISOString(),
+          ...routeDraft,
+        } satisfies StoredRouteDraft));
+        routeSaved = true;
+      }
+    } catch {
+    }
+    if (!routeSaved) {
+      const remaining = readComposerRouteDraft().route;
+      previewSaved = previewSaved && JSON.stringify(remaining) === JSON.stringify(stored);
+      routeSaved = Boolean(remaining && JSON.stringify({ ...remaining, savedAt: undefined })
+        === JSON.stringify(parsePlanRouteDraft(JSON.stringify(routeDraft))));
+      if (routeSaved && remaining?.savedAt) sessionSavedAt = Date.parse(remaining.savedAt);
+    }
+  }
+  return { hasRouteDetails, routeSaved, previewSaved, sessionSavedAt };
 }
 
 export type NightAreaSelectorGroup = {
@@ -1917,6 +1954,16 @@ function PlanComposerForm({
       ? { ...acceptedAnchor, expiresAt: acceptedAnchor.expiresAt }
       : null;
     const savedAt = Date.now();
+    const { hasRouteDetails, routeSaved, previewSaved, sessionSavedAt } = persistComposerRouteDraft({
+      stops,
+      nightContext,
+      routeNight,
+      routeRevision,
+      routeStale,
+      groundingProof,
+      createOperationKey,
+      planAnchor,
+    }, savedAt);
     const sessionWrite = writePlanDraftEnvelope({
       title,
       creatorName,
@@ -1925,41 +1972,10 @@ function PlanComposerForm({
       stops,
       ...(requestedStopCount !== undefined ? { requestedStopCount } : {}),
       ...(persistedAcceptedAnchor ? { acceptedAnchor: persistedAcceptedAnchor } : {}),
-    }, persistedAcceptedAnchor ? "planning-intent" : "manual", safeSessionStorage(), savedAt);
-    const hasRoute = Boolean(nightContext || routeNight || routeRevision !== null || routeStale
-      || groundingProof || createOperationKey || planAnchor || stops.some((stop) => stop.alternatives.length > 0));
-    const routeStorage = safeLocalStorage();
-    let routeSaved = false;
-    if (hasRoute) {
-      const routeDraft: StoredRouteDraft = {
-        stops,
-        nightContext,
-        routeNight,
-        routeRevision,
-        routeStale,
-        groundingProof,
-        createOperationKey,
-        planAnchor,
-      };
-      try {
-        if (routeStorage) {
-          routeStorage.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify({
-            savedAt: new Date(savedAt).toISOString(),
-            ...routeDraft,
-          } satisfies StoredRouteDraft));
-          routeSaved = true;
-        }
-      } catch {
-      }
-      if (!routeSaved) {
-        const stored = readComposerRouteDraft().route;
-        routeSaved = Boolean(stored && JSON.stringify({ ...stored, savedAt: undefined })
-          === JSON.stringify(parsePlanRouteDraft(JSON.stringify(routeDraft))));
-      }
-    }
+    }, persistedAcceptedAnchor ? "planning-intent" : "manual", safeSessionStorage(), sessionSavedAt);
     const intakeChanged = JSON.stringify(planIntake) !== JSON.stringify(recoveredIntake);
     const intakeSaved = hasDurableIntakeDraft || intakeChanged
-      ? writePlanIntakeDraft(planIntake, undefined, savedAt)
+      ? writePlanIntakeDraft(planIntake, undefined, sessionWrite.v1 || sessionWrite.v2 ? sessionSavedAt : savedAt)
       : false;
     const hasStops = stops.some((stop) => stop.venueId || stop.venueName);
     const hasWork = intakeChanged || hasStops;
@@ -1968,7 +1984,7 @@ function PlanComposerForm({
       if (!cancelled) setDraftSaveFailure(
         hasWork && !sessionWrite.v1 && !sessionWrite.v2 && !intakeSaved
           ? "all"
-          : hasStops && !routeSaved && (hasRoute || (!sessionWrite.v1 && !sessionWrite.v2))
+          : hasStops && !routeSaved && !previewSaved && (hasRouteDetails || (!sessionWrite.v1 && !sessionWrite.v2))
             ? sessionWrite.v1 && sessionWrite.v2 ? "route-details" : "route"
             : conciergeQuery.trim() && (!sessionWrite.v1 || !sessionWrite.v2) ? "description" : null,
       );
@@ -3084,9 +3100,10 @@ export default function PlanComposer() {
         route: routeRecovery.envelope || routeRecovery.route ? {
           savedAt: routeRecovery.envelope?.savedAt ?? routeRecovery.route?.savedAt ?? null,
           conflicting: routeRecovery.conflicting,
+          ambiguous: routeRecovery.ambiguous,
         } : null,
       });
-      const route = resolved.sessionWins && resolved.planDraft ? {
+      const route = resolved.sessionWins && resolved.planDraft && routeRecovery.route ? {
         ...routeRecovery,
         envelope: null,
         route: {
@@ -3103,10 +3120,10 @@ export default function PlanComposer() {
       let handoff: ComposerHydration | null = null;
       try {
         const candidate = resolveComposerHydration({
-          planDraft: resolved.planDraft,
+          planDraft: resolved.acceptanceUnavailable ? null : resolved.planDraft,
           routeDraft: route.envelope,
           intakeDraft: resolved.intakeDraft,
-          planningIntent: resolved.routeWins ? null : readPlanningIntent(),
+          planningIntent: resolved.routeWins || resolved.acceptanceUnavailable ? null : readPlanningIntent(),
           rememberedArea: resolved.routeWins ? null : readRememberedArea(),
         });
         handoff = candidate.active ? candidate : null;

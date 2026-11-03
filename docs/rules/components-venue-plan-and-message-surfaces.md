@@ -44,17 +44,25 @@ A new generated route replaces the notice from its own evidence.
 
 Each successful local route save records its own `savedAt`.
 When both route and V2 session saves have valid dates, a strictly newer session save replaces the local route.
+A session copy of an unchanged complete route keeps that route's writer date when local route writes fail.
+If that session copy saves, its paired intake save uses the same date.
+A failed session save leaves a successful intake edit dated at its actual save time.
 Intake save time does not establish route freshness.
 When both valid route records have different dates, recovery selects the newer complete record.
 A matching shared record can supply a missing V1 date from its validated V2 copy.
 Matching pub IDs alone do not establish that identity.
 Undated conflicts and equal-time conflicts remain unverified previews without proof or anchor.
+Those conflicts also exclude session acceptance and PlanningIntent acceptance from recovery.
 Map and import writers record the same date and anchor identity in both existing route records.
 An older V2 cannot supply an anchor or date to a different V1 record after a partial write.
 A winning handoff replaces the older description and requested count together. An unavailable count remains UNKNOWN.
 Recovery does not delete conflicting route records.
+After a failed route write, persistence reads the current records again before confirming a saved copy.
 A validated session can restore a refreshable preview when the local route date is unavailable.
 Session stops do not certify a complete route save.
+A session draft without a local route keeps the ordinary draft controls.
+A stops-only preview does not overwrite an undated local route that already contains those stops.
+Matching stops can establish preview persistence, but cannot establish route context, proof or acceptance.
 If local route writes fail, a notice identifies the route details, checks and starting pub that cannot survive reload.
 The validated session stops must also match the recovered session draft.
 The composer restores those stops as one record, even when their venue IDs match the older route.
