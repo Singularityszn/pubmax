@@ -49,4 +49,7 @@ export function createNearPriceEvidencePanel(load: MissionLoader): ComponentType
   };
 }
 
-export default createNearPriceEvidencePanel(() => import("./NearPriceEvidenceMission"));
+export default createNearPriceEvidencePanel(() => Promise.all([
+  import("../map/venuePriceSubmit.css"),
+  import("./NearPriceEvidenceMission"),
+]).then(([, mission]) => mission));
