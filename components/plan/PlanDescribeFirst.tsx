@@ -64,6 +64,8 @@ export default function PlanDescribeFirst({
   onQueryChange,
   onPrefillQueryChange,
   initialQuery = "",
+  initialStopCount,
+  onStopCountChange,
   ready = true,
 }: {
   onSubmit: (query: string, stopCount?: PlanStopCount) => void;
@@ -74,6 +76,8 @@ export default function PlanDescribeFirst({
   onPrefillQueryChange?: (query: string) => void;
   /** Prefill from a confirmed Night OS Ask draft_plan proposal. */
   initialQuery?: string;
+  initialStopCount?: PlanStopCount;
+  onStopCountChange?: (count: PlanStopCount) => void;
   /**
    * False on the server-painted form PlanComposer replaces once it hydrates.
    * That form is thrown away with whatever was typed into it, so until the
@@ -82,13 +86,14 @@ export default function PlanDescribeFirst({
   ready?: boolean;
 }) {
   const [query, setQuery] = useState(initialQuery.slice(0, 500));
-  const [stopCount, setStopCount] = useState<PlanStopCount>(normalizePlanStopCount(inferNightContext(initialQuery).context.stopCount));
+  const [stopCount, setStopCount] = useState<PlanStopCount>(normalizePlanStopCount(initialStopCount ?? inferNightContext(initialQuery).context.stopCount));
   // The prefill arrives AFTER mount: the composer reads the URL in an effect,
   // so an `?occasion=` deep link would otherwise land on an empty field and
   // read as a broken destination. Adopt a later prefill only while the field is
   // untouched, never over something the visitor typed.
   const [touched, setTouched] = useState(false);
-  const [stopCountTouched, setStopCountTouched] = useState(false);
+  const [stopCountTouched, setStopCountTouched] = useState(initialStopCount !== undefined);
+  const userSelectedStopCount = useRef(false);
   const appliedPrefill = useRef(initialQuery);
   const reportedPrefill = useRef<string | null>(null);
   const queryInput = useRef<HTMLInputElement>(null);
@@ -149,14 +154,17 @@ export default function PlanDescribeFirst({
     void Promise.resolve().then(() => {
       if (cancelled) return;
       setQuery(nextQuery);
-      if (!stopCountTouched) setStopCount(nextStopCount);
+      if (!userSelectedStopCount.current) {
+        setStopCount(nextStopCount);
+        onStopCountChange?.(nextStopCount);
+      }
       if (nextQuery && reportedPrefill.current !== nextQuery) {
         reportedPrefill.current = nextQuery;
         onPrefillQueryChangeRef.current?.(nextQuery);
       }
     });
     return () => { cancelled = true; };
-  }, [initialQuery, stopCountTouched, touched]);
+  }, [initialQuery, onStopCountChange, touched]);
 
   function submit(queryOverride = query) {
     if (!ready) return;
@@ -313,8 +321,10 @@ export default function PlanDescribeFirst({
         value={stopCount}
         ready={ready}
         onChange={(next) => {
+          userSelectedStopCount.current = true;
           setStopCountTouched(true);
           setStopCount(next);
+          onStopCountChange?.(next);
         }}
       />
       <div className="planDescribeFirst__budget">
