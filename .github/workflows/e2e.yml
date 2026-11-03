@@ -274,6 +274,7 @@ jobs:
           e2e/design-review-followups.spec.ts
           e2e/design-taste-wave-1.spec.ts
           e2e/desktop-map-chrome-fit.spec.ts
+          e2e/desktop-map-large-text.spec.ts
           e2e/desktop-map-rail.spec.ts
           e2e/desktop-sheet-chrome-fit.spec.ts
           e2e/drink-chip-controls.spec.ts

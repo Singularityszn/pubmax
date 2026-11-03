@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { storeThemeChoice } from "./helpers/themeClock";
 
 // First-class /tonight screen E2E. WebGL-agnostic. Fed by the PRIMARY What's-On
 // spine (/api/whats-on) — same source as the map Tonight lane. Tolerant of a
@@ -957,7 +958,7 @@ test("phone Tonight in a quiet hour reads the vibe chips, the editorial rail, th
 test("the cheapest listed pints carry one row per chain and name it", async ({ page }) => {
   await openQuietNight(page);
 
-  const rows = page.getByTestId("tonight-cheap-pints").locator("li");
+  const rows = page.getByTestId("tonight-cheap-pints").locator(".tonightCheapPintsBeltList > li");
   await expect(rows).toHaveCount(4);
   const chains = await rows
     .locator("[data-chain]")
@@ -985,6 +986,243 @@ test("the cheapest listed pints carry one row per chain and name it", async ({ p
   for (const row of shown) {
     if (row.venueId && spoonMeIds.has(row.venueId)) expect(row.chain).toBe("wetherspoon");
   }
+});
+
+async function firstPintEvidence(page: Page) {
+  const row = page.getByTestId("tonight-cheap-pints").locator(".tonightCheapPintsBeltList > li").first();
+  const parts = await row.locator(".rowListMeta").evaluate((meta) => {
+    const nodes = Array.from(meta.childNodes);
+    return nodes.slice(nodes.findIndex((node) => node.nodeName === "BR") + 1)
+      .map((node) => node.textContent ?? "").join("").split(" · ").map((part) => part.trim());
+  });
+  expect(parts).toHaveLength(4);
+  const source = row.locator(".rowListMeta a");
+  const day = row.locator("time");
+  return {
+    name: await row.locator(".rowListTitle").innerText(),
+    pubHref: await row.locator(".rowListTitle").getAttribute("href"),
+    price: await row.locator(".price-plaque").textContent(),
+    drink: parts[0],
+    serving: parts[1],
+    publisher: await source.textContent(),
+    sourceHref: await source.getAttribute("href"),
+    day: await day.textContent(),
+    dateTime: await day.getAttribute("datetime"),
+  };
+}
+
+for (const width of [599, 600, 641]) {
+  test(`the pint presentation works at ${width}px with reduced motion`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await openQuietNight(page);
+    const area = page.getByTestId("tonight-cheap-pints");
+    const selected = await firstPintEvidence(page);
+    await expect(area.locator(".tonightCheapPintsBeltList")).toBeHidden();
+    if (width < 600) {
+      await expect(area.locator(".pintBelt")).toHaveCount(0);
+      const mat = area.locator(".beerMat").first();
+      const toggle = mat.locator("button.beerMatToggle");
+      await expect(toggle).toBeVisible();
+      await toggle.focus();
+      await toggle.press("Enter");
+      await expect(toggle).toHaveAttribute("aria-pressed", "true");
+      await expect(mat.locator(".beerMatBack")).toBeVisible();
+      await expect(mat.locator(".beerMatFront")).toBeHidden();
+      await expect(mat.locator(".beerMatBack time")).toBeVisible();
+      const back = mat.locator(".beerMatBack");
+      await expect(back.locator(".price-plaque")).toHaveText(selected.price!);
+      await expect(back.locator(".beerMatDrink")).toHaveText(selected.drink!);
+      await expect(back.locator(".beerMatSource").first()).toHaveText(selected.serving!);
+      await expect(back.locator(".beerMatSource a")).toHaveText(selected.publisher!);
+      await expect(back.locator(".beerMatSource a")).toHaveAttribute("href", selected.sourceHref!);
+      await expect(back.locator("time")).toHaveText(selected.day!);
+      await expect(back.locator("time")).toHaveAttribute("datetime", selected.dateTime!);
+      await back.locator(".beerMatSource a").click({ trial: true });
+      expect(await mat.locator(".beerMatSpin").evaluate((el) => getComputedStyle(el).transform)).toBe("none");
+    } else {
+      const belt = area.locator(".pintBelt[data-ready]");
+      await expect(belt).toBeVisible();
+      await expect(belt.locator(".pintBeltMat").first()).toHaveAttribute("href", selected.pubHref!);
+      await expect(belt.locator(".price-plaque").first()).toHaveText(selected.price!);
+      const evidence = belt.locator(".pintBeltEvidence li").first();
+      await expect(evidence).toContainText(selected.drink!);
+      await expect(evidence).toContainText(selected.serving!);
+      await expect(evidence.locator("a")).toHaveText(selected.publisher!);
+      await expect(evidence.locator("a")).toHaveAttribute("href", selected.sourceHref!);
+      await expect(evidence.locator("time")).toBeVisible();
+      await expect(evidence.locator("time")).toHaveText(selected.day!);
+      await expect(evidence.locator("time")).toHaveAttribute("datetime", selected.dateTime!);
+      await evidence.locator("a").click({ trial: true });
+      await expect(area.locator(".beerMats")).toHaveCount(0);
+    }
+  });
+}
+
+for (const width of [390, 599, 600, 641]) {
+  test("the neutral pint list survives a pending and failed chunk at " + width + "px", async ({ page }) => {
+    await page.setViewportSize({ width: width < 600 ? 641 : 599, height: 844 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await openQuietNight(page);
+    const area = page.getByTestId("tonight-cheap-pints");
+    await expect(area.locator(width < 600 ? ".pintBelt[data-ready]" : ".beerMats")).toBeVisible();
+    const selected = await firstPintEvidence(page);
+    const blocked = new Set<string>();
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    await page.route(/\/_next\/static\/.*\.js(?:\?.*)?$/, async (route) => {
+      blocked.add(route.request().url());
+      await gate;
+      await route.abort("failed");
+    });
+    try {
+      await page.setViewportSize({ width, height: 844 });
+      await expect.poll(() => blocked.size).toBeGreaterThan(0);
+      const list = area.locator(".tonightCheapPintsBeltList");
+      const row = list.locator("li").first();
+      const expectUsableList = async () => {
+        await expect(list).toBeVisible();
+        await expect(area.locator(".beerMats, .pintBelt")).toHaveCount(0);
+        await expect(row.locator(".rowListTitle")).toHaveText(selected.name);
+        await expect(row.locator(".rowListTitle")).toHaveAttribute("href", selected.pubHref!);
+        await expect(row.locator(".price-plaque")).toHaveText(selected.price!);
+        await expect(row).toContainText(selected.drink!);
+        await expect(row).toContainText(selected.serving!);
+        await expect(row.locator(".rowListMeta a")).toHaveText(selected.publisher!);
+        await expect(row.locator(".rowListMeta a")).toHaveAttribute("href", selected.sourceHref!);
+        await expect(row.locator("time")).toHaveText(selected.day!);
+        await expect(row.locator("time")).toHaveAttribute("datetime", selected.dateTime!);
+        await row.locator(".rowListTitle").click({ trial: true });
+        const sources = list.locator(".rowListMeta a");
+        expect(await sources.count()).toBeGreaterThan(0);
+        for (const source of await sources.all()) {
+          await source.scrollIntoViewIfNeeded();
+          const box = await source.boundingBox();
+          expect(box, "fallback publisher link has a rendered hit target").not.toBeNull();
+          expect(box!.width, "fallback publisher link is at least 44px wide").toBeGreaterThanOrEqual(44);
+          expect(box!.height, "fallback publisher link is at least 44px tall").toBeGreaterThanOrEqual(44);
+          await source.click({ trial: true });
+        }
+      };
+      await expectUsableList();
+      const failed = page.waitForEvent("requestfailed", (request) => blocked.has(request.url()));
+      release();
+      await failed;
+      await expectUsableList();
+    } finally {
+      release();
+    }
+  });
+}
+
+test("a cancelled belt drag still permits native keyboard activation", async ({ page, context }) => {
+  await page.setViewportSize({ width: 641, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await openQuietNight(page);
+  const belt = page.getByTestId("tonight-cheap-pints").locator(".pintBelt[data-ready]");
+  await expect(belt).toBeVisible();
+  const frame = belt.locator(".pintBeltFrame");
+  await frame.scrollIntoViewIfNeeded();
+  const box = await frame.boundingBox();
+  expect(box).not.toBeNull();
+  const mat = belt.locator("a.pintBeltMat").first();
+  const before = await mat.evaluate((element) => getComputedStyle(element).transform);
+  const session = await context.newCDPSession(page);
+  try {
+    const touch = { x: box!.x + box!.width / 2, y: box!.y + box!.height / 2 };
+    await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [touch] });
+    await session.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ ...touch, x: touch.x + 30 }] });
+    await expect(mat).not.toHaveCSS("transform", before);
+    await session.send("Input.dispatchTouchEvent", { type: "touchCancel", touchPoints: [] });
+    await mat.evaluate((element) => {
+      element.addEventListener("click", (event) => {
+        event.preventDefault();
+        element.setAttribute("data-keyboard-click", String((event as MouseEvent).detail));
+      });
+    });
+    await mat.focus();
+    await mat.press("Enter");
+    await expect(mat).toHaveAttribute("data-keyboard-click", "0");
+  } finally {
+    await session.detach();
+  }
+});
+
+for (const width of [390, 600]) {
+  for (const theme of ["light", "dark"] as const) {
+    test(`200 percent pint evidence at ${width}px in ${theme}`, async ({ page, context }, testInfo) => {
+      await page.setViewportSize({ width, height: 844 });
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      // Use the browser's font preference. CSP correctly blocks an injected
+      // style tag, which left this test exercising the default text size.
+      const session = await context.newCDPSession(page);
+      await session.send("Page.setFontSizes", { fontSizes: { standard: 32, fixed: 26 } });
+      await storeThemeChoice(page, theme);
+      await openQuietNight(page);
+      await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+      expect(await page.locator("html").evaluate((el) => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(32);
+      const area = page.getByTestId("tonight-cheap-pints");
+      if (width === 390) {
+        const mat = area.locator(".beerMat").first();
+        const toggle = mat.locator("button.beerMatToggle");
+        await expect(toggle).toBeVisible();
+        await toggle.click();
+        const back = mat.locator(".beerMatBack");
+        await expect(back).toBeVisible();
+        await expect(back.locator(".price-plaque")).toBeVisible();
+        await expect(back.locator(".beerMatDrink")).not.toBeEmpty();
+        await expect(back.locator(".beerMatSource").first()).not.toBeEmpty();
+        await expect(back.locator(".beerMatSource time")).toHaveText(/\d{1,2} \w+ \d{4}/);
+        await expect(back.locator(".beerMatSource a")).not.toBeEmpty();
+        await back.locator(".beerMatSource a").click({ trial: true });
+        await back.locator(".beerMatLog").click({ trial: true });
+        const clipped = await back.evaluate((element) => {
+          const outer = element.getBoundingClientRect();
+          return Array.from(element.querySelectorAll<HTMLElement>(".price-plaque, .beerMatDrink, .beerMatSource, .beerMatLog"))
+            .filter((item) => {
+              const box = item.getBoundingClientRect();
+              return box.left < outer.left - 1 || box.right > outer.right + 1 || box.top < outer.top - 1 || box.bottom > outer.bottom + 1 || item.scrollHeight > item.clientHeight + 1 || item.scrollWidth > item.clientWidth + 1;
+            }).map((item) => ({ name: item.className, outer: outer.toJSON(), box: item.getBoundingClientRect().toJSON(), scroll: item.scrollHeight, client: item.clientHeight }));
+        });
+        expect(clipped).toEqual([]);
+      } else {
+        const belt = area.locator(".pintBelt[data-ready]");
+        await expect(belt).toBeVisible();
+        await expect(belt.locator(".pintBeltMat .price-plaque").first()).toBeVisible();
+        const evidence = belt.locator(".pintBeltEvidence li").first();
+        await expect(evidence).toContainText(/pint|568\s?ml/i);
+        await expect(evidence.locator("time")).toHaveText(/\d{1,2} \w+ \d{4}/);
+        await expect(evidence.locator("a")).not.toBeEmpty();
+        await evidence.locator("a").click({ trial: true });
+        await belt.locator("a.pintBeltMat").first().click({ trial: true });
+        expect(await evidence.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+      }
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+      await area.screenshot({ path: testInfo.outputPath(`pint-evidence-${width}-${theme}-200-percent.png`) });
+      await session.detach();
+    });
+  }
+}
+
+test("the pint mat turns by keyboard with normal motion", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await storeThemeChoice(page, "light");
+  await openQuietNight(page);
+  const mat = page.getByTestId("tonight-cheap-pints").locator(".beerMat").first();
+  const toggle = mat.locator("button.beerMatToggle");
+  await expect(toggle).toBeVisible();
+  await toggle.focus();
+  await expect(toggle).toBeFocused();
+  await toggle.press("Enter");
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  await expect.poll(() => mat.locator(".beerMatSpin").evaluate((el) => new DOMMatrix(getComputedStyle(el).transform).m11)).toBeLessThan(-0.99);
+  const back = mat.locator(".beerMatBack");
+  await expect(back.locator(".price-plaque")).toBeVisible();
+  await expect(back.locator(".beerMatSource a")).toBeVisible();
+  await expect(back.locator("time")).toBeVisible();
+  await mat.screenshot({ path: testInfo.outputPath("mat-390.png") });
+  await page.screenshot({ path: testInfo.outputPath("tonight-390.png") });
 });
 
 // The walk-times toggle painted at radius 0 (site audit D7, carried by this

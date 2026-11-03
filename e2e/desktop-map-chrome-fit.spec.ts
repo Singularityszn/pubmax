@@ -257,6 +257,25 @@ test("1280px restored planner clears the rail on its first spring-owned frame", 
   );
 });
 
+test("mounts the split list only while the viewport is at least 1024px wide", async ({ page }) => {
+  test.setTimeout(90_000);
+  await prepareDesktopMap(page, 1024);
+  await stubCityStatus(page);
+  await page.goto("/map");
+
+  const list = page.locator(".mapSplitList");
+  await expect(list).toBeVisible({ timeout: 30_000 });
+  await page.setViewportSize({ width: 1023, height: DESKTOP.height });
+  await expect(list).toHaveCount(0);
+  const stage = await renderedBox(page.locator(".mapStage"), "tablet map stage");
+  expect(stage.x).toBeCloseTo(0, 1);
+  expect(stage.width).toBeCloseTo(1023, 1);
+
+  await page.setViewportSize({ width: 1024, height: DESKTOP.height });
+  await expect(list).toHaveCount(1);
+  await expect(list).toBeVisible();
+});
+
 for (const width of DESKTOP_WIDTHS) {
   test(`${width}px open planner keeps toolbar search and Clear search beyond the rail edge`, async ({
     page,
@@ -300,12 +319,19 @@ for (const width of DESKTOP_WIDTHS) {
     await expectLayoutSettled(rail);
     await expectLayoutSettled(toolbar);
 
-    const [railBox, toolbarBox, searchBox, clearBox] = await Promise.all([
+    const [railBox, toolbarBox, searchBox, clearBox, listBox, stageBox] = await Promise.all([
       renderedBox(rail, "planner rail"),
       renderedBox(toolbar, "desktop toolbar"),
       renderedBox(searchCell, "toolbar search cell"),
       renderedBox(clearSearch, "Clear search"),
+      renderedBox(page.locator(".mapSplitList"), "desktop pub list"),
+      renderedBox(page.locator(".mapStage"), "map stage"),
     ]);
+    expect(listBox.x).toBeCloseTo(0, 1);
+    expect(listBox.width).toBeGreaterThanOrEqual(400 - SUBPIXEL_TOLERANCE);
+    expect(listBox.width).toBeLessThanOrEqual(440 + SUBPIXEL_TOLERANCE);
+    expect(stageBox.x).toBeCloseTo(listBox.x + listBox.width, 1);
+    expect(stageBox.x + stageBox.width).toBeCloseTo(width, 1);
     const railRight = railBox.x + railBox.width;
     const publishedRailWidth = await rail.evaluate((node) =>
       Number.parseFloat(

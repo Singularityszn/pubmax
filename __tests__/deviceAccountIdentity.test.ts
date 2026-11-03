@@ -83,6 +83,15 @@ describe("device account identity", () => {
     expect(deviceAccountOwner(device.local)).toBe("user-b");
   });
 
+  it("clears private Round turn orders on an account switch, but preserves an ordinary same-account return", () => {
+    const key = "pubmax:wild-round-rota:v1";
+    device.session.setItem(key, JSON.stringify({ ownerId: "user-a", names: ["Sam"] }));
+    bindDeviceAccountOwner("user-a", device.local, device.session);
+    expect(device.session.getItem(key)).not.toBeNull();
+    bindDeviceAccountOwner("user-b", device.local, device.session);
+    expect(device.session.getItem(key)).toBeNull();
+  });
+
   it("leaves the set alone when the same account signs in again", () => {
     expect(bindDeviceAccountOwner("user-a", device.local, device.session)).toBe(
       false,
