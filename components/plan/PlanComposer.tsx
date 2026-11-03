@@ -1,5 +1,7 @@
 "use client";
 
+import { resolveRequestedStopCount } from "@/lib/planDraftArbitration";
+
 import {
   FormEvent,
   useCallback,
@@ -124,7 +126,6 @@ import {
   nightAreaForPlanIntakePatch,
   planIntakeHandoff,
   planIntakeNightContextPatch,
-  readPlanIntakeDraft,
   readPlanIntakeDraftWithMetadata,
   reopenPlanIntakeStep,
   resolveFutureLondonStartIso,
@@ -1418,6 +1419,17 @@ function describeAskFromLocation(): UrlPrefill {
   }
 }
 
+function explicitContextForPlan(
+  explicit: Partial<NightContext>,
+  stopCount: PlanStopCount | undefined,
+  nightContext: NightContext | null,
+): Partial<NightContext> {
+  const base = { ...explicit, stopCount };
+  return Object.prototype.hasOwnProperty.call(base, "nightArea") || !nightContext?.nightArea
+    ? base
+    : { ...base, nightArea: nightContext.nightArea };
+}
+
 // The form owns several independent draft and route transitions; keep this
 // warning visible in reviews without turning its state machine into wrappers.
 // eslint-disable-next-line complexity
@@ -1425,6 +1437,7 @@ function PlanComposerForm({
   recoveredDraft,
   recoveredRouteDraft,
   recoveredIntake,
+  recoveredStopCount: storedStopCount,
   hasDurableIntakeDraft,
   handoff: hydratedHandoff,
   canPersist,
@@ -1432,6 +1445,7 @@ function PlanComposerForm({
   recoveredDraft: ReturnType<typeof parsePlanDraft>;
   recoveredRouteDraft: StoredRouteDraft | null;
   recoveredIntake: PlanIntakeDraft;
+  recoveredStopCount: PlanStopCount | undefined;
   hasDurableIntakeDraft: boolean;
   handoff: ComposerHydration | null;
   canPersist: boolean;
@@ -1470,7 +1484,7 @@ function PlanComposerForm({
   const urlAsk = urlPrefill.ask;
   const recoveredStopCount = urlAsk
     ? matchPlanStopCount(urlAsk)
-    : recoveredDraft ? recoveredDraft.requestedStopCount : recoveredIntake.answers.stopCount;
+    : storedStopCount;
   // Describe-first is the default open. A returning visitor with real,
   // unfinished wizard progress lands back on the wizard instead, so their
   // answers so far are not hidden behind the question they already passed.
@@ -1568,7 +1582,11 @@ function PlanComposerForm({
         const query = typeof parsed?.query === "string" ? parsed.query.trim().slice(0, 500) : "";
         if (!query) return;
         setAskDraftQuery(query);
-        setConciergeQuery(query);
+        if (!planComposerShowsDescribeFirst({
+          heldVenueId,
+          completed: recoveredIntake.completed,
+          entryMode: hasDurableIntakeDraft && !recoveredIntake.completed ? "wizard" : "describe",
+        })) setConciergeQuery(query);
         const stopCount = matchPlanStopCount(query);
         setPlanIntake((current) => applyPlanStopCount(current, null, stopCount).draft);
         if (hasDurableIntakeDraft && !recoveredIntake.completed) setEntryMode("describe");
@@ -1576,7 +1594,7 @@ function PlanComposerForm({
         /* private mode or bad JSON */
       }
     });
-  }, [canPersist, hasDurableIntakeDraft, recoveredIntake.completed]);
+  }, [canPersist, hasDurableIntakeDraft, heldVenueId, recoveredIntake.completed]);
   const palHandoffAutoGenerateStartedRef = useRef(false);
   // D3: a generated route must be SEEN. The reveal is requested by the
   // generation success path and runs in an effect, because on a describe-first
@@ -2232,15 +2250,7 @@ function PlanComposerForm({
     const stopCount = (intakeOverride
       ? intakeOverride.answers.stopCount
       : requestedStopCount) ?? matchPlanStopCount(query);
-    const explicitContextBase = {
-      ...explicitNightContext,
-      stopCount,
-    };
-    const explicitContext = Object.prototype.hasOwnProperty.call(explicitContextBase, "nightArea")
-      ? explicitContextBase
-      : nightContext?.nightArea
-        ? { ...explicitContextBase, nightArea: nightContext.nightArea }
-        : explicitContextBase;
+    const explicitContext = explicitContextForPlan(explicitNightContext, stopCount, nightContext);
     if (queryArea.kind !== "none") {
       setExplicitNightContext((current) => ({
         ...current,
@@ -3003,13 +3013,15 @@ export default function PlanComposer() {
     try { return parsePlanRouteDraft(safeLocalStorage()?.getItem(PLAN_ROUTE_DRAFT_KEY) ?? null); } catch { return null; }
   }, [hydrated]);
   const recoveredIntake = useMemo(() => {
-    if (!hydrated) return { draft: createPlanIntakeDraft(), hasDurableDraft: false };
-    const durableDraft = readPlanIntakeDraft();
+    if (!hydrated) return { draft: createPlanIntakeDraft(), hasDurableDraft: false, stopCount: undefined };
+    const intake = readPlanIntakeDraftWithMetadata();
+    const plan = readPlanDraftEnvelope(safeSessionStorage());
     return {
-      draft: durableDraft ?? createPlanIntakeDraft(),
-      hasDurableDraft: Boolean(durableDraft),
+      draft: intake?.draft ?? createPlanIntakeDraft(),
+      hasDurableDraft: Boolean(intake),
+      stopCount: resolveRequestedStopCount(plan, recoveredDraft, intake),
     };
-  }, [hydrated]);
+  }, [hydrated, recoveredDraft]);
   // The form is MOUNTED AGAIN once hydrated when there is something to recover,
   // so its state initialisers read the recovered drafts and the URL's ask.
   // Whatever the server-painted form held is thrown away with it, so that form
@@ -3042,6 +3054,7 @@ export default function PlanComposer() {
       recoveredDraft={recoveredDraft}
       recoveredRouteDraft={recoveredRouteDraft}
       recoveredIntake={recoveredIntake.draft}
+      recoveredStopCount={recoveredIntake.stopCount}
       hasDurableIntakeDraft={recoveredIntake.hasDurableDraft}
       handoff={handoff}
       canPersist={hydrated}

@@ -57,7 +57,7 @@ const GENERATED = {
     { venueId: "venue-a", venueName: "Pub A", reason: "Close to the heart of the area." },
     { venueId: "venue-b", venueName: "Pub B", reason: "0.6 km from the area centre." },
   ],
-  inferredContext: { nightArea: "clapham", daypart: "evening", groupSize: 4 },
+  inferredContext: { ...inferNightContext("Quiet in Clapham for 4").context, nightArea: "clapham", daypart: "evening", groupSize: 4 },
 };
 
 let root: Root | null = null;
@@ -276,6 +276,27 @@ describe("the Plan result", () => {
     });
   });
 
+  it("recovers the newer local count when session writes fail", async () => {
+    seedCountRecovery();
+    await mountComposer();
+    const session = blockStorageWrites("sessionStorage");
+    await openTune();
+    const picker = document.querySelector<HTMLSelectElement>("#plan-context-stops")!;
+    await act(async () => {
+      picker.value = "5";
+      picker.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(readPlanIntakeDraft()?.answers.stopCount).toBe(5);
+    expect(parsePlanDraft(session.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBeUndefined();
+    await remountComposer();
+    await openTune();
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("5");
+    await typeTuneQuery("Clapham tonight");
+    await sortAgainFromTune();
+    const generation = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate")).at(-1)!;
+    expect(JSON.parse(String(generation[1]?.body)).context.stopCount).toBe(5);
+  });
+
   it.each(["both", "session", "neither"])("keeps an explicit picker choice when %s storage can save", async (available) => {
     seedCountRecovery();
     const local = available === "both" ? localStorage : blockStorageWrites("localStorage");
@@ -428,7 +449,7 @@ describe("the Plan result", () => {
     await mountComposer();
     if (entry === "typed") await sortIt("Clapham tonight");
     else {
-      const chip = document.querySelector<HTMLButtonElement>(".planDescribeFirst__chip:not(.planDescribeFirst__chip--culture)")!;
+      const chip = document.querySelector<HTMLButtonElement>('[aria-label="Try an example"] .planDescribeFirst__chip:not(.planDescribeFirst__chip--culture)')!;
       await act(async () => { chip.click(); });
       await settle();
     }
@@ -583,7 +604,7 @@ describe("the Plan result", () => {
 
   it.each([
     { field: "budget", value: "value" },
-    { field: "area", value: "soho" },
+    { field: "area", value: "piccadilly-soho" },
     { field: "time", value: "after_work" },
     { field: "group", value: "solo" },
     { field: "people", value: "2" },
