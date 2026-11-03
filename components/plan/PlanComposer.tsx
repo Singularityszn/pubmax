@@ -371,6 +371,17 @@ function generatedRouteFeedback(input: {
   return { reconciled, conciergeNote, routeStatus };
 }
 
+function routeCheckNotice(confidence: unknown): string {
+  if (!confidence || typeof confidence !== "object" || !Array.isArray((confidence as { missingEvidence?: unknown }).missingEvidence)) {
+    return "Opening and travel checks are unavailable for this draft.";
+  }
+  const missing = (confidence as { missingEvidence: unknown[] }).missingEvidence;
+  if (missing.some((item) => typeof item !== "string")) return "Opening and travel checks are unavailable for this draft.";
+  const opening = missing.includes("opening_hours") || missing.includes("current_opening_hours");
+  const travel = missing.includes("transport_anchor") || missing.includes("terminal_get_home");
+  return [opening ? "Opening times are not checked." : "", travel ? "Check travel before you go." : ""].filter(Boolean).join(" ");
+}
+
 /** Validate attribution returned by POST /api/plans; never source it from draft storage. */
 export function serverPlanCreationAttribution(value: unknown): ServerPlanCreationAttribution | null {
   if (!value || typeof value !== "object") return null;
@@ -1654,6 +1665,9 @@ function PlanComposerForm({
   }, []);
   const [error, setError] = useState("");
   const [routeStatus, setRouteStatus] = useState(routeDraftFields.routeStatus);
+  const [routeCheckNoticeText, setRouteCheckNoticeText] = useState(
+    recoveredRouteDraft ? "Opening and travel checks are unavailable for this restored draft." : "",
+  );
   // Culture Crawl opener for the CURRENT generated route only. It is never
   // saved with the plan: it is a thing to see beside the route, not a Stop.
   const [cultureOpener, setCultureOpener] = useState<CultureOpenerDTO | null>(null);
@@ -2035,6 +2049,7 @@ function PlanComposerForm({
     const stopIdentitiesChanged = stops.length !== mutation.stops.length
       || stops.some((stop, index) => stop.venueId !== mutation.stops[index]?.venueId);
     if (stopIdentitiesChanged) {
+      setRouteCheckNoticeText(mutation.stops.length ? "Opening and travel checks are unavailable for this draft." : "");
       // A valid route proof can survive a swap, but the earlier cost list cannot.
       setCultureOpener((current) => {
         if (!current?.costs) return current;
@@ -2270,6 +2285,7 @@ function PlanComposerForm({
         anchorVenueId?: unknown;
         anchorSource?: unknown;
         outcome?: unknown;
+        planningConfidence?: unknown;
         message?: unknown;
         error?: unknown;
       } | null;
@@ -2292,6 +2308,7 @@ function PlanComposerForm({
         return;
       }
       setStops(suggested);
+      setRouteCheckNoticeText(routeCheckNotice(body.planningConfidence));
       setRouteSorted(true);
       setCultureOpener(cleanCultureOpener(body.cultureOpener));
       setDryRoundPrices(cleanDryRoundPrices(body.dryRound));
@@ -2829,6 +2846,7 @@ function PlanComposerForm({
   // fold. They now follow the stops, and the two caveats read as one line.
   const resultFinePrint = (
     <p className="planResult__provenance">
+      {routeCheckNoticeText ? <><span>{routeCheckNoticeText}</span>{" "}</> : null}
       {viewStops.some((stop) => typeof stop.estimatedPintPricePence === "number" && stop.estimatedPintPricePence > 0) && (
         <><span>One pint per person at each stop. Meal prices are not verified.</span>{" "}</>
       )}

@@ -123,6 +123,66 @@ async function sortIt(query: string): Promise<void> {
 }
 
 describe("the Plan result", () => {
+  it("shows the generated opening and travel gaps and replaces them on a new route", async () => {
+    let missingEvidence = ["current_opening_hours", "terminal_get_home"];
+    fetchMock.mockImplementation(async (input) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      return new Response(JSON.stringify(url.includes("/api/plans/generate")
+        ? { ...GENERATED, planningConfidence: { missingEvidence } } : []), { status: 200, headers: { "content-type": "application/json" } });
+    });
+    await mountComposer();
+    await sortIt("Quiet in Clapham for 4");
+    expect(document.body.textContent).toContain("Opening times are not checked.");
+    expect(document.body.textContent).toContain("Check travel before you go.");
+    expect(document.querySelectorAll(".planStop")).toHaveLength(2);
+    const add = [...document.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "Add another stop")!;
+    await act(async () => { add.click(); });
+    expect(document.body.textContent).toContain("Opening and travel checks are unavailable for this draft.");
+    expect(document.body.textContent).not.toContain("Opening times are not checked.");
+    await openTune();
+    missingEvidence = [];
+    await sortAgainFromTune();
+    expect(document.body.textContent).not.toContain("Opening times are not checked.");
+    expect(document.body.textContent).not.toContain("Check travel before you go.");
+    expect(document.querySelectorAll(".planStop")).toHaveLength(2);
+  });
+
+  it("warns that opening and travel checks are unavailable on a restored draft", async () => {
+    localStorage.setItem("pubmaxx:plan-route-draft:v1", JSON.stringify({
+      stops: [{ venueId: "venue-a", venueName: "Pub A" }], nightContext: null,
+    }));
+    await mountComposer();
+    expect(document.body.textContent).toContain("Opening and travel checks are unavailable for this restored draft.");
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Pub A"));
+    fetchMock.mockImplementation(async (input) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      return new Response(JSON.stringify(url.includes("/api/plans/generate")
+        ? { ...GENERATED, planningConfidence: { missingEvidence: [] } } : []), { status: 200, headers: { "content-type": "application/json" } });
+    });
+    await openTune();
+    const field = document.querySelector<HTMLInputElement>("#plan-concierge-query")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(field, "Quiet in Clapham");
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await sortAgainFromTune();
+    expect(document.body.textContent).not.toContain("Opening and travel checks are unavailable for this restored draft.");
+  });
+
+  it.each([
+    { gap: "opening_hours", present: "Opening times are not checked.", absent: "Check travel before you go." },
+    { gap: "transport_anchor", present: "Check travel before you go.", absent: "Opening times are not checked." },
+  ])("shows only the applicable $gap warning", async ({ gap, present, absent }) => {
+    fetchMock.mockImplementation(async (input) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      return new Response(JSON.stringify(url.includes("/api/plans/generate")
+        ? { ...GENERATED, planningConfidence: { missingEvidence: [gap] } } : []), { status: 200, headers: { "content-type": "application/json" } });
+    });
+    await mountComposer();
+    await sortIt("Quiet in Clapham for 4");
+    expect(document.body.textContent).toContain(present);
+    expect(document.body.textContent).not.toContain(absent);
+  });
   it("reads the venue index and draws its datalist only once the composer is up", async () => {
     await mountComposer();
     expect(document.querySelector("#plan-describe-first-query")).not.toBeNull();
