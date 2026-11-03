@@ -132,6 +132,34 @@ function pointer(target: Element, type: "pointerover" | "pointerout") {
 }
 
 describe("the list beside the map, at desktop width", () => {
+  it("shows the French House anchor item, source and full read date without a pint band", () => {
+    const french = { ...venue("venue-1kpe609", "The French House", 3.4), kind: "bar" as const,
+      anchorLabel: "Half pint house lager", anchorObservedAt: "2026-07-26",
+      anchorSourceUrl: "https://www.frenchhousesoho.com/" };
+    const onSelectVenue = vi.fn();
+    render({ visibleVenues: [french, CROWN], filteredVenues: [french, CROWN], onSelectVenue });
+    expect(rowNames()).toEqual(["The Crown", "The French House"]);
+    const row = rows()[1]!;
+    expect(row.textContent).toContain("Half pint house lager");
+    expect(row.textContent).toContain("£3.40");
+    expect(row.textContent).toContain("frenchhousesoho.com");
+    expect(row.textContent).toContain("26 Jul 2026");
+    expect(row.querySelector(".price-plaque, [class*=price-band], [class*=priceBand]")).toBeNull();
+    act(() => { row.focus(); row.click(); });
+    expect(onSelectVenue).toHaveBeenCalledWith("venue-1kpe609");
+  });
+
+  it("names missing anchor evidence without changing ordinary price rows", () => {
+    const bar = { ...venue("bar-no-source", "Bar", 4), kind: "bar" as const, anchorLabel: "House cocktail" };
+    render({ visibleVenues: [bar, CROWN], filteredVenues: [bar, CROWN] });
+    const ordinary = rows().find((row) => row.textContent?.includes("The Crown"))!;
+    const anchor = rows().find((row) => row.textContent?.includes("House cocktail"))!;
+    expect(anchor.textContent).toContain("Read date not recorded");
+    expect(anchor.textContent).toContain("Publisher not recorded");
+    expect(anchor.querySelector(".price-plaque")).toBeNull();
+    expect(ordinary.querySelector(".price-plaque")?.textContent).toBe("£5.40");
+  });
+
   it("lists the venues in view, cheapest first, with the sheet's price, its words and its day", () => {
     render();
     const list = host.querySelector(`#${MAP_SPLIT_LIST_ID}`);

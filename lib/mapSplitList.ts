@@ -34,6 +34,7 @@ import { peekPriceChip } from "@/lib/pubMap";
 import { formatTrustDay } from "@/lib/trustPill";
 import type { UkBasePub } from "@/lib/ukBasePubs";
 import { isPubVenueKind, venueKindLabel } from "@/lib/venueKindFilters";
+import { anchorSourceLabel, compactVenueAnchor, type CompactVenueAnchor } from "@/lib/venueAnchorPresentation";
 import {
   venueBundlePrices,
   venuePriceLane,
@@ -56,6 +57,8 @@ export type MapSplitListSort = "cheapest" | "nearest";
 export const MAP_SPLIT_LIST_NO_PRICE = "No price on the map yet";
 
 export type MapSplitListPrice = {
+  /** The selected anchor details, when the row displays an anchor. */
+  anchor?: CompactVenueAnchor;
   /** The printed figure, or null when this reading holds none. */
   figure: string | null;
   /** The figure a band is read from, or null when the reading withholds a band. */
@@ -157,6 +160,20 @@ function laneObservedAt(
   }
 }
 
+function anchorPresentation(venue: Venue, label: string): CompactVenueAnchor {
+  const day = mapSplitListDay(venue.anchorObservedAt);
+  return {
+    ...(compactVenueAnchor(venue) ?? {
+      label,
+      sourceLabel: anchorSourceLabel(venue.anchorSourceUrl) || "Publisher not recorded",
+      sourceUrl: venue.anchorSourceUrl ?? "",
+    }),
+    observedLabel: day && venue.anchorObservedAt
+      ? `read ${day} ${new Date(venue.anchorObservedAt).getUTCFullYear()}`
+      : "Read date not recorded",
+  };
+}
+
 /**
  * One curated venue's price, as the venue sheet would print it.
  *
@@ -221,6 +238,7 @@ export function mapSplitListPrice(
   const slimBaseline =
     lane.lane === "baseline" && lane.publisher === null && venue.prices.length === 0;
   return {
+    ...(lane.lane === "anchor" ? { anchor: anchorPresentation(venue, lane.anchorLabel) } : {}),
     figure: chip.figure,
     bandGbp: chip.priceGbp,
     observed: chip.observed,
