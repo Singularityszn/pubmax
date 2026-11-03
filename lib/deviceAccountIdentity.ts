@@ -62,6 +62,8 @@ export const DEVICE_IDENTITY_LOCAL_KEYS = [
 
 /** The sessionStorage half of the same set. */
 export const DEVICE_IDENTITY_SESSION_KEYS = [
+  // Private turn orders for this account's Rounds, kept only in this tab.
+  "pubmax:wild-round-rota:v1",
   // Who a referral asked the arriving account to follow back.
   "pubmax:referral-follow-handle",
   // The one-shot arrival greeting names a person.

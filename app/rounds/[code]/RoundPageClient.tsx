@@ -16,6 +16,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import EmptyState from "@/components/ui/empty-state";
 import { useAuth } from "@/components/auth/AuthProvider";
 import SiteNav from "@/components/nav/SiteNav";
+import RoundRotaGate from "@/components/wild/RoundRotaGate";
 import {
   type AccountAuthSnapshot,
 } from "@/lib/accountBoundFetch";
@@ -483,6 +484,9 @@ function RoundBoard({
           </p>
         ) : null}
       </header>
+
+      <RoundRotaGate roundId={round.id} roundCode={round.code} closedAt={round.closedAt}
+        ready={amMember && roundIdentity.kind === "account"} />
 
       {amMember && !closed && stops.length > 0 ? (
         <RoundSpendComposer
