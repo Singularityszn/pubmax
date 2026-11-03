@@ -2088,8 +2088,11 @@ function PlanComposerForm({
     // the asked-for count follows the route the drinker now has. Without this
     // the count stayed at what was generated, Lock it in went quietly dead on
     // the mismatch, and the next Sort put the removed Stop straight back.
-    if (isPlanStopCount(mutation.stops.length)) {
-      const reconciled = applyPlanStopCount(planIntake, nightContext, mutation.stops.length);
+    const stopCount = mutation.stops.length;
+    if (stops.length !== stopCount && isPlanStopCount(stopCount)) {
+      const reconciled = applyPlanStopCount(planIntake, nightContext, stopCount);
+      setRequestedStopCount(stopCount);
+      setExplicitNightContext((current) => ({ ...current, stopCount }));
       setPlanIntake(reconciled.draft);
       setNightContext(reconciled.context);
     }
