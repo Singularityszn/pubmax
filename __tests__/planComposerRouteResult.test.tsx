@@ -49,7 +49,7 @@ import { reconcilePlanContext } from "@/lib/planGenerationContext";
 import { parsePlanDraft, PLAN_DRAFT_KEY, readPlanDraftEnvelope, writePlanDraftEnvelope } from "@/lib/planDraft";
 import { writeAskPlanDraft } from "@/lib/conciergeAskClient";
 import { ASK_PLAN_DRAFT_STORAGE_KEY } from "@/lib/ask/types";
-import { inferNightContext } from "@/lib/nightPlanning";
+import { inferNightContext, type NightContext } from "@/lib/nightPlanning";
 
 const GENERATED = {
   routeRevision: 1,
@@ -58,7 +58,7 @@ const GENERATED = {
     { venueId: "venue-a", venueName: "Pub A", reason: "Close to the heart of the area." },
     { venueId: "venue-b", venueName: "Pub B", reason: "0.6 km from the area centre." },
   ],
-  inferredContext: { ...inferNightContext("Quiet in Clapham for 4").context, nightArea: "clapham", daypart: "evening", groupSize: 4 },
+  inferredContext: { ...inferNightContext("Quiet in Clapham for 4").context, nightArea: "clapham", daypart: "evening", groupSize: 4 } satisfies NightContext,
 };
 
 let root: Root | null = null;
@@ -170,21 +170,31 @@ async function typeTuneQuery(query: string): Promise<void> {
 }
 
 describe("the Plan result", () => {
-  it("restores the new Ask route when only session storage saves generation", async () => {
+  it.each([false, true])("restores the new Ask route when only session storage saves generation (same pubs: %s)", async (samePubs) => {
     let now = Date.now();
     const clock = vi.spyOn(Date, "now").mockImplementation(() => now++);
     onTestFinished(() => clock.mockRestore());
     const sixStops = Array.from({ length: 6 }, (_, index) => ({
       venueId: `old-${index + 1}`, venueName: `Old pub ${index + 1}`,
     }));
+    const oldContext: NightContext = {
+      ...GENERATED.inferredContext, nightArea: "piccadilly-soho", stopCount: 6,
+      budgetLimitPence: 2000, transportConstraints: ["walking"],
+    };
+    const newStops = samePubs
+      ? sixStops.map((stop, index) => ({ venueId: stop.venueId, venueName: `New pub ${index + 1}` }))
+      : [{ venueId: "new-one", venueName: "New pub" }];
+    const query = samePubs ? "Six pubs in Clapham tonight" : "One pub in Clapham tonight";
+    const requested = samePubs ? 6 : 1;
+    const newIds = newStops.map((stop) => stop.venueId);
+    const newNames = newStops.map((stop) => stop.venueName);
     let response = {
       ...GENERATED, groundingProof: "old-proof", stops: sixStops.map((stop, index) => ({
         ...stop, walkingMinutesFromPrevious: index ? 18 : undefined,
         walkFromVenueId: index ? sixStops[index - 1]!.venueId : undefined,
       })),
       operationKey: "old-route-operation", anchored: true, anchorVenueId: "old-1", anchorSource: "near", outcome: "route",
-      inferredContext: { ...GENERATED.inferredContext, nightArea: "piccadilly-soho", stopCount: 6,
-        budgetLimitPence: 2000, transportConstraints: ["walking"] },
+      inferredContext: oldContext,
     };
     fetchMock.mockImplementation(async (input) => new Response(JSON.stringify(
       String(input).includes("/api/plans/generate") ? response : [],
@@ -199,21 +209,22 @@ describe("the Plan result", () => {
       groundingProof: "old-proof", createOperationKey: "old-route-operation",
       planAnchor: { venueId: "old-1", outcome: "route" }, routeStale: false,
     });
-    response = { ...GENERATED, groundingProof: "new-proof", stops: [{ venueId: "new-one", venueName: "New pub", walkingMinutesFromPrevious: undefined, walkFromVenueId: undefined }],
+    response = { ...GENERATED, groundingProof: "new-proof", stops: newStops.map((stop) => ({ ...stop, walkingMinutesFromPrevious: undefined, walkFromVenueId: undefined })),
       operationKey: "new-route-operation", anchored: false, anchorVenueId: "", anchorSource: "", outcome: "route",
-      inferredContext: { ...GENERATED.inferredContext, stopCount: 1, budgetLimitPence: null, transportConstraints: [] } };
-    writeAskPlanDraft({ query: "One pub in Clapham tonight", stopIds: [], stopNames: [], createdAt: new Date().toISOString() });
+      inferredContext: { ...GENERATED.inferredContext, stopCount: requested, budgetLimitPence: null, transportConstraints: [] } };
+    writeAskPlanDraft({ query, stopIds: [], stopNames: [], createdAt: new Date().toISOString() });
     await remountComposer();
     await openTune();
     await sortAgainFromTune();
-    expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent)).toEqual(["New pub"]);
-    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.stops.map((stop) => stop.venueId)).toEqual(["new-one"]);
+    expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent)).toEqual(newNames);
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.stops.map((stop) => stop.venueId)).toEqual(newIds);
     expect(local.getItem("pubmaxx:plan-route-draft:v1")).toBe(oldRoute);
 
     await remountComposer();
     // The confirmed Ask owns the restored route, even though the local route is still readable.
-    expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent)).toEqual(["New pub"]);
-    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.stops.map((stop) => stop.venueId)).toEqual(["new-one"]);
+    expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent)).toEqual(newNames);
+    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.stops.map((stop) => stop.venueId)).toEqual(newIds);
+    expect([...document.querySelectorAll<HTMLAnchorElement>(".planStop__open")].map((node) => new URL(node.href).searchParams.get("sel"))).toEqual(newIds);
     expect(document.body.textContent).toContain("Opening and travel checks are unavailable for this restored draft.");
     await act(async () => {
       const name = document.querySelector<HTMLInputElement>("#plan-name")!;
@@ -231,29 +242,29 @@ describe("the Plan result", () => {
     vi.stubGlobal("localStorage", local);
     await remountComposer();
     expect(JSON.parse(local.getItem("pubmaxx:plan-route-draft:v1")!)).toEqual({
-      stops: [{ key: 1, venueId: "new-one", venueName: "New pub", alternatives: [] }],
+      stops: newStops.map((stop, index) => ({ key: index + 1, ...stop, alternatives: [] })),
       nightContext: null, routeNight: null, routeRevision: null, routeStale: true,
       groundingProof: null, createOperationKey: null, planAnchor: null,
     });
     await remountComposer();
-    expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent)).toEqual(["New pub"]);
+    expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent)).toEqual(newNames);
     await openTune();
     expect(document.querySelector("#plan-context-area")).toBeNull();
-    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("1");
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe(String(requested));
     await sortAgainFromTune();
     const generation = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate")).at(-1)!;
     const sent = JSON.parse(String(generation[1]?.body));
-    expect(sent.query).toBe("One pub in Clapham tonight");
-    expect(sent.context.stopCount).toBe(1);
-    expect(sent.intake.stopCount).toBe(1);
+    expect(sent.query).toBe(query);
+    expect(sent.context.stopCount).toBe(requested);
+    expect(sent.intake.stopCount).toBe(requested);
     expect(sent.context.nightArea).toBe("clapham");
     expect(sent.context.transportConstraints).toEqual([]);
     expect(sent.anchor).toBeUndefined();
     await act(async () => document.querySelector<HTMLFormElement>("#plan-composer")!.requestSubmit());
     const creation = fetchMock.mock.calls.find(([input]) => String(input) === "/api/plans")!;
     const saved = JSON.parse(String(creation[1]?.body));
-    expect(saved.stops).toEqual([{ venueId: "new-one", venueName: "New pub" }]);
-    expect(saved.context).toMatchObject({ nightArea: "clapham", stopCount: 1, transportConstraints: [] });
+    expect(saved.stops).toEqual(newStops);
+    expect(saved.context).toMatchObject({ nightArea: "clapham", stopCount: requested, transportConstraints: [] });
     expect(saved.groundingProof).toBe("new-proof");
     expect(saved.anchor).toBeUndefined();
     expect(saved.status).toBeUndefined();
