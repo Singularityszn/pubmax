@@ -152,3 +152,17 @@ test("two tabs receive real storage changes from the other tab", async ({ page, 
   await expect(picker(page)).toBeVisible();
   await other.close();
 });
+
+test("a query-only off link updates the mounted picker", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/today?wild=1&wildpreview=borough-bingo");
+  const select = picker(page);
+  await expect(select).toHaveValue("borough-bingo");
+  await select.evaluate((element) => { element.dataset.navigationProof = "mounted"; });
+  await page.evaluate(() => window.history.pushState({ kept: true }, "", "/today?keep=1&wildpreview=off#details"));
+  await expect(select).toHaveValue("off");
+  await expect(select).toHaveAttribute("data-navigation-proof", "mounted");
+  await expect.poll(() => new URL(page.url()).search).toBe("?keep=1");
+  expect(new URL(page.url()).hash).toBe("#details");
+  expect(await page.evaluate(() => window.history.state.kept)).toBe(true);
+});
