@@ -1,0 +1,20 @@
+.pubTarot { border-top: 1px solid var(--line); padding-block: var(--space-5); color: var(--ink); min-width: 0; }
+.pubTarot > p { max-width: 60ch; margin-block: var(--space-3); }
+.pubTarot h2, .pubTarot h3 { font-family: var(--font-display); margin: 0 0 var(--space-3); }
+.pubTarot h2 { font-size: 1.5rem; }
+.pubTarot h3 { font-size: 1.25rem; }
+.pubTarotStatus { color: var(--ink-soft); }
+.pubTarotStatus:empty { margin: 0; }
+.pubTarotCards { list-style: none; padding: 0; margin: var(--space-5) 0; }
+.pubTarotCards > li { border-top: 1px solid var(--line-soft); padding-block: var(--space-5); min-width: 0; }
+.pubTarotCardBody { display: grid; grid-template-columns: minmax(0, 10rem) minmax(0, 1fr); gap: var(--space-4); align-items: center; }
+.pubTarotSign { min-width: 0; }
+.pubTarotFact { min-width: 0; overflow-wrap: anywhere; }
+.pubTarotFact p { margin-block: var(--space-3); }
+.pubTarot a { color: var(--ink); text-decoration: underline; text-underline-offset: 0.2em; }
+.pubTarotName { font-weight: 700; font-size: 1.125rem; }
+.pubTarotPrivacy { color: var(--ink-soft); }
+@media (max-width: 400px) {
+  .pubTarotCardBody { grid-template-columns: minmax(0, 1fr); }
+  .pubTarotSign { max-width: 14rem; width: 100%; justify-self: center; }
+}

@@ -6,6 +6,7 @@ import { Dices, Footprints, MapPin, RotateCw } from "lucide-react";
 
 import PriceBadge from "@/components/PriceBadge";
 import SharePintButton from "@/components/share/SharePintButton";
+import PubTarotGate from "@/components/wild/PubTarotGate";
 import { Button } from "@/components/ui/button";
 import { formatGbp } from "@/lib/formatGbp";
 import { NEAR_ME_LOCATION_OPTIONS } from "@/lib/nearMeLocation";
@@ -120,7 +121,7 @@ export function PintRouletteCard({
  * only when tapped, spins from central London when the answer is no, and never
  * sends the position anywhere: the walk is worked out on this page.
  */
-export default function NearPintRoulette({
+function PintRoulette({
   facts,
   cityId,
   random = Math.random,
@@ -231,4 +232,8 @@ export default function NearPintRoulette({
       <p className="nmnHint">Your location stays on this device and only sets the walk.</p>
     </section>
   );
+}
+
+export default function NearPintRoulette(props: Parameters<typeof PintRoulette>[0]) {
+  return <PubTarotGate cityId={props.cityId} random={props.random}><PintRoulette {...props} /></PubTarotGate>;
 }

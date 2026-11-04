@@ -1,7 +1,7 @@
 import { safeLocalStorage } from "./safeStorage";
 
 export const WILD_NIGHT_PREVIEW_KEY = "pubmax-wild-night-preview";
-const WILD_NIGHT_PREVIEWS = ["round-rota", "borough-bingo"] as const;
+const WILD_NIGHT_PREVIEWS = ["round-rota", "borough-bingo", "pub-tarot"] as const;
 export type WildNightPreview = (typeof WILD_NIGHT_PREVIEWS)[number];
 const PARAM = "wildpreview";
 const listeners = new Set<() => void>();

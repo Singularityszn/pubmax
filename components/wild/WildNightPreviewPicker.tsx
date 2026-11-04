@@ -10,6 +10,7 @@ const choices: ReadonlyArray<{ key: WildNightPreview | null; label: string }> = 
   { key: null, label: "Previews off" },
   { key: "round-rota", label: "Round Rota" },
   { key: "borough-bingo", label: "Borough Bingo" },
+  { key: "pub-tarot", label: "Pub Tarot" },
 ];
 
 export default function WildNightPreviewPicker() {
