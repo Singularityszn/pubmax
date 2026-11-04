@@ -2302,3 +2302,199 @@ it.each(["title", "name"] as const)("preserves every legacy wizard input after a
   expect(localStorage.getItem(PLAN_INTAKE_STORAGE_KEY)).toBe(intakeRecord);
   await expectLegacyWizardGenerationInputs();
 });
+
+
+it.each([false, true])("preserves Session-only wizard step state and inputs, reopened: %s", async (reopened) => {
+  const advance = pinClock();
+  seedCorrelatedLegacyWizardRequest();
+  const intake = readPlanIntakeDraftWithMetadata(localStorage)!.draft;
+  const requestIntake = reopened ? reopenPlanIntakeStep(intake, "group-size") : intake;
+  const draft = readPlanDraftEnvelope(sessionStorage)!.draft;
+  expect(writePlanDraftEnvelope({ ...draft, requestIntake,
+    explicitNightContext: { zeroProof: true, drinkCategory: null },
+  }, "manual", sessionStorage, T0)).toMatchObject({ v1: true, v2: true });
+  const before = readPlanDraftEnvelope(sessionStorage)!;
+  expect(before.draft.requestIntake?.answers.groupSize).toBe(6);
+  localStorage.removeItem(PLAN_INTAKE_STORAGE_KEY);
+  blockStorageWrites("localStorage");
+  for (let turn = 0; turn <= 1; turn += 1) {
+    advance(turn * 1000);
+    if (turn === 0) await mountComposer();
+    else await remountComposer();
+    const stored = readPlanDraftEnvelope(sessionStorage)!;
+    expect.soft(stored.draft.requestIntake, "The saved input must retain its own valid step state and answers").toEqual(before.draft.requestIntake);
+    expect.soft(stored.savedAt, "Restoring the same input is not a new edit").toBe(before.savedAt);
+  }
+  await openTune();
+  expect.soft(document.querySelector<HTMLInputElement>("#plan-context-people")?.value).toBe("6");
+  await expectLegacyWizardGenerationInputs();
+});
+
+
+it.each(["v1", "v2"].flatMap((format) => ["title", "name"].map((field) => ({ format, field }))))(
+  "restores a genuine $field edit and wizard inputs from only readable $format",
+  async ({ format, field }) => {
+    const advance = pinClock();
+    seedCorrelatedLegacyWizardRequest();
+    blockStorageWrites("localStorage");
+    const survivingKey = format === "v1" ? "pubmaxx:plan-draft:v1" : "pubmax:plan-draft:v2";
+    const blockedKey = format === "v1" ? "pubmax:plan-draft:v2" : "pubmaxx:plan-draft:v1";
+    rejectSessionRecordWrites([blockedKey]);
+    await mountComposer();
+    advance(1000);
+    const value = field === "title" ? "Our next night" : "Alex";
+    await editInput(field === "title" ? "#plan-title" : "#plan-name", value);
+    const written = JSON.parse(sessionStorage.getItem(survivingKey)!);
+    const storedDraft = written.draft ?? written;
+    expect(storedDraft.requestIntake.answers.groupSize).toBe(6);
+    expect(storedDraft[field === "title" ? "title" : "creatorName"]).toBe(value);
+    sessionStorage.removeItem(blockedKey);
+    localStorage.removeItem(PLAN_INTAKE_STORAGE_KEY);
+    advance(2000);
+    await remountComposer();
+    const remaining = readPlanDraftEnvelope(sessionStorage)!;
+    if (format === "v1") {
+      expect(remaining.legacy).toBe(true);
+      expect(remaining.savedAt).toBeNull();
+    }
+    await attemptRouteSave();
+    await openTune();
+    expect.soft(document.querySelector<HTMLInputElement>("#plan-context-people")?.value).toBe("6");
+    await expectLegacyWizardGenerationInputs();
+  },
+);
+
+
+function seedReadableBlankHostRequest(): void {
+  seedCorrelatedLegacyWizardRequest();
+  const intake = readPlanIntakeDraftWithMetadata(localStorage)!.draft;
+  const context = { ...inferNightContext("Clapham tonight").context, stopCount: 3, groupSize: 6,
+    budget: "value" as const, budgetLimitPence: 3500, accessibility: ["step-free"], zeroProof: false, drinkCategory: null };
+  const generated = { ...generatedProofFixture(3), inferredContext: context };
+  expect(transferGeneratedRouteToDraft(generated, localStorage, "plan-generated", T0)).toBe(true);
+  const reference = { savedAt: new Date(T0).toISOString(), operationKey: generated.operationKey };
+  const draft = readPlanDraftEnvelope(sessionStorage)!.draft;
+  expect(writePlanDraftEnvelope({ ...draft, creatorName: "", requestIntake: intake, explicitNightContext: {}, routeReference: reference },
+    "manual", sessionStorage, T0)).toMatchObject({ v1: true, v2: true });
+  expect(writePlanIntakeDraft(intake, localStorage, T0, reference, {})).toBe(true);
+}
+
+it.each(["account", "remembered"].flatMap((seed) => ["title", "description"].flatMap((field) => [false, true].map((sessionFails) => ({ seed, field, sessionFails })))))(
+  "retains request save truth after $seed name adoption for $field, Session writes fail: $sessionFails",
+  async ({ seed, field, sessionFails }) => {
+    const advance = pinClock();
+    authSeedFixture.identityResolved = false;
+    seedReadableBlankHostRequest();
+    if (seed === "account") authSeedFixture.user = { id: "private-test-account", user_metadata: { full_name: "Sam" } };
+    else rememberPlanHostName(localStorage, "Sam");
+    blockStorageWrites("localStorage");
+    if (sessionFails) blockStorageWrites("sessionStorage");
+    await mountComposer();
+    expect(document.querySelector<HTMLInputElement>("#plan-name")?.value).toBe("");
+    expect(document.body.textContent).not.toContain("could not be saved");
+    if (field === "description") await openTune();
+    advance(1000);
+    await editInput(field === "title" ? "#plan-title" : "#plan-concierge-query", field === "title" ? "Our next night" : "Quiet in Clapham tonight");
+    if (sessionFails) expect(document.body.textContent).toContain("could not be saved");
+    else {
+      expect(document.body.textContent).not.toContain("could not be saved");
+      expect(readPlanDraftEnvelope(sessionStorage)?.savedAt).toBe("2026-11-03T12:00:01.000Z");
+    }
+    advance(2000);
+    authSeedFixture.identityResolved = true;
+    await act(async () => { root!.render(createElement(PlanComposer)); });
+    await settle();
+    expect(document.querySelector<HTMLInputElement>("#plan-name")?.value).toBe("Sam");
+    const saved = readPlanDraftEnvelope(sessionStorage)!;
+    if (sessionFails) {
+      expect(document.body.textContent, "The real edit is still unsaved after automatic name adoption").toContain("could not be saved");
+      expect(saved.draft[field === "title" ? "title" : "conciergeQuery"]).not.toBe(field === "title" ? "Our next night" : "Quiet in Clapham tonight");
+    } else {
+      expect(document.body.textContent).not.toContain("could not be saved");
+      expect(saved.savedAt, "An automatic name is not a new edit and cannot refresh or backdate the saved request").toBe("2026-11-03T12:00:01.000Z");
+    }
+  },
+);
+
+it.each(["account", "remembered"].flatMap((seed) => ["title", "description"].map((field) => ({ seed, field }))))(
+  "clears a genuine save failure after a later persisted $field edit with $seed name adoption",
+  async ({ seed, field }) => {
+    const advance = pinClock();
+    authSeedFixture.identityResolved = false;
+    seedReadableBlankHostRequest();
+    if (seed === "account") authSeedFixture.user = { id: "private-test-account", user_metadata: { full_name: "Sam" } };
+    else rememberPlanHostName(localStorage, "Sam");
+    blockStorageWrites("localStorage");
+    const writableSession = blockStorageWrites("sessionStorage");
+    await mountComposer();
+    if (field === "description") await openTune();
+    advance(1000);
+    const selector = field === "title" ? "#plan-title" : "#plan-concierge-query";
+    await editInput(selector, field === "title" ? "Our next night" : "Quiet in Clapham tonight");
+    expect(document.body.textContent).toContain("could not be saved");
+    advance(2000);
+    authSeedFixture.identityResolved = true;
+    await act(async () => { root!.render(createElement(PlanComposer)); });
+    await settle();
+    expect(document.querySelector<HTMLInputElement>("#plan-name")?.value).toBe("Sam");
+    vi.stubGlobal("sessionStorage", writableSession);
+    advance(3000);
+    const finalValue = field === "title" ? "Our Friday night" : "Quiet in Clapham after work";
+    await editInput(selector, finalValue);
+    expect(readPlanDraftEnvelope(sessionStorage)?.draft[field === "title" ? "title" : "conciergeQuery"]).toBe(finalValue);
+    expect(readPlanDraftEnvelope(sessionStorage)?.savedAt).toBe("2026-11-03T12:00:03.000Z");
+    expect(document.body.textContent).not.toContain("could not be saved");
+    await remountComposer();
+    if (field === "description") await openTune();
+    expect(document.querySelector<HTMLInputElement>(selector)?.value).toBe(finalValue);
+    expect(document.body.textContent).not.toContain("could not be saved");
+  },
+);
+
+it.each([false, true])("retains Session-only wizard progress without a route, reopened: %s", async (reopened) => {
+  pinClock();
+  seedCorrelatedLegacyWizardRequest();
+  const intake = readPlanIntakeDraftWithMetadata()!.draft;
+  const requestIntake = reopened ? reopenPlanIntakeStep(intake, "group-size") : intake;
+  const draft = readPlanDraftEnvelope(sessionStorage)!.draft;
+  expect(writePlanDraftEnvelope({ ...draft, stops: [{ key: 1, venueId: "", venueName: "" }], requestIntake }, "manual", sessionStorage, T0))
+    .toMatchObject({ v1: true, v2: true });
+  localStorage.clear();
+  blockStorageWrites("localStorage");
+  await mountComposer();
+  for (let turn = 0; turn < 2; turn += 1) {
+    await remountComposer();
+    expect(readPlanDraftEnvelope(sessionStorage)?.draft.requestIntake).toEqual(requestIntake);
+    expect(readPlanDraftEnvelope(sessionStorage)?.savedAt).toBe("2026-11-03T12:00:00.000Z");
+    expect(document.querySelector<HTMLInputElement>("#plan-describe-first-query")).toBeNull();
+  }
+});
+
+it.each(["account", "remembered"].flatMap((seed) => ["title", "description"].map((field) => ({ seed, field }))))(
+  "keeps a saved $field edit readable after blocked automatic $seed name persistence",
+  async ({ seed, field }) => {
+    const advance = pinClock();
+    authSeedFixture.identityResolved = false;
+    seedReadableBlankHostRequest();
+    if (seed === "account") authSeedFixture.user = { id: "private-test-account", user_metadata: { full_name: "Sam" } };
+    else rememberPlanHostName(localStorage, "Sam");
+    blockStorageWrites("localStorage");
+    await mountComposer();
+    if (field === "description") await openTune();
+    advance(1000);
+    await editInput(field === "title" ? "#plan-title" : "#plan-concierge-query", field === "title" ? "Our next night" : "Quiet in Clapham tonight");
+    expect(readPlanDraftEnvelope(sessionStorage)?.savedAt).toBe("2026-11-03T12:00:01.000Z");
+    blockStorageWrites("sessionStorage");
+    advance(2000);
+    authSeedFixture.identityResolved = true;
+    await act(async () => { root!.render(createElement(PlanComposer)); });
+    await settle();
+    expect(document.querySelector<HTMLInputElement>("#plan-name")?.value).toBe("Sam");
+    expect(document.body.textContent).not.toContain("could not be saved");
+    expect(readPlanDraftEnvelope(sessionStorage)?.savedAt).toBe("2026-11-03T12:00:01.000Z");
+    await remountComposer();
+    if (field === "description") await openTune();
+    expect(document.querySelector<HTMLInputElement>(field === "title" ? "#plan-title" : "#plan-concierge-query")?.value)
+      .toBe(field === "title" ? "Our next night" : "Quiet in Clapham tonight");
+  },
+);
