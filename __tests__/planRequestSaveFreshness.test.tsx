@@ -40,6 +40,8 @@ import { readPlanDraftEnvelope, writePlanDraftEnvelope } from "@/lib/planDraft";
 import { PLAN_ROUTE_DRAFT_KEY, PLAN_ROUTE_DRAFT_V2_KEY } from "@/lib/planRouteDraft";
 import { inferNightContext } from "@/lib/nightPlanning";
 import { transferGeneratedRouteToDraft } from "@/lib/mapRouteTransfer";
+import { parsePlanGenerationIntake } from "@/lib/planGenerationIntake";
+import { reconcilePlanContext } from "@/lib/planGenerationContext";
 
 const GENERATED = {
   stops: [{ venueId: "venue-a", venueName: "Pub A" }],
@@ -619,6 +621,7 @@ it.each([
     await sortAgainFromTune();
     const post = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate")).at(-1)!;
     expect(JSON.parse(String(post[1]?.body))).toMatchObject({ context });
+    expect(reconciledGenerationContext()).toMatchObject(context);
     if (id === "stops") {
       expect(document.querySelector("#plan-lock-hint")?.textContent).toContain("5 stops");
       expect(readPlanDraftEnvelope(sessionStorage)?.draft.requestedStopCount).toBe(5);
@@ -656,3 +659,77 @@ it.each(["session", "route", "both"] as const)("handles a Tune edit when %s writ
   const post = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate")).at(-1)!;
   expect(JSON.parse(String(post[1]?.body))).toMatchObject({ context: { budget: "value" } });
 });
+
+function reconciledGenerationContext() {
+  const post = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate")).at(-1)!;
+  const request = JSON.parse(String(post[1]?.body));
+  const parsed = parsePlanGenerationIntake(request.intake, new Date(T0));
+  expect(parsed.ok).toBe(true);
+  if (!parsed.ok) throw new Error(parsed.message);
+  return reconcilePlanContext(request.query ?? "", request.context, parsed.value, new Date(T0)).context;
+}
+
+async function generateFromDescription(): Promise<void> {
+  await mountComposer();
+  await editInput("#plan-describe-first-query", "Clapham tonight");
+  await act(async () => {
+    [...document.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.textContent === "Plan it")!.click();
+  });
+  await settle();
+}
+
+it.each(["immediate", "reload", "legacy", "invalid-ownership"] as const)(
+  "lets a new description replace unowned generated defaults after %s",
+  async (mode) => {
+    pinClock();
+    if (mode === "legacy" || mode === "invalid-ownership") {
+      seedTuneRoute("map-generated");
+      const route = JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!);
+      localStorage.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify({
+        ...route, routeStale: true, groundingProof: null,
+        ...(mode === "invalid-ownership" ? { explicitNightContext: { daypart: "invalid", groupSize: 90, budget: "invalid", budgetLimitPence: -1 } } : {}),
+      }));
+      localStorage.removeItem(PLAN_ROUTE_DRAFT_V2_KEY);
+      await mountComposer();
+    } else {
+      await generateFromDescription();
+      if (mode === "reload") await remountComposer();
+    }
+    await openTune();
+    const query = "Clapham after work for 8, cheap, under £20 each";
+    await editInput("#plan-concierge-query", query);
+    await sortAgainFromTune();
+    const post = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate")).at(-1)!;
+    const request = JSON.parse(String(post[1]?.body));
+    expect(request.query).toBe(query);
+    expect(reconciledGenerationContext()).toMatchObject({ daypart: "after_work", groupSize: 8, budget: "value", budgetLimitPence: 2000 });
+    expect(readPlanDraftEnvelope(sessionStorage)?.draft.requestedStopCount).toBeUndefined();
+  },
+);
+
+it.each([
+  { id: "time", value: "daytime", context: { daypart: "daytime" } },
+  { id: "people", value: "", context: { groupSize: null } },
+  { id: "budget", value: "treat", context: { budget: "treat" } },
+  { id: "budget-limit", value: "", context: { budgetLimitPence: null } },
+].flatMap((choice) => [false, true].map((reload) => ({ ...choice, reload }))))(
+  "keeps explicit Tune $id=$value ahead of a new description, reload: $reload",
+  async ({ id, value, context, reload }) => {
+    const advance = pinClock();
+    seedTuneRoute("map-generated");
+    await mountComposer();
+    await openTune();
+    advance(1000);
+    await editTuneControl(id, value);
+    expect(JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!)).toMatchObject({ explicitNightContext: context });
+    if (reload) {
+      advance(2000);
+      await remountComposer();
+      await openTune();
+    }
+    await editInput("#plan-concierge-query", "Clapham after work for 8, cheap, under £20 each");
+    await sortAgainFromTune();
+    expect(reconciledGenerationContext()).toMatchObject(context);
+  },
+);

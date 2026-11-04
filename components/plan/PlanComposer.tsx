@@ -301,6 +301,7 @@ export type StoredRouteDraft = {
   savedAt?: string;
   stops: DraftStop[];
   nightContext: NightContext | null;
+  explicitNightContext?: Partial<NightContext>;
   routeNight: RouteNight | null;
   routeRevision: RouteRevision | null;
   routeStale: boolean;
@@ -785,6 +786,7 @@ export function parsePlanRouteDraft(raw: string | null): StoredRouteDraft | null
     const stops = routeStopsFromValue(value.stops, undefined, true);
     if (!stops.length) return null;
     const nightContext = cleanNightContext(value.nightContext) ?? null;
+    const explicitNightContext = cleanNightContextPatch(value.explicitNightContext);
     const routeStale = value.routeStale === true;
     const savedAtTime = typeof value.savedAt === "string" ? Date.parse(value.savedAt) : NaN;
     const savedAt = Number.isFinite(savedAtTime)
@@ -795,6 +797,7 @@ export function parsePlanRouteDraft(raw: string | null): StoredRouteDraft | null
       ...(savedAt ? { savedAt } : {}),
       stops,
       nightContext,
+      ...(explicitNightContext && Object.keys(explicitNightContext).length ? { explicitNightContext } : {}),
       routeNight: value.routeNight === undefined && !routeStale
         ? routeNightOf(nightContext)
         : routeNightOf(cleanNightContextPatch(value.routeNight)),
@@ -870,7 +873,7 @@ function readComposerRouteDraft(): {
     conflicting,
     ambiguous,
     route: canonical && (!conflicting && route
-      ? { ...canonical, stops: route.stops, routeNight: route.routeNight } : canonical),
+      ? { ...canonical, stops: route.stops, routeNight: route.routeNight, explicitNightContext: route.explicitNightContext } : canonical),
     envelope,
   };
 }
@@ -907,7 +910,12 @@ function persistComposerRouteDraft(routeDraft: StoredRouteDraft, mayWrite: boole
         && stop.venueName === routeDraft.stops[index]?.venueName));
     try {
       if (routeStorage && mayWrite && !newerStoredRoute && (hasRouteDetails || !previewSaved || stored?.savedAt)) {
-        routeStorage.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify({ savedAt: routeDraft.savedAt, ...routeDraft }));
+        routeStorage.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify({
+          savedAt: routeDraft.savedAt,
+          ...routeDraft,
+          explicitNightContext: Object.values(routeDraft.explicitNightContext ?? {}).some((value) => value !== undefined)
+            ? routeDraft.explicitNightContext : undefined,
+        }));
         routeSaved = true;
       }
     } catch {
@@ -1542,27 +1550,6 @@ function describeAskFromLocation(): UrlPrefill {
   }
 }
 
-function explicitContextForPlan(
-  explicit: Partial<NightContext>,
-  stopCount: PlanStopCount | undefined,
-  nightContext: NightContext | null,
-): Partial<NightContext> {
-  return {
-    ...(nightContext ? {
-      nightArea: nightContext.nightArea,
-      daypart: nightContext.daypart,
-      partyType: nightContext.partyType,
-      groupSize: nightContext.groupSize,
-      budget: nightContext.budget,
-      budgetLimitPence: nightContext.budgetLimitPence,
-      zeroProof: nightContext.zeroProof,
-      drinkCategory: nightContext.drinkCategory,
-    } : {}),
-    ...explicit,
-    stopCount,
-  };
-}
-
 // The form owns several independent draft and route transitions; keep this
 // warning visible in reviews without turning its state machine into wrappers.
 // eslint-disable-next-line complexity
@@ -1808,7 +1795,7 @@ function PlanComposerForm({
   const [conciergeNote, setConciergeNote] = useState("");
   const routeDraftFields = initialComposerRouteDraft(recoveredRouteDraft);
   const [nightContext, setNightContext] = useState<NightContext | null>(routeDraftFields.nightContext);
-  const [explicitNightContext, setExplicitNightContext] = useState<Partial<NightContext>>({});
+  const [explicitNightContext, setExplicitNightContext] = useState<Partial<NightContext>>(recoveredRouteDraft?.explicitNightContext ?? {});
   const [routeRevision, setRouteRevision] = useState<RouteRevision | null>(routeDraftFields.routeRevision);
   const [routeNight, setRouteNight] = useState<RouteNight | null>(routeDraftFields.routeNight);
   const [routeStale, setRouteStale] = useState(routeDraftFields.routeStale);
@@ -2048,6 +2035,7 @@ function PlanComposerForm({
     const routeDraft = {
       stops,
       nightContext,
+      explicitNightContext,
       routeNight,
       routeRevision,
       routeStale,
@@ -2092,7 +2080,7 @@ function PlanComposerForm({
       );
     });
     return () => { cancelled = true; };
-  }, [canPersist, conciergeQuery, createOperationKey, creatorName, groundingProof, handoff?.acceptedAnchor, hasDurableIntakeDraft, nightContext, planAnchor, planIntake, recoveredDraft, recoveredIntake, recoveredIntent, recoveredRequestCreator, recoveredRequestStart, recoveredRequestTitle, requestedStopCount, routeNight, routeRevision, routeStale, successfulGeneration, startTime, stops, title]);
+  }, [canPersist, conciergeQuery, createOperationKey, creatorName, explicitNightContext, groundingProof, handoff?.acceptedAnchor, hasDurableIntakeDraft, nightContext, planAnchor, planIntake, recoveredDraft, recoveredIntake, recoveredIntent, recoveredRequestCreator, recoveredRequestStart, recoveredRequestTitle, requestedStopCount, routeNight, routeRevision, routeStale, successfulGeneration, startTime, stops, title]);
 
   useEffect(() => {
     if (hasDurableIntakeDraft) return;
@@ -2453,7 +2441,7 @@ function PlanComposerForm({
     const stopCount = (intakeOverride
       ? intakeOverride.answers.stopCount
       : requestedStopCount) ?? matchPlanStopCount(query);
-    const explicitContext = explicitContextForPlan(explicitNightContext, stopCount, nightContext);
+    const explicitContext = { nightArea: nightContext?.nightArea, ...explicitNightContext, stopCount };
     if (queryArea.kind !== "none") {
       setExplicitNightContext((current) => ({
         ...current,
