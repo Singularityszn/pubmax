@@ -210,7 +210,7 @@ describe("computeVenuePriceStory", () => {
       expect(story.inflation).toBeNull();
       const markup = renderToStaticMarkup(createElement(VenuePriceStory, { venue, drops: [report] }));
       expect(markup).toContain("14 October 2026");
-      expect(markup).toContain("Price observation date unknown");
+      expect(markup).toContain("When this price was seen is not recorded.");
       expect(markup).not.toContain("vs earlier price");
       expect(markup).not.toContain("A pint here was");
     },

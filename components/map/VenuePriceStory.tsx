@@ -37,7 +37,7 @@ function PriceEvidence({ stamp }: { stamp: VenuePriceStamp }) {
       <span>{date
         ? <>{dateKind === "read" ? "Source read" : "Logged"} <time dateTime={recordedAt!}>{date}</time></>
         : `${dateKind === "read" ? "Source read date" : "Log date"} unknown`}</span>
-      {stamp.evidence.priceDateKnown === false ? <span>Price observation date unknown</span> : null}
+      {stamp.evidence.priceDateKnown === false ? <span>When this price was seen is not recorded.</span> : null}
     </span>
   );
 }
