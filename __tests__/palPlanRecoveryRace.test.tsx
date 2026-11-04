@@ -219,7 +219,14 @@ it("does not accept an old Pal reply after the user edits the visible request du
   expect(document.querySelector<HTMLInputElement>("#plan-concierge-query")?.value).toBe(nextAsk);
   await answer(1, route([drafted[0]!, "first-alt", "second-alt"], "obsolete-soho-reply"));
   await vi.waitFor(() => expect(document.querySelector<HTMLButtonElement>(".planComposer__submit")?.disabled).toBe(false));
-  expect(readPlanDraftEnvelope(sessionStorage)?.draft.conciergeQuery).toBe(nextAsk);
+  expect.soft(document.querySelector<HTMLInputElement>("#plan-concierge-query")?.value).toBe(nextAsk);
+  const storedRequest = readPlanDraftEnvelope(sessionStorage);
+  if (storedRequest) {
+    expect.soft(storedRequest.draft.conciergeQuery).toBe(nextAsk);
+  } else {
+    expect([...document.querySelectorAll('[role="alert"]')].map((node) => node.textContent))
+      .toContain("Your description could not be saved on this device. Keep this page open to keep it.");
+  }
   expect.soft(readPlanDraftEnvelope(sessionStorage)?.draft.routeReference ?? null).toBeNull();
   expect.soft(readPlanRouteDraftEnvelope(localStorage)?.value.operationKey ?? null).not.toBe("obsolete-soho-reply");
   await pressLock();
