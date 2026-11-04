@@ -944,9 +944,10 @@ function composerRouteContent(routeDraft: StoredRouteDraft | null): string {
   return JSON.stringify(parsePlanRouteDraft(JSON.stringify({ ...routeDraft, savedAt: undefined })));
 }
 
-function planRequestSaveTime(changed: boolean, now: number, savedTimes: number[]): number {
+function planRequestSaveTime(editTime: number | null, now: number, savedTimes: number[]): number {
+  if (editTime !== null) return editTime;
   const dated = savedTimes.filter(Number.isFinite);
-  return changed || !dated.length ? now : Math.max(...dated);
+  return !dated.length ? now : Math.max(...dated);
 }
 
 function persistComposerRouteDraft(routeDraft: StoredRouteDraft, mayWrite: boolean) {
@@ -1005,10 +1006,15 @@ function composerRequestSaveStatus(input: {
   savedAt: number;
   routeStale: boolean;
   actualMutation: boolean;
+  automaticCreatorName: string | null;
 }) {
   const { draft, intakeDraft, writtenSession, writtenIntake, savedAt, routeStale } = input;
   const storage = safeSessionStorage();
-  const canonical = JSON.stringify(parsePlanDraft(JSON.stringify(draft)));
+  const canonicalRequest = (value: StoredPlanDraft) => JSON.stringify(parsePlanDraft(JSON.stringify({
+    ...value,
+    creatorName: input.automaticCreatorName !== null && draft.creatorName === input.automaticCreatorName ? "" : value.creatorName,
+  })));
+  const canonical = canonicalRequest(draft);
   const envelope = readPlanDraftEnvelope(storage);
   let v2Draft = envelope?.draft;
   if (!input.actualMutation && v2Draft && !v2Draft.requestIntake) v2Draft = { ...v2Draft, requestIntake: draft.requestIntake };
@@ -1018,13 +1024,13 @@ function composerRequestSaveStatus(input: {
   try {
     let legacy = parsePlanDraft(storage?.getItem(PLAN_DRAFT_KEY) ?? null);
     if (!input.actualMutation && legacy && !legacy.requestIntake) legacy = { ...legacy, requestIntake: draft.requestIntake };
-    v1 = Boolean(legacy && JSON.stringify(parsePlanDraft(JSON.stringify(legacy))) === canonical);
+    v1 = Boolean(legacy && canonicalRequest(legacy) === canonical);
   } catch {}
   const intake = readPlanIntakeDraftWithMetadata();
   return {
     sessionWrite: {
       v1: writtenSession.v1 || v1,
-      v2: writtenSession.v2 || Boolean(envelope && !envelope.legacy && JSON.stringify(parsePlanDraft(JSON.stringify(v2Draft))) === canonical),
+      v2: writtenSession.v2 || Boolean(envelope && !envelope.legacy && v2Draft && canonicalRequest(v2Draft) === canonical),
     },
     intakeSaved: writtenIntake || Boolean(intake && samePlanIntake(intakeDraft, intake.draft)
       && JSON.stringify(intake.routeReference) === JSON.stringify(draft.routeReference)
@@ -1755,6 +1761,7 @@ function PlanComposerForm({
   const [creatorName, setCreatorName] = useState(draftFields.creatorName);
   const automaticCreatorName = useRef<string | null>(null);
   const pendingDraftSave = useRef(false);
+  const requestEditTime = useRef<number | null>(null);
   const [initialStartTime] = useState(draftFields.startTime);
   const [startTime, setStartTime] = useState(initialStartTime);
   const recoveredRequestTitle = recoveredDraft?.title ?? draftFields.title;
@@ -2256,13 +2263,14 @@ function PlanComposerForm({
       explicitNightContext: recoveredExplicitNightContext,
       stops: [],
     };
-    const requestChanged = actualMutation && composerRequestChanged({
+    if (actualMutation && composerRequestChanged({
       hasRequestWork, recoveredDraft, sessionDraft, recoveredRequest, previousIntake, previousSession, recoveredIntake, sameIntake,
-    });
+    })) requestEditTime.current = savedAt;
+    const requestChanged = requestEditTime.current !== null;
     const routeSavedAt = Date.parse(routeCopy.current.savedAt ?? "");
     const previousRequestTime = sameRequest && previousSession ? Date.parse(previousSession.savedAt ?? "") : NaN;
     const previousIntakeTime = sameIntake ? Date.parse(previousIntake.savedAt) : NaN;
-    const sessionSavedAt = planRequestSaveTime(requestChanged, savedAt, [routeSavedAt, previousRequestTime, previousIntakeTime]);
+    const sessionSavedAt = planRequestSaveTime(requestEditTime.current, savedAt, [routeSavedAt, previousRequestTime, previousIntakeTime]);
     if (!actualMutation && requestAmbiguous) return;
     const writtenSession = writePlanDraftEnvelope(sessionDraft,
       persistedAcceptedAnchor ? "planning-intent" : "manual", safeSessionStorage(), sessionSavedAt);
@@ -2271,6 +2279,7 @@ function PlanComposerForm({
       : false;
     const { sessionWrite, intakeSaved } = composerRequestSaveStatus({
       draft: sessionDraft, intakeDraft: planIntake, writtenSession, writtenIntake, savedAt: sessionSavedAt, routeStale, actualMutation,
+      automaticCreatorName: automaticCreatorName.current,
     });
     const sessionRequestChanged = sessionRequiredRequestChanged(sessionDraft, recoveredRequest, intakeSaved);
     const hasStops = stops.some((stop) => stop.venueId || stop.venueName);
@@ -3476,9 +3485,9 @@ export default function PlanComposer() {
   const handoff = recovery?.handoff ?? null;
   const recoveredIntake = useMemo(() => {
     const base = recovery?.route.route ? skipRemainingPlanIntake(createPlanIntakeDraft()) : createPlanIntakeDraft();
-    const saved = recovery?.intakeDraft?.draft;
+    const saved = recovery?.requestIntake;
     return {
-      draft: saved ? recovery.hasStoredIntake ? saved : { ...base, answers: saved.answers } : base,
+      draft: saved ?? base,
       hasDurableDraft: recovery?.hasStoredIntake ?? false,
       intent: recovery?.intent ?? resolveRequestedPlanIntent(null, null, null),
     };

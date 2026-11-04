@@ -5,7 +5,7 @@ import {
 } from "@/lib/nightPatches";
 import type { NightContext } from "@/lib/nightPlanning";
 import type { ParsedPlanDraft, StoredPlanDraft } from "@/lib/planDraft";
-import { planIntakeNightContextPatch, type ParsedPlanIntakeDraft } from "@/lib/planIntake";
+import { planIntakeNightContextPatch, type ParsedPlanIntakeDraft, type PlanIntakeDraft } from "@/lib/planIntake";
 import type { ParsedPlanRouteDraft } from "@/lib/planRouteDraft";
 import { cleanPlanStopCountSource, type PlanStopCount, type PlanStopCountSource } from "@/lib/planStopCount";
 import type { PlanningIntentArea, PlanningIntentV1 } from "@/lib/planningIntent";
@@ -115,8 +115,12 @@ function routeSupersedesRequest(plan: ParsedPlanDraft | null, route: Pick<Parsed
     && reference.operationKey === route?.value.operationKey);
 }
 
-function recoverCurrentIntake(plan: ParsedPlanDraft | null, intake: ParsedPlanIntakeDraft | null, intakeWins: boolean, sessionWins: boolean, acceptanceUnavailable: boolean, sessionIntake: ParsedPlanIntakeDraft | null, legacyDraft: StoredPlanDraft | null): ParsedPlanIntakeDraft | null {
-  if (sessionIntake) return sessionIntake;
+function recoverCurrentIntake(plan: ParsedPlanDraft | null, intake: ParsedPlanIntakeDraft | null, intakeWins: boolean, sessionWins: boolean, acceptanceUnavailable: boolean, sessionIntake: PlanIntakeDraft | null, legacyDraft: StoredPlanDraft | null): ParsedPlanIntakeDraft | null {
+  if (sessionIntake && plan && !plan.legacy && plan.savedAt && plan.expiresAt) return {
+    storageVersion: 1, savedAt: plan.savedAt, expiresAt: plan.expiresAt,
+    draft: sessionIntake, legacy: false,
+    routeReference: plan.draft.routeReference, explicitNightContext: plan.draft.explicitNightContext,
+  };
   if (intakeWins) return intake;
   if (plan && legacyDraft && JSON.stringify(plan.draft.requestIntake) !== JSON.stringify(legacyDraft.requestIntake)) return null;
   if (plan?.draft.explicitNightContext !== undefined
@@ -142,15 +146,20 @@ function recoverExplicitRequestInputs(
   return routeInputs === undefined ? intent : { ...intent, explicitNightContext: routeInputs };
 }
 
-function recoverSessionIntake(plan: ParsedPlanDraft | null, legacyDraft: StoredPlanDraft | null, requestSource: string, routeWins: boolean): ParsedPlanIntakeDraft | null {
+function recoverSessionIntake(plan: ParsedPlanDraft | null, legacyDraft: StoredPlanDraft | null, requestSource: string, routeWins: boolean): PlanIntakeDraft | null {
   if (requestSource !== "plan" || routeWins) return null;
-  return plan && !plan.legacy && plan.savedAt && plan.expiresAt
-    && plan.draft.requestIntake && (!legacyDraft
+  return plan?.draft.requestIntake && (!legacyDraft
       || JSON.stringify(plan.draft.requestIntake) === JSON.stringify(legacyDraft.requestIntake))
-    ? { storageVersion: 1 as const, savedAt: plan.savedAt, expiresAt: plan.expiresAt,
-      draft: plan.draft.requestIntake, legacy: false as const,
-      routeReference: plan.draft.routeReference, explicitNightContext: plan.draft.explicitNightContext }
+    ? plan.draft.requestIntake
     : null;
+}
+
+function recoveredIntakeState(intake: ParsedPlanIntakeDraft | null, sessionIntake: PlanIntakeDraft | null, hasStoredIntake: boolean) {
+  return {
+    intakeDraft: intake,
+    requestIntake: intake?.draft ?? sessionIntake,
+    hasStoredIntake: hasStoredIntake || sessionIntake !== null,
+  };
 }
 
 export function recoverPlanDrafts(input: {
@@ -179,6 +188,7 @@ export function recoverPlanDrafts(input: {
   const recoveredIntent = recoverExplicitRequestInputs(intent, route,
     routeWins, matchingRoute && requestSource !== "unknown" && sessionCopiesAgree, acceptanceUnavailable);
   const sessionIntake = recoverSessionIntake(plan, legacyDraft, requestSource, routeWins);
+  const currentIntake = recoverCurrentIntake(plan, intakeDraft, intakeWins, sessionWins, acceptanceUnavailable, sessionIntake, legacyDraft);
   return {
     routeWins,
     requestAmbiguous: requestSource === "unknown",
@@ -186,8 +196,7 @@ export function recoverPlanDrafts(input: {
     sessionWins,
     planDraft,
     recoveredDraft,
-    intakeDraft: recoverCurrentIntake(plan, intakeDraft, intakeWins, sessionWins, acceptanceUnavailable, sessionIntake, legacyDraft),
-    hasStoredIntake: Boolean(intake),
+    ...recoveredIntakeState(currentIntake, sessionIntake, Boolean(intake)),
     intent: routeWins && intakeDraft ? { ...recoveredIntent, descriptionUnavailable: true } : recoveredIntent,
   };
 }

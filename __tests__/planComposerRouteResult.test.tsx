@@ -1661,9 +1661,7 @@ describe("the Plan result", () => {
       expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(requested);
       await remountComposer();
       if (!localWritesBlocked) await openTune();
-      const selected = localWritesBlocked
-        ? document.querySelector('[aria-label="Number of pub stops"] button[aria-pressed="true"]')?.textContent?.trim()
-        : document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value;
+      const selected = document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value;
       expect(selected).toBe(String(requested));
     });
 
@@ -1797,19 +1795,16 @@ describe("the Plan result", () => {
     window.history.replaceState({}, "", "/plan");
     await remountComposer();
     expect(generations()).toHaveLength(1);
-    expect(document.querySelector('[aria-label="Number of pub stops"] button[aria-pressed="true"]')?.textContent?.trim()).toBe("3");
-    const field = document.querySelector<HTMLInputElement>("#plan-describe-first-query")!;
-    await act(async () => {
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(field, "One pub in Clapham tonight");
-      field.dispatchEvent(new Event("input", { bubbles: true }));
-    });
-    expect(document.querySelector('[aria-label="Number of pub stops"] button[aria-pressed="true"]')?.textContent?.trim()).toBe("1");
-    await sortIt("One pub in Clapham tonight");
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("3");
+    await typeTuneQuery("One pub in Clapham tonight");
+    await generateFromFullComposer();
     expect(generations()).toHaveLength(2);
     const next = JSON.parse(String(generations()[1]![1]?.body));
     expect(next.context.stopCount).toBe(1);
     expect(next.intake.stopCount).toBe(1);
     expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(1);
+    await openTune();
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("1");
   });
 
   describe.each(["session-only", "unfinished intake", "completed intake"])("a new Ask handoff with %s recovery", (recovery) => {
@@ -1999,7 +1994,7 @@ describe("the Plan result", () => {
         ? { ...GENERATED, stops: [...GENERATED.stops, { venueId: "venue-c", venueName: "Pub C" }], inferredContext: { ...GENERATED.inferredContext, stopCount: 3 } }
         : []), { status: 200, headers: { "content-type": "application/json" } });
     });
-    const selectedCount = () => document.querySelector('[aria-label="Number of pub stops"] button[aria-pressed="true"]')?.textContent?.trim();
+    const selectedCount = () => document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value;
     await mountComposer();
     await sortIt("Clapham tonight");
     await remountComposer();
@@ -2011,7 +2006,8 @@ describe("the Plan result", () => {
     await settle();
     expect(selectedCount()).toBe(String(requested));
     expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(requested);
-    await sortIt("One pub in Clapham tonight");
+    await typeTuneQuery("One pub in Clapham tonight");
+    await generateFromFullComposer();
     const generations = () => fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"));
     expect(generations()).toHaveLength(2);
     const sent = JSON.parse(String(generations()[1]![1]?.body));
@@ -2021,10 +2017,7 @@ describe("the Plan result", () => {
     expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBe(requested);
     await remountComposer();
     expect(selectedCount()).toBe(String(requested));
-    const makePlan = [...document.querySelectorAll<HTMLButtonElement>("button")]
-      .find((button) => button.textContent?.trim() === "Make a plan")!;
-    await act(async () => { makePlan.click(); });
-    await settle();
+    await generateFromFullComposer();
     expect(generations()).toHaveLength(3);
     const restored = JSON.parse(String(generations()[2]![1]?.body));
     expect(restored.context.stopCount).toBe(requested);
@@ -2109,17 +2102,10 @@ describe("the Plan result", () => {
     expect(document.querySelectorAll(".planStop__name")).toHaveLength(1);
     await remountComposer();
     expect(document.body.textContent).toContain("Pub A");
-    expect(countButton().getAttribute("aria-pressed")).toBe("true");
-    const field = document.querySelector<HTMLInputElement>("#plan-describe-first-query")!;
-    await act(async () => {
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(field, "Quiet in Soho");
-      field.dispatchEvent(new Event("input", { bubbles: true }));
-    });
-    expect(countButton().getAttribute("aria-pressed")).toBe("true");
-    const makePlan = [...document.querySelectorAll<HTMLButtonElement>("button")]
-      .find((button) => button.textContent?.trim() === "Make a plan")!;
-    await act(async () => { makePlan.click(); });
-    await settle();
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe(String(requested));
+    await typeTuneQuery("Quiet in Soho");
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe(String(requested));
+    await generateFromFullComposer();
     const generations = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"));
     expect(generations).toHaveLength(2);
     expect(JSON.parse(String(generations[1]![1]?.body)).context.stopCount).toBe(requested);
@@ -2487,6 +2473,13 @@ async function openTune(): Promise<void> {
 async function sortAgainFromTune(): Promise<void> {
   const again = [...document.querySelectorAll<HTMLButtonElement>("[role='dialog'] button")].find((button) => button.textContent === "Plan it again")!;
   await act(async () => { again.click(); });
+  await settle();
+  await settle();
+}
+
+async function generateFromFullComposer(): Promise<void> {
+  const generate = document.querySelector<HTMLButtonElement>(".planComposer__conciergeInput button")!;
+  await act(async () => { generate.click(); });
   await settle();
   await settle();
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parsePlanDraft, readPlanDraftEnvelope, writePlanDraftEnvelope } from "@/lib/planDraft";
-import { createPlanIntakeDraft, parsePlanIntakeDraftWithMetadata, planIntakeHandoff, readPlanIntakeDraftWithMetadata, writePlanIntakeDraft } from "@/lib/planIntake";
+import { createPlanIntakeDraft, parsePlanIntakeDraftWithMetadata, planIntakeHandoff, readPlanIntakeDraftWithMetadata, settlePlanIntakeStep, writePlanIntakeDraft } from "@/lib/planIntake";
 import { recoverPlanDrafts } from "@/lib/planDraftArbitration";
 import type { NightContext } from "@/lib/nightPlanning";
 
@@ -150,4 +150,40 @@ it.each(["v1", "v2"] as const)("does not borrow conflicting actual inputs after 
   expect(readPlanDraftEnvelope(session, NOW)?.draft.requestIntake?.answers.groupSize).toBe(format === "v2" ? 2 : 6);
   expect(parsePlanDraft(session.getItem("pubmaxx:plan-draft:v1"), NOW)?.requestIntake?.answers.groupSize).toBe(format === "v1" ? 2 : 6);
   expect(readPlanIntakeDraftWithMetadata(local, NOW)?.draft.answers.groupSize).toBe(6);
+});
+
+it.each(["v1", "v2"])("restores an explicitly skipped wizard step from %s without restoring its answer", (format) => {
+  const session = storage();
+  const intake = createPlanIntakeDraft();
+  intake.answers.area = "clapham";
+  const skipped = settlePlanIntakeStep(intake, { skip: true });
+  writePlanDraftEnvelope({ ...DRAFT, requestIntake: skipped }, "manual", session, NOW);
+  if (format === "v1") session.removeItem("pubmax:plan-draft:v2");
+  const plan = readPlanDraftEnvelope(session, NOW)!;
+  const recovered = recoverPlanDrafts({ plan, legacyDraft: parsePlanDraft(session.getItem("pubmaxx:plan-draft:v1"), NOW), intake: null, route: null });
+  expect(recovered.requestIntake).toEqual(skipped);
+  expect(recovered.requestIntake?.answers.area).toBeNull();
+  expect(recovered.requestIntake?.skippedSteps).toEqual(["area"]);
+  expect(recovered.requestIntake?.currentStep).toBe("time-window");
+  if (format === "v1") {
+    expect(plan).toMatchObject({ savedAt: null, expiresAt: null, legacy: true });
+    expect(recovered.intakeDraft).toBeNull();
+    expect(recovered.recoveredDraft?.routeReference).toBeNull();
+    expect(recovered.intent.stopCount).toBeUndefined();
+  }
+});
+
+it.each(["v1", "v2"])("rejects invalid wizard lifecycle from %s while retaining its valid route preview", (format) => {
+  const session = storage();
+  writePlanDraftEnvelope(DRAFT, "manual", session, NOW);
+  const key = format === "v1" ? "pubmaxx:plan-draft:v1" : "pubmax:plan-draft:v2";
+  const record = JSON.parse(session.getItem(key)!);
+  const draft = format === "v1" ? record : record.draft;
+  draft.requestIntake = { ...createPlanIntakeDraft(), completed: true };
+  session.setItem(key, JSON.stringify(record));
+  session.removeItem(format === "v1" ? "pubmax:plan-draft:v2" : "pubmaxx:plan-draft:v1");
+  const plan = readPlanDraftEnvelope(session, NOW)!;
+  const recovered = recoverPlanDrafts({ plan, legacyDraft: parsePlanDraft(session.getItem("pubmaxx:plan-draft:v1"), NOW), intake: null, route: null });
+  expect(recovered.requestIntake).toBeNull();
+  expect(recovered.recoveredDraft?.stops).toEqual([{ key: 1, venueId: "pub-a", venueName: "Pub A" }]);
 });
