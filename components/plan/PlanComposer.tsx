@@ -1912,7 +1912,7 @@ function PlanComposerForm({
   const requestContext = { nightArea: askDraftQuery ? undefined : nightContext?.nightArea, ...explicitNightContext };
   const [routeRevision, setRouteRevision] = useState<RouteRevision | null>(routeDraftFields.routeRevision);
   const [routeNight, setRouteNight] = useState<RouteNight | null>(routeDraftFields.routeNight);
-  const [routeStale, setRouteStale] = useState(routeDraftFields.routeStale);
+  const [routeStale, setRouteStale] = useState(routeDraftFields.routeStale || (!recoveredRouteDraft && Boolean(recoveredDraft)));
 
   const [groundingProof, setGroundingProof] = useState(routeDraftFields.groundingProof);
   const [createOperationKey, setCreateOperationKey] = useState(routeDraftFields.createOperationKey);
@@ -3334,7 +3334,7 @@ export default function PlanComposer() {
       const previewStops = resolved.sessionWins && resolved.planDraft
         ? resolved.planDraft.draft.stops : routeRecovery.route?.stops;
       const needsPreview = (resolved.sessionWins || resolved.acceptanceUnavailable)
-        && (routeRecovery.route || resolved.planDraft?.draft.routeReference === null);
+        && routeRecovery.route;
       const route = needsPreview && previewStops?.length ? {
         ...routeRecovery,
         envelope: null,

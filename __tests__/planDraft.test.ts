@@ -115,3 +115,27 @@ it.each([null, { savedAt: "2026-11-03T12:00:00.000Z", operationKey: "operation-1
   expect(readPlanDraftEnvelope(storage, now)?.draft).toEqual(draft);
   expect(parsePlanDraft(values.get("pubmaxx:plan-draft:v1")!, now)).toEqual(draft);
 });
+
+it.each([
+  undefined, null, { savedAt: "2026-11-03T12:00:00.000Z", operationKey: "operation-1" },
+])("preserves request ownership after acceptance expires: %j", (routeReference) => {
+  const now = Date.parse("2026-11-03T12:00:00.000Z");
+  const request = {
+    title: "Our night", creatorName: "Captain", startTime: "2026-11-03T19:00",
+    conciergeQuery: "Three pubs in Clapham", requestedStopCount: 3 as const,
+    requestedStopCountSource: "text" as const,
+    stops: [{ key: 1, venueId: "venue-a", venueName: "Pub A" }],
+    ...(routeReference !== undefined ? { routeReference } : {}),
+  };
+  const values = new Map<string, string>();
+  const storage = {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => { values.set(key, value); },
+  };
+  writePlanDraftEnvelope({ ...request, acceptedAnchor: {
+    venueId: "venue-a", source: "near", cityId: "london", acceptedArea: null, startsAt: null,
+    expiresAt: "2026-11-03T12:01:00.000Z",
+  } }, "planning-intent", storage, now);
+  expect(readPlanDraftEnvelope(storage, now + 60_000)?.draft).toEqual(request);
+  expect(parsePlanDraft(values.get("pubmaxx:plan-draft:v1")!, now + 60_000)).toEqual(request);
+});

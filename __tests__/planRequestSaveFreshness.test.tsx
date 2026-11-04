@@ -1558,3 +1558,134 @@ it.each([false, true])("keeps a later First pint edit valid after Tune selected 
   const parsed = parsePlanGenerationIntake(request.intake, new Date(T0));
   expect(parsed).toMatchObject({ok:true});
 });
+
+it.each([1, 5] as const)("does not promote UNKNOWN equal-date correlation for request count %s", async (requestedCount) => {
+  const advance = pinClock();
+  await generateProofRoute();
+  const draft = readPlanDraftEnvelope(sessionStorage)!.draft;
+  writePlanDraftEnvelope({
+    ...draft, requestedStopCount: requestedCount, requestedStopCountSource: undefined, routeReference: undefined,
+  }, "manual", sessionStorage, T0);
+  localStorage.removeItem(PLAN_INTAKE_STORAGE_KEY);
+  await remountComposer();
+  expect(document.querySelector(".planStop__name")?.textContent).toBe("Pub A");
+  await openTune();
+  expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe(String(requestedCount));
+  await act(async () => { document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); });
+  await settle();
+  await attemptRouteSave();
+  advance(1000);
+  const fresh = {
+    ...generatedProofFixture(), grounded: true, operationKey: "fresh-accepted-operation",
+    groundingProof: `${btoa(JSON.stringify({ v: 1, expiresAt: T0 + 7_200_000 }))}.fresh-test-signature`,
+    inferredContext: { ...GENERATED.inferredContext, stopCount: requestedCount },
+  };
+  fetchMock.mockImplementation(async (input) => new Response(JSON.stringify(
+    String(input).includes("/api/plans/generate") ? fresh : [],
+  ), { status: 200, headers: { "content-type": "application/json" } }));
+  await openTune();
+  advance(1000);
+  await sortAgainFromTune();
+  expect(reconciledGenerationContext().stopCount).toBe(requestedCount);
+  expect(readPlanDraftEnvelope(sessionStorage)?.draft.routeReference).toEqual({
+    savedAt: "2026-11-03T12:00:01.000Z", operationKey: "fresh-accepted-operation",
+  });
+  expect(readPlanDraftEnvelope(sessionStorage)?.draft.requestedStopCountSource).toBeUndefined();
+  if (requestedCount === 1) {
+    expect(await saveRoute()).toMatchObject({ groundingProof: fresh.groundingProof, context: { stopCount: 1 } });
+    return;
+  }
+  expect(document.querySelector("#plan-lock-hint")?.textContent).toContain("exactly 5 stops");
+  await attemptRouteSave();
+  const complete = {
+    ...fresh, operationKey: "complete-accepted-operation",
+    groundingProof: `${btoa(JSON.stringify({ v: 1, expiresAt: T0 + 7_200_000 }))}.complete-test-signature`,
+    stops: [
+      { venueId: "venue-a", venueName: "Pub A" }, { venueId: "venue-b", venueName: "Pub B" },
+      { venueId: "venue-c", venueName: "Pub C" }, { venueId: "venue-d", venueName: "Pub D" },
+      { venueId: "venue-e", venueName: "Pub E" },
+    ],
+  };
+  fetchMock.mockImplementation(async (input) => new Response(JSON.stringify(
+    String(input).includes("/api/plans/generate") ? complete : [],
+  ), { status: 200, headers: { "content-type": "application/json" } }));
+  await openTune();
+  advance(2000);
+  await sortAgainFromTune();
+  expect(reconciledGenerationContext().stopCount).toBe(5);
+  expect(readPlanDraftEnvelope(sessionStorage)?.draft).toMatchObject({
+    requestedStopCount: 5,
+    routeReference: { savedAt: "2026-11-03T12:00:02.000Z", operationKey: "complete-accepted-operation" },
+  });
+  expect(readPlanDraftEnvelope(sessionStorage)?.draft.requestedStopCountSource).toBeUndefined();
+  expect(await saveRoute()).toMatchObject({ groundingProof: complete.groundingProof, context: { stopCount: 5 } });
+});
+
+it.each([
+  { format: "v2", expired: false }, { format: "v2", expired: true },
+  { format: "v1", expired: false }, { format: "v1", expired: true },
+  { format: "v2-only", expired: false }, { format: "v2-only", expired: true },
+].flatMap((condition) => [false, true].map((localRoute) => ({ ...condition, localRoute }))))(
+  "preserves known revocation in $format when acceptance expiry is $expired, local route: $localRoute",
+  async ({ format, expired, localRoute }) => {
+    const advance = pinClock();
+    if (!localRoute) blockStorageWrites("localStorage");
+    await generateProofRoute();
+    if (localRoute) blockStorageWrites("localStorage");
+    const draft = readPlanDraftEnvelope(sessionStorage)!.draft;
+    writePlanDraftEnvelope({ ...draft, acceptedAnchor: {
+      venueId: "venue-a", source: "map-search", cityId: "london", acceptedArea: null, startsAt: null,
+      expiresAt: new Date(T0 + 60_000).toISOString(),
+    } }, "planning-intent", sessionStorage, T0);
+    sessionStorage.setItem(ASK_PLAN_DRAFT_STORAGE_KEY, JSON.stringify({ query: "One pub in Clapham tonight" }));
+    advance(1000);
+    await remountComposer();
+    expect(readPlanDraftEnvelope(sessionStorage)?.draft.routeReference).toBeNull();
+    if (format === "v1") sessionStorage.removeItem("pubmax:plan-draft:v2");
+    if (format === "v2-only") sessionStorage.removeItem("pubmaxx:plan-draft:v1");
+    blockStorageWrites("sessionStorage");
+    advance(expired ? 61_000 : 2000);
+    for (let reload = 0; reload < 2; reload += 1) {
+      await remountComposer();
+      await editInput("#plan-title", "Our next night");
+      await attemptRouteSave();
+      expect(readPlanDraftEnvelope(sessionStorage)?.draft.routeReference).toBeNull();
+      expect(document.querySelector(".planStop__name")?.textContent).toBe("Pub A");
+      if (expired) expect(readPlanDraftEnvelope(sessionStorage)?.draft.acceptedAnchor).toBeUndefined();
+    }
+  },
+);
+
+it.each([
+  { format: "v1", correlation: "missing" }, { format: "v1", correlation: "malformed" },
+  { format: "v2", correlation: "missing" }, { format: "v2", correlation: "malformed" },
+])("keeps a session-only $format preview unverified with $correlation correlation", async ({ format, correlation }) => {
+  pinClock();
+  blockStorageWrites("localStorage");
+  await generateProofRoute();
+  for (const key of ["pubmaxx:plan-draft:v1", "pubmax:plan-draft:v2"]) {
+    const stored = JSON.parse(sessionStorage.getItem(key)!);
+    const draft = stored.draft ?? stored;
+    if (correlation === "missing") delete draft.routeReference;
+    else draft.routeReference = { savedAt: "yesterday", operationKey: "proof-operation" };
+    sessionStorage.setItem(key, JSON.stringify(stored));
+  }
+  if (format === "v1") sessionStorage.removeItem("pubmax:plan-draft:v2");
+  blockStorageWrites("sessionStorage");
+  for (let reload = 0; reload < 2; reload += 1) {
+    await remountComposer();
+    expect(document.querySelector(".planStop__name")?.textContent).toBe("Pub A");
+    await attemptRouteSave();
+    expect(readPlanDraftEnvelope(sessionStorage)?.draft.routeReference).toBeUndefined();
+  }
+  const fresh = generatedProofFixture();
+  fetchMock.mockImplementation(async (input) => new Response(JSON.stringify(
+    String(input).includes("/api/plans/generate") ? fresh : [],
+  ), { status: 200, headers: { "content-type": "application/json" } }));
+  await act(async () => [...document.querySelectorAll<HTMLButtonElement>("button")]
+    .find((button) => button.textContent === "Make a plan")!.click());
+  await settle();
+  expect(reconciledGenerationContext().stopCount).toBe(3);
+  expect(readPlanDraftEnvelope(sessionStorage)?.draft.requestedStopCount).toBeUndefined();
+  expect(await saveRoute()).toMatchObject({ groundingProof: fresh.groundingProof, context: { stopCount: 1 } });
+});

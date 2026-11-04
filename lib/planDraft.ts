@@ -210,15 +210,9 @@ function parseStoredPlanDraft(value: unknown, exactKeys: boolean): StoredPlanDra
 
 function withoutExpiredAcceptedAnchor(draft: StoredPlanDraft, now: number): StoredPlanDraft {
   if (!draft.acceptedAnchor || now < Date.parse(draft.acceptedAnchor.expiresAt)) return draft;
-  return {
-    title: draft.title,
-    creatorName: draft.creatorName,
-    startTime: draft.startTime,
-    conciergeQuery: draft.conciergeQuery,
-    stops: draft.stops,
-    ...(draft.requestedStopCount !== undefined ? { requestedStopCount: draft.requestedStopCount } : {}),
-    ...(draft.requestedStopCountSource ? { requestedStopCountSource: draft.requestedStopCountSource } : {}),
-  };
+  const unanchored = { ...draft };
+  delete unanchored.acceptedAnchor;
+  return unanchored;
 }
 
 /** Parse the unversioned session draft without inventing storage metadata. */

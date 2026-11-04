@@ -793,6 +793,20 @@ describe("request references to an existing generated route", () => {
     const legacy = { ...plan, legacy: true, savedAt: null };
     expect(recoverPlanDrafts({ plan: legacy, legacyDraft: plan.draft, intake: null, route }).routeWins).toBe(true);
   });
+
+  it.each([false, true])("retains legacy revocation without a request clock, local route: %s", (hasRoute) => {
+    const draft = storedPlan({ routeReference: null, requestedStopCount: 5 });
+    const plan = parsePlanDraftEnvelope(null, JSON.stringify(draft), NOW)!;
+    const recovered = recoverPlanDrafts({
+      plan, legacyDraft: draft, intake: null, route: hasRoute ? routeDraft(NOW) : null,
+    });
+    expect(recovered.routeWins).toBe(false);
+    expect(recovered.intent.stopCount).toBe(5);
+    expect(recovered.recoveredDraft?.routeReference).toBeNull();
+    expect(recovered).toMatchObject(hasRoute
+      ? { acceptanceUnavailable: true, planDraft: null }
+      : { sessionWins: true, planDraft: plan });
+  });
 });
 
 it.each(["matching", "missing", "different"] as const)("selects the newest request's route correlation with its count and clock: %s", (reference) => {

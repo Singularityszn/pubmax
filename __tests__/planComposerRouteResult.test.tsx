@@ -328,7 +328,7 @@ describe("the Plan result", () => {
   });
 
   it.each([
-    { age: "equal", sameIds: true, sameAnchor: true, preview: false, held: "venue-a" },
+    { age: "equal", sameIds: true, sameAnchor: true, preview: true, held: null },
     { age: "equal", sameIds: true, sameAnchor: false, preview: true, held: null },
     { age: "equal", sameIds: false, sameAnchor: false, preview: true, held: null },
     { age: "undated", sameIds: true, sameAnchor: true, preview: true, held: null },
