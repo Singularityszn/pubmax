@@ -43,8 +43,12 @@ A new generated route replaces the notice from its own evidence.
 `__tests__/planComposerRouteResult.test.tsx` covers recovery when local storage writes fail, notice replacement, focus, and editing.
 
 Each successful local route save records its own `savedAt`.
-When both route and V2 session saves have valid dates, a strictly newer session save replaces the local route.
-A session copy keeps the route's writer date only when its description and requested count are also unchanged.
+Session requests and intake envelopes can reference a route by its actual writer date and operation key.
+Recovery retains that generation only when both session copies agree and its validated stops and accepted pub match.
+If the intake is newer, its reference must also match.
+A newer request without that reference replaces the older route with an unverified preview.
+A reference cannot certify a different route, an ambiguous record, expired proof or an expired accepted pub.
+A session copy keeps the earlier request date only when its request fields are unchanged.
 New descriptions and requested counts keep their actual save time, even when the route is unchanged.
 If that session copy saves, its paired intake save uses the same date.
 A failed session save leaves a successful intake edit dated at its actual save time.
@@ -61,6 +65,8 @@ An equally dated stops-only copy cannot supply generated context or proof to tha
 Map and import writers record the same date and anchor identity in both existing route records.
 An older V2 cannot supply an anchor or date to a different V1 record after a partial write.
 A winning handoff replaces the older description and requested count together. An unavailable count remains UNKNOWN.
+A fresh confirmed Ask immediately prevents saving the previous route, including before deferred updates and failed generation.
+The previous route remains an unverified preview, and the accepted pub remains accepted.
 Recovery does not delete conflicting route records.
 After a failed route write, persistence reads the current records again before confirming a saved copy.
 A validated session can restore a refreshable preview when the local route date is unavailable.

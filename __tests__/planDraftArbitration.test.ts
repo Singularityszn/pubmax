@@ -727,3 +727,81 @@ describe("pure Plan draft arbitration", () => {
     expect(second).toEqual(first);
   });
 });
+
+describe("request references to an existing generated route", () => {
+  function correlatedRequest(route: ParsedPlanRouteDraft, savedAt = NOW + 1000) {
+    return v2Plan(savedAt, {
+      title: "Our next night",
+      stops: route.value.stops.map(({ key, venueId, venueName }) => ({ key, venueId, venueName })),
+      routeReference: { savedAt: new Date(NOW).toISOString(), operationKey: "operation-1" },
+      acceptedAnchor: {
+        venueId: "venue-a", source: "near", cityId: "london", acceptedArea: null,
+        startsAt: null, expiresAt: new Date(NOW + 60 * 60 * 1000).toISOString(),
+      },
+    });
+  }
+
+  it.each([0, 1000])("retains a matching generation independently of its request date: %i", (age) => {
+    const route = routeDraft(NOW);
+    const plan = correlatedRequest(route, NOW + age);
+    const recovered = recoverPlanDrafts({ plan, legacyDraft: plan.draft, intake: null, route });
+    expect(recovered).toMatchObject({ routeWins: false, sessionWins: false, acceptanceUnavailable: false });
+    expect(recovered.planDraft?.draft.title).toBe("Our next night");
+    expect(arbitratePlanDrafts({ planDraft: recovered.planDraft, routeDraft: route }).routeProofPresent).toBe(true);
+  });
+
+  it.each(["missing", "operation", "writer-date", "later-than-request", "stops", "anchor", "copies", "expired", "stale", "ambiguous"] as const)(
+    "does not certify an older route when its reference has a %s conflict", (conflict) => {
+      const route = routeDraft(NOW);
+      const plan = correlatedRequest(route);
+      const legacyDraft = structuredClone(plan.draft);
+      if (conflict === "missing") delete plan.draft.routeReference;
+      if (conflict === "operation") plan.draft.routeReference!.operationKey = "other-operation";
+      if (conflict === "writer-date") plan.draft.routeReference!.savedAt = new Date(NOW - 1).toISOString();
+      if (conflict === "later-than-request") plan.savedAt = new Date(NOW - 1).toISOString();
+      if (conflict === "stops") plan.draft.stops[1]!.venueId = "other-pub";
+      if (conflict === "anchor") plan.draft.acceptedAnchor!.source = "map-search";
+      if (conflict === "expired") { route.value.groundingProof = null; route.value.routeStale = true; }
+      if (conflict === "stale") route.value.routeStale = true;
+      const recovered = recoverPlanDrafts({
+        plan, legacyDraft: conflict === "copies" ? { ...legacyDraft, routeReference: undefined } : plan.draft,
+        intake: null, route: { ...route, ambiguous: conflict === "ambiguous" },
+      });
+      if (conflict === "later-than-request") {
+        expect(recovered).toMatchObject({ routeWins: true, sessionWins: false });
+      } else if (conflict === "copies" || conflict === "ambiguous") {
+        expect(recovered).toMatchObject({ acceptanceUnavailable: true, planDraft: null });
+      } else {
+        expect(recovered).toMatchObject({ sessionWins: true, acceptanceUnavailable: false });
+      }
+    },
+  );
+
+  it("does not correlate a legacy request or a same-ID replacement generation", () => {
+    const route = routeDraft(NOW);
+    const plan = correlatedRequest(route);
+    const replacement = routeDraft(NOW + 500, { operationKey: "new-operation", nightContext: inferNightContext("Soho tonight").context });
+    expect(recoverPlanDrafts({ plan, legacyDraft: plan.draft, intake: null, route: replacement }).sessionWins).toBe(true);
+    const legacy = { ...plan, legacy: true, savedAt: null };
+    expect(recoverPlanDrafts({ plan: legacy, legacyDraft: plan.draft, intake: null, route }).routeWins).toBe(true);
+  });
+});
+
+it.each(["matching", "missing", "different"] as const)("selects the newest request's route correlation with its count and clock: %s", (reference) => {
+  const route = routeDraft(NOW, { anchorVenueId: null, anchorSource: null, outcome: "unanchored" });
+  const plan = v2Plan(NOW + 1, {
+    stops: route.value.stops.map(({ key, venueId, venueName }) => ({ key, venueId, venueName })),
+    routeReference: { savedAt: new Date(NOW).toISOString(), operationKey: "operation-1" },
+    requestedStopCount: 3, requestedStopCountSource: "text",
+  });
+  const storage = memoryStorage();
+  const intake = { ...createPlanIntakeDraft(), answers: { ...createPlanIntakeDraft().answers, stopCount: 1 as const, stopCountSource: "picker" as const } };
+  writePlanIntakeDraft(intake, storage, NOW + 2, reference === "missing" ? undefined : {
+    savedAt: new Date(NOW).toISOString(), operationKey: reference === "matching" ? "operation-1" : "replacement-operation",
+  });
+  const parsed = readPlanIntakeDraftWithMetadata(storage, NOW + 2);
+  const recovered = recoverPlanDrafts({ plan, legacyDraft: plan.draft, intake: parsed, route });
+  expect(recovered.intent).toMatchObject({ stopCount: 1, stopCountSource: "picker", descriptionUnavailable: true });
+  expect(recovered.sessionWins).toBe(reference !== "matching");
+  expect(recovered.acceptanceUnavailable).toBe(false);
+});
