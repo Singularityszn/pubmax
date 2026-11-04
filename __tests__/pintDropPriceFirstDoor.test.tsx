@@ -12,6 +12,10 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { readProviderAccountRevision, setProviderIdentity } from "@/lib/authProviderRevision";
+
+const assertion = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/authedFetch", () => ({ authedActionFetch: assertion }));
 
 vi.mock("next/link", () => ({
   default: ({
@@ -97,6 +101,7 @@ function makeState(overrides: StateOverrides = {}): PintDropsState {
     resetComposer: () => {},
     submitting: false,
     dropMsg: overrides.dropMsg ?? null,
+    ageAsserted: vi.fn(),
     submitDrop: async () => {},
     venueSignals: new Map(),
   } as unknown as PintDropsState;
@@ -106,6 +111,10 @@ let container: HTMLDivElement;
 let root: Root | null = null;
 
 beforeEach(() => {
+  vi.stubEnv("PUBMAX_SOCIAL_FRIENDS_LAUNCH", "0");
+  setProviderIdentity("supabase", "composer-account");
+  assertion.mockReset();
+  assertion.mockResolvedValue(new Response("{}", { status: 200 }));
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   container = document.createElement("div");
   document.body.appendChild(container);
@@ -118,6 +127,7 @@ afterEach(() => {
   root = null;
   container.remove();
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
 async function render(state: PintDropsState): Promise<void> {
@@ -142,11 +152,11 @@ function extrasToggle(): HTMLButtonElement {
 }
 
 describe("price-first Pint Drop door", () => {
-  it("keeps the age-confirmation link visible after the composer closes", async () => {
+  it("records the age assertion after the composer closes with Social disabled", async () => {
     const state = makeState({
       dropMsg: {
         ok: false, text: "Confirm you are 18 or over before contributing.",
-        links: [{ href: "/social", label: "Confirm your age" }],
+        ageRecovery: { accountRevision: readProviderAccountRevision() },
       },
     });
     await act(async () => {
@@ -156,19 +166,28 @@ describe("price-first Pint Drop door", () => {
         tab: "pints", pintDrops: state, drops: [], lastTrainDecision: null,
       }));
     });
-    expect(container.querySelector('[role="alert"] a[href="/social"]')?.textContent).toBe("Confirm your age");
+    const button = [...container.querySelectorAll("button")].find((item) => item.textContent === "I'm 18 or over");
+    expect(button).toBeDefined();
+    await act(async () => button!.click());
+    expect(assertion).toHaveBeenCalledWith("/api/identity/adult-assertion", expect.objectContaining({ method: "POST" }), { requiresIdentity: true });
+    expect(state.ageAsserted).toHaveBeenCalledOnce();
   });
-  it("shows the age-confirmation link beside an adult-check refusal", async () => {
-    await render(makeState({
+  it("records the age assertion in the open composer with Social disabled", async () => {
+    const state = makeState({
       dropMsg: {
         ok: false,
         text: "Confirm you are 18 or over before contributing.",
-        links: [{ href: "/social", label: "Confirm your age" }],
+        ageRecovery: { accountRevision: readProviderAccountRevision() },
       },
-    }));
+    });
+    await render(state);
     const alert = container.querySelector('[role="alert"]');
     expect(alert?.textContent).toContain("Confirm you are 18 or over");
-    expect(alert?.querySelector('a[href="/social"]')?.textContent).toBe("Confirm your age");
+    const button = alert?.querySelector("button");
+    expect(button?.textContent).toBe("I'm 18 or over");
+    await act(async () => button!.click());
+    expect(assertion).toHaveBeenCalledOnce();
+    expect(state.ageAsserted).toHaveBeenCalledOnce();
   });
   it("opens on the price step, with the photo and story behind the disclosure", async () => {
     await render(makeState());

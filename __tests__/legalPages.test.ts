@@ -2,6 +2,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { JSDOM } from "jsdom";
 
 import { describe, expect, it, vi } from "vitest";
 
@@ -812,8 +813,10 @@ describe("legal content pages", () => {
     }
     expect(termsText).toMatch(/Social is live by default/i);
     expect(termsText).toMatch(/one recorded self-assertion can answer the access question/i);
-    expect(terms).toMatch(/Pubs\s+decide who they serve/i);
-    expect(terms).toMatch(/drinkaware\.co\.uk/);
+    expect(termsText).toContain("Pubs decide who they serve");
+    const document = new JSDOM(renderToStaticMarkup(createElement(TermsPage))).window.document;
+    const link = document.querySelector('a[href="https://www.drinkaware.co.uk"]');
+    expect(link?.textContent?.trim()).toBe("drinkaware.co.uk");
   });
 
   it("discloses private referral attribution and its genuine browser limits", () => {

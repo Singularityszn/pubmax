@@ -4,6 +4,7 @@ import type { Route } from "next";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 import { useAuth } from "@/components/auth/authContext";
+import { readProviderAccountRevision } from "@/lib/authProviderRevision";
 import { barTabPath, profilePath } from "@/lib/appLink";
 import { readActiveRoundCode } from "@/lib/activeRound";
 import { getAnonId } from "@/lib/anonId";
@@ -101,13 +102,8 @@ export type DropMsg = {
   ok: boolean;
   text: string;
   links?: Array<{ href: Route; label: string }>;
+  ageRecovery?: { accountRevision: number };
 };
-
-function pintDropRefusalLinks(body: { status?: unknown } | null): DropMsg["links"] {
-  return body?.status === "adult_check_required"
-    ? [{ href: "/social", label: "Confirm your age" }]
-    : undefined;
-}
 
 // ONE NUMBER ON BOTH SIDES OF THE WIRE, and ONE PLACE THAT ASKS. This gate
 // said 5 MB while the platform refuses any body over 4.5 MB with a plain-text
@@ -340,6 +336,11 @@ export function usePintDrops(
   const [receiptPhoto, setReceiptPhoto] = useState<PhotoSlot | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [dropMsg, setDropMsg] = useState<DropMsg | null>(null);
+  const ageAsserted = useCallback(() => {
+    setDropMsg((message) => message?.ageRecovery?.accountRevision === readProviderAccountRevision()
+      ? { ok: true, text: "Age confirmation saved. Submit your price again." }
+      : message);
+  }, []);
   const pintInputRef = useRef<HTMLInputElement>(null);
   const venueInputRef = useRef<HTMLInputElement>(null);
   const receiptInputRef = useRef<HTMLInputElement>(null);
@@ -584,6 +585,7 @@ export function usePintDrops(
     venueId: string,
     options?: { venueName?: string; lastTrainDecision?: LastPintDecision | null },
   ) {
+    const submittedAccountRevision = readProviderAccountRevision();
     const submittedRound = captureRoundAppendSnapshot(
       roundIdentity,
       accountHandle,
@@ -727,7 +729,8 @@ export function usePintDrops(
       links: [{ href: "/social", label: "Open Social" }],
     });
 
-    const markFailed = (message: string, links?: DropMsg["links"]) => {
+    const markFailed = (message: string, ageRecovery?: DropMsg["ageRecovery"]) => {
+      if (submittedAccountRevision !== readProviderAccountRevision()) return;
       if (publishToFeed) {
         updateOptimisticFeedStorage((current) => failOptimisticSpill(current, clientRequestId, message));
       }
@@ -752,7 +755,7 @@ export function usePintDrops(
         );
         return next;
       });
-      setDropMsg({ ok: false, text: message, links });
+      setDropMsg({ ok: false, text: message, ageRecovery });
     };
 
     try {
@@ -785,10 +788,13 @@ export function usePintDrops(
 
       const response = await authedActionFetch("/api/pint-drops", { method: "POST", body }, { requiresIdentity: true });
       const data = await response.json().catch(() => null);
+      if (submittedAccountRevision !== readProviderAccountRevision()) return;
       if (!response.ok) {
         markFailed(
           errorMessageFrom(data, "Could not save that drop."),
-          pintDropRefusalLinks(data),
+          data?.status === "adult_check_required"
+            ? { accountRevision: submittedAccountRevision }
+            : undefined,
         );
         return;
       }
@@ -826,6 +832,7 @@ export function usePintDrops(
         venueName: options?.venueName ?? unresolvedVenueLabel(venueId),
         dropRef: pintDropId(data.drop),
       });
+      if (submittedAccountRevision !== readProviderAccountRevision()) return;
 
       const links: NonNullable<DropMsg["links"]> = [
         { href: "/social", label: "Open Social" },
@@ -1037,6 +1044,7 @@ export function usePintDrops(
     resetComposer,
     submitting,
     dropMsg,
+    ageAsserted,
     submitDrop,
     reportDrop,
   };

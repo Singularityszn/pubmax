@@ -23,6 +23,7 @@ async function installLane(page: Page, initial: Age) {
   let successes = 0;
   let assertions = 0;
   let priceSubmitPosts = 0;
+  let socialAccessReads = 0;
   const drops: Record<string, unknown>[] = [];
 
   await page.route("**/api/price-submit**", async (route) => {
@@ -75,9 +76,9 @@ async function installLane(page: Page, initial: Age) {
     await route.fulfill({ status: 201, json: { drop } });
   });
   await page.route("**/api/social/access", async (route) => {
-    await route.fulfill({ json: {
-      state: age === "asserted" ? "verified" : "age_verification_required",
-      adultPrompt: age === "missing", viewerHandle: ACCOUNTS.A.handle,
+    socialAccessReads += 1;
+    await route.fulfill({ status: 503, json: {
+      state: "unavailable", adultPrompt: false,
     } });
   });
   await page.route("**/api/identity/adult-assertion", async (route) => {
@@ -87,7 +88,7 @@ async function installLane(page: Page, initial: Age) {
     age = "asserted";
     await route.fulfill({ json: { assertedAt: new Date().toISOString() } });
   });
-  return { posts, state: () => ({ age, successes, assertions, priceSubmitPosts }) };
+  return { posts, state: () => ({ age, successes, assertions, priceSubmitPosts, socialAccessReads }) };
 }
 
 async function openComposer(page: Page) {
@@ -140,7 +141,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 800 
       await installDeterministicMapBasemap(page);
     });
 
-    test("missing age links from the folded and reopened composer to Social, then permits one explicit retry", async ({ page }) => {
+    test("missing age recovers in place with Social access disabled, then permits one explicit retry", async ({ page }) => {
       const pageErrors: string[] = [];
       page.on("pageerror", (error) => pageErrors.push(error.message));
       const auth = await installAuthDoubles(page);
@@ -151,24 +152,19 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 800 
       const pints = await submitPrice(page);
       const folded = pints.locator(".logDropBar .composerMsg.error");
       await expect(folded).toContainText(REQUIRED);
-      await expect(folded.getByRole("link", { name: "Confirm your age", exact: true })).toHaveAttribute("href", "/social");
+      await expect(folded.getByRole("button", { name: "I'm 18 or over", exact: true })).toBeVisible();
       expect(lane.posts).toHaveLength(1);
       expect(lane.state()).toMatchObject({ successes: 0, assertions: 0, priceSubmitPosts: 0 });
       await page.screenshot({ path: test.info().outputPath("folded-age-refusal.png") });
 
       const { form } = await openComposer(page);
-      const link = form.getByRole("link", { name: "Confirm your age", exact: true });
-      await expect(link).toBeVisible();
-      await expect(form.locator('[role="alert"]')).toContainText(REQUIRED);
-      await link.click();
-      await expect(page).toHaveURL(/\/social$/);
-      const assertion = page.locator(".socialBoundary").getByRole("button", { name: "I'm 18 or over", exact: true });
+      const assertion = form.getByRole("button", { name: "I'm 18 or over", exact: true });
       await expect(assertion).toBeVisible();
+      await expect(form.locator('[role="alert"]')).toContainText(REQUIRED);
       await assertion.click();
       await expect.poll(() => lane.state().assertions).toBe(1);
       await expect(assertion).toBeHidden();
       expect(lane.posts).toHaveLength(1);
-      await page.goBack({ waitUntil: "domcontentloaded" });
       await expect(page).toHaveURL(new RegExp(`/map\\?sel=${VENUE_ID}`));
       // The failed write cleared the composer. Re-entering the price and bill
       // is an explicit retry, not a claimed automatic draft continuation.
@@ -176,12 +172,12 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 800 
       await expect(retried.locator(".composerMsg.ok")).toBeVisible();
       await expect(retried.locator(".composerMsg.error")).toHaveCount(0);
       expect(lane.posts).toHaveLength(2);
-      expect(lane.state()).toMatchObject({ successes: 1, assertions: 1, priceSubmitPosts: 0 });
+      expect(lane.state()).toMatchObject({ successes: 1, assertions: 1, priceSubmitPosts: 0, socialAccessReads: 0 });
       expect(pageErrors).toEqual([]);
       await page.screenshot({ path: test.info().outputPath("explicit-retry-success.png") });
     });
 
-    test("under-18 refusal offers no assertion link in either composer state", async ({ page }) => {
+    test("under-18 refusal offers no assertion action in either composer state", async ({ page }) => {
       const pageErrors: string[] = [];
       page.on("pageerror", (error) => pageErrors.push(error.message));
       const auth = await installAuthDoubles(page);
@@ -192,9 +188,11 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 800 
       const pints = await submitPrice(page);
       await expect(pints.locator(".logDropBar .composerMsg.error")).toHaveText(REFUSED);
       await expect(pints.getByRole("link", { name: "Confirm your age", exact: true })).toHaveCount(0);
+      await expect(pints.getByRole("button", { name: "I'm 18 or over", exact: true })).toHaveCount(0);
       const { form } = await openComposer(page);
       await expect(form.locator('[role="alert"]')).toContainText(REFUSED);
       await expect(form.getByRole("link", { name: "Confirm your age", exact: true })).toHaveCount(0);
+      await expect(form.getByRole("button", { name: "I'm 18 or over", exact: true })).toHaveCount(0);
       expect(lane.posts).toHaveLength(1);
       expect(lane.state()).toMatchObject({ successes: 0, assertions: 0, priceSubmitPosts: 0 });
       expect(pageErrors).toEqual([]);

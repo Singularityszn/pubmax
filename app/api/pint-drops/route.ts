@@ -467,7 +467,7 @@ export async function POST(request: Request): Promise<Response> {
   }
   if (canonicalDrop.priceGbp !== null && ownership.callerUserId) {
     try {
-      const evidence = await accountAdultEvidence(ownership.callerUserId);
+      const evidence = await accountAdultEvidence(ownership.callerUserId, { strict: true });
       const refusal = contributionAdultRefusal({
         isAdult: accountIsAdult(evidence),
         needsSelfAssertion: needsAdultSelfAssertion(evidence),

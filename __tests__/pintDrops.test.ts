@@ -23,7 +23,12 @@ vi.mock("@/lib/pintDropsStore", async () => {
 
 vi.mock("@/lib/adultSelfAssertionStore", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/adultSelfAssertionStore")>();
-  return { ...actual, adultSelfAssertionStore: () => actual.memoryAdultSelfAssertionStore };
+  return {
+    ...actual,
+    adultSelfAssertionStore: () => supaGuard.durableAssertions
+      ? actual.adultSelfAssertionStore()
+      : actual.memoryAdultSelfAssertionStore,
+  };
 });
 vi.mock("@/lib/privateIdentityStore", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/privateIdentityStore")>();
@@ -50,7 +55,7 @@ const { storeCreate, checkRateLimitDurableDetailed, supaGuard, adminRef, reportA
   checkRateLimitDurableDetailed: vi.fn<
     (key: string) => Promise<{ verdict: boolean | null; reason?: "missing-rpc" | "error" | "no-client" }>
   >(),
-  supaGuard: { configured: false, requiresStore: false },
+  supaGuard: { configured: false, requiresStore: false, durableAssertions: false },
   adminRef: { client: null as unknown },
   reportAuth: { userId: null as string | null },
 }));
@@ -187,8 +192,10 @@ vi.mock("@/lib/profileOwnership", async (importOriginal) => {
 import { GET, POST } from "@/app/api/pint-drops/route";
 import {
   __resetMemoryAdultSelfAssertions,
+  adultSelfAssertionStore,
   memoryAdultSelfAssertionStore,
 } from "@/lib/adultSelfAssertionStore";
+import { accountAdultOnFile } from "@/lib/adultOnFile.server";
 import {
   __resetPintDrops,
   dropMatchesCityScope,
@@ -326,6 +333,7 @@ describe("dropMatchesCityScope", () => {
 });
 
 beforeEach(async () => {
+  supaGuard.durableAssertions = false;
   __resetPintDrops();
   __resetMemoryAdultSelfAssertions();
   await memoryAdultSelfAssertionStore.record("demo-account");
@@ -393,6 +401,45 @@ describe("POST /api/pint-drops (create)", () => {
     } finally {
       read.mockRestore();
     }
+  });
+
+  it.each([
+    [true, "Could not find the table 'public.adult_self_assertions' in the schema cache"],
+    [false, "Could not find the table 'public.adult_self_assertions' in the schema cache"],
+    [true, 'relation "public.adult_self_assertions" does not exist'],
+    [false, 'relation "public.adult_self_assertions" does not exist'],
+  ])("stores no adult-DOB price after an assertion schema failure (bill: %s, error: %s)", async (withBill, message) => {
+    reportAuth.userId = "account-adult-schema-failure";
+    const onboarding = await memoryPrivateIdentityStore.completeOnboarding({
+      userId: reportAuth.userId, handle: "adult_schema_failure", dateOfBirth: "1990-01-01",
+    });
+    expect(onboarding.ok).toBe(true);
+    const limit = vi.fn().mockResolvedValue({ data: null, error: { message } });
+    const eq = vi.fn().mockReturnValue({ limit });
+    const select = vi.fn().mockReturnValue({ eq });
+    adminRef.client = { from: vi.fn((table: string) => {
+      if (table === "profiles") {
+        return { select: () => ({ eq: () => ({ limit: async () => ({
+          data: [{ handle: "adult_schema_failure" }], error: null,
+        }) }) }) };
+      }
+      expect(table).toBe("adult_self_assertions");
+      return { select };
+    }) };
+    supaGuard.configured = true;
+    supaGuard.durableAssertions = true;
+    storeCreate.mockReset();
+    const submit = withBill ? post : postWithoutBill;
+    const response = await submit({ venueId: VENUE, handle: "adult_schema_failure", priceGbp: 4.2 });
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ code: "IDENTITY_UNAVAILABLE", retryable: true });
+    expect(limit).toHaveBeenCalled();
+    expect(storeCreate).not.toHaveBeenCalled();
+    supaGuard.configured = false;
+    expect((await (await get(VENUE)).json()).drops).toEqual([]);
+    supaGuard.configured = true;
+    await expect(adultSelfAssertionStore().read(reportAuth.userId)).resolves.toBeNull();
+    await expect(accountAdultOnFile(reportAuth.userId)).resolves.toBe(true);
   });
 
   it("requires a verified account before validating a production Pint Drop", async () => {

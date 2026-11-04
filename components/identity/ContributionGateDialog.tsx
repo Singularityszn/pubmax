@@ -8,6 +8,7 @@ import {
   useReducer,
   useRef,
   useState,
+  useSyncExternalStore,
   type SetStateAction,
 } from "react";
 
@@ -29,6 +30,10 @@ import { ADULT_SELF_ASSERTION_ACTION } from "@/lib/adultGate";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import { useFocusTrap } from "@/lib/useFocusTrap";
 import { trackEvent } from "@/lib/analytics";
+import {
+  readProviderAccountRevision,
+  subscribeProviderIdentityRevision,
+} from "@/lib/authProviderRevision";
 
 import "./contributionGate.css";
 
@@ -55,11 +60,15 @@ export function useAdultTap(onAsserted?: () => void): {
   busy: boolean;
   error: string | null;
 } {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const revision = useSyncExternalStore(
+    subscribeProviderIdentityRevision,
+    readProviderAccountRevision,
+    readProviderAccountRevision,
+  );
+  const [state, setState] = useState({ revision, busy: false, error: null as string | null });
   const assert = useCallback(() => {
-    setBusy(true);
-    setError(null);
+    if (revision !== readProviderAccountRevision()) return;
+    setState({ revision, busy: true, error: null });
     authedActionFetch(
       "/api/identity/adult-assertion",
       { method: "POST", cache: "no-store", credentials: "same-origin" },
@@ -67,17 +76,26 @@ export function useAdultTap(onAsserted?: () => void): {
     )
       .then((response) => {
         discardBody(response);
+        if (revision !== readProviderAccountRevision()) return;
         if (!response.ok) throw new Error("Adult assertion refused");
         // Tell every other door on the page, then resume what asked.
         window.dispatchEvent(new Event(ADULT_ASSERTED_EVENT));
         onAsserted?.();
       })
       .catch(() => {
-        setError("We could not save that just now. Try again.");
+        if (revision !== readProviderAccountRevision()) return;
+        setState({ revision, busy: false, error: "We could not save that just now. Try again." });
       })
-      .finally(() => setBusy(false));
-  }, [onAsserted]);
-  return { assert, busy, error };
+      .finally(() => {
+        if (revision !== readProviderAccountRevision()) return;
+        setState((current) => ({ ...current, busy: false }));
+      });
+  }, [onAsserted, revision]);
+  return {
+    assert,
+    busy: state.revision === revision && state.busy,
+    error: state.revision === revision ? state.error : null,
+  };
 }
 
 function AdultCheck({

@@ -5,10 +5,13 @@ import { adultSelfAssertionStore } from "@/lib/adultSelfAssertionStore";
 import { privateIdentityStore } from "@/lib/privateIdentityStore";
 
 /** Read both account answers. Write gates must distinguish a failed read. */
-export async function accountAdultEvidence(userId: string): Promise<AccountAdultEvidence> {
+export async function accountAdultEvidence(
+  userId: string,
+  options?: { strict?: boolean },
+): Promise<AccountAdultEvidence> {
   const [privateIdentity, adultSelfAssertedAt] = await Promise.all([
     privateIdentityStore().read(userId),
-    adultSelfAssertionStore().read(userId),
+    adultSelfAssertionStore().read(userId, options),
   ]);
   return { dateOfBirth: privateIdentity?.dateOfBirth ?? null, adultSelfAssertedAt };
 }

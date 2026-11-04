@@ -71,3 +71,17 @@ The UK scope correction changes the copyright copy and audit guidance. The legal
 - [ICO storage and access guidance](https://ico.org.uk/for-organisations/direct-marketing-and-privacy-and-electronic-communications/guidance-on-the-use-of-storage-and-access-technologies/what-are-storage-and-access-technologies/) covers browser and app tracking technologies.
 
 These sources cover different jurisdictions. The audit does not establish that every listed legal requirement applies to this London app.
+
+## Review corrections, 4 November 2026
+
+The managed review worktree replaces the Social-only recovery link with the shared age assertion in both composer states. The action works independently of Social access and requires an explicit price retry. Account changes invalidate old recovery actions and delayed replies. The four-case browser probe now disables Social access through an API double. Its browser execution remains pending.
+
+The priced-write gate requests a strict assertion-store read for receipt-backed and unchecked prices. Missing-table and schema-cache failures refuse storage even when the account has an adult date of birth. Other read callers retain the existing fallback. The legal regression checks rendered terms and the rendered Drinkaware link.
+
+The focused regression command ran against starting HEAD `fa8602f2af627e42b1e2af3d883a3b10fb17a69c` plus these review edits:
+
+```sh
+npm test -- __tests__/pintDrops.test.ts __tests__/pintDropPreviewLifetime.test.tsx __tests__/pintDropPriceFirstDoor.test.tsx __tests__/legalPages.test.ts __tests__/adultOnFile.test.ts __tests__/adultSelfAssertionRoute.test.ts __tests__/contributionGateDoor.test.tsx __tests__/contributionGateSurface.test.ts __tests__/contributionAuthProvider.test.ts
+```
+
+The final invocation exited 0 with 191 passing tests across nine files. The dependency freshness guard ran through the repository entry point. Two earlier invocations exited 1 while the new tests had incomplete database and notification doubles. The database double now permits the profile lookup before failing the assertion read. The notification double now answers the existing success notification. No application build, full verifier, lint phase or browser execution ran in this review phase. The browser probe still requires its allocated execution phase.

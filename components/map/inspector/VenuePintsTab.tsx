@@ -5,6 +5,7 @@ import type { Venue } from "@/lib/venues";
 import type { LastPintDecision } from "@/lib/tfl";
 import type { DropWithPhotos, PintDropsState } from "@/components/map/usePintDrops";
 import PintDropComposer from "@/components/map/PintDropComposer";
+import { PintDropAgeRecovery } from "@/components/map/PintDropAgeRecovery";
 import VenuePriceStory from "@/components/map/VenuePriceStory";
 import type { TabKey } from "@/lib/venueInspectorTabs";
 import PintDropsList from "./PintDropsList";
@@ -88,6 +89,7 @@ export default function VenuePintsTab({
                   style={{ display: "block", marginTop: "8px" }}
                 >
                   {dropMsg.text}
+                  <PintDropAgeRecovery recovery={dropMsg.ageRecovery} onAsserted={pintDrops.ageAsserted} />
                   {dropMsg.links && dropMsg.links.length > 0 ? (
                     <span className="composerMsgLinks">
                       {dropMsg.links.map((link) => (
