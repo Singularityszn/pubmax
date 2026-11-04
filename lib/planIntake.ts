@@ -537,6 +537,40 @@ function planIntakeRawBytes(raw: string): number {
   return new TextEncoder().encode(raw).byteLength;
 }
 
+export function parsePlanIntakeRequest(input: unknown, now = Date.now()): PlanIntakeDraft | null {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return null;
+  const value = input as Record<string, unknown>;
+  if (value.version !== PLAN_INTAKE_VERSION || !isStep(value.currentStep)) return null;
+  const settledSteps = parseStepList(value.settledSteps);
+  const skippedSteps = parseStepList(value.skippedSteps);
+  const answers = cleanAnswers(value.answers, now);
+  if (!settledSteps || !skippedSteps || !answers) return null;
+  if (!skippedSteps.every((step) => settledSteps.includes(step))) return null;
+
+  const canonicalAnswers = skippedSteps.reduce(clearAnswerForStep, answers);
+  if (settledSteps.some((step) => !skippedSteps.includes(step)
+    && !planIntakeStepHasAnswer({
+      version: PLAN_INTAKE_VERSION,
+      currentStep: step,
+      settledSteps,
+      skippedSteps,
+      completed: false,
+      answers: canonicalAnswers,
+    }, step))) return null;
+
+  const firstUnsettled = PLAN_INTAKE_STEPS.find((step) => !settledSteps.includes(step));
+  const terminal = firstUnsettled === undefined;
+  if (value.completed !== terminal) return null;
+  return {
+    version: PLAN_INTAKE_VERSION,
+    currentStep: firstUnsettled ?? lastOf(PLAN_INTAKE_STEPS),
+    settledSteps,
+    skippedSteps,
+    completed: terminal,
+    answers: canonicalAnswers,
+  };
+}
+
 export function parsePlanIntakeDraftWithMetadata(
   raw: string | null,
   now = Date.now(),
@@ -560,28 +594,8 @@ export function parsePlanIntakeDraftWithMetadata(
       || !envelope.draft
       || typeof envelope.draft !== "object"
     ) return null;
-    const value = envelope.draft as unknown as Record<string, unknown>;
-    if (value.version !== PLAN_INTAKE_VERSION || !isStep(value.currentStep)) return null;
-    const settledSteps = parseStepList(value.settledSteps);
-    const skippedSteps = parseStepList(value.skippedSteps);
-    const answers = cleanAnswers(value.answers, now);
-    if (!settledSteps || !skippedSteps || !answers) return null;
-    if (!skippedSteps.every((step) => settledSteps.includes(step))) return null;
-
-    const canonicalAnswers = skippedSteps.reduce(clearAnswerForStep, answers);
-    if (settledSteps.some((step) => !skippedSteps.includes(step)
-      && !planIntakeStepHasAnswer({
-        version: PLAN_INTAKE_VERSION,
-        currentStep: step,
-        settledSteps,
-        skippedSteps,
-        completed: false,
-        answers: canonicalAnswers,
-      }, step))) return null;
-
-    const firstUnsettled = PLAN_INTAKE_STEPS.find((step) => !settledSteps.includes(step));
-    const terminal = firstUnsettled === undefined;
-    if (value.completed !== terminal) return null;
+    const draft = parsePlanIntakeRequest(envelope.draft, now);
+    if (!draft) return null;
     const routeReference = parsePlanRouteReference(envelope.routeReference);
     const explicitNightContext = parsePlanExplicitNightContext(envelope.explicitNightContext);
     return {
@@ -590,14 +604,7 @@ export function parsePlanIntakeDraftWithMetadata(
       expiresAt: envelope.expiresAt,
       ...(explicitNightContext !== undefined ? { explicitNightContext } : {}),
       ...(routeReference !== undefined ? { routeReference } : {}),
-      draft: {
-        version: PLAN_INTAKE_VERSION,
-        currentStep: firstUnsettled ?? lastOf(PLAN_INTAKE_STEPS),
-        settledSteps,
-        skippedSteps,
-        completed: terminal,
-        answers: canonicalAnswers,
-      },
+      draft,
       legacy: false,
     };
   } catch {
