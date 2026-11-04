@@ -1,0 +1,24 @@
+[
+  {
+    "path": "/spoons-value",
+    "status": 200,
+    "dataset": "What a tenner buys in a Wetherspoon",
+    "role": "publisher",
+    "organization": {
+      "@type": "Organization",
+      "name": "PUBMAXX",
+      "url": "https://pubmaxxing.com"
+    }
+  },
+  {
+    "path": "/pint-index/2026-06",
+    "status": 200,
+    "dataset": "The London Pint Index, June 2026",
+    "role": "creator",
+    "organization": {
+      "@type": "Organization",
+      "name": "PUBMAXX",
+      "url": "https://pubmaxxing.com"
+    }
+  }
+]

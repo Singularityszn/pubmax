@@ -1,0 +1,73 @@
+{
+  "checkedOn": "2026-10-27",
+  "boundary": "Code-snippet tests use JSON-LD parsed from actual page-function React renders, combined with the shared site identity graph. This is not a built or deployed preview.",
+  "schemaOrg": {
+    "validator": "https://validator.schema.org/",
+    "mode": "Code snippet",
+    "cases": [
+      {
+        "capture": "rendered-1.html",
+        "errors": 0,
+        "warnings": 0,
+        "detected": {
+          "Dataset": 1,
+          "WebSite": 1
+        }
+      },
+      {
+        "capture": "rendered-2.html",
+        "errors": 0,
+        "warnings": 0,
+        "detected": {
+          "Dataset": 1,
+          "WebSite": 1
+        }
+      },
+      {
+        "capture": "rendered-3.html",
+        "errors": 0,
+        "warnings": 0,
+        "detected": {
+          "Dataset": 1,
+          "WebSite": 1
+        }
+      },
+      {
+        "capture": "rendered-4.html",
+        "errors": 0,
+        "warnings": 0,
+        "detected": {
+          "Dataset": 1,
+          "WebSite": 1
+        }
+      }
+    ]
+  },
+  "googleRichResults": [
+    {
+      "case": "Spoons bundled data",
+      "resultUrl": "https://search.google.com/test/rich-results/result?id=2q7GYJzm_kItJbk7h9M7bw",
+      "validItems": {
+        "Dataset": 1,
+        "Organisation": 1
+      },
+      "criticalIssues": 0,
+      "nonCriticalIssues": [
+        "Missing field 'license' (optional)"
+      ]
+    },
+    {
+      "case": "Populated live Pint Index fixture",
+      "resultUrl": "https://search.google.com/test/rich-results/result?id=iathUtEYHPbdLI4Sty6hug",
+      "validItems": {
+        "Dataset": 1,
+        "Organisation": 1
+      },
+      "criticalIssues": 0,
+      "nonCriticalIssues": [
+        "Missing field 'license' (optional)"
+      ]
+    }
+  ],
+  "limitation": "Valid markup does not guarantee a Google search appearance. No licence was invented to remove optional advisories. No build or deployment was run."
+}

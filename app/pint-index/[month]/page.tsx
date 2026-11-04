@@ -19,6 +19,7 @@ import {
   loadPintIndexArchive,
 } from "@/lib/pintIndexSnapshot.server";
 import { formatPrice } from "@/lib/venues";
+import { SITE_ORGANIZATION_ID } from "@/lib/siteJsonLd";
 import PintIndexScreen from "../PintIndexScreen";
 
 import "@/components/listing/listing.css";
@@ -72,7 +73,7 @@ function datasetJsonLd(edition: ArchivedPintIndexSnapshot, boroughCount: number,
     url: `${SITE_URL}/pint-index/${month}`,
     identifier: edition.snapshotId,
     version: String(revision),
-    creator: { "@type": "Organization", name: "PUBMAXX", url: SITE_URL },
+    creator: { "@id": SITE_ORGANIZATION_ID },
     isAccessibleForFree: true,
     datePublished: publishedAt,
     dateModified: publishedAt,

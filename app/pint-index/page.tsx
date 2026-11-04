@@ -20,6 +20,7 @@ import { arrivalAreas } from "@/lib/pintIndexArrival";
 import { loadPintIndexArchive, loadPublicPintIndexSnapshotOrThrow } from "@/lib/pintIndexSnapshot.server";
 import { loadGroupedVenues } from "@/lib/venueDataset";
 import { formatPrice } from "@/lib/venues";
+import { SITE_ORGANIZATION_ID } from "@/lib/siteJsonLd";
 import { loadZonePintIndex } from "@/lib/zonePintIndex.server";
 import { computeZonePintIndex, formatZoneGbp, type ZonePintIndex } from "@/lib/zones";
 import PintIndexScreen from "./PintIndexScreen";
@@ -80,7 +81,7 @@ function datasetJsonLd(snapshot: PintIndexSnapshot, boroughCount: number, pubCou
     name: "The London Pint Index",
     description: `A dated London pint-price dataset covering ${pubCount} pubs across ${boroughCount} boroughs.`,
     url: `${SITE_URL}/pint-index`,
-    creator: { "@type": "Organization", name: "PUBMAXX", url: SITE_URL },
+    creator: { "@id": SITE_ORGANIZATION_ID },
     isAccessibleForFree: true,
     dateModified: snapshot.generatedAt,
     temporalCoverage: `${snapshot.observationWindow.start}/${snapshot.observationWindow.end}`,

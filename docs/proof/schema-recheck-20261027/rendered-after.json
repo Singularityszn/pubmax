@@ -1,0 +1,49 @@
+{
+  "boundary": "Actual page functions rendered with React DOM server. Headers and server snapshot boundary use test fixtures. The root Organization graph comes from siteJsonLd. This is not a built or hosted preview.",
+  "cases": [
+    {
+      "capture": "rendered-1.html",
+      "page": "https://pubmaxxing.com/spoons-value",
+      "case": "bundled Spoons data",
+      "dataset": "What a tenner buys in a Wetherspoon",
+      "role": "publisher",
+      "organization": {
+        "@id": "https://pubmaxxing.com/#organization"
+      },
+      "htmlSha256": "1ab56ac8597dfcf68dc02cff4e8fd6ff7c60320528c87527c771cb227df3290a"
+    },
+    {
+      "capture": "rendered-2.html",
+      "page": "https://pubmaxxing.com/pint-index",
+      "case": "populated live Index fixture",
+      "dataset": "The London Pint Index",
+      "role": "creator",
+      "organization": {
+        "@id": "https://pubmaxxing.com/#organization"
+      },
+      "htmlSha256": "83440e6e3976f9fb6f139219ba7b200bb5c448905346ac8e7fe206413fe2beaa"
+    },
+    {
+      "capture": "rendered-3.html",
+      "page": "https://pubmaxxing.com/pint-index/2026-06",
+      "case": "populated archived fixture",
+      "dataset": "The London Pint Index, June 2026",
+      "role": "creator",
+      "organization": {
+        "@id": "https://pubmaxxing.com/#organization"
+      },
+      "htmlSha256": "1e38c330ed4389e395053a68ae6997b0d1d496a3d1d36ffbaddb9198ee6f5806"
+    },
+    {
+      "capture": "rendered-4.html",
+      "page": "https://pubmaxxing.com/pint-index/2026-06",
+      "case": "empty archived fixture",
+      "dataset": "The London Pint Index, June 2026",
+      "role": "creator",
+      "organization": {
+        "@id": "https://pubmaxxing.com/#organization"
+      },
+      "htmlSha256": "4784d70e881fdb55b9f4a91feecfb4e3a19688fdd284a0e4e755e18e5039228f"
+    }
+  ]
+}
