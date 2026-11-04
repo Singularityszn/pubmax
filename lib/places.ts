@@ -42,18 +42,16 @@ const PLACES_CITY_PARAM = "city";
 
 /** Kicker above the heading, per the shell's kicker-then-heading rhythm. */
 export const PLACES_KICKER = "Places";
-export const PLACES_TITLE = "London only, for now.";
+export const PLACES_TITLE = "London first.";
 export const PLACES_LEDE =
-  "London is the one city with listed pint prices. More cities come when their prices are in.";
+  "London is our starting point for planning a night. Price coverage varies by place and source.";
 
 /**
  * The city request, the list screen's quiet way onward.
  *
- * Product owner, Oct 2026 UX audit: the list shows only the cities with listed
- * pint prices (London today), because eleven rows marked "Prices coming" read
- * as eleven promises. Taste plan, 18 Oct 2026: with one such city the screen
- * says so in its heading, so the request sits beside the one door rather than
- * under a heading of its own.
+ * The list keeps London as the starting point for planning a night. The city
+ * request sits beside that door rather than under a heading of its own. This
+ * scope does not claim that other cities have no listed prices.
  */
 export const PLACES_WAITLIST_LABEL = "Want your city next? Tell us.";
 export const PLACES_WAITLIST_HREF = `${HELLO_MAILTO}?subject=City%20request`;
@@ -74,10 +72,10 @@ export const PLACES_SHOW_ALL_LABEL = "Clear the search";
 export const PLACES_SEARCH_LABEL = "Find a town";
 export const PLACES_SEARCH_PLACEHOLDER = "Search a town";
 
-/** The section under the head: the UK map, which shows pubs without prices. */
+/** The section under the head: a town lookup and the UK map. */
 export const PLACES_UK_TITLE = "Pubs elsewhere in the UK";
 export const PLACES_UK_LINE =
-  "Outside London the map shows the pubs, without prices yet. Find a town to open it there.";
+  "Find a town to browse the pubs on the map. Price coverage varies by place.";
 
 /** The one primary action a city panel offers. */
 export const PLACES_SET_CITY_LABEL = "Set as my city";

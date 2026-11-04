@@ -16,12 +16,11 @@ test("mobile city chooser keeps choices tappable and opens the selected city map
   const response = await page.goto("/places");
   expect(response?.status()).toBe(200);
 
-  // ONE CITY SAYS SO (taste plan, 18 Oct 2026): the list view names London as
-  // the only city with listed prices and paints ONE door to it, the Screen
+  // The list view keeps London first and paints ONE door to it, the Screen
   // primary, with the city request beside it. The town lookup keeps its own
   // heading below. So the choices a thumb has at rest are that door and the
   // request, and every town row once a search answers.
-  await expect(page.getByRole("heading", { level: 1, name: "London only, for now." })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "London first." })).toBeVisible();
   const door = page.locator("main [data-primary-action]").getByRole("link", { name: "Open London" });
   await expect(door).toBeVisible();
   await expect(door).toHaveAttribute("href", /\/places\?city=london/);

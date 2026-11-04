@@ -74,13 +74,10 @@ import "./places.css";
  * map and Near open on. It is not a tab (Oct 2026 UX audit): the map's city
  * chip and the footer's "Pick your city" reach it.
  *
- * ONE CITY SAYS SO (taste plan, 18 Oct 2026). With London the only city that
- * has listed prices, a city search field over a one-row city list read as a
- * multi-city product that was not there. The list view now says plainly
- * "London only, for now", paints one door (Open London) and offers the city
- * request beside it. What the old field did that was real stays, under its own
- * heading: a town lookup that opens the UK map, where pubs show without
- * prices. Every other city still answers by `?city=` and on its own map.
+ * London keeps the first planning door (Open London), with the city request
+ * beside it. The town lookup opens the UK map under its own heading. This
+ * London-first scope does not claim that other cities have no listed prices.
+ * Every other city still answers by `?city=` and on its own map.
  *
  * Two views in one route, keyed off `?city=`, so Back is the browser's own and a
  * chosen city is a link somebody can send. Each view is ONE `Screen`, which is
