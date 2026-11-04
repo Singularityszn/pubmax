@@ -530,7 +530,12 @@ describe("POST /api/pub-pal/chat", () => {
     expect(body).toEqual(await cold.json());
   });
 
-  it("keeps the prior area for a keyless short refinement", async () => {
+  it.each([
+    ["pubs in Camden", "somewhere quiet"],
+    ["Find pubs in Camden", "somewhere quiet and please include sources and dates for every price you quote"],
+    ["Find pubs in Camden and show the source and date for any price you use", "somewhere quiet"],
+    ["Find pubs and show the source and date for any price you use", "somewhere quiet"],
+  ])("keeps discovery through a keyless short refinement: %s / %s", async (prior, query) => {
     vi.stubEnv("ELEVENLABS_API_KEY", "");
     vi.stubGlobal("fetch", offlineFetch);
     const response = await POST(
@@ -538,19 +543,23 @@ describe("POST /api/pub-pal/chat", () => {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          query: "somewhere quiet",
+          query,
           cityId: "london",
           turns: [
-            { role: "user", content: "pubs in Camden" },
-            { role: "assistant", content: "Here are some pubs in Camden." },
+            { role: "user", content: prior },
+            { role: "assistant", content: "Here are some listed pubs." },
           ],
         }),
       }),
     );
     expect(response.status).toBe(200);
     const body = await response.json();
+    expect(body.toolsUsed).toEqual(["search_venues"]);
     expect(body.cards.length).toBeGreaterThan(0);
-    for (const card of body.cards) expect(card.place).toMatch(/Camden/i);
+    if (prior.includes("Camden")) {
+      for (const card of body.cards) expect(card.place).toMatch(/Camden/i);
+    }
+    expect(body.answer).not.toContain("not prices for that item");
   });
 
   it.each([

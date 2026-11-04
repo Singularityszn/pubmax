@@ -24,6 +24,19 @@ function row(over: Partial<WhatsOnRow>): WhatsOnRow {
 }
 
 describe("detectWhatsOnIntent", () => {
+  it.each([
+    ["What's on in Soho on Friday", { window: "weekday", weekday: 5, area: "Soho" }],
+    ["quiz on Thursday in Camden", { kind: "quiz", window: "weekday", weekday: 4, area: "Camden" }],
+    ["live music in Soho tonight", { kind: "music", window: "tonight", area: "Soho" }],
+  ] as const)("keeps the requested listing kind, day and area beside evidence: %s", (request, expected) => {
+    const evidence = "Show the source and date for any price you use tonight";
+    for (const boundary of [". ", "? ", "; ", ", ", " and "]) {
+      expect(detectWhatsOnIntent(`${request}${boundary}${evidence}.`)).toEqual(expected);
+      expect(detectWhatsOnIntent(`${evidence}${boundary}${request}`)).toEqual(expected);
+      expect(detectWhatsOnIntent(`${evidence}${boundary}${request}${boundary}Include the map.`)).toEqual(expected);
+    }
+  });
+
   it("matches by kind and recognises tonight", () => {
     expect(detectWhatsOnIntent("quiz tonight near me")).toMatchObject({
       kind: "quiz",

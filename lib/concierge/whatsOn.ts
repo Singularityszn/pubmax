@@ -9,6 +9,7 @@
 // shaping). The route feeds it rows loaded from lib/whatsOnStore so this stays
 // cheap and testable with no server imports.
 
+import { semanticAskRequest } from "@/lib/ask/requestPolicy";
 import {
   WHATS_ON_KINDS,
   whatsOnBarePriceGbp,
@@ -60,7 +61,7 @@ const WEEKDAYS: Record<string, number> = {
 
 function detectArea(text: string): string | undefined {
   const match = text.match(
-    /\b(?:near|around|in|at)\s+([\p{L}][\p{L}' .-]*?)(?=\s+(?:tonight|today|tomorrow|this|for|on|at|under|with)\b|\s*,|[.!?]|$)/iu,
+    /\b(?:near|around|in|at)\s+([\p{L}][\p{L}' .-]*?)(?=\s+(?:tonight|today|tomorrow|this|for|on|at|under|with)\b|\s*,|[.!?;]|$)/iu,
   );
   const area = match?.[1]?.trim().replace(/\s+/g, " ");
   if (!area || NON_AREA.test(area)) return undefined;
@@ -74,6 +75,7 @@ function detectArea(text: string): string | undefined {
  * phrasing.
  */
 export function detectWhatsOnIntent(text: string): WhatsOnQuery | null {
+  text = semanticAskRequest(text);
   const kind = detectKind(text);
   const hasPhrase = WHATS_ON_PHRASE.test(text);
   if (!kind && !hasPhrase) return null;

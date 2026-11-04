@@ -10,7 +10,7 @@ import { OPENING_EVIDENCE_FRESH_DAYS } from "@/lib/planRouteEvidence";
 import { planOpeningSchedulesForVenues } from "@/lib/planRouteEvidence.server";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 import { wordsOnly } from "@/lib/ask/placePhrases";
-import { askRequestClauses } from "@/lib/ask/router";
+import { askRequestClauses, semanticAskRequest } from "@/lib/ask/requestPolicy";
 import { venueSearchNames } from "@/lib/venueSearchNames.mjs";
 import type { AskToolContext, AskToolResult } from "@/lib/ask/toolContract";
 import type { AskSource } from "@/lib/ask/types";
@@ -28,6 +28,7 @@ function hoursLines(hours: WeeklyOpeningHours): string[] {
 }
 
 function requestedHoursVenue(query: string, venues: ConciergeVenue[]): ConciergeVenue | null {
+  query = semanticAskRequest(query);
   const hoursClauses = askRequestClauses(query).filter((clause) => /\b(?:opening|closing)\s+(?:hours|times)\b/i.test(clause));
   if (hoursClauses.length > 1) return null;
   const hoursClause = hoursClauses[0] ?? query;

@@ -58,7 +58,10 @@ describe("routeAskDeterministically", () => {
       expect(resolveAskJourney(wrap("Directions to Mr. Fogg's from London Bridge."))).toEqual({ from: "London Bridge", to: "Mr. Fogg's" });
       expect(socialTurnKind(wrap("Hello mate."))).toBe("greeting");
       const followUp = wrap("somewhere quiet");
-      expect(refineRoutedAskQuery(followUp, wrap("pubs in Camden"))).toBe(`${followUp} in Camden`);
+      const refined = refineRoutedAskQuery(followUp, wrap("pubs in Camden"));
+      expect(refined).toContain(followUp);
+      expect(semanticAskRequest(refined).replace(/\s+/g, " ")).toBe("in Camden, somewhere quiet");
+      expect(routeAskDeterministically(refined)).toEqual([{ name: "search_venues", args: { query: refined, limit: 4 } }]);
       const budget = wrap("Same area, under £6.50 a pint.");
       expect(refineRoutedAskQuery(budget, wrap("Find four pubs in Soho."))).toBe(wrap("pubs in Soho, under £6.50 a pint."));
     }
@@ -526,8 +529,23 @@ describe("routeAskDeterministically: Pub Pal V0.1 concierge tools", () => {
 
   it("still borrows a substantive prior turn's place for a short follow-up", () => {
     expect(refineRoutedAskQuery("somewhere quiet", "pubs in Camden")).toBe(
-      "somewhere quiet in Camden",
+      "in Camden, somewhere quiet",
     );
+  });
+
+  it.each([
+    ["Find pubs in Camden", "somewhere quiet and please include sources and dates for every price you quote", "in Camden, somewhere quiet"],
+    ["Find pubs in Camden and show the source and date for any price you use", "somewhere quiet", "in Camden, somewhere quiet"],
+    ["Find pubs and show the source and date for any price you use", "somewhere quiet", "Find pubs somewhere quiet"],
+    ["Find pubs and show the source and date for any price you use", "somewhere quiet and please include sources and dates for every price you quote", "Find pubs somewhere quiet"],
+    ["Find pubs in Camden", "Show the source and date for any price you use; somewhere romantic", "in Camden, somewhere romantic"],
+  ])("preserves discovery across follow-up joins: %s / %s", (prior, query, semantic) => {
+    const refined = refineRoutedAskQuery(query, prior);
+    expect(refined).toContain(query);
+    if (!prior.includes("Camden")) expect(refined).toContain(prior);
+    expect(semanticAskRequest(refined).replace(/\s+/g, " ").trim()).toBe(semantic);
+    expect(unsupportedPriceComparison(refined)).toBeNull();
+    expect(routeAskDeterministically(refined)).toEqual([{ name: "search_venues", args: { query: refined, limit: 4 } }]);
   });
 
   it.each(["Same area, but under £6.50 a pint.", "In the same area but under £6.50 please"])("keeps a longer budget refinement in the discovered area: %s", (query) => {

@@ -377,8 +377,8 @@ export function refineRoutedAskQuery(
   const current = routeAskDeterministically(query);
   if (current.some((call) => call.name !== "search_venues")) return query;
   const priorPlace = extractArea(semanticAskRequest(priorUserContent));
-  if (priorPlace) return `${query} in ${priorPlace}`;
-  return `${priorUserContent} - ${query}`;
+  if (priorPlace) return `in ${priorPlace}, ${query}`;
+  return `${priorUserContent}; ${query}`;
 }
 
 function stripIntentWords(query: string): string {

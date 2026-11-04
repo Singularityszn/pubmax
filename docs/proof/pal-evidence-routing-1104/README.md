@@ -275,3 +275,63 @@ No formal lint or compiler result is claimed.
 The Node diagnostic does not replace those checks.
 These results describe modified source derived from the starting head, not a pipeline-validated commit.
 The temporary diagnostic was removed after its run.
+
+## Review findings R7, R8 and R9
+
+This round started at `87d8c065470c1a99328c1859707e29c0eca3a23c`.
+The diagnostic executed exported functions before source edits.
+R7 already selected `search_venues` for the reported mood-only request, with and without evidence instructions.
+Its complete raw query remained in the tool arguments.
+
+R8 and R9 still failed at this head.
+
+| Public function and request | Before this repair | After this repair |
+| --- | --- | --- |
+| Refine `somewhere quiet and please include sources and dates for every price you quote` after `Find pubs in Camden`, then route | Unsupported price refusal and zero tool calls | `search_venues`, quiet preference and Camden area |
+| Refine `somewhere quiet` after an unpunctuated `Find pubs and Show the source and date for any price you use`, then route | Unsupported price refusal and zero tool calls | `search_venues` and quiet preference |
+| Detect listings for `What's on in Soho on Friday. Show the source and date for any price you use tonight.` | Tonight window | Friday window, weekday 5, in Soho |
+| Read hours for `What are the opening hours at The Lamb; show the source and date for any price you use.` | Requested a pub name and returned no cards | Returned the controlled hours fixture and its source date |
+
+Inherited context must not extend a presentation clause.
+This invariant covers both follow-up joins, current and prior presentation clauses, budgets and named subjects.
+The area now precedes the complete current question.
+When the prior turn supplies the wider request, a semicolon separates the complete turns.
+The budget refinement path remains unchanged.
+
+Presentation wording must not change a requested listing day, listing kind, area or named hours subject.
+Both consumer parsing boundaries now use the shared import-free presentation policy.
+`detectWhatsOnIntent` covers routing and the actual listing tool consumer.
+The named-hours parser covers every `searchVenueHours` caller without changing the raw tool context.
+The authorised source extension adds `lib/concierge/whatsOn.ts` and `lib/ask/venueHours.server.ts`.
+Their existing test files provide the additional public-function and hours regression cases.
+No change was made to `tools.ts`, `types.ts`, PR2502 files or the separate caption assertion.
+
+Source tracing covered every caller of the changed functions.
+It covered Ask execution, typed chat, client refinement and the provider record-query path.
+It also covered listing filtering, named-hours disambiguation, missing hours and ordinary successful routing.
+No branch, parameter or helper became unreachable.
+The hours module now imports clause parsing directly from its policy owner.
+
+The first final diagnostic found another separator case in the listing consumer.
+A semicolon after the area prevented area detection after presentation removal.
+The existing area boundary now accepts that separator.
+The regression cases cover leading, trailing and consecutive instructions across all five documented separators.
+
+The final Node diagnostic passed 4,709 assertions on the modified source.
+It checked both follow-up joins, semantic preferences, original query retention, explicit budgets and genuine romantic preferences.
+It also checked listing days and kinds, named pint routing, discovery counts, planning and punctuation-bearing journey endpoints.
+All 174 qualified-price fixtures retained their existing coverage codes beside presentation instructions.
+Hours checks retained source dates, missing-record honesty and duplicate-name disambiguation.
+
+The diagnostic used Node's TypeScript stripping and local alias and JSON resolution.
+It substituted unavailable provider imports and controlled hours storage boundaries.
+The Lamb hours record was a local test fixture, not evidence about the real pub.
+No provider or live network call supplied these results.
+The temporary diagnostic was removed after the run.
+
+The focused six-suite Vitest command exited 127 because `node_modules/.bin/vitest` was absent.
+The new HTTP-handler and Vitest regression cases remain unexecuted.
+No formal lint or type result is claimed.
+The configured Test phase owns dependency preparation and formal validation before publication.
+Provider-backed replies and production browser results remain unverified.
+These results describe modified source derived from the starting head, not a pipeline-validated commit.

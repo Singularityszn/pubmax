@@ -55,6 +55,22 @@ function post(body: unknown, ip: string): Promise<Response> {
 }
 
 describe("POST /api/ask", () => {
+  it.each([
+    ["Find pubs in Camden", "somewhere quiet and please include sources and dates for every price you quote"],
+    ["Find pubs in Camden and show the source and date for any price you use", "somewhere quiet"],
+    ["Find pubs and show the source and date for any price you use", "somewhere quiet"],
+  ])("keeps discovery cards after an evidence-bearing follow-up: %s / %s", async (prior, query) => {
+    const response = await post({ query, cityId: "london", turns: [{ role: "user", content: prior }] }, "203.0.113.186");
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(body.toolsUsed).toEqual(["search_venues"]);
+    expect(body.cards.length).toBeGreaterThan(0);
+    if (prior.includes("Camden")) {
+      expect(body.cards.every((card: { place: string }) => /Camden/i.test(card.place))).toBe(true);
+    }
+    expect(body.answer).not.toContain("not prices for that item");
+  });
+
   it("keeps mood-only discovery beside evidence and map instructions", async () => {
     const request = "Quiet-ish near Bank, 4 of us.";
     const queries = [request, `Show the source and date for any price you use. ${request}`, `${request} Show the map.`, `${request} Show sources for any price you use and include the date. Include the map.`];

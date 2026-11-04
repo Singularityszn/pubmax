@@ -30,6 +30,19 @@ afterEach(() => {
 });
 
 describe("recorded opening-hours sources", () => {
+  it.each([". ", "? ", "; ", ", ", " and "])("keeps named hours and their source beside evidence separated by %s", async (boundary) => {
+    io.venues.mockResolvedValue([{ id: "venue-lamb", name: "The Lamb", area: "Bloomsbury", lat: 51.5, lng: -0.1 }]);
+    io.detail.mockResolvedValue({ status: "found", venue: { siteFacts: site } });
+    const request = "What are the opening hours at The Lamb";
+    const evidence = "Show the source and date for any price you use";
+    for (const query of [`${request}${boundary}${evidence}.`, `${evidence}${boundary}${request}`, `${evidence}${boundary}${request}${boundary}Include the map.`]) {
+      const body = await runAsk({ query, now, skipModel: true });
+      expect(body.answer).toContain("The Lamb: recorded regular opening hours: Thursday 12:00 to 23:00");
+      expect(body.cards.map((card) => card.venueId)).toEqual(["venue-lamb"]);
+      expect(body.sources).toContainEqual(expect.objectContaining({ label: "The Lamb website. Checked 2026-10-20", url: site.sourceUrl }));
+    }
+  });
+
   it.each(["pub", "bar", "venue", "place"])("keeps a %s description inside a name or alias", async (kind) => {
     const name = `Example Arms: A Friendly ${kind}`;
     const sourceName = `Example Arms: A Local ${kind}`;
