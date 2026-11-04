@@ -1760,3 +1760,98 @@ it("reports an exact-time edit if an empty request cannot restore it", async () 
   await remountComposer();
   expect(document.querySelector<HTMLInputElement>("#plan-time")?.value).not.toBe(chosen);
 });
+
+
+type SaveMatrixField = "count" | "description" | "time-preset" | "time-no-preset" | "title" | "name";
+type SaveMatrixMode = "intake-only-empty" | "session-only-valid" | "neither-empty" | "neither-valid" | "both-valid";
+const saveMatrixFields: SaveMatrixField[] = ["count", "description", "time-preset", "time-no-preset", "title", "name"];
+const saveMatrixModes: SaveMatrixMode[] = ["intake-only-empty", "session-only-valid", "neither-empty", "neither-valid", "both-valid"];
+
+function saveMatrixExpectedValue(field: SaveMatrixField): string {
+  if (field === "count") return "5";
+  if (field === "description") return "Quiet in Clapham tonight";
+  if (field === "time-preset") return "2026-11-03T20:00";
+  if (field === "time-no-preset") return "2026-11-04T21:30";
+  return field === "title" ? "Our Friday" : "Captain";
+}
+
+function saveMatrixSelector(field: SaveMatrixField): string {
+  if (field === "count") return "#plan-context-stops";
+  if (field === "description") return "#plan-concierge-query";
+  if (field === "time-preset" || field === "time-no-preset") return "#plan-time";
+  return field === "title" ? "#plan-title" : "#plan-name";
+}
+
+function saveMatrixPublicReads(field: SaveMatrixField) {
+  const intake = readPlanIntakeDraftWithMetadata(localStorage);
+  const session = readPlanDraftEnvelope(sessionStorage);
+  const expected = saveMatrixExpectedValue(field);
+  let intakeValue: unknown;
+  let sessionValue: unknown;
+  if (field === "count") {
+    intakeValue = intake?.draft.answers.stopCount === undefined ? undefined : String(intake.draft.answers.stopCount);
+    sessionValue = session?.draft.requestedStopCount === undefined ? undefined : String(session.draft.requestedStopCount);
+  } else if (field === "description") sessionValue = session?.draft.conciergeQuery;
+  else if (field === "title") sessionValue = session?.draft.title;
+  else if (field === "name") sessionValue = session?.draft.creatorName;
+  else {
+    intakeValue = intake?.draft.answers.exactStartIso?.slice(0,16);
+    sessionValue = session?.draft.startTime;
+  }
+  return { intakeValue, sessionValue, intakeCarriesEdit: intakeValue === expected, sessionCarriesEdit: sessionValue === expected };
+}
+
+it.each(saveMatrixFields.flatMap((field) => saveMatrixModes.map((mode) => ({ field, mode }))))(
+  "public recovery matrix $field / $mode",
+  async ({ field, mode }) => {
+    const advance = pinClock();
+    const completed = skipRemainingPlanIntake(createPlanIntakeDraft());
+    const preset = field === "time-preset";
+    const intake = {
+      ...completed,
+      skippedSteps: preset ? completed.skippedSteps.filter((step) => step !== "time-window") : completed.skippedSteps,
+      answers: { ...completed.answers, stopCount: 3 as const, stopCountSource: "picker" as const,
+        ...(preset ? { timeWindow: "evening" as const, exactStartIso: "2026-11-03T19:00:00.000Z" } : {}) },
+    };
+    expect(writePlanIntakeDraft(intake, localStorage, T0)).toBe(true);
+    const validSession = mode.endsWith("valid");
+    if (validSession) {
+      expect(writePlanDraftEnvelope({
+        title: "Initial night", creatorName: "Initial host", startTime: START,
+        conciergeQuery: "", requestedStopCount: 3, requestedStopCountSource: "picker", routeReference: null,
+        stops: [{ key: 1, venueId: "venue-a", venueName: "Pub A" }],
+      }, "manual", sessionStorage, T0)).toMatchObject({ v1: true, v2: true });
+    }
+    if (mode === "session-only-valid") rejectRouteWrites([PLAN_INTAKE_STORAGE_KEY]);
+    if (mode === "neither-empty" || mode === "neither-valid") {
+      blockStorageWrites("localStorage");
+      blockStorageWrites("sessionStorage");
+    }
+    await mountComposer();
+    advance(1000);
+    const selector = saveMatrixSelector(field);
+    const value = saveMatrixExpectedValue(field);
+    expect(document.querySelector<HTMLInputElement | HTMLSelectElement>(selector), "Field is editable before stops, or in the valid Session control").not.toBeNull();
+    if (field === "count") {
+      await act(async () => {
+        const select = document.querySelector<HTMLSelectElement>(selector)!;
+        select.value = value;
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+      await settle();
+    } else await editInput(selector, value);
+    expect(document.querySelector<HTMLInputElement | HTMLSelectElement>(selector)?.value).toBe(value);
+    const notice = [...document.querySelectorAll("[role='alert']")].map((el) => el.textContent).join(" ");
+    const warned = notice.includes("could not be saved");
+    const reads = saveMatrixPublicReads(field);
+    await remountComposer();
+    if (!document.querySelector(selector) && (field === "count" || field === "description")) await openTune();
+    const restoredValue = document.querySelector<HTMLInputElement | HTMLSelectElement>(selector)?.value;
+    const restored = restoredValue === value;
+    const expectedRestoration = mode === "both-valid" || mode === "session-only-valid"
+      || (mode === "intake-only-empty" && (field === "count" || field === "time-preset"));
+    expect.soft(restored, "Actual mounted reload must preserve every field supported by a successful reader").toBe(expectedRestoration);
+    expect.soft(reads.intakeCarriesEdit || reads.sessionCarriesEdit, "Public readers must carry an edit that reload restores").toBe(restored);
+    expect.soft(warned, "The warning must describe an edit actually lost on reload").toBe(!restored);
+  },
+);

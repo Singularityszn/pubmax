@@ -894,6 +894,16 @@ function samePlanRequest(left: StoredPlanDraft, right: StoredPlanDraft | null | 
     .every((field) => JSON.stringify(left[field]) === JSON.stringify(right[field])));
 }
 
+function sessionRequiredRequestChanged(draft: StoredPlanDraft, recovered: StoredPlanDraft, intakeSaved: boolean): boolean {
+  const savedExactStart = intakeSaved ? readPlanIntakeDraftWithMetadata()?.draft.answers.exactStartIso : null;
+  return !samePlanRequest({
+    ...draft,
+    startTime: savedExactStart && londonDateTimeInputFromIso(savedExactStart) === draft.startTime ? recovered.startTime : draft.startTime,
+    requestedStopCount: recovered.requestedStopCount,
+    requestedStopCountSource: recovered.requestedStopCountSource,
+  }, recovered);
+}
+
 function savedSessionRequestChanged(draft: StoredPlanDraft, session: ReturnType<typeof readPlanDraftEnvelope>, intake: ReturnType<typeof readPlanIntakeDraftWithMetadata>): boolean {
   if (!session || samePlanRequest(draft, session.draft)) return false;
   return !intake || Date.parse(session.savedAt ?? "") >= Date.parse(intake.savedAt);
@@ -2170,11 +2180,6 @@ function PlanComposerForm({
       acceptedAnchor: recoveredDraft?.acceptedAnchor,
       stops: [],
     };
-    const sessionRequestChanged = !samePlanRequest({
-      ...sessionDraft,
-      requestedStopCount: recoveredIntent.stopCount,
-      requestedStopCountSource: recoveredIntent.stopCountSource,
-    }, recoveredRequest);
     const requestChanged = intakeChanged || Boolean(recoveredDraft && intakeWasEdited && !sameIntake)
       || Boolean(recoveredDraft && savedSessionRequestChanged(sessionDraft, previousSession, previousIntake))
       || !samePlanRequest(sessionDraft, recoveredRequest);
@@ -2187,6 +2192,7 @@ function PlanComposerForm({
     const intakeSaved = hasDurableIntakeDraft || intakeChanged || (!previousIntake && requestedStopCount !== undefined)
       ? writePlanIntakeDraft(planIntake, undefined, sessionSavedAt, sessionDraft.routeReference)
       : false;
+    const sessionRequestChanged = sessionRequiredRequestChanged(sessionDraft, recoveredRequest, intakeSaved);
     const hasStops = stops.some((stop) => stop.venueId || stop.venueName);
     const hasWork = intakeChanged || hasStops;
     let cancelled = false;
