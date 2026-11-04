@@ -77,9 +77,9 @@ frame.
 5. The route Plan builds around it (The Pheonix, The Stonhouse, The Belle
    Vue), "Lock it in" and "Send to the crew".
 
-The cut does not use the Pal's "Open in Plan" draft. That button carries the
-ask over to Plan, not the drafted stops, so Plan can answer with other pubs.
-Showing the draft and then a different route would misdescribe the product.
+The cut uses the explicit first-pub path. The separate "Open in Plan" path
+checks the drafted pubs, then explains whether it kept the draft or used a
+fallback. An accepted first pub remains held until the reader releases it.
 
 ## Sound
 
@@ -106,6 +106,14 @@ npm i --prefix /tmp/remotion-renderer @remotion/renderer@4.0.539 @remotion/bundl
 
 Then render from the repository root:
 
+Set the browser path before either rendering or capture. Use an installed
+Chromium browser. The scripts stop if the path is missing. They do not assume
+a container-specific path or download a browser.
+
+```bash
+export PLAYWRIGHT_CHROMIUM="/absolute/path/to/installed/chromium"
+```
+
 ```bash
 REMOTION_RENDERER_DIR=/tmp/remotion-renderer node video/launch/render.mjs
 ```
@@ -124,16 +132,41 @@ To look at single frames while you edit, add `--frames 0,150,449 --frames-only`.
 
 ## Capture the screens again
 
-Build and serve a keyless production build on a private port, then run the
-capture script against it:
+The capture scripts save a plan for Alex. Use a fresh worktree and a private
+loopback server. They refuse a hosted URL. A loopback address alone does not
+isolate the server's database. Before opening a browser, each script also
+requires `/api/health` to report `database: "not_configured"`.
+
+Run the following exports in a dedicated shell before both build and server
+commands. Explicit empty values prevent Next from loading configured values
+from environment files. Keep this shell separate from normal development.
+Do not copy, print or edit credentials.
+
+```bash
+export SUPABASE_URL="" SUPABASE_SERVICE_ROLE_KEY=""
+export NEXT_PUBLIC_SUPABASE_URL="" NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=""
+export OPENROUTER_API_KEY="" ANTHROPIC_API_KEY=""
+export ELEVENLABS_API_KEY="" ELEVENLABS_PUB_PAL_AGENT_ID=""
+export VERCEL_ENV="" NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN=""
+export PUBMAX_E2E_KEYLESS=1 NEXT_PUBLIC_POSTHOG_E2E_ALLOW_BOT=1
+export PLAN_IDEMPOTENCY_SECRET="$(openssl rand -base64 32)"
+export RATE_LIMIT_SALT=video-capture-rate-limit-salt-32-chars
+```
+
+With Supabase credentials empty, the captured plan stays in the process's
+memory. `PUBMAX_E2E_KEYLESS=1` alone does not override configured Supabase.
+Build and serve from that same shell:
 
 ```bash
 NODE_OPTIONS=--max-old-space-size=8192 NEXT_DIST_DIR=.next-prod NEXT_PUBLIC_SW_VERSION=local PUBMAX_TRACKED_OUTPUTS=public/data node scripts/run-with-restored-next-env.mjs npm run build
 ```
 
 ```bash
-NEXT_DIST_DIR=.next-prod PUBMAX_E2E_KEYLESS=1 PLAN_IDEMPOTENCY_SECRET=$(openssl rand -base64 32) RATE_LIMIT_SALT=video-capture-rate-limit-salt-32-chars npx next start -p 34567 -H 127.0.0.1
+NEXT_DIST_DIR=.next-prod npx next start -p 34567 -H 127.0.0.1
 ```
+
+In a second shell, set `PLAYWRIGHT_CHROMIUM` to the same installed browser.
+Run either capture against that isolated server:
 
 ```bash
 PUBMAX_CAPTURE_BASE=http://127.0.0.1:34567 node video/launch/capture-screens.mjs

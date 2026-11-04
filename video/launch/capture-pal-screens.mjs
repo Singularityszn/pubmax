@@ -13,16 +13,15 @@
 //      "Send to the crew".
 //
 // The route starts at the pub the Pal picked, so every screen in the cut is
-// one consistent journey. (The Pal's "Open in Plan" draft carries the ask
-// over, not its stops, so Plan can answer it with other pubs; the cut does
-// not use it.)
+// one consistent journey. This cut uses the explicit first-pub path.
+// "Open in Plan" separately checks the drafted pubs and explains any fallback.
 //
 // It writes pal-screens.json beside the captures: the position of each control
 // the video points at, read from the page.
 //
 //   PUBMAX_CAPTURE_BASE=http://127.0.0.1:34567 node video/launch/capture-pal-screens.mjs
 
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { env, exit } from "node:process";
@@ -32,6 +31,23 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "..", "..");
 const OUT = join(HERE, "public", "screens");
 const BASE = env.PUBMAX_CAPTURE_BASE ?? "http://127.0.0.1:34567";
+const captureUrl = new URL(BASE);
+if (captureUrl.protocol !== "http:" || !["127.0.0.1", "localhost", "[::1]"].includes(captureUrl.hostname)
+  || captureUrl.username || captureUrl.password) {
+  throw new Error("Capture needs an isolated loopback server. See video/launch/README.md.");
+}
+const executablePath = env.PLAYWRIGHT_CHROMIUM;
+if (!executablePath || !existsSync(executablePath)) {
+  throw new Error("Set PLAYWRIGHT_CHROMIUM to an installed Chromium browser before capture.");
+}
+const healthResponse = await fetch(new URL("/api/health", captureUrl), {
+  redirect: "error",
+  signal: AbortSignal.timeout(5000),
+});
+const health = await healthResponse.json();
+if (!healthResponse.ok || health?.ok !== true || health?.database !== "not_configured") {
+  throw new Error("Capture requires a server with no configured database. See video/launch/README.md.");
+}
 const SCALE = 3;
 const ASK = "Quick one after work in Clapham under £5";
 const PLAN_ASK = "Three pubs in Clapham for 4, not pricey";
@@ -43,7 +59,7 @@ const require = createRequire(join(ROOT, "package.json"));
 const { chromium } = require("@playwright/test");
 
 const browser = await chromium.launch({
-  executablePath: env.PLAYWRIGHT_CHROMIUM ?? "/opt/pw-browsers/chromium",
+  executablePath,
   args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
 });
 const context = await browser.newContext({

@@ -21,13 +21,17 @@
 // pubmaxx-launch or pubmaxx-pubpal.
 
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { argv, env, exit } from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "..", "..");
+const executablePath = env.PLAYWRIGHT_CHROMIUM;
+if (!executablePath || !existsSync(executablePath)) {
+  throw new Error("Set PLAYWRIGHT_CHROMIUM to an installed Chromium browser before rendering.");
+}
 
 function option(name, fallback) {
   const at = argv.indexOf(`--${name}`);
@@ -94,7 +98,7 @@ mkdirSync(out, { recursive: true });
 // GL, as for the Pal stage render.
 const browser = {
   serveUrl,
-  browserExecutable: env.PLAYWRIGHT_CHROMIUM ?? "/opt/pw-browsers/chromium",
+  browserExecutable: executablePath,
   chromiumOptions: { gl: "swangle" },
 };
 

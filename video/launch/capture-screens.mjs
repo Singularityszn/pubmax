@@ -17,7 +17,7 @@
 // planner answers from the committed data, so the stops, prices and dates in
 // the captures are the ones the app shows for that data on the capture day.
 
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { env, exit } from "node:process";
@@ -27,6 +27,23 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "..", "..");
 const OUT = join(HERE, "public", "screens");
 const BASE = env.PUBMAX_CAPTURE_BASE ?? "http://127.0.0.1:34567";
+const captureUrl = new URL(BASE);
+if (captureUrl.protocol !== "http:" || !["127.0.0.1", "localhost", "[::1]"].includes(captureUrl.hostname)
+  || captureUrl.username || captureUrl.password) {
+  throw new Error("Capture needs an isolated loopback server. See video/launch/README.md.");
+}
+const executablePath = env.PLAYWRIGHT_CHROMIUM;
+if (!executablePath || !existsSync(executablePath)) {
+  throw new Error("Set PLAYWRIGHT_CHROMIUM to an installed Chromium browser before capture.");
+}
+const healthResponse = await fetch(new URL("/api/health", captureUrl), {
+  redirect: "error",
+  signal: AbortSignal.timeout(5000),
+});
+const health = await healthResponse.json();
+if (!healthResponse.ok || health?.ok !== true || health?.database !== "not_configured") {
+  throw new Error("Capture requires a server with no configured database. See video/launch/README.md.");
+}
 const SCALE = 3;
 /** The pub the video features: the cheapest pin in the Clapham view. */
 const PUB_ID = env.PUBMAX_CAPTURE_PUB ?? "venue-e3z1ob";
@@ -38,7 +55,7 @@ const require = createRequire(join(ROOT, "package.json"));
 const { chromium } = require("@playwright/test");
 
 const browser = await chromium.launch({
-  executablePath: env.PLAYWRIGHT_CHROMIUM ?? "/opt/pw-browsers/chromium",
+  executablePath,
   args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
 });
 const context = await browser.newContext({

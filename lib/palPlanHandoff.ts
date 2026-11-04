@@ -12,7 +12,7 @@
 // Pure: no storage, no fetch, no clock.
 
 import type { PlanGenerationAnchorInput } from "@/lib/planIntake";
-import { MAX_PLAN_STOP_COUNT, normalizePlanStopCount, type PlanStopCount } from "@/lib/planStopCount";
+import { MAX_PLAN_STOP_COUNT, MIN_PLAN_STOP_COUNT, normalizePlanStopCount, type PlanStopCount } from "@/lib/planStopCount";
 
 /** A crawl drafted by an ask, as Plan reads it back from the session draft. */
 export type PalPlanDraft = {
@@ -24,7 +24,7 @@ export type PalPlanDraft = {
 };
 
 /** How much of a draft a generation attempt is trying to keep. */
-export type PalDraftKeep = "all" | "first" | "none";
+export type PalDraftKeep = "all" | "first" | "held" | "none";
 
 export type PalDraftAttempt = {
   keeps: PalDraftKeep;
@@ -33,7 +33,7 @@ export type PalDraftAttempt = {
   context: { stopCount?: PlanStopCount };
 };
 
-/** A three-stop crawl at least, as the anchored generator requires. */
+/** Pub Pal proposes crawls with at least three stops. Plan can request fewer. */
 const MIN_DRAFT_STOPS = 3;
 const VENUE_ID = /^[A-Za-z0-9:_-]{1,128}$/;
 
@@ -80,7 +80,8 @@ export function palPlanDraftFor(raw: string | null, ask: string | null): PalPlan
 /**
  * The generation attempts for one ask, in order. Without a draft it is the one
  * attempt Plan always made. With one: keep every drafted pub, then keep the
- * first and choose the rest, then plan from the ask as before.
+ * first and choose the rest, then plan from the ask as before. An accepted
+ * first pub or pub list takes priority over a conflicting draft.
  */
 export function palDraftAttempts(
   draft: PalPlanDraft | null,
@@ -90,13 +91,18 @@ export function palDraftAttempts(
   if (!draft) return [plain];
   const source = draft.origin === "map" ? "map-search" : "pal";
   const first = draft.stopIds[0]!;
+  // A draft cannot release an accepted first pub or replace an accepted list.
+  if (fallbackAnchor && (fallbackAnchor.venueId !== first || fallbackAnchor.venueIds?.length)) {
+    return [{ ...plain, keeps: "held" }];
+  }
+  const anchor: PlanGenerationAnchorInput = fallbackAnchor ?? { venueId: first, source, acceptedArea: null, startsAt: null };
   return [
     {
       keeps: "all",
-      anchor: { venueId: first, source, acceptedArea: null, startsAt: null, venueIds: [...draft.stopIds] },
+      anchor: { ...anchor, venueIds: [...draft.stopIds] },
       context: { stopCount: normalizePlanStopCount(draft.stopIds.length) },
     },
-    { keeps: "first", anchor: { venueId: first, source, acceptedArea: null, startsAt: null }, context: {} },
+    { keeps: "first", anchor, context: {} },
     plain,
   ];
 }
@@ -115,7 +121,8 @@ function stopIdsOf(body: GeneratedBody): string[] {
  * Whether an attempt's answer is the route it was trying for. A plain attempt
  * is always taken as the answer, so its own success and errors read as they
  * always did. A keeping attempt counts only as a full route that kept what it
- * promised; a refusal, a one-pub draft or a conflict moves on to the next.
+ * promised. An anchor-only fallback or a refusal moves to the next attempt.
+ * A requested one-pub meetup can be a complete route.
  */
 export function palDraftAttemptKept(
   attempt: PalDraftAttempt,
@@ -123,10 +130,10 @@ export function palDraftAttemptKept(
   ok: boolean,
   body: GeneratedBody,
 ): boolean {
-  if (attempt.keeps === "none" || !draft) return true;
+  if (attempt.keeps === "none" || attempt.keeps === "held" || !draft) return true;
   if (!ok || !body || body.outcome !== "route") return false;
   const ids = stopIdsOf(body);
-  if (ids.length < MIN_DRAFT_STOPS) return false;
+  if (ids.length < MIN_PLAN_STOP_COUNT) return false;
   if (attempt.keeps === "first") return ids[0] === draft.stopIds[0];
   return ids.length === draft.stopIds.length && draft.stopIds.every((id) => ids.includes(id));
 }
@@ -139,7 +146,9 @@ function listed(names: readonly string[]): string {
 /** The status while Plan checks a draft, or `otherwise` when there is none. */
 export function palDraftCheckingLine(draft: PalPlanDraft | null, otherwise: string): string {
   if (!draft) return otherwise;
-  return `Checking every stop ${draft.origin === "map" ? "in the draft" : "your Pub Pal picked"}.`;
+  return draft.origin === "map"
+    ? "Checking the draft for your night."
+    : "Checking your Pub Pal's draft for your night.";
 }
 
 /**
@@ -159,6 +168,9 @@ export function palDraftRouteLines(
 
 /** The status line that says what Plan did with the draft. */
 export function palDraftOutcomeLine(draft: PalPlanDraft, kept: PalDraftKeep, routeNames: readonly string[]): string {
+  if (kept === "held") {
+    return "Your chosen first pub stays first. Plan built the route from your ask instead of the draft.";
+  }
   const whose = draft.origin === "map" ? "the drafted pubs" : "your Pub Pal's pubs";
   const Whose = whose.charAt(0).toUpperCase() + whose.slice(1);
   if (kept === "all") return `Kept ${whose}: ${listed(routeNames)}.`;
