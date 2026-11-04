@@ -19,7 +19,7 @@ export const BUDGET_EXPLICIT = "explicit figure";
 export const BUDGET_CHEAP = "cheap";
 export const BUDGET_UNSTATED = "unstated";
 
-export const NUMBER_WORDS: Record<string, number> = {
+const NUMBER_WORDS: Record<string, number> = {
   one: 1,
   two: 2,
   three: 3,

@@ -27,7 +27,7 @@ export function stripTrailingQualifiers(phrase: string): string {
 const PRICE_PRESENTATION_FIELD = String.raw`(?:sources?|(?:(?:source|recorded)\s+)?dates?|map)`;
 const PRICE_PRESENTATION_CONTEXT = String.raw`\s+for\s+(?:(?:any|each|every|all|the)\s+)?(?:(?:listed|recorded)\s+)?(?:pint\s+)?prices?(?:\s+(?:(?:that|which)\s+)?you\s+(?:use|show|quote|mention|include))?`;
 const MAP_VIEW_VERBS = String.raw`(?:show|open|see|view|pull up|bring up|load|display|go to|go back to|back to|take me to|take me back to|switch to|get me|give me|let me see)`;
-export const POLITE_COMMAND_PREFIX = String.raw`(?:(?:can|could|would|will)\s+you\s+)?(?:please\s+)?`;
+const POLITE_COMMAND_PREFIX = String.raw`(?:(?:can|could|would|will)\s+you\s+)?(?:please\s+)?`;
 const PRESENTATION_CLAUSE_START = String.raw`(?:^\s*|(?<=[.!?;,]|\band\b)\s*|\s+and\s+)`;
 const GENERIC_MAP_COMMAND = String.raw`(?:\b(?:i\s+want\s+to\s+)?${POLITE_COMMAND_PREFIX}${MAP_VIEW_VERBS}(?:\s+(?:me|up|back|to|the|a|my|pub|whole|full)){0,4}\s+maps?|${PRESENTATION_CLAUSE_START}${POLITE_COMMAND_PREFIX}(?:(?:the|a|my)\s+)?(?:(?:whole|full)\s+)?maps?)(?:\s+view)?(?:\s+for\s+the\s+next\s+(?:stop|pub|bar|one|place))?`;
 const PRESENTATION_CLAUSE_END = String.raw`(?:(?:\s+|\s*,\s*)(?:(?:for\s+)?(?:${TIME_QUALIFIER})|please|then|for me|mate))*\s*(?!and\s+(?:the\s+)?${PRICE_PRESENTATION_FIELD}\b)(?:[.!?;,]+(?:\s+and\b)?|\band\b|(?=(?:for|with)\b)|$)`;

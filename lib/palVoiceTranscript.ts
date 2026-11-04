@@ -16,7 +16,7 @@
 import { palAsksForCurrentMap, palAsksForVenueDiscovery, palMapAskTarget } from "@/lib/palMapAsk";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import { GENERIC_MAP_COMMAND_RE, semanticAskRequest } from "@/lib/ask/requestPolicy";
-import { askHasPriorityOverMap } from "@/lib/ask/router";
+import { askHasPriorityOverMap } from "@/lib/ask/routingPolicy";
 
 export type PalVoiceSpeaker = "you" | "pal";
 
