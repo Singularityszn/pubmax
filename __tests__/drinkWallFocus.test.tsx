@@ -10,12 +10,10 @@ vi.mock("@/lib/authedFetch", () => ({ authedFetch: network.read, authedActionFet
 vi.mock("@/lib/nativePlatform", () => ({ isNativeApp: () => false }));
 vi.mock("@/lib/nativeCamera", () => ({ pickNativePhoto: vi.fn() }));
 vi.mock("@/components/profile/ProfileImageCropper", () => ({ default: () => null }));
-vi.mock("@/components/auth/AuthProvider", () => ({
-  useAuth: () => ({ user: { id: "viewer" }, handle: "viewer", configured: true }),
-}));
-vi.mock("@/components/auth/authContext", () => ({
-  useAuth: () => ({ user: { id: "viewer" } }),
-}));
+vi.mock("@/components/auth/AuthProvider", async () => {
+  const context = await vi.importActual<typeof import("@/components/auth/authContext")>("@/components/auth/authContext");
+  return { useAuth: context.useAuth };
+});
 vi.mock("next/link", () => ({
   default: ({ href, children, ...props }: { href: string; children: React.ReactNode }) =>
     createElement("a", { href, ...props }, children),
@@ -30,10 +28,26 @@ vi.mock("next/image", () => ({
 
 import DrinkWallComposer from "@/components/drink-wall/DrinkWallComposer";
 import DrinkWall from "@/components/drink-wall/DrinkWall";
+import { AuthContext, useAuth, type AuthContextValue } from "@/components/auth/authContext";
 import type { DrinkWallPhotoDTO } from "@/lib/drinkWall";
 
 let host: HTMLDivElement;
 let root: Root;
+
+function WallWithViewer({ id = "viewer-a", revision = 1 }: { id?: string; revision?: number }) {
+  const defaults = useAuth();
+  return createElement(AuthContext.Provider, {
+    value: {
+      ...defaults,
+      user: { id } as NonNullable<AuthContextValue["user"]>,
+      handle: id,
+      configured: true,
+      accountRevision: revision,
+      providerAuthState: "signed-in",
+      getCurrentUserId: () => id,
+    },
+  }, createElement(DrinkWall));
+}
 
 function button(label: string): HTMLButtonElement {
   const found = [...host.querySelectorAll("button")].find((node) => node.textContent === label);
@@ -141,7 +155,7 @@ describe("cancelling an unsent wall photo", () => {
     network.read
       .mockResolvedValueOnce(Response.json({ status: "ready", photos: [], nextCursor: null }))
       .mockImplementationOnce(() => new Promise<Response>((resolve) => { finishRead = resolve; }));
-    await act(async () => root.render(createElement(DrinkWall)));
+    await act(async () => root.render(createElement(WallWithViewer)));
     await activate(button("Add a photo"));
     const filter = [...host.querySelectorAll<HTMLButtonElement>('[aria-label="Photo type"] button')]
       .find((control) => control.textContent === "Pint")!;
@@ -165,7 +179,7 @@ describe("cancelling an unsent wall photo", () => {
       author: { handle: "another-drinker" }, ownedByViewer: false,
     };
     network.read.mockResolvedValue(Response.json({ status: "ready", photos: hasPhotos ? [existing] : [], nextCursor: null }));
-    await act(async () => root.render(createElement(DrinkWall)));
+    await act(async () => root.render(createElement(WallWithViewer)));
     const opener = button("Add a photo");
     await activate(opener);
     await pickPub();
@@ -174,6 +188,27 @@ describe("cancelling an unsent wall photo", () => {
     expect(host.querySelector("textarea")).toBeNull();
     expect(document.activeElement?.tagName).toBe("BUTTON");
     expect(document.activeElement).toBe(opener);
+    expect(network.write).not.toHaveBeenCalled();
+  });
+});
+
+describe("an account change with an unsent photo draft", () => {
+  it("does not carry the previous viewer's caption and linked pub into another account", async () => {
+    network.read.mockResolvedValue(Response.json({ status: "ready", photos: [], nextCursor: null }));
+    await act(async () => root.render(createElement(WallWithViewer)));
+    await activate(button("Add a photo"));
+    await pickPub();
+    const caption = host.querySelector("textarea")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(caption, "Private draft from viewer A");
+      caption.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(caption.value).toBe("Private draft from viewer A");
+
+    await act(async () => root.render(createElement(WallWithViewer, { id: "viewer-b", revision: 2 })));
+
+    expect(host.querySelector("textarea")?.value).not.toBe("Private draft from viewer A");
+    expect(host.textContent).not.toContain("The French House");
     expect(network.write).not.toHaveBeenCalled();
   });
 });

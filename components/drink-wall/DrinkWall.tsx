@@ -262,6 +262,7 @@ export default function DrinkWall() {
 
       {composerOpen && canPost ? (
         <DrinkWallComposer
+          key={user?.id}
           onCancel={() => {
             setComposerOpen(false);
             (addPhotoRef.current ?? wallHeadingRef.current)?.focus();
