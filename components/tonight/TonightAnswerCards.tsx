@@ -145,10 +145,12 @@ function DrinkerNightRow({ night }: { night: DrinkerRegularNight }) {
 
 /**
  * The regular nights, in a block of their own. It is never mixed into the
- * confirmed listings and never called one: its heading says "Regular nights",
+ * confirmed listings and never called one: its summary says "Regular nights",
  * its lead says it is not tonight's listing, and every row names its source and
  * the day that source was read. Nights drinkers added sit in a list of their
  * own under it, each "per a drinker, seen <date>".
+ * Keep the native disclosure mounted through loading, failure, empty and ready
+ * states so read updates preserve the reader's opened state and keyboard focus.
  */
 function TonightRegularNights({ view }: { view: TonightRegularNightsView }) {
   return (
