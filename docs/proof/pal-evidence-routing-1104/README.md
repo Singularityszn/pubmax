@@ -9,7 +9,7 @@ Later repairs add `lib/ask/requestPolicy.ts` and update `lib/concierge/intent.ts
 
 Each review section records its own source state and verification limits.
 Later sections supersede earlier implementation descriptions, including follow-up composition and standalone map handling.
-The final focused verification is recorded under [review repair round 7](#review-repair-round-7-middle-evidence-and-genuine-map-commands).
+The latest focused verification is recorded under [review repair round 8](#review-repair-round-8-greeting-map-commands-and-onboarding-ci).
 
 ## Reproduced request
 
@@ -479,3 +479,94 @@ Generic map navigation remains the existing client decision.
 The server check proves selection of `propose_map_action`, not a new generic map proposal.
 The configured outer Test phase remains authoritative for publication.
 No broad verifier, PostgreSQL proof, build, deployment, migration, push, or merge ran.
+
+## Review repair round 8: greeting map commands and onboarding CI
+
+This round starts at `8b1c121790046a2c50588afbbc43abf490714c35`.
+The earlier source and evidence remain intact.
+The R13 readiness hold remains until independent review accepts this corrected source.
+
+### Invariants and coverage
+
+Evidence removal must preserve genuine map commands beside other text.
+This applies to the public policy, map intent, social classification, deterministic routing, both HTTP handlers, and inherited context.
+Service parsers must preserve discovery constraints, unsupported-item guards, named price subjects, journey endpoints, listing dates, and hours subjects.
+
+The default semantic view now retains standalone map commands.
+Service parsers explicitly request a view without standalone map commands.
+The router uses the map view when the remaining text is empty or social.
+Actual service requests retain their existing routing priority.
+The policy still removes map fields that belong to price-evidence instructions.
+The old map-only fallback array is removed.
+Replies and tool context retain the raw question.
+
+Browser checks must assert actual onboarding content without inventing reviewed-area evidence.
+This applies to caption checks at 390 and 430 pixels and consent checks at all six phone sizes.
+
+### Executed red regression
+
+Before product edits, the existing typed-handler suite executed `POST /api/pub-pal/chat` with `Hi. Show me the map`.
+The test used the existing offline fetch boundary with provider keys disabled.
+It failed because `toolsUsed` was empty instead of containing `propose_map_action`.
+The failure log is `artifacts/ci-r13/typed-red.log`.
+The same test passed after the correction.
+Its proposal assertion checks the existing empty proposal result for this exact generic command.
+Separate named-map cases assert real `open_venue` and `fly_to` proposals for The Harp, `venue-1bz7oic`.
+This round does not add a generic server map proposal or change venue resolution.
+
+New policy cases cover greetings, thanks, polite commands, leading and trailing evidence, adjacent evidence, and sentence or conjunction boundaries.
+They also check that map intent survives beside a transit request while transit retains service ownership.
+The previous greeting assertion now distinguishes a greeting from a greeting that also requests the map.
+The adjacent-evidence assertions now retain the standalone `include the map` command in policy output.
+All previous service-routing expectations remain intact.
+The test oracles are the authorised R13 behaviour, the existing proposal contract, and The Harp's listed identity.
+The tests reject a social-only reply, lost map intent, changed service ownership, and an incorrect named-map destination.
+
+### Authorised onboarding dependency
+
+Both supplied completed logs match the obsolete reviewed-area assertions.
+Layout shard 2 reported two failures and 197 passes.
+Layout shard 3 reported six failures and 193 passes.
+No hosted check was rerun during this phase.
+
+The three-file onboarding diff exactly matches the authorised patch SHA256:
+
+```text
+a1f0737f4735fcac0f0176c04e8d3705a5ef23baf3600e0455f5ec6854415157
+```
+
+The patch changes the unsupported introductory claim and the two affected browser specifications.
+It checks the actual photograph caption, content clearance, primary action, and onboarding journey.
+It blocks service workers in those specifications.
+No browser, application runtime, production build, dependency installation, or broad verifier ran under the resource hold.
+Browser acceptance remains unmeasured for this source.
+
+### Focused verification
+
+The final configured run passed 1,415 tests across eight suites in 5.60 seconds.
+It used one worker at a time and the existing real dependencies.
+The suites were `askRouter`, `askRoute`, `pubPalChatRoute`, `conciergeIntent`, `askVenueHours`, `conciergeWhatsOn`, `palMapAsk`, and `palVoiceTranscript`.
+The final log is `artifacts/ci-r13/focused-final.log`.
+The temporary Vitest configuration retained repository setup, used a worktree-local cache, and disabled test-result caching.
+Execution used `--configLoader runner --maxWorkers=1` through `scripts/run-with-restored-bundled-data.mjs`.
+
+Focused native TypeScript checking passed for the five policy consumers, onboarding component, two browser specifications, eight suites, and their imports.
+The temporary configuration used repository compiler options, existing Next and GeoJSON ambient types, and existing `types/**/*.d.ts` declarations.
+No Next type generation ran.
+The type log is `artifacts/ci-r13/types.log`.
+Scoped ESLint passed for the same source files and suites.
+Its log is `artifacts/ci-r13/lint.log`.
+The temporary configurations were removed after verification.
+The worktree-local evidence logs remain available.
+
+The tested source SHA256 values are:
+
+```text
+lib/ask/requestPolicy.ts 27b454bb3e9d5f9cc4d1de62c1842389600c2ff6d580eb29ae8923c196aa3271
+lib/ask/router.ts        8c34f935ce2b744cc06c3ea39349d203a756355b51c56052f1422430db228b12
+```
+
+`package.json` and `package-lock.json` retain their previous recorded hashes.
+Protected tools, types, execution handlers, Plan handoff files, video files, and the separately owned caption assertion remain unchanged.
+These focused results do not establish provider-backed, browser, production, device, independent-review, or merge acceptance.
+The outer executor owns subsequent phases and publication.

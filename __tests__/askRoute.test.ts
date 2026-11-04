@@ -55,13 +55,16 @@ function post(body: unknown, ip: string): Promise<Response> {
 }
 
 describe("POST /api/ask", () => {
-  it.each(["Show me the map", "Show the map", "Show The Lamb on the map"])("routes genuine map commands beside evidence through HTTP: %s", async (request) => {
+  it.each(["Show me the map", "Show the map", "Show The Lamb on the map", "Show The Harp", "Hi. Show me the map", "Show the map. Thanks", "Could you please show me the map", "Thank you and show the map"])("routes genuine map commands beside evidence through HTTP: %s", async (request) => {
     const evidence = "Show the source and date for any price you use";
     for (const query of [request, `${evidence}. ${request}`, `${request} and ${evidence}`, `${evidence}. ${request} and ${evidence}`]) {
       const response = await post({ query, cityId: "london" }, "203.0.113.188");
       const body = await response.json();
       expect(response.status).toBe(200);
       expect(body.toolsUsed).toEqual(["propose_map_action"]);
+      if (request === "Show The Harp") {
+        expect(body.proposals).toMatchObject([{ kind: "open_venue" }, { kind: "fly_to", place: "The Harp", venueId: "venue-1bz7oic" }]);
+      }
     }
   });
 

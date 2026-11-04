@@ -33,10 +33,11 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
    require corroboration.
    `lib/ask/router.ts` owns price-subject routing for both HTTP paths.
    `lib/ask/requestPolicy.ts` owns shared clause parsing and `semanticAskRequest`.
-   It removes complete source, date and generic map presentation instructions before intent classification.
-   The router, preference parser, listing parser and named-hours lookup use this semantic request.
+   It removes complete price-evidence instructions before intent classification.
+   Its default view preserves standalone map commands beside other text.
+   Service parsers explicitly omit map commands from venue, price, preference, listing and hours subjects.
    Removal preserves boundaries between surviving requests and punctuation inside venue names.
-   A map command retains map intent when no other request survives.
+   Greetings retain map commands, while actual service requests keep their existing routing priority.
    Real food and non-pint price subjects remain visible to the coverage guards.
    Replies, memory and tool context retain the complete original question.
    Short follow-ups inherit area context after closing evidence instructions, without changing supported price intent.

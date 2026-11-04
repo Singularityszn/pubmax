@@ -63,7 +63,22 @@ describe("POST /api/pub-pal/chat", () => {
     vi.unstubAllGlobals();
   });
 
-  it.each(["Show me the map", "Show the map", "Show The Lamb on the map"])("routes genuine map commands beside evidence in typed chat: %s", async (request) => {
+  it("keeps a map command beside a greeting in the real typed handler", async () => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
+    vi.stubEnv("TYPESAFE_API_KEY", "");
+    vi.stubGlobal("fetch", offlineFetch);
+    const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ query: "Hi. Show me the map", cityId: "london" }),
+    }));
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(body.toolsUsed).toEqual(["propose_map_action"]);
+    // A generic map opens in the client. The server must not invent a venue.
+    expect(body.proposals).toEqual([]);
+  });
+
+  it.each(["Show me the map", "Show the map", "Show The Lamb on the map", "Show The Harp", "Hi. Show me the map", "Show the map. Thanks", "Could you please show me the map", "Thank you and show the map"])("routes genuine map commands beside evidence in typed chat: %s", async (request) => {
     vi.stubEnv("ELEVENLABS_API_KEY", "");
     vi.stubEnv("TYPESAFE_API_KEY", "");
     vi.stubGlobal("fetch", offlineFetch);
@@ -75,6 +90,9 @@ describe("POST /api/pub-pal/chat", () => {
       const body = await response.json();
       expect(response.status).toBe(200);
       expect(body.toolsUsed).toEqual(["propose_map_action"]);
+      if (request === "Show The Harp") {
+        expect(body.proposals).toMatchObject([{ kind: "open_venue" }, { kind: "fly_to", place: "The Harp", venueId: "venue-1bz7oic" }]);
+      }
     }
   });
 

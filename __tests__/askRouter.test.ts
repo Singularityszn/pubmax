@@ -9,6 +9,41 @@ import { ASK_TOOL_NAMES, isAskToolName } from "@/lib/ask/types";
 
 describe("routeAskDeterministically", () => {
   it.each([
+    "Hi. Show me the map",
+    "Show the map. Hi",
+    "Thanks and show me the map",
+    "Please show the map",
+    "Hi; could you please show me the map",
+  ])("preserves bare map commands beside social and polite text: %s", (request) => {
+    const evidence = "Show the source and date for any price you use";
+    for (const boundary of [". ", "; ", ", ", " and "]) {
+      for (const query of [request, `${evidence}${boundary}${request}`, `${request}${boundary}${evidence}`, `${evidence}${boundary}${request}${boundary}${evidence} and include the date`]) {
+        const semantic = semanticAskRequest(query);
+        expect(palVoiceMapIntent(semantic, false)).toBe("map");
+        expect(socialTurnKind(query)).toBeNull();
+        expect(routeAskDeterministically(query).map((call) => call.name)).toEqual(["propose_map_action"]);
+      }
+    }
+  });
+
+  it.each([
+    "Show me the map and any tube delays?",
+    "Any tube delays? Show the map",
+  ])("preserves map intent and service ownership beside another request: %s", (query) => {
+    expect(palVoiceMapIntent(semanticAskRequest(query), false)).toBe("map");
+    expect(socialTurnKind(query)).toBeNull();
+    expect(routeAskDeterministically(query)).toEqual([{ name: "city_status", args: {} }]);
+  });
+
+  it.each([
+    "Hi. Show the map for any price you use",
+    "Show the source and date and map for every price you quote. Hi.",
+  ])("keeps price-evidence map fields as metadata: %s", (query) => {
+    expect(palVoiceMapIntent(semanticAskRequest(query), false)).toBeNull();
+    expect(socialTurnKind(query)).toBe("greeting");
+  });
+
+  it.each([
     { first: "Directions to The Lamb from London Bridge", second: "any tube delays?", tools: ["city_status", "journey"], journey: { from: "London Bridge", to: "The Lamb" } },
     { first: "How much is a pint at The Lamb", second: "directions to Soho", tools: ["journey", "venue_prices"], journey: { to: "Soho" }, venueName: "The Lamb" },
     { first: "What are the opening hours at The Lamb", second: "any tube delays?", tools: ["city_status", "search_venues"] },
@@ -83,7 +118,6 @@ describe("routeAskDeterministically", () => {
       expect(isVenueDiscoveryAsk(wrap("Somewhere quiet in Soho."))).toBe(true);
       expect(isVenueDiscoveryAsk(wrap("How much is a pint at The Lamb?"))).toBe(false);
       expect(resolveAskJourney(wrap("Directions to Mr. Fogg's from London Bridge."))).toEqual({ from: "London Bridge", to: "Mr. Fogg's" });
-      expect(socialTurnKind(wrap("Hello mate."))).toBe("greeting");
       const followUp = wrap("somewhere quiet");
       const refined = refineRoutedAskQuery(followUp, wrap("pubs in Camden"));
       expect(refined).toContain(followUp);
@@ -92,6 +126,8 @@ describe("routeAskDeterministically", () => {
       const budget = wrap("Same area, under £6.50 a pint.");
       expect(refineRoutedAskQuery(budget, wrap("Find four pubs in Soho."))).toBe(wrap("pubs in Soho, under £6.50 a pint."));
     }
+    expect(socialTurnKind(`${evidence} Hello mate.`)).toBe("greeting");
+    expect(socialTurnKind(`Hello mate. and ${evidence} Include the map.`)).toBeNull();
   });
 
   it.each([
@@ -118,10 +154,13 @@ describe("routeAskDeterministically", () => {
   ])("removes adjacent evidence instructions once and preserves %s", (request) => {
     for (const boundary of [". ", "? ", "! ", "; ", ", ", " and ", ". and ", "; and "]) {
       const evidence = `Show sources for any price you use${boundary}could you please show the date for every price you quote${boundary}include the map`;
-      for (const query of [`${evidence}. ${request}`, `${request} ${evidence}.`]) {
+      for (const { query, expected } of [
+        { query: `${evidence}. ${request}`, expected: `include the map. ${request}` },
+        { query: `${request} ${evidence}.`, expected: `${request} include the map` },
+      ]) {
         const semantic = semanticAskRequest(query);
-        expect(semantic).toBe(request);
-        expect(semanticAskRequest(semantic)).toBe(request);
+        expect(semantic).toBe(expected);
+        expect(semanticAskRequest(semantic)).toBe(expected);
       }
     }
   });

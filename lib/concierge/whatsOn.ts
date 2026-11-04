@@ -75,7 +75,7 @@ function detectArea(text: string): string | undefined {
  * phrasing.
  */
 export function detectWhatsOnIntent(text: string): WhatsOnQuery | null {
-  text = semanticAskRequest(text);
+  text = semanticAskRequest(text, false);
   const kind = detectKind(text);
   const hasPhrase = WHATS_ON_PHRASE.test(text);
   if (!kind && !hasPhrase) return null;

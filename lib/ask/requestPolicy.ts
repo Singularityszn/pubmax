@@ -25,22 +25,24 @@ export function stripTrailingQualifiers(phrase: string): string {
 
 const PRICE_PRESENTATION_FIELD = String.raw`(?:sources?|(?:(?:source|recorded)\s+)?dates?|map)`;
 const PRICE_PRESENTATION_CLAUSE_RE = new RegExp(
-  String.raw`(?:^\s*|(?<=[.!?;,]|\band\b)\s*|\s+and\s+)(?<command>(?:(?:can|could|would|will)\s+you\s+)?(?:please\s+)?(?:show|include|give)(?:\s+me)?\s+(?:the\s+)?)(?<fields>${PRICE_PRESENTATION_FIELD}(?:\s+and\s+(?:the\s+)?${PRICE_PRESENTATION_FIELD})*)(?:\s+for\s+(?:(?:any|each|every|all|the)\s+)?(?:(?:listed|recorded)\s+)?(?:pint\s+)?prices?(?:\s+(?:(?:that|which)\s+)?you\s+(?:use|show|quote|mention|include))?)?(?:\s+(?:${TRAILING_QUALIFIER}))*\s*(?!and\s+(?:the\s+)?${PRICE_PRESENTATION_FIELD}\b)(?:[.!?;,]+(?:\s+and\b)?|\band\b|$)`,
+  String.raw`(?:^\s*|(?<=[.!?;,]|\band\b)\s*|\s+and\s+)(?<command>(?:(?:can|could|would|will)\s+you\s+)?(?:please\s+)?(?:show|include|give)(?:\s+me)?\s+(?:the\s+)?)(?<fields>${PRICE_PRESENTATION_FIELD}(?:\s+and\s+(?:the\s+)?${PRICE_PRESENTATION_FIELD})*)(?<priceContext>\s+for\s+(?:(?:any|each|every|all|the)\s+)?(?:(?:listed|recorded)\s+)?(?:pint\s+)?prices?(?:\s+(?:(?:that|which)\s+)?you\s+(?:use|show|quote|mention|include))?)?(?:\s+(?:${TRAILING_QUALIFIER}))*\s*(?!and\s+(?:the\s+)?${PRICE_PRESENTATION_FIELD}\b)(?:[.!?;,]+(?:\s+and\b)?|\band\b|$)`,
   "gi",
 );
 
-export function semanticAskRequest(query: string): string {
+/** Service parsers omit map commands so those commands cannot become venue or price subjects. */
+export function semanticAskRequest(query: string, preserveMapCommands = true): string {
   const clauses = [...query.matchAll(PRICE_PRESENTATION_CLAUSE_RE)];
   if (!clauses.length) return query;
   const requests: string[] = [];
-  const maps: string[] = [];
   let end = 0;
   for (const clause of clauses) {
     requests.push(query.slice(end, clause.index).trim());
-    if (/\bmap\b/i.test(clause.groups!.fields!)) maps.push(`${clause.groups!.command}map`);
+    if (preserveMapCommands && /^map$/i.test(clause.groups!.fields!) && !clause.groups!.priceContext) {
+      requests.push(`${clause.groups!.command}map`);
+    }
     end = clause.index + clause[0].length;
   }
   requests.push(query.slice(end).trim());
   return requests.filter(Boolean).reduce((request, part) =>
-    request ? `${request}${/[.!?]$/.test(request) ? " " : ". "}${part}` : part, "") || maps.join(" and ");
+    request ? `${request}${/[.!?]$/.test(request) ? " " : ". "}${part}` : part, "");
 }

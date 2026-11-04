@@ -28,7 +28,7 @@ function hoursLines(hours: WeeklyOpeningHours): string[] {
 }
 
 function requestedHoursVenue(query: string, venues: ConciergeVenue[]): ConciergeVenue | null {
-  query = semanticAskRequest(query);
+  query = semanticAskRequest(query, false);
   const hoursClauses = askRequestClauses(query).filter((clause) => /\b(?:opening|closing)\s+(?:hours|times)\b/i.test(clause));
   if (hoursClauses.length > 1) return null;
   const hoursClause = hoursClauses[0] ?? query;

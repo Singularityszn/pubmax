@@ -158,7 +158,7 @@ export async function parseConciergeIntent(
   text: string,
   options: ParseOptions = {},
 ): Promise<ParsedConciergeIntent> {
-  const clipped = semanticAskRequest(text.slice(0, 500));
+  const clipped = semanticAskRequest(text.slice(0, 500), false);
   const knownAreas = options.knownAreas ?? defaultKnownAreas();
   const fallback = deterministicIntent(clipped, knownAreas);
   if (shouldUseDeterministicIntentOnly(options)) {
