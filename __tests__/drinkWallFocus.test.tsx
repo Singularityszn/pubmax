@@ -136,6 +136,27 @@ describe("the photo composer's pub link", () => {
 });
 
 describe("cancelling an unsent wall photo", () => {
+  it("returns focus to the wall while a changed filter is still loading", async () => {
+    let finishRead!: (response: Response) => void;
+    network.read
+      .mockResolvedValueOnce(Response.json({ status: "ready", photos: [], nextCursor: null }))
+      .mockImplementationOnce(() => new Promise<Response>((resolve) => { finishRead = resolve; }));
+    await act(async () => root.render(createElement(DrinkWall)));
+    await activate(button("Add a photo"));
+    const filter = [...host.querySelectorAll<HTMLButtonElement>('[aria-label="Photo type"] button')]
+      .find((control) => control.textContent === "Pint")!;
+    await activate(filter);
+    expect(host.textContent).toContain("Loading the wall");
+    expect([...host.querySelectorAll("button")].some((control) => control.textContent === "Add a photo")).toBe(false);
+    await activate(button("Cancel"));
+
+    expect(host.querySelector("textarea")).toBeNull();
+    expect(document.activeElement?.tagName).toBe("H1");
+    expect(document.activeElement).toBe(host.querySelector("h1"));
+    expect(network.write).not.toHaveBeenCalled();
+    await act(async () => finishRead(Response.json({ status: "ready", photos: [], nextCursor: null })));
+  });
+
   it.each([false, true])("returns focus to its Add a photo opener with existing photos=%s", async (hasPhotos) => {
     const existing: DrinkWallPhotoDTO = {
       id: "existing-photo", venueId: null, venueName: null, wallCategory: "london", placeLabel: null,
