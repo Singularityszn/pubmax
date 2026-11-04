@@ -14,7 +14,7 @@ const CONSENT_ROW_CEILING = 56;
 // the disclosure has the least room to wrap inside the 56px ceiling.
 const PHONE_WIDTHS = [320, 360, 390] as const;
 
-test.use({ storageState: { cookies: [], origins: [] } });
+test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: "block" });
 
 // max-height alone caps what boundingBox() reports, so the box height can never
 // exceed the ceiling while that declaration stands. scrollHeight is the laid-out
@@ -477,27 +477,38 @@ for (const viewport of ONBOARDING_VIEWPORTS) {
     const prompt = page.getByLabel("Anonymous analytics choice");
     await expect(prompt).toBeVisible({ timeout: 30_000 });
 
-    const rows = page.locator(".firstRunAreaList article");
-    await expect(rows.first()).toBeVisible();
+    await expect(page.getByRole("progressbar", { name: "Onboarding progress" }))
+      .toHaveAttribute("aria-valuenow", "1");
+    await expect(page.getByText("PUBMAXX reviewed", { exact: true })).toHaveCount(0);
+    // Without area-review evidence, the introduction may describe the
+    // available journey but must not promise that an area was checked.
+    await expect(page.locator(".firstRunLead")).toHaveText(
+      "Start with listed pint prices and a way home.",
+    );
+    // With no reviewed areas, the visible content is the photograph and the
+    // city introduction. Each still needs the space previously owed to rows.
+    const content = page.locator(
+      ".firstRunVisual, .firstRunPanelInner > .firstRunEyebrow, .firstRunPanelInner > h1, .firstRunPanelInner > .firstRunLead",
+    );
+    await expect(content).toHaveCount(4);
     const primary = page.getByRole("button", { name: "Use London" });
     await expect(primary).toBeVisible();
 
     const promptBox = await prompt.boundingBox();
     expect(promptBox).not.toBeNull();
 
-    // The card may share no area with a reviewed row or with the ONE primary
-    // action. Geometry rather than a tap probe, because a row is a passive
-    // block: a probe that only asked who owns a point would pass over a row
+    // The card may share no area with the content or with the primary
+    // action. Geometry rather than a tap probe, because text is a passive
+    // block: a probe that only asked who owns a point would pass over text
     // half-hidden behind the card.
-    const rowBoxes = await rows.evaluateAll((nodes) =>
+    const contentBoxes = await content.evaluateAll((nodes) =>
       nodes.map((node) => {
         const rect = node.getBoundingClientRect();
         return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
       }),
     );
-    expect(rowBoxes.length).toBeGreaterThan(0);
-    for (const rowBox of rowBoxes) {
-      expect(boxesOverlap(promptBox!, rowBox)).toBe(false);
+    for (const contentBox of contentBoxes) {
+      expect(boxesOverlap(promptBox!, contentBox)).toBe(false);
     }
     const primaryBox = await primary.boundingBox();
     expect(primaryBox).not.toBeNull();
@@ -508,17 +519,15 @@ for (const viewport of ONBOARDING_VIEWPORTS) {
     // with nothing saying so: on a 390pt phone the button sat at 768px inside
     // a 704px surface and no reviewer would ever have found it.
     await expect(primary).toBeInViewport({ ratio: 1 });
-    // On a short phone the action row is sticky to the surface's foot and the
-    // rows scroll up behind it (app/onboarding/onboarding.css, the short
-    // phone), so a row is owed reachability by scroll and a box clear of the
-    // card, never a place under the action at rest.
-    for (const row of await rows.all()) {
-      await row.scrollIntoViewIfNeeded();
-      await expect(row).toBeInViewport({ ratio: 1 });
-      const rowBox = await row.boundingBox();
-      expect(rowBox).not.toBeNull();
-      expect(boxesOverlap(promptBox!, rowBox!)).toBe(false);
-      expect(boxesOverlap(primaryBox!, rowBox!)).toBe(false);
+    // The content must remain reachable and clear of the sticky action too.
+    for (const block of await content.all()) {
+      await expect(block).toBeVisible();
+      await block.scrollIntoViewIfNeeded();
+      await expect(block).toBeInViewport({ ratio: 1 });
+      const blockBox = await block.boundingBox();
+      expect(blockBox).not.toBeNull();
+      expect(boxesOverlap(promptBox!, blockBox!)).toBe(false);
+      expect(boxesOverlap(primaryBox!, blockBox!)).toBe(false);
     }
     await expect(primary).toBeInViewport({ ratio: 1 });
 
@@ -548,6 +557,8 @@ for (const viewport of ONBOARDING_VIEWPORTS) {
       await primary.scrollIntoViewIfNeeded();
       await expect(primary).toBeInViewport({ ratio: 0.99, timeout: 1_000 });
     }).toPass({ timeout: 20_000 });
+    await primary.click();
+    await expect(page.getByRole("heading", { name: "What's a fair pint to you?" })).toBeVisible();
   });
 }
 
