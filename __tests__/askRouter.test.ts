@@ -1,5 +1,5 @@
 import { QUALIFIED_PRICE_REQUESTS } from "./fixtures/askPriceSubjects";
-import { GENERIC_MAP_COMMANDS, SOCIAL_MAP_COMMANDS, serviceBesideMap } from "./fixtures/askMapCommands";
+import { GENERIC_MAP_COMMANDS, SOCIAL_MAP_COMMANDS, priceMapMetadataRequests, serviceBesideMap } from "./fixtures/askMapCommands";
 import { describe, expect, it } from "vitest";
 
 import { isVenueDiscoveryAsk, isVenueHoursQuestion, refineRoutedAskQuery, resolveAskJourney, routeAskDeterministically, socialTurnKind, unsupportedPriceComparison } from "@/lib/ask/router";
@@ -9,6 +9,50 @@ import { parseConciergeIntent } from "@/lib/concierge/intent";
 import { ASK_TOOL_NAMES, isAskToolName } from "@/lib/ask/types";
 
 describe("routeAskDeterministically", () => {
+  it.each(priceMapMetadataRequests("Find three quiet pubs in Soho."))(
+    "keeps complete map price metadata outside discovery: %s", async (query) => {
+      expect(unsupportedPriceComparison(query)).toBeNull();
+      expect(routeAskDeterministically(query)).toEqual([{ name: "search_venues", args: { query, limit: 3 } }]);
+      expect((await parseConciergeIntent(query, { skipModel: true })).intent).toEqual({ mood: ["quiet"], area: "Soho", groupSize: 2 });
+    },
+  );
+
+  it.each([
+    "Directions to The Harp from London Bridge",
+    "Directions from London Bridge to The Harp",
+  ].flatMap(priceMapMetadataRequests))("keeps journey endpoints outside map price metadata: %s", (query) => {
+    expect(resolveAskJourney(query)).toEqual({ from: "London Bridge", to: "The Harp" });
+    expect(routeAskDeterministically(query)).toEqual([{ name: "journey", args: { from: "London Bridge", to: "The Harp" } }]);
+  });
+
+  it.each(priceMapMetadataRequests("Cheapest pint near Soho"))(
+    "keeps supported pint comparison beside map price metadata: %s", (query) => {
+      expect(unsupportedPriceComparison(query)).toBeNull();
+      expect(routeAskDeterministically(query).map(({ name }) => name)).toEqual(["cheapest_pint_near"]);
+    },
+  );
+
+  it.each(["Cheapest Negroni near Soho", "Cheapest burger near Soho", "Cheapest wine near Soho"].flatMap(priceMapMetadataRequests))(
+    "keeps unsupported comparisons refused beside map price metadata: %s", (query) => {
+      expect(unsupportedPriceComparison(query)).not.toBeNull();
+      expect(routeAskDeterministically(query)).toEqual([]);
+    },
+  );
+
+  it("does not turn a metadata-only map field into a price request or navigation", () => {
+    const query = "Show the map for any price you use";
+    expect(unsupportedPriceComparison(query)).toBeNull();
+    expect(routeAskDeterministically(query)).toEqual([]);
+    expect(palVoiceMapIntent(query, false)).toBeNull();
+  });
+
+  it.each(priceMapMetadataRequests("Where is The Harp?"))(
+    "retains a named target beside complete map price metadata: %s", (query) => {
+      expect(unsupportedPriceComparison(query)).toBeNull();
+      expect(palVoiceMapIntent(query, false)).toBe("pub");
+    },
+  );
+
   it.each(["Show The Harp on the map", "Show The Garden on the map", "Open The Sportsman on the map", "Take me to The Harp"])(
     "preserves a named map subject containing possible constraints: %s", (request) => {
       const evidence = "Show the source and date for any price you use.";

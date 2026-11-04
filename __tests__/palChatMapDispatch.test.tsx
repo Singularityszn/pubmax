@@ -5,7 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { writeActivePlan } from "@/lib/activePlan";
 import { clearSurfaceCache } from "@/lib/surfaceDataCache";
-import { GENERIC_MAP_COMMANDS, GROUP_MAP_REQUESTS, NEXT_STOP_NOUN_REQUESTS, REFUSED_MAP_COMMANDS, SOCIAL_MAP_COMMANDS, serviceBesideMap } from "./fixtures/askMapCommands";
+import { GENERIC_MAP_COMMANDS, GROUP_MAP_REQUESTS, NEXT_STOP_NOUN_REQUESTS, REFUSED_MAP_COMMANDS, SOCIAL_MAP_COMMANDS, priceMapMetadataRequests, serviceBesideMap } from "./fixtures/askMapCommands";
 
 import { parseConciergeIntent } from "@/lib/concierge/intent";
 
@@ -98,7 +98,7 @@ describe("mounted typed map dispatch", () => {
   });
 
   describe.each([false, true])("named target with another retained choice %s", (retained) => {
-    it.each(withEvidence("Where is The Harp? Show me the map."))("opens the explicit named target: %s", async (query) => {
+    it.each([...withEvidence("Where is The Harp? Show me the map."), ...priceMapMetadataRequests("Where is The Harp?")])("opens the explicit named target: %s", async (query) => {
       if (retained) {
         request.mockImplementation(async (_url, init) => Response.json(init?.method === "POST"
           ? { answer: "Try The Lamb.", cards: [{ venueId: lamb.id, title: lamb.name, place: "Westminster", price: null }], proposals: [], toolsUsed: ["search_venues"] }

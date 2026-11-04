@@ -55,3 +55,12 @@ export const NEXT_STOP_NOUN_REQUESTS = [
   "Next stop please", "Next-stop please", "Next‐stop please", "Next‑stop please",
   "Next–stop please", "Next stop. Next‑stop please.",
 ];
+
+export function priceMapMetadataRequests(service: string): string[] {
+  const metadata = "Show the map for any price you use";
+  return [
+    `${metadata}. ${service}`,
+    `${service.replace(/[.!?]+$/, "")}.${metadata}.`,
+    `${service.replace(/[.!?]+$/, "")}. ${metadata}.`,
+  ];
+}
