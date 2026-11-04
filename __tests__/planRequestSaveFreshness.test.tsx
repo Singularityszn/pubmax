@@ -35,7 +35,7 @@ vi.mock("@/components/wanted/WantedPlanChips", () => ({ default: () => null }));
 vi.mock("@/components/plan/PlanRouteMiniMap", () => ({ default: () => null }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: () => undefined, trackMeaningfulCoreAction: () => undefined, laneSourceFromSearch: () => null }));
 import PlanComposer from "@/components/plan/PlanComposer";
-import { createPlanIntakeDraft, PLAN_INTAKE_STORAGE_KEY, readPlanIntakeDraftWithMetadata, reopenPlanIntakeStep, skipRemainingPlanIntake, writePlanIntakeDraft } from "@/lib/planIntake";
+import { createPlanIntakeDraft, nextLondonOccurrenceIso, PLAN_INTAKE_STORAGE_KEY, readPlanIntakeDraftWithMetadata, reopenPlanIntakeStep, skipRemainingPlanIntake, writePlanIntakeDraft } from "@/lib/planIntake";
 import { readPlanDraftEnvelope, writePlanDraftEnvelope } from "@/lib/planDraft";
 import { PLAN_ROUTE_DRAFT_KEY, PLAN_ROUTE_DRAFT_V2_KEY } from "@/lib/planRouteDraft";
 import { inferNightContext } from "@/lib/nightPlanning";
@@ -560,10 +560,13 @@ function seedTuneRoute(origin: "map-generated" | "plan-generated", withIntake = 
   }, localStorage, origin, T0)).toBe(true);
   if (withIntake) {
     const draft = skipRemainingPlanIntake(createPlanIntakeDraft());
-    expect(writePlanIntakeDraft({ ...draft, skippedSteps: ["accessibility"], answers: {
+    const completed = { ...draft, currentStep: "accessibility", skippedSteps: ["accessibility"], answers: {
       ...draft.answers, area: "clapham", timeWindow: "evening", groupSize: 4,
+      exactStartIso: nextLondonOccurrenceIso("evening", new Date(T0)),
       budget: "standard", budgetLimitPence: 4500,
-    } }, localStorage, T0)).toBe(true);
+    } } satisfies ReturnType<typeof createPlanIntakeDraft>;
+    expect(writePlanIntakeDraft(completed, localStorage, T0)).toBe(true);
+    expect(readPlanIntakeDraftWithMetadata(localStorage, T0)?.draft).toEqual(completed);
   }
 }
 
@@ -794,12 +797,19 @@ it.each([
     await confirmFreshAsk(channel, query);
     expect(readPlanDraftEnvelope(sessionStorage)?.draft).toMatchObject({ conciergeQuery: query, requestedStopCount: 2 });
     expect(readPlanIntakeDraftWithMetadata(localStorage)?.draft.answers).toMatchObject({
-      area: null, timeWindow: null, exactStartIso: null, groupSize: null,
+      area: channel === "url" ? "clapham" : null, timeWindow: null, exactStartIso: null, groupSize: null,
       budget: null, budgetLimitPence: null, accessibilityNeeds: [], stopCount: 2,
     });
     expect(JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!)).toMatchObject({
-      savedAt: "2026-11-03T12:00:01.000Z",
+      savedAt: channel === "url" ? "2026-11-03T12:00:02.000Z" : "2026-11-03T12:00:01.000Z",
     });
+    if (channel === "url") {
+      expect(fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"))).toHaveLength(1);
+      expect(reconciledGenerationContext()).toMatchObject({
+        nightArea: "clapham", daypart: "after_work", partyType: "work", groupSize: 8,
+        budget: "treat", budgetLimitPence: 2000, drinkCategory: "beer", zeroProof: false, stopCount: 2,
+      });
+    }
     await openTune();
     expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("2");
     await sortAgainFromTune();
@@ -841,4 +851,144 @@ it.each(["existing", "url", "session"] as const)("uses only the owning request's
   expect(reconciledGenerationContext()).toMatchObject({
     nightArea: channel === "existing" ? "clapham" : null, budget: "treat",
   });
+});
+
+it("does not promote generated drink and group defaults over a new description", async () => {
+  pinClock();
+  await generateFromDescription();
+  await openTune();
+  await editInput("#plan-concierge-query", "Clapham tonight, alcohol-free, with work colleagues");
+  await sortAgainFromTune();
+  expect(reconciledGenerationContext()).toMatchObject({ zeroProof: true, partyType: "work" });
+});
+
+
+it("clears recovered authority before the first automatic URL Ask generation", async () => {
+  const advance = pinClock();
+  seedTuneRoute("map-generated");
+  await mountComposer();
+  await openTune();
+  advance(1000);
+  await editTuneControl("budget", "value");
+  fetchMock.mockClear();
+  const query = "Clapham tonight, a treat night";
+  window.history.replaceState({}, "", `/plan?query=${encodeURIComponent(query)}`);
+  advance(2000);
+  await remountComposer();
+  await vi.waitFor(() => expect(fetchMock.mock.calls.some(([input]) => String(input).includes("/api/plans/generate"))).toBe(true));
+  const post = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"))[0]!;
+  const request = JSON.parse(String(post[1]?.body));
+  expect(request.query).toBe(query);
+  const parsed = parsePlanGenerationIntake(request.intake, new Date(T0 + 2000));
+  expect(parsed.ok).toBe(true);
+  if (!parsed.ok) throw new Error(parsed.message);
+  expect(reconcilePlanContext(query, request.context, parsed.value, new Date(T0 + 2000)).context.budget).toBe("treat");
+});
+
+
+it("sends a valid time window when Tune changes an earlier exact evening to Late", async () => {
+  pinClock();
+  seedStaleRoute();
+  await mountComposer();
+  await openTune();
+  await editTuneControl("time", "late_night");
+  await sortAgainFromTune();
+  const post = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate")).at(-1)!;
+  const request = JSON.parse(String(post[1]?.body));
+  expect(request.intake.timeWindow.id).toBe("late");
+  const parsed = parsePlanGenerationIntake(request.intake, new Date(T0));
+  expect(parsed).toMatchObject({ ok: true });
+  if (!parsed.ok) throw new Error(parsed.message);
+  expect(reconcilePlanContext(request.query ?? "", request.context, parsed.value, new Date(T0)).context.daypart).toBe("late_night");
+});
+
+function seedTimedRoute(timeWindow: "after-work" | "evening" | "late", input: string): void {
+  seedStaleRoute();
+  const route = JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!);
+  localStorage.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify({
+    ...route, nightContext: { ...route.nightContext, daypart: timeWindow === "late" ? "late_night" : timeWindow === "after-work" ? "after_work" : "evening" },
+  }));
+  const intake = readPlanIntakeDraftWithMetadata(localStorage, T0)!.draft;
+  const timed = { ...intake, answers: { ...intake.answers, timeWindow, exactStartIso: `${input}:00.000Z` } };
+  expect(writePlanIntakeDraft(timed, localStorage, T0)).toBe(true);
+  expect(readPlanIntakeDraftWithMetadata(localStorage, T0)?.draft).toEqual(timed);
+  const session = readPlanDraftEnvelope(sessionStorage)!;
+  writePlanDraftEnvelope({ ...session.draft, startTime: input }, session.origin, sessionStorage, T0);
+}
+
+function generateWithServerContext(): void {
+  fetchMock.mockImplementation(async (input, init) => {
+    let body: unknown = [];
+    if (String(input).includes("/api/plans/generate")) {
+      const request = JSON.parse(String(init?.body));
+      const parsed = parsePlanGenerationIntake(request.intake, new Date());
+      expect(parsed.ok).toBe(true);
+      if (!parsed.ok) throw new Error(parsed.message);
+      body = { ...GENERATED, inferredContext: reconcilePlanContext(request.query ?? "", request.context, parsed.value, new Date()).context };
+    }
+    return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+  });
+}
+
+const TIME_EDITS = [
+  { from: "evening", input: START, daypart: "late_night", window: "late", output: "2026-11-03T22:00" },
+  { from: "late", input: "2026-11-03T23:30", daypart: "evening", window: "evening", output: START },
+  { from: "after-work", input: "2026-11-03T17:45", daypart: "evening", window: "evening", output: START },
+  { from: "evening", input: "2026-11-03T22:30", daypart: "late_night", window: "late", output: "2026-11-03T22:30" },
+  { from: "late", input: "2026-11-03T22:30", daypart: "evening", window: "evening", output: "2026-11-03T22:30" },
+  { from: "late", input: "2026-11-04T01:30", daypart: "evening", window: "evening", output: "2026-11-04T19:00" },
+  { from: "evening", input: START, daypart: "daytime", window: null, output: START },
+  { from: "evening", input: START, daypart: "get_home", window: null, output: START },
+] as const;
+
+it.each(TIME_EDITS.flatMap((edit) => (edit.window ? ["none", "session", "route"] as const : ["none", "session"] as const)
+  .map((blocked) => ({ ...edit, blocked }))))(
+  "keeps $from $input coherent with Tune $daypart when $blocked writes fail",
+  async ({ from, input, daypart, window, output, blocked }) => {
+    const advance = pinClock();
+    seedTimedRoute(from, input);
+    generateWithServerContext();
+    await mountComposer();
+    await openTune();
+    if (blocked === "session") blockStorageWrites("sessionStorage");
+    if (blocked === "route") rejectRouteWrites([PLAN_ROUTE_DRAFT_KEY, PLAN_ROUTE_DRAFT_V2_KEY]);
+    advance(1000);
+    await editTuneControl("time", daypart);
+    expect(document.querySelector<HTMLInputElement>("#plan-time")?.value).toBe(output);
+    expect(readPlanIntakeDraftWithMetadata(localStorage)?.draft.answers).toMatchObject({
+      timeWindow: window, exactStartIso: window ? `${output}:00.000Z` : null,
+    });
+    if (blocked === "route") expect(document.body.textContent).toContain("could not be saved");
+    advance(2000);
+    await remountComposer();
+    const restoredStart = blocked === "session" && !window ? "2026-11-03T18:00" : output;
+    expect(document.querySelector<HTMLInputElement>("#plan-time")?.value).toBe(restoredStart);
+    await openTune();
+    await editInput("#plan-concierge-query", "Clapham tonight");
+    await sortAgainFromTune();
+    const post = fetchMock.mock.calls.filter(([url]) => String(url).includes("/api/plans/generate")).at(-1)!;
+    const request = JSON.parse(String(post[1]?.body));
+    expect(request.intake.timeWindow).toEqual(window ? {
+      id: window, start: window === "late" ? "22:00" : "19:00", end: window === "late" ? null : "23:00",
+      exactStartIso: `${output}:00.000Z`,
+    } : null);
+    expect(reconciledGenerationContext()).toMatchObject({ daypart });
+    await editInput("#plan-name", "Captain");
+    expect(await saveRoute()).toMatchObject({ startTime: `${restoredStart}:00.000Z`, context: { daypart } });
+  },
+);
+
+it("retains a coherent Tune time in memory when both stores fail", async () => {
+  pinClock();
+  seedTimedRoute("evening", START);
+  await mountComposer();
+  await openTune();
+  const local = blockStorageWrites("localStorage");
+  blockStorageWrites("sessionStorage");
+  await editTuneControl("time", "late_night");
+  expect(document.body.textContent).toContain("could not be saved");
+  expect(document.querySelector<HTMLInputElement>("#plan-time")?.value).toBe("2026-11-03T22:00");
+  expect(readPlanIntakeDraftWithMetadata(local)?.draft.answers.exactStartIso).toBe("2026-11-03T19:00:00.000Z");
+  await sortAgainFromTune();
+  expect(reconciledGenerationContext()).toMatchObject({ daypart: "late_night" });
 });
