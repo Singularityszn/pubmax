@@ -969,10 +969,15 @@ describe("the Plan result", () => {
     expect(JSON.parse(String(generation[1]?.body)).query).toBeUndefined();
     expect(JSON.parse(String(generation[1]?.body)).context.stopCount).toBe(6);
     expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBeUndefined();
+    const savedSession = sessionStorage.getItem(PLAN_DRAFT_KEY);
+    const savedIntake = local.getItem(PLAN_INTAKE_STORAGE_KEY);
     await remountComposer();
     expectDisplayedRoute(["Pub A", "Pub B"], ["venue-a", "venue-b"]);
     await openTune();
-    expectTuneDescriptionAndCount("", 6);
+    expectTuneDescriptionAndCount("", undefined);
+    expect(sessionStorage.getItem(PLAN_DRAFT_KEY)).toBe(savedSession);
+    expect(local.getItem(PLAN_INTAKE_STORAGE_KEY)).toBe(savedIntake);
+    expect(readPlanDraftEnvelope(sessionStorage)?.savedAt).toBeNull();
   });
 
   it("checks the remaining route after a handoff replaces a failed persistence copy", async () => {

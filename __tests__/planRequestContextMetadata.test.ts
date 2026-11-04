@@ -79,3 +79,75 @@ it("does not let conflicting input maps remove independent count authority", () 
   expect(recovered.intent).toMatchObject({ stopCount: 5, stopCountSource: "picker", conciergeQuery: "Clapham tonight" });
   expect(recovered.intent).not.toHaveProperty("explicitNightContext");
 });
+
+
+it("restores actual wizard inputs from the winning Session request after a cosmetic edit", () => {
+  const session = storage();
+  const local = storage();
+  const requestIntake = createPlanIntakeDraft();
+  requestIntake.answers.groupSize = 6;
+  requestIntake.answers.accessibilityNeeds = ["step-free"];
+  writePlanIntakeDraft(requestIntake, local, NOW - 1000, null);
+  writePlanDraftEnvelope({ ...DRAFT, requestIntake, explicitNightContext: { zeroProof: true } }, "manual", session, NOW);
+  const plan = readPlanDraftEnvelope(session, NOW)!;
+  const recovered = recoverPlanDrafts({ plan, legacyDraft: parsePlanDraft(session.getItem("pubmaxx:plan-draft:v1"), NOW),
+    intake: readPlanIntakeDraftWithMetadata(local, NOW), route: null });
+  expect(recovered.intakeDraft).toMatchObject({ savedAt: new Date(NOW).toISOString(), draft: {
+    answers: { groupSize: 6, accessibilityNeeds: ["step-free"] },
+  } });
+  expect(recovered.intent.explicitNightContext).toEqual({ zeroProof: true });
+});
+
+it("keeps a fresh Ask's empty actual inputs separate from older wizard constraints", () => {
+  const session = storage();
+  const local = storage();
+  const old = createPlanIntakeDraft();
+  old.answers.groupSize = 6;
+  old.answers.accessibilityNeeds = ["step-free"];
+  writePlanIntakeDraft(old, local, NOW - 1000, null);
+  writePlanDraftEnvelope({ ...DRAFT, conciergeQuery: "Clapham tonight, a treat night",
+    requestIntake: createPlanIntakeDraft(), explicitNightContext: {} }, "manual", session, NOW);
+  const plan = readPlanDraftEnvelope(session, NOW)!;
+  const recovered = recoverPlanDrafts({ plan, legacyDraft: plan.draft,
+    intake: readPlanIntakeDraftWithMetadata(local, NOW), route: null });
+  expect(recovered.intakeDraft?.draft.answers).toMatchObject({ groupSize: null, accessibilityNeeds: [], budget: null });
+  expect(recovered.intent.explicitNightContext).toEqual({});
+});
+
+it.each([null, [], "six", { version: 99 }, { ...createPlanIntakeDraft(), answers: { stopCount: 99 } }])(
+  "ignores invalid optional actual intake metadata without losing a valid route: %j", (requestIntake) => {
+    const session = storage();
+    writePlanDraftEnvelope(DRAFT, "manual", session, NOW);
+    const envelope = JSON.parse(session.getItem("pubmax:plan-draft:v2")!);
+    envelope.draft.requestIntake = requestIntake;
+    session.setItem("pubmax:plan-draft:v2", JSON.stringify(envelope));
+    expect(readPlanDraftEnvelope(session, NOW)?.draft).toMatchObject({ stops: [{ venueId: "pub-a" }] });
+    expect(readPlanDraftEnvelope(session, NOW)?.draft).not.toHaveProperty("requestIntake");
+  },
+);
+
+
+it.each(["v1", "v2"] as const)("does not borrow conflicting actual inputs after only %s saves a request edit", (format) => {
+  const session = storage();
+  const local = storage();
+  const original = createPlanIntakeDraft();
+  original.answers.groupSize = 6;
+  const edited = createPlanIntakeDraft();
+  edited.answers.groupSize = 2;
+  writePlanIntakeDraft(original, local, NOW - 1000, null, {});
+  writePlanDraftEnvelope({ ...DRAFT, requestIntake: original, explicitNightContext: {} }, "manual", session, NOW - 1000);
+  const blockedKey = format === "v1" ? "pubmax:plan-draft:v2" : "pubmaxx:plan-draft:v1";
+  const partiallyWritable = { getItem: session.getItem.bind(session), setItem: (key: string, value: string) => {
+    if (key === blockedKey) throw new Error("Storage full");
+    session.setItem(key, value);
+  } };
+  writePlanDraftEnvelope({ ...DRAFT, requestIntake: edited, explicitNightContext: {} }, "manual", partiallyWritable, NOW);
+  const plan = readPlanDraftEnvelope(session, NOW)!;
+  const recovered = recoverPlanDrafts({ plan,
+    legacyDraft: parsePlanDraft(session.getItem("pubmaxx:plan-draft:v1"), NOW),
+    intake: readPlanIntakeDraftWithMetadata(local, NOW), route: null });
+  expect(recovered.intakeDraft).toBeNull();
+  expect(readPlanDraftEnvelope(session, NOW)?.draft.requestIntake?.answers.groupSize).toBe(format === "v2" ? 2 : 6);
+  expect(parsePlanDraft(session.getItem("pubmaxx:plan-draft:v1"), NOW)?.requestIntake?.answers.groupSize).toBe(format === "v1" ? 2 : 6);
+  expect(readPlanIntakeDraftWithMetadata(local, NOW)?.draft.answers.groupSize).toBe(6);
+});

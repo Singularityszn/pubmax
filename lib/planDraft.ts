@@ -1,3 +1,4 @@
+import { parsePlanIntakeRequest, type PlanIntakeDraft } from "@/lib/planIntake";
 import { cleanPlanStopCountSource, isPlanStopCount, type PlanStopCount, type PlanStopCountSource } from "@/lib/planStopCount";
 import { cleanNightContextPatch, type NightContext } from "@/lib/nightPlanning";
 import { DAY_MS } from "@/lib/dayMs";
@@ -28,6 +29,7 @@ export type StoredPlanDraft = {
   conciergeQuery: string;
   stops: Array<{ key: number; venueId: string; venueName: string }>;
   explicitNightContext?: Partial<NightContext>;
+  requestIntake?: PlanIntakeDraft;
   requestedStopCount?: PlanStopCount;
   requestedStopCountSource?: PlanStopCountSource;
   routeReference?: { savedAt: string; operationKey: string } | null;
@@ -120,7 +122,7 @@ function parseAcceptedArea(area: unknown): PlanningIntentArea | undefined {
 }
 
 function hasDraftKeys(value: Record<string, unknown>): boolean {
-  const keys = Object.keys(value).filter((key) => key !== "requestedStopCount" && key !== "requestedStopCountSource" && key !== "routeReference" && key !== "explicitNightContext");
+  const keys = Object.keys(value).filter((key) => key !== "requestedStopCount" && key !== "requestedStopCountSource" && key !== "routeReference" && key !== "explicitNightContext" && key !== "requestIntake");
   return [DRAFT_KEYS, DRAFT_KEYS_WITH_ANCHOR].some((allowed) =>
     keys.length === allowed.length && keys.every((key) => (allowed as readonly string[]).includes(key)));
 }
@@ -142,20 +144,22 @@ export function parsePlanExplicitNightContext(value: unknown): Partial<NightCont
   return patch;
 }
 
-function parseRequestOptions(value: Record<string, unknown>): Pick<StoredPlanDraft, "requestedStopCount" | "requestedStopCountSource" | "routeReference" | "explicitNightContext"> {
+function parseRequestOptions(value: Record<string, unknown>, now: number): Pick<StoredPlanDraft, "requestedStopCount" | "requestedStopCountSource" | "routeReference" | "explicitNightContext" | "requestIntake"> {
   const count = isPlanStopCount(value.requestedStopCount) ? value.requestedStopCount : undefined;
   const source = cleanPlanStopCountSource(value.requestedStopCountSource, count);
   const routeReference = parsePlanRouteReference(value.routeReference);
   const explicitNightContext = parsePlanExplicitNightContext(value.explicitNightContext);
+  const requestIntake = parsePlanIntakeRequest(value.requestIntake, now);
   return {
     ...(explicitNightContext !== undefined ? { explicitNightContext } : {}),
+    ...(requestIntake ? { requestIntake } : {}),
     ...(count !== undefined ? { requestedStopCount: count } : {}),
     ...(source ? { requestedStopCountSource: source } : {}),
     ...(routeReference !== undefined ? { routeReference } : {}),
   };
 }
 
-function parseStoredPlanDraft(value: unknown, exactKeys: boolean): StoredPlanDraft | null {
+function parseStoredPlanDraft(value: unknown, exactKeys: boolean, now: number): StoredPlanDraft | null {
   if (
     !isRecord(value)
     || (exactKeys && !hasDraftKeys(value))
@@ -178,7 +182,7 @@ function parseStoredPlanDraft(value: unknown, exactKeys: boolean): StoredPlanDra
     return { key: index + 1, venueId, venueName };
   });
   if (stops.some((stop) => stop === null)) return null;
-  const options = parseRequestOptions(value);
+  const options = parseRequestOptions(value, now);
   let acceptedAnchor: StoredPlanDraft["acceptedAnchor"];
   if (value.acceptedAnchor !== undefined) {
     const anchor = value.acceptedAnchor;
@@ -231,7 +235,7 @@ function withoutExpiredAcceptedAnchor(draft: StoredPlanDraft, now: number): Stor
 export function parsePlanDraft(raw: string | null, now = Date.now()): StoredPlanDraft | null {
   if (!raw || !Number.isFinite(now) || byteLength(raw) > PLAN_DRAFT_MAX_RAW_BYTES) return null;
   try {
-    const draft = parseStoredPlanDraft(JSON.parse(raw), false);
+    const draft = parseStoredPlanDraft(JSON.parse(raw), false, now);
     return draft ? withoutExpiredAcceptedAnchor(draft, now) : null;
   } catch {
     return null;
@@ -253,7 +257,7 @@ function parsePlanDraftV2(
     if (!savedAt || !expiresAt) return null;
     if (savedAt.time > now + PLAN_DRAFT_MAX_FUTURE_SKEW_MS) return null;
     if (expiresAt.time !== savedAt.time + PLAN_DRAFT_TTL_MS || now >= expiresAt.time) return null;
-    const parsedDraft = parseStoredPlanDraft(value.draft, true);
+    const parsedDraft = parseStoredPlanDraft(value.draft, true, now);
     const draft = parsedDraft ? withoutExpiredAcceptedAnchor(parsedDraft, now) : null;
     if (!draft) return null;
     return {
@@ -313,7 +317,7 @@ export function writePlanDraftEnvelope(
   storage: PlanDraftStorage | null,
   now = Date.now(),
 ): PlanDraftWriteResult {
-  const parsedDraft = parseStoredPlanDraft(draft, false);
+  const parsedDraft = parseStoredPlanDraft(draft, false, now);
   const canonical = parsedDraft ? withoutExpiredAcceptedAnchor(parsedDraft, now) : null;
   const savedAt = new Date(now);
   const expiresAt = new Date(now + PLAN_DRAFT_TTL_MS);

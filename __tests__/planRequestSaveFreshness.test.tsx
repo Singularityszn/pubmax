@@ -2190,3 +2190,115 @@ it("keeps conflicting request maps UNKNOWN instead of borrowing route inputs", a
   await sortAgainFromTune();
   expect(reconciledGenerationContext()).toMatchObject({ zeroProof: false });
 });
+
+
+it.each(["v1-only", "v2-only"] as const)("preserves a readable explicit empty-map candidate across untouched conflicting %s reloads", async (format) => {
+  const advance = pinClock();
+  await generateProofRoute(3);
+  await openTune();
+  advance(1000);
+  await editTuneControl("budget", "value");
+  await act(async () => { document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); });
+  await settle();
+  const survivingKey = format === "v1-only" ? "pubmaxx:plan-draft:v1" : "pubmax:plan-draft:v2";
+  rejectSessionRecordWrites([format === "v1-only" ? "pubmax:plan-draft:v2" : "pubmaxx:plan-draft:v1"]);
+  rejectRouteWrites([PLAN_INTAKE_STORAGE_KEY, PLAN_ROUTE_DRAFT_KEY, PLAN_ROUTE_DRAFT_V2_KEY]);
+  sessionStorage.setItem(ASK_PLAN_DRAFT_STORAGE_KEY, JSON.stringify({ query: "Clapham tonight, a treat night" }));
+  advance(2000);
+  await remountComposer();
+  const saved = sessionStorage.getItem(survivingKey)!;
+  const savedIntake = localStorage.getItem(PLAN_INTAKE_STORAGE_KEY);
+  const savedOther = sessionStorage.getItem(format === "v1-only" ? "pubmax:plan-draft:v2" : "pubmaxx:plan-draft:v1");
+  const envelope = JSON.parse(saved);
+  const request = envelope.draft ?? envelope;
+  expect(request).toMatchObject({ conciergeQuery: "Clapham tonight, a treat night", explicitNightContext: {}, routeReference: null });
+  expect(Object.hasOwn(request, "explicitNightContext")).toBe(true);
+  for (let turn = 3; turn <= 4; turn += 1) {
+    advance(turn * 1000);
+    await remountComposer();
+    const remaining = JSON.parse(sessionStorage.getItem(survivingKey)!);
+    expect.soft(sessionStorage.getItem(survivingKey), "An untouched ambiguous reload must preserve its readable input candidate and writer date").toBe(saved);
+    const current = remaining.draft ?? remaining;
+    expect.soft(Object.hasOwn(current, "explicitNightContext"), "Known empty input metadata must not become absence through a copy").toBe(true);
+    expect.soft(current.explicitNightContext).toEqual({});
+    expect(localStorage.getItem(PLAN_INTAKE_STORAGE_KEY)).toBe(savedIntake);
+    expect(sessionStorage.getItem(format === "v1-only" ? "pubmax:plan-draft:v2" : "pubmaxx:plan-draft:v1")).toBe(savedOther);
+  }
+});
+
+
+function seedCorrelatedLegacyWizardRequest(): string {
+  const base = skipRemainingPlanIntake(createPlanIntakeDraft());
+  const intake = { ...base, skippedSteps: [], answers: {
+    ...base.answers, area: "clapham" as const, timeWindow: "evening" as const,
+    exactStartIso: "2026-11-03T19:00:00.000Z", groupSize: 6,
+    stopCount: 3 as const, stopCountSource: "picker" as const,
+    budget: "value" as const, budgetLimitPence: 3500, accessibilityNeeds: ["step-free" as const],
+  } };
+  expect(writePlanIntakeDraft(intake, localStorage, T0, null)).toBe(true);
+  const stops = [
+    { key: 1, venueId: "venue-a", venueName: "Pub A" },
+    { key: 2, venueId: "venue-b", venueName: "Pub B" },
+    { key: 3, venueId: "venue-c", venueName: "Pub C" },
+  ];
+  writePlanDraftEnvelope({ title: "Legacy night", creatorName: "Captain", startTime: START, conciergeQuery: "", stops,
+    requestedStopCount: 3, requestedStopCountSource: "picker", routeReference: null,
+  }, "manual", sessionStorage, T0);
+  const context = { ...inferNightContext("Clapham tonight").context, stopCount: 3, groupSize: 6,
+    budget: "value", budgetLimitPence: 3500, accessibility: ["step-free"], zeroProof: true, drinkCategory: null };
+  localStorage.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify({
+    savedAt: new Date(T0).toISOString(), stops: stops.map((stop) => ({ ...stop, alternatives: [] })),
+    nightContext: context, explicitNightContext: { zeroProof: true, drinkCategory: null },
+    routeNight: { nightArea: "clapham", daypart: "evening" }, routeRevision: 1,
+    routeStale: true, groundingProof: null, createOperationKey: null, planAnchor: null,
+  }));
+  const intakeRecord = localStorage.getItem(PLAN_INTAKE_STORAGE_KEY);
+  return intakeRecord!;
+}
+
+async function expectLegacyWizardGenerationInputs(): Promise<void> {
+  await sortAgainFromTune();
+  const post = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate")).at(-1)!;
+  const request = JSON.parse(String(post[1]?.body));
+  const reconciled = reconciledGenerationContext();
+  expect.soft(request.intake).toMatchObject({ groupSize: 6, accessibilityNeeds: ["step-free"],
+    area: { kind: "night-patch", id: "clapham" },
+    timeWindow: { id: "evening", exactStartIso: "2026-11-03T19:00:00.000Z" },
+    budget: { tier: "value", limitPence: 3500 },
+  });
+  expect(reconciled).toMatchObject({ groupSize: 6, accessibility: ["step-free"], budget: "value", budgetLimitPence: 3500, zeroProof: true });
+}
+
+it("preserves correlated legacy wizard answers when only Session receives the migrated map", async () => {
+  const advance = pinClock();
+  const intakeRecord = seedCorrelatedLegacyWizardRequest();
+  expect(readPlanDraftEnvelope(sessionStorage)?.draft.explicitNightContext).toBeUndefined();
+  expect(readPlanIntakeDraftWithMetadata(localStorage)?.explicitNightContext).toBeUndefined();
+  blockStorageWrites("localStorage");
+  await mountComposer();
+  await openTune();
+  expect(document.querySelector<HTMLInputElement>("#plan-context-people")?.value).toBe("6");
+  advance(1000);
+  await remountComposer();
+  await openTune();
+  expect(document.querySelector<HTMLInputElement>("#plan-context-people")?.value).toBe("6");
+  expect(localStorage.getItem(PLAN_INTAKE_STORAGE_KEY)).toBe(intakeRecord);
+  await expectLegacyWizardGenerationInputs();
+});
+
+
+it.each(["title", "name"] as const)("preserves every legacy wizard input after a real cosmetic %s edit with local writes blocked", async (field) => {
+  const advance = pinClock();
+  const intakeRecord = seedCorrelatedLegacyWizardRequest();
+  blockStorageWrites("localStorage");
+  await mountComposer();
+  advance(1000);
+  await editInput(field === "title" ? "#plan-title" : "#plan-name", field === "title" ? "Our next night" : "Alex");
+  expect(readPlanDraftEnvelope(sessionStorage)?.savedAt).toBe("2026-11-03T12:00:01.000Z");
+  advance(2000);
+  await remountComposer();
+  await openTune();
+  expect.soft(document.querySelector<HTMLInputElement>("#plan-context-people")?.value).toBe("6");
+  expect(localStorage.getItem(PLAN_INTAKE_STORAGE_KEY)).toBe(intakeRecord);
+  await expectLegacyWizardGenerationInputs();
+});
