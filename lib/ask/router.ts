@@ -25,6 +25,7 @@ export type RoutedToolCall = {
 };
 
 export function isVenueHoursQuestion(query: string): boolean {
+  query = semanticAskRequest(query);
   const subjectQuery = stripTrailingPunctuation(query).replace(
     /\b(?:a|an|the)\s+(?:(?!(?:pub|bar|venue|place)\b)[^\s,.!?;]+\s+)*(?:pub|bar|venue|place)\s+(?:called|named)\s+/gi, "",
   );
@@ -121,6 +122,7 @@ function isCityStatusRequest(query: string): boolean {
 }
 
 export function resolveAskJourney(query: string): { from?: string; to: string } | null {
+  query = semanticAskRequest(query);
   const clause = askRequestClauses(query).find((part) => JOURNEY_RE.test(part));
   if (!clause) return null;
   const match = clause.match(JOURNEY_RE)!;
@@ -257,6 +259,7 @@ export function resolveAskPriceIntent(query: string): AskPriceIntent {
 }
 
 export function isVenueDiscoveryAsk(query: string): boolean {
+  query = semanticAskRequest(query);
   if (VENUE_DISCOVERY_RE.test(query) || palAsksForVenueDiscovery(query)) return true;
   const priceQuery = priceQuestion(query);
   const intent = resolveAskPriceIntent(priceQuery);
@@ -321,6 +324,7 @@ function extractArea(query: string): string | null {
  * after it. Anything that also asks for something is not one.
  */
 export function socialTurnKind(query: string): "greeting" | "thanks" | null {
+  query = semanticAskRequest(query);
   if (
     /^(?:hi|hello|hey|hiya|heya|yo|howdy|evening|good (?:morning|afternoon|evening))(?:[\s,]+(?:there|pal|pub pal|mate|all|everyone))?[.!?\s]*$/i.test(
       query,
@@ -348,14 +352,15 @@ const SAME_AREA_REFERENCE_RE = /(?:\b(?:in|near|around)\s+)?\b(?:the\s+)?same\s+
 
 /** A pint-budget refinement keeps the discovered area without replacing a named subject. */
 export function refineVenueBudgetFollowUp(query: string, priorUserContent: string | readonly string[] | null | undefined): string | null {
-  if (!priorUserContent || !SAME_AREA_REFERENCE_RE.test(query)
-    || extractExplicitBudget(query) === undefined || /\bat\s+\S/i.test(query)) return null;
-  const price = resolveAskPriceIntent(query);
+  const text = semanticAskRequest(query);
+  if (!priorUserContent || !SAME_AREA_REFERENCE_RE.test(text)
+    || extractExplicitBudget(text) === undefined || /\bat\s+\S/i.test(text)) return null;
+  const price = resolveAskPriceIntent(text);
   if (price.kind !== "none" && price.kind !== "pint") return null;
   const knownAreas = defaultKnownAreas();
-  if (deterministicAreaInText(query.replace(SAME_AREA_REFERENCE_RE, ""), knownAreas)) return null;
+  if (deterministicAreaInText(text.replace(SAME_AREA_REFERENCE_RE, ""), knownAreas)) return null;
   const priorLines = typeof priorUserContent === "string" ? [priorUserContent] : priorUserContent;
-  const priorArea = priorLines.map((line) => socialTurnKind(line) ? undefined : deterministicAreaInText(line.replace(SAME_AREA_REFERENCE_RE, ""), knownAreas)).findLast(Boolean);
+  const priorArea = priorLines.map(semanticAskRequest).map((line) => socialTurnKind(line) ? undefined : deterministicAreaInText(line.replace(SAME_AREA_REFERENCE_RE, ""), knownAreas)).findLast(Boolean);
   return priorArea ? query.replace(SAME_AREA_REFERENCE_RE, `pubs in ${priorArea}`) : null;
 }
 
@@ -366,12 +371,12 @@ export function refineRoutedAskQuery(
 ): string {
   const budgetFollowUp = refineVenueBudgetFollowUp(query, priorUserContents ?? priorUserContent);
   if (budgetFollowUp) return budgetFollowUp;
-  const words = query.trim().split(/\s+/).filter(Boolean);
+  const words = semanticAskRequest(query).trim().split(/\s+/).filter(Boolean);
   if (!priorUserContent || words.length === 0 || words.length > 4) return query;
   if (socialTurnKind(priorUserContent)) return query;
   const current = routeAskDeterministically(query);
   if (current.some((call) => call.name !== "search_venues")) return query;
-  const priorPlace = extractArea(priorUserContent);
+  const priorPlace = extractArea(semanticAskRequest(priorUserContent));
   if (priorPlace) return `${query} in ${priorPlace}`;
   return `${priorUserContent} - ${query}`;
 }
@@ -512,7 +517,8 @@ function requestedVenueCount(query: string): number | null {
  * default venue search. Cap at two tools so the keyless path stays snappy.
  */
 export function routeAskDeterministically(query: string): RoutedToolCall[] {
-  const text = query.trim();
+  const rawQuery = query.trim();
+  const text = semanticAskRequest(rawQuery) || rawQuery;
   if (!text) return [];
   const priceIntent = resolveAskPriceIntent(text);
 
@@ -533,7 +539,7 @@ export function routeAskDeterministically(query: string): RoutedToolCall[] {
 
   if (priceIntent.kind === "unsupported") return calls;
   if (isVenueHoursQuestion(text)) {
-    push("search_venues", { query: text });
+    push("search_venues", { query: rawQuery });
     return calls;
   }
   if (priceIntent.kind === "menu") {
@@ -548,11 +554,11 @@ export function routeAskDeterministically(query: string): RoutedToolCall[] {
 
   if (HERITAGE_RE.test(text) && !isVenueDiscoveryAsk(text)) {
     const venueName = stripIntentWords(text);
-    push("venue_heritage", venueName ? { venueName, query: text } : { query: text });
+    push("venue_heritage", venueName ? { venueName, query: rawQuery } : { query: rawQuery });
   }
 
   if (priceIntent.kind === "drink-venues") {
-    push("search_venues", { query: text, limit: requestedVenueCount(text) ?? 4 });
+    push("search_venues", { query: rawQuery, limit: requestedVenueCount(text) ?? 4 });
     return calls;
   }
 
@@ -564,27 +570,27 @@ export function routeAskDeterministically(query: string): RoutedToolCall[] {
   }
 
   if (whatsOn) {
-    push("whats_on", { query: text });
+    push("whats_on", { query: rawQuery });
     return calls;
   }
 
   if (PRICE_RE.test(text) && !PLAN_RE.test(text) && !isVenueDiscoveryAsk(text)) {
     const venueName = priceIntent.kind === "pint" || priceIntent.kind === "pub-price"
       ? priceIntent.venueName ?? stripIntentWords(text) : stripIntentWords(text);
-    push("venue_prices", venueName ? { venueName, query: text } : { query: text });
+    push("venue_prices", venueName ? { venueName, query: rawQuery } : { query: rawQuery });
   }
 
   if (PLAN_RE.test(text)) {
-    push("propose_plan", { query: text });
+    push("propose_plan", { query: rawQuery });
   }
 
   if (OPEN_MAP_RE.test(text) && !PLAN_RE.test(text) && !isVenueDiscoveryAsk(text) && !palAsksForVenueDiscovery(text) && calls.length === 0) {
     const venueName = stripIntentWords(text);
-    push("propose_map_action", venueName ? { venueName } : { query: text });
+    push("propose_map_action", venueName ? { venueName } : { query: rawQuery });
   }
 
   if (calls.length === 0) {
-    push("search_venues", { query: text, limit: requestedVenueCount(text) ?? 4 });
+    push("search_venues", { query: rawQuery, limit: requestedVenueCount(text) ?? 4 });
   }
 
   return calls;

@@ -1,11 +1,69 @@
 import { QUALIFIED_PRICE_REQUESTS } from "./fixtures/askPriceSubjects";
 import { describe, expect, it } from "vitest";
 
-import { refineRoutedAskQuery, resolveAskJourney, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
+import { isVenueDiscoveryAsk, isVenueHoursQuestion, refineRoutedAskQuery, resolveAskJourney, routeAskDeterministically, socialTurnKind, unsupportedPriceComparison } from "@/lib/ask/router";
 import { semanticAskRequest } from "@/lib/ask/requestPolicy";
 import { ASK_TOOL_NAMES, isAskToolName } from "@/lib/ask/types";
 
 describe("routeAskDeterministically", () => {
+  it.each([
+    "Quiet-ish near Bank, 4 of us. Show the source and date for any price you use.",
+    "Quiet-ish near Bank, 4 of us. Show the map.",
+  ])("keeps the reproduced mood-only request on discovery: %s", (query) => {
+    expect(routeAskDeterministically(query)).toEqual([{ name: "search_venues", args: { query, limit: 4 } }]);
+  });
+
+  it.each([
+    { request: "Quiet-ish near Bank, 4 of us.", name: "search_venues", args: { limit: 4 }, queryContext: true },
+    { request: "Find three quiet pubs in Soho for four people under £7 a pint.", name: "search_venues", args: { limit: 3 }, queryContext: true },
+    { request: "Plan a quiet romantic crawl in Soho for four people under £7 a pint.", name: "propose_plan", args: {}, queryContext: true },
+    { request: "How much is a pint at The Lamb?", name: "venue_prices", args: { venueName: "The Lamb" }, queryContext: true },
+    { request: "What are the opening hours at The Lamb?", name: "search_venues", args: {}, queryContext: true },
+    { request: "What's on in Soho tonight?", name: "whats_on", args: {}, queryContext: true },
+    { request: "History of Mr. Fogg's", name: "venue_heritage", args: { venueName: "of Mr. Fogg's" }, queryContext: true },
+    { request: "Show The Lamb on the map", name: "propose_map_action", args: { venueName: "Lamb on map" }, queryContext: false },
+    { request: "Directions to Mr. Fogg's from London Bridge.", name: "journey", args: { from: "London Bridge", to: "Mr. Fogg's" }, queryContext: false },
+    { request: "Is the Tube running tonight?", name: "city_status", args: {}, queryContext: false },
+    { request: "Weather in London", name: "city_status", args: {}, queryContext: false },
+    { request: "Cheapest pint in Camden", name: "cheapest_pint_near", args: { area: "Camden" }, queryContext: false },
+    { request: "Cheapest wine at The Lamb", name: "venue_drinks", args: { venueName: "The Lamb", drinkCategory: "wine" }, queryContext: false },
+    { request: "Drink prices in Camden", name: "search_venues", args: { limit: 4 }, queryContext: true },
+    { request: "How much is a burger at The Lamb?", name: "venue_drinks", args: { venueName: "The Lamb" }, queryContext: false },
+    { request: "What's the buzz in Soho", name: "area_buzz", args: { area: "Soho" }, queryContext: false },
+    { request: "Somewhere to work with wifi in Angel", name: "find_desk", args: { area: "Angel" }, queryContext: false },
+    { request: "What is on right now in Soho tonight", name: "tonight_now", args: { area: "Soho" }, queryContext: false },
+    { request: "It's rammed in The Lamb", name: "report_occupancy", args: { venueName: "Lamb", level: "It's rammed in The Lamb" }, queryContext: false },
+  ])("keeps semantic routing and raw context for $request", ({ request, name, args, queryContext }) => {
+    const evidence = "Show the source and date for any price you use.";
+    for (const query of [request, `${evidence} ${request}`, `${request} and ${evidence}`, `${request} and Show the map.`, `${evidence} Include the map. ${request} and ${evidence}`]) {
+      expect(routeAskDeterministically(query)).toEqual([
+        { name, args: { ...args, ...(queryContext ? { query } : {}) } },
+      ]);
+    }
+  });
+
+  it.each(["Show the map", "Show the map."])("retains a standalone map action: %s", (query) => {
+    expect(routeAskDeterministically(query)).toEqual([
+      { name: "propose_map_action", args: { venueName: query.endsWith(".") ? "map." : "map" } },
+    ]);
+  });
+
+  it("uses semantic requests at exported helper boundaries", () => {
+    const evidence = "Show the source and date for any price you use.";
+    for (const wrap of [(request: string) => `${evidence} ${request}`, (request: string) => `${request} and ${evidence} Include the map.`]) {
+      expect(isVenueHoursQuestion(wrap("What are the opening hours at The Lamb?"))).toBe(true);
+      expect(isVenueHoursQuestion(wrap("Find pubs with late opening hours in Soho."))).toBe(false);
+      expect(isVenueDiscoveryAsk(wrap("Somewhere quiet in Soho."))).toBe(true);
+      expect(isVenueDiscoveryAsk(wrap("How much is a pint at The Lamb?"))).toBe(false);
+      expect(resolveAskJourney(wrap("Directions to Mr. Fogg's from London Bridge."))).toEqual({ from: "London Bridge", to: "Mr. Fogg's" });
+      expect(socialTurnKind(wrap("Hello mate."))).toBe("greeting");
+      const followUp = wrap("somewhere quiet");
+      expect(refineRoutedAskQuery(followUp, wrap("pubs in Camden"))).toBe(`${followUp} in Camden`);
+      const budget = wrap("Same area, under £6.50 a pint.");
+      expect(refineRoutedAskQuery(budget, wrap("Find four pubs in Soho."))).toBe(wrap("pubs in Soho, under £6.50 a pint."));
+    }
+  });
+
   it.each([
     "Recommend three quiet pubs in Soho.",
     "Suggest three quiet pubs.",

@@ -106,6 +106,16 @@ describe("parseConciergeIntent keyless fallback", () => {
   });
 
   it.each([
+    "Quiet-ish near Bank, 4 of us. Show the source and date for any price you use.",
+    "Show the source and date for any price you use. Quiet-ish near Bank, 4 of us.",
+    "Quiet-ish near Bank, 4 of us. Show sources for any price you use and include the date. Include the map.",
+  ])("keeps mood-only discovery preferences: %s", async (query) => {
+    expect(await parseConciergeIntent(query, { skipModel: true })).toEqual({
+      intent: { mood: ["quiet"], groupSize: 4, area: "Bank" }, source: "deterministic",
+    });
+  });
+
+  it.each([
     "Find three quiet pubs in Soho for tonight. Show the source and date for any price you use.",
     "Show the source and date for any price you use. Find three quiet pubs in Soho for tonight.",
     "Show the source and date for any price you use. Recommend three quiet pubs in Soho.",
@@ -305,6 +315,20 @@ describe("parseConciergeIntent TypeSafe path", () => {
   afterEach(() => {
     vi.mocked(systemOne).mockReset();
     vi.unstubAllEnvs();
+  });
+
+  it.each([
+    "Quiet-ish near Bank, 4 of us. Show the source and date for any price you use.",
+    "Show the source and date for any price you use. Quiet-ish near Bank, 4 of us.",
+    "Quiet-ish near Bank, 4 of us. Show sources for any price you use and include the date. Include the map.",
+  ])("sends only mood-only request semantics to the model: %s", async (query) => {
+    mockSystemOne({ moods: hitNouls(["quiet"]), area: "Bank", group: "4" });
+    expect(await parseConciergeIntent(query)).toEqual({
+      intent: { mood: ["quiet"], groupSize: 4, area: "Bank" }, source: "model",
+    });
+    expect(systemOne).toHaveBeenCalledWith(
+      expect.objectContaining({ text: "Quiet-ish near Bank, 4 of us." }), expect.anything(), expect.anything(),
+    );
   });
 
   it.each([

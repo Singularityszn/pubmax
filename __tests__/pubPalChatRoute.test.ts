@@ -183,6 +183,27 @@ describe("POST /api/pub-pal/chat", () => {
     expect(body.answer).not.toMatch(/can't compare|not prices for that item/i);
   });
 
+  it("keeps mood-only discovery beside evidence and map instructions", async () => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
+    vi.stubEnv("TYPESAFE_API_KEY", "");
+    vi.stubGlobal("fetch", offlineFetch);
+    const request = "Quiet-ish near Bank, 4 of us.";
+    const queries = [request, `Show the source and date for any price you use. ${request}`, `${request} Show the map.`, `${request} Show sources for any price you use and include the date. Include the map.`];
+    const choices: string[][] = [];
+    for (const query of queries) {
+      const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ query, cityId: "london" }),
+      }));
+      const body = await response.json();
+      expect(response.status).toBe(200);
+      expect(body.toolsUsed).toEqual(["search_venues"]);
+      expect(body.cards.length).toBeGreaterThan(0);
+      choices.push(body.cards.map((card: { venueId: string }) => card.venueId));
+    }
+    for (const ids of choices.slice(1)) expect(ids).toEqual(choices[0]);
+  });
+
   it.each([
     "Find three quiet pubs in Soho for tonight. Show the source and date for any price you use.",
     "Show the source and date for any price you use. Find three quiet pubs in Soho for tonight.",

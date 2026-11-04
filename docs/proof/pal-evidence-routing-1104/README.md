@@ -89,6 +89,7 @@ It resolves local aliases and JSON modules and substitutes only unavailable prov
 It does not replace either parser or routing logic.
 Provider-backed replies and production browser results remain unverified.
 
+
 The final Node diagnostic passed 218 cases on the modified source, with zero failures.
 It checked leading, trailing and polite evidence clauses for discovery and planning.
 It also checked explicit budgets, group sizes, real romantic preferences and named pint routing.
@@ -217,3 +218,60 @@ The added HTTP and Vitest regression cases remain unexecuted in this round.
 No formal lint or compiler result is claimed.
 The temporary diagnostic was removed after the run.
 These results describe source derived from the starting head, not pipeline validation.
+
+## Review finding R7
+
+This round started at `8d3da265cae893e084967c4c5b544b776a757288`.
+The exported router reproduced the reported failure before source changes.
+
+| Request | Before this repair |
+| --- | --- |
+| `Quiet-ish near Bank, 4 of us.` | `search_venues`, limit 4 |
+| The same request with price source and date instructions | `venue_prices`, with evidence words inside the venue name |
+| The same request with `Show the map.` | `propose_map_action`, with the discovery request inside the venue name |
+
+Every routing decision must use the semantic request while reply and tool query context retain the complete request.
+The defect came from inconsistent interpretation across sibling routing branches.
+The routing entry now uses the shared semantic policy before selecting any tool.
+Counts, subjects, venue names, journey endpoints, areas and occupancy levels use that semantic text.
+Tool query arguments retain the complete original text.
+An instruction with no remaining semantic request retains its existing standalone routing behaviour, including a plain map action.
+
+Exported hours, journey, discovery and social helpers apply the same policy when callers supply original text.
+Follow-up classification and prior-area extraction also use semantic text.
+Follow-up results retain the complete request and its evidence instructions.
+The price helpers already share semantic interpretation through `priceQuestion`.
+No tool implementation, type contract or presentation-clause grammar changed.
+
+The repair retains city status, transit, journeys, hours, heritage, listings and every concierge claim.
+Named prices, menu requests, genuine map actions, plans and discovery retain their ordinary paths.
+The food and non-pint guards still receive real unsupported subjects.
+No helper or caller became unreachable.
+
+Regression tests use literal expected tools and arguments from supported requests and the required discovery contract.
+They cover leading, trailing and consecutive evidence instructions, raw query context, mood-only discovery and generic map presentation.
+They also cover punctuation in a venue name, counts, budgets, group sizes and genuine romantic preferences.
+Both existing HTTP-handler suites check discovery and stable venue choices beside evidence instructions.
+Parser tests check deterministic preferences and the emitted model request without contacting a provider.
+
+Dependencies remain absent from this worktree.
+The configured Test phase owns dependency preparation and formal validation.
+Provider-backed replies and production browser results remain unverified.
+
+The final R7 Node diagnostic passed 1,008 assertions on the modified source.
+Two final exported-router assertions also passed for the exact reproduced price-evidence and map-presentation sentences.
+Both selected `search_venues`, retained the complete query and kept the limit of four.
+It executed the real router, semantic policy and preference parser.
+It checked 19 supported routing forms with leading, trailing and consecutive presentation instructions.
+All 174 qualified-price fixtures retained their existing coverage codes beside those instructions.
+It also checked exported helpers, follow-ups, standalone map actions, group sizes, budgets and genuine romantic preferences.
+The model-input check substituted unavailable provider imports and made no provider call.
+Two diagnostic inputs initially lacked a real clause boundary before their evidence instructions.
+The corrected inputs used an explicit conjunction and required no product change.
+
+The focused four-suite Vitest command exited 127 because `node_modules/.bin/vitest` was absent.
+The added Vitest and HTTP regression cases remain unexecuted.
+No formal lint or compiler result is claimed.
+The Node diagnostic does not replace those checks.
+These results describe modified source derived from the starting head, not a pipeline-validated commit.
+The temporary diagnostic was removed after its run.
