@@ -40,7 +40,7 @@ function tonightSlimLoader(): Promise<SlimShardLoader> {
   return nearbyLoader;
 }
 
-/** Priced pubs from the slim cells around `near`; an empty list until they land. */
+/** Partial cells must not produce a nearby winner or certify its snapshot. */
 export function useTonightNearbyVenues(near: Coord | null): { rows: readonly TonightCheapestCandidate[]; priceDatasetDigest: string | null } {
   const [answer, setAnswer] = useState<{ key: string; rows: TonightCheapestCandidate[]; priceDatasetDigest: string | null } | null>(null);
   const lat = near?.lat ?? null;
