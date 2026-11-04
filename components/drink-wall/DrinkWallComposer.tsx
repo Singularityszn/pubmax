@@ -1,7 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
+import { useAuth } from "@/components/auth/authContext";
 import MessageVenuePicker, { type PickedVenue } from "@/components/messages/MessageVenuePicker";
 import ProfileImageCropper from "@/components/profile/ProfileImageCropper";
 import { pickNativePhoto } from "@/lib/nativeCamera";
@@ -32,6 +33,13 @@ type DrinkWallComposerProps = {
 };
 
 export default function DrinkWallComposer({ onCancel, onPosted }: DrinkWallComposerProps) {
+  const { user, getCurrentUserId } = useAuth();
+  const [ownerId] = useState(() => user && getCurrentUserId() === user.id ? user.id : null);
+  const mountedRef = useRef(false);
+  useLayoutEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
   const inputRef = useRef<HTMLInputElement>(null);
   const restoreVenueFocus = useRef(false);
   const [chosen, setChosen] = useState<File | null>(null);
@@ -44,6 +52,10 @@ export default function DrinkWallComposer({ onCancel, onPosted }: DrinkWallCompo
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  function ownsDraft(): boolean {
+    return mountedRef.current && ownerId !== null && getCurrentUserId() === ownerId;
+  }
+
   function focusVenueControl(control: HTMLButtonElement | null): void {
     if (control && restoreVenueFocus.current) {
       restoreVenueFocus.current = false;
@@ -52,6 +64,7 @@ export default function DrinkWallComposer({ onCancel, onPosted }: DrinkWallCompo
   }
 
   async function upload(file: File) {
+    if (!ownsDraft()) return;
     setBusy(true);
     setError(null);
     try {
@@ -69,6 +82,7 @@ export default function DrinkWallComposer({ onCancel, onPosted }: DrinkWallCompo
       form.append("photo", file);
       const response = await authedActionFetch("/api/drink-wall", { method: "POST", body: form }, { requiresIdentity: true });
       const body: unknown = await response.json().catch(() => null);
+      if (!ownsDraft()) return;
       if (!response.ok) {
         setError(offlineOrMessage(errorMessageFrom(body, "Could not add that photo. Try again.")));
         return;
@@ -80,15 +94,17 @@ export default function DrinkWallComposer({ onCancel, onPosted }: DrinkWallCompo
       }
       onPosted(payload.photo);
     } catch {
-      setError(offlineOrMessage("Could not add that photo. Try again."));
+      if (ownsDraft()) setError(offlineOrMessage("Could not add that photo. Try again."));
     } finally {
-      setBusy(false);
+      if (ownsDraft()) setBusy(false);
     }
   }
 
   async function choosePhoto() {
+    if (!ownsDraft()) return;
     if (isNativeApp()) {
       const pick = await pickNativePhoto("venue");
+      if (!ownsDraft()) return;
       if (pick.outcome === "chosen") {
         setChosen(pick.file);
         setError(null);
