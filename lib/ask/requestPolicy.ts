@@ -36,7 +36,7 @@ export const GENERIC_MAP_COMMAND_RE = new RegExp(
   "i",
 );
 const ASK_PRESENTATION_CLAUSE_RE = new RegExp(
-  String.raw`${GENERIC_MAP_COMMAND_RE.source}|${PRESENTATION_CLAUSE_START}(?<command>${POLITE_COMMAND_PREFIX}(?:show|include|give)(?:\s+me)?\s+(?:the\s+)?)(?<fields>${PRICE_PRESENTATION_FIELD}(?:\s+and\s+(?:the\s+)?${PRICE_PRESENTATION_FIELD})*)(?<priceContext>${PRICE_PRESENTATION_CONTEXT})?${PRESENTATION_CLAUSE_END}`,
+  String.raw`${GENERIC_MAP_COMMAND_RE.source}|(?:${PRESENTATION_CLAUSE_START})?\b(?<command>${POLITE_COMMAND_PREFIX}(?:show|include|give)(?:\s+me)?\s+(?:the\s+)?)(?<fields>${PRICE_PRESENTATION_FIELD}(?:\s+and\s+(?:the\s+)?${PRICE_PRESENTATION_FIELD})*)(?<priceContext>${PRICE_PRESENTATION_CONTEXT})?${PRESENTATION_CLAUSE_END}`,
   "gi",
 );
 

@@ -591,6 +591,15 @@ describe("routeAskDeterministically", () => {
   });
 
   it.each([
+    "History of Mr. Fogg's Show the source and date for any price you use.",
+    "Tell me the history of Mr. Fogg's Show the source and date for any price you use.",
+  ])("preserves the unpunctuated heritage subject and original query: %s", (query) => {
+    expect(routeAskDeterministically(query)).toEqual([
+      { name: "venue_heritage", args: { venueName: "Mr. Fogg's", query } },
+    ]);
+  });
+
+  it.each([
     "What is the history of Mr. Fogg's?",
     "History of Mr. Fogg's.",
     "Tell me the history of Mr. Fogg's.",
