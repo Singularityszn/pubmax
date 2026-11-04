@@ -134,14 +134,18 @@ async function expectRecoveryInView(button: Locator) {
   // Playwright can scroll it or click it past a covering sheet footer.
   await expect.poll(() => button.evaluate((element) => {
     const box = element.getBoundingClientRect();
-    const corners = [
-      [box.left + 2, box.top + 2], [box.right - 2, box.top + 2],
-      [box.left + 2, box.bottom - 2], [box.right - 2, box.bottom - 2],
+    const centreX = box.left + box.width / 2;
+    const centreY = box.top + box.height / 2;
+    // Edge midpoints stay inside the rounded shape and detect footer overlap.
+    const points = [
+      [centreX, centreY],
+      [centreX, box.top + 2], [centreX, box.bottom - 2],
+      [box.left + 2, centreY], [box.right - 2, centreY],
     ];
     return box.height >= 44 && box.width >= 44
       && box.top >= 0 && box.bottom <= window.innerHeight
       && box.left >= 0 && box.right <= window.innerWidth
-      && corners.every(([x, y]) => element.contains(document.elementFromPoint(x, y)));
+      && points.every(([x, y]) => element.contains(document.elementFromPoint(x, y)));
   })).toBe(true);
 }
 
