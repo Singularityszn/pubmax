@@ -55,7 +55,7 @@ describe("routeAskDeterministically", () => {
     "Show me the map and any tube delays?",
     "Any tube delays? Show the map",
   ])("preserves map intent and service ownership beside another request: %s", (query) => {
-    expect(palVoiceMapIntent(semanticAskRequest(query), false)).toBe("map");
+    expect(palVoiceMapIntent(semanticAskRequest(query), false)).toBeNull();
     expect(socialTurnKind(query)).toBeNull();
     expect(routeAskDeterministically(query)).toEqual([{ name: "city_status", args: {} }]);
   });

@@ -530,6 +530,16 @@ function mapActionRequest(serviceText: string, mapText: string): string | null {
   return request;
 }
 
+export function askHasPriorityOverMap(query: string): boolean {
+  const serviceText = semanticAskRequest(query, false);
+  if (unsupportedPriceComparison(serviceText)) return true;
+  return routeAskDeterministically(query).some(({ name }) =>
+    name !== "propose_map_action" && (name !== "search_venues"
+      || isVenueDiscoveryAsk(serviceText) || isVenueHoursQuestion(serviceText)
+      || hasVenueDiscoveryConstraints(serviceText)),
+  );
+}
+
 /**
  * Choose tools for a free-text ask. Order matters: specialised intents beat the
  * default venue search. Cap at two tools so the keyless path stays snappy.

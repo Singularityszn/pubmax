@@ -15,6 +15,8 @@
 
 import { palAsksForCurrentMap, palAsksForVenueDiscovery, palMapAskTarget } from "@/lib/palMapAsk";
 import { venueMapUrl } from "@/lib/venueMapUrl";
+import { semanticAskRequest } from "@/lib/ask/requestPolicy";
+import { askHasPriorityOverMap } from "@/lib/ask/router";
 
 export type PalVoiceSpeaker = "you" | "pal";
 
@@ -160,13 +162,14 @@ export function palAsksForNextStop(text: string): boolean {
  * an ordinary map ask.
  */
 export function palVoiceMapIntent(text: string, nightIsOn: boolean): "next-stop" | "pub" | "map" | null {
+  text = semanticAskRequest(text);
   if (nightIsOn && palAsksForNextStop(text)) return "next-stop";
   if (palAsksForCurrentMap(text)) return "map";
   if (palAsksForVenueDiscovery(text)) return null;
   // One pub on the map ("take me there", "where is The Lamb?"): the caller
   // names it (lib/palMapAsk.ts), else a map ask still opens the map.
   if (palMapAskTarget(text)) return "pub";
-  if (palAsksForMap(text)) return "map";
+  if (palAsksForMap(text) && !askHasPriorityOverMap(text)) return "map";
   return null;
 }
 

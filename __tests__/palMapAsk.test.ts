@@ -54,7 +54,10 @@ const TARGETS: Array<[string, ReturnType<typeof palMapAskTarget>]> = [
 
 describe("palMapAskTarget", () => {
   it.each(TARGETS)("reads %j", (line, target) => {
-    expect(palMapAskTarget(line)).toEqual(target);
+    const evidence = "Show the source and date for any price you use.";
+    for (const query of [line, `${evidence} ${line}`, `${line}. ${evidence}`]) {
+      expect(palMapAskTarget(query)).toEqual(target);
+    }
   });
 
   it("answers \"pub\" through the shared decision, after a night's next stop", () => {
@@ -128,6 +131,15 @@ describe("palPubAskVenue", () => {
         },
       }),
     ).toBeNull();
+  });
+
+  it.each([
+    "Show The Lamb on the map. Show the source and date for any price you use.",
+    "Show the source and date for any price you use. Show The Lamb on the map.",
+  ])("resolves the same named pub beside evidence: %s", async (query) => {
+    expect(palVoiceMapIntent(query, false)).toBe("pub");
+    expect(await palPubAskVenue(query, { lastVenue: null, palLines: [], loadVenues: async () => VENUES }))
+      .toEqual(VENUES[1]);
   });
 });
 

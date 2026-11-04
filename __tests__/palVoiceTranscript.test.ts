@@ -58,8 +58,26 @@ describe("map requests that still need an answer", () => {
     "Show me quiet pubs in Soho on the map",
     "Show me Soho on the map",
     "Show me the map with four cheap pubs near Bank",
+    "Date night. Show the map.",
+    "Show the map. Garden.",
+    "Show the map. For four.",
+    "Near Soho. Show the map.",
+    "Any Tube delays? Show me the map.",
+    "Show me the map. Any Tube delays?",
+    "Directions to The Lamb from London Bridge. Show me the map.",
+    "What are the opening hours at The Lamb? Show me the map.",
+    "What is the cheapest Negroni near Soho? Show me the map.",
+    "What is the cheapest pint near Soho? Show me the map.",
+    "Plan a three-pub walk in Soho. Show me the map.",
+    "Tell me about the history of The Lamb. Show me the map.",
+    "Any quizzes tonight? Show me the map.",
+    "I need a desk near Soho. Show me the map.",
   ])("keeps discovery in the conversation: %s", (query) => {
-    expect(palVoiceMapIntent(query, false)).toBeNull();
+    const evidence = "Show the source and date for any price you use.";
+    for (const text of [query, `${evidence} ${query}`, `${query} ${evidence}`]) {
+      expect(palVoiceMapIntent(text, false)).toBeNull();
+      expect(palVoiceMapIntent(text, true)).toBeNull();
+    }
   });
 });
 
@@ -162,8 +180,11 @@ const VOICE_MAP_TABLE: ReadonlyArray<readonly [string, "next-stop" | "map" | nul
 
 describe("what the voice panel does with a line", () => {
   it.each(VOICE_MAP_TABLE)("%s", (line, withNight, withoutNight) => {
-    expect(palVoiceMapIntent(line, true)).toBe(withNight);
-    expect(palVoiceMapIntent(line, false)).toBe(withoutNight);
+    const evidence = "Show the source and date for any price you use.";
+    for (const query of [line, `${evidence} ${line}`, `${line}. ${evidence}`]) {
+      expect(palVoiceMapIntent(query, true)).toBe(withNight);
+      expect(palVoiceMapIntent(query, false)).toBe(withoutNight);
+    }
   });
 });
 
