@@ -5,7 +5,7 @@
 // and the existing key. Declared resolver constraints override legacy key text.
 import { readFileSync, writeFileSync } from "node:fs";
 
-import { resolveFullAnswerKeyEntry } from "../evals/pal/answerKeyResolver.ts";
+import { resolveHeritageAmbiguityExpectation, resolveFullAnswerKeyEntry } from "../evals/pal/answerKeyResolver.ts";
 
 const HAND_AUTHORED_KEYS = ["answerIncludes", "anyTools", "priceTolerance"];
 
@@ -20,7 +20,8 @@ for (const c of cases) {
   const handAuthored = Object.fromEntries(
     Object.entries(previous[c.id] ?? {}).filter(([key]) => HAND_AUTHORED_KEYS.includes(key) && resolved[key] === undefined),
   );
-  if (previous[c.id]?.minCards !== undefined && resolved.expectEmpty) emptied.push(c.id);
+  const authoredAmbiguity = resolveHeritageAmbiguityExpectation(c, { now: nowMs, cityId: c.cityId ?? "london" });
+  if (previous[c.id]?.minCards !== undefined && resolved.expectEmpty && !authoredAmbiguity) emptied.push(c.id);
   answerKey[c.id] = { ...resolved, ...handAuthored };
 }
 

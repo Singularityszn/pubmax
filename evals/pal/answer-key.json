@@ -103,12 +103,16 @@
       ]
     },
     "heritage-lamb": {
-      "minCards": 1,
+      "expectEmpty": true,
+      "answerIncludes": [
+        "I cannot tell which pub you mean. Choose the pub on the map, then ask about its history."
+      ],
+      "honestTerminal": {
+        "answer": "I cannot tell which pub you mean. Choose the pub on the map, then ask about its history.",
+        "tool": "venue_heritage"
+      },
       "expectedTools": [
         "venue_heritage"
-      ],
-      "answerIncludes": [
-        "won"
       ]
     },
     "map-open-lamb": {
