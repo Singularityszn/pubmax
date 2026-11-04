@@ -255,3 +255,29 @@ it("does not start a fallback request after the first Pal attempt loses the visi
   expect(document.querySelector<HTMLInputElement>("#plan-concierge-query")?.value).toBe(nextAsk);
   expect(document.querySelector<HTMLButtonElement>(".planComposer__submit")?.disabled).toBe(false);
 });
+
+it("keeps the new request busy and unaccepted when an older reply arrives first", async () => {
+  seed(); await mount(); await waitForAttempts(1);
+  await enter("#plan-concierge-query", nextAsk);
+  const plan = document.querySelector<HTMLButtonElement>(".planComposer__concierge button");
+  expect(plan?.textContent).toContain("Make a plan");
+  await act(async () => plan!.click());
+  await waitForAttempts(2);
+  expect(attempts[1]!.body.query).toBe(nextAsk);
+  expect(attempts[1]!.body).not.toHaveProperty("anchor");
+  await answer(0, route(drafted, "overlap-obsolete-reply"));
+  expect(attempts).toHaveLength(2);
+  expect(document.querySelector<HTMLButtonElement>(".planComposer__submit")?.disabled).toBe(true);
+  expect(document.querySelector(".planComposer__concierge button")?.getAttribute("aria-busy")).toBe("true");
+  expect(document.querySelector<HTMLInputElement>("#plan-concierge-query")?.value).toBe(nextAsk);
+  expect(document.querySelectorAll(".planStop__name")).toHaveLength(0);
+  expect(readPlanDraftEnvelope(sessionStorage)?.draft.routeReference ?? null).toBeNull();
+  expect(readPlanRouteDraftEnvelope(localStorage)?.value.operationKey ?? null).not.toBe("overlap-obsolete-reply");
+  await answer(1, route(finalPubs, "overlap-current-reply", nextAsk)); await waitForPubs(finalPubs);
+  expect(document.querySelector<HTMLButtonElement>(".planComposer__submit")?.disabled).toBe(false);
+  expect(readPlanDraftEnvelope(sessionStorage)?.draft).toMatchObject({
+    conciergeQuery: nextAsk, routeReference: { operationKey: "overlap-current-reply" },
+  });
+  expect(readPlanRouteDraftEnvelope(localStorage)?.value).toMatchObject({ operationKey: "overlap-current-reply", routeStale: false });
+  expect(creations).toHaveLength(0);
+});
