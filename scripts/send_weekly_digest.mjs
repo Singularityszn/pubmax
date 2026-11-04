@@ -30,8 +30,7 @@
 //        generateWeeklyDigest({ user: u, now: new Date(), ...datasets }),
 //        { unsubscribeUrl: unsubscribeUrlFor(u), postalAddress: senderPostalAddress }));
 //        // The owner must supply the real sender address before delivery is enabled.
-//        // toEmailMessage substitutes {{unsubscribe_url}} and throws if any
-//        // {{…}} placeholder survives — a message can never ship half-templated.
+//        // Message safeguards are defined in docs/EMAIL_DIGEST.md.
 //   5. const results  = await provider.send(messages);         // noop → all "skipped"
 //   6. summarise(results);                                      // sent/skipped/invalid/error
 //

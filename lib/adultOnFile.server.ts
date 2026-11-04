@@ -22,9 +22,9 @@ export async function accountAdultEvidence(
  * recorded one tap does (`accountIsAdult`, the one adult gate). A surface that
  * would ask again ("we ask once") reads this first and skips its own question.
  *
- * It answers false on any trouble reading either store. That is the safe half
- * here: the person is asked, which costs a tap, and nothing is assumed about an
- * account the stores could not speak for.
+ * This helper uses the assertion store's default read policy. Rejected reads
+ * return false. Price write gates use accountAdultEvidence with strict reads
+ * instead, so a schema failure cannot become an absent durable assertion.
  */
 export async function accountAdultOnFile(userId: string): Promise<boolean> {
   try {

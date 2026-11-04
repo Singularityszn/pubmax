@@ -16,7 +16,10 @@ const MIGRATION_HINT = "apply migration 0103";
 const STORE_TAG = "adult-self-assertion";
 
 export type AdultSelfAssertionStore = {
-  /** The instant this account asserted, or null when it never has. */
+  /**
+   * The recorded instant, or null when no assertion exists in the selected store.
+   * With Supabase, strict reads throw on schema failures instead of using memory.
+   */
   read(userId: string, options?: { strict?: boolean }): Promise<string | null>;
   /** Idempotent: an account that taps twice keeps its first instant. */
   record(userId: string): Promise<string>;
