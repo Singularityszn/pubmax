@@ -1,4 +1,4 @@
-// Every outside source PUBMAXX shows data from, with its licence and the
+// Every outside source PUBMAXX shows data from, with recorded licence details and the
 // credit it asks for. /credits prints this table, and every surface that shows
 // a source's data links there (components/legal/DataCreditsLink.tsx).
 //
@@ -22,8 +22,10 @@ export type DataCredit = {
   name: string;
   /** The publisher's page, or null where every row names its own publisher's page. */
   sourceUrl: string | null;
-  /** Null where the data is used under the publisher's own terms rather than an open licence. */
+  /** Null where no open licence is recorded here. */
   licence: DataLicence | null;
+  /** An explicit qualification where the usual publisher-terms notice does not apply. */
+  licenceNote?: string;
   /** The credit line, word for word where the publisher asks for exact words. */
   attribution: string;
   /** What PUBMAXX shows from it, in one sentence. */
@@ -176,6 +178,16 @@ export const DATA_CREDITS: readonly DataCredit[] = [
     licence: null,
     attribution: "Oliver Clegg's SpoonMe report, credited and linked wherever its ranking is printed. It states no licence.",
     usedFor: "The Spoons value ranking, which is SpoonMe's reading of Wetherspoon menus, never ours.",
+    packMarks: [],
+  },
+  {
+    id: "pint-prices",
+    name: "Pint Prices",
+    sourceUrl: "https://www.pint-prices.com/",
+    licence: null,
+    licenceNote: "No reuse licence is recorded in this source registry.",
+    attribution: "Pint Prices",
+    usedFor: "Pint prices from its published directory.",
     packMarks: [],
   },
   {
