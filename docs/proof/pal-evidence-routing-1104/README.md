@@ -5,7 +5,11 @@ The repair keeps evidence instructions separate from the requested pub or crawl.
 
 The base is `445df3a6bc85f2403f984a5f4a32e3e62d9731ff`.
 The first repair changed `lib/ask/router.ts`.
-The review repair also changes `lib/concierge/intent.ts` and adds the shared `lib/ask/requestPolicy.ts` policy.
+Later repairs add `lib/ask/requestPolicy.ts` and update `lib/concierge/intent.ts`, `lib/concierge/whatsOn.ts` and `lib/ask/venueHours.server.ts`.
+
+Each review section records its own source state and verification limits.
+Later sections supersede earlier implementation descriptions, including follow-up composition and standalone map handling.
+The final focused verification is recorded under [review repair round 7](#review-repair-round-7-middle-evidence-and-genuine-map-commands).
 
 ## Reproduced request
 
@@ -27,10 +31,7 @@ The request does not require every pub to have a recorded price.
 
 ## Retained boundaries
 
-The matcher accepts whole source, date and map instructions with a generic price qualifier.
-It recognises those instructions before or after a discovery or planning sentence.
-An explicit burger or wine price subject remains in the existing price policy.
-The tests also retain an unsupported item request beside an otherwise valid evidence instruction.
+[ADR 0014](../../adr/0014-night-os-ask-agent.md#decision) owns the shared interpretation policy and its coverage guards.
 
 The HTTP tests execute the real handlers and router.
 They use the existing offline network boundary and keyless configuration.

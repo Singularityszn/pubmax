@@ -32,6 +32,16 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
    may appear on the pub’s own sheet language only. Map-authority claims
    require corroboration.
    `lib/ask/router.ts` owns price-subject routing for both HTTP paths.
+   `lib/ask/requestPolicy.ts` owns shared clause parsing and `semanticAskRequest`.
+   It removes complete source, date and generic map presentation instructions before intent classification.
+   The router, preference parser, listing parser and named-hours lookup use this semantic request.
+   Removal preserves boundaries between surviving requests and punctuation inside venue names.
+   A map command retains map intent when no other request survives.
+   Real food and non-pint price subjects remain visible to the coverage guards.
+   Replies, memory and tool context retain the complete original question.
+   Short follow-ups inherit area context after closing evidence instructions, without changing supported price intent.
+   Regression coverage includes `__tests__/askRouter.test.ts`, `__tests__/conciergeIntent.test.ts`,
+   `__tests__/conciergeWhatsOn.test.ts`, `__tests__/askVenueHours.test.ts` and both HTTP-handler suites.
    Named menu requests and unsupported price comparisons use deterministic
    `runAsk` even when a model provider is configured.
    Explicit named questions about opening or closing hours or times also
