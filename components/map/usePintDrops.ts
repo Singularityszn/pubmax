@@ -690,9 +690,7 @@ export function usePintDrops(
       // before the upload lands.
       receiptPhotoUrl: receiptPhoto?.previewUrl ?? null,
       optimistic: optimisticDrop.optimistic,
-      ...(trainFields
-        ? { leaveByIso: trainFields.leaveByIso, lastTrainDecision: trainFields.lastTrainDecision }
-        : {}),
+      ...trainFields,
     };
     setDropsByVenueId((current) => {
       const next = new Map(current);
