@@ -1698,6 +1698,7 @@ function PlanComposerForm({
   const draftFields = initialComposerDraftFields(handoff, recoveredDraft);
   const [title, setTitle] = useState(draftFields.title);
   const [creatorName, setCreatorName] = useState(draftFields.creatorName);
+  const automaticCreatorName = useRef<string | null>(null);
   const [initialStartTime] = useState(draftFields.startTime);
   const [startTime, setStartTime] = useState(initialStartTime);
   const recoveredRequestTitle = recoveredDraft?.title ?? draftFields.title;
@@ -1874,6 +1875,7 @@ function PlanComposerForm({
     setCreatorName((current) => {
       if (current.trim()) return current;
       const seeded = creatorNameFromAccount({ handle: viewerHandle, user });
+      if (seeded) automaticCreatorName.current = seeded;
       return seeded || current;
     });
   }, [identityResolved, user, viewerHandle]);
@@ -1886,7 +1888,12 @@ function PlanComposerForm({
   useEffect(() => {
     if (!identityResolved || deviceCreatorNameSeededRef.current) return;
     deviceCreatorNameSeededRef.current = true;
-    setCreatorName((current) => current.trim() ? current : readRememberedPlanHostName(safeLocalStorage()) || current);
+    setCreatorName((current) => {
+      if (current.trim()) return current;
+      const seeded = readRememberedPlanHostName(safeLocalStorage());
+      if (seeded) automaticCreatorName.current = seeded;
+      return seeded || current;
+    });
   }, [identityResolved]);
   useEffect(() => {
     if (!canPersist) return;
@@ -2172,7 +2179,7 @@ function PlanComposerForm({
     const intakeWasEdited = savedIntakeRequestChanged(previousIntake, previousSession, recoveredIntake);
     const recoveredRequest = {
       title: recoveredRequestTitle,
-      creatorName: recoveredRequestCreator,
+      creatorName: automaticCreatorName.current ?? recoveredRequestCreator,
       startTime: recoveredRequestStart,
       conciergeQuery: recoveredIntent.conciergeQuery,
       requestedStopCount: recoveredIntent.stopCount,
