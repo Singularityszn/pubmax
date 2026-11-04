@@ -1,3 +1,4 @@
+import { semanticAskRequest } from "@/lib/ask/requestPolicy";
 import { systemOne } from "@/lib/ai/typesafe.server";
 import { conciergeIntentQuestions } from "@/lib/concierge/intentQuestions";
 import {
@@ -157,7 +158,7 @@ export async function parseConciergeIntent(
   text: string,
   options: ParseOptions = {},
 ): Promise<ParsedConciergeIntent> {
-  const clipped = text.slice(0, 500);
+  const clipped = semanticAskRequest(text.slice(0, 500));
   const knownAreas = options.knownAreas ?? defaultKnownAreas();
   const fallback = deterministicIntent(clipped, knownAreas);
   if (shouldUseDeterministicIntentOnly(options)) {

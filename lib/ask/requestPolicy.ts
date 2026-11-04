@@ -1,0 +1,38 @@
+export const TRANSIT_INTERROGATIVE_PREFIX = String.raw`(?:is|are)\s+(?:there\s+)?(?:(?:any|the)\s+)?(?:tube|transit)\s+(?:(?:services?|lines?|trains?)\s+)?(?:running|operating|working|open|closed|delays?|delayed|disruptions?|disrupted|suspended)\b`;
+export const NON_PINT_DRINK_RE = /\b(?:wine|cocktails?|spirits?|coffee|whisk(?:y|ey)|gin|rum|vodka|shots?|soft drinks?|alcohol[- ]free|non[- ]alcoholic)\b/i;
+export const ITEM_PRICE_RE = /\b(?:how much(?:\s+(?:is|are|does|for))?|prices?(?:\s+(?:of|for))?|costs?(?:\s+(?:of|for))?)\b/i;
+
+export function askRequestClauses(query: string): string[] {
+  const pricePrefix = String.raw`(?:${NON_PINT_DRINK_RE.source}|pints?|beer|drinks?)\s+${ITEM_PRICE_RE.source}`;
+  return query.split(new RegExp(String.raw`(?:\s+and\s+|,\s*|(?<=[.!?])\s+)(?=(?:(?:can|could|would|will)\s+you\s+)?(?:please\s+)?(?:any\s+)?(?:${TRANSIT_INTERROGATIVE_PREFIX}|${pricePrefix}|${ITEM_PRICE_RE.source}|how\b|what\b|where\b|find\b|show\b|include\b|give\b|plan\b|directions to\b|route to\b|get (?:me )?to\b|tube delays?\b|transit delays?\b|weather\b|city status\b|cheap(?:est)?\b|best value\b|lowest price\b|most affordable\b))`, "i"));
+}
+
+const TRAILING_QUALIFIER_RE =
+  /(?:^|\s+)(?:tonight|right now|now|later|today|this evening|this afternoon|this morning|this weekend|with mates|for (?:two|a few|\d+))\s*$/i;
+
+export function stripTrailingPunctuation(phrase: string): string {
+  return phrase.replace(/[?.!,;:]+$/g, "").trim();
+}
+
+export function stripTrailingQualifiers(phrase: string): string {
+  let current = phrase.trim();
+  for (;;) {
+    const next = current.replace(TRAILING_QUALIFIER_RE, "").trim();
+    if (next === current) return current;
+    current = next;
+  }
+}
+
+const PRICE_PRESENTATION_FIELD = String.raw`(?:sources?|(?:(?:source|recorded)\s+)?dates?|map)`;
+const PRICE_PRESENTATION_CLAUSE_RE = new RegExp(
+  String.raw`^(?:(?:can|could|would|will)\s+you\s+)?(?:please\s+)?(?:show|include|give)(?:\s+me)?\s+(?:the\s+)?${PRICE_PRESENTATION_FIELD}(?:\s+and\s+(?:the\s+)?${PRICE_PRESENTATION_FIELD})*(?:\s+for\s+(?:(?:any|each|every|all|the)\s+)?(?:(?:listed|recorded)\s+)?(?:pint\s+)?prices?(?:\s+(?:(?:that|which)\s+)?you\s+(?:use|show|quote|mention|include))?)?$`,
+  "i",
+);
+
+export function semanticAskRequest(query: string): string {
+  const clauses = askRequestClauses(query);
+  const requests = clauses.filter((clause) =>
+    !PRICE_PRESENTATION_CLAUSE_RE.test(stripTrailingQualifiers(stripTrailingPunctuation(clause))),
+  );
+  return requests.length === clauses.length ? query : requests.join(" and ").trim();
+}

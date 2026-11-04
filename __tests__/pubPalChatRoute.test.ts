@@ -183,14 +183,18 @@ describe("POST /api/pub-pal/chat", () => {
     expect(body.answer).not.toMatch(/can't compare|not prices for that item/i);
   });
 
-  it("keeps sourced pub discovery in keyless typed chat", async () => {
+  it.each([
+    "Find three quiet pubs in Soho for tonight. Show the source and date for any price you use.",
+    "Show the source and date for any price you use. Find three quiet pubs in Soho for tonight.",
+    "Find three quiet pubs in Soho and please include sources and dates for every price you quote",
+  ])("keeps sourced pub discovery in keyless typed chat: %s", async (query) => {
     vi.stubEnv("ELEVENLABS_API_KEY", "");
     vi.stubEnv("TYPESAFE_API_KEY", "");
     vi.stubGlobal("fetch", offlineFetch);
     const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        query: "Find three quiet pubs in Soho for tonight. Show the source and date for any price you use.",
+        query,
         cityId: "london",
       }),
     }));

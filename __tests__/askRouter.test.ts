@@ -15,6 +15,9 @@ describe("routeAskDeterministically", () => {
 
   it.each([
     "Find three quiet pubs in Soho for tonight. Show the source and date for any price you use.",
+    "Find three quiet pubs in Soho and please include sources and dates for every price you quote",
+    "Find three quiet pubs in Soho. Show the source and date for any price you use tonight.",
+    "Find three quiet pubs in Soho, could you please include sources and dates for every price you quote?",
     "Find three pubs in Soho and include sources and dates for every price you quote.",
     "Find three pubs in Soho. Please give me recorded dates and the source for each listed pint price.",
   ])("keeps pub discovery with a price-evidence instruction: %s", (query) => {
@@ -24,10 +27,24 @@ describe("routeAskDeterministically", () => {
     ]);
   });
 
-  it("keeps planning with a price-evidence instruction", () => {
-    const query = "Plan a crawl in Soho. Show the source and date for any price you mention.";
+  it.each([
+    "Plan a crawl in Soho. Show the source and date for any price you mention.",
+    "Show the source and date for any price you use. Plan a quiet crawl in Soho.",
+    "Plan a quiet crawl in Soho and please include sources and dates for every price you quote",
+  ])("keeps planning with a price-evidence instruction: %s", (query) => {
     expect(unsupportedPriceComparison(query)).toBeNull();
     expect(routeAskDeterministically(query)).toEqual([{ name: "propose_plan", args: { query } }]);
+  });
+
+  it.each([
+    "Show the source and date for any price you use. How much is a pint at The Lamb?",
+    "How much is a pint at The Lamb? Please include sources and dates for every price you quote.",
+    "How much is a pint at The Lamb and please include sources and dates for every price you quote",
+  ])("keeps the named pint subject beside evidence instructions: %s", (query) => {
+    expect(unsupportedPriceComparison(query)).toBeNull();
+    expect(routeAskDeterministically(query)).toEqual([
+      { name: "venue_prices", args: { venueName: "The Lamb", query } },
+    ]);
   });
 
   it.each([
@@ -35,6 +52,9 @@ describe("routeAskDeterministically", () => {
     ["Find three pubs in Soho. Show the source and date for any wine price you use.", "UNSUPPORTED_DRINK_PRICE_COMPARISON"],
     ["Find three pubs in Soho. Show the source and date for any price you use and show wine prices.", "UNSUPPORTED_DRINK_PRICE_COMPARISON"],
     ["Show the source and date for any price you use. Find pubs with burger prices in Soho.", "UNSUPPORTED_FOOD_PRICE_COMPARISON"],
+    ["Find pubs with burger prices in Soho and please include sources and dates for every price you quote", "UNSUPPORTED_FOOD_PRICE_COMPARISON"],
+    ["Please include sources and dates for every price you quote. How much is wine in Soho?", "UNSUPPORTED_DRINK_PRICE_COMPARISON"],
+    ["Find three pubs in Soho and please include sources and dates for every price you quote and show wine prices", "UNSUPPORTED_DRINK_PRICE_COMPARISON"],
   ])("retains the item guard beside price-evidence wording: %s", (query, code) => {
     expect(unsupportedPriceComparison(query)?.code).toBe(code);
     expect(routeAskDeterministically(query)).toEqual([]);

@@ -55,14 +55,34 @@ function post(body: unknown, ip: string): Promise<Response> {
 }
 
 describe("POST /api/ask", () => {
-  it("keeps pub discovery when the request asks for price sources and dates", async () => {
-    const query = "Find three quiet pubs in Soho for tonight. Show the source and date for any price you use.";
+  it.each([
+    "Find three quiet pubs in Soho for tonight. Show the source and date for any price you use.",
+    "Show the source and date for any price you use. Find three quiet pubs in Soho for tonight.",
+    "Find three quiet pubs in Soho and please include sources and dates for every price you quote",
+  ])("keeps pub discovery when the request asks for price evidence: %s", async (query) => {
     const response = await post({ query, cityId: "london" }, "203.0.113.184");
     const body = await response.json();
     expect(response.status).toBe(200);
     expect(body.toolsUsed).toEqual(["search_venues"]);
     expect(body.cards).toHaveLength(3);
     expect(body.answer).not.toContain("not prices for that item");
+    expect(body.cards.every((card: { note: string }) => !/date-night/i.test(card.note))).toBe(true);
+  });
+
+  it.each([
+    ["search_venues", "Find three quiet pubs in Soho for tonight. Show the source and date for any price you use.", 2, undefined],
+    ["search_venues", "Find three quiet pubs in Soho for four people under £7 a pint and please include sources and dates for every price you quote", 4, 7],
+    ["propose_plan", "Show the source and date for any price you use. Plan a quiet crawl in Soho for four people under £7 a pint.", 4, 7],
+  ] as const)("keeps ranking preferences and the complete %s request", async (tool, query, groupSize, maxPintPrice) => {
+    const result = await runAskTool(tool, { query, limit: 3 }, { query, cityId: "london", skipModel: true });
+    expect(result.ok).toBe(true);
+    expect(result.data).toMatchObject({ intent: { mood: ["quiet"], area: "Soho", groupSize } });
+    expect((result.data as { intent: { maxPintPrice?: number } }).intent.maxPintPrice).toBe(maxPintPrice);
+    expect(result.cards).toHaveLength(3);
+    expect(result.cards.every((card) => !/date-night/i.test(card.note ?? ""))).toBe(true);
+    if (tool === "propose_plan") {
+      expect(result.proposals).toContainEqual(expect.objectContaining({ kind: "draft_plan", query }));
+    }
   });
 
   it("carries each Soho pint publisher and read date into its answer card", async () => {

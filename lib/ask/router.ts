@@ -1,6 +1,17 @@
 // Deterministic Night OS Ask router (keyless path). Picks 1–2 allowlisted tools
 // from the user query without calling a paid model.
 
+import {
+  askRequestClauses,
+  ITEM_PRICE_RE,
+  NON_PINT_DRINK_RE,
+  semanticAskRequest,
+  stripTrailingPunctuation,
+  stripTrailingQualifiers,
+  TRANSIT_INTERROGATIVE_PREFIX,
+} from "@/lib/ask/requestPolicy";
+export { askRequestClauses } from "@/lib/ask/requestPolicy";
+
 import { detectWhatsOnIntent } from "@/lib/concierge/whatsOn";
 import type { AskToolName } from "@/lib/ask/types";
 import type { DrinkCategory } from "@/lib/drinks";
@@ -25,7 +36,6 @@ export function isVenueHoursQuestion(query: string): boolean {
 
 const CITY_STATUS_RE =
   /\b(tube|transit|delay|delays|weather|city status|how'?s london|right now in london)\b/i;
-const TRANSIT_INTERROGATIVE_PREFIX = String.raw`(?:is|are)\s+(?:there\s+)?(?:(?:any|the)\s+)?(?:tube|transit)\s+(?:(?:services?|lines?|trains?)\s+)?(?:running|operating|working|open|closed|delays?|delayed|disruptions?|disrupted|suspended)\b`;
 const TRANSIT_INTERROGATIVE_RE = new RegExp(`^${TRANSIT_INTERROGATIVE_PREFIX}`, "i");
 const JOURNEY_RE =
   /\b(how (do|can) i get|journey|get (me )?to|directions to|route to)\b/i;
@@ -58,9 +68,7 @@ const TONIGHT_NOW_RE =
 const VENUE_DRINKS_RE =
   /\b(what do they (?:pour|serve)|drinks? list|drink prices?|what'?s on tap|price of a (?:wine|cocktail|spirit))\b/i;
 const PRICE_COMPARISON_RE = /\b(cheapest|cheap|best value|lowest price|most affordable)\b/i;
-const ITEM_PRICE_RE = /\b(?:how much(?:\s+(?:is|are|does|for))?|prices?(?:\s+(?:of|for))?|costs?(?:\s+(?:of|for))?)\b/i;
 const FOOD_RE = /\b(food|meals?|lunch|dinner|breakfast|burgers?|pizza|sandwich(?:es)?|restaurants?)\b/i;
-const NON_PINT_DRINK_RE = /\b(?:wine|cocktails?|spirits?|coffee|whisk(?:y|ey)|gin|rum|vodka|shots?|soft drinks?|alcohol[- ]free|non[- ]alcoholic)\b/i;
 const RECORDED_DRINK_COMPARISON_SUBJECT_RE = new RegExp(`^(?:(?:listed|recorded|decent|good|local)\\s+)*${NON_PINT_DRINK_RE.source}$`, "i");
 const PINT_COMPARISON_SUBJECT_RE = /^(?:(?:listed|recorded|decent|good|good[- ]value|local|nearby)\s+)*(?:pints?|beer)(?:\s+(?:and|with)\s+food)?$/i;
 const VENUE_COMPARISON_MODIFIERS = "(?:quiet(?:-ish)?|calm|low-key|lively|buzzing|cosy|cozy|snug|fireside|garden|outdoor|riverside|waterside|sports|romantic|historic)";
@@ -108,11 +116,6 @@ function namedDrinkVenue(query: string): string | null {
     .trim() || null;
 }
 
-export function askRequestClauses(query: string): string[] {
-  const pricePrefix = String.raw`(?:${NON_PINT_DRINK_RE.source}|pints?|beer|drinks?)\s+${ITEM_PRICE_RE.source}`;
-  return query.split(new RegExp(String.raw`(?:\s+and\s+|,\s*)(?=(?:any\s+)?(?:${TRANSIT_INTERROGATIVE_PREFIX}|${pricePrefix}|${ITEM_PRICE_RE.source}|how\b|what\b|where\b|find\b|show\b|include\b|give\b|plan\b|directions to\b|route to\b|get (?:me )?to\b|tube delays?\b|transit delays?\b|weather\b|city status\b|cheap(?:est)?\b|best value\b|lowest price\b|most affordable\b))`, "i"));
-}
-
 function isCityStatusRequest(query: string): boolean {
   return CITY_STATUS_RE.test(query) && (TRANSIT_INTERROGATIVE_RE.test(query.trim()) || /^(?:any\s+)?(?:tube|transit|delays?|weather|city status)\b|^how(?:'s| is| are)\s+(?:the\s+)?(?:tube|transit|weather|london)\b|^(?:what|check|tell me)\b.*\b(?:delays?|weather|city status)\b|^right now in london\b/i.test(query.trim()));
 }
@@ -131,20 +134,12 @@ export function resolveAskJourney(query: string): { from?: string; to: string } 
   return { to: endpoints };
 }
 
-// Presentation requests describe the answer, not an item whose price is sought.
-// Keep this whole-clause match narrow so a second food/drink ask stays visible.
-const PRICE_PRESENTATION_FIELD = String.raw`(?:sources?|(?:(?:source|recorded)\s+)?dates?|map)`;
-const PRICE_PRESENTATION_CLAUSE_RE = new RegExp(
-  String.raw`^(?:please\s+)?(?:show|include|give)(?:\s+me)?\s+(?:the\s+)?${PRICE_PRESENTATION_FIELD}(?:\s+and\s+(?:the\s+)?${PRICE_PRESENTATION_FIELD})*(?:\s+for\s+(?:(?:any|each|every|all|the)\s+)?(?:(?:listed|recorded)\s+)?(?:pint\s+)?prices?(?:\s+(?:(?:that|which)\s+)?you\s+(?:use|show|quote|mention|include))?)?$`,
-  "i",
-);
-
 function priceQuestion(query: string): string {
-  const clauses = askRequestClauses(query).flatMap((clause) => clause.split(/(?<=[.!?])\s+(?=(?:please\s+)?(?:show|include|give|find|plan)\s)/i)).map((clause) =>
+  const clauses = askRequestClauses(semanticAskRequest(query)).map((clause) =>
     stripTrailingQualifiers(stripTrailingPunctuation(clause)),
   );
   const priceClauses = clauses.filter((clause) =>
-    clause.length > 0 && !socialTurnKind(clause) && !PRICE_PRESENTATION_CLAUSE_RE.test(clause) && !((isCityStatusRequest(clause) || JOURNEY_RE.test(clause))
+    clause.length > 0 && !socialTurnKind(clause) && !((isCityStatusRequest(clause) || JOURNEY_RE.test(clause))
       && !ITEM_PRICE_RE.test(clause) && !PRICE_COMPARISON_RE.test(clause)),
   );
   return priceClauses.join(" and ");
@@ -294,27 +289,6 @@ const FIND_DESK_RE =
 // so it stays with the venue search rather than becoming a reporting form.
 const REPORT_OCCUPANCY_RE =
   /\b(it'?s (?:empty|full|rammed|packed|heaving)|report (?:the )?(?:crowd|occupancy)|no seats|some seats|log how busy)\b/i;
-
-/**
- * Time and group words a drinker hangs on the end of an ask. They are not
- * part of a place name, so a `$` capture that keeps "Camden tonight" cannot
- * place Camden at all.
- */
-const TRAILING_QUALIFIER_RE =
-  /(?:^|\s+)(?:tonight|right now|now|later|today|this evening|this afternoon|this morning|this weekend|with mates|for (?:two|a few|\d+))\s*$/i;
-
-function stripTrailingPunctuation(phrase: string): string {
-  return phrase.replace(/[?.!,;:]+$/g, "").trim();
-}
-
-function stripTrailingQualifiers(phrase: string): string {
-  let current = phrase.trim();
-  for (;;) {
-    const next = current.replace(TRAILING_QUALIFIER_RE, "").trim();
-    if (next === current) return current;
-    current = next;
-  }
-}
 
 /** "in X" at the end of an ask: a PLACE, never a pub. */
 function extractInPlace(query: string): string | null {
