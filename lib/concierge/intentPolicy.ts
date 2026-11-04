@@ -5,7 +5,7 @@
 // __tests__/fixtures/typesafe/conciergeIntentProbabilities.json
 
 import { CONCIERGE_MOODS, type ConciergeIntent, type ConciergeMood } from "@/lib/concierge/rank";
-import { NIGHT_AREAS } from "@/lib/nightAreas";
+import placeNames from "@/lib/ask/placeNames.generated.json";
 
 /** Keyless cheap-pint cap. Same figure the regex path has always used. */
 export const CHEAP_PINT_GBP = 6;
@@ -67,7 +67,7 @@ export function isConciergeProbability(value: unknown): value is number {
 export function defaultKnownAreas(): string[] {
   const seen = new Set<string>();
   const areas: string[] = [];
-  for (const area of NIGHT_AREAS) {
+  for (const area of placeNames.nightAreas) {
     for (const label of [area.name, ...area.aliases]) {
       const trimmed = label.trim();
       const key = trimmed.toLocaleLowerCase("en-GB");
