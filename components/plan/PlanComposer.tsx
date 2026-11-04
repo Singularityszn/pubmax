@@ -126,14 +126,18 @@ import {
   nightAreaForPlanIntakePatch,
   planIntakeHandoff,
   planIntakeNightContextPatch,
+  planIntakeStepHasAnswer,
+  PLAN_TIME_WINDOWS,
   readPlanIntakeDraftWithMetadata,
   reopenPlanIntakeStep,
   resolveFutureLondonStartIso,
   resolvePlanIntakeAreaSeed,
+  settlePlanIntakeStep,
   skipRemainingPlanIntake,
   tonightLondonStartInput,
   writePlanIntakeDraft,
   type PlanIntakeDraft,
+  type PlanIntakeStep,
 } from "@/lib/planIntake";
 
 // These parts load when the composer renders them. The describe-first arrival
@@ -1543,10 +1547,20 @@ function explicitContextForPlan(
   stopCount: PlanStopCount | undefined,
   nightContext: NightContext | null,
 ): Partial<NightContext> {
-  const base = { ...explicit, stopCount };
-  return Object.prototype.hasOwnProperty.call(base, "nightArea") || !nightContext?.nightArea
-    ? base
-    : { ...base, nightArea: nightContext.nightArea };
+  return {
+    ...(nightContext ? {
+      nightArea: nightContext.nightArea,
+      daypart: nightContext.daypart,
+      partyType: nightContext.partyType,
+      groupSize: nightContext.groupSize,
+      budget: nightContext.budget,
+      budgetLimitPence: nightContext.budgetLimitPence,
+      zeroProof: nightContext.zeroProof,
+      drinkCategory: nightContext.drinkCategory,
+    } : {}),
+    ...explicit,
+    stopCount,
+  };
 }
 
 // The form owns several independent draft and route transitions; keep this
@@ -1810,7 +1824,7 @@ function PlanComposerForm({
   const [planAnchor, setPlanAnchor] = useState(routeDraftFields.planAnchor);
   const [successfulGeneration, setSuccessfulGeneration] = useState(0);
   const routeCopy = useRef({
-    identity: JSON.stringify({ stops: recoveredRouteDraft?.stops, planAnchor: recoveredRouteDraft?.planAnchor }),
+    identity: JSON.stringify({ stops: recoveredRouteDraft?.stops, planAnchor: recoveredRouteDraft?.planAnchor, nightContext: recoveredRouteDraft?.nightContext }),
     content: composerRouteContent(recoveredRouteDraft),
     savedAt: recoveredRouteDraft?.savedAt,
     generation: 0,
@@ -2041,7 +2055,7 @@ function PlanComposerForm({
       createOperationKey,
       planAnchor,
     };
-    const identity = JSON.stringify({ stops, planAnchor });
+    const identity = JSON.stringify({ stops, planAnchor, nightContext });
     const content = composerRouteContent(routeDraft);
     const routeChanged = identity !== routeCopy.current.identity || successfulGeneration !== routeCopy.current.generation;
     let mayWrite = content !== routeCopy.current.content || routeCopy.current.pending;
@@ -2374,11 +2388,31 @@ function PlanComposerForm({
     const next = { ...nightContext, ...patch };
     if (nightContextChanged(nightContext, next)) {
       setRouteStale(true);
+      setGroundingProof(null);
+      setCreateOperationKey(null);
       setRouteStatus("Route needs refreshing after that context change.");
     }
+    let draft = patch.nightArea
+      ? syncPlanIntakeAreaFromQuery(planIntake, getNightArea(patch.nightArea).name)
+      : planIntake;
+    draft = { ...draft, answers: {
+      ...draft.answers,
+      ...(patch.daypart !== undefined ? { timeWindow: PLAN_TIME_WINDOWS.find((window) => window.daypart === patch.daypart)?.id ?? null } : {}),
+      ...(patch.groupSize !== undefined ? { groupSize: patch.groupSize } : {}),
+      ...(patch.budget !== undefined ? { budget: patch.budget } : {}),
+      ...(patch.budgetLimitPence !== undefined ? { budget: next.budget, budgetLimitPence: patch.budgetLimitPence } : {}),
+    } };
+    const editedSteps: PlanIntakeStep[] = [
+      ...(patch.daypart !== undefined ? ["time-window" as const] : []),
+      ...(patch.groupSize !== undefined ? ["group-size" as const] : []),
+      ...(patch.budget !== undefined || patch.budgetLimitPence !== undefined ? ["budget" as const] : []),
+    ];
+    for (const step of editedSteps) {
+      draft = settlePlanIntakeStep({ ...draft, currentStep: step }, { skip: !planIntakeStepHasAnswer(draft, step) });
+    }
     const reconciled = patch.stopCount === undefined
-      ? { draft: planIntake, context: next }
-      : applyPlanStopCount(planIntake, next, patch.stopCount);
+      ? { draft, context: next }
+      : applyPlanStopCount(draft, next, patch.stopCount);
     setNightContext(reconciled.context);
     setPlanIntake(reconciled.draft);
     setExplicitNightContext((current) => ({ ...current, ...patch }));
