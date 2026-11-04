@@ -26,8 +26,13 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
+const authSeedFixture = vi.hoisted(() => ({
+  user: null as { id: string; user_metadata?: Record<string, unknown> } | null,
+  handle: null as string | null,
+  identityResolved: true,
+}));
 vi.mock("@/components/auth/AuthProvider", () => ({
-  useAuth: () => ({ user: null, session: null, loading: false, identityResolved: true }),
+  useAuth: () => ({ ...authSeedFixture, session: null, loading: false }),
 }));
 
 vi.mock("@/components/plan/PlanCultureOpener", () => ({ default: () => null }));
@@ -37,6 +42,8 @@ vi.mock("@/lib/analytics", () => ({ trackEvent: () => undefined, trackMeaningful
 import PlanComposer from "@/components/plan/PlanComposer";
 import { createPlanIntakeDraft, nextLondonOccurrenceIso, PLAN_INTAKE_STORAGE_KEY, readPlanIntakeDraftWithMetadata, reopenPlanIntakeStep, skipRemainingPlanIntake, writePlanIntakeDraft } from "@/lib/planIntake";
 import { readPlanDraftEnvelope, writePlanDraftEnvelope } from "@/lib/planDraft";
+import { rememberPlanHostName } from "@/lib/planHostName";
+import { rememberLastCrew } from "@/lib/lastCrew";
 import { PLAN_ROUTE_DRAFT_KEY, PLAN_ROUTE_DRAFT_V2_KEY } from "@/lib/planRouteDraft";
 import { inferNightContext } from "@/lib/nightPlanning";
 import { transferGeneratedRouteToDraft } from "@/lib/mapRouteTransfer";
@@ -56,6 +63,9 @@ let host: HTMLElement | null = null;
 let fetchMock: ReturnType<typeof vi.fn<typeof fetch>>;
 
 beforeEach(() => {
+  authSeedFixture.user = null;
+  authSeedFixture.handle = null;
+  authSeedFixture.identityResolved = true;
   fetchMock = vi.fn<typeof fetch>(async (input) => {
     const url = String(input);
     return new Response(JSON.stringify(url.includes("/api/plans/generate") ? GENERATED : []), {
@@ -97,7 +107,9 @@ async function mountComposer(): Promise<void> {
   });
   await settle();
   if (document.querySelector(".planStops__placeholder")) {
-    await vi.waitFor(() => expect(document.querySelector(".planStops__placeholder")).toBeNull(), { timeout: 4000 });
+    await act(async () => {
+      await vi.waitFor(() => expect(document.querySelector(".planStops__placeholder")).toBeNull(), { timeout: 4000 });
+    });
   }
 }
 
@@ -1855,3 +1867,75 @@ it.each(saveMatrixFields.flatMap((field) => saveMatrixModes.map((mode) => ({ fie
     expect.soft(warned, "The warning must describe an edit actually lost on reload").toBe(!restored);
   },
 );
+
+
+type AutomaticNameSource = "account-handle" | "account-full-name" | "account-name" | "remembered-host";
+const automaticNameSources: AutomaticNameSource[] = ["account-handle", "account-full-name", "account-name", "remembered-host"];
+function seedAutomaticName(source: AutomaticNameSource): void {
+  if (source === "remembered-host") {
+    rememberPlanHostName(localStorage, "Sam");
+    return;
+  }
+  authSeedFixture.user = { id: "private-test-account", user_metadata: source === "account-full-name"
+    ? { full_name: "Sam" } : source === "account-name" ? { name: "Sam" } : {} };
+  authSeedFixture.handle = source === "account-handle" ? "Sam" : null;
+}
+
+it.each(automaticNameSources.flatMap((source) => [false, true].map((completed) => ({ source, completed }))))(
+  "automatic name seed $source does not warn on an untouched visit, completed intake: $completed",
+  async ({ source, completed }) => {
+    pinClock();
+    seedAutomaticName(source);
+    if (completed) seedCompletedFiveStopIntake();
+    await mountComposer();
+    if (completed) expect(document.querySelector<HTMLInputElement>("#plan-name")?.value).toBe("Sam");
+    expect(readPlanDraftEnvelope(sessionStorage)).toBeNull();
+    expect.soft(document.body.textContent).not.toContain("could not be saved");
+    await remountComposer();
+    if (completed) expect(document.querySelector<HTMLInputElement>("#plan-name")?.value).toBe("Sam");
+    expect(document.body.textContent).not.toContain("could not be saved");
+  },
+);
+
+it.each(automaticNameSources)("a manually edited %s seed still warns when its new name cannot restore", async (source) => {
+  const advance = pinClock();
+  seedAutomaticName(source);
+  seedCompletedFiveStopIntake();
+  await mountComposer();
+  expect(document.querySelector<HTMLInputElement>("#plan-name")?.value).toBe("Sam");
+  advance(1000);
+  await editInput("#plan-name", "Alex");
+  expect(readPlanDraftEnvelope(sessionStorage)).toBeNull();
+  expect(document.body.textContent).toContain("Your plan details could not be saved");
+  await remountComposer();
+  expect(document.querySelector<HTMLInputElement>("#plan-name")?.value).toBe("Sam");
+});
+
+it.each([false, true])("a remembered crew alone neither fills a host nor warns, completed intake: %s", async (completed) => {
+  pinClock();
+  rememberLastCrew(["Sam", "Alex"], "private-test-crew");
+  if (completed) seedCompletedFiveStopIntake();
+  await mountComposer();
+  if (completed) {
+    expect(document.querySelector<HTMLInputElement>("#plan-name")?.value).toBe("");
+    expect(document.querySelector("[data-testid='plan-usual-lot']")?.textContent).toContain("Sam, Alex");
+  }
+  expect(document.body.textContent).not.toContain("could not be saved");
+  await remountComposer();
+  if (completed) expect(document.querySelector<HTMLInputElement>("#plan-name")?.value).toBe("");
+  expect(document.body.textContent).not.toContain("could not be saved");
+});
+
+it("late identity resolution neither replaces a manual name nor hides its real save failure", async () => {
+  pinClock();
+  authSeedFixture.identityResolved = false;
+  seedCompletedFiveStopIntake();
+  await mountComposer();
+  await editInput("#plan-name", "Alex");
+  authSeedFixture.user = { id: "private-test-account", user_metadata: { full_name: "Sam" } };
+  authSeedFixture.identityResolved = true;
+  await act(async () => { root!.render(createElement(PlanComposer)); });
+  await settle();
+  expect(document.querySelector<HTMLInputElement>("#plan-name")?.value).toBe("Alex");
+  expect(document.body.textContent).toContain("Your plan details could not be saved");
+});
