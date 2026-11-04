@@ -26,7 +26,7 @@ it("lets a phone user select a preview and turn previews off", () => {
   expect(host.querySelector("label")?.htmlFor).toBe(select?.id);
   expect(select?.value).toBe("off");
   expect(Array.from(select!.options).map((option) => option.text)).toEqual([
-    "Previews off", "Round Rota", "Borough Bingo",
+    "Previews off", "Round Rota", "Borough Bingo", "Pub Tarot",
   ]);
   act(() => {
     select!.value = "borough-bingo";

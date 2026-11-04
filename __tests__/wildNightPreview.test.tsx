@@ -43,10 +43,10 @@ describe("wild night preview", () => {
     expect(readWildNightPreview()).toBeNull();
   });
 
-  it("keeps an unavailable idea off when its old link is opened", () => {
+  it("adopts Pub Tarot through its selected-preview link", () => {
     window.history.replaceState(null, "", "/near?wildpreview=pub-tarot&area=soho#top");
     adoptWildNightPreviewFromAddress();
-    expect(readWildNightPreview()).toBeNull();
+    expect(readWildNightPreview()).toBe("pub-tarot");
     expect(window.location.search + window.location.hash).toBe("?area=soho#top");
   });
 
