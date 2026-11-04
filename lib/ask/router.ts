@@ -39,7 +39,7 @@ const CITY_STATUS_RE =
   /\b(tube|transit|delay|delays|weather|city status|how'?s london|right now in london)\b/i;
 const TRANSIT_INTERROGATIVE_RE = new RegExp(`^${TRANSIT_INTERROGATIVE_PREFIX}`, "i");
 const JOURNEY_RE =
-  /\b(how (do|can) i get|journey|get (me )?to|directions to|route to)\b/i;
+  /\b(how (do|can) i get|journey|get (me )?to|(?:directions|route)(?=\s+(?:to|from)\b))\b/i;
 const HERITAGE_RE =
   /\b(heritage|history|histor(?:y|ic)|listed building|when was|who built|story of|tell me about)\b/i;
 const VENUE_DISCOVERY_RE = /\b(?:somewhere|anywhere|a place|a (?:date[- ]night )?pub)\b/i;

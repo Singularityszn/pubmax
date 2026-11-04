@@ -4,7 +4,7 @@ export const ITEM_PRICE_RE = /\b(?:how much(?:\s+(?:is|are|does|for))?|prices?(?
 
 export function askRequestClauses(query: string): string[] {
   const pricePrefix = String.raw`(?:${NON_PINT_DRINK_RE.source}|pints?|beer|drinks?)\s+${ITEM_PRICE_RE.source}`;
-  return query.split(new RegExp(String.raw`(?:\s+and\s+|,\s*|(?<=[.!?])\s+)(?=(?:(?:can|could|would|will)\s+you\s+)?(?:please\s+)?(?:any\s+)?(?:${TRANSIT_INTERROGATIVE_PREFIX}|${pricePrefix}|${ITEM_PRICE_RE.source}|how\b|what\b|where\b|find\b|show\b|include\b|give\b|plan\b|directions to\b|route to\b|get (?:me )?to\b|tube delays?\b|transit delays?\b|weather\b|city status\b|cheap(?:est)?\b|best value\b|lowest price\b|most affordable\b))`, "i"));
+  return query.split(new RegExp(String.raw`(?:\s+and\s+|,\s*|(?<=[.!?])\s+)(?=(?:(?:can|could|would|will)\s+you\s+)?(?:please\s+)?(?:any\s+)?(?:${TRANSIT_INTERROGATIVE_PREFIX}|${pricePrefix}|${ITEM_PRICE_RE.source}|how\b|what\b|where\b|find\b|show\b|include\b|give\b|plan\b|directions (?:to|from)\b|route (?:to|from)\b|get (?:me )?to\b|tube delays?\b|transit delays?\b|weather\b|city status\b|cheap(?:est)?\b|best value\b|lowest price\b|most affordable\b))`, "i"));
 }
 
 const TRAILING_QUALIFIER = String.raw`tonight|right now|now|later|today|this evening|this afternoon|this morning|this weekend|with mates|for (?:two|a few|\d+)`;
@@ -24,21 +24,27 @@ export function stripTrailingQualifiers(phrase: string): string {
 }
 
 const PRICE_PRESENTATION_FIELD = String.raw`(?:sources?|(?:(?:source|recorded)\s+)?dates?|map)`;
-const PRICE_PRESENTATION_CLAUSE_RE = new RegExp(
-  String.raw`(?:^\s*|(?<=[.!?;,]|\band\b)\s*|\s+and\s+)(?<command>(?:(?:can|could|would|will)\s+you\s+)?(?:please\s+)?(?:show|include|give)(?:\s+me)?\s+(?:the\s+)?)(?<fields>${PRICE_PRESENTATION_FIELD}(?:\s+and\s+(?:the\s+)?${PRICE_PRESENTATION_FIELD})*)(?<priceContext>\s+for\s+(?:(?:any|each|every|all|the)\s+)?(?:(?:listed|recorded)\s+)?(?:pint\s+)?prices?(?:\s+(?:(?:that|which)\s+)?you\s+(?:use|show|quote|mention|include))?)?(?:\s+(?:${TRAILING_QUALIFIER}))*\s*(?!and\s+(?:the\s+)?${PRICE_PRESENTATION_FIELD}\b)(?:[.!?;,]+(?:\s+and\b)?|\band\b|$)`,
+export const MAP_VIEW_VERBS = String.raw`(?:show|open|see|view|pull up|bring up|load|display|go to|go back to|back to|take me to|take me back to|switch to|get me|give me|let me see)`;
+const POLITE_COMMAND_PREFIX = String.raw`(?:(?:can|could|would|will)\s+you\s+)?(?:please\s+)?`;
+const GENERIC_MAP_COMMAND = String.raw`${POLITE_COMMAND_PREFIX}(?:${MAP_VIEW_VERBS}(?:\s+(?:me|up|back|to|the|a|my|pub)){0,4}\s+maps?|(?:(?:the|a|my)\s+)?maps?)(?:\s+view)?`;
+const ASK_PRESENTATION_CLAUSE_RE = new RegExp(
+  String.raw`(?:^\s*|(?<=[.!?;,]|\band\b)\s*|\s+and\s+)(?:(?<command>${POLITE_COMMAND_PREFIX}(?:show|include|give)(?:\s+me)?\s+(?:the\s+)?)(?<fields>${PRICE_PRESENTATION_FIELD}(?:\s+and\s+(?:the\s+)?${PRICE_PRESENTATION_FIELD})*)(?<priceContext>\s+for\s+(?:(?:any|each|every|all|the)\s+)?(?:(?:listed|recorded)\s+)?(?:pint\s+)?prices?(?:\s+(?:(?:that|which)\s+)?you\s+(?:use|show|quote|mention|include))?)?|(?<mapCommand>${GENERIC_MAP_COMMAND}))(?:(?:\s+|\s*,\s*)(?:${TRAILING_QUALIFIER}|please|then|for me|mate))*\s*(?!and\s+(?:the\s+)?${PRICE_PRESENTATION_FIELD}\b)(?:[.!?;,]+(?:\s+and\b)?|\band\b|$)`,
   "gi",
 );
 
 /** Service parsers omit map commands so those commands cannot become venue or price subjects. */
 export function semanticAskRequest(query: string, preserveMapCommands = true): string {
-  const clauses = [...query.matchAll(PRICE_PRESENTATION_CLAUSE_RE)];
+  const clauses = [...query.matchAll(ASK_PRESENTATION_CLAUSE_RE)];
   if (!clauses.length) return query;
   const requests: string[] = [];
   let end = 0;
   for (const clause of clauses) {
     requests.push(query.slice(end, clause.index).trim());
-    if (preserveMapCommands && /^map$/i.test(clause.groups!.fields!) && !clause.groups!.priceContext) {
-      requests.push(`${clause.groups!.command}map`);
+    if (preserveMapCommands) {
+      if (clause.groups!.mapCommand) requests.push(clause.groups!.mapCommand);
+      else if (/^map$/i.test(clause.groups!.fields!) && !clause.groups!.priceContext) {
+        requests.push(`${clause.groups!.command}map`);
+      }
     }
     end = clause.index + clause[0].length;
   }

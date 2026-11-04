@@ -1,4 +1,5 @@
 import { VIBE_CHIPS } from "@/lib/vibeChips";
+import { serviceBesideMap } from "./fixtures/askMapCommands";
 import { JOURNEY_ENDPOINT_REQUESTS, NAMED_QUALIFIED_PRICE_REQUESTS, NAMED_TERMINAL_PRICE_REQUESTS, QUALIFIED_PRICE_REQUESTS } from "./fixtures/askPriceSubjects";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -55,6 +56,34 @@ function post(body: unknown, ip: string): Promise<Response> {
 }
 
 describe("POST /api/ask", () => {
+  it.each(["Directions to The Harp from London Bridge", "Directions from London Bridge to The Harp"].flatMap((service) => serviceBesideMap(service)))(
+    "separates supported map commands from both journey endpoints: %s", async (query) => {
+      resetJourneyCache();
+      const journeyFetch = vi.fn<typeof fetch>(async (input, init) => {
+        if (JSON.parse(init?.body as string).params.name !== "get_journey") return offlineFetch(input, init);
+        return Response.json({ jsonrpc: "2.0", result: { structuredContent: { journeys: [{ durationMinutes: 12, legs: [] }] } } });
+      });
+      vi.stubGlobal("fetch", journeyFetch);
+      const response = await post({ query, cityId: "london" }, "203.0.113.186");
+      const body = await response.json();
+      expect(response.status).toBe(200);
+      expect(body.toolsUsed).toEqual(["journey"]);
+      const call = journeyFetch.mock.calls.find(([, init]) => JSON.parse(init?.body as string).params.name === "get_journey");
+      expect(JSON.parse(call?.[1]?.body as string).params.arguments).toEqual({ from: "51.50500,-0.08600", to: "51.50960,-0.12606" });
+      expect(body.cards).toContainEqual(expect.objectContaining({ venueId: "venue-1bz7oic", place: "The Harp" }));
+    },
+  );
+
+  it.each(serviceBesideMap("Cheapest pint near Soho", "Show the map please"))(
+    "separates supported map commands from pint comparisons: %s", async (query) => {
+      const response = await post({ query, cityId: "london" }, "203.0.113.186");
+      const body = await response.json();
+      expect(response.status).toBe(200);
+      expect(body.toolsUsed).toEqual(["cheapest_pint_near"]);
+      expect(body.answer).not.toContain("not prices for that item");
+    },
+  );
+
   it.each([
     "OK. Show me the map",
     "Alright, show me the map",

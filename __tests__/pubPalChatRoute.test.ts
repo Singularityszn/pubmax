@@ -37,6 +37,7 @@ vi.mock("@/lib/palTaste.server", () => ({
 
 import { resetJourneyCache } from "@/lib/citymcp/client";
 import { offlineFetch } from "@/evals/pal/offlineFetch";
+import { serviceBesideMap } from "./fixtures/askMapCommands";
 import { POST } from "@/app/api/pub-pal/chat/route";
 import { PAL_ERROR_FALLBACK } from "@/lib/palChat";
 import { runPalClaudeChatTurn } from "@/lib/palClaudeChat.server";
@@ -45,6 +46,29 @@ import { VIBE_CHIPS } from "@/lib/vibeChips";
 import { __resetPintDrops } from "@/lib/pintDrops";
 
 describe("POST /api/pub-pal/chat", () => {
+  it.each(["Date night", "Garden", "For four", "Near Soho"].flatMap((service) => serviceBesideMap(service)))(
+    "keeps discovery beside supported map commands in the real handler: %s", async (query) => {
+      vi.stubEnv("ELEVENLABS_API_KEY", "");
+      vi.stubEnv("TYPESAFE_API_KEY", "");
+      vi.stubGlobal("fetch", offlineFetch);
+      const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ query, cityId: "london" }),
+      }));
+      const body = await response.json();
+      expect(response.status).toBe(200);
+      expect(body.toolsUsed).toEqual(["search_venues"]);
+      for (const proposal of body.proposals) {
+        expect(proposal.kind).toBe("open_venue");
+        expect(body.cards.map((card: { venueId: string }) => card.venueId)).toContain(proposal.venueId);
+      }
+      if (query.includes("Near Soho")) {
+        expect(body.cards.length).toBeGreaterThan(0);
+        expect(body.cards.every((card: { place: string }) => /Soho|Westminster/i.test(card.place))).toBe(true);
+      }
+    },
+  );
+
   beforeEach(() => {
     __resetPintDrops();
     vi.stubEnv("ELEVENLABS_API_KEY", "test-key");

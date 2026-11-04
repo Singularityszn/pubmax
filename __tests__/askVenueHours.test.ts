@@ -9,6 +9,7 @@ vi.mock("@/lib/planRouteEvidence.server", () => ({ planOpeningSchedulesForVenues
 
 import { runAsk } from "@/lib/ask/runAsk";
 import { offlineFetch } from "@/evals/pal/offlineFetch";
+import { GENERIC_MAP_COMMANDS, serviceBesideMap } from "./fixtures/askMapCommands";
 
 const now = Date.parse("2026-10-22T18:00:00Z");
 const site = {
@@ -30,6 +31,20 @@ afterEach(() => {
 });
 
 describe("recorded opening-hours sources", () => {
+  it.each(GENERIC_MAP_COMMANDS)(
+    "separates supported map commands from the actual hours subject: %s", async (map) => {
+      io.venues.mockResolvedValue([{ id: "venue-harp", name: "The Harp", area: "Westminster", lat: 51.5, lng: -0.1 }]);
+      io.detail.mockResolvedValue({ status: "found", venue: { siteFacts: site } });
+      for (const query of serviceBesideMap("What are the opening hours at The Harp?", map)) {
+        const body = await runAsk({ query, now, skipModel: true });
+        expect(body.toolsUsed).toEqual(["search_venues"]);
+        expect(body.answer).toContain("The Harp: recorded regular opening hours: Thursday 12:00 to 23:00");
+        expect(body.cards.map((card) => card.venueId)).toEqual(["venue-harp"]);
+        expect(io.detail).toHaveBeenCalledWith("venue-harp");
+      }
+    },
+  );
+
   it.each(["The Lamb", "Mr. Fogg's", "Fox and Anchor"])("keeps the complete hours subject around middle evidence: %s", async (name) => {
     io.venues.mockResolvedValue([{ id: "venue-hours", name, area: "Bloomsbury", lat: 51.5, lng: -0.1 }]);
     io.detail.mockResolvedValue({ status: "found", venue: { siteFacts: site } });

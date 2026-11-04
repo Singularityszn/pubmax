@@ -1,4 +1,5 @@
 import { QUALIFIED_PRICE_REQUESTS } from "./fixtures/askPriceSubjects";
+import { GENERIC_MAP_COMMANDS, serviceBesideMap } from "./fixtures/askMapCommands";
 import { describe, expect, it } from "vitest";
 
 import { isVenueDiscoveryAsk, isVenueHoursQuestion, refineRoutedAskQuery, resolveAskJourney, routeAskDeterministically, socialTurnKind, unsupportedPriceComparison } from "@/lib/ask/router";
@@ -8,6 +9,53 @@ import { parseConciergeIntent } from "@/lib/concierge/intent";
 import { ASK_TOOL_NAMES, isAskToolName } from "@/lib/ask/types";
 
 describe("routeAskDeterministically", () => {
+  it.each(["Show The Harp on the map", "Show The Garden on the map", "Open The Sportsman on the map", "Take me to The Harp"])(
+    "preserves a named map subject containing possible constraints: %s", (request) => {
+      const evidence = "Show the source and date for any price you use.";
+      for (const query of [request, `${evidence} ${request}`, `${request}. ${evidence}`]) {
+        expect(palVoiceMapIntent(query, false)).toBe("pub");
+      }
+    },
+  );
+
+  it.each(GENERIC_MAP_COMMANDS)("separates supported map commands from all discovery constraints: %s", async (map) => {
+    for (const service of ["Date night", "Garden", "For four", "Near Soho", "Under £6", "Quiet-ish near Bank, 4 of us"]) {
+      for (const query of serviceBesideMap(service, map)) {
+        expect(palVoiceMapIntent(query, false)).toBeNull();
+        expect(routeAskDeterministically(query)).toEqual([{ name: "search_venues", args: { query, limit: 4 } }]);
+        const { intent } = await parseConciergeIntent(query, { skipModel: true });
+        if (service === "Date night") expect(intent.mood).toContain("date");
+        if (service === "Garden") expect(intent.mood).toContain("garden");
+        if (service === "For four") expect(intent.groupSize).toBe(4);
+        if (service === "Near Soho") expect(intent.area).toBe("Soho");
+        if (service === "Under £6") expect(intent.maxPintPrice).toBe(6);
+      }
+    }
+  });
+
+  it.each(GENERIC_MAP_COMMANDS)("keeps service subjects beside every supported map command: %s", (map) => {
+    for (const service of ["Directions to The Harp from London Bridge", "Directions from London Bridge to The Harp"]) {
+      for (const query of serviceBesideMap(service, map)) {
+        expect(resolveAskJourney(query)).toEqual({ from: "London Bridge", to: "The Harp" });
+        expect(routeAskDeterministically(query)).toEqual([{ name: "journey", args: { from: "London Bridge", to: "The Harp" } }]);
+      }
+    }
+    for (const query of serviceBesideMap("Any Tube delays?", map)) {
+      expect(palVoiceMapIntent(query, false)).toBeNull();
+      expect(routeAskDeterministically(query)).toEqual([{ name: "city_status", args: {} }]);
+    }
+    for (const query of serviceBesideMap("Cheapest pint near Soho", map)) {
+      expect(unsupportedPriceComparison(query)).toBeNull();
+      expect(routeAskDeterministically(query).map(({ name }) => name)).toEqual(["cheapest_pint_near"]);
+    }
+    for (const service of ["Cheapest Negroni near Soho", "Cheapest burger near Soho", "Cheapest wine near Soho"]) {
+      for (const query of serviceBesideMap(service, map)) {
+        expect(unsupportedPriceComparison(query)).not.toBeNull();
+        expect(routeAskDeterministically(query)).toEqual([]);
+      }
+    }
+  });
+
   it.each([
     "OK. Show me the map",
     "Alright, show me the map",

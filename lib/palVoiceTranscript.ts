@@ -15,7 +15,7 @@
 
 import { palAsksForCurrentMap, palAsksForVenueDiscovery, palMapAskTarget } from "@/lib/palMapAsk";
 import { venueMapUrl } from "@/lib/venueMapUrl";
-import { semanticAskRequest } from "@/lib/ask/requestPolicy";
+import { MAP_VIEW_VERBS, semanticAskRequest } from "@/lib/ask/requestPolicy";
 import { askHasPriorityOverMap } from "@/lib/ask/router";
 
 export type PalVoiceSpeaker = "you" | "pal";
@@ -104,7 +104,7 @@ const MAP_NEGATION_RE = /\b(?:don'?t|do not|dont|never|no need to|not|stop)\b/;
 // A verb that asks to SEE the map, at most four words before it: "show me
 // the map", "can you open up the pub map", "take me back to the map".
 const MAP_VERB_RE =
-  /\b(?:show|open|see|view|pull up|bring up|load|display|go to|go back to|back to|take me to|take me back to|switch to|get me|give me|let me see)\b(?:\s+[a-z']+){0,4}?\s+maps?\b/;
+  new RegExp(String.raw`\b${MAP_VIEW_VERBS}\b(?:\s+[a-z']+){0,4}?\s+maps?\b`);
 // The whole ask is the map: "map", "the map please", "map view".
 const BARE_MAP_RE = /^(?:(?:the|a|my)\s+)?maps?(?:\s+view)?(?:\s+(?:please|now|then))?$/;
 
@@ -168,7 +168,7 @@ export function palVoiceMapIntent(text: string, nightIsOn: boolean): "next-stop"
   if (palAsksForVenueDiscovery(text)) return null;
   // One pub on the map ("take me there", "where is The Lamb?"): the caller
   // names it (lib/palMapAsk.ts), else a map ask still opens the map.
-  if (palMapAskTarget(text)) return "pub";
+  if (palMapAskTarget(text) && semanticAskRequest(text, false) === text) return "pub";
   if (palAsksForMap(text) && !askHasPriorityOverMap(text)) return "map";
   return null;
 }

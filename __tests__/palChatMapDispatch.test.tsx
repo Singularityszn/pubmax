@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { writeActivePlan } from "@/lib/activePlan";
 import { clearSurfaceCache } from "@/lib/surfaceDataCache";
+import { GENERIC_MAP_COMMANDS, serviceBesideMap } from "./fixtures/askMapCommands";
 
 const push = vi.hoisted(() => vi.fn());
 const request = vi.hoisted(() => vi.fn());
@@ -81,6 +82,18 @@ const evidence = "Show the source and date for any price you use.";
 const withEvidence = (request: string) => [request, `${evidence} ${request}`, `${request.replace(/[.!?]+$/, "")}. ${evidence}`];
 
 describe("mounted typed map dispatch", () => {
+  it.each(["Date night", "Garden", "For four", "Near Soho"].flatMap((service) =>
+    ["Open the map", "Show the map please", "Can you open up the pub map", "Map view"].flatMap((map) => serviceBesideMap(service, map)),
+  ))("separates supported map commands before service submission: %s", async (query) => {
+    await send(query);
+    expect(push).not.toHaveBeenCalled();
+    const sent = request.mock.calls.filter(([url, init]) => url === "/api/pub-pal/chat" && init?.method === "POST");
+    expect(sent).toHaveLength(1);
+    expect(JSON.parse(sent[0]![1].body).query).toBe(query);
+    expect(host.textContent).toContain(query);
+    expect(host.textContent).toContain("Service answer.");
+  });
+
   it.each([
     "Date night. Show the map.",
     "Any Tube delays? Show me the map. Show the source and date for any price you use.",
@@ -137,6 +150,7 @@ describe("mounted typed map dispatch", () => {
       "OK. Show me the map", "Alright, show me the map", "Great. Show the map",
       "That sounds good. Show me the map", "In fact, show me the map",
       "Hi. Show me the map", "Show me the map",
+      ...GENERIC_MAP_COMMANDS,
     ].flatMap(withEvidence))("opens the generic map: %s", async (query) => {
       if (priorCamden) await send("Find four pubs in Camden");
       const before = request.mock.calls.filter(([url, init]) => url === "/api/pub-pal/chat" && init?.method === "POST").length;
