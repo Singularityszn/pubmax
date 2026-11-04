@@ -12,7 +12,7 @@ import {
   type NightAreaSlug,
 } from "@/lib/nightPlanning";
 import { lastOf } from "@/lib/tuple";
-import { parsePlanRouteReference, type StoredPlanDraft } from "@/lib/planDraft";
+import { parsePlanExplicitNightContext, parsePlanRouteReference, type StoredPlanDraft } from "@/lib/planDraft";
 import type { CityId } from "@/lib/cities";
 import type { PlanGenerationAnchor as PlanGenerationWireAnchor } from "@/lib/planGenerationRequest";
 import {
@@ -119,6 +119,7 @@ type StoredPlanIntakeEnvelope = {
   expiresAt: string;
   draft: PlanIntakeDraft;
   routeReference?: StoredPlanDraft["routeReference"];
+  explicitNightContext?: Partial<NightContext>;
 };
 
 export type ParsedPlanIntakeDraft = {
@@ -127,6 +128,7 @@ export type ParsedPlanIntakeDraft = {
   expiresAt: string;
   draft: PlanIntakeDraft;
   routeReference?: StoredPlanDraft["routeReference"];
+  explicitNightContext?: Partial<NightContext>;
   legacy: false;
 };
 
@@ -581,10 +583,12 @@ export function parsePlanIntakeDraftWithMetadata(
     const terminal = firstUnsettled === undefined;
     if (value.completed !== terminal) return null;
     const routeReference = parsePlanRouteReference(envelope.routeReference);
+    const explicitNightContext = parsePlanExplicitNightContext(envelope.explicitNightContext);
     return {
       storageVersion: PLAN_INTAKE_VERSION,
       savedAt: envelope.savedAt,
       expiresAt: envelope.expiresAt,
+      ...(explicitNightContext !== undefined ? { explicitNightContext } : {}),
       ...(routeReference !== undefined ? { routeReference } : {}),
       draft: {
         version: PLAN_INTAKE_VERSION,
@@ -634,15 +638,18 @@ export function writePlanIntakeDraft(
   storage?: Storage | null,
   now = Date.now(),
   routeReference?: StoredPlanDraft["routeReference"],
+  explicitNightContext?: Partial<NightContext>,
 ): boolean {
   const store = resolveStorage(storage);
   if (!store) return false;
   try {
     const reference = parsePlanRouteReference(routeReference);
+    const patch = parsePlanExplicitNightContext(explicitNightContext);
     const next = JSON.stringify({
       storageVersion: PLAN_INTAKE_VERSION,
       savedAt: new Date(now).toISOString(),
       expiresAt: new Date(now + PLAN_INTAKE_DRAFT_TTL_MS).toISOString(),
+      ...(patch !== undefined ? { explicitNightContext: patch } : {}),
       ...(reference !== undefined ? { routeReference: reference } : {}),
       draft,
     } satisfies StoredPlanIntakeEnvelope);

@@ -1,4 +1,5 @@
 import { cleanPlanStopCountSource, isPlanStopCount, type PlanStopCount, type PlanStopCountSource } from "@/lib/planStopCount";
+import { cleanNightContextPatch, type NightContext } from "@/lib/nightPlanning";
 import { DAY_MS } from "@/lib/dayMs";
 import { CITIES, type CityId } from "@/lib/cities";
 import { LONDON_BOROUGHS } from "@/lib/boroughs";
@@ -26,6 +27,7 @@ export type StoredPlanDraft = {
   startTime: string;
   conciergeQuery: string;
   stops: Array<{ key: number; venueId: string; venueName: string }>;
+  explicitNightContext?: Partial<NightContext>;
   requestedStopCount?: PlanStopCount;
   requestedStopCountSource?: PlanStopCountSource;
   routeReference?: { savedAt: string; operationKey: string } | null;
@@ -118,7 +120,7 @@ function parseAcceptedArea(area: unknown): PlanningIntentArea | undefined {
 }
 
 function hasDraftKeys(value: Record<string, unknown>): boolean {
-  const keys = Object.keys(value).filter((key) => key !== "requestedStopCount" && key !== "requestedStopCountSource" && key !== "routeReference");
+  const keys = Object.keys(value).filter((key) => key !== "requestedStopCount" && key !== "requestedStopCountSource" && key !== "routeReference" && key !== "explicitNightContext");
   return [DRAFT_KEYS, DRAFT_KEYS_WITH_ANCHOR].some((allowed) =>
     keys.length === allowed.length && keys.every((key) => (allowed as readonly string[]).includes(key)));
 }
@@ -132,11 +134,21 @@ export function parsePlanRouteReference(value: unknown): StoredPlanDraft["routeR
     ? { savedAt, operationKey } : undefined;
 }
 
-function parseRequestOptions(value: Record<string, unknown>): Pick<StoredPlanDraft, "requestedStopCount" | "requestedStopCountSource" | "routeReference"> {
+export function parsePlanExplicitNightContext(value: unknown): Partial<NightContext> | undefined {
+  if (!isRecord(value)) return undefined;
+  if (value.stopCount !== undefined && !isPlanStopCount(value.stopCount)) return undefined;
+  const patch = cleanNightContextPatch(value);
+  if (!patch || Object.keys(value).some((key) => value[key] !== undefined && !Object.hasOwn(patch, key))) return undefined;
+  return patch;
+}
+
+function parseRequestOptions(value: Record<string, unknown>): Pick<StoredPlanDraft, "requestedStopCount" | "requestedStopCountSource" | "routeReference" | "explicitNightContext"> {
   const count = isPlanStopCount(value.requestedStopCount) ? value.requestedStopCount : undefined;
   const source = cleanPlanStopCountSource(value.requestedStopCountSource, count);
   const routeReference = parsePlanRouteReference(value.routeReference);
+  const explicitNightContext = parsePlanExplicitNightContext(value.explicitNightContext);
   return {
+    ...(explicitNightContext !== undefined ? { explicitNightContext } : {}),
     ...(count !== undefined ? { requestedStopCount: count } : {}),
     ...(source ? { requestedStopCountSource: source } : {}),
     ...(routeReference !== undefined ? { routeReference } : {}),

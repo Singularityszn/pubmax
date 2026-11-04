@@ -876,3 +876,21 @@ it.each([false, true])("checks the winning intake against the generated request,
   expect(recover()).toMatchObject(missingSession ? { acceptanceUnavailable: true } : { sessionWins: true });
   expect(recover().intakeDraft?.draft.answers.stopCount).toBe(1);
 });
+
+it.each(["correlated", "empty", "conflicting", "uncorrelated"] as const)(
+  "restores legacy route inputs only with established request ownership: %s",
+  (kind) => {
+    const route = routeDraft(NOW);
+    const plan = v2Plan(NOW + 1, {
+      stops: route.value.stops.map(({ key, venueId, venueName }) => ({ key, venueId, venueName })),
+      ...(kind !== "uncorrelated" ? { routeReference: { savedAt: route.savedAt!, operationKey: "operation-1" } } : {}),
+      ...(kind === "empty" || kind === "conflicting" ? { explicitNightContext: {} } : {}),
+    });
+    const recovered = recoverPlanDrafts({
+      plan, legacyDraft: kind === "conflicting" ? { ...plan.draft, explicitNightContext: { partyType: "work" } } : plan.draft,
+      intake: null, route: { ...route, explicitNightContext: { zeroProof: true } },
+    });
+    expect(recovered.intent.explicitNightContext).toEqual(kind === "correlated" ? { zeroProof: true } : kind === "empty" ? {} : undefined);
+    expect(recovered.intent.stopCount).toBeUndefined();
+  },
+);

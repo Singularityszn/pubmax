@@ -2056,3 +2056,137 @@ it.each(["title", "count"] as const)("still warns when a real %s edit cannot rep
     expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).not.toBe("5");
   }
 });
+
+
+const cosmeticContextChoices = [
+  { id: "area", value: "piccadilly-soho", context: { nightArea: "piccadilly-soho" } },
+  { id: "time", value: "late_night", context: { daypart: "late_night" } },
+  { id: "time", value: "daytime", context: { daypart: "daytime" } },
+  { id: "time", value: "get_home", context: { daypart: "get_home" } },
+  { id: "group", value: "work", context: { partyType: "work" } },
+  { id: "people", value: "6", context: { groupSize: 6 } },
+  { id: "people", value: "", context: { groupSize: null } },
+  { id: "budget", value: "value", context: { budget: "value" } },
+  { id: "budget-limit", value: "35", context: { budgetLimitPence: 3500 } },
+  { id: "budget-limit", value: "", context: { budgetLimitPence: null } },
+  { id: "zero-proof", value: "cocktail", context: { drinkCategory: "cocktail", zeroProof: false } },
+  { id: "zero-proof", value: "zero-proof", context: { drinkCategory: null, zeroProof: true } },
+  { id: "zero-proof", value: "any", context: { drinkCategory: null, zeroProof: false } },
+  { id: "stops", value: "5", context: { stopCount: 5 } },
+] as const;
+
+it.each(cosmeticContextChoices.flatMap((choice) => ["title", "name"].map((cosmetic) => ({ ...choice, cosmetic }))))(
+  "keeps explicit Tune $id=$value after a later cosmetic $cosmetic edit",
+  async ({ id, value, context, cosmetic }) => {
+    const advance = pinClock();
+    const query = id === "area" ? "Tonight for 4, under £45 each, wine with friends"
+      : "Clapham tonight for 4, under £45 each, wine with friends";
+    const initialContext = { ...inferNightContext(query).context, nightArea: "clapham" as const, stopCount: 3 };
+    expect(initialContext).toMatchObject({ groupSize: 4, budgetLimitPence: 4500, drinkCategory: "wine", zeroProof: false });
+    const generated = { ...generatedProofFixture(3), inferredContext: initialContext };
+    fetchMock.mockImplementation(async (input) => new Response(JSON.stringify(
+      String(input).includes("/api/plans/generate") ? generated : [],
+    ), { status: 200, headers: { "content-type": "application/json" } }));
+    await generateFromDescription(query);
+    await editInput("#plan-name", "Captain");
+    await openTune();
+    advance(1000);
+    await editTuneControl(id, value);
+    expect(JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!)).toMatchObject({ explicitNightContext: context });
+    await act(async () => { document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); });
+    await settle();
+    advance(2000);
+    await editInput(cosmetic === "title" ? "#plan-title" : "#plan-name", cosmetic === "title" ? "Our next night" : "Alex");
+    expect(readPlanDraftEnvelope(sessionStorage)).toMatchObject({ savedAt: "2026-11-03T12:00:02.000Z", draft: { routeReference: null } });
+    expect(JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!)).toMatchObject({ savedAt: "2026-11-03T12:00:01.000Z", explicitNightContext: context });
+    advance(3000);
+    await remountComposer();
+    await openTune();
+    const selected = document.querySelector<HTMLInputElement | HTMLSelectElement>(`#plan-context-${id}`)?.value;
+    expect.soft(selected, "A cosmetic edit must not discard an actual Tune choice").toBe(value);
+    expect(readPlanDraftEnvelope(sessionStorage)?.draft.routeReference).toBeNull();
+    await sortAgainFromTune();
+    const reconciled = reconciledGenerationContext();
+    expect(reconciled).toMatchObject(context);
+  },
+);
+
+it.each(["both", "session", "intake", "neither"] as const)(
+  "keeps request-owned drink choices through partial writes: %s",
+  async (available) => {
+    const advance = pinClock();
+    const generated = { ...generatedProofFixture(3), inferredContext: inferNightContext("Clapham tonight, wine with friends").context };
+    fetchMock.mockImplementation(async (input) => new Response(JSON.stringify(
+      String(input).includes("/api/plans/generate") ? generated : [],
+    ), { status: 200, headers: { "content-type": "application/json" } }));
+    await generateFromDescription("Clapham tonight, wine with friends");
+    await editInput("#plan-name", "Captain");
+    await openTune();
+    const session = available === "intake" || available === "neither" ? blockStorageWrites("sessionStorage") : sessionStorage;
+    const local = available === "session" || available === "neither" ? blockStorageWrites("localStorage") : localStorage;
+    advance(1000);
+    await editTuneControl("zero-proof", "zero-proof");
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-zero-proof")?.value).toBe("zero-proof");
+    await act(async () => { document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); });
+    advance(2000);
+    await editInput("#plan-title", "Our alcohol-free evening");
+    const sessionInputs = readPlanDraftEnvelope(session)?.draft.explicitNightContext;
+    const intakeInputs = readPlanIntakeDraftWithMetadata(local)?.explicitNightContext;
+    if (available === "both" || available === "session") expect(sessionInputs).toMatchObject({ zeroProof: true, drinkCategory: null });
+    if (available === "both" || available === "intake") expect(intakeInputs).toMatchObject({ zeroProof: true, drinkCategory: null });
+    if (available === "neither") expect(document.body.textContent).toContain("could not be saved");
+    for (let reload = 0; reload < 2; reload += 1) {
+      advance(3000 + reload * 1000);
+      await remountComposer();
+      await openTune();
+      expect(document.querySelector<HTMLSelectElement>("#plan-context-zero-proof")?.value).toBe(available === "neither" ? "wine" : "zero-proof");
+      if (available !== "neither") expect(document.querySelector<HTMLButtonElement>(".planComposer__submit")?.getAttribute("aria-disabled")).toBe("true");
+    }
+    await sortAgainFromTune();
+    expect(reconciledGenerationContext()).toMatchObject({ zeroProof: available !== "neither", drinkCategory: available === "neither" ? "wine" : null });
+  },
+);
+
+it.each(["session", "intake"] as const)("does not inherit losing explicit choices when %s owns an empty map", async (winner) => {
+  const advance = pinClock();
+  await generateFromDescription("Clapham tonight");
+  await openTune();
+  advance(1000);
+  await editTuneControl("zero-proof", "zero-proof");
+  const session = readPlanDraftEnvelope(sessionStorage)!;
+  const intake = readPlanIntakeDraftWithMetadata()!;
+  advance(2000);
+  if (winner === "session") {
+    writePlanDraftEnvelope({ ...session.draft, explicitNightContext: {} }, "manual", sessionStorage, T0 + 2000);
+    blockStorageWrites("localStorage");
+  } else {
+    writePlanIntakeDraft(intake.draft, localStorage, T0 + 2000, null, {});
+    blockStorageWrites("sessionStorage");
+  }
+  for (let reload = 0; reload < 2; reload += 1) {
+    await remountComposer();
+    await openTune();
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-zero-proof")?.value).toBe("any");
+  }
+  await sortAgainFromTune();
+  expect(reconciledGenerationContext()).toMatchObject({ zeroProof: false, drinkCategory: null });
+});
+
+it("keeps conflicting request maps UNKNOWN instead of borrowing route inputs", async () => {
+  const advance = pinClock();
+  await generateFromDescription("Clapham tonight");
+  await openTune();
+  advance(1000);
+  await editTuneControl("zero-proof", "zero-proof");
+  const legacy = JSON.parse(sessionStorage.getItem("pubmaxx:plan-draft:v1")!);
+  legacy.explicitNightContext = {};
+  sessionStorage.setItem("pubmaxx:plan-draft:v1", JSON.stringify(legacy));
+  blockStorageWrites("sessionStorage");
+  blockStorageWrites("localStorage");
+  await remountComposer();
+  await openTune();
+  expect(document.querySelector<HTMLSelectElement>("#plan-context-zero-proof")?.value).toBe("any");
+  expect(document.querySelector<HTMLButtonElement>(".planComposer__submit")?.getAttribute("aria-disabled")).toBe("true");
+  await sortAgainFromTune();
+  expect(reconciledGenerationContext()).toMatchObject({ zeroProof: false });
+});

@@ -1117,6 +1117,7 @@ describe("the Plan result", () => {
     await remountComposer();
     expect(JSON.parse(local.getItem("pubmaxx:plan-route-draft:v1")!)).toEqual({
       savedAt: readPlanDraftEnvelope(sessionStorage)?.savedAt,
+      explicitNightContext: { nightArea: "clapham", stopCount: requested },
       stops: newStops.map((stop, index) => ({ key: index + 1, ...stop, alternatives: [] })),
       nightContext: null, routeNight: null, routeRevision: null, routeStale: true,
       groundingProof: null, createOperationKey: null, planAnchor: null,
@@ -1124,7 +1125,7 @@ describe("the Plan result", () => {
     await remountComposer();
     expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent)).toEqual(newNames);
     await openTune();
-    expect(document.querySelector("#plan-context-area")).toBeNull();
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-area")?.value).toBe("clapham");
     expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe(String(requested));
     await sortAgainFromTune();
     const generation = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate")).at(-1)!;
