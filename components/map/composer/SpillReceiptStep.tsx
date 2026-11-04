@@ -3,8 +3,8 @@ import { Receipt, X } from "lucide-react";
 import type { PintDropsState } from "@/components/map/usePintDrops";
 import {
   PHOTO_ACCEPT,
+  RECEIPT_OPTIONAL_LINE,
   RECEIPT_PHOTO_ACTION,
-  RECEIPT_REQUIRED_LINE,
 } from "@/lib/pintDropReceipt";
 
 type SpillReceiptStepProps = {
@@ -17,15 +17,16 @@ type SpillReceiptStepProps = {
 /**
  * THE BILL, directly under the price it backs.
  *
- * NOT behind the extras disclosure, and that is the whole point of it being its
- * own step: the pint photo, the selfie, the story and the tags are optional and
- * live behind "Add a photo or story", and this is the one thing a price cannot
- * go without (captain 7 Sept 2026, lib/pintDropReceipt.ts). Asking for it
- * inside a collapsed section would refuse a drinker at the Log it button for a
- * control they were never shown.
+ * NOT behind the extras disclosure: the pint photo, the selfie, the story and
+ * the tags live behind "Add a photo or story", and this is the one photo that
+ * is evidence about the FIGURE. Since captain decision 9 (1 Nov 2026) it is
+ * OPTIONAL: a price sent without it lands as "not checked" on the pub's sheet
+ * and reaches the map through a second drinker. So the step makes its offer in
+ * ONE line (`RECEIPT_OPTIONAL_LINE`, lib/pintDropReceipt.ts), never blocks Log
+ * it, and never asks twice.
  *
  * Rendered only while the composer holds a price. A note, a memory or a photo
- * of the pub claims nothing a reader has to check, and is asked for nothing.
+ * of the pub claims nothing a reader has to check, and is offered nothing.
  *
  * Once the bill is in, it prints as a small square beside its name rather than
  * a wide crop. A bill is a tall strip of paper, so a full-width thumbnail is
@@ -70,7 +71,9 @@ export function SpillReceiptStep({
   }
   return (
     <div className="spillReceiptStep" data-testid="spill-receipt-step">
-      <label className="spillCameraBtn primary">
+      {/* Not `primary` any more: Log it is the one primary on this form, and
+          an optional photo may not look like the thing the form is for. */}
+      <label className="spillCameraBtn">
         <Receipt size={20} />
         <span>{RECEIPT_PHOTO_ACTION}</span>
         {/* `capture` names the rear camera where there is one and is ignored on
@@ -84,7 +87,7 @@ export function SpillReceiptStep({
           onChange={(event) => pickPhoto("receipt", event.target.files?.[0], event.target)}
         />
       </label>
-      <p className="spillCaptureWhy">{RECEIPT_REQUIRED_LINE}</p>
+      <p className="spillCaptureWhy">{RECEIPT_OPTIONAL_LINE}</p>
     </div>
   );
 }

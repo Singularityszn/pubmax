@@ -81,13 +81,12 @@ const ALLOWLIST: ReadonlyArray<{ file: string; feature: string; count: number; r
   { file: "components/nav/siteNav.css", feature: "max-width: 767px", count: 1, reason: "site nav narrow-tablet row" },
   { file: "components/nav/siteNavMoment.css", feature: "max-width: 767px", count: 1, reason: "site nav narrow-tablet row" },
   { file: "components/landing/landing.css", feature: "max-width: 767px", count: 1, reason: "landing nav mirrors the site nav row" },
-  // The landing hero turns into two columns from 960px, and
-  // components/landing/LandingSkylinePreload.tsx preloads the wide skyline
-  // with the same `(min-width: 960px)` (pinned by landingPhotoRender.test.tsx).
-  // Moving one without the other loads a picture the layout does not show.
-  { file: "components/landing/landing.css", feature: "min-width: 960px", count: 2, reason: "landing hero, paired with the skyline preload" },
+  // The landing hero turns into two columns from 960px, the hunt card, the
+  // pub card and the rail taking one measure there. The skyline preload that
+  // shared this width left with the photograph (1 Nov 2026), and so did the
+  // figure's own `max-width: 959px` entry.
+  { file: "components/landing/landing.css", feature: "min-width: 960px", count: 2, reason: "landing hero two columns and their shared card measure" },
   { file: "components/landing/landing.css", feature: "max-width: 960px", count: 1, reason: "landing nav link row" },
-  { file: "components/landing/landing.css", feature: "max-width: 959px", count: 1, reason: "landing hero figure below two columns" },
   // MapLibre's zoom column fits beside the floating home bar only from about
   // 1372px; below that it drops under the toolbar (measured at 768: bar 16-752,
   // zoom-in 713-757). See components/map/mapToolbar.css.
@@ -95,7 +94,7 @@ const ALLOWLIST: ReadonlyArray<{ file: string; feature: string; count: number; r
 ];
 
 // The allowlist only shrinks. Lower this when an entry goes; never raise it.
-const ALLOWLIST_CEILING = 12;
+const ALLOWLIST_CEILING = 11;
 
 describe("named breakpoints", () => {
   const widths = mediaWidths();

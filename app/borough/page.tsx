@@ -79,7 +79,7 @@ export default async function BoroughIndexPage() {
               return (
                 <RowListItem
                   key={borough.slug}
-                  className="boroughRow createFabLane"
+                  className="boroughRow"
                   href={`/borough/${borough.slug}` as Route}
                   title={borough.name}
                   meta={

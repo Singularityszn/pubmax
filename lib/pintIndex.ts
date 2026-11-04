@@ -328,3 +328,16 @@ export function indexSummary(rows: LeagueRow[]) {
     dearestPint: rows.length ? dearestFirst(rows)[0] : null,
   };
 }
+
+/**
+ * Whether the dated public borough league has anything to rank. /about and
+ * /pint-index both ask THIS, so one page cannot say "no league" while the
+ * other prints a borough list without saying what it is.
+ */
+export function pintIndexLeagueReady(snapshot: PintIndexSnapshot | null): boolean {
+  return Boolean(snapshot && snapshot.status !== "empty" && buildLeagueTable(snapshot).length > 0);
+}
+
+/** What both pages say while the citable snapshot is empty, in the same words. */
+export const PINT_INDEX_NOT_READY_LINE =
+  "The borough list shows listed prices from our London pub list. The dated public edition of the borough league is not ready yet.";

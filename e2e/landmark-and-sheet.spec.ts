@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+import { openOverviewFold } from "./helpers/overviewFolds";
 
 // Landmark/heritage STORY surface + the mobile drag bottom-sheet's accessible
 // state (PRD "Testing Decisions": landmark story card opens with image/credit/
@@ -164,9 +165,13 @@ test("venue sheet offers a start-a-crawl affordance in build mode (non-canvas jo
   const overviewPanel = page.locator("#venuePanel-overview");
   await expect(overviewPanel).toBeVisible();
 
-  // The presence button shares the addStopBtn class — target the crawl entry
+  // Since the action card the crawl entry is the card's ONE plan door
+  // (lib/venuePlanDoor.ts), above the Overview at every width: `Plan stop` /
+  // `In plan` with a crawl in progress, `Make it Stop 1` without one. Target it
   // by its accessible name, the way a user finds it.
-  const addToCrawl = overviewPanel.getByRole("button", { name: "Add to crawl" });
+  const addToCrawl = page
+    .locator(".venueActionCard")
+    .getByRole("button", { name: /^Plan stop$|^In plan$|^Make .+ Stop 1$/ });
   // The add-to-crawl button is build-mode-only (its aria-pressed toggle is the
   // "start a crawl here" journey entry). ?mode=build should seed build mode, but
   // if the seed didn't take (e.g. a shared-crawl restore overrode it), the
@@ -175,10 +180,11 @@ test("venue sheet offers a start-a-crawl affordance in build mode (non-canvas jo
   // false-fail on mode-seed timing. We never click either (no mutation).
   if ((await addToCrawl.count()) > 0) {
     await expect(addToCrawl).toBeVisible();
-    await expect(addToCrawl).toHaveAttribute("aria-pressed", /true|false/);
     expect((await addToCrawl.innerText()).trim().length).toBeGreaterThan(0);
   } else {
-    // Fallback crawl/list journey entry always present on Overview.
+    // Fallback crawl/list journey entry always present on Overview, in the
+    // Your record fold (lib/venueOverviewFolds.ts).
+    await openOverviewFold(overviewPanel, "record");
     const saveToList = overviewPanel.locator(".saveToListToggle, .saveToList");
     await expect(saveToList.first()).toBeVisible();
   }
@@ -215,6 +221,7 @@ test("mobile drag-sheet traps focus at half and contains it at full (#17)", asyn
   // A fresh pick rests at the "half" snap on open (the class drives the CSS
   // transform). We assert the mounted-snap class the sheet actually opens with.
   await expect(sheet).toHaveClass(/sheet-half/);
+  await expect(sheet).toHaveAttribute("data-sheet-motion", "idle");
 
   // The detent is a full touch target and a keyboard-operable counterpart to
   // dragging the grabber.
@@ -245,6 +252,7 @@ test("mobile drag-sheet traps focus at half and contains it at full (#17)", asyn
 
   await detent.click();
   await expect(sheet).toHaveClass(/sheet-full/);
+  await expect(sheet).toHaveAttribute("data-sheet-motion", "idle");
   await expect(sheet).toHaveAttribute("role", "dialog");
   await expect(sheet).not.toHaveAttribute("aria-modal");
   await expect(page.locator("body > [inert]")).not.toHaveCount(0);
@@ -258,16 +266,39 @@ test("mobile drag-sheet traps focus at half and contains it at full (#17)", asyn
 
   await collapse.click();
   await expect(sheet).toHaveClass(/sheet-half/);
+  await expect(sheet).toHaveAttribute("data-sheet-motion", "idle");
   await expect(sheet).not.toHaveAttribute("aria-modal");
   await expect(page.locator("body > [inert]")).not.toHaveCount(0);
 
   await page.emulateMedia({ reducedMotion: "reduce" });
   await sheet.getByRole("button", { name: "Expand sheet" }).click();
   await expect(sheet).toHaveClass(/sheet-full/);
-  const reducedMotionHeight = await sheet.evaluate((node) =>
-    Number.parseFloat((node as HTMLElement).style.maxHeight),
-  );
-  expect(reducedMotionHeight).toBeCloseTo(844 * 0.92 - 64, 0);
+  await expect(sheet).toHaveAttribute("data-sheet-motion", "idle");
+  await expect(async () => {
+    const geometry = await sheet.evaluate((node) => {
+      const dock = document.querySelector(".mobileTabBar");
+      if (!dock) throw new Error("Primary dock is missing");
+      const box = node.getBoundingClientRect();
+      const dockBox = dock.getBoundingClientRect();
+      const dockHeight = Number.parseFloat(getComputedStyle(dock, "::before").height);
+      return {
+        top: box.top,
+        bottom: box.bottom,
+        height: box.height,
+        cap: Number.parseFloat((node as HTMLElement).style.maxHeight),
+        dockTop: dockBox.bottom - dockHeight,
+        dockHeight,
+        viewportHeight: window.innerHeight,
+      };
+    });
+    expect(geometry.dockHeight).toBeGreaterThan(0);
+    const fullCap = geometry.viewportHeight * 0.92 - geometry.dockHeight;
+    expect(geometry.cap).toBeCloseTo(fullCap, 0);
+    expect(geometry.height).toBeGreaterThan(0);
+    expect(geometry.height).toBeLessThanOrEqual(fullCap + 1);
+    expect(geometry.top).toBeGreaterThanOrEqual(0);
+    expect(Math.abs(geometry.bottom - geometry.dockTop)).toBeLessThan(2);
+  }).toPass({ timeout: 10_000 });
 
   expect(errors).toEqual([]);
 });

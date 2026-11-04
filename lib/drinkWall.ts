@@ -50,6 +50,11 @@ export function validateDrinkWallSubmission(input: unknown): DrinkWallValidation
     }
     venueId = venueRaw;
   }
+  // A dog is shown on Dog of the week with the pub it was met at, so a dog
+  // photo names its pub.
+  if (wallCategory === "dog" && venueId === null) {
+    return { ok: false, error: DRINK_WALL_DOG_NEEDS_PUB_LINE };
+  }
 
   const drinkCategory =
     wallCategory === "pint" ? parseVenuePhotoDrinkCategory(raw.drinkCategory) : null;
@@ -68,6 +73,9 @@ export function validateDrinkWallSubmission(input: unknown): DrinkWallValidation
     },
   };
 }
+
+/** The upload refusal for a dog photo with no pub linked. */
+export const DRINK_WALL_DOG_NEEDS_PUB_LINE = "Link the pub you met this dog at.";
 
 export function drinkWallEmptyLine(degraded: boolean): string {
   return degraded
@@ -125,6 +133,9 @@ export function drinkWallCaptionHint(category: DrinkWallCategory): string {
   }
   if (category === "pub") {
     return "Say whether this is inside or outside, or what caught your eye.";
+  }
+  if (category === "dog") {
+    return "Optional: the dog's name, if the owner is happy to share it.";
   }
   return "Optional: name the drink or the moment.";
 }

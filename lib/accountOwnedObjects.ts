@@ -12,14 +12,15 @@
 //
 // TWO KINDS OF OWNERSHIP. A PREFIX kind is found by walking the bucket: the
 // profile's avatars and covers (`profileImageSlots`), the account's Night
-// Moment photos and the menus it attached to pubs it added, which are keyed by
-// the OWNER's id. A ROW kind is keyed by
+// Moment photos, the menus it attached to pubs it added and the board photos
+// behind the regular nights it added, which are keyed by the OWNER's id. A ROW kind is keyed by
 // something else (a venue, a conversation), so its keys are read off the rows
 // that carry them while those rows still exist: wall photos and message
 // photos. Both kinds are listed here so a new per-account image lane has one
 // table to join.
 
 import { PROFILE_IMAGE_SLOT_SPECS } from "@/lib/profileImageSlots";
+import { regularNightBoardObjectPrefix } from "@/lib/regularNightReports";
 import { venueSubmissionObjectPrefix } from "@/lib/venueSubmissions";
 
 /** The Storage API removes at most this many objects in one call. */
@@ -72,6 +73,7 @@ export function ownedObjectFolders(input: {
   }
   folders.push(nightMomentObjectPrefix(input.userId));
   folders.push(venueSubmissionObjectPrefix(input.userId));
+  folders.push(regularNightBoardObjectPrefix(input.userId));
   return folders;
 }
 

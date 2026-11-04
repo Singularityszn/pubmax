@@ -62,7 +62,7 @@ test("Gate Z mobile lab budgets stay inside the release targets", async ({ page 
   await page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Tonight", exact: true }).click();
   await expect(page).toHaveURL(/\/tonight$/);
   await expect(page.getByTestId("tonight-screen")).toBeVisible();
-  const mapLink = page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Map", exact: true });
+  const mapLink = page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Explore", exact: true });
   await page.waitForTimeout(500);
   await mapLink.evaluate((link) => link.addEventListener("click", () => {
     window.__pubmaxWarmNavigationStart = performance.now();

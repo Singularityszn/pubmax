@@ -59,7 +59,7 @@ test("mobile venue Share clipboard fallback and the one Plan door stay tappable 
   await expect(portal).toBeVisible();
   const sheet = portal.locator(".mobileSharedSheet");
   await expect(sheet).toHaveClass(/open/);
-  await portal.getByRole("tab", { name: "Stories", exact: true }).click();
+  await portal.getByRole("tab", { name: "Prices", exact: true }).click();
   await expect(sheet).toHaveClass(/sheet-full/);
 
   const stickyActions = portal.getByRole("toolbar", { name: "Venue actions" });
@@ -73,7 +73,9 @@ test("mobile venue Share clipboard fallback and the one Plan door stay tappable 
     `/map?sel=${ARNOS_ARMS_ID}`,
   );
 
-  await expect(stickyActions.getByRole("button")).toHaveText(["Share"]);
+  // The action card's second row: "Ask for a table" and Share. The plan door
+  // is the card's first row (components/map/inspector/VenueActionCard.tsx).
+  await expect(stickyActions.getByRole("button")).toHaveText(["Ask for a table", "Share"]);
   await portal.getByRole("tab", { name: "Overview", exact: true }).click();
   const planDoor = portal.locator(".mobileVenuePeekSummary").getByRole("button", { name: "Plan stop", exact: true });
   await expect(planDoor).toHaveAttribute("aria-pressed", "false");
@@ -97,7 +99,7 @@ test("mobile sticky actions stay reachable across content tabs and the sheet reo
   await expect(portal).toBeVisible();
   const sheet = portal.locator(".mobileSharedSheet");
   await expect(sheet).toHaveClass(/open/);
-  await portal.getByRole("tab", { name: "Stories", exact: true }).click();
+  await portal.getByRole("tab", { name: "Prices", exact: true }).click();
   await expect(sheet).toHaveClass(/sheet-full/);
 
   const stickyActions = portal.getByRole("toolbar", { name: "Venue actions" });

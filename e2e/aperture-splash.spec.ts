@@ -1,4 +1,6 @@
+import { createHash } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
+import { fragmentedLandingProxy } from "./helpers/fragmentedLandingProxy.mts";
 
 type SplashMeasurements = {
   __pubmaxSplashCls: number;
@@ -75,6 +77,41 @@ async function trackCls(page: Page) {
 }
 
 test.describe("aperture splash - eligible session (navigator.webdriver overridden)", () => {
+  test("holds CLS below 0.01 when the header stream and real fonts finish together", async ({ page, baseURL }) => {
+    expect(baseURL, "The local production server must provide baseURL").toBeTruthy();
+    const proxy = await fragmentedLandingProxy(baseURL!);
+    try {
+      await page.setViewportSize({ width: 1280, height: 720 });
+      await overrideWebdriver(page);
+      await trackCls(page);
+      await page.addInitScript(() => {
+        localStorage.setItem("pubmax-tour-v1-done", "1");
+        localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+        sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+      });
+      const response = await page.goto(proxy.origin);
+      expect(response?.status()).toBe(200);
+      expect(createHash("sha256").update(await response!.body()).digest("hex")).toBe(proxy.delivery.originalSha256);
+      expect(proxy.delivery.heldFonts, "The reproduction must hold real font responses with the HTML").toBeGreaterThanOrEqual(2);
+      expect(await page.evaluate(() => PerformanceObserver.supportedEntryTypes.includes("layout-shift"))).toBe(true);
+      await expect(page.locator(".lpNav")).toBeVisible();
+      await expect(page.locator(".lpNav").getByRole("link", { name: "PUBMAXX home", exact: true })).toBeVisible();
+      await page.waitForTimeout(900);
+      const measurements = await page.evaluate(() => {
+        const measured = window as unknown as SplashMeasurements;
+        return { cls: measured.__pubmaxSplashCls, shifts: measured.__pubmaxSplashShifts };
+      });
+      await test.info().attach("fragmented-landing-layout-shifts", {
+        body: JSON.stringify({ delivery: proxy.delivery, ...measurements }, null, 2),
+        contentType: "application/json",
+      });
+      expect(proxy.delivery.errors).toEqual([]);
+      expect(measurements.cls, `Streamed landing shifts: ${JSON.stringify(measurements.shifts)}`).toBeLessThan(0.01);
+    } finally {
+      await proxy.close();
+    }
+  });
+
   test("plays once, resolves within the 700ms ceiling, and holds CLS at zero", async ({ page }) => {
     await overrideWebdriver(page);
     await trackCls(page);
@@ -188,4 +225,25 @@ test.describe("aperture splash - default automated session", () => {
     const splashDefault = await page.evaluate(() => document.documentElement.dataset.splash);
     expect(splashDefault).toBeUndefined();
   });
+});
+
+test.describe("landing header without JavaScript", () => {
+  for (const viewport of [{ width: 1280, height: 720 }, { width: 390, height: 844 }]) {
+    test(`keeps the public header visible at ${viewport.width}px`, async ({ browser, baseURL }) => {
+      const context = await browser.newContext({ baseURL, viewport, javaScriptEnabled: false });
+      try {
+        const page = await context.newPage();
+        const response = await page.goto("/");
+        expect(response?.status()).toBe(200);
+        const header = page.locator(".lpNav");
+        await expect(header).toBeVisible();
+        await expect(header.getByRole("link", { name: "PUBMAXX home", exact: true })).toBeVisible();
+        if (viewport.width === 1280) {
+          await expect(header.getByRole("button", { name: "More pages", exact: true })).toBeVisible();
+        }
+      } finally {
+        await context.close();
+      }
+    });
+  }
 });

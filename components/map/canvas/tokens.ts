@@ -372,8 +372,8 @@ function readTokensFromStyles(): { tokens: Tokens; themed: boolean } {
  *
  * So dark mode pairs the two tones the price tag beside the pin already pairs -
  * a cream `--ink` figure over an `--ink-deep` halo. Neither is a new colour and
- * neither is a ring, so nothing here can be confused with the brass selection
- * and scraped rings, the river Pint Drops ring and provisional badge, the
+ * neither is a ring, so nothing here can be confused with the ink selection
+ * rings, the river Pint Drops ring and provisional badge, the
  * what's-on accent ring, the band halo, or the base layer's brass sockets.
  * __tests__/mapPinBandContrast.test.ts pins the contrast this buys per band.
  */
@@ -388,20 +388,25 @@ export function venuePinEdgeTokens(
 /**
  * The price pill's body and hairline, per theme.
  *
- * The body is the plaque surface the price tag has always stood on (the same
- * `--price-plaque-surface` PriceBadge uses) and its figure is the plaque ink, so
- * the pill is the tag the map already had with a pill's edge round it. The
- * hairline is what edges it against the basemap: ink in light, cream ink in
- * dark, because a plaque that is close to the ground in luminance (a cream pill
- * on pale paper land, a dark panel on near-black land) has nothing else.
- * __tests__/mapClusterContrast.test.ts holds the number.
+ * The body is the raised panel the cluster disc is drawn on, and the figure is
+ * ink, so a pill and a disc are one quiet family on the map and the price is
+ * the only thing on either that speaks. The band is the pill's outline, drawn
+ * in the artwork (lib/mapIcons.ts). The hairline is what edges the pill against
+ * the basemap: ink in light, cream ink in dark, because a panel that is close
+ * to the ground in luminance (a near-white pill on pale land, a dark panel on
+ * near-black land) has nothing else. Light ground is one pale regime, so a
+ * softer hairline still edges a pill at 3:1 and keeps a street of pills calm;
+ * the dark ground spans near-black land to mid-grey major roads, so the cream
+ * hairline stays near full strength there. __tests__/mapClusterContrast.test.ts
+ * holds the number.
  */
 export function pricePillTokens(
-  tokens: Pick<Tokens, "ink" | "pricePlaqueSurface">,
+  tokens: Pick<Tokens, "ink" | "panelRaised">,
+  dark: boolean,
 ): Pick<IconTokens, "pillSurface" | "pillRim"> {
   return {
-    pillSurface: tokens.pricePlaqueSurface,
-    pillRim: withAlpha(tokens.ink, 0.9),
+    pillSurface: tokens.panelRaised,
+    pillRim: withAlpha(tokens.ink, dark ? 0.9 : 0.7),
   };
 }
 
@@ -435,7 +440,7 @@ export function iconTokensFor(tokens: Tokens, dark: boolean): IconTokens {
     // venuePinEdgeTokens: `paper` above resolves to a near-black in dark, so the
     // glasses' "light rim" was a black one against a near-black basemap.
     ...venuePinEdgeTokens(tokens, dark),
-    ...pricePillTokens(tokens),
+    ...pricePillTokens(tokens, dark),
     coffee: dark ? CATEGORY_COLORS.coffee.dark : CATEGORY_COLORS.coffee.light,
   };
 }

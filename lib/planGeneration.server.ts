@@ -9,16 +9,27 @@ import { NO_ALCOHOL_DRINK_CATEGORIES, type CommunityPrice } from "@/lib/communit
 import { readCommunityPriceCategoryIndex } from "@/lib/communityPriceStore";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { formatGbp } from "@/lib/formatGbp";
+import { firstHttps } from "@/lib/httpUrl";
 import { haversineKm } from "@/lib/haversine";
 import { CATEGORY_META } from "@/lib/drinks";
+import {
+	DRY_ROUND_ANCHOR_UNLISTED_LINE,
+	DRY_ROUND_UNREAD_LINE,
+	dryRoundListedPrices,
+	dryRoundSelection,
+	dryRoundTooFewLine,
+	isDryRoundAsk,
+	type DryRoundAlcoholFree,
+} from "@/lib/dryRound";
 import { drinkLensCoverageNote, trustedDrinkLensPrices, trustedNoAlcoholLensPrices, type MapLensPrice } from "@/lib/mapExperienceLens";
+import { loadListedAlcoholFreeRows } from "@/lib/nearCheapestAnything.server";
 import {
 	getNightArea,
 	isNightAreaRouteReady,
 	publicNightAreaCoverage,
 	type NightArea,
 } from "@/lib/nightAreas";
-import type { NightContext } from "@/lib/nightPlanning";
+import { planDietaryNeeds, type NightContext } from "@/lib/nightPlanning";
 import {
 	canAffectRoute,
 	claimsForEntity,
@@ -35,13 +46,13 @@ import {
 	planPriceLimits,
 	planPriceSubjectText,
 } from "@/lib/planPriceLimits";
-import { paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
 import { isLimited } from "@/lib/pintDrops";
 import { reconcilePlanContext } from "@/lib/planGenerationContext";
 import { selectedDrinkPriceEvidenceForPrice } from "@/lib/planSelectedDrinkPriceEvidence";
 import { planPriceEvidenceForVenues } from "@/lib/planRouteEvidence.server";
 import { priceEvidenceUsableForCeiling, type PlanPriceEvidence } from "@/lib/planRouteEvidence";
 import { planUsesPintPrices } from "@/lib/planGenerationDto";
+import { normalizePlanStopCount } from "@/lib/planStopCount";
 import type { ParsedPlanGenerationIntake } from "@/lib/planGenerationIntake";
 import { planScoringDrinkCategory, scoreVenueForPlan } from "@/lib/planGenerationRanking";
 import {
@@ -65,6 +76,7 @@ import type { PlanningIntentSource } from "@/lib/planningIntent";
 import { clientIp, hashIp, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS } from "@/lib/supabase";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 import { loadServedWhatsOnListings } from "@/lib/whatsOnListings.server";
+import { loadVenueMenuEnrichmentIndex } from "@/lib/venueMenuEnrichment";
 import { loadBaselineWhatsOn } from "@/lib/whatsOnStore";
 import { matchedWetherspoonsVenueIds } from "@/lib/wetherspoonsMatch.server";
 import nightSignalSnapshot from "@/public/data/night_signals/latest.json";
@@ -108,6 +120,8 @@ export async function runAnchoredGeneration<T extends ScoredPlanCandidate & { se
 	operationKey: string;
 	area: NightArea;
 	coverage: ReturnType<typeof publicNightAreaCoverage>;
+	/** A dry round's listed alcohol-free prices, by pub (lib/dryRound.ts). */
+	dryRoundListed?: ReadonlyMap<string, unknown> | null;
 }): Promise<{ done: Response } | { route: AnchoredRouteData<T> }> {
 	const { cityId, anchor, context, intake, requestNow, operationKey, area, coverage } = params;
 	const candidates = anchor.venueIds
@@ -139,6 +153,11 @@ export async function runAnchoredGeneration<T extends ScoredPlanCandidate & { se
 		return anchorConflict(anchorResolution.code, anchorResolution.message);
 	}
 	const anchorVenueId = anchorResolution.canonical.venueId;
+	// A kept pub with no listed alcohol-free price cannot open a dry round, and
+	// the reader is told which rule refused it rather than "right now".
+	if (params.dryRoundListed && !params.dryRoundListed.has(anchorVenueId)) {
+		return anchorConflict("DRY_ROUND_ANCHOR_UNLISTED", DRY_ROUND_ANCHOR_UNLISTED_LINE);
+	}
 	if (anchor.venueIds && (candidates.length !== anchor.venueIds.length
 		|| context.stopCount !== anchor.venueIds.length)) {
 		return anchorConflict("ANCHOR_ROUTE_CONFLICT", "Some listed pubs cannot join this crawl. Review the list and try again.");
@@ -204,7 +223,6 @@ export async function runAnchoredGeneration<T extends ScoredPlanCandidate & { se
 				},
 				provenance: [
 					{ kind: "venue_dataset", label: `PUBMAXX venue record for ${stop.venueName}` },
-					{ kind: "night_area_review", label: `${area.name} route review`, asOf: area.lastReviewedAt },
 				],
 				alternatives: [],
 			}],
@@ -244,6 +262,13 @@ type PlanGenerationPreparation = {
 	reviewedSignalClaims: ReturnType<typeof planTemporalEvidence>["signalClaims"];
 	naLensPrices: ReturnType<typeof trustedNoAlcoholLensPrices>;
 	drinkPriceCoverageNote: string | null;
+	/** The first dietary word named, and the pubs that publish a menu link. */
+	dietaryMenu: { need: string; menuLinkVenueIds: ReadonlySet<string> } | null;
+	/**
+	 * A dry round's listed alcohol-free prices by pub, or null when the ask is
+	 * not a dry round. Every candidate below is in it when it is set.
+	 */
+	dryRoundListed: ReadonlyMap<string, DryRoundAlcoholFree> | null;
 	candidates: PlanGenerationCandidate[];
 	anchor: PlanGenerationAnchor | null;
 };
@@ -348,15 +373,35 @@ function hasMealPriceConstraint(value: string, explicitFoodIntent = false): bool
 	});
 }
 
-/** The pub-route generator has no menu-item or nutrition proof. */
+/**
+ * The pub-route generator has no menu-item or nutrition proof, so a meal price
+ * or a calorie count is refused. A dietary word is not: it degrades to a
+ * preference for pubs that publish a menu link and a warning
+ * (planDietaryNeeds, planDietaryMenuWarning).
+ */
 function requiresMenuEvidence(query: string, foodNeeds: readonly string[]): boolean {
 	const foodRequests = [query, ...foodNeeds];
 	const requiresNutrition = foodRequests.some((foodRequest) => /(?:\b|\d)(?:calories?|kcals?|kilocalories?)\b/i.test(foodRequest));
-	const allergens = "(?:gluten|nuts?|peanuts?|dairy|milk|lactose|eggs?|soy|soya|sesame|shellfish|wheat)";
-	const requiresDiet = foodRequests.some((foodRequest) => new RegExp(`\\b(?:vegan|vegetarian|pescatarian|halal|kosher|coeliac|celiac|${allergens}[ -]free|(?:without|no|avoid|free\\s+(?:of|from))\\s+${allergens}|allerg(?:y|ies|ic|en|ens)|intoleran(?:t|ce))\\b`, "i").test(foodRequest));
 	const requiresMealPrice = hasMealPriceConstraint(query)
 		|| foodNeeds.some((value) => hasMealPriceConstraint(value, true));
-	return requiresNutrition || requiresDiet || requiresMealPrice;
+	return requiresNutrition || requiresMealPrice;
+}
+
+/** Add every dietary word named to foodNeeds, and return them in order. */
+function withDietaryNeeds(query: string, context: NightContext): string[] {
+	const needs = planDietaryNeeds(query, ...context.foodNeeds);
+	for (const need of needs) if (!context.foodNeeds.includes(need)) context.foodNeeds.push(need);
+	return needs;
+}
+
+/** Venue ids whose curated record carries a safe https menu link. */
+async function menuLinkVenueIds(): Promise<ReadonlySet<string>> {
+	const index = await loadVenueMenuEnrichmentIndex();
+	const ids = new Set<string>();
+	for (const [venueId, record] of index) {
+		if (firstHttps(record.menuUrl)) ids.add(venueId);
+	}
+	return ids;
 }
 
 function applyStrictestRouteBudget(
@@ -410,6 +455,9 @@ export async function preparePlanGeneration(
 	}
 	const reconciled = reconcilePlanContext(query, contextPatch, intake, new Date(requestNow));
 	const context = reconciled.context;
+	// A dry round's night is alcohol-free, and below, only a pub that lists an
+	// alcohol-free price may be one of its stops.
+	applyDryRoundNight(query, reconciled);
 	if (requiresMenuEvidence(query, context.foodNeeds)) {
 		return { response: publicApiError(
 			"This route planner cannot verify meal prices, dietary requirements or calories. Use the food map for sourced menu items.",
@@ -417,6 +465,7 @@ export async function preparePlanGeneration(
 			422,
 		) };
 	}
+	const dietaryNeeds = withDietaryNeeds(query, context);
 	if (!context.nightArea) {
 		return { response: publicApiError("Choose an area.", "NIGHT_AREA_REQUIRED", 422) };
 	}
@@ -459,8 +508,6 @@ export async function preparePlanGeneration(
 			{ details: { nightArea: area.slug } },
 		) };
 	}
-	const budgetRefusal = await paidSpendBudgetRefusal("plan-generate");
-	if (budgetRefusal) return { response: budgetRefusal };
 	const tonightByVenue = new Map<string, WhatsOnRow[]>();
 	for (const row of tonightRows) {
 		if (!row.venueId) continue;
@@ -507,6 +554,9 @@ export async function preparePlanGeneration(
 			? [{ ...venue, cheapestPrice: price.pence! / 100 }]
 			: [];
 	});
+	const dietaryMenu = dietaryNeeds.length > 0
+		? { need: dietaryNeeds[0]!, menuLinkVenueIds: await menuLinkVenueIds() }
+		: null;
 	const candidates = cappedVenues
 		.map((venue) => {
 			const distance = distanceKm(area.centre, venue);
@@ -522,6 +572,7 @@ export async function preparePlanGeneration(
 				naLensPrices,
 				wetherspoonsMatchedIds,
 				drinkLensPrices,
+				dietaryMenu?.menuLinkVenueIds,
 			);
 			return { venue, distance, tonightEvents, signalClaims, ...scored, selectedDrinkPrice: drinkLensPrices?.get(venue.id) ?? null,
 				pintPriceEvidence: pintEvidence?.get(venue.id) ?? null,
@@ -532,6 +583,8 @@ export async function preparePlanGeneration(
 			&& venue.promoted !== true
 			&& !signalClaims.some((claim) => canAffectRoute(claim) && claim.routeEffect === "avoid"))
 		.sort((a, b) => b.score - a.score);
+	const dryRoundRoute = await dryRoundCandidates(query, candidates, context, area);
+	if ("response" in dryRoundRoute) return dryRoundRoute;
 	return { prepared: {
 		requestNow,
 		operationKey,
@@ -547,7 +600,52 @@ export async function preparePlanGeneration(
 		reviewedSignalClaims,
 		naLensPrices,
 		drinkPriceCoverageNote,
-		candidates,
+		dietaryMenu,
+		dryRoundListed: dryRoundRoute.listed,
+		candidates: dryRoundRoute.candidates,
 		anchor: parsedRequest.value.anchor,
 	} };
+}
+
+/**
+ * A dry round (lib/dryRound.ts) is words on this one path, so its night is
+ * alcohol-free whatever else the context says. Any other ask is left alone.
+ */
+function applyDryRoundNight(query: string, reconciled: ReturnType<typeof reconcilePlanContext>): void {
+	if (!isDryRoundAsk(query) || reconciled.context.zeroProof) return;
+	reconciled.context.zeroProof = true;
+	reconciled.fieldSources.zeroProof = "query";
+	reconciled.reasons = reconciled.reasons.filter(({ field }) => field !== "zeroProof");
+	reconciled.reasons.push({ field: "zeroProof", evidence: "dry round", explanation: "A dry round is an alcohol-free night." });
+}
+
+/**
+ * A dry round's stops: only the candidates that list an alcohol-free price,
+ * read from the SAME listed lane the Alcohol-free chip on /near reads. Too few
+ * is the answer, said with their names, and a read that failed is said as
+ * such, never as an area with nothing listed. Any other ask keeps every
+ * candidate and reads nothing.
+ */
+async function dryRoundCandidates(
+	query: string,
+	candidates: PlanGenerationCandidate[],
+	context: NightContext,
+	area: NightArea,
+): Promise<{ response: Response } | { listed: ReadonlyMap<string, DryRoundAlcoholFree> | null; candidates: PlanGenerationCandidate[] }> {
+	if (!isDryRoundAsk(query)) return { listed: null, candidates };
+	const rows = await loadListedAlcoholFreeRows();
+	if (!rows) {
+		return { response: publicApiError(DRY_ROUND_UNREAD_LINE, "DRY_ROUND_PRICES_UNAVAILABLE", 503, { retryable: true }) };
+	}
+	const listed = dryRoundListedPrices(rows);
+	const stopCount = normalizePlanStopCount(context.stopCount);
+	const selection = dryRoundSelection(candidates, listed, stopCount);
+	if (selection.ok) return { listed, candidates: selection.candidates };
+	// A pub that lists no alcohol-free price is never brought in to pad it.
+	return { response: publicApiError(
+		dryRoundTooFewLine({ areaName: area.name, stopCount, listedNames: selection.listedNames }),
+		"DRY_ROUND_TOO_FEW",
+		422,
+		{ details: { nightArea: area.slug, listedVenueCount: selection.listedNames.length, requestedStopCount: stopCount } },
+	) };
 }

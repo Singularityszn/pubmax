@@ -17,16 +17,18 @@ import {
   PAL_CHAT_STREAM_TYPE,
   readPalChatStream,
 } from "@/lib/palChatStream";
-import { windowPalSessionTurns } from "@/lib/palSessionSummary";
+import { recentPalSessionTurns, PAL_SESSION_RECENT_TURNS } from "@/lib/palSessionTurns";
 import { isPubPalConversationId } from "@/lib/pubPalConversationId";
+import { readProviderAccountSignal } from "@/lib/authProviderRevision";
 
 export type PalChatResult =
   | (PalAnswer & { proposals: AskProposal[] })
   | { status: "error"; message: string; needsSignIn?: boolean };
 
-const PAL_CHAT_TIMEOUT_MS = 25_000;
+export const PAL_CHAT_TIMEOUT_MS = 25_000;
 
 type SessionOptions = {
+  signal?: AbortSignal;
   timeoutMs?: number;
   fetchImpl?: typeof fetch;
   initialTurns?: readonly AskTurn[];
@@ -109,6 +111,19 @@ export function palChatResultFromBody(body: unknown): PalChatResult {
   return { ...legacy, proposals: [] };
 }
 
+function palChatHttpError(response: Response, body: unknown): Extract<PalChatResult, { status: "error" }> {
+  const record =
+    body && typeof body === "object" && !Array.isArray(body)
+      ? (body as Record<string, unknown>)
+      : {};
+  return {
+    status: "error",
+    message:
+      typeof record.error === "string" ? record.error : PAL_ERROR_FALLBACK,
+    ...(response.status === 401 ? { needsSignIn: true } : {}),
+  };
+}
+
 /**
  * Create a chat ask session with latest-wins ordering and in-thread memory.
  */
@@ -116,7 +131,8 @@ export function createPalChatSession(options: SessionOptions = {}) {
   const timeoutMs = options.timeoutMs ?? PAL_CHAT_TIMEOUT_MS;
   const fetchImpl = options.fetchImpl ?? signedInFetch;
   let currentId = 0;
-  let turns: AskTurn[] = windowPalSessionTurns("", [...(options.initialTurns ?? [])]).turns;
+  let activeController: AbortController | null = null;
+  let turns: AskTurn[] = [...(options.initialTurns ?? [])];
   let threadId = options.initialConversationId && isPubPalConversationId(options.initialConversationId) ? options.initialConversationId : "";
 
   /**
@@ -128,16 +144,37 @@ export function createPalChatSession(options: SessionOptions = {}) {
     query: string,
     cityId: string,
     onText?: (text: string) => void,
-  ): Promise<PalChatResult | null> {
+  ): Promise<(PalChatResult & { routedQuery?: string }) | null> {
     const requestId = ++currentId;
+    activeController?.abort();
+    const accountSignal = readProviderAccountSignal();
+    const controller = new AbortController();
+    activeController = controller;
+    const cancel = () => controller.abort();
+    accountSignal.addEventListener("abort", cancel, { once: true });
+    options.signal?.addEventListener("abort", cancel, { once: true });
+    const cancelled = () => requestId !== currentId || accountSignal.aborted || options.signal?.aborted;
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      if (cancelled()) return null;
+      let timeoutId: ReturnType<typeof setTimeout>;
+      let rejectAborted!: () => void;
+      const deadline = new Promise<never>((_resolve, reject) => {
+        rejectAborted = () => reject(new DOMException("Aborted", "AbortError"));
+        controller.signal.addEventListener("abort", rejectAborted, { once: true });
+        timeoutId = setTimeout(cancel, timeoutMs);
+      });
+      const withinDeadline = <T,>(work: Promise<T>): Promise<T> => Promise.race([work, deadline]);
       let response: Response;
       let body: unknown;
       let streamError: string | null = null;
+      let routedQuery = query;
       try {
-        response = await fetchImpl("/api/pub-pal/chat", {
+        const recent = await withinDeadline(recentPalSessionTurns(turns));
+        const { refineRoutedAskQuery } = await withinDeadline(import("@/lib/ask/router"));
+        const priorUsers = recent.filter((turn) => turn.role === "user").map((turn) => turn.content);
+        routedQuery = refineRoutedAskQuery(query, priorUsers.at(-1), priorUsers);
+        if (cancelled() || controller.signal.aborted) return null;
+        response = await withinDeadline(fetchImpl("/api/pub-pal/chat", {
           method: "POST",
           headers: {
             "content-type": "application/json",
@@ -146,69 +183,67 @@ export function createPalChatSession(options: SessionOptions = {}) {
           body: JSON.stringify({
             query,
             cityId,
-            turns: turns.slice(-6),
+            turns: recent.slice(-PAL_SESSION_RECENT_TURNS),
             ...(threadId ? { threadId } : {}),
           }),
           signal: controller.signal,
-        });
+        }));
         if (response.ok && response.body && isPalChatStreamResponse(response)) {
           let text = "";
           let final: unknown = null;
-          await readPalChatStream(response.body, (event) => {
+          await withinDeadline(readPalChatStream(response.body, (event) => {
             if (event.type === "final") final = event.body;
             else if (event.type === "error") streamError = event.error;
             else {
               text = event.type === "delta" ? text + event.text : "";
-              if (requestId === currentId) onText?.(text);
+              if (!cancelled() && !controller.signal.aborted) onText?.(text);
             }
-          });
+          }));
           // A stream that ends without its final event was cut off.
           body = final;
           streamError ??= final === null ? PAL_ERROR_FALLBACK : null;
         } else {
-          body = await response.json();
+          body = await withinDeadline(response.json());
         }
-      } finally {
-        clearTimeout(timeoutId);
-      }
-      if (requestId !== currentId) return null;
-      if (streamError !== null) return { status: "error", message: streamError };
-      if (!response.ok) {
-        const record =
+        if (cancelled() || controller.signal.aborted) return null;
+        if (streamError !== null) return { status: "error", message: streamError };
+        if (!response.ok) {
+          return palChatHttpError(response, body);
+        }
+        const result = palChatResultFromBody(body);
+        const conversationId =
           body && typeof body === "object" && !Array.isArray(body)
-            ? (body as Record<string, unknown>)
-            : {};
-        return {
-          status: "error",
-          message:
-            typeof record.error === "string" ? record.error : PAL_ERROR_FALLBACK,
-          ...(response.status === 401 ? { needsSignIn: true } : {}),
-        };
+            ? (body as Record<string, unknown>).conversationId
+            : undefined;
+        if (result.status !== "error") {
+          const recent = await withinDeadline(recentPalSessionTurns([
+            ...turns,
+            { role: "user", content: query },
+            { role: "assistant", content: result.message },
+          ]));
+          if (cancelled() || controller.signal.aborted) return null;
+          turns = recent;
+          options.onTurns?.(turns.map((turn) => ({ ...turn })));
+        }
+        if (typeof conversationId === "string" && (conversationId === "" || isPubPalConversationId(conversationId))) {
+          threadId = conversationId;
+          options.onConversationId?.(threadId);
+        }
+        return result.status === "error" ? result : { ...result, routedQuery };
+      } finally {
+        clearTimeout(timeoutId!);
+        controller.signal.removeEventListener("abort", rejectAborted);
       }
-      const result = palChatResultFromBody(body);
-      const conversationId =
-        body && typeof body === "object" && !Array.isArray(body)
-          ? (body as Record<string, unknown>).conversationId
-          : undefined;
-      if (typeof conversationId === "string" && (conversationId === "" || isPubPalConversationId(conversationId))) {
-        threadId = conversationId;
-        options.onConversationId?.(threadId);
-      }
-      if (result.status !== "error") {
-        turns = windowPalSessionTurns("", [
-          ...turns,
-          { role: "user", content: query },
-          { role: "assistant", content: result.message },
-        ]).turns;
-        options.onTurns?.(turns.map((turn) => ({ ...turn })));
-      }
-      return result;
     } catch (error) {
-      if (requestId !== currentId) return null;
+      if (cancelled()) return null;
       return {
         status: "error",
         message: error instanceof AuthActionSessionError ? error.message : PAL_ERROR_FALLBACK,
       };
+    } finally {
+      accountSignal.removeEventListener("abort", cancel);
+      options.signal?.removeEventListener("abort", cancel);
+      if (activeController === controller) activeController = null;
     }
   };
 }

@@ -43,7 +43,7 @@ test("Tonight prepares its desktop Map destination on intent before navigation",
   });
   await page.goto("/tonight");
   const navigation = page.getByRole("navigation", { name: "Site navigation", exact: true });
-  const map = navigation.locator(".siteNavLinks").getByRole("link", { name: "Map", exact: true });
+  const map = navigation.locator(".siteNavLinks").getByRole("link", { name: "Explore", exact: true });
   await expect(map).toBeVisible();
   await page.waitForTimeout(2_000);
   expect(mapReads).toEqual([]);
@@ -58,5 +58,5 @@ test("Tonight prepares its desktop Map destination on intent before navigation",
   await map.click();
   await expect(page).toHaveURL(/\/map$/);
   await expect(page.getByRole("navigation", { name: "Site navigation", exact: true })
-    .getByRole("link", { name: "Map", exact: true })).toHaveAttribute("aria-current", "page");
+    .getByRole("link", { name: "Explore", exact: true })).toHaveAttribute("aria-current", "page");
 });

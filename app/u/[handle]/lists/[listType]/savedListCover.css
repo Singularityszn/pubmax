@@ -1,0 +1,50 @@
+.savedListCover {
+  --cover-tint: var(--amber);
+  position: relative;
+  margin: 0 0 16px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--panel);
+  aspect-ratio: 16 / 7;
+}
+
+.savedListCover[data-kind="bar"],
+.savedListCover[data-kind="club"],
+.savedListCover[data-kind="hotel_lounge"] {
+  --cover-tint: var(--muted);
+}
+
+.savedListCover[data-kind="food"],
+.savedListCover[data-kind="restaurant"],
+.savedListCover[data-kind="cafe"] {
+  --cover-tint: var(--pint);
+}
+
+.savedListCover[data-kind="coworking"],
+.savedListCover[data-kind="library"],
+.savedListCover[data-kind="other"] {
+  --cover-tint: var(--river);
+}
+
+.savedListCover__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.savedListCover__placeholder {
+  width: 100%;
+  height: 100%;
+  background: color-mix(in srgb, var(--cover-tint) 22%, var(--panel));
+}
+
+.savedListCover__caption {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: var(--text-sm);
+}

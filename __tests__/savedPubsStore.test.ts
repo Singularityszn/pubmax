@@ -71,6 +71,7 @@ describe("savedPubsStore() — seam selection", () => {
 
 const BUILT_INS = [
   "Want to Visit",
+  "Been here",
   "Cheap Pint",
   "Coding Pint",
   "Historic",

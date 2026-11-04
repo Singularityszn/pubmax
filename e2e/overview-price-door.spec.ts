@@ -539,7 +539,7 @@ for (const state of Object.keys(STATES) as StateName[]) {
     for (const retired of RETIRED) {
       await expect(page.getByRole("button", { name: retired }), String(retired)).toHaveCount(0);
     }
-    // The sticky bar carries no price action and no painted primary.
+    // The action card's toolbar carries no price action and no painted primary.
     const toolbar = page.locator(".venueSheetStickyBar");
     await expect(toolbar.locator("button", { hasText: /price/i })).toHaveCount(0);
     await expect(toolbar.locator(".venueSheetStickyPrimary")).toHaveCount(0);

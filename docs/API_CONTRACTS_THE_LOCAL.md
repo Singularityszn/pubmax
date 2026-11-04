@@ -18,6 +18,7 @@ Source of truth: **issue #252** ("Spec: The Local — companion-led activation, 
 | `GET /api/night-areas/:slug` | Detail plus `GET /api/night-areas?city=` catalogue | IMPLEMENTED LOCALLY |
 
 Adjacent endpoints Codex also built and this contract now governs: `POST /api/plans/:id/complete`, `GET /api/late-food`.
+The [night feature contracts](#55-night-feature-contracts) cover the additional Plan APIs.
 
 ---
 
@@ -57,6 +58,12 @@ THE LOCAL follows the existing plans pattern: **value before sign-in.** There is
 - **Member-scoped writes** (`PATCH /api/plans/:id`, `POST /api/plans/:id/actions`, `POST /api/plans/:id/complete`, `POST /api/plans/:id/presence`): require the caller to present their member token, proving they belong to the crew.
   - Canonical transport: `Authorization: Bearer <memberToken>` header. Body field `memberToken` is accepted as a migration fallback. Helper: `lib/planMemberCapability.ts` (`planMemberCapability(request, body.memberToken)`). IMPLEMENTED LOCALLY.
   - `POST /api/plans/:id/actions` accepts the Bearer header and retains `body.memberToken` only as a migration fallback.
+- **Save a private recap** (`POST /api/plans/:id/recap`): the bearer authenticates the account. The request must also carry the Plan member token in its member cookie or body field `memberToken`. This route never uses the bearer as the Plan member token. The saved Memory belongs to the authenticated account. See [`planRecapPromote.server.ts`](../lib/planRecapPromote.server.ts) for completion matching and replay handling.
+
+  Account Hub sends each confirmed recap to its Plan-specific endpoint, where the browser can attach that Plan's path-scoped HttpOnly cookie. The cookie stays inaccessible to scripts and keeps its existing scope. The legacy `POST /api/me/pending-plan-recaps` claim endpoint also separates account authentication from Plan authority. Browsers do not send the Plan cookie to that account-wide path, so legacy clients must supply each item's separate `memberToken`. Both endpoints prefer a supplied Plan cookie over the body token.
+
+  Completion matching compares `completedAt` as an instant, so equivalent timestamp formats match. Each account saves at most one Memory per Plan completion.
+
 - **Authenticated profile** (`/api/me/night-profile`): verified Supabase Auth bearer session; the caller id is server-derived and never accepted from body/query.
 
 The member token is never logged or serialised back after the initial mint (`planMemberCapability` comment; `planStore` stores `token_hash` only).
@@ -222,7 +229,9 @@ export type NightArea = {
 };
 ```
 
-Catalogue is **reviewed application data**, not inferred at request time (per #252). `validateNightAreaCatalogue` runs at import (unique slugs/aliases, valid coords, ≥1 transport anchor). `isNightAreaRouteReady(area, now?)` remains a confidence label rather than a generation gate. **Status: IMPLEMENTED LOCALLY.** All 20 London areas are represented.
+The catalogue supplies public area geography. It has no review evidence source. Every area remains unreviewed, with a zero coverage score, no review dates, and no passed required checks. Each check has an unknown observation and no evidence references. `nightAreaHasRouteReadyProof` and `isNightAreaRouteReady` return false, including for fixtures, arbitrary URLs, or renamed references. `validateNightAreaCatalogue` checks unique slugs and aliases, coordinates, and anchor shape. An anchor list may be empty. Named stations remain geographic candidates, without checked live journeys or last-service times.
+
+Area readiness describes confidence and does not gate Plan generation. A draft can still use canonical pub and price data under the [generation constraints](#3-post-apiplansgenerate--grounded-plan-generation). The [priced-landing contract](specs/governed-priced-landings/PRODUCT.md#which-pages-exist) owns publication rules.
 
 ---
 
@@ -294,15 +303,29 @@ type GeneratePlanResponse = {
 
 Generation reports ranking inputs in `contextEffects`, per-stop grounding in `reason`, and inferred context in `explanations`. `missingContextEvidence` names constraints the engine could not ground.
 
+`planningConfidence.missingEvidence` also names area and operational gaps. Planning confidence, generated stops, anchor-only stops, and get-home options carry no `night_area_review` provenance without supported review evidence. Venue and signal provenance retain their own sources. An anchored result's top-level `routeReady` records its grounded-route lifecycle, separately from area confidence. It does not certify an area review.
+
+The [Plan result contract](rules/components-venue-plan-and-message-surfaces.md#the-plan-result-is-a-route-and-the-settings-sit-behind-it) owns the visible opening and travel notice and draft recovery behaviour.
+
 The response excerpt above omits price fields. [`buildPlanGenerationStops`](../lib/planGenerationDto.ts) owns their projection on ordinary stops and alternatives. [`planScoringDrinkCategory`](../lib/planGenerationRanking.ts) decides which selected category [`scoreVenueForPlan`](../lib/planGenerationRanking.ts) may rank on: any non-beer category without zero-proof, and only `soft-drink` with zero-proof. A non-beer value request uses corroborated community prices for that category. Its price reason names the category and amount. An explicit Soft drinks zero-proof request ranks only matching corroborated Soft drinks reports under every budget, with one price reason per stop. Other zero-proof requests keep the generic alcohol-free report and Venue Dataset amenity signals, and an alcoholic category gains no category ranking. `contextEffects` names `drinkCategory` when either category path applies. Ranking on a category price does not create selected-drink evidence or a budget total. Non-beer responses contain no pint estimate or pint evidence. Zero-proof requests also suppress pint output. Partial or degraded selected-category reads add a coverage warning.
 
 [`planBudgetSummary`](../lib/planGenerationDto.ts) returns unknown per-person and crew totals and `withinLimit: null` for non-beer and zero-proof contexts, with basis `selected-drink-price-unavailable`. Individual community reports do not establish comparable servings for a budget total. No selected category, or explicit beer without zero-proof, retains the pint path. Keep-going extensions likewise omit pint figures for other drinks. Persistence follows the [selected-drink evidence contract](#selected-drink-price-evidence).
 
 Unanchored generation with a per-person ceiling requires usable budget evidence. Non-beer and zero-proof contexts cannot satisfy it with pint prices, so they return `422 GROUNDED_CONSTRAINTS_UNSATISFIED` with `details.rejected.budgetEvidence` rather than an estimated route within the ceiling. [`selectPlanGenerationCandidates`](../lib/planGenerationSelection.server.ts) owns the selection boundary.
 
+An ask that names a dry round ([`lib/dryRound.ts`](../lib/dryRound.ts), the planner's "Dry round" option adds "an alcohol-free dry round") is a zero-proof night whatever the context says, and [`preparePlanGeneration`](../lib/planGeneration.server.ts) keeps only candidates with a listed alcohol-free price from the /near alcohol-free lane. Fewer such pubs in the area than stops returns `422 DRY_ROUND_TOO_FEW`, naming them, with `details.listedVenueCount` and `details.requestedStopCount`; nothing is padded. A lane that could not be read returns a retryable `503 DRY_ROUND_PRICES_UNAVAILABLE`. A kept pub with no listed price is an `anchor-conflict` with reason `DRY_ROUND_ANCHOR_UNLISTED`. A dry round response adds `dryRound.venues[]` for every stop and alternative: `{ venueId, alcoholFree: { priceGbp, drinkLabel, measure, publisher, observedOn }, pint: { pence, publisher, observedAt } | null }`, the pint only where its canonical evidence names a publisher and a day, and `contextEffects` names `dryRound`. Stops keep the zero-proof price rules above.
+
 The route planner has no menu-item or nutrition evidence. [`preparePlanGeneration`](../lib/planGeneration.server.ts) checks the query and reconciled `foodNeeds` before route selection. Detected meal-price, dietary, or calorie constraints return `422 MEAL_CONSTRAINTS_UNSUPPORTED` with an explicit limitation. A food-serving venue preference alone remains supported.
 
 Drink-owned prices in the query and each `foodNeeds` field share one recognition boundary in [`planPriceAmounts`](../lib/planPriceLimits.ts). Pint, beer, and unspecified drink limits constrain recorded beer pint prices. Both price directions retain the strictest pint ceiling separately from route totals. The strictest recognised route budget also tightens any reconciled context ceiling. Candidates and alternatives require attributable, non-stale canonical evidence at or below the pint ceiling. When a pint ceiling applies, each returned stop and alternative retains that canonical `priceEvidence`, including its amount, source, and observation date. The response also identifies `priceCategory: "beer"` and `priceServing: "pint"`, even without a route-total budget. Explicit other servings, quantities, non-beer selections, and zero-proof selections return `422 DRINK_PRICE_CONSTRAINTS_UNSUPPORTED` when they request these drink limits. The planner does not convert bottle, cocktail, or half-pint prices into pints.
+
+### Budget route search
+
+[`planRouteOptimizer`](../lib/planRouteOptimizer.ts) first searches a bounded candidate slice selected by score. It keeps any feasible result from that search. If a total-price ceiling applies and that search fails, it tries one slice selected by price when that slice differs. Both slices use the same candidate and per-operator limits defined in the optimiser. Both searches evaluate candidates in score order.
+
+The beam search checks the cheapest unused candidates needed to complete each partial route. It discards that partial route if the minimum total exceeds the ceiling or too few candidates remain. This lower bound does not establish feasibility under the other hard constraints.
+
+This policy applies to ordinary routes and anchored companions. The affordable search preserves all hard constraints. The operator-diversity fallback runs only when the score search and any affordable search fail under that preference. These searches remain bounded heuristics and can miss a feasible route outside their search limits.
 
 ### Errors
 
@@ -316,8 +339,10 @@ Drink-owned prices in the query and each `foodNeeds` field share one recognition
 | `422` | no `nightArea` resolved | `NIGHT_AREA_REQUIRED` |
 | `422` | area not in requested city | `NIGHT_AREA_CITY_MISMATCH` |
 | `422` | fewer grounded venues than the requested stop count | `GROUNDED_VENUES_INSUFFICIENT` |
-| `422` | no unanchored route satisfies every hard constraint | `GROUNDED_CONSTRAINTS_UNSATISFIED` |
+| `422` | bounded searches find no unanchored route satisfying every hard constraint | `GROUNDED_CONSTRAINTS_UNSATISFIED` |
+| `422` | a dry round with fewer listed alcohol-free pubs than stops | `DRY_ROUND_TOO_FEW` |
 | `429` | rate limited | `RATE_LIMITED` (`retryable: true`) |
+| `503` | the listed alcohol-free prices a dry round needs could not be read | `DRY_ROUND_PRICES_UNAVAILABLE` (`retryable: true`) |
 
 Every row uses the flat body described in §7. Coverage/confidence warnings are returned with successful editable routes; coverage readiness does not block generation.
 
@@ -359,6 +384,7 @@ type PatchPlanRequest = {
 
 Rules:
 - `stops` replacement requires `expectedRouteRevision` and must NOT be combined with `status`. Stops are re-resolved server-side via `canonicalPlanRoute` (3 to 6 distinct ids, per `isPlanStopCount`, that exist in a shipped city dataset; returns canonical names). Replacing the route increments `routeRevision`.
+- Route replacement uses the first-pub and completed-prefix checks described in [§5.5](#55-night-feature-contracts).
 - The grounded upgrade is permanent and unflagged: a `stops` replacement carrying a `groundingProof` plus an `operationKey` is verified against the exact new order, and only that path raises a one-Stop anchor draft to a grounded route and emits `plan_accepted` once. A legacy V1 creation proof is not an upgrade claim and takes the ordinary update path. Every V2 proof failure is a `422`.
 - `context` must pass strict `cleanNightContext` or `400`.
 - At least one of `status` / `context` / `stops` must be present.
@@ -394,7 +420,7 @@ Route replacement is **optimistically concurrent** via `expectedRouteRevision` �
 
 ## 5. `POST /api/plans/:id/actions` — record a stop action
 
-**Status: IMPLEMENTED LOCALLY.** Member-scoped live tracking.
+**Status: IMPLEMENTED LOCALLY.** Member-scoped stop actions. These record explicit actions, not live location.
 
 ### Request
 
@@ -402,9 +428,18 @@ Route replacement is **optimistically concurrent** via `expectedRouteRevision` �
 type PlanActionRequest = {
   memberToken?: string;         // migration fallback; Authorization: Bearer is canonical
   type: "arrived" | "skipped" | "swapped";  // "ending" is REJECTED here (goes via /complete)
-  stopPosition: number;         // integer 0..7 (validated against PLAN_STOP_MAX=8); THE LOCAL routes are 3 stops, so 0..2 in practice
+  stopPosition: number;         // integer 0..7; bound requests must match a current stop
+  expectedRouteRevision?: number; // positive integer, required together with venueId
+  venueId?: string;             // canonical venue at stopPosition in that revision
+  idempotencyKey?: string;      // fallback if no Idempotency-Key header
 };
 ```
+
+New Night mode requests include both binding fields, including requests queued offline.
+The stores check the route revision and venue before inserting a bound action.
+An identical accepted retry returns its original action even after a safe route revision.
+Legacy requests may omit both fields. They remain unstamped and establish neither a table location nor a completed-stop mystery reveal.
+Only bound arrivals can fulfil a signed-in owner's Wanted entry.
 
 ### Response `201`
 
@@ -415,16 +450,21 @@ Full `PlanState` (with the new action in `actions[]`). Side effect: recording an
 | Status | Condition |
 | --- | --- |
 | `404` | bad/unknown plan id |
-| `400` | malformed body / invalid `type` or `stopPosition` |
+| `400` | malformed body, invalid action or binding, or missing/invalid idempotency key |
 | `403` | member token cannot update this Plan |
+| `409` | stale route or venue binding, or the same key reused for another payload |
+| `429` | action request limit reached |
+| `503` | Plan storage unavailable |
 
 ### Idempotency
 
-Non-idempotent (append-only action log). Each POST inserts a new `PlanActionDTO`.
+Each request requires an `Idempotency-Key` header or a body `idempotencyKey`.
+The [mutation key helper](../lib/planMutationHttp.ts) defines precedence and validation.
+Identical retries return the saved action without another insertion. A different payload with the same key returns `409`.
 
 ### Rate limit
 
-**DEFERRED.** No limiter currently; the owner must set the member-write budget.
+The handler limits requests to 30 per hashed client per minute.
 
 ### 5.4 Adjacent: `POST /api/plans/:id/complete` (+ `GET`)
 
@@ -449,11 +489,71 @@ type CompletePlanRequest = {
 
 **Safety invariant (#252):** the default/encouraged endings are `food` and `get_home`; `keep_going` exists but the product must never frame more drinking as success. Food terminals are late-food places, never pint-price pins (see §10).
 
+### 5.5 Night feature contracts
+
+The [README](../README.md#features) owns user instructions.
+The [permission matrix](security/PERMISSION_MATRIX.md#cells) owns the private read and host-write permissions.
+The routes resolve member capabilities through [the shared capability reader](../lib/planMemberCapability.ts).
+
+#### Grounded route proposals
+
+`POST /api/plans/:id/proposals` accepts `groundingProof` and `operationKey` alongside the existing proposal fields.
+An anchored Plan requires a valid generation proof for the exact stop order, operation and accepted first pub.
+Unanchored legacy proposals may omit the proof. A submitted proof must pass verification.
+The server stores proof metadata but omits the proof itself from public proposal responses.
+
+Proposal creation and acceptance preserve the accepted first pub and every stop through the latest arrived or skipped position.
+Acceptance rechecks the current route revision, proof expiry and proposal-specific evidence for required needs.
+Only an explicit host decision saves the proposal and increments the route revision.
+Creation, voting and decisions recheck live tokens and revocation inside their database transactions.
+Presence values do not grant or remove proposal permission.
+The [grounding checker](../lib/proposalGrounding.server.ts) and migration `0215` own the signature and transaction checks.
+
+#### Table signs
+
+`GET/PUT/DELETE /api/plans/:id/beacon` returns a `PlanBeaconView`, defined in [the beacon model](../lib/planBeacon.ts).
+`PUT` accepts `symbol`, `note`, `expectedRouteRevision` and `expectedArrivalId`.
+`DELETE` requires the same revision and arrival identifiers.
+The model owns the allowed symbols, note limit, expiry calculation and current-arrival rules.
+Repeating an unchanged `PUT` preserves the original expiry.
+
+The latest action must identify an arrival at the current route revision and venue, without an ambiguous timestamp.
+Historical unstamped actions cannot establish a current arrival.
+No current arrival exists after the scheduled night end or during ending, completed or abandoned states.
+The database removes signs transactionally after a new action, route revision, ending or start-time change.
+Clock-expired notes remain unreadable and are removed on the next authorised access.
+
+Successful responses use `200`. Failures use `400`, `403`, `404`, `409`, `429` or `503` with a `PLAN_BEACON_*` code.
+Every response is private and uses `no-store`.
+Missing Plans and invalid member capabilities share the same `404` refusal.
+
+#### Mystery presentation and clues
+
+`GET/PUT /api/plans/:id/presentation` returns the fields in [the presentation model](../lib/planPresentation.ts), plus `ok: true`.
+`PUT` requires `mysteryEnabled` and a positive `expectedRouteRevision` matching the current route.
+Completed and abandoned Plans refuse setting changes. Missing settings default to disabled.
+Failures use `400`, `403`, `409`, `429` or `503` with a `PLAN_PRESENTATION_*` code. Responses use `no-store`.
+Reveals remain in session storage or temporary memory, scoped to the Plan, member, account session and route revision.
+Stamped arrived and skipped stops derive their reveal from preserved venue identity across safe revisions.
+
+Clues add no private API endpoint or stored progress.
+After explicit enablement, [the clue client](../lib/planCluesClient.ts) reads public venues and adjacent walking legs.
+The [selector and reviewed catalogue](../lib/planClues.ts) require genuine routed geometry near a sourced landmark.
+Fallback geometry cannot supply clues.
+
+#### Persistence and rollback
+
+Migrations `0213`, `0214` and `0215` and their matching [rollbacks](../supabase/migrations/rollback/) define the durable contracts.
+Migration `0213` adds nullable arrival bindings without backfilling historical actions.
+Revert the application before rolling back these migrations.
+Rollback removes table signs, mystery settings and proposal proof metadata, while retaining saved routes and proposals.
+The captain controls migration application. The [proof record](proof/v1-night-features/README.md) records local checks, not production migration state.
+
 ---
 
 ## 6. `GET /api/night-areas` and `GET /api/night-areas/:slug`
 
-**Status: IMPLEMENTED LOCALLY.** Keyless read of the reviewed catalogue.
+**Status: IMPLEMENTED LOCALLY.** Keyless read of the [NightArea catalogue](#24-nightarea-catalogue).
 
 ### `GET /api/night-areas?city=<cityId>` (#252 shape)
 
@@ -474,7 +574,7 @@ type NightAreaDetailResponse = NightArea;
 ```
 - `404` if `slug` is not a known `NightAreaSlug` (`isNightAreaSlug`).
 
-Neither response serialises `routeReady`. It is derived state because it changes when the review window expires. Read `lastReviewedAt` and `reviewExpiresAt` from the cached body, then call `isNightAreaRouteReady(area, new Date())` at read time. That helper checks the evidence gate and review timestamps; do not cache or persist its boolean result.
+Neither response serialises `routeReady`. Call `isNightAreaRouteReady(area, new Date())` at read time rather than storing its result. The [catalogue contract](#24-nightarea-catalogue) owns the review policy.
 
 ### Rate limit
 
@@ -637,7 +737,7 @@ FSA hygiene and routed walking time are not asserted until a scheduled, permissi
 | `/api/plans/generate` | POST | ✅ `plan-generate` (8/60s; hashed per client) | flat `PublicApiError` | keyless |
 | `/api/plans/anchor` | GET | ✅ `plan-anchor` (60/60s; hashed per client) | flat `PublicApiError` | keyless |
 | `/api/plans/:id` | PATCH | ❌ deferred | flat `PublicApiError` | member token |
-| `/api/plans/:id/actions` | POST | ❌ deferred | flat `PublicApiError` | Bearer member token; body fallback |
+| `/api/plans/:id/actions` | POST | See §5 | flat `PublicApiError` | Plan member capability |
 | `/api/plans/:id/complete` | POST/GET | ❌ deferred | flat `PublicApiError` | member token (POST) / public (GET) |
 | `/api/night-areas` | GET | ❌ deferred | flat `PublicApiError` | keyless |
 | `/api/night-areas/:slug` | GET | ❌ deferred | flat `PublicApiError` | keyless |

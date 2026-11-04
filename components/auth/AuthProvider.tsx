@@ -69,6 +69,7 @@ import {
 import { createAuthSessionTransitionTracker } from "@/lib/authSessionTransition";
 import {
   bindDeviceAccountOwner,
+  clearDeviceAccountSessionArtifacts,
   emitDeviceIdentityChanged,
   releaseDeviceAccountOwner,
 } from "@/lib/deviceAccountIdentity";
@@ -410,11 +411,14 @@ export function AuthProvider({
       // whole set in one pass, so the previous person's handle can never be
       // read as this one's. Runs first because everything downstream (the
       // canonical read, the You tab, every composer) reads that storage.
-      if (nextUserId) {
-        if (bindDeviceAccountOwner(nextUserId, browserLocalStorage(), browserSessionStorage())) {
-          emitDeviceIdentityChanged();
-        }
-      }
+      // Another tab may already have changed the shared owner stamp. This
+      // tab's sessionStorage still belongs to its previous live account.
+      const tabOwnerChanged = previousUserId !== null && previousUserId !== nextUserId;
+      if (tabOwnerChanged) clearDeviceAccountSessionArtifacts(browserSessionStorage());
+      const deviceOwnerChanged = nextUserId
+        ? bindDeviceAccountOwner(nextUserId, browserLocalStorage(), browserSessionStorage())
+        : false;
+      if (deviceOwnerChanged || tabOwnerChanged) emitDeviceIdentityChanged();
       if (previousUserId !== nextUserId) {
         // A new account is owed a fresh answer, and no answer is honest until
         // its own canonical read lands.

@@ -7,6 +7,12 @@ import { venueSheetLabels } from "@/lib/venueSheetLabels";
 import type { Venue } from "@/lib/venues";
 
 const pubMapSource = readFileSync(join(process.cwd(), "components/PubMap.tsx"), "utf8");
+// The walk cell moved from the phone peek in PubMap into the action card's
+// first row (components/map/inspector/VenueActionSummary.tsx), which PubMap builds.
+const actionSummarySource = readFileSync(
+  join(process.cwd(), "components/map/inspector/VenueActionSummary.tsx"),
+  "utf8",
+);
 
 describe("venueSheetLabels", () => {
   it("uses generic venue language before a selected venue is known", () => {
@@ -31,8 +37,10 @@ describe("venueSheetLabels", () => {
   });
 
   it("keeps the mobile location summary as one clear label and support line", () => {
-    expect(pubMapSource).toContain('"Near me"');
-    expect(pubMapSource).toContain('"Turn on location for walk times"');
+    expect(pubMapSource).toContain("<VenueActionSummary");
+    expect(actionSummarySource).toContain('"Near me"');
+    expect(actionSummarySource).toContain('"Turn on location for walk times"');
+    expect(actionSummarySource).not.toContain('"for walk time"');
     expect(pubMapSource).not.toContain('"for walk time"');
   });
 

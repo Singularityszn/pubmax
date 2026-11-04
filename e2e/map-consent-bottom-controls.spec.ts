@@ -153,7 +153,7 @@ for (const width of [390, 768, 1440]) {
         }
         await expectClearControl(page, page.locator(".mapConciergeAskPill"), consentTop);
         await page.locator(".mapConciergeAskPill").click();
-        await expect(page.getByRole("dialog", { name: "Ask your Pub Pal" })).toBeVisible();
+        await expect(page.getByRole("dialog", { name: "Ask the map about a pub" })).toBeVisible();
         await page.getByRole("button", { name: "Close ask", exact: true }).click();
         const layers = page.locator(".mapLayersFab");
         await expectClearControl(page, layers, consentTop);

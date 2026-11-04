@@ -65,7 +65,7 @@ for (const theme of ["light", "dark"] as const) {
       await expect(page).toHaveURL(/\/plan$/);
       // The phone composer owns the screen foot, just as the map does.
       await expect(ask).toHaveCount(0);
-      await tabs.getByRole("link", { name: "Map", exact: true }).click();
+      await tabs.getByRole("link", { name: "Explore", exact: true }).click();
       await expect(page).toHaveURL(/\/map$/);
       await expect(page.getByRole("complementary", { name: "First visit" })).toBeVisible({ timeout: 30_000 });
       await expect(ask).toHaveCount(0);

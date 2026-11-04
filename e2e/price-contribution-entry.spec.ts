@@ -1,5 +1,10 @@
 import { expect, test } from "@playwright/test";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+import { tapMapLogPrice } from "./helpers/mobileMapShell";
+
+// "Log a price" without a pub picked is the map's own door in More map
+// controls (components/map/MapPriceLogDoor.tsx). It rode the floating create
+// button until the five-tab dock (captain, 1 Nov 2026).
 
 const SEED_VENUE_ID = "venue-16pnwmm";
 const SEED_VENUE_NAME = "Prospect of Whitby";
@@ -21,7 +26,7 @@ test.beforeEach(async ({ page }) => {
 // the composer is folded behind it, and the sticky bar carries no price action.
 const DOOR_NAME = `Log tonight's price at ${SEED_VENUE_NAME}`;
 
-test("Create reopens an identical Wine request after Filters and dismissal", async ({ page }) => {
+test("Log a price reopens an identical Wine request after Filters and dismissal", async ({ page }) => {
   await installDeterministicMapBasemap(page);
   await page.goto("/map/manchester?drink=wine");
   const filters = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
@@ -34,8 +39,7 @@ test("Create reopens an identical Wine request after Filters and dismissal", asy
 
   const picker = page.getByText("Pick a pub to log a price", { exact: true });
   for (let request = 0; request < 2; request += 1) {
-    await page.getByTestId("create-fab").click();
-    await page.locator(".createFabMenu").getByRole("link", { name: "Log a price" }).click();
+    await tapMapLogPrice(page);
     await expect(picker).toBeVisible({ timeout: 45_000 });
     expect(new URL(page.url()).searchParams.get("contribute")).toBe("price");
     expect(new URL(page.url()).searchParams.get("drink")).toBe("wine");
@@ -50,19 +54,14 @@ for (const { width, city, drink } of [
   { width: 390, city: "manchester", drink: "wine" },
   { width: 1440, city: "bristol", drink: "cocktail" },
 ] as const) {
-  test(`${width}px ${width === 390 ? "Create reopens a dismissed" : "contribution URL opens a"} ${drink} request and preserves its category on reset`, async ({ page }) => {
+  test(`${width}px ${width === 390 ? "Log a price reopens a dismissed" : "contribution URL opens a"} ${drink} request and preserves its category on reset`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await installDeterministicMapBasemap(page);
     await page.goto(`/map/${city}?drink=${drink}&q=zzzznonexistentpub${width === 1440 ? "&contribute=price" : ""}`);
     const picker = page.getByText("Pick a pub to log a price", { exact: true });
     if (width === 390) {
       for (let request = 0; request < 2; request += 1) {
-        await expect(async () => {
-          await page.getByTestId("create-fab").click();
-          await expect(page.locator(".createFabMenu").getByRole("link", { name: "Log a price" }))
-            .toBeVisible({ timeout: 1_000 });
-        }).toPass({ timeout: 20_000 });
-        await page.locator(".createFabMenu").getByRole("link", { name: "Log a price" }).click();
+        await tapMapLogPrice(page);
         await expect(picker).toBeVisible({ timeout: 45_000 });
         if (request === 0) {
           await page.keyboard.press("Escape");
@@ -108,15 +107,10 @@ for (const { width, city, drink } of [
 }
 
 for (const [drink, noun] of [["wine", "wine"], ["cocktail", "cocktail"]] as const) {
-  test(`Create routes ${drink} through the category price form`, async ({ page }) => {
+  test(`Log a price routes ${drink} through the category price form`, async ({ page }) => {
     await installDeterministicMapBasemap(page);
     await page.goto(`/map?drink=${drink}`);
-    await expect(async () => {
-      await page.getByTestId("create-fab").click();
-      await expect(page.locator(".createFabMenu").getByRole("link", { name: "Log a price" }))
-        .toBeVisible({ timeout: 1_000 });
-    }).toPass({ timeout: 20_000 });
-    await page.locator(".createFabMenu").getByRole("link", { name: "Log a price" }).click();
+    await tapMapLogPrice(page);
     await expect(page).toHaveURL(new RegExp(`drink=${drink}.*contribute=price`));
     const picker = page.getByText("Pick a pub to log a price");
     await expect(picker).toBeVisible({ timeout: 45_000 });

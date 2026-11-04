@@ -98,7 +98,7 @@ for (const theme of ["light", "dark"] as const) {
       }
       const edit = width === 390
         ? page.getByRole("button", { name: "Edit active 2-stop plan" })
-        : page.locator(".mappedRouteChip").getByRole("button", { name: "Edit", exact: true });
+        : page.locator(".mappedRouteChip").getByRole("button", { name: "Edit stops", exact: true });
       await expect(edit).toBeVisible({ timeout: 45_000 });
       await expect(async () => {
         await edit.click();

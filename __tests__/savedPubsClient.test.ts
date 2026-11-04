@@ -80,6 +80,7 @@ describe("saved-list venue-kind policy", () => {
   it("keeps pint-specific built-ins for backward-compatible pubs", () => {
     expect(eligibleBuiltInListTypes(undefined)).toEqual([
       "Want to Visit",
+      "Been here",
       "Cheap Pint",
       "Coding Pint",
       "Historic",
@@ -89,6 +90,7 @@ describe("saved-list venue-kind policy", () => {
     ]);
     expect(eligibleBuiltInListTypes("pub")).toEqual([
       "Want to Visit",
+      "Been here",
       "Cheap Pint",
       "Coding Pint",
       "Historic",
@@ -101,6 +103,7 @@ describe("saved-list venue-kind policy", () => {
   it("removes pint-specific built-ins from bar and late-food pickers", () => {
     const expected = [
       "Want to Visit",
+      "Been here",
       "Historic",
       "Date Night",
       "Crawl Stop",

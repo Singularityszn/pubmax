@@ -72,6 +72,8 @@ function gardenVenue(id: string, cheapestPrice: number | null): ConciergeVenue {
     lat: 51.512,
     lng: -0.135,
     cheapestPrice,
+    priceSource: "Fixture publisher",
+    priceObservedAt: "2026-07-17",
     amenities: { beerGarden: true, cocktails: false, food: false, liveSports: false, liveMusic: false },
     nearWater: false,
     hasStory: false,
@@ -107,6 +109,9 @@ describe("resolveTonightConditions (hermetic weather seam)", () => {
     expect(summary).not.toBeNull();
     expect(summary?.drinkLine).toBe("Beer garden weather. Lager or cider.");
     expect(summary?.venueClaim).toBeNull();
+    // Sun Chaser's cloud note reads the feed's own word and when it was read.
+    expect(typeof summary?.skyCondition).toBe("string");
+    expect(Number.isFinite(Date.parse(summary?.skyObservedAt ?? ""))).toBe(true);
   });
 
   it("stale fixture -> facts and age only, no drink verdict or venue claim", async () => {
@@ -127,6 +132,8 @@ describe("resolveTonightConditions (hermetic weather seam)", () => {
       drinkLine: "",
       drinkSuggestion: "",
       venueClaim: null,
+      skyCondition: null,
+      skyObservedAt: null,
     });
     expect(summary?.factsLine).toBe("Last reading: feels like 22°C, clear, 0% chance of rain, 12 km/h wind.");
     expect(summary?.factsLine).not.toMatch(/garden/i);

@@ -3,6 +3,7 @@ import { isLimited } from "@/lib/pintDrops";
 import { publicApiError } from "@/lib/apiError";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
+import { listOwnSocialRelationships } from "@/lib/socialRelationshipList.server";
 import {
   SocialInteractionStoreError,
   socialInteractionStore,
@@ -182,6 +183,10 @@ export async function GET(request: Request): Promise<Response> {
         }
         return privateJson({ relationship: await socialInteractionStore().relationship(access.actor, target) });
       }
+      case "relationships":
+        // The caller's OWN mute and block list, read from the verified actor
+        // alone: no handle or profile id in the request can name another list.
+        return privateJson({ relationships: await listOwnSocialRelationships(access.actor.profileId) });
       default:
         return publicApiError("Choose an interaction view.", "INVALID_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } });
     }

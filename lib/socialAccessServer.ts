@@ -32,8 +32,6 @@ type SupabaseSessionVerification =
       userId: string;
       /** Set-Cookie value carrying the rotated refresh token (see below). */
       resumeCookie?: string;
-      /** SHA-256 of that rotated token, so its next request reads the memory. */
-      rotatedKey?: string;
     };
 
 /**
@@ -108,18 +106,27 @@ function supabaseAuthConfig(): { url: string; key: string } | null {
 // refreshes from our shared egress IPs, spending GoTrue's per-IP refresh budget
 // for everybody, so one redeem per presented token is shared: concurrent
 // requests join the in-flight promise, and a verified user id is remembered for
-// RESUME_VERIFY_TTL_MS, keyed by a SHA-256 of the token (the token itself is
-// never kept). Only a verified answer is remembered; a refusal, a 429 or an
+// three seconds, keyed by a SHA-256 of the presented token (the token itself
+// is never kept). A rotated token must be redeemed before it can be remembered.
+// Only a verified answer is remembered; a refusal, a 429 or an
 // outage asks again next time.
 //
 // The trade-off is a ban: GoTrue refuses a banned account's refresh, and a
 // remembered answer skips that question for up to the TTL on this instance. A
 // request whose bearer GoTrue has just called banned never reads the memory,
-// so the window only stays open for a caller sending no bearer at all.
-const RESUME_VERIFY_TTL_MS = 60_000;
+// so the window only stays open for a caller sending no bearer at all, and
+// only for a read: RESUME_COOKIE_METHODS keeps every write off this lane.
+const RESUME_VERIFY_TTL_MS = 3_000;
 const RESUME_VERIFY_MAX_ENTRIES = 500;
 const resumeVerified = new Map<string, { userId: string; expiresAt: number }>();
 const resumeInFlight = new Map<string, Promise<SupabaseSessionVerification>>();
+
+// THE COOKIE IS AN AMBIENT CREDENTIAL, SO IT ONLY READS. The browser attaches
+// it to every same-site request, and a remembered answer outlives a revocation.
+// The lane exists for GET media an `<img>` asks for, so a write (post, comment,
+// cheer, crew, ranking, tag) must carry a bearer that GoTrue checks on every
+// request (October 2026 security audit).
+const RESUME_COOKIE_METHODS: ReadonlySet<string> = new Set(["GET", "HEAD"]);
 
 function resumeTokenKey(refreshToken: string): string {
   return createHash("sha256").update(refreshToken).digest("hex");
@@ -175,7 +182,6 @@ async function redeemResumeRefreshToken(
     return {
       status: "verified",
       userId,
-      rotatedKey: resumeTokenKey(nextRefreshToken),
       resumeCookie: authResumeSetCookie({
         refreshToken: nextRefreshToken,
         email: typeof user?.email === "string" ? user.email : payload.email,
@@ -200,6 +206,7 @@ async function verifySupabaseSessionFromRequest(
     bearerBanned = bearer.status === "banned";
   }
   if (!request) return { status: "absent" };
+  if (!RESUME_COOKIE_METHODS.has(request.method.toUpperCase())) return { status: "absent" };
 
   const payload = decodeAuthResumeCookie(
     authResumeCookieFromHeader(request.headers.get("cookie")),
@@ -230,10 +237,6 @@ async function verifySupabaseSessionFromRequest(
     .then((result) => {
       if (result.status === "verified") {
         rememberResumeVerification(key, result.userId);
-        // The browser's next image carries the token GoTrue just minted for
-        // this same user, so it is remembered too: a scrolling feed then makes
-        // one refresh per TTL rather than one per batch of photos.
-        if (result.rotatedKey) rememberResumeVerification(result.rotatedKey, result.userId);
       }
       return result;
     })
@@ -386,12 +389,23 @@ export async function resolveSocialAccess(
   request?: Request,
   dependencies?: SocialAccessServerDependencies,
 ): Promise<SocialAccessResolution> {
+  return (await resolveSocialAccessFor(request, dependencies)).access;
+}
+
+// The resolution plus, when the state is verified, the auth user id the
+// session verified. That id stays on the server: the access route hands the
+// resolution to the browser, and its shape does not change.
+async function resolveSocialAccessFor(
+  request?: Request,
+  dependencies?: SocialAccessServerDependencies,
+): Promise<{ access: SocialAccessResolution; authUserId: string | null }> {
   const deps = dependencies ?? readDefaultDependencies();
-  if (!deps.friendsLaunchEnabled) return { available: true, state: "preview" };
+  const without = (access: SocialAccessResolution) => ({ access, authUserId: null });
+  if (!deps.friendsLaunchEnabled) return without({ available: true, state: "preview" });
   const supabase = await deps.verifySupabaseSession(request);
-  if (supabase.status === "unavailable") return unavailableAccess();
+  if (supabase.status === "unavailable") return without(unavailableAccess());
   if (supabase.status === "absent") {
-    return { available: true, state: "sign_in_required" };
+    return without({ available: true, state: "sign_in_required" });
   }
   const resumeCookie: SocialResumeCookie = supabase.resumeCookie
     ? { resumeCookie: supabase.resumeCookie }
@@ -410,16 +424,19 @@ export async function resolveSocialAccess(
     });
     if (state === "verified") {
       if (!account || !profile || account.id === "" || profile.id === "" || profile.handle === "") {
-        return { ...unavailableAccess(), ...resumeCookie };
+        return without({ ...unavailableAccess(), ...resumeCookie });
       }
       return {
-        available: true,
-        state,
-        actor: { accountId: account.id, profileId: profile.id, handle: profile.handle },
-        ...resumeCookie,
+        access: {
+          available: true,
+          state,
+          actor: { accountId: account.id, profileId: profile.id, handle: profile.handle },
+          ...resumeCookie,
+        },
+        authUserId: supabase.userId,
       };
     }
-    return {
+    return without({
       available: true,
       state,
       ...resumeCookie,
@@ -433,14 +450,25 @@ export async function resolveSocialAccess(
               }),
           }
         : {}),
-    };
+    });
   } catch {
-    return { ...unavailableAccess(), ...resumeCookie };
+    return without({ ...unavailableAccess(), ...resumeCookie });
   }
 }
 
 export type VerifiedSocialActorResolution = (
-  | { ok: true; actor: SocialPostActor }
+  | {
+      ok: true;
+      actor: SocialPostActor;
+      /**
+       * The auth user id this session verified (`profiles.user_id`). It is a
+       * different domain from `actor.accountId`, the private Social account
+       * record's own id, which provisioning gives a UUID of its own. A check
+       * that reads the auth owner, such as handle ownership through
+       * `identityHandleStore().ownedHandle`, takes this one.
+       */
+      authUserId: string;
+    }
   | {
       ok: false;
       status: 401 | 403 | 503;
@@ -459,7 +487,7 @@ export async function requireVerifiedSocialActor(
   dependencies?: SocialAccessServerDependencies,
 ): Promise<VerifiedSocialActorResolution> {
   const deps = dependencies ?? readDefaultDependencies();
-  const access = await resolveSocialAccess(request, deps);
+  const { access, authUserId } = await resolveSocialAccessFor(request, deps);
   const resumeCookie: SocialResumeCookie = access.resumeCookie
     ? { resumeCookie: access.resumeCookie }
     : {};
@@ -473,7 +501,19 @@ export async function requireVerifiedSocialActor(
       ...resumeCookie,
     };
   }
-  if (access.state === "verified") return { ok: true, actor: access.actor, ...resumeCookie };
+  if (access.state === "verified" && authUserId) {
+    return { ok: true, actor: access.actor, authUserId, ...resumeCookie };
+  }
+  if (access.state === "verified") {
+    return {
+      ok: false,
+      status: 503,
+      code: "SOCIAL_ACCESS_UNAVAILABLE",
+      error: "Social access checks are unavailable right now.",
+      retryable: true,
+      ...resumeCookie,
+    };
+  }
   if (access.state === "preview") {
     return { ok: false, status: 503, code: "SOCIAL_ACCESS_UNAVAILABLE", error: "Social is not open yet.", ...resumeCookie };
   }

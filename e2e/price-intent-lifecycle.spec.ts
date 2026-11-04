@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
-import { mobileMapShellControl } from "./helpers/mobileMapShell";
+import { mobileMapShellControl, tapMapLogPrice } from "./helpers/mobileMapShell";
 
 test.use({ serviceWorkers: "block" });
 test.setTimeout(90_000);
@@ -25,16 +25,14 @@ test.beforeEach(async ({ page }) => {
 const venueSheet = (page: Page) => page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
 const contributeParam = (page: Page) => new URL(page.url()).searchParams.get("contribute");
 
-async function openCreateLogAPrice(page: Page) {
-  await expect(async () => {
-    await page.getByTestId("create-fab").click();
-    await expect(page.locator(".createFabMenu").getByRole("link", { name: "Log a price" })).toBeVisible({ timeout: 1_000 });
-  }).toPass({ timeout: 20_000 });
-  await page.locator(".createFabMenu").getByRole("link", { name: "Log a price" }).click();
+// "Log a price" in More map controls (the floating create button carried it
+// until the five-tab dock, 1 Nov 2026).
+async function openMapLogAPrice(page: Page) {
+  await tapMapLogPrice(page);
   await expect(page.getByText("Pick a pub to log a price", { exact: true })).toBeVisible({ timeout: 45_000 });
 }
 
-test("a consumed price intent retires on Home and Create starts another contribution", async ({ page }) => {
+test("a consumed price intent retires on Home and Log a price starts another contribution", async ({ page }) => {
   await seedSignedIn(page, "A");
   await page.goto("/map/manchester?drink=wine&contribute=price");
   const nearby = page.locator(".logIntentNearbyBtn").first();
@@ -53,7 +51,7 @@ test("a consumed price intent retires on Home and Create starts another contribu
   await expect.poll(() => contributeParam(page)).toBeNull();
   await expect(page.getByText(/Pick a pub to log a/)).toHaveCount(0);
 
-  await openCreateLogAPrice(page);
+  await openMapLogAPrice(page);
   // A picker re-sort between press and release drops the tap, so only a
   // dropped tap is retried (e2e/design-review-followups.spec.ts).
   await expect(async () => {
@@ -65,7 +63,7 @@ test("a consumed price intent retires on Home and Create starts another contribu
 
 test("an anonymous price intent stays with the first pub and never gates another", async ({ page }) => {
   await page.goto("/map/manchester?drink=wine");
-  await openCreateLogAPrice(page);
+  await openMapLogAPrice(page);
   const nearby = page.locator(".logIntentNearbyBtn");
   await expect(nearby.nth(1)).toBeVisible();
   const otherVenue = (await nearby.nth(1).locator("span").first().textContent())?.trim();
@@ -128,7 +126,7 @@ test("an anonymous price intent retires when a client navigation opens another p
 
 test("Back from a gated pub returns to the price picker, which still opens another pub's price door", async ({ page }) => {
   await page.goto("/map/manchester?drink=wine");
-  await openCreateLogAPrice(page);
+  await openMapLogAPrice(page);
   const nearby = page.locator(".logIntentNearbyBtn");
   await expect(nearby.nth(1)).toBeVisible();
   const firstVenue = (await nearby.first().locator("span").first().textContent())?.trim();

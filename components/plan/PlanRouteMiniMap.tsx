@@ -237,7 +237,9 @@ export default function PlanRouteMiniMap({
   const title = activeResolved.area
     ? `Route map: ${count} stops in ${activeResolved.area}`
     : `Route map: ${count} stops`;
-  const description = `Walking route between ${activeResolved.names.join(", ")}.`;
+  const description = activeDrawn.source === "straight"
+    ? `Approximate stop order between ${activeResolved.names.join(", ")}. Dashed lines show stop order only.`
+    : `Walking route between ${activeResolved.names.join(", ")}.`;
 
   const labelledBy = `${titleId} ${descId}`;
   const preview = (
@@ -245,6 +247,9 @@ export default function PlanRouteMiniMap({
       <p id={titleId} className="planRouteMiniMap__title">
         {title}
       </p>
+      {activeDrawn.source === "straight" ? (
+        <p className="planRouteMiniMap__accuracy">Dashed lines show stop order only.</p>
+      ) : null}
       <p id={descId} className="planRouteMiniMap__srOnly">
         {description}
       </p>

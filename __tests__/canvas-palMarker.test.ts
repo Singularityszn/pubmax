@@ -125,6 +125,11 @@ describe("the Pal on the map", () => {
     const image = element.querySelector("img")!;
     expect(image.getAttribute("src")).toMatch(/avatar.*64.*\.webp$/);
     expect(image.alt).toBe("");
+    // The talking frame lies on the same avatar, decorative and shut.
+    const mouth = element.querySelector<HTMLImageElement>("img.palMapMarkerMouth")!;
+    expect(mouth.getAttribute("src")).toBe("/pal/circuit-robin-talk-avatar-64.webp");
+    expect(mouth.alt).toBe("");
+    expect(mouth.parentElement).toBe(image.parentElement);
     const body = element.querySelector<HTMLElement>(".palMapMarkerBody")!;
     expect(body.style.getPropertyValue("--genome-zoom")).not.toBe("");
   });
@@ -154,6 +159,93 @@ describe("the Pal on the map", () => {
     expect(markerHarness.instances).toHaveLength(2);
     marker.destroy();
     expect(markerHarness.instances[1]!.remove).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a waiting companion inside the viewport without covering its stop", () => {
+    store(pal());
+    reducedMotion(true);
+    let point = { x: 370, y: 35 };
+    let width = 390;
+    const listeners = new Map<string, Set<() => void>>();
+    const viewportMap = {
+      project: () => point,
+      getContainer: () => ({ clientWidth: width, clientHeight: 844 }),
+      on: (event: string, listener: () => void) => {
+        if (!listeners.has(event)) listeners.set(event, new Set());
+        listeners.get(event)!.add(listener);
+      },
+      off: (event: string, listener: () => void) => listeners.get(event)?.delete(listener),
+    } as unknown as maplibregl.Map;
+    const marker = createPalMapMarker(viewportMap);
+    marker.walk({ key: crawlKey, stops: crawl, path: crawl });
+    const instance = markerHarness.instances[0]!;
+    const contained = () => {
+      const [x, y] = instance.options.offset!;
+      const box = { left: point.x + x, right: point.x + x + 38,
+        top: point.y + y - 38, bottom: point.y + y };
+      expect(box.left).toBeGreaterThanOrEqual(10);
+      expect(box.right).toBeLessThanOrEqual(width - 10);
+      expect(box.top).toBeGreaterThanOrEqual(10);
+      expect(box.bottom).toBeLessThanOrEqual(834);
+      const nearestX = Math.max(box.left, Math.min(point.x, box.right));
+      const nearestY = Math.max(box.top, Math.min(point.y, box.bottom));
+      expect(Math.hypot(point.x - nearestX, point.y - nearestY)).toBeGreaterThan(18);
+    };
+    contained();
+    expect(instance.lngLat).toEqual(crawl[0]);
+    expect(frames).toHaveLength(0);
+    point = { x: 20, y: 820 };
+    listeners.get("move")?.forEach(listener => listener());
+    contained();
+    width = 320;
+    point = { x: 300, y: 400 };
+    listeners.get("resize")?.forEach(listener => listener());
+    contained();
+    expect(instance.lngLat).toEqual(crawl[0]);
+    point = { x: -200, y: 400 };
+    listeners.get("move")?.forEach(listener => listener());
+    expect(instance.options.element.style.visibility).toBe("hidden");
+    point = { x: 150, y: 400 };
+    listeners.get("move")?.forEach(listener => listener());
+    expect(instance.options.element.style.visibility).toBe("");
+    contained();
+    marker.destroy();
+    expect([...listeners.values()].every(set => set.size === 0)).toBe(true);
+  });
+
+  it("keeps crew spacing when their stationary perches turn inward", () => {
+    reducedMotion(true);
+    const viewportMap = {
+      project: () => ({ x: 370, y: 400 }),
+      getContainer: () => ({ clientWidth: 390, clientHeight: 844 }),
+    } as unknown as maplibregl.Map;
+    const first = createPalMapMarker(viewportMap, { pal: pal(), index: 0 });
+    const second = createPalMapMarker(viewportMap, { pal: pal(), index: 1 });
+    first.walk({ key: crawlKey, stops: crawl, path: crawl });
+    second.walk({ key: crawlKey, stops: crawl, path: crawl });
+    expect(markerHarness.instances[0]!.options.offset).toEqual([-76, -12]);
+    expect(markerHarness.instances[1]!.options.offset).toEqual([-100, -12]);
+    first.destroy();
+    second.destroy();
+  });
+
+  it("does not move a walking companion off its line when the viewport changes", () => {
+    store(pal());
+    const listeners = new Map<string, () => void>();
+    const viewportMap = {
+      project: () => ({ x: 380, y: 400 }),
+      getContainer: () => ({ clientWidth: 390, clientHeight: 844 }),
+      on: (event: string, listener: () => void) => listeners.set(event, listener),
+      off: (event: string) => listeners.delete(event),
+    } as unknown as maplibregl.Map;
+    const marker = createPalMapMarker(viewportMap);
+    marker.walk({ key: crawlKey, stops: crawl, path: crawl });
+    runFrames(1);
+    const instance = markerHarness.instances[0]!;
+    listeners.get("move")?.();
+    expect(instance.options.offset).toEqual([-19, 4]);
+    expect(instance.options.element.classList.contains("isWalking")).toBe(true);
+    marker.destroy();
   });
 
   it("reads the band the pin itself paints: the Spoons value band first, else the price bucket", () => {
@@ -233,6 +325,24 @@ describe("the Pal on the map", () => {
     expect(markerHarness.instances).toHaveLength(1);
   });
 
+  it("pauses beside the intermediate stop so its number remains visible", () => {
+    store(pal());
+    const marker = createPalMapMarker(map);
+    marker.walk({ key: crawlKey, stops: crawl, path: crawl });
+    runFrames(1);
+    const instance = markerHarness.instances[0]!;
+    for (let frame = 0; frame < 1_000 && instance.options.element.classList.contains("isWalking"); frame += 1) {
+      runFrames(1);
+    }
+    expect(instance.lngLat).toEqual(crawl[1]);
+    expect(instance.options.element.dataset.palWalk).toBe("walking");
+    expect(instance.options.offset).toEqual([14, -12]);
+    runFrames(20);
+    expect(instance.options.element.classList.contains("isWalking")).toBe(true);
+    expect(instance.options.offset).toEqual([-19, 4]);
+    marker.destroy();
+  });
+
   it("carries on along the road line at the same point of the walk", () => {
     store(pal());
     const marker = createPalMapMarker(map);
@@ -301,11 +411,335 @@ describe("the Pal on the map", () => {
     const [instance] = markerHarness.instances;
     expect(instance!.lngLat).toEqual(crawl[0]);
     expect(instance!.options.element.dataset.palWalk).toBe("setting-off");
+    expect(instance!.options.offset).toEqual([14, -12]);
     expect(frames).toHaveLength(0);
     handlers.forEach((handler) => handler());
     expect(frames).toHaveLength(1);
     runFrames(2);
     expect(instance!.lngLat![0]).toBeGreaterThan(crawl[0]![0]);
+  });
+
+  describe("the walk's one start call", () => {
+    it("comes on the first painted frame, once, and not on the same walk again", () => {
+      store(pal());
+      const onStarted = vi.fn();
+      const marker = createPalMapMarker(map);
+      marker.walk({ key: crawlKey, stops: crawl, path: crawl, onStarted });
+      expect(onStarted).not.toHaveBeenCalled();
+      runFrames(1);
+      expect(onStarted).toHaveBeenCalledTimes(1);
+      marker.walk({ key: crawlKey, stops: crawl, path: crawl, road: true, onStarted });
+      runFrames(1_000);
+      expect(onStarted).toHaveBeenCalledTimes(1);
+    });
+
+    it("waits for a loading map, and never comes if the marker goes first", () => {
+      store(pal());
+      const handlers: Array<() => void> = [];
+      const loading = {
+        loaded: () => false,
+        once: (_event: string, handler: () => void) => handlers.push(handler),
+        off: vi.fn(),
+      } as unknown as maplibregl.Map;
+      const ready = vi.fn();
+      createPalMapMarker(loading).walk({ key: crawlKey, stops: crawl, path: crawl, onStarted: ready });
+      handlers.forEach((handler) => handler());
+      expect(ready).not.toHaveBeenCalled();
+      runFrames(1);
+      expect(ready).toHaveBeenCalledTimes(1);
+
+      handlers.length = 0;
+      const retired = vi.fn();
+      const doomed = createPalMapMarker(loading);
+      doomed.walk({ key: crawlKey, stops: crawl, path: crawl, onStarted: retired });
+      doomed.destroy();
+      handlers.forEach((handler) => handler());
+      runFrames(1_000);
+      expect(retired).not.toHaveBeenCalled();
+    });
+
+    it("never comes for a walk destroyed or replaced before its first frame", () => {
+      store(pal());
+      const first = vi.fn();
+      const marker = createPalMapMarker(map);
+      marker.walk({ key: crawlKey, stops: crawl, path: crawl, onStarted: first });
+      marker.destroy();
+      runFrames(1_000);
+      expect(first).not.toHaveBeenCalled();
+
+      const replaced = vi.fn();
+      const second = createPalMapMarker(map);
+      second.walk({ key: crawlKey, stops: crawl, path: crawl, onStarted: replaced });
+      second.perch([-0.2, 51.4]);
+      runFrames(1_000);
+      expect(replaced).not.toHaveBeenCalled();
+    });
+
+    it("comes at once for a still Pal that waits instead of walking, and never for a hidden one", () => {
+      store(pal({ muted: true }));
+      const still = vi.fn();
+      createPalMapMarker(map).walk({ key: crawlKey, stops: crawl, path: crawl, onStarted: still });
+      expect(still).toHaveBeenCalledTimes(1);
+
+      store(pal({ hidden: true }));
+      const hidden = vi.fn();
+      createPalMapMarker(map).walk({ key: crawlKey, stops: crawl, path: crawl, onStarted: hidden });
+      runFrames(1_000);
+      expect(hidden).not.toHaveBeenCalled();
+    });
+  });
+
+  it("holds a line said over a map still loading, and says it as the walk sets off", () => {
+    store(pal());
+    const handlers: Array<() => void> = [];
+    const loading = {
+      loaded: () => false,
+      once: (_event: string, handler: () => void) => handlers.push(handler),
+      off: vi.fn(),
+    } as unknown as maplibregl.Map;
+    const marker = createPalMapMarker(loading);
+    marker.walk({ key: crawlKey, stops: crawl, path: crawl });
+    marker.say("Fastest way. Keep up.");
+    const bubble = markerHarness.instances[0]!.options.element.querySelector<HTMLElement>(".palMapMarkerSay")!;
+    expect(bubble.hidden).toBe(true);
+    handlers.forEach((handler) => handler());
+    expect(bubble.hidden).toBe(false);
+    expect(bubble.textContent).toBe("Fastest way. Keep up.");
+  });
+
+  it("says nothing while asleep (muted), and a crew Pal says nothing", () => {
+    store(pal({ muted: true }));
+    const sleeping = createPalMapMarker(map);
+    sleeping.perch([-0.1, 51.5]);
+    sleeping.say("7 min to the next pub. Race you.");
+    const crew = createPalMapMarker(map, { pal: pal({ id: "aaaaaaaa-aaaa-4aaa-8aaa-000000000002" }), index: 0 });
+    crew.perch([-0.1, 51.5]);
+    crew.say("7 min to the next pub. Race you.");
+    for (const instance of markerHarness.instances) {
+      expect(instance.options.element.querySelector<HTMLElement>(".palMapMarkerSay")!.hidden).toBe(true);
+    }
+    expect(markerHarness.instances).toHaveLength(2);
+  });
+
+  describe("tonight's next stop", () => {
+    function nextStop(stop: number, name: string) {
+      const open = vi.fn();
+      return { target: { stop, name, open }, open };
+    }
+    const tappable = (element: HTMLElement) => ({
+      role: element.getAttribute("role"),
+      label: element.getAttribute("aria-label"),
+      hidden: element.getAttribute("aria-hidden"),
+      chip: element.querySelector<HTMLElement>(".palMapMarkerNext")!.hidden
+        ? null
+        : element.querySelector(".palMapMarkerNext")!.textContent,
+    });
+    const decorative = { role: null, label: null, hidden: "true", chip: null };
+
+    it("walks only as far as the next stop, and waits there as a button that opens it", () => {
+      store(pal());
+      const marker = createPalMapMarker(map);
+      const lamb = nextStop(1, "The Lamb");
+      marker.walk({ key: crawlKey, stops: crawl, path: crawl });
+      marker.nextStop(lamb.target);
+      runFrames(1);
+      const [instance] = markerHarness.instances;
+      const element = instance!.options.element;
+      // Walking, it is decorative and takes no taps.
+      expect(tappable(element)).toEqual(decorative);
+      element.click();
+      expect(lamb.open).not.toHaveBeenCalled();
+
+      runFrames(1_000);
+      expect(frames).toHaveLength(0);
+      expect(element.dataset.palWalk).toBe("rested");
+      expect(instance!.lngLat).toEqual(crawl[1]);
+      expect(instance!.options.offset).toEqual([14, -12]);
+      expect(tappable(element)).toEqual({ role: "button", label: "Next stop: The Lamb", hidden: null, chip: "Next: The Lamb" });
+      expect(element.classList.contains("isNextStop")).toBe(true);
+      expect(element.tabIndex).toBe(0);
+
+      element.click();
+      element.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      element.dispatchEvent(new KeyboardEvent("keydown", { key: "a", bubbles: true }));
+      expect(lamb.open).toHaveBeenCalledTimes(2);
+    });
+
+    it("walks on to a new next stop, decorative on the way, and opens the new one", () => {
+      store(pal());
+      const marker = createPalMapMarker(map);
+      const lamb = nextStop(1, "The Lamb");
+      marker.walk({ key: crawlKey, stops: crawl, path: crawl });
+      marker.nextStop(lamb.target);
+      runFrames(1_000);
+      const element = markerHarness.instances[0]!.options.element;
+
+      const crown = nextStop(2, "The Crown");
+      marker.nextStop(crown.target);
+      expect(element.dataset.palWalk).toBe("visiting");
+      expect(tappable(element)).toEqual(decorative);
+      runFrames(200);
+      expect(markerHarness.instances[0]!.lngLat).toEqual(crawl[2]);
+      expect(tappable(element)).toEqual({ role: "button", label: "Next stop: The Crown", hidden: null, chip: "Next: The Crown" });
+      element.click();
+      expect(crown.open).toHaveBeenCalledTimes(1);
+      expect(lamb.open).not.toHaveBeenCalled();
+    });
+
+    it("turns for a newer next stop while still on its way to the old one, but not on a trip the reader asked for", () => {
+      store(pal());
+      const marker = createPalMapMarker(map);
+      const four: LngLat[] = [...crawl, [-0.1, 51.51]];
+      marker.walk({ key: four.map((stop) => stop.join(",")).join(";"), stops: four, path: four });
+      marker.nextStop(nextStop(1, "The Lamb").target);
+      runFrames(1_000);
+      const [instance] = markerHarness.instances;
+      const element = instance!.options.element;
+      expect(instance!.lngLat).toEqual(four[1]);
+
+      // On its way to the Crown, the night moves on to the Bell.
+      marker.nextStop(nextStop(2, "The Crown").target);
+      runFrames(3);
+      expect(element.dataset.palWalk).toBe("visiting");
+      const bell = nextStop(3, "The Bell");
+      marker.nextStop(bell.target);
+      runFrames(400);
+      expect(frames).toHaveLength(0);
+      expect(instance!.lngLat).toEqual(four[3]);
+      expect(tappable(element)).toEqual({ role: "button", label: "Next stop: The Bell", hidden: null, chip: "Next: The Bell" });
+      element.click();
+      expect(bell.open).toHaveBeenCalledTimes(1);
+
+      // Sent back to the first stop by the reader, it keeps going there.
+      marker.visit(0);
+      runFrames(3);
+      marker.nextStop(nextStop(2, "The Crown").target);
+      runFrames(400);
+      expect(instance!.lngLat).toEqual(four[0]);
+      expect(tappable(element)).toEqual(decorative);
+    });
+
+    it("takes no taps beside any other stop, or once the plan has no next stop", () => {
+      store(pal());
+      const marker = createPalMapMarker(map);
+      const lamb = nextStop(1, "The Lamb");
+      marker.walk({ key: crawlKey, stops: crawl, path: crawl });
+      marker.nextStop(lamb.target);
+      runFrames(1_000);
+      const element = markerHarness.instances[0]!.options.element;
+
+      // Sent to another stop the reader tapped: decorative there.
+      marker.visit(0);
+      runFrames(200);
+      expect(element.dataset.palWalk).toBe("visited");
+      expect(tappable(element)).toEqual(decorative);
+      element.click();
+      expect(lamb.open).not.toHaveBeenCalled();
+
+      // Back at the next stop it is the button again; with no next stop it is not.
+      marker.visit(1);
+      runFrames(200);
+      expect(tappable(element).role).toBe("button");
+      marker.nextStop(null);
+      expect(tappable(element)).toEqual(decorative);
+      expect(element.classList.contains("isNextStop")).toBe(false);
+      element.click();
+      expect(lamb.open).not.toHaveBeenCalled();
+
+      // A perched pub (no plan route) is never a button.
+      marker.nextStop(lamb.target);
+      marker.perch([-0.1, 51.5]);
+      expect(tappable(element)).toEqual(decorative);
+    });
+
+    it("waits at the next stop, not the first, for a still Pal", () => {
+      reducedMotion(true);
+      store(pal());
+      const marker = createPalMapMarker(map);
+      const lamb = nextStop(1, "The Lamb");
+      marker.nextStop(lamb.target);
+      marker.walk({ key: crawlKey, stops: crawl, path: crawl });
+      expect(frames).toHaveLength(0);
+      const [instance] = markerHarness.instances;
+      expect(instance!.lngLat).toEqual(crawl[1]);
+      expect(instance!.options.element.dataset.palWalk).toBe("waiting");
+      expect(tappable(instance!.options.element).label).toBe("Next stop: The Lamb");
+    });
+
+    it("leads a chosen way: says its line, walks the path, and arrives with a jump for joy as the next-stop button", () => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      try {
+        store(pal());
+        const marker = createPalMapMarker(map);
+        // A way that bends round a corner from this stop to the next.
+        const path: LngLat[] = [crawl[0]!, [-0.1, 51.502], crawl[1]!];
+        marker.walk({ key: "lead:a>b:walk", stops: [crawl[0]!, crawl[1]!], path, road: true, cheer: true });
+        const lamb = nextStop(1, "The Lamb");
+        marker.nextStop(lamb.target);
+        marker.say("Free and cheapest. Legs it is.");
+        runFrames(1);
+        const [instance] = markerHarness.instances;
+        const element = instance!.options.element;
+        const bubble = element.querySelector<HTMLElement>(".palMapMarkerSay")!;
+        expect(bubble.hidden).toBe(false);
+        expect(bubble.textContent).toBe("Free and cheapest. Legs it is.");
+        expect(element.classList.contains("isSaying")).toBe(true);
+        expect(tappable(element)).toEqual(decorative);
+
+        // On its way it walks the corner's run, not the straight line.
+        runFrames(3);
+        expect(element.classList.contains("isWalking")).toBe(true);
+        expect(instance!.lngLat![0]).toBeCloseTo(-0.1, 9);
+
+        runFrames(1_000);
+        expect(instance!.lngLat).toEqual(crawl[1]);
+        expect(element.classList.contains("isCheering")).toBe(true);
+        expect(element.classList.contains("isLanding")).toBe(false);
+        // Waiting as the button, the chip takes the space and the line is done.
+        expect(tappable(element)).toEqual({ role: "button", label: "Next stop: The Lamb", hidden: null, chip: "Next: The Lamb" });
+        expect(bubble.hidden).toBe(true);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("says a line for a few seconds, and a new line or null replaces it", () => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      try {
+        store(pal());
+        const marker = createPalMapMarker(map);
+        marker.perch([-0.1, 51.5]);
+        const bubble = markerHarness.instances[0]!.options.element.querySelector<HTMLElement>(".palMapMarkerSay")!;
+        marker.say("Fastest way. Keep up.");
+        vi.advanceTimersByTime(4_000);
+        expect(bubble.textContent).toBe("Fastest way. Keep up.");
+        marker.say("This way. Follow me.");
+        vi.advanceTimersByTime(4_000);
+        expect(bubble.textContent).toBe("This way. Follow me.");
+        vi.advanceTimersByTime(1_000);
+        expect(bubble.hidden).toBe(true);
+        marker.say("TfL won't say the fare. Bold choice.");
+        marker.say(null);
+        expect(bubble.hidden).toBe(true);
+        expect(bubble.textContent).toBe("");
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("waits a crew Pal at the next stop too, as a picture, never a button", () => {
+      const marker = createPalMapMarker(map, { pal: pal({ id: "aaaaaaaa-aaaa-4aaa-8aaa-000000000002" }), index: 0 });
+      const lamb = nextStop(1, "The Lamb");
+      marker.walk({ key: crawlKey, stops: crawl, path: crawl });
+      marker.nextStop(lamb.target);
+      runFrames(1_000);
+      const [instance] = markerHarness.instances;
+      expect(instance!.lngLat).toEqual(crawl[1]);
+      const element = instance!.options.element;
+      expect(tappable(element)).toEqual(decorative);
+      element.click();
+      expect(lamb.open).not.toHaveBeenCalled();
+    });
   });
 
   it("walks back along the route to a tapped stop and jumps for joy beside it", () => {

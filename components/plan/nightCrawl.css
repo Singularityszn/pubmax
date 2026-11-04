@@ -30,6 +30,20 @@
   --nc-display: system-ui, -apple-system, "Segoe UI", sans-serif;
   --nc-data: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
 
+  /* Shared Plan panels and controls use this surface's palette in both themes. */
+  --ink: var(--nc-ink);
+  --muted: var(--nc-muted);
+  --line: var(--nc-line);
+  --line-soft: var(--nc-line);
+  --hairline-strong: var(--nc-line);
+  --color-text: var(--nc-ink);
+  --color-text-soft: var(--nc-ink-soft);
+  --color-text-muted: var(--nc-muted);
+  --color-surface: var(--nc-paper);
+  --color-surface-panel: var(--nc-panel);
+  --control-secondary-surface: var(--nc-panel-raised);
+  --control-secondary-border: var(--nc-line);
+
   position: fixed;
   inset: 0;
   z-index: 660; /* above page content + the global night pill (640); below modals (1200) */

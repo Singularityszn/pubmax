@@ -17,6 +17,8 @@ import {
 } from "@/lib/hypedPubs";
 import { checkedLabel } from "@/lib/whatsOnBadges";
 
+import TonightHypedReasonFold from "./TonightHypedReasonFold";
+
 /**
  * Pubs Londoners keep recommending, and the first thing Tonight says.
  *
@@ -132,8 +134,8 @@ function HypedRow({
     <li
       className={
         mapHref
-          ? "rowListItem rowListItem--link tonightHypedRow createFabLane"
-          : "rowListItem tonightHypedRow createFabLane"
+          ? "rowListItem rowListItem--link tonightHypedRow"
+          : "rowListItem tonightHypedRow"
       }
       data-testid="tonight-hyped-row"
     >
@@ -158,11 +160,7 @@ function HypedRow({
             </span>
           )}
         </span>
-        <details className="tonightHypedReason">
-          <summary className="tonightHypedReasonToggle">
-            <ChevronDown size={14} aria-hidden="true" className="tonightHypedMoreChevron" />
-            Why this pub
-          </summary>
+        <TonightHypedReasonFold>
           <p className="tonightHypedWhy">{row.whyLine}</p>
           {credit ? (
             <p className="tonightHypedCredit">
@@ -185,7 +183,7 @@ function HypedRow({
               sizes="(min-width: 1100px) 24rem, calc(100vw - 2rem)"
             />
           ) : null}
-        </details>
+        </TonightHypedReasonFold>
       </span>
       {pint ? (
         // The same figure the cheapest-pints list and the pub's own card

@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -175,10 +176,13 @@ describe("clean-main CI release gate", () => {
     for (const job of ["production-build", "unit-tests", "coverage"]) {
       expect(jobAncestors(job, needs).has("freshness"), job).toBe(false);
     }
-    expect(needs["production-build"]).toEqual(["lint-and-types"]);
+    // The build starts beside lint (captain, 2 Nov 2026): it reads nothing
+    // lint makes, and waiting put the two end to end on the slowest chain.
+    expect(needs["production-build"]).toEqual([]);
     expect(needs.coverage).toEqual(["unit-tests"]);
     expect(needs.freshness).toEqual([]);
     expect(needs["validate-data"]).toEqual([]);
+    expect(needs["typecheck-ts6"]).toEqual([]);
   });
 
   it("validates every bundled dataset in its own job", () => {
@@ -194,6 +198,91 @@ describe("clean-main CI release gate", () => {
     expect(jobs["validate-data"]?.name).toBe("Data validation");
   });
 
+  it("restores the Next.js build cache, and only a main push saves one, at most once a day", () => {
+    // Next keeps Turbopack's build work in .next/cache. Without a restore
+    // every CI build is cold; a pull request that saved its own copy would
+    // fill the repository's cache space and could write a cache main reads.
+    // A cache of about 500 MB saved on every main push (12 to 32 a day) could
+    // also crowd the nightly Tavily cursor out of the 10 GB, so the key ends
+    // in the UTC date and an exact hit saves nothing.
+    const build = defined(ciJobs()["production-build"], "production-build job");
+    const names = (build.steps ?? []).map((step) => step.name);
+    const restore = jobStep(build, "Restore the Next.js build cache");
+    const save = jobStep(build, "Save the Next.js build cache");
+    expect(names.indexOf(restore.name)).toBeLessThan(names.indexOf("Build"));
+    expect(names.indexOf(save.name)).toBeGreaterThan(names.indexOf("Build"));
+    expect(restore.uses).toMatch(/^actions\/cache\/restore@[0-9a-f]{40}$/);
+    expect(save.uses).toMatch(/^actions\/cache\/save@[0-9a-f]{40}$/);
+    for (const step of [restore, save]) expect(step.with?.path, step.name).toBe(".next/cache");
+    expect(save.with?.key).toBe(restore.with?.key);
+    expect(String(restore.with?.key)).toContain("hashFiles('package-lock.json')");
+    expect(String(restore.with?.key)).toMatch(/\$\{\{ steps\.cache-day\.outputs\.day \}\}$/);
+    expect(String(restore.with?.key)).not.toContain("github.sha");
+    const day = jobStep(build, "Name the build cache for today");
+    expect(names.indexOf(day.name)).toBeLessThan(names.indexOf(restore.name));
+    expect(day.run).toContain("date -u +%Y-%m-%d");
+    expect(String(restore.with?.["restore-keys"])).toContain("hashFiles('package-lock.json')");
+    expect(restore.if).toBe("steps.scope.outputs.scope == 'code'");
+    expect(save.if).toBe(
+      "steps.scope.outputs.scope == 'code' && github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.build-cache.outputs.cache-hit != 'true'",
+    );
+  });
+
+  it("skips the CI build's own type check only where a wider check already ran", () => {
+    // next build type-checks tsconfig.build.json with TypeScript 6. The
+    // Typecheck (TypeScript 6) job runs the same compiler over tsconfig.json, so the CI
+    // build skips its copy. This holds only while tsconfig.json covers every
+    // file tsconfig.build.json does, with the same compiler options.
+    const build = defined(ciJobs()["production-build"], "production-build job");
+    expect(jobStep(build, "Build").env?.PUBMAX_CI_SKIP_BUILD_TYPECHECK).toBe("1");
+    // The wider check is its own required job, beside lint (captain, 2 Nov 2026).
+    const ts6 = defined(ciJobs()["typecheck-ts6"], "typecheck-ts6 job");
+    expect(ts6.name).toBe("Typecheck (TypeScript 6)");
+    const names = (ts6.steps ?? []).map((step) => step.name);
+    expect(names.indexOf("Generate the route types")).toBeLessThan(names.indexOf("Typecheck (TypeScript 6)"));
+    expect(jobStep(ts6, "Generate the route types").run?.trim()).toBe("npx next typegen");
+    expect(jobStep(ts6, "Typecheck (TypeScript 6)").run?.trim()).toBe(
+      "node node_modules/typescript/bin/tsc --noEmit",
+    );
+    expect(jobStep(ts6, "Typecheck (TypeScript 6)").if).toBe("steps.scope.outputs.scope != 'docs'");
+    const lint = defined(ciJobs()["lint-and-types"], "lint-and-types job");
+    expect((lint.steps ?? []).map((step) => step.name)).not.toContain("Typecheck (TypeScript 6)");
+
+    const readJson = (file: string) =>
+      JSON.parse(readFileSync(join(process.cwd(), file), "utf8")) as {
+        extends?: string;
+        compilerOptions?: unknown;
+        include?: string[];
+      };
+    const buildConfig = readJson("tsconfig.build.json");
+    expect(buildConfig.extends).toBe("./tsconfig.json");
+    expect(buildConfig.compilerOptions).toBeUndefined();
+    // Compare what TypeScript itself resolves, not the include lists: an
+    // exclude added to tsconfig.json alone would otherwise drop app files
+    // from the wider check without a word.
+    const resolved = (file: string) =>
+      JSON.parse(
+        execFileSync(process.execPath, ["node_modules/typescript/bin/tsc", "--showConfig", "-p", file], {
+          cwd: process.cwd(),
+          encoding: "utf8",
+        }),
+      ) as { files?: string[]; compilerOptions?: unknown };
+    const fullResolved = resolved("tsconfig.json");
+    const buildResolved = resolved("tsconfig.build.json");
+    const fullFiles = new Set(fullResolved.files ?? []);
+    const uncovered = (buildResolved.files ?? []).filter((file) => !fullFiles.has(file));
+    expect(buildResolved.files?.length ?? 0).toBeGreaterThan(0);
+    expect(uncovered).toEqual([]);
+    expect(buildResolved.compilerOptions).toEqual(fullResolved.compilerOptions);
+
+    // A Vercel dashboard variable reaches Vercel builds too, so the skip is
+    // refused on Vercel and a deploy build always type-checks.
+    const nextConfig = readFileSync(join(process.cwd(), "next.config.mjs"), "utf8");
+    expect(nextConfig).toContain(
+      'ignoreBuildErrors: process.env.PUBMAX_CI_SKIP_BUILD_TYPECHECK === "1" && !process.env.VERCEL,',
+    );
+  });
+
   it("starts the unit shards at once and in parallel", () => {
     // The shards build their own slim data and read nothing lint or the
     // production build make, so waiting on them only lengthens the path.
@@ -202,12 +291,13 @@ describe("clean-main CI release gate", () => {
   });
 
   it("gates coverage on the merged shards and freshness independently", () => {
-    // Each shard collects coverage for its half and writes a blob. A half
-    // cannot meet the whole-suite thresholds, so a shard turns them off and
-    // the Coverage job enforces them over the merged blobs. The suite runs
-    // once per CI run, not once in the shards and again for coverage.
+    // Each of the three shards (captain, 2 Nov 2026) collects coverage for
+    // its third and writes a blob. A third cannot meet the whole-suite
+    // thresholds, so a shard turns them off and the Coverage job enforces
+    // them over the merged blobs. The suite runs once per CI run, not once in
+    // the shards and again for coverage.
     const shards = unitShards();
-    expect(shards.map(({ shard }) => shard)).toEqual([1, 2]);
+    expect(shards.map(({ shard }) => shard)).toEqual([1, 2, 3]);
     for (const { shard, total, words, env } of shards) {
       expect(words.slice(0, 4), `shard ${shard}`).toEqual(["npm", "run", "coverage", "--"]);
       expect(words.slice(4), `shard ${shard}`).toEqual(

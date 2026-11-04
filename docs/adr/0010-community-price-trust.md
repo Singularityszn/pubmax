@@ -115,6 +115,58 @@ drops `other`, because a pin cannot label a price "£6 Other".
   even once fully corroborated. A user reading a pint price on a pin is
   never quietly reading a soft-drink price instead.
 
+## Amendment, 1 November 2026: a typed price without a bill (captain decision 9)
+
+**Status:** Accepted. Captain decision 9 in
+`docs/plans/LAUNCH_PLAN_2026-11-01.md`, which closes decision 3 of
+`docs/plans/LAUNCH_REVIEW_2026-10-30.md` (week-one complaint 4: "Why do I
+need a photo of my receipt?").
+
+**What changed.** Since 7 September 2026 the Pint Drop door refused a price
+without a photo of the bill. Now a verified, signed-in drinker can send a
+typed price with no bill. The price saves. The pub's own sheet shows it as
+"Logged by @handle, not checked", with its date. It does not colour the pin
+until a second, independent drinker agrees with it.
+
+**The standing.** `lib/pintDropReceipt.ts` owns a closed vocabulary,
+`PRICE_EVIDENCE`: `receipt` (a bill came with the write) and `unchecked` (no
+bill). The `price_evidence` column on `pint_drops` stores it (migration
+`0218`, with a rollback). The store earns the word from the photos that
+arrived with the write. A client field can never set it. A row written
+before `0218` has no word and reads as it always did, because the bill rule
+applied to every priced row then.
+
+**What an unchecked price may do alone.** It shows on the pub's sheet. It
+never marks the pin, never paints a band, never enters a cheapest-price
+bucket or claim, never enters the Pint Index, and never counts as a receipt.
+The trust reading (`lib/pintTrust.ts`) calls it `unchecked`. The pin paint
+table gives it nothing. The figure on the sheet sits on the neutral plaque,
+because colour means the price band and never trust.
+
+**What makes it count.** The corroboration threshold above does not change.
+An unchecked price still carries the drinker's authority key, so it counts as
+one independent drinker. A second drinker's agreeing report, with or without a
+bill, is the second key `corroboratedPriceDrop` counts, and the confirmation
+producer (`lib/pintDropConfirmation.ts`) mints over the pair. Then the pin
+paints, exactly as for any corroborated pair. One account that types the same
+price twice is still one drinker.
+
+**What the bill still buys.** A lone price with a bill keeps its current
+power: the pin's provisional mark, and the "Logged once, needs a second
+drinker" line. That is the only difference, and the Pint Drop composer says
+it in one optional line.
+
+**What did not change.** The verified-actor gate, the daily price cap and the
+rate limits apply to an unchecked price exactly as before. Nothing about who
+may post a price changed.
+The one-tap community price door (`POST /api/price-submit`) and the Round
+diary still refuse a price without a bill. Their community price row has no
+evidence column yet, so this amendment does not reach them.
+
+**Rollout.** Until the captain applies `0218`, the store refuses an unchecked
+price and the route answers with the old bill line. Saving it without its
+word would read it as billed and mark the pin.
+
 ## Alternatives Considered
 
 **Auto-trust single reports.** Rejected. A single submission from one

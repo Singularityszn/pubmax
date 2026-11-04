@@ -70,11 +70,14 @@ describe("the door's words", () => {
 });
 
 describe("where the door is offered", () => {
-  it("is owed exactly to the two states that lack a second drinker, off the one trust reading", () => {
+  it("is owed exactly to the states that lack a second drinker, off the one trust reading", () => {
     for (const state of SECOND_DRINKER_STATES) expect(PINT_TRUST_STATES).toContain(state);
     expect(PINT_TRUST_STATES.filter(secondDrinkerDoorOffered)).toEqual([
       "disputed",
       "logged-once",
+      // A typed price with no bill (captain decision 9) reaches the map only
+      // through a second drinker, so it is owed the door most plainly of all.
+      "unchecked",
       "aged-out",
     ]);
     expect(secondDrinkerDoorOffered(null)).toBe(false);

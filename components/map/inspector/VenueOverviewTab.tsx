@@ -3,7 +3,6 @@ import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { MapPin, PlusCircle } from "lucide-react";
 
-import Disclosure from "@/components/Disclosure";
 import PriceBadge from "@/components/PriceBadge";
 import TrustPill from "@/components/ui/trust-pill";
 import { pintPriceSplitLine } from "@/lib/pintDropAgreement";
@@ -41,12 +40,15 @@ import {
   AGED_PRICE_LINE,
   PROVISIONAL_PRICE_LINE,
   PRICE_PENDING_LINE,
+  UNCHECKED_PRICE_LINE,
   baselineTrustCaption,
+  uncheckedPriceLine,
   venueBundlePrices,
   venuePriceLane,
   venuePriceFallbackPending,
   venuePriceLaneIsDrinkerLog,
   venuePriceLaneObservedGbp,
+  venuePriceLaneUncheckedBy,
   type DisputedPriceInput,
   type ProvisionalPriceInput,
   type VenuePriceLane,
@@ -63,6 +65,9 @@ import type { VenueDropReadStatus } from "@/components/map/usePintDrops";
 import VenueDrinkPrices from "@/components/map/VenueDrinkPrices";
 import VenuePriceEntryPanel from "./VenuePriceEntryPanel";
 import VenueSpoonsValueRow from "./VenueSpoonsValueRow";
+import OverviewFold from "./OverviewFold";
+import VenueCorrectionDoor from "./VenueCorrectionDoor";
+import VenueKitchenReport from "./VenueKitchenReport";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { usePriceEvidenceMission } from "@/components/nearme/usePriceEvidenceMission";
 import VenueRecordSummary from "./VenueRecordSummary";
@@ -72,6 +77,7 @@ import { listedCheapPintShare } from "@/lib/venuePintShare";
 import type { PriceEvidenceMission } from "@/lib/priceEvidenceMissions";
 import VenueCommunitySignals from "@/components/map/VenueCommunitySignals";
 import VenuePriceThen from "@/components/map/VenuePriceThen";
+import MatesPricesLine from "@/components/map/MatesPricesLine";
 import VenueAreaPriceCompare from "@/components/map/VenueAreaPriceCompare";
 import VenuePintNeedle from "@/components/map/VenuePintNeedle";
 import VenueWeatherRecommendations from "@/components/map/VenueWeatherRecommendations";
@@ -90,11 +96,11 @@ import VenueGettingThere, {
 import VenueOccupancyRow from "@/components/map/VenueOccupancyRow";
 import DiaryLogPanel from "@/components/diary/DiaryLogPanel";
 import VisitReportPanel from "@/components/visits/VisitReportPanel";
+import VenueFromThePub from "@/components/operators/VenueFromThePub";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import { cuisineTagsForVenue } from "@/lib/cuisineTags";
 import type { CityId } from "@/lib/cities";
 import type { JourneyPoint } from "@/lib/venueJourney";
-import type { CrawlMode } from "@/components/map/ControlRail";
 import type { TabKey } from "@/lib/venueInspectorTabs";
 import type { PresenceState } from "./usePresence";
 import { useSheetPromptSlot } from "./useSheetPromptSlot";
@@ -109,7 +115,7 @@ import { type DrinkCategory } from "@/lib/drinks";
 import { overviewDisplayablePintGbp } from "@/lib/overviewDisplayablePint";
 import { confirmPintActionName } from "@/lib/pintDropSecondDrinker";
 import type { ZonePintIndex } from "@/lib/zones";
-import { useSheetFooterSlot } from "@/components/mobile/sheetFooterContext";
+import SunChaserVenueLine from "@/components/map/sunChaser/SunChaserVenueLine";
 
 /**
  * The ranked evidence mission for THIS pub, read where the Overview decides
@@ -313,6 +319,25 @@ function PriceDoor({
   );
 }
 
+/** The price door and, beside it, the quiet "That's wrong" door. Both fold away while the composer is open. */
+function PriceDoorRow(props: Parameters<typeof PriceDoor>[0]) {
+  const { venue, composerOpen, onLogTonightPrice } = props;
+  return (
+    <>
+      <PriceDoor {...props} />
+      {isPubVenue(venue) && !composerOpen ? (
+        <VenueCorrectionDoor
+          key={venue.id}
+          venueId={venue.id}
+          venueName={venue.name}
+          onLogPrice={onLogTonightPrice}
+          where="price"
+        />
+      ) : null}
+    </>
+  );
+}
+
 /**
  * A DRINKER'S OWN LOG, printed with what it is still worth beside it.
  *
@@ -327,6 +352,13 @@ function PriceDoor({
  * and the band simply do not render there: two prices have no one number and no
  * one colour. `priceStanding` is deliberately not consulted for any of the
  * three, because a drinker's log is not a published price.
+ *
+ * AN UNCHECKED LOG (a typed price with no bill, captain decision 9) prints in
+ * the same block, visibly weaker and in words rather than a colour: the
+ * drinker is named as "Logged by @handle, not checked", the figure sits on the
+ * NEUTRAL plaque, and the line says what it is waiting for. Colour means the
+ * price band and never trust, so the weakness is the band withheld, never a
+ * hue of its own.
  */
 function DrinkerLogBlock({
   lane,
@@ -345,6 +377,7 @@ function DrinkerLogBlock({
 }) {
   const split = lane.lane === "disputed" ? lane.split : null;
   const figure = venuePriceLaneObservedGbp(lane);
+  const uncheckedBy = venuePriceLaneUncheckedBy(lane);
   const observedAt = lane.lane === "aged" || lane.lane === "provisional" || lane.lane === "disputed"
     ? lane.observedAt
     : null;
@@ -353,15 +386,28 @@ function DrinkerLogBlock({
     ? pintPriceSplitLine(split)
     : lane.lane === "aged"
       ? AGED_PRICE_LINE
-      : PROVISIONAL_PRICE_LINE;
+      : uncheckedBy !== null
+        ? UNCHECKED_PRICE_LINE
+        : PROVISIONAL_PRICE_LINE;
   return (
-    <div className="contributorPrice" {...trustChipAttrs}>
+    <div
+      className="contributorPrice"
+      {...trustChipAttrs}
+      data-price-check={uncheckedBy !== null ? "unchecked" : undefined}
+    >
       <span className={chromeRevealClass}>
         <ClaimBadge kind="contributor" />{" "}
-        {split ? "Logged by PUBMAXXERS" : "Logged by a PUBMAXXER"}
+        {uncheckedBy !== null
+          ? uncheckedPriceLine(uncheckedBy)
+          : split
+            ? "Logged by PUBMAXXERS"
+            : "Logged by a PUBMAXXER"}
       </span>
       {figure !== null ? (
-        <PriceBadge variant="current" band={priceBand(figure, bandArea)}>
+        <PriceBadge
+          variant="current"
+          band={uncheckedBy !== null ? null : priceBand(figure, bandArea)}
+        >
           {formatPrice(figure)}
         </PriceBadge>
       ) : null}
@@ -463,8 +509,11 @@ function VenuePriceSummary({
   const bandArea = priceBandAreaForVenue(venue.id);
   // THE ONE DOOR, decided once here and appended to whichever lane block
   // renders, so no lane can grow a second invitation of its own.
+  // "That's wrong" rides beside it as a quiet text door, never a second price
+  // door: it wears no `priceDoor` class, and its price choice opens this same
+  // log action rather than posting anything.
   const door = (
-    <PriceDoor
+    <PriceDoorRow
       venue={venue}
       door={overviewPriceDoor(trustChipState, lane)}
       composerOpen={composerOpen}
@@ -775,8 +824,13 @@ function amenityRow(
  * What the kitchen is known to do, or nothing. Same shape as the markup it
  * replaces: the sentence prints when food is stated, the chips print when there
  * are any, and a pub with neither renders no row.
+ *
+ * Under them, the drinker's word on tonight's kitchen ("Kitchen open, said
+ * @handle 20 min ago") and the two taps that say it (launch review A1). It sits
+ * on the food row and only there: a pub with no food row has no kitchen to ask
+ * about. It is a dated report, never hours.
  */
-function cuisineRow(servesFood: boolean, cuisineTags: readonly string[]) {
+function cuisineRow(servesFood: boolean, cuisineTags: readonly string[], venueId: string) {
   if (!servesFood && cuisineTags.length === 0) return null;
   return (
     <div className="cuisineRow" aria-label="Food and cuisine">
@@ -797,6 +851,7 @@ function cuisineRow(servesFood: boolean, cuisineTags: readonly string[]) {
           ))}
         </div>
       ) : null}
+      <VenueKitchenReport key={venueId} venueId={venueId} />
     </div>
   );
 }
@@ -828,6 +883,40 @@ function accessibilityRow(accessChips: readonly string[], quietHours: string | n
   );
 }
 
+/**
+ * Whether the Price fold has anything it can show. Every block in it is
+ * already conditional; this is the same conditions read once, so a fold with
+ * nothing in it never renders a summary. The Spoons row and the history line
+ * ride the resting pint view, which every pub already passes.
+ */
+function overviewPriceFoldPresent(
+  experienceLens: MapExperienceLens,
+  showsPriceSummary: boolean,
+  pub: boolean,
+): boolean {
+  return experienceLens !== "food" || showsPriceSummary || pub;
+}
+
+/**
+ * How the journey fold mounts. The inspector names a caller's "check the last
+ * train" ask with `journeyFoldOpenKey`, the same key it gives the getting-home
+ * fold it opens, and the journey fold takes that key and mounts open, so the
+ * ask that opens the getting-home fold also opens the fold around it. With no
+ * ask it mounts shut under a fixed key.
+ */
+function journeyFoldMount(openKey: string | null | undefined): { key: string; open: boolean } {
+  return openKey ? { key: `journey:${openKey}`, open: true } : { key: "journey", open: false };
+}
+
+/**
+ * The board reader's door (round 5): pubs only, and never prefetched, because
+ * the link prefetch fence refuses prefetching a heavy route. Its own component
+ * so the tab's render keeps its complexity budget.
+ */
+function BoardReaderDoor({ venue }: { venue: Venue }) {
+  return isPubVenue(venue) ? <Link prefetch={false} className="venuePubPageLink" data-testid="board-reader-door" href={`/board/${encodeURIComponent(venue.id)}` as Route}>Photo of the board</Link> : null;
+}
+
 function PubPageLink({ venue }: { venue: Venue }) {
   if (!isPubVenueKind(venue.kind)) return null;
   return (
@@ -841,8 +930,6 @@ export default function VenueOverviewTab({
   venue,
   tab,
   cityId,
-  mode,
-  inCrawl,
   latestContributorPrice,
   latestPintDropAt,
   confirmedPrice,
@@ -853,7 +940,6 @@ export default function VenueOverviewTab({
   communityPrices,
   experienceLens,
   drinkLensCategory = null,
-  onToggleStop,
   presenceState,
   markPresenceHere,
   userLocation,
@@ -874,12 +960,11 @@ export default function VenueOverviewTab({
   revealRecordLate = false,
   now,
   gettingHome = null,
+  journeyFoldOpenKey,
 }: {
   venue: Venue;
   tab: TabKey;
   cityId: CityId;
-  mode: CrawlMode;
-  inCrawl: boolean;
   latestContributorPrice: number | null | undefined;
   /** Epoch ms of the latest Pint Drop (unmerged drop signal) - lets the
    *  submit receipt refuse to claim the map when a newer drop outranks the
@@ -906,7 +991,6 @@ export default function VenueOverviewTab({
   experienceLens: MapExperienceLens;
   /** Selected-drink map lens (e.g. coffee). Never the no-alcohol experience. */
   drinkLensCategory?: DrinkCategory | null;
-  onToggleStop: (id: string) => void;
   presenceState: PresenceState;
   markPresenceHere: () => void;
   userLocation: JourneyPoint | null;
@@ -915,6 +999,9 @@ export default function VenueOverviewTab({
   onClearLocation: () => void;
   /** The getting-home fold, beside getting there. It was the seventh tab. */
   gettingHome?: ReactNode;
+  /** A caller's "check the last train" ask, by its key, or null. Opens the
+   *  journey fold on mount, once per new key; the reader can still shut it. */
+  journeyFoldOpenKey?: string | null;
   /** The log door: the community price path, soft-gated by the sheet, which
    *  answers by raising `priceFocusRequest` or `priceSignInRequested`. */
   onLogTonightPrice: () => void;
@@ -937,8 +1024,6 @@ export default function VenueOverviewTab({
   revealRecordLate?: boolean;
   now?: number;
 }) {
-  // The phone portal sheet hands down its footer slot; desktop has none.
-  const phoneSheet = useSheetFooterSlot() !== null;
   // Known-true accessibility facts only (PRD issue #28). Unknown/known-false
   // facets render nothing — never a "No" — per the provenance-honesty rule.
   const accessChips = accessibilityChipLabels(venue);
@@ -1067,6 +1152,8 @@ export default function VenueOverviewTab({
   }, [priceAnswered]);
 
   const anchorStamp = anchorMonthLabel(venue.anchorObservedAt);
+  const priceFoldPresent = overviewPriceFoldPresent(experienceLens, showsPriceSummary, pub);
+  const journeyFold = journeyFoldMount(journeyFoldOpenKey);
 
   return (
     <div
@@ -1076,311 +1163,343 @@ export default function VenueOverviewTab({
       className="venueTabPanel"
       hidden={tab !== "overview"}
     >
-      {/* THE PRICE COMES FIRST AFTER THE NAME (product owner, UX audit,
-          16 Oct 2026). A pub page is asked one question before any other,
-          what a pint costs here, so the whole price area (tonight's rows,
-          the price on record with its one door, the then-and-now line, the
-          patch yardstick and the folded composer) leads the Overview, and
-          the address, the record and the practical details follow it. */}
-      {/* Tonight's community prices sit ATOP the price on record, never
-          instead of it: their own rows, their own dated badges, and the
-          sourced / baseline row below still renders untouched. A submission is
-          an extra dated observation - it never overwrites a scraped or sourced
-          figure. One row per drink, the map's lane first, so a cocktail map
-          never opens a pub on somebody's coffee.
-          Reporting stays public on every row because a reader must be able to
-          challenge a displayed observation without becoming a contributor. The
-          flag is recorded for a human - it does not hide the row. */}
-      {experienceLens === "food" ? null : (
-        <VenueDrinkPrices
+      {/* Sun Chaser's estimate, only while its chip is on (main, 30 Oct 2026).
+          Above every fold, so the answer the reader turned the chip on for is
+          never behind a closed summary; the address it used to sit under now
+          lives in The pub fold. */}
+      <SunChaserVenueLine venueId={venue.id} />
+      {/* FIVE FOLDS, ONE OPEN (launch UX V1, 30 Oct 2026). The order and every
+          summary word live in lib/venueOverviewFolds.ts. Price leads and is the
+          only fold open on arrival, because a pub page is asked one question
+          before any other: what a pint costs here (product owner, UX audit,
+          16 Oct 2026). Every block below kept its own condition and its own
+          behaviour; only its fold changed. */}
+      <OverviewFold foldKey="price" present={priceFoldPresent}>
+        {/* Tonight's community prices sit ATOP the price on record, never
+            instead of it: their own rows, their own dated badges, and the
+            sourced / baseline row below still renders untouched. A submission
+            is an extra dated observation - it never overwrites a scraped or
+            sourced figure. One row per drink, the map's lane first, so a
+            cocktail map never opens a pub on somebody's coffee.
+            Reporting stays public on every row because a reader must be able
+            to challenge a displayed observation without becoming a
+            contributor. The flag is recorded for a human - it does not hide
+            the row. */}
+        {experienceLens === "food" ? null : (
+          <VenueDrinkPrices
+            venueId={venue.id}
+            venueName={venue.name}
+            rows={drinkPriceRows}
+            activeLane={leadLane}
+            laneNoun={leadLaneNoun}
+            readStatus={overviewDrinkPriceReadStatus(pub, leadLane, venueReadStatus, dropReadStatus)}
+            laneLoggedPriceShown={laneLoggedPriceShown}
+            priceShownFromAnotherLane={priceShownFromAnotherLane}
+            inviteOwnedElsewhere={drinkInviteOwnedElsewhere}
+            communityPrices={communityPrices}
+            onLogPrice={logTonightPrice}
+            canLog={isPubVenue(venue)}
+            priceRevealMotionClass={priceRevealMotionClass}
+            revealRecord={revealRecord}
+            revealRecordLate={revealRecordLate}
+          />
+        )}
+        <MatesPricesLine venueId={venue.id} />
+        {/* The shared price lane owns precedence. Never imply a live feed.
+            Non-pub venues carry a type-specific anchor (a cocktail, a doner).
+            It renders under its own label with date and source, never as a
+            pint figure. A selected-drink lens already answered above, so a
+            beer baseline must not stand in for coffee (or wine, or soft
+            drink). */}
+        {showsPriceSummary ? (
+          <VenuePriceSummary
+            venue={venue}
+            lane={priceLane}
+            confirmedPrice={confirmedPrice}
+            sourcedObserved={sourcedObserved}
+            anchorStamp={anchorStamp}
+            composerOpen={composerOpen}
+            dropReadStatus={dropReadStatus}
+            priceReadStatus={venueReadStatus}
+            onLogTonightPrice={logTonightPrice}
+            onConfirmPrice={onConfirmPrice}
+            priceRevealMotionClass={
+              drinkPriceRows?.length ? "" : priceRevealMotionClass
+            }
+          />
+        ) : null}
+        {/* The submission loop itself: pick a drink, type tonight's price, and
+            the pin, the list row and the row above restamp on the same tap.
+            Pubs only — a Pint Drop at a bar or late-food venue would
+            feed a non-pint figure into the pint record. FOLDED until the one
+            door above opens it: the panel's effects (the venue read, the
+            viewed event) still run, and the form itself mounts only on
+            `composerOpen`. */}
+        {isPubVenue(venue) ? (
+          <VenuePriceEntryPanel
+            // Keyed by venue so the chosen drink, the typed price and the
+            // receipt never leak across pubs - this instance persists between
+            // selections.
+            key={venue.id}
+            venueId={venue.id}
+            venueName={venue.name}
+            communityPrices={communityPrices}
+            canSubmitPrice={priceEntryAllowed}
+            showSignInGate={priceSignInRequested}
+            authLoading={priceAuthLoading}
+            baselinePriceGbp={latestContributorPrice ?? venue.cheapestPrice}
+            latestPintDropAt={latestPintDropAt}
+            focusRequest={priceFocusRequest}
+            includeSignals={false}
+            open={composerOpen && promptSlot.priceGateOpen(priceSignInRequested)}
+            // The composer opens on the drink the map is under, so a cocktail
+            // map does not ask a drinker to find cocktails again.
+            laneCategory={leadLane}
+            mission={mission.mission}
+            missionPending={mission.pending}
+            onDismissMission={mission.dismiss}
+            onMissionFulfilled={mission.complete}
+            onLogged={(loggedId) => {
+              setLoggedVenueId(loggedId);
+              onLogged?.(loggedId);
+            }}
+          />
+        ) : null}
+        {/* The board reader is a price write, so its door stays in the Price
+            fold (open on arrival) beside the composer, not with the address
+            in the closed pub fold. */}
+        <BoardReaderDoor venue={venue} />
+        {/* The late price reads land at the FOOT of the Price fold, under the
+            door and the composer, so the one price action never moves under a
+            finger while they arrive. */}
+        {/* What a tenner buys here, when this pub is one of the Wetherspoons
+            the Spoons value ranking holds. Its own heading names the question,
+            so it reads on its own away from today's price, and it renders
+            nothing for every other pub. Never a price lane: the figure is a
+            units count somebody else read off a menu (lib/spoonsValue.ts). */}
+        <VenueSpoonsValueRow venueId={venue.id} visible={restingPintView} />
+        {/* What a pint here used to cost: one dated figure from the archives,
+            against the price on record now. Its line prints both figures
+            ("£3.10 in Jun 2019. £5.40 now."), so it reads on its own away from
+            today's price. History only - the old figure never enters bands,
+            pins, cheapest buckets or the Pint Index (lib/priceHistory.ts).
+            Renders nothing for a pub with no history. Hidden under a drink
+            lens: an old pint does not answer coffee. */}
+        {restingPintView ? (
+          <VenuePriceThen
+            venueId={venue.id}
+            // "Now" is only offered where today's figure is a pint. A bar or
+            // food venue's cheapestPrice is an anchor price (a cocktail, a
+            // dish), so it is withheld rather than compared against an old pint.
+            currentPriceGbp={isPubVenue(venue) ? overviewPintGbp : null}
+          />
+        ) : null}
+        {/* Patch yardstick: this pint against the borough Pint Index average,
+            or the fare-zone median when the Index has no row. Its line names
+            the pint it compares ("£4.20 here."), so it reads on its own away
+            from the price block. Renders nothing without a yardstick.
+            Beside it, where this pint sits against its city: a half-dial of the
+            city's three price bands, read through lib/priceBand.ts like the
+            pin, so the two can never disagree. Renders nothing without a pint. */}
+        {restingPintView && isPubVenue(venue) ? (
+          <>
+            <VenueAreaPriceCompare
+              priceGbp={overviewPintGbp}
+              primaryBorough={venue.primaryBorough}
+              zone={venue.zone}
+              zoneIndex={zoneIndex}
+            />
+            <VenuePintNeedle venueId={venue.id} priceGbp={overviewPintGbp} />
+          </>
+        ) : null}
+      </OverviewFold>
+      {/* No plan action here at any width: the action card's ONE plan door
+          (components/map/inspector/VenueActionCard.tsx, lib/venuePlanDoor.ts)
+          owns adding this pub, and stays in view while this tab scrolls. */}
+      <OverviewFold foldKey="tonight">
+        <VenueOccupancyRow
           venueId={venue.id}
-          venueName={venue.name}
-          rows={drinkPriceRows}
-          activeLane={leadLane}
-          laneNoun={leadLaneNoun}
-          readStatus={overviewDrinkPriceReadStatus(pub, leadLane, venueReadStatus, dropReadStatus)}
-          laneLoggedPriceShown={laneLoggedPriceShown}
-          priceShownFromAnotherLane={priceShownFromAnotherLane}
-          inviteOwnedElsewhere={drinkInviteOwnedElsewhere}
-          communityPrices={communityPrices}
-          onLogPrice={logTonightPrice}
-          canLog={isPubVenue(venue)}
-          priceRevealMotionClass={priceRevealMotionClass}
+          active={tab === "overview"}
           revealRecord={revealRecord}
           revealRecordLate={revealRecordLate}
         />
-      )}
-      {/* The shared price lane owns precedence. Never imply a live feed.
-          Non-pub venues carry a type-specific anchor (a cocktail, a doner).
-          It renders under its own label with date and source, never as a
-          pint figure. A selected-drink lens already answered above, so a beer
-          baseline must not stand in for coffee (or wine, or soft drink). */}
-      {showsPriceSummary ? (
-        <VenuePriceSummary
-          venue={venue}
-          lane={priceLane}
-          confirmedPrice={confirmedPrice}
-          sourcedObserved={sourcedObserved}
-          anchorStamp={anchorStamp}
-          composerOpen={composerOpen}
-          dropReadStatus={dropReadStatus}
-          priceReadStatus={venueReadStatus}
-          onLogTonightPrice={logTonightPrice}
-          onConfirmPrice={onConfirmPrice}
-          priceRevealMotionClass={
-            drinkPriceRows?.length ? "" : priceRevealMotionClass
-          }
+        <VenueWeatherRecommendations
+          key={`weather-recommendations-${venue.id}`}
+          venueId={venue.id}
+          venueName={venue.name}
         />
-      ) : null}
-      {/* The submission loop itself: pick a drink, type tonight's price, and
-          the pin, the list row and the row above restamp on the same tap.
-          Pubs only — a Pint Drop at a bar or late-food venue would
-          feed a non-pint figure into the pint record. FOLDED until the one
-          door above opens it: the panel's effects (the venue read, the viewed
-          event) still run, and the form itself mounts only on `composerOpen`. */}
-      {isPubVenue(venue) ? (
-        <VenuePriceEntryPanel
-          // Keyed by venue so the chosen drink, the typed price and the receipt
-          // never leak across pubs - this instance persists between selections.
+        <div className="presenceHere">
+          {presenceState === "here" ? (
+            <p
+              className="presenceHereConfirm"
+              role="status"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "6px",
+                margin: "12px 0 0",
+                minHeight: "42px",
+                fontWeight: 700,
+                color: "var(--state-active-ink)",
+              }}
+            >
+              <MapPin size={16} aria-hidden="true" /> You&rsquo;re here
+            </p>
+          ) : (
+            <button
+              type="button"
+              className="addStopBtn"
+              onClick={() => {
+                promptSlot.claim("presence");
+                markPresenceHere();
+              }}
+              disabled={presenceState === "sending"}
+              aria-label={`Mark that you're at ${venue.name} tonight`}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "6px",
+              }}
+            >
+              <MapPin size={16} aria-hidden="true" />
+              {presenceState === "sending" ? "Checking in…" : "I'm here"}
+            </button>
+          )}
+          {presenceState === "no-handle" && promptSlot.owner === "presence" ? (
+            <p
+              className="description muted"
+              style={{ marginTop: "8px", fontSize: "0.82rem" }}
+            >
+              Claim a handle to check in.{" "}
+              <Link href="/u/you" className="sheetPromptLink">
+                Set yours
+              </Link>
+              .
+            </p>
+          ) : null}
+        </div>
+      </OverviewFold>
+      {/* Keyed by the caller's "check the last train" ask, so each ask mounts
+          this fold open around the getting-home fold it opens. */}
+      <OverviewFold
+        key={journeyFold.key}
+        foldKey="journey"
+        openOnMount={journeyFold.open}
+      >
+        <VenueGettingThere
+          userLocation={userLocation}
+          venueLocation={{ lat: venue.latitude, lng: venue.longitude }}
+          londonTransit={cityId === "london"}
+          locationRequestStatus={locationRequestStatus}
+          onRequestLocation={onRequestLocation}
+          onClearLocation={onClearLocation}
+        />
+        {gettingHome}
+      </OverviewFold>
+      <OverviewFold foldKey="pub">
+        <p className="venueAddress">{venue.address}</p>
+        {/* The pub's own page: prices, hours, what's there and what your lot
+            said, laid out on one screen (app/pubs/[id]). */}
+        <PubPageLink venue={venue} />
+        <VenueRecordSummary copy={venue.recordCopy} />
+        <VenueActionStrip venue={venue} />
+        <VenuePlacesDetails venue={venue} links />
+        <VenueSiteDetails venue={venue} />
+        <VenueOsmDetails facts={venue.osmFacts} />
+        {/* "That's wrong" on the hours and the listed facts above it: shut,
+            wrong hours, or something else, sent to a person. */}
+        <VenueCorrectionDoor
           key={venue.id}
           venueId={venue.id}
           venueName={venue.name}
-          communityPrices={communityPrices}
-          canSubmitPrice={priceEntryAllowed}
-          showSignInGate={priceSignInRequested}
-          authLoading={priceAuthLoading}
-          baselinePriceGbp={latestContributorPrice ?? venue.cheapestPrice}
-          latestPintDropAt={latestPintDropAt}
-          focusRequest={priceFocusRequest}
-          includeSignals={false}
-          open={composerOpen && promptSlot.priceGateOpen(priceSignInRequested)}
-          // The composer opens on the drink the map is under, so a cocktail map
-          // does not ask a drinker to find cocktails again.
-          laneCategory={leadLane}
-          mission={mission.mission}
-          missionPending={mission.pending}
-          onDismissMission={mission.dismiss}
-          onMissionFulfilled={mission.complete}
-          onLogged={(loggedId) => {
-            setLoggedVenueId(loggedId);
-            onLogged?.(loggedId);
-          }}
+          onLogPrice={logTonightPrice}
+          offerPrice={isPubVenue(venue)}
+          where="details"
         />
-      ) : null}
-      <p className="venueAddress">{venue.address}</p>
-      {/* The pub's own page: prices, hours, what's there and what your lot
-          said, laid out on one screen (app/pubs/[id]). */}
-      <PubPageLink venue={venue} />
-      <VenueRecordSummary copy={venue.recordCopy} />
-      <VenueActionStrip venue={venue} />
-      <VenueOccupancyRow
-        venueId={venue.id}
-        active={tab === "overview"}
-        revealRecord={revealRecord}
-        revealRecordLate={revealRecordLate}
-      />
-      {/* The Diary: one tap to log a visit to this pub. Private to its owner. */}
-      {isPubVenueKind(venue.kind) ? (
-        <DiaryLogPanel venueId={venue.id} venueName={venue.name} />
-      ) : null}
-      {/* Visit Report peek: newest accounts only. The full composer stays on
-          Lore (VenueStoryTab), so Overview never grows a second rating system. */}
-      <VisitReportPanel
-        venueId={venue.id}
-        venueName={venue.name}
-        mode="peek"
-        active={tab === "overview"}
-        onOpenFull={onOpenVisitReports}
-      />
-      <Disclosure
-        className="venueOverviewMore"
-        bodyClassName="venueOverviewMoreBody"
-        summary="Details and practical info"
-      >
-      <VenueGettingThere
-        userLocation={userLocation}
-        venueLocation={{ lat: venue.latitude, lng: venue.longitude }}
-        londonTransit={cityId === "london"}
-        locationRequestStatus={locationRequestStatus}
-        onRequestLocation={onRequestLocation}
-        onClearLocation={onClearLocation}
-      />
-      <VenuePlacesDetails venue={venue} links />
-      <VenueSiteDetails venue={venue} />
-      <VenueOsmDetails facts={venue.osmFacts} />
-      <CityPlaceStrip
-        venueId={venue.id}
-        venueName={venue.name}
-        latitude={venue.latitude}
-        longitude={venue.longitude}
-        primaryBorough={venue.primaryBorough}
-        cityId={cityId}
-      />
-      {/* "What people say" (task A3) — AI-synthesised third-party buzz via
-          CityMCP, honestly labelled. Never community/editorial content. */}
-      <VenueBuzz
-        venueId={venue.id}
-        venueName={venue.name}
-        latitude={venue.latitude}
-        longitude={venue.longitude}
-        primaryBorough={venue.primaryBorough}
-        cityId={cityId}
-      />
-      {/* Fresh-facts layer (Cycle 15 Lane A): an engraved brass plaque when a
-          venue-matched award fact exists for this pin. Renders nothing otherwise. */}
-      <VenueAwardBadge venueId={venue.id} />
-      {amenityRow(amenityChips)}
-      {cuisineRow(servesFood, cuisineTags)}
-      {accessibilityRow(accessChips, quietHours)}
-          <VenueWeatherRecommendations
-            key={`weather-recommendations-${venue.id}`}
-            venueId={venue.id}
-            venueName={venue.name}
-          />
-          {/* Quest chips show supporting profile progress, not a primary
-              decision about this venue. Keep them with the optional detail. */}
-          <NextBadgeChips />
-      </Disclosure>
-      {gettingHome}
-      {/* Desktop only: on a phone the peek's ONE plan door owns the crawl
-          toggle (lib/venuePlanDoor.ts), and this would be a second. */}
-      {mode === "build" && isPubVenue(venue) && !phoneSheet ? (
-        <button
-          className="addStopBtn"
-          aria-pressed={inCrawl}
-          onClick={() => onToggleStop(venue.id)}
-        >
-          {inCrawl ? "Remove from crawl" : "Add to crawl"}
-        </button>
-      ) : null}
-      <SaveToListControl
-        venueId={venue.id}
-        venueName={venue.name}
-        venueKind={venue.kind}
-        open={promptSlot.owner === "list"}
-        onOpenChange={(open) => promptSlot.claim(open ? "list" : null)}
-      />
-      <SaveForNightButton
-        venueId={venue.id}
-        venueName={venue.name}
-        active={promptSlot.allows("night")}
-        onActivate={() => promptSlot.claim("night")}
-      />
-      <div className="presenceHere">
-        {presenceState === "here" ? (
-          <p
-            className="presenceHereConfirm"
-            role="status"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "6px",
-              margin: "12px 0 0",
-              minHeight: "42px",
-              fontWeight: 700,
-              color: "var(--state-active-ink)",
-            }}
-          >
-            <MapPin size={16} aria-hidden="true" /> You&rsquo;re here
-          </p>
-        ) : (
-          <button
-            type="button"
-            className="addStopBtn"
-            onClick={() => {
-              promptSlot.claim("presence");
-              markPresenceHere();
-            }}
-            disabled={presenceState === "sending"}
-            aria-label={`Mark that you're at ${venue.name} tonight`}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "6px",
-            }}
-          >
-            <MapPin size={16} aria-hidden="true" />
-            {presenceState === "sending" ? "Checking in…" : "I'm here"}
-          </button>
-        )}
-        {presenceState === "no-handle" && promptSlot.owner === "presence" ? (
-          <p
-            className="description muted"
-            style={{ marginTop: "8px", fontSize: "0.82rem" }}
-          >
-            Claim a handle to check in.{" "}
-            <Link href="/u/you" className="sheetPromptLink">
-              Set yours
-            </Link>
-            .
-          </p>
-        ) : null}
-      </div>
-      {/* Late supplemental reads stay below the main controls. The area
-          comparison can arrive between pointer press and release, so it must
-          not move the list, night, check-in or getting-home controls. */}
-      {/* What a tenner buys here, when this pub is one of the Wetherspoons the
-          Spoons value ranking holds. Its own heading names the question, so it
-          reads on its own away from today's price, and it renders nothing for
-          every other pub. Never a price lane: the figure is a units count
-          somebody else read off a menu (lib/spoonsValue.ts). */}
-      <VenueSpoonsValueRow venueId={venue.id} visible={restingPintView} />
-      {/* What a pint here used to cost: one dated figure from the archives,
-          against the price on record now. Its line prints both figures
-          ("£3.10 in Jun 2019. £5.40 now."), so it reads on its own away from
-          today's price. History only - the old figure never enters bands,
-          pins, cheapest buckets or the Pint Index (lib/priceHistory.ts).
-          Renders nothing for a pub with no history. Hidden under a drink
-          lens: an old pint does not answer coffee. */}
-      {restingPintView ? (
-        <VenuePriceThen
+        {/* "From the pub" and the quiet "Run this pub?" door: one row. */}
+        <VenueFromThePub venueId={venue.id} venueName={venue.name} offerClaim={isPubVenueKind(venue.kind)} />
+        <CityPlaceStrip
           venueId={venue.id}
-        // "Now" is only offered where today's figure is a pint. A bar or food
-        // venue's cheapestPrice is an anchor price (a cocktail, a dish), so it
-        // is withheld rather than compared against an old pint.
-          currentPriceGbp={isPubVenue(venue) ? overviewPintGbp : null}
+          venueName={venue.name}
+          latitude={venue.latitude}
+          longitude={venue.longitude}
+          primaryBorough={venue.primaryBorough}
+          cityId={cityId}
         />
-      ) : null}
-      {/* Patch yardstick: this pint against the borough Pint Index average, or
-          the fare-zone median when the Index has no row. Its line names the
-          pint it compares ("£4.20 here."), so it reads on its own away from
-          the price block. Renders nothing without a yardstick.
-          Beside it, where this pint sits against its city: a half-dial of the
-          city's three price bands, read through lib/priceBand.ts like the pin,
-          so the two can never disagree. Renders nothing without a pint. */}
-      {restingPintView && isPubVenue(venue) ? (
-        <>
-          <VenueAreaPriceCompare
-            priceGbp={overviewPintGbp}
-            primaryBorough={venue.primaryBorough}
-            zone={venue.zone}
-            zoneIndex={zoneIndex}
-          />
-          <VenuePintNeedle venueId={venue.id} priceGbp={overviewPintGbp} />
-        </>
-      ) : null}
-      {/* FSA food hygiene rating (FHRS), matched by postcode + fuzzy name
-          server-side. Renders nothing for an unmatched pub. */}
-      <VenueHygiene
-        venueId={venue.id}
-        venueName={venue.name}
-        address={venue.address}
-      />
-      {/* Read-first community observations: character, access and eating sit
-          here so drinkers see them without opening price submit. Authoring
-          stays on the price-entry path above (VenuePriceEntryPanel). The same
-          venue-price read status feeds both, so a failed lookup never words
-          as an empty pub. */}
-      <VenueCommunitySignals
-        venueId={venue.id}
-        venueName={venue.name}
-        signals={communityPrices.signalsByVenueId.get(venue.id) ?? []}
-        readStatus={venueReadStatus}
-        now={now}
-        readOnly
-      />
+        {/* "What people say" (task A3) — AI-synthesised third-party buzz via
+            CityMCP, honestly labelled. Never community/editorial content. */}
+        <VenueBuzz
+          venueId={venue.id}
+          venueName={venue.name}
+          latitude={venue.latitude}
+          longitude={venue.longitude}
+          primaryBorough={venue.primaryBorough}
+          cityId={cityId}
+        />
+        {/* Fresh-facts layer (Cycle 15 Lane A): an engraved brass plaque when
+            a venue-matched award fact exists for this pin. Renders nothing
+            otherwise. */}
+        <VenueAwardBadge venueId={venue.id} />
+        {amenityRow(amenityChips)}
+        {cuisineRow(servesFood, cuisineTags, venue.id)}
+        {accessibilityRow(accessChips, quietHours)}
+        {/* FSA food hygiene rating (FHRS), matched by postcode + fuzzy name
+            server-side. Renders nothing for an unmatched pub. Said once: the
+            place strip above stays silent once the FSA has answered. */}
+        <VenueHygiene
+          venueId={venue.id}
+          venueName={venue.name}
+          address={venue.address}
+        />
+        {/* Read-first community observations: character, access and eating
+            sit here so drinkers see them without opening price submit.
+            Authoring stays on the price-entry path (VenuePriceEntryPanel). The
+            same venue-price read status feeds both, so a failed lookup never
+            words as an empty pub. */}
+        <VenueCommunitySignals
+          venueId={venue.id}
+          venueName={venue.name}
+          signals={communityPrices.signalsByVenueId.get(venue.id) ?? []}
+          readStatus={venueReadStatus}
+          now={now}
+          readOnly
+        />
+      </OverviewFold>
+      <OverviewFold foldKey="record">
+        {/* The Diary: one tap to log a visit to this pub. Private to its
+            owner. */}
+        {isPubVenueKind(venue.kind) ? (
+          <DiaryLogPanel venueId={venue.id} venueName={venue.name} />
+        ) : null}
+        {/* Visit Report peek: newest accounts only. The full composer stays on
+            Lore (VenueStoryTab), so Overview never grows a second rating
+            system. */}
+        <VisitReportPanel
+          venueId={venue.id}
+          venueName={venue.name}
+          mode="peek"
+          active={tab === "overview"}
+          onOpenFull={onOpenVisitReports}
+        />
+        <SaveToListControl
+          venueId={venue.id}
+          venueName={venue.name}
+          venueKind={venue.kind}
+          open={promptSlot.owner === "list"}
+          onOpenChange={(open) => promptSlot.claim(open ? "list" : null)}
+        />
+        <SaveForNightButton
+          venueId={venue.id}
+          venueName={venue.name}
+          active={promptSlot.allows("night")}
+          onActivate={() => promptSlot.claim("night")}
+        />
+        {/* Quest chips show supporting profile progress, not a primary
+            decision about this venue. */}
+        <NextBadgeChips />
+      </OverviewFold>
     </div>
   );
 }

@@ -29,6 +29,33 @@ The `/map` route loads London. Crawl-state rewrites preserve the pathname.
 Legacy `/map/uk` and `/map/uk/1` routes redirect permanently to `/map?uk=1`
 through `next.config.mjs`.
 
+## Browser preview parameters
+
+These parameters also apply to Home and pages with shared navigation.
+The [README](../README.md#features) owns the selector's controls and feature availability.
+[`lib/wildMode.ts`](../lib/wildMode.ts) owns the existing `wild` master switch.
+[`lib/wildNightPreview.ts`](../lib/wildNightPreview.ts) owns `wildpreview` and the accepted idea keys.
+
+`wildpreview` replaces the browser's saved selection with the requested idea.
+Without that parameter, the saved selection applies.
+`wildpreview=off`, an unknown value, or an old `wildpreview=pub-tarot` link clears the selection.
+Selecting an idea does not enable the master switch.
+`useWildNightPreview` permits an idea only when both the master switch and that idea's selection are on.
+The selector does not change the existing master-only design previews.
+
+The shared navigation observer also adopts query-only client navigation while the page stays mounted.
+An explicit preview-off or master-off URL prevents the selected idea from rendering before adoption finishes.
+The preview consumer removes every `wildpreview` parameter with `history.replaceState`.
+It preserves unrelated query bytes, the pathname, the hash, the history state, and the history length.
+The master switch removes its own parameter separately.
+If the browser blocks history changes, the URL can retain the parameter after adoption.
+
+The choice belongs to this browser on this device and survives account changes.
+Storage events update other tabs, including preview removal and cleared storage.
+If preview storage fails, an in-memory choice lasts only for the current document.
+If master-switch storage also fails, the master stays off and the selector remains hidden.
+These preferences provide no access-control boundary.
+
 ## History and filter synchronisation
 
 `useMapOpeningArrival` reads the opening URL once per mounted map. Later `q`
@@ -55,6 +82,18 @@ the URL or a resume seed (`restoredSessionFrame` in `lib/pubMap.ts`).
 Regression cases live in
 [`mapCrawlUrlSync.test.tsx`](../__tests__/mapCrawlUrlSync.test.tsx).
 
+Walking-route links also reach a map that stays mounted during client navigation.
+`useMapPlanCoordinator` identifies each incoming history entry separately from its ordered stops.
+A new external entry adopts those stops, makes the walk visible and clears any previous curated-crawl identity.
+This also applies when consecutive external entries name the same walk.
+Without `sel`, the link closes the old venue selection and makes the landed entry the map's root.
+With `sel`, it selects that pub within the linked walk.
+`useCrawlUrlSync` stamps its own history writes with `pubmaxCrawlUrl`.
+Those writes cannot restore a hidden walk or replace the reader's edited stops.
+Pending writes retain their originating history entry and yield to a new external walking-route entry, including the same walk.
+`buildCrawlMapHref` in `lib/crawlUrl.ts` selects the stops' city path and rejects mixed-city lists or fewer than two stops.
+Regression cases live in `__tests__/mapWalkingRouteAdoption.test.tsx` and `e2e/map-crawl-spa-handoff.spec.ts`.
+
 The [map camera and search contract](rules/components-map-canvas-and-pins.md#a-camera-move-has-an-owner-and-the-map-a-reader-is-looking-at-loads-first)
 owns query framing, surrounding price pins, and sheet behavior after reload.
 
@@ -75,7 +114,7 @@ selection replaces it. A different area selection updates it. If a link has
 both `area` and a non-empty `q` or `sel`, the venue query or selection wins.
 A later page load resolves the area against the current city catalogue.
 These links do not require a separate server-rendered map document. The
-[area-root contract](specs/governed-priced-landings/PRODUCT.md#held-areaarea)
+[area-root contract](specs/governed-priced-landings/PRODUCT.md#the-area-root-areaarea)
 owns `/area/{area}` redirects.
 
 ## Fail-soft for an unknown `?sel=`
@@ -152,7 +191,7 @@ While the card is on screen, the analytics consent prompt stands down. See
 | `lat` | Number | `app/map/page.tsx`, `lib/ukPlaceSearch.ts` | Latitude for a `place` arrival. | Parsed with `Number()`. A non-finite value means no place arrival. | Same as `place`. |
 | `lng` | Number | `app/map/page.tsx`, `lib/ukPlaceSearch.ts` | Longitude for a `place` arrival. | Parsed with `Number()`. A non-finite value means no place arrival. | Same as `place`. |
 | `uk` | `1` | `lib/ukNationalBrowse.ts`, `app/map/page.tsx` | Explicit UK national browse. Opens a quiet whole-UK overview; pubs appear when you zoom past the base gate (z12). Softens priced-city chrome. | Only exact `1` counts. Combined with a valid `place` arrival, place wins. | Preserved as an owned passthrough param on crawl-state rewrites. |
-| `mapNotice` | `unknown` or `lookup-failed` | `lib/pubMap.ts`, `components/PubMap.tsx`, `components/map/useCrawlUrl.ts` | Carries a map-owned venue-selection notice, such as the unmatched-venue fallback from a Pal card. It never selects a venue. | Other values are ignored. | Consumed into the transient notice and removed with `history.replaceState` after the notice mounts; carried through crawl-state rewrites until then. |
+| `mapNotice` | `unknown` or `lookup-failed` | `lib/mapSelectionNotice.ts` (parameter and unknown notice), `lib/pubMap.ts` (decoding), `components/PubMap.tsx`, `components/map/useCrawlUrl.ts` | Carries a map-owned venue-selection notice, such as the unmatched-venue fallback from a Pal card. It never selects a venue. | Other values are ignored. | Consumed into the transient notice and removed with `history.replaceState` after the notice mounts; carried through crawl-state rewrites until then. |
 | `city` (route segment, not a query parameter) | A known city id | `lib/cities.ts`, `app/map/[city]/page.tsx` | Selects which city's map loads. | `parseCityId` lower-cases and trims the segment. An id outside the known city set returns `null`, and the route responds with `notFound()`. | Not applicable. This is the route path itself, not a value the client rewrites. |
 
 ## Read-only server metadata reads

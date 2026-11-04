@@ -1039,20 +1039,171 @@ export function pubNameSlug(name: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+// --- which branch a page speaks for ----------------------------------------
+//
+// A HOST WITH ONE MATCHED PUB IS NOT A HOST WITH ONE PUB. The snapshot states a
+// website only for the pubs OSM tagged with one, so a chain whose other
+// branches carry no website tag looks, from the snapshot, like one pub's own
+// site. The crawl then counted one pub on the host (`pubsOnHost: 1`) and gave
+// that pub every page it read there. Found on 1 Nov 2026: The Botanist Gas
+// Street Basin (Birmingham) carried £4.95 read off the chain's Barnsley page
+// (`/locations/barnsley/whats-on`), and Simmons in Camden carried prices read
+// off the Shoreditch page (`/venues/shoreditch-cocktail-bar/`).
+//
+// So a page whose path NAMES a branch, in a segment after a word such as
+// `locations`, `venues` or `pubs`, speaks for that branch alone, whatever the
+// pub count says. It is this pub's page when one of those segments shares a
+// word with what the pub states about itself: its name, its locality, its
+// address or the path of its own stated website. A page that names no branch
+// is left to the pub-count rule below.
+//
+// GETTING THIS WRONG IN ONE DIRECTION ONLY. A word this rule cannot read as a
+// branch makes the page "names no branch", which keeps today's answer. Only a
+// page that plainly names a place, and a place the pub never states, is
+// refused.
+
+/** Path segments after which a chain's URL names one of its branches. */
+const BRANCH_PATH_SEGMENTS: ReadonlySet<string> = new Set([
+  "location", "locations", "venue", "venues", "pub", "pubs", "branch", "branches",
+  "bars", "restaurants", "our-pubs", "our-venues", "our-bars", "our-locations", "find-us",
+]);
+
 /**
- * Whether a page on a MULTI-PUB host may speak for one named pub.
+ * Words in a branch path that say nothing about WHICH branch: page words, menu
+ * words, pub words and street words. A singular `bar` or `restaurant` is not a
+ * branch segment above, because a pub's own site files its drinks under them.
+ */
+const NOT_A_BRANCH_WORD: ReadonlySet<string> = new Set([
+  "the", "and", "our", "for", "with", "pub", "pubs", "bar", "bars", "inn", "arms", "tavern",
+  "hotel", "house", "club", "kitchen", "restaurant", "restaurants", "cafe", "cocktail",
+  "cocktails", "menu", "menus", "drink", "drinks", "food", "whats", "what", "offers", "offer",
+  "deals", "events", "event", "page", "home", "index", "html", "htm", "php", "pdf", "wine",
+  "wines", "beer", "beers", "ale", "ales", "cask", "craft", "gin", "spirits", "list", "prices",
+  "price", "tap", "taps", "info", "about", "book", "booking", "bookings", "table", "gallery",
+  "contact", "happy", "hour", "hours", "special", "specials", "latest", "news", "street", "road",
+  "lane", "avenue", "square", "place", "high", "upper", "lower",
+]);
+
+/** Lower case, accents dropped, so "Café" and "cafe" are one word. */
+function foldText(text: string): string {
+  return text.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "");
+}
+
+/** The words of a text, read with its apostrophes both dropped and split, so "Queen's" is "queens" and "queen". */
+function textWords(text: string): string[] {
+  const folded = foldText(text);
+  return [folded.replace(/['’`]/g, ""), folded]
+    .flatMap((spelling) => spelling.split(/[^a-z]+/))
+    .filter((word) => word.length >= 3);
+}
+
+/** A text with everything but its letters gone: "court-house" and "The Courthouse" meet at "courthouse". */
+function compactText(text: string): string {
+  return foldText(text).replace(/[^a-z]/g, "");
+}
+
+/** The path segments after the first branch segment, or null when the path has none. */
+function branchSegments(pageUrl: string): string[] | null {
+  let segments: string[];
+  try {
+    segments = new URL(pageUrl).pathname
+      .split("/")
+      .filter(Boolean)
+      .map((segment) => {
+        try {
+          return foldText(decodeURIComponent(segment));
+        } catch {
+          return foldText(segment);
+        }
+      });
+  } catch {
+    return null;
+  }
+  const at = segments.findIndex((segment) => BRANCH_PATH_SEGMENTS.has(segment));
+  return at === -1 ? null : segments.slice(at + 1);
+}
+
+/** What a pub states about itself that a branch URL could name it by. */
+export type BranchIdentity = {
+  name?: string | null;
+  locality?: string | null;
+  address?: string | null;
+  /** The pub's own stated website (OSM `website`), whose path may name its branch. */
+  website?: string | null;
+};
+
+/**
+ * What a branch URL could name this pub by: each word it states about itself,
+ * and each whole spelling of its name or its website's path, letters only.
+ */
+function branchIdentity(pub: BranchIdentity): { words: Set<string>; names: Set<string> } {
+  const words = new Set<string>();
+  const names = new Set<string>();
+  const addWords = (text: string | null | undefined) => {
+    if (typeof text !== "string") return;
+    for (const word of textWords(text)) words.add(word);
+  };
+  const addName = (text: string) => {
+    addWords(text);
+    for (const spelling of [text, text.replace(/^\s*(the|ye olde|ye)\s+/i, "")]) {
+      const compact = compactText(spelling);
+      if (compact.length >= 4) names.add(compact);
+    }
+  };
+  if (typeof pub.name === "string") addName(pub.name);
+  addWords(pub.locality);
+  addWords(pub.address);
+  if (typeof pub.website === "string" && pub.website.trim().length > 0) {
+    const website = pub.website.includes("//") ? pub.website.trim() : `https://${pub.website.trim()}`;
+    try {
+      for (const segment of new URL(website).pathname.split("/").filter(Boolean)) {
+        let decoded = segment;
+        try {
+          decoded = decodeURIComponent(segment);
+        } catch {
+          // A malformed escape is read as written.
+        }
+        addName(decoded);
+      }
+    } catch {
+      // A website that is not a URL states no branch.
+    }
+  }
+  return { words, names };
+}
+
+/**
+ * Whether a page's own URL names a branch that is NOT this pub. See the section
+ * comment above: a page that names no branch, or names this one, answers false.
+ */
+export function pageNamesAnotherBranch(pageUrl: string, pub: BranchIdentity): boolean {
+  const segments = branchSegments(pageUrl);
+  if (!segments) return false;
+  const named = segments.flatMap((segment) => textWords(segment)).filter((word) => !NOT_A_BRANCH_WORD.has(word));
+  if (named.length === 0) return false;
+  const own = branchIdentity(pub);
+  if (named.some((word) => own.words.has(word))) return false;
+  // "court-house" is The Courthouse and "taps" is The Taps, though no word of
+  // either path is a branch word on its own.
+  return !segments.some((segment) => own.names.has(compactText(segment)));
+}
+
+/**
+ * Whether a page may speak for one named pub.
  *
- * A host serving one pub is that pub's own site, and every page on it is about
- * that pub. A host serving an estate is not: its homepage price is an estate
- * banner, and attributing it to each pub on the host turns one figure into
- * hundreds of wrong ones. So an estate page has to NAME the pub in its own URL
- * before its price may be that pub's.
+ * A page that names ANOTHER branch in its path never may (`pageNamesAnotherBranch`).
+ * Past that, a host serving one pub is that pub's own site, and every page on it
+ * is about that pub. A host serving an estate is not: its homepage price is an
+ * estate banner, and attributing it to each pub on the host turns one figure
+ * into hundreds of wrong ones. So an estate page has to NAME the pub in its own
+ * URL before its price may be that pub's.
  */
 export function pageMayPriceThisPub(
   pageUrl: string,
-  pub: { name?: string | null },
+  pub: BranchIdentity,
   pubsOnHost: number,
 ): boolean {
+  if (pageNamesAnotherBranch(pageUrl, pub)) return false;
   if (pubsOnHost <= 1) return true;
   const name = typeof pub.name === "string" ? pubNameSlug(pub.name) : "";
   if (name.length < 4) return false;

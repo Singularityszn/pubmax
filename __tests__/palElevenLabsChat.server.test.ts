@@ -1253,6 +1253,67 @@ describe("runPalElevenLabsChatTurn", () => {
       await expect(pending).resolves.toMatchObject({ ok: true, message: SOURCED_ANSWER });
     });
 
+    it("keeps the sourced reply when a completed tool response repeats", async () => {
+      wsState.storeFilled = false;
+      wsState.replyScript = [
+        { afterMs: 0, event: toolRequest("call_1") },
+        { afterMs: 400, event: toolResponse("call_1") },
+        { afterMs: 50, event: agentResponse(SOURCED_ANSWER) },
+        { afterMs: 10, event: toolResponse("call_1") },
+        { afterMs: 10, event: responseComplete() },
+      ];
+
+      const pending = runPalElevenLabsChatTurn({
+        query: "Which quiet pubs near Soho have a beer garden?",
+        ownerId: "11111111-1111-4111-8111-111111111111",
+      });
+      await vi.advanceTimersByTimeAsync(22_000);
+
+      await expect(pending).resolves.toMatchObject({
+        ok: true,
+        message: SOURCED_ANSWER,
+        cards: toolTurnPayload.cards,
+      });
+    });
+
+    it.each([
+      {
+        name: "the first response arrives after the reply",
+        beforeReply: [toolRequest("call_1")],
+        afterReply: toolResponse("call_1"),
+      },
+      {
+        name: "the repeated response has no observed request",
+        beforeReply: [toolResponse("call_1")],
+        afterReply: toolResponse("call_1"),
+      },
+      {
+        name: "the repeated response has no call id",
+        beforeReply: [toolRequest(""), toolResponse("")],
+        afterReply: toolResponse(""),
+      },
+      {
+        name: "a new request reopens the completed call id",
+        beforeReply: [toolRequest("call_1"), toolResponse("call_1"), toolRequest("call_1")],
+        afterReply: toolResponse("call_1"),
+      },
+    ])("requires another reply when $name", async ({ beforeReply, afterReply }) => {
+      wsState.replyScript = [
+        ...beforeReply.map((event) => ({ afterMs: 10, event })),
+        { afterMs: 10, event: agentResponse(CHECKING_LINE) },
+        { afterMs: 10, event: afterReply },
+        { afterMs: 10, event: responseComplete() },
+      ];
+
+      const pending = runPalElevenLabsChatTurn({
+        query: "Which quiet pubs near Soho have a beer garden?",
+        ownerId: "11111111-1111-4111-8111-111111111111",
+      });
+      await vi.advanceTimersByTimeAsync(22_000);
+
+      await expect(pending).resolves.toEqual({ ok: false, code: "TIMEOUT" });
+    });
+
     it("times out rather than answer with a checking line when no reply follows its tool", async () => {
       wsState.storeFilled = false;
       wsState.replyScript = [

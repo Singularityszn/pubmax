@@ -1,9 +1,9 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 // getPintDropById is the single leak-proof permalink read (/p/[id] + its OG
 // card). It has two paths chosen by isSupabaseConfigured(): a Supabase read that
-// names ONLY public columns, and a memory fallback over listAllVisiblePintDrops
-// (which always includes the demo seeds). We exercise the memory path here.
+// names ONLY public columns, and a memory fallback over the in-memory store plus
+// the demo seeds when demo content is on. We exercise the memory path here.
 //
 // FORCE the memory path: on Vercel vitest runs with the project's env set — if
 // SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are present, isSupabaseConfigured()
@@ -24,6 +24,13 @@ const SEED = defined(demoPintDrops[0]);
 beforeEach(() => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  // Demo content is opt-in, and these cases read a seed by id. The switch
+  // itself is covered in __tests__/pintDropLookupDemoOptIn.test.ts.
+  process.env.NEXT_PUBLIC_DEMO_CONTENT = "on";
+});
+
+afterEach(() => {
+  delete process.env.NEXT_PUBLIC_DEMO_CONTENT;
 });
 
 describe("getPintDropById — resolves a known visible drop (memory path)", () => {

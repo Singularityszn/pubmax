@@ -15,6 +15,9 @@ import { isMapLensDrinkCategory } from "@/lib/drinks";
 import { parseDrinkSubtypeParam } from "@/lib/drinkSubtypes";
 import { parseZoneParam } from "@/lib/zones";
 import { clamp } from "@/lib/mathClamp";
+import { cityAwareMapPath } from "@/lib/cityMapHref";
+import { cityIdFromVenueId } from "@/lib/cityVenueIds";
+import { appliedPintPriceCap } from "@/lib/pintPriceCaps";
 
 // Alt crawl styles (issue #31): a light "what kind of night" label that rides
 // alongside the scoring crawlStyle without touching it. It only shapes copy —
@@ -121,6 +124,8 @@ export function encodeCrawl(state: CrawlUrlState): string {
   if (filters.requireNonAlcoholic) params.set("low", "1");
   if (filters.requireCocktails) params.set("cocktails", "1");
   if (filters.requireFood) params.set("food", "1");
+  // The beer-garden feature filter, so /gardens can open the map with it on.
+  if (filters.requireBeerGarden) params.set("garden", "1");
   if (filters.query.trim()) params.set("q", filters.query.trim());
   // Drink lens (Wave C): round-trip ?drink= + optional ?brand=.
   const drinkCategory = filters.drinkCategory?.trim();
@@ -160,17 +165,20 @@ export function encodeCrawl(state: CrawlUrlState): string {
 // locked plan page (components/plan/PlanRoute.tsx) uses it to send the ordered
 // stop list to the map, where the road-following crawl route draws. Emits
 // `/map?mode=build&pubs=<ordered ids>` (defaults are omitted, so nothing else
-// clutters the link). Returns null for fewer than two stops — a single stop has
-// no walk to show.
+// clutters the link). Other cities use their own map path. Returns null for
+// fewer than two stops or a mixed-city list, which cannot describe one walk.
 export function buildCrawlMapHref(venueIds: string[]): Route | null {
   const ids = venueIds.filter(Boolean);
-  if (ids.length < 2) return null;
-  return `/map?${encodeCrawl({
+  const first = ids[0];
+  if (!first || ids.length < 2) return null;
+  const city = cityIdFromVenueId(first) ?? "london";
+  if (ids.some((id) => (cityIdFromVenueId(id) ?? "london") !== city)) return null;
+  return cityAwareMapPath(city, encodeCrawl({
     mode: "build",
     filters: initialFilters,
     builtIds: ids,
     selectedVenueId: "",
-  })}`;
+  }));
 }
 
 // Returns only the keys present + valid in the URL, so callers can spread over
@@ -243,7 +251,9 @@ export function decodeCrawl(
   const style = params.get("style");
   if (style && CROSS_STYLES.has(style as CrawlStyle)) filters.crawlStyle = style as CrawlStyle;
   const max = parseNum(params.get("max"), MAX_PRICE.min, MAX_PRICE.max);
-  if (max !== undefined) filters.maxPrice = max;
+  // An old link may carry any figure ("max=6.25"); the map applies the shared
+  // cap the controls print (lib/pintPriceCaps.ts).
+  if (max !== undefined) filters.maxPrice = appliedPintPriceCap(max);
   const stops = parseNum(params.get("stops"), STOPS.min, STOPS.max);
   if (stops !== undefined) filters.stopCount = Math.round(stops);
   const win = parseNum(params.get("win"), WINDOW.min, WINDOW.max);
@@ -252,6 +262,7 @@ export function decodeCrawl(
   if (params.get("drops") === "1") filters.requirePintDrops = true;
   if (params.get("low") === "1") filters.requireNonAlcoholic = true;
   if (params.get("food") === "1") filters.requireFood = true;
+  if (params.get("garden") === "1") filters.requireBeerGarden = true;
   const q = params.get("q")?.trim();
   if (q) filters.query = q.slice(0, 80);
 

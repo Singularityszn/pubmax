@@ -30,6 +30,10 @@ describe("isNonPublicVenueName", () => {
     "Royal British Legion Hendon",
     "The Staff Bar",
     "Members Only Bar",
+    // A university's initials joined to SU (Birmingham's hunt winner, 1 Nov 2026).
+    "Eagle & Ball by BCUSU",
+    "The Three Tuns, LSESU",
+    "Students Union Bar",
   ])("reads %s as not open to the public", (name) => {
     expect(isNonPublicVenueName(name)).toBe(true);
   });
@@ -45,6 +49,10 @@ describe("isNonPublicVenueName", () => {
     "Sun Inn",
     "The Surrey Docks",
     "Nags Head, Peckham",
+    // Capitals that merely end in SU, or initials in lower case, are not a union.
+    "Misu Bar",
+    "The Bcusu Arms",
+    "SUSHI SAMBA",
   ])("leaves %s in the rankings", (name) => {
     expect(isNonPublicVenueName(name)).toBe(false);
   });
@@ -67,8 +75,8 @@ describe("every cheapest-pint ranking reads the one rule", () => {
 
   it("Near me and the city ranking skip it too", () => {
     const points: PricedPoint[] = [
-      { id: "tuns", name: THREE_TUNS, borough: "Westminster", lat: 51.5145, lng: -0.1165, cheapestPrice: 2.95 },
-      { id: "edward", name: "The Prince Edward", borough: "Westminster", lat: 51.5146, lng: -0.1166, cheapestPrice: 3.5 },
+      { id: "tuns", name: THREE_TUNS, borough: "Westminster", lat: 51.5145, lng: -0.1165, cheapestPrice: 2.95, priceSource: "Pub menu", priceObservedAt: "2026-01-01" },
+      { id: "edward", name: "The Prince Edward", borough: "Westminster", lat: 51.5146, lng: -0.1166, cheapestPrice: 3.5, priceSource: "Pub menu", priceObservedAt: "2026-01-01" },
     ];
     expect(rankCityCheapest(points).map((card) => card.id)).toEqual(["edward"]);
     expect(rankNearMe(51.5145, -0.1165, points, { minAnswers: 1 }).cards.map((card) => card.id)).toEqual([
@@ -78,7 +86,7 @@ describe("every cheapest-pint ranking reads the one rule", () => {
 
   it("a borough page keeps the row but never ranks it on price", () => {
     const v = (over: Partial<Venue>): Venue =>
-      ({ primaryBorough: "Westminster", visibleBoroughs: [], cheapestPint: "", ...over }) as Venue;
+      ({ primaryBorough: "Westminster", visibleBoroughs: [], cheapestPint: "", priceSource: "Pub menu", priceObservedAt: "2026-01-01", ...over }) as Venue;
     const venues = [
       v({ id: "tuns", name: THREE_TUNS, cheapestPrice: 2.95 }),
       v({ id: "edward", name: "The Prince Edward", cheapestPrice: 3.5 }),

@@ -1,20 +1,25 @@
 /**
  * A CEILING NO HEADER CAN WIDEN.
  *
- * Paid routes carry a deployment-wide spend ceiling: `/api/ask`, `/api/heritage`,
- * and plan generation call OpenRouter when keyed; signed-in `/api/pub-pal/chat`
- * opens an ElevenLabs conversation when keyed, and `/api/pub-pal/voice-token`
- * issues the signed voice session the same provider bills by the minute. Plan
- * generation additionally spends the routing budget. Each was rate-limited on
- * the hashed caller address ALONE, so the budget an attacker got was the budget
- * they chose: a different `x-forwarded-for` value is a different bucket, and
- * 200 values are 200 budgets. `lib/clientIpTrust.ts` closes the header half of
- * that, but a rule about which header to read is still a rule about one signal.
- * This module is the other half, and it is the load-bearing one: ONE ceiling per
- * lane for the WHOLE deployment, keyed on the lane and nothing else, so no
- * header, address, account or body can widen it.
+ * Paid routes carry a deployment-wide spend ceiling: `/api/ask` and
+ * `/api/heritage` call OpenRouter when keyed. Signed-in chat provider selection
+ * belongs to `app/api/pub-pal/chat/route.ts`. `/api/pub-pal/voice-token`
+ * issues the signed ElevenLabs voice session the provider bills by the minute.
+ * Each was rate-limited on the hashed caller address ALONE, so the budget an
+ * attacker got was the budget they chose: a different `x-forwarded-for` value
+ * is a different bucket, and 200 values are 200 budgets. `lib/clientIpTrust.ts`
+ * closes the header half of that, but a rule about which header to read is
+ * still a rule about one signal. This module is the other half, and it is the
+ * load-bearing one: ONE ceiling per lane for the WHOLE deployment, keyed on the
+ * lane and nothing else, so no header, address, account or body can widen it.
  *
- * FOUR rules.
+ * Plan generation is NOT a lane. It calls no paid model, and its one provider
+ * (OpenRouteService walking legs) spends its own fail-soft `ors-global` budget
+ * in `lib/walkRouteBudget.ts`. A lane there defended no spend, and one address
+ * could spend it and refuse every other planner caller for a rolling day
+ * (audit finding lib/paidSpendBudget:lane-ceiling-single-shared-allocation).
+ *
+ * FIVE rules.
  *
  * (1) THE LANES ARE A CLOSED SET. `PAID_SPEND_LANES` is every route that may
  *     spend, so a fifth paid route is a row here rather than a fifth opinion,
@@ -42,6 +47,14 @@
  *     launch night can raise or drop a ceiling without a deploy, and 0 is a
  *     legitimate value: it is the kill switch for one paid lane.
  *
+ * (5) ONE ADDRESS GETS A SHARE, NEVER THE LANE. A lane any anonymous caller can
+ *     reach spends the caller address's share BEFORE the ceiling, so an
+ *     address over its share is refused without touching the lane, and a new
+ *     address buys only a new share of the same ceiling. Without it one
+ *     address could spend the whole ceiling and switch the route off for
+ *     everybody else. Where a deterministic or grounded answer exists, a spent
+ *     share or ceiling withholds the model rather than refusing the caller.
+ *
  * A pure leaf: policy, names and copy only. The consumption is
  * `lib/paidSpendBudget.server.ts`.
  */
@@ -52,8 +65,8 @@ export const PAID_SPEND_LANES = [
   "heritage",
   "pub-pal-chat",
   "pub-pal-voice",
-  "plan-generate",
   "pub-list-import",
+  "board-read",
   "typesafe",
 ] as const;
 
@@ -81,8 +94,10 @@ export const PAID_SPEND_DEFAULT_DAILY_BUDGET: Record<PaidSpendLane, number> = {
   // Signed voice sessions. Each is real ElevenLabs minutes, capped per account at
   // a monthly allowance but never across accounts until this ceiling.
   "pub-pal-voice": 200,
-  "plan-generate": 1_000,
   "pub-list-import": 1_000,
+  // One photo of a price board read by a vision model (review item A4). An
+  // image call costs more than a text one, so its day is smaller.
+  "board-read": 300,
   typesafe: 5_000,
 };
 
@@ -99,6 +114,33 @@ export const PAID_SPEND_REFUSAL_CODE = "DAILY_BUDGET_SPENT";
  */
 export function paidSpendBudgetKey(lane: PaidSpendLane): string {
   return `paid-spend:${lane}`;
+}
+
+/** One address may spend a twentieth of a lane in the same rolling window. */
+const PAID_SPEND_ADDRESS_SHARE_DIVISOR = 20;
+/** The preferred minimum, bounded by half the lane rounded up. */
+const PAID_SPEND_ADDRESS_SHARE_MINIMUM = 10;
+
+/**
+ * The calls one caller address may spend from a lane whose ceiling is
+ * `budget`: a twentieth of the lane with a preferred minimum of ten calls,
+ * capped at half the lane rounded up. A closed lane gives no share.
+ */
+export function paidSpendAddressShare(budget: number): number {
+  if (budget <= 0) return 0;
+  return Math.min(
+    Math.ceil(budget / 2),
+    Math.max(PAID_SPEND_ADDRESS_SHARE_MINIMUM, Math.ceil(budget / PAID_SPEND_ADDRESS_SHARE_DIVISOR)),
+  );
+}
+
+/**
+ * The durable limiter key for one caller address's share of a lane. It NARROWS
+ * the lane rather than widening it: the lane key is still spent after it, so a
+ * caller who changes address only buys a new share of the same ceiling.
+ */
+export function paidSpendAddressKey(lane: PaidSpendLane, addressHash: string): string {
+  return `${paidSpendBudgetKey(lane)}:${addressHash}`;
 }
 
 /** The environment name that overrides one lane's ceiling. */

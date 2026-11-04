@@ -1,3 +1,4 @@
+import { comparablePint } from "@/lib/comparablePint.mjs";
 // Tonight Conditions summary — pure composition of the strip's four lines.
 //
 // Ties today's date, the cached weather, a drink-weather verdict and a nearby
@@ -64,6 +65,13 @@ export type TonightConditionsSummary = {
   drinkSuggestion: string;
   /** "4 gardens near you with a pint under 6 quid", or null. */
   venueClaim: string | null;
+  /**
+   * The weather feed's condition word ("Clear", "Cloudy", ...) while the
+   * reading is fresh, else null. Sun Chaser's "cloudy now" note reads it.
+   */
+  skyCondition?: string | null;
+  /** When the feed read `skyCondition` (ISO), so a reader can say how old it is; null when stale. */
+  skyObservedAt?: string | null;
 };
 
 /** Format a date as the app's calm "Saturday 19 Jul" style (London time). */
@@ -110,6 +118,7 @@ export function tallyLensMatches(
   lens: VenueLens,
   point: [number, number],
   radiusKm = NEAR_RADIUS_KM,
+  now?: number,
 ): VenueLensTally {
   const predicate = lensVenuePredicate(lens);
   if (!predicate) return null;
@@ -119,7 +128,8 @@ export function tallyLensMatches(
     if (!predicate(venue)) continue;
     if (haversineKm(point, [venue.lng, venue.lat]) > radiusKm) continue;
     count += 1;
-    if (typeof venue.cheapestPrice === "number" && venue.cheapestPrice < PINT_CEILING_GBP) {
+    const price = comparablePint(venue, now);
+    if (price !== null && price < PINT_CEILING_GBP) {
       underCeiling += 1;
     }
   }

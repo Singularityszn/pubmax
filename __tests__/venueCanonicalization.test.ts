@@ -357,6 +357,28 @@ describe("canonicalizeDataset — safety guards", () => {
     });
   });
 
+  describe("the postcode-only Three Colts Tavern", () => {
+    const pub = makeRow({
+      pub_name: "The Three Colts Tavern",
+      address: "199 Cambridge Heath Rd, London E2 0EL",
+      latitude: 51.5248, longitude: -0.0548784, price_gbp: 5.8,
+    });
+    const postcodeOnly = makeRow({
+      pub_name: "Three Colts Tavern",
+      address: "E2 0EL",
+      latitude: 51.5262, longitude: -0.0556257, price_gbp: 5.5,
+    });
+
+    it("folds into the pub at 199 Cambridge Heath Road and keeps its old id resolvable", () => {
+      expect(stableVenueIdFromKey(venueGroupingKey(pub))).toBe("venue-1g0y58p");
+      expect(stableVenueIdFromKey(venueGroupingKey(postcodeOnly))).toBe("venue-1s1ffqx");
+      const result = canonicalizeDataset([postcodeOnly, pub]);
+      expect(result.aliases).toEqual({ "venue-1s1ffqx": "venue-1g0y58p" });
+      expect(result.rows[0]?.price_gbp).toBe(5.5);
+      expect(groupVenuePrices(result.rows).map((venue) => venue.id)).toEqual(["venue-1g0y58p"]);
+    });
+  });
+
   // The CSV the export reads still carries both links, so the pass that runs
   // straight after every export has to take them off again (Codex on #2187).
   describe("a verified borrowed website", () => {

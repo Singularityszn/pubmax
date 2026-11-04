@@ -54,7 +54,7 @@ import {
   buildQuestionOneRows,
 } from "./quizParsers.mjs";
 import { QUESTION_ONE_SOURCE_ID, readQuestionOneDirectory } from "./questionOneDirectory.mjs";
-import { loadCanonicalVenueIndex } from "./resolveVenueId.mjs";
+import { loadCanonicalVenueIndex } from "./loadCanonicalVenueIndex.mjs";
 import { CONTACT_EMAIL } from "../../lib/siteContact.mjs";
 import { createRobotsChecker } from "../../lib/harvest/robots.ts";
 import {

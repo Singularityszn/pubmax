@@ -121,6 +121,9 @@ export const E2E_SERVER_ENV = {
   // `local`. Keep GitHub's GITHUB_SHA from rewriting those tracked
   // fixtures and tripping the restored-build guard.
   NEXT_PUBLIC_SW_VERSION: "local",
+  // Demo content is opt-in (lib/demoContent.ts). Specs read seeded drops by id
+  // (for example /p/seed-prospect-1), so the e2e server asks for them by name.
+  NEXT_PUBLIC_DEMO_CONTENT: "on",
   NEXT_PUBLIC_POSTHOG_E2E_ALLOW_BOT: "1",
   NEXT_PUBLIC_VAPID_PUBLIC_KEY: E2E_VAPID_PUBLIC_KEY,
   NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: E2E_POSTHOG_PROJECT_TOKEN,
@@ -231,6 +234,7 @@ export default defineConfig({
         "**/ui-ux-battle-test-keyless.spec.ts",
         "**/map-gl.spec.ts",
         "**/map-gestures.spec.ts",
+        "**/map-short-walk-framing.spec.ts",
         "**/map-deep-link-pin.spec.ts",
         // Every WebGL journey belongs to chromium-gl. Keeping these out of the
         // plain Chromium project avoids running the same spec without SwiftShader
@@ -240,6 +244,7 @@ export default defineConfig({
         "**/map-opening-preview.spec.ts",
         "**/map-arrival.spec.ts",
         "**/map-arrival-turn.spec.ts",
+        "**/tablet-map-control-clearance.spec.ts",
         "**/map-you-are-here.spec.ts",
         "**/map-arrival-card-pins.spec.ts",
         "**/map-desktop-arrival-chrome.spec.ts",
@@ -253,8 +258,10 @@ export default defineConfig({
         "**/map-london-restaurants.spec.ts",
         "**/map-live-qa-0924.spec.ts",
         "**/plan-route-strip.spec.ts",
+        "**/map-crawl-spa-handoff.spec.ts",
         "**/ui-ux-battle-test.spec.ts",
         "**/signed-in-review.spec.ts",
+        "**/map-sun-chaser.spec.ts",
         // The Core Web Vitals sweep owns its own project: it needs a real GL
         // context for the map routes, and it re-emulates device, CPU and
         // network per run, which this project's fixed device would fight.
@@ -363,8 +370,11 @@ export default defineConfig({
       // a real WebGL2 context (SwiftShader), so both run here.
       testMatch: [
         "**/map-gl.spec.ts",
+        // A plain map that stays mounted draws the walk a locked plan links to.
+        "**/map-crawl-spa-handoff.spec.ts",
         // Two-finger rotate and tilt against a real MapLibre canvas.
         "**/map-gestures.spec.ts",
+        "**/map-short-walk-framing.spec.ts",
         // The document's opening prices held to the engine's own first frame:
         // a real camera and a real painted-pin probe to compare against.
         "**/map-opening-preview.spec.ts",
@@ -372,6 +382,7 @@ export default defineConfig({
         // read a real camera and a real painted-pin probe.
         "**/map-arrival.spec.ts",
         "**/map-arrival-turn.spec.ts",
+        "**/tablet-map-control-clearance.spec.ts",
         "**/map-arrival-card-pins.spec.ts",
         // The reader's own dot: a real GeoJSON source on a real scene, and a
         // real camera to hold still while the dot moves.
@@ -401,6 +412,8 @@ export default defineConfig({
         // The Plan result's route strip: a real MapLibre canvas above the cards.
         "**/plan-route-strip.spec.ts",
         "**/ui-ux-battle-test.spec.ts",
+        // Sun Chaser reads building heights from real vector tiles on a real scene.
+        "**/map-sun-chaser.spec.ts",
       ],
       use: {
         ...devices["Desktop Chrome"],

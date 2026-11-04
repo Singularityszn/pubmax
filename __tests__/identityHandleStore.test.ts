@@ -75,3 +75,21 @@ describe("Supabase public handle resolution", () => {
     });
   });
 });
+
+describe("Supabase worn handles", () => {
+  it("reads every handle the account has worn, and the one it wears today", async () => {
+    rows.profile_handle_aliases = [
+      { profile_id: "profile-1", handle: "old_name", is_current: false },
+      { profile_id: "profile-1", handle: "new_name", is_current: true },
+    ];
+
+    await expect(supabaseIdentityHandleStore.wornHandles("old_name")).resolves.toEqual({
+      currentHandle: "new_name",
+      handles: ["new_name", "old_name"],
+    });
+  });
+
+  it("answers null for a handle with no alias history", async () => {
+    await expect(supabaseIdentityHandleStore.wornHandles("never_claimed")).resolves.toBeNull();
+  });
+});

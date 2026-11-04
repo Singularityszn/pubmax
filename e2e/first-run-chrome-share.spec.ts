@@ -79,7 +79,11 @@ async function openedPhoneMap(page: Page) {
   await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
 }
 
-type ChromeReading = { share: number; members: string[] };
+/**
+ * `preview` is the document's opening prices at the measurement itself: the
+ * same synchronous evaluation reads it, so nothing can change in between.
+ */
+type ChromeReading = { share: number; members: string[]; preview: string };
 
 async function chromeShare(page: Page): Promise<ChromeReading> {
   return page.evaluate(() => {
@@ -129,7 +133,23 @@ async function chromeShare(page: Page): Promise<ChromeReading> {
 
     let count = 0;
     for (const cell of covered) count += cell;
-    return { share: count / covered.length, members: [...members].sort() };
+    // The opening prices are fixed, so while they show they count as chrome;
+    // this names the handoff branch that kept them up
+    // (components/map/MapOpeningPreview.tsx).
+    const root = document.documentElement.dataset;
+    const mark = (name: string) => {
+      const entry = performance.getEntriesByName(name)[0];
+      return entry ? `${Math.round(entry.startTime)}ms` : "none";
+    };
+    const preview = [
+      `data-map-preview=${root.mapPreview ?? "unset"}`,
+      `data-map-preview-discs=${root.mapPreviewDiscs ?? "unset"}`,
+      `pins-visible=${mark("pubmax:pins-visible")}`,
+      `basemap-drawn=${mark("pubmax:basemap-drawn")}`,
+      `opening-preview-done=${mark("pubmax:opening-preview-done")}`,
+      `measured at ${Math.round(performance.now())}ms`,
+    ].join(", ");
+    return { share: count / covered.length, members: [...members].sort(), preview };
   });
 }
 
@@ -206,7 +226,7 @@ test("the phone map with its sheet closed spends under 30 percent on chrome @390
   const reading = await chromeShare(page);
   expect(
     reading.share,
-    `map chrome ${percent(reading.share)} from ${reading.members.join(", ")}`,
+    `map chrome ${percent(reading.share)} from ${reading.members.join(", ")} (${reading.preview})`,
   ).toBeLessThan(MAP_CHROME_CEILING);
 });
 
@@ -246,6 +266,7 @@ test("on the phone map the consent card waits for a first action, then takes the
 
   // One element at the foot: the pill has stepped down and the card overlaps nothing.
   await expect(prompt).toBeVisible({ timeout: 30_000 });
+  await expectMobileMapShellReady(page);
   await expect(pill).toHaveCount(1);
   await expect(pill).toBeHidden();
   const card = await prompt.boundingBox();
@@ -362,6 +383,23 @@ test("the page foot clears the tab bar and the painted consent card at default a
       card: el.getBoundingClientRect().height,
     }));
 
+  // The body lane is a :has() rule, and Chromium commits that used padding a
+  // frame after the card paints. A read in that gap saw 82.8px under a 126.3px
+  // row on pull request 2468, so the default-text read waits for the frame,
+  // as the large-text read below always has. A lane that never clears the
+  // card still fails, here, within five seconds.
+  await page.waitForFunction(
+    () => {
+      const el = document.querySelector('[aria-label="Anonymous analytics choice"]');
+      if (!(el instanceof HTMLElement)) return false;
+      const card = el.getBoundingClientRect().height;
+      const padding = Number.parseFloat(getComputedStyle(document.body).paddingBottom);
+      const dock = window.innerHeight - el.getBoundingClientRect().bottom;
+      return padding >= dock + card - 0.5;
+    },
+    undefined,
+    { timeout: 5_000 },
+  );
   const ordinary = await foot();
   expect(ordinary.card).toBeLessThanOrEqual(CONSENT_ROW_HEIGHT + 0.5);
   expect(ordinary.padding).toBeGreaterThanOrEqual(ordinary.dock + ordinary.card - 0.5);

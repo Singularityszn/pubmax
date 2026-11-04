@@ -85,8 +85,10 @@ describe("MapKey", () => {
       /\.mapKeyMarker--story-corridor::before\s*{[^}]*height:\s*12px[^}]*filter:\s*blur\(2px\)/,
     );
     expect(storyHtml.match(/--map-key-marker-colour:var\(--route-line\)/g)).toHaveLength(
-      2,
+      3,
     );
+    expect(css).toMatch(/\.mapKeyMarker--leg-time::before\s*{[^}]*border-radius:\s*var\(--radius-pill\)/);
+    expect(css).toMatch(/\.mapKeyMarker--chosen-way::before\s*{[^}]*border-top:\s*4px dotted/);
     expect(storyHtml).toContain(
       'mapKeyMarker--story-corridor" style="--map-key-marker-colour:#d99f45',
     );

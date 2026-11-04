@@ -1,0 +1,257 @@
+# Route budget sweep, main at 734b39e9, 30 October 2026, Linux container (Chromium 153 build 1243 linked as 1248), quiet box.
+# Excerpt of the Playwright log: the breach and undecided tables, the samples for every route named in them, the ratchet table the patch was cut from, and the result lines. Server origin replaced with <server>.
+
+## Result
+✘  1 [chromium] › e2e/performance-budget.spec.ts:84:5 › every budgeted route stays inside its performance budget (26.8m)
+✓  2 [chromium] › e2e/performance-budget.spec.ts:235:5 › performance browser prevents service-worker registration (514ms)
+✓  3 [chromium] › e2e/performance-budget.spec.ts:244:5 › performance warm-up retains HTTP caching while blocking third parties (1.7s)
+1 failed
+2 passed (26.9m)
+
+## Breaches (the failing assertion's table)
+Error: Over the performance budget. Fix the route or take the ceiling up deliberately (docs/PERFORMANCE_BUDGETS.md).
+
+route        metric              measured  budget  over by
+-----------  ------------------  --------  ------  -------
+/map         LCP (ms)            10188     900     +1032%
+/today       LCP (ms)            1064      300     +255%
+/out         server render (ms)  248       150     +65%
+/signin      LCP (ms)            424       400     +6%
+/pal/chat    JS decoded (KB)     1183      1040    +14%
+/social      LCP (ms)            1000      400     +150%
+/feed        LCP (ms)            1000      400     +150%
+/discover    LCP (ms)            1136      1000    +14%
+/drinks      LCP (ms)            1060      1000    +6%
+/activity    LCP (ms)            404       300     +35%
+/moment      LCP (ms)            408       300     +36%
+/rounds      LCP (ms)            404       300     +35%
+/crawls      LCP (ms)            412       300     +37%
+/historic    LCP (ms)            512       400     +28%
+/pint-index  LCP (ms)            468       400     +17%
+/terms       LCP (ms)            412       300     +37%
+/places      LCP (ms)            396       300     +32%
+
+
+## Undecided
+[perf-budget][unmeasured] 5 ceiling(s) this run could NOT decide. One sample met the ceiling and another went past it, they disagreed past the tracked 12% width, and the median sat over the ceiling by no more than half the spread, so which side it fell was whichever way the runner leaned. A median further over than that is a breach, however wide the run. These are left off the breach list rather than failed, and off the ratchet table, and a row whose median landed UNDER its ceiling is named here too, because the same evidence may not read as a clean pass one way and as undecided the other. Only a clock is ever undecided: a count that disagrees is a route doing different work. None of them is green:
+route        metric              median  budget  excess  samples ran  spread
+-----------  ------------------  ------  ------  ------  -----------  ------
+/pal/chat    LCP (ms)            384     400     -16     276 to 440   43%
+/messages    LCP (ms)            808     800     +8      748 to 880   16%
+/borough     LCP (ms)            416     400     +16     376 to 492   28%
+/historic    server render (ms)  95      150     -55     89 to 160    75%
+/pint-index  server render (ms)  154     150     +4      124 to 183   38%
+
+## Samples for the routes above (samples / median / spread)
+route                         metric              samples                                         median  spread
+----------------------------  ------------------  ----------------------------------------------  ------  ------
+/map                          server render (ms)  6 / 4 / 3                                       4       75%
+/map                          JS decoded (KB)     2839 / 2839 / 2839                              2839    0%
+/map                          requests            130 / 129 / 127                                 129     2%
+/map                          LCP (ms)            10220 / 10188 / 10184                           10188   0%
+/today                        server render (ms)  4 / 5 / 9 / 6 / 5 / 5 / 4                       5       100%
+/today                        JS decoded (KB)     1003 / 1003 / 1003 / 1003 / 1003 / 1003 / 1003  1003    0%
+/today                        requests            45 / 45 / 45 / 45 / 45 / 45 / 45                45      0%
+/today                        LCP (ms)            1072 / 1080 / 1048 / 976 / 1004 / 1076 / 1064   1064    10%
+/out                          server render (ms)  248                                             248     0%
+/out                          JS decoded (KB)     0                                               0       0%
+/out                          requests            1                                               1       0%
+/out                          LCP (ms)            0                                               0       0%
+/signin                       server render (ms)  17 / 15 / 19 / 18 / 20                          18      28%
+/signin                       JS decoded (KB)     811 / 811 / 811 / 811 / 811                     811     0%
+/signin                       requests            33 / 33 / 33 / 33 / 33                          33      0%
+/signin                       LCP (ms)            420 / 424 / 432 / 416 / 452                     424     8%
+/pal/chat                     server render (ms)  21 / 30 / 20 / 18 / 18                          20      60%
+/pal/chat                     JS decoded (KB)     1183 / 1183 / 1183 / 1183 / 1183                1183    0%
+/pal/chat                     requests            46 / 46 / 46 / 46 / 46                          46      0%
+/pal/chat                     LCP (ms)            440 / 280 / 388 / 384 / 276                     384     43%
+/social                       server render (ms)  28 / 28 / 17 / 26 / 22                          26      42%
+/social                       JS decoded (KB)     1110 / 1110 / 1110 / 1333 / 1333                1110    20%
+/social                       requests            52 / 52 / 52 / 54 / 55                          52      6%
+/social                       LCP (ms)            1000 / 1036 / 976 / 1072 / 960                  1000    11%
+/feed                         server render (ms)  20 / 22 / 22 / 26 / 19                          22      32%
+/feed                         JS decoded (KB)     1110 / 1110 / 1110 / 1110 / 1333                1110    20%
+/feed                         requests            52 / 52 / 52 / 52 / 54                          52      4%
+/feed                         LCP (ms)            1000 / 1068 / 932 / 980 / 1064                  1000    14%
+/discover                     server render (ms)  54 / 60 / 50 / 52 / 68 / 51 / 73                54      43%
+/discover                     JS decoded (KB)     1333 / 1333 / 1110 / 1110 / 1110 / 1110 / 1110  1110    20%
+/discover                     requests            55 / 54 / 52 / 52 / 52 / 52 / 52                52      6%
+/discover                     LCP (ms)            1004 / 1276 / 1064 / 1004 / 1136 / 1248 / 1180  1136    24%
+/drinks                       server render (ms)  80 / 92 / 54 / 57 / 59 / 54 / 59                59      64%
+/drinks                       JS decoded (KB)     1110 / 1110 / 1110 / 1110 / 1110 / 1110 / 1110  1110    0%
+/drinks                       requests            52 / 52 / 52 / 52 / 52 / 52 / 52                52      0%
+/drinks                       LCP (ms)            1052 / 1188 / 1156 / 1048 / 1060 / 1044 / 1096  1060    14%
+/activity                     server render (ms)  16 / 16 / 23                                    16      44%
+/activity                     JS decoded (KB)     818 / 818 / 818                                 818     0%
+/activity                     requests            36 / 36 / 36                                    36      0%
+/activity                     LCP (ms)            324 / 404 / 408                                 404     21%
+/moment                       server render (ms)  21 / 33 / 20 / 19 / 22                          21      67%
+/moment                       JS decoded (KB)     804 / 804 / 804 / 804 / 804                     804     0%
+/moment                       requests            34 / 34 / 34 / 34 / 34                          34      0%
+/moment                       LCP (ms)            408 / 348 / 672 / 384 / 468                     408     79%
+/rounds                       server render (ms)  22 / 17 / 26                                    22      41%
+/rounds                       JS decoded (KB)     791 / 791 / 791                                 791     0%
+/rounds                       requests            34 / 34 / 34                                    34      0%
+/rounds                       LCP (ms)            272 / 420 / 404                                 404     37%
+/crawls                       server render (ms)  21 / 23 / 28                                    23      30%
+/crawls                       JS decoded (KB)     894 / 894 / 894                                 894     0%
+/crawls                       requests            38 / 38 / 38                                    38      0%
+/crawls                       LCP (ms)            412 / 332 / 412                                 412     19%
+/historic                     server render (ms)  160 / 89 / 95 / 122 / 93                        95      75%
+/historic                     JS decoded (KB)     778 / 778 / 778 / 778 / 778                     778     0%
+/historic                     requests            36 / 36 / 36 / 36 / 36                          36      0%
+/historic                     LCP (ms)            596 / 456 / 472 / 512 / 516                     512     27%
+/pint-index                   server render (ms)  183 / 147 / 154 / 124 / 165                     154     38%
+/pint-index                   JS decoded (KB)     856 / 856 / 856 / 856 / 856                     856     0%
+/pint-index                   requests            40 / 40 / 40 / 40 / 40                          40      0%
+/pint-index                   LCP (ms)            436 / 444 / 524 / 468 / 556                     468     26%
+/terms                        server render (ms)  18 / 28 / 16                                    18      67%
+/terms                        JS decoded (KB)     776 / 776 / 776                                 776     0%
+/terms                        requests            32 / 32 / 32                                    32      0%
+/terms                        LCP (ms)            412 / 376 / 432                                 412     14%
+/places                       server render (ms)  15 / 20 / 23 / 21 / 15                          20      40%
+/places                       JS decoded (KB)     938 / 938 / 938 / 938 / 938                     938     0%
+/places                       requests            37 / 37 / 37 / 37 / 37                          37      0%
+/places                       LCP (ms)            448 / 416 / 396 / 348 / 388                     396     25%
+/messages                     server render (ms)  19 / 16 / 16 / 25 / 27                          19      58%
+/messages                     JS decoded (KB)     803 / 803 / 803 / 803 / 803                     803     0%
+/messages                     requests            34 / 34 / 34 / 34 / 34                          34      0%
+/messages                     LCP (ms)            880 / 800 / 808 / 748 / 812                     808     16%
+/borough                      server render (ms)  28 / 33 / 19 / 25 / 41                          28      79%
+/borough                      JS decoded (KB)     776 / 776 / 776 / 776 / 776                     776     0%
+/borough                      requests            35 / 35 / 35 / 35 / 35                          35      0%
+/borough                      LCP (ms)            492 / 416 / 376 / 480 / 416                     416     28%
+
+## Ratchet table (ceilings with slack to bank), the basis of ceilings-down.patch
+[perf-budget][ratchet] ceilings with slack to bank (docs/PERFORMANCE_BUDGETS.md: down is free, up is a decision):
+route                         metric              measured  budget  under by
+----------------------------  ------------------  --------  ------  --------
+/                             server render (ms)  8         150     -95%
+/                             requests            38        46      -17%
+/                             LCP (ms)            356       800     -56%
+/pal                          server render (ms)  4         150     -97%
+/pal                          LCP (ms)            292       700     -58%
+/map                          server render (ms)  4         150     -97%
+/map                          JS decoded (KB)     2839      3400    -17%
+/map                          requests            129       160     -19%
+/today                        server render (ms)  5         150     -97%
+/tonight                      server render (ms)  4         150     -97%
+/tonight                      LCP (ms)            376       900     -58%
+/about                        server render (ms)  28        150     -81%
+/about                        JS decoded (KB)     776       960     -19%
+/about                        requests            33        43      -23%
+/about                        LCP (ms)            332       500     -34%
+/pubs                         server render (ms)  42        150     -72%
+/pubs                         JS decoded (KB)     809       1200    -33%
+/pubs                         requests            41        68      -40%
+/pubs                         LCP (ms)            380       600     -37%
+/webmcp                       server render (ms)  22        150     -85%
+/webmcp                       JS decoded (KB)     849       1000    -15%
+/webmcp                       requests            33        44      -25%
+/near                         server render (ms)  3         150     -98%
+/near                         LCP (ms)            324       400     -19%
+/compass                      server render (ms)  19        150     -87%
+/compass                      LCP (ms)            364       815     -55%
+/login                        server render (ms)  17        150     -89%
+/login                        requests            33        40      -18%
+/signin                       server render (ms)  18        150     -88%
+/signin                       requests            33        40      -18%
+/plan                         server render (ms)  4         150     -97%
+/plan                         LCP (ms)            316       400     -21%
+/pal/chat                     server render (ms)  20        150     -87%
+/social                       server render (ms)  26        150     -83%
+/feed                         server render (ms)  22        150     -85%
+/discover                     server render (ms)  54        150     -64%
+/drinks                       server render (ms)  59        150     -61%
+/messages                     server render (ms)  19        150     -87%
+/messages                     JS decoded (KB)     803       970     -17%
+/messages                     requests            34        44      -23%
+/activity                     server render (ms)  16        150     -89%
+/activity                     JS decoded (KB)     818       980     -17%
+/activity                     requests            36        45      -20%
+/u/you                        server render (ms)  20        150     -87%
+/u/you                        JS decoded (KB)     962       1290    -25%
+/u/you                        requests            45        66      -32%
+/u/you                        LCP (ms)            396       900     -56%
+/onboarding                   server render (ms)  21        150     -86%
+/choose-city                  server render (ms)  9         150     -94%
+/moment                       server render (ms)  21        150     -86%
+/moment                       JS decoded (KB)     804       980     -18%
+/moment                       requests            34        43      -21%
+/rounds                       server render (ms)  22        150     -85%
+/rounds                       JS decoded (KB)     791       960     -18%
+/rounds                       requests            34        44      -23%
+/crawls                       server render (ms)  23        150     -85%
+/crawls                       requests            38        45      -16%
+/borough                      server render (ms)  28        150     -81%
+/borough                      JS decoded (KB)     776       960     -19%
+/borough                      requests            35        44      -20%
+/historic                     JS decoded (KB)     778       970     -20%
+/historic                     requests            36        44      -18%
+/founders                     server render (ms)  14        150     -91%
+/founders                     JS decoded (KB)     776       960     -19%
+/founders                     requests            32        44      -27%
+/contributors                 server render (ms)  20        150     -87%
+/contributors                 JS decoded (KB)     776       960     -19%
+/contributors                 requests            32        43      -26%
+/we-are-out                   server render (ms)  18        150     -88%
+/we-are-out                   JS decoded (KB)     799       970     -18%
+/we-are-out                   requests            33        44      -25%
+/privacy                      server render (ms)  20        150     -87%
+/terms                        server render (ms)  18        150     -88%
+/credits                      server render (ms)  19        150     -87%
+/credits                      LCP (ms)            340       500     -32%
+/how-we-estimate              server render (ms)  16        150     -89%
+/how-we-estimate              LCP (ms)            360       500     -28%
+/price-pulse                  server render (ms)  20        150     -87%
+/price-pulse                  JS decoded (KB)     776       960     -19%
+/price-pulse                  requests            34        43      -21%
+/price-pulse                  LCP (ms)            396       500     -21%
+/places                       server render (ms)  20        150     -87%
+/places                       requests            37        46      -20%
+/borough/westminster          server render (ms)  13        150     -91%
+/borough/westminster          JS decoded (KB)     784       1050    -25%
+/borough/westminster          requests            39        54      -28%
+/borough/westminster          LCP (ms)            444       1100    -60%
+/historic/prospect-of-whitby  server render (ms)  5         150     -97%
+/historic/prospect-of-whitby  JS decoded (KB)     783       1050    -25%
+/historic/prospect-of-whitby  requests            38        50      -24%
+/historic/prospect-of-whitby  LCP (ms)            412       800     -49%
+/landmark/big-ben             server render (ms)  6         150     -96%
+/landmark/big-ben             JS decoded (KB)     777       1050    -26%
+/landmark/big-ben             requests            33        46      -28%
+/landmark/big-ben             LCP (ms)            316       700     -55%
+/ledger/venue-eltcmh          server render (ms)  7         150     -95%
+/ledger/venue-eltcmh          LCP (ms)            332       700     -53%
+/routes/victorian-soho        server render (ms)  6         150     -96%
+/routes/victorian-soho        LCP (ms)            280       345     -19%
+/bar-tab/venue-eltcmh         server render (ms)  26        150     -83%
+/bar-tab/venue-eltcmh         JS decoded (KB)     827       1070    -23%
+/bar-tab/venue-eltcmh         requests            41        54      -24%
+/bar-tab/venue-eltcmh         LCP (ms)            372       850     -56%
+/spoons-value                 server render (ms)  80        150     -47%
+/spoons-value                 JS decoded (KB)     785       1050    -25%
+/spoons-value                 requests            34        48      -29%
+/spoons-value                 LCP (ms)            568       950     -40%
+/drink/guinness               server render (ms)  7         150     -95%
+/drink/guinness               JS decoded (KB)     776       1050    -26%
+/drink/guinness               requests            33        48      -31%
+/drink/guinness               LCP (ms)            348       800     -56%
+/area/clapham/drink/guinness  server render (ms)  6         150     -96%
+/area/clapham/drink/guinness  JS decoded (KB)     776       1050    -26%
+/area/clapham/drink/guinness  requests            34        48      -29%
+/area/clapham/drink/guinness  LCP (ms)            360       900     -60%
+/pint-index/2026-06           server render (ms)  24        150     -84%
+/pint-index/2026-06           JS decoded (KB)     776       1050    -26%
+/pint-index/2026-06           requests            33        46      -28%
+/pint-index/2026-06           LCP (ms)            336       800     -58%
+/account/delete               server render (ms)  14        150     -91%
+/account/delete               JS decoded (KB)     727       990     -27%
+/account/delete               requests            30        42      -29%
+/account/delete               LCP (ms)            308       600     -49%
+/feedback                     server render (ms)  17        150     -89%
+/feedback                     LCP (ms)            352       500     -30%
+/updates                      server render (ms)  20        150     -87%
+/updates                      LCP (ms)            380       500     -24%
+
+

@@ -9,14 +9,30 @@ route; `__tests__/coreUiAudit.test.ts` counts one primary action per route.
 
 Rules the table obeys:
 
+<a id="social-action-order"></a>
+
 - Value first, account at the first kept action. No primary action on a
   public route is "Sign in", except Messages and the Social posts tab while
-  `PUBMAX_SOCIAL_FRIENDS_LAUNCH=1`. On those private surfaces the
+  `PUBMAX_SOCIAL_FRIENDS_LAUNCH=1`. On Messages the
   body a signed-out reader meets IS the sign-in boundary, so there is no value
   left to paint and the door is the first kept action; the boundary under it
-  then prints its line alone rather than repeating the same link. The rule
+  then prints its line alone rather than repeating the same link. On the
+  Social posts tab a stranger reads the London lane (captain decision 7,
+  1 November 2026), and every action on it (post, cheer, comment) needs an
+  account. The head keeps "Sign in" while posts load, fail or exist.
+  The captain approved a confirmed-empty exception on 3 November 2026. That
+  branch paints "Plan a night" in the head. Named crawls and dated menu
+  prices precede a quiet body sign-in offer. An empty response must have no
+  continuation cursor. The parent preserves a focused header sign-in link
+  until focus leaves. Account changes reset this state. The price section
+  keeps a public browse link when rows are missing or unavailable. The
+  [identity rule](../rules/lib-identity-accounts-and-sessions.md#a-stranger-reads-the-london-lane-and-nothing-in-it-describes-the-reader)
+  owns the public data contract. Each lane card prints
+  one quiet "Sign in to cheer or comment" link where its cheer row sits, never
+  a filled control. While the lane is paused (`PUBMAX_SOCIAL_FREEZE=social`)
+  the body is the sign-in boundary again. The rule
   stands unchanged wherever the body answers with something a stranger can use:
-  `/social?tab=discover` paints the map, not the door, and so does the
+  `/social?tab=discover` paints "Open the map", and so does the
   invite-only rollback. Fences: `__tests__/launchRoutes.b.test.tsx` and
   `e2e/design-taste-wave-1.spec.ts`.
 - The primary is a verb. It is the thing a first-time visitor does inside 60
@@ -25,7 +41,8 @@ Rules the table obeys:
   PUBMAXX keeps its capitals.
 - British English, no em dashes, no exclamation marks.
 - A route that is a list (Out, Social, Messages) keeps its primary in the
-  head; its empty state uses `EmptyState` with at most one quiet way onward.
+  head. Its empty state uses `EmptyState` with at most one quiet way onward,
+  except the approved Social London alternatives described above.
 - A FORM SCREEN PAINTS NO HEAD PRIMARY (captain, 7 September 2026). Its one
   painted control is the form's own submit, beside the field it submits,
   carrying `data-primary-action` itself, so `Screen`'s `primary` is omitted.
@@ -51,7 +68,7 @@ Rules the table obeys:
 | `/near` | Near you | Cheapest pints within a short walk. | Find my pint | Pick a patch |
 | `/today` | Today in London | What's on across London today. | Find my pint | Open the map |
 | `/tonight` | Tonight in London | What's on across London tonight. (or: What's on near you tonight.) | Open the map | Find my pint |
-| `/social` | Social | Pubs and pints (Discover tab), otherwise Plans, photos and people | Post (a verified account); Sign in (a stranger on the posts tab); Open the map (a stranger on `?tab=discover`, and a stranger while `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0`) | Find your lot |
+| `/social` | Social | Pubs and pints (Discover tab), otherwise Plans, photos and people | Post (a verified account), or the [signed-out action order](#social-action-order) | Find your lot |
 | `/plan` | Plan | Plan a pub crawl | Plan it (submit the ask) | Step by step |
 | `/plan/[id]` | Your plan | (the plan's own name) | Send to the crew | Open the map |
 | `/pal` | Your Pub Pal | Plan your night with Pub Pal | Meet your Pub Pal | Back to the map |

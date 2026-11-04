@@ -1,0 +1,212 @@
+/* The profile passport: the cover strip under the profile head, the Been,
+   ranked, taste and overlap sections, and the shared top-ten page. Launch
+   tokens only (docs/DESIGN_SYSTEM.md "Launch tokens"). No coral: the share
+   button is the ink secondary, and a selection reads in ink. Figures are set
+   in the data face, labels in the body face. */
+
+.passportCover {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-6);
+  margin: var(--space-3) 0 0;
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.passportCoverItem {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.passportCoverItem dt {
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.passportCoverItem dd {
+  margin: 0;
+  font-size: var(--text-md);
+  color: var(--color-text);
+}
+
+.passportCoverFigure {
+  font-family: var(--font-data);
+}
+
+.passportCoverItem a {
+  color: var(--color-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.passportSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: var(--space-8) 0 0;
+}
+
+.passportSectionHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+}
+
+.passportSectionTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  line-height: var(--leading-tight);
+  color: var(--color-text);
+}
+
+.passportQuiet {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.passportQuiet a,
+.passportSectionHead a,
+.passportRowName {
+  color: var(--color-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.passportList {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.passportRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: var(--text-base);
+  line-height: var(--leading-snug);
+}
+
+.passportRowName {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.passportRowMeta {
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.passportRowDate {
+  font-family: var(--font-data);
+}
+
+.passportPlace {
+  min-width: var(--space-6);
+  font-family: var(--font-data);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.passportFacts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.passportFact dt {
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.passportFact dd {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-base);
+  color: var(--color-text);
+}
+
+.passportFactDate {
+  display: block;
+  font-family: var(--font-data);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+/* Rendered only with a .priceBand-* class, which sets the three band values. */
+.passportBandPlaque {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--price-band-border);
+  border-radius: var(--radius-pill);
+  background: var(--price-band-surface);
+  color: var(--price-band-ink);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+}
+
+/* The shared top-ten page. */
+.passportTopTen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: var(--content-max);
+  margin: var(--space-8) auto;
+}
+
+.passportTopTenTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+  color: var(--color-text);
+}
+
+.passportTopTenList {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.passportTopTenRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.passportTopTenPlace {
+  min-width: var(--space-6);
+  font-family: var(--font-data);
+  color: var(--color-text-muted);
+}
+
+.passportTopTenName {
+  flex: 1;
+  min-width: 0;
+  color: var(--color-text);
+  font-size: var(--text-md);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  overflow-wrap: anywhere;
+}

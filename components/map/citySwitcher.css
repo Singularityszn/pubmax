@@ -109,6 +109,22 @@
   border-bottom: 1px solid var(--line);
 }
 
+/* Near me and the Pint Compass are one pair, both answers from where the
+   reader stands: the rule moves under the pair, and a spacing token keeps the
+   two rows from touching. */
+.citySwitcherLocation:has(+ .citySwitcherCompass) {
+  padding-bottom: 0;
+  margin-bottom: 0;
+  border-bottom: 0;
+}
+
+.citySwitcherCompass {
+  padding-top: var(--space-1);
+  padding-bottom: 4px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+}
+
 .citySwitcherLocationLink {
   justify-content: flex-start;
   gap: 8px;

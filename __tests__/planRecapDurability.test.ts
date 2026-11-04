@@ -27,6 +27,7 @@ import {
   pendingPlanRecapStore,
 } from "@/lib/pendingPlanRecapStore";
 import { __resetMemoryPlans, planStore } from "@/lib/planStore";
+import { PLAN_HTTP_ONLY_SESSION } from "@/lib/planSessionCapability";
 
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
 
@@ -68,7 +69,7 @@ describe("Plan recap durability: complete → refresh → claim → Memory", () 
     return { ...created, completion: completed.completion };
   }
 
-  it("parks a draft under owner scope across refresh, then claim creates one private Memory", async () => {
+  it.each(["body", "cookie"])("claims one private Memory with account auth and a %s Plan capability across refresh and retry", async (source) => {
     const fixture = await completedPlan();
     const recap = {
       ...pendingPlanRecapFromCompletion(fixture.completion, "Thursday orbit"),
@@ -118,30 +119,42 @@ describe("Plan recap durability: complete → refresh → claim → Memory", () 
     const claimBody = {
       action: "claim",
       choice: "bring-device",
-      items: [{ recap, memberToken: fixture.memberToken }],
+      ownerId: "user-2",
+      items: [{ recap, memberToken: source === "cookie" ? PLAN_HTTP_ONLY_SESSION : fixture.memberToken }],
+    };
+    const claimHeaders = {
+      "content-type": "application/json",
+      "x-test-user": "user-1",
+      authorization: "Bearer account-access-token",
+      ...(source === "cookie" ? {
+        cookie: `pubmax_plan_member_${fixture.plan.plan.id}=${encodeURIComponent(fixture.memberToken)}`,
+      } : {}),
     };
     const claimed = await CLAIM_PENDING(new Request("http://localhost/api/me/pending-plan-recaps", {
       method: "POST",
-      headers: { "content-type": "application/json", "x-test-user": "user-1" },
+      headers: claimHeaders,
       body: JSON.stringify(claimBody),
     }));
     expect(claimed.status).toBe(201);
     const claimPayload = await claimed.json() as {
       claimed: boolean;
       private: boolean;
-      memories: Array<{ memory: { planCompletionId: string; visibility: string }; moments: unknown[] }>;
+      memories: Array<{ memory: { ownerId: string; planCompletionId: string; visibility: string }; moments: unknown[] }>;
     };
     expect(claimPayload).toMatchObject({ claimed: true, private: true });
     expect(claimPayload.memories).toHaveLength(1);
     expect(claimPayload.memories[0]?.memory).toMatchObject({
+      ownerId: "user-1",
       planCompletionId: fixture.completion.id,
       visibility: "private",
     });
     expect(JSON.stringify(claimPayload)).not.toContain("\"public\"");
+    expect(JSON.stringify(claimPayload)).not.toContain(fixture.memberToken);
+    expect(await listNightMemories("user-2")).toHaveLength(0);
 
     const again = await CLAIM_PENDING(new Request("http://localhost/api/me/pending-plan-recaps", {
       method: "POST",
-      headers: { "content-type": "application/json", "x-test-user": "user-1" },
+      headers: claimHeaders,
       body: JSON.stringify(claimBody),
     }));
     expect(again.status).toBe(201);
@@ -178,7 +191,11 @@ describe("Plan recap durability: complete → refresh → claim → Memory", () 
     expect(await pendingPlanRecapStore().list("user-1")).toHaveLength(0);
   });
 
-  it("rejects claim without auth and without a valid member capability", async () => {
+  it.each([
+    { label: "forged", memberToken: "forged-token", status: 403, code: "MEMBER_FORBIDDEN" },
+    { label: "missing", memberToken: undefined, status: 400, code: "INVALID_RECAP_CLAIM" },
+    { label: "unrestored", memberToken: PLAN_HTTP_ONLY_SESSION, status: 403, code: "MEMBER_FORBIDDEN" },
+  ])("rejects claim without auth and an account bearer with a $label Plan capability", async ({ memberToken, status, code }) => {
     const fixture = await completedPlan();
     const recap = pendingPlanRecapFromCompletion(fixture.completion, "Thursday orbit");
     const signedOut = await CLAIM_PENDING(new Request("http://localhost/api/me/pending-plan-recaps", {
@@ -192,16 +209,21 @@ describe("Plan recap durability: complete → refresh → claim → Memory", () 
     }));
     expect(signedOut.status).toBe(401);
 
-    const forged = await CLAIM_PENDING(new Request("http://localhost/api/me/pending-plan-recaps", {
+    const refused = await CLAIM_PENDING(new Request("http://localhost/api/me/pending-plan-recaps", {
       method: "POST",
-      headers: { "content-type": "application/json", "x-test-user": "user-1" },
+      headers: {
+        "content-type": "application/json",
+        "x-test-user": "user-1",
+        authorization: "Bearer account-access-token",
+      },
       body: JSON.stringify({
         action: "claim",
         choice: "bring-device",
-        items: [{ recap, memberToken: "forged-token" }],
+        items: [{ recap, memberToken }],
       }),
     }));
-    expect(forged.status).toBe(403);
+    expect(refused.status).toBe(status);
+    expect(await refused.json()).toMatchObject({ code });
     expect(await listNightMemories("user-1")).toHaveLength(0);
   });
 

@@ -48,6 +48,53 @@ export type NightContext = {
   transportConstraints: string[];
 };
 
+const DIET_ALLERGENS = "(gluten|nuts?|peanuts?|dairy|milk|lactose|eggs?|soy|soya|sesame|shellfish|wheat)";
+const DIET_WORD = new RegExp(
+  `\\b(?:(vegan|vegetarian|pescatarian|halal|kosher)s?|(coeliac|celiac)|${DIET_ALLERGENS}[ -]free`
+    + `|(?:without|no|avoid|free\\s+(?:of|from))\\s+${DIET_ALLERGENS}`
+    + `|${DIET_ALLERGENS}\\s+(?:allerg(?:y|ies|ic)|intoleran(?:t|ce))`
+    + `|(allerg(?:y|ies|ic|en|ens)|intoleran(?:t|ce)))\\b`,
+  "gi",
+);
+
+function allergenFree(word: string): string {
+  const singular = word === "nuts" || word === "peanuts" || word === "eggs" ? word.slice(0, -1) : word;
+  return `${singular === "soya" ? "soy" : singular}-free`;
+}
+
+/**
+ * The dietary words a reader named, as foodNeeds tokens in the order named:
+ * "vegan", "halal", "gluten-free", "nut-free", and "allergy" for an allergy or
+ * intolerance with no named food. The planner cannot check a menu against any
+ * of them, so they only shape scoring and a warning, never a refusal.
+ */
+export function planDietaryNeeds(...texts: readonly string[]): string[] {
+  const needs: string[] = [];
+  for (const text of texts) {
+    for (const match of text.toLowerCase().matchAll(DIET_WORD)) {
+      const [, diet, coeliac, freeOf, withoutOf, allergicTo, allergy] = match;
+      const allergen = freeOf ?? withoutOf ?? allergicTo;
+      const need = diet
+        ?? (coeliac ? "gluten-free" : undefined)
+        ?? (allergen ? allergenFree(allergen) : undefined)
+        ?? (allergy ? "allergy" : undefined);
+      if (need && !needs.includes(need)) needs.push(need);
+    }
+  }
+  return needs;
+}
+
+/**
+ * Transport words, as preferences that never refuse a route: walking is the
+ * optimiser's own leg rule, and a tube, underground or station word
+ * soft-prefers pubs near a station.
+ */
+function transportPreferences(lower: string): string[] {
+  const tube = tubeIsARouteRule(lower)
+    || /\bunderground\b|\bnear (?:an? |the )?(?:tube |train |rail )?stations?\b/.test(lower);
+  return [...(tube ? ["tube"] : []), ...(/walk/.test(lower) ? ["walking"] : [])];
+}
+
 export type ContextReason = { field: keyof NightContext; evidence: string; explanation: string };
 export type InferredNightContext = { context: NightContext; confidence: number; reasons: ContextReason[] };
 
@@ -155,7 +202,8 @@ export function inferNightContext(rawQuery: unknown, now = new Date()): Inferred
   // Chill is the everyday synonym for quiet on describe-first chips; ranking
   // only scores the closed "quiet" token, so map rather than invent a new one.
   if (/\bchill\b/.test(lower) && !atmosphere.includes("quiet")) atmosphere.push("quiet");
-  const foodNeeds = ["kebab", "pizza", "chips", "vegan", "vegetarian", "halal"].filter((value) => lower.includes(value));
+  const foodNeeds = ["kebab", "pizza", "chips"].filter((value) => lower.includes(value));
+  for (const need of planDietaryNeeds(lower)) if (!foodNeeds.includes(need)) foodNeeds.push(need);
   // Bare "food" marks the outing as food-aware for ranking and endings. It is
   // not a cuisine filter (lateFood drops this non-specific tag).
   if (/\bfood\b/.test(lower) && !foodNeeds.includes("food")) foodNeeds.push("food");
@@ -166,10 +214,7 @@ export function inferNightContext(rawQuery: unknown, now = new Date()): Inferred
   // the tube failed closed. A whole word on the tube arm, because "YouTube" is
   // no transport at all, and only a tube named as the WAY HOME is dropped from
   // the route rules, which lib/planGetHome.ts decides.
-  const transportConstraints = [
-    ...(tubeIsARouteRule(lower) ? ["tube"] : []),
-    ...(/walk/.test(lower) ? ["walking"] : []),
-  ];
+  const transportConstraints = transportPreferences(lower);
   const zeroProof = /zero[ -]?proof|alcohol[ -]?free|\bno[ -]alcohol\b|soft[ -]?drinks?|not drinking|sober/.test(lower)
     || hasZeroAlcoholStrength(lower);
   const drinkCategory = requestedDrinkCategory(query, zeroProof, reasons);

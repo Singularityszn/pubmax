@@ -1,8 +1,9 @@
 import { refineVenueBudgetFollowUp } from "@/lib/ask/router";
 import type { PubPalFenceTurn } from "@/lib/pubPalLlmFence";
+import { PAL_SESSION_RECENT_TURNS } from "@/lib/palSessionTurns";
 
 /** How many recent user and assistant lines a Pal session carries. */
-export const PAL_SESSION_RECENT_TURNS = 6;
+export { PAL_SESSION_RECENT_TURNS };
 
 /**
  * The whole summary turn, label included, is capped at this many UTF-8 bytes.

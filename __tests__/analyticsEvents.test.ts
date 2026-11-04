@@ -766,11 +766,13 @@ describe("invite loop events", () => {
     expect(ANALYTICS_EVENTS.invite_map_opened).toEqual([]);
   });
 
-  it("registers the Out listing and create-FAB events", () => {
+  it("registers the Out listing event, and no event for the retired create button", () => {
     // /out folded into /tonight (16 Oct 2026): its page view went with it.
     expect(ANALYTICS_EVENTS).not.toHaveProperty("out_screen_view");
+    // The floating create button left with the five-tab dock (1 Nov 2026), and
+    // its event went with its emitter (__tests__/analyticsEmitterFence.test.ts).
+    expect(ANALYTICS_EVENTS).not.toHaveProperty("create_fab_action");
     expect(ANALYTICS_EVENTS.out_filter_select).toEqual(["kind"]);
-    expect(ANALYTICS_EVENTS.create_fab_action).toEqual(["action"]);
     expect(sanitizeEvent("out_filter_select", { kind: "tonight" })?.props).toEqual({
       kind: "tonight",
     });
@@ -783,15 +785,6 @@ describe("invite loop events", () => {
     expect(sanitizeEvent("out_filter_select", { kind: "someone@pub" })).toEqual({
       name: "out_filter_select",
       props: {},
-    });
-    expect(sanitizeEvent("create_fab_action", { action: "moment" })?.props).toEqual({
-      action: "moment",
-    });
-    expect(sanitizeEvent("create_fab_action", { action: "price" })?.props).toEqual({
-      action: "price",
-    });
-    expect(sanitizeEvent("create_fab_action", { action: "plan" })?.props).toEqual({
-      action: "plan",
     });
   });
 

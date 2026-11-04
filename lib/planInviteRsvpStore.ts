@@ -22,6 +22,7 @@ import { admin, isForeignKeyViolation, isUniqueViolation, selectStore } from "@/
 import { cleanCrewName } from "@/lib/crew";
 import { GUEST_LIST_DISPLAY_CAP, isRsvpStatus, RSVP_PLAN_CEILING, type PlanInviteGuest, type PlanInviteRsvpSummary, type RsvpStatus } from "@/lib/planInvite";
 import {
+  grantMemoryPlanCollaboration,
   hashPlanMemberToken,
   joinMemoryPlanInviteRsvpMember,
   planIdempotencyDigest,
@@ -74,6 +75,7 @@ class PlanHostCannotRsvpError extends Error {
 
 const RSVP_TABLE = "plan_invite_rsvps";
 const REACTION_TABLE = "plan_invite_reactions";
+const MEMBER_TABLE = "plan_crew_members";
 
 // ── RSVP ─────────────────────────────────────────────────────────────────
 
@@ -122,6 +124,30 @@ export type PlanInviteRsvpStore = {
   remove(planId: string, rsvpId: string): Promise<void>;
 };
 
+/**
+ * ONE GUEST CAPABILITY (launch review 3.5). A Going RSVP through the host's
+ * invite link is the same capability as a join through it, so the seat it
+ * holds may vote, propose, add a need and check in. The atomic RPC (0124)
+ * still writes the seat with `can_collaborate = false`; this lifts that one
+ * live, non-revoked seat straight after, and only ever grants. A write that
+ * did not run answers false, so the caller reports the seat honestly and the
+ * guest can still lift it later from the plan page with the same link.
+ */
+async function grantInviteSeatCollaboration(planId: string, memberId: string): Promise<boolean> {
+  try {
+    const { data, error } = await admin()
+      .from(MEMBER_TABLE)
+      .update({ can_collaborate: true })
+      .eq("plan_id", planId)
+      .eq("id", memberId)
+      .is("membership_revoked_at", null)
+      .select("id");
+    return !error && Array.isArray(data) && data.length > 0;
+  } catch {
+    return false;
+  }
+}
+
 export const supabaseRsvpStore: PlanInviteRsvpStore = {
   async upsert(planId, submitterHash, displayName, status, existingMembership) {
     if (existingMembership?.identity.role === "host") throw new PlanHostCannotRsvpError(planId);
@@ -156,6 +182,11 @@ export const supabaseRsvpStore: PlanInviteRsvpStore = {
     if (outcome === "crew_full") throw new PlanCrewFullError(planId);
     if (outcome === "forbidden") throw new PlanInviteMembershipMismatchError(planId);
     if (outcome !== "saved") throw new Error("Invite RSVP membership write failed");
+    const seatId = typeof result.member_id === "string" ? result.member_id : null;
+    const collaborationAuthorized = status === "going" && seatId
+      ? existingMembership?.identity.collaborationAuthorized === true
+        || await grantInviteSeatCollaboration(planId, seatId)
+      : false;
     const summary = await supabaseRsvpStore.summarize(planId);
     return {
       summary,
@@ -165,9 +196,9 @@ export const supabaseRsvpStore: PlanInviteRsvpStore = {
           ? {
               memberToken: existingMembership.memberToken,
               role: existingMembership.identity.role,
-              collaborationAuthorized: existingMembership.identity.collaborationAuthorized,
+              collaborationAuthorized,
             }
-          : { memberToken, role: "guest", collaborationAuthorized: false }
+          : { memberToken, role: "guest", collaborationAuthorized }
         : null,
     };
   },
@@ -246,12 +277,13 @@ const memoryRsvpStore: PlanInviteRsvpStore = {
           ? {
               memberToken: existingMembership.memberToken,
               role: existingMembership.identity.role,
-              collaborationAuthorized: existingMembership.identity.collaborationAuthorized,
+              collaborationAuthorized: existingMembership.identity.collaborationAuthorized
+                || grantMemoryPlanCollaboration(planId, existingMembership.memberToken),
             }
           : {
               memberToken: joinedMembership!.memberToken,
               role: "guest",
-              collaborationAuthorized: false,
+              collaborationAuthorized: joinedMembership!.ok && joinedMembership!.collaborationAuthorized,
             }
         : null,
     };

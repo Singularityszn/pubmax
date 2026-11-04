@@ -5,7 +5,7 @@ import type { Visibility } from "@/lib/spill";
 // drift apart.
 export const VISIBILITY_COPY: Record<Visibility, { label: string; helper: string }> = {
   public: { label: "Public", helper: "Everyone. The feed, map, and Ledger." },
-  friends: { label: "Friends", helper: "People who follow you." },
+  friends: { label: "Friends", helper: "People who follow you back." },
   legacy: { label: "Legacy", helper: "Kept for the pub's Ledger, off the feed." },
   anonymous: { label: "Anonymous", helper: "Posted as a PUBMAXXER. Your handle is hidden." },
 };

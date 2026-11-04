@@ -40,6 +40,13 @@
 //    isValidUkPriceBundleRow refuses the rest and validate-data refuses the file
 //    over it.
 //
+// 5. A PAGE THAT NAMES ANOTHER BRANCH IS NOT THIS PUB'S PRICE. The crawl gave a
+//    pub every page on a host it counted one pub on (`pubsOnHost: 1`), so a
+//    chain's Barnsley page priced its Birmingham branch. A site-harvest row
+//    whose source URL names a branch the pub never states about itself
+//    (pageNamesAnotherBranch in lib/harvest/ukPriceCrawl.ts) is dropped and
+//    counted. The ledger keeps the row as the crawl wrote it.
+//
 // The estimate engine is imported here deliberately, and this script is named in
 // __tests__/priceEstimateAuthorityFence.test.ts for it: the bundle PRESENTS an
 // estimate as an estimate, which is exactly the exception that list exists for.
@@ -49,6 +56,7 @@ import { listedMapDrinkCoverageRows } from "@/lib/listedMapDrinkCoverage";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 
 import {
   bundleDrinkFieldsFromPrintedName,
@@ -57,6 +65,7 @@ import { isDemoDrinkProvenance } from "@/lib/drinks";
 import {
   isHarvestableDrinkUpdateUrl,
 } from "@/lib/harvest/sourcePolicy";
+import { pageNamesAnotherBranch } from "@/lib/harvest/ukPriceCrawl";
 import { ESTIMATE_DRINK_CATEGORIES, estimateForPub } from "@/lib/priceEstimate";
 import { normalizeSiteHarvestLedgerRow } from "@/lib/siteHarvestLedgerCore";
 import { estimateBaselines } from "@/lib/priceEstimateBaselines";
@@ -96,6 +105,9 @@ const PUBLISHED_HARVEST_ROWS = path.join(
 const OUT_DIR = path.join(ROOT, "public/data/uk_prices");
 
 const DRY_RUN = process.argv.includes("--dry-run");
+
+const isDirectRun =
+  Boolean(process.argv[1]) && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 
 const read = (file) => JSON.parse(readFileSync(file, "utf8"));
 
@@ -250,15 +262,16 @@ function collectRows(report) {
   const harvest = siteHarvestRows();
   const pubs = basePubs();
   const owners = curatedOwners(pubs);
-  addSiteHarvestRows(
-    harvest.rows,
-    siteHarvestOwners(harvest.rows, pubs, owners),
-    new Set(pubs.map((pub) => pub.ref)),
+  const snapshotPubs = osmSnapshotPubs();
+  addSiteHarvestRows(harvest.rows, {
+    owners: siteHarvestOwners(harvest.rows, pubs, owners),
+    servedRefs: new Set(pubs.map((pub) => pub.ref)),
     push,
     report,
-    existsSync(BOUNDARIES) ? read(BOUNDARIES) : null,
-    existsSync(VENUE_ALIASES) ? read(VENUE_ALIASES).aliases ?? {} : {},
-  );
+    boundaries: existsSync(BOUNDARIES) ? read(BOUNDARIES) : null,
+    venueAliases: existsSync(VENUE_ALIASES) ? read(VENUE_ALIASES).aliases ?? {} : {},
+    pubIdentities: osmPubIdentities(snapshotPubs),
+  });
   notes.push(
     harvest.from
       ? `site-harvest: ${harvest.rows.length} row(s) read from ${harvest.from}`
@@ -273,7 +286,7 @@ function collectRows(report) {
   }
 
   // --- lane 3: the modelled figures, labelled as modelled ------------------
-  const pubCount = addEstimateRows(owners, push, report);
+  const pubCount = addEstimateRows(snapshotPubs, owners, push, report);
   notes.push(
     `estimate: ${pubCount} UK pub(s) offered to the engine, ${report.pubsWithNoBasis} with no basis`,
   );
@@ -300,12 +313,62 @@ function londonBasePlace(venueId, row, drinkFields, boundaries) {
   return londonBorough ? { lat, lng, londonBorough } : {};
 }
 
-/** Lane one: the prices a pub's or a chain's own site stated. */
-function addSiteHarvestRows(harvestRows, owners, servedRefs, push, report, boundaries, venueAliases = {}) {
+/** Every pub in the committed OSM snapshot, read once. */
+function osmSnapshotPubs() {
+  const snapshot = read(OSM_PUBS);
+  return Array.isArray(snapshot) ? snapshot : (snapshot.pubs ?? []);
+}
+
+/**
+ * What each snapshot pub states about itself that a branch URL could name it
+ * by, keyed by OSM id: its name, locality, address and own stated website.
+ */
+export function osmPubIdentities(snapshotPubs) {
+  const identities = new Map();
+  for (const pub of snapshotPubs) {
+    if (typeof pub?.osmId !== "string") continue;
+    identities.set(pub.osmId, {
+      name: pub.name ?? null,
+      locality: pub.locality ?? null,
+      address: pub.address ?? null,
+      website: pub.website ?? null,
+    });
+  }
+  return identities;
+}
+
+/**
+ * Whether a ledger row's source page names a branch that is not its pub. The
+ * pub is named by the name the crawl matched (the row's own) and by the
+ * snapshot's current name, with the snapshot's locality, address and website,
+ * and the row is refused only when the page names neither.
+ */
+function rowNamesAnotherBranch(row, pubIdentities) {
+  const snapshot = pubIdentities.get(row.osmId) ?? {};
+  const identities = [{ ...snapshot, name: row.name ?? null }];
+  if (typeof snapshot.name === "string" && snapshot.name !== row.name) identities.push(snapshot);
+  return identities.every((identity) => pageNamesAnotherBranch(row.sourceUrl, identity));
+}
+
+/**
+ * Lane one: the prices a pub's or a chain's own site stated.
+ *
+ * `pubIdentities` maps an OSM id to what that pub states about itself
+ * (osmPubIdentities); see rowNamesAnotherBranch.
+ */
+export function addSiteHarvestRows(
+  harvestRows,
+  { owners, servedRefs, push, report, boundaries = null, venueAliases = {}, pubIdentities = new Map() },
+) {
   for (const ledgerRow of harvestRows) {
     const row = normalizeSiteHarvestLedgerRow(ledgerRow);
     if (!isHarvestableDrinkUpdateUrl(row.sourceUrl ?? "")) {
       report.droppedRefusedHost += 1;
+      continue;
+    }
+    // RULE 5: a page that names another branch is that branch's price.
+    if (rowNamesAnotherBranch(row, pubIdentities)) {
+      report.droppedOtherBranch += 1;
       continue;
     }
     const osmRef =
@@ -397,12 +460,10 @@ function cocktailVenueIds() {
 }
 
 /** Lane three: the modelled figures, labelled as modelled. */
-function addEstimateRows(owners, push, report) {
+function addEstimateRows(pubs, owners, push, report) {
   const baselines = estimateBaselines();
   const boundaries = existsSync(BOUNDARIES) ? read(BOUNDARIES) : null;
   const servesCocktails = cocktailVenueIds();
-  const snapshot = read(OSM_PUBS);
-  const pubs = Array.isArray(snapshot) ? snapshot : (snapshot.pubs ?? []);
   for (const pub of pubs) {
     const baseId = ukBaseVenueId(pub.osmId);
     if (!baseId) continue;
@@ -449,6 +510,7 @@ function addEstimateRows(owners, push, report) {
 function main() {
   const report = {
     droppedRefusedHost: 0,
+    droppedOtherBranch: 0,
     droppedDemoFixture: 0,
     droppedUnresolvedVenue: 0,
     droppedInvalidRow: 0,
@@ -476,7 +538,7 @@ function main() {
     },
     notes: [
       ...notes,
-      `dropped: ${report.droppedRefusedHost} on a host refused on permission, ${report.droppedDemoFixture} demo fixture(s), ${report.droppedUnresolvedVenue} with no resolvable venue, ${report.droppedInvalidRow} failing the row shape, ${report.droppedCategoryContradiction} evidenced category contradiction(s)`,
+      `dropped: ${report.droppedRefusedHost} on a host refused on permission, ${report.droppedOtherBranch} read off another branch's page, ${report.droppedDemoFixture} demo fixture(s), ${report.droppedUnresolvedVenue} with no resolvable venue, ${report.droppedInvalidRow} failing the row shape, ${report.droppedCategoryContradiction} evidenced category contradiction(s)`,
     ],
   };
 
@@ -511,4 +573,4 @@ function main() {
   console.log(`  standings: ${JSON.stringify(byStanding)}`);
 }
 
-main();
+if (isDirectRun) main();

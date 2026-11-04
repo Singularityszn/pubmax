@@ -2,15 +2,22 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
+import { usePlanMapAccountKey, usePlanMapScope, useRegisterPlanMapRoute } from "@/components/nav/PlanMapNavigation";
+import { buildCrawlMapHref } from "@/lib/crawlUrl";
+
 import type { PlanState } from "@/lib/plan";
 import PlanRoute from "@/components/plan/PlanRoute";
 import PlanCollaborationPanel from "@/components/plan/PlanCollaborationPanel";
+import PlanNightPresentation, { PlanMysteryControls } from "@/components/plan/PlanNightPresentation";
+import PlanNightClues from "@/components/plan/PlanNightClues";
+import PlanTableBeacon from "@/components/plan/PlanTableBeacon";
+import { planNightRefreshKey, planVisitedRevealPositions } from "@/lib/planPresentation";
 import InvitePrivacyPreview from "@/components/plan/InvitePrivacyPreview";
 import RoundStarter from "@/components/round/RoundStarter";
 import { planViewModel } from "@/components/plan/planPresentation";
 import { anchorConflictMessage, routeStopsFromGenerated } from "@/components/plan/PlanComposer";
 import { parsePlanCapabilitySnapshot, planCapabilityEvent, readPlanCapabilitySnapshot, restorePlanCapability } from "@/lib/planSessionCapability";
-import { readPlanMemberProjection, usePlanMemberRead } from "@/components/plan/usePlanMemberRead";
+import { clearPlanMemberProjectionRead, readPlanMemberProjection, usePlanMemberRead } from "@/components/plan/usePlanMemberRead";
 import { setActivePlanRole } from "@/lib/activePlan";
 import { isPlanPreviewProjection, type PlanPrivacyPreviewDTO } from "@/lib/planPrivacy";
 import { planUsesPintPrices } from "@/lib/planGenerationDto";
@@ -284,7 +291,8 @@ function stopWithNextAlternative(stop: EditableStop, excludedVenueIds: ReadonlyS
   };
 }
 
-function canonicalStateFromBody(value: unknown): PlanState | null {
+/** The member PlanState inside a `/api/plans/[id]` body, or null. Shared with PlanCard. */
+export function canonicalStateFromBody(value: unknown): PlanState | null {
   if (!value || typeof value !== "object") return null;
   const row = value as { stops?: unknown; plan?: unknown; state?: unknown };
   if (Array.isArray(row.stops) && row.plan && typeof row.plan === "object") return value as PlanState;
@@ -319,7 +327,13 @@ export default function PlanSummary({
   initialPreview: PlanPrivacyPreviewDTO;
   vibeTally?: VibeTally | null;
 }) {
+  const scope = usePlanMapScope(planId);
+  const accountKey = usePlanMapAccountKey();
   const [state, setState] = useState<PlanState | null>(null);
+  const [memberScope, setMemberScope] = useState("");
+  const [memberAccountKey, setMemberAccountKey] = useState("");
+  const readScope = `${accountKey}:${scope}`;
+  const lastReadScope = useRef(readScope);
   const { identityResolved } = useAuth();
   // The session lane, gated the way PlanCrew gates its own: asking before
   // identity has resolved cannot spend the recovery write, so it would be a
@@ -331,14 +345,25 @@ export default function PlanSummary({
     void restorePlanCapability(planId).catch(() => undefined);
   }, [identityResolved, planId]);
   const readPlan = useCallback((isActive: () => boolean) => {
+    // A previous account or capability cannot lend its pending read to this one.
+    if (lastReadScope.current !== readScope) {
+      clearPlanMemberProjectionRead(planId);
+      lastReadScope.current = readScope;
+    }
     // One request per Plan, shared with every other surface asking (F-34).
     void readPlanMemberProjection(planId).then((body) => {
       if (!isActive()) return;
       const canonical = canonicalStateFromBody(body);
-      if (canonical) setState(canonical);
-      else if (isPlanPreviewProjection(body)) setState(null);
+      if (canonical) {
+        setState(canonical);
+        setMemberScope(scope);
+        setMemberAccountKey(accountKey);
+      } else if (isPlanPreviewProjection(body)) {
+        setState(null);
+        setMemberScope("");
+      }
     });
-  }, [planId]);
+  }, [planId, scope, accountKey, readScope]);
   usePlanMemberRead(planId, readPlan);
 
   // No rail on the teaser: the rail is the ROUTE's spine, and a preview has no
@@ -356,10 +381,12 @@ export default function PlanSummary({
     );
   }
 
-  return <PlanSummaryMember planId={planId} state={state} />;
+  return <PlanSummaryMember key={`${planId}:${memberAccountKey}`} planId={planId} state={state} scope={memberScope} />;
 }
 
-function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState }) {
+function PlanSummaryMember({ planId, state, scope }: { planId: string; state: PlanState; scope: string }) {
+  const { user, accountRevision } = useAuth();
+  const ownerKey = `${user?.id ?? "guest"}:${accountRevision}`;
   const view = planViewModel(state);
   const tokenEvent = planCapabilityEvent(planId);
   const pendingEvent = `pubmax:pending-route:${planId}`;
@@ -397,6 +424,7 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
   }, [pendingRaw, pending, planId]);
   const initialStops = orderedRouteStops(cleanStops(view.stops));
   const [canonicalStops, setCanonicalStops] = useState<EditableStop[]>(initialStops);
+  useRegisterPlanMapRoute(planId, scope, buildCrawlMapHref(canonicalStops.map((stop) => stop.venueId)));
   const [localStops, setLocalStops] = useState<EditableStop[]>(initialStops);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -413,9 +441,10 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
   // focus on the document. Focus returns to the control that reopens the
   // editor, so a keyboard or screen-reader host keeps their place.
   const editControl = useRef<HTMLButtonElement | null>(null);
+  const restoreEditFocus = useRef(false);
   const closeEditor = () => {
+    restoreEditFocus.current = true;
     setEditing(false);
-    editControl.current?.focus({ preventScroll: true });
   };
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [localAuthority, setLocalAuthority] = useState<RouteGenerationAuthority | null>(null);
@@ -475,6 +504,13 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
     anchoredPlan,
   });
   useEffect(() => {
+    if (!restoreEditFocus.current || editing || pending || saving || loadingPreview) return;
+    const control = editControl.current;
+    if (!canBeginEditing || !control || control.disabled) return;
+    restoreEditFocus.current = false;
+    control.focus({ preventScroll: true });
+  }, [canBeginEditing, editing, pending, saving, loadingPreview]);
+  useEffect(() => {
     if (memberToken && role) setActivePlanRole(planId, role);
   }, [memberToken, planId, role]);
   const routeRevision = savedRevision;
@@ -490,6 +526,7 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
     position: typeof stop.position === "number" ? stop.position : index,
     ...(stop.selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence: stop.selectedDrinkPriceEvidence } : {}),
   }));
+  const currentPlanState: PlanState = { ...state, plan: { ...state.plan, routeRevision: Number(routeRevision) }, stops: canonicalRouteStops };
 
   function adoptCanonical(canonical: PlanState): void {
     const savedStops = orderedRouteStops(cleanStops(canonical.stops));
@@ -686,7 +723,7 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
     return (
       <div className="planSummary__editor" aria-labelledby="plan-route-editor-title" aria-busy={saving || loadingPreview}>
         <h3 id="plan-route-editor-title">Route preview</h3>
-        <p>{anchoredPlan ? "Review the fresh route with Stop 1 kept." : "Swap a stop to make a private draft."} {isHost ? `Save only when it differs and still has ${PLAN_STOP_COUNT_RANGE_SENTENCE} distinct stops.` : "The route stays unchanged until the host accepts your proposal."}</p>
+        <p>{anchoredPlan ? "Review the new route. Stop 1 stays put." : "Swap a stop to try a different pub."} {isHost ? "Nothing changes for the crew until you save." : "The route stays unchanged until the host accepts your proposal."}</p>
         <ol className="planSummary__editStops">
           {draftStops.map((stop, index) => (
             <li key={`${stop.position}-${stop.venueId}`}>
@@ -714,8 +751,8 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
             <button type="button" className="planSummary__save" onClick={() => void saveRoute()} disabled={saving || !canSaveDraft} aria-disabled={saving || !canSaveDraft}>
               {saving ? "Saving…" : canSaveDraft ? "Save route changes" : "Choose a route change"}
             </button>
-            <button type="button" className="planSummary__cancel" onClick={() => { clearPendingRoute(planId); setLocalStops(canonicalStops); setLocalAuthority(null); closeEditor(); announce("Unsaved route changes discarded."); }} disabled={saving}>
-              Discard draft
+            <button type="button" className="planSummary__cancel" onClick={() => { clearPendingRoute(planId); setLocalStops(canonicalStops); setLocalAuthority(null); closeEditor(); announce(hasRouteChanged ? "Unsaved route changes discarded." : "Your saved route is unchanged."); }} disabled={saving}>
+              {hasRouteChanged ? "Discard changes" : "Close editor"}
             </button>
           </div>
         ) : <p className="planSummary__editorNote">Explain the change in Crew decisions. Only the host can make it the plan&apos;s route.</p>}
@@ -732,6 +769,7 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
   }
 
   return (
+    <PlanNightPresentation planId={planId} memberToken={memberToken} ownerKey={ownerKey} revision={Number(routeRevision)}>
     <section className="planSummary" aria-labelledby="plan-stops-title">
       <div className="planSummary__heading">
         <p className="planPage__eyebrow">{state.context && !planUsesPintPrices(state.context) ? "First stop" : "First pint"} · {view.startLabel}</p>
@@ -748,11 +786,15 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
       {renderNotice()}
       {!editing && !pending ? (
         <>
+          <PlanMysteryControls />
           <PlanRoute
             planId={planId}
             startTime={state.plan.startTime}
             stops={canonicalRouteStops}
+            visitedPositions={planVisitedRevealPositions(currentPlanState)}
           />
+          <PlanNightClues planId={planId} ownerKey={ownerKey} stops={canonicalRouteStops} />
+          <PlanTableBeacon planId={planId} memberToken={memberToken} ownerKey={ownerKey} refreshKey={planNightRefreshKey(currentPlanState)} />
           {memberToken ? (
             /* Round has no Plan-constraint fields, so this bridge carries only title and ordered venue identity. */
             <RoundStarter
@@ -767,6 +809,8 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
       ) : null}
       {memberToken && canCollaborate ? (
         <PlanCollaborationPanel
+          planState={currentPlanState}
+          ownerKey={ownerKey}
           planId={planId}
           memberToken={memberToken}
           isHost={isHost}
@@ -786,5 +830,6 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
         />
       ) : null}
     </section>
+    </PlanNightPresentation>
   );
 }

@@ -204,13 +204,14 @@ test.describe("Tonight trusted UI", () => {
     });
     expect(order).toBeTruthy(); // list FOLLOWS deals → list above
 
-    // The lede region is the answer (#1627): the pubs Londoners keep recommending
-    // lead it and the listings follow them. What must clear the tab bar is the
-    // answer's first entry, and the listings stay inside that region.
+    // The lede region is the answer (#1627). Since the launch review (30 Oct
+    // 2026, design V1) three answer cards lead it, then the open plans, the
+    // pubs Londoners keep recommending and the listings. What must clear the
+    // tab bar is the answer's first entry, and the listings stay inside it.
     const lede = page.getByTestId("tonight-lede");
     await expect(lede.getByTestId("tonight-list")).toBeVisible();
     const firstAnswer = await lede
-      .locator('[data-testid="tonight-hyped-row"], [data-testid="tonight-row"]')
+      .locator('[data-testid="tonight-answers"] > li, [data-testid="tonight-hyped-row"], [data-testid="tonight-row"]')
       .first()
       .boundingBox();
     await expect(page.locator(".mobileTabBar").filter({ visible: true })).toBeVisible();
@@ -266,7 +267,10 @@ test.describe("Discover secondary lanes still self-fetch", () => {
 });
 
 
-test("the phone create action leaves pub recommendation text readable", async ({ page }) => {
+// The floating create action used to stand over these rows. It left with the
+// five-tab dock (captain, 1 Nov 2026), so nothing above the tab bar may sit on
+// a pub recommendation's words at rest.
+test("no floating control sits on pub recommendation text", async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
     localStorage.setItem("pubmax_onboarding_dismissed", "1");
@@ -278,9 +282,10 @@ test("the phone create action leaves pub recommendation text readable", async ({
     await page.setViewportSize({ width, height: 626 });
     await page.goto("/tonight");
     await expect(page.getByTestId("tonight-hyped-row").first()).toBeVisible();
-    await expect(page.locator(".createFab")).toBeVisible();
+    await expect(page.locator(".createFab, .createFabRoot")).toHaveCount(0);
     const coveredText = await page.evaluate(() => {
-      const fab = document.querySelector(".createFab")!.getBoundingClientRect();
+      const bar = document.querySelector(".mobileTabBar")?.getBoundingClientRect();
+      const floor = bar && bar.height > 0 ? bar.top : window.innerHeight;
       const covered: string[] = [];
       for (const row of document.querySelectorAll(".tonightHypedRow")) {
         const walker = document.createTreeWalker(row, NodeFilter.SHOW_TEXT);
@@ -289,15 +294,16 @@ test("the phone create action leaves pub recommendation text readable", async ({
           if (!node.textContent?.trim()) continue;
           const range = document.createRange();
           range.selectNodeContents(node);
-          if ([...range.getClientRects()].some((rect) =>
-            rect.left < fab.right && rect.right > fab.left &&
-            rect.top < fab.bottom && rect.bottom > fab.top,
-          )) covered.push(node.textContent.trim());
+          for (const rect of range.getClientRects()) {
+            if (rect.width < 1 || rect.top < 0 || rect.bottom > floor) continue;
+            const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+            if (hit && !row.contains(hit)) covered.push(node.textContent.trim());
+          }
         }
       }
       return covered;
     });
     expect(coveredText, `Pub text covered at ${width}px`).toEqual([]);
-    await page.screenshot({ path: test.info().outputPath(`tonight-create-clearance-${width}.png`), fullPage: true });
+    await page.screenshot({ path: test.info().outputPath(`tonight-clearance-${width}.png`), fullPage: true });
   }
 });

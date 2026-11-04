@@ -164,7 +164,7 @@ for (const viewport of VIEWPORTS) {
       await expect
         .poll(() => tabList.evaluate((el) => el.getBoundingClientRect().bottom))
         .toBeLessThanOrEqual(viewport.height + 0.5);
-      const mapTab = page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Map", exact: true });
+      const mapTab = page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Explore", exact: true });
       await expect(mapTab).toBeVisible();
       expect(
         await mapTab.evaluate((el) => {

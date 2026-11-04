@@ -38,6 +38,7 @@ export default function VenuePeekPintPrice({
   priceReadStatus,
   dropReadStatus,
   onLog,
+  dated = null,
 }: {
   venueId: string;
   isPub: boolean;
@@ -48,6 +49,9 @@ export default function VenuePeekPintPrice({
   priceReadStatus: VenuePriceReadStatus;
   dropReadStatus: VenueDropReadStatus;
   onLog: () => void;
+  /** The date the Overview prints beside this lane's figure
+   *  (lib/venueActionCard.ts), so the action card says how old the price is. */
+  dated?: string | null;
 }) {
   const pricePending = isPub && venuePriceFallbackPending(
     lane,
@@ -79,6 +83,7 @@ export default function VenuePeekPintPrice({
           {price.caption}
           {aging ? PEEK_AGING_SUFFIX : null}
         </small>
+        {dated ? <small data-price-dated="">{dated}</small> : null}
       </span>
     );
   }

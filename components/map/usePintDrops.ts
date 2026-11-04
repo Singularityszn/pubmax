@@ -55,6 +55,7 @@ import {
   type RoundRequestIdentity,
 } from "@/lib/roundRequest";
 import { DEFAULT_DRINK_MEASURE, type DrinkMeasure } from "@/lib/drinkMeasure";
+import { proposeWithTagsForDrop, withTagHandlesFor } from "@/components/map/composer/proposeWithTags";
 import {
   appendWithSuffix,
   DEFAULT_VISIBILITY,
@@ -64,7 +65,12 @@ import {
 import type { LastPintDecision } from "@/lib/tfl";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import type { PintPriceSplit } from "@/lib/pintDropAgreement";
-import { RECEIPT_REQUIRED_LINE, photoRefusal, priceNeedsReceipt } from "@/lib/pintDropReceipt";
+import {
+  UNCHECKED_RECEIPT_LINE,
+  isUncheckedPrice,
+  photoRefusal,
+  priceEvidenceFor,
+} from "@/lib/pintDropReceipt";
 import { pintTrustFor, pintTrustSignalFields, type PintTrustState } from "@/lib/pintTrust";
 
 // The API DTO carries photo URLs on every drop; lib/pintDrops owns the base
@@ -234,10 +240,12 @@ function rereadLaneOnMint(
   if (outcome?.status === "confirmed") reread();
 }
 
-function dropReceiptText(
+export function dropReceiptText(
   addedToNight: boolean,
   outcome: PintDropConfirmationOutcome | null,
   submittedPrice: string,
+  /** The server stamped the landed drop `unchecked` (captain decision 9). */
+  unchecked = false,
 ): string {
   const receipt = addedToNight
     ? "Cheers. Added to your night."
@@ -247,7 +255,10 @@ function dropReceiptText(
     outcome,
     Number.isFinite(submittedGbp) ? submittedGbp : null,
   );
-  return outcomeLine ? `${receipt} ${outcomeLine}` : receipt;
+  // The pass's own sentence wins (a mint over two typed prices says so). With
+  // nothing stronger to say, a typed price is told once why its pin is quiet.
+  const line = outcomeLine ?? (unchecked ? UNCHECKED_RECEIPT_LINE : null);
+  return line ? `${receipt} ${line}` : receipt;
 }
 
 export function usePintDrops(
@@ -600,15 +611,15 @@ export function usePintDrops(
       });
       return;
     }
-    // A NEW PRICE COMES WITH THE BILL (captain 7 Sept 2026). Said here as well
-    // as at the route, so a drinker learns it before the upload rather than
-    // after it (lib/pintDropReceipt.ts owns the rule and the line).
-    if (priceNeedsReceipt(dropForm.price) && !receiptPhoto) {
-      setSubmitting(false);
-      setDropMsg({ ok: false, text: RECEIPT_REQUIRED_LINE });
-      return;
-    }
+    // THE BILL IS OPTIONAL HERE (captain decision 9, 1 Nov 2026). A price sent
+    // without one lands `unchecked`: on the pub's own sheet, dated and named,
+    // and on the map only once a second drinker agrees. Nothing is refused and
+    // nothing nags; the composer's one line says what the bill buys.
     const passedDownNote = appendWithSuffix(dropForm.note, dropForm.withWho);
+    // "With" handles become tag proposals once the drop has an id; they are
+    // never part of the note (lib/pintDropWithTags.ts). They ride the retry
+    // payload too, so a retried save still asks the people tagged.
+    const submittedWithHandles = withTagHandlesFor(dropForm.withWho, visibility);
     // Wave G1: only stamp leave-by + decision when a LIVE Last Pint verdict is
     // on screen — never attach live_data_unavailable or a missing leave-by.
     const trainFields = lastTrainComposeFields(options?.lastTrainDecision ?? null);
@@ -627,6 +638,8 @@ export function usePintDrops(
       venuePhotoUrl: venuePhoto?.previewUrl ?? null,
       createdAt: new Date().toISOString(),
       ...(trainFields ?? {}),
+      // The retry payload keeps them only when there are some.
+      withHandles: submittedWithHandles,
     };
     const optimisticDrop = buildOptimisticSpillDrop(optimisticInput);
     const publishToFeed = shouldOptimisticallyAppearInFeed(visibility);
@@ -648,6 +661,13 @@ export function usePintDrops(
       // flashes through the pint lane between the tap and the answer.
       ...measureFieldsOf(dropForm),
       priceGbp: optimisticDrop.priceGbp,
+      // And its evidence, by the same rule the store applies to the answer,
+      // so a typed price never flashes the pin's mark before the server says
+      // it is unchecked (lib/pintDropReceipt.ts).
+      ...(() => {
+        const priceEvidence = priceEvidenceFor(optimisticDrop.priceGbp, Boolean(receiptPhoto));
+        return priceEvidence ? { priceEvidence } : {};
+      })(),
       passedDownNote: optimisticDrop.passedDownNote,
       era: optimisticDrop.era,
       vibeTags: optimisticDrop.vibeTags as VibeTag[],
@@ -746,10 +766,9 @@ export function usePintDrops(
       body.set("measure", submittedMeasure.measure);
       body.set("measureLabel", submittedMeasure.measureLabel);
       body.set("priceGbp", submittedPrice);
-      // "With" has no server column (frozen API contract) — folded into the
-      // note as a structured suffix ("— with @sam, @priya") at submit time, so
-      // every surface that renders passedDownNote gets it for free. See
-      // lib/spill.ts for the exact format.
+      // Free-text "with" names are folded into the note ("with Jo, Dan");
+      // @handles are consented tags sent after the drop saves. See
+      // lib/spill.ts and lib/pintDropWithTags.ts.
       body.set("passedDownNote", passedDownNote);
       body.set("era", submittedEra);
       body.set("visibility", submittedVisibility);
@@ -796,6 +815,7 @@ export function usePintDrops(
       });
       // The server row has replaced the optimistic one, so its previews go.
       handedOffPreviews.forEach(revokePreview);
+      void proposeWithTagsForDrop(data.drop, submittedWithHandles);
 
       // Loop 2: if a Round is open, append this pub as a stop (existing
       // addStop API). Fail-soft — the drop already landed.
@@ -827,7 +847,7 @@ export function usePintDrops(
       rereadLaneOnMint(outcome, () => refreshVenueDrops(venueId));
       setDropMsg({
         ok: true,
-        text: dropReceiptText(addedToNight, outcome, submittedPrice),
+        text: dropReceiptText(addedToNight, outcome, submittedPrice, isUncheckedPrice(data.drop)),
         links,
       });
     } catch {
@@ -940,6 +960,8 @@ export function usePintDrops(
         agedContributorPrice: number | null;
         /** Epoch ms that aged report was logged, or null. */
         agedContributorAt: number | null;
+        /** The handle behind either figure above when it has no bill, or null. */
+        uncheckedBy: string | null;
         /** The figures this pub's drinkers disagree about, for the sheet and
          *  the peek. Never a band, a bucket or a pin figure: two prices have
          *  no one number (lib/pintDropAgreement.ts). */

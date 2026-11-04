@@ -11,8 +11,10 @@
 // The rule now: components/nav/mobileNav.css publishes
 // --chrome-bottom-clearance beside --tabbar-h, the body pads its foot by that
 // token and nothing else, and a page's own bottom padding is reading room.
-// The rendered proof (the last line ends above the disc and the bar when the
-// page is scrolled to the very bottom) is e2e/mobile-v1-obstructions.spec.ts.
+// The create disc left with the five-tab dock (captain, 1 Nov 2026), so the
+// bar's lane is the whole foot. The rendered proof (the last line ends above
+// the bar when the page is scrolled to the very bottom) is
+// e2e/mobile-v1-obstructions.spec.ts.
 
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -60,32 +62,19 @@ describe("the chrome's bottom clearance is one token", () => {
     );
   });
 
-  it("is the create disc's own published top edge while the disc is on screen", () => {
-    const start = mobileNavCss.indexOf("  body:has(.createFabRoot):not(:has(.mapStage))");
-    expect(start).toBeGreaterThan(-1);
-    const body = mobileNavCss.slice(start, mobileNavCss.indexOf("}", start));
-    expect(body).toContain("--chrome-bottom-clearance: var(--float-stack-top-create);");
-    // Every state that withdraws the disc also withdraws its lane.
-    for (const hidden of [
-      ".pageHidesCreateFab",
-      ".analyticsConsentPrompt",
-      ".planComposer__lock",
-      ".mapArrivalCard",
-      ".nightCard",
-      ".createFabRoot.isKeyboardHidden",
-    ]) {
-      expect(body, hidden).toContain(`:not(:has(${hidden}))`);
-    }
+  it("reserves nothing for a floating create disc, which left with the five-tab dock", () => {
+    // Captain, 1 Nov 2026 (launch plan decision 13): the + button is gone, so
+    // the bar's lane is the whole foot and no rule lifts it to a disc's edge.
+    expect(mobileNavCss).not.toMatch(/createFabRoot|--float-stack-top-create|--create-fab-/);
   });
 
   it("is the one thing the body pads its foot by, and the map shell keeps its own geometry", () => {
     const rule = ruleBody(
       mobileNavCss,
-      "  body:has(.mobileTabBar, .mobileTabBarClearance, .createFabRoot):not(:has(.mapStage))",
+      "  body:has(.mobileTabBar, .mobileTabBarClearance):not(:has(.mapStage))",
     );
     expect(rule.trim()).toBe("padding-bottom: var(--chrome-bottom-clearance);");
-    // No second body reserve restates the bar or the disc.
-    expect(mobileNavCss).not.toMatch(/padding-bottom:\s*var\(--float-stack-top-create\)/);
+    // No second body reserve restates the bar.
     expect(mobileNavCss).not.toMatch(
       /body:has\([^{]*\{\s*padding-bottom:\s*calc\(var\(--tabbar-h\)/,
     );

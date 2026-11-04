@@ -48,10 +48,12 @@ async function rateLimited(request: Request, ownerId: string, action: "read" | "
   return isLimited(key, key, action === "read" ? 60 : 30, WINDOW_MS);
 }
 
-/** Resolve bearer or path-scoped HttpOnly Plan member cookie for one plan. */
+/** Resolve Plan cookie or legacy body authority separately from the account bearer. */
 function resolveMemberToken(request: Request, planId: string, bodyToken: string): string | undefined {
+  const memberHeaders = new Headers(request.headers);
+  memberHeaders.delete("authorization");
   const synthetic = new Request(`http://local/api/plans/${planId}/recap`, {
-    headers: request.headers,
+    headers: memberHeaders,
   });
   return planMemberCapability(synthetic, bodyToken);
 }

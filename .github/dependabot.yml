@@ -14,6 +14,15 @@ updates:
     labels:
       - dependencies
       - security
+    ignore:
+      # The OpenTelemetry 1.10 API and 0.300 SDK line moved together, and
+      # @vercel/otel 2.x still declares peers below them, so npm ci fails on
+      # an ERESOLVE. Remove these two entries when @vercel/otel accepts
+      # @opentelemetry/api 1.10 and @opentelemetry/sdk-logs 0.300.
+      - dependency-name: "@opentelemetry/api"
+        versions: [">=1.10.0"]
+      - dependency-name: "@opentelemetry/exporter-trace-otlp-proto"
+        versions: [">=0.300.0"]
     groups:
       production-deps:
         dependency-type: production

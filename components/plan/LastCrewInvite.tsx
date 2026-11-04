@@ -5,7 +5,8 @@ import { offlineOrMessage } from "@/lib/apiErrorMessage";
 // Sort My Night P1 — persistent crew re-invite MVP.
 // Surfaces the usual lot remembered from the last plan and shares a
 // WhatsApp-first message that names them + the current plan link.
-// The shared URL must carry #invite= (classic token) so mates can join.
+// The shared URL is the public invite page for the classic token, the one
+// link every host share sends (launch review 3.5).
 
 import { useState, useSyncExternalStore } from "react";
 
@@ -16,7 +17,7 @@ import {
   readLastCrew,
   subscribeLastCrew,
 } from "@/lib/lastCrew";
-import { planCrewSharePath } from "@/lib/planCrewInviteUrl";
+import { planCrewSharePath, planInviteShareUrl } from "@/lib/planCrewInviteUrl";
 import { refreshPlanInviteToken } from "@/lib/planInviteTokenClient";
 import {
   parsePlanCapabilitySnapshot,
@@ -77,8 +78,9 @@ export default function LastCrewInvite({
       setStatus("Invite link not ready yet. Try again in a moment.");
       return;
     }
-    const relativeUrl = planCrewSharePath(planId, inviteToken);
-    const absoluteUrl = toAbsoluteUrl(relativeUrl);
+    // The one link every share button sends (launch review 3.5).
+    const absoluteUrl = planInviteShareUrl(inviteToken, window.location.href)
+      ?? toAbsoluteUrl(planCrewSharePath(planId, inviteToken));
     const message = buildLastCrewShareText({
       names: rosterNames,
       planUrl: absoluteUrl,

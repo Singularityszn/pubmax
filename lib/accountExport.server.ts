@@ -100,6 +100,30 @@ import { socialPubRankingStore } from "@/lib/socialPubRankingStore";
 import { socialPubRankingEntries, type SocialPubRankingRow } from "@/lib/socialPubRankings";
 import { venueSubmissionPublicFields, type VenueSubmission } from "@/lib/venueSubmissions";
 import { venueSubmissionStore } from "@/lib/venueSubmissionStore";
+import {
+  venueCorrectionOwnerFields,
+  type VenueCorrection,
+  type VenueCorrectionOwnerFields,
+} from "@/lib/venueCorrections";
+import { venueCorrectionsStore } from "@/lib/venueCorrectionsStore";
+import {
+  regularNightReportOwnerFields,
+  type RegularNightReport,
+  type RegularNightReportOwnerFields,
+} from "@/lib/regularNightReports";
+import { regularNightReportsStore } from "@/lib/regularNightReportsStore";
+import {
+  kitchenReportOwnerFields,
+  type KitchenReport,
+  type KitchenReportOwnerFields,
+} from "@/lib/kitchenReports";
+import { kitchenReportsStore } from "@/lib/kitchenReportsStore";
+import {
+  tableRequestOwnerFields,
+  type TableRequest,
+  type TableRequestOwnerFields,
+} from "@/lib/tableRequests";
+import { tableRequestsStore } from "@/lib/tableRequestsStore";
 import type { WantedDTO } from "@/lib/wanted";
 import { wantedStore } from "@/lib/wantedStore";
 
@@ -159,6 +183,22 @@ export type AccountExportDeps = {
   diary(userId: string): Promise<{ status: "ready" | "degraded"; entries: DiaryEntryDTO[] }>;
   pubRankings(profileId: string): Promise<SocialPubRankingRow[]>;
   venueSubmissions(userId: string): Promise<{ status: "ready" | "degraded"; submissions: VenueSubmission[] }>;
+  venueCorrections(
+    userId: string,
+    limit: number,
+  ): Promise<{ status: "ready" | "degraded"; corrections: VenueCorrection[] }>;
+  regularNightReports(
+    userId: string,
+    limit: number,
+  ): Promise<{ status: "ready" | "degraded"; reports: RegularNightReport[] }>;
+  kitchenReports(
+    userId: string,
+    limit: number,
+  ): Promise<{ status: "ready" | "degraded"; reports: KitchenReport[] }>;
+  tableRequests(
+    userId: string,
+    limit: number,
+  ): Promise<{ status: "ready" | "degraded"; requests: TableRequest[] }>;
   pubListNightDrafts(userId: string, limit: number): Promise<PubListNightDraft[]>;
   socialLinks(userId: string): Promise<PublicSocialConnection[]>;
   nightProfile(userId: string): Promise<NightProfile | null>;
@@ -284,6 +324,10 @@ function storeDeps(): AccountExportDeps {
     diary: (userId) => diaryStore().listForOwner(userId),
     pubRankings: (profileId) => socialPubRankingStore().read({ profileId }),
     venueSubmissions: (userId) => venueSubmissionStore().listForOwner(userId),
+    venueCorrections: (userId, limit) => venueCorrectionsStore().listForOwner(userId, limit),
+    regularNightReports: (userId, limit) => regularNightReportsStore().listForOwner(userId, limit),
+    kitchenReports: (userId, limit) => kitchenReportsStore().listForOwner(userId, limit),
+    tableRequests: (userId, limit) => tableRequestsStore().listForRequester(userId, limit),
     pubListNightDrafts: listPubListNightDrafts,
     async socialLinks(userId) {
       return (await socialConnectionStore().list(userId)).map(publicSocialConnection);
@@ -754,6 +798,40 @@ export async function buildAccountExport(
     };
   });
 
+  const venueCorrections = await lane<VenueCorrectionOwnerFields>(async () => {
+    const read = await deps.venueCorrections(userId, ACCOUNT_EXPORT_LANE_CAP + 1);
+    return {
+      degraded: read.status === "degraded",
+      items: read.corrections.map(venueCorrectionOwnerFields),
+    };
+  });
+
+  const regularNightReports = await lane<RegularNightReportOwnerFields>(async () => {
+    const read = await deps.regularNightReports(userId, ACCOUNT_EXPORT_LANE_CAP + 1);
+    return {
+      degraded: read.status === "degraded",
+      items: read.reports.map(regularNightReportOwnerFields),
+    };
+  });
+
+  const kitchenReports = await lane<KitchenReportOwnerFields>(async () => {
+    const read = await deps.kitchenReports(userId, ACCOUNT_EXPORT_LANE_CAP + 1);
+    return {
+      degraded: read.status === "degraded",
+      items: read.reports.map(kitchenReportOwnerFields),
+    };
+  });
+
+  const tableRequests = await lane<TableRequestOwnerFields>(async () => {
+    const read = await deps.tableRequests(userId, ACCOUNT_EXPORT_LANE_CAP + 1);
+    return {
+      degraded: read.status === "degraded",
+      items: read.requests
+        .filter((request) => request.requesterUserId === userId)
+        .map(tableRequestOwnerFields),
+    };
+  });
+
   const pubListNightDrafts = await lane<PubListNightDraft>(async () => ({
     degraded: false,
     items: await deps.pubListNightDrafts(userId, ACCOUNT_EXPORT_LANE_CAP + 1),
@@ -796,6 +874,10 @@ export async function buildAccountExport(
     diary,
     pubRankings,
     venueSubmissions,
+    venueCorrections,
+    regularNightReports,
+    kitchenReports,
+    tableRequests,
     pubListNightDrafts,
     socialLinks,
     nightProfile,

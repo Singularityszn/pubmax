@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PintIndexSnapshot } from "@/lib/pintIndex";
+import { PUB_PAL_MEMORY_KINDS } from "@/lib/palMemoryKinds.mjs";
 
 const fixtures = vi.hoisted(() => ({
   snapshot: null as unknown,
@@ -98,8 +99,8 @@ describe("About Pint Index story", () => {
   it("shows the public snapshot empty state instead of raw map-price counts", async () => {
     const story = await renderStoryHooks();
 
-    expect(story).toContain("No borough league yet.");
-    expect(story).toContain("See the Index status");
+    expect(story).toContain("The dated public edition of the borough league is not ready yet.");
+    expect(story).toContain("See the borough list");
     expect(story).not.toContain("2,796");
     expect(story).not.toContain("currently ranks");
   });
@@ -261,5 +262,93 @@ describe("About outings story (Wave S1)", () => {
     expect(html.match(/data-primary-action/g)).toHaveLength(1);
     // No invented biography / vanity theatre in the hero.
     expect(html).not.toMatch(/team scars|Discord|thousands of/iu);
+  });
+});
+
+// The founder story (owner's ask, 2 Nov 2026): why the app exists, how it is
+// made and what it saves, in the founder's own words. It may print one
+// figure, the round of four, and that figure is arithmetic on the average
+// listed pint loadAboutStats returns. It names no cheapest pint, because the
+// homepage's cheapest is the hunt's answer and the hunt's readers are fenced to
+// the landing (__tests__/cheapestHunt.test.ts). Every Pub Pal claim in it
+// is one the Pal code backs: the vegetarian example stands only while
+// lib/palMemoryKinds.mjs has a food kind (food_preference, pull request 2472).
+describe("About founder story", () => {
+  beforeEach(() => {
+    fixtures.snapshot = snapshot([]);
+  });
+
+  async function storyText(): Promise<string> {
+    const document = new JSDOM(await renderAbout()).window.document;
+    const story = document.querySelector('section[aria-labelledby="why"]');
+    expect(story).not.toBeNull();
+    return story?.textContent?.replace(/\s+/gu, " ").trim() ?? "";
+  }
+
+  it("tells why it exists before what the map does, and is signed", async () => {
+    const html = await renderAbout();
+    const whyAt = html.indexOf('aria-labelledby="why"');
+    const mapAt = html.indexOf('aria-labelledby="map"');
+    expect(whyAt).toBeGreaterThan(-1);
+    expect(mapAt).toBeGreaterThan(whyAt);
+
+    const story = await storyText();
+    expect(story).toContain("Google Maps, other maps and ChatGPT");
+    expect(story).toContain("working with AI coding agents");
+    expect(story).toContain("Most AI gets built for companies.");
+    expect(story).toContain("Pub Pal");
+    expect(story).toContain("Nothing becomes a memory without that yes");
+    expect(story).toContain("nobody pays to rank");
+    expect(story).toMatch(/Karan Manoharan, founder of PUBMAXX$/u);
+  });
+
+  it("prints the round of four from the average pint and never as a banded pint", async () => {
+    const html = await renderAbout();
+    const start = html.indexOf('aria-labelledby="why"');
+    const story = html.slice(start, html.indexOf("</section>", start));
+    // Fixture: average £6, so a round of four is £24.
+    expect(story).toContain("A round of four at the average listed pint is");
+    expect(story).toContain("£24.00");
+    expect(story).not.toContain("priceBadge");
+    // No third answer to "the cheapest pint": the story names no cheapest or
+    // dearest figure (fixture cheapest £4 x 4 = £16, dearest £8 x 4 = £32).
+    expect(story).not.toMatch(/cheapest|dearest/iu);
+    expect(story).not.toContain("£16.00");
+    expect(story).not.toContain("£32.00");
+  });
+
+  it("drops the round line when there is no average pint", async () => {
+    const saved = fixtures.stats;
+    fixtures.stats = { ...saved, averagePint: null } as unknown as typeof saved;
+    try {
+      const story = await storyText();
+      expect(story).not.toContain("round of four");
+      expect(story).not.toContain("£");
+      expect(story).toContain("Why I built it");
+    } finally {
+      fixtures.stats = saved;
+    }
+  });
+
+  it("claims nothing the data or the Pal code cannot back", async () => {
+    const story = await storyText();
+    // No invented time saving, biography, team or traction.
+    expect(story).not.toMatch(/\b\d+\s*(?:minutes?|mins?|hours?)\b/iu);
+    expect(story).not.toMatch(/\b(19|20)\d\d\b/u);
+    expect(story).not.toMatch(/university|school|degree|ex-|previously (at|worked)|our team|co-founder/iu);
+    expect(story).not.toMatch(
+      /\b(?:thousands?|millions?|followers?|downloads?|revenue|growth|customers?|users)\b/iu,
+    );
+    // The vegetarian line is backed by the Pal's food memory kind
+    // (lib/palMemoryKinds.mjs), and the screen never says graph or AI-powered.
+    expect(story).toContain("vegetarian");
+    expect(PUB_PAL_MEMORY_KINDS).toContain("food_preference");
+    expect(story).not.toMatch(/knowledge graph|AI-powered/iu);
+    // House voice (docs/VOICE.md).
+    expect(story).not.toContain("—");
+    expect(story).not.toContain("!");
+    expect(story).not.toMatch(
+      /\b(experience|discover|elevate|seamless|curated|unleash|empower|journey|unlock|effortless|we believe|our mission)\b/iu,
+    );
   });
 });

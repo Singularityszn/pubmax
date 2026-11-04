@@ -236,54 +236,14 @@ test.describe("Tonight picks states", () => {
   });
 });
 
-test.describe("Today picks states", () => {
-  test("the picks card names its state and never dead-ends", async ({ page }) => {
+test.describe("Today carries no picks", () => {
+  // Launch review, 30 Oct 2026 (design V1): tonight's picks live on /tonight
+  // alone, so the day page names no picks state and hands the night to Tonight.
+  test("the day page has no picks section and one way to tonight", async ({ page }) => {
     await page.goto("/today");
-
-    // Read the visible card when a layout retains a hidden representation.
-    const card = page.getByTestId("today-picks").first();
-    await expect(card).toBeVisible();
-    const state = await card.getAttribute("data-picks-state");
-    expect([
-      "ready",
-      "refreshing",
-      "genuinely_empty",
-      "temporarily_unavailable",
-    ]).toContain(state);
-
-    const pubSuggestions = card.getByRole("region", { name: "Pubs Londoners keep recommending" });
-    if (await pubSuggestions.count()) {
-      await expect(pubSuggestions).toBeVisible();
-      const pubLink = pubSuggestions.locator('a[href^="/map?sel="]').first();
-      await expect(pubLink).toHaveText(/\S/);
-      const pubName = (await pubLink.innerText()).trim();
-      const mapHref = await pubLink.getAttribute("href");
-      expect(mapHref).toMatch(/^\/map\?sel=.+/);
-      await expect(card.locator(".todayCardEmpty")).not.toHaveText(QUIET_NIGHT_FRAGMENT);
-      await expect(card.getByRole("link", { name: "See everything on tonight" }))
-        .toHaveAttribute("href", "/tonight");
-      await pubLink.click();
-      await expect(page).toHaveURL(new RegExp(mapHref!.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$"));
-      await expect(page.getByRole("heading", { name: pubName, exact: true })).toBeVisible();
-      return;
-    }
-
-    if (state === "ready") {
-      await expect(card.getByTestId("picks-alternatives")).toHaveCount(0);
-      return;
-    }
-
-    // Both honest absences owe the reader the same two non-event doors, and
-    // the map exit the friction fence already pins stays beside them.
-    const alternatives = card.getByTestId("picks-alternatives");
-    await expect(alternatives).toBeVisible();
-    await expect(alternatives.getByText(ALTERNATIVE_LABEL)).toBeVisible();
-    await expect(alternatives.locator('[data-picks-way="pubs-near"]')).toHaveAttribute(
-      "href",
-      "/near?patch=soho",
-    );
-    await expect(
-      card.getByRole("link", { name: /the map knows the cheap pints/i }),
-    ).toBeVisible();
+    await expect(page.getByTestId("today-screen")).toBeVisible();
+    await expect(page.getByTestId("today-picks")).toHaveCount(0);
+    await expect(page.locator("[data-picks-state]")).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "What’s on tonight" })).toHaveAttribute("href", "/tonight");
   });
 });

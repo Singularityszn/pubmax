@@ -1,3 +1,10 @@
+/* The publisher link sits inside a sentence ("Listed by Pint Prices, collected
+   2 October 2026."), so its 44px tap area reaches past its line instead of
+   growing it. A 44px box on the text baseline made the whole line 44px tall,
+   so a wrapped "2026." sat a full line below the rest. The negative block
+   margins give the line back what the box adds, and the box stays the hit
+   area the tap audit measures (e2e/ui-ux-battle-test.spec.ts). It is the
+   pattern of the landing hunt card and .todayProvenanceLink. */
 .publisher {
   /* The following citation text must not take hits at the link's edge. */
   position: relative;
@@ -5,7 +12,8 @@
   align-items: center;
   min-width: 44px;
   min-height: 44px;
-  vertical-align: baseline;
+  margin-block: calc(-1 * var(--space-3));
+  vertical-align: middle;
 }
 
 .publisher:any-link {

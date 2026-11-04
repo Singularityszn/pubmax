@@ -44,10 +44,11 @@ test.describe("the Pub Pal composer on a phone", () => {
     });
   });
 
-  test("stays on screen after an ask, and the floating compose control stands down", async ({ page }) => {
+  test("stays on screen after an ask, with no floating compose control over it", async ({ page }) => {
     await page.goto("/pal/chat");
     await expectComposerInView(page);
-    await expect(page.locator(".createFabRoot")).toBeHidden();
+    // The floating create action left with the five-tab dock (1 Nov 2026).
+    await expect(page.locator(".createFabRoot")).toHaveCount(0);
 
     const field = page.getByRole("textbox", { name: "Where, how many, what budget", exact: true });
     await expect(field).toBeEnabled();

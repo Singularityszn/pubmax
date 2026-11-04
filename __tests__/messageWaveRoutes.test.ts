@@ -46,6 +46,9 @@ import { GROUP_MEMBER_FLOOR_LINE } from "@/lib/messageGroupThread";
 import { __resetMemoryMessages } from "@/lib/messagesStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
 import { __resetMemoryProfiles, __seedMemoryOwnedProfile } from "@/lib/profileStore";
+// Messaging asks the one adult gate, so every seeded account has answered it.
+import { memoryAdultSelfAssertionStore } from "@/lib/adultSelfAssertionStore";
+import { treatEveryoneAsMates } from "@/__tests__/helpers/messageMates";
 
 const BASE = "http://localhost/api/messages";
 const PLAN_ID = "3f1d1ad0-1111-4111-8111-111111111111";
@@ -90,6 +93,7 @@ async function openGroup(
 }
 
 beforeEach(() => {
+  treatEveryoneAsMates();
   __resetMemoryMessages();
   __resetMemoryProfiles();
   __resetPintDrops();
@@ -101,7 +105,7 @@ beforeEach(() => {
     ["jen", "user-jen"],
     ["ali", "user-ali"],
   ] as const) {
-    __seedMemoryOwnedProfile(handle, userId);
+    __seedMemoryOwnedProfile(handle, userId); void memoryAdultSelfAssertionStore.record(userId);
   }
 });
 
@@ -183,7 +187,7 @@ describe("a group thread carries every member on its signal", () => {
   it("refuses a stranger the thread, exactly as a DM does", async () => {
     const opened = await openGroup(["sam", "jen"]);
     const { conversationId } = (await opened.json()) as { conversationId: string };
-    __seedMemoryOwnedProfile("mallory", "user-mal");
+    __seedMemoryOwnedProfile("mallory", "user-mal"); void memoryAdultSelfAssertionStore.record("user-mal");
     asUser("user-mal");
     const read = await getThread(conversationId, "mallory");
     expect(read.status).toBe(404);

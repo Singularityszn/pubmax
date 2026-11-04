@@ -9,7 +9,7 @@ import { visibleCuratedCrawls } from "./routeSummary";
 // Server shell for /crawls so the route carries real metadata (the client
 // component can't export it). Crawls is a public browse surface (like /pubs
 // and /discover), so it is indexable with its own canonical + Open Graph.
-const CRAWLS_TITLE = "London pub crawl routes";
+const CRAWLS_TITLE = "Free, self-guided London pub crawl routes";
 const CRAWLS_DESCRIPTION =
   "London pub crawls you can share, with their stops, prices and vibe. Pick a route worth the walk, or build your own on the map.";
 

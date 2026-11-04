@@ -30,6 +30,8 @@ dist/
 !/docs/proof/skills-packages-2026-10-07/review-r5-r6/browser-cwd-failure.log
 *.tsbuildinfo
 scripts/__pycache__/
+.agents/skills/*/scripts/__pycache__/
+.agents/skills/*/tests/__pycache__/
 .vercel
 .context/
 .firecrawl/

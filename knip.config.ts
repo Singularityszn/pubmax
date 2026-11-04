@@ -61,6 +61,13 @@ const config: KnipConfig = {
     "scripts/e2e/run-disposable-plan-browser.mjs",
     // Forked by e2e/web-first-run-journey.spec.ts for real fixture-clock HTTP.
     "scripts/e2e/canonical-price-server.ts",
+    // Named by docs/design-explorations/2026-10-30-phone-mockups/README.md as
+    // the ONE command that prints its contrast table from the live tokens
+    // (`node docs/design-explorations/2026-10-30-phone-mockups/contrast.mjs`).
+    // It reads app/globals.css and app/theme.css on every run and found the
+    // Pint compass contrast defect, so it is kept to re-run the sweep. An
+    // entry root, not an ignore: knip traces what it imports.
+    "docs/design-explorations/2026-10-30-phone-mockups/contrast.mjs",
   ],
   ignore: [
     ...AGENT_TOOLING_PATHS,
@@ -211,8 +218,10 @@ const config: KnipConfig = {
   // pg_restore, which the off-platform backup shells out to
   // (scripts/backup-offplatform.mjs). The pub-website amenity harvest mints its
   // Vertex token with gcloud, and the Places verify jobs read an access token
-  // from it (scripts/lib/googlePlacesQuota.mjs). None of them is an npm binary.
-  ignoreBinaries: ["ipcs", "ipcrm", "ps", "gcloud", "pg_dump", "pg_restore"],
+  // from it (scripts/lib/googlePlacesQuota.mjs). The Pal stage renderer reads a
+  // voice line's loudness and lays it under the video with ffmpeg
+  // (scripts/pubpal/render-pal-stage.mjs). None of them is an npm binary.
+  ignoreBinaries: ["ipcs", "ipcrm", "ps", "gcloud", "pg_dump", "pg_restore", "ffmpeg"],
 };
 
 // This optional local MCP CLI has its own pinned package manifest and named

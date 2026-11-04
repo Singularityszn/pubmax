@@ -17,7 +17,12 @@ import {
   validateImportNote,
 } from "@/lib/importNotesStore";
 import { isImportNotesLimited } from "@/lib/importNotesRateLimit";
+import { isLimited } from "@/lib/pintDrops";
 import { assertServerEnv } from "@/lib/serverEnv";
+import { clientIp, hashIp } from "@/lib/supabase";
+
+/** A moderator clears a queue a tap at a time, so this is per minute and wide. */
+const MODERATION_WRITE_LIMIT = 60;
 
 function forbidden(): Response {
   return publicApiError("Not authorised.", "FORBIDDEN", 403);
@@ -62,6 +67,10 @@ export async function POST(request: Request): Promise<Response> {
 export async function PATCH(request: Request): Promise<Response> {
   assertServerEnv();
   if (!isModerator(request)) return forbidden();
+  const moderatorKey = `import-notes-moderate:${hashIp(clientIp(request))}`;
+  if (await isLimited(moderatorKey, moderatorKey, MODERATION_WRITE_LIMIT)) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;

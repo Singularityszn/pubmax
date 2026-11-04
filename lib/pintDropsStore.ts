@@ -7,6 +7,8 @@ import "server-only";
 // function assumes admin access exists — if getSupabaseAdmin() is null we
 // throw, we don't silently no-op, so the route can 503 deliberately.
 
+import { createHash } from "node:crypto";
+
 import sharp from "sharp";
 
 import { dropWithdrawnAuthors } from "@/lib/accountPublicAccess.server";
@@ -15,9 +17,15 @@ import type { Provenance } from "@/lib/curation";
 import {
   cleanDrinkMeasure,
   cleanDrinkMeasureLabel,
+  DRINK_MEASURE_LABEL,
   measureIsPint,
 } from "@/lib/drinkMeasure";
 import { detectImageKind, magicBytesOk as magicBytesOkPure, stripImageMetadata } from "@/lib/imageSafety";
+import {
+  memoryIdentityHandleStore,
+  supabaseIdentityHandleStore,
+  type WornHandles,
+} from "@/lib/identityHandleStore";
 import { log } from "@/lib/log";
 import { loadVenueAliasResolver, storedVenueIds } from "@/lib/venueAliases";
 import { demoDropsFor, demoPintDropsForCity } from "@/lib/pintDropSeeds";
@@ -26,8 +34,10 @@ import {
   isPintDropConfirmationBasis,
   type PintDropConfirmation,
 } from "@/lib/pintDropConfirmation";
+import { cleanPriceEvidence, priceEvidenceFor } from "@/lib/pintDropReceipt";
 import {
   authorRetiredAtFromRow,
+  contributorHasRetired,
   publicContributorHandle,
 } from "@/lib/retiredContributor";
 import {
@@ -71,6 +81,7 @@ import { PRICE_AUTHORITY_MAX_AGE_MS } from "@/lib/priceAuthorityWindow";
 import { UPLOAD_PHOTO_MAX_BYTES, uploadPhotoSizeLabel } from "@/lib/uploadBodyLimit";
 import { admin, selectStore, whereVenueIdIn } from "@/lib/storeBackend";
 import { STORAGE_BUCKET } from "@/lib/supabase";
+import { proveUploadedImageWrite, readUploadedImageObject, uploadUploadedImageObject } from "@/lib/uploadedImage.server";
 import { isLiveLastTrainDecision } from "@/lib/lastTrainBadge";
 import { londonDayKey } from "@/lib/pintContributions";
 import { PINT_DROPS_TABLE } from "@/lib/pintDropTable";
@@ -162,18 +173,20 @@ export type PintDropStore = {
    *
    * The returned set is what `viewer` is allowed to see on a PUBLIC surface:
    *   • public + anonymous → always (anonymous handle already withheld in the DTO);
-   *   • friends → only if the viewer is the author or one of the author's followers;
-   *   • legacy → excluded (ledger-only, via listLegacyForVenue) — except the author.
+   *   • friends → only if the viewer is the author or a mutual follower;
+   *   • legacy → excluded for everyone (ledger-only, via listLegacyForVenue).
    *
-   * `viewer` is the requester's self-asserted identity (handle + the handles they
-   * follow). Omitted/anonymous viewer ⇒ public + anonymous only. This is an
-   * honest-best-effort courtesy curtain (self-asserted handles, no auth yet), the
-   * same trust posture as lib/notifications.ts.
-   */
-  /**
-   * @param authorHandle When set, only drops authored by this handle (normalized)
-   *   are returned — used by passport / profile surfaces so clients never pull
-   *   the global public feed just to filter client-side.
+   * Callers establish viewer identity before this store applies visibility.
+   * `lib/pintDropViewer.ts` owns request verification and the dev/test fallback.
+   * An omitted viewer permits only public and anonymous drops, subject to the
+   * author filter below. This store does not verify bearer tokens itself.
+   *
+   * @param authorHandle Returns only drops authored by this normalized handle.
+   *   Passport and profile surfaces use this filter instead of downloading the
+   *   global public feed. A stranger's read keeps only the rows whose public
+   *   DTO still carries the handle, so it never attributes an anonymous or
+   *   retired drop. The author's own read (`viewer` is the author) keeps them,
+   *   because their account export and their contribution stats are that read.
    */
   listVisible(
     venueId?: string,
@@ -328,6 +341,9 @@ function toRow(drop: PersistableDrop, capDay: string | null = null) {
     measure: cleanDrinkMeasure(drop.measure),
     measure_label: drop.measureLabel ?? null,
     price_gbp: drop.priceGbp,
+    // What stands behind the figure (migration 0218, lib/pintDropReceipt.ts).
+    // Stamped by create() from what arrived, never carried in from a client.
+    price_evidence: drop.priceEvidence ?? null,
     passed_down_note: drop.passedDownNote,
     era: drop.era,
     // Persisted as a dedicated text[]/jsonb column (`vibe_tags`) — the values
@@ -424,6 +440,9 @@ function fromRow(row: Record<string, unknown>): PersistableDrop {
     measure: cleanDrinkMeasure(row.measure),
     measureLabel: measureLabelFromRow(row),
     priceGbp: row.price_gbp === null || row.price_gbp === undefined ? null : Number(row.price_gbp),
+    // Absent on a cluster without 0218 and on every row written before it,
+    // which read exactly as they always have (lib/pintDropReceipt.ts).
+    priceEvidence: cleanPriceEvidence(row.price_evidence),
     passedDownNote: String(row.passed_down_note ?? ""),
     era: String(row.era ?? ""),
     // Re-filter on the way out too (defence in depth): a hand-edited or legacy
@@ -609,6 +628,11 @@ export function toDTO(
     receiptPhotoUrl: visible ? (photoUrls?.receipt ?? null) : null,
   };
   if (drop.measureLabel) dto.measureLabel = drop.measureLabel;
+  // PUBLIC, like the measure and for the same reason: the browser's own drop
+  // lanes (lib/venues.ts) hold an unchecked price away from the pin's mark and
+  // band, and a DTO that withheld it would read every typed price as a billed
+  // one. It names no account and no photo.
+  if (drop.priceEvidence) dto.priceEvidence = drop.priceEvidence;
   // The authority key is a per-venue pseudonym for one verified account, so on
   // an ANONYMOUS drop it would name the drinker: the same account's public drop
   // at that pub carries the same key beside its real handle. The key rides the
@@ -703,24 +727,95 @@ async function hasPricedDropTodayAcrossIds(
   return (await storedVenueIds(venueId)).some((id) => hasPricedDropTodayMemory(id, handle, day));
 }
 
+/**
+ * The account behind an author read. A Pint Drop keeps the handle text it was
+ * posted under and a rename does not rewrite it, so an author read matches
+ * every handle the account has worn (`worn`) and reads each match as the
+ * account's handle today (`current`). A handle with no alias history is its
+ * own account, which is the read as it was before the alias table.
+ */
+type AuthorIdentity = { current: string; worn: ReadonlySet<string> };
+
+async function resolveAuthor(
+  authorHandle: string | undefined,
+  wornHandles: (handle: string) => Promise<WornHandles | null>,
+): Promise<AuthorIdentity | null> {
+  const author = normalizeViewerHandle(authorHandle);
+  if (!author) return null;
+  const account = await wornHandles(author);
+  const current = normalizeViewerHandle(account?.currentHandle) || author;
+  const worn = new Set(
+    [author, current, ...(account?.handles ?? []).map(normalizeViewerHandle)].filter(Boolean),
+  );
+  return { current, worn };
+}
+
+/**
+ * Keep only the account's drops, each read under the handle it wears today.
+ * Every rule after this (visibility, the author's own lane, withdrawal) then
+ * asks about ONE author, so a drop posted before a rename is gated exactly
+ * like one posted after it, and a viewer is the author only when they ARE
+ * the account today, never because they type an old handle.
+ */
+function asAuthorDrops<T extends { handle: string }>(
+  drops: readonly T[],
+  author: AuthorIdentity,
+): T[] {
+  return drops.flatMap((drop) =>
+    author.worn.has(normalizeViewerHandle(drop.handle)) ? [{ ...drop, handle: author.current }] : [],
+  );
+}
+
+/** The handles an author query matches on the stored `handle` column. */
+function wornHandleList(author: AuthorIdentity): string[] {
+  return [...author.worn].sort();
+}
+
+/** An author-filtered read must not recover an identity the public DTO withholds. */
+function matchesAttributedAuthor(drop: PersistableDrop, author: string): boolean {
+  return visibilityOf(drop) !== "anonymous"
+    && !contributorHasRetired(drop.authorRetiredAt)
+    && normalizeViewerHandle(drop.handle) === author;
+}
+
+/**
+ * The `listVisible` author filter. The request itself names the author, so a
+ * row the public DTO withholds the name from would be attributed by the filter.
+ * Only the author's own read may keep those rows.
+ */
+function matchesAuthorFilter(
+  drop: PersistableDrop,
+  author: string,
+  viewer: ViewerContext | undefined,
+): boolean {
+  if (normalizeViewerHandle(viewer?.handle) === author) {
+    return normalizeViewerHandle(drop.handle) === author;
+  }
+  return matchesAttributedAuthor(drop, author);
+}
+
 async function attributedAuthorVenueIds(
   rows: PersistableDrop[],
-  author: string,
+  authorIdentity: AuthorIdentity,
   viewer?: ViewerContext,
 ): Promise<string[]> {
-  const permitted = rows.filter(
+  const author = authorIdentity.current;
+  const permitted = asAuthorDrops(rows, authorIdentity).filter(
     (drop) =>
-      normalizeViewerHandle(drop.handle) === author &&
+      matchesAttributedAuthor(drop, author) &&
       visibilityOf(drop) !== "legacy" &&
-      canViewOnPublicSurface(drop, viewer) &&
-      normalizeViewerHandle(toDTO(drop).handle) === author,
+      canViewOnPublicSurface(drop, viewer),
   );
   const published = await dropWithdrawnFromViewer(permitted, viewer);
   return [...new Set(published.map((drop) => drop.venueId))].sort();
 }
 
 export const memoryPintDropStore: PintDropStore = {
-  async create(drop, _photos, options) {
+  async create(input, photos, options) {
+    // The evidence is EARNED here, from what arrived, exactly as the Supabase
+    // backend earns it: a priced drop with no bill is `unchecked`, whatever the
+    // caller's object said (lib/pintDropReceipt.ts, captain decision 9).
+    const drop = withEarnedEvidence(input, photos);
     // The same hard guard the Supabase backend gets from
     // pint_drops_priced_day_unique_idx (0141), over the same writes: the route's
     // pre-check and this create sit either side of an await, so two in-flight
@@ -732,14 +827,17 @@ export const memoryPintDropStore: PintDropStore = {
     ) {
       throw new PintDropDailyCapError();
     }
-    addPintDrop(drop); // photos ignored: there is no Storage without Supabase
+    // Photos are not stored: there is no Storage without Supabase. Only the
+    // FACT that a bill arrived is kept, as the drop's evidence above.
+    addPintDrop(drop);
     return toDTO(drop);
   },
   async listVisible(venueId, viewer, authorHandle, cityId) {
-    const rows = venueId
+    const venueRows = venueId
       ? (await storedVenueIds(venueId)).flatMap((id) => listVisiblePintDrops(id))
       : listAllVisiblePintDrops(cityId);
-    const author = normalizeViewerHandle(authorHandle);
+    const author = await resolveAuthor(authorHandle, (h) => memoryIdentityHandleStore.wornHandles(h));
+    const rows = author ? asAuthorDrops(venueRows, author) : venueRows;
     // Visibility applied server-side (issue #29). Legacy is EXCLUDED from the
     // public surface for EVERYONE (including the author — they read it via the
     // ledger's listLegacyForVenue, not the feed), matching the Supabase backend's
@@ -749,13 +847,13 @@ export const memoryPintDropStore: PintDropStore = {
       (d) =>
         visibilityOf(d) !== "legacy" &&
         canViewOnPublicSurface(d, viewer) &&
-        (!author || normalizeViewerHandle(d.handle) === author),
+        (!author || matchesAuthorFilter(d, author.current, viewer)),
     );
     const published = await dropWithdrawnFromViewer(permitted, viewer);
     return newestFirstCapped(published).map((d) => toDTO(withVerifiedReportCount(d)));
   },
   async listVisibleAuthorVenueIds(authorHandle, viewer, cityId, venueId) {
-    const author = normalizeViewerHandle(authorHandle);
+    const author = await resolveAuthor(authorHandle, (h) => memoryIdentityHandleStore.wornHandles(h));
     if (!author) return [];
     const rows = venueId
       ? (await storedVenueIds(venueId)).flatMap((id) => listVisiblePintDrops(id))
@@ -960,6 +1058,42 @@ export function isPintDropDailyCapError(error: unknown): error is PintDropDailyC
   return error instanceof PintDropDailyCapError;
 }
 
+/**
+ * The drop as a create path stores it: its evidence EARNED from what arrived
+ * (lib/pintDropReceipt.ts `priceEvidenceFor`), never carried in. Both backends
+ * ask this, so a caller's object, a client body or a seed cannot claim a bill
+ * that was not sent, and a priced drop with no bill is `unchecked` everywhere.
+ */
+function withEarnedEvidence(drop: PintDrop, photos: PintDropPhotos): PintDrop {
+  const { priceEvidence: _claimed, ...rest } = drop;
+  void _claimed;
+  const earned = priceEvidenceFor(drop.priceGbp, Boolean(photos.receipt));
+  return earned ? { ...rest, priceEvidence: earned } : rest;
+}
+
+/**
+ * An UNCHECKED price this store cannot mark as unchecked (migration 0218 not
+ * yet applied). Refused rather than saved, because a row with no evidence
+ * column reads as a billed one, so saving it would give a typed price the pin's
+ * mark: decision 9 reversed by a retry. The route answers exactly what it
+ * answered before the decision (a bill is asked for), and the refusal ends the
+ * moment the captain applies the migration.
+ */
+export class UncheckedPriceNotStorableError extends Error {
+  readonly code = "PINT_DROP_UNCHECKED_PRICE_NOT_STORABLE";
+  constructor() {
+    super("This price store cannot record an unchecked price yet (apply migration 0218).");
+    this.name = "UncheckedPriceNotStorableError";
+  }
+}
+
+/** The one question a caller asks about that refusal. */
+export function isUncheckedPriceNotStorableError(
+  error: unknown,
+): error is UncheckedPriceNotStorableError {
+  return error instanceof UncheckedPriceNotStorableError;
+}
+
 // 23505 on the daily-cap index alone. Named, because pint_drops carries other
 // unique indexes (the primary key) and a bare 23505 would answer 409 for a
 // collision that is not this rule at all.
@@ -1000,6 +1134,28 @@ function isMissingMeasureColumnError(error: {
   return (code === "42703" || code === "PGRST204") && mentions;
 }
 
+/** The measures the CHECK held before 0210, and holds again after its rollback. */
+const PRE_0210_MEASURES: ReadonlySet<string> = new Set(["pint", "half", "other"]);
+
+/**
+ * Rollback guard for the measure CHECK (migration 0210, review P3d, PR 2402).
+ *
+ * The 0210 rollback narrows `pint_drops_measure_known` back to pint, half and
+ * other. An app still offering 175 ml or Bottle in that window would lose the
+ * price to a 23514. The size is not a pint, so it may land as `other` with its
+ * own printed word as the label, exactly where the rollback moves such rows.
+ * Only a size the narrow CHECK does not know is retried; a pint or a half
+ * refused by this CHECK is some other fault and still throws.
+ */
+function isUnknownMeasureCheckError(
+  error: { code?: string; message?: string } | null,
+  measure: string,
+): boolean {
+  if (!error || error.code !== "23514") return false;
+  if (!(error.message ?? "").includes("pint_drops_measure_known")) return false;
+  return !PRE_0210_MEASURES.has(measure);
+}
+
 /**
  * Additive-rollout guard for the receipt column (migration 0153).
  *
@@ -1009,11 +1165,28 @@ function isMissingMeasureColumnError(error: {
  * the key: the drop is saved without it, and a photo is lost where a price
  * would have been.
  */
-function isMissingReceiptColumnError(error: { code?: string; message?: string } | null): boolean {
+export function isMissingReceiptColumnError(error: { code?: string; message?: string } | null): boolean {
   if (!error) return false;
   const code = error.code ?? "";
   const message = (error.message ?? "").toLowerCase();
   return (code === "42703" || code === "PGRST204") && message.includes("receipt_photo_key");
+}
+
+/**
+ * Additive-rollout guard for the evidence column (migration 0218).
+ *
+ * A BILLED price retries without the column, because an absent evidence reads
+ * exactly as a billed row always has. An UNCHECKED price is refused instead
+ * (`UncheckedPriceNotStorableError`): stored without its word it would read as
+ * billed and mark the pin, which is the measure guard's reasoning about a half.
+ */
+function isMissingPriceEvidenceColumnError(
+  error: { code?: string; message?: string } | null,
+): boolean {
+  if (!error) return false;
+  const code = error.code ?? "";
+  const message = (error.message ?? "").toLowerCase();
+  return (code === "42703" || code === "PGRST204") && message.includes("price_evidence");
 }
 
 // Additive-rollout guard for Wave G1 Last Train columns (migration 0021).
@@ -1028,7 +1201,12 @@ function isMissingLastTrainColumnError(error: { code?: string; message?: string 
 
 // ── Supabase implementation ──────────────────────────────────────────────────
 export const supabasePintDropStore: PintDropStore = {
-  async create(drop, photos, options) {
+  async create(input, photos, options) {
+    // The evidence is EARNED from what arrived (lib/pintDropReceipt.ts). It
+    // follows the REQUEST, not the upload: a bill Storage failed to keep below
+    // was still sent, and the rule beside that branch is that our outage may
+    // not cost the drinker anything, including the standing they earned.
+    const drop = withEarnedEvidence(input, photos);
     const persistable: PersistableDrop = { ...drop };
     const uploaded: string[] = [];
     try {
@@ -1079,6 +1257,18 @@ export const supabasePintDropStore: PintDropStore = {
       // First attempt includes vibe_tags + Last Train columns. Once migrations
       // 0005 / 0021 are applied this is the only path that ever runs.
       let error = await insert(row);
+      if (error && isUnknownMeasureCheckError(error, row.measure)) {
+        // One retry, and the log names the size only, never an account.
+        console.warn(
+          "[pint-drops] measure CHECK refused a size - saving it as other with its label (0210 rolled back?):",
+          row.measure,
+        );
+        const label = DRINK_MEASURE_LABEL[row.measure];
+        persistable.measure = "other";
+        persistable.measureLabel = label;
+        row = { ...row, measure: "other", measure_label: label };
+        error = await insert(row);
+      }
       if (error && isMissingPriceDayColumnError(error)) {
         console.warn(
           "[pint-drops] price_day missing - the daily cap is the pre-check alone until migration 0141 is applied:",
@@ -1129,6 +1319,22 @@ export const supabasePintDropStore: PintDropStore = {
         void _omitReceipt;
         delete persistable.receiptPhotoKey;
         row = rowWithoutReceipt as typeof row;
+        error = await insert(row);
+      }
+      if (error && isMissingPriceEvidenceColumnError(error)) {
+        if (persistable.priceEvidence === "unchecked") {
+          // The one retry this rung refuses. Without its word an unchecked
+          // price reads as billed and would mark the pin (decision 9 reversed).
+          throw new UncheckedPriceNotStorableError();
+        }
+        console.warn(
+          "[pint-drops] price_evidence missing - saving this drop without it (apply migration 0218):",
+          error.message,
+        );
+        const { price_evidence: _omitEvidence, ...rowWithoutEvidence } = row;
+        void _omitEvidence;
+        delete persistable.priceEvidence;
+        row = rowWithoutEvidence as typeof row;
         error = await insert(row);
       }
       if (error && isMissingMeasureColumnError(error)) {
@@ -1198,6 +1404,17 @@ export const supabasePintDropStore: PintDropStore = {
         await deletePhotos(uploaded);
         throw err;
       }
+      // A pending migration, not an outage: warned once per refusal, the
+      // photos cleaned up, and the route answers with the bill rule.
+      if (isUncheckedPriceNotStorableError(err)) {
+        log("warn", "pint_drops.unchecked_price_needs_0218", {
+          dropId: drop.id,
+          venueId: drop.venueId,
+          uploadedCount: uploaded.length,
+        });
+        await deletePhotos(uploaded);
+        throw err;
+      }
       // Log the storage/insert failure (safe fields only — no buffers, no keys)
       // before cleaning up and re-throwing. The route still maps this to the
       // same 503/400 for the user; logging is purely additive observability.
@@ -1216,7 +1433,8 @@ export const supabasePintDropStore: PintDropStore = {
   /** Demo seeds (in-repo, never written to Supabase) merge with the organic
    *  rows in newestFirstCapped so both backends serve one read-merge path. */
   async listVisible(venueId, viewer, authorHandle, cityId) {
-    const author = normalizeViewerHandle(authorHandle);
+    const author = await resolveAuthor(authorHandle, (h) => supabaseIdentityHandleStore.wornHandles(h));
+    const authorHandles = author ? wornHandleList(author) : [];
     const venueIds = venueId ? await storedVenueIds(venueId) : [];
     // Base visible read, newest-first, capped. Split from the visibility filter
     // so we can retry WITHOUT it if migration 0012 isn't applied to this DB yet
@@ -1230,7 +1448,8 @@ export const supabasePintDropStore: PintDropStore = {
         .limit(MAX_PUBLIC_DROPS);
       if (venueIds.length === 1) q = q.eq("venue_id", venueIds[0]);
       else if (venueIds.length > 1) q = q.in("venue_id", venueIds);
-      if (author) q = q.eq("handle", author);
+      if (authorHandles.length === 1) q = q.eq("handle", authorHandles[0]);
+      else if (authorHandles.length > 1) q = q.in("handle", authorHandles);
       return q;
     };
     // Legacy (family/heirloom) drops NEVER ride the public surface — they read
@@ -1248,28 +1467,29 @@ export const supabasePintDropStore: PintDropStore = {
     if (error) throw new Error(error.message);
     // Per-venue: all city seeds for that id. Unscoped: city-scoped seeds so
     // Manchester demo drops never noise the London feed/landing.
-    const seeds = (
-      venueId ? venueIds.flatMap((id) => demoDropsFor(id)) : demoPintDropsForCity(cityId)
-    ).filter(
-      (d) => !author || normalizeViewerHandle(d.handle) === author,
-    );
+    const allSeeds = venueId
+      ? venueIds.flatMap((id) => demoDropsFor(id))
+      : demoPintDropsForCity(cityId);
+    const seeds = author ? asAuthorDrops(allSeeds, author) : allSeeds;
     // Apply the same pure predicate the memory store uses over the fetched page.
     // Legacy is already excluded above; public + anonymous always pass, friends
     // gate on the viewer's follow graph. Unscoped reads also city-scope organic
     // rows by venue id prefix (venue-mcr- ↔ Manchester).
-    const permitted = (data ?? [])
-      .map(fromRow)
+    const organic = (data ?? []).map(fromRow);
+    const permitted = (author ? asAuthorDrops(organic, author) : organic)
       .concat(seeds)
       .filter((d) => venueId || dropMatchesCityScope(d.venueId, cityId))
-      .filter((d) => canViewOnPublicSurface(d, viewer));
+      .filter((d) => canViewOnPublicSurface(d, viewer))
+      .filter((d) => !author || matchesAuthorFilter(d, author.current, viewer));
     const published = await dropWithdrawnFromViewer(permitted, viewer);
     const capped = newestFirstCapped(published);
     return toDTOsWithBatchedPhotos(capped);
   },
 
   async listVisibleAuthorVenueIds(authorHandle, viewer, cityId, venueId) {
-    const author = normalizeViewerHandle(authorHandle);
+    const author = await resolveAuthor(authorHandle, (h) => supabaseIdentityHandleStore.wornHandles(h));
     if (!author) return [];
+    const authorHandles = wornHandleList(author);
     const venueIds = venueId ? await storedVenueIds(venueId) : [];
     const visited = new Set<string>();
     let afterId: string | undefined;
@@ -1281,7 +1501,7 @@ export const supabasePintDropStore: PintDropStore = {
           .from(TABLE)
           .select("*")
           .eq("status", "visible")
-          .eq("handle", author)
+          .in("handle", authorHandles)
           .order("id", { ascending: true })
           .limit(MAX_PUBLIC_DROPS);
         if (afterId) query = query.gt("id", afterId);
@@ -1652,24 +1872,30 @@ export async function uploadPhoto(
 
   const key = `${venueId}/${dropId}/${slot}.${NORMALIZED_EXT}`;
 
-  const { error } = await admin()
-    .storage.from(STORAGE_BUCKET)
-    .upload(key, processed, { contentType: NORMALIZED_CONTENT_TYPE, upsert: false });
+  const error = await uploadUploadedImageObject(key, processed, NORMALIZED_CONTENT_TYPE, { upsert: false });
   if (error) {
     log("error", "pint_drops.photo_upload_failed", {
       slot,
       venueId,
       dropId,
-      error: error.message,
+      error,
     });
-    throw new Error(error.message);
+    throw new Error(error);
+  }
+  const proof = await proveUploadedImageWrite(
+    key,
+    { sha256: createHash("sha256").update(processed).digest("hex"), byteSize: processed.byteLength },
+    readUploadedImageObject,
+  );
+  if (proof === "corrupt") {
+    await deletePhotos([key]);
+    throw new Error("That photo did not save correctly. Try uploading it again.");
   }
   return key;
 }
 
-/** Best-effort delete of uploaded objects — called to undo orphans when the
- *  DB insert fails after upload. Never throws: cleanup must not mask the
- *  original 503. */
+/** Best-effort cleanup of corrupt or unreferenced uploaded objects.
+ *  Never throws: cleanup must not mask the original failure. */
 export async function deletePhotos(keys: string[]): Promise<void> {
   const present = keys.filter(Boolean);
   if (!present.length) return;

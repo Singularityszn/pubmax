@@ -1,7 +1,8 @@
 import type * as maplibregl from "maplibre-gl";
+import { ROUTE_STOP_NAME_ANCHOR_OFFSET } from "@/lib/routeStopLabel";
 import {
   applyBasemapTaste,
-  applySelectionMute,
+  applyMapFocusMute,
 } from "@/lib/mapBasemapTaste";
 import { isTransitNetworkVisible } from "@/lib/poiToggleGroups";
 import { TRANSPORT_CATEGORIES, type PoiCategory } from "@/lib/pois";
@@ -9,6 +10,8 @@ import {
   COFFEE_PILOT_ICON_KEY,
   iconId,
   PILL_ICON_KEY_PREFIX,
+  ROUTE_TIME_ICON_KEY,
+  SELECTED_PILL_ICON_KEY_PREFIX,
   UK_BASE_ICON_KEY,
   venuePinIconKey,
 } from "@/lib/mapIcons";
@@ -48,6 +51,8 @@ import {
   pinSortKeyExpr,
   pinPriceLabelExpr,
   pricePillFilter,
+  PRICE_PILL_MIN_ZOOM,
+  selectedPricePillFilter,
   CLUSTER_COUNT_BADGE_FILTER,
   CLUSTER_COUNT_CAPTION_EXPR,
   CLUSTER_FIGURE_EXPR,
@@ -58,6 +63,7 @@ import {
   PIN_PRICE_LABEL_MIN_ZOOM,
   SELECTED_PIN_PRICE_LABEL_EXPR,
 } from "./filters";
+import { buildLegRoute } from "./legRouteScene";
 
 // The two zooms that shape pub density. They are deliberately NOT the same
 // number any more:
@@ -337,7 +343,9 @@ export const PIN_PRICE_LABEL_PADDING = 4;
 /** The plaque halo behind a pin tag, shared by the curated and base layers. */
 const PIN_PRICE_LABEL_HALO_WIDTH = 2.1;
 
-// The pill's text, in px. 12 at the first zoom it draws, 13 by street level.
+// The pill's text, in px. 12 from the first zoom it draws to street zoom, 13 by
+// street level. Never under 12: the pill's nine-slice is drawn for a 12px
+// figure, and a smaller one would shrink its fixed ends and their pips.
 const PIN_PRICE_PILL_TEXT_SIZE_EXPR: maplibregl.ExpressionSpecification = [
   "interpolate",
   ["linear"],
@@ -347,9 +355,47 @@ const PIN_PRICE_PILL_TEXT_SIZE_EXPR: maplibregl.ExpressionSpecification = [
   16.5,
   13,
 ];
+// The selected pub's pill is one step larger: the scale half of "this is the
+// one you are on", where the ink body is the other half.
+export const SELECTED_PRICE_PILL_SCALE = 1.15;
+const SELECTED_PRICE_PILL_TEXT_SIZE_EXPR: maplibregl.ExpressionSpecification = [
+  "interpolate",
+  ["linear"],
+  ["zoom"],
+  PIN_PRICE_LABEL_MIN_ZOOM,
+  12 * SELECTED_PRICE_PILL_SCALE,
+  16.5,
+  13 * SELECTED_PRICE_PILL_SCALE,
+];
 // [top, right, bottom, left] px added round the text's rectangle on top of the
 // image's own content box.
 const PIN_PRICE_PILL_FIT_PADDING: [number, number, number, number] = [1, 0, 1, 0];
+
+// The crawl route's width, in px, as a maps app draws directions: thick enough
+// to read as the way to go at a glance, and wider as the reader leans in. The
+// casing is the line plus a 3px edge each side at street level.
+const ROUTE_LINE_WIDTH: maplibregl.ExpressionSpecification = [
+  "interpolate",
+  ["linear"],
+  ["zoom"],
+  12,
+  4,
+  15,
+  6,
+  18,
+  9,
+];
+const ROUTE_CASING_WIDTH: maplibregl.ExpressionSpecification = [
+  "interpolate",
+  ["linear"],
+  ["zoom"],
+  12,
+  7,
+  15,
+  10,
+  18,
+  15,
+];
 
 // Zoom at/above which curated landmark pictograms stop yielding to other
 // symbols. Below it a landmark icon gives way where a pub cluster or pin
@@ -393,6 +439,10 @@ export type SceneCtx = {
   landmarksGeoJSON: GeoJSON.FeatureCollection;
   poisData: GeoJSON.FeatureCollection;
   routeLine: GeoJSON.FeatureCollection;
+  /** The crawl route's time bubbles, one per leg — see buildRouteLegTimes. */
+  routeLegTimes?: GeoJSON.FeatureCollection;
+  /** The way to the next stop chosen in Night Mode, if any — see buildLegRoute. */
+  legRoute?: GeoJSON.FeatureCollection;
   routeStops: GeoJSON.FeatureCollection;
   bandCorridor: GeoJSON.FeatureCollection;
   bandColor: string;
@@ -881,11 +931,13 @@ export function buildPois(ctx: SceneCtx) {
 
 export function buildRoute(ctx: SceneCtx) {
   const { map, tokens, dark, addLayerOnce, routeLine } = ctx;
-  // --- Crawl route: a high-contrast walking line that follows real roads.
+  // --- Crawl route: a high-contrast walking line that follows real roads,
+  // drawn the way a maps app draws directions: thick, solid, on its own edge,
+  // and wider as the reader leans in.
   // Three layers off the one `route-line` source, whose single LineString
   // feature carries a `source` property ("ors" | "straight", set by
   // lib/walkRoute legsToLineString):
-  //   1. casing — an opposite-luminance halo so the line stays legible over both
+  //   1. casing — an opposite-luminance edge so the line stays legible over both
   //      the pale Positron paper and the OLED-dark basemap (the two-layer
   //      casing/colour idiom copied from tube-lines above).
   //   2. the solid coloured line — full strength for a real routed line ("ors"),
@@ -906,8 +958,8 @@ export function buildRoute(ctx: SceneCtx) {
     layout: { "line-cap": "round", "line-join": "round" },
     paint: {
       "line-color": dark ? tokens.inkDeep : tokens.paper,
-      "line-width": 6,
-      "line-opacity": 0.85,
+      "line-width": ROUTE_CASING_WIDTH,
+      "line-opacity": 0.95,
     },
   });
   addLayerOnce({
@@ -917,7 +969,7 @@ export function buildRoute(ctx: SceneCtx) {
     layout: { "line-cap": "round", "line-join": "round" },
     paint: {
       "line-color": tokens.routeLine,
-      "line-width": 4,
+      "line-width": ROUTE_LINE_WIDTH,
       // Solid at full strength for a routed line; a faint underlay under the
       // dash for the straight fallback.
       "line-opacity": ["case", ["==", ["get", "source"], "straight"], 0.3, 0.95],
@@ -935,6 +987,43 @@ export function buildRoute(ctx: SceneCtx) {
       // stays solid (the layer paints nothing when source is "ors").
       "line-opacity": ["case", ["==", ["get", "source"], "straight"], 0.9, 0],
       "line-dasharray": DASH_SEQ[0],
+    },
+  });
+}
+
+/**
+ * The time on foot of each leg of the crawl route, on a small bubble at the
+ * middle of the leg ("6 min", or "~6 min" on a straight-line estimate). It is
+ * placed after the pins on purpose: a route is the reader's own plan, so where
+ * a bubble and a pin collide the pin gives way, and the numbered stops above
+ * still take their space first. Zoom-gated with the stop names, so a route
+ * small enough to sit under one thumb does not wear a pile of bubbles.
+ */
+function buildRouteLegTimes(ctx: SceneCtx) {
+  const { map, tokens, textFont, addLayerOnce } = ctx;
+  if (!map.getSource("route-leg-times")) {
+    map.addSource("route-leg-times", {
+      type: "geojson",
+      data: ctx.routeLegTimes ?? { type: "FeatureCollection", features: [] },
+    });
+  }
+  addLayerOnce({
+    id: "route-leg-time",
+    type: "symbol",
+    source: "route-leg-times",
+    minzoom: 13.5,
+    layout: {
+      "icon-image": iconId("route", ROUTE_TIME_ICON_KEY),
+      "icon-text-fit": "both",
+      "icon-allow-overlap": false,
+      "icon-padding": 2,
+      "text-field": ["get", "label"],
+      "text-font": textFont,
+      "text-size": 12,
+      "text-allow-overlap": false,
+    },
+    paint: {
+      "text-color": tokens.ink,
     },
   });
 }
@@ -985,9 +1074,9 @@ export function buildUkBase(ctx: SceneCtx) {
       attribution: OSM_ATTRIBUTION,
     });
   }
-  // The tapped base pub. A quieter ring than the curated `pubs-selected` brass
-  // (this pin has nothing to be proud of yet), but a tap must always be
-  // answered on the map, not only in the sheet.
+  // The tapped base pub. A quieter ring than the curated `pubs-selected` double
+  // ring (this pin has nothing to be proud of yet), but a tap must always be
+  // answered on the map, not only in the sheet. Ink, like every selection.
   addLayerOnce({
     id: "uk-base-selected",
     type: "circle",
@@ -997,7 +1086,7 @@ export function buildUkBase(ctx: SceneCtx) {
     paint: {
       "circle-color": "rgba(0,0,0,0)",
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 7, 17, 12],
-      "circle-stroke-color": tokens.brass,
+      "circle-stroke-color": tokens.ink,
       "circle-stroke-width": 2,
       "circle-stroke-opacity": dark ? 0.85 : 0.8,
     },
@@ -1145,7 +1234,8 @@ export function buildLondonRestaurants(ctx: SceneCtx) {
     paint: {
       "circle-color": "rgba(0,0,0,0)",
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 8, 17, 13],
-      "circle-stroke-color": tokens.brass,
+      // A selection reads in ink, never coral.
+      "circle-stroke-color": tokens.ink,
       "circle-stroke-width": 2,
       "circle-stroke-opacity": dark ? 0.85 : 0.8,
     },
@@ -1196,7 +1286,8 @@ export function buildCoffeePilot(ctx: SceneCtx) {
     paint: {
       "circle-color": "rgba(0,0,0,0)",
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 9, 17, 14],
-      "circle-stroke-color": tokens.brass,
+      // A selection reads in ink, never coral.
+      "circle-stroke-color": tokens.ink,
       "circle-stroke-width": 2.4,
       "circle-stroke-opacity": dark ? 0.9 : 0.85,
     },
@@ -1503,24 +1594,26 @@ export function buildPubs(ctx: SceneCtx) {
       "text-opacity-transition": { duration: 250, delay: 0 },
     },
   });
-  // THE PRICE PILL. From PIN_PRICE_LABEL_MIN_ZOOM a priced pub's mark is its
-  // price on a pill, with the band as a 3px foot (lib/mapIcons.ts, the pill
-  // section). It is the pin ABOVE the glass in the layer stack, so MapLibre
-  // places it first; the glass (and the tag hung under it) then collide with
-  // the pill that stands on the very same point and drop, and where the pill
-  // finds no room the glass places as it always did. A pub is therefore never
-  // lost to make its price fit, which is the rule the tag on `pubs-point` was
-  // written to keep.
+  // THE PRICE PILL. From PRICE_PILL_MIN_ZOOM, the pin floor, a priced pub's
+  // mark is its price on a quiet pill: a raised-panel body, the figure in ink,
+  // the band as the pill's outline and as one, two or three pips at its left
+  // end, so colour is never the only thing saying the band (lib/mapIcons.ts,
+  // the pill section). It is the pin ABOVE the glass in the layer stack, so
+  // MapLibre places it first; the glass (and the tag hung under it) then
+  // collide with the pill that stands on the very same point and drop, and
+  // where the pill finds no room the glass places as it always did. A pub is
+  // therefore never lost to make its price fit, which is the rule the tag on
+  // `pubs-point` was written to keep.
   //
   // Same collision deal as every other symbol (nothing here ignores
   // placement), same priority as the glass (pinSortKeyExpr), same dimming
-  // (pubIconOpacityExpr). The selected pub is filtered out: it keeps its
-  // enlarged glass, its glow and its own tag on `pubs-point-selected`.
+  // (pubIconOpacityExpr). The selected pub is filtered out: it is drawn once,
+  // inverted, on `pubs-price-pill-selected`.
   addLayerOnce({
     id: "pubs-price-pill",
     type: "symbol",
     source: "pubs",
-    minzoom: PIN_PRICE_LABEL_MIN_ZOOM,
+    minzoom: PRICE_PILL_MIN_ZOOM,
     filter: pricePillFilter(selectedId, bandMemberIds),
     layout: {
       "icon-image": [
@@ -1530,7 +1623,8 @@ export function buildPubs(ctx: SceneCtx) {
       ],
       "icon-text-fit": "both",
       // The pill's own nine-slice already holds the padding (its content box
-      // is inset 8px / 5px), so this only trues the height up to 26px.
+      // is inset past the pips and 5px top and bottom), so this only trues the
+      // height up to 26px.
       "icon-text-fit-padding": PIN_PRICE_PILL_FIT_PADDING,
       "icon-allow-overlap": false,
       "icon-ignore-placement": false,
@@ -1547,7 +1641,9 @@ export function buildPubs(ctx: SceneCtx) {
     paint: {
       "icon-opacity": pubIconOpacityExpr(selectedId),
       "icon-opacity-transition": { duration: 250, delay: 0 },
-      "text-color": tokens.pricePlaqueInk,
+      // Ink, a constant: the figure is the claim and wears no band, exactly as
+      // the cluster's "from" and count do. The band is the pill's outline.
+      "text-color": tokens.ink,
       "text-opacity": pubIconOpacityExpr(selectedId),
       "text-opacity-transition": { duration: 250, delay: 0 },
     },
@@ -1594,9 +1690,9 @@ export function buildPubs(ctx: SceneCtx) {
     paint: {
       "icon-opacity": 1,
       // The selected pub's tag is the one INVERTED figure on the map: paper on
-      // ink, where every other tag is ink on paper. It is the pill the selected
-      // pub does not get (its enlarged glass and its glow are the selection),
-      // and the inversion is what says "this is the one you are on".
+      // ink, where every other tag is ink on paper. This layer only draws a
+      // selected pub that is not a pill (a mark rides its glass, or its price
+      // is aging), and the inversion is what says "this is the one you are on".
       "text-color": dark ? tokens.inkDeep : tokens.paper,
       "text-halo-color": dark ? tokens.ink : tokens.inkDeep,
       "text-halo-width": PIN_PRICE_LABEL_HALO_WIDTH,
@@ -1604,21 +1700,64 @@ export function buildPubs(ctx: SceneCtx) {
       "text-opacity": 1,
     },
   });
-  // Selected pin: a confident double brass ring — a soft outer wash plus a
-  // bright inner edge — that lifts the choice above every other pin. M1 adds
-  // a breathing pulse (stroke-opacity + stroke-width), driven every frame by
-  // the existing RAF loop in PubMapCanvas — paint transitions are disabled
-  // here (duration 0) so the manual per-frame writes aren't smoothed/lagged.
+  // THE SELECTED PILL. A selected pub that would be a pill stays a pill and is
+  // inverted: an ink body with its figure in paper and its band pips, one size
+  // up (SELECTED_PRICE_PILL_SCALE). Ink, never coral: a selection is not an
+  // action (docs/DESIGN_SYSTEM.md, "Coral is spent twice"). It carries the one
+  // feature selectedPricePillFilter names, and it may overlap like the selected
+  // glass may, figure and all, because a pill's figure sits inside its own
+  // pill on its own pub and cannot be read as a neighbour's price; dropping it
+  // would drop the selected pub. `*-ignore-placement` stays false, so its box
+  // still reserves its space and the pins round it yield to it.
+  addLayerOnce({
+    id: "pubs-price-pill-selected",
+    type: "symbol",
+    source: "pubs",
+    minzoom: PRICE_PILL_MIN_ZOOM,
+    filter: selectedPricePillFilter(selectedId),
+    layout: {
+      "icon-image": [
+        "concat",
+        iconId("pill", SELECTED_PILL_ICON_KEY_PREFIX),
+        ["to-string", ["coalesce", ["get", "spoonsBucket"], ["get", "bucket"]]],
+      ],
+      "icon-text-fit": "both",
+      "icon-text-fit-padding": PIN_PRICE_PILL_FIT_PADDING,
+      "icon-allow-overlap": true,
+      "icon-ignore-placement": false,
+      "icon-padding": 2,
+      "text-field": ["get", "priceLabel"],
+      "text-font": textFont,
+      "text-size": SELECTED_PRICE_PILL_TEXT_SIZE_EXPR,
+      "text-letter-spacing": 0.01,
+      "text-allow-overlap": true,
+      "text-ignore-placement": false,
+      "text-padding": 0,
+    },
+    paint: {
+      "icon-opacity": 1,
+      "text-color": dark ? tokens.inkDeep : tokens.paper,
+      "text-opacity": 1,
+    },
+  });
+  // Selected pin that is not a pill: a double INK ring — a soft outer wash plus
+  // a crisp inner edge — that lifts the choice above every other pin. Ink, never
+  // coral: a selection reads in ink (docs/DESIGN_SYSTEM.md, "Coral is spent
+  // twice"). M1 adds a breathing pulse (stroke-opacity + stroke-width), driven
+  // every frame by the existing RAF loop in PubMapCanvas — paint transitions
+  // are disabled here (duration 0) so the manual per-frame writes aren't
+  // smoothed/lagged. The rings are drawn round a 28px glass, so a selected pill
+  // wears none (selectedPinFilter).
   addLayerOnce({
     id: "pubs-selected-glow",
     type: "circle",
     source: "pubs",
     minzoom: PIN_MIN_ZOOM,
-    filter: ["==", ["get", "id"], selectedId],
+    filter: selectedPinFilter(selectedId),
     paint: {
       "circle-color": "rgba(0,0,0,0)",
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 11, 15, 15],
-      "circle-stroke-color": tokens.brass,
+      "circle-stroke-color": tokens.ink,
       "circle-stroke-width": selectedId ? GLOW_SELECTED_STROKE_WIDTH : GLOW_BASE_STROKE_WIDTH,
       "circle-stroke-opacity": GLOW_BASE_STROKE_OPACITY,
       "circle-stroke-width-transition": { duration: 0, delay: 0 },
@@ -1631,18 +1770,18 @@ export function buildPubs(ctx: SceneCtx) {
     type: "circle",
     source: "pubs",
     minzoom: PIN_MIN_ZOOM,
-    filter: ["==", ["get", "id"], selectedId],
+    filter: selectedPinFilter(selectedId),
     paint: {
       "circle-color": "rgba(0,0,0,0)",
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 8, 15, 11],
-      "circle-stroke-color": tokens.brassBright,
+      "circle-stroke-color": tokens.ink,
       "circle-stroke-width": 2.2,
       "circle-stroke-opacity": 0.98,
     },
   });
   // The provisional-report badge, drawn LAST of the per-pin layers so it reads
   // over the glass silhouette, over the enlarged selected pin and over the
-  // brass selection rings — a badge that a ring can hide is not a badge.
+  // ink selection rings — a badge that a ring can hide is not a badge.
   //
   // River-toned, because that is this map's community lane (the Pint Drops halo
   // is the same family): the badge means "a drinker has been here", and it is
@@ -1833,7 +1972,7 @@ export function buildRouteStops(ctx: SceneCtx) {
     source: "route-stops",
     paint: {
       "circle-color": tokens.inkDeep,
-      "circle-radius": 13,
+      "circle-radius": 16,
       "circle-stroke-color": tokens.brassBright,
       "circle-stroke-width": 2.5,
     },
@@ -1859,11 +1998,10 @@ export function buildRouteStops(ctx: SceneCtx) {
     layout: {
       "text-field": ["get", "stopName"],
       "text-font": textFont,
-      "text-size": ["interpolate", ["linear"], ["zoom"], 13.5, 10, 16, 12],
-      // Ride beside the numbered disc (radius 13px), flipping side to dodge the
+      "text-size": ["interpolate", ["linear"], ["zoom"], 13.5, 12, 16, 14],
+      // Ride beside the numbered disc, flipping side to dodge the
       // route line and neighbouring stops.
-      "text-variable-anchor": ["left", "right", "top", "bottom"],
-      "text-radial-offset": 1.6,
+      "text-variable-anchor-offset": ROUTE_STOP_NAME_ANCHOR_OFFSET,
       "text-justify": "auto",
       "text-max-width": 9,
     },
@@ -1881,14 +2019,14 @@ export function buildRouteStops(ctx: SceneCtx) {
     layout: {
       "text-field": ["get", "label"],
       "text-font": textFont,
-      "text-size": 13,
+      "text-size": 14,
       "text-allow-overlap": true,
       // The stop discs are a circle layer, which takes no part in symbol
       // collision. The number does, so padded out to the disc's radius it
       // claims the whole disc, and a name that would cover another stop is
       // dropped or flips side instead of sitting under that stop's disc (QA
       // journeys F23). The number itself always shows (allow-overlap).
-      "text-padding": 9,
+      "text-padding": 12,
     },
     // Stops are always dark-filled, so the label is the light-side token.
     paint: { "text-color": dark ? tokens.ink : tokens.paper },
@@ -1974,6 +2112,7 @@ function buildTonight(ctx: SceneCtx) {
 // the synchronous build returns).
 /** Pins-first slice: pub layers in their original stack position; taste/transit defer. */
 export function assembleSceneCritical(ctx: SceneCtx) {
+  const freshStyle = !ctx.map.getLayer("pubs-point");
   registerSceneIcons(ctx);
   // BEFORE the pub layers on purpose — see buildUserLocation.
   buildUserLocation(ctx);
@@ -1982,15 +2121,18 @@ export function assembleSceneCritical(ctx: SceneCtx) {
   buildLandmarks(ctx);
   buildPois(ctx);
   buildRoute(ctx);
+  buildLegRoute(ctx);
   buildBandCorridor(ctx);
   buildPubs(ctx);
   buildCoffeePilot(ctx);
+  buildRouteLegTimes(ctx);
   buildRouteStops(ctx);
-  applySelectionState(ctx);
+  applySelectionState(ctx, freshStyle);
 }
 
 /** Visual polish and network-heavy overlays after the first paint frame. */
 export function assembleSceneDeferred(ctx: SceneCtx) {
+  applyMapFocusMute(ctx.map, "browse", ctx.selectionMuteStore);
   applySceneTaste(ctx);
   buildSkyAndBuildings(ctx);
   buildTransitLines(ctx);
@@ -1998,16 +2140,11 @@ export function assembleSceneDeferred(ctx: SceneCtx) {
   applySelectionState(ctx);
 }
 
-// M2 · POI-at-initiation gating — re-apply the selection mute after a fresh
-// style build. A setStyle (theme swap) wipes every layer and its paint, so the
-// previous store's snapshots are stale: clear them, then, if a venue is still
-// selected, re-mute (recapturing this style's fresh originals). With nothing
-// selected this is a pure clear — the initial city overview stays untouched
-// (PRD part c: landmark/POI set visible and unchanged at zero selection).
-export function applySelectionState(ctx: SceneCtx) {
+// A theme change creates fresh paint values. Discard the old snapshots and
+// restore the current focus from these new originals. Browsing stays unchanged.
+export function applySelectionState(ctx: SceneCtx, freshStyle = false) {
   const { map, selectionMuteStore, selectedId } = ctx;
-  selectionMuteStore.clear();
-  if (selectedId) {
-    applySelectionMute(map, true, selectionMuteStore);
-  }
+  if (freshStyle) selectionMuteStore.clear();
+  applyMapFocusMute(map, selectedId ? "selection"
+    : (ctx.routeStops?.features.length ?? 0) >= 2 ? "route" : "browse", selectionMuteStore);
 }

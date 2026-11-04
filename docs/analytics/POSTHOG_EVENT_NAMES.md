@@ -27,6 +27,10 @@ Authoritative registry and sanitization: `lib/analyticsEvents.ts`. This file is 
 | --- | --- |
 | `pub_viewed` | `layer` (`curated`, `uk_base`) |
 | `voice_started` | _(none)_ |
+| `pal_quest_asked` | _(none)_ |
+| `pal_quest_stamped` | _(none)_ |
+| `pal_passport_viewed` | _(none)_ |
+| `pal_lead_started` | _(none)_ |
 | `voice_ended` | `reason` (`user`, `disconnect`, `cap`, `error`) |
 
 ## Share and errors

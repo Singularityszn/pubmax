@@ -119,17 +119,80 @@ jobs:
         # Generates the typedRoutes link types before the native tsc pass.
         run: npm run typecheck
 
+
+  # The TypeScript 6 check runs in a job of its own, beside lint (captain,
+  # 2 Nov 2026): it took 2:15 to 5:38 on hosted runners, and inside the lint
+  # job it put lint and both compilers end to end on the slowest chain. It is
+  # the bridge compiler Next builds with, over the full tsconfig; `next
+  # typegen` writes the route types it reads. `npx tsc` is TypeScript 7.
+  typecheck-ts6:
+    name: Typecheck (TypeScript 6)
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # Two commits: the merge and its base, for the change scope below.
+          fetch-depth: 2
+
+      # CHANGE SCOPE (docs/CI_RUNBOOK.md, "What a pull request runs"). A pull
+      # request is checked out as its merge commit, whose first parent is the
+      # base, so one diff names every file the merge would change. Only every
+      # changed file being docs (docs/**, *.md) or data (data/**/*.json,
+      # public/data/**) makes it "docs" or "data"; anything else, an empty diff
+      # and every event other than a pull request is "code" and runs in full.
+      # The job always runs and reports, so a required check never waits on a
+      # job that was skipped. Every copy of this step is identical
+      # (__tests__/ciChangeScope.test.ts).
+      - name: Classify the change
+        id: scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          scope=code
+          if [ "$EVENT_NAME" = pull_request ]; then
+            scope="$(git diff --no-renames --name-only HEAD^1 HEAD | awk '
+              NF == 0 { next }
+              /^docs\// || /\.md$/ { docs++; next }
+              /^data\/.*\.json$/ || /^public\/data\// { data++; next }
+              { code++ }
+              END { if (code || !(docs + data)) print "code"; else if (data) print "data"; else print "docs" }')"
+          fi
+          echo "scope=$scope" >> "$GITHUB_OUTPUT"
+          echo "Change scope: $scope"
+
+      - name: Setup Node
+        if: steps.scope.outputs.scope != 'docs'
+        timeout-minutes: 5
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        if: steps.scope.outputs.scope != 'docs'
+        run: |
+          npm ci
+          npm run deps:install-scripts
+
+      - name: Generate the route types
+        if: steps.scope.outputs.scope != 'docs'
+        run: npx next typegen
+
       - name: Typecheck (TypeScript 6)
         if: steps.scope.outputs.scope != 'docs'
         env:
           NODE_OPTIONS: "--max-old-space-size=6144"
-        # The bridge compiler Next builds with, over the full tsconfig. The
-        # route types come from the step above. `npx tsc` is TypeScript 7.
         run: node node_modules/typescript/bin/tsc --noEmit
 
+  # The production build starts beside lint (captain, 2 Nov 2026): it reads
+  # nothing lint makes, and waiting on lint put the two end to end on the
+  # slowest chain a pull request waits for. docs/plans/CI_SPEED_PLAN.md.
   production-build:
     name: Production build
-    needs: [lint-and-types]
     runs-on: ubuntu-latest
     timeout-minutes: 28
     steps:
@@ -181,26 +244,63 @@ jobs:
           npm ci
           npm run deps:install-scripts
 
+      # BUILD CACHE (docs/CI_RUNBOOK.md, "Build cache and type check"). Next keeps Turbopack's
+      # build work in .next/cache, and a hosted runner starts empty, so every
+      # CI build was cold and wrote a cache no run read. A pull request
+      # restores the newest cache a main push saved for the same lockfile.
+      # Only a push to main saves one, and at most one a day (the key ends
+      # in the UTC date), so pull requests never write a cache main reads,
+      # and a cache of about 500 MB per push cannot crowd out the other
+      # caches in the repository's 10 GB, such as the nightly Tavily cursor.
+      - name: Name the build cache for today
+        id: cache-day
+        if: steps.scope.outputs.scope == 'code'
+        run: echo "day=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the Next.js build cache
+        id: build-cache
+        if: steps.scope.outputs.scope == 'code'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .next/cache
+          key: next-build-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ steps.cache-day.outputs.day }}
+          restore-keys: |
+            next-build-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
+
+      # The Typecheck (TypeScript 6) job checks tsconfig.json, which covers
+      # every file tsconfig.build.json does, with the same compiler, so this
+      # build skips its own copy of that check (captain, 2 Nov 2026;
+      # docs/CI_RUNBOOK.md, "Build cache and type check"). next.config.mjs
+      # honours the variable only off Vercel, so a deploy build keeps it.
       - name: Build
         if: steps.scope.outputs.scope == 'code'
         env:
           NODE_OPTIONS: "--max-old-space-size=6144"
+          PUBMAX_CI_SKIP_BUILD_TYPECHECK: "1"
         run: npm run build
 
+      - name: Save the Next.js build cache
+        if: steps.scope.outputs.scope == 'code' && github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.build-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .next/cache
+          key: next-build-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ steps.cache-day.outputs.day }}
+
   # The unit shards start at once, beside lint and the production build: they
-  # build their own slim data and read nothing those jobs make. Each shard
-  # collects coverage for its half of the suite into a blob report, and the
-  # Coverage job merges the two blobs and enforces the thresholds in
-  # vitest.config.mts. A shard's own half cannot meet them, so the shards
-  # turn thresholds off and the merge holds the whole-suite gate.
+  # build their own slim data and read nothing those jobs make. Each of the
+  # three shards (captain, 2 Nov 2026) collects coverage for its third of the
+  # suite into a blob report, and the Coverage job merges the blobs and
+  # enforces the thresholds in vitest.config.mts. A shard's own third cannot
+  # meet them, so the shards turn thresholds off and the merge holds the
+  # whole-suite gate.
   unit-tests:
-    name: Unit tests (${{ matrix.shard }}/2)
+    name: Unit tests (${{ matrix.shard }}/3)
     runs-on: ubuntu-latest
     timeout-minutes: 22
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        shard: [1, 2, 3]
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -271,7 +371,7 @@ jobs:
         run: >-
           npm run coverage --
           --without-postgres
-          --shard=${{ matrix.shard }}/2
+          --shard=${{ matrix.shard }}/3
           --coverage.thresholds.statements=0
           --coverage.thresholds.branches=0
           --coverage.thresholds.functions=0

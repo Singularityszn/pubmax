@@ -1,6 +1,6 @@
 import { legacyOsmVenueKind } from "@/lib/legacyOsmVenueKind.mjs";
-import { legacyCheapestPriceEvidence } from "@/lib/legacyPriceEvidence.mjs";
-import { cheapestPriceReadDay } from "@/lib/priceReadDay.mjs";
+import { comparableVenuePint } from "@/lib/comparableVenuePint";
+import { legacyCheapestPriceEvidence, legacyCheapestPriceReadDay } from "@/lib/legacyPriceEvidence.mjs";
 import {
   COMMUNITY_PRICE_CORROBORATION_THRESHOLD,
   isWithinMaxAge,
@@ -15,6 +15,7 @@ import {
   type PintPriceSplit,
 } from "@/lib/pintDropAgreement";
 import { measureIsPint, type DrinkMeasure } from "@/lib/drinkMeasure";
+import { isUncheckedPrice, type PriceEvidence } from "@/lib/pintDropReceipt";
 import { formatGbp } from "@/lib/formatGbp";
 import { haversineKm } from "@/lib/haversine";
 import { firstHttp } from "@/lib/httpUrl";
@@ -60,6 +61,7 @@ import {
 import { parseZoneParam, venueMatchesZone } from "@/lib/zones";
 import type { MapLensPrice } from "@/lib/mapExperienceLens";
 import type { VenueRecordCopy } from "@/lib/venueRecordCopy";
+import { NO_PINT_PRICE_CAP } from "@/lib/pintPriceCapValue";
 
 export type CrawlStyle =
   | "balanced"
@@ -77,6 +79,7 @@ export type VenuePrice = {
   app_price_id: string;
   pub_name: string;
   pint_name: string;
+  measure?: string;
   price_gbp: number | null;
   price_text: string;
   address: string;
@@ -198,6 +201,7 @@ export type Venue = {
   prices: VenuePrice[];
   cheapestPrice: number | null;
   cheapestPint: string;
+  measure?: string;
   averagePrice: number | null;
   // Derived summary signal for map markers, filters and scoring. Lights from an
   // editorial heritage note OR a contributor Pint Drop, so mergeVenueDrops never
@@ -359,7 +363,7 @@ export type VenueFilterHints = {
  * it as "Any". It sits above every priced pub in the curated index, so it caps
  * nothing; non-pub anchors bypass the cap in filterVenues regardless.
  */
-export const NO_PINT_PRICE_CAP = 10;
+export { NO_PINT_PRICE_CAP };
 
 export type Filters = {
   query: string;
@@ -387,6 +391,14 @@ export type Filters = {
    * match only — never invented, never CityMCP bulk.
    */
   openNow: boolean;
+  /**
+   * Last orders: keep only pubs whose OpenStreetMap hours run at least 30 more
+   * minutes (lib/lastOrdersList.ts). Unlike Open now, an unknown fails it, so
+   * a pin never reads as still open on no evidence. Applied by the map on top
+   * of filterVenues, the way Saved only is, because the answer moves with the
+   * clock and is read from its own pack.
+   */
+  lastOrders?: boolean;
   // Accessible-venue filters (PRD issue #28). Each, when on, narrows to pubs
   // KNOWN to have that facet — an unknown fact fails the filter (see
   // lib/venueAccessibility.matchesAccessibilityFilters). Off = no-op.
@@ -443,6 +455,7 @@ export const initialFilters: Filters = {
   canonicalOnly: false,
   // Off by default. When on, only known-closed pubs drop; unknown hours stay.
   openNow: false,
+  lastOrders: false,
   requireStepFree: false,
   requireAccessibleToilet: false,
   requireSeatedService: false,
@@ -692,7 +705,7 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
     const kind = legacyOsmVenueKind(groupRows);
     const cheapestPrice = numericPrices.length ? Math.min(...numericPrices) : null;
     const { priceSource } = kind ? legacyCheapestPriceEvidence(sortedPrices, cheapestPrice) : {};
-    const priceObservedAt = kind ? cheapestPriceReadDay(sortedPrices, cheapestPrice) : null;
+    const priceObservedAt = kind ? legacyCheapestPriceReadDay(sortedPrices, cheapestPrice) : null;
     return {
       id: stableVenueIdFromKey(key),
       ...(kind ? {
@@ -712,6 +725,7 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
       prices: sortedPrices,
       cheapestPrice,
       cheapestPint: sortedPrices[0]?.pint_name ?? "",
+      ...(sortedPrices[0]?.measure != null ? { measure: sortedPrices[0].measure } : {}),
       averagePrice: numericPrices.length
         ? numericPrices.reduce((sum, price) => sum + price, 0) / numericPrices.length
         : null,
@@ -782,6 +796,11 @@ export type SummaryDrop = {
   // re-derived: lib/pintDropConfirm.server.ts is the one writer and it works
   // over the stored rows, where every authority key is present.
   confirmation?: PintDropConfirmation | null;
+  // What stands behind the figure (lib/pintDropReceipt.ts). `unchecked` is a
+  // typed price with no bill (captain decision 9, 1 Nov 2026): it still counts
+  // as one independent drinker in a corroboration or a confirmation, and on
+  // its own it reaches the sheet alone, never the pin's mark or band.
+  priceEvidence?: PriceEvidence;
 };
 
 // Honesty note the venue detail can render alongside a community-updated price,
@@ -973,6 +992,14 @@ export function authoritativePriceDrop<D extends SummaryDrop>(
 // is not claiming independence from anybody. The production row this was found
 // over carries a null key, because it came through the unlinked-handle door.
 //
+// AN UNCHECKED PRICE IS NOT ONE OF THESE (captain decision 9, 1 Nov 2026). A
+// typed price with no bill lands in `uncheckedPriceDrop` below instead, and
+// because this lane is what feeds the pin's provisional MARK
+// (`provisionalPintDropVenueIds`), leaving it out here is the whole of why an
+// unchecked price alone never marks the pin. It still counts in the two
+// authority lanes above as one independent drinker, so a second person
+// agreeing with it paints the pin exactly as a second drinker always has.
+//
 // Ties keep the earlier (newest-first) drop, matching the store's ordering.
 export function provisionalPriceDrop<D extends SummaryDrop>(
   drops: readonly D[],
@@ -986,6 +1013,7 @@ export function provisionalPriceDrop<D extends SummaryDrop>(
   let bestAt = Number.NEGATIVE_INFINITY;
   for (const drop of drops) {
     if (!isPintPricedDrop(drop)) continue;
+    if (isUncheckedPrice(drop)) continue;
     const at = Date.parse(drop.createdAt);
     if (!isWithinMaxAge({ submittedAt: at }, now)) continue;
     if (!Number.isFinite(at) || at <= bestAt) continue;
@@ -1015,6 +1043,12 @@ export function provisionalPriceDrop<D extends SummaryDrop>(
 // corroboration now needs the same drink and the same pennies
 // (`corroboratedPriceDrop` above), so a corroborated pub and a split pub are
 // disjoint by construction rather than by ordering.
+//
+// The LEAD is a billed (or pre-0218) report, because it is the provisional
+// lane's; an unchecked figure from another drinker still joins the group, since
+// a second person who paid a different price has spoken whatever they kept.
+// Two unchecked figures alone make no split here: neither has earned the mark a
+// split wears, so the pub reads as the freshest unchecked price instead.
 export function disputedPintPrices<D extends SummaryDrop>(
   drops: readonly D[],
   now: number = Date.now(),
@@ -1033,6 +1067,43 @@ export function disputedPintPrices<D extends SummaryDrop>(
   return { split, drops: group, observedAtMs: Date.parse(lead.createdAt) };
 }
 
+// THE IN-WINDOW PRICE NOBODY HAS CHECKED, or null. Captain decision 9 (1 Nov
+// 2026): a typed price with no bill saves and shows on the pub's own sheet as
+// "Logged by @handle, not checked", dated, and does not colour the pin until a
+// second, independent drinker agrees with it.
+//
+// The weakest in-window read, below `provisionalPriceDrop`, and it answers null
+// whenever a stronger lane speaks, so one pub never offers two figures. What it
+// is for is the sheet: a pub holding only an unchecked price must not read as
+// "No price yet" over the drop its own list prints (captain's cut, 5 Sept
+// 2026). What it is NOT is a mark, a band, a bucket, a cheapest claim or an
+// Index citation: nothing that paints asks this lane, and
+// `provisionalPintDropVenueIds` is derived from the lane above, not this one.
+//
+// A second drinker is the way out of it. Their agreeing report, billed or not,
+// is the second authority key `corroboratedPriceDrop` counts and the peer the
+// confirmation producer mints over, so this lane then answers null because an
+// authoritative one is speaking.
+//
+// Ties keep the earlier (newest-first) drop, matching the store's ordering.
+export function uncheckedPriceDrop<D extends SummaryDrop>(
+  drops: readonly D[],
+  now: number = Date.now(),
+): D | null {
+  if (authoritativePriceDrop(drops, now) || provisionalPriceDrop(drops, now)) return null;
+  let best: D | null = null;
+  let bestAt = Number.NEGATIVE_INFINITY;
+  for (const drop of drops) {
+    if (!isPintPricedDrop(drop) || !isUncheckedPrice(drop)) continue;
+    const at = Date.parse(drop.createdAt);
+    if (!isWithinMaxAge({ submittedAt: at }, now)) continue;
+    if (!Number.isFinite(at) || at <= bestAt) continue;
+    best = drop;
+    bestAt = at;
+  }
+  return best;
+}
+
 // The freshest public priced organic drop that is PAST the window, or null.
 //
 // The third and weakest read of the drop lane, beside the two above. A report
@@ -1049,6 +1120,11 @@ export function disputedPintPrices<D extends SummaryDrop>(
 // its pair are older than it, so the pub reads as aged-out at read time and
 // nothing is written.
 //
+// AN UNCHECKED DROP AGES OUT LIKE ANY OTHER. Past the window it is a record of
+// a night like every aged report, and it paints nothing either way; the
+// surfaces that print it read `isUncheckedPrice` off the drop to keep its
+// band off and its "not checked" on.
+//
 // Answers null while any in-window read is speaking, so one pub never offers
 // two figures. Ties keep the earlier (newest-first) drop, matching the store's
 // ordering.
@@ -1056,7 +1132,13 @@ export function agedPriceDrop<D extends SummaryDrop>(
   drops: readonly D[],
   now: number = Date.now(),
 ): D | null {
-  if (authoritativePriceDrop(drops, now) || provisionalPriceDrop(drops, now)) return null;
+  if (
+    authoritativePriceDrop(drops, now) ||
+    provisionalPriceDrop(drops, now) ||
+    uncheckedPriceDrop(drops, now)
+  ) {
+    return null;
+  }
   let best: D | null = null;
   let bestAt = Number.NEGATIVE_INFINITY;
   for (const drop of drops) {
@@ -1078,7 +1160,9 @@ export function agedPriceDrop<D extends SummaryDrop>(
 //
 // Derived from `provisionalPriceDrop` rather than restating its predicates, so
 // the pin's mark and the sheet's figure can never disagree about which pubs
-// hold a pending report.
+// hold a pending report. An UNCHECKED price (no bill, captain decision 9) is
+// not in that lane, so on its own it earns no mark: the sheet prints it, and
+// the map waits for a second drinker.
 export function provisionalPintDropVenueIds<D extends SummaryDrop>(
   dropsByVenueId: ReadonlyMap<string, readonly D[]>,
   now: number = Date.now(),
@@ -1215,6 +1299,16 @@ function matchesVenueAmenities(venue: Venue, filters: Filters): boolean {
   return checks.every(([required, detailedValue, pickHint]) => {
     return !required || detailedValue || hasSlimFlag(venue, pickHint);
   });
+}
+
+/**
+ * A pub with a RECORDED beer garden or outdoor seating, read by the same rules
+ * as the two map filters. Sun Chaser estimates only these: a pub with no
+ * stated outdoor space gets no sun claim at all.
+ */
+export function venueHasRecordedOutdoorSpace(venue: Venue): boolean {
+  return matchesVenueAmenities(venue, { ...initialFilters, requireBeerGarden: true })
+    || matchesVenueAmenities(venue, { ...initialFilters, requireOutdoorSeating: true });
 }
 
 function matchesVenueCuration(venue: Venue, filters: Filters): boolean {
@@ -1361,10 +1455,13 @@ export function filterVenues(
     // maxPrice is explicitly the maximum pint-price control. Cocktail and food
     // anchors use their own type-relative bands and must not be compared with
     // a pub pint's absolute price cap.
+    const comparablePrice = filters.maxPrice === NO_PINT_PRICE_CAP
+      ? null
+      : comparableVenuePint(venue);
     const matchesPrice =
       !hasPintPriceSemantics(venue) ||
-      venue.cheapestPrice === null ||
-      venue.cheapestPrice <= filters.maxPrice;
+      comparablePrice === null ||
+      comparablePrice <= filters.maxPrice;
 
     const matchesPintDrops =
       !filters.requirePintDrops ||
@@ -1421,8 +1518,10 @@ export function scoreVenue(
   style: CrawlStyle,
   naLensPrices?: ReadonlyMap<string, MapLensPrice>,
 ): number {
-  const price = venue.cheapestPrice ?? 8;
-  const cheapness = Math.max(0, 10 - price);
+  const price = style === "noAlcoholFirst"
+    ? venue.cheapestPrice ?? 8
+    : comparableVenuePint(venue);
+  const cheapness = price === null ? 0 : Math.max(0, 10 - price);
   const amenityScore =
     Number(venue.amenities.beerGarden) * 1.5 +
     Number(venue.amenities.liveSports) +
@@ -1478,7 +1577,8 @@ export function buildCrawlRoute(
   naLensPrices?: ReadonlyMap<string, MapLensPrice>,
 ): Venue[] {
   if (!venues.length) return [];
-  const sorted = [...venues]
+  const sorted = venues
+    .filter((venue) => filters.crawlStyle !== "cheapest" || comparableVenuePint(venue) !== null)
     .sort(
       (a, b) =>
         scoreVenue(b, filters.crawlStyle, naLensPrices) -

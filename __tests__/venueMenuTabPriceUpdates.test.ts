@@ -207,8 +207,8 @@ describe("VenueMenuTab draws its venue's own price updates", () => {
       await act(async () => { tab("Photos").dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })); });
       expect(document.activeElement).toBe(tab("Menu"));
       for (const [key, labels] of [
-        ["ArrowRight", ["Stories", "Lore", "Overview", "Photos", "Menu"]],
-        ["ArrowLeft", ["Photos", "Overview", "Lore", "Stories", "Menu"]],
+        ["ArrowRight", ["Prices", "Lore", "Overview", "Photos", "Menu"]],
+        ["ArrowLeft", ["Photos", "Overview", "Lore", "Prices", "Menu"]],
       ] as const) {
         for (const label of labels) {
           await act(async () => { document.activeElement!.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true })); });

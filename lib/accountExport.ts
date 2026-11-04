@@ -38,6 +38,10 @@ import type { DrinkWallCategory } from "@/lib/venuePhotos";
 import type { PublicSocialConnection } from "@/lib/socialConnections";
 import type { VisitReportDTO } from "@/lib/visitReports";
 import type { DiaryEntryDTO } from "@/lib/diary";
+import type { KitchenReportOwnerFields } from "@/lib/kitchenReports";
+import type { RegularNightReportOwnerFields } from "@/lib/regularNightReports";
+import type { TableRequestOwnerFields } from "@/lib/tableRequests";
+import type { VenueCorrectionOwnerFields } from "@/lib/venueCorrections";
 import type { VenueSubmissionFileKind, VenueSubmissionPublicFields } from "@/lib/venueSubmissions";
 import type { WantedDTO } from "@/lib/wanted";
 
@@ -294,6 +298,14 @@ export type AccountExport = {
   pubRankings: AccountExportLane<AccountExportPubRanking>;
   /** Pubs the account added, with their prices and what each menu file was. */
   venueSubmissions: AccountExportLane<AccountExportVenueSubmission>;
+  /** "That's wrong" notes the account sent about a pub, with where each one got to. */
+  venueCorrections: AccountExportLane<VenueCorrectionOwnerFields>;
+  /** Regular nights the account added at a pub, with where each one got to. The board photo is not in the file. */
+  regularNightReports: AccountExportLane<RegularNightReportOwnerFields>;
+  /** "Still serving" and "Kitchen closed" taps the account made, each with its minute and whether one other confirmed it. */
+  kitchenReports: AccountExportLane<KitchenReportOwnerFields>;
+  /** "Ask the pub for a table" requests the account sent: its own name, crew, day, time, note and the contact it gave, and whether the email to the pub went. Nothing about the operator. */
+  tableRequests: AccountExportLane<TableRequestOwnerFields>;
   pubListNightDrafts: AccountExportLane<PubListNightDraft>;
   socialLinks: AccountExportLane<PublicSocialConnection>;
   /** At most one row, the same way `identity` is. */
@@ -320,6 +332,10 @@ export const ACCOUNT_EXPORT_LANES = [
   "diary",
   "pubRankings",
   "venueSubmissions",
+  "venueCorrections",
+  "regularNightReports",
+  "kitchenReports",
+  "tableRequests",
   "pubListNightDrafts",
   "socialLinks",
   "nightProfile",

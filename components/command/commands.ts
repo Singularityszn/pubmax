@@ -16,11 +16,12 @@ import type { Command } from "./types";
  */
 export const commands: Command[] = [
   // ── Navigate ────────────────────────────────────────────────────────────
+  // Explore is the map (captain, 1 Nov 2026), so the old word still finds it.
   {
     id: "nav-map",
-    label: "Map",
+    label: "Explore",
     hint: "/map",
-    keywords: ["explore", "pubs near me", "pints", "london"],
+    keywords: ["map", "pubs near me", "pints", "london"],
     group: "Navigate",
     run: (ctx) => ctx.navigate("/map"),
   },
@@ -115,6 +116,14 @@ export const commands: Command[] = [
     run: (ctx) => ctx.navigate("/pubs"),
   },
   {
+    id: "nav-spoons",
+    label: "Spoons",
+    hint: "/spoons-value",
+    keywords: ["wetherspoons", "recorded prices", "round cost"],
+    group: "Navigate",
+    run: (ctx) => ctx.navigate("/spoons-value"),
+  },
+  {
     id: "nav-social",
     label: "Social",
     hint: "/social",
@@ -199,10 +208,10 @@ export const commands: Command[] = [
   {
     id: "action-build-crawl",
     label: "Build a crawl on the map",
-    hint: "/map",
+    hint: "/map?mode=build&plan=1",
     keywords: ["route", "plan crawl", "stops"],
     group: "Actions",
-    run: (ctx) => ctx.navigate("/map"),
+    run: (ctx) => ctx.navigate("/map?mode=build&plan=1"),
   },
   {
     id: "action-toggle-theme",

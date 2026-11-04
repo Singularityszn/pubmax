@@ -424,6 +424,16 @@ export type ProfileStore = {
     handles: readonly string[],
   ): Promise<ReadonlyMap<string, ProfilePublicCard>>;
   /**
+   * One query: the account choice (`lib/accountVisibility.ts`) for a set of
+   * profile ids, read through `parseAccountVisibility`. An id with no row, or
+   * a deleted account's tombstone, is simply ABSENT, and a reader that needs
+   * a public account treats absent as not public. A store that cannot answer
+   * throws rather than guessing public.
+   */
+  getAccountVisibilitiesByIds(
+    ids: readonly string[],
+  ): Promise<ReadonlyMap<string, AccountVisibility>>;
+  /**
    * Resolve the handle linked to an auth user id, or null when no profile has
    * claimed that uid yet. Used by messaging (and similar) so an authenticated
    * caller is identified by their linked profile rather than a self-asserted
@@ -432,11 +442,18 @@ export type ProfileStore = {
   getHandleByUserId(userId: string): Promise<string | null>;
   /** Read a profile by linked auth user id, or null when none exists. */
   getByUserId(userId: string): Promise<ProfileRecord | null>;
-  /** Get-or-create a minimal row for a handle. Never clobbers existing fields. */
+  /**
+   * Get-or-create a minimal row for a handle. Never clobbers existing fields,
+   * and never mints a row under a handle the alias ledger holds for another
+   * profile (a retired alias).
+   */
   ensure(handle: string): Promise<ProfileRecord>;
   /** Atomically create an absent handle already owned by an account. */
   createOwned(handle: string, userId: string): Promise<ProfileRecord>;
-  /** Apply a patch to an existing profile. Returns null when the handle is unknown. */
+  /**
+   * Apply a patch to an existing profile. Returns null when the handle is
+   * unknown or names a deleted account's tombstone.
+   */
   update(handle: string, patch: ProfilePatch): Promise<ProfileRecord | null>;
   /**
    * Atomically authorize and soft-delete a profile. Anonymous callers may
@@ -444,7 +461,7 @@ export type ProfileStore = {
    * an unlinked row or their own linked row. Keeping ownership in the UPDATE
    * predicate prevents a concurrent account claim from being deleted after a
    * stale route-level read. The row, handle, and user_id remain so social graph
-   * edges are not cascade-destroyed.
+   * edges are not cascade-destroyed. A deleted account's tombstone is not found.
    */
   softDeleteForCaller(
     handle: string,
@@ -918,6 +935,26 @@ export const supabaseProfileStore: ProfileStore = {
     );
   },
 
+  async getAccountVisibilitiesByIds(ids) {
+    const keys = [...new Set(ids.map((id) => (typeof id === "string" ? id.trim() : "")).filter(Boolean))];
+    const out = new Map<string, AccountVisibility>();
+    for (let at = 0; at < keys.length; at += HANDLE_BATCH_SIZE) {
+      // Only the two columns the answer needs. A deploy ahead of migration 0154
+      // has no `visibility` column, and the read then FAILS rather than calling
+      // every account public.
+      const { data, error } = await admin()
+        .from(TABLE)
+        .select("id, visibility")
+        .in("id", keys.slice(at, at + HANDLE_BATCH_SIZE))
+        .is("tombstoned_at", null);
+      if (error) throw new Error(error.message);
+      for (const row of (data ?? []) as Array<{ id?: unknown; visibility?: unknown }>) {
+        if (typeof row.id === "string") out.set(row.id, parseAccountVisibility(row.visibility));
+      }
+    }
+    return out;
+  },
+
   async getHandleByUserId(userId) {
     if (!userId) return null;
     const { data, error } = await admin()
@@ -943,6 +980,11 @@ export const supabaseProfileStore: ProfileStore = {
     const key = normalizeHandle(handle);
     if (!key) throw new Error("A profile needs a non-empty handle.");
     const existing = await this.getByHandle(key);
+    const { supabaseIdentityHandleStore } = await import("@/lib/identityHandleStore");
+    const aliasProfileId = await supabaseIdentityHandleStore.aliasProfileId(key);
+    if (aliasProfileId && aliasProfileId !== existing?.id) {
+      throw new Error("That handle is not available.");
+    }
     if (existing) return existing;
 
     const { data, error } = await admin()
@@ -1002,6 +1044,7 @@ export const supabaseProfileStore: ProfileStore = {
       .from(TABLE)
       .update(row)
       .eq("handle", key)
+      .is("tombstoned_at", null)
       .select("*")
       .limit(1);
     if (error) {
@@ -1039,7 +1082,8 @@ export const supabaseProfileStore: ProfileStore = {
     let query = admin()
       .from(TABLE)
       .update(row)
-      .eq("handle", key);
+      .eq("handle", key)
+      .is("tombstoned_at", null);
     const caller = callerUserId?.trim() || null;
     query = caller
       ? query.or(`user_id.is.null,user_id.eq.${caller}`)
@@ -1058,7 +1102,9 @@ export const supabaseProfileStore: ProfileStore = {
     }
 
     const current = await this.getByHandle(key);
-    return current ? { status: "forbidden" } : { status: "not-found" };
+    return current && !isProfileTombstoned(current)
+      ? { status: "forbidden" }
+      : { status: "not-found" };
   },
 
   async linkUser(handle, userId) {
@@ -1290,6 +1336,25 @@ function grantMemoryFoundingNumber(): number | undefined {
   return highest + 1;
 }
 
+/** Move an owned memory profile without changing its identity or saved fields. */
+export function renameMemoryOwnedProfile(profileId: string, userId: string, handle: string): void {
+  const key = normalizeHandle(handle);
+  const existing = [...memoryProfiles.values()].find((profile) => profile.id === profileId);
+  if (!key || !existing || existing.userId !== userId || isProfileTombstoned(existing)) {
+    throw new Error("Profile storage is unavailable.");
+  }
+  if (memoryProfiles.has(key)) {
+    throw new Error("That handle is not available.");
+  }
+  const renamed: ProfileRecord = {
+    ...existing,
+    handle: key,
+    updatedAt: new Date().toISOString(),
+  };
+  memoryProfiles.delete(existing.handle);
+  memoryProfiles.set(key, renamed);
+}
+
 export const memoryProfileStore: ProfileStore = {
   async getByHandle(handle) {
     return memoryProfiles.get(normalizeHandle(handle)) ?? null;
@@ -1329,6 +1394,16 @@ export const memoryProfileStore: ProfileStore = {
     return out;
   },
 
+  async getAccountVisibilitiesByIds(ids) {
+    const wanted = new Set(ids.map((id) => (typeof id === "string" ? id.trim() : "")).filter(Boolean));
+    const out = new Map<string, AccountVisibility>();
+    for (const profile of memoryProfiles.values()) {
+      if (!wanted.has(profile.id) || isProfileTombstoned(profile)) continue;
+      out.set(profile.id, parseAccountVisibility(profile.visibility));
+    }
+    return out;
+  },
+
   async getHandleByUserId(userId) {
     if (!userId) return null;
     for (const record of memoryProfiles.values()) {
@@ -1349,7 +1424,12 @@ export const memoryProfileStore: ProfileStore = {
   async ensure(handle) {
     const key = normalizeHandle(handle);
     if (!key) throw new Error("A profile needs a non-empty handle.");
+    const { memoryIdentityHandleStore } = await import("@/lib/identityHandleStore");
+    const aliasProfileId = await memoryIdentityHandleStore.aliasProfileId(key);
     const existing = memoryProfiles.get(key);
+    if (aliasProfileId && aliasProfileId !== existing?.id) {
+      throw new Error("That handle is not available.");
+    }
     if (existing) return existing;
     const now = new Date().toISOString();
     const record: ProfileRecord = {
@@ -1370,7 +1450,12 @@ export const memoryProfileStore: ProfileStore = {
     if (isReservedContributorHandle(key)) {
       throw new Error("That handle is not available.");
     }
+    const { memoryIdentityHandleStore } = await import("@/lib/identityHandleStore");
+    const aliasProfileId = await memoryIdentityHandleStore.aliasProfileId(key);
     const existing = memoryProfiles.get(key);
+    if (aliasProfileId && aliasProfileId !== existing?.id) {
+      throw new Error("That handle is not available.");
+    }
     if (existing?.userId === userId) return existing;
     if (existing) throw new Error("That handle is not available.");
     for (const profile of memoryProfiles.values()) {
@@ -1396,7 +1481,7 @@ export const memoryProfileStore: ProfileStore = {
   async update(handle, rawPatch) {
     const key = normalizeHandle(handle);
     const existing = memoryProfiles.get(key);
-    if (!existing) return null;
+    if (!existing || isProfileTombstoned(existing)) return null;
     const patch = cleanPatch(rawPatch);
     const next: ProfileRecord = {
       ...existing,
@@ -1421,7 +1506,7 @@ export const memoryProfileStore: ProfileStore = {
   async softDeleteForCaller(handle, callerUserId) {
     const key = normalizeHandle(handle);
     const existing = memoryProfiles.get(key);
-    if (!existing) return { status: "not-found" };
+    if (!existing || isProfileTombstoned(existing)) return { status: "not-found" };
 
     const caller = callerUserId?.trim() || null;
     if (existing.userId && existing.userId !== caller) {

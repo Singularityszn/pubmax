@@ -161,12 +161,26 @@ describe("a tube way home never removes a pub from the route", () => {
     expect(result).toMatchObject({ ok: true, outcome: "route" });
   });
 
-  it("keeps every transport word that IS a route rule failing closed", () => {
-    expect(selectGroundedPlanRoute(candidates, constraints(["tube"])).ok).toBe(false);
-    expect(selectGroundedPlanRoute(candidates, constraints(["walking"])).ok).toBe(false);
+  // TRANSPORT WORDS NEVER REFUSE (launch review, 30 Oct 2026). "Short walk
+  // between pubs" is the most natural sentence a Londoner types, and it used to
+  // 422 with no hint. A walk word is met by the optimiser's own leg rule, and a
+  // tube word is a soft preference; each earns a line in the report instead.
+  it("builds the route for a tube or a walk word, and says it heard each", () => {
+    for (const words of [["tube"], ["walking"], ["tube", "walking"]]) {
+      const result = selectGroundedPlanRoute(candidates, constraints(words));
+      expect(result.ok, words.join()).toBe(true);
+      if (!result.ok) continue;
+      const codes = result.constraintReport.hardConstraints.map((line) => line.code);
+      expect(codes.includes("short_walks"), words.join()).toBe(words.includes("walking"));
+    }
+    const walked = selectGroundedPlanRoute(candidates, constraints(["walking"]));
+    expect(walked.ok && walked.constraintReport.hardConstraints.find((line) => line.code === "short_walks"))
+      .toEqual({ code: "short_walks", status: "satisfied", message: "Short walks: every leg is under 1.6 km." });
+    expect(selectAnchoredGroundedPlanRoute(candidates, constraints(["tube", "walking"]), "a"))
+      .toMatchObject({ ok: true, outcome: "route" });
   });
 
-  it("still fails the route closed on the walk rule the same sentence states", async () => {
+  it("routes the walk rule the same sentence states, with the short-walks line", async () => {
     const { context } = inferNightContext(
       "cheap pints in Soho for 4, we want to walk between them and get the tube home",
       NOW,
@@ -177,10 +191,38 @@ describe("a tube way home never removes a pub from the route", () => {
       null,
       NOW.getTime(),
     );
-    expect(result.ok).toBe(false);
+    expect(result.ok).toBe(true);
+    if (!result.ok || result.legacy) throw new Error("expected a grounded route");
+    expect(result.selection.constraintReport.hardConstraints).toContainEqual(
+      { code: "short_walks", status: "satisfied", message: "Short walks: every leg is under 1.6 km." },
+    );
   });
 
-  it("still fails the route closed on a tube that is a route rule", async () => {
+  it("reads a short walk between pubs as a preference, never a refusal", async () => {
+    const { context } = inferNightContext("short walk between pubs in Soho", NOW);
+    expect(context.transportConstraints).toEqual(["walking"]);
+    const result = await selectPlanGenerationCandidates(
+      [0, 1, 2, 3].map((ordinal) => scoredCandidate(`soho-${ordinal}`, ordinal)),
+      context as NightContext,
+      null,
+      NOW.getTime(),
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it("falls back to the plain route when only a walk word asked for one and none fits", async () => {
+    const { context } = inferNightContext("short walk between pubs in Soho", NOW);
+    // Three pubs kilometres apart: no leg under 1.6 km, so the grounded search
+    // finds nothing, and the walk word alone may not refuse the plan.
+    const spread = [0, 1, 2].map((ordinal) => {
+      const candidate = scoredCandidate(`far-${ordinal}`, ordinal);
+      return { ...candidate, venue: { ...candidate.venue, lat: 51.45 + ordinal * 0.05 } };
+    });
+    const result = await selectPlanGenerationCandidates(spread, context as NightContext, null, NOW.getTime());
+    expect(result).toMatchObject({ ok: true, legacy: true });
+  });
+
+  it("says every stop is near a station when the station table can show it", async () => {
     const { context } = inferNightContext("cheap pints near a tube station in Soho for 4", NOW);
     const result = await selectPlanGenerationCandidates(
       [0, 1, 2, 3].map((ordinal) => scoredCandidate(`soho-${ordinal}`, ordinal)),
@@ -188,7 +230,30 @@ describe("a tube way home never removes a pub from the route", () => {
       null,
       NOW.getTime(),
     );
-    expect(result.ok).toBe(false);
+    if (!result.ok || result.legacy) throw new Error("expected a grounded route");
+    expect(result.selection.constraintReport.hardConstraints).toContainEqual(
+      { code: "tube_stations", status: "satisfied", message: "Tube: every stop is within 600 m of a station." },
+    );
+  });
+
+  it("says it could not check station distance where the station table is silent", async () => {
+    const { context } = inferNightContext("pints near a tube station in Clapham", NOW);
+    expect(context.transportConstraints).toEqual(["tube"]);
+    const clapham = [0, 1, 2, 3].map((ordinal) => {
+      const candidate = scoredCandidate(`clapham-${ordinal}`, ordinal);
+      return { ...candidate, venue: { ...candidate.venue, lat: 51.462 + ordinal * 0.0005, lng: -0.138 } };
+    });
+    const result = await selectPlanGenerationCandidates(clapham, context as NightContext, null, NOW.getTime());
+    if (!result.ok || result.legacy) throw new Error("expected a grounded route");
+    expect(result.selection.constraintReport.hardConstraints).toContainEqual(
+      { code: "tube_stations", status: "flagged", message: "Tube: we could not check station distance for these stops." },
+    );
+  });
+
+  it("reads underground and station words as the same tube preference", () => {
+    for (const query of ["pints in Soho near the underground", "pubs near a station in Soho"]) {
+      expect(inferNightContext(query, NOW).context.transportConstraints, query).toEqual(["tube"]);
+    }
   });
 
   it("returns a route for the exact sprint request", async () => {
@@ -223,10 +288,12 @@ describe("the need a plan missed is still named", () => {
     expect(gapsFor(SPRINT_REQUEST)).toEqual([]);
   });
 
-  it("names per_venue_transport for a tube the route could not honour", () => {
+  it("names per_venue_transport for a tube the route could not fully check", () => {
     expect(gapsFor("cheap pints near a tube station in Soho for 4"))
       .toContain("per_venue_transport");
-    expect(gapsFor("pints in Soho within walking distance"))
-      .toContain("per_venue_transport");
+  });
+
+  it("costs a walk word no confidence, because every leg is already short", () => {
+    expect(gapsFor("pints in Soho within walking distance")).not.toContain("per_venue_transport");
   });
 });

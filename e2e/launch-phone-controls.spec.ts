@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { expectLayoutSettled, expectPageAtRest } from "./helpers/layoutSettled";
 
 // The V0.1 phone pass for the surfaces OUTSIDE the map shell. The map already
 // has its own rendered-geometry fence (e2e/mobile-map-chrome-fit.spec.ts); these
@@ -88,6 +89,10 @@ async function settle(
         ).toBeVisible({ timeout: REQUIRED_SELECTOR_TIMEOUT_MS }),
       ),
     );
+    // The walk above trips the scroll entrances, so the sweep waits for them
+    // to land: a link read mid-rise measured 43.99px against the 44px floor
+    // on CI (Discover's editorial links, 1 Nov 2026) and passed at rest.
+    await expectPageAtRest(page, { timeout: SETTLE_CEILING_MS });
     return;
   }
 
@@ -102,10 +107,11 @@ async function settle(
       previous = count;
       quietSince = Date.now();
     } else if (Date.now() - quietSince >= SETTLE_QUIET_MS) {
-      return;
+      break;
     }
     await page.waitForTimeout(150);
   }
+  await expectPageAtRest(page, { timeout: SETTLE_CEILING_MS });
 }
 
 // A PHONE, not a narrow desktop window. The floors these pages state are
@@ -326,23 +332,30 @@ for (const hasTouch of [false, true]) {
           await discover.locator("#cheap-title").scrollIntoViewIfNeeded();
 
           const measurements = [];
-          for (const selector of [".discoverBrandChip", "a.leaderboardPub", "a.tonightPub"]) {
-            const targets = discover.locator(selector);
-            await expect(targets.first()).toBeVisible({ timeout: REQUIRED_SELECTOR_TIMEOUT_MS });
-            const sizes = await targets.evaluateAll((elements) => elements.map((element) => {
-              const rect = element.getBoundingClientRect();
-              return { width: rect.width, height: rect.height };
-            }));
-            measurements.push({ selector, sizes });
-            for (const size of sizes) {
-              expect(size.height, `${route} @${width}: ${selector}`).toBeGreaterThanOrEqual(MIN_TAP_HEIGHT_PX);
-              expect(size.width, `${route} @${width}: ${selector}`).toBeGreaterThanOrEqual(MIN_TAP_WIDTH_PX);
+          try {
+            for (const selector of [".discoverBrandChip", "a.leaderboardPub", "a.tonightPub"]) {
+              const targets = discover.locator(selector);
+              await expect(targets.first()).toBeVisible({ timeout: REQUIRED_SELECTOR_TIMEOUT_MS });
+              // Visibility can precede an ancestor's reveal transition finishing.
+              for (const target of await targets.all()) {
+                await expectLayoutSettled(target, { timeout: SETTLE_CEILING_MS });
+              }
+              const sizes = await targets.evaluateAll((elements) => elements.map((element) => {
+                const rect = element.getBoundingClientRect();
+                return { width: rect.width, height: rect.height };
+              }));
+              measurements.push({ selector, sizes });
+              for (const size of sizes) {
+                expect(size.height, `${route} @${width}: ${selector}`).toBeGreaterThanOrEqual(MIN_TAP_HEIGHT_PX);
+                expect(size.width, `${route} @${width}: ${selector}`).toBeGreaterThanOrEqual(MIN_TAP_WIDTH_PX);
+              }
             }
+          } finally {
+            await testInfo.attach("Discover target geometry", {
+              body: JSON.stringify({ route, width, hasTouch, reportedPointer, measurements }, null, 2),
+              contentType: "application/json",
+            });
           }
-          await testInfo.attach("Discover target geometry", {
-            body: JSON.stringify({ route, width, hasTouch, reportedPointer, measurements }, null, 2),
-            contentType: "application/json",
-          });
           await discover.locator(".discoverBrandChip").first().scrollIntoViewIfNeeded();
           await testInfo.attach("Discover brand targets", {
             body: await page.screenshot(),

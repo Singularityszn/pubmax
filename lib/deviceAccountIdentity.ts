@@ -56,10 +56,14 @@ export const DEVICE_IDENTITY_LOCAL_KEYS = [
   "pubmax_pub_pal_v1",
   // Tonight's answer to the Pal's evening question (lib/palNightQuestion.ts).
   "pubmax:pal-night-answer:v1",
+  // The Pal's stamp book of answered price quests (lib/palQuest.ts).
+  "pubmax:pal-quest-stamps:v1",
 ] as const;
 
 /** The sessionStorage half of the same set. */
 export const DEVICE_IDENTITY_SESSION_KEYS = [
+  // Private turn orders for this account's Rounds, kept only in this tab.
+  "pubmax:wild-round-rota:v1",
   // Who a referral asked the arriving account to follow back.
   "pubmax:referral-follow-handle",
   // The one-shot arrival greeting names a person.
@@ -109,12 +113,17 @@ export function clearDeviceAccountArtifacts(
   session: WritableStorage | null = null,
 ): void {
   for (const key of DEVICE_IDENTITY_LOCAL_KEYS) removeKey(local, key);
-  for (const key of DEVICE_IDENTITY_SESSION_KEYS) removeKey(session, key);
+  clearDeviceAccountSessionArtifacts(session);
   // A Night Profile mirrored off an account is that account's answer wearing a
   // device label. One typed on this device belongs to the device and stays.
   if (readDeviceNightProfileProvenance(local) === "account") {
     removeKey(local, NIGHT_PROFILE_DEVICE_KEY);
   }
+}
+
+/** Clear this tab's private artifacts without changing another tab's shared owner. */
+export function clearDeviceAccountSessionArtifacts(session: WritableStorage | null): void {
+  for (const key of DEVICE_IDENTITY_SESSION_KEYS) removeKey(session, key);
 }
 
 /**

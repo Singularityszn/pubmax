@@ -63,7 +63,10 @@ export async function POST(request: Request, context: Context): Promise<Response
   try { raw = await request.json() as Record<string, unknown>; } catch {
     return error("Malformed request body.", "INVALID_JSON", 400);
   }
-  const memberToken = planMemberCapability(request, raw.memberToken);
+  // The bearer authenticates the account above. Plan authority comes from its cookie or body.
+  const memberHeaders = new Headers(request.headers);
+  memberHeaders.delete("authorization");
+  const memberToken = planMemberCapability(new Request(request.url, { headers: memberHeaders }), raw.memberToken);
   const recap = validatePendingPlanRecap(raw.recap);
   if (!memberToken || !recap || recap.planId !== id) {
     return error("Add the valid Plan recap and member capability.", "INVALID_RECAP", 400);

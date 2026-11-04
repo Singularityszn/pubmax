@@ -7,6 +7,8 @@ import {
   formatAbv,
   groupDrinksByCategory,
   isDemoDrinkProvenance,
+  drinkProvenanceLabel,
+  isUnattributedDrinkPrice,
   type Drink,
   type DrinkCategory,
   type DrinkProvenance,
@@ -87,22 +89,8 @@ function drinkMenuObservationMeta(
 // server OR client component. Purely presentational. When a venue has nothing
 // beyond its pint rows, an honest EmptyState renders instead of a bare frame.
 
-// Honest source labels for the provenance chip. A seeded demo menu reads
-// "Demo"; an unattributed dataset price says its publisher was not recorded;
-// anything else shows its source so a new permissible source (Wikidata, a chain
-// site) is never silently relabelled.
-function provenanceLabel(prov: DrinkProvenance): string {
-  if (isDemoDrinkProvenance(prov)) return "Demo";
-  if (isUnattributedPrice(prov)) return "Publisher not recorded";
-  return prov.source;
-}
-
-function isUnattributedPrice(prov: DrinkProvenance): boolean {
-  return prov.source === "app-dataset" && !firstHttp(prov.sourceUrl);
-}
-
 function ProvChip({ prov }: { prov: DrinkProvenance }) {
-  const label = provenanceLabel(prov);
+  const label = drinkProvenanceLabel(prov);
   const kind = isDemoDrinkProvenance(prov) ? "demo" : "sourced";
   const className = `drinkProvChip ${kind}`;
   const title = `${label} · ${prov.licence}`;
@@ -241,7 +229,7 @@ export default function DrinkMenu({
     categoryFilter ? group.category === categoryFilter : true,
   );
   const hasUnattributedPrice = groups.some((group) =>
-    group.drinks.some((drink) => isUnattributedPrice(drink.provenance)),
+    group.drinks.some((drink) => isUnattributedDrinkPrice(drink.provenance)),
   );
 
   if (groups.length === 0) {

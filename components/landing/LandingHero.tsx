@@ -2,16 +2,14 @@
 
 import type { Route } from "next";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
 import PriceBadge from "@/components/PriceBadge";
 import Kicker from "@/components/ui/kicker";
 import Screen from "@/components/ui/screen";
 import { trackEvent } from "@/lib/analytics";
 import type { LandingCtaTarget } from "@/lib/analyticsEvents";
-import type { LegacyPintPrice } from "@/lib/drinks";
 import {
-  answerEvidenceFor,
   answerKicker,
   archiveMovementLine,
   HERO_RAIL_SIZE,
@@ -31,6 +29,7 @@ import {
   type LandingArchiveThen,
   type LandingRailRow,
 } from "@/lib/landingHero";
+import { comparatorEvidenceFor, readLandingEvidence, settleEachRead } from "@/lib/landingEvidenceRead";
 import type { LandingPubCardData } from "@/lib/landingPubCard";
 import {
   landingPhotoFor,
@@ -41,23 +40,17 @@ import type { NearMeCard } from "@/lib/nearMeAnswer";
 import { PRICE_NOT_COMPARED_LINE } from "@/lib/priceMovementLine";
 import { priceStandingLabel, priceStandingNote, type PriceStanding } from "@/lib/priceTier";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
-import { discardBody } from "@/lib/responseBody";
-import {
-  LANDING_SKYLINE_HERO_AVIF_SRCSET,
-  LANDING_SKYLINE_HERO_JPG_FALLBACK,
-  LANDING_SKYLINE_HERO_SIZES,
-  LANDING_SKYLINE_HERO_WEBP_SRCSET,
-} from "@/lib/landingSkylineHero";
 import { formatPrice } from "@/lib/venues";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
 import LandingPhoto, { LandingPhotoCredit } from "./LandingPhoto";
 
-// The landing hero (issue #1357, rebuilt on the captain's 7 Sep 2026 ask, and
-// trimmed after the 16 Oct 2026 UX audit): the claim, one line under it, the
-// PICTURE, then the one filled action, then the quiet row, then the pub card
-// and the three next-cheapest rows. The DOM order is the phone order; the
-// desktop seats the picture and the rows beside the copy.
+// The landing hero (issue #1357, rebuilt on the captain's 7 Sep 2026 ask,
+// trimmed after the 16 Oct 2026 UX audit, and given the hunt on 1 Nov 2026):
+// the claim, one line under it, THE CHEAPEST PINT WE CAN FIND IN BRITAIN, then
+// the one filled action, then the quiet row, then the pub card and the three
+// next-cheapest rows. The DOM order is the phone order; the desktop seats the
+// hunt card and the rows beside the copy.
 //
 // No brand kicker over the claim: the wordmark in the bar already says it, and
 // a second PUBMAXX six lines lower was the page repeating its own name.
@@ -69,8 +62,12 @@ import LandingPhoto, { LandingPhotoCredit } from "./LandingPhoto";
 // dataset too small to back it falls back to the map line the share card and
 // the meta description carry.
 //
-// The hero shows the London skyline the captain selected. The responsive files
-// are committed under public/landing; the live map is still one tap away.
+// THE HUNT CARD REPLACED THE PHOTOGRAPH (captain decisions 2 and 3, 1 Nov
+// 2026). Where Tower Bridge stood, one live card names the cheapest pint we can
+// find in Britain, with its pub, its price, its source and its day. It is a
+// SERVER component (components/landing/LandingHuntCard.tsx) that app/page.tsx
+// renders at prerender and hands in through `hunt`, so this client module never
+// carries its code, and lib/cheapestHunt.ts alone decides which pint wins.
 //
 // THE PRIMARY GIVES BEFORE IT ASKS. The receipt door was the primary until
 // today and it ends in a sign-in ask, so it is the first QUIET door now and
@@ -91,8 +88,12 @@ import LandingPhoto, { LandingPhotoCredit } from "./LandingPhoto";
 
 /** What the card really paints at: the answer column, capped at the card. */
 const ANSWER_PHOTO_SIZES = "(max-width: 959px) calc(100vw - 2rem), 480px";
-/** Phone and tablet only: on desktop the Thames picture is the largest paint. */
-const ANSWER_PHOTO_PRELOAD_MEDIA = "(max-width: 959px)";
+/**
+ * Every width. The Thames picture used to be the desktop's largest paint, so
+ * this preload was phone-only; with the hunt card (text) in its place, the
+ * pub's own photograph is the largest image left at any width.
+ */
+const ANSWER_PHOTO_PRELOAD_MEDIA = "all";
 const LONDON_DAY = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
   month: "long",
@@ -133,6 +134,14 @@ type Answer = {
   drinkHref: Route | null;
   scope: LandingAnswerScope;
   walkMinutes?: number;
+  /**
+   * What the near-you answer is worth against the reader's doorstep pub
+   * (nearSavingLine, lib/nearMeAnswer.ts), with that pub's own evidence: the
+   * line prints its price, so it prints who listed it and when, or why it
+   * cannot. Only an answer from the reader's own fix carries one; the anchor
+   * never does.
+   */
+  saving?: { line: string; name: string; evidence: Evidence } | null;
   evidence: Evidence;
   then: LandingArchiveThen | null;
   rail: LandingRailRow[];
@@ -170,6 +179,7 @@ function nearAnswer(
   rest: NearMeCard[],
   scope: "walkable" | "widened",
   archive: LandingArchiveIndex,
+  saving: { line: string; name: string } | null,
 ): Answer {
   return {
     id: first.id,
@@ -181,6 +191,7 @@ function nearAnswer(
     drinkHref: null,
     scope,
     walkMinutes: first.walkMinutes,
+    saving: saving ? { ...saving, evidence: "loading" } : null,
     evidence: "loading",
     then: archive[first.id] ?? null,
     rail: rest.slice(0, HERO_RAIL_SIZE).map((card) => ({
@@ -195,42 +206,21 @@ function nearAnswer(
   };
 }
 
-/**
- * The publisher and standing for a near-you answer, read off the same venue
- * detail the sheet reads, through the same decider the anchor used at build.
- * A read that could not be run answers `unavailable`, never "no publisher".
- */
-async function readEvidence(
-  venueId: string,
-  priceGbp: number,
-  signal: AbortSignal,
-): Promise<Evidence> {
-  try {
-    const response = await fetch(`/api/venue/${encodeURIComponent(venueId)}`, { signal });
-    if (!response.ok) {
-      discardBody(response);
-      return "unavailable";
-    }
-    const payload = (await response.json()) as { venue?: { prices?: LegacyPintPrice[] } };
-    const prices = Array.isArray(payload.venue?.prices) ? payload.venue.prices : null;
-    if (!prices) return "unavailable";
-    return answerEvidenceFor({ priceGbp, prices });
-  } catch {
-    return "unavailable";
-  }
-}
-
-
-
 export default function LandingHero({
   card,
   archive,
   rail,
+  hunt = null,
 }: {
   /** The one real pub, or null when the data cannot back one. */
   card: LandingPubCardData | null;
   archive: LandingArchiveIndex;
   rail: LandingRailRow[];
+  /**
+   * The cheapest pint we can find in Britain, already rendered on the server
+   * (components/landing/LandingHuntCard.tsx), or null when no pint may win.
+   */
+  hunt?: ReactNode;
 }) {
   const [answer, setAnswer] = useState<Answer | null>(() =>
     card ? anchorAnswer(card, rail, archive) : null,
@@ -270,14 +260,38 @@ export default function LandingHero({
               fail(NEAR_ME_NOTHING_LINE);
               return;
             }
-            setAnswer(nearAnswer(first, rest, ranked.scope, archive));
+            const nearest = ranked.nearest;
+            const savingLine = rankModule.nearSavingLine(ranked.cards, nearest);
+            const saving = savingLine && nearest ? { line: savingLine, name: nearest.name } : null;
+            setAnswer(nearAnswer(first, rest, ranked.scope, archive, saving));
             setNear({ kind: "answered" });
             const controller = new AbortController();
-            const evidence = await readEvidence(first.id, first.cheapestPrice, controller.signal);
-            if (mine !== generation.current) return;
-            setAnswer((current) =>
-              current && current.id === first.id ? { ...current, evidence } : current,
-            );
+            // The doorstep pub's evidence is read beside the answer's own, by
+            // the same venue read, so the price the saving line prints is as
+            // sourced as the card's, and for that exact figure. Each read has
+            // its own deadline and lands on its own, so a stalled one cannot
+            // hold the other back (lib/landingEvidenceRead.ts).
+            const owns = () => mine === generation.current;
+            settleEachRead(owns, [
+              {
+                read: readLandingEvidence(first.id, first.cheapestPrice, controller.signal),
+                apply: (evidence) =>
+                  setAnswer((current) => (current && current.id === first.id ? { ...current, evidence } : current)),
+              },
+              ...(saving && nearest
+                ? [
+                    {
+                      read: readLandingEvidence(nearest.id, nearest.cheapestPrice, controller.signal, comparatorEvidenceFor),
+                      apply: (evidence: Exclude<Evidence, "loading">) =>
+                        setAnswer((current) =>
+                          current && current.id === first.id && current.saving
+                            ? { ...current, saving: { ...current.saving, evidence } }
+                            : current,
+                        ),
+                    },
+                  ]
+                : []),
+            ]);
           })
           .catch(() => fail(NEAR_ME_FAILED_LINE));
       },
@@ -339,40 +353,13 @@ export default function LandingHero({
       title="What a pint costs, pub by pub."
       titleId="hero-title"
       lede={LANDING_INTRO}
-      answer={
-        <figure className="lpLondonFigure">
-          <picture>
-            <source
-              type="image/avif"
-              srcSet={LANDING_SKYLINE_HERO_AVIF_SRCSET}
-              sizes={LANDING_SKYLINE_HERO_SIZES}
-            />
-            <source
-              type="image/webp"
-              srcSet={LANDING_SKYLINE_HERO_WEBP_SRCSET}
-              sizes={LANDING_SKYLINE_HERO_SIZES}
-            />
-            <img
-              className="lpLondonPhoto"
-              src={LANDING_SKYLINE_HERO_JPG_FALLBACK}
-              width={1600}
-              height={1067}
-              alt="Tower Bridge and the Thames in London from above"
-              decoding="sync"
-              loading="eager"
-              fetchPriority="high"
-            />
-          </picture>
-          <figcaption className="lpLondonCaption">
-            Tower Bridge and the Thames, looking across London.
-          </figcaption>
-        </figure>
-      }
+      answer={hunt ?? undefined}
       primary={primary}
       secondary={
         // Two quiet doors on one row. The receipt door comes first, because
         // it was the primary once and a returning drinker looks for it there;
-        // Tonight keeps the tap #1488 gave it.
+        // Plan a crawl follows it (lib/landingHero.ts says why it took the
+        // Tonight door's place).
         <>
           {receipt}
           {LANDING_QUIET_DOORS.map((door) => (
@@ -401,6 +388,31 @@ function sourceLine(evidence: Evidence): string {
   return evidence.publisher ? "" : "No publisher recorded";
 }
 
+/** The doorstep pub's evidence under the saving line, in the card's own words. */
+function SavingSource({ name, evidence }: { name: string; evidence: Evidence }) {
+  const publisher = typeof evidence === "object" ? evidence.publisher : null;
+  const observedOn = typeof evidence === "object" ? evidence.observedOn : null;
+  return (
+    // lpPubSource: the card's own source line style, link and tap target too.
+    <p className="lpPubSource lpSavingSource" data-testid="landing-saving-source">
+      {name}:{" "}
+      {publisher ? (
+        <>
+          Listed by{" "}
+          <a href={publisher.url} target="_blank" rel="noopener noreferrer">
+            {publisher.label}
+          </a>
+        </>
+      ) : (
+        sourceLine(evidence)
+      )}
+      {observedOn
+        ? `, source read ${collectedDay(observedOn)}`
+        : typeof evidence === "object" ? ", read day not recorded" : ""}.
+    </p>
+  );
+}
+
 function AnswerCard({
   answer,
   near,
@@ -420,14 +432,11 @@ function AnswerCard({
   // one, and none for a row that records no read.
   const observedOn = typeof evidence === "object" ? evidence.observedOn : null;
   return (
-    // createFabLane: at rest on a phone the compose disc floats over this
-    // card's right edge, and "collected 2 October 2026" ran under it (taste
-    // plan, 18 Oct 2026), so the card keeps the control's lane.
     <article
       className={
         photo
-          ? "lpPubCard lpAnswerCard lpPubCard--photo createFabLane"
-          : "lpPubCard lpAnswerCard createFabLane"
+          ? "lpPubCard lpAnswerCard lpPubCard--photo"
+          : "lpPubCard lpAnswerCard"
       }
       aria-labelledby="lp-answer-name"
     >
@@ -462,6 +471,14 @@ function AnswerCard({
           <span className="lpPubPint">{answer.pintName ?? "cheapest pint"}</span>
         )}
       </p>
+      {answer.saving ? (
+        <>
+          <p className="lpSaving" data-testid="landing-saving-line">
+            {answer.saving.line}
+          </p>
+          <SavingSource name={answer.saving.name} evidence={answer.saving.evidence} />
+        </>
+      ) : null}
       <p className="lpPubSource">
         {publisher ? (
           <>
@@ -515,10 +532,7 @@ function AnswerRail({ answer }: { answer: Answer }) {
       <ol className="lpRailList">
         {answer.rail.map((row) => (
           <li key={row.id} className="lpRailRow">
-            {/* The compose action floats over this row's right cell on a phone,
-                and that cell is the price. It takes the control's own lane
-                (createFab.css). */}
-            <Link prefetch={false} href={pintDropDoorHref(row.id, row.priceGbp)} className="lpRailLink createFabLane">
+            <Link prefetch={false} href={pintDropDoorHref(row.id, row.priceGbp)} className="lpRailLink">
               <span className="lpRailMain">
                 <span className="lpRailName">{row.name}</span>
                 {row.walkMinutes != null ? (

@@ -6,6 +6,7 @@ import { discardBody } from "@/lib/responseBody";
 import { venueKindNoun } from "@/lib/venueKindFilters";
 import type { VenueKind } from "@/lib/venues";
 import { citationSourceLabel } from "@/lib/citationSourceLabel";
+import { noteCrawlBingoAction } from "@/lib/crawlBingoNightLog";
 
 type Context = {
   era?: string;
@@ -58,6 +59,8 @@ export default function LandlordPanel(props: {
           throw new Error(`HTTP ${res.status}`);
         }
         setAnswer((await res.json()) as HeritageResponse);
+        // Pub crawl bingo: the pub's story was asked and answered (lib/crawlBingo.ts).
+        noteCrawlBingoAction("story", venueId);
       } catch {
         setError(true);
       } finally {

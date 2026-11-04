@@ -8,7 +8,7 @@ import { PUBLIC_UPDATES } from "@/lib/publicUpdates";
 
 import "../legal.css";
 
-const DESCRIPTION = "The latest changes to PUBMAXX, with the day each one went live.";
+const DESCRIPTION = "The latest changes now live on PUBMAXX, newest first.";
 const releaseDate = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
   month: "long",

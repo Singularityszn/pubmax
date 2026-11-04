@@ -35,6 +35,8 @@ export type NightModeSheetRouteModel = {
   nextStop: PlanStopDTO | null;
   currentSignal: PlanGetInStopDTO | null;
   currentCoord: VenueCoord | null;
+  /** Where the next stop is, for its ways to get there (NightWaysThere). */
+  nextCoord: VenueCoord | null;
   nextStopWalkMinutes: number | null;
   keepGoingExtensions: KeepGoingExtension[];
   currentTrain: LastTrainSlim | null;
@@ -129,6 +131,7 @@ export function deriveNightModeSheetRouteModel({
     nextStop,
     currentSignal,
     currentCoord,
+    nextCoord,
     nextStopWalkMinutes,
     keepGoingExtensions,
     currentTrain,

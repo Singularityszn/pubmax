@@ -7,6 +7,7 @@ export type CameraIntentKind =
   | "query"
   | "search-recovery"
   | "route"
+  | "route-recovery"
   | "venue"
   | "landmark"
   | "area";

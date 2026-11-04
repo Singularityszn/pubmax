@@ -239,14 +239,29 @@ for (const width of [320, 390]) {
     // Reuse the app's compiled CSS. The fixture keeps this composition test
     // independent of the server clock that controls Tonight's soft-plan rows.
     // Live route tap targets and Next navigation are tested separately.
-    await page.setContent(`<!doctype html><html data-theme="light"><head></head><body>
+    // The fixture is its own same-origin document, never setContent: setContent
+    // keeps Tonight's window, so a late React commit wrote Tonight's head into
+    // the fixture and moved the row between the two measurements below (CI
+    // read the ring 56 px off the row at 320 and 390).
+    const fixtureUrl = new URL("/__e2e/compiled-row-fixture", page.url());
+    const links = stylesheets
+      .map((href) => `<link rel="stylesheet" href="${href.replaceAll('"', "&quot;")}">`)
+      .join("");
+    await page.route(fixtureUrl.href, (route) =>
+      route.fulfill({
+        contentType: "text/html; charset=utf-8",
+        body: `<!doctype html><html data-theme="light"><head>${links}</head><body>
       <main><ul class="rowList"><li class="rowListItem rowListItem--link">
         <span class="rowListBody"><a class="rowListTitle rowListTitleLink navPendingLink" href="#row-destination">
           Row destination<span class="navPendingIndicator" data-pending aria-hidden="true"></span>
         </a></span>
       </li></ul></main>
-    </body></html>`);
-    for (const url of stylesheets) await page.addStyleTag({ url });
+    </body></html>`,
+      }),
+    );
+    // The stylesheets block the load event, so every rule is in before a read.
+    await page.goto(fixtureUrl.href);
+    expect(await page.evaluate(() => document.styleSheets.length)).toBe(stylesheets.length);
     const row = page.locator(".rowListItem");
     const link = page.getByRole("link", { name: "Row destination", exact: true });
     await expect(row).toHaveCSS("display", "grid");

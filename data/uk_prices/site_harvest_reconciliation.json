@@ -10326,5 +10326,74 @@
         "siteHarvestRows": 3871
       }
     }
+  ],
+  "bundleWithdrawals": [
+    {
+      "decidedOn": "2026-11-01",
+      "rule": "pageNamesAnotherBranch (lib/harvest/ukPriceCrawl.ts)",
+      "reason": "source-page-names-another-branch",
+      "note": "Each row stays in data/uk_prices/site_harvest.jsonl as the crawl wrote it. npm run build:uk-price-bundle drops it, because its source page names another branch of the chain than the pub it was attributed to.",
+      "afterLaterPublications": 75,
+      "rows": [
+        {
+          "sha256": "d8394fc1ac93ce07aaeb1e6b665f9c8523f75057587c263960607cce447994fb",
+          "host": "thebotanist.uk.com",
+          "venueId": "venue-uk-w118786967",
+          "category": "beer",
+          "drinkLabel": "Pint of Pravha or Aspall Cyder",
+          "priceGbp": 4.95,
+          "sourceUrl": "https://thebotanist.uk.com/locations/barnsley/whats-on",
+          "observedAt": "2026-09-04T13:57:40.885Z"
+        },
+        {
+          "sha256": "04990b8dac5aa830fe4e50fd2ca29edc57c231658900e8e6c6b904183619ea62",
+          "host": "thebotanist.uk.com",
+          "venueId": "venue-uk-w118786967",
+          "category": "cocktail",
+          "drinkLabel": "Any classic cocktail for",
+          "priceGbp": 8.95,
+          "sourceUrl": "https://thebotanist.uk.com/locations/barnsley/whats-on",
+          "observedAt": "2026-09-04T13:57:40.885Z"
+        },
+        {
+          "sha256": "ff06b49f9b3af3f33882c44ef3bdac611ff0e81926c5e8b2e222b90a33460804",
+          "host": "simmonsbar.co.uk",
+          "venueId": "venue-uk-w225442612",
+          "category": "beer",
+          "drinkLabel": null,
+          "priceGbp": 4,
+          "sourceUrl": "https://www.simmonsbar.co.uk/venues/shoreditch-cocktail-bar/",
+          "observedAt": "2026-09-21T18:50:39.285Z"
+        },
+        {
+          "sha256": "ec2325301d3feed6199f17d127c4e970f8a7d58eac0416e0aca4b0cf542242b3",
+          "host": "simmonsbar.co.uk",
+          "venueId": "venue-uk-w225442612",
+          "category": "cocktail",
+          "drinkLabel": null,
+          "priceGbp": 18,
+          "sourceUrl": "https://www.simmonsbar.co.uk/venues/shoreditch-cocktail-bar/",
+          "observedAt": "2026-09-21T18:50:39.285Z"
+        },
+        {
+          "sha256": "c142f216104b3d3b8e228dafdba43dc1a2909c81bc1e6491327957959a9cce41",
+          "host": "simmonsbar.co.uk",
+          "venueId": "venue-uk-w225442612",
+          "category": "wine",
+          "drinkLabel": null,
+          "priceGbp": 3,
+          "sourceUrl": "https://www.simmonsbar.co.uk/venues/shoreditch-cocktail-bar/",
+          "observedAt": "2026-09-21T18:50:39.285Z"
+        }
+      ],
+      "historicalBundle": {
+        "rowCount": 7195,
+        "siteHarvestRows": 3080
+      },
+      "currentBundle": {
+        "rowCount": 7981,
+        "siteHarvestRows": 3866
+      }
+    }
   ]
 }

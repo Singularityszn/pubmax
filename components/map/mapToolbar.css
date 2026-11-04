@@ -658,7 +658,12 @@ html[data-theme="dark"] .drinkShapeChipLabel {
    real gap below the independently-positioned Tonight Arc. */
 @media (min-width: 641px) and (max-width: 900px) {
   .appShell {
-    --map-top-clearance: calc(171px + env(safe-area-inset-top, 0px));
+    /* Keep the existing berth until the enlarged header needs more room.
+       The rem fallback reserves space before the client publishes its height. */
+    --map-top-clearance: max(
+      calc(171px + env(safe-area-inset-top, 0px)),
+      calc(var(--topbar-inset) + var(--site-nav-floating-height, calc(6rem + 44px)) + 12px)
+    );
     --map-overlay-top: calc(var(--map-top-clearance) + 58px);
     --map-toolbar-resting-height: 155px;
   }
@@ -673,11 +678,12 @@ html[data-theme="dark"] .drinkShapeChipLabel {
   .mapToolbarRow {
     width: 100%;
     min-width: 0;
+    flex-wrap: wrap;
   }
 
   .mapToolbarSearch {
-    flex: 1 1 8rem;
-    min-width: 0;
+    flex: 1 1 176px;
+    min-width: min(100%, 176px);
     overflow: visible;
   }
 
@@ -846,15 +852,43 @@ html[data-theme="dark"] .drinkShapeChipLabel {
 /* The desktop bar is the shared map surface width, and its controls are
    content-sized, so at 1440 the row ended some 390px short of the bar's own
    right edge: an empty capsule beside a search field held to 388px. From the
-   width that seats the full desktop row, search takes the spare lane instead
-   (the tablet band below already does). It still shrinks first when a drawer
-   narrows the row, since the open-drawer rules above keep its min-width 0. */
+   width that seats the full desktop row, search takes the spare lane instead.
+   The search field follows its cell's width when a drawer narrows the lane. */
 @media (min-width: 901px) {
+  /* A larger browser font can make the controls wider than the map lane.
+     Wrap them before the search field paints over the next control. */
+  .mapToolbarRow {
+    flex-wrap: wrap;
+  }
+
   .mapToolbarSearch {
     flex: 1 1 auto;
+    min-width: min(100%, 176px);
   }
 
   .mapToolbarSearch .mapSearchSuggest--toolbar {
     width: 100%;
+  }
+}
+
+/* The tablet zoom column clears the arrival card's actual occupied berth.
+   Without a card, -12px cancels its top gap so the existing max terms win. */
+@media (min-width: 641px) and (max-width: 900px) {
+  .appShell:not(.detail-open) .mapStage .maplibregl-ctrl-top-right {
+    top: max(
+      calc(var(--map-overlay-top) + var(--map-camera-stack-height) + var(--map-chrome-gap)),
+      calc(var(--map-top-clearance) + var(--map-toolbar-resting-height) + var(--map-chrome-gap)),
+      calc(var(--map-top-clearance) + var(--map-toolbar-resting-height) + 12px + var(--map-arrival-occupied-height, -12px) + var(--map-chrome-gap))
+    );
+  }
+}
+
+/* A short landscape walk needs the space between its header and route actions.
+   The measured header still reserves room when text makes it taller. */
+@media (min-width: 641px) and (max-height: 500px) {
+  .appShell:has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) {
+    --map-top-clearance: calc(
+      var(--topbar-inset) + var(--site-nav-floating-height, calc(6rem + 44px)) + 12px
+    );
   }
 }

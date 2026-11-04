@@ -196,9 +196,11 @@ describe("POST /api/invite/[token]/rsvp guest-list ceiling", () => {
       collaborationAuthorized?: boolean;
       isUpdate?: boolean;
     };
+    // One guest capability (launch review 3.5): a Going RSVP through the
+    // host's link seats a guest who may vote, propose and check in.
     expect(firstBody).toMatchObject({
       role: "guest",
-      collaborationAuthorized: false,
+      collaborationAuthorized: true,
       isUpdate: false,
     });
     expect(firstBody.memberToken).toMatch(/^[0-9a-f]{64}$/);

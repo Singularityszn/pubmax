@@ -32,7 +32,7 @@ test.describe("site navigation touch targets", () => {
     const nav = page.getByRole("navigation", { name: "Site navigation" });
     await expect(nav).toBeVisible();
     await expectTappable(nav.getByLabel("Open PUBMAXX landing page"), "tablet site wordmark");
-    await expectTappable(nav.getByRole("link", { name: "Map", exact: true }), "tablet Map link");
+    await expectTappable(nav.getByRole("link", { name: "Explore", exact: true }), "tablet Map link");
     await expectTappable(nav.getByRole("link", { name: "Plan", exact: true }), "tablet Plan link");
     await expectTappable(nav.getByRole("link", { name: "Tonight", exact: true }), "tablet Tonight link");
     await expectTappable(nav.getByRole("link", { name: "You", exact: true }), "tablet You link");

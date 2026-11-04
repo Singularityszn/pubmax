@@ -41,3 +41,14 @@ exact boundary and layout.
 The current shell props live in
 [`MobileMapShell.tsx`](../components/mobile/MobileMapShell.tsx). Its caller is
 [`PubMap.tsx`](../components/PubMap.tsx).
+
+## The list beside the map
+
+From 1024px the map shares the window with the list of the venues in view
+(`components/map/MapSplitList.tsx`). The map stage starts at the list's right
+edge, so every tier above is laid out in the map lane, never across the list.
+From 1024 to 1279px that lane is 624 to 880px wide, so the toolbar takes the
+drawer-lane treatment (search on its own line) and the right rail steps aside
+while the planner is open. `components/map/mapSplitList.css` owns those widths,
+and the [split view rule](rules/components-sheets-chrome-and-navigation.md#from-1024px-the-list-sits-beside-the-map-and-the-two-move-together)
+owns the contract.

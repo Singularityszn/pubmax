@@ -8,7 +8,7 @@ import {
   CLUSTER_RING_PX,
 } from "@/components/map/canvas/buildScene";
 import { pricePillTokens } from "@/components/map/canvas/tokens";
-import { buildPalette, mixHex } from "@/lib/mapBasemapTaste";
+import { buildPalette } from "@/lib/mapBasemapTaste";
 import { defined } from "@/__tests__/helpers/defined";
 
 // What a cluster disc and a price pill have to stand on, per theme, read from the
@@ -134,7 +134,7 @@ function tones(palette: ReturnType<typeof buildPalette>, land: string): Record<s
   );
 }
 const DARK_TONES = tones(darkPalette, darkPalette.land);
-const LIGHT_TONES = tones(lightPalette, mixHex(LIGHT.paper, "#f4efe6", 0.35));
+const LIGHT_TONES = tones(lightPalette, lightPalette.land);
 
 const EDGE_MIN = 3;
 const TEXT_MIN = 4.5;
@@ -191,13 +191,15 @@ describe.each([
 
 describe("price pill", () => {
   const inks = {
-    light: { ink: LIGHT.ink, surface: "#f6ecd4", tones: LIGHT_TONES },
-    dark: { ink: DARK.ink, surface: DARK.panelRaised, tones: DARK_TONES },
+    light: { ink: LIGHT.ink, surface: LIGHT.panelRaised, dark: false, tones: LIGHT_TONES },
+    dark: { ink: DARK.ink, surface: DARK.panelRaised, dark: true, tones: DARK_TONES },
   } as const;
+  const pillTokens = (theme: (typeof inks)[keyof typeof inks]) =>
+    pricePillTokens({ ink: theme.ink, panelRaised: theme.surface }, theme.dark);
 
-  it("publishes the plaque surface and an ink hairline per theme, and no new colour", () => {
+  it("publishes the raised panel the disc stands on and an ink hairline per theme, and no new colour", () => {
     for (const theme of Object.values(inks)) {
-      const tokens = pricePillTokens({ ink: theme.ink, pricePlaqueSurface: theme.surface });
+      const tokens = pillTokens(theme);
       expect(tokens.pillSurface).toBe(theme.surface);
       // The hairline is the theme's own ink, at an alpha, never a band colour.
       const [r, g, b] = channels(theme.ink);
@@ -207,9 +209,22 @@ describe("price pill", () => {
     }
   });
 
+  it("reads its ink figure on its body at text contrast in both themes", () => {
+    // The figure is the claim, a constant ink (buildScene's pubs-price-pill).
+    for (const theme of Object.values(inks)) {
+      expect(contrast(theme.ink, theme.surface)).toBeGreaterThanOrEqual(TEXT_MIN);
+    }
+  });
+
+  it("inverts the selected pill to a paper figure on an ink body at text contrast", () => {
+    // Light: --paper on --ink. Dark: --ink-deep on the cream --ink.
+    expect(contrast(LIGHT.paper, LIGHT.ink)).toBeGreaterThanOrEqual(TEXT_MIN);
+    expect(contrast(DARK.inkDeep, DARK.ink)).toBeGreaterThanOrEqual(TEXT_MIN);
+  });
+
   it("edges against every basemap tone at 3:1 through its hairline", () => {
     for (const [name, theme] of Object.entries(inks)) {
-      const rim = pricePillTokens({ ink: theme.ink, pricePlaqueSurface: theme.surface }).pillRim!;
+      const rim = pillTokens(theme).pillRim!;
       const failures: string[] = [];
       for (const [tone, background] of Object.entries(theme.tones)) {
         // The hairline is drawn over the pill's own body at the pill's edge, so

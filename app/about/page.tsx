@@ -9,12 +9,16 @@ import SiteNav from "@/components/nav/SiteNav";
 import Screen from "@/components/ui/screen";
 import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
 import { loadAboutStats } from "@/lib/aboutStats";
-import { buildLeagueTable, indexSummary } from "@/lib/pintIndex";
+import { buildLeagueTable, indexSummary, PINT_INDEX_NOT_READY_LINE, pintIndexLeagueReady } from "@/lib/pintIndex";
+import { averageBasePhrase, pricedPubsSentence } from "@/lib/pricedPubCount";
+import { loadPricedPubCount } from "@/lib/pricedPubCount.server";
 import { priceBand } from "@/lib/priceBand";
 import { loadPublicPintIndexSnapshot } from "@/lib/publicPintIndexSnapshot.server";
 import { HELLO_EMAIL, HELLO_MAILTO } from "@/lib/siteContact";
 import { SITE_ORGANIZATION_ID, SITE_WEBSITE_ID } from "@/lib/siteJsonLd";
 import { SITE_PRODUCT_DESCRIPTION } from "@/lib/siteProductCopy";
+import { loadUkDirectoryCoverage } from "@/lib/ukDirectoryCoverage.server";
+import { UK_NATIONAL_ENTRY_LABEL, UK_NATIONAL_MAP_HREF } from "@/lib/ukNationalBrowse";
 
 import "./about.css";
 
@@ -29,6 +33,19 @@ import "./about.css";
 // — no invented users, revenue, or growth metrics. The prose sticks to public
 // product decisions and founder-led wording already on this page; no invented
 // biography, co-founder names, or fake counts (docs/VOICE.md).
+//
+// The founder story ("Why I built it") is the founder's own reason, in his own
+// earlier words (docs/VOICE.md, before/after row 11) with the dash taken out.
+// Its one figure, the round of four, is arithmetic on the average listed pint
+// loadAboutStats already returns; nothing in it is typed in. It names no
+// cheapest pint: the homepage's cheapest is the hunt's answer
+// (lib/cheapestHunt.ts), whose readers are fenced to the landing
+// (__tests__/cheapestHunt.test.ts), and a second rule here would print a
+// third answer to the same question. Its
+// Pub Pal lines say only what the Pal code does: a memory exists only once the
+// person confirms its card (lib/palMemoryProposal.server.ts), a food need is a
+// kind of its own (food_preference, lib/palMemoryKinds.mjs), and a new fact
+// can offer to update an old one (lib/palMemoryRelation.ts).
 
 const PAGE_TITLE = "About PUBMAXX";
 const PAGE_DESCRIPTION =
@@ -88,15 +105,34 @@ function Pint({ gbp }: { gbp: number | null }) {
   return <PriceBadge band={priceBand(gbp)}>{fmtGbp(gbp)}</PriceBadge>;
 }
 
+/** How many pints the founder story's round holds. */
+const ROUND_SIZE = 4;
+
+/**
+ * A round of four at the average listed pint, rounded to pence, or null when
+ * there is no average. A round total is not a pint price, so it is printed as
+ * a plain figure and never wears a price band.
+ */
+function roundOfFour(averagePint: number | null): number | null {
+  if (averagePint === null || !Number.isFinite(averagePint) || averagePint <= 0) return null;
+  return Math.round(averagePint * ROUND_SIZE * 100) / 100;
+}
+
 export default async function AboutPage() {
-  const [stats, pintIndexSnapshot] = await Promise.all([
+  const [stats, pintIndexSnapshot, pricedPubs] = await Promise.all([
     loadAboutStats(),
     loadPublicPintIndexSnapshot(),
+    // The ONE priced-pub count (lib/pricedPubCount.ts), the same read
+    // /pint-index makes, so the two pages print one number on one base.
+    loadPricedPubCount(),
   ]);
+  const leagueReady = pintIndexLeagueReady(pintIndexSnapshot);
   const pintIndexRows = pintIndexSnapshot
     ? buildLeagueTable(pintIndexSnapshot)
     : [];
   const pintIndexSummary = indexSummary(pintIndexRows);
+  const ukCoverage = loadUkDirectoryCoverage();
+  const round = roundOfFour(stats.averagePint);
   const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   // The root layout publishes both referenced identities.
@@ -111,7 +147,7 @@ export default async function AboutPage() {
   };
 
   return (
-    <main id="main" className="aboutPage pageHidesCreateFab">
+    <main id="main" className="aboutPage">
       {/* JSON-LD is inert data, not executable script. It goes through the ONE
           hardened injector (components/seo/JsonLd), which escapes every
           HTML-significant character before the body is inlined, so a future
@@ -127,12 +163,7 @@ export default async function AboutPage() {
         as="section"
         className="aboutHero"
         kicker="About"
-        title={
-          <>
-            A pint in London can cost eight quid. Nobody tells you where it
-            doesn&rsquo;t.
-          </>
-        }
+        title={<>Finding a cheap pint shouldn&rsquo;t take three apps.</>}
         titleId="about-title"
         lede={
           <>
@@ -142,6 +173,47 @@ export default async function AboutPage() {
         primary={<Link prefetch={false} href="/map">Open the map</Link>}
         secondary={<a href={HELLO_MAILTO}>Contact</a>}
       >
+
+      {/* The founder story, first person and signed. It answers why the app
+          exists before the page explains what it does. */}
+      <section className="aboutSection" aria-labelledby="why">
+        <h2 id="why" className="aboutH2">Why I built it</h2>
+        <p className="aboutBody">
+          After a hard day&rsquo;s work I wanted a cheap pint nearby. Finding
+          one meant bouncing between Google Maps, other maps and ChatGPT. So I
+          put the pubs, their listed prices and a plan for your mates in one
+          app.
+        </p>
+        {round !== null ? (
+          <p className="aboutBody">
+            A round of four at the average listed pint is{" "}
+            <Figure>{fmtGbp(round)}</Figure>. The map shows which pubs list a
+            pint for less, so you know before you get to the bar.
+          </p>
+        ) : null}
+        <p className="aboutBody">
+          I build PUBMAXX on my own, working with AI coding agents. Most AI
+          gets built for companies. I&rsquo;d rather build it for someone on a
+          night out, and that&rsquo;s what{" "}
+          <Link prefetch={false} href="/pal" className="aboutLink">
+            Pub&nbsp;Pal
+          </Link>{" "}
+          is.
+        </p>
+        <p className="aboutBody">
+          You pick how it looks and sounds, then type or talk to it, and it
+          finds you a pub or plans a route.
+        </p>
+        <p className="aboutBody">
+          Tell it you can&rsquo;t stand loud pubs, or that you&rsquo;re
+          vegetarian, and it asks whether to remember that. Tap yes and it
+          bears that in mind next time. Go off
+          lager and it offers to update what it knew. Nothing becomes a memory
+          without that yes, and you can correct or delete any of them.
+        </p>
+        <p className="aboutBody">It&rsquo;s free, and nobody pays to rank.</p>
+        <p className="aboutFounderSig">Karan Manoharan, founder of PUBMAXX</p>
+      </section>
 
       <section className="aboutSection" aria-labelledby="map">
         <h2 id="map" className="aboutH2">What the map does</h2>
@@ -185,8 +257,17 @@ export default async function AboutPage() {
           </li>
           <li>
             <strong>Coverage varies by city.</strong> We started with listed
-            prices in London. OpenStreetMap adds pubs across the country, but
-            a pub on the map doesn&rsquo;t mean we hold its drink prices.
+            prices in London.{" "}
+            {ukCoverage ? (
+              <>
+                The UK directory has {fmtInt(ukCoverage.pubListings)} pub listings
+                and {fmtInt(ukCoverage.barListings)} bar listings from OpenStreetMap.{" "}
+              </>
+            ) : null}
+            A listing doesn&rsquo;t mean we have its prices or know it&rsquo;s open.{" "}
+            <Link prefetch={false} href={UK_NATIONAL_MAP_HREF} className="aboutLink">
+              {UK_NATIONAL_ENTRY_LABEL}
+            </Link>
           </li>
           <li>
             <strong>The price order is not for sale.</strong> No slot is
@@ -243,9 +324,10 @@ export default async function AboutPage() {
       <section className="aboutSection" aria-labelledby="traction">
         <h2 id="traction" className="aboutH2">By the numbers</h2>
         <p className="aboutBody">
-          PUBMAXX holds a price for <Figure>{fmtInt(stats.pubsTracked)}</Figure>{" "}
-          pubs from <Figure>{fmtInt(stats.pintPricesObserved)}</Figure> pint
-          prices on record, each with its source status shown.{" "}
+          {pricedPubs.status === "degraded" ? null : <>{pricedPubsSentence(pricedPubs.count)}{" "}</>}
+          Our pub price list holds{" "}
+          <Figure>{fmtInt(stats.pintPricesObserved)}</Figure> pint prices,
+          each with its source status shown.{" "}
           <Figure>{fmtInt(stats.historicPubsCited)}</Figure> historic pubs carry
           a cited fact, and <Figure>{fmtInt(stats.citiesCovered)}</Figure> UK
           cities are live, London first. Every figure here is counted from the
@@ -256,7 +338,7 @@ export default async function AboutPage() {
           boroughs and neighbourhoods, the cheapest listed pint we hold is{" "}
           <Pint gbp={stats.cheapestPint} />. The dearest is{" "}
           <Pint gbp={stats.dearestPint} />. The average listed pint across{" "}
-          <Figure>{fmtInt(stats.pubsTracked)}</Figure> London pubs is{" "}
+          {averageBasePhrase(stats.pubsTracked)} is{" "}
           <Pint gbp={stats.averagePint} />, the same figure the homepage gives,
           taken from each pub&rsquo;s cheapest pint.
         </p>
@@ -348,7 +430,7 @@ export default async function AboutPage() {
             coffee, food, or alcohol-free rounds, the same honesty rules apply.
           </p>
           <ul className="aboutEthos">
-            {pintIndexRows.length > 0 && pintIndexSnapshot ? (
+            {leagueReady && pintIndexSnapshot ? (
               <>
                 <li>
                   <strong>London&rsquo;s pint price league table.</strong> The
@@ -366,18 +448,14 @@ export default async function AboutPage() {
                 </li>
               </>
             ) : (
-              <li>
-                <strong>No borough league yet.</strong> The public Pint Index has
-                no dated prices with a public source to rank yet. Older map-only
-                prices stay separate from the league.
-              </li>
+              <li>{PINT_INDEX_NOT_READY_LINE}</li>
             )}
           </ul>
           <p className="aboutBody">
             <Link href="/pint-index" className="aboutLink">
-              {pintIndexRows.length > 0
+              {leagueReady
                 ? "See the league table"
-                : "See the Index status"}
+                : "See the borough list"}
             </Link>
           </p>
         </div>

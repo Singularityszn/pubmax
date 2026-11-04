@@ -1,8 +1,13 @@
 import type { VenueKind } from "@/lib/venues";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 
+// "Been here" is the undated list of pubs a person says they have been to
+// (lib/beenHere.ts). It sits beside "Want to Visit" because the two are the
+// pair a person keeps: where they mean to go and where they have been. It
+// carries no visit date, so it is never a diary entry.
 export const BUILT_IN_LIST_TYPES = [
   "Want to Visit",
+  "Been here",
   "Cheap Pint",
   "Coding Pint",
   "Historic",

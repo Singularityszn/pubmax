@@ -32,8 +32,6 @@ const POSTCODE_CONSISTENCY_MODULE = resolve(
   process.env.POSTCODE_CONSISTENCY_MODULE ??
     join(ROOT, "scripts", "lib", "postcodeCoordinateConsistency.mjs"),
 );
-const BUILD_SLIM_SCRIPT = join(ROOT, "scripts", "build_slim_index.mjs");
-const DETAIL_INDEX = join(ROOT, "data", "generated", "venue_detail_index.json");
 
 const tempDirs: string[] = [];
 
@@ -48,9 +46,8 @@ let baseScratchRoot = "";
 // Build the pristine scratch copy of the repo's public/data/ (the real bundled
 // datasets are needed too, since the script validates all of them in one run).
 function buildBaseScratch(): string {
-  if (!existsSync(DETAIL_INDEX)) {
-    execFileSync("node", [BUILD_SLIM_SCRIPT], { cwd: ROOT, env: { ...process.env, DEPLOYMENT_VERSION: "local" } });
-  }
+  // The detail index this copies is rebuilt from this tree before any worker
+  // starts (__tests__/helpers/prepareVenueDetailIndex.ts).
   const scratchRoot = mkdtempSync(join(tmpdir(), "validate-data-base-"));
   const scratchScripts = join(scratchRoot, "scripts");
   const scratchData = join(scratchRoot, "public", "data");

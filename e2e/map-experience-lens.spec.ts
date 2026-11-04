@@ -96,7 +96,8 @@ test("no-alcohol and food views own the 390px map without pint controls", async 
   await expect(
     sheet
       .getByRole("group", { name: "Venue types" })
-      .getByRole("button", { name: "Food", exact: true }),
+      // The chip's own words since 29 Oct 2026 (components/map/TonightArcChips.tsx).
+      .getByRole("button", { name: "Late food", exact: true }),
   ).toBeVisible();
   await expect(filtersButton).toHaveAttribute(
     "aria-label",
@@ -146,7 +147,7 @@ for (const { width, height } of [
       return node.contains(document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2));
     })).toBe(true);
     await reset.click();
-    await expect(toggle).toHaveAttribute("aria-label", "Filters: venue types, view and zone");
+    await expect(toggle).toHaveAttribute("aria-label", "Filters: venue types, view and zone, pub features");
     const views = panel.getByRole("group", { name: "Map view" });
     for (const label of ["All", "No alcohol", "Food"]) {
       const control = views.getByRole("button", { name: label, exact: true });

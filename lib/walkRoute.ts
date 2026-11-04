@@ -179,6 +179,8 @@ export type WalkLegDistance = {
   /** Distance in km along this leg's drawn polyline (routed length or straight). */
   distanceKm: number;
   source: WalkRouteSource;
+  /** The point halfway along the drawn polyline, where the map's time bubble sits. */
+  midpoint?: LngLat;
 };
 
 /** Per-leg measured distances, in leg order — polylineDistanceKm per leg. */
@@ -188,7 +190,25 @@ export function legDistances(legs: WalkLeg[]): WalkLegDistance[] {
     toIndex: leg.toIndex,
     distanceKm: polylineDistanceKm(leg.coordinates),
     source: leg.source,
+    midpoint: polylineMidpoint(leg.coordinates),
   }));
+}
+
+/** The point halfway along a polyline by distance, so it lies on the drawn path. */
+function polylineMidpoint(coordinates: LngLat[]): LngLat {
+  const first = coordinates[0] ?? [0, 0];
+  let left = polylineDistanceKm(coordinates) / 2;
+  for (let i = 1; i < coordinates.length; i += 1) {
+    const from = coordinates[i - 1]!;
+    const to = coordinates[i]!;
+    const km = haversineKm(from, to);
+    if (km >= left && km > 0) {
+      const t = left / km;
+      return [from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t];
+    }
+    left -= km;
+  }
+  return first;
 }
 
 // Stitch legs into ONE GeoJSON FeatureCollection whose single LineString feature

@@ -20,7 +20,7 @@ const markup = `
       <button class="authCompactTrigger"><svg></svg></button>
     </div>
     <a class="mobileTab"><span class="mobileTabIcon"><svg></svg></span></a>
-    <button class="createFab"></button>
+    <a class="palTopBarDoor" href="/pal"><span class="palNavFace"><svg></svg></span></a>
     <button class="arrivalWelcomeDismiss"></button>
   </nav>
   <div class="screenSecondary"><a>Back</a><button>Retry</button></div>
@@ -77,7 +77,7 @@ describe("the native stylesheet's selector behavior", () => {
   it.each(["ios", "android"])("removes %s chrome callouts while retaining copyable prose and fields", (platform) => {
     document.documentElement.setAttribute(NATIVE_SHELL_ATTRIBUTE, platform);
     for (const element of document.querySelectorAll(
-      "button, a, summary, label, [role=button], [role=tab], [role=switch], .mobileTabBar, .siteNavBar, .surfaceNav, .createFab",
+      "button, a, summary, label, [role=button], [role=tab], [role=switch], .mobileTabBar, .siteNavBar, .surfaceNav",
     )) {
       expect(matchedDeclarations(element, "-webkit-touch-callout")).toEqual(["none"]);
     }

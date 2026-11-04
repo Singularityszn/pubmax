@@ -1,0 +1,62 @@
+name: Production uptime
+
+# Is the production site up? Asked every five minutes, the shortest interval
+# GitHub's scheduler allows (launch plan R3). scripts/ci/uptime-check.mjs reads
+# /api/health and /api/version on the canonical origin, PRODUCTION_SITE_ORIGIN
+# in lib/siteUrlConfig.mjs, so this file names no host of its own. A route that
+# fails is asked once more 30 seconds later, and the run fails only when a
+# route failed both times.
+#
+# A failed scheduled run is what .github/workflows/alert-on-failure.yml posts
+# to the PUBMAX_ALERT_WEBHOOK_URL repository secret, so this workflow reads no
+# secret and sends none: the two routes are public and the check sends no
+# credential. A hand-dispatched run never alerts, because the person who
+# started it is watching it.
+#
+# GitHub runs a schedule from the default branch only, and it can start a run
+# late or drop it when its queue is busy, most often at the top of the hour.
+# The minute offset keeps clear of that. docs/SOFT_LAUNCH_RUNBOOK.md section 8
+# is the runbook, and __tests__/uptimeMonitor.test.ts holds this file.
+
+on:
+  schedule:
+    - cron: "2-57/5 * * * *"
+  workflow_dispatch:
+
+# Nothing at the workflow level; the one job below asks for what it uses.
+permissions: {}
+
+concurrency:
+  # One check at a time. A run still waiting when the next one is due is
+  # replaced by it, and a replaced run ends as cancelled, which never alerts.
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check production answers
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read # check out the two files the check reads
+    steps:
+      # Two files, not the whole tree: the full checkout is over a gigabyte and
+      # this runs 288 times a day. The test holds this list to every file the
+      # check imports.
+      - name: Checkout the check
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/ci/uptime-check.mjs
+            /lib/siteUrlConfig.mjs
+          sparse-checkout-cone-mode: false
+
+      - name: Setup Node
+        timeout-minutes: 2
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+
+      - name: Check production answers
+        run: node scripts/ci/uptime-check.mjs

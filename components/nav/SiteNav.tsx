@@ -2,19 +2,25 @@
 
 import type { Route } from "next";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { CirclePlus } from "lucide-react";
-import { useSyncExternalStore } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { CirclePlus, type LucideIcon } from "lucide-react";
+import {
+  useLayoutEffect,
+  useRef,
+  useSyncExternalStore,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 
 import { useNowHref } from "@/lib/useNowHref";
 import { useClientReady } from "@/lib/useClientReady";
 
 import ThemeToggle from "@/components/ThemeToggle";
+import WildNightPreviewGate, { MobileWildNightPreviewGate } from "@/components/wild/WildNightPreviewGate";
 import IntentLink from "@/components/nav/IntentLink";
+import { navIcon } from "@/components/nav/navIcons";
 import MessagesLink from "@/components/nav/MessagesLink";
-import { PalSiteNavButton } from "@/components/nav/PalNavButton";
+import { PalSiteNavButton, PalTopBarButton } from "@/components/nav/PalNavButton";
 import NotificationBell from "@/components/nav/NotificationBell";
-import SiteNavMore from "@/components/nav/SiteNavMore";
 import SignInButton from "@/components/auth/SignInButton";
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 import { useCommandPalette } from "@/components/command/CommandPaletteProvider";
@@ -23,6 +29,7 @@ import {
   momentHref,
   navPathMatches,
   primaryNavLabel,
+  returnToFromLocation,
 } from "@/components/nav/navigationModel";
 import { useSocialSurfaceName } from "@/lib/useSocialFriendsLaunch";
 import { FOCUS_TRAP_EXEMPT_ATTRIBUTE } from "@/lib/useFocusTrap";
@@ -32,6 +39,7 @@ import {
   subscribePreferredCity,
 } from "@/lib/cityPreference";
 
+import { usePlanMapHref } from "@/components/nav/PlanMapNavigation";
 import "./navigation.css";
 
 // Shared app-wide top navigation. One bar, used on every APP page (map, feed,
@@ -41,10 +49,10 @@ import "./navigation.css";
 // controls.
 //
 // The mobile fix: at ≤640px the app already renders a fixed bottom tab bar
-// (MobileTabBar: Map/Tonight/Plan/Social/You). Repeating the full link list up top
-// there caused the old `.appNav` pill to overflow the viewport on /map.
-// Mobile renders the wordmark, theme, account controls and signed-in activity.
-// It hides the full link list (siteNav.css, @media ≤640px).
+// (MobileTabBar: Explore/Tonight/Plan/Social/You). Repeating the full link list
+// up top there caused the old `.appNav` pill to overflow the viewport on /map.
+// Mobile renders the wordmark, the Pub Pal's door, theme, account controls and
+// signed-in activity. It hides the full link list (siteNav.css, @media ≤640px).
 // On desktop the full links + active state show. Nothing may
 // horizontally overflow at 390px.
 //
@@ -62,6 +70,7 @@ type NavKey =
   | "drop"
   | "out"
   | "plan"
+  | "spoons"
   | "tonight"
   | "historic"
   | "feed"
@@ -77,6 +86,8 @@ type NavLink = {
   label: string;
   /** Path prefixes that should mark this link active (defaults to href). */
   match: string[];
+  /** The door's icon, shared with the phone dock (navIcons.ts). */
+  Icon: LucideIcon;
 };
 
 // Consumer nav only. Staff moderation lives at /admin (URL + token) and is
@@ -85,6 +96,7 @@ type NavLink = {
 const LINKS: NavLink[] = PRIMARY_NAV_ITEMS.map((item) => ({
   ...item,
   key: (item.key === "you" ? "profile" : item.key) as NavKey,
+  Icon: navIcon(item.key),
 }));
 
 function matchesPath(pathname: string, link: NavLink): boolean {
@@ -118,28 +130,39 @@ function primaryKeyForLegacyActive(active?: NavKey): NavKey | undefined {
 export function SiteNavActions({ className = "siteNavActions" }: { className?: string }) {
   const ready = useClientReady();
   const pathname = usePathname() ?? "";
+  const router = useRouter();
+  const liveMomentHref = () => momentHref(returnToFromLocation(window.location, pathname));
   // Imperative handle onto the global ⌘K palette (feature N1) — the button below
   // opens it for pointer users who won't reach for the shortcut.
   const { open: openCommandPalette } = useCommandPalette();
 
   return (
     <div className={className}>
-      {/* The Pub Pal's own door (PalNavButton.tsx): the person's Pal and its
-          name, first among the actions. Hidden <=640px, where it rises out of
-          the phone dock instead. */}
+      {/* The Pub Pal's own door (PalNavButton.tsx), first among the actions:
+          the person's Pal and its name on desktop, and from 640px down the
+          same door as an icon button, because the phone dock is five tabs and
+          nothing else (captain, 1 Nov 2026). Each hides at the other's widths
+          (palNav.css). */}
       <PalSiteNavButton pathname={pathname} />
-      <SiteNavMore />
+      <PalTopBarButton pathname={pathname} />
+      <WildNightPreviewGate />
       <ThemeToggle />
-      {/* Moment compose (desktop). On phones the floating create action owns
-          this; the top bar has no such affordance, so desktop users reach
-          /moment here. Carries the same returnTo the mobile action uses
-          (momentHref) so composing returns to the current page. Hidden ≤640px
-          in siteNavMoment.css. */}
+      {/* Moment compose (desktop). On phones a Moment is saved from Social and
+          from You, so the phone top bar carries no such affordance. Carries
+          the returnTo of the live page (momentHref) so composing returns to
+          the current page. Hidden ≤640px in siteNavMoment.css. */}
       <Link prefetch={false}
         href={momentHref(pathname)}
         className="siteNavMoment"
         aria-label="Share a Moment"
         title="Share a Moment"
+        onPointerDown={(event) => { event.currentTarget.href = liveMomentHref(); }}
+        onClick={(event) => { event.currentTarget.href = liveMomentHref(); }}
+        onContextMenu={(event) => { event.currentTarget.href = liveMomentHref(); }}
+        onNavigate={(event) => {
+          event.preventDefault();
+          router.push(liveMomentHref());
+        }}
       >
         <CirclePlus size={20} aria-hidden="true" />
       </Link>
@@ -172,11 +195,39 @@ export function SiteNavActions({ className = "siteNavActions" }: { className?: s
   );
 }
 
+/** The width from which each door wears its icon and a hover pill glides. */
+const SITE_NAV_GLIDE_QUERY = "(min-width: 1024px) and (hover: hover) and (pointer: fine)";
+
+/**
+ * Glide the hover pill to `link`. The first door the pointer meets gets the
+ * pill in place, faded in rather than slid from nowhere; after that it slides
+ * from door to door, the Animated Menu Bar's motion kept to the one thing a
+ * reader's pointer is doing. Written straight to the element, so a hover
+ * never re-renders the bar.
+ */
+function glideTo(row: HTMLElement, glide: HTMLElement, link: HTMLElement): void {
+  const rowBox = row.getBoundingClientRect();
+  const box = link.getBoundingClientRect();
+  const arriving = glide.dataset.visible !== "true";
+  if (arriving) glide.style.transition = "none";
+  glide.style.transform = `translateX(${box.left - rowBox.left}px)`;
+  glide.style.width = `${box.width}px`;
+  if (arriving) {
+    // Commit the jump before the fade-in, so only the fade is seen.
+    void glide.offsetWidth;
+    glide.style.transition = "";
+  }
+  glide.dataset.visible = "true";
+}
+
 export default function SiteNav({
   active,
 }: {
   active?: NavKey;
 }): React.JSX.Element {
+  const floatingNavRef = useRef<HTMLElement>(null);
+  const linksRef = useRef<HTMLUListElement>(null);
+  const glideRef = useRef<HTMLLIElement>(null);
   const pathname = usePathname() ?? "";
   const primaryActive = primaryKeyForLegacyActive(active);
   const socialSurfaceLabel = useSocialSurfaceName();
@@ -185,7 +236,7 @@ export default function SiteNav({
     readPreferredCity,
     () => null,
   );
-  const mapHref = preferredCity ? preferredCityMapHref() : "/map";
+  const mapHref = usePlanMapHref(preferredCity ? preferredCityMapHref() : "/map");
   const links = LINKS;
   const nowHref = useNowHref();
 
@@ -195,6 +246,26 @@ export default function SiteNav({
   const isMap =
     active === "map" || pathname === "/map" || pathname.startsWith("/map/");
 
+  useLayoutEffect(() => {
+    if (!isMap) return;
+    const node = floatingNavRef.current;
+    const shell = node?.closest<HTMLElement>(".appShell");
+    if (!node || !shell) return;
+    const property = "--site-nav-floating-height";
+    let published = "";
+    const sync = () => {
+      published = `${Math.ceil(node.getBoundingClientRect().height)}px`;
+      shell.style.setProperty(property, published);
+    };
+    sync();
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(sync);
+    observer?.observe(node);
+    return () => {
+      observer?.disconnect();
+      if (shell.style.getPropertyValue(property) === published) shell.style.removeProperty(property);
+    };
+  }, [isMap]);
+
   // Active state is the filled pill only (.siteNavLink.isActive) — same single
   // signal as the mobile tab bar. The gliding brass underline was removed so
   // desktop does not double-encode "here".
@@ -203,7 +274,9 @@ export default function SiteNav({
   )?.key;
 
   return (
+    <>
     <nav
+      ref={floatingNavRef}
       {...(isMap ? { [FOCUS_TRAP_EXEMPT_ATTRIBUTE]: "" } : {})}
       className={isMap ? "siteNavBar siteNavBarFloating" : "siteNavBar"}
       role="navigation"
@@ -214,11 +287,30 @@ export default function SiteNav({
         <PubmaxxWordmark />
       </Link>
 
-      {/* Full link list — hidden on mobile (the bottom tab bar covers it). */}
-      <ul className="siteNavLinks">
+      {/* Full link list — hidden on mobile (the bottom tab bar covers it).
+          From 1024px each door wears its icon beside its word, a pill glides
+          to the door under the pointer, and the door you are on gives its
+          icon one small clink as the page arrives (siteNav.css). Below
+          1024px the row is the measured word-only row it always was. */}
+      <ul
+        ref={linksRef}
+        className="siteNavLinks"
+        onPointerOver={(event: ReactPointerEvent<HTMLUListElement>) => {
+          const row = linksRef.current;
+          const glide = glideRef.current;
+          if (!row || !glide || event.pointerType !== "mouse") return;
+          if (typeof window.matchMedia !== "function" || !window.matchMedia(SITE_NAV_GLIDE_QUERY).matches) return;
+          const link = (event.target as Element).closest<HTMLElement>(".siteNavLink");
+          if (link && row.contains(link)) glideTo(row, glide, link);
+        }}
+        onPointerLeave={() => {
+          if (glideRef.current) glideRef.current.dataset.visible = "false";
+        }}
+      >
         {links.map((link) => {
           const isActive = link.key === activeKey;
           const label = primaryNavLabel(link, socialSurfaceLabel);
+          const { Icon } = link;
           return (
             <li key={link.key} className="siteNavItem">
               <IntentLink
@@ -226,16 +318,19 @@ export default function SiteNav({
                 className={isActive ? "siteNavLink isActive" : "siteNavLink"}
                 aria-current={isActive ? "page" : undefined}
                 aria-label={label}
-                title={label}
               >
+                <Icon className="siteNavIcon" size={16} aria-hidden="true" />
                 {label}
               </IntentLink>
             </li>
           );
         })}
+        <li ref={glideRef} className="siteNavGlide" aria-hidden="true" data-visible="false" />
       </ul>
 
       <SiteNavActions />
     </nav>
+    <MobileWildNightPreviewGate />
+    </>
   );
 }

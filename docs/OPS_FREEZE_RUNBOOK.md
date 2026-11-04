@@ -45,6 +45,12 @@ There is no separate app deploy, no migration, and no database change.
 Reading is untouched: every `GET` keeps serving, so the feed, profiles, stories,
 plans, and discovery all render normally.
 
+One read pauses with the freeze on purpose: the **signed-out London lane** on
+`/social` (`GET /api/social/posts?lane=london` and its photo door). It is the
+widest read Social has, so during an incident strangers see the sign-in wall
+again, while signed-in readers keep reading. `socialLondonLaneOpen` in
+`lib/socialLondonLane.server.ts` owns this. Unfreezing opens it again.
+
 These **safety and legal floors stay OPEN even while frozen** and were wired to
 sit outside the guard on purpose:
 

@@ -1,0 +1,25 @@
+/* Discover's Dog of the week card (launch review F7). One tap target onto
+   /dog-of-the-week. Launch tokens only. */
+
+.dogOfTheWeekCardLink {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel-raised);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.dogOfTheWeekCardTitle {
+  font-size: var(--text-md);
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.dogOfTheWeekCardMet {
+  font-size: var(--text-xs);
+  color: var(--ink-soft);
+}

@@ -236,8 +236,10 @@ export function periodOverlapsTonight(
   period: LineStatusPeriod,
   window: { start: number; end: number },
 ): boolean {
-  const from = period.fromDate ? Date.parse(period.fromDate) : NaN;
-  const to = period.toDate ? Date.parse(period.toDate) : NaN;
+  // Only a string is a date: Date.parse coerces anything else, and an object
+  // with a broken toString would throw while the page renders.
+  const from = typeof period.fromDate === "string" ? Date.parse(period.fromDate) : NaN;
+  const to = typeof period.toDate === "string" ? Date.parse(period.toDate) : NaN;
   if (Number.isFinite(from) && Number.isFinite(to)) {
     return from < window.end && to > window.start;
   }
@@ -266,6 +268,20 @@ const KIND_RANK: Record<MaterialKind, number> = {
   severe_delays: 3,
 };
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * The line statuses in a TfL body, or null when the body is not the list TfL
+ * answers. A malformed body (an object, an error page parsed as JSON, a list
+ * with nulls in it) makes the Tube notice quietly absent, never a crash.
+ */
+export function lineStatusesFromBody(body: unknown): RawLineStatus[] | null {
+  if (!Array.isArray(body)) return null;
+  return body.filter(isRecord) as RawLineStatus[];
+}
+
 /**
  * Pull the material disruptions out of a TfL Line Status payload, keeping only
  * lines in `relevantLineIds` and only statuses that are night-shaping: any live
@@ -278,21 +294,24 @@ export function materialDisruptionsFor(
   relevantLineIds: Set<string>,
   window: { start: number; end: number },
 ): MaterialDisruption[] {
-  if (!statuses || relevantLineIds.size === 0) return [];
+  if (!Array.isArray(statuses) || relevantLineIds.size === 0) return [];
   const out: MaterialDisruption[] = [];
 
   for (const line of statuses) {
-    if (!line.id || !relevantLineIds.has(line.id)) continue;
+    if (!line || typeof line !== "object" || typeof line.id !== "string" || !relevantLineIds.has(line.id)) continue;
     let best: MaterialDisruption | null = null;
 
-    for (const detail of line.lineStatuses ?? []) {
+    for (const detail of Array.isArray(line.lineStatuses) ? line.lineStatuses : []) {
+      if (!detail || typeof detail !== "object") continue;
       const code = detail.statusSeverity;
       let kind: MaterialKind | null = null;
 
       if (isLiveMaterialSeverity(code)) {
         kind = LIVE_SEVERITY_KIND[code as number] ?? null;
       } else if (isPlannedClosureSeverity(code)) {
-        const periods = detail.validityPeriods ?? [];
+        const periods: LineStatusPeriod[] = Array.isArray(detail.validityPeriods)
+          ? detail.validityPeriods.filter((period: LineStatusPeriod | null) => period !== null && typeof period === "object")
+          : [];
         const overlaps =
           periods.length > 0
             ? periods.some((p) => periodOverlapsTonight(p, window))
@@ -303,7 +322,7 @@ export function materialDisruptionsFor(
 
       const candidate: MaterialDisruption = {
         lineId: line.id,
-        lineName: line.name ?? line.id,
+        lineName: typeof line.name === "string" && line.name ? line.name : line.id,
         kind,
         reason:
           typeof detail.reason === "string" && detail.reason.trim().length > 0
@@ -457,7 +476,7 @@ export async function fetchLineStatuses(): Promise<RawLineStatus[] | null> {
       discardBody(res);
       return null;
     }
-    return (await res.json()) as RawLineStatus[];
+    return lineStatusesFromBody(await res.json());
   } catch {
     return null;
   } finally {

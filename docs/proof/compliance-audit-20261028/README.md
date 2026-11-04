@@ -2,6 +2,12 @@
 
 Scope: the current UK-based operation. US DMCA and CAN-SPAM provisions are not treated as automatic UK launch requirements.
 
+Continuation on 4 November 2026 integrates main `445df3a6` and preserves the original compliance commits.
+Main now accepts a typed price without a receipt and labels it unchecked.
+The adult check applies to both receipt-backed and unchecked prices. It does not change that evidence rule.
+The route tests cover missing age, stored under-18 age and failed identity reads through both price paths.
+Current integration checks remain pending. Counts below describe the earlier commits, not the integrated candidate.
+
 The audit found an existing adult gate, self-hosted page fonts and disabled session replay.
 It also found external map glyphs and incomplete marketing delivery. The copyright-report instructions now use a UK-focused process.
 The local changes close an age-check gap in priced Pint Drops, require a digest postal address and improve the legal pages.
@@ -23,7 +29,7 @@ The local changes close an age-check gap in priced Pint Drops, require a digest 
 2. Check the address disclosures that apply to the legal trading form. If operating through a limited company, include its required company details.
 3. Supply the real postal address before using the existing digest builder. It remains a product safeguard, not a claim that PECR requires a postal address in every marketing email.
 4. Before enabling consumer marketing, record consent unless a valid PECR exception applies. The current code uses explicit opt-in.
-5. Implement and test an unsubscribe endpoint that works without sign-in and records suppression durably.
+5. Keep marketing inactive until engineering tests an unsubscribe endpoint that works without sign-in and records suppression durably.
 6. Check campaigns sent outside this repository. Their templates, audiences and historical sends were not available to this audit.
 7. Monitor the published copyright-report inbox and respond to infringement reports.
 

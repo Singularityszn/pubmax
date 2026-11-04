@@ -46,7 +46,12 @@ export type HapticOccasion =
   /** The action could not be kept and the person has to do something. */
   | "action-refused"
   /** A route was locked in: the plan now exists and has a link to share. */
-  | "plan-locked";
+  | "plan-locked"
+  /**
+   * The Pint Compass needle came round onto the pub (`/compass`). It is the
+   * answer arriving in the hand, once per line-up, never a tick per degree.
+   */
+  | "heading-aligned";
 
 export type HapticEngine =
   | { kind: "impact"; style: "Light" | "Medium" | "Heavy" }
@@ -65,6 +70,7 @@ const OCCASION_ENGINE: Record<HapticOccasion, HapticEngine> = {
   "selection-released": { kind: "impact", style: "Light" },
   "action-refused": { kind: "notification", style: "Warning" },
   "plan-locked": { kind: "notification", style: "Success" },
+  "heading-aligned": { kind: "impact", style: "Light" },
 };
 
 /** Every occasion, in table order. The fence reads this rather than a copy. */

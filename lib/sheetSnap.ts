@@ -70,6 +70,52 @@ export function mobileSelectCameraOffset(
 }
 
 /**
+ * The desktop twin of `mobileSelectCameraOffset`: from 1024px the venue opens
+ * as a drawer on the right of the map, and with the list beside the map
+ * (components/map/MapSplitList.tsx) the map lane is narrow enough that a pin
+ * flown to the container's centre lands UNDER that drawer (measured at 1440:
+ * the lane runs 432 to 1440, its centre is 936, the drawer starts at 800). The
+ * pin is carried left to the middle of the map left of the drawer instead.
+ *
+ * `drawerLeft` is the drawer's RESTING left edge in viewport pixels, because a
+ * reading taken mid-entrance is still sliding in. Never rightward, and nothing
+ * when there is no drawer or no lane beside it.
+ */
+export function desktopSelectCameraOffset(
+  container: { left: number; width: number },
+  drawerLeft: number | null,
+): [number, number] {
+  if (
+    drawerLeft === null ||
+    !Number.isFinite(drawerLeft) ||
+    !Number.isFinite(container.left) ||
+    !(container.width > 0)
+  ) {
+    return [0, 0];
+  }
+  const laneRight = Math.min(container.left + container.width, drawerLeft);
+  if (laneRight <= container.left) return [0, 0];
+  const laneMid = (container.left + laneRight) / 2;
+  const centre = container.left + container.width / 2;
+  return [Math.min(0, Math.round(laneMid - centre)), 0];
+}
+
+/**
+ * The open venue drawer's RESTING left edge in viewport pixels, or null when
+ * no venue drawer is open. Read from the layout box, which a spring's
+ * translate does not move, so a drawer still sliding in answers where it will
+ * stop.
+ */
+export function restingRightDrawerLeft(
+  doc: Document | undefined = globalThis.document,
+): number | null {
+  const drawer = doc?.querySelector<HTMLElement>(".mapDrawer.right.open");
+  const shell = drawer?.offsetParent;
+  if (!drawer || !shell) return null;
+  return shell.getBoundingClientRect().left + drawer.offsetLeft;
+}
+
+/**
  * Resting translateY as a fraction of viewport height (DOWN from a full-
  * viewport-tall sheet at translateY(0)). Derived from SHEET_SNAP_FRACTIONS so
  * CSS (`Nv h`), drag px offsets, and resolveSheetSnap all share one source:

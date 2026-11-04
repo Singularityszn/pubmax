@@ -3,7 +3,10 @@
 //
 // Browser keyboards usually shrink the visual viewport. Android's native
 // inset handling shrinks the layout viewport too, placing a fixed bar above
-// the keyboard. Both modes need the same answer before withdrawing chrome.
+// the keyboard, and so does a touch browser that honours the root layout's
+// `interactive-widget=resizes-content` (app/layout.tsx; Chrome on Android
+// does, Safari on iOS ignores it). Both modes need the same answer before
+// withdrawing chrome.
 //
 // TWO facts have to agree before we hide it, because either one alone lies.
 // A focused field alone is not a keyboard: a physical keyboard, a desktop
@@ -87,6 +90,20 @@ export function softKeyboardOpen(evidence: SoftKeyboardEvidence): boolean {
   return layout - visual >= layout * SOFT_KEYBOARD_MIN_SHRINK_RATIO;
 }
 
+/**
+ * Whether the keyboard may shrink the LAYOUT viewport as well, so the live
+ * window height is no baseline: the Android shell, and a touch screen, whose
+ * browser may honour `interactive-widget=resizes-content`. A browser that
+ * ignores it (Safari on iOS) keeps the layout height, and the baseline below
+ * then reads exactly as the live height does. A fine pointer has no on-screen
+ * keyboard, so a desktop window that shrinks with a field focused stays a
+ * window, never a keyboard.
+ */
+function layoutViewportFollowsKeyboard(): boolean {
+  if (nativePlatform() === "android") return true;
+  return window.matchMedia?.("(pointer: coarse)").matches ?? false;
+}
+
 /** Read the live answer out of the document. Browser only. */
 function readOpen(): boolean {
   const visual = window.visualViewport;
@@ -96,35 +113,35 @@ function readOpen(): boolean {
     visualViewportHeight: visual ? visual.height : Number.NaN,
     layoutViewportHeight: window.innerHeight,
   };
-  if (nativePlatform() !== "android") return softKeyboardOpen(evidence);
-  // Android's inset handling resizes both viewports. With no field focused the
-  // view is unobscured, so that reading is the baseline, and a focused field
-  // keeps it. A width change (a rotation or a resized window) with the keyboard
-  // up leaves no baseline for the new shape, so the answer holds until the
-  // field blurs or the height rises by a keyboard at the new width.
+  if (!layoutViewportFollowsKeyboard()) return softKeyboardOpen(evidence);
+  // The keyboard may resize both viewports. With no field focused the view is
+  // unobscured, so that reading is the baseline, and a focused field keeps
+  // it. A width change (a rotation or a resized window) with the keyboard up
+  // leaves no baseline for the new shape, so the answer holds until the field
+  // blurs or the height rises by a keyboard at the new width.
   const { innerWidth: width, innerHeight: height } = window;
-  nativeLowestHeight = width === nativeLowestWidth ? Math.min(nativeLowestHeight, height) : height;
-  nativeLowestWidth = width;
+  lowestLayoutHeight = width === lowestLayoutWidth ? Math.min(lowestLayoutHeight, height) : height;
+  lowestLayoutWidth = width;
   const keyboardClosed =
-    height - nativeLowestHeight >= Math.max(height, nativeLayoutHeight) * SOFT_KEYBOARD_MIN_SHRINK_RATIO;
-  if (!focused || (width !== nativeLayoutWidth && (!open || keyboardClosed))) {
-    nativeLayoutHeight = height;
-    nativeLayoutWidth = width;
-    nativeLowestHeight = height;
+    height - lowestLayoutHeight >= Math.max(height, baselineLayoutHeight) * SOFT_KEYBOARD_MIN_SHRINK_RATIO;
+  if (!focused || (width !== baselineLayoutWidth && (!open || keyboardClosed))) {
+    baselineLayoutHeight = height;
+    baselineLayoutWidth = width;
+    lowestLayoutHeight = height;
   }
-  if (width !== nativeLayoutWidth) return open;
-  nativeLayoutHeight = Math.max(nativeLayoutHeight, height);
-  return softKeyboardOpen({ ...evidence, layoutViewportHeight: nativeLayoutHeight });
+  if (width !== baselineLayoutWidth) return open;
+  baselineLayoutHeight = Math.max(baselineLayoutHeight, height);
+  return softKeyboardOpen({ ...evidence, layoutViewportHeight: baselineLayoutHeight });
 }
 
 // useSyncExternalStore requires a cached snapshot: recomputing from the DOM on
 // every render would hand React a fresh answer mid-commit. The listeners below
 // are the only writers.
 let open = false;
-let nativeLayoutHeight = 0;
-let nativeLayoutWidth = 0;
-let nativeLowestHeight = 0;
-let nativeLowestWidth = 0;
+let baselineLayoutHeight = 0;
+let baselineLayoutWidth = 0;
+let lowestLayoutHeight = 0;
+let lowestLayoutWidth = 0;
 const listeners = new Set<() => void>();
 
 function refresh(): void {
@@ -194,9 +211,9 @@ export function subscribeSoftKeyboard(onStoreChange: () => void): () => void {
     // The bar comes back with the last subscriber gone; leaving `open` true
     // would hide it for the next mount with no keyboard on screen.
     open = false;
-    nativeLayoutHeight = 0;
-    nativeLayoutWidth = 0;
-    nativeLowestHeight = 0;
-    nativeLowestWidth = 0;
+    baselineLayoutHeight = 0;
+    baselineLayoutWidth = 0;
+    lowestLayoutHeight = 0;
+    lowestLayoutWidth = 0;
   };
 }

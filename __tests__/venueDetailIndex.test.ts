@@ -1,8 +1,7 @@
-import { execFileSync } from "node:child_process";
-import { existsSync, promises as fs, readFileSync } from "node:fs";
+import { promises as fs, readFileSync } from "node:fs";
 import path from "node:path";
 
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   clearVenueDetailEntriesForTests,
@@ -11,8 +10,10 @@ import {
   isVenueDetailId,
   lookupVenueDetail,
   resetVenueDetailCachesForTests,
+  setVenueDetailCacheMaxForTests,
   setVenueDetailIndexFileForTests,
   setVenueDetailRowsFileForTests,
+  venueDetailCachedIdsForTests,
   venueFromDetailArtifact,
   type VenueDetailArtifact,
 } from "@/lib/venueDetailIndex";
@@ -27,8 +28,6 @@ import {
 } from "@/lib/venues";
 
 const ROOT = path.resolve(__dirname, "..");
-const BUILD_SLIM_SCRIPT = path.join(ROOT, "scripts", "build_slim_index.mjs");
-const DETAIL_INDEX = path.join(ROOT, "data", "generated", "venue_detail_index.json");
 const RAW_PATH = path.join(ROOT, "public", "data", "pint_prices_app_dataset.json");
 const SEED_VENUE_ID = "venue-16pnwmm";
 const FAMOUS_BAR_ID = "bar-american-bar-savoy";
@@ -63,15 +62,6 @@ vi.mock("@/lib/venueIndex", async (importOriginal) => {
       return { status: "found" as const, canonicalId: id, venue: slimVenue, slimVenue };
     },
   };
-});
-
-beforeAll(() => {
-  if (!existsSync(DETAIL_INDEX)) {
-    execFileSync("node", [BUILD_SLIM_SCRIPT], {
-      cwd: ROOT,
-      env: { ...process.env, DEPLOYMENT_VERSION: "local" },
-    });
-  }
 });
 
 beforeEach(() => {
@@ -257,5 +247,26 @@ describe("venueDetailIndex", () => {
       id: "venue-mcr-1lwo5lo",
       name: "Peveril of the Peak",
     });
+  });
+
+  it("evicts the least recently read venue once the detail cache reaches its bound", async () => {
+    const MANCHESTER_ID = "venue-mcr-1lwo5lo";
+    setVenueDetailCacheMaxForTests(2);
+
+    await expect(getVenueDetail(SEED_VENUE_ID)).resolves.toMatchObject({ id: SEED_VENUE_ID });
+    await expect(getVenueDetail(MANCHESTER_ID)).resolves.toMatchObject({ id: MANCHESTER_ID });
+    expect(venueDetailCachedIdsForTests()).toEqual([SEED_VENUE_ID, MANCHESTER_ID]);
+
+    // Reading the older venue again makes it the most recent one.
+    await getVenueDetail(SEED_VENUE_ID);
+    expect(venueDetailCachedIdsForTests()).toEqual([MANCHESTER_ID, SEED_VENUE_ID]);
+
+    // A third venue evicts Manchester, the least recently read.
+    await expect(getVenueDetail(FAMOUS_BAR_ID)).resolves.toMatchObject({ id: FAMOUS_BAR_ID });
+    expect(venueDetailCachedIdsForTests()).toEqual([SEED_VENUE_ID, FAMOUS_BAR_ID]);
+
+    // The evicted venue still resolves; it is read again rather than lost.
+    await expect(getVenueDetail(MANCHESTER_ID)).resolves.toMatchObject({ id: MANCHESTER_ID });
+    expect(venueDetailCachedIdsForTests()).toHaveLength(2);
   });
 });

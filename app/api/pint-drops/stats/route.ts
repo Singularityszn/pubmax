@@ -21,6 +21,7 @@ import { parseCityId } from "@/lib/cities";
 import { log } from "@/lib/log";
 import { londonDayKey, summariseContributions, type ContributionInput } from "@/lib/pintContributions";
 import { isLimited, normalizeViewerHandle } from "@/lib/pintDrops";
+import { resolveViewerFromRequest } from "@/lib/pintDropViewer";
 import { pintDropsStore } from "@/lib/pintDropsStore";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { loadVenueAliasResolver } from "@/lib/venueAliases";
@@ -60,13 +61,11 @@ export async function GET(request: Request): Promise<Response> {
   const cityId = parseCityId(params.get("city")) ?? undefined;
 
   try {
-    // The author viewing their own contributions: pass a viewer whose handle IS
-    // the author so their follower-gated ("friends") drops count toward their own
-    // streak/tally. Legacy family-lane drops stay excluded (ledger-only), matching
-    // every other public read.
+    const caller = await resolveViewerFromRequest(request);
+    const viewer = caller.handle === handle ? { handle } : undefined;
     const drops = (await withdrawnHandles([handle])).size > 0
       ? []
-      : await pintDropsStore().listVisible(undefined, { handle }, handle, cityId);
+      : await pintDropsStore().listVisible(undefined, viewer, handle, cityId);
 
     const [index, aliases] = await Promise.all([getVenueIndex(), loadVenueAliasResolver()]);
     const entries: ContributionInput[] = drops

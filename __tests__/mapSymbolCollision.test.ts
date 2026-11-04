@@ -25,6 +25,7 @@ import {
   PIN_HALO_ENVELOPE_PX,
   PIN_MIN_ZOOM,
   PIN_PRICE_LABEL_PADDING,
+  SELECTED_PRICE_PILL_SCALE,
   CONFIRMED_BADGE_STROKE_PX,
   PROVISIONAL_BADGE_OFFSET_PX,
   PROVISIONAL_BADGE_RADIUS_MAX_PX,
@@ -43,6 +44,8 @@ import {
   CLUSTER_PRICE_NONE,
   clusterEntranceProgress,
   pricePillFilter,
+  PRICE_PILL_MIN_ZOOM,
+  selectedPricePillFilter,
   pinSortKeyExpr,
   pinPriceLabelExpr,
   PIN_ICON_SIZE_EXPR,
@@ -77,7 +80,7 @@ type BuiltLayer = maplibregl.AddLayerObject & {
 const BAND_INK = ["#118811", "#888811", "#881111"] as const;
 const NEUTRAL_LINE = "#dddddd";
 
-function buildScenePieces(selectedId = "") {
+function buildScenePieces(selectedId = "", tokenOverrides: Partial<Record<keyof Tokens, string>> = {}) {
   const layers = new Map<string, BuiltLayer>();
   const sources = new Map<string, Record<string, unknown>>();
   const map = {
@@ -98,9 +101,11 @@ function buildScenePieces(selectedId = "") {
             ? -1.5
             : key === "bandInk"
               ? BAND_INK
-              : key === "line"
-                ? NEUTRAL_LINE
-                : "#000000",
+              : typeof key === "string" && key in tokenOverrides
+                ? tokenOverrides[key as keyof Tokens]
+                : key === "line"
+                  ? NEUTRAL_LINE
+                  : "#000000",
       },
     ) as unknown as Tokens,
     dark: false,
@@ -133,6 +138,11 @@ function buildScenePieces(selectedId = "") {
   buildUkBase(ctx);
   buildPubs(ctx);
   return { layers, sources };
+}
+
+/** The built layers with some tokens told apart, a pub selected. */
+function buildScenePiecesWithTokens(tokenOverrides: Partial<Record<keyof Tokens, string>>) {
+  return buildScenePieces("venue-abc", tokenOverrides).layers;
 }
 
 function buildLateLandmarkLayers() {
@@ -1059,7 +1069,7 @@ describe("cluster disc (neutral, from the cheapest price, n pubs)", () => {
   });
 });
 
-describe("price pill (the priced pin's mark from street zoom)", () => {
+describe("price pill (the priced pin's mark from the pin floor)", () => {
   const { layers } = buildScenePieces();
   const layout = (id: string) => (layers.get(id)?.layout ?? {}) as Record<string, unknown>;
   const paint = (id: string) => (layers.get(id)?.paint ?? {}) as Record<string, unknown>;
@@ -1070,9 +1080,17 @@ describe("price pill (the priced pin's mark from street zoom)", () => {
     expect(ids.indexOf("pubs-price-pill")).toBeLessThan(ids.indexOf("pubs-point-selected"));
   });
 
-  it("starts at the zoom the tag always has, and only for a pub that says a price", () => {
+  it("starts at the pin floor, so every pub that stands alone wears its price", () => {
+    // A pin only exists where it left its cluster, and every disc already
+    // prints its cheapest price, so the pill needs no later gate of its own.
+    expect(PRICE_PILL_MIN_ZOOM).toBe(PIN_MIN_ZOOM);
+    // The glass's own tag keeps its street-zoom gate.
+    expect(PRICE_PILL_MIN_ZOOM).toBeLessThan(PIN_PRICE_LABEL_MIN_ZOOM);
+  });
+
+  it("draws only for a pub that says a price", () => {
     const pill = layers.get("pubs-price-pill") as BuiltLayer & { minzoom?: number };
-    expect(pill.minzoom).toBe(PIN_PRICE_LABEL_MIN_ZOOM);
+    expect(pill.minzoom).toBe(PRICE_PILL_MIN_ZOOM);
     expect(pill.filter).toEqual(pricePillFilter(""));
     const matches = (selectedId: string, properties: Record<string, unknown>) =>
       featureFilter(pricePillFilter(selectedId), "pubs-price-pill.filter").filter(
@@ -1083,9 +1101,22 @@ describe("price pill (the priced pin's mark from street zoom)", () => {
     // No sayable price, no pill: the glass keeps the pub.
     expect(matches("", { id: "a" })).toBe(false);
     expect(matches("", { id: "a", point_count: 9, priceLabel: "£5.40" })).toBe(false);
-    // The selected pub keeps its own enlarged glass and tag.
+    // The selected pub is drawn once, inverted, on its own layer.
     expect(matches("a", { id: "a", priceLabel: "£5.40" })).toBe(false);
     expect(matches("a", { id: "b", priceLabel: "£5.40" })).toBe(true);
+  });
+
+  it("is drawn at the pin floor itself, where the glass would otherwise be", () => {
+    // A filter evaluated at the floor: the zoom gate is the layer's minzoom.
+    const pill = layers.get("pubs-price-pill") as BuiltLayer & { minzoom?: number };
+    const glass = layers.get("pubs-point") as BuiltLayer & { minzoom?: number };
+    expect(pill.minzoom).toBe(glass.minzoom);
+    expect(
+      featureFilter(pricePillFilter(""), "pubs-price-pill.filter").filter(
+        { zoom: PIN_MIN_ZOOM },
+        { type: 1, properties: { id: "a", priceLabel: "£5.40" } } as never,
+      ),
+    ).toBe(true);
   });
 
   it("is not a pill for a pub wearing a mark, so no signal is lost to a shape", () => {
@@ -1146,10 +1177,136 @@ describe("price pill (the priced pin's mark from street zoom)", () => {
     expect(JSON.stringify(pill)).not.toContain("bucket");
   });
 
+  it("prints its figure in ink, never the brass plaque ink", () => {
+    // The scene's stand-in tokens are all one colour, so build with distinct ones.
+    const distinct = buildScenePiecesWithTokens({ ink: "#111111", pricePlaqueInk: "#8f671f" });
+    const pill = (distinct.get("pubs-price-pill")?.paint ?? {}) as Record<string, unknown>;
+    expect(pill["text-color"]).toBe("#111111");
+  });
+
   it("inverts the selected pub's tag to paper on ink instead", () => {
     const selected = paint("pubs-point-selected");
     expect(typeof selected["text-color"]).toBe("string");
     expect(typeof selected["text-halo-color"]).toBe("string");
+  });
+});
+
+describe("selected price pill (the selected pub stays a pill, inverted)", () => {
+  const SELECTED = "venue-abc";
+  const { layers } = buildScenePieces(SELECTED);
+  const layout = (id: string) => (layers.get(id)?.layout ?? {}) as Record<string, unknown>;
+  const plain = { id: SELECTED, priceLabel: "£5.40" };
+  const drawnBy = (layer: string, properties: Record<string, unknown>) =>
+    featureFilter(layers.get(layer)!.filter as never, `${layer}.filter`).filter(
+      { zoom: 15 },
+      { type: 1, properties } as never,
+    );
+
+  it("is its own layer above the selected glass, from the pin floor", () => {
+    const ids = [...layers.keys()];
+    const pill = layers.get("pubs-price-pill-selected") as BuiltLayer & { minzoom?: number };
+    expect(pill).toBeDefined();
+    expect(pill.minzoom).toBe(PRICE_PILL_MIN_ZOOM);
+    expect(pill.filter).toEqual(selectedPricePillFilter(SELECTED));
+    expect(ids.indexOf("pubs-price-pill-selected")).toBeGreaterThan(ids.indexOf("pubs-point-selected"));
+    expect(ids.indexOf("pubs-price-pill-selected")).toBeLessThan(ids.indexOf("pubs-provisional-badge"));
+  });
+
+  it("splits the selected pub between the inverted pill and the glass, so it is drawn exactly once", () => {
+    const cases: Array<[Record<string, unknown>, "pill" | "glass"]> = [
+      [plain, "pill"],
+      [{ id: SELECTED }, "glass"],
+      [{ ...plain, aging: true }, "glass"],
+      [{ ...plain, drops: true }, "glass"],
+      [{ ...plain, provisional: true }, "glass"],
+      [{ ...plain, standing: "confirmed" }, "glass"],
+      [{ ...plain, whatsOn: "quiz" }, "glass"],
+    ];
+    for (const [properties, expected] of cases) {
+      const pill = drawnBy("pubs-price-pill-selected", properties);
+      const glass = drawnBy("pubs-point-selected", properties);
+      expect([pill, glass], JSON.stringify(properties)).toEqual([expected === "pill", expected === "glass"]);
+      // The ink rings ring a glass only; a ring round a pill would peek out of it.
+      expect(drawnBy("pubs-selected", properties), JSON.stringify(properties)).toBe(glass);
+      expect(drawnBy("pubs-selected-glow", properties), JSON.stringify(properties)).toBe(glass);
+    }
+    // Nobody else is drawn by either selected layer.
+    expect(drawnBy("pubs-price-pill-selected", { id: "other", priceLabel: "£5.40" })).toBe(false);
+    expect(drawnBy("pubs-point-selected", { id: "other" })).toBe(false);
+    // And while nothing is selected, neither draws a thing.
+    const idle = buildScenePieces("").layers;
+    for (const layer of ["pubs-price-pill-selected", "pubs-point-selected"]) {
+      expect(
+        featureFilter(idle.get(layer)!.filter as never, layer).filter(
+          { zoom: 15 },
+          { type: 1, properties: { id: "a", priceLabel: "£5.40" } } as never,
+        ),
+      ).toBe(false);
+    }
+  });
+
+  it("fits the inverted pill to the same figure, a size up, from the selected images", () => {
+    const pill = layout("pubs-price-pill-selected");
+    expect(pill["icon-text-fit"]).toBe("both");
+    expect(pill["text-field"]).toEqual(["get", "priceLabel"]);
+    expect(pill["icon-image"]).toEqual([
+      "concat",
+      "pill:selected-",
+      ["to-string", ["coalesce", ["get", "spoonsBucket"], ["get", "bucket"]]],
+    ]);
+    const size = (zoom: number, id: string) => {
+      const compiled = createExpression(layout(id)["text-size"] as never, {
+        type: "number",
+        "property-type": "data-constant",
+        expression: { interpolated: true, parameters: ["zoom"] },
+      } as never);
+      if (compiled.result !== "success") throw new Error(`${id} text-size did not compile`);
+      return Number(compiled.value.evaluate({ zoom } as never));
+    };
+    for (const zoom of [12, 14, 16, 18]) {
+      expect(size(zoom, "pubs-price-pill-selected")).toBeCloseTo(
+        size(zoom, "pubs-price-pill") * SELECTED_PRICE_PILL_SCALE,
+        6,
+      );
+    }
+    expect(SELECTED_PRICE_PILL_SCALE).toBeGreaterThan(1);
+  });
+
+  it("always places, figure and all, while still reserving its space", () => {
+    // Dropping it would drop the selected pub; its figure sits inside its own
+    // pill, so it can never read as a neighbour's price.
+    const pill = layout("pubs-price-pill-selected");
+    expect(pill["icon-allow-overlap"]).toBe(true);
+    expect(pill["text-allow-overlap"]).toBe(true);
+    expect(pill["icon-ignore-placement"]).toBe(false);
+    expect(pill["text-ignore-placement"]).toBe(false);
+  });
+
+  it("prints its figure in paper on the ink body, at full strength, in a constant colour", () => {
+    const light = buildScenePiecesWithTokens({ ink: "#111111", paper: "#fafafa", inkDeep: "#050505" });
+    const paint = (light.get("pubs-price-pill-selected")?.paint ?? {}) as Record<string, unknown>;
+    expect(paint["text-color"]).toBe("#fafafa");
+    expect(paint["icon-opacity"]).toBe(1);
+    expect(paint["text-opacity"]).toBe(1);
+  });
+});
+
+describe("a selection reads in ink, never coral", () => {
+  const BRASS = "#ff5a5f";
+  const BRASS_BRIGHT = "#ff7a55";
+  const INK = "#111111";
+  const layers = buildScenePiecesWithTokens({ brass: BRASS, brassBright: BRASS_BRIGHT, ink: INK });
+
+  it.each([
+    "pubs-selected-glow",
+    "pubs-selected",
+    "uk-base-selected",
+    "london-restaurant-selected",
+  ])("rings the selected %s in ink", (id) => {
+    const paint = (layers.get(id)?.paint ?? {}) as Record<string, unknown>;
+    expect(paint["circle-stroke-color"]).toBe(INK);
+    expect(JSON.stringify(paint)).not.toContain(BRASS);
+    expect(JSON.stringify(paint)).not.toContain(BRASS_BRIGHT);
   });
 });
 

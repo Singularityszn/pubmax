@@ -1,0 +1,57 @@
+/* The pour line (PourLine.tsx): a short ink stroke running round a busy
+   control's edge. The outline sits ON the control's border, half in and half
+   out, so it never moves the control's own box or its label. */
+.pourLine {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.pourLine rect {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 24 76;
+  stroke-dashoffset: 0;
+}
+
+/* Constant motion while the work runs, so linear. One lap in 1.6s reads as
+   steady rather than urgent. */
+@media (prefers-reduced-motion: no-preference) {
+  .pourLine:not(.isLanding) rect {
+    animation: pourLineRun 1.6s linear infinite;
+  }
+
+  /* Landed: the line fills the whole edge fast, then lets go. */
+  .pourLine.isLanding rect {
+    stroke-dasharray: 100 0;
+    transition: stroke-dasharray var(--duration-slow) var(--ease-out-strong);
+  }
+
+  .pourLine.isLanding {
+    opacity: 0;
+    transition: opacity var(--duration-base) var(--ease-out) var(--duration-slow);
+  }
+}
+
+@keyframes pourLineRun {
+  to {
+    stroke-dashoffset: -100;
+  }
+}
+
+/* Less motion: a still outline while busy, and nothing after. */
+@media (prefers-reduced-motion: reduce) {
+  .pourLine rect {
+    stroke-dasharray: none;
+    opacity: 0.55;
+  }
+
+  .pourLine.isLanding {
+    display: none;
+  }
+}

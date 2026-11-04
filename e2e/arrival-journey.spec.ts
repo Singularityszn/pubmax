@@ -132,7 +132,7 @@ test.describe("returning drinker", () => {
 
     // The original report: "the same tab keeps opening everywhere". Walk the
     // tabs the way a phone does, through the bottom bar, not a fresh load.
-    for (const tab of ["Map", "Plan", "You"]) {
+    for (const tab of ["Explore", "Plan", "You"]) {
       const link = page.getByRole("link", { name: tab, exact: true }).first();
       if ((await link.count()) === 0) continue;
       await link.click();

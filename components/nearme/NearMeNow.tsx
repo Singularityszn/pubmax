@@ -2,7 +2,8 @@
 
 import { ReadyButton } from "@/components/ui/ready-button";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import PriceBadge from "@/components/PriceBadge";
 import { samePathWithQuery } from "@/lib/appLink";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
@@ -28,9 +29,15 @@ import { venueMapUrl } from "@/lib/venueMapUrl";
 import { loadSlimVenuesForCity } from "@/lib/venuesSlim";
 import {
   boroughsWithPrices,
+  cheapestGuinnessNearby,
   formatNearDistance,
+  NEAR_GUINNESS_HREF,
+  nearGuinnessLine,
+  type NearGuinnessAnswer,
+  type NearGuinnessPrice,
   withoutWalkTimes,
   nearMeAnswerHeadline,
+  nearSavingLine,
   rankBoroughCheapest,
   rankNearMe,
   type NearMeCard,
@@ -61,6 +68,12 @@ import {
   type NearPriceTrustView,
 } from "@/components/nearme/useNearPriceTrust";
 import NearPriceEvidenceMission from "@/components/nearme/NearPriceEvidenceMission";
+import NearCheapestAnything from "@/components/nearme/NearCheapestAnything";
+import {
+  nearGuinnessRows,
+  type NearDrinkLanes,
+  type NearDrinkPoint,
+} from "@/lib/nearCheapestAnything";
 import SharePintButton from "@/components/share/SharePintButton";
 import { nearTopPintShare } from "@/lib/venuePintShare";
 import { markPriceAnswerMoment } from "@/lib/priceAnswerMoment";
@@ -119,6 +132,24 @@ export type NearMeNowProps = {
   titledByHost?: boolean;
   /** `/near` only: load bounded baseline publisher evidence for answer rows. */
   showPriceTrust?: boolean;
+  /**
+   * `/near` only: listed Guinness rows for the one "Cheapest Guinness within
+   * 15 minutes" line (launch review B3). Absent in the map's sheet.
+   */
+  guinnessPrices?: readonly NearGuinnessPrice[];
+  /**
+   * `/near` only: the listed wine, cola, coffee and alcohol-free rows behind
+   * the Cheapest anything chips (lib/nearCheapestAnything.server.ts). Absent
+   * in the map's sheet, which shows no chip row.
+   */
+  drinkLanes?: NearDrinkLanes;
+};
+
+/** What the Cheapest anything chips rank from: the answer's own centre. */
+type NearDrinksView = {
+  centre: { lat: number; lng: number };
+  venues: readonly NearDrinkPoint[];
+  lanes: NearDrinkLanes;
 };
 
 /** The answer's headline, as a heading of its own or the host's plain line. */
@@ -170,6 +201,8 @@ function AnswerCards({
   accept,
   receipt,
   priceTrust,
+  guinness = null,
+  drinks = null,
 }: {
   cards: NearMeCard[];
   onOpen: (id: string) => void;
@@ -177,6 +210,8 @@ function AnswerCards({
   accept: boolean;
   receipt: string | null;
   priceTrust?: NearPriceTrustView;
+  guinness?: NearGuinnessAnswer | null;
+  drinks?: NearDrinksView | null;
 }) {
   return (
     <>
@@ -192,7 +227,26 @@ function AnswerCards({
         onAccept={accept ? onAccept : undefined}
         priceTrust={priceTrust}
       />
+      {cards.length > 0 ? <NearGuinnessLine answer={guinness} /> : null}
+      {cards.length > 0 && drinks ? (
+        <NearCheapestAnything centre={drinks.centre} venues={drinks.venues} lanes={drinks.lanes} />
+      ) : null}
     </>
+  );
+}
+
+/**
+ * The Guinness lane's one line, linked to the governed brand page. With no
+ * listed Guinness in reach it prints nothing at all, never "Unknown".
+ */
+export function NearGuinnessLine({ answer }: { answer: NearGuinnessAnswer | null }) {
+  if (!answer) return null;
+  return (
+    <p className="nmnGuinness">
+      <Link prefetch={false} href={NEAR_GUINNESS_HREF}>
+        {nearGuinnessLine(answer)}
+      </Link>
+    </p>
   );
 }
 
@@ -270,6 +324,8 @@ export default function NearMeNow({
   allowVenueAcceptance = false,
   titledByHost = false,
   showPriceTrust = false,
+  guinnessPrices,
+  drinkLanes,
 }: NearMeNowProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -281,6 +337,9 @@ export default function NearMeNow({
   const [state, setState] = useState<LocateState>(initialLocation ? "requesting" : "idle");
   const [cards, setCards] = useState<NearMeCard[]>([]);
   const [scope, setScope] = useState<NearMeScope>("none");
+  // The doorstep pub the saving line compares against. Set only by an answer
+  // from the reader's own fix; every new answer clears it (beginAnswer).
+  const [nearest, setNearest] = useState<NearMeCard | null>(null);
   const [borough, setBorough] = useState<string | null>(null);
   const [patch, setPatch] = useState<NightPatch | null>(null);
   const [patchReason, setPatchReason] = useState<PatchReason>(null);
@@ -291,6 +350,38 @@ export default function NearMeNow({
   // where you are yet" state, carrying the REAL nearest supported patch.
   const [outsideCoverage, setOutsideCoverage] = useState<NearestPatch | null>(null);
   const [acceptanceError, setAcceptanceError] = useState("");
+  // The cheapest listed Guinness in a 15 minute walk of the answer's centre,
+  // set beside the cards. Null for a centre the reader is not standing at
+  // (a fallback patch, a borough), because a walk from there means nothing.
+  const [guinness, setGuinness] = useState<NearGuinnessAnswer | null>(null);
+  const answerGuinness = useCallback(
+    (lat: number, lng: number, slim: PricedPoint[]): NearGuinnessAnswer | null =>
+      guinnessPrices && guinnessPrices.length > 0
+        ? cheapestGuinnessNearby(lat, lng, slim, guinnessPrices)
+        : null,
+    [guinnessPrices],
+  );
+  // The centre the Cheapest anything chips rank from, and the index they read.
+  // Null exactly when the Guinness line is: a fallback centre or a borough is
+  // not a place the reader can walk 15 minutes from.
+  const [drinkCentre, setDrinkCentre] = useState<{ lat: number; lng: number } | null>(null);
+  const [drinkVenues, setDrinkVenues] = useState<readonly NearDrinkPoint[]>([]);
+  const setNearDrinks = useCallback(
+    (centre: { lat: number; lng: number } | null, slim: PricedPoint[]) => {
+      setDrinkCentre(centre);
+      setDrinkVenues(centre ? slim : []);
+      setGuinness(centre ? answerGuinness(centre.lat, centre.lng, slim) : null);
+    },
+    [answerGuinness],
+  );
+  const drinkLanesWithGuinness = useMemo<NearDrinkLanes | null>(
+    () => (drinkLanes ? { ...drinkLanes, guinness: nearGuinnessRows(guinnessPrices) } : null),
+    [drinkLanes, guinnessPrices],
+  );
+  const drinks: NearDrinksView | null =
+    drinkCentre && drinkLanesWithGuinness
+      ? { centre: drinkCentre, venues: drinkVenues, lanes: drinkLanesWithGuinness }
+      : null;
   const slimRef = useRef<PricedPoint[] | null>(venues ?? null);
   const loadingSlimRef = useRef<Promise<PricedPoint[]> | null>(null);
   // Whether the priced index ANSWERED. A caller in map mode is handed the rows
@@ -321,6 +412,7 @@ export default function NearMeNow({
   const beginAnswer = useCallback(() => {
     const generation = ++answerGenerationRef.current;
     setActiveAnswerGeneration(generation);
+    setNearest(null);
     return generation;
   }, []);
   const priceTrust = useNearPriceTrust(
@@ -329,6 +421,24 @@ export default function NearMeNow({
     activeAnswerGeneration,
     answerContext?.generation ?? null,
   );
+  // The saving line prints the doorstep pub's price, and that pub is often not
+  // one of the cards, so its evidence is read on its own: one id, through the
+  // same endpoint, response guard and answer generation as the cards' read.
+  const comparator = useMemo(
+    () => (nearest && !cards.some((card) => card.id === nearest.id) ? [nearest] : []),
+    [cards, nearest],
+  );
+  const comparatorTrust = useNearPriceTrust(
+    comparator,
+    showPriceTrust,
+    activeAnswerGeneration,
+    answerContext?.generation ?? null,
+  );
+  // A printed price carries its publisher and read day, or says why it cannot.
+  // Where this surface shows no evidence at all, the line is not printed.
+  const savingLine = showPriceTrust ? nearSavingLine(cards, nearest) : null;
+  const savingSource =
+    savingLine && nearest ? nearSavingSource(nearest, cards, priceTrust, comparatorTrust) : null;
 
   const resolvedMapHref = mapHref ?? mapHrefForCity(cityId);
 
@@ -386,12 +496,14 @@ export default function NearMeNow({
             // is not where they are standing; its rows carry no walk time.
             const fallbackCentre = reason === "denied" || reason === "unavailable";
             setCards(fallbackCentre ? withoutWalkTimes(answer.cards) : answer.cards);
+            setNearDrinks(fallbackCentre ? null : { lat: next.lat, lng: next.lng }, slim);
             setScope(answer.scope);
             // Derive this patch's honest coverage tier from the priced pubs actually
             // in the slim index (real counts, no uniform claim).
             setPatchProfile(derivePatchProfile(next, { venues: slim }));
           } catch {
             setCards([]);
+            setNearDrinks(null, []);
             setScope("none");
             setPatchProfile(null);
           }
@@ -416,13 +528,14 @@ export default function NearMeNow({
           // Slim index miss must still surface the chosen patch, never hang on
           // the locate spinner — empty cards + AreaPicker remain available.
           setCards([]);
+          setNearDrinks(null, []);
           setScope("none");
           setPatchProfile(null);
           setAnswerContext({ source: answerSource, generation });
           setState("ready");
         });
     },
-    [beginAnswer, loadSlim, ownsAnswer, pathname, router, syncPatchToUrl],
+    [beginAnswer, loadSlim, ownsAnswer, pathname, router, setNearDrinks, syncPatchToUrl],
   );
 
   const pickBorough = useCallback(
@@ -432,6 +545,7 @@ export default function NearMeNow({
       void loadSlim().then((slim) => {
         if (!ownsAnswer(generation)) return;
         setCards(rankBoroughCheapest(slim, name));
+        setNearDrinks(null, []);
         setBorough(name);
         setPatch(null);
         setPatchProfile(null);
@@ -442,7 +556,7 @@ export default function NearMeNow({
         writeRememberedArea({ kind: "borough", name });
       });
     },
-    [beginAnswer, loadSlim, ownsAnswer],
+    [beginAnswer, loadSlim, ownsAnswer, setNearDrinks],
   );
 
   /** Ask the index again, then re-answer the ask the reader last made. */
@@ -502,6 +616,7 @@ export default function NearMeNow({
             );
             if (nearest) {
               setCards([]);
+              setNearDrinks(null, []);
               setBorough(null);
               setPatch(null);
               setPatchProfile(null);
@@ -516,7 +631,12 @@ export default function NearMeNow({
             return;
           }
           setCards(answer.cards);
+          setNearDrinks(
+            { lat: position.coords.latitude, lng: position.coords.longitude },
+            slim,
+          );
           setScope(answer.scope);
+          setNearest(answer.nearest);
           setState("ready");
           setBorough(null);
           setPatch(null);
@@ -536,7 +656,7 @@ export default function NearMeNow({
       },
       GEO_OPTS,
     );
-  }, [answerWithoutFix, beginAnswer, loadSlim, ownsAnswer]);
+  }, [answerWithoutFix, beginAnswer, loadSlim, ownsAnswer, setNearDrinks]);
 
   useEffect(() => {
     const startAutoLocate = shouldStartNearAutoLocate({
@@ -552,7 +672,9 @@ export default function NearMeNow({
         if (!ownsAnswer(generation)) return;
         const answer = rankNearMe(initialLocation.lat, initialLocation.lng, slim);
         setCards(answer.cards);
+        setNearDrinks({ lat: initialLocation.lat, lng: initialLocation.lng }, slim);
         setScope(answer.scope);
+        setNearest(answer.nearest);
         setState("ready");
         setBorough(null);
         setAnswerContext({ source: "location", generation });
@@ -685,12 +807,16 @@ export default function NearMeNow({
           scope={scope}
           titledByHost={titledByHost}
           cards={cards}
+          savingLine={savingLine}
+          savingSource={savingSource}
           onOpen={openVenue}
           onAccept={acceptVenue}
           allowVenueAcceptance={allowVenueAcceptance}
           acceptReceipt={acceptReceipt}
           acceptanceError={acceptanceError}
           priceTrust={priceTrust}
+          guinness={guinness}
+          drinks={drinks}
           resolvedMapHref={resolvedMapHref}
           onLocate={locate}
         />
@@ -714,6 +840,8 @@ export default function NearMeNow({
           acceptReceipt={acceptReceipt}
           acceptanceError={acceptanceError}
           priceTrust={priceTrust}
+          guinness={guinness}
+          drinks={drinks}
           slimRead={slimRead}
           loadSlim={loadSlim}
           onPickPatch={pickPatch}
@@ -881,24 +1009,34 @@ function NearMeLocatedAnswer({
   scope,
   titledByHost,
   cards,
+  savingLine,
+  savingSource,
   onOpen,
   onAccept,
   allowVenueAcceptance,
   acceptReceipt,
   acceptanceError,
   priceTrust,
+  guinness,
+  drinks,
   resolvedMapHref,
   onLocate,
 }: {
   scope: NearMeScope;
   titledByHost: boolean;
   cards: NearMeCard[];
+  /** The pounds the top answer is worth against the doorstep pub (nearSavingLine). */
+  savingLine: string | null;
+  /** The doorstep pub's price evidence, in the cards' own words. */
+  savingSource: string | null;
   onOpen: (id: string) => void;
   onAccept: (id: string) => void;
   allowVenueAcceptance: boolean;
   acceptReceipt: string | null;
   acceptanceError: string;
   priceTrust?: NearPriceTrustView;
+  guinness: NearGuinnessAnswer | null;
+  drinks: NearDrinksView | null;
   resolvedMapHref: string;
   onLocate: () => void;
 }) {
@@ -914,6 +1052,18 @@ function NearMeLocatedAnswer({
         ) : (
           <p className="nmnSub">Within about a 12-minute walk.</p>
         )}
+        {savingLine ? (
+          <>
+            <p className="nmnSaving" data-testid="near-saving-line">
+              {savingLine}
+            </p>
+            {savingSource ? (
+              <p className="nmnSavingSource" data-testid="near-saving-source">
+                {savingSource}
+              </p>
+            ) : null}
+          </>
+        ) : null}
       </header>
       <AnswerCards
         cards={cards}
@@ -922,6 +1072,8 @@ function NearMeLocatedAnswer({
         accept={allowVenueAcceptance}
         receipt={acceptReceipt}
         priceTrust={priceTrust}
+        guinness={guinness}
+        drinks={drinks}
       />
       {acceptanceError ? <p className="nmnAcceptError" role="alert">{acceptanceError}</p> : null}
       <footer className="nmnFoot">
@@ -953,6 +1105,8 @@ function NearMeAreaAnswer({
   acceptReceipt,
   acceptanceError,
   priceTrust,
+  guinness,
+  drinks,
   slimRead,
   loadSlim,
   onPickPatch,
@@ -976,6 +1130,8 @@ function NearMeAreaAnswer({
   acceptReceipt: string | null;
   acceptanceError: string;
   priceTrust?: NearPriceTrustView;
+  guinness: NearGuinnessAnswer | null;
+  drinks: NearDrinksView | null;
   slimRead: SlimReadState;
   loadSlim: () => Promise<PricedPoint[]>;
   onPickPatch: (patch: NightPatch) => void;
@@ -1004,6 +1160,8 @@ function NearMeAreaAnswer({
         accept={allowVenueAcceptance}
         receipt={acceptReceipt}
         priceTrust={priceTrust}
+        guinness={guinness}
+        drinks={drinks}
       />
       {acceptanceError ? <p className="nmnAcceptError" role="alert">{acceptanceError}</p> : null}
       {cards.length === 0 && slimRead === "unavailable" ? (
@@ -1067,6 +1225,30 @@ function trustLabelForCard(
   return match.publisher
     ? nearPriceTrustLabel("named", match.publisher, match.observedAt)
     : nearPriceTrustLabel("unrecorded", null, match.observedAt);
+}
+
+/**
+ * The doorstep pub's evidence under the saving line, in the cards' own words.
+ * When the pub is one of the cards its evidence comes from the cards' read;
+ * otherwise from its own one-id read. A read not yet answered says so.
+ */
+export function nearSavingSource(
+  nearest: NearMeCard,
+  cards: readonly NearMeCard[],
+  priceTrust: NearPriceTrustView | undefined,
+  comparatorTrust: NearPriceTrustView | undefined,
+): string {
+  const view = cards.some((card) => card.id === nearest.id) ? priceTrust : comparatorTrust;
+  const label = trustLabelForCard(nearest, view) ?? nearPriceTrustLabel("loading");
+  // The cards' label drops a missing or unreadable read day; under the saving
+  // line the day is named as missing instead, because this price is printed
+  // in a sentence of its own (review on PR 2414, P2).
+  const match =
+    view && view !== "loading"
+      ? view.results.find((item) => item.venueId === nearest.id && item.price === nearest.cheapestPrice)
+      : undefined;
+  const dated = match?.observedAt ? Number.isFinite(Date.parse(match.observedAt)) : false;
+  return `${nearest.name}: ${label}${match && !dated ? " · read date not recorded" : ""}`;
 }
 
 function NearMeCardBody({

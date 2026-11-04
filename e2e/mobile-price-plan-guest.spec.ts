@@ -21,7 +21,9 @@ test("a phone user checks a price, corrects an incomplete plan, and invites a gu
   await expect(page).toHaveURL(/\/plan$/);
 
   const description = page.getByRole("textbox", { name: "Where, how many, what budget" });
-  await description.fill("Three pubs in Clapham with short walks and listed pint prices.");
+  // Since week 1 hygiene a walk word never refuses a plan, so the incomplete
+  // route is asked for with a need the area cannot meet: step-free access.
+  await description.fill("Three pubs in Clapham, all step-free, with listed pint prices.");
   const incomplete = page.waitForResponse((response) =>
     response.request().method() === "POST" && response.url().endsWith("/api/plans/generate"));
   await page.getByRole("button", { name: "Make a plan", exact: true }).click();
@@ -56,13 +58,16 @@ test("a phone user checks a price, corrects an incomplete plan, and invites a gu
   const text = new URL((await whatsapp.getAttribute("href"))!).searchParams.get("text");
   const shared = text?.match(/https?:\/\/[^\s]+/)?.[0];
   expect(shared).toBeTruthy();
+  // One link (launch review 3.5): WhatsApp carries the public invite page.
   const invite = new URL(shared!);
-  expect(invite.hash).toMatch(/^#invite=.+/);
+  expect(invite.pathname).toMatch(/^\/invite\/[0-9a-f]{32}$/);
+  const inviteToken = invite.pathname.split("/").pop()!;
 
   const guestContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
   try {
     const guest = await guestContext.newPage();
-    await guest.goto(`${new URL(page.url()).origin}${invite.pathname}${invite.search}${invite.hash}`);
+    // The plan-page join through an old /plan/{id}#invite= link still works.
+    await guest.goto(`${new URL(page.url()).origin}${new URL(page.url()).pathname}#invite=${inviteToken}`);
     await expect(guest.getByText("You'll see the full route once you join the crew. No account needed.")).toBeVisible();
     await expect(guest.locator("main")).not.toContainText(venueName);
     const decline = guest.getByRole("button", { name: "No thanks", exact: true });
@@ -97,7 +102,7 @@ test("a five-stop incomplete plan keeps its count after clearing, then accepts a
   await page.getByRole("dialog", { name: "The Coach & Horses", exact: true })
     .getByRole("button", { name: "Make The Coach & Horses Stop 1" }).click();
   const description = page.getByRole("textbox", { name: "Where, how many, what budget" });
-  await description.fill("Five pubs in Clapham with short walks and listed pint prices.");
+  await description.fill("Five pubs in Clapham, all step-free, with listed pint prices.");
   await page.getByRole("button", { name: "Make a plan", exact: true }).click();
   await expect(page.locator("#plan-route-status")).toContainText("5-stop route");
   await page.getByRole("button", { name: "Tune details", exact: true }).click();

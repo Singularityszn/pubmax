@@ -15,6 +15,7 @@ import {
 } from "@/lib/yearInPints";
 import { yearShareVenueNames } from "@/lib/yearInPints.server";
 
+import YearGlass from "./YearGlass";
 import "./yearInPints.css";
 
 // A shared Year in Pints: /year-in-pints/[year]?to=..&n=.. (lib/yearInPints.ts).
@@ -23,6 +24,8 @@ import "./yearInPints.css";
 // no handle, no account and no Pal. A pub is named from the venue dataset,
 // never from the link. It is a person's own year, so it is never indexed,
 // and it ends on the door to the reader's own year, which is free forever.
+// When the nights line was ticked, the pint glass of days stands above the
+// lines (YearGlass.tsx), drawn from that count and nothing else.
 
 type Search = Record<string, string | string[] | undefined>;
 type Props = { params: Promise<{ year: string }>; searchParams: Promise<Search> };
@@ -80,6 +83,9 @@ export default async function YearInPintsPage(props: Props) {
       >
         {lines.length > 0 ? (
           <>
+            {share?.nights !== undefined ? (
+              <YearGlass year={share.year} through={share.through} nights={share.nights} />
+            ) : null}
             <ol className="yipLines" data-testid="year-share-lines">
               {lines.map((line) => (
                 <li key={line}>{line}</li>

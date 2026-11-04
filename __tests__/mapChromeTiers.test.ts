@@ -81,6 +81,20 @@ describe("buildFiltersChip", () => {
       ariaLabel: "Filters: saved only and open now active",
     });
   });
+
+  it("counts Last orders as its own refinement", () => {
+    expect(
+      buildFiltersChip({
+        drinkFiltersActive: false,
+        priceCapActive: false,
+        priceLabel: "Price",
+        lastOrdersActive: true,
+      }),
+    ).toMatchObject({
+      refinements: 1,
+      ariaLabel: "Filters: last orders active",
+    });
+  });
 });
 
 describe("buildTflCorner", () => {

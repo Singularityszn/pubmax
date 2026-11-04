@@ -17,7 +17,7 @@ vi.mock("@/components/wanted/WantedPlanChips", () => ({ default: () => null }));
 import PlanDescribeFirst from "@/components/plan/PlanDescribeFirst";
 import { trackEvent } from "@/lib/analytics";
 import { sanitizeEvent } from "@/lib/analyticsEvents";
-import { NIGHT_AREAS, isNightAreaRouteReady } from "@/lib/nightAreas";
+import { getNightArea, NIGHT_AREAS, isNightAreaRouteReady } from "@/lib/nightAreas";
 import { inferNightContext } from "@/lib/nightPlanning";
 import {
   locatedOneTapArea,
@@ -34,21 +34,20 @@ const readyLondon = NIGHT_AREAS.filter((area) => area.cityId === "london" && isN
 
 describe("the sentence a tap submits", () => {
   it("is read back as the same area by the parser typed text goes through", () => {
-    expect(readyLondon.length).toBeGreaterThan(0);
-    for (const area of readyLondon) {
+    for (const area of [getNightArea("clapham"), getNightArea("victoria")]) {
       expect(inferNightContext(oneTapQuery(area)).context.nightArea).toBe(area.slug);
     }
   });
 
   it("names the remembered area, or offers near me", () => {
     expect(oneTapLabel(null)).toBe("Tonight near me");
-    expect(oneTapLabel(readyLondon[0]!)).toBe(`Tonight in ${readyLondon[0]!.name}`);
+    expect(oneTapLabel(getNightArea("clapham"))).toBe("Tonight in Clapham");
   });
 });
 
 describe("which area a tap plans", () => {
-  it("plans the patch this device last chose when it maps to a crawl-ready area", () => {
-    expect(rememberedOneTapArea({ kind: "patch", id: "clapham" }, NOW)?.slug).toBe("clapham");
+  it("does not plan the remembered patch without reviewed evidence", () => {
+    expect(rememberedOneTapArea({ kind: "patch", id: "clapham" }, NOW)).toBeNull();
   });
 
   it("never offers an area that is not crawl-ready, a borough, or nothing", () => {
@@ -60,8 +59,8 @@ describe("which area a tap plans", () => {
     expect(rememberedOneTapArea(null, NOW)).toBeNull();
   });
 
-  it("plans the crawl-ready area the reader is standing in", () => {
-    expect(locatedOneTapArea(CLAPHAM_COMMON.lat, CLAPHAM_COMMON.lng, NOW)?.slug).toBe("clapham");
+  it("does not select an unreviewed area from a location", () => {
+    expect(locatedOneTapArea(CLAPHAM_COMMON.lat, CLAPHAM_COMMON.lng, NOW)).toBeNull();
   });
 
   it("does not call somewhere far away near", () => {
@@ -70,7 +69,7 @@ describe("which area a tap plans", () => {
 
   it("says why it could not, and names the areas that can be typed", () => {
     const message = oneTapMessage("out-of-range", NOW);
-    expect(message).toMatch(/^No crawl-ready area near you yet\. Type one of /);
+    expect(message).toBe("No crawl-ready area near you yet. Type an area instead.");
     for (const area of readyLondon) expect(message).toContain(area.name);
     for (const reason of ["denied", "timeout", "position", "unsupported", "out-of-range"] as const) {
       expect(oneTapMessage(reason, NOW)).not.toMatch(/[—!]/);
@@ -124,30 +123,25 @@ describe("the tap on the empty page", () => {
     });
   }
 
-  it("plans the remembered area at once, without asking for location", async () => {
+  it("does not plan an unreviewed remembered area", async () => {
     window.localStorage.setItem("pubmax:nightPatch:v1", JSON.stringify({ kind: "patch", id: "clapham" }));
-    const getCurrentPosition = vi.fn();
-    vi.stubGlobal("navigator", { ...navigator, geolocation: { getCurrentPosition } });
-    const { onSubmit, button } = await mount();
-
-    expect(button()?.textContent).toBe("Tonight in Clapham");
-    await act(async () => button()!.click());
-
-    expect(onSubmit).toHaveBeenCalledWith("Clapham tonight", expect.any(Number));
-    expect(getCurrentPosition).not.toHaveBeenCalled();
-    expect(trackEvent).toHaveBeenCalledWith("plan_one_tap", { outcome: "remembered" });
-  });
-
-  it("asks for location only on the tap, then plans where the reader is", async () => {
     stubLocation({ coords: { latitude: CLAPHAM_COMMON.lat, longitude: CLAPHAM_COMMON.lng } });
     const { onSubmit, button } = await mount();
-
     expect(button()?.textContent).toBe("Tonight near me");
+    await act(async () => button()!.click());
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(host!.querySelector(".planDescribeFirst__oneTapNote")?.textContent).toContain("Type an area instead.");
+    expect(document.activeElement?.id).toBe("plan-describe-first-query");
+  });
+
+  it("asks for location on tap and falls back to typing when the area is unreviewed", async () => {
+    stubLocation({ coords: { latitude: CLAPHAM_COMMON.lat, longitude: CLAPHAM_COMMON.lng } });
+    const { onSubmit, button } = await mount();
     expect(onSubmit).not.toHaveBeenCalled();
     await act(async () => button()!.click());
-
-    expect(onSubmit).toHaveBeenCalledWith("Clapham tonight", expect.any(Number));
-    expect(trackEvent).toHaveBeenCalledWith("plan_one_tap", { outcome: "located" });
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(host!.querySelector(".planDescribeFirst__oneTapNote")?.textContent).toContain("Type an area instead.");
+    expect(trackEvent).toHaveBeenCalledWith("plan_one_tap", { outcome: "out-of-range" });
   });
 
   it("says so, plans nothing, and hands the caret to the field when location is refused", async () => {
@@ -156,7 +150,7 @@ describe("the tap on the empty page", () => {
     await act(async () => button()!.click());
 
     expect(onSubmit).not.toHaveBeenCalled();
-    expect(host!.querySelector(".planDescribeFirst__oneTapNote")?.textContent).toMatch(/^Location access was denied\. Type one of /);
+    expect(host!.querySelector(".planDescribeFirst__oneTapNote")?.textContent).toBe("Location access was denied. Type an area instead.");
     expect(document.activeElement?.id).toBe("plan-describe-first-query");
     expect(trackEvent).toHaveBeenCalledWith("plan_one_tap", { outcome: "no-location" });
   });

@@ -1,0 +1,15 @@
+{
+  "name": "PUBMAXX",
+  "url": "https://pubmaxxing.com",
+  "email": "hello@pubmaxxing.com",
+  "pressEmail": "karan@pubmaxxing.com",
+  "city": "London",
+  "country": "United Kingdom",
+  "category": "Pub map and pub crawl planner",
+  "shortDescription": "A London pub map for comparing listed pint prices and planning pub crawls with friends.",
+  "links": {
+    "press": "https://pubmaxxing.com/press",
+    "tool": "https://pubmaxxing.com/pub-crawl-cost",
+    "data": "https://pubmaxxing.com/pint-index"
+  }
+}

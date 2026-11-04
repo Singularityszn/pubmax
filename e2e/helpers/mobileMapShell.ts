@@ -55,7 +55,7 @@ export async function expectMobileMapShellReady(
  * me have namesakes on the desktop toolbar and in sheets, so each is scoped to
  * the shell's own container rather than found by name across the page.
  */
-export type MobileMapShellControl = "search" | "filters" | "more" | "tfl" | "nearMe";
+export type MobileMapShellControl = "search" | "filters" | "more" | "tfl" | "nearMe" | "drink";
 
 function shellControlLocator(page: Page, control: MobileMapShellControl): Locator {
   const topbar = page.locator(".mobileMapTopbar");
@@ -70,6 +70,8 @@ function shellControlLocator(page: Page, control: MobileMapShellControl): Locato
       return page.locator(".mobileMapUtilityCorner .mobileMapTflButton");
     case "nearMe":
       return page.locator(".mobileMapUtilityCorner .mobileMapLocateFab");
+    case "drink":
+      return page.locator(".mobileMapChipRow").getByRole("button", { name: /Drink shown on the map/ });
   }
 }
 
@@ -86,6 +88,24 @@ export async function mobileMapShellControl(
 ): Promise<Locator> {
   await expectMobileMapShellReady(page, timeout);
   return shellControlLocator(page, control);
+}
+
+/**
+ * Tap "Log a price" on the phone map: More map controls, its Layers tab, then
+ * the door (components/map/MapPriceLogDoor.tsx). The floating create button
+ * carried this row until the five-tab dock (captain, 1 Nov 2026). A dropped
+ * tap on a server-painted control is retried, never asserted harder on.
+ */
+export async function tapMapLogPrice(page: Page): Promise<void> {
+  const more = await mobileMapShellControl(page, "more");
+  const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="layers"]:visible');
+  const door = sheet.getByRole("link", { name: "Log a price", exact: true });
+  await expect(async () => {
+    if (!(await sheet.isVisible())) await more.click();
+    await sheet.getByRole("tab", { name: "Layers", exact: true }).click({ timeout: 1_000 });
+    await expect(door).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 20_000 });
+  await door.click();
 }
 
 /**

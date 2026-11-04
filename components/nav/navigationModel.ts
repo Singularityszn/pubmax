@@ -1,12 +1,15 @@
 import type { Route } from "next";
 
-export type PrimaryNavKey = "map" | "now" | "plan" | "social" | "you";
+export type PrimaryNavKey = "map" | "now" | "plan" | "spoons" | "social" | "you";
 
 export type PrimaryNavItem = {
   key: PrimaryNavKey;
   href: Route;
   label: string;
   match: string[];
+  /** Shown in the desktop SiteNav and the landing bar only, never in the phone
+   *  dock (MobileTabBar renders PHONE_NAV_ITEMS). */
+  desktopOnly?: true;
 };
 
 /**
@@ -32,21 +35,20 @@ export const SOCIAL_NAV_MATCH: readonly string[] = [
 const PLAN_NAV_MATCH: readonly string[] = ["/plan", "/crawls"];
 
 /**
- * The FIVE durable destinations in the PUBMAXX shell, and the ONE vocabulary
- * for every bar that names them: the phone dock, the desktop SiteNav and the
+ * The durable destinations in the PUBMAXX shell, and the ONE vocabulary for
+ * every bar that names them: the phone dock, the desktop SiteNav and the
  * landing bar all render this list, so their labels cannot drift apart again.
  *
- * Product owner, Oct 2026 UX audit: six tabs were too many, so the row is a
- * five-door loop, in this order. Map finds the pint (the answer the product
- * exists to give), Tonight says what is worth going out for, Plan turns that
- * into a route, Social is the night shared with friends, and You keeps what
- * the night left behind. Social is a main tab by the captain's call
- * (16 Oct 2026), so it is not repeated in the desktop More menu; every bar
- * names it for its launch state (`primaryNavLabel`, `useSocialSurfaceName`).
- * Moment is a compose action, never a location, and is modelled separately
- * below.
+ * The phone dock is five tabs and nothing else (Explore, Tonight, Plan,
+ * Social, You), by the captain's call (1 Nov 2026, launch plan decision 13).
+ * The Pub Pal's door left the dock for the phone top bar (PalNavButton.tsx),
+ * and the floating create button is gone: Post a moment, Log a price and
+ * Start a plan each live on the surface they belong to. Spoons, the published
+ * value ranking, is a desktop door only (`desktopOnly`), by the captain's call
+ * (1 Nov 2026); on a phone it is reached from the Drink sheet. Moment remains
+ * a compose action, never a destination.
  *
- * Two former tabs folded into the five. Out IS Tonight now: /out 308s to
+ * Two former tabs left primary navigation. Out IS Tonight now: /out 308s to
  * /tonight at the edge (proxy.ts), and Tonight carries the Tomorrow and Weekend
  * listings. Places is no longer a destination: the city picker still lives at
  * /places, reached from the map's own city chip and the footer's "Pick your
@@ -58,11 +60,14 @@ const PLAN_NAV_MATCH: readonly string[] = ["/plan", "/crawls"];
  * Both pages belong to this tab. Explicit page links keep their destination.
  */
 export const PRIMARY_NAV_ITEMS: readonly PrimaryNavItem[] = [
-  { key: "map", href: "/map", label: "Map", match: ["/map"] },
+  // Explore is the map (captain, 1 Nov 2026): the word says what a reader does
+  // there. The key and the route stay `map` and /map.
+  { key: "map", href: "/map", label: "Explore", match: ["/map"] },
   { key: "now", href: "/tonight", label: "Tonight", match: ["/today", "/tonight"] },
   // Plan owns the composer, a shared plan at /plan/[id] and the crawl routes
   // (PLAN_NAV_MATCH).
   { key: "plan", href: "/plan", label: "Plan", match: [...PLAN_NAV_MATCH] },
+  { key: "spoons", href: "/spoons-value", label: "Spoons", match: ["/spoons-value"], desktopOnly: true },
   // Social owns its shell and its retired aliases (SOCIAL_NAV_MATCH). The label
   // here is the launched name; a bar names it through primaryNavLabel.
   { key: "social", href: "/social", label: "Social", match: [...SOCIAL_NAV_MATCH] },
@@ -72,6 +77,11 @@ export const PRIMARY_NAV_ITEMS: readonly PrimaryNavItem[] = [
   // desktop nav (audit F10). Dropped so /pal maps to no active tab.
   { key: "you", href: "/u/you" as Route, label: "You", match: ["/u"] },
 ] as const;
+
+/** The phone dock's destinations: every primary item except the desktop-only ones. */
+export const PHONE_NAV_ITEMS: readonly PrimaryNavItem[] = PRIMARY_NAV_ITEMS.filter(
+  (item) => !item.desktopOnly,
+);
 
 /**
  * The name a bar prints for a primary destination. Social is named for its
@@ -125,4 +135,20 @@ export function safeMomentReturnTo(value: string | null | undefined): MomentRetu
 
 export function momentHref(returnTo: string | null | undefined): Route {
   return `${MOMENT_NAV_ACTION.href}?returnTo=${encodeURIComponent(safeMomentReturnTo(returnTo))}`;
+}
+
+/**
+ * Where "back" is, read off the live address bar.
+ *
+ * Read at the action boundary because the Map's native-history writes can
+ * precede the router's next render. The router value is the fallback before
+ * a browser location exists.
+ */
+export function returnToFromLocation(
+  location: { pathname?: string; search?: string } | null | undefined,
+  fallback: string,
+): string {
+  const pathname = location?.pathname;
+  if (!pathname || !pathname.startsWith("/")) return fallback;
+  return `${pathname}${location?.search ?? ""}`;
 }

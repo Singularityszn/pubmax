@@ -9,11 +9,13 @@ import SiteNav from "@/components/nav/SiteNav";
 import BookingClickAnalytics from "@/components/pubs/BookingClickAnalytics";
 import PubLotReviews from "@/components/pubs/PubLotReviews";
 import RankThisPub from "@/components/pubs/RankThisPub";
+import AddRegularNight from "@/components/tonight/AddRegularNight";
 import Screen from "@/components/ui/screen";
 import VenuePhotoWall from "@/components/venue/VenuePhotoWall";
 import VenueReadUnavailable from "@/components/venue/VenueReadUnavailable";
 import VisitReportPanel from "@/components/visits/VisitReportPanel";
 import ListedPriceSource from "@/components/venue/ListedPriceSource";
+import LastOrdersBellSlot from "@/components/wild/LastOrdersBellSlot";
 import { answerEvidenceFor } from "@/lib/landingHero";
 import { venueListedPint } from "@/lib/venueListedPint";
 import type { VenuePrice } from "@/lib/venues";
@@ -146,16 +148,16 @@ export default async function PubPage({ params }: PageProps) {
       <SiteNav active="pubs" />
       <BookingClickAnalytics />
       <div className="pubPage__inner">
-        {venue.imageUrl ? (
-          <VenueImage
-            className="pubPage__hero"
-            sources={[{ url: venue.imageUrl, provenance: "chain" }]}
-            alt={`${venue.name}, outside or in`}
-            width={960}
-            height={540}
-            priority
-          />
-        ) : null}
+        <VenueImage
+          className="pubPage__hero venueImage--cover"
+          sources={[{ url: venue.imageUrl, provenance: "chain" }]}
+          alt={`${venue.name}, outside or in`}
+          venueName={venue.name}
+          venueArea={venueAreaLabel(venue)}
+          width={960}
+          height={540}
+          priority
+        />
         <Screen
           as="section"
           kicker={venueAreaLabel(venue)}
@@ -180,6 +182,8 @@ export default async function PubPage({ params }: PageProps) {
           }
           primary={primary}
         />
+
+        <LastOrdersBellSlot venueId={venue.id} venueName={venue.name} lat={venue.latitude} lng={venue.longitude} />
 
         <div className="pubPage__actions">
           {contacts.bookingHref ? (
@@ -253,6 +257,7 @@ export default async function PubPage({ params }: PageProps) {
         <section className="pubPage__section" aria-label="Photos and visits">
           <VenuePhotoWall venueId={venue.id} venueName={venue.name} />
           <VisitReportPanel venueId={venue.id} venueName={venue.name} />
+          <AddRegularNight where="pub" venueId={venue.id} venueName={venue.name} />
         </section>
       </div>
     </main>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ListedDrinkCoverage as Coverage } from "@/lib/listedDrinkCoverage";
 import { drinkLaneLabel } from "@/lib/drinkLanes";
+import { pricedPubCountFromCoverage, pricedPubsSentence } from "@/lib/pricedPubCount";
 import type { DrinkCategory } from "@/lib/drinks";
 
 const CATEGORIES: readonly DrinkCategory[] = ["beer", "coffee", "alcohol-free", "wine", "cocktail", "soft-drink"];
@@ -12,7 +13,7 @@ export default function ListedDrinkCoverage({ coverage, status }: {
   return <section className="pintIndexSection" aria-labelledby="drinkCoverageHeading">
     <h2 id="drinkCoverageHeading" className="listingSectionTitle">How much of our pub list has a price?</h2>
     {status === "degraded" ? <p className="listingSectionDek">We could not read the pub list just now. Coverage is unavailable.</p> : <>
-      <p className="listingSectionDek"><strong>{coverage.pricedPubs.toLocaleString("en-GB")} of {coverage.total.toLocaleString("en-GB")} pubs</strong> in our London pub list have a pint price on record{status === "ready" && coverage.total > 0 ? ` (${Math.round(coverage.pricedPubs / coverage.total * 100)}%)` : ""}.</p>
+      <p className="listingSectionDek"><strong>{pricedPubsSentence(pricedPubCountFromCoverage(coverage), { percent: status === "ready" })}</strong></p>
       <p className="listingSectionDek">Includes our pub price list and published menus. The total is our pub list, not every pub in London. These are listed prices, not a promise of today&rsquo;s price. Each pub counts once per drink.</p>
       {status === "partial" ? <p role="status" className="listingSectionDek">Some menu prices could not be read. The drink counts below are incomplete.</p> : null}
       <dl className="pintIndexStats">

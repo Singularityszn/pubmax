@@ -7,6 +7,7 @@ import { areaRoutePlacePhoto, type PlacePhoto as PlacePhotoData } from "@/compon
 import ActivePlanMarker from "@/components/plan/ActivePlanMarker";
 import NightCrawlMode from "@/components/plan/NightCrawlMode";
 import PlanInviteOpened from "@/components/plan/PlanInviteOpened";
+import PlanCard from "@/components/plan/PlanCard";
 import PlanCrew from "@/components/plan/PlanCrew";
 import PlanInviteNextStep from "@/components/plan/PlanInviteNextStep";
 import PlanReadUnavailable from "@/components/plan/PlanReadUnavailable";
@@ -126,7 +127,9 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
       description,
       type: "website",
       url: `/plan/${id}`,
-      images: [{ url: card, width: 1200, height: 630 }],
+      // The alt names what the card draws: the preview-safe title and the
+      // stop count, never a venue (§4.10).
+      images: [{ url: card, width: 1200, height: 630, alt: `${safeTitle}, ${preview.stopCount} ${preview.stopCount === 1 ? "stop" : "stops"}` }],
     },
     twitter: { card: "summary_large_image", title: safeTitle, description, images: [card] },
   };
@@ -188,15 +191,7 @@ export default async function PlanPage({ params }: Props) {
   const endingLabel = state.ending ? ENDING_LABEL[state.ending] : null;
 
   return (
-    /* A locked plan is a page about ONE night, and the whole of what it asks a
-       reader to do is send the link. The floating create action parked over
-       the right edge of that card at 390: PlanAstra could not tap `Copy invite
-       link` in 30 seconds because Playwright kept reporting it obscured. Its
-       three rows are a Moment, a price and "Start a plan" - none of them this
-       page's business, and the last is a door back to a plan the reader has
-       just finished making. The marker is the same one the message thread and
-       the 404 carry (components/nav/createFab.css). */
-    <main id="main" className="planPage pageHidesCreateFab">
+    <main id="main" className="planPage">
       {/* Marks this plan as "on tonight" so the shell's Night Mode card can
           follow it across screens (client-only pointer, no backend). */}
       <ActivePlanMarker id={id} startTime={state.plan.startTime} />
@@ -237,6 +232,11 @@ export default async function PlanPage({ params }: Props) {
         }
         secondary={<Link prefetch={false} href="/plan">Make another plan</Link>}
       />
+      {/* The plan as one card (PlanAstra 7.4): a member's cover, name, time,
+          crew and three actions, before the route. Client-only, because only
+          the capability-gated member read may name the stops and the crew;
+          while it stands the head above steps aside (app/plan/plan.css). */}
+      <PlanCard planId={id} completed={completed} />
       {/* Night-crawl mode (U7): while this plan's night is on, it becomes the
           default full-screen surface on mobile and offers an inline entry
           otherwise. Client-only gating, no new route. */}

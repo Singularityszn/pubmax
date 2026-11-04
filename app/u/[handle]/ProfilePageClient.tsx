@@ -45,6 +45,7 @@ import { syncDeviceHandle } from "@/lib/identityClient";
 import { isPubmaxxHandleImpersonationBlock } from "@/lib/pubmaxxIdentity";
 import { accountClaimReturnToFromUrl } from "@/lib/accountClaimReturnTo";
 import { BADGE_EVENTS } from "@/lib/badgeEvents";
+import { beenHereRevision, subscribeBeenHere } from "@/lib/beenHere";
 import {
   BADGE_EVENT_OPT_INS_STORAGE_KEY,
   addBadgeEventOptIn,
@@ -100,6 +101,21 @@ const CrewsPanel = dynamic(
 // The Diary list reads the owner-only API, so it loads only for the owner and
 // stays out of every other profile's first paint.
 const DiaryList = dynamic(() => import("@/components/diary/DiaryList"), { ssr: false });
+// The passport cover and book (Been, ranked, taste, overlap) read their own APIs.
+const PassportCover = dynamic(() => import("@/components/profile/PassportCover"), { ssr: false });
+const PassportSections = dynamic(() => import("@/components/profile/PassportSections"), { ssr: false });
+const BoroughBingo = dynamic(() => import("@/components/profile/BoroughBingo"), { ssr: false });
+// "Tap the pubs you've been to": once per device, read from this device's own
+// store, so it never belongs to the server paint. Signed in on the owner's own
+// page it also moves waiting taps to the account.
+const BeenHereFirstRun = dynamic(() => import("@/components/profile/BeenHereFirstRun"), { ssr: false });
+
+// A person's Social posts. Loaded after the document, like the timeline, and
+// only when the Social launch flag is on, so a closed Social adds nothing here.
+const ProfilePostsSection = dynamic(
+  () => import("@/components/profile/ProfilePostsSection"),
+  { ssr: false },
+);
 
 const ProfileTimeline = dynamic(
   () => import("@/components/profile/ProfileTimeline"),
@@ -687,6 +703,10 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     return () => controller.abort();
   }, [accountRevision, geographyIdentityReady, geographyReadKey, geographyUserId, routeHandle]);
 
+  // A carry of the first-run Been here taps moves this account's lists, so the
+  // saved read below asks again when it lands (lib/beenHere.ts).
+  const beenHereMoves = useSyncExternalStore(subscribeBeenHere, beenHereRevision, () => 0);
+
   // Load this handle's saved venues: durable first (the API resolves real venue
   // names for the profile's handle), falling back to the viewer's localStorage
   // view mapped into DTOs. Done in an async callback (not the synchronous effect
@@ -719,7 +739,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     }
     void loadSaved();
     return () => controller.abort();
-  }, [accountRevision, routeHandle, sessionLoading]);
+  }, [accountRevision, routeHandle, sessionLoading, beenHereMoves]);
 
   // Followed saved lists are public social context for this handle's saved view:
   // "Ken follows Sam's Date Night list" appears on /u/ken. Reads are fail-soft,
@@ -1414,19 +1434,12 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
             Timeline
           </h2>
 
+          {/* The wait is the timeline's own cards, sampled
+              (components/ui/sample-skeleton.tsx). It is the same lazy
+              component in the same place as the answer, so the swap is one
+              commit and the chunk stays out of the first document. */}
           {state === "loading" ? (
-            <div className="profileTimelineSkel feedList" aria-hidden="true">
-              {Array.from({ length: 2 }).map((_, i) => (
-                <div key={i} className="feedCard feedCardSkeleton">
-                  <div className="feedSkelHead">
-                    <span className="feedSkelAvatar" />
-                    <span className="feedSkelLine feedSkelLineShort" />
-                  </div>
-                  <div className="feedSkelPhoto" />
-                  <div className="feedSkelLine" />
-                </div>
-              ))}
-            </div>
+            <ProfileTimeline drops={[]} loading />
           ) : drops.length === 0 ? (
             <p className="profileEmpty">No pints logged under @{routeHandle} yet.</p>
           ) : (
@@ -1564,6 +1577,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                   following={visibleSocialData.counts?.following}
                   actions={headerActions}
                 />
+                <PassportCover handle={routeHandle} />
               </div>
             </div>
 
@@ -1603,6 +1617,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
               {isOwnProfile ? (
                 <>
                   <ClaimMomentWelcome />
+                  <BeenHereFirstRun handle={routeHandle} />
                   <FirstActionsRow />
                   <ContributionLanesCard handle={routeHandle} />
                   <OutTonightToggle handle={routeHandle} />
@@ -1613,6 +1628,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
               {(isYouRoute || isOwnProfile) && !youSignedOut ? (
                 <nav className="youProfileTabs" aria-label="Your profile sections">
                   <a href="#timeline">Moments</a>
+                  {postsTabLink()}
                   <a href="#passport">Passport</a>
                   <a href="#wanted">Pubs to try</a>
                   <a href="#saved-pubs">Saved</a>
@@ -1654,7 +1670,15 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
 
               {timelineSection()}
 
+              {/* Social posts, beside Moments rather than in place of it. Hidden
+                  while Social is closed, the same way /social is. */}
+              {postsSection()}
+
               {crawlsSection()}
+
+              <PassportSections handle={routeHandle} isOwner={isOwnProfile} />
+
+              <BoroughBingo handle={routeHandle} boroughs={passport.boroughs} isOwner={isOwnProfile} isMutual={visibleSocialData.following && visibleSocialData.followsViewer} />
 
               {/* /u/you redirects to the real handle the moment one is
                   known, so gating this on the sentinel alone left the
@@ -1703,6 +1727,18 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     );
   }
 
+  // A person's Social posts, beside Moments. Hidden while Social is closed,
+  // the same way /social is.
+  function postsSection() {
+    if (!socialFriendsLaunchEnabled || youSignedOut) return null;
+    if (!routeHandle || routeHandle === YOU_SENTINEL) return null;
+    return <ProfilePostsSection authorHandle={routeHandle} isOwn={isOwnProfile} />;
+  }
+
+  function postsTabLink() {
+    return socialFriendsLaunchEnabled ? <a href="#posts">Posts</a> : null;
+  }
+
   function surfaceBody() {
     if (surface === "missing") {
       return <p className="profileEmpty">That profile link is missing a handle.</p>;
@@ -1720,7 +1756,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     <div className="lp profilePage">
       <SiteNav active="profile" />
 
-      <main id="main" className="container profileMain pageHidesCreateFab">
+      <main id="main" className="container profileMain">
         {surfaceBody()}
         {/* The list's title paints while identity is still answering, so a
             signed-in owner's page does not jump when it lands. A signed-out
@@ -1729,6 +1765,9 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         {surface === "identity-loading" ? (
           <WantedList key="you-wanted-panel" body={false} />
         ) : null}
+        {/* Signed out, the taps stay on this device until an account can
+            hold them (lib/beenHere.ts). */}
+        {surface === "you-invitation" && documentComplete ? <BeenHereFirstRun /> : null}
         {surface === "you-invitation" && documentComplete ? (
           <div id="account-settings">
             <PubmaxxAccountHub />

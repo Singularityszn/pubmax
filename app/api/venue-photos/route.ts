@@ -194,9 +194,11 @@ async function handleJsonPhotoAction(request: Request): Promise<Response> {
     const actorHash = hashActor(`venue-photo:${hashIp(clientIp(request))}`);
     const flagKey = `venue-photo-report:${id}`;
     const actorKey = `${flagKey}:${actorHash}`;
+    // The reporter's own key first: a refused reporter must not spend the
+    // item's shared budget and lock out everyone else who reports it.
     if (
-      (await isLimited(flagKey, flagKey)) ||
-      (await isLimited(actorKey, actorKey, REPORT_PER_ACTOR_LIMIT))
+      (await isLimited(actorKey, actorKey, REPORT_PER_ACTOR_LIMIT)) ||
+      (await isLimited(flagKey, flagKey))
     ) {
       return publicApiError("Too many reports, slow down.", "RATE_LIMITED", 429, {
         retryable: true,
@@ -378,7 +380,7 @@ export async function POST(request: Request): Promise<Response> {
     const created = await store.create({
       id: photoId,
       venueId: submission.venueId,
-      wallCategory: "pint",
+      wallCategory: submission.wallCategory,
       placeLabel: "",
       authorActor: contributor.actor,
       authorProfileId: profileId,

@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 
 import { ogCardRateLimitedResponse } from "@/lib/ogCardRateLimit";
-import { CrossingMark, loadOgFonts, loadPartyFont } from "@/lib/ogBrand";
+import { CardShell, OG, OG_SIZE, Wordmark, loadOgFonts, loadPartyFont } from "@/lib/ogBrand";
 import { clampOgText } from "@/lib/ogCardText";
 import { planCollaborationStore } from "@/lib/planCollaborationStore";
 import { buildPlanPrivacyPreview } from "@/lib/planPrivacy";
@@ -11,23 +11,25 @@ import { vibeTallyLine } from "@/lib/vibeTally";
 export const runtime = "nodejs";
 
 // Plan invite share card. This is the picture a mate sees in the group chat
-// when the plan link lands, so it carries the same field-guide brand lockup as
-// its sibling "A Crawl Story" card (app/api/crawl-card): the Crossing mark in a
-// brass chip, the wordmark, the printed-guidebook palette. Before this it drew a
-// bare "PUBMAXX" wordmark on an off-brand cream field with no mark at all,
-// the one share surface #382 left without the Crossing mark. Kept in lockstep
-// with the crawl card so the two "your night" artifacts read as siblings.
-
-// Brand palette (mirrors app/api/crawl-card/route.tsx — the "printed guidebook"
-// look, brass on ink). satori only understands literal styles, so the hexes are
-// declared here rather than pulled from a CSS variable.
-const PAPER = "#12100c"; // deep charcoal-green paper
-const CREAM = "#ece3d2"; // warm cream ink
-const CREAM_DIM = "#a99f8b"; // secondary ink
-const BRASS = "#d3a44a"; // single accent
-
-const serif = 'Georgia, "Times New Roman", serif';
-const sans = 'Helvetica, "Helvetica Neue", Arial, sans-serif';
+// when the plan link lands, so it is drawn for the group chat first.
+//
+// THREE RULES.
+//
+// (1) IT IS THE SHARED BRAND KIT. The card opens on lib/ogBrand's shell, the
+//     PUBMAXX wordmark and Space Grotesk, like every other share card. It used
+//     to keep its own "printed guidebook" palette, a boxed mark that read as
+//     another app's icon in a preview (lib/ogBrand.tsx, Wordmark), and a
+//     system font on the unstamped card only, so the same plan changed face
+//     when a vibe was added.
+// (2) THE MIDDLE CARRIES THE INVITE. A chat app often shows only a small
+//     square cut from the centre of the picture. So the headline and the dot
+//     route sit on the centre line, and the brand and the address sit at the
+//     edges, where a crop may lose them.
+// (3) §4.10 STILL HOLDS. The card is crawler-visible and can never carry a
+//     member capability, so it draws the privacy-safe preview only: the area,
+//     the first pint's time, the stop count and the vibe. Never the user's
+//     title, a venue name, the stop order or the crew size. The dot route is
+//     one lit dot per stop on a straight line: a count, not a map.
 
 // Vibe stamp (docs/VIBE_LAYER_SPEC_2026-07-19.md, surface 3). The ?vibe= param
 // is validated against exactly the seven owner-locked chip slugs — an
@@ -44,10 +46,43 @@ const VIBE_STAMPS: Record<string, string> = {
   "date-night": "Date night",
 };
 
-// Stamp colours per spec: brass shade under coral face on ink dark. Coral is
-// the app's Candle-Coral action accent (lib/ogBrand OG.coral); the shade layer
-// is this card's own field-guide brass so the stamp sits in the card's palette.
-const STAMP_CORAL = "#ff5a5f";
+// Stamp colours per spec: an amber shade under a coral face on the dark card.
+// Coral is the app's Candle-Coral action accent (lib/ogBrand OG.coral).
+const STAMP_CORAL = OG.coral;
+
+/** The dot route: one lit amber dot per stop, small dim dots between them. */
+function DotRoute({ stops }: { stops: number }) {
+  const count = Math.max(1, Math.min(stops, 8));
+  const stop = 34;
+  const gap = count > 5 ? 74 : 104;
+  const width = (count - 1) * gap + stop;
+  const height = stop;
+  const between = 4;
+  const dots: Array<{ x: number; r: number; lit: boolean }> = [];
+  for (let i = 0; i < count; i += 1) {
+    const x = stop / 2 + i * gap;
+    dots.push({ x, r: stop / 2, lit: true });
+    if (i < count - 1) {
+      for (let k = 1; k <= between; k += 1) {
+        dots.push({ x: x + (gap * k) / (between + 1), r: 4, lit: false });
+      }
+    }
+  }
+  return (
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} fill="none">
+      {dots.map((dot) => (
+        <circle
+          key={dot.x}
+          cx={dot.x}
+          cy={height / 2}
+          r={dot.r}
+          fill={dot.lit ? OG.amber : OG.muted}
+          fillOpacity={dot.lit ? 1 : 0.5}
+        />
+      ))}
+    </svg>
+  );
+}
 
 export async function GET(request: Request): Promise<Response> {
   const limited = await ogCardRateLimitedResponse(request, "og-plan-card");
@@ -60,307 +95,141 @@ export async function GET(request: Request): Promise<Response> {
   // Validated vibe stamp or nothing; see VIBE_STAMPS above.
   const vibeLabel = VIBE_STAMPS[params.get("vibe") ?? ""] ?? null;
   // Crew vibe tally (share loop, surface 3). Additive: a line renders only when
-  // the plan has votes, so the no-votes render path stays byte-identical. Reads
-  // fail-soft — a tally error just drops the line, the card still renders. The
-  // line is house prose (serif), never the party face (Bungee is stamp-only).
+  // the plan has votes. Reads fail-soft: a tally error just drops the line, the
+  // card still renders. The line is house prose, never the party face (Bungee
+  // is stamp-only).
   const tallyResult = await planCollaborationStore().vibeTally(id);
   const tallyLine = tallyResult.ok ? vibeTallyLine(tallyResult.tally) : null;
-  // §4.10: the OG card is crawler-visible and can never carry a member
-  // capability, so it renders the privacy-safe preview only — never the
-  // user-entered title, the numbered venue route, venue names, or the crew size.
+  // §4.10: the privacy-safe preview only (rule 3 above).
   const preview = buildPlanPrivacyPreview(state, tallyResult.ok ? tallyResult.tally : null);
   const safeHeadline = preview.areaName
     ? `A night out in ${preview.areaName}`
     : "A night out";
   const clampedHeadline = clampOgText(safeHeadline, 62, "", { collapseWhitespace: true });
   const start = preview.startLabel;
+  const stopsLine = `${preview.stopCount} ${preview.stopCount === 1 ? "stop" : "stops"} · Join the crew to see the route`;
 
   return new ImageResponse(
     (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          background: PAPER,
-          color: CREAM,
-          padding: 68,
-          fontFamily: sans,
-          position: "relative",
-        }}
-      >
-        {/* Hairline field-guide border */}
-        <div
-          style={{
-            position: "absolute",
-            top: 28,
-            left: 28,
-            right: 28,
-            bottom: 28,
-            border: `2px solid rgba(211,164,74,0.42)`,
-            borderRadius: 6,
-            display: "flex",
-          }}
-        />
-
-        {/* Header: Crossing-mark lockup + edition line */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            width: "100%",
-            zIndex: 1,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center" }}>
-            <div
-              style={{
-                width: 76,
-                height: 76,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                borderRadius: 14,
-                background: BRASS,
-                marginRight: 26,
-              }}
-            >
-              <CrossingMark ink={PAPER} size={52} />
-            </div>
-            <div
-              style={{
-                fontFamily: serif,
-                fontSize: 42,
-                fontWeight: 700,
-                letterSpacing: 0.5,
-              }}
-            >
-              PUBMAXX
-            </div>
-          </div>
+      <CardShell padding={60}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+          <Wordmark scale={0.9} />
           <div
             style={{
               // display:flex is load-bearing: satori rejects any div holding
               // more than one child node (text + expression counts) without an
               // explicit display, 500ing the whole card.
               display: "flex",
-              fontFamily: serif,
-              fontStyle: "italic",
-              color: BRASS,
-              fontSize: 24,
-              letterSpacing: 2,
+              color: OG.amber,
+              fontSize: 26,
+              fontWeight: 700,
+              letterSpacing: 1,
             }}
           >
             First pint · {start}
           </div>
         </div>
 
-        {/* Body: title on the left, numbered route on the right */}
-        <div style={{ display: "flex", flex: 1, marginTop: 40, zIndex: 1 }}>
-          <div
-            style={{
-              width: "48%",
-              display: "flex",
-              flexDirection: "column",
-              paddingRight: 48,
-            }}
-          >
-            {vibeLabel ? (
-              /* Vibe stamp: the crew's declared night, in the party face.
-                 Layered per spec — brass shade offset under the coral face —
-                 with a slight tilt so it reads as a stamp, not a heading. */
+        {/* The centre line: stamp, headline, dot route, stop count. */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}>
+          {vibeLabel ? (
+            /* Vibe stamp: the crew's declared night, in the party face, an
+               amber shade offset under the coral face, tilted so it reads as
+               a stamp rather than a heading. */
+            <div style={{ display: "flex", position: "relative", marginBottom: 18, transform: "rotate(-3deg)" }}>
               <div
                 style={{
+                  position: "absolute",
+                  top: 4,
+                  left: 4,
                   display: "flex",
-                  flexDirection: "column",
-                  marginBottom: 20,
-                  transform: "rotate(-3deg)",
-                  transformOrigin: "left bottom",
-                }}
-              >
-                {vibeLabel === "Big one tonight" ? null : (
-                  <div
-                    style={{
-                      color: BRASS,
-                      fontSize: 20,
-                      fontWeight: 700,
-                      letterSpacing: 6,
-                      textTransform: "uppercase",
-                      marginBottom: 10,
-                      display: "flex",
-                    }}
-                  >
-                    Tonight
-                  </div>
-                )}
-                <div style={{ display: "flex", position: "relative" }}>
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: 4,
-                      left: 4,
-                      display: "flex",
-                      fontFamily: "Bungee",
-                      fontSize: vibeLabel.length > 12 ? 34 : 46,
-                      lineHeight: 1.15,
-                      letterSpacing: 2,
-                      textTransform: "uppercase",
-                      color: BRASS,
-                      opacity: 0.55,
-                    }}
-                  >
-                    {vibeLabel}
-                  </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      fontFamily: "Bungee",
-                      fontSize: vibeLabel.length > 12 ? 34 : 46,
-                      lineHeight: 1.15,
-                      letterSpacing: 2,
-                      textTransform: "uppercase",
-                      color: STAMP_CORAL,
-                    }}
-                  >
-                    {vibeLabel}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div
-                style={{
-                  color: BRASS,
-                  fontSize: 22,
-                  fontWeight: 700,
-                  letterSpacing: 6,
+                  fontFamily: "Bungee",
+                  fontSize: vibeLabel.length > 12 ? 34 : 42,
+                  lineHeight: 1.15,
+                  letterSpacing: 2,
                   textTransform: "uppercase",
-                  marginBottom: 18,
-                  display: "flex",
+                  color: OG.amber,
+                  opacity: 0.55,
                 }}
               >
-                Your night is sorted
+                {vibeLabel}
               </div>
-            )}
+              <div
+                style={{
+                  display: "flex",
+                  fontFamily: "Bungee",
+                  fontSize: vibeLabel.length > 12 ? 34 : 42,
+                  lineHeight: 1.15,
+                  letterSpacing: 2,
+                  textTransform: "uppercase",
+                  color: STAMP_CORAL,
+                }}
+              >
+                {vibeLabel}
+              </div>
+            </div>
+          ) : (
             <div
               style={{
                 display: "flex",
-                fontFamily: serif,
-                fontSize: clampedHeadline.length > 30 ? 52 : 62,
-                lineHeight: 1.03,
+                color: OG.muted,
+                fontSize: 24,
                 fontWeight: 700,
+                letterSpacing: 5,
+                textTransform: "uppercase",
+                marginBottom: 14,
               }}
             >
-              {clampedHeadline}
+              Your night is sorted
             </div>
-            {tallyLine ? (
-              /* Crew vibe tally: house prose under the title, never the party
-                 face. Only rendered when the plan has votes. */
-              <div
-                style={{
-                  display: "flex",
-                  marginTop: 22,
-                  fontFamily: serif,
-                  fontStyle: "italic",
-                  fontSize: 25,
-                  lineHeight: 1.25,
-                  color: CREAM_DIM,
-                }}
-              >
-                {clampOgText(tallyLine, 90, "", { collapseWhitespace: true })}
-              </div>
-            ) : null}
-          </div>
-          {/* §4.10: no venue names, no stop order — a privacy-safe summary. The
-              route stop list reveals only after a viewer joins the crew. */}
+          )}
           <div
             style={{
-              width: "52%",
               display: "flex",
-              flexDirection: "column",
+              textAlign: "center",
               justifyContent: "center",
-              borderLeft: `3px solid ${BRASS}`,
-              paddingLeft: 38,
-              gap: 10,
+              color: OG.ink,
+              fontSize: clampedHeadline.length > 30 ? 58 : 66,
+              fontWeight: 700,
+              lineHeight: 1.05,
+              letterSpacing: -1.5,
+              maxWidth: 1040,
             }}
           >
-            <div style={{ display: "flex", alignItems: "baseline", gap: 16 }}>
-              <div style={{ display: "flex", fontFamily: serif, fontSize: 96, fontWeight: 700, color: BRASS, lineHeight: 1 }}>
-                {preview.stopCount}
-              </div>
-              <div style={{ display: "flex", fontFamily: serif, fontSize: 34, fontWeight: 700 }}>
-                {preview.stopCount === 1 ? "stop" : "stops"}
-              </div>
-            </div>
-            {preview.areaName ? (
-              <div style={{ display: "flex", fontFamily: serif, fontSize: 28, color: CREAM_DIM }}>
-                Around {clampOgText(preview.areaName, 40, "", { collapseWhitespace: true })}
-              </div>
-            ) : null}
-            <div style={{ display: "flex", fontSize: 22, color: CREAM_DIM, marginTop: 6 }}>
-              Join the crew to see the route
-            </div>
+            {clampedHeadline}
           </div>
+          <div style={{ display: "flex", marginTop: 30 }}>
+            <DotRoute stops={preview.stopCount} />
+          </div>
+          <div style={{ display: "flex", color: OG.inkSoft, fontSize: 26, marginTop: 18 }}>{stopsLine}</div>
+          {tallyLine ? (
+            <div style={{ display: "flex", color: OG.muted, fontSize: 22, marginTop: 10 }}>
+              {clampOgText(tallyLine, 90, "", { collapseWhitespace: true })}
+            </div>
+          ) : null}
         </div>
 
-        {/* Footer: crew + call to action on the left, URL on the right */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginTop: 36,
-            zIndex: 1,
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              fontFamily: serif,
-              fontStyle: "italic",
-              color: CREAM,
-              fontSize: 28,
-            }}
-          >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+          <div style={{ display: "flex", color: OG.ink, fontSize: 26, fontWeight: 700 }}>
             Open the link · tap I&rsquo;m in
           </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              color: BRASS,
-              fontSize: 26,
-              fontWeight: 700,
-              letterSpacing: 1,
-            }}
-          >
-            <div
-              style={{
-                width: 46,
-                height: 2,
-                background: BRASS,
-                marginRight: 18,
-              }}
-            />
+          <div style={{ display: "flex", alignItems: "center", color: OG.coral, fontSize: 24, fontWeight: 700, letterSpacing: 1 }}>
+            <div style={{ width: 40, height: 2, background: OG.coral, marginRight: 14 }} />
             pubmaxxing.com
           </div>
         </div>
-      </div>
+      </CardShell>
     ),
     {
-      width: 1200,
-      height: 630,
+      ...OG_SIZE,
       headers: {
         "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
       },
-      // Fonts only when a stamp renders: satori resolves unknown family
-      // strings (this card's Georgia/Helvetica) to the FIRST registered font,
+      // satori resolves unknown family strings to the FIRST registered font,
       // so the Space Grotesk pair goes first (base typography lands on the
-      // brand face) and Bungee last (only nodes that ask for it get it). The
-      // unstamped card keeps its zero-font fast path exactly as before.
-      ...(vibeLabel ? { fonts: [...loadOgFonts(), loadPartyFont()] } : {}),
+      // brand face) and Bungee last, only when a stamp renders, so only the
+      // stamp asks for it.
+      fonts: vibeLabel ? [...loadOgFonts(), loadPartyFont()] : loadOgFonts(),
     },
   );
 }

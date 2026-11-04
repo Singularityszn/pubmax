@@ -1,6 +1,6 @@
 import { readFileSync } from "fs";
 import path from "path";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { manchesterDemoPintDrops } from "@/lib/cities/manchester/pintDropSeeds";
 import {
@@ -27,6 +27,15 @@ const slimById = new Map(slim.map((row) => [row.id, row]));
 
 const NORTHERN_MIN = 3.8;
 const NORTHERN_MAX = 6.5;
+
+// Demo content is opt-in (lib/demoContent.ts), and these tests read the seeds.
+beforeEach(() => {
+  vi.stubEnv("NEXT_PUBLIC_DEMO_CONTENT", "on");
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe("Manchester demo Pint Drop seeds", () => {
   it("seeds at least 8 demo drops for Manchester venues", () => {

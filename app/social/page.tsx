@@ -6,6 +6,8 @@ import { buildCityRivalrySnapshot } from "@/lib/cityRivalry";
 import { loadHeritageCrawls } from "@/lib/heritageCrawls";
 import { parseSocialShellSearch } from "@/lib/socialShell";
 import { socialDocumentRobots, socialSurfaceName } from "@/lib/socialLaunch";
+import { socialLondonLaneOpen } from "@/lib/socialLondonLane.server";
+import { loadSocialAlternatives } from "@/lib/socialAlternatives.server";
 import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 
 import SocialPageClient from "./SocialPageClient";
@@ -27,18 +29,35 @@ function toUrlSearchParams(input: SearchParams): URLSearchParams {
   return params;
 }
 
-export async function generateMetadata(): Promise<Metadata> {
+// THE TITLE FOLLOWS THE TAB (launch review, 30 Oct 2026, item 10). `/discover`
+// and `/drinks` redirect to `/social?tab=discover`, whose heading reads "Pubs
+// and pints", so a tab titled "Social" told a reader and a search result they
+// had landed somewhere else. An invalid query redirects to /social in the page,
+// so it is titled as /social here.
+const SOCIAL_DISCOVER_TITLE = "Pubs and pints";
+const SOCIAL_DISCOVER_DESCRIPTION =
+  "London pubs and their listed pint prices, plus heritage crawls to walk.";
+
+export async function generateMetadata(
+  props: { searchParams: Promise<SearchParams> },
+): Promise<Metadata> {
   const friendsLaunchEnabled = readTrustedHandoffFlag("socialFriendsLaunch");
-  const surface = socialSurfaceName(friendsLaunchEnabled);
+  const state = props?.searchParams
+    ? parseSocialShellSearch(toUrlSearchParams(await props.searchParams))
+    : null;
+  const discover = state?.valid === true && state.tab === "discover";
+  const surface = discover ? SOCIAL_DISCOVER_TITLE : socialSurfaceName(friendsLaunchEnabled);
+  const description = discover ? SOCIAL_DISCOVER_DESCRIPTION : SOCIAL_DESCRIPTION;
+  const url = discover ? "/social?tab=discover" : "/social";
   return {
     title: surface,
-    description: SOCIAL_DESCRIPTION,
-    alternates: { canonical: "/social" },
+    description,
+    alternates: { canonical: url },
     robots: socialDocumentRobots(friendsLaunchEnabled),
     openGraph: {
       title: appPageTitle(surface),
-      description: SOCIAL_DESCRIPTION,
-      url: "/social",
+      description,
+      url,
       siteName: metadataSiteName(),
       type: "website",
       images: ["/og.png"],
@@ -55,11 +74,16 @@ export default async function SocialPage({
   if (!state.valid) redirect("/social");
 
   const friendsLaunchEnabled = readTrustedHandoffFlag("socialFriendsLaunch");
+  // A stranger reads the London lane unless Social is rolled back or frozen.
+  const londonLaneOpen = socialLondonLaneOpen();
 
   const [rivalry, heritageCrawls] =
     friendsLaunchEnabled && state.tab === "discover"
       ? await Promise.all([buildCityRivalrySnapshot(), loadHeritageCrawls()])
       : [[], []];
+  const publicAlternatives = londonLaneOpen && state.tab === "posts"
+    ? await loadSocialAlternatives()
+    : undefined;
 
   return (
     <SocialPageClient
@@ -67,6 +91,8 @@ export default async function SocialPage({
       rivalry={rivalry}
       heritageCrawls={heritageCrawls}
       friendsLaunchEnabled={friendsLaunchEnabled}
+      londonLaneOpen={londonLaneOpen}
+      publicAlternatives={publicAlternatives}
     />
   );
 }

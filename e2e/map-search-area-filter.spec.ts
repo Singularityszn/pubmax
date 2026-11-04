@@ -50,7 +50,8 @@ test("area picks clear the text filter before priced pins paint", async ({ page 
 
   const search = page.getByRole("combobox", { name: "Search pubs" });
   await search.fill("White");
-  const whitechapel = page.getByRole("option", { name: /Whitechapel/i }).first();
+  const whitechapel = page.getByRole("group", { name: "Areas", exact: true })
+    .getByRole("option", { name: /Whitechapel/i });
   await expect(whitechapel).toBeVisible({ timeout: 20_000 });
   await whitechapel.click();
 

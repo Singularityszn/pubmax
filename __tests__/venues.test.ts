@@ -233,10 +233,12 @@ describe("filterVenues", () => {
   });
 
   it("maxPrice excludes pricier venues but a null-price venue passes", () => {
-    const pricey = groupVenuePrices([makeRow({ address: "A", price_gbp: 9 })]);
+    const pricey = groupVenuePrices([makeRow({ address: "A", price_gbp: 9, pub_url: "https://example.com/menu", scraped_at_values: "2026-01-01T12:00:00Z" })]);
     const nullPrice = groupVenuePrices([makeRow({ address: "B", price_gbp: null })]);
+    const unsourced = groupVenuePrices([makeRow({ address: "C", price_gbp: 9 })]);
     expect(filterVenues(pricey, makeFilters({ maxPrice: 6 }))).toHaveLength(0);
     expect(filterVenues(nullPrice, makeFilters({ maxPrice: 6 }))).toHaveLength(1);
+    expect(filterVenues(unsourced, makeFilters({ maxPrice: 6 }))).toHaveLength(1);
   });
 
   it("requireWater gates on curation", () => {
@@ -359,7 +361,7 @@ describe("filterVenues", () => {
   // and the subtype has to come from brand knowledge.
   function beerPub(name: string, pintName: string, price: number) {
     const [base] = groupVenuePrices([
-      makeRow({ pub_name: name, pint_name: pintName, price_gbp: price }),
+      makeRow({ pub_name: name, pint_name: pintName, price_gbp: price, pub_url: "https://example.com/menu", scraped_at_values: "2026-01-01T12:00:00Z" }),
     ]);
     return {
       ...defined(base),
@@ -584,6 +586,17 @@ describe("filterVenues", () => {
   });
 });
 
+describe("cheapest crawl price evidence", () => {
+  it("keeps a half pint out of the cheapest route without changing venue visibility", () => {
+    const pubs = groupVenuePrices([
+      makeRow({ pub_name: "Half", address: "A", pint_name: "Half pint", price_gbp: 3.4, pub_url: "https://pub.example/menu", scraped_at_values: "2026-01-01" }),
+      makeRow({ pub_name: "Pint", address: "B", price_gbp: 5, pub_url: "https://pub.example/menu", scraped_at_values: "2026-01-01" }),
+    ]);
+    expect(pubs).toHaveLength(2);
+    expect(buildCrawlRoute(pubs, makeFilters({ crawlStyle: "cheapest", stopCount: 2 })).map((pub) => pub.name)).toEqual(["Pint"]);
+  });
+});
+
 describe("scoreVenue", () => {
   it("writer pick scores higher under writerTrail than balanced", () => {
     const venue = groupVenuePrices([makeRow({ pub_name: "The Grapes" })])[0];
@@ -591,8 +604,8 @@ describe("scoreVenue", () => {
   });
 
   it("cheap venue outscores expensive under cheapest", () => {
-    const cheap = groupVenuePrices([makeRow({ address: "A", price_gbp: 4 })])[0];
-    const expensive = groupVenuePrices([makeRow({ address: "B", price_gbp: 9 })])[0];
+    const cheap = groupVenuePrices([makeRow({ address: "A", price_gbp: 4, pub_url: "https://pub.example/menu", scraped_at_values: "2026-01-01" })])[0];
+    const expensive = groupVenuePrices([makeRow({ address: "B", price_gbp: 9, pub_url: "https://pub.example/menu", scraped_at_values: "2026-01-01" })])[0];
     expect(scoreVenue(defined(cheap), "cheapest")).toBeGreaterThan(scoreVenue(defined(expensive), "cheapest"));
   });
 

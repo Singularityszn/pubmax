@@ -10,7 +10,7 @@ import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
 import { isVenueHoursQuestion, refineRoutedAskQuery, socialTurnKind } from "@/lib/ask/router";
 import { runAsk } from "@/lib/ask/runAsk";
-import type { AskTurn } from "@/lib/ask/types";
+import type { AskResponseBody, AskTurn } from "@/lib/ask/types";
 import { parseConciergeIntent } from "@/lib/concierge/intent";
 import { DEFAULT_GROUP_SIZE, defaultKnownAreas } from "@/lib/concierge/intentPolicy";
 import { PAL_ERROR_FALLBACK } from "@/lib/palChat";
@@ -28,6 +28,7 @@ import {
   type PalElevenLabsChatInput,
   type PalElevenLabsChatOutcome,
 } from "@/lib/palElevenLabsChat.server";
+import { palClaudeConfigured, runPalClaudeChatTurn } from "@/lib/palClaudeChat.server";
 import { paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
 import { palTasteAsk } from "@/lib/palTaste";
 import { readPalTaste } from "@/lib/palTaste.server";
@@ -54,6 +55,18 @@ function normaliseTurns(raw: unknown): AskTurn[] {
     if (turns.length >= 6) break;
   }
   return turns;
+}
+
+/**
+ * Typed chat goes to Claude when this deploy has an Anthropic key, else to the
+ * ElevenLabs agent. Voice stays on ElevenLabs either way.
+ */
+function typedChatConfigured(): boolean {
+  return palClaudeConfigured() || palVoiceConfigured();
+}
+
+function runTypedTurn(input: PalElevenLabsChatInput, context: PalElevenLabsChatContext): Promise<PalElevenLabsChatOutcome> {
+  return palClaudeConfigured() ? runPalClaudeChatTurn(input, context) : runPalElevenLabsChatTurn(input, context);
 }
 
 function answerBody(outcome: Extract<PalElevenLabsChatOutcome, { ok: true }>) {
@@ -88,7 +101,7 @@ function streamTurn(input: PalElevenLabsChatInput, context: PalElevenLabsChatCon
         }
       };
       try {
-        const outcome = await runPalElevenLabsChatTurn({
+        const outcome = await runTypedTurn({
           ...input,
           signal: abort.signal,
           onProgress: send,
@@ -140,13 +153,16 @@ function openingResponse(opening: { answer: string; conversationId: string }): R
   return jsonNoStore({ ...opening, cards: [], proposals: [], sources: [], toolsUsed: [], status: "ready" });
 }
 
+function isFirstOpeningGreeting(query: string, record: Record<string, unknown>): boolean {
+  return socialTurnKind(query) === "greeting" && !record.threadId && normaliseTurns(record.turns).length === 0;
+}
+
 async function openingReply(
   request: Request, record: Record<string, unknown>, query: string,
   prepared?: { ownerId: string; context: PalElevenLabsChatContext },
   onWriteStarted?: (response: Response) => void,
 ): Promise<Response | null> {
-  const social = socialTurnKind(query);
-  const firstGreeting = social === "greeting" && !record.threadId && normaliseTurns(record.turns).length === 0;
+  const firstGreeting = isFirstOpeningGreeting(query, record);
   const threadId = typeof record.threadId === "string" && isPubPalConversationId(record.threadId) ? record.threadId : null;
   if (firstGreeting || threadId) {
     const ownerId = prepared?.ownerId ?? await callerUserId(request);
@@ -208,6 +224,10 @@ function keylessSocialReply(query: string, turns: AskTurn[]): Response | null {
   });
 }
 
+function isVenueDiscoveryAnswer(query: string, answer: Pick<AskResponseBody, "toolsUsed">): boolean {
+  return !isVenueHoursQuestion(query) && answer.toolsUsed.length === 1 && answer.toolsUsed[0] === "search_venues";
+}
+
 export async function POST(request: Request): Promise<Response> {
   const limiterKey = `pub-pal-chat:${hashIp(clientIp(request))}`;
   // The limiter answers before anything else is asked: the token check is a
@@ -238,7 +258,7 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiError("Ask a question.", "QUERY_REQUIRED", 400);
   }
 
-  const configured = palVoiceConfigured();
+  const configured = typedChatConfigured();
   const ownerId = configured ? await callerUserId(request) : null;
   if (configured && !ownerId) {
     return publicApiError("Sign in to ask Pub Pal.", "UNAUTHENTICATED", 401);
@@ -282,8 +302,8 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiError(PAL_ERROR_FALLBACK, "UNAVAILABLE", 503, { retryable: true });
   }
 
-  // Voice is optional. Keyless deploys still answer from the same grounded
-  // tools as /api/ask, and they never call OpenRouter.
+  // A model is optional. Keyless deploys still answer from the same grounded
+  // tools as /api/ask, and they never call OpenRouter, Anthropic or ElevenLabs.
   if (!configured) {
     try {
       const social = keylessSocialReply(query, turns);
@@ -298,7 +318,7 @@ export async function POST(request: Request): Promise<Response> {
       // Discovery ranks on area, mood, budget and group size. Without one,
       // it lists arbitrary pubs, so ask for a constraint. Preserve named-hours
       // results, including refusals and read failures, before this fallback.
-      if (!isVenueHoursQuestion(query) && answer.toolsUsed.length === 1 && answer.toolsUsed[0] === "search_venues") {
+      if (isVenueDiscoveryAnswer(query, answer)) {
         const priorUser = [...turns].reverse().find((turn) => turn.role === "user");
         const { intent } = await parseConciergeIntent(
           refineRoutedAskQuery(query, priorUser?.content, turns.filter((turn) => turn.role === "user").map((turn) => turn.content)),
@@ -361,7 +381,7 @@ async function configuredTurn(turn: PalElevenLabsChatInput, context: PalElevenLa
 
   if (acceptsPalChatStream(request.headers.get("accept"))) return streamTurn(turn, context, request);
 
-  const outcome = await runPalElevenLabsChatTurn(turn, context);
+  const outcome = await runTypedTurn(turn, context);
 
   if (!outcome.ok) {
     return publicApiError(PAL_ERROR_FALLBACK, "UNAVAILABLE", 503, { retryable: true });

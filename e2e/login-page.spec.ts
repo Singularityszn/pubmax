@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { installAuthDoubles } from "./helpers/authDoubles";
+import { storeThemeChoice } from "./helpers/themeClock";
 
 test.use({ serviceWorkers: "block", reducedMotion: "reduce" });
 
@@ -65,6 +66,7 @@ for (const width of [360, 390, 430]) {
   for (const theme of ["light", "dark"] as const) {
     test.describe(`login at ${width}px in ${theme}`, () => {
       test.use({ viewport: { width, height: 844 }, hasTouch: true, isMobile: true, colorScheme: theme });
+      test.beforeEach(({ page }) => storeThemeChoice(page, theme));
 
       test("both doors fit and keep every form action reachable", async ({ page }) => {
         await openLogin(page);
@@ -98,6 +100,7 @@ for (const width of [360, 390, 430]) {
 for (const theme of ["light", "dark"] as const) {
   test.describe(`login hierarchy in ${theme}`, () => {
     test.use({ viewport: { width: 1440, height: 1000 }, colorScheme: theme });
+    test.beforeEach(({ page }) => storeThemeChoice(page, theme));
 
     test("email stays primary with readable resting and hover labels", async ({ page }) => {
       await openLogin(page);

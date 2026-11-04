@@ -15,6 +15,7 @@ import { randomUUID } from "crypto";
 import { HANDLE_MAX, normalizeHandle as normalizeHandleCore } from "@/lib/handleNormalize";
 import type { CityId } from "@/lib/cities";
 import { venueIdMatchesCity } from "@/lib/cityVenueIds";
+import { demoContentEnabled } from "@/lib/demoContent";
 import type { Provenance } from "@/lib/curation";
 import {
   cleanDrinkMeasure,
@@ -582,7 +583,8 @@ export function isPubliclyReadableDrop(
 
 /**
  * Batched id → drop lookup across the in-memory store (ANY status — a hidden
- * drop must be findable so its children can be gated) plus the demo seeds.
+ * drop must be findable so its children can be gated) plus the demo seeds when
+ * demo content is on.
  * One pass over the store regardless of how many ids are asked for, so the
  * comments/reactions visibility gate never does per-id scans.
  */
@@ -595,8 +597,12 @@ export function findPintDropsByIds(ids: readonly string[]): Map<string, PintDrop
       if (wanted.has(d.id)) out.set(d.id, d);
     }
   }
-  for (const d of demoPintDrops) {
-    if (wanted.has(d.id) && !out.has(d.id)) out.set(d.id, d);
+  // Demo content is opt-in (lib/demoContent.ts), so a seed resolves by id only
+  // where the list reads would show it too. Organic rows are never gated here.
+  if (demoContentEnabled()) {
+    for (const d of demoPintDrops) {
+      if (wanted.has(d.id) && !out.has(d.id)) out.set(d.id, d);
+    }
   }
   return out;
 }

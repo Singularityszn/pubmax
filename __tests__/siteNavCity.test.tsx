@@ -1,27 +1,16 @@
 // @vitest-environment jsdom
 
-import { act, type ReactNode } from "react";
+import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { writePreferredCity } from "@/lib/cityPreference";
 
 vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
   usePathname: () => "/places",
   useRouter: () => ({ prefetch: () => {} }),
 }));
-vi.mock("next/link", async () => {
-  const { forwardRef, createElement } = await import("react");
-  return {
-    useLinkStatus: () => ({ pending: false }),
-    default: forwardRef<HTMLAnchorElement, { href: string; children: ReactNode; prefetch?: boolean }>(
-      function Link({ href, children, prefetch: _prefetch, ...props }, ref) {
-        void _prefetch;
-        return createElement("a", { href, ref, ...props }, children);
-      },
-    ),
-  };
-});
 vi.mock("@/components/command/CommandPaletteProvider", () => ({
   useCommandPalette: () => ({ open: () => {} }),
 }));
@@ -43,11 +32,12 @@ import SiteNav from "@/components/nav/SiteNav";
 let host: HTMLDivElement;
 let root: Root;
 
+// Explore is the map's door (captain, 1 Nov 2026).
 function mapLink(): HTMLAnchorElement {
   const link = host.querySelector<HTMLAnchorElement>(
-    '.siteNavLinks a[aria-label="Map"]',
+    '.siteNavLinks a[aria-label="Explore"]',
   );
-  if (!link) throw new Error("Desktop Map link missing");
+  if (!link) throw new Error("Desktop Explore link missing");
   return link;
 }
 
@@ -65,13 +55,13 @@ afterEach(async () => {
   window.localStorage.clear();
 });
 
-it("keeps London fallback and updates Map after choosing Manchester in the same tab", async () => {
+it("keeps London fallback and updates Explore after choosing Manchester in the same tab", async () => {
   expect(mapLink().getAttribute("href")).toBe("/map");
   await act(async () => writePreferredCity("manchester"));
   expect(mapLink().getAttribute("href")).toBe("/map/manchester");
 });
 
-it("updates Map when another tab changes the preferred city", async () => {
+it("updates Explore when another tab changes the preferred city", async () => {
   await act(async () => {
     window.localStorage.setItem("pubmax:preferredCity:v1", "manchester");
     window.dispatchEvent(new StorageEvent("storage", { key: "pubmax:preferredCity:v1" }));

@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import CrawlStoryCopyButton from "@/components/crawl/CrawlStoryCopyButton";
 import CrawlStoryOwnerControls from "@/components/crawl/CrawlStoryOwnerControls";
+import HostOnDate from "@/components/crawls/HostOnDate";
 import PlacePhoto from "@/components/listing/PlacePhoto";
 import type { PlacePhoto as PlacePhotoData } from "@/components/listing/placePhotoRules";
 import ShareBar from "@/components/share/ShareBar";
@@ -205,6 +206,15 @@ export default function CrawlStoryPoster({
         <div className="storyShare">
           <ShareBar url={`/crawls/${slug}`} title={story.title} text={shareText} />
         </div>
+
+        <HostOnDate
+          title={story.title}
+          stops={story.stops
+            .slice()
+            .sort((left, right) => left.position - right.position)
+            .map((stop) => ({ venueId: stop.venueId, venueName: stop.venueName }))}
+          returnPath={`/crawls/${slug}`}
+        />
 
         <p className="storyFootnote">Pubs, prices and the route between them.</p>
       </Screen>

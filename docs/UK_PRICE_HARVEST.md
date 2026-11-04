@@ -298,6 +298,13 @@ so failed batches recover the decision for the same item.
 * **An estate page must NAME the pub.** A host serving one pub is that pub's own
   site. A host serving an estate is not, and attributing its home page price to
   every pub on it turns one figure into hundreds of wrong ones.
+* **A page that names another branch is not this pub's.** A host the snapshot
+  gives one pub can still be a chain: its other branches simply carry no OSM
+  website tag. A path segment after `locations`, `venues`, `pubs` and kin names
+  a branch, and the page is this pub's only when that segment shares a word with
+  the pub's name, locality, address or own website path
+  (`pageNamesAnotherBranch`). The first read put the Barnsley Botanist's offers
+  on the Birmingham one, and Simmons Shoreditch's prices on Simmons Camden.
 
 Every rejection is counted under its own reason and printed. A skip is a
 finding: "we crawled 7,000 sites and found 900 prices" is only honest beside the

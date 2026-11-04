@@ -170,4 +170,17 @@ describe("legDistances", () => {
     expect(distances[1]).toMatchObject({ fromIndex: 1, toIndex: 2, source: "straight" });
     expect(defined(distances[1]).distanceKm).toBeCloseTo(haversineKm(B, C), 9);
   });
+
+  it("puts each leg's middle on its drawn path, halfway along it by distance", () => {
+    const corner: LngLat = [-0.1, 51.52];
+    const [routed, straight] = legDistances([
+      { fromIndex: 0, toIndex: 1, coordinates: [[-0.1, 51.51], corner, [-0.09, 51.52]], source: "ors" },
+      { fromIndex: 1, toIndex: 2, coordinates: [[-0.09, 51.52], [-0.07, 51.52]], source: "straight" },
+    ]);
+    // The first run north is longer than the run east, so the middle is on it.
+    const mid = defined(defined(routed).midpoint);
+    expect(mid[0]).toBeCloseTo(-0.1, 9);
+    expect(haversineKm([-0.1, 51.51], mid)).toBeCloseTo(defined(routed).distanceKm / 2, 6);
+    expect(defined(straight).midpoint).toEqual([-0.08, 51.52]);
+  });
 });

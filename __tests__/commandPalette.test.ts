@@ -149,7 +149,7 @@ describe("real command registry", () => {
     expect(recordedPaths["nav-profile"]).toBe("/u/you");
     expect(recordedPaths["action-pint-drop"]).toBe("/map?log=1");
     expect(recordedPaths["action-start-plan"]).toBe("/plan");
-    expect(recordedPaths["action-build-crawl"]).toBe("/map");
+    expect(recordedPaths["action-build-crawl"]).toBe("/map?mode=build&plan=1");
   });
 
   // QA journeys F16: "histor" answered "No matches" because the palette listed
@@ -184,6 +184,12 @@ describe("real command registry", () => {
     expect(destination(first!)).toBe("/historic");
   });
 
+  it("finds Spoons by its label and opens the recorded-price page", () => {
+    const [first] = filterCommands(commands, "Spoons");
+    expect(first).toBeDefined();
+    expect(destination(first!)).toBe("/spoons-value");
+  });
+
   it("finds each page the More menu lists by its own label", () => {
     for (const link of SITE_NAV_MORE_LINKS) {
       // Social is renamed for the launch state at render time, so its label is
@@ -198,6 +204,8 @@ describe("real command registry", () => {
 
   it("finds Tonight (Out folded into it), Places, Near, Pal, Drink Wall and the Pint Index", () => {
     const expected: Record<string, string> = {
+      // Explore is the map's tab name (captain, 1 Nov 2026).
+      explore: "/map",
       tonight: "/tonight",
       places: "/places",
       out: "/tonight",

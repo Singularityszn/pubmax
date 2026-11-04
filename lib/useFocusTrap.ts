@@ -2,8 +2,11 @@
 
 import { useEffect, type RefObject } from "react";
 
+// A fold's own <summary> takes Tab like a button. Left out, a sheet that ends
+// on a fold (the venue Overview's) let Tab from that last heading fall out of
+// the trap onto the page body (e2e/map-accessibility.spec.ts).
 const FOCUSABLE_SELECTOR =
-  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  'a[href], button:not([disabled]), details > summary:first-of-type, input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /**
  * A trap may only stand the rest of the page down when its own container is
@@ -298,8 +301,22 @@ function visibleFocusables(root: HTMLElement): HTMLElement[] {
   return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
     // An exempt surface can become inert while staying mounted and laid out.
     // Read its current state on each Tab, including inherited hidden state.
-    (node) => node.offsetParent !== null && !node.closest('[inert], [aria-hidden="true"]'),
+    (node) =>
+      node.offsetParent !== null &&
+      shownByBrowser(node) &&
+      !node.closest('[inert], [aria-hidden="true"]'),
   );
+}
+
+/**
+ * A closed <details> keeps its content laid out under `content-visibility:
+ * hidden`, so `offsetParent` still answers for a button inside it while Tab
+ * skips that button. Counted, it stood as the trap's last stop, and Tab from
+ * the fold heading before it fell out of the drawer onto the page body.
+ * `checkVisibility` says what Tab sees; where it is missing, nothing changes.
+ */
+function shownByBrowser(node: HTMLElement): boolean {
+  return typeof node.checkVisibility !== "function" || node.checkVisibility();
 }
 
 function outsideSiblings(

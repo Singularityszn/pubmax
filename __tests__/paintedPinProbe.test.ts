@@ -282,6 +282,7 @@ describe("paintedMapTapPoints", () => {
     ["same-layer first hit", "pubs-point", "pubs-point", false],
     ["ordinary pub over selected pub", "pubs-point-selected", "pubs-point", true],
     ["price pill over ordinary pub", "pubs-point", "pubs-price-pill", true],
+    ["ordinary pill over the selected pill", "pubs-price-pill-selected", "pubs-price-pill", true],
   ] as const)("omits a nonwinning point: %s", (_name, losingLayer, winningLayer, loserFirst) => {
     const loser = { ...PIN_A, layer: losingLayer };
     const winner = { ...PIN_B, layer: winningLayer };
@@ -324,6 +325,14 @@ describe("paintedMapTapPoints", () => {
       { kind: "pin", id: "pub-a", x: 120, y: 400, lng: -0.1, lat: 51.5 },
       { kind: "pin", id: "pub-b", x: 220, y: 500, lng: -0.2, lat: 51.6 },
       { kind: "cluster", id: "77", x: 180, y: 300, lng: -0.3, lat: 51.7 },
+    ]);
+  });
+
+  it("answers the selected pub's inverted pill as a tappable pin", () => {
+    const selected = { ...PIN_A, layer: "pubs-price-pill-selected" };
+    const map = makeMap({ painted: [selected], layers: ["pubs-price-pill-selected", "clusters"] });
+    expect(paintedMapTapPoints(map)).toEqual([
+      { kind: "pin", id: "pub-a", x: 120, y: 400, lng: -0.1, lat: 51.5 },
     ]);
   });
 

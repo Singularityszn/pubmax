@@ -17,12 +17,11 @@ import {
   writePalNightAnswer,
   type PalNightChoice,
 } from "@/lib/palNightQuestion";
-import { isClassicPlanInviteToken, planCrewSharePath } from "@/lib/planCrewInviteUrl";
+import { planInviteShareUrl } from "@/lib/planCrewInviteUrl";
 import { ensurePlanInviteToken } from "@/lib/planInviteTokenClient";
 import { planPalRouteHandoffHref } from "@/lib/planOccasion";
 import { safeLocalStorage } from "@/lib/safeStorage";
 import { shareNightObject } from "@/lib/shareSheet";
-import { siteOrigin } from "@/lib/siteUrl";
 import "./palNightQuestion.css";
 
 // The Pal's evening question on /pal (lib/palNightQuestion.ts). Each answer is
@@ -33,13 +32,15 @@ import "./palNightQuestion.css";
 
 type Asked = { open: boolean; answer: PalNightChoice | null };
 
-// The crew link leaves the site, so it carries a host, as the plan page's own
-// invite does (components/plan/PlanInviteNextStep.tsx).
-function absoluteUrl(path: string): string {
+// ONE LINK (lib/planCrewInviteUrl.ts): the crew link is the public invite
+// page, `/invite/{token}`, with a host because it leaves the site, the same
+// link every host share surface sends. Null when the token is not a classic
+// one, so the Pal never shares a bare plan id.
+function crewInviteUrl(token: string | null): string | null {
   try {
-    return new URL(path, siteOrigin(window.location.href) ?? window.location.origin).toString();
+    return planInviteShareUrl(token, window.location.href);
   } catch {
-    return path;
+    return null;
   }
 }
 
@@ -80,10 +81,8 @@ function useTonightsCrew(): Crew | null {
       void ensurePlanInviteToken(planId).then(
         (token) => {
           if (!active || mine !== generation) return;
-          setCrew({
-            planId,
-            invite: token && isClassicPlanInviteToken(token) ? { url: absoluteUrl(planCrewSharePath(planId, token)) } : "none",
-          });
+          const url = crewInviteUrl(token);
+          setCrew({ planId, invite: url ? { url } : "none" });
         },
         () => {
           if (active && mine === generation) setCrew({ planId, invite: "none" });
@@ -103,7 +102,7 @@ function useTonightsCrew(): Crew | null {
 
 /**
  * "Who's coming?": once tonight's plan is saved and on, the Pal hands the
- * person its real crew link (`/plan/{id}#invite=…`), so mates join the same
+ * person its real crew link (`/invite/{token}`), so mates join the same
  * night. The invite token is read while the card is on screen, so the tap goes
  * straight to the share sheet. Without a token it opens the plan's own invite
  * tools, and it never shares a bare `/plan/{id}`, which cannot join.
@@ -137,8 +136,8 @@ function PalNightCrew({ crew, palName }: { crew: Crew; palName: string }) {
       <button type="button" className="palNightQuestionOpen" onClick={() => void share()}>
         Who&apos;s coming?
       </button>
-      {sent === "sent" ? <p className="palNightQuestionNote" role="status">Sent. Now they tap I&apos;m in.</p> : null}
-      {sent === "whatsapp" ? <p className="palNightQuestionNote" role="status">Ready in WhatsApp. Send it, then they tap I&apos;m in.</p> : null}
+      {sent === "sent" ? <p className="palNightQuestionNote" role="status">Sent. Now they tap Going.</p> : null}
+      {sent === "whatsapp" ? <p className="palNightQuestionNote" role="status">Ready in WhatsApp. Send it, then they tap Going.</p> : null}
       {sent === "failed" ? (
         <p className="palNightQuestionNote" role="status">
           That didn&apos;t send. <Link href={invitePage}>Send it from the plan</Link>

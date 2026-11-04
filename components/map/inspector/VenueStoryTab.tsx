@@ -12,6 +12,8 @@ import { heritageSourceLabel } from "@/lib/historicFilter";
 import DataCreditsLink from "@/components/legal/DataCreditsLink";
 import { heritageReadLabel, sanitizeHeritageFacts, type HeritageFact } from "@/lib/heritageFacts";
 import { presentableDescription } from "@/lib/slopFilter";
+import { heritageFactNamesAYear } from "@/lib/crawlBingo";
+import { noteCrawlBingoAction } from "@/lib/crawlBingoNightLog";
 import type { DropWithPhotos } from "@/components/map/usePintDrops";
 import { bandsForVenue, type StoryBand } from "@/lib/storyBands";
 import { nearestLandmarks, type Landmark } from "@/lib/landmarks";
@@ -117,6 +119,14 @@ export default function VenueStoryTab({
     return () => controller.abort();
   }, [heritageReady, venue.id, venue.name]);
 
+  // Pub crawl bingo (lib/crawlBingo.ts): opening this tab reads the pub's
+  // history card, and a dated fact on it is the oldest thing in the pub.
+  useEffect(() => {
+    if (tab !== "story") return;
+    noteCrawlBingoAction("historyCard", venue.id);
+    if (heritageFacts.some((fact) => heritageFactNamesAYear(fact.fact))) noteCrawlBingoAction("oldest", venue.id);
+  }, [tab, venue.id, heritageFacts]);
+
   return (
     <div
       role="tabpanel"
@@ -161,6 +171,7 @@ export default function VenueStoryTab({
                       href={fact.sourceRef}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onClick={fact.source === "nhle" ? () => noteCrawlBingoAction("listed", venue.id) : undefined}
                     >
                       Source
                       <ExternalLink size={14} />
@@ -196,7 +207,9 @@ export default function VenueStoryTab({
       ) : heritageFacts.length === 0 ? (
         <p className="description muted">
           {isPubVenueKind(venue.kind)
-            ? `No heritage note for ${venue.name} yet. Log a Pint Drop below with a passed-down story to be the first to give this pub some character.`
+            ? // The Pint Drop door is on the Prices tab, not below this line, so
+              // the sentence names the tab (launch UX micro-fix 6).
+              `No heritage note for ${venue.name} yet. Know a story passed down about it? Open the Prices tab and log it with a Pint Drop.`
             : `No sourced story has been added for this ${venueNoun}.`}
         </p>
       ) : null}

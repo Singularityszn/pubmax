@@ -32,6 +32,14 @@ describe("directVenueImageUrl", () => {
 // (components/media/VenueImage.tsx). These tests exercise the pure logic;
 // the component itself is DOM-only and covered by the Playwright shots.
 describe("resolveVenueImage", () => {
+  it("refuses a photo with unknown provenance and continues to a known source", () => {
+    const unknown = { url: "https://unknown.example/photo.jpg", provenance: "unknown" };
+    const community = { url: "https://storage.example/photo.jpg", provenance: "community" as const };
+    const sources = [unknown, community] as Parameters<typeof resolveVenueImage>[0];
+    expect(resolveVenueImage(sources)).toEqual({ url: community.url, provenance: "community" });
+    expect(resolveVenueImage([unknown] as Parameters<typeof resolveVenueImage>[0])).toBeNull();
+  });
+
   it("picks the first source in priority order — chain before community", () => {
     const resolved = resolveVenueImage([
       { url: "https://pub.example.com/photo.jpg", provenance: "chain" },

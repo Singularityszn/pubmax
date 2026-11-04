@@ -1,8 +1,8 @@
 // Preferred city for Map nav / Drop — localStorage-backed, SSR-safe.
 //
 // When unset, Map links stay on `/map` (London back-compat). CitySwitcher and
-// the geolocation suggest banner write here so the next Map tab tap opens the
-// city the viewer last chose (or was near).
+// the geolocation suggest banner write here so the next Explore tab tap opens
+// the city the viewer last chose (or was near).
 
 import type { Route } from "next";
 import { getCity, parseCityId, type CityId } from "@/lib/cities";

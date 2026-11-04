@@ -40,6 +40,10 @@ import type { PintTrustState } from "@/lib/pintTrust";
 export const SECOND_DRINKER_STATES = [
   "logged-once",
   "disputed",
+  // A typed price with no bill (captain decision 9) is owed a second drinker
+  // more plainly than any: their agreeing report is the only way it reaches
+  // the map, so it gets the same "Still £4.50?" door.
+  "unchecked",
   "aged-out",
 ] as const satisfies readonly PintTrustState[];
 

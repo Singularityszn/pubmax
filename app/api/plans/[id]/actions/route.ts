@@ -15,6 +15,13 @@ assertServerEnv();
 type Context = { params: Promise<{ id: string }> };
 const ACTIONS: PlanActionDTO["type"][] = ["arrived", "skipped", "swapped"];
 
+function actionFailure(error: string): Response {
+  const status = error === "forbidden" ? 403 : error === "not_found" ? 404 : error === "error" ? 503 : error === "conflict" ? 409 : 400;
+  const message = error === "forbidden" ? "That member token cannot update this Plan." : error === "not_found" ? "That Plan doesn't exist." : error === "error" ? "The Plan update is temporarily unavailable." : "Could not record the action.";
+  const code = error === "forbidden" ? "PLAN_ACTION_FORBIDDEN" : error === "not_found" ? "PLAN_NOT_FOUND" : error === "error" ? "PLAN_ACTION_UNAVAILABLE" : error === "conflict" ? "PLAN_IDEMPOTENCY_CONFLICT" : "PLAN_ACTION_INVALID";
+  return publicApiError(message, code, status, { retryable: error === "error" });
+}
+
 export async function POST(request: Request, context: Context): Promise<Response> {
   const limiterKey = `plan-actions:${hashIp(clientIp(request))}`;
   if (await isLimited(limiterKey, limiterKey, 30)) {
@@ -28,22 +35,25 @@ export async function POST(request: Request, context: Context): Promise<Response
   const type = typeof body.type === "string" && ACTIONS.includes(body.type as PlanActionDTO["type"]) ? body.type as PlanActionDTO["type"] : null;
   const stopPosition = typeof body.stopPosition === "number" && Number.isInteger(body.stopPosition) && body.stopPosition >= 0 && body.stopPosition < 8 ? body.stopPosition : undefined;
   if (!type || stopPosition === undefined) return publicApiError("Add a valid stop action.", "PLAN_ACTION_INVALID", 400);
+  const bound = body.expectedRouteRevision !== undefined || body.venueId !== undefined;
+  if (bound && (!Number.isInteger(body.expectedRouteRevision) || Number(body.expectedRouteRevision) < 1
+    || typeof body.venueId !== "string" || !body.venueId.trim())) {
+    return publicApiError("Add the original route revision and venue.", "PLAN_ACTION_INVALID", 400);
+  }
+  const binding = bound ? { expectedRouteRevision: body.expectedRouteRevision as number, venueId: body.venueId as string } : {};
   const idempotencyKey = planMutationIdempotencyKey(request, body);
   if (!idempotencyKey) return publicApiError(PLAN_IDEMPOTENCY_ERROR.error, PLAN_IDEMPOTENCY_ERROR.code, 400);
-  const result = await planStore().addAction(id, planMemberCapability(request, body.memberToken), { type, stopPosition, idempotencyKey });
+  const result = await planStore().addAction(id, planMemberCapability(request, body.memberToken), { type, stopPosition, idempotencyKey, ...binding });
   if (!result.ok) {
-    const status = result.error === "forbidden" ? 403 : result.error === "not_found" ? 404 : result.error === "error" ? 503 : result.error === "conflict" ? 409 : 400;
-    const error = result.error === "forbidden" ? "That member token cannot update this Plan." : result.error === "not_found" ? "That Plan doesn't exist." : result.error === "error" ? "The Plan update is temporarily unavailable." : "Could not record the action.";
-    const code = result.error === "forbidden" ? "PLAN_ACTION_FORBIDDEN" : result.error === "not_found" ? "PLAN_NOT_FOUND" : result.error === "error" ? "PLAN_ACTION_UNAVAILABLE" : result.error === "conflict" ? "PLAN_IDEMPOTENCY_CONFLICT" : "PLAN_ACTION_INVALID";
-    return publicApiError(error, code, status, { retryable: result.error === "error" });
+    return actionFailure(result.error);
   }
 
   // Quiet Wanted fulfilment when a signed-in owner arrives at a saved stop.
   let wantedNote: string | undefined;
   let wantedFulfilled = 0;
-  if (type === "arrived") {
+  if (type === "arrived" && bound) {
     const stop = result.plan.stops.find((row) => row.position === stopPosition);
-    if (stop?.venueId) {
+    if (stop?.venueId && stop.venueId === binding.venueId) {
       const contributor = await resolveContributionIdentity(request);
       if (contributor.ok) {
         const fulfilled = await fulfilWantedsAtVenue(contributor.actor, stop.venueId);

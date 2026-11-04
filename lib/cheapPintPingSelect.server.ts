@@ -5,7 +5,7 @@ import {
   type CheapPintPingPayload,
 } from "@/lib/cheapPintPing";
 import { getNightArea, type NightAreaSlug } from "@/lib/nightAreas";
-import { rankNearMe, type PricedPoint } from "@/lib/nearMeAnswer";
+import { rankNearMe, venueToPricedPoint } from "@/lib/nearMeAnswer";
 import { nightProfileStore } from "@/lib/nightProfileStore";
 import { accountIdForOwnerActor } from "@/lib/stepOutNudgeSelect.server";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
@@ -15,18 +15,6 @@ export type CheapPintPingSelectDeps = {
   nightAreaForAccount: (accountId: string) => Promise<NightAreaSlug | null>;
   listPricedVenues: () => Promise<Venue[]>;
 };
-
-function toPricedPoint(venue: Venue): PricedPoint {
-  return {
-    id: venue.id,
-    name: venue.name,
-    lat: venue.latitude,
-    lng: venue.longitude,
-    cheapestPrice: venue.cheapestPrice,
-    borough: venue.primaryBorough,
-    kind: "pub",
-  };
-}
 
 function defaultCheapPintPingSelectDeps(): CheapPintPingSelectDeps {
   return {
@@ -57,7 +45,7 @@ export async function selectCheapPintPing(
   if (!area) return null;
 
   const venues = await deps.listPricedVenues();
-  const answer = rankNearMe(area.centre.lat, area.centre.lng, venues.map(toPricedPoint), {
+  const answer = rankNearMe(area.centre.lat, area.centre.lng, venues.map(venueToPricedPoint), {
     minAnswers: 1,
     maxAnswers: 1,
   });

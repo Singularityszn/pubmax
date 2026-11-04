@@ -36,6 +36,12 @@ test.describe("mobile Social actions", () => {
 
   test("signed-out Social door stays thumb-safe without overflow", async ({ page }) => {
     const errors = watchPageErrors(page);
+    let releaseLane!: () => void;
+    const lanePending = new Promise<void>((resolve) => { releaseLane = resolve; });
+    await page.route("**/api/social/posts?lane=london**", async (route) => {
+      await lanePending;
+      await route.fulfill({ json: { posts: [], nextCursor: null } });
+    });
 
     const response = await page.goto("/feed");
     expect(response?.status()).toBe(200);
@@ -48,16 +54,36 @@ test.describe("mobile Social actions", () => {
     await expect(page.locator(".feedCard")).toHaveCount(0);
     await expectNoHorizontalOverflow(page);
 
-    const primary = page.locator("[data-primary-action]").getByRole("link", {
+    const primarySlot = page.locator("[data-primary-action]").filter({ visible: true });
+    const loadingSignIn = primarySlot.getByRole("link", {
       name: "Sign in",
+      exact: true,
     });
-    await expectTappable(primary, "Social Sign in");
+    await expectTappable(loadingSignIn, "Social loading Sign in");
     await expect(
       page.getByRole("status").getByRole("link", { name: "Sign in" }),
     ).toHaveCount(0);
-    await expect(page.getByText("Sign in to use Social.")).toBeVisible();
+    // The read-only London lane sits under the door (captain decision 7).
+    await expect(page.getByRole("heading", { name: "Across London", exact: true })).toBeVisible();
 
+    // A response may promote the primary only after the reader leaves it.
+    await loadingSignIn.focus();
+    releaseLane();
+    await expect(page.locator(".socialLondonEmpty")).toBeVisible();
+    await expect(loadingSignIn).toBeFocused();
+    await expectTappable(loadingSignIn, "Focused Social Sign in");
+    await expect(primarySlot.getByRole("link", { name: "Plan a night", exact: true })).toHaveCount(0);
+    await page.locator(".socialSwitcher a").first().focus();
+    const primary = primarySlot.getByRole("link", { name: "Plan a night", exact: true });
+    await expectTappable(primary, "Social Plan a night");
+    const bodySignIn = page.locator(".socialEmptySignIn").getByRole("link", { name: "Sign in", exact: true });
+    await expect(bodySignIn).toBeVisible();
     await expectNoHorizontalOverflow(page);
+    await primary.click();
+    await expect(page).toHaveURL(/\/plan\/?$/);
+    await page.goto("/social");
+    await bodySignIn.click();
+    await expect(page).toHaveURL(/\/login\?mode=signin&from=%2Fsocial/);
     expect(errors).toEqual([]);
   });
 });

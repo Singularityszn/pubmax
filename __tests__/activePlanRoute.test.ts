@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { planStopsToRouteVenues } from "@/lib/activePlanRoute";
+import { planNextStopVenue, planStopsToRouteVenues } from "@/lib/activePlanRoute";
 import type { PlanStopDTO } from "@/lib/plan";
 import type { Venue } from "@/lib/venues";
 
@@ -74,5 +74,29 @@ describe("planStopsToRouteVenues", () => {
     const snapshot = stops.map((s) => s.venueId);
     planStopsToRouteVenues(stops, index(a, b, c));
     expect(stops.map((s) => s.venueId)).toEqual(snapshot);
+  });
+});
+
+describe("planNextStopVenue", () => {
+  const a = v("a", -0.13, 51.51);
+  const b = v("b", -0.14, 51.52);
+  const c = v("c", -0.12, 51.5);
+  const stops = [stop("c", 2), stop("a", 0), stop("b", 1)];
+
+  it("is the stop after the Night Mode cursor, in the plan's stored order", () => {
+    expect(planNextStopVenue(stops, 0, index(a, b, c))?.id).toBe("b");
+    expect(planNextStopVenue(stops, 1, index(a, b, c))?.id).toBe("c");
+  });
+
+  it("is null on the last stop, and holds a cursor out of range to the plan", () => {
+    expect(planNextStopVenue(stops, 2, index(a, b, c))).toBeNull();
+    expect(planNextStopVenue(stops, 9, index(a, b, c))).toBeNull();
+    expect(planNextStopVenue(stops, -3, index(a, b, c))?.id).toBe("b");
+  });
+
+  it("is null when the next pub is not on the map, or there is no plan to walk", () => {
+    expect(planNextStopVenue(stops, 0, index(a, c))).toBeNull();
+    expect(planNextStopVenue([stop("a", 0)], 0, index(a))).toBeNull();
+    expect(planNextStopVenue(null, 0, index(a))).toBeNull();
   });
 });

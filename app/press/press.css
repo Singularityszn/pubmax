@@ -1,0 +1,33 @@
+/* /press borrows the legal shell (app/legal.css). Only three things are its own:
+   the quoted finding, the credit line, and the embed code block. Launch tokens
+   only, so both themes track automatically. */
+
+.pressQuote {
+  margin: 0;
+  padding-left: var(--space-4);
+  border-left: 2px solid var(--line-soft);
+}
+
+.pressQuote p {
+  margin: 0;
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  color: var(--ink);
+}
+
+.pressCredit {
+  overflow-wrap: anywhere;
+}
+
+.pressCode {
+  margin: 0;
+  padding: var(--space-4);
+  overflow-x: auto;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  font-family: var(--font-data);
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  color: var(--ink);
+  white-space: pre;
+}

@@ -15,13 +15,13 @@ test("legacy view-mode state cannot replace the current mobile navigation", asyn
   await page.goto("/feed");
 
   const nav = page.getByRole("navigation", { name: "Primary" });
-  for (const label of ["Map", "Tonight", "Plan", "Social", "You"]) {
+  for (const label of ["Explore", "Tonight", "Plan", "Social", "You"]) {
     await expect(nav.getByRole("link", { name: label, exact: true })).toBeVisible();
   }
-  // The create action is a sibling of the bar, never inside it: compose is an
-  // action, and the bar holds destinations only.
-  await expect(page.getByRole("button", { name: "Create" })).toBeVisible();
-  await expect(nav.getByRole("button", { name: "Create" })).toHaveCount(0);
+  // The bar holds destinations only: five tabs and nothing else (captain,
+  // 1 Nov 2026). Compose is an action, and the floating create button is gone.
+  await expect(nav.getByRole("link")).toHaveCount(5);
+  await expect(page.getByRole("button", { name: "Create" })).toHaveCount(0);
   await expect(page.getByRole("radio", { name: /ledger|lock-in/i })).toHaveCount(0);
 
   // /feed is a Social alias, so the Social tab is the one lit destination.

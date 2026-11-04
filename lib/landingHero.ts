@@ -154,12 +154,15 @@ export function railHeading(scope: LandingAnswerScope, area: string): string {
 }
 
 /**
- * The hero's quiet row (#1488, rebuilt 7 Sep 2026).
+ * The hero's quiet row (#1488, rebuilt 7 Sep 2026, and again 1 Nov 2026).
  *
- * Tonight had no tap at all on the phone's home screen: the landing bar hides
- * its link list under 960px, the six-tab dock carries Now rather than Tonight,
- * and the only rendered `/tonight` link sat in the footer about 3,500px down.
- * It keeps its place here.
+ * Under the hunt card the front door offers two things to do with a cheap
+ * pint: find the cheapest near you (the primary) and plan a crawl (captain
+ * decision 2, 1 Nov 2026). Plan a crawl took the place of "What's on tonight",
+ * which #1488 put here because Tonight then had no tap on the phone's home
+ * screen. It has one now: the five-tab dock (decision 13) carries Tonight on
+ * every route, the landing included, and the bar's link row carries it from
+ * 641px. The Screen primitive caps this row at two doors, so one had to go.
  *
  * The Pint Drop door rides beside it as the FIRST quiet door. It was the
  * landing's primary until the captain moved the front door onto `/near`, and it
@@ -167,15 +170,14 @@ export function railHeading(scope: LandingAnswerScope, area: string): string {
  * in this table. `components/landing/LandingHero.tsx` renders it and this table
  * holds the rest of the row.
  */
-const TONIGHT_DOOR_HREF = "/tonight";
-// "Tonight" alone read as a heading, not a door (UX audit 16 Oct 2026).
-const TONIGHT_DOOR_LABEL = "What's on tonight";
+const PLAN_DOOR_HREF = "/plan";
+const PLAN_DOOR_LABEL = "Plan a crawl";
 
 export type LandingQuietDoor = {
   href: Route;
   label: string;
   /** The `landing_cta_clicked` target this door reports. */
-  cta: "tonight";
+  cta: "plan";
   /** A class the door carries for its own width rule, where it has one. */
   className?: string;
 };
@@ -189,10 +191,10 @@ export type LandingQuietDoor = {
  */
 export const LANDING_QUIET_DOORS: readonly LandingQuietDoor[] = [
   {
-    href: TONIGHT_DOOR_HREF,
-    label: TONIGHT_DOOR_LABEL,
-    cta: "tonight",
-    className: "lpTonightDoor",
+    href: PLAN_DOOR_HREF,
+    label: PLAN_DOOR_LABEL,
+    cta: "plan",
+    className: "lpPlanDoor",
   },
 ];
 

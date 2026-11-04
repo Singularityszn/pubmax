@@ -24,16 +24,23 @@ function tracingIncludes(): Record<string, string[]> {
 }
 
 describe("Social data-file tracing", () => {
-  it("ships only the city packs that public Social discovery opens on the server", () => {
+  it("ships the public discovery packs and the empty lane's attributed menu observations", () => {
     const files = tracingIncludes()["/social"];
     const expected = listEnabledCities().map(
       (city) => `./public${city.slimVenuesPath}`,
     );
-    const priceOverlay = registry.datasets.find(
-      (dataset) => dataset.id === "drink_price_updates",
-    )?.artifact;
-
-    expect(files).toEqual(expected);
-    expect(files).not.toContain(`./${priceOverlay}`);
+    for (const id of ["drink_price_updates", "food_price_updates"]) {
+      const artifact = registry.datasets.find((dataset) => dataset.id === id)?.artifact;
+      expect(artifact).toBeTruthy();
+      expected.push(`./${artifact}`);
+    }
+    expected.push("./public/data/pint_prices_app_dataset.json", "./public/data/uk_prices/rows.json", "./data/generated/uk_pub_search.json");
+    // The UK bundle resolves former venue IDs through all three alias packs.
+    expected.push(
+      "./public/data/venue_id_aliases.json",
+      "./public/data/cities/venue_id_aliases.json",
+      "./public/data/uk_base_venue_id_aliases.json",
+    );
+    expect(new Set(files)).toEqual(new Set(expected));
   });
 });

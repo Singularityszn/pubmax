@@ -1,4 +1,6 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+import { openOverviewFold } from "./helpers/overviewFolds";
 
 // Signed out, the venue sheet used to stack its prompts: the list picker stayed
 // open under a "Saving..." button and a "Claim a handle" line, and the
@@ -6,6 +8,13 @@ import { expect, test } from "@playwright/test";
 // slot at a time and the link uses the launch accent ink.
 
 const VENUE = "/map?sel=venue-eltcmh";
+
+// "I'm here" lives in the Tonight fold and the list and night saves in Your
+// record (lib/venueOverviewFolds.ts). Both open before a prompt is tapped.
+async function openPromptFolds(page: Page): Promise<void> {
+  await openOverviewFold(page, "tonight", 60_000);
+  await openOverviewFold(page, "record", 60_000);
+}
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
@@ -16,6 +25,7 @@ test.beforeEach(async ({ page }) => {
 
 test("check-in prompt link uses the launch accent, not browser blue", async ({ page }) => {
   await page.goto(VENUE);
+  await openPromptFolds(page);
   const link = page.getByRole("link", { name: "Set yours" });
   // The check-in tap does nothing until the auth state resolves, so retry it.
   await expect(async () => {
@@ -29,6 +39,7 @@ test("check-in prompt link uses the launch accent, not browser blue", async ({ p
 
 test("opening a second prompt closes the first", async ({ page }) => {
   await page.goto(VENUE);
+  await openPromptFolds(page);
   await page.getByRole("button", { name: /to a list/ }).click();
   await expect(page.getByRole("region", { name: "Save this venue to a list" })).toBeVisible();
 
@@ -45,6 +56,7 @@ test("opening a second prompt closes the first", async ({ page }) => {
 
 test("the price sign-in prompt folds away when another prompt opens", async ({ page }) => {
   await page.goto(VENUE);
+  await openPromptFolds(page);
   await page.getByRole("button", { name: /Log (tonight's|a) price|Add a price/i }).first().click();
   await expect(page.getByRole("heading", { name: "Sign in to add a price" })).toBeVisible();
 

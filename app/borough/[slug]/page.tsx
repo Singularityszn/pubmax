@@ -26,6 +26,7 @@ import { loadPintPriceLandingVenues } from "@/lib/pintPriceLandingDataset.server
 import { boroughFromSlug, pubsInBorough, slugifyBorough } from "@/lib/boroughs";
 import { boroughPlacePhoto, londonPlacePhoto } from "@/components/listing/placePhotoRules";
 import { loadBoroughHeritage, NOTABLE_CAP } from "@/lib/boroughHeritage";
+import { boroughNamedRouteLinks, boroughNightAreaLinks } from "@/lib/boroughNeighbourhoodLinks";
 import { curatedCrawlMapHref, curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import SiteNav from "@/components/nav/SiteNav";
 import EmptyState from "@/components/ui/empty-state";
@@ -134,7 +135,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const title = `The cheapest pints and best pubs in ${name}`;
   const cardTitle = appPageTitle(title);
   const pubs = pubsInBorough(venues, slug);
-  const cheapest = pubs.find((pub) => typeof pub.cheapestPrice === "number")?.cheapestPrice;
+  const cheapest = pintFactStats(pubs, name, slug).minGbp;
   const description =
     typeof cheapest === "number"
       ? `${pubs.length} pubs in ${name}, ranked cheapest-first. Pints from ${formatPrice(
@@ -240,11 +241,14 @@ export default async function BoroughPage({ params }: PageProps) {
   const pubs = pubsInBorough(venues, slug);
   const storyPubs = pubs.filter((pub) => pub.hasStory);
   const touchingCrawls = crawlsTouchingBorough(curatedCrawls, venues, slug);
-  // Cheapest-first sort already applied by pubsInBorough — first numeric
-  // price is our dataset's cheapest pint here. Used only for the CityMCP
-  // card's optional "vs our map" one-liner.
-  const ourCheapestPrice =
-    pubs.find((pub) => typeof pub.cheapestPrice === "number")?.cheapestPrice ?? null;
+  // Soho, Shoreditch and the named route pages, linked from the borough that
+  // holds them (SEO audit #2126, finding 17). No new area page is published.
+  const neighbourhoodLinks = [
+    ...boroughNightAreaLinks(slug, venues),
+    ...boroughNamedRouteLinks(slug, venues),
+  ];
+  const factStats = pintFactStats(pubs, name, slug);
+  const ourCheapestPrice = factStats.minGbp;
   // Borough-heritage rollup (Wave H): cited historic pubs in this area. null
   // when the borough has none — the section then renders nothing (no empty box).
   const heritage = await loadBoroughHeritage(slug);
@@ -264,7 +268,6 @@ export default async function BoroughPage({ params }: PageProps) {
     boroughSlug,
     freshAreaNews(areaNewsRead.entries),
   ).slice(0, NEW_ROUND_HERE_CAP) : [];
-  const factStats = pintFactStats(pubs, name, boroughSlug);
   const faq = faqItems(factStats, {
     monthYear: formatMonthYear(observedAt),
     year: String(observedAt.getFullYear()),
@@ -340,7 +343,6 @@ export default async function BoroughPage({ params }: PageProps) {
               {pubs.map((pub, index) => (
                 <RowListItem
                   key={pub.id}
-                  className="createFabLane"
                   href={venueMapUrl(pub.id)}
                   lead={<span className="boroughRank">{index + 1}</span>}
                   title={pub.name}
@@ -474,6 +476,11 @@ export default async function BoroughPage({ params }: PageProps) {
             <li>
               <Link prefetch={false} href={boroughBrowseMapUrl(name)}>{name} on the map</Link>
             </li>
+            {neighbourhoodLinks.map((link) => (
+              <li key={link.href}>
+                <Link prefetch={false} href={link.href}>{link.label}</Link>
+              </li>
+            ))}
             <li>
               <Link href="/pint-index">London Pint Index</Link>
             </li>

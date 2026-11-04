@@ -37,10 +37,9 @@ export async function loadDrinkBrandAreaLanding(
   );
 }
 
-// The parent crumb is the brand's own London page, never `/area/<slug>`: that
-// family is held (captain decision, see
-// docs/specs/governed-priced-landings/PRODUCT.md), so the path exists as a
-// segment and nothing renders at it.
+// The parent crumb is the brand's own London page. The area root
+// (`/area/<slug>`, lib/areaLanding.ts) publishes on its own floor, so it is
+// not a crumb every pair could rely on.
 export function drinkBrandAreaLandingJsonLd(
   landing: DrinkBrandAreaLanding,
 ): PricedLandingJsonLdNode[] {

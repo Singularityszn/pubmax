@@ -10,11 +10,12 @@ import ListedPriceSource from "@/components/venue/ListedPriceSource";
 import VenuePriceThen from "@/components/map/VenuePriceThen";
 import { displayDrinkName } from "@/components/listing/displayCase";
 import { formatGbp } from "@/lib/formatGbp";
+import { firstHttp } from "@/lib/httpUrl";
 import { formatLedgerDate, type LedgerPintPrice } from "@/lib/ledger";
 import { displayHandle } from "@/lib/handleDisplay";
 import { PINT_TRUST_LINE } from "@/lib/pintTrust";
 import { pintPriceSplitLine } from "@/lib/pintDropAgreement";
-import { venuePriceLane, venuePriceLaneIsDrinkerLog, venuePriceLaneObservedGbp, type VenueBundlePrices, type VenuePriceLane } from "@/lib/venuePriceLane";
+import { uncheckedPriceLine, venuePriceLane, venuePriceLaneIsDrinkerLog, venuePriceLaneObservedGbp, type VenueBundlePrices, type VenuePriceLane } from "@/lib/venuePriceLane";
 import { ANON_HANDLE_LABEL } from "@/lib/pintDropShared";
 import { venueListedPint, type VenueListedPint } from "@/lib/venueListedPint";
 import type { PricedVenue } from "@/lib/priceUpdates";
@@ -155,8 +156,10 @@ function LedgerPublishedPriceRecord({ publishedLane, listedPint, venueId }: {
     ? { priceGbp: publishedLane.cheapestPrice, sourceUrl: publishedLane.sourcedPrice.sourceUrl,
         sourceLabel: publishedLane.sourcedPrice.sourceLabel, observedAt: publishedLane.sourcedPrice.observedAt }
     : publishedLane?.lane === "listed"
-      ? { ...publishedLane.listed, sourceLabel: "Published menu" }
+      ? { ...publishedLane.listed, sourceLabel: publishedLane.listed.publisher }
       : null;
+  const sourceLabel = typeof publication?.sourceLabel === "string" ? publication.sourceLabel.trim() : "";
+  const sourceUrl = firstHttp(publication?.sourceUrl);
   return publication ? <>
     <p>Published price</p>
     <p>
@@ -164,7 +167,9 @@ function LedgerPublishedPriceRecord({ publishedLane, listedPint, venueId }: {
       Cheapest listed pint
     </p>
     <p>
-      Listed by <a className="ledgerMapLink" href={publication.sourceUrl} target="_blank" rel="noopener noreferrer">{publication.sourceLabel}</a>, collected{" "}
+      {sourceLabel ? <>Listed by {sourceUrl
+        ? <a className="ledgerSourceLink" href={sourceUrl} target="_blank" rel="noopener noreferrer">{sourceLabel}</a>
+        : <>{sourceLabel}. Link unavailable.</>}</> : "Publisher not recorded"}, collected{" "}
       <time dateTime={publication.observedAt}>{formatLedgerDate(publication.observedAt)}</time>.
     </p>
   </> : publishedLane?.lane === "baseline" ? <>
@@ -186,6 +191,38 @@ function LedgerPublishedPriceRecord({ publishedLane, listedPint, venueId }: {
   </> : null;
 }
 
+/**
+ * What the record's public report hands `venuePriceLane`, one lane per trust
+ * state. A typed price with no bill rides the same lone-report slot as one with
+ * a bill, carrying the name it was logged under, so the lane prints it "not
+ * checked" and unbanded (captain decision 9, lib/venuePriceLane.ts).
+ */
+function ledgerReportLanes(publicPint: LedgerPintPrice | null | undefined) {
+  if (!publicPint) return { contributor: null, provisional: null, aged: null, disputed: null };
+  const report = publicPint.priceGbp != null
+    ? {
+        priceGbp: publicPint.priceGbp,
+        observedAt: publicPint.createdAt,
+        ...(publicPint.unchecked ? { uncheckedBy: publicPint.handle } : {}),
+      }
+    : null;
+  const authority = publicPint.state === "confirmed" || publicPint.state === "corroborated";
+  const lone = publicPint.state === "logged-once" || publicPint.state === "unchecked";
+  return {
+    contributor: authority ? publicPint.priceGbp : null,
+    provisional: lone ? report : null,
+    aged: publicPint.state === "aged-out" ? report : null,
+    disputed: publicPint.split ? { split: publicPint.split, observedAt: publicPint.createdAt } : null,
+  };
+}
+
+/** Who logged the report, in the words its standing allows (decision 9). */
+function ledgerReportAuthor(publicPint: LedgerPintPrice): string {
+  if (publicPint.unchecked) return `${uncheckedPriceLine(publicPint.handle)},`;
+  const name = publicPint.handle === ANON_HANDLE_LABEL ? ANON_HANDLE_LABEL : displayHandle(publicPint.handle);
+  return `Logged by ${name}`;
+}
+
 /** Public reports arrive with the logbook, never in the shared cached document. */
 export function LedgerPriceRecord({ venue, bundle }: {
   venue: LedgerPriceVenue;
@@ -201,17 +238,15 @@ export function LedgerPriceRecord({ venue, bundle }: {
   const publicPint = state.status === "ready" ? state.log.pintPrice : null;
   // A cached document cannot know whether a public report exists.
   const readableBundle = state.status === "ready" ? bundle : { ...bundle, estimate: null };
-  const reportPrice = publicPint?.priceGbp != null
-    ? { priceGbp: publicPint.priceGbp, observedAt: publicPint.createdAt }
-    : null;
+  const reportLanes = ledgerReportLanes(publicPint);
   const priceLane = venuePriceLane(
     pintVenue,
-    publicPint?.state === "confirmed" || publicPint?.state === "corroborated" ? publicPint.priceGbp : null,
+    reportLanes.contributor,
     venue.sourcedPrice,
     readableBundle,
-    publicPint?.state === "logged-once" ? reportPrice : null,
-    publicPint?.state === "aged-out" ? reportPrice : null,
-    publicPint?.split ? { split: publicPint.split, observedAt: publicPint.createdAt } : null,
+    reportLanes.provisional,
+    reportLanes.aged,
+    reportLanes.disputed,
   );
   const publishedLane = venuePriceLane(pintVenue, null, venue.sourcedPrice, readableBundle);
   const currentPriceGbp = priceLane ? venuePriceLaneObservedGbp(priceLane) : undefined;
@@ -223,7 +258,7 @@ export function LedgerPriceRecord({ venue, bundle }: {
       <p><PriceBadge>{formatGbp(publicPint.priceGbp)}</PriceBadge>{" "}{displayDrinkName(publicPint.drink) || "Beer"} · Pint</p>
     ) : null}
     <p>
-      Logged by {publicPint.handle === ANON_HANDLE_LABEL ? ANON_HANDLE_LABEL : displayHandle(publicPint.handle)} on{" "}
+      {ledgerReportAuthor(publicPint)} on{" "}
       <time dateTime={publicPint.createdAt}>{formatLedgerDate(publicPint.createdAt)}</time>.{" "}
       <Link className="ledgerMapLink" href={`/p/${encodeURIComponent(publicPint.dropId)}`}>View Pint Drop</Link>
     </p>

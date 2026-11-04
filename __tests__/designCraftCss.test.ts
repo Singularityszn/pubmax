@@ -9,7 +9,6 @@ const read = (file: string): string => readFileSync(join(process.cwd(), file), "
 const globalCss = read("app/globals.css");
 const themeCss = read("app/theme.css");
 const mobileCss = read("components/mobile/mobileMapShell.css");
-const createFabCss = read("components/nav/createFab.css");
 const landingCss = read("components/landing/landing.css");
 const venueCss = read("components/map/venueSheet.css");
 const evidence = read("docs/design-craft-d1-d8-evidence.md");
@@ -179,10 +178,9 @@ describe("pointer-down feedback", () => {
     expect(mobileCss).toMatch(
       /\.mobileSharedSheetDetent:active\s*{[^}]*--shared-press-scale:\s*1/,
     );
-    // The emphasized compose action left the tab row for the floating create
-    // control, and it still owns its own press, so it still says so by name.
-    expect(createFabCss).toMatch(
-      /\.createFab:active\s*{[^}]*--shared-press-scale:\s*1/,
+    // Near me owns its own press on the map edge, so it says so by name.
+    expect(mobileCss).toMatch(
+      /\.mobileMapLocateFab:active\s*{[^}]*--shared-press-scale:\s*1/,
     );
   });
 

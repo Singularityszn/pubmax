@@ -368,3 +368,35 @@ describe("disruptionForPatch (end-to-end, pure)", () => {
     expect(result?.lineId).toBe("victoria");
   });
 });
+
+describe("a malformed TfL body", () => {
+  it("is no list of statuses unless it is a list", async () => {
+    const { lineStatusesFromBody } = await import("@/lib/tflDisruption");
+    expect(lineStatusesFromBody({ message: "rate limited" })).toBeNull();
+    expect(lineStatusesFromBody("oops")).toBeNull();
+    expect(lineStatusesFromBody(null)).toBeNull();
+    expect(lineStatusesFromBody([null, 3, { id: "central" }])).toEqual([{ id: "central" }]);
+  });
+
+  it("gives no disruption, and no crash, for broken entries", async () => {
+    const { materialDisruptionsFor } = await import("@/lib/tflDisruption");
+    const window = { start: 0, end: Number.MAX_SAFE_INTEGER };
+    const broken = [
+      null,
+      { id: "central", lineStatuses: "none" },
+      { id: "victoria", lineStatuses: [null, { statusSeverity: 6, validityPeriods: "x" }] },
+    ] as never;
+    expect(() => materialDisruptionsFor(broken, new Set(["central", "victoria"]), window)).not.toThrow();
+    expect(materialDisruptionsFor({ not: "a list" } as never, new Set(["central"]), window)).toEqual([]);
+  });
+
+  it("reads no date from a planned period whose dates are not strings", async () => {
+    const { periodOverlapsTonight } = await import("@/lib/tflDisruption");
+    const window = { start: 0, end: Number.MAX_SAFE_INTEGER };
+    const hostile = { fromDate: { toString: null }, toDate: { toString: null } } as never;
+    expect(() => periodOverlapsTonight(hostile, window)).not.toThrow();
+    expect(periodOverlapsTonight(hostile, window)).toBe(false);
+    expect(periodOverlapsTonight({ ...(hostile as object), isNow: true } as never, window)).toBe(true);
+    expect(periodOverlapsTonight({ fromDate: "2026-11-01T18:00:00Z", toDate: "2026-11-02T04:00:00Z" }, window)).toBe(true);
+  });
+});

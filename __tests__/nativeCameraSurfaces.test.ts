@@ -24,6 +24,7 @@ const SURFACES = [
   { surface: "pint", file: "components/map/VenuePriceSubmit.tsx", webDoor: "pintPhotoInputRef.current?.click()" },
   { surface: "venue", file: "components/venue/VenuePhotoComposer.tsx", webDoor: "inputRef.current?.click()" },
   { surface: "moment", file: "components/moment/MomentCapture.tsx", webDoor: null },
+  { surface: "board", file: "components/board/BoardReader.tsx", webDoor: "inputRef.current?.click()" },
 ] as const;
 
 /** Callers whose shell-first, web-second behaviour is proven by rendering them

@@ -9,6 +9,7 @@ import {
   type SiteHarvestLedgerRow,
 } from "@/lib/siteHarvestLedgerCore";
 import { isHarvestableDrinkUpdateUrl } from "@/lib/harvest/sourcePolicy";
+import { pageNamesAnotherBranch } from "@/lib/harvest/ukPriceCrawl";
 
 type RowIdentity = {
   sha256: string;
@@ -106,6 +107,21 @@ type Reconciliation = {
     sourceObservedAt: string;
     addedRows: number;
     currentLedger: { sha256: string; rowCount: number; rowIdentitySetSha256: string };
+    currentBundle: { rowCount: number; siteHarvestRows: number };
+  }>;
+  /**
+   * Bundle rows the builder stopped publishing under a recorded rule. Each
+   * row stays in the ledger; the bundle counts are those after the withdrawal.
+   */
+  bundleWithdrawals?: Array<{
+    decidedOn: string;
+    rule: string;
+    reason: "source-page-names-another-branch";
+    note: string;
+    /** How many later publications were recorded when this was decided. */
+    afterLaterPublications: number;
+    rows: RowIdentity[];
+    historicalBundle: { rowCount: number; siteHarvestRows: number };
     currentBundle: { rowCount: number; siteHarvestRows: number };
   }>;
   accounting: {
@@ -462,8 +478,15 @@ describe("site-harvest withdrawal reconciliation", () => {
     expect(rows.length).toBe(previousCount);
     const latest = reconciliation.laterPublications.at(-1);
     expect(latest).toBeDefined();
+    // A bundle withdrawal recorded after the last publication is the newest
+    // record of the bundle.
+    const withdrawal = reconciliation.bundleWithdrawals?.at(-1);
+    const latestBundle =
+      withdrawal && withdrawal.afterLaterPublications === reconciliation.laterPublications.length
+        ? withdrawal.currentBundle
+        : latest?.currentBundle;
     const bundleRows = JSON.parse(readFileSync(join(ROOT, "public/data/uk_prices/rows.json"), "utf8")) as Array<{ lane: string }>;
-    expect(latest?.currentBundle).toEqual({
+    expect(latestBundle).toEqual({
       rowCount: bundleRows.length,
       siteHarvestRows: bundleRows.filter((row) => row.lane === "site-harvest").length,
     });
@@ -522,9 +545,63 @@ describe("site-harvest withdrawal reconciliation", () => {
     const historicalBundle = bundleRows.filter(
       (row) => !laterSources.has(`${row.sourceUrl ?? ""}|${row.observedAt}`),
     );
-    expect(publication.currentBundle).toEqual({
+    // A recorded bundle withdrawal is the one way the historical bundle may
+    // shrink after this publication; the publication's own counts stay as
+    // they were recorded.
+    const historicalCounts =
+      reconciliation.bundleWithdrawals?.at(-1)?.historicalBundle ?? publication.currentBundle;
+    expect(historicalCounts).toEqual({
       rowCount: historicalBundle.length,
       siteHarvestRows: historicalBundle.filter((row) => row.lane === "site-harvest").length,
     });
+  });
+
+  it("withdraws a bundle row only under a recorded rule, and keeps it in the ledger", () => {
+    const ledgerByIdentity = new Map(rows.map((row) => [rowIdentitySha256(row), row]));
+    const bundleRows = JSON.parse(
+      readFileSync(join(ROOT, "public/data/uk_prices/rows.json"), "utf8"),
+    ) as Array<{ sourceUrl: string | null; lane: string; category: string; priceGbp: number; observedAt: string }>;
+    const laterSources = new Set(
+      reconciliation.laterPublications.map((later) => `${later.sourceUrl}|${later.sourceObservedAt}`),
+    );
+    let historical = reconciliation.postReconciliationPublication.currentBundle;
+    let previous: NonNullable<Reconciliation["bundleWithdrawals"]>[number] | null = null;
+    for (const withdrawal of reconciliation.bundleWithdrawals ?? []) {
+      expect(withdrawal.rows.length).toBeGreaterThan(0);
+      for (const identity of withdrawal.rows) {
+        const ledgerRow = ledgerByIdentity.get(identity.sha256);
+        expect(ledgerRow, `${identity.sha256} stays in the ledger`).toBeDefined();
+        expect(ledgerRow?.sourceUrl).toBe(identity.sourceUrl);
+        if (withdrawal.reason === "source-page-names-another-branch") {
+          expect(pageNamesAnotherBranch(identity.sourceUrl ?? "", { name: ledgerRow?.name ?? null })).toBe(true);
+        }
+        expect(bundleRows.some((row) =>
+          row.lane === "site-harvest" &&
+          row.sourceUrl === identity.sourceUrl &&
+          row.observedAt === identity.observedAt &&
+          row.category === identity.category &&
+          row.priceGbp === identity.priceGbp,
+        )).toBe(false);
+      }
+      // Each recorded row was one published bundle row.
+      const base =
+        previous && previous.afterLaterPublications === withdrawal.afterLaterPublications
+          ? previous.currentBundle
+          : reconciliation.laterPublications[withdrawal.afterLaterPublications - 1]?.currentBundle ??
+            reconciliation.postReconciliationPublication.currentBundle;
+      expect(withdrawal.currentBundle).toEqual({
+        rowCount: base.rowCount - withdrawal.rows.length,
+        siteHarvestRows: base.siteHarvestRows - withdrawal.rows.length,
+      });
+      const historicalRows = withdrawal.rows.filter(
+        (identity) => !laterSources.has(`${identity.sourceUrl ?? ""}|${identity.observedAt ?? ""}`),
+      ).length;
+      expect(withdrawal.historicalBundle).toEqual({
+        rowCount: historical.rowCount - historicalRows,
+        siteHarvestRows: historical.siteHarvestRows - historicalRows,
+      });
+      historical = withdrawal.historicalBundle;
+      previous = withdrawal;
+    }
   });
 });

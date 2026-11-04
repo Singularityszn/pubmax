@@ -308,12 +308,13 @@ for (const viewport of VIEWPORTS) {
     await expect(activeTab).toBeVisible();
     expect((await readPaintState(activeTab)).backgroundImage).toBe("none");
     measurements.sheetActiveTab = await expectRenderedTextContrast(activeTab);
-    // The sheet's one painted primary is the Overview's price door
-    // (lib/pintTrust.ts, `overviewPriceDoor`), flat like every other primary.
-    // It arrives with the venue's price read rather than with the sheet, and
+    // The sheet's one painted primary is the action card's plan door
+    // (lib/venuePlanDoor.ts, components/map/inspector/VenueActionCard.tsx),
+    // flat like every other primary; the price door beside it is drawn in ink.
+    // It arrives with the venue panel rather than with the sheet, and
     // measuring before it paints returns no colour pairs at all, which reports
     // as "expected 0 to be greater than 0" and names the timing badly.
-    const sheetPrimary = sheet.locator("[data-price-door]");
+    const sheetPrimary = sheet.locator(".venueActionCard .mobileVenuePeekPlanDoor");
     await expect(sheetPrimary).toBeVisible({ timeout: 45_000 });
     measurements.sheetPrimary = await expectRenderedTextContrast(sheetPrimary);
 
@@ -341,7 +342,9 @@ for (const viewport of VIEWPORTS) {
     await inactiveTab.hover();
     measurements.sheetHoverTab = await expectRenderedTextContrast(inactiveTab);
 
-    await sheetPrimary.click();
+    // The price door (ink beside the plan door since the action card) still
+    // opens the price form's sign-in gate for a stranger.
+    await sheet.locator("[data-price-door]").click();
     await expect(sheet.locator(".venuePriceSignInGate")).toBeVisible();
     await expect(sheet.locator(".venuePriceSubmit")).toHaveCount(0);
     await expectNoHorizontalOverflow(page);

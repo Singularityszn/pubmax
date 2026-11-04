@@ -1,6 +1,5 @@
 "use client";
 
-import type { Route } from "next";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from "react";
@@ -11,17 +10,14 @@ import { useViewerSession } from "@/components/auth/useViewerSession";
 import FoundersWallLink from "@/components/founding/FoundersWallLink";
 import IntentLink from "@/components/nav/IntentLink";
 import SiteNav from "@/components/nav/SiteNav";
-import HandleAvatar from "@/components/profile/HandleAvatar";
 import CrewsPanel from "@/components/social/CrewsPanel";
 import PubRankingPanel from "@/components/social/PubRankingPanel";
 import CreatorListsLane from "@/components/social/CreatorListsLane";
 import FindYourLot from "@/components/social/FindYourLot";
 import PeopleDirectory from "@/components/social/PeopleDirectory";
 import ReelsViewer from "@/components/social/ReelsViewer";
-import ReviewStars from "@/components/social/ReviewStars";
-import SocialPostCarousel from "@/components/social/SocialPostCarousel";
-import SocialPostVideoPlayer from "@/components/social/SocialPostVideoPlayer";
-import SocialPostActions from "@/components/social/SocialPostActions";
+import SharedSocialPostCard from "@/components/social/SocialPostCard";
+import SocialMomentLink from "@/components/social/SocialMomentLink";
 import StarterPacks from "@/components/social/StarterPacks";
 import {
   SOCIAL_SIGN_IN_HREF,
@@ -31,14 +27,13 @@ import {
 import EmptyState from "@/components/ui/empty-state";
 import Screen from "@/components/ui/screen";
 import { ADULT_SELF_ASSERTION_ACTION } from "@/lib/adultGate";
-import { profilePath } from "@/lib/appLink";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { subscribeDeviceIdentity } from "@/lib/deviceAccountIdentity";
 import type { CityRivalryEntry } from "@/lib/cityRivalry";
 import type { CuratedCrawl } from "@/lib/curatedCrawls";
 import { discardBody } from "@/lib/responseBody";
 import { getCity } from "@/lib/cities";
-import { getNightArea, nightAreasByCity } from "@/lib/nightAreas";
+import { nightAreasByCity } from "@/lib/nightAreas";
 import { normalizeHandle } from "@/lib/profiles";
 import { relativeTime } from "@/lib/relativeTime";
 import type { SocialAccessState } from "@/lib/socialAccess";
@@ -56,25 +51,13 @@ import {
   socialShellHref,
   type SocialShellState,
 } from "@/lib/socialShell";
-import {
-  HIDDEN_NAME_AUTHOR_LABEL,
-  HIDDEN_NAME_CONTROL_LINE,
-  HIDDEN_NAME_OWN_LINE,
-  HIDDEN_NAME_READER_LINE,
-} from "@/lib/socialHiddenName";
 import type { SocialPostDTO } from "@/lib/socialPosts";
-import {
-  SOCIAL_POST_CONTROL_LINE,
-  SOCIAL_POST_ORDER_LINE,
-  SOCIAL_POST_REASON_SUMMARY,
-  socialPostReason,
-  socialPostReasonLine,
-  type SocialPostLane,
-} from "@/lib/socialPostReason";
-import { venueMapUrl } from "@/lib/venueMapUrl";
+import type { SocialPostLane } from "@/lib/socialPostReason";
+import type { SocialAlternatives } from "@/lib/socialAlternatives";
 
 import "./social.css";
 import SocialComposer from "./SocialComposer";
+import SocialLondonLane from "./SocialLondonLane";
 import SocialTagInbox from "./SocialTagInbox";
 import SocialOutbox from "./SocialOutbox";
 
@@ -104,6 +87,13 @@ type SocialPageClientProps = {
   rivalry: CityRivalryEntry[];
   heritageCrawls: CuratedCrawl[];
   friendsLaunchEnabled?: boolean;
+  /**
+   * Whether a stranger reads the London lane (`socialLondonLaneOpen`, read by
+   * the server page). Absent means closed: a caller that does not say so gets
+   * the sign-in door, never a public read it did not ask for.
+   */
+  londonLaneOpen?: boolean;
+  publicAlternatives?: SocialAlternatives;
 };
 
 type SocialPostPage = {
@@ -249,141 +239,19 @@ export function SocialAccessBoundary({
   );
 }
 
-/** The post's media: a carousel, one photo, or a reel, edge to edge. */
-function PostMedia({ post, onOpenVideo }: { post: SocialPostDTO; onOpenVideo?: (postId: string) => void }) {
-  return (
-    <>
-      {post.photo && post.extraPhotos && post.extraPhotos.length > 0 ? (
-        <SocialPostCarousel
-          caption={post.photo.tags && post.photo.tags.length > 0 ? post.photo.tags.map((tag) => `@${tag.handle}`).join(" ") : undefined}
-          photos={[
-            { key: post.photo.mediaId, src: `/api/social/media/${post.photo.mediaId}`, altText: post.photo.altText },
-            ...post.extraPhotos.map((extra) => ({
-              key: extra.mediaId,
-              src: extra.url,
-              altText: extra.altText,
-              held: extra.moderationState !== "approved",
-            })),
-          ]}
-        />
-      ) : post.photo ? (
-        <figure className="socialPostPhoto">
-          {/* eslint-disable-next-line @next/next/no-img-element -- private signed delivery route. */}
-          <img
-            src={`/api/social/media/${post.photo.mediaId}`}
-            alt={post.photo.altText}
-            loading="lazy"
-            decoding="async"
-          />
-          {post.photo.tags && post.photo.tags.length > 0 ? (
-            <figcaption>{post.photo.tags.map((tag) => `@${tag.handle}`).join(" ")}</figcaption>
-          ) : null}
-        </figure>
-      ) : null}
-      {post.video ? (
-        <SocialPostVideoPlayer video={post.video} caption={post.body} onOpen={onOpenVideo ? () => onOpenVideo(post.id) : undefined} />
-      ) : null}
-    </>
-  );
-}
-
 /**
- * A disclosure, not a control: the lane rule that let this post in, read back
- * by `lib/socialPostReason.ts`. Nothing on the card is ranked.
+ * The Social page's card: the shared card plus the composer for the viewer's
+ * own post. Kept under this name so every caller and test reads it unchanged.
  */
-function PostWhy({ lane, post, areaName }: { lane: SocialPostLane; post: SocialPostDTO; areaName: string | null }) {
-  return (
-    <details className="socialPostWhy">
-      <summary>{SOCIAL_POST_REASON_SUMMARY}</summary>
-      <p>
-        {socialPostReasonLine(socialPostReason(lane, post), {
-          handle: post.author.handle ?? HIDDEN_NAME_AUTHOR_LABEL,
-          visibility: post.visibility,
-          areaName,
-        })}
-      </p>
-      <p>{SOCIAL_POST_ORDER_LINE}</p>
-      {post.ownedByViewer ? null : <p>{post.author.handle ? SOCIAL_POST_CONTROL_LINE : HIDDEN_NAME_CONTROL_LINE}</p>}
-    </details>
-  );
-}
-
-/** Where a post was: the pub, which opens its page, and the area. */
-function PostPlace({ venueId, venueName, areaName }: { venueId: string | null; venueName: string | null; areaName: string | null }) {
-  if (!venueName && !areaName) return null;
-  return (
-    <span className="socialPostMeta__place">
-      {venueId && venueName ? <Link prefetch={false} href={`/pubs/${encodeURIComponent(venueId)}` as Route}>{venueName}</Link> : null}
-      {venueId && venueName && areaName ? " · " : null}
-      {areaName}
-    </span>
-  );
-}
-
 export function SocialPostCard({ post, lane, canEdit = false, draftScope, onEdited, interactive = false, onOpenVideo }: { post: SocialPostDTO; lane?: SocialPostLane; canEdit?: boolean; draftScope?: string | null; onEdited?: (post?: SocialPostDTO) => void; interactive?: boolean; onOpenVideo?: (postId: string) => void }) {
-  const area = post.area ? getNightArea(post.area) : null;
-  const exactVenueId = post.venueProjected ? post.venueId : null;
-  const venueName = exactVenueId ? post.venueName : null;
-  const review = exactVenueId && post.review ? post.review : null;
-  const when = relativeTime(post.createdAt);
   return (
-    <article className="socialPostCard" data-has-media={post.photo || post.video ? "true" : undefined}>
-      <header className="socialPostMeta">
-        <HandleAvatar
-          handle={post.author.handle ?? HIDDEN_NAME_AUTHOR_LABEL}
-          avatarUrl={post.author.avatarUrl}
-          className="socialPostAvatar"
-          imageClassName="socialPostAvatar"
-          size={36}
-        />
-        <div className="socialPostMeta__who">
-          <strong>
-            {post.author.handle ? (
-              <Link prefetch={false} href={profilePath(post.author.handle)}>
-                @{post.author.handle}
-              </Link>
-            ) : HIDDEN_NAME_AUTHOR_LABEL}
-          </strong>
-          {post.nameHidden ? (
-            <span className="socialPostMeta__hidden">
-              {post.ownedByViewer ? HIDDEN_NAME_OWN_LINE : HIDDEN_NAME_READER_LINE}
-            </span>
-          ) : null}
-          <PostPlace venueId={exactVenueId} venueName={venueName} areaName={area?.name ?? null} />
-        </div>
-        <div className="socialPostMeta__context">
-          {when ? <time dateTime={post.createdAt}>{when}</time> : null}
-          <span className="socialPostAudience">{post.visibility === "friends" ? "Mutual friends" : post.visibility === "private" ? "Only you" : "Public"}</span>
-        </div>
-      </header>
-      {post.kind === "feature_request" ? (
-        <p className="socialPostKind">Feature request</p>
-      ) : null}
-      <PostMedia post={post} onOpenVideo={onOpenVideo} />
-      {review ? (
-        <p className="socialPostReview">
-          <ReviewStars rating={review.rating} label={`${post.author.handle ? `@${post.author.handle}` : HIDDEN_NAME_AUTHOR_LABEL} scored ${venueName ?? "this pub"} ${review.rating} out of 5`} />
-          {venueName ? <span>{venueName}</span> : null}
-        </p>
-      ) : null}
-      {post.body ? <p className="socialPostBody">{post.body}</p> : null}
-      {exactVenueId ? (
-        <p className="socialPostPlace">
-          <Link prefetch={false} href={venueMapUrl(exactVenueId)}>Open venue</Link>
-        </p>
-      ) : null}
-      {post.hashtags.length > 0 ? (
-        <p className="socialPostTags">
-          {post.hashtags.map((tag) => (
-            <span key={tag}>#{tag}</span>
-          ))}
-        </p>
-      ) : null}
-      {interactive ? <SocialPostActions postId={post.id} /> : null}
-      {post.editedAt ? <p className="socialPostEdited">Edited</p> : null}
-      {lane ? <PostWhy lane={lane} post={post} areaName={area?.name ?? null} /> : null}
-      {canEdit && draftScope && onEdited ? <SocialComposer key={`${draftScope}:${post.id}`} post={post} draftScope={draftScope} onSaved={onEdited} /> : null}
-    </article>
+    <SharedSocialPostCard
+      post={post}
+      lane={lane}
+      interactive={interactive}
+      onOpenVideo={onOpenVideo}
+      editor={canEdit && draftScope && onEdited ? <SocialComposer key={`${draftScope}:${post.id}`} post={post} draftScope={draftScope} onSaved={onEdited} /> : null}
+    />
   );
 }
 
@@ -512,6 +380,8 @@ function SocialPageAccountState({
   rivalry,
   heritageCrawls,
   friendsLaunchEnabled = true,
+  londonLaneOpen = false,
+  publicAlternatives,
 }: SocialPageClientProps) {
   const surfaceName = socialSurfaceName(friendsLaunchEnabled);
   const { accountRevision, identityResolved } = useAuth();
@@ -528,6 +398,9 @@ function SocialPageAccountState({
   const [assertError, setAssertError] = useState<string | null>(null);
   const [draftScope, setDraftScope] = useState<string | null>(null);
   const [viewerHandle, setViewerHandle] = useState<string | null>(null);
+  // Find your lot mounts in the door while the session resolves and in the
+  // rail after, so the typed handle lives here and survives that swap.
+  const [findLotQuery, setFindLotQuery] = useState("");
   const [submittedPost, setSubmittedPost] = useState<SocialPostDTO | null>(null);
   const [accessAttempt, setAccessAttempt] = useState(0);
   const [feedAttempt, setFeedAttempt] = useState(0);
@@ -544,6 +417,14 @@ function SocialPageAccountState({
   const activityRequestId = useRef(0);
   const feedRequestId = useRef(0);
   const moreController = useRef<AbortController | null>(null);
+  const headerSignInRef = useRef<HTMLAnchorElement | null>(null);
+  const emptyLanePending = useRef(false);
+  const [emptyLanePromoted, setEmptyLanePromoted] = useState(false);
+  const onLondonEmptyChange = useCallback((empty: boolean) => {
+    emptyLanePending.current = empty;
+    if (empty && headerSignInRef.current === document.activeElement) return;
+    setEmptyLanePromoted(empty);
+  }, []);
   const feedHref = useMemo(
     () => socialFeedRequestHref(initialState),
     [initialState],
@@ -790,6 +671,7 @@ function SocialPageAccountState({
   }, [access, initialState, loadingMore, nextCursor]);
 
   const isPosts = initialState.tab === "posts";
+  const activeTag = initialState.tab === "posts" && initialState.feed === "discover" ? initialState.tag ?? null : null;
   const visibleActivityStatus = activityRevision === accountRevision ? activityStatus : "idle";
   const visibleActivityItems = activityRevision === accountRevision ? activityItems : [];
   const showPostsControls =
@@ -806,22 +688,18 @@ function SocialPageAccountState({
   // there rather than in the narrow rail, where they left the column empty.
   const packsBesideTheDoor =
     friendsLaunchEnabled && isPosts && viewerPhase === "signed-out";
+  const showEmptyAlternatives = friendsLaunchEnabled && isPosts && londonLaneOpen
+    && viewerPhase === "signed-out" && emptyLanePromoted;
 
   // The route's one primary action is Post (docs/design/LAUNCH_SCREENS.md).
   // For a verified account it IS the composer: the trigger sits in the Screen's
   // primary slot and the sheet it opens is fixed, so nothing else on the page
   // wears the fill.
   //
-  // A STRANGER'S PRIMARY FOLLOWS WHAT THE BODY UNDER IT ACTUALLY SAYS. On the
-  // posts tab under the friends launch the body is the sign-in boundary and
-  // nothing else a stranger can act on, so the door is their first kept action
-  // and the head paints it, leaving the boundary to print its line without a
-  // second link to the same page. Everywhere else the body answers with public
-  // value - the Pubs and pints tab's listings, or the map behind the
-  // invite-only preview - and the launch table's opening rule stands: no
-  // primary action on a public route is "Sign in". While the session or the
-  // access answer is still open the control waits, because a surface that
-  // routes the viewer may not guess who they are.
+  // A stranger keeps the sign-in door while posts load, fail or exist.
+  // A confirmed empty London lane offers a night first, with sign-in below.
+  // A focused header door stays in place until focus leaves it. Unresolved
+  // identity, the rollback and the freeze keep their existing boundaries.
   const composeReady = showPostsControls && draftScope !== null;
   const primary: ReactElement = composeReady ? (
     <SocialComposer
@@ -842,9 +720,18 @@ function SocialPageAccountState({
     // whatever the flag says, and the preview boundary keeps its own quiet
     // sign-in way onward underneath.
     isPosts && friendsLaunchEnabled ? (
-      <Link prefetch={false} href={SOCIAL_SIGN_IN_HREF}>
-        Sign in
-      </Link>
+      showEmptyAlternatives ? <Link prefetch={false} href="/plan">Plan a night</Link> : (
+        <Link
+          ref={headerSignInRef}
+          prefetch={false}
+          href={SOCIAL_SIGN_IN_HREF}
+          onBlur={() => {
+            if (emptyLanePending.current) setEmptyLanePromoted(true);
+          }}
+        >
+          Sign in
+        </Link>
+      )
     ) : (
       <Link prefetch={false} href="/map">
         Open the map
@@ -872,6 +759,11 @@ function SocialPageAccountState({
   // used to be a 260px rail holding all of that beside a body holding the one
   // line, which left most of a desktop empty (taste plan, 18 Oct 2026).
   const doorMode = friendsLaunchEnabled && isPosts && viewerPhase !== "resolved";
+  // THE LONDON LANE takes the door's slot once the session has answered
+  // nobody. Until then the slot holds its size, because a surface that routes
+  // the viewer may not guess who they are, and a signed-in reader must not
+  // meet a stranger's lane on the way to their own feed.
+  const londonLane = doorMode && londonLaneOpen && viewerPhase === "signed-out";
   const switcher = (
     <nav className="socialSwitcher" aria-label={`${surfaceName} view`}>
       <IntentLink href="/social" aria-current={isPosts ? "page" : undefined}>
@@ -900,19 +792,27 @@ function SocialPageAccountState({
         {doorMode ? (
           <div className="socialDoor">
             {switcher}
-            {/* The boundary prints its line ONCE, under the head that carries
+            {londonLane ? (
+              <SocialLondonLane
+                alternatives={publicAlternatives}
+                onEmptyChange={onLondonEmptyChange}
+                showSignInOffer={showEmptyAlternatives}
+              />
+            ) : (
+            /* The boundary prints its line ONCE, under the head that carries
                 the door, and says what Social holds rather than asking again.
                 The slot keeps its size while the account answers, so nothing
-                under it moves when the line appears. */}
+                under it moves when the title appears. It is the whole body when
+                the London lane is paused (rollback or freeze). */
             <section
               className="socialDoorSlot"
               aria-label={`${surfaceName} posts`}
               aria-busy={viewerSession.unresolved || undefined}
               role={viewerSession.unresolved ? undefined : "status"}
             >
-              {/* While the account is unanswered the hidden copy holds the same
-                  one-line title and the same value line, so the slot is the
-                  size it will be, and it names no door it cannot yet offer. */}
+              {/* The title stays hidden until the account answers, so it names
+                  no door it cannot yet offer. The public value line paints
+                  immediately, and both lines reserve the slot's final size. */}
               <div aria-hidden={viewerSession.unresolved || undefined} className="socialRailContent">
                 <EmptyState
                   title={
@@ -934,12 +834,13 @@ function SocialPageAccountState({
                 </div>
               ) : null}
             </section>
+            )}
             {/* The packs are public, so a stranger meeting the door sees who is
                 already here. Read-only: following is an account action, and a
                 button that answered 401 would be a second door. */}
             {packsBesideTheDoor ? <StarterPacks readOnly /> : null}
             {/* ONE live copy of the search-and-invite surface on this page. */}
-            <FindYourLot myHandle={viewerHandle} compact />
+            <FindYourLot myHandle={viewerHandle} compact query={findLotQuery} onQueryChange={setFindLotQuery} />
             {/* The founders wall: one quiet link, no count, and no branch on the
                 reader (lib/foundingMembers.ts). */}
             <FoundersWallLink className="socialFoundersLink" />
@@ -953,6 +854,7 @@ function SocialPageAccountState({
               <Link prefetch={false} href="/messages">Messages</Link>
               <Link prefetch={false} href="/pal">Your Pub Pal</Link>
               <Link prefetch={false} href="/plan">Plan a crawl</Link>
+              <SocialMomentLink />
             </nav>
           ) : null}
         </div>
@@ -1024,8 +926,14 @@ function SocialPageAccountState({
             >
               <header className="socialFeedHeading">
                 <h2>{initialState.feed === "following" ? "Your lot, lately" : initialState.feed === "nearby" ? "Around your patch" : "Across the pub tables"}</h2>
-                <p>{initialState.feed === "following" ? "Posts from people you follow. Newest first." : initialState.feed === "nearby" ? "Public posts tagged in this area. Newest first." : "Public posts from across town. Newest first."}</p>
+                <p>{initialState.feed === "following" ? "Posts from people you follow. Newest first." : initialState.feed === "nearby" ? "Public posts tagged in this area. Newest first." : activeTag ? `Public posts tagged #${activeTag}. Newest first.` : "Public posts from across town. Newest first."}</p>
               </header>
+              {activeTag ? (
+                <p className="socialTagChip">
+                  <span>Tag: #{activeTag}</span>
+                  <Link prefetch={false} href="/social?feed=discover" aria-label={`Clear the #${activeTag} filter`}>Clear</Link>
+                </p>
+              ) : null}
               <p
                 className="srOnly"
                 role="status"
@@ -1067,7 +975,9 @@ function SocialPageAccountState({
                       ? <Link prefetch={false} href="/social?feed=discover">See posts across town</Link>
                       : <Link prefetch={false} href="/social">Back to your following feed</Link>
                   }>
-                    {initialState.feed === "following"
+                    {activeTag
+                      ? `No public posts tagged #${activeTag} yet.`
+                      : initialState.feed === "following"
                       ? "Your noticeboard is waiting for a good pub story. Find your lot below or share one of your own."
                       : initialState.feed === "nearby"
                         ? "No public posts in this patch yet. Pick another area or start the conversation."
@@ -1141,7 +1051,7 @@ function SocialPageAccountState({
                 same invite button twice at 1440 and stacked at 390 - and both
                 copies carried `id="find-lot-title"`, which left every
                 `aria-labelledby` on the page pointing at the first. */}
-            {friendsLaunchEnabled && isPosts ? <FindYourLot myHandle={viewerHandle} compact /> : null}
+            {friendsLaunchEnabled && isPosts ? <FindYourLot myHandle={viewerHandle} compact query={findLotQuery} onQueryChange={setFindLotQuery} /> : null}
           </aside>
 
           {showPostsControls ? (

@@ -138,7 +138,7 @@ test("Android font growth clears map controls before the next height measurement
       font: parseFloat(getComputedStyle(root).fontSize),
       measured: root.style.getPropertyValue("--map-peek-rendered-h"),
       height: card.height,
-      controls: [".mobileMapLocateFab", ".createFab"].map((selector) => {
+      controls: [".mobileMapLocateFab", ".mobileMapPalDoor"].map((selector) => {
         const box = document.querySelector(selector)!.getBoundingClientRect();
         return {
           selector,
@@ -154,7 +154,7 @@ test("Android font growth clears map controls before the next height measurement
   expect(geometry.height).toBe(156);
   expect(geometry.controls).toEqual([
     { selector: ".mobileMapLocateFab", painted: true, overlap: false },
-    { selector: ".createFab", painted: true, overlap: false },
+    { selector: ".mobileMapPalDoor", painted: true, overlap: false },
   ]);
 });
 
@@ -224,7 +224,7 @@ for (const scale of [1.3, 1.5, 2]) {
         ),
         lineTop: line.getBoundingClientRect().top,
         nearMe: rect(".mobileMapLocateFab"),
-        create: rect(".createFab"),
+        palDoor: rect(".mobileMapPalDoor"),
       };
     });
     expect(geometry.root, "the root grows with the text").toBeCloseTo(16 * scale);
@@ -240,8 +240,8 @@ for (const scale of [1.3, 1.5, 2]) {
     expect(geometry.answer.bottom, "the answer never runs under the door").toBeLessThanOrEqual(geometry.door!.top + 0.5);
     expect(geometry.figureInk, "the figure line's text never runs under the door").toBeLessThanOrEqual(geometry.door!.top + 0.5);
     expect(geometry.nearMe, "Near me is painted").not.toBeNull();
-    expect(geometry.create, "the Create action is painted").not.toBeNull();
-    for (const [name, other] of [["Near me", geometry.nearMe!], ["Create", geometry.create!]] as const) {
+    expect(geometry.palDoor, "the Pal door is painted").not.toBeNull();
+    for (const [name, other] of [["Near me", geometry.nearMe!], ["the Pal door", geometry.palDoor!]] as const) {
       const overlap =
         geometry.card.left < other.right &&
         other.left < geometry.card.right &&
@@ -397,7 +397,7 @@ test("320px large text: five dock doors keep 44px targets and lose no name", asy
   await expect(tabs).toHaveCount(5);
   expect(
     await tabs.evaluateAll((links) => links.map((link) => link.getAttribute("aria-label"))),
-  ).toEqual(["Map", "Tonight", "Plan", "Social", "You"]);
+  ).toEqual(["Explore", "Tonight", "Plan", "Social", "You"]);
   await expect(dock.locator(".mobileTabLabel:visible")).toHaveCount(0);
   for (const box of await tabs.evaluateAll((links) => links.map((link) => {
     const rect = link.getBoundingClientRect();

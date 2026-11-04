@@ -86,7 +86,7 @@ for (const failed of [false, true]) {
         }
       }
       // The changed destination proves the LandingPage subscription rendered the update.
-      await expect(page.getByRole("navigation", { name: "Landing navigation" }).getByRole("link", { name: "Map", exact: true })).toHaveAttribute("href", "/map/manchester");
+      await expect(page.getByRole("navigation", { name: "Landing navigation" }).getByRole("link", { name: "Explore", exact: true })).toHaveAttribute("href", "/map/manchester");
       await expect(elsewhere).toBeFocused();
       expect(await page.evaluate(() => window.scrollY)).toBeCloseTo(scrollY, 0);
       if (failed) {
@@ -163,9 +163,9 @@ for (const width of [320, 390]) {
             rects: text.map((rect) => ({ left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom })),
           };
         }));
-        expect(labels.map((label) => label.text)).toEqual(["Map", "Tonight", "Pal", "Plan", "Social", "You"]);
+        expect(labels.map((label) => label.text)).toEqual(["Explore", "Tonight", "Plan", "Social", "You"]);
         expect(labels.find((label) => label.text === "Tonight")?.href).toBe("/tonight");
-        expect(labels.find((label) => label.text === "Pal")?.href).toBe("/pal");
+        expect(labels.find((label) => label.text === "Explore")?.href).toMatch(/^\/map/);
         for (const label of labels) {
           expect(label.name).toBeTruthy();
           expect(label.fontSize).toBeCloseTo(baselineFont * scale, 1);

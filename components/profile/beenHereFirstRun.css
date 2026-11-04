@@ -1,0 +1,76 @@
+/* "Tap the pubs you've been to" (components/profile/BeenHereFirstRun.tsx).
+   Launch tokens only (docs/DESIGN_SYSTEM.md "Launch tokens"). A heading with
+   controls under it is already a section, so the card wears one hairline to
+   part it from the page above and no box. No coral: the page's one primary
+   stays the page's, "Done" is the ink secondary, and a tapped pub reads in
+   the chip primitive's neutral selected ink. */
+
+.beenHereFirstRun {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: var(--space-6) 0 0;
+  padding: var(--space-4) 0 0;
+  border-top: 1px solid var(--line-soft);
+}
+
+.beenHereFirstRun .kicker {
+  margin: 0;
+}
+
+.beenHereFirstRunTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  line-height: var(--leading-tight);
+  color: var(--color-text);
+}
+
+.beenHereFirstRunLead,
+.beenHereFirstRunWhere {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.beenHereFirstRunLead {
+  color: var(--color-text-soft);
+}
+
+.beenHereFirstRunWhere {
+  color: var(--color-text-muted);
+}
+
+.beenHereFirstRunChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* A long name wraps inside its pill rather than pushing the row wide. */
+.beenHereFirstRunChip {
+  flex-shrink: 1;
+  min-width: 0;
+  max-width: 100%;
+  text-align: left;
+}
+
+.beenHereFirstRunName {
+  overflow-wrap: anywhere;
+}
+
+.beenHereFirstRunArea {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+.beenHereFirstRunChip[aria-pressed="true"] .beenHereFirstRunArea {
+  color: inherit;
+}
+
+.beenHereFirstRunActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}

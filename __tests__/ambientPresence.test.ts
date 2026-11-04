@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Deterministic ambient DEMO presence (PRD next-wave P2, second half): the
 // time-of-day curve (lib/ambientPresence) and its wiring into the fallback
@@ -35,6 +35,15 @@ beforeEach(() => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   __resetPresence();
+});
+
+// Demo content is opt-in (lib/demoContent.ts), and these tests read the seeds.
+beforeEach(() => {
+  vi.stubEnv("NEXT_PUBLIC_DEMO_CONTENT", "on");
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
 });
 
 describe("londonHour", () => {

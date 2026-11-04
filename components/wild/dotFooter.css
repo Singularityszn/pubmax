@@ -1,0 +1,43 @@
+/* The giant dot footer (components/wild/DotFooter.tsx), round-two wild idea
+   10. It loads only while the wild switch is on. The canvas takes the
+   footer's own measure, and its height is set by the component from the
+   width, so the word fits any screen. */
+
+.wildDots {
+  width: min(var(--content-max-wide), 100%);
+  margin: 0 auto clamp(32px, 5vw, 56px);
+}
+
+.wildDotsCanvas {
+  display: block;
+  width: 100%;
+  height: 84px;
+  cursor: crosshair;
+  /* A finger that swipes sideways pushes the dots; one that swipes up or
+     down still scrolls the page. */
+  touch-action: pan-y;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.wildDotsCounts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-1) var(--space-4);
+  margin: var(--space-3) 0 0;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  text-align: center;
+  text-wrap: balance;
+}
+
+.wildDotsCount {
+  color: var(--ink);
+  font: 750 var(--text-sm)/1 var(--font-data);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wildDotsCanvas { cursor: default; }
+}

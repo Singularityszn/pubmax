@@ -2,10 +2,10 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { act, createElement } from "react";
+import { act, createElement, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import MapOpeningPreview from "@/components/map/MapOpeningPreview";
 import { DONUT_CAPTION_SCALE } from "@/lib/donutClusterGeometry";
@@ -14,11 +14,16 @@ import {
   MAP_OPENING_PREVIEW_CAMERA,
   MAP_OPENING_PREVIEW_DONE_MARK,
   MAP_OPENING_PREVIEW_RETRACT_EVENT,
+  MAP_OPENING_PREVIEW_TURN_EVENT,
   type MapOpeningFrame,
 } from "@/lib/mapOpeningPreview";
 import type { OpeningPreviewDisc } from "@/lib/mapOpeningPreviewDiscs";
 import type { OpeningGround } from "@/lib/mapOpeningSnapshot";
-import { FIRST_PINS_SEEN_KEY, PINS_VISIBLE_EVENT } from "@/lib/performanceMarks";
+import {
+  BASEMAP_DRAWN_EVENT,
+  FIRST_PINS_SEEN_KEY,
+  PINS_VISIBLE_EVENT,
+} from "@/lib/performanceMarks";
 
 const themeInit = readFileSync(join(process.cwd(), "public/theme-init.js"), "utf8");
 
@@ -48,6 +53,7 @@ const DISC: OpeningPreviewDisc = {
 beforeEach(() => {
   localStorage.clear();
   delete document.documentElement.dataset.mapPreview;
+  delete document.documentElement.dataset.mapPreviewDiscs;
   performance.clearMarks();
   delete (window as { __pubmaxOpeningFrame?: unknown }).__pubmaxOpeningFrame;
 });
@@ -85,6 +91,7 @@ describe("MapOpeningPreview", () => {
 
   beforeEach(() => {
     (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    performance.clearMarks();
     host = document.createElement("div");
     document.body.append(host);
   });
@@ -92,11 +99,13 @@ describe("MapOpeningPreview", () => {
     if (root) await act(() => root!.unmount());
     root = null;
     host.remove();
+    // Let an unmount's deferred stand-down land here, not in the next test.
+    await new Promise((resolve) => setTimeout(resolve, 0));
   });
 
-  async function mount(discs: OpeningPreviewDisc[] = [DISC]) {
+  async function mount(discs: OpeningPreviewDisc[] = [DISC], ground: OpeningGround | null = null) {
     root = createRoot(host);
-    await act(() => root!.render(createElement(MapOpeningPreview, { discs })));
+    await act(() => root!.render(createElement(MapOpeningPreview, { discs, ground })));
   }
 
   it("ships the discs in the document, decorative, on the engine's camera", () => {
@@ -133,8 +142,14 @@ describe("MapOpeningPreview", () => {
     expect(renderToStaticMarkup(createElement(MapOpeningPreview, { discs: [] }))).toBe("");
   });
 
-  it("stands down when the map reveals its own pins", async () => {
+  function drawStreets() {
+    performance.mark(BASEMAP_DRAWN_EVENT);
+    window.dispatchEvent(new Event(BASEMAP_DRAWN_EVENT));
+  }
+
+  it("stands down when the map reveals its own pins over drawn streets", async () => {
     document.documentElement.dataset.mapPreview = "on";
+    performance.mark(BASEMAP_DRAWN_EVENT);
     await mount();
     expect(document.documentElement.dataset.mapPreview).toBe("on");
     await act(() => {
@@ -177,6 +192,7 @@ describe("MapOpeningPreview", () => {
 
   it("stands down at once if the map revealed before it hydrated", async () => {
     document.documentElement.dataset.mapPreview = "on";
+    performance.mark(BASEMAP_DRAWN_EVENT);
     performance.mark(PINS_VISIBLE_EVENT);
     await mount();
     expect(document.documentElement.dataset.mapPreview).toBe("done");
@@ -199,6 +215,7 @@ describe("MapOpeningPreview", () => {
     document.body.append(loading);
     try {
       document.documentElement.dataset.mapPreview = "on";
+      performance.mark(BASEMAP_DRAWN_EVENT);
       await mount();
       await act(() => {
         window.dispatchEvent(new Event(PINS_VISIBLE_EVENT));
@@ -213,6 +230,283 @@ describe("MapOpeningPreview", () => {
     } finally {
       loading.remove();
     }
+  });
+
+  it("after the reveal, holds until the streets in view are drawn", async () => {
+    // The loading frame can lift while the street tiles are still arriving;
+    // standing down then showed the engine's pins on bare paper.
+    document.documentElement.dataset.mapPreview = "on";
+    await mount();
+    await act(() => {
+      window.dispatchEvent(new Event(PINS_VISIBLE_EVENT));
+    });
+    expect(document.documentElement.dataset.mapPreview).toBe("on");
+    await act(() => drawStreets());
+    expect(document.documentElement.dataset.mapPreview).toBe("done");
+  });
+
+  it("after the reveal, waits for no street tile once its prices have gone", async () => {
+    // A picture without its discs is streets with no price on them, and the
+    // map under it has its prices ready: holding it for the streets kept the
+    // prices off screen for 2.5 to 3.5 s on every cold run.
+    document.documentElement.dataset.mapPreview = "on";
+    document.documentElement.dataset.mapPreviewDiscs = "off";
+    await mount();
+    await act(() => {
+      window.dispatchEvent(new Event(PINS_VISIBLE_EVENT));
+    });
+    expect(document.documentElement.dataset.mapPreview).toBe("done");
+  });
+
+  it("stops waiting for the streets the moment its prices go", async () => {
+    document.documentElement.dataset.mapPreview = "on";
+    await mount();
+    await act(() => {
+      window.dispatchEvent(new Event(PINS_VISIBLE_EVENT));
+    });
+    expect(document.documentElement.dataset.mapPreview).toBe("on");
+    await act(async () => {
+      document.documentElement.dataset.mapPreviewDiscs = "off";
+      await Promise.resolve();
+    });
+    expect(document.documentElement.dataset.mapPreview).toBe("done");
+  });
+
+  it("waits for both the lift and the streets, in either order", async () => {
+    const loading = document.createElement("div");
+    loading.className = "mapLoading";
+    document.body.append(loading);
+    try {
+      document.documentElement.dataset.mapPreview = "on";
+      await mount();
+      await act(() => {
+        window.dispatchEvent(new Event(PINS_VISIBLE_EVENT));
+      });
+      await act(() => drawStreets());
+      expect(document.documentElement.dataset.mapPreview).toBe("on");
+      await act(async () => {
+        loading.remove();
+        await Promise.resolve();
+      });
+      expect(document.documentElement.dataset.mapPreview).toBe("done");
+    } finally {
+      loading.remove();
+    }
+  });
+
+  it("stands down after a ceiling when the streets never report", async () => {
+    vi.useFakeTimers();
+    try {
+      document.documentElement.dataset.mapPreview = "on";
+      await mount();
+      await act(() => {
+        window.dispatchEvent(new Event(PINS_VISIBLE_EVENT));
+      });
+      await act(() => {
+        vi.advanceTimersByTime(2_999);
+      });
+      expect(document.documentElement.dataset.mapPreview).toBe("on");
+      await act(() => {
+        vi.advanceTimersByTime(1);
+      });
+      expect(document.documentElement.dataset.mapPreview).toBe("done");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("past the streets ceiling, still holds while the loading frame is up", async () => {
+    // Standing down under the loading frame shows it on bare paper; a busy
+    // phone took longer than the ceiling to lift it.
+    vi.useFakeTimers();
+    const loading = document.createElement("div");
+    loading.className = "mapLoading";
+    document.body.append(loading);
+    try {
+      document.documentElement.dataset.mapPreview = "on";
+      await mount();
+      await act(() => {
+        window.dispatchEvent(new Event(PINS_VISIBLE_EVENT));
+      });
+      await act(() => {
+        vi.advanceTimersByTime(3_000);
+      });
+      expect(document.documentElement.dataset.mapPreview).toBe("on");
+      await act(async () => {
+        loading.remove();
+        await Promise.resolve();
+      });
+      expect(document.documentElement.dataset.mapPreview).toBe("done");
+    } finally {
+      loading.remove();
+      vi.useRealTimers();
+    }
+  });
+
+  it("gives up at the backstop if the loading frame never lifts", async () => {
+    vi.useFakeTimers();
+    const loading = document.createElement("div");
+    loading.className = "mapLoading";
+    document.body.append(loading);
+    try {
+      document.documentElement.dataset.mapPreview = "on";
+      await mount();
+      await act(() => {
+        window.dispatchEvent(new Event(PINS_VISIBLE_EVENT));
+      });
+      await act(() => {
+        vi.advanceTimersByTime(9_999);
+      });
+      expect(document.documentElement.dataset.mapPreview).toBe("on");
+      await act(() => {
+        vi.advanceTimersByTime(1);
+      });
+      expect(document.documentElement.dataset.mapPreview).toBe("done");
+    } finally {
+      loading.remove();
+      vi.useRealTimers();
+    }
+  });
+
+  it("turns with the arrival turn instead of standing down", async () => {
+    document.documentElement.dataset.mapPreview = "on";
+    await mount();
+    try {
+      await act(() => {
+        window.dispatchEvent(new CustomEvent(MAP_OPENING_PREVIEW_TURN_EVENT, { detail: MAP_OPENING_PREVIEW_CAMERA.bearing + 2.5 }));
+      });
+      expect(document.documentElement.dataset.mapPreview).toBe("on");
+      const discs = document.querySelector<HTMLElement>(".mapOpeningPreview");
+      expect(discs?.style.getPropertyValue("--map-preview-bearing")).toBe("2.5deg");
+      // Never on the root: that restyles the whole document on every frame of the turn.
+      expect(document.documentElement.style.getPropertyValue("--map-preview-bearing")).toBe("");
+    } finally {
+      document.documentElement.style.removeProperty("--map-preview-bearing");
+    }
+  });
+
+  it("on the largest phones, turns only as far as the picture still covers", async () => {
+    const ground: OpeningGround = {
+      rect: { x: -322, y: -848, width: 644, height: 1356 },
+      light: "/landing/map-opening/london-light.webp",
+      dark: "/landing/map-opening/london-dark.webp",
+    };
+    const size = { innerWidth: window.innerWidth, innerHeight: window.innerHeight };
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 440 });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 956 });
+    document.documentElement.dataset.mapPreview = "on";
+    document.documentElement.dataset.mapGround = "on";
+    try {
+      await mount([DISC], ground);
+      await act(() => {
+        window.dispatchEvent(new CustomEvent(MAP_OPENING_PREVIEW_TURN_EVENT, { detail: MAP_OPENING_PREVIEW_CAMERA.bearing + 4 }));
+      });
+      // Held short of the full turn, and still the preview: no bare paper.
+      expect(document.documentElement.dataset.mapPreview).toBe("on");
+      const layers = [".mapOpeningGround", ".mapOpeningPreview"].map((selector) =>
+        document.querySelector<HTMLElement>(selector)?.style.getPropertyValue("--map-preview-bearing"),
+      );
+      expect(layers[0]).toBe(layers[1]);
+      const held = parseFloat(layers[0] ?? "");
+      expect(held).toBeGreaterThan(0);
+      expect(held).toBeLessThan(4);
+    } finally {
+      delete document.documentElement.dataset.mapGround;
+      document.documentElement.style.removeProperty("--map-preview-bearing");
+      Object.defineProperty(window, "innerWidth", { configurable: true, value: size.innerWidth });
+      Object.defineProperty(window, "innerHeight", { configurable: true, value: size.innerHeight });
+    }
+  });
+
+  it("does not carry an interrupted handoff into a return to the map", async () => {
+    // The first map revealed its pins and drew its streets, then the reader
+    // left /map while the loading frame was still up. The marks outlive the
+    // page; the preview must not, or a return would hand over a frame no map
+    // has drawn yet.
+    const loading = document.createElement("div");
+    loading.className = "mapLoading";
+    document.body.append(loading);
+    try {
+      document.documentElement.dataset.mapPreview = "on";
+      performance.mark(PINS_VISIBLE_EVENT);
+      performance.mark(BASEMAP_DRAWN_EVENT);
+      await mount();
+      expect(document.documentElement.dataset.mapPreview).toBe("on");
+      await act(() => root!.unmount());
+      root = null;
+      await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+      expect(document.documentElement.dataset.mapPreview).toBe("done");
+      // The return mounts a new preview over the same retained marks.
+      await mount();
+      expect(document.documentElement.dataset.mapPreview).toBe("done");
+      expect(performance.getEntriesByName(BASEMAP_DRAWN_EVENT)).toHaveLength(1);
+    } finally {
+      loading.remove();
+    }
+  });
+
+  it("is not stood down by React's development double mount", async () => {
+    document.documentElement.dataset.mapPreview = "on";
+    root = createRoot(host);
+    await act(() =>
+      root!.render(createElement(StrictMode, null, createElement(MapOpeningPreview, { discs: [DISC] }))),
+    );
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+    expect(document.documentElement.dataset.mapPreview).toBe("on");
+  });
+
+  it("keeps the picture but drops the discs when the map will draw other prices from the same camera", async () => {
+    // A fuller venue index lands after the arrival turn: same camera, other
+    // clusters. The discs are wrong now; the streets under them are not.
+    const ground: OpeningGround = {
+      rect: { x: -322, y: -848, width: 644, height: 1356 },
+      light: "/landing/map-opening/london-light.webp",
+      dark: "/landing/map-opening/london-dark.webp",
+    };
+    const otherPrices: MapOpeningFrame = {
+      features: [
+        {
+          type: "Feature",
+          geometry: { type: "Point", coordinates: [-0.12, 51.52] },
+          properties: { clusterPrice: 3.1, bucket: 0 },
+        },
+      ],
+      camera: { ...MAP_OPENING_PREVIEW_CAMERA, bearing: MAP_OPENING_PREVIEW_CAMERA.bearing + 4 },
+    };
+    document.documentElement.dataset.mapPreview = "on";
+    document.documentElement.dataset.mapGround = "on";
+    try {
+      await mount([DISC], ground);
+      await act(() => {
+        window.dispatchEvent(new CustomEvent(MAP_OPENING_FRAME_EVENT, { detail: otherPrices }));
+      });
+      expect(document.documentElement.dataset.mapPreview).toBe("on");
+      expect(document.documentElement.dataset.mapPreviewDiscs).toBe("off");
+    } finally {
+      delete document.documentElement.dataset.mapGround;
+    }
+  });
+
+  it("stands down whole on other prices where no picture is shown", async () => {
+    document.documentElement.dataset.mapPreview = "on";
+    await mount();
+    await act(() => {
+      window.dispatchEvent(
+        new CustomEvent(MAP_OPENING_FRAME_EVENT, {
+          detail: {
+            features: [
+              {
+                type: "Feature",
+                geometry: { type: "Point", coordinates: [-0.12, 51.52] },
+                properties: { clusterPrice: 3.1, bucket: 0 },
+              },
+            ],
+            camera: { ...MAP_OPENING_PREVIEW_CAMERA },
+          } satisfies MapOpeningFrame,
+        }),
+      );
+    });
+    expect(document.documentElement.dataset.mapPreview).toBe("done");
   });
 
   it("still stands down at once when the camera moves before the loading frame lifts", async () => {

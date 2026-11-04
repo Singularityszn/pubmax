@@ -1,0 +1,62 @@
+# Lines copied from the sweep log, filtered to the three round 5 routes.
+
+## [perf-budget] measured against budget
+Running 3 tests using 1 worker
+
+/time-machine                 server render (ms)  33        150
+/time-machine                 JS decoded (KB)     788       2600
+/time-machine                 requests            35        50
+/time-machine                 LCP (ms)            464       800
+/dog-of-the-week              server render (ms)  27        150
+/dog-of-the-week              JS decoded (KB)     776       960
+/dog-of-the-week              requests            32        43
+/dog-of-the-week              LCP (ms)            328       400
+/board/venue-eltcmh           server render (ms)  24        150
+/board/venue-eltcmh           JS decoded (KB)     833       1070
+/board/venue-eltcmh           requests            37        54
+/board/venue-eltcmh           LCP (ms)            420       850
+
+## [perf-budget][samples]
+route                         metric              samples                                         median  spread
+----------------------------  ------------------  ----------------------------------------------  ------  ------
+/time-machine                 server render (ms)  32 / 33 / 36                                    33      12%
+/time-machine                 JS decoded (KB)     788 / 788 / 788                                 788     0%
+/time-machine                 requests            35 / 35 / 35                                    35      0%
+/time-machine                 LCP (ms)            456 / 484 / 464                                 464     6%
+/dog-of-the-week              server render (ms)  26 / 35 / 27 / 20 / 29                          27      56%
+/dog-of-the-week              JS decoded (KB)     776 / 776 / 776 / 776 / 776                     776     0%
+/dog-of-the-week              requests            32 / 32 / 32 / 32 / 32                          32      0%
+/dog-of-the-week              LCP (ms)            452 / 376 / 296 / 316 / 328                     328     48%
+/board/venue-eltcmh           server render (ms)  24 / 20 / 38                                    24      75%
+/board/venue-eltcmh           JS decoded (KB)     833 / 833 / 833                                 833     0%
+/board/venue-eltcmh           requests            37 / 37 / 37                                    37      0%
+/board/venue-eltcmh           LCP (ms)            420 / 352 / 496                                 420     34%
+
+## [perf-budget][method]
+  - /time-machine: 28 connection(s) were still open when the run stopped waiting, so they are streams rather than resources. They started well past the counting boundary and are not in the figures: <server>/map?_rsc=H7lvpUuISKEU_Lq2, <server>/map?_rsc=Yi4JvK9aPgdvvU8N, <server>/map?_rsc=Oe8SbBFlqs2lr6by, <server>/api/tfl-disruption?lat=51.513&lng=-0.13, <server>/map?_rsc=_H_fFy2_Q06N8BA7, <server>/map?_rsc=ESMN0uHFtARRz41R, <server>/map?_rsc=M6mbp1h0e-9d-TQv, <server>/api/citymcp/status, <server>/plan?_rsc=3zHwCduneSYaczaw, <server>/map?q=Shoreditch&_rsc=3zHwCduneSYaczaw, <server>/plan?_rsc=NzNg207qrGFr2FZY, <server>/plan?_rsc=vDW4IkhvkAJZ14n6, <server>/map?q=Shoreditch&_rsc=5hH__GwNNau-vXxY, <server>/map?_rsc=3zHwCduneSYaczaw, <server>/map?_rsc=4RoV0sAX3Jq1o0wG, <server>/map?_rsc=By21wguyptqlOwtn, <server>/map?_rsc=WSgjpqFaf6dRTEom, <server>/map?_rsc=GUOL9mpQuGHl6AQF, <server>/map?log=1&_rsc=GUOL9mpQuGHl6AQF, <server>/map?_rsc=1lnkw9iMz8wiMVq5, <server>/map?_rsc=GwXbrgt7S7AxTtw9, <server>/historic/prospect-of-whitby?_rsc=LCAtMWyqmSo7_ynJ, <server>/historic/the-grapes?_rsc=LCAtMWyqmSo7_ynJ, <server>/historic/the-hoop-and-grapes?_rsc=LCAtMWyqmSo7_ynJ, <server>/historic/prospect-of-whitby?_rsc=XXDXCeNryCRBl4Mk, <server>/historic/prospect-of-whitby?_rsc=LB4jjsGtT0YOBvEv, <server>/historic/the-grapes?_rsc=LB4jjsGtT0YOBvEv, <server>/historic/the-hoop-and-grapes?_rsc=LB4jjsGtT0YOBvEv
+  - /dog-of-the-week: 32 connection(s) were still open when the run stopped waiting, so they are streams rather than resources. They started well past the counting boundary and are not in the figures: <server>/map?_rsc=H7lvpUuISKEU_Lq2, <server>/map?_rsc=Yi4JvK9aPgdvvU8N, <server>/map?_rsc=Oe8SbBFlqs2lr6by, <server>/api/tfl-disruption?lat=51.513&lng=-0.13, <server>/map?_rsc=_H_fFy2_Q06N8BA7, <server>/map?_rsc=ESMN0uHFtARRz41R, <server>/map?_rsc=M6mbp1h0e-9d-TQv, <server>/api/citymcp/status, <server>/plan?_rsc=3zHwCduneSYaczaw, <server>/map?q=Shoreditch&_rsc=3zHwCduneSYaczaw, <server>/plan?_rsc=NzNg207qrGFr2FZY, <server>/plan?_rsc=vDW4IkhvkAJZ14n6, <server>/map?q=Shoreditch&_rsc=5hH__GwNNau-vXxY, <server>/map?_rsc=3zHwCduneSYaczaw, <server>/map?_rsc=4RoV0sAX3Jq1o0wG, <server>/map?_rsc=By21wguyptqlOwtn, <server>/map?_rsc=WSgjpqFaf6dRTEom, <server>/map?_rsc=GUOL9mpQuGHl6AQF, <server>/map?log=1&_rsc=GUOL9mpQuGHl6AQF, <server>/map?_rsc=1lnkw9iMz8wiMVq5, <server>/map?_rsc=GwXbrgt7S7AxTtw9, <server>/historic/prospect-of-whitby?_rsc=LCAtMWyqmSo7_ynJ, <server>/historic/the-grapes?_rsc=LCAtMWyqmSo7_ynJ, <server>/historic/the-hoop-and-grapes?_rsc=LCAtMWyqmSo7_ynJ, <server>/historic/prospect-of-whitby?_rsc=XXDXCeNryCRBl4Mk, <server>/historic/prospect-of-whitby?_rsc=LB4jjsGtT0YOBvEv, <server>/historic/the-grapes?_rsc=LB4jjsGtT0YOBvEv, <server>/historic/the-hoop-and-grapes?_rsc=LB4jjsGtT0YOBvEv, <server>/map?log=1&_rsc=Gc5DMDVq595XJ-11, <server>/map?_rsc=Gc5DMDVq595XJ-11, <server>/map?log=1&_rsc=ikcMPkBMSPyRtjtv, <server>/map?log=1&_rsc=_1x7mbSmIXhiI8CN
+  - /board/venue-eltcmh: 58 connection(s) were still open when the run stopped waiting, so they are streams rather than resources. They started well past the counting boundary and are not in the figures: <server>/map?_rsc=H7lvpUuISKEU_Lq2, <server>/map?_rsc=Yi4JvK9aPgdvvU8N, <server>/map?_rsc=Oe8SbBFlqs2lr6by, <server>/api/tfl-disruption?lat=51.513&lng=-0.13, <server>/map?_rsc=_H_fFy2_Q06N8BA7, <server>/map?_rsc=ESMN0uHFtARRz41R, <server>/map?_rsc=M6mbp1h0e-9d-TQv, <server>/api/citymcp/status, <server>/plan?_rsc=3zHwCduneSYaczaw, <server>/map?q=Shoreditch&_rsc=3zHwCduneSYaczaw, <server>/plan?_rsc=NzNg207qrGFr2FZY, <server>/plan?_rsc=vDW4IkhvkAJZ14n6, <server>/map?q=Shoreditch&_rsc=5hH__GwNNau-vXxY, <server>/map?_rsc=3zHwCduneSYaczaw, <server>/map?_rsc=4RoV0sAX3Jq1o0wG, <server>/map?_rsc=By21wguyptqlOwtn, <server>/map?_rsc=WSgjpqFaf6dRTEom, <server>/map?_rsc=GUOL9mpQuGHl6AQF, <server>/map?log=1&_rsc=GUOL9mpQuGHl6AQF, <server>/map?_rsc=1lnkw9iMz8wiMVq5, <server>/map?_rsc=GwXbrgt7S7AxTtw9, <server>/historic/prospect-of-whitby?_rsc=LCAtMWyqmSo7_ynJ, <server>/historic/the-grapes?_rsc=LCAtMWyqmSo7_ynJ, <server>/historic/the-hoop-and-grapes?_rsc=LCAtMWyqmSo7_ynJ, <server>/historic/prospect-of-whitby?_rsc=XXDXCeNryCRBl4Mk, <server>/historic/prospect-of-whitby?_rsc=LB4jjsGtT0YOBvEv, <server>/historic/the-grapes?_rsc=LB4jjsGtT0YOBvEv, <server>/historic/the-hoop-and-grapes?_rsc=LB4jjsGtT0YOBvEv, <server>/map?log=1&_rsc=Gc5DMDVq595XJ-11, <server>/map?_rsc=Gc5DMDVq595XJ-11, <server>/map?log=1&_rsc=ikcMPkBMSPyRtjtv, <server>/map?log=1&_rsc=_1x7mbSmIXhiI8CN, <server>/map?mode=build&pubs=venue-16pnwmm&_rsc=YNPCXE_7JO9EpTrs, <server>/borough/tower-hamlets?_rsc=YNPCXE_7JO9EpTrs, <server>/map?mode=build&pubs=venue-16pnwmm&_rsc=Y5mnmB3Z_MLfIIOB, <server>/map?mode=build&pubs=venue-16pnwmm&_rsc=mgvUwX3zdiVcXhex, <server>/map?_rsc=YNPCXE_7JO9EpTrs, <server>/?_rsc=IXGx8_qKNaaedG4Q, <server>/?_rsc=WkLZFUohYBQPMkXj, <server>/?_rsc=2iNkYMU7KJhoywiu, <server>/ledger/venue-eltcmh?_rsc=3hpTOe0iDTc9yUQ0, <server>/map?sel=venue-cfctc5&brand=guinness&log=1&_rsc=xm0emlXy4PcSVYPC, <server>/ledger/venue-cfctc5?_rsc=xm0emlXy4PcSVYPC, <server>/ledger/venue-97l8m?_rsc=xm0emlXy4PcSVYPC, <server>/ledger/venue-s0go8s?_rsc=xm0emlXy4PcSVYPC, <server>/ledger/venue-1lbja8?_rsc=xm0emlXy4PcSVYPC, <server>/map?sel=venue-cfctc5&brand=guinness&log=1&_rsc=BelJpajEnYjiAGqC, <server>/map?sel=venue-cfctc5&brand=guinness&log=1&_rsc=1UZDknOXoAA4caJN, <server>/map?_rsc=xm0emlXy4PcSVYPC, <server>/drink/guinness?_rsc=35EJqFEz61Yg4yoY, <server>/map?sel=venue-1otcj9u&brand=guinness&_rsc=35EJqFEz61Yg4yoY, <server>/ledger/venue-1otcj9u?_rsc=35EJqFEz61Yg4yoY, <server>/map?sel=venue-1otcj9u&brand=guinness&log=1&_rsc=35EJqFEz61Yg4yoY, <server>/ledger/venue-1fz0jhj?_rsc=35EJqFEz61Yg4yoY, <server>/drink/guinness?_rsc=XlmRCV2BGWwdQWcD, <server>/drink/guinness?_rsc=troRB7cpG7XHsrQM, <server>/map?sel=venue-1otcj9u&brand=guinness&_rsc=oDPB6tCKOsM0GcU3, <server>/map?_rsc=35EJqFEz61Yg4yoY
+
+## [perf-budget][ratchet]
+/time-machine                 server render (ms)  33        150     -78%
+/time-machine                 JS decoded (KB)     788       2600    -70%
+/time-machine                 requests            35        50      -30%
+/time-machine                 LCP (ms)            464       800     -42%
+/dog-of-the-week              server render (ms)  27        150     -82%
+/dog-of-the-week              JS decoded (KB)     776       960     -19%
+/dog-of-the-week              requests            32        43      -26%
+/board/venue-eltcmh           server render (ms)  24        150     -84%
+/board/venue-eltcmh           JS decoded (KB)     833       1070    -22%
+/board/venue-eltcmh           requests            37        54      -31%
+/board/venue-eltcmh           LCP (ms)            420       850     -51%
+
+## [perf-budget][unmeasured]
+route                   metric              median  budget  excess  samples ran  spread
+/dog-of-the-week        LCP (ms)            328     400     -72     296 to 452   48%
+
+## run result
+✘  1 [chromium] › e2e/performance-budget.spec.ts:84:5 › every budgeted route stays inside its performance budget (30.5m)
+✓  2 [chromium] › e2e/performance-budget.spec.ts:235:5 › performance browser prevents service-worker registration (683ms)
+✓  3 [chromium] › e2e/performance-budget.spec.ts:244:5 › performance warm-up retains HTTP caching while blocking third parties (1.9s)
+1 failed
+2 passed (34.3m)

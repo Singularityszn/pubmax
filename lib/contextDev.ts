@@ -757,7 +757,7 @@ export async function batchSubmit(
           client.batch.submit({
             input: {
               mode: "scrape",
-              data: { format: "markdown", urls: urls.map((url) => ({ url })) },
+              data: { formats: { markdown: true }, urls: urls.map((url) => ({ url })) },
             },
             ...(options.webhookUrl === undefined ? {} : { webhookUrl: options.webhookUrl }),
             ...(options.tags === undefined ? {} : { tags: options.tags }),

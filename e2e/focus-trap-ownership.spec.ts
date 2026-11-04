@@ -11,7 +11,7 @@ for (const componentInert of [false, true]) {
     await page.goto("/plan");
     const nav = page.getByRole("navigation", { name: "Primary" });
     const background = page.locator("a.skipLink");
-    const map = nav.getByRole("link", { name: "Map" });
+    const map = nav.getByRole("link", { name: "Explore" });
     await expect(map).toBeVisible();
     await map.focus();
     await page.keyboard.press("Shift");

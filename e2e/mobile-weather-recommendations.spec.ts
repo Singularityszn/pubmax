@@ -2,6 +2,8 @@ import { mkdir, writeFile } from "node:fs/promises";
 
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { openOverviewFold } from "./helpers/overviewFolds";
+
 // Account-gated weather Recommendations on a phone, in the dark, one-handed.
 //
 // The card is a WRITE surface on the venue sheet, so the browser evidence has
@@ -56,11 +58,8 @@ async function openVenueCard(page: Page): Promise<Locator> {
     waitUntil: "domcontentloaded",
   });
   expect(response?.status()).toBe(200);
-  const details = page.locator(".venueOverviewMore");
-  await expect(details).toBeVisible({ timeout: 60_000 });
-  if (!(await details.evaluate((element) => element.hasAttribute("open")))) {
-    await details.locator("> summary").click();
-  }
+  // The weather tips live in the Tonight fold (lib/venueOverviewFolds.ts).
+  await openOverviewFold(page, "tonight", 60_000);
   const card = page.locator(".venueWeatherRecommendations");
   await expect(card).toBeAttached({ timeout: 60_000 });
   await card.evaluate((element) => {

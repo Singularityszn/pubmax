@@ -20,6 +20,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useStaggeredRead } from "@/lib/useStaggeredRead";
+import { useFsaHygieneMatched } from "@/lib/fsaHygieneMatched";
 import {
   ExternalLink,
   Info,
@@ -166,6 +167,7 @@ export default function CityPlaceStrip({
   const generationRef = useRef(0);
 
   const ready = useStaggeredRead(3, venueId);
+  const fsaMatched = useFsaHygieneMatched(venueId);
 
   useEffect(() => {
     if (!ready || !isLondon) return;
@@ -227,7 +229,10 @@ export default function CityPlaceStrip({
   const rating = enrichment.rating;
   const userRatingCount = enrichment.userRatingCount;
   const openNow = enrichment.openNow;
-  const hygiene = formatHygiene(enrichment.hygiene);
+  // Hygiene is said once, by the FSA badge with its date and source
+  // (components/map/VenueHygiene.tsx). Once the FSA has answered for this pub,
+  // the strip's own CityMCP hygiene line steps aside.
+  const hygiene = fsaMatched ? null : formatHygiene(enrichment.hygiene);
   const transitLines = formatTransitStops(enrichment.transit);
   const transitSource = enrichment.transit?.source;
   const hygieneSourceHref = firstHttp(hygiene?.sourceLabel) || undefined;

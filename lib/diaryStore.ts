@@ -44,6 +44,11 @@ type DiaryListResult = {
 export type DiaryStore = {
   create(fields: DiaryEntryFields, now?: number): Promise<DiaryCreateResult>;
   listForOwner(ownerUserId: string): Promise<DiaryListResult>;
+  /**
+   * One entry by id, for the With tag store's owner check and its inbox line.
+   * Never handed to a client as it stands: the caller checks the owner.
+   */
+  get(id: string): Promise<DiaryEntry | null>;
   /** The owner's own entry, corrected in place. Never another account's. */
   update(ownerUserId: string, id: string, patch: DiaryEntryPatch): Promise<DiaryUpdateResult>;
   /** The owner's own entry, removed. False when it is not theirs or is gone. */
@@ -71,6 +76,8 @@ export const memoryDiaryStore: DiaryStore = {
     const entry: DiaryEntry = {
       id: randomUUID(),
       ...fields,
+      usualDrink: fields.usualDrink ?? "",
+      withNames: fields.withNames ?? "",
       createdAt: new Date(now).toISOString(),
     };
     byId.set(entry.id, entry);
@@ -94,6 +101,7 @@ export const memoryDiaryStore: DiaryStore = {
     hit.visitedOn = visitedOn;
     if (patch.rating !== undefined) hit.rating = patch.rating;
     if (patch.review !== undefined) hit.review = patch.review;
+    if (patch.usualDrink !== undefined) hit.usualDrink = patch.usualDrink;
     return { status: "updated", entry: toDTO(hit) };
   },
 
@@ -102,6 +110,11 @@ export const memoryDiaryStore: DiaryStore = {
     if (!hit || hit.ownerUserId !== ownerUserId) return false;
     byId.delete(id);
     return true;
+  },
+
+  async get(id) {
+    const hit = byId.get(id);
+    return hit ? toDTO(hit) : null;
   },
 
   async listForOwner(ownerUserId) {
@@ -119,6 +132,15 @@ const { guard } = createFailSoftGuard({
   tables: TABLE,
   migrationHint: MIGRATION_HINT,
 });
+
+/** PostgREST's answer for a column a migration (0205, 0207) has not added yet. */
+function isMissingColumn(error: { code?: string; message?: string }, column: string): boolean {
+  const message = error.message ?? "";
+  return (error.code === "42703" || error.code === "PGRST204") && message.includes(column);
+}
+
+/** The optional columns a write drops, newest first, on a database that is behind. */
+const OPTIONAL_COLUMNS = ["with_names", "usual_drink"] as const;
 
 function fromRow(row: Record<string, unknown>): DiaryEntry | null {
   const id = typeof row.id === "string" ? row.id : "";
@@ -138,6 +160,10 @@ function fromRow(row: Record<string, unknown>): DiaryEntry | null {
     visitedOn,
     rating,
     review: typeof row.review === "string" ? row.review : "",
+    // Absent until the captain applies 0205: an entry with no usual.
+    usualDrink: typeof row.usual_drink === "string" ? row.usual_drink : "",
+    // Absent until the captain applies 0207: an entry with no names.
+    withNames: typeof row.with_names === "string" ? row.with_names : "",
     visibility: "private",
     createdAt: typeof row.created_at === "string" ? row.created_at : new Date(0).toISOString(),
   };
@@ -154,20 +180,29 @@ const supabaseDiaryStore: DiaryStore = {
           fallback: () => memoryDiaryStore.create(fields, now),
         }),
       run: async () => {
-        const { data, error } = await admin()
-          .from(TABLE)
-          .insert({
-            owner_user_id: fields.ownerUserId,
-            venue_id: fields.venueId,
-            venue_name: fields.venueName,
-            visited_on: fields.visitedOn,
-            rating: fields.rating,
-            review: fields.review,
-            visibility: fields.visibility,
-            created_at: new Date(now).toISOString(),
-          })
-          .select("*")
-          .single();
+        const row: Record<string, unknown> = {
+          owner_user_id: fields.ownerUserId,
+          venue_id: fields.venueId,
+          venue_name: fields.venueName,
+          visited_on: fields.visitedOn,
+          rating: fields.rating,
+          review: fields.review,
+          visibility: fields.visibility,
+          created_at: new Date(now).toISOString(),
+        };
+        if (fields.usualDrink) row.usual_drink = fields.usualDrink;
+        if (fields.withNames) row.with_names = fields.withNames;
+        const insert = (values: Record<string, unknown>) =>
+          admin().from(TABLE).insert(values).select("*").single();
+        let { data, error } = await insert(row);
+        // A deploy ahead of 0205 or 0207 keeps the visit and loses the
+        // footnote, the 0153 receipt-photo rule: a visit is worth more.
+        for (const column of OPTIONAL_COLUMNS) {
+          if (error && column in row && isMissingColumn(error, column)) {
+            delete row[column];
+            ({ data, error } = await insert(row));
+          }
+        }
         if (isUniqueViolation(error)) return { status: "duplicate" as const };
         if (error) throw new Error(error.message);
         const entry = fromRow(data as Record<string, unknown>);
@@ -191,6 +226,7 @@ const supabaseDiaryStore: DiaryStore = {
         if (patch.visitedOn !== undefined) columns.visited_on = patch.visitedOn;
         if (patch.rating !== undefined) columns.rating = patch.rating;
         if (patch.review !== undefined) columns.review = patch.review;
+        if (patch.usualDrink !== undefined) columns.usual_drink = patch.usualDrink;
         const { data, error } = await admin()
           .from(TABLE)
           .update(columns)
@@ -226,6 +262,18 @@ const supabaseDiaryStore: DiaryStore = {
           .select("id");
         if (error) throw new Error(error.message);
         return (data ?? []).length > 0;
+      },
+    });
+  },
+
+  async get(id) {
+    return guard({
+      context: "get",
+      onSchemaMiss: async () => memoryDiaryStore.get(id),
+      run: async () => {
+        const { data, error } = await admin().from(TABLE).select("*").eq("id", id).maybeSingle();
+        if (error) throw new Error(error.message);
+        return data ? fromRow(data as Record<string, unknown>) : null;
       },
     });
   },

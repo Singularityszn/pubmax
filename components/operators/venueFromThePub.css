@@ -1,0 +1,114 @@
+/* "From the pub" on the venue sheet: the pub's own published word, then the
+   quiet "Run this pub?" door. One row in the pub fold. Plain ink on the sheet,
+   no fill and no coral: it is not a price, not a primary and not paid. */
+
+.venueFromThePub {
+  margin: 12px 0 0;
+}
+
+.venueFromThePubBlock {
+  padding: 10px 0 0;
+  border-top: 1px solid var(--line-soft);
+}
+
+.venueFromThePubHeading {
+  margin: 0 0 6px;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.venueFromThePubList {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.venueFromThePubItem {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.venueFromThePubItem p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.venueFromThePubMeta,
+.venueFromThePubAdded {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.venueFromThePubKind {
+  font-weight: 700;
+}
+
+.venueFromThePubTitle {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.venueFromThePubWhen,
+.venueFromThePubBody {
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+/* The operator panel was drawn for the Ledger page. On the sheet it reads the
+   sheet's own tokens at either theme, so a dark system setting under a light
+   app theme never paints dark fields on a light sheet. */
+.venueFromThePub .operatorRail {
+  margin: 8px 0 0;
+}
+
+.venueFromThePub .operatorRailTrigger {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.venueFromThePub .operatorRailCard {
+  border-color: var(--line-soft);
+  background: transparent;
+}
+
+.venueFromThePub .operatorRailTitle {
+  color: var(--ink);
+}
+
+.venueFromThePub .operatorRailClose,
+.venueFromThePub .operatorRailBody,
+.venueFromThePub .operatorRailField {
+  color: var(--muted);
+}
+
+.venueFromThePub .operatorRailField input,
+.venueFromThePub .operatorRailField select,
+.venueFromThePub .operatorRailField textarea {
+  border-color: var(--hairline);
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.venueFromThePub .operatorRailSubmit {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* The sheet has no green or red word token, so the panel's answer reads in
+   ink; its role="status" is what announces it. */
+.venueFromThePub .operatorRailOk,
+.venueFromThePub .operatorRailError {
+  color: var(--ink);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .venueFromThePub .operatorRailTrigger:hover {
+    color: var(--ink);
+  }
+}

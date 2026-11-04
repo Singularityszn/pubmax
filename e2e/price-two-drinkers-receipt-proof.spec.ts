@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { RECEIPT_OPTIONAL_LINE } from "@/lib/pintDropReceipt";
+
 import { installAuthDoubles } from "./helpers/authDoubles";
 import {
   COMMUNITY_SHEET_FIXTURE_VENUE_ID,
@@ -128,9 +130,9 @@ const ARNOS_ARMS = stableVenueIdFromKey(
   ["arnos arms", "338 bowes road, arnos grove, london, n11 1an", "51.61620", "-0.13212"].join("|"),
 );
 
-/** Open the full Pint Drop composer on the Stories tab of an open pub sheet. */
+/** Open the full Pint Drop composer on the Prices tab of an open pub sheet. */
 async function openSpillComposer(page: Page, inspector: Locator): Promise<Locator> {
-  await inspector.getByRole("tab", { name: "Stories", exact: true }).click();
+  await inspector.getByRole("tab", { name: "Prices", exact: true }).click();
   const pintsPanel = inspector.locator("#venuePanel-pints");
   await expect(pintsPanel).toBeVisible();
   await expect(async () => {
@@ -152,12 +154,20 @@ for (const viewport of VIEWPORTS) {
 
     await page.goto(`/map?sel=${HATTON}`);
     const inspector = await openVenueSheet(page);
-    const priceArea = inspector.locator('[data-pint-trust="disputed"]');
+    // The Overview's price area. From 641px the action card (VenueActionCard)
+    // at the top of the sheet repeats the price with its trust state; it says
+    // the same split and is read on its own after this one.
+    const priceArea = inspector.locator('[data-pint-trust="disputed"]:not(.venueActionCard *)');
     await expect(priceArea).toBeVisible({ timeout: 30_000 });
     // The words the captain asked for, and the line that may never stand here.
     await expect(priceArea).toContainText("Two drinkers, two prices: £4.50 and £4.70");
     await expect(priceArea).not.toContainText("Logged once");
     await expect(priceArea).toContainText("Which did you pay?");
+    if (viewport.width > 640) {
+      const card = inspector.locator('.venueActionCard [data-pint-trust="disputed"]');
+      await expect(card).toBeVisible();
+      await expect(card).not.toContainText("Logged once");
+    }
     await priceArea.scrollIntoViewIfNeeded();
     await shoot(priceArea, `${PROOF}/split-overview-${viewport.name}.png`);
   });
@@ -212,9 +222,10 @@ for (const viewport of VIEWPORTS) {
 
     await form.getByLabel("What did it cost?").fill("4.50");
     const bill = form.getByTestId("spill-receipt-step");
-    // In front of the drinker, not behind "Add a photo or story".
+    // In front of the drinker, not behind "Add a photo or story", and OPTIONAL
+    // since captain decision 9 (1 Nov 2026): one line that offers, never asks.
     await expect(bill).toBeVisible();
-    await expect(bill).toContainText("Add a photo of the bill");
+    await expect(bill).toContainText(RECEIPT_OPTIONAL_LINE);
     await bill.scrollIntoViewIfNeeded();
     await shoot(bill, `${PROOF}/spill-bill-asked-${viewport.name}.png`);
 

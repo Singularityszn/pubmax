@@ -54,9 +54,12 @@ describe("server Social access resolution", () => {
       state: "verified",
       actor: { accountId: "account-1", profileId: "profile-1", handle: "alice" },
     });
+    // The verified auth user id rides beside the actor, never inside it: the
+    // actor's accountId is the Social account record's own id.
     await expect(requireVerifiedSocialActor(undefined, dependencies())).resolves.toEqual({
       ok: true,
       actor: { accountId: "account-1", profileId: "profile-1", handle: "alice" },
+      authUserId: USER_ID,
     });
   });
 

@@ -3,7 +3,9 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { GET } from "@/app/api/social/media/[mediaId]/route";
 import { GET as adminGET } from "@/app/api/admin/social-posts/media/[mediaId]/route";
 import { POST as createModeratorSession } from "@/app/api/admin/session/route";
+import { POST as createSocialPost } from "@/app/api/social/posts/route";
 import { AUTH_RESUME_COOKIE, decodeAuthResumeCookie, encodeAuthResumeCookie } from "@/lib/authSessionResume";
+import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
 
 const MEDIA_ID = "11111111-1111-4111-8111-111111111111";
 const PROFILE_ID = "22222222-2222-4222-8222-222222222222";
@@ -16,7 +18,38 @@ const state = {
   authorized: true, staffActive: true, limited: false,
   imageState: "valid" as "valid" | "missing" | "corrupt", paths: [] as string[],
   refreshFailures: 0,
+  revoked: false,
+  // The signed-out door: the rows holding this photo, the author's account
+  // choice, and the reader the media read is asked for (null is nobody).
+  lanePosts: [] as Array<Record<string, unknown>>,
+  authorVisibility: "public" as string | null,
+  mediaViewer: PROFILE_ID as string | null,
 };
+
+function londonLaneRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    id: "77777777-7777-4777-8777-777777777777",
+    author_profile_id: PROFILE_ID,
+    author_handle: "alice",
+    kind: "standard",
+    visibility: "public",
+    status: "visible",
+    body: "Proper pint at the Lamb",
+    area_slug: "camden",
+    venue_id: null,
+    hashtags: [],
+    comment_policy: "open",
+    photo_media_id: MEDIA_ID,
+    photo_alt_text: "A pint on the bar",
+    author_name_hidden: false,
+    moderation_state: "approved",
+    revision: 0,
+    mutation_version: 0,
+    created_at: "2026-11-01T19:00:00.000Z",
+    updated_at: "2026-11-01T19:00:00.000Z",
+    ...overrides,
+  };
+}
 
 // Only the external Auth, PostgREST and Storage responses are fixtures. The
 // GET handlers, identity checks, stores, limiter and image reader remain real.
@@ -31,6 +64,7 @@ const fixtureFetch: typeof fetch = async (input, init) => {
       ? json({ id: USER_ID }) : json({ code: "bad_jwt", msg: "Invalid token" }, 401);
   }
   if (url.pathname === "/auth/v1/token") {
+    if (state.revoked) return json({ error: "invalid_grant" }, 400);
     const body = JSON.parse(String(init?.body)) as { refresh_token?: string };
     if (body.refresh_token === "fixture-refresh-token") return json({ user: { id: USER_ID } });
     // A rotating token answers the way GoTrue does: a fresh pair, the old one spent.
@@ -55,14 +89,16 @@ const fixtureFetch: typeof fetch = async (input, init) => {
     return json([{ id: ACCOUNT_ID, clerk_user_id: "fixture-account", profile_id: PROFILE_ID, ownership_state: "active" }]);
   }
   if (url.pathname === "/rest/v1/profiles") {
-    return json([{ id: PROFILE_ID, handle: "alice", user_id: USER_ID }]);
+    return json([{ id: PROFILE_ID, handle: "alice", user_id: USER_ID, visibility: state.authorVisibility }]);
   }
   if (url.pathname === "/rest/v1/private_account_identities") return json([{ date_of_birth: "1990-01-01" }]);
   if (url.pathname === "/rest/v1/adult_self_assertions") return json([]);
   if (url.pathname === "/rest/v1/rpc/check_rate_limit") return json(state.limited);
+  if (url.pathname === "/rest/v1/social_posts") return json(state.lanePosts);
+  if (url.pathname === "/rest/v1/rpc/public_withdrawn_profiles") return json([]);
   if (url.pathname === "/rest/v1/rpc/read_social_post_media") {
-    const body = JSON.parse(String(init?.body)) as { p_viewer: string; p_media_id: string };
-    expect(body).toEqual({ p_viewer: PROFILE_ID, p_media_id: MEDIA_ID });
+    const body = JSON.parse(String(init?.body)) as { p_viewer: string | null; p_media_id: string };
+    expect(body).toEqual({ p_viewer: state.mediaViewer, p_media_id: MEDIA_ID });
     return json(state.authorized ? [{ object_key: OBJECT_KEY }] : []);
   }
   if (url.pathname === "/rest/v1/rpc/read_social_post_media_admin") {
@@ -89,6 +125,10 @@ beforeEach(() => {
   state.imageState = "valid";
   state.paths = [];
   state.refreshFailures = 0;
+  state.revoked = false;
+  state.lanePosts = [];
+  state.authorVisibility = "public";
+  state.mediaViewer = PROFILE_ID;
   vi.stubEnv("SUPABASE_URL", "https://social-media.test");
   vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "fixture-key");
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://social-media.test");
@@ -181,11 +221,58 @@ it("preserves the moderator session-cookie image request", async () => {
   }), { params: Promise.resolve({ mediaId: MEDIA_ID }) }));
 });
 
-it("refuses an anonymous retained URL without consulting media or Storage", async () => {
+it("refuses an anonymous retained URL the London lane does not show, without consulting media or Storage", async () => {
+  // The signed-out door asks the lane's own rule first. No post in the lane
+  // holds this photo, so the media read and Storage are never reached.
   const response = await serve({});
   expect(response.status).toBe(404);
   expect(response.headers.get("location")).toBeNull();
-  expect(state.paths).toEqual([]);
+  expect(state.paths).not.toContain("/rest/v1/rpc/read_social_post_media");
+  expect(downloads()).toEqual([]);
+});
+
+it("serves a London lane photo to a signed-out reader, and only while the post stays in the lane", async () => {
+  state.mediaViewer = null;
+  state.lanePosts = [londonLaneRow()];
+  await expectPhoto(await serve({}));
+  expect(state.paths).not.toContain("/auth/v1/user");
+  expect(downloads()).toHaveLength(1);
+
+  const refusals: Array<[string, () => void]> = [
+    ["a patch outside London", () => { state.lanePosts = [londonLaneRow({ area_slug: "manchester-city-centre" })]; }],
+    ["no area at all", () => { state.lanePosts = [londonLaneRow({ area_slug: null })]; }],
+    ["a mutuals-only post", () => { state.lanePosts = [londonLaneRow({ visibility: "friends" })]; }],
+    ["a post still in review", () => { state.lanePosts = [londonLaneRow({ moderation_state: "needs_review" })]; }],
+    ["a hidden post", () => { state.lanePosts = [londonLaneRow({ status: "hidden" })]; }],
+    ["a private account", () => { state.lanePosts = [londonLaneRow()]; state.authorVisibility = "private"; }],
+  ];
+  for (const [label, arrange] of refusals) {
+    state.authorVisibility = "public";
+    arrange();
+    const refused = await serve({});
+    expect(refused.status, label).toBe(404);
+  }
+  expect(downloads(), "no refused photo reaches Storage").toHaveLength(1);
+
+  state.lanePosts = [londonLaneRow()];
+  state.authorVisibility = "public";
+  vi.stubEnv("PUBMAX_SOCIAL_FREEZE", "social");
+  expect((await serve({})).status, "the freeze pauses the signed-out door").toBe(404);
+  vi.stubEnv("PUBMAX_SOCIAL_FREEZE", "");
+  vi.stubEnv("PUBMAX_SOCIAL_FRIENDS_LAUNCH", "0");
+  expect((await serve({})).status, "the launch rollback pauses it").toBe(404);
+  expect(downloads()).toHaveLength(1);
+});
+
+it("keeps the signed-out photo door's per-IP budget ahead of the lane rule and Storage", async () => {
+  state.mediaViewer = null;
+  state.lanePosts = [londonLaneRow()];
+  state.limited = true;
+  const response = await serve({});
+  expect(response.status).toBe(404);
+  expect(state.paths).toContain("/rest/v1/rpc/check_rate_limit");
+  expect(state.paths).not.toContain("/rest/v1/social_posts");
+  expect(downloads()).toEqual([]);
 });
 
 it("keeps the read budget ahead of media authorization and download", async () => {
@@ -207,7 +294,7 @@ it.each(["missing", "corrupt"] as const)("withholds %s Storage objects without i
 });
 
 // Each test below presents its own token: the cookie lane remembers a verified
-// token for a minute, so a shared one would answer from memory.
+// token briefly, so a shared one would answer from memory.
 it("writes the rotated refresh token back to the resume cookie on the photo", async () => {
   const response = await serve(resumeCookie("fixture-rotating-write"));
   const setCookie = response.headers.get("set-cookie") ?? "";
@@ -239,11 +326,33 @@ it("redeems one token once for a page of concurrent photos", async () => {
     );
     await expectPhoto(response);
   }
-  // A later photo inside the window answers from memory and spends nothing,
-  // and so does the next photo carrying the token the browser was just handed.
   await expectPhoto(await serve(resumeCookie("fixture-rotating-page")));
-  await expectPhoto(await serve(resumeCookie("fixture-rotating-page-rotated")));
   expect(refreshes()).toBe(1);
+  await expectPhoto(await serve(resumeCookie("fixture-rotating-page-rotated")));
+  expect(refreshes()).toBe(2);
+});
+
+it("refuses a revoked rotated token before serving another photo", async () => {
+  await expectPhoto(await serve(resumeCookie("fixture-rotating-revoked")));
+  state.revoked = true;
+  const response = await serve(resumeCookie("fixture-rotating-revoked-rotated"));
+  expect(response.status).toBe(404);
+  expect(await response.text()).not.toContain(OBJECT_KEY);
+  expect(refreshes()).toBe(2);
+  expect(downloads()).toHaveLength(1);
+});
+
+it("refuses a revoked presented token after three seconds", async () => {
+  const start = Date.now();
+  const now = vi.spyOn(Date, "now").mockReturnValue(start);
+  await expectPhoto(await serve(resumeCookie("fixture-rotating-expired")));
+  state.revoked = true;
+  now.mockReturnValue(start + 3_001);
+  const response = await serve(resumeCookie("fixture-rotating-expired"));
+  expect(response.status).toBe(404);
+  expect(await response.text()).not.toContain(OBJECT_KEY);
+  expect(refreshes()).toBe(2);
+  expect(downloads()).toHaveLength(1);
 });
 
 it("never remembers a refused refresh as a sign-in", async () => {
@@ -253,4 +362,34 @@ it("never remembers a refused refresh as a sign-in", async () => {
   expect(refused.headers.get("set-cookie")).toBeNull();
   await expectPhoto(await serve(resumeCookie("fixture-rotating-refused")));
   expect(refreshes()).toBe(2);
+});
+
+it("never lets the resume cookie alone write to Social", async () => {
+  // October 2026 audit: the lane remembered a verified token for a minute, so a
+  // token GoTrue had since revoked still wrote as the account. The cookie is an
+  // ambient credential; a write must carry a bearer GoTrue checks every time.
+  const post = (headers: HeadersInit) => createSocialPost(new Request("https://app.test/api/social/posts", {
+    method: "POST",
+    headers: { ...headers, "content-type": "application/json" },
+    body: "{}",
+  }));
+  await expectPhoto(await serve(resumeCookie("fixture-rotating-writes")));
+  expect(refreshes()).toBe(1);
+
+  for (const token of ["fixture-rotating-writes", "fixture-rotating-writes-rotated"]) {
+    const refused = await post(resumeCookie(token));
+    expect(refused.status).toBe(401);
+    expect(await refused.json()).toMatchObject({ code: "SOCIAL_SIGN_IN_REQUIRED" });
+  }
+  for (const method of ["POST", "PUT", "PATCH", "DELETE"]) {
+    const request = new Request("https://app.test/api/social/crews", { method, headers: resumeCookie("fixture-rotating-writes") });
+    expect(await requireVerifiedSocialActor(request)).toMatchObject({ ok: false, status: 401, code: "SOCIAL_SIGN_IN_REQUIRED" });
+  }
+  // No redeem is attempted for a write.
+  expect(refreshes()).toBe(1);
+
+  // A write with a bearer still resolves the actor, then meets the route's own checks.
+  const signedIn = await post({ authorization: "Bearer fixture-user-token" });
+  expect(signedIn.status).toBe(400);
+  expect(await signedIn.json()).toMatchObject({ code: "INVALID_IDEMPOTENCY_KEY" });
 });

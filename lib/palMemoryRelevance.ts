@@ -9,9 +9,9 @@
 //
 // 1. Access needs and corrections always go. A guide dog or a step-free need
 //    matters to every pick, and a correction overrides what came before it.
-// 2. Then the memories this ask is about: the ask's topic (drink, getting
-//    home, atmosphere, the venue itself, a past night) matched to the memory's
-//    kind, and the words the two share.
+// 2. Then the memories this ask is about: the ask's topic (drink, food,
+//    getting home, atmosphere, the venue itself, a past night) matched to
+//    the memory's kind, and the words the two share.
 // 3. Then the newest, to fill what is left.
 //
 // Without an ask (a voice call before its first line), recall is the access
@@ -31,6 +31,7 @@ const PINNED_KINDS: ReadonlySet<PubPalMemoryKind> = new Set(["accessibility_pref
 
 const KIND_TOPICS: ReadonlyArray<[PubPalMemoryKind, RegExp]> = [
   ["drink_preference", /\b(?:drinks?|pints?|beers?|ales?|lager|stout|bitter|cider|wine|cocktails?|gin|whisky|spirits?|alcohol|sober|round)\b/i],
+  ["food_preference", /\b(?:food|eat\w*|hungry|starving|peckish|dinner|lunch|brunch|breakfast|supper|meal|menu|kitchen|snacks?|roasts?|pies?|chips|burgers?|pizza|curry|steak|fish|veg\w*|vegan|meat|gluten|coeliac|dairy|nuts?|allerg\w*|halal|kosher|spicy|pudding|dessert)\b/i],
   ["transport_preference", /\b(?:home|get(?:ting)? back|trains?|tube|bus|taxi|cab|bikes?|cycl\w*|walk\w*|line|station|journey|travel)\b/i],
   ["atmosphere_preference", /\b(?:quiet|loud|lively|busy|music|band|dj|sports?|football|match|telly|tv|quiz|date|romantic|chat|vibe|crowd|dance)\b/i],
   ["accessibility_preference", /\b(?:step[- ]free|wheelchair|access\w*|stairs|guide dog|toilets?|seats?)\b/i],
@@ -57,10 +58,22 @@ export function palMemoryStems(text: string): Set<string> {
 
 type Recallable = { kind: PubPalMemoryKind; value: string };
 
+/**
+ * What a topic match is worth. The venue kind is the catch-all: its words
+ * ("pub", "somewhere", "dinner") match nearly every ask, and before food had a
+ * kind of its own a food note was filed there. So a venue match counts for
+ * less than a match on a specific kind, and "Where can I get dinner?" puts
+ * "Vegetarian" above forty notes about pubs instead of tying with them and
+ * losing on age. A shared word still outweighs either.
+ */
+function topicWeight(kind: PubPalMemoryKind): number {
+  return kind === "venue_preference" ? 1 : 2;
+}
+
 function relevance(memory: Recallable, askTopics: ReadonlySet<PubPalMemoryKind>, askStems: ReadonlySet<string>): number {
   let shared = 0;
   for (const stem of palMemoryStems(memory.value)) if (askStems.has(stem)) shared += 1;
-  return (askTopics.has(memory.kind) ? 2 : 0) + 3 * shared;
+  return (askTopics.has(memory.kind) ? topicWeight(memory.kind) : 0) + 3 * shared;
 }
 
 /**

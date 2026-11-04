@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { legacyCheapestPriceEvidence } from "@/lib/legacyPriceEvidence.mjs";
+import { legacyCheapestPriceEvidence, legacyCheapestPriceReadDay } from "@/lib/legacyPriceEvidence.mjs";
 
 describe("listed minimum price projection", () => {
   it("retains the minimum row's own older read and publisher", () => {
@@ -17,10 +17,33 @@ describe("listed minimum price projection", () => {
     expect(legacyCheapestPriceEvidence([{ price_gbp: 6 }], 2.95)).toEqual({});
   });
 
+  it.each(["2026-01", "2026-02-30", "2026-02-30T12:00:00Z", "2999-01-01"])("refuses the original invalid observation %s before timestamp or London-day conversion", (scraped_at_values) => {
+    const prices = [{ price_gbp: 3, pub_url: "https://pub.example/menu", scraped_at_values }];
+    expect(legacyCheapestPriceEvidence(prices, 3)).toEqual({ priceSource: "pub.example" });
+    expect(legacyCheapestPriceReadDay(prices, 3)).toBeNull();
+  });
+
+  it("keeps a valid read without turning invalid reads into newer evidence", () => {
+    const prices = [{ price_gbp: 3, pub_url: "https://pub.example/menu", scraped_at_values: "2026-01-02T23:30:00Z|2026-02-30|2026-03|2999-01-01" }];
+    expect(legacyCheapestPriceEvidence(prices, 3)).toEqual({ priceSource: "pub.example", priceObservedAt: "2026-01-02T23:30:00.000Z" });
+    expect(legacyCheapestPriceReadDay(prices, 3)).toBe("2026-01-02");
+  });
+
   it("uses one matching record on a tie without merging unrelated reads", () => {
     expect(legacyCheapestPriceEvidence([
       { price_gbp: 3, pub_url: "https://old.example/menu", scraped_at_values: "2026-07-03T23:10:47+00:00" },
       { price_gbp: 3, pub_url: "https://new.example/menu", scraped_at_values: "2026-10-02T12:00:00Z" },
     ], 3)).toEqual({ priceSource: "old.example", priceObservedAt: "2026-07-03T23:10:47.000Z" });
+    expect(legacyCheapestPriceReadDay([
+      { price_gbp: 3, pub_url: "https://old.example/menu", scraped_at_values: "2026-07-03T23:10:47+00:00" },
+      { price_gbp: 3, pub_url: "https://new.example/menu", scraped_at_values: "2026-10-02T12:00:00Z" },
+    ], 3)).toBe("2026-07-04");
+  });
+
+  it("keeps the selected row's serving without borrowing a tied row's pint measure", () => {
+    expect(legacyCheapestPriceEvidence([
+      { price_gbp: 3, pint_name: "BOTTLED BEER", measure: "bottle", pub_url: "https://pub.example/menu", scraped_at_values: "2026-10-01" },
+      { price_gbp: 3, pint_name: "Lager", measure: "pint", pub_url: "https://pub.example/menu", scraped_at_values: "2026-10-02" },
+    ], 3)).toEqual({ cheapestPint: "BOTTLED BEER", measure: "bottle", priceSource: "pub.example", priceObservedAt: "2026-10-01T00:00:00.000Z" });
   });
 });

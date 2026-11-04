@@ -219,7 +219,7 @@ describe("friction-state voice fence", () => {
     ).toContain("quiet one tonight");
   });
 
-  it("Today's rendered empty picks card hands the user an exit to the map", () => {
+  it("Today's rendered page hands the user an exit to the map", () => {
     const markup = renderToStaticMarkup(
       createElement(TodayClient, {
         dateLabel: "Thursday 3 September",
@@ -233,16 +233,12 @@ describe("friction-state voice fence", () => {
         },
         weather: null,
         weatherByArea: {},
-        picks: [],
-        picksStatus: "ready",
         fact: null,
         pintsIndex: {},
         quietPint: null,
       }),
     );
-    expect(renderedLinkTexts(markup, "/map")).toContain(
-      "Meanwhile, the map knows the cheap pints",
-    );
+    expect(renderedLinkTexts(markup, "/map")).toContain("Open the map");
   });
 
   it("no button or dropdown row prints a bare numeral as its label", () => {

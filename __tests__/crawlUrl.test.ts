@@ -14,7 +14,7 @@ const sample: CrawlUrlState = {
   filters: {
     ...initialFilters,
     crawlStyle: "heritage",
-    maxPrice: 6.5,
+    maxPrice: 6,
     stopCount: 5,
     routeWindow: 25,
     requirePintDrops: true,
@@ -29,7 +29,7 @@ describe("crawlUrl", () => {
     expect(decoded.mode).toBe("build");
     expect(decoded.filters).toMatchObject({
       crawlStyle: "heritage",
-      maxPrice: 6.5,
+      maxPrice: 6,
       stopCount: 5,
       routeWindow: 25,
       requirePintDrops: true,
@@ -341,6 +341,19 @@ describe("crawlUrl", () => {
     ).not.toContain("food=");
   });
 
+  it("decodes garden=1 into the beer-garden filter, so /gardens can open it", () => {
+    expect(decodeCrawl(new URLSearchParams("garden=1")).filters?.requireBeerGarden).toBe(true);
+    expect(decodeCrawl(new URLSearchParams("garden=0")).filters?.requireBeerGarden).toBeUndefined();
+    expect(seedCrawlState("?garden=1").filters.requireBeerGarden).toBe(true);
+    expect(seedCrawlState("").filters.requireBeerGarden).toBe(false);
+    expect(
+      encodeCrawl({ ...sample, filters: { ...sample.filters, requireBeerGarden: true } }),
+    ).toContain("garden=1");
+    expect(
+      encodeCrawl({ ...sample, filters: { ...sample.filters, requireBeerGarden: false } }),
+    ).not.toContain("garden=");
+  });
+
   it("round-trips explicit drink search filters", () => {
     const encoded = encodeCrawl({
       ...sample,
@@ -358,6 +371,14 @@ describe("crawlUrl", () => {
   });
 
   describe("buildCrawlMapHref", () => {
+    it("keeps a crawl on its own city map and refuses a walk between cities", () => {
+      const href = buildCrawlMapHref(["venue-mcr-abc", "venue-mcr-def"]);
+      const target = new URL(href!, "http://localhost");
+      expect(target.pathname).toBe("/map/manchester");
+      expect(target.searchParams.get("pubs")).toBe("venue-mcr-abc,venue-mcr-def");
+      expect(buildCrawlMapHref(["venue-abc", "venue-mcr-def"])).toBeNull();
+    });
+
     it("deep links the whole ordered crawl into build mode", () => {
       const href = buildCrawlMapHref(["venue-abc", "venue-def", "venue-ghi"]);
       expect(href).toMatch(/^\/map\?mode=build&pubs=/);

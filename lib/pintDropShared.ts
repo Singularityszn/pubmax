@@ -15,6 +15,8 @@ import type { DrinkMeasure } from "@/lib/drinkMeasure";
 // Type-only, so the browser-safe twin keeps its promise: a "use client" module
 // that imports this shape pulls no runtime module in behind it.
 import type { PintDropConfirmation } from "@/lib/pintDropConfirmation";
+// Type-only: lib/pintDropReceipt.ts is a pure leaf, so this stays browser-safe.
+import type { PriceEvidence } from "@/lib/pintDropReceipt";
 import type { LastPintDecisionKind } from "@/lib/tfl";
 
 // A Pint Drop is one object with optional parts: a price log, a passed-down
@@ -124,6 +126,15 @@ export type PintDrop = {
   /** Free label an `other` measure carries, capped by the leaf module. */
   measureLabel?: string;
   priceGbp: number | null;
+  /**
+   * What stands behind the figure (lib/pintDropReceipt.ts, migration 0218):
+   * `receipt` when the write came with a photo of the bill, `unchecked` when
+   * it was typed without one (captain decision 9, 1 Nov 2026). Stamped by the
+   * store's create path from what arrived, never from a client field. Absent
+   * on an unpriced drop and on every row written before 0218, which read as
+   * they always have. Public: the browser's own trust lanes read it.
+   */
+  priceEvidence?: PriceEvidence;
   passedDownNote: string;
   era: string;
   // Optional so old rows / notes-only drops read fine without them. Always a

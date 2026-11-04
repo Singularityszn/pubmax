@@ -33,9 +33,15 @@ const LAYOUT_PIN_JOBS = ["layout-pins-1", "layout-pins-2", "layout-pins-3"];
 // Run unless the classifier succeeded and said no screen code changed. A failed
 // classifier must run the layout pins, not skip them: a skipped check counts
 // as passed for branch protection, so skipping would let a screen change merge
-// without them (fail closed).
+// without them (fail closed). The nightly and a dispatch skip them, because
+// the full suite runs every layout spec on the same commit.
 const LAYOUT_PIN_IF =
-  "${{ !cancelled() && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}";
+  "${{ !cancelled() && github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}";
+// The nightly full suite: the plain Chromium project in count-cut shards, and
+// every other project the default run covers in one job of its own.
+const FULL_SUITE_JOBS = ["full-suite", "full-suite-gl"];
+const FULL_SUITE_IF =
+  "github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'";
 
 // A `${{ ... }}` expression is one word even though it holds spaces.
 function runWords(run: string | undefined): string[] {
@@ -61,6 +67,8 @@ describe("browser CI policy", () => {
     for (const spec of [
       "e2e/smoke.spec.ts",
       "e2e/map-surface-history.spec.ts",
+      "e2e/ux-click-recovery.spec.ts",
+      "e2e/seo-audit-discovery.spec.ts",
     ]) {
       expect(run).toContain(spec);
     }
@@ -76,17 +84,46 @@ describe("browser CI policy", () => {
     expect(Object.keys(workflow.on)).toContain("workflow_dispatch");
     expect(workflow.on.push).toEqual({ branches: ["main"] });
     const fullSuiteJob = defined(workflow.jobs["full-suite"], "full-suite job");
-    expect(fullSuiteJob.if).toBe(
-      "github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'",
-    );
+    const glJob = defined(workflow.jobs["full-suite-gl"], "full-suite-gl job");
+    expect(fullSuiteJob.if).toBe(FULL_SUITE_IF);
+    expect(glJob.if).toBe(FULL_SUITE_IF);
     const shards = fullSuiteJob.strategy?.matrix?.shard;
-    expect(shards).toEqual([1, 2, 3, 4]);
-    const shardFlags = playwrightSteps(fullSuiteJob).flatMap((step) =>
-      runWords(step.run).filter((word) => word.startsWith("--shard=")),
-    );
-    expect(shardFlags).toEqual([
+    expect(shards).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(fullSuiteJob.name).toBe(`Full browser suite (\${{ matrix.shard }}/${shards?.length})`);
+    const [shardStep, ...extraShardSteps] = playwrightSteps(fullSuiteJob);
+    expect(extraShardSteps).toEqual([]);
+    const shardRun = runWords(defined(shardStep, "full-suite Playwright step").run);
+    expect(shardRun.filter((word) => word.startsWith("--shard="))).toEqual([
       `--shard=\${{ matrix.shard }}/${shards?.length}`,
     ]);
+    // The Chromium shards build one server; only the keyless project needs two.
+    expect(shardStep?.env?.PW_SKIP_KEYLESS_WEBSERVER).toBe("1");
+
+    // Between them the two jobs run every project the nightly always ran, and
+    // each project once.
+    const [glStep, ...extraGlSteps] = playwrightSteps(glJob);
+    expect(extraGlSteps).toEqual([]);
+    const glRun = runWords(defined(glStep, "full-suite-gl Playwright step").run);
+    expect(glRun.filter((word) => word.startsWith("--shard="))).toEqual([]);
+    expect(glStep?.env?.PW_SKIP_KEYLESS_WEBSERVER).toBeUndefined();
+    const projects = (run: string[]) =>
+      run.filter((word) => word.startsWith("--project=")).map((word) => word.slice("--project=".length));
+    expect(projects(shardRun)).toEqual(["chromium"]);
+    expect(projects(glRun).sort()).toEqual([
+      "chromium-gl",
+      "chromium-keyless",
+      "chromium-no-gl",
+      "chromium-sw-gl",
+    ]);
+    for (const [job, step] of [[fullSuiteJob, shardStep], [glJob, glStep]] as const) {
+      const report = defined(step?.env?.PLAYWRIGHT_JSON_OUTPUT_NAME, "JSON report name");
+      const gate = runWords(
+        job.steps.find((candidate) =>
+          runWords(candidate.run).includes("scripts/assert-playwright-gate.mjs"),
+        )?.run,
+      );
+      expect(gate[gate.indexOf("scripts/assert-playwright-gate.mjs") + 1]).toBe(report);
+    }
   });
 
   it("runs no second suite behind a retired rollout flag", () => {
@@ -98,7 +135,7 @@ describe("browser CI policy", () => {
       "law-pins",
       "change-scope",
       ...LAYOUT_PIN_JOBS,
-      "full-suite",
+      ...FULL_SUITE_JOBS,
     ]);
     const envKeys = [
       workflow.env,
@@ -137,13 +174,21 @@ describe("browser CI policy", () => {
     const run = runWords(defined(testStep, "layout-pins Playwright step").run);
     expect(run).toContain(`--shard=\${{ env.LAYOUT_SHARD }}/${LAYOUT_PIN_JOBS.length}`);
     expect(run).toContain("--workers=1");
-    // These specs alone now hold layout once pinned by source-text unit tests.
+    // These specs hold layout once pinned by source-text tests and the
+    // clicked UK arrival notice beside the live map credit control.
     for (const spec of [
       "e2e/desktop-map-chrome-fit.spec.ts",
       "e2e/mobile-map-chrome-fit.spec.ts",
       "e2e/mobile-map-shell-matrix.spec.ts",
       "e2e/ui-consistency-layout.spec.ts",
+      "e2e/landing-uk-directory.spec.ts",
       "e2e/map-desktop-arrival-chrome.spec.ts",
+      // The venue-type chips and the map credit. Two chip changes (29 and
+      // 31 Oct 2026) merged green while this spec ran only nightly.
+      "e2e/drink-chip-controls.spec.ts",
+      // The desktop toolbar, the first location prompt and the Tonight lane
+      // at 32px browser text. #2495 merged with this spec in no CI job.
+      "e2e/desktop-map-large-text.spec.ts",
     ]) {
       expect(run).toContain(spec);
     }
@@ -192,7 +237,7 @@ describe("browser CI policy", () => {
   it("installs Chromium and its system dependencies before every Playwright run", () => {
     const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
 
-    for (const jobName of ["law-pins", ...LAYOUT_PIN_JOBS, "full-suite"]) {
+    for (const jobName of ["law-pins", ...LAYOUT_PIN_JOBS, ...FULL_SUITE_JOBS]) {
       const steps = defined(jobs[jobName]).steps;
       const install = steps.findIndex((step) =>
         step.run?.split("\n").some((line) => {
@@ -219,7 +264,7 @@ describe("browser CI policy", () => {
   it("chooses a runner-specific Playwright port before every Playwright run", () => {
     const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
 
-    for (const jobName of ["law-pins", ...LAYOUT_PIN_JOBS, "full-suite"]) {
+    for (const jobName of ["law-pins", ...LAYOUT_PIN_JOBS, ...FULL_SUITE_JOBS]) {
       const steps = defined(jobs[jobName]).steps;
       const portStep = steps.findIndex(
         (step) => step.uses === "./.github/actions/pubmax-playwright-port",
@@ -239,13 +284,27 @@ describe("browser CI policy", () => {
   it("gives each production browser build enough heap", () => {
     const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
 
-    for (const jobName of ["law-pins", ...LAYOUT_PIN_JOBS, "full-suite"]) {
+    for (const jobName of ["law-pins", ...LAYOUT_PIN_JOBS, ...FULL_SUITE_JOBS]) {
       const steps = playwrightSteps(defined(jobs[jobName]));
       expect(steps.length, jobName).toBeGreaterThan(0);
       for (const step of steps) {
         expect(step.env?.NODE_OPTIONS, jobName).toBe(
           "--max-old-space-size=6144",
         );
+      }
+    }
+  });
+
+  it("skips each browser build's own type check, which the CI TypeScript 6 job already runs wider", () => {
+    // next build type-checks with TypeScript 6. The CI Typecheck (TypeScript 6) job
+    // runs that compiler over a superset of the files on the same commit, and
+    // on a macOS runner the build's copy took over 6 minutes and pushed the
+    // Playwright web server past its 10 minute start limit (captain, 2 Nov
+    // 2026; docs/CI_RUNBOOK.md, "Build cache and type check").
+    const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
+    for (const jobName of ["law-pins", ...LAYOUT_PIN_JOBS, ...FULL_SUITE_JOBS]) {
+      for (const step of playwrightSteps(defined(jobs[jobName]))) {
+        expect(step.env?.PUBMAX_CI_SKIP_BUILD_TYPECHECK, jobName).toBe("1");
       }
     }
   });

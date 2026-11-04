@@ -30,6 +30,8 @@ function venue(over: Partial<Venue> & { id: string; name: string }): Venue {
     primaryBorough: "",
     visibleBoroughs: [],
     cheapestPint: "",
+    priceSource: "Pub menu",
+    priceObservedAt: "2026-01-01",
     ...over,
   } as Venue;
 }

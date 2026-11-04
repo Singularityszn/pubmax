@@ -5,10 +5,12 @@ import { describe, expect, it } from "vitest";
 import { defined } from "@/__tests__/helpers/defined";
 
 // The coral economy (design judgement 2026-08-01, findings 2.1 / 2.2 / 2.9).
-// On the map, coral (--brass) may survive in exactly three places: the primary
-// CTA, the floating create disc and the selected pin ring. The active tab
-// glyph was the fourth until P2-A moved every selection to ink
-// (docs/DESIGN_SYSTEM.md "Coral is spent twice"). Every other former
+// On the map, coral (--brass) may survive in exactly one place: the primary
+// CTA. The selected pin ring was a second until the price pills moved the
+// map's selection to ink (launch plan 1 Nov 2026, section 5), the floating
+// create disc a third until the five-tab dock retired it (captain, 1 Nov
+// 2026), and the active tab glyph a fourth until P2-A moved every selection
+// to ink (docs/DESIGN_SYSTEM.md "Coral is spent twice"). Every other former
 // coral surface is pinned neutral here, and every changed text pair must
 // measure at least 4.5:1 in both themes. The values are read from the shipped
 // stylesheets, never restated, so a token retune re-runs the arithmetic.
@@ -130,7 +132,7 @@ describe("finding 2.1 — map chrome holds no coral fills", () => {
     expect(tab).toMatch(/color:\s*var\(--ink\)/);
     expect(tab).not.toMatch(/--brass/);
     // The glyph was the last coral mark in the tab bar. An active tab is a
-    // selection, and coral is spent on the one primary and the create disc
+    // selection, and coral is spent on the one primary
     // (docs/DESIGN_SYSTEM.md "Coral is spent twice").
     expect(navCss).toMatch(
       /\.mobileTab\.isActive \.mobileTabIcon\s*\{[^}]*color:\s*var\(--state-selected-ink\)/,
@@ -139,9 +141,9 @@ describe("finding 2.1 — map chrome holds no coral fills", () => {
 
   it("the tab bar holds NO resting coral mark", () => {
     // The Moment circle and its glow used to be one, the active glyph the
-    // last. Compose left the row for the floating create action and the glyph
-    // went to ink, so the budget is a count of zero: any coral in this
-    // stylesheet is a mark the bar may not wear.
+    // last. Compose left the row and the glyph went to ink, so the budget is a
+    // count of zero: any coral in this stylesheet is a mark the bar may not
+    // wear.
     const coralRules: string[] = [];
     for (const match of navCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
       const selector = match[1]!.trim();
@@ -191,9 +193,31 @@ describe("findings 2.1 / 2.9 — map canvas coral economy", () => {
     expect(layer).not.toMatch(/tokens\.brass/);
   });
 
-  it("the selected-pin rings stay coral — selection owns the accent", () => {
-    const glow = /id: "pubs-selected-glow"[\s\S]*?\},/.exec(buildSceneSrc)?.[0] ?? "";
-    expect(glow).toContain("tokens.brass");
+  // The selected pin was the map's last resting coral mark. A selection is not
+  // an action (docs/DESIGN_SYSTEM.md "Coral is spent twice"), so since the price
+  // pills (launch plan 1 Nov 2026, section 5) the selected pub is an inverted
+  // INK pill, or an ink ring round its glass, and never coral.
+  it.each([
+    "pubs-selected-glow",
+    "pubs-selected",
+    "uk-base-selected",
+    "coffee-pilot-selected",
+    "london-restaurant-selected",
+  ])("the %s ring reads in ink, never coral", (id) => {
+    const layer = new RegExp(`id: "${id}"[\\s\\S]*?paint: \\{[\\s\\S]*?\\},`).exec(buildSceneSrc)?.[0] ?? "";
+    expect(layer.length).toBeGreaterThan(0);
+    expect(layer).toMatch(/"circle-stroke-color": tokens\.ink,/);
+    expect(layer).not.toMatch(/tokens\.brass/);
+  });
+
+  it("the selected pill is ink, its figure paper, and no coral", () => {
+    const layer = /id: "pubs-price-pill-selected"[\s\S]*?paint: \{[\s\S]*?\},/.exec(buildSceneSrc)?.[0] ?? "";
+    expect(layer.length).toBeGreaterThan(0);
+    expect(layer).toContain("SELECTED_PILL_ICON_KEY_PREFIX");
+    expect(layer).not.toMatch(/tokens\.brass/);
+    const draw = /function makeSelectedPillDraw[\s\S]*?\n\}/.exec(mapIconsSrc)?.[0] ?? "";
+    expect(draw).toContain("t.ink");
+    expect(draw).not.toMatch(/t\.brass/);
   });
 
   // The reader's dot moved from a DOM marker onto the canvas. The marker was

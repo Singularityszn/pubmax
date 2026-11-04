@@ -1,3 +1,4 @@
+import { MAP_SELECTION_NOTICE_PARAM, UNKNOWN_MAP_SELECTION_NOTE } from "@/lib/mapSelectionNotice";
 // Pure helpers extracted from components/PubMap.tsx (F1 decomposition).
 //
 // Server-safe: NO "use client", no window/DOM reads, no React. These live off
@@ -43,7 +44,9 @@ import {
   AGED_PRICE_LINE,
   PROVISIONAL_PRICE_LINE,
   baselineTrustCaption,
+  uncheckedPriceLine,
   venuePriceLaneObservedGbp,
+  venuePriceLaneUncheckedBy,
   type VenueBundlePrices,
   type VenuePriceLane,
 } from "@/lib/venuePriceLane";
@@ -223,7 +226,7 @@ export function retiredSelectionNameFor(
 
 export type MapSelectionNotice = "unknown" | "lookup-failed" | "retired";
 
-export const MAP_SELECTION_NOTICE_PARAM = "mapNotice";
+export { MAP_SELECTION_NOTICE_PARAM } from "@/lib/mapSelectionNotice";
 
 export function mapSelectionNoticeFromSearch(search: string): MapSelectionNotice | null {
   const value = new URLSearchParams(search).get(MAP_SELECTION_NOTICE_PARAM);
@@ -271,7 +274,7 @@ export function ukBaseRestoreFailureNotice(
 }
 
 /** Visible copy for an unknown `?sel=` - empty-state voice, no plumbing. */
-export const UNKNOWN_MAP_SELECTION_NOTE = "That pub is not one we know.";
+export { UNKNOWN_MAP_SELECTION_NOTE } from "@/lib/mapSelectionNotice";
 export const MAP_SELECTION_LOOKUP_FAILED_NOTE = "We could not check that pub right now.";
 
 /**
@@ -817,7 +820,10 @@ export function restoredSessionFrame<NightAreaSlug extends string = string>(inpu
     search: string,
   ) => boolean;
 }): RestoredSessionFrame<NightAreaSlug> {
-  const { seed, restoredSession, resumeSeed, cityId, search } = input;
+  const { seed, restoredSession: savedSession, resumeSeed, cityId, search } = input;
+  // An explicit incoming query owns the frame even if the outgoing page made
+  // this saved session eligible. Clean arrivals retain their saved filters.
+  const restoredSession = search ? null : savedSession;
   return {
     loadedCityId: resumeSeed ? cityId : null,
     resumeViewport: resumeSeed?.viewport ?? null,
@@ -1180,6 +1186,23 @@ export function peekPriceChip(
   // The chip carries the same state the Overview chip carries, read from the
   // signal rather than re-derived: the peek holds no confirmation of its own.
   const trust = trustChipStateFor(lane, pintTrust === "confirmed" ? "confirmed" : "none");
+  // A TYPED PRICE WITH NO BILL (captain decision 9) keeps its figure and loses
+  // its band: `priceGbp` is what the chip bands, so it is withheld exactly as
+  // a split withholds it. The in-window one names its drinker as "not checked";
+  // an aged one keeps the aged line, which already says it needs a drinker.
+  const uncheckedBy = venuePriceLaneUncheckedBy(lane);
+  if (uncheckedBy !== null) {
+    return {
+      figure: formatPrice(observedGbp),
+      priceGbp: null,
+      caption:
+        trust === "unchecked"
+          ? uncheckedPriceLine(uncheckedBy)
+          : (trust && PINT_TRUST_LINE[trust]) || PEEK_LANE_CAPTION[lane.lane],
+      observed: true,
+      trust,
+    };
+  }
   return {
     figure: formatPrice(observedGbp),
     priceGbp: observedGbp,

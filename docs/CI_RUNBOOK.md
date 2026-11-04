@@ -6,11 +6,11 @@ check layer.
 
 ## GitHub-hosted runners
 
-Every job uses `ubuntu-latest`, including Browser law pins. Five Playwright
-jobs stay on `macos-latest`, each with a reason in `MACOS_JOBS` in
-`__tests__/ciRunnerIsolation.test.ts`:
+Jobs use `ubuntu-latest` by default, including Browser law pins. The
+`MACOS_JOBS` list in `__tests__/ciRunnerIsolation.test.ts` owns the exceptions
+and their reasons:
 
-- The layout pins and the nightly full suite. Their specs were proved on
+- The layout pins and the two nightly full-suite jobs. Their specs were proved on
   macOS glyph widths. Both use the same self-hosted webfonts, but Linux
   Chromium draws some lines a few pixels wider. On 16 Oct 2026 four layout
   specs failed on `ubuntu-latest` (for example 7px short at 320px), and the
@@ -106,23 +106,57 @@ repository secret.
 
 Job `timeout-minutes` values in `ci.yml`, `e2e.yml`, `rls-session.yml`, and the Playwright jobs in `performance.yml` stay at the ceilings already set for those jobs (about 2× the p95 measured on the previous runners), with floors on the freshness gate (20 minutes) and Coverage (30 minutes). Do not raise one to hide a slow hosted run; see `perf/AGENTS.md`. `security-ci.yml` uses fixed ceilings (10, 15, and 45 minutes for zizmor, osv-scanner, and Semgrep).
 
-Browser law pins, the three browser layout-pin shards and the two `performance.yml` jobs keep `--workers=1`. [What a pull request runs](#what-a-pull-request-runs) defines when the layout shards run. The nightly full suite runs as four shards. Each keeps Playwright's default worker count, which `playwright.config.ts` leaves unset when `CI` is set, and a hosted macOS runner resolves that to one worker.
+Browser law pins, the browser layout-pin shards and the `performance.yml` jobs
+keep `--workers=1`. [What a pull request runs](#what-a-pull-request-runs)
+defines when the layout shards run.
+
+The nightly full suite separates plain Chromium shards from the WebGL and
+keyless projects. The [browser workflow](../.github/workflows/e2e.yml) owns
+the shard matrix and project lists. Each Chromium shard builds one server.
+`Full browser suite (WebGL and keyless)` builds both the normal and keyless
+servers. Each job uses Playwright's default worker count. `playwright.config.ts`
+leaves that count unset in CI, and a hosted macOS runner resolves it to one worker.
+Scheduled runs and manual dispatches skip the layout-pin jobs because the full
+suite covers those specs on the same commit.
 
 Each workflow has its own concurrency group. A newer pull request head supersedes that pull request's older runs of the same workflow, so rerun the latest workflow run for the current head. The nightly browser suite and manual dispatches never cancel: each one gets a group of its own (`run-<run_id>`). Main pushes of `ci.yml`, `rls-session.yml` and `security-ci.yml` also get a group of their own. GitHub keeps only one waiting run per group, so the old per-ref group dropped waiting main pushes. There is no repo-wide group and no shared browser queue.
 
 Main pushes of Browser tests (`e2e.yml`) share one group, `main-push` (owner decision, 19 Oct 2026). The run in progress always finishes. Only the newest push waits behind it, and GitHub cancels an older waiting push. Each main push holds 3 of the 5 macOS runners for the layout pins. On 19 Oct 2026, 22 merges queued 66 macOS jobs. The first layout shard of the 08:57 push started at 13:42, and a pull request's last layout shard waited 72 minutes for a runner. The newest main commit holds every older one, so main is still tested. When a main run fails, it can cover several merges: read the merges since the last green main run. The nightly full suite still runs on its own group.
 
-`ci.yml` starts lint and the two unit shards at once. `production-build` runs
-after lint. The unit shards wait on nothing, because they build their own slim
-data, and they run in parallel. Each shard runs
-`npm run coverage -- --without-postgres` on its half of the suite with
+`ci.yml` starts lint, the TypeScript 6 check, `production-build` and the
+three unit shards at once (captain, 2 Nov 2026). None of them reads what another makes: the build and
+the unit shards build their own data. Before that day the build waited for
+lint, which put the two end to end on the slowest chain, and the suite ran in
+two shards that finished up to 3 minutes apart. Each shard runs
+`npm run coverage -- --without-postgres` on its third of the suite with
 coverage thresholds off and writes a Vitest blob report. The Coverage job runs
-after both shards: it merges the two blobs with
+after all three shards: it merges the blobs with
 `npx vitest --merge-reports=blob-reports --coverage` and enforces the
 thresholds in `vitest.config.mts` over the whole suite. So CI runs the unit
 suite once, not once in the shards and again for coverage. The freshness job
 runs on its own: a calendar breach is that job's red mark and does not skip the
 build, the unit shards or coverage.
+
+A shard cannot finish before its slowest test file. Vitest gives each file to
+one worker and does not divide the tests in a file. So a test file that grows
+past about 90 seconds on CI is split by topic. The parts share their setup
+through a helper in `__tests__/helpers/`. The plan generation route tests
+(499 seconds) and the pub website amenities runner tests (423 seconds) were
+split this way on 2 Nov 2026.
+
+The shards share out the files by measured time, not by count (captain,
+2 Nov 2026). Vitest's own `--shard` cuts the files by a hash of their path
+into equal counts, and on CI run 41468260511 one shard held 1,052 seconds of
+tests while the others held 532 and 622. `vitest.config.mts` now uses
+`scripts/ci/vitestShardBalance.mjs`, which places the longest file first, each
+on the shard with the least time so far, from the per-file times in
+`scripts/ci/vitest-shard-durations.json`. A file the list does not know weighs
+the list's median, so a new test still runs. Every shard computes the same
+split, so each file runs exactly once; `__tests__/vitestShardBalance.test.ts`
+holds that. Refresh the times about once a month, or after a large change to
+the suite: run `npm run coverage -- --without-postgres --reporter=json
+--outputFile=<scratch>/unit.json`, then `npm run ci:shard-durations --
+<scratch>/unit.json`. Only the relative sizes matter, so a local run is enough.
 
 Locally, `npm run verify` runs `npm run coverage -- --without-postgres` and
 then `npm run test:rls`, so each PostgreSQL suite runs once. The suites
@@ -137,12 +171,22 @@ which writes only the gitignored venue detail files.
 
 The lint-and-types job and the merge bar `npm run verify` both run
 [`npm run typecheck`](../package.json). It runs `next typegen` first, so the
-`typedRoutes` link types exist, then the TypeScript 7 native `tsc`. The
-lint-and-types job then checks the same full tsconfig with the TypeScript 6
-bridge compiler, `node node_modules/typescript/bin/tsc --noEmit`. Next resolves
+`typedRoutes` link types exist, then the TypeScript 7 native `tsc`. A
+separate job, `Typecheck (TypeScript 6)` (captain, 2 Nov 2026), runs
+`next typegen` and then checks the same full tsconfig with the TypeScript 6
+bridge compiler, `node node_modules/typescript/bin/tsc --noEmit`. It took 2:15
+to 5:38 on hosted runners, so it runs beside lint rather than after it. Next resolves
 that TypeScript 6 compiler API at build time; see
 [`next.config.mjs`](../next.config.mjs) for why both exist. `npx tsc` resolves
-to TypeScript 7, so call the TypeScript 6 compiler by its path.
+to TypeScript 7, so call the TypeScript 6 compiler by its path. Because this
+check covers every file the build's own check covers, the CI build skips its
+copy; see [Build cache and type check](#build-cache-and-type-check).
+
+### Build cache and type check
+
+Next.js 16 keeps Turbopack's build work in `.next/cache` (`turbopackFileSystemCacheForBuild`, on by default). A hosted runner starts empty, so before 2 Nov 2026 every `Production build` was cold and wrote a cache that no run read. The job now restores `.next/cache` before `Build` with `actions/cache/restore`, keyed on the runner OS, the `package-lock.json` hash and the UTC date. A pull request restores the newest cache that a push to `main` saved for the same lockfile. Only a push to `main` saves one, with `actions/cache/save` after `Build`, and only when no cache for that day exists yet, so `main` saves at most one a day. A cache is about 500 MB, and the repository has 10 GB of cache space, emptied least recently used first; a cache per push (12 to 32 a day) could have pushed out the nightly Tavily cursor that `tavily-london-nightly.yml` reads once a day. A pull request never writes a cache that `main` reads. A lockfile change starts a new cache line, and the first build after it is cold. `__tests__/ciReleaseGateWorkflow.test.ts` holds the two steps. The measured gain and the next levers are in [`docs/plans/CI_SPEED_PLAN.md`](plans/CI_SPEED_PLAN.md).
+
+`next build` also type-checks `tsconfig.build.json` with TypeScript 6. That took 3.0 of the 4:16 `Build` step in run 41450554289, and the `Typecheck (TypeScript 6)` job already checks `tsconfig.json`, which covers every file `tsconfig.build.json` does, with the same compiler options. So the CI `Build` step sets `PUBMAX_CI_SKIP_BUILD_TYPECHECK=1`, and `next.config.mjs` then sets `typescript.ignoreBuildErrors`, which skips the build's check entirely (captain, 2 Nov 2026). `next.config.mjs` ignores the variable when `VERCEL` is set, because a Vercel dashboard variable reaches Vercel builds too, so a deploy build always type-checks. A type error still fails `Typecheck (TypeScript 6)`, once that check is required in branch protection. Measured on a dev container: the whole `next build` took 377 seconds with the check and 83 seconds without it. `__tests__/ciReleaseGateWorkflow.test.ts` holds the variable, the wider check, the tsconfig coverage and the Vercel refusal. The browser jobs in `e2e.yml` and `performance.yml` build the app too, through the Playwright web server, so their build steps set the same variable: on a macOS runner the build's own type check took more than 6 minutes and pushed the web server past its 10 minute start limit on pull request 2468. `__tests__/e2eWorkflow.test.ts` holds that.
 
 ### What a pull request runs
 
@@ -154,7 +198,7 @@ A pull request that changes only docs or only data skips the heavy jobs (owner d
 
 The diff runs with `--no-renames`, so a file moved counts under both its old and its new path. A pull request that moves `lib/` code into `docs/` reads as code, not docs.
 
-The job still starts and reports. Only its steps are skipped, so it shows green under its real name. A matrix job skipped at the job level reports one check under its unexpanded name, `Unit tests (${{ matrix.shard }}/2)`, and a required `Unit tests (1/2)` would then wait for ever. That is why no Linux job is skipped whole. The gated checkouts fetch two commits, the merge and its base. Every copy of the classifier is identical, and `__tests__/ciChangeScope.test.ts` holds them to that and runs them.
+The job still starts and reports. Only its steps are skipped, so it shows green under its real name. A matrix job skipped at the job level reports one check under its unexpanded name, `Unit tests (${{ matrix.shard }}/3)`, and a required `Unit tests (1/3)` would then wait for ever. That is why no Linux job is skipped whole. The gated checkouts fetch two commits, the merge and its base. Every copy of the classifier is identical, and `__tests__/ciChangeScope.test.ts` holds them to that and runs them.
 
 The macOS layout pins are the one exception (owner decision, 17 Oct 2026). A job that starts only to skip its steps still holds a runner, and the free plan has only 5 macOS runners. Three layout shards per pull request filled that queue, and docs-only pull requests waited up to 53 minutes for a job that then ran for 1 minute. So in `e2e.yml` one Linux job, `Change scope`, runs the classifiers, and `Browser layout pins (1/3)`, `(2/3)` and `(3/3)` are three named jobs that need it. When `Change scope` succeeds and `Classify the layout change` outputs `none`, GitHub skips all three jobs without starting a macOS runner. If `Change scope` fails, the layout jobs run. This preserves layout checks when classification fails, because branch protection counts a skipped check as passed. The three jobs share one step list through a YAML anchor and differ only in `LAYOUT_SHARD`.
 
@@ -175,16 +219,18 @@ An empty diff and every event other than a pull request read `ui`. A push to `ma
 | --- | --- | --- | --- |
 | CI / Review scope | runs | runs | runs |
 | CI / Lint and typecheck | green, steps skipped (ESLint reads no `.md`) | runs (a JSON pack can be imported by TypeScript) | runs |
+| CI / Typecheck (TypeScript 6) | green, steps skipped | runs (a JSON pack can be imported by TypeScript) | runs |
 | CI / Production build | green, steps skipped | green, steps skipped | runs |
-| CI / Unit tests (1/2) | unit tests whose source names a changed file, PostgreSQL suites aside | same | whole half, with coverage |
-| CI / Unit tests (2/2) | green, steps skipped | green, steps skipped | whole half, with coverage |
+| CI / Unit tests (1/3) | unit tests whose source names a changed file, PostgreSQL suites aside | same | whole third, with coverage |
+| CI / Unit tests (2/3) | green, steps skipped | green, steps skipped | whole third, with coverage |
+| CI / Unit tests (3/3) | green, steps skipped | green, steps skipped | whole third, with coverage |
 | CI / Coverage | green, steps skipped | green, steps skipped | merges and enforces thresholds |
 | CI / Freshness release gate | runs | runs | runs |
 | CI / Data validation | runs | runs | runs |
 | Browser tests / law pins | green, steps skipped | green, steps skipped | runs |
 | Browser tests / Change scope | runs (Linux, classifier only) | runs | runs |
 | Browser tests / layout pins (1-3/3) | skipped, no macOS runner | skipped, no macOS runner | runs for a `ui` change, skipped for `none` |
-| Browser tests / full suite (1-4/4) | not run on pull requests (nightly and dispatch only) | same | same |
+| Browser tests / full suite | not run on pull requests (nightly and dispatch only) | same | same |
 | RLS session tests | green, steps skipped | green, steps skipped | runs |
 | Security CI (zizmor, osv-scanner, Semgrep) | runs | runs | runs |
 
@@ -211,6 +257,13 @@ gh run list --workflow self-hosted-probe.yml --limit 1
 | Drink price PR | `drink-price-refresh.yml` |
 | London Tavily pass PR | `tavily-london-nightly.yml` (see `docs/TAVILY_LONDON_NIGHTLY.md`) |
 | Performance budgets | `performance.yml` |
+| Production uptime, every five minutes | `uptime.yml` (alerts through `alert-on-failure.yml`) |
 | Browser law pins, layout pins + nightly suite | `e2e.yml` |
+
+If the repository does not let GitHub Actions open pull requests, the weather
+and What's-On refreshes still push their review branch. They log the branch link
+as a warning and the run stays green. Open that PR by hand. The setting is in
+Settings, Actions, General: "Allow GitHub Actions to create and approve pull
+requests". Only the captain changes it.
 
 See also `docs/CRON_PLANE_RUNBOOK.md` and `docs/teach.md` (local pre-push hook).

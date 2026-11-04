@@ -17,6 +17,7 @@ import { useFocusTrap } from "@/lib/useFocusTrap";
 import { discardBody } from "@/lib/responseBody";
 
 import MessageAvatar from "./MessageAvatar";
+import { useMessageAdultGate } from "./useMessageAdultGate";
 import {
   recipientRows,
   useMessageRecipientSearch,
@@ -99,6 +100,7 @@ export default function MessageRecipientDialog({
   const [title, setTitle] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const { fromRefusal, adultGateDialog } = useMessageAdultGate();
   // Capture before the input's autofocus, so closing restores the compose door.
   const [focusOrigin] = useState<HTMLElement | null>(() =>
     typeof document !== "undefined" && document.activeElement instanceof HTMLElement ?
@@ -174,6 +176,8 @@ export default function MessageRecipientDialog({
       const body: unknown = await response.json().catch(() => null);
       if (!current()) return;
       if (!response.ok) {
+        // The age gate is answered on the spot, and the open runs again.
+        if (fromRefusal(body, () => void create())) return;
         setError(offlineOrMessage(errorMessageFrom(body, OPEN_FAILURE)));
         return;
       }
@@ -282,6 +286,7 @@ export default function MessageRecipientDialog({
           <button type="button" className="messagesNewGroupCancel" onClick={close}>Cancel</button>
         </div>
       </section>
+      {adultGateDialog}
     </div>
   );
 }

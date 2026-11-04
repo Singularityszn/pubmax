@@ -79,6 +79,7 @@ type ProbeWindow = Window & {
 // The click router treats a pub hit as the winner before every other layer, so
 // a point that hits either of these opens the venue sheet.
 const PIN_LAYERS = [
+  "pubs-price-pill-selected",
   "pubs-point-selected",
   "pubs-price-pill",
   "pubs-point",

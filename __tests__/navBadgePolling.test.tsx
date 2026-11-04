@@ -103,4 +103,24 @@ describe.each([["messages", MessagesLink], ["activity", NotificationBell]] as co
     await act(async () => { pending[0]!(Response.json({ unread: 99, conversations: [{ unread: 99 }] })); });
     expect(host.querySelector("a")?.getAttribute("aria-label")).toContain("3 unread");
   });
+
+  it.each([
+    ["account", "user-bob", "ken"],
+    ["handle", "user-ken", "bob"],
+    ["account and handle", "user-bob", "bob"],
+  ])("hides the old count when the %s changes, including a failed refresh", async (_change, userId, handle) => {
+    await mount(component);
+    expect(host.querySelector("a")?.getAttribute("aria-label")).toContain("1 unread");
+    let finish: ((response: Response) => void) | undefined;
+    state.fetch.mockImplementation(() => new Promise<Response>((resolve) => { finish = resolve; }));
+    state.auth = { user: { id: userId }, handle };
+    await mount(component);
+    expect(host.querySelector(".siteNavBellBadge")).toBeNull();
+    expect(host.querySelector("a")?.getAttribute("aria-label")).not.toContain("unread");
+    await act(async () => { finish?.(Response.json({ error: "Unavailable" }, { status: 503 })); });
+    expect(host.querySelector(".siteNavBellBadge")).toBeNull();
+    state.fetch.mockImplementation(async () => Response.json({ unread: 4, conversations: [{ unread: 4 }] }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+    expect(host.querySelector("a")?.getAttribute("aria-label")).toContain("4 unread");
+  });
 });

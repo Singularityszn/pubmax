@@ -635,8 +635,8 @@ test("the Golden Thread's correction door opens the composer", async ({ page }) 
 
   const venueSheet = await openVenueSheet(page);
 
-  // The Golden Thread lives on the Stories tab.
-  await venueSheet.getByRole("tab", { name: "Stories", exact: true }).click();
+  // The Golden Thread lives on the Prices tab.
+  await venueSheet.getByRole("tab", { name: "Prices", exact: true }).click();
   const priceStory = page.locator(".venuePriceStory");
   await expect(priceStory).toHaveCount(1);
 

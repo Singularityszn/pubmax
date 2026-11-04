@@ -1,6 +1,15 @@
 import { selectedDrinkPriceEvidenceForPrice } from "@/lib/planSelectedDrinkPriceEvidence";
 type PlanConstraintDisclosure = {
-  code: "safety" | "exclusions" | "exact_area" | "accessibility" | "budget_ceiling" | "opening_hours" | "transport_feasibility";
+  code:
+    | "safety"
+    | "exclusions"
+    | "exact_area"
+    | "accessibility"
+    | "budget_ceiling"
+    | "opening_hours"
+    | "transport_feasibility"
+    | "short_walks"
+    | "tube_stations";
   status: "satisfied" | "flagged";
   message: string;
 };
@@ -152,7 +161,6 @@ export function buildPlanGenerationStops(params: {
     groundedStops,
     groundedAlternatives,
     walkingEstimate,
-    area,
     planningWeather,
     priceContext,
   } = params;
@@ -193,7 +201,6 @@ export function buildPlanGenerationStops(params: {
       },
       provenance: [
         { kind: "venue_dataset", label: `PUBMAXX venue record for ${venue.name}` },
-        { kind: "night_area_review", label: `${area.name} route review`, asOf: area.lastReviewedAt },
         ...tonightEvents.map((event) => ({
           kind: "night_signal" as const,
           label: `${event.source.label}: ${event.title}`,

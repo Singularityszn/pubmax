@@ -23,7 +23,11 @@ export const BASE_TABS: { key: TabKey; label: string; shortLabel: string }[] = [
   // judge in a glance rather than by reading.
   { key: "photos", label: "Photos", shortLabel: "Photos" },
   { key: "menu", label: "Menu", shortLabel: "Menu" },
-  { key: "pints", label: "Stories", shortLabel: "Stories" },
+  // A tab is named for what it holds (launch UX micro-fix 1, 30 Oct 2026).
+  // `pints` holds the price story, the recent prices and the Pint Drop door,
+  // so it reads Prices; `story` holds the heritage, the visit reports and Ask,
+  // so it reads Lore. The keys stay, because URLs and deep links carry them.
+  { key: "pints", label: "Prices", shortLabel: "Prices" },
   { key: "story", label: "Lore", shortLabel: "Lore" },
 ];
 
@@ -33,7 +37,7 @@ const TAB_KEYS = new Set<string>(BASE_TABS.map((tab) => tab.key));
 
 /**
  * The tab that carries a requested section for this kind of venue. Unknown or
- * empty lands on Overview, and so does Stories on a venue that has no Stories tab.
+ * empty lands on Overview, and so does Prices on a venue that has no Prices tab.
  */
 export function resolveVenueTab(request: string, kind: VenueKind | undefined): TabKey {
   if (request === "getting-home") return "overview";

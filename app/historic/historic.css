@@ -496,3 +496,23 @@
     font-size: var(--text-sm);
   }
 }
+
+/* The one door to /time-machine: a quiet ink link under the list. */
+.historicTimeMachine {
+  max-width: 48rem;
+  margin: var(--space-6) 0 0;
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.historicTimeMachine a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--color-text);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--hairline-strong);
+  text-underline-offset: 3px;
+}

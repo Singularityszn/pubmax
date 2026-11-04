@@ -17,7 +17,7 @@ export const ICON_SIZE = {
   inline: 16,
   /** An icon alone in a control: close, overflow, header and tab bar icons. */
   control: 20,
-  /** The few large controls: the create disc and full-screen viewer chrome. */
+  /** The few large controls, such as full-screen viewer chrome. */
   large: 24,
 } as const;
 

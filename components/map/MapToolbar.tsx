@@ -11,15 +11,17 @@ import {
 
 import CitySwitcher from "@/components/map/CitySwitcher";
 import type { MapDrinkCoverage } from "@/components/map/DrinkCoverage";
-import DrinkLanePicker from "@/components/map/DrinkLanePicker";
+import DrinkLanePicker, { preloadDrinkLaneTapHandles } from "@/components/map/DrinkLanePicker";
 import SpoonsValueLensControl from "@/components/map/SpoonsValueLensControl";
 import DrinkShapeChips from "@/components/map/DrinkShapeChips";
 import VenueFeatureFilters, { activeVenueFeatureCount } from "@/components/map/VenueFeatureFilters";
 import MapVenueKindFilter from "@/components/map/MapVenueKindFilter";
 import FavoritePintPicker from "@/components/map/FavoritePintPicker";
 import PersonaLensPicker from "@/components/map/PersonaLensPicker";
+import PalHopGate from "@/components/wild/PalHopGate";
 import type { CityId } from "@/lib/cities";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
+import { FINE_POINTER_QUERY } from "@/lib/useFinePointer";
 import {
   activeDrinkLane,
   DEFAULT_DRINK_LANE,
@@ -57,6 +59,12 @@ function drawerLaneAttribute(active: boolean, surfaces: number): "" | undefined 
   return active && surfaces !== 0 ? "" : undefined;
 }
 
+function warmDrinkTaps(): void {
+  // Only a pointer that can hover is ever shown the taps.
+  if (typeof window.matchMedia !== "function" || !window.matchMedia(FINE_POINTER_QUERY).matches) return;
+  preloadDrinkLaneTapHandles().catch(() => {});
+}
+
 function DrinkLaneButton({
   laneLabel,
   laneSelected,
@@ -79,6 +87,10 @@ function DrinkLaneButton({
       aria-pressed={open}
       aria-expanded={open}
       onClick={onToggle}
+      // Hover or focus is the intent to open: fetch the desktop tap handles
+      // then, so the panel never opens on the chips it is about to replace.
+      onPointerEnter={warmDrinkTaps}
+      onFocus={warmDrinkTaps}
     >
       <GlassWater size={16} aria-hidden="true" />
       <span>{`Drink: ${laneLabel}`}</span>
@@ -211,6 +223,8 @@ type MapToolbarProps = {
   searchSettled: boolean;
   /** Count after the query and all current map filters have been applied. */
   filteredVenueCount: number;
+  /** Last orders is on and its hours could not be read. */
+  lastOrdersFailed?: boolean;
   /** Number of venues available to search; zero means the index is unavailable/empty. */
   searchableVenueCount: number;
   /** Per-zone median pint index for the zone picker's tappable detail. */
@@ -271,6 +285,7 @@ export default function MapToolbar({
   onFiltersChange,
   searchSettled,
   filteredVenueCount,
+  lastOrdersFailed = false,
   searchableVenueCount,
   zoneIndex,
   cityId = DEFAULT_CITY_ID,
@@ -434,11 +449,14 @@ export default function MapToolbar({
       // an exempt surface of the drawer's focus trap (lib/useFocusTrap.ts).
       // Below 1024px the drawer has no free lane for it and the trap keeps it.
       {...(desktopLaneActive ? { [FOCUS_TRAP_EXEMPT_ATTRIBUTE]: "" } : null)}
+      // The lane is measured on the map stage, not the window: from 1024px the
+      // list beside the map takes the window's left edge (MapSplitList), so the
+      // stage, and the bar centred on it, start at the list's right edge.
       style={
         desktopLaneActive
           ? {
               transform: `translateX(calc(-50% + ${laneOffset}px))`,
-              width: `min(var(--desktop-map-surface-width), calc(100vw - 32px - ${Math.abs(laneOffset) * 2}px))`,
+              width: `min(var(--desktop-map-surface-width), calc(100% - 32px - ${Math.abs(laneOffset) * 2}px))`,
               maxWidth: "none",
               transition: "none",
             }
@@ -452,7 +470,7 @@ export default function MapToolbar({
         {searchProps || searchContent ? (
           <div className="mapToolbarSearch">
             {searchProps ? (
-              <MapSearchSuggest {...searchProps} />
+              <MapSearchSuggest {...searchProps} placeholder="Search" />
             ) : searchContent}
           </div>
         ) : null}
@@ -464,7 +482,7 @@ export default function MapToolbar({
         {isMobile === false && venueKindVisibility && onVenueKindVisibilityChange ? (
           <MapVenueKindFilter
             featureFilterCount={activeVenueFeatureCount(filters)}
-            featureFilters={<VenueFeatureFilters filters={filters} onChange={onFiltersChange} resultCount={searchSettled ? filteredVenueCount : null} />}
+            featureFilters={<VenueFeatureFilters filters={filters} onChange={onFiltersChange} resultCount={searchSettled ? filteredVenueCount : null} lastOrdersFailed={lastOrdersFailed} />}
             visibility={venueKindVisibility}
             experienceLens={experienceLens}
             experienceSummary={experienceSummary}
@@ -594,6 +612,9 @@ export default function MapToolbar({
         </div>
       ) : null}
 
+      {/* Wild switch preview (components/wild/PalHopGate.tsx): renders nothing
+          while the switch is off. The control itself is portalled to the map edge. */}
+      <PalHopGate placement="desktop" cityId={cityId} drinkLaneSelected={activeLane !== DEFAULT_DRINK_LANE} experienceView={experienceLens} />
     </div>
   );
 }

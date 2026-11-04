@@ -7,6 +7,9 @@
 // webp and png. The species table is lib/palMascotAssets.mjs, shared with the app.
 //
 // Run: node scripts/gen-pubpal-mascot.mjs <species> <master.png>
+//      node scripts/gen-pubpal-mascot.mjs <species> <talk.png> --talk
+// --talk writes the open-mouth frame (scripts/pubpal/mouth-composite.mjs makes
+// it) as <slug>-talk-*.webp only: it is an overlay, so it needs no PNG.
 
 import { mkdir, stat } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
@@ -17,6 +20,7 @@ import sharp from "sharp";
 
 import {
   PAL_MASCOT_SIZES,
+  PAL_MASCOT_TALK,
   PAL_MASCOT_WEBP_512_BUDGET,
   palMascotSlug,
   palMascotSpeciesList,
@@ -55,40 +59,43 @@ function webpQuality(size) {
   return size >= 512 ? 78 : 82;
 }
 
-async function writeSquare(square, slug, size) {
+async function writeSquare(square, slug, size, { png = true } = {}) {
   const base = sharp(square).resize(size, size, { fit: "cover" });
   await base.clone().webp({ quality: webpQuality(size), effort: 6 }).toFile(join(OUT_DIR, `${slug}-${size}.webp`));
-  await base.clone().png({ compressionLevel: 9 }).toFile(join(OUT_DIR, `${slug}-${size}.png`));
+  if (png) await base.clone().png({ compressionLevel: 9 }).toFile(join(OUT_DIR, `${slug}-${size}.png`));
 }
 
-async function writeAvatar(square, slug, size) {
+async function writeAvatar(square, slug, size, { png = true } = {}) {
   const base = sharp(square)
     .resize(size, size, { fit: "cover" })
     .composite([{ input: circleSvg(size), blend: "dest-in" }]);
   await base.clone().webp({ quality: webpQuality(size), effort: 6 }).toFile(join(OUT_DIR, `${slug}-avatar-${size}.webp`));
-  await base.clone().png({ compressionLevel: 9 }).toFile(join(OUT_DIR, `${slug}-avatar-${size}.png`));
+  if (png) await base.clone().png({ compressionLevel: 9 }).toFile(join(OUT_DIR, `${slug}-avatar-${size}.png`));
 }
 
 async function main() {
-  const [species, source] = argv.slice(2);
+  const args = argv.slice(2);
+  const talk = args.includes("--talk");
+  const [species, source] = args.filter((arg) => arg !== "--talk");
   if (!species || !source) {
     console.error("Usage: node scripts/gen-pubpal-mascot.mjs <species> <master.png>");
     console.error(`Species with a master: ${palMascotSpeciesList().join(", ")}`);
     exit(1);
   }
-  const slug = palMascotSlug(species);
-  if (!slug) {
+  const speciesSlug = palMascotSlug(species);
+  if (!speciesSlug) {
     console.error(`${species} has no row in lib/palMascotAssets.mjs, so surfaces draw it as a legacy icon.`);
     console.error(`Add the row and name the same slug as its format in lib/pubPal.ts first.`);
     console.error(`Species with a master: ${palMascotSpeciesList().join(", ")}`);
     exit(1);
   }
 
+  const slug = talk ? `${speciesSlug}-${PAL_MASCOT_TALK}` : speciesSlug;
   await mkdir(OUT_DIR, { recursive: true });
   const square = await centreSquare(source);
   for (const size of PAL_MASCOT_SIZES) {
-    await writeSquare(square, slug, size);
-    await writeAvatar(square, slug, size);
+    await writeSquare(square, slug, size, { png: !talk });
+    await writeAvatar(square, slug, size, { png: !talk });
   }
 
   const webp512 = join(OUT_DIR, `${slug}-512.webp`);

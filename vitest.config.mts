@@ -1,6 +1,30 @@
 import { randomBytes } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { relative } from "node:path";
 import { defineConfig } from "vitest/config";
+import { BaseSequencer, type TestSpecification } from "vitest/node";
 import { fileURLToPath } from "url";
+
+import { balancedShard, type ShardDurations } from "./scripts/ci/vitestShardBalance.mjs";
+
+// BALANCED SHARDS. `--shard=N/3` in CI cut the file list by a hash of each
+// path into equal counts, and one shard held twice the time of another. This
+// sequencer gives each shard the same measured time from
+// scripts/ci/vitest-shard-durations.json (docs/CI_RUNBOOK.md, "Timeouts and
+// job shape"). Without `--shard` it is never asked, so a local run is unchanged.
+const SHARD_DURATIONS = (
+  JSON.parse(readFileSync(new URL("./scripts/ci/vitest-shard-durations.json", import.meta.url), "utf8")) as {
+    files: ShardDurations;
+  }
+).files;
+
+class DurationBalancedSequencer extends BaseSequencer {
+  override async shard(files: TestSpecification[]): Promise<TestSpecification[]> {
+    const { root, shard } = this.ctx.config;
+    if (!shard) return files;
+    return balancedShard(files, (spec) => relative(root, spec.moduleId), SHARD_DURATIONS, shard.index, shard.count);
+  }
+}
 
 // One fresh key per Vitest invocation, serialized through test.env to every
 // worker. This keeps production-mode unit tests realistic without weakening
@@ -22,8 +46,10 @@ export default defineConfig({
     // Strips Vercel deployment env vars (VERCEL_ENV, VERCEL) so build-pipeline
     // test runs don't masquerade as production runtimes — see vitest.setup.ts.
     setupFiles: ["./vitest.setup.ts"],
-    globalSetup: ["./__tests__/helpers/preparePlacesEnrichment.ts"],
+    // In order: the detail index reads the places enrichment.
+    globalSetup: ["./__tests__/helpers/preparePlacesEnrichment.ts", "./__tests__/helpers/prepareVenueDetailIndex.ts"],
     include: ["__tests__/**/*.test.{ts,tsx}"],
+    sequence: { sequencer: DurationBalancedSequencer },
     // v8 coverage instrumentation plus concurrent agent worktrees can starve
     // repository-wide scans and subprocess validation past the default 5s.
     // Keep a bounded 60s ceiling so those real assertions remain deterministic

@@ -330,6 +330,9 @@ function candidateHosts({ londonOnly = false } = {}) {
       lat: pub.lat ?? null,
       lng: pub.lng ?? null,
       website: normalised,
+      // What a branch URL could name this pub by (pageMayPriceThisPub).
+      locality: pub.locality ?? null,
+      address: pub.address ?? null,
     });
     byHost.set(host, entry);
   }

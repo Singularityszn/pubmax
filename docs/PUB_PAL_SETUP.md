@@ -7,6 +7,24 @@ script has run. [ADR 0014](adr/0014-night-os-ask-agent.md) owns the deterministi
 menu and price routing that precedes provider selection.
 Map Ask still answers keylessly via `/api/ask`.
 
+## Typed chat on Claude
+
+Typed chat can run on Claude instead of the ElevenLabs agent. Voice stays on
+ElevenLabs.
+
+1. Make an API key in the Claude Console. Set a monthly spend limit there.
+2. Set `ANTHROPIC_API_KEY` on the deployment (server-only).
+3. Optional: set `PUB_PAL_CLAUDE_MODEL`. The default is `claude-haiku-5-5`.
+
+When the key is set, `/api/pub-pal/chat` sends each typed ask to Claude
+(`lib/palClaudeChat.server.ts`). It needs a signed-in session and spends the
+same `pub-pal-chat` ceiling. The safety fence, the answers from records, the
+memories and the taste read run before Claude is asked, as they do for
+ElevenLabs. Claude uses the same tools (`lib/pubPalToolCatalog.mjs`) and the
+same prompt rules (`lib/palVoicePrompt.mjs`, without the spoken parts). Our
+server runs each tool itself, so no webhook is involved. To go back to
+ElevenLabs for typed chat, remove the key.
+
 Nothing here changes what the Pal may SAY. Text and voice run the same
 source-backed tool registry (ADR 0014) and the same propose-then-confirm rule
 (ADR 0006).
@@ -195,10 +213,14 @@ Voice uses the same opening builder in its first-message override.
    staying silent until it returns. The four confirm tools (`propose_plan`,
    `propose_map_action`, `report_occupancy`, `propose_memory`) set `interruption_mode:
    "disable_during_tool_and_turn"` so the proposal is heard whole. Typed chat
-   answers when a reply has settled: no tool event followed it for 1.2 seconds,
-   or 0.4 seconds after `agent_response_complete` when the agent sends it. A
-   reply that came before a tool event is the checking line, so typed chat drops
-   it and waits for the reply after the tool. The script adds the tool events
+   answers when a reply has settled and no observed tool request remains pending.
+   The settle window is 1.2 seconds, or 0.4 seconds after `agent_response_complete`.
+   A later tool event invalidates the earlier reply, except for a duplicate response to a completed observed request.
+   That exception requires a nonempty call ID and no reopened request for that ID.
+   First responses, unknown IDs, missing IDs and reopened requests still require a later reply.
+   `__tests__/palElevenLabsChat.server.test.ts` checks these sequences with simulated provider events.
+   These tests do not establish the live provider sequence or resolution of a production timeout.
+   The script adds the tool events
    and `agent_response_complete` to the agent's `conversation.client_events`,
    so the captain re-runs `npm run pubpal:agent` to turn them on. Typed chat
    works on an agent with or without them, so the deploy and the re-run can
@@ -246,7 +268,13 @@ Voice uses the same opening builder in its first-message override.
    since, so a stale card never overwrites a newer fact. Without a TypeSafe key only exact
    duplicates are caught and every other offer is an ordinary card. Typed chat also carries
    recent turns through `windowPalSessionTurns` in `lib/palSessionSummary.ts`.
-   It resolves same-area pint-budget references before older turns leave the window.
+   The browser loads this policy through `recentPalSessionTurns` in `lib/palSessionTurns.ts` when it needs to normalise history.
+   It loads `refineRoutedAskQuery` on submission, before sending the request.
+   The client deadline covers policy loading, the request, response reading and history normalisation.
+   A newer request prevents an older request from publishing text or committing its result.
+   Thread reads and writes in `lib/palChatThread.ts` are asynchronous and use the same history policy.
+   Regression coverage includes `__tests__/palChatPolicyLoading.test.ts`, `__tests__/palChatClient.test.ts` and `__tests__/palChatThread.test.ts`.
+   `windowPalSessionTurns` resolves same-area pint-budget references before older turns leave the window.
    Older user asks form a rolling session summary turn capped at 300 UTF-8 bytes, label included.
    A byte-level BPE token always covers at least one byte, so the turn is at
    most 300 tokens for any input. It is built only from the person's own older

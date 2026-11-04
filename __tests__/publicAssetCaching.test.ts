@@ -76,6 +76,8 @@ const FIXED_ASSET_PROBES = [
   "/landing/hero-thames-1600.avif",
   "/night-signals/example.svg",
   "/pal/circuit-robin-512.webp",
+  "/pal/circuit-robin-talk-512.webp",
+  "/pal/circuit-robin-talk-avatar-64.webp",
   "/sounds/pal/voice-start.mp3",
 ];
 const FIXED_ASSETS = filesOutsideData.filter((file) =>

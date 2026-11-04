@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { storeThemeChoice } from "./helpers/themeClock";
+
 // THE PRODUCT ANSWERS FIRST, AND THE CONSENT CARD ARRIVES AFTER THE ANSWER.
 //
 // Captain's standing ask over PlanAstra section 3: the analytics consent card
@@ -104,14 +106,26 @@ for (const theme of ["light", "dark"] as const) {
     test(`Social primary clears Create after denial and reload @320x568 ${theme} ${fontSize}px`, async ({ page }) => {
       test.setTimeout(90_000);
       const beacons = await prepareUnanswered(page, { width: 320, height: 568 });
+      await storeThemeChoice(page, theme);
       await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
+      let releaseLane!: () => void;
+      const lanePending = new Promise<void>((resolve) => { releaseLane = resolve; });
+      await page.route("**/api/social/posts?lane=london**", async (route) => {
+        await lanePending;
+        await route.fulfill({ json: { posts: [], nextCursor: null } });
+      });
       await page.goto("/social", { waitUntil: "domcontentloaded" });
       await firstRouteRecorded(page);
       await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
       const prompt = page.getByLabel("Anonymous analytics choice");
       await expect(prompt).toHaveCount(0);
-      const primary = page.locator(".socialPage .screenPrimary").getByRole("link", { name: "Sign in", exact: true });
+      const primarySlot = page.locator(".socialPage .screenPrimary").filter({ visible: true });
+      await expect(primarySlot.getByRole("link", { name: "Sign in", exact: true })).toBeVisible();
+      releaseLane();
+      const primary = primarySlot.getByRole("link", { name: "Plan a night", exact: true });
       await expect(primary).toBeVisible();
+      const bodySignIn = page.locator(".socialEmptySignIn").getByRole("link", { name: "Sign in", exact: true });
+      await expect(bodySignIn).toBeVisible();
       await page.evaluate(() => document.fonts.ready);
       const freshBox = await primary.boundingBox();
       expect(freshBox).not.toBeNull();
@@ -143,14 +157,11 @@ for (const theme of ["light", "dark"] as const) {
       await expect.poll(() => page.evaluate(() =>
         parseFloat(getComputedStyle(document.documentElement).fontSize))).toBe(fontSize);
 
-      const create = page.getByRole("button", { name: "Create", exact: true });
-      await expect(create).toBeVisible();
+      // The floating Create left with the five-tab dock (captain, 1 Nov 2026).
+      await expect(page.getByRole("button", { name: "Create", exact: true })).toHaveCount(0);
       const primaryBox = await primary.boundingBox();
-      const createBox = await create.boundingBox();
       expect(primaryBox).not.toBeNull();
-      expect(createBox).not.toBeNull();
-      expect(boxesOverlap(primaryBox!, createBox!), "Create covers the Social primary").toBe(false);
-      for (const box of [primaryBox!, createBox!]) {
+      for (const box of [primaryBox!]) {
         expect(box.width).toBeGreaterThanOrEqual(44);
         expect(box.height).toBeGreaterThanOrEqual(44);
         expect(box.x).toBeGreaterThanOrEqual(0);
@@ -169,21 +180,16 @@ for (const theme of ["light", "dark"] as const) {
         ].every(([x, y]) => element.contains(document.elementFromPoint(x, y)));
       });
       expect(primaryOwnsHits, "Social primary owns its centre and edge hit targets").toBe(true);
-      expect(await create.evaluate((element) => {
-        const box = element.getBoundingClientRect();
-        return element.contains(document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2));
-      }), "Create owns its centre hit target").toBe(true);
       const overflow = await page.evaluate(() =>
         Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth);
       expect(overflow, "Social horizontal overflow").toBeLessThanOrEqual(0);
       expect(await page.evaluate(() => localStorage.getItem("pubmaxx:analytics-consent:v1"))).toBe("denied");
       expect(beacons, "analytics fired without Allow").toEqual([]);
 
-      await create.click();
-      await expect(page.locator(".createFabMenu")).toBeVisible();
-      await page.getByRole("button", { name: "Close create menu", exact: true }).click();
-      await expect(page.locator(".createFabMenu")).toHaveCount(0);
       await primary.click();
+      await expect(page).toHaveURL(/\/plan\/?$/);
+      await page.goto("/social", { waitUntil: "domcontentloaded" });
+      await bodySignIn.click();
       await expect(page).toHaveURL(/\/login\?mode=signin&from=%2Fsocial/);
       expect(beacons, "analytics fired after denied reader actions").toEqual([]);
     });
@@ -331,10 +337,12 @@ for (const viewport of WIDTHS) {
         // Every card reads the same compact way: the reason folds behind "Why
         // this pub" on every card alike, and opening it shows the reason and
         // its credit.
-        const firstReason = firstPub.locator("details.tonightHypedReason");
+        const firstReason = firstPub.getByRole("button", { name: "Why this pub" });
         await expect(firstReason).toHaveCount(1);
+        await expect(firstReason).toHaveAttribute("aria-expanded", "false");
         await expect(firstPub.locator(".tonightHypedWhy")).toBeHidden();
-        await firstReason.locator("summary").click();
+        await firstReason.click();
+        await expect(firstReason).toHaveAttribute("aria-expanded", "true");
         await expect(firstPub.locator(".tonightHypedWhy")).toBeVisible();
         await expect(firstPub.locator(".tonightHypedSource")).toBeVisible();
         await expect(page.locator(".tonightWeather")).toContainText(/sky|weather|wind/i);
@@ -351,9 +359,9 @@ for (const viewport of WIDTHS) {
         const pubs = await page.locator(".tonightHypedRow").all();
         expect(pubs.length).toBeGreaterThan(1);
         for (const pub of pubs) {
-          const reason = pub.locator("details.tonightHypedReason");
+          const reason = pub.getByRole("button", { name: "Why this pub" });
           await expect(reason).toHaveCount(1);
-          if ((await reason.getAttribute("open")) === null) await reason.locator("summary").click();
+          if ((await reason.getAttribute("aria-expanded")) !== "true") await reason.click();
           await expect(pub.locator(".tonightHypedWhy")).toBeVisible();
           await expect(pub.locator(".tonightHypedSource")).toBeVisible();
           await expect(pub.locator(".tonightHypedChecked")).toBeVisible();
@@ -447,7 +455,7 @@ test("consent refreshes after a Places city selection and pointer return from Ma
   await prompt.getByRole("button", { name: "No thanks", exact: true }).click();
   await expect(prompt).toHaveCount(0);
   await page.getByRole("navigation", { name: "Site navigation", exact: true })
-    .getByRole("link", { name: "Map", exact: true }).click();
+    .getByRole("link", { name: "Explore", exact: true }).click();
   await expect(page).toHaveURL(/\/map(?:\?|$)/);
   await openPlacesFromMapChip(page);
   await expect(prompt).toHaveCount(0);

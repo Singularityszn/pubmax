@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 const VIEWER_COORDINATE_EGRESS_FILES = [
   "components/map/useWhatsOnTonight.ts",
   "app/tonight/TonightConditionsStrip.tsx",
-  "app/tonight/TonightGetHomeStrip.tsx",
+  "app/tonight/useTonightGetHome.ts",
   "app/today/TodayGetThereStrip.tsx",
   "app/today/TodayTubeCard.tsx",
   "components/transport/DisruptionLine.tsx",

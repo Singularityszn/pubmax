@@ -561,9 +561,11 @@ export async function handleProfileCoverPhotoReport(
   const actorHash = hashActor(`profile-cover-photo:${hashIp(clientIp(request))}`);
   const flagKey = `profile-cover-photo-report:${coverId}`;
   const actorKey = `${flagKey}:${actorHash}`;
+  // The reporter's own key first: a refused reporter must not spend the
+  // item's shared budget and lock out everyone else who reports it.
   if (
-    (await isLimited(flagKey, flagKey)) ||
-    (await isLimited(actorKey, actorKey, REPORT_PER_ACTOR_LIMIT))
+    (await isLimited(actorKey, actorKey, REPORT_PER_ACTOR_LIMIT)) ||
+    (await isLimited(flagKey, flagKey))
   ) {
     return publicApiError("Too many reports, slow down.", "RATE_LIMITED", 429, {
       retryable: true,

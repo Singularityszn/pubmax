@@ -120,24 +120,34 @@ afterEach(() => {
   else process.env[DRINKS_FLAG] = originalDrinks;
 });
 
-describe("demo content kill switch", () => {
-  it("documents the explicit public-release value", () => {
+describe("demo content opt-in", () => {
+  it("documents the opt-in value and the public-release setting", () => {
     const example = readFileSync(join(process.cwd(), ".env.example"), "utf8");
     expect(example).toContain("NEXT_PUBLIC_DEMO_CONTENT=");
-    expect(example).toContain("Set the literal value `off` in BOTH");
+    expect(example).toContain("Leave it empty (or `off`) in BOTH");
+    expect(example).toContain("Set it to `on` for a local or keyless demo");
   });
 
   it("test baseline is hermetic: ambient deployment env cannot flip the flag", () => {
-    // vitest.setup.ts strips NEXT_PUBLIC_DEMO_CONTENT (Production sets it to
-    // "off" and `npm run ci` runs vitest inside that build). If this fails,
-    // the setup stopped pinning the baseline and seed tests depend on
-    // whichever environment the suite happens to run in.
+    // vitest.setup.ts strips NEXT_PUBLIC_DEMO_CONTENT (a deployment may set
+    // it, and `npm run ci` runs vitest inside that build). If this fails, the
+    // setup stopped pinning the baseline and seed tests depend on whichever
+    // environment the suite happens to run in.
     expect(original).toBeUndefined();
-    expect(demoContentEnabled()).toBe(true);
+    expect(demoContentEnabled()).toBe(false);
   });
 
-  it("defaults ON — behavior unchanged until the owner flips it", () => {
+  it("defaults OFF: a deployment that sets nothing shows no seeded activity", () => {
     delete process.env[FLAG];
+    expect(demoContentEnabled()).toBe(false);
+    expect(demoPintDropsForCity("london")).toEqual([]);
+    expect(demoDropsFor("venue-16pnwmm")).toEqual([]);
+    // 22:00 London on a Friday sits inside the busiest HOUR_BAND.
+    expect(ambientPresenceCurve("venue-16pnwmm", new Date("2026-07-17T21:00:00Z"))).toBe(0);
+  });
+
+  it("on brings the seeds back for a local demo or the e2e server", () => {
+    process.env[FLAG] = "on";
     expect(demoContentEnabled()).toBe(true);
     expect(demoPintDropsForCity("london").length).toBeGreaterThan(0);
   });
@@ -190,7 +200,7 @@ describe("demo content kill switch", () => {
     expect(menu.some((drink) => drink.provenance.source.includes("demo"))).toBe(false);
   });
 
-  it("on preserves seeded menu drinks and demo overlays", () => {
+  it("the demo-drink opt-in works without the seeded-drop opt-in", () => {
     delete process.env[FLAG];
     process.env[DRINKS_FLAG] = "on";
 
@@ -200,9 +210,11 @@ describe("demo content kill switch", () => {
     expect(menu.some((drink) => drink.name === "Fixture Spritz")).toBe(true);
   });
 
-  it("only the literal 'off' disables — anything else stays on", () => {
-    process.env[FLAG] = "false";
-    expect(demoContentEnabled()).toBe(true);
+  it("only the literal 'on' enables: anything else stays off", () => {
+    for (const value of ["true", "1", "ON", "yes", "off", ""]) {
+      process.env[FLAG] = value;
+      expect(demoContentEnabled()).toBe(false);
+    }
   });
 
   // The demo DRINK gate is the same switch read from the other side (#1427):

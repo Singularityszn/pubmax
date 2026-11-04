@@ -437,6 +437,8 @@ user/plan identity**. Consequences, enforced in code:
      and [email-return contract](rules/ios-native-email-return.md). Android keeps
      the HTTPS App Link return through `/auth/callback`. Each platform requires
      physical-device sign-in proof for its final signed binary.
+   - The [native route guard](../lib/nativeDeepLinks.ts) owns callback validation
+     and token-fragment rejection, including Android provider and email returns.
    - **Universal links and App Links need a signed build to test.** A
      team-less simulator build writes an empty entitlements file, so
      `https://pubmaxxing.com/map?sel=<id>` opens Safari there however correct

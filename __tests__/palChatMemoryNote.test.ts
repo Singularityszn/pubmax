@@ -77,13 +77,13 @@ async function askWithProposals(proposals: AskProposal[]): Promise<void> {
 }
 
 describe("Pal memory card disclosure", () => {
-  it("tells the person a saved memory goes to ElevenLabs beside the memory card", async () => {
+  it("tells the person which model providers a saved memory goes to, beside the memory card", async () => {
     await askWithProposals([
       { id: "remember:1", kind: "remember_memory", label: "Remember: Cask ale", memoryKind: "drink_preference", value: "Cask ale" },
     ]);
 
     const note = container.querySelector(".palChatProposalNote");
-    expect(note?.textContent).toMatch(/goes with each Pub Pal chat to ElevenLabs/);
+    expect(note?.textContent).toMatch(/goes with each Pub Pal chat to Anthropic or ElevenLabs, whichever answers it/);
   });
 
   it("shows no memory disclosure beside a card that saves nothing", async () => {

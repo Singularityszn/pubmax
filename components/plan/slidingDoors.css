@@ -1,0 +1,51 @@
+.slidingDoors {
+  color: var(--ink);
+  padding-block: var(--space-5);
+  border-block: 1px solid var(--hairline);
+}
+.slidingDoors__heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.slidingDoors h4 { margin: 0; font-size: var(--text-lg); }
+.slidingDoors p { margin-block: var(--space-2); line-height: 1.5; }
+.slidingDoors__heading p, .slidingDoors small { color: var(--ink-soft); }
+.slidingDoors__choices { border: 0; padding: 0; margin: var(--space-4) 0 0; min-inline-size: 0; }
+.slidingDoors__choices legend { font-weight: 600; margin-bottom: var(--space-3); }
+.slidingDoors__grid { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-bottom: var(--space-4); }
+.slidingDoors__option {
+  flex: 1 1 16rem;
+  min-width: 0;
+  padding: var(--space-3);
+  border-inline-start: 3px solid var(--hairline-strong);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.slidingDoors__option[data-selected="true"] {
+  color: var(--state-selected-ink);
+  background: var(--state-selected-surface);
+  border-color: var(--state-selected-border);
+}
+.slidingDoors__option:focus-within { outline: 2px solid var(--ink); outline-offset: 2px; }
+.slidingDoors__name { display: flex; align-items: center; gap: var(--space-2); min-height: var(--control-height); }
+.slidingDoors__name input { width: 1.25rem; height: 1.25rem; accent-color: var(--ink); flex-shrink: 0; }
+.slidingDoors__option ol { padding-inline-start: var(--space-5); margin-block: var(--space-3); }
+.slidingDoors__option li + li { margin-top: var(--space-2); }
+.slidingDoors__price { display: block; margin-top: var(--space-1); line-height: 1.5; }
+.slidingDoors__distance, .slidingDoors__message { color: var(--ink-soft); }
+.slidingDoors__error { color: var(--brick); }
+
+/* The older collaboration form selectors also match nested comparison controls. */
+.planCollab .slidingDoors__choices { display: block; border: 0; padding: 0; margin-top: var(--space-4); }
+.planCollab .slidingDoors__choices .slidingDoors__option { display: block; font-size: var(--text-sm); }
+.planCollab .slidingDoors__choices .slidingDoors__name input { width: 1.25rem; min-height: 1.25rem; padding: 0; }
+.planCollab .slidingDoors .uiButton {
+  min-height: var(--control-height);
+  padding-inline: var(--control-pad-x);
+  border-radius: var(--control-radius);
+  font-size: var(--control-font-size);
+  font-weight: var(--control-font-weight);
+}

@@ -143,6 +143,12 @@ export type MessagesStore = {
    *  this stays keyed on a pair and why nothing is written to the members
    *  table for one: one authority per kind, so the two cannot drift. */
   openConversation(a: string, b: string): Promise<string | null>;
+  /** The id of the DIRECT conversation an unordered pair already has, or null
+   *  when there is none (or the pair is invalid). Never creates one. Throws
+   *  when the store cannot answer, so a caller can refuse rather than guess.
+   *  The mates-only rule asks it, because only a NEW conversation needs mates
+   *  (lib/messageSafety.ts). */
+  findConversation(a: string, b: string): Promise<string | null>;
   /** Open a GROUP thread with its members named up front. A group is opened
    *  whole; adding somebody later is deliberately not in this vocabulary
    *  (docs/adr/0015-group-message-threads.md).
@@ -709,6 +715,28 @@ export const supabaseMessagesStore: MessagesStore = {
         err instanceof Error ? err.message : err,
       );
       return null;
+    }
+  },
+
+  async findConversation(a, b) {
+    const pair = normalizePair(a, b);
+    if (!pair) return null;
+    try {
+      const { data, error } = await admin()
+        .from(CONVERSATIONS)
+        .select("id")
+        .eq("handle_a", pair.handleA)
+        .eq("handle_b", pair.handleB)
+        .limit(1)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      return data ? String((data as { id: unknown }).id) : null;
+    } catch (err) {
+      if (isMissingMessagesSchema(err)) {
+        warnMemoryFallback("findConversation", err);
+        return memoryMessagesStore.findConversation(a, b);
+      }
+      throw err;
     }
   },
 
@@ -1659,6 +1687,12 @@ export const memoryMessagesStore: MessagesStore = {
     memPairIndex.set(key, id);
     memMessages.set(id, []);
     return id;
+  },
+
+  async findConversation(a, b) {
+    const pair = normalizePair(a, b);
+    if (!pair) return null;
+    return memPairIndex.get(pairKey(pair)) ?? null;
   },
 
   async openGroupConversation(creator, members, title) {

@@ -116,7 +116,7 @@ For the messaging exception to these surface and accent rules, see the [design s
 [status and price rules](docs/DESIGN_SYSTEM.md#launch-tokens) for price colours
 and TrustPill rendering.
 
-**The One Accent Rule.** Coral owns the one primary CTA per screen and the floating create disc in both themes; a selection (active tab, pressed chip) reads in ink (`--state-selected-*`, docs/DESIGN_SYSTEM.md "Coral is spent twice"). Amber stays a route and price signal; pint, river, and brick never decorate chrome that isn’t a price band, heritage marker, or status.
+**The One Accent Rule.** Coral owns the one primary CTA per screen in both themes (the floating create disc that was its second home is retired, 1 Nov 2026); a selection (active tab, pressed chip) reads in ink (`--state-selected-*`, docs/DESIGN_SYSTEM.md "Coral is spent twice"). Amber stays a route and price signal; pint, river, and brick never decorate chrome that isn’t a price band, heritage marker, or status.
 
 **The No Purple Glow Rule.** Dark theme uses deep ink, amber routes, and muted pint green. Chrome uses neutral shadows without an amber glow. No purple mesh, violet gradients, or grape bloom behind surfaces.
 

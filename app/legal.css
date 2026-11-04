@@ -16,6 +16,7 @@
   margin: 0 auto;
   padding: 0 var(--page-gutter) calc(var(--space-12) * 2 + env(safe-area-inset-bottom, 0px));
   color: var(--ink);
+  overflow-wrap: anywhere;
 }
 
 /* The reading column. A line of legal prose stops at about 70 characters. */

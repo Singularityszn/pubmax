@@ -51,6 +51,7 @@ describe("searchHasExplicitMapIntent", () => {
     ["?mode=build", "mode=build"],
     ["?log=1", "log=1"],
     ["?food=1", "existing filter deep link"],
+    ["?garden=1", "beer-garden filter deep link (/gardens)"],
     ["?band=river-history", "band deep link"],
     ["?place=Sheffield&lat=53.38&lng=-1.47", "UK place deep link"],
   ])("recognises the existing explicit arrival param %s (%s)", (search) => {

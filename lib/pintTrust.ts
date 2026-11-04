@@ -8,7 +8,7 @@
 // every surface asks THIS module for the state and reads its own words and
 // tone off the closed tables below.
 //
-// SIX STATES, weakest last, and each is a READING at `now`, never a write.
+// SEVEN STATES, weakest last, and each is a READING at `now`, never a write.
 //
 //   confirmed     the server minted a confirmation and it is inside the window
 //                 lib/priceTier.ts owns (CONFIRMED_MAX_AGE_DAYS). Paints the
@@ -29,9 +29,17 @@
 //                 "Two drinkers, two prices: £4.50 and £4.70". Paints the same
 //                 provisional MARK as one report, and no figure, because two
 //                 figures have no one band.
-//   logged-once   one in-window public report (provisionalPriceDrop). Paints
-//                 the pin's provisional MARK and nothing else; the sheet prints
-//                 the figure, dated, with PROVISIONAL_PRICE_LINE.
+//   logged-once   one in-window public report with a bill, or written before
+//                 the bill became optional (provisionalPriceDrop). Paints the
+//                 pin's provisional MARK and nothing else; the sheet prints the
+//                 figure, dated, with PROVISIONAL_PRICE_LINE.
+//   unchecked     the only in-window public report is a typed price with NO
+//                 bill (uncheckedPriceDrop; captain decision 9, 1 Nov 2026).
+//                 Paints NOTHING on the pin, not even the mark; the sheet
+//                 prints the figure, dated, on the neutral plaque, as "Logged
+//                 by @handle, not checked" with UNCHECKED_PRICE_LINE. A second
+//                 independent drinker agreeing with it reads `corroborated`
+//                 (or `confirmed` once minted), exactly as for any report.
 //   aged-out      every public priced report here is past the window
 //                 (agedPriceDrop), an expired confirmation included. Paints
 //                 NOTHING on the pin; the sheet still prints the figure, dated,
@@ -43,7 +51,7 @@
 // pair's drops are older than the confirmation, so the pub reads `aged-out`,
 // and nothing is deleted or rewritten to get there.
 //
-// This module DECIDES NOTHING OF ITS OWN. Each state is one of the five drop
+// This module DECIDES NOTHING OF ITS OWN. Each state is one of the six drop
 // lanes in lib/venues.ts asked in order, the window is lib/priceTier.ts's, the
 // agreement bar is lib/pintDropAgreement.ts's and the words are
 // lib/venuePriceLane.ts's. It exists so the order and the
@@ -58,19 +66,23 @@ import type { ConfirmedPriceInput, PriceStanding } from "@/lib/priceTier";
 import {
   AGED_PRICE_LINE,
   PROVISIONAL_PRICE_LINE,
+  UNCHECKED_PRICE_LINE,
   venuePriceLaneObservedGbp,
+  venuePriceLaneUncheckedBy,
   type DisputedPriceInput,
   type ProvisionalPriceInput,
   type VenuePriceLane,
 } from "@/lib/venuePriceLane";
 import { confirmPintActionLabel } from "@/lib/pintDropSecondDrinker";
 import { type PintPriceSplit } from "@/lib/pintDropAgreement";
+import { isUncheckedPrice } from "@/lib/pintDropReceipt";
 import {
   agedPriceDrop,
   confirmedPriceDrop,
   corroboratedPriceDrop,
   disputedPintPrices,
   provisionalPriceDrop,
+  uncheckedPriceDrop,
   type SummaryDrop,
 } from "@/lib/venues";
 import type { PintDropConfirmation } from "@/lib/pintDropConfirmationRecord";
@@ -81,6 +93,7 @@ export const PINT_TRUST_STATES = [
   "corroborated",
   "disputed",
   "logged-once",
+  "unchecked",
   "aged-out",
   "none",
 ] as const;
@@ -107,6 +120,11 @@ export const PINT_TRUST_PIN_PAINT: Record<PintTrustState, PintTrustPinPaint> = {
   // price half the reporters here did not pay.
   disputed: "mark",
   "logged-once": "mark",
+  // Captain decision 9 (1 Nov 2026): a typed price with no bill does not touch
+  // the pin until a second drinker agrees. Not the band, and not the mark
+  // either: the mark is what the bill buys a lone report, and the composer's
+  // one line about the bill says exactly that (RECEIPT_OPTIONAL_LINE).
+  unchecked: "none",
   "aged-out": "none",
   none: "none",
 };
@@ -124,6 +142,10 @@ export const PINT_TRUST_LINE: Record<PintTrustState, string | null> = {
   // two prices a pub holds.
   disputed: null,
   "logged-once": PROVISIONAL_PRICE_LINE,
+  // The line beside the figure. WHO logged it and that nobody has checked it
+  // is `uncheckedPriceLine(handle)` (lib/venuePriceLane.ts), printed where the
+  // surface names the drinker.
+  unchecked: UNCHECKED_PRICE_LINE,
   "aged-out": AGED_PRICE_LINE,
   none: null,
 };
@@ -164,7 +186,7 @@ function epochOf(iso: string): number | null {
   return Number.isFinite(ms) ? ms : null;
 }
 
-/** THE reading. Five lanes asked in order, strongest first. */
+/** THE reading. Six lanes asked in order, strongest first. */
 export function pintTrustFor<D extends SummaryDrop>(
   drops: readonly D[],
   now: number = Date.now(),
@@ -225,6 +247,19 @@ export function pintTrustFor<D extends SummaryDrop>(
       split: null,
     };
   }
+  // BELOW a report with a bill and ABOVE one past the window: it is this
+  // month's figure, and it has not been checked (captain decision 9).
+  const unchecked = uncheckedPriceDrop(drops, now);
+  if (unchecked) {
+    return {
+      state: "unchecked",
+      drop: unchecked,
+      priceGbp: unchecked.priceGbp as number,
+      observedAtMs: epochOf(unchecked.createdAt),
+      confirmedPrice: null,
+      split: null,
+    };
+  }
   const aged = agedPriceDrop(drops, now);
   if (aged) {
     return {
@@ -253,6 +288,13 @@ export type PintTrustSignalFields = {
   provisionalContributorAt: number | null;
   agedContributorPrice: number | null;
   agedContributorAt: number | null;
+  /**
+   * The public handle behind the provisional or aged figure when that figure
+   * has NO BILL (captain decision 9), or null. It rides beside the figure it
+   * names, so a surface prints "Logged by @handle, not checked" and keeps the
+   * band off without reading the drops again.
+   */
+  uncheckedBy: string | null;
   /** The disagreeing figures and how many drinkers reported them, or null. */
   disputedPrices: PintPriceSplit | null;
   /** Epoch ms of the freshest drop in the split, or null. */
@@ -261,9 +303,14 @@ export type PintTrustSignalFields = {
 
 export function pintTrustSignalFields(reading: PintTrustReading): PintTrustSignalFields {
   const authority = PINT_TRUST_PIN_PAINT[reading.state] === "authority";
-  const loggedOnce = reading.state === "logged-once";
+  // An unchecked report fills the SAME two provisional fields a billed one
+  // does: both are this month's lone report, and the sheet prints both in the
+  // provisional slot. `uncheckedBy` is what tells the two apart downstream.
+  const loggedOnce = reading.state === "logged-once" || reading.state === "unchecked";
   const disputed = reading.state === "disputed";
   const aged = reading.state === "aged-out";
+  const uncheckedBy =
+    (loggedOnce || aged) && isUncheckedPrice(reading.drop) ? (reading.drop?.handle ?? "") : null;
   return {
     pintTrust: reading.state,
     latestContributorPrice: authority ? reading.priceGbp : null,
@@ -273,6 +320,7 @@ export function pintTrustSignalFields(reading: PintTrustReading): PintTrustSigna
     provisionalContributorAt: loggedOnce ? reading.observedAtMs : null,
     agedContributorPrice: aged ? reading.priceGbp : null,
     agedContributorAt: aged ? reading.observedAtMs : null,
+    uncheckedBy,
     // A split reaches the two fields below and NOTHING else. It may not fill the
     // provisional pair, which is what let one of two disagreeing figures print
     // as the pub's one report.
@@ -301,8 +349,48 @@ export function splitLaneInput(
 export function dropLaneInput(
   priceGbp: number | null | undefined,
   observedAtMs: number | null | undefined,
+  /** The signal's `uncheckedBy`: present only when the figure has no bill. */
+  uncheckedBy?: string | null,
 ): ProvisionalPriceInput | null {
-  return priceGbp != null ? { priceGbp, observedAt: observedAtMs ?? null } : null;
+  if (priceGbp == null) return null;
+  return {
+    priceGbp,
+    observedAt: observedAtMs ?? null,
+    ...(typeof uncheckedBy === "string" ? { uncheckedBy } : {}),
+  };
+}
+
+/** The drop-lane fields of a signal, as a map signal carries them (each optional). */
+export type DropLaneSignal = {
+  provisionalContributorPrice?: number | null;
+  provisionalContributorAt?: number | null;
+  agedContributorPrice?: number | null;
+  agedContributorAt?: number | null;
+  uncheckedBy?: string | null;
+  disputedPrices?: PintPriceSplit | null;
+  disputedAt?: number | null;
+};
+
+/**
+ * ALL THREE drop-lane inputs `venuePriceLane` takes, built from one signal.
+ * The sheet and the phone peek both call this, so `uncheckedBy` cannot ride
+ * one surface's figure and miss the other's (captain decision 9).
+ */
+export function dropLaneInputsFor(signal: DropLaneSignal | null | undefined): {
+  provisional: ProvisionalPriceInput | null;
+  aged: ProvisionalPriceInput | null;
+  disputed: DisputedPriceInput | null;
+} {
+  if (!signal) return { provisional: null, aged: null, disputed: null };
+  return {
+    provisional: dropLaneInput(
+      signal.provisionalContributorPrice,
+      signal.provisionalContributorAt,
+      signal.uncheckedBy,
+    ),
+    aged: dropLaneInput(signal.agedContributorPrice, signal.agedContributorAt, signal.uncheckedBy),
+    disputed: splitLaneInput(signal.disputedPrices, signal.disputedAt),
+  };
 }
 
 /**
@@ -333,8 +421,10 @@ export function trustChipStateFor(
   switch (lane.lane) {
     case "contributor":
       return standing === "confirmed" ? "confirmed" : "corroborated";
+    // ONE SLOT, TWO STATES: a lone report with a bill is `logged-once`, and
+    // one typed without a bill is `unchecked` (captain decision 9).
     case "provisional":
-      return "logged-once";
+      return venuePriceLaneUncheckedBy(lane) !== null ? "unchecked" : "logged-once";
     case "disputed":
       return "disputed";
     case "aged":
@@ -384,6 +474,9 @@ export const OVERVIEW_PRICE_DOOR_KIND: Record<PintTrustState, OverviewPriceDoorK
   corroborated: "log",
   disputed: "choose",
   "logged-once": "confirm",
+  // A second drinker's agreeing report is exactly what an unchecked price is
+  // waiting for, so it is offered the same door: "Still £4.50?".
+  unchecked: "confirm",
   "aged-out": "confirm",
   none: "log",
 };

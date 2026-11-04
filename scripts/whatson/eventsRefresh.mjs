@@ -60,8 +60,10 @@ import {
   skiddleLaneFenced,
   summariseEventDrops,
 } from "../../lib/whatson/eventNormalise.mjs";
+import { isPullRequestPermissionError } from "../lib/pullRequestPermission.mjs";
 import { eventsOutputPath } from "./eventsOutputPath.mjs";
-import { loadCanonicalVenueIndex, resolveVenueId } from "./resolveVenueId.mjs";
+import { resolveVenueId } from "./resolveVenueId.mjs";
+import { loadCanonicalVenueIndex } from "./loadCanonicalVenueIndex.mjs";
 
 export { eventsOutputPath } from "./eventsOutputPath.mjs";
 // Statically imported, and deliberately so: the lane is a TypeScript module and
@@ -112,10 +114,7 @@ function commandOutput(value) {
   return typeof value === "string" ? value : "";
 }
 
-export function isPullRequestPermissionError(error) {
-  const text = [error?.message, error?.stdout, error?.stderr].map(commandOutput).join("\n");
-  return /github actions is not permitted to create or approve pull requests/i.test(text);
-}
+export { isPullRequestPermissionError };
 
 function branchHandoff({ branch, env, reason }) {
   const server = String(env.GITHUB_SERVER_URL ?? "https://github.com").replace(/\/+$/, "");

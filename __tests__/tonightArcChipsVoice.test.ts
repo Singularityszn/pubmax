@@ -28,7 +28,7 @@ describe("Venue-type chips — no component name reaches the reader", () => {
       // The accessible name is read out loud, so it is copy too.
       expect(html).toContain('aria-label="Venue types"');
       // The chips are still there, and they still say what they filter.
-      expect(html).toContain("Pints");
+      expect(html).toContain("Pubs");
       expect(html).toContain("Restaurants");
     });
   }

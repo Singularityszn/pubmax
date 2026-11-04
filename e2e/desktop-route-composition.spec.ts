@@ -135,25 +135,24 @@ test.describe("phone route composition", () => {
     await page.goto("/today");
     await expect(page.getByTestId("today-tube")).toBeVisible();
 
-    // Top picks is a boxed `.todayCard` when events are listed, and the
-    // unboxed `.todayPicksFallback` section when only sourced pub suggestions
-    // remain (its rows are already cards, so it carries no box of its own:
-    // __tests__/todayPicksHonesty.test.ts). Either way it holds its place in
-    // the column, so the order check reads both.
-    const cards = page.locator(".todayStack :is(.todayCard, .todayPicksFallback)");
+    // Every daytime section is a `.todayCard`. A module with no rows renders
+    // no section, so the optional ones are read off what the page drew.
+    const cards = page.locator(".todayStack .todayCard");
     const current = await cards.evaluateAll((elements) => elements.map((element) => ({
       id: element.getAttribute("data-testid"), box: element.getBoundingClientRect().toJSON(),
     })));
     const cardIds = current.map((card) => card.id);
+    const optional = (id: string) => (cardIds.includes(id) ? [id] : []);
     const expectedCardIds = [
       // The server omits weather when no fresh snapshot is available.
-      ...(cardIds.includes("today-weather") ? ["today-weather"] : []),
+      ...optional("today-weather"),
       "today-tube",
-      "today-picks",
-      "today-get-there",
+      ...optional("today-work-spots"),
+      ...optional("today-coffee"),
+      ...optional("today-lunch"),
+      ...optional("today-quiet-pint"),
       "today-pints",
-      ...(cardIds.includes("today-quiet-pint") ? ["today-quiet-pint"] : []),
-      "today-fact",
+      "today-get-there",
     ];
     expect(cardIds).toEqual(expectedCardIds);
     expect(current.every(({ box }) => box.width > 0 && box.width < 390)).toBe(true);

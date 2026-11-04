@@ -1,8 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { LANDING_QUIET_DOORS, LANDING_RECEIPT_LABEL } from "@/lib/landingHero";
+import type { OverviewFoldKey } from "@/lib/venueOverviewFolds";
 
 import { LANDING_PRIMARY_NAME } from "./helpers/landingHero";
+import { openOverviewFold } from "./helpers/overviewFolds";
 import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 
 const DEVICES = [
@@ -174,51 +176,45 @@ for (const viewport of DEVICES) {
   }
 }
 
-// The compose action floats over the right edge of every scrolling phone
-// surface, and the surfaces below print a price or a way-onward arrow in that
-// cell. Each takes the control's own published lane (createFab.css); this is
-// the rendered proof that nothing in the lane is painted over.
-const COMPOSE_LANE_SURFACES = [
+// The surfaces below print a price or a way-onward arrow in a row's right
+// cell. The floating compose action stood over that cell until it left with
+// the five-tab dock (captain, 1 Nov 2026); this is the rendered proof that
+// nothing floats over the cells a reader sees at rest.
+const RIGHT_CELL_SURFACES = [
   { route: "/", row: ".lpRailLink" },
   // Tonight's soft-plans rows are time-gated; e2e/tonight.spec.ts owns that surface on the quiet night.
   { route: "/today", row: ".todayCardFootRow" },
 ] as const;
 
-for (const surface of COMPOSE_LANE_SURFACES) {
-  test(`390px: ${surface.route} keeps its right cell clear of the compose action`, async ({ page }) => {
+for (const surface of RIGHT_CELL_SURFACES) {
+  test(`390px: ${surface.route} keeps its right cell clear of floating chrome`, async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.emulateMedia({ reducedMotion: "reduce" });
     await setTheme(page, "light");
     await page.goto(surface.route);
-
-    const fab = page.locator(".createFab");
-    await expect(fab).toBeVisible();
-    const fabBox = await fab.boundingBox();
-    expect(fabBox).not.toBeNull();
+    await expect(page.locator(".createFab")).toHaveCount(0);
 
     const rows = page.locator(surface.row);
     await expect(rows.first()).toBeVisible();
-    // The last painted child of each row is what the control lands on: the
-    // price badge, the arrow, the provenance line.
-    const rightEdges = await rows.evaluateAll((elements) =>
-      elements.flatMap((element) => {
+    // The last painted child of each row is what a floating control would
+    // land on: the price badge, the arrow, the provenance line. Each one the
+    // reader can see above the tab bar owns its own centre.
+    const covered = await rows.evaluateAll((elements) => {
+      const bar = document.querySelector(".mobileTabList")?.getBoundingClientRect();
+      const floor = bar && bar.height > 0 ? bar.top : window.innerHeight;
+      return elements.flatMap((element) => {
         const children = Array.from(element.children).filter((child) => {
           const box = child.getBoundingClientRect();
-          return box.width > 0 && box.height > 0;
+          return box.width > 0 && box.height > 0 && box.top >= 0 && box.bottom <= floor;
         });
-        return children.map((child) => {
+        return children.flatMap((child) => {
           const box = child.getBoundingClientRect();
-          return { right: box.right, top: box.top, bottom: box.bottom };
+          const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+          return hit && !element.contains(hit) ? [hit.className.toString() || hit.tagName] : [];
         });
-      }),
-    );
-    expect(rightEdges.length).toBeGreaterThan(0);
-    for (const cell of rightEdges) {
-      const overlapsVertically =
-        cell.bottom > fabBox!.y && cell.top < fabBox!.y + fabBox!.height;
-      if (!overlapsVertically) continue;
-      expect(cell.right).toBeLessThanOrEqual(fabBox!.x);
-    }
+      });
+    });
+    expect(covered).toEqual([]);
   });
 }
 
@@ -371,6 +367,8 @@ test("1440px: the docked venue drawer aligns its name with its body", async ({ p
   // read, never a geometry ceiling.
   const name = page.locator(".mapDrawer.right .venueInspector > h3");
   await expect(name).toBeVisible({ timeout: 45_000 });
+  // The address lives in "The pub" fold (lib/venueOverviewFolds.ts).
+  await openOverviewFold(page.locator(".mapDrawer.right"), "pub", 45_000);
   const address = page.locator(".mapDrawer.right .venueAddress");
   await expect(address).toBeVisible({ timeout: 45_000 });
   const geometry = await page.evaluate(() => {
@@ -389,12 +387,19 @@ test("1440px: the docked venue drawer aligns its name with its body", async ({ p
 // sizes across the routes; every one now reads the control tokens in
 // app/globals.css, and this is the rendered proof: the same radius as the
 // token, the thumb floor, and one weight.
-const UNIFIED_CONTROLS = [
+// The venue sheet's Book and Menu strip lives in "The pub" fold
+// (lib/venueOverviewFolds.ts), which is shut on arrival, so that case opens
+// the fold before it measures. The sticky bar sits outside every fold.
+const UNIFIED_CONTROLS: readonly { route: string; selector: string; fold?: OverviewFoldKey }[] = [
   { route: "/tonight", selector: ".tonightShare, .tonightRetry, .tonightLocationButton" },
   { route: "/near?patch=soho", selector: ".nmnAccept" },
   { route: "/u/you", selector: ".youIdentityActions a" },
-  { route: "/map?sel=venue-nyowgc", selector: ".venueSheetStickyBar button, .venueActionStrip__btn" },
-] as const;
+  {
+    route: "/map?sel=venue-nyowgc",
+    selector: ".venueSheetStickyBar button, .venueActionStrip__btn",
+    fold: "pub",
+  },
+];
 
 for (const surface of UNIFIED_CONTROLS) {
   test(`390px: ${surface.route} text buttons share the control tokens`, async ({ page }) => {
@@ -402,6 +407,7 @@ for (const surface of UNIFIED_CONTROLS) {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await setTheme(page, "light");
     await page.goto(surface.route);
+    if (surface.fold) await openOverviewFold(page, surface.fold, 45_000);
     const controls = page.locator(surface.selector);
     // The venue sheet's controls arrive with the venue read (see the docked
     // drawer case above for the measured wait).
@@ -699,96 +705,19 @@ for (const width of [320, 390] as const) {
   });
 }
 
-// (10) The compose action's lane, for the cells a scroll carries under it:
-// the "Cheapest pint" column on a borough table (head text 272 to 357). The
-// cell is scrolled to the control's own band, and its content box must end
-// before the control starts. The profile page hides the control, so it has no
-// lane (e2e/account-password.spec.ts). The borough table became a ranked row
-// list in the taste pass (18 Oct 2026): each pub is one row whose trailing
-// figure is its cheapest pint, so the row's content box (which ends where the
-// price ends) is what must stay out of the lane now.
-const COMPOSE_LANE_CELLS = [
-  { route: "/borough/southwark", cells: ".boroughPubRows .rowListItem" },
-] as const;
-
-for (const surface of COMPOSE_LANE_CELLS) {
-  for (const width of [320, 390] as const) {
-    test(`${width}px: ${surface.route} keeps ${surface.cells.split(",")[0]} out of the compose lane`, async ({ page }) => {
-      await page.setViewportSize({ width, height: 844 });
-      await page.emulateMedia({ reducedMotion: "reduce" });
-      await setTheme(page, "light");
-      await page.goto(surface.route);
-      await expect(page.locator(".createFab")).toBeVisible();
-      await expect(page.locator(surface.cells).first()).toBeVisible();
-      const overlaps = await page.evaluate(async (selector) => {
-        const fab = document.querySelector(".createFab")!.getBoundingClientRect();
-        const first = document.querySelector(selector)!;
-        window.scrollBy(0, first.getBoundingClientRect().top - fab.top);
-        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-        const control = document.querySelector(".createFab")!.getBoundingClientRect();
-        return Array.from(document.querySelectorAll(selector)).flatMap((cell) => {
-          const box = cell.getBoundingClientRect();
-          if (box.bottom <= control.top || box.top >= control.bottom) return [];
-          const styles = getComputedStyle(cell);
-          const contentRight = box.right - parseFloat(styles.paddingRight) - parseFloat(styles.borderRightWidth);
-          return contentRight > control.left
-            ? [`${cell.textContent?.trim().slice(0, 20)} ends at ${Math.round(contentRight)}, control at ${Math.round(control.left)}`]
-            : [];
-        });
-      }, surface.cells);
-      expect(overlaps).toEqual([]);
-    });
+// (10) No floating create control. It stood over the borough table's price
+// column, About's reading surface and the Historic list until it left with the
+// five-tab dock (captain, 1 Nov 2026), so no page carries it, at rest or while
+// the reader scrolls.
+test("390px: no floating create control rides over the reading surfaces", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await setTheme(page, "light");
+  for (const route of ["/about", "/historic", "/borough/southwark"]) {
+    await page.goto(route);
+    await expect(page.getByRole("navigation", { name: "Primary", exact: true })).toBeVisible();
+    await expect(page.getByTestId("create-fab")).toHaveCount(0);
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await expect(page.locator(".createFabRoot")).toHaveCount(0);
   }
-}
-
-test("390px: About keeps the floating create control off the reading surface", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await setTheme(page, "light");
-  await page.goto("/about");
-  await expect(page.getByRole("navigation", { name: "Primary", exact: true })).toBeVisible();
-  await expect(page.getByTestId("create-fab")).toBeHidden();
-  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-  await expect(page.getByTestId("create-fab")).toBeHidden();
 });
 
-// Historic has a long public list and keeps Create. Down-scroll tucks it.
-// Up-scroll, keyboard focus and the page end each restore it.
-test("390px: the compose action steps off the Historic list while the reader scrolls down", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  await setTheme(page, "light");
-  await page.addInitScript(() => {
-    window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
-  });
-  await page.goto("/historic");
-
-  const root = page.locator(".createFabRoot");
-  const fab = page.getByTestId("create-fab");
-  await expect(fab).toBeVisible();
-  await expect(root).toHaveCSS("opacity", "1");
-
-  await expect(async () => {
-    await page.mouse.wheel(0, 240);
-    await expect(root).toHaveCSS("opacity", "0", { timeout: 1_000 });
-  }).toPass({ timeout: 15_000 });
-  await expect(fab).toHaveCSS("pointer-events", "none");
-
-  await page.mouse.wheel(0, -120);
-  await expect(root).toHaveCSS("opacity", "1");
-
-  await expect(async () => {
-    await page.mouse.wheel(0, 240);
-    await expect(root).toHaveCSS("opacity", "0", { timeout: 1_000 });
-  }).toPass({ timeout: 15_000 });
-  await fab.focus();
-  await expect(root).toHaveCSS("opacity", "1");
-  await expect(fab).toHaveCSS("pointer-events", "auto");
-  await fab.blur();
-  await expect(async () => {
-    await page.mouse.wheel(0, 240);
-    await expect(root).toHaveCSS("opacity", "0", { timeout: 1_000 });
-  }).toPass({ timeout: 15_000 });
-
-  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-  await expect(root).toHaveCSS("opacity", "1");
-});

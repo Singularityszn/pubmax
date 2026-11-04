@@ -41,7 +41,8 @@ export type DrinkBrandLanding = {
   rows: [PricedLandingRow, ...PricedLandingRow[]];
 };
 
-function comparePriceRows(left: VenuePrice, right: VenuePrice): number {
+/** Cheapest first, then a stable tie-break, so a dataset reorder cannot flip the printed row. */
+export function comparePriceRows(left: VenuePrice, right: VenuePrice): number {
   return (
     (typeof left.price_gbp === "number" ? left.price_gbp : Number.POSITIVE_INFINITY) -
       (typeof right.price_gbp === "number" ? right.price_gbp : Number.POSITIVE_INFINITY) ||

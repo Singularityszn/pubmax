@@ -118,6 +118,62 @@ Beer-mat notes:
 
 ---
 
+## Launch variant, November 2026
+
+For the Product Hunt launch on Tuesday 17 November 2026 and the pubs claimed
+before it (`docs/growth/LAUNCH_KIT_2026-11-17.md`, section 6). It carries the
+launch story, the hunt for the UK's cheapest drink, without breaking any rule
+above: the same brand kit, the same QR spec, the same positioning line, and no
+price printed on paper. The hunt's figure lives on the site, beside its pub,
+its source and the day the source was read. On paper it would be stale, and it
+would be a price with none of those things.
+
+Campaign tag, the same across one pub's whole order (the site keeps `src` and
+`utm_*` and drops the rest):
+
+- Poster: `https://pubmaxxing.com/?src=poster&utm_campaign=launch-2026-11&utm_medium=poster&utm_source=PUB-SLUG`
+- Beer mat: `https://pubmaxxing.com/?src=poster&utm_campaign=launch-2026-11&utm_medium=beermat&utm_source=PUB-SLUG`
+
+Replace PUB-SLUG with a short name for the pub, in lower case with hyphens.
+
+### A5 poster, launch copy (exact)
+
+Same layout as the A5 poster above.
+
+- Headline: `How cheap can a pint get?`
+- Subhead: `We hunt for the cheapest pint in Britain, and show who listed it and when.`
+- Benefit list:
+  - `Real pint prices, sourced and dated.`
+  - `The cheapest listed pint near you, first.`
+  - `Plan the night, share one link, mates tap I am in.`
+- QR caption: `Point your camera here.`
+- Short URL under the code: `pubmaxxing.com`
+- Footer: `London runs on its pubs. This is the app that runs your night.`
+
+The optional partner line is unchanged: `Proudly on the bar at THE PUB NAME.`
+
+### Beer mat, launch copy (exact)
+
+Front:
+
+- Line 1, small eyebrow: `The hunt is on.`
+- Line 2, headline, Bold: `Find the cheapest pint near you.`
+- The Crossing mark chip, small, in a corner.
+
+Back: unchanged. The QR code with `Point your camera here.`, then
+`pubmaxxing.com`, then the positioning line at the foot.
+
+### Why these lines are allowed
+
+- "The cheapest pint near you" is what the scan opens: `/near`, which compares
+  listed pint prices near the reader, cheapest first
+  (`lib/posterLanding.ts`). It names no pub and no figure.
+- "How cheap can a pint get?" is a question, not a claim.
+- Neither piece asks anyone to drink more. Both sell the app, not another
+  round.
+
+---
+
 ## Handoff checklist
 
 - Test-scan every proof under low light before approving the run.

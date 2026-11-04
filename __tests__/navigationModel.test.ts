@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  PHONE_NAV_ITEMS,
   MOMENT_NAV_ACTION,
   PRIMARY_NAV_ITEMS,
   SOCIAL_NAV_MATCH,
@@ -13,12 +14,26 @@ import {
 import { socialSurfaceName } from "@/lib/socialLaunch";
 
 describe("PUBMAXX primary navigation", () => {
-  it("keeps five destinations on the loop and models Moment separately", () => {
+  it("keeps the phone dock to five tabs and Spoons off it (captain, 1 Nov 2026)", () => {
+    // Launch plan decision 13: Explore, Tonight, Plan, Social, You.
+    expect(PHONE_NAV_ITEMS.map(({ label }) => label)).toEqual(["Explore", "Tonight", "Plan", "Social", "You"]);
+    expect(PHONE_NAV_ITEMS).toHaveLength(5);
+    expect(PRIMARY_NAV_ITEMS.filter((item) => item.desktopOnly).map(({ key }) => key)).toEqual(["spoons"]);
+  });
+
+  it("names the map Explore and still sends it to /map", () => {
+    const explore = PRIMARY_NAV_ITEMS.find((item) => item.key === "map");
+    expect(explore).toMatchObject({ label: "Explore", href: "/map", match: ["/map"] });
+    expect(PRIMARY_NAV_ITEMS.some((item) => item.label === "Map")).toBe(false);
+  });
+
+  it("keeps the five-door phone loop, Spoons on desktop only, and models Moment separately", () => {
     // Captain, 16 Oct 2026: Social is a main tab, between Plan and You.
     expect(PRIMARY_NAV_ITEMS.map(({ label }) => label)).toEqual([
-      "Map",
+      "Explore",
       "Tonight",
       "Plan",
+      "Spoons",
       "Social",
       "You",
     ]);
@@ -36,6 +51,7 @@ describe("PUBMAXX primary navigation", () => {
       "/map",
       "/tonight",
       "/plan",
+      "/spoons-value",
       "/social",
       "/u/you",
     ]);

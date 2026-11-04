@@ -95,7 +95,7 @@ function stateForArea(area: NightArea, now: Date): CoverageState {
 function areaMapLabel(area: NightArea, state: CoverageState): string {
   return state.bucket === "route_ready"
     ? "Open planner"
-    : `See ${area.name} pubs on the map`;
+    : `${state.actionLabel} in ${area.name} on the map`;
 }
 
 function CoverageRow({ area, now }: { area: NightArea; now: Date }) {
@@ -119,6 +119,7 @@ function CoverageRow({ area, now }: { area: NightArea; now: Date }) {
         <p>{nightAreaCoverageMeta(area, now)}</p>
       </div>
       <Link
+        prefetch={false}
         className={`nightAreaCoverage__action${routeReady ? " nightAreaCoverage__action--ready" : ""}`}
         href={state.href}
         aria-label={areaMapLabel(area, state)}
@@ -157,7 +158,7 @@ export default function NightAreaCoverage() {
       </header>
 
       <p className="nightAreaCoverage__intro">
-        Browse pubs across London. Crawl planning is available where we have enough checked information.
+        Browse pubs across London. You can make a draft and check the details before you go.
       </p>
 
       <div className="nightAreaCoverage__quickRead">
@@ -172,7 +173,7 @@ export default function NightAreaCoverage() {
           <span className="nightAreaCoverage__detailsMeta">{areas.length} areas</span>
         </summary>
         <p className="nightAreaCoverage__detailsIntro">
-          Each area shows whether you can plan a crawl or browse its pubs.
+          Area reviews are unavailable. You can browse pubs or make a draft.
         </p>
         <ul className="nightAreaCoverage__list" aria-label="All area coverage">
           {areas.map((area) => <CoverageRow key={area.slug} area={area} now={now} />)}

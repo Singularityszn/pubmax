@@ -1,4 +1,4 @@
-import { expect, type Locator } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
 /**
  * Wait until an element has reached its resting layout.
@@ -65,6 +65,49 @@ export async function expectLayoutSettled(
         }),
       {
         message: "element reaches its resting layout",
+        timeout: options.timeout ?? 20_000,
+      },
+    )
+    .toBe(true);
+}
+
+/**
+ * Wait until the whole page has come to rest: every finite CSS animation and
+ * transition in the document has finished, then two frames have rendered.
+ *
+ * A page-wide sweep needs this where a single target cannot name its own
+ * element. A scroll walk trips scroll entrances (Discover's `[data-reveal]`
+ * cards rise 14px into place), and a box read through a moving transform is
+ * mapped through a matrix: a 44px link mid-rise can read 43.99px and fail a
+ * 44px floor it meets at rest. A looping animation such as a spinner never
+ * rests, so it is not waited on.
+ */
+export async function expectPageAtRest(
+  page: Page,
+  options: { timeout?: number } = {},
+): Promise<void> {
+  await expect
+    .poll(
+      () =>
+        page.evaluate(async () => {
+          const nextFrame = () =>
+            new Promise<void>((resolve) => {
+              requestAnimationFrame(() => resolve());
+            });
+          const moving = document.getAnimations().some((animation) => {
+            const iterations = animation.effect?.getTiming().iterations;
+            return (
+              iterations !== Infinity &&
+              (animation.playState === "running" || animation.pending)
+            );
+          });
+          if (moving) return false;
+          await nextFrame();
+          await nextFrame();
+          return true;
+        }),
+      {
+        message: "the page reaches its resting layout",
         timeout: options.timeout ?? 20_000,
       },
     )

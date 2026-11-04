@@ -9,6 +9,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { EmptyGlassArt } from "@/components/brand/DotGlassArt";
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 
 // A 404 in a browser tab used to be indistinguishable from the landing page,
@@ -22,9 +23,6 @@ export const metadata: Metadata = {
 export default function NotFound() {
   return (
     <main id="main"
-      // A dead link is not a place to compose from, and this page has no
-      // pathname of its own to be named by (components/nav/createFab.css).
-      className="pageHidesCreateFab"
       style={{
         minHeight: "100svh",
         display: "grid",
@@ -45,6 +43,11 @@ export default function NotFound() {
         >
           <PubmaxxWordmark />
         </span>
+        {/* An empty pint in dots, the picture of "last orders": decoration
+            only, so it is hidden from assistive tech (DotGlassArt.tsx). */}
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: "18px" }}>
+          <EmptyGlassArt />
+        </div>
         {/* The status code is a figure, so it takes the data face, and it is
             a label rather than an action, so muted ink: coral is spent on the
             one primary below (docs/DESIGN_SYSTEM.md, "Coral is spent twice"). */}

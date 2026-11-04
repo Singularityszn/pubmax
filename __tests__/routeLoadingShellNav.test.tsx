@@ -32,6 +32,7 @@
 import { isValidElement, type ReactElement, type ReactNode } from "react";
 import { describe, expect, it } from "vitest";
 
+import PubQuizCard from "@/components/nav/PubQuizCard";
 import RouteLoadingShell from "@/components/nav/RouteLoadingShell";
 import SiteNav from "@/components/nav/SiteNav";
 
@@ -66,5 +67,21 @@ describe("RouteLoadingShell", () => {
     const tree = shellTree();
     expect(tree[0]?.type).toBe("section");
     expect(tree.some((element) => element.type === "main")).toBe(false);
+  });
+
+  it("shows a pub quiz only when the route hands it one", () => {
+    expect(shellTree().some((element) => element.type === PubQuizCard)).toBe(false);
+    const quiz = {
+      question: "What grade is The George Inn listed?",
+      options: ["Grade I", "Grade II*", "Grade II"],
+      answer: "Grade I",
+      detail: null,
+      sourceUrl: "https://historicengland.org.uk/listing/the-list/list-entry/1378357",
+    };
+    const tree = flatten(RouteLoadingShell({ label: "Stories", quiz }));
+    expect(tree.some((element) => element.type === PubQuizCard)).toBe(true);
+    // The accessible name stays plain: the quiz never joins it.
+    const shell = tree[0] as ReactElement<Record<string, unknown>>;
+    expect(shell.props["aria-label"]).toBe("Loading Stories");
   });
 });

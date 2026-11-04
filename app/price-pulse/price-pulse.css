@@ -169,10 +169,8 @@
 }
 
 .pulseSplitLabel {
-  min-width: max-content;
   color: var(--color-text-soft);
   font-size: var(--text-sm);
-  white-space: nowrap;
 }
 
 .pulseSplitLabelFigure {
@@ -180,6 +178,7 @@
   color: var(--color-text);
   font-family: var(--font-data);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 /* No track: the gaps between the segments are the page itself. */
@@ -325,22 +324,6 @@
   color: var(--color-text-muted);
   font-size: var(--text-sm);
   line-height: var(--leading-normal);
-}
-
-/* ── The floating create action ─────────────────────────────── */
-/* On a phone the + sits over the reading column's bottom-right corner, and
-   at rest it covered the duty row's GOV.UK source line and its date. The
-   split rows and the edition lines are the lists here, so they reserve the
-   control's lane less the page gutter, the shape /tonight's rows take, and
-   hold it whenever the control is in the document. */
-@media (max-width: 640px) {
-  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .pulseSplitRow {
-    padding-right: max(var(--space-3), calc(var(--create-fab-lane) - var(--page-gutter)));
-  }
-
-  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .pulseItem {
-    padding-right: max(var(--space-4), calc(var(--create-fab-lane) - var(--page-gutter)));
-  }
 }
 
 /* The link under the foot line takes its own line, so its 44px box never

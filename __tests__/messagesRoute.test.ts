@@ -32,6 +32,9 @@ import {
   __tombstoneMemoryProfile,
   memoryProfileStore,
 } from "@/lib/profileStore";
+// Messaging asks the one adult gate, so every seeded account has answered it.
+import { memoryAdultSelfAssertionStore } from "@/lib/adultSelfAssertionStore";
+import { treatEveryoneAsMates } from "@/__tests__/helpers/messageMates";
 
 const BASE = "http://localhost/api/messages";
 
@@ -67,6 +70,7 @@ function postThread(id: string, body: unknown): Promise<Response> {
 }
 
 beforeEach(async () => {
+  treatEveryoneAsMates();
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   authState.userId = null;
@@ -77,7 +81,7 @@ beforeEach(async () => {
   // has to exist and be owned by the account that signs in as it. An unknown
   // recipient has its own cases below.
   for (const handle of ["ken", "sam", "max", "mallory", "jen"]) {
-    __seedMemoryOwnedProfile(handle, `user-${handle}`);
+    __seedMemoryOwnedProfile(handle, `user-${handle}`); void memoryAdultSelfAssertionStore.record(`user-${handle}`);
   }
 });
 
@@ -110,7 +114,7 @@ describe("GET /api/messages — inbox", () => {
     await memoryMessagesStore.send(unownedId!, "sam", "for the unowned inbox");
     const unowned = await refusal("quietfox");
 
-    __seedMemoryOwnedProfile("departed", "user-departed");
+    __seedMemoryOwnedProfile("departed", "user-departed"); void memoryAdultSelfAssertionStore.record("user-departed");
     const tombId = await memoryMessagesStore.openConversation("departed", "sam");
     await memoryMessagesStore.send(tombId!, "departed", "still here");
     await memoryMessagesStore.send(tombId!, "sam", "see you");
@@ -286,7 +290,7 @@ describe("GET /api/messages/[id] — participant gating (the leak test)", () => 
     await memoryMessagesStore.send(unownedId!, "quietfox", "unowned side");
     await memoryMessagesStore.send(unownedId!, "sam", "sam side");
 
-    __seedMemoryOwnedProfile("departed", "user-departed");
+    __seedMemoryOwnedProfile("departed", "user-departed"); void memoryAdultSelfAssertionStore.record("user-departed");
     const tombId = await memoryMessagesStore.openConversation("departed", "sam");
     await memoryMessagesStore.send(tombId!, "departed", "gone side");
     await memoryMessagesStore.send(tombId!, "sam", "still sam");

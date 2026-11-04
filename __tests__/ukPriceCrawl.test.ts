@@ -21,6 +21,7 @@ import {
   isLikelyMenuUrl,
   menuLinkCandidates,
   pageMayPriceThisPub,
+  pageNamesAnotherBranch,
   pageStatesADrinksList,
   pageText,
   pubNameSlug,
@@ -682,6 +683,63 @@ describe("whether an estate page may speak for one pub", () => {
 
   it("slugs a name the way a URL would", () => {
     expect(pubNameSlug("The Queen's Head & Artichoke")).toBe("the-queens-head-and-artichoke");
+  });
+});
+
+// A HOST WITH ONE MATCHED PUB IS NOT A HOST WITH ONE PUB. Both cases were found
+// on 1 Nov 2026, each on a host the snapshot gave one pub.
+describe("whether a page names another branch of the pub's chain", () => {
+  const botanist = {
+    name: "The Botanist Gas Street Basin",
+    locality: "Birmingham",
+    address: "12, Bridge Street, Birmingham, B1 2JR",
+    website: "https://thebotanist.uk.com/locations/gas-street-basin-birmingham",
+  };
+  const simmons = {
+    name: "Simmons",
+    locality: "London",
+    address: "7, Camden High Street, London, NW1 7JE",
+    website: "https://www.simmonsbar.co.uk/",
+  };
+
+  it("refuses the Barnsley page for the Birmingham Botanist, though the host has one pub", () => {
+    const page = "https://thebotanist.uk.com/locations/barnsley/whats-on";
+    expect(pageNamesAnotherBranch(page, botanist)).toBe(true);
+    expect(pageMayPriceThisPub(page, botanist, 1)).toBe(false);
+    expect(pageMayPriceThisPub(page, { name: botanist.name }, 1)).toBe(false);
+  });
+
+  it("refuses the Shoreditch page for Simmons in Camden, though the host has one pub", () => {
+    const page = "https://www.simmonsbar.co.uk/venues/shoreditch-cocktail-bar/";
+    expect(pageNamesAnotherBranch(page, simmons)).toBe(true);
+    expect(pageMayPriceThisPub(page, simmons, 1)).toBe(false);
+    expect(pageMayPriceThisPub(page, { name: simmons.name }, 1)).toBe(false);
+  });
+
+  it("lets a pub's own branch page, or a page naming its town, price it", () => {
+    expect(pageMayPriceThisPub("https://thebotanist.uk.com/locations/gas-street-basin-birmingham/drinks", botanist, 1)).toBe(true);
+    expect(pageMayPriceThisPub("https://thebotanist.uk.com/locations/birmingham/menus", botanist, 1)).toBe(true);
+    expect(pageMayPriceThisPub("https://www.simmonsbar.co.uk/venues/camden/", simmons, 1)).toBe(true);
+  });
+
+  it("lets a page that names no branch keep the pub-count answer", () => {
+    expect(pageMayPriceThisPub("https://www.simmonsbar.co.uk", simmons, 1)).toBe(true);
+    expect(pageMayPriceThisPub("https://www.simmonsbar.co.uk/locations/", simmons, 1)).toBe(true);
+    expect(pageMayPriceThisPub("https://thebotanist.uk.com/locations/whats-on", botanist, 1)).toBe(true);
+    // A singular `bar` is a pub site's own drinks section, not a branch.
+    expect(pageMayPriceThisPub("https://www.thebluemonklondon.com/bar/wine-list", { name: "The Blue Monk" }, 1)).toBe(true);
+  });
+
+  it("reads a county-first chain path by the pub it names, however the URL spells it", () => {
+    expect(pageNamesAnotherBranch("https://www.greeneking.co.uk/pubs/mid-glamorgan/court-house/menu", { name: "The Courthouse" })).toBe(false);
+    expect(pageNamesAnotherBranch("https://www.greeneking.co.uk/pubs/lancashire/taps/menu", { name: "The Taps" })).toBe(false);
+    expect(pageNamesAnotherBranch("https://www.greeneking.co.uk/pubs/somerset/saracens-head/menu", { name: "Saracen's Head Tavern" })).toBe(false);
+    expect(pageNamesAnotherBranch("https://www.greeneking.co.uk/pubs/kent/compasses/menu", { name: "The Granta" })).toBe(true);
+  });
+
+  it("still holds an estate page to the pub it names", () => {
+    expect(pageMayPriceThisPub("https://chain.co.uk/pubs/loggans-moor/drinks", { name: "Loggans Moor" }, 27)).toBe(true);
+    expect(pageMayPriceThisPub("https://chain.co.uk/pubs/the-ship-inn/drinks", { name: "Loggans Moor" }, 27)).toBe(false);
   });
 });
 

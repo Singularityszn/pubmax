@@ -6,18 +6,39 @@ ship the product and keep this checklist current. Strategy:
 [`docs/growth/V1_INVITE_SCOREBOARD.md`](V1_INVITE_SCOREBOARD.md). Runbook §6:
 [`docs/SOFT_LAUNCH_RUNBOOK.md`](../SOFT_LAUNCH_RUNBOOK.md).
 
-## Smoke (re-verified 2026-08-07)
+## Smoke (re-verified 2026-10-30)
 
 ```sh
 curl --fail --silent --show-error --location https://pubmaxxing.com/map \
-  | grep -F '<title>Map · PUBMAXXING</title>'
+  | grep -F '<title>London pub map | PUBMAXX</title>'
 curl --fail --silent --show-error --location https://pubmaxxing.com/social \
-  | grep -F '<title>Social · PUBMAXXING</title>'
+  | grep -F '<title>Social | PUBMAXX</title>'
 # On a rollback deployment, replace the Social marker with:
-# <title>Social preview · PUBMAXXING</title>
+# <title>Social preview | PUBMAXX</title>
 ```
 
-Captain still owns merge of #747, the production release (`npm run release:prod`), and the human WhatsApp cohort. Agents keep product + this checklist current.
+On 2026-10-30 both commands passed on the production host, and all three markers
+passed on a local production build of `main` at `734b39e`. The old markers
+(`Map · PUBMAXXING`, `Social · PUBMAXXING`) no longer match: the title template
+in `app/layout.tsx` is now `%s | PUBMAXX`. The full browser walk of runbook §2 is
+in [`docs/SOFT_LAUNCH_RUNBOOK.md`](../SOFT_LAUNCH_RUNBOOK.md) §7.
+
+Captain owns the production release (`npm run release:prod`) and the human WhatsApp cohort. PR #747 (the runner change) closed unmerged; runbook §1.1 says the captain decides runner changes. Agents keep product + this checklist current.
+
+## Product Hunt launch, 17 November 2026
+
+The launch kit is [`LAUNCH_KIT_2026-11-17.md`](LAUNCH_KIT_2026-11-17.md): the
+Product Hunt copy, the gallery shot list, the film, the press release, the
+community posts, the pub pitch, the seasonal lines and the day's schedule. Every
+figure in it is marked for recompute. On 16 November, on the launch head, run:
+
+```sh
+npm run launch:figures
+```
+
+It prints the hunt's figures (Britain's cheapest, each city, London's dearest)
+and the priced-pub count, each with its pub, its source and its read day. It
+reads the committed packs and writes nothing.
 
 ## Do not do in this wave
 
@@ -38,10 +59,10 @@ Captain still owns merge of #747, the production release (`npm run release:prod`
 
 ```sh
 curl --fail --silent --show-error --location https://pubmaxxing.com/map \
-  | grep -F '<title>Map · PUBMAXXING</title>'
+  | grep -F '<title>London pub map | PUBMAXX</title>'
 curl --fail --silent --show-error --location https://pubmaxxing.com/social \
-  | grep -F '<title>Social · PUBMAXXING</title>'
-# A rollback deployment must return <title>Social preview · PUBMAXXING</title>.
+  | grep -F '<title>Social | PUBMAXX</title>'
+# A rollback deployment must return <title>Social preview | PUBMAXX</title>.
 ```
 
 ## Cohort invite (15–40 drinkers)

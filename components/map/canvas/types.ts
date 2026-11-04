@@ -41,6 +41,13 @@ export type VenueSignal = {
   agedContributorPrice?: number | null;
   /** Epoch ms that aged report was logged, or null. */
   agedContributorAt?: number | null;
+  /**
+   * The public handle behind the provisional or aged figure when that figure
+   * was typed with NO BILL (captain decision 9, lib/pintTrust.ts), or null.
+   * A surface printing the figure keeps its band off and names the drinker as
+   * "not checked"; nothing on the pin reads it.
+   */
+  uncheckedBy?: string | null;
 };
 export type HoveredVenue = { id: string; name: string; x: number; y: number };
 /**

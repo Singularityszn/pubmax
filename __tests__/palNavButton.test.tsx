@@ -13,8 +13,15 @@ vi.mock("@/components/auth/useViewerHandle", () => ({ useViewerHandle: () => nul
 vi.mock("@/components/auth/useViewerSession", () => ({ useViewerSession: () => ({ signedIn: false }) }));
 vi.mock("@/components/auth/authContext", () => ({ useAuth: () => ({ user: auth.userId ? { id: auth.userId } : null }) }));
 
-import MobileTabBar, { dockColumnForTab, PAL_DOCK_COLUMN } from "@/components/nav/MobileTabBar";
-import { PalDockButton, PalSiteNavButton, palForNav, palNavActive, palNavLabel } from "@/components/nav/PalNavButton";
+import MobileTabBar from "@/components/nav/MobileTabBar";
+import {
+  PalMapEdgeButton,
+  PalSiteNavButton,
+  PalTopBarButton,
+  palForNav,
+  palNavActive,
+  palNavLabel,
+} from "@/components/nav/PalNavButton";
 import { announceLocalPalChange } from "@/lib/localPal";
 import { announcePalMoment } from "@/lib/palMoments";
 import { DEFAULT_PAL_DRAFT, type PubPal } from "@/lib/pubPal";
@@ -87,26 +94,31 @@ describe("the Pal's own door", () => {
     expect(palNavActive("/map")).toBe(false);
   });
 
-  it("draws a bird and loads no image for a stranger", async () => {
-    await render(createElement(PalDockButton, { pathname: "/tonight" }));
+  it("is the shared icon button in the phone top bar, drawing a bird and loading no image for a stranger", async () => {
+    await render(createElement(PalTopBarButton, { pathname: "/tonight" }));
     const link = host.querySelector("a")!;
     expect(link.getAttribute("href")).toBe("/pal");
     expect(link.getAttribute("aria-label")).toBe("Pub Pal");
-    expect(link.textContent).toBe("Pal");
+    // The icon button primitive (components/ui/icon-button.tsx) at its 44px
+    // control size, in the quiet ghost look the theme control beside it wears.
+    expect(link.classList.contains("uiButton")).toBe(true);
+    expect(link.classList.contains("uiButton--icon")).toBe(true);
+    expect(link.classList.contains("uiButton--ghost")).toBe(true);
+    expect(link.classList.contains("palTopBarDoor")).toBe(true);
     expect(link.querySelector("img")).toBeNull();
     expect(link.querySelector(".palNavFace--bird svg")).not.toBeNull();
   });
 
   it("keeps the bird for a Pal the person hid from shortcuts", async () => {
     store(pal({ hidden: true }));
-    await render(createElement(PalDockButton, { pathname: "/tonight" }));
+    await render(createElement(PalTopBarButton, { pathname: "/tonight" }));
     expect(host.querySelector("a")!.getAttribute("aria-label")).toBe("Pub Pal");
     expect(host.querySelector("img")).toBeNull();
   });
 
   it("wears the person's own Pal, asleep when muted", async () => {
     store(pal({ muted: true }));
-    await render(createElement(PalDockButton, { pathname: "/tonight" }));
+    await render(createElement(PalTopBarButton, { pathname: "/tonight" }));
     const link = host.querySelector("a")!;
     expect(link.getAttribute("aria-label")).toBe("Pub Pal, Ripley");
     expect(link.querySelector(".palNavFace img")).not.toBeNull();
@@ -116,21 +128,21 @@ describe("the Pal's own door", () => {
   it("keeps the bird after the owner signs out, or for another account", async () => {
     store(pal());
     auth.userId = null;
-    await render(createElement(PalDockButton, { pathname: "/tonight" }));
+    await render(createElement(PalTopBarButton, { pathname: "/tonight" }));
     expect(host.querySelector("a")!.getAttribute("aria-label")).toBe("Pub Pal");
     expect(host.querySelector("img")).toBeNull();
     act(() => root?.unmount());
     host.remove();
 
     auth.userId = "someone-else";
-    await render(createElement(PalDockButton, { pathname: "/tonight" }));
+    await render(createElement(PalTopBarButton, { pathname: "/tonight" }));
     expect(host.querySelector("a")!.getAttribute("aria-label")).toBe("Pub Pal");
     expect(host.querySelector("img")).toBeNull();
   });
 
   it("follows a Pal hidden or deleted in the same tab, with no page change", async () => {
     store(pal());
-    await render(createElement(PalDockButton, { pathname: "/pal" }));
+    await render(createElement(PalTopBarButton, { pathname: "/pal" }));
     expect(host.querySelector("a")!.getAttribute("aria-label")).toBe("Pub Pal, Ripley");
 
     store(pal({ hidden: true }));
@@ -154,11 +166,11 @@ describe("the Pal's own door", () => {
     const painted: string[] = [];
     function Probe() {
       useLayoutEffect(() => {
-        painted.push(document.querySelector("a.mobileTabPal")?.getAttribute("aria-label") ?? "");
+        painted.push(document.querySelector("a.palTopBarDoor")?.getAttribute("aria-label") ?? "");
       });
       return null;
     }
-    const tree = () => createElement(Fragment, null, createElement(PalDockButton, { pathname: "/tonight" }), createElement(Probe));
+    const tree = () => createElement(Fragment, null, createElement(PalTopBarButton, { pathname: "/tonight" }), createElement(Probe));
     await render(tree());
     await act(async () => root!.render(tree()));
     expect(painted.at(-1)).toBe("Pub Pal, Ripley");
@@ -170,16 +182,17 @@ describe("the Pal's own door", () => {
     expect(painted).not.toContain("Pub Pal, Ripley");
   });
 
-  it("marks itself as the page on /pal", async () => {
-    await render(createElement(PalDockButton, { pathname: "/pal" }));
+  it("marks itself as the page on /pal, in ink", async () => {
+    await render(createElement(PalTopBarButton, { pathname: "/pal" }));
     const link = host.querySelector("a")!;
     expect(link.getAttribute("aria-current")).toBe("page");
     expect(link.classList.contains("isActive")).toBe(true);
+    expect(link.classList.contains("uiButton--primary")).toBe(false);
   });
 
   it("hops once for a Pal moment", async () => {
     store(pal());
-    await render(createElement(PalDockButton, { pathname: "/tonight" }));
+    await render(createElement(PalTopBarButton, { pathname: "/tonight" }));
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "requestAnimationFrame"] });
     await act(async () => {
       announcePalMoment({ kind: "price-added" });
@@ -189,6 +202,16 @@ describe("the Pal's own door", () => {
     expect(link.classList.contains("isCheering")).toBe(true);
     await act(async () => { vi.advanceTimersByTime(1_300); });
     expect(link.classList.contains("isCheering")).toBe(false);
+  });
+
+  it("stands on the phone map's edge as the same door, on the edge's quiet surface", async () => {
+    await render(createElement(PalMapEdgeButton, { pathname: "/map" }));
+    const link = host.querySelector("a")!;
+    expect(link.getAttribute("href")).toBe("/pal");
+    expect(link.getAttribute("aria-label")).toBe("Pub Pal");
+    expect(link.classList.contains("mobileMapPalDoor")).toBe(true);
+    expect(link.classList.contains("uiButton--icon")).toBe(true);
+    expect(link.classList.contains("uiButton--secondary")).toBe(true);
   });
 
   it("names the Pal in the desktop bar", async () => {
@@ -201,21 +224,17 @@ describe("the Pal's own door", () => {
 });
 
 describe("the phone dock", () => {
-  it("puts the Pal between Tonight and Plan, and keeps the five destinations", async () => {
+  it("is the five tabs and nothing else (captain, 1 Nov 2026)", async () => {
     await render(createElement(MobileTabBar));
     const links = [...host.querySelectorAll<HTMLAnchorElement>("nav[aria-label='Primary'] a")];
-    expect(links.map((link) => link.textContent)).toEqual(["Map", "Tonight", "Pal", "Plan", "Social", "You"]);
+    expect(links.map((link) => link.textContent)).toEqual(["Explore", "Tonight", "Plan", "Social", "You"]);
     expect(host.querySelectorAll(".mobileTab")).toHaveLength(5);
+    expect(host.querySelector("a[href='/pal']")).toBeNull();
     const list = host.querySelector<HTMLElement>(".mobileTabList")!;
-    expect(list.style.getPropertyValue("--tab-count")).toBe("6");
+    expect(list.style.getPropertyValue("--tab-count")).toBe("5");
   });
 
-  it("slides the well to each tab's own column and skips the Pal's", () => {
-    expect(PAL_DOCK_COLUMN).toBe(2);
-    expect([0, 1, 2, 3, 4].map(dockColumnForTab)).toEqual([0, 1, 3, 4, 5]);
-  });
-
-  it("lights Tonight's column on /tonight, and fades the well in place on /pal", async () => {
+  it("slides the well to each tab's own column, and fades it on /pal", async () => {
     await render(createElement(MobileTabBar));
     const well = () => host.querySelector<HTMLElement>(".mobileTabHighlight")!;
     expect(well().style.getPropertyValue("--active-index")).toBe("1");
@@ -225,7 +244,7 @@ describe("the phone dock", () => {
 
     nav.pathname = "/plan";
     await render(createElement(MobileTabBar));
-    expect(well().style.getPropertyValue("--active-index")).toBe("3");
+    expect(well().style.getPropertyValue("--active-index")).toBe("2");
     act(() => root?.unmount());
     host.remove();
 
@@ -233,6 +252,6 @@ describe("the phone dock", () => {
     await render(createElement(MobileTabBar));
     expect(well().style.getPropertyValue("--active-index")).toBe("0");
     expect(well().style.opacity).toBe("0");
-    expect(host.querySelector("a[href='/pal']")!.getAttribute("aria-current")).toBe("page");
+    expect(host.querySelector("[aria-current='page']")).toBeNull();
   });
 });

@@ -151,10 +151,16 @@ describe("food discovery for pubs with stated food service", () => {
 
 describe("food discovery controls", () => {
   it("offers every curated type that the food view can admit", () => {
-    expect(offeredVenueKinds("food")).toEqual(["pub", "bar", "food", "restaurant"]);
+    expect(offeredVenueKinds("food")).toEqual(["pub", "bar", "club", "food", "restaurant"]);
     const off = { pub: false, bar: false, food: false, restaurant: false };
-    expect(hiddenVenueKindCount(off, "food")).toBe(4);
-    expect(showAllVenueKinds(off, "food")).toEqual(defaultVenueKindVisibility());
+    expect(hiddenVenueKindCount(off, "food")).toBe(5);
+    expect(showAllVenueKinds(off, "food")).toEqual({
+      pub: true,
+      bar: true,
+      club: true,
+      food: true,
+      restaurant: true,
+    });
   });
 
   it("renders pub and bar choices that agree with the food view's offered kinds", () => {
@@ -171,7 +177,7 @@ describe("food discovery controls", () => {
       visible.querySelectorAll('[aria-hidden="true"]').forEach((node) => node.remove());
       return visible.textContent?.trim();
     });
-    expect(labels).toEqual(["Pubs", "Bars", "Food", "Restaurants"]);
+    expect(labels).toEqual(["Pubs", "Bars", "Clubs", "Late food", "Restaurants"]);
     expect(labels).toHaveLength(offeredVenueKinds("food").length);
   });
 

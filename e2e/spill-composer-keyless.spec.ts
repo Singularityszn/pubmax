@@ -54,7 +54,7 @@ test("keyless mobile submit posts a Pint Drop and inserts the story into the Pin
   const venueSheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
   await expect(venueSheet).toBeVisible();
   const pintsPanel = venueSheet.locator("#venuePanel-pints");
-  await venueSheet.getByRole("tab", { name: "Stories", exact: true }).click();
+  await venueSheet.getByRole("tab", { name: "Prices", exact: true }).click();
   await expect(pintsPanel).toBeVisible();
   await pintsPanel.getByRole("button", { name: /log a pint drop/i }).click();
   const form = page.locator("form.dropComposer");

@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { openOverviewFold } from "./helpers/overviewFolds";
+
 const SEED_VENUE_ID = "venue-16pnwmm";
 const VIEWPORT = { width: 390, height: 844 };
 const E2E_AUTH_USER_ID = "00000000-0000-4000-8000-000000000011";
@@ -77,6 +79,8 @@ test("a signed-out visitor sees the reading and the sign-in door", async ({
 
   const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
   await expect(sheet).toBeVisible({ timeout: 60_000 });
+  // The busy row lives in the Tonight fold (lib/venueOverviewFolds.ts).
+  await openOverviewFold(sheet, "tonight");
   const row = sheet.locator(".venueOccupancy");
   await expect(row).toBeVisible();
   await expect(row.getByText("How busy is it right now?")).toBeVisible();
@@ -164,6 +168,8 @@ test("a signed-in tap writes a receipt then an aged reading", async ({
 
   const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
   await expect(sheet).toBeVisible({ timeout: 60_000 });
+  // The busy row lives in the Tonight fold (lib/venueOverviewFolds.ts).
+  await openOverviewFold(sheet, "tonight");
   const row = sheet.locator(".venueOccupancy");
   await expect(row).toBeVisible();
   await expect(row.getByText("No fresh reading")).toBeVisible();

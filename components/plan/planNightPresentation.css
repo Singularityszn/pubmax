@@ -1,0 +1,16 @@
+.planMystery {
+  margin-block: var(--space-5);
+  padding: var(--space-4);
+  border-block: 1px solid var(--line);
+}
+.planMystery__heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.planMystery__heading h3 { margin: 0; font-family: var(--font-display); }
+.planMystery p { color: var(--muted); line-height: var(--leading-normal); overflow-wrap: anywhere; }
+.planMystery__envelope {
+  border-style: dashed;
+}
+.planMystery__envelope:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+@media (prefers-reduced-motion: no-preference) {
+  .planMystery__revealed { animation: planMysteryReveal var(--duration-fast) var(--ease-out); }
+  @keyframes planMysteryReveal { from { opacity: 0.5; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+}

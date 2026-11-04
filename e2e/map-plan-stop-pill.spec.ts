@@ -52,7 +52,7 @@ test("phone 390: in a crawl in progress, Plan stop adds the pub and In plan take
   await expect(venuePortal.getByRole("button", { name: PLAN_DOOR_NAME })).toHaveCount(1);
   await expect(
     venuePortal.getByRole("toolbar", { name: "Venue actions" }).getByRole("button"),
-  ).toHaveText(["Share"]);
+  ).toHaveText(["Ask for a table", "Share"]);
 
   await expect(async () => {
     await planStop.click();

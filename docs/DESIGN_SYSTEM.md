@@ -73,7 +73,7 @@ refuses, and add your assertion there rather than minting a second gate.
 | A chip reads that same row, and a number square is ONE family across the planner and /pubs | Launch tokens > Text buttons; `components/ui/chip.css` | `__tests__/chipPrimitive.test.tsx`, `e2e/design-review-followups.spec.ts` |
 | One painted primary per screen, a quiet row of at most two ways onward, and a form screen paints no head primary | `docs/design/LAUNCH_SCREENS.md` | `__tests__/coreUiAudit.test.ts`, `__tests__/launchPrimitives.test.tsx` |
 | The accent as a WORD takes `--brass-ink`; opacity is never a muted token | Colour, below | `__tests__/accentInkContrast.test.ts` |
-| Coral is spent twice (the one primary, the create disc); a selection reads in `--state-selected-*`, a kicker in muted ink, a link in ink with an underline | Launch tokens > Coral is spent twice | `__tests__/visualDiscipline.test.ts`, `__tests__/coralEconomy.test.ts` (a count of resting coral that only goes down) |
+| Coral is spent twice, and since 1 Nov 2026 once (the one primary; the create disc is retired); a selection reads in `--state-selected-*`, a kicker in muted ink, a link in ink with an underline | Launch tokens > Coral is spent twice | `__tests__/visualDiscipline.test.ts`, `__tests__/coralEconomy.test.ts` (a count of resting coral that only goes down) |
 | A pint price on a row or a card goes through `PriceBadge` / `PintPriceBadge` with its band; never a bare coloured number | Launch tokens > Status and price | `__tests__/onePriceLook.test.ts`, `__tests__/priceBandSurfaces.test.ts` |
 | Monospace is for figures alone, never a label, nav or prose | Launch tokens > Monospace is for figures | `__tests__/visualDiscipline.test.ts` |
 | A tab row is one tab stop: a roving `tabIndex`, the arrows, Home and End, and the selected tab in `--state-selected-*` ink | Spacing, radius, shadow > Tabs | `__tests__/tablistKeyboard.test.tsx`, `__tests__/visualDiscipline.test.ts` |
@@ -84,6 +84,7 @@ refuses, and add your assertion there rather than minting a second gate.
 | The map retry notice uses semantic ink for readable text in both themes | `.mapSoftRetry` in `app/globals.css` | `__tests__/mapSoftRetryContrast.test.ts` |
 | A price wears its band and no other colour | `docs/PRICE_BANDS.md` | `__tests__/priceBand.test.ts`, `__tests__/priceBandSurfaces.test.ts` |
 | The template-pattern ban list | `docs/VOICE.md` > Template patterns | `__tests__/templatePatterns.test.ts` |
+| A loading card is the real card drawn from sample values: inert, hidden, a 600 ms grace and still under reduced motion | Motion > Loading: the sample skeleton | `__tests__/sampleSkeleton.test.tsx`, `__tests__/sampleSkeletonSurfaces.test.tsx` |
 | Copy voice: no em dash, British spelling, no hedge line | `docs/VOICE.md` | `__tests__/emDashLaw.test.ts`, `__tests__/frictionVoice.test.ts` |
 
 Open design debt and raised design decisions live in
@@ -142,7 +143,10 @@ hairlines for structure (see "Edges: the de-box rule").
 **Accent.** One coral: `--brass` as `--color-accent` and `--accent-action`,
 `--brass-bright` as `--color-accent-strong` and `--accent-action-strong`.
 `--brass-accessible` is the login primary alone. A Screen paints exactly one
-control with `--accent-action`; nothing else on that screen wears it.
+control with `--accent-action`; nothing else on that screen wears it. On the
+venue sheet that control is the action card's plan door at every width
+(`components/map/inspector/VenueActionCard.tsx`), so the Overview's price
+door is drawn in ink beside it.
 
 **Coral as a fill and coral as a word are two tokens.** `--brass` is 2.5:1 to
 2.9:1 as TEXT on the light elevation ladder, below AA at every step, so accent
@@ -153,8 +157,10 @@ unchanged and still carries `--color-on-accent`. `__tests__/accentInkContrast.te
 holds the ratios and sweeps for a coral put back on a light word.
 
 **Coral is spent twice.** A coral FILL (`--accent-action`, `--brass`) is the
-ONE primary action per screen (the filled button) and the floating create
-disc, and nothing else. A selection is not an action: an active tab, a
+ONE primary action per screen (the filled button), and nothing else. Its
+second spend, the floating create disc, left with the five-tab dock (captain,
+1 Nov 2026), and the rule keeps its name so the many places that cite it
+still find it. A selection is not an action: an active tab, a
 pressed chip, a chosen segment and the page you are on read in ink through
 `--state-selected-surface`, `--state-selected-border` and
 `--state-selected-ink`, never a coral fill or a coral tint. A suggestion chip
@@ -165,8 +171,8 @@ underline (`--color-text`), never coral; `--brass-ink` stays only for the
 rare coral word a primary's own label needs. `--state-active-*` stays the
 "you are here" place marker, which is not a selection.
 `__tests__/coralEconomy.test.ts` counts every resting coral declaration in
-`app/` and `components/` outside a commented allowlist of primaries, the
-create disc, focus rings and the map key, and the count may only go down.
+`app/` and `components/` outside a commented allowlist of primaries, focus
+rings and the map key, and the count may only go down.
 
 **Monospace is for figures.** `--font-data` sets prices, dates and times,
 counts and codes, and nothing else. A label, a kicker, a footer heading or
@@ -250,8 +256,11 @@ kicker, heading, one painted primary and at most one secondary, in that order at
 every width. The screen table is `docs/design/LAUNCH_SCREENS.md`.
 
 The map has a deliberate style-layer contract. Dark mode uses a neon-noir
-near-black field with slate water and restrained roads; light mode uses warm
-paper land with quieter washes. Pub marks lead the hierarchy: basemap pub POI
+near-black field with slate water and restrained roads; light mode is a calm
+map for price pills (launch plan, 1 November 2026): warm near-grey ground,
+white roads whose rank is their width and grey casing, a pale sage park, a
+grey-blue river and grey labels, and no price-band hue anywhere on the ground,
+so the only colour on a light map is a price. Pub marks lead the hierarchy: basemap pub POI
 labels are prominent, generic venue-label layers receive the same priority,
 neighbourhood labels are smaller and quieter, and road labels remain
 contextual. This pass changes palette and label paint/layout
@@ -279,6 +288,7 @@ live in `lib/mapBasemapTaste.ts`; the stable token roles are:
 | `--tint-ink-accent`, `--tint-ink-positive`, `--tint-ink-caution`, `--tint-ink-negative`, `--tint-ink-info` | a hue as a WORD on a TINT of itself - see "A hue on a tint of itself" |
 | `--pint`, `--amber`, `--brick` | price and status semantics |
 | `--river`, `--river-bright` | heritage and by-water information |
+| `--route-line` | the crawl route on the map, the key and the plan strip, and the walk of a way chosen in Night Mode. It is drawn thick on its own paper edge (dark: ink edge), like directions in a maps app. A ride on that way wears its own TfL line colour, never this token |
 
 **One accent owns the CTA in both themes.** Coral (`--brass`) carries actions;
 amber (`--night-amber`) stays a route and price signal. Every other hue (`pint` / `amber` /
@@ -554,9 +564,10 @@ way, and the choice is made in this order:
    not need a card.
 4. **Nothing.** Most containers are in this row.
 
-Coral (`--brass`) is not a selection colour. It belongs to the primary CTA,
-the floating create disc and the selected pin ring; an active tab reads in
-`--state-selected-*` ink. See Launch tokens > Coral is spent twice.
+Coral (`--brass`) is not a selection colour. It belongs to the primary CTA;
+an active tab reads in `--state-selected-*` ink, and the selected pin on the
+map is a solid ink price pill or an ink ring. See Launch tokens > Coral is
+spent twice.
 
 Two traps this repo has hit:
 
@@ -599,14 +610,14 @@ than a tablist.
 
 **The phone tab bar is the pressed rail.** The dock is a raised mat with one
 hairline and one soft drop, and the page you are on is a WELL pressed into it,
-which glides between tabs: `--state-selected-surface` with a shadow under its
+which glides between tabs in the single-row layout: `--state-selected-surface` with a shadow under its
 top lip and a lit lower lip, the glyph sitting one pixel down. At night the
 well is a darker recess (`app/theme.css`), because pressed ink reads as shadow
 on a near-black rail. It is the bar-mat tactility spent on structure, never a
 second stamp: no tilt, no coral at rest. The well's radius is the rail's minus
 `--tab-inset`, so the two curves stay concentric at every width; glyphs are
 20px in a 22px box over the 11px label floor, idle words at 600 and the
-current page at 750. The rail is 54px inside the 64px `--tabbar-h` lane.
+current page at 750. The [primary row rule](rules/components-sheets-chrome-and-navigation.md#the-primary-row-is-five-doors-and-the-header-carries-only-what-has-something-beh) owns the five tabs and the foot clearance, and the [Pal door rule](rules/components-sheets-chrome-and-navigation.md#the-pub-pal-is-a-door-in-the-top-bar-and-on-the-map-edge-never-a-tab) owns where the Pal sits now that it has left the dock.
 Before and after: `docs/proof/tab-bar-pressed-rail/`.
 
 `__tests__/tablistKeyboard.test.tsx` sweeps every `role="tab"` under `app/`
@@ -628,7 +639,7 @@ One icon set (Lucide) at one scale, written down in `lib/iconScale.ts`:
 14 beside small text (meta lines, chips, captions), 16 beside body text and
 inside a labelled button, field or heading, 20 for an icon alone in a control
 (close, overflow, header and tab bar icons) and 24 for the few large controls
-(the create disc, full-screen viewer chrome). Every icon keeps Lucide's own
+(full-screen viewer chrome). Every icon keeps Lucide's own
 stroke of 2 and passes no `strokeWidth`: at 14 and 16px it draws the same stem
 as the Inter beside it, where 1.75 drew thinner than the words. A selected tab
 reads by its ink, its label weight and the gliding well, not by a heavier
@@ -650,6 +661,19 @@ velocity carries into the settling spring.
 Shared non-map press feedback is a low-specificity base layer. Components with
 their own positioning transform keep local ownership and neutralise the shared
 scale through the documented custom-property seam in `app/globals.css`.
+
+### Loading: the sample skeleton
+
+A wait that will become a card is drawn from that card.
+`components/ui/sample-skeleton.tsx` renders the real component with sample
+values, inert and hidden from assistive technology, and
+`components/ui/sampleSkeleton.css` paints it out: each line of text becomes a
+bar in `--line`, and pictures, icons and controls become `--line-soft` blocks
+in their own shape. The wait therefore has the answer's size. It shows after
+the listings wait's 600 ms grace and reuses the loading shell's `pulse` under
+`prefers-reduced-motion: no-preference`, so it adds no motion rule of its own.
+The [rule](rules/components-design-system-and-launch-primitives.md#a-wait-is-drawn-from-the-real-card-and-nothing-moves-when-the-answer-lands)
+names where it is used and where it is not.
 
 ## Stacking (z-index)
 
@@ -699,6 +723,19 @@ surface needs emphasis, reach for weight, size or ink, not coral and not a
 second signature gesture (see "Coral is spent twice").
 
 ## Day/night coherence
+
+**The night is dark by default.** A reader who has not chosen a theme gets
+the dark theme from 21:30 to 03:59 London time, and the OS decides the rest
+of the day. A stored choice from the theme control always wins. The rule is
+`resolveThemePreference` in `lib/themePreference.ts`, and
+`public/theme-init.js` applies the same rule before first paint (it keeps its
+own copy of the two times, held to the module by
+`__tests__/themeNight.test.tsx`). `components/ThemeAttribute.tsx` asks again
+every minute and when a tab comes back, so an open page turns dark at 21:30
+and light at 04:00. A tap on the theme control is the reader's choice even
+when storage refuses to keep it, and the night rule stands down for the rest
+of that page's life. `html[data-night-theme="1"]` marks a page that is dark
+because of the night rule rather than a choice.
 
 Both themes flip from the same token names — `app/theme.css` only
 overrides values inside `html[data-theme="dark"]`, never introduces new

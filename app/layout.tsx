@@ -6,7 +6,7 @@ import localFont from "next/font/local";
 import ConsentAwareVercelAnalytics from "@/components/ConsentAwareVercelAnalytics";
 import ConsentAwareVercelSpeedInsights from "@/components/ConsentAwareVercelSpeedInsights";
 import "./root-shell.css";
-import CreateFab from "@/components/nav/CreateFab";
+import { PlanMapNavigationProvider } from "@/components/nav/PlanMapNavigation";
 import MobileTabBar, {
   MobileTabBarClearanceFallback,
 } from "@/components/nav/MobileTabBar";
@@ -33,6 +33,7 @@ import PosthogPageviews from "@/components/PosthogPageviews";
 import SkipLink from "@/components/a11y/SkipLink";
 import SplashAperture from "@/components/splash/SplashAperture";
 import DeploymentSkewRecovery from "@/components/DeploymentSkewRecovery";
+import NightFallGate from "@/components/wild/NightFallGate";
 import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 import { SocialFriendsLaunchProvider } from "@/lib/useSocialFriendsLaunch";
 import OptionalClerkProvider from "@/components/auth/OptionalClerkProvider";
@@ -293,12 +294,17 @@ export const metadata: Metadata = {
 
 // The browser bar matches the page under it: the light page floor by day and
 // the dark one by night (lib/browserBarColor.ts). viewport-fit=cover for
-// standalone PWA / notched phones.
+// standalone PWA / notched phones. interactive-widget=resizes-content makes
+// the Android keyboard shrink the layout viewport, so a composer pinned to
+// its foot sits above the keys rather than behind them (design plan step
+// 0.6). iOS ignores it, and lib/keyboardInset.ts still lifts a pinned
+// composer there; lib/softKeyboard.ts reads either shape as a keyboard.
 export const viewport: Viewport = {
   themeColor: BROWSER_BAR_THEME_COLORS,
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  interactiveWidget: "resizes-content",
 };
 
 export default async function RootLayout({
@@ -412,52 +418,54 @@ export default async function RootLayout({
                   open/close state and renders the dialog only while open. Wraps
                   children so SiteNav's ⌘K affordance can read its context. */}
               <CommandPaletteProvider>
-                {children}
-                {/* App-wide bottom tab bar — mounted on every route and visible only
-                    on ≤640px (see mobileNav.css). display:none on desktop leaves the
-                    existing navs untouched.
-                    Suspense boundary: it reads useSearchParams; under any future
-                    prerendered route that read would otherwise bail the whole
-                    page out to CSR. Harmless today, required tomorrow. */}
-                <Suspense fallback={<MobileTabBarClearanceFallback />}>
-                  <MobileTabBar />
-                </Suspense>
-                <CreateFab />
-                {/* Night Mode card, Pub Pal summon, first-run tour, A2HS prompt and
-                    native push explainer all render nothing on first paint, so they
-                    load lazily after hydration — see DeferredShellExtras. */}
-                <DeferredShellExtras />
-                {/* Silent offline SW registration (issue #32) — renders nothing,
-                    production-only, registers after load. */}
-                <OfflineReady />
-                <ClientErrorReporter />
-                {/* Metrics funnel (Wave M) — consent-gated, render-nothing
-                    signals: daily return-rate pulse and the A2HS install funnel. */}
-                <DailyActivityPulse />
-                <A2HSTracking />
-                {/* Deep-link boot stamp: a boot on any non-root path consumes the
-                    session's entry decision, so the installed PWA (which cold-starts
-                    on the manifest start_url /tonight) can reach the landing page on
-                    a wordmark tap instead of bouncing back to /tonight. */}
-                <EntryBootStamp />
-                <ThemeAttribute />
+                <PlanMapNavigationProvider>
+                  {children}
+                  {/* App-wide bottom tab bar — mounted on every route and visible only
+                      on ≤640px (see mobileNav.css). display:none on desktop leaves the
+                      existing navs untouched.
+                      Suspense boundary: it reads useSearchParams; under any future
+                      prerendered route that read would otherwise bail the whole
+                      page out to CSR. Harmless today, required tomorrow. */}
+                  <Suspense fallback={<MobileTabBarClearanceFallback />}>
+                    <MobileTabBar />
+                  </Suspense>
+                  {/* Night Mode card, Pub Pal summon, first-run tour, A2HS prompt and
+                      native push explainer all render nothing on first paint, so they
+                      load lazily after hydration — see DeferredShellExtras. */}
+                  <DeferredShellExtras />
+                  {/* Silent offline SW registration (issue #32) — renders nothing,
+                      production-only, registers after load. */}
+                  <OfflineReady />
+                  <ClientErrorReporter />
+                  {/* Metrics funnel (Wave M) — consent-gated, render-nothing
+                      signals: daily return-rate pulse and the A2HS install funnel. */}
+                  <DailyActivityPulse />
+                  <A2HSTracking />
+                  {/* Deep-link boot stamp: a boot on any non-root path consumes the
+                      session's entry decision, so the installed PWA (which cold-starts
+                      on the manifest start_url /tonight) can reach the landing page on
+                      a wordmark tap instead of bouncing back to /tonight. */}
+                  <EntryBootStamp />
+                  <ThemeAttribute />
+                </PlanMapNavigationProvider>
               </CommandPaletteProvider>
           </OptionalClerkProvider>
         ) : (
           <AuthProvider clerkIntegrationConfigured={clerkIntegrationConfigured}>
             <CommandPaletteProvider>
-              {children}
-              <Suspense fallback={<MobileTabBarClearanceFallback />}>
-                <MobileTabBar />
-              </Suspense>
-              <CreateFab />
-              <DeferredShellExtras />
-              <OfflineReady />
-              <ClientErrorReporter />
-              <DailyActivityPulse />
-              <A2HSTracking />
-              <EntryBootStamp />
-              <ThemeAttribute />
+              <PlanMapNavigationProvider>
+                {children}
+                <Suspense fallback={<MobileTabBarClearanceFallback />}>
+                  <MobileTabBar />
+                </Suspense>
+                <DeferredShellExtras />
+                <OfflineReady />
+                <ClientErrorReporter />
+                <DailyActivityPulse />
+                <A2HSTracking />
+                <EntryBootStamp />
+                <ThemeAttribute />
+              </PlanMapNavigationProvider>
             </CommandPaletteProvider>
           </AuthProvider>
         )}
@@ -473,6 +481,9 @@ export default async function RootLayout({
         </Suspense>
         <AnalyticsConsentPrompt />
         <DeploymentSkewRecovery />
+        {/* Wild switch preview (lib/wildMode.ts): Night falls. Renders nothing
+            and loads nothing more while the switch is off. */}
+        <NightFallGate />
       </body>
     </html>
   );

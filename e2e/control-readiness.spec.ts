@@ -77,19 +77,3 @@ test("the home theme control waits for scripts and answers one click", async ({ 
   }
 });
 
-test("the phone Create action is not exposed as ready before scripts load", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  const release = await delayScripts(page);
-  try {
-    await page.goto("/today", { waitUntil: "commit" });
-    await expect(page.getByRole("heading", { name: "What’s on across London today." })).toBeVisible();
-    await expect(page.locator('button[aria-label="Create"]:enabled:visible')).toHaveCount(0);
-    release();
-    const trigger = page.getByRole("button", { name: "Create", exact: true });
-    await expect(trigger).toBeEnabled();
-    await trigger.click();
-    await expect(page.getByRole("link", { name: "Post a moment", exact: true })).toBeVisible();
-  } finally {
-    release();
-  }
-});

@@ -59,6 +59,7 @@ import {
 } from "./menu-urls.mjs";
 import {
   cheapestPerCategory,
+  pageNamesAnotherBranch,
   pageStatesADrinksList,
   readVenueDrinkPrices,
   renderLooksEmpty,
@@ -487,7 +488,17 @@ async function main() {
     // A drinks link that was refused or failed is remembered, so a site whose
     // only menu could not be read is never recorded as having no menu.
     let linkFailure = null;
+    const identity = {
+      name: target.name,
+      locality: target.locality,
+      address: target.address,
+      website: target.homeUrl,
+    };
     for (const link of renderedMenuLinks(home.links, target.homeUrl)) {
+      // A pub's site can link to the chain's other branches, and every page
+      // this lane reads is written as this pub's. A link that names another
+      // branch is that branch's menu, so it is not opened.
+      if (pageNamesAnotherBranch(link, identity)) continue;
       const decision = await robots(link);
       if (!decision.allowed) {
         linkFailure ??= decision.reason;

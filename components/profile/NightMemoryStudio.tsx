@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { Check, Eye, LockKeyhole, UserPlus } from "lucide-react";
@@ -20,6 +21,11 @@ import { Button } from "@/components/ui/button";
 
 type Memory = { id: string; title: string; createdAt: string };
 type Moment = { id: string; kind: NightMomentKind; caption: string; venueId: string | null; createdAt: string };
+/** A published Story, public or unlisted, is read at /recap/[storyId]. */
+function storyRecapHref(storyId: string): Route {
+  return `/recap/${encodeURIComponent(storyId)}` as Route;
+}
+
 type Story = { id: string; memoryId?: string; title: string; summary: string; status: "draft" | "published"; visibility: string; publishedMomentIds?: string[]; membership?: { role: "host" | "editor" | "contributor"; status: "invited" | "accepted" | "removed"; joinedAt: string | null } };
 type StoryWorkspace = {
   story: Story;
@@ -49,16 +55,20 @@ const MOMENT_LABELS: Record<MemoryStudioDraft["momentKind"], string> = {
   side_quest: "Detour",
 };
 
-export default function NightMemoryStudio({ userId }: { userId: string }) {
+export default function NightMemoryStudio({ userId, memoriesRevision }: { userId: string; memoriesRevision?: number }) {
   const [draft, setDraft] = useState<MemoryStudioDraft>(() => readMemoryStudioDraft(userId));
   const [memories, setMemories] = useState<Memory[]>([]);
+  const [memoryReload, setMemoryReload] = useState(0);
+  const memoryReadRevisionRef = useRef(0);
   const [moments, setMoments] = useState<Moment[]>([]);
   const [stories, setStories] = useState<Story[]>([]);
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
-  // True once the initial memories+stories fetch settles (success or error).
+  // True once both initial reads settle (success or error).
   // Gates the first-run onboarding callout so it never flickers during load.
-  const [studioLoaded, setStudioLoaded] = useState(false);
+  const [memoriesLoaded, setMemoriesLoaded] = useState(false);
+  const [storiesLoaded, setStoriesLoaded] = useState(false);
+  const studioLoaded = memoriesLoaded && storiesLoaded;
   const [selectedStoryId, setSelectedStoryId] = useState("");
   const [workspace, setWorkspace] = useState<StoryWorkspace | null>(null);
   const [selectedMomentIds, setSelectedMomentIds] = useState<string[]>([]);
@@ -82,20 +92,38 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
 
   useEffect(() => {
     const controller = new AbortController();
-    void Promise.all([
-      authedActionFetch("/api/night-memories", { signal: controller.signal }, { requiresIdentity: true }),
-      authedActionFetch("/api/night-stories", { signal: controller.signal }, { requiresIdentity: true }),
-    ]).then(async ([memoryResponse, storyResponse]) => {
-      if (controller.signal.aborted) return;
-      const nextMemories = memoryResponse.ok
-        ? ((await memoryResponse.json()) as { memories?: Memory[] }).memories ?? []
-        : [];
-      const nextStories = storyResponse.ok
-        ? ((await storyResponse.json()) as { stories?: Story[] }).stories ?? []
-        : [];
+    const readRevision = ++memoryReadRevisionRef.current;
+    const isCurrentRead = () => !controller.signal.aborted && readRevision === memoryReadRevisionRef.current;
+    void authedActionFetch("/api/night-memories", { signal: controller.signal }, { requiresIdentity: true }).then(async (response) => {
+      if (!response.ok) throw new Error("Memory read failed");
+      const nextMemories = ((await response.json()) as { memories?: Memory[] }).memories ?? [];
+      if (!isCurrentRead()) return;
       setMemories(nextMemories);
+      setMemoriesLoaded(true);
+      setDraft((current) => ({
+        ...current,
+        selectedMemoryId: nextMemories.some((item) => item.id === current.selectedMemoryId)
+          ? current.selectedMemoryId
+          : (nextMemories[0]?.id ?? ""),
+      }));
+    }).catch(() => {
+      if (isCurrentRead()) {
+        setMessage("Your memories could not be loaded. Try again.");
+        setMemoriesLoaded(true);
+      }
+    });
+    return () => controller.abort();
+  }, [userId, memoriesRevision, memoryReload]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void authedActionFetch("/api/night-stories", { signal: controller.signal }, { requiresIdentity: true }).then(async (response) => {
+      const nextStories = response.ok
+        ? ((await response.json()) as { stories?: Story[] }).stories ?? []
+        : [];
+      if (controller.signal.aborted) return;
       setStories(nextStories);
-      setStudioLoaded(true);
+      setStoriesLoaded(true);
       const current = selectedStoryIdRef.current;
       const nextStoryId = nextStories.some((story) => story.id === current && story.membership?.status !== "invited")
         ? current
@@ -104,20 +132,14 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
           ?? "");
       selectedStoryIdRef.current = nextStoryId;
       setSelectedStoryId(nextStoryId);
-      setDraft((current) => ({
-        ...current,
-        selectedMemoryId: nextMemories.some((item) => item.id === current.selectedMemoryId)
-          ? current.selectedMemoryId
-          : (nextMemories[0]?.id ?? ""),
-      }));
     }).catch(() => {
       if (!controller.signal.aborted) {
         setMessage("Your memories could not be loaded. Try again.");
-        setStudioLoaded(true);
+        setStoriesLoaded(true);
       }
     });
     return () => controller.abort();
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     writeMemoryStudioDraft(userId, draft);
@@ -198,6 +220,12 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
     setConfirmation(null);
   }
 
+  function refreshMemoriesAfterMutation() {
+    // Retire older reads before the successful write changes the local shelf.
+    memoryReadRevisionRef.current += 1;
+    setMemoryReload((current) => current + 1);
+  }
+
   async function createMemory(event: FormEvent) {
     event.preventDefault();
     setSaving(true);
@@ -209,6 +237,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
     const body = await response.json().catch(() => ({})) as { memory?: Memory; error?: string };
     setSaving(false);
     if (!response.ok || !body.memory) return setMessage(errorMessageFrom(body, "Could not create that Memory."));
+    refreshMemoriesAfterMutation();
     setMemories((current) => [body.memory!, ...current]);
     update({ memoryTitle: "", selectedMemoryId: body.memory.id, storyTitle: body.memory.title });
     setMessage("Private Memory created. Add the parts worth keeping.");
@@ -274,14 +303,11 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
       );
       const body = await response.json().catch(() => ({})) as { error?: string };
       if (!response.ok) throw new Error(errorMessageFrom(body, "That Memory could not be removed."));
+      refreshMemoriesAfterMutation();
       setPendingRemoval(null);
-      const remaining = memories.filter((memory) => memory.id !== memoryId);
-      setMemories(remaining);
+      setMemories((current) => current.filter((memory) => memory.id !== memoryId));
       setStories((current) => current.filter((story) => story.memoryId !== memoryId));
-      if (draft.selectedMemoryId === memoryId) {
-        setMoments([]);
-        update({ selectedMemoryId: remaining[0]?.id ?? "" });
-      }
+      setDraft((current) => current.selectedMemoryId === memoryId ? { ...current, selectedMemoryId: "" } : current);
       setMessage("Memory removed. Its Moments and their photos went with it.");
     } catch (caught) {
       setMessage(caught instanceof Error ? caught.message : "That Memory could not be removed.");
@@ -517,7 +543,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
       trackEvent("story_published", { visibility: publishVisibility, contributors: workspace.contributors.length, moments: selectedMomentIds.length });
       trackMeaningfulCoreAction("story_published");
       if (!await refreshWorkspace(workspace.story.id)) return;
-      setMessage("Story published to Stories. Your private Memory stays private.");
+      setMessage("Story published. Its recap page is linked below. Your private Memory stays private.");
     } catch (caught) {
       setMessage(caught instanceof Error ? caught.message : "That Story could not be published.");
     } finally {
@@ -782,16 +808,22 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
                 <Button variant="secondary" type="submit" disabled={saving || !inviteHandle.trim()}>Invite</Button>
               </form>
               <div className="memoryStoryReview__publish">
-                <label><span>Audience</span><select value={publishVisibility} disabled={saving} onChange={(event) => { setPublishVisibility(event.target.value as "public" | "unlisted"); invalidatePublication(); }}><option value="unlisted">Anyone with the link</option><option value="public">Public in Stories</option></select></label>
+                <label><span>Audience</span><select value={publishVisibility} disabled={saving} onChange={(event) => { setPublishVisibility(event.target.value as "public" | "unlisted"); invalidatePublication(); }}><option value="unlisted">Anyone with the link</option><option value="public">Public recap page</option></select></label>
                 <Button variant="secondary" type="button" disabled={saving || selectedMomentIds.length === 0} onClick={() => void proposePublication()}><Eye size={16} aria-hidden="true" />Review publication</Button>
               </div>
             </div>
           ) : null}
 
+          {workspace.story.status === "published" ? (
+            <p className="memoryStoryReview__recap">
+              <Link href={storyRecapHref(workspace.story.id)}>Open the recap page</Link>
+            </p>
+          ) : null}
+
           {confirmation ? (
             <div className="memoryStoryReview__confirmation" role="group" aria-label="Confirm Story publication">
               <Check size={16} aria-hidden="true" />
-              <div><strong>Publish {confirmation.momentCount} Moment{confirmation.momentCount === 1 ? "" : "s"}?</strong><p>{confirmation.visibility === "public" ? "This Story will appear publicly in Stories." : "Only people with its link will be able to open it."} Consent is checked again when you confirm.</p></div>
+              <div><strong>Publish {confirmation.momentCount} Moment{confirmation.momentCount === 1 ? "" : "s"}?</strong><p>{confirmation.visibility === "public" ? "This Story gets a public recap page that anyone can open and search engines can list." : "Only people with its link will be able to open it."} Consent is checked again when you confirm.</p></div>
               <Button variant="secondary" type="button" disabled={saving} onClick={() => void confirmPublication()}>{saving ? "Confirming…" : "Confirm publication"}</Button>
               <Button variant="secondary" type="button" className="memoryStoryReview__cancel" onClick={() => setConfirmation(null)}>Cancel</Button>
             </div>

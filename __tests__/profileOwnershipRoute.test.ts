@@ -35,6 +35,7 @@ import {
   __resetMemoryProfiles,
   __seedMemoryLegacyProfile,
   __seedMemoryOwnedProfile,
+  __tombstoneMemoryProfile,
   memoryProfileStore,
 } from "@/lib/profileStore";
 
@@ -263,5 +264,40 @@ describe("profileStore account ownership", () => {
       memoryProfileStore.linkUser("fresh", "user-new"),
     ).rejects.toThrow("not available");
     expect(await memoryProfileStore.getByHandle("fresh")).toBeNull();
+  });
+});
+
+// Audit finding lib/profileOwnership:gateHandleAction-unlinked-lane-ignores-tombstone-and-retired-alias.
+// A deleted account keeps its row so its handle stays reserved, and the FK
+// clears its owner. That row is not a demo profile anybody may rewrite.
+describe("a deleted account's profile", () => {
+  async function departed() {
+    __seedMemoryOwnedProfile("carla", "user-carla");
+    await memoryProfileStore.update("carla", { displayName: "Carla", bio: "Gone now" });
+    __tombstoneMemoryProfile("carla");
+  }
+
+  it("answers 404 to an anonymous PATCH and keeps its fields", async () => {
+    await departed();
+    const res = await patch("carla", { displayName: "Squatter Name", bio: "planted" });
+    expect(res.status).toBe(404);
+    expect(await memoryProfileStore.getByHandle("carla")).toMatchObject({
+      displayName: "Carla",
+      bio: "Gone now",
+    });
+  });
+
+  it("answers 404 to an anonymous DELETE and keeps its fields", async () => {
+    await departed();
+    const res = await del("carla");
+    expect(res.status).toBe(404);
+    expect(await memoryProfileStore.getByHandle("carla")).toMatchObject({ displayName: "Carla" });
+  });
+
+  it("is refused by the store as well, whoever asks", async () => {
+    await departed();
+    expect(await memoryProfileStore.update("carla", { displayName: "Squatter Name" })).toBeNull();
+    expect(await memoryProfileStore.softDeleteForCaller("carla", null)).toEqual({ status: "not-found" });
+    expect(await memoryProfileStore.getByHandle("carla")).toMatchObject({ displayName: "Carla" });
   });
 });

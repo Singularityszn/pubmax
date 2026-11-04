@@ -27,6 +27,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 4px;
   min-width: 44px;
   min-height: 44px;
   padding: 4px 8px;
@@ -36,6 +37,10 @@
   color: var(--ink-soft);
   font: 650 0.7rem/1 var(--font-body);
   cursor: pointer;
+}
+
+.tonightArcChip > svg {
+  flex-shrink: 0;
 }
 
 .tonightArcChipLabel {
@@ -56,7 +61,6 @@
 .tonightArcChipTick {
   position: relative;
   z-index: 1;
-  margin-right: 3px;
   font-weight: 800;
 }
 

@@ -33,6 +33,8 @@ export type SocialPubRankingEntry = {
   place: number;
   /** 0-10, from band and place inside it. */
   score: number;
+  /** The cheapest price the map lists for the pub, when the read added it. */
+  listedPrice?: number | null;
 };
 
 export function isSocialPubBand(value: unknown): value is SocialPubBand {
@@ -99,6 +101,20 @@ export function answerSocialPubComparison(
   if (preferred === "new") return { ...session, high: mid };
   if (preferred === "existing") return { ...session, low: mid + 1 };
   return { ...session, low: mid + 1, high: mid + 1 };
+}
+
+/** The rank card after a visit asks at most this many "which did you prefer?" questions. */
+export const RANK_AFTER_VISIT_MAX_COMPARISONS = 3;
+
+/**
+ * Settles an open window where it stands: the slot the next question would
+ * have split on. Used when the rank card has asked its three questions, so a
+ * long list costs three taps and lands the pub close to where it belongs.
+ */
+export function settleSocialPubComparison(session: SocialPubComparison): SocialPubComparison {
+  if (session.low >= session.high) return session;
+  const slot = Math.floor((session.low + session.high) / 2);
+  return { ...session, low: slot, high: slot };
 }
 
 /** The settled slot as the two neighbours the server places between. */

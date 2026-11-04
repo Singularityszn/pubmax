@@ -75,6 +75,18 @@ permission by `lib/harvest/sourcePolicy.ts` is dropped and counted, whatever
 the site ledger and every tracked update snapshot on 2026-09-22; the build
 predicate also refuses them if they are introduced again.
 
+**A page that names another branch is not this pub's price.** A site-harvest
+row whose source URL names a branch the pub never states about itself
+(`pageNamesAnotherBranch` in `lib/harvest/ukPriceCrawl.ts`) is dropped and
+counted in `manifest.json`. The builder matches the page against the row's own
+pub name, and against the name, locality, address and own website the OSM
+snapshot states for that pub. The row stays in
+`data/uk_prices/site_harvest.jsonl` for audit, and
+`data/uk_prices/site_harvest_reconciliation.json` lists it under
+`bundleWithdrawals` with the bundle counts after it. The first cases, found on
+1 Nov 2026: The Botanist Gas Street Basin priced off the chain's Barnsley page,
+and Simmons in Camden priced off the Shoreditch page.
+
 **A demo fixture is not a price.** `isDemoDrinkProvenance` spots one and it is
 never carried into a dataset that claims to say what a pint costs.
 

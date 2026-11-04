@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("server-only", () => ({}));
+vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 vi.mock("next/navigation", () => ({
   permanentRedirect: (href: string) => { throw new Error(`redirect:${href}`); },
   notFound: () => { throw new Error("not-found"); },
@@ -11,11 +13,14 @@ async function visit(slug: string) {
 }
 
 describe("area links", () => {
-  it("redirects a known London area to its map without publishing another landing page", async () => {
-    await expect(visit("clapham")).rejects.toThrow("redirect:/map?area=clapham");
+  it("renders an area that clears the area floor instead of redirecting", async () => {
+    await expect(visit("piccadilly-soho")).resolves.toBeTruthy();
   });
-  it("resolves the known Soho alias to its canonical map area", async () => {
-    await expect(visit("soho")).rejects.toThrow("redirect:/map?area=piccadilly-soho");
+  it("sends a known alias of a published area to that area's own page", async () => {
+    await expect(visit("soho")).rejects.toThrow("redirect:/area/piccadilly-soho");
+  });
+  it("redirects an area below the floor to its map area", async () => {
+    await expect(visit("barnes")).rejects.toThrow("redirect:/map?area=barnes");
   });
   it("refuses unknown area names", async () => {
     await expect(visit("not-a-real-area")).rejects.toThrow("not-found");

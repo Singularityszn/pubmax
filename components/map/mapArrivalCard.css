@@ -100,7 +100,7 @@
 
   /* An open sheet owns the foot of the map. The ask is withheld behind it
      rather than painted through its scrim, and is back when the sheet closes. */
-  body:has(.mobileSheetPortal) .mapArrivalCard {
+  body:has(.mobileSheetPortal:not([data-sheet-exiting="true"])) .mapArrivalCard {
     visibility: hidden;
   }
 
@@ -161,15 +161,12 @@
   }
 }
 
-/* From 641px up the map has a toolbar rather than one bar, and the strip docks
-   under it as a single row: the copy on the left, the two actions on the right.
+/* From 641px up the strip docks under the toolbar and wraps as needed.
    The desktop map's own bottom-right lane (the ODbL credit, the Layers
    control) is untouched by it, which is why the berths this file used to
-   publish for them are gone. The height is capped, so the pin field below it
-   is a fact rather than a hope. */
+   publish for them are gone. The strip grows when its text needs more room. */
 @media (min-width: 641px) {
   .mapArrivalCard {
-    --map-arrival-strip-max-h: 76px;
     /* Under the toolbar's own lane: a panel the reader OPENS from the toolbar
        must paint over the ask, never under it. */
     z-index: calc(var(--z-map-panel) - 1);
@@ -186,11 +183,23 @@
     left: 50%;
     width: min(680px, calc(100vw - 40px));
     min-height: 0;
-    max-height: var(--map-arrival-strip-max-h);
+    display: flex;
+    flex-wrap: wrap;
     gap: 6px 10px;
-    padding: 10px 44px 10px 12px;
+    padding: 10px 48px 10px 12px;
     border-radius: var(--radius);
     transform: translateX(-50%);
+  }
+
+  .mapArrivalCardSay {
+    flex: 1 1 12rem;
+    min-width: min(100%, 12rem);
+  }
+
+  .mapArrivalCardActions {
+    flex: 0 1 auto;
+    min-width: 0;
+    flex-wrap: wrap;
   }
 
   .mapArrivalCardTitle {

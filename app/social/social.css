@@ -136,15 +136,27 @@ html[data-text-scale="large"] .socialPage .screenHead {
   min-width: 0;
 }
 
-.socialDoorSlot[aria-busy="true"] .socialRailContent {
+/* Only the title waits for the account, because only the title names a door.
+   The value line reads the same for every reader, so it paints with the
+   document. It is the page's largest text, and holding it behind the session
+   made the session's answer the page's largest paint: /social measured LCP
+   456 ms on a local production build (144 ms once the line paints with the
+   document) and up to 828 ms on the nightly box, against a 400 ms ceiling. */
+.socialDoorSlot[aria-busy="true"] .socialRailContent .emptyStateTitle {
   visibility: hidden;
 }
 
 .socialRailPending {
   position: absolute;
-  inset: var(--space-6) 0;
-  display: grid;
-  align-content: center;
+  inset: var(--space-6) 0 auto;
+}
+
+.socialRailPending .socialIdentitySkeletons {
+  margin-top: 0;
+}
+
+.socialRailPending .socialIdentitySkeletons span:last-child {
+  display: none;
 }
 
 /* A segmented control (docs/DESIGN_SYSTEM.md "Edges"): ONE hairline around
@@ -215,7 +227,9 @@ html[data-text-scale="large"] .socialPage .screenHead {
 .socialLaneNav a:focus-visible,
 .socialAreaField select:focus-visible,
 .socialButton:focus-visible,
-.socialPostPlace a:focus-visible {
+.socialPostPlace a:focus-visible,
+.socialPostSignIn a:focus-visible,
+.socialLondonMore:focus-visible {
   outline: 3px solid var(--river);
   outline-offset: -3px;
 }
@@ -277,6 +291,79 @@ html[data-text-scale="large"] .socialPage .screenHead {
 
 .socialFeed {
   min-height: 360px;
+}
+
+.socialFeedEmpty--london {
+  min-height: 0;
+}
+
+.socialLondonEmptyNotice {
+  margin: 0 0 var(--space-4);
+  color: var(--color-text-muted);
+}
+
+.socialLondonEmpty {
+  display: grid;
+  gap: var(--space-5);
+  overflow-wrap: anywhere;
+}
+
+.socialLondonEmpty h3 {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  line-height: var(--leading-snug);
+}
+
+.socialAlternativeList {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.socialAlternativeList li {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.socialLondonEmpty a,
+.socialEmptySignIn a {
+  color: var(--color-text);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.socialAlternativeList > li > a,
+.socialAlternativeBrowse {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  width: fit-content;
+}
+
+.socialAlternativeMeta,
+.socialAlternativeSource,
+.socialEmptySignIn {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.socialAlternativeMeta {
+  margin: 0;
+}
+
+.socialEmptySignIn {
+  margin: var(--space-5) 0 0;
+}
+
+.socialLondonEmpty a:focus-visible,
+.socialEmptySignIn a:focus-visible {
+  outline: 2px solid var(--color-text);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
 }
 
 .socialPostList {
@@ -481,8 +568,20 @@ span.socialPostAvatar {
   font-weight: 750;
 }
 
-.socialPostTags span {
+/* Each hashtag is a link to Across town filtered to it. */
+.socialPostTags a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  margin-right: var(--space-2);
   color: var(--river);
+  text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .socialPostTags a:hover {
+    text-decoration: underline;
+  }
 }
 
 .socialButton {
@@ -943,6 +1042,55 @@ span.socialPostAvatar {
   justify-content: center;
 }
 
+/* THE LONDON LANE, read signed out. Where a reader's cheer and comment row
+   sits, one quiet line: a link in the action ink, never a filled control,
+   because the Screen's door is the page's one filled action. */
+.socialPostSignIn {
+  margin: 4px 0 0;
+  font-size: var(--text-sm);
+}
+
+.socialPostSignIn a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  color: var(--river);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .socialPostSignIn a:hover {
+    text-decoration: underline;
+  }
+}
+
+/* The lane's way to the next page is a bordered secondary, the EmptyState
+   action's shape, so the lane paints no second fill under the door. */
+.socialLondonMore {
+  display: flex;
+  width: min(100%, 220px);
+  min-height: 44px;
+  margin: 18px auto 0;
+  padding: 0 var(--space-4);
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--control-radius);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.socialLondonMore:disabled {
+  cursor: progress;
+  opacity: 0.72;
+}
+
 .socialSkeletons {
   display: grid;
   gap: 14px;
@@ -1221,11 +1369,6 @@ span.socialPostAvatar {
     width: 100%;
   }
 
-  /* Keep the Create lane reserved while consent temporarily hides Create. */
-  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .socialPage .screenPrimary {
-    padding-right: max(0px, calc(var(--create-fab-lane) - var(--page-gutter)));
-  }
-
   /* While the analytics card is mounted, globals.css owns the scroll padding
      (tab bar plus the card's measured lane), so focus never parks under it. */
   html:has(.socialPage):not(:has(.analyticsConsentPrompt)) {
@@ -1254,7 +1397,7 @@ span.socialPostAvatar {
     min-height: 96px;
   }
 
-  .socialDiscoverBody
+  .socialPage
     :is(a, button, input, select, textarea, [tabindex]):not([tabindex="-1"]) {
     scroll-margin-bottom: calc(var(--chrome-bottom-clearance) + var(--space-4));
   }
@@ -2095,4 +2238,30 @@ span.socialPostAvatar {
   margin: 0;
   color: var(--ink-soft);
   font-size: var(--text-sm);
+}
+
+/* The Across-town tag filter: one quiet chip with its own way out. */
+.socialTagChip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.socialTagChip span {
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  color: var(--river);
+  font-weight: 750;
+}
+
+.socialTagChip a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  color: var(--river);
+  font-weight: 750;
 }

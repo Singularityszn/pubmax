@@ -1,0 +1,111 @@
+/* "That's wrong": a quiet text door, never a second price door. It reads as a
+   muted underlined line so the one coral primary on the sheet stays the price
+   door (docs/rules/components-venue-plan-and-message-surfaces.md). */
+.venueCorrectionDoor,
+.venueCorrectionCancel {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--text-xs);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.venueCorrectionDoor:focus-visible,
+.venueCorrectionCancel:focus-visible,
+.venueCorrectionSend:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.venueCorrectionForm {
+  display: grid;
+  flex: 1 1 100%;
+  gap: 8px;
+  margin: 4px 0 0;
+  padding: 10px 0 0;
+  border-top: 1px solid var(--line-soft);
+  min-width: 0;
+}
+
+.venueCorrectionChoices {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.venueCorrectionChoices legend {
+  margin: 0 0 4px;
+  padding: 0;
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.venueCorrectionChoice,
+.venueCorrectionNote {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+  font-size: var(--text-sm);
+}
+
+.venueCorrectionNote {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+.venueCorrectionNote input {
+  min-height: var(--control-height);
+  padding: 0 var(--control-pad-x);
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius);
+  background: var(--panel-raised);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-sm);
+}
+
+.venueCorrectionActions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.venueCorrectionSend {
+  min-height: var(--control-height);
+  padding: 0 var(--control-pad-x);
+  border: 1px solid var(--control-secondary-border);
+  border-radius: var(--control-radius);
+  background: var(--control-secondary-surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--control-font-size);
+  font-weight: var(--control-font-weight);
+  cursor: pointer;
+}
+
+.venueCorrectionSend:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.venueCorrectionLine,
+.venueCorrectionReceipt {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}

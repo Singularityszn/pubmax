@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 
+import { proofShotPath } from "@/e2e/helpers/proofShot";
 import { expectStreamedPageSettled } from "@/e2e/helpers/streamedPage";
 
 test.setTimeout(60_000);
@@ -26,7 +27,7 @@ async function captureAnalytics(page: Page): Promise<unknown[]> {
   return payloads;
 }
 
-test("Near separates browsing from permanent Venue acceptance", async ({ page }) => {
+test("Near separates browsing from permanent Venue acceptance", async ({ page }, testInfo) => {
   const errors = watchPageErrors(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });
@@ -143,7 +144,7 @@ test("Near separates browsing from permanent Venue acceptance", async ({ page })
   await expect(page).toHaveURL(/[?&]accept=1(&|$)/);
   await expect(page).toHaveURL(/[?&]src=near(&|$)/);
   await page.screenshot({
-    path: "docs/proof/venue-acceptance/accepted-map-390-light.png",
+    path: proofShotPath(testInfo, "docs/proof/venue-acceptance/accepted-map-390-light.png"),
   });
   await page.evaluate(() => {
     localStorage.setItem("pubmax-theme", "dark");
@@ -162,7 +163,7 @@ test("Near separates browsing from permanent Venue acceptance", async ({ page })
     });
   });
   await page.screenshot({
-    path: "docs/proof/venue-acceptance/accepted-map-390-dark.png",
+    path: proofShotPath(testInfo, "docs/proof/venue-acceptance/accepted-map-390-dark.png"),
   });
   const stored = await page.evaluate((key) => {
     const raw = window.sessionStorage.getItem(key);

@@ -48,6 +48,10 @@ const AUTHORITY_MODULES = [
   "lib/pintIndexArchive.ts",
   "lib/pintIndexCanonical.mjs",
   "lib/freshness.ts",
+  // The front door's "cheapest pint in Britain" (captain decisions 2 and 3,
+  // 1 Nov 2026): an estimate is never called cheapest.
+  "lib/cheapestHunt.ts",
+  "lib/cheapestHunt.server.ts",
 ];
 
 describe("the estimate engine's authority fence", () => {

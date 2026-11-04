@@ -4,7 +4,10 @@ import type { ConciergeVenue } from "@/lib/concierge/rank";
 import type { NightSignalClaim } from "@/lib/nightSignalClaims";
 import { canAffectRoute } from "@/lib/nightSignalClaims";
 import type { NightContext } from "@/lib/nightPlanning";
-import { planUsesPintPrices } from "@/lib/planGenerationDto";
+import { planUsesPintPrices, type PlanConstraintReport } from "@/lib/planGenerationDto";
+import { PLAN_NEAR_STATION_METRES, planNearStationName } from "@/lib/planGenerationRanking";
+import { formatGbp } from "@/lib/formatGbp";
+import { planBudgetMissLine } from "@/lib/planBudgetCrawl";
 import {
   PLAN_ACCESSIBILITY_NEEDS,
   type PlanAccessibilityNeed,
@@ -17,6 +20,7 @@ import {
   planPriceEvidenceForVenues,
 } from "@/lib/planRouteEvidence.server";
 import {
+  cheapestGroundedPlanRoute,
   selectAnchoredGroundedPlanRoute,
   selectGroundedPlanRoute,
   type AnchoredGroundedPlanRouteSelection,
@@ -47,7 +51,21 @@ export type PlanGenerationSelection<T extends ScoredPlanCandidate> =
   | {
       ok: false;
       selection: Extract<GroundedPlanRouteSelection<T>, { ok: false }>;
+      /** The must-have words the reader set, named in the refusal. Never a transport word. */
+      mustHaves: string[];
+      /**
+       * Under a per-person budget, the cheapest fully priced route the search
+       * found under every other rule, so the refusal can name it and its total.
+       * Null without a budget, or when no route is fully priced.
+       */
+      cheapestRoute: PlanCheapestRoute | null;
     };
+
+/** The cheapest route a budget refusal names, as the wire carries it. */
+export type PlanCheapestRoute = {
+  totalPence: number;
+  stops: { venueId: string; venueName: string; pricePence: number; observedAt: string | null }[];
+};
 
 export type AnchoredPlanGenerationSelection<T extends ScoredPlanCandidate> =
   | {
@@ -156,6 +174,99 @@ function groundedConstraints(
   };
 }
 
+/**
+ * A tube or station word is a soft preference (scored in
+ * lib/planGenerationRanking.ts). The report says what we could check: the
+ * bundled station table is central London only, so a stop with no listed
+ * station near it is unchecked, not far.
+ */
+function withTubeReport(
+  report: PlanConstraintReport,
+  context: NightContext,
+  stops: readonly { lat: number; lng: number }[],
+): PlanConstraintReport {
+  if (!context.transportConstraints.includes("tube")) return report;
+  const allNear = stops.length > 0 && stops.every((stop) => planNearStationName(stop.lat, stop.lng) !== null);
+  return {
+    ...report,
+    hardConstraints: [
+      ...report.hardConstraints,
+      allNear
+        ? { code: "tube_stations", status: "satisfied", message: `Tube: every stop is within ${PLAN_NEAR_STATION_METRES} m of a station.` }
+        : { code: "tube_stations", status: "flagged", message: "Tube: we could not check station distance for these stops." },
+    ],
+  };
+}
+
+/** The must-haves a refusal names, in the words the reader would recognise. */
+function mustHaveWords(
+  context: NightContext,
+  intake: ParsedPlanGenerationIntake | null,
+  accessibilityNeeds: readonly PlanAccessibilityNeed[],
+): string[] {
+  const stopCount = normalizePlanStopCount(context.stopCount);
+  return [
+    ...PLAN_ACCESSIBILITY_NEEDS.flatMap(({ id, label }) => accessibilityNeeds.includes(id) ? [label.toLowerCase()] : []),
+    ...(context.budgetLimitPence !== null ? [`a ${formatGbp(context.budgetLimitPence / 100)} budget`] : []),
+    ...(intake?.routeWindow ? ["the time you picked"] : []),
+    ...(intake?.exactNightArea ? ["the exact patch"] : []),
+    ...(stopCount !== DEFAULT_PLAN_STOP_COUNT ? [`${stopCount} stops`] : []),
+  ];
+}
+
+/** The refusal that names the must-haves the reader set, so they know what to drop. */
+function planRouteRefusalMessage(stopCount: number, areaName: string, mustHaves: readonly string[]): string {
+  if (mustHaves.length === 0) {
+    return `No ${stopCount}-stop route in ${areaName} meets every must-have need with the information available.`;
+  }
+  const named = mustHaves.length > 1
+    ? `${mustHaves.slice(0, -1).join(", ")} and ${mustHaves.at(-1)}`
+    : mustHaves[0];
+  return `No ${stopCount}-stop route in ${areaName} fits ${named} with the information we have. Try dropping one.`;
+}
+
+/**
+ * The one sentence a refused generation reads. Under a budget, a fully priced
+ * route that meets every other rule and still costs more means the budget is
+ * what refused it, so the sentence names that route and its total (the £20
+ * crawl, lib/planBudgetCrawl.ts). Otherwise it names the must-haves to drop.
+ */
+export function planGenerationRefusalMessage(
+  context: Pick<NightContext, "stopCount" | "budgetLimitPence">,
+  areaName: string,
+  mustHaves: readonly string[],
+  cheapestRoute: PlanCheapestRoute | null,
+): string {
+  const stopCount = normalizePlanStopCount(context.stopCount);
+  if (cheapestRoute && context.budgetLimitPence !== null && cheapestRoute.totalPence > context.budgetLimitPence) {
+    return planBudgetMissLine({
+      stopCount,
+      areaName,
+      limitPence: context.budgetLimitPence,
+      cheapest: cheapestRoute.stops,
+    });
+  }
+  return planRouteRefusalMessage(stopCount, areaName, mustHaves);
+}
+
+/** The cheapest fully priced route under every rule but the budget, for the refusal. */
+function cheapestRouteForRefusal<T>(
+  grounded: readonly GroundedPlanRouteCandidate<T>[],
+  constraints: GroundedPlanRouteConstraints,
+): PlanCheapestRoute | null {
+  const cheapest = cheapestGroundedPlanRoute(grounded, constraints);
+  if (!cheapest) return null;
+  return {
+    totalPence: cheapest.totalPence,
+    stops: cheapest.stops.map((stop) => ({
+      venueId: stop.venueId,
+      venueName: stop.venueName,
+      pricePence: stop.price.pence!,
+      observedAt: stop.price.source?.observedAt ?? null,
+    })),
+  };
+}
+
 /** Join canonical evidence and run the hard-constraint optimizer. */
 export async function selectPlanGenerationCandidates<T extends ScoredPlanCandidate>(
   candidates: readonly T[],
@@ -166,28 +277,37 @@ export async function selectPlanGenerationCandidates<T extends ScoredPlanCandida
   const accessibilityNeeds = requiredAccessibilityNeeds(context, intake);
   const hasContextHardConstraint = accessibilityNeeds.length > 0
     || context.budgetLimitPence !== null
-    || context.transportConstraints.length > 0
     || normalizePlanStopCount(context.stopCount) !== DEFAULT_PLAN_STOP_COUNT;
-  if (!intake && !hasContextHardConstraint) {
+  const legacy = (): PlanGenerationSelection<T> => {
     const count = normalizePlanStopCount(context.stopCount);
     const chosen = context.wetherspoonsPreferred
       ? candidates.slice(0, count)
       : firstCandidatesPerOperator(candidates, count);
     return { ok: true, legacy: true, chosen };
+  };
+  // A transport word alone still takes the grounded route, so its report can
+  // say the walk was heard, but it never turns a route into a refusal.
+  const transportOnly = !intake && !hasContextHardConstraint;
+  if (transportOnly && context.transportConstraints.length === 0) return legacy();
+  const grounded = await groundedRouteCandidates(candidates, now, planUsesPintPrices(context));
+  const constraints = groundedConstraints(context, intake, accessibilityNeeds, now);
+  const selection = selectGroundedPlanRoute(grounded, constraints);
+  if (selection.ok) {
+    return {
+      ok: true,
+      legacy: false,
+      chosen: selection.stops.map((stop) => stop.value),
+      selection: { ...selection, constraintReport: withTubeReport(selection.constraintReport, context, selection.stops) },
+      accessibilityEnforced: accessibilityNeeds.length > 0,
+    };
   }
-  const selection = selectGroundedPlanRoute(
-    await groundedRouteCandidates(candidates, now, planUsesPintPrices(context)),
-    groundedConstraints(context, intake, accessibilityNeeds, now),
-  );
-  return selection.ok
-    ? {
-        ok: true,
-        legacy: false,
-        chosen: selection.stops.map((stop) => stop.value),
-        selection,
-        accessibilityEnforced: accessibilityNeeds.length > 0,
-      }
-    : { ok: false, selection };
+  if (transportOnly) return legacy();
+  return {
+    ok: false,
+    selection,
+    mustHaves: mustHaveWords(context, intake, accessibilityNeeds),
+    cheapestRoute: cheapestRouteForRefusal(grounded, constraints),
+  };
 }
 
 /**
@@ -222,7 +342,7 @@ export async function selectAnchoredPlanGenerationCandidates<T extends ScoredPla
         ok: true,
         outcome: "route",
         chosen: selection.stops.map((stop) => stop.value),
-        selection,
+        selection: { ...selection, constraintReport: withTubeReport(selection.constraintReport, context, selection.stops) },
         accessibilityEnforced,
       };
 }

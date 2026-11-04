@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   applyInviteRsvpCapability,
+  inviteCrewCommittedReceipt,
   InviteMapPrompt,
   postInviteRsvp,
   resolveInviteRsvpSubmitCapability,
@@ -276,6 +277,35 @@ describe("invite RSVP member capability", () => {
       role: "host",
     });
     delete (globalThis as { window?: unknown }).window;
+  });
+
+  it("stores the collaborating capability a Going RSVP now brings, and refuses a malformed one", () => {
+    (globalThis as { window?: unknown }).window = { dispatchEvent: () => undefined };
+    expect(applyInviteRsvpCapability("plan-going-crew", "going", null, {
+      memberToken: "c".repeat(64),
+      role: "guest",
+      collaborationAuthorized: true,
+    })).toBe(true);
+    expect(parsePlanCapabilitySnapshot(readPlanCapabilitySnapshot("plan-going-crew"))).toMatchObject({
+      token: "c".repeat(64),
+      role: "guest",
+      collaborationAuthorized: true,
+    });
+    expect(applyInviteRsvpCapability("plan-going-bad", "going", null, {
+      memberToken: "d".repeat(64),
+      role: "guest",
+      collaborationAuthorized: "yes",
+    })).toBe(false);
+    delete (globalThis as { window?: unknown }).window;
+  });
+
+  it("reads the crew-night receipt only when every signed prop is present", () => {
+    expect(inviteCrewCommittedReceipt({ deliveryToken: "t", participants: 2, routeReady: true }))
+      .toEqual({ deliveryToken: "t", participants: 2, routeReady: true });
+    expect(inviteCrewCommittedReceipt("t")).toBeNull();
+    expect(inviteCrewCommittedReceipt({ deliveryToken: "t", participants: 2 })).toBeNull();
+    expect(inviteCrewCommittedReceipt({ deliveryToken: "", participants: 2, routeReady: false })).toBeNull();
+    expect(inviteCrewCommittedReceipt(undefined)).toBeNull();
   });
 
   it("clears a revoked guest capability on Maybe but keeps a host capability", () => {

@@ -7,17 +7,21 @@
 // later, so a skeleton <main> made two <main> elements in one document for
 // that window. The skeleton stands in for the page; the page owns the landmark.
 
+import PubQuizCard from "@/components/nav/PubQuizCard";
 import SiteNav from "@/components/nav/SiteNav";
 import PintLoader from "@/components/ui/pint-loader";
+import type { PubQuizQuestion } from "@/lib/pubQuiz";
 
 import "./navigation.css";
 
 type RouteLoadingShellProps = {
   /** Short status label for AT + quiet on-screen copy (e.g. "Tonight"). */
   label: string;
+  /** Optional question to read while the route arrives (lib/pubQuiz.server.ts). */
+  quiz?: PubQuizQuestion | null;
 };
 
-export default function RouteLoadingShell({ label }: RouteLoadingShellProps) {
+export default function RouteLoadingShell({ label, quiz }: RouteLoadingShellProps) {
   return (
     <section
       id="main"
@@ -32,7 +36,10 @@ export default function RouteLoadingShell({ label }: RouteLoadingShellProps) {
         <span className="routeLoadingShellBar routeLoadingShellBar--short" aria-hidden="true" />
         <span className="routeLoadingShellCard" aria-hidden="true" />
         <span className="routeLoadingShellCard" aria-hidden="true" />
-        <PintLoader className="routeLoadingShellLabel" label={label} labelSize="quiet" />
+        {/* With the wild switch on the glass pours a stout: a whole page is a
+            slower pint than the map's first prices (components/wild/PourLoader.tsx). */}
+        <PintLoader className="routeLoadingShellLabel" label={label} labelSize="quiet" pour="stout" />
+        {quiz ? <PubQuizCard quiz={quiz} /> : null}
       </div>
     </section>
   );

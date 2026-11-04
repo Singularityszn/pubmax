@@ -30,7 +30,7 @@ vi.mock("@/lib/pintIndexLeagueLoader", () => ({
 }));
 
 describe("VenueOverviewTab drink comparison", () => {
-  it("keeps actions before a late pint comparison and removes it for Wine", async () => {
+  it("lands a late pint comparison at the foot of the Price fold and removes it for Wine", async () => {
     // These prices and this pub are synthetic, not observations about a real pub.
     const venueId = "synthetic-wine-compare-pub";
     const noop = () => {};
@@ -65,14 +65,11 @@ describe("VenueOverviewTab drink comparison", () => {
       }),
       tab: "overview",
       cityId: "london",
-      mode: "build",
-      inCrawl: false,
       latestContributorPrice: null,
       dropReadStatus: "ready",
       communityPrices,
       experienceLens: "all",
       drinkLensCategory: null,
-      onToggleStop: noop,
       presenceState: "idle",
       markPresenceHere: noop,
       userLocation: null,
@@ -120,19 +117,27 @@ describe("VenueOverviewTab drink comparison", () => {
         .toBe(pintComparison);
       const comparison = container.querySelector(".venueAreaPriceCompare");
       expect(comparison).not.toBeNull();
+      // Since the five-fold regroup (lib/venueOverviewFolds.ts, launch UX V1)
+      // the late comparison lands at the FOOT of the Price fold, under the one
+      // price door, and every other action lives in a later fold or between
+      // the folds. A late row therefore never moves the door, and it can only
+      // push later folds down, never land on top of an action above it.
+      const priceFold = container.querySelector("#venueFold-price");
+      expect(priceFold?.contains(comparison)).toBe(true);
+      const door = container.querySelector("[data-price-door]");
+      expect(door).toBeTruthy();
+      expect(Boolean(
+        door && comparison &&
+        (door.compareDocumentPosition(comparison) & Node.DOCUMENT_POSITION_FOLLOWING),
+      )).toBe(true);
       const actions = [
         container.querySelector(".saveToListToggle"),
         container.querySelector(".wantedSaveBtn"),
         container.querySelector('button[aria-label^="Mark that you"]'),
-        [...container.querySelectorAll("button")]
-          .find((button) => button.textContent === "Add to crawl"),
       ];
       for (const action of actions) {
         expect(action).toBeTruthy();
-        expect(Boolean(
-          action && comparison &&
-          (action.compareDocumentPosition(comparison) & Node.DOCUMENT_POSITION_FOLLOWING),
-        )).toBe(true);
+        expect(priceFold?.contains(action ?? null)).toBe(false);
       }
 
       await act(async () => root.render(createElement(VenueOverviewTab, {

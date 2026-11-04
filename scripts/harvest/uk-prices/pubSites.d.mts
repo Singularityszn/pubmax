@@ -13,13 +13,24 @@ export type PubSiteTarget = {
   postcode: string | null;
   lat: number | null;
   lng: number | null;
+  locality: string | null;
+  address: string | null;
   host: string;
   homeUrl: string;
   origin: string;
 };
 
 export function singlePubSiteTargets(
-  pubs: ReadonlyArray<{ osmId?: string; name?: string; postcode?: string; lat?: number; lng?: number; website?: string }>,
+  pubs: ReadonlyArray<{
+    osmId?: string;
+    name?: string;
+    postcode?: string;
+    lat?: number;
+    lng?: number;
+    website?: string;
+    locality?: string | null;
+    address?: string | null;
+  }>,
   options?: { only?: string[] | null },
 ): PubSiteTarget[];
 

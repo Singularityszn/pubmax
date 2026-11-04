@@ -2,7 +2,8 @@
 // strings to 308 the old address at the edge, the same shape as
 // lib/cityPickerRoute.ts.
 //
-// Product owner, Oct 2026 UX audit: the primary row is Map, Tonight, Plan, Social, You,
+// Product owner, Oct 2026 UX audit: the primary row is Explore (the map),
+// Tonight, Plan, Social, You,
 // and Tonight carries what the Out tab listed. /out stays an address (old links,
 // bookmarks, shared `?day=` links) by answering a permanent redirect here.
 

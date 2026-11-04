@@ -48,10 +48,6 @@ function page() {
       }),
       weather: null,
       weatherByArea: {},
-      picks: [],
-      picksStatus: "ready",
-      hypedPubs: [],
-      mapSelectableVenueIds: [],
       fact: null,
       pintsIndex: {
         [TODAY_PINTS_DEFAULT_PATCH_ID]: {

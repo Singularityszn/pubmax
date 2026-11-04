@@ -92,7 +92,7 @@ export default function TodayPintsCard({ index }: Props) {
 
       <ul className="todayPintList">
         {pints.rows.map((row) => (
-          <li key={row.id} className="todayPintRow createFabLane">
+          <li key={row.id} className="todayPintRow">
             <Link className="todayPintLink pressable" href={row.mapHref}>
               <span className="todayPintName">
                 {/* The name carries the hover underline on its own. Text

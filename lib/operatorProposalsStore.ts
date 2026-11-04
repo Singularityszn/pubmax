@@ -133,6 +133,7 @@ function fromRow(row: Record<string, unknown>): OperatorProposal {
       body: typeof rawPayload.body === "string" ? rawPayload.body : undefined,
       field: typeof rawPayload.field === "string" ? rawPayload.field : undefined,
       startsAt: typeof rawPayload.startsAt === "string" ? rawPayload.startsAt : undefined,
+      onDate: typeof rawPayload.onDate === "string" ? rawPayload.onDate : undefined,
     },
     status: String(row.status) as OperatorProposalStatus,
     createdAt: String(row.created_at),

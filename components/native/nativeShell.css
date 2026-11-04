@@ -131,7 +131,7 @@
    callout is the part no web rule covers, so it is the only part this file
    adds. */
 [data-native-shell] :is(button, a, summary, label, [role="button"], [role="tab"], [role="switch"]),
-[data-native-shell] :is(.mobileTabBar, .siteNavBar, .surfaceNav, .createFab) {
+[data-native-shell] :is(.mobileTabBar, .siteNavBar, .surfaceNav) {
   -webkit-touch-callout: none;
 }
 

@@ -35,10 +35,23 @@ vi.mock("@/components/identity/ContributionGateDialog", () => ({
   ContributionGateDialog: () => null,
 }));
 vi.mock("@/components/map/inspector/VenueOverviewTab", () => ({
-  default: ({ tab, gettingHome }: { tab: string; gettingHome: React.ReactNode }) =>
+  default: ({
+    tab,
+    gettingHome,
+    journeyFoldOpenKey,
+  }: {
+    tab: string;
+    gettingHome: React.ReactNode;
+    journeyFoldOpenKey?: string | null;
+  }) =>
     createElement(
       "div",
-      { id: "venuePanel-overview", role: "tabpanel", hidden: tab !== "overview" },
+      {
+        id: "venuePanel-overview",
+        role: "tabpanel",
+        hidden: tab !== "overview",
+        "data-journey-open-key": journeyFoldOpenKey ?? "",
+      },
       gettingHome,
     ),
 }));
@@ -47,7 +60,7 @@ vi.mock("@/components/map/inspector/VenuePintsTab", () => ({ default: () => null
 vi.mock("@/components/map/inspector/VenueMenuTab", () => ({ default: () => null }));
 vi.mock("@/components/map/inspector/VenueStoryTab", () => ({ default: () => null }));
 vi.mock("@/components/map/inspector/VenueAskTab", () => ({ default: () => null }));
-vi.mock("@/components/map/inspector/VenueStickyBar", () => ({ default: () => null }));
+vi.mock("@/components/map/inspector/VenueActionCard", () => ({ default: () => null }));
 
 import VenueInspector from "@/components/map/VenueInspector";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
@@ -114,10 +127,7 @@ async function renderInspector(initialTab: VenueTabRequest, gettingHomeRequestId
     root.render(
       createElement(VenueInspector, {
         venue,
-        mode: "cheap" as never,
-        inCrawl: false,
         latestContributorPrice: null,
-        onToggleStop: noop,
         initialTab,
         gettingHomeRequestId,
         pintDrops,
@@ -175,6 +185,9 @@ describe("VenueInspector getting-home request", () => {
 
     expect(selectedTab()).toBe("venueTab-overview");
     expect(gettingHomeFold().open).toBe(true);
+    // The journey fold is told by an explicit key, one per ask.
+    const panel = document.getElementById("venuePanel-overview");
+    expect(panel?.getAttribute("data-journey-open-key")).toMatch(/:getting-home:1$/);
   });
 
   it("reopens the fold for a second request after the reader moved away", async () => {

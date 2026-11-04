@@ -12,10 +12,11 @@ import {
 } from "@/lib/mapExperienceLens";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import { compactVenueAnchor, type CompactVenueAnchor } from "@/lib/venueAnchorPresentation";
+import { comparableLensPrice, comparableVenuePint } from "@/lib/comparableVenuePint";
 
 type MapVenueListVenueSignals = ReadonlyMap<
   string,
-  { latestContributorPrice: number | null }
+  { latestContributorPrice: number | null; latestContributorAt?: number | null }
 >;
 
 // Accessibility contract (WCAG 2.1.1): WebGL pins are pointer-only. This is the
@@ -164,10 +165,8 @@ function mapVenueListPintPriceLabel(
 }
 
 /**
- * The figure List view may rank on: an active drink lens uses that lens price
- * alone (same stack as AreaSheet), and the pint default mirrors pin authority
- * via venueSignals. A bare non-pub figure without complete provenance is not
- * shown on the row, so it cannot climb the cheapest sort.
+ * The figure List view may rank on. The pint default needs comparable evidence.
+ * An active drink lens keeps its own rules, with the same pint check for beer.
  */
 function mapVenueListSortPrice(
   venue: Venue,
@@ -175,12 +174,13 @@ function mapVenueListSortPrice(
   venueSignals: MapVenueListVenueSignals | null = null,
 ): number | null {
   if (lensPrices !== null) {
-    const price = lensPrices.get(venue.id)?.priceGbp;
+    const lensPrice = lensPrices.get(venue.id);
+    const price = lensPrice ? comparableLensPrice(lensPrice, venue) : null;
     return typeof price === "number" && Number.isFinite(price) && price > 0
       ? price
       : null;
   }
-  return mapVenueListPintPrice(venue, venueSignals);
+  return comparableVenuePint(venue, venueSignals?.get(venue.id), false);
 }
 
 /**
@@ -318,9 +318,8 @@ function compareCheapest(
 /**
  * The venue in view that List view's "cheapest" order puts first, with the
  * figure it ranked on. It reads the list's own sort price and comparator, so
- * the peek answer and the first row of the list can never disagree: a non-pub
- * anchor with complete provenance ranks here exactly as it ranks there. Null
- * when nothing in view carries a price.
+ * the peek answer and the first row of the list can never disagree. Null when
+ * nothing in view carries a comparable price for the active lane.
  */
 export function mapVenueListCheapest(
   venues: readonly Venue[],
@@ -387,6 +386,9 @@ type LondonRestaurantListRow = {
   name: string;
   priceLabel: "Restaurant · no listed price";
   distanceKm?: number;
+  /** Where the pin is, so the list beside the map can point at it (MapSplitList). */
+  lng?: number;
+  lat?: number;
 };
 
 /** The DOM parallel to the London restaurant pins (lib/londonRestaurants.ts). */
@@ -418,6 +420,8 @@ export function buildLondonRestaurantListModel(
     id: restaurant.id,
     name: restaurant.name,
     priceLabel: "Restaurant · no listed price",
+    lng: restaurant.lng,
+    lat: restaurant.lat,
     ...(origin
       ? { distanceKm: haversineKm(origin, [restaurant.lng, restaurant.lat]) }
       : {}),

@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import JsonLd from "@/components/seo/JsonLd";
+import { pubPlacePhoto } from "@/components/listing/placePhotoRules";
 import SiteNav from "@/components/nav/SiteNav";
+import PubSignSlot from "@/components/wild/PubSignSlot";
 import {
   getHistoricPubBySlug,
   loadHistoricPubs,
@@ -11,6 +13,7 @@ import {
 import { BRAND_NAME } from "@/lib/brandNaming";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
 import { venueListedPint, type VenueListedPint } from "@/lib/venueListedPint";
+import { signFoundingYear } from "@/lib/wildPubSign";
 import HistoricPubDetail from "./HistoricPubDetail";
 
 import "@/components/listing/listing.css";
@@ -108,11 +111,18 @@ function historicPubJsonLd(pub: HistoricPub) {
         ),
     ),
   );
-  return {
+  const page = {
     "@context": "https://schema.org",
-    "@type": "LandmarksOrHistoricalBuildings",
     name: pub.name,
     url: `${SITE_URL}/historic/${pub.slug}`,
+  };
+  // Unreconciled references can combine different pubs. Describe this page
+  // without asserting that their descriptions and locations identify one place.
+  if (identityRefs.length > 1) return { ...page, "@type": "WebPage" };
+
+  return {
+    ...page,
+    "@type": "LandmarksOrHistoricalBuildings",
     ...(pub.hook ? { description: pub.hook } : {}),
     ...(pub.borough
       ? {
@@ -145,13 +155,26 @@ export default async function HistoricDetailPage({ params }: PageProps) {
   const { slug } = await params;
   const pub = getHistoricPubBySlug(slug, await loadHistoricPubs());
   if (!pub) notFound();
+  const listedPint = await historicListedPint(pub);
 
   return (
     <main id="main" className="hdPage listingShell">
       <JsonLd data={historicPubJsonLd(pub)} />
       <SiteNav active="historic" />
 
-      <HistoricPubDetail pub={pub} listedPint={await historicListedPint(pub)} />
+      {/* The wild Sign Foundry: a pub we hold no photograph of gets a sign
+          drawn from its name. Nothing renders while the wild switch is off. */}
+      {pubPlacePhoto(pub.venueId) ? null : (
+        <PubSignSlot
+          name={pub.name}
+          venueId={pub.venueId}
+          listedPint={listedPint}
+          foundingYear={signFoundingYear(pub)}
+          className="hdSign"
+        />
+      )}
+
+      <HistoricPubDetail pub={pub} listedPint={listedPint} />
     </main>
   );
 }

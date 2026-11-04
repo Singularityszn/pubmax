@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const PLAN_ID = "11111111-1111-4111-8111-111111111111";
 
+vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => ({ user: null, accountRevision: 0 }) }));
+
 const harness = vi.hoisted(() => ({
   stateCursor: 0,
   stateValues: [] as unknown[],

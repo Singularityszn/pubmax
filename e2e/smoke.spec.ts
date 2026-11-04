@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobileMapShell";
+import { openOverviewFold } from "./helpers/overviewFolds";
 
 // P3.11 smoke suite. High-signal, non-flaky, WebGL-agnostic: nothing here asserts
 // that the MapLibre canvas actually paints (headless boxes have no GPU), only
@@ -98,7 +99,7 @@ test("/feed mounts the social feed scaffold without uncaught errors", async ({ p
   expect(response?.status()).toBe(200);
   // The feed fetches /api/pint-drops and degrades to a social empty state on
   // failure, so we assert the always-present scaffold (site nav), not content.
-  await expect(page.getByRole("link", { name: "Map", exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("link", { name: "Explore", exact: true }).first()).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -117,7 +118,8 @@ test("/feed redirects to Social and renders its reachable boundary state (issue 
   await expect(
     page.getByRole("heading", { name: "Plans, photos and people" }),
   ).toBeVisible();
-  await expect(page.getByText("Sign in to use Social.")).toBeVisible();
+  // A stranger reads the London lane (captain decision 7, 1 Nov 2026).
+  await expect(page.getByRole("heading", { name: "Across London", exact: true })).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -359,7 +361,7 @@ test("mobile venue sheet reaches Train, holds no price action in the strip, and 
   await expect(portal).toBeVisible();
   const sheet = portal.locator(".mobileSharedSheet");
   await expect(sheet).toHaveClass(/open/);
-  const storiesTab = portal.getByRole("tab", { name: "Stories", exact: true });
+  const storiesTab = portal.getByRole("tab", { name: "Prices", exact: true });
   await expect(async () => {
     await storiesTab.click();
     await expect(sheet).toHaveClass(/sheet-full/, { timeout: 2_000 });
@@ -380,6 +382,9 @@ test("mobile venue sheet reaches Train, holds no price action in the strip, and 
     await expect(overviewTab).toHaveAttribute("aria-selected", "true", { timeout: 2_000 });
     await expect(portal.locator("#venuePanel-overview")).toBeVisible({ timeout: 2_000 });
   }).toPass({ timeout: 20_000 });
+  // The getting-home fold sits inside "Getting there and home"
+  // (lib/venueOverviewFolds.ts), shut on arrival.
+  await openOverviewFold(portal.locator("#venuePanel-overview"), "journey");
   const gettingHome = portal.locator("#venueSection-getting-home");
   const gettingHomeSummary = gettingHome.locator("summary");
   await gettingHomeSummary.scrollIntoViewIfNeeded();

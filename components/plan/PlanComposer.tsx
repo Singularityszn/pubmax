@@ -17,6 +17,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import PlanIntake from "@/components/plan/PlanIntake";
 import PlanDescribeFirst from "@/components/plan/PlanDescribeFirst";
+import PourLine from "@/components/plan/PourLine";
 import PlanCultureOpener from "@/components/plan/PlanCultureOpener";
 import dynamic from "next/dynamic";
 import { SlidersHorizontal } from "lucide-react";
@@ -51,7 +52,8 @@ import {
   resolveNightPatch,
   type NightPatch,
 } from "@/lib/nightPatches";
-import { PLAN_TEMPLATES, type PlanTemplate } from "@/lib/planTemplates";
+import PlanTemplateRow from "@/components/plan/PlanTemplateRow";
+import { cleanDryRoundPrices, type DryRoundStopPrices } from "@/lib/dryRound";
 import {
   planVenueOptions,
   type PlanVenueOption,
@@ -102,6 +104,7 @@ import {
   syncPlanIntakeAreaFromQuery,
 } from "@/lib/planComposerChipFill";
 import { writePlanCapability } from "@/lib/planSessionCapability";
+import { planReportLine, rememberPlanReportLine } from "@/lib/planReportLine";
 import { markPalRouteActivation } from "@/lib/pubPal";
 import { recordPlanHighIntentAction } from "@/lib/nativePushPrompt";
 import { clearPersistentPlanMutationKey, persistentPlanMutationKey } from "@/lib/planMutationKey";
@@ -145,6 +148,8 @@ const PlanResultProvenance = dynamic(() => import("@/components/plan/PlanResultP
   loading: () => <span aria-hidden="true">&nbsp;</span>,
 });
 const PlanTuneSheet = dynamic(() => import("@/components/plan/PlanTuneSheet"), { ssr: false });
+const PlanBudgetLedger = dynamic(() => import("@/components/plan/PlanBudgetLedger"), { ssr: false });
+const PlanDryRoundLedger = dynamic(() => import("@/components/plan/PlanDryRoundLedger"), { ssr: false });
 const PlanRouteMiniMap = dynamic(() => import("@/components/plan/PlanRouteMiniMap"), { ssr: false });
 
 type RouteRevision = string | number;
@@ -155,6 +160,8 @@ type RouteAlternative = {
   /** The generator prices alternatives too, so a swap keeps the night's total honest. */
   estimatedPintPricePence?: number;
   priceKind?: "listed" | "estimated";
+  /** The day a listed price was read, for the budget ledger (lib/planBudgetCrawl.ts). */
+  priceObservedAt?: string;
 };
 export type DraftStop = {
   key: number;
@@ -167,6 +174,8 @@ export type DraftStop = {
   walkFromVenueId?: string;
   estimatedPintPricePence?: number | null;
   priceKind?: "listed" | "estimated";
+  /** The day a listed price was read, for the budget ledger (lib/planBudgetCrawl.ts). */
+  priceObservedAt?: string;
   alternatives: RouteAlternative[];
 };
 
@@ -256,6 +265,7 @@ const NO_TIMING_OR_PRICE = {
   walkFromVenueId: undefined,
   estimatedPintPricePence: undefined,
   priceKind: undefined,
+  priceObservedAt: undefined,
 } satisfies Partial<DraftStop>;
 
 function venueNightArea(venue: PlanVenueOption | undefined, cityId: CityId): NightContext["nightArea"] {
@@ -359,6 +369,17 @@ function generatedRouteFeedback(input: {
     ? routeStatus
     : `${planStopCountPhrase(suggested.length)} we can stand behind, shaped by the outing you set.`;
   return { reconciled, conciergeNote, routeStatus };
+}
+
+function routeCheckNotice(confidence: unknown): string {
+  if (!confidence || typeof confidence !== "object" || !Array.isArray((confidence as { missingEvidence?: unknown }).missingEvidence)) {
+    return "Opening and travel checks are unavailable for this draft.";
+  }
+  const missing = (confidence as { missingEvidence: unknown[] }).missingEvidence;
+  if (missing.some((item) => typeof item !== "string")) return "Opening and travel checks are unavailable for this draft.";
+  const opening = missing.includes("opening_hours") || missing.includes("current_opening_hours");
+  const travel = missing.includes("transport_anchor") || missing.includes("terminal_get_home");
+  return [opening ? "Opening times are not checked." : "", travel ? "Check travel before you go." : ""].filter(Boolean).join(" ");
 }
 
 /** Validate attribution returned by POST /api/plans; never source it from draft storage. */
@@ -514,6 +535,7 @@ function cleanRouteAlternative(value: unknown): RouteAlternative | null {
     estimatedPintPricePence?: unknown;
     priceEvidence?: unknown;
     priceKind?: unknown;
+    priceObservedAt?: unknown;
   };
   const venueId = typeof row.venueId === "string" ? row.venueId.trim() : "";
   const venueName = typeof row.venueName === "string"
@@ -550,11 +572,12 @@ function generatedStopTiming(
     estimatedPintPricePence?: unknown;
     priceEvidence?: unknown;
     priceKind?: unknown;
+    priceObservedAt?: unknown;
     operationalEvidence?: unknown;
   },
   previousCandidate: unknown,
   index: number,
-): Pick<DraftStop, "walkingMinutesFromPrevious" | "walkFromVenueId" | "estimatedPintPricePence" | "priceKind"> {
+): Pick<DraftStop, "walkingMinutesFromPrevious" | "walkFromVenueId" | "estimatedPintPricePence" | "priceKind" | "priceObservedAt"> {
   const previous = previousCandidate as { venueId?: unknown } | undefined;
   const stored = typeof row.walkFromVenueId === "string" && row.walkFromVenueId.trim()
     ? row.walkFromVenueId.trim() : undefined;
@@ -574,19 +597,34 @@ function generatedStopTiming(
   };
 }
 
+/**
+ * The day a listed price was read: the wire's evidence source, or the day a
+ * stored draft kept. Null when neither parses.
+ */
+function generatedPriceObservedAt(row: { priceEvidence?: unknown; priceObservedAt?: unknown }): string | null {
+  const source = row.priceEvidence && typeof row.priceEvidence === "object"
+    ? (row.priceEvidence as { source?: unknown }).source
+    : null;
+  const wire = source && typeof source === "object" ? (source as { observedAt?: unknown }).observedAt : undefined;
+  const value = typeof wire === "string" ? wire : row.priceObservedAt;
+  return typeof value === "string" && value.length <= 40 && Number.isFinite(Date.parse(value)) ? value : null;
+}
+
 /** The pint price the generator gave a stop or an alternative, read defensively. */
 function generatedStopPrice(row: {
   estimatedPintPricePence?: unknown;
   priceEvidence?: unknown;
   priceKind?: unknown;
-}): { estimatedPintPricePence?: number; priceKind?: "listed" | "estimated" } {
+  priceObservedAt?: unknown;
+}): { estimatedPintPricePence?: number; priceKind?: "listed" | "estimated"; priceObservedAt?: string } {
   const pence = row.estimatedPintPricePence;
   if (typeof pence !== "number" || !Number.isSafeInteger(pence) || pence <= 0 || pence > 100_000) return {};
   const recorded = Boolean(row.priceEvidence && typeof row.priceEvidence === "object"
     && (row.priceEvidence as { source?: unknown }).source);
   const priceKind = row.priceKind === "listed" || row.priceKind === "estimated" ? row.priceKind
     : recorded ? "listed" : "estimated";
-  return { estimatedPintPricePence: pence, priceKind };
+  const observedAt = priceKind === "listed" ? generatedPriceObservedAt(row) : null;
+  return { estimatedPintPricePence: pence, priceKind, ...(observedAt ? { priceObservedAt: observedAt } : {}) };
 }
 
 /** Keep the generator's alternatives attached to their stop for preview swaps. */
@@ -615,6 +653,7 @@ export function routeStopsFromGenerated(value: unknown, alternativePool?: unknow
       estimatedPintPricePence?: unknown;
       priceEvidence?: unknown;
       priceKind?: unknown;
+      priceObservedAt?: unknown;
       operationalEvidence?: unknown;
       alternatives?: unknown;
       options?: unknown;
@@ -660,7 +699,11 @@ export function swapDraftStop(stop: DraftStop, excludedVenueIds: ReadonlySet<str
     // the price was the generator's for this pub, so it comes with it.
     ...NO_TIMING_OR_PRICE,
     ...(next.estimatedPintPricePence !== undefined
-      ? { estimatedPintPricePence: next.estimatedPintPricePence, priceKind: next.priceKind } : {}),
+      ? {
+        estimatedPintPricePence: next.estimatedPintPricePence,
+        priceKind: next.priceKind,
+        ...(next.priceObservedAt ? { priceObservedAt: next.priceObservedAt } : {}),
+      } : {}),
     alternatives: [
       ...remaining,
       {
@@ -668,7 +711,11 @@ export function swapDraftStop(stop: DraftStop, excludedVenueIds: ReadonlySet<str
         venueName: stop.venueName,
         ...(stop.selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence: stop.selectedDrinkPriceEvidence } : {}),
         ...(typeof stop.estimatedPintPricePence === "number"
-          ? { estimatedPintPricePence: stop.estimatedPintPricePence, priceKind: stop.priceKind } : {}),
+          ? {
+            estimatedPintPricePence: stop.estimatedPintPricePence,
+            priceKind: stop.priceKind,
+            ...(stop.priceObservedAt ? { priceObservedAt: stop.priceObservedAt } : {}),
+          } : {}),
       },
     ],
   };
@@ -1123,7 +1170,7 @@ export function nightAreaCoverageSummary(
   const remaining = area.missingEvidence.length - missing.length;
   const missingEvidenceDetail = missing.length > 0
     ? `missing ${missing.join(" and ")}${remaining > 0 ? ` + ${remaining} more` : ""}.`
-    : "We're still checking this area before route planning opens.";
+    : "Area review is unavailable. Check each stop before you go.";
 
   switch (area.coverageStatus) {
     case "captured":
@@ -1454,6 +1501,9 @@ function PlanComposerForm({
   // flips `heldVenueId` - and a second application would overwrite whatever
   // the drinker has typed since with the line the URL opened on.
   const appliedUrlAskRef = useRef<string | null>(null);
+  // The planner's report line for the route it last built, with the stops it
+  // was about, so the lock hands the plan card a line only for that route.
+  const generatedReportRef = useRef<{ line: string; venueIds: string } | null>(null);
   useLayoutEffect(() => {
     if (!canPersist) return;
     const fresh = describeAskFromLocation();
@@ -1615,9 +1665,16 @@ function PlanComposerForm({
   }, []);
   const [error, setError] = useState("");
   const [routeStatus, setRouteStatus] = useState(routeDraftFields.routeStatus);
+  const [routeCheckNoticeText, setRouteCheckNoticeText] = useState(
+    recoveredRouteDraft?.stops.length || recoveredDraft?.stops.length
+      ? "Opening and travel checks are unavailable for this restored draft." : "",
+  );
   // Culture Crawl opener for the CURRENT generated route only. It is never
   // saved with the plan: it is a thing to see beside the route, not a Stop.
   const [cultureOpener, setCultureOpener] = useState<CultureOpenerDTO | null>(null);
+  // A dry round's listed alcohol-free price and pint, by pub (lib/dryRound.ts).
+  // Null when the last route was not a dry round.
+  const [dryRoundPrices, setDryRoundPrices] = useState<ReadonlyMap<string, DryRoundStopPrices> | null>(null);
   const usualLot = useSyncExternalStore(subscribeLastCrew, readLastCrew, () => null);
   const nameInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -1993,6 +2050,7 @@ function PlanComposerForm({
     const stopIdentitiesChanged = stops.length !== mutation.stops.length
       || stops.some((stop, index) => stop.venueId !== mutation.stops[index]?.venueId);
     if (stopIdentitiesChanged) {
+      setRouteCheckNoticeText(mutation.stops.length ? "Opening and travel checks are unavailable for this draft." : "");
       // A valid route proof can survive a swap, but the earlier cost list cannot.
       setCultureOpener((current) => {
         if (!current?.costs) return current;
@@ -2219,13 +2277,16 @@ function PlanComposerForm({
         stops?: unknown;
         alternatives?: unknown;
         cultureOpener?: unknown;
+        dryRound?: unknown;
         inferredContext?: NightContext;
         groundingProof?: unknown;
+        constraintReport?: unknown;
         operationKey?: unknown;
         anchored?: unknown;
         anchorVenueId?: unknown;
         anchorSource?: unknown;
         outcome?: unknown;
+        planningConfidence?: unknown;
         message?: unknown;
         error?: unknown;
       } | null;
@@ -2248,8 +2309,14 @@ function PlanComposerForm({
         return;
       }
       setStops(suggested);
+      setRouteCheckNoticeText(routeCheckNotice(body.planningConfidence));
       setRouteSorted(true);
       setCultureOpener(cleanCultureOpener(body.cultureOpener));
+      setDryRoundPrices(cleanDryRoundPrices(body.dryRound));
+      const reportLine = planReportLine(body.constraintReport);
+      generatedReportRef.current = reportLine
+        ? { line: reportLine, venueIds: suggested.map((stop) => stop.venueId).join(",") }
+        : null;
       const grounded = isGroundedGeneratedRoute(body, suggested);
       const generatedAnchor = generatedPlanAnchorFromResponse(body);
       const { reconciled, conciergeNote, routeStatus: generationStatus } = generatedRouteFeedback({
@@ -2421,6 +2488,7 @@ function PlanComposerForm({
       clearPlanIntakeDraft();
       clearPersistentPlanMutationKey("create", operationKey);
       haptic("plan-locked");
+      rememberLockedReportLine(planId, generatedReportRef.current, completeStops);
       router.push(`/plan/${planId}#share`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The plan could not be created.");
@@ -2480,6 +2548,7 @@ function PlanComposerForm({
           aria-disabled={sorting || undefined}
           aria-busy={sorting}
         >
+          <PourLine busy={sorting} />
           {sorting ? "Planning…" : routeSorted ? PLAN_RESUBMIT_LABEL : "Make a plan"}
         </button>
       </div>
@@ -2555,35 +2624,27 @@ function PlanComposerForm({
           </button>
         </div>
       ) : null}
-      <div className="planComposer__templateRow">
-        {PLAN_TEMPLATES.map((template: PlanTemplate) => (
-          <button
-            key={template.id}
-            type="button"
-            className="planComposer__template"
-            title={template.blurb}
-            onClick={() => {
-              const merged = mergePlanTemplateFields({
-                title,
-                conciergeQuery,
-                conciergeNote,
-                template,
-                hasAcceptedGeography: Boolean(
-                  handoff?.answeredArea
-                  || planIntake.answers.area
-                  || nightContext?.nightArea
-                  || explicitNightContext.nightArea,
-                ),
-              });
-              setTitle(merged.title);
-              setConciergeQuery(merged.conciergeQuery);
-              setConciergeNote(merged.conciergeNote);
-            }}
-          >
-            {template.label}
-          </button>
-        ))}
-      </div>
+      {/* The row reads London's date itself, so a seasonal template leads it
+          in its window and is absent outside it (lib/planTemplates.ts). */}
+      <PlanTemplateRow
+        onPick={(template) => {
+          const merged = mergePlanTemplateFields({
+            title,
+            conciergeQuery,
+            conciergeNote,
+            template,
+            hasAcceptedGeography: Boolean(
+              handoff?.answeredArea
+              || planIntake.answers.area
+              || nightContext?.nightArea
+              || explicitNightContext.nightArea,
+            ),
+          });
+          setTitle(merged.title);
+          setConciergeQuery(merged.conciergeQuery);
+          setConciergeNote(merged.conciergeNote);
+        }}
+      />
     </section>
   );
   const coverageBlock = (
@@ -2596,7 +2657,7 @@ function PlanComposerForm({
           </span>
         </summary>
         <p className="planComposer__coverageIntro">
-          We only call an area crawl-ready when its prices are fresh and checked. The rest are yours to browse.
+          Area reviews are unavailable. You can still make a draft and check each stop.
         </p>
         <div className="planComposer__coverageGroups">
           <section aria-labelledby="plan-coverage-ready">
@@ -2734,6 +2795,7 @@ function PlanComposerForm({
         onReorder={reorderStops}
         onAdd={addStop}
       />
+      {routeCheckNoticeText ? <p className="planResult__provenance">{routeCheckNoticeText}</p> : null}
     </fieldset>
   );
   const resultStrip = stripStops.length >= 2 ? (
@@ -2758,6 +2820,29 @@ function PlanComposerForm({
       {routeStaleNotice}
     </section>
   );
+  // A per-person budget (the £20 crawl chip, or one the reader typed) gets its
+  // running total under the stops: one listed pint a stop, each with its day.
+  const budgetLimitPence = nightContext && planUsesPintPrices(nightContext)
+    && typeof nightContext.budgetLimitPence === "number" ? nightContext.budgetLimitPence : null;
+  const budgetLedger = budgetLimitPence !== null && viewStops.length > 0 ? (
+    <PlanBudgetLedger
+      limitPence={budgetLimitPence}
+      stops={viewStops.map((stop) => ({
+        venueName: stop.venueName,
+        pricePence: stop.estimatedPintPricePence,
+        priceKind: stop.priceKind,
+        priceObservedAt: stop.priceObservedAt ?? null,
+      }))}
+    />
+  ) : null;
+  // A dry round prints each stop's listed alcohol-free price with its pint
+  // beside it. A pub added by hand that lists none says so on its own row.
+  const dryRoundLedger = dryRoundPrices && viewStops.length > 0 ? (
+    <PlanDryRoundLedger
+      prices={dryRoundPrices}
+      stops={viewStops.map((stop) => ({ venueId: stop.venueId, venueName: stop.venueName }))}
+    />
+  ) : null;
   // THE STOPS COME FIRST. The fine print and the map strip used to sit between
   // the summary and the pubs, so on a phone the first stop started below the
   // fold. They now follow the stops, and the two caveats read as one line.
@@ -2808,6 +2893,8 @@ function PlanComposerForm({
             <>
               {resultHeader}
               {stopsBlock}
+              {budgetLedger}
+              {dryRoundLedger}
               {resultFinePrint}
               {resultStrip}
               {fieldsBlock}
@@ -2832,11 +2919,9 @@ function PlanComposerForm({
       {error ? <PlanComposerErrorNotice message={error} /> : null}
       {/* THE ANSWER IS PINNED. On a phone this action sat at the natural end of
           a page several screens long, which is under the tab bar and under the
-          floating create action: PlanAstra measured it 40% covered at 390. It
-          is now a full-width bar above the reserved chrome, carrying the one
-          line that qualifies it, so the two can never separate. The create
-          action stands down while it is up, on the same terms as the consent
-          card (components/nav/createFab.css). */}
+          old floating create action: PlanAstra measured it 40% covered at 390.
+          It is now a full-width bar above the reserved chrome, carrying the one
+          line that qualifies it, so the two can never separate. */}
       <div className="planComposer__lock" data-name-seat={nameInLockBar ? "true" : undefined}>
         {nameInLockBar ? nameField : null}
         <button
@@ -2931,4 +3016,17 @@ export default function PlanComposer() {
       canPersist={hydrated}
     />
   );
+}
+
+/**
+ * The report line rides to the card only when the locked stops are the ones
+ * the planner reported on; an edited route has no report.
+ */
+function rememberLockedReportLine(
+  planId: string,
+  generated: { line: string; venueIds: string } | null,
+  lockedStops: readonly { venueId: string }[],
+): void {
+  const sameRoute = generated !== null && generated.venueIds === lockedStops.map((stop) => stop.venueId).join(",");
+  rememberPlanReportLine(planId, sameRoute ? generated.line : null);
 }

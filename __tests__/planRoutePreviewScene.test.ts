@@ -101,7 +101,7 @@ describe("syncPlanRoutePreviewScene", () => {
     const ids = order();
     expect(ids.indexOf("route-stops")).toBeLessThan(ids.indexOf("route-stops-name"));
     expect(ids.indexOf("route-stops-name")).toBeLessThan(ids.indexOf("route-stops-label"));
-    expect(find("route-stops-label")?.layout["text-padding"]).toBe(9);
+    expect(find("route-stops-label")?.layout["text-padding"]).toBe(12);
     expect(find("route-stops-label")?.layout["text-allow-overlap"]).toBe(true);
     expect(find("route-stops-name")?.layout["text-allow-overlap"]).toBeUndefined();
   });

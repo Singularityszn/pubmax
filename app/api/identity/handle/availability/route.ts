@@ -8,8 +8,16 @@ import { clientIp, hashIp } from "@/lib/supabase";
 
 assertServerEnv();
 
+// Availability is part of the claim flow, not a public read. A public read
+// cannot both tell the truth about availability and hide moderation: an
+// anonymous "taken" beside a 404 resolve and a null profile named an account
+// that was banned or suspended (security audit, October 2026). So the check
+// requires a signed-in account and is attributable to it. Both this check and
+// the claim RPC still answer "taken" to an authenticated caller.
 export async function GET(request: Request): Promise<Response> {
-  const rateKey = `handle-availability:${hashIp(clientIp(request))}`;
+  const ownerId = await callerUserId(request);
+  if (!ownerId) return publicApiError("Sign in to check a PUBMAXX handle.", "UNAUTHENTICATED", 401);
+  const rateKey = `handle-availability:${ownerId}:${hashIp(clientIp(request))}`;
   if (await isLimited(rateKey, rateKey, 40)) {
     return publicApiError("Too many handle checks. Try again shortly.", "RATE_LIMITED", 429, { retryable: true });
   }
@@ -20,14 +28,11 @@ export async function GET(request: Request): Promise<Response> {
     });
   }
   try {
-    const ownerId = await callerUserId(request);
-    if (ownerId) {
-      const owned = await identityHandleStore().ownedHandle(ownerId, [
-        assessed.handle,
-      ]);
-      if (owned) {
-        return jsonNoStore({ handle: assessed.handle, available: true });
-      }
+    const owned = await identityHandleStore().ownedHandle(ownerId, [
+      assessed.handle,
+    ]);
+    if (owned) {
+      return jsonNoStore({ handle: assessed.handle, available: true });
     }
     return jsonNoStore(await identityHandleStore().availability(assessed.handle));
   } catch {

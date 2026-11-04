@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { installNativeShell } from "./helpers/nativeShell";
 import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
+import { holdLondonAfternoon } from "./helpers/themeClock";
 
 async function expectHeaderThemeControl(page: Page, minimumSize = 44) {
   const button = page.locator(".siteNavActions").getByRole("button", {
@@ -31,7 +32,9 @@ async function expectHeaderThemeControl(page: Page, minimumSize = 44) {
   return button;
 }
 
+// The system appearance decides by day; London's night default would answer instead.
 test.beforeEach(async ({ page }) => {
+  await holdLondonAfternoon(page);
   await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
