@@ -7,8 +7,8 @@ export function askRequestClauses(query: string): string[] {
   return query.split(new RegExp(String.raw`(?:\s+and\s+|,\s*|(?<=[.!?])\s+)(?=(?:(?:can|could|would|will)\s+you\s+)?(?:please\s+)?(?:any\s+)?(?:${TRANSIT_INTERROGATIVE_PREFIX}|${pricePrefix}|${ITEM_PRICE_RE.source}|how\b|what\b|where\b|find\b|show\b|include\b|give\b|plan\b|directions to\b|route to\b|get (?:me )?to\b|tube delays?\b|transit delays?\b|weather\b|city status\b|cheap(?:est)?\b|best value\b|lowest price\b|most affordable\b))`, "i"));
 }
 
-const TRAILING_QUALIFIER_RE =
-  /(?:^|\s+)(?:tonight|right now|now|later|today|this evening|this afternoon|this morning|this weekend|with mates|for (?:two|a few|\d+))\s*$/i;
+const TRAILING_QUALIFIER = String.raw`tonight|right now|now|later|today|this evening|this afternoon|this morning|this weekend|with mates|for (?:two|a few|\d+)`;
+const TRAILING_QUALIFIER_RE = new RegExp(String.raw`(?:^|\s+)(?:${TRAILING_QUALIFIER})\s*$`, "i");
 
 export function stripTrailingPunctuation(phrase: string): string {
   return phrase.replace(/[?.!,;:]+$/g, "").trim();
@@ -25,14 +25,11 @@ export function stripTrailingQualifiers(phrase: string): string {
 
 const PRICE_PRESENTATION_FIELD = String.raw`(?:sources?|(?:(?:source|recorded)\s+)?dates?|map)`;
 const PRICE_PRESENTATION_CLAUSE_RE = new RegExp(
-  String.raw`^(?:(?:can|could|would|will)\s+you\s+)?(?:please\s+)?(?:show|include|give)(?:\s+me)?\s+(?:the\s+)?${PRICE_PRESENTATION_FIELD}(?:\s+and\s+(?:the\s+)?${PRICE_PRESENTATION_FIELD})*(?:\s+for\s+(?:(?:any|each|every|all|the)\s+)?(?:(?:listed|recorded)\s+)?(?:pint\s+)?prices?(?:\s+(?:(?:that|which)\s+)?you\s+(?:use|show|quote|mention|include))?)?$`,
-  "i",
+  String.raw`(?:^\s*|(?<=[.!?;,])\s*|\s+and\s+)(?:(?:can|could|would|will)\s+you\s+)?(?:please\s+)?(?:show|include|give)(?:\s+me)?\s+(?:the\s+)?${PRICE_PRESENTATION_FIELD}(?:\s+and\s+(?:the\s+)?${PRICE_PRESENTATION_FIELD})*(?:\s+for\s+(?:(?:any|each|every|all|the)\s+)?(?:(?:listed|recorded)\s+)?(?:pint\s+)?prices?(?:\s+(?:(?:that|which)\s+)?you\s+(?:use|show|quote|mention|include))?)?(?:\s+(?:${TRAILING_QUALIFIER}))*\s*(?!and\s+(?:the\s+)?${PRICE_PRESENTATION_FIELD}\b)(?:[.!?;,]+(?:\s+and\b)?|\band\b|$)`,
+  "gi",
 );
 
 export function semanticAskRequest(query: string): string {
-  const clauses = askRequestClauses(query);
-  const requests = clauses.filter((clause) =>
-    !PRICE_PRESENTATION_CLAUSE_RE.test(stripTrailingQualifiers(stripTrailingPunctuation(clause))),
-  );
-  return requests.length === clauses.length ? query : requests.join(" and ").trim();
+  const semantic = query.replace(PRICE_PRESENTATION_CLAUSE_RE, " ");
+  return semantic === query ? query : semantic.trim();
 }

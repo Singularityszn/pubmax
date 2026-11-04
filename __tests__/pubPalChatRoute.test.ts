@@ -186,6 +186,8 @@ describe("POST /api/pub-pal/chat", () => {
   it.each([
     "Find three quiet pubs in Soho for tonight. Show the source and date for any price you use.",
     "Show the source and date for any price you use. Find three quiet pubs in Soho for tonight.",
+    "Show the source and date for any price you use. Recommend three quiet pubs in Soho.",
+    "Show the source and date for any price you use. Suggest three quiet pubs in Soho.",
     "Find three quiet pubs in Soho and please include sources and dates for every price you quote",
   ])("keeps sourced pub discovery in keyless typed chat: %s", async (query) => {
     vi.stubEnv("ELEVENLABS_API_KEY", "");

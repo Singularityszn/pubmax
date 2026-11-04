@@ -108,6 +108,9 @@ describe("parseConciergeIntent keyless fallback", () => {
   it.each([
     "Find three quiet pubs in Soho for tonight. Show the source and date for any price you use.",
     "Show the source and date for any price you use. Find three quiet pubs in Soho for tonight.",
+    "Show the source and date for any price you use. Recommend three quiet pubs in Soho.",
+    "Show the source and date for any price you use. Suggest three quiet pubs in Soho.",
+    "Show the source and date for any price you use. Sort me a quiet night in Soho.",
     "Find three quiet pubs in Soho and please include sources and dates for every price you quote",
     "Find three quiet pubs in Soho. Show the source and date for any price you use tonight.",
   ])("keeps the requested quiet mood when evidence dates are requested: %s", async (query) => {
@@ -122,6 +125,9 @@ describe("parseConciergeIntent keyless fallback", () => {
   it.each([
     "Find three quiet pubs in Soho for four people under £7 a pint. Show the source and date for any price you use.",
     "Show the source and date for any price you use. Plan a quiet crawl in Soho for four people under £7 a pint.",
+    "Show the source and date for any price you use. Recommend three quiet pubs in Soho for four people under £7 a pint.",
+    "Show the source and date for any price you use. Suggest three quiet pubs in Soho for four people under £7 a pint.",
+    "Show the source and date for any price you use. Sort me a quiet night in Soho for four people under £7 a pint.",
     "Plan a quiet crawl in Soho for four people under £7 a pint and please include sources and dates for every price you quote",
   ])("keeps area, group and budget beside presentation clauses: %s", async (query) => {
     const parsed = await parseConciergeIntent(query, { skipModel: true });
@@ -385,8 +391,6 @@ describe("intentFromJudgment", () => {
   const known = defaultKnownAreas();
 
   it("uses the threshold chosen from conciergeIntentProbabilities.json", () => {
-    const comment = readFileSync(join(ROOT, "lib/concierge/intentPolicy.ts"), "utf8");
-    expect(comment).toContain("__tests__/fixtures/typesafe/conciergeIntentProbabilities.json");
     expect(CONCIERGE_MOOD_NOUL_THRESHOLD).toBe(0.63);
     expect(CONCIERGE_CHOICE_FLOOR).toBe(0.55);
   });

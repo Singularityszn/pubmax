@@ -1,10 +1,24 @@
 import { QUALIFIED_PRICE_REQUESTS } from "./fixtures/askPriceSubjects";
 import { describe, expect, it } from "vitest";
 
-import { refineRoutedAskQuery, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
+import { refineRoutedAskQuery, resolveAskJourney, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
+import { semanticAskRequest } from "@/lib/ask/requestPolicy";
 import { ASK_TOOL_NAMES, isAskToolName } from "@/lib/ask/types";
 
 describe("routeAskDeterministically", () => {
+  it.each([
+    "Recommend three quiet pubs in Soho.",
+    "Suggest three quiet pubs.",
+    "Sort me a night in Soho.",
+    "Directions to Mr. Fogg's from London Bridge.",
+  ])("removes a complete leading presentation clause without rewriting %s", (request) => {
+    for (const boundary of [". ", "? ", "; ", ", ", " and "]) {
+      const query = `Show the source and date for any price you use${boundary}${request}`;
+      expect(semanticAskRequest(query)).toBe(request);
+    }
+    expect(semanticAskRequest(request)).toBe(request);
+  });
+
   it("keeps discovery after a leading request for price evidence", () => {
     const query = "Show the source and date for any price you use. Find three quiet pubs in Soho for tonight.";
     expect(unsupportedPriceComparison(query)).toBeNull();
@@ -14,6 +28,8 @@ describe("routeAskDeterministically", () => {
   });
 
   it.each([
+    "Show the source and date for any price you use. Recommend three quiet pubs in Soho.",
+    "Show the source and date for any price you use. Suggest three quiet pubs",
     "Find three quiet pubs in Soho for tonight. Show the source and date for any price you use.",
     "Find three quiet pubs in Soho and please include sources and dates for every price you quote",
     "Find three quiet pubs in Soho. Show the source and date for any price you use tonight.",
@@ -29,6 +45,7 @@ describe("routeAskDeterministically", () => {
 
   it.each([
     "Plan a crawl in Soho. Show the source and date for any price you mention.",
+    "Show the source and date for any price you use. Sort me a night in Soho",
     "Show the source and date for any price you use. Plan a quiet crawl in Soho.",
     "Plan a quiet crawl in Soho and please include sources and dates for every price you quote",
   ])("keeps planning with a price-evidence instruction: %s", (query) => {
@@ -48,6 +65,9 @@ describe("routeAskDeterministically", () => {
   });
 
   it.each([
+    ["Show the source and date for any price you use. Recommend pubs with burger prices in Soho.", "UNSUPPORTED_FOOD_PRICE_COMPARISON"],
+    ["Show the source and date for any price you use. Suggest pubs with wine prices in Soho.", "UNSUPPORTED_DRINK_PRICE_COMPARISON"],
+    ["Show the source and date for any price you use. Sort me a night with burger prices in Soho.", "UNSUPPORTED_FOOD_PRICE_COMPARISON"],
     ["Find three pubs in Soho. Show the source and date for any burger price you use.", "UNSUPPORTED_FOOD_PRICE_COMPARISON"],
     ["Find three pubs in Soho. Show the source and date for any wine price you use.", "UNSUPPORTED_DRINK_PRICE_COMPARISON"],
     ["Find three pubs in Soho. Show the source and date for any price you use and show wine prices.", "UNSUPPORTED_DRINK_PRICE_COMPARISON"],
@@ -58,6 +78,17 @@ describe("routeAskDeterministically", () => {
   ])("retains the item guard beside price-evidence wording: %s", (query, code) => {
     expect(unsupportedPriceComparison(query)?.code).toBe(code);
     expect(routeAskDeterministically(query)).toEqual([]);
+  });
+
+  it.each([
+    "Show the source and date for any price you use. Directions to Mr. Fogg's from London Bridge.",
+    "Directions to Mr. Fogg's from London Bridge. Show the source and date for any price you use.",
+    "Directions to Mr. Fogg's from London Bridge and please include sources and dates for every price you quote",
+  ])("preserves punctuation and journey endpoints beside evidence instructions: %s", (query) => {
+    const semantic = semanticAskRequest(query);
+    expect(semantic).toMatch(/^Directions to Mr\. Fogg's from London Bridge\.?$/);
+    expect(resolveAskJourney(semantic)).toEqual({ from: "London Bridge", to: "Mr. Fogg's" });
+    expect(resolveAskJourney(query)).toEqual({ from: "London Bridge", to: "Mr. Fogg's" });
   });
 
   it.each([

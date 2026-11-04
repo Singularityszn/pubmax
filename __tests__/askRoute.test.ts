@@ -58,6 +58,8 @@ describe("POST /api/ask", () => {
   it.each([
     "Find three quiet pubs in Soho for tonight. Show the source and date for any price you use.",
     "Show the source and date for any price you use. Find three quiet pubs in Soho for tonight.",
+    "Show the source and date for any price you use. Recommend three quiet pubs in Soho.",
+    "Show the source and date for any price you use. Suggest three quiet pubs in Soho.",
     "Find three quiet pubs in Soho and please include sources and dates for every price you quote",
   ])("keeps pub discovery when the request asks for price evidence: %s", async (query) => {
     const response = await post({ query, cityId: "london" }, "203.0.113.184");
@@ -73,6 +75,7 @@ describe("POST /api/ask", () => {
     ["search_venues", "Find three quiet pubs in Soho for tonight. Show the source and date for any price you use.", 2, undefined],
     ["search_venues", "Find three quiet pubs in Soho for four people under £7 a pint and please include sources and dates for every price you quote", 4, 7],
     ["propose_plan", "Show the source and date for any price you use. Plan a quiet crawl in Soho for four people under £7 a pint.", 4, 7],
+    ["propose_plan", "Show the source and date for any price you use. Sort me a quiet night in Soho for four people under £7 a pint.", 4, 7],
   ] as const)("keeps ranking preferences and the complete %s request", async (tool, query, groupSize, maxPintPrice) => {
     const result = await runAskTool(tool, { query, limit: 3 }, { query, cityId: "london", skipModel: true });
     expect(result.ok).toBe(true);

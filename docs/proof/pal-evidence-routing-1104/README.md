@@ -104,3 +104,54 @@ These missing-tool results are not passing checks.
 No dependencies were installed or borrowed from another checkout.
 The temporary diagnostic was removed after the run.
 The native pipeline still owns the authoritative tests, lint, types and publication.
+
+## Review findings R3 and R4
+
+This round started at `04048d0ca5012d879abbb095ebeb6f303868ab43`.
+The previous repair still depended on a partial list of request verbs after sentence boundaries.
+A focused Node diagnostic reproduced all three reported requests before this round changed source.
+Each request returned `UNSUPPORTED_PRICE_COMPARISON` and no tool calls.
+The discovery requests also gained an unwanted `date` mood.
+The planning request gained `date` despite having no requested mood.
+
+| Request after the leading evidence sentence | Required result |
+| --- | --- |
+| `Recommend three quiet pubs in Soho.` | `search_venues`, limit 3, quiet mood |
+| `Suggest three quiet pubs` | `search_venues`, limit 3, quiet mood |
+| `Sort me a night in Soho` | `propose_plan`, no romantic preference |
+
+The shared policy now removes complete presentation spans at sentence, semicolon, comma and conjunction boundaries.
+It does not require a recognised verb in the following request.
+It preserves non-presentation text, including punctuation inside `Mr. Fogg's`.
+The original complete query remains in router arguments and draft proposals.
+The existing unsupported-item guards still inspect real burger and wine requests.
+The correction changes no tool implementation or public router export.
+
+The regression tests execute the public semantic policy, router and preference parser.
+The existing HTTP-handler tests now include recommendation and suggestion requests.
+The draft-tool test also includes the reported planning opener.
+Their expected results follow the required discovery, planning and coverage contracts.
+They reject refusal, an added romantic preference, lost constraints and a changed venue name.
+
+The R4 change removes only the implementation-comment assertion.
+It retains the literal threshold checks and executable checks at and below the mood threshold.
+The remaining fixture reads consume test data, not implementation source.
+
+Vitest, ESLint and the configured TypeScript compiler remain absent from this worktree.
+No dependencies were installed or borrowed.
+The focused Node diagnostic cannot replace the configured tests, HTTP checks, lint or types.
+The native pipeline must run those checks before publication.
+Provider-backed replies and production browser results remain unverified.
+
+The final focused Node diagnostic passed 604 assertions on this round's modified source.
+It checked the three reproduced openers, five clause boundaries and unchanged punctuation inside a venue name.
+It also checked budgets, group sizes, genuine romantic preferences, named pint routing and journey endpoints.
+All 174 existing qualified-price fixtures retained their guards with leading and trailing evidence instructions.
+The diagnostic executed the real router and keyless preference parser with only unavailable provider imports substituted.
+Its first threshold probe supplied an incomplete mood record and failed the record validator.
+The corrected probe supplied every mood and confirmed the existing threshold behaviour without a product change.
+
+The focused four-suite Vitest command could not start because `node_modules/.bin/vitest` was absent.
+No HTTP, lint or configured compiler check passed in this round.
+The temporary diagnostic was removed after the run.
+These results describe modified source derived from the starting head, not a new committed or pipeline-validated head.
