@@ -143,6 +143,7 @@ describe("the describe-first field on the form PlanComposer replaces", () => {
       root!.render(createElement(PlanDescribeFirst, {
         onSubmit: vi.fn(), onGuideMeInstead: vi.fn(), initialQuery: query,
         initialStopCount: requested as 1 | 3,
+        initialStopCountSource: "picker",
       }));
     });
     expect(button(String(requested)).getAttribute("aria-pressed")).toBe("true");
@@ -157,6 +158,7 @@ describe("the describe-first field on the form PlanComposer replaces", () => {
       await act(async () => {
         root!.render(createElement(PlanDescribeFirst, {
           initialQuery: "One pub in Clapham tonight", initialStopCount,
+          initialStopCountSource: "picker",
           onSubmit, onGuideMeInstead, onStopCountChange,
         }));
       });
@@ -304,7 +306,7 @@ describe("PlanComposer's hydration remount", () => {
       expect(window.localStorage.getItem(PLAN_INTAKE_STORAGE_KEY)).toBeNull();
       expect(window.sessionStorage.getItem(PLAN_DRAFT_KEY)).toBeNull();
       expect(window.sessionStorage.getItem(PLAN_DRAFT_V2_KEY)).toBeNull();
-      expect(host!.textContent).not.toContain("Your changes could not be saved");
+      expect(host!.textContent).not.toContain("could not be saved");
       expect(host!.textContent).not.toContain("Your description could not be saved");
       if (visit === 0) {
         const next = await reload();
@@ -324,7 +326,7 @@ describe("PlanComposer's hydration remount", () => {
       expect(host!.textContent).toContain("Your changes could not be saved on this device. Keep this page open to keep them.");
     } else {
       expect(readPlanIntakeDraft()?.answers.stopCount).toBe(5);
-      expect(host!.textContent).not.toContain("Your changes could not be saved");
+      expect(host!.textContent).not.toContain("could not be saved");
       await reload();
       expect(readPlanIntakeDraft()?.answers.stopCount).toBe(5);
     }

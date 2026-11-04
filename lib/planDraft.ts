@@ -1,4 +1,4 @@
-import { isPlanStopCount, type PlanStopCount } from "@/lib/planStopCount";
+import { cleanPlanStopCountSource, isPlanStopCount, type PlanStopCount, type PlanStopCountSource } from "@/lib/planStopCount";
 import { DAY_MS } from "@/lib/dayMs";
 import { CITIES, type CityId } from "@/lib/cities";
 import { LONDON_BOROUGHS } from "@/lib/boroughs";
@@ -27,6 +27,8 @@ export type StoredPlanDraft = {
   conciergeQuery: string;
   stops: Array<{ key: number; venueId: string; venueName: string }>;
   requestedStopCount?: PlanStopCount;
+  requestedStopCountSource?: PlanStopCountSource;
+  routeReference?: { savedAt: string; operationKey: string } | null;
   acceptedAnchor?: {
     venueId: string;
     source: PlanningIntentSource;
@@ -116,9 +118,29 @@ function parseAcceptedArea(area: unknown): PlanningIntentArea | undefined {
 }
 
 function hasDraftKeys(value: Record<string, unknown>): boolean {
-  const keys = Object.keys(value).filter((key) => key !== "requestedStopCount");
+  const keys = Object.keys(value).filter((key) => key !== "requestedStopCount" && key !== "requestedStopCountSource" && key !== "routeReference");
   return [DRAFT_KEYS, DRAFT_KEYS_WITH_ANCHOR].some((allowed) =>
     keys.length === allowed.length && keys.every((key) => (allowed as readonly string[]).includes(key)));
+}
+
+export function parsePlanRouteReference(value: unknown): StoredPlanDraft["routeReference"] {
+  if (value === null) return null;
+  if (!isRecord(value) || !hasExactKeys(value, ["savedAt", "operationKey"])) return undefined;
+  const savedAt = canonicalTimestamp(value.savedAt)?.value;
+  const operationKey = boundedText(value.operationKey, 120);
+  return savedAt && operationKey?.trim() === operationKey && operationKey
+    ? { savedAt, operationKey } : undefined;
+}
+
+function parseRequestOptions(value: Record<string, unknown>): Pick<StoredPlanDraft, "requestedStopCount" | "requestedStopCountSource" | "routeReference"> {
+  const count = isPlanStopCount(value.requestedStopCount) ? value.requestedStopCount : undefined;
+  const source = cleanPlanStopCountSource(value.requestedStopCountSource, count);
+  const routeReference = parsePlanRouteReference(value.routeReference);
+  return {
+    ...(count !== undefined ? { requestedStopCount: count } : {}),
+    ...(source ? { requestedStopCountSource: source } : {}),
+    ...(routeReference !== undefined ? { routeReference } : {}),
+  };
 }
 
 function parseStoredPlanDraft(value: unknown, exactKeys: boolean): StoredPlanDraft | null {
@@ -144,6 +166,7 @@ function parseStoredPlanDraft(value: unknown, exactKeys: boolean): StoredPlanDra
     return { key: index + 1, venueId, venueName };
   });
   if (stops.some((stop) => stop === null)) return null;
+  const options = parseRequestOptions(value);
   let acceptedAnchor: StoredPlanDraft["acceptedAnchor"];
   if (value.acceptedAnchor !== undefined) {
     const anchor = value.acceptedAnchor;
@@ -155,7 +178,7 @@ function parseStoredPlanDraft(value: unknown, exactKeys: boolean): StoredPlanDra
         startTime,
         conciergeQuery,
         stops: stops as StoredPlanDraft["stops"],
-        ...(isPlanStopCount(value.requestedStopCount) ? { requestedStopCount: value.requestedStopCount } : {}),
+        ...options,
       };
     }
     if (!hasExactKeys(anchor, ACCEPTED_ANCHOR_KEYS)) return null;
@@ -180,21 +203,16 @@ function parseStoredPlanDraft(value: unknown, exactKeys: boolean): StoredPlanDra
     startTime,
     conciergeQuery,
     stops: stops as StoredPlanDraft["stops"],
+    ...options,
     ...(acceptedAnchor ? { acceptedAnchor } : {}),
-    ...(isPlanStopCount(value.requestedStopCount) ? { requestedStopCount: value.requestedStopCount } : {}),
   };
 }
 
 function withoutExpiredAcceptedAnchor(draft: StoredPlanDraft, now: number): StoredPlanDraft {
   if (!draft.acceptedAnchor || now < Date.parse(draft.acceptedAnchor.expiresAt)) return draft;
-  return {
-    title: draft.title,
-    creatorName: draft.creatorName,
-    startTime: draft.startTime,
-    conciergeQuery: draft.conciergeQuery,
-    stops: draft.stops,
-    ...(draft.requestedStopCount !== undefined ? { requestedStopCount: draft.requestedStopCount } : {}),
-  };
+  const unanchored = { ...draft };
+  delete unanchored.acceptedAnchor;
+  return unanchored;
 }
 
 /** Parse the unversioned session draft without inventing storage metadata. */

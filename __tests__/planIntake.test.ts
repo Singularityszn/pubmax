@@ -17,10 +17,12 @@ import {
   londonNightsAhead,
   nextLondonOccurrenceIso,
   parsePlanIntakeDraft,
+  parsePlanIntakeDraftWithMetadata,
   planIntakeHandoff,
   planIntakeNightContextPatch,
   planIntakeStepHasAnswer,
   readPlanIntakeDraft,
+  readPlanIntakeDraftWithMetadata,
   reopenPlanIntakeStep,
   resolveFutureLondonStartIso,
   resolvePlanIntakeAreaSeed,
@@ -76,6 +78,19 @@ function storedEnvelope(draft: PlanIntakeDraft, now = NOW): string {
 }
 
 describe("progressive Plan intake", () => {
+  it.each(["text", "picker", "route-edit", "unknown", "Picker", null, 1, {}, undefined])("validates count origin while keeping the intake and API contract: %s", (source) => {
+    const envelope = JSON.parse(storedEnvelope(answeredDraft()));
+    envelope.draft.answers.stopCount = 1;
+    envelope.draft.answers.stopCountSource = source;
+    const parsed = parsePlanIntakeDraft(JSON.stringify(envelope), NOW);
+    expect(parsed?.answers).toMatchObject({ stopCount: 1, area: "london-bridge" });
+    const expected = source === "text" || source === "picker" || source === "route-edit" ? source : undefined;
+    expect(parsed?.answers.stopCountSource).toBe(expected);
+    expect(planIntakeHandoff(parsed!)).not.toHaveProperty("stopCountSource");
+    delete envelope.draft.answers.stopCount;
+    expect(parsePlanIntakeDraft(JSON.stringify(envelope), NOW)?.answers.stopCountSource).toBeUndefined();
+  });
+
   it("starts with one area question and carries a remembered patch forward", () => {
     expect(createPlanIntakeDraft()).toMatchObject({
       currentStep: "area",
@@ -651,4 +666,27 @@ describe("intake accessibility and entry invariants", () => {
     expect(html).toContain("Describe instead");
     expect(html).toContain('href="/pal/chat"');
   });
+});
+
+it.each([undefined, {}, { savedAt: "yesterday", operationKey: "operation-1" }])(
+  "does not discard valid intake answers when route correlation is unknown: %j", (routeReference) => {
+    const now = Date.parse("2026-11-03T12:00:01.000Z");
+    const draft = createPlanIntakeDraft();
+    const envelope = {
+      storageVersion: 1, savedAt: new Date(now).toISOString(), expiresAt: new Date(now + 60_000).toISOString(),
+      draft: { ...draft, answers: { ...draft.answers, stopCount: 5, stopCountSource: "picker" } }, routeReference,
+    };
+    const parsed = parsePlanIntakeDraftWithMetadata(JSON.stringify(envelope), now);
+    expect(parsed?.draft.answers).toMatchObject({ stopCount: 5, stopCountSource: "picker" });
+    expect(parsed?.routeReference).toBeUndefined();
+  },
+);
+
+
+it("round trips explicit route revocation with the selected intake", () => {
+  const now = Date.parse("2026-11-03T12:00:01.000Z");
+  const storage = memoryStorage();
+  const draft = createPlanIntakeDraft();
+  expect(writePlanIntakeDraft(draft, storage, now, null)).toBe(true);
+  expect(readPlanIntakeDraftWithMetadata(storage, now)).toMatchObject({ savedAt: new Date(now).toISOString(), routeReference: null, draft });
 });

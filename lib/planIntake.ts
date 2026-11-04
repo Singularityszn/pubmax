@@ -12,13 +12,16 @@ import {
   type NightAreaSlug,
 } from "@/lib/nightPlanning";
 import { lastOf } from "@/lib/tuple";
+import { parsePlanRouteReference, type StoredPlanDraft } from "@/lib/planDraft";
 import type { CityId } from "@/lib/cities";
 import type { PlanGenerationAnchor as PlanGenerationWireAnchor } from "@/lib/planGenerationRequest";
 import {
   DEFAULT_PLAN_STOP_COUNT,
   isPlanStopCount,
+  cleanPlanStopCountSource,
   normalizePlanStopCount,
   type PlanStopCount,
+  type PlanStopCountSource,
 } from "@/lib/planStopCount";
 import { DAY_MS } from "@/lib/dayMs";
 import { safeLocalStorage } from "@/lib/safeStorage";
@@ -78,6 +81,7 @@ type PlanIntakeAnswers = {
   exactStartIso: string | null;
   groupSize: number | null;
   stopCount?: PlanStopCount;
+  stopCountSource?: PlanStopCountSource;
   budget: Budget | null;
   budgetLimitPence: number | null;
   accessibilityNeeds: PlanAccessibilityNeed[];
@@ -114,6 +118,7 @@ type StoredPlanIntakeEnvelope = {
   savedAt: string;
   expiresAt: string;
   draft: PlanIntakeDraft;
+  routeReference?: StoredPlanDraft["routeReference"];
 };
 
 export type ParsedPlanIntakeDraft = {
@@ -121,6 +126,7 @@ export type ParsedPlanIntakeDraft = {
   savedAt: string;
   expiresAt: string;
   draft: PlanIntakeDraft;
+  routeReference?: StoredPlanDraft["routeReference"];
   legacy: false;
 };
 
@@ -456,6 +462,8 @@ function cleanAnswers(value: unknown, now: number): PlanIntakeAnswers | null {
     exactStartIso,
     groupSize,
     ...(row.stopCount !== undefined ? { stopCount: normalizePlanStopCount(row.stopCount) } : {}),
+    ...(cleanPlanStopCountSource(row.stopCountSource, row.stopCount)
+      ? { stopCountSource: cleanPlanStopCountSource(row.stopCountSource, row.stopCount) } : {}),
     budget,
     budgetLimitPence,
     accessibilityNeeds,
@@ -572,10 +580,12 @@ export function parsePlanIntakeDraftWithMetadata(
     const firstUnsettled = PLAN_INTAKE_STEPS.find((step) => !settledSteps.includes(step));
     const terminal = firstUnsettled === undefined;
     if (value.completed !== terminal) return null;
+    const routeReference = parsePlanRouteReference(envelope.routeReference);
     return {
       storageVersion: PLAN_INTAKE_VERSION,
       savedAt: envelope.savedAt,
       expiresAt: envelope.expiresAt,
+      ...(routeReference !== undefined ? { routeReference } : {}),
       draft: {
         version: PLAN_INTAKE_VERSION,
         currentStep: firstUnsettled ?? lastOf(PLAN_INTAKE_STEPS),
@@ -623,14 +633,17 @@ export function writePlanIntakeDraft(
   draft: PlanIntakeDraft,
   storage?: Storage | null,
   now = Date.now(),
+  routeReference?: StoredPlanDraft["routeReference"],
 ): boolean {
   const store = resolveStorage(storage);
   if (!store) return false;
   try {
+    const reference = parsePlanRouteReference(routeReference);
     const next = JSON.stringify({
       storageVersion: PLAN_INTAKE_VERSION,
       savedAt: new Date(now).toISOString(),
       expiresAt: new Date(now + PLAN_INTAKE_DRAFT_TTL_MS).toISOString(),
+      ...(reference !== undefined ? { routeReference: reference } : {}),
       draft,
     } satisfies StoredPlanIntakeEnvelope);
     if (planIntakeRawBytes(next) > PLAN_INTAKE_MAX_RAW_BYTES) return false;
