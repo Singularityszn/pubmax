@@ -159,13 +159,28 @@ describe("Pint Drop preview URL lifetime", () => {
     expect(io.post.mock.calls.filter(([url]) => url === "/api/pint-drops")).toHaveLength(1);
   });
 
-  it.each([201, 409])("ignores a delayed price response after the account changes (status: %s)", async (status) => {
+  it.each([[201, false], [201, true], [409, false], [409, true]] as const)(
+    "disposes an abandoned price before its delayed response (status: %s, bill: %s)", async (status, withBill) => {
     let answer!: (response: Response) => void;
     io.post.mockReturnValueOnce(new Promise<Response>((resolve) => { answer = resolve; }));
-    await act(async () => { drops.setDropForm((form) => ({ ...form, price: "5.50", drink: "Pale ale" })); });
+    await act(async () => {
+      drops.pickPhoto("pint", photo("pint.jpg"), null);
+      if (withBill) drops.pickPhoto("receipt", photo("bill.jpg"), null);
+      drops.setDropForm((form) => ({ ...form, price: "5.50", drink: "Pale ale" }));
+    });
     let pending: void | Promise<void>;
     await act(async () => { pending = drops.submitDrop({ preventDefault() {} } as never, "venue-1"); });
+    const optimisticId = drops.dropsByVenueId.get("venue-1")?.[0]?.id;
+    expect(optimisticId).toMatch(/^optimistic-/);
+    expect(drops.dropMsg?.text).toBe("Cheers. Saving your Pint Drop…");
     await act(async () => { setProviderIdentity("supabase", "preview-account-b"); });
+    const expectedPreviews = withBill ? ["blob:preview-1", "blob:preview-2"] : ["blob:preview-1"];
+    expect(drops.dropsByVenueId.get("venue-1")).toEqual([]);
+    expect(readOptimisticSpills(localStorage)).toEqual([]);
+    expect(revoked()).toEqual(expectedPreviews);
+    expect(drops.dropMsg).toBeNull();
+    await act(async () => { setProviderIdentity("supabase", "preview-account-a"); });
+    expect(drops.dropMsg).toBeNull();
     await act(async () => {
       answer(new Response(JSON.stringify({
         status: "adult_check_required", error: "Old account refusal",
@@ -174,8 +189,68 @@ describe("Pint Drop preview URL lifetime", () => {
       await pending;
     });
     expect(container.querySelector("button")).toBeNull();
-    expect(drops.dropMsg?.text).not.toBe("Old account refusal");
-    expect(drops.dropsByVenueId.get("venue-1")?.some((drop) => drop.id === "old-account-price")).toBe(false);
+    expect(drops.dropMsg).toBeNull();
+    expect(drops.dropsByVenueId.get("venue-1")).toEqual([]);
+    expect(readOptimisticSpills(localStorage)).toEqual([]);
+    expect(revoked()).toEqual(expectedPreviews);
+    expect(io.post).toHaveBeenCalledTimes(1);
+    await act(async () => root.unmount());
+    expect(revoked()).toEqual(expectedPreviews);
+    root = createRoot(container);
+  });
+
+  it.each([201, 409])("preserves the new account's pending price and Saving banner after an old response (status: %s)", async (status) => {
+    let answerOld!: (response: Response) => void;
+    let answerNew!: (response: Response) => void;
+    io.post.mockResolvedValue(new Response("{}", { status: 200 }));
+    io.post.mockReturnValueOnce(new Promise<Response>((resolve) => { answerOld = resolve; }));
+    io.post.mockReturnValueOnce(new Promise<Response>((resolve) => { answerNew = resolve; }));
+    await act(async () => {
+      drops.pickPhoto("pint", photo("old-pint.jpg"), null);
+      drops.pickPhoto("receipt", photo("old-bill.jpg"), null);
+      drops.setDropForm((form) => ({ ...form, price: "5.50", drink: "Pale ale" }));
+    });
+    let oldPending: void | Promise<void>;
+    await act(async () => { oldPending = drops.submitDrop({ preventDefault() {} } as never, "venue-1"); });
+    await act(async () => { setProviderIdentity("supabase", "preview-account-b"); });
+    await act(async () => {
+      drops.pickPhoto("pint", photo("new-pint.jpg"), null);
+      drops.pickPhoto("receipt", photo("new-bill.jpg"), null);
+      drops.setDropForm((form) => ({ ...form, price: "6.00", drink: "Lager" }));
+    });
+    let newPending: void | Promise<void>;
+    await act(async () => { newPending = drops.submitDrop({ preventDefault() {} } as never, "venue-1"); });
+    const newDrop = drops.dropsByVenueId.get("venue-1")?.[0];
+    expect(newDrop?.pintPhotoUrl).toBe("blob:preview-3");
+    expect(newDrop?.receiptPhotoUrl).toBe("blob:preview-4");
+    const newMessage = drops.dropMsg;
+    expect(newMessage?.text).toBe("Cheers. Saving your Pint Drop…");
+    await act(async () => {
+      answerOld(new Response(JSON.stringify({
+        status: "adult_check_required", error: "Old account refusal",
+        drop: { id: "old-account-price", venueId: "venue-1" },
+      }), { status }));
+      await oldPending;
+    });
+    expect(drops.dropsByVenueId.get("venue-1")).toEqual([newDrop]);
+    expect(readOptimisticSpills(localStorage).map(({ drop }) => drop.id)).toEqual([newDrop?.id]);
+    expect(drops.dropMsg).toEqual(newMessage);
+    expect(revoked()).toEqual(["blob:preview-1", "blob:preview-2"]);
+    await act(async () => {
+      answerNew(new Response(JSON.stringify({ drop: {
+        id: "new-account-price", venueId: "venue-1", handle: "bob", priceGbp: 6,
+        drink: "Lager", passedDownNote: "", era: "", vibeTags: [],
+        visibility: "public", provenance: "contributor", status: "visible",
+        createdAt: new Date().toISOString(), pintPhotoUrl: null, venuePhotoUrl: null,
+        priceEvidence: "receipt",
+      } }), { status: 201 }));
+      await newPending;
+    });
+    expect(drops.dropsByVenueId.get("venue-1")?.map((drop) => drop.id)).toEqual(["new-account-price"]);
+    expect(readOptimisticSpills(localStorage).map(({ drop }) => drop.id)).toEqual(["new-account-price"]);
+    expect(revoked()).toEqual(["blob:preview-1", "blob:preview-2", "blob:preview-3", "blob:preview-4"]);
+    expect(drops.dropMsg?.ok).toBe(true);
+    expect(io.post.mock.calls.filter(([url]) => url === "/api/pint-drops")).toHaveLength(2);
   });
 
   it.each([200, 503])("ignores a delayed assertion response after an account change (status: %s)", async (status) => {
