@@ -102,6 +102,34 @@ these checks, so a red Security CI job blocks nothing by itself: read it before
 merging. zizmor's `GH_TOKEN` is `github.token`, the job token, not a
 repository secret.
 
+### PR-Agent answers on request
+
+`pr-agent.yml` runs [PR-Agent](https://github.com/The-PR-Agent/pr-agent) when
+a person writes a slash command in a pull request comment: `/review`,
+`/improve`, `/describe`, `/ask "question"` or `/help`. It does not run when a
+pull request opens, the same choice `.coderabbit.yaml` makes for CodeRabbit.
+
+- **Trigger.** It answers `issue_comment`, never `pull_request`, because it
+  holds the `ANTHROPIC_KEY` repository secret and a pull request workflow does
+  not reference secrets. A comment run uses the copy of the workflow on
+  `main`, so a pull request cannot change it.
+- **Who can ask.** Only the owner, an organisation member or a collaborator.
+  A comment from anybody else, from a bot, or without a leading `/` starts no
+  job.
+- **What it runs.** No checkout and no repository code. The job runs the
+  PR-Agent image pinned by digest, because the upstream action builds from a
+  moving tag. Dependabot does not move this pin. The workflow header says how
+  to move it.
+- **What it writes.** Review, suggestion and answer comments. `/describe`
+  posts a comment and does not rewrite the pull request body.
+- **Model.** `anthropic/claude-opus-5-5`, with `anthropic/claude-sonnet-5` as
+  the fallback. PR-Agent sends at most 32,000 tokens in each model call, and
+  the regenerated data paths that CodeRabbit filters are left out.
+
+`__tests__/prAgentWorkflow.test.ts` holds the trigger, the gate, the
+permissions and the pin. Without the secret the job fails with one line that
+names it.
+
 ### Timeouts and job shape
 
 Job `timeout-minutes` values in `ci.yml`, `e2e.yml`, `rls-session.yml`, and the Playwright jobs in `performance.yml` stay at the ceilings already set for those jobs (about 2× the p95 measured on the previous runners), with floors on the freshness gate (20 minutes) and Coverage (30 minutes). Do not raise one to hide a slow hosted run; see `perf/AGENTS.md`. `security-ci.yml` uses fixed ceilings (10, 15, and 45 minutes for zizmor, osv-scanner, and Semgrep).
