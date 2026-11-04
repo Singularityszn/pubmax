@@ -98,6 +98,15 @@ The generation default, returned stop length, and unrelated Tune edits never est
 Reordering, swapping, or filling an existing stop preserves count intent.
 
 `resolveRequestedPlanIntent` in `lib/planDraftArbitration.ts` resolves the description and count together from existing stores.
+The selected whole request also owns optional `explicitNightContext` input metadata in the existing Session and intake records.
+A missing or invalid map remains UNKNOWN. A valid empty map means no current explicit choices.
+Tune choices and explicit null clears survive later title or name edits without changing the route date.
+A fresh confirmed Ask stores an empty map and replaces older choices.
+Recovery never combines maps from competing records. Route metadata remains a fallback only under the existing route correlation rules.
+The map grants no route acceptance or proof. Generated context stays separate and never establishes explicit choices.
+The server intake shape excludes this device metadata. Generation uses the existing context fields.
+Coverage: `__tests__/planRequestContextMetadata.test.ts` and `__tests__/planRequestSaveFreshness.test.tsx`.
+
 Paired session and local-intake writes use one timestamp.
 A newer dated session record wins, including an UNKNOWN count. Equal timestamps prefer the session record.
 A newer local intake supplies its count, but cannot restore a description because intake does not store one.
