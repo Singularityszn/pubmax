@@ -6,7 +6,7 @@ The base is `445df3a6bc85f2403f984a5f4a32e3e62d9731ff`.
 
 ## Reproduction
 
-The captain reproduced both gaps on production at 390 pixels.
+Root's Browser audit reproduced both gaps on production at 390 pixels.
 The mounted regression then rendered the real cards from their public derivations.
 It controlled no internal component.
 
