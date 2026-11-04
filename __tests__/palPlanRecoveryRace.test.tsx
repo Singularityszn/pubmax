@@ -225,3 +225,26 @@ it("does not accept an old Pal reply after the user edits the visible request du
   await pressLock();
   expect(creations).toHaveLength(0);
 });
+
+it("accepts the current Pal reply after cosmetic title and host-name edits", async () => {
+  seed(); await mount(); await waitForAttempts(1);
+  await enter("#plan-name", "Captain");
+  await enter("#plan-title", "Our changed title");
+  await answer(0, route(drafted, "cosmetic-edit-current")); await waitForPubs(drafted);
+  expect(attempts).toHaveLength(1);
+  expect(readPlanDraftEnvelope(sessionStorage)?.draft).toMatchObject({
+    title: "Our changed title", creatorName: "Captain", conciergeQuery: originalAsk,
+    routeReference: { operationKey: "cosmetic-edit-current" },
+  });
+  expect(readPlanRouteDraftEnvelope(localStorage)?.value).toMatchObject({ operationKey: "cosmetic-edit-current", routeStale: false });
+});
+
+it("does not start a fallback request after the first Pal attempt loses the visible request", async () => {
+  seed(); await mount(); await waitForAttempts(1);
+  await enter("#plan-concierge-query", nextAsk);
+  await answer(0, route([drafted[0]!], "abandoned-all", originalAsk, "anchor-only"));
+  expect(attempts).toHaveLength(1);
+  expect(readPlanDraftEnvelope(sessionStorage)?.draft.routeReference ?? null).toBeNull();
+  expect(document.querySelector<HTMLInputElement>("#plan-concierge-query")?.value).toBe(nextAsk);
+  expect(document.querySelector<HTMLButtonElement>(".planComposer__submit")?.disabled).toBe(false);
+});
