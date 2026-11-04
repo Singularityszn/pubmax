@@ -11,6 +11,8 @@ import FaqBlock from "@/components/seo/FaqBlock";
 import PriceBadge from "@/components/PriceBadge";
 import ListedPriceSource from "@/components/venue/ListedPriceSource";
 import { venuePriceEvidence } from "@/lib/venuePriceEvidence";
+import { selectedComparableVenuePint } from "@/lib/comparableVenuePint";
+import { isComparablePintServing } from "@/lib/comparablePint.mjs";
 import {
   venueBundlePrices,
   venuePriceLane,
@@ -200,7 +202,13 @@ function BoroughPubRow({ pub, index }: { pub: Venue; index: number }) {
               pub.cheapestPrice;
   // The figure wears its price BAND (lib/priceBand.ts). An anchor is not a
   // pint, so it wears none.
-  const band = lane?.lane === "anchor" ? null : priceBand(figure, priceBandAreaForVenue(pub.id));
+  const serving = selectedComparableVenuePint(pub, null, true) ?? pub;
+  const pintServing = isComparablePintServing({
+    measure: "measure" in serving ? serving.measure : undefined,
+    cheapestPint: "cheapestPint" in serving ? serving.cheapestPint : undefined,
+  });
+  const band = lane?.lane === "anchor" || !pintServing
+    ? null : priceBand(figure, priceBandAreaForVenue(pub.id));
   const evidence = typeof figure === "number" ? venuePriceEvidence(pub, figure, true) : null;
   return (
     <li className="rowListItem rowListItem--link">

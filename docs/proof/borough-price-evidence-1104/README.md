@@ -30,7 +30,7 @@ No provider request ran.
 
 ## Checks
 
-Eight focused suites pass 161 tests with one worker and no retries.
+Eight focused suites pass 162 tests with one worker and no retries.
 They cover the new rendered and mounted cases, borough sorting and caching,
 borough photographs, Today evidence, comparable rankings and the unchanged fact calculations.
 Scoped lint has no warnings. Focused TypeScript checks pass.
@@ -50,6 +50,14 @@ One initial chapter fixture omitted a required row identifier.
 The corrected fixture then failed on the missing visible serving.
 Two later test corrections used an in-band half price and the existing `Half` label.
 Those intermediate failures remain in the evidence folder.
+
+Root then found that the existing pub-row badge coloured a bottle against pint bands.
+The actual bundled Bbar row reproduced this with a red expensive-pint band on its £9 bottle amount.
+The existing serving rule now keeps that badge neutral.
+The amount, bottle label, receipt, ordering and ordinary pint band remain checked.
+The first band test used the wrong class spelling, then the corrected test reproduced the actual defect.
+An initial type check required explicit fields for the selected evidence union.
+That type failure remains preserved.
 
 ## Remaining acceptance
 

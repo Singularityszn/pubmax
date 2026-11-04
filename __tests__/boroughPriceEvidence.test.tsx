@@ -1,4 +1,5 @@
 import { JSDOM } from "jsdom";
+import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
@@ -103,5 +104,22 @@ describe("borough price evidence", () => {
     expect(summary.cheapestGbp).toBe(3.5);
     expect(summary.cheapestPint?.venueName).toBe("The Selected Arms");
     expect(pubsInBorough(dataset.venues, "westminster").map((pub) => pub.name)).toEqual(["Alpha Arms", "The Selected Arms", "UCL Students' Union"]);
+  });
+
+  it("shows the real Bbar bottle amount and receipt without a pint band", async () => {
+    const rows = JSON.parse(readFileSync("public/data/pint_prices_app_dataset.json", "utf8")) as VenuePrice[];
+    const bbar = groupVenuePrices(rows).find((pub) => pub.id === "venue-1bw18uv")!;
+    expect(bbar.name).toBe("Bbar");
+    expect(bbar.cheapestPint).toBe("BOTTLED BEER");
+    dataset.venues = [bbar, ...dataset.venues];
+    const document = new JSDOM(renderToStaticMarkup(await BoroughPage({ params: Promise.resolve({ slug: "westminster" }) }))).window.document;
+    const pubRows = Array.from(document.querySelectorAll(".boroughPubRows > li"));
+    const bottle = pubRows.find((row) => row.querySelector(".rowListTitleLink")?.textContent === "Bbar")!;
+    expect(bottle.textContent).toContain("£9.00");
+    expect(bottle.textContent).toContain("Bottled Beer");
+    expect(bottle.textContent).toContain("Pint Prices");
+    expect(bottle.querySelector("time")?.textContent).toBe("2 October 2026");
+    expect(bottle.querySelector(".priceBadge")?.className).not.toMatch(/(?:^|\s)priceBand-/);
+    expect(pubRows[0]!.querySelector(".priceBadge")?.className).toMatch(/(?:^|\s)priceBand-/);
   });
 });
