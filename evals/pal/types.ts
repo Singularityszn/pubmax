@@ -8,6 +8,8 @@ export type PalEvalPublicCase = {
 };
 
 export type PalEvalAnswerExpectations = {
+  /** A complete authored clarification with no claims or side effects. */
+  honestTerminal?: { answer: string; tool: "venue_heritage" };
   expectedTools?: string[];
   anyTools?: string[];
   minCards?: number;

@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from "node:util";
+import { loadHeritageAmbiguityEvidence, resolveHeritageAmbiguityExpectation } from "./answerKeyResolver";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -33,6 +35,14 @@ export async function runPalEvalSuite(options: RunPalEvalOptions): Promise<PalEv
 async function runSuiteWithoutTypesafe(options: RunPalEvalOptions): Promise<PalEvalScoreboard> {
   const root = options.root ?? process.cwd();
   const { cases, answerKey, now } = loadPalEvalSuite(root);
+  for (const caseDef of cases) {
+    const reference = resolveHeritageAmbiguityExpectation(caseDef,
+      { now, cityId: caseDef.cityId ?? "london" },
+      caseDef.id === "heritage-lamb" ? loadHeritageAmbiguityEvidence(root) : undefined);
+    if (reference && !isDeepStrictEqual(answerKey[caseDef.id], reference)) {
+      throw new Error("Stale heritage ambiguity key; review and regenerate.");
+    }
+  }
   const index = loadPalEvalVenueIndex(root);
   const live = options.mode === "live";
   const apiKey = process.env.OPENROUTER_API_KEY?.trim();
