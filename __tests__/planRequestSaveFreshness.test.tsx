@@ -300,7 +300,11 @@ describe("request save age with an unchanged stale route", () => {
     expect(readPlanDraftEnvelope(session)?.draft.requestedStopCount).toBe(5);
     if (localBlocked) {
       expect(readPlanIntakeDraftWithMetadata(local)).toBeNull();
-      expect(document.body.textContent).toContain("Your changes could not be saved on this device");
+      expect(readPlanDraftEnvelope(session)?.draft).toEqual({ ...draft, requestedStopCount: 5 });
+      expect(document.querySelector<HTMLInputElement>("#plan-title")?.value).toBe("Night");
+      expect(document.querySelector<HTMLInputElement>("#plan-name")?.value).toBe("Captain");
+      expect(document.querySelector<HTMLInputElement>("#plan-time")?.value).toBe(START);
+      expect(document.body.textContent).not.toContain("Your changes could not be saved on this device");
     } else {
       expect(readPlanIntakeDraftWithMetadata(local)).toMatchObject({
         savedAt: "2026-11-03T12:00:00.000Z", draft: { answers: { stopCount: 5 } },
@@ -1938,4 +1942,117 @@ it("late identity resolution neither replaces a manual name nor hides its real s
   await settle();
   expect(document.querySelector<HTMLInputElement>("#plan-name")?.value).toBe("Alex");
   expect(document.body.textContent).toContain("Your plan details could not be saved");
+});
+function rejectSessionRecordWrites(keys: string[]): void {
+  const storage = sessionStorage;
+  vi.stubGlobal("sessionStorage", {
+    getItem: storage.getItem.bind(storage),
+    setItem: (key: string, value: string) => {
+      if (keys.includes(key)) throw new DOMException("Storage is full", "QuotaExceededError");
+      storage.setItem(key, value);
+    },
+    removeItem: storage.removeItem.bind(storage), clear: storage.clear.bind(storage),
+    key: storage.key.bind(storage), get length() { return storage.length; },
+  } satisfies Storage);
+}
+
+it.each([
+  { lane: "v1-only", routeAvailable: true },
+  { lane: "v1-only", routeAvailable: false },
+  { lane: "v2-only", routeAvailable: true },
+  { lane: "both", routeAvailable: true },
+])("retains five requested stops through $lane with route available: $routeAvailable", async ({ lane, routeAvailable }) => {
+  const advance = pinClock();
+  const generated = {
+    ...generatedProofFixture(3), inferredContext: { ...GENERATED.inferredContext, stopCount: 5 },
+    stops: [
+      { venueId: "venue-a", venueName: "Pub A" }, { venueId: "venue-b", venueName: "Pub B" },
+      { venueId: "venue-c", venueName: "Pub C" }, { venueId: "venue-d", venueName: "Pub D" },
+      { venueId: "venue-e", venueName: "Pub E" },
+    ],
+  };
+  fetchMock.mockImplementation(async (input) => new Response(JSON.stringify(
+    String(input).includes("/api/plans/generate") ? generated : [],
+  ), { status: 200, headers: { "content-type": "application/json" } }));
+  if (lane === "v1-only") rejectSessionRecordWrites(["pubmax:plan-draft:v2"]);
+  if (lane === "v2-only") rejectSessionRecordWrites(["pubmaxx:plan-draft:v1"]);
+  rejectRouteWrites([PLAN_INTAKE_STORAGE_KEY, ...(routeAvailable ? [] : [PLAN_ROUTE_DRAFT_KEY, PLAN_ROUTE_DRAFT_V2_KEY])]);
+  await mountComposer();
+  await chooseFiveStops();
+  await editInput("#plan-describe-first-query", "Clapham tonight");
+  await act(async () => [...document.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "Plan it")!.click());
+  await settle();
+  await editInput("#plan-name", "Captain");
+  await act(async () => { await vi.waitFor(() => expect(document.querySelectorAll(".planStop__name")).toHaveLength(5)); });
+  const saved = readPlanDraftEnvelope(sessionStorage);
+  expect(saved?.draft.requestedStopCount).toBe(5);
+  if (lane === "v1-only") expect(saved).toMatchObject({ legacy: true, savedAt: null });
+  expect(readPlanIntakeDraftWithMetadata(localStorage)).toBeNull();
+  advance(1000);
+  await remountComposer();
+  expect(document.querySelectorAll(".planStop__name")).toHaveLength(5);
+  expect(document.querySelector<HTMLInputElement>("#plan-name")?.value).toBe("Captain");
+  if (lane === "v1-only") {
+    expect(readPlanDraftEnvelope(sessionStorage)?.savedAt).toBeNull();
+    expect(readPlanDraftEnvelope(sessionStorage)?.draft.requestedStopCountSource).toBeUndefined();
+    await editInput("#plan-title", "Our five pubs");
+    await act(async () => { document.querySelector<HTMLFormElement>("#plan-composer")!.requestSubmit(); });
+    await settle();
+    expect.soft(fetchMock.mock.calls.filter(([input]) => String(input) === "/api/plans"), "Legacy freshness must remain UNKNOWN even after a title edit").toHaveLength(0);
+  }
+  if (!document.querySelector("#plan-context-stops")) await openTune();
+  const selected = document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value;
+  expect.soft(selected, "Request recovery is independent of legacy route authority").toBe("5");
+  advance(2000);
+  if (document.querySelector("[role='dialog']")) await sortAgainFromTune();
+  else {
+    await act(async () => [...document.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "Make a plan")!.click());
+    await settle();
+  }
+  const post = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate")).at(-1)!;
+  const request = JSON.parse(String(post[1]?.body));
+  const reconciled = reconciledGenerationContext();
+  expect.soft(request.context.stopCount).toBe(5);
+  expect(request.query).toBe("Clapham tonight");
+  expect(reconciled.stopCount).toBe(5);
+});
+
+it("does not warn when unchanged restored records remain readable despite all blocked writes", async () => {
+  const advance = pinClock();
+  await generateProofRoute(3);
+  const before = { session: readPlanDraftEnvelope(sessionStorage), intake: readPlanIntakeDraftWithMetadata(localStorage), route: localStorage.getItem(PLAN_ROUTE_DRAFT_KEY) };
+  expect(before.session?.draft.routeReference).toBeDefined();
+  expect(before.intake).not.toBeNull();
+  blockStorageWrites("localStorage");
+  blockStorageWrites("sessionStorage");
+  for (let turn = 1; turn <= 2; turn += 1) {
+    advance(turn * 1000);
+    await remountComposer();
+    expect(document.querySelectorAll(".planStop__name")).toHaveLength(3);
+    expect(document.querySelector<HTMLInputElement>("#plan-name")?.value).toBe("Captain");
+    expect(readPlanDraftEnvelope(sessionStorage)).toEqual(before.session);
+    expect(readPlanIntakeDraftWithMetadata(localStorage)).toEqual(before.intake);
+    expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(before.route);
+    expect.soft(document.body.textContent, "No edited value or route detail is lost").not.toContain("could not be saved");
+  }
+});
+
+it.each(["title", "count"] as const)("still warns when a real %s edit cannot replace readable older records", async (field) => {
+  const advance = pinClock();
+  await generateProofRoute(3);
+  blockStorageWrites("localStorage");
+  blockStorageWrites("sessionStorage");
+  advance(1000);
+  if (field === "title") await editInput("#plan-title", "Our Friday");
+  else {
+    await openTune();
+    await editTuneControl("stops", "5");
+  }
+  expect(document.body.textContent).toContain("could not be saved");
+  await remountComposer();
+  if (field === "title") expect(document.querySelector<HTMLInputElement>("#plan-title")?.value).not.toBe("Our Friday");
+  else {
+    await openTune();
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).not.toBe("5");
+  }
 });

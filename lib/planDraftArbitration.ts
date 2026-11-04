@@ -99,10 +99,14 @@ function sessionSupersedesRoute(plan: ParsedPlanDraft | null, route: (Pick<Parse
       || (!route.savedAt && route.conflicting === false)))));
 }
 
-function routeSupersedesRequest(plan: ParsedPlanDraft | null, routeTime: number): boolean {
+function routeSupersedesRequest(plan: ParsedPlanDraft | null, route: Pick<ParsedPlanRouteDraft, "savedAt" | "value"> | null): boolean {
+  const routeTime = Date.parse(route?.savedAt ?? "");
   if (!Number.isFinite(routeTime)) return false;
   if (!plan) return true;
-  return plan.legacy ? plan.draft.routeReference !== null : routeTime > Date.parse(plan.savedAt ?? "");
+  if (!plan.legacy) return routeTime > Date.parse(plan.savedAt ?? "");
+  const reference = plan.draft.routeReference;
+  return reference !== null && !(reference && reference.savedAt === route?.savedAt
+    && reference.operationKey === route?.value.operationKey);
 }
 
 function recoverCurrentIntake(plan: ParsedPlanDraft | null, intake: ParsedPlanIntakeDraft | null, intakeWins: boolean, sessionWins: boolean, acceptanceUnavailable: boolean): ParsedPlanIntakeDraft | null {
@@ -123,7 +127,7 @@ export function recoverPlanDrafts(input: {
 }) {
   const { plan, legacyDraft, intake, route } = input;
   const routeTime = Date.parse(route?.savedAt ?? "");
-  const routeWins = routeSupersedesRequest(plan, routeTime);
+  const routeWins = routeSupersedesRequest(plan, route);
   const sessionCopiesAgree = matchingSessionCopies(plan, legacyDraft);
   const intakeDraft = routeWins && !(Date.parse(intake?.savedAt ?? "") >= routeTime) ? null : intake;
   const requestSource = requestedIntentSource(plan, legacyDraft, intakeDraft);
