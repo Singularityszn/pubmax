@@ -32,6 +32,15 @@ vi.mock("@/lib/ai/typesafe.server", () => ({
 
 import { systemOne } from "@/lib/ai/typesafe.server";
 
+import { GROUP_MAP_REQUESTS } from "./fixtures/askMapCommands";
+
+describe("group constraints beside map commands", () => {
+  it.each(GROUP_MAP_REQUESTS)("keeps the explicit group: %s", async (query) => {
+    const parsed = await parseConciergeIntent(query, { skipModel: true });
+    expect(parsed.intent).toMatchObject({ groupSize: 8, area: "Soho" });
+  });
+});
+
 const ROOT = process.cwd();
 
 function missNouls(): Partial<Record<ConciergeMood, number>> {

@@ -17,6 +17,7 @@ export const SOCIAL_MAP_COMMANDS = [
 ];
 
 export const REFUSED_MAP_COMMANDS = [
+  "Next. Stop.", "Next, stop.", "Next‑stop please. Please stop.",
   "Map, not yet", "Map. Not yet.", "Show me the map, not yet",
   "Open the map. Not yet.", "Show me the map, hold off",
   "Do not show me the map", "Show me the map for the next stop. Not yet.",
@@ -38,3 +39,19 @@ export function serviceBesideMap(service: string, map = "Open the map"): string[
     query, `${evidence} ${query}`, `${query} ${evidence}`,
   ]);
 }
+
+export const GROUP_MAP_REQUESTS = [
+  "Find pubs in Soho. Open the map for 8",
+  "Find pubs in Soho for 8. Open the map",
+  "Open the full map for 8. Find quiet pubs in Soho under £7 a pint",
+  "Find quiet pubs in Soho under £7 a pint. View the whole map for 8",
+].flatMap((query) => [
+  query,
+  `Show the source and date for any price you use. ${query}`,
+  `${query}. Show the source and date for any price you use.`,
+]);
+
+export const NEXT_STOP_NOUN_REQUESTS = [
+  "Next stop please", "Next-stop please", "Next‐stop please", "Next‑stop please",
+  "Next–stop please", "Next stop. Next‑stop please.",
+];

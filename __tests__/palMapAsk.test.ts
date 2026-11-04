@@ -53,6 +53,31 @@ const TARGETS: Array<[string, ReturnType<typeof palMapAskTarget>]> = [
 ];
 
 describe("palMapAskTarget", () => {
+  it.each([
+    ["Where is The Lamb? Show me the map.", "the lamb", "venue-lamb"],
+    ["Open the full map. Where is The Lyceum Tavern?", "the lyceum tavern", "venue-lyceum"],
+    ["Show The Lamb on the map. Open the map.", "the lamb", "venue-lamb"],
+    ["Where is The Crown? Show me the map.", "the crown", null],
+    ["Where is The Missing Pub? Show me the map.", "the missing pub", null],
+  ])("resolves the surviving named request: %s", async (text, name, id) => {
+    const evidence = "Show the source and date for any price you use.";
+    for (const query of [text, `${evidence} ${text}`, `${text} ${evidence}`]) {
+      expect(palMapAskTarget(query)).toEqual({ kind: "named", name });
+      expect(palVoiceMapIntent(query, false)).toBe("pub");
+      const venue = await palPubAskVenue(query, {
+        lastVenue: VENUES[0]!, palLines: ["Try The Lyceum Tavern."], loadVenues: async () => VENUES,
+      });
+      expect(venue?.id ?? null).toBe(id);
+    }
+  });
+
+  it("keeps the retained reference beside a generic map command", async () => {
+    expect(palMapAskTarget("Take me there. Show me the map.")).toEqual({ kind: "last" });
+    expect(await palPubAskVenue("Take me there. Show me the map.", {
+      lastVenue: VENUES[0]!, palLines: [], loadVenues: async () => VENUES,
+    })).toEqual(VENUES[0]);
+  });
+
   it.each(TARGETS)("reads %j", (line, target) => {
     const evidence = "Show the source and date for any price you use.";
     for (const query of [line, `${evidence} ${line}`, `${line}. ${evidence}`]) {

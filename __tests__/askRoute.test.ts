@@ -1,5 +1,5 @@
 import { VIBE_CHIPS } from "@/lib/vibeChips";
-import { SOCIAL_MAP_COMMANDS, serviceBesideMap } from "./fixtures/askMapCommands";
+import { GROUP_MAP_REQUESTS, SOCIAL_MAP_COMMANDS, serviceBesideMap } from "./fixtures/askMapCommands";
 import { JOURNEY_ENDPOINT_REQUESTS, NAMED_QUALIFIED_PRICE_REQUESTS, NAMED_TERMINAL_PRICE_REQUESTS, QUALIFIED_PRICE_REQUESTS } from "./fixtures/askPriceSubjects";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -226,6 +226,17 @@ describe("POST /api/ask", () => {
     expect(body.cards).toHaveLength(3);
     expect(body.answer).not.toContain("not prices for that item");
     expect(body.cards.every((card: { note: string }) => !/date-night/i.test(card.note))).toBe(true);
+  });
+
+  it.each(GROUP_MAP_REQUESTS)("keeps the map-tail group through discovery and Plan: %s", async (query) => {
+    for (const tool of ["search_venues", "propose_plan"] as const) {
+      const result = await runAskTool(tool, { query, limit: 3 }, { query, cityId: "london", skipModel: true });
+      expect(result.ok).toBe(true);
+      expect(result.data).toMatchObject({ intent: { groupSize: 8, area: "Soho" } });
+      if (tool === "propose_plan") {
+        expect(result.proposals).toContainEqual(expect.objectContaining({ kind: "draft_plan", query }));
+      }
+    }
   });
 
   it.each([

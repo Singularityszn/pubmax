@@ -107,7 +107,7 @@ function navigationIsRefused(text: string): boolean {
     .toLowerCase()
     .replace(/[’`]/g, "'")
     .replace(/\s+/g, " ")
-    .replace(/\bnext[ -]stop\b/g, "");
+    .replace(/\bnext[\s\p{Pd}]+stop\b/gu, "");
   return NAVIGATION_NEGATION_RE.test(normalized);
 }
 
@@ -159,7 +159,7 @@ export function palVoiceMapIntent(text: string, nightIsOn: boolean): "next-stop"
   if (palAsksForVenueDiscovery(text)) return null;
   // One pub on the map ("take me there", "where is The Lamb?"): the caller
   // names it (lib/palMapAsk.ts), else a map ask still opens the map.
-  if (palMapAskTarget(text) && semanticAskRequest(text, false) === text) return "pub";
+  if (palMapAskTarget(text)) return "pub";
   if (palAsksForMap(text) && !askHasPriorityOverMap(text)) return "map";
   return null;
 }

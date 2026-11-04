@@ -5,7 +5,9 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { writeActivePlan } from "@/lib/activePlan";
 import { clearSurfaceCache } from "@/lib/surfaceDataCache";
-import { GENERIC_MAP_COMMANDS, REFUSED_MAP_COMMANDS, SOCIAL_MAP_COMMANDS, serviceBesideMap } from "./fixtures/askMapCommands";
+import { GENERIC_MAP_COMMANDS, GROUP_MAP_REQUESTS, NEXT_STOP_NOUN_REQUESTS, REFUSED_MAP_COMMANDS, SOCIAL_MAP_COMMANDS, serviceBesideMap } from "./fixtures/askMapCommands";
+
+import { parseConciergeIntent } from "@/lib/concierge/intent";
 
 const push = vi.hoisted(() => vi.fn());
 const request = vi.hoisted(() => vi.fn());
@@ -83,6 +85,38 @@ const evidence = "Show the source and date for any price you use.";
 const withEvidence = (request: string) => [request, `${evidence} ${request}`, `${request.replace(/[.!?]+$/, "")}. ${evidence}`];
 
 describe("mounted typed map dispatch", () => {
+  it.each(GROUP_MAP_REQUESTS)("retains the submitted group at the intent boundary: %s", async (query) => {
+    await send(query);
+    expect(push).not.toHaveBeenCalled();
+    const sent = request.mock.calls.filter(([url, init]) => url === "/api/pub-pal/chat" && init?.method === "POST");
+    expect(sent).toHaveLength(1);
+    const submitted = JSON.parse(sent[0]![1].body).query;
+    expect(submitted).toBe(query);
+    expect(host.textContent).toContain(query);
+    const parsed = await parseConciergeIntent(submitted, { skipModel: true });
+    expect(parsed.intent).toMatchObject({ groupSize: 8, area: "Soho" });
+  });
+
+  describe.each([false, true])("named target with another retained choice %s", (retained) => {
+    it.each(withEvidence("Where is The Harp? Show me the map."))("opens the explicit named target: %s", async (query) => {
+      if (retained) {
+        request.mockImplementation(async (_url, init) => Response.json(init?.method === "POST"
+          ? { answer: "Try The Lamb.", cards: [{ venueId: lamb.id, title: lamb.name, place: "Westminster", price: null }], proposals: [], toolsUsed: ["search_venues"] }
+          : { thread: null }));
+        await send("Find pubs in Camden");
+        const map = host.querySelector<HTMLElement>(".palChatMap");
+        expect(map).not.toBeNull();
+        map!.scrollIntoView = vi.fn();
+      }
+      const before = request.mock.calls.filter(([url, init]) => url === "/api/pub-pal/chat" && init?.method === "POST").length;
+      await send(query);
+      expect(push).toHaveBeenCalledExactlyOnceWith(`/map?sel=${harp.id}`);
+      expect(host.textContent).toContain(query);
+      expect(host.textContent).toContain("Opening The Harp");
+      expect(request.mock.calls.filter(([url, init]) => url === "/api/pub-pal/chat" && init?.method === "POST")).toHaveLength(before);
+    });
+  });
+
   it.each(["Date night", "Garden", "For four", "Near Soho"].flatMap((service) =>
     ["Open the map", "Show the map please", "Can you open up the pub map", "Map view", "Open the full map", "View the whole map please"].flatMap((map) => serviceBesideMap(service, map)),
   ))("separates supported map commands before service submission: %s", async (query) => {
@@ -166,7 +200,7 @@ describe("mounted typed map dispatch", () => {
     else expect(planRead).not.toHaveBeenCalled();
   });
 
-  it.each(["Next stop please", "What's next tonight?", "Next stop. Next stop please."])("opens the active plan after a qualified request: %s", async (query) => {
+  it.each([...NEXT_STOP_NOUN_REQUESTS, "What's next tonight?", "Next stop. Next stop please."])("opens the active plan after a qualified request: %s", async (query) => {
     const planId = "11111111-1111-4111-8111-111111111111";
     writeActivePlan({ id: planId, startTime: new Date(Date.now() - 60 * 60 * 1000).toISOString(), stopIndex: 0 });
     planRead.mockResolvedValue({ stops: [{ venueId: "venue-first", venueName: "First pub" }, { venueId: harp.id, venueName: harp.name }] });

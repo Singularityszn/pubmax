@@ -1,7 +1,7 @@
 import { existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { GENERIC_MAP_COMMANDS, REFUSED_MAP_COMMANDS, SOCIAL_MAP_COMMANDS } from "./fixtures/askMapCommands";
+import { GENERIC_MAP_COMMANDS, NEXT_STOP_NOUN_REQUESTS, REFUSED_MAP_COMMANDS, SOCIAL_MAP_COMMANDS } from "./fixtures/askMapCommands";
 
 import { PAL_VOICE_SOUND_SRC } from "@/components/pubpal/palVoiceSounds";
 
@@ -149,6 +149,7 @@ const VOICE_MAP_TABLE: ReadonlyArray<readonly [string, "next-stop" | "map" | nul
   ...SOCIAL_MAP_COMMANDS.map((text) => [text, "map", "map"] as const),
   ...REFUSED_MAP_COMMANDS.map((text) => [text, null, null] as const),
   // Next-stop asks.
+  ...NEXT_STOP_NOUN_REQUESTS.map((text) => [text, "next-stop", null] as const),
   ["Next stop", "next-stop", null],
   ["What's next?", "next-stop", null],
   ["where to next", "next-stop", null],
