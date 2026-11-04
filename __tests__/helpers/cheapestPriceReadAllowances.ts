@@ -174,6 +174,9 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
     {"owner": "builtStopsNeedingHydration", "count": 4, "reason": "Detects stops needing detail evidence without ranking."},
     {"owner": "peekPriceChip", "count": 2, "reason": "Displays a selected venue price lane."},
   ],
+  "lib/quietPint.ts": [
+    {"owner": "quietPintPriceEvidence", "count": 1, "reason": "Carries an ordinary displayed amount into venuePriceEvidence without ranking."},
+  ],
   "lib/savedListShare.server.ts": [
     {"owner": "savedListCardPubs", "count": 1, "reason": "Displays reader-selected saved pubs."},
   ],
@@ -206,6 +209,9 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
   "lib/venuePintShare.ts": [
     {"owner": "listedCheapPintShare", "count": 2, "reason": "Checks the selected lane for share presentation."},
     {"owner": "nearTopPintShare", "count": 1, "reason": "Matches an already qualified Near winner to its receipt."},
+  ],
+  "lib/venuePriceEvidence.ts": [
+    {"owner": "venuePriceEvidence", "count": 1, "reason": "Checks the selected display amount before attributing its own evidence."},
   ],
   "lib/venuePriceLane.ts": [
     {"owner": "venuePriceLane", "count": 3, "reason": "Preserves ordinary price lane precedence and display."},
