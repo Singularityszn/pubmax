@@ -61,6 +61,7 @@ export default function DrinkWall() {
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
   const generation = useRef(0);
+  const addPhotoRef = useRef<HTMLButtonElement>(null);
   const [composerOpen, setComposerOpen] = useState(false);
   const [fetchKey, setFetchKey] = useState("all|all|");
 
@@ -245,7 +246,7 @@ export default function DrinkWall() {
         {wall.photos.length === 0 ? null : (
           <div className="drinkWallActions">
             {canPost ? (
-              <button type="button" className="venuePhotoWallButton" onClick={() => setComposerOpen(true)}>
+              <button ref={addPhotoRef} type="button" className="venuePhotoWallButton" onClick={() => setComposerOpen(true)}>
                 Add a photo
               </button>
             ) : signedOut ? (
@@ -259,7 +260,13 @@ export default function DrinkWall() {
       </div>
 
       {composerOpen && canPost ? (
-        <DrinkWallComposer onCancel={() => setComposerOpen(false)} onPosted={() => { setComposerOpen(false); void load(null, true); }} />
+        <DrinkWallComposer
+          onCancel={() => {
+            setComposerOpen(false);
+            addPhotoRef.current?.focus();
+          }}
+          onPosted={() => { setComposerOpen(false); void load(null, true); }}
+        />
       ) : null}
 
       {loading && wall.photos.length === 0 ? (
@@ -295,7 +302,7 @@ export default function DrinkWall() {
               title="No photos on the wall yet."
               action={
                 canPost ? (
-                  <button type="button" onClick={() => setComposerOpen(true)}>
+                  <button ref={addPhotoRef} type="button" onClick={() => setComposerOpen(true)}>
                     Add a photo
                   </button>
                 ) : signedOut ? (

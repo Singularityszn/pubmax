@@ -33,6 +33,7 @@ type DrinkWallComposerProps = {
 
 export default function DrinkWallComposer({ onCancel, onPosted }: DrinkWallComposerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const restoreVenueFocus = useRef(false);
   const [chosen, setChosen] = useState<File | null>(null);
   const [wallCategory, setWallCategory] = useState<DrinkWallCategory>("london");
   const [placeLabel, setPlaceLabel] = useState("");
@@ -42,6 +43,13 @@ export default function DrinkWallComposer({ onCancel, onPosted }: DrinkWallCompo
   const [caption, setCaption] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function focusVenueControl(control: HTMLButtonElement | null): void {
+    if (control && restoreVenueFocus.current) {
+      restoreVenueFocus.current = false;
+      control.focus();
+    }
+  }
 
   async function upload(file: File) {
     setBusy(true);
@@ -131,20 +139,32 @@ export default function DrinkWallComposer({ onCancel, onPosted }: DrinkWallCompo
         {venue ? (
           <p className="venuePhotoWallStatus">
             {venue.name}{" "}
-            <button type="button" className="composerPendingRemove" onClick={() => setVenue(null)}>
+            <button
+              ref={focusVenueControl}
+              type="button"
+              className="composerPendingRemove"
+              onClick={() => {
+                restoreVenueFocus.current = true;
+                setVenue(null);
+              }}
+            >
               Remove
             </button>
           </p>
         ) : pickingVenue ? (
           <MessageVenuePicker
             onPick={(picked) => {
+              restoreVenueFocus.current = true;
               setVenue(picked);
               setPickingVenue(false);
             }}
-            onCancel={() => setPickingVenue(false)}
+            onCancel={() => {
+              restoreVenueFocus.current = true;
+              setPickingVenue(false);
+            }}
           />
         ) : (
-          <button type="button" className="venuePhotoWallButton" onClick={() => setPickingVenue(true)}>
+          <button ref={focusVenueControl} type="button" className="venuePhotoWallButton" onClick={() => setPickingVenue(true)}>
             Link a pub
           </button>
         )}
