@@ -2086,7 +2086,7 @@ function PlanComposerForm({
   const nameField = (
     <div className="planComposer__field">
       <label htmlFor="plan-name">Your name</label>
-      <input id="plan-name" type="text" ref={nameInputRef} autoComplete="name" maxLength={CREW_NAME_MAX} required value={creatorName} onChange={(event) => { pendingDraftSave.current = true; setCreatorName(event.target.value); }} placeholder="Shown on the invite" />
+      <input id="plan-name" type="text" ref={nameInputRef} autoComplete="name" maxLength={CREW_NAME_MAX} required value={creatorName} onChange={(event) => { pendingDraftSave.current = true; automaticCreatorName.current = null; setCreatorName(event.target.value); }} placeholder="Shown on the invite" />
     </div>
   );
   // An unresolved Stop 1 carries an empty name on purpose, and an empty string
@@ -2263,9 +2263,9 @@ function PlanComposerForm({
       explicitNightContext: recoveredExplicitNightContext,
       stops: [],
     };
-    if (actualMutation && composerRequestChanged({
+    if (actualMutation && (routeChanged || composerRequestChanged({
       hasRequestWork, recoveredDraft, sessionDraft, recoveredRequest, previousIntake, previousSession, recoveredIntake, sameIntake,
-    })) requestEditTime.current = savedAt;
+    }))) requestEditTime.current = savedAt;
     const requestChanged = requestEditTime.current !== null;
     const routeSavedAt = Date.parse(routeCopy.current.savedAt ?? "");
     const previousRequestTime = sameRequest && previousSession ? Date.parse(previousSession.savedAt ?? "") : NaN;

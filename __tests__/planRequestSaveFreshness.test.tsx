@@ -2498,3 +2498,94 @@ it.each(["account", "remembered"].flatMap((seed) => ["title", "description"].map
       .toBe(field === "title" ? "Our next night" : "Quiet in Clapham tonight");
   },
 );
+
+it.each(([3, 5] as const).flatMap((stopCount) => (["none", "title", "description"] as const).map((field) => ({ stopCount, field }))))(
+  "retains accepted generation after an actual request edit round trip: $field / $stopCount stops",
+  async ({ field, stopCount }) => {
+    const advance = pinClock();
+    seedReadableBlankHostRequest();
+    const base = readPlanDraftEnvelope(sessionStorage)!;
+    const context = { ...inferNightContext("Clapham tonight").context, stopCount, groupSize: 6,
+      budget: "value" as const, budgetLimitPence: 3500, accessibility: ["step-free"], zeroProof: false, drinkCategory: null };
+    const original = { ...generatedProofFixture(3), inferredContext: context,
+      stops: [...generatedProofFixture(3).stops, ...(stopCount === 5 ? [
+        { venueId: "venue-d", venueName: "Pub D" }, { venueId: "venue-e", venueName: "Pub E" },
+      ] : [])] };
+    const requestIntake = { ...base.draft.requestIntake!, answers: { ...base.draft.requestIntake!.answers, stopCount } };
+    expect(transferGeneratedRouteToDraft(original, localStorage, "plan-generated", T0)).toBe(true);
+    expect(writePlanDraftEnvelope({ ...base.draft, creatorName: "Captain", requestedStopCount: stopCount,
+      requestedStopCountSource: "picker", requestIntake,
+      stops: original.stops.map((stop, index) => ({ key: index + 1, ...stop })),
+    }, "manual", sessionStorage, T0)).toMatchObject({ v1: true, v2: true });
+    expect(writePlanIntakeDraft(requestIntake, localStorage, T0, base.draft.routeReference, {})).toBe(true);
+    const initial = readPlanDraftEnvelope(sessionStorage)!;
+    const replacement = { ...original,
+      operationKey: "request-round-trip-generation", groundingProof: generatedProofFixture(3).groundingProof.replace("test-only-signature", "round-trip-private-signature") };
+    fetchMock.mockImplementation(async (input) => new Response(JSON.stringify(
+      String(input).includes("/api/plans/generate") ? replacement : [],
+    ), { status: 200, headers: { "content-type": "application/json" } }));
+    await mountComposer();
+    if (field === "title") {
+      advance(1000);
+      await editInput("#plan-title", "Our next night");
+      advance(2000);
+      await editInput("#plan-title", initial.draft.title);
+    }
+    await openTune();
+    if (field === "description") {
+      advance(1000);
+      await editInput("#plan-concierge-query", "Quiet in Clapham tonight");
+      advance(2000);
+      await editInput("#plan-concierge-query", initial.draft.conciergeQuery);
+    }
+    advance(3000);
+    await sortAgainFromTune();
+    const accepted = JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!);
+    const saved = readPlanDraftEnvelope(sessionStorage)!;
+    expect(accepted).toMatchObject({ savedAt: "2026-11-03T12:00:03.000Z", createOperationKey: replacement.operationKey, groundingProof: replacement.groundingProof });
+    expect(saved.draft.routeReference).toEqual({ savedAt: accepted.savedAt, operationKey: replacement.operationKey });
+    expect.soft(Date.parse(saved.savedAt!), "A request binding cannot predate its newly accepted generation").toBeGreaterThanOrEqual(Date.parse(accepted.savedAt));
+    expect(readPlanIntakeDraftWithMetadata()?.savedAt).toBe(saved.savedAt);
+    advance(4000);
+    await remountComposer();
+    expect(document.querySelectorAll(".planStop__name")).toHaveLength(stopCount);
+    expect.soft(document.querySelector<HTMLInputElement>("#plan-title")?.value, "Accepting a new generation must preserve the owning request title").toBe(initial.draft.title);
+    expect.soft(document.querySelector<HTMLInputElement>("#plan-name")?.value, "Accepting a new generation must preserve its request host").toBe("Captain");
+    expect.soft(readPlanDraftEnvelope(sessionStorage)?.draft.requestIntake, "Reload must retain the actual inputs that own the accepted generation").toEqual(initial.draft.requestIntake);
+    expect((await saveRoute()).groundingProof).toBe(replacement.groundingProof);
+    await openTune();
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe(String(stopCount));
+    advance(5000);
+    await sortAgainFromTune();
+    expect(reconciledGenerationContext().stopCount, "The real parser/reconciler must receive the same requested count after accepted-route recovery").toBe(stopCount);
+  },
+);
+
+it.each(automaticNameSources.flatMap((source) => [false, true].map((blocked) => ({ source, blocked }))))(
+  "reports an explicit return to automatic $source name when writes are blocked: $blocked",
+  async ({ source, blocked }) => {
+    const advance = pinClock();
+    seedReadableBlankHostRequest();
+    seedAutomaticName(source);
+    await mountComposer();
+    expect(document.querySelector<HTMLInputElement>("#plan-name")?.value).toBe("Sam");
+    advance(1000);
+    await editInput("#plan-name", "Bob");
+    expect(readPlanDraftEnvelope(sessionStorage)?.draft.creatorName).toBe("Bob");
+    expect(document.body.textContent).not.toContain("could not be saved");
+    if (blocked) {
+      blockStorageWrites("localStorage");
+      blockStorageWrites("sessionStorage");
+    }
+    advance(2000);
+    await editInput("#plan-name", "Sam");
+    expect(document.querySelector<HTMLInputElement>("#plan-name")?.value).toBe("Sam");
+    const saved = readPlanDraftEnvelope(sessionStorage)!;
+    expect(saved.draft.creatorName).toBe(blocked ? "Bob" : "Sam");
+    expect.soft(document.body.textContent?.includes("could not be saved"), "An explicit name choice must warn exactly when readable records cannot restore it").toBe(blocked);
+    advance(3000);
+    await remountComposer();
+    expect(document.querySelector<HTMLInputElement>("#plan-name")?.value).toBe(blocked ? "Bob" : "Sam");
+    expect(document.body.textContent).not.toContain("could not be saved");
+  },
+);
