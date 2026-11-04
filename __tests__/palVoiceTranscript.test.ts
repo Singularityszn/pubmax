@@ -156,6 +156,7 @@ const VOICE_MAP_TABLE: ReadonlyArray<readonly [string, "next-stop" | "map" | nul
   ["what's next tonight", "next-stop", null],
   // "Stop" inside the ask is the noun, never a refusal.
   ["Next stop please", "next-stop", null],
+  ["Next stop. Next stop please.", "next-stop", null],
   ["ok next stop then", "next-stop", null],
   // Map asks.
   ["Open the map", "map", "map"],
@@ -189,6 +190,10 @@ const VOICE_MAP_TABLE: ReadonlyArray<readonly [string, "next-stop" | "map" | nul
 ];
 
 describe("what the voice panel does with a line", () => {
+  it.each(REFUSED_MAP_COMMANDS)("rejects a refused next-stop request: %s", (query) => {
+    expect(palAsksForNextStop(query)).toBe(false);
+  });
+
   it.each(VOICE_MAP_TABLE)("%s", (line, withNight, withoutNight) => {
     const evidence = "Show the source and date for any price you use.";
     for (const query of [line, `${evidence} ${line}`, `${line}. ${evidence}`]) {

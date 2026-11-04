@@ -24,6 +24,12 @@ export const REFUSED_MAP_COMMANDS = [
   "Show me the map. Please stop.", "Next stop. Please stop.",
   "Show me the map, please stop.", "Next stop, please stop.",
   "Show me the map. Could you please stop.", "Next stop. Could you please stop.",
+  "Next stop please. Please stop.", "What's next tonight? Please stop.",
+  "Show me the map. Actually, stop.",
+  "Show me the map for the next stop please. Actually, stop.",
+  "Show those pubs on the map. Actually, stop.",
+  "Show The Harp on the map. Actually, stop.",
+  "Please stop. Next stop please.", "Actually, stop. Show me the map.",
 ];
 
 export function serviceBesideMap(service: string, map = "Open the map"): string[] {

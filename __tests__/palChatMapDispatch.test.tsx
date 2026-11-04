@@ -139,7 +139,9 @@ describe("mounted typed map dispatch", () => {
     map!.scrollIntoView = vi.fn();
     await send(query);
     expect(push).not.toHaveBeenCalled();
+    expect(document.activeElement).not.toBe(map);
     expect(map!.scrollIntoView).not.toHaveBeenCalled();
+    expect(planRead).not.toHaveBeenCalled();
     const sent = request.mock.calls.filter(([url, init]) => url === "/api/pub-pal/chat" && init?.method === "POST");
     expect(sent).toHaveLength(2);
     expect(JSON.parse(sent.at(-1)![1].body).query).toBe(query);
@@ -162,6 +164,17 @@ describe("mounted typed map dispatch", () => {
     expect(push).toHaveBeenCalledExactlyOnceWith(active ? "/map?sel=venue-1bz7oic" : "/map");
     if (active) expect(planRead).toHaveBeenCalledExactlyOnceWith(planId);
     else expect(planRead).not.toHaveBeenCalled();
+  });
+
+  it.each(["Next stop please", "What's next tonight?", "Next stop. Next stop please."])("opens the active plan after a qualified request: %s", async (query) => {
+    const planId = "11111111-1111-4111-8111-111111111111";
+    writeActivePlan({ id: planId, startTime: new Date(Date.now() - 60 * 60 * 1000).toISOString(), stopIndex: 0 });
+    planRead.mockResolvedValue({ stops: [{ venueId: "venue-first", venueName: "First pub" }, { venueId: harp.id, venueName: harp.name }] });
+    await send(query);
+    expect(push).toHaveBeenCalledExactlyOnceWith("/map?sel=venue-1bz7oic");
+    expect(planRead).toHaveBeenCalledExactlyOnceWith(planId);
+    expect(host.textContent).toContain(query);
+    expect(request.mock.calls.filter(([url, init]) => url === "/api/pub-pal/chat" && init?.method === "POST")).toHaveLength(0);
   });
 
   it.each([harp, lamb].flatMap((venue) => withEvidence(`Show ${venue.name} on the map.`).map((query) => ({ query, venue }))))("opens the listed named pub: $query", async ({ query, venue }) => {
