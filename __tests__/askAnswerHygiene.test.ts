@@ -127,7 +127,7 @@ describe("Pal answer hygiene", () => {
     ]);
 
     expect(composeAnswer(merged.hints, merged.cards, merged.toolsUsed)).toBe(
-      "1 pick from the listed pubs, each with its source. The Lamb is listed.",
+      "1 pick from the listed pubs. The Lamb is listed.",
     );
   });
 
@@ -179,7 +179,7 @@ describe("Pal answer hygiene", () => {
       provenance: { label: "On record", kind: "directory" },
     };
     const answer = composeAnswer(["The Lamb is listed."], [card], ["search_venues"]);
-    expect(answer).toBe("1 pick from the listed pubs, each with its source. The Lamb is listed.");
+    expect(answer).toBe("1 pick from the listed pubs. The Lamb is listed.");
 
     const statusAnswer = composeAnswer(
       ["London right now: no tube or weather notes."],
@@ -204,7 +204,7 @@ describe("Pal answer hygiene", () => {
     expect(deskAnswer).toBe("1 place to sit and work.");
 
     const pubAnswer = composeAnswer([], [card], ["search_venues"]);
-    expect(pubAnswer).toBe("1 pick from the listed pubs, each with its source.");
+    expect(pubAnswer).toBe("1 pick from the listed pubs.");
   });
 
   it("counts cards retained after the shared cap", () => {
