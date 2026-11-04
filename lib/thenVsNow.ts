@@ -7,7 +7,7 @@ import { selectedVenuePintEvidence } from "@/lib/comparableVenuePint";
 import { namedLegacyPintPriceSource } from "@/lib/legacyPriceEvidence.mjs";
 import { drinkMeasureName, measureFromServingSize, measureNamedInDrinkText, statedDrinkMeasure, type DrinkMeasure } from "@/lib/drinkMeasure";
 import { drinkAgreementKey } from "@/lib/pintDropAgreement";
-import { pintObservationTime } from "@/lib/comparablePint.mjs";
+import { isComparablePintServing, pintObservationTime } from "@/lib/comparablePint.mjs";
 import { firstHttp } from "@/lib/httpUrl";
 
 // "Then vs Now" — connect a venue's baseline dataset price ("then") to the most
@@ -221,6 +221,8 @@ export type VenuePriceStamp = {
     sourceUrl: string | null;
     recordedAt: string | null;
     dateKind: "read" | "logged";
+    /** A memory can have a known log date without a known price date. */
+    priceDateKnown?: boolean;
     linkUnavailable?: boolean;
   };
 };
@@ -282,6 +284,8 @@ function comparableStoryPrices(baseline: VenuePriceStamp, report: VenuePriceStam
   const baselineAt = pintObservationTime(baseline.evidence.recordedAt, now);
   const reportAt = pintObservationTime(report.evidence.recordedAt, now);
   return baseline.gbp > 0 && report.gbp > 0
+    && baseline.evidence.priceDateKnown !== false && report.evidence.priceDateKnown !== false
+    && baseline.provenance !== "demo" && baseline.provenance !== "anecdote"
     && drinkKey(baseline) !== null && drinkKey(baseline) === drinkKey(report)
     && servingKey(baseline) !== null && servingKey(baseline) === servingKey(report)
     && Boolean(baseline.evidence.publisher && report.evidence.publisher)
@@ -291,13 +295,19 @@ function comparableStoryPrices(baseline: VenuePriceStamp, report: VenuePriceStam
 function communityPriceStamp(drop: VenuePriceStoryDrop, now: number): VenuePriceStamp | null {
   if (!isFiniteNumber(drop.priceGbp)) return null;
   const submittedAt = pintObservationTime(drop.createdAt, now);
-  const isFresh = submittedAt !== null && isWithinMaxAge({ submittedAt }, now);
+  // Only the current log's empty era or explicit Tonight preset dates the
+  // price. Other eras can describe a memory beside an unrelated price.
+  const era = drop.era?.trim().toLowerCase();
+  const priceDateKnown = (!era || era === "tonight") && drop.provenance === "contributor";
+  const isFresh = priceDateKnown && submittedAt !== null && isWithinMaxAge({ submittedAt }, now);
   const freshness = submittedAt === null ? "Log date unknown" : formatFreshness(drop.createdAt, new Date(now));
   return {
     gbp: drop.priceGbp,
     provenance: drop.provenance,
     isFresh,
-    label: submittedAt === null
+    label: !priceDateKnown
+      ? "Reported price"
+      : submittedAt === null
       ? "Community report · log date unknown"
       : isFresh ? "Community tonight" : [freshness, AGED_PRICE_LINE].join(" · "),
     evidence: {
@@ -307,6 +317,7 @@ function communityPriceStamp(drop: VenuePriceStoryDrop, now: number): VenuePrice
       sourceUrl: null,
       recordedAt: submittedAt === null ? null : new Date(submittedAt).toISOString(),
       dateKind: "logged",
+      ...(!priceDateKnown ? { priceDateKnown: false } : {}),
     },
   };
 }
@@ -317,7 +328,9 @@ function priceRecordDate(value: unknown, now: number): string | null {
   return at === null ? null : new Date(at).toISOString();
 }
 
-function baselinePriceStamp(venue: Venue, drops: VenuePriceStoryDrop[], now: number): VenuePriceStamp | null {
+type SelectedPriceRecord = { stamp: VenuePriceStamp; report: VenuePriceStoryDrop | null };
+
+function selectedPriceRecord(venue: Venue, drops: VenuePriceStoryDrop[], now: number): SelectedPriceRecord | null {
   const gbp = venue.cheapestPrice;
   if (!isFiniteNumber(gbp)) return null;
 
@@ -327,63 +340,74 @@ function baselinePriceStamp(venue: Venue, drops: VenuePriceStoryDrop[], now: num
     const update = venue.sourcedPrice;
     const sourceUrl = firstHttp(update.sourceUrl) || null;
     return {
-      gbp,
-      provenance: update.provenance,
-      label: "Listed update on record",
-      evidence: {
-        drink: null,
-        serving: null,
-        publisher: update.sourceLabel.trim() || null,
-        sourceUrl,
-        recordedAt: priceRecordDate(update.observedAt, now),
-        dateKind: "read",
-        ...(update.sourceUrl.trim() && !sourceUrl ? { linkUnavailable: true } : {}),
-      },
-    };
-  }
-
-  if (venue.latestContributorPrice === gbp && venue.latestContributorAt) {
-    const selectedAt = Date.parse(venue.latestContributorAt);
-    const matching = drops.filter((drop) => drop.venueId === venue.id
-      && drop.provenance === "contributor" && drop.priceGbp === gbp
-      && Date.parse(drop.createdAt) === selectedAt && drop.drink === venue.cheapestPint);
-    // Multiple matching reports cannot identify whose attribution was selected.
-    const selectedStamp = matching.length === 1 ? communityPriceStamp(matching[0]!, now) : null;
-    return {
-      ...(selectedStamp ?? {
-        gbp,
-        provenance: "contributor",
-        evidence: {
-          drink: venue.cheapestPint.trim() || null,
-          serving: null,
-          publisher: null,
-          sourceUrl: null,
-          recordedAt: priceRecordDate(venue.latestContributorAt, now),
-          dateKind: "logged",
+      report: null,
+      stamp: {
+          gbp,
+          provenance: update.provenance,
+          label: "Listed update on record",
+          evidence: {
+            drink: null,
+            serving: null,
+            publisher: update.sourceLabel.trim() || null,
+            sourceUrl,
+            recordedAt: priceRecordDate(update.observedAt, now),
+            dateKind: "read",
+            ...(update.sourceUrl.trim() && !sourceUrl ? { linkUnavailable: true } : {}),
+          },
         },
-      }),
-      label: "Community price on record",
-    };
-  }
+      };
+    }
 
-  const selected = selectedVenuePintEvidence(venue, now);
-  const row = venue.prices?.find((price) => price.price_gbp === gbp);
-  const source = row ? namedLegacyPintPriceSource(row) : null;
-  const namedMeasure = measureNamedInDrinkText(selected.cheapestPint ?? "");
-  const legacyServing = row && hasPintPriceSemantics(venue)
-    ? namedMeasure ? drinkMeasureName(namedMeasure).toLowerCase() : "pint"
-    : null;
-  return {
-    gbp,
-    provenance: venue.curation.provenance ?? "sourced",
-    label: "Baseline on record",
-    evidence: {
-      drink: selected.cheapestPint?.trim() || null,
-      serving: selected.measure?.trim() || legacyServing,
-      publisher: selected.priceSource === "app-dataset" ? null : selected.priceSource?.trim() || null,
-      sourceUrl: source?.url ?? null,
-      recordedAt: priceRecordDate(selected.priceObservedAt, now),
-      dateKind: "read",
+    if (venue.latestContributorPrice === gbp && venue.latestContributorAt) {
+      const selectedAt = Date.parse(venue.latestContributorAt);
+      const matching = drops.filter((drop) => drop.venueId === venue.id
+        && drop.provenance === "contributor" && drop.priceGbp === gbp
+        && Date.parse(drop.createdAt) === selectedAt && drop.drink === venue.cheapestPint);
+      // Multiple matching reports cannot identify whose attribution was selected.
+      const selectedStamp = matching.length === 1 ? communityPriceStamp(matching[0]!, now) : null;
+      return {
+        report: matching.length === 1 ? matching[0]! : null,
+        stamp: {
+          ...(selectedStamp ?? {
+            gbp,
+            provenance: "contributor",
+            evidence: {
+              drink: venue.cheapestPint.trim() || null,
+              serving: null,
+              publisher: null,
+              sourceUrl: null,
+              recordedAt: priceRecordDate(venue.latestContributorAt, now),
+              dateKind: "logged",
+              priceDateKnown: false,
+            },
+          }),
+          label: "Community price on record",
+        },
+      };
+    }
+
+    const selected = selectedVenuePintEvidence(venue, now);
+    const row = venue.prices?.find((price) => price.price_gbp === gbp);
+    const source = row ? namedLegacyPintPriceSource(row) : null;
+    const namedMeasure = measureNamedInDrinkText(selected.cheapestPint ?? "");
+    const legacyServing = row && hasPintPriceSemantics(venue)
+      ? namedMeasure ? drinkMeasureName(namedMeasure).toLowerCase()
+        : isComparablePintServing({ cheapestPint: selected.cheapestPint }) ? "pint" : null
+      : null;
+    return {
+      report: null,
+      stamp: {
+      gbp,
+      provenance: venue.curation.provenance ?? "sourced",
+      label: "Baseline on record",
+      evidence: {
+        drink: selected.cheapestPint?.trim() || null,
+        serving: selected.measure?.trim() || legacyServing,
+        publisher: selected.priceSource === "app-dataset" ? null : selected.priceSource?.trim() || null,
+        sourceUrl: source?.url ?? null,
+        recordedAt: priceRecordDate(selected.priceObservedAt, now),
+        dateKind: "read",
+      },
     },
   };
 }
@@ -394,9 +418,11 @@ export function computeVenuePriceStory(
   drops: VenuePriceStoryDrop[],
   now: number = Date.now(),
 ): VenuePriceStory {
-  const baseline = baselinePriceStamp(venue, drops, now);
+  const selected = selectedPriceRecord(venue, drops, now);
   const nowDrop = mostRecentPricedDrop(drops.filter((drop) => drop.venueId === venue.id)) as VenuePriceStoryDrop | null;
   const nowStamp = nowDrop ? communityPriceStamp(nowDrop, now) : null;
+  const sameReport = nowDrop !== null && selected?.report === nowDrop;
+  const baseline = sameReport ? null : selected?.stamp ?? null;
   const comparable = baseline && nowStamp && comparableStoryPrices(baseline, nowStamp, now);
   const deltaGbp = comparable ? nowStamp.gbp - baseline.gbp : null;
   const pct = comparable ? ((nowStamp.gbp - baseline.gbp) / baseline.gbp) * 100 : null;
