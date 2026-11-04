@@ -492,7 +492,7 @@ export default function FirstRunOnboarding({
                 <p className="firstRunEyebrow">Your city</p>
                 <h1>London is ready.</h1>
                 <p className="firstRunLead">
-                  Start in an area we&rsquo;ve checked, with listed pint prices and a way home.
+                  Start with listed pint prices and a way home.
                 </p>
 
                 <div className="firstRunAreaList" aria-label="Reviewed London route areas">
