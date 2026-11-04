@@ -179,7 +179,7 @@ The optional date of birth, full name and sex attached to an authenticated accou
 _Avoid_: Required date of birth, date of birth at signup, public age
 
 **Adult Self-Assertion**:
-The one recorded tap by which an account says it is 18 or over, and the answer PUBMAXX takes where no date of birth is stored. A stored date of birth still decides where there is one, in both directions, so an assertion may answer the age question but never overturn an answer the account already gave. The [contribution access rules](docs/rules/lib-identity-accounts-and-sessions.md#contributing-asks-two-questions-and-the-age-one-is-the-10-aug-rule-s) define where the shared age decision applies.
+The one recorded tap by which an account says it is 18 or over, and the answer PUBMAXX takes where no date of birth is stored. A stored date of birth still decides where there is one, in both directions, so an assertion may answer the age question but never overturn an answer the account already gave. `lib/adultGate.ts` owns this shared age decision. The [contribution access rules](docs/rules/lib-identity-accounts-and-sessions.md#contributing-asks-two-questions-and-the-age-one-is-the-10-aug-rule-s) define where the shared age decision applies.
 _Avoid_: Age verification, identity document check, capability, Social feature flag
 
 **Superseded Round Line**:
