@@ -55,6 +55,37 @@ function post(body: unknown, ip: string): Promise<Response> {
 }
 
 describe("POST /api/ask", () => {
+  it.each(["Show me the map", "Show the map", "Show The Lamb on the map"])("routes genuine map commands beside evidence through HTTP: %s", async (request) => {
+    const evidence = "Show the source and date for any price you use";
+    for (const query of [request, `${evidence}. ${request}`, `${request} and ${evidence}`, `${evidence}. ${request} and ${evidence}`]) {
+      const response = await post({ query, cityId: "london" }, "203.0.113.188");
+      const body = await response.json();
+      expect(response.status).toBe(200);
+      expect(body.toolsUsed).toEqual(["propose_map_action"]);
+    }
+  });
+
+  it.each(["any tube delays?", "How much is a pint at The Lamb?"])("keeps journey endpoints and the second HTTP request around evidence: %s", async (other) => {
+    const journey = "Directions to The Lamb from London Bridge";
+    const evidence = "show the source and date for any price you use";
+    for (const [left, right] of [[journey, other], [other, journey]]) {
+      resetJourneyCache();
+      const journeyFetch = vi.fn<typeof fetch>(async (input, init) => {
+        if (JSON.parse(init?.body as string).params.name !== "get_journey") return offlineFetch(input, init);
+        return Response.json({ jsonrpc: "2.0", result: { structuredContent: { journeys: [{ durationMinutes: 12, legs: [] }] } } });
+      });
+      vi.stubGlobal("fetch", journeyFetch);
+      const query = `${left} and ${evidence} and ${right}`;
+      const response = await post({ query, cityId: "london" }, "203.0.113.188");
+      const body = await response.json();
+      expect(response.status).toBe(200);
+      expect(body.toolsUsed).toEqual(other.includes("tube") ? ["city_status", "journey"] : ["journey", "venue_prices"]);
+      const call = journeyFetch.mock.calls.find(([, init]) => JSON.parse(init?.body as string).params.name === "get_journey");
+      expect(JSON.parse(call?.[1]?.body as string).params.arguments).toEqual({ from: "51.50500,-0.08600", to: "The Lamb" });
+      if (!other.includes("tube")) expect(body.cards.some((card: { place: string }) => card.place === "The Lamb")).toBe(true);
+    }
+  });
+
   it.each(["cheap", "somewhere cheap", "cheap and quiet"])("keeps supported cheap follow-up cards in the inherited area: %s", async (request) => {
     const send = (body: unknown) => post(body, "203.0.113.187");
     const baseline = await send({ query: `${request} in Camden`, cityId: "london" });

@@ -388,3 +388,93 @@ The added HTTP and Vitest cases remain unexecuted.
 No formal lint or type result is claimed.
 Configured Test owns dependency preparation and formal validation before publication.
 Provider-backed replies and production browser results remain unverified.
+
+
+## Review repair round 7: middle evidence and genuine map commands
+
+The starting head was `04d42911d461f1b01448cdcf61b93688835a16eb`.
+Both reported defects reproduced through the exported policy before source edits.
+Middle evidence merged the journey origin with the transit question.
+It also merged a named pint subject with a journey request.
+Both `Show me the map` and `Show the map` became empty semantic requests.
+The initial focused regression run reported six failures and two passes.
+It skipped the remaining 439 tests in that suite.
+
+R11 invariant: Removing presentation instructions must preserve boundaries between surviving requests.
+The affected consumers include journey endpoints, transit, named prices, named hours, listings, discovery, and unsupported-item guards.
+The shared policy now joins surviving spans at sentence boundaries.
+It preserves existing sentence punctuation and punctuation inside venue names.
+
+R12 invariant: A map command must retain map intent when it is the remaining semantic request.
+The policy retains map commands when no other semantic request survives.
+It still removes map presentation instructions beside discovery, planning, prices, hours, and other requests.
+The router no longer restores an erased presentation-only question through its raw-query fallback.
+The complete raw question remains available to reply, memory, and tool execution consumers.
+
+Source tracing covered every shared-policy consumer before the final verification run.
+Journey parsing and price parsing now receive separate clauses in both orders.
+Hours lookup receives the complete named subject beside transit requests.
+The ordinary discovery, planning, follow-up, listing, social, heritage, and map paths retain their existing owners.
+No helper, parameter, or caller became unreachable.
+The protected source files and the separately owned caption assertion remain unchanged.
+
+New executable tests cover both request orders, four boundaries, and repeated evidence instructions.
+They assert exact journey endpoints, named pint subjects, supported hours records, and unsupported food and drink guards.
+Hours fixtures include `The Lamb`, `Mr. Fogg's`, and `Fox and Anchor`.
+The fixtures describe controlled records, not verified opening hours at those pubs.
+The map cases execute the actual `palVoiceMapIntent` function after the shared policy.
+They also check the existing raw generic-map client decision and the actual server router.
+Both HTTP handlers execute genuine generic and named map commands beside evidence instructions.
+Both handlers check mixed journey requests through the outbound journey-service arguments.
+London Bridge uses its existing canonical service coordinate, `51.50500,-0.08600`.
+
+The first complete focused run exposed nine cheap-follow-up regressions from using conjunction separators.
+It also exposed five incorrect new test expectations about default or normalised journey origins.
+The policy now preserves sentence boundaries, including the earlier cheap-follow-up repair.
+The corrected tests distinguish parsed endpoints from service coordinates.
+The final focused run passed all 1,395 tests across eight suites in 5.70 seconds.
+The run used one worker at a time and the existing offline network boundary.
+The suites were `askRouter`, `askRoute`, `pubPalChatRoute`, `conciergeIntent`, `askVenueHours`, `conciergeWhatsOn`, `palMapAsk`, and `palVoiceTranscript`.
+Scoped ESLint passed for the five policy consumers and all eight suites.
+Focused TypeScript checking passed for the same files and their imported dependencies.
+The check used the existing native TypeScript compiler and repository compiler options.
+Its temporary configuration added the existing Next and GeoJSON ambient types.
+No Next compiler or type-generation command ran.
+
+Dependency provenance was checked before and after execution.
+The temporary `node_modules` link targeted the authorised existing dependency directory:
+
+```text
+/Users/karanmanoharan/.no-mistakes/worktrees/0a94b5a8763e/01M6GWEEP8SGPYQ524JFJT6YSQ/node_modules
+```
+
+Both worktrees retained these exact SHA256 hashes:
+
+```text
+package.json       a45af88f650b428894b9b216d29178687edc2bf9dc3a6f4ce1377184863337c5
+package-lock.json  b7b57a95b7c648985e7629ceb22fe13f0d9ba04df19b3514cc6c208a07494bca
+```
+
+The tools reported Node `v26.13.0`, npm `12.2.1`, Vitest `5.0.5`, ESLint `10.14.0`, and native TypeScript `7.0.2`.
+Before focused execution, the capacity sample reported 72.63 percent idle CPU and 5,647 MB unused memory.
+The checks used the existing generated-data restoration wrapper and Vitest setup.
+Temporary Vite and module caches stayed inside this worktree.
+The dependency link, temporary configurations, diagnostics, logs, and caches were removed after execution.
+No dependency installation ran.
+No intentional change targeted the dependency directory.
+
+The final test command used the existing configuration with only local cache paths and test-result caching disabled.
+The command selected `configLoader=runner` to avoid writing a bundled configuration beside the linked dependencies.
+The source file hashes tested by the final focused run were:
+
+```text
+lib/ask/requestPolicy.ts  2b542a020db3fc1755b9e0df6f0fd8d7d149d3352e7bb2deccd125bf4abf911f
+lib/ask/router.ts         a9a3de685265a81822fcea891aa8982eb46bc7cf354427ae1f926bb20de20f7e
+```
+
+These checks prove local deterministic routing and keyless HTTP-handler behaviour.
+They do not prove a provider-backed reply, browser navigation, or production behaviour.
+Generic map navigation remains the existing client decision.
+The server check proves selection of `propose_map_action`, not a new generic map proposal.
+The configured outer Test phase remains authoritative for publication.
+No broad verifier, PostgreSQL proof, build, deployment, migration, push, or merge ran.

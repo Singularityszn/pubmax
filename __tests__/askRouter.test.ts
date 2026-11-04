@@ -2,11 +2,43 @@ import { QUALIFIED_PRICE_REQUESTS } from "./fixtures/askPriceSubjects";
 import { describe, expect, it } from "vitest";
 
 import { isVenueDiscoveryAsk, isVenueHoursQuestion, refineRoutedAskQuery, resolveAskJourney, routeAskDeterministically, socialTurnKind, unsupportedPriceComparison } from "@/lib/ask/router";
+import { palVoiceMapIntent } from "@/lib/palVoiceTranscript";
 import { semanticAskRequest } from "@/lib/ask/requestPolicy";
 import { parseConciergeIntent } from "@/lib/concierge/intent";
 import { ASK_TOOL_NAMES, isAskToolName } from "@/lib/ask/types";
 
 describe("routeAskDeterministically", () => {
+  it.each([
+    { first: "Directions to The Lamb from London Bridge", second: "any tube delays?", tools: ["city_status", "journey"], journey: { from: "London Bridge", to: "The Lamb" } },
+    { first: "How much is a pint at The Lamb", second: "directions to Soho", tools: ["journey", "venue_prices"], journey: { to: "Soho" }, venueName: "The Lamb" },
+    { first: "What are the opening hours at The Lamb", second: "any tube delays?", tools: ["city_status", "search_venues"] },
+    { first: "Show wine prices in Soho", second: "directions to The Lamb from London Bridge", tools: ["journey"], journey: { from: "London Bridge", to: "The Lamb" }, unsupported: "UNSUPPORTED_DRINK_PRICE_COMPARISON" },
+    { first: "Find pubs with burger prices in Soho", second: "directions to The Lamb from London Bridge", tools: ["journey"], journey: { from: "London Bridge", to: "The Lamb" }, unsupported: "UNSUPPORTED_FOOD_PRICE_COMPARISON" },
+  ])("keeps surviving requests separate around middle evidence: $first / $second", ({ first, second, tools, journey, venueName, unsupported }) => {
+    const evidence = "show the source and date for any price you use";
+    for (const [left, right] of [[first, second], [second, first]]) {
+      for (const boundary of [" and ", ". ", ", ", "; "]) {
+        for (const middle of [evidence, `${evidence} and include sources and dates for every price you quote`]) {
+          const query = `${left}${boundary}${middle}${boundary}${right}`;
+          const calls = routeAskDeterministically(query);
+          expect(calls.map((call) => call.name)).toEqual(tools);
+          if (journey) expect(resolveAskJourney(query)).toEqual(journey);
+          if (venueName) expect(calls.find((call) => call.name === "venue_prices")?.args).toEqual({ venueName, query });
+          expect(unsupportedPriceComparison(query)?.code).toBe(unsupported);
+        }
+      }
+    }
+  });
+
+  it.each(["Show me the map", "Show the map", "Show The Lamb on the map"])("keeps genuine map intent through the shared policy: %s", (request) => {
+    const evidence = "Show the source and date for any price you use";
+    for (const query of [request, `${evidence}. ${request}`, `${request} and ${evidence}`, `${evidence}. ${request} and ${evidence}`]) {
+      expect(palVoiceMapIntent(semanticAskRequest(query), false)).toBe(request.includes("Lamb") ? "pub" : "map");
+      if (!request.includes("Lamb")) expect(palVoiceMapIntent(query, false)).toBe("map");
+      expect(routeAskDeterministically(query).map((call) => call.name)).toEqual(["propose_map_action"]);
+    }
+  });
+
   it.each([
     "Quiet-ish near Bank, 4 of us. Show the source and date for any price you use.",
     "Quiet-ish near Bank, 4 of us. Show the map.",
@@ -41,12 +73,6 @@ describe("routeAskDeterministically", () => {
         { name, args: { ...args, ...(queryContext ? { query } : {}) } },
       ]);
     }
-  });
-
-  it.each(["Show the map", "Show the map."])("retains a standalone map action: %s", (query) => {
-    expect(routeAskDeterministically(query)).toEqual([
-      { name: "propose_map_action", args: { venueName: query.endsWith(".") ? "map." : "map" } },
-    ]);
   });
 
   it("uses semantic requests at exported helper boundaries", async () => {

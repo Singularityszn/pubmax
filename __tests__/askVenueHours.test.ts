@@ -30,6 +30,23 @@ afterEach(() => {
 });
 
 describe("recorded opening-hours sources", () => {
+  it.each(["The Lamb", "Mr. Fogg's", "Fox and Anchor"])("keeps the complete hours subject around middle evidence: %s", async (name) => {
+    io.venues.mockResolvedValue([{ id: "venue-hours", name, area: "Bloomsbury", lat: 51.5, lng: -0.1 }]);
+    io.detail.mockResolvedValue({ status: "found", venue: { siteFacts: site } });
+    const hours = `What are the opening hours at ${name}`;
+    const transit = "any tube delays?";
+    const evidence = "show the source and date for any price you use";
+    for (const [left, right] of [[hours, transit], [transit, hours]]) {
+      for (const boundary of [" and ", ". ", ", ", "; "]) {
+        const query = `${evidence}. ${left}${boundary}${evidence}${boundary}${right} and ${evidence}`;
+        const body = await runAsk({ query, now, skipModel: true, fetchImpl: offlineFetch });
+        expect(body.answer).toContain(`${name}: recorded regular opening hours: Thursday 12:00 to 23:00`);
+        expect(body.cards.map((card) => card.venueId)).toContain("venue-hours");
+        expect(body.sources).toContainEqual(expect.objectContaining({ label: `${name} website. Checked 2026-10-20`, url: site.sourceUrl }));
+      }
+    }
+  });
+
   it.each([". ", "? ", "; ", ", ", " and "])("keeps named hours and their source beside evidence separated by %s", async (boundary) => {
     io.venues.mockResolvedValue([{ id: "venue-lamb", name: "The Lamb", area: "Bloomsbury", lat: 51.5, lng: -0.1 }]);
     io.detail.mockResolvedValue({ status: "found", venue: { siteFacts: site } });

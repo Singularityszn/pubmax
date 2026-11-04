@@ -35,6 +35,7 @@ vi.mock("@/lib/palTaste.server", () => ({
   readPalTaste: vi.fn(async () => tasteState.taste),
 }));
 
+import { resetJourneyCache } from "@/lib/citymcp/client";
 import { offlineFetch } from "@/evals/pal/offlineFetch";
 import { POST } from "@/app/api/pub-pal/chat/route";
 import { PAL_ERROR_FALLBACK } from "@/lib/palChat";
@@ -60,6 +61,46 @@ describe("POST /api/pub-pal/chat", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
+  });
+
+  it.each(["Show me the map", "Show the map", "Show The Lamb on the map"])("routes genuine map commands beside evidence in typed chat: %s", async (request) => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
+    vi.stubEnv("TYPESAFE_API_KEY", "");
+    vi.stubGlobal("fetch", offlineFetch);
+    const evidence = "Show the source and date for any price you use";
+    for (const query of [request, `${evidence}. ${request}`, `${request} and ${evidence}`, `${evidence}. ${request} and ${evidence}`]) {
+      const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ query, cityId: "london" }),
+      }));
+      const body = await response.json();
+      expect(response.status).toBe(200);
+      expect(body.toolsUsed).toEqual(["propose_map_action"]);
+    }
+  });
+
+  it.each(["any tube delays?", "How much is a pint at The Lamb?"])("keeps journey endpoints and the second typed request around evidence: %s", async (other) => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
+    vi.stubEnv("TYPESAFE_API_KEY", "");
+    const journey = "Directions to The Lamb from London Bridge";
+    const evidence = "show the source and date for any price you use";
+    for (const [left, right] of [[journey, other], [other, journey]]) {
+      resetJourneyCache();
+      const journeyFetch = vi.fn<typeof fetch>(async (input, init) => {
+        if (JSON.parse(init?.body as string).params.name !== "get_journey") return offlineFetch(input, init);
+        return Response.json({ jsonrpc: "2.0", result: { structuredContent: { journeys: [{ durationMinutes: 12, legs: [] }] } } });
+      });
+      vi.stubGlobal("fetch", journeyFetch);
+      const query = `${left} and ${evidence} and ${right}`;
+      const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ query, cityId: "london" }),
+      }));
+      const body = await response.json();
+      expect(response.status).toBe(200);
+      expect(body.toolsUsed).toEqual(other.includes("tube") ? ["city_status", "journey"] : ["journey", "venue_prices"]);
+      const call = journeyFetch.mock.calls.find(([, init]) => JSON.parse(init?.body as string).params.name === "get_journey");
+      expect(JSON.parse(call?.[1]?.body as string).params.arguments).toEqual({ from: "51.50500,-0.08600", to: "The Lamb" });
+      if (!other.includes("tube")) expect(body.cards.some((card: { place: string }) => card.place === "The Lamb")).toBe(true);
+    }
   });
 
   it.each(QUANTITY_FITNESS_CASES.flatMap((entry) => (["current", "user", "assistant"] as const).map((role) => ({ ...entry, role }))))(

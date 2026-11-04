@@ -519,7 +519,7 @@ function requestedVenueCount(query: string): number | null {
  */
 export function routeAskDeterministically(query: string): RoutedToolCall[] {
   const rawQuery = query.trim();
-  const text = semanticAskRequest(rawQuery) || rawQuery;
+  const text = semanticAskRequest(rawQuery);
   if (!text) return [];
   const priceIntent = resolveAskPriceIntent(text);
 
