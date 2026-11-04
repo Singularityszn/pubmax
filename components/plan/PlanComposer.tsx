@@ -884,6 +884,11 @@ function readComposerRouteDraft(): {
   };
 }
 
+function acceptedAnchorForPlanDraft(anchor: ComposerHydration["acceptedAnchor"] | undefined, firstVenueId: string | undefined): StoredPlanDraft["acceptedAnchor"] {
+  return anchor?.expiresAt && firstVenueId === anchor.venueId
+    ? { ...anchor, expiresAt: anchor.expiresAt } : undefined;
+}
+
 function samePlanRequest(left: StoredPlanDraft, right: StoredPlanDraft | null | undefined): boolean {
   return Boolean(right && (["title", "creatorName", "startTime", "conciergeQuery", "requestedStopCount", "requestedStopCountSource", "acceptedAnchor"] as const)
     .every((field) => JSON.stringify(left[field]) === JSON.stringify(right[field])));
@@ -933,7 +938,37 @@ function persistComposerRouteDraft(routeDraft: StoredRouteDraft, mayWrite: boole
         && composerRouteContent(remaining) === composerRouteContent(routeDraft));
     }
   }
-  return { hasRouteDetails, routeSaved, previewSaved };
+  return { hasRouteDetails, routeSaved, previewSaved, routeReference: composerRouteReference(routeDraft, routeSaved) };
+}
+
+function composerRouteReference(routeDraft: StoredRouteDraft, saved: boolean): StoredPlanDraft["routeReference"] {
+  const stored = saved ? readComposerRouteDraft().envelope : null;
+  return stored && stored.savedAt && !stored.value.routeStale && !routeDraft.routeStale
+    && stored.savedAt === routeDraft.savedAt && stored.value.operationKey === routeDraft.createOperationKey
+    && stored.value.operationKey && stored.value.groundingProof
+    ? { savedAt: stored.savedAt, operationKey: stored.value.operationKey } : undefined;
+}
+
+type ComposerDraftSaveFailure = "all" | "route" | "route-details" | "description" | "request" | null;
+
+function composerDraftSaveFailure(input: {
+  hasWork: boolean;
+  sessionWrite: { v1: boolean; v2: boolean };
+  intakeSaved: boolean;
+  hasStops: boolean;
+  routeSaved: boolean;
+  previewSaved: boolean;
+  hasRouteDetails: boolean;
+  requestChanged: boolean;
+  descriptionChanged: boolean;
+}): ComposerDraftSaveFailure {
+  const { v1, v2 } = input.sessionWrite;
+  if (input.hasWork && !v1 && !v2 && !input.intakeSaved) return "all";
+  if (input.hasStops && !input.routeSaved && !input.previewSaved && (input.hasRouteDetails || (!v1 && !v2))) {
+    return v1 && v2 ? "route-details" : "route";
+  }
+  if ((!v1 || !v2) && input.requestChanged) return input.descriptionChanged ? "description" : "request";
+  return null;
 }
 
 export type NightAreaSelectorGroup = {
@@ -1670,7 +1705,7 @@ function PlanComposerForm({
       : draft;
   });
   const requestedStopCount = planIntake.answers.stopCount;
-  const [draftSaveFailure, setDraftSaveFailure] = useState<"all" | "route" | "route-details" | "description" | null>(null);
+  const [draftSaveFailure, setDraftSaveFailure] = useState<ComposerDraftSaveFailure>(null);
   const [entryMode, setEntryMode] = useState<"describe" | "wizard">(initialEntryMode);
   const [askDraftQuery, setAskDraftQuery] = useState(urlAsk ?? "");
   const askDraftConsumedRef = useRef(false);
@@ -1682,7 +1717,20 @@ function PlanComposerForm({
   // The planner's report line for the route it last built, with the stops it
   // was about, so the lock hands the plan card a line only for that route.
   const generatedReportRef = useRef<{ line: string; venueIds: string } | null>(null);
-  function adoptFreshAsk(query: string) {
+  // WHETHER THE GENERATOR HAS ANSWERED, which is the moment the page's one
+  // painted primary becomes `Lock it in` and the concierge control above steps
+  // back. It is NOT "a Stop names a pub": a held acceptance seeds Stop 1 and
+  // has no route at all, and asking the stops made `Make a plan` disappear on
+  // exactly the surface that still needs it (e2e/plan-held-acceptance.spec.ts).
+  // A recovered route draft IS a route, so it seeds this true.
+  const [routeSorted, setRouteSorted] = useState(Boolean(recoveredRouteDraft));
+  const routeSaveRevoked = useRef(Boolean(urlAsk));
+  const adoptFreshAsk = useCallback((query: string) => {
+    routeSaveRevoked.current = true;
+    setRouteStale(routeSorted);
+    setGroundingProof(null);
+    setCreateOperationKey(null);
+    setRouteStatus("Your new description needs a fresh route before you lock it in.");
     setAskDraftQuery(query);
     setConciergeQuery(query);
     setExplicitNightContext({});
@@ -1695,7 +1743,7 @@ function PlanComposerForm({
         matchPlanStopCount(query) === undefined ? undefined : "text",
       ).draft;
     });
-  }
+  }, [routeSorted]);
   useLayoutEffect(() => {
     if (!canPersist) return;
     const fresh = describeAskFromLocation();
@@ -1703,6 +1751,7 @@ function PlanComposerForm({
     if (appliedUrlAskRef.current === fresh.ask) return;
     const ask = fresh.ask;
     appliedUrlAskRef.current = ask;
+    routeSaveRevoked.current = true;
     const opensDescribeFirstForHandoff =
       Boolean(fresh.handoffAsk) && hasDurableIntakeDraft && !recoveredIntake.completed;
     // Deferred out of the effect body (react-hooks/set-state-in-effect). The
@@ -1712,42 +1761,43 @@ function PlanComposerForm({
       adoptFreshAsk(ask);
       if (opensDescribeFirstForHandoff) setEntryMode("describe");
     });
-  }, [canPersist, pathname, heldVenueId, recoveredIntake.completed, hasDurableIntakeDraft]);
+  }, [canPersist, pathname, heldVenueId, recoveredIntake.completed, hasDurableIntakeDraft, adoptFreshAsk]);
   useEffect(() => {
     // The URL ask is already in state; this effect exists to SPEND the draft,
     // which is a storage write and so waits for a browser that can persist.
     if (!canPersist) return;
     if (askDraftConsumedRef.current) return;
     askDraftConsumedRef.current = true;
-    void Promise.resolve().then(() => {
+    try {
+      // The ask draft is one-shot, so it is SPENT whichever prefill wins: a
+      // URL that carries its own describe used to leave the draft behind for
+      // the next /plan visit to open on somebody's earlier ask.
+      let raw: string | null = null;
       try {
-        // The ask draft is one-shot, so it is SPENT whichever prefill wins: a
-        // URL that carries its own describe used to leave the draft behind for
-        // the next /plan visit to open on somebody's earlier ask.
-        let raw: string | null = null;
-        try {
-          const askDraftStore = safeSessionStorage();
-          raw = askDraftStore?.getItem(ASK_PLAN_DRAFT_STORAGE_KEY) ?? null;
-          if (raw) askDraftStore?.removeItem(ASK_PLAN_DRAFT_STORAGE_KEY);
-        } catch {
-          raw = null;
-        }
-        // The address is re-read HERE rather than closed over: this effect is
-        // scheduled by the mount render, which on a client-side navigation
-        // still saw the previous route, so a captured ask would read as none
-        // and hand the field back to the draft the URL just beat.
-        const askOnScreen = describeAskFromLocation().ask ?? appliedUrlAskRef.current;
-        if (askOnScreen || !raw) return;
-        const parsed = JSON.parse(raw) as AskPlanDraft;
-        const query = typeof parsed?.query === "string" ? parsed.query.trim().slice(0, 500) : "";
-        if (!query) return;
+        const askDraftStore = safeSessionStorage();
+        raw = askDraftStore?.getItem(ASK_PLAN_DRAFT_STORAGE_KEY) ?? null;
+        if (raw) askDraftStore?.removeItem(ASK_PLAN_DRAFT_STORAGE_KEY);
+      } catch {
+        raw = null;
+      }
+      // The address is re-read HERE rather than closed over: this effect is
+      // scheduled by the mount render, which on a client-side navigation
+      // still saw the previous route, so a captured ask would read as none
+      // and hand the field back to the draft the URL just beat.
+      const askOnScreen = describeAskFromLocation().ask ?? appliedUrlAskRef.current;
+      if (askOnScreen || !raw) return;
+      const parsed = JSON.parse(raw) as AskPlanDraft;
+      const query = typeof parsed?.query === "string" ? parsed.query.trim().slice(0, 500) : "";
+      if (!query) return;
+      routeSaveRevoked.current = true;
+      void Promise.resolve().then(() => {
         adoptFreshAsk(query);
         if (hasDurableIntakeDraft && !recoveredIntake.completed) setEntryMode("describe");
-      } catch {
-        /* private mode or bad JSON */
-      }
-    });
-  }, [canPersist, hasDurableIntakeDraft, recoveredIntake.completed]);
+      });
+    } catch {
+      /* private mode or bad JSON */
+    }
+  }, [canPersist, hasDurableIntakeDraft, recoveredIntake.completed, adoptFreshAsk]);
   const palHandoffAutoGenerateStartedRef = useRef(false);
   // D3: a generated route must be SEEN. The reveal is requested by the
   // generation success path and runs in an effect, because on a describe-first
@@ -1830,17 +1880,14 @@ function PlanComposerForm({
   const [routeRevision, setRouteRevision] = useState<RouteRevision | null>(routeDraftFields.routeRevision);
   const [routeNight, setRouteNight] = useState<RouteNight | null>(routeDraftFields.routeNight);
   const [routeStale, setRouteStale] = useState(routeDraftFields.routeStale);
-  // WHETHER THE GENERATOR HAS ANSWERED, which is the moment the page's one
-  // painted primary becomes `Lock it in` and the concierge control above steps
-  // back. It is NOT "a Stop names a pub": a held acceptance seeds Stop 1 and
-  // has no route at all, and asking the stops made `Make a plan` disappear on
-  // exactly the surface that still needs it (e2e/plan-held-acceptance.spec.ts).
-  // A recovered route draft IS a route, so it seeds this true.
-  const [routeSorted, setRouteSorted] = useState(Boolean(recoveredRouteDraft));
+
   const [groundingProof, setGroundingProof] = useState(routeDraftFields.groundingProof);
   const [createOperationKey, setCreateOperationKey] = useState(routeDraftFields.createOperationKey);
   const [planAnchor, setPlanAnchor] = useState(routeDraftFields.planAnchor);
   const [successfulGeneration, setSuccessfulGeneration] = useState(0);
+  useLayoutEffect(() => {
+    if (successfulGeneration > 0) routeSaveRevoked.current = false;
+  }, [successfulGeneration]);
   const routeCopy = useRef({
     identity: JSON.stringify({ stops: recoveredRouteDraft?.stops, planAnchor: recoveredRouteDraft?.planAnchor, nightContext: recoveredRouteDraft?.nightContext }),
     content: composerRouteContent(recoveredRouteDraft),
@@ -2029,42 +2076,14 @@ function PlanComposerForm({
   }, [recoveredDraft]);
 
   useEffect(() => {
-    if (!canPersist) return;
+    if (!canPersist || (routeSaveRevoked.current && routeSorted && !routeStale)) return;
     const acceptedAnchor = handoff?.acceptedAnchor;
-    const persistedAcceptedAnchor = acceptedAnchor?.expiresAt
-      && stops[0]?.venueId === acceptedAnchor.venueId
-      ? { ...acceptedAnchor, expiresAt: acceptedAnchor.expiresAt }
-      : null;
+    const persistedAcceptedAnchor = acceptedAnchorForPlanDraft(acceptedAnchor, stops[0]?.venueId);
     const savedAt = Date.now();
     const intakeChanged = JSON.stringify(planIntake)
       !== JSON.stringify(applyPlanStopCount(recoveredIntake, null, recoveredIntent.stopCount, recoveredIntent.stopCountSource).draft);
     const previousIntake = readPlanIntakeDraftWithMetadata();
     const sameIntake = previousIntake && JSON.stringify(planIntake) === JSON.stringify(previousIntake.draft);
-    const sessionDraft = {
-      title,
-      creatorName,
-      startTime,
-      conciergeQuery,
-      stops,
-      ...(requestedStopCount !== undefined ? { requestedStopCount } : {}),
-      requestedStopCountSource: planIntake.answers.stopCountSource,
-      ...(persistedAcceptedAnchor ? { acceptedAnchor: persistedAcceptedAnchor } : {}),
-    };
-    const previousSession = readPlanDraftEnvelope(safeSessionStorage());
-    const sameRequest = samePlanRequest(sessionDraft, previousSession?.draft);
-    const intakeWasEdited = previousIntake && JSON.stringify(previousIntake.draft) !== JSON.stringify(recoveredIntake);
-    const requestChanged = intakeChanged || Boolean(recoveredDraft && intakeWasEdited && !sameIntake)
-      || Boolean(recoveredDraft && previousSession && !sameRequest)
-      || !samePlanRequest(sessionDraft, {
-        title: recoveredRequestTitle,
-        creatorName: recoveredRequestCreator,
-        startTime: recoveredRequestStart,
-        conciergeQuery: recoveredIntent.conciergeQuery,
-        requestedStopCount: recoveredIntent.stopCount,
-        requestedStopCountSource: recoveredIntent.stopCountSource,
-        acceptedAnchor: recoveredDraft?.acceptedAnchor,
-        stops: [],
-      });
     const routeDraft = {
       stops,
       nightContext,
@@ -2086,34 +2105,58 @@ function PlanComposerForm({
     }
     routeCopy.current.content = content;
     routeCopy.current.pending = false;
-    const { hasRouteDetails, routeSaved: routeCopySaved, previewSaved } = persistComposerRouteDraft({
+    const { hasRouteDetails, routeSaved, previewSaved, routeReference } = persistComposerRouteDraft({
       ...routeDraft,
       savedAt: routeCopy.current.savedAt,
     }, mayWrite);
+    const sessionDraft = {
+      title,
+      creatorName,
+      startTime,
+      conciergeQuery,
+      stops,
+      ...(routeReference ? { routeReference } : {}),
+      ...(requestedStopCount !== undefined ? { requestedStopCount } : {}),
+      requestedStopCountSource: planIntake.answers.stopCountSource,
+      ...(persistedAcceptedAnchor ? { acceptedAnchor: persistedAcceptedAnchor } : {}),
+    };
+    const previousSession = readPlanDraftEnvelope(safeSessionStorage());
+    const sameRequest = samePlanRequest(sessionDraft, previousSession?.draft);
+    const intakeWasEdited = previousIntake && JSON.stringify(previousIntake.draft) !== JSON.stringify(recoveredIntake);
+    const requestChanged = intakeChanged || Boolean(recoveredDraft && intakeWasEdited && !sameIntake)
+      || Boolean(recoveredDraft && previousSession && !sameRequest)
+      || !samePlanRequest(sessionDraft, {
+        title: recoveredRequestTitle,
+        creatorName: recoveredRequestCreator,
+        startTime: recoveredRequestStart,
+        conciergeQuery: recoveredIntent.conciergeQuery,
+        requestedStopCount: recoveredIntent.stopCount,
+        requestedStopCountSource: recoveredIntent.stopCountSource,
+        acceptedAnchor: recoveredDraft?.acceptedAnchor,
+        stops: [],
+      });
     const routeSavedAt = Date.parse(routeCopy.current.savedAt ?? "");
     const previousRequestTime = sameRequest && previousSession ? Date.parse(previousSession.savedAt ?? "") : NaN;
     const previousIntakeTime = sameIntake ? Date.parse(previousIntake.savedAt) : NaN;
     const sessionSavedAt = planRequestSaveTime(requestChanged, savedAt, [routeSavedAt, previousRequestTime, previousIntakeTime]);
-    const routeSaved = routeCopySaved && sessionSavedAt === routeSavedAt;
     const sessionWrite = writePlanDraftEnvelope(sessionDraft,
       persistedAcceptedAnchor ? "planning-intent" : "manual", safeSessionStorage(), sessionSavedAt);
     const intakeSaved = hasDurableIntakeDraft || intakeChanged || (!previousIntake && requestedStopCount !== undefined)
-      ? writePlanIntakeDraft(planIntake, undefined, sessionSavedAt)
+      ? writePlanIntakeDraft(planIntake, undefined, sessionSavedAt, sessionDraft.routeReference)
       : false;
     const hasStops = stops.some((stop) => stop.venueId || stop.venueName);
     const hasWork = intakeChanged || hasStops;
     let cancelled = false;
     void Promise.resolve().then(() => {
-      if (!cancelled) setDraftSaveFailure(
-        hasWork && !sessionWrite.v1 && !sessionWrite.v2 && !intakeSaved
-          ? "all"
-          : hasStops && !routeSaved && !previewSaved && (hasRouteDetails || (!sessionWrite.v1 && !sessionWrite.v2))
-            ? sessionWrite.v1 && sessionWrite.v2 ? "route-details" : "route"
-            : conciergeQuery.trim() && (!sessionWrite.v1 || !sessionWrite.v2) ? "description" : null,
-      );
+      if (!cancelled) setDraftSaveFailure(composerDraftSaveFailure({
+        hasWork, sessionWrite, intakeSaved, hasStops,
+        routeSaved: routeSaved && (sessionSavedAt === routeSavedAt || Boolean(routeReference)),
+        previewSaved, hasRouteDetails, requestChanged,
+        descriptionChanged: Boolean(conciergeQuery.trim()) && conciergeQuery !== previousSession?.draft.conciergeQuery,
+      }));
     });
     return () => { cancelled = true; };
-  }, [canPersist, conciergeQuery, createOperationKey, creatorName, explicitNightContext, groundingProof, handoff?.acceptedAnchor, hasDurableIntakeDraft, nightContext, planAnchor, planIntake, recoveredDraft, recoveredIntake, recoveredIntent, recoveredRequestCreator, recoveredRequestStart, recoveredRequestTitle, requestedStopCount, routeNight, routeRevision, routeStale, successfulGeneration, startTime, stops, title]);
+  }, [canPersist, conciergeQuery, createOperationKey, creatorName, explicitNightContext, groundingProof, handoff?.acceptedAnchor, hasDurableIntakeDraft, nightContext, planAnchor, planIntake, recoveredDraft, recoveredIntake, recoveredIntent, recoveredRequestCreator, recoveredRequestStart, recoveredRequestTitle, requestedStopCount, routeNight, routeRevision, routeSorted, routeStale, successfulGeneration, startTime, stops, title]);
 
   useEffect(() => {
     if (hasDurableIntakeDraft) return;
@@ -2654,7 +2697,7 @@ function PlanComposerForm({
       setError(stopCountError);
       return;
     }
-    if (routeStale) {
+    if (routeSaveRevoked.current || routeStale) {
       setError("Refresh the route before locking it in. Your previous preview is still safe.");
       setRouteStatus("The route is still a preview because its context changed. Refresh it before locking.");
       return;
@@ -2791,6 +2834,8 @@ function PlanComposerForm({
       ? "Your route could not be saved on this device. Keep this page open to keep it."
       : draftSaveFailure === "route-details"
         ? "Your stops were saved, but your route details, checks and starting pub could not be saved. Keep this page open to keep them."
+        : draftSaveFailure === "request"
+          ? "Your plan details could not be saved on this device. Keep this page open to keep them."
         : draftSaveFailure === "description"
           ? "Your description could not be saved on this device. Keep this page open to keep it."
           : "";

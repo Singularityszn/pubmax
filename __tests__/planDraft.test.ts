@@ -85,3 +85,34 @@ describe("parsePlanDraft", () => {
     expect(parsePlanDraft(JSON.stringify({ title: "x".repeat(201) }))).toBeNull();
   });
 });
+
+it.each([
+  undefined, null, {}, { savedAt: "yesterday", operationKey: "operation-1" },
+  { savedAt: "2026-11-03T12:00:00.000Z", operationKey: "" },
+  { savedAt: "2026-11-03T12:00:00.000Z", operationKey: "x".repeat(121) },
+  { savedAt: "2026-11-03T12:00:00.000Z", operationKey: " operation-1" },
+  { savedAt: "2026-11-03T12:00:00.000Z", operationKey: "operation-1", proof: "unexpected" },
+])("keeps editable work when an optional route reference is invalid: %j", (routeReference) => {
+  const now = Date.parse("2026-11-03T12:00:01.000Z");
+  const values = new Map<string, string>();
+  const storage = { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value); } };
+  writePlanDraftEnvelope({ title: "Night", creatorName: "Captain", startTime: "", conciergeQuery: "", stops: [{ key: 1, venueId: "venue-a", venueName: "Pub A" }] }, "manual", storage, now);
+  const envelope = JSON.parse(values.get("pubmax:plan-draft:v2")!);
+  envelope.draft.routeReference = routeReference;
+  values.set("pubmax:plan-draft:v2", JSON.stringify(envelope));
+  const restored = readPlanDraftEnvelope(storage, now);
+  expect(restored).toMatchObject({ storageVersion: 2, draft: { title: "Night", stops: [{ venueId: "venue-a" }] } });
+  expect(restored?.draft).not.toHaveProperty("routeReference");
+  expect(parsePlanDraft(JSON.stringify(envelope.draft), now)).not.toHaveProperty("routeReference");
+});
+
+it("round trips a bounded route reference without copying generated evidence into the request", () => {
+  const now = Date.parse("2026-11-03T12:00:01.000Z");
+  const routeReference = { savedAt: "2026-11-03T12:00:00.000Z", operationKey: "operation-1" };
+  const draft = { title: "Night", creatorName: "Captain", startTime: "", conciergeQuery: "", stops: [{ key: 1, venueId: "venue-a", venueName: "Pub A" }], routeReference };
+  const values = new Map<string, string>();
+  const storage = { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value); } };
+  expect(writePlanDraftEnvelope(draft, "manual", storage, now)).toMatchObject({ v1: true, v2: true });
+  expect(readPlanDraftEnvelope(storage, now)?.draft).toEqual(draft);
+  expect(parsePlanDraft(values.get("pubmaxx:plan-draft:v1")!, now)).toEqual(draft);
+});

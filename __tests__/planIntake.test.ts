@@ -17,6 +17,7 @@ import {
   londonNightsAhead,
   nextLondonOccurrenceIso,
   parsePlanIntakeDraft,
+  parsePlanIntakeDraftWithMetadata,
   planIntakeHandoff,
   planIntakeNightContextPatch,
   planIntakeStepHasAnswer,
@@ -665,3 +666,17 @@ describe("intake accessibility and entry invariants", () => {
     expect(html).toContain('href="/pal/chat"');
   });
 });
+
+it.each([undefined, null, {}, { savedAt: "yesterday", operationKey: "operation-1" }])(
+  "does not discard valid intake answers when route correlation is unknown: %j", (routeReference) => {
+    const now = Date.parse("2026-11-03T12:00:01.000Z");
+    const draft = createPlanIntakeDraft();
+    const envelope = {
+      storageVersion: 1, savedAt: new Date(now).toISOString(), expiresAt: new Date(now + 60_000).toISOString(),
+      draft: { ...draft, answers: { ...draft.answers, stopCount: 5, stopCountSource: "picker" } }, routeReference,
+    };
+    const parsed = parsePlanIntakeDraftWithMetadata(JSON.stringify(envelope), now);
+    expect(parsed?.draft.answers).toMatchObject({ stopCount: 5, stopCountSource: "picker" });
+    expect(parsed?.routeReference).toBeUndefined();
+  },
+);

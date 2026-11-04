@@ -1224,3 +1224,246 @@ it("keeps deliberate add and remove counts distinct from picker events after rel
   await sortAgainFromTune();
   expect(reconciledGenerationContext().stopCount).toBe(1);
 });
+
+
+function generatedProofFixture(stopCount: 1 | 3 = 1) {
+  const payload = btoa(JSON.stringify({ v: 1, expiresAt: T0 + 3_600_000 }));
+  return {
+    ...GENERATED,
+    stops: stopCount === 1 ? GENERATED.stops : [
+      { venueId: "venue-a", venueName: "Pub A" },
+      { venueId: "venue-b", venueName: "Pub B" },
+      { venueId: "venue-c", venueName: "Pub C" },
+    ],
+    inferredContext: { ...GENERATED.inferredContext, stopCount },
+    groundingProof: `${payload}.test-only-signature`, operationKey: "proof-operation",
+    outcome: "unanchored", anchorVenueId: null, anchorSource: null,
+  };
+}
+
+it.each([
+  {selector:"#plan-title", value:"Our next night"},
+  {selector:"#plan-name", value:"Sam"},
+])("retains the generated route after a request-only $selector edit and reload", async ({selector,value}) => {
+  const advance = pinClock();
+  const generated = generatedProofFixture();
+  fetchMock.mockImplementation(async (input) => new Response(JSON.stringify(String(input).includes("/api/plans/generate") ? generated : []), {status:200,headers:{"content-type":"application/json"}}));
+  await generateFromDescription();
+  await editInput("#plan-name", "Captain");
+  const originalRoute = localStorage.getItem(PLAN_ROUTE_DRAFT_KEY);
+  advance(1000);
+  await editInput(selector, value);
+  expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(originalRoute);
+  expect(readPlanDraftEnvelope(sessionStorage)).toMatchObject({
+    savedAt: "2026-11-03T12:00:01.000Z",
+    draft: { routeReference: { savedAt: "2026-11-03T12:00:00.000Z", operationKey: "proof-operation" } },
+  });
+  expect(document.body.textContent).not.toContain("could not be saved");
+  advance(2000);
+  await remountComposer();
+  expect(document.querySelector("#plan-lock-hint")?.textContent ?? "").not.toContain("Refresh the route");
+  expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(originalRoute);
+  expect(await saveRoute()).toMatchObject({ groundingProof: generated.groundingProof, context: generated.inferredContext });
+});
+
+it("prevents locking the prior three-stop route after confirming a new one-pub session Ask", async () => {
+  const advance = pinClock();
+  const generated = generatedProofFixture(3);
+  fetchMock.mockImplementation(async (input) => new Response(JSON.stringify(String(input).includes("/api/plans/generate") ? generated : []), {status:200,headers:{"content-type":"application/json"}}));
+  await generateFromDescription();
+  await editInput("#plan-name", "Captain");
+  sessionStorage.setItem(ASK_PLAN_DRAFT_STORAGE_KEY, JSON.stringify({query:"One pub in Clapham tonight"}));
+  advance(1000);
+  await remountComposer();
+  expect(readPlanDraftEnvelope(sessionStorage)?.draft.requestedStopCount).toBe(1);
+  await act(async () => document.querySelector<HTMLFormElement>("#plan-composer")!.requestSubmit());
+  const writes = fetchMock.mock.calls.filter(([input]) => String(input) === "/api/plans");
+  expect(writes).toHaveLength(0);
+  expect(document.querySelector("#plan-lock-hint")?.textContent).toContain("Refresh the route");
+});
+
+async function generateProofRoute(stopCount: 1 | 3 = 1): Promise<ReturnType<typeof generatedProofFixture>> {
+  const generated = generatedProofFixture(stopCount);
+  fetchMock.mockImplementation(async (input) => new Response(JSON.stringify(
+    String(input).includes("/api/plans/generate") ? generated : [],
+  ), { status: 200, headers: { "content-type": "application/json" } }));
+  await generateFromDescription();
+  await editInput("#plan-name", "Captain");
+  return generated;
+}
+
+function expectNoRouteSave(): void {
+  expect(fetchMock.mock.calls.filter(([input]) => String(input) === "/api/plans")).toHaveLength(0);
+}
+
+async function attemptRouteSave(): Promise<void> {
+  await act(async () => { document.querySelector<HTMLFormElement>("#plan-composer")!.requestSubmit(); });
+  expectNoRouteSave();
+}
+
+it.each(["both", "session-only", "local-only", "intake-only", "neither"] as const)(
+  "reports request persistence independently of its retained route: %s", async (available) => {
+    const advance = pinClock();
+    const generated = await generateProofRoute();
+    const originalRoute = localStorage.getItem(PLAN_ROUTE_DRAFT_KEY);
+    const session = available === "local-only" || available === "intake-only" || available === "neither"
+      ? blockStorageWrites("sessionStorage") : sessionStorage;
+    const local = available === "session-only" || available === "neither" ? blockStorageWrites("localStorage")
+      : available === "intake-only" ? rejectRouteWrites([PLAN_ROUTE_DRAFT_KEY, PLAN_ROUTE_DRAFT_V2_KEY]) : localStorage;
+    advance(1000);
+    await editInput("#plan-title", "Our next night");
+    expect(local.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(originalRoute);
+    if (available === "both" || available === "local-only" || available === "intake-only") {
+      expect(readPlanIntakeDraftWithMetadata(local)).toMatchObject({
+        savedAt: "2026-11-03T12:00:01.000Z",
+        routeReference: { savedAt: "2026-11-03T12:00:00.000Z", operationKey: "proof-operation" },
+      });
+    }
+    expect(readPlanDraftEnvelope(session)?.draft.title).toBe(available === "both" || available === "session-only" ? "Our next night" : "Tonight, sorted");
+    if (available === "both" || available === "session-only") {
+      expect(document.body.textContent).not.toContain("could not be saved");
+    } else {
+      expect(document.body.textContent).toContain("could not be saved");
+    }
+    advance(2000);
+    await remountComposer();
+    expect(document.querySelector(".planStop__name")?.textContent).toBe("Pub A");
+    expect((await saveRoute()).groundingProof).toBe(generated.groundingProof);
+  },
+);
+
+it.each([false, true])("does not attach a same-ID older route after a failed new route save, session blocked: %s", async (sessionBlocked) => {
+  const advance = pinClock();
+  await generateProofRoute();
+  const oldRoute = localStorage.getItem(PLAN_ROUTE_DRAFT_KEY);
+  const local = rejectRouteWrites([PLAN_ROUTE_DRAFT_KEY, PLAN_ROUTE_DRAFT_V2_KEY]);
+  if (sessionBlocked) blockStorageWrites("sessionStorage");
+  advance(1000);
+  await openTune();
+  const replacement = {
+    ...generatedProofFixture(), operationKey: "replacement-operation",
+    inferredContext: { ...GENERATED.inferredContext, transportConstraints: ["walking"] },
+  };
+  fetchMock.mockImplementation(async () => new Response(JSON.stringify(replacement), { status: 200, headers: { "content-type": "application/json" } }));
+  await sortAgainFromTune();
+  expect(local.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(oldRoute);
+  expect(document.body.textContent).toContain("could not be saved");
+  if (!sessionBlocked) expect(readPlanDraftEnvelope(sessionStorage)?.draft.routeReference).toBeUndefined();
+  advance(2000);
+  await remountComposer();
+  expect(document.querySelector(".planStop__name")?.textContent).toBe("Pub A");
+  await editInput("#plan-time", START);
+  expect(document.querySelector("#plan-lock-hint")?.textContent).toContain("Refresh the route");
+  await attemptRouteSave();
+});
+
+it("assigns a new reference to a successful same-ID generation without redating unchanged copies", async () => {
+  const advance = pinClock();
+  await generateProofRoute();
+  await openTune();
+  advance(1000);
+  fetchMock.mockImplementation(async () => new Response(JSON.stringify({ ...generatedProofFixture(), operationKey: "replacement-operation" }), { status: 200, headers: { "content-type": "application/json" } }));
+  await sortAgainFromTune();
+  const route = localStorage.getItem(PLAN_ROUTE_DRAFT_KEY);
+  const writerDate = JSON.parse(route!).savedAt;
+  expect(Date.parse(writerDate)).toBeGreaterThan(T0);
+  expect(readPlanDraftEnvelope(sessionStorage)?.draft.routeReference).toEqual({ savedAt: writerDate, operationKey: "replacement-operation" });
+  advance(2000);
+  await remountComposer();
+  advance(3000);
+  await remountComposer();
+  expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(route);
+  expect((await saveRoute()).groundingProof).toBe(generatedProofFixture().groundingProof);
+});
+
+it("blocks the old submit handler before the session Ask's deferred state update", async () => {
+  pinClock();
+  await generateProofRoute(3);
+  const session = sessionStorage;
+  session.setItem(ASK_PLAN_DRAFT_STORAGE_KEY, JSON.stringify({ query: "One pub in Clapham tonight" }));
+  let attempted = false;
+  vi.stubGlobal("sessionStorage", {
+    getItem: (key: string) => {
+      const value = session.getItem(key);
+      if (key === ASK_PLAN_DRAFT_STORAGE_KEY && value) queueMicrotask(() => {
+        attempted = true;
+        document.querySelector<HTMLFormElement>("#plan-composer")!.requestSubmit();
+      });
+      return value;
+    },
+    setItem: session.setItem.bind(session), removeItem: session.removeItem.bind(session),
+    clear: session.clear.bind(session), key: session.key.bind(session), get length() { return session.length; },
+  } satisfies Storage);
+  await remountComposer();
+  expect(attempted).toBe(true);
+  expectNoRouteSave();
+  expect(document.querySelector("#plan-lock-hint")?.textContent).toContain("Refresh the route");
+});
+
+it.each(["empty", "anchor-conflict", "failure", "unsupported"] as const)(
+  "revokes the old route before the first automatic URL request ends with %s", async (outcome) => {
+    const advance = pinClock();
+    await generateProofRoute(3);
+    advance(1000);
+    const query = outcome === "unsupported" ? "One pub in Hackney tonight" : "One pub in Clapham tonight";
+    window.history.replaceState({}, "", `/plan?query=${encodeURIComponent(query)}`);
+    let attemptedDuringRequest = false;
+    fetchMock.mockImplementation(async (input) => {
+      if (!String(input).includes("/api/plans/generate")) return new Response("[]", { status: 200 });
+      attemptedDuringRequest = true;
+      document.querySelector<HTMLFormElement>("#plan-composer")!.requestSubmit();
+      return new Response(JSON.stringify(outcome === "anchor-conflict"
+        ? { outcome: "anchor-conflict", message: "Keep this pub" } : { stops: [] }), { status: outcome === "failure" ? 503 : 200, headers: { "content-type": "application/json" } });
+    });
+    await remountComposer();
+    expect(attemptedDuringRequest).toBe(outcome !== "unsupported");
+    expect(document.querySelector(".planStop__name")?.textContent).toBe("Pub A");
+    expect(document.querySelector("#plan-route-stale-title")?.textContent).toContain("This route needs a refresh");
+    await attemptRouteSave();
+  },
+);
+
+it("retains the accepted pub while a fresh session Ask makes its route an unverified preview", async () => {
+  const advance = pinClock();
+  const generated = await generateProofRoute(3);
+  expect(transferGeneratedRouteToDraft({ ...generated, outcome: "route", anchorVenueId: "venue-a", anchorSource: "map-search" }, localStorage, "plan-generated", T0)).toBe(true);
+  const draft = readPlanDraftEnvelope(sessionStorage)!.draft;
+  writePlanDraftEnvelope({ ...draft, acceptedAnchor: {
+    venueId: "venue-a", source: "map-search", cityId: "london", acceptedArea: null, startsAt: null,
+    expiresAt: new Date(T0 + 3_600_000).toISOString(),
+  } }, "planning-intent", sessionStorage, T0);
+  sessionStorage.setItem(ASK_PLAN_DRAFT_STORAGE_KEY, JSON.stringify({ query: "One pub in Clapham tonight" }));
+  advance(1000);
+  await remountComposer();
+  expect(document.body.textContent).toContain("Pub A");
+  expect(readPlanDraftEnvelope(sessionStorage)?.draft.acceptedAnchor?.venueId).toBe("venue-a");
+  expect(document.querySelector("#plan-lock-hint")?.textContent).toContain("Refresh the route");
+  await attemptRouteSave();
+  advance(2000);
+  await remountComposer();
+  expect(readPlanDraftEnvelope(sessionStorage)?.draft.acceptedAnchor?.venueId).toBe("venue-a");
+  await attemptRouteSave();
+});
+
+it.each(["missing", "malformed", "expired"] as const)("keeps an older route as an unverified preview when correlation is %s", async (condition) => {
+  const advance = pinClock();
+  await generateProofRoute();
+  advance(1000);
+  await editInput("#plan-title", "Our next night");
+  if (condition === "expired") {
+    advance(3_600_001);
+  } else {
+    for (const key of ["pubmaxx:plan-draft:v1", "pubmax:plan-draft:v2"]) {
+      const stored = JSON.parse(sessionStorage.getItem(key)!);
+      const draft = stored.draft ?? stored;
+      if (condition === "missing") delete draft.routeReference;
+      else draft.routeReference = { savedAt: "yesterday", operationKey: "proof-operation" };
+      sessionStorage.setItem(key, JSON.stringify(stored));
+    }
+    advance(2000);
+  }
+  await remountComposer();
+  expect(document.querySelector(".planStop__name")?.textContent).toBe("Pub A");
+  expect(document.querySelector("#plan-lock-hint")?.textContent).toContain("Refresh the route");
+  await attemptRouteSave();
+});

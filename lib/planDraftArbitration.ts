@@ -43,18 +43,30 @@ export function resolveRequestedPlanIntent(
 function matchingSessionCopies(plan: ParsedPlanDraft | null, legacyDraft: StoredPlanDraft | null): boolean {
   if (!plan || !legacyDraft) return false;
   return JSON.stringify(plan.draft.stops) === JSON.stringify(legacyDraft.stops)
+    && JSON.stringify(plan.draft.routeReference) === JSON.stringify(legacyDraft.routeReference)
     && JSON.stringify(plan.draft.acceptedAnchor) === JSON.stringify(legacyDraft.acceptedAnchor);
 }
 
-function matchingSessionRoute(plan: ParsedPlanDraft | null, route: Pick<ParsedPlanRouteDraft, "savedAt" | "value"> | null): boolean {
+function matchingSessionRoute(
+  plan: ParsedPlanDraft | null,
+  route: Pick<ParsedPlanRouteDraft, "savedAt" | "value"> | null,
+  intake: ParsedPlanIntakeDraft | null,
+): boolean {
   if (!plan || !route) return false;
-  if (plan.savedAt !== route.savedAt) return false;
+  const reference = plan.draft.routeReference;
+  if (reference) {
+    if (plan.legacy || route.value.routeStale || !route.value.groundingProof
+      || reference.savedAt !== route.savedAt || reference.operationKey !== route.value.operationKey
+      || Date.parse(reference.savedAt) > Date.parse(plan.savedAt ?? "")) return false;
+  } else if (plan.savedAt !== route.savedAt) return false;
   const anchor = plan.draft.acceptedAnchor;
   const previewOnly = route.value.routeStale && route.value.nightContext === null
     && route.value.groundingProof === null && route.value.operationKey === null && route.value.routeRevision === null
     && route.value.anchorVenueId === null && route.value.anchorSource === null;
   if (anchor && (!plan.savedAt || (!previewOnly
     && (anchor.venueId !== route.value.anchorVenueId || anchor.source !== route.value.anchorSource)))) return false;
+  if (intake && Date.parse(intake.savedAt) > Date.parse(plan.savedAt ?? "")
+    && JSON.stringify(intake.routeReference) !== JSON.stringify(reference)) return false;
   return JSON.stringify(plan.draft.stops)
     === JSON.stringify(route.value.stops.map(({ key, venueId, venueName }) => ({ key, venueId, venueName })));
 }
@@ -71,11 +83,12 @@ export function recoverPlanDrafts(input: {
   const routeWins = Number.isFinite(routeTime)
     && (!plan || plan.legacy || routeTime > planTime);
   const sessionCopiesAgree = matchingSessionCopies(plan, legacyDraft);
+  const matchingRoute = matchingSessionRoute(plan, route, intake);
   const sessionWins = Boolean(plan && !plan.legacy
-    && (!route || planTime > routeTime || (!route.savedAt && route.conflicting === false))
+    && (!route || (planTime > routeTime && !matchingRoute) || (!route.savedAt && route.conflicting === false))
     && sessionCopiesAgree);
   const acceptanceUnavailable = !sessionWins && (route?.ambiguous === true
-    || Boolean(route && plan && !routeWins && (!sessionCopiesAgree || !matchingSessionRoute(plan, route))));
+    || Boolean(route && plan && !routeWins && (!sessionCopiesAgree || !matchingRoute)));
   const intakeDraft = routeWins && !(Date.parse(intake?.savedAt ?? "") >= routeTime) ? null : intake;
   const planDraft = routeWins || acceptanceUnavailable ? null : plan;
   const recoveredDraft = routeWins ? null : acceptanceUnavailable && legacyDraft
