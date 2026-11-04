@@ -42,6 +42,7 @@ import { inferNightContext } from "@/lib/nightPlanning";
 import { transferGeneratedRouteToDraft } from "@/lib/mapRouteTransfer";
 import { parsePlanGenerationIntake } from "@/lib/planGenerationIntake";
 import { reconcilePlanContext } from "@/lib/planGenerationContext";
+import { ASK_PLAN_DRAFT_STORAGE_KEY } from "@/lib/ask/types";
 
 const GENERATED = {
   stops: [{ venueId: "venue-a", venueName: "Pub A" }],
@@ -733,3 +734,111 @@ it.each([
     expect(reconciledGenerationContext()).toMatchObject(context);
   },
 );
+
+it("gives a fresh confirmed URL Ask priority over recovered Tune authority", async () => {
+  const advance = pinClock();
+  seedTuneRoute("map-generated");
+  await mountComposer();
+  await openTune();
+  advance(1000);
+  await editTuneControl("budget", "value");
+  const query = "Clapham tonight, a treat night";
+  window.history.replaceState({}, "", `/plan?query=${encodeURIComponent(query)}`);
+  advance(2000);
+  await remountComposer();
+  await openTune();
+  expect(document.querySelector<HTMLInputElement>("#plan-concierge-query")?.value).toBe(query);
+  await sortAgainFromTune();
+  const post = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate")).at(-1)!;
+  const request = JSON.parse(String(post[1]?.body));
+  expect(request.query).toBe(query);
+  const parsed = parsePlanGenerationIntake(request.intake, new Date(T0 + 2000));
+  expect(parsed.ok).toBe(true);
+  if (!parsed.ok) throw new Error(parsed.message);
+  expect(reconcilePlanContext(query, request.context, parsed.value, new Date(T0 + 2000)).context.budget).toBe("treat");
+});
+
+async function confirmFreshAsk(channel: "url" | "session", query: string): Promise<void> {
+  if (channel === "url") {
+    window.history.replaceState({}, "", `/plan?query=${encodeURIComponent(query)}`);
+  } else {
+    sessionStorage.setItem(ASK_PLAN_DRAFT_STORAGE_KEY, JSON.stringify({ query }));
+  }
+  await remountComposer();
+}
+
+it.each([
+  { id: "area", value: "piccadilly-soho" },
+  { id: "time", value: "daytime" },
+  { id: "time", value: "get_home" },
+  { id: "group", value: "solo" },
+  { id: "people", value: "6" },
+  { id: "people", value: "" },
+  { id: "budget", value: "value" },
+  { id: "budget-limit", value: "35" },
+  { id: "budget-limit", value: "" },
+  { id: "zero-proof", value: "cocktail" },
+  { id: "zero-proof", value: "zero-proof" },
+  { id: "stops", value: "5" },
+].flatMap((choice) => (["url", "session"] as const).map((channel) => ({ ...choice, channel }))))(
+  "replaces earlier Tune $id=$value with a fresh $channel Ask",
+  async ({ id, value, channel }) => {
+    const advance = pinClock();
+    seedTuneRoute("plan-generated", true);
+    await mountComposer();
+    await openTune();
+    advance(1000);
+    await editTuneControl(id, value);
+    advance(2000);
+    const query = "Two pubs in Clapham after work for 8 colleagues, a treat night, beer, under £20 each";
+    await confirmFreshAsk(channel, query);
+    expect(readPlanDraftEnvelope(sessionStorage)?.draft).toMatchObject({ conciergeQuery: query, requestedStopCount: 2 });
+    expect(readPlanIntakeDraftWithMetadata(localStorage)?.draft.answers).toMatchObject({
+      area: null, timeWindow: null, exactStartIso: null, groupSize: null,
+      budget: null, budgetLimitPence: null, accessibilityNeeds: [], stopCount: 2,
+    });
+    expect(JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!)).toMatchObject({
+      savedAt: "2026-11-03T12:00:01.000Z",
+    });
+    await openTune();
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("2");
+    await sortAgainFromTune();
+    expect(reconciledGenerationContext()).toMatchObject({
+      nightArea: "clapham", daypart: "after_work", partyType: "work", groupSize: 8,
+      budget: "treat", budgetLimitPence: 2000, drinkCategory: "beer", zeroProof: false, stopCount: 2,
+    });
+  },
+);
+
+it.each(["url", "session"] as const)("keeps UNKNOWN intent and subsequent Tune authority after a fresh %s Ask", async (channel) => {
+  const advance = pinClock();
+  seedTuneRoute("map-generated");
+  await mountComposer();
+  await openTune();
+  advance(1000);
+  await editTuneControl("stops", "5");
+  await editTuneControl("budget", "value");
+  advance(2000);
+  await confirmFreshAsk(channel, "Clapham tonight, a treat night");
+  expect(readPlanDraftEnvelope(sessionStorage)?.draft.requestedStopCount).toBeUndefined();
+  expect(readPlanIntakeDraftWithMetadata(localStorage)?.draft.answers.stopCount).toBeUndefined();
+  await openTune();
+  advance(3000);
+  await editTuneControl("budget", "standard");
+  await sortAgainFromTune();
+  expect(reconciledGenerationContext()).toMatchObject({ budget: "standard", stopCount: 3 });
+  expect(readPlanDraftEnvelope(sessionStorage)?.draft.requestedStopCount).toBeUndefined();
+});
+
+it.each(["existing", "url", "session"] as const)("uses only the owning request's area fallback for %s", async (channel) => {
+  pinClock();
+  seedTuneRoute("map-generated");
+  await mountComposer();
+  if (channel !== "existing") await confirmFreshAsk(channel, "A treat night");
+  await openTune();
+  if (channel === "existing") await editInput("#plan-concierge-query", "A treat night");
+  await sortAgainFromTune();
+  expect(reconciledGenerationContext()).toMatchObject({
+    nightArea: channel === "existing" ? "clapham" : null, budget: "treat",
+  });
+});

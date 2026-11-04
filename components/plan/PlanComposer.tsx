@@ -1652,6 +1652,19 @@ function PlanComposerForm({
   // The planner's report line for the route it last built, with the stops it
   // was about, so the lock hands the plan card a line only for that route.
   const generatedReportRef = useRef<{ line: string; venueIds: string } | null>(null);
+  function adoptFreshAsk(query: string) {
+    setAskDraftQuery(query);
+    setConciergeQuery(query);
+    setExplicitNightContext({});
+    setPlanIntake((current) => {
+      const draft = createPlanIntakeDraft();
+      return applyPlanStopCount(
+        current.completed ? skipRemainingPlanIntake(draft) : draft,
+        null,
+        matchPlanStopCount(query),
+      ).draft;
+    });
+  }
   useLayoutEffect(() => {
     if (!canPersist) return;
     const fresh = describeAskFromLocation();
@@ -1661,24 +1674,12 @@ function PlanComposerForm({
     appliedUrlAskRef.current = ask;
     const opensDescribeFirstForHandoff =
       Boolean(fresh.handoffAsk) && hasDurableIntakeDraft && !recoveredIntake.completed;
-    const entryForSurface: "describe" | "wizard" =
-      hasDurableIntakeDraft && !recoveredIntake.completed && !fresh.handoffAsk
-        ? "wizard"
-        : "describe";
-    const askNeedsConciergeSurface = !planComposerShowsDescribeFirst({
-      heldVenueId,
-      completed: recoveredIntake.completed,
-      entryMode: entryForSurface,
-    });
     // Deferred out of the effect body (react-hooks/set-state-in-effect). The
     // draft restore below is scheduled from a PASSIVE effect, so its microtask
     // is queued after this one and the URL ask still lands first.
     void Promise.resolve().then(() => {
-      setAskDraftQuery(ask);
-      const stopCount = matchPlanStopCount(ask);
-      setPlanIntake((current) => applyPlanStopCount(current, null, stopCount).draft);
+      adoptFreshAsk(ask);
       if (opensDescribeFirstForHandoff) setEntryMode("describe");
-      if (askNeedsConciergeSurface) setConciergeQuery(ask);
     });
   }, [canPersist, pathname, heldVenueId, recoveredIntake.completed, hasDurableIntakeDraft]);
   useEffect(() => {
@@ -1709,10 +1710,7 @@ function PlanComposerForm({
         const parsed = JSON.parse(raw) as AskPlanDraft;
         const query = typeof parsed?.query === "string" ? parsed.query.trim().slice(0, 500) : "";
         if (!query) return;
-        setAskDraftQuery(query);
-        setConciergeQuery(query);
-        const stopCount = matchPlanStopCount(query);
-        setPlanIntake((current) => applyPlanStopCount(current, null, stopCount).draft);
+        adoptFreshAsk(query);
         if (hasDurableIntakeDraft && !recoveredIntake.completed) setEntryMode("describe");
       } catch {
         /* private mode or bad JSON */
@@ -2441,7 +2439,7 @@ function PlanComposerForm({
     const stopCount = (intakeOverride
       ? intakeOverride.answers.stopCount
       : requestedStopCount) ?? matchPlanStopCount(query);
-    const explicitContext = { nightArea: nightContext?.nightArea, ...explicitNightContext, stopCount };
+    const explicitContext = { nightArea: askDraftQuery ? undefined : nightContext?.nightArea, ...explicitNightContext, stopCount };
     if (queryArea.kind !== "none") {
       setExplicitNightContext((current) => ({
         ...current,
@@ -2492,7 +2490,7 @@ function PlanComposerForm({
         body: JSON.stringify(buildPlanGenerationIntakeBody(
           intake,
           query,
-          nightContext,
+          null,
           submittedContext,
           handoff?.acceptedAnchor,
         )),
