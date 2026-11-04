@@ -979,6 +979,37 @@ function composerRouteReference(routeDraft: StoredRouteDraft, saved: boolean): S
 
 type ComposerDraftSaveFailure = "all" | "route" | "route-details" | "description" | "request" | null;
 
+function composerRequestSaveStatus(input: {
+  draft: StoredPlanDraft;
+  intakeDraft: PlanIntakeDraft;
+  writtenSession: { v1: boolean; v2: boolean };
+  writtenIntake: boolean;
+  savedAt: number;
+  routeStale: boolean;
+}) {
+  const { draft, intakeDraft, writtenSession, writtenIntake, savedAt, routeStale } = input;
+  const storage = safeSessionStorage();
+  const canonical = JSON.stringify(parsePlanDraft(JSON.stringify(draft)));
+  const envelope = readPlanDraftEnvelope(storage);
+  let v2Draft = envelope?.draft;
+  if (routeStale && draft.routeReference === null && v2Draft && v2Draft.routeReference === undefined
+    && envelope?.savedAt === new Date(savedAt).toISOString()) v2Draft = { ...v2Draft, routeReference: null };
+  let v1 = false;
+  try {
+    const legacy = parsePlanDraft(storage?.getItem(PLAN_DRAFT_KEY) ?? null);
+    v1 = Boolean(legacy && JSON.stringify(legacy) === canonical);
+  } catch {}
+  const intake = readPlanIntakeDraftWithMetadata();
+  return {
+    sessionWrite: {
+      v1: writtenSession.v1 || v1,
+      v2: writtenSession.v2 || Boolean(envelope && !envelope.legacy && JSON.stringify(v2Draft) === canonical),
+    },
+    intakeSaved: writtenIntake || Boolean(intake && samePlanIntake(intakeDraft, intake.draft)
+      && JSON.stringify(intake.routeReference) === JSON.stringify(draft.routeReference)),
+  };
+}
+
 function composerDraftSaveFailure(input: {
   hasWork: boolean;
   sessionWrite: { v1: boolean; v2: boolean };
@@ -2194,11 +2225,14 @@ function PlanComposerForm({
     const previousRequestTime = sameRequest && previousSession ? Date.parse(previousSession.savedAt ?? "") : NaN;
     const previousIntakeTime = sameIntake ? Date.parse(previousIntake.savedAt) : NaN;
     const sessionSavedAt = planRequestSaveTime(requestChanged, savedAt, [routeSavedAt, previousRequestTime, previousIntakeTime]);
-    const sessionWrite = writePlanDraftEnvelope(sessionDraft,
+    const writtenSession = writePlanDraftEnvelope(sessionDraft,
       persistedAcceptedAnchor ? "planning-intent" : "manual", safeSessionStorage(), sessionSavedAt);
-    const intakeSaved = hasDurableIntakeDraft || intakeChanged || (!previousIntake && requestedStopCount !== undefined)
+    const writtenIntake = hasDurableIntakeDraft || intakeChanged || (!previousIntake && requestedStopCount !== undefined)
       ? writePlanIntakeDraft(planIntake, undefined, sessionSavedAt, sessionDraft.routeReference)
       : false;
+    const { sessionWrite, intakeSaved } = composerRequestSaveStatus({
+      draft: sessionDraft, intakeDraft: planIntake, writtenSession, writtenIntake, savedAt: sessionSavedAt, routeStale,
+    });
     const sessionRequestChanged = sessionRequiredRequestChanged(sessionDraft, recoveredRequest, intakeSaved);
     const hasStops = stops.some((stop) => stop.venueId || stop.venueName);
     const hasWork = intakeChanged || hasStops;

@@ -785,14 +785,44 @@ describe("request references to an existing generated route", () => {
     },
   );
 
-  it("does not correlate a legacy request or a same-ID replacement generation", () => {
+  it("does not approve a legacy request or a same-ID replacement generation", () => {
     const route = routeDraft(NOW);
     const plan = correlatedRequest(route);
     const replacement = routeDraft(NOW + 500, { operationKey: "new-operation", nightContext: inferNightContext("Soho tonight").context });
     expect(recoverPlanDrafts({ plan, legacyDraft: plan.draft, intake: null, route: replacement }).sessionWins).toBe(true);
     const legacy = { ...plan, legacy: true, savedAt: null };
-    expect(recoverPlanDrafts({ plan: legacy, legacyDraft: plan.draft, intake: null, route }).routeWins).toBe(true);
+    const recovered = recoverPlanDrafts({ plan: legacy, legacyDraft: plan.draft, intake: null, route });
+    expect(recovered).toMatchObject({ routeWins: false, acceptanceUnavailable: true, planDraft: null });
+    expect(recovered.recoveredDraft?.title).toBe("Our next night");
+    expect(recovered.recoveredDraft?.acceptedAnchor).toBeUndefined();
+    expect(legacy.savedAt).toBeNull();
   });
+
+  it.each(["matching", "missing", "revoked", "operation", "date", "newer-generation"] as const)(
+    "recovers legacy requested count independently of route acceptance: %s", (kind) => {
+      const route = routeDraft(NOW);
+      const related = correlatedRequest(route);
+      const draft = { ...related.draft, requestedStopCount: 5 as const, requestedStopCountSource: "picker" as const };
+      if (kind === "missing") delete draft.routeReference;
+      if (kind === "revoked") draft.routeReference = null;
+      if (kind === "operation") draft.routeReference!.operationKey = "other-operation";
+      if (kind === "date") draft.routeReference!.savedAt = new Date(NOW - 1).toISOString();
+      if (kind === "newer-generation") {
+        route.savedAt = new Date(NOW + 1).toISOString();
+        route.value.operationKey = "new-generation";
+      }
+      const plan = parsePlanDraftEnvelope(null, JSON.stringify(draft), NOW + 1)!;
+      const recovered = recoverPlanDrafts({ plan, legacyDraft: plan.draft, intake: null, route });
+      const ownsRequest = kind === "matching" || kind === "revoked";
+      expect(recovered.routeWins).toBe(!ownsRequest);
+      expect(recovered.intent.stopCount).toBe(ownsRequest ? 5 : undefined);
+      expect(recovered.intent.stopCountSource).toBeUndefined();
+      expect(recovered.intent.conciergeQuery).toBe(ownsRequest ? "Quiet pints" : "");
+      expect(recovered.planDraft).toBeNull();
+      expect(recovered.recoveredDraft?.creatorName).toBe(ownsRequest ? "K" : undefined);
+      expect(plan.savedAt).toBeNull();
+    },
+  );
 
   it.each([false, true])("retains legacy revocation without a request clock, local route: %s", (hasRoute) => {
     const draft = storedPlan({ routeReference: null, requestedStopCount: 5 });
