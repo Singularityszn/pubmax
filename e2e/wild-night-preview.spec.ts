@@ -249,34 +249,22 @@ test("a query-only off link updates the mounted picker", async ({ page }) => {
 });
 
 function observeTarotNetwork(page: Page) {
-  const chunks: string[] = [];
+  const scripts: string[] = [];
   const heritage: Array<{ url: string; method: string; body: string | null }> = [];
-  const inspections: Promise<void>[] = [];
-  const readErrors: string[] = [];
   page.on("request", (request) => {
-    if (new URL(request.url()).pathname === "/data/heritage_listings.json") {
+    const url = new URL(request.url());
+    if (url.origin === new URL(page.url()).origin && url.pathname.startsWith("/_next/static/chunks/")
+      && request.resourceType() === "script") scripts.push(url.pathname);
+    if (url.pathname === "/data/heritage_listings.json") {
       heritage.push({ url: request.url(), method: request.method(), body: request.postData() });
     }
   });
-  page.on("response", (response) => {
-    const url = new URL(response.url());
-    if (url.origin !== new URL(page.url()).origin || !url.pathname.startsWith("/_next/static/chunks/")
-      || response.request().resourceType() !== "script") return;
-    // Observe the real emitted code. Its public wording identifies the optional
-    // module without depending on a previous build's hashed chunk filename.
-    inspections.push(response.text().then((body) => {
-      if (body.includes("The card titles are playful.")) chunks.push(response.url());
-    }, (error: unknown) => {
-      readErrors.push(String(error));
-    }));
-  });
   return {
-    chunks,
+    scripts,
     heritage,
     async settled() {
       await page.waitForLoadState("networkidle");
-      await Promise.all(inspections);
-      expect(readErrors).toEqual([]);
+      expect(scripts.length).toBeGreaterThan(0);
     },
   };
 }
@@ -304,6 +292,40 @@ async function locationRequests(page: Page) {
 
 test.describe("Pub Tarot lazy browser boundary", () => {
   test.use({ serviceWorkers: "block" });
+  let selectionScripts: string[] = [];
+
+  test.beforeAll(async ({ browser }, testInfo) => {
+    // Observe the actual transition on this build, rather than inspect emitted
+    // implementation text. A lost detector or an eager import fails the
+    // non-empty selection control. Fresh contexts below test the off states.
+    // This observes requested scripts, not attribution of every emitted byte.
+    const context = await browser.newContext({
+      baseURL: testInfo.project.use.baseURL,
+      storageState: testInfo.project.use.storageState,
+      viewport: { width: 390, height: 844 },
+      serviceWorkers: "block",
+    });
+    try {
+      const page = await context.newPage();
+      await installLocationRefusal(page);
+      const reads = observeTarotNetwork(page);
+      await page.goto("/near?wild=1&wildpreview=off");
+      await expect(page.getByRole("heading", { name: "Pint roulette", exact: true })).toBeVisible();
+      await expect(picker(page)).toHaveValue("off");
+      await reads.settled();
+      const initial = new Set(reads.scripts);
+      await picker(page).selectOption("pub-tarot");
+      await expect(page.getByRole("region", { name: "Pub Tarot", exact: true })
+        .getByRole("button", { name: "Draw three pubs", exact: true })).toBeEnabled();
+      await reads.settled();
+      selectionScripts = [...new Set(reads.scripts.filter((path) => !initial.has(path)))];
+      expect(selectionScripts.length).toBeGreaterThan(0);
+      expect(reads.heritage).toEqual([]);
+      expect(await locationRequests(page)).toBe(0);
+    } finally {
+      await context.close();
+    }
+  });
 
   for (const query of [
     "wild=0&wildpreview=pub-tarot",
@@ -311,7 +333,7 @@ test.describe("Pub Tarot lazy browser boundary", () => {
     "wild=1&wildpreview=round-rota",
     "wild=1&wildpreview=borough-bingo",
   ]) {
-    test("normal roulette fetches no Tarot code or heritage with " + query, async ({ page }) => {
+    test("normal roulette fetches no observed Tarot selection scripts or heritage with " + query, async ({ page }) => {
       test.setTimeout(90_000);
       await page.setViewportSize({ width: 390, height: 844 });
       await installLocationRefusal(page);
@@ -321,7 +343,8 @@ test.describe("Pub Tarot lazy browser boundary", () => {
       await expect(page.getByRole("button", { name: "Surprise me", exact: true })).toBeEnabled();
       await reads.settled();
       await expect(page.getByRole("heading", { name: "Pub Tarot", exact: true })).toHaveCount(0);
-      expect(reads.chunks).toEqual([]);
+      expect(selectionScripts.length).toBeGreaterThan(0);
+      expect(reads.scripts.filter((path) => selectionScripts.includes(path))).toEqual([]);
       expect(reads.heritage).toEqual([]);
       expect(await locationRequests(page)).toBe(0);
     });
@@ -341,16 +364,19 @@ test.describe("Pub Tarot lazy browser boundary", () => {
       const select = picker(page);
       await expect(select).toBeVisible();
       await reads.settled();
-      expect(reads.chunks).toEqual([]);
+      expect(reads.scripts.filter((path) => selectionScripts.includes(path))).toEqual([]);
       expect(reads.heritage).toEqual([]);
       expect(await locationRequests(page)).toBe(0);
 
+      const initialScripts = new Set(reads.scripts);
       await select.selectOption("pub-tarot");
       const preview = page.getByRole("region", { name: "Pub Tarot", exact: true });
       const draw = preview.getByRole("button", { name: "Draw three pubs", exact: true });
       await expect(draw).toBeEnabled();
       await reads.settled();
-      expect(reads.chunks.length).toBeGreaterThan(0);
+      const loadedSelection = [...new Set(reads.scripts.filter((path) => !initialScripts.has(path)))];
+      expect(loadedSelection.length).toBeGreaterThan(0);
+      expect(loadedSelection).toEqual(expect.arrayContaining(selectionScripts));
       expect(reads.heritage).toEqual([]);
       expect(await locationRequests(page)).toBe(0);
       await expect(page.getByRole("heading", { name: "Pint roulette", exact: true })).toHaveCount(0);
@@ -406,15 +432,20 @@ test.describe("Pub Tarot lazy browser boundary", () => {
       expect(writes).toEqual([]);
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
       await testInfo.attach("tarot-real-asset-network", {
-        body: JSON.stringify({ theme, viewport: "390x844", location: "refusal fixture", chunks: reads.chunks, heritage: reads.heritage, ids, writes }),
+        body: JSON.stringify({
+          theme, viewport: "390x844", location: "refusal fixture",
+          scriptBoundary: "Observed dynamic requests, not attribution of every emitted byte",
+          selectionScripts, loadedSelection, heritage: reads.heritage, ids, writes,
+        }),
         contentType: "application/json",
       });
       await page.screenshot({ path: testInfo.outputPath("tarot-390-" + theme + ".png"), animations: "disabled" });
+      // Synthetic root font sizing is not browser text zoom or device scaling.
       await page.addStyleTag({ content: "html { font-size: 200% !important; }" });
       await expect.poll(() => page.locator("html").evaluate((element) => parseFloat(getComputedStyle(element).fontSize))).toBeGreaterThanOrEqual(32);
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
       await expect(preview.getByRole("button", { name: "Draw again", exact: true })).toBeVisible();
-      await page.screenshot({ path: testInfo.outputPath("tarot-390-" + theme + "-200.png"), animations: "disabled" });
+      await page.screenshot({ path: testInfo.outputPath("tarot-390-" + theme + "-synthetic-font-200.png"), animations: "disabled" });
     });
   }
 });
