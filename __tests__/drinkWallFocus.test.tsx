@@ -277,7 +277,7 @@ describe("the real cropper's account-owned upload", () => {
       expect(host.querySelector("textarea")?.value).toBe("");
       expect(host.textContent).not.toContain("The French House");
     } else if (transition === "cancel") {
-      await activate([...host.querySelectorAll<HTMLButtonElement>(".venuePhotoComposerActions button")][0]);
+      await activate(host.querySelector<HTMLButtonElement>(".venuePhotoComposerActions button")!);
       await activate(button("Add a photo"));
     } else {
       currentUserId = "viewer-b";
@@ -295,7 +295,7 @@ describe("the real cropper's account-owned upload", () => {
     await releaseCrop();
 
     expect(network.write).toHaveBeenCalledTimes(1);
-    const [url, options, auth] = network.write.mock.calls[0];
+    const [url, options, auth] = network.write.mock.calls[0]!;
     expect(url).toBe("/api/drink-wall");
     expect(options.method).toBe("POST");
     expect(auth).toEqual({ requiresIdentity: true });
