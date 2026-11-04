@@ -57,7 +57,7 @@ function post(body: unknown, ip: string): Promise<Response> {
 
 describe("POST /api/ask", () => {
   it.each(["Directions to The Harp from London Bridge", "Directions from London Bridge to The Harp", "How do I get from London Bridge to The Harp?"].flatMap((service) =>
-    ["Open the map", "Open the full map", "View the whole map please"].flatMap((map) => serviceBesideMap(service, map)),
+    ["Open the map", "Open the full map", "View the whole map please", "Open the full map for tonight"].flatMap((map) => serviceBesideMap(service, map)),
   ))(
     "separates supported map commands from both journey endpoints: %s", async (query) => {
       resetJourneyCache();

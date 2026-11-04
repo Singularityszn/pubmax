@@ -98,7 +98,7 @@ describe("mounted typed map dispatch", () => {
   });
 
   describe.each([false, true])("named target with another retained choice %s", (retained) => {
-    it.each([...withEvidence("Where is The Harp? Show me the map."), ...priceMapMetadataRequests("Where is The Harp?")])("opens the explicit named target: %s", async (query) => {
+    it.each([...withEvidence("Where is The Harp? Show me the map."), ...withEvidence("Where is The Harp? Open the full map for tonight."), ...priceMapMetadataRequests("Where is The Harp?")])("opens the explicit named target: %s", async (query) => {
       if (retained) {
         request.mockImplementation(async (_url, init) => Response.json(init?.method === "POST"
           ? { answer: "Try The Lamb.", cards: [{ venueId: lamb.id, title: lamb.name, place: "Westminster", price: null }], proposals: [], toolsUsed: ["search_venues"] }

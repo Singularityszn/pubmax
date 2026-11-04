@@ -59,6 +59,8 @@ describe("palMapAskTarget", () => {
     ["Show The Lamb on the map. Open the map.", "the lamb", "venue-lamb"],
     ["Where is The Crown? Show me the map.", "the crown", null],
     ["Where is The Missing Pub? Show me the map.", "the missing pub", null],
+    ["Where is The Lamb? Open the full map for tonight.", "the lamb", "venue-lamb"],
+    ["Open the full map for tonight. Where is The Lyceum Tavern?", "the lyceum tavern", "venue-lyceum"],
   ])("resolves the surviving named request: %s", async (text, name, id) => {
     const evidence = "Show the source and date for any price you use.";
     for (const query of [text, `${evidence} ${text}`, `${text} ${evidence}`]) {

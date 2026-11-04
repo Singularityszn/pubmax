@@ -9,6 +9,10 @@ export const GENERIC_MAP_COMMANDS = [
   "Open the full map", "Show me the full map", "Open the full map tonight",
   "View the whole map please", "Can you open up the whole pub map",
   "Pull up the full map, please", "The full map please", "Whole map view",
+  "Open the full map for tonight", "Show me the map for right now",
+  "Map for now", "View the whole map for later", "Open the map for today",
+  "Show the map for this evening", "Open the map for this afternoon",
+  "View the map for this morning", "Open the full map for this weekend",
 ];
 
 export const SOCIAL_MAP_COMMANDS = [

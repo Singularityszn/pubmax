@@ -9,6 +9,14 @@ import { parseConciergeIntent } from "@/lib/concierge/intent";
 import { ASK_TOOL_NAMES, isAskToolName } from "@/lib/ask/types";
 
 describe("routeAskDeterministically", () => {
+  it.each(["tonight", "right now", "now", "later", "today", "this evening", "this afternoon", "this morning", "this weekend"])("keeps map time tails outside both semantic views: %s", (time) => {
+    const map = `Open the full map for ${time}`;
+    const query = `What's on in Soho on Friday. ${map}.`;
+    expect(semanticAskRequest(query, false)).toBe("What's on in Soho on Friday.");
+    expect(semanticAskRequest(query)).toBe("What's on in Soho on Friday. Open the full map");
+    expect(palVoiceMapIntent(map, false)).toBe("map");
+  });
+
   it.each(priceMapMetadataRequests("Find three quiet pubs in Soho."))(
     "keeps complete map price metadata outside discovery: %s", async (query) => {
       expect(unsupportedPriceComparison(query)).toBeNull();
