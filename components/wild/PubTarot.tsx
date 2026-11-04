@@ -80,7 +80,7 @@ export default function PubTarot({ cityId, random = Math.random }: { cityId: str
     : state.status === "unavailable" ? "The pub list or heritage links could not load. Try the draw again." : "";
 
   return (
-    <section className="pubTarot" aria-labelledby={titleId} aria-busy={state.status === "drawing"}>
+    <section className="pubTarot" aria-labelledby={titleId}>
       <h2 id={titleId}>Pub Tarot</h2>
       <p>Three real pubs at random, each with a linked heritage fact, within {PINT_ROULETTE_WALK_MINUTES} minutes&apos; walk.</p>
       <p>The card titles are playful. They do not describe your past or predict your future.</p>

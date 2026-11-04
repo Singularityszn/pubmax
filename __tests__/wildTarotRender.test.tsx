@@ -112,6 +112,7 @@ it("lets the user retry when a pub read hangs after heritage arrives", async () 
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => heritage }));
   loadVenues.mockReturnValue(new Promise(() => {}));
   const host = mount(); await act(async () => host.querySelector("button")!.click());
+  expect(host.querySelector('[role="status"]')?.closest('[aria-busy="true"]')).toBeNull();
   await act(async () => { vi.advanceTimersByTime(10_000); });
   expect(host.textContent).toContain("The pub list or heritage links could not load.");
   expect(host.querySelector("button")?.disabled).toBe(false);
