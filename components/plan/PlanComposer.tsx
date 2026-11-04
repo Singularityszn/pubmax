@@ -978,6 +978,7 @@ function composerDraftSaveFailure(input: {
   previewSaved: boolean;
   hasRouteDetails: boolean;
   requestChanged: boolean;
+  sessionRequestChanged: boolean;
   descriptionChanged: boolean;
 }): ComposerDraftSaveFailure {
   const { v1, v2 } = input.sessionWrite;
@@ -985,7 +986,9 @@ function composerDraftSaveFailure(input: {
   if (input.hasStops && !input.routeSaved && !input.previewSaved && (input.hasRouteDetails || (!v1 && !v2))) {
     return v1 && v2 ? "route-details" : "route";
   }
-  if ((!v1 || !v2) && input.requestChanged) return input.descriptionChanged ? "description" : "request";
+  if ((!v1 || !v2) && input.requestChanged && (!input.intakeSaved || input.sessionRequestChanged)) {
+    return input.descriptionChanged ? "description" : "request";
+  }
   return null;
 }
 
@@ -1685,10 +1688,11 @@ function PlanComposerForm({
   const draftFields = initialComposerDraftFields(handoff, recoveredDraft);
   const [title, setTitle] = useState(draftFields.title);
   const [creatorName, setCreatorName] = useState(draftFields.creatorName);
-  const [startTime, setStartTime] = useState(draftFields.startTime);
+  const [initialStartTime] = useState(draftFields.startTime);
+  const [startTime, setStartTime] = useState(initialStartTime);
   const recoveredRequestTitle = recoveredDraft?.title ?? draftFields.title;
   const recoveredRequestCreator = recoveredDraft?.creatorName ?? draftFields.creatorName;
-  const recoveredRequestStart = recoveredDraft?.startTime ?? (typeof draftFields.startTime === "string" ? draftFields.startTime : startTime);
+  const recoveredRequestStart = recoveredDraft?.startTime ?? initialStartTime;
   const [stops, setStops] = useState<DraftStop[]>(
     initialComposerStops(recoveredRouteDraft, recoveredDraft, handoff),
   );
@@ -2156,18 +2160,24 @@ function PlanComposerForm({
     const previousSession = readPlanDraftEnvelope(safeSessionStorage());
     const sameRequest = samePlanRequest(sessionDraft, previousSession?.draft);
     const intakeWasEdited = savedIntakeRequestChanged(previousIntake, previousSession, recoveredIntake);
+    const recoveredRequest = {
+      title: recoveredRequestTitle,
+      creatorName: recoveredRequestCreator,
+      startTime: recoveredRequestStart,
+      conciergeQuery: recoveredIntent.conciergeQuery,
+      requestedStopCount: recoveredIntent.stopCount,
+      requestedStopCountSource: recoveredIntent.stopCountSource,
+      acceptedAnchor: recoveredDraft?.acceptedAnchor,
+      stops: [],
+    };
+    const sessionRequestChanged = !samePlanRequest({
+      ...sessionDraft,
+      requestedStopCount: recoveredIntent.stopCount,
+      requestedStopCountSource: recoveredIntent.stopCountSource,
+    }, recoveredRequest);
     const requestChanged = intakeChanged || Boolean(recoveredDraft && intakeWasEdited && !sameIntake)
       || Boolean(recoveredDraft && savedSessionRequestChanged(sessionDraft, previousSession, previousIntake))
-      || !samePlanRequest(sessionDraft, {
-        title: recoveredRequestTitle,
-        creatorName: recoveredRequestCreator,
-        startTime: recoveredRequestStart,
-        conciergeQuery: recoveredIntent.conciergeQuery,
-        requestedStopCount: recoveredIntent.stopCount,
-        requestedStopCountSource: recoveredIntent.stopCountSource,
-        acceptedAnchor: recoveredDraft?.acceptedAnchor,
-        stops: [],
-      });
+      || !samePlanRequest(sessionDraft, recoveredRequest);
     const routeSavedAt = Date.parse(routeCopy.current.savedAt ?? "");
     const previousRequestTime = sameRequest && previousSession ? Date.parse(previousSession.savedAt ?? "") : NaN;
     const previousIntakeTime = sameIntake ? Date.parse(previousIntake.savedAt) : NaN;
@@ -2184,7 +2194,7 @@ function PlanComposerForm({
       if (!cancelled) setDraftSaveFailure(composerDraftSaveFailure({
         hasWork, sessionWrite, intakeSaved, hasStops,
         routeSaved: routeSaved && (sessionSavedAt === routeSavedAt || Boolean(routeReference)),
-        previewSaved, hasRouteDetails, requestChanged,
+        previewSaved, hasRouteDetails, requestChanged, sessionRequestChanged,
         descriptionChanged: Boolean(conciergeQuery.trim()) && conciergeQuery !== previousSession?.draft.conciergeQuery,
       }));
     });

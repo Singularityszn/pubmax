@@ -1689,3 +1689,74 @@ it.each([
   expect(readPlanDraftEnvelope(sessionStorage)?.draft.requestedStopCount).toBeUndefined();
   expect(await saveRoute()).toMatchObject({ groundingProof: fresh.groundingProof, context: { stopCount: 1 } });
 });
+
+async function chooseFiveStops(): Promise<void> {
+  const picker = [...document.querySelectorAll<HTMLButtonElement>("button")]
+    .find((button) => button.textContent?.trim() === "5")!;
+  await act(async () => { picker.click(); });
+  await settle();
+  expect(picker.getAttribute("aria-pressed")).toBe("true");
+}
+
+function seedCompletedFiveStopIntake(): void {
+  const draft = skipRemainingPlanIntake(createPlanIntakeDraft());
+  expect(writePlanIntakeDraft({
+    ...draft, answers: { ...draft.answers, stopCount: 5, stopCountSource: "picker" },
+  }, localStorage, T0)).toBe(true);
+}
+
+it("does not report a save failure when an empty plan only saves its stop picker", async () => {
+  pinClock();
+  await mountComposer();
+  await chooseFiveStops();
+  expect(readPlanIntakeDraftWithMetadata(localStorage)?.draft.answers)
+    .toMatchObject({ stopCount: 5, stopCountSource: "picker" });
+  expect(readPlanDraftEnvelope(sessionStorage)).toBeNull();
+  expect(document.body.textContent).not.toContain("could not be saved");
+  await remountComposer();
+  expect(readPlanIntakeDraftWithMetadata(localStorage)?.draft.answers)
+    .toMatchObject({ stopCount: 5, stopCountSource: "picker" });
+  expect(document.querySelector("[aria-pressed='true']")?.textContent).toBe("5");
+  expect(document.body.textContent).not.toContain("could not be saved");
+});
+
+it("still reports an unsaved description when only the stop picker can persist", async () => {
+  pinClock();
+  await mountComposer();
+  await chooseFiveStops();
+  await editInput("#plan-describe-first-query", "Quiet in Clapham tonight");
+  expect(readPlanIntakeDraftWithMetadata(localStorage)?.draft.answers.stopCount).toBe(5);
+  expect(readPlanDraftEnvelope(sessionStorage)).toBeNull();
+  expect(document.body.textContent).toContain("Your description could not be saved");
+});
+
+it.each([
+  { selector: "#plan-title", value: "Our Friday" },
+  { selector: "#plan-name", value: "Captain" },
+])("still reports an unsaved $selector with saved intake and no stops", async ({ selector, value }) => {
+  const advance = pinClock();
+  seedCompletedFiveStopIntake();
+  await mountComposer();
+  advance(1000);
+  await editInput(selector, value);
+  expect(document.querySelector<HTMLInputElement>(selector)?.value).toBe(value);
+  expect(readPlanIntakeDraftWithMetadata(localStorage)?.draft.answers.stopCount).toBe(5);
+  expect(readPlanDraftEnvelope(sessionStorage)).toBeNull();
+  expect(document.body.textContent).toContain("Your plan details could not be saved");
+  await remountComposer();
+  expect(document.querySelector<HTMLInputElement>(selector)?.value).not.toBe(value);
+});
+
+it("reports an exact-time edit if an empty request cannot restore it", async () => {
+  const advance = pinClock();
+  seedCompletedFiveStopIntake();
+  await mountComposer();
+  advance(1000);
+  const chosen = "2026-11-04T21:30";
+  await editInput("#plan-time", chosen);
+  expect(document.querySelector<HTMLInputElement>("#plan-time")?.value).toBe(chosen);
+  expect(readPlanDraftEnvelope(sessionStorage)).toBeNull();
+  expect(document.body.textContent).toContain("Your plan details could not be saved");
+  await remountComposer();
+  expect(document.querySelector<HTMLInputElement>("#plan-time")?.value).not.toBe(chosen);
+});
