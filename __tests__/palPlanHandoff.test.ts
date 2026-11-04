@@ -77,7 +77,7 @@ describe("palDraftAttempts: keep all, then keep the first, then plan from the as
     expect(bodies.map((body) => body.anchor?.venueId)).toEqual(["venue-held"]);
     expect(bodies[0]?.anchor).toEqual(held);
     expect(palDraftOutcomeLine(draft, attempts[0]!.keeps, ["The Held Pub", "The Other Pub"]))
-      .toBe("Your chosen first pub stays first. Plan built the route from your ask instead of the draft.");
+      .toBe("Your chosen first pub stays first. The draft does not replace your choice.");
   });
 
   it("retains accepted area and time when the draft starts at the held pub", () => {
@@ -210,5 +210,17 @@ describe("palDraftRouteLines and palDraftCheckingLine: the generator's lines wit
     });
     expect(palDraftCheckingLine(draft, "Refreshing.")).toBe("Checking your Pub Pal's draft for your night.");
     expect(palDraftCheckingLine(palPlanDraftFor(raw({ origin: "map" }), ASK), "x")).toBe("Checking the draft for your night.");
+  });
+
+  it("keeps the scarcity explanation when only the held pub survives", () => {
+    const scarcity = "We kept The Held Pub. We could not build the 3-stop route you asked for. Change the details or add pubs.";
+    const shown = palDraftRouteLines(draft, "held", ["The Held Pub"], {
+      conciergeNote: scarcity,
+      routeStatus: scarcity,
+    });
+    expect(shown.conciergeNote).toContain(scarcity);
+    expect(shown.routeStatus).toContain(scarcity);
+    expect(shown.conciergeNote).not.toContain("Plan built the route");
+    expect(shown.routeStatus).not.toContain("Plan built the route");
   });
 });

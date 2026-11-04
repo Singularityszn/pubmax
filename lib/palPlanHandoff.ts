@@ -163,13 +163,16 @@ export function palDraftRouteLines(
 ): { conciergeNote: string; routeStatus: string } {
   if (!draft) return lines;
   const said = palDraftOutcomeLine(draft, kept, routeNames);
-  return { conciergeNote: said, routeStatus: `${said} ${lines.routeStatus}` };
+  return {
+    conciergeNote: kept === "held" ? `${said} ${lines.conciergeNote}` : said,
+    routeStatus: `${said} ${lines.routeStatus}`,
+  };
 }
 
 /** The status line that says what Plan did with the draft. */
 export function palDraftOutcomeLine(draft: PalPlanDraft, kept: PalDraftKeep, routeNames: readonly string[]): string {
   if (kept === "held") {
-    return "Your chosen first pub stays first. Plan built the route from your ask instead of the draft.";
+    return "Your chosen first pub stays first. The draft does not replace your choice.";
   }
   const whose = draft.origin === "map" ? "the drafted pubs" : "your Pub Pal's pubs";
   const Whose = whose.charAt(0).toUpperCase() + whose.slice(1);
