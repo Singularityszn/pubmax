@@ -1,4 +1,4 @@
-import { formatObservedDate } from "@/lib/dataFreshness";
+import { formatObservedDate } from "@/lib/dataFreshnessFormat";
 import { firstHttp } from "@/lib/httpUrl";
 import styles from "./ListedPriceSource.module.css";
 
