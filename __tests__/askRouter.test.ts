@@ -9,6 +9,31 @@ import { ASK_TOOL_NAMES, isAskToolName } from "@/lib/ask/types";
 
 describe("routeAskDeterministically", () => {
   it.each([
+    "OK. Show me the map",
+    "Alright, show me the map",
+    "Great. Show the map",
+    "That sounds good. Show me the map",
+    "In fact, show me the map",
+  ])("keeps acknowledgement map actions without inheriting an area: %s", (request) => {
+    const evidence = "Show the source and date for any price you use";
+    for (const query of [request, evidence + ". " + request, request + " and " + evidence]) {
+      expect(palVoiceMapIntent(semanticAskRequest(query), false)).toBe("map");
+      expect(routeAskDeterministically(query).map((call) => call.name)).toEqual(["propose_map_action"]);
+      expect(refineRoutedAskQuery(query, "Find four pubs in Camden")).toBe(query);
+    }
+  });
+
+  it.each(["Quiet-ish near Bank, 4 of us.", "Near Soho.", "For four.", "Date night.", "Garden."])(
+    "keeps implicit discovery constraints ahead of the map: %s", (request) => {
+      for (const query of [request + " Show the map.", "Show the map. " + request]) {
+        expect(routeAskDeterministically(query)).toEqual([
+          { name: "search_venues", args: { query, limit: 4 } },
+        ]);
+      }
+    },
+  );
+
+  it.each([
     "Hi. Show me the map",
     "Show the map. Hi",
     "Thanks and show me the map",

@@ -570,3 +570,109 @@ lib/ask/router.ts        8c34f935ce2b744cc06c3ea39349d203a756355b51c56052f142243
 Protected tools, types, execution handlers, Plan handoff files, video files, and the separately owned caption assertion remain unchanged.
 These focused results do not establish provider-backed, browser, production, device, independent-review, or merge acceptance.
 The outer executor owns subsequent phases and publication.
+
+## R14 isolated acknowledgement repair
+
+This follow-up starts at exact published `4175e7ab88c93e93a86091b3abe4ac58502aab74`.
+The isolated branch is `codex/pal-map-acknowledgement-1104`.
+It retains all earlier fixes and evidence as ancestors.
+The old branch, native run and open PR 2515 remain unchanged.
+PR 2515 remains not ready because its published source still has R14.
+The installed native interface offered no confirmed amendment or terminal handoff command.
+The coordinator authorised this separate branch after the original checks finished and the guarded sync plan was inspected.
+No native run or publication has started for this child.
+
+### Reproduction and correction
+
+The public router previously selected venue search for `OK. Show me the map` and `Alright, show me the map`.
+After a prior Camden request, the refiner also appended Camden to those map commands.
+The original router selected the map action for both acknowledgement cases.
+Baseline exports ran from main at `5c635110e226c8c1eb3cc22445c36904064b5a88`.
+Its router and five named routing dependencies were verified byte-identical to `445df3a6bc85f2403f984a5f4a32e3e62d9731ff` first.
+This is source-equivalent routing evidence rather than a standalone baseline app run.
+The public-function receipts remain with the completion evidence.
+
+Before product edits, 20 new tests failed across the router and both real route-handler suites.
+The failing handler cases include fresh requests and prior Camden turns.
+Each expected `propose_map_action` and received `search_venues`.
+The red-only filter skipped the older cases.
+The retained red log is `artifacts/r14/red.log`.
+These tests call the real `POST` exports with Web Request objects and the existing offline upstream fixture.
+They start no TCP server and prove no provider-backed or browser behaviour.
+
+The router now checks service intents first, then the explicit map action, then the default venue search.
+It retains the service text for named-map subjects.
+It uses the map-preserving text when acknowledgements leave no actual service request.
+No acknowledgement word list controls this decision.
+
+The existing mood, group, area and budget extraction now has one owner in `lib/concierge/intentPolicy.ts`.
+The concierge caller still supplies its existing default group size.
+The router sees only explicit constraints, so an unstated group cannot claim discovery.
+Known areas, actual moods, explicit groups and budgets retain implicit discovery ownership.
+An unknown phrase such as `in fact` does not become a known area.
+All original service-routing expectations remain intact.
+
+An intermediate candidate failed five existing ownership assertions.
+Those assertions were retained.
+The final checks include those cases, named-map destinations, both follow-up joins and unsupported price subjects.
+The initial lint result also caught the unchanged complexity ceiling.
+The final map decision uses a private helper and needs no lint override.
+The first temporary type configuration excluded installed global declarations.
+The corrected configuration explicitly includes the existing Next and GeoJSON declarations.
+No declaration or generated Next file was invented.
+
+### Final focused checks
+
+The final run passed all 1,445 tests across eight suites in 5.59 seconds.
+It used one worker at a time and zero retries.
+The suites were `askRouter`, `askRoute`, `pubPalChatRoute`, `conciergeIntent`, `askVenueHours`, `conciergeWhatsOn`, `palMapAsk` and `palVoiceTranscript`.
+
+```sh
+node scripts/run-with-restored-bundled-data.mjs node_modules/.bin/vitest run \
+  __tests__/askRouter.test.ts __tests__/askRoute.test.ts __tests__/pubPalChatRoute.test.ts \
+  __tests__/conciergeIntent.test.ts __tests__/askVenueHours.test.ts __tests__/conciergeWhatsOn.test.ts \
+  __tests__/palMapAsk.test.ts __tests__/palVoiceTranscript.test.ts \
+  --config artifacts/r14/vitest.config.mts --configLoader runner \
+  --maxWorkers=1 --retry=0 --reporter=verbose
+```
+
+The temporary configuration retained repository setup and aliases, used a local cache, and disabled test-result caching.
+Provider and database credentials were disabled for the keyless baseline.
+Existing transport mocks remain the suite's provider boundary.
+Scoped ESLint passed with `--max-warnings=0` for the six changed TypeScript files.
+Focused native TypeScript 7.0.2 passed for those files, the eight suites and their imports.
+No Next type generation ran.
+
+The final logs and exit records remain in `artifacts/r14/final-tests.log`, `final-lint.log`, `final-types.log` and `final-results.json`.
+The red, intermediate and earlier validation logs also remain.
+The tested source SHA256 values are:
+
+```text
+lib/ask/router.ts de2ee90eccd8d6a8eebdfff3854c1ccd91c57251c1611eaefd70e91c906235fd
+lib/concierge/intent.ts a7653ccf37e2e78af355d12a5859044c612086824550e7a49a9b7d0864748164
+lib/concierge/intentPolicy.ts 4713535f2ddd8f85333a74eb1a79f9a335728f65ddea2672c6a5dc23e0d1afa6
+__tests__/askRouter.test.ts 1194ef1f85b013fb0f5a52fe753a73e5aca8da2191101548e2e440ddf03cca88
+__tests__/askRoute.test.ts 655f6a85f7da33dca1928508146bfdde2edd378c870d578bf7ce76dc8a45a83d
+__tests__/pubPalChatRoute.test.ts 12191ab8c7cacf13e9b5ff7f95d9c83c94e23dc8deb12f662a7e377648bbc0b1
+```
+
+### Dependency and scope custody
+
+Focused checks used a temporary link to the existing real dependency tree from the original native run.
+Both manifest and lockfile hashes matched before and after execution.
+The standard dependency freshness check passed before and after execution.
+No dependency installation ran.
+The dependency directory inode stayed unchanged.
+The link, temporary configurations and local test cache were removed after validation.
+The evidence logs remain.
+
+```text
+package.json      a45af88f650b428894b9b216d29178687edc2bf9dc3a6f4ce1377184863337c5
+package-lock.json b7b57a95b7c648985e7629ceb22fe13f0d9ba04df19b3514cc6c208a07494bca
+```
+
+Tools were Node v26.13.0, Vitest 5.0.5, ESLint 10.14.0 and native TypeScript 7.0.2.
+The protected tool handlers, Plan handoff, R6 source and caption assertion are unchanged.
+The canonical onboarding dependency is unchanged.
+No install, Next build, app server, browser, broad verifier, native launch, push, merge, deployment or migration ran for this follow-up.
+Independent source review and later configured validation remain required.

@@ -17,7 +17,7 @@ import type { AskToolName } from "@/lib/ask/types";
 import type { DrinkCategory } from "@/lib/drinks";
 import { isKnownAskPlacePhrase } from "@/lib/ask/placePhrases";
 import { palAsksForVenueDiscovery } from "@/lib/palMapAsk";
-import { defaultKnownAreas, deterministicAreaInText, extractExplicitBudget } from "@/lib/concierge/intentPolicy";
+import { conciergeConstraintsInText, defaultKnownAreas, deterministicAreaInText, extractExplicitBudget } from "@/lib/concierge/intentPolicy";
 
 export type RoutedToolCall = {
   name: AskToolName;
@@ -513,6 +513,23 @@ function requestedVenueCount(query: string): number | null {
   return count ? words[count] ?? Number(count) : null;
 }
 
+function hasVenueDiscoveryConstraints(query: string): boolean {
+  const knownAreas = defaultKnownAreas();
+  const constraints = conciergeConstraintsInText(query, knownAreas);
+  const area = constraints.area?.toLocaleLowerCase("en-GB");
+  return constraints.mood.length > 0 || constraints.groupSize !== undefined
+    || constraints.maxPintPrice !== undefined
+    || (area !== undefined && knownAreas.some((known) => known.toLocaleLowerCase("en-GB") === area));
+}
+
+function mapActionRequest(serviceText: string, mapText: string): string | null {
+  const request = OPEN_MAP_RE.test(serviceText) ? serviceText : mapText;
+  if (!OPEN_MAP_RE.test(request) || PLAN_RE.test(serviceText)
+    || isVenueDiscoveryAsk(serviceText) || palAsksForVenueDiscovery(serviceText)
+    || (request !== serviceText && hasVenueDiscoveryConstraints(serviceText))) return null;
+  return request;
+}
+
 /**
  * Choose tools for a free-text ask. Order matters: specialised intents beat the
  * default venue search. Cap at two tools so the keyless path stays snappy.
@@ -521,7 +538,7 @@ export function routeAskDeterministically(query: string): RoutedToolCall[] {
   const rawQuery = query.trim();
   const mapText = semanticAskRequest(rawQuery);
   const serviceText = semanticAskRequest(rawQuery, false);
-  const text = !serviceText || socialTurnKind(stripTrailingPunctuation(serviceText)) ? mapText : serviceText;
+  const text = serviceText || mapText;
   if (!text) return [];
   const priceIntent = resolveAskPriceIntent(text);
 
@@ -587,8 +604,9 @@ export function routeAskDeterministically(query: string): RoutedToolCall[] {
     push("propose_plan", { query: rawQuery });
   }
 
-  if (OPEN_MAP_RE.test(text) && !PLAN_RE.test(text) && !isVenueDiscoveryAsk(text) && !palAsksForVenueDiscovery(text) && calls.length === 0) {
-    const venueName = stripIntentWords(text);
+  const mapRequest = calls.length === 0 ? mapActionRequest(text, mapText) : null;
+  if (mapRequest) {
+    const venueName = stripIntentWords(mapRequest);
     push("propose_map_action", venueName ? { venueName } : { query: rawQuery });
   }
 

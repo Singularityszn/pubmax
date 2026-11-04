@@ -55,6 +55,27 @@ function post(body: unknown, ip: string): Promise<Response> {
 }
 
 describe("POST /api/ask", () => {
+  it.each([
+    "OK. Show me the map",
+    "Alright, show me the map",
+    "Great. Show the map",
+    "That sounds good. Show me the map",
+    "In fact, show me the map",
+  ].flatMap((query) => [false, true].map((withHistory) => ({ query, withHistory }))))(
+    "keeps acknowledgement map actions through HTTP ($withHistory): $query", async ({ query, withHistory }) => {
+      const evidence = "Show the source and date for any price you use";
+      const turns = withHistory ? [{ role: "user", content: "Find four pubs in Camden" }] : [];
+      for (const request of [query, evidence + ". " + query, query + " and " + evidence]) {
+        const response = await post({ query: request, turns, cityId: "london" }, "203.0.113.189");
+        const body = await response.json();
+        expect(response.status).toBe(200);
+        expect(body.toolsUsed).toEqual(["propose_map_action"]);
+        expect(body.cards).toEqual([]);
+        expect(body.proposals).toEqual([]);
+      }
+    },
+  );
+
   it.each(["Show me the map", "Show the map", "Show The Lamb on the map", "Show The Harp", "Hi. Show me the map", "Show the map. Thanks", "Could you please show me the map", "Thank you and show the map"])("routes genuine map commands beside evidence through HTTP: %s", async (request) => {
     const evidence = "Show the source and date for any price you use";
     for (const query of [request, `${evidence}. ${request}`, `${request} and ${evidence}`, `${evidence}. ${request} and ${evidence}`]) {

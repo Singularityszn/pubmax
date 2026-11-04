@@ -63,6 +63,33 @@ describe("POST /api/pub-pal/chat", () => {
     vi.unstubAllGlobals();
   });
 
+  it.each([
+    "OK. Show me the map",
+    "Alright, show me the map",
+    "Great. Show the map",
+    "That sounds good. Show me the map",
+    "In fact, show me the map",
+  ].flatMap((query) => [false, true].map((withHistory) => ({ query, withHistory }))))(
+    "keeps acknowledgement map actions in typed chat ($withHistory): $query", async ({ query, withHistory }) => {
+      vi.stubEnv("ELEVENLABS_API_KEY", "");
+      vi.stubEnv("TYPESAFE_API_KEY", "");
+      vi.stubGlobal("fetch", offlineFetch);
+      const evidence = "Show the source and date for any price you use";
+      const turns = withHistory ? [{ role: "user", content: "Find four pubs in Camden" }] : [];
+      for (const request of [query, evidence + ". " + query, query + " and " + evidence]) {
+        const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ query: request, turns, cityId: "london" }),
+        }));
+        const body = await response.json();
+        expect(response.status).toBe(200);
+        expect(body.toolsUsed).toEqual(["propose_map_action"]);
+        expect(body.cards).toEqual([]);
+        expect(body.proposals).toEqual([]);
+      }
+    },
+  );
+
   it("keeps a map command beside a greeting in the real typed handler", async () => {
     vi.stubEnv("ELEVENLABS_API_KEY", "");
     vi.stubEnv("TYPESAFE_API_KEY", "");

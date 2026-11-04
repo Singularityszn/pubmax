@@ -37,7 +37,9 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
    Its default view preserves standalone map commands beside other text.
    Service parsers explicitly omit map commands from venue, price, preference, listing and hours subjects.
    Removal preserves boundaries between surviving requests and punctuation inside venue names.
-   Greetings retain map commands, while actual service requests keep their existing routing priority.
+   Explicit map commands are checked after service intents and before the default venue search.
+   Greetings and acknowledgements cannot replace a map command with a default search.
+   Shared concierge constraints preserve implicit discovery without treating a default group size as a request.
    Real food and non-pint price subjects remain visible to the coverage guards.
    Replies, memory and tool context retain the complete original question.
    Short follow-ups inherit area context after closing evidence instructions, without changing supported price intent.
