@@ -55,6 +55,42 @@ function post(body: unknown, ip: string): Promise<Response> {
 }
 
 describe("POST /api/ask", () => {
+  it.each(["cheap", "somewhere cheap", "cheap and quiet"])("keeps supported cheap follow-up cards in the inherited area: %s", async (request) => {
+    const send = (body: unknown) => post(body, "203.0.113.187");
+    const baseline = await send({ query: `${request} in Camden`, cityId: "london" });
+    const expected = await baseline.json();
+    expect(baseline.status).toBe(200);
+    expect(expected.toolsUsed).toEqual(["search_venues"]);
+    expect(expected.cards.length).toBeGreaterThan(0);
+    const evidence = "Show the source and date for any price you use";
+    for (const query of [request, `${request} and ${evidence}`, `${evidence}. ${request}`, `${evidence}. ${request} and ${evidence}. Include the map`]) {
+      const response = await send({ query, cityId: "london", turns: [{ role: "user", content: "pubs in Camden" }] });
+      const body = await response.json();
+      expect(response.status).toBe(200);
+      expect(body.toolsUsed).toEqual(["search_venues"]);
+      expect(body.cards.map((card: { venueId: string }) => card.venueId)).toEqual(expected.cards.map((card: { venueId: string }) => card.venueId));
+      expect(body.cards.every((card: { place: string }) => /Camden/i.test(card.place))).toBe(true);
+      expect(body.answer).not.toContain("not prices for that item");
+    }
+  });
+
+  it.each([
+    ["cheap burgers", /meal prices|dietary/i],
+    ["cheap wine", /other drinks across pubs/i],
+    ["quiet and cheap", /not prices for that item/i],
+  ])("keeps existing price refusals after an evidence-bearing follow-up: %s", async (request, wording) => {
+    const send = (body: unknown) => post(body, "203.0.113.187");
+    const evidence = "Show the source and date for any price you use";
+    for (const query of [`${request} and ${evidence}`, `${evidence}. ${request} and ${evidence}`]) {
+      const response = await send({ query, cityId: "london", turns: [{ role: "user", content: "pubs in Camden" }] });
+      const body = await response.json();
+      expect(response.status).toBe(200);
+      expect(body.toolsUsed).toEqual([]);
+      expect(body.cards).toEqual([]);
+      expect(body.answer).toMatch(wording);
+    }
+  });
+
   it.each([
     ["Find pubs in Camden", "somewhere quiet and please include sources and dates for every price you quote"],
     ["Find pubs in Camden and show the source and date for any price you use", "somewhere quiet"],

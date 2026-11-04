@@ -335,3 +335,56 @@ No formal lint or type result is claimed.
 The configured Test phase owns dependency preparation and formal validation before publication.
 Provider-backed replies and production browser results remain unverified.
 These results describe modified source derived from the starting head, not a pipeline-validated commit.
+
+
+## Review finding R10
+
+This round started at `85f41040f12439302ded02bab114148e40244d60`.
+The exported refiner and router reproduced the failure before source edits.
+After `pubs in Camden`, `cheap`, `somewhere cheap` and `cheap and quiet` returned no tools.
+The prepended area changed the price subject and caused an unsupported-item refusal.
+The direct request forms followed by `in Camden` still selected `search_venues`.
+`quiet and cheap` also failed without refinement, so this repair preserves that existing guard.
+
+Inherited area context must preserve supported price intent and evidence boundaries.
+The invariant covers both follow-up joins, current and prior evidence instructions, and every caller of the shared refiner.
+The area now follows the complete current question.
+When presentation wording exists, a sentence boundary closes it before the inherited area.
+Ordinary requests retain request-then-area composition without an added boundary.
+The prior-turn semicolon join and explicit same-area budget path remain intact.
+R7 semantic routing and R9 listings and hours parsing remain intact.
+
+The source correction changes only `refineRoutedAskQuery`.
+Source tracing covered Ask execution, typed chat, client refinement and provider record-query preparation.
+The ordinary path retains the current request, its constraints and complete raw query context.
+Food, non-pint and existing unsupported-subject guards remain unchanged.
+No alias, helper, parameter or branch became unreachable.
+The protected source files and separate caption assertion remain untouched.
+
+Composed-function regressions assert discovery tools, inherited area, moods, group size and the existing £6 cheap-pint cap.
+The expected constraints follow the supported request contract and existing keyless cheap-pint policy.
+These assertions reject an unsupported refusal, a lost area or an invented romantic preference.
+Both HTTP suites compare refinement cards with supported direct Camden requests and require discovery tools and Camden cards.
+They also retain unsupported food, drink and baseline subject refusals beside leading and repeated evidence instructions.
+These HTTP cases are added coverage, not executed HTTP evidence in this round.
+
+
+The final Node diagnostic passed 1,324 assertions on the modified source derived from the starting head.
+It executed the exported refiner, router, preference parser, listing parser and hours reader.
+It checked supported cheap refinements, both evidence-safe joins, original query retention and explicit budgets.
+It retained discovery counts, planning, named-pint routing, punctuation-bearing journey endpoints and genuine date-night preferences.
+All 174 qualified-price fixtures retained their existing refusal codes beside evidence instructions.
+Listing checks retained requested days, kinds and areas across five clause boundaries.
+Controlled hours records retained the pub name, opening times and source date.
+
+The diagnostic used Node TypeScript stripping, local alias resolution and JSON loading.
+It substituted unavailable provider imports and hours storage boundaries.
+The Lamb record was a local fixture, not a claim about the real pub.
+No provider or network call supplied the diagnostic results.
+The temporary diagnostic was removed after execution.
+
+The focused six-suite Vitest command exited 127 because `node_modules/.bin/vitest` is absent.
+The added HTTP and Vitest cases remain unexecuted.
+No formal lint or type result is claimed.
+Configured Test owns dependency preparation and formal validation before publication.
+Provider-backed replies and production browser results remain unverified.

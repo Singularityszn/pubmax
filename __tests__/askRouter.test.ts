@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { isVenueDiscoveryAsk, isVenueHoursQuestion, refineRoutedAskQuery, resolveAskJourney, routeAskDeterministically, socialTurnKind, unsupportedPriceComparison } from "@/lib/ask/router";
 import { semanticAskRequest } from "@/lib/ask/requestPolicy";
+import { parseConciergeIntent } from "@/lib/concierge/intent";
 import { ASK_TOOL_NAMES, isAskToolName } from "@/lib/ask/types";
 
 describe("routeAskDeterministically", () => {
@@ -48,7 +49,7 @@ describe("routeAskDeterministically", () => {
     ]);
   });
 
-  it("uses semantic requests at exported helper boundaries", () => {
+  it("uses semantic requests at exported helper boundaries", async () => {
     const evidence = "Show the source and date for any price you use.";
     for (const wrap of [(request: string) => `${evidence} ${request}`, (request: string) => `${request} and ${evidence} Include the map.`]) {
       expect(isVenueHoursQuestion(wrap("What are the opening hours at The Lamb?"))).toBe(true);
@@ -60,7 +61,7 @@ describe("routeAskDeterministically", () => {
       const followUp = wrap("somewhere quiet");
       const refined = refineRoutedAskQuery(followUp, wrap("pubs in Camden"));
       expect(refined).toContain(followUp);
-      expect(semanticAskRequest(refined).replace(/\s+/g, " ")).toBe("in Camden, somewhere quiet");
+      expect((await parseConciergeIntent(refined, { skipModel: true })).intent).toMatchObject({ area: "Camden", mood: ["quiet"] });
       expect(routeAskDeterministically(refined)).toEqual([{ name: "search_venues", args: { query: refined, limit: 4 } }]);
       const budget = wrap("Same area, under £6.50 a pint.");
       expect(refineRoutedAskQuery(budget, wrap("Find four pubs in Soho."))).toBe(wrap("pubs in Soho, under £6.50 a pint."));
@@ -527,23 +528,49 @@ describe("routeAskDeterministically: Pub Pal V0.1 concierge tools", () => {
     },
   );
 
-  it("still borrows a substantive prior turn's place for a short follow-up", () => {
-    expect(refineRoutedAskQuery("somewhere quiet", "pubs in Camden")).toBe(
-      "in Camden, somewhere quiet",
-    );
+  it.each([
+    ["somewhere quiet", ["quiet"], undefined],
+    ["cheap", [], 6],
+    ["somewhere cheap", [], 6],
+    ["cheap and quiet", ["quiet"], 6],
+  ] as const)("preserves discovery constraints when borrowing an area: %s", async (request, mood, maxPintPrice) => {
+    const evidence = "Show the source and date for any price you use";
+    for (const prior of ["pubs in Camden", `pubs in Camden and ${evidence}`]) {
+      for (const query of [request, `${request}.`, `${request} and ${evidence}`, `${evidence}. ${request}`, `${evidence}. ${request} and ${evidence}. Include the map`]) {
+        const refined = refineRoutedAskQuery(query, prior);
+        expect(refined).toContain(query);
+        expect(unsupportedPriceComparison(refined)).toBeNull();
+        expect(routeAskDeterministically(refined)).toEqual([{ name: "search_venues", args: { query: refined, limit: 4 } }]);
+        expect((await parseConciergeIntent(refined, { skipModel: true })).intent).toEqual({ area: "Camden", mood, maxPintPrice, groupSize: 2 });
+      }
+    }
   });
 
   it.each([
-    ["Find pubs in Camden", "somewhere quiet and please include sources and dates for every price you quote", "in Camden, somewhere quiet"],
-    ["Find pubs in Camden and show the source and date for any price you use", "somewhere quiet", "in Camden, somewhere quiet"],
-    ["Find pubs and show the source and date for any price you use", "somewhere quiet", "Find pubs somewhere quiet"],
-    ["Find pubs and show the source and date for any price you use", "somewhere quiet and please include sources and dates for every price you quote", "Find pubs somewhere quiet"],
-    ["Find pubs in Camden", "Show the source and date for any price you use; somewhere romantic", "in Camden, somewhere romantic"],
-  ])("preserves discovery across follow-up joins: %s / %s", (prior, query, semantic) => {
+    ["quiet and cheap", "UNSUPPORTED_PRICE_COMPARISON"],
+    ["cheap burgers", "UNSUPPORTED_FOOD_PRICE_COMPARISON"],
+    ["cheap wine", "UNSUPPORTED_DRINK_PRICE_COMPARISON"],
+  ])("preserves the existing price guard across area refinement: %s", (request, code) => {
+    const evidence = "Show the source and date for any price you use";
+    for (const query of [request, `${request} and ${evidence}`, `${evidence}. ${request} and ${evidence}`]) {
+      const refined = refineRoutedAskQuery(query, "pubs in Camden");
+      expect(refined).toContain(query);
+      expect(unsupportedPriceComparison(refined)?.code).toBe(code);
+      expect(routeAskDeterministically(refined)).toEqual([]);
+    }
+  });
+
+  it.each([
+    ["Find pubs in Camden", "somewhere quiet and please include sources and dates for every price you quote", "Camden", "quiet"],
+    ["Find pubs in Camden and show the source and date for any price you use", "somewhere quiet", "Camden", "quiet"],
+    ["Find pubs and show the source and date for any price you use", "somewhere quiet", undefined, "quiet"],
+    ["Find pubs and show the source and date for any price you use", "somewhere quiet and please include sources and dates for every price you quote", undefined, "quiet"],
+    ["Find pubs in Camden", "Show the source and date for any price you use; somewhere romantic", "Camden", "date"],
+  ] as const)("preserves discovery across follow-up joins: %s / %s", async (prior, query, area, mood) => {
     const refined = refineRoutedAskQuery(query, prior);
     expect(refined).toContain(query);
-    if (!prior.includes("Camden")) expect(refined).toContain(prior);
-    expect(semanticAskRequest(refined).replace(/\s+/g, " ").trim()).toBe(semantic);
+    if (!area) expect(refined).toContain(prior);
+    expect((await parseConciergeIntent(refined, { skipModel: true })).intent).toEqual({ area, mood: [mood], groupSize: 2 });
     expect(unsupportedPriceComparison(refined)).toBeNull();
     expect(routeAskDeterministically(refined)).toEqual([{ name: "search_venues", args: { query: refined, limit: 4 } }]);
   });

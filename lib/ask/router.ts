@@ -371,13 +371,14 @@ export function refineRoutedAskQuery(
 ): string {
   const budgetFollowUp = refineVenueBudgetFollowUp(query, priorUserContents ?? priorUserContent);
   if (budgetFollowUp) return budgetFollowUp;
-  const words = semanticAskRequest(query).trim().split(/\s+/).filter(Boolean);
+  const text = semanticAskRequest(query);
+  const words = text.trim().split(/\s+/).filter(Boolean);
   if (!priorUserContent || words.length === 0 || words.length > 4) return query;
   if (socialTurnKind(priorUserContent)) return query;
   const current = routeAskDeterministically(query);
   if (current.some((call) => call.name !== "search_venues")) return query;
   const priorPlace = extractArea(semanticAskRequest(priorUserContent));
-  if (priorPlace) return `in ${priorPlace}, ${query}`;
+  if (priorPlace) return `${query}${text === query ? "" : "."} in ${priorPlace}`;
   return `${priorUserContent}; ${query}`;
 }
 
