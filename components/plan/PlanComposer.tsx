@@ -123,6 +123,7 @@ import {
   londonDateTimeInputFromIso,
   londonDateTimeInputToIso,
   londonNightsAhead,
+  nextLondonOccurrenceIso,
   nightAreaForPlanIntakePatch,
   planIntakeHandoff,
   planIntakeNightContextPatch,
@@ -1461,10 +1462,12 @@ function initialComposerDraftFields(
   handoff: ComposerHydration | null,
   recoveredDraft: ReturnType<typeof parsePlanDraft>,
 ): ComposerDraftFields {
+  const startTime = handoff?.startsAt ?? recoveredDraft?.startTime;
   return {
     title: handoff?.title ?? recoveredDraft?.title ?? "Tonight, sorted",
     creatorName: handoff?.creatorName ?? recoveredDraft?.creatorName ?? "",
-    startTime: handoff?.startsAt ?? recoveredDraft?.startTime ?? nextEvening,
+    startTime: startTime?.endsWith("Z")
+      ? londonDateTimeInputFromIso(startTime) ?? startTime : startTime ?? nextEvening,
   };
 }
 
@@ -1525,6 +1528,26 @@ type UrlPrefill = {
 };
 
 const NO_URL_PREFILL: UrlPrefill = { ask: null, handoffAsk: null };
+
+function planWindowContainsStart(option: (typeof PLAN_TIME_WINDOWS)[number], exactStartIso: string): boolean {
+  const clock = londonDateTimeInputFromIso(exactStartIso)?.slice(11);
+  if (!clock) return false;
+  return option.end === null
+    ? clock >= option.start || clock < "04:00"
+    : clock >= option.start && clock < option.end;
+}
+
+function tuneTimeAnswers(daypart: NightContext["daypart"], exactStartIso: string | null): Pick<PlanIntakeDraft["answers"], "timeWindow" | "exactStartIso"> {
+  const option = PLAN_TIME_WINDOWS.find((window) => window.daypart === daypart);
+  if (!option) return { timeWindow: null, exactStartIso: null };
+  const now = new Date();
+  if (exactStartIso && Date.parse(exactStartIso) > now.getTime() && planWindowContainsStart(option, exactStartIso)) {
+    return { timeWindow: option.id, exactStartIso };
+  }
+  const input = exactStartIso && londonDateTimeInputFromIso(exactStartIso);
+  const nextStart = input && londonDateTimeInputToIso(`${input.slice(0, 10)}T${option.start}`, now);
+  return { timeWindow: option.id, exactStartIso: nextStart || nextLondonOccurrenceIso(option.id, now) };
+}
 
 /**
  * The ask a `/plan` URL carries, both the wide answer and the narrow one.
@@ -1784,6 +1807,7 @@ function PlanComposerForm({
         handoffAsk.trim(),
         undefined,
         skipRemainingPlanIntake(createPlanIntakeDraft()),
+        {},
       );
     });
     // submitFromEntry is intentionally excluded: it is recreated on render,
@@ -1794,6 +1818,7 @@ function PlanComposerForm({
   const routeDraftFields = initialComposerRouteDraft(recoveredRouteDraft);
   const [nightContext, setNightContext] = useState<NightContext | null>(routeDraftFields.nightContext);
   const [explicitNightContext, setExplicitNightContext] = useState<Partial<NightContext>>(recoveredRouteDraft?.explicitNightContext ?? {});
+  const requestContext = { nightArea: askDraftQuery ? undefined : nightContext?.nightArea, ...explicitNightContext };
   const [routeRevision, setRouteRevision] = useState<RouteRevision | null>(routeDraftFields.routeRevision);
   const [routeNight, setRouteNight] = useState<RouteNight | null>(routeDraftFields.routeNight);
   const [routeStale, setRouteStale] = useState(routeDraftFields.routeStale);
@@ -2187,6 +2212,7 @@ function PlanComposerForm({
     query: string,
     stopCount: PlanStopCount | undefined = matchPlanStopCount(query),
     intakeBase: PlanIntakeDraft = planIntake,
+    context?: Partial<NightContext>,
   ) {
     // Computed once and threaded through explicitly: setPlanIntake has not
     // re-rendered yet when sortWithConcierge runs below, so reading the
@@ -2201,9 +2227,9 @@ function PlanComposerForm({
       },
     });
     setConciergeQuery(query);
-    setExplicitNightContext((current) => ({ ...current, stopCount }));
+    setExplicitNightContext({ ...(context ?? explicitNightContext), stopCount });
     updatePlanIntake(skippedIntake);
-    sortWithConcierge(query, skippedIntake);
+    sortWithConcierge(query, skippedIntake, context);
   }
 
   function updatePlanStartTime(value: string) {
@@ -2383,7 +2409,7 @@ function PlanComposerForm({
       : planIntake;
     draft = { ...draft, answers: {
       ...draft.answers,
-      ...(patch.daypart !== undefined ? { timeWindow: PLAN_TIME_WINDOWS.find((window) => window.daypart === patch.daypart)?.id ?? null } : {}),
+      ...(patch.daypart !== undefined ? tuneTimeAnswers(patch.daypart, draft.answers.exactStartIso) : {}),
       ...(patch.groupSize !== undefined ? { groupSize: patch.groupSize } : {}),
       ...(patch.budget !== undefined ? { budget: patch.budget } : {}),
       ...(patch.budgetLimitPence !== undefined ? { budget: next.budget, budgetLimitPence: patch.budgetLimitPence } : {}),
@@ -2401,6 +2427,8 @@ function PlanComposerForm({
       : applyPlanStopCount(draft, next, patch.stopCount);
     setNightContext(reconciled.context);
     setPlanIntake(reconciled.draft);
+    const exactStartInput = reconciled.draft.answers.exactStartIso && londonDateTimeInputFromIso(reconciled.draft.answers.exactStartIso);
+    if (patch.daypart !== undefined && exactStartInput) setStartTime(exactStartInput);
     setExplicitNightContext((current) => ({ ...current, ...patch }));
     if (!user) writeDeviceNightContext(reconciled.context ?? next);
   }
@@ -2430,23 +2458,22 @@ function PlanComposerForm({
   async function sortWithConcierge(
     queryOverride?: string,
     intakeOverride?: PlanIntakeDraft,
+    context: Partial<NightContext> = requestContext,
   ) {
     // Both overrides (from the describe-first entry surface) are threaded
     // through explicitly before React re-renders, so state reads here cannot
     // send the pre-skip intake to the server.
     const query = queryOverride ?? conciergeQuery;
     const queryArea = nightAreaFromPlanQuery(query);
-    const stopCount = (intakeOverride
-      ? intakeOverride.answers.stopCount
-      : requestedStopCount) ?? matchPlanStopCount(query);
-    const explicitContext = { nightArea: askDraftQuery ? undefined : nightContext?.nightArea, ...explicitNightContext, stopCount };
+    const intakeBase = intakeOverride ?? planIntake;
+    const stopCount = intakeBase.answers.stopCount ?? matchPlanStopCount(query);
+    const explicitContext = { ...context, stopCount };
     if (queryArea.kind !== "none") {
       setExplicitNightContext((current) => ({
         ...current,
         nightArea: queryArea.kind === "unsupported-patch" ? null : queryArea.slug,
       }));
     }
-    const intakeBase = intakeOverride ?? planIntake;
     const intake = syncPlanIntakeAreaFromQuery(
       applyPlanStopCount(intakeBase, null, stopCount).draft,
       query,
