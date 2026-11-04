@@ -183,6 +183,24 @@ describe("POST /api/pub-pal/chat", () => {
     expect(body.answer).not.toMatch(/can't compare|not prices for that item/i);
   });
 
+  it("keeps sourced pub discovery in keyless typed chat", async () => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
+    vi.stubEnv("TYPESAFE_API_KEY", "");
+    vi.stubGlobal("fetch", offlineFetch);
+    const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        query: "Find three quiet pubs in Soho for tonight. Show the source and date for any price you use.",
+        cityId: "london",
+      }),
+    }));
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.toolsUsed).toEqual(["search_venues"]);
+    expect(body.cards).toHaveLength(3);
+    expect(body.answer).not.toContain("not prices for that item");
+  });
+
   it.each(VIBE_CHIPS)("accepts the actual $label starter question keylessly", async (chip) => {
     vi.stubEnv("ELEVENLABS_API_KEY", "");
     vi.stubGlobal("fetch", offlineFetch);
@@ -254,6 +272,8 @@ describe("POST /api/pub-pal/chat", () => {
   it.each([
     ["Cheapest vegan food in Camden", /meal prices|dietary/i],
     ["Cheapest wine in Soho", /other drinks across pubs/i],
+    ["Find pubs in Soho. Show the source and date for any burger price you use.", /meal prices|dietary/i],
+    ["Find pubs in Soho. Show the source and date for any wine price you use.", /other drinks across pubs/i],
   ])("explains keyless price coverage for %s without substituting pints", async (query, wording) => {
     vi.stubEnv("ELEVENLABS_API_KEY", "");
     const fetchMock = vi.fn(offlineFetch);

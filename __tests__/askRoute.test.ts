@@ -55,6 +55,16 @@ function post(body: unknown, ip: string): Promise<Response> {
 }
 
 describe("POST /api/ask", () => {
+  it("keeps pub discovery when the request asks for price sources and dates", async () => {
+    const query = "Find three quiet pubs in Soho for tonight. Show the source and date for any price you use.";
+    const response = await post({ query, cityId: "london" }, "203.0.113.184");
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(body.toolsUsed).toEqual(["search_venues"]);
+    expect(body.cards).toHaveLength(3);
+    expect(body.answer).not.toContain("not prices for that item");
+  });
+
   it("carries each Soho pint publisher and read date into its answer card", async () => {
     const response = await post({ query: "Find me four pubs in Soho", cityId: "london" }, "203.0.113.183");
     const body = await response.json();

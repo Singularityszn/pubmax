@@ -110,7 +110,7 @@ function namedDrinkVenue(query: string): string | null {
 
 export function askRequestClauses(query: string): string[] {
   const pricePrefix = String.raw`(?:${NON_PINT_DRINK_RE.source}|pints?|beer|drinks?)\s+${ITEM_PRICE_RE.source}`;
-  return query.split(new RegExp(String.raw`(?:\s+and\s+|,\s*)(?=(?:any\s+)?(?:${TRANSIT_INTERROGATIVE_PREFIX}|${pricePrefix}|${ITEM_PRICE_RE.source}|how\b|what\b|where\b|find\b|show\b|plan\b|directions to\b|route to\b|get (?:me )?to\b|tube delays?\b|transit delays?\b|weather\b|city status\b|cheap(?:est)?\b|best value\b|lowest price\b|most affordable\b))`, "i"));
+  return query.split(new RegExp(String.raw`(?:\s+and\s+|,\s*)(?=(?:any\s+)?(?:${TRANSIT_INTERROGATIVE_PREFIX}|${pricePrefix}|${ITEM_PRICE_RE.source}|how\b|what\b|where\b|find\b|show\b|include\b|give\b|plan\b|directions to\b|route to\b|get (?:me )?to\b|tube delays?\b|transit delays?\b|weather\b|city status\b|cheap(?:est)?\b|best value\b|lowest price\b|most affordable\b))`, "i"));
 }
 
 function isCityStatusRequest(query: string): boolean {
@@ -133,10 +133,14 @@ export function resolveAskJourney(query: string): { from?: string; to: string } 
 
 // Presentation requests describe the answer, not an item whose price is sought.
 // Keep this whole-clause match narrow so a second food/drink ask stays visible.
-const PRICE_PRESENTATION_CLAUSE_RE = /^(?:please\s+)?(?:show|include|give)(?:\s+me)?\s+(?:the\s+)?(?:sources?|source dates?|recorded dates?|map)(?:\s+and\s+(?:the\s+)?(?:sources?|source dates?|recorded dates?|map))*$/i;
+const PRICE_PRESENTATION_FIELD = String.raw`(?:sources?|(?:(?:source|recorded)\s+)?dates?|map)`;
+const PRICE_PRESENTATION_CLAUSE_RE = new RegExp(
+  String.raw`^(?:please\s+)?(?:show|include|give)(?:\s+me)?\s+(?:the\s+)?${PRICE_PRESENTATION_FIELD}(?:\s+and\s+(?:the\s+)?${PRICE_PRESENTATION_FIELD})*(?:\s+for\s+(?:(?:any|each|every|all|the)\s+)?(?:(?:listed|recorded)\s+)?(?:pint\s+)?prices?(?:\s+(?:(?:that|which)\s+)?you\s+(?:use|show|quote|mention|include))?)?$`,
+  "i",
+);
 
 function priceQuestion(query: string): string {
-  const clauses = askRequestClauses(query).flatMap((clause) => clause.split(/(?<=[.!?])\s+(?=(?:please\s+)?(?:show|include|give)\s)/i)).map((clause) =>
+  const clauses = askRequestClauses(query).flatMap((clause) => clause.split(/(?<=[.!?])\s+(?=(?:please\s+)?(?:show|include|give|find|plan)\s)/i)).map((clause) =>
     stripTrailingQualifiers(stripTrailingPunctuation(clause)),
   );
   const priceClauses = clauses.filter((clause) =>
