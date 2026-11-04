@@ -110,6 +110,8 @@ describe("parseConciergeIntent keyless fallback", () => {
     "Show the source and date for any price you use. Find three quiet pubs in Soho for tonight.",
     "Show the source and date for any price you use. Recommend three quiet pubs in Soho.",
     "Show the source and date for any price you use. Suggest three quiet pubs in Soho.",
+    "Find three quiet pubs in Soho. Show sources for any price you use and show the date for every price you quote.",
+    "Show sources for any price you use and please show the date for every price you quote. Recommend three quiet pubs in Soho.",
     "Show the source and date for any price you use. Sort me a quiet night in Soho.",
     "Find three quiet pubs in Soho and please include sources and dates for every price you quote",
     "Find three quiet pubs in Soho. Show the source and date for any price you use tonight.",
@@ -128,6 +130,8 @@ describe("parseConciergeIntent keyless fallback", () => {
     "Show the source and date for any price you use. Recommend three quiet pubs in Soho for four people under £7 a pint.",
     "Show the source and date for any price you use. Suggest three quiet pubs in Soho for four people under £7 a pint.",
     "Show the source and date for any price you use. Sort me a quiet night in Soho for four people under £7 a pint.",
+    "Show sources for any price you use and show the date for every price you quote. Sort me a quiet night in Soho for four people under £7 a pint.",
+    "Find three quiet pubs in Soho for four people under £7 a pint. Show sources for any price you use and show the date for every price you quote.",
     "Plan a quiet crawl in Soho for four people under £7 a pint and please include sources and dates for every price you quote",
   ])("keeps area, group and budget beside presentation clauses: %s", async (query) => {
     const parsed = await parseConciergeIntent(query, { skipModel: true });
@@ -137,6 +141,8 @@ describe("parseConciergeIntent keyless fallback", () => {
   it.each([
     "Find three quiet date-night pubs in Soho. Show the source and date for any price you use.",
     "Show the source and date for any price you use. Plan a quiet romantic crawl in Soho.",
+    "Show sources for any price you use and show the date for every price you quote. Find three quiet date-night pubs in Soho.",
+    "Plan a quiet romantic crawl in Soho. Show sources for any price you use and show the date for every price you quote.",
   ])("retains a real romantic preference beside evidence dates: %s", async (query) => {
     const parsed = await parseConciergeIntent(query, { skipModel: true });
     expect(parsed.intent).toEqual({ mood: ["quiet", "date"], groupSize: 2, area: "Soho" });
@@ -301,12 +307,14 @@ describe("parseConciergeIntent TypeSafe path", () => {
     vi.unstubAllEnvs();
   });
 
-  it("sends the semantic request to the model without presentation dates", async () => {
+  it.each([
+    "Show the source and date for any price you use. Find three quiet pubs in Soho for four people under £7 a pint.",
+    "Show sources for any price you use and show the date for every price you quote. Find three quiet pubs in Soho for four people under £7 a pint.",
+    "Find three quiet pubs in Soho for four people under £7 a pint. Show sources for any price you use and show the date for every price you quote.",
+  ])("sends the semantic request to the model without presentation dates: %s", async (query) => {
     vi.stubEnv("TYPESAFE_API_KEY", "test-key");
     mockSystemOne({ moods: hitNouls(["quiet"]), area: "Soho", group: "4", budget: BUDGET_EXPLICIT });
-    const parsed = await parseConciergeIntent(
-      "Show the source and date for any price you use. Find three quiet pubs in Soho for four people under £7 a pint.",
-    );
+    const parsed = await parseConciergeIntent(query);
     expect(systemOne).toHaveBeenCalledWith(
       expect.objectContaining({ text: "Find three quiet pubs in Soho for four people under £7 a pint." }),
       expect.anything(),

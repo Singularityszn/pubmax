@@ -155,3 +155,65 @@ The focused four-suite Vitest command could not start because `node_modules/.bin
 No HTTP, lint or configured compiler check passed in this round.
 The temporary diagnostic was removed after the run.
 These results describe modified source derived from the starting head, not a new committed or pipeline-validated head.
+
+## Review findings R3 and R5
+
+This round started at `afb2ba522a747b59060f083cb547c1e6da0bcab3`.
+The before diagnostic executed the real router, semantic policy and preference parser through Node.
+It confirmed that the existing R3 repair already preserved `Recommend`, `Suggest` and `Sort me a night` requests.
+Those requests selected discovery or planning and retained their requested moods.
+No further request-verb list was added.
+
+The diagnostic reproduced R5 with this request:
+
+> Find three quiet pubs in Soho. Show sources for any price you use and show the date for every price you quote.
+
+The first evidence match consumed `and` and left the second instruction without a recognised starting boundary.
+The router returned `UNSUPPORTED_PRICE_COMPARISON` with no calls.
+The deterministic parser added `date` to the quiet mood.
+The model input also retained the second evidence instruction.
+The provider boundary used a local stub and made no network call.
+
+Removing evidence instructions must preserve the complete semantic request after one call.
+This invariant applies to leading, trailing and adjacent instructions, including polite wording and punctuation.
+It also applies to discovery, planning, named pint questions and journey endpoints.
+Both preference paths and the food and non-pint price guards share this boundary.
+Replies, memories and proposals must retain the original complete question.
+
+The shared matcher now recognises a conjunction consumed by the preceding complete evidence match.
+The correction changes one boundary expression and adds no retry, state or helper.
+The remaining request retains its punctuation, preferences, area, group size and budget.
+Neither router tool arguments nor proposal context change.
+The R4 cleanup and executable probability-threshold checks remain intact.
+
+Regression cases execute the semantic policy, router, preference parser and existing HTTP-handler seams.
+Their oracles are the required requests and existing unsupported-item coverage contracts.
+They reject retained evidence clauses, an added romantic preference, lost constraints and changed raw tool queries.
+They also reject changed punctuation in `Mr. Fogg's` and removal of genuine burger or wine requests.
+The model-boundary cases assert the emitted semantic request without contacting a provider.
+
+Vitest, ESLint and the configured TypeScript compiler remain absent from this worktree.
+No dependencies were installed or borrowed.
+The focused Node diagnostic cannot replace the formal tests, HTTP checks, lint or types.
+The configured Test phase still owns dependency preparation and validation before publication.
+Provider-backed replies and production browser results remain unverified.
+
+The final Node diagnostic passed 1,420 assertions on this round's modified source.
+It checked eight clause boundaries with leading and trailing evidence chains.
+It retained discovery counts, planning, genuine romantic preferences, budgets, group sizes and named pint routing.
+It preserved journey endpoints and punctuation in `Mr. Fogg's`.
+All 174 existing qualified-price fixtures retained their guards beside evidence chains.
+An unsupported item between two evidence instructions also retained its guard.
+Both preference paths retained the complete semantic request after one extraction.
+The diagnostic substituted only unavailable provider imports and resolved local aliases and JSON modules.
+
+Two initial diagnostic expectations exceeded the existing router grammar.
+They expected three results for `three quiet date-night pubs` and planning for `Sort me a quiet night`.
+The final probes used `three quiet pubs ... for a date-night` and `Sort me a night`.
+These changes corrected diagnostic inputs, not product source.
+
+The focused four-suite Vitest command exited 127 because `node_modules/.bin/vitest` was absent.
+The added HTTP and Vitest regression cases remain unexecuted in this round.
+No formal lint or compiler result is claimed.
+The temporary diagnostic was removed after the run.
+These results describe source derived from the starting head, not pipeline validation.

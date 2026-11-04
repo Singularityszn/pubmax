@@ -19,6 +19,25 @@ describe("routeAskDeterministically", () => {
     expect(semanticAskRequest(request)).toBe(request);
   });
 
+  it.each([
+    "Recommend three quiet pubs in Soho for four people under £7 a pint.",
+    "Suggest three quiet date-night pubs in Soho.",
+    "Sort me a quiet night in Soho for four people under £7 a pint.",
+    "How much is a pint at The Lamb?",
+    "Directions to Mr. Fogg's from London Bridge.",
+    "Find pubs with burger prices in Soho.",
+    "Show wine prices in Soho.",
+  ])("removes adjacent evidence instructions once and preserves %s", (request) => {
+    for (const boundary of [". ", "? ", "! ", "; ", ", ", " and ", ". and ", "; and "]) {
+      const evidence = `Show sources for any price you use${boundary}could you please show the date for every price you quote${boundary}include the map`;
+      for (const query of [`${evidence}. ${request}`, `${request} ${evidence}.`]) {
+        const semantic = semanticAskRequest(query);
+        expect(semantic).toBe(request);
+        expect(semanticAskRequest(semantic)).toBe(request);
+      }
+    }
+  });
+
   it("keeps discovery after a leading request for price evidence", () => {
     const query = "Show the source and date for any price you use. Find three quiet pubs in Soho for tonight.";
     expect(unsupportedPriceComparison(query)).toBeNull();
@@ -30,6 +49,8 @@ describe("routeAskDeterministically", () => {
   it.each([
     "Show the source and date for any price you use. Recommend three quiet pubs in Soho.",
     "Show the source and date for any price you use. Suggest three quiet pubs",
+    "Find three quiet pubs in Soho. Show sources for any price you use and show the date for every price you quote.",
+    "Show sources for any price you use and please show the date for every price you quote. Recommend three quiet pubs in Soho.",
     "Find three quiet pubs in Soho for tonight. Show the source and date for any price you use.",
     "Find three quiet pubs in Soho and please include sources and dates for every price you quote",
     "Find three quiet pubs in Soho. Show the source and date for any price you use tonight.",
@@ -46,6 +67,8 @@ describe("routeAskDeterministically", () => {
   it.each([
     "Plan a crawl in Soho. Show the source and date for any price you mention.",
     "Show the source and date for any price you use. Sort me a night in Soho",
+    "Show sources for any price you use and show the date for every price you quote. Sort me a night in Soho for four people under £7 a pint.",
+    "Plan a quiet crawl in Soho. Show sources for any price you use; and please show the date for every price you quote.",
     "Show the source and date for any price you use. Plan a quiet crawl in Soho.",
     "Plan a quiet crawl in Soho and please include sources and dates for every price you quote",
   ])("keeps planning with a price-evidence instruction: %s", (query) => {
@@ -55,6 +78,8 @@ describe("routeAskDeterministically", () => {
 
   it.each([
     "Show the source and date for any price you use. How much is a pint at The Lamb?",
+    "Show sources for any price you use and show the date for every price you quote. How much is a pint at The Lamb?",
+    "How much is a pint at The Lamb? Show sources for any price you use and show the date for every price you quote.",
     "How much is a pint at The Lamb? Please include sources and dates for every price you quote.",
     "How much is a pint at The Lamb and please include sources and dates for every price you quote",
   ])("keeps the named pint subject beside evidence instructions: %s", (query) => {
@@ -67,6 +92,10 @@ describe("routeAskDeterministically", () => {
   it.each([
     ["Show the source and date for any price you use. Recommend pubs with burger prices in Soho.", "UNSUPPORTED_FOOD_PRICE_COMPARISON"],
     ["Show the source and date for any price you use. Suggest pubs with wine prices in Soho.", "UNSUPPORTED_DRINK_PRICE_COMPARISON"],
+    ["Show sources for any price you use and show the date for every price you quote and show wine prices in Soho.", "UNSUPPORTED_DRINK_PRICE_COMPARISON"],
+    ["Show sources for any price you use and show the date for every price you quote. Find pubs with burger prices in Soho.", "UNSUPPORTED_FOOD_PRICE_COMPARISON"],
+    ["Find pubs with burger prices in Soho. Show sources for any price you use and show the date for every price you quote.", "UNSUPPORTED_FOOD_PRICE_COMPARISON"],
+    ["Show wine prices in Soho and show sources for any price you use and show the date for every price you quote.", "UNSUPPORTED_DRINK_PRICE_COMPARISON"],
     ["Show the source and date for any price you use. Sort me a night with burger prices in Soho.", "UNSUPPORTED_FOOD_PRICE_COMPARISON"],
     ["Find three pubs in Soho. Show the source and date for any burger price you use.", "UNSUPPORTED_FOOD_PRICE_COMPARISON"],
     ["Find three pubs in Soho. Show the source and date for any wine price you use.", "UNSUPPORTED_DRINK_PRICE_COMPARISON"],
@@ -83,6 +112,8 @@ describe("routeAskDeterministically", () => {
   it.each([
     "Show the source and date for any price you use. Directions to Mr. Fogg's from London Bridge.",
     "Directions to Mr. Fogg's from London Bridge. Show the source and date for any price you use.",
+    "Show sources for any price you use and show the date for every price you quote. Directions to Mr. Fogg's from London Bridge.",
+    "Directions to Mr. Fogg's from London Bridge. Show sources for any price you use and show the date for every price you quote.",
     "Directions to Mr. Fogg's from London Bridge and please include sources and dates for every price you quote",
   ])("preserves punctuation and journey endpoints beside evidence instructions: %s", (query) => {
     const semantic = semanticAskRequest(query);

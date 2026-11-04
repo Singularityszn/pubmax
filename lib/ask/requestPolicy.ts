@@ -25,7 +25,7 @@ export function stripTrailingQualifiers(phrase: string): string {
 
 const PRICE_PRESENTATION_FIELD = String.raw`(?:sources?|(?:(?:source|recorded)\s+)?dates?|map)`;
 const PRICE_PRESENTATION_CLAUSE_RE = new RegExp(
-  String.raw`(?:^\s*|(?<=[.!?;,])\s*|\s+and\s+)(?:(?:can|could|would|will)\s+you\s+)?(?:please\s+)?(?:show|include|give)(?:\s+me)?\s+(?:the\s+)?${PRICE_PRESENTATION_FIELD}(?:\s+and\s+(?:the\s+)?${PRICE_PRESENTATION_FIELD})*(?:\s+for\s+(?:(?:any|each|every|all|the)\s+)?(?:(?:listed|recorded)\s+)?(?:pint\s+)?prices?(?:\s+(?:(?:that|which)\s+)?you\s+(?:use|show|quote|mention|include))?)?(?:\s+(?:${TRAILING_QUALIFIER}))*\s*(?!and\s+(?:the\s+)?${PRICE_PRESENTATION_FIELD}\b)(?:[.!?;,]+(?:\s+and\b)?|\band\b|$)`,
+  String.raw`(?:^\s*|(?<=[.!?;,]|\band\b)\s*|\s+and\s+)(?:(?:can|could|would|will)\s+you\s+)?(?:please\s+)?(?:show|include|give)(?:\s+me)?\s+(?:the\s+)?${PRICE_PRESENTATION_FIELD}(?:\s+and\s+(?:the\s+)?${PRICE_PRESENTATION_FIELD})*(?:\s+for\s+(?:(?:any|each|every|all|the)\s+)?(?:(?:listed|recorded)\s+)?(?:pint\s+)?prices?(?:\s+(?:(?:that|which)\s+)?you\s+(?:use|show|quote|mention|include))?)?(?:\s+(?:${TRAILING_QUALIFIER}))*\s*(?!and\s+(?:the\s+)?${PRICE_PRESENTATION_FIELD}\b)(?:[.!?;,]+(?:\s+and\b)?|\band\b|$)`,
   "gi",
 );
 
