@@ -260,7 +260,7 @@ test.describe("signed-in journeys", () => {
       ),
       sheet
         .getByRole("region", { name: "Save this venue to a list" })
-        .getByRole("button", { name: SAVE_LIST, exact: true })
+        .getByRole("button", { name: new RegExp(`^\\s*(?:✓\\s*)?${SAVE_LIST}\\s*$`) })
         .click(),
     ]);
     expect(saved.ok()).toBe(true);
