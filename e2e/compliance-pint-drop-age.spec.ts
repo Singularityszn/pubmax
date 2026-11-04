@@ -19,7 +19,7 @@ type Age = "missing" | "under18" | "asserted";
 
 async function installLane(page: Page, initial: Age) {
   let age = initial;
-  const posts: { price: string; drink: string; receiptBytes: number }[] = [];
+  const posts: { price: string; drink: string; receiptName: string }[] = [];
   let successes = 0;
   let assertions = 0;
   let priceSubmitPosts = 0;
@@ -53,9 +53,11 @@ async function installLane(page: Page, initial: Age) {
     const receipt = form.get("receipt_photo");
     expect(receipt).not.toBeNull();
     expect(typeof receipt).not.toBe("string");
-    const receiptBytes = receipt && typeof receipt !== "string" ? receipt.size : 0;
-    expect(receiptBytes).toBeGreaterThan(0);
-    posts.push({ price: String(form.get("priceGbp")), drink: String(form.get("drink")), receiptBytes });
+    // Chromium omits file bytes from intercepted multipart request bodies.
+    // Check the rendered bill preview before submission and its name here.
+    const receiptName = receipt && typeof receipt !== "string" ? receipt.name : "";
+    expect(receiptName).toBe("bill.jpg");
+    posts.push({ price: String(form.get("priceGbp")), drink: String(form.get("drink")), receiptName });
     if (age !== "asserted") {
       await route.fulfill({ status: 409, json: {
         code: "ADULT_REQUIRED",
@@ -98,7 +100,7 @@ async function openComposer(page: Page) {
   const inspector = page.locator(".venueInspector:visible").first();
   const pints = inspector.locator("#venuePanel-pints");
   await expect(async () => {
-    await inspector.getByRole("tab", { name: "Stories", exact: true }).click();
+    await inspector.getByRole("tab", { name: "Prices", exact: true }).click();
     await expect(pints).toBeVisible({ timeout: 1_000 });
   }).toPass({ timeout: 20_000 });
   const form = pints.getByRole("form", { name: "Pint Drop composer", exact: true });
@@ -117,6 +119,8 @@ async function submitPrice(page: Page) {
   await form.getByTestId("spill-price-step").locator("input").first().fill(PRICE);
   await form.getByLabel("Drink", { exact: true }).fill(DRINK);
   await attachSpillBill(form);
+  await expect.poll(() => form.getByRole("img", { name: "Preview of the bill behind your price", exact: true })
+    .evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
   const button = form.getByRole("button", { name: "Log it", exact: true });
   await expect(button).toBeEnabled();
   // A write is clicked once. Only non-writing hydration taps above may retry.
