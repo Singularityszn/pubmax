@@ -6,6 +6,9 @@ export const GENERIC_MAP_COMMANDS = [
   "Give me the map", "Let me see the map", "Can you open up the pub map",
   "The map please", "Map view", "Show me the maps now",
   "Show the map, please", "Open the map for me", "Open the map, mate",
+  "Open the full map", "Show me the full map", "Open the full map tonight",
+  "View the whole map please", "Can you open up the whole pub map",
+  "Pull up the full map, please", "The full map please", "Whole map view",
 ];
 
 export function serviceBesideMap(service: string, map = "Open the map"): string[] {

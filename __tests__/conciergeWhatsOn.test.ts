@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { GENERIC_MAP_COMMANDS, serviceBesideMap } from "./fixtures/askMapCommands";
 
 import {
   buildWhatsOnAnswer,
@@ -24,6 +25,12 @@ function row(over: Partial<WhatsOnRow>): WhatsOnRow {
 }
 
 describe("detectWhatsOnIntent", () => {
+  it.each(GENERIC_MAP_COMMANDS)("keeps Friday when a map command has its own time: %s", (map) => {
+    for (const query of serviceBesideMap("What's on in Soho on Friday", map)) {
+      expect(detectWhatsOnIntent(query)).toEqual({ window: "weekday", weekday: 5, area: "Soho" });
+    }
+  });
+
   it.each([
     ["What's on in Soho on Friday", { window: "weekday", weekday: 5, area: "Soho" }],
     ["quiz on Thursday in Camden", { kind: "quiz", window: "weekday", weekday: 4, area: "Camden" }],

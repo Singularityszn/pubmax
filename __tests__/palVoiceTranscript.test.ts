@@ -1,6 +1,7 @@
 import { existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { GENERIC_MAP_COMMANDS } from "./fixtures/askMapCommands";
 
 import { PAL_VOICE_SOUND_SRC } from "@/components/pubpal/palVoiceSounds";
 
@@ -31,8 +32,8 @@ describe("palAsksForMap", () => {
     "let me see the map",
     "Map",
     "the map please",
+    ...GENERIC_MAP_COMMANDS,
     "Show me Soho on the map",
-    "Show me the map’s pubs",
   ])("hears an ask for the map: %s", (text) => {
     expect(palAsksForMap(text)).toBe(true);
   });
@@ -47,6 +48,10 @@ describe("palAsksForMap", () => {
     "Show me cheap pints near Soho",
     "Mapping out a big night",
     "The pub on the map looked busy",
+    "Show me the map’s pubs",
+    "Show me the Harp map",
+    "Do not open the full map",
+    "Never show me the whole map please",
   ])("leaves everything else to the Pal: %s", (text) => {
     expect(palAsksForMap(text)).toBe(false);
   });
@@ -55,6 +60,7 @@ describe("palAsksForMap", () => {
 describe("map requests that still need an answer", () => {
   it.each([
     "Find me four pubs in Soho and show them on the map.",
+    "Show me the map’s pubs",
     "Show me quiet pubs in Soho on the map",
     "Show me Soho on the map",
     "Show me the map with four cheap pubs near Bank",

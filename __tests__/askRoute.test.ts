@@ -56,7 +56,9 @@ function post(body: unknown, ip: string): Promise<Response> {
 }
 
 describe("POST /api/ask", () => {
-  it.each(["Directions to The Harp from London Bridge", "Directions from London Bridge to The Harp"].flatMap((service) => serviceBesideMap(service)))(
+  it.each(["Directions to The Harp from London Bridge", "Directions from London Bridge to The Harp", "How do I get from London Bridge to The Harp?"].flatMap((service) =>
+    ["Open the map", "Open the full map", "View the whole map please"].flatMap((map) => serviceBesideMap(service, map)),
+  ))(
     "separates supported map commands from both journey endpoints: %s", async (query) => {
       resetJourneyCache();
       const journeyFetch = vi.fn<typeof fetch>(async (input, init) => {
@@ -74,7 +76,7 @@ describe("POST /api/ask", () => {
     },
   );
 
-  it.each(serviceBesideMap("Cheapest pint near Soho", "Show the map please"))(
+  it.each(["Show the map please", "Show me the full map", "View the whole map please"].flatMap((map) => serviceBesideMap("Cheapest pint near Soho", map)))(
     "separates supported map commands from pint comparisons: %s", async (query) => {
       const response = await post({ query, cityId: "london" }, "203.0.113.186");
       const body = await response.json();

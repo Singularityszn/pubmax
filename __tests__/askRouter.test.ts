@@ -34,7 +34,7 @@ describe("routeAskDeterministically", () => {
   });
 
   it.each(GENERIC_MAP_COMMANDS)("keeps service subjects beside every supported map command: %s", (map) => {
-    for (const service of ["Directions to The Harp from London Bridge", "Directions from London Bridge to The Harp"]) {
+    for (const service of ["Directions to The Harp from London Bridge", "Directions from London Bridge to The Harp", "How do I get from London Bridge to The Harp?"]) {
       for (const query of serviceBesideMap(service, map)) {
         expect(resolveAskJourney(query)).toEqual({ from: "London Bridge", to: "The Harp" });
         expect(routeAskDeterministically(query)).toEqual([{ name: "journey", args: { from: "London Bridge", to: "The Harp" } }]);

@@ -15,7 +15,7 @@
 
 import { palAsksForCurrentMap, palAsksForVenueDiscovery, palMapAskTarget } from "@/lib/palMapAsk";
 import { venueMapUrl } from "@/lib/venueMapUrl";
-import { MAP_VIEW_VERBS, semanticAskRequest } from "@/lib/ask/requestPolicy";
+import { GENERIC_MAP_COMMAND_RE, semanticAskRequest } from "@/lib/ask/requestPolicy";
 import { askHasPriorityOverMap } from "@/lib/ask/router";
 
 export type PalVoiceSpeaker = "you" | "pal";
@@ -101,27 +101,18 @@ export function tentativeUserTranscriptFrom(event: unknown): string | null {
 }
 
 const MAP_NEGATION_RE = /\b(?:don'?t|do not|dont|never|no need to|not|stop)\b/;
-// A verb that asks to SEE the map, at most four words before it: "show me
-// the map", "can you open up the pub map", "take me back to the map".
-const MAP_VERB_RE =
-  new RegExp(String.raw`\b${MAP_VIEW_VERBS}\b(?:\s+[a-z']+){0,4}?\s+maps?\b`);
-// The whole ask is the map: "map", "the map please", "map view".
-const BARE_MAP_RE = /^(?:(?:the|a|my)\s+)?maps?(?:\s+view)?(?:\s+(?:please|now|then))?$/;
-
 /** Does the person ask, in their own words, to see the map? */
 export function palAsksForMap(text: string): boolean {
   const normalized = text
     .toLowerCase()
     .replace(/[’`]/g, "'")
-    .replace(/[^a-z'\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
   if (!normalized || !/\bmaps?\b/.test(normalized)) return false;
-  if (BARE_MAP_RE.test(normalized)) return true;
-  const verb = MAP_VERB_RE.exec(normalized);
-  if (!verb) return false;
-  // "Don't show me the map" and "not the map yet" are not asks.
-  return !MAP_NEGATION_RE.test(normalized.slice(0, verb.index + verb[0].length));
+  const command = GENERIC_MAP_COMMAND_RE.exec(normalized);
+  if (command) return !MAP_NEGATION_RE.test(normalized.slice(0, command.index + command[0].search(/\bmaps?\b/)));
+  return !MAP_NEGATION_RE.test(normalized)
+    && (palAsksForCurrentMap(text) || palMapAskTarget(text) !== null);
 }
 
 // A planned night's next stop: "next stop", "the next pub", "where next",

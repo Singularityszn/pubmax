@@ -11,6 +11,7 @@ const push = vi.hoisted(() => vi.fn());
 const request = vi.hoisted(() => vi.fn());
 const planRead = vi.hoisted(() => vi.fn());
 const harp = { id: "venue-1bz7oic", name: "The Harp", lat: 51.5098, lng: -0.1261, borough: "Westminster", cheapestPrice: null };
+const lamb = { ...harp, id: "venue-lamb", name: "The Lamb" };
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 vi.mock("next/link", () => ({
@@ -26,8 +27,8 @@ vi.mock("@/components/plan/usePlanMemberRead", () => ({ readPlanMemberProjection
 vi.mock("@/components/map/canvas/webgl", () => ({ probeWebGl2: () => ({ hasContext: true, status: "" }) }));
 vi.mock("@/components/map/PalRecommendationMapCanvas", () => ({ default: () => null }));
 vi.mock("@/lib/venuesSlim", () => ({
-  loadSlimVenuesForCity: async () => [harp],
-  loadSlimVenuesForCityResult: async () => ({ status: "ready", rows: [harp] }),
+  loadSlimVenuesForCity: async () => [harp, lamb],
+  loadSlimVenuesForCityResult: async () => ({ status: "ready", rows: [harp, lamb] }),
 }));
 vi.mock("@/lib/authedFetch", async (original) => ({
   ...(await original<typeof import("@/lib/authedFetch")>()), authedActionFetch: request,
@@ -83,7 +84,7 @@ const withEvidence = (request: string) => [request, `${evidence} ${request}`, `$
 
 describe("mounted typed map dispatch", () => {
   it.each(["Date night", "Garden", "For four", "Near Soho"].flatMap((service) =>
-    ["Open the map", "Show the map please", "Can you open up the pub map", "Map view"].flatMap((map) => serviceBesideMap(service, map)),
+    ["Open the map", "Show the map please", "Can you open up the pub map", "Map view", "Open the full map", "View the whole map please"].flatMap((map) => serviceBesideMap(service, map)),
   ))("separates supported map commands before service submission: %s", async (query) => {
     await send(query);
     expect(push).not.toHaveBeenCalled();
@@ -127,6 +128,15 @@ describe("mounted typed map dispatch", () => {
     expect(request.mock.calls.filter(([url, init]) => url === "/api/pub-pal/chat" && init?.method === "POST")).toHaveLength(1);
   });
 
+  it.each(["Show me on the map", "Show those pubs on the map"].flatMap(withEvidence))(
+    "opens the map when the requested retained choice is absent: %s", async (query) => {
+      await send(query);
+      expect(push).toHaveBeenCalledExactlyOnceWith("/map");
+      expect(host.textContent).toContain(query);
+      expect(request.mock.calls.filter(([url, init]) => url === "/api/pub-pal/chat" && init?.method === "POST")).toHaveLength(0);
+    },
+  );
+
   it.each([true, false])("uses the next stop only when the plan is active: %s", async (active) => {
     const planId = "11111111-1111-4111-8111-111111111111";
     writeActivePlan({ id: planId, startTime: new Date(Date.now() - (active ? 1 : 48) * 60 * 60 * 1000).toISOString(), stopIndex: 0 });
@@ -137,11 +147,11 @@ describe("mounted typed map dispatch", () => {
     else expect(planRead).not.toHaveBeenCalled();
   });
 
-  it.each(withEvidence("Show The Harp on the map."))("opens the listed named pub: %s", async (query) => {
+  it.each([harp, lamb].flatMap((venue) => withEvidence(`Show ${venue.name} on the map.`).map((query) => ({ query, venue }))))("opens the listed named pub: $query", async ({ query, venue }) => {
     await send(query);
-    expect(push).toHaveBeenCalledWith("/map?sel=venue-1bz7oic");
+    expect(push).toHaveBeenCalledWith(`/map?sel=${venue.id}`);
     expect(host.textContent).toContain(query);
-    expect(host.textContent).toContain("Opening The Harp");
+    expect(host.textContent).toContain(`Opening ${venue.name}`);
     expect(request.mock.calls.filter(([url, init]) => url === "/api/pub-pal/chat" && init?.method === "POST")).toHaveLength(0);
   });
 
