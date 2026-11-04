@@ -209,7 +209,7 @@ export default function PlanIntake({
           ) : null}
           <PlanStopCountPicker
             value={draft.answers.stopCount}
-            onChange={(stopCount) => onChange({ ...draft, answers: { ...draft.answers, stopCount } })}
+            onChange={(stopCount) => onChange({ ...draft, answers: { ...draft.answers, stopCount, stopCountSource: "picker" } })}
           />
         </div>
         <button
@@ -249,7 +249,7 @@ export default function PlanIntake({
 
       <PlanStopCountPicker
         value={draft.answers.stopCount}
-        onChange={(stopCount) => onChange({ ...draft, answers: { ...draft.answers, stopCount } })}
+        onChange={(stopCount) => onChange({ ...draft, answers: { ...draft.answers, stopCount, stopCountSource: "picker" } })}
       />
 
       <SheetStepProgress

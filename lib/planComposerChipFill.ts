@@ -7,28 +7,12 @@ import {
   type PlanIntakeStep,
 } from "@/lib/planIntake";
 import { NIGHT_PATCHES, type NightPatchId } from "@/lib/nightPatches";
-import { normalizePlanStopCount, type PlanStopCount } from "@/lib/planStopCount";
+import { normalizePlanStopCount } from "@/lib/planStopCount";
 import type { PlanTemplate } from "@/lib/planTemplates";
 
 /** Keep non-empty user text; only empty fields accept a chip or template suggestion. */
 export function fillEmptyText(current: string, suggestion: string): string {
   return current.trim() ? current : suggestion;
-}
-
-export function resolveDescribeChipSubmit(input: {
-  query: string;
-  stopCountTouched: boolean;
-  stopCount: PlanStopCount;
-  chipText: string;
-  chipInferredStopCount: PlanStopCount;
-}): { query: string; stopCount: PlanStopCount } {
-  const userQuery = input.query.trim();
-  const query = userQuery || input.chipText;
-  const typedStopCount = userQuery
-    ? normalizePlanStopCount(inferNightContext(userQuery).context.stopCount)
-    : input.chipInferredStopCount;
-  const stopCount = input.stopCountTouched ? input.stopCount : typedStopCount;
-  return { query, stopCount };
 }
 
 function nightPatchIdForNightArea(slug: NightAreaSlug): NightPatchId | null {

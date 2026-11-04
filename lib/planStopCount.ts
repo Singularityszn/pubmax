@@ -30,6 +30,23 @@ export function isPlanStopCount(value: unknown): value is PlanStopCount {
     && (PLAN_STOP_COUNTS as readonly number[]).includes(value);
 }
 
+export type PlanStopCountSource = "text" | "picker" | "route-edit";
+
+export function cleanPlanStopCountSource(value: unknown, count: unknown): PlanStopCountSource | undefined {
+  return isPlanStopCount(count) && (value === "text" || value === "picker" || value === "route-edit")
+    ? value : undefined;
+}
+
+export function resolvePlanStopCountIntent(query: string, stopCount?: PlanStopCount, stopCountSource?: PlanStopCountSource) {
+  if (stopCount !== undefined && (stopCountSource === "picker" || stopCountSource === "route-edit")) {
+    return { stopCount, stopCountSource };
+  }
+  const textCount = matchPlanStopCount(query);
+  return textCount !== undefined
+    ? { stopCount: textCount, stopCountSource: "text" as const }
+    : { stopCount, stopCountSource: cleanPlanStopCountSource(stopCountSource, stopCount) };
+}
+
 export function normalizePlanStopCount(value: unknown): PlanStopCount {
   return isPlanStopCount(value) ? value : DEFAULT_PLAN_STOP_COUNT;
 }

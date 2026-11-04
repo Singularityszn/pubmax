@@ -99,6 +99,30 @@ describe("requested-count recovery", () => {
     ...local, savedAt: new Date(savedAt).toISOString(),
     draft: { ...local.draft, answers: { ...local.draft.answers, stopCount: count } },
   });
+  it.each([
+    { sessionAge: 0, intakeAge: 1, source: "picker" },
+    { sessionAge: 1, intakeAge: 0, source: "text" },
+    { sessionAge: 0, intakeAge: 0, source: "text" },
+  ])("selects count origin with its winning clock: $sessionAge/$intakeAge", ({ sessionAge, intakeAge, source }) => {
+    const saved = v2Plan(NOW + sessionAge, { requestedStopCount: 1, requestedStopCountSource: "text" });
+    const storage = memoryStorage();
+    writePlanIntakeDraft({ ...local.draft, answers: { ...local.draft.answers, stopCount: 1, stopCountSource: "picker" } }, storage, NOW + intakeAge);
+    const localCopy = readPlanIntakeDraftWithMetadata(storage, NOW + 1);
+    expect(resolveRequestedPlanIntent(saved, saved.draft, localCopy)).toMatchObject({ stopCount: 1, stopCountSource: source });
+    expect(resolveRequestedPlanIntent(null, null, localCopy)).toMatchObject({ stopCount: 1, stopCountSource: "picker" });
+    expect(resolveRequestedPlanIntent(saved, saved.draft, null)).toMatchObject({ stopCount: 1, stopCountSource: "text" });
+  });
+
+  it("does not borrow authority from conflicting or undated session copies", () => {
+    const saved = v2Plan(NOW, { requestedStopCount: 1, requestedStopCountSource: "picker" });
+    const conflicting = { ...saved.draft, requestedStopCountSource: "text" as const };
+    expect(resolveRequestedPlanIntent(saved, conflicting, null)).toEqual({ stopCount: 1, conciergeQuery: "", descriptionUnavailable: true });
+    const legacy: ParsedPlanDraft = { ...saved, legacy: true, savedAt: null };
+    expect(resolveRequestedPlanIntent(legacy, saved.draft, null).stopCountSource).toBeUndefined();
+    const unknown = v2Plan(NOW + 1);
+    const oldPicker = { ...localCount(5, NOW), draft: { ...local.draft, answers: { ...local.draft.answers, stopCount: 5 as const, stopCountSource: "picker" as const } } };
+    expect(resolveRequestedPlanIntent(unknown, unknown.draft, oldPicker)).toEqual({ stopCount: undefined, conciergeQuery: "Quiet pints", descriptionUnavailable: false });
+  });
   it("recovers the route and request together without turning returned stops into intent", () => {
     const older = v2Plan(NOW, { conciergeQuery: "Six pubs in Soho tonight", requestedStopCount: 6 });
     const recovered = recoverPlanDrafts({

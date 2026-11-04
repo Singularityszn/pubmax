@@ -12,7 +12,6 @@ import {
   mergePlanTemplateFields,
   nightAreaFromPlanQuery,
   reconcileGeneratedNightContext,
-  resolveDescribeChipSubmit,
   syncPlanIntakeAreaFromQuery,
 } from "@/lib/planComposerChipFill";
 import type { NightContext } from "@/lib/nightPlanning";
@@ -38,38 +37,20 @@ afterEach(async () => {
 });
 
 describe("plan composer chip intent policy", () => {
-  it("keeps typed Camden when a describe chip is tapped", () => {
-    const result = resolveDescribeChipSubmit({
-      query: "Camden",
-      stopCountTouched: false,
-      stopCount: 3,
-      chipText: "Quiet in Clapham for 4, not pricey",
-      chipInferredStopCount: 3,
+  it.each([
+    { query: "Camden", count: undefined },
+    { query: "Plan a crawl in Camden", count: undefined },
+    { query: "Camden 6 pubs", count: 6 },
+  ])("keeps $query when a chip is tapped and submits only on request", async ({ query, count }) => {
+    const onSubmit = vi.fn();
+    await act(async () => {
+      root.render(createElement(PlanDescribeFirst, { initialQuery: query, onSubmit, onGuideMeInstead: vi.fn() }));
     });
-    expect(result.query).toBe("Camden");
-    expect(result.stopCount).toBe(3);
-  });
-
-  it("keeps a non-empty prefill when a chip is tapped", () => {
-    const result = resolveDescribeChipSubmit({
-      query: "Plan a crawl in Camden",
-      stopCountTouched: false,
-      stopCount: 3,
-      chipText: "Quiet in Clapham for 4, not pricey",
-      chipInferredStopCount: 3,
-    });
-    expect(result.query).toBe("Plan a crawl in Camden");
-  });
-
-  it("keeps a stop count inferred from typed text when a chip is tapped", () => {
-    const result = resolveDescribeChipSubmit({
-      query: "Camden 6 pubs",
-      stopCountTouched: false,
-      stopCount: 6,
-      chipText: "Quiet in Clapham for 4, not pricey",
-      chipInferredStopCount: 3,
-    });
-    expect(result.stopCount).toBe(6);
+    await act(async () => container.querySelector<HTMLButtonElement>(".planDescribeFirst__chip--culture")!.click());
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(container.querySelector<HTMLInputElement>("#plan-describe-first-query")?.value).toBe(query);
+    await act(async () => [...container.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "Plan it")!.click());
+    expect(onSubmit).toHaveBeenLastCalledWith(query, count);
   });
 
   it("submits submitted query area over a geo-seeded intake patch", () => {

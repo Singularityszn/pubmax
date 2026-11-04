@@ -13,13 +13,11 @@ import { DRY_ROUND_LABEL, DRY_ROUND_NOTE, dryRoundFromSearch, dryRoundQuery } fr
 import { tryGetNightArea } from "@/lib/nightAreas";
 import { readRememberedArea } from "@/lib/nightPatches";
 import { NEAR_ME_LOCATION_OPTIONS, nearMeLocationFailure } from "@/lib/nearMeLocation";
-import { inferNightContext } from "@/lib/nightPlanning";
 import {
   PLAN_BUDGET_CRAWL_LABEL,
   PLAN_BUDGET_CRAWL_NOTE,
   planBudgetCrawlQuery,
 } from "@/lib/planBudgetCrawl";
-import { resolveDescribeChipSubmit } from "@/lib/planComposerChipFill";
 import {
   PLAN_FIELD_LABEL,
   PLAN_HEADING,
@@ -33,7 +31,7 @@ import {
   oneTapQuery,
   rememberedOneTapArea,
 } from "@/lib/planOneTap";
-import { matchPlanStopCount, normalizePlanStopCount, type PlanStopCount } from "@/lib/planStopCount";
+import { normalizePlanStopCount, resolvePlanStopCountIntent, type PlanStopCount, type PlanStopCountSource } from "@/lib/planStopCount";
 import PlanStopCountPicker from "@/components/plan/PlanStopCountPicker";
 
 export { DESCRIBE_FIRST_CHIPS };
@@ -65,6 +63,7 @@ export default function PlanDescribeFirst({
   onPrefillQueryChange,
   initialQuery = "",
   initialStopCount,
+  initialStopCountSource,
   onStopCountChange,
   ready = true,
 }: {
@@ -77,6 +76,7 @@ export default function PlanDescribeFirst({
   /** Prefill from a confirmed Night OS Ask draft_plan proposal. */
   initialQuery?: string;
   initialStopCount?: PlanStopCount;
+  initialStopCountSource?: PlanStopCountSource;
   onStopCountChange?: (count: PlanStopCount) => void;
   /**
    * False on the server-painted form PlanComposer replaces once it hydrates.
@@ -86,15 +86,18 @@ export default function PlanDescribeFirst({
   ready?: boolean;
 }) {
   const [query, setQuery] = useState(initialQuery.slice(0, 500));
-  const [localStopCount, setLocalStopCount] = useState<PlanStopCount>(normalizePlanStopCount(initialStopCount ?? inferNightContext(initialQuery).context.stopCount));
+  const [localStopCount, setLocalStopCount] = useState<PlanStopCount>(normalizePlanStopCount(initialStopCount));
   // The prefill arrives AFTER mount: the composer reads the URL in an effect,
   // so an `?occasion=` deep link would otherwise land on an empty field and
   // read as a broken destination. Adopt a later prefill only while the field is
   // untouched, never over something the visitor typed.
   const [touched, setTouched] = useState(false);
-  const [localStopCountTouched, setLocalStopCountTouched] = useState(initialStopCount !== undefined);
-  const stopCount = onStopCountChange ? initialStopCount ?? localStopCount : localStopCount;
-  const stopCountTouched = onStopCountChange ? initialStopCount !== undefined : localStopCountTouched;
+  const [localStopCountTouched, setLocalStopCountTouched] = useState(false);
+  const stopCountTouched = localStopCountTouched || initialStopCountSource === "picker" || initialStopCountSource === "route-edit";
+  const requestedIntent = resolvePlanStopCountIntent(query, initialStopCount, initialStopCountSource);
+  const stopCount = stopCountTouched
+    ? onStopCountChange ? initialStopCount ?? localStopCount : localStopCount
+    : normalizePlanStopCount(requestedIntent.stopCount);
   const appliedPrefill = useRef(initialQuery);
   const reportedPrefill = useRef<string | null>(null);
   const queryInput = useRef<HTMLInputElement>(null);
@@ -148,21 +151,19 @@ export default function PlanDescribeFirst({
     if (touched || initialQuery === appliedPrefill.current) return;
     appliedPrefill.current = initialQuery;
     const nextQuery = initialQuery.slice(0, 500);
-    const nextStopCount = normalizePlanStopCount(inferNightContext(initialQuery).context.stopCount);
     let cancelled = false;
     // Prefill is an external handoff. Defer its state adoption so React 19 does
     // not treat the effect as a synchronous render cascade.
     void Promise.resolve().then(() => {
       if (cancelled) return;
       setQuery(nextQuery);
-      if (!stopCountTouched) setLocalStopCount(nextStopCount);
       if (nextQuery && reportedPrefill.current !== nextQuery) {
         reportedPrefill.current = nextQuery;
         onPrefillQueryChangeRef.current?.(nextQuery);
       }
     });
     return () => { cancelled = true; };
-  }, [initialQuery, stopCountTouched, touched]);
+  }, [initialQuery, touched]);
 
   function submit(queryOverride = query) {
     if (!ready) return;
@@ -172,25 +173,16 @@ export default function PlanDescribeFirst({
   }
 
   function requestedCountForQuery(ask: string): PlanStopCount | undefined {
-    return stopCountTouched ? stopCount : matchPlanStopCount(ask);
+    return stopCountTouched ? stopCount : resolvePlanStopCountIntent(ask, initialStopCount, initialStopCountSource).stopCount;
   }
 
   function submitChip(value: string) {
     if (!ready) return;
-    const chipInferredStopCount = normalizePlanStopCount(inferNightContext(value).context.stopCount);
     const hadTypedQuery = Boolean(query.trim());
-    const resolved = resolveDescribeChipSubmit({
-      query,
-      stopCountTouched,
-      stopCount,
-      chipText: value,
-      chipInferredStopCount,
-    });
-    if (!stopCountTouched) setLocalStopCount(resolved.stopCount);
     // Typed text wins: a chip may fill an empty field and submit, but it must
     // never wipe or auto-submit over a query the drinker already typed.
     if (hadTypedQuery) return;
-    onSubmit(withOptions(resolved.query), requestedCountForQuery(resolved.query));
+    onSubmit(withOptions(value), requestedCountForQuery(value));
   }
 
   // Location is requested only after a tap, when no remembered area is available.
@@ -297,9 +289,6 @@ export default function PlanDescribeFirst({
             const value = event.target.value;
             setQuery(value);
             onQueryChange?.(value);
-            if (!stopCountTouched) {
-              setLocalStopCount(normalizePlanStopCount(inferNightContext(value).context.stopCount));
-            }
           }}
           onKeyDown={handleKeyDown}
           placeholder="Quiet in Clapham for 4"
