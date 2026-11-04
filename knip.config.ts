@@ -68,6 +68,16 @@ const config: KnipConfig = {
     // Pint compass contrast defect, so it is kept to re-run the sweep. An
     // entry root, not an ignore: knip traces what it imports.
     "docs/design-explorations/2026-10-30-phone-mockups/contrast.mjs",
+    // The launch videos (video/launch/README.md). index.ts is the Remotion
+    // entry that render.mjs bundles with a renderer installed outside the app,
+    // so no app file imports it; the four .mjs files are the commands the
+    // README names to capture the screens, make the sound and render. Entry
+    // roots, not ignores: knip traces every scene the entry imports.
+    "video/launch/index.ts",
+    "video/launch/capture-screens.mjs",
+    "video/launch/capture-pal-screens.mjs",
+    "video/launch/make-audio.mjs",
+    "video/launch/render.mjs",
   ],
   ignore: [
     ...AGENT_TOOLING_PATHS,
@@ -220,8 +230,10 @@ const config: KnipConfig = {
   // Vertex token with gcloud, and the Places verify jobs read an access token
   // from it (scripts/lib/googlePlacesQuota.mjs). The Pal stage renderer reads a
   // voice line's loudness and lays it under the video with ffmpeg
-  // (scripts/pubpal/render-pal-stage.mjs). None of them is an npm binary.
-  ignoreBinaries: ["ipcs", "ipcrm", "ps", "gcloud", "pg_dump", "pg_restore", "ffmpeg"],
+  // (scripts/pubpal/render-pal-stage.mjs). The launch video's render checks
+  // its finished files with ffprobe (video/launch/render.mjs). None of them
+  // is an npm binary.
+  ignoreBinaries: ["ipcs", "ipcrm", "ps", "gcloud", "pg_dump", "pg_restore", "ffmpeg", "ffprobe"],
 };
 
 // This optional local MCP CLI has its own pinned package manifest and named
