@@ -541,7 +541,8 @@ export function routeAskDeterministically(query: string): RoutedToolCall[] {
   }
 
   if (HERITAGE_RE.test(text) && !isVenueDiscoveryAsk(text)) {
-    const venueName = stripIntentWords(text);
+    const historySubject = text.match(/^(?:(?:what is|tell me)\s+)?(?:the\s+)?history\s+of\s+(.+)$/i)?.[1];
+    const venueName = historySubject ? stripTrailingPunctuation(historySubject) : stripIntentWords(text);
     push("venue_heritage", venueName ? { venueName, query: rawQuery } : { query: rawQuery });
   }
 

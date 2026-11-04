@@ -225,7 +225,7 @@ describe("routeAskDeterministically", () => {
     { request: "How much is a pint at The Lamb?", name: "venue_prices", args: { venueName: "The Lamb" }, queryContext: true },
     { request: "What are the opening hours at The Lamb?", name: "search_venues", args: {}, queryContext: true },
     { request: "What's on in Soho tonight?", name: "whats_on", args: {}, queryContext: true },
-    { request: "History of Mr. Fogg's", name: "venue_heritage", args: { venueName: "of Mr. Fogg's" }, queryContext: true },
+    { request: "History of Mr. Fogg's", name: "venue_heritage", args: { venueName: "Mr. Fogg's" }, queryContext: true },
     { request: "Show The Lamb on the map", name: "propose_map_action", args: { venueName: "Lamb on map" }, queryContext: false },
     { request: "Directions to Mr. Fogg's from London Bridge.", name: "journey", args: { from: "London Bridge", to: "Mr. Fogg's" }, queryContext: false },
     { request: "Is the Tube running tonight?", name: "city_status", args: {}, queryContext: false },
@@ -588,6 +588,19 @@ describe("routeAskDeterministically", () => {
   it("routes heritage asks to venue_heritage", () => {
     const calls = routeAskDeterministically("Tell me the history of The Lamb");
     expect(calls.some((c) => c.name === "venue_heritage")).toBe(true);
+  });
+
+  it.each([
+    "What is the history of Mr. Fogg's?",
+    "History of Mr. Fogg's.",
+    "Tell me the history of Mr. Fogg's.",
+  ].flatMap((request) => {
+    const evidence = "Show the source and date for any price you use.";
+    return [request, `${request} ${evidence}`, `${evidence} ${request}`];
+  }))("preserves the actual heritage subject and original query: %s", (query) => {
+    expect(routeAskDeterministically(query)).toEqual([
+      { name: "venue_heritage", args: { venueName: "Mr. Fogg's", query } },
+    ]);
   });
 
   it("defaults mood asks to search_venues", () => {
