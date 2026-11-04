@@ -24,6 +24,8 @@ function checkedDate(iso: string | null): { day: string; label: string } | null 
   if (!match) return null;
   const calendar = new Date(`${match[1]}T00:00:00Z`);
   if (!Number.isFinite(calendar.getTime()) || calendar.toISOString().slice(0, 10) !== match[1]) return null;
+  if (iso === match[1]) return { day: match[1], label: formatObservedDate(new Date(`${match[1]}T12:00:00Z`)) };
+  if (!/T.*(?:Z|[+-]\d{2}:?\d{2})$/i.test(iso)) return null;
   const parsed = Date.parse(iso);
   if (!Number.isFinite(parsed)) return null;
   const date = new Date(parsed);

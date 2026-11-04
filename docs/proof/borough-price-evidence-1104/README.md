@@ -30,7 +30,7 @@ No provider request ran.
 
 ## Checks
 
-Eight focused suites pass 162 tests with one worker and no retries.
+Eight focused suites pass 167 tests with one worker and no retries.
 They cover the new rendered and mounted cases, borough sorting and caching,
 borough photographs, Today evidence, comparable rankings and the unchanged fact calculations.
 Scoped lint has no warnings. Focused TypeScript checks pass.
@@ -58,6 +58,15 @@ The amount, bottle label, receipt, ordering and ordinary pint band remain checke
 The first band test used the wrong class spelling, then the corrected test reproduced the actual defect.
 An initial type check required explicit fields for the selected evidence union.
 That type failure remains preserved.
+
+Independent review then identified a timestamp without a timezone.
+The mounted card consumed the real CityMCP trimming result through its controlled HTTP boundary.
+Before the correction, the same timestamp showed 2 October in UTC and 1 October in Auckland.
+Both mounted checks failed before the edit.
+A stated calendar day now stays unchanged.
+An instant needs an explicit timezone before London conversion.
+An unknown timezone prints `Read date unavailable`.
+Calendar-day and explicit-offset controls remain checked.
 
 ## Remaining acceptance
 
