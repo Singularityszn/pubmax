@@ -51,9 +51,10 @@ export function pubsCountLabel({
 
 // The shared image tries the real photograph first, then illustrates the pub.
 // Only a photograph has a credit, which hides if that photograph fails.
+// Keep the credit as ordinary text so it cannot name the fallback's figure.
 function PubPhoto({ pub }: { pub: ScrapedPub }) {
   return (
-    <figure className="pubsCardFigure">
+    <div className="pubsCardFigure">
       <div className="pubsCardArt">
         <VenueImage
           className="pubsCardPhoto"
@@ -69,8 +70,8 @@ function PubPhoto({ pub }: { pub: ScrapedPub }) {
           maxWidth={640}
         />
       </div>
-      {pub.photoUrl ? <figcaption className="pubsCardCredit">{VENUE_IMAGE_PROVENANCE_LABEL.chain}</figcaption> : null}
-    </figure>
+      {pub.photoUrl ? <p className="pubsCardCredit">{VENUE_IMAGE_PROVENANCE_LABEL.chain}</p> : null}
+    </div>
   );
 }
 
