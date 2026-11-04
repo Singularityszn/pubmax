@@ -53,6 +53,18 @@
   color: var(--color-text-muted);
 }
 
+.todayPriceEvidence {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.todayPintRow > .todayPriceEvidence:last-child {
+  margin-bottom: var(--space-3);
+}
+
 /* A way onward inside a section reads as a link in ink, never a coral word:
    the coral on this page is the one primary in the head. */
 .todayInkLink {

@@ -13,7 +13,7 @@ import { hypedPubPriceIndex, hypedPubsForPage } from "@/lib/hypedPubs";
 import { loadHypedPubs } from "@/lib/hypedPubs.server";
 import { loadMapSelectableVenueIds } from "@/lib/mapEagerVenueIndex.server";
 import { LONDON_NIGHT_AREA_SLUGS } from "@/lib/nightAreaSlugs";
-import { buildQuietPint, isQuietPintWindow, quietPintRankingPrices } from "@/lib/quietPint";
+import { buildQuietPint, isQuietPintWindow, quietPintPriceEvidence, quietPintRankingPrices } from "@/lib/quietPint";
 import { loadTodayOutAnswer, loadTodayWhatsOnAnswer } from "@/lib/todayListings.server";
 import { readSpoonsValue } from "@/lib/spoonsValue.server";
 import {
@@ -173,6 +173,7 @@ export default async function TonightPage() {
         : [],
     ),
     priceById,
+    priceEvidenceById: quietPintPriceEvidence(pricedVenues),
     rankingPriceById: quietPintRankingPrices(pricedVenues),
     now,
   });

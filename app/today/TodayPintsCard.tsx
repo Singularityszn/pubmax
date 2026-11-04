@@ -13,6 +13,7 @@
 
 import Link from "next/link";
 import PriceBadge from "@/components/PriceBadge";
+import ListedPriceSource from "@/components/venue/ListedPriceSource";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import { useEffect, useState } from "react";
 import { ArrowRight } from "lucide-react";
@@ -114,6 +115,13 @@ export default function TodayPintsCard({ index }: Props) {
                 {row.priceLabel}
               </PriceBadge>
             </Link>
+            <p className="todayPriceEvidence">
+              {row.priceEvidence?.drinkLabel || "Drink not recorded"} · {row.priceEvidence?.servingSize || "Serving not recorded"}
+            </p>
+            <ListedPriceSource className="todayPriceEvidence" kind={row.priceEvidence?.sourceKind} evidence={{
+              publisher: row.priceEvidence?.publisher ?? null,
+              observedOn: row.priceEvidence?.observedOn ?? null,
+            }} />
           </li>
         ))}
       </ul>

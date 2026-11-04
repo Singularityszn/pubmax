@@ -8,7 +8,7 @@ import { buildWeatherBrief, type WeatherBrief } from "@/lib/todayBrief";
 import { loadHistoricPubs } from "@/lib/historic";
 import { LONDON_NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
 import { pickPubOfTheDay } from "@/lib/pubOfTheDay";
-import { buildQuietPint, quietPintRankingPrices } from "@/lib/quietPint";
+import { buildQuietPint, quietPintPriceEvidence, quietPintRankingPrices } from "@/lib/quietPint";
 import { formatConditionDate } from "@/lib/tonightConditions";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
 import type { Venue } from "@/lib/venues";
@@ -200,6 +200,7 @@ export default async function TodayPage() {
         : [],
     ),
     priceById,
+    priceEvidenceById: quietPintPriceEvidence(pricedVenues),
     rankingPriceById: quietPintRankingPrices(pricedVenues),
     now,
   });
