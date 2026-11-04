@@ -924,7 +924,9 @@ function savedIntakeRequestChanged(intake: ReturnType<typeof readPlanIntakeDraft
   return !session || Date.parse(intake.savedAt) >= Date.parse(session.savedAt ?? "");
 }
 
-function composerRequestChanged(input: {
+function composerRequestMutated(input: {
+  actualMutation: boolean;
+  routeChanged: boolean;
   hasRequestWork: boolean;
   recoveredDraft: StoredPlanDraft | null;
   sessionDraft: StoredPlanDraft;
@@ -934,10 +936,10 @@ function composerRequestChanged(input: {
   recoveredIntake: PlanIntakeDraft;
   sameIntake: boolean | null;
 }): boolean {
-  return input.hasRequestWork || Boolean(input.recoveredDraft
+  return input.actualMutation && (input.routeChanged || input.hasRequestWork || Boolean(input.recoveredDraft
     && savedIntakeRequestChanged(input.previousIntake, input.previousSession, input.recoveredIntake) && !input.sameIntake)
     || Boolean(input.recoveredDraft && savedSessionRequestChanged(input.sessionDraft, input.previousSession, input.previousIntake))
-    || !samePlanRequest(input.sessionDraft, input.recoveredRequest);
+    || !samePlanRequest(input.sessionDraft, input.recoveredRequest));
 }
 
 function composerRouteContent(routeDraft: StoredRouteDraft | null): string {
@@ -2263,9 +2265,9 @@ function PlanComposerForm({
       explicitNightContext: recoveredExplicitNightContext,
       stops: [],
     };
-    if (actualMutation && (routeChanged || composerRequestChanged({
-      hasRequestWork, recoveredDraft, sessionDraft, recoveredRequest, previousIntake, previousSession, recoveredIntake, sameIntake,
-    }))) requestEditTime.current = savedAt;
+    if (composerRequestMutated({
+      actualMutation, routeChanged, hasRequestWork, recoveredDraft, sessionDraft, recoveredRequest, previousIntake, previousSession, recoveredIntake, sameIntake,
+    })) requestEditTime.current = savedAt;
     const requestChanged = requestEditTime.current !== null;
     const routeSavedAt = Date.parse(routeCopy.current.savedAt ?? "");
     const previousRequestTime = sameRequest && previousSession ? Date.parse(previousSession.savedAt ?? "") : NaN;

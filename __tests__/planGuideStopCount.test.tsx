@@ -457,8 +457,11 @@ describe("the requested pub-stop count on its way to the generate request", () =
     host?.remove();
     host = null;
     await mountComposer();
-    expect(pressedStopCounts()).toEqual([[requested]]);
-    await press(prerequisite(buttonByText("Make a plan"), "the Make a plan action"));
+    await press(prerequisite(buttonByText("Tune details"), "the restored route settings action"));
+    await vi.waitFor(() => {
+      expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe(String(requested));
+    });
+    await press(prerequisite(buttonByText("Plan it again"), "the restored route generation action"));
     expect(posts).toHaveLength(1);
     expect(requestCountFields(posts[0])?.contextStopCount).toBe(requested);
   });
