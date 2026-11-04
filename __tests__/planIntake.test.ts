@@ -76,6 +76,19 @@ function storedEnvelope(draft: PlanIntakeDraft, now = NOW): string {
 }
 
 describe("progressive Plan intake", () => {
+  it.each(["text", "picker", "route-edit", "unknown", "Picker", null, 1, {}, undefined])("validates count origin while keeping the intake and API contract: %s", (source) => {
+    const envelope = JSON.parse(storedEnvelope(answeredDraft()));
+    envelope.draft.answers.stopCount = 1;
+    envelope.draft.answers.stopCountSource = source;
+    const parsed = parsePlanIntakeDraft(JSON.stringify(envelope), NOW);
+    expect(parsed?.answers).toMatchObject({ stopCount: 1, area: "london-bridge" });
+    const expected = source === "text" || source === "picker" || source === "route-edit" ? source : undefined;
+    expect(parsed?.answers.stopCountSource).toBe(expected);
+    expect(planIntakeHandoff(parsed!)).not.toHaveProperty("stopCountSource");
+    delete envelope.draft.answers.stopCount;
+    expect(parsePlanIntakeDraft(JSON.stringify(envelope), NOW)?.answers.stopCountSource).toBeUndefined();
+  });
+
   it("starts with one area question and carries a remembered patch forward", () => {
     expect(createPlanIntakeDraft()).toMatchObject({
       currentStep: "area",

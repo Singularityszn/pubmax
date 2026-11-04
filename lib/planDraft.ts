@@ -1,4 +1,4 @@
-import { isPlanStopCount, type PlanStopCount } from "@/lib/planStopCount";
+import { cleanPlanStopCountSource, isPlanStopCount, type PlanStopCount, type PlanStopCountSource } from "@/lib/planStopCount";
 import { DAY_MS } from "@/lib/dayMs";
 import { CITIES, type CityId } from "@/lib/cities";
 import { LONDON_BOROUGHS } from "@/lib/boroughs";
@@ -27,6 +27,7 @@ export type StoredPlanDraft = {
   conciergeQuery: string;
   stops: Array<{ key: number; venueId: string; venueName: string }>;
   requestedStopCount?: PlanStopCount;
+  requestedStopCountSource?: PlanStopCountSource;
   acceptedAnchor?: {
     venueId: string;
     source: PlanningIntentSource;
@@ -116,7 +117,7 @@ function parseAcceptedArea(area: unknown): PlanningIntentArea | undefined {
 }
 
 function hasDraftKeys(value: Record<string, unknown>): boolean {
-  const keys = Object.keys(value).filter((key) => key !== "requestedStopCount");
+  const keys = Object.keys(value).filter((key) => key !== "requestedStopCount" && key !== "requestedStopCountSource");
   return [DRAFT_KEYS, DRAFT_KEYS_WITH_ANCHOR].some((allowed) =>
     keys.length === allowed.length && keys.every((key) => (allowed as readonly string[]).includes(key)));
 }
@@ -156,6 +157,8 @@ function parseStoredPlanDraft(value: unknown, exactKeys: boolean): StoredPlanDra
         conciergeQuery,
         stops: stops as StoredPlanDraft["stops"],
         ...(isPlanStopCount(value.requestedStopCount) ? { requestedStopCount: value.requestedStopCount } : {}),
+        ...(cleanPlanStopCountSource(value.requestedStopCountSource, value.requestedStopCount)
+          ? { requestedStopCountSource: cleanPlanStopCountSource(value.requestedStopCountSource, value.requestedStopCount) } : {}),
       };
     }
     if (!hasExactKeys(anchor, ACCEPTED_ANCHOR_KEYS)) return null;
@@ -182,6 +185,8 @@ function parseStoredPlanDraft(value: unknown, exactKeys: boolean): StoredPlanDra
     stops: stops as StoredPlanDraft["stops"],
     ...(acceptedAnchor ? { acceptedAnchor } : {}),
     ...(isPlanStopCount(value.requestedStopCount) ? { requestedStopCount: value.requestedStopCount } : {}),
+    ...(cleanPlanStopCountSource(value.requestedStopCountSource, value.requestedStopCount)
+      ? { requestedStopCountSource: cleanPlanStopCountSource(value.requestedStopCountSource, value.requestedStopCount) } : {}),
   };
 }
 
@@ -194,6 +199,7 @@ function withoutExpiredAcceptedAnchor(draft: StoredPlanDraft, now: number): Stor
     conciergeQuery: draft.conciergeQuery,
     stops: draft.stops,
     ...(draft.requestedStopCount !== undefined ? { requestedStopCount: draft.requestedStopCount } : {}),
+    ...(draft.requestedStopCountSource ? { requestedStopCountSource: draft.requestedStopCountSource } : {}),
   };
 }
 

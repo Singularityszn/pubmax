@@ -17,8 +17,10 @@ import type { PlanGenerationAnchor as PlanGenerationWireAnchor } from "@/lib/pla
 import {
   DEFAULT_PLAN_STOP_COUNT,
   isPlanStopCount,
+  cleanPlanStopCountSource,
   normalizePlanStopCount,
   type PlanStopCount,
+  type PlanStopCountSource,
 } from "@/lib/planStopCount";
 import { DAY_MS } from "@/lib/dayMs";
 import { safeLocalStorage } from "@/lib/safeStorage";
@@ -78,6 +80,7 @@ type PlanIntakeAnswers = {
   exactStartIso: string | null;
   groupSize: number | null;
   stopCount?: PlanStopCount;
+  stopCountSource?: PlanStopCountSource;
   budget: Budget | null;
   budgetLimitPence: number | null;
   accessibilityNeeds: PlanAccessibilityNeed[];
@@ -456,6 +459,8 @@ function cleanAnswers(value: unknown, now: number): PlanIntakeAnswers | null {
     exactStartIso,
     groupSize,
     ...(row.stopCount !== undefined ? { stopCount: normalizePlanStopCount(row.stopCount) } : {}),
+    ...(cleanPlanStopCountSource(row.stopCountSource, row.stopCount)
+      ? { stopCountSource: cleanPlanStopCountSource(row.stopCountSource, row.stopCount) } : {}),
     budget,
     budgetLimitPence,
     accessibilityNeeds,

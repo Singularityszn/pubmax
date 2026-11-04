@@ -143,6 +143,7 @@ describe("the describe-first field on the form PlanComposer replaces", () => {
       root!.render(createElement(PlanDescribeFirst, {
         onSubmit: vi.fn(), onGuideMeInstead: vi.fn(), initialQuery: query,
         initialStopCount: requested as 1 | 3,
+        initialStopCountSource: "picker",
       }));
     });
     expect(button(String(requested)).getAttribute("aria-pressed")).toBe("true");
@@ -157,6 +158,7 @@ describe("the describe-first field on the form PlanComposer replaces", () => {
       await act(async () => {
         root!.render(createElement(PlanDescribeFirst, {
           initialQuery: "One pub in Clapham tonight", initialStopCount,
+          initialStopCountSource: "picker",
           onSubmit, onGuideMeInstead, onStopCountChange,
         }));
       });

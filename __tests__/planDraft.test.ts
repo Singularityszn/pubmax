@@ -53,13 +53,30 @@ describe("parsePlanDraft", () => {
   it("retains the request count when an accepted anchor expires", () => {
     const raw = JSON.stringify({
       title: "Night", creatorName: "", startTime: "", conciergeQuery: "",
-      stops: [{ key: 1, venueId: "v1", venueName: "Pub" }], requestedStopCount: 3,
+      stops: [{ key: 1, venueId: "v1", venueName: "Pub" }], requestedStopCount: 3, requestedStopCountSource: "picker",
       acceptedAnchor: { venueId: "v1", source: "near", cityId: "london", acceptedArea: null, startsAt: null, expiresAt: "2026-01-01T00:00:00.000Z" },
     });
     const draft = parsePlanDraft(raw, Date.parse("2026-01-02T00:00:00.000Z"));
     expect(draft?.requestedStopCount).toBe(3);
+    expect(draft?.requestedStopCountSource).toBe("picker");
     expect(draft).not.toHaveProperty("acceptedAnchor");
     expect(draft?.stops[0]?.venueId).toBe("v1");
+  });
+
+  it.each(["text", "picker", "route-edit", "unknown", "Picker", null, 1, {}, undefined])("validates optional count origin without discarding a route: %s", (source) => {
+    const values = new Map<string, string>();
+    const storage = { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value); } };
+    writePlanDraftEnvelope({ title: "Night", creatorName: "", startTime: "", conciergeQuery: "", stops: [{ key: 1, venueId: "v1", venueName: "Pub" }], requestedStopCount: 1 }, "manual", storage);
+    const envelope = JSON.parse(values.get("pubmax:plan-draft:v2")!);
+    envelope.draft.requestedStopCountSource = source;
+    values.set("pubmax:plan-draft:v2", JSON.stringify(envelope));
+    const restored = readPlanDraftEnvelope(storage);
+    expect(restored?.draft).toMatchObject({ requestedStopCount: 1, stops: [{ venueId: "v1" }] });
+    const expected = source === "text" || source === "picker" || source === "route-edit" ? source : undefined;
+    expect(restored?.draft.requestedStopCountSource).toBe(expected);
+    delete envelope.draft.requestedStopCount;
+    values.set("pubmax:plan-draft:v2", JSON.stringify(envelope));
+    expect(readPlanDraftEnvelope(storage)?.draft.requestedStopCountSource).toBeUndefined();
   });
 
   it("rejects malformed, empty, and oversized drafts", () => {

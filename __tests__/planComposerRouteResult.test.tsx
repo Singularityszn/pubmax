@@ -1497,7 +1497,7 @@ describe("the Plan result", () => {
   it("keeps equal-time session query and explicit count ahead of conflicting local intake", async () => {
     seedCountRecovery(6);
     const savedAt = Date.now() - 1000;
-    const plan = { ...parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))!, conciergeQuery: "One pub in Clapham tonight", requestedStopCount: 3 as const };
+    const plan = { ...parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))!, conciergeQuery: "One pub in Clapham tonight", requestedStopCount: 3 as const, requestedStopCountSource: "picker" as const };
     expect(writePlanDraftEnvelope(plan, "manual", sessionStorage, savedAt).v2).toBe(true);
     expect(writePlanIntakeDraft(readPlanIntakeDraft()!, localStorage, savedAt)).toBe(true);
     await mountComposer();

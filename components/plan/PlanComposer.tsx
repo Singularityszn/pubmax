@@ -68,13 +68,16 @@ export { selectedDrinkPriceDescription } from "@/lib/planSelectedDrinkPriceEvide
 import { CITIES, DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 import {
   isPlanStopCount,
+  cleanPlanStopCountSource,
   matchPlanStopCount,
   MAX_PLAN_STOP_COUNT,
   normalizePlanStopCount,
+  resolvePlanStopCountIntent,
   planOutingNoun,
   planStopCountPhrase,
   PLAN_STOP_COUNTS,
   type PlanStopCount,
+  type PlanStopCountSource,
 } from "@/lib/planStopCount";
 import { planHasRoute, type PlanState } from "@/lib/plan";
 import { parsePlanDraft, PLAN_DRAFT_KEY, readPlanDraftEnvelope, writePlanDraftEnvelope, type StoredPlanDraft } from "@/lib/planDraft";
@@ -761,11 +764,13 @@ export function applyPlanStopCount(
   draft: PlanIntakeDraft,
   context: NightContext | null,
   stopCount: PlanStopCount | undefined,
+  stopCountSource?: PlanStopCountSource,
 ): { draft: PlanIntakeDraft; context: NightContext | null } {
+  stopCountSource = cleanPlanStopCountSource(stopCountSource, stopCount);
   return {
-    draft: draft.answers.stopCount === stopCount
+    draft: draft.answers.stopCount === stopCount && draft.answers.stopCountSource === stopCountSource
       ? draft
-      : { ...draft, answers: { ...draft.answers, stopCount } },
+      : { ...draft, answers: { ...draft.answers, stopCount, stopCountSource } },
     context: !context || stopCount === undefined || context.stopCount === stopCount
       ? context
       : { ...context, stopCount },
@@ -880,7 +885,7 @@ function readComposerRouteDraft(): {
 }
 
 function samePlanRequest(left: StoredPlanDraft, right: StoredPlanDraft | null | undefined): boolean {
-  return Boolean(right && (["title", "creatorName", "startTime", "conciergeQuery", "requestedStopCount", "acceptedAnchor"] as const)
+  return Boolean(right && (["title", "creatorName", "startTime", "conciergeQuery", "requestedStopCount", "requestedStopCountSource", "acceptedAnchor"] as const)
     .every((field) => JSON.stringify(left[field]) === JSON.stringify(right[field])));
 }
 
@@ -1537,10 +1542,12 @@ function planWindowContainsStart(option: (typeof PLAN_TIME_WINDOWS)[number], exa
     : clock >= option.start && clock < option.end;
 }
 
-function tuneTimeAnswers(daypart: NightContext["daypart"], exactStartIso: string | null): Pick<PlanIntakeDraft["answers"], "timeWindow" | "exactStartIso"> {
+function tuneTimeAnswers(daypart: NightContext["daypart"], displayedStart: string, savedExactStartIso: string | null): Pick<PlanIntakeDraft["answers"], "timeWindow" | "exactStartIso"> {
   const option = PLAN_TIME_WINDOWS.find((window) => window.daypart === daypart);
   if (!option) return { timeWindow: null, exactStartIso: null };
   const now = new Date();
+  const exactStartIso = resolveFutureLondonStartIso(displayedStart, savedExactStartIso, now)
+    ?? londonDateTimeInputToIso(displayedStart, now) ?? savedExactStartIso;
   if (exactStartIso && Date.parse(exactStartIso) > now.getTime() && planWindowContainsStart(option, exactStartIso)) {
     return { timeWindow: option.id, exactStartIso };
   }
@@ -1656,7 +1663,7 @@ function PlanComposerForm({
     (askNeedsConciergeField ? urlAsk ?? "" : "") || recoveredIntent.conciergeQuery,
   );
   const [planIntake, setPlanIntake] = useState(() => {
-    const draft = applyPlanStopCount(recoveredIntake, null, recoveredStopCount).draft;
+    const draft = applyPlanStopCount(recoveredIntake, null, recoveredStopCount, urlAsk ? "text" : recoveredIntent.stopCountSource).draft;
     const exactStartIso = londonDateTimeInputToIso(startTime, new Date());
     return draft.answers.timeWindow && exactStartIso && draft.answers.exactStartIso !== exactStartIso
       ? { ...draft, answers: { ...draft.answers, exactStartIso } }
@@ -1685,6 +1692,7 @@ function PlanComposerForm({
         current.completed ? skipRemainingPlanIntake(draft) : draft,
         null,
         matchPlanStopCount(query),
+        matchPlanStopCount(query) === undefined ? undefined : "text",
       ).draft;
     });
   }
@@ -2029,7 +2037,7 @@ function PlanComposerForm({
       : null;
     const savedAt = Date.now();
     const intakeChanged = JSON.stringify(planIntake)
-      !== JSON.stringify(applyPlanStopCount(recoveredIntake, null, recoveredIntent.stopCount).draft);
+      !== JSON.stringify(applyPlanStopCount(recoveredIntake, null, recoveredIntent.stopCount, recoveredIntent.stopCountSource).draft);
     const previousIntake = readPlanIntakeDraftWithMetadata();
     const sameIntake = previousIntake && JSON.stringify(planIntake) === JSON.stringify(previousIntake.draft);
     const sessionDraft = {
@@ -2039,6 +2047,7 @@ function PlanComposerForm({
       conciergeQuery,
       stops,
       ...(requestedStopCount !== undefined ? { requestedStopCount } : {}),
+      requestedStopCountSource: planIntake.answers.stopCountSource,
       ...(persistedAcceptedAnchor ? { acceptedAnchor: persistedAcceptedAnchor } : {}),
     };
     const previousSession = readPlanDraftEnvelope(safeSessionStorage());
@@ -2052,6 +2061,7 @@ function PlanComposerForm({
         startTime: recoveredRequestStart,
         conciergeQuery: recoveredIntent.conciergeQuery,
         requestedStopCount: recoveredIntent.stopCount,
+        requestedStopCountSource: recoveredIntent.stopCountSource,
         acceptedAnchor: recoveredDraft?.acceptedAnchor,
         stops: [],
       });
@@ -2118,7 +2128,7 @@ function PlanComposerForm({
         const seeded = createPlanIntakeDraft(seed);
         return current.answers.stopCount === undefined
           ? seeded
-          : applyPlanStopCount(seeded, null, current.answers.stopCount).draft;
+          : applyPlanStopCount(seeded, null, current.answers.stopCount, current.answers.stopCountSource).draft;
       });
     }
     function seedRememberedSoon(): void {
@@ -2169,7 +2179,7 @@ function PlanComposerForm({
   function updatePlanIntake(next: PlanIntakeDraft) {
     const reconciled = next.answers.stopCount === undefined
       ? { draft: next, context: nightContext }
-      : applyPlanStopCount(next, nightContext, next.answers.stopCount);
+      : applyPlanStopCount(next, nightContext, next.answers.stopCount, next.answers.stopCountSource);
     const answersChanged = JSON.stringify(planIntakeHandoff(planIntake))
       !== JSON.stringify(planIntakeHandoff(reconciled.draft));
     if (answersChanged && nightContext) {
@@ -2194,8 +2204,9 @@ function PlanComposerForm({
   /** Step by step from describe-first: the guide opens on the count the reader chose there. */
   function openGuide(stopCount?: PlanStopCount) {
     setEntryMode("wizard");
-    if (stopCount === undefined || planIntake.answers.stopCount === stopCount) return;
-    updatePlanIntake({ ...planIntake, answers: { ...planIntake.answers, stopCount } });
+    if (stopCount === undefined) return;
+    const intent = resolvePlanStopCountIntent(conciergeQuery, planIntake.answers.stopCount, planIntake.answers.stopCountSource);
+    updatePlanIntake(applyPlanStopCount(planIntake, null, stopCount, intent.stopCountSource).draft);
   }
 
   function adoptDescribePrefillQuery(value: string) {
@@ -2219,11 +2230,13 @@ function PlanComposerForm({
     // planIntake state variable here would still see the pre-skip draft and
     // send a body the server flags as PLAN_INTAKE_MALFORMED.
     const areaSynced = syncPlanIntakeAreaFromQuery(intakeBase, query);
+    const intent = resolvePlanStopCountIntent(query, intakeBase.answers.stopCount, intakeBase.answers.stopCountSource);
     const skippedIntake = skipRemainingPlanIntake({
       ...areaSynced,
       answers: {
         ...areaSynced.answers,
         stopCount,
+        stopCountSource: intent.stopCountSource,
       },
     });
     setConciergeQuery(query);
@@ -2305,7 +2318,7 @@ function PlanComposerForm({
     // the mismatch, and the next Sort put the removed Stop straight back.
     const stopCount = mutation.stops.length;
     if (stops.length !== stopCount && isPlanStopCount(stopCount)) {
-      const reconciled = applyPlanStopCount(planIntake, nightContext, stopCount);
+      const reconciled = applyPlanStopCount(planIntake, nightContext, stopCount, "route-edit");
       setExplicitNightContext((current) => ({ ...current, stopCount }));
       setPlanIntake(reconciled.draft);
       setNightContext(reconciled.context);
@@ -2409,7 +2422,7 @@ function PlanComposerForm({
       : planIntake;
     draft = { ...draft, answers: {
       ...draft.answers,
-      ...(patch.daypart !== undefined ? tuneTimeAnswers(patch.daypart, draft.answers.exactStartIso) : {}),
+      ...(patch.daypart !== undefined ? tuneTimeAnswers(patch.daypart, startTime, draft.answers.exactStartIso) : {}),
       ...(patch.groupSize !== undefined ? { groupSize: patch.groupSize } : {}),
       ...(patch.budget !== undefined ? { budget: patch.budget } : {}),
       ...(patch.budgetLimitPence !== undefined ? { budget: next.budget, budgetLimitPence: patch.budgetLimitPence } : {}),
@@ -2424,7 +2437,7 @@ function PlanComposerForm({
     }
     const reconciled = patch.stopCount === undefined
       ? { draft, context: next }
-      : applyPlanStopCount(draft, next, patch.stopCount);
+      : applyPlanStopCount(draft, next, patch.stopCount, "picker");
     setNightContext(reconciled.context);
     setPlanIntake(reconciled.draft);
     const exactStartInput = reconciled.draft.answers.exactStartIso && londonDateTimeInputFromIso(reconciled.draft.answers.exactStartIso);
@@ -2466,7 +2479,7 @@ function PlanComposerForm({
     const query = queryOverride ?? conciergeQuery;
     const queryArea = nightAreaFromPlanQuery(query);
     const intakeBase = intakeOverride ?? planIntake;
-    const stopCount = intakeBase.answers.stopCount ?? matchPlanStopCount(query);
+    const { stopCount, stopCountSource } = resolvePlanStopCountIntent(query, intakeBase.answers.stopCount, intakeBase.answers.stopCountSource);
     const explicitContext = { ...context, stopCount };
     if (queryArea.kind !== "none") {
       setExplicitNightContext((current) => ({
@@ -2475,7 +2488,7 @@ function PlanComposerForm({
       }));
     }
     const intake = syncPlanIntakeAreaFromQuery(
-      applyPlanStopCount(intakeBase, null, stopCount).draft,
+      applyPlanStopCount(intakeBase, null, stopCount, stopCountSource).draft,
       query,
     );
     if (queryOverride === undefined && intake !== planIntake) {
@@ -2793,7 +2806,7 @@ function PlanComposerForm({
       <label htmlFor="plan-context-stops">Stops<select id="plan-context-stops" aria-describedby="plan-route-status" value={normalizePlanStopCount(requestedStopCount)} onChange={(event) => {
         const stopCount = normalizePlanStopCount(Number(event.target.value));
         if (nightContext) updateNightContext({ stopCount });
-        else updatePlanIntake(applyPlanStopCount(planIntake, null, stopCount).draft);
+        else updatePlanIntake(applyPlanStopCount(planIntake, null, stopCount, "picker").draft);
       }}>{PLAN_STOP_COUNTS.map((count) => <option key={count} value={count}>{count}</option>)}</select></label>
   );
   const renderConcierge = (inSheet: boolean) => (
@@ -3151,7 +3164,8 @@ function PlanComposerForm({
           ready={canPersist}
           initialQuery={askDraftQuery}
           initialStopCount={requestedStopCount}
-          onStopCountChange={(count) => setPlanIntake((current) => applyPlanStopCount(current, null, count).draft)}
+          initialStopCountSource={planIntake.answers.stopCountSource}
+          onStopCountChange={(count) => setPlanIntake((current) => applyPlanStopCount(current, null, count, "picker").draft)}
           onSubmit={submitFromEntry}
           onQueryChange={setConciergeQuery}
           onPrefillQueryChange={adoptDescribePrefillQuery}
