@@ -113,12 +113,14 @@ describe("requested-count recovery", () => {
     expect(resolveRequestedPlanIntent(saved, saved.draft, null)).toMatchObject({ stopCount: 1, stopCountSource: "text" });
   });
 
-  it("does not borrow authority from conflicting or undated session copies", () => {
+  it("preserves validated legacy origin without inventing an order for competing requests", () => {
     const saved = v2Plan(NOW, { requestedStopCount: 1, requestedStopCountSource: "picker" });
     const conflicting = { ...saved.draft, requestedStopCountSource: "text" as const };
     expect(resolveRequestedPlanIntent(saved, conflicting, null)).toEqual({ stopCount: 1, conciergeQuery: "", descriptionUnavailable: true });
     const legacy: ParsedPlanDraft = { ...saved, legacy: true, savedAt: null };
-    expect(resolveRequestedPlanIntent(legacy, saved.draft, null).stopCountSource).toBeUndefined();
+    expect(resolveRequestedPlanIntent(legacy, saved.draft, null).stopCountSource).toBe("picker");
+    expect(legacy.savedAt).toBeNull();
+    expect(resolveRequestedPlanIntent(legacy, saved.draft, local).stopCountSource).toBeUndefined();
     const unknown = v2Plan(NOW + 1);
     const oldPicker = { ...localCount(5, NOW), draft: { ...local.draft, answers: { ...local.draft.answers, stopCount: 5 as const, stopCountSource: "picker" as const } } };
     expect(resolveRequestedPlanIntent(unknown, unknown.draft, oldPicker)).toEqual({ stopCount: undefined, conciergeQuery: "Quiet pints", descriptionUnavailable: false });

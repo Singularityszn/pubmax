@@ -31,7 +31,7 @@ export function resolveRequestedPlanIntent(
 ): { stopCount: PlanStopCount | undefined; stopCountSource?: PlanStopCountSource; conciergeQuery: string; descriptionUnavailable: boolean; explicitNightContext?: Partial<NightContext> } {
   const planCount = plan?.draft.requestedStopCount;
   const intakeCount = intake?.draft.answers.stopCount;
-  const planSource = plan?.legacy ? undefined : cleanPlanStopCountSource(plan?.draft.requestedStopCountSource, planCount);
+  const planSource = cleanPlanStopCountSource(plan?.draft.requestedStopCountSource, planCount);
   const intakeSource = cleanPlanStopCountSource(intake?.draft.answers.stopCountSource, intakeCount);
   const local = { ...(intake?.explicitNightContext !== undefined ? { explicitNightContext: intake.explicitNightContext } : {}), stopCount: intakeCount, ...(intakeSource ? { stopCountSource: intakeSource } : {}) };
   const recovered = {
