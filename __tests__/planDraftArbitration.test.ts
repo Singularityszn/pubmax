@@ -750,6 +750,14 @@ describe("request references to an existing generated route", () => {
     expect(arbitratePlanDrafts({ planDraft: recovered.planDraft, routeDraft: route }).routeProofPresent).toBe(true);
   });
 
+  it("does not borrow a route reference when the request copies disagree", () => {
+    const route = routeDraft(NOW);
+    const plan = correlatedRequest(route);
+    const recovered = recoverPlanDrafts({ plan, legacyDraft: { ...plan.draft, requestedStopCount: 1 }, intake: null, route });
+    expect(recovered.intent).toMatchObject({ stopCount: undefined, descriptionUnavailable: true });
+    expect(recovered.sessionWins).toBe(true);
+  });
+
   it.each(["missing", "operation", "writer-date", "later-than-request", "stops", "anchor", "copies", "expired", "stale", "ambiguous"] as const)(
     "does not certify an older route when its reference has a %s conflict", (conflict) => {
       const route = routeDraft(NOW);
@@ -802,6 +810,25 @@ it.each(["matching", "missing", "different"] as const)("selects the newest reque
   const parsed = readPlanIntakeDraftWithMetadata(storage, NOW + 2);
   const recovered = recoverPlanDrafts({ plan, legacyDraft: plan.draft, intake: parsed, route });
   expect(recovered.intent).toMatchObject({ stopCount: 1, stopCountSource: "picker", descriptionUnavailable: true });
-  expect(recovered.sessionWins).toBe(reference !== "matching");
+  expect(recovered.sessionWins).toBe(true);
   expect(recovered.acceptanceUnavailable).toBe(false);
+});
+
+
+it.each([false, true])("checks the winning intake against the generated request, missing session: %s", (missingSession) => {
+  const context = { ...inferNightContext("Clapham tonight").context, stopCount: 3 as const };
+  const route = routeDraft(NOW, { nightContext: context, anchorVenueId: null, anchorSource: null, outcome: "unanchored" });
+  route.value.stops = route.value.stops.slice(0, 1);
+  const plan = v2Plan(NOW + 1, { stops: route.value.stops, requestedStopCount: 3,
+    routeReference: { savedAt: route.savedAt!, operationKey: "operation-1" } });
+  const local = intake(NOW + 2);
+  local.routeReference = plan.draft.routeReference;
+  local.draft = createPlanIntakeDraft();
+  local.draft.answers.stopCount = 3;
+  const recover = () => recoverPlanDrafts({ plan: missingSession ? null : plan,
+    legacyDraft: missingSession ? null : plan.draft, intake: local, route });
+  expect(recover()).toMatchObject({ sessionWins: false, acceptanceUnavailable: false, intakeDraft: local });
+  local.draft.answers.stopCount = 1;
+  expect(recover()).toMatchObject(missingSession ? { acceptanceUnavailable: true } : { sessionWins: true });
+  expect(recover().intakeDraft?.draft.answers.stopCount).toBe(1);
 });

@@ -28,7 +28,7 @@ export type StoredPlanDraft = {
   stops: Array<{ key: number; venueId: string; venueName: string }>;
   requestedStopCount?: PlanStopCount;
   requestedStopCountSource?: PlanStopCountSource;
-  routeReference?: { savedAt: string; operationKey: string };
+  routeReference?: { savedAt: string; operationKey: string } | null;
   acceptedAnchor?: {
     venueId: string;
     source: PlanningIntentSource;
@@ -124,6 +124,7 @@ function hasDraftKeys(value: Record<string, unknown>): boolean {
 }
 
 export function parsePlanRouteReference(value: unknown): StoredPlanDraft["routeReference"] {
+  if (value === null) return null;
   if (!isRecord(value) || !hasExactKeys(value, ["savedAt", "operationKey"])) return undefined;
   const savedAt = canonicalTimestamp(value.savedAt)?.value;
   const operationKey = boundedText(value.operationKey, 120);
@@ -138,7 +139,7 @@ function parseRequestOptions(value: Record<string, unknown>): Pick<StoredPlanDra
   return {
     ...(count !== undefined ? { requestedStopCount: count } : {}),
     ...(source ? { requestedStopCountSource: source } : {}),
-    ...(routeReference ? { routeReference } : {}),
+    ...(routeReference !== undefined ? { routeReference } : {}),
   };
 }
 

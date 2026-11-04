@@ -272,8 +272,9 @@ describe("the Plan result", () => {
     now += 1000;
     await remountComposer();
     expect(readPlanDraftEnvelope(session)?.draft.requestedStopCount).toBe(5);
-    expect(readPlanDraftEnvelope(session)?.savedAt).toBe(new Date(now).toISOString());
-    expect(document.body.textContent).toContain(ROUTE_DETAILS_SAVE_FAILURE);
+    expect(readPlanDraftEnvelope(session)?.savedAt).toBe(pickerTime);
+    expect(document.body.textContent).toContain("Opening and travel checks are unavailable for this restored draft.");
+    expect(document.body.textContent).toContain("This route needs a refresh");
     now += 1000;
     writeAskPlanDraft({ query: "Clapham tonight", stopIds: [], stopNames: [], createdAt: new Date(now).toISOString() });
     await remountComposer();
@@ -1563,11 +1564,14 @@ describe("the Plan result", () => {
     expect(document.querySelector('[aria-label="Number of pub stops"] button[aria-pressed="true"]')?.textContent?.trim()).toBe("3");
     expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))).toMatchObject({ conciergeQuery: "Clapham tonight" });
     expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.requestedStopCount).toBeUndefined();
-    if (reload) await remountComposer();
+    if (reload) {
+      await remountComposer();
+      if (!document.querySelector("#plan-concierge-query")) await openTune();
+    }
     expect(document.querySelector<HTMLInputElement>("#plan-concierge-query")?.value).toBe("Clapham tonight");
     expect(fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"))).toHaveLength(0);
     const generate = [...document.querySelectorAll<HTMLButtonElement>(".planComposer__concierge button")]
-      .find((button) => button.textContent?.trim() === "Make a plan")!;
+      .find((button) => ["Make a plan", "Plan it again"].includes(button.textContent?.trim() ?? ""))!;
     expect(generate.disabled).toBe(false);
     await act(async () => { generate.click(); });
     await settle();

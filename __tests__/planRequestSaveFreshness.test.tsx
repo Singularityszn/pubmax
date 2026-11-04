@@ -382,7 +382,8 @@ describe("request save age with an unchanged stale route", () => {
     await editInput("#plan-time", "2026-11-03T21:00");
     expect(readPlanDraftEnvelope(session)?.savedAt).toBe("2026-11-03T12:00:03.000Z");
     expect(local.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(route);
-    expect(document.body.textContent).toContain("route details, checks and starting pub could not be saved");
+    expect(document.body.textContent).toContain("Opening and travel checks are unavailable for this restored draft.");
+    expect(document.querySelector("#plan-lock-hint")?.textContent).toContain("Refresh the route");
     advance(4000);
     await remountComposer();
     expect(document.querySelector<HTMLInputElement>("#plan-time")?.value).toBe("2026-11-03T21:00");
@@ -1466,4 +1467,94 @@ it.each(["missing", "malformed", "expired"] as const)("keeps an older route as a
   expect(document.querySelector(".planStop__name")?.textContent).toBe("Pub A");
   expect(document.querySelector("#plan-lock-hint")?.textContent).toContain("Refresh the route");
   await attemptRouteSave();
+});
+it.each([false, true])("cannot lock the older route when only a newer intake count survives, missing session: %s", async (missingSession) => {
+  const advance = pinClock();
+  const generated = generatedProofFixture(3);
+  fetchMock.mockImplementation(async (input) => new Response(JSON.stringify(String(input).includes("/api/plans/generate") ? generated : []), {status:200,headers:{"content-type":"application/json"}}));
+  await generateFromDescription();
+  await editInput("#plan-name", "Captain");
+  blockStorageWrites("sessionStorage");
+  rejectRouteWrites([PLAN_ROUTE_DRAFT_KEY, PLAN_ROUTE_DRAFT_V2_KEY]);
+  await openTune();
+  advance(1000);
+  await editTuneControl("stops", "1");
+  expect(readPlanIntakeDraftWithMetadata(localStorage)?.draft.answers).toMatchObject({stopCount:1,stopCountSource:"picker"});
+  if (missingSession) {
+    sessionStorage.removeItem("pubmaxx:plan-draft:v1");
+    sessionStorage.removeItem("pubmax:plan-draft:v2");
+  }
+  advance(2000);
+  await remountComposer();
+  if (missingSession) await editInput("#plan-name", "Captain");
+  if (!document.querySelector<HTMLInputElement>("#plan-time")?.value) await editInput("#plan-time", START);
+  await act(async () => document.querySelector<HTMLFormElement>("#plan-composer")!.requestSubmit());
+  expect(fetchMock.mock.calls.filter(([input]) => String(input) === "/api/plans")).toHaveLength(0);
+  expect(document.querySelector("#plan-lock-hint")?.textContent).toContain("Refresh the route");
+});
+
+it.each([false, true])("retains the newest intake choices while its older route becomes a preview, session blocked: %s", async (sessionBlocked) => {
+  const advance = pinClock();
+  await generateProofRoute(3);
+  if (sessionBlocked) blockStorageWrites("sessionStorage");
+  rejectRouteWrites([PLAN_ROUTE_DRAFT_KEY, PLAN_ROUTE_DRAFT_V2_KEY]);
+  await openTune();
+  advance(1000);
+  await editTuneControl("stops", "1");
+  await editTuneControl("budget", "value");
+  expect(readPlanIntakeDraftWithMetadata(localStorage)?.draft.answers).toMatchObject({stopCount:1,stopCountSource:"picker",budget:"value"});
+  const savedAt = readPlanIntakeDraftWithMetadata(localStorage)?.savedAt;
+  expect(readPlanIntakeDraftWithMetadata(localStorage)?.routeReference).toBeNull();
+  if (!sessionBlocked) expect(readPlanDraftEnvelope(sessionStorage)?.draft.routeReference).toBeNull();
+  advance(2000);
+  await remountComposer();
+  await openTune();
+  expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("1");
+  expect(document.querySelector<HTMLSelectElement>("#plan-context-budget")?.value).toBe("value");
+  expect(readPlanIntakeDraftWithMetadata(localStorage)?.savedAt).toBe(savedAt);
+  await sortAgainFromTune();
+  expect(reconciledGenerationContext()).toMatchObject({stopCount:1,budget:"value"});
+});
+
+it("retains fresh Ask revocation through session-only reload", async () => {
+  const advance = pinClock();
+  blockStorageWrites("localStorage");
+  await generateProofRoute();
+  expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBeNull();
+  const query = "One pub in Clapham after work";
+  sessionStorage.setItem(ASK_PLAN_DRAFT_STORAGE_KEY, JSON.stringify({query}));
+  advance(1000);
+  await remountComposer();
+  expect(readPlanDraftEnvelope(sessionStorage)?.draft.conciergeQuery).toBe(query);
+  await act(async () => document.querySelector<HTMLFormElement>("#plan-composer")!.requestSubmit());
+  expect(fetchMock.mock.calls.filter(([input]) => String(input) === "/api/plans")).toHaveLength(0);
+  expect(readPlanDraftEnvelope(sessionStorage)?.draft.routeReference).toBeNull();
+  for (const elapsed of [2000, 3000]) {
+    advance(elapsed);
+    await remountComposer();
+    await editInput("#plan-title", "Our next night");
+    await attemptRouteSave();
+    expect(readPlanDraftEnvelope(sessionStorage)?.draft.routeReference).toBeNull();
+  }
+});
+
+it.each([false, true])("keeps a later First pint edit valid after Tune selected Late, reload: %s", async (reload) => {
+  pinClock();
+  await generateFromDescription();
+  await openTune();
+  await editTuneControl("time", "late_night");
+  await act(async () => { document.dispatchEvent(new KeyboardEvent("keydown", {key:"Escape",bubbles:true})); });
+  await settle();
+  await editInput("#plan-time", "2026-11-03T21:30");
+  expect(document.querySelector<HTMLInputElement>("#plan-time")?.value).toBe("2026-11-03T21:30");
+  expect(readPlanIntakeDraftWithMetadata(localStorage)?.draft.answers).toMatchObject({timeWindow:"evening",exactStartIso:"2026-11-03T21:30:00.000Z"});
+  if (reload) await remountComposer();
+  await openTune();
+  expect(document.querySelector<HTMLSelectElement>("#plan-context-time")?.value).toBe("evening");
+  await sortAgainFromTune();
+  const post = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate")).at(-1)!;
+  const request = JSON.parse(String(post[1]?.body));
+  expect(request.intake.timeWindow.exactStartIso).toBe("2026-11-03T21:30:00.000Z");
+  const parsed = parsePlanGenerationIntake(request.intake, new Date(T0));
+  expect(parsed).toMatchObject({ok:true});
 });

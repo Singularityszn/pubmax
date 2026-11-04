@@ -480,6 +480,11 @@ for (const viewport of ONBOARDING_VIEWPORTS) {
     await expect(page.getByRole("progressbar", { name: "Onboarding progress" }))
       .toHaveAttribute("aria-valuenow", "1");
     await expect(page.getByText("PUBMAXX reviewed", { exact: true })).toHaveCount(0);
+    // Without area-review evidence, the introduction may describe the
+    // available journey but must not promise that an area was checked.
+    await expect(page.locator(".firstRunLead")).toHaveText(
+      "Start with listed pint prices and a way home.",
+    );
     // With no reviewed areas, the visible content is the photograph and the
     // city introduction. Each still needs the space previously owed to rows.
     const content = page.locator(

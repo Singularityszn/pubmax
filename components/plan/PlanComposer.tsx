@@ -60,7 +60,7 @@ import {
   planVenueOptions,
   type PlanVenueOption,
 } from "@/lib/planVenueOptions";
-import { cleanNightContext, cleanNightContextPatch, type NightContext } from "@/lib/nightPlanning";
+import { cleanNightContext, cleanNightContextPatch, inferNightContext, type NightContext } from "@/lib/nightPlanning";
 import { planUsesPintPrices } from "@/lib/planGenerationDto";
 import { categoryLabel, DRINK_CATEGORIES, type DrinkCategory } from "@/lib/drinks";
 import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
@@ -894,6 +894,24 @@ function samePlanRequest(left: StoredPlanDraft, right: StoredPlanDraft | null | 
     .every((field) => JSON.stringify(left[field]) === JSON.stringify(right[field])));
 }
 
+function savedSessionRequestChanged(draft: StoredPlanDraft, session: ReturnType<typeof readPlanDraftEnvelope>, intake: ReturnType<typeof readPlanIntakeDraftWithMetadata>): boolean {
+  if (!session || samePlanRequest(draft, session.draft)) return false;
+  return !intake || Date.parse(session.savedAt ?? "") >= Date.parse(intake.savedAt);
+}
+
+function samePlanIntake(left: PlanIntakeDraft, right: PlanIntakeDraft): boolean {
+  return left.completed === right.completed && (left.completed || left.currentStep === right.currentStep)
+    && JSON.stringify(left.settledSteps) === JSON.stringify(right.settledSteps)
+    && JSON.stringify(left.skippedSteps) === JSON.stringify(right.skippedSteps)
+    && left.answers.stopCountSource === right.answers.stopCountSource
+    && JSON.stringify(planIntakeHandoff(left)) === JSON.stringify(planIntakeHandoff(right));
+}
+
+function savedIntakeRequestChanged(intake: ReturnType<typeof readPlanIntakeDraftWithMetadata>, session: ReturnType<typeof readPlanDraftEnvelope>, recovered: PlanIntakeDraft): boolean {
+  if (!intake || samePlanIntake(intake.draft, recovered)) return false;
+  return !session || Date.parse(intake.savedAt) >= Date.parse(session.savedAt ?? "");
+}
+
 function composerRouteContent(routeDraft: StoredRouteDraft | null): string {
   return JSON.stringify(parsePlanRouteDraft(JSON.stringify({ ...routeDraft, savedAt: undefined })));
 }
@@ -1577,6 +1595,18 @@ function planWindowContainsStart(option: (typeof PLAN_TIME_WINDOWS)[number], exa
     : clock >= option.start && clock < option.end;
 }
 
+function reconcilePlanStart(draft: PlanIntakeDraft, value: string): PlanIntakeDraft {
+  if (!draft.answers.timeWindow) return draft;
+  const exactStartIso = londonDateTimeInputToIso(value, new Date());
+  if (!exactStartIso) return reopenPlanIntakeStep({ ...draft, answers: { ...draft.answers, exactStartIso: null } }, "time-window");
+  const current = PLAN_TIME_WINDOWS.find((option) => option.id === draft.answers.timeWindow);
+  const option = current && planWindowContainsStart(current, exactStartIso) ? current
+    : PLAN_TIME_WINDOWS.find((candidate) => planWindowContainsStart(candidate, exactStartIso));
+  if (option?.id === draft.answers.timeWindow && exactStartIso === draft.answers.exactStartIso) return draft;
+  const next = { ...draft, answers: { ...draft.answers, timeWindow: option?.id ?? null, exactStartIso: option ? exactStartIso : null } };
+  return settlePlanIntakeStep({ ...next, currentStep: "time-window" }, { skip: !option });
+}
+
 function tuneTimeAnswers(daypart: NightContext["daypart"], displayedStart: string, savedExactStartIso: string | null): Pick<PlanIntakeDraft["answers"], "timeWindow" | "exactStartIso"> {
   const option = PLAN_TIME_WINDOWS.find((window) => window.daypart === daypart);
   if (!option) return { timeWindow: null, exactStartIso: null };
@@ -1699,10 +1729,7 @@ function PlanComposerForm({
   );
   const [planIntake, setPlanIntake] = useState(() => {
     const draft = applyPlanStopCount(recoveredIntake, null, recoveredStopCount, urlAsk ? "text" : recoveredIntent.stopCountSource).draft;
-    const exactStartIso = londonDateTimeInputToIso(startTime, new Date());
-    return draft.answers.timeWindow && exactStartIso && draft.answers.exactStartIso !== exactStartIso
-      ? { ...draft, answers: { ...draft.answers, exactStartIso } }
-      : draft;
+    return reconcilePlanStart(draft, startTime);
   });
   const requestedStopCount = planIntake.answers.stopCount;
   const [draftSaveFailure, setDraftSaveFailure] = useState<ComposerDraftSaveFailure>(null);
@@ -1876,6 +1903,12 @@ function PlanComposerForm({
   const routeDraftFields = initialComposerRouteDraft(recoveredRouteDraft);
   const [nightContext, setNightContext] = useState<NightContext | null>(routeDraftFields.nightContext);
   const [explicitNightContext, setExplicitNightContext] = useState<Partial<NightContext>>(recoveredRouteDraft?.explicitNightContext ?? {});
+  const intakeContext = planIntakeNightContextPatch(planIntake);
+  const editableContext = nightContext ?? (hasDurableIntakeDraft && Object.keys(intakeContext).some((key) => key !== "stopCount") ? {
+    ...inferNightContext(conciergeQuery).context,
+    ...intakeContext,
+    stopCount: normalizePlanStopCount(requestedStopCount),
+  } : null);
   const requestContext = { nightArea: askDraftQuery ? undefined : nightContext?.nightArea, ...explicitNightContext };
   const [routeRevision, setRouteRevision] = useState<RouteRevision | null>(routeDraftFields.routeRevision);
   const [routeNight, setRouteNight] = useState<RouteNight | null>(routeDraftFields.routeNight);
@@ -2080,10 +2113,10 @@ function PlanComposerForm({
     const acceptedAnchor = handoff?.acceptedAnchor;
     const persistedAcceptedAnchor = acceptedAnchorForPlanDraft(acceptedAnchor, stops[0]?.venueId);
     const savedAt = Date.now();
-    const intakeChanged = JSON.stringify(planIntake)
-      !== JSON.stringify(applyPlanStopCount(recoveredIntake, null, recoveredIntent.stopCount, recoveredIntent.stopCountSource).draft);
+    const intakeChanged = !samePlanIntake(planIntake,
+      applyPlanStopCount(recoveredIntake, null, recoveredIntent.stopCount, recoveredIntent.stopCountSource).draft);
     const previousIntake = readPlanIntakeDraftWithMetadata();
-    const sameIntake = previousIntake && JSON.stringify(planIntake) === JSON.stringify(previousIntake.draft);
+    const sameIntake = previousIntake && samePlanIntake(planIntake, previousIntake.draft);
     const routeDraft = {
       stops,
       nightContext,
@@ -2115,16 +2148,16 @@ function PlanComposerForm({
       startTime,
       conciergeQuery,
       stops,
-      ...(routeReference ? { routeReference } : {}),
+      routeReference: routeStale || routeSaveRevoked.current ? null : routeReference,
       ...(requestedStopCount !== undefined ? { requestedStopCount } : {}),
       requestedStopCountSource: planIntake.answers.stopCountSource,
       ...(persistedAcceptedAnchor ? { acceptedAnchor: persistedAcceptedAnchor } : {}),
     };
     const previousSession = readPlanDraftEnvelope(safeSessionStorage());
     const sameRequest = samePlanRequest(sessionDraft, previousSession?.draft);
-    const intakeWasEdited = previousIntake && JSON.stringify(previousIntake.draft) !== JSON.stringify(recoveredIntake);
+    const intakeWasEdited = savedIntakeRequestChanged(previousIntake, previousSession, recoveredIntake);
     const requestChanged = intakeChanged || Boolean(recoveredDraft && intakeWasEdited && !sameIntake)
-      || Boolean(recoveredDraft && previousSession && !sameRequest)
+      || Boolean(recoveredDraft && savedSessionRequestChanged(sessionDraft, previousSession, previousIntake))
       || !samePlanRequest(sessionDraft, {
         title: recoveredRequestTitle,
         creatorName: recoveredRequestCreator,
@@ -2290,18 +2323,15 @@ function PlanComposerForm({
 
   function updatePlanStartTime(value: string) {
     setStartTime(value);
-    const exactStartIso = londonDateTimeInputToIso(value, new Date());
     if (planIntake.answers.timeWindow) {
-      const next = {
-        ...planIntake,
-        answers: { ...planIntake.answers, exactStartIso },
-      };
-      updatePlanIntake(exactStartIso ? next : reopenPlanIntakeStep(next, "time-window"));
-      if (nightContext) {
-        setRouteStale(true);
-        setRouteStatus("Route needs refreshing after the exact start time changed.");
+      const next = reconcilePlanStart(planIntake, value);
+      updatePlanIntake(next);
+      const option = PLAN_TIME_WINDOWS.find((candidate) => candidate.id === next.answers.timeWindow);
+      if (next.answers.timeWindow !== planIntake.answers.timeWindow && londonDateTimeInputToIso(value, new Date())) {
+        const daypart = option?.daypart ?? "daytime";
+        setExplicitNightContext((current) => ({ ...current, daypart }));
+        setNightContext((current) => current && { ...current, daypart });
       }
-      return;
     }
     if (nightContext) {
       setRouteStale(true);
@@ -2452,9 +2482,9 @@ function PlanComposerForm({
   }
 
   function updateNightContext(patch: Partial<NightContext>) {
-    if (!nightContext) return;
-    const next = { ...nightContext, ...patch };
-    if (nightContextChanged(nightContext, next)) {
+    if (!editableContext) return;
+    const next = { ...editableContext, ...patch };
+    if (nightContextChanged(editableContext, next)) {
       setRouteStale(true);
       setGroundingProof(null);
       setCreateOperationKey(null);
@@ -2850,7 +2880,7 @@ function PlanComposerForm({
   const stopCountControl = (
       <label htmlFor="plan-context-stops">Stops<select id="plan-context-stops" aria-describedby="plan-route-status" value={normalizePlanStopCount(requestedStopCount)} onChange={(event) => {
         const stopCount = normalizePlanStopCount(Number(event.target.value));
-        if (nightContext) updateNightContext({ stopCount });
+        if (editableContext) updateNightContext({ stopCount });
         else updatePlanIntake(applyPlanStopCount(planIntake, null, stopCount, "picker").draft);
       }}>{PLAN_STOP_COUNTS.map((count) => <option key={count} value={count}>{count}</option>)}</select></label>
   );
@@ -2890,12 +2920,12 @@ function PlanComposerForm({
         {conciergeStatus}
       </p>
       {inSheet ? null : routeStaleNotice}
-      {!nightContext ? <div className="planComposer__context">{stopCountControl}</div> : null}
-      {nightContext ? (
+      {!editableContext ? <div className="planComposer__context">{stopCountControl}</div> : null}
+      {editableContext ? (
         <fieldset className="planComposer__context">
           <legend>What PUBMAXX understood. Edit anything.</legend>
           <p id="plan-context-note" className="planComposer__contextNote">We only call an area crawl-ready when its prices are fresh and checked. An area that is not ready yet may not give a route.</p>
-          <label htmlFor="plan-context-area">Area<select id="plan-context-area" aria-describedby="plan-context-note plan-route-status" value={nightContext.nightArea ?? ""} onChange={(event) => updateNightContext({ nightArea: event.target.value as NightContext["nightArea"] })}>
+          <label htmlFor="plan-context-area">Area<select id="plan-context-area" aria-describedby="plan-context-note plan-route-status" value={editableContext.nightArea ?? ""} onChange={(event) => updateNightContext({ nightArea: event.target.value as NightContext["nightArea"] })}>
             {areaGroups.map((group) => (
               <optgroup key={group.label} label={group.label}>
                 {group.areas.map((area) => (
@@ -2906,19 +2936,19 @@ function PlanComposerForm({
               </optgroup>
             ))}
           </select></label>
-          <label htmlFor="plan-context-time">Time<select id="plan-context-time" aria-describedby="plan-route-status" value={nightContext.daypart} onChange={(event) => updateNightContext({ daypart: event.target.value as NightContext["daypart"] })}>
+          <label htmlFor="plan-context-time">Time<select id="plan-context-time" aria-describedby="plan-route-status" value={editableContext.daypart} onChange={(event) => updateNightContext({ daypart: event.target.value as NightContext["daypart"] })}>
             <option value="daytime">Daytime</option><option value="after_work">After work</option><option value="evening">Evening</option><option value="late_night">Late night</option><option value="get_home">Get home</option>
           </select></label>
-          <label htmlFor="plan-context-group">Group<select id="plan-context-group" aria-describedby="plan-route-status" value={nightContext.partyType} onChange={(event) => updateNightContext({ partyType: event.target.value as NightContext["partyType"] })}>
+          <label htmlFor="plan-context-group">Group<select id="plan-context-group" aria-describedby="plan-route-status" value={editableContext.partyType} onChange={(event) => updateNightContext({ partyType: event.target.value as NightContext["partyType"] })}>
             <option value="solo">Solo</option><option value="friends">Friends</option><option value="work">Work</option>
           </select></label>
-          <label htmlFor="plan-context-people">People<input id="plan-context-people" aria-describedby="plan-route-status" type="number" min="1" max="30" value={nightContext.groupSize ?? ""} onChange={(event) => updateNightContext({ groupSize: event.target.value ? Number(event.target.value) : null })} /></label>
+          <label htmlFor="plan-context-people">People<input id="plan-context-people" aria-describedby="plan-route-status" type="number" min="1" max="30" value={editableContext.groupSize ?? ""} onChange={(event) => updateNightContext({ groupSize: event.target.value ? Number(event.target.value) : null })} /></label>
           {stopCountControl}
-          <label htmlFor="plan-context-budget">Budget<select id="plan-context-budget" aria-describedby="plan-route-status" value={nightContext.budget} onChange={(event) => updateNightContext({ budget: event.target.value as NightContext["budget"] })}>
+          <label htmlFor="plan-context-budget">Budget<select id="plan-context-budget" aria-describedby="plan-route-status" value={editableContext.budget} onChange={(event) => updateNightContext({ budget: event.target.value as NightContext["budget"] })}>
             <option value="value">Value</option><option value="standard">Standard</option><option value="treat">Treat</option>
           </select></label>
-          <label htmlFor="plan-context-budget-limit">Max per person<input id="plan-context-budget-limit" aria-describedby="plan-route-status" type="number" inputMode="decimal" min="5" max="500" step="1" value={nightContext.budgetLimitPence === null ? "" : nightContext.budgetLimitPence / 100} onChange={(event) => updateNightContext({ budgetLimitPence: event.target.value ? Math.round(Number(event.target.value) * 100) : null })} /></label>
-          <label htmlFor="plan-context-zero-proof">Drinks<select id="plan-context-zero-proof" aria-describedby="plan-route-status" value={nightContext.zeroProof ? "zero-proof" : nightContext.drinkCategory ?? "any"} onChange={(event) => {
+          <label htmlFor="plan-context-budget-limit">Max per person<input id="plan-context-budget-limit" aria-describedby="plan-route-status" type="number" inputMode="decimal" min="5" max="500" step="1" value={editableContext.budgetLimitPence === null ? "" : editableContext.budgetLimitPence / 100} onChange={(event) => updateNightContext({ budgetLimitPence: event.target.value ? Math.round(Number(event.target.value) * 100) : null })} /></label>
+          <label htmlFor="plan-context-zero-proof">Drinks<select id="plan-context-zero-proof" aria-describedby="plan-route-status" value={editableContext.zeroProof ? "zero-proof" : editableContext.drinkCategory ?? "any"} onChange={(event) => {
             const choice = event.target.value;
             updateNightContext({
               zeroProof: choice === "zero-proof",
@@ -3301,13 +3331,16 @@ export default function PlanComposer() {
           ambiguous: routeRecovery.ambiguous,
         } : null,
       });
-      const route = (resolved.sessionWins || resolved.acceptanceUnavailable) && routeRecovery.route ? {
+      const previewStops = resolved.sessionWins && resolved.planDraft
+        ? resolved.planDraft.draft.stops : routeRecovery.route?.stops;
+      const needsPreview = (resolved.sessionWins || resolved.acceptanceUnavailable)
+        && (routeRecovery.route || resolved.planDraft?.draft.routeReference === null);
+      const route = needsPreview && previewStops?.length ? {
         ...routeRecovery,
         envelope: null,
         route: {
-          savedAt: resolved.sessionWins ? resolved.planDraft?.savedAt ?? undefined : routeRecovery.route.savedAt,
-          stops: (resolved.sessionWins && resolved.planDraft ? resolved.planDraft.draft.stops : routeRecovery.route.stops)
-            .map(({ key, venueId, venueName }) => ({ key, venueId, venueName, alternatives: [] })),
+          savedAt: resolved.sessionWins ? resolved.planDraft?.savedAt ?? undefined : routeRecovery.route?.savedAt,
+          stops: previewStops.map(({ key, venueId, venueName }) => ({ key, venueId, venueName, alternatives: [] })),
           nightContext: null,
           routeNight: null,
           routeRevision: null,
