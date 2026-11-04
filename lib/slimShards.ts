@@ -47,6 +47,7 @@ export type ShardEntry = {
 export type ShardManifest = {
   version: number;
   revision?: string;
+  priceDatasetDigest?: string;
   grid?: { originLat: number; originLon: number; latStep: number; lonStep: number };
   shards: ShardEntry[];
 };
@@ -62,6 +63,7 @@ export type MapBounds = {
 type SlimShardLoadResult = {
   rows: SlimVenue[];
   status: "ready" | "unavailable";
+  priceDatasetDigest?: string;
 };
 
 const LEGACY_SHARD_MANIFEST_VERSION = 1;
@@ -141,6 +143,7 @@ export function parseShardManifest(
   return {
     version: obj.version,
     ...(typeof obj.revision === "string" ? { revision: obj.revision } : {}),
+    ...(typeof obj.priceDatasetDigest === "string" && /^[A-Za-z0-9_-]{22}$/.test(obj.priceDatasetDigest) ? { priceDatasetDigest: obj.priceDatasetDigest } : {}),
     ...(obj.grid ? { grid: obj.grid } : {}),
     shards,
   };
@@ -291,8 +294,10 @@ export type SlimShardLoader = {
   initial(bounds: MapBounds): Promise<SlimVenue[]>;
   initialResult(bounds: MapBounds): Promise<SlimShardLoadResult>;
   /**
-   * Venues from location shards intersecting the walk radius, loaded (with one
-   * retry) if needed. Status reports whether all required shards loaded.
+   * Return all rows from location shards intersecting the walk radius, including
+   * cached rows on repeated or overlapping queries. Unlike inBounds, this is not
+   * an incremental read. After one retry, status reports whether every required
+   * shard loaded. Partial rows must not establish a nearby cheapest winner.
    */
   nearPoint(lat: number, lng: number): Promise<SlimShardLoadResult>;
   /** Every shard (for by-id / whole-index consumers). */
@@ -569,6 +574,7 @@ export function createSlimShardLoader(
     path: string,
     readOptions: Parameters<typeof loadSlimVenuesFromPathResult>[1],
     foreground: boolean,
+    key: string,
   ): Promise<SlimShardLoadResult> {
     await new Promise<void>((resolve) => {
       const start = () => {
@@ -576,7 +582,7 @@ export function createSlimShardLoader(
         resolve();
       };
       if (activeShardReads < shardReadLimit) start();
-      else (foreground ? queuedForegroundShardReads : queuedShardReads).push({ key: path, start });
+      else (foreground ? queuedForegroundShardReads : queuedShardReads).push({ key, start });
     });
     try {
       return await loadSlimVenuesFromPathResult(path, readOptions);
@@ -695,6 +701,7 @@ export function createSlimShardLoader(
   function manifest(): Promise<ShardManifest | null> {
     if (!manifestPromise) {
       manifestPromise = fetchManifest().then((parsed) => {
+        loadedUrls.clear();
         settledManifest = parsed;
         manifestAnswered = true;
         return parsed;
@@ -732,7 +739,9 @@ export function createSlimShardLoader(
     speculative = false,
     foreground = false,
   ): Promise<SlimShardLoadResult> {
-    const key = shardRequestPath(url, packRequestRevision);
+    const expectedPriceDatasetDigest = settledManifest?.priceDatasetDigest;
+    const requestPath = shardRequestPath(url, packRequestRevision);
+    const key = expectedPriceDatasetDigest ? `${requestPath}#${expectedPriceDatasetDigest}` : requestPath;
     let p = shardPromises.get(key);
     if (p && foreground) {
       const queuedIndex = queuedShardReads.findIndex((read) => read.key === key);
@@ -745,22 +754,17 @@ export function createSlimShardLoader(
       const expectedRevision = packRevision;
       const shardOptions =
         expectedRevision === undefined
-          ? options
+          ? { ...options, ...(expectedPriceDatasetDigest ? { expectedPriceDatasetDigest, bypassInFlight: true } : {}) }
           : {
               ...options,
               expectedRevision,
-              onRevisionSkew: (served: unknown) => shardSkews.set(key, { served }),
+              ...(expectedPriceDatasetDigest ? { expectedPriceDatasetDigest, bypassInFlight: true } : {}),
+              onRevisionSkew: (served: unknown) => shardSkews.set(requestPath, { served }),
             };
-      shardSkews.delete(key);
-      const created = readShardWithSlot(key, shardOptions, foreground)
+      shardSkews.delete(requestPath);
+      const created = readShardWithSlot(requestPath, shardOptions, foreground, key)
         .then((result) => {
-          if (result.status === "ready") {
-            // A read that lands after another pack was adopted contributed
-            // rows, but it does not cover anything in the adopted pack.
-            if (key === shardRequestPath(url, packRequestRevision)) loadedUrls.add(url);
-          } else {
-            shardPromises.delete(key);
-          }
+          if (result.status !== "ready") shardPromises.delete(key);
           return result;
         })
         .catch(() => {
@@ -770,11 +774,16 @@ export function createSlimShardLoader(
       shardPromises.set(key, created);
       p = created;
     }
-    if (speculative) return p;
     return p.then((result) => {
-      const skew = shardSkews.get(key);
+      if (
+        requestPath !== shardRequestPath(url, packRequestRevision) ||
+        expectedPriceDatasetDigest !== settledManifest?.priceDatasetDigest
+      ) return loadShard(url, speculative, foreground);
+      if (result.status === "ready" && manifestAnswered) loadedUrls.add(url);
+      if (speculative) return result;
+      const skew = shardSkews.get(requestPath);
       if (result.status === "unavailable" && skew) {
-        shardSkews.delete(key);
+        shardSkews.delete(requestPath);
         reportMapDataRevisionSkew({
           asset: "shard",
           outcome: "refused",
@@ -840,8 +849,7 @@ export function createSlimShardLoader(
       // The guess was asked under the baked revision; once a skewed manifest
       // is adopted its core must carry the manifest's revision instead.
       if (core.url === guessedCoreUrl && packRequestRevision === MAP_DATA_REVISION) {
-        const result = await guessedRows;
-        if (result.rows.length > 0) return result.rows;
+        await guessedRows;
       }
       return (await loadShard(core.url)).rows;
     },
@@ -876,7 +884,7 @@ export function createSlimShardLoader(
         boundsForRadius(lat, lng, WALKABLE_RADIUS_KM),
         0,
         true,
-      ).filter((s) => s.partition !== "kind" && !loadedUrls.has(s.url));
+      ).filter((s) => s.partition !== "kind");
       if (needed.length === 0) return { rows: [], status: "ready" };
       let results = await Promise.all(needed.map((s) => loadShard(s.url)));
       const unavailable = needed.filter((s, index) => results[index]?.status === "unavailable");
@@ -887,6 +895,7 @@ export function createSlimShardLoader(
       }
       return {
         rows: results.flatMap((result) => result.rows),
+        ...(m.priceDatasetDigest ? { priceDatasetDigest: m.priceDatasetDigest } : {}),
         status: results.every((result) => result.status === "ready")
           ? "ready"
           : "unavailable",
