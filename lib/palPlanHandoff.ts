@@ -86,6 +86,7 @@ export function palPlanDraftFor(raw: string | null, ask: string | null): PalPlan
 export function palDraftAttempts(
   draft: PalPlanDraft | null,
   fallbackAnchor: PlanGenerationAnchorInput | null | undefined,
+  requestedStopCount?: PlanStopCount,
 ): PalDraftAttempt[] {
   const plain: PalDraftAttempt = { keeps: "none", anchor: fallbackAnchor ?? null, context: {} };
   if (!draft) return [plain];
@@ -96,13 +97,17 @@ export function palDraftAttempts(
     return [{ ...plain, keeps: "held" }];
   }
   const anchor: PlanGenerationAnchorInput = fallbackAnchor ?? { venueId: first, source, acceptedArea: null, startsAt: null };
+  const firstAttempt: PalDraftAttempt = { keeps: "first", anchor, context: {} };
+  if (requestedStopCount !== undefined && requestedStopCount !== draft.stopIds.length) {
+    return [firstAttempt, plain];
+  }
   return [
     {
       keeps: "all",
       anchor: { ...anchor, venueIds: [...draft.stopIds] },
       context: { stopCount: normalizePlanStopCount(draft.stopIds.length) },
     },
-    { keeps: "first", anchor, context: {} },
+    firstAttempt,
     plain,
   ];
 }

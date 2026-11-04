@@ -2680,7 +2680,7 @@ function PlanComposerForm({
       const baseContext = { ...submittedContext };
       const { response, body: rawBody, attempt: taken } = await requestPlanGeneration(
         palDraft,
-        palDraftAttempts(palDraft, handoff?.acceptedAnchor),
+        palDraftAttempts(palDraft, handoff?.acceptedAnchor, stopCount),
         (attempt) => buildPlanGenerationIntakeBody(
           intake,
           query,
@@ -2967,7 +2967,7 @@ function PlanComposerForm({
     </>
   ) : null;
   const stopCountControl = (
-      <label htmlFor="plan-context-stops">Stops<select id="plan-context-stops" aria-describedby="plan-route-status" value={normalizePlanStopCount(requestedStopCount)} onChange={(event) => {
+      <label htmlFor="plan-context-stops">Stops<select id="plan-context-stops" aria-describedby="plan-route-status" value={normalizePlanStopCount(requestedStopCount ?? (routeSorted && !routeStale ? nightContext?.stopCount : undefined))} onChange={(event) => {
         const stopCount = normalizePlanStopCount(Number(event.target.value));
         if (editableContext) updateNightContext({ stopCount });
         else updatePlanIntake(applyPlanStopCount(planIntake, null, stopCount, "picker").draft);
