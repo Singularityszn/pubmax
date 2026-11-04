@@ -105,15 +105,15 @@ async function tune() {
   await vi.waitFor(() => expect(document.querySelector("#plan-context-stops")).not.toBeNull());
 }
 
-it("keeps four drafted pubs without turning their inferred count into a user choice", async () => {
+it("keeps four accepted drafted pubs without borrowing a generated default or claiming a picker choice", async () => {
   seed();
   await mount();
   await settleRoute();
   expect(requests).toHaveLength(1);
   expect((requests[0]!.anchor as { venueIds: string[] }).venueIds).toEqual(pubs);
   expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent)).toEqual(pubs);
-  expect(readPlanIntakeDraft()?.answers.stopCountSource).toBeUndefined();
-  expect(readPlanDraftEnvelope(sessionStorage)?.draft.requestedStopCountSource).toBeUndefined();
+  expect(readPlanIntakeDraft()?.answers).toMatchObject({ stopCount: 4, stopCountSource: "draft" });
+  expect(readPlanDraftEnvelope(sessionStorage)?.draft).toMatchObject({ requestedStopCount: 4, requestedStopCountSource: "draft" });
   await tune();
   expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")!.value).toBe("4");
   await act(async () => root!.unmount());
@@ -125,6 +125,18 @@ it("keeps four drafted pubs without turning their inferred count into a user cho
   await tune();
   expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")!.value).toBe("4");
   expect(requests).toHaveLength(1);
+  await act(async () => root!.unmount());
+  root = null;
+  host!.remove();
+  generate = () => reply(pubs.slice(0, 3));
+  window.history.replaceState({}, "", `/plan?query=${encodeURIComponent("A quiet night in Clapham")}`);
+  await mount();
+  await settleRoute();
+  expect(requests).toHaveLength(2);
+  expect(requests[1]).not.toHaveProperty("anchor");
+  expect((requests[1]!.context as { stopCount?: number }).stopCount).toBeUndefined();
+  expect(readPlanDraftEnvelope(sessionStorage)?.draft.requestedStopCount).toBeUndefined();
+  expect(readPlanDraftEnvelope(sessionStorage)?.draft.requestedStopCountSource).toBeUndefined();
 });
 
 it.each([1, 2])("keeps an explicit %i-stop request ahead of a four-pub draft", async (count) => {

@@ -30,10 +30,10 @@ export function isPlanStopCount(value: unknown): value is PlanStopCount {
     && (PLAN_STOP_COUNTS as readonly number[]).includes(value);
 }
 
-export type PlanStopCountSource = "text" | "picker" | "route-edit";
+export type PlanStopCountSource = "text" | "picker" | "route-edit" | "draft";
 
 export function cleanPlanStopCountSource(value: unknown, count: unknown): PlanStopCountSource | undefined {
-  return isPlanStopCount(count) && (value === "text" || value === "picker" || value === "route-edit")
+  return isPlanStopCount(count) && (value === "text" || value === "picker" || value === "route-edit" || value === "draft")
     ? value : undefined;
 }
 

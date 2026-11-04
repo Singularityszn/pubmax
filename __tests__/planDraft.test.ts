@@ -63,7 +63,7 @@ describe("parsePlanDraft", () => {
     expect(draft?.stops[0]?.venueId).toBe("v1");
   });
 
-  it.each(["text", "picker", "route-edit", "unknown", "Picker", null, 1, {}, undefined])("validates optional count origin without discarding a route: %s", (source) => {
+  it.each(["text", "picker", "route-edit", "draft", "unknown", "Picker", null, 1, {}, undefined])("validates optional count origin without discarding a route: %s", (source) => {
     const values = new Map<string, string>();
     const storage = { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value); } };
     writePlanDraftEnvelope({ title: "Night", creatorName: "", startTime: "", conciergeQuery: "", stops: [{ key: 1, venueId: "v1", venueName: "Pub" }], requestedStopCount: 1 }, "manual", storage);
@@ -72,7 +72,7 @@ describe("parsePlanDraft", () => {
     values.set("pubmax:plan-draft:v2", JSON.stringify(envelope));
     const restored = readPlanDraftEnvelope(storage);
     expect(restored?.draft).toMatchObject({ requestedStopCount: 1, stops: [{ venueId: "v1" }] });
-    const expected = source === "text" || source === "picker" || source === "route-edit" ? source : undefined;
+    const expected = source === "text" || source === "picker" || source === "route-edit" || source === "draft" ? source : undefined;
     expect(restored?.draft.requestedStopCountSource).toBe(expected);
     delete envelope.draft.requestedStopCount;
     values.set("pubmax:plan-draft:v2", JSON.stringify(envelope));

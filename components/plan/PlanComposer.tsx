@@ -1233,15 +1233,19 @@ async function requestPlanGeneration(
   draft: PalPlanDraft | null,
   attempts: readonly PalDraftAttempt[],
   bodyFor: (attempt: PalDraftAttempt) => unknown,
+  signal: AbortSignal,
 ): Promise<{ response: Response; body: unknown; attempt: PalDraftAttempt }> {
   let last: { response: Response; body: unknown; attempt: PalDraftAttempt } | null = null;
   for (const attempt of attempts) {
+    if (signal.aborted) throw new Error("The planning request changed.");
     const response = await fetch("/api/plans/generate", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(bodyFor(attempt)),
+      signal,
     });
     const body = await readApiJson(response);
+    if (signal.aborted) throw new Error("The planning request changed.");
     last = { response, body, attempt };
     // A refused keeping attempt hands over to the next; the plain ask's own
     // refusal is the answer, and the caller reads its error as it always did.
@@ -1816,7 +1820,26 @@ function PlanComposerForm({
   // A recovered route draft IS a route, so it seeds this true.
   const [routeSorted, setRouteSorted] = useState(Boolean(recoveredRouteDraft));
   const routeSaveRevoked = useRef(Boolean(urlAsk));
+  const pendingGeneration = useRef<AbortController | null>(null);
+  const abandonGeneration = useCallback(() => {
+    const pending = pendingGeneration.current;
+    if (!pending) return;
+    pendingGeneration.current = null;
+    pending.abort();
+    routeSaveRevoked.current = true;
+    setSorting(false);
+    setRouteStale(routeSorted);
+    setGroundingProof(null);
+    setCreateOperationKey(null);
+    setRouteStatus("Your details changed. Plan again to use them.");
+  }, [routeSorted]);
+  useEffect(() => () => {
+    const pending = pendingGeneration.current;
+    pendingGeneration.current = null;
+    pending?.abort();
+  }, []);
   const adoptFreshAsk = useCallback((query: string) => {
+    abandonGeneration();
     routeSaveRevoked.current = true;
     setRouteStale(routeSorted);
     setGroundingProof(null);
@@ -1834,7 +1857,7 @@ function PlanComposerForm({
         matchPlanStopCount(query) === undefined ? undefined : "text",
       ).draft;
     });
-  }, [routeSorted]);
+  }, [routeSorted, abandonGeneration]);
   useLayoutEffect(() => {
     if (!canPersist) return;
     const fresh = describeAskFromLocation();
@@ -2333,6 +2356,11 @@ function PlanComposerForm({
       : applyPlanStopCount(next, nightContext, next.answers.stopCount, next.answers.stopCountSource);
     const answersChanged = JSON.stringify(planIntakeHandoff(planIntake))
       !== JSON.stringify(planIntakeHandoff(reconciled.draft));
+    if (JSON.stringify(planIntakeHandoff(skipRemainingPlanIntake(planIntake)))
+      !== JSON.stringify(planIntakeHandoff(skipRemainingPlanIntake(reconciled.draft)))
+      || planIntake.answers.stopCountSource !== reconciled.draft.answers.stopCountSource) {
+      abandonGeneration();
+    }
     if (answersChanged && nightContext) {
       setRouteStale(true);
       setRouteStatus("Route needs refreshing after those planning details changed.");
@@ -2397,6 +2425,7 @@ function PlanComposerForm({
   }
 
   function updatePlanStartTime(value: string) {
+    if (value !== startTime) abandonGeneration();
     setStartTime(value);
     if (planIntake.answers.timeWindow) {
       const next = reconcilePlanStart(planIntake, value);
@@ -2438,6 +2467,7 @@ function PlanComposerForm({
     const stopIdentitiesChanged = stops.length !== mutation.stops.length
       || stops.some((stop, index) => stop.venueId !== mutation.stops[index]?.venueId);
     if (stopIdentitiesChanged) {
+      abandonGeneration();
       setRouteCheckNoticeText(mutation.stops.length ? "Opening and travel checks are unavailable for this draft." : "");
       // A valid route proof can survive a swap, but the earlier cost list cannot.
       setCultureOpener((current) => {
@@ -2478,6 +2508,7 @@ function PlanComposerForm({
   }
 
   function dropAcceptance() {
+    abandonGeneration();
     releaseAcceptedPlanContext({
       planDraft: canPersist ? safeSessionStorage() : null,
       routeDraft: canPersist ? safeLocalStorage() : null,
@@ -2558,6 +2589,7 @@ function PlanComposerForm({
 
   function updateNightContext(patch: Partial<NightContext>) {
     if (!editableContext) return;
+    abandonGeneration();
     const next = { ...editableContext, ...patch };
     if (nightContextChanged(editableContext, next)) {
       setRouteStale(true);
@@ -2670,6 +2702,10 @@ function PlanComposerForm({
     // A crawl the Pal (or Ask the map) drafted for THIS ask is kept: spent
     // here, once, by the generation that answers it.
     const palDraft = takePalDraft(palDraftRef, query);
+    abandonGeneration();
+    const invocation = new AbortController();
+    pendingGeneration.current = invocation;
+    const ownsReply = () => pendingGeneration.current === invocation && !invocation.signal.aborted;
     setSorting(true);
     setError("");
     setRouteStatus(palDraftCheckingLine(palDraft, "Refreshing the route and rechecking every stop for your updated night."));
@@ -2688,7 +2724,9 @@ function PlanComposerForm({
           { ...baseContext, ...attempt.context },
           attempt.anchor,
         ),
+        invocation.signal,
       );
+      if (!ownsReply()) return;
       responseStatus = response.status;
       // The kept route's own length is the night it answers.
       Object.assign(submittedContext, taken.context);
@@ -2728,6 +2766,11 @@ function PlanComposerForm({
         setRouteStatus(NO_VENUES_MATCHED);
         return;
       }
+      // This count belongs to the pub list the person accepted, not to an
+      // inferred generator default. An explicit count still takes priority.
+      setPlanIntake((current) => taken.keeps === "all" && stopCount === undefined
+        ? applyPlanStopCount(current, null, taken.context.stopCount, "draft").draft
+        : current);
       setStops(suggested);
       setSuccessfulGeneration((generation) => generation + 1);
       setRouteCheckNoticeText(routeCheckNotice(body.planningConfidence));
@@ -2775,6 +2818,7 @@ function PlanComposerForm({
         trackEvent("night_description_submitted", { area: body.inferredContext.nightArea ?? "", daypart: body.inferredContext.daypart });
       }
     } catch (caught) {
+      if (!ownsReply()) return;
       const message = caught instanceof Error ? caught.message : "PUBMAXX could not sort this one.";
       // planGenerationFailureStatus is the ONE owner of this sentence, so the
       // error notice cannot tell a reader with no route on screen that "the
@@ -2787,8 +2831,19 @@ function PlanComposerForm({
       setRouteStatus(failureStatus);
       setRouteRevealTick((tick) => tick + 1);
     } finally {
-      setSorting(false);
+      finishGeneration(invocation);
     }
+  }
+
+  function finishGeneration(invocation: AbortController) {
+    if (pendingGeneration.current !== invocation) return;
+    pendingGeneration.current = null;
+    setSorting(false);
+  }
+
+  function updateConciergeQuery(value: string) {
+    if (value !== conciergeQuery) abandonGeneration();
+    setConciergeQuery(value);
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -2967,7 +3022,7 @@ function PlanComposerForm({
     </>
   ) : null;
   const stopCountControl = (
-      <label htmlFor="plan-context-stops">Stops<select id="plan-context-stops" aria-describedby="plan-route-status" value={normalizePlanStopCount(requestedStopCount ?? (routeSorted && !routeStale ? nightContext?.stopCount : undefined))} onChange={(event) => {
+      <label htmlFor="plan-context-stops">Stops<select id="plan-context-stops" aria-describedby="plan-route-status" value={normalizePlanStopCount(requestedStopCount)} onChange={(event) => {
         const stopCount = normalizePlanStopCount(Number(event.target.value));
         if (editableContext) updateNightContext({ stopCount });
         else updatePlanIntake(applyPlanStopCount(planIntake, null, stopCount, "picker").draft);
@@ -2984,7 +3039,7 @@ function PlanComposerForm({
       )}
       <div className="planComposer__conciergeInput">
         <label className="planComposer__srOnly" htmlFor="plan-concierge-query">{PLAN_FIELD_LABEL}</label>
-        <input id="plan-concierge-query" type="text" aria-describedby="plan-concierge-status" value={conciergeQuery} onChange={(event) => setConciergeQuery(event.target.value)} onKeyDown={inSheet ? (event) => { if (event.key === "Enter") { event.preventDefault(); if (!sorting && canSortWithCurrentGenerator) sortWithConcierge(); } } : undefined} placeholder="Add a mood, occasion or anything we missed" maxLength={500} />
+        <input id="plan-concierge-query" type="text" aria-describedby="plan-concierge-status" value={conciergeQuery} onChange={(event) => updateConciergeQuery(event.target.value)} onKeyDown={inSheet ? (event) => { if (event.key === "Enter") { event.preventDefault(); if (!sorting && canSortWithCurrentGenerator) sortWithConcierge(); } } : undefined} placeholder="Add a mood, occasion or anything we missed" maxLength={500} />
         {/* ONE PAINTED PRIMARY PER SCREEN. Once a route is on the page,
             `Lock it in` is the thing to do next, and two coral fills on one
             screen is the reader choosing between them. This control keeps
@@ -3095,7 +3150,7 @@ function PlanComposerForm({
             ),
           });
           setTitle(merged.title);
-          setConciergeQuery(merged.conciergeQuery);
+          updateConciergeQuery(merged.conciergeQuery);
           setConciergeNote(merged.conciergeNote);
         }}
       />
@@ -3329,9 +3384,12 @@ function PlanComposerForm({
           initialQuery={askDraftQuery}
           initialStopCount={requestedStopCount}
           initialStopCountSource={planIntake.answers.stopCountSource}
-          onStopCountChange={(count) => setPlanIntake((current) => applyPlanStopCount(current, null, count, "picker").draft)}
+          onStopCountChange={(count) => {
+            abandonGeneration();
+            setPlanIntake((current) => applyPlanStopCount(current, null, count, "picker").draft);
+          }}
           onSubmit={submitFromEntry}
-          onQueryChange={setConciergeQuery}
+          onQueryChange={updateConciergeQuery}
           onPrefillQueryChange={adoptDescribePrefillQuery}
           onGuideMeInstead={openGuide}
         />

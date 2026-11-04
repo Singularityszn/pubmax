@@ -97,6 +97,12 @@ A new handoff replaces the earlier description and count intent.
 The generation default, returned stop length, and unrelated Tune edits never establish requested intent.
 Reordering, swapping, or filling an existing stop preserves count intent.
 
+A pub list accepted through Pal's "Open in Plan" is separate from an unsized description.
+When generation keeps that whole list, its input count is recorded with source `draft`.
+The count comes from the accepted list, never the returned route length or inferred context.
+An explicit text, picker or route-edit count takes priority over the list size.
+A fresh Ask clears the earlier draft count with the other request choices.
+
 `resolveRequestedPlanIntent` in `lib/planDraftArbitration.ts` resolves the description and count together from existing stores.
 Paired session and local-intake writes use one timestamp.
 A newer dated session record wins, including an UNKNOWN count. Equal timestamps prefer the session record.
