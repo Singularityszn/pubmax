@@ -5,7 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { writeActivePlan } from "@/lib/activePlan";
 import { clearSurfaceCache } from "@/lib/surfaceDataCache";
-import { GENERIC_MAP_COMMANDS, serviceBesideMap } from "./fixtures/askMapCommands";
+import { GENERIC_MAP_COMMANDS, REFUSED_MAP_COMMANDS, SOCIAL_MAP_COMMANDS, serviceBesideMap } from "./fixtures/askMapCommands";
 
 const push = vi.hoisted(() => vi.fn());
 const request = vi.hoisted(() => vi.fn());
@@ -103,6 +103,7 @@ describe("mounted typed map dispatch", () => {
     ].flatMap((request) => [`${request} Show the map.`, `Show the map. ${request}`]),
     "Show the map. Date night.",
     "Show me the map. Any Tube delays?",
+    ...["Date night", "Garden", "For four", "Near Soho", "Under £6", "Any Tube delays?"].map((service) => `${service} show me the map`),
   ].flatMap(withEvidence))("sends the original service request to chat: %s", async (query) => {
     await send(query);
     expect(push).not.toHaveBeenCalled();
@@ -126,6 +127,22 @@ describe("mounted typed map dispatch", () => {
     expect(document.activeElement).toBe(map);
     expect(map!.scrollIntoView).toHaveBeenCalled();
     expect(request.mock.calls.filter(([url, init]) => url === "/api/pub-pal/chat" && init?.method === "POST")).toHaveLength(1);
+  });
+
+  it.each(REFUSED_MAP_COMMANDS)("keeps retained choices still after refusal: %s", async (query) => {
+    request.mockImplementation(async (_url, init) => Response.json(init?.method === "POST"
+      ? { answer: "Listed choice.", cards: [{ venueId: harp.id, title: harp.name, place: "Westminster", price: null }], proposals: [], toolsUsed: ["search_venues"] }
+      : { thread: null }));
+    await send("Find pubs in Camden");
+    const map = host.querySelector<HTMLElement>(".palChatMap");
+    expect(map).not.toBeNull();
+    map!.scrollIntoView = vi.fn();
+    await send(query);
+    expect(push).not.toHaveBeenCalled();
+    expect(map!.scrollIntoView).not.toHaveBeenCalled();
+    const sent = request.mock.calls.filter(([url, init]) => url === "/api/pub-pal/chat" && init?.method === "POST");
+    expect(sent).toHaveLength(2);
+    expect(JSON.parse(sent.at(-1)![1].body).query).toBe(query);
   });
 
   it.each(["Show me on the map", "Show those pubs on the map"].flatMap(withEvidence))(
@@ -156,10 +173,20 @@ describe("mounted typed map dispatch", () => {
   });
 
   describe.each([false, true])("with prior Camden turn %s", (priorCamden) => {
+    it.each(REFUSED_MAP_COMMANDS.flatMap(withEvidence))("submits a refused map command without navigation: %s", async (query) => {
+      if (priorCamden) await send("Find four pubs in Camden");
+      await send(query);
+      expect(push).not.toHaveBeenCalled();
+      const sent = request.mock.calls.filter(([url, init]) => url === "/api/pub-pal/chat" && init?.method === "POST");
+      expect(JSON.parse(sent.at(-1)![1].body).query).toBe(query);
+      expect(host.textContent).toContain(query);
+    });
+
     it.each([
       "OK. Show me the map", "Alright, show me the map", "Great. Show the map",
       "That sounds good. Show me the map", "In fact, show me the map",
       "Hi. Show me the map", "Show me the map",
+      ...SOCIAL_MAP_COMMANDS,
       ...GENERIC_MAP_COMMANDS,
     ].flatMap(withEvidence))("opens the generic map: %s", async (query) => {
       if (priorCamden) await send("Find four pubs in Camden");
@@ -169,5 +196,14 @@ describe("mounted typed map dispatch", () => {
       expect(host.textContent).toContain(query);
       expect(request.mock.calls.filter(([url, init]) => url === "/api/pub-pal/chat" && init?.method === "POST")).toHaveLength(before);
     });
+  });
+
+  it.each(REFUSED_MAP_COMMANDS.flatMap(withEvidence))("does not open an active plan after refusal: %s", async (query) => {
+    writeActivePlan({ id: "11111111-1111-4111-8111-111111111111", startTime: new Date(Date.now() - 60 * 60 * 1000).toISOString(), stopIndex: 0 });
+    await send(query);
+    expect(push).not.toHaveBeenCalled();
+    expect(planRead).not.toHaveBeenCalled();
+    const sent = request.mock.calls.filter(([url, init]) => url === "/api/pub-pal/chat" && init?.method === "POST");
+    expect(JSON.parse(sent.at(-1)![1].body).query).toBe(query);
   });
 });

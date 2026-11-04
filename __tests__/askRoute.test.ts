@@ -1,5 +1,5 @@
 import { VIBE_CHIPS } from "@/lib/vibeChips";
-import { serviceBesideMap } from "./fixtures/askMapCommands";
+import { SOCIAL_MAP_COMMANDS, serviceBesideMap } from "./fixtures/askMapCommands";
 import { JOURNEY_ENDPOINT_REQUESTS, NAMED_QUALIFIED_PRICE_REQUESTS, NAMED_TERMINAL_PRICE_REQUESTS, QUALIFIED_PRICE_REQUESTS } from "./fixtures/askPriceSubjects";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -92,6 +92,7 @@ describe("POST /api/ask", () => {
     "Great. Show the map",
     "That sounds good. Show me the map",
     "In fact, show me the map",
+    ...SOCIAL_MAP_COMMANDS,
   ].flatMap((query) => [false, true].map((withHistory) => ({ query, withHistory }))))(
     "keeps acknowledgement map actions through HTTP ($withHistory): $query", async ({ query, withHistory }) => {
       const evidence = "Show the source and date for any price you use";

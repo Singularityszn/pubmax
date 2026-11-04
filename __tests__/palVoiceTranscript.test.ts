@@ -1,7 +1,7 @@
 import { existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { GENERIC_MAP_COMMANDS } from "./fixtures/askMapCommands";
+import { GENERIC_MAP_COMMANDS, REFUSED_MAP_COMMANDS, SOCIAL_MAP_COMMANDS } from "./fixtures/askMapCommands";
 
 import { PAL_VOICE_SOUND_SRC } from "@/components/pubpal/palVoiceSounds";
 
@@ -33,6 +33,7 @@ describe("palAsksForMap", () => {
     "Map",
     "the map please",
     ...GENERIC_MAP_COMMANDS,
+    ...SOCIAL_MAP_COMMANDS,
     "Show me Soho on the map",
   ])("hears an ask for the map: %s", (text) => {
     expect(palAsksForMap(text)).toBe(true);
@@ -52,6 +53,7 @@ describe("palAsksForMap", () => {
     "Show me the Harp map",
     "Do not open the full map",
     "Never show me the whole map please",
+    ...REFUSED_MAP_COMMANDS,
   ])("leaves everything else to the Pal: %s", (text) => {
     expect(palAsksForMap(text)).toBe(false);
   });
@@ -144,6 +146,8 @@ describe("the voice panel cues", () => {
 // read against all the others at once. Each row: the line, what it means with
 // a night on, and what it means with no night on.
 const VOICE_MAP_TABLE: ReadonlyArray<readonly [string, "next-stop" | "map" | null, "map" | null]> = [
+  ...SOCIAL_MAP_COMMANDS.map((text) => [text, "map", "map"] as const),
+  ...REFUSED_MAP_COMMANDS.map((text) => [text, null, null] as const),
   // Next-stop asks.
   ["Next stop", "next-stop", null],
   ["What's next?", "next-stop", null],

@@ -1,5 +1,5 @@
 import { QUALIFIED_PRICE_REQUESTS } from "./fixtures/askPriceSubjects";
-import { GENERIC_MAP_COMMANDS, serviceBesideMap } from "./fixtures/askMapCommands";
+import { GENERIC_MAP_COMMANDS, SOCIAL_MAP_COMMANDS, serviceBesideMap } from "./fixtures/askMapCommands";
 import { describe, expect, it } from "vitest";
 
 import { isVenueDiscoveryAsk, isVenueHoursQuestion, refineRoutedAskQuery, resolveAskJourney, routeAskDeterministically, socialTurnKind, unsupportedPriceComparison } from "@/lib/ask/router";
@@ -62,6 +62,7 @@ describe("routeAskDeterministically", () => {
     "Great. Show the map",
     "That sounds good. Show me the map",
     "In fact, show me the map",
+    ...SOCIAL_MAP_COMMANDS,
   ])("keeps acknowledgement map actions without inheriting an area: %s", (request) => {
     const evidence = "Show the source and date for any price you use";
     for (const query of [request, evidence + ". " + request, request + " and " + evidence]) {
@@ -78,6 +79,17 @@ describe("routeAskDeterministically", () => {
           { name: "search_venues", args: { query, limit: 4 } },
         ]);
       }
+    },
+  );
+
+  it.each(["Date night", "For four", "Near Soho", "Under £6", "Garden", "Quiet-ish near Bank, 4 of us", "Any Tube delays?"])(
+    "keeps an unpunctuated service prefix ahead of navigation: %s", (service) => {
+      const query = `${service} show me the map`;
+      expect(semanticAskRequest(query, false)).toBe(service);
+      expect(palVoiceMapIntent(query, false)).toBeNull();
+      expect(routeAskDeterministically(query)).toEqual(service === "Any Tube delays?"
+        ? [{ name: "city_status", args: {} }]
+        : [{ name: "search_venues", args: { query, limit: 4 } }]);
     },
   );
 

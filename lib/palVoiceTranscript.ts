@@ -15,7 +15,7 @@
 
 import { palAsksForCurrentMap, palAsksForVenueDiscovery, palMapAskTarget } from "@/lib/palMapAsk";
 import { venueMapUrl } from "@/lib/venueMapUrl";
-import { GENERIC_MAP_COMMAND_RE, semanticAskRequest } from "@/lib/ask/requestPolicy";
+import { GENERIC_MAP_COMMAND_RE, POLITE_COMMAND_PREFIX, semanticAskRequest } from "@/lib/ask/requestPolicy";
 import { askHasPriorityOverMap } from "@/lib/ask/router";
 
 export type PalVoiceSpeaker = "you" | "pal";
@@ -100,7 +100,7 @@ export function tentativeUserTranscriptFrom(event: unknown): string | null {
   return typeof text === "string" ? text.trim() : null;
 }
 
-const MAP_NEGATION_RE = /\b(?:don'?t|do not|dont|never|no need to|not|stop)\b/;
+const NAVIGATION_NEGATION_RE = /\b(?:don'?t|do not|dont|never|no need to|not|stop|hold off)\b/;
 /** Does the person ask, in their own words, to see the map? */
 export function palAsksForMap(text: string): boolean {
   const normalized = text
@@ -110,8 +110,9 @@ export function palAsksForMap(text: string): boolean {
     .trim();
   if (!normalized || !/\bmaps?\b/.test(normalized)) return false;
   const command = GENERIC_MAP_COMMAND_RE.exec(normalized);
-  if (command) return !MAP_NEGATION_RE.test(normalized.slice(0, command.index + command[0].search(/\bmaps?\b/)));
-  return !MAP_NEGATION_RE.test(normalized)
+  if (command) return !NAVIGATION_NEGATION_RE.test(normalized.slice(0, command.index + command[0].search(/\bmaps?\b/)))
+    && !AFTER_ASK_NEGATION_RE.test(normalized.slice(command.index + command[0].length));
+  return !NAVIGATION_NEGATION_RE.test(normalized)
     && (palAsksForCurrentMap(text) || palMapAskTarget(text) !== null);
 }
 
@@ -120,10 +121,9 @@ export function palAsksForMap(text: string): boolean {
 // a night is on (the session checks), so a question about tomorrow is not one.
 const NEXT_STOP_RE =
   /\b(?:next\s+(?:stop|pub|bar|one|place)|where(?:'s|\s+is)?\s+next|where\s+to\s+next|what'?s\s+next|what\s+is\s+next)\b/;
-const NEXT_STOP_NEGATION_RE = /\b(?:don'?t|do not|dont|never|not|no need to|stop)\b/;
-// After the ask, "stop" may only be the noun ("next stop"), so it is not read
-// as a refusal there: "what's next, but do not open it yet" is.
-const NEXT_STOP_AFTER_NEGATION_RE = /\b(?:don'?t|do not|dont|never|not|no need to|hold off)\b/;
+const AFTER_ASK_NEGATION_RE = new RegExp(
+  String.raw`\b(?:don'?t|do not|dont|never|not|no need to|hold off)\b|^[\s.!?;,]*${POLITE_COMMAND_PREFIX}stop\b`,
+);
 // "What's next tomorrow", "Tomorrow, what's next?" and "where next weekend"
 // ask about another day, not this night's next stop, wherever the day sits.
 const NEXT_STOP_LATER_RE =
@@ -141,8 +141,8 @@ export function palAsksForNextStop(text: string): boolean {
   if (!ask) return false;
   // "Don't take me to the next stop yet" and "what's next, but not yet" are
   // not asks. "Stop" inside the ask itself ("next stop") is the noun.
-  if (NEXT_STOP_NEGATION_RE.test(normalized.slice(0, ask.index))) return false;
-  if (NEXT_STOP_AFTER_NEGATION_RE.test(normalized.slice(ask.index + ask[0].length))) return false;
+  if (NAVIGATION_NEGATION_RE.test(normalized.slice(0, ask.index))) return false;
+  if (AFTER_ASK_NEGATION_RE.test(normalized.slice(ask.index + ask[0].length))) return false;
   return !NEXT_STOP_LATER_RE.test(normalized);
 }
 

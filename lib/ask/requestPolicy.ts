@@ -25,12 +25,12 @@ export function stripTrailingQualifiers(phrase: string): string {
 
 const PRICE_PRESENTATION_FIELD = String.raw`(?:sources?|(?:(?:source|recorded)\s+)?dates?|map)`;
 const MAP_VIEW_VERBS = String.raw`(?:show|open|see|view|pull up|bring up|load|display|go to|go back to|back to|take me to|take me back to|switch to|get me|give me|let me see)`;
-const POLITE_COMMAND_PREFIX = String.raw`(?:(?:can|could|would|will)\s+you\s+)?(?:please\s+)?`;
-const GENERIC_MAP_COMMAND = String.raw`(?:i\s+want\s+to\s+)?${POLITE_COMMAND_PREFIX}(?:${MAP_VIEW_VERBS}(?:\s+(?:me|up|back|to|the|a|my|pub|whole|full)){0,4}\s+maps?|(?:(?:the|a|my)\s+)?(?:(?:whole|full)\s+)?maps?)(?:\s+view)?(?:\s+for\s+the\s+next\s+(?:stop|pub|bar|one|place))?`;
+export const POLITE_COMMAND_PREFIX = String.raw`(?:(?:can|could|would|will)\s+you\s+)?(?:please\s+)?`;
 const PRESENTATION_CLAUSE_START = String.raw`(?:^\s*|(?<=[.!?;,]|\band\b)\s*|\s+and\s+)`;
+const GENERIC_MAP_COMMAND = String.raw`(?:\b(?:i\s+want\s+to\s+)?${POLITE_COMMAND_PREFIX}${MAP_VIEW_VERBS}(?:\s+(?:me|up|back|to|the|a|my|pub|whole|full)){0,4}\s+maps?|${PRESENTATION_CLAUSE_START}${POLITE_COMMAND_PREFIX}(?:(?:the|a|my)\s+)?(?:(?:whole|full)\s+)?maps?)(?:\s+view)?(?:\s+for\s+the\s+next\s+(?:stop|pub|bar|one|place))?`;
 const PRESENTATION_CLAUSE_END = String.raw`(?:(?:\s+|\s*,\s*)(?:${TRAILING_QUALIFIER}|please|then|for me|mate))*\s*(?!and\s+(?:the\s+)?${PRICE_PRESENTATION_FIELD}\b)(?:[.!?;,]+(?:\s+and\b)?|\band\b|$)`;
 export const GENERIC_MAP_COMMAND_RE = new RegExp(
-  String.raw`${PRESENTATION_CLAUSE_START}(?<mapCommand>${GENERIC_MAP_COMMAND})${PRESENTATION_CLAUSE_END}`,
+  String.raw`(?<mapCommand>${GENERIC_MAP_COMMAND})${PRESENTATION_CLAUSE_END}`,
   "i",
 );
 const ASK_PRESENTATION_CLAUSE_RE = new RegExp(
