@@ -141,7 +141,7 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
     {"owner": "countPatchEvidence", "count": 1, "reason": "Counts listed area coverage without ranking."},
   ],
   "lib/pintFacts.ts": [
-    {"owner": "pintFactStats", "count": 3, "reason": "Preserves ordinary averages and separately qualifies cheapest facts."},
+    {"owner": "pintFactStats", "count": 2, "reason": "Excludes explicit non-pints from the average and carries each qualified extreme's own evidence."},
   ],
   "lib/pintRouletteFacts.server.ts": [
     {"owner": "pintRouletteFacts", "count": 2, "reason": "Builds facts for a selected venue without selecting a winner."},
@@ -164,7 +164,7 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
     {"owner": "resolvePlanningAnchor", "count": 4, "reason": "Resolves an explicit anchor and its ordinary price without cheapest selection."},
   ],
   "lib/pricedPubCount.ts": [
-    {"owner": "listedPriceCohort", "count": 3, "reason": "Preserves ordinary published price cohort membership."},
+    {"owner": "listedPriceCohort", "count": 3, "reason": "Preserves listed cohort membership except explicit non-pint serving contradictions."},
     {"owner": "listedPriceCohortPrices", "count": 1, "reason": "Collects ordinary cohort statistics without choosing winners."},
   ],
   "lib/pubListImport.server.ts": [
@@ -308,9 +308,6 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
   ],
   "app/api/social/rankings/route.ts": [
     {"owner": "venueFacts", "count": 1, "reason": "Displays venue facts for social rankings without choosing cheapest pints."},
-  ],
-  "app/borough/[slug]/opengraph-image.tsx": [
-    {"owner": "Image", "count": 2, "reason": "Preserves ordinary averages while cheapest claims use qualified borough stats."},
   ],
   "app/borough/[slug]/page.tsx": [
     {"owner": "BoroughPubPrice", "count": 1, "reason": "Preserves ordinary venue row display and explicit non-pint labels."},

@@ -22,6 +22,8 @@ import type { ListedDrinkCoverage } from "@/lib/listedDrinkCoverage";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import type { Venue } from "@/lib/venues";
 import { PUB_LIST_BASE } from "@/lib/pubListBase";
+import { selectedVenuePintEvidence, type ComparablePintVenue } from "@/lib/comparableVenuePint";
+import { isComparablePintServing } from "@/lib/comparablePint.mjs";
 
 export { averageBasePhrase } from "@/lib/pubListBase";
 
@@ -38,7 +40,7 @@ export function pricedPubCountFromCoverage(coverage: ListedDrinkCoverage): Price
 }
 
 /** The pubs an average is taken over: pubs in the list with a listed cheapest pint. */
-export function listedPriceCohort<T extends Pick<Venue, "kind" | "cheapestPrice">>(
+export function listedPriceCohort<T extends Pick<Venue, "kind" | "cheapestPrice"> & ComparablePintVenue>(
   venues: readonly T[],
 ): T[] {
   return venues.filter(
@@ -46,7 +48,8 @@ export function listedPriceCohort<T extends Pick<Venue, "kind" | "cheapestPrice"
       isPubVenueKind(venue.kind) &&
       typeof venue.cheapestPrice === "number" &&
       Number.isFinite(venue.cheapestPrice) &&
-      venue.cheapestPrice > 0,
+      venue.cheapestPrice > 0 &&
+      isComparablePintServing(selectedVenuePintEvidence(venue)),
   );
 }
 

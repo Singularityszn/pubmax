@@ -94,13 +94,10 @@ export default async function Image({
   });
 
   const pubs = resolved ? pubsInBorough(venues, slug) : [];
-  const priced = pubs.filter((p) => typeof p.cheapestPrice === "number");
-  const cheapest = priceStamp(pintFactStats(pubs, name, slug).minGbp);
-  const avgRaw = priced.length
-    ? priced.reduce((sum, p) => sum + (p.averagePrice ?? p.cheapestPrice ?? 0), 0) /
-      priced.length
-    : null;
-  const avg = priceStamp(avgRaw);
+  const stats = pintFactStats(pubs, name, slug);
+  const cheapest = priceStamp(stats.minGbp);
+  const avg = priceStamp(stats.averageGbp);
+  const averageLabel = `average across ${stats.pubCount} listed ${stats.pubCount === 1 ? "pub" : "pubs"}`;
   const pubCount = pubs.length;
 
   // Borough name scales down as it gets longer so it never collides with the
@@ -201,7 +198,7 @@ export default async function Image({
 
               {/* Supporting stat tiles */}
               <div style={{ display: "flex", gap: 18, marginBottom: 6 }}>
-                {avg ? <StatTile value={avg} label="average pint" /> : null}
+                {avg ? <StatTile value={avg} label={averageLabel} /> : null}
                 <StatTile
                   value={String(pubCount)}
                   label={pubCount === 1 ? "pub tracked" : "pubs tracked"}
@@ -237,9 +234,9 @@ export default async function Image({
                   marginTop: 14,
                 }}
               >
-                {priced.length > 0 ? "No comparable pint price yet." : "Real prices land as the area gets walked."}
+                {stats.pubCount > 0 ? "No comparable pint price yet." : "Real prices land as the area gets walked."}
               </div>
-              {avg ? <StatTile value={avg} label="average pint" /> : null}
+              {avg ? <StatTile value={avg} label={averageLabel} /> : null}
             </div>
           )}
         </div>

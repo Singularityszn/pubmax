@@ -136,7 +136,7 @@ describe("discovery claims use complete same-row pint evidence", () => {
   it("refuses an expensive non-pint in the maximum and range claims", () => {
     const pubs = [full(slim("bottle", { cheapestPint: "BOTTLED BEER", cheapestPrice: 9 })), full(slim("pint"))];
     const stats = pintFactStats(pubs, "Havering", "havering");
-    expect(stats).toMatchObject({ minGbp: 5, maxGbp: 5, averageGbp: 7, pubCount: 2 });
+    expect(stats).toMatchObject({ minGbp: 5, maxGbp: 5, averageGbp: 5, pubCount: 1 });
     expect(faqItems(stats, { monthYear: "November 2026", year: "2026" }).map((item) => item.question))
       .not.toContain("What's the price range for a pint in Havering?");
     expect(pubsInBorough(pubs.reverse(), "havering").map((pub) => pub.id)).toEqual(["pint", "bottle"]);
@@ -149,5 +149,20 @@ describe("discovery claims use complete same-row pint evidence", () => {
     pub.cheapestPrice = 3;
     expect(pintFactStats([pub], "Havering", "havering").minGbp).toBeNull();
     expect(listBoroughs([pub])[0]?.cheapestGbp).toBeNull();
+  });
+
+  it("uses the same average and named population in the share card and fact block", async () => {
+    routeData.venues = [
+      { ...full(slim("pint")), averagePrice: 40 },
+      full(slim("bottle", { cheapestPint: "BOTTLED BEER", cheapestPrice: 9 })),
+      full(slim("unknown", { cheapestPrice: 7, priceObservedAt: undefined, priceSource: undefined })),
+    ];
+    const { default: image } = await import("@/app/borough/[slug]/opengraph-image");
+    const html = await (await image({ params: Promise.resolve({ slug: "havering" }) })).text();
+    expect(html).toContain("£6.00");
+    expect(html).toContain("average across 2 listed pubs");
+    expect(html).toContain("3");
+    expect(html).not.toContain("£40.00");
+    expect(pintFactStats(routeData.venues, "Havering", "havering")).toMatchObject({ averageGbp: 6, pubCount: 2 });
   });
 });

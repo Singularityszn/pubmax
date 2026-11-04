@@ -84,6 +84,25 @@ describe("pintFactStats", () => {
     expect(stats.minPubName).toBe("Solo");
     expect(hasFactData(stats)).toBe(true);
   });
+
+  it("keeps the worked average's unknown row and each alphabetical extreme's own evidence", () => {
+    const row = (name: string, price: number, day: string): PricedPubLike => ({
+      name, cheapestPrice: price, prices: [{ price_gbp: price,
+        pint_name: `${name} lager`, measure: "pint", pub_url: `https://${name}.example/menu`, scraped_at_values: day }],
+    });
+    const pubs: PricedPubLike[] = [row("ZebraLow", 4, "2026-10-02"), row("AppleLow", 4, "2026-07-03"),
+      row("ZebraHigh", 7, "2026-07-03"), row("AppleHigh", 7, "2026-10-02"),
+      { name: "Unknown", cheapestPrice: 9 },
+      { name: "Half", cheapestPrice: 1, measure: "half-pint" },
+      { name: "Bottle", cheapestPrice: 20, cheapestPint: "BOTTLED BEER" },
+      { name: "Unpriced", cheapestPrice: null }];
+    const stats = pintFactStats(pubs, "Test", "test");
+    expect(stats).toMatchObject({ averageGbp: 6.2, pubCount: 5, totalPubCount: 8,
+      publisherCount: 4, undatedCount: 1, minPubName: "AppleLow", maxPubName: "AppleHigh",
+      minEvidence: { priceGbp: 4, publisher: { url: "https://AppleLow.example/menu" }, observedOn: "2026-07-03" },
+      maxEvidence: { priceGbp: 7, publisher: { url: "https://AppleHigh.example/menu" }, observedOn: "2026-10-02" } });
+    expect(pintFactStats([...pubs].reverse(), "Test", "test")).toEqual(stats);
+  });
 });
 
 describe("factBlockSentences", () => {
@@ -92,13 +111,12 @@ describe("factBlockSentences", () => {
   it("produces the PRD-shaped extractable prose", () => {
     const stats = pintFactStats(HACKNEY, "Hackney", "hackney");
     const sentences = factBlockSentences(stats, opts);
-    // These fixture pubs carry no price rows, so no read can date the average
-    // (dated averages: __tests__/pintRowReadDates.test.tsx).
+    // Flat fixtures carry their own source day, just as the slim DTO does.
     expect(sentences[0]).toBe(
-      "The average pint in Hackney costs £6.00 across 3 tracked pubs. Those prices record no read date.",
+      "From prices read on 1 January 2026, the average pint in Hackney costs £6.00 across 3 tracked pubs. 3 of 3 prices name a publisher. 3 of 3 record a full read day.",
     );
     expect(sentences[1]).toBe(
-      "The cheapest tracked pint is £5.00 at The Cheap One.",
+      "The cheapest tracked pint is £5.00 at The Cheap One. Pint name unavailable (Serving size not recorded). Listed by Pub menu, collected on 1 January 2026.",
     );
     // Range sentence present because min !== max.
     expect(sentences.some((s) => s.includes("range from £5.00 to £7.00"))).toBe(
