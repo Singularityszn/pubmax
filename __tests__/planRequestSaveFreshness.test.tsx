@@ -41,7 +41,7 @@ vi.mock("@/components/plan/PlanRouteMiniMap", () => ({ default: () => null }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: () => undefined, trackMeaningfulCoreAction: () => undefined, laneSourceFromSearch: () => null }));
 import PlanComposer from "@/components/plan/PlanComposer";
 import { createPlanIntakeDraft, nextLondonOccurrenceIso, PLAN_INTAKE_STORAGE_KEY, readPlanIntakeDraftWithMetadata, reopenPlanIntakeStep, skipRemainingPlanIntake, writePlanIntakeDraft } from "@/lib/planIntake";
-import { readPlanDraftEnvelope, writePlanDraftEnvelope } from "@/lib/planDraft";
+import { PLAN_DRAFT_KEY, PLAN_DRAFT_V2_KEY, readPlanDraftEnvelope, writePlanDraftEnvelope } from "@/lib/planDraft";
 import { rememberPlanHostName } from "@/lib/planHostName";
 import { rememberLastCrew } from "@/lib/lastCrew";
 import { PLAN_ROUTE_DRAFT_KEY, PLAN_ROUTE_DRAFT_V2_KEY } from "@/lib/planRouteDraft";
@@ -1139,6 +1139,49 @@ it.each(["url", "session"] as const)("does not treat initial %s text as a picker
   await settle();
   expect(reconciledGenerationContext().stopCount).toBe(6);
   expect(readPlanDraftEnvelope(sessionStorage)?.draft).toMatchObject({ requestedStopCount: 6, requestedStopCountSource: "text" });
+});
+
+it.each(["v1", "v2"] as const)("retains explicit picker priority after %s-only recovery", async (format) => {
+  const advance = pinClock();
+  seedTuneRoute("map-generated");
+  blockStorageWrites("localStorage");
+  const storage = sessionStorage;
+  const rejectedKey = format === "v1" ? PLAN_DRAFT_V2_KEY : PLAN_DRAFT_KEY;
+  vi.stubGlobal("sessionStorage", {
+    getItem: storage.getItem.bind(storage),
+    setItem: (key: string, value: string) => {
+      if (key === rejectedKey) throw new DOMException("Storage is full", "QuotaExceededError");
+      storage.setItem(key, value);
+    },
+    removeItem: storage.removeItem.bind(storage), clear: storage.clear.bind(storage),
+    key: storage.key.bind(storage), get length() { return storage.length; },
+  } satisfies Storage);
+  await mountComposer();
+  await openTune();
+  await editTuneControl("stops", "6");
+  await editTuneControl("stops", "3");
+  await act(async () => { document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); });
+  await settle();
+  advance(1000);
+  await editInput("#plan-title", "Our next night");
+  expect(readPlanDraftEnvelope(sessionStorage)?.draft).toMatchObject({
+    title: "Our next night", requestedStopCount: 3, requestedStopCountSource: "picker",
+  });
+  expect(storage.getItem(rejectedKey)).toBeNull();
+  expect(readPlanIntakeDraftWithMetadata(localStorage)).toBeNull();
+  advance(2000);
+  await remountComposer();
+  await openTune();
+  expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("3");
+  await editInput("#plan-concierge-query", "Five pubs in Clapham tonight");
+  await sortAgainFromTune();
+  expect(reconciledGenerationContext().stopCount).toBe(3);
+  expect(readPlanDraftEnvelope(sessionStorage)?.draft).toMatchObject({
+    requestedStopCount: 3, requestedStopCountSource: "picker",
+    stops: [{ venueId: "venue-a", venueName: "Pub A" }],
+  });
+  await openTune();
+  expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("3");
 });
 
 it.each(["text", "picker"] as const)("recovers %s origin from session without intake", async (source) => {
