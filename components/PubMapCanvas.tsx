@@ -922,10 +922,9 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       publishMapReady(true);
       publishMapErrored(true);
       // First writer wins. Several independent watchdogs can lapse inside the
-      // same dead episode, and the LATER one is the vaguer one: a tile source
-      // that refused is diagnosed by `surfaceBasemapFailure` at 8s, and the
-      // first-frame watchdog would overwrite it at 10s with "this browser
-      // cannot show the map", blaming the device for an unreachable server.
+      // same dead episode. A conclusive initial fallback-style failure can
+      // reach `surfaceBasemapFailure` before the style timeout. The first-frame
+      // watchdog must not replace that diagnosis with a browser failure.
       // Retry clears mapError, so the next episode reports freely.
       setMapError((current) => current ?? error);
     },
@@ -2736,8 +2735,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     };
     // --- Basemap fallback: OpenFreeMap is community-run, so if the primary style
     // hasn't loaded within a timeout (or errors before first load), swap to
-    // CARTO's keyless styles; if that also fails, surface the same graceful
-    // notice as a WebGL failure rather than a blank map.
+    // CARTO's keyless styles. If that also fails, surface the tiles error
+    // rather than blaming the browser for an unreachable server.
     let styleLoaded = false;
     let styleEverLoaded = false;
     let usingFallback = false;
@@ -3303,6 +3302,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         message || "Tile source failure after style load",
       );
     };
+    // Only the pending URL from the live MapLibre Style can end this wait.
+    // A queued theme owns the next style, so its predecessor cannot fail it.
     function isCurrentFallbackStyleError(event: {
       error?: { url?: unknown };
       style?: unknown;
