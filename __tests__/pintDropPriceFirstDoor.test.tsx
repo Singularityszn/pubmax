@@ -15,6 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readProviderAccountRevision, setProviderIdentity } from "@/lib/authProviderRevision";
 
 const assertion = vi.hoisted(() => vi.fn());
+const reveal = vi.fn();
 vi.mock("@/lib/authedFetch", () => ({ authedActionFetch: assertion }));
 
 vi.mock("next/link", () => ({
@@ -115,6 +116,8 @@ beforeEach(() => {
   setProviderIdentity("supabase", "composer-account");
   assertion.mockReset();
   assertion.mockResolvedValue(new Response("{}", { status: 200 }));
+  reveal.mockReset();
+  Object.defineProperty(HTMLElement.prototype, "scrollIntoView", { configurable: true, value: reveal });
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   container = document.createElement("div");
   document.body.appendChild(container);
@@ -126,6 +129,7 @@ afterEach(() => {
   });
   root = null;
   container.remove();
+  delete (HTMLElement.prototype as Partial<HTMLElement>).scrollIntoView;
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
 });
@@ -168,6 +172,8 @@ describe("price-first Pint Drop door", () => {
     });
     const button = [...container.querySelectorAll("button")].find((item) => item.textContent === "I'm 18 or over");
     expect(button).toBeDefined();
+    expect(reveal).toHaveBeenCalledWith({ block: "nearest", behavior: "instant" });
+    expect(reveal.mock.contexts).toContain(button);
     await act(async () => button!.click());
     expect(assertion).toHaveBeenCalledWith("/api/identity/adult-assertion", expect.objectContaining({ method: "POST" }), { requiresIdentity: true });
     expect(state.ageAsserted).toHaveBeenCalledOnce();
@@ -185,6 +191,8 @@ describe("price-first Pint Drop door", () => {
     expect(alert?.textContent).toContain("Confirm you are 18 or over");
     const button = alert?.querySelector("button");
     expect(button?.textContent).toBe("I'm 18 or over");
+    expect(reveal).toHaveBeenCalledWith({ block: "nearest", behavior: "instant" });
+    expect(reveal.mock.contexts).toContain(button);
     await act(async () => button!.click());
     expect(assertion).toHaveBeenCalledOnce();
     expect(state.ageAsserted).toHaveBeenCalledOnce();

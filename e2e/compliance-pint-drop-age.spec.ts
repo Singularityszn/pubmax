@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { ACCOUNTS, installAuthDoubles } from "./helpers/authDoubles";
 import { COMMUNITY_SHEET_FIXTURE_VENUE_ID } from "./helpers/communitySheetFixture";
@@ -129,6 +129,22 @@ async function submitPrice(page: Page) {
   return pints;
 }
 
+async function expectRecoveryInView(button: Locator) {
+  // The design system requires a 44px target. Check the whole control before
+  // Playwright can scroll it or click it past a covering sheet footer.
+  await expect.poll(() => button.evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    const corners = [
+      [box.left + 2, box.top + 2], [box.right - 2, box.top + 2],
+      [box.left + 2, box.bottom - 2], [box.right - 2, box.bottom - 2],
+    ];
+    return box.height >= 44 && box.width >= 44
+      && box.top >= 0 && box.bottom <= window.innerHeight
+      && box.left >= 0 && box.right <= window.innerWidth
+      && corners.every(([x, y]) => element.contains(document.elementFromPoint(x, y)));
+  })).toBe(true);
+}
+
 for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 800 }]) {
   test.describe(`Pint Drop age refusal at ${viewport.width}`, () => {
     test.use({ viewport, storageState: { cookies: [], origins: [] }, serviceWorkers: "block" });
@@ -156,7 +172,9 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 800 
       const pints = await submitPrice(page);
       const folded = pints.locator(".logDropBar .composerMsg.error");
       await expect(folded).toContainText(REQUIRED);
-      await expect(folded.getByRole("button", { name: "I'm 18 or over", exact: true })).toBeVisible();
+      const foldedAssertion = folded.getByRole("button", { name: "I'm 18 or over", exact: true });
+      await expect(foldedAssertion).toBeVisible();
+      await expectRecoveryInView(foldedAssertion);
       expect(lane.posts).toHaveLength(1);
       expect(lane.state()).toMatchObject({ successes: 0, assertions: 0, priceSubmitPosts: 0 });
       await page.screenshot({ path: test.info().outputPath("folded-age-refusal.png") });
@@ -164,7 +182,9 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 800 
       const { form } = await openComposer(page);
       const assertion = form.getByRole("button", { name: "I'm 18 or over", exact: true });
       await expect(assertion).toBeVisible();
+      await expectRecoveryInView(assertion);
       await expect(form.locator('[role="alert"]')).toContainText(REQUIRED);
+      await page.screenshot({ path: test.info().outputPath("open-age-refusal.png") });
       await assertion.click();
       await expect.poll(() => lane.state().assertions).toBe(1);
       await expect(assertion).toBeHidden();
