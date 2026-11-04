@@ -39,6 +39,7 @@ import { createPlanIntakeDraft, PLAN_INTAKE_STORAGE_KEY, readPlanIntakeDraftWith
 import { readPlanDraftEnvelope, writePlanDraftEnvelope } from "@/lib/planDraft";
 import { PLAN_ROUTE_DRAFT_KEY, PLAN_ROUTE_DRAFT_V2_KEY } from "@/lib/planRouteDraft";
 import { inferNightContext } from "@/lib/nightPlanning";
+import { transferGeneratedRouteToDraft } from "@/lib/mapRouteTransfer";
 
 const GENERATED = {
   stops: [{ venueId: "venue-a", venueName: "Pub A" }],
@@ -508,4 +509,150 @@ describe("request save age with an unchanged stale route", () => {
     expect(JSON.parse(local.getItem(PLAN_ROUTE_DRAFT_KEY)!)).toMatchObject({ groundingProof: "old-proof", createOperationKey: "old-operation" });
     expect(document.body.textContent).not.toContain("route details, checks and starting pub could not be saved");
   });
+});
+
+
+it("retains an explicit Tune budget edit after restoring paired route records", async () => {
+  const advance = pinClock();
+  const payload = btoa(JSON.stringify({ v: 1, expiresAt: T0 + 3_600_000 }));
+  expect(transferGeneratedRouteToDraft({
+    ...GENERATED,
+    inferredContext: { ...GENERATED.inferredContext, budget: "standard", budgetLimitPence: null, transportConstraints: [] },
+    groundingProof: `${payload}.test-only-signature`, operationKey: "handoff-operation",
+    outcome: "unanchored", anchorVenueId: null, anchorSource: null,
+  }, localStorage, "map-generated", T0)).toBe(true);
+  await mountComposer();
+  await openTune();
+  expect(document.querySelector<HTMLSelectElement>("#plan-context-budget")?.value).toBe("standard");
+  advance(1000);
+  await act(async () => {
+    const field = document.querySelector<HTMLSelectElement>("#plan-context-budget")!;
+    field.value = "value";
+    field.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await settle();
+  expect(document.querySelector<HTMLSelectElement>("#plan-context-budget")?.value).toBe("value");
+  expect(JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!)).toMatchObject({ nightContext: { budget: "value" } });
+  advance(2000);
+  await remountComposer();
+  await openTune();
+  expect(document.querySelector<HTMLSelectElement>("#plan-context-budget")?.value).toBe("value");
+  await sortAgainFromTune();
+  const post = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate")).at(-1)!;
+  expect(JSON.parse(String(post[1]?.body))).toMatchObject({ context: { budget: "value" } });
+});
+
+
+function seedTuneRoute(origin: "map-generated" | "plan-generated", withIntake = false): void {
+  const payload = btoa(JSON.stringify({ v: 1, expiresAt: T0 + 3_600_000 }));
+  expect(transferGeneratedRouteToDraft({
+    ...GENERATED,
+    inferredContext: {
+      ...GENERATED.inferredContext, nightArea: "clapham", daypart: "evening", partyType: "friends",
+      groupSize: 4, budget: "standard", budgetLimitPence: 4500, drinkCategory: "wine", zeroProof: false,
+      transportConstraints: [],
+    },
+    groundingProof: `${payload}.test-only-signature`, operationKey: "handoff-operation",
+    outcome: "unanchored", anchorVenueId: null, anchorSource: null,
+  }, localStorage, origin, T0)).toBe(true);
+  if (withIntake) {
+    const draft = skipRemainingPlanIntake(createPlanIntakeDraft());
+    expect(writePlanIntakeDraft({ ...draft, skippedSteps: ["accessibility"], answers: {
+      ...draft.answers, area: "clapham", timeWindow: "evening", groupSize: 4,
+      budget: "standard", budgetLimitPence: 4500,
+    } }, localStorage, T0)).toBe(true);
+  }
+}
+
+async function editTuneControl(id: string, value: string): Promise<void> {
+  const selector = `#plan-context-${id}`;
+  if (document.querySelector(selector) instanceof HTMLInputElement) {
+    await editInput(selector, value);
+    return;
+  }
+  await act(async () => {
+    const field = document.querySelector<HTMLSelectElement>(selector)!;
+    expect(field).not.toBeNull();
+    field.value = value;
+    field.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await settle();
+}
+
+it.each([
+  { id: "area", value: "piccadilly-soho", context: { nightArea: "piccadilly-soho" } },
+  { id: "time", value: "late_night", context: { daypart: "late_night" } },
+  { id: "time", value: "daytime", context: { daypart: "daytime" } },
+  { id: "group", value: "work", context: { partyType: "work" } },
+  { id: "people", value: "6", context: { groupSize: 6 } },
+  { id: "people", value: "", context: { groupSize: null } },
+  { id: "budget", value: "value", context: { budget: "value" } },
+  { id: "budget-limit", value: "35", context: { budgetLimitPence: 3500 } },
+  { id: "budget-limit", value: "", context: { budgetLimitPence: null } },
+  { id: "zero-proof", value: "cocktail", context: { drinkCategory: "cocktail", zeroProof: false } },
+  { id: "zero-proof", value: "zero-proof", context: { drinkCategory: null, zeroProof: true } },
+  { id: "zero-proof", value: "any", context: { drinkCategory: null, zeroProof: false } },
+  { id: "stops", value: "5", context: { stopCount: 5 } },
+].flatMap((choice) => [false, true].map((withIntake) => ({ ...choice, withIntake }))))(
+  "restores Tune $id=$value through request and save, intake: $withIntake",
+  async ({ id, value, context, withIntake }) => {
+    const advance = pinClock();
+    seedTuneRoute(withIntake ? "plan-generated" : "map-generated", withIntake);
+    await mountComposer();
+    await openTune();
+    advance(1000);
+    await editTuneControl(id, value);
+    expect(JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!)).toMatchObject({
+      savedAt: "2026-11-03T12:00:01.000Z", nightContext: context,
+      routeStale: true, groundingProof: null, createOperationKey: null,
+    });
+    expect(readPlanDraftEnvelope(sessionStorage)).toMatchObject({ savedAt: "2026-11-03T12:00:01.000Z" });
+    advance(2000);
+    await remountComposer();
+    advance(3000);
+    await remountComposer();
+    await openTune();
+    expect(document.querySelector<HTMLInputElement | HTMLSelectElement>(`#plan-context-${id}`)?.value).toBe(value);
+    expect(document.querySelector("#plan-route-status")?.textContent).toBe("Recovered a route that needs refreshing before it can be locked.");
+    expect(readPlanDraftEnvelope(sessionStorage)?.draft.requestedStopCount).toBe(id === "stops" ? 5 : undefined);
+    await editInput("#plan-name", "Captain");
+    await sortAgainFromTune();
+    const post = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate")).at(-1)!;
+    expect(JSON.parse(String(post[1]?.body))).toMatchObject({ context });
+    if (id === "stops") {
+      expect(document.querySelector("#plan-lock-hint")?.textContent).toContain("5 stops");
+      expect(readPlanDraftEnvelope(sessionStorage)?.draft.requestedStopCount).toBe(5);
+    } else {
+      expect(await saveRoute()).toMatchObject({ context, groundingProof: "new-proof" });
+    }
+  },
+);
+
+it.each(["session", "route", "both"] as const)("handles a Tune edit when %s writes fail", async (blocked) => {
+  const advance = pinClock();
+  seedTuneRoute("map-generated");
+  await mountComposer();
+  await openTune();
+  const local = blocked === "session" ? localStorage : rejectRouteWrites([PLAN_ROUTE_DRAFT_KEY]);
+  if (blocked !== "route") blockStorageWrites("sessionStorage");
+  advance(1000);
+  await editTuneControl("budget", "value");
+  expect(document.querySelector<HTMLSelectElement>("#plan-context-budget")?.value).toBe("value");
+  if (blocked === "session") {
+    expect(JSON.parse(local.getItem(PLAN_ROUTE_DRAFT_KEY)!)).toMatchObject({
+      savedAt: "2026-11-03T12:00:01.000Z", nightContext: { budget: "value" }, routeStale: true,
+    });
+    advance(2000);
+    await remountComposer();
+    await openTune();
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-budget")?.value).toBe("value");
+  } else {
+    expect(document.body.textContent).toContain("could not be saved");
+    expect(JSON.parse(local.getItem(PLAN_ROUTE_DRAFT_KEY)!)).toMatchObject({
+      savedAt: "2026-11-03T12:00:00.000Z", nightContext: { budget: "standard" },
+    });
+  }
+  await sortAgainFromTune();
+  const post = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate")).at(-1)!;
+  expect(JSON.parse(String(post[1]?.body))).toMatchObject({ context: { budget: "value" } });
 });
