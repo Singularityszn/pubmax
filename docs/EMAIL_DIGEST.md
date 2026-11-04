@@ -2,8 +2,9 @@
 
 Cycle 8 PRD, item 2. A weekly reach channel that mirrors the push story: **one
 provider seam, no-op until keys, honest content from real data only.** Nothing
-is sent by this code. Provider delivery and audience loading remain stubs, even
-when credentials exist. Credentials alone do not activate delivery.
+is sent by the digest script. The shared Resend delivery provider is implemented.
+Digest audience loading and send orchestration remain incomplete, even when
+credentials exist. Credentials alone do not activate digest delivery.
 
 ## Architecture (three seams)
 

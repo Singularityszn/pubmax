@@ -809,7 +809,8 @@ describe("legal content pages", () => {
   it("separates public browsing from adult-only contributions and Social", () => {
     for (const text of [termsText, privacyText]) {
       expect(text).toContain("The public map can be read without an age check.");
-      expect(text).toContain("Price submissions and pub photo walls require a signed-in account, a claimed handle and an 18+ answer.");
+      expect(text).toContain("Price submissions and posting to pub photo walls require a signed-in account, a claimed handle and an 18+ answer.");
+      expect(text).toContain("Public pub photos can be read without an age check or account.");
     }
     expect(termsText).toMatch(/Social is live by default/i);
     expect(termsText).toMatch(/one recorded self-assertion can answer the access question/i);

@@ -19,7 +19,7 @@ The local changes close an age-check gap in priced Pint Drops, require a digest 
 | Missing age gate | `lib/adultGate.ts`, `lib/contributionIdentity.server.ts`, `lib/socialAccessServer.ts`, Pub Pal setup | Social, the main price form and pub photo walls already require an account's adult answer. Pub Pal setup asks for confirmation. The legacy priced Pint Drop endpoint skipped this check. Two real route tests reproduced HTTP 201 for an unanswered account and an under-18 account. It now refuses both, accepts a retry after a permitted adult assertion and refuses storage when the age read fails. Public map browsing and unpriced demo notes remain open. Self-assertion is not identity verification. |
 | External fonts | `app/layout.tsx`, the installed Next.js font guide, live HTML, OpenFreeMap style response | Next.js self-hosts the page fonts. The home and terms documents contain no Google font origin. Map labels still load glyphs from `https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf`. The CARTO fallback also supplies external map resources. The privacy page now names map-label glyphs. This change does not remove those requests. |
 | Session replay without consent | `lib/posthogClient.ts`, real SDK tests | Replay is disabled. Analytics starts only with consent. The real SDK tests cover consent changes and reject recorder loading and snapshot events. No other replay integration was found in application source or dependencies declared in `package.json`. Fresh deployed browser traffic remains unverified. |
-| Marketing email footer | `lib/weeklyDigest.ts`, `lib/emailProvider.ts`, `scripts/send_weekly_digest.mjs` | The digest already required an unsubscribe URL. It lacked a postal address. `toEmailMessage` now requires a nonempty postal address and includes it safely in HTML and plain text. Delivery and audience loading remain stubs. There is no active unsubscribe endpoint in this code. A syntactically valid URL does not prove unsubscribe works. |
+| Marketing email footer | `lib/weeklyDigest.ts`, `lib/emailProvider.ts`, `scripts/send_weekly_digest.mjs` | The digest already required an unsubscribe URL. It lacked a postal address. `toEmailMessage` now requires a nonempty postal address and includes it safely in HTML and plain text. The shared Resend delivery provider is implemented. Digest audience loading and send orchestration remain incomplete. There is no active unsubscribe endpoint in this code. A syntactically valid URL does not prove unsubscribe works. |
 | Renewal terms beside subscribe | App routes, components, dependencies and terms | No paid subscription checkout or paid subscribe button was found. Renewal disclosure is not applicable to the current product. No checkout or payment feature was added. |
 | DMCA agent | `/terms` and public contact constants | A general contact address existed, but no agent designation was published. US DMCA agent registration is not a UK registration requirement. The terms now request the work, content URL, sender details, infringement explanation and authority to act. The US perjury declaration and signature requirement were removed. US designation remains a separate option if seeking US safe-harbour protection. Registration status was not verified. |
 
@@ -56,7 +56,7 @@ Removing external map glyphs remains code work. It needs local font assets or a 
 - A separate final `npm run typecheck` passed. Changed files passed ESLint with no warnings. The full lint run retained three existing complexity warnings outside this change.
 - The full check reported two advisory stale datasets, `area_news` and `google_places_content`, and three unmeasured store feeds. It did not report these as fresh.
 - The vulnerability check reported no high or critical vulnerabilities.
-- A final digest dry run sent nothing. It reports that delivery remains unimplemented.
+- A final digest dry run sent nothing. Its message describes the inactive digest script, not the implemented shared Resend provider.
 
 The UK scope correction changes the copyright copy and audit guidance. The legal-page suite and changed-file lint were rerun for that correction. The earlier full-suite counts above describe the functional-fix commit, not a new full run after the copy correction.
 
@@ -85,3 +85,29 @@ npm test -- __tests__/pintDrops.test.ts __tests__/pintDropPreviewLifetime.test.t
 ```
 
 The final invocation exited 0 with 191 passing tests across nine files. The dependency freshness guard ran through the repository entry point. Two earlier invocations exited 1 while the new tests had incomplete database and notification doubles. The database double now permits the profile lookup before failing the assertion read. The notification double now answers the existing success notification. No application build, full verifier, lint phase or browser execution ran in this review phase. The browser probe still requires its allocated execution phase.
+
+## Integration corrections, focused Test phase
+
+Starting HEAD was `4ea2a455926c57fc2c9e53d8b0405923c6a316b8`. The following results include the uncommitted integration corrections.
+
+Four mounted-component regressions reproduced stale refusal text after an account switch, with Social disabled.
+They cover missing-age and under-18 refusals in both composer states.
+The rendered legal-page regression also rejected the old photo-wall restriction.
+The two-file reproduction command exited 1 with five failures:
+
+```sh
+npm test -- __tests__/pintDropPreviewLifetime.test.tsx __tests__/legalPages.test.ts
+```
+
+The hook now binds displayed age refusals to the submitting account revision.
+Both legal notices describe posting restrictions and public photo reads.
+The digest documentation distinguishes the implemented Resend provider from inactive digest orchestration.
+
+The first post-fix invocation exited 1 because two older assertions could not accept the newly absent message.
+Those assertions now require a null message after the account switch.
+The same nine-file regression command listed above then exited 0 with 195 passing tests.
+The dependency freshness guard ran normally.
+
+The mounted-component tests use authentication and API doubles. They do not establish live account-switch or durable-storage acceptance.
+Test-1 remains inconclusive until the later runtime booking.
+No server, browser, application compiler, build, full verifier, lint, email send or pipeline control ran in this fix phase.

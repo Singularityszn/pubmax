@@ -80,7 +80,8 @@ export default function TermsPage() {
         <h2 id="age" className="legalH2">Age and alcohol</h2>
         <p className="legalBody">
           The public map can be read without an age check. Price submissions and
-          pub photo walls require a signed-in account, a claimed handle and an 18+ answer.
+          posting to pub photo walls require a signed-in account, a claimed handle and an 18+ answer.
+          Public pub photos can be read without an age check or account.
           Social is live by default and may return to preview during an
           emergency rollback. Full access needs a signed-in account, a claimed
           handle and an 18+ answer. The date of birth you gave at onboarding

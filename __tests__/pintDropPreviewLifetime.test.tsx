@@ -20,9 +20,18 @@ vi.mock("@/components/auth/authContext", () => ({
 }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 vi.mock("@/lib/authedFetch", () => ({ authedActionFetch: io.post }));
+vi.mock("@/components/map/composer/useVenueDraft", () => ({ useVenueDraft: () => true }));
+vi.mock("@/components/map/composer/useIsMobileComposer", () => ({ useIsMobileComposer: () => true }));
+vi.mock("@/components/map/composer/useSpeechDictation", () => ({
+  useSpeechDictation: () => ({ speechSupported: false, listening: false, error: "", toggleListening: () => {} }),
+}));
+vi.mock("@/components/map/composer/useActiveRound", () => ({ useActiveRound: () => false }));
+vi.mock("@/components/map/VenuePriceStory", () => ({ default: () => null }));
+vi.mock("@/components/map/inspector/PintDropsList", () => ({ default: () => null }));
 
 import { usePintDrops, type PintDropsState } from "@/components/map/usePintDrops";
 import { PintDropAgeRecovery } from "@/components/map/PintDropAgeRecovery";
+import VenuePintsTab from "@/components/map/inspector/VenuePintsTab";
 import { ADULT_ASSERTED_EVENT } from "@/lib/contributionGateStatus";
 import { readOptimisticSpills } from "@/lib/optimisticSpillPost";
 
@@ -37,6 +46,15 @@ function DropProbe() {
   return state.dropMsg ? createElement(PintDropAgeRecovery, {
     recovery: state.dropMsg.ageRecovery, onAsserted: state.ageAsserted,
   }) : null;
+}
+
+function ComposerProbe({ open }: { open: boolean }) {
+  const state = usePintDrops();
+  useEffect(() => { drops = state; }, [state]);
+  return createElement(VenuePintsTab, {
+    venue: { id: "venue-1", name: "The Crown" } as never,
+    tab: "pints", pintDrops: { ...state, composerOpen: open }, drops: [], lastTrainDecision: null,
+  });
 }
 
 function photo(name: string): File {
@@ -73,6 +91,27 @@ afterEach(async () => {
 });
 
 describe("Pint Drop preview URL lifetime", () => {
+  // Account ownership applies to the displayed refusal, not only its action.
+  it.each([
+    [true, "adult_check_required", "Confirm you are 18 or over before contributing."],
+    [false, "adult_check_required", "Confirm you are 18 or over before contributing."],
+    [true, "adult_check_failed", "Your recorded date of birth is under 18."],
+    [false, "adult_check_failed", "Your recorded date of birth is under 18."],
+  ] as const)("removes a displayed age refusal on account switch (open: %s, status: %s)", async (open, status, message) => {
+    await act(async () => { root.render(createElement(ComposerProbe, { open })); });
+    io.post.mockResolvedValueOnce(new Response(JSON.stringify({ status, error: message }), { status: 409 }));
+    await act(async () => { drops.setDropForm((form) => ({ ...form, price: "5.50", drink: "Pale ale" })); });
+    await act(async () => { await drops.submitDrop({ preventDefault() {} } as never, "venue-1"); });
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain(message);
+    await act(async () => { setProviderIdentity("supabase", "preview-account-b"); });
+    expect(container.textContent).not.toContain(message);
+    expect(container.textContent).not.toContain("I'm 18 or over");
+    expect(drops.dropMsg).toBeNull();
+    await act(async () => { setProviderIdentity("supabase", "preview-account-a"); });
+    expect(container.textContent).not.toContain(message);
+    expect(io.post).toHaveBeenCalledTimes(1);
+  });
+
   it.each([true, false])("requires an explicit price retry after the shared assertion (bill: %s)", async (withBill) => {
     io.post.mockResolvedValue(new Response("{}", { status: 200 }));
     io.post.mockResolvedValueOnce(new Response(JSON.stringify({
@@ -155,7 +194,7 @@ describe("Pint Drop preview URL lifetime", () => {
       await act(async () => { answer(new Response("{}", { status })); });
       expect(asserted).not.toHaveBeenCalled();
       expect(container.querySelector('[role="alert"]')).toBeNull();
-      expect(drops.dropMsg?.text).not.toContain("Age confirmation saved");
+      expect(drops.dropMsg).toBeNull();
     } finally {
       window.removeEventListener(ADULT_ASSERTED_EVENT, asserted);
     }

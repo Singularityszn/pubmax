@@ -1,10 +1,10 @@
 "use client";
 
 import type { Route } from "next";
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
 
 import { useAuth } from "@/components/auth/authContext";
-import { readProviderAccountRevision } from "@/lib/authProviderRevision";
+import { readProviderAccountRevision, subscribeProviderIdentityRevision } from "@/lib/authProviderRevision";
 import { barTabPath, profilePath } from "@/lib/appLink";
 import { readActiveRoundCode } from "@/lib/activeRound";
 import { getAnonId } from "@/lib/anonId";
@@ -102,6 +102,7 @@ export type DropMsg = {
   ok: boolean;
   text: string;
   links?: Array<{ href: Route; label: string }>;
+  accountRevision?: number;
   ageRecovery?: { accountRevision: number };
 };
 
@@ -336,6 +337,11 @@ export function usePintDrops(
   const [receiptPhoto, setReceiptPhoto] = useState<PhotoSlot | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [dropMsg, setDropMsg] = useState<DropMsg | null>(null);
+  const accountRevision = useSyncExternalStore(
+    subscribeProviderIdentityRevision,
+    readProviderAccountRevision,
+    readProviderAccountRevision,
+  );
   const ageAsserted = useCallback(() => {
     setDropMsg((message) => message?.ageRecovery?.accountRevision === readProviderAccountRevision()
       ? { ok: true, text: "Age confirmation saved. Submit your price again." }
@@ -729,7 +735,7 @@ export function usePintDrops(
       links: [{ href: "/social", label: "Open Social" }],
     });
 
-    const markFailed = (message: string, ageRecovery?: DropMsg["ageRecovery"]) => {
+    const markFailed = (message: string, status?: string) => {
       if (submittedAccountRevision !== readProviderAccountRevision()) return;
       if (publishToFeed) {
         updateOptimisticFeedStorage((current) => failOptimisticSpill(current, clientRequestId, message));
@@ -755,7 +761,14 @@ export function usePintDrops(
         );
         return next;
       });
-      setDropMsg({ ok: false, text: message, ageRecovery });
+      setDropMsg({
+        ok: false,
+        text: message,
+        accountRevision: status === "adult_check_required" || status === "adult_check_failed"
+          ? submittedAccountRevision : undefined,
+        ageRecovery: status === "adult_check_required"
+          ? { accountRevision: submittedAccountRevision } : undefined,
+      });
     };
 
     try {
@@ -792,9 +805,7 @@ export function usePintDrops(
       if (!response.ok) {
         markFailed(
           errorMessageFrom(data, "Could not save that drop."),
-          data?.status === "adult_check_required"
-            ? { accountRevision: submittedAccountRevision }
-            : undefined,
+          data?.status,
         );
         return;
       }
@@ -1043,7 +1054,8 @@ export function usePintDrops(
     removePhoto,
     resetComposer,
     submitting,
-    dropMsg,
+    dropMsg: dropMsg?.accountRevision !== undefined && dropMsg.accountRevision !== accountRevision
+      ? null : dropMsg,
     ageAsserted,
     submitDrop,
     reportDrop,
