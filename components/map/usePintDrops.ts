@@ -4,7 +4,7 @@ import type { Route } from "next";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
 
 import { useAuth } from "@/components/auth/authContext";
-import { readProviderAccountRevision, subscribeProviderIdentityRevision } from "@/lib/authProviderRevision";
+import { readProviderAccountRevision, readProviderAccountSignal, subscribeProviderIdentityRevision } from "@/lib/authProviderRevision";
 import { barTabPath, profilePath } from "@/lib/appLink";
 import { readActiveRoundCode } from "@/lib/activeRound";
 import { getAnonId } from "@/lib/anonId";
@@ -592,6 +592,7 @@ export function usePintDrops(
     options?: { venueName?: string; lastTrainDecision?: LastPintDecision | null },
   ) {
     const submittedAccountRevision = readProviderAccountRevision();
+    const submittedAccountSignal = readProviderAccountSignal();
     const submittedRound = captureRoundAppendSnapshot(
       roundIdentity,
       accountHandle,
@@ -731,7 +732,27 @@ export function usePintDrops(
       ok: true,
       text: "Cheers. Saving your Pint Drop…",
       links: [{ href: "/social", label: "Open Social" }],
+      accountRevision: submittedAccountRevision,
     });
+
+    // A saved wrapper keeps its client ID. Cancellation owns only the original pending row.
+    const isAbandonedDrop = (drop: Pick<DropWithPhotos, "id" | "optimistic">) =>
+      drop.id === optimisticDrop.id &&
+      ["pending", "uploading"].includes(drop.optimistic?.state ?? "");
+    const disposeAbandonedSubmission = () => {
+      if (publishToFeed) {
+        updateOptimisticFeedStorage((current) =>
+          current.filter((entry) => !isAbandonedDrop(entry.drop)),
+        );
+      }
+      setDropsByVenueId((current) => {
+        const next = new Map(current);
+        next.set(venueId, (next.get(venueId) ?? []).filter((drop) => !isAbandonedDrop(drop)));
+        return next;
+      });
+      handedOffPreviews.forEach(revokePreview);
+    };
+    submittedAccountSignal.addEventListener("abort", disposeAbandonedSubmission, { once: true });
 
     const markFailed = (message: string, status?: string) => {
       if (submittedAccountRevision !== readProviderAccountRevision()) return;
@@ -868,6 +889,8 @@ export function usePintDrops(
       });
     } catch {
       markFailed("Network or storage error. Try again.");
+    } finally {
+      submittedAccountSignal.removeEventListener("abort", disposeAbandonedSubmission);
     }
   }
 
