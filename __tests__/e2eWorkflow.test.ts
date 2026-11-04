@@ -192,6 +192,9 @@ describe("browser CI policy", () => {
       "e2e/desktop-map-large-text.spec.ts",
       "e2e/native-onboarding-actions.spec.ts",
       "e2e/web-first-run-journey.spec.ts",
+      // The Plan result as a route: enlarged stop text and the touch lift,
+      // reorder and scroll. #2500 merged with this spec in no CI job.
+      "e2e/plan-route-result.spec.ts",
     ]) {
       expect(run).toContain(spec);
     }
