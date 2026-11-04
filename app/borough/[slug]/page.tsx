@@ -9,6 +9,8 @@ import JsonLd from "@/components/seo/JsonLd";
 import FactBlock from "@/components/seo/FactBlock";
 import FaqBlock from "@/components/seo/FaqBlock";
 import PriceBadge from "@/components/PriceBadge";
+import ListedPriceSource from "@/components/venue/ListedPriceSource";
+import { venuePriceEvidence } from "@/lib/venuePriceEvidence";
 import {
   venueBundlePrices,
   venuePriceLane,
@@ -23,7 +25,7 @@ import {
 } from "@/lib/dataFreshness";
 import { formatPrice, type Venue } from "@/lib/venues";
 import { loadPintPriceLandingVenues } from "@/lib/pintPriceLandingDataset.server";
-import { boroughFromSlug, pubsInBorough, slugifyBorough } from "@/lib/boroughs";
+import { boroughFromSlug, listBoroughs, pubsInBorough, slugifyBorough } from "@/lib/boroughs";
 import { boroughPlacePhoto, londonPlacePhoto } from "@/components/listing/placePhotoRules";
 import { loadBoroughHeritage, NOTABLE_CAP } from "@/lib/boroughHeritage";
 import { boroughNamedRouteLinks, boroughNightAreaLinks } from "@/lib/boroughNeighbourhoodLinks";
@@ -174,19 +176,18 @@ const SITE_URL = "https://pubmaxxing.com";
 // from bundled data and holds no Pint Drops, so its provisional argument is
 // absent by construction; routing it through the precedence is what stops the
 // borough list wording an absence the venue sheet has stopped wording.
-function BoroughPubPrice({ pub }: { pub: Venue }) {
+function BoroughPubRow({ pub, index }: { pub: Venue; index: number }) {
   const lane = venuePriceLane(
     pub,
     pub.latestContributorPrice,
     venueSourcedPrice(pub),
     venueBundlePrices(pub),
   );
-  if (lane === null) return <span className="listingNoFigure">No price</span>;
   // The figure comes off the lane that won, never off `cheapestPrice` again:
   // a lane whose figure lives somewhere else would otherwise print a blank
   // badge here the day it starts answering on this page.
   const figure =
-    lane.lane === "contributor"
+    lane === null ? null : lane.lane === "contributor"
       ? lane.contributorPrice
       : lane.lane === "listed"
         ? lane.listed.priceGbp
@@ -199,11 +200,26 @@ function BoroughPubPrice({ pub }: { pub: Venue }) {
               pub.cheapestPrice;
   // The figure wears its price BAND (lib/priceBand.ts). An anchor is not a
   // pint, so it wears none.
-  const band = lane.lane === "anchor" ? null : priceBand(figure, priceBandAreaForVenue(pub.id));
+  const band = lane?.lane === "anchor" ? null : priceBand(figure, priceBandAreaForVenue(pub.id));
+  const evidence = typeof figure === "number" ? venuePriceEvidence(pub, figure, true) : null;
   return (
-    <PriceBadge variant={lane.lane === "baseline" ? "baseline" : "current"} band={band}>
-      {formatPrice(figure)}
-    </PriceBadge>
+    <li className="rowListItem rowListItem--link">
+      <span className="rowListLead"><span className="boroughRank">{index + 1}</span></span>
+      <div className="rowListBody">
+        <Link prefetch={false} href={venueMapUrl(pub.id)} className="rowListTitle rowListTitleLink">{pub.name}</Link>
+        {evidence ? <div className="boroughPriceEvidence">
+          <p>{evidence.drinkLabel ? displayDrinkName(evidence.drinkLabel) : "Drink not recorded"} · {evidence.servingSize || "Serving not recorded"}</p>
+          <ListedPriceSource evidence={evidence} kind={evidence.sourceKind} />
+        </div> : pub.cheapestPint ? <div className="rowListMeta">{displayDrinkName(pub.cheapestPint)}</div> : null}
+      </div>
+      <span className="rowListTrailing">
+        <Link prefetch={false} href={`/ledger/${pub.id}`} className="boroughLedgerLink" aria-label={`${pub.name}: price history`}>
+          {lane === null ? <span className="listingNoFigure">No price</span> : (
+            <PriceBadge variant={lane.lane === "baseline" ? "baseline" : "current"} band={band}>{formatPrice(figure)}</PriceBadge>
+          )}
+        </Link>
+      </span>
+    </li>
   );
 }
 
@@ -248,7 +264,7 @@ export default async function BoroughPage({ params }: PageProps) {
     ...boroughNamedRouteLinks(slug, venues),
   ];
   const factStats = pintFactStats(pubs, name, slug);
-  const ourCheapestPrice = factStats.minGbp;
+  const ourCheapestPint = listBoroughs(pubs)[0]?.cheapestPint ?? null;
   // Borough-heritage rollup (Wave H): cited historic pubs in this area. null
   // when the borough has none — the section then renders nothing (no empty box).
   const heritage = await loadBoroughHeritage(slug);
@@ -299,7 +315,7 @@ export default async function BoroughPage({ params }: PageProps) {
         mapLabel={pubs.length > 0 ? "Open the map here" : "Open the map"}
         photo={boroughPlacePhoto(name) ?? londonPlacePhoto() ?? undefined}
       >
-        <BoroughPintPriceCard boroughName={name} ourCheapestPrice={ourCheapestPrice} />
+        <BoroughPintPriceCard boroughName={name} ourCheapestPint={ourCheapestPint} />
         {pubs.length > 0 && pubs.length < BOROUGH_COVERAGE_FLOOR ? (
           <p className="boroughThinBanner" role="status">
             Only {pubs.length} pubs mapped in {name} so far. Every pin&rsquo;s a real
@@ -340,25 +356,7 @@ export default async function BoroughPage({ params }: PageProps) {
             </h2>
             <p className="boroughPubsNote">Tap a price for its history.</p>
             <RowList label={`Pubs in ${name}, cheapest pint first`} className="boroughRows boroughPubRows listingRead">
-              {pubs.map((pub, index) => (
-                <RowListItem
-                  key={pub.id}
-                  href={venueMapUrl(pub.id)}
-                  lead={<span className="boroughRank">{index + 1}</span>}
-                  title={pub.name}
-                  meta={pub.cheapestPint ? displayDrinkName(pub.cheapestPint) : undefined}
-                  trailing={
-                    <Link
-                      prefetch={false}
-                      href={`/ledger/${pub.id}`}
-                      className="boroughLedgerLink"
-                      aria-label={`${pub.name}: price history`}
-                    >
-                      <BoroughPubPrice pub={pub} />
-                    </Link>
-                  }
-                />
-              ))}
+              {pubs.map((pub, index) => <BoroughPubRow key={pub.id} pub={pub} index={index} />)}
             </RowList>
           </section>
         )}

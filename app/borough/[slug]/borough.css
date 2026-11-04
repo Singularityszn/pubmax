@@ -43,6 +43,23 @@
   font-size: var(--text-base);
 }
 
+.boroughPriceEvidence {
+  min-width: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  overflow-wrap: anywhere;
+}
+
+.boroughPriceEvidence p {
+  margin: 0;
+}
+
+.boroughPriceEvidence a {
+  position: relative;
+  z-index: 1;
+}
+
 /* The rank of a pub in its borough: a muted figure, not a coral disc. Three
    figures wide so 1 and 211 end on the same edge. */
 .boroughRank {
@@ -263,13 +280,19 @@
 /* A sourced figure from someone else, said in one quiet line. Its source is a
    provenance stamp (caps are stamps), in the neutral badge trio. */
 .boroughPintChip {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  display: grid;
   gap: var(--space-2);
   margin: var(--space-1) 0 var(--space-3);
   color: var(--color-text-soft);
   font-size: var(--text-sm);
+}
+
+.boroughPintChipAverage {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
 }
 
 .boroughPintChipLabel {

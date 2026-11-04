@@ -3,6 +3,7 @@ import { LONDON_BOROUGH_NAMES } from "@/lib/londonBoroughNames.mjs";
 import { isNonPublicVenueName } from "@/lib/venueKindFilters";
 import { slugifyVenueName } from "@/lib/venuePermalinkSlug";
 import type { Venue } from "@/lib/venues";
+import { venuePriceEvidence, type VenuePriceEvidence } from "@/lib/venuePriceEvidence";
 
 // Pure, deterministic helpers behind the borough discovery pages (cc_plan2
 // §14/§25). Each London borough gets a server-rendered, shareable page.
@@ -32,6 +33,7 @@ export type BoroughSummary = {
   // The cheapest pint in the borough, in GBP, or null when no pub there carries
   // a usable price (so the page can render "—" instead of crashing).
   cheapestGbp: number | null;
+  cheapestPint: { venueId: string; venueName: string; evidence: VenuePriceEvidence } | null;
 };
 
 // Kebab-case a borough name for the URL: "City of London" → "city-of-london",
@@ -100,19 +102,21 @@ function boroughNames(venues: Venue[]): string[] {
 export function listBoroughs(venues: Venue[]): BoroughSummary[] {
   const byKey = new Map<
     string,
-    { name: string; pubCount: number; cheapestGbp: number | null }
+    Omit<BoroughSummary, "slug">
   >();
 
   for (const venue of venues) {
     const name = canonicalBorough(venue);
     if (!name) continue;
     const slug = slugifyBorough(name);
-    const entry = byKey.get(slug) ?? { name, pubCount: 0, cheapestGbp: null };
+    const entry = byKey.get(slug) ?? { name, pubCount: 0, cheapestGbp: null, cheapestPint: null };
     entry.pubCount += 1;
     const price = comparableVenuePint(venue, null, false);
     if (price !== null && !isNonPublicVenueName(venue.name)) {
-      entry.cheapestGbp =
-        entry.cheapestGbp === null ? price : Math.min(entry.cheapestGbp, price);
+      if (entry.cheapestGbp === null || price < entry.cheapestGbp) {
+        entry.cheapestGbp = price;
+        entry.cheapestPint = { venueId: venue.id, venueName: venue.name, evidence: venuePriceEvidence(venue, price, false) };
+      }
     }
     byKey.set(slug, entry);
   }

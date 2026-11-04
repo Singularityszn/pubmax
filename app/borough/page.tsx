@@ -8,9 +8,10 @@ import {
   getBoroughSummaries,
 } from "@/lib/boroughIndex.server";
 import PriceBadge from "@/components/PriceBadge";
+import ListedPriceSource from "@/components/venue/ListedPriceSource";
 import SiteNav from "@/components/nav/SiteNav";
 import EmptyState from "@/components/ui/empty-state";
-import { RowList, RowListItem } from "@/components/ui/row-list";
+import { RowList } from "@/components/ui/row-list";
 import BoroughScreen from "./BoroughScreen";
 
 import "@/components/listing/listing.css";
@@ -77,19 +78,24 @@ export default async function BoroughIndexPage() {
             {boroughs.map((borough) => {
               const historic = heritageCounts.get(borough.slug) ?? 0;
               return (
-                <RowListItem
-                  key={borough.slug}
-                  className="boroughRow"
-                  href={`/borough/${borough.slug}` as Route}
-                  title={borough.name}
-                  meta={
-                    <>
+                <li key={borough.slug} className="rowListItem rowListItem--link boroughRow">
+                  <div className="rowListBody">
+                    <Link prefetch={false} className="rowListTitle rowListTitleLink" href={`/borough/${borough.slug}` as Route}>
+                      {borough.name}
+                    </Link>
+                    <div className="rowListMeta">
                       {borough.pubCount} {borough.pubCount === 1 ? "pub" : "pubs"}
                       {historic > 0 ? <>, {historic} historic</> : null}
-                    </>
-                  }
-                  trailing={
-                    borough.cheapestGbp === null ? (
+                    </div>
+                    {borough.cheapestPint ? (
+                      <div className="boroughPriceEvidence">
+                        <p>{borough.cheapestPint.venueName} · {borough.cheapestPint.evidence.drinkLabel || "Drink not recorded"} · {borough.cheapestPint.evidence.servingSize || "Serving not recorded"}</p>
+                        <ListedPriceSource evidence={borough.cheapestPint.evidence} kind={borough.cheapestPint.evidence.sourceKind} />
+                      </div>
+                    ) : null}
+                  </div>
+                  <span className="rowListTrailing">
+                    {borough.cheapestGbp === null ? (
                       <span className="listingNoFigure">No price yet</span>
                     ) : (
                       <>
@@ -98,9 +104,9 @@ export default async function BoroughIndexPage() {
                           {formatPrice(borough.cheapestGbp)}
                         </PriceBadge>
                       </>
-                    )
-                  }
-                />
+                    )}
+                  </span>
+                </li>
               );
             })}
           </RowList>

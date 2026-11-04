@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
+import { formatObservedDate } from "@/lib/dataFreshnessFormat";
+import type { BoroughSummary } from "@/lib/boroughs";
+import ListedPriceSource from "@/components/venue/ListedPriceSource";
 
 type CityAreaResponse = {
   borough: string | null;
@@ -12,20 +15,19 @@ type CityAreaResponse = {
 
 type BoroughPintPriceCardProps = {
   boroughName: string;
-  ourCheapestPrice: number | null;
+  ourCheapestPint: BoroughSummary["cheapestPint"];
 };
 
-// "MMM yyyy" — mirrors the style lib/relativeTime.ts uses for old
-// timestamps, inlined here since this card needs it standalone (not as part
-// of a relative-age string).
-function formatCheckedDate(iso: string | null): string {
-  if (!iso) return "";
+function checkedDate(iso: string | null): { day: string; label: string } | null {
+  if (typeof iso !== "string") return null;
+  const match = /^(\d{4}-\d{2}-\d{2})(?:$|T)/.exec(iso);
+  if (!match) return null;
+  const calendar = new Date(`${match[1]}T00:00:00Z`);
+  if (!Number.isFinite(calendar.getTime()) || calendar.toISOString().slice(0, 10) !== match[1]) return null;
   const parsed = Date.parse(iso);
-  if (!Number.isFinite(parsed)) return "";
-  return new Date(parsed).toLocaleDateString("en-GB", {
-    month: "short",
-    year: "numeric",
-  });
+  if (!Number.isFinite(parsed)) return null;
+  const date = new Date(parsed);
+  return { day: new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: "Europe/London" }).format(date), label: formatObservedDate(date) };
 }
 
 /**
@@ -38,7 +40,7 @@ function formatCheckedDate(iso: string | null): string {
  */
 export default function BoroughPintPriceCard({
   boroughName,
-  ourCheapestPrice,
+  ourCheapestPint,
 }: BoroughPintPriceCardProps) {
   const [area, setArea] = useState<CityAreaResponse | null>(null);
 
@@ -64,24 +66,22 @@ export default function BoroughPintPriceCard({
 
   if (!area || typeof area.averagePintGbp !== "number") return null;
 
-  const checked = formatCheckedDate(area.asOf);
-  const showCompare =
-    typeof ourCheapestPrice === "number" &&
-    ourCheapestPrice < area.averagePintGbp;
+  const checked = checkedDate(area.asOf);
+  const comparison = ourCheapestPint && ourCheapestPint.evidence.priceGbp < area.averagePintGbp ? ourCheapestPint : null;
 
   return (
-    <p className="boroughPintChip" role="status">
-      <span className="boroughPintChipLabel">CityMCP</span>
-      <span>
-        Average pint in {boroughName}: £{area.averagePintGbp.toFixed(2)}
-        {checked ? ` · checked ${checked}` : ""}
-      </span>
-      {showCompare ? (
-        <span className="boroughPintChipCompare">
-          {" "}
-          · our map&rsquo;s cheapest here is £{ourCheapestPrice!.toFixed(2)}
-        </span>
+    <div className="boroughPintChip" role="status">
+      <p className="boroughPintChipAverage">
+        <span className="boroughPintChipLabel">CityMCP</span>
+        <span>Average pint in {boroughName}: £{area.averagePintGbp.toFixed(2)} · {checked ? <>checked <time dateTime={checked.day}>{checked.label}</time></> : "Read date unavailable"}</span>
+      </p>
+      {comparison ? (
+        <div className="boroughPintChipCompare boroughPriceEvidence">
+          <p>Our map&rsquo;s cheapest here is £{comparison.evidence.priceGbp.toFixed(2)} at {comparison.venueName}.</p>
+          <p>{comparison.evidence.drinkLabel || "Drink not recorded"} · {comparison.evidence.servingSize || "Serving not recorded"}</p>
+          <ListedPriceSource evidence={comparison.evidence} kind={comparison.evidence.sourceKind} />
+        </div>
       ) : null}
-    </p>
+    </div>
   );
 }
