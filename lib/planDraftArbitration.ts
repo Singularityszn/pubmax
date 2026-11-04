@@ -4,10 +4,24 @@ import {
   type RememberedArea,
 } from "@/lib/nightPatches";
 import type { ParsedPlanDraft, StoredPlanDraft } from "@/lib/planDraft";
-import type { ParsedPlanIntakeDraft } from "@/lib/planIntake";
+import { planIntakeNightContextPatch, type ParsedPlanIntakeDraft } from "@/lib/planIntake";
 import type { ParsedPlanRouteDraft } from "@/lib/planRouteDraft";
 import { cleanPlanStopCountSource, type PlanStopCount, type PlanStopCountSource } from "@/lib/planStopCount";
 import type { PlanningIntentArea, PlanningIntentV1 } from "@/lib/planningIntent";
+
+function requestedIntentSource(plan: ParsedPlanDraft | null, legacyDraft: StoredPlanDraft | null, intake: ParsedPlanIntakeDraft | null): "plan" | "intake" | "unknown" {
+  if (plan && !plan.legacy && legacyDraft
+    && (legacyDraft.requestedStopCount !== plan.draft.requestedStopCount
+      || legacyDraft.conciergeQuery !== plan.draft.conciergeQuery
+      || legacyDraft.requestedStopCountSource !== plan.draft.requestedStopCountSource)) return "unknown";
+  if (!plan) return "intake";
+  if (!intake) return "plan";
+  if (plan.legacy) return "unknown";
+  const planTime = Date.parse(plan.savedAt ?? "");
+  const intakeTime = Date.parse(intake.savedAt);
+  if (!Number.isFinite(planTime) || !Number.isFinite(intakeTime)) return "unknown";
+  return intakeTime > planTime ? "intake" : "plan";
+}
 
 export function resolveRequestedPlanIntent(
   plan: ParsedPlanDraft | null,
@@ -26,18 +40,13 @@ export function resolveRequestedPlanIntent(
     descriptionUnavailable: false,
   };
   const unavailable = { conciergeQuery: "", descriptionUnavailable: true };
-  if (plan && !plan.legacy && legacyDraft
-    && (legacyDraft.requestedStopCount !== planCount || legacyDraft.conciergeQuery !== plan.draft.conciergeQuery
-      || legacyDraft.requestedStopCountSource !== planSource)) {
-    return { stopCount: legacyDraft.requestedStopCount === planCount ? planCount : undefined, ...unavailable };
-  }
-  if (!plan) return { ...recovered, ...local };
-  if (!intake) return recovered;
-  if (plan.legacy) return { stopCount: planCount === intakeCount ? planCount : undefined, ...unavailable };
-  const planTime = Date.parse(plan.savedAt ?? "");
-  const intakeTime = Date.parse(intake.savedAt);
-  if (!Number.isFinite(planTime) || !Number.isFinite(intakeTime)) return { stopCount: undefined, ...unavailable };
-  return intakeTime > planTime ? { ...local, ...unavailable } : recovered;
+  const source = requestedIntentSource(plan, legacyDraft, intake);
+  if (source === "intake") return { ...local, ...(plan ? unavailable : { conciergeQuery: "", descriptionUnavailable: false }) };
+  if (source === "plan") return recovered;
+  const count = plan && legacyDraft && !plan.legacy
+    ? legacyDraft.requestedStopCount === planCount ? planCount : undefined
+    : planCount === intakeCount ? planCount : undefined;
+  return { stopCount: count, ...unavailable };
 }
 
 function matchingSessionCopies(plan: ParsedPlanDraft | null, legacyDraft: StoredPlanDraft | null): boolean {
@@ -50,11 +59,13 @@ function matchingSessionCopies(plan: ParsedPlanDraft | null, legacyDraft: Stored
 function matchingSessionRoute(
   plan: ParsedPlanDraft | null,
   route: Pick<ParsedPlanRouteDraft, "savedAt" | "value"> | null,
-  intake: ParsedPlanIntakeDraft | null,
 ): boolean {
   if (!plan || !route) return false;
   const reference = plan.draft.routeReference;
+  if (reference === null && !route.value.routeStale) return false;
   if (reference) {
+    if (plan.draft.requestedStopCount !== undefined
+      && plan.draft.requestedStopCount !== route.value.nightContext?.stopCount) return false;
     if (plan.legacy || route.value.routeStale || !route.value.groundingProof
       || reference.savedAt !== route.savedAt || reference.operationKey !== route.value.operationKey
       || Date.parse(reference.savedAt) > Date.parse(plan.savedAt ?? "")) return false;
@@ -65,10 +76,38 @@ function matchingSessionRoute(
     && route.value.anchorVenueId === null && route.value.anchorSource === null;
   if (anchor && (!plan.savedAt || (!previewOnly
     && (anchor.venueId !== route.value.anchorVenueId || anchor.source !== route.value.anchorSource)))) return false;
-  if (intake && Date.parse(intake.savedAt) > Date.parse(plan.savedAt ?? "")
-    && JSON.stringify(intake.routeReference) !== JSON.stringify(reference)) return false;
   return JSON.stringify(plan.draft.stops)
     === JSON.stringify(route.value.stops.map(({ key, venueId, venueName }) => ({ key, venueId, venueName })));
+}
+
+function matchingIntakeRoute(intake: ParsedPlanIntakeDraft, route: Pick<ParsedPlanRouteDraft, "savedAt" | "value"> | null): boolean {
+  if (!route) return false;
+  const patch = planIntakeNightContextPatch(intake.draft);
+  const count = intake.draft.answers.stopCount;
+  if (count !== undefined && count !== route.value.nightContext?.stopCount) return false;
+  if (!(Object.keys(patch) as (keyof typeof patch)[])
+    .every((key) => JSON.stringify(patch[key]) === JSON.stringify(route.value.nightContext?.[key]))) return false;
+  if (route.value.routeStale && route.savedAt === intake.savedAt) return true;
+  const reference = intake.routeReference;
+  return Boolean(reference && !route.value.routeStale && route.value.groundingProof
+    && reference.savedAt === route.savedAt && reference.operationKey === route.value.operationKey
+    && Date.parse(reference.savedAt) <= Date.parse(intake.savedAt));
+}
+
+function sessionSupersedesRoute(plan: ParsedPlanDraft | null, route: (Pick<ParsedPlanRouteDraft, "savedAt" | "value"> & { conflicting?: boolean }) | null, matchingRoute: boolean, sessionCopiesAgree: boolean): boolean {
+  return Boolean(plan && !plan.legacy && sessionCopiesAgree
+    && (!route || (Date.parse(plan.savedAt ?? "") > Date.parse(route.savedAt ?? "") && !matchingRoute)
+      || (!route.savedAt && route.conflicting === false)));
+}
+
+function recoverCurrentIntake(plan: ParsedPlanDraft | null, intake: ParsedPlanIntakeDraft | null, intakeWins: boolean, sessionWins: boolean, acceptanceUnavailable: boolean): ParsedPlanIntakeDraft | null {
+  if (intakeWins) return intake;
+  if (plan && intake && (plan.savedAt === intake.savedAt
+    || (!plan.draft.conciergeQuery && plan.draft.routeReference === null && intake.routeReference === null))
+    && plan.draft.requestedStopCount === intake.draft.answers.stopCount
+    && plan.draft.requestedStopCountSource === intake.draft.answers.stopCountSource
+    && JSON.stringify(plan.draft.routeReference) === JSON.stringify(intake.routeReference)) return intake;
+  return sessionWins || acceptanceUnavailable ? null : intake;
 }
 
 export function recoverPlanDrafts(input: {
@@ -83,16 +122,18 @@ export function recoverPlanDrafts(input: {
   const routeWins = Number.isFinite(routeTime)
     && (!plan || plan.legacy || routeTime > planTime);
   const sessionCopiesAgree = matchingSessionCopies(plan, legacyDraft);
-  const matchingRoute = matchingSessionRoute(plan, route, intake);
-  const sessionWins = Boolean(plan && !plan.legacy
-    && (!route || (planTime > routeTime && !matchingRoute) || (!route.savedAt && route.conflicting === false))
-    && sessionCopiesAgree);
-  const acceptanceUnavailable = !sessionWins && (route?.ambiguous === true
-    || Boolean(route && plan && !routeWins && (!sessionCopiesAgree || !matchingRoute)));
   const intakeDraft = routeWins && !(Date.parse(intake?.savedAt ?? "") >= routeTime) ? null : intake;
+  const requestSource = requestedIntentSource(plan, legacyDraft, intakeDraft);
+  const intakeWins = Boolean(intakeDraft && requestSource === "intake");
+  const matchingRoute = (requestSource !== "unknown" || plan?.legacy === true)
+    && (intakeWins ? matchingIntakeRoute(intakeDraft!, route) : matchingSessionRoute(plan, route));
+  const sessionWins = sessionSupersedesRoute(plan, route, matchingRoute, sessionCopiesAgree);
+  const acceptanceUnavailable = !sessionWins && (route?.ambiguous === true
+    || Boolean(route && intakeWins && !matchingRoute)
+    || Boolean(route && plan && !routeWins && (!sessionCopiesAgree || !matchingRoute)));
   const planDraft = routeWins || acceptanceUnavailable ? null : plan;
   const recoveredDraft = routeWins ? null : acceptanceUnavailable && legacyDraft
-    ? { ...legacyDraft, startTime: "", acceptedAnchor: undefined } : legacyDraft;
+    ? { ...legacyDraft, acceptedAnchor: undefined } : legacyDraft;
   const intent = resolveRequestedPlanIntent(routeWins ? null : plan, legacyDraft, intakeDraft);
   return {
     routeWins,
@@ -100,7 +141,7 @@ export function recoverPlanDrafts(input: {
     sessionWins,
     planDraft,
     recoveredDraft,
-    intakeDraft: acceptanceUnavailable ? null : intakeDraft,
+    intakeDraft: recoverCurrentIntake(plan, intakeDraft, intakeWins, sessionWins, acceptanceUnavailable),
     hasStoredIntake: Boolean(intake),
     intent: routeWins && intakeDraft ? { ...intent, descriptionUnavailable: true } : intent,
   };

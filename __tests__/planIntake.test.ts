@@ -22,6 +22,7 @@ import {
   planIntakeNightContextPatch,
   planIntakeStepHasAnswer,
   readPlanIntakeDraft,
+  readPlanIntakeDraftWithMetadata,
   reopenPlanIntakeStep,
   resolveFutureLondonStartIso,
   resolvePlanIntakeAreaSeed,
@@ -667,7 +668,7 @@ describe("intake accessibility and entry invariants", () => {
   });
 });
 
-it.each([undefined, null, {}, { savedAt: "yesterday", operationKey: "operation-1" }])(
+it.each([undefined, {}, { savedAt: "yesterday", operationKey: "operation-1" }])(
   "does not discard valid intake answers when route correlation is unknown: %j", (routeReference) => {
     const now = Date.parse("2026-11-03T12:00:01.000Z");
     const draft = createPlanIntakeDraft();
@@ -680,3 +681,12 @@ it.each([undefined, null, {}, { savedAt: "yesterday", operationKey: "operation-1
     expect(parsed?.routeReference).toBeUndefined();
   },
 );
+
+
+it("round trips explicit route revocation with the selected intake", () => {
+  const now = Date.parse("2026-11-03T12:00:01.000Z");
+  const storage = memoryStorage();
+  const draft = createPlanIntakeDraft();
+  expect(writePlanIntakeDraft(draft, storage, now, null)).toBe(true);
+  expect(readPlanIntakeDraftWithMetadata(storage, now)).toMatchObject({ savedAt: new Date(now).toISOString(), routeReference: null, draft });
+});

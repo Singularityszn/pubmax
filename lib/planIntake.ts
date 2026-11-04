@@ -585,7 +585,7 @@ export function parsePlanIntakeDraftWithMetadata(
       storageVersion: PLAN_INTAKE_VERSION,
       savedAt: envelope.savedAt,
       expiresAt: envelope.expiresAt,
-      ...(routeReference ? { routeReference } : {}),
+      ...(routeReference !== undefined ? { routeReference } : {}),
       draft: {
         version: PLAN_INTAKE_VERSION,
         currentStep: firstUnsettled ?? lastOf(PLAN_INTAKE_STEPS),
@@ -638,11 +638,12 @@ export function writePlanIntakeDraft(
   const store = resolveStorage(storage);
   if (!store) return false;
   try {
+    const reference = parsePlanRouteReference(routeReference);
     const next = JSON.stringify({
       storageVersion: PLAN_INTAKE_VERSION,
       savedAt: new Date(now).toISOString(),
       expiresAt: new Date(now + PLAN_INTAKE_DRAFT_TTL_MS).toISOString(),
-      ...(parsePlanRouteReference(routeReference) ? { routeReference } : {}),
+      ...(reference !== undefined ? { routeReference: reference } : {}),
       draft,
     } satisfies StoredPlanIntakeEnvelope);
     if (planIntakeRawBytes(next) > PLAN_INTAKE_MAX_RAW_BYTES) return false;

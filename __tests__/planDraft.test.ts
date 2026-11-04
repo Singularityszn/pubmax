@@ -87,7 +87,7 @@ describe("parsePlanDraft", () => {
 });
 
 it.each([
-  undefined, null, {}, { savedAt: "yesterday", operationKey: "operation-1" },
+  undefined, {}, { savedAt: "yesterday", operationKey: "operation-1" },
   { savedAt: "2026-11-03T12:00:00.000Z", operationKey: "" },
   { savedAt: "2026-11-03T12:00:00.000Z", operationKey: "x".repeat(121) },
   { savedAt: "2026-11-03T12:00:00.000Z", operationKey: " operation-1" },
@@ -106,9 +106,8 @@ it.each([
   expect(parsePlanDraft(JSON.stringify(envelope.draft), now)).not.toHaveProperty("routeReference");
 });
 
-it("round trips a bounded route reference without copying generated evidence into the request", () => {
+it.each([null, { savedAt: "2026-11-03T12:00:00.000Z", operationKey: "operation-1" }])("round trips route authority or explicit revocation: %j", (routeReference) => {
   const now = Date.parse("2026-11-03T12:00:01.000Z");
-  const routeReference = { savedAt: "2026-11-03T12:00:00.000Z", operationKey: "operation-1" };
   const draft = { title: "Night", creatorName: "Captain", startTime: "", conciergeQuery: "", stops: [{ key: 1, venueId: "venue-a", venueName: "Pub A" }], routeReference };
   const values = new Map<string, string>();
   const storage = { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value); } };
