@@ -133,14 +133,18 @@ const NEXT_STOP_RE =
 const NEXT_STOP_LATER_RE =
   /\b(?:tomorrow|weekend|week|month|year|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/;
 
-/** Does the person ask, in their own words, for the next stop of their night? */
-export function palAsksForNextStop(text: string): boolean {
-  const normalized = text
+function normalizeNextStopRequest(text: string): string {
+  return text
     .toLowerCase()
     .replace(/[’`]/g, "'")
     .replace(/[^a-z'\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+/** Does the person ask, in their own words, for the next stop of their night? */
+export function palAsksForNextStop(text: string): boolean {
+  const normalized = normalizeNextStopRequest(text);
   if (!NEXT_STOP_RE.test(normalized) || navigationIsRefused(text)) return false;
   return !NEXT_STOP_LATER_RE.test(normalized);
 }
@@ -152,6 +156,9 @@ export function palAsksForNextStop(text: string): boolean {
  * an ordinary map ask.
  */
 export function palVoiceMapIntent(text: string, nightIsOn: boolean): "next-stop" | "pub" | "map" | null {
+  // Read the requested day before presentation parsing removes map time tails.
+  const nextStopRequest = normalizeNextStopRequest(text);
+  if (NEXT_STOP_RE.test(nextStopRequest) && NEXT_STOP_LATER_RE.test(nextStopRequest)) return null;
   text = semanticAskRequest(text);
   if (navigationIsRefused(text)) return null;
   if (nightIsOn && palAsksForNextStop(text)) return "next-stop";

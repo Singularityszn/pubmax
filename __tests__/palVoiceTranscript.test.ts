@@ -171,6 +171,10 @@ const VOICE_MAP_TABLE: ReadonlyArray<readonly [string, "next-stop" | "map" | nul
   ["Show me the map for the next stop", "next-stop", "map"],
   ["open the map, where to next?", "next-stop", "map"],
   // Another day, before or after the ask.
+  ["Show me the map for the next stop for this weekend", null, null],
+  ["Show me the map for the next stop this weekend", null, null],
+  ["Next stop this weekend", null, null],
+  ["Show me the map for the next stop for tonight", "next-stop", "map"],
   ["What's next tomorrow?", null, null],
   ["Tomorrow, what's next?", null, null],
   ["where next weekend", null, null],

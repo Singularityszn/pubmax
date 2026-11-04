@@ -200,7 +200,27 @@ describe("mounted typed map dispatch", () => {
     else expect(planRead).not.toHaveBeenCalled();
   });
 
-  it.each([...NEXT_STOP_NOUN_REQUESTS, "What's next tonight?", "Next stop. Next stop please."])("opens the active plan after a qualified request: %s", async (query) => {
+  describe.each([false, true])("another-day request with active plan %s", (active) => {
+    it.each([
+      "Show me the map for the next stop for this weekend",
+      "Show me the map for the next stop this weekend",
+      "Next stop this weekend",
+    ])("keeps another-day next-stop requests in chat: %s", async (query) => {
+      if (active) {
+        writeActivePlan({ id: "11111111-1111-4111-8111-111111111111", startTime: new Date(Date.now() - 60 * 60 * 1000).toISOString(), stopIndex: 0 });
+      }
+      planRead.mockResolvedValue({ stops: [{ venueId: "venue-first", venueName: "First pub" }, { venueId: harp.id, venueName: harp.name }] });
+      await send(query);
+      expect(push).not.toHaveBeenCalled();
+      expect(planRead).not.toHaveBeenCalled();
+      const sent = request.mock.calls.filter(([url, init]) => url === "/api/pub-pal/chat" && init?.method === "POST");
+      expect(sent).toHaveLength(1);
+      expect(JSON.parse(sent[0]![1].body).query).toBe(query);
+      expect(host.textContent).toContain(query);
+    });
+  });
+
+  it.each([...NEXT_STOP_NOUN_REQUESTS, "What's next tonight?", "Next stop. Next stop please.", "Show me the map for the next stop for tonight"])("opens the active plan after a qualified request: %s", async (query) => {
     const planId = "11111111-1111-4111-8111-111111111111";
     writeActivePlan({ id: planId, startTime: new Date(Date.now() - 60 * 60 * 1000).toISOString(), stopIndex: 0 });
     planRead.mockResolvedValue({ stops: [{ venueId: "venue-first", venueName: "First pub" }, { venueId: harp.id, venueName: harp.name }] });
