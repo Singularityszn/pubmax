@@ -2037,7 +2037,7 @@ it.each([
   expect(document.querySelector<HTMLInputElement>("#plan-name")?.value).toBe("Captain");
   if (lane === "v1-only") {
     expect(readPlanDraftEnvelope(sessionStorage)?.savedAt).toBeNull();
-    expect(readPlanDraftEnvelope(sessionStorage)?.draft.requestedStopCountSource).toBeUndefined();
+    expect(readPlanDraftEnvelope(sessionStorage)?.draft.requestedStopCountSource).toBe("picker");
     await editInput("#plan-title", "Our five pubs");
     await act(async () => { document.querySelector<HTMLFormElement>("#plan-composer")!.requestSubmit(); });
     await settle();
