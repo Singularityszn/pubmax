@@ -6,6 +6,7 @@ import PriceBadge from "@/components/PriceBadge";
 import { formatPrice, type Venue } from "@/lib/venues";
 import type { Provenance } from "@/lib/curation";
 import { PROVENANCE_LABEL } from "@/lib/provenanceLabels";
+import { formatObservedDate } from "@/lib/dataFreshness";
 import {
   computeVenuePriceStory,
   type VenuePriceStamp,
@@ -14,20 +15,30 @@ import {
 
 import "./venuePriceStory.css";
 
-// The Golden Thread on the venue surface: a pub's own price story — the baseline
-// price on record, the freshest community-logged price, the delta between them,
-// and (when the community has passed down a dated memory) an inflation line
-// "a pint here was £X in YYYY — £Y in today's money". Purely presentational and
-// prop-driven: VenueInspector computes nothing; it hands over the venue + its
-// drops and this block resolves the whole story via computeVenuePriceStory.
-//
-// Provenance is NEVER flattened: every figure carries its own badge (sourced /
-// contributor / anecdote / demo) so a seeded demo price can never masquerade as
-// real community data. When the venue has no price story at all, an honest
-// empty state renders instead of an empty frame.
+// Each figure keeps the drink, serving, attribution and date from its own
+// record. Only comparable observations show a price change. A memory's era
+// cannot date its price. Demo and anecdotal provenance remain separate.
 
 function ProvChip({ provenance }: { provenance: Provenance }) {
   return <span className={`provChip ${provenance}`}>{PROVENANCE_LABEL[provenance]}</span>;
+}
+
+function PriceEvidence({ stamp }: { stamp: VenuePriceStamp }) {
+  const { drink, serving, publisher, sourceUrl, recordedAt, dateKind } = stamp.evidence;
+  const at = recordedAt ? Date.parse(recordedAt) : Number.NaN;
+  const date = Number.isFinite(at) ? formatObservedDate(new Date(at)) : null;
+  return (
+    <span className="vpsEvidence">
+      <span>{drink ?? "Drink not recorded"} · {serving ?? "Serving size not recorded"}</span>
+      <span>{publisher
+        ? sourceUrl ? <a href={sourceUrl} target="_blank" rel="noopener noreferrer">{publisher}</a> : publisher
+        : "Publisher not recorded"}</span>
+      {stamp.evidence.linkUnavailable ? <span>Link unavailable</span> : null}
+      <span>{date
+        ? <>{dateKind === "read" ? "Source read" : "Logged"} <time dateTime={recordedAt!}>{date}</time></>
+        : `${dateKind === "read" ? "Source read date" : "Log date"} unknown`}</span>
+    </span>
+  );
 }
 
 function direction(deltaGbp: number): "up" | "down" | "flat" {
@@ -46,7 +57,7 @@ function StoryBars({ baseline, now }: { baseline: VenuePriceStamp; now: VenuePri
   return (
     <div className="vpsBars" aria-hidden="true">
       <div className="vpsBarRow">
-        <span className="vpsBarLabel">Baseline</span>
+        <span className="vpsBarLabel">Earlier</span>
         <span className="vpsBarTrack">
           <span className="vpsBarFill vpsBarFillThen" style={{ width: `${thenPct}%` }} />
         </span>
@@ -140,9 +151,10 @@ export default function VenuePriceStory({ venue, drops, onPriceChanged }: VenueP
                 {formatPrice(baseline.gbp)}
               </PriceBadge>
               <ProvChip provenance={baseline.provenance} />
+              <PriceEvidence stamp={baseline} />
             </div>
           ) : null}
-          {baseline && now ? (
+          {baseline && now && deltaGbp !== null ? (
             <span className="vpsArrow" aria-hidden="true">
               →
             </span>
@@ -157,12 +169,17 @@ export default function VenuePriceStory({ venue, drops, onPriceChanged }: VenueP
                 {formatPrice(now.gbp)}
               </PriceBadge>
               <ProvChip provenance={now.provenance} />
+              <PriceEvidence stamp={now} />
             </div>
           ) : null}
         </div>
       ) : null}
 
-      {baseline && now ? <StoryBars baseline={baseline} now={now} /> : null}
+      {baseline && now && deltaGbp !== null ? <StoryBars baseline={baseline} now={now} /> : null}
+
+      {baseline && now && deltaGbp === null ? (
+        <p className="vpsFootnote">Price comparison unavailable. These records do not establish a change for the same drink and serving.</p>
+      ) : null}
 
       {deltaGbp !== null && pct !== null ? (
         <p className={`vpsDelta vpsDelta-${dir}`}>
@@ -208,7 +225,7 @@ export default function VenuePriceStory({ venue, drops, onPriceChanged }: VenueP
       ) : null}
 
       <p className="vpsFootnote">
-        The earlier price is the one on record. The newer one is a community report. We adjust old prices for inflation with UK CPI.
+        Source reads and community reports do not confirm today&rsquo;s price. A memory&rsquo;s era does not date its logged price.
       </p>
     </section>
   );
