@@ -48,6 +48,9 @@ import {
 import { readCommunityPricesWithStatus } from "@/lib/communityPriceStore";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import type { ConciergeVenue } from "@/lib/concierge/rank";
+import { selectedVenuePintEvidence } from "@/lib/comparableVenuePint";
+import { DRINK_MEASURE_LABEL, statedDrinkMeasure } from "@/lib/drinkMeasure";
+import { listedPriceReceipt } from "@/lib/listedPriceReceipt";
 import { DEFAULT_DRINK_LANE, orderVenueDrinkPrices } from "@/lib/drinkLanes";
 import { categoryLabel, isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
 import {
@@ -268,23 +271,36 @@ export async function toolCheapestPintNear(
     };
   }
 
-  const cards: AskCard[] = rows.map((row) => ({
-    key: `cheapest:${row.id}`,
-    venueId: row.id,
-    title: row.name,
-    place: row.borough,
-    note: cheapestNearRowNote({
-      walkMinutes: row.walkMinutes ?? null,
-    }),
-    price: row.cheapestPrice,
-    provenance: DIRECTORY,
-  }));
+  const byId = new Map(venues.map((venue) => [venue.id, venue]));
+  const cards: AskCard[] = rows.map((row) => {
+    const venue = byId.get(row.id);
+    const evidence = venue?.cheapestPrice === row.cheapestPrice
+      ? selectedVenuePintEvidence(venue, ctx.now)
+      : {};
+    const measure = statedDrinkMeasure(evidence.measure);
+    return {
+      key: `cheapest:${row.id}`,
+      venueId: row.id,
+      title: row.name,
+      place: row.borough,
+      note: [
+        cheapestNearRowNote({ walkMinutes: row.walkMinutes ?? null }),
+        evidence.cheapestPint?.trim() || "Drink not recorded",
+        measure ? DRINK_MEASURE_LABEL[measure] : "Serving not recorded",
+      ].filter(Boolean).join(" · "),
+      price: row.cheapestPrice,
+      provenance: {
+        kind: "directory",
+        label: `${listedPriceReceipt(evidence, ctx.now)}${evidence.priceSource?.trim() ? " Link unavailable." : ""}`,
+      },
+    };
+  });
 
   return {
     ok: true,
     tool: "cheapest_pint_near",
     data: { anchor, scope, rows },
-    provenance: [DIRECTORY],
+    provenance: askCardSources(cards),
     cards,
     priceEvidence: rows.map((row) => listedPintEvidence(`cheapest:${row.id}`, row.id, row.cheapestPrice)),
     proposals: cards
