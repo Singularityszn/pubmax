@@ -18,6 +18,7 @@ import { ArrowRight, ExternalLink } from "lucide-react";
 
 import { ProseDisclosure } from "@/components/Disclosure";
 import { PintPriceBadge } from "@/components/PriceBadge";
+import ListedPriceSource from "@/components/venue/ListedPriceSource";
 import type { QuietPintModule } from "@/lib/quietPint";
 
 import "./quietPintCard.css";
@@ -65,6 +66,15 @@ export default function TodayQuietPintCard({ module }: Props) {
                 />
               ) : null}
             </div>
+            {typeof row.priceGbp === "number" ? <>
+              <p className="todayPriceEvidence">
+                {row.priceEvidence?.drinkLabel || "Drink not recorded"} · {row.priceEvidence?.servingSize || "Serving not recorded"}
+              </p>
+              <ListedPriceSource className="todayPriceEvidence" kind={row.priceEvidence?.sourceKind} evidence={{
+                publisher: row.priceEvidence?.publisher ?? null,
+                observedOn: row.priceEvidence?.observedOn ?? null,
+              }} />
+            </> : null}
             <div className="quietPintHeritage">
               <ProseDisclosure text={row.heritageLine} />
             </div>
@@ -77,9 +87,9 @@ export default function TodayQuietPintCard({ module }: Props) {
                   href={row.sourceRef}
                   target="_blank"
                   rel="noreferrer noopener"
-                  aria-label={`${row.name}, source: ${row.sourceLabel}`}
+                  aria-label={`${row.name}, history source: ${row.sourceLabel}`}
                 >
-                  {oneSource ? "Source" : row.sourceLabel}
+                  {oneSource ? "History source" : row.sourceLabel}
                   <ExternalLink size={14} aria-hidden="true" />
                 </a>
               ) : (

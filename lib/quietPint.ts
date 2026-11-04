@@ -27,6 +27,7 @@ import { isFeaturedHeritageSource, type HeritageFact } from "@/lib/heritageFacts
 import { eraStartYear, heritageSourceLabel, listedBadge } from "@/lib/historicFilter";
 import { PROVENANCE_LABEL } from "@/lib/provenanceLabels";
 import { venueMapUrl } from "@/lib/venueMapUrl";
+import { venuePriceEvidence, type VenuePriceEvidence } from "@/lib/venuePriceEvidence";
 
 /** The calm cohort sees a tight handful, not a wall. Between MIN and LIMIT. */
 export const QUIET_PINT_LIMIT = 5;
@@ -85,6 +86,7 @@ type QuietPintRow = {
   priceLabel: string | null;
   /** The same figure as a number, so the row can band it (lib/priceBand.ts). */
   priceGbp?: number | null;
+  priceEvidence?: VenuePriceEvidence;
   /** Deep link to the venue on the map ({@link venueMapUrl}). */
   mapHref: Route;
 };
@@ -157,6 +159,8 @@ export type BuildQuietPintInput = {
   candidates: readonly QuietPintCandidate[];
   /** Display prices in pounds. These figures do not determine candidate order. */
   priceById?: ReadonlyMap<string, number>;
+  /** Evidence for the displayed baseline amount, separate from heritage facts. */
+  priceEvidenceById?: ReadonlyMap<string, VenuePriceEvidence>;
   /** Qualified pint prices for the price tie-break, separate from display prices. */
   rankingPriceById?: ReadonlyMap<string, number>;
   now?: Date;
@@ -172,6 +176,18 @@ export function quietPintRankingPrices(
     if (price !== null) prices.set(venue.id, price);
   }
   return prices;
+}
+
+/** Preserve each displayed amount's own evidence without changing its ranking. */
+export function quietPintPriceEvidence(
+  venues: readonly (ComparablePintVenue & { id: string })[],
+): Map<string, VenuePriceEvidence> {
+  const evidence = new Map<string, VenuePriceEvidence>();
+  for (const venue of venues) {
+    const price = finitePrice(venue.cheapestPrice);
+    if (price !== null) evidence.set(venue.id, venuePriceEvidence(venue, price, false));
+  }
+  return evidence;
 }
 
 /**
@@ -228,20 +244,25 @@ export function buildQuietPint(input: BuildQuietPintInput): QuietPintModule | nu
 
   if (ranked.length < QUIET_PINT_MIN) return null;
 
-  const rows: QuietPintRow[] = ranked.slice(0, limit).map(({ candidate, best }) => ({
-    id: candidate.venueId,
-    name: candidate.name,
-    heritageLine: candidate.hook.trim(),
-    eraLabel: candidate.dateLabel ?? candidate.era,
-    gradeLabel: listedBadge(candidate.listed),
-    provenanceLabel: PROVENANCE_LABEL.sourced,
-    sourceLabel: heritageSourceLabel(best.source),
-    sourceRef: typeof best.sourceRef === "string" && best.sourceRef.trim() ? best.sourceRef : null,
-    quietLabel,
-    priceLabel: priceLabel(priceById.get(candidate.venueId)),
-    priceGbp: finitePrice(priceById.get(candidate.venueId)),
-    mapHref: venueMapUrl(candidate.venueId),
-  }));
+  const rows: QuietPintRow[] = ranked.slice(0, limit).map(({ candidate, best }) => {
+    const priceGbp = finitePrice(priceById.get(candidate.venueId));
+    const evidence = input.priceEvidenceById?.get(candidate.venueId);
+    return {
+      id: candidate.venueId,
+      name: candidate.name,
+      heritageLine: candidate.hook.trim(),
+      eraLabel: candidate.dateLabel ?? candidate.era,
+      gradeLabel: listedBadge(candidate.listed),
+      provenanceLabel: PROVENANCE_LABEL.sourced,
+      sourceLabel: heritageSourceLabel(best.source),
+      sourceRef: typeof best.sourceRef === "string" && best.sourceRef.trim() ? best.sourceRef : null,
+      quietLabel,
+      priceLabel: priceLabel(priceById.get(candidate.venueId)),
+      priceGbp,
+      priceEvidence: evidence?.priceGbp === priceGbp ? evidence : undefined,
+      mapHref: venueMapUrl(candidate.venueId),
+    };
+  });
 
   return { weekdayName, rows };
 }
