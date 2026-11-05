@@ -18,6 +18,8 @@ import {
   findVitalsRegressions,
   formatBaselineTable,
   formatRegressionTable,
+  medianProductSamples,
+  medianRouteSamples,
   mergeProductTimings,
   mergeVitalsRecords,
   productTimingKey,
@@ -46,6 +48,9 @@ const record = (over: Partial<VitalsRecord> = {}): VitalsRecord => ({
   cls: 0.01,
   ...over,
 });
+
+const invalidNumbers = [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, -1];
+const validSample = { lcpMs: 1000, inpMs: 40, cls: 0, interacted: true };
 
 describe("the regression rule", () => {
   it("takes the larger of the percentage and the floor, so a small figure is not fenced to the pixel", () => {
@@ -92,14 +97,14 @@ describe("the regression rule", () => {
     expect(findVitalsRegressions([record({ device: "desktop" })], new Map())).toEqual([]);
   });
 
-  it("never reads an unmeasured figure as a regression", () => {
+  it.each(invalidNumbers)("reports a present invalid route reading %s", (measured) => {
     const key = vitalsRecordKey("/", "mobile", "cold");
     expect(
       findVitalsRegressions(
         [record()],
-        new Map([[key, { lcpMs: Number.NaN, inpMs: Number.NaN, cls: Number.NaN }]]),
+        new Map([[key, { lcpMs: measured, inpMs: 40, cls: 0 }]]),
       ),
-    ).toEqual([]);
+    ).toEqual([{ key, metric: "lcpMs", label: "LCP (ms)", baseline: 1000, measured, allowed: 1300 }]);
   });
 
   it("fences a product timing on the same rule", () => {
@@ -111,8 +116,48 @@ describe("the regression rule", () => {
       ms: 4000,
     };
     const key = productTimingKey("map-usable-venues", "mobile");
+    expect(findProductTimingRegressions([timing], new Map())).toEqual([]);
+    expect(findProductTimingRegressions([timing], new Map([[key, 0]]))).toEqual([]);
     expect(findProductTimingRegressions([timing], new Map([[key, 5100]]))).toEqual([]);
     expect(findProductTimingRegressions([timing], new Map([[key, 5300]]))).toHaveLength(1);
+    for (const measured of invalidNumbers) {
+      expect(findProductTimingRegressions([timing], new Map([[key, measured]]))).toEqual([
+        { key, metric: "ms", label: timing.label, baseline: 4000, measured, allowed: 5200 },
+      ]);
+    }
+  });
+});
+
+describe("CWV sample aggregation", () => {
+  it.each(VITAL_METRICS)("rejects one invalid %s before the median can hide it", (metric) => {
+    const samples = [
+      { ...validSample, [metric]: Number.NaN },
+      ...Array.from({ length: 4 }, () => validSample),
+    ];
+    expect(() => medianRouteSamples(samples)).toThrow(`Route sample 1 has invalid ${metric}`);
+  });
+
+  it.each(invalidNumbers)("rejects one invalid product sample %s among valid readings", (value) => {
+    expect(() => medianProductSamples([value, 100, 100, 100, 100])).toThrow(
+      "Product sample 1 is invalid",
+    );
+  });
+
+  it("rejects a missing primary action even when other samples interacted", () => {
+    expect(() => medianRouteSamples([validSample, { ...validSample, interacted: false }])).toThrow(
+      "Route sample 2 has no primary interaction",
+    );
+  });
+
+  it("refuses empty collections", () => {
+    expect(() => medianRouteSamples([])).toThrow("No route samples were collected");
+    expect(() => medianProductSamples([])).toThrow("No product samples were collected");
+  });
+
+  it("preserves the original median and permits zero in a single-sample run", () => {
+    expect(medianRouteSamples([validSample])).toEqual({ lcpMs: 1000, inpMs: 40, cls: 0 });
+    expect(medianProductSamples([0])).toBe(0);
+    expect(medianProductSamples([400, 0, 300, 100, 200])).toBe(200);
   });
 });
 

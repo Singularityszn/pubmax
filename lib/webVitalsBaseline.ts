@@ -29,6 +29,8 @@
 
 import baselineJson from "@/perf/cwv-baseline.json";
 
+import { median } from "./performanceBudgets";
+
 /**
  * The three Core Web Vitals, and the product timings beside them.
  *
@@ -256,6 +258,40 @@ export function productTimingKey(key: string, device: VitalsDevice): string {
 /** The measured side of a comparison: what a later sweep actually read. */
 export type MeasuredVitals = Pick<VitalsRecord, "lcpMs" | "inpMs" | "cls">;
 
+export type RouteVitalsSample = MeasuredVitals & { interacted: boolean };
+
+function isValidSampleNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0;
+}
+
+/** Check each reading before a median can hide an invalid sample. */
+export function medianRouteSamples(samples: readonly RouteVitalsSample[]): MeasuredVitals {
+  if (!samples.length) throw new Error("No route samples were collected");
+  for (const [index, sample] of samples.entries()) {
+    if (sample.interacted !== true) {
+      throw new Error(`Route sample ${index + 1} has no primary interaction`);
+    }
+    for (const metric of VITAL_METRICS) {
+      if (!isValidSampleNumber(sample[metric])) {
+        throw new Error(`Route sample ${index + 1} has invalid ${metric}`);
+      }
+    }
+  }
+  return {
+    lcpMs: median(samples.map(({ lcpMs }) => lcpMs)),
+    inpMs: median(samples.map(({ inpMs }) => inpMs)),
+    cls: median(samples.map(({ cls }) => cls)),
+  };
+}
+
+export function medianProductSamples(samples: readonly number[]): number {
+  if (!samples.length) throw new Error("No product samples were collected");
+  for (const [index, value] of samples.entries()) {
+    if (!isValidSampleNumber(value)) throw new Error(`Product sample ${index + 1} is invalid`);
+  }
+  return median(samples);
+}
+
 export type VitalsRegression = {
   key: string;
   metric: string;
@@ -290,14 +326,15 @@ export function findVitalsRegressions(
     const run = measured.get(key);
     if (!run) continue;
     for (const metric of VITAL_METRICS) {
+      const value = run[metric];
       const allowed = regressionCeiling(metric, record[metric]);
-      if (!Number.isFinite(run[metric]) || run[metric] <= allowed) continue;
+      if (isValidSampleNumber(value) && value <= allowed) continue;
       regressions.push({
         key,
         metric,
         label: VITAL_METRIC_LABELS[metric],
         baseline: record[metric],
-        measured: run[metric],
+        measured: value,
         allowed,
       });
     }
@@ -313,10 +350,10 @@ export function findProductTimingRegressions(
   const regressions: VitalsRegression[] = [];
   for (const record of baseline) {
     const key = productTimingKey(record.key, record.device);
-    const run = measured.get(key);
-    if (run === undefined || !Number.isFinite(run)) continue;
+    if (!measured.has(key)) continue;
+    const run = measured.get(key)!;
     const allowed = regressionCeiling("productMs", record.ms);
-    if (run <= allowed) continue;
+    if (isValidSampleNumber(run) && run <= allowed) continue;
     regressions.push({
       key,
       metric: "ms",
