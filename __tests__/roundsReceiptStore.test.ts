@@ -65,37 +65,41 @@ const fixtureFetch: typeof fetch = async (input, init) => {
     return new Response(null, { status: 201 });
   }
   if (url.pathname.startsWith("/storage/v1/object/")) {
-    if (method === "DELETE") {
-      const { prefixes } = JSON.parse(String(init?.body)) as { prefixes: string[] };
-      for (const key of prefixes) {
-        objects.delete(key);
-        storedBytes.delete(key);
-        deleted.push(key);
-      }
-      return Response.json([]);
-    }
-    if (method === "GET") {
-      if (failedDownloads) return new Response(null, { status: 503 });
-      const bytes = storedBytes.get(url.pathname.split("/").slice(5).join("/"));
-      return bytes ? new Response(new Uint8Array(bytes), { headers: { "content-type": "image/jpeg" } }) : new Response(null, { status: 404 });
-    }
-    if (method !== "POST") throw new Error("Unexpected storage method");
-    const body = init?.body;
-    const image = body instanceof FormData
-      ? [...body.values()].find((value): value is File => value instanceof File)
-      : null;
-    let bytes = image
-      ? Buffer.from(await image.arrayBuffer())
-      : Buffer.from(Buffer.from(body as Uint8Array).toString("utf8"), "utf8");
-    if (corruptWrites) bytes = Buffer.from(bytes.toString("utf8"), "utf8");
-    storedBytes.set(url.pathname.split("/").slice(5).join("/"), bytes);
-    uploads.push(url.pathname);
-    objects.add(url.pathname.split("/").slice(5).join("/"));
-    await uploadBarrier?.();
-    return Response.json({ Key: url.pathname });
+    return fixtureStorageFetch(url, method, init);
   }
   throw new Error(`Unexpected fixture path: ${url.pathname}`);
 };
+
+async function fixtureStorageFetch(url: URL, method: string, init?: RequestInit): Promise<Response> {
+  if (method === "DELETE") {
+    const { prefixes } = JSON.parse(String(init?.body)) as { prefixes: string[] };
+    for (const key of prefixes) {
+      objects.delete(key);
+      storedBytes.delete(key);
+      deleted.push(key);
+    }
+    return Response.json([]);
+  }
+  if (method === "GET") {
+    if (failedDownloads) return new Response(null, { status: 503 });
+    const bytes = storedBytes.get(url.pathname.split("/").slice(5).join("/"));
+    return bytes ? new Response(new Uint8Array(bytes), { headers: { "content-type": "image/jpeg" } }) : new Response(null, { status: 404 });
+  }
+  if (method !== "POST") throw new Error("Unexpected storage method");
+  const body = init?.body;
+  const image = body instanceof FormData
+    ? [...body.values()].find((value): value is File => value instanceof File)
+    : null;
+  let bytes = image
+    ? Buffer.from(await image.arrayBuffer())
+    : Buffer.from(Buffer.from(body as Uint8Array).toString("utf8"), "utf8");
+  if (corruptWrites) bytes = Buffer.from(bytes.toString("utf8"), "utf8");
+  storedBytes.set(url.pathname.split("/").slice(5).join("/"), bytes);
+  uploads.push(url.pathname);
+  objects.add(url.pathname.split("/").slice(5).join("/"));
+  await uploadBarrier?.();
+  return Response.json({ Key: url.pathname });
+}
 
 beforeEach(() => {
   rows = [];
