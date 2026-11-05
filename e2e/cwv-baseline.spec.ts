@@ -36,6 +36,7 @@ import {
   clearSampleResidue,
   coolBrowser,
   exercisePrimaryAction,
+  finishMapPrimaryAction,
   installVitalsProbe,
   readVitals,
   SHIPPED_MAP_INIT_SCRIPT,
@@ -80,6 +81,7 @@ import {
 const RECORD = !!process.env.PUBMAX_CWV_RECORD;
 const SWEEP = !!process.env.PUBMAX_CWV_SWEEP;
 const RUNS = Number(process.env.PUBMAX_CWV_RUNS ?? 5);
+const MAP_INTERACTION_METHOD = "map-camera-attitude-reset-v1";
 /**
  * Which copy of the map's cold-open init script this run measures.
  *
@@ -128,7 +130,9 @@ type FailedCell =
       path: string;
       device: VitalsDevice;
       temperature: VitalsTemperature;
+      interactionMethod?: typeof MAP_INTERACTION_METHOD;
       samples: readonly RouteVitalsSample[];
+      rejectedSample?: { stage: "post-read"; sample: RouteVitalsSample };
     }
   | {
       kind: "product";
@@ -172,26 +176,38 @@ async function loadAndSettle(page: Page, routePath: string): Promise<void> {
   await page.waitForTimeout(1_000);
 }
 
+type RouteSampleResult =
+  | { ok: true; sample: RouteVitalsSample }
+  | { ok: false; sample: RouteVitalsSample; error: unknown };
+
 /** One measured load: cold or warm, then the route's own primary interaction. */
 async function sampleRoute(
   page: Page,
   routePath: string,
   temperature: VitalsTemperature,
-): Promise<RouteVitalsSample> {
+): Promise<RouteSampleResult> {
   if (temperature === "cold") {
     await coolBrowser(page);
   } else {
-    // Warm means the browser has already had this route once. The priming load
-    // is not measured; it is what fills the cache the measured load reads.
+    // The warm arm primes the route in the same context without a cold clear.
+    // The existing map-script interception disables HTTP caching in both arms.
     await clearSampleResidue(page, routePath);
     await loadAndSettle(page, routePath);
   }
-  // The previous sample's own interaction is not part of this one's cache
-  // temperature, and on /pal it changed which screen was measured.
+  // The previous sample's own interaction must not change the measured load.
+  // On /pal it changed which screen was measured.
   await clearSampleResidue(page, routePath);
   await loadAndSettle(page, routePath);
   const interacted = await exercisePrimaryAction(page, routePath);
-  return { ...(await readVitals(page)), interacted };
+  const sample = { ...(await readVitals(page)), interacted };
+  if (routePath === "/map" && interacted) {
+    try {
+      await finishMapPrimaryAction(page);
+    } catch (error) {
+      return { ok: false, sample, error };
+    }
+  }
+  return { ok: true, sample };
 }
 
 /**
@@ -240,8 +256,8 @@ async function timeAcknowledgedSave(page: Page): Promise<number> {
 
 test.describe("Core Web Vitals baseline", () => {
   test.skip(!RECORD && !SWEEP, "Spent by hand: npm run perf:cwv-sweep or perf:cwv-record.");
-  // Six routes, two temperatures, five runs, under a CPU throttle. It is one
-  // test because one page and one cache is the only way cold really means cold.
+  // Six routes, two temperatures, five runs, under a CPU throttle. One test
+  // reuses the page and applies the same clear or priming policy to each cell.
   test.setTimeout(3 * 60 * 60_000);
 
   test("records or defends every route's LCP, INP, CLS and the product timings", async ({
@@ -270,15 +286,23 @@ test.describe("Core Web Vitals baseline", () => {
         for (const temperature of ["cold", "warm"] as const) {
           const key = vitalsRecordKey(routePath, device, temperature);
           const samples: RouteVitalsSample[] = [];
+          let rejectedSample: RouteVitalsSample | undefined;
           let figures: MeasuredVitals;
           try {
             for (let run = 0; run < RUNS; run += 1) {
-              samples.push(await sampleRoute(page, routePath, temperature));
+              const result = await sampleRoute(page, routePath, temperature);
+              if (!result.ok) {
+                rejectedSample = result.sample;
+                throw result.error;
+              }
+              samples.push(result.sample);
             }
             figures = medianRouteSamples(samples);
           } catch (error) {
             await saveInvalidSamples(testInfo.outputDir, {
               kind: "route", key, path: routePath, device, temperature, samples,
+              ...(routePath === "/map" && { interactionMethod: MAP_INTERACTION_METHOD }),
+              ...(rejectedSample && { rejectedSample: { stage: "post-read", sample: rejectedSample } }),
             }, error);
             throw error;
           }
@@ -363,7 +387,11 @@ test.describe("Core Web Vitals baseline", () => {
     const artifact = path.join(testInfo.outputDir, "cwv-run.json");
     await writeFile(
       artifact,
-      `${JSON.stringify({ routes: routeRecords, productTimings: productRecords }, null, 2)}\n`,
+      `${JSON.stringify({
+        method: { routeInteractions: { "/map": MAP_INTERACTION_METHOD } },
+        routes: routeRecords,
+        productTimings: productRecords,
+      }, null, 2)}\n`,
       "utf8",
     );
 
@@ -415,18 +443,30 @@ test.describe("Core Web Vitals baseline", () => {
       return;
     }
 
-    const regressions = [
-      ...findVitalsRegressions(CWV_BASELINE.routes, measuredVitals),
+    const mapBreaches = findVitalsRegressions(
+      CWV_BASELINE.routes.filter(({ path }) => path === "/map"), measuredVitals,
+    );
+    const otherRegressions = [
+      ...findVitalsRegressions(CWV_BASELINE.routes.filter(({ path }) => path !== "/map"), measuredVitals),
       ...findProductTimingRegressions(CWV_BASELINE.productTimings, measuredTimings),
     ];
-    expect(
-      regressions,
-      regressions.length === 0
-        ? "no regression"
-        : "Slower than the recorded baseline. Fix the route, or re-record with " +
+    const failures: string[] = [];
+    if (mapBreaches.length > 0) {
+      failures.push(
+        `Map ceiling breaches under ${MAP_INTERACTION_METHOD}. ` +
+          "The sweep enforces the recorded ceilings. " +
+          "Compare performance only between runs with the same method.\n\n" +
+          formatRegressionTable(mapBreaches),
+      );
+    }
+    if (otherRegressions.length > 0) {
+      failures.push(
+        "Slower than the recorded baseline. Fix the route, or re-record with " +
           "PUBMAX_CWV_RECORD=1 and say in the same commit what got slower and why " +
-          `(docs/perf/baseline-2026-09-05.md).\n\n${formatRegressionTable(regressions)}\n`,
-    ).toEqual([]);
+          `(docs/perf/baseline-2026-09-05.md).\n\n${formatRegressionTable(otherRegressions)}`,
+      );
+    }
+    expect([...mapBreaches, ...otherRegressions], failures.join("\n\n") || "no ceiling breaches").toEqual([]);
   });
 
   test("every measured route names a primary action to interact with", async () => {
@@ -439,3 +479,25 @@ test.describe("Core Web Vitals baseline", () => {
     expect(missing, `No primary interaction for: ${missing.join(", ")}`).toEqual([]);
   });
 });
+
+for (const device of ["mobile", "desktop"] as const) {
+  test(`CWV Map camera reset and warm start on ${device}`, async ({ page }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "chromium-cwv" ||
+        process.env.PUBMAX_CWV_MAP_ACTION_CHECK !== "1" || RECORD || SWEEP,
+      "The focused Map check runs separately from the CWV sweep and recorder.",
+    );
+    await installVitalsProbe(page);
+    await serveMapInitScript(page, MAP_INIT_SCRIPT);
+    await page.goto("/plan", { waitUntil: "load" });
+    await applyVitalsDevice(page, device);
+
+    for (const temperature of ["cold", "warm"] as const) {
+      await test.step(`${device} ${temperature} ${MAP_INTERACTION_METHOD}`, async () => {
+        const result = await sampleRoute(page, "/map", temperature);
+        if (!result.ok) throw result.error;
+        medianRouteSamples([result.sample]);
+      });
+    }
+  });
+}

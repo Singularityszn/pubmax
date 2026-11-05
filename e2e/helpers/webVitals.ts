@@ -2,9 +2,14 @@ import { readFileSync } from "node:fs";
 
 import { expect, type CDPSession, type Page } from "@playwright/test";
 
+import { MOBILE_MEDIA_QUERY } from "../../lib/breakpoints";
+import { getCity } from "../../lib/cities";
+import { COMPASS_SETTLED_EPSILON, compassResetLabel, mapIsOffHouseAttitude } from "../../lib/mapCompass";
+import { MOBILE_MAP_SESSION_KEY } from "../../lib/mobileShell";
 import type { VitalsDevice } from "../../lib/webVitalsBaseline";
 
 import { COMMUNITY_SHEET_FIXTURE_MAP_PATH } from "./communitySheetFixture";
+import { mobileMapShellControl } from "./mobileMapShell";
 
 /**
  * The ONE way a Core Web Vital is measured in this suite.
@@ -207,10 +212,8 @@ export async function applyVitalsDevice(page: Page, device: VitalsDevice): Promi
 /**
  * Puts the browser back to a COLD state: no HTTP cache, no cookies, no storage.
  *
- * A warm run is then simply a later load of the same URL in the same context,
- * which is what a returning drinker gets. The two are recorded apart because
- * they answer different questions, and a table reporting only one of them can
- * be read as either.
+ * The warm arm loads the URL once before the measured load in the same
+ * context. It omits this clear. Both arms use the same map-init interception.
  */
 export async function coolBrowser(page: Page): Promise<void> {
   const session = await vitalsSession(page);
@@ -239,14 +242,11 @@ export const SHIPPED_MAP_INIT_SCRIPT = "public/map-first-paint-init.js";
  * instead: the tree always holds the shipped script, and a run that wants the
  * previous behaviour names a file to serve in its place.
  *
- * EVERY run goes through this interception, including the one measuring the
- * shipped script, and that is the whole point rather than tidiness. Playwright
- * fulfils an intercepted request from the harness rather than from the browser
- * cache, so an intercepted route is measured cold on every load while an
- * un-intercepted one is not: the first paired run read `/map` warm at 6392 ms
- * with interception against 2156 ms without it, on one build. Comparing an
- * intercepted arm against an un-intercepted one would have credited the fix
- * with the whole of that difference.
+ * Every run intercepts the script, including the run with the shipped script.
+ * Playwright routing disables HTTP caching. The warm arm differs by priming
+ * the route and omitting the cold clear. In the first paired run, the warm
+ * `/map` load was 6392 ms with interception and 2156 ms without it on one
+ * build. Keep interception the same across compared arms.
  */
 export async function serveMapInitScript(page: Page, filePath: string): Promise<void> {
   const body = readFileSync(filePath, "utf8");
@@ -289,10 +289,10 @@ export async function readVitals(page: Page): Promise<VitalsReading> {
 /**
  * What counts as the primary action on each route, and how it is exercised.
  *
- * `kind` matters because the two make different work: a click runs a handler
+ * A click and a keystroke do different work: a click runs a handler
  * and paints, while a keystroke runs a controlled input's whole render pass,
  * and the composer's field is the one place on the site where a person types
- * under time pressure.
+ * under time pressure. The map reset needs a sequence of inputs.
  *
  * A route whose primary action NAVIGATES has its navigation suppressed by the
  * harness before the tap. INP is a measure of one document's responsiveness, so
@@ -301,14 +301,12 @@ export async function readVitals(page: Page): Promise<VitalsReading> {
  * the number is about.
  */
 export type PrimaryInteraction = {
-  /** Playwright selector for the control. */
-  selector: string;
-  kind: "click" | "type";
-  /** Typed when `kind` is "type". */
-  text?: string;
   /** What the interaction is, for the recorded table. */
   label: string;
-};
+} & (
+  | { kind: "click" | "type"; selector: string; text?: string }
+  | { kind: "reset-map" }
+);
 
 export const PRIMARY_INTERACTIONS: Record<string, PrimaryInteraction> = {
   "/": {
@@ -338,9 +336,8 @@ export const PRIMARY_INTERACTIONS: Record<string, PrimaryInteraction> = {
     label: "typing the outing into describe-first",
   },
   "/map": {
-    selector: ".mapCompassBtn, .mapFitLondonBtn",
-    kind: "click",
-    label: "a map chrome control",
+    kind: "reset-map",
+    label: "turning the map, opening Layers, and resetting the camera attitude",
   },
   [COMMUNITY_SHEET_FIXTURE_MAP_PATH]: {
     selector: ".venueInspector [role='tab']",
@@ -374,16 +371,103 @@ async function suppressNavigation(page: Page): Promise<void> {
 /** How long a primary action gets to become actionable before it is a no-show. */
 const PRIMARY_ACTION_TIMEOUT_MS = 20_000;
 
+const LONDON_CAMERA = getCity("london");
+
+type CameraReading = { bearing: number; pitch: number; moving: boolean; settling: boolean };
+
+async function readSettledMapCamera(page: Page): Promise<CameraReading | null> {
+  return page.evaluate(() => {
+    const camera = (window as Window & { __pubmaxMapCamera?: { read(): CameraReading } })
+      .__pubmaxMapCamera?.read();
+    return camera && !camera.moving && !camera.settling ? camera : null;
+  });
+}
+
+function isMobileMap(page: Page): Promise<boolean> {
+  return page.evaluate((query) => matchMedia(query).matches, MOBILE_MEDIA_QUERY);
+}
+
+function mapLayersPanel(page: Page, mobile: boolean) {
+  return mobile
+    ? page.locator('.mobileSheetPortal[data-sheet-kind="layers"]')
+    : page.locator(".mapLayersControl").getByRole("dialog", { name: "Map layers", exact: true });
+}
+
+async function clickMapAttitudeReset(page: Page): Promise<void> {
+  const timeout = PRIMARY_ACTION_TIMEOUT_MS;
+  const mobile = await isMobileMap(page);
+  const panel = mapLayersPanel(page, mobile);
+  const opener = mobile
+    ? await mobileMapShellControl(page, "more", timeout)
+    : page.locator(".mapLayersControl > .mapLayersFab");
+  await expect(opener, "Map controls must start closed").toHaveAttribute("aria-expanded", "false", { timeout });
+  await expect(panel).toBeHidden({ timeout });
+
+  const canvas = page.locator(".maplibregl-canvas");
+  await expect(canvas).toBeVisible({ timeout });
+  await expect.poll(() => readSettledMapCamera(page), {
+    timeout, message: "The map camera must settle before keyboard rotation",
+  }).not.toBeNull();
+  const before = await readSettledMapCamera(page);
+  if (!before) throw new Error("Map camera moved before keyboard rotation");
+
+  await canvas.press("Shift+ArrowLeft", { timeout });
+  await expect.poll(async () => {
+    const camera = await readSettledMapCamera(page);
+    return camera !== null &&
+      Math.abs(camera.bearing - before.bearing) > COMPASS_SETTLED_EPSILON &&
+      mapIsOffHouseAttitude(camera.bearing, camera.pitch, LONDON_CAMERA.mapView);
+  }, { timeout, message: "Keyboard rotation must move the map off its designed attitude" }).toBe(true);
+
+  // A tap on server-rendered chrome can miss hydration. Each real attempt
+  // remains in the Event Timing probe, and an open panel is never toggled shut.
+  await expect(async () => {
+    if ((await opener.getAttribute("aria-expanded", { timeout: 1_000 })) === "false") {
+      await opener.click({ timeout: 1_000 });
+    }
+    await expect(panel).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout });
+
+  if (mobile) {
+    const tab = panel.getByRole("tab", { name: "Layers", exact: true });
+    await expect(tab).toHaveAttribute("aria-selected", "false", { timeout });
+    await tab.click({ timeout });
+    await expect(tab).toHaveAttribute("aria-selected", "true", { timeout });
+  }
+  const reset = panel.getByRole("button", {
+    name: mobile ? "Reset view" : compassResetLabel(LONDON_CAMERA.displayName), exact: true,
+  });
+  await reset.click({ timeout });
+}
+
+/** Confirm the reset and close the controls after the sample reads its vitals. */
+export async function finishMapPrimaryAction(page: Page): Promise<void> {
+  const timeout = PRIMARY_ACTION_TIMEOUT_MS;
+  await expect.poll(async () => {
+    const camera = await readSettledMapCamera(page);
+    return camera !== null && !mapIsOffHouseAttitude(camera.bearing, camera.pitch, LONDON_CAMERA.mapView);
+  }, { timeout, message: "Reset view must restore the designed bearing and pitch" }).toBe(true);
+
+  const mobile = await isMobileMap(page);
+  const panel = mapLayersPanel(page, mobile);
+  await panel.getByRole("button", { name: mobile ? "Close Map controls" : "Close layers", exact: true })
+    .click({ timeout });
+  await expect(panel).toBeHidden({ timeout });
+  if (mobile) {
+    await expect.poll(() => page.evaluate((key) => {
+      const session = JSON.parse(localStorage.getItem(key) ?? "null") as { openSheet?: string } | null;
+      return session?.openSheet !== "layers";
+    }, MOBILE_MAP_SESSION_KEY), { timeout, message: "The closed Layers sheet must stay closed on reload" }).toBe(true);
+  }
+}
+
 /**
  * Browser state one sample's own interaction leaves behind for the next one.
  *
- * A WARM row is about a warm CACHE, and nothing else. `/pal` writes an
- * onboarding draft the moment its primary is tapped, so the warm sample
- * inherited the cold sample's draft and measured the ONBOARDING screen while
- * the cold row measured the meeting screen - two different screens, two
- * different LCP elements, recorded as one route's cold and warm figures. The
- * residue is the harness's own, not a visitor's, so it is cleared before every
- * sample; the HTTP cache, which is what the row is about, is untouched.
+ * A warm row primes the URL before measurement in the same context. `/pal`
+ * writes an onboarding draft when its primary action is tapped. A subsequent
+ * sample would restore the onboarding screen and read a different LCP element.
+ * Clear the draft left by the previous sample without adding a cold clear.
  */
 const SAMPLE_RESIDUE_KEY_PREFIXES: Record<string, readonly string[]> = {
   // lib/pubPal.ts PAL_ONBOARDING_DRAFT_KEY, plus the anonymous owner id it is
@@ -410,33 +494,37 @@ export async function clearSampleResidue(page: Page, routePath: string): Promise
 export async function exercisePrimaryAction(page: Page, routePath: string): Promise<boolean> {
   const interaction = PRIMARY_INTERACTIONS[routePath];
   if (!interaction) return false;
-  const control = page.locator(interaction.selector).first();
-  try {
-    await control.waitFor({ state: "visible", timeout: 20_000 });
-  } catch {
-    return false;
-  }
-
-  if (interaction.kind === "type") {
-    await control.click();
-    // One key at a time with a gap between: a burst is coalesced into one
-    // interaction and would report the cheapest of the keystrokes rather than
-    // the render pass each one really costs.
-    for (const character of interaction.text ?? "quiet") {
-      await control.press(character === " " ? "Space" : character);
-      await page.waitForTimeout(120);
-    }
+  if (interaction.kind === "reset-map") {
+    await clickMapAttitudeReset(page);
   } else {
-    await suppressNavigation(page);
-    // BOUNDED, because Playwright's default action timeout here is no timeout
-    // at all: a control that is in the document and DISABLED passes the
-    // visibility wait above and then waits for ever to become actionable. One
-    // /pal cell wedged a whole record run that way. An unactionable control is
-    // reported as un-interacted, which the sweep already fails on by name.
+    const control = page.locator(interaction.selector).first();
     try {
-      await control.click({ timeout: PRIMARY_ACTION_TIMEOUT_MS });
+      await control.waitFor({ state: "visible", timeout: 20_000 });
     } catch {
       return false;
+    }
+
+    if (interaction.kind === "type") {
+      await control.click();
+      // One key at a time with a gap between: a burst is coalesced into one
+      // interaction and would report the cheapest of the keystrokes rather than
+      // the render pass each one really costs.
+      for (const character of interaction.text ?? "quiet") {
+        await control.press(character === " " ? "Space" : character);
+        await page.waitForTimeout(120);
+      }
+    } else {
+      await suppressNavigation(page);
+      // BOUNDED, because Playwright's default action timeout here is no timeout
+      // at all: a control that is in the document and DISABLED passes the
+      // visibility wait above and then waits for ever to become actionable. One
+      // /pal cell wedged a whole record run that way. An unactionable control is
+      // reported as un-interacted, which the sweep already fails on by name.
+      try {
+        await control.click({ timeout: PRIMARY_ACTION_TIMEOUT_MS });
+      } catch {
+        return false;
+      }
     }
   }
 
