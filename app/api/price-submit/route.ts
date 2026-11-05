@@ -51,6 +51,7 @@ import { jsonNoStore } from "@/lib/apiResponses";
 import { deriveCommunityPriceActor } from "@/lib/communityPriceActor";
 import {
   NO_ALCOHOL_DRINK_CATEGORIES,
+  submitCategoryLabel,
   validateCommunityPrice,
 } from "@/lib/communityPrice";
 import { resolveContributionIdentity } from "@/lib/contributionIdentity.server";
@@ -315,7 +316,6 @@ export async function POST(request: Request): Promise<Response> {
   // The bill behind this figure, handed to the background bill check once the
   // rows it names exist (captain 5 Nov 2026). Read after the answer.
   let pairedDropId: string | undefined;
-  let pairedFresh = !pairsPintDrop;
   if (pairsPintDrop) {
     const pintDrop = await writeOneTapPintDrop(
       {
@@ -339,7 +339,6 @@ export async function POST(request: Request): Promise<Response> {
       });
     } else {
       pairedDropId = pintDrop.drop.id;
-      pairedFresh = !pintDrop.duplicate;
       void qualifyCheapPintForOwnerActor(contributor.actor);
       // The paired drop is a real priced observation, so it can complete a
       // confirmation exactly as a Pint Drop posted through /api/pint-drops can.
@@ -361,16 +360,15 @@ export async function POST(request: Request): Promise<Response> {
     }
   }
 
-  // A repeated tap answers with the rows the first tap wrote, and that tap's
-  // bill is already being read.
-  const billCheck = pairedFresh
-    ? scheduleSubmitBillCheck(pintDropPhotos.receipt, {
-        venueId: submission.venueId,
-        priceGbp: submission.priceGbp,
-        communityPriceId: price.id,
-        pintDropId: pairedDropId,
-      })
-    : null;
+  const billCheck = scheduleSubmitBillCheck(pintDropPhotos.receipt, {
+    venueId: submission.venueId,
+    priceGbp: submission.priceGbp,
+    drink: submitCategoryLabel(submission.drinkCategory),
+    ...(pairsPintDrop ? { measure } : {}),
+    communityPriceId: price.id,
+    communityPriceSubmittedAt: price.submittedAt,
+    pintDropId: pairedDropId,
+  });
 
   const trust = await syncTrustAfterPriceWrite(
     submission.venueId,
@@ -431,7 +429,7 @@ export async function POST(request: Request): Promise<Response> {
  */
 function scheduleSubmitBillCheck(
   receipt: File | null,
-  subject: { venueId: string; priceGbp: number; communityPriceId?: string; pintDropId?: string },
+  subject: { venueId: string; priceGbp: number; drink: string; measure?: DrinkMeasure; communityPriceId?: string; communityPriceSubmittedAt?: number; pintDropId?: string },
 ): "reading" | null {
   if (!receipt || !billReaderKeyed()) return null;
   if (!subject.communityPriceId && !subject.pintDropId) return null;
@@ -439,7 +437,9 @@ function scheduleSubmitBillCheck(
     photo: receipt,
     venueId: subject.venueId,
     priceGbp: subject.priceGbp,
-    ...(subject.communityPriceId ? { communityPriceId: subject.communityPriceId } : {}),
+    drink: subject.drink,
+    measure: subject.measure,
+    ...(subject.communityPriceId ? { communityPriceId: subject.communityPriceId, communityPriceSubmittedAt: subject.communityPriceSubmittedAt } : {}),
     ...(subject.pintDropId ? { pintDropId: subject.pintDropId } : {}),
   });
   return "reading";
@@ -542,13 +542,13 @@ async function nonPintPriceResponse(input: {
     }
     return publicApiError(drop.message, "UNAVAILABLE", 503, { retryable: true });
   }
-  const billCheck = drop.duplicate
-    ? null
-    : scheduleSubmitBillCheck(input.photos.receipt, {
-        venueId: input.venueId,
-        priceGbp: input.priceGbp,
-        pintDropId: drop.drop.id,
-      });
+  const billCheck = scheduleSubmitBillCheck(input.photos.receipt, {
+    venueId: input.venueId,
+    priceGbp: input.priceGbp,
+    drink: drop.drop.drink,
+    measure: input.measure,
+    pintDropId: drop.drop.id,
+  });
   return jsonNoStore(
     {
       ok: true,

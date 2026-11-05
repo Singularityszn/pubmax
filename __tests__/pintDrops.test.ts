@@ -708,7 +708,7 @@ describe("POST /api/pint-drops (create)", () => {
     expect(body.billCheck).toBe("reading");
     expect(billChecks.schedule).toHaveBeenCalledTimes(1);
     const [run] = billChecks.schedule.mock.calls[0] as [Record<string, unknown>];
-    expect(run).toMatchObject({ venueId: VENUE, priceGbp: 4.5, pintDropId: body.drop.id });
+    expect(run).toMatchObject({ venueId: VENUE, priceGbp: 4.5, drink: body.drop.drink, measure: body.drop.measure, pintDropId: body.drop.id });
     expect(run.photo).toBeInstanceOf(File);
   });
 

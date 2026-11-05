@@ -11,7 +11,6 @@ import {
   judgeBill,
   parseBillReadAnswer,
 } from "@/lib/billCheck";
-import { priceEvidenceForBillCheck } from "@/lib/pintDropReceipt";
 
 const bill = (lines: unknown, over: Record<string, unknown> = {}) => ({
   venue_name: "The Blackfriar",
@@ -94,19 +93,19 @@ describe("judgeBill", () => {
   });
 
   it("answers match when a line holds the submitted price to the penny, keeping only that line", () => {
-    expect(judgeBill(read([["Crisps", 1.5], ["Guinness", 6.2], ["Lager", 5.8]]), 6.2)).toEqual({
+    expect(judgeBill(read([["Crisps", 1.5], ["Guinness", 6.2], ["Lager", 5.8]]), 6.2, "Guinness")).toEqual({
       result: "match",
       lines: [{ name: "Guinness", priceGbp: 6.2 }],
     });
   });
 
   it("reads pounds and pence without a floating point miss", () => {
-    expect(judgeBill(read([["Stout", 4.35]]), 4.35).result).toBe("match");
-    expect(judgeBill(read([["Stout", 0.1 + 0.2]]), 0.3).result).toBe("match");
+    expect(judgeBill(read([["Stout", 4.35]]), 4.35, "Stout").result).toBe("match");
+    expect(judgeBill(read([["Stout", 0.1 + 0.2]]), 0.3, "Stout").result).toBe("match");
   });
 
   it("answers mismatch when the bill is readable and no line holds the price, keeping every line", () => {
-    expect(judgeBill(read([["Guinness", 6.4], ["Crisps", 1.5]]), 6.2)).toEqual({
+    expect(judgeBill(read([["Guinness", 6.4], ["Crisps", 1.5]]), 6.2, "Guinness")).toEqual({
       result: "mismatch",
       lines: [
         { name: "Guinness", priceGbp: 6.4 },
@@ -116,13 +115,27 @@ describe("judgeBill", () => {
   });
 
   it("answers unreadable, and keeps nothing, when no priced line could be read", () => {
-    expect(judgeBill(read([]), 6.2)).toEqual({ result: "unreadable", lines: [] });
+    expect(judgeBill(read([]), 6.2, "Guinness")).toEqual({ result: "unreadable", lines: [] });
   });
 
   it("keeps one copy of a matching line printed twice", () => {
-    expect(judgeBill(read([["Guinness", 6.2], ["Guinness", 6.2]]), 6.2).lines).toEqual([
+    expect(judgeBill(read([["Guinness", 6.2], ["Guinness", 6.2]]), 6.2, "Guinness").lines).toEqual([
       { name: "Guinness", priceGbp: 6.2 },
     ]);
+  });
+
+  it("does not approve Guinness because chips share the submitted amount", () => {
+    expect(judgeBill(read([["Guinness", 6.2], ["Chips", 5.2]]), 5.2, "Guinness").result).toBe("mismatch");
+    expect(judgeBill(read([["Chips", 5.2]]), 5.2, "Guinness").result).toBe("unreadable");
+  });
+
+  it("uses a serving only when the bill states it", () => {
+    expect(judgeBill(read([["Guinness half pint", 5.2]]), 5.2, "Guinness", "pint").result).toBe("mismatch");
+    expect(judgeBill(read([["Pint Guinness", 5.2]]), 5.2, "Guinness", "half").result).toBe("mismatch");
+    expect(judgeBill(read([["Guinness half pint", 5.2]]), 5.2, "Guinness", "half").result).toBe("match");
+    expect(judgeBill(read([["Guinness", 5.2]]), 5.2, "Guinness", "half").result).toBe("match");
+    expect(judgeBill(read([["Merlot 175ml", 5.2]]), 5.2, "Merlot", "250ml").result).toBe("mismatch");
+    expect(judgeBill(read([["Merlot 175 ml", 5.2]]), 5.2, "Merlot", "175ml").result).toBe("match");
   });
 });
 
@@ -132,11 +145,5 @@ describe("the bill check vocabulary", () => {
     expect(cleanBillCheckResult("match")).toBe("match");
     expect(cleanBillCheckResult("matched")).toBeUndefined();
     expect(cleanBillCheckResult(null)).toBeUndefined();
-  });
-
-  it("grants receipt evidence on a match and nothing else", () => {
-    expect(priceEvidenceForBillCheck("match")).toBe("receipt");
-    expect(priceEvidenceForBillCheck("mismatch")).toBe("unchecked");
-    expect(priceEvidenceForBillCheck("unreadable")).toBe("unchecked");
   });
 });

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const durable = vi.hoisted(() => ({
   changed: true,
   selects: [] as string[],
+  filters: [] as Array<[string, unknown]>,
 }));
 
 vi.mock("@/lib/supabase", () => {
@@ -13,11 +14,17 @@ vi.mock("@/lib/supabase", () => {
       durable.selects.push(columns);
       return query;
     },
-    eq: () => query,
-    is: async () => ({
-      data: durable.changed ? [signalRow] : [],
-      error: null,
-    }),
+    eq: (column: string, value: unknown) => {
+      durable.filters.push([column, value]);
+      return query;
+    },
+    is: (column: string, value: unknown) => {
+      if (column !== "hidden_at") durable.filters.push([column, value]);
+      return query;
+    },
+    then: (resolve: (value: unknown) => unknown) => Promise.resolve({
+      data: durable.changed ? [signalRow] : [], error: null,
+    }).then(resolve),
     not: async () => ({
       data: durable.changed ? [signalRow] : [],
       error: null,
@@ -36,6 +43,26 @@ describe("durable community observation moderation", () => {
   beforeEach(() => {
     durable.changed = true;
     durable.selects = [];
+    durable.filters = [];
+  });
+
+  it("limits a bill moderation write to its submitted date and price", async () => {
+    await moderateCommunityPriceWithState("price-1", true, "Bill mismatch", { submittedAt: 1_793_900_000_000, priceGbp: 4.5 });
+    expect(durable.filters).toEqual([
+      ["id", "price-1"],
+      ["submitted_at", new Date(1_793_900_000_000).toISOString()],
+      ["price_pennies", 450],
+      ["round_spend_id", null],
+      ["round_line_index", null],
+    ]);
+  });
+
+  it("limits a Round bill hide to the promoted source line", async () => {
+    await moderateCommunityPriceWithState("price-1", true, "Bill mismatch", {
+      submittedAt: 1_793_900_000_000, priceGbp: 4.5, roundSource: { spendId: "spend-1", lineIndex: 1 },
+    });
+    expect(durable.filters).toContainEqual(["round_spend_id", "spend-1"]);
+    expect(durable.filters).toContainEqual(["round_line_index", 1]);
   });
 
   it("returns the Venue signal kind when moderation changes the row", async () => {

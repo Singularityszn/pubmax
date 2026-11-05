@@ -67,7 +67,8 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
       },
       eq(col: string, value: unknown) {
         state.described.push(`${col}=${String(value)}`);
-        state.filters.push((r) => r[col] === value);
+        state.filters.push((r) => col === "community_price_round_source"
+          ? JSON.stringify(r[col]) === value : r[col] === value);
         return q;
       },
       is(col: string, value: unknown) {
@@ -107,7 +108,11 @@ import {
   supabaseBillCheckStore,
 } from "@/lib/billCheckStore";
 
+const BILL_HASH = "a".repeat(64);
+const SUBMITTED_AT = Date.parse("2026-11-05T19:30:00.000Z");
+
 const MATCH = {
+  billHash: BILL_HASH,
   pintDropId: "drop-1",
   venueId: "venue-1vle947",
   priceGbp: 6.2,
@@ -116,6 +121,8 @@ const MATCH = {
 };
 
 const MISMATCH = {
+  billHash: BILL_HASH,
+  communityPriceSubmittedAt: SUBMITTED_AT,
   pintDropId: "drop-2",
   communityPriceId: "price-2",
   venueId: "venue-1vle947",
@@ -123,6 +130,44 @@ const MISMATCH = {
   result: "mismatch" as const,
   lines: [{ name: "Guinness", priceGbp: 6.2 }],
 };
+
+describe.each([
+  ["memory", memoryBillCheckStore],
+  ["Supabase", supabaseBillCheckStore],
+])("%s observation identity", (_name, store) => {
+  beforeEach(() => {
+    __resetBillChecks();
+    db.rows.length = 0;
+    db.schemaMiss = false;
+    db.failWrites = false;
+    db.uniqueViolation = false;
+  });
+
+  it("checks later corrections independently of the surviving community-price ID", async () => {
+    await store.record(MISMATCH);
+    const correction = { ...MISMATCH, communityPriceSubmittedAt: SUBMITTED_AT + 1000, priceGbp: 6.2, result: "match" as const };
+    expect(await store.hasChecked(correction)).toBe(false);
+    await store.record(correction);
+    expect(await store.hasChecked(correction)).toBe(true);
+    expect(await store.listMismatchesForReview()).toHaveLength(1);
+  });
+
+  it("checks separate Round lines even when their price and timestamp are equal", async () => {
+    const first = { ...MISMATCH, roundSource: { spendId: "spend-1", lineIndex: 0 } };
+    const second = { ...MISMATCH, roundSource: { spendId: "spend-1", lineIndex: 1 } };
+    await store.record(first);
+    expect(await store.hasChecked(second)).toBe(false);
+    await store.record(second);
+    expect(await store.hasChecked(second)).toBe(true);
+  });
+
+  it("does not confuse an unbilled drop or a different bill with a stored bill check", async () => {
+    expect(await store.hasChecked(MATCH)).toBe(false);
+    await store.record(MATCH);
+    expect(await store.hasChecked(MATCH)).toBe(true);
+    expect(await store.hasChecked({ ...MATCH, billHash: "b".repeat(64) })).toBe(false);
+  });
+});
 
 describe("the memory bill check store", () => {
   beforeEach(() => __resetBillChecks());
@@ -177,6 +222,9 @@ describe("the Supabase bill check store", () => {
       {
         pint_drop_id: "drop-2",
         community_price_id: "price-2",
+        community_price_submitted_at: "2026-11-05T19:30:00.000Z",
+        bill_hash: BILL_HASH,
+        community_price_round_source: null,
         venue_id: "venue-1vle947",
         price_pennies: 450,
         result: "mismatch",

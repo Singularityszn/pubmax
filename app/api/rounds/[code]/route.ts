@@ -19,6 +19,7 @@
 // anyone who knows it can read + (as a member) build the Round. Writes are
 // rate-limited per handle + IP.
 
+import { billReaderKeyed, scheduleBillCheck } from "@/lib/billCheck.server";
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { boundedFormData } from "@/lib/boundedRequest.server";
@@ -182,6 +183,7 @@ async function promoteReadyRoundPrices(input: {
   stored: RoundSpendDTO;
   contributor: ResolvedContributor;
   request: Request;
+  receipt: File | null;
 }): Promise<Response> {
   const ready = input.stored.items
     .map((item, index) => ({ item, index }))
@@ -206,6 +208,17 @@ async function promoteReadyRoundPrices(input: {
       typeof write.sourceBecameOwner === "boolean"
     ) {
       completed += 1;
+      if (write.sourceBecameOwner && input.receipt && billReaderKeyed()) {
+        scheduleBillCheck({
+          photo: input.receipt,
+          venueId: input.stored.venueId,
+          priceGbp: item.pricePence / 100,
+          drink: item.drinkName,
+          communityPriceId: write.price.id,
+          communityPriceSubmittedAt: write.price.submittedAt,
+          roundSource: { spendId: input.stored.id, lineIndex: index },
+        });
+      }
     }
   }
 
@@ -338,6 +351,7 @@ async function recordSpend(
     stored: prepared.stored,
     contributor,
     request,
+    receipt,
   });
 }
 

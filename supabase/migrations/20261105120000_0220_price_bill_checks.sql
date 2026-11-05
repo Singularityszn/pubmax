@@ -26,7 +26,7 @@
 -- here, and the CHECKs below bound the shape.
 --
 -- WHAT IT NAMES. A Pint Drop, a community price, or both when the one-tap door
--- paired them. A bill is read once, so each price has at most one row.
+-- paired them. Each observation and bill pair has at most one row.
 --
 -- NEVER DELETED BY THE CHECK OR THE QUEUE. A moderator REVIEWS a mismatch by
 -- stamping `reviewed_at` and `review_decision` (`kept` or `hidden`); hiding
@@ -46,6 +46,9 @@ create table if not exists public.price_bill_checks (
   id                  uuid primary key default gen_random_uuid(),
   pint_drop_id        uuid references public.pint_drops (id) on delete cascade,
   community_price_id  uuid references public.community_prices (id) on delete cascade,
+  community_price_submitted_at timestamptz,
+  bill_hash           text not null,
+  community_price_round_source jsonb,
   venue_id            text not null,
   price_pennies       integer not null,
   result              text not null,
@@ -55,6 +58,10 @@ create table if not exists public.price_bill_checks (
   review_decision     text,
   constraint price_bill_checks_subject_check
     check (pint_drop_id is not null or community_price_id is not null),
+  constraint price_bill_checks_observation_check
+    check ((community_price_id is null) = (community_price_submitted_at is null)),
+  constraint price_bill_checks_bill_hash_check
+    check (bill_hash ~ '^[a-f0-9]{64}$'),
   constraint price_bill_checks_venue_id_check
     check (length(venue_id) between 1 and 120),
   constraint price_bill_checks_price_check
@@ -79,13 +86,13 @@ create table if not exists public.price_bill_checks (
     check (reviewed_at is null or result = 'mismatch')
 );
 
--- A bill is read once: one row for each price it names.
+-- A bill is read once for each observation it names.
 create unique index if not exists price_bill_checks_pint_drop_idx
-  on public.price_bill_checks (pint_drop_id)
-  where pint_drop_id is not null;
+  on public.price_bill_checks (pint_drop_id, bill_hash)
+  where pint_drop_id is not null and community_price_id is null;
 
 create unique index if not exists price_bill_checks_community_price_idx
-  on public.price_bill_checks (community_price_id)
+  on public.price_bill_checks (community_price_id, community_price_submitted_at, price_pennies, (coalesce(community_price_round_source, 'null'::jsonb)), bill_hash)
   where community_price_id is not null;
 
 -- The moderation queue: unreviewed mismatches, newest first.

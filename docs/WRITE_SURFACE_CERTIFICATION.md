@@ -1867,7 +1867,7 @@ A bill that does not show the submitted price is a `mismatch`, and this route is
 `POST` takes `{ id, decision }`, where `decision` is `kept` or `hidden`. Any other decision answers 400, and there is no `delete`.
 The caller must pass `isModerator` (`lib/adminAuth.ts`), the same gate as every other queue. Writes are limited to 60 a minute for each address.
 `kept` stamps the check and leaves the price as it is, still `unchecked`.
-`hidden` hides each price the check names through that lane's own moderator door: the Pint Drop's `moderate`, and the community price's `moderateWithState` with its trust reconciliation. The check is stamped only after every hide lands, so a failed hide answers 503 and the row stays in the queue.
+`hidden` hides each price the check names through that lane's own moderator door: the Pint Drop's `moderate`, and the community price's `moderateWithState` with its trust reconciliation. A conditional update claims the pending check before either decision changes a price. A losing request answers 404 and changes nothing. A failed hide answers 503 and keeps the claimed decision. A community hide also checks the submitted date, price and Round source line, so a correction survives an older bill review.
 A check that is not an unreviewed mismatch, or an unknown id, answers 404.
 Nothing is deleted: the check row (`public.price_bill_checks`, migration 0220, service role only), the drop and the community price all survive either decision.
 `__tests__/billChecksAdminRoute.test.ts` exercises these responses through the real entry point.

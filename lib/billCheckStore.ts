@@ -7,8 +7,8 @@
 // pub and the submitted price. Nothing else about the bill is kept: no photo
 // bytes, no venue name or date read off it, no card digits, no name.
 //
-// A row names the price it checked: a Pint Drop, a community price, or both
-// when the one-tap door paired them. A second check of one bill is refused,
+// A row names the observation it checked: a Pint Drop, a community submission, or both
+// when the one-tap door paired them. A second check of the same bill and observation is refused,
 // because a bill is read once.
 //
 // THE MODERATION QUEUE is the unreviewed mismatches, newest first. A moderator
@@ -31,6 +31,7 @@ import {
   type BillCheckResult,
   type BillLine,
 } from "@/lib/billCheck";
+import type { RoundPriceSource } from "@/lib/rounds";
 import {
   admin,
   createDualBackendStore,
@@ -56,11 +57,16 @@ export function isBillCheckReviewDecision(value: unknown): value is BillCheckRev
 type BillCheckInput = {
   pintDropId?: string;
   communityPriceId?: string;
+  communityPriceSubmittedAt?: number;
+  roundSource?: RoundPriceSource;
+  billHash: string;
   venueId: string;
   priceGbp: number;
   result: BillCheckResult;
   lines: BillLine[];
 };
+
+type BillCheckSubject = Pick<BillCheckInput, "pintDropId" | "communityPriceId" | "communityPriceSubmittedAt" | "billHash" | "priceGbp" | "roundSource">;
 
 export type BillCheckRecord = BillCheckInput & {
   id: string;
@@ -80,20 +86,27 @@ class BillAlreadyCheckedError extends Error {
 export type BillCheckStore = {
   /** Store one check. THROWS on a hard failure and on a second check of one bill. */
   record(input: BillCheckInput): Promise<BillCheckRecord>;
+  hasChecked(input: BillCheckSubject): Promise<boolean>;
   /** Unreviewed mismatches, newest first. Fail-soft ([]). */
   listMismatchesForReview(): Promise<BillCheckRecord[]>;
   /** Stamp one unreviewed mismatch. Null for an unknown id, a reviewed row or any other result. */
   review(id: string, decision: BillCheckReviewDecision, now?: number): Promise<BillCheckRecord | null>;
 };
 
-function subjectKeys(input: Pick<BillCheckInput, "pintDropId" | "communityPriceId">): string[] {
-  return [
-    ...(input.pintDropId ? [`drop:${input.pintDropId}`] : []),
-    ...(input.communityPriceId ? [`price:${input.communityPriceId}`] : []),
-  ];
+function subjectKey(input: BillCheckSubject): string {
+  return input.communityPriceId
+    ? `price:${input.communityPriceId}:${input.communityPriceSubmittedAt}:${Math.round(input.priceGbp * 100)}:${input.roundSource?.spendId ?? ""}:${input.roundSource?.lineIndex ?? ""}:${input.billHash}`
+    : `drop:${input.pintDropId}:${input.billHash}`;
 }
 
-function assertSubject(input: BillCheckInput): void {
+function assertSubject(input: BillCheckSubject): void {
+  if (!/^[a-f0-9]{64}$/.test(input.billHash)) throw new Error("A bill check needs its photo hash.");
+  if (input.communityPriceId && !Number.isFinite(input.communityPriceSubmittedAt)) {
+    throw new Error("A community bill check needs its submission date.");
+  }
+  if (!input.communityPriceId && (input.communityPriceSubmittedAt !== undefined || input.roundSource)) {
+    throw new Error("A community observation needs its price row.");
+  }
   if (!input.pintDropId && !input.communityPriceId) {
     throw new Error("A bill check names the price it checked.");
   }
@@ -113,11 +126,14 @@ const checks = new Map<string, BillCheckRecord>();
 export const memoryBillCheckStore: BillCheckStore = {
   async record(input) {
     assertSubject(input);
-    const taken = new Set([...checks.values()].flatMap(subjectKeys));
-    if (subjectKeys(input).some((key) => taken.has(key))) throw new BillAlreadyCheckedError();
+    const taken = new Set([...checks.values()].map(subjectKey));
+    if (taken.has(subjectKey(input))) throw new BillAlreadyCheckedError();
     const stored: BillCheckRecord = {
       ...(input.pintDropId ? { pintDropId: input.pintDropId } : {}),
       ...(input.communityPriceId ? { communityPriceId: input.communityPriceId } : {}),
+      ...(input.communityPriceSubmittedAt !== undefined ? { communityPriceSubmittedAt: input.communityPriceSubmittedAt } : {}),
+      ...(input.roundSource ? { roundSource: { ...input.roundSource } } : {}),
+      billHash: input.billHash,
       venueId: input.venueId,
       priceGbp: input.priceGbp,
       result: input.result,
@@ -127,6 +143,12 @@ export const memoryBillCheckStore: BillCheckStore = {
     };
     checks.set(stored.id, stored);
     return { ...stored, lines: [...stored.lines] };
+  },
+
+  async hasChecked(input) {
+    assertSubject(input);
+    const key = subjectKey(input);
+    return [...checks.values()].some((check) => subjectKey(check) === key);
   },
 
   async listMismatchesForReview() {
@@ -180,6 +202,16 @@ function fromRow(row: Record<string, unknown>): BillCheckRecord | null {
   const pennies = row.price_pennies;
   const pintDropId = readText(row.pint_drop_id);
   const communityPriceId = readText(row.community_price_id);
+  const submittedAt = readText(row.community_price_submitted_at);
+  const communityPriceSubmittedAt = submittedAt ? Date.parse(submittedAt) : undefined;
+  const source = row.community_price_round_source as Record<string, unknown> | null;
+  let roundSource: RoundPriceSource | undefined;
+  if (source) {
+    if (typeof source.spendId !== "string" || !Number.isInteger(source.lineIndex) || Number(source.lineIndex) < 0) return null;
+    roundSource = { spendId: source.spendId, lineIndex: Number(source.lineIndex) };
+  }
+  const billHash = readText(row.bill_hash);
+  if (!billHash || !/^[a-f0-9]{64}$/.test(billHash) || (communityPriceId && !Number.isFinite(communityPriceSubmittedAt))) return null;
   if (!id || !venueId || !checkedAt || !result || !lines) return null;
   if (typeof pennies !== "number" || !Number.isInteger(pennies) || pennies <= 0) return null;
   if (!pintDropId && !communityPriceId) return null;
@@ -189,6 +221,9 @@ function fromRow(row: Record<string, unknown>): BillCheckRecord | null {
     id,
     ...(pintDropId ? { pintDropId } : {}),
     ...(communityPriceId ? { communityPriceId } : {}),
+    ...(communityPriceSubmittedAt !== undefined ? { communityPriceSubmittedAt } : {}),
+    ...(roundSource ? { roundSource } : {}),
+    billHash,
     venueId,
     priceGbp: pennies / 100,
     result,
@@ -203,6 +238,10 @@ function toRow(input: BillCheckInput) {
   return {
     pint_drop_id: input.pintDropId ?? null,
     community_price_id: input.communityPriceId ?? null,
+    community_price_submitted_at: input.communityPriceSubmittedAt !== undefined
+      ? new Date(input.communityPriceSubmittedAt).toISOString() : null,
+    bill_hash: input.billHash,
+    community_price_round_source: input.roundSource ?? null,
     venue_id: input.venueId,
     price_pennies: Math.round(input.priceGbp * 100),
     result: input.result,
@@ -231,6 +270,28 @@ export const supabaseBillCheckStore: BillCheckStore = {
         const stored = fromRow(data as Record<string, unknown>);
         if (!stored) throw new Error("bill check insert returned an unreadable row");
         return stored;
+      },
+    });
+  },
+
+  async hasChecked(input) {
+    assertSubject(input);
+    return guard({
+      context: "has-checked",
+      onSchemaMiss: () => memoryBillCheckStore.hasChecked(input),
+      run: async () => {
+        let query = admin().from(TABLE).select("id").eq("bill_hash", input.billHash);
+        query = input.communityPriceId
+          ? query.eq("community_price_id", input.communityPriceId)
+            .eq("community_price_submitted_at", new Date(input.communityPriceSubmittedAt!).toISOString())
+            .eq("price_pennies", Math.round(input.priceGbp * 100))
+          : query.eq("pint_drop_id", input.pintDropId!).is("community_price_id", null);
+        query = input.roundSource
+          ? query.eq("community_price_round_source", JSON.stringify(input.roundSource))
+          : query.is("community_price_round_source", null);
+        const { data, error } = await query.limit(1);
+        if (error) throw new Error(error.message);
+        return Array.isArray(data) && data.length > 0;
       },
     });
   },

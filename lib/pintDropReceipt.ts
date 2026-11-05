@@ -15,8 +15,7 @@
 // So at that door the bill is no longer the price of entry. It is EVIDENCE,
 // and this module owns what the evidence is called (`PRICE_EVIDENCE`, the
 // closed set migration 0218 mirrors in a CHECK), how a write earns it
-// (`priceEvidenceFor`, asked by the store's create path, and
-// `priceEvidenceForBillCheck`, asked when the bill has been read) and what we
+// (`priceEvidenceFor`, asked by the store's create path), and what we
 // say about both.
 //
 // Captain 5 Nov 2026: a photo attached is not a bill read. Every priced write
@@ -52,7 +51,6 @@
 // lib/pintDropsStore.ts). This is the browser's half of the same rule, quoted
 // from the same constants rather than typed again beside a picker.
 
-import type { BillCheckResult } from "@/lib/billCheck";
 import { UPLOAD_PHOTO_MAX_BYTES, UPLOAD_PHOTO_MAX_LABEL } from "@/lib/uploadBodyLimit";
 
 /** The three the upload path can strip, normalise and serve. */
@@ -119,20 +117,11 @@ export function cleanPriceEvidence(value: unknown): PriceEvidence | undefined {
  * THE EVIDENCE A WRITE LANDS WITH, asked by the store's create path. A priced
  * write is `unchecked` whatever came with it, and a body field cannot change
  * that: a photo attached is not a bill read. `receipt` is earned later, and
- * only through `priceEvidenceForBillCheck`.
+ * only after the bill check records a match.
  */
 export function priceEvidenceFor(priceGbp: number | null | undefined): PriceEvidence | undefined {
   if (typeof priceGbp !== "number" || !Number.isFinite(priceGbp)) return undefined;
   return "unchecked";
-}
-
-/**
- * THE ONE PLACE A PRICE EARNS `receipt`: a bill check that read the bill and
- * found the submitted price on it. A mismatch and an unreadable bill both stay
- * `unchecked`, so a bill nobody could read is treated as no bill at all.
- */
-export function priceEvidenceForBillCheck(result: BillCheckResult): PriceEvidence {
-  return result === "match" ? "receipt" : "unchecked";
 }
 
 /**

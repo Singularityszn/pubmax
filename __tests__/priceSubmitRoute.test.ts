@@ -914,6 +914,9 @@ describe("POST /api/price-submit hands its bill to the bill check", () => {
       expect.objectContaining({
         venueId: "venue-xjf3n0",
         priceGbp: 5.5,
+        drink: "Beer",
+        measure: "pint",
+        communityPriceSubmittedAt: expect.any(Number),
         communityPriceId: data.price?.id,
         pintDropId: drop?.id,
         photo: expect.any(File),
@@ -928,7 +931,7 @@ describe("POST /api/price-submit hands its bill to the bill check", () => {
     expect(res.status).toBe(201);
     expect(((await res.json()) as { billCheck?: string }).billCheck).toBe("reading");
     const [run] = scheduled();
-    expect(run).toMatchObject({ priceGbp: 2.6, pintDropId: listVisiblePintDrops("venue-xjf3n0")[0]?.id });
+    expect(run).toMatchObject({ priceGbp: 2.6, drink: "Beer", measure: "half", pintDropId: listVisiblePintDrops("venue-xjf3n0")[0]?.id });
     expect(run).not.toHaveProperty("communityPriceId");
   });
 
@@ -957,12 +960,28 @@ describe("POST /api/price-submit hands its bill to the bill check", () => {
     expect(billChecks.schedule).not.toHaveBeenCalled();
   });
 
-  it("reads a repeated tap's bill once", async () => {
+  it.each(["pint", "half"])("checks a new bill for a duplicate %s drop that arrived without a bill", async (measure) => {
+    const { POST: postDrop } = await import("@/app/api/pint-drops/route");
+    const form = new FormData();
+    form.set("venueId", "venue-xjf3n0");
+    form.set("drink", "Beer");
+    form.set("handle", "default_contributor");
+    form.set("measure", measure);
+    form.set("priceGbp", "5.50");
+    const prior = await postDrop(new Request("http://localhost/api/pint-drops", { method: "POST", body: form }));
+    expect(prior.status).toBe(201);
+    billChecks.schedule.mockClear();
+    expect((await POST(post({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 5.5, measure }))).status).toBe(201);
+    expect(billChecks.schedule).toHaveBeenCalledTimes(1);
+    expect(scheduled()[0]).toMatchObject({ drink: "Beer", measure, photo: expect.any(File) });
+  });
+
+  it("submits repeated bills to the checker instead of assuming the duplicate drop was checked", async () => {
     const first = await POST(post({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 5.5 }));
     const again = await POST(post({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 5.5 }));
     expect(first.status).toBe(201);
     expect(again.status).toBe(201);
-    expect(billChecks.schedule).toHaveBeenCalledTimes(1);
+    expect(billChecks.schedule).toHaveBeenCalledTimes(2);
   });
 });
 

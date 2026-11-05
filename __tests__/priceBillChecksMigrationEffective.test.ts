@@ -74,12 +74,15 @@ function insertCheck(fields: {
   lineCount?: number;
   pennies?: number;
   linesSql?: string;
+  submittedAt?: string;
+  billHash?: string;
+  roundLine?: number;
 }): string {
   const drop = fields.drop === undefined ? DROP_LATER : fields.drop;
   const price = fields.price ?? null;
   return asServiceRole(`insert into public.price_bill_checks
-    (pint_drop_id, community_price_id, venue_id, price_pennies, result, lines)
-    values (${drop ? `'${drop}'::uuid` : "null"}, ${price ? `'${price}'::uuid` : "null"}, '${VENUE}',
+    (pint_drop_id, community_price_id, community_price_submitted_at, bill_hash, community_price_round_source, venue_id, price_pennies, result, lines)
+    values (${drop ? `'${drop}'::uuid` : "null"}, ${price ? `'${price}'::uuid` : "null"}, ${price ? `timestamptz '${fields.submittedAt ?? AT}'` : "null"}, '${fields.billHash ?? "a".repeat(64)}', ${fields.roundLine !== undefined ? `'{"spendId":"spend-1","lineIndex":${fields.roundLine}}'::jsonb` : "null"}, '${VENUE}',
       ${fields.pennies ?? 450}, '${fields.result ?? "mismatch"}', ${fields.linesSql ?? lines(fields.lineCount ?? 1)});`);
 }
 
@@ -212,6 +215,36 @@ describe.skipIf(skipReason !== null)("0220 on PostgreSQL", () => {
     }
     expect(db().sql("select count(*) from public.price_bill_checks where reviewed_at is not null")).toBe("0");
     expect(db().sql("select count(*) from public.price_bill_checks")).toBe("3");
+  });
+
+  it("accepts a correction with the same price ID and keeps the earlier bill check", async () => {
+    const later = "2026-11-05 20:30:00+00";
+    db().sql(`update public.community_prices set price_pennies = 620, submitted_at = timestamptz '${later}' where id = '${PRICE_PAIRED}'::uuid`);
+    const correction = await db().attempt(insertCheck({ drop: null, price: PRICE_PAIRED, submittedAt: later, pennies: 620, result: "match" }));
+    expect(correction.ok, correction.said).toBe(true);
+    expect(db().sql(`select count(*) from public.price_bill_checks where community_price_id = '${PRICE_PAIRED}'::uuid`)).toBe("2");
+
+  });
+
+  it("keeps separate Round lines at the same price and date", async () => {
+    for (const roundLine of [0, 1]) {
+      const saved = await db().attempt(insertCheck({ drop: null, price: PRICE_PAIRED, roundLine }));
+      expect(saved.ok, saved.said).toBe(true);
+    }
+    const duplicate = await db().attempt(insertCheck({ drop: null, price: PRICE_PAIRED, roundLine: 0 }));
+    expect(duplicate.ok).toBe(false);
+    expect(duplicate.said).toContain("price_bill_checks_community_price_idx");
+  });
+
+  it("requires a community observation date and a valid bill fingerprint", async () => {
+    const missing = await db().attempt(asServiceRole(`insert into public.price_bill_checks
+      (community_price_id, bill_hash, venue_id, price_pennies, result, lines)
+      values ('${PRICE_PAIRED}'::uuid, '${"a".repeat(64)}', '${VENUE}', 450, 'unreadable', '[]')`));
+    expect(missing.ok).toBe(false);
+    expect(missing.said).toContain("price_bill_checks_observation_check");
+    const hash = await db().attempt(insertCheck({ billHash: "not-a-hash" }));
+    expect(hash.ok).toBe(false);
+    expect(hash.said).toContain("price_bill_checks_bill_hash_check");
   });
 
   it("reviews a mismatch by stamp alone, only a mismatch, and keeps the row", async () => {

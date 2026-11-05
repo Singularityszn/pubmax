@@ -25,6 +25,8 @@ import "server-only";
 // off a bill (a line, a name, a price, the venue name, the date) ever reaches a
 // log line or a trace: the log says which step answered and nothing more.
 
+import { createHash } from "node:crypto";
+
 import { after } from "next/server";
 import { z } from "zod";
 
@@ -42,6 +44,8 @@ import {
   readPhotoAsJson,
   type VisionReadDependencies,
 } from "@/lib/openRouterVision.server";
+import type { DrinkMeasure } from "@/lib/drinkMeasure";
+import type { RoundPriceSource } from "@/lib/rounds";
 import type { PaidSpendLane } from "@/lib/paidSpendBudget";
 import { admitPaidSpend } from "@/lib/paidSpendBudget.server";
 import { pintDropsStore } from "@/lib/pintDropsStore";
@@ -116,6 +120,10 @@ export type BillCheckRun = {
   photo: File;
   venueId: string;
   priceGbp: number;
+  drink: string;
+  measure?: DrinkMeasure;
+  communityPriceSubmittedAt?: number;
+  roundSource?: RoundPriceSource;
   /** The Pint Drop this bill came with, which a match grants `receipt`. */
   pintDropId?: string;
   /** The community price this bill came with. */
@@ -123,7 +131,7 @@ export type BillCheckRun = {
 };
 
 /** What a run did, for its tests and its one log line. */
-export type BillCheckRunOutcome = BillCheckResult | "keyless" | "budget-spent" | "failed";
+export type BillCheckRunOutcome = BillCheckResult | "keyless" | "budget-spent" | "failed" | "already-checked";
 
 export type BillCheckDependencies = VisionReadDependencies & {
   admit?: (lane: PaidSpendLane) => Promise<boolean>;
@@ -168,6 +176,8 @@ export async function runBillCheck(
   try {
     if (!openRouterVisionKeyed(deps.env ?? process.env)) return done("keyless");
     const store = deps.store ?? billCheckStore();
+    const billHash = createHash("sha256").update(Buffer.from(await run.photo.arrayBuffer())).digest("hex");
+    if (await store.hasChecked({ ...run, billHash })) return done("already-checked");
 
     let verdict;
     let jpeg: Buffer | null = null;
@@ -176,35 +186,28 @@ export async function runBillCheck(
     } catch {
       // A photo the image journey cannot open is a bill nobody can read. No
       // model call is spent on it.
-      verdict = judgeBill({ lines: [] }, run.priceGbp);
+      verdict = judgeBill({ lines: [] }, run.priceGbp, run.drink, run.measure);
     }
     if (jpeg) {
       if (!(await (deps.admit ?? admitPaidSpend)("bill-read"))) return done("budget-spent");
       const read = await readBillPhoto(jpeg, { env: deps.env, fetcher: deps.fetcher });
       if (read.status === "keyless") return done("keyless");
       if (read.status === "failed") return done("failed");
-      verdict = judgeBill(read, run.priceGbp);
+      verdict = judgeBill(read, run.priceGbp, run.drink, run.measure);
     }
     if (!verdict) return done("failed");
 
-    try {
-      await store.record({
-        ...(run.pintDropId ? { pintDropId: run.pintDropId } : {}),
-        ...(run.communityPriceId ? { communityPriceId: run.communityPriceId } : {}),
-        venueId: run.venueId,
-        priceGbp: run.priceGbp,
-        result: verdict.result,
-        lines: verdict.lines,
-      });
-    } catch (error) {
-      // The record is the audit and the queue. A lost record must not cost a
-      // matching bill its evidence, so the grant below still runs.
-      log("warn", "bill_check.record_failed", {
-        subject,
-        result: verdict.result,
-        error: error instanceof Error ? error.name : "unknown",
-      });
-    }
+    await store.record({
+      ...(run.pintDropId ? { pintDropId: run.pintDropId } : {}),
+      ...(run.communityPriceId ? { communityPriceId: run.communityPriceId } : {}),
+      ...(run.communityPriceSubmittedAt !== undefined ? { communityPriceSubmittedAt: run.communityPriceSubmittedAt } : {}),
+      ...(run.roundSource ? { roundSource: run.roundSource } : {}),
+      billHash,
+      venueId: run.venueId,
+      priceGbp: run.priceGbp,
+      result: verdict.result,
+      lines: verdict.lines,
+    });
 
     if (verdict.result === "match" && run.pintDropId) {
       const granted = await (deps.grantReceipt ?? ((id: string) => pintDropsStore().grantBillMatch(id)))(

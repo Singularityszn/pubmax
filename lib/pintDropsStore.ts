@@ -1349,12 +1349,7 @@ export const supabasePintDropStore: PintDropStore = {
         error = await insert(row);
       }
       if (error && isMissingPriceEvidenceColumnError(error)) {
-        if (persistable.priceEvidence === "unchecked" && !photos.receipt) {
-          // The one retry this rung refuses. Without its word a typed price
-          // reads as billed and would mark the pin (decision 9 reversed). A
-          // price that came with its bill is saved without the word, as every
-          // billed price was before 0218: there is no column for the bill
-          // check to grant `receipt` into until the captain applies it.
+        if (persistable.priceEvidence === "unchecked") {
           throw new UncheckedPriceNotStorableError();
         }
         console.warn(

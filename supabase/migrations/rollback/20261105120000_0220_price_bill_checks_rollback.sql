@@ -16,8 +16,8 @@
 --
 -- While the app is deployed with the bill check, a check after this rollback
 -- cannot be recorded: outside production it falls back to process memory, and
--- in production the write refuses and is logged. A match still grants
--- `receipt`, because the grant does not wait on the record.
+-- in production the write refuses and is logged. No match grants
+-- `receipt` without its stored check.
 
 begin;
 
