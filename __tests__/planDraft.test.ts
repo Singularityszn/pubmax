@@ -139,3 +139,47 @@ it.each([
   expect(readPlanDraftEnvelope(storage, now + 60_000)?.draft).toEqual(request);
   expect(parsePlanDraft(values.get("pubmaxx:plan-draft:v1")!, now + 60_000)).toEqual(request);
 });
+
+describe("request drafts without stops", () => {
+  const now = Date.parse("2026-11-03T12:00:00.000Z");
+  const draft = { title: "Tonight, sorted", creatorName: "", startTime: "", conciergeQuery: "Quiet in Soho for 4 today at 19:00", stops: [] };
+  const storage = () => {
+    const values = new Map<string, string>();
+    return { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value); } };
+  };
+
+  it("writes and reads text, then a count, then an explicit empty description", () => {
+    const session = storage();
+    expect(writePlanDraftEnvelope(draft, "manual", session, now)).toMatchObject({ v1: true, v2: true });
+    expect(readPlanDraftEnvelope(session, now)).toMatchObject({ savedAt: new Date(now).toISOString(), draft });
+    const counted = { ...draft, requestedStopCount: 2 as const, requestedStopCountSource: "picker" as const };
+    expect(writePlanDraftEnvelope(counted, "manual", session, now + 1)).toMatchObject({ v1: true, v2: true });
+    expect(readPlanDraftEnvelope(session, now + 1)?.draft).toEqual(counted);
+    const cleared = { ...counted, conciergeQuery: "", routeReference: null };
+    expect(writePlanDraftEnvelope(cleared, "manual", session, now + 2)).toMatchObject({ v1: true, v2: true });
+    expect(readPlanDraftEnvelope(session, now + 2)?.draft).toEqual(cleared);
+    expect(parsePlanDraft(session.getItem("pubmaxx:plan-draft:v1"), now + 2)).toEqual(cleared);
+  });
+
+  it("accepts an explicit empty request as a clear, but rejects missing or malformed stops", () => {
+    const empty = { ...draft, conciergeQuery: "", routeReference: null };
+    expect(parsePlanDraft(JSON.stringify(empty), now)).toEqual(empty);
+    const { stops: _stops, ...missing } = empty;
+    expect(parsePlanDraft(JSON.stringify(missing), now)).toBeNull();
+    expect(parsePlanDraft(JSON.stringify({ ...empty, stops: null }), now)).toBeNull();
+    expect(parsePlanDraft(JSON.stringify({ ...empty, stops: [{}] }), now)).toBeNull();
+    expect(parsePlanDraft("{}", now)).toBeNull();
+  });
+
+  it("does not grant an anchor or generated route to a zero-stop request", () => {
+    const session = storage();
+    const anchor = { venueId: "pub", source: "near" as const, cityId: "manchester" as const, acceptedArea: null, startsAt: null, expiresAt: new Date(now + 60_000).toISOString() };
+    const reference = { savedAt: new Date(now).toISOString(), operationKey: "old-operation" };
+    expect(writePlanDraftEnvelope({ ...draft, acceptedAnchor: anchor }, "manual", session, now)).toMatchObject({ v1: false, v2: false });
+    expect(writePlanDraftEnvelope({ ...draft, routeReference: reference }, "manual", session, now)).toMatchObject({ v1: false, v2: false });
+    expect(readPlanDraftEnvelope(session, now)).toBeNull();
+    const legacy = parsePlanDraft(JSON.stringify({ ...draft, groundingProof: "forged" }), now);
+    expect(legacy).not.toHaveProperty("groundingProof");
+    expect(legacy?.stops).toEqual([]);
+  });
+});

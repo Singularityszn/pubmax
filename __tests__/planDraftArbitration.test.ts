@@ -896,3 +896,69 @@ it.each(["correlated", "empty", "conflicting", "uncorrelated"] as const)(
     expect(recovered.intent.stopCount).toBeUndefined();
   },
 );
+
+describe("request-only recovery", () => {
+  const cleared = storedPlan({ stops: [], conciergeQuery: "", routeReference: null });
+  const options = { source: "near", cityId: "manchester", acceptedVenueId: "venue-mcr-1lwo5lo",
+    acceptedArea: null, startsAt: null, displayEvidence: { kind: "directory", observedAt: null } } as const;
+
+  it.each(["v1", "v2"] as const)("does not restore route authority after only %s records a clear", (written) => {
+    const session = memoryStorage({ throwOnSet: written === "v1" ? 4 : 3 });
+    const route = routeDraft(NOW);
+    expect(writePlanDraftEnvelope(storedPlan(), "manual", session, NOW)).toMatchObject({ v1: true, v2: true });
+    expect(writePlanDraftEnvelope(cleared, "manual", session, NOW + 1000))
+      .toMatchObject({ v1: written === "v1", v2: written === "v2" });
+    const plan = readPlanDraftEnvelope(session, NOW + 1000);
+    const legacyDraft = parsePlanDraftEnvelope(null, session.getItem(PLAN_DRAFT_KEY), NOW + 1000)!.draft;
+    const recovered = recoverPlanDrafts({ plan, legacyDraft, intake: null, route });
+    expect(recovered).toMatchObject({ requestOnly: true, routeWins: false, acceptanceUnavailable: true });
+    expect(recovered.recoveredDraft).toMatchObject({ stops: [], routeReference: null });
+    expect(recovered.recoveredDraft?.acceptedAnchor).toBeUndefined();
+  });
+
+  it("allows a separately dated, later route after a dated clear", () => {
+    const session = memoryStorage();
+    expect(writePlanDraftEnvelope(cleared, "manual", session, NOW).v2).toBe(true);
+    const plan = readPlanDraftEnvelope(session, NOW)!;
+    expect(recoverPlanDrafts({ plan, legacyDraft: plan.draft, intake: null, route: routeDraft(NOW + 2000) }))
+      .toMatchObject({ requestOnly: false, routeWins: true, recoveredDraft: null });
+  });
+
+  it.each([
+    { lane: "matching reference and answers at the same time", offset: 0, operationKey: "operation-1", count: 3, routeWins: true },
+    { lane: "wrong operation at the same time", offset: 0, operationKey: "different-operation", count: 3, routeWins: false },
+    { lane: "changed answers at the same time", offset: 0, operationKey: "operation-1", count: 2, routeWins: false },
+    { lane: "unrelated intake saved later", offset: 1000, operationKey: null, count: 3, routeWins: false },
+  ] as const)("compares a later route against $lane", ({ offset, operationKey, count, routeWins }) => {
+    const session = memoryStorage();
+    const local = memoryStorage();
+    const routeTime = NOW + 1000;
+    const route = routeDraft(routeTime, { nightContext: { ...inferNightContext("Clapham tonight").context, stopCount: 3 } });
+    expect(writePlanDraftEnvelope(cleared, "manual", session, NOW).v2).toBe(true);
+    const plan = readPlanDraftEnvelope(session, routeTime + offset)!;
+    const draft = createPlanIntakeDraft();
+    const reference = operationKey === null ? null : { savedAt: route.savedAt!, operationKey };
+    expect(writePlanIntakeDraft({ ...draft, answers: { ...draft.answers, stopCount: count } },
+      local, routeTime + offset, reference)).toBe(true);
+    const saved = readPlanIntakeDraftWithMetadata(local, routeTime + offset);
+    expect(saved).not.toBeNull();
+
+    expect(recoverPlanDrafts({ plan, legacyDraft: plan.draft, intake: saved, route }))
+      .toMatchObject({ requestOnly: !routeWins, routeWins, acceptanceUnavailable: !routeWins });
+  });
+
+  it("does not invent the age of a legacy clear or borrow acceptance from a conflicting route", () => {
+    const session = memoryStorage({ throwOnSet: 2 });
+    expect(writePlanDraftEnvelope(cleared, "manual", session, NOW)).toMatchObject({ v1: true, v2: false });
+    const plan = readPlanDraftEnvelope(session, NOW + 2000)!;
+    const route = { ...routeDraft(NOW), conflicting: true, ambiguous: true };
+    const input = { plan, legacyDraft: plan.draft, intake: null, route };
+    const older = createPlanningIntent(options, NOW - 1000);
+    const later = createPlanningIntent(options, NOW + 2000);
+    expect(plan).toMatchObject({ savedAt: null, expiresAt: null, legacy: true });
+    expect(recoverPlanDrafts({ ...input, planningIntent: older }))
+      .toMatchObject({ acceptanceUnavailable: true, requestOnly: true, planningIntent: null });
+    expect(recoverPlanDrafts({ ...input, planningIntent: later }))
+      .toMatchObject({ acceptanceUnavailable: true, requestOnly: true, planningIntent: later });
+  });
+});
