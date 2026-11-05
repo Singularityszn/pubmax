@@ -28,6 +28,8 @@
 // number or a table code read off the bill cannot be stored beside a price.
 
 import type { DrinkMeasure } from "@/lib/drinkMeasure";
+import { drinkCategoryFromText, drinkKeywordSpans } from "@/lib/drinkCategoryFromText";
+import { brandsForCategory, normalizeDrinkHaystack } from "@/lib/drinkBrands";
 
 /** The three answers a bill check can give. */
 export const BILL_CHECK_RESULTS = ["match", "mismatch", "unreadable"] as const;
@@ -63,7 +65,6 @@ const BILL_LINE_MAX_GBP = 200;
 function cleanLineName(value: unknown): string {
   if (typeof value !== "string") return "";
   return value
-    .replace(/\d{4,}/g, " ")
     .replace(/[<>]/g, "")
     .replace(/[\u0000-\u001f\u007f]/g, " ")
     .replace(/\s+/g, " ")
@@ -100,7 +101,7 @@ export function parseBillReadAnswer(answer: unknown): BillRead {
     const line = entry as Record<string, unknown>;
     const name = cleanLineName(line.name);
     const priceGbp = cleanLinePrice(line.price_gbp);
-    if (!name || priceGbp === null) continue;
+    if (!cleanLineName(name.replace(/\d{4,}/g, " ")) || priceGbp === null) continue;
     lines.push({ name, priceGbp });
   }
   return { lines };
@@ -108,17 +109,40 @@ export function parseBillReadAnswer(answer: unknown): BillRead {
 
 function billItem(name: string): { name: string; measure?: string } {
   const text = name.trim().toLowerCase();
-  const serving = /\b(half(?:\s+pint)?|1\/2(?:\s+pint)?|pint|125\s*ml|175\s*ml|250\s*ml|bottle|single|double)\b|½(?:\s+pint)?/i;
-  const found = serving.exec(text);
+  const serving = /\b(half(?:\s+pint)?|1\/2(?:\s+pint)?|pint|125\s*ml|175\s*ml|250\s*ml|bottle|single|double)\b|½(?:\s+pint)?/gi;
+  const found = [...text.matchAll(serving)].find((match) => {
+    if (!/^(half|pint|bottle|single|double)$/.test(match[0])) return true;
+    const following = text.slice(match.index + match[0].length).trim();
+    if (!following || /^of\b/.test(following)) return true;
+    const category = drinkCategoryFromText(following);
+    const words = normalizeDrinkHaystack(following);
+    const startsWithDrink = drinkKeywordSpans(following).some((span) => span.start === 0) ||
+      (category !== null && brandsForCategory(category).some((brand) =>
+        [brand.label, ...(brand.aliases ?? [])].some((label) => {
+          const prefix = normalizeDrinkHaystack(label);
+          return words === prefix || words.startsWith(`${prefix} `);
+        })));
+    if (!startsWithDrink) return false;
+    return match[0] === "single" || match[0] === "double"
+      ? category === "gin" || category === "vodka" || category === "rum" || category === "whisky" || category === "shot"
+      : category !== null;
+  });
   const raw = found?.[0].replace(/\s+/g, "");
   const measure = raw?.startsWith("half") || raw?.startsWith("1/2") || raw?.startsWith("½")
     ? "half"
     : raw;
   return {
-    name: text.replace(serving, " ").normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
+    name: (found ? text.slice(0, found.index) + " " + text.slice(found.index + found[0].length) : text)
+      .normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
       .replace(/[^a-z0-9]+/g, " ").trim().replace(/^of /, ""),
     ...(measure ? { measure } : {}),
   };
+}
+
+function evidenceLines(lines: BillLine[]): BillLine[] {
+  return lines.slice(0, BILL_CHECK_MAX_LINES)
+    .map((line) => ({ name: cleanLineName(line.name.replace(/\d{4,}/g, " ")), priceGbp: line.priceGbp }))
+    .filter((line) => line.name !== "");
 }
 
 export function judgeBill(
@@ -139,7 +163,7 @@ export function judgeBill(
       (!expectedMeasure || !statedMeasure || statedMeasure === expectedMeasure);
   });
   if (matching.length === 0) {
-    return { result: "mismatch", lines: read.lines.slice(0, BILL_CHECK_MAX_LINES) };
+    return { result: "mismatch", lines: evidenceLines(read.lines) };
   }
   const seen = new Set<string>();
   const kept = matching.filter((line) => {
@@ -148,7 +172,7 @@ export function judgeBill(
     seen.add(key);
     return true;
   });
-  return { result: "match", lines: kept };
+  return { result: "match", lines: evidenceLines(kept) };
 }
 
 /**

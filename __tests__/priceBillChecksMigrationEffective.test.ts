@@ -208,9 +208,11 @@ describe.skipIf(skipReason !== null)("0220 on PostgreSQL", () => {
       expect(write.ok, `${role} insert`).toBe(false);
       expect(write.said).toContain("42501");
       const review = await db().attempt(
-        asBrowserRole(role, sub, "update public.price_bill_checks set reviewed_at = now(), review_decision = 'kept'"),
+        asBrowserRole(role, sub, `update public.price_bill_checks set reviewed_at = now(), review_decision = 'kept'
+          where pint_drop_id = '${DROP_MISMATCH}'::uuid and result = 'mismatch' and reviewed_at is null`),
       );
       expect(review.ok, `${role} update`).toBe(false);
+      expect(review.said).toContain("42501");
       const remove = await db().attempt(asBrowserRole(role, sub, "delete from public.price_bill_checks"));
       expect(remove.ok, `${role} delete`).toBe(false);
     }

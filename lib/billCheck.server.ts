@@ -182,7 +182,7 @@ export async function runBillCheck(
     if (!openRouterVisionKeyed(deps.env ?? process.env)) return done("keyless");
     const store = deps.store ?? billCheckStore();
     const billHash = createHash("sha256").update(Buffer.from(await run.photo.arrayBuffer())).digest("hex");
-    const checked = await store.findChecked({ ...run, billHash });
+    const checked = await store.reuseChecked({ ...run, billHash });
     if (checked) {
       if (checked.result === "match" && run.pintDropId) {
         await grantReceipt(run.pintDropId, deps);
