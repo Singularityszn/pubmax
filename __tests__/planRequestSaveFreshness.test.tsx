@@ -1417,6 +1417,47 @@ it.each([false, true])("does not attach a same-ID older route after a failed new
   await attemptRouteSave();
 });
 
+it.each(["v1", "v2", "local-blocked"] as const)(
+  "retains the complete session-only request across reloads: %s",
+  async (format) => {
+    const advance = pinClock();
+    seedReadableBlankHostRequest();
+    localStorage.clear();
+    blockStorageWrites("localStorage");
+    await mountComposer();
+    advance(1000);
+    await act(async () => [...document.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.textContent === "Make a plan")!.click());
+    await settle();
+    const saved = readPlanDraftEnvelope(sessionStorage)!;
+    expect(saved.draft.requestIntake).toMatchObject({ answers: { stopCount: 3, groupSize: 6,
+      area: "clapham", timeWindow: "evening", exactStartIso: "2026-11-03T19:00:00.000Z",
+      budget: "value", budgetLimitPence: 3500, accessibilityNeeds: ["step-free"] } });
+    expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBeNull();
+    if (format === "v1") sessionStorage.removeItem(PLAN_DRAFT_V2_KEY);
+    if (format !== "local-blocked") vi.unstubAllGlobals();
+    vi.stubGlobal("fetch", fetchMock);
+    for (const offset of [2000, 3000]) {
+      advance(offset);
+      await remountComposer();
+      expect(readPlanDraftEnvelope(sessionStorage)?.draft.requestIntake).toEqual(saved.draft.requestIntake);
+      expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent)).toEqual(["Pub A"]);
+    }
+    if (format === "local-blocked") {
+      await act(async () => [...document.querySelectorAll<HTMLButtonElement>("button")]
+        .find((button) => button.textContent === "Make a plan")!.click());
+      await settle();
+    } else {
+      await openTune();
+      expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("3");
+      await sortAgainFromTune();
+    }
+    expect(reconciledGenerationContext()).toMatchObject({ stopCount: 3, groupSize: 6,
+      accessibility: ["step-free"], nightArea: "clapham", daypart: "evening",
+      budget: "value", budgetLimitPence: 3500, zeroProof: false });
+  },
+);
+
 it("assigns a new reference to a successful same-ID generation without redating unchanged copies", async () => {
   const advance = pinClock();
   await generateProofRoute();
@@ -1435,6 +1476,58 @@ it("assigns a new reference to a successful same-ID generation without redating 
   expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(route);
   expect((await saveRoute()).groundingProof).toBe(generatedProofFixture().groundingProof);
 });
+
+it("preserves an UNKNOWN candidate date through repeated preview recovery", async () => {
+  const advance = pinClock();
+  await generateProofRoute();
+  await openTune();
+  advance(1000);
+  await editTuneControl("time", "daytime");
+  await act(async () => { document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); });
+  await settle();
+  advance(2000);
+  await editInput("#plan-title", "Our next night");
+  const undated = JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!);
+  delete undated.savedAt;
+  localStorage.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify(undated));
+  localStorage.removeItem(PLAN_ROUTE_DRAFT_V2_KEY);
+  for (const offset of [3000, 4000]) {
+    advance(offset);
+    await remountComposer();
+    expect.soft(JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!).savedAt,
+      "Recovery cannot invent a candidate writer date").toBeUndefined();
+    expect(document.querySelector(".planStop__name")?.textContent).toBe("Pub A");
+    expect(readPlanDraftEnvelope(sessionStorage)?.draft.routeReference).toBeNull();
+    await attemptRouteSave();
+  }
+});
+
+it.each(["both", "v1", "v2"] as const)(
+  "keeps the selected Session candidate date without borrowing route proof: %s",
+  async (format) => {
+    const advance = pinClock();
+    await generateProofRoute();
+    const draft = readPlanDraftEnvelope(sessionStorage)!.draft;
+    expect(writePlanDraftEnvelope({ ...draft, routeReference: null,
+      stops: [{ key: 1, venueId: "venue-b", venueName: "Pub B" }],
+    }, "manual", sessionStorage, T0 + 1000)).toMatchObject({ v1: true, v2: true });
+    if (format === "v1") sessionStorage.removeItem(PLAN_DRAFT_V2_KEY);
+    if (format === "v2") sessionStorage.removeItem(PLAN_DRAFT_KEY);
+    blockStorageWrites("sessionStorage");
+    advance(2000);
+    await remountComposer();
+    const route = JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!);
+    // An undated or uncorroborated request cannot replace a dated route.
+    expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent))
+      .toEqual([format === "both" ? "Pub B" : "Pub A"]);
+    expect(route.savedAt).toBe(format === "both" ? "2026-11-03T12:00:01.000Z" : "2026-11-03T12:00:00.000Z");
+    if (format === "both") {
+      expect(route).toMatchObject({ nightContext: null, routeNight: null, groundingProof: null,
+        createOperationKey: null, planAnchor: null, routeRevision: null, routeStale: true });
+      await attemptRouteSave();
+    }
+  },
+);
 
 it("blocks the old submit handler before the session Ask's deferred state update", async () => {
   pinClock();
@@ -2144,6 +2237,8 @@ it.each(cosmeticContextChoices.flatMap((choice) => ["title", "name"].map((cosmet
     expect(JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!)).toMatchObject({ savedAt: "2026-11-03T12:00:01.000Z", explicitNightContext: context });
     advance(3000);
     await remountComposer();
+    expect.soft(JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!).savedAt,
+      "A cosmetic request edit must not redate unchanged preview candidates").toBe("2026-11-03T12:00:01.000Z");
     await openTune();
     const selected = document.querySelector<HTMLInputElement | HTMLSelectElement>(`#plan-context-${id}`)?.value;
     expect.soft(selected, "A cosmetic edit must not discard an actual Tune choice").toBe(value);

@@ -818,7 +818,7 @@ describe("request references to an existing generated route", () => {
       const ownsRequest = kind === "matching" || kind === "revoked";
       expect(recovered.routeWins).toBe(!ownsRequest);
       expect(recovered.intent.stopCount).toBe(ownsRequest ? 5 : undefined);
-      expect(recovered.intent.stopCountSource).toBeUndefined();
+      expect(recovered.intent.stopCountSource).toBe(ownsRequest ? "picker" : undefined);
       expect(recovered.intent.conciergeQuery).toBe(ownsRequest ? "Quiet pints" : "");
       expect(recovered.planDraft).toBeNull();
       expect(recovered.recoveredDraft?.creatorName).toBe(ownsRequest ? "K" : undefined);

@@ -3451,13 +3451,16 @@ export default function PlanComposer() {
       });
       const previewStops = resolved.sessionWins && resolved.planDraft
         ? resolved.planDraft.draft.stops : routeRecovery.route?.stops;
+      const sessionCandidatesChanged = resolved.sessionWins
+        && JSON.stringify(resolved.planDraft?.draft.stops) !== JSON.stringify(routeRecovery.route?.stops
+          .map(({ key, venueId, venueName }) => ({ key, venueId, venueName })));
       const needsPreview = (resolved.sessionWins || resolved.acceptanceUnavailable)
         && routeRecovery.route;
       const route = needsPreview && previewStops?.length ? {
         ...routeRecovery,
         envelope: null,
         route: {
-          savedAt: resolved.sessionWins ? resolved.planDraft?.savedAt ?? undefined : routeRecovery.route?.savedAt,
+          savedAt: sessionCandidatesChanged ? resolved.planDraft?.savedAt ?? undefined : routeRecovery.route?.savedAt,
           stops: previewStops.map(({ key, venueId, venueName }) => ({ key, venueId, venueName, alternatives: [] })),
           nightContext: null,
           routeNight: null,
