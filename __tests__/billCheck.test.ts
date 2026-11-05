@@ -163,6 +163,23 @@ describe("judgeBill", () => {
   });
 
   it.each([
+    ["Double Single Malt Whisky", "Single Malt Whisky", "Malt Whisky", "double", "single"],
+    ["Single Double IPA", "Double IPA", "IPA", "single", "double"],
+    ["Half Half Moon IPA", "Half Moon IPA", "Moon IPA", "half", "pint"],
+    ["Pint Double IPA", "Double IPA", "IPA", "pint", "half"],
+  ] as const)("separates the outer serving from the product in %s", (served, product, shortened, measure, different) => {
+    expect(judgeBill(read([[served, 5.2]]), 5.2, served, different).result).toBe("mismatch");
+    expect(judgeBill(read([[served, 5.2]]), 5.2, served, measure).result).toBe("match");
+    expect(judgeBill(read([[served, 5.2]]), 5.2, product, different).result).toBe("mismatch");
+    expect(judgeBill(read([[served, 5.2]]), 5.2, product, measure).result).toBe("match");
+    expect(judgeBill(read([[product, 5.2]]), 5.2, served, different).result).toBe("mismatch");
+    expect(judgeBill(read([[product, 5.2]]), 5.2, served, measure).result).toBe("match");
+    expect(judgeBill(read([[product, 5.2]]), 5.2, served).result).toBe("match");
+    expect(judgeBill(read([[shortened, 5.2]]), 5.2, served, measure).result).toBe("unreadable");
+    expect(judgeBill(read([[served, 5.2]]), 5.2, shortened, measure).result).toBe("unreadable");
+  });
+
+  it.each([
     ["Merlot 175ml", "250ml", "Merlot"],
     ["250 ml Merlot", "175ml", "Merlot"],
     ["Merlot 125 ml", "250ml", "Merlot"],
