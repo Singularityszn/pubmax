@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const billChecks = vi.hoisted(() => ({ keyed: true, schedule: vi.fn() }));
 vi.mock("@/lib/billCheck.server", () => ({
   billReaderKeyed: () => billChecks.keyed,
-  scheduleBillCheck: billChecks.schedule,
+  scheduleBillChecks: billChecks.schedule,
 }));
 
 const receiptStorage = vi.hoisted(() => ({
@@ -551,7 +551,7 @@ describe("POST /api/rounds/[code] — actions", () => {
     expect(await readCommunityPrices("venue-1")).toEqual([]);
   });
 
-  it("schedules the shared bill check for each promoted drink and keeps drink names", async () => {
+  it("schedules one bill read for all promoted drinks and keeps drink names", async () => {
     await authorizeContributor("user-ken", "ken");
     const { round } = await newRound("ken");
     await action(round.code, { action: "addStop", handle: "ken", venueId: "venue-1" });
@@ -563,10 +563,29 @@ describe("POST /api/rounds/[code] — actions", () => {
       ],
     });
     expect(response.status).toBe(200);
-    expect(billChecks.schedule.mock.calls.map(([run]) => run)).toEqual([
-      expect.objectContaining({ drink: "Guinness pint", priceGbp: 5.2, photo: expect.any(File), communityPriceId: expect.any(String), communityPriceSubmittedAt: expect.any(Number) }),
-      expect.objectContaining({ drink: "Merlot 175ml", priceGbp: 7.5, photo: expect.any(File), communityPriceId: expect.any(String), communityPriceSubmittedAt: expect.any(Number) }),
+    expect(billChecks.schedule).toHaveBeenCalledExactlyOnceWith(expect.any(File), [
+      expect.objectContaining({ drink: "Guinness pint", priceGbp: 5.2, communityPriceId: expect.any(String), communityPriceSubmittedAt: expect.any(Number) }),
+      expect.objectContaining({ drink: "Merlot 175ml", priceGbp: 7.5, communityPriceId: expect.any(String), communityPriceSubmittedAt: expect.any(Number) }),
     ]);
+  });
+
+  it("checks successful promotions together when another Round price needs a retry", async () => {
+    await authorizeContributor("user-ken", "ken");
+    const { round } = await newRound("ken");
+    await action(round.code, { action: "addStop", handle: "ken", venueId: "venue-1" });
+    priceWriteState.failuresRemaining = 1;
+    const response = await billedAction(round.code, {
+      action: "recordSpend", handle: "ken", payerHandle: "ken", venueId: "venue-1", clientRef: "partial-bill-check",
+      items: [
+        { drinkName: "Guinness pint", drinkCategory: "beer", priceGbp: 5.2, source: "round" },
+        { drinkName: "Merlot 175ml", drinkCategory: "wine", priceGbp: 7.5, source: "round" },
+      ],
+    });
+    expect(response.status).toBe(503);
+    expect(billChecks.schedule).toHaveBeenCalledExactlyOnceWith(expect.any(File), [
+      expect.objectContaining({ drink: "Merlot 175ml", priceGbp: 7.5, communityPriceId: expect.any(String) }),
+    ]);
+    expect((await readCommunityPrices("venue-1")).map((price) => price.drinkCategory)).toEqual(["wine"]);
   });
 
   it("keeps an anonymous itemised Round in the diary and out of community prices", async () => {

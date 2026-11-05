@@ -206,6 +206,31 @@ const PAID_ROUTES: PaidRouteCase[] = [
     answer: SIGN_IN_TO_CONTRIBUTE,
   },
   {
+    route: "app/api/rounds/[code]/route.ts",
+    call: async () => {
+      await seedReportedProfile();
+      const form = new FormData();
+      form.set("payload", JSON.stringify({
+        action: "recordSpend",
+        handle: REPORTED_HANDLE,
+        payerHandle: REPORTED_HANDLE,
+        venueId: "venue-eltcmh",
+        clientRef: "anonymous-billed-round",
+        items: [{ drinkName: "Guinness pint", drinkCategory: "beer", priceGbp: 4.5, source: "round" }],
+      }));
+      form.set("receipt_photo", new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], "bill.jpg", { type: "image/jpeg" }));
+      return (await import("@/app/api/rounds/[code]/route")).POST(
+        new Request("http://localhost/api/rounds/BCDFGH", {
+          method: "POST",
+          headers: { "x-forwarded-for": "203.0.113.7" },
+          body: form,
+        }),
+        params({ code: "BCDFGH" }),
+      );
+    },
+    answer: SIGN_IN_AS_OWNER,
+  },
+  {
     route: "app/api/pub-list-import/route.ts",
     call: async () =>
       (await import("@/app/api/pub-list-import/route")).POST(

@@ -19,7 +19,7 @@
 // anyone who knows it can read + (as a member) build the Round. Writes are
 // rate-limited per handle + IP.
 
-import { billReaderKeyed, scheduleBillCheck } from "@/lib/billCheck.server";
+import { billReaderKeyed, scheduleBillChecks, type BillCheckObservation } from "@/lib/billCheck.server";
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { boundedFormData } from "@/lib/boundedRequest.server";
@@ -189,6 +189,7 @@ async function promoteReadyRoundPrices(input: {
     .map((item, index) => ({ item, index }))
     .filter(({ item }) => item.promotionStatus === "ready");
   let completed = 0;
+  const observations: BillCheckObservation[] = [];
   const recordedAt = Date.parse(input.stored.recordedAt);
   for (const { item, index } of ready) {
     const write = await submitCommunityPrice(
@@ -209,8 +210,7 @@ async function promoteReadyRoundPrices(input: {
     ) {
       completed += 1;
       if (write.sourceBecameOwner && input.receipt && billReaderKeyed()) {
-        scheduleBillCheck({
-          photo: input.receipt,
+        observations.push({
           venueId: input.stored.venueId,
           priceGbp: item.pricePence / 100,
           drink: item.drinkName,
@@ -221,6 +221,8 @@ async function promoteReadyRoundPrices(input: {
       }
     }
   }
+
+  if (input.receipt && observations.length > 0) scheduleBillChecks(input.receipt, observations);
 
   if (completed !== ready.length) {
     return publicApiError("Your round is kept, but some prices need another try.", "UNAVAILABLE", 503, { retryable: true });
