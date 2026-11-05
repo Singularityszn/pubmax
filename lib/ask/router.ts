@@ -59,4 +59,3 @@ export function refineRoutedAskQuery(
   if (priorPlace) return `${query}${text === query ? "" : "."} in ${priorPlace}`;
   return `${priorUserContent}; ${query}`;
 }
-

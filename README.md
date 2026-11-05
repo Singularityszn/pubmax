@@ -69,6 +69,11 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
   Map Ask and keyless typed chat accept "Find three quiet pubs in Soho for tonight. Show the source and date for any price you use."
   The evidence instruction preserves your requested pub count and preferences. It does not require a recorded price for every pub.
 
+  "Hi show me the map" and "OK. Show me the map" focus the existing recommendation map when available.
+  Otherwise, these commands open `/map`.
+  A discovery or service request beside a generic map command stays in chat.
+  "Map, not yet" and "Show me the map. Please stop." keep the conversation open.
+
   On `/pal`, choose **Share my year** to select lines for your Year in Pints card. **See the card** previews your choices. **Share the card** opens your device's share sheet or a WhatsApp draft. The [Year in Pints rules](docs/rules/lib-saves-nudges-rounds-reports-and-pub-pal.md) explain annual totals, privacy, and the free-forever commitment.
 
   Name a pub to ask about its recorded menu prices, servings, calories or dietary labels. Unrecorded details and current availability stay unknown. Meal and non-pint price comparisons across pubs remain unavailable. **Ask again** repeats a failed question while preserving your unsent draft.

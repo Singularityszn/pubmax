@@ -31,20 +31,28 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
    every figure. Tools never invent pint prices. Uncorroborated community rows
    may appear on the pub’s own sheet language only. Map-authority claims
    require corroboration.
-   `lib/ask/router.ts` owns price-subject routing for both HTTP paths.
+   `lib/ask/routingPolicy.ts` owns shared deterministic tool selection, price-subject routing and client map priority.
+   `lib/ask/router.ts` re-exports server routing and owns conversation refinement.
    `lib/ask/requestPolicy.ts` owns shared clause parsing and `semanticAskRequest`.
    It removes complete price-evidence instructions before intent classification.
    Its default view preserves standalone map commands beside other text.
+   `GENERIC_MAP_COMMAND_RE` defines generic commands for both service parsing and client navigation.
+   Verb commands accept unpunctuated social prefixes, full or whole map modifiers and polite tails.
+   Bare map nouns require a clause boundary, which preserves named on-the-map subjects.
    Service parsers explicitly omit map commands from venue, price, preference, listing and hours subjects.
    Removal preserves boundaries between surviving requests and punctuation inside venue names.
    Explicit map commands are checked after service intents and before the default venue search.
    Greetings and acknowledgements cannot replace a map command with a default search.
+   In `lib/palVoiceTranscript.ts`, a refusal before or after navigation text prevents navigation across punctuation.
+   The noun in "next stop" does not count as a refusal.
    Shared concierge constraints preserve implicit discovery without treating a default group size as a request.
    Real food and non-pint price subjects remain visible to the coverage guards.
    Replies, memory and tool context retain the complete original question.
    Short follow-ups inherit area context after closing evidence instructions, without changing supported price intent.
    Regression coverage includes `__tests__/askRouter.test.ts`, `__tests__/conciergeIntent.test.ts`,
    `__tests__/conciergeWhatsOn.test.ts`, `__tests__/askVenueHours.test.ts` and both HTTP-handler suites.
+   `__tests__/palChatMapDispatch.test.tsx` covers mounted client dispatch.
+   `__tests__/palVoiceTranscript.test.ts` covers shared navigation and refusal guards.
    Named menu requests and unsupported price comparisons use deterministic
    `runAsk` even when a model provider is configured.
    Explicit named questions about opening or closing hours or times also
@@ -70,8 +78,10 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
    The [Pub Pal feature guide](../../README.md#features) owns supported user
    requests and coverage limits.
 3. **Propose, never apply** - Ask mutates nothing. `propose_map_action` returns
-   a proposal the client applies only after an explicit Confirm. `propose_plan`
-   returns a draft the client carries to `/plan` behind one "Open in Plan" link
+   a proposal the client applies only after an explicit Confirm.
+   A person's explicit generic map command uses client-owned navigation without requiring a server proposal or invented venue cards.
+   Assistant suggestions still require confirmation.
+   `propose_plan` returns a draft the client carries to `/plan` behind one "Open in Plan" link
    (`planPalRouteHandoffHref` in `lib/planOccasion.ts`), which prefills the same
    ask there and saves nothing until the drinker acts on it; a Confirm button
    beside that link would be two labels for one action. No silent Plan or
