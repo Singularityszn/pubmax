@@ -200,8 +200,17 @@ describe("Plan generation temporal evidence", () => {
     vi.restoreAllMocks();
   });
 
+  // WebMCP sends only a query. The historical morning fallback is Daytime.
+  it("keeps the current-clock fallback for the query-only WebMCP caller", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-11-05T09:00:00.000Z"));
+    const { response, body } = await generate({ query: "Quiet in Clapham for 4, not pricey" });
+    expect(response.status, JSON.stringify(body)).toBe(200);
+    expect(body.inferredContext.daypart).toBe("daytime");
+    expect(body.contextFieldSources.daypart).toBe("default");
+  });
+
   it("returns the automatic scheduled daypart with proof dated at the request clock", async () => {
-    const request = buildPlanGenerationIntakeBody(createPlanIntakeDraft(), "Quiet in Clapham for 4, not pricey", null);
+    const request = buildPlanGenerationIntakeBody(createPlanIntakeDraft(), "Quiet in Clapham for 4, not pricey", null, {}, null, "2026-07-20T17:00:00.000Z");
     const { response, body } = await generate(request);
     expect(response.status, JSON.stringify(body)).toBe(200);
     expect(defaultLondonStartInput(new Date(REQUEST_NOW))).toBe("2026-07-20T18:00");
@@ -211,6 +220,26 @@ describe("Plan generation temporal evidence", () => {
     expect(claims?.issuedAt).toBe(REQUEST_NOW);
     expect(request.context).not.toHaveProperty("daypart");
     expect(request.intake.timeWindow).toBeNull();
+  });
+
+  // The accepted worked schedules are 18:45 After work and 20:00 Evening.
+  it.each([
+    ["2026-11-05T18:31:00.000Z", "2026-11-05T18:45:00.000Z", "after_work"],
+    ["2026-11-05T09:00:00.000Z", "2026-11-05T20:00:00.000Z", "evening"],
+  ])("uses the displayed Plan schedule %s / %s with default provenance", async (clock, schedule, daypart) => {
+    const requestNow = Date.parse(clock);
+    vi.spyOn(Date, "now").mockReturnValue(requestNow);
+    const request = buildPlanGenerationIntakeBody(
+      createPlanIntakeDraft(), "Quiet in Clapham for 4, not pricey", null, {}, null, schedule,
+    );
+    const { response, body } = await generate(request);
+    expect(response.status, JSON.stringify(body)).toBe(200);
+    expect(body.inferredContext.daypart).toBe(daypart);
+    expect(body.contextFieldSources.daypart).toBe("default");
+    expect(request.context).not.toHaveProperty("daypart");
+    expect(request.intake.timeWindow).toBeNull();
+    const claims = readPlanGroundingClaims(body.groundingProof, body.stops.map((stop) => stop.venueId), body.operationKey);
+    expect(claims?.issuedAt).toBe(requestNow);
   });
 
   it("omits request-time-only evidence from a future dated route", async () => {

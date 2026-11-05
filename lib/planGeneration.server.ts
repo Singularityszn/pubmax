@@ -453,7 +453,7 @@ export async function preparePlanGeneration(
 			400,
 		) };
 	}
-	const reconciled = reconcilePlanContext(query, contextPatch, intake, new Date(requestNow));
+	const reconciled = reconcilePlanContext(query, contextPatch, intake, new Date(requestNow), parsedRequest.value.planStartIso);
 	const context = reconciled.context;
 	// A dry round's night is alcohol-free, and below, only a pub that lists an
 	// alcohol-free price may be one of its stops.

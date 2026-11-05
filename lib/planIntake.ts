@@ -794,6 +794,8 @@ export type PlanGenerationIntakeBody = {
   context?: Partial<NightContext>;
   cityId?: CityId;
   intake: PlanIntakeHandoff;
+  /** Displayed First pint, used only for the default generation daypart. */
+  planStartIso?: string;
   anchor?: PlanGenerationWireAnchor;
 };
 
@@ -828,6 +830,7 @@ export function buildPlanGenerationIntakeBody(
   currentContext: NightContext | null,
   explicitContext: Partial<NightContext> = {},
   anchor?: PlanGenerationAnchorInput | null,
+  planStartIso?: string | null,
 ): PlanGenerationIntakeBody {
   const cleanQuery = query.trim();
   // A sort before the wizard is finished (a held pub seeds only the area)
@@ -851,6 +854,7 @@ export function buildPlanGenerationIntakeBody(
     context,
     ...(anchor?.cityId ? { cityId: anchor.cityId } : {}),
     intake: planIntakeHandoff(sent),
+    ...(planStartIso ? { planStartIso } : {}),
     ...(anchor ? {
       anchor: {
         venueId: anchor.venueId,

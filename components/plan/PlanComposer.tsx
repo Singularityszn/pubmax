@@ -2719,6 +2719,7 @@ function PlanComposerForm({
           null,
           submittedContext,
           handoff?.acceptedAnchor,
+          londonDateTimeInputToIso(startTime),
         )),
       });
       responseStatus = response.status;
