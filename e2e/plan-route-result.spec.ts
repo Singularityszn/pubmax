@@ -170,6 +170,54 @@ test.describe("the Plan result is a route", () => {
   });
 });
 
+for (const viewport of [{ width: 1280, height: 720 }, { width: 390, height: 844 }]) {
+  test.describe(`Tune content bounds at ${viewport.width}px`, () => {
+    test.use({ viewport });
+
+    for (const theme of ["light", "dark"] as const) {
+      for (const fontSize of viewport.width === 390 ? [16, 32] : [16]) {
+        test(`fields stay inside the scroll body in ${theme} at ${fontSize}px`, async ({ page }) => {
+          const cdp = await page.context().newCDPSession(page);
+          try {
+            await cdp.send("Page.setFontSizes", { fontSizes: { standard: fontSize, fixed: fontSize } });
+            await storeThemeChoice(page, theme);
+            await sortARoute(page);
+            await page.evaluate(() => document.fonts.ready);
+            await expect.poll(() => page.locator("html").evaluate((element) =>
+              parseFloat(getComputedStyle(element).fontSize),
+            )).toBeGreaterThanOrEqual(fontSize);
+            await page.getByRole("button", { name: "Tune details" }).click();
+            const body = page.locator(".planTune__body");
+            await expect(body).toBeVisible();
+            const bounds = await body.evaluate((element) => {
+              const box = element.getBoundingClientRect();
+              const style = getComputedStyle(element);
+              const fieldset = element.querySelector("fieldset")!.getBoundingClientRect();
+              return {
+                clientWidth: element.clientWidth, scrollWidth: element.scrollWidth,
+                contentLeft: box.left + element.clientLeft + parseFloat(style.paddingLeft),
+                contentRight: box.left + element.clientLeft + element.clientWidth - parseFloat(style.paddingRight),
+                fieldsetLeft: fieldset.left, fieldsetRight: fieldset.right,
+              };
+            });
+            expect(bounds.scrollWidth, JSON.stringify(bounds)).toBeLessThanOrEqual(bounds.clientWidth);
+            expect(bounds.fieldsetLeft).toBeGreaterThanOrEqual(bounds.contentLeft - 1);
+            expect(bounds.fieldsetRight).toBeLessThanOrEqual(bounds.contentRight + 1);
+            await body.evaluate((element) => { element.scrollTop = element.scrollHeight; });
+            expect(await body.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+            await expect(page.getByRole("dialog", { name: "Tune details" })).toBeFocused();
+            await page.keyboard.press("Escape");
+            await expect(page.getByRole("dialog", { name: "Tune details" })).toHaveCount(0);
+            await expect(page.getByRole("button", { name: "Tune details" })).toBeFocused();
+          } finally {
+            await cdp.detach();
+          }
+        });
+      }
+    }
+  });
+}
+
 for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 }]) {
   test.describe(`the Tune details scrim at ${viewport.width}px`, () => {
     test.use({ viewport });

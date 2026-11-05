@@ -976,16 +976,13 @@ function persistComposerRouteDraft(routeDraft: StoredRouteDraft, mayWrite: boole
           explicitNightContext: Object.values(routeDraft.explicitNightContext ?? {}).some((value) => value !== undefined)
             ? routeDraft.explicitNightContext : undefined,
         }));
-        routeSaved = true;
       }
     } catch {
     }
-    if (!routeSaved) {
-      const remaining = readComposerRouteDraft().route;
-      previewSaved = previewSaved && JSON.stringify(remaining) === JSON.stringify(stored);
-      routeSaved = Boolean(remaining && remaining.savedAt === routeDraft.savedAt
-        && composerRouteContent(remaining) === composerRouteContent(routeDraft));
-    }
+    const remaining = readComposerRouteDraft().route;
+    previewSaved = previewSaved && JSON.stringify(remaining) === JSON.stringify(stored);
+    routeSaved = Boolean(remaining && remaining.savedAt === routeDraft.savedAt
+      && composerRouteContent(remaining) === composerRouteContent(routeDraft));
   }
   return { hasRouteDetails, routeSaved, previewSaved, routeReference: composerRouteReference(routeDraft, routeSaved) };
 }
@@ -2290,7 +2287,7 @@ function PlanComposerForm({
     void Promise.resolve().then(() => {
       if (!cancelled) setDraftSaveFailure(composerDraftSaveFailure({
         hasWork, sessionWrite, intakeSaved, hasStops,
-        routeSaved: routeSaved && (sessionSavedAt === routeSavedAt || Boolean(routeReference)),
+        routeSaved,
         previewSaved, hasRouteDetails, requestChanged, sessionRequestChanged,
         descriptionChanged: Boolean(conciergeQuery.trim()) && conciergeQuery !== previousSession?.draft.conciergeQuery,
       }));
