@@ -108,7 +108,7 @@ export function parseBillReadAnswer(answer: unknown): BillRead {
 
 function billItem(name: string): { name: string; measure?: string } {
   const text = name.trim().toLowerCase();
-  const serving = /\b(half\s+pint|half$|1\/2(?:\s+pint)?|pint|125\s*ml|175\s*ml|250\s*ml|bottle$|single$|double$)\b|½(?:\s+pint)?/i;
+  const serving = /\b(half(?:\s+pint)?|1\/2(?:\s+pint)?|pint|125\s*ml|175\s*ml|250\s*ml|bottle|single|double)\b|½(?:\s+pint)?/i;
   const found = serving.exec(text);
   const raw = found?.[0].replace(/\s+/g, "");
   const measure = raw?.startsWith("half") || raw?.startsWith("1/2") || raw?.startsWith("½")

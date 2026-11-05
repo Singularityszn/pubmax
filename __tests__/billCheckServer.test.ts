@@ -18,8 +18,9 @@ vi.mock("@/lib/log", () => ({
 }));
 
 import { readBoardPhoto } from "@/lib/boardRead.server";
-import type { BillCheckRecord, BillCheckStore } from "@/lib/billCheckStore";
+import { __resetBillChecks, memoryBillCheckStore, type BillCheckRecord, type BillCheckStore } from "@/lib/billCheckStore";
 import { readBillPhoto, runBillCheck, type BillCheckRun } from "@/lib/billCheck.server";
+import { __resetPintDrops, addPintDrop, findPintDropsByIds, grantPintDropReceipt } from "@/lib/pintDrops";
 
 const KEYED = { OPENROUTER_API_KEY: "test-key" };
 const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
@@ -113,18 +114,12 @@ describe("the approved vision provider contract", () => {
 function memoryChecks(): BillCheckStore & { records: BillCheckRecord[] } {
   const records: BillCheckRecord[] = [];
   return {
+    ...memoryBillCheckStore,
     records,
-    async hasChecked() { return false; },
     async record(input) {
-      const stored = { ...input, id: `check-${records.length + 1}`, checkedAt: "2026-11-05T19:30:00.000Z" };
+      const stored = await memoryBillCheckStore.record(input);
       records.push(stored);
       return stored;
-    },
-    async listMismatchesForReview() {
-      return [];
-    },
-    async review() {
-      return null;
     },
   };
 }
@@ -143,6 +138,7 @@ describe("runBillCheck", () => {
   let prepare: Mock<(photo: File) => Promise<Buffer>>;
 
   beforeEach(() => {
+    __resetBillChecks();
     logged.length = 0;
     checks = memoryChecks();
     grantReceipt = vi.fn(async () => true);
@@ -261,8 +257,10 @@ describe("runBillCheck", () => {
   });
 
   it("skips a bill only when the same observation already has a stored check", async () => {
-    checks.hasChecked = vi.fn(async () => true);
-    const fetcher = vi.fn();
+    const fetcher = vi.fn(async () => modelAnswer({ ...BILL, lines: [] }));
+    expect(await runBillCheck(run(), deps(fetcher))).toBe("unreadable");
+    fetcher.mockClear();
+    admit.mockClear();
     expect(await runBillCheck(run(), deps(fetcher))).toBe("already-checked");
     expect(fetcher).not.toHaveBeenCalled();
     expect(admit).not.toHaveBeenCalled();
@@ -278,6 +276,30 @@ describe("runBillCheck", () => {
   it("answers failed rather than throwing when the grant itself throws", async () => {
     grantReceipt.mockRejectedValueOnce(new Error("update failed"));
     await expect(runBillCheck(run(), deps(vi.fn(async () => modelAnswer(BILL))))).resolves.toBe("failed");
+  });
+
+  it("recovers a stored match without paying for a second read on a paired retry", async () => {
+    const fetcher = vi.fn(async () => modelAnswer(BILL));
+    __resetPintDrops();
+    addPintDrop({
+      id: "drop-1", venueId: "venue-1vle947", handle: "billed_drinker", drink: "Guinness",
+      measure: "pint", priceGbp: 6.2, priceEvidence: "unchecked", passedDownNote: "", era: "",
+      provenance: "contributor", status: "visible", visibility: "public", createdAt: "2026-11-05T19:30:00.000Z",
+    });
+    grantReceipt.mockImplementation(async (id) => grantPintDropReceipt(id));
+    grantReceipt.mockRejectedValueOnce(new Error("update failed"));
+    const first = run({ communityPriceId: "price-1", communityPriceSubmittedAt: 1_793_900_000_000 });
+    expect(await runBillCheck(first, deps(fetcher))).toBe("failed");
+    expect(findPintDropsByIds(["drop-1"]).get("drop-1")?.priceEvidence).toBe("unchecked");
+    const retry = { ...first, communityPriceSubmittedAt: first.communityPriceSubmittedAt! + 1000 };
+    expect(await runBillCheck(retry, deps(fetcher))).toBe("already-checked");
+    expect(findPintDropsByIds(["drop-1"]).get("drop-1")?.priceEvidence).toBe("receipt");
+    expect(await runBillCheck(retry, deps(fetcher))).toBe("already-checked");
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(admit).toHaveBeenCalledTimes(1);
+    expect(prepare).toHaveBeenCalledTimes(1);
+    expect(checks.records).toHaveLength(1);
+    expect(signal).toHaveBeenCalledTimes(1);
   });
 
   it("never logs a line, a name or a price read off the bill", async () => {

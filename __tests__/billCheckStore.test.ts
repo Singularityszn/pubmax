@@ -146,9 +146,9 @@ describe.each([
   it("checks later corrections independently of the surviving community-price ID", async () => {
     await store.record(MISMATCH);
     const correction = { ...MISMATCH, communityPriceSubmittedAt: SUBMITTED_AT + 1000, priceGbp: 6.2, result: "match" as const };
-    expect(await store.hasChecked(correction)).toBe(false);
+    expect(await store.findChecked(correction)).toBeNull();
     await store.record(correction);
-    expect(await store.hasChecked(correction)).toBe(true);
+    expect(await store.findChecked(correction)).toMatchObject({ result: "match" });
     expect(await store.listMismatchesForReview()).toHaveLength(1);
   });
 
@@ -156,16 +156,46 @@ describe.each([
     const first = { ...MISMATCH, roundSource: { spendId: "spend-1", lineIndex: 0 } };
     const second = { ...MISMATCH, roundSource: { spendId: "spend-1", lineIndex: 1 } };
     await store.record(first);
-    expect(await store.hasChecked(second)).toBe(false);
+    expect(await store.findChecked(second)).toBeNull();
     await store.record(second);
-    expect(await store.hasChecked(second)).toBe(true);
+    expect(await store.findChecked(second)).toMatchObject({ roundSource: second.roundSource });
   });
 
   it("does not confuse an unbilled drop or a different bill with a stored bill check", async () => {
-    expect(await store.hasChecked(MATCH)).toBe(false);
+    expect(await store.findChecked(MATCH)).toBeNull();
     await store.record(MATCH);
-    expect(await store.hasChecked(MATCH)).toBe(true);
-    expect(await store.hasChecked({ ...MATCH, billHash: "b".repeat(64) })).toBe(false);
+    expect(await store.findChecked(MATCH)).toMatchObject({ result: "match" });
+    expect(await store.findChecked({ ...MATCH, billHash: "b".repeat(64) })).toBeNull();
+  });
+
+  it("reuses the same paired drop and bill after a repeated tap updates the community date", async () => {
+    const stored = await store.record(MISMATCH);
+    const retry = { ...MISMATCH, communityPriceSubmittedAt: SUBMITTED_AT + 1000 };
+    expect(await store.findChecked(retry)).toMatchObject({ id: stored.id, result: "mismatch" });
+    expect(await store.findChecked({ ...retry, billHash: "b".repeat(64) })).toBeNull();
+    expect(await store.findChecked({ ...retry, priceGbp: 6.2 })).toBeNull();
+    expect(await store.findChecked({ ...retry, pintDropId: "different-drop" })).toBeNull();
+    expect(await store.findChecked({ ...MISMATCH, pintDropId: undefined })).toMatchObject({ id: stored.id });
+    expect(await store.findChecked({ ...MISMATCH, communityPriceId: undefined, communityPriceSubmittedAt: undefined })).toMatchObject({ id: stored.id });
+  });
+
+  it("keeps a later community-only observation separate even at the same price", async () => {
+    const first = { ...MISMATCH, pintDropId: undefined };
+    await store.record(first);
+    expect(await store.findChecked({ ...first, communityPriceSubmittedAt: SUBMITTED_AT + 1000 })).toBeNull();
+  });
+
+  it("releases only the failed hide claim and allows another decision", async () => {
+    const stored = await store.record(MISMATCH);
+    const claimed = (await store.review(stored.id, "hidden", SUBMITTED_AT))!;
+    expect(await store.listMismatchesForReview()).toEqual([]);
+    await store.releaseReview(claimed);
+    expect(await store.listMismatchesForReview()).toMatchObject([{ id: stored.id }]);
+    const next = await store.review(stored.id, "hidden", SUBMITTED_AT + 1000);
+    expect(next).toMatchObject({ reviewDecision: "hidden" });
+    await store.releaseReview(claimed);
+    expect(await store.listMismatchesForReview()).toEqual([]);
+    expect(await store.review(stored.id, "kept")).toBeNull();
   });
 });
 

@@ -88,8 +88,8 @@ create table if not exists public.price_bill_checks (
 
 -- A bill is read once for each observation it names.
 create unique index if not exists price_bill_checks_pint_drop_idx
-  on public.price_bill_checks (pint_drop_id, bill_hash)
-  where pint_drop_id is not null and community_price_id is null;
+  on public.price_bill_checks (pint_drop_id, price_pennies, (coalesce(community_price_round_source, 'null'::jsonb)), bill_hash)
+  where pint_drop_id is not null;
 
 create unique index if not exists price_bill_checks_community_price_idx
   on public.price_bill_checks (community_price_id, community_price_submitted_at, price_pennies, (coalesce(community_price_round_source, 'null'::jsonb)), bill_hash)

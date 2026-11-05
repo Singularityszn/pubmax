@@ -159,6 +159,11 @@ function subjectOf(run: BillCheckRun): "pint_drop" | "community_price" | "paired
   return run.pintDropId ? "pint_drop" : "community_price";
 }
 
+async function grantReceipt(pintDropId: string, deps: BillCheckDependencies): Promise<void> {
+  const granted = await (deps.grantReceipt ?? ((id: string) => pintDropsStore().grantBillMatch(id)))(pintDropId);
+  if (granted) (deps.signal ?? signalPintDropLanded)();
+}
+
 /**
  * Read one bill and settle what it says about its price. Never throws: every
  * failure answers an outcome and leaves the price exactly as it landed,
@@ -177,7 +182,13 @@ export async function runBillCheck(
     if (!openRouterVisionKeyed(deps.env ?? process.env)) return done("keyless");
     const store = deps.store ?? billCheckStore();
     const billHash = createHash("sha256").update(Buffer.from(await run.photo.arrayBuffer())).digest("hex");
-    if (await store.hasChecked({ ...run, billHash })) return done("already-checked");
+    const checked = await store.findChecked({ ...run, billHash });
+    if (checked) {
+      if (checked.result === "match" && run.pintDropId) {
+        await grantReceipt(run.pintDropId, deps);
+      }
+      return done("already-checked");
+    }
 
     let verdict;
     let jpeg: Buffer | null = null;
@@ -210,10 +221,7 @@ export async function runBillCheck(
     });
 
     if (verdict.result === "match" && run.pintDropId) {
-      const granted = await (deps.grantReceipt ?? ((id: string) => pintDropsStore().grantBillMatch(id)))(
-        run.pintDropId,
-      );
-      if (granted) (deps.signal ?? signalPintDropLanded)();
+      await grantReceipt(run.pintDropId, deps);
     }
     return done(verdict.result);
   } catch (error) {
@@ -228,13 +236,8 @@ export async function runBillCheck(
 /**
  * Hand one bill to the platform, to read after the response has gone. The
  * submit answer never waits on the read, and the read does not start until the
- * answer is sent. Outside a request scope `after` throws, and the run starts at
- * once instead.
+ * answer is sent.
  */
 export function scheduleBillCheck(run: BillCheckRun): void {
-  try {
-    after(() => runBillCheck(run));
-  } catch {
-    void runBillCheck(run);
-  }
+  after(() => runBillCheck(run));
 }
