@@ -114,6 +114,8 @@ function billItem(name: string): { name: string; measure?: string } {
     if (!/^(half|pint|bottle|single|double)$/.test(match[0])) return true;
     const following = text.slice(match.index + match[0].length).trim();
     if (!following || /^of\b/.test(following)) return true;
+    if (match.index === 0 && /^(single|double|half|pint)$/.test(match[0]) &&
+      /^(single|double|half|pint)\b/.test(following)) return true;
     const category = drinkCategoryFromText(following);
     const words = normalizeDrinkHaystack(following);
     const startsWithDrink = drinkKeywordSpans(following).some((span) => span.start === 0) ||
