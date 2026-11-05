@@ -1000,6 +1000,56 @@ function composerRouteReference(routeDraft: StoredRouteDraft, saved: boolean): S
     ? { savedAt: stored.savedAt, operationKey: stored.value.operationKey } : undefined;
 }
 
+type ComposerRouteCopy = {
+  identity: string;
+  content: string;
+  savedAt: string | undefined;
+  generation: number;
+  pending: boolean;
+};
+
+function saveComposerRouteCopy(
+  routeDraft: StoredRouteDraft,
+  routeCopy: { current: ComposerRouteCopy },
+  input: {
+    savedAt: number;
+    successfulGeneration: number;
+    preserveStoredDrafts: boolean;
+    recoveredRouteDraft: StoredRouteDraft | null;
+  },
+) {
+  const { savedAt, successfulGeneration, preserveStoredDrafts, recoveredRouteDraft } = input;
+  const { stops, planAnchor, nightContext } = routeDraft;
+  const identity = JSON.stringify({ stops, planAnchor, nightContext });
+  const content = composerRouteContent(routeDraft);
+  const routeChanged = stops.length > 0
+    && (identity !== routeCopy.current.identity || successfulGeneration !== routeCopy.current.generation);
+  let mayWrite = content !== routeCopy.current.content || routeCopy.current.pending;
+  if (routeChanged) {
+    routeCopy.current = { identity, content, savedAt: new Date(savedAt).toISOString(), generation: successfulGeneration, pending: false };
+    mayWrite = true;
+  }
+  routeCopy.current.content = content;
+  routeCopy.current.pending = false;
+  const mayPersistRoute = stops.length > 0 && (!preserveStoredDrafts || recoveredRouteDraft || successfulGeneration > 0);
+  const saved = mayPersistRoute
+    ? persistComposerRouteDraft({ ...routeDraft, savedAt: routeCopy.current.savedAt }, mayWrite)
+    : { hasRouteDetails: false, routeSaved: false, previewSaved: false, routeReference: undefined };
+  return { routeChanged, ...saved };
+}
+
+function canSaveRecoveredComposerDraft(hasRecoveredWork: boolean, stops: DraftStop[], preserveStoredDrafts: boolean): boolean {
+  return hasRecoveredWork && stops.length > 0 && !preserveStoredDrafts;
+}
+
+function preserveComposerRouteRevocation(
+  routeSorted: boolean,
+  recoveredDraft: StoredPlanDraft | null,
+  previousIntake: ReturnType<typeof readPlanIntakeDraftWithMetadata>,
+): boolean {
+  return !routeSorted && (recoveredDraft?.routeReference === null || previousIntake?.routeReference === null);
+}
+
 type ComposerDraftSaveFailure = "all" | "route" | "route-details" | "description" | "request" | null;
 
 function composerRequestSaveStatus(input: {
@@ -2222,7 +2272,7 @@ function PlanComposerForm({
     pendingDraftSave.current = false;
     // Hydration may display request fields or a candidate route. It does
     // not make a new save, migrate an undated request or refresh its expiry.
-    if (!actualMutation && (!hasRecoveredWork || !stops.length || preserveStoredDrafts)) return;
+    if (!actualMutation && !canSaveRecoveredComposerDraft(hasRecoveredWork, stops, preserveStoredDrafts)) return;
     const acceptedAnchor = handoff?.acceptedAnchor;
     const persistedAcceptedAnchor = acceptedAnchorForPlanDraft(acceptedAnchor, stops[0]?.venueId);
     const savedAt = Date.now();
@@ -2239,23 +2289,10 @@ function PlanComposerForm({
       createOperationKey,
       planAnchor,
     };
-    const identity = JSON.stringify({ stops, planAnchor, nightContext });
-    const content = composerRouteContent(routeDraft);
-    const routeChanged = stops.length > 0
-      && (identity !== routeCopy.current.identity || successfulGeneration !== routeCopy.current.generation);
-    let mayWrite = content !== routeCopy.current.content || routeCopy.current.pending;
-    if (routeChanged) {
-      routeCopy.current = { identity, content, savedAt: new Date(savedAt).toISOString(), generation: successfulGeneration, pending: false };
-      mayWrite = true;
-    }
-    routeCopy.current.content = content;
-    routeCopy.current.pending = false;
-    const mayPersistRoute = stops.length > 0 && (!preserveStoredDrafts || recoveredRouteDraft || successfulGeneration > 0);
-    const { hasRouteDetails, routeSaved, previewSaved, routeReference } = mayPersistRoute
-      ? persistComposerRouteDraft({ ...routeDraft, savedAt: routeCopy.current.savedAt }, mayWrite)
-      : { hasRouteDetails: false, routeSaved: false, previewSaved: false, routeReference: undefined };
-    const keepRevocation = !routeSorted
-      && (recoveredDraft?.routeReference === null || previousIntake?.routeReference === null);
+    const { routeChanged, hasRouteDetails, routeSaved, previewSaved, routeReference } = saveComposerRouteCopy(routeDraft, routeCopy, {
+      savedAt, successfulGeneration, preserveStoredDrafts, recoveredRouteDraft,
+    });
+    const keepRevocation = preserveComposerRouteRevocation(routeSorted, recoveredDraft, previousIntake);
     const sessionDraft: StoredPlanDraft = {
       title,
       creatorName: automaticCreatorName.current === creatorName ? "" : creatorName,

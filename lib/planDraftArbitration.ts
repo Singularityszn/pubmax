@@ -179,6 +179,27 @@ function latestKnownTime(...dates: (string | null | undefined)[]): number {
   return Math.max(-Infinity, ...dates.map((date) => Date.parse(date ?? "")).filter(Number.isFinite));
 }
 
+function matchingRequestOnlyIntake(
+  local: ParsedPlanIntakeDraft | null,
+  source: ReturnType<typeof requestedIntentSource>,
+  copiesAgree: boolean,
+  requestPlan: ParsedPlanDraft | null,
+  requestIntake: PlanIntakeDraft | null,
+): ParsedPlanIntakeDraft | null {
+  return local && (source === "intake"
+    || (copiesAgree && local.savedAt === requestPlan?.savedAt)
+    || (requestIntake && JSON.stringify(local.draft) === JSON.stringify(requestIntake))) ? local : null;
+}
+
+function requestOnlyRevokesRoute(
+  request: StoredPlanDraft,
+  other: StoredPlanDraft | null | undefined,
+  localIntake: ParsedPlanIntakeDraft | null,
+): boolean {
+  return request.routeReference === null || (other?.stops.length === 0 && other.routeReference === null)
+    || localIntake?.routeReference === null;
+}
+
 function recoverRequestOnly(input: DraftRecoveryInput, request: StoredPlanDraft) {
   const { plan, legacyDraft, intake, route } = input;
   const requestPlan = plan?.draft === request ? plan : null;
@@ -189,11 +210,8 @@ function recoverRequestOnly(input: DraftRecoveryInput, request: StoredPlanDraft)
   const source = requestedIntentSource(plan, legacyDraft, local);
   const intent = resolveRequestedPlanIntent(plan, legacyDraft, local);
   const requestIntake = copiesAgree && source !== "intake" ? request.requestIntake ?? null : null;
-  const localIntake = local && (source === "intake"
-    || (copiesAgree && local.savedAt === requestPlan?.savedAt)
-    || (requestIntake && JSON.stringify(local.draft) === JSON.stringify(requestIntake))) ? local : null;
-  const revoked = request.routeReference === null || (other?.stops.length === 0 && other.routeReference === null)
-    || localIntake?.routeReference === null;
+  const localIntake = matchingRequestOnlyIntake(local, source, copiesAgree, requestPlan, requestIntake);
+  const revoked = requestOnlyRevokesRoute(request, other, localIntake);
   const acceptedAt = Date.parse(input.planningIntent?.acceptedAt ?? "");
   const latestKnown = latestKnownTime(plan?.savedAt, intake?.savedAt, route?.savedAt, route?.otherSavedAt);
   const requestWins = Boolean(copiesAgree && !route?.ambiguous && (!route
@@ -219,9 +237,10 @@ function recoverRequestOnly(input: DraftRecoveryInput, request: StoredPlanDraft)
   };
 }
 
-export function recoverPlanDrafts(input: DraftRecoveryInput) {
-  const { plan, legacyDraft, intake, route } = input;
-  const routeTime = Date.parse(route?.savedAt ?? "");
+function selectDraftRecoveryOrder(
+  { plan, legacyDraft, intake, route }: DraftRecoveryInput,
+  routeTime: number,
+) {
   const request = plan?.draft.stops.length === 0 ? plan.draft : legacyDraft?.stops.length === 0 ? legacyDraft : null;
   // A dated independent route can follow a dated request. A conflicting,
   // undated zero-stop copy cannot establish which side of generation it came from.
@@ -233,6 +252,29 @@ export function recoverPlanDrafts(input: DraftRecoveryInput) {
     && routeTime > Date.parse(plan.savedAt)
     && (!intake || routeTime > Date.parse(intake.savedAt) || matchingIntakeRoute(intake, route)))
     : routeSupersedesRequest(plan, route);
+  return { request, routeWins };
+}
+
+function cannotRecoverAcceptance(
+  { plan, route }: DraftRecoveryInput,
+  evidence: {
+    sessionWins: boolean;
+    intakeWins: boolean;
+    matchingRoute: boolean;
+    routeWins: boolean;
+    sessionCopiesAgree: boolean;
+  },
+): boolean {
+  const { sessionWins, intakeWins, matchingRoute, routeWins, sessionCopiesAgree } = evidence;
+  return !sessionWins && (route?.ambiguous === true
+    || Boolean(route && intakeWins && !matchingRoute)
+    || Boolean(route && plan && !routeWins && (!sessionCopiesAgree || !matchingRoute)));
+}
+
+export function recoverPlanDrafts(input: DraftRecoveryInput) {
+  const { plan, legacyDraft, intake, route } = input;
+  const routeTime = Date.parse(route?.savedAt ?? "");
+  const { request, routeWins } = selectDraftRecoveryOrder(input, routeTime);
   if (request && !routeWins) return recoverRequestOnly(input, request);
   const sessionCopiesAgree = matchingSessionCopies(plan, legacyDraft);
   const intakeDraft = routeWins && !(Date.parse(intake?.savedAt ?? "") >= routeTime) ? null : intake;
@@ -241,9 +283,9 @@ export function recoverPlanDrafts(input: DraftRecoveryInput) {
   const matchingRoute = (requestSource !== "unknown" || plan?.legacy === true)
     && (intakeWins ? matchingIntakeRoute(intakeDraft!, route) : matchingSessionRoute(plan, route));
   const sessionWins = sessionSupersedesRoute(plan, route, matchingRoute, sessionCopiesAgree);
-  const acceptanceUnavailable = !sessionWins && (route?.ambiguous === true
-    || Boolean(route && intakeWins && !matchingRoute)
-    || Boolean(route && plan && !routeWins && (!sessionCopiesAgree || !matchingRoute)));
+  const acceptanceUnavailable = cannotRecoverAcceptance(input, {
+    sessionWins, intakeWins, matchingRoute, routeWins, sessionCopiesAgree,
+  });
   const planDraft = routeWins || acceptanceUnavailable ? null : plan;
   const draft = routeWins ? null : acceptanceUnavailable && legacyDraft
     ? { ...legacyDraft, acceptedAnchor: undefined } : legacyDraft ?? plan?.draft ?? null;

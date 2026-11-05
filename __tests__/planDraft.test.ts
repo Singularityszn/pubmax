@@ -164,8 +164,7 @@ describe("request drafts without stops", () => {
   it("accepts an explicit empty request as a clear, but rejects missing or malformed stops", () => {
     const empty = { ...draft, conciergeQuery: "", routeReference: null };
     expect(parsePlanDraft(JSON.stringify(empty), now)).toEqual(empty);
-    const { stops: _stops, ...missing } = empty;
-    expect(parsePlanDraft(JSON.stringify(missing), now)).toBeNull();
+    expect(parsePlanDraft(JSON.stringify({ ...empty, stops: undefined }), now)).toBeNull();
     expect(parsePlanDraft(JSON.stringify({ ...empty, stops: null }), now)).toBeNull();
     expect(parsePlanDraft(JSON.stringify({ ...empty, stops: [{}] }), now)).toBeNull();
     expect(parsePlanDraft("{}", now)).toBeNull();
