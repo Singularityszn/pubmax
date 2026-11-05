@@ -162,15 +162,78 @@ function recoveredIntakeState(intake: ParsedPlanIntakeDraft | null, sessionIntak
   };
 }
 
-export function recoverPlanDrafts(input: {
+type DraftRecoveryInput = {
   plan: ParsedPlanDraft | null;
   legacyDraft: StoredPlanDraft | null;
   intake: ParsedPlanIntakeDraft | null;
-  route: (Pick<ParsedPlanRouteDraft, "savedAt" | "value"> & { conflicting?: boolean; ambiguous?: boolean; explicitNightContext?: Partial<NightContext> }) | null;
-}) {
+  route: (Pick<ParsedPlanRouteDraft, "savedAt" | "value"> & {
+    conflicting?: boolean;
+    ambiguous?: boolean;
+    otherSavedAt?: string | null;
+    explicitNightContext?: Partial<NightContext>;
+  }) | null;
+  planningIntent?: PlanningIntentV1 | null;
+};
+
+function latestKnownTime(...dates: (string | null | undefined)[]): number {
+  return Math.max(-Infinity, ...dates.map((date) => Date.parse(date ?? "")).filter(Number.isFinite));
+}
+
+function recoverRequestOnly(input: DraftRecoveryInput, request: StoredPlanDraft) {
+  const { plan, legacyDraft, intake, route } = input;
+  const requestPlan = plan?.draft === request ? plan : null;
+  const other = requestPlan ? legacyDraft : plan?.draft;
+  const copiesAgree = !other || other === request || JSON.stringify(other) === JSON.stringify(request);
+  // A route-bound intake cannot supply the inputs of a different, stopless request.
+  const local = intake?.routeReference ? null : intake;
+  const source = requestedIntentSource(plan, legacyDraft, local);
+  const intent = resolveRequestedPlanIntent(plan, legacyDraft, local);
+  const requestIntake = copiesAgree && source !== "intake" ? request.requestIntake ?? null : null;
+  const localIntake = local && (source === "intake"
+    || (copiesAgree && local.savedAt === requestPlan?.savedAt)
+    || (requestIntake && JSON.stringify(local.draft) === JSON.stringify(requestIntake))) ? local : null;
+  const revoked = request.routeReference === null || (other?.stops.length === 0 && other.routeReference === null)
+    || localIntake?.routeReference === null;
+  const acceptedAt = Date.parse(input.planningIntent?.acceptedAt ?? "");
+  const latestKnown = latestKnownTime(plan?.savedAt, intake?.savedAt, route?.savedAt, route?.otherSavedAt);
+  const requestWins = Boolean(copiesAgree && !route?.ambiguous && (!route
+    || (requestPlan?.savedAt && Date.parse(requestPlan.savedAt) > Date.parse(route.savedAt ?? ""))));
+  return {
+    routeWins: false,
+    requestOnly: true,
+    preserveStoredDrafts: true,
+    requestAmbiguous: source === "unknown" || !copiesAgree,
+    acceptanceUnavailable: Boolean(route && !requestWins),
+    sessionWins: requestWins,
+    planDraft: copiesAgree ? requestPlan : null,
+    recoveredDraft: {
+      ...request,
+      ...(revoked ? { routeReference: null } : {}),
+      entryMode: copiesAgree && source !== "intake" ? request.entryMode : undefined,
+    },
+    ...recoveredIntakeState(localIntake, requestIntake, Boolean(localIntake)),
+    intent,
+    // The legacy request has no date. Only a live explicit acceptance can
+    // supply an anchor, and it must be newer than every known conflicting date.
+    planningIntent: acceptedAt > latestKnown ? input.planningIntent ?? null : null,
+  };
+}
+
+export function recoverPlanDrafts(input: DraftRecoveryInput) {
   const { plan, legacyDraft, intake, route } = input;
   const routeTime = Date.parse(route?.savedAt ?? "");
-  const routeWins = routeSupersedesRequest(plan, route);
+  const request = plan?.draft.stops.length === 0 ? plan.draft : legacyDraft?.stops.length === 0 ? legacyDraft : null;
+  // A dated independent route can follow a dated request. A conflicting,
+  // undated zero-stop copy cannot establish which side of generation it came from.
+  // Intake that refers to the same generated route supports that route. A newer
+  // intake with different answers or a different reference still competes with it.
+  const routeWins = request ? Boolean(plan && request === plan.draft && plan.savedAt
+    && (legacyDraft?.stops.length !== 0 || JSON.stringify(legacyDraft) === JSON.stringify(request))
+    && route && !route.ambiguous && !route.value.routeStale
+    && routeTime > Date.parse(plan.savedAt)
+    && (!intake || routeTime > Date.parse(intake.savedAt) || matchingIntakeRoute(intake, route)))
+    : routeSupersedesRequest(plan, route);
+  if (request && !routeWins) return recoverRequestOnly(input, request);
   const sessionCopiesAgree = matchingSessionCopies(plan, legacyDraft);
   const intakeDraft = routeWins && !(Date.parse(intake?.savedAt ?? "") >= routeTime) ? null : intake;
   const requestSource = requestedIntentSource(plan, legacyDraft, intakeDraft);
@@ -182,7 +245,7 @@ export function recoverPlanDrafts(input: {
     || Boolean(route && intakeWins && !matchingRoute)
     || Boolean(route && plan && !routeWins && (!sessionCopiesAgree || !matchingRoute)));
   const planDraft = routeWins || acceptanceUnavailable ? null : plan;
-  const recoveredDraft = routeWins ? null : acceptanceUnavailable && legacyDraft
+  const draft = routeWins ? null : acceptanceUnavailable && legacyDraft
     ? { ...legacyDraft, acceptedAnchor: undefined } : legacyDraft ?? plan?.draft ?? null;
   const intent = resolveRequestedPlanIntent(routeWins ? null : plan, legacyDraft, intakeDraft);
   const recoveredIntent = recoverExplicitRequestInputs(intent, route,
@@ -191,11 +254,15 @@ export function recoverPlanDrafts(input: {
   const currentIntake = recoverCurrentIntake(plan, intakeDraft, intakeWins, sessionWins, acceptanceUnavailable, sessionIntake, legacyDraft);
   return {
     routeWins,
+    requestOnly: false,
+    preserveStoredDrafts: request !== null,
+    planningIntent: routeWins || acceptanceUnavailable ? null : input.planningIntent ?? null,
     requestAmbiguous: requestSource === "unknown",
     acceptanceUnavailable,
     sessionWins,
     planDraft,
-    recoveredDraft,
+    recoveredDraft: draft && plan && legacyDraft && plan.draft.entryMode !== legacyDraft.entryMode
+      ? { ...draft, entryMode: undefined } : draft,
     ...recoveredIntakeState(currentIntake, sessionIntake, Boolean(intake)),
     intent: routeWins && intakeDraft ? { ...recoveredIntent, descriptionUnavailable: true } : recoveredIntent,
   };

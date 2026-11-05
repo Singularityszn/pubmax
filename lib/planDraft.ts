@@ -30,6 +30,7 @@ export type StoredPlanDraft = {
   stops: Array<{ key: number; venueId: string; venueName: string }>;
   explicitNightContext?: Partial<NightContext>;
   requestIntake?: PlanIntakeDraft;
+  entryMode?: "wizard";
   requestedStopCount?: PlanStopCount;
   requestedStopCountSource?: PlanStopCountSource;
   routeReference?: { savedAt: string; operationKey: string } | null;
@@ -122,7 +123,7 @@ function parseAcceptedArea(area: unknown): PlanningIntentArea | undefined {
 }
 
 function hasDraftKeys(value: Record<string, unknown>): boolean {
-  const keys = Object.keys(value).filter((key) => key !== "requestedStopCount" && key !== "requestedStopCountSource" && key !== "routeReference" && key !== "explicitNightContext" && key !== "requestIntake");
+  const keys = Object.keys(value).filter((key) => key !== "requestedStopCount" && key !== "requestedStopCountSource" && key !== "routeReference" && key !== "explicitNightContext" && key !== "requestIntake" && key !== "entryMode");
   return [DRAFT_KEYS, DRAFT_KEYS_WITH_ANCHOR].some((allowed) =>
     keys.length === allowed.length && keys.every((key) => (allowed as readonly string[]).includes(key)));
 }
@@ -144,7 +145,7 @@ export function parsePlanExplicitNightContext(value: unknown): Partial<NightCont
   return patch;
 }
 
-function parseRequestOptions(value: Record<string, unknown>, now: number): Pick<StoredPlanDraft, "requestedStopCount" | "requestedStopCountSource" | "routeReference" | "explicitNightContext" | "requestIntake"> {
+function parseRequestOptions(value: Record<string, unknown>, now: number): Pick<StoredPlanDraft, "requestedStopCount" | "requestedStopCountSource" | "routeReference" | "explicitNightContext" | "requestIntake" | "entryMode"> {
   const count = isPlanStopCount(value.requestedStopCount) ? value.requestedStopCount : undefined;
   const source = cleanPlanStopCountSource(value.requestedStopCountSource, count);
   const routeReference = parsePlanRouteReference(value.routeReference);
@@ -153,6 +154,7 @@ function parseRequestOptions(value: Record<string, unknown>, now: number): Pick<
   return {
     ...(explicitNightContext !== undefined ? { explicitNightContext } : {}),
     ...(requestIntake ? { requestIntake } : {}),
+    ...(value.entryMode === "wizard" ? { entryMode: "wizard" as const } : {}),
     ...(count !== undefined ? { requestedStopCount: count } : {}),
     ...(source ? { requestedStopCountSource: source } : {}),
     ...(routeReference !== undefined ? { routeReference } : {}),
@@ -169,7 +171,9 @@ function parseStoredPlanDraft(value: unknown, exactKeys: boolean, now: number): 
   const startTime = boundedText(value.startTime, 40);
   const conciergeQuery = boundedText(value.conciergeQuery, 500);
   if (title === null || creatorName === null || startTime === null || conciergeQuery === null) return null;
-  if (!Array.isArray(value.stops) || value.stops.length < 1 || value.stops.length > 12) return null;
+  if (!Array.isArray(value.stops) || value.stops.length > 12) return null;
+  // A request without stops may revoke a route, but cannot bind to one or hold a pub.
+  if (value.stops.length === 0 && (value.acceptedAnchor !== undefined || parsePlanRouteReference(value.routeReference))) return null;
 
   const stops = value.stops.map((candidate, index) => {
     if (

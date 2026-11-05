@@ -59,6 +59,7 @@ import { ASK_PLAN_DRAFT_STORAGE_KEY } from "@/lib/ask/types";
 import {
   createPlanIntakeDraft,
   readPlanIntakeDraft,
+  reopenPlanIntakeStep,
   skipRemainingPlanIntake,
   writePlanIntakeDraft,
 } from "@/lib/planIntake";
@@ -541,8 +542,12 @@ describe("PlanComposer never drops a URL ask", () => {
     expect(body.intake?.area?.id).toBe("camden");
   });
 
+  function progressedWizard() {
+    return reopenPlanIntakeStep(skipRemainingPlanIntake(createPlanIntakeDraft({ kind: "patch", id: "soho" })), "accessibility");
+  }
+
   it("opens describe-first over an unfinished wizard draft", async () => {
-    writePlanIntakeDraft(createPlanIntakeDraft({ kind: "patch", id: "soho" }));
+    writePlanIntakeDraft(progressedWizard());
     setSearch(`?query=${encodeURIComponent(URL_ASK)}`);
 
     await mountComposer();
@@ -554,7 +559,7 @@ describe("PlanComposer never drops a URL ask", () => {
     // Only the Pub Pal handoff overrides the wizard. `?occasion=` is a shipped
     // chip link, and CLAUDE.md's rule for those is unqualified: a saved,
     // incomplete wizard draft lands the visitor back on the wizard.
-    writePlanIntakeDraft(createPlanIntakeDraft({ kind: "patch", id: "soho" }));
+    writePlanIntakeDraft(progressedWizard());
     setSearch("?occasion=coffee");
 
     await mountComposer();
@@ -563,7 +568,7 @@ describe("PlanComposer never drops a URL ask", () => {
   });
 
   it("still opens on the wizard when no ask rides the URL", async () => {
-    writePlanIntakeDraft(createPlanIntakeDraft({ kind: "patch", id: "soho" }));
+    writePlanIntakeDraft(progressedWizard());
 
     await mountComposer();
 
