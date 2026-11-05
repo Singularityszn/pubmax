@@ -947,6 +947,140 @@ describe("request-only recovery", () => {
       .toMatchObject({ requestOnly: !routeWins, routeWins, acceptanceUnavailable: !routeWins });
   });
 
+  function expiredGeneration(malformedProof = false) {
+    const session = memoryStorage();
+    const local = memoryStorage();
+    const routeTime = NOW + 1000;
+    const proofExpiresAt = routeTime + 2 * 60 * 60 * 1000;
+    const proof = fakeProof(proofExpiresAt);
+    const nightContext = { ...inferNightContext("Clapham tonight").context, stopCount: 3 as const };
+    expect(writePlanDraftEnvelope(cleared, "manual", session, NOW).v2).toBe(true);
+    expect(writePlanRouteDraftEnvelope(routeValue({ nightContext, groundingProof: proof }), "plan-generated", local, routeTime).v1).toBe(true);
+    local.removeItem(PLAN_ROUTE_DRAFT_V2_KEY);
+    const savedAt = new Date(routeTime).toISOString();
+    const blank = createPlanIntakeDraft();
+    expect(writePlanIntakeDraft({ ...blank, answers: { ...blank.answers, area: "clapham", stopCount: 3, stopCountSource: "text" } },
+      local, routeTime, { savedAt, operationKey: "operation-1" }, { nightArea: "clapham" })).toBe(true);
+    const freshRoute = readPlanRouteDraftEnvelope(local, proofExpiresAt)!;
+    if (malformedProof) {
+      const raw = JSON.parse(local.getItem(PLAN_ROUTE_DRAFT_KEY)!);
+      local.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify({ ...raw, groundingProof: "malformed-proof" }));
+    }
+    const readAt = malformedProof ? routeTime : proofExpiresAt + 1;
+    const plan = readPlanDraftEnvelope(session, readAt)!;
+    const route = readPlanRouteDraftEnvelope(local, readAt)!;
+    const intake = readPlanIntakeDraftWithMetadata(local, readAt)!;
+    expect(route).toMatchObject({ savedAt, legacy: true, value: {
+      groundingProof: null, operationKey: "operation-1", routeStale: true,
+    } });
+    return { plan, legacyDraft: plan.draft, intake, route, freshRoute, proof, readAt, session, local };
+  }
+
+  it.each([false, true])("recovers correlated route stops without usable proof, malformed: %s", (malformedProof) => {
+    const { plan, legacyDraft, intake, route, freshRoute, proof } = expiredGeneration(malformedProof);
+    const input = { plan, legacyDraft, intake, route };
+    expect(freshRoute.value).toMatchObject({ groundingProof: proof, routeStale: false });
+    expect(recoverPlanDrafts({ ...input, route: freshRoute }))
+      .toMatchObject({ requestOnly: false, routeWins: true, acceptanceUnavailable: false });
+    expect(input.route.value.stops.map((stop) => stop.venueId)).toEqual(["venue-a", "venue-b", "venue-c"]);
+    const recovered = recoverPlanDrafts(input);
+    expect(recovered).toMatchObject({
+      requestOnly: false, routeWins: true, acceptanceUnavailable: true,
+      planDraft: null, recoveredDraft: null, planningIntent: null, preserveStoredDrafts: true,
+      intakeDraft: input.intake, retainedPreviewReference: input.intake.routeReference,
+    });
+    expect(recovered.intent.stopCount).toBe(3);
+  });
+
+  it.each(["missing-intake", "revoked-intake", "operation", "route-date", "answers", "ambiguous", "undated-route", "undated-request", "later-clear"] as const)(
+    "keeps the request when an expired route has %s", (conflict) => {
+      const { plan, legacyDraft, intake, route, readAt } = expiredGeneration();
+      if (conflict === "revoked-intake") intake.routeReference = null;
+      if (conflict === "operation") intake.routeReference!.operationKey = "other-operation";
+      if (conflict === "route-date") intake.routeReference!.savedAt = new Date(NOW).toISOString();
+      if (conflict === "answers") intake.draft.answers.stopCount = 2;
+      if (conflict === "undated-route") route.savedAt = null;
+      if (conflict === "undated-request") { plan.savedAt = null; plan.legacy = true; }
+      if (conflict === "later-clear") plan.savedAt = new Date(readAt).toISOString();
+      const recovered = recoverPlanDrafts({
+        plan, legacyDraft, intake: conflict === "missing-intake" ? null : intake,
+        route: { ...route, ambiguous: conflict === "ambiguous" },
+      });
+      expect(recovered).toMatchObject({ requestOnly: true, routeWins: false, recoveredDraft: { stops: [], routeReference: null } });
+    },
+  );
+
+  it.each(["matching", "revoked", "changed-stops"] as const)("retains a stale route reference for %s metadata", (kind) => {
+    const { route, intake, readAt } = expiredGeneration();
+    const stops = route.value.stops.map(({ key, venueId, venueName }) => ({ key, venueId, venueName }));
+    if (kind === "changed-stops") stops.reverse();
+    const plan = v2Plan(readAt, {
+      title: "Our later night", stops, routeReference: kind === "revoked" ? null : intake.routeReference,
+    });
+    const recovered = recoverPlanDrafts({ plan, legacyDraft: plan.draft, intake, route });
+    expect(recovered).toMatchObject({ requestOnly: false, routeWins: false, sessionWins: true });
+    expect(recovered.recoveredDraft?.title).toBe("Our later night");
+    expect(recovered.retainedPreviewReference).toEqual(kind === "matching" ? intake.routeReference : null);
+  });
+
+  it("protects a correlated preview after the older Session V2 expires without dating legacy metadata", () => {
+    const { plan, intake, readAt, session, local, route } = expiredGeneration();
+    const metadata = storedPlan({
+      title: "Our later night", routeReference: intake.routeReference, requestedStopCount: 3,
+      stops: route.value.stops.map(({ key, venueId, venueName }) => ({ key, venueId, venueName })),
+    });
+    expect(writePlanDraftEnvelope(metadata, "manual", {
+      getItem: session.getItem,
+      setItem: (key, value) => {
+        if (key === PLAN_DRAFT_V2_KEY) throw new Error("blocked");
+        session.setItem(key, value);
+      },
+    }, readAt, { requireV1: true })).toMatchObject({ v1: true, v2: false });
+
+    const sessionExpiresAt = Date.parse(plan.expiresAt!);
+    const intakeExpiresAt = Date.parse(intake.expiresAt);
+    const inBetween = sessionExpiresAt + 1;
+    expect(inBetween).toBeLessThan(intakeExpiresAt);
+    expect(readPlanDraftEnvelope(session, sessionExpiresAt - 1)).toMatchObject({ legacy: false, draft: { stops: [] } });
+    const legacy = readPlanDraftEnvelope(session, inBetween)!;
+    const savedIntake = readPlanIntakeDraftWithMetadata(local, inBetween)!;
+    const savedRoute = readPlanRouteDraftEnvelope(local, inBetween)!;
+    expect(legacy).toMatchObject({ legacy: true, savedAt: null, expiresAt: null, draft: metadata });
+    expect(savedRoute.value).toMatchObject({ routeStale: true, groundingProof: null });
+    const input = { plan: legacy, legacyDraft: legacy.draft, intake: savedIntake, route: savedRoute };
+    expect(recoverPlanDrafts(input)).toMatchObject({
+      routeWins: false, sessionWins: false, requestOnly: false, requestAmbiguous: true, acceptanceUnavailable: true,
+      planDraft: null, retainedPreviewReference: savedIntake.routeReference,
+      recoveredDraft: { title: "Our later night", stops: metadata.stops },
+      intakeDraft: savedIntake,
+      requestIntake: { answers: { area: "clapham", stopCount: 3, stopCountSource: "text" } },
+      intent: {
+        stopCount: 3, stopCountSource: "text", explicitNightContext: { nightArea: "clapham" },
+        conciergeQuery: "", descriptionUnavailable: true,
+      },
+    });
+
+    const mismatch = { ...legacy.draft, routeReference: { ...legacy.draft.routeReference!, operationKey: "other-operation" } };
+    expect(recoverPlanDrafts({ ...input, plan: { ...legacy, draft: mismatch }, legacyDraft: mismatch }).retainedPreviewReference).toBeNull();
+    const reordered = { ...legacy.draft, stops: [...legacy.draft.stops].reverse() };
+    expect(recoverPlanDrafts({ ...input, plan: { ...legacy, draft: reordered }, legacyDraft: reordered }).retainedPreviewReference).toBeNull();
+    expect(recoverPlanDrafts({ ...input, route: { ...savedRoute, ambiguous: true } }).retainedPreviewReference).toBeNull();
+    const clearedLegacy = { ...legacy.draft, stops: [], routeReference: null };
+    expect(recoverPlanDrafts({ ...input, plan: { ...legacy, draft: clearedLegacy }, legacyDraft: clearedLegacy }))
+      .toMatchObject({ requestOnly: true, routeWins: false, retainedPreviewReference: null });
+    const expiredIntake = readPlanIntakeDraftWithMetadata(local, intakeExpiresAt);
+    expect(expiredIntake).toBeNull();
+    expect(recoverPlanDrafts({ ...input, intake: expiredIntake }).retainedPreviewReference).toBeNull();
+  });
+
+  it("keeps a later explicit acceptance ahead of an expired route preview", () => {
+    const { plan, legacyDraft, intake, route, readAt } = expiredGeneration();
+    const planningIntent = createPlanningIntent(options, readAt);
+    expect(planningIntent).not.toBeNull();
+    expect(recoverPlanDrafts({ plan, legacyDraft, intake, route, planningIntent }))
+      .toMatchObject({ requestOnly: true, routeWins: false, planningIntent });
+  });
+
   it("does not invent the age of a legacy clear or borrow acceptance from a conflicting route", () => {
     const session = memoryStorage({ throwOnSet: 2 });
     expect(writePlanDraftEnvelope(cleared, "manual", session, NOW)).toMatchObject({ v1: true, v2: false });

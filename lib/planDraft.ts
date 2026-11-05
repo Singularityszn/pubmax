@@ -320,6 +320,7 @@ export function writePlanDraftEnvelope(
   origin: PlanDraftOrigin,
   storage: PlanDraftStorage | null,
   now = Date.now(),
+  options: { requireV1?: boolean } = {},
 ): PlanDraftWriteResult {
   const parsedDraft = parseStoredPlanDraft(draft, false, now);
   const canonical = parsedDraft ? withoutExpiredAcceptedAnchor(parsedDraft, now) : null;
@@ -350,10 +351,9 @@ export function writePlanDraftEnvelope(
   let v2 = false;
   try {
     storage.setItem(PLAN_DRAFT_KEY, rawV1);
-    v1 = true;
-  } catch {
-    // A blocked legacy write must not prevent an attempted canonical write.
-  }
+    v1 = !options.requireV1 || storage.getItem(PLAN_DRAFT_KEY) === rawV1;
+  } catch {}
+  if (options.requireV1 && !v1) return { v1: false, v2: false, envelope: null };
   try {
     storage.setItem(PLAN_DRAFT_V2_KEY, rawV2);
     v2 = true;

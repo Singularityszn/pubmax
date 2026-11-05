@@ -65,17 +65,19 @@ function matchingSessionCopies(plan: ParsedPlanDraft | null, legacyDraft: Stored
 function matchingSessionRoute(
   plan: ParsedPlanDraft | null,
   route: Pick<ParsedPlanRouteDraft, "savedAt" | "value"> | null,
+  match: "current" | "preview" = "current",
 ): boolean {
   if (!plan || !route) return false;
   const reference = plan.draft.routeReference;
   if (reference) {
     if (plan.draft.requestedStopCount !== undefined
       && plan.draft.requestedStopCount !== route.value.nightContext?.stopCount) return false;
-    if (plan.legacy || route.value.routeStale || !route.value.groundingProof
+    if ((match === "current" && (plan.legacy || route.value.routeStale || !route.value.groundingProof))
       || reference.savedAt !== route.savedAt || reference.operationKey !== route.value.operationKey
-      || Date.parse(reference.savedAt) > Date.parse(plan.savedAt ?? "")) return false;
-  } else if (!route.value.routeStale || plan.savedAt !== route.savedAt) return false;
+      || (!plan.legacy && Date.parse(reference.savedAt) > Date.parse(plan.savedAt ?? ""))) return false;
+  } else if (match === "preview" || !route.value.routeStale || plan.savedAt !== route.savedAt) return false;
   const anchor = plan.draft.acceptedAnchor;
+  if (match === "preview" && anchor) return false;
   const previewOnly = route.value.routeStale && route.value.nightContext === null
     && route.value.groundingProof === null && route.value.operationKey === null && route.value.routeRevision === null
     && route.value.anchorVenueId === null && route.value.anchorSource === null;
@@ -85,17 +87,23 @@ function matchingSessionRoute(
     === JSON.stringify(route.value.stops.map(({ key, venueId, venueName }) => ({ key, venueId, venueName })));
 }
 
-function matchingIntakeRoute(intake: ParsedPlanIntakeDraft, route: Pick<ParsedPlanRouteDraft, "savedAt" | "value"> | null): boolean {
+function matchingIntakeRoute(
+  intake: ParsedPlanIntakeDraft,
+  route: Pick<ParsedPlanRouteDraft, "savedAt" | "value"> | null,
+  match: "current" | "preview" = "current",
+): boolean {
   if (!route) return false;
   const patch = planIntakeNightContextPatch(intake.draft);
   const count = intake.draft.answers.stopCount;
   if (count !== undefined && count !== route.value.nightContext?.stopCount) return false;
   if (!(Object.keys(patch) as (keyof typeof patch)[])
     .every((key) => JSON.stringify(patch[key]) === JSON.stringify(route.value.nightContext?.[key]))) return false;
-  if (route.value.routeStale && route.savedAt === intake.savedAt) return true;
+  if (match === "current") {
+    if (route.value.routeStale) return route.savedAt === intake.savedAt;
+    if (!route.value.groundingProof) return false;
+  }
   const reference = intake.routeReference;
-  return Boolean(reference && !route.value.routeStale && route.value.groundingProof
-    && reference.savedAt === route.savedAt && reference.operationKey === route.value.operationKey
+  return Boolean(reference && reference.savedAt === route.savedAt && reference.operationKey === route.value.operationKey
     && Date.parse(reference.savedAt) <= Date.parse(intake.savedAt));
 }
 
@@ -220,6 +228,7 @@ function recoverRequestOnly(input: DraftRecoveryInput, request: StoredPlanDraft)
     routeWins: false,
     requestOnly: true,
     preserveStoredDrafts: true,
+    retainedPreviewReference: null,
     requestAmbiguous: source === "unknown" || !copiesAgree,
     acceptanceUnavailable: Boolean(route && !requestWins),
     sessionWins: requestWins,
@@ -237,8 +246,27 @@ function recoverRequestOnly(input: DraftRecoveryInput, request: StoredPlanDraft)
   };
 }
 
+function correlatedStaleRouteReference(intake: ParsedPlanIntakeDraft | null, route: DraftRecoveryInput["route"]) {
+  if (!intake || !route || route.ambiguous || !route.value.routeStale || route.value.groundingProof !== null) return null;
+  return matchingIntakeRoute(intake, route, "preview") ? intake.routeReference ?? null : null;
+}
+
+function canRecoverLaterRoute(
+  route: NonNullable<DraftRecoveryInput["route"]>,
+  intake: ParsedPlanIntakeDraft | null,
+  planningIntent: DraftRecoveryInput["planningIntent"],
+  routeTime: number,
+): boolean {
+  if (!route.value.routeStale) {
+    return !intake || routeTime > Date.parse(intake.savedAt) || matchingIntakeRoute(intake, route);
+  }
+  if (!correlatedStaleRouteReference(intake, route)) return false;
+  const latestSavedAt = latestKnownTime(route.savedAt, route.otherSavedAt, intake?.savedAt);
+  return !(Date.parse(planningIntent?.acceptedAt ?? "") > latestSavedAt);
+}
+
 function selectDraftRecoveryOrder(
-  { plan, legacyDraft, intake, route }: DraftRecoveryInput,
+  { plan, legacyDraft, intake, route, planningIntent }: DraftRecoveryInput,
   routeTime: number,
 ) {
   const request = plan?.draft.stops.length === 0 ? plan.draft : legacyDraft?.stops.length === 0 ? legacyDraft : null;
@@ -248,9 +276,8 @@ function selectDraftRecoveryOrder(
   // intake with different answers or a different reference still competes with it.
   const routeWins = request ? Boolean(plan && request === plan.draft && plan.savedAt
     && (legacyDraft?.stops.length !== 0 || JSON.stringify(legacyDraft) === JSON.stringify(request))
-    && route && !route.ambiguous && !route.value.routeStale
-    && routeTime > Date.parse(plan.savedAt)
-    && (!intake || routeTime > Date.parse(intake.savedAt) || matchingIntakeRoute(intake, route)))
+    && route && !route.ambiguous && routeTime > Date.parse(plan.savedAt)
+    && canRecoverLaterRoute(route, intake, planningIntent, routeTime))
     : routeSupersedesRequest(plan, route);
   return { request, routeWins };
 }
@@ -271,6 +298,37 @@ function cannotRecoverAcceptance(
     || Boolean(route && plan && !routeWins && (!sessionCopiesAgree || !matchingRoute)));
 }
 
+function recoverRetainedRoutePreview(
+  { plan, intake, route }: DraftRecoveryInput,
+  evidence: {
+    request: StoredPlanDraft | null;
+    routeWins: boolean;
+    sessionWins: boolean;
+    sessionCopiesAgree: boolean;
+    intakeDraft: ParsedPlanIntakeDraft | null;
+  },
+) {
+  const { request, routeWins, sessionWins, sessionCopiesAgree, intakeDraft } = evidence;
+  const stalePreviewWins = Boolean(request && routeWins && route?.value.routeStale);
+  const legacyPreview = plan?.legacy && plan.savedAt === null && !routeWins && sessionCopiesAgree;
+  const retainedPreviewReference = stalePreviewWins || ((sessionWins || legacyPreview) && matchingSessionRoute(plan, route, "preview"))
+    ? correlatedStaleRouteReference(intake, route) : null;
+  const retainedLegacyIntake = legacyPreview && retainedPreviewReference ? intakeDraft : null;
+  return { stalePreviewWins, retainedPreviewReference, retainedLegacyIntake };
+}
+
+function recoverPlanDraftCandidates(
+  plan: ParsedPlanDraft | null,
+  legacyDraft: StoredPlanDraft | null,
+  routeWins: boolean,
+  acceptanceUnavailable: boolean,
+) {
+  const planDraft = routeWins || acceptanceUnavailable ? null : plan;
+  const draft = routeWins ? null : acceptanceUnavailable && legacyDraft
+    ? { ...legacyDraft, acceptedAnchor: undefined } : legacyDraft ?? plan?.draft ?? null;
+  return { planDraft, draft };
+}
+
 export function recoverPlanDrafts(input: DraftRecoveryInput) {
   const { plan, legacyDraft, intake, route } = input;
   const routeTime = Date.parse(route?.savedAt ?? "");
@@ -283,21 +341,24 @@ export function recoverPlanDrafts(input: DraftRecoveryInput) {
   const matchingRoute = (requestSource !== "unknown" || plan?.legacy === true)
     && (intakeWins ? matchingIntakeRoute(intakeDraft!, route) : matchingSessionRoute(plan, route));
   const sessionWins = sessionSupersedesRoute(plan, route, matchingRoute, sessionCopiesAgree);
-  const acceptanceUnavailable = cannotRecoverAcceptance(input, {
+  const { stalePreviewWins, retainedPreviewReference, retainedLegacyIntake } = recoverRetainedRoutePreview(input, {
+    request, routeWins, sessionWins, sessionCopiesAgree, intakeDraft,
+  });
+  const acceptanceUnavailable = stalePreviewWins || cannotRecoverAcceptance(input, {
     sessionWins, intakeWins, matchingRoute, routeWins, sessionCopiesAgree,
   });
-  const planDraft = routeWins || acceptanceUnavailable ? null : plan;
-  const draft = routeWins ? null : acceptanceUnavailable && legacyDraft
-    ? { ...legacyDraft, acceptedAnchor: undefined } : legacyDraft ?? plan?.draft ?? null;
-  const intent = resolveRequestedPlanIntent(routeWins ? null : plan, legacyDraft, intakeDraft);
+  const { planDraft, draft } = recoverPlanDraftCandidates(plan, legacyDraft, routeWins, acceptanceUnavailable);
+  const intent = resolveRequestedPlanIntent(routeWins || retainedLegacyIntake ? null : plan, legacyDraft, intakeDraft);
   const recoveredIntent = recoverExplicitRequestInputs(intent, route,
     routeWins, matchingRoute && requestSource !== "unknown" && sessionCopiesAgree, acceptanceUnavailable);
   const sessionIntake = recoverSessionIntake(plan, legacyDraft, requestSource, routeWins);
-  const currentIntake = recoverCurrentIntake(plan, intakeDraft, intakeWins, sessionWins, acceptanceUnavailable, sessionIntake, legacyDraft);
+  const currentIntake = retainedLegacyIntake
+    ?? recoverCurrentIntake(plan, intakeDraft, intakeWins, sessionWins, acceptanceUnavailable, sessionIntake, legacyDraft);
   return {
     routeWins,
     requestOnly: false,
     preserveStoredDrafts: request !== null,
+    retainedPreviewReference,
     planningIntent: routeWins || acceptanceUnavailable ? null : input.planningIntent ?? null,
     requestAmbiguous: requestSource === "unknown",
     acceptanceUnavailable,
@@ -306,7 +367,8 @@ export function recoverPlanDrafts(input: DraftRecoveryInput) {
     recoveredDraft: draft && plan && legacyDraft && plan.draft.entryMode !== legacyDraft.entryMode
       ? { ...draft, entryMode: undefined } : draft,
     ...recoveredIntakeState(currentIntake, sessionIntake, Boolean(intake)),
-    intent: routeWins && intakeDraft ? { ...recoveredIntent, descriptionUnavailable: true } : recoveredIntent,
+    intent: (routeWins && intakeDraft) || retainedLegacyIntake
+      ? { ...recoveredIntent, descriptionUnavailable: true } : recoveredIntent,
   };
 }
 

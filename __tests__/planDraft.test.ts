@@ -182,3 +182,45 @@ describe("request drafts without stops", () => {
     expect(legacy?.stops).toEqual([]);
   });
 });
+
+describe("confirmed legacy prerequisite for Plan metadata writes", () => {
+  const v1 = "pubmaxx:plan-draft:v1";
+  const v2 = "pubmax:plan-draft:v2";
+  const now = Date.parse("2026-11-03T12:00:00.000Z");
+  const draft = { title: "Night", creatorName: "Captain", startTime: "", conciergeQuery: "", stops: [] };
+  const edited = { ...draft, title: "Our later night", stops: [{ key: 1, venueId: "venue-a", venueName: "Pub A" }] };
+
+  it.each([
+    { lane: "V1 refused", refuse: [v1], discard: false, requireV1: true, attempts: [v1], result: { v1: false, v2: false } },
+    { lane: "V2 refused", refuse: [v2], discard: false, requireV1: true, attempts: [v1, v2], result: { v1: true, v2: false } },
+    { lane: "both refused", refuse: [v1, v2], discard: false, requireV1: true, attempts: [v1], result: { v1: false, v2: false } },
+    { lane: "V1 discarded", refuse: [], discard: true, requireV1: true, attempts: [v1], result: { v1: false, v2: false } },
+    { lane: "both writable", refuse: [], discard: false, requireV1: true, attempts: [v1, v2], result: { v1: true, v2: true } },
+    { lane: "default V1 refused", refuse: [v1], discard: false, requireV1: false, attempts: [v1, v2], result: { v1: false, v2: true } },
+  ])("keeps both draft records consistent with the attempt when $lane", ({ refuse, discard, requireV1, attempts, result }) => {
+    const values = new Map<string, string>();
+    const writes: string[] = [];
+    let editing = false;
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        writes.push(key);
+        if (editing && refuse.includes(key)) throw new DOMException("Storage is full", "QuotaExceededError");
+        if (editing && discard && key === v1) return;
+        values.set(key, value);
+      },
+    };
+    expect(writePlanDraftEnvelope(draft, "manual", storage, now)).toMatchObject({ v1: true, v2: true });
+    const oldV1 = storage.getItem(v1);
+    const oldV2 = storage.getItem(v2);
+    writes.length = 0;
+    editing = true;
+
+    expect(writePlanDraftEnvelope(edited, "manual", storage, now + 1, requireV1 ? { requireV1 } : undefined)).toMatchObject(result);
+    expect(writes).toEqual(attempts);
+    if (result.v1) expect(parsePlanDraft(storage.getItem(v1), now + 1)).toEqual(edited);
+    else expect(storage.getItem(v1)).toBe(oldV1);
+    if (!result.v2) expect(storage.getItem(v2)).toBe(oldV2);
+    expect(readPlanDraftEnvelope(storage, now + 1)?.draft).toEqual(result.v2 ? edited : draft);
+  });
+});
