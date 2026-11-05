@@ -86,7 +86,7 @@ class BillAlreadyCheckedError extends Error {
 export type BillCheckStore = {
   /** Store one check. THROWS on a hard failure and on a second check of one bill. */
   record(input: BillCheckInput): Promise<BillCheckRecord>;
-  findChecked(input: BillCheckSubject): Promise<BillCheckRecord | null>;
+  reuseChecked(input: BillCheckSubject): Promise<BillCheckRecord | null>;
   /** Unreviewed mismatches, newest first. Fail-soft ([]). */
   listMismatchesForReview(): Promise<BillCheckRecord[]>;
   /** Stamp one unreviewed mismatch. Null for an unknown id, a reviewed row or any other result. */
@@ -148,10 +148,16 @@ export const memoryBillCheckStore: BillCheckStore = {
     return { ...stored, lines: [...stored.lines] };
   },
 
-  async findChecked(input) {
+  async reuseChecked(input) {
     assertSubject(input);
     const key = subjectKeys(input)[0];
     const hit = [...checks.values()].find((check) => subjectKeys(check).includes(key));
+    if (hit && input.communityPriceId &&
+      (hit.communityPriceSubmittedAt === undefined || input.communityPriceSubmittedAt! >= hit.communityPriceSubmittedAt)) {
+      hit.communityPriceId = input.communityPriceId;
+      hit.communityPriceSubmittedAt = input.communityPriceSubmittedAt;
+      hit.roundSource = input.roundSource ? { ...input.roundSource } : undefined;
+    }
     return hit ? { ...hit, lines: [...hit.lines] } : null;
   },
 
@@ -286,11 +292,11 @@ export const supabaseBillCheckStore: BillCheckStore = {
     });
   },
 
-  async findChecked(input) {
+  async reuseChecked(input) {
     assertSubject(input);
     return guard({
-      context: "find-checked",
-      onSchemaMiss: () => memoryBillCheckStore.findChecked(input),
+      context: "reuse-checked",
+      onSchemaMiss: () => memoryBillCheckStore.reuseChecked(input),
       run: async () => {
         let query = admin().from(TABLE).select("*").eq("bill_hash", input.billHash)
           .eq("price_pennies", Math.round(input.priceGbp * 100));
@@ -303,7 +309,22 @@ export const supabaseBillCheckStore: BillCheckStore = {
           : query.is("community_price_round_source", null);
         const { data, error } = await query.limit(1);
         if (error) throw new Error(error.message);
-        return Array.isArray(data) && data.length > 0 ? fromRow(data[0] as Record<string, unknown>) : null;
+        const hit = Array.isArray(data) && data.length > 0 ? fromRow(data[0] as Record<string, unknown>) : null;
+        if (!hit || !input.communityPriceId ||
+          (hit.communityPriceSubmittedAt !== undefined && input.communityPriceSubmittedAt! < hit.communityPriceSubmittedAt)) return hit;
+        let binding = admin().from(TABLE).update({
+          community_price_id: input.communityPriceId,
+          community_price_submitted_at: new Date(input.communityPriceSubmittedAt!).toISOString(),
+          community_price_round_source: input.roundSource ?? null,
+        }).eq("id", hit.id);
+        binding = hit.communityPriceSubmittedAt === undefined
+          ? binding.is("community_price_submitted_at", null)
+          : binding.eq("community_price_submitted_at", new Date(hit.communityPriceSubmittedAt).toISOString());
+        const { data: bound, error: bindError } = await binding.select("*").single();
+        if (bindError) throw new Error(bindError.message);
+        const stored = fromRow(bound as Record<string, unknown>);
+        if (!stored) throw new Error("bill check binding returned an unreadable row");
+        return stored;
       },
     });
   },

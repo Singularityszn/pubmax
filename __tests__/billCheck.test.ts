@@ -57,17 +57,16 @@ describe("parseBillReadAnswer", () => {
     expect(read.lines).toEqual([{ name: "Stout", priceGbp: 5.2 }]);
   });
 
-  it("takes card digits and other long numbers out of a line name, and drops a line left empty", () => {
+  it("preserves product digits until judging and drops a line with only long numbers", () => {
     const read = parseBillReadAnswer(bill([
       { name: "Visa **** 4921 1234", price_gbp: 6.2 },
       { name: "1234567890", price_gbp: 6.2 },
       { name: "  Camden   Hells <b>pint</b> ", price_gbp: 6.2 },
     ]));
     expect(read.lines).toEqual([
-      { name: "Visa ****", priceGbp: 6.2 },
+      { name: "Visa **** 4921 1234", priceGbp: 6.2 },
       { name: "Camden Hells bpint/b", priceGbp: 6.2 },
     ]);
-    for (const line of read.lines) expect(line.name).not.toMatch(/\d{4}/);
   });
 
   it("caps a long name and a long bill", () => {
@@ -145,6 +144,8 @@ describe("judgeBill", () => {
     ["½ pint lager", "Lager ½", "half", "pint"],
     ["Single Jameson", "Jameson single", "single", "double"],
     ["Double Jameson", "Jameson double", "double", "single"],
+    ["Double Grey Goose", "Grey Goose double", "double", "single"],
+    ["Single Jack Daniel's", "Jack Daniel's single", "single", "double"],
     ["Bottle of Merlot", "Merlot bottle", "bottle", "175ml"],
     ["125 ml Merlot", "Merlot 125ml", "125ml", "250ml"],
     ["Merlot 175 ml reserve", "Merlot reserve 175ml", "175ml", "250ml"],
@@ -159,6 +160,31 @@ describe("judgeBill", () => {
 
   it("does not approve a single spirit as a double even when both names say single", () => {
     expect(judgeBill(read([["Single Jameson", 5.2]]), 5.2, "Single Jameson", "double").result).toBe("mismatch");
+  });
+
+  it.each(["Double IPA", "Single Malt Whisky", "Half Moon IPA", "Bottle Rocket IPA"])(
+    "preserves the product words in %s on both sides of the comparison",
+    (drink) => {
+      const shortened = drink.split(" ").slice(1).join(" ");
+      expect(judgeBill(read([[drink, 5.2]]), 5.2, drink, "pint").result).toBe("match");
+      expect(judgeBill(read([[`${drink} pint`, 5.2]]), 5.2, drink, "pint").result).toBe("match");
+      expect(judgeBill(read([[shortened, 5.2]]), 5.2, drink, "pint").result).toBe("unreadable");
+      expect(judgeBill(read([[drink, 5.2]]), 5.2, shortened, "pint").result).toBe("unreadable");
+    },
+  );
+
+  it.each(["match", "mismatch"] as const)("compares numeric product names before redacting %s evidence", (result) => {
+    const parsed = parseBillReadAnswer(bill([
+      { name: "Kronenbourg 1664", price_gbp: 5.2 },
+      { name: "Visa **** 4921 1234", price_gbp: 5.2 },
+    ]));
+    const verdict = judgeBill(parsed, result === "match" ? 5.2 : 6.2, "Kronenbourg 1664", "pint");
+    expect(verdict.result).toBe(result);
+    expect(verdict.lines[0]).toEqual({ name: "Kronenbourg", priceGbp: 5.2 });
+    expect(verdict.lines).toHaveLength(result === "match" ? 1 : 2);
+    for (const line of verdict.lines) expect(line.name).not.toMatch(/\d{4}/);
+    expect(judgeBill(parsed, 5.2, "Kronenbourg 1234", "pint").result).toBe("unreadable");
+    expect(judgeBill(parsed, 5.2, "Kronenbourg", "pint").result).toBe("unreadable");
   });
 });
 

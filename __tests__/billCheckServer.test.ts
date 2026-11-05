@@ -21,6 +21,7 @@ import { readBoardPhoto } from "@/lib/boardRead.server";
 import { __resetBillChecks, memoryBillCheckStore, type BillCheckRecord, type BillCheckStore } from "@/lib/billCheckStore";
 import { readBillPhoto, runBillCheck, type BillCheckRun } from "@/lib/billCheck.server";
 import { __resetPintDrops, addPintDrop, findPintDropsByIds, grantPintDropReceipt } from "@/lib/pintDrops";
+import { __resetCommunityPrices, memoryCommunityPriceStore } from "@/lib/communityPriceStore";
 
 const KEYED = { OPENROUTER_API_KEY: "test-key" };
 const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
@@ -139,6 +140,7 @@ describe("runBillCheck", () => {
 
   beforeEach(() => {
     __resetBillChecks();
+    __resetCommunityPrices();
     logged.length = 0;
     checks = memoryChecks();
     grantReceipt = vi.fn(async () => true);
@@ -311,5 +313,39 @@ describe("runBillCheck", () => {
     const said = JSON.stringify(logged);
     expect(logged.length).toBeGreaterThan(0);
     expect(said).not.toMatch(/Guinness|Crisps|Blackfriar|6\.2|1\.5|4\.5/);
+  });
+
+  it.each([false, true])("hides the current community observation after a reused mismatch (initially paired: %s)", async (paired) => {
+    const at = Date.parse("2026-11-05T19:30:00.000Z");
+    const input = { venueId: "venue-1vle947", drinkCategory: "beer" as const, priceGbp: 4.5, actor: "drinker" };
+    const firstPrice = paired ? (await memoryCommunityPriceStore.submit(input, at)).price! : undefined;
+    const firstRun = run({
+      priceGbp: 4.5,
+      ...(firstPrice ? { communityPriceId: firstPrice.id, communityPriceSubmittedAt: firstPrice.submittedAt } : {}),
+    });
+    const fetcher = vi.fn(async () => modelAnswer(BILL));
+    expect(await runBillCheck(firstRun, deps(fetcher))).toBe("mismatch");
+    const current = (await memoryCommunityPriceStore.submit(input, at + 1000)).price!;
+    expect(await runBillCheck({ ...firstRun, communityPriceId: current.id, communityPriceSubmittedAt: current.submittedAt }, deps(fetcher)))
+      .toBe("already-checked");
+    const [check] = await checks.listMismatchesForReview();
+    expect(check).toMatchObject({ communityPriceId: current.id, communityPriceSubmittedAt: at + 1000 });
+    const claimed = (await checks.review(check.id, "hidden"))!;
+    expect(await memoryCommunityPriceStore.moderateWithState(claimed.communityPriceId!, true, "Bill mismatch", {
+      submittedAt: claimed.communityPriceSubmittedAt!, priceGbp: claimed.priceGbp,
+    })).toMatchObject({ status: "ok", changed: true });
+    expect((await memoryCommunityPriceStore.latestForVenue([input.venueId], at + 1000)).prices).toEqual([]);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(admit).toHaveBeenCalledTimes(1);
+    expect(checks.records).toHaveLength(1);
+  });
+
+  it.each(["match", "mismatch"] as const)("stores redacted evidence for a numeric product name on a %s", async (result) => {
+    const answer = { ...BILL, lines: [{ name: "Kronenbourg 1664", price_gbp: 6.2 }] };
+    expect(await runBillCheck(run({ drink: "Kronenbourg 1664", priceGbp: result === "match" ? 6.2 : 4.5 }), deps(vi.fn(async () => modelAnswer(answer)))))
+      .toBe(result);
+    expect(checks.records[0]).toMatchObject({ result, lines: [{ name: "Kronenbourg", priceGbp: 6.2 }] });
+    if (result === "match") expect(grantReceipt).toHaveBeenCalledWith("drop-1");
+    else expect(grantReceipt).not.toHaveBeenCalled();
   });
 });
