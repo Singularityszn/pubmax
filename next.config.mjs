@@ -319,6 +319,7 @@ const nextConfig = {
     // Social owns posts and public pub discovery. Retired route families go
     // straight to their canonical Social surface with no redirect chain.
     return [
+      { source: "/index", destination: "/", permanent: true },
       { source: "/map/uk", destination: "/map?uk=1", permanent: true },
       { source: "/map/uk/1", destination: "/map?uk=1", permanent: true },
       // The www -> apex host redirect lives in vercel.json, not here. `next

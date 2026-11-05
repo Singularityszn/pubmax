@@ -4,6 +4,7 @@
 
 export type ChainSource = { label: string; url: string };
 
+export declare const WETHERSPOONS_DEALS_OBSERVED_AT: string;
 export declare const WETHERSPOONS_FOOD_DRINK_SOURCE: ChainSource;
 export declare const WETHERSPOONS_PRICING_SOURCE: ChainSource;
 
@@ -40,7 +41,7 @@ export type WhatsOnDealRow = {
   lng?: number;
   kind: "deal";
   startsAt: string;
-  endsAt?: string;
+  endsAt: string;
   title: string;
   detail: string;
   source: ChainSource;
@@ -61,6 +62,8 @@ export declare function buildWetherspoonsDealRows(input: {
   deals: WetherspoonsDealDef[];
   venues: WetherspoonsPubRecord[];
   observedAt: string;
+  /** Clock for the occurrence window. Defaults to the source observation for live harvests. */
+  asOf?: string;
   venueIndex?: import("./resolveVenueId.d.mts").VenueResolverIndex | null;
   /** Row-id segment naming the chain. Defaults to "jdw". */
   idPrefix?: string;

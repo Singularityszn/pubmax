@@ -128,6 +128,8 @@ export function londonWallClockToIso(dateStr, timeStr) {
 // Friday" club is currently listed here (the page that used to carry it,
 // jdwetherspoon.com/food/fish, now 404s) — rather than ship a stale/
 // discontinued offer, it is simply NOT included below.
+export const WETHERSPOONS_DEALS_OBSERVED_AT = "2026-07-12T00:00:00.000Z";
+
 export const WETHERSPOONS_FOOD_DRINK_SOURCE = {
   label: "J D Wetherspoon — Food & drink",
   url: "https://www.jdwetherspoon.com/food-drink/",
@@ -216,16 +218,17 @@ export function buildWetherspoonsDealRows({
   deals,
   venues,
   observedAt,
+  asOf = observedAt,
   venueIndex = null,
   idPrefix = "jdw",
   source = WETHERSPOONS_FOOD_DRINK_SOURCE,
 }) {
   const rows = [];
   for (const deal of deals ?? []) {
-    const startsAt = nextWeeklyOccurrence(deal.dayName, deal.startTime, observedAt);
-    if (!startsAt) continue;
-    const dateStr = startsAt.slice(0, 10);
-    const endsAt = londonWallClockToIso(dateStr, deal.endTime);
+    const endsAt = nextWeeklyOccurrence(deal.dayName, deal.endTime, asOf);
+    if (!endsAt) continue;
+    const startsAt = londonWallClockToIso(endsAt.slice(0, 10), deal.startTime);
+    if (!startsAt || Date.parse(startsAt) >= Date.parse(endsAt)) continue;
     const cadence = deal.cadenceLabel ?? `every ${deal.dayName}`;
 
     for (const venue of venues ?? []) {
@@ -239,13 +242,13 @@ export function buildWetherspoonsDealRows({
         placeName: name,
         kind: "deal",
         startsAt,
+        endsAt,
         title: `${deal.title} — ${cadence}`,
         detail: `${deal.terms} Price, dishes and participation may vary per pub — see venue for details.`,
         source: { ...source },
         observedAt,
         confidence: "listed",
       };
-      if (endsAt) row.endsAt = endsAt;
       const lat = coordOf(venue.latitude);
       const lng = coordOf(venue.longitude);
       if (lat !== null) row.lat = lat;
@@ -270,7 +273,7 @@ export function buildWetherspoonsDealRows({
 // ---------------------------------------------------------------------------
 
 function main() {
-  const observedAt = new Date().toISOString();
+  const generatedAt = new Date().toISOString();
   const wetherspoons = JSON.parse(readFileSync(WETHERSPOONS_PATH, "utf8"));
   const allPubs = Array.isArray(wetherspoons?.pubs) ? wetherspoons.pubs : [];
   const londonPubs = filterGreaterLondonWetherspoons(allPubs);
@@ -279,7 +282,8 @@ function main() {
   const rows = buildWetherspoonsDealRows({
     deals: WETHERSPOONS_DEALS,
     venues: londonPubs,
-    observedAt,
+    observedAt: WETHERSPOONS_DEALS_OBSERVED_AT,
+    asOf: generatedAt,
     venueIndex,
   });
 
@@ -291,7 +295,7 @@ function main() {
   }
 
   const payload = {
-    generatedAt: observedAt,
+    generatedAt,
     kind: "deal",
     region: "greater-london",
     sources: [

@@ -333,7 +333,7 @@ vocabularies. The column here is the question the event exists to answer.
 |---|---|
 | `invite_created` | A host minted an invite link. |
 | `invite_redeemed` | A guest unlocked collaboration with it. See the [invitation response definitions](METRICS.md#32-invitation-response-measures). |
-| `plan_invite_sent` | An invite left through a channel. |
+| `plan_invite_sent` | The share sheet completed or WhatsApp opened. Delivery is unknown. Older rows with `channel=copy` record a clipboard copy. |
 | `content_shared` | Something left through a share channel, and which surface it came from. |
 | `plan_invite_opened` | An invite was opened by someone other than the host. The host's own landing after Lock is not counted. |
 | `plan_invite_link_copied` | The link was copied. |

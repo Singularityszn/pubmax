@@ -156,6 +156,31 @@ describe("buildWetherspoonsDealRows", () => {
     expect(rows[0]).not.toHaveProperty("lng");
   });
 
+  it("schedules from the refresh date without replacing the source observation date", () => {
+    const rows = buildWetherspoonsDealRows({
+      deals: [defined(WETHERSPOONS_DEALS[3])],
+      venues: [CORONET],
+      observedAt,
+      asOf: "2026-11-05T05:30:00.000Z",
+    });
+    expect(rows[0]).toMatchObject({
+      observedAt: "2026-07-12T00:00:00.000Z",
+      startsAt: "2026-11-05T11:30:00+00:00",
+      endsAt: "2026-11-05T23:00:00+00:00",
+    });
+  });
+
+  it("keeps today's deal after opening and advances it once it expires", () => {
+    const rowsAt = (asOf: string) => buildWetherspoonsDealRows({
+      deals: [defined(WETHERSPOONS_DEALS[3])],
+      venues: [CORONET],
+      observedAt,
+      asOf,
+    });
+    expect(rowsAt("2026-11-05T20:00:00.000Z")[0]?.startsAt).toBe("2026-11-05T11:30:00+00:00");
+    expect(rowsAt("2026-11-05T23:00:00.000Z")[0]?.startsAt).toBe("2026-11-12T11:30:00+00:00");
+  });
+
   it("four deals x one pub produce four distinct, non-colliding rows", () => {
     const rows = buildWetherspoonsDealRows({ deals: WETHERSPOONS_DEALS, venues: [CORONET], observedAt });
     expect(rows).toHaveLength(4);

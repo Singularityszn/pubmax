@@ -90,7 +90,8 @@ import type { Route } from "next";
 import { CITIES, enabledCityContainingPoint, listEnabledCities, type CityId } from "@/lib/cities";
 import { cityAwareMapPath } from "@/lib/cityMapHref";
 import { cityIdFromVenueId, isNationalBaseVenueId } from "@/lib/cityVenueIds";
-import { measureFromServingSize, measureNamedInDrinkText } from "@/lib/drinkMeasure";
+import { isComparablePintServing } from "@/lib/comparablePint.mjs";
+import { measureFromServingSize } from "@/lib/drinkMeasure";
 import { answerEvidenceFor } from "@/lib/landingHero";
 import { formatSelectionHint } from "@/lib/mapSelectionHistory";
 import { namedLegacyPintPriceSource } from "@/lib/legacyPriceEvidence.mjs";
@@ -106,11 +107,11 @@ import { isPublicRankablePub } from "@/lib/venueKindFilters";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import type { Venue } from "@/lib/venues";
 
-/** The hero card's heading, the captain's own words (launch plan, section 3). */
-export const HUNT_HERO_TITLE = "The cheapest pint we can find in Britain right now";
+/** The hero card describes a search across covered UK cities. */
+export const HUNT_HERO_TITLE = "The cheapest pint we found across UK cities";
 
 /** The city-by-city section's heading. */
-export const HUNT_CITIES_TITLE = "Britain's cheapest pint, city by city";
+export const HUNT_CITIES_TITLE = "Cheapest pint finds, city by city";
 
 /** What a city on the map with no listed price says, and the door it opens. */
 export const HUNT_CITY_EMPTY_LINE = "No prices yet.";
@@ -125,7 +126,7 @@ export const HUNT_CITY_UNNAMED_LINE = "Prices listed, but none says which pint."
 export const HUNT_CITY_UNNAMED_ACTION = "Log yours.";
 
 /** The press card's heading. Never a pin colour and never on the map. */
-export const HUNT_DEAREST_TITLE = "London's dearest pint";
+export const HUNT_DEAREST_TITLE = "London's dearest pint in our pub list";
 
 export type HuntStanding = "listed" | "confirmed";
 
@@ -147,7 +148,7 @@ export type HuntPint = {
   drinkLabel?: string | null;
   servingSize?: string | null;
   publisher: { label: string; url: string };
-  /** ISO day (`YYYY-MM-DD`) the publisher's own row was read at its source. */
+  /** ISO day (`YYYY-MM-DD`) of the source read or community observation, by standing. */
   observedOn: string;
   standing: HuntStanding;
   lane: HuntLane;
@@ -350,7 +351,7 @@ function londonFigureRows(venue: Venue, priceGbp: number): Venue["prices"] {
       typeof price.price_gbp === "number" &&
       Math.abs(price.price_gbp - priceGbp) < 0.005 &&
       huntRowNamesItsDrink({ drinkLabel: price.pint_name }) &&
-      measureNamedInDrinkText(price.pint_name) === null &&
+      isComparablePintServing({ measure: price.measure, cheapestPint: price.pint_name }) &&
       huntPriceIsCorroborated({ lane: "london-list", row: price }),
   );
 }
@@ -399,9 +400,8 @@ export function londonHuntPints(venues: readonly Venue[], now: number = Date.now
  * is on every other lane (lib/drinkMeasure.ts).
  */
 function rowIsAPint(row: UkPriceBundleRow): boolean {
-  if (measureNamedInDrinkText(row.drinkLabel) !== null) return false;
-  if (row.servingSize === undefined) return true;
-  return measureFromServingSize(row.servingSize) === "pint" || /^568 ?ml$/i.test(row.servingSize);
+  return isComparablePintServing({ cheapestPint: row.drinkLabel }) &&
+    (row.servingSize === undefined || servingStatesAPint(row.servingSize));
 }
 
 type BundleFigure = Pick<HuntPint, "priceGbp" | "publisher" | "observedOn" | "standing" | "drinkLabel" | "servingSize">;

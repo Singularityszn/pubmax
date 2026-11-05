@@ -69,9 +69,9 @@ function part(html: string, pattern: RegExp): string {
 describe("the hero's hunt card", () => {
   const html = renderToStaticMarkup(createElement(LandingHuntCard, { pint: pint() }));
 
-  it("names the cheapest pint we can find in Britain in the captain's words", () => {
+  it("limits the national claim to recorded prices across the UK cities on the map", () => {
     expect(html).toContain(
-      '<h2 class="lpHuntTitle" id="lp-hunt-title">The cheapest pint we can find in Britain right now</h2>',
+      '<h2 class="lpHuntTitle" id="lp-hunt-title">The cheapest pint we found across UK cities</h2>',
     );
   });
 
@@ -85,11 +85,12 @@ describe("the hero's hunt card", () => {
 
   it("names who listed it and the day that source was read", () => {
     const source = part(html, /<p class="lpHuntSource"[\s\S]*?<\/p>/);
-    expect(text(source)).toBe("Listed by thescolthead.co.uk, source read 21 September 2026.");
+    expect(text(source)).toBe("Source read 21 September 2026. Listed by thescolthead.co.uk. Current price may differ.");
     expect(source).toContain(
       '<a href="https://www.thescolthead.co.uk/drinks" target="_blank" rel="noopener noreferrer">thescolthead.co.uk</a>',
     );
     expect(source).toContain('<time dateTime="2026-09-21">21 September 2026</time>');
+    expect(text(source)).toContain("Current price may differ.");
   });
 
   it("wears its price band, never a colour of its own", () => {
@@ -100,7 +101,7 @@ describe("the hero's hunt card", () => {
     const confirmed = renderToStaticMarkup(
       createElement(LandingHuntCard, { pint: pint({ standing: "confirmed" }) }),
     );
-    expect(text(part(confirmed, /<p class="lpHuntSource"[\s\S]*?<\/p>/))).toMatch(/^Confirmed by /);
+    expect(text(part(confirmed, /<p class="lpHuntSource"[\s\S]*?<\/p>/))).toBe("Price observed 21 September 2026. Confirmed by thescolthead.co.uk. Current price may differ.");
   });
 
   it("renders nothing when no pint may win, never an invented one", () => {
@@ -156,14 +157,14 @@ describe("Britain's cheapest pint, city by city", () => {
 
   it("heads the list in its own words", () => {
     expect(html).toContain(
-      '<h2 class="lpHuntCitiesTitle" id="lp-hunt-cities-title">Britain&#x27;s cheapest pint, city by city</h2>',
+      '<h2 class="lpHuntCitiesTitle" id="lp-hunt-cities-title">Cheapest pint finds, city by city</h2>',
     );
   });
 
   it("prints a priced city's cheapest pint with its source and its day", () => {
     const birmingham = part(html, /<li class="lpHuntCityRow" data-city="birmingham">[\s\S]*?<\/li>/);
     expect(text(birmingham)).toBe(
-      "Birmingham£2.50The Brum TapListed by brumtap.co.uk, source read 4 September 2026.",
+      "Birmingham£2.50The Brum TapSource read 4 September 2026. Listed by brumtap.co.uk.",
     );
   });
 
@@ -197,12 +198,12 @@ describe("Britain's cheapest pint, city by city", () => {
   it("carries London's dearest pint as a press card with its source and day", () => {
     const dearest = part(html, /<article class="lpHuntDearest"[\s\S]*?<\/article>/);
     expect(dearest).toContain('id="londons-dearest-pint"');
-    expect(dearest).toContain('<h3 class="lpHuntDearestTitle" id="lp-hunt-dearest-title">London&#x27;s dearest pint</h3>');
+    expect(dearest).toContain('<h3 class="lpHuntDearestTitle" id="lp-hunt-dearest-title">London&#x27;s dearest pint in our pub list</h3>');
     expect(text(part(dearest, /<p class="lpHuntFigure"[\s\S]*?<\/p>/))).toBe(
       "£9.50for the cheapest pint at Baccarat Bar, London",
     );
     expect(text(part(dearest, /<p class="lpHuntSource"[\s\S]*?<\/p>/))).toBe(
-      "Listed by Pint Prices, source read 2 October 2026.",
+      "Source read 2 October 2026. Listed by Pint Prices.",
     );
   });
 

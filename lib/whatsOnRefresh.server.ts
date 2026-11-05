@@ -38,6 +38,7 @@ import {
   buildWetherspoonsDealRows,
   filterGreaterLondonWetherspoons,
   WETHERSPOONS_DEALS,
+  WETHERSPOONS_DEALS_OBSERVED_AT,
 } from "../scripts/whatson/dealsRefresh.mjs";
 import {
   buildMusicResidencyRows,
@@ -448,7 +449,8 @@ function defaultKindRefreshers(now: number): Record<WhatsOnKind, () => Promise<W
       buildWetherspoonsDealRows({
         deals: WETHERSPOONS_DEALS,
         venues: filterGreaterLondonWetherspoons(wetherspoons),
-        observedAt,
+        observedAt: WETHERSPOONS_DEALS_OBSERVED_AT,
+        asOf: observedAt,
         venueIndex,
       }) as WhatsOnRow[],
     music: async () =>
