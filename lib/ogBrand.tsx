@@ -187,8 +187,14 @@ function WordmarkGlyph({ ink, size }: { ink: string; size: number }) {
 // There is no coral chip and no boxed mark here. The old lockup put an
 // ink-deep X on a coral rounded square, which is the sanctioned plaque tile
 // inverted, and it read on a share preview as another app's icon. `scale`
-// shrinks the wordmark for tighter footers.
-export function Wordmark({ scale = 1 }: { scale?: number }) {
+// shrinks the wordmark for tighter footers. `ink` lets paper cards use dark text.
+export function Wordmark({
+  scale = 1,
+  ink = OG.ink,
+}: {
+  scale?: number;
+  ink?: string;
+}) {
   const size = Math.round(40 * scale);
   const glyph = Math.round(size * 0.78);
   return (
@@ -200,7 +206,7 @@ export function Wordmark({ scale = 1 }: { scale?: number }) {
         fontSize: size,
         fontWeight: 700,
         letterSpacing: size * -0.045,
-        color: OG.ink,
+        color: ink,
       }}
     >
       <div style={{ display: "flex" }}>PUBMA</div>
@@ -213,7 +219,7 @@ export function Wordmark({ scale = 1 }: { scale?: number }) {
           marginRight: size * 0.03,
         }}
       >
-        <WordmarkGlyph ink={OG.ink} size={glyph} />
+        <WordmarkGlyph ink={ink} size={glyph} />
         <WordmarkGlyph ink={OG.coral} size={glyph} />
       </div>
     </div>

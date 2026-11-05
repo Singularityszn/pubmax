@@ -205,9 +205,9 @@ describe("the invite path needs no card of its own", () => {
       expect(new URLSearchParams(destination.hash.slice(1)).get("referral")).toBe(code);
       expect(response.headers.get("cache-control")).toBe("no-store");
       expect(homeMetadata.openGraph?.images).toEqual([
-        expect.objectContaining({ url: "/api/home-card", width: 1200, height: 630 }),
+        expect.objectContaining({ url: "/api/home-card?v=paper-20261030", width: 1200, height: 630 }),
       ]);
-      expect(homeMetadata.twitter?.images).toEqual(["/api/home-card"]);
+      expect(homeMetadata.twitter?.images).toEqual(["/api/home-card?v=paper-20261030"]);
     },
   );
 });

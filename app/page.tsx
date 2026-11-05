@@ -47,7 +47,7 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: "/api/home-card",
+        url: "/api/home-card?v=paper-20261030",
         width: 1200,
         height: 630,
         // No count here: this string is static metadata, so a figure typed in
@@ -60,7 +60,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: appPageTitle(HOME_TITLE),
     description: HOME_DESCRIPTION,
-    images: ["/api/home-card"],
+    images: ["/api/home-card?v=paper-20261030"],
   },
 };
 
