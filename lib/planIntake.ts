@@ -837,8 +837,8 @@ export function buildPlanGenerationIntakeBody(
   // sends what the describe-first entry sends: every step nobody answered is
   // skipped, never left both empty and unskipped, which the API refuses.
   const sent = skipRemainingPlanIntake(draft);
-  // Transport needs come from the current description. Preserve recovered
-  // control choices, whose explicit ownership is not stored across reloads.
+  // Transport needs come from the current description. Explicit control choices
+  // arrive through explicitContext and take priority below.
   // An empty description retains the generated count only without a stopCount override.
   // The composer supplies requested intent, including undefined, to clear that fallback.
   const retainedStopCount = cleanQuery ? undefined : currentContext?.stopCount;

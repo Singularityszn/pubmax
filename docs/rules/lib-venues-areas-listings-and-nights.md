@@ -91,8 +91,10 @@ A missing or invalid count leaves an otherwise valid route recoverable.
 The composer uses the intake answer for the picker, generation actions, and draft persistence.
 An explicit control choice takes priority over count wording in the description.
 Without that choice, `matchPlanStopCount` recognises positive count requests before generation and saves that intent.
+Optional `requestedStopCountSource` records `text`, `picker`, or `route-edit` beside a valid count.
+A later positive text count can replace text-derived intent. Picker choices and deliberate add or remove actions keep priority.
 
-An unsized description remains UNKNOWN, including URL prefills and confirmed session Ask handoffs. UNKNOWN means no explicit count intent.
+A new unsized URL prefill or confirmed session Ask handoff sets the count to UNKNOWN. UNKNOWN means no explicit count intent.
 A new handoff replaces the earlier description and count intent.
 The generation default, returned stop length, and unrelated Tune edits never establish requested intent.
 Reordering, swapping, or filling an existing stop preserves count intent.
@@ -105,6 +107,9 @@ A fresh confirmed Ask stores an empty map and replaces older choices.
 Recovery never combines maps from competing records. Route metadata remains a fallback only under the existing route correlation rules.
 The map grants no route acceptance or proof. Generated context stays separate and never establishes explicit choices.
 The server intake shape excludes this device metadata. Generation uses the existing context fields.
+The session draft also stores optional `requestIntake`, validated by `parsePlanIntakeRequest`.
+Recovery uses it only when the session request wins and any other valid session copy agrees on these answers.
+These answers preserve wizard choices when local intake writes fail. They do not certify route context, acceptance, or proof.
 Coverage: `__tests__/planRequestContextMetadata.test.ts` and `__tests__/planRequestSaveFreshness.test.tsx`.
 
 Paired session and local-intake writes use one timestamp.
@@ -118,6 +123,7 @@ Those cases retain a count only when the compared counts agree, and do not infer
 If both stores reject a real edit, the composer retains the in-memory choice and reports save failure.
 
 An untouched first visit saves no draft and shows no save-failure notice.
+An automatic creator-name prefill alone does not establish an edit. Manual name edits still require a successful save.
 The [Plan result contract](components-venue-plan-and-message-surfaces.md#the-plan-result-is-a-route-and-the-settings-sit-behind-it) owns route-record recovery and proof limits.
 Coverage: `__tests__/planDraft.test.ts`, `__tests__/planDraftArbitration.test.ts`, `__tests__/planComposerRouteResult.test.tsx`, and `__tests__/planDescribeFirstHydration.test.tsx`.
 
