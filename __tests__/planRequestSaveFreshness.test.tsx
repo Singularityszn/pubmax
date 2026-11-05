@@ -1361,6 +1361,72 @@ async function attemptRouteSave(): Promise<void> {
   expectNoRouteSave();
 }
 
+function lockButton(): HTMLButtonElement {
+  return [...document.querySelectorAll<HTMLButtonElement>("button")]
+    .find((button) => button.textContent === "Lock it in")!;
+}
+
+// The accepted preview contract separates saved candidates from permission to lock.
+// A later exact-time edit must preserve the candidates' date without a false warning.
+it.each(["saved", "rejected", "discarded"] as const)(
+  "reports stale preview persistence after an exact-time edit when route writes are %s",
+  async (mode) => {
+    const advance = pinClock();
+    await generateProofRoute(3);
+    await editInput("#plan-time", "2026-11-03T20:00");
+    await openTune();
+    advance(1000);
+    await sortAgainFromTune();
+    expect(lockButton().getAttribute("aria-disabled")).toBeNull();
+    const accepted = JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!);
+    expect(accepted).toMatchObject({
+      savedAt: "2026-11-03T12:00:01.000Z", routeStale: false,
+      groundingProof: generatedProofFixture(3).groundingProof, createOperationKey: "proof-operation",
+    });
+    const local = localStorage;
+    const keys = [PLAN_ROUTE_DRAFT_KEY, PLAN_ROUTE_DRAFT_V2_KEY];
+    if (mode === "rejected") rejectRouteWrites(keys);
+    if (mode === "discarded") vi.stubGlobal("localStorage", {
+      getItem: local.getItem.bind(local),
+      setItem: (key: string, value: string) => { if (!keys.includes(key)) local.setItem(key, value); },
+      removeItem: local.removeItem.bind(local), clear: local.clear.bind(local),
+      key: local.key.bind(local), get length() { return local.length; },
+    } satisfies Storage);
+    advance(2000);
+    await editInput("#plan-time", "2026-11-03T21:00");
+    expect(lockButton().getAttribute("aria-disabled")).toBe("true");
+    expect(readPlanDraftEnvelope(sessionStorage)).toMatchObject({
+      savedAt: "2026-11-03T12:00:02.000Z", draft: { startTime: "2026-11-03T21:00", routeReference: null },
+    });
+    expect(JSON.parse(sessionStorage.getItem(PLAN_DRAFT_KEY)!))
+      .toMatchObject({ creatorName: "Captain", startTime: "2026-11-03T21:00", routeReference: null });
+    expect(JSON.parse(sessionStorage.getItem(PLAN_DRAFT_V2_KEY)!).draft)
+      .toMatchObject({ creatorName: "Captain", startTime: "2026-11-03T21:00", routeReference: null });
+    expect(readPlanIntakeDraftWithMetadata()?.savedAt).toBe("2026-11-03T12:00:02.000Z");
+    const preview = JSON.parse(local.getItem(PLAN_ROUTE_DRAFT_KEY)!);
+    expect(preview).toEqual({ ...accepted, routeStale: mode === "saved" });
+    const warning = "route details, checks and starting pub could not be saved";
+    if (mode === "saved") expect.soft(document.body.textContent).not.toContain("could not be saved");
+    else expect.soft(document.body.textContent).toContain(warning);
+    await attemptRouteSave();
+    advance(3000);
+    await remountComposer();
+    expect(document.querySelector<HTMLInputElement>("#plan-name")?.value).toBe("Captain");
+    expect(document.querySelector<HTMLInputElement>("#plan-time")?.value).toBe("2026-11-03T21:00");
+    expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent))
+      .toEqual(["Pub A", "Pub B", "Pub C"]);
+    expect(lockButton().getAttribute("aria-disabled")).toBe("true");
+    expect(readPlanDraftEnvelope(sessionStorage)?.draft.routeReference).toBeNull();
+    if (mode === "saved") {
+      expect(document.body.textContent).not.toContain("could not be saved");
+      expect(JSON.parse(local.getItem(PLAN_ROUTE_DRAFT_KEY)!)).toMatchObject({
+        savedAt: accepted.savedAt, routeStale: true, groundingProof: null, createOperationKey: null,
+      });
+    }
+    await attemptRouteSave();
+  },
+);
+
 it.each(["both", "session-only", "local-only", "intake-only", "neither"] as const)(
   "reports request persistence independently of its retained route: %s", async (available) => {
     const advance = pinClock();

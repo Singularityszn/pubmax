@@ -103,7 +103,11 @@
   overscroll-behavior: contain;
   padding: 0 var(--page-gutter) calc(var(--space-6) + env(safe-area-inset-bottom, 0px));
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-5);
+}
+.planTune__body .planComposer__context {
+  min-inline-size: 0;
 }
 /* The sheet carries its own heading, and the form's grid does not reach into a portal. */
 .planTune .planComposer__concierge {
