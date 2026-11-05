@@ -128,16 +128,16 @@ export default function BillCheckModeration({ request }: { request: AdminRequest
                   </li>
                 ))}
               </ul>
-              {row.drop?.receiptPhotoUrl ? (
+              {row.receiptPhotoUrl ? (
                 <a
                   className="admin-bill-photo"
-                  href={row.drop.receiptPhotoUrl}
+                  href={row.receiptPhotoUrl}
                   target="_blank"
                   rel="noreferrer"
                 >
                   <Image
-                    src={row.drop.receiptPhotoUrl}
-                    alt={`Bill sent by ${row.drop.handle}`}
+                    src={row.receiptPhotoUrl}
+                    alt={row.drop ? `Bill sent by ${row.drop.handle}` : "Bill sent with this price"}
                     width={160}
                     height={220}
                     unoptimized

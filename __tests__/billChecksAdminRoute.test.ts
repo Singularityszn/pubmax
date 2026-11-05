@@ -6,10 +6,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // hides it through its lane's own moderator door. Either way the check is
 // stamped, and nothing is deleted.
 
+const receiptSigning = vi.hoisted(() => ({
+  sign: vi.fn(async (key: string) => ({ data: { signedUrl: `https://storage.test/${key}` }, error: null })),
+}));
+
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
-  return { ...actual, isSupabaseConfigured: () => false };
+  return {
+    ...actual,
+    isSupabaseConfigured: () => false,
+    requireSupabaseAdmin: () => ({ storage: { from: () => ({ createSignedUrl: receiptSigning.sign }) } }),
+  };
 });
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
@@ -31,6 +39,7 @@ import { GET, POST } from "@/app/api/admin/bill-checks/route";
 import { __resetBillChecks, memoryBillCheckStore } from "@/lib/billCheckStore";
 import { __resetPintDrops, addPintDrop, findPintDropsByIds, type PintDrop } from "@/lib/pintDrops";
 import { memoryPintDropStore } from "@/lib/pintDropsStore";
+import { __resetMemoryRounds, memoryRoundsStore } from "@/lib/roundsStore";
 
 const URL_BASE = "http://localhost/api/admin/bill-checks";
 const VENUE = "venue-1vle947";
@@ -62,6 +71,8 @@ beforeEach(() => {
   gate.open = true;
   __resetBillChecks();
   __resetPintDrops();
+  __resetMemoryRounds();
+  receiptSigning.sign.mockClear();
   seams.hidePrice.mockClear();
   seams.syncHidden.mockClear();
 });
@@ -104,9 +115,42 @@ describe("GET /api/admin/bill-checks", () => {
         priceGbp: 4.5,
         lines: [{ name: "Guinness", priceGbp: 6.2 }],
         pintDropId: "drop-1",
-        drop: expect.objectContaining({ handle: "billed_drinker", status: "visible", receiptPhotoUrl: null }),
+        receiptPhotoUrl: null,
+        drop: expect.objectContaining({ handle: "billed_drinker", status: "visible" }),
       }),
     ]);
+  });
+});
+
+describe("Round bill photos in moderation", () => {
+  it.each([true, false])("shows the stored Round bill only when the price and source match: %s", async (matches) => {
+    const created = await memoryRoundsStore.create({ createdByHandle: "billed_drinker" });
+    if (!created.ok) throw new Error("Round was not created");
+    const code = created.state.round.code;
+    await memoryRoundsStore.addStop(code, { venueId: VENUE, venueName: "The Ship", addedByHandle: "billed_drinker" });
+    const recorded = await memoryRoundsStore.recordSpend(code, {
+      clientRef: "original-bill", payerHandle: "billed_drinker", recordedByHandle: "billed_drinker", venueId: VENUE, venueName: "The Ship",
+      items: [{ drinkName: "Guinness", drinkCategory: "beer", priceGbp: 4.5 }],
+    });
+    if (!recorded.ok) throw new Error("Spend was not saved");
+    const spend = recorded.state.spends[0]!;
+    spend.receiptPhotoKey = `${VENUE}/${spend.id}/receipt.jpg`;
+    const check = await memoryBillCheckStore.record({
+      communityPriceId: "price-round", communityPriceSubmittedAt: Date.parse(spend.recordedAt),
+      roundSource: { spendId: spend.id, lineIndex: 0 },
+      billHash: "b".repeat(64), venueId: VENUE, priceGbp: matches ? 4.5 : 5.5,
+      result: "mismatch", lines: [{ name: "Guinness", priceGbp: 6.2 }],
+    });
+    const response = await GET(new Request(URL_BASE));
+    expect(response.status).toBe(200);
+    expect((await response.json()).checks).toEqual([expect.objectContaining({
+      id: check.id,
+      receiptPhotoUrl: matches ? `https://storage.test/${spend.receiptPhotoKey}` : null,
+    })]);
+    expect(receiptSigning.sign).toHaveBeenCalledTimes(matches ? 1 : 0);
+    if (matches) expect(receiptSigning.sign).toHaveBeenCalledWith(spend.receiptPhotoKey, 3600);
+    expect(await memoryRoundsStore.getSpendById(spend.id)).toMatchObject({ id: spend.id, receiptPhotoKey: spend.receiptPhotoKey });
+    expect(await memoryRoundsStore.getSpendById("missing-spend")).toBeNull();
   });
 });
 

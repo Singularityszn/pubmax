@@ -45,7 +45,11 @@ const fixtureFetch: typeof fetch = async (input, init) => {
     return Response.json([{ id: "stop-1", venue_id: "venue-1", venue_name: "The Ship" }]);
   }
   if (url.pathname === "/rest/v1/round_spends") {
-    if (method === "GET") return Response.json(rows);
+    if (method === "GET") {
+      const id = url.searchParams.get("id")?.replace(/^eq\./, "");
+      const selected = id ? rows.filter((row) => row.id === id) : rows;
+      return Response.json(selected);
+    }
     if (method !== "POST") throw new Error("Unexpected spend method");
     insertAttempts += 1;
     const row = JSON.parse(String(init?.body)) as Record<string, unknown>;
@@ -142,6 +146,8 @@ it("retains the uploaded bill key on a Supabase spend and its replay", async () 
   const key = `venue-1/${saved.state.spends[0]?.id}/receipt.jpg`;
   expect(rows[0]?.receipt_photo_key).toBe(key);
   expect(saved.state.spends[0]?.receiptPhotoKey).toBe(key);
+  expect(await store.getSpendById(String(saved.state.spends[0]?.id))).toMatchObject({ receiptPhotoKey: key });
+  expect(await store.getSpendById("00000000-0000-4000-8000-000000000000")).toBeNull();
   expect(uploads).toHaveLength(1);
   expect(objects).toEqual(new Set([key]));
   expect(deleted).toEqual([]);
