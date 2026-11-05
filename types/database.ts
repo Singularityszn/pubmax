@@ -3046,6 +3046,9 @@ export type Database = {
           id: string;
           pint_drop_id: string | null;
           community_price_id: string | null;
+          community_price_submitted_at: string | null;
+          bill_hash: string;
+          community_price_round_source: Json | null;
           venue_id: string;
           price_pennies: number;
           result: string;
@@ -3058,6 +3061,9 @@ export type Database = {
           id?: string;
           pint_drop_id?: string | null;
           community_price_id?: string | null;
+          community_price_submitted_at?: string | null;
+          bill_hash: string;
+          community_price_round_source?: Json | null;
           venue_id: string;
           price_pennies: number;
           result: string;
@@ -3070,6 +3076,9 @@ export type Database = {
           id?: string;
           pint_drop_id?: string | null;
           community_price_id?: string | null;
+          community_price_submitted_at?: string | null;
+          bill_hash?: string;
+          community_price_round_source?: Json | null;
           venue_id?: string;
           price_pennies?: number;
           result?: string;

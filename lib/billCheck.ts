@@ -11,13 +11,12 @@
 // THE ANSWER IS A CLOSED SET, mirrored by a CHECK on `price_bill_checks`
 // (migration 0220):
 //
-//   match       a line on the bill holds the submitted price to the penny.
-//               This is the ONLY result that earns `receipt` evidence
-//               (`priceEvidenceForBillCheck`, lib/pintDropReceipt.ts).
+//   match       a named drink line holds the submitted price to the penny.
+//               This is the ONLY result that earns `receipt` evidence.
 //   mismatch    the bill is readable and no line holds the price. The price
 //               stays `unchecked` and goes to the moderation queue. Nothing
 //               is hidden or deleted by the check itself.
-//   unreadable  no priced line could be read. The price stays `unchecked`,
+//   unreadable  no priced line identifies the drink. It stays `unchecked`,
 //               exactly like a price sent without a bill.
 //
 // WHAT IS KEPT. The model is asked for the venue name, the priced lines and
@@ -27,6 +26,8 @@
 // none on an unreadable bill. The venue name and the date are never kept. A
 // line name loses every run of four or more digits, so a card number, a phone
 // number or a table code read off the bill cannot be stored beside a price.
+
+import type { DrinkMeasure } from "@/lib/drinkMeasure";
 
 /** The three answers a bill check can give. */
 export const BILL_CHECK_RESULTS = ["match", "mismatch", "unreadable"] as const;
@@ -105,16 +106,38 @@ export function parseBillReadAnswer(answer: unknown): BillRead {
   return { lines };
 }
 
-/**
- * THE ONE JUDGE. A bill MATCHES when one of its lines holds the submitted price
- * to the penny. Exact, like the drop lane's agreement bar
- * (lib/pintDropAgreement.ts): a bill is the drinker's own evidence for their
- * own figure, so there is no tolerance to give.
- */
-export function judgeBill(read: BillRead, submittedPriceGbp: number): BillCheckVerdict {
-  if (read.lines.length === 0) return { result: "unreadable", lines: [] };
+function billItem(name: string): { name: string; measure?: string } {
+  const text = name.trim().toLowerCase();
+  const serving = /\b(half\s+pint|half$|1\/2(?:\s+pint)?|pint|125\s*ml|175\s*ml|250\s*ml|bottle$|single$|double$)\b|½(?:\s+pint)?/i;
+  const found = serving.exec(text);
+  const raw = found?.[0].replace(/\s+/g, "");
+  const measure = raw?.startsWith("half") || raw?.startsWith("1/2") || raw?.startsWith("½")
+    ? "half"
+    : raw;
+  return {
+    name: text.replace(serving, " ").normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, " ").trim().replace(/^of /, ""),
+    ...(measure ? { measure } : {}),
+  };
+}
+
+export function judgeBill(
+  read: BillRead,
+  submittedPriceGbp: number,
+  drink: string,
+  measure?: DrinkMeasure,
+): BillCheckVerdict {
+  const submitted = billItem(drink);
+  if (!submitted.name) return { result: "unreadable", lines: [] };
+  const named = read.lines.filter((line) => billItem(line.name).name === submitted.name);
+  if (named.length === 0) return { result: "unreadable", lines: [] };
   const target = pence(submittedPriceGbp);
-  const matching = read.lines.filter((line) => pence(line.priceGbp) === target);
+  const expectedMeasure = measure ?? submitted.measure;
+  const matching = named.filter((line) => {
+    const statedMeasure = billItem(line.name).measure;
+    return pence(line.priceGbp) === target &&
+      (!expectedMeasure || !statedMeasure || statedMeasure === expectedMeasure);
+  });
   if (matching.length === 0) {
     return { result: "mismatch", lines: read.lines.slice(0, BILL_CHECK_MAX_LINES) };
   }

@@ -748,7 +748,7 @@ describe("supabasePintDropStore.create (vibe_tags rollout resilience)", () => {
     expect(insertMock).toHaveBeenCalledTimes(1);
   });
 
-  it("missing evidence column: a price sent WITH its bill saves without the word, as every billed price did before 0218", async () => {
+  it("missing evidence column: refuses an unchecked price even with its bill", async () => {
     insertMock.mockReset();
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     insertMock
@@ -761,13 +761,12 @@ describe("supabasePintDropStore.create (vibe_tags rollout resilience)", () => {
       .jpeg()
       .toBuffer();
     const bill = new File([new Uint8Array(jpeg)], "bill.jpg", { type: "image/jpeg" });
-    await supabasePintDropStore.create(
+    await expect(supabasePintDropStore.create(
       drop() as Parameters<typeof supabasePintDropStore.create>[0],
       { pint: null, venue: null, receipt: bill },
-    );
-    expect(insertMock).toHaveBeenCalledTimes(2);
+    )).rejects.toBeInstanceOf(UncheckedPriceNotStorableError);
+    expect(insertMock).toHaveBeenCalledTimes(1);
     expect(defined(insertMock.mock.calls[0])[0]).toHaveProperty("price_evidence", "unchecked");
-    expect(defined(insertMock.mock.calls[1])[0]).not.toHaveProperty("price_evidence");
     warn.mockRestore();
   });
 

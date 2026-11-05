@@ -5,8 +5,6 @@
 // client. The run spends its own paid lane, records only the verdict and the
 // lines it needs, and grants `receipt` on a match and nothing else.
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
@@ -19,6 +17,7 @@ vi.mock("@/lib/log", () => ({
   },
 }));
 
+import { readBoardPhoto } from "@/lib/boardRead.server";
 import type { BillCheckRecord, BillCheckStore } from "@/lib/billCheckStore";
 import { readBillPhoto, runBillCheck, type BillCheckRun } from "@/lib/billCheck.server";
 
@@ -94,14 +93,20 @@ describe("readBillPhoto", () => {
   });
 });
 
-describe("one vision client", () => {
-  it("is the only module that names the provider endpoint", () => {
-    const source = (file: string) => readFileSync(join(process.cwd(), file), "utf8");
-    expect(source("lib/openRouterVision.server.ts")).toContain("openrouter.ai/api/v1/chat/completions");
-    for (const reader of ["lib/boardRead.server.ts", "lib/billCheck.server.ts"]) {
-      expect(source(reader)).not.toContain("openrouter.ai");
-      expect(source(reader)).toContain("@/lib/openRouterVision.server");
-    }
+describe("the approved vision provider contract", () => {
+  it.each([
+    ["bill", readBillPhoto, BILL],
+    ["board", readBoardPhoto, { rows: [] }],
+  ] as const)("sends the %s reader through the zero-retention strict-schema endpoint", async (_name, reader, answer) => {
+    const fetcher = vi.fn(async () => modelAnswer(answer));
+    expect((await reader(JPEG, { env: KEYED, fetcher })).status).toBe("read");
+    const [url, init] = fetcher.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("https://openrouter.ai/api/v1/chat/completions");
+    const sent = JSON.parse(String(init.body));
+    expect(sent.provider).toEqual({ require_parameters: true, zdr: true });
+    expect(sent.response_format.type).toBe("json_schema");
+    expect(sent.response_format.json_schema.strict).toBe(true);
+    expect(sent.response_format.json_schema.schema.additionalProperties).toBe(false);
   });
 });
 
@@ -109,6 +114,7 @@ function memoryChecks(): BillCheckStore & { records: BillCheckRecord[] } {
   const records: BillCheckRecord[] = [];
   return {
     records,
+    async hasChecked() { return false; },
     async record(input) {
       const stored = { ...input, id: `check-${records.length + 1}`, checkedAt: "2026-11-05T19:30:00.000Z" };
       records.push(stored);
@@ -126,7 +132,7 @@ function memoryChecks(): BillCheckStore & { records: BillCheckRecord[] } {
 const PHOTO = new File([JPEG], "bill.jpg", { type: "image/jpeg" });
 
 function run(over: Partial<BillCheckRun> = {}): BillCheckRun {
-  return { photo: PHOTO, venueId: "venue-1vle947", priceGbp: 6.2, pintDropId: "drop-1", ...over };
+  return { photo: PHOTO, venueId: "venue-1vle947", priceGbp: 6.2, drink: "Guinness", pintDropId: "drop-1", ...over };
 }
 
 describe("runBillCheck", () => {
@@ -236,7 +242,7 @@ describe("runBillCheck", () => {
 
   it("records a community price's bill against that price and grants no drop", async () => {
     const outcome = await runBillCheck(
-      run({ pintDropId: undefined, communityPriceId: "price-9", priceGbp: 1.5 }),
+      run({ pintDropId: undefined, communityPriceId: "price-9", communityPriceSubmittedAt: 1_793_900_000_000, priceGbp: 1.5, drink: "Crisps" }),
       deps(vi.fn(async () => modelAnswer(BILL))),
     );
     expect(outcome).toBe("match");
@@ -245,13 +251,28 @@ describe("runBillCheck", () => {
     expect(grantReceipt).not.toHaveBeenCalled();
   });
 
-  it("still grants the match when the record cannot be written, and never throws", async () => {
+  it("keeps the price unchecked and answers failed when its check cannot be stored", async () => {
     checks.record = vi.fn(async () => {
       throw new Error("insert failed");
     });
     const outcome = await runBillCheck(run(), deps(vi.fn(async () => modelAnswer(BILL))));
-    expect(outcome).toBe("match");
-    expect(grantReceipt).toHaveBeenCalledWith("drop-1");
+    expect(outcome).toBe("failed");
+    expect(grantReceipt).not.toHaveBeenCalled();
+  });
+
+  it("skips a bill only when the same observation already has a stored check", async () => {
+    checks.hasChecked = vi.fn(async () => true);
+    const fetcher = vi.fn();
+    expect(await runBillCheck(run(), deps(fetcher))).toBe("already-checked");
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(admit).not.toHaveBeenCalled();
+    expect(grantReceipt).not.toHaveBeenCalled();
+  });
+
+  it("never grants the price of an unrelated item", async () => {
+    const answer = { ...BILL, lines: [...BILL.lines, { name: "Chips", price_gbp: 5.2 }] };
+    expect(await runBillCheck(run({ priceGbp: 5.2 }), deps(vi.fn(async () => modelAnswer(answer))))).toBe("mismatch");
+    expect(grantReceipt).not.toHaveBeenCalled();
   });
 
   it("answers failed rather than throwing when the grant itself throws", async () => {

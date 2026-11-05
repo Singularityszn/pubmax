@@ -12,8 +12,7 @@
 //           round on one line, a happy hour. The check is stamped.
 //   hidden  the price leaves every public read through its lane's OWN
 //           moderator door: the Pint Drop's hide, the community price's hide
-//           and its trust reconciliation. The check is stamped only once the
-//           hide has landed, so a failed hide stays in the queue.
+//           and its trust reconciliation.
 //
 // NEVER DELETED. The check row, the drop and the community price all survive
 // either decision, and a hidden price comes back through the queues that
@@ -116,10 +115,12 @@ async function hidePricesOf(check: BillCheckRecord, note: string): Promise<boole
     if (!hidden) return false;
   }
   if (check.communityPriceId) {
-    const result = await moderateCommunityPriceWithState(check.communityPriceId, true, note);
+    const result = await moderateCommunityPriceWithState(check.communityPriceId, true, note, { submittedAt: check.communityPriceSubmittedAt!, priceGbp: check.priceGbp, ...(check.roundSource ? { roundSource: check.roundSource } : {}) });
     if (result.status !== "ok") return false;
-    const trust = await syncTrustAfterPriceHidden(check.communityPriceId);
-    if (trust.status === "unavailable") return false;
+    if (result.changed) {
+      const trust = await syncTrustAfterPriceHidden(check.communityPriceId);
+      if (trust.status === "unavailable") return false;
+    }
   }
   return true;
 }
@@ -149,18 +150,14 @@ export async function POST(request: Request): Promise<Response> {
 
   try {
     const store = billCheckStore();
-    // The queue is the only place a decision may be made from, so the check is
-    // looked up there: a reviewed row, a match and an unknown id are all 404.
-    const check = (await store.listMismatchesForReview()).find((row) => row.id === id);
+    const check = await store.review(id, decision);
     if (!check) return publicApiError("Bill check not found.", "NOT_FOUND", 404);
 
     if (decision === "hidden") {
       const note = readString(body.note) || HIDDEN_NOTE;
       if (!(await hidePricesOf(check, note))) return unavailable();
     }
-    const reviewed = await store.review(id, decision);
-    if (!reviewed) return publicApiError("Bill check not found.", "NOT_FOUND", 404);
-    return jsonNoStore({ ok: true, check: reviewed }, { status: 200 });
+    return jsonNoStore({ ok: true, check }, { status: 200 });
   } catch (error) {
     log("error", "bill_checks.review_failed", {
       route: "POST /api/admin/bill-checks",

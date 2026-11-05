@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const billChecks = vi.hoisted(() => ({ keyed: true, schedule: vi.fn() }));
+vi.mock("@/lib/billCheck.server", () => ({
+  billReaderKeyed: () => billChecks.keyed,
+  scheduleBillCheck: billChecks.schedule,
+}));
+
 const receiptStorage = vi.hoisted(() => ({
   upload: vi.fn(async (): Promise<{
     error: { message: string } | null;
@@ -323,6 +329,8 @@ async function authorizeContributor(
 }
 
 beforeEach(() => {
+  billChecks.keyed = true;
+  billChecks.schedule.mockClear();
   receiptStorage.upload.mockReset().mockResolvedValue({ error: null });
   __resetMemoryRounds();
   __resetMemoryIdentityHandles();
@@ -541,6 +549,24 @@ describe("POST /api/rounds/[code] — actions", () => {
       items: [],
     });
     expect(await readCommunityPrices("venue-1")).toEqual([]);
+  });
+
+  it("schedules the shared bill check for each promoted drink and keeps drink names", async () => {
+    await authorizeContributor("user-ken", "ken");
+    const { round } = await newRound("ken");
+    await action(round.code, { action: "addStop", handle: "ken", venueId: "venue-1" });
+    const response = await billedAction(round.code, {
+      action: "recordSpend", handle: "ken", payerHandle: "ken", venueId: "venue-1", clientRef: "bill-check-lines",
+      items: [
+        { drinkName: "Guinness pint", drinkCategory: "beer", priceGbp: 5.2, source: "round" },
+        { drinkName: "Merlot 175ml", drinkCategory: "wine", priceGbp: 7.5, source: "round" },
+      ],
+    });
+    expect(response.status).toBe(200);
+    expect(billChecks.schedule.mock.calls.map(([run]) => run)).toEqual([
+      expect.objectContaining({ drink: "Guinness pint", priceGbp: 5.2, photo: expect.any(File), communityPriceId: expect.any(String), communityPriceSubmittedAt: expect.any(Number) }),
+      expect.objectContaining({ drink: "Merlot 175ml", priceGbp: 7.5, photo: expect.any(File), communityPriceId: expect.any(String), communityPriceSubmittedAt: expect.any(Number) }),
+    ]);
   });
 
   it("keeps an anonymous itemised Round in the diary and out of community prices", async () => {
