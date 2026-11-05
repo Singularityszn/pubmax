@@ -63,7 +63,7 @@ for (const sample of CASES) {
     await page.route("**/api/social/outbox", (route) => route.fulfill({ json: { posts: [] } }));
     await page.route("**/api/social/tags**", (route) => route.fulfill({ json: { proposals: [], nextCursor: null } }));
     await page.route("**/api/social/crews", (route) => route.fulfill({ json: { items: [], nextCursor: null } }));
-    await page.route("**/api/profiles/directory**", (route) => route.fulfill({ json: { profiles: [], nextCursor: null } }));
+    await page.route("**/api/profiles/directory**", (route) => route.fulfill({ json: { people: [], nextCursor: null } }));
     await page.route("**/api/social/rankings", (route) => route.fulfill({ json: { entries: [] } }));
     await page.route("**/api/social/reviews**", (route) => route.fulfill({ json: { entries: [] } }));
 
