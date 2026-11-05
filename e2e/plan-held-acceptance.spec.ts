@@ -106,10 +106,11 @@ test("held pub shows one describe box, names the area, and release un-anchors wh
     "Released The Coach & Horses. Stop 1 is yours to change.",
   );
   await expect(page.locator("#plan-route-status")).toBeFocused();
-  // Describe-first is back; the concierge box is still behind Tune details.
-  await expect(page.getByRole("textbox", { name: "Where, how many, what budget" })).toHaveCount(1);
+  // The saved stops keep the result layout, with one description field in Tune.
+  await expect(page.getByRole("textbox", { name: "Where, how many, what budget" })).toHaveCount(0);
   await page.getByRole("button", { name: "Tune details" }).click();
-  await expect(page.getByRole("textbox", { name: "Where, how many, what budget" })).toHaveCount(2);
+  await expect(page.getByRole("dialog", { name: "Tune details" })
+    .getByRole("textbox", { name: "Where, how many, what budget" })).toHaveCount(1);
   await page.keyboard.press("Escape");
 
   await expect.poll(async () => {
