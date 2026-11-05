@@ -46,6 +46,7 @@
 // authentication plus a completed account profile.
 
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
+import { billReaderKeyed, scheduleBillCheck } from "@/lib/billCheck.server";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { deriveCommunityPriceActor } from "@/lib/communityPriceActor";
 import {
@@ -311,6 +312,10 @@ export async function POST(request: Request): Promise<Response> {
   // disagreed. Null means the read could not be taken, and the receipt then
   // claims nothing rather than borrowing the weaker lane's stronger word.
   let pintTrust: PintTrustState | null = null;
+  // The bill behind this figure, handed to the background bill check once the
+  // rows it names exist (captain 5 Nov 2026). Read after the answer.
+  let pairedDropId: string | undefined;
+  let pairedFresh = !pairsPintDrop;
   if (pairsPintDrop) {
     const pintDrop = await writeOneTapPintDrop(
       {
@@ -333,6 +338,8 @@ export async function POST(request: Request): Promise<Response> {
         drinkCategory: submission.drinkCategory,
       });
     } else {
+      pairedDropId = pintDrop.drop.id;
+      pairedFresh = !pintDrop.duplicate;
       void qualifyCheapPintForOwnerActor(contributor.actor);
       // The paired drop is a real priced observation, so it can complete a
       // confirmation exactly as a Pint Drop posted through /api/pint-drops can.
@@ -353,6 +360,17 @@ export async function POST(request: Request): Promise<Response> {
       pintTrust = await readVenuePintTrust(submission.venueId);
     }
   }
+
+  // A repeated tap answers with the rows the first tap wrote, and that tap's
+  // bill is already being read.
+  const billCheck = pairedFresh
+    ? scheduleSubmitBillCheck(pintDropPhotos.receipt, {
+        venueId: submission.venueId,
+        priceGbp: submission.priceGbp,
+        communityPriceId: price.id,
+        pintDropId: pairedDropId,
+      })
+    : null;
 
   const trust = await syncTrustAfterPriceWrite(
     submission.venueId,
@@ -391,6 +409,7 @@ export async function POST(request: Request): Promise<Response> {
         trust.status === "synced" ? "synced" : "pending",
       ...(confirmationOutcome ? { confirmationOutcome } : {}),
       ...(pintTrust ? { pintTrust } : {}),
+      ...(billCheck ? { billCheck } : {}),
       price:
         record ??
         {
@@ -401,6 +420,29 @@ export async function POST(request: Request): Promise<Response> {
     },
     { status: 201 },
   );
+}
+
+/**
+ * Hand this door's bill to the background bill check (captain 5 Nov 2026), or
+ * nothing on a keyless deployment. Every price here arrived with its bill
+ * (`priceNeedsReceipt` above), so the bill is read against the rows it names:
+ * the community price, the paired Pint Drop, or both. A match grants the drop
+ * `receipt`; a mismatch goes to the moderation queue.
+ */
+function scheduleSubmitBillCheck(
+  receipt: File | null,
+  subject: { venueId: string; priceGbp: number; communityPriceId?: string; pintDropId?: string },
+): "reading" | null {
+  if (!receipt || !billReaderKeyed()) return null;
+  if (!subject.communityPriceId && !subject.pintDropId) return null;
+  scheduleBillCheck({
+    photo: receipt,
+    venueId: subject.venueId,
+    priceGbp: subject.priceGbp,
+    ...(subject.communityPriceId ? { communityPriceId: subject.communityPriceId } : {}),
+    ...(subject.pintDropId ? { pintDropId: subject.pintDropId } : {}),
+  });
+  return "reading";
 }
 
 /**
@@ -500,10 +542,18 @@ async function nonPintPriceResponse(input: {
     }
     return publicApiError(drop.message, "UNAVAILABLE", 503, { retryable: true });
   }
+  const billCheck = drop.duplicate
+    ? null
+    : scheduleSubmitBillCheck(input.photos.receipt, {
+        venueId: input.venueId,
+        priceGbp: input.priceGbp,
+        pintDropId: drop.drop.id,
+      });
   return jsonNoStore(
     {
       ok: true,
       attribution: { status: "credited", handle: input.handle },
+      ...(billCheck ? { billCheck } : {}),
       // No community price exists for this figure, and saying so explicitly is
       // what stops a client inferring one from an omitted field.
       price: null,

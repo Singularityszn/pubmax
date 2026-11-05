@@ -15,9 +15,16 @@
 // So at that door the bill is no longer the price of entry. It is EVIDENCE,
 // and this module owns what the evidence is called (`PRICE_EVIDENCE`, the
 // closed set migration 0218 mirrors in a CHECK), how a write earns it
-// (`priceEvidenceFor`, asked by the store's create path over what actually
-// arrived, so a client can never claim a bill it did not send) and what we
+// (`priceEvidenceFor`, asked by the store's create path, and
+// `priceEvidenceForBillCheck`, asked when the bill has been read) and what we
 // say about both.
+//
+// Captain 5 Nov 2026: a photo attached is not a bill read. Every priced write
+// now lands `unchecked`, bill or not, and the bill check (lib/billCheck.ts,
+// run in the background by lib/billCheck.server.ts) reads the photo. Only a
+// bill that shows the submitted price earns `receipt`. A bill that shows other
+// prices stays `unchecked` and goes to the moderation queue; a bill nobody
+// could read stays `unchecked` too, exactly like a price sent without one.
 //
 // FOUR rules ride with it.
 //
@@ -45,6 +52,7 @@
 // lib/pintDropsStore.ts). This is the browser's half of the same rule, quoted
 // from the same constants rather than typed again beside a picker.
 
+import type { BillCheckResult } from "@/lib/billCheck";
 import { UPLOAD_PHOTO_MAX_BYTES, UPLOAD_PHOTO_MAX_LABEL } from "@/lib/uploadBodyLimit";
 
 /** The three the upload path can strip, normalise and serve. */
@@ -81,11 +89,15 @@ export function priceNeedsReceipt(priceGbp: unknown): boolean {
  * WHAT STANDS BEHIND A PRICED DROP'S FIGURE. CLOSED, and mirrored by the
  * CHECK `pint_drops_price_evidence_known` (migration 0218).
  *
- *   receipt    the write came with a photo of the bill.
- *   unchecked  a typed price with no bill (captain decision 9, 1 Nov 2026).
- *              Shown on the pub's sheet, dated and named. ALONE it never
- *              marks the pin, paints a band, enters a cheapest claim or the
- *              Pint Index, and it never counts as a receipt.
+ *   receipt    the bill was read and it shows this price (the bill check
+ *              answered `match`, captain 5 Nov 2026). Rows stamped before the
+ *              bill check keep the word they were given.
+ *   unchecked  nothing has shown this price yet: a typed price with no bill
+ *              (captain decision 9, 1 Nov 2026), or a bill that is waiting to
+ *              be read, could not be read or shows other prices. Shown on the
+ *              pub's sheet, dated and named. ALONE it never marks the pin,
+ *              paints a band, enters a cheapest claim or the Pint Index, and
+ *              it never counts as a receipt.
  *
  * Absent on a drop that carries no price, and on every row written before
  * 0218. Those read exactly as they always have, because every priced row on
@@ -104,16 +116,23 @@ export function cleanPriceEvidence(value: unknown): PriceEvidence | undefined {
 }
 
 /**
- * THE ONE PLACE A WRITE EARNS ITS EVIDENCE, asked by the store's create path
- * over what actually arrived with the request. Never read off a client field:
- * a body saying "receipt" with no photo behind it is a bill nobody sent.
+ * THE EVIDENCE A WRITE LANDS WITH, asked by the store's create path. A priced
+ * write is `unchecked` whatever came with it, and a body field cannot change
+ * that: a photo attached is not a bill read. `receipt` is earned later, and
+ * only through `priceEvidenceForBillCheck`.
  */
-export function priceEvidenceFor(
-  priceGbp: number | null | undefined,
-  hasReceipt: boolean,
-): PriceEvidence | undefined {
+export function priceEvidenceFor(priceGbp: number | null | undefined): PriceEvidence | undefined {
   if (typeof priceGbp !== "number" || !Number.isFinite(priceGbp)) return undefined;
-  return hasReceipt ? "receipt" : "unchecked";
+  return "unchecked";
+}
+
+/**
+ * THE ONE PLACE A PRICE EARNS `receipt`: a bill check that read the bill and
+ * found the submitted price on it. A mismatch and an unreadable bill both stay
+ * `unchecked`, so a bill nobody could read is treated as no bill at all.
+ */
+export function priceEvidenceForBillCheck(result: BillCheckResult): PriceEvidence {
+  return result === "match" ? "receipt" : "unchecked";
 }
 
 /**
@@ -156,12 +175,13 @@ export const RECEIPT_REQUIRED_LINE =
 /**
  * The ONE LINE the Pint Drop composer offers the bill in, now that it is
  * optional there (captain decision 9). It says what the bill buys, once, and
- * asks for nothing: with it the pin marks the report straight away, without it
- * the map waits for a second drinker. Copy may claim the mark and never the
- * colour (`CommunityPriceMapReach`, lib/communityPrice.ts).
+ * asks for nothing: with a bill that shows the price the pin marks the report
+ * once the bill is read, without it the map waits for a second drinker. Copy
+ * may claim the mark and never the colour (`CommunityPriceMapReach`,
+ * lib/communityPrice.ts).
  */
 export const RECEIPT_OPTIONAL_LINE =
-  "Optional. With the bill, the map marks your price straight away.";
+  "Optional. If the bill shows your price, the map marks it once we read it.";
 
 /**
  * What the composer's receipt adds after an UNCHECKED price lands, when the

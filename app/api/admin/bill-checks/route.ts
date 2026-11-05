@@ -1,0 +1,172 @@
+// The bill check's moderation queue (captain 5 Nov 2026).
+//   GET                                 → { checks: ModeratorBillCheck[] }
+//   POST { id, decision, note? }        → { ok: true, check }   decision ∈ kept | hidden
+//
+// A row here is a bill that was read and does NOT show the price it was sent
+// with (lib/billCheck.ts `mismatch`). The price it names is still on the pub's
+// sheet as `unchecked`, so nothing here is urgent and nothing here is automatic:
+// a moderator looks at the submitted price, the lines the bill showed and the
+// bill itself, and decides.
+//
+//   kept    the price stands as it is, still `unchecked`. A misread bill, a
+//           round on one line, a happy hour. The check is stamped.
+//   hidden  the price leaves every public read through its lane's OWN
+//           moderator door: the Pint Drop's hide, the community price's hide
+//           and its trust reconciliation. The check is stamped only once the
+//           hide has landed, so a failed hide stays in the queue.
+//
+// NEVER DELETED. The check row, the drop and the community price all survive
+// either decision, and a hidden price comes back through the queues that
+// already restore one. Same admin gate as every other queue (lib/adminAuth.ts).
+
+import { isModerator } from "@/lib/adminAuth";
+import { publicApiError } from "@/lib/apiError";
+import { jsonNoStore } from "@/lib/apiResponses";
+import type { ModeratorBillCheck } from "@/lib/billCheck";
+import {
+  billCheckStore,
+  isBillCheckReviewDecision,
+  type BillCheckRecord,
+} from "@/lib/billCheckStore";
+import { moderateCommunityPriceWithState } from "@/lib/communityPriceStore";
+import { log } from "@/lib/log";
+import { isLimited } from "@/lib/pintDrops";
+import { pintDropsStore } from "@/lib/pintDropsStore";
+import { syncTrustAfterPriceHidden } from "@/lib/priceTrustImpact.server";
+import { assertServerEnv } from "@/lib/serverEnv";
+import { clientIp, hashIp } from "@/lib/supabase";
+import { readString } from "@/lib/textClean";
+import { getVenueIndex } from "@/lib/venueIndex";
+
+assertServerEnv();
+
+/** A moderator clears a queue a tap at a time, so this is per minute and wide. */
+const MODERATION_WRITE_LIMIT = 60;
+
+/** The note a hidden price carries in its own lane's moderation trail. */
+const HIDDEN_NOTE = "Bill check: the bill does not show this price.";
+
+function forbidden(): Response {
+  return publicApiError("Not authorised.", "FORBIDDEN", 403);
+}
+
+function unavailable(): Response {
+  return publicApiError("Moderation is unavailable right now.", "UNAVAILABLE", 503, { retryable: true });
+}
+
+async function withContext(checks: BillCheckRecord[]): Promise<ModeratorBillCheck[]> {
+  const dropIds = checks.flatMap((check) => (check.pintDropId ? [check.pintDropId] : []));
+  const [index, drops] = await Promise.all([
+    getVenueIndex(),
+    dropIds.length ? pintDropsStore().listForModerationByIds(dropIds) : Promise.resolve([]),
+  ]);
+  const dropById = new Map(drops.map((drop) => [drop.id, drop]));
+  return checks.map((check) => {
+    const hit = check.pintDropId ? dropById.get(check.pintDropId) : undefined;
+    return {
+      id: check.id,
+      venueId: check.venueId,
+      venueName: index.get(check.venueId)?.name ?? check.venueId,
+      priceGbp: check.priceGbp,
+      result: check.result,
+      lines: check.lines,
+      checkedAt: check.checkedAt,
+      ...(check.pintDropId ? { pintDropId: check.pintDropId } : {}),
+      ...(check.communityPriceId ? { communityPriceId: check.communityPriceId } : {}),
+      ...(hit
+        ? {
+            drop: {
+              id: hit.id,
+              handle: hit.handle,
+              drink: hit.drink,
+              status: hit.status,
+              createdAt: hit.createdAt,
+              receiptPhotoUrl: hit.receiptPhotoUrl,
+            },
+          }
+        : {}),
+    };
+  });
+}
+
+export async function GET(request: Request): Promise<Response> {
+  if (!isModerator(request)) return forbidden();
+
+  const ipKey = hashIp(clientIp(request));
+  if (await isLimited(`admin-bill-checks:${ipKey}`, `admin-bill-checks:${ipKey}`)) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
+
+  try {
+    const checks = await billCheckStore().listMismatchesForReview();
+    return jsonNoStore({ checks: await withContext(checks) }, { status: 200 });
+  } catch (error) {
+    log("error", "bill_checks.list_failed", {
+      route: "GET /api/admin/bill-checks",
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return publicApiError("Could not load bill checks.", "UNAVAILABLE", 503, { retryable: true });
+  }
+}
+
+/** Hide every price a check names, through each lane's own door. False when one did not land. */
+async function hidePricesOf(check: BillCheckRecord, note: string): Promise<boolean> {
+  if (check.pintDropId) {
+    const hidden = await pintDropsStore().moderate(check.pintDropId, "hidden", note);
+    if (!hidden) return false;
+  }
+  if (check.communityPriceId) {
+    const result = await moderateCommunityPriceWithState(check.communityPriceId, true, note);
+    if (result.status !== "ok") return false;
+    const trust = await syncTrustAfterPriceHidden(check.communityPriceId);
+    if (trust.status === "unavailable") return false;
+  }
+  return true;
+}
+
+export async function POST(request: Request): Promise<Response> {
+  if (!isModerator(request)) return forbidden();
+
+  const ipKey = hashIp(clientIp(request));
+  const writeKey = `admin-bill-checks-write:${ipKey}`;
+  if (await isLimited(writeKey, writeKey, MODERATION_WRITE_LIMIT)) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
+
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
+  }
+
+  const id = readString(body.id);
+  if (!id) return publicApiError("Missing bill check id.", "INVALID_REQUEST", 400);
+  const decision = body.decision;
+  if (!isBillCheckReviewDecision(decision)) {
+    return publicApiError("Unknown decision.", "INVALID_REQUEST", 400);
+  }
+
+  try {
+    const store = billCheckStore();
+    // The queue is the only place a decision may be made from, so the check is
+    // looked up there: a reviewed row, a match and an unknown id are all 404.
+    const check = (await store.listMismatchesForReview()).find((row) => row.id === id);
+    if (!check) return publicApiError("Bill check not found.", "NOT_FOUND", 404);
+
+    if (decision === "hidden") {
+      const note = readString(body.note) || HIDDEN_NOTE;
+      if (!(await hidePricesOf(check, note))) return unavailable();
+    }
+    const reviewed = await store.review(id, decision);
+    if (!reviewed) return publicApiError("Bill check not found.", "NOT_FOUND", 404);
+    return jsonNoStore({ ok: true, check: reviewed }, { status: 200 });
+  } catch (error) {
+    log("error", "bill_checks.review_failed", {
+      route: "POST /api/admin/bill-checks",
+      decision,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return unavailable();
+  }
+}

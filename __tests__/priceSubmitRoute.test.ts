@@ -89,6 +89,13 @@ const trustSyncState = vi.hoisted(() => ({
   override: null as { status: "synced" | "unavailable" } | null,
   calls: 0,
 }));
+// The bill check runs AFTER the answer (lib/billCheck.server.ts), so the route
+// is pinned on what it hands over and what it says, never on a model call.
+const billChecks = vi.hoisted(() => ({ keyed: true, schedule: vi.fn() }));
+vi.mock("@/lib/billCheck.server", () => ({
+  billReaderKeyed: () => billChecks.keyed,
+  scheduleBillCheck: billChecks.schedule,
+}));
 vi.mock("@/lib/oneTapPintDrop.server", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/oneTapPintDrop.server")>();
   return {
@@ -884,6 +891,81 @@ describe("POST /api/price-submit measures the serving (F-2)", () => {
   });
 });
 
+// Captain 5 Nov 2026: every price at this door arrives with its bill, and the
+// bill is read after the answer against the rows it names.
+describe("POST /api/price-submit hands its bill to the bill check", () => {
+  beforeEach(() => {
+    billChecks.keyed = true;
+    billChecks.schedule.mockClear();
+  });
+
+  function scheduled(): Record<string, unknown>[] {
+    return billChecks.schedule.mock.calls.map(([run]) => run as Record<string, unknown>);
+  }
+
+  it("names the community price AND its paired Pint Drop on a pint of beer", async () => {
+    const res = await POST(post({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 5.5 }));
+    expect(res.status).toBe(201);
+    const data = (await res.json()) as { billCheck?: string; price?: { id?: string } };
+    expect(data.billCheck).toBe("reading");
+    const [drop] = listVisiblePintDrops("venue-xjf3n0");
+    expect(drop?.priceEvidence).toBe("unchecked");
+    expect(scheduled()).toEqual([
+      expect.objectContaining({
+        venueId: "venue-xjf3n0",
+        priceGbp: 5.5,
+        communityPriceId: data.price?.id,
+        pintDropId: drop?.id,
+        photo: expect.any(File),
+      }),
+    ]);
+  });
+
+  it("names the drop alone on a half, which writes no community price", async () => {
+    const res = await POST(
+      post({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 2.6, measure: "half" }),
+    );
+    expect(res.status).toBe(201);
+    expect(((await res.json()) as { billCheck?: string }).billCheck).toBe("reading");
+    const [run] = scheduled();
+    expect(run).toMatchObject({ priceGbp: 2.6, pintDropId: listVisiblePintDrops("venue-xjf3n0")[0]?.id });
+    expect(run).not.toHaveProperty("communityPriceId");
+  });
+
+  it("names the community price alone on a drink that pairs no Pint Drop", async () => {
+    const res = await POST(post({ venueId: "venue-xjf3n0", drinkCategory: "cocktail", priceGbp: 12 }));
+    expect(res.status).toBe(201);
+    const data = (await res.json()) as { billCheck?: string; price?: { id?: string } };
+    expect(data.billCheck).toBe("reading");
+    const [run] = scheduled();
+    expect(run).toMatchObject({ priceGbp: 12, communityPriceId: data.price?.id });
+    expect(run).not.toHaveProperty("pintDropId");
+  });
+
+  it("reads nothing, and says nothing about reading, on a keyless deployment", async () => {
+    billChecks.keyed = false;
+    const res = await POST(post({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 5.5 }));
+    expect(res.status).toBe(201);
+    expect(await res.json()).not.toHaveProperty("billCheck");
+    expect(billChecks.schedule).not.toHaveBeenCalled();
+  });
+
+  it("reads nothing when the paired drop did not land", async () => {
+    oneTapState.forcedOutcome = { ok: false, kind: "storage", message: "Could not save your pint drop right now." };
+    const res = await POST(post({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 5.5 }));
+    expect(res.status).toBe(503);
+    expect(billChecks.schedule).not.toHaveBeenCalled();
+  });
+
+  it("reads a repeated tap's bill once", async () => {
+    const first = await POST(post({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 5.5 }));
+    const again = await POST(post({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 5.5 }));
+    expect(first.status).toBe(201);
+    expect(again.status).toBe(201);
+    expect(billChecks.schedule).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("POST /api/price-submit venue signals", () => {
   function postSignal(
     body: Record<string, unknown>,
@@ -1568,6 +1650,12 @@ describe("POST /api/price-submit second-drinker confirmation", () => {
     // one repeated report, and the outcome says so - with ONE drinker behind
     // them, because both carry this account's own authority key.
     await submitAs("solo", { venueId, drinkCategory: "beer", priceGbp: 4.5 });
+    // The first figure's bill has been read and shows it (captain 5 Nov 2026):
+    // a split is read over a price that stands on its bill, never over two
+    // prices still waiting on theirs.
+    const { grantPintDropReceipt } = await import("@/lib/pintDrops");
+    const [first] = listVisiblePintDrops(venueId);
+    expect(grantPintDropReceipt(defined(first).id)).toBe(true);
     const res = await submitAs("solo", { venueId, drinkCategory: "beer", priceGbp: 4.6 });
     expect(res.status).toBe(201);
     const body = (await res.json()) as ConfirmationBody;

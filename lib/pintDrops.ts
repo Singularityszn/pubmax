@@ -742,6 +742,20 @@ export function confirmPintDrop(
   return true;
 }
 
+/**
+ * The bill check found this drop's price on its bill (lib/billCheck.server.ts),
+ * so its evidence moves from `unchecked` to `receipt`. Only an organic priced
+ * drop that is still `unchecked` moves: a demo seed, a note and a drop already
+ * billed all answer false, because nothing here changed.
+ */
+export function grantPintDropReceipt(id: string): boolean {
+  const hit = findDrop(id);
+  if (!hit || typeof hit.priceGbp !== "number") return false;
+  if (hit.priceEvidence !== "unchecked") return false;
+  hit.priceEvidence = "receipt";
+  return true;
+}
+
 /** Moderator lane: visible drops carrying a confirmation, newest confirmation
  *  first. Aged-out confirmations stay in the lane - the queue is a record of
  *  what was confirmed, and the trust window is a reading of it. */
