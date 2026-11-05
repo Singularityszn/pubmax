@@ -1,7 +1,7 @@
 import type { Page, Request } from "@playwright/test";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { aggregatePerfMetric, waitForQuietNetwork } from "../e2e/helpers/perfMeasurement";
+import { aggregatePerfMetric, loadPerfRoute, waitForQuietNetwork, type PerfRoute } from "../e2e/helpers/perfMeasurement";
 import { PERFORMANCE_BUDGETS, type BudgetMethod } from "../lib/performanceBudgets";
 
 // The quiet window is scaled to the tracked network profile, so these cases
@@ -124,4 +124,99 @@ describe("performance measurement aggregation", () => {
   it("keeps an absent metric unmeasured instead of treating it as zero", () => {
     expect(Number.isNaN(aggregatePerfMetric([Number.NaN, 700, 710]))).toBe(true);
   });
+});
+
+
+// Double the browser boundary, not the helper or its assertion implementation.
+function navigationPage(status: number): Page {
+  const locator = {
+    _apiName: "Locator",
+    first() { return this; },
+    async _expect() { return { matches: true }; },
+  };
+  return {
+    goto: async () => ({ status: () => status }),
+    locator: () => locator,
+    evaluate: async () => 125,
+  } as unknown as Page;
+}
+
+describe("route navigation status", () => {
+  const retiredRoute = PERFORMANCE_BUDGETS.routes.find(
+    (route) => route.path === "/area/clapham/drink/guinness",
+  )!;
+
+  it.each(
+    [null, "200", "404", "500", 500, 301, 307, 0, 200.5, true, false, [], {}]
+      .map((expectedStatus) => ({ expectedStatus })),
+  )(
+    "rejects configured expectedStatus $expectedStatus before navigating to a server that returns 500",
+    async ({ expectedStatus }) => {
+      const page = navigationPage(500);
+      const goto = vi.spyOn(page, "goto");
+      const route = JSON.parse(JSON.stringify({
+        path: "/about",
+        readySelector: "main",
+        expectedStatus,
+      })) as PerfRoute;
+
+      await expect(loadPerfRoute(page, route)).rejects.toThrow(
+        "expectedStatus must be numeric 200 or 404",
+      );
+      expect(goto).not.toHaveBeenCalled();
+    },
+  );
+
+  it("rejects an explicit undefined status before navigation", async () => {
+    const page = navigationPage(500);
+    const goto = vi.spyOn(page, "goto");
+
+    await expect(loadPerfRoute(page, {
+      path: "/about",
+      readySelector: "main",
+      expectedStatus: undefined,
+    })).rejects.toThrow("expectedStatus must be numeric 200 or 404");
+    expect(goto).not.toHaveBeenCalled();
+  });
+
+  it("measures the configured retired URL when it returns HTTP 404", async () => {
+    await expect(loadPerfRoute(navigationPage(404), retiredRoute)).resolves.toBe(125);
+  });
+
+  it("refuses a success response when the budget measures a retired page", async () => {
+    await expect(loadPerfRoute(navigationPage(200), retiredRoute)).rejects.toThrow("must answer HTTP 404");
+  });
+
+  it("refuses an unexpected HTTP 404 on an ordinary page", async () => {
+    await expect(loadPerfRoute(navigationPage(404), {
+      path: "/about",
+      readySelector: "main",
+    })).rejects.toThrow("must answer HTTP 200");
+  });
+
+  it("still measures an ordinary successful page without a status override", async () => {
+    await expect(loadPerfRoute(navigationPage(200), {
+      path: "/about",
+      readySelector: "main",
+    })).resolves.toBe(125);
+  });
+
+  it("measures an explicit numeric HTTP 200", async () => {
+    await expect(loadPerfRoute(navigationPage(200), {
+      path: "/about",
+      readySelector: "main",
+      expectedStatus: 200,
+    })).resolves.toBe(125);
+  });
+
+  it.each([undefined, 200, 404] as const)(
+    "rejects HTTP 500 with valid expectedStatus %j",
+    async (expectedStatus) => {
+      await expect(loadPerfRoute(navigationPage(500), {
+        path: "/about",
+        readySelector: "main",
+        ...(expectedStatus === undefined ? {} : { expectedStatus }),
+      })).rejects.toThrow(`must answer HTTP ${expectedStatus ?? 200}`);
+    },
+  );
 });
