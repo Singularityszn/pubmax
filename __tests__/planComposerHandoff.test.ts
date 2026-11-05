@@ -140,6 +140,7 @@ describe("resolveComposerHydration", () => {
     expect(hydration.active).toBe(true);
     expect(hydration.acceptedVenueId).toBe("venue-intent");
     expect(hydration.acceptedSource).toBe("near");
+    expect(hydration.acceptedIntentAt).toBe(new Date(NOW).toISOString());
     expect(hydration.acceptedAnchor).toEqual({
       venueId: "venue-intent",
       source: "near",
@@ -262,6 +263,7 @@ describe("resolveComposerHydration", () => {
       planningIntent: intent(),
       rememberedArea: null,
     });
+    expect(hydration.acceptedIntentAt).toBeNull();
     expect(hydration.acceptedAnchor).toEqual({
       venueId: "venue-intent",
       source: "near",

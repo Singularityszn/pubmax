@@ -64,6 +64,7 @@ export type ComposerHydration = {
   heldVenueId: string | null;
   /** Acceptance source when the accepted Venue came from a trusted handoff. */
   acceptedSource: PlanningIntentSource | null;
+  acceptedIntentAt: string | null;
   /** Exact accepted anchor for generation, when its source is known. */
   acceptedAnchor: {
     venueId: string;
@@ -149,13 +150,7 @@ export function resolveComposerHydration(input: ResolveComposerHydrationInput): 
     && (Boolean(draftAnchor) || isAcceptanceSource(result.acceptedVenueId.source))
     ? acceptedVenueId
     : null;
-  const active = Boolean(
-    input.planDraft
-    || input.routeDraft
-    || input.intakeDraft
-    || input.planningIntent
-    || acceptedVenueId,
-  );
+  const active = [input.planDraft, input.routeDraft, input.intakeDraft, input.planningIntent, acceptedVenueId].some(Boolean);
   return {
     active,
     defaultsMayWrite: result.hydration.defaultsMayWrite,
@@ -165,6 +160,7 @@ export function resolveComposerHydration(input: ResolveComposerHydrationInput): 
     acceptedVenueId,
     heldVenueId,
     acceptedSource,
+    acceptedIntentAt: winningIntent?.acceptedAt ?? null,
     acceptedAnchor,
     area: result.area.value,
     // Accepted context is visible for exactly the pub that is held, so the

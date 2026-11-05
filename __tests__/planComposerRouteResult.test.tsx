@@ -713,12 +713,10 @@ describe("the Plan result", () => {
       ...response, operationKey: "replacement-operation", anchorSource: "map-search",
     }, localStorage, "map-generated", savedAt)).toBe(true);
     localStorage.setItem(PLAN_ROUTE_DRAFT_V2_KEY, oldV2);
+    const oldV1 = localStorage.getItem(PLAN_ROUTE_DRAFT_KEY);
     await mountComposer();
     expectDisplayedRoute(["Pub A", "Pub B"], ["venue-a", "venue-b"]);
-    expect(JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!)).toMatchObject({
-      routeStale: true, groundingProof: null, createOperationKey: null, planAnchor: null,
-      nightContext: null,
-    });
+    expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(oldV1);
     expect(localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).toBe(oldV2);
     await openTune();
     expectTuneDescriptionAndCount("", undefined);
@@ -761,13 +759,16 @@ describe("the Plan result", () => {
       delete route.savedAt;
       localStorage.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify(route));
     }
+    const oldV1 = localStorage.getItem(PLAN_ROUTE_DRAFT_KEY);
+    const oldSession = sessionStorage.getItem(PLAN_DRAFT_KEY);
     await mountComposer();
     expectDisplayedRoute(samePubs ? ["Pub A", "Pub B"] : ["Handoff A", "Handoff B"],
       samePubs ? ["venue-a", "venue-b"] : ["handoff-a", "handoff-b"]);
     expect(document.body.textContent).not.toContain("Release this pub");
-    expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.acceptedAnchor).toBeUndefined();
-    const stored = JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!);
-    expect(stored).toMatchObject({ routeStale: true, groundingProof: null, createOperationKey: null, planAnchor: null });
+    if (age === "undated") expect(sessionStorage.getItem(PLAN_DRAFT_KEY)).toBe(oldSession);
+    else expect(parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY))?.acceptedAnchor).toBeUndefined();
+    expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(oldV1);
+    expect(localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).toBe(oldV2);
     await openTune();
     await typeTuneQuery("Clapham tonight");
     await sortAgainFromTune();
