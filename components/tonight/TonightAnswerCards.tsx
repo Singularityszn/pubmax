@@ -4,7 +4,7 @@ import { ArrowRight, ExternalLink, LocateFixed } from "lucide-react";
 
 import { PintPriceBadge } from "@/components/PriceBadge";
 import { ReadyButton } from "@/components/ui/ready-button";
-import { formatSnapshotFrom } from "@/lib/dataFreshness";
+import { firstHttp } from "@/lib/httpUrl.mjs";
 import AddRegularNight from "@/components/tonight/AddRegularNight";
 import RegularNightStillOn from "@/components/tonight/RegularNightStillOn";
 import {
@@ -61,6 +61,9 @@ function mapHref(venueId: string): Route {
 
 function CheapestCard({ cheapest }: { cheapest: TonightCheapestAnswer | null }) {
   if (!cheapest) return null;
+  const sourceUrl = firstHttp(cheapest.publisher?.url);
+  const date = cheapest.observedAt ? new Date(cheapest.observedAt) : null;
+  const readable = date && Number.isFinite(date.getTime());
   return (
     <li className="tonightAnswer" data-testid="tonight-answer-cheapest" data-basis={cheapest.basis}>
       <h2 className="tonightAnswerTitle">{tonightCheapestHeading(cheapest.basis)}</h2>
@@ -75,8 +78,11 @@ function CheapestCard({ cheapest }: { cheapest: TonightCheapestAnswer | null }) 
         <PintPriceBadge priceGbp={cheapest.priceGbp} venueId={cheapest.venueId} />
       </p>
       <p className="tonightAnswerMeta">
-        {cheapest.placeLine}
-        {cheapest.observedAt ? ` · ${formatSnapshotFrom(new Date(cheapest.observedAt))}` : " · No read date on file"}
+        {cheapest.placeLine} · {cheapest.drinkLabel || (cheapest.evidenceUnavailable ? "Drink unavailable" : "Drink not recorded")} · {cheapest.servingSize || (cheapest.evidenceUnavailable ? "Serving unavailable" : "Serving not recorded")} ·{" "}
+        {cheapest.publisher?.label ? (sourceUrl ? (
+          <a className="tonightAnswerSource" href={sourceUrl} target="_blank" rel="noreferrer noopener">{cheapest.publisher.label}</a>
+        ) : <>{cheapest.publisher.label} (link unavailable)</>) : "Publisher not recorded"} ·{" "}
+        {readable ? <time dateTime={cheapest.observedAt ?? undefined}>{new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" }).format(date)}</time> : "Read date not recorded"}
       </p>
     </li>
   );

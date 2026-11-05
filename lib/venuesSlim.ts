@@ -288,6 +288,7 @@ function normalizeRows(data: unknown): SlimVenue[] {
 export type SlimVenueLoadOptions = {
   bypassInFlight?: boolean;
   expectedRevision?: string;
+  expectedPriceDatasetDigest?: string;
   /**
    * A self-contained pack (a whole index, never one shard of a manifest) whose
    * revision still disagrees after a cache-bypassed read is painted as served
@@ -363,7 +364,11 @@ function rowsFromPayload(
 function normalizedRowsFromPayload(
   value: unknown,
   expectedRevision?: string,
+  expectedPriceDatasetDigest?: string,
 ): { rows: SlimVenue[]; complete: boolean } | null {
+  if (expectedPriceDatasetDigest !== undefined &&
+      (!value || typeof value !== "object" || Array.isArray(value) ||
+        (value as { d?: unknown }).d !== expectedPriceDatasetDigest)) return null;
   const payloadRows = rowsFromPayload(value, expectedRevision);
   if (!payloadRows) return null;
   const rows = normalizeRows(payloadRows);
@@ -391,9 +396,10 @@ function revisionSkewedRows(
 async function readOfflineFallback(
   offlineKey: string,
   expectedRevision?: string,
+  expectedPriceDatasetDigest?: string,
 ): Promise<SlimVenue[] | null> {
   const stored = await offlineCache.get<unknown>(offlineKey);
-  const payload = normalizedRowsFromPayload(stored, expectedRevision);
+  const payload = normalizedRowsFromPayload(stored, expectedRevision, expectedPriceDatasetDigest);
   return payload?.complete && payload.rows.length > 0 ? payload.rows : null;
 }
 
@@ -423,6 +429,18 @@ export async function loadSlimVenuesFromPath(
   return result.rows;
 }
 
+function offlineSnapshotIdentity(data: unknown): {
+  revision: string | undefined;
+  digest: string | undefined;
+} {
+  const identity = data && typeof data === "object" && !Array.isArray(data)
+    ? data as { revision?: unknown; d?: unknown }
+    : {};
+  const revision = typeof identity.revision === "string" ? identity.revision : undefined;
+  const digest = typeof identity.d === "string" && identity.d.length > 0 ? identity.d : undefined;
+  return { revision, digest };
+}
+
 async function loadSlimVenuesFromPathUnshared(
   path: string,
   options: SlimVenueLoadOptions = {},
@@ -430,25 +448,26 @@ async function loadSlimVenuesFromPathUnshared(
   const offlineKey = offlineKeyForPath(path);
   try {
     let data: unknown = await readSlimPayload(path, options);
-    let payload = normalizedRowsFromPayload(data, options.expectedRevision);
+    let payload = normalizedRowsFromPayload(data, options.expectedRevision, options.expectedPriceDatasetDigest);
     if (
-      options.expectedRevision !== undefined &&
+      (options.expectedRevision !== undefined || options.expectedPriceDatasetDigest !== undefined) &&
       (!payload || !payload.complete)
     ) {
       data = await readSlimPayload(path, options, "no-store");
-      payload = normalizedRowsFromPayload(data, options.expectedRevision);
+      payload = normalizedRowsFromPayload(data, options.expectedRevision, options.expectedPriceDatasetDigest);
     }
     if (
       !payload ||
-      (options.expectedRevision !== undefined && !payload.complete)
+      ((options.expectedRevision !== undefined || options.expectedPriceDatasetDigest !== undefined) && !payload.complete)
     ) {
       const fallback = await readOfflineFallback(
         offlineKey,
         options.expectedRevision,
+        options.expectedPriceDatasetDigest,
       );
       if (fallback) return { rows: omitClosedCuratedVenues(fallback), status: "ready" };
       const skewed = !payload ? revisionSkewedRows(data, options.expectedRevision) : null;
-      if (skewed && options.acceptRevisionSkew) {
+      if (skewed && options.acceptRevisionSkew && options.expectedPriceDatasetDigest === undefined) {
         reportMapDataRevisionSkew({
           asset: "index",
           outcome: "adopted",
@@ -465,10 +484,14 @@ async function loadSlimVenuesFromPathUnshared(
     const { rows: parsedRows, complete } = payload;
     const rows = omitClosedCuratedVenues(parsedRows);
     if (complete && rows.length > 0) {
-      const stored = options.expectedRevision
-        ? { revision: options.expectedRevision, rows }
-        : rows;
-      void offlineCache.set(offlineKey, stored);
+      const { revision, digest } = offlineSnapshotIdentity(data);
+      const existing = digest ? null : await offlineCache.get<{ d?: unknown }>(offlineKey);
+      if (digest || !existing?.d) {
+        const stored = revision || digest
+          ? { ...(revision ? { revision } : {}), ...(digest ? { d: digest } : {}), rows }
+          : rows;
+        void offlineCache.set(offlineKey, stored);
+      }
     }
     return {
       rows,
@@ -478,6 +501,7 @@ async function loadSlimVenuesFromPathUnshared(
     const fallback = await readOfflineFallback(
       offlineKey,
       options.expectedRevision,
+      options.expectedPriceDatasetDigest,
     );
     if (fallback) return { rows: omitClosedCuratedVenues(fallback), status: "ready" };
     throw error;
