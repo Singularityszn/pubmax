@@ -151,7 +151,9 @@ describe("GET /api/messages — inbox", () => {
 
 describe("POST /api/messages — open + send validation", () => {
   it("refuses a profile lookup outage before claiming an asserted handle or sending", async () => {
-    asUser("user-ken");
+    const userId = "user-new";
+    await memoryAdultSelfAssertionStore.record(userId);
+    asUser(userId);
     const lookup = vi.spyOn(memoryProfileStore, "getHandleByUserId")
       .mockRejectedValueOnce(new Error("profile store unavailable"));
     try {

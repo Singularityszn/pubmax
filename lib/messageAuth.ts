@@ -1,16 +1,8 @@
 import "server-only";
 
-// Resolve the actor handle for messaging routes.
-//
-// Dual-backend identity (same stance as profiles):
-//   • When a verified Supabase Auth JWT is present AND that user has a linked
-//     profile, the linked handle wins — body/query handle is not trusted alone.
-//   • When auth is absent / unconfigured / the user has no linked profile, fall
-//     back to the self-asserted handle (anonymous/demo path).
-//
-// Fail-soft: a store lookup error never blocks the demo path; we just use the
-// asserted handle. Ownership of LINKED profiles is still enforced elsewhere
-// (profile PATCH/DELETE); messaging only needs "who am I claiming to be".
+// Resolve handles for direct messages and legacy callers.
+// A failed profile lookup returns an empty handle from `resolveMessageHandle`
+// and a retryable 503 from `requireLinkedActor`.
 
 import { callerUserId } from "@/lib/authServer";
 import { normalizeHandle } from "@/lib/profiles";
@@ -26,12 +18,13 @@ function profileStore(): ProfileStore {
 }
 
 /**
- * Prefer the auth-linked handle when the request carries a valid JWT whose
- * user owns a profile; otherwise return the normalized asserted handle (or ""
- * when neither is available).
+ * Prefer the linked handle of a verified user. If there is no verified user,
+ * return the normalized asserted handle. If a successful lookup finds no
+ * profile, return the assertion unless `requireLinked` is set. Return "" when
+ * the lookup fails or finds no profile with `requireLinked` set.
  *
- * Use this on every private write before `gateHandleAction` so a signed-in
- * user cannot POST as a different unlinked handle while their JWT is present.
+ * Legacy write routes must still check handle ownership with
+ * `gateHandleAction`.
  *
  * A route that already verified the bearer passes `verifiedUserId` so the JWT
  * is checked once per request rather than once per gate. Omitting it keeps the
@@ -66,8 +59,12 @@ export type LinkedActorGate =
   | { ok: false; status: 400 | 401 | 403 | 503; error: string };
 
 /**
- * Wave I2 — DMs require a signed-in user whose profile is linked.
- * Returns the canonical linked handle, or a 401/403 gate response payload.
+ * Require a verified user for direct messages. Return the linked handle if
+ * the lookup finds one. A successful lookup that finds no profile permits a
+ * normalized asserted handle, subject to the route's ownership checks.
+ *
+ * Return 401 without a verified user and 400 without a handle after a
+ * successful lookup. Fail closed with a retryable 503 if the lookup fails.
  */
 export async function requireLinkedActor(
   request: Request,
