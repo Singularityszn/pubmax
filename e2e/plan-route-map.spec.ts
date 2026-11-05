@@ -5,7 +5,15 @@ import { describeFirstQuery, describeFirstSubmit } from "./helpers/planDescribeF
 import { expectLayoutSettled } from "./helpers/layoutSettled";
 import { UI_UX_CHROMIUM_ARGS } from "../scripts/lib/uiUxBattleTestBrowser.mjs";
 
-test.use({ serviceWorkers: "block", launchOptions: { args: [...UI_UX_CHROMIUM_ARGS] } });
+test.use({
+  serviceWorkers: "block",
+  launchOptions: async ({ launchOptions }, provide) => {
+    await provide({
+      ...launchOptions,
+      args: [...new Set([...(launchOptions.args ?? []), ...UI_UX_CHROMIUM_ARGS])],
+    });
+  },
+});
 
 async function openHydratedPlanComposer(page: Page): Promise<void> {
   await page.goto("/plan");
