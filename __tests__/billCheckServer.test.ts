@@ -6,7 +6,7 @@
 // lines it needs, and grants `receipt` on a match and nothing else.
 
 
-import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
+import { assert, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
@@ -372,6 +372,7 @@ describe("runBillCheck", () => {
     expect(await runBillCheck({ ...firstRun, communityPriceId: current.id, communityPriceSubmittedAt: current.submittedAt }, deps(fetcher)))
       .toBe("already-checked");
     const [check] = await checks.listMismatchesForReview();
+    assert(check);
     expect(check).toMatchObject({ communityPriceId: current.id, communityPriceSubmittedAt: at + 1000 });
     const claimed = (await checks.review(check.id, "hidden"))!;
     expect(await memoryCommunityPriceStore.moderateWithState(claimed.communityPriceId!, true, "Bill mismatch", {
@@ -391,11 +392,13 @@ describe("runBillCheck", () => {
     const fetcher = vi.fn(async () => modelAnswer(BILL));
     expect(await runBillCheck(firstRun, deps(fetcher))).toBe("mismatch");
     const [old] = await checks.listMismatchesForReview();
+    assert(old);
     await checks.review(old.id, decision);
     const current = (await memoryCommunityPriceStore.submit(input, at + 1000)).price!;
     const retry = { ...firstRun, communityPriceId: current.id, communityPriceSubmittedAt: current.submittedAt };
     expect(await runBillCheck(retry, deps(fetcher))).toBe("already-checked");
     const [pending] = await checks.listMismatchesForReview();
+    assert(pending);
     expect(pending).toMatchObject({ result: "mismatch", communityPriceId: current.id, communityPriceSubmittedAt: at + 1000 });
     expect(pending.id).not.toBe(old.id);
     expect(await memoryCommunityPriceStore.moderateWithState(pending.communityPriceId!, true, "Bill mismatch", {

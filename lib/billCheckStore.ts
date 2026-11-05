@@ -165,6 +165,7 @@ export const memoryBillCheckStore: BillCheckStore = {
   async reuseChecked(input) {
     assertSubject(input);
     const key = subjectKeys(input)[0];
+    if (key === undefined) return null;
     const hit = [...checks.values()].find((check) => subjectKeys(check).includes(key));
     if (hit && input.communityPriceId &&
       (hit.communityPriceSubmittedAt === undefined || input.communityPriceSubmittedAt! >= hit.communityPriceSubmittedAt)) {
