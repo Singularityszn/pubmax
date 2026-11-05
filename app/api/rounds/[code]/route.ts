@@ -214,6 +214,7 @@ async function promoteReadyRoundPrices(input: {
           venueId: input.stored.venueId,
           priceGbp: item.pricePence / 100,
           drink: item.drinkName,
+          ...(item.drinkCategory === "beer" ? { measure: "pint" as const } : {}),
           communityPriceId: write.price.id,
           communityPriceSubmittedAt: write.price.submittedAt,
           roundSource: { spendId: input.stored.id, lineIndex: index },
