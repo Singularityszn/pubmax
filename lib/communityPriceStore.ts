@@ -1827,6 +1827,7 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
           return { status: "not-found", changed: false };
         }
         const row = existing[0];
+        if (!row) return { status: "not-found", changed: false };
         if (expected && (Date.parse(row.submitted_at ?? "") !== expected.submittedAt ||
           row.price_pennies !== Math.round(expected.priceGbp * 100) ||
           (row.round_spend_id ?? null) !== (expected.roundSource?.spendId ?? null) ||
