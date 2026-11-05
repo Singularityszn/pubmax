@@ -123,6 +123,20 @@ function byNewest(left: BillCheckRecord, right: BillCheckRecord): number {
   return right.checkedAt.localeCompare(left.checkedAt);
 }
 
+async function recordCurrentObservation(
+  store: BillCheckStore,
+  input: BillCheckSubject,
+  checked: BillCheckRecord,
+): Promise<BillCheckRecord> {
+  const subject = { ...input, pintDropId: undefined };
+  return (await store.reuseChecked(subject)) ?? store.record({
+    ...subject,
+    venueId: checked.venueId,
+    result: checked.result,
+    lines: checked.lines,
+  });
+}
+
 // ── Memory ───────────────────────────────────────────────────────────────────
 const checks = new Map<string, BillCheckRecord>();
 
@@ -154,6 +168,9 @@ export const memoryBillCheckStore: BillCheckStore = {
     const hit = [...checks.values()].find((check) => subjectKeys(check).includes(key));
     if (hit && input.communityPriceId &&
       (hit.communityPriceSubmittedAt === undefined || input.communityPriceSubmittedAt! >= hit.communityPriceSubmittedAt)) {
+      if (hit.communityPriceId === input.communityPriceId &&
+        hit.communityPriceSubmittedAt === input.communityPriceSubmittedAt) return { ...hit, lines: [...hit.lines] };
+      if (hit.reviewedAt) return recordCurrentObservation(memoryBillCheckStore, input, hit);
       hit.communityPriceId = input.communityPriceId;
       hit.communityPriceSubmittedAt = input.communityPriceSubmittedAt;
       hit.roundSource = input.roundSource ? { ...input.roundSource } : undefined;
@@ -312,16 +329,20 @@ export const supabaseBillCheckStore: BillCheckStore = {
         const hit = Array.isArray(data) && data.length > 0 ? fromRow(data[0] as Record<string, unknown>) : null;
         if (!hit || !input.communityPriceId ||
           (hit.communityPriceSubmittedAt !== undefined && input.communityPriceSubmittedAt! < hit.communityPriceSubmittedAt)) return hit;
+        if (hit.communityPriceId === input.communityPriceId &&
+          hit.communityPriceSubmittedAt === input.communityPriceSubmittedAt) return hit;
+        if (hit.reviewedAt) return recordCurrentObservation(supabaseBillCheckStore, input, hit);
         let binding = admin().from(TABLE).update({
           community_price_id: input.communityPriceId,
           community_price_submitted_at: new Date(input.communityPriceSubmittedAt!).toISOString(),
           community_price_round_source: input.roundSource ?? null,
-        }).eq("id", hit.id);
+        }).eq("id", hit.id).is("reviewed_at", null);
         binding = hit.communityPriceSubmittedAt === undefined
           ? binding.is("community_price_submitted_at", null)
           : binding.eq("community_price_submitted_at", new Date(hit.communityPriceSubmittedAt).toISOString());
-        const { data: bound, error: bindError } = await binding.select("*").single();
+        const { data: bound, error: bindError } = await binding.select("*").maybeSingle();
         if (bindError) throw new Error(bindError.message);
+        if (!bound) return recordCurrentObservation(supabaseBillCheckStore, input, hit);
         const stored = fromRow(bound as Record<string, unknown>);
         if (!stored) throw new Error("bill check binding returned an unreadable row");
         return stored;

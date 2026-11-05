@@ -116,7 +116,7 @@ async function hidePricesOf(check: BillCheckRecord, note: string): Promise<boole
   }
   if (check.communityPriceId) {
     const result = await moderateCommunityPriceWithState(check.communityPriceId, true, note, { submittedAt: check.communityPriceSubmittedAt!, priceGbp: check.priceGbp, ...(check.roundSource ? { roundSource: check.roundSource } : {}) });
-    if (result.status !== "ok") return false;
+    if (result.status !== "ok" || result.kind === undefined) return false;
     if (result.kind === "price") {
       const trust = await syncTrustAfterPriceHidden(check.communityPriceId);
       if (trust.status === "unavailable") return false;

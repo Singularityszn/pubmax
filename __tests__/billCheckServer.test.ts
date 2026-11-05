@@ -19,7 +19,7 @@ vi.mock("@/lib/log", () => ({
 
 import { readBoardPhoto } from "@/lib/boardRead.server";
 import { __resetBillChecks, memoryBillCheckStore, type BillCheckRecord, type BillCheckStore } from "@/lib/billCheckStore";
-import { readBillPhoto, runBillCheck, type BillCheckRun } from "@/lib/billCheck.server";
+import { readBillPhoto, runBillCheck, runBillChecks, type BillCheckRun } from "@/lib/billCheck.server";
 import { __resetPintDrops, addPintDrop, findPintDropsByIds, grantPintDropReceipt } from "@/lib/pintDrops";
 import { __resetCommunityPrices, memoryCommunityPriceStore } from "@/lib/communityPriceStore";
 
@@ -249,6 +249,49 @@ describe("runBillCheck", () => {
     expect(grantReceipt).not.toHaveBeenCalled();
   });
 
+  it("reads one Round bill once and judges each promoted observation separately", async () => {
+    const fetcher = vi.fn(async () => modelAnswer({
+      ...BILL,
+      lines: [...BILL.lines, { name: "Merlot 175ml", price_gbp: 7.5 }],
+    }));
+    const observations = [
+      { venueId: "venue-1vle947", communityPriceId: "round-beer", communityPriceSubmittedAt: 1_793_900_000_000,
+        drink: "Guinness pint", priceGbp: 6.2, roundSource: { spendId: "round-spend", lineIndex: 0 } },
+      { venueId: "venue-1vle947", communityPriceId: "round-wine", communityPriceSubmittedAt: 1_793_900_000_000,
+        drink: "Merlot 175ml", priceGbp: 4.5, roundSource: { spendId: "round-spend", lineIndex: 1 } },
+    ];
+    expect(await runBillChecks(PHOTO, observations, deps(fetcher))).toEqual(["match", "mismatch"]);
+    expect(checks.records).toEqual([
+      expect.objectContaining({ communityPriceId: "round-beer", result: "match", lines: [{ name: "Guinness", priceGbp: 6.2 }] }),
+      expect.objectContaining({ communityPriceId: "round-wine", result: "mismatch" }),
+    ]);
+    expect(await checks.listMismatchesForReview()).toMatchObject([{ communityPriceId: "round-wine" }]);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(admit).toHaveBeenCalledTimes(1);
+    expect(prepare).toHaveBeenCalledTimes(1);
+    expect(grantReceipt).not.toHaveBeenCalled();
+    expect(await runBillChecks(PHOTO, observations, deps(fetcher))).toEqual(["already-checked", "already-checked"]);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(admit).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["keyless", "budget-spent", "failed", "unreadable"] as const)("shares the %s outcome across a Round's observations", async (outcome) => {
+    const fetcher = vi.fn(async () => outcome === "failed"
+      ? new Response("", { status: 500 }) : modelAnswer({ ...BILL, lines: [] }));
+    if (outcome === "budget-spent") admit.mockResolvedValue(false);
+    const observations = [0, 1].map((lineIndex) => ({
+      venueId: "venue-1vle947", communityPriceId: `round-price-${lineIndex}`,
+      communityPriceSubmittedAt: 1_793_900_000_000, drink: "Guinness", priceGbp: 6.2,
+      roundSource: { spendId: "round-spend", lineIndex },
+    }));
+    expect(await runBillChecks(PHOTO, observations, deps(fetcher, outcome === "keyless" ? {} : KEYED)))
+      .toEqual([outcome, outcome]);
+    expect(fetcher).toHaveBeenCalledTimes(outcome === "failed" || outcome === "unreadable" ? 1 : 0);
+    expect(admit).toHaveBeenCalledTimes(outcome === "keyless" ? 0 : 1);
+    expect(checks.records).toHaveLength(outcome === "unreadable" ? 2 : 0);
+    expect(grantReceipt).not.toHaveBeenCalled();
+  });
+
   it("keeps the price unchecked and answers failed when its check cannot be stored", async () => {
     checks.record = vi.fn(async () => {
       throw new Error("insert failed");
@@ -338,6 +381,30 @@ describe("runBillCheck", () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
     expect(admit).toHaveBeenCalledTimes(1);
     expect(checks.records).toHaveLength(1);
+  });
+
+  it.each(["hidden", "kept"] as const)("queues a paired retry after a %s review without a second paid read", async (decision) => {
+    const at = Date.parse("2026-11-05T19:30:00.000Z");
+    const input = { venueId: "venue-1vle947", drinkCategory: "beer" as const, priceGbp: 4.5, actor: "drinker" };
+    const first = (await memoryCommunityPriceStore.submit(input, at)).price!;
+    const firstRun = run({ priceGbp: 4.5, communityPriceId: first.id, communityPriceSubmittedAt: first.submittedAt });
+    const fetcher = vi.fn(async () => modelAnswer(BILL));
+    expect(await runBillCheck(firstRun, deps(fetcher))).toBe("mismatch");
+    const [old] = await checks.listMismatchesForReview();
+    await checks.review(old.id, decision);
+    const current = (await memoryCommunityPriceStore.submit(input, at + 1000)).price!;
+    const retry = { ...firstRun, communityPriceId: current.id, communityPriceSubmittedAt: current.submittedAt };
+    expect(await runBillCheck(retry, deps(fetcher))).toBe("already-checked");
+    const [pending] = await checks.listMismatchesForReview();
+    expect(pending).toMatchObject({ result: "mismatch", communityPriceId: current.id, communityPriceSubmittedAt: at + 1000 });
+    expect(pending.id).not.toBe(old.id);
+    expect(await memoryCommunityPriceStore.moderateWithState(pending.communityPriceId!, true, "Bill mismatch", {
+      submittedAt: pending.communityPriceSubmittedAt!, priceGbp: pending.priceGbp,
+    })).toMatchObject({ status: "ok", changed: true });
+    expect((await memoryCommunityPriceStore.latestForVenue([input.venueId], at + 1000)).prices).toEqual([]);
+    expect(await runBillCheck(retry, deps(fetcher))).toBe("already-checked");
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(admit).toHaveBeenCalledTimes(1);
   });
 
   it.each(["match", "mismatch"] as const)("stores redacted evidence for a numeric product name on a %s", async (result) => {

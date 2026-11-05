@@ -15,6 +15,7 @@ const db = vi.hoisted(() => ({
   schemaMiss: false,
   failWrites: false,
   uniqueViolation: false,
+  beforeUpdate: null as null | (() => Promise<void>),
 }));
 
 vi.mock("@/lib/deploymentEnv", () => ({ isDeployedProduction: () => false }));
@@ -32,8 +33,13 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
       limit: Number.POSITIVE_INFINITY,
       single: false,
     };
-    const run = () => {
+    const run = async () => {
       if (db.schemaMiss) return { data: null, error: { message: TABLE_MISSING } };
+      if (state.op === "update" && db.beforeUpdate) {
+        const beforeUpdate = db.beforeUpdate;
+        db.beforeUpdate = null;
+        await beforeUpdate();
+      }
       if (state.op === "insert") {
         if (db.failWrites) return { data: null, error: { message: "insert boom" } };
         if (db.uniqueViolation) {
@@ -142,6 +148,7 @@ describe.each([
     db.schemaMiss = false;
     db.failWrites = false;
     db.uniqueViolation = false;
+    db.beforeUpdate = null;
   });
 
   it("checks later corrections independently of the surviving community-price ID", async () => {
@@ -203,6 +210,25 @@ describe.each([
     expect(await store.reuseChecked({ ...first, communityPriceSubmittedAt: SUBMITTED_AT + 1000 })).toBeNull();
   });
 
+  it.each(["hidden", "kept"] as const)("keeps a %s review immutable and queues the current observation", async (decision) => {
+    const stored = await store.record(MISMATCH);
+    await store.review(stored.id, decision);
+    const retry = { ...MISMATCH, communityPriceSubmittedAt: SUBMITTED_AT + 1000 };
+    const current = await store.reuseChecked(retry);
+    expect(current).toMatchObject({
+      result: "mismatch", communityPriceId: MISMATCH.communityPriceId,
+      communityPriceSubmittedAt: SUBMITTED_AT + 1000, lines: MISMATCH.lines,
+    });
+    expect(current?.id).not.toBe(stored.id);
+    expect(current?.pintDropId).toBeUndefined();
+    expect(current?.reviewedAt).toBeUndefined();
+    expect(await store.listMismatchesForReview()).toMatchObject([{ id: current?.id }]);
+    expect(await store.reuseChecked(retry)).toMatchObject({ id: current?.id });
+    expect(await store.reuseChecked(MISMATCH)).toMatchObject({
+      id: stored.id, communityPriceSubmittedAt: SUBMITTED_AT, reviewDecision: decision,
+    });
+  });
+
   it("releases only the failed hide claim and allows another decision", async () => {
     const stored = await store.record(MISMATCH);
     const claimed = (await store.review(stored.id, "hidden", SUBMITTED_AT))!;
@@ -260,6 +286,7 @@ describe("the Supabase bill check store", () => {
     db.schemaMiss = false;
     db.failWrites = false;
     db.uniqueViolation = false;
+    db.beforeUpdate = null;
     __resetBillChecks();
   });
 
@@ -304,6 +331,24 @@ describe("the Supabase bill check store", () => {
     expect(await supabaseBillCheckStore.reuseChecked(retry)).toMatchObject({
       id: stored.id, result: "mismatch", communityPriceSubmittedAt: SUBMITTED_AT + 1000,
     });
+  });
+
+  it("queues the new observation when moderation claims the row before rebinding", async () => {
+    const stored = await supabaseBillCheckStore.record(MISMATCH);
+    db.beforeUpdate = async () => {
+      await supabaseBillCheckStore.review(stored.id, "hidden");
+    };
+    const retry = { ...MISMATCH, communityPriceSubmittedAt: SUBMITTED_AT + 1000 };
+    const current = await supabaseBillCheckStore.reuseChecked(retry);
+    expect(current).toMatchObject({
+      result: "mismatch", communityPriceSubmittedAt: SUBMITTED_AT + 1000, lines: MISMATCH.lines,
+    });
+    expect(current?.id).not.toBe(stored.id);
+    expect(await supabaseBillCheckStore.listMismatchesForReview()).toMatchObject([{ id: current?.id }]);
+    expect(await supabaseBillCheckStore.reuseChecked(MISMATCH)).toMatchObject({
+      id: stored.id, communityPriceSubmittedAt: SUBMITTED_AT, reviewDecision: "hidden",
+    });
+    expect(await supabaseBillCheckStore.reuseChecked(retry)).toMatchObject({ id: current?.id });
   });
 
   it("reviews only an unreviewed mismatch, by stamp, and never deletes", async () => {

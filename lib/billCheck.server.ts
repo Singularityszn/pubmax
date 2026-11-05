@@ -130,6 +130,8 @@ export type BillCheckRun = {
   communityPriceId?: string;
 };
 
+export type BillCheckObservation = Omit<BillCheckRun, "photo">;
+
 /** What a run did, for its tests and its one log line. */
 export type BillCheckRunOutcome = BillCheckResult | "keyless" | "budget-spent" | "failed" | "already-checked";
 
@@ -164,6 +166,19 @@ async function grantReceipt(pintDropId: string, deps: BillCheckDependencies): Pr
   if (granted) (deps.signal ?? signalPintDropLanded)();
 }
 
+type BudgetedBillRead = BillReadOutcome | { status: "budget-spent" };
+
+async function readBillForCheck(photo: File, deps: BillCheckDependencies): Promise<BudgetedBillRead> {
+  let jpeg: Buffer;
+  try {
+    jpeg = await (deps.prepare ?? prepareBillPhoto)(photo);
+  } catch {
+    return { status: "read", lines: [] };
+  }
+  if (!(await (deps.admit ?? admitPaidSpend)("bill-read"))) return { status: "budget-spent" };
+  return readBillPhoto(jpeg, { env: deps.env, fetcher: deps.fetcher });
+}
+
 /**
  * Read one bill and settle what it says about its price. Never throws: every
  * failure answers an outcome and leaves the price exactly as it landed,
@@ -172,6 +187,27 @@ async function grantReceipt(pintDropId: string, deps: BillCheckDependencies): Pr
 export async function runBillCheck(
   run: BillCheckRun,
   deps: BillCheckDependencies = {},
+): Promise<BillCheckRunOutcome> {
+  return checkBillObservation(run, deps, () => readBillForCheck(run.photo, deps));
+}
+
+export async function runBillChecks(
+  photo: File,
+  observations: readonly BillCheckObservation[],
+  deps: BillCheckDependencies = {},
+): Promise<BillCheckRunOutcome[]> {
+  let read: Promise<BudgetedBillRead> | undefined;
+  return Promise.all(observations.map((observation) => checkBillObservation(
+    { ...observation, photo },
+    deps,
+    () => read ??= readBillForCheck(photo, deps),
+  )));
+}
+
+async function checkBillObservation(
+  run: BillCheckRun,
+  deps: BillCheckDependencies,
+  readPhoto: () => Promise<BudgetedBillRead>,
 ): Promise<BillCheckRunOutcome> {
   const subject = subjectOf(run);
   const done = (outcome: BillCheckRunOutcome): BillCheckRunOutcome => {
@@ -190,23 +226,9 @@ export async function runBillCheck(
       return done("already-checked");
     }
 
-    let verdict;
-    let jpeg: Buffer | null = null;
-    try {
-      jpeg = await (deps.prepare ?? prepareBillPhoto)(run.photo);
-    } catch {
-      // A photo the image journey cannot open is a bill nobody can read. No
-      // model call is spent on it.
-      verdict = judgeBill({ lines: [] }, run.priceGbp, run.drink, run.measure);
-    }
-    if (jpeg) {
-      if (!(await (deps.admit ?? admitPaidSpend)("bill-read"))) return done("budget-spent");
-      const read = await readBillPhoto(jpeg, { env: deps.env, fetcher: deps.fetcher });
-      if (read.status === "keyless") return done("keyless");
-      if (read.status === "failed") return done("failed");
-      verdict = judgeBill(read, run.priceGbp, run.drink, run.measure);
-    }
-    if (!verdict) return done("failed");
+    const read = await readPhoto();
+    if (read.status !== "read") return done(read.status);
+    const verdict = judgeBill(read, run.priceGbp, run.drink, run.measure);
 
     await store.record({
       ...(run.pintDropId ? { pintDropId: run.pintDropId } : {}),
@@ -240,4 +262,8 @@ export async function runBillCheck(
  */
 export function scheduleBillCheck(run: BillCheckRun): void {
   after(() => runBillCheck(run));
+}
+
+export function scheduleBillChecks(photo: File, observations: readonly BillCheckObservation[]): void {
+  after(() => runBillChecks(photo, observations));
 }

@@ -213,11 +213,14 @@ describe("POST /api/admin/bill-checks", () => {
     expect(seams.hidePrice).toHaveBeenCalledTimes(hidden ? 1 : 0);
   });
 
-  it("does not reconcile a newer community observation when the checked revision no longer exists", async () => {
+  it("keeps a skipped community hide pending without reconciling the newer observation", async () => {
     const check = await seedMismatch({ communityPriceId: "price-1" });
     seams.hidePrice.mockResolvedValueOnce({ status: "ok", changed: false } as never);
-    expect((await post({ id: check.id, decision: "hidden" })).status).toBe(200);
+    expect((await post({ id: check.id, decision: "hidden" })).status).toBe(503);
     expect(seams.syncHidden).not.toHaveBeenCalled();
+    expect(await memoryBillCheckStore.listMismatchesForReview()).toMatchObject([{ id: check.id }]);
+    expect((await post({ id: check.id, decision: "hidden" })).status).toBe(200);
+    expect(await memoryBillCheckStore.listMismatchesForReview()).toEqual([]);
   });
 
   it("answers 404 to a check that is not waiting in the queue", async () => {
