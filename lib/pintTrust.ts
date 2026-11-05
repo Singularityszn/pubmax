@@ -349,7 +349,7 @@ export function splitLaneInput(
 export function dropLaneInput(
   priceGbp: number | null | undefined,
   observedAtMs: number | null | undefined,
-  /** The signal's `uncheckedBy`: present only when the figure has no bill. */
+  /** The signal's `uncheckedBy`: the drinker behind an unchecked figure. */
   uncheckedBy?: string | null,
 ): ProvisionalPriceInput | null {
   if (priceGbp == null) return null;

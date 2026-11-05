@@ -1,4 +1,4 @@
--- The bill check (0220): one row for each bill PUBMAXX read, and the
+-- The bill check (0220): one row per checked observation and bill, and the
 -- moderation queue of bills that do not show their price.
 -- Captain applies. Agents ship SQL and a rollback beside it.
 -- Reverse: rollback/20261105120000_0220_price_bill_checks_rollback.sql
@@ -8,14 +8,14 @@
 -- Until now a price earned `receipt` evidence (0218) because a photo was
 -- attached, and nothing read it. The app now lands every price `unchecked`,
 -- reads the bill after the answer (lib/billCheck.server.ts, the board
--- reader's zero-retention vision lane) and writes ONE row here:
+-- reader's zero-retention vision lane) and records each observation here:
 --
 --   match       a line on the bill shows the submitted price to the penny. The
 --               app then moves the drop's `price_evidence` to `receipt`. This
 --               table grants nothing by itself.
---   mismatch    the bill is readable and no line shows the price. The price
---               stays `unchecked` and the row waits for a moderator.
---   unreadable  no priced line could be read. The price stays `unchecked`.
+--   mismatch    a named drink has no line matching the price and serving.
+--               No receipt evidence is granted. The row waits for a moderator.
+--   unreadable  no priced line identifies the submitted drink.
 --
 -- WHAT A ROW HOLDS. The verdict, the price it checked (in pennies, as
 -- community_prices holds it), the pub, and only the lines the verdict needs:

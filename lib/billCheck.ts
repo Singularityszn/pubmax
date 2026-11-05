@@ -13,9 +13,9 @@
 //
 //   match       a named drink line holds the submitted price to the penny.
 //               This is the ONLY result that earns `receipt` evidence.
-//   mismatch    the bill is readable and no line holds the price. The price
-//               stays `unchecked` and goes to the moderation queue. Nothing
-//               is hidden or deleted by the check itself.
+//   mismatch    the drink is identified, but no line matches its price and
+//               serving constraints. The check enters the moderation queue
+//               and grants no receipt evidence. It hides or deletes nothing.
 //   unreadable  no priced line identifies the drink. It stays `unchecked`,
 //               exactly like a price sent without a bill.
 //

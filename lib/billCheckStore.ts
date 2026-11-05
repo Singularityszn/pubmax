@@ -1,15 +1,15 @@
 // Bill check store - dual backend (process-memory + Supabase
 // public.price_bill_checks, migration 0220).
 //
-// ONE ROW PER BILL READ (captain 5 Nov 2026). The background bill check
-// (lib/billCheck.server.ts) writes one row when it has read a bill: the verdict
+// ONE ROW PER CHECKED OBSERVATION AND BILL (captain 5 Nov 2026).
+// The background bill check (lib/billCheck.server.ts) records the verdict
 // (lib/billCheck.ts `BILL_CHECK_RESULTS`), the lines the verdict needs, the
 // pub and the submitted price. Nothing else about the bill is kept: no photo
 // bytes, no venue name or date read off it, no card digits, no name.
 //
 // A row names the observation it checked: a Pint Drop, a community submission, or both
-// when the one-tap door paired them. A second check of the same bill and observation is refused,
-// because a bill is read once.
+// when the one-tap door paired them. subjectKeys and the database indexes
+// define the observation and bill pair that cannot be recorded twice.
 //
 // THE MODERATION QUEUE is the unreviewed mismatches, newest first. A moderator
 // REVIEWS a row by stamping it `kept` or `hidden`; the row is never deleted,
@@ -84,7 +84,7 @@ class BillAlreadyCheckedError extends Error {
 }
 
 export type BillCheckStore = {
-  /** Store one check. THROWS on a hard failure and on a second check of one bill. */
+  /** Store one check. Throws on a hard failure or a duplicate observation and bill pair. */
   record(input: BillCheckInput): Promise<BillCheckRecord>;
   reuseChecked(input: BillCheckSubject): Promise<BillCheckRecord | null>;
   /** Unreviewed mismatches, newest first. Fail-soft ([]). */
