@@ -242,7 +242,7 @@ function rereadLaneOnMint(
  * What stands behind a landed price while the pin waits, as the composer's
  * receipt words it. `bill`: the drinker sent the bill and the server is
  * reading it (the answer's `billCheck: "reading"`, captain 5 Nov 2026).
- * `unchecked`: a typed price with no bill (captain decision 9).
+ * `unchecked`: the server returned unchecked evidence without a scheduled bill read.
  */
 export type DropReceiptWait = "bill" | "unchecked" | null;
 

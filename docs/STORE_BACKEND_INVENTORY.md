@@ -10,13 +10,13 @@ The beacon and presentation route tests exercise their HTTP handlers.
 
 ## Current snapshot
 
-Counted on 31 October 2026 with the V1 night stores included.
+Counted on 5 November 2026 with the bill check store included.
 Recount it with `ls lib/*Store.ts` and a grep for `selectStore(` and
 `createDualBackendStore` whenever a store is added.
 
-- The repository has 66 `lib/*Store.ts` modules.
+- The repository has 68 `lib/*Store.ts` modules.
 - 44 modules call `selectStore` directly.
-- 15 modules use `createDualBackendStore`.
+- 17 modules use `createDualBackendStore`.
 - 8 modules keep memory state on `globalThis` so it survives a development
   server reload. That state pattern is separate from backend selection.
 - The remaining 7 modules use an explicit backend, a file or static data path,
@@ -55,7 +55,7 @@ silently stale.
 | adultSelfAssertionStore | factory-ready | Account assertion read and record; see [the adult policy](rules/lib-identity-accounts-and-sessions.md#everybody-who-joins-is-taken-to-be-an-adult-on-one-recorded-tap). |
 | analyticsReceiptStore | legacy-exception | Inline Supabase configuration checks; needs one selector seam. |
 | areaDemandStore | factory-ready | Demand signal with shared backend selection. |
-| billCheckStore | factory-ready | One row for each bill the bill check read: the verdict and the lines it needs, and the queue of bills that do not show their price. |
+| billCheckStore | factory-ready | Observation verdicts and moderation. See the [bill check rule](rules/lib-prices-trust-and-drinks.md#a-bill-earns-receipt-only-when-it-shows-the-price). |
 | checkInStore | factory-ready | Check-in rows with shared backend selection. |
 | commentsStore | factory-eligible, policy-heavy | Comment moderation and report flow. |
 | communityPriceStore | factory-eligible, policy-heavy | Moderation, corroboration, venue signals, and Round source ownership. |

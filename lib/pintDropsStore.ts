@@ -1631,9 +1631,9 @@ export const supabasePintDropStore: PintDropStore = {
   },
 
   /**
-   * ONE guarded update: only a priced drop still `unchecked` moves, so a retry
-   * or a row a moderator already settled writes nothing. A cluster without
-   * 0218 has no column to move and answers false.
+   * One guarded update changes only a priced drop still `unchecked`.
+   * A repeated grant writes nothing. A cluster without 0218 has no column
+   * to change and answers false. This update does not change moderation status.
    */
   async grantBillMatch(id) {
     const { data, error } = await admin()

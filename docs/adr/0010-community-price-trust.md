@@ -128,13 +128,10 @@ typed price with no bill. The price saves. The pub's own sheet shows it as
 "Logged by @handle, not checked", with its date. It does not colour the pin
 until a second, independent drinker agrees with it.
 
-**The standing.** `lib/pintDropReceipt.ts` owns a closed vocabulary,
-`PRICE_EVIDENCE`: `receipt` (a bill came with the write) and `unchecked` (no
-bill). The `price_evidence` column on `pint_drops` stores it (migration
-`0218`, with a rollback). The store earns the word from the photos that
-arrived with the write. A client field can never set it. A row written
-before `0218` has no word and reads as it always did, because the bill rule
-applied to every priced row then.
+**The standing.** This amendment introduced server-owned price evidence through migration `0218`.
+The [bill check rule](../rules/lib-prices-trust-and-drinks.md#a-bill-earns-receipt-only-when-it-shows-the-price)
+owns the current evidence meanings and the requirements for a bill to earn `receipt`.
+It supersedes attachment-only evidence from this amendment.
 
 **What an unchecked price may do alone.** It shows on the pub's sheet. It
 never marks the pin, never paints a band, never enters a cheapest-price
@@ -150,11 +147,6 @@ bill, is the second key `corroboratedPriceDrop` counts, and the confirmation
 producer (`lib/pintDropConfirmation.ts`) mints over the pair. Then the pin
 paints, exactly as for any corroborated pair. One account that types the same
 price twice is still one drinker.
-
-**What the bill still buys.** A lone price with a bill keeps its current
-power: the pin's provisional mark, and the "Logged once, needs a second
-drinker" line. That is the only difference, and the Pint Drop composer says
-it in one optional line.
 
 **What did not change.** The verified-actor gate, the daily price cap and the
 rate limits apply to an unchecked price exactly as before. Nothing about who
