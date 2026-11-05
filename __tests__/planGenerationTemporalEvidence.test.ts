@@ -118,9 +118,14 @@ vi.mock("@/public/data/night_signals/latest.json", () => ({
 import { POST } from "@/app/api/plans/generate/route";
 import type { ConciergeVenue } from "@/lib/concierge/rank";
 import { planTemporalEvidence } from "@/lib/planGenerationTemporalEvidence";
-import type { PlanIntakeHandoff } from "@/lib/planIntake";
+import { buildPlanGenerationIntakeBody, createPlanIntakeDraft, defaultLondonStartInput, type PlanIntakeHandoff } from "@/lib/planIntake";
+import { readPlanGroundingClaims } from "@/lib/planGrounding.server";
 
 type GeneratedBody = {
+  inferredContext: { daypart: string };
+  contextFieldSources: { daypart: string };
+  groundingProof: string;
+  operationKey: string;
   weatherEvidence: null | { kind: string; source: { publisher: string } };
   contextEffects: string[];
   nightSignalClaims: Array<{ id: string }>;
@@ -193,6 +198,19 @@ describe("Plan generation temporal evidence", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it("returns the automatic scheduled daypart with proof dated at the request clock", async () => {
+    const request = buildPlanGenerationIntakeBody(createPlanIntakeDraft(), "Quiet in Clapham for 4, not pricey", null);
+    const { response, body } = await generate(request);
+    expect(response.status, JSON.stringify(body)).toBe(200);
+    expect(defaultLondonStartInput(new Date(REQUEST_NOW))).toBe("2026-07-20T18:00");
+    expect(body.inferredContext.daypart).toBe("after_work");
+    expect(body.contextFieldSources.daypart).toBe("default");
+    const claims = readPlanGroundingClaims(body.groundingProof, body.stops.map((stop) => stop.venueId), body.operationKey);
+    expect(claims?.issuedAt).toBe(REQUEST_NOW);
+    expect(request.context).not.toHaveProperty("daypart");
+    expect(request.intake.timeWindow).toBeNull();
   });
 
   it("omits request-time-only evidence from a future dated route", async () => {
