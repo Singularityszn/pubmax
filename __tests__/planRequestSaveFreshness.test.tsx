@@ -1443,6 +1443,7 @@ it.each(["v1", "v2", "local-blocked"] as const)(
       expect(readPlanDraftEnvelope(sessionStorage)?.draft.requestIntake).toEqual(saved.draft.requestIntake);
       expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent)).toEqual(["Pub A"]);
     }
+    const generationCount = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate")).length;
     if (format === "local-blocked") {
       await act(async () => [...document.querySelectorAll<HTMLButtonElement>("button")]
         .find((button) => button.textContent === "Make a plan")!.click());
@@ -1452,6 +1453,7 @@ it.each(["v1", "v2", "local-blocked"] as const)(
       expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("3");
       await sortAgainFromTune();
     }
+    expect(fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"))).toHaveLength(generationCount + 1);
     expect(reconciledGenerationContext()).toMatchObject({ stopCount: 3, groupSize: 6,
       accessibility: ["step-free"], nightArea: "clapham", daypart: "evening",
       budget: "value", budgetLimitPence: 3500, zeroProof: false });
