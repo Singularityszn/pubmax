@@ -8,9 +8,10 @@
 // three can never name two different winners for one question.
 //
 // WHAT MAY WIN. Only a price the one decider (lib/priceTier.ts) calls `listed`
-// or `confirmed`, carrying a named publisher and the day that publisher's own
-// row was read. An estimate is never called cheapest: nothing here reads the
-// modelling engine, and the bundle is narrowed by `authoritativeBundleRows`
+// or `confirmed`, carrying a named publisher and the source-read day or
+// community observation day for that figure. An estimate is never called
+// cheapest. Nothing here reads the modelling engine, and the bundle is narrowed
+// by `authoritativeBundleRows`
 // before anything else looks at it. A row without a date or a publisher cannot
 // win, because a figure nobody can check is not a claim we make.
 //
@@ -394,10 +395,9 @@ export function londonHuntPints(venues: readonly Venue[], now: number = Date.now
 }
 
 /**
- * Whether a bundle row may stand for a PINT. The measure law reads the row's
- * own words and its own serving field; a row that names a half, a third or a
- * bottle is held out, never scaled, and an unstated measure is a pint, as it
- * is on every other lane (lib/drinkMeasure.ts).
+ * Explicit non-pint words or servings exclude a row. Nothing scales a smaller
+ * serving into a pint. An unstated serving still needs to pass the separate
+ * headline evidence and drink-label checks.
  */
 function rowIsAPint(row: UkPriceBundleRow): boolean {
   return isComparablePintServing({ cheapestPint: row.drinkLabel }) &&

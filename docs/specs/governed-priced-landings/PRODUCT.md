@@ -19,9 +19,12 @@ not a borough: Soho is part of Westminster, and Shoreditch spans four boroughs.
 - The floor is the ONLY gate. A price list is not a route, so the route
   readiness review (`nightAreaPublishesPrices`) that gates the brand-by-area
   pairs does not gate this page. `lib/areaLanding.ts` owns the rule.
-- The page prints the same ranked list, publisher per row, count and
-  collection date as the other two families, the area's stations from
-  `transportAnchors`, and its published brand-by-area pairs.
+- The page prints the ranked list, publisher per row, count, the area's
+  stations from `transportAnchors`, and its published brand-by-area pairs.
+  Its headline price and metadata carry that price row's source-read date.
+  A missing date says `Source read date unknown`.
+  The summary dates the oldest source read among displayed rows.
+  It omits that summary date when any displayed row has no read date.
 - Its map arrival is `mapAreaHref` (`/map?area={slug}`), never `?q=`.
 - A name or alias of a published area redirects to that area's page. A known
   area below the floor still redirects to its map area. Unknown or ambiguous
@@ -42,8 +45,9 @@ not a borough: Soho is part of Westminster, and Shoreditch spans four boroughs.
 - The publisher label and link come from that same row through
   `namedLegacyPintPriceSource`. A row with no publisher reads
   `Publisher not recorded` and carries no link.
-- `PINT_DATASET_OBSERVED_AT` prints once as shared collection context. It is
-  never described as live, current, updated, or a per-row observation.
+- On beer pages, `PINT_DATASET_OBSERVED_AT` prints once as shared collection
+  context. It is never described as live, current, updated, or a per-row observation.
+  The [area-root contract](#the-area-root-areaarea) owns the area page's source dates.
 - The count says how many pubs cleared the floor, and discloses the cap
   ("Showing 20 of 347 pubs") whenever the page prints fewer than it counted.
 - Nothing here is a community submission, and nothing here reaches map

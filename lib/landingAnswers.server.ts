@@ -25,7 +25,7 @@ import { latestWeatherForArea } from "@/lib/weatherSnapshots";
 //
 // Both come from the SAME lanes /today and /tonight read, so the landing can
 // never promise a night the routes behind it do not have. The shaping of the
-// two sentences is lib/landingAnswers.ts; this file only fetches and fails
+// answers is lib/landingAnswers.ts; this file only fetches and fails
 // soft. The landing document is prerendered and revalidates hourly
 // (app/page.tsx), so this runs at build and at most once an hour after that,
 // and nothing here reads the viewer.

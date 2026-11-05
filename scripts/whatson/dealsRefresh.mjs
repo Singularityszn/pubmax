@@ -13,9 +13,8 @@
 //   article naming the prices) and cited by URL + observedAt. No price is
 //   invented — every figure is the chain's own published number, quoted with
 //   its own caveat ("price, dishes and participation may vary per pub") kept
-//   honestly in `detail`. A weekly refresh only has to hand-edit
-//   CHAIN_DEALS below (or re-check the source pages) — cheaper AND more
-//   honest than scraping a booking/offers aggregator.
+//   honestly in `detail`. Recheck the source before changing the definitions
+//   and WETHERSPOONS_DEALS_OBSERVED_AT. Regenerating occurrences is not a source check.
 //
 // RECURRENCE MODEL — mirrors the quiz vertical, NOT a literal multi-week
 // series: each row is "the next occurrence" of a weekly deal day, computed
@@ -213,7 +212,9 @@ export function filterGreaterLondonWetherspoons(pubs) {
 // chain's own offers page, so `idPrefix` and `source` let another chain's rows
 // carry that chain's identity, and a deal may state its own `cadenceLabel`
 // ("Monday to Friday") where a hand-seeded one only ever ran on one day.
-// Every default reproduces the existing Wetherspoon output exactly.
+// observedAt dates the source evidence. asOf selects the occurrence whose
+// closing time is still ahead, so a deal remains available after opening.
+// The seeded callers pass their refresh clock without replacing the source date.
 export function buildWetherspoonsDealRows({
   deals,
   venues,

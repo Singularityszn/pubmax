@@ -1,19 +1,16 @@
-// What the front door prints under the picture: what today is, and what is on
-// tonight, one sentence each.
+// The homepage answers keep events, recommendations and recurring deals separate.
 //
 // Captain 7 Sep 2026: "Let's say: What is happening today? What is happening
-// tonight?" The SHAPING of both sentences lives here, in a pure leaf, so it can
+// tonight?" The copy lives here, in a pure leaf, so it can
 // be tested without a weather store or a listings provider, and so the client
 // landing component can take the result as props without pulling a
 // `server-only` module into its own graph. lib/landingAnswers.server.ts does
 // the reading and hands the figures in.
-//
-// Recommendations and recurring offers are separate from dated pub events.
 
 export type LandingAnswer = {
-  /** The one sentence the card prints. */
+  /** The answer the card prints. */
   line: string;
-  /** The London day the sentence speaks for, such as "Saturday 19 July". */
+  /** The London day the answer speaks for, such as "Saturday 19 July". */
   stamp: string;
   /** False when the lane could not be read, so the card prints no count. */
   measured: boolean;
@@ -55,17 +52,15 @@ export type TonightListingFacts = {
   count: number;
   hasDeals?: boolean;
   /**
-   * How many hyped pubs /tonight will print. Same pack, same page limit, so the
-   * card and the route cannot disagree about whether anything is on.
+   * The same recommendation pack and page limit as /tonight. These pubs are
+   * recommendations, so this count never enters the dated event total.
    */
   hypedCount?: number;
 };
 
 /**
- * Tonight's sentence. A city with nothing listed and a city we could not read
- * are different answers, so they get different words and only one of them
- * counts as measured. Hyped pubs count when listings are empty, because that
- * is what /tonight leads with on a quiet listings night.
+ * An empty event read differs from a failed read. Recommendations and recurring
+ * deals remain separate claims, so neither can inflate the dated event count.
  */
 export function tonightAnswer(listings: TonightListingFacts, stamp: string): LandingAnswer {
   if (listings.unread) {
