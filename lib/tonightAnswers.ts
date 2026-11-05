@@ -23,8 +23,12 @@ export type TonightCheapestAnswer = {
   venueId: string;
   name: string;
   priceGbp: number;
-  /** When that price was read at its source; null when the record names no day. */
+  /** The selected price row's observation date, or null when unavailable or undated. */
   observedAt: string | null;
+  drinkLabel?: string | null;
+  servingSize?: string | null;
+  publisher?: { label: string; url?: string | null } | null;
+  evidenceUnavailable?: boolean;
   /** "~6 min walk", "Around Soho" or the borough. */
   placeLine: string;
   /** How the pub was chosen, so the card never claims "near you" it cannot back. */
@@ -43,6 +47,7 @@ export type TonightCheapestCandidate = {
   priceSource?: string;
   priceObservedAt?: string;
   anchorLabel?: string;
+  priceSourceUrl?: string;
   cheapestPint?: string;
   measure?: string;
   kind?: VenueKind;
@@ -99,7 +104,11 @@ export function tonightCheapestAnswer(input: {
         venueId: pick.venue.id,
         name: pick.venue.name,
         priceGbp: pick.venue.cheapestPrice as number,
-        observedAt: pick.venue.priceObservedAt ?? null,
+        observedAt: null,
+        drinkLabel: null,
+        servingSize: null,
+        publisher: null,
+        evidenceUnavailable: true,
         placeLine: minutes === null ? "Within a walk" : `~${minutes} min walk`,
         basis: "walk",
       };
@@ -111,7 +120,11 @@ export function tonightCheapestAnswer(input: {
         venueId: pick.venue.id,
         name: pick.venue.name,
         priceGbp: pick.venue.cheapestPrice as number,
-        observedAt: pick.venue.priceObservedAt ?? null,
+        observedAt: null,
+        drinkLabel: null,
+        servingSize: null,
+        publisher: null,
+        evidenceUnavailable: true,
         placeLine: `Around ${patch.label}`,
         basis: "area",
       };
@@ -124,6 +137,9 @@ export function tonightCheapestAnswer(input: {
     name: city.name,
     priceGbp: city.priceGbp,
     observedAt: city.observedAt ?? null,
+    drinkLabel: city.drinkLabel ?? null,
+    servingSize: city.servingSize ?? null,
+    publisher: city.publisher ?? null,
     placeLine: city.borough,
     basis: "city",
     ...(city.mapHref ? { mapHref: city.mapHref } : {}),

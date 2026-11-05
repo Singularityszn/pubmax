@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
 
 import { paintedAmbientSurfaces } from "./helpers/ambientMapSurfaces";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+import { mobileMapShellControl } from "./helpers/mobileMapShell";
+import { storeThemeChoice } from "./helpers/themeClock";
 
 test.use({ storageState: { cookies: [], origins: [] } });
 
@@ -206,3 +209,47 @@ test("keeps the expanded city-status feed inside an 800px viewport", async ({
     (lastBounds?.y ?? 800) + (lastBounds?.height ?? 800),
   ).toBeLessThanOrEqual(784);
 });
+
+
+for (const action of ["map", "crawl"] as const) {
+  test(`completes the nearby ${action} action with cached point rows`, async ({ page, context }) => {
+    test.setTimeout(90_000);
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await page.setViewportSize({ width: action === "map" ? 390 : 1440, height: 844 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await installDeterministicMapBasemap(page);
+    await storeThemeChoice(page, "light");
+    await context.setGeolocation({ latitude: 51.5136, longitude: -0.1365, accuracy: 10 });
+    await context.grantPermissions(["geolocation"]);
+    await page.addInitScript(() => {
+      localStorage.setItem("pubmax-tour-v1-done", "1");
+      localStorage.setItem("pubmax_onboarding_dismissed", "1");
+      sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+      localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+      localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+    });
+    await page.goto(action === "crawl" ? "/map?mode=build" : "/map");
+    await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
+    if (action === "map") {
+      const nearMe = await mobileMapShellControl(page, "nearMe");
+      await nearMe.click();
+      const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="near-me"]');
+      await expect(sheet).toBeVisible({ timeout: 20_000 });
+      await expect(sheet.locator(".nmnList > li .nmnCard").first()).toBeVisible();
+      await expect(nearMe).toBeEnabled();
+    } else {
+      const nearby = page.getByRole("button", { name: "Build a crawl from the pubs nearest to me", exact: true });
+      await expect(nearby).toBeVisible();
+      await nearby.click();
+      await page.getByRole("button", { name: "Edit stops", exact: true }).click();
+      await expect(page.locator(".routePanel ol.routeList > li").first()).toBeVisible({ timeout: 20_000 });
+      await expect(nearby).toBeEnabled();
+      await nearby.click();
+      await page.getByRole("button", { name: "Edit stops", exact: true }).click();
+      await expect(nearby).toBeEnabled({ timeout: 20_000 });
+      await expect(page.locator(".routePanel ol.routeList > li").first()).toBeVisible();
+    }
+    expect(errors).toEqual([]);
+  });
+}

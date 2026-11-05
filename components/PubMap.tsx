@@ -1860,7 +1860,12 @@ export default function PubMap({
   const [nearbyMapResult, setNearbyMapResult] = useState<NearbyMapResult | null>(null);
   const [pendingNearMeRequest, setPendingNearMeRequest] =
     useState<PendingNearMeRequest | null>(null);
-  const [nearbyLoadVersion, setNearbyLoadVersion] = useState(0);
+  const [nearbyLoadedPoint, setNearbyLoadedPoint] = useState<{
+    loader: SlimShardLoader;
+    generation: number;
+    lat: number;
+    lng: number;
+  } | null>(null);
   const {
     mode,
     setMode,
@@ -4004,6 +4009,17 @@ export default function PubMap({
     }
     const loaderGeneration = slimLoaderGenerationRef.current;
     let cancelled = false;
+    if (
+      nearbyLoadedPoint?.loader === loader &&
+      nearbyLoadedPoint.generation === loaderGeneration &&
+      nearbyLoadedPoint.lat === location.lat &&
+      nearbyLoadedPoint.lng === location.lng
+    ) {
+      void Promise.resolve().then(() => {
+        if (!cancelled) finish();
+      });
+      return () => { cancelled = true; };
+    }
     const failNearbyLoad = () => {
       if (
         cancelled ||
@@ -4024,12 +4040,11 @@ export default function PubMap({
         ) return;
         mergeSlimVenues(result.rows);
         refreshCountCoverage();
-        if (request) setNearbyLoadVersion((version) => version + 1);
         if (result.status === "unavailable") {
           failNearbyLoad();
           return;
         }
-        if (result.rows.length === 0) finish();
+        setNearbyLoadedPoint({ loader, generation: loaderGeneration, lat: location.lat, lng: location.lng });
       })
       .catch(() => {
         failNearbyLoad();
@@ -4043,7 +4058,7 @@ export default function PubMap({
     filteredVenues,
     loaded,
     mergeSlimVenues,
-    nearbyLoadVersion,
+    nearbyLoadedPoint,
     openingLocationResolved,
     pendingNearMeRequest,
     refreshCountCoverage,

@@ -566,8 +566,9 @@
     },
     {
       "path": "/area/clapham/drink/guinness",
-      "readySelector": "main.drinkBrandAreaLanding",
-      "why": "One governed brand-by-area landing, measuring the /area/{slug}/drink/{brand} family. Its parent /area/{slug} has its own row since 30 October 2026. Seeded 7 September 2026: 18 ms, 884 KB, 42 requests, 672 ms LCP (samples 572/672/680).",
+      "readySelector": "main#main",
+      "expectedStatus": 404,
+      "why": "This area-brand URL is withheld because the catalogue has no supported area-review evidence. Measure its actual HTTP 404 page, not a live price landing or the area-brand family. The four ceilings retain the former landing's limits. Its parent /area/clapham uses a separate publication rule.",
       "serverRenderMs": 150,
       "jsDecodedKB": 1050,
       "requests": 48,

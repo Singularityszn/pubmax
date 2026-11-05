@@ -43,6 +43,8 @@ export type RouteBudget = {
   path: string;
   /** Rendered proof the route arrived; measurement waits for it. */
   readySelector: string;
+  /** The document status required before measurement. Defaults to 200. */
+  expectedStatus?: 200 | 404;
   /** Optional loading affordance that must be gone before measuring. */
   settledSelectorHidden?: string;
   /** Why this route is on the list, in one sentence. */

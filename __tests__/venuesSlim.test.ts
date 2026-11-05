@@ -55,7 +55,6 @@ const SLIM_KEYS = [
   "id",
   "lat",
   "lng",
-  "locality",
   "name",
 ];
 
@@ -464,6 +463,7 @@ describe("venues_slim.json", () => {
             (key) =>
               ![
                 "zone",
+                "locality",
                 "priceSource",
                 "cheapestPint",
                 "measure",

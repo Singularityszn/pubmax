@@ -1,11 +1,31 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 
 import { comparablePint } from "@/lib/comparablePint.mjs";
 import { measureNamedInDrinkText } from "@/lib/drinkMeasure";
 import { buildSlimPriceEvidence } from "@/scripts/build_slim_index.mjs";
 import { buildLastOrdersPacks } from "@/scripts/build_last_orders_pack.mjs";
+import { venueFromDetailArtifact } from "@/lib/venueDetailIndex";
+import { legacyCheapestPriceEvidence } from "@/lib/legacyPriceEvidence.mjs";
+import { isLivePriceRow } from "@/lib/priceRowEligibility.mjs";
 
 describe("selected serving evidence in the published price packs", () => {
+  it("keeps the first equal-price row in the actual generated detail artifact", () => {
+    const id = "venue-1bckkxz";
+    const manifest = JSON.parse(readFileSync("data/generated/venue_detail_index.json", "utf8")) as { venues: Record<string, { offset: number; length: number }> };
+    const entry = manifest.venues[id]!;
+    const bytes = readFileSync("data/generated/venue_details.jsonl").subarray(entry.offset, entry.offset + entry.length);
+    const artifact = JSON.parse(bytes.toString("utf8"));
+    const live = artifact.rows.filter(isLivePriceRow);
+    const minimum = Math.min(...live.map((row: { price_gbp: number }) => row.price_gbp));
+    const tied = live.filter((row: { price_gbp: number }) => row.price_gbp === minimum);
+    expect(tied.length).toBeGreaterThan(1);
+    expect(tied[0].pub_url).not.toBe(tied[1].pub_url);
+    const detail = venueFromDetailArtifact(artifact, id);
+    expect(detail?.prices[0]).toMatchObject({ pint_name: tied[0].pint_name, pub_url: tied[0].pub_url, scraped_at_values: tied[0].scraped_at_values });
+    expect(legacyCheapestPriceEvidence(live, minimum)).toMatchObject({ priceSource: "Pint Prices" });
+    expect(buildSlimPriceEvidence(live, minimum).priceObservedAt).toBe("2026-10-02");
+  });
   it.each([
     ["Half-pint lager", "half"],
     ["half_pint lager", "half"],

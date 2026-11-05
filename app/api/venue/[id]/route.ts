@@ -122,6 +122,7 @@ export async function GET(
         bundlePrices,
         priceUpdates,
       },
+      priceDatasetDigest: lookup.status === "found" ? lookup.priceDatasetDigest ?? null : null,
       busyness,
       getIn,
       booking,
