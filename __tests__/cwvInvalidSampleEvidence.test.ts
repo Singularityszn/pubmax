@@ -13,6 +13,7 @@ const boundary = vi.hoisted(() => ({
   mkdir: vi.fn(),
   readVitals: vi.fn(),
   exercisePrimaryAction: vi.fn(),
+  finishMapPrimaryAction: vi.fn(),
   timeMapUsableVenues: vi.fn(),
 }));
 
@@ -53,6 +54,7 @@ vi.mock("../e2e/helpers/webVitals", () => ({
   clearSampleResidue: vi.fn(),
   coolBrowser: vi.fn(),
   exercisePrimaryAction: boundary.exercisePrimaryAction,
+  finishMapPrimaryAction: boundary.finishMapPrimaryAction,
   installVitalsProbe: vi.fn(),
   readVitals: boundary.readVitals,
   serveMapInitScript: vi.fn(),
@@ -109,6 +111,7 @@ beforeEach(() => {
   boundary.mkdir.mockReset().mockResolvedValue(undefined);
   boundary.readVitals.mockReset().mockResolvedValue(reading);
   boundary.exercisePrimaryAction.mockReset().mockResolvedValue(true);
+  boundary.finishMapPrimaryAction.mockReset().mockResolvedValue(undefined);
   boundary.timeMapUsableVenues.mockReset().mockResolvedValue(100);
 });
 
@@ -182,6 +185,51 @@ describe("CWV failure artifacts", () => {
     expect(writtenFiles()).toEqual([diagnostic]);
     expect(readOutput(diagnostic)).toMatchObject({
       cell: { samples: [{ nonFinite: "Infinity" }, 100, 100, 100, 100] },
+    });
+  });
+
+  it("keeps the rejected Map reading separate when the post-read check fails", async () => {
+    vi.stubEnv("PUBMAX_CWV_RUNS", "2");
+    const postReadError = new Error("Reset view failed after the vitals read");
+    const mapReadings = [reading, { lcpMs: Number.NaN, inpMs: 91, cls: 0.02 }];
+    boundary.exercisePrimaryAction.mockImplementation(async (_page: Page, routePath: string) => {
+      if (routePath === "/map") boundary.readVitals.mockResolvedValueOnce(mapReadings.shift());
+      return true;
+    });
+    boundary.finishMapPrimaryAction.mockResolvedValueOnce(undefined).mockRejectedValueOnce(postReadError);
+
+    await expect(runSweep()).rejects.toBe(postReadError);
+    expect(writtenFiles()).toEqual([diagnostic]);
+    expect(readOutput(diagnostic)).toEqual({
+      status: "invalid",
+      error: "Reset view failed after the vitals read",
+      cell: {
+        kind: "route", key: "mobile:cold:/map", path: "/map", device: "mobile", temperature: "cold",
+        interactionMethod: "map-camera-attitude-reset-v1",
+        samples: [{ ...reading, interacted: true }],
+        rejectedSample: {
+          stage: "post-read",
+          sample: { lcpMs: { nonFinite: "NaN" }, inpMs: 91, cls: 0.02, interacted: true },
+        },
+      },
+    });
+  });
+
+  it("fails the Map ceiling under the expanded method and identifies the method in the run", async () => {
+    vi.stubEnv("PUBMAX_CWV_RECORD", "");
+    vi.stubEnv("PUBMAX_CWV_SWEEP", "1");
+    vi.stubEnv("PUBMAX_CWV_RUNS", "1");
+    boundary.exercisePrimaryAction.mockImplementation(async (_page: Page, routePath: string) => {
+      if (routePath === "/map") boundary.readVitals.mockResolvedValueOnce({ ...reading, lcpMs: 20_000 });
+      return true;
+    });
+
+    const failure = runSweep();
+    await expect(failure).rejects.toThrow("Map ceiling breaches under map-camera-attitude-reset-v1");
+    await expect(failure).rejects.not.toThrow("Slower than the recorded baseline");
+    expect(writtenFiles()).toEqual([regular]);
+    expect(readOutput(regular)).toMatchObject({
+      method: { routeInteractions: { "/map": "map-camera-attitude-reset-v1" } },
     });
   });
 
