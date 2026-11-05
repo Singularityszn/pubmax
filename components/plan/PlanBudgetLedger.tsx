@@ -1,12 +1,11 @@
+import PlanPintPriceCaption from "@/components/plan/PlanPintPriceCaption";
 import { planBudgetLedger, type PlanBudgetLedgerStop } from "@/lib/planBudgetCrawl";
 
 import "./planBudgetLedger.css";
 
 /**
- * The running total under a per-person budget (the £20 crawl, or any budget the
- * reader typed): one listed pint a stop, each with the day it was read, and
- * one line saying whether the total fits. No figure is coloured: over budget
- * is said in words.
+ * The running subtotal against the per-person budget, with evidence for each
+ * listed price. The summary says in words how the subtotal compares.
  */
 export default function PlanBudgetLedger({
   stops,
@@ -20,7 +19,7 @@ export default function PlanBudgetLedger({
   return (
     <section className="planBudgetLedger" aria-labelledby="plan-budget-ledger-title" data-fits={ledger.fits ?? undefined}>
       <h2 id="plan-budget-ledger-title" className="planBudgetLedger__title">
-        Your {ledger.limit} crawl, one pint a stop
+        Your {ledger.limit} crawl{ledger.allPintServingsKnown ? ", one pint a stop" : ""}
       </h2>
       <ol className="planBudgetLedger__rows">
         {ledger.rows.map((row) => (
@@ -31,7 +30,9 @@ export default function PlanBudgetLedger({
             {row.price ? (
               <span className="planBudgetLedger__price">
                 {row.price}
-                <span className="planBudgetLedger__read"> · {row.readLine}</span>
+                <span className="planBudgetLedger__read">
+                  {" · "}<PlanPintPriceCaption evidence={row.pintPriceEvidence} />
+                </span>
               </span>
             ) : (
               <span className="planBudgetLedger__read">No listed pint price</span>

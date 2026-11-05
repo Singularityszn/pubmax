@@ -185,6 +185,94 @@ describe("V2 Plan draft migration", () => {
 });
 
 describe("V2 Route draft migration", () => {
+  it("preserves an old V1 listed row's valid read day through the V1 and V2 rewrite", () => {
+    const storage = memoryStorage();
+    const oldReadDays = [
+      "2026-07-23T12:00:00.000Z",
+      "2026-07",
+      "2026-02-30",
+      "2026-07-25",
+      "2026-07-24T12:00:01.000Z",
+    ];
+    storage.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify({
+      stops: oldReadDays.map((priceObservedAt, index) => ({
+        key: index + 1,
+        venueId: `venue-${index + 1}`,
+        venueName: `Venue ${index + 1}`,
+        estimatedPintPricePence: 289,
+        priceKind: "listed",
+        priceObservedAt,
+        alternatives: [],
+      })),
+      nightContext: null,
+      routeNight: null,
+      routeRevision: null,
+      routeStale: false,
+      groundingProof: null,
+      createOperationKey: null,
+      planAnchor: null,
+    }));
+
+    const expectedQuote = {
+      venueId: "venue-1", pence: 289, serving: null,
+      source: { label: null, url: null, observedAt: "2026-07-23T12:00:00.000Z" },
+    };
+    const legacy = readPlanRouteDraftEnvelope(storage, NOW)!;
+    expect(legacy).toMatchObject({ storageVersion: 1, legacy: true });
+    expect(legacy.value.stops[0]).toMatchObject({
+      priceKind: "listed", estimatedPintPricePence: 289, pintPriceEvidence: expectedQuote,
+    });
+    for (const stop of legacy.value.stops.slice(1)) {
+      expect(stop).toMatchObject({ priceKind: "listed", estimatedPintPricePence: 289 });
+      expect(stop).not.toHaveProperty("pintPriceEvidence");
+    }
+
+    expect(writePlanRouteDraftEnvelope(legacy.value, legacy.origin, storage, NOW))
+      .toMatchObject({ v1: true, v2: true });
+    for (const key of [PLAN_ROUTE_DRAFT_KEY, PLAN_ROUTE_DRAFT_V2_KEY]) {
+      const { stops } = JSON.parse(storage.getItem(key)!);
+      expect(stops[0].pintPriceEvidence).toEqual(expectedQuote);
+    }
+    const restored = readPlanRouteDraftEnvelope(storage, NOW);
+    expect(restored).toMatchObject({ storageVersion: 2, legacy: false });
+    expect(restored?.value.stops[0]?.pintPriceEvidence).toEqual(expectedQuote);
+  });
+
+  it("keeps the selected pint quote on both stops and swaps through both draft formats", () => {
+    const storage = memoryStorage();
+    const quote = (venueId: string) => ({
+      estimatedPintPricePence: 289,
+      priceKind: "listed",
+      pintPriceEvidence: {
+        venueId,
+        pence: 289,
+        serving: "pint",
+        source: { label: "Pub menu", url: "https://example.com/menu", observedAt: "2026-07-23" },
+      },
+    } as const);
+    const firstQuote = quote("venue-a");
+    const swapQuote = quote("venue-x");
+    const pricedStops = routeValue().stops.map((stop, index) => {
+      if (index === 0) {
+        return {
+          ...stop, ...firstQuote,
+          alternatives: [{ venueId: "venue-x", venueName: "Venue X", ...swapQuote }],
+        };
+      }
+      return index === 1 ? { ...stop, ...firstQuote } : stop;
+    });
+    expect(writePlanRouteDraftEnvelope(routeValue({ stops: pricedStops }), "plan-generated", storage, NOW))
+      .toMatchObject({ v1: true, v2: true });
+    for (const key of [PLAN_ROUTE_DRAFT_KEY, PLAN_ROUTE_DRAFT_V2_KEY]) {
+      const { stops } = JSON.parse(storage.getItem(key)!);
+      expect(stops[0]).toMatchObject({ ...firstQuote, alternatives: [swapQuote] });
+      expect(stops[1]).toMatchObject({ venueId: "venue-b", estimatedPintPricePence: 289, priceKind: "estimated" });
+      expect(stops[1]).not.toHaveProperty("pintPriceEvidence");
+    }
+    expect(readPlanRouteDraftEnvelope(storage, NOW)?.value.stops[0])
+      .toMatchObject({ ...firstQuote, alternatives: [swapQuote] });
+  });
+
   it("keeps selected wine price evidence on stops and swaps through both draft formats", () => {
     const storage = memoryStorage();
     const wine = {

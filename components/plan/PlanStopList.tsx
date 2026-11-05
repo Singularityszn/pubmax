@@ -5,9 +5,11 @@ import { ArrowLeftRight, Ellipsis } from "lucide-react";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import type { DraftStop } from "@/components/plan/PlanComposer";
+import PlanPintPriceCaption from "@/components/plan/PlanPintPriceCaption";
 import { useStopGestures } from "@/components/plan/useStopGestures";
 import { categoryLabel } from "@/lib/drinks";
 import { UNRESOLVED_ACCEPTED_STOP_LABEL } from "@/lib/planComposerHandoff";
+import { matchingPlanPintPriceEvidence } from "@/lib/planPintPrice";
 import { priceBand, priceBandAreaForVenue, priceBandClass } from "@/lib/priceBand";
 import {
   formatPenceFixed,
@@ -21,12 +23,12 @@ import type { PlanVenueOption } from "@/lib/planVenueOptions";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
 /** What a card prints on its price stamp, and whether a pint band may colour it. */
-function stampFor(stop: DraftStop): { text: string; bandClass: string } | null {
+function stampFor(stop: DraftStop, pintServingKnown: boolean): { text: string; bandClass: string } | null {
   const drink = stop.selectedDrinkPriceEvidence;
   if (drink) return { text: formatPenceFixed(drink.pence), bandClass: "" };
   const pence = stop.estimatedPintPricePence;
   if (typeof pence !== "number" || pence <= 0) return null;
-  const band = priceBand(pence / 100, priceBandAreaForVenue(stop.venueId));
+  const band = pintServingKnown ? priceBand(pence / 100, priceBandAreaForVenue(stop.venueId)) : null;
   return { text: formatPenceFixed(pence), bandClass: priceBandClass(band) };
 }
 
@@ -36,9 +38,12 @@ function stampFor(stop: DraftStop): { text: string; bandClass: string } | null {
  * from the area centre); a pub the reader picked or swapped in carries none and
  * may sit anywhere in the city.
  */
-function metaFor(stop: DraftStop, areaName: string | null): string {
+function metaFor(stop: DraftStop, areaName: string | null, pintServingKnown: boolean): string {
   const drink = stop.selectedDrinkPriceEvidence;
-  const trust = drink ? `${categoryLabel(drink.category)} price` : priceKindLabel(stop.priceKind);
+  const priceLabel = pintServingKnown
+    ? priceKindLabel(stop.priceKind)
+    : stop.priceKind === "listed" ? "Listed price" : stop.priceKind === "estimated" ? "Estimated price" : null;
+  const trust = drink ? `${categoryLabel(drink.category)} price` : priceLabel;
   return [stop.reason ? areaName : null, trust].filter(Boolean).join(" · ");
 }
 
@@ -239,9 +244,13 @@ export default function PlanStopList({
           const minutes = previous && isCard(previous, index - 1) && resolved
             ? walkMinutesBetween(previous, stop, measured)
             : null;
-          const stamp = stampFor(stop);
+          const pintEvidence = matchingPlanPintPriceEvidence(
+            stop.venueId, stop.estimatedPintPricePence, stop.priceKind, stop.pintPriceEvidence,
+          );
+          const pintServingKnown = pintEvidence?.serving === "pint";
+          const stamp = stampFor(stop, pintServingKnown);
           const drinkLine = selectedDrinkPriceDescription(stop.selectedDrinkPriceEvidence);
-          const meta = metaFor(stop, areaName);
+          const meta = metaFor(stop, areaName, pintServingKnown);
           const lifted = gestures.liftedIndex === index;
           const movable = index >= lowest && stops.length - lowest > 1;
           const canDelete = removable && !removeDisabled(stop, index);
@@ -304,6 +313,11 @@ export default function PlanStopList({
                       </Link>
                       {meta ? <span className="planStop__meta">{meta}</span> : null}
                       {drinkLine ? <small className="planComposer__stopReason">{drinkLine}</small> : null}
+                      {stamp && !stop.selectedDrinkPriceEvidence ? (
+                        <small className="planComposer__stopReason">
+                          <PlanPintPriceCaption evidence={pintEvidence} />
+                        </small>
+                      ) : null}
                     </div>
                     {stamp ? (
                       <strong className={`planStop__price ${stamp.bandClass}`.trim()}>{stamp.text}</strong>

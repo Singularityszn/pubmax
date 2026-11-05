@@ -25,7 +25,9 @@ import { buildCrawlMapHref } from "@/lib/crawlUrl";
 import { haptic } from "@/lib/nativeHaptics";
 import { PLAN_FIELD_LABEL, PLAN_RESUBMIT_LABEL } from "@/lib/planCopy";
 import { moveItem } from "@/lib/planStopReorder";
-import { measuredLegMinutes, routeHeading, routeStartLabel, routeSummaryLine, type MeasuredLegMinutes } from "@/lib/planRouteView";
+import {
+  measuredLegMinutes, routeHasKnownPintServings, routeHeading, routeStartLabel, routeSummaryLine, type MeasuredLegMinutes,
+} from "@/lib/planRouteView";
 import { ROUTED_WALK_TRANSPORT_BASIS } from "@/lib/routeLegs";
 import type { WalkLegDistance } from "@/lib/walkRoute";
 import { discardBody } from "@/lib/responseBody";
@@ -62,6 +64,9 @@ import { cleanNightContext, cleanNightContextPatch, type NightContext } from "@/
 import { planUsesPintPrices } from "@/lib/planGenerationDto";
 import { categoryLabel, DRINK_CATEGORIES, type DrinkCategory } from "@/lib/drinks";
 import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+import {
+  cleanPlanPintPrice, type PlanPintPriceFields, type PlanPintPriceOrigin, type RawPlanPintPriceFields,
+} from "@/lib/planPintPrice";
 export { selectedDrinkPriceDescription } from "@/lib/planSelectedDrinkPriceEvidence";
 import { CITIES, DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 import {
@@ -153,29 +158,20 @@ const PlanDryRoundLedger = dynamic(() => import("@/components/plan/PlanDryRoundL
 const PlanRouteMiniMap = dynamic(() => import("@/components/plan/PlanRouteMiniMap"), { ssr: false });
 
 type RouteRevision = string | number;
-type RouteAlternative = {
+type RouteAlternative = PlanPintPriceFields & {
   venueId: string;
   venueName: string;
   selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
-  /** The generator prices alternatives too, so a swap keeps the night's total honest. */
-  estimatedPintPricePence?: number;
-  priceKind?: "listed" | "estimated";
-  /** The day a listed price was read, for the budget ledger (lib/planBudgetCrawl.ts). */
-  priceObservedAt?: string;
 };
-export type DraftStop = {
+export type DraftStop = PlanPintPriceFields & {
   key: number;
   venueId: string;
   venueName: string;
   reason?: string;
   selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
-  /** What the generator timed and priced, kept so the route can be read as a route. */
+  /** The routed leg into this stop and the venue it was walked from. */
   walkingMinutesFromPrevious?: number | null;
   walkFromVenueId?: string;
-  estimatedPintPricePence?: number | null;
-  priceKind?: "listed" | "estimated";
-  /** The day a listed price was read, for the budget ledger (lib/planBudgetCrawl.ts). */
-  priceObservedAt?: string;
   alternatives: RouteAlternative[];
 };
 
@@ -265,7 +261,7 @@ const NO_TIMING_OR_PRICE = {
   walkFromVenueId: undefined,
   estimatedPintPricePence: undefined,
   priceKind: undefined,
-  priceObservedAt: undefined,
+  pintPriceEvidence: undefined,
 } satisfies Partial<DraftStop>;
 
 function venueNightArea(venue: PlanVenueOption | undefined, cityId: CityId): NightContext["nightArea"] {
@@ -525,17 +521,13 @@ function routeRevisionFromState(value: unknown): RouteRevision | null {
   return null;
 }
 
-function cleanRouteAlternative(value: unknown): RouteAlternative | null {
+function cleanRouteAlternative(value: unknown, priceOrigin: PlanPintPriceOrigin): RouteAlternative | null {
   if (!value || typeof value !== "object") return null;
-  const row = value as {
+  const row = value as RawPlanPintPriceFields & {
     venueId?: unknown;
     venueName?: unknown;
     name?: unknown;
     selectedDrinkPriceEvidence?: unknown;
-    estimatedPintPricePence?: unknown;
-    priceEvidence?: unknown;
-    priceKind?: unknown;
-    priceObservedAt?: unknown;
   };
   const venueId = typeof row.venueId === "string" ? row.venueId.trim() : "";
   const venueName = typeof row.venueName === "string"
@@ -547,20 +539,20 @@ function cleanRouteAlternative(value: unknown): RouteAlternative | null {
     venueId,
     venueName,
     ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
-    ...generatedStopPrice(row),
+    ...cleanPlanPintPrice(venueId, row, priceOrigin),
   };
 }
 
-function routeAlternatives(value: unknown): RouteAlternative[] {
+function routeAlternatives(value: unknown, priceOrigin: PlanPintPriceOrigin): RouteAlternative[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((candidate) => {
-    const cleaned = cleanRouteAlternative(candidate);
+    const cleaned = cleanRouteAlternative(candidate, priceOrigin);
     return cleaned ? [cleaned] : [];
   });
 }
 
 /**
- * What the generator timed and priced for one stop, read defensively off the
+ * What the generator timed for one stop, read defensively off the
  * wire or a stored draft. A walk is kept only when it was routed on foot: the
  * wire says so in its transport basis, and a stored draft only ever saved one
  * (with the stop it was walked from). A straight-line estimate is not a walk.
@@ -569,15 +561,11 @@ function generatedStopTiming(
   row: {
     walkingMinutesFromPrevious?: unknown;
     walkFromVenueId?: unknown;
-    estimatedPintPricePence?: unknown;
-    priceEvidence?: unknown;
-    priceKind?: unknown;
-    priceObservedAt?: unknown;
     operationalEvidence?: unknown;
   },
   previousCandidate: unknown,
   index: number,
-): Pick<DraftStop, "walkingMinutesFromPrevious" | "walkFromVenueId" | "estimatedPintPricePence" | "priceKind" | "priceObservedAt"> {
+): Pick<DraftStop, "walkingMinutesFromPrevious" | "walkFromVenueId"> {
   const previous = previousCandidate as { venueId?: unknown } | undefined;
   const stored = typeof row.walkFromVenueId === "string" && row.walkFromVenueId.trim()
     ? row.walkFromVenueId.trim() : undefined;
@@ -593,42 +581,12 @@ function generatedStopTiming(
   return {
     ...(index > 0 && walkMinutes !== null && walkFromVenueId
       ? { walkingMinutesFromPrevious: walkMinutes, walkFromVenueId } : {}),
-    ...generatedStopPrice(row),
   };
 }
 
-/**
- * The day a listed price was read: the wire's evidence source, or the day a
- * stored draft kept. Null when neither parses.
- */
-function generatedPriceObservedAt(row: { priceEvidence?: unknown; priceObservedAt?: unknown }): string | null {
-  const source = row.priceEvidence && typeof row.priceEvidence === "object"
-    ? (row.priceEvidence as { source?: unknown }).source
-    : null;
-  const wire = source && typeof source === "object" ? (source as { observedAt?: unknown }).observedAt : undefined;
-  const value = typeof wire === "string" ? wire : row.priceObservedAt;
-  return typeof value === "string" && value.length <= 40 && Number.isFinite(Date.parse(value)) ? value : null;
-}
-
-/** The pint price the generator gave a stop or an alternative, read defensively. */
-function generatedStopPrice(row: {
-  estimatedPintPricePence?: unknown;
-  priceEvidence?: unknown;
-  priceKind?: unknown;
-  priceObservedAt?: unknown;
-}): { estimatedPintPricePence?: number; priceKind?: "listed" | "estimated"; priceObservedAt?: string } {
-  const pence = row.estimatedPintPricePence;
-  if (typeof pence !== "number" || !Number.isSafeInteger(pence) || pence <= 0 || pence > 100_000) return {};
-  const recorded = Boolean(row.priceEvidence && typeof row.priceEvidence === "object"
-    && (row.priceEvidence as { source?: unknown }).source);
-  const priceKind = row.priceKind === "listed" || row.priceKind === "estimated" ? row.priceKind
-    : recorded ? "listed" : "estimated";
-  const observedAt = priceKind === "listed" ? generatedPriceObservedAt(row) : null;
-  return { estimatedPintPricePence: pence, priceKind, ...(observedAt ? { priceObservedAt: observedAt } : {}) };
-}
-
-/** Keep the generator's alternatives attached to their stop for preview swaps. */
-export function routeStopsFromGenerated(value: unknown, alternativePool?: unknown): DraftStop[] {
+function routeStopsFromPayload(
+  value: unknown, priceOrigin: PlanPintPriceOrigin, alternativePool?: unknown,
+): DraftStop[] {
   if (!Array.isArray(value)) return [];
   const candidates = value.slice(0, 6);
   const currentVenueIds = new Set(candidates.flatMap((candidate) => {
@@ -636,13 +594,13 @@ export function routeStopsFromGenerated(value: unknown, alternativePool?: unknow
     const row = candidate as { venueId?: unknown };
     return typeof row.venueId === "string" && row.venueId.trim() ? [row.venueId.trim()] : [];
   }));
-  const pool = routeAlternatives(alternativePool).filter((alternative, index, all) => (
+  const pool = routeAlternatives(alternativePool, priceOrigin).filter((alternative, index, all) => (
     !currentVenueIds.has(alternative.venueId)
     && all.findIndex((candidate) => candidate.venueId === alternative.venueId) === index
   ));
   return candidates.flatMap((candidate, index) => {
     if (!candidate || typeof candidate !== "object") return [];
-    const row = candidate as {
+    const row = candidate as RawPlanPintPriceFields & {
       venueId?: unknown;
       venueName?: unknown;
       name?: unknown;
@@ -650,10 +608,6 @@ export function routeStopsFromGenerated(value: unknown, alternativePool?: unknow
       selectedDrinkPriceEvidence?: unknown;
       walkingMinutesFromPrevious?: unknown;
       walkFromVenueId?: unknown;
-      estimatedPintPricePence?: unknown;
-      priceEvidence?: unknown;
-      priceKind?: unknown;
-      priceObservedAt?: unknown;
       operationalEvidence?: unknown;
       alternatives?: unknown;
       options?: unknown;
@@ -663,7 +617,7 @@ export function routeStopsFromGenerated(value: unknown, alternativePool?: unknow
       ? row.venueName.trim()
       : typeof row.name === "string" ? row.name.trim() : "";
     if (!venueId || !venueName) return [];
-    const nested = routeAlternatives(row.alternatives ?? row.options);
+    const nested = routeAlternatives(row.alternatives ?? row.options, priceOrigin);
     const alternatives = [...nested, ...pool].filter((alternative, alternativeIndex, all) => (
       !currentVenueIds.has(alternative.venueId)
       && all.findIndex((candidate) => candidate.venueId === alternative.venueId) === alternativeIndex
@@ -677,9 +631,15 @@ export function routeStopsFromGenerated(value: unknown, alternativePool?: unknow
       ...(typeof row.reason === "string" && row.reason.trim() ? { reason: row.reason.trim() } : {}),
       ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
       ...timing,
+      ...cleanPlanPintPrice(venueId, row, priceOrigin),
       alternatives,
     }];
   });
+}
+
+/** Keep the generator's alternatives attached to their stop for preview swaps. */
+export function routeStopsFromGenerated(value: unknown, alternativePool?: unknown): DraftStop[] {
+  return routeStopsFromPayload(value, "generated", alternativePool);
 }
 
 /** Cycle to the next grounded alternative and keep the old venue swappable. */
@@ -698,24 +658,14 @@ export function swapDraftStop(stop: DraftStop, excludedVenueIds: ReadonlySet<str
     // The walk to and from this stop was measured for the old pub, so it goes;
     // the price was the generator's for this pub, so it comes with it.
     ...NO_TIMING_OR_PRICE,
-    ...(next.estimatedPintPricePence !== undefined
-      ? {
-        estimatedPintPricePence: next.estimatedPintPricePence,
-        priceKind: next.priceKind,
-        ...(next.priceObservedAt ? { priceObservedAt: next.priceObservedAt } : {}),
-      } : {}),
+    ...cleanPlanPintPrice(next.venueId, next, "stored"),
     alternatives: [
       ...remaining,
       {
         venueId: stop.venueId,
         venueName: stop.venueName,
         ...(stop.selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence: stop.selectedDrinkPriceEvidence } : {}),
-        ...(typeof stop.estimatedPintPricePence === "number"
-          ? {
-            estimatedPintPricePence: stop.estimatedPintPricePence,
-            priceKind: stop.priceKind,
-            ...(stop.priceObservedAt ? { priceObservedAt: stop.priceObservedAt } : {}),
-          } : {}),
+        ...cleanPlanPintPrice(stop.venueId, stop, "stored"),
       },
     ],
   };
@@ -770,7 +720,7 @@ export function parsePlanRouteDraft(raw: string | null): StoredRouteDraft | null
   if (!raw || raw.length > 30_000) return null;
   try {
     const value = JSON.parse(raw) as Partial<StoredRouteDraft>;
-    const stops = routeStopsFromGenerated(value.stops);
+    const stops = routeStopsFromPayload(value.stops, "stored");
     if (!stops.length) return null;
     const nightContext = cleanNightContext(value.nightContext) ?? null;
     const routeStale = value.routeStale === true;
@@ -2820,18 +2770,19 @@ function PlanComposerForm({
       {routeStaleNotice}
     </section>
   );
-  // A per-person budget (the £20 crawl chip, or one the reader typed) gets its
-  // running total under the stops: one listed pint a stop, each with its day.
+  // The listed prices and their evidence sit under the stops with a running
+  // subtotal against the per-person budget.
   const budgetLimitPence = nightContext && planUsesPintPrices(nightContext)
     && typeof nightContext.budgetLimitPence === "number" ? nightContext.budgetLimitPence : null;
   const budgetLedger = budgetLimitPence !== null && viewStops.length > 0 ? (
     <PlanBudgetLedger
       limitPence={budgetLimitPence}
       stops={viewStops.map((stop) => ({
+        venueId: stop.venueId,
         venueName: stop.venueName,
         pricePence: stop.estimatedPintPricePence,
         priceKind: stop.priceKind,
-        priceObservedAt: stop.priceObservedAt ?? null,
+        pintPriceEvidence: stop.pintPriceEvidence,
       }))}
     />
   ) : null;
@@ -2849,7 +2800,10 @@ function PlanComposerForm({
   const resultFinePrint = (
     <p className="planResult__provenance">
       {viewStops.some((stop) => typeof stop.estimatedPintPricePence === "number" && stop.estimatedPintPricePence > 0) && (
-        <><span>One pint per person at each stop. Meal prices are not verified.</span>{" "}</>
+        <><span>
+          {routeHasKnownPintServings(viewStops) ? "One pint per person at each stop. " : ""}
+          Meal prices are not verified.
+        </span>{" "}</>
       )}
       <PlanResultProvenance />
     </p>

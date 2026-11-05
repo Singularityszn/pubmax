@@ -51,6 +51,106 @@ describe("the generator's timing and price ride on the stop", () => {
     expect(draft?.stops[2]).toMatchObject({ walkFromVenueId: "a", walkingMinutesFromPrevious: 4 });
   });
 
+  it("restores the exact selected price and its source before swapping to another quote", () => {
+    const initial = routeStopsFromGenerated([{
+      ...wire("a", null, 289),
+      alternatives: [{
+        ...wire("b", null, 395),
+        priceEvidence: {
+          pence: 395,
+          source: { label: "Pub menu", url: "https://example.org/menu", observedAt: "2026-09-26T23:30:00.000Z" },
+          confidenceState: "fresh",
+        },
+      }],
+    }]);
+    const restored = parsePlanRouteDraft(JSON.stringify({ stops: initial }))!.stops[0]!;
+    expect(restored.pintPriceEvidence).toEqual({
+      venueId: "a", pence: 289, serving: "pint",
+      source: { label: "Pub list", url: "https://example.com", observedAt: "2026-10-02" },
+    });
+    const swapped = swapDraftStop(restored);
+    expect(swapped.pintPriceEvidence).toEqual({
+      venueId: "b", pence: 395, serving: "pint",
+      source: { label: "Pub menu", url: "https://example.org/menu", observedAt: "2026-09-26T23:30:00.000Z" },
+    });
+    expect(swapDraftStop(swapped).pintPriceEvidence).toEqual(restored.pintPriceEvidence);
+  });
+
+  it("does not attach another amount's source or give an estimate listed evidence", () => {
+    const [mismatched, estimated] = routeStopsFromGenerated([
+      { ...wire("a", null, 289), priceEvidence: wire("b", null, 395).priceEvidence },
+      { ...wire("b", null, 395), priceKind: "estimated" },
+    ]);
+    expect(mismatched).toMatchObject({ estimatedPintPricePence: 289, priceKind: "estimated" });
+    expect(estimated).toMatchObject({ estimatedPintPricePence: 395, priceKind: "estimated" });
+    expect(mismatched).not.toHaveProperty("pintPriceEvidence");
+    expect(estimated).not.toHaveProperty("pintPriceEvidence");
+  });
+
+  it("refuses another venue's quote without using the old day as a fallback", () => {
+    const quoteFromA = {
+      venueId: "a", pence: 289, serving: "pint",
+      source: { label: "A pub menu", url: "https://example.com/a", observedAt: "2026-10-02" },
+    };
+    const draft = parsePlanRouteDraft(JSON.stringify({ stops: [{
+      venueId: "b", venueName: "B", estimatedPintPricePence: 289,
+      priceKind: "listed", pintPriceEvidence: quoteFromA,
+      priceObservedAt: "2026-10-02",
+      alternatives: [{
+        venueId: "c", venueName: "C", estimatedPintPricePence: 289,
+        priceKind: "listed", pintPriceEvidence: quoteFromA,
+        priceObservedAt: "2026-10-02",
+      }],
+    }] }));
+    const stop = draft!.stops[0]!;
+    expect(stop).toMatchObject({ venueId: "b", estimatedPintPricePence: 289, priceKind: "estimated" });
+    expect(stop).not.toHaveProperty("pintPriceEvidence");
+    const swapped = swapDraftStop(stop);
+    expect(swapped).toMatchObject({ venueId: "c", estimatedPintPricePence: 289, priceKind: "estimated" });
+    expect(swapped.pintPriceEvidence).toBeUndefined();
+  });
+
+  it.each(["2026-09", "2026-02-30", "2026-09-26T12:00:00"])(
+    "keeps the recorded publisher but refuses the invalid source-read day %s",
+    (observedAt) => {
+      const stop = wire("a", null, 289);
+      const [parsed] = routeStopsFromGenerated([{
+        ...stop,
+        priceObservedAt: "2026-10-02",
+        priceEvidence: {
+          ...stop.priceEvidence,
+          source: { label: "Pub list", url: "javascript:alert(1)", observedAt },
+        },
+      }]);
+      expect(parsed?.pintPriceEvidence).toEqual({
+        venueId: "a", pence: 289, serving: null,
+        source: { label: "Pub list", url: null, observedAt: null },
+      });
+    },
+  );
+
+  it("keeps the old writer's read day and rejects stored wire evidence and unbound quotes", () => {
+    const draft = parsePlanRouteDraft(JSON.stringify({
+      stops: [{
+        venueId: "a", venueName: "A", estimatedPintPricePence: 289,
+        priceKind: "listed", priceObservedAt: "2026-10-02",
+      }, {
+        ...wire("b", null, 289), priceKind: "listed", priceObservedAt: "2026-10-02",
+      }, {
+        venueId: "c", venueName: "C", estimatedPintPricePence: 289, priceKind: "listed",
+        pintPriceEvidence: { pence: 289, serving: "pint", source: wire("a", null, 289).priceEvidence.source },
+      }],
+    }));
+    expect(draft?.stops[0]).toMatchObject({
+      estimatedPintPricePence: 289, priceKind: "listed",
+      pintPriceEvidence: { venueId: "a", pence: 289, serving: null, source: { label: null, url: null, observedAt: "2026-10-02" } },
+    });
+    expect(draft?.stops[1]).toMatchObject({ estimatedPintPricePence: 289, priceKind: "listed" });
+    expect(draft?.stops[1]).not.toHaveProperty("pintPriceEvidence");
+    expect(draft?.stops[2]).toMatchObject({ estimatedPintPricePence: 289, priceKind: "estimated" });
+    expect(draft?.stops[2]).not.toHaveProperty("pintPriceEvidence");
+  });
+
   it("reads the route's night from a draft saved before the route kept its own", () => {
     const nightContext = inferNightContext("Quiet in Clapham for 4").context;
     const legacy = (routeStale: boolean) => parsePlanRouteDraft(JSON.stringify({ stops: stops(), nightContext, routeRevision: null, routeStale }));

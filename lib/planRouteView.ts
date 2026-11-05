@@ -8,18 +8,17 @@
 // until the map has measured the new one.
 
 import { londonNightsAhead, parseLondonInput } from "@/lib/planIntake";
+import { matchingPlanPintPriceEvidence, type PlanPintPriceFields } from "@/lib/planPintPrice";
 import { legMinutes } from "@/lib/routeLegs";
 import type { WalkLegDistance } from "@/lib/walkRoute";
 
-export type RouteViewStop = {
+export type RouteViewStop = PlanPintPriceFields & {
   venueId: string;
   venueName: string;
   /** Minutes from the stop before it, as the generator timed them. */
   walkingMinutesFromPrevious?: number | null;
   /** The stop the generator timed that walk FROM. A reorder breaks the match. */
   walkFromVenueId?: string;
-  estimatedPintPricePence?: number | null;
-  priceKind?: "listed" | "estimated";
 };
 
 /** Walk minutes the browser measured per leg, keyed by `fromId>toId`. */
@@ -109,6 +108,14 @@ export function routeTotals(
   return { pricePence, walkMinutes: stops.length > 1 ? walkMinutes : null };
 }
 
+export function routeHasKnownPintServings(stops: readonly RouteViewStop[]): boolean {
+  return stops.length > 0 && stops.every((stop) =>
+    matchingPlanPintPriceEvidence(
+      stop.venueId, stop.estimatedPintPricePence, stop.priceKind, stop.pintPriceEvidence,
+    )?.serving === "pint",
+  );
+}
+
 /**
  * `Fri 17 Oct, 19:00 · 3 stops · £18 each for pints · 18 min walk`, each part
  * only when it is real. The night is named by its DATE and not by "tonight":
@@ -122,10 +129,12 @@ export function routeSummaryLine(
   startInput?: string,
 ): string {
   const totals = routeTotals(stops, measured);
+  const drinks = routeHasKnownPintServings(stops) ? "pints" : "drinks";
+  const estimate = stops.some((stop) => stop.priceKind === "estimated") ? "Estimated " : "";
   return [
     startInput ? routeStartLabel(startInput) : null,
     stopCountLabel(stops.length),
-    totals.pricePence === null ? null : `${formatPence(totals.pricePence)} each for pints`,
+    totals.pricePence === null ? null : `${estimate}${formatPence(totals.pricePence)} each for ${drinks}`,
     totals.walkMinutes === null ? null : walkLabel(totals.walkMinutes),
   ].filter((part): part is string => part !== null).join(" · ");
 }
