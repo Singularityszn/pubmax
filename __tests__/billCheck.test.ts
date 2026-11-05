@@ -162,6 +162,36 @@ describe("judgeBill", () => {
     expect(judgeBill(read([["Single Jameson", 5.2]]), 5.2, "Single Jameson", "double").result).toBe("mismatch");
   });
 
+  it.each([
+    ["Merlot 175ml", "250ml", "Merlot"],
+    ["250 ml Merlot", "175ml", "Merlot"],
+    ["Merlot 125 ml", "250ml", "Merlot"],
+    ["Guinness pint", "half", "Guinness"],
+    ["Half pint Guinness", "pint", "Guinness"],
+    ["Guinness 1/2 pint", "pint", "Guinness"],
+    ["Guinness ½", "pint", "Guinness"],
+    ["Single Jameson", "double", "Jameson"],
+    ["Double Jameson", "single", "Jameson"],
+    ["Bottle of Merlot", "175ml", "Merlot"],
+  ] as const)("rejects conflicting submitted servings in %s with measure %s", (drink, measure, name) => {
+    const lines = read([[name, 5.2]]);
+    expect(judgeBill(lines, 5.2, drink, measure)).toEqual({
+      result: "mismatch",
+      lines: lines.lines,
+    });
+    expect(judgeBill(read([[drink, 5.2]]), 5.2, drink, measure).result).toBe("mismatch");
+  });
+
+  it.each([
+    ["Merlot 175ml", "175ml", "Merlot"],
+    ["Guinness half pint", "half", "Guinness"],
+    ["Double Jameson", "double", "Jameson"],
+  ] as const)("accepts consistent servings in %s when the bill omits the serving", (drink, measure, name) => {
+    const lines = read([[name, 5.2]]);
+    expect(judgeBill(lines, 5.2, drink, measure).result).toBe("match");
+    expect(judgeBill(lines, 5.2, drink).result).toBe("match");
+  });
+
   it.each(["Double IPA", "Single Malt Whisky", "Half Moon IPA", "Bottle Rocket IPA"])(
     "preserves the product words in %s on both sides of the comparison",
     (drink) => {

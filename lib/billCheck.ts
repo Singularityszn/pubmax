@@ -155,6 +155,9 @@ export function judgeBill(
   if (!submitted.name) return { result: "unreadable", lines: [] };
   const named = read.lines.filter((line) => billItem(line.name).name === submitted.name);
   if (named.length === 0) return { result: "unreadable", lines: [] };
+  if (measure && submitted.measure && measure !== submitted.measure) {
+    return { result: "mismatch", lines: evidenceLines(read.lines) };
+  }
   const target = pence(submittedPriceGbp);
   const expectedMeasure = measure ?? submitted.measure;
   const matching = named.filter((line) => {

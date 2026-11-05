@@ -236,6 +236,8 @@ vi.mock("@/lib/roundsStore", async (importOriginal) => {
 
 import { POST as CREATE } from "@/app/api/rounds/route";
 import { GET, POST } from "@/app/api/rounds/[code]/route";
+import { judgeBill } from "@/lib/billCheck";
+import type { BillCheckObservation } from "@/lib/billCheck.server";
 import { __resetMemoryRounds } from "@/lib/roundsStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
 import { memoryProfileStore, __resetMemoryProfiles } from "@/lib/profileStore";
@@ -558,15 +560,32 @@ describe("POST /api/rounds/[code] — actions", () => {
     const response = await billedAction(round.code, {
       action: "recordSpend", handle: "ken", payerHandle: "ken", venueId: "venue-1", clientRef: "bill-check-lines",
       items: [
-        { drinkName: "Guinness pint", drinkCategory: "beer", priceGbp: 5.2, source: "round" },
+        { drinkName: "Guinness", drinkCategory: "beer", priceGbp: 5.2, source: "round" },
         { drinkName: "Merlot 175ml", drinkCategory: "wine", priceGbp: 7.5, source: "round" },
       ],
     });
     expect(response.status).toBe(200);
     expect(billChecks.schedule).toHaveBeenCalledExactlyOnceWith(expect.any(File), [
-      expect.objectContaining({ drink: "Guinness pint", priceGbp: 5.2, communityPriceId: expect.any(String), communityPriceSubmittedAt: expect.any(Number) }),
+      expect.objectContaining({ drink: "Guinness", measure: "pint", priceGbp: 5.2, communityPriceId: expect.any(String), communityPriceSubmittedAt: expect.any(Number) }),
       expect.objectContaining({ drink: "Merlot 175ml", priceGbp: 7.5, communityPriceId: expect.any(String), communityPriceSubmittedAt: expect.any(Number) }),
     ]);
+    const observations: BillCheckObservation[] = defined(billChecks.schedule.mock.calls[0])[1];
+    const read = {
+      lines: [
+        { name: "Guinness half pint", priceGbp: 5.2 },
+        { name: "Merlot 175ml", priceGbp: 7.5 },
+      ],
+    };
+    expect(observations.map((observation) => judgeBill(
+      read, observation.priceGbp, observation.drink, observation.measure,
+    ).result)).toEqual(["mismatch", "match"]);
+    const beer = defined(observations[0]);
+    for (const name of ["Guinness", "Guinness pint"]) {
+      expect(judgeBill(
+        { lines: [{ name, priceGbp: 5.2 }] },
+        beer.priceGbp, beer.drink, beer.measure,
+      ).result).toBe("match");
+    }
   });
 
   it("checks successful promotions together when another Round price needs a retry", async () => {
