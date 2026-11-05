@@ -204,12 +204,12 @@ export type ModeratorBillCheck = {
   checkedAt: string;
   pintDropId?: string;
   communityPriceId?: string;
+  receiptPhotoUrl: string | null;
   drop?: {
     id: string;
     handle: string;
     drink: string;
     status: string;
     createdAt: string;
-    receiptPhotoUrl: string | null;
   };
 };

@@ -30,7 +30,8 @@ import {
 import { moderateCommunityPriceWithState } from "@/lib/communityPriceStore";
 import { log } from "@/lib/log";
 import { isLimited } from "@/lib/pintDrops";
-import { pintDropsStore } from "@/lib/pintDropsStore";
+import { pintDropsStore, resolveStorageUrl } from "@/lib/pintDropsStore";
+import { roundsStore } from "@/lib/roundsStore";
 import { syncTrustAfterPriceHidden } from "@/lib/priceTrustImpact.server";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
@@ -60,8 +61,16 @@ async function withContext(checks: BillCheckRecord[]): Promise<ModeratorBillChec
     dropIds.length ? pintDropsStore().listForModerationByIds(dropIds) : Promise.resolve([]),
   ]);
   const dropById = new Map(drops.map((drop) => [drop.id, drop]));
-  return checks.map((check) => {
+  return Promise.all(checks.map(async (check) => {
     const hit = check.pintDropId ? dropById.get(check.pintDropId) : undefined;
+    let receiptPhotoUrl = hit?.receiptPhotoUrl ?? null;
+    if (!check.pintDropId && check.roundSource) {
+      const spend = await roundsStore().getSpendById(check.roundSource.spendId);
+      const item = spend?.items[check.roundSource.lineIndex];
+      if (spend && spend.venueId === check.venueId && item?.pricePence === Math.round(check.priceGbp * 100)) {
+        receiptPhotoUrl = await resolveStorageUrl(spend.receiptPhotoKey, true);
+      }
+    }
     return {
       id: check.id,
       venueId: check.venueId,
@@ -70,6 +79,7 @@ async function withContext(checks: BillCheckRecord[]): Promise<ModeratorBillChec
       result: check.result,
       lines: check.lines,
       checkedAt: check.checkedAt,
+      receiptPhotoUrl,
       ...(check.pintDropId ? { pintDropId: check.pintDropId } : {}),
       ...(check.communityPriceId ? { communityPriceId: check.communityPriceId } : {}),
       ...(hit
@@ -80,12 +90,11 @@ async function withContext(checks: BillCheckRecord[]): Promise<ModeratorBillChec
               drink: hit.drink,
               status: hit.status,
               createdAt: hit.createdAt,
-              receiptPhotoUrl: hit.receiptPhotoUrl,
             },
           }
         : {}),
     };
-  });
+  }));
 }
 
 export async function GET(request: Request): Promise<Response> {

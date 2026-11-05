@@ -1,3 +1,4 @@
+import sharp from "sharp";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const billChecks = vi.hoisted(() => ({ keyed: true, schedule: vi.fn() }));
@@ -7,10 +8,16 @@ vi.mock("@/lib/billCheck.server", () => ({
 }));
 
 const receiptStorage = vi.hoisted(() => ({
+  read: vi.fn<(_key: string) => Promise<{ bytes: Buffer; contentType: "image/jpeg" } | null>>(),
   upload: vi.fn(async (): Promise<{
     error: { message: string } | null;
   }> => ({ error: null })),
 }));
+
+vi.mock("@/lib/uploadedImage.server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/uploadedImage.server")>();
+  return { ...actual, downloadUploadedImageObject: receiptStorage.read };
+});
 
 // Handler-level coverage for the Round routes. Backend selection is the
 // roundsStore() seam (Supabase when configured, memory otherwise). We pin the
@@ -334,6 +341,7 @@ beforeEach(() => {
   billChecks.keyed = true;
   billChecks.schedule.mockClear();
   receiptStorage.upload.mockReset().mockResolvedValue({ error: null });
+  receiptStorage.read.mockReset().mockResolvedValue(null);
   __resetMemoryRounds();
   __resetMemoryIdentityHandles();
   __resetMemoryProfiles();
@@ -605,6 +613,43 @@ describe("POST /api/rounds/[code] — actions", () => {
       expect.objectContaining({ drink: "Merlot 175ml", priceGbp: 7.5, communityPriceId: expect.any(String) }),
     ]);
     expect((await readCommunityPrices("venue-1")).map((price) => price.drinkCategory)).toEqual(["wine"]);
+  });
+
+  it.each([true, false])("uses only the saved bill on a Round promotion retry when it is available: %s", async (available) => {
+    await authorizeContributor("user-ken", "ken");
+    const { round } = await newRound("ken");
+    await action(round.code, { action: "addStop", handle: "ken", venueId: "venue-1" });
+    const body = {
+      action: "recordSpend", handle: "ken", payerHandle: "ken", venueId: "venue-1", clientRef: "retry-original-bill",
+      items: [{ drinkName: "Guinness", drinkCategory: "beer", priceGbp: 5.2, source: "round" }],
+    };
+    priceWriteState.failuresRemaining = 1;
+    expect((await billedAction(round.code, body)).status).toBe(503);
+    const held = await (await get(round.code)).json() as RoundState;
+    const saved = defined(held.spends[0]);
+    const uploaded = receiptStorage.upload.mock.calls[0] as unknown as [string, Blob];
+    const original = Buffer.from(await uploaded[1].arrayBuffer());
+    receiptStorage.read.mockResolvedValueOnce(available ? { bytes: original, contentType: "image/jpeg" } : null);
+    const replacement = await sharp({ create: { width: 1, height: 1, channels: 3, background: "#000000" } }).png().toBuffer();
+    const retry = await billedAction(round.code, {
+      ...body,
+      items: [{ drinkName: "Merlot", drinkCategory: "wine", priceGbp: 9.5, source: "round" }],
+    }, undefined, new File([new Uint8Array(replacement)], "replacement.png", { type: "image/png" }));
+    expect(retry.status).toBe(200);
+    expect(receiptStorage.read).toHaveBeenCalledExactlyOnceWith(saved.receiptPhotoKey);
+    expect(receiptStorage.upload).toHaveBeenCalledTimes(1);
+    expect(billChecks.schedule).toHaveBeenCalledTimes(available ? 1 : 0);
+    if (available) {
+      const [photo, observations] = billChecks.schedule.mock.calls[0] as [File, BillCheckObservation[]];
+      expect(Buffer.from(await photo.arrayBuffer())).toEqual(original);
+      expect(photo.name).toBe("bill.jpg");
+      expect(observations).toEqual([expect.objectContaining({
+        drink: "Guinness", priceGbp: 5.2, measure: "pint",
+        roundSource: { spendId: saved.id, lineIndex: 0 },
+      })]);
+    }
+    expect((await retry.json() as RoundState).spends[0]?.receiptPhotoKey).toBe(saved.receiptPhotoKey);
+    expect(await readCommunityPrices("venue-1")).toEqual([expect.objectContaining({ priceGbp: 5.2, drinkCategory: "beer" })]);
   });
 
   it("keeps an anonymous itemised Round in the diary and out of community prices", async () => {

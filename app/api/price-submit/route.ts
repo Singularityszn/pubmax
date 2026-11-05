@@ -287,14 +287,16 @@ export async function POST(request: Request): Promise<Response> {
 
   // submitCommunityPrice never throws; a hard durable-write failure comes back
   // flagged so we answer 503 (degraded dependency) rather than a fake success.
+  const submittedAt = Date.now();
   const { price, failed } = await submitCommunityPrice({
     ...submission,
     actor: contributor.actor,
     contributorHandle: contributor.handle,
-  });
+  }, submittedAt);
   if (failed || !price) {
     return publicApiError("Could not log that price right now.", "UNAVAILABLE", 503, { retryable: true });
   }
+  const ownsCommunityObservation = price.submittedAt === submittedAt && price.priceGbp === submission.priceGbp;
 
   // Pint Drops are a pint-priced surface: pin colour, cheapest-pint buckets,
   // the Confirmed standing and the Pint Index all read this lane on the
@@ -316,6 +318,7 @@ export async function POST(request: Request): Promise<Response> {
   // The bill behind this figure, handed to the background bill check once the
   // rows it names exist (captain 5 Nov 2026). Read after the answer.
   let pairedDropId: string | undefined;
+  let duplicateDrop = false;
   if (pairsPintDrop) {
     const pintDrop = await writeOneTapPintDrop(
       {
@@ -339,6 +342,7 @@ export async function POST(request: Request): Promise<Response> {
       });
     } else {
       pairedDropId = pintDrop.drop.id;
+      duplicateDrop = !pintDrop.created;
       void qualifyCheapPintForOwnerActor(contributor.actor);
       // The paired drop is a real priced observation, so it can complete a
       // confirmation exactly as a Pint Drop posted through /api/pint-drops can.
@@ -360,13 +364,12 @@ export async function POST(request: Request): Promise<Response> {
     }
   }
 
-  const billCheck = scheduleSubmitBillCheck(pintDropPhotos.receipt, {
+  const billCheck = duplicateDrop ? null : scheduleSubmitBillCheck(pintDropPhotos.receipt, {
     venueId: submission.venueId,
     priceGbp: submission.priceGbp,
     drink: submitCategoryLabel(submission.drinkCategory),
     ...(pairsPintDrop ? { measure } : {}),
-    communityPriceId: price.id,
-    communityPriceSubmittedAt: price.submittedAt,
+    ...(ownsCommunityObservation ? { communityPriceId: price.id, communityPriceSubmittedAt: price.submittedAt } : {}),
     pintDropId: pairedDropId,
   });
 
@@ -542,13 +545,13 @@ async function nonPintPriceResponse(input: {
     }
     return publicApiError(drop.message, "UNAVAILABLE", 503, { retryable: true });
   }
-  const billCheck = scheduleSubmitBillCheck(input.photos.receipt, {
+  const billCheck = drop.created ? scheduleSubmitBillCheck(input.photos.receipt, {
     venueId: input.venueId,
     priceGbp: input.priceGbp,
     drink: drop.drop.drink,
     measure: input.measure,
     pintDropId: drop.drop.id,
-  });
+  }) : null;
   return jsonNoStore(
     {
       ok: true,

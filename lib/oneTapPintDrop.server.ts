@@ -60,7 +60,7 @@ async function listRecentForDedupe(
 }
 
 export type OneTapPintDropOutcome =
-  | { ok: true; drop: PintDrop }
+  | { ok: true; drop: PintDrop; created: boolean }
   | { ok: false; kind: "invalid_photo"; message: string }
   | { ok: false; kind: "storage"; message: string };
 
@@ -236,12 +236,12 @@ export async function writeOneTapPintDrop(
       : null;
     if (duplicate) {
       log("info", "one_tap_pint_drop.duplicate_tap", { venueId: input.venueId });
-      return { ok: true, drop: duplicate };
+      return { ok: true, drop: duplicate, created: false };
     }
     const drop = await store.create(built, photos);
     signalPintDropLanded();
     void ensureProfileForHandle(handle);
-    return { ok: true, drop };
+    return { ok: true, drop, created: true };
   } catch (err) {
     // The CLASS, not the sentence: an unreadable image is refused with words
     // of its own, and asking about the words sent it down the storage branch
