@@ -2517,6 +2517,7 @@ describe("automatic First pint generation", () => {
     const calls = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"));
     expect(calls).toHaveLength(1);
     const sent = JSON.parse(String(calls[0]![1]?.body));
+    expect(sent.planStartIso).toBe("2026-11-05T18:45:00.000Z");
     expect(sent.context).not.toHaveProperty("daypart");
     expect(sent.intake.timeWindow).toBeNull();
     expect(document.querySelector<HTMLInputElement>("#plan-time")?.value).toBe("2026-11-05T18:45");
@@ -2530,9 +2531,9 @@ describe("automatic First pint generation", () => {
   // The accepted First pint contract uses the displayed schedule, including
   // time spent on the page and a manual exact time without an intake preset.
   it.each([
-    { scenario: "the reader waits across a quarter-hour boundary", mountedAt: "2026-11-05T18:29:00.000Z", submittedAt: "2026-11-05T18:31:00.000Z", initialStart: "2026-11-05T18:45", manualStart: null, expectedDaypart: "after_work" },
-    { scenario: "the reader manually chooses 20:00 without a preset", mountedAt: "2026-11-05T09:00:00.000Z", submittedAt: "2026-11-05T09:00:00.000Z", initialStart: "2026-11-05T18:00", manualStart: "2026-11-05T20:00", expectedDaypart: "evening" },
-  ])("keeps the displayed schedule authoritative when $scenario", async ({ scenario, mountedAt, submittedAt, initialStart, manualStart, expectedDaypart }) => {
+    { scenario: "the reader waits across a quarter-hour boundary", mountedAt: "2026-11-05T18:29:00.000Z", submittedAt: "2026-11-05T18:31:00.000Z", initialStart: "2026-11-05T18:45", manualStart: null, expectedPlanStartIso: "2026-11-05T18:45:00.000Z", expectedDaypart: "after_work" },
+    { scenario: "the reader manually chooses 20:00 without a preset", mountedAt: "2026-11-05T09:00:00.000Z", submittedAt: "2026-11-05T09:00:00.000Z", initialStart: "2026-11-05T18:00", manualStart: "2026-11-05T20:00", expectedPlanStartIso: "2026-11-05T20:00:00.000Z", expectedDaypart: "evening" },
+  ])("keeps the displayed schedule authoritative when $scenario", async ({ scenario, mountedAt, submittedAt, initialStart, manualStart, expectedPlanStartIso, expectedDaypart }) => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date(mountedAt));
     onTestFinished(() => { vi.useRealTimers(); });
@@ -2555,6 +2556,7 @@ describe("automatic First pint generation", () => {
     const calls = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"));
     expect(calls).toHaveLength(2);
     const sent = JSON.parse(String(calls[1]![1]?.body));
+    expect(sent.planStartIso).toBe(expectedPlanStartIso);
     expect(sent.context).not.toHaveProperty("daypart");
     expect(sent.intake.timeWindow).toBeNull();
     expect(time.value).toBe(manualStart ?? initialStart);

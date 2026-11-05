@@ -290,11 +290,8 @@ export async function parsePlanGenerationRequest(
     if (!parsed.ok) return { ...parsed, status: 400 };
     intake = parsed.value;
   }
-  if (Object.hasOwn(raw, "planStartIso")) {
-    const timestamp = typeof raw.planStartIso === "string" ? Date.parse(raw.planStartIso) : Number.NaN;
-    if (!Number.isFinite(timestamp) || new Date(timestamp).toISOString() !== raw.planStartIso) {
-      return failure("Plan start time is invalid.");
-    }
+  if (Object.hasOwn(raw, "planStartIso") && typeof canonicalIsoOrNull(raw.planStartIso) !== "string") {
+    return failure("Plan start time is invalid.");
   }
   const anchor = parseAnchor(raw.anchor);
   if (anchor === undefined) return failure("Acceptance anchor is invalid.");
