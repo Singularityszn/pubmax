@@ -237,6 +237,11 @@
 }
 
 /* The bill check queue: the lines a bill showed beside the bill itself. */
+.admin-bill-sent {
+  color: var(--ink);
+  font-weight: 600;
+}
+
 .admin-bill-read {
   display: flex;
   flex-wrap: wrap;
@@ -287,14 +292,18 @@
   background: var(--panel);
 }
 
+/* A filled moderator action wears the danger primitive's text colour
+   (components/ui/button.css), so its label never sits in ink on the fill. */
 .admin-restore {
   border-color: var(--pint);
   background: var(--pint);
+  color: var(--paper);
 }
 
 .admin-keep {
   border-color: var(--brick);
   background: var(--brick);
+  color: var(--paper);
 }
 
 .admin-tabs {
@@ -312,6 +321,7 @@
   color: var(--ink-soft);
   font: inherit;
   font-weight: 700;
+  white-space: nowrap;
   cursor: pointer;
 }
 

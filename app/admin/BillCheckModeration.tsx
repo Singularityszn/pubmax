@@ -111,7 +111,7 @@ export default function BillCheckModeration({ request }: { request: AdminRequest
             </div>
             <p className="admin-meta">
               <span>
-                Sent: <strong className="admin-price">{gbp(row.priceGbp)}</strong>
+                Sent: <strong className="admin-bill-sent">{gbp(row.priceGbp)}</strong>
               </span>
               {row.drop ? <span>@{row.drop.handle}</span> : null}
               {row.drop ? <span>{row.drop.drink}</span> : null}
