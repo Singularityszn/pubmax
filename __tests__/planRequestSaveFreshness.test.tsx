@@ -301,19 +301,23 @@ describe("request save age with an unchanged stale route", () => {
     expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("5");
     expect(local.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(route);
     expect(readPlanDraftEnvelope(session)?.draft.requestedStopCount).toBe(5);
+    expect(local.getItem(PLAN_INTAKE_STORAGE_KEY)).toBeNull();
     if (localBlocked) {
-      expect(readPlanIntakeDraftWithMetadata(local)).toBeNull();
       expect(readPlanDraftEnvelope(session)?.draft).toEqual({ ...draft, requestedStopCount: 5 });
       expect(document.querySelector<HTMLInputElement>("#plan-title")?.value).toBe("Night");
       expect(document.querySelector<HTMLInputElement>("#plan-name")?.value).toBe("Captain");
       expect(document.querySelector<HTMLInputElement>("#plan-time")?.value).toBe(START);
       expect(document.body.textContent).not.toContain("Your changes could not be saved on this device");
+    }
+    advance(4000);
+    await editInput("#plan-concierge-query", "Clapham tonight");
+    if (localBlocked) {
+      expect(local.getItem(PLAN_INTAKE_STORAGE_KEY)).toBeNull();
     } else {
       expect(readPlanIntakeDraftWithMetadata(local)).toMatchObject({
-        savedAt: "2026-11-03T12:00:00.000Z", draft: { answers: { stopCount: 5 } },
+        savedAt: "2026-11-03T12:00:04.000Z", draft: { answers: { stopCount: 5 } },
       });
     }
-    await editInput("#plan-concierge-query", "Clapham tonight");
     await sortAgainFromTune();
     const generation = fetchMock.mock.calls.find(([input]) => String(input).includes("/api/plans/generate"))!;
     expect(JSON.parse(String(generation[1]?.body))).toMatchObject({ intake: { stopCount: 5 }, context: { stopCount: 5 } });
