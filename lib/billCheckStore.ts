@@ -86,17 +86,20 @@ class BillAlreadyCheckedError extends Error {
 export type BillCheckStore = {
   /** Store one check. THROWS on a hard failure and on a second check of one bill. */
   record(input: BillCheckInput): Promise<BillCheckRecord>;
-  hasChecked(input: BillCheckSubject): Promise<boolean>;
+  findChecked(input: BillCheckSubject): Promise<BillCheckRecord | null>;
   /** Unreviewed mismatches, newest first. Fail-soft ([]). */
   listMismatchesForReview(): Promise<BillCheckRecord[]>;
   /** Stamp one unreviewed mismatch. Null for an unknown id, a reviewed row or any other result. */
   review(id: string, decision: BillCheckReviewDecision, now?: number): Promise<BillCheckRecord | null>;
+  releaseReview(check: BillCheckRecord): Promise<void>;
 };
 
-function subjectKey(input: BillCheckSubject): string {
-  return input.communityPriceId
-    ? `price:${input.communityPriceId}:${input.communityPriceSubmittedAt}:${Math.round(input.priceGbp * 100)}:${input.roundSource?.spendId ?? ""}:${input.roundSource?.lineIndex ?? ""}:${input.billHash}`
-    : `drop:${input.pintDropId}:${input.billHash}`;
+function subjectKeys(input: BillCheckSubject): string[] {
+  const bill = `${Math.round(input.priceGbp * 100)}:${input.roundSource?.spendId ?? ""}:${input.roundSource?.lineIndex ?? ""}:${input.billHash}`;
+  return [
+    ...(input.pintDropId ? [`drop:${input.pintDropId}:${bill}`] : []),
+    ...(input.communityPriceId ? [`price:${input.communityPriceId}:${input.communityPriceSubmittedAt}:${bill}`] : []),
+  ];
 }
 
 function assertSubject(input: BillCheckSubject): void {
@@ -126,8 +129,8 @@ const checks = new Map<string, BillCheckRecord>();
 export const memoryBillCheckStore: BillCheckStore = {
   async record(input) {
     assertSubject(input);
-    const taken = new Set([...checks.values()].map(subjectKey));
-    if (taken.has(subjectKey(input))) throw new BillAlreadyCheckedError();
+    const taken = new Set([...checks.values()].flatMap(subjectKeys));
+    if (subjectKeys(input).some((key) => taken.has(key))) throw new BillAlreadyCheckedError();
     const stored: BillCheckRecord = {
       ...(input.pintDropId ? { pintDropId: input.pintDropId } : {}),
       ...(input.communityPriceId ? { communityPriceId: input.communityPriceId } : {}),
@@ -145,10 +148,11 @@ export const memoryBillCheckStore: BillCheckStore = {
     return { ...stored, lines: [...stored.lines] };
   },
 
-  async hasChecked(input) {
+  async findChecked(input) {
     assertSubject(input);
-    const key = subjectKey(input);
-    return [...checks.values()].some((check) => subjectKey(check) === key);
+    const key = subjectKeys(input)[0];
+    const hit = [...checks.values()].find((check) => subjectKeys(check).includes(key));
+    return hit ? { ...hit, lines: [...hit.lines] } : null;
   },
 
   async listMismatchesForReview() {
@@ -165,6 +169,14 @@ export const memoryBillCheckStore: BillCheckStore = {
     hit.reviewedAt = new Date(now).toISOString();
     hit.reviewDecision = decision;
     return { ...hit, lines: [...hit.lines] };
+  },
+
+  async releaseReview(check) {
+    const hit = checks.get(check.id);
+    if (hit?.reviewedAt === check.reviewedAt && hit?.reviewDecision === "hidden") {
+      delete hit.reviewedAt;
+      delete hit.reviewDecision;
+    }
   },
 };
 
@@ -274,24 +286,24 @@ export const supabaseBillCheckStore: BillCheckStore = {
     });
   },
 
-  async hasChecked(input) {
+  async findChecked(input) {
     assertSubject(input);
     return guard({
-      context: "has-checked",
-      onSchemaMiss: () => memoryBillCheckStore.hasChecked(input),
+      context: "find-checked",
+      onSchemaMiss: () => memoryBillCheckStore.findChecked(input),
       run: async () => {
-        let query = admin().from(TABLE).select("id").eq("bill_hash", input.billHash);
-        query = input.communityPriceId
-          ? query.eq("community_price_id", input.communityPriceId)
-            .eq("community_price_submitted_at", new Date(input.communityPriceSubmittedAt!).toISOString())
-            .eq("price_pennies", Math.round(input.priceGbp * 100))
-          : query.eq("pint_drop_id", input.pintDropId!).is("community_price_id", null);
+        let query = admin().from(TABLE).select("*").eq("bill_hash", input.billHash)
+          .eq("price_pennies", Math.round(input.priceGbp * 100));
+        query = input.pintDropId
+          ? query.eq("pint_drop_id", input.pintDropId)
+          : query.eq("community_price_id", input.communityPriceId!)
+            .eq("community_price_submitted_at", new Date(input.communityPriceSubmittedAt!).toISOString());
         query = input.roundSource
           ? query.eq("community_price_round_source", JSON.stringify(input.roundSource))
           : query.is("community_price_round_source", null);
         const { data, error } = await query.limit(1);
         if (error) throw new Error(error.message);
-        return Array.isArray(data) && data.length > 0;
+        return Array.isArray(data) && data.length > 0 ? fromRow(data[0] as Record<string, unknown>) : null;
       },
     });
   },
@@ -333,6 +345,21 @@ export const supabaseBillCheckStore: BillCheckStore = {
           .maybeSingle();
         if (error) throw new Error(error.message);
         return data ? fromRow(data as Record<string, unknown>) : null;
+      },
+    });
+  },
+
+  async releaseReview(check) {
+    return guard({
+      context: "release-review",
+      onSchemaMiss: () => memoryBillCheckStore.releaseReview(check),
+      run: async () => {
+        const { error } = await admin().from(TABLE)
+          .update({ reviewed_at: null, review_decision: null })
+          .eq("id", check.id)
+          .eq("reviewed_at", check.reviewedAt!)
+          .eq("review_decision", "hidden");
+        if (error) throw new Error(error.message);
       },
     });
   },

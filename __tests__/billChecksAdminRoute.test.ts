@@ -30,6 +30,7 @@ vi.mock("@/lib/priceTrustImpact.server", () => ({
 import { GET, POST } from "@/app/api/admin/bill-checks/route";
 import { __resetBillChecks, memoryBillCheckStore } from "@/lib/billCheckStore";
 import { __resetPintDrops, addPintDrop, findPintDropsByIds, type PintDrop } from "@/lib/pintDrops";
+import { memoryPintDropStore } from "@/lib/pintDropsStore";
 
 const URL_BASE = "http://localhost/api/admin/bill-checks";
 const VENUE = "venue-1vle947";
@@ -57,6 +58,7 @@ function post(body: unknown): Promise<Response> {
 }
 
 beforeEach(() => {
+  vi.restoreAllMocks();
   gate.open = true;
   __resetBillChecks();
   __resetPintDrops();
@@ -154,13 +156,48 @@ describe("POST /api/admin/bill-checks", () => {
     expect(await memoryBillCheckStore.listMismatchesForReview()).toEqual([]);
   });
 
-  it("keeps the review claimed when the hide fails", async () => {
+  it("returns a failed community hide to the queue and completes another attempt", async () => {
     const check = await seedMismatch({ communityPriceId: "price-1" });
     seams.hidePrice.mockResolvedValueOnce({ status: "unavailable" } as never);
     const res = await post({ id: check.id, decision: "hidden" });
     expect(res.status).toBe(503);
+    expect(await memoryBillCheckStore.listMismatchesForReview()).toMatchObject([{ id: check.id }]);
+    expect((await post({ id: check.id, decision: "hidden" })).status).toBe(200);
     expect(await memoryBillCheckStore.listMismatchesForReview()).toEqual([]);
-    expect((await post({ id: check.id, decision: "kept" })).status).toBe(404);
+    expect(seams.hidePrice).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns a failed drop hide to the queue and completes another attempt", async () => {
+    const check = await seedMismatch({ pintDropId: "drop-1", communityPriceId: "price-1" });
+    vi.spyOn(memoryPintDropStore, "moderate").mockResolvedValueOnce(false);
+    expect((await post({ id: check.id, decision: "hidden" })).status).toBe(503);
+    expect(await memoryBillCheckStore.listMismatchesForReview()).toMatchObject([{ id: check.id }]);
+    expect(seams.hidePrice).not.toHaveBeenCalled();
+    expect((await post({ id: check.id, decision: "hidden" })).status).toBe(200);
+    expect(findPintDropsByIds(["drop-1"]).get("drop-1")?.status).toBe("hidden");
+    expect(await memoryBillCheckStore.listMismatchesForReview()).toEqual([]);
+  });
+
+  it("repeats a failed trust update after the community price is already hidden", async () => {
+    const check = await seedMismatch({ pintDropId: "drop-1", communityPriceId: "price-1" });
+    seams.syncHidden.mockResolvedValueOnce({ status: "unavailable" } as never);
+    expect((await post({ id: check.id, decision: "hidden" })).status).toBe(503);
+    expect(await memoryBillCheckStore.listMismatchesForReview()).toMatchObject([{ id: check.id }]);
+    seams.hidePrice.mockResolvedValueOnce({ status: "ok", changed: false, kind: "price" });
+    expect((await post({ id: check.id, decision: "hidden" })).status).toBe(200);
+    expect(seams.syncHidden).toHaveBeenCalledTimes(2);
+    expect(await memoryBillCheckStore.listMismatchesForReview()).toEqual([]);
+  });
+
+  it.each(["drop", "community", "trust"])("releases a hide claim when the %s operation throws", async (operation) => {
+    const check = await seedMismatch({ pintDropId: "drop-1", communityPriceId: "price-1" });
+    const fail = operation === "drop" ? vi.spyOn(memoryPintDropStore, "moderate")
+      : operation === "community" ? seams.hidePrice : seams.syncHidden;
+    fail.mockRejectedValueOnce(new Error("unavailable"));
+    expect((await post({ id: check.id, decision: "hidden" })).status).toBe(503);
+    expect(await memoryBillCheckStore.listMismatchesForReview()).toMatchObject([{ id: check.id }]);
+    expect((await post({ id: check.id, decision: "hidden" })).status).toBe(200);
+    expect(await memoryBillCheckStore.listMismatchesForReview()).toEqual([]);
   });
 
   it("allows only one concurrent decision to change the subjects", async () => {

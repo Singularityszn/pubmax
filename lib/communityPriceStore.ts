@@ -301,7 +301,7 @@ export type ModerationStateResult =
   | {
       status: "ok";
       changed: boolean;
-      kind: ModerationObservationKind;
+      kind?: ModerationObservationKind;
     }
   | {
       status: "not-found" | "unavailable";
@@ -1819,12 +1819,19 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
         }
         const { data: existing, error: lookupError } = await admin()
           .from("community_prices")
-          .select("id, drink_category")
+          .select("id, drink_category, submitted_at, price_pennies, round_spend_id, round_line_index")
           .eq("id", id)
           .limit(1);
         if (lookupError) throw new Error(lookupError.message);
         if (!Array.isArray(existing) || existing.length === 0) {
           return { status: "not-found", changed: false };
+        }
+        const row = existing[0];
+        if (expected && (Date.parse(row.submitted_at ?? "") !== expected.submittedAt ||
+          row.price_pennies !== Math.round(expected.priceGbp * 100) ||
+          (row.round_spend_id ?? null) !== (expected.roundSource?.spendId ?? null) ||
+          (row.round_line_index ?? null) !== (expected.roundSource?.lineIndex ?? null))) {
+          return { status: "ok", changed: false };
         }
         return {
           status: "ok",

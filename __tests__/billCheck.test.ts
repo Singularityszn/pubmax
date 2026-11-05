@@ -137,6 +137,29 @@ describe("judgeBill", () => {
     expect(judgeBill(read([["Merlot 175ml", 5.2]]), 5.2, "Merlot", "250ml").result).toBe("mismatch");
     expect(judgeBill(read([["Merlot 175 ml", 5.2]]), 5.2, "Merlot", "175ml").result).toBe("match");
   });
+
+  it.each([
+    ["Pint of lager", "Lager pint", "pint", "half"],
+    ["Half of lager", "Lager half pint", "half", "pint"],
+    ["Lager 1/2 pint", "1/2 lager", "half", "pint"],
+    ["½ pint lager", "Lager ½", "half", "pint"],
+    ["Single Jameson", "Jameson single", "single", "double"],
+    ["Double Jameson", "Jameson double", "double", "single"],
+    ["Bottle of Merlot", "Merlot bottle", "bottle", "175ml"],
+    ["125 ml Merlot", "Merlot 125ml", "125ml", "250ml"],
+    ["Merlot 175 ml reserve", "Merlot reserve 175ml", "175ml", "250ml"],
+    ["250 ml Merlot", "Merlot 250ml", "250ml", "125ml"],
+  ] as const)("interprets servings anywhere in %s and %s", (line, drink, measure, different) => {
+    expect(judgeBill(read([[line, 5.2]]), 5.2, drink, measure).result).toBe("match");
+    expect(judgeBill(read([[drink, 5.2]]), 5.2, line, measure).result).toBe("match");
+    expect(judgeBill(read([[line, 5.2]]), 5.2, drink).result).toBe("match");
+    expect(judgeBill(read([[line, 5.2]]), 5.2, drink, different).result).toBe("mismatch");
+    expect(judgeBill(read([[drink, 5.2]]), 5.2, line, different).result).toBe("mismatch");
+  });
+
+  it("does not approve a single spirit as a double even when both names say single", () => {
+    expect(judgeBill(read([["Single Jameson", 5.2]]), 5.2, "Single Jameson", "double").result).toBe("mismatch");
+  });
 });
 
 describe("the bill check vocabulary", () => {

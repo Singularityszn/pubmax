@@ -201,11 +201,12 @@ describe.skipIf(skipReason !== null)("0220 on PostgreSQL", () => {
         asBrowserRole(
           role,
           sub,
-          `insert into public.price_bill_checks (pint_drop_id, venue_id, price_pennies, result, lines)
-           values ('${DROP_LATER}'::uuid, '${VENUE}', 450, 'match', '[{"name":"x","price_gbp":4.5}]'::jsonb)`,
+          `insert into public.price_bill_checks (pint_drop_id, bill_hash, venue_id, price_pennies, result, lines)
+           values ('${DROP_LATER}'::uuid, '${"a".repeat(64)}', '${VENUE}', 450, 'match', '[{"name":"x","price_gbp":4.5}]'::jsonb)`,
         ),
       );
       expect(write.ok, `${role} insert`).toBe(false);
+      expect(write.said).toContain("42501");
       const review = await db().attempt(
         asBrowserRole(role, sub, "update public.price_bill_checks set reviewed_at = now(), review_decision = 'kept'"),
       );
@@ -288,6 +289,19 @@ describe.skipIf(skipReason !== null)("0220 on PostgreSQL", () => {
         "select count(*) from pg_indexes where schemaname = 'public' and indexname = 'price_bill_checks_queue_idx'",
       ),
     ).toBe("1");
+  });
+
+  it("refuses a paired retry with a new timestamp but permits a changed bill or price", async () => {
+    const first = { drop: DROP_LATER, price: PRICE_PAIRED, billHash: "d".repeat(64) };
+    const saved = await db().attempt(insertCheck(first));
+    expect(saved.ok, saved.said).toBe(true);
+    const repeated = await db().attempt(insertCheck({ ...first, submittedAt: "2026-11-05 19:30:01+00" }));
+    expect(repeated.ok).toBe(false);
+    expect(repeated.said).toContain("price_bill_checks_pint_drop_idx");
+    const correction = await db().attempt(insertCheck({ ...first, pennies: 620 }));
+    expect(correction.ok, correction.said).toBe(true);
+    const otherBill = await db().attempt(insertCheck({ ...first, billHash: "e".repeat(64) }));
+    expect(otherBill.ok, otherBill.said).toBe(true);
   });
 
   it("gives the table back on rollback, keeps every drinker's price, and re-applies", () => {

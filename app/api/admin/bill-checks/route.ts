@@ -117,7 +117,7 @@ async function hidePricesOf(check: BillCheckRecord, note: string): Promise<boole
   if (check.communityPriceId) {
     const result = await moderateCommunityPriceWithState(check.communityPriceId, true, note, { submittedAt: check.communityPriceSubmittedAt!, priceGbp: check.priceGbp, ...(check.roundSource ? { roundSource: check.roundSource } : {}) });
     if (result.status !== "ok") return false;
-    if (result.changed) {
+    if (result.kind === "price") {
       const trust = await syncTrustAfterPriceHidden(check.communityPriceId);
       if (trust.status === "unavailable") return false;
     }
@@ -155,7 +155,13 @@ export async function POST(request: Request): Promise<Response> {
 
     if (decision === "hidden") {
       const note = readString(body.note) || HIDDEN_NOTE;
-      if (!(await hidePricesOf(check, note))) return unavailable();
+      let hidden = false;
+      try {
+        hidden = await hidePricesOf(check, note);
+      } finally {
+        if (!hidden) await store.releaseReview(check);
+      }
+      if (!hidden) return unavailable();
     }
     return jsonNoStore({ ok: true, check }, { status: 200 });
   } catch (error) {
