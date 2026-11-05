@@ -4,7 +4,7 @@ import {
   type NightContext,
 } from "@/lib/nightPlanning";
 import { formatGbp } from "@/lib/formatGbp";
-import { PLAN_TIME_WINDOWS } from "@/lib/planIntake";
+import { defaultLondonStartInput, londonDateTimeInputToIso, PLAN_TIME_WINDOWS } from "@/lib/planIntake";
 import type { ParsedPlanGenerationIntake } from "@/lib/planGenerationIntake";
 import { DEFAULT_PLAN_STOP_COUNT } from "@/lib/planStopCount";
 
@@ -77,6 +77,13 @@ export function reconcilePlanContext(
         : inferred.reasons.some((reason) => reason.field === field)
           ? "query"
           : "default";
+  }
+  if (fieldSources.daypart === "default") {
+    // Only the automatic daypart follows First pint. Query interpretation keeps the request clock.
+    const scheduledStart = londonDateTimeInputToIso(defaultLondonStartInput(now), now);
+    if (scheduledStart) {
+      context.daypart = inferNightContext("", new Date(scheduledStart)).context.daypart;
+    }
   }
   const reasons = inferred.reasons.filter((reason) => fieldSources[reason.field] === "query");
   for (const field of Object.keys(contextPatch) as (keyof NightContext)[]) {

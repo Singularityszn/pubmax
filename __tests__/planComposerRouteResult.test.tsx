@@ -2484,6 +2484,86 @@ async function generateFromFullComposer(): Promise<void> {
   await settle();
 }
 
+describe("automatic First pint generation", () => {
+  function useParsedGenerationContext(): void {
+    fetchMock.mockImplementation(async (input, init) => {
+      if (!String(input).includes("/api/plans/generate")) return new Response("[]");
+      const parsed = await parsePlanGenerationRequest(new Request("http://localhost/api/plans/generate", {
+        method: "POST", body: init?.body,
+      }));
+      if (!parsed.ok) throw new Error(parsed.message);
+      const inferredContext = reconcilePlanContext(parsed.value.query, parsed.value.context, parsed.value.intake, new Date()).context;
+      return new Response(JSON.stringify({ ...GENERATED, inferredContext }), {
+        headers: { "content-type": "application/json" },
+      });
+    });
+  }
+
+  it.each([
+    ["2026-11-05T09:00:00.000Z", "2026-11-05T18:00", "after_work"],
+    ["2026-11-05T20:00:00.000Z", "2026-11-05T20:15", "evening"],
+    ["2026-10-15T21:45:00.000Z", "2026-10-16T19:00", "evening"],
+  ])("keeps result, Tune and reload coherent for the untimed example at %s", async (clock, schedule, daypart) => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(clock));
+    onTestFinished(() => { vi.useRealTimers(); });
+    useParsedGenerationContext();
+    await mountComposer();
+    await act(async () => {
+      [...document.querySelectorAll<HTMLButtonElement>("button")]
+        .find((button) => button.textContent === "Quiet in Clapham for 4, not pricey")!.click();
+    });
+    await settle();
+    await act(async () => {
+      await vi.waitFor(() => expect(document.querySelector(".planStop")).not.toBeNull());
+    });
+    expect(document.querySelector<HTMLInputElement>("#plan-time")?.value).toBe(schedule);
+    await openTune();
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-time")?.value).toBe(daypart);
+    const saved = readPlanDraftEnvelope(sessionStorage)!.draft;
+    expect(saved.explicitNightContext).not.toHaveProperty("daypart");
+    expect(readPlanIntakeDraft()!.answers.timeWindow).toBeNull();
+    expect(JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!)).toMatchObject({
+      nightContext: { daypart }, routeNight: { daypart }, groundingProof: "test-proof",
+    });
+    await remountComposer();
+    await openTune();
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-time")?.value).toBe(daypart);
+    await sortAgainFromTune();
+    const calls = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"));
+    expect(calls).toHaveLength(2);
+    const sent = JSON.parse(String(calls[1]![1]?.body));
+    expect(sent.context).not.toHaveProperty("daypart");
+    expect(sent.intake.timeWindow).toBeNull();
+    expect(document.querySelector<HTMLInputElement>("#plan-time")?.value).toBe(schedule);
+    await openTune();
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-time")?.value).toBe(daypart);
+  });
+
+  it("lets a fresh Daytime Ask replace the previous automatic evening fallback", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-05T09:00:00.000Z"));
+    onTestFinished(() => { vi.useRealTimers(); });
+    useParsedGenerationContext();
+    await mountComposer();
+    await sortIt("Quiet in Clapham for 4, not pricey");
+    writeAskPlanDraft({ query: "Daytime in Clapham", stopIds: [], stopNames: [], createdAt: new Date().toISOString() });
+    await remountComposer();
+    expect(fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"))).toHaveLength(1);
+    await openTune();
+    expect(document.querySelector<HTMLInputElement>("#plan-concierge-query")?.value).toBe("Daytime in Clapham");
+    await sortAgainFromTune();
+    const calls = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"));
+    expect(calls).toHaveLength(2);
+    const sent = JSON.parse(String(calls[1]![1]?.body));
+    expect(sent.query).toBe("Daytime in Clapham");
+    expect(sent.context).not.toHaveProperty("daypart");
+    expect(sent.intake.timeWindow).toBeNull();
+    await openTune();
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-time")?.value).toBe("daytime");
+  });
+});
+
 // NOBODY SILENTLY LOSES TONIGHT (captain, 16 Oct 2026). From 22:30 London the
 // default First pint is tomorrow at 19:00, because a first pint near midnight
 // is not a night out. That left a reader standing in the night with no default
