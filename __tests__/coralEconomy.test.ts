@@ -100,7 +100,7 @@ const marks = stylesheets().flatMap(restingCoral);
 // surfaces other passes own (the public profile, sign-in, rounds, the historic
 // and crawl pages, the nav) and in custom-property aliases such as
 // --plan-accent; each is a debt to pay down, never a licence to add.
-const CEILING = 158;
+const CEILING = 156;
 
 describe("coral is spent on the one primary", () => {
   it("finds a corpus large enough to mean something", () => {

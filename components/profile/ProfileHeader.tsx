@@ -166,11 +166,19 @@ function ProfileHeaderCard({
           strip behind the card, because its rendered aspect has to be the
           cropper's aspect: what an owner framed is what a reader sees, and a
           fixed height over a fluid width is exactly how a name gets cut in
-          half. An unfilled slot keeps the brass treatment, so an initials-era
-          profile still reads as a card rather than a gap. */}
+          half. An unfilled slot wears the house cover, so a new profile still reads as a card. */}
       <div className="profileCover" aria-hidden="true" data-sample-block="">
-        <ProfileCoverCarousel covers={covers} />
-        <span className="profileCoverFalloff" />
+        {showCover ? (
+          <>
+            <ProfileCoverCarousel key={handle} covers={covers} />
+            <span className="profileCoverFalloff" />
+          </>
+        ) : (
+          <div className="profileCoverDefault">
+            <span className="profileCoverWordmark">PUBMAXX</span>
+            <span className="profileCoverMotto">Good pubs.<br />Better company.</span>
+          </div>
+        )}
       </div>
 
       {/* The hero: the face over the band's edge, the name beside it, and the
@@ -178,6 +186,7 @@ function ProfileHeaderCard({
       <div className="profileHeroBody">
         <div className="profileIdentity">
           <HandleAvatar
+            key={handle}
             handle={handle}
             displayName={displayName}
             avatarUrl={avatarUrl}

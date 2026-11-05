@@ -103,6 +103,19 @@ describe("account card", () => {
 });
 
 describe("nav account control", () => {
+  it("does not substitute a provider picture for an account's missing profile photo", () => {
+    authState.current = {
+      ...session,
+      user: { id: "second-account", email: "second@example.test", user_metadata: {
+        full_name: "Second Account", avatar_url: "/photos/main-account.jpg",
+      } },
+      handle: "second_account",
+    };
+    const html = renderToStaticMarkup(createElement(SignInButton, { compact: true }));
+    expect(html).not.toContain("/photos/main-account.jpg");
+    expect(html).toContain(">SA</span>");
+  });
+
   it("offers the account disclosure when signed in", () => {
     authState.current = {
       ...session,
