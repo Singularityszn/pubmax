@@ -10,6 +10,7 @@ import {
   type StoredPlanDraft,
 } from "@/lib/planDraft";
 import {
+  parsePlanRouteDraftEnvelope,
   readPlanRouteDraftEnvelope,
   writePlanRouteDraftEnvelope,
   type ParsedPlanRouteDraft,
@@ -23,6 +24,7 @@ import {
 import {
   createPlanningIntent,
   PLANNING_INTENT_STORAGE_KEY,
+  PLANNING_INTENT_TTL_MS,
   readPlanningIntent,
 } from "@/lib/planningIntent";
 import { PLAN_TEMPLATES } from "@/lib/planTemplates";
@@ -327,6 +329,56 @@ describe("resolveComposerHydration", () => {
     });
     expect(hydration.acceptedVenueId).toBe("venue-a");
     expect(hydration.conflicts.some((c) => c.code === "intent-preserved-existing" && c.recoveryAction === "review-existing-plan")).toBe(true);
+  });
+
+  it.each([
+    ["a matching intent just before expiry", "venue-a", "near", PLANNING_INTENT_TTL_MS - 1, "manchester"],
+    ["no intent", null, "near", 0, null],
+    ["an intent for another venue", "venue-other", "near", 0, null],
+    ["an intent from another source", "venue-a", "map-search", 0, null],
+    ["a matching intent at expiry", "venue-a", "near", PLANNING_INTENT_TTL_MS, null],
+  ] as const)("hydrates a legacy route with %s", (_case, venueId, source, elapsed, cityId) => {
+    const storage = memoryStorage();
+    const savedIntent = venueId && createPlanningIntent({
+      source,
+      cityId: "manchester",
+      acceptedVenueId: venueId,
+      acceptedArea: { kind: "night-patch", id: "clapham" },
+      startsAt: "2026-07-24T20:00:00.000Z",
+      displayEvidence: { kind: "directory", observedAt: null },
+    }, NOW);
+    if (venueId) {
+      expect(savedIntent).not.toBeNull();
+      storage.setItem(PLANNING_INTENT_STORAGE_KEY, JSON.stringify(savedIntent));
+    }
+
+    const now = NOW + elapsed;
+    const planningIntent = readPlanningIntent({ storage, now });
+    expect(planningIntent).toEqual(elapsed === PLANNING_INTENT_TTL_MS ? null : savedIntent);
+    const legacyRoute = parsePlanRouteDraftEnvelope(null, JSON.stringify({
+      stops: routeDraft("route").value.stops,
+      nightContext: null,
+      planAnchor: { venueId: "venue-a", source: "near", outcome: "route" },
+    }), now);
+
+    const hydration = resolveComposerHydration({
+      planDraft: null,
+      routeDraft: legacyRoute,
+      intakeDraft: intakeDraft(NOW),
+      planningIntent,
+      rememberedArea: null,
+    });
+
+    expect(hydration.routePreview?.legacy).toBe(true);
+    expect(hydration.heldVenueId).toBe("venue-a");
+    expect(hydration.acceptedAnchor).toEqual({
+      venueId: "venue-a",
+      source: "near",
+      cityId,
+      acceptedArea: { kind: "night-patch", id: "soho" },
+      startsAt: "2026-07-24T19:00:00.000Z",
+      expiresAt: null,
+    });
   });
 
   it("carries an anchor-only Route preview with its proof", () => {
