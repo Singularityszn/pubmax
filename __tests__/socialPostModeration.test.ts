@@ -126,6 +126,11 @@ describe("OpenAI Social post moderation adapter", () => {
     let receivedHeaders = false;
     let failureWatchdog: ReturnType<typeof setTimeout> | undefined;
     let closureWatchdog: ReturnType<typeof setTimeout> | undefined;
+    let requestCancellation: {
+      signal: AbortSignal | null | undefined;
+      bodyCancelInvoked: boolean;
+      response: Response;
+    } | undefined;
 
     try {
       const adapter = new OpenAISocialPostModerationAdapter({
@@ -134,6 +139,18 @@ describe("OpenAI Social post moderation adapter", () => {
         fetcher: async (_url, init) => {
           const response = await fetch(`http://127.0.0.1:${address.port}/moderation`, init);
           receivedHeaders = true;
+          if (status === 500) {
+            const cancellation = { signal: init?.signal, bodyCancelInvoked: false, response };
+            requestCancellation = cancellation;
+            const body = response.body;
+            if (body) {
+              const originalCancel = body.cancel;
+              body.cancel = function (this: ReadableStream<Uint8Array>, ...args: Parameters<typeof originalCancel>) {
+                cancellation.bodyCancelInvoked = true;
+                return Reflect.apply(originalCancel, this, args);
+              };
+            }
+          }
           return response;
         },
       });
@@ -162,6 +179,12 @@ describe("OpenAI Social post moderation adapter", () => {
       ]);
 
       expect(closure).toBe("closed");
+      if (status === 500) {
+        expect(
+          requestCancellation?.bodyCancelInvoked === true || requestCancellation?.signal?.aborted === true,
+        ).toBe(true);
+        expect(requestCancellation?.response.status).toBe(500);
+      }
     } finally {
       clearTimeout(failureWatchdog);
       clearTimeout(closureWatchdog);

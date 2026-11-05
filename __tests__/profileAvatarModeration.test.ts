@@ -83,12 +83,30 @@ describe.each([
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     const address = server.address() as AddressInfo;
     let watchdog: ReturnType<typeof setTimeout> | undefined;
+    let requestCancellation: {
+      signal: AbortSignal | null | undefined;
+      bodyCancelInvoked: boolean;
+      response: Response;
+    } | undefined;
 
     try {
       const scanner = new Adapter({
         apiKey: "test-key",
         timeoutMs: 500,
-        fetcher: (_url, init) => fetch(`http://127.0.0.1:${address.port}/moderation`, init),
+        fetcher: async (_url, init) => {
+          const response = await fetch(`http://127.0.0.1:${address.port}/moderation`, init);
+          const cancellation = { signal: init?.signal, bodyCancelInvoked: false, response };
+          requestCancellation = cancellation;
+          const body = response.body;
+          if (body) {
+            const originalCancel = body.cancel;
+            body.cancel = function (this: ReadableStream<Uint8Array>, ...args: Parameters<typeof originalCancel>) {
+              cancellation.bodyCancelInvoked = true;
+              return Reflect.apply(originalCancel, this, args);
+            };
+          }
+          return response;
+        },
       });
       await expect(scanner.moderate("https://storage.test/signed-avatar")).rejects.toMatchObject({
         message: `${provider} moderation returned 500.`,
@@ -102,6 +120,10 @@ describe.each([
       ]);
 
       expect(outcome).toBe("closed");
+      expect(
+        requestCancellation?.bodyCancelInvoked === true || requestCancellation?.signal?.aborted === true,
+      ).toBe(true);
+      expect(requestCancellation?.response.status).toBe(500);
     } finally {
       clearTimeout(watchdog);
       server.closeAllConnections();
