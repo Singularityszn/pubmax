@@ -5,7 +5,6 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { COMMUNITY_SHEET_FIXTURE_MAP_PATH } from "./helpers/communitySheetFixture";
 
-import { median } from "../lib/performanceBudgets";
 import {
   BASELINE_ROUTES_BY_DEVICE,
   CWV_BASELINE,
@@ -16,12 +15,15 @@ import {
   formatBaselineTable,
   formatProductTimingTable,
   formatRegressionTable,
+  medianProductSamples,
+  medianRouteSamples,
   mergeProductTimings,
   mergeVitalsRecords,
   productTimingKey,
   vitalsRecordKey,
   type MeasuredVitals,
   type ProductTimingRecord,
+  type RouteVitalsSample,
   type VitalsDevice,
   type VitalsRecord,
   type VitalsTemperature,
@@ -56,8 +58,8 @@ import {
  * TWO MODES, one method:
  *
  *   PUBMAX_CWV_RECORD=1 writes perf/cwv-baseline.json from this run. It is how
- *     a baseline is taken and re-taken, and it asserts nothing, because a run
- *     that both sets the number and checks it checks nothing.
+ *     a baseline is taken and re-taken. It validates samples without checking
+ *     them against the numbers it will replace.
  *   PUBMAX_CWV_SWEEP=1 measures the same way and FAILS on any figure worse than
  *     the recorded one by more than lib/webVitalsBaseline.ts's tolerance.
  *
@@ -119,18 +121,46 @@ const ROUTE_READY_TIMEOUT_MS = 180_000;
  */
 const SELECTED_VENUE_PATH = COMMUNITY_SHEET_FIXTURE_MAP_PATH;
 
-type Sample = MeasuredVitals & {
-  /**
-   * Whether the route's primary action was actually exercised.
-   *
-   * A control that never appeared leaves the probe with no interaction to
-   * report, and INP then reads at the floor - which puts the route at the TOP
-   * of the table as the most responsive thing on the site. That failure is
-   * silent and flattering, which is the worst combination a measurement can
-   * have, so it is carried per sample and failed on below.
-   */
-  interacted: boolean;
-};
+type FailedCell =
+  | {
+      kind: "route";
+      key: string;
+      path: string;
+      device: VitalsDevice;
+      temperature: VitalsTemperature;
+      samples: readonly RouteVitalsSample[];
+    }
+  | {
+      kind: "product";
+      key: string;
+      device: VitalsDevice;
+      startedAt: string;
+      samples: readonly number[];
+    };
+
+async function saveInvalidSamples(outputDir: string, cell: FailedCell, error: unknown): Promise<void> {
+  const evidence = JSON.stringify(
+    { status: "invalid", error: error instanceof Error ? error.message : String(error), cell },
+    (_key: string, value: unknown) => {
+      // Plain JSON would turn all three nonfinite number kinds into null.
+      if (typeof value === "number" && !Number.isFinite(value)) return { nonFinite: String(value) };
+      if (value === undefined) return { missing: "undefined" };
+      return value;
+    },
+    2,
+  );
+  const diagnostic = path.join(outputDir, "cwv-invalid-samples.json");
+  try {
+    await mkdir(outputDir, { recursive: true });
+    await writeFile(diagnostic, `${evidence}\n`, "utf8");
+  } catch (persistenceError) {
+    // Include the evidence in the message so the report carries it without the file.
+    throw new AggregateError(
+      [error, persistenceError],
+      `Could not save ${diagnostic}.\n${String(persistenceError)}\n${evidence}`,
+    );
+  }
+}
 
 async function loadAndSettle(page: Page, routePath: string): Promise<void> {
   await page.goto(routePath, { waitUntil: "load" });
@@ -147,7 +177,7 @@ async function sampleRoute(
   page: Page,
   routePath: string,
   temperature: VitalsTemperature,
-): Promise<Sample> {
+): Promise<RouteVitalsSample> {
   if (temperature === "cold") {
     await coolBrowser(page);
   } else {
@@ -162,14 +192,6 @@ async function sampleRoute(
   await loadAndSettle(page, routePath);
   const interacted = await exercisePrimaryAction(page, routePath);
   return { ...(await readVitals(page)), interacted };
-}
-
-function aggregate(samples: readonly Sample[]): MeasuredVitals {
-  return {
-    lcpMs: median(samples.map((sample) => sample.lcpMs)),
-    inpMs: median(samples.map((sample) => sample.inpMs)),
-    cls: median(samples.map((sample) => sample.cls)),
-  };
 }
 
 /**
@@ -241,20 +263,25 @@ test.describe("Core Web Vitals baseline", () => {
 
     const routeRecords: VitalsRecord[] = [];
     const measuredVitals = new Map<string, MeasuredVitals>();
-    /** Rows whose primary action never appeared, so their INP means nothing. */
-    const uninteracted: string[] = [];
 
     for (const device of DEVICES) {
       await applyVitalsDevice(page, device);
       for (const routePath of BASELINE_ROUTES_BY_DEVICE[device]) {
         for (const temperature of ["cold", "warm"] as const) {
-          const samples: Sample[] = [];
-          for (let run = 0; run < RUNS; run += 1) {
-            samples.push(await sampleRoute(page, routePath, temperature));
-          }
-          const figures = aggregate(samples);
           const key = vitalsRecordKey(routePath, device, temperature);
-          if (!samples.some((sample) => sample.interacted)) uninteracted.push(key);
+          const samples: RouteVitalsSample[] = [];
+          let figures: MeasuredVitals;
+          try {
+            for (let run = 0; run < RUNS; run += 1) {
+              samples.push(await sampleRoute(page, routePath, temperature));
+            }
+            figures = medianRouteSamples(samples);
+          } catch (error) {
+            await saveInvalidSamples(testInfo.outputDir, {
+              kind: "route", key, path: routePath, device, temperature, samples,
+            }, error);
+            throw error;
+          }
           measuredVitals.set(key, figures);
           routeRecords.push({ path: routePath, device, temperature, ...figures });
           console.log(
@@ -279,16 +306,25 @@ test.describe("Core Web Vitals baseline", () => {
         startedAt: string,
         take: () => Promise<number>,
       ) => {
+        const cellKey = productTimingKey(key, device);
         const runs: number[] = [];
-        for (let run = 0; run < RUNS; run += 1) {
-          await coolBrowser(page);
-          runs.push(await take());
+        let ms: number;
+        try {
+          for (let run = 0; run < RUNS; run += 1) {
+            await coolBrowser(page);
+            runs.push(await take());
+          }
+          ms = medianProductSamples(runs);
+        } catch (error) {
+          await saveInvalidSamples(testInfo.outputDir, {
+            kind: "product", key: cellKey, device, startedAt, samples: runs,
+          }, error);
+          throw error;
         }
-        const ms = median(runs);
-        measuredTimings.set(productTimingKey(key, device), ms);
+        measuredTimings.set(cellKey, ms);
         productRecords.push({ key, label, device, startedAt, ms });
         console.log(
-          `[cwv][product] ${productTimingKey(key, device).padEnd(34)} ` +
+          `[cwv][product] ${cellKey.padEnd(34)} ` +
             `${Math.round(ms).toString().padStart(7)} ms   runs ${runs
               .map((value) => Math.round(value))
               .join("/")}`,
@@ -317,15 +353,6 @@ test.describe("Core Web Vitals baseline", () => {
         () => timeAcknowledgedSave(page),
       );
     }
-
-    // A row whose control never appeared records the floor and reads as the
-    // fastest thing on the table, so it fails before any number is written or
-    // defended.
-    expect(
-      uninteracted,
-      "The primary action never appeared on these rows, so their INP is the " +
-        `Event Timing floor rather than a measurement: ${uninteracted.join(", ")}`,
-    ).toEqual([]);
 
     console.log(`\n[cwv] routes\n${formatBaselineTable(routeRecords)}`);
     console.log(`\n[cwv] product timings\n${formatProductTimingTable(productRecords)}`);
