@@ -219,7 +219,7 @@ export default function SocialTagInbox() {
   }
 
   const hasLaneContent = LANE_KEYS.some((key) =>
-    lanes[key].items.length > 0 || lanes[key].loading || lanes[key].error,
+    lanes[key].items.length > 0 || lanes[key].error,
   );
   if (viewerPhase !== "resolved") {
     return (
@@ -241,7 +241,7 @@ export default function SocialTagInbox() {
       {LANE_KEYS.map((key) => {
         const state = lanes[key];
         const lane = key.split(":")[1] as Lane;
-        if (state.items.length === 0 && !state.loading && !state.error) return null;
+        if (state.items.length === 0 && !state.error) return null;
         const label = laneLabel(key);
         return (
           <section

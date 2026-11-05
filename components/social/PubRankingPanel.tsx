@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 
 import ComparePubFlow from "@/components/social/ComparePubFlow";
 import ReviewStars from "@/components/social/ReviewStars";
+import { useIsSample } from "@/components/ui/sample-skeleton-context";
 import { authedFetch } from "@/lib/authedFetch";
 import type { SocialLotRankingEntry, SocialPubRankingEntry as StarEntry } from "@/lib/socialPostReviews";
 import { SOCIAL_PUB_BAND_LABEL, type SocialPubRankingEntry } from "@/lib/socialPubRankings";
@@ -51,6 +52,7 @@ async function readJson<T>(url: string, signal: AbortSignal): Promise<T | null> 
  * price.
  */
 export default function PubRankingPanel({ refreshKey = "" }: { refreshKey?: string }) {
+  const sampled = useIsSample();
   const [scope, setScope] = useState<Scope>("mine");
   const [loaded, setLoaded] = useState<{ scope: Scope; rows: Row[]; compared: SocialPubRankingEntry[] } | null>(null);
   const [showAll, setShowAll] = useState(false);
@@ -58,6 +60,7 @@ export default function PubRankingPanel({ refreshKey = "" }: { refreshKey?: stri
   const [revision, setRevision] = useState(0);
 
   useEffect(() => {
+    if (sampled) return;
     const controller = new AbortController();
     void (async () => {
       if (scope === "lot") {
@@ -77,9 +80,9 @@ export default function PubRankingPanel({ refreshKey = "" }: { refreshKey?: stri
       });
     })().catch(() => {});
     return () => controller.abort();
-  }, [refreshKey, scope, revision]);
+  }, [refreshKey, scope, revision, sampled]);
 
-  const rows = loaded?.scope === scope ? loaded.rows : null;
+  const rows = sampled ? [] : loaded?.scope === scope ? loaded.rows : null;
   const visible = rows ? (showAll ? rows : rows.slice(0, SHOWN)) : [];
   return (
     <section className="pubRanking" aria-labelledby="pub-ranking-title">
@@ -130,7 +133,7 @@ export default function PubRankingPanel({ refreshKey = "" }: { refreshKey?: stri
           {showAll ? "Show the top 5" : `Show all ${rows.length}`}
         </button>
       ) : null}
-      {scope === "mine" && loaded?.scope === "mine" ? (
+      {scope === "mine" && (sampled || loaded?.scope === "mine") ? (
         <button type="button" className="pubRanking__rank" onClick={() => setComparing(true)}>
           Rank a pub
         </button>
