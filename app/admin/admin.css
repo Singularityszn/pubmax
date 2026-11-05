@@ -232,6 +232,57 @@
   gap: 0.5rem;
 }
 
+/* The bill check queue: the lines a bill showed beside the bill itself. */
+.admin-bill-read {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.admin-bill-lines-title {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.admin-bill-lines {
+  flex: 1 1 14rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.admin-bill-lines li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-bill-lines li span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.admin-bill-photo img {
+  display: block;
+  width: 160px;
+  height: auto;
+  max-height: 220px;
+  object-fit: contain;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+}
+
 .admin-restore {
   border-color: var(--pint);
   background: var(--pint);

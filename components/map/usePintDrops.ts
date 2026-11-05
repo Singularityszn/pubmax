@@ -66,6 +66,7 @@ import {
 import type { LastPintDecision } from "@/lib/tfl";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import type { PintPriceSplit } from "@/lib/pintDropAgreement";
+import { BILL_READING_RECEIPT_LINE } from "@/lib/billCheck";
 import {
   UNCHECKED_RECEIPT_LINE,
   isUncheckedPrice,
@@ -237,12 +238,24 @@ function rereadLaneOnMint(
   if (outcome?.status === "confirmed") reread();
 }
 
+/**
+ * What stands behind a landed price while the pin waits, as the composer's
+ * receipt words it. `bill`: the drinker sent the bill and the server is
+ * reading it (the answer's `billCheck: "reading"`, captain 5 Nov 2026).
+ * `unchecked`: a typed price with no bill (captain decision 9).
+ */
+export type DropReceiptWait = "bill" | "unchecked" | null;
+
+export function dropReceiptWait(data: { drop?: unknown; billCheck?: unknown }): DropReceiptWait {
+  if (data.billCheck === "reading") return "bill";
+  return isUncheckedPrice(data.drop as Parameters<typeof isUncheckedPrice>[0]) ? "unchecked" : null;
+}
+
 export function dropReceiptText(
   addedToNight: boolean,
   outcome: PintDropConfirmationOutcome | null,
   submittedPrice: string,
-  /** The server stamped the landed drop `unchecked` (captain decision 9). */
-  unchecked = false,
+  wait: DropReceiptWait = null,
 ): string {
   const receipt = addedToNight
     ? "Cheers. Added to your night."
@@ -253,8 +266,11 @@ export function dropReceiptText(
     Number.isFinite(submittedGbp) ? submittedGbp : null,
   );
   // The pass's own sentence wins (a mint over two typed prices says so). With
-  // nothing stronger to say, a typed price is told once why its pin is quiet.
-  const line = outcomeLine ?? (unchecked ? UNCHECKED_RECEIPT_LINE : null);
+  // nothing stronger to say, the drinker is told once why the pin is quiet:
+  // a bill is being read, or a typed price waits for a second drinker.
+  const waitLine =
+    wait === "bill" ? BILL_READING_RECEIPT_LINE : wait === "unchecked" ? UNCHECKED_RECEIPT_LINE : null;
+  const line = outcomeLine ?? waitLine;
   return line ? `${receipt} ${line}` : receipt;
 }
 
@@ -692,10 +708,10 @@ export function usePintDrops(
       ...measureFieldsOf(dropForm),
       priceGbp: optimisticDrop.priceGbp,
       // And its evidence, by the same rule the store applies to the answer,
-      // so a typed price never flashes the pin's mark before the server says
-      // it is unchecked (lib/pintDropReceipt.ts).
+      // so a price never flashes the pin's mark before its bill has been read
+      // (lib/pintDropReceipt.ts).
       ...(() => {
-        const priceEvidence = priceEvidenceFor(optimisticDrop.priceGbp, Boolean(receiptPhoto));
+        const priceEvidence = priceEvidenceFor(optimisticDrop.priceGbp);
         return priceEvidence ? { priceEvidence } : {};
       })(),
       passedDownNote: optimisticDrop.passedDownNote,
@@ -905,7 +921,7 @@ export function usePintDrops(
       rereadLaneOnMint(outcome, () => refreshVenueDrops(venueId));
       setDropMsg({
         ok: true,
-        text: dropReceiptText(addedToNight, outcome, submittedPrice, isUncheckedPrice(data.drop)),
+        text: dropReceiptText(addedToNight, outcome, submittedPrice, dropReceiptWait(data)),
         links,
         accountRevision: submittedAccountRevision,
       });

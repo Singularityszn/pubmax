@@ -166,6 +166,45 @@ const PAID_ROUTES: PaidRouteCase[] = [
     },
     answer: SIGN_IN_TO_CONTRIBUTE,
   },
+  // The two price doors read a bill in the background (captain 5 Nov 2026).
+  // A priced write with a bill and no session is refused before anything is
+  // stored, so no bill is ever handed to the vision lane.
+  {
+    route: "app/api/pint-drops/route.ts",
+    call: async () => {
+      const form = new FormData();
+      form.set("venueId", "venue-eltcmh");
+      form.set("handle", "anon_drinker");
+      form.set("priceGbp", "4.50");
+      form.set("receipt_photo", new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], "bill.jpg", { type: "image/jpeg" }));
+      return (await import("@/app/api/pint-drops/route")).POST(
+        new Request("http://localhost/api/pint-drops", {
+          method: "POST",
+          headers: { "x-forwarded-for": "203.0.113.7" },
+          body: form,
+        }),
+      );
+    },
+    answer: UNAUTHENTICATED,
+  },
+  {
+    route: "app/api/price-submit/route.ts",
+    call: async () => {
+      const form = new FormData();
+      form.set("venueId", "venue-eltcmh");
+      form.set("drinkCategory", "beer");
+      form.set("priceGbp", "4.50");
+      form.set("receipt_photo", new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], "bill.jpg", { type: "image/jpeg" }));
+      return (await import("@/app/api/price-submit/route")).POST(
+        new Request("http://localhost/api/price-submit", {
+          method: "POST",
+          headers: { "x-forwarded-for": "203.0.113.7" },
+          body: form,
+        }),
+      );
+    },
+    answer: SIGN_IN_TO_CONTRIBUTE,
+  },
   {
     route: "app/api/pub-list-import/route.ts",
     call: async () =>
@@ -387,7 +426,9 @@ const PAID_CLIENTS: Record<string, string> = {
   "@/lib/ask/modelLoop": "OpenRouter (ask)",
   "@/lib/heritage": "OpenRouter (heritage)",
   "@/lib/pubListImport.server": "OpenRouter (pub list import)",
+  "@/lib/openRouterVision.server": "OpenRouter (vision lane)",
   "@/lib/boardRead.server": "OpenRouter (board read)",
+  "@/lib/billCheck.server": "OpenRouter (bill check)",
   "@/lib/palElevenLabsChat.server": "ElevenLabs (chat)",
   "@/lib/palClaudeChat.server": "Anthropic (chat)",
   "@/app/api/pub-pal/voice-token/route": "ElevenLabs (voice)",

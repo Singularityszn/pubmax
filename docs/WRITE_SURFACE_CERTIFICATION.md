@@ -73,6 +73,7 @@ Protection in a sibling method cannot certify another method.
 - `PATCH app/api/social/crews/[crewId]/join-requests/[requestId]`
 - `PATCH app/api/social/crews/[crewId]/members/[memberId]`
 - `PATCH app/api/social/posts/[postId]`
+- `POST app/api/admin/bill-checks`
 - `POST app/api/admin/city-enrichment`
 - `POST app/api/admin/comments`
 - `POST app/api/admin/community-prices`
@@ -1857,6 +1858,19 @@ An oversized body answers 413. Unavailable account checks or catalogues answer a
 - **Effect:** the same as `POST app/api/social/crews` with visibility open, plus
   the three facts, in one transaction: the plan becomes social-owned, every seat
   token rotates and open plan invites are revoked.
+
+### `app/api/admin/bill-checks` - the bill check's moderation queue
+
+The bill check reads the bill that came with a priced Pint Drop or community price, after the answer has gone (captain 5 Nov 2026, `lib/billCheck.server.ts`).
+A bill that does not show the submitted price is a `mismatch`, and this route is its queue.
+`GET` lists the unreviewed mismatches with the submitted price, the lines the bill showed, the pub and, for a Pint Drop, its bill photo. `GET` is not a mutating verb and is not counted.
+`POST` takes `{ id, decision }`, where `decision` is `kept` or `hidden`. Any other decision answers 400, and there is no `delete`.
+The caller must pass `isModerator` (`lib/adminAuth.ts`), the same gate as every other queue. Writes are limited to 60 a minute for each address.
+`kept` stamps the check and leaves the price as it is, still `unchecked`.
+`hidden` hides each price the check names through that lane's own moderator door: the Pint Drop's `moderate`, and the community price's `moderateWithState` with its trust reconciliation. The check is stamped only after every hide lands, so a failed hide answers 503 and the row stays in the queue.
+A check that is not an unreviewed mismatch, or an unknown id, answers 404.
+Nothing is deleted: the check row (`public.price_bill_checks`, migration 0220, service role only), the drop and the community price all survive either decision.
+`__tests__/billChecksAdminRoute.test.ts` exercises these responses through the real entry point.
 
 ### `app/api/board-reads` - the board reader's proposal read (review item A4)
 

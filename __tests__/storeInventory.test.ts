@@ -54,6 +54,7 @@ const STORE_INVENTORY: Record<string, StoreRow> = {
   "lib/adultSelfAssertionStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/analyticsReceiptStore.ts": { class: "plain-dual-backend", selector: "selectStore" },
   "lib/areaDemandStore.ts": { class: "policy-heavy", selector: "selectStore" },
+  "lib/billCheckStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/checkInStore.ts": { class: "plain-dual-backend", selector: "selectStore" },
   "lib/cityEnrichmentCheckpointStore.server.ts": {
     class: "policy-heavy",

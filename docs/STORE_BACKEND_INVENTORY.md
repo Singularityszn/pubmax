@@ -55,6 +55,7 @@ silently stale.
 | adultSelfAssertionStore | factory-ready | Account assertion read and record; see [the adult policy](rules/lib-identity-accounts-and-sessions.md#everybody-who-joins-is-taken-to-be-an-adult-on-one-recorded-tap). |
 | analyticsReceiptStore | legacy-exception | Inline Supabase configuration checks; needs one selector seam. |
 | areaDemandStore | factory-ready | Demand signal with shared backend selection. |
+| billCheckStore | factory-ready | One row for each bill the bill check read: the verdict and the lines it needs, and the queue of bills that do not show their price. |
 | checkInStore | factory-ready | Check-in rows with shared backend selection. |
 | commentsStore | factory-eligible, policy-heavy | Comment moderation and report flow. |
 | communityPriceStore | factory-eligible, policy-heavy | Moderation, corroboration, venue signals, and Round source ownership. |
@@ -281,7 +282,7 @@ zero-argument selector before and after the factory wrapper, and its memory
 and Supabase implementations keep their existing fail-soft behavior.
 
 The current branch also has `createDualBackendStore` in
-`adultSelfAssertionStore`, `diaryStore`, `feedFreshnessStore`,
+`adultSelfAssertionStore`, `billCheckStore`, `diaryStore`, `feedFreshnessStore`,
 `harvestOverlayStore`, `kitchenReportsStore`, `occupancyStore`, `operatorFactsStore`, `priceTrustEventStore`,
 `pubPalToolTurnStore`, `regularNightReportsStore`, `stepOutNudgeStore`, `tableRequestsStore`, `venueCorrectionsStore`, `venueSubmissionStore`,
 `walkRouteStore` and `wantedStore`. This inventory records that current state; it does not require

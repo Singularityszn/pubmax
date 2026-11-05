@@ -50,6 +50,8 @@ import {
   cleanVibeTags,
   cleanVisibility,
   dropMatchesCityScope,
+  findPintDropsByIds,
+  grantPintDropReceipt,
   hasPricedDropToday as hasPricedDropTodayMemory,
   keepHiddenPintDrop,
   listReportedPintDrops,
@@ -215,6 +217,17 @@ export type PintDropStore = {
   listLegacyForVenue(venueId: string): Promise<PintDropDTO[]>;
   /** Moderator review queue: unreviewed drops in a status, with report metadata. */
   listForReview(status: PintDropReviewStatus): Promise<ModeratorDrop[]>;
+  /**
+   * The moderator shape of the named drops, photos resolved, for a queue that
+   * names drops by id (the bill check's mismatches). Unknown ids are left out.
+   */
+  listForModerationByIds(ids: readonly string[]): Promise<ModeratorDrop[]>;
+  /**
+   * The bill check found this drop's price on its bill (captain 5 Nov 2026):
+   * move its evidence from `unchecked` to `receipt`. Only a priced drop that
+   * is still `unchecked` moves. True means this call WROTE.
+   */
+  grantBillMatch(id: string): Promise<boolean>;
   /**
    * Public report: every server-derived identity records metadata. Only distinct
    * verified accounts advance the atomic auto-hide threshold; anonymous IP
@@ -812,10 +825,10 @@ async function attributedAuthorVenueIds(
 
 export const memoryPintDropStore: PintDropStore = {
   async create(input, photos, options) {
-    // The evidence is EARNED here, from what arrived, exactly as the Supabase
-    // backend earns it: a priced drop with no bill is `unchecked`, whatever the
-    // caller's object said (lib/pintDropReceipt.ts, captain decision 9).
-    const drop = withEarnedEvidence(input, photos);
+    // The evidence is STAMPED here exactly as the Supabase backend stamps it:
+    // a priced drop is `unchecked`, whatever the caller's object said, until
+    // the bill check reads its bill (lib/pintDropReceipt.ts).
+    const drop = withEarnedEvidence(input);
     // The same hard guard the Supabase backend gets from
     // pint_drops_priced_day_unique_idx (0141), over the same writes: the route's
     // pre-check and this create sit either side of an await, so two in-flight
@@ -827,8 +840,10 @@ export const memoryPintDropStore: PintDropStore = {
     ) {
       throw new PintDropDailyCapError();
     }
-    // Photos are not stored: there is no Storage without Supabase. Only the
-    // FACT that a bill arrived is kept, as the drop's evidence above.
+    // Photos are not stored: there is no Storage without Supabase. The bill
+    // itself is read by the route's background bill check, from the bytes
+    // that arrived.
+    void photos;
     addPintDrop(drop);
     return toDTO(drop);
   },
@@ -879,6 +894,16 @@ export const memoryPintDropStore: PintDropStore = {
     return rows
       .slice(0, MAX_PUBLIC_DROPS)
       .map((d) => toModeratorDTO(withVerifiedReportCount(d)));
+  },
+  async listForModerationByIds(ids) {
+    const found = findPintDropsByIds(ids);
+    return ids.flatMap((id) => {
+      const hit = found.get(id);
+      return hit ? [toModeratorDTO(withVerifiedReportCount(hit))] : [];
+    });
+  },
+  async grantBillMatch(id) {
+    return grantPintDropReceipt(id);
   },
   async listConfirmationCandidates(venueId) {
     return newestFirstCapped(
@@ -1059,15 +1084,16 @@ export function isPintDropDailyCapError(error: unknown): error is PintDropDailyC
 }
 
 /**
- * The drop as a create path stores it: its evidence EARNED from what arrived
+ * The drop as a create path stores it: its evidence stamped by the rule
  * (lib/pintDropReceipt.ts `priceEvidenceFor`), never carried in. Both backends
- * ask this, so a caller's object, a client body or a seed cannot claim a bill
- * that was not sent, and a priced drop with no bill is `unchecked` everywhere.
+ * ask this, so a caller's object, a client body or a seed cannot claim a bill.
+ * Every priced drop lands `unchecked`, bill or not: a photo attached is not a
+ * bill read, and only the bill check's match earns `receipt` (`grantBillMatch`).
  */
-function withEarnedEvidence(drop: PintDrop, photos: PintDropPhotos): PintDrop {
+function withEarnedEvidence(drop: PintDrop): PintDrop {
   const { priceEvidence: _claimed, ...rest } = drop;
   void _claimed;
-  const earned = priceEvidenceFor(drop.priceGbp, Boolean(photos.receipt));
+  const earned = priceEvidenceFor(drop.priceGbp);
   return earned ? { ...rest, priceEvidence: earned } : rest;
 }
 
@@ -1202,11 +1228,12 @@ function isMissingLastTrainColumnError(error: { code?: string; message?: string 
 // ── Supabase implementation ──────────────────────────────────────────────────
 export const supabasePintDropStore: PintDropStore = {
   async create(input, photos, options) {
-    // The evidence is EARNED from what arrived (lib/pintDropReceipt.ts). It
-    // follows the REQUEST, not the upload: a bill Storage failed to keep below
-    // was still sent, and the rule beside that branch is that our outage may
-    // not cost the drinker anything, including the standing they earned.
-    const drop = withEarnedEvidence(input, photos);
+    // The evidence is STAMPED by the rule (lib/pintDropReceipt.ts): every
+    // priced drop lands `unchecked`. The bill check reads the bytes that
+    // arrived, not the upload, so a bill Storage failed to keep below can
+    // still earn `receipt`: our outage may not cost the drinker the standing
+    // their bill shows.
+    const drop = withEarnedEvidence(input);
     const persistable: PersistableDrop = { ...drop };
     const uploaded: string[] = [];
     try {
@@ -1322,9 +1349,12 @@ export const supabasePintDropStore: PintDropStore = {
         error = await insert(row);
       }
       if (error && isMissingPriceEvidenceColumnError(error)) {
-        if (persistable.priceEvidence === "unchecked") {
-          // The one retry this rung refuses. Without its word an unchecked
-          // price reads as billed and would mark the pin (decision 9 reversed).
+        if (persistable.priceEvidence === "unchecked" && !photos.receipt) {
+          // The one retry this rung refuses. Without its word a typed price
+          // reads as billed and would mark the pin (decision 9 reversed). A
+          // price that came with its bill is saved without the word, as every
+          // billed price was before 0218: there is no column for the bill
+          // check to grant `receipt` into until the captain applies it.
           throw new UncheckedPriceNotStorableError();
         }
         console.warn(
@@ -1586,6 +1616,43 @@ export const supabasePintDropStore: PintDropStore = {
     const { data, error } = await reviewQuery();
     if (error) throw new Error(error.message);
     return toModeratorDTOsWithBatchedPhotos((data ?? []).map(fromRow));
+  },
+
+  async listForModerationByIds(ids) {
+    if (ids.length === 0) return [];
+    const { data, error } = await admin()
+      .from(TABLE)
+      .select("*")
+      .in("id", [...ids])
+      .limit(MAX_PUBLIC_DROPS);
+    if (error) throw new Error(error.message);
+    const byId = new Map((data ?? []).map((row) => [String(row.id), fromRow(row)]));
+    return toModeratorDTOsWithBatchedPhotos(
+      ids.flatMap((id) => {
+        const hit = byId.get(id);
+        return hit ? [hit] : [];
+      }),
+    );
+  },
+
+  /**
+   * ONE guarded update: only a priced drop still `unchecked` moves, so a retry
+   * or a row a moderator already settled writes nothing. A cluster without
+   * 0218 has no column to move and answers false.
+   */
+  async grantBillMatch(id) {
+    const { data, error } = await admin()
+      .from(TABLE)
+      .update({ price_evidence: "receipt" })
+      .eq("id", id)
+      .eq("price_evidence", "unchecked")
+      .not("price_gbp", "is", null)
+      .select("id");
+    if (error) {
+      if (isMissingPriceEvidenceColumnError(error)) return false;
+      throw new Error(error.message);
+    }
+    return (data ?? []).length > 0;
   },
 
   /** The venue's publicly readable priced drops, newest-first. The window,

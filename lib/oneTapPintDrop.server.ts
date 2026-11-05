@@ -60,7 +60,11 @@ async function listRecentForDedupe(
 }
 
 export type OneTapPintDropOutcome =
-  | { ok: true; drop: PintDrop }
+  /**
+   * `duplicate` marks the answer to a repeated tap: the row the first tap
+   * wrote, returned again. Nothing new landed, so nothing new is read.
+   */
+  | { ok: true; drop: PintDrop; duplicate?: true }
   | { ok: false; kind: "invalid_photo"; message: string }
   | { ok: false; kind: "storage"; message: string };
 
@@ -236,7 +240,7 @@ export async function writeOneTapPintDrop(
       : null;
     if (duplicate) {
       log("info", "one_tap_pint_drop.duplicate_tap", { venueId: input.venueId });
-      return { ok: true, drop: duplicate };
+      return { ok: true, drop: duplicate, duplicate: true };
     }
     const drop = await store.create(built, photos);
     signalPintDropLanded();
