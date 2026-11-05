@@ -12,7 +12,7 @@ Source of truth: **issue #252** ("Spec: The Local — companion-led activation, 
 
 | `docs/plans/sol.md` name | Reality | Status |
 | --- | --- | --- |
-| `POST /api/plans/generate` | Editable three-stop route generation | IMPLEMENTED LOCALLY |
+| `POST /api/plans/generate` | Editable route generation | IMPLEMENTED LOCALLY |
 | `PATCH /api/plans/:id` | Status, context, and route replacement | IMPLEMENTED LOCALLY |
 | `POST /api/plans/:id/actions` | Arrived / skipped / swapped | IMPLEMENTED LOCALLY |
 | `GET /api/night-areas/:slug` | Detail plus `GET /api/night-areas?city=` catalogue | IMPLEMENTED LOCALLY |
@@ -248,6 +248,7 @@ type GeneratePlanRequest = {
   cityId?: string;              // default "london"; validated by parseCityId
   query?: string;              // free-text night description; parsed by inferNightContext
   context?: Partial<NightContext> | NightContext; // merged over inference; MUST resolve a nightArea
+  planStartIso?: string;
   anchor?: {                    // the accepted pub, when the person kept one first
     venueId: string;
     source: PlanningIntentSource;   // "near" | "map-search" | "tonight" | "pal"
@@ -273,6 +274,13 @@ unanchored selection path. The anchored lane answers `200` with an `outcome`:
 `outcome` before it treats an empty `stops` array as no match.
 
 [`reconcilePlanContext`](../lib/planGenerationContext.ts) applies query inference, explicit context corrections, then completed intake fields in that order. Recognised price limits can tighten the resulting budget as described below. `context.nightArea` must resolve. A `null` area returns `422`.
+
+The optional `planStartIso` request field carries the displayed **First pint** time as a canonical UTC ISO timestamp.
+If present, an invalid value, including `null`, returns `400 MALFORMED_REQUEST` with "Plan start time is invalid."
+When no query, context correction, or completed intake supplies a daypart, generation derives the default daypart from this timestamp.
+This fallback remains attributed to `default`. It creates no explicit time choice or query evidence.
+Without this field, generation retains the request-clock fallback.
+Coverage: `__tests__/planAutomaticStart.test.ts` and `__tests__/planGenerationRequest.test.ts`.
 
 The composer always includes `context` through [`buildPlanGenerationIntakeBody`](../lib/planIntake.ts). It derives transport requirements from the current description, including empty or whitespace-only text. Removing transport wording removes the previous inferred requirement. An `explicitContext.transportConstraints` override still takes precedence. Recovered drink, food, and atmosphere choices remain intact.
 
