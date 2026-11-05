@@ -25,7 +25,7 @@ import { isPlanStopCount } from "@/lib/planStopCount";
 export const MAX_PLAN_GENERATION_BODY_BYTES = 16_384;
 const MAX_PLAN_GENERATION_QUERY_LENGTH = 500;
 
-const REQUEST_KEYS = ["query", "context", "cityId", "intake", "operationKey", "anchor"] as const;
+const REQUEST_KEYS = ["query", "context", "cityId", "intake", "operationKey", "anchor", "planStartIso"] as const;
 const ANCHOR_KEYS = ["venueId", "source", "acceptedArea", "startsAt", "venueIds"] as const;
 const NIGHT_PATCH_AREA_KEYS = ["kind", "id"] as const;
 const BOROUGH_AREA_KEYS = ["kind", "name"] as const;
@@ -62,6 +62,7 @@ type PlanGenerationRequest = {
   cityId: string | null;
   intake: ParsedPlanGenerationIntake | null;
   hasIntake: boolean;
+  planStartIso?: string;
   operationKey: string | null;
   anchor: PlanGenerationAnchor | null;
 };
@@ -289,6 +290,12 @@ export async function parsePlanGenerationRequest(
     if (!parsed.ok) return { ...parsed, status: 400 };
     intake = parsed.value;
   }
+  if (Object.hasOwn(raw, "planStartIso")) {
+    const timestamp = typeof raw.planStartIso === "string" ? Date.parse(raw.planStartIso) : Number.NaN;
+    if (!Number.isFinite(timestamp) || new Date(timestamp).toISOString() !== raw.planStartIso) {
+      return failure("Plan start time is invalid.");
+    }
+  }
   const anchor = parseAnchor(raw.anchor);
   if (anchor === undefined) return failure("Acceptance anchor is invalid.");
   return {
@@ -299,6 +306,7 @@ export async function parsePlanGenerationRequest(
       cityId: typeof raw.cityId === "string" ? raw.cityId : null,
       intake,
       hasIntake,
+      ...(typeof raw.planStartIso === "string" ? { planStartIso: raw.planStartIso } : {}),
       // A caller may pin idempotency by supplying its own create operation key.
       // Anything that is not a well-formed key is ignored so the route mints one.
       operationKey: isPlanIdempotencyKey(raw.operationKey) ? raw.operationKey.trim() : null,

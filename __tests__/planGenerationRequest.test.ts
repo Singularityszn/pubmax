@@ -12,6 +12,22 @@ function request(body: unknown): Request {
 }
 
 describe("parsePlanGenerationRequest", () => {
+  it("accepts an optional canonical Plan schedule outside explicit context and intake", async () => {
+    const result = await parsePlanGenerationRequest(request({
+      query: "Clapham", planStartIso: "2026-07-20T19:00:00.000Z",
+    }), NOW);
+    expect(result).toMatchObject({ ok: true, value: {
+      planStartIso: "2026-07-20T19:00:00.000Z", context: null, intake: null,
+    } });
+  });
+
+  it.each([null, 42, {}, "", "tomorrow", "2026-02-30T18:00:00.000Z", "2026-07-20T19:00:00+01:00"])(
+    "rejects a malformed Plan schedule hint %j", async (planStartIso) => {
+      const result = await parsePlanGenerationRequest(request({ query: "Clapham", planStartIso }), NOW);
+      expect(result).toMatchObject({ ok: false, code: "MALFORMED_REQUEST", status: 400 });
+    },
+  );
+
   it("treats an explicit null legacy context like an omitted context when intake is absent", async () => {
     const omitted = await parsePlanGenerationRequest(request({ query: "Clapham classics" }), NOW);
     const explicitNull = await parsePlanGenerationRequest(
