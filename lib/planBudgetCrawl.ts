@@ -9,9 +9,9 @@
 // ledger below only reads what the generator returned.
 //
 // THREE RULES.
-// 1. ONE PINT A STOP, PER PERSON. The total is the sum of each stop's listed
-//    pint. Nothing here suggests a second round, and no total rewards drinking
-//    more: a stop is a pub, never a count of pints.
+// 1. ONE LISTED PRICE A STOP, PER PERSON. A restored price can lack serving
+//    evidence, so only matching pint quotes support the one-pint basis.
+//    Nothing here suggests a second round: a stop is a pub, not a pint count.
 // 2. EVERY FIGURE CARRIES ITS RECORD. A ledger row keeps its own serving,
 //    publisher and read day. An estimate or a stop with no price leaves the
 //    total out.
@@ -66,7 +66,7 @@ type PlanBudgetLedgerRow = {
 export type PlanBudgetLedger = {
   rows: PlanBudgetLedgerRow[];
   limit: string;
-  /** Total of every stop's listed pint, or null when any stop has none. */
+  /** Sum of listed prices, or null when a stop has no listed price. */
   totalPence: number | null;
   /** True or false against the limit, null with no total. */
   fits: boolean | null;
