@@ -170,7 +170,6 @@ export function CategoryShowcase({
               <button
                 type="button"
                 className="catShowcase__link"
-                aria-label={`Choose ${label}`}
                 aria-pressed={isActive}
                 onClick={() => onCategoryActivate(category)}
               >
@@ -181,7 +180,6 @@ export function CategoryShowcase({
                 prefetch={false}
                 className="catShowcase__link pressable"
                 href={hrefFor(category)}
-                aria-label={`Explore ${label}`}
               >
                 {inner}
               </Link>
