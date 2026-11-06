@@ -41,6 +41,7 @@ import {
   describeInternalLanguage,
   internalLanguageFinding,
 } from "../lib/heritageLanguageGate.mjs";
+import { haversineMeters } from "../lib/greatCircle.mjs";
 import { heritagePlaceConflict } from "../lib/heritagePlaceConflict.mjs";
 import { classifyHeritageDate } from "../lib/heritageDate.mjs";
 
@@ -120,10 +121,7 @@ function coordinatesMatch(venue, fact) {
   const lng = fact.longitude;
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180 ||
       !Number.isFinite(venue.lat) || !Number.isFinite(venue.lng)) return false;
-  const radians = (value) => value * Math.PI / 180;
-  const a = Math.sin(radians(lat - venue.lat) / 2) ** 2 +
-    Math.cos(radians(lat)) * Math.cos(radians(venue.lat)) * Math.sin(radians(lng - venue.lng) / 2) ** 2;
-  return 6371000 * 2 * Math.asin(Math.sqrt(Math.min(1, a))) <= 150;
+  return haversineMeters(venue.lat, venue.lng, lat, lng) <= 150;
 }
 
 // Index the dataset by the stable venue id, so a heritage key whose name has
