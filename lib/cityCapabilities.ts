@@ -32,10 +32,10 @@ const MAP_AVAILABLE: CityCapabilityEvidence = {
   explanation: "Listed pubs are available to browse and search in this city.",
 };
 
-const PRICES_NOT_YET_COLLECTED: CityCapabilityEvidence = {
+const PRICES_COVERAGE_VARIES: CityCapabilityEvidence = {
   availability: "unavailable",
   asOf: null,
-  explanation: "We haven't yet collected pint prices for this city.",
+  explanation: "Price coverage varies by place and source.",
 };
 
 const EVENTS_LONDON_ONLY: CityCapabilityEvidence = {
@@ -82,7 +82,7 @@ function editorialCoreCity(
     cityId,
     releaseTier: "core",
     map: MAP_AVAILABLE,
-    prices: PRICES_NOT_YET_COLLECTED,
+    prices: PRICES_COVERAGE_VARIES,
     events: EVENTS_LONDON_ONLY,
     routes: ROUTES_AVAILABLE,
     transport,
@@ -103,7 +103,7 @@ function mapOnlyCity(
     cityId,
     releaseTier,
     map: MAP_AVAILABLE,
-    prices: PRICES_NOT_YET_COLLECTED,
+    prices: PRICES_COVERAGE_VARIES,
     events: EVENTS_LONDON_ONLY,
     routes: EDITORIAL_NOT_YET_AVAILABLE,
     transport: TRANSPORT_NOT_YET_AVAILABLE,

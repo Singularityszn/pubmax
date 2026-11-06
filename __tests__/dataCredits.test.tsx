@@ -129,6 +129,20 @@ describe("the published menu prices", () => {
 });
 
 describe("/credits", () => {
+  it("credits published directories without claiming an unrecorded reuse licence", () => {
+    const view = document.createElement("div");
+    view.innerHTML = renderToStaticMarkup(DataCreditsPage());
+
+    expect(view.querySelector(".legalLede")?.textContent).toContain("published directories");
+    expect(view.querySelector(".legalLede")?.textContent).not.toContain("A price is either");
+    const row = view.querySelector('[data-credit="pint-prices"]');
+    expect(row?.querySelector("dt")?.textContent).toBe("Pint Prices");
+    expect(row?.querySelector('a[href="https://www.pint-prices.com/"]')?.textContent).toBe("Source");
+    expect(row?.textContent).toContain("No reuse licence is recorded in this source registry.");
+    expect(row?.textContent).not.toContain("Used under the publisher's own terms.");
+    expect(row?.querySelectorAll("a")).toHaveLength(1);
+  });
+
   it("prints every source with its credit, its licence and a link to it", () => {
     const view = document.createElement("div");
     view.innerHTML = renderToStaticMarkup(DataCreditsPage());
@@ -144,7 +158,7 @@ describe("/credits", () => {
       if (credit.sourceUrl) expect(hrefs).toContain(credit.sourceUrl);
       else expect(row?.textContent).toContain("Each price links the page it was read from.");
       if (credit.licence) expect(hrefs).toContain(credit.licence.url);
-      else expect(row?.textContent).toContain("Used under the publisher's own terms.");
+      else expect(row?.textContent).toContain(credit.licenceNote ?? "Used under the publisher's own terms.");
     }
   });
 
