@@ -106,34 +106,33 @@ describe("fraction ownership at printed item boundaries", () => {
     },
   );
 
-  it("refuses a wrapped fraction without losing a separate named pint", () => {
+  it("holds both prices beside an unbound wrapped fraction", () => {
     const text = ["Peroni £4.50", "(1/3 pint)", "Guinness pint £6.20"].join("\n");
     const html = "<p>Peroni £4.50<br>(1/3 pint)<br>Guinness pint £6.20</p>";
-    expect(readVenueDrinkPrices(text).kept).toMatchObject([pintRow]);
-    expect(readVenueDrinkPrices(html, "html").kept).toMatchObject([pintRow]);
-    expect(readChainPintPrices(html).kept).toMatchObject([{ drinkLabel: "Guinness pint", priceGbp: 6.2 }]);
-    expect(factsFromPage(html, fact).drinks).toEqual([pint]);
+    expect(readVenueDrinkPrices(text).kept).toEqual([]);
+    expect(readVenueDrinkPrices(html, "html").kept).toEqual([]);
+    expect(readChainPintPrices(html).kept).toEqual([]);
+    expect(factsFromPage(html, fact).drinks).toEqual([]);
   });
 
   it("withholds a bare parenthesised fraction wrapped inside its priced item", () => {
     const text = ["Peroni £4.50", "(2/3)", "Guinness £6.20 /pint"].join("\n");
     const html = "<p>Peroni £4.50<br>(2/3)</p><p>Guinness £6.20 /pint</p>";
-    expect(readVenueDrinkPrices(text).kept).toMatchObject([{ ...pintRow, drinkLabel: "Guinness" }]);
+    expect(readVenueDrinkPrices(text).kept).toEqual([]);
     expect(readVenueDrinkPrices(html, "html").kept).toMatchObject([{ ...pintRow, drinkLabel: "Guinness" }]);
     expect(readChainPintPrices(html).kept).toMatchObject([{ drinkLabel: "Guinness", priceGbp: 6.2 }]);
     expect(factsFromPage(html, fact).drinks).toEqual([pint]);
   });
 
-  it("keeps trailing pint evidence beside a standalone wrapped fraction", () => {
+  it("holds trailing pint evidence beside an unbound wrapped fraction", () => {
     const text = ["Peroni £4.50", "(1/3 pint)", "Guinness £6.20 /pint"].join("\n");
-    expect(readVenueDrinkPrices(text).kept).toMatchObject([{ ...pintRow, drinkLabel: "Guinness" }]);
-    expect(factsFromPage(text, fact).drinks).toEqual([pint]);
+    expect(readVenueDrinkPrices(text).kept).toEqual([]);
+    expect(factsFromPage(text, fact).drinks).toEqual([]);
   });
 
   it.each([
     "<p>Guinness pint £6.20</p><p>(1/3 pint)</p><p>Madri pint £6.40</p>",
-    "<p>Guinness pint £6.20<br>(1/3 pint)<br>Madri pint £6.40</p>",
-  ])("keeps both named pints around an unbound fraction: %s", (html) => {
+  ])("keeps both named pints outside a fraction's block: %s", (html) => {
     const expected = [pintRow, { drinkLabel: "Madri pint", category: "beer", priceGbp: 6.4 }];
     expect(readVenueDrinkPrices(html, "html").kept).toMatchObject(expected);
     expect(readChainPintPrices(html).kept).toMatchObject([
@@ -165,16 +164,15 @@ describe("fraction ownership at printed item boundaries", () => {
     },
   );
 
-  it("keeps a named competing drink as evidence beside the unbound fraction", () => {
+  it("holds a pint beside an unbound fraction and another named drink", () => {
     const html = "<p>Guinness pint £6.20<br>(1/3 pint)<br>Madri £6.40</p>";
-    expect(readVenueDrinkPrices(html, "html").kept).toMatchObject([pintRow]);
-    expect(readChainPintPrices(html).kept).toMatchObject([{ drinkLabel: "Guinness pint", priceGbp: 6.2 }]);
-    expect(factsFromPage(html, fact).drinks).toEqual([pint]);
+    expect(readVenueDrinkPrices(html, "html").kept).toEqual([]);
+    expect(readChainPintPrices(html).kept).toEqual([]);
+    expect(factsFromPage(html, fact).drinks).toEqual([]);
   });
 
   it.each([
     "<p>Guinness pint £6.20</p><p>(1/3 pint)</p><p>Hawkstone pint £6.40</p>",
-    "<p>Guinness pint £6.20<br>(1/3 pint)<br>Hawkstone pint £6.40</p>",
   ])("keeps a named pint when its category comes from the menu context: %s", (html) => {
     expect(readVenueDrinkPrices(html, "html").kept).toMatchObject([
       pintRow, { ...pintRow, drinkLabel: "Hawkstone pint", priceGbp: 6.4 },
@@ -212,12 +210,12 @@ describe("fraction ownership at printed item boundaries", () => {
     expect(factsFromPage(text, fact).drinks).toEqual([]);
   });
 
-  it("keeps the independently measured pint before a wrapped ambiguous fraction", () => {
+  it("holds the explicitly measured pint before an ambiguous fraction", () => {
     const text = ["Guinness pint £6.20", "(1/3 pint)", "Kernel stout £4.50"].join("\n");
     const html = "<p>Guinness pint £6.20<br>(1/3 pint)<br>Kernel stout £4.50</p>";
-    expect(readVenueDrinkPrices(text).kept).toMatchObject([pintRow]);
-    expect(readChainPintPrices(html).kept).toMatchObject([{ drinkLabel: "Guinness pint", priceGbp: 6.2 }]);
-    expect(factsFromPage(html, fact).drinks).toEqual([pint]);
+    expect(readVenueDrinkPrices(text).kept).toEqual([]);
+    expect(readChainPintPrices(html).kept).toEqual([]);
+    expect(factsFromPage(html, fact).drinks).toEqual([]);
   });
 
   it.each([
@@ -379,17 +377,17 @@ describe("whole printed items with wrapped serving evidence", () => {
   it.each([
     "<p>Guinness pint £6.20<br>(1/3 pint)<br>Lager £6.40</p>",
     "<p>Madri £6.40 4.6% ABV<br>(1/3 pint)<br>Guinness pint £6.20</p>",
-  ])("preserves the independently stated pint when another line names a drink in %s", (menu) => {
-    expect(readVenueDrinkPrices(menu, "html").kept).toContainEqual(expect.objectContaining(pintRow));
-    expect(readChainPintPrices(menu).kept).toContainEqual(expect.objectContaining({ drinkLabel: "Guinness pint", priceGbp: 6.2 }));
-    expect(factsFromPage(menu, fact).drinks).toEqual([pint]);
+  ])("holds both drinks beside an unbound serving note in %s", (menu) => {
+    expect(readVenueDrinkPrices(menu, "html").kept).toEqual([]);
+    expect(readChainPintPrices(menu).kept).toEqual([]);
+    expect(factsFromPage(menu, fact).drinks).toEqual([]);
   });
 
-  it("keeps the independently stated pint but refuses a separate merchandise price", () => {
+  it("holds ambiguous drinks and refuses a separate merchandise price", () => {
     const menu = "<p>Guinness pint £6.20<br>(1/3 pint)<br>Madri £6.40, Guinness T-shirt £8.00</p>";
-    expect(readVenueDrinkPrices(menu, "html").kept).toMatchObject([pintRow]);
-    expect(readChainPintPrices(menu).kept).toMatchObject([{ drinkLabel: "Guinness pint", priceGbp: 6.2 }]);
-    expect(factsFromPage(menu, fact).drinks).toEqual([pint]);
+    expect(readVenueDrinkPrices(menu, "html").kept).toEqual([]);
+    expect(readChainPintPrices(menu).kept).toEqual([]);
+    expect(factsFromPage(menu, fact).drinks).toEqual([]);
   });
 
   it("keeps a pint column that shares its row with a named half pint", () => {
@@ -516,11 +514,13 @@ describe("price-local evidence inside a printed item", () => {
     expect([...readKeylessUkPriceDecisions(menu, "html").keys()]).toEqual(prices.map(({ at }) => at));
   });
 
-  it.each([": ", " - "])("keeps explicit competing pint evidence before %s", (separator) => {
+  it.each([": ", " - "])("keeps only the pint beyond both adjacent prices before %s", (separator) => {
     const menu = `<p>Guinness pint £6.20<br>(1/3 pint)<br>Hawkstone £6.40 pint${separator}Madri pint £6.80</p>`;
-    expect(readVenueDrinkPrices(menu, "html").kept).toContainEqual(expect.objectContaining(pintRow));
-    expect(readChainPintPrices(menu).kept).toContainEqual(expect.objectContaining({ drinkLabel: "Guinness pint", priceGbp: 6.2 }));
-    expect(factsFromPage(menu, fact).drinks).toContainEqual(pint);
+    expect(readVenueDrinkPrices(menu, "html").kept).toMatchObject([
+      { drinkLabel: "Madri pint", category: "beer", priceGbp: 6.8 },
+    ]);
+    expect(readChainPintPrices(menu).kept).toMatchObject([{ drinkLabel: "Madri pint", priceGbp: 6.8 }]);
+    expect(factsFromPage(menu, fact).drinks).toEqual([{ ...pint, drink: "Madri", priceGbp: 6.8 }]);
   });
 
   it("keeps a wine name, measure and price on three lines in the same item", () => {
@@ -648,12 +648,12 @@ describe("one admission for each original price", () => {
   );
 
   it.each(["2/3 pint Kernel stout", "2/3 pint (Kernel stout)", "(2/3 pint, Kernel stout)"])(
-    "keeps an unpriced named serving separate from a pint before %s",
+    "holds a pint beside the unpriced fractional item %s",
     (named) => {
       const menu = "<p>Guinness pint £6.20<br>" + named + "</p>";
-      expect(readVenueDrinkPrices(menu, "html").kept).toMatchObject([pintRow]);
-      expect(readChainPintPrices(menu).kept).toMatchObject([{ drinkLabel: "Guinness pint", priceGbp: 6.2 }]);
-      expect(factsFromPage(menu, fact).drinks).toEqual([pint]);
+      expect(readVenueDrinkPrices(menu, "html").kept).toEqual([]);
+      expect(readChainPintPrices(menu).kept).toEqual([]);
+      expect(factsFromPage(menu, fact).drinks).toEqual([]);
     },
   );
 
@@ -946,12 +946,12 @@ describe("item evidence and reader policy", () => {
   });
 
   it.each(["2/3 pint Hawkstone", "2/3 pint (Hawkstone)", "(2/3 pint, Hawkstone)", "(2/3, Hawkstone)"])(
-    "does not infer a serving description from an unrecognised residual name in %s",
+    "holds a pint when an adjacent fraction has an unrecognised name in %s",
     (fragment) => {
       const menu = "<p>Guinness pint £6.20<br>" + fragment + "</p>";
-      expect(readVenueDrinkPrices(menu, "html").kept).toMatchObject([pintRow]);
-      expect(readChainPintPrices(menu).kept).toMatchObject([{ drinkLabel: "Guinness pint", priceGbp: 6.2 }]);
-      expect(factsFromPage(menu, fact).drinks).toEqual([pint]);
+      expect(readVenueDrinkPrices(menu, "html").kept).toEqual([]);
+      expect(readChainPintPrices(menu).kept).toEqual([]);
+      expect(factsFromPage(menu, fact).drinks).toEqual([]);
     },
   );
 

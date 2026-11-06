@@ -2629,12 +2629,10 @@ describe("serving output from the original price record", () => {
     ]);
   });
 
-  it("distinguishes a strength note from a named drink beside the same fraction", () => {
+  it("holds a pint beside an unpriced fraction with a strength or drink name", () => {
     const pint = "Guinness pint £6.20";
     expect(factsFromPage("<p>" + pint + "<br>2/3 pint (4.2% ABV)</p>", pageFact).drinks).toEqual([]);
-    expect(factsFromPage("<p>" + pint + "<br>2/3 pint Hawkstone (4.2% ABV)</p>", pageFact).drinks).toEqual([
-      { drink: "Guinness", size: "pint", sizeDetail: "pint", priceGbp: 6.2, standing: "listed", ...pageFact },
-    ]);
+    expect(factsFromPage("<p>" + pint + "<br>2/3 pint Hawkstone (4.2% ABV)</p>", pageFact).drinks).toEqual([]);
   });
 
   it("does not use a neighbouring soft-drink band for a stated pint", () => {

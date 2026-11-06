@@ -29,6 +29,13 @@ const servings = [
   "2/3 pint", "⅔ pint", "two-thirds of a pint", "two thirds pint",
   "3/4 pint", "¾ pint", "three-quarter pint", "three-quarters pint", "¼ pint",
   "1/10 pint", "0.5 pint", "0.75 pint", "schooner",
+  "&frac12; pint", "&frac13; pint", "&frac23; pint", "&frac14; pint", "&frac34; pint",
+  "&frac15; pint", "&frac16; pint", "&frac18; pint", "&frac25; pint", "&frac35; pint",
+  "&frac38; pint", "&frac45; pint", "&frac56; pint", "&frac58; pint", "&frac78; pint",
+  "&frac12;pint", "&frac34;pint",
+  "&#190; pint", "&#x2154; pint", "⅟ pint", "↉ pint", "⁴⁄₅ pint",
+  "third", "quarter", "fifth", "sixth", "seventh", "eighth", "ninth", "tenth",
+  "fractional measure", "served as a pint", "small serving", "taster measure", "pour size unspecified",
 ];
 const layouts: Array<[string, (serving: string) => string]> = [
   ["before the price", (serving) => `<p>Kernel stout ${serving} £6.20</p>`],
@@ -36,7 +43,12 @@ const layouts: Array<[string, (serving: string) => string]> = [
   ["in a wrapped qualifier", (serving) => `<p>Kernel stout pint £6.20<br>(${serving})</p>`],
   ["in a plain wrapped qualifier", (serving) => `Kernel stout pint £6.20\n(${serving})\n\n`],
   ["in a wrapped description", (serving) => `<p>Kernel stout draught £6.20<br>Served as ${serving}</p>`],
+  ["in a plain newline description", (serving) => `Kernel stout pint £6.20\nServed as ${serving}\n\n`],
+  ["in a plain preceding description", (serving) => `Served as ${serving}\nKernel stout pint £6.20\n\n`],
+  ["in a plain newline note", (serving) => `Kernel stout pint £6.20\nServing: ${serving}\n\n`],
+  ["in a plain preceding note", (serving) => `Serving: ${serving}\nKernel stout pint £6.20\n\n`],
   ["in a preceding description", (serving) => `<p>Served as ${serving}<br>Kernel stout pint £6.20</p>`],
+  ["between two pints", (serving) => `Kernel stout pint £6.20\n(${serving})\nHawkstone pint £6.40\n\n`],
   ["before an equal-price sibling", (serving) => `<p>Kernel stout £6.20 (${serving}); Guinness pint £6.20</p>`],
 ];
 

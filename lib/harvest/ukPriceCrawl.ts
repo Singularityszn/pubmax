@@ -293,6 +293,12 @@ const PRICE_ONLY_LINE = /^(?:£\s*\d{1,2}(?:\.\d{1,2})?\s*(?:[|/]\s*)?)+$/;
 const PRICE_ITEM_SEPARATOR = /(?:[,.;:•·|!?]|\s+-\s+)/;
 const LEADING_PRICE_ITEM_SEPARATORS = new RegExp(`^\\s*(?:${PRICE_ITEM_SEPARATOR.source}\\s*)+`);
 
+const NAMED_HTML_FRACTIONS: Readonly<Record<string, string>> = {
+  frac12: "½", frac13: "⅓", frac14: "¼", frac15: "⅕", frac16: "⅙", frac18: "⅛",
+  frac23: "⅔", frac25: "⅖", frac34: "¾", frac35: "⅗", frac38: "⅜",
+  frac45: "⅘", frac56: "⅚", frac58: "⅝", frac78: "⅞",
+};
+
 const FRACTIONAL_BEER_MEASURES: ReadonlyArray<readonly [RegExp, string | null]> = [
   [/\b1[ \t]*[\/⁄][ \t]*2(?=\b|pints?\b)|\b0[.,]50?(?=[ \t]*pints?\b)|½|\b(?:half|halves|(?:one[ \t-]|a[ \t]+)half)\b/i, "half"],
   [/\b1[ \t]*[\/⁄][ \t]*3(?=\b|pints?\b)|⅓|\b(?:one[ \t-]|a[ \t]+)third\b/i, "one-third"],
@@ -302,10 +308,11 @@ const FRACTIONAL_BEER_MEASURES: ReadonlyArray<readonly [RegExp, string | null]> 
   [/[¼¾⅛⅜⅝⅞⅐⅑⅒⅕⅖⅗⅘⅙⅚]/, null],
 ];
 const FRACTIONAL_BEER_MEASURE = new RegExp(FRACTIONAL_BEER_MEASURES.map(([pattern]) => `(?:${pattern.source})`).join("|"), "i");
+const UNCERTAIN_PINT_SERVING = /\b(?:thirds?|quarters?|fifths?|sixths?|sevenths?|eighths?|ninths?|tenths?|fractions?|fractional|served[ \t]+as|(?:serving|pour|portion)[ \t]+size|(?:small|sample|taster|tasting)[ \t]+(?:serves?|servings?|pours?|measures?|pints?))\b|\b\d+[ \t]*\/[ \t]*\d+\b|[⁄∕\u2150-\u215f\u2189]/i;
 
 export function fractionalBeerServing(text: string): string | null {
   const match = FRACTIONAL_BEER_MEASURE.exec(text)?.[0];
-  if (!match) return null;
+  if (!match) return UNCERTAIN_PINT_SERVING.exec(text)?.[0].toLowerCase() ?? null;
   return FRACTIONAL_BEER_MEASURES.find(([pattern]) => pattern.test(match))?.[1] ?? match.toLowerCase();
 }
 
@@ -948,6 +955,7 @@ function readPageText(
     .replace(/&nbsp;/gi, " ")
     .replace(/&amp;/gi, "&")
     .replace(/&pound;/gi, "£")
+    .replace(/&(frac[1-9][1-9]);/gi, (entity, name: string) => NAMED_HTML_FRACTIONS[name.toLowerCase()] ?? entity)
     // A NUMERIC REFERENCE IS THE CHARACTER IT NAMES, and leaving it undecoded
     // hides drink words: a spirits list states `Bosford Ros&#233;`, which is not
     // a wine to any pattern here, and `&#163;` is not a price to any of them.
@@ -1279,33 +1287,15 @@ function inBottledSection(text: string, at: number): boolean {
 
 type PrintedSpan = { start: number; end: number };
 
-const PRINTED_DRINK_STRENGTH = /(?<![\p{L}\p{N}])(?<!\d[.,])\d{1,2}(?:[.,]\d+)?[ \t]*%(?:[ \t]*abv\b)?(?=[\s,.!?()]|$)/giu;
-
 function unpricedFractionToken(line: PrintedMenuLine): string | undefined {
   if (NEXT_UK_PRICE.test(line.text) || FRACTIONAL_PRICE_DISCOUNT.test(line.text)) return undefined;
   return LEADING_FRACTIONAL_BEER_MEASURE.exec(line.text)?.[0];
 }
 
 function unpricedFraction(line: PrintedMenuLine): PrintedSpan | null {
-  const marker = unpricedFractionToken(line);
-  if (!marker) return null;
-  const explicit = FRACTIONAL_PINT_MEASURE.exec(marker);
-  const remainder = line.text.slice(marker.length).trim();
-  if (!explicit && !marker.trimStart().startsWith("(") && !/\b(?:half|halves|quarters?|schooners?)\b/i.test(marker)) return null;
-  const measure = explicit ?? FRACTIONAL_BEER_MEASURE.exec(marker);
-  if (!measure) return null;
-  const from = measure.index;
-  const to = from + measure[0].length;
-  const detail = (marker.slice(to) + " " + remainder)
-    .replace(PRINTED_DRINK_STRENGTH, " ")
-    .replace(/\(\s*\)/g, " ")
-    .replace(/^[\s,()]+|[\s,.!?()]+$/g, "");
-  // A token can qualify the adjacent price, but a name on this line
-  // identifies a different item. Punctuation does not change that role.
-  if (detail && !OFFER_SERVING_QUALIFIER.test(detail) && !/^extra cold$/i.test(detail)) return null;
-  return explicit
-    ? { start: line.start + from, end: line.start + to }
-    : { start: line.start, end: line.start + marker.length };
+  if (NEXT_UK_PRICE.test(line.text) || FRACTIONAL_PRICE_DISCOUNT.test(line.text)
+    || !fractionalBeerServing(line.text)) return null;
+  return { start: line.start, end: line.start + line.text.length };
 }
 
 const PRINTED_PINT_UNIT = /(?:\b(?:pints?|568[ \t]*ml)\b[\s.,;:/|()-]*$|^\s*(?:a\s+)?pint\s+of\s+)/i;
@@ -1461,8 +1451,6 @@ export type PrintedPriceEvidence = {
   admission: PriceAdmission;
   fraction: PriceFraction;
   qualifier?: PrintedSpan;
-  fullPint: boolean;
-  independentDrink: boolean;
 };
 
 type PrintedPriceLayout = {
@@ -1779,9 +1767,6 @@ function buildPriceEvidence(
     wine,
     admission,
     fraction,
-    fullPint,
-    independentDrink: !inherited && admission.kind !== "refused" && typeof identity.decision !== "string"
-      && Boolean(fullPint || (directCategory && hasItemName) || wine),
   };
 }
 
@@ -1809,7 +1794,7 @@ export function printedPriceLayout(
   let depth = 0;
 
   function canContinue(line: PrintedMenuLine, prior?: PrintedMenuLine): boolean {
-    return !selectedByLine.get(line.start)?.length && !unpricedFractionToken(line)
+    return !selectedByLine.get(line.start)?.length && !unpricedFraction(line)
       && !DESCRIPTION_PREFIX.test(line.text)
       && !blockOfferCues.has(line.start)
       && !(prior && inlineBreaks.has(line.start - 1) && finishesDescription(prior.text, line.text))
@@ -1960,7 +1945,7 @@ export function printedPriceLayout(
       if (firstIndex === itemIndex) return undefined;
       const note = text.slice(start, item.start).replaceAll("\n", " ");
       if (!namesGoods(note) && !hasFoodWords(note) && !priceHasOffer(note, 0, note, 0)
-        && !(DESCRIPTION_PREFIX.test(note) && fractionalBeerServing(note))) return undefined;
+        && !fractionalBeerServing(note)) return undefined;
       for (const line of lines.slice(firstIndex, itemIndex)) descriptionLines.add(line.start);
       return { start, end: item.start };
     }
@@ -2069,12 +2054,8 @@ export function printedPriceLayout(
           if (priceLine < blockEnd && following && nameStarts.get(following.start) === nameStart) after = following;
         }
         const later = edge(after, "first");
-        if (earlier && !(earlier.fullPint && earlier.independentDrink && later?.independentDrink)) {
-          earlier.qualifier = qualifier;
-        }
-        if (later && !(later.fullPint && later.independentDrink && earlier?.independentDrink)) {
-          later.qualifier = qualifier;
-        }
+        if (earlier) earlier.qualifier = qualifier;
+        if (later) later.qualifier = qualifier;
       }
     }
     applyFractionQualifiers();
