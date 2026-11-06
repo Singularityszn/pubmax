@@ -724,7 +724,13 @@ test("a night of only excluded rows keeps pub suggestions and an event-scoped em
     "data-listings-status",
     "empty",
   );
-  await expectNoEventsWithPubSuggestions(page);
+  // The only rows are a Wetherspoon deal and a theatre show, which may not
+  // lead. The chain block below still lists the deal, so the empty lede
+  // points to it instead of saying no events are listed.
+  await expect(page.getByTestId("tonight-hyped-row").first()).toBeVisible();
+  await expect(page.locator(".tonightStatus").filter({ hasText: "Chain listings are available below." })).toBeVisible();
+  await expect(page.getByText("No confirmed events listed tonight.")).toHaveCount(0);
+  await expect(page.getByText(/having a quiet one tonight/i)).toHaveCount(0);
   // Scoped to the lede region on purpose (#1627, app/AGENTS.md). The
   // Wetherspoon block below it still carries the JDW row under the chain's own
   // name, and taking it off the page would drop a real deal; what the contract
