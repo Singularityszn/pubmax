@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
-import { formatPintDatasetSnapshot } from "@/lib/dataFreshness";
+import { formatSnapshotFrom } from "@/lib/dataFreshness";
+import { oldestPintRead } from "@/lib/drinks";
 import {
   TONIGHT_CHEAP_PINTS_TITLE,
   tonightCheapPintChainLabel,
@@ -26,6 +27,7 @@ export default function TonightCheapPints({
   show?: boolean;
 }) {
   if (!show || rows.length === 0) return null;
+  const observedAt = oldestPintRead(rows.map((row) => row.observedAt));
   return (
     <section className="tonightCheapPints" aria-labelledby="tonight-cheap-pints-title">
       <h2 className="tonightCheapPintsTitle" id="tonight-cheap-pints-title">
@@ -59,7 +61,9 @@ export default function TonightCheapPints({
           </li>
         ))}
       </ul>
-      <p className="tonightCheapPintsCredit">{formatPintDatasetSnapshot()}</p>
+      {observedAt ? (
+        <p className="tonightCheapPintsCredit">{formatSnapshotFrom(new Date(observedAt))}</p>
+      ) : null}
     </section>
   );
 }

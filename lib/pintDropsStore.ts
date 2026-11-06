@@ -19,6 +19,7 @@ import {
 } from "@/lib/drinkMeasure";
 import { detectImageKind, magicBytesOk as magicBytesOkPure, stripImageMetadata } from "@/lib/imageSafety";
 import { log } from "@/lib/log";
+import { loadVenueAliasResolver } from "@/lib/venueAliases";
 import { demoDropsFor, demoPintDropsForCity } from "@/lib/pintDropSeeds";
 import {
   confirmationIsLive,
@@ -75,6 +76,15 @@ import { londonDayKey } from "@/lib/pintContributions";
 import { PINT_DROPS_TABLE } from "@/lib/pintDropTable";
 
 const TABLE = PINT_DROPS_TABLE;
+
+/**
+ * Every venue id a drop for this venue may be stored under, current id first.
+ * A drop keeps the id it was written with, so a read for a venue whose id was
+ * since merged or superseded still finds the drops logged under the old one.
+ */
+async function storedVenueIds(venueId: string): Promise<string[]> {
+  return (await loadVenueAliasResolver()).storedIds(venueId);
+}
 
 /**
  * The ceiling on ONE Pint Index build. It is deliberately far above today's
@@ -690,7 +700,7 @@ export const memoryPintDropStore: PintDropStore = {
   },
   async listVisible(venueId, viewer, authorHandle, cityId) {
     const rows = venueId
-      ? listVisiblePintDrops(venueId)
+      ? (await storedVenueIds(venueId)).flatMap((id) => listVisiblePintDrops(id))
       : listAllVisiblePintDrops(cityId);
     const author = normalizeViewerHandle(authorHandle);
     // Visibility applied server-side (issue #29). Legacy is EXCLUDED from the
@@ -709,7 +719,7 @@ export const memoryPintDropStore: PintDropStore = {
   },
   async listLegacyForVenue(venueId) {
     const published = await dropWithdrawnAuthors(
-      listLegacyPintDropsForVenue(venueId),
+      (await storedVenueIds(venueId)).flatMap((id) => listLegacyPintDropsForVenue(id)),
       (d) => d.handle,
     );
     return newestFirstCapped(published).map((d) =>
@@ -1161,6 +1171,7 @@ export const supabasePintDropStore: PintDropStore = {
    *  rows in newestFirstCapped so both backends serve one read-merge path. */
   async listVisible(venueId, viewer, authorHandle, cityId) {
     const author = normalizeViewerHandle(authorHandle);
+    const venueIds = venueId ? await storedVenueIds(venueId) : [];
     // Base visible read, newest-first, capped. Split from the visibility filter
     // so we can retry WITHOUT it if migration 0012 isn't applied to this DB yet
     // (pre-0012 every row is effectively `public`, so an unfiltered read is safe).
@@ -1171,7 +1182,8 @@ export const supabasePintDropStore: PintDropStore = {
         .eq("status", "visible")
         .order("created_at", { ascending: false })
         .limit(MAX_PUBLIC_DROPS);
-      if (venueId) q = q.eq("venue_id", venueId);
+      if (venueIds.length === 1) q = q.eq("venue_id", venueIds[0]);
+      else if (venueIds.length > 1) q = q.in("venue_id", venueIds);
       if (author) q = q.eq("handle", author);
       return q;
     };
@@ -1190,7 +1202,9 @@ export const supabasePintDropStore: PintDropStore = {
     if (error) throw new Error(error.message);
     // Per-venue: all city seeds for that id. Unscoped: city-scoped seeds so
     // Manchester demo drops never noise the London feed/landing.
-    const seeds = (venueId ? demoDropsFor(venueId) : demoPintDropsForCity(cityId)).filter(
+    const seeds = (
+      venueId ? venueIds.flatMap((id) => demoDropsFor(id)) : demoPintDropsForCity(cityId)
+    ).filter(
       (d) => !author || normalizeViewerHandle(d.handle) === author,
     );
     // Apply the same pure predicate the memory store uses over the fetched page.
@@ -1210,12 +1224,15 @@ export const supabasePintDropStore: PintDropStore = {
   /** The LEGACY lane for one venue (ledger-only capability for issue #27).
    *  Visible `legacy` rows for the venue, newest-first, as public DTOs. */
   async listLegacyForVenue(venueId) {
-    const query = admin()
+    const venueIds = await storedVenueIds(venueId);
+    const scoped = admin()
       .from(TABLE)
       .select("*")
       .eq("status", "visible")
-      .eq("visibility", "legacy")
-      .eq("venue_id", venueId)
+      .eq("visibility", "legacy");
+    const query = (
+      venueIds.length === 1 ? scoped.eq("venue_id", venueIds[0]) : scoped.in("venue_id", venueIds)
+    )
       .order("created_at", { ascending: false })
       .limit(MAX_PUBLIC_DROPS);
     const { data, error } = await query;

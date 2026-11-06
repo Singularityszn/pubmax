@@ -5,7 +5,10 @@
 //
 // Two distinct signals, deliberately kept apart:
 //   • PINT_DATASET_OBSERVED_AT — the dataset's real collection date. Drives
-//     every user-facing "collected" stamp and the JSON-LD dates.
+//     every dataset-wide "collected" stamp and the JSON-LD dates. One pub's
+//     listed price is dated by its own row's `scraped_at_values`
+//     (`answerEvidenceFor` in lib/landingHero.ts), never by this, because a
+//     re-collection re-dates only the rows its source still states.
 //   • The bundled file's mtime says only "this file was last written" (builds,
 //     re-exports), never when prices were collected; app/sitemap.ts derives its
 //     `lastModified` from that mtime with its own local helper.

@@ -80,9 +80,17 @@ describe("pubpal:agent dry run", () => {
     const end = printed.lastIndexOf("}");
     const body = JSON.parse(printed.slice(start, end + 1)) as {
       conversation_config: {
-        agent: { prompt: { llm: string; tool_ids: string[] } };
+        agent: { prompt: { prompt: string; llm: string; tool_ids: string[] } };
       };
-      webhook_tools: string[];
+      webhook_tools: Array<{
+        api_schema: {
+          url: string;
+          request_headers: { "x-elevenlabs-llm-secret": { secret_id: string } };
+          request_body_schema: {
+            properties: { conversation_id: { dynamic_variable?: string } };
+          };
+        };
+      }>;
       llm: string;
       platform_settings: {
         privacy: { retention_days: number; zero_retention_mode: boolean };
@@ -96,13 +104,24 @@ describe("pubpal:agent dry run", () => {
     };
     expect(body.llm).toBe("gemini-2.5-flash-lite");
     expect(body.conversation_config.agent.prompt.llm).toBe("gemini-2.5-flash-lite");
-    expect(body.webhook_tools).toContain(
+    expect(body.webhook_tools.map((tool) => tool.api_schema.url)).toContain(
       "https://pubmaxxing.com/api/pub-pal/tools/search_venues",
     );
+    for (const tool of body.webhook_tools) {
+      expect(tool.api_schema.request_body_schema.properties.conversation_id).toEqual({
+        type: "string",
+        dynamic_variable: "system__conversation_id",
+      });
+      expect(tool.api_schema.request_headers["x-elevenlabs-llm-secret"].secret_id).toBe("redacted");
+    }
+    expect(body.conversation_config.agent.prompt.prompt).toContain(
+      "Never invent a pub, a price, an opening hour, or an event.",
+    );
+    expect(body.conversation_config.agent.prompt.prompt).not.toContain("{{");
     expect(body.platform_settings.privacy.retention_days).toBe(-1);
     expect(body.platform_settings.privacy.zero_retention_mode).toBe(true);
     expect(body.platform_settings.overrides.conversation_config_override).toEqual({
-      agent: { prompt: { prompt: true }, first_message: true },
+      agent: { prompt: { prompt: false }, first_message: true },
       tts: { voice_id: true },
     });
   });

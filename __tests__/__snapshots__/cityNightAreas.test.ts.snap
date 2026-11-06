@@ -2,12 +2,12 @@
 
 exports[`derived city Night Areas > birmingham > pins the area list the base layer supports 1`] = `
 [
-  "birmingham-city-centre Birmingham city centre 1.6 88",
+  "birmingham-city-centre Birmingham city centre 1.6 87",
   "birmingham-vauxhall Vauxhall 1.7 27",
   "birmingham-moseley Moseley 1.8 25",
   "birmingham-hockley-port Hockley Port 1.4 17",
   "birmingham-harborne Harborne 1.6 16",
-  "birmingham-aston Aston 1.4 15",
+  "birmingham-aston Aston 1.4 14",
 ]
 `;
 
@@ -27,12 +27,12 @@ exports[`derived city Night Areas > bristol > pins the area list the base layer 
 exports[`derived city Night Areas > leeds > pins the area list the base layer supports 1`] = `
 [
   "leeds-city-centre Leeds city centre 1.2 77",
-  "leeds-hyde-park Hyde Park 1.7 24",
   "leeds-armley Armley 1.6 23",
-  "leeds-bruntcliffe Bruntcliffe 1.5 21",
+  "leeds-hyde-park Hyde Park 1.5 23",
   "leeds-hunslet Hunslet 1.4 19",
   "leeds-holbeck Holbeck 1.5 15",
   "leeds-burmantofts Burmantofts 1.2 14",
+  "leeds-kirkstall Kirkstall 1.8 11",
 ]
 `;
 
@@ -42,7 +42,7 @@ exports[`derived city Night Areas > manchester > pins the area list the base lay
   "manchester-shaw-heath Shaw Heath 1.8 27",
   "manchester-werneth Werneth 1.8 27",
   "manchester-portwood Portwood 1.7 25",
-  "manchester-chorlton-on-medlock Chorlton-on-Medlock 1.6 18",
+  "manchester-chorlton-on-medlock Chorlton-on-Medlock 1.7 17",
   "manchester-heaton-norris Heaton Norris 1.8 11",
 ]
 `;

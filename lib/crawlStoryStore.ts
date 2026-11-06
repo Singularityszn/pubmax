@@ -24,7 +24,8 @@ import { normalizeHandle } from "@/lib/profiles";
 import { profileStore } from "@/lib/profileStore";
 import { admin } from "@/lib/storeBackend";
 import { isSupabaseConfigured } from "@/lib/supabase";
-import { resolveVenue, venueMapUrl } from "@/lib/venueIndex";
+import { storedVenueName } from "@/lib/storedVenueRef";
+import { resolveStoredVenue, venueMapUrl } from "@/lib/venueIndex";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -223,11 +224,14 @@ async function enrich(stored: StoredStory): Promise<DurableStory> {
       .slice()
       .sort((a, b) => a.position - b.position)
       .map(async (stop) => {
-        const ref = await resolveVenue(stop.venueId);
+        const ref = await resolveStoredVenue(stop.venueId);
+        // A stop stored under a merged or superseded id links the id the
+        // venue carries now, which is the one the map can open.
+        const venueId = ref?.id ?? stop.venueId;
         return {
-          venueId: stop.venueId,
-          venueName: ref?.name ?? "A London pub",
-          venueMapUrl: venueMapUrl(stop.venueId),
+          venueId,
+          venueName: ref ? storedVenueName(ref) : "A London pub",
+          venueMapUrl: venueMapUrl(venueId),
           priceGbp: stop.priceGbp ?? null,
           ...(stop.note ? { note: stop.note } : {}),
           position: stop.position,

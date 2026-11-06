@@ -3,7 +3,7 @@
   "source": "OpenStreetMap Overpass",
   "license": "ODbL",
   "attribution": "© OpenStreetMap contributors",
-  "fetchedAt": "2026-07-26T01:07:30.481Z",
+  "fetchedAt": "2026-10-02T10:12:37.575Z",
   "promotedFrom": "data/osm/uk/uk_osm_pubs.json",
   "bbox": [
     53.74,
@@ -11,7 +11,7 @@
     53.86,
     -1.45
   ],
-  "count": 288,
+  "count": 289,
   "droppedDuplicateObjects": [],
   "droppedOutsideBaseLayer": 0,
   "pubs": [
@@ -2473,7 +2473,7 @@
       "locality": "Leeds",
       "postcode": "LS13 4LS",
       "website": null,
-      "phone": null,
+      "phone": "+44 113 263 7519",
       "openingHours": null,
       "brewery": null,
       "operator": null,
@@ -2616,11 +2616,13 @@
       "postcode": "LS2 7DA",
       "website": "https://www.whiteclothhall.co.uk/",
       "phone": null,
-      "openingHours": null,
+      "openingHours": "Mo off; Tu-Fr 12:00-23:00; Sa 10:30-23:00; Su 10:30-21:00",
       "brewery": null,
       "operator": null,
-      "outdoorSeating": false,
-      "smoking": null,
+      "outdoorSeating": true,
+      "smoking": {
+        "smoking": "separated"
+      },
       "cuisine": null,
       "wikidata": null,
       "wikipedia": null
@@ -2689,7 +2691,7 @@
     },
     {
       "osmId": "node/313099976",
-      "name": "Wetherspoons",
+      "name": "Wetherspoon",
       "amenity": "pub",
       "lat": 53.7957046,
       "lng": -1.5486597,
@@ -3972,7 +3974,7 @@
       "postcode": null,
       "website": "https://www.jdwetherspoon.com/pubs/all-pubs/england/west-yorkshire/stick-or-twist",
       "phone": null,
-      "openingHours": null,
+      "openingHours": "Mo-Su 08:00-01:00",
       "brewery": null,
       "operator": null,
       "outdoorSeating": false,
@@ -4664,11 +4666,11 @@
       "wikipedia": null
     },
     {
-      "osmId": "node/127960333",
+      "osmId": "way/469777916",
       "name": "The Chemic Tavern",
       "amenity": "pub",
-      "lat": 53.8145142,
-      "lng": -1.552881,
+      "lat": 53.814506,
+      "lng": -1.5528732,
       "address": "9 - 11, Johnston Street, Leeds, LS6 2NG",
       "locality": "Leeds",
       "postcode": "LS6 2NG",
@@ -4678,7 +4680,9 @@
       "brewery": null,
       "operator": null,
       "outdoorSeating": true,
-      "smoking": null,
+      "smoking": {
+        "smoking": "outside"
+      },
       "cuisine": null,
       "wikidata": "Q61865212",
       "wikipedia": null
@@ -4863,6 +4867,26 @@
       },
       "cuisine": null,
       "wikidata": "Q61862565",
+      "wikipedia": null
+    },
+    {
+      "osmId": "way/491913245",
+      "name": "Black Lion",
+      "amenity": "pub",
+      "lat": 53.816096,
+      "lng": -1.6273731,
+      "address": "199, Broad Lane, Leeds, LS13 2NJ",
+      "locality": "Leeds",
+      "postcode": "LS13 2NJ",
+      "website": null,
+      "phone": null,
+      "openingHours": "Mo-Fr 11:00-23:00, Fr,Sa 11:00-12:00, Su 00:00-23:00",
+      "brewery": null,
+      "operator": null,
+      "outdoorSeating": false,
+      "smoking": null,
+      "cuisine": null,
+      "wikidata": "Q61876266",
       "wikipedia": null
     },
     {

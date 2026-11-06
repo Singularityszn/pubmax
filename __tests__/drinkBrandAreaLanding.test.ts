@@ -9,7 +9,7 @@ import {
   listDrinkBrandAreaLandingsForBrand,
   type DrinkBrandAreaLanding,
 } from "@/lib/drinkBrandAreaLanding";
-import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
+import { oldestPintRead } from "@/lib/drinks";
 import { DRINK_BRANDS } from "@/lib/drinkBrands";
 import { haversineKm } from "@/lib/haversine";
 import { loadPintPriceLandingVenues } from "@/lib/pintPriceLandingDataset.server";
@@ -544,7 +544,8 @@ describe("governed drink brand by Night Area landings", () => {
       areaName: "Clapham",
       brandSlug: "guinness",
       brandLabel: "Guinness",
-      collectedAt: PINT_DATASET_OBSERVED_AT.toISOString(),
+      // The fixture rows record no read, so no collection day is claimed.
+      collectedAt: null,
       totalPricedVenues: 10,
     });
     expect(landing?.rows[0]).toMatchObject({
@@ -600,7 +601,9 @@ describe("governed drink brand by Night Area landings", () => {
       expect(landing.totalPricedVenues).toBeGreaterThanOrEqual(
         DRINK_BRAND_AREA_PUBLICATION_FLOOR,
       );
-      expect(landing.collectedAt).toBe(PINT_DATASET_OBSERVED_AT.toISOString());
+      expect(landing.collectedAt).toBe(
+        oldestPintRead(landing.rows.map((row) => row.observedAt)),
+      );
     }
 
     // A pair the list withheld is one the dataset cannot carry, never one this

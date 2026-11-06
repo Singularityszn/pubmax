@@ -6,7 +6,7 @@ import path from "path";
 import { cityIdFromVenueId } from "@/lib/cityVenueIds";
 import type { FoodCategory } from "@/lib/food";
 import { lookupCanonicalVenueId } from "@/lib/venueAliases";
-import { lookupCanonicalVenue, venueOsmIds } from "@/lib/venueIndex";
+import { lookupCanonicalVenue, lookupRetiredIndexedVenue, venueOsmIds } from "@/lib/venueIndex";
 import {
   lookupCanonicalVenueWithOsm,
   resetVenueOsmIndexForTests,
@@ -87,8 +87,15 @@ let detailRowsFile = DEFAULT_DETAIL_ROWS_FILE;
 let fallbackIndex: Map<string, Venue> | null = null;
 let manifestReadAttemptsForTests = 0;
 
+/**
+ * `retired` names a pub that left the map. Every reader treats it as `missing`
+ * unless it opts in to show the tombstone: only /api/venue/[id] does, so the
+ * map can say the pub may have closed. No page, unfurl or invite route answers
+ * a retired id as a live pub.
+ */
 export type VenueDetailLookupResult =
   | { status: "found"; venue: Venue }
+  | { status: "retired"; venue: Venue }
   | { status: "missing" }
   | { status: "unavailable" };
 
@@ -296,7 +303,10 @@ export async function lookupVenueDetail(
 
   const venueLookup = await lookupCanonicalVenue(id);
   if (venueLookup.status === "unavailable") return { status: "unavailable" };
-  if (venueLookup.status === "unknown") return { status: "missing" };
+  if (venueLookup.status === "unknown") {
+    const retired = await lookupRetiredIndexedVenue(venueLookup.canonicalId);
+    return retired ? { status: "retired", venue: slimVenueToPin(retired.slimVenue) } : { status: "missing" };
+  }
 
   const artifactResult = await readVenueFromArtifact(id);
   let venue: Venue | null = artifactResult.status === "found" ? artifactResult.venue : null;

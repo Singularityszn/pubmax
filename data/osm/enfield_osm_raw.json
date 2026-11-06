@@ -2,7 +2,7 @@
   "version": 0.6,
   "generator": "Overpass API 0.7.62.11 87bfad18",
   "osm3s": {
-    "timestamp_osm_base": "2026-07-17T22:44:57Z",
+    "timestamp_osm_base": "2026-10-02T10:27:21Z",
     "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL."
   },
   "elements": [
@@ -34,9 +34,15 @@
       "lat": 51.6630788,
       "lon": -0.0854123,
       "tags": {
+        "addr:city": "Enfield",
+        "addr:housenumber": "1",
+        "addr:postcode": "EN2 0JG",
+        "addr:street": "Batley Road",
         "amenity": "pub",
+        "fhrs:id": "316076",
         "name": "The Wonder",
         "opening_hours": "Mo-Th 11:00-23:00; Su 12:00-23:00; Fr,Sa 11:00-24:00",
+        "source:addr": "FHRS Open Data",
         "wikidata": "Q60135745",
         "wikipedia": "en:The Wonder (pub)"
       }
@@ -73,10 +79,16 @@
       "lat": 51.671207,
       "lon": -0.083777,
       "tags": {
+        "addr:city": "Enfield",
+        "addr:housenumber": "185",
+        "addr:postcode": "EN2 9AJ",
+        "addr:street": "Clay Hill",
         "amenity": "pub",
+        "fhrs:id": "1284402",
         "name": "Rose and Crown",
         "opening_hours": "Mo-Sa 12:00-23:00; Su 12:00-22:30",
         "operator": "British Waterways/Scottish",
+        "source:addr": "FHRS Open Data",
         "toilets": "yes",
         "toilets:access": "customers",
         "wikidata": "Q26352471"
@@ -141,8 +153,14 @@
       "lat": 51.6528776,
       "lon": -0.0865804,
       "tags": {
+        "addr:city": "Enfield",
+        "addr:housenumber": "35",
+        "addr:postcode": "EN2 6PH",
+        "addr:street": "Little Park Gardens",
         "amenity": "pub",
+        "fhrs:id": "438608",
         "name": "The Stag",
+        "source:addr": "FHRS Open Data",
         "toilets": "yes",
         "toilets:access": "customers"
       }
@@ -287,11 +305,17 @@
       "lat": 51.6467723,
       "lon": -0.0653782,
       "tags": {
+        "addr:city": "Enfield",
+        "addr:housenumber": "155",
+        "addr:postcode": "EN1 1QT",
+        "addr:street": "Percival Road",
         "amenity": "pub",
         "check_date": "2024-11-02",
+        "fhrs:id": "1101946",
         "live_sport": "yes",
         "name": "The Lincoln",
-        "opening_hours": "Mo-Th 13:00-23:00; Fr-Sa 12:00-01:00; Su 12:00-22:00"
+        "opening_hours": "Mo-Th 13:00-23:00; Fr-Sa 12:00-01:00; Su 12:00-22:00",
+        "source:addr": "FHRS Open Data"
       }
     },
     {
@@ -486,6 +510,7 @@
         "addr:street": "Green Lanes",
         "amenity": "pub",
         "description": "Reopened as a sports bar in Dec 2024 after the Wetherspoons closed",
+        "fhrs:id": "1936709",
         "live_sport": "yes",
         "name": "The Alfred Herring",
         "source:addr": "FHRS Open Data",
@@ -539,9 +564,15 @@
       "lat": 51.6526134,
       "lon": -0.082537,
       "tags": {
+        "addr:city": "Enfield",
+        "addr:housenumber": "9",
+        "addr:postcode": "EN2 6LL",
+        "addr:street": "Market Place",
         "amenity": "pub",
+        "fhrs:id": "317344",
         "live_sport": "yes",
-        "name": "King's Head"
+        "name": "King's Head",
+        "source:addr": "FHRS Open Data"
       }
     },
     {
@@ -579,10 +610,16 @@
       "lat": 51.6611962,
       "lon": -0.0867588,
       "tags": {
+        "addr:city": "Enfield",
+        "addr:housenumber": "187",
+        "addr:postcode": "EN2 0PT",
+        "addr:street": "Chase Side",
         "amenity": "pub",
         "check_date": "2024-06-09",
+        "fhrs:id": "317448",
         "live_sport": "yes",
-        "name": "Six Bells"
+        "name": "Six Bells",
+        "source:addr": "FHRS Open Data"
       }
     },
     {
@@ -795,9 +832,11 @@
         "addr:street": "St Mark's Road",
         "amenity": "pub",
         "check_date": "2024-12-06",
+        "fhrs:id": "317399",
         "indoor_seating": "yes",
         "name": "Bush Hill Park",
-        "outdoor_seating": "yes"
+        "outdoor_seating": "yes",
+        "source:addr": "FHRS Open Data"
       }
     },
     {
@@ -806,13 +845,17 @@
       "lat": 51.6360608,
       "lon": -0.0909623,
       "tags": {
+        "addr:city": "London",
         "addr:housenumber": "928",
+        "addr:postcode": "N21 2AD",
         "addr:street": "Green Lanes",
         "amenity": "pub",
+        "fhrs:id": "1043283",
         "name": "Little Green Dragon",
         "pub": "micropub",
         "real_ale": "yes",
-        "source": "gps+mapnoter"
+        "source": "gps+mapnoter",
+        "source:addr": "FHRS Open Data"
       }
     },
     {
@@ -821,9 +864,15 @@
       "lat": 51.6319862,
       "lon": -0.0957415,
       "tags": {
+        "addr:city": "London",
+        "addr:housenumber": "765",
+        "addr:postcode": "N21 3SA",
+        "addr:street": "Green Lanes",
         "amenity": "pub",
+        "fhrs:id": "316530",
         "name": "On Broadway",
         "source": "Geograph",
+        "source:addr": "FHRS Open Data",
         "source:geograph:id": "2553937"
       }
     },
@@ -858,8 +907,16 @@
       "lat": 51.606551,
       "lon": -0.1188983,
       "tags": {
+        "addr:housenumber": "120a",
+        "addr:postcode": "N22 8NQ",
+        "addr:street": "Myddleton Road",
         "amenity": "pub",
-        "name": "Tap Room",
+        "brewery": "Bohem Brewery",
+        "brewery:wikidata": "Q141597662",
+        "live_music": "yes",
+        "name": "Bohem Tap Room",
+        "operator": "Bohem Brewery",
+        "operator:wikidata": "Q141597662",
         "website": "https://www.bohembrewery.com/bohem-tap-room/"
       }
     },
@@ -1040,12 +1097,18 @@
         "lon": -0.0896327
       },
       "tags": {
+        "addr:city": "Enfield",
+        "addr:housenumber": "3",
+        "addr:postcode": "EN2 6SE",
+        "addr:street": "Windmill Hill",
         "amenity": "pub",
-        "building": "yes",
+        "building": "retail",
         "check_date": "2024-10-30",
+        "fhrs:id": "1904445",
         "live_sport": "yes",
         "name": "The Old Wheatsheaf",
-        "source": "Bing"
+        "source": "Bing",
+        "source:addr": "FHRS Open Data"
       }
     },
     {
@@ -1084,6 +1147,7 @@
       "tags": {
         "addr:city": "Enfield",
         "addr:housenumber": "115-117",
+        "addr:postcode": "EN2 6NN",
         "addr:street": "Chase Side",
         "amenity": "pub",
         "brand": "Wetherspoon",
@@ -1091,10 +1155,13 @@
         "brand:wikipedia": "en:Wetherspoons",
         "building": "retail",
         "building:levels": "1",
+        "fhrs:id": "316226",
         "name": "The Moon Under Water",
         "opening_hours:signed": "no",
+        "payment:cash": "yes",
         "roof:levels": "1",
         "source": "Bing",
+        "source:addr": "FHRS Open Data",
         "toilets": "yes",
         "toilets:wheelchair": "yes",
         "website": "https://www.jdwetherspoon.com/pubs/all-pubs/england/middlesex/the-moon-under-water-enfield",
@@ -1211,7 +1278,10 @@
       "tags": {
         "amenity": "pub",
         "building": "yes",
+        "check_date": "2026-09-12",
+        "indoor_seating": "yes",
         "name": "Railway Inn",
+        "outdoor_seating": "yes",
         "source": "Bing"
       }
     },
@@ -1534,11 +1604,17 @@
         "lon": -0.1065963
       },
       "tags": {
+        "addr:city": "London",
+        "addr:housenumber": "413",
+        "addr:postcode": "N13 4JD",
+        "addr:street": "Green Lanes",
         "amenity": "pub",
-        "building": "yes",
+        "building": "retail",
+        "fhrs:id": "1747867",
         "live_sport": "yes",
         "name": "The Fox",
         "source": "bing",
+        "source:addr": "FHRS Open Data",
         "wikidata": "Q23891233",
         "wikipedia": "en:The Fox, Palmers Green"
       }
@@ -1988,11 +2064,13 @@
         "addr:postcode": "N13 4BD",
         "addr:street": "Bourne Hill",
         "amenity": "pub",
-        "building": "yes",
+        "building": "retail",
         "email": "woodman.london@phoenixpub.co.uk",
+        "fhrs:id": "1897660",
         "name": "The Woodman",
         "phone": "+44 20 3774 1659",
         "ref:GB:uprn": "207091897;207091896;207091895",
+        "source:addr": "FHRS Open Data",
         "website": "https://www.facebook.com/woodmansouthgate/"
       }
     }

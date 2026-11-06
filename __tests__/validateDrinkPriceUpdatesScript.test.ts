@@ -749,7 +749,7 @@ describe("validate-data.mjs postcode-coordinate validation", () => {
     expect(stdout).toContain("postcode-coordinate contradiction");
     expect(stdout).toContain("The Lincoln Arms");
     expect(stdout).toContain("EN1");
-    expect(stdout).toContain("12.60 km exceeds 5 km");
+    expect(stdout).toContain("12.91 km exceeds 5 km");
   });
 
   it("applies only an exact documented exception", () => {

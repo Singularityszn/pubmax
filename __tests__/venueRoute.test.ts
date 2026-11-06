@@ -70,6 +70,21 @@ describe("GET /api/venue/[id]", () => {
     }
   });
 
+  it("answers a pub that left the map as not found, unless the reader asks to name it", async () => {
+    // The Duck, Birmingham: retired in public/data/cities/venue_id_aliases.json.
+    const id = "venue-bhm-17j3xm7";
+    const plain = await GET(new Request(`http://localhost/api/venue/${id}`), ctx(id));
+    expect(plain.status).toBe(404);
+
+    const named = await GET(
+      new Request(`http://localhost/api/venue/${id}?include_retired=1`),
+      ctx(id),
+    );
+    expect(named.status).toBe(200);
+    const body = (await named.json()) as { venue: { name: string; retired?: boolean } };
+    expect(body.venue).toMatchObject({ name: "The Duck", retired: true });
+  });
+
   it("returns full detail for a slim venue id", async () => {
     const seed = slim.find((venue) => venue.id === "venue-16pnwmm") ?? slim[0];
     const res = await GET(new Request(`http://localhost/api/venue/${seed.id}`), ctx(seed.id));

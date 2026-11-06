@@ -43,13 +43,16 @@ describe("locality and recency claims", () => {
               priceLabel: "£4.80",
               mapHref: "/map?venue=test-pub",
               areaRelation: "inside" as const,
+              // Last read in July: the card dates the pint by its own read.
+              observedAt: "2026-07-03T11:15:56.000Z",
             }],
           },
         },
       }),
     );
 
-    expect(html).toContain(`Lowest listed prices in central London. ${formatPintDatasetSnapshot()}.`);
+    expect(html).toContain("Lowest listed prices in central London. Snapshot from 3 July 2026.");
+    expect(html).not.toContain(formatPintDatasetSnapshot());
     expect(html).not.toContain(formatPintDatasetAsOf());
     expect(html).not.toContain("Lowest listed prices near you today");
   });
@@ -68,13 +71,16 @@ describe("locality and recency claims", () => {
               priceLabel: "£4.80",
               mapHref: "/map?venue=test-pub",
               areaRelation: "inside" as const,
+              // Last read in July: the card dates the pint by its own read.
+              observedAt: "2026-07-03T11:15:56.000Z",
             }],
           },
         },
       }),
     );
 
-    expect(html).toContain(`Lowest listed prices in central London. ${formatPintDatasetSnapshot()}.`);
+    expect(html).toContain("Lowest listed prices in central London. Snapshot from 3 July 2026.");
+    expect(html).not.toContain(formatPintDatasetSnapshot());
     expect(html).not.toContain(formatPintDatasetAsOf());
   });
 

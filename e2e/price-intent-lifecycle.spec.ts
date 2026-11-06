@@ -89,7 +89,9 @@ test("an anonymous price intent retires when a client navigation opens another p
   await nearby.nth(1).hover();
   const otherVenueId = decodeURIComponent(new URL((await otherDetail).url()).pathname.split("/").at(-1)!);
   await page.unroute("**/api/venue/**");
-  await page.route(`**/api/venue/${encodeURIComponent(otherVenueId)}`, (route) => route.abort());
+  const otherDetailUrl = (url: URL) =>
+    url.pathname === `/api/venue/${encodeURIComponent(otherVenueId)}`;
+  await page.route(otherDetailUrl, (route) => route.abort());
   await nearby.first().click();
 
   const gate = venueSheet(page).getByRole("heading", { name: "Sign in to add a price" });
@@ -99,7 +101,7 @@ test("an anonymous price intent retires when a client navigation opens another p
   expect(gatedVenueId).not.toBe(otherVenueId);
   expect(contributeParam(page)).toBe("price");
 
-  await page.unroute(`**/api/venue/${encodeURIComponent(otherVenueId)}`);
+  await page.unroute(otherDetailUrl);
   // The same client navigation a "See on map" link makes: the map stays
   // mounted, keeps the live URL's params and selects the linked pub.
   await page.evaluate((venueId) => {

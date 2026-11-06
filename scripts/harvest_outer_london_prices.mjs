@@ -47,7 +47,8 @@ import {
   fetchRefreshPage,
   RefreshProviderError,
 } from "./lib/localRefreshProviders.mjs";
-import { isHarvestableOperatorUrl } from "../lib/harvest/sourcePolicy.ts";
+import { createRobotsChecker } from "../lib/harvest/robots.ts";
+import { isHarvestableOperatorUrl, normalizeHarvestHostname } from "../lib/harvest/sourcePolicy.ts";
 
 const MODULE_PATH = fileURLToPath(import.meta.url);
 const ROOT = join(dirname(MODULE_PATH), "..");
@@ -128,10 +129,71 @@ function arg(name, fallback) {
 
 function host(url) {
   try {
-    return new URL(url).hostname.replace(/^www\./, "");
+    const normalized = normalizeHarvestHostname(new URL(url).hostname);
+    if (!normalized) return null;
+    return normalized.replace(/^www\./, "");
   } catch {
     return null;
   }
+}
+
+/** The URL we actually fetch: one trailing dot removed, host lowercased. */
+export function canonicalHarvestUrl(url) {
+  try {
+    const parsed = new URL(url);
+    const normalized = normalizeHarvestHostname(parsed.hostname);
+    if (!normalized) return null;
+    parsed.hostname = normalized.includes(":") ? `[${normalized}]` : normalized;
+    return parsed.href;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Why this page must not be fetched, or null when policy and the pub's own
+ * host both allow it. Robots is a separate live question.
+ */
+export function outerLondonUrlRefusal(url, pubWebsite) {
+  if (!isHarvestableOperatorUrl(url)) return `source policy refused ${url}`;
+  const pageHost = host(url);
+  const pubHost = host(pubWebsite);
+  if (!pageHost || pageHost !== pubHost) return `off-site page refused ${url}`;
+  return null;
+}
+
+export class OuterLondonFetchRefusal extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "OuterLondonFetchRefusal";
+    this.beforeFetch = true;
+  }
+}
+
+/**
+ * Policy, then robots, then the page. A refused host never reaches either fetch.
+ */
+export async function fetchGatedOuterLondonPage(url, pubWebsite, { fetchRefreshPage: fetchPage, robotsChecker }) {
+  const requested = canonicalHarvestUrl(url);
+  if (!requested) throw new OuterLondonFetchRefusal(`source policy refused ${url}`);
+  const refusal = outerLondonUrlRefusal(requested, pubWebsite);
+  if (refusal) throw new OuterLondonFetchRefusal(refusal);
+  const robots = await robotsChecker(requested);
+  if (!robots?.allowed) {
+    throw new OuterLondonFetchRefusal(robots?.evidence ?? `robots.txt refused ${requested}`);
+  }
+  return fetchPage({ job: "plain-page", url: requested });
+}
+
+/** A discovered menu URL is readable only on the pub's own host. */
+export function selectDiscoveredOuterLondonMenu(candidates, pubWebsite) {
+  for (const candidate of candidates) {
+    if (typeof candidate !== "string") continue;
+    if (!/drink|menu|tap|beer|wine|cocktail|spirit/i.test(candidate)) continue;
+    if (outerLondonUrlRefusal(candidate, pubWebsite)) continue;
+    return candidate;
+  }
+  return null;
 }
 
 function normaliseVenueKeyPart(v) {
@@ -161,9 +223,13 @@ export function priorPublishedSourceFor(row, priorEntries) {
   return row.website;
 }
 
-async function scrape(url, pubName) {
-  const page = await fetchRefreshPage({ job: "plain-page", url });
-  const finalUrl = validatedFinalUrl(url, page.finalUrl);
+async function scrape(url, pubName, pubWebsite, robotsChecker) {
+  const requested = canonicalHarvestUrl(url) ?? url;
+  const page = await fetchGatedOuterLondonPage(requested, pubWebsite, {
+    fetchRefreshPage,
+    robotsChecker,
+  });
+  const finalUrl = validatedFinalUrl(requested, page.finalUrl);
   const { drinks, reading } = await extractVenueDrinkPricesMaybeJudged(page.markdown, {
     pageUrl: finalUrl,
     pubName,
@@ -190,11 +256,14 @@ function validatedFinalUrl(requestedUrl, finalUrl) {
   return landed.href;
 }
 
-async function safeScrape(url, pubName) {
+async function safeScrape(url, pubName, pubWebsite, robotsChecker) {
   try {
-    return { page: await scrape(url, pubName) };
+    return { page: await scrape(url, pubName, pubWebsite, robotsChecker), fetched: true };
   } catch (error) {
-    return { error: refreshErrorReason(error) };
+    return {
+      error: refreshErrorReason(error),
+      fetched: !(error instanceof OuterLondonFetchRefusal),
+    };
   }
 }
 
@@ -217,6 +286,7 @@ function poundsInText(md) {
 function bestDrinkLink(links, baseHost) {
   const cands = links
     .filter((l) => typeof l === "string" && host(l) === baseHost)
+    .filter((l) => !outerLondonUrlRefusal(l, `https://${baseHost}/`))
     .filter((l) => /drink|menu|tap|beer|bar\b|wine|cocktail|spirit/i.test(l))
     .filter((l) => !/\.(jpg|jpeg|png|pdf|gif|webp)$/i.test(l))
     .filter((l) => !/food-?(menu|and)|breakfast|sunday|lunch|book|reserv|event|christmas|gift/i.test(l));
@@ -357,6 +427,7 @@ function main() {
     `Independents to sweep: ${queue.length} (of ${targets.length}); chains logged: ${log.length}; budget ${budget} requests`,
   );
 
+  const robotsChecker = createRobotsChecker();
   return (async () => {
     for (const row of queue) {
       if (requests >= budget) {
@@ -376,9 +447,11 @@ function main() {
 
       // 1) revisit the exact prior evidence page, or start from the official homepage.
       const initialUrl = priorPublishedSourceFor(row, priorEntries);
-      const homeResult = await safeScrape(initialUrl, row.pub_name);
-      requests += 1;
-      venueRequests += 1;
+      const homeResult = await safeScrape(initialUrl, row.pub_name, row.website, robotsChecker);
+      if (homeResult.fetched) {
+        requests += 1;
+        venueRequests += 1;
+      }
       if (homeResult.error) {
         log.push({
           ...rec,
@@ -428,10 +501,10 @@ function main() {
             });
             continue;
           }
-          link =
-            discoveries
-              .map((result) => result.url)
-              .find((url) => /drink|menu|tap|beer|wine|cocktail|spirit/i.test(url)) ?? null;
+          link = selectDiscoveredOuterLondonMenu(
+            discoveries.map((result) => result.url),
+            row.website,
+          );
           linkWasDiscovered = Boolean(link);
         }
         if (link && link !== initialUrl) {
@@ -446,9 +519,11 @@ function main() {
             });
             continue;
           }
-          const drinkResult = await safeScrape(link, row.pub_name);
-          requests += 1;
-          venueRequests += 1;
+          const drinkResult = await safeScrape(link, row.pub_name, row.website, robotsChecker);
+          if (drinkResult.fetched) {
+            requests += 1;
+            venueRequests += 1;
+          }
           if (drinkResult.error) {
             log.push({
               ...rec,

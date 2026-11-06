@@ -71,6 +71,11 @@ import {
 } from "@/lib/ukPriceBundle";
 import { stableVenueIdFromKey } from "@/lib/venues";
 import { boroughNameForPoint } from "../lib/londonBoroughPoint.mjs";
+import {
+  haversineMeters,
+  namesLikelySamePub,
+  normalizeVenueIdentityName,
+} from "./lib/venueCanonicalization.mjs";
 
 const ROOT = process.cwd();
 const OSM_PUBS = path.join(ROOT, "data/osm/uk/uk_osm_pubs.json");
@@ -108,15 +113,11 @@ function ukBaseVenueId(osmId) {
   return match ? `venue-uk-${match[1][0]}${match[2]}` : null;
 }
 
-/**
- * The curated venue that owns each base pub, read off the shipped shards. A
- * promoted pub is one pub with two ids, and writing a row under each would
- * double every count this bundle exists to report.
- */
-function curatedOwners() {
-  if (!existsSync(UK_BASE_MANIFEST)) return new Map();
+/** Every pub the shipped base shards serve, read once. */
+function basePubs() {
+  if (!existsSync(UK_BASE_MANIFEST)) return [];
   const manifest = read(UK_BASE_MANIFEST);
-  const owners = new Map();
+  const pubs = [];
   for (const shard of manifest.shards ?? []) {
     const file = path.join(
       ROOT,
@@ -126,25 +127,83 @@ function curatedOwners() {
     );
     if (!existsSync(file)) continue;
     for (const pub of read(file).pubs ?? []) {
-      const osmRef = pub[0];
-      const curatedVenueId = pub[5];
-      if (typeof curatedVenueId === "string" && curatedVenueId.length > 0) {
-        owners.set(osmRef, curatedVenueId);
-      }
+      pubs.push({ ref: pub[0], name: pub[1], lat: pub[3], lng: pub[4], curatedVenueId: pub[5] });
+    }
+  }
+  return pubs;
+}
+
+/**
+ * The curated venue that owns each base pub, read off the shipped shards. A
+ * promoted pub is one pub with two ids, and writing a row under each would
+ * double every count this bundle exists to report.
+ */
+function curatedOwners(pubs) {
+  const owners = new Map();
+  for (const pub of pubs) {
+    if (typeof pub.curatedVenueId === "string" && pub.curatedVenueId.length > 0) {
+      owners.set(pub.ref, pub.curatedVenueId);
     }
   }
   return owners;
 }
 
+// A pub OSM redrew as a new object is the same pub only this close and under
+// the same name: the radius scripts/fetch_city_osm_pubs.mjs collapses two
+// objects of one pub at.
+const REDRAWN_PUB_METERS = 30;
+
+/**
+ * The base pub a harvested row's pub was redrawn as. A row is keyed by the OSM
+ * object it was read against, and when OSM redraws that pub as a new object
+ * the old ref leaves the base layer, so the row follows the same pub to its
+ * new object: the same name within REDRAWN_PUB_METERS of the row's own point.
+ * Null when the pub left OSM altogether.
+ */
+function redrawnBasePub(row, pubs) {
+  const name = normalizeVenueIdentityName(row.name);
+  const lat = Number(row.lat);
+  const lng = Number(row.lng);
+  if (!name || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  let best = null;
+  let bestMetres = Number.POSITIVE_INFINITY;
+  for (const pub of pubs) {
+    const metres = haversineMeters(lat, lng, pub.lat, pub.lng);
+    if (metres > REDRAWN_PUB_METERS || metres >= bestMetres) continue;
+    if (!namesLikelySamePub(name, normalizeVenueIdentityName(pub.name))) continue;
+    best = pub;
+    bestMetres = metres;
+  }
+  return best;
+}
+
+/**
+ * The venue each harvested ref is served as: its curated owner, and for a ref
+ * that left the base layer, whatever serves the pub it was redrawn as, so a
+ * price read before the redraw stays on the pub it was read for.
+ */
+function siteHarvestOwners(harvestRows, pubs, owners) {
+  const served = new Set(pubs.map((pub) => pub.ref));
+  const resolved = new Map(owners);
+  for (const ledgerRow of harvestRows) {
+    const ref =
+      typeof ledgerRow?.venueId === "string" ? ledgerRow.venueId.replace(/^venue-uk-/, "") : null;
+    if (!ref || served.has(ref) || resolved.has(ref)) continue;
+    const successor = redrawnBasePub(ledgerRow, pubs);
+    if (successor) resolved.set(ref, owners.get(successor.ref) ?? `venue-uk-${successor.ref}`);
+  }
+  return resolved;
+}
+
 /** The site-harvest rows, preferring the live ledger and falling back to the published copy. */
-function siteHarvestRows() {
+function siteHarvestRows(owners) {
   const file = existsSync(HARVEST_LEDGER_ROWS)
     ? HARVEST_LEDGER_ROWS
     : PUBLISHED_HARVEST_ROWS;
   if (!existsSync(file)) return { rows: [], from: null };
   const rawText = readFileSync(file, "utf8");
   const rawRows = readLedgerRows(rawText);
-  const { rows, supersededRows } = canonicalHarvestRows(rawRows, curatedOwners());
+  const { rows, supersededRows } = canonicalHarvestRows(rawRows, owners);
   return { rows, rawRows, rawText, supersededRows, from: path.relative(ROOT, file) };
 }
 
@@ -327,9 +386,16 @@ function collectRows(report) {
   };
 
   // --- lane 1: the pub's own site, read by scripts/harvest/uk-prices --------
-  const harvest = siteHarvestRows();
-  const owners = curatedOwners();
-  addSiteHarvestRows(harvest.rows, owners, push, report);
+  const pubs = basePubs();
+  const owners = curatedOwners(pubs);
+  const harvest = siteHarvestRows(owners);
+  addSiteHarvestRows(
+    harvest.rows,
+    siteHarvestOwners(harvest.rows, pubs, owners),
+    new Set(pubs.map((pub) => pub.ref)),
+    push,
+    report,
+  );
   notes.push(
     harvest.from
       ? `site-harvest: ${harvest.rows.length} row(s) read from ${harvest.from}`
@@ -360,7 +426,7 @@ function collectRows(report) {
 }
 
 /** Lane one: the prices a pub's or a chain's own site stated. */
-function addSiteHarvestRows(harvestRows, owners, push, report) {
+function addSiteHarvestRows(harvestRows, owners, servedRefs, push, report) {
   for (const ledgerRow of harvestRows) {
     if (!isHarvestableDrinkUpdateUrl(ledgerRow.sourceUrl ?? "")) {
       report.droppedRefusedHost += 1;
@@ -385,8 +451,16 @@ function addSiteHarvestRows(harvestRows, owners, push, report) {
       typeof row.venueId === "string"
         ? row.venueId.replace(/^venue-uk-/, "")
         : null;
+    // A base pub that left OSM, and was not redrawn as another object, is no
+    // pin any reader can open, so its price has nowhere honest to sit.
+    const leftTheBase =
+      servedRefs.size > 0 &&
+      typeof row.venueId === "string" &&
+      row.venueId.startsWith("venue-uk-") &&
+      !servedRefs.has(osmRef) &&
+      !owners.has(osmRef);
     const venueId = (osmRef && owners.get(osmRef)) || row.venueId;
-    if (typeof venueId !== "string" || venueId.length === 0) {
+    if (leftTheBase || typeof venueId !== "string" || venueId.length === 0) {
       report.droppedUnresolvedVenue += 1;
       continue;
     }

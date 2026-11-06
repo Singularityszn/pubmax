@@ -71,8 +71,10 @@ export default function DrinkBrandAreaLandingContent({
           />
         </p>
         <p className="drinkBrandDirectory__summary">
-          {landing.totalPricedVenues} pubs with listed {landing.brandLabel} pints. Collected{" "}
-          {formatPricedLandingCollectedDate(landing.collectedAt)}.
+          {landing.totalPricedVenues} pubs with listed {landing.brandLabel} pints.
+          {landing.collectedAt
+            ? ` Collected ${formatPricedLandingCollectedDate(landing.collectedAt)}.`
+            : null}
         </p>
         <div className="drinkBrandDirectory__actions">
           <Link className="drinkBrandDirectory__primary" href={arrival.href}>

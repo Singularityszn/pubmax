@@ -3,7 +3,7 @@ import "server-only";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
+import { legacyPintPriceObservedAt } from "@/lib/drinks";
 import {
   buildPriceEvidence,
   type AccessEvidenceSource,
@@ -49,7 +49,7 @@ async function loadPriceIndex(): Promise<Map<string, { pence: unknown; label: un
           // they read as plumbing beside a price on the invite stop list.
           label: attributed ? "Pint Prices" : null,
           url: attributed ? cheapest.pub_url.trim() || cheapest.constructed_pub_url.trim() : null,
-          observedAt: PINT_DATASET_OBSERVED_AT.toISOString(),
+          observedAt: cheapest ? legacyPintPriceObservedAt(cheapest) : null,
           datasets: attributed ? cheapest.source_datasets : null,
         }];
       }));

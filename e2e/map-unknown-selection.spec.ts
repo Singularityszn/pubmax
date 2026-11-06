@@ -65,9 +65,13 @@ test.describe("unknown ?sel= honesty", () => {
   });
 
   test("a failed lookup stays distinct from an unknown pub", async ({ page }) => {
-    await page.route("**/api/venue/venue-transient-failure", async (route) => {
-      await route.fulfill({ status: 503, body: "Service unavailable" });
-    });
+    // Matched on the path: the sheet asks with a query string.
+    await page.route(
+      (url) => url.pathname === "/api/venue/venue-transient-failure",
+      async (route) => {
+        await route.fulfill({ status: 503, body: "Service unavailable" });
+      },
+    );
 
     await page.goto("/map?sel=venue-transient-failure");
 

@@ -4,7 +4,6 @@ import {
   type LegacyPintPrice,
 } from "@/lib/drinks";
 import { demoDrinksEnabled } from "@/lib/demoContent";
-import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import { demoDrinksFor } from "@/lib/drinkSeeds";
 
 // The venue Menu read path (PRD E1). ONE pure function that composes a venue's
@@ -26,7 +25,7 @@ import { demoDrinksFor } from "@/lib/drinkSeeds";
 // LegacyPintPrice[]) rather than reaching into a store, so it composes on the
 // server or the client with no fetch.
 
-// Registry-owned collection stamp for legacy beer rows. App dataset is a
+// Legacy beer rows carry the day their own row was read. App dataset is a
 // first-party price on record, not a live feed; update overlays keep their own
 // per-observation stamps.
 export function venueDrinkMenu(
@@ -34,10 +33,7 @@ export function venueDrinkMenu(
   legacyPrices: LegacyPintPrice[] = [],
   seeds: (id: string) => Drink[] = demoDrinksFor,
 ): Drink[] {
-  const beer = legacyPricesToDrinks(
-    legacyPrices,
-    PINT_DATASET_OBSERVED_AT.toISOString(),
-  );
+  const beer = legacyPricesToDrinks(legacyPrices);
   const seeded = demoDrinksEnabled() ? seeds(venueId) : [];
   // Beer (legacy pints) first, then the seeded non-beer menu. Dedupe by id so a
   // re-run or an overlapping source never doubles a row.

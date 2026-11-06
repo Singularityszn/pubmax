@@ -80,7 +80,7 @@ vi.mock("@/lib/venueIndex", () => ({
     ]);
     return venues;
   },
-  resolveVenue: async (id: string) =>
+  resolveStoredVenue: async (id: string) =>
     id === "venue-a"
       ? {
           id,
