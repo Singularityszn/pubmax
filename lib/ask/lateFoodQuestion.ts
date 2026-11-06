@@ -1,7 +1,9 @@
 import { londonDayKey } from "@/lib/pintContributions";
 import { londonHour } from "@/lib/londonHour";
-import { NIGHT_SERVICE_END_HOUR } from "@/lib/nightServiceHours";
+import { NIGHT_SERVICE_END_HOUR, NIGHT_SERVICE_START_HOUR } from "@/lib/nightServiceHours";
 import { londonDateTimeInputToIso, parseLondonInput } from "@/lib/planIntake";
+import { NIGHT_AREAS } from "@/lib/nightAreas";
+import { askRequestClauses } from "@/lib/ask/requestPolicy";
 
 export type LateFoodQuestion = {
   areas: string[];
@@ -14,11 +16,44 @@ export type LateFoodQuestion = {
 const FOOD_WORDS = /\b(?:food|eat|eating|meals?|lunch|dinner|supper|snacks?|restaurants?|pizzas?|kebabs?|cafes?|kitchens?)\b/i;
 const LATE_WORDS = /\b(?:late(?:[- ]night)?|after\s+midnight|midnight)\b/i;
 const CLOCK = /\bat\s+(\d{1,2})(?::(\d{2}))?\s*([ap]\.?m\.?)?\b/gi;
+const CONTEXT_AREA = /\b(?:near|in|around)\s+(.+?)(?=\s+(?:tonight|at|on|tomorrow|after|before|with|that|which|serving|for)\b|\s+(?:(?:and|actually)\s+)?(?:near|in|around)\b|[?,.!;]|$)/gi;
+const CONTEXT_DATE = /\bon\s+\d{4}-\d{2}-\d{2}\b/gi;
+const CONTEXT_NIGHT = /\b(?:tonight|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/gi;
+const AT_MIDNIGHT = /\bat midnight\b/gi;
+const CUISINES = [
+  [/\bpizzas?\b/i, "pizza"], [/\bkebabs?\b/i, "kebab"],
+  [/\bcafes?\b/i, "cafe"], [/\brestaurants?\b/i, "restaurant"],
+] as const;
 // An unknown free-from requirement remains a constraint until evidence supports it.
 const FOOD_CONSTRAINT = /\b(?:vegan|vegetarian|halal|kosher|pescatarian|coeliac|celiac|[a-z]+(?:-[a-z]+)*[- ]free|free\s+(?:of|from)\s+[a-z]+(?:-[a-z]+)*|(?:without|no|avoid)\s+(?:gluten|nuts?|peanuts?|dairy|milk|lactose|eggs?|soy|soya|sesame|shellfish|wheat|mustard|celery|lupin|sulphites?|sulfites?|meat|fish|seafood|cheese|butter|cream|honey|gelatine|gelatin)|allerg(?:y|ies|ic|en|ens)|intoleran(?:t|ce))\b/gi;
 
 function foodConstraints(query: string): string[] {
   return [...foodWording(query).matchAll(FOOD_CONSTRAINT)].map((match) => match[0]);
+}
+
+function requiresPubKitchen(query: string): boolean {
+  const wording = query.replace(/\b(?:after|before)\s+(?:(?:a|the|some)\s+)?pubs?\b/gi, " ");
+  const requirement = /\b(?:pubs?\s+(?:(?:that|which)\s+)?(?:with|for|serving|serves?)|pub\s+(?:food|kitchens?)|(?:food|eat|eating|meals?|lunch|dinner|supper|snacks?)\s+(?:at|in|from)\s+(?:(?:a|the|some)\s+)?pubs?)\b/i;
+  return requirement.test(wording) || requirement.test(wording.replace(CONTEXT_AREA, " "));
+}
+
+function foodRequestWording(query: string): string {
+  return askRequestClauses(foodWording(query))
+    .filter((clause) => FOOD_WORDS.test(clause) || !/\b(?:directions|journey|transport|trains?|tube|buses?|delays?|weather|city status)\b/i.test(clause))
+    .join(" ");
+}
+
+function unrecordedFoodWording(query: string): string {
+  return foodRequestWording(query)
+    .replace(CONTEXT_AREA, " ")
+    .replace(CLOCK, " ")
+    .replace(CONTEXT_DATE, " ")
+    .replace(CONTEXT_NIGHT, " ")
+    .replace(FOOD_CONSTRAINT, " ")
+    .replace(new RegExp(FOOD_WORDS.source, "gi"), " ")
+    .replace(/\b(?:where|what|which|can|could|would|do|does|i|we|you|me|us|my|our|want|like|need|find|get|have|recommend|suggest|show|tell|help|is|are|there|any|some|something|somewhere|anywhere|places?|options?|open|available|a|an|the|to|for|with|that|and|please|after|before|late|night|midnight|pubs?|serving|from|at|one|two|three|four)\b/gi, " ")
+    .replace(/[\s,.!?;:'’\-]+/g, " ")
+    .trim();
 }
 
 function requestedMinutes(query: string): number | null {
@@ -71,27 +106,25 @@ function londonInstant(day: string, minutes: number): string | null {
 
 /** Explicit food timing uses service evidence rather than static pub amenities. */
 export function parseLateFoodQuestion(query: string, now: number): LateFoodQuestion | null {
-  const wording = query.normalize("NFD").replace(/\p{M}/gu, "");
-  if (!FOOD_WORDS.test(wording) || (!LATE_WORDS.test(wording) && ![...query.matchAll(CLOCK)].length)) return null;
-  const minutes = requestedMinutes(query);
-  const day = minutes === null ? null : requestedDay(query, minutes, now);
+  const wording = foodRequestWording(query);
+  if (!FOOD_WORDS.test(wording) || (!LATE_WORDS.test(wording) && ![...wording.matchAll(CLOCK)].length)) return null;
+  const minutes = requestedMinutes(wording);
+  const day = minutes === null ? null : requestedDay(wording, minutes, now);
   const at = day === null || minutes === null ? null : londonInstant(day, minutes);
-  const requiresPub = /\bpubs?\b/i.test(wording);
+  const requiresPub = requiresPubKitchen(wording);
   // Daytime pub/lunch discovery keeps its existing route. A standalone timed
   // food-service request still needs evidence, including a 06:00 request.
   if (!LATE_WORDS.test(wording) && (requiresPub || /\blunch\b/i.test(wording))
-    && at && londonHour(new Date(at)) >= NIGHT_SERVICE_END_HOUR) return null;
-  const areas = [...query.matchAll(/\b(?:near|in|around)\s+(.+?)(?=\s+(?:tonight|at|on|tomorrow|after|before)\b|\s+(?:(?:and|actually)\s+)?(?:near|in|around)\b|[?,.!;]|$)/gi)]
+    && minutes !== null && minutes >= NIGHT_SERVICE_END_HOUR * 60
+    && minutes < NIGHT_SERVICE_START_HOUR * 60
+    && !unrecordedFoodWording(wording) && foodConstraints(wording).length === 0) return null;
+  const areas = [...wording.matchAll(CONTEXT_AREA)]
     .map((match) => match[1]!.trim());
   const dietary = [
     [/\bvegan\b/i, "vegan"],
     [/\bvegetarian\b/i, "vegetarian"],
     [/\bgluten[- ]free\b/i, "gluten-free"],
     [/\bhalal\b/i, "halal"],
-  ] as const;
-  const cuisines = [
-    [/\bpizzas?\b/i, "pizza"], [/\bkebabs?\b/i, "kebab"],
-    [/\bcafes?\b/i, "cafe"], [/\brestaurants?\b/i, "restaurant"],
   ] as const;
   return {
     areas,
@@ -101,23 +134,20 @@ export function parseLateFoodQuestion(query: string, now: number): LateFoodQuest
       ...(foodConstraints(wording).some((constraint) => !/^(?:vegan|vegetarian|gluten[- ]free|halal)$/i.test(constraint))
         ? ["unrecorded-dietary-constraint"] : []),
     ],
-    cuisine: cuisines.find(([pattern]) => pattern.test(wording))?.[1] ?? null,
+    cuisine: unrecordedFoodWording(wording) ? "unrecorded-food-constraint"
+      : CUISINES.find(([pattern]) => pattern.test(wording))?.[1] ?? null,
     requiresPub,
   };
 }
 
-const CONTEXT_AREA = /\b(?:near|in|around)\s+(.+?)(?=\s+(?:tonight|at|on|tomorrow|after|before)\b|\s+(?:(?:and|actually)\s+)?(?:near|in|around)\b|[?,.!;]|$)/gi;
-const CONTEXT_DATE = /\bon\s+\d{4}-\d{2}-\d{2}\b/gi;
-const CONTEXT_NIGHT = /\b(?:tonight|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/gi;
-const AT_MIDNIGHT = /\bat midnight\b/gi;
-const BARE_MERIDIEM_CLOCK = /^(\d{1,2})(?::(\d{2}))?\s*([ap]\.?m\.?)$/i;
-
-function clarificationClock(query: string): string {
-  const match = query.trim().match(BARE_MERIDIEM_CLOCK);
-  if (!match) return query;
-  const hour = Number(match[1]);
-  const minute = Number(match[2] ?? "0");
-  return hour >= 1 && hour <= 12 && minute < 60 ? `at ${query.trim()}` : query;
+function clarificationFields(query: string): string {
+  const fragment = query.trim().replace(/^(?:actually|please|make\s+(?:that|it))\b[\s,:]*/i, "");
+  if (/^\d{1,2}(?::\d{2})?\s*(?:[ap]\.?m\.?)?$/i.test(fragment)
+    && requestedMinutes(`at ${fragment}`) !== null) return `at ${fragment}`;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(fragment)) return `on ${fragment}`;
+  if (NIGHT_AREAS.some((area) => [area.name, area.slug, ...area.aliases]
+    .some((name) => name.toLowerCase() === fragment.toLowerCase()))) return `near ${fragment}`;
+  return fragment;
 }
 
 function foodWording(query: string): string {
@@ -125,7 +155,7 @@ function foodWording(query: string): string {
 }
 
 function isFoodClarification(query: string): boolean {
-  const rest = foodWording(clarificationClock(query))
+  const rest = foodWording(clarificationFields(query))
     .replace(CONTEXT_AREA, " ")
     .replace(CLOCK, " ")
     .replace(AT_MIDNIGHT, " ")
@@ -141,12 +171,15 @@ function isFoodClarification(query: string): boolean {
 function retainedFoodConstraints(query: string): string[] {
   // Area replacement cannot remove independently detected food requirements.
   const wording = foodWording(query);
-  const cuisineAndPub = [...wording.matchAll(/\b(?:pizzas?|kebabs?|cafes?|restaurants?|pubs?)\b/gi)].map((match) => match[0]);
-  return [...new Set([...foodConstraints(wording), ...cuisineAndPub])];
+  const cuisines = CUISINES.filter(([pattern]) => pattern.test(wording)).map(([, category]) => category);
+  return [...new Set([
+    ...foodConstraints(wording), ...cuisines, unrecordedFoodWording(query),
+    ...(requiresPubKitchen(wording) ? ["pub kitchen"] : []),
+  ])].filter(Boolean);
 }
 
 function correctFoodQuery(previous: string, rawFragment: string): string {
-  const fragment = clarificationClock(rawFragment.replace(/^(?:actually|please|make\s+(?:that|it))\b[\s,:]*/i, ""));
+  const fragment = clarificationFields(rawFragment);
   const priorAreas = [...previous.matchAll(CONTEXT_AREA)].map((match) => match[1]!.trim());
   const correctedAreas = [...fragment.matchAll(CONTEXT_AREA)].map((match) => match[1]!.trim());
   const areas = correctedAreas.length ? correctedAreas : priorAreas;

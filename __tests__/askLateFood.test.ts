@@ -132,11 +132,89 @@ describe("late-food questions through Ask", () => {
   it.each([
     "Find four pubs with food in Soho at 13:00 on 2026-10-23",
     "Find four pubs for lunch in Soho at 13:00 on 2026-10-23",
+    "Find four pubs with food in Soho at 13:00",
   ])("retains timed ordinary daytime discovery: %s", async (query) => {
     const response = await ask(query);
     expect(response.cards.length).toBeGreaterThan(0);
     expect(response.cards.every((card) => card.venueId.startsWith("venue-"))).toBe(true);
     expect(response.cards.some((card) => card.key.startsWith("late-food-evidence-"))).toBe(false);
+  });
+
+  it.each(["23:00", "16:00", "03:59"])("requires pub kitchen evidence outside daytime at %s", async (clock) => {
+    const response = await ask(`Find four pubs with food in Soho tonight at ${clock}`);
+    expect(response.cards).toEqual([]);
+    expect(response.proposals).toEqual([]);
+    expect(response.answer).toContain("pub kitchen hours");
+  });
+
+  it.each(["Chinese food", "Chinese restaurant food", "Spicy food", "Food with outdoor seating"])("does not discard an unrecorded food requirement: %s", async (food) => {
+    const response = await ask(`${food} in Soho tonight at 1am`);
+    expect(response.cards).toEqual([]);
+    expect(response.proposals).toEqual([]);
+    expect(response.sources).toEqual([]);
+    expect(response.answer).toMatch(/no current.*record/i);
+  });
+
+  it("does not use daytime discovery to discard an unrecorded food requirement", async () => {
+    const response = await ask("Find four pubs with Chinese food in Soho at 13:00");
+    expect(response.cards).toEqual([]);
+    expect(response.proposals).toEqual([]);
+  });
+
+  it("allows recorded restaurant food after a pub visit", async () => {
+    const response = await ask("Food after the pub in Soho tonight at 1am");
+    expect(response.cards.map((card) => card.title)).toEqual(["Balans No.60"]);
+    expect(response.cards[0]).toMatchObject({ venueId: "", price: null });
+    expect(response.sources).toContainEqual(expect.objectContaining({ url: SOHO_HOURS_SOURCE }));
+  });
+
+  it.each([
+    "Directions to London Bridge from The Blackfriar",
+    "Any tube delays tonight?",
+    "Directions to London Bridge from The Blackfriar. Any tube delays tonight?",
+  ])("routes the food answer alongside transport: %s", async (transport) => {
+    const response = await runAsk({
+      query: `Food at 01:00 on 2026-10-23 near Covent Garden. ${transport}`,
+      now: OCTOBER_REVIEW_NOW, cityId: "london", skipModel: true,
+      fetchImpl: async () => Response.json({ jsonrpc: "2.0", result: { structuredContent: {
+        journeys: [{ durationMinutes: 12, legs: [] }],
+      } } }),
+    });
+    expect(response.toolsUsed).toContain("search_venues");
+    expect(response.toolsUsed.some((tool) => tool === "journey" || tool === "city_status")).toBe(true);
+    expect(response.answer).toContain("no current late-food record for Covent Garden");
+    expect(response.proposals).toEqual([]);
+    if (transport.startsWith("Directions")) {
+      expect(response.cards).toContainEqual(expect.objectContaining({ note: "12 min" }));
+    }
+  });
+
+  it("retains recorded food service alongside a grounded journey", async () => {
+    const response = await runAsk({
+      query: "Food in Soho tonight at 1am. Directions to London Bridge from The Blackfriar",
+      now: OCTOBER_REVIEW_NOW, cityId: "london", skipModel: true,
+      fetchImpl: async () => Response.json({ jsonrpc: "2.0", result: { structuredContent: {
+        journeys: [{ durationMinutes: 12, legs: [] }],
+      } } }),
+    });
+    expect(response.cards).toContainEqual(expect.objectContaining({ title: "Balans No.60", venueId: "", price: null }));
+    expect(response.cards).toContainEqual(expect.objectContaining({ note: "12 min" }));
+    expect(response.sources).toContainEqual(expect.objectContaining({ url: SOHO_HOURS_SOURCE }));
+  });
+
+  it("keeps transport timing separate from the food service date", async () => {
+    const response = await ask("Food at 01:00 on 2026-10-23 near Soho. Any tube delays tonight?");
+    expect(response.cards).toContainEqual(expect.objectContaining({ title: "Balans No.60", venueId: "", price: null }));
+    expect(response.toolsUsed).toContain("city_status");
+    expect(response.sources).toContainEqual(expect.objectContaining({ url: SOHO_HOURS_SOURCE }));
+  });
+
+  it("keeps an unrecorded cuisine when transport comes first", async () => {
+    const response = await ask("Directions to London Bridge from The Blackfriar. Where can I get Chinese food in Soho tonight at 1am?");
+    expect(response.cards).toEqual([]);
+    expect(response.proposals).toEqual([]);
+    expect(response.sources).not.toContainEqual(expect.objectContaining({ url: SOHO_HOURS_SOURCE }));
+    expect(response.answer).toMatch(/no current.*record/i);
   });
 
   it("clarifies conflicting area clauses rather than choosing the first area", async () => {
@@ -218,6 +296,46 @@ describe("late-food questions through Ask", () => {
 
 
 describe("late-food clarification context", () => {
+  it.each([
+    { query: "make it 2am", previous: "Food in Soho tonight at 06:00" },
+    { query: "01:00", previous: "Food in Soho tonight at 06:00" },
+    { query: "Soho", previous: "Food tonight at 1am" },
+    { query: "2026-10-23", previous: "Food in Soho at 01:00" },
+  ])("normalises the field-only reply in typed and voice requests: $query", async ({ query, previous }) => {
+    const turns = [{ role: "user" as const, content: previous }];
+    const typed = await runAsk({ query, turns, now: OCTOBER_REVIEW_NOW, cityId: "london", skipModel: true, fetchImpl: offlineFetch });
+    const voice = await runAskTool("search_venues", {}, {
+      query: resolvePubPalToolQuery({ turnQuery: query, args: {}, turns }),
+      cityId: "london", now: OCTOBER_REVIEW_NOW, skipModel: true, fetchImpl: offlineFetch,
+    });
+    for (const response of [typed, voice]) {
+      expect(response.cards.map((card) => card.title)).toEqual(["Balans No.60"]);
+      expect(response.cards[0]).toMatchObject({ venueId: "", price: null });
+      expect(response.proposals).toEqual([]);
+    }
+  });
+
+  it.each(["Chinese food", "Food that is Chinese", "Food with outdoor seating", "Food with Chinese options"])("retains an unrecorded constraint after an area correction: %s", async (food) => {
+    const response = await runAsk({
+      query: "Soho", now: OCTOBER_REVIEW_NOW, cityId: "london", skipModel: true, fetchImpl: offlineFetch,
+      turns: [{ role: "user", content: `${food} near Victoria tonight at 1am` }],
+    });
+    expect(response.cards).toEqual([]);
+    expect(response.sources).toEqual([]);
+    expect(response.answer).toMatch(/no current.*record/i);
+  });
+
+  it.each([
+    { previous: "Food after the pub near Victoria tonight at 1am", titles: ["Balans No.60"] },
+    { previous: "Food from a pub near Victoria tonight at 1am", titles: [] },
+  ])("retains the pub requirement only when explicit: $previous", async ({ previous, titles }) => {
+    const response = await runAsk({
+      query: "Soho", now: OCTOBER_REVIEW_NOW, cityId: "london", skipModel: true, fetchImpl: offlineFetch,
+      turns: [{ role: "user", content: previous }],
+    });
+    expect(response.cards.map((card) => card.title)).toEqual(titles);
+  });
+
   it.each(["No trains tonight?", "No thanks"])("keeps unrelated or declining replies authoritative: %s", (query) => {
     const turns = [{ role: "user" as const, content: "Food at 01:00 on 2026-10-23 near Soho" }];
     expect(resolveLateFoodQuery(query, turns)).toBe(query);
