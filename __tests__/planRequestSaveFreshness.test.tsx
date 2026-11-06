@@ -3942,8 +3942,10 @@ it.each(["expired legacy proof", "expired V2 proof", "invalid legacy record"] as
     expect(lockButton().getAttribute("aria-disabled")).toBeNull();
     if (!legacy) {
       expect(document.querySelector('[aria-label="Accepted plan context"]')?.textContent).toContain("Pub A");
+      // The fixture pubs have no known pint serving, so the title omits
+      // "one pint a stop" (PlanBudgetLedger, allPintServingsKnown).
       await vi.waitFor(() => expect(document.querySelector("#plan-budget-ledger-title")?.textContent)
-        .toBe("Your £20.00 crawl, one pint a stop"));
+        .toBe("Your £20.00 crawl"));
     }
 
     let savedRoute = rawRoute;
