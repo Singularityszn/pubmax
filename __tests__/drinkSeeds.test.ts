@@ -34,7 +34,7 @@ describe("demo drink seeds", () => {
     for (const drink of demoDrinks) {
       expect(drink.provenance.source).toBe("seed");
       expect(drink.provenance.licence).toBe("n/a");
-      expect(Number.isFinite(Date.parse(drink.provenance.observedAt))).toBe(true);
+      expect(Number.isFinite(Date.parse(drink.provenance.observedAt ?? ""))).toBe(true);
       expect(drink.priceGbp).toBeGreaterThan(0);
       expect(drink.priceGbp).toBeLessThanOrEqual(50);
       expect(drink.id.startsWith("drink-")).toBe(true);

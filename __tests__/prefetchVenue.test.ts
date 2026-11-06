@@ -79,8 +79,8 @@ describe("shouldPrefetch (save-data / 2g gating)", () => {
 
 describe("venueDetailUrl", () => {
   it("builds the route path and encodes the id", () => {
-    expect(venueDetailUrl("venue-abc")).toBe("/api/venue/venue-abc");
-    expect(venueDetailUrl("a/b c")).toBe("/api/venue/a%2Fb%20c");
+    expect(venueDetailUrl("venue-abc")).toBe("/api/venue/venue-abc?include_retired=1");
+    expect(venueDetailUrl("a/b c")).toBe("/api/venue/a%2Fb%20c?include_retired=1");
   });
 });
 
@@ -104,7 +104,7 @@ describe("createPrefetch — fire-once + abort safety", () => {
     prefetch("venue-1");
     await flush();
     expect(fetch).toHaveBeenCalledTimes(1);
-    expect(fetch).toHaveBeenCalledWith("/api/venue/venue-1", expect.anything());
+    expect(fetch).toHaveBeenCalledWith(venueDetailUrl("venue-1"), expect.anything());
   });
 
   it("fires at most once per key per session", async () => {

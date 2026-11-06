@@ -111,19 +111,21 @@ The interface is the hash and the transition the foundation test already calls. 
 
 ## Security analysis: proxy and Clerk
 
-Analysis only. `proxy.ts` was not edited. Checked against this tree and the installed packages `@clerk/nextjs` 7.9.7 and `@clerk/backend` 3.20.1.
+The 1 Oct reading. `proxy.ts` was not edited that day. Checked against that tree and the installed packages `@clerk/nextjs` 7.9.7 and `@clerk/backend` 3.20.1. The Clerk split recorded below was reversed on 2 Oct 2026. The current contract is [Clerk is optional and two-key gated](../rules/lib-identity-accounts-and-sessions.md#clerk-is-optional-and-two-key-gated).
 
-**Still true:** yes. The matcher includes `{ source: "/api" }` and `{ source: "/api/:path*" }` (`proxy.ts`, `config.matcher`), so an `/api` request is matched. `servesApiCaller` is true for the pathname `/api` and for any pathname that starts with `/api/`.
+**Still true:** the matcher and the API early return, yes. The Social-only Clerk bypass in this section is the 1 Oct tree, not this one. The matcher includes `{ source: "/api" }` and `{ source: "/api/:path*" }` (`proxy.ts`, `config.matcher`), so an `/api` request is matched. `servesApiCaller` is true for the pathname `/api` and for any pathname that starts with `/api/`.
 
 `securityProxy` returns at the start of that function for an API caller. A trailing slash becomes a 308 that stays on the host the caller used. On the host `pubmaxxing.com`, a misconfigured durable store can answer 503 from `serverEnvRefusalResponse`. Otherwise the function returns `NextResponse.next()` and never builds a document Content-Security-Policy. `shouldRedirectVercelHost` is also false for an API caller, and that host 308 sits after the API return, so the canonical-host 308 to `pubmaxxing.com` does not apply to `/api`.
 
 `isClerkMiddlewareConfigured` in `lib/clerkIdentity.ts` is true only when `isClerkConfigured()` is true and `CLERK_SECRET_KEY` is non-empty after trim.
 
-With both keys present at module load, `clerkSecurityProxy` is `clerkMiddleware(async (_auth, request) => securityProxy(request))`. The named `proxy` export sends `/api/social` and `/api/social/*` straight to `securityProxy`. Every other matched request, including every other `/api` route, goes to `clerkSecurityProxy`, and that handler calls `securityProxy`.
+With both keys present at module load, `clerkSecurityProxy` is `clerkMiddleware(async (_auth, request) => securityProxy(request))`. On 1 Oct the named `proxy` export sent `/api/social` and `/api/social/*` straight to `securityProxy`. Every other matched request, including every other `/api` route, went to `clerkSecurityProxy`, and that handler called `securityProxy`. That split is not the tree now.
 
 With either key missing at module load, `clerkSecurityProxy` is null and `proxy` is `securityProxy`. Matched `/api` routes do not enter `clerkMiddleware`. `__tests__/clerkProxyCsp.test.ts` pins the missing-secret case: the two exports are the same function.
 
 **Can `clerkMiddleware` answer an `/api` request without calling the handler?**
+
+On 1 Oct an `/api` request other than Social entered `clerkMiddleware`, so the question applied to those routes. It does not apply to `/api` now: `servesApiCaller` sends every `/api` caller straight to `securityProxy` before `clerkMiddleware` runs. The mechanism below is what `clerkMiddleware` still does on the paths that enter it.
 
 Read in `node_modules/@clerk/nextjs/dist/esm/server/clerkMiddleware.js`, the function this app imports. Two returns happen before the user handler.
 
@@ -131,19 +133,19 @@ Read in `node_modules/@clerk/nextjs/dist/esm/server/clerkMiddleware.js`, the fun
 
 2. Handshake redirect. After `authenticateRequest`, if the request-state headers contain `location`, `clerkMiddleware` returns `NextResponse.redirect` and does not call the handler. `HandshakeService.isRequestEligibleForHandshake` in `@clerk/backend` (`dist/chunk-YTAN34JE.mjs`) allows that only for GET, and only when `sec-fetch-dest` is `document` or `iframe`, or when `sec-fetch-dest` is absent and `accept` starts with `text/html`. `handleMaybeHandshakeStatus` returns a signed-out state with no `location` header when the request is not eligible, and the handler then runs.
 
-A normal API caller is not answered without the handler. That covers a method other than GET, a browser `fetch` (`sec-fetch-dest: empty`), and a GET whose `Accept` does not start with `text/html`. `assertKey` throws `@clerk/nextjs: Missing secretKey` (the package prefix plus `Missing secretKey` from `@clerk/shared` `buildErrorThrower`) before the handler when the secret is missing. This file constructs `clerkMiddleware` only when both keys were present at load, so that throw is not the shipped `/api` path.
+Inside `clerkMiddleware`, a request that is not a document-shaped GET is not answered without the handler. That covers a method other than GET, a browser `fetch` (`sec-fetch-dest: empty`), and a GET whose `Accept` does not start with `text/html`. `assertKey` throws `@clerk/nextjs: Missing secretKey` (the package prefix plus `Missing secretKey` from `@clerk/shared` `buildErrorThrower`) before the handler when the secret is missing. This file constructs `clerkMiddleware` only when both keys were present at load, so that throw is not the shipped `/api` path.
 
-The exception is a document-shaped GET. On any matched path except `/api/social` and `/api/social/*`, Clerk can redirect to its handshake before the handler. For a non-social `/api` path the consequence is that `securityProxy` does not run on that request (no trailing-slash 308, no canonical-host store refusal, no pass-through) and the route does not run. The client receives a redirect to the Clerk Frontend API handshake, not the route body. The route's own checks still apply on the later request that is not a handshake. `/api/social` never enters `clerkMiddleware`, so it cannot take this path. In development, `resolveHandshake` can also set `location` when a handshake nonce or token is already on the URL. That is the return trip of the same document handshake, and it skips the handler once.
+On 1 Oct the exception was a document-shaped GET. On any matched path except `/api/social` and `/api/social/*`, Clerk could redirect to its handshake before the handler. For a non-social `/api` path that meant `securityProxy` did not run on that request (no trailing-slash 308, no canonical-host store refusal, no pass-through) and the route did not run. The client received a redirect to the Clerk Frontend API handshake, not the route body. The route's own checks still applied on the later request that was not a handshake. `/api/social` never entered `clerkMiddleware`, so it could not take this path. In development, `resolveHandshake` can also set `location` when a handshake nonce or token is already on the URL. That is the return trip of the same document handshake, and it skips the handler once. A document-shaped GET to `/api` no longer reaches `clerkMiddleware`.
 
-This is not a path that serves an API body without `securityProxy`. No change follows from it.
+**Seam decision (1 Oct):** leave this composition unchanged. The module is `securityProxy`. Depth is one security function. The interface is the named `proxy` export Next runs. Two adapters sat on it:
 
-**Seam decision:** leave this composition unchanged. The module is `securityProxy`. Depth is one security function. The interface is the named `proxy` export Next runs. Two adapters sit on it:
+- With both keys, `clerkMiddleware` was the adapter for every matched request except Social, and its handler called `securityProxy`.
+- With either key missing, the adapter was `securityProxy` itself.
 
-- With both keys, `clerkMiddleware` is the adapter for every matched request except Social, and its handler calls `securityProxy`.
-- With either key missing, the adapter is `securityProxy` itself.
+`/api/social` and `/api/social/*` called that same function directly. They were not a second copy. The deletion test for a second security function is the suite that already drives `securityProxy`, including `__tests__/clerkProxyCsp.test.ts` and the host-redirect tests. A wrapper that dropped the API early return would fail those.
 
-`/api/social` and `/api/social/*` call that same function directly. They are not a second copy. The deletion test for a second security function is the suite that already drives `securityProxy`, including `__tests__/clerkProxyCsp.test.ts` and the host-redirect tests. A wrapper that dropped the API early return would fail those. No patch.
+**Files changed:** none, on 1 Oct.
 
-**Files changed:** none.
+**Fully resolved:** the 1 Oct recommendation was to leave the composition unchanged. The follow-up reversed it for `/api`.
 
-**Fully resolved:** the recommendation is recorded. Leave the composition unchanged.
+**Follow-up, 2 Oct 2026.** Every `/api` caller goes straight to `securityProxy`. The contract is [Clerk is optional and two-key gated](../rules/lib-identity-accounts-and-sessions.md#clerk-is-optional-and-two-key-gated). Pin: `__tests__/clerkProxyCsp.test.ts`.

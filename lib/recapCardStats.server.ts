@@ -4,6 +4,8 @@ import { getPublishedRecapSource } from "@/lib/nightMemoryStore";
 import { composeRecapFromPublishedStory } from "@/lib/recapView";
 import { pintDropsStore, type PintDropDTO } from "@/lib/pintDropsStore";
 import type { RecapCardStats } from "@/lib/recapCard";
+import { loadVenueAliasResolver } from "@/lib/venueAliases";
+import { storedVenueName, storedVenueRef } from "@/lib/storedVenueRef";
 import { getVenueIndex, type VenueRef } from "@/lib/venueIndex";
 import type { NightMoment } from "@/lib/nightMemory";
 import type { PintDrop } from "@/lib/pintDropShared";
@@ -137,10 +139,14 @@ async function readPublicPintDrops(
   return { dropsById: out, complete };
 }
 
-async function readVenueRefs(): Promise<Map<string, VenueRef>> {
+type VenueRefLookup = Pick<Map<string, VenueRef>, "get">;
+
+/** A stop stored under a merged or superseded id is read as the venue it now names. */
+async function readVenueRefs(): Promise<VenueRefLookup> {
   try {
-    const index = await getVenueIndex();
-    return index instanceof Map ? index : new Map();
+    const [index, aliases] = await Promise.all([getVenueIndex(), loadVenueAliasResolver()]);
+    if (!(index instanceof Map)) return new Map();
+    return { get: (venueId: string) => storedVenueRef(index, aliases, venueId) };
   } catch {
     // Venue names and boroughs are enrichment. The public recap still has
     // honest route/pint stats when the packaged index is unavailable.
@@ -148,7 +154,7 @@ async function readVenueRefs(): Promise<Map<string, VenueRef>> {
   }
 }
 
-function boroughCount(moments: NightMoment[], venueIndex: Map<string, VenueRef>): number {
+function boroughCount(moments: NightMoment[], venueIndex: VenueRefLookup): number {
   const boroughs = new Set<string>();
   for (const venueId of uniqueVenueIds(moments.filter((moment) => moment.kind === "venue"))) {
     const borough = nonEmpty(venueIndex.get(venueId)?.borough);
@@ -172,7 +178,8 @@ export async function recapCardStats(storyId: string): Promise<RecapCardStats | 
   ]);
   const venueNames = new Map<string, string>();
   for (const venueId of uniqueVenueIds(source.moments)) {
-    const name = nonEmpty(venueIndex.get(venueId)?.name);
+    const venue = venueIndex.get(venueId);
+    const name = venue ? nonEmpty(storedVenueName(venue)) : null;
     if (name) venueNames.set(venueId, name);
   }
 

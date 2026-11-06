@@ -27,7 +27,6 @@ import {
   loadMapSelectableVenueIds,
   resetMapEagerVenueIndexForTests,
 } from "@/lib/mapEagerVenueIndex.server";
-import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import { loadPintPriceLandingVenues } from "@/lib/pintPriceLandingDataset.server";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 
@@ -222,7 +221,9 @@ describe("governed drink brand landings", () => {
     });
     expect(model?.rows[1]?.publisher).toBeNull();
     expect(model?.totalPricedVenues).toBe(20);
-    expect(model?.collectedAt).toBe(PINT_DATASET_OBSERVED_AT.toISOString());
+    // The fixture rows record no read, so the page names no collection day
+    // rather than borrowing the dataset stamp.
+    expect(model?.collectedAt).toBeNull();
   });
 
   it("breaks equal row prices by app price id and ranked pub ties by name then id", () => {

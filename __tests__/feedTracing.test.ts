@@ -21,7 +21,7 @@ import { describe, expect, it } from "vitest";
 
 import { listEnabledCities } from "@/lib/cities";
 import { CITY_VENUE_PACKS } from "@/lib/cityVenuePacks.mjs";
-import { VENUE_ALIASES_TRACING_INCLUDE } from "@/lib/venueAliasesFile.mjs";
+import { VENUE_ALIASES_TRACING_INCLUDES } from "@/lib/venueAliasesFile.mjs";
 import registry from "@/data/freshness_registry.json";
 
 const FEED_ROUTE = "/feed";
@@ -77,11 +77,11 @@ describe("feed data-file tracing", () => {
   });
 
   it("traces nothing the feed never opens, so the function stays small", () => {
-    // The alias map joins this set because every venue-index lookup resolves a
+    // The alias maps join this set because every venue-index lookup resolves a
     // possibly-merged id through lib/venueAliases.ts before it reads a pack.
     const expected = new Set([
       `./${overlayArtifact}`,
-      VENUE_ALIASES_TRACING_INCLUDE,
+      ...VENUE_ALIASES_TRACING_INCLUDES,
       ...listEnabledCities().map((city) => `./public${city.slimVenuesPath}`),
     ]);
     expect(new Set(includes[FEED_ROUTE])).toEqual(expected);

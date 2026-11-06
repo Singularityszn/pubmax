@@ -63,6 +63,7 @@ JSON and cannot carry inline comments.
 | `GET /api/cron/refresh-night-signals` | `15 5 * * *` | 06:15 / 05:15 | Exa sweep for PENDING Night Signal candidates + freshness stamp — never publishes; human review still gates the feed | 60s |
 | `GET /api/cron/moderate-social-posts` | `* * * * *` | Every minute | Claim and moderate up to 20 queued Social posts; posts stay held until approval | 30s |
 | `GET /api/cron/moderate-social-interactions` | `* * * * *` | Every minute | Claim and moderate up to 20 queued comments or quote posts; text stays held until approval | 30s |
+| `GET /api/cron/purge-pub-pal-turns` | `* * * * *` | Every minute | Delete expired Pub Pal tool turns (`pub_pal_tool_turns`), which keep the user's lines for two minutes after their last line | 30s |
 | `GET /api/cron/enrich-city-pubs` | `15 3 * * *` | 04:15 / 03:15 | Rotating official-page discovery for the night's primary UK city (`lib/searchProvider.server.ts` selects Exa or Tavily; `lib/tavilyPubEnrichment.server.ts` owns rotation, caps, and Bristol spillover) - structured observations to logs only; a function cannot commit repository files | 120s |
 
 The What's-On refresh runs **twice a day**. The morning run, `30 5 * * *`

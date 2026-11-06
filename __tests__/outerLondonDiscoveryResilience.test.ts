@@ -52,12 +52,34 @@ function makeFixture() {
     root,
     "lib/harvest/sourcePolicy.ts",
     `export const isHarvestableOperatorUrl = (url) => !String(url).includes("refused.example");
+export function normalizeHarvestHostname(hostname) {
+  let host = String(hostname).trim().toLowerCase();
+  if (host.startsWith("[") && host.endsWith("]")) host = host.slice(1, -1);
+  if (host.endsWith(".")) {
+    host = host.slice(0, -1);
+    if (!host || host.endsWith(".")) return null;
+  }
+  return host || null;
+}
+`,
+  );
+  write(
+    root,
+    "lib/harvest/robots.ts",
+    `import { appendFileSync } from "node:fs";
+export function createRobotsChecker() {
+  return async (url) => {
+    if (process.env.TEST_ROBOTS_LOG) appendFileSync(process.env.TEST_ROBOTS_LOG, url + "\\n");
+    return { allowed: true, reason: "allowed", evidence: "fixture" };
+  };
+}
 `,
   );
   write(
     root,
     "scripts/lib/localRefreshProviders.mjs",
-    `export class RefreshProviderError extends Error {
+    `import { appendFileSync } from "node:fs";
+export class RefreshProviderError extends Error {
   constructor(provider, message) { super(message); this.provider = provider; }
 }
 export const assertProviderCredentials = () => {};
@@ -69,20 +91,23 @@ export const discoverRefreshPages = async ({ includeDomains }) => {
   }
   return [{ url: "https://" + includeDomains[0] + "/drinks" }];
 };
-export const fetchRefreshPage = async ({ url }) => ({
-  markdown: process.env.TEST_PRICE_MODE === "priced"
-    ? "Welcome to our pub. Draught lager £6.20"
-    : "Welcome to our pub",
-  links: [],
-  finalUrl:
-    process.env.TEST_FINAL_URL_MODE === "refused"
-      ? "https://refused.example/menu"
-      : process.env.TEST_FINAL_URL_MODE === "cross-origin"
-        ? "https://other-permitted.example/menu"
-        : process.env.TEST_FINAL_URL_MODE === "same-origin"
-          ? new URL("/resolved-menu", url).href
-          : url,
-});
+export const fetchRefreshPage = async ({ url }) => {
+  if (process.env.TEST_FETCH_LOG) appendFileSync(process.env.TEST_FETCH_LOG, url + "\\n");
+  return {
+    markdown: process.env.TEST_PRICE_MODE === "priced"
+      ? "Welcome to our pub. Draught lager £6.20"
+      : "Welcome to our pub",
+    links: [],
+    finalUrl:
+      process.env.TEST_FINAL_URL_MODE === "refused"
+        ? "https://refused.example/menu"
+        : process.env.TEST_FINAL_URL_MODE === "cross-origin"
+          ? "https://other-permitted.example/menu"
+          : process.env.TEST_FINAL_URL_MODE === "same-origin"
+            ? new URL("/resolved-menu", url).href
+            : url,
+  };
+};
 `,
   );
   write(
@@ -221,6 +246,58 @@ describe("outer London optional discovery failures", () => {
         result: "priced",
         sourceUrl: "https://first-independent.example/resolved-menu",
         requests: 1,
+      }),
+    );
+  });
+
+  it("does not fetch a refused host or ask robots about it", () => {
+    const root = makeFixture();
+    write(
+      root,
+      "public/data/pint_prices_app_dataset.json",
+      `${JSON.stringify([
+        {
+          pub_name: "Refused Estate",
+          address: "1 Refused Road",
+          latitude: 51.4,
+          longitude: -0.3,
+          primary_borough: "Alpha",
+          source_datasets: "outer_london_osm",
+          price_gbp: null,
+          website: "https://www.refused.example./menu",
+          comment: "",
+          data_quality_notes: "",
+        },
+      ])}\n`,
+    );
+    const script = realpathSync(join(root, "scripts/harvest_outer_london_prices.mjs"));
+    const logPath = join(root, "data/osm/test-log.json");
+    const fetchLog = join(root, "fetch-log.txt");
+    const robotsLog = join(root, "robots-log.txt");
+    const run = spawnSync(
+      process.execPath,
+      [script, "--dry-run", "--limit", "1", "--budget", "4", "--log", "data/osm/test-log.json"],
+      {
+        cwd: root,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          TEST_FETCH_LOG: fetchLog,
+          TEST_ROBOTS_LOG: robotsLog,
+        },
+      },
+    );
+
+    expect(run.status, run.stderr).toBe(0);
+    expect(existsSync(fetchLog)).toBe(false);
+    expect(existsSync(robotsLog)).toBe(false);
+    const written = JSON.parse(readFileSync(logPath, "utf8"));
+    expect(written.summary.requestsUsed).toBe(0);
+    expect(written.log[0]).toEqual(
+      expect.objectContaining({
+        pub: "Refused Estate",
+        result: "blocked",
+        reason: expect.stringContaining("source policy refused"),
       }),
     );
   });

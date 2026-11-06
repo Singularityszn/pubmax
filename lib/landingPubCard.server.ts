@@ -2,7 +2,6 @@ import "server-only";
 
 import history from "@/public/data/price_history/london.json";
 
-import { isoDate, PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import type { LandingArchiveIndex, LandingRailRow } from "@/lib/landingHero";
 import {
   buildLandingAnchorRail,
@@ -38,8 +37,7 @@ let cached: Promise<LandingHeroData> | null = null;
 export function loadLandingHeroData(): Promise<LandingHeroData> {
   cached ??= getPricedVenues()
     .then((venues) => {
-      const collectedOn = isoDate(PINT_DATASET_OBSERVED_AT);
-      const card = buildLandingPubCard(venues, history, { collectedOn });
+      const card = buildLandingPubCard(venues, history);
       const archive = buildLandingArchiveIndex(venues, history);
       const rail = card ? buildLandingAnchorRail(venues, card, archive) : [];
       const averages = pintPriceAverages(

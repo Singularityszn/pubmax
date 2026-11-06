@@ -2,7 +2,7 @@
   "version": 0.6,
   "generator": "Overpass API 0.7.62.11 87bfad18",
   "osm3s": {
-    "timestamp_osm_base": "2026-07-17T22:40:59Z",
+    "timestamp_osm_base": "2026-07-15T15:22:01Z",
     "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL."
   },
   "elements": [
@@ -668,10 +668,8 @@
         "email": "hello@hackneychurchbrew.co",
         "fhrs:id": "1202272",
         "food": "yes",
-        "indoor_seating": "yes",
         "name": "Hackney Church Brew Co",
         "opening_hours": "Mo-Tu off; We-Th 17:00-23:00; Fr-Sa 12:00-24:00; Su 12:00-22:00",
-        "outdoor_seating": "yes",
         "phone": "+44 20 3795 8295",
         "reservation": "yes",
         "website": "https://www.hackneychurchbrew.co/"
@@ -1055,22 +1053,6 @@
         "amenity": "bar",
         "check_date": "2026-04-04",
         "name": "Point Cocktails"
-      }
-    },
-    {
-      "type": "node",
-      "id": 14021854263,
-      "lat": 51.5464354,
-      "lon": -0.00787,
-      "tags": {
-        "addr:city": "London",
-        "addr:housename": "The Gantry",
-        "addr:housenumber": "40",
-        "addr:postcode": "E20 1DB",
-        "addr:street": "Celebration Avenue",
-        "amenity": "bar",
-        "check_date": "2026-07-16",
-        "name": "Union Social"
       }
     },
     {

@@ -89,3 +89,5 @@ plutil -lint .local-refresh-launchd/*.plist
 Target-account lint, load, list, unload, and cleanup output is recorded in [`docs/proof/local-refresh-scheduler/launchd-validation-2026-08-05.md`](./proof/local-refresh-scheduler/launchd-validation-2026-08-05.md).
 
 Do not run `install` from a disposable task worktree. Its absolute path disappears when worktree is removed.
+
+The nightly Tavily pass is not one of these agents. Its command and the two ways to schedule it are in [`docs/TAVILY_NIGHTLY_PASS.md`](./TAVILY_NIGHTLY_PASS.md).

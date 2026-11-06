@@ -1,12 +1,12 @@
 {
   "version": 1,
   "mode": "cli",
-  "startedAt": "2026-08-10T08:43:37.191Z",
-  "finishedAt": "2026-08-10T08:51:59.463Z",
+  "startedAt": "2026-10-02T07:14:11.189Z",
+  "finishedAt": "2026-10-02T07:17:11.378Z",
   "budget": {
-    "limit": 220,
-    "spent": 116,
-    "remaining": 104
+    "limit": 120,
+    "spent": 46,
+    "remaining": 74
   },
   "sources": [
     {
@@ -17,7 +17,7 @@
       "firstParty": true,
       "status": "harvested",
       "statedItems": 5,
-      "rowsEmitted": 480,
+      "rowsEmitted": 475,
       "drops": []
     },
     {
@@ -84,7 +84,7 @@
       "rowsEmitted": 0,
       "drops": [],
       "skipReason": "terms-forbid-commercial-use",
-      "evidence": "Skiddle's own terms make the events data non-commercial without written approval from dev@skiddle.com; PUBMAXX is commercial. robots.txt would permit the listing path, but the narrower rule binds. Recorded the same way in docs/EVENT_SOURCES_RESEARCH_2026-07-18.md."
+      "evidence": "Skiddle's own terms make the events data non-commercial without written approval from dev@skiddle.com; PUBMAXX is commercial. Re-read 2026-09-07: robots.txt disallows /orders/, /members/, /basket/ and friends and would permit the listing path, but the narrower terms rule binds. Recorded the same way in docs/EVENT_SOURCES_RESEARCH_2026-07-18.md."
     },
     {
       "sourceId": "dice-listings",
@@ -97,7 +97,7 @@
       "rowsEmitted": 0,
       "drops": [],
       "skipReason": "robots-disallowed",
-      "evidence": "robots.txt names `User-agent: CloudflareBrowserRenderingCrawler / Disallow: /` alongside the AI crawlers, and sets `Content-Signal: ai-train=no,use=reference`. The generic `Allow: /` does not survive the narrower rule."
+      "evidence": "robots.txt names `User-agent: CloudflareBrowserRenderingCrawler / Disallow: /` alongside the AI crawlers, and sets `Content-Signal: ai-train=no,use=reference`. The generic `Allow: /` does not survive the narrower rule. Re-read 2026-09-07: unchanged, both rules still stand."
     },
     {
       "sourceId": "wegottickets-listings",
@@ -123,27 +123,23 @@
       "rowsEmitted": 0,
       "drops": [
         {
-          "reason": "robots-unreadable",
-          "count": 14
-        },
-        {
           "reason": "no-date",
-          "count": 11
+          "count": 7
         },
         {
           "reason": "no-whats-on-page-published",
-          "count": 9
+          "count": 2
         },
         {
-          "reason": "robots-disallowed",
+          "reason": "robots-unreadable",
           "count": 2
         },
         {
           "reason": "venue-site-unreadable",
-          "count": 1
+          "count": 2
         }
       ],
-      "evidence": "Read 23 venue site(s); 14 published a what's-on page, and none of those listings stated a kind, a date and a time together."
+      "evidence": "Read 8 venue site(s); 6 published a what's-on page, and none of those listings stated a kind, a date and a time together."
     },
     {
       "sourceId": "operator-pages",
@@ -152,30 +148,56 @@
       "kind": "pub-facts",
       "firstParty": true,
       "status": "harvested",
-      "statedItems": 14,
-      "rowsEmitted": 14,
+      "statedItems": 4,
+      "rowsEmitted": 4,
       "drops": [
         {
           "reason": "no-operator-page",
-          "count": 16
+          "count": 5
         },
         {
           "reason": "search-failed:http-error",
-          "count": 6
+          "count": 2
         },
         {
           "reason": "robots-unreadable",
-          "count": 4
+          "count": 1
         }
       ]
+    },
+    {
+      "sourceId": "wetherspoon-menu-prices",
+      "label": "J D Wetherspoon - pub menus",
+      "url": "https://www.jdwetherspoon.com/pub-menus-sitemap.xml",
+      "kind": "chain-menu-prices",
+      "firstParty": true,
+      "status": "skipped",
+      "statedItems": 0,
+      "rowsEmitted": 0,
+      "drops": [],
+      "skipReason": "publishes-no-web-price",
+      "evidence": "robots.txt re-read 2026-09-03: HTTP 200, `User-agent: *` with an empty `Disallow:` (allow all) plus `Crawl-delay: 10`. The sitemap index publishes a pub-menus sitemap listing 828 per-pub menu pages, every one of them permitted. The refusal is NOT about permission: the menu page states its own answer in its own copy, `Download our app - See pricing and effortlessly order food and drinks to your table`. The page offers a PDF table menu and allergen information; the prices are in the app."
+    },
+    {
+      "sourceId": "mitchells-butlers-menu-prices",
+      "label": "Mitchells & Butlers pub menus (Nicholson's and estate)",
+      "url": "https://www.nicholsonspubs.co.uk/",
+      "kind": "chain-menu-prices",
+      "firstParty": true,
+      "status": "skipped",
+      "statedItems": 0,
+      "rowsEmitted": 0,
+      "drops": [],
+      "skipReason": "robots-unreadable",
+      "evidence": "robots.txt re-read live 2026-09-22: https://www.nicholsonspubs.co.uk/robots.txt answers HTTP 403 with a Cloudflare challenge page, not a rules file. No permission can be read, so the estate remains refused."
     }
   ],
   "totals": {
     "harvested": 3,
     "empty": 3,
-    "skipped": 4,
+    "skipped": 6,
     "failed": 0,
-    "statedItems": 20,
-    "rowsEmitted": 494
+    "statedItems": 10,
+    "rowsEmitted": 479
   }
 }

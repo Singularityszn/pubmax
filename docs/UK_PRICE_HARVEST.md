@@ -12,6 +12,8 @@ npm run build:uk-price-bundle        # bundle every lane into one dataset
 npm run validate-data                # refuse a row nobody could check
 ```
 
+`npm run tavily:nightly` is a separate pass. It queues Listed evidence for a curator and does not write this bundle. The command and the two ways to schedule it are in [`docs/TAVILY_NIGHTLY_PASS.md`](./TAVILY_NIGHTLY_PASS.md).
+
 ## The boundary, before anything else
 
 `lib/harvest/sourcePolicy.ts` decides what may be read, and nothing takes a host

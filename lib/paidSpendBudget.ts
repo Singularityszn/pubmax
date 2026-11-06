@@ -1,10 +1,10 @@
 /**
  * A CEILING NO HEADER CAN WIDEN.
  *
- * Four anonymous routes carry a deployment-wide spend ceiling:
- * `/api/ask`, `/api/heritage`, and plan generation call OpenRouter when keyed;
- * legacy `/api/pub-pal/llm` runs grounded `runAsk` with `skipModel: true` (no
- * OpenRouter). Plan generation additionally spends the routing budget. Each was
+ * Paid routes carry a deployment-wide spend ceiling: `/api/ask`, `/api/heritage`,
+ * and plan generation call OpenRouter when keyed; signed-in `/api/pub-pal/chat`
+ * opens an ElevenLabs conversation when keyed. Plan generation additionally
+ * spends the routing budget. Each was
  * rate-limited on
  * the hashed caller address ALONE, so the budget an attacker got was the budget
  * they chose: a different `x-forwarded-for` value is a different bucket, and
@@ -46,11 +46,11 @@
  * `lib/paidSpendBudget.server.ts`.
  */
 
-/** Every route that may spend money on an anonymous call. */
+/** Every route that may spend money. */
 export const PAID_SPEND_LANES = [
   "ask",
   "heritage",
-  "pub-pal-llm",
+  "pub-pal-chat",
   "plan-generate",
   "typesafe",
 ] as const;
@@ -69,7 +69,7 @@ export const PAID_SPEND_BUDGET_WINDOW_MS = 24 * 60 * 60 * 1000;
 export const PAID_SPEND_DEFAULT_DAILY_BUDGET: Record<PaidSpendLane, number> = {
   ask: 1_000,
   heritage: 1_000,
-  "pub-pal-llm": 2_000,
+  "pub-pal-chat": 2_000,
   "plan-generate": 1_000,
   typesafe: 5_000,
 };

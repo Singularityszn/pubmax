@@ -245,8 +245,8 @@ type PlanGenerationPreparation = {
 
 export async function preparePlanGeneration(
 	request: Request,
+	requestNow: number = Date.now(),
 ): Promise<{ response: Response } | { prepared: PlanGenerationPreparation }> {
-	const requestNow = Date.now();
 	const parsedRequest = await parsePlanGenerationRequest(request, new Date(requestNow));
 	if (!parsedRequest.ok) {
 		return { response: publicApiError(parsedRequest.message, parsedRequest.code, parsedRequest.status) };

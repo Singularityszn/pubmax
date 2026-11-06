@@ -98,6 +98,7 @@ export function slimVenueToPin(slim: SlimVenue): Venue {
     ...(slim.anchorSourceUrl !== undefined
       ? { anchorSourceUrl: slim.anchorSourceUrl }
       : {}),
+    ...(slim.retired ? { retired: true as const } : {}),
   };
 }
 

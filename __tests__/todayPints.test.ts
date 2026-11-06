@@ -25,6 +25,7 @@ function venue(overrides: Partial<Venue> & { id: string }): Venue {
     longitude: SOHO.lng,
     cheapestPrice: null,
     latestContributorPrice: null,
+    prices: [],
     ...overrides,
   } as Venue;
 }
