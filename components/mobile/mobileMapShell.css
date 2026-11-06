@@ -931,8 +931,8 @@ html:has(.appShell) {
     line-height: 1rem;
   }
   /* The line is the figure, the name and the walk, each a direct flex item.
-     The figure and the walk never shrink; the name gives way with an
-     ellipsis, down to the room it needs to be read. */
+     The figure and the walk never shrink. At ordinary text sizes, the name
+     yields space to them. The large-text rule above lets the name wrap. */
   .mapPeekPrice {
     flex: 0 0 auto;
     font-family: var(--font-data);

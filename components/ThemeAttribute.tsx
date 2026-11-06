@@ -8,12 +8,11 @@
 // so a person in dark sees light tokens (QA journeys report F15) and a person
 // in Legacy Mode or the Ledger view gets standard type and the Lock-In view.
 // ThemeToggle re-asserts the theme on mount, but those pages carry no toggle.
-// This makes the same reads and DOM writes as theme-init.js, each only where
-// its attribute is missing, and renders nothing. It never overrides a value
-// that is already set.
+// For these three attributes, it repeats theme-init.js only where a value is
+// missing. It renders nothing and preserves values that are already set.
 //
 // It also follows the night theme as the clock passes 21:30 and 04:00 (the
-// second effect), and keeps the browser bar on the page's colour. The root
+// final effect), and keeps the browser bar on the page's colour. The root
 // viewport ships two theme-color tags keyed to the OS scheme, so a reader who
 // picks dark in the app on a light phone would see a cream bar over a dark
 // page. Whenever html[data-theme] is set or changes, both tags take that
@@ -57,6 +56,8 @@ function storedValue(storage: Storage | null, key: string): string | null {
 }
 
 export default function ThemeAttribute(): null {
+  // The pre-paint script cannot observe a later browser font change. Refresh
+  // its bucket on mount and page resume. The native lifecycle owns shell scale.
   useEffect(() => {
     if (isNativeApp()) return;
     const reconcile = () => {

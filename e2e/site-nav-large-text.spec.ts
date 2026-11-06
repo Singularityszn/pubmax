@@ -89,7 +89,7 @@ async function expectDestinations(page: Page, primary: Locator, destinations: st
   }
 }
 
-async function expectMapClearance(page: Page, width: number) {
+async function expectMapClearance(page: Page, width: number, largeText = false) {
   if (width === 390) {
     await expectMobileMapShellReady(page);
     const topbar = page.locator(".mobileMapTopbar");
@@ -98,9 +98,10 @@ async function expectMapClearance(page: Page, width: number) {
     expect(topbarBox!.x).toBeGreaterThanOrEqual(0);
     expect(topbarBox!.x + topbarBox!.width).toBeLessThanOrEqual(width);
     const brand = topbar.getByRole("link", { name: "Open PUBMAXX landing page", exact: true });
+    if (largeText) await expect(topbar.locator(".mobileMapBrand")).toBeHidden();
     const city = topbar.locator(".citySwitcherTrigger");
     const controls = [
-      brand,
+      ...(largeText ? [] : [brand]),
       city,
       await mobileMapShellControl(page, "search"),
       await mobileMapShellControl(page, "filters"),
@@ -117,7 +118,7 @@ async function expectMapClearance(page: Page, width: number) {
       expect(box!.y + box!.height).toBeLessThanOrEqual(topbarBox!.y + topbarBox!.height + 1);
       previousRight = box!.x + box!.width;
     }
-    await expectWholeLabel(brand, brand.locator(".pubmaxxWordmarkLetters"));
+    if (!largeText) await expectWholeLabel(brand, brand.locator(".pubmaxxWordmarkLetters"));
     await expectWholeLabel(city, city.locator(".citySwitcherLabelFull"));
     return;
   }
@@ -338,7 +339,7 @@ for (const theme of ["light", "dark"] as const) {
           await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
           await expectPreviewState(page, width, selected);
           await expectDestinations(page, primary, destinations, iconOnly);
-          await expectMapClearance(page, width);
+          await expectMapClearance(page, width, fontSize === 32);
           if (width === 390 && selected) {
             const topbarBox = await page.locator(".mobileMapTopbar").boundingBox();
             const pickerBox = await page.locator(".wildNightPreviewMobile").boundingBox();
