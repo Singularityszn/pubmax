@@ -170,12 +170,12 @@ describe("a deliberate move takes the camera and keeps it", () => {
     expect(end).toBeGreaterThan(start);
     return pubMap.slice(start, end);
   };
-  const moveMapCameraTo = sliceCallback("moveMapCameraTo", "[claimMapCamera],");
+  const moveMapCameraTo = sliceCallback("moveMapCameraTo", "[cameraOwnership, claimMapCamera],");
   const claimMapCamera = sliceCallback("claimMapCamera", "[cancelOpeningLocation]);");
 
   it("takes the camera through the one claim a gesture also uses", () => {
     expect(moveMapCameraTo).toContain("claimMapCamera()");
-    const dismiss = sliceCallback("dismissAmbientBanners", "[claimMapCamera]);");
+    const dismiss = sliceCallback("dismissAmbientBanners", "[cameraOwnership, claimMapCamera]);");
     expect(dismiss).toContain("claimMapCamera()");
   });
 

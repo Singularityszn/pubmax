@@ -52,20 +52,8 @@
       value.lng <= 180
     );
   }
-  function fallbackLocation() {
-    try {
-      var raw = window.localStorage.getItem("pubmax:map-opening-location:v1");
-      var saved = raw ? JSON.parse(raw) : null;
-      if (validLocation(saved) && saved.lat >= 51.25 && saved.lat <= 51.75 && saved.lng >= -0.6 && saved.lng <= 0.4) {
-        return saved;
-      }
-    } catch {
-      // Opening location is an optional hint. Default London center stays safe.
-    }
-    return { lat: 51.52, lng: -0.12 };
-  }
   function resolveOpeningLocation() {
-    var fallback = fallbackLocation();
+    var fallback = { lat: 51.52, lng: -0.12 };
     if (!nav.geolocation) {
       return Promise.resolve(fallback);
     }
@@ -73,6 +61,10 @@
       return new Promise(function (resolve) {
         function settle(value) { resolve(value); }
         try {
+          try {
+            window.__pubmaxMapLocationExposed = true;
+            window.dispatchEvent(new Event("pubmax:map-location-exposure"));
+          } catch { /* Exposure signalling never changes the location request. */ }
           nav.geolocation.getCurrentPosition(
             function (position) {
               try {
