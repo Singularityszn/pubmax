@@ -16,8 +16,11 @@ const MIGRATION_HINT = "apply migration 0103";
 const STORE_TAG = "adult-self-assertion";
 
 export type AdultSelfAssertionStore = {
-  /** The instant this account asserted, or null when it never has. */
-  read(userId: string): Promise<string | null>;
+  /**
+   * The recorded instant, or null when no assertion exists in the selected store.
+   * With Supabase, strict reads throw on schema failures instead of using memory.
+   */
+  read(userId: string, options?: { strict?: boolean }): Promise<string | null>;
   /** Idempotent: an account that taps twice keeps its first instant. */
   record(userId: string): Promise<string>;
 };
@@ -51,12 +54,12 @@ const guard = createFailSoftGuard({
 });
 
 const supabaseAdultSelfAssertionStore: AdultSelfAssertionStore = {
-  async read(userId) {
+  async read(userId, options) {
     const key = cleanUserId(userId);
     if (!key) return null;
     return guard.guard({
       context: "read",
-      onSchemaMiss: () => memoryAdultSelfAssertionStore.read(key),
+      onSchemaMiss: options?.strict ? undefined : () => memoryAdultSelfAssertionStore.read(key),
       run: async () => {
         const { data, error } = await admin()
           .from(TABLE)

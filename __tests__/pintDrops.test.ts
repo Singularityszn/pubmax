@@ -21,6 +21,20 @@ vi.mock("@/lib/pintDropsStore", async () => {
   };
 });
 
+vi.mock("@/lib/adultSelfAssertionStore", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/adultSelfAssertionStore")>();
+  return {
+    ...actual,
+    adultSelfAssertionStore: () => supaGuard.durableAssertions
+      ? actual.adultSelfAssertionStore()
+      : actual.memoryAdultSelfAssertionStore,
+  };
+});
+vi.mock("@/lib/privateIdentityStore", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/privateIdentityStore")>();
+  return { ...actual, privateIdentityStore: () => actual.memoryPrivateIdentityStore };
+});
+
 // Mock the lib/supabase seam. Two reasons, both about determinism under a
 // PRODUCTION build (Vercel CI presets NODE_ENV=production, and Vite bakes
 // process.env.NODE_ENV at transform time — so runtime vi.stubEnv on it is a
@@ -41,7 +55,7 @@ const { storeCreate, checkRateLimitDurableDetailed, supaGuard, adminRef, reportA
   checkRateLimitDurableDetailed: vi.fn<
     (key: string) => Promise<{ verdict: boolean | null; reason?: "missing-rpc" | "error" | "no-client" }>
   >(),
-  supaGuard: { configured: false, requiresStore: false },
+  supaGuard: { configured: false, requiresStore: false, durableAssertions: false },
   adminRef: { client: null as unknown },
   reportAuth: { userId: null as string | null },
 }));
@@ -178,8 +192,10 @@ vi.mock("@/lib/profileOwnership", async (importOriginal) => {
 import { GET, POST } from "@/app/api/pint-drops/route";
 import {
   __resetMemoryAdultSelfAssertions,
+  adultSelfAssertionStore,
   memoryAdultSelfAssertionStore,
 } from "@/lib/adultSelfAssertionStore";
+import { accountAdultOnFile } from "@/lib/adultOnFile.server";
 import {
   __resetPintDrops,
   dropMatchesCityScope,
@@ -316,9 +332,11 @@ describe("dropMatchesCityScope", () => {
   });
 });
 
-beforeEach(() => {
+beforeEach(async () => {
+  supaGuard.durableAssertions = false;
   __resetPintDrops();
   __resetMemoryAdultSelfAssertions();
+  await memoryAdultSelfAssertionStore.record("demo-account");
   // The moderator gate still reads process.env.NODE_ENV at runtime; keep the
   // stub for it. The durable-store guard is driven by the mocked supaGuard flags
   // (reset to the in-memory demo defaults here), NOT by NODE_ENV — see the
@@ -345,6 +363,85 @@ afterAll(() => {
 });
 
 describe("POST /api/pint-drops (create)", () => {
+  it.each([true, false])("refuses a priced drop until its account answers the adult question (bill: %s)", async (withBill) => {
+    const submit = withBill ? post : postWithoutBill;
+    reportAuth.userId = "account-age-unanswered";
+    await memoryProfileStore.createOwned("age_unanswered", reportAuth.userId);
+    const response = await submit({ venueId: VENUE, handle: "age_unanswered", priceGbp: 4.2 });
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ status: "adult_check_required" });
+    expect((await (await get(VENUE)).json()).drops).toEqual([]);
+    await memoryAdultSelfAssertionStore.record(reportAuth.userId);
+    const accepted = await submit({ venueId: VENUE, handle: "age_unanswered", priceGbp: 4.2 });
+    expect(accepted.status).toBe(201);
+    expect((await (await get(VENUE)).json()).drops).toHaveLength(1);
+  });
+
+  it.each([true, false])("refuses a priced drop when a stored under-18 birth date overrides an adult tap (bill: %s)", async (withBill) => {
+    const submit = withBill ? post : postWithoutBill;
+    reportAuth.userId = "account-age-under18";
+    await memoryPrivateIdentityStore.completeOnboarding({
+      userId: reportAuth.userId, handle: "age_under18", dateOfBirth: "2015-01-01",
+    });
+    await memoryAdultSelfAssertionStore.record(reportAuth.userId);
+    const response = await submit({ venueId: VENUE, handle: "age_under18", priceGbp: 4.2 });
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ status: "adult_check_failed" });
+    expect((await (await get(VENUE)).json()).drops).toEqual([]);
+  });
+
+  it.each([true, false])("stores no price when the account age cannot be read (bill: %s)", async (withBill) => {
+    const submit = withBill ? post : postWithoutBill;
+    const read = vi.spyOn(memoryPrivateIdentityStore, "read").mockRejectedValueOnce(new Error("store down"));
+    try {
+      const response = await submit({ venueId: VENUE, handle: "age_read_failure", priceGbp: 4.2 });
+      expect(response.status).toBe(503);
+      expect(await response.json()).toMatchObject({ code: "IDENTITY_UNAVAILABLE", retryable: true });
+      expect((await (await get(VENUE)).json()).drops).toEqual([]);
+    } finally {
+      read.mockRestore();
+    }
+  });
+
+  it.each([
+    [true, "Could not find the table 'public.adult_self_assertions' in the schema cache"],
+    [false, "Could not find the table 'public.adult_self_assertions' in the schema cache"],
+    [true, 'relation "public.adult_self_assertions" does not exist'],
+    [false, 'relation "public.adult_self_assertions" does not exist'],
+  ])("stores no adult-DOB price after an assertion schema failure (bill: %s, error: %s)", async (withBill, message) => {
+    reportAuth.userId = "account-adult-schema-failure";
+    const onboarding = await memoryPrivateIdentityStore.completeOnboarding({
+      userId: reportAuth.userId, handle: "adult_schema_failure", dateOfBirth: "1990-01-01",
+    });
+    expect(onboarding.ok).toBe(true);
+    const limit = vi.fn().mockResolvedValue({ data: null, error: { message } });
+    const eq = vi.fn().mockReturnValue({ limit });
+    const select = vi.fn().mockReturnValue({ eq });
+    adminRef.client = { from: vi.fn((table: string) => {
+      if (table === "profiles") {
+        return { select: () => ({ eq: () => ({ limit: async () => ({
+          data: [{ handle: "adult_schema_failure" }], error: null,
+        }) }) }) };
+      }
+      expect(table).toBe("adult_self_assertions");
+      return { select };
+    }) };
+    supaGuard.configured = true;
+    supaGuard.durableAssertions = true;
+    storeCreate.mockReset();
+    const submit = withBill ? post : postWithoutBill;
+    const response = await submit({ venueId: VENUE, handle: "adult_schema_failure", priceGbp: 4.2 });
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ code: "IDENTITY_UNAVAILABLE", retryable: true });
+    expect(limit).toHaveBeenCalled();
+    expect(storeCreate).not.toHaveBeenCalled();
+    supaGuard.configured = false;
+    expect((await (await get(VENUE)).json()).drops).toEqual([]);
+    supaGuard.configured = true;
+    await expect(adultSelfAssertionStore().read(reportAuth.userId)).resolves.toBeNull();
+    await expect(accountAdultOnFile(reportAuth.userId)).resolves.toBe(true);
+  });
+
   it("requires a verified account before validating a production Pint Drop", async () => {
     supaGuard.configured = true;
     supaGuard.requiresStore = true;
@@ -370,6 +467,7 @@ describe("POST /api/pint-drops (create)", () => {
   it("keeps a signed-in observed price visible through the GET seam", async () => {
     reportAuth.userId = "account-pint-drop-flow";
     await memoryProfileStore.createOwned("signed_in_drinker", reportAuth.userId);
+    await memoryAdultSelfAssertionStore.record(reportAuth.userId);
 
     const created = await post({
       venueId: VENUE,
@@ -465,6 +563,7 @@ describe("POST /api/pint-drops (create)", () => {
   it("adds server-derived price authority for a verified account", async () => {
     reportAuth.userId = "account-a";
     await memoryProfileStore.createOwned("authority_ale", reportAuth.userId);
+    await memoryAdultSelfAssertionStore.record(reportAuth.userId);
 
     const verified = await post({ venueId: VENUE, handle: "authority_ale", priceGbp: 4.2 });
     expect(verified.status).toBe(201);
@@ -522,6 +621,7 @@ describe("POST /api/pint-drops (create)", () => {
   it("stores authority for an anonymous drop and publishes neither handle nor key", async () => {
     reportAuth.userId = "account-anon";
     await memoryProfileStore.createOwned("verified_anon", reportAuth.userId);
+    await memoryAdultSelfAssertionStore.record(reportAuth.userId);
 
     const response = await post({
       venueId: VENUE,
@@ -560,6 +660,7 @@ describe("POST /api/pint-drops (create)", () => {
   it("takes a priced drop with no photo of the bill from a verified account, as unchecked", async () => {
     reportAuth.userId = "account-noproof";
     await memoryProfileStore.createOwned("no_proof", reportAuth.userId);
+    await memoryAdultSelfAssertionStore.record(reportAuth.userId);
     const res = await postWithoutBill({ venueId: VENUE, handle: "no_proof", priceGbp: 4.5 });
     expect(res.status).toBe(201);
     const { drop, confirmationOutcome } = await res.json();
@@ -588,6 +689,7 @@ describe("POST /api/pint-drops (create)", () => {
   it("stamps a price that came with the bill as receipt, exactly as before", async () => {
     reportAuth.userId = "account-billed";
     await memoryProfileStore.createOwned("billed_drinker", reportAuth.userId);
+    await memoryAdultSelfAssertionStore.record(reportAuth.userId);
     const res = await post({ venueId: VENUE, handle: "billed_drinker", priceGbp: 4.5 });
     expect(res.status).toBe(201);
     expect((await res.json()).drop.priceEvidence).toBe("receipt");
@@ -596,6 +698,7 @@ describe("POST /api/pint-drops (create)", () => {
   it("never lets a body claim a bill it did not send", async () => {
     reportAuth.userId = "account-claimer";
     await memoryProfileStore.createOwned("claimer", reportAuth.userId);
+    await memoryAdultSelfAssertionStore.record(reportAuth.userId);
     const res = await postWithoutBill({
       venueId: VENUE,
       handle: "claimer",
@@ -617,6 +720,7 @@ describe("POST /api/pint-drops (create)", () => {
   it("an unchecked price stays under the daily cap like any other", async () => {
     reportAuth.userId = "account-capped";
     await memoryProfileStore.createOwned("capped", reportAuth.userId);
+    await memoryAdultSelfAssertionStore.record(reportAuth.userId);
     expect((await postWithoutBill({ venueId: VENUE, handle: "capped", priceGbp: 4.5 })).status).toBe(201);
     expect((await postWithoutBill({ venueId: VENUE, handle: "capped", priceGbp: 4.6 })).status).toBe(409);
   });
@@ -624,11 +728,13 @@ describe("POST /api/pint-drops (create)", () => {
   it("a second independent account agreeing with an unchecked price confirms the pair", async () => {
     reportAuth.userId = "account-typed-first";
     await memoryProfileStore.createOwned("typed_first", reportAuth.userId);
+    await memoryAdultSelfAssertionStore.record(reportAuth.userId);
     const first = await postWithoutBill({ venueId: VENUE, handle: "typed_first", priceGbp: 4.4 });
     expect(first.status).toBe(201);
 
     reportAuth.userId = "account-typed-second";
     await memoryProfileStore.createOwned("typed_second", reportAuth.userId);
+    await memoryAdultSelfAssertionStore.record(reportAuth.userId);
     const second = await postWithoutBill({ venueId: VENUE, handle: "typed_second", priceGbp: 4.4 });
     expect(second.status).toBe(201);
     // Neither sent a bill. Two independent people agreeing is the decision's
@@ -644,6 +750,7 @@ describe("POST /api/pint-drops (create)", () => {
     // reader needs to be able to check.
     reportAuth.userId = "account-lore";
     await memoryProfileStore.createOwned("lore_teller", reportAuth.userId);
+    await memoryAdultSelfAssertionStore.record(reportAuth.userId);
     const res = await post({
       venueId: VENUE,
       handle: "lore_teller",
@@ -667,6 +774,7 @@ describe("POST /api/pint-drops (create)", () => {
   it("confirms an anonymous price against a second account's public one", async () => {
     reportAuth.userId = "account-anon-payer";
     await memoryProfileStore.createOwned("quiet_drinker", reportAuth.userId);
+    await memoryAdultSelfAssertionStore.record(reportAuth.userId);
     const anonymous = await post({
       venueId: VENUE,
       handle: "quiet_drinker",
@@ -677,6 +785,7 @@ describe("POST /api/pint-drops (create)", () => {
 
     reportAuth.userId = "account-second-payer";
     await memoryProfileStore.createOwned("loud_drinker", reportAuth.userId);
+    await memoryAdultSelfAssertionStore.record(reportAuth.userId);
     const named = await post({
       venueId: VENUE,
       handle: "loud_drinker",
@@ -694,6 +803,7 @@ describe("POST /api/pint-drops (create)", () => {
   it("tells the same account its repeat confirms nothing, and stamps nothing", async () => {
     reportAuth.userId = "account-repeat";
     await memoryProfileStore.createOwned("repeat_drinker", reportAuth.userId);
+    await memoryAdultSelfAssertionStore.record(reportAuth.userId);
     // One account, two London days, one figure. The daily cap refuses a
     // same-day repeat at the route, so the earlier day's row is placed in the
     // store and the pass is asked directly: it reads the two as one reporter.
@@ -735,10 +845,12 @@ describe("POST /api/pint-drops (create)", () => {
   it("mints for a second account and hands the confirming drop its record", async () => {
     reportAuth.userId = "account-door-one";
     await memoryProfileStore.createOwned("door_one", reportAuth.userId);
+    await memoryAdultSelfAssertionStore.record(reportAuth.userId);
     expect((await post({ venueId: VENUE, handle: "door_one", priceGbp: 4.5 })).status).toBe(201);
 
     reportAuth.userId = "account-door-two";
     await memoryProfileStore.createOwned("door_two", reportAuth.userId);
+    await memoryAdultSelfAssertionStore.record(reportAuth.userId);
     const res = await post({ venueId: VENUE, handle: "door_two", priceGbp: 4.5 });
     expect(res.status).toBe(201);
     const body = (await res.json()) as {

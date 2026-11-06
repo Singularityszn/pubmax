@@ -1,9 +1,10 @@
 "use client";
 
 import type { Route } from "next";
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
 
 import { useAuth } from "@/components/auth/authContext";
+import { readProviderAccountRevision, readProviderAccountSignal, subscribeProviderIdentityRevision } from "@/lib/authProviderRevision";
 import { barTabPath, profilePath } from "@/lib/appLink";
 import { readActiveRoundCode } from "@/lib/activeRound";
 import { getAnonId } from "@/lib/anonId";
@@ -101,6 +102,8 @@ export type DropMsg = {
   ok: boolean;
   text: string;
   links?: Array<{ href: Route; label: string }>;
+  accountRevision?: number;
+  ageRecovery?: { accountRevision: number };
 };
 
 // ONE NUMBER ON BOTH SIDES OF THE WIRE, and ONE PLACE THAT ASKS. This gate
@@ -333,7 +336,28 @@ export function usePintDrops(
   const [venuePhoto, setVenuePhoto] = useState<PhotoSlot | null>(null);
   const [receiptPhoto, setReceiptPhoto] = useState<PhotoSlot | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [dropMsg, setDropMsg] = useState<DropMsg | null>(null);
+  const [dropMsg, setDropMsgState] = useState<DropMsg | null>(null);
+  // Every message belongs to the account it was written for. One written
+  // without an explicit account takes the current one, so a later account
+  // never reads another's receipt, recovery or report notice.
+  const setDropMsg = useCallback((next: DropMsg | null | ((current: DropMsg | null) => DropMsg | null)) => {
+    setDropMsgState((current) => {
+      const value = typeof next === "function" ? next(current) : next;
+      return value && value.accountRevision === undefined
+        ? { ...value, accountRevision: readProviderAccountRevision() }
+        : value;
+    });
+  }, []);
+  const accountRevision = useSyncExternalStore(
+    subscribeProviderIdentityRevision,
+    readProviderAccountRevision,
+    readProviderAccountRevision,
+  );
+  const ageAsserted = useCallback(() => {
+    setDropMsg((message) => message?.ageRecovery?.accountRevision === readProviderAccountRevision()
+      ? { ok: true, text: "Age confirmation saved. Submit your price again.", accountRevision: message.ageRecovery.accountRevision }
+      : message);
+  }, [setDropMsg]);
   const pintInputRef = useRef<HTMLInputElement>(null);
   const venueInputRef = useRef<HTMLInputElement>(null);
   const receiptInputRef = useRef<HTMLInputElement>(null);
@@ -534,6 +558,16 @@ export function usePintDrops(
     if (receiptInputRef.current) receiptInputRef.current.value = "";
   }, []);
 
+  // A different account does not inherit an unsent draft: its text, price and
+  // photos belong to the account that typed and picked them. Deferred out of
+  // the effect body (react-hooks/set-state-in-effect).
+  const composerAccount = useRef(accountRevision);
+  useEffect(() => {
+    if (composerAccount.current === accountRevision) return;
+    composerAccount.current = accountRevision;
+    void Promise.resolve().then(() => resetComposer());
+  }, [accountRevision, resetComposer]);
+
   // Revoke every preview URL still held when the component unmounts. Empty
   // deps on purpose: a cleanup keyed on the slots ran with the previous
   // closure, so changing ONE slot revoked all three (review finding CMP-2).
@@ -578,6 +612,8 @@ export function usePintDrops(
     venueId: string,
     options?: { venueName?: string; lastTrainDecision?: LastPintDecision | null },
   ) {
+    const submittedAccountRevision = readProviderAccountRevision();
+    const submittedAccountSignal = readProviderAccountSignal();
     const submittedRound = captureRoundAppendSnapshot(
       roundIdentity,
       accountHandle,
@@ -676,9 +712,7 @@ export function usePintDrops(
       // before the upload lands.
       receiptPhotoUrl: receiptPhoto?.previewUrl ?? null,
       optimistic: optimisticDrop.optimistic,
-      ...(trainFields
-        ? { leaveByIso: trainFields.leaveByIso, lastTrainDecision: trainFields.lastTrainDecision }
-        : {}),
+      ...trainFields,
     };
     setDropsByVenueId((current) => {
       const next = new Map(current);
@@ -719,9 +753,30 @@ export function usePintDrops(
       ok: true,
       text: "Cheers. Saving your Pint Drop…",
       links: [{ href: "/social", label: "Open Social" }],
+      accountRevision: submittedAccountRevision,
     });
 
-    const markFailed = (message: string) => {
+    // A saved wrapper keeps its client ID. Cancellation owns only the original pending row.
+    const isAbandonedDrop = (drop: Pick<DropWithPhotos, "id" | "optimistic">) =>
+      drop.id === optimisticDrop.id &&
+      ["pending", "uploading"].includes(drop.optimistic?.state ?? "");
+    const disposeAbandonedSubmission = () => {
+      if (publishToFeed) {
+        updateOptimisticFeedStorage((current) =>
+          current.filter((entry) => !isAbandonedDrop(entry.drop)),
+        );
+      }
+      setDropsByVenueId((current) => {
+        const next = new Map(current);
+        next.set(venueId, (next.get(venueId) ?? []).filter((drop) => !isAbandonedDrop(drop)));
+        return next;
+      });
+      handedOffPreviews.forEach(revokePreview);
+    };
+    submittedAccountSignal.addEventListener("abort", disposeAbandonedSubmission, { once: true });
+
+    const markFailed = (message: string, status?: string) => {
+      if (submittedAccountRevision !== readProviderAccountRevision()) return;
       if (publishToFeed) {
         updateOptimisticFeedStorage((current) => failOptimisticSpill(current, clientRequestId, message));
       }
@@ -746,7 +801,14 @@ export function usePintDrops(
         );
         return next;
       });
-      setDropMsg({ ok: false, text: message });
+      setDropMsg({
+        ok: false,
+        text: message,
+        accountRevision: status === "adult_check_required" || status === "adult_check_failed"
+          ? submittedAccountRevision : undefined,
+        ageRecovery: status === "adult_check_required"
+          ? { accountRevision: submittedAccountRevision } : undefined,
+      });
     };
 
     try {
@@ -779,8 +841,12 @@ export function usePintDrops(
 
       const response = await authedActionFetch("/api/pint-drops", { method: "POST", body }, { requiresIdentity: true });
       const data = await response.json().catch(() => null);
+      if (submittedAccountRevision !== readProviderAccountRevision()) return;
       if (!response.ok) {
-        markFailed(errorMessageFrom(data, "Could not save that drop."));
+        markFailed(
+          errorMessageFrom(data, "Could not save that drop."),
+          data?.status,
+        );
         return;
       }
       trackEvent("night_moment_saved", { kind: "pint_drop", visibility: submittedVisibility });
@@ -817,6 +883,7 @@ export function usePintDrops(
         venueName: options?.venueName ?? unresolvedVenueLabel(venueId),
         dropRef: pintDropId(data.drop),
       });
+      if (submittedAccountRevision !== readProviderAccountRevision()) return;
 
       const links: NonNullable<DropMsg["links"]> = [
         { href: "/social", label: "Open Social" },
@@ -840,9 +907,12 @@ export function usePintDrops(
         ok: true,
         text: dropReceiptText(addedToNight, outcome, submittedPrice, isUncheckedPrice(data.drop)),
         links,
+        accountRevision: submittedAccountRevision,
       });
     } catch {
       markFailed("Network or storage error. Try again.");
+    } finally {
+      submittedAccountSignal.removeEventListener("abort", disposeAbandonedSubmission);
     }
   }
 
@@ -914,7 +984,7 @@ export function usePintDrops(
     setDropMsg(null);
     setComposerOpen(false);
     setConfirmSeed(null);
-  }, []);
+  }, [setDropMsg]);
 
   const mapDropsByVenueId = useMemo(
     () =>
@@ -1027,7 +1097,8 @@ export function usePintDrops(
     removePhoto,
     resetComposer,
     submitting,
-    dropMsg,
+    dropMsg: dropMsg && dropMsg.accountRevision === accountRevision ? dropMsg : null,
+    ageAsserted,
     submitDrop,
     reportDrop,
   };

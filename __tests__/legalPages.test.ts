@@ -2,6 +2,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { JSDOM } from "jsdom";
 
 import { describe, expect, it, vi } from "vitest";
 
@@ -40,6 +41,16 @@ const landing = read("components/landing/LandingPage.tsx");
 const sitemap = read("app/sitemap.ts");
 
 describe("legal content pages", () => {
+  it("gives copyright owners a UK report path without a US oath requirement", () => {
+    expect(termsText).toContain("Copyright reports");
+    expect(termsText).toContain("Identify the copyrighted work");
+    expect(termsText).toContain("Give the exact page or content URL");
+    expect(termsText).toContain("Give your full name, postal address and email address.");
+    expect(termsText).toContain("Explain why you believe the use infringes your copyright.");
+    expect(termsText).not.toContain("under penalty of perjury");
+    expect(termsText).not.toContain("physical or electronic signature");
+    expect(renderToStaticMarkup(createElement(TermsPage))).toContain('aria-labelledby="copyright"');
+  });
   it("reaches the reader from the site footer", () => {
     expect(landing).toMatch(/<Link\b[^>]*href="\/privacy"[^>]*>/);
     expect(landing).toMatch(/<Link\b[^>]*href="\/terms"[^>]*>/);
@@ -795,14 +806,18 @@ describe("legal content pages", () => {
     );
   });
 
-  it("keeps existing tools open while making full Social 18+", () => {
-    expect(terms).toMatch(
-      /map and existing contribution tools don&rsquo;t use age to block an\s+account/i,
-    );
+  it("separates public browsing from adult-only contributions and Social", () => {
+    for (const text of [termsText, privacyText]) {
+      expect(text).toContain("The public map can be read without an age check.");
+      expect(text).toContain("Price submissions and posting to pub photo walls require a signed-in account, a claimed handle and an 18+ answer.");
+      expect(text).toContain("Public pub photos can be read without an age check or account.");
+    }
     expect(termsText).toMatch(/Social is live by default/i);
     expect(termsText).toMatch(/one recorded self-assertion can answer the access question/i);
-    expect(terms).toMatch(/Pubs\s+decide who they serve/i);
-    expect(terms).toMatch(/drinkaware\.co\.uk/);
+    expect(termsText).toContain("Pubs decide who they serve");
+    const document = new JSDOM(renderToStaticMarkup(createElement(TermsPage))).window.document;
+    const link = document.querySelector('a[href="https://www.drinkaware.co.uk"]');
+    expect(link?.textContent?.trim()).toBe("drinkaware.co.uk");
   });
 
   it("discloses private referral attribution and its genuine browser limits", () => {

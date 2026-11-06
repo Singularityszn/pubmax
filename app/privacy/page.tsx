@@ -27,7 +27,7 @@ import "../legal.css";
 const PAGE_TITLE = "Privacy";
 const PAGE_DESCRIPTION =
   "What PUBMAXX collects, why, who else sees it, how long we keep it, and how to get it deleted. Written against the app's behaviour.";
-const LAST_UPDATED = "30 October 2026";
+const LAST_UPDATED = "4 November 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -729,7 +729,8 @@ export default function PrivacyPage() {
           <div className="legalRow">
             <dt>Map tile hosts</dt>
             <dd>
-              OpenFreeMap and CARTO serve the base map straight to your browser,
+              OpenFreeMap and CARTO serve the base map, including map-label
+              font glyphs, straight to your browser,
               so they see your IP address while you pan the map. Map data is
               &copy; OpenStreetMap contributors.
             </dd>
@@ -1078,8 +1079,10 @@ export default function PrivacyPage() {
       <section className="legalSection" aria-labelledby="age">
         <h2 id="age" className="legalH2">Age and access</h2>
         <p className="legalBody">
-          The map and existing contribution tools don&rsquo;t use age to block an
-          account. Social is live by default and may return to preview during an
+          The public map can be read without an age check. Price submissions and
+          posting to pub photo walls require a signed-in account, a claimed handle and an 18+ answer.
+          Public pub photos can be read without an age check or account.
+          Social is live by default and may return to preview during an
           emergency rollback. Full access needs a signed-in account, a claimed
           handle and an 18+ answer. The date of birth you gave at onboarding
           decides when it is present. A date of birth is optional at onboarding.

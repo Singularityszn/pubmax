@@ -2,8 +2,9 @@
 
 Cycle 8 PRD, item 2. A weekly reach channel that mirrors the push story: **one
 provider seam, no-op until keys, honest content from real data only.** Nothing
-is sent today — this is the scaffold that activates the moment an email provider
-and per-user opt-in exist.
+is sent by the digest script. The shared Resend delivery provider is implemented.
+Digest audience loading and send orchestration remain incomplete, even when
+credentials exist. Credentials alone do not activate digest delivery.
 
 ## Architecture (three seams)
 
@@ -58,10 +59,16 @@ digest gates on **explicit opt-in**, not opt-out:
   metadata:
   - `user_metadata.digest_opt_in === true` → opted in
   - `user_metadata.digest_opt_out === true` → opted out
-- Every rendered email carries an `{{unsubscribe_url}}` placeholder;
-  `toEmailMessage(digest, { unsubscribeUrl })` **requires** a per-recipient URL,
-  substitutes it into both parts, and **throws** if any residual `{{…}}`
-  placeholder survives (P2-c) — a message can never ship half-templated.
+- Draft renderers carry `{{unsubscribe_url}}` and `{{postal_address}}` placeholders.
+  `toEmailMessage(digest, { unsubscribeUrl, postalAddress })` requires both values.
+  It escapes them for HTML and includes them in the plain-text alternative.
+  It rejects a missing address, an invalid URL or any remaining placeholder.
+  Supply the sender's real postal address, including the business name where needed.
+  A nonempty address passes this check. The code cannot verify its accuracy.
+- The URL check does not prove that unsubscribe works. Before delivery is enabled,
+  implement and test an unsubscribe endpoint that needs no account or sign-in.
+  It must record suppression durably and exclude that recipient from later sends.
+  Keep marketing delivery disabled until this path works and consent is recorded.
 
 **Where the durable field goes (owner decision needed).** When opt-in volume
 warrants it, add a `public.user_email_prefs` table keyed by `user_id →
@@ -96,7 +103,8 @@ Enforced by the generator and covered by tests:
 
 `docs/digest-samples/{full-week-camden,partial-week-london,empty-week-barnet}.{html,txt}`
 are committed rendered examples for review — the **final provider-ready
-messages** built via `toEmailMessage` with a fixed example unsubscribe URL, so no
+messages** built via `toEmailMessage` with a fixed example unsubscribe URL and
+an address labelled `EXAMPLE ONLY`, so no
 `{{…}}` placeholder survives. Regenerate after an intentional copy/markup change:
 
 ```

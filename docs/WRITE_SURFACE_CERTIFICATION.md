@@ -1359,13 +1359,9 @@ commit.
   made about somebody else is not an assertion. Missing authority is 401.
 - **Rate limit (boundary):** `isLimited` (`lib/pintDrops.ts`) on a per-account
   key.
-- **What it is not:** not a capability. The single reader is `accountIsAdult`
-  (`lib/socialLaunch.ts`), which answers the age question for Social and for
-  pub photo walls. A stored date of birth still decides when there is one, in
-  both directions, so a recorded assertion can never overturn an under-18 date
-  the account itself gave. The reply carries no access state: the caller
-  re-asks `/api/social/access`, which stays the one authority on what a viewer
-  may see.
+- **Access policy:** the reply carries no access state. The
+  [contribution access rules](rules/lib-identity-accounts-and-sessions.md#contributing-asks-two-questions-and-the-age-one-is-the-10-aug-rule-s)
+  own the shared age decision and the recovery behaviour for each contribution path.
 
 ### `app/api/invite/[token]/rsvp`, `app/api/invite/[token]/reactions`, `app/api/plans/[id]/invite-rsvp`, and `app/api/plans/[id]/invite-rotate` - Plan public invite RSVP, reactions, and link rotation (route 89)
 

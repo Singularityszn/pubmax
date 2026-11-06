@@ -1,5 +1,8 @@
 import { isModerator } from "@/lib/adminAuth";
 import { callerUserId } from "@/lib/authServer";
+import { accountIsAdult, needsAdultSelfAssertion } from "@/lib/adultGate";
+import { accountAdultEvidence } from "@/lib/adultOnFile.server";
+import { contributionAdultRefusal } from "@/lib/contributionGateStatus";
 
 // Single write-path seam for community "Pint Drops".
 //
@@ -461,6 +464,27 @@ export async function POST(request: Request): Promise<Response> {
       "UNAUTHENTICATED",
       401,
     );
+  }
+  if (canonicalDrop.priceGbp !== null && ownership.callerUserId) {
+    try {
+      const evidence = await accountAdultEvidence(ownership.callerUserId, { strict: true });
+      const refusal = contributionAdultRefusal({
+        isAdult: accountIsAdult(evidence),
+        needsSelfAssertion: needsAdultSelfAssertion(evidence),
+      });
+      if (refusal) {
+        return publicApiError(refusal.error, "ADULT_REQUIRED", 409, {
+          compatibilityFields: { status: refusal.status },
+        });
+      }
+    } catch {
+      return publicApiError(
+        "We could not check your account just now. Try again.",
+        "IDENTITY_UNAVAILABLE",
+        503,
+        { retryable: true },
+      );
+    }
   }
   // A PRICE WITHOUT THE BILL IS UNCHECKED, NOT REFUSED (captain decision 9,
   // 1 Nov 2026, amending the 7 Sept bill rule at this door). The verified

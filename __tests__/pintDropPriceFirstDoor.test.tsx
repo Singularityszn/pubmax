@@ -12,6 +12,11 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { readProviderAccountRevision, setProviderIdentity } from "@/lib/authProviderRevision";
+
+const assertion = vi.hoisted(() => vi.fn());
+const reveal = vi.fn();
+vi.mock("@/lib/authedFetch", () => ({ authedActionFetch: assertion }));
 
 vi.mock("next/link", () => ({
   default: ({
@@ -46,8 +51,12 @@ vi.mock("@/components/map/composer/useActiveRound", () => ({
 }));
 
 import PintDropComposer from "@/components/map/PintDropComposer";
+import VenuePintsTab from "@/components/map/inspector/VenuePintsTab";
 import { SPILL_EXTRAS_TOGGLE_LABEL, SPILL_LOG_ACTION_LABEL } from "@/lib/spill";
 import type { PintDropsState } from "@/components/map/usePintDrops";
+
+vi.mock("@/components/map/VenuePriceStory", () => ({ default: () => null }));
+vi.mock("@/components/map/inspector/PintDropsList", () => ({ default: () => null }));
 
 const VENUE_ID = "venue-test1";
 
@@ -59,6 +68,7 @@ type StateOverrides = {
   identityReady?: boolean;
   dropForm?: Partial<{ price: string; drink: string; note: string; era: string; withWho: string }>;
   vibeTags?: string[];
+  dropMsg?: PintDropsState["dropMsg"];
 };
 
 function makeState(overrides: StateOverrides = {}): PintDropsState {
@@ -91,7 +101,8 @@ function makeState(overrides: StateOverrides = {}): PintDropsState {
     removePhoto: () => {},
     resetComposer: () => {},
     submitting: false,
-    dropMsg: null,
+    dropMsg: overrides.dropMsg ?? null,
+    ageAsserted: vi.fn(),
     submitDrop: async () => {},
     venueSignals: new Map(),
   } as unknown as PintDropsState;
@@ -101,6 +112,13 @@ let container: HTMLDivElement;
 let root: Root | null = null;
 
 beforeEach(() => {
+  vi.stubEnv("PUBMAX_SOCIAL_FRIENDS_LAUNCH", "0");
+  setProviderIdentity("supabase", "composer-account");
+  assertion.mockReset();
+  assertion.mockResolvedValue(new Response("{}", { status: 200 }));
+  reveal.mockReset();
+  Object.defineProperty(HTMLElement.prototype, "scrollIntoView", { configurable: true, value: reveal });
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   container = document.createElement("div");
   document.body.appendChild(container);
 });
@@ -111,6 +129,9 @@ afterEach(() => {
   });
   root = null;
   container.remove();
+  delete (HTMLElement.prototype as Partial<HTMLElement>).scrollIntoView;
+  vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
 async function render(state: PintDropsState): Promise<void> {
@@ -135,6 +156,47 @@ function extrasToggle(): HTMLButtonElement {
 }
 
 describe("price-first Pint Drop door", () => {
+  it("records the age assertion after the composer closes with Social disabled", async () => {
+    const state = makeState({
+      dropMsg: {
+        ok: false, text: "Confirm you are 18 or over before contributing.",
+        ageRecovery: { accountRevision: readProviderAccountRevision() },
+      },
+    });
+    await act(async () => {
+      root = createRoot(container);
+      root.render(createElement(VenuePintsTab, {
+        venue: { id: VENUE_ID, name: "The Test Arms" } as never,
+        tab: "pints", pintDrops: state, drops: [], lastTrainDecision: null,
+      }));
+    });
+    const button = [...container.querySelectorAll("button")].find((item) => item.textContent === "I'm 18 or over");
+    expect(button).toBeDefined();
+    expect(reveal).toHaveBeenCalledWith({ block: "nearest", behavior: "instant" });
+    expect(reveal.mock.contexts).toContain(button);
+    await act(async () => button!.click());
+    expect(assertion).toHaveBeenCalledWith("/api/identity/adult-assertion", expect.objectContaining({ method: "POST" }), { requiresIdentity: true });
+    expect(state.ageAsserted).toHaveBeenCalledOnce();
+  });
+  it("records the age assertion in the open composer with Social disabled", async () => {
+    const state = makeState({
+      dropMsg: {
+        ok: false,
+        text: "Confirm you are 18 or over before contributing.",
+        ageRecovery: { accountRevision: readProviderAccountRevision() },
+      },
+    });
+    await render(state);
+    const alert = container.querySelector('[role="alert"]');
+    expect(alert?.textContent).toContain("Confirm you are 18 or over");
+    const button = alert?.querySelector("button");
+    expect(button?.textContent).toBe("I'm 18 or over");
+    expect(reveal).toHaveBeenCalledWith({ block: "nearest", behavior: "instant" });
+    expect(reveal.mock.contexts).toContain(button);
+    await act(async () => button!.click());
+    expect(assertion).toHaveBeenCalledOnce();
+    expect(state.ageAsserted).toHaveBeenCalledOnce();
+  });
   it("opens on the price step, with the photo and story behind the disclosure", async () => {
     await render(makeState());
 

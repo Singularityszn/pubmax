@@ -23,6 +23,7 @@ import { isPricedWrite } from "@/lib/pintDropReceipt";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
 import type { LastPintDecision } from "@/lib/tfl";
 import type { PintDropsState } from "@/components/map/usePintDrops";
+import { PintDropAgeRecovery } from "@/components/map/PintDropAgeRecovery";
 import { ComposerFields } from "@/components/map/composer/ComposerFields";
 import { ComposerPriceStep } from "@/components/map/composer/ComposerPriceStep";
 import { SpillCameraStep } from "@/components/map/composer/SpillCameraStep";
@@ -319,7 +320,8 @@ export default function PintDropComposer({
             className={`composerMsg ${dropMsg.ok ? "ok" : "error"}`}
           >
             {dropMsg.text}
-            {dropMsg.ok && dropMsg.links && dropMsg.links.length > 0 ? (
+            <PintDropAgeRecovery recovery={dropMsg.ageRecovery} onAsserted={state.ageAsserted} />
+            {dropMsg.links && dropMsg.links.length > 0 ? (
               <span className="composerMsgLinks">
                 {dropMsg.links.map((link) => (
                   <Link key={link.href} href={link.href} className="composerMsgLink">
