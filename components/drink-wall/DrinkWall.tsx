@@ -267,7 +267,12 @@ export default function DrinkWall() {
             setComposerOpen(false);
             (addPhotoRef.current ?? wallHeadingRef.current)?.focus();
           }}
-          onPosted={() => { setComposerOpen(false); void load(null, true); }}
+          onPosted={() => {
+            setComposerOpen(false);
+            // The composer held focus. Return it to the wall, as Cancel does.
+            (addPhotoRef.current ?? wallHeadingRef.current)?.focus();
+            void load(null, true);
+          }}
         />
       ) : null}
 

@@ -318,6 +318,10 @@ describe("the real cropper's account-owned upload", () => {
     expect(host.querySelector("textarea")).toBeNull();
     expect(network.read).toHaveBeenCalledTimes(reads + 1);
     expect(button("Add a photo")).toBeDefined();
+    // The composer that held focus is gone. Focus returns to the wall, as it
+    // does after Cancel, rather than dropping to the page body.
+    expect(document.activeElement).not.toBe(document.body);
+    expect(document.activeElement === button("Add a photo") || document.activeElement === host.querySelector("h1")).toBe(true);
   });
 
   it.each(["missing photo", "network failure"])("keeps the same owner's draft after %s", async (outcome) => {
