@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { openOverviewFold } from "../helpers/overviewFolds";
 import { describeFirstQuery, describeFirstSubmit } from "../helpers/planDescribeFirst";
 import { untilNoFirewallDeny, untilNot429 } from "./firewall";
 import { asReturningVisitor, evidence, watchFirewall, watchPageErrors } from "./smokeSession";
@@ -249,6 +250,7 @@ test.describe("signed-in journeys", () => {
     await target.goto(`/map?sel=${SAVE_VENUE.id}`);
     const sheet = target.getByRole("dialog", { name: "Pub detail" });
     await expect(sheet.getByRole("heading", { name: SAVE_VENUE.name })).toBeInViewport();
+    await openOverviewFold(sheet, "record");
     await sheet.getByRole("button", { name: `Save ${SAVE_VENUE.name} to a list` }).click();
     const [saved] = await Promise.all([
       target.waitForResponse(
@@ -258,7 +260,7 @@ test.describe("signed-in journeys", () => {
       ),
       sheet
         .getByRole("region", { name: "Save this venue to a list" })
-        .getByRole("button", { name: SAVE_LIST, exact: true })
+        .getByRole("button", { name: new RegExp(`^\\s*(?:✓\\s*)?${SAVE_LIST}\\s*$`) })
         .click(),
     ]);
     expect(saved.ok()).toBe(true);

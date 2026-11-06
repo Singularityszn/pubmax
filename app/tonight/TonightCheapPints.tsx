@@ -4,7 +4,7 @@ import { Component, useEffect, useState, useSyncExternalStore, type ComponentTyp
 
 import { PintPriceBadge } from "@/components/PriceBadge";
 import { RowList, RowListItem } from "@/components/ui/row-list";
-import { formatSnapshotFrom } from "@/lib/dataFreshness";
+import { formatSnapshotFrom } from "@/lib/dataFreshnessFormat";
 import { oldestPintRead } from "@/lib/drinks";
 import {
   TONIGHT_CHEAP_PINTS_TITLE,
