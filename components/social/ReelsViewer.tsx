@@ -20,10 +20,12 @@ import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 export default function ReelsViewer({
   posts,
   startPostId,
+  opener,
   onClose,
 }: {
   posts: SocialPostDTO[];
   startPostId: string;
+  opener: HTMLElement;
   onClose: () => void;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -32,7 +34,6 @@ export default function ReelsViewer({
   useDismissOnEscape(true, onClose, dialogRef);
 
   useEffect(() => {
-    const opener = document.activeElement as HTMLElement | null;
     closeRef.current?.focus();
     document.getElementById(`reel-${startPostId}`)?.scrollIntoView({ block: "start" });
     const root = document.documentElement;
@@ -40,9 +41,9 @@ export default function ReelsViewer({
     root.style.overflow = "hidden";
     return () => {
       root.style.overflow = previous;
-      opener?.focus?.();
+      if (opener.isConnected) opener.focus();
     };
-  }, [startPostId]);
+  }, [startPostId, opener]);
 
   useEffect(() => {
     const container = dialogRef.current;
