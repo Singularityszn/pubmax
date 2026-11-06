@@ -1287,13 +1287,6 @@ function isPrintedSectionHeading(line: string): boolean {
     || printedMenuHeading(title)?.generic === true;
 }
 
-const NON_DRINK_GOODS = /\b(?:glassware|drinkware|tankards?|steins?|tumblers?|goblets?|mugs?|coasters?|souvenirs?|keyrings?|t[ -]?shirts?|hoodies?|posters?)\b(?![ \t]+of\b)/i;
-const GLASS_PRODUCT = /\b(?:(?:pints?|568[ \t]*ml|commemorative)[ \t]+glass(?:es)?\b(?!\s+of\b)|glass(?:es)?[ \t]+568[ \t]*ml\b)/i;
-
-function namesGoods(text: string): boolean {
-  return NON_DRINK_GOODS.test(text) || GLASS_PRODUCT.test(text);
-}
-
 function hasFoodWords(text: string): boolean {
   return FOOD_WORDS.test(text) || FOOD_WEARING_A_DRINK_WORD.test(text);
 }
@@ -1340,7 +1333,6 @@ function selectPriceGap(gap: string, hasNextPrice: boolean): PriceGap {
   if (hard) return atSeparator(hard.index, hard[0].length);
   if (!hasNextPrice) return { owned: gap, unassigned: "" };
 
-  let first: RegExpMatchArray | undefined;
   for (const boundary of gap.matchAll(new RegExp(PRICE_ITEM_SEPARATOR.source, "g"))) {
     const at = boundary.index ?? 0;
     const prefix = gap.slice(0, at);
@@ -1348,21 +1340,12 @@ function selectPriceGap(gap: string, hasNextPrice: boolean): PriceGap {
     if (/[.!?]/.test(boundary[0])) {
       const pricedServing = TRAILING_FULL_PINT.test(prefix);
       if (!/^\s+\p{L}/u.test(sibling) && !(pricedServing && LEADING_SERVING.test(sibling.trimStart()))) continue;
-      if (prefix.trim() && !pricedServing && !namesGoods(prefix)) continue;
+      if (prefix.trim() && !pricedServing) continue;
     }
     if (!namesPricedItem(sibling)) continue;
     if (OFFER_WORDS.test(sibling)) continue;
-    if (!first) {
-      first = boundary;
-    } else if (namesGoods(gap.slice(first.index, at))) {
-      const name = cleanListedDrinkName(sibling);
-      const category = name ? categoryDecisionFromLabel(name, undefined) : null;
-      if ((category && typeof category !== "string" && !category.fromMixer) || namesFullPint(sibling, "")) {
-        return atSeparator(at, boundary[0].length);
-      }
-    }
+    return atSeparator(at, boundary[0].length);
   }
-  if (first) return atSeparator(first.index ?? 0, first[0].length);
 
   // An unseparated gap can supply the next printed name, but it cannot
   // contribute a serving or description to the previous price.
@@ -1446,7 +1429,6 @@ function preServingAdmission(
     : "";
   const continuation = text.slice(lineEnd, selection.continuationEnd ?? lineEnd).replaceAll("\n", " ");
   const claim = `${leading}${before} ${raw.verbatim}${tail}${continuation}`;
-  if (namesGoods(claim)) return refuse("no-drink-word-nearby");
   if (selection.scopedOffer || OFFER_WORDS.test(claim) || OFFER_WORDS.test(unassigned)) {
     return refuse("offer-not-a-menu-price");
   }
@@ -1759,7 +1741,7 @@ export function printedPriceLayout(
       }
       if (firstIndex === itemIndex) return undefined;
       const note = text.slice(start, item.start).replaceAll("\n", " ");
-      if (!namesGoods(note) && !hasFoodWords(note) && !OFFER_WORDS.test(note)
+      if (!hasFoodWords(note) && !OFFER_WORDS.test(note)
         && !fractionalBeerServing(note)) return undefined;
       for (const line of lines.slice(firstIndex, itemIndex)) descriptionLines.add(line.start);
       return { start, end: item.start };

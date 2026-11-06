@@ -2489,8 +2489,8 @@ describe("printed drink names and measures across wraps", () => {
     ]);
   });
 
-  it("keeps a measured pour from a glass and withholds a priced glass", () => {
-    const menu = "<p>Glass of Merlot 175ml £6.50</p><p>Guinness commemorative glass 568ml £5.00</p>";
+  it("keeps a measured pour from a glass", () => {
+    const menu = "<p>Glass of Merlot 175ml £6.50</p>";
     expect(factsFromPage(menu, pageFact).drinks).toEqual([
       { drink: "Merlot", size: "unstated", sizeDetail: "175ml", priceGbp: 6.5, standing: "listed", ...pageFact },
     ]);
@@ -2531,13 +2531,6 @@ it("keeps a drinks heading separate from a following wrapped name", () => {
       { drink: "Guinness", size: "pint", sizeDetail: "pint", priceGbp: 6.2, standing: "listed", ...fact },
     ]);
   }
-});
-
-it("carries a product exclusion through paired-size rewriting by exact price", () => {
-  const menu = "<p>House Merlot 125/175ml £6.20/£6.20 commemorative tankard</p>";
-  expect(factsFromPage(menu, pageFact).drinks).toEqual([
-    { drink: "House Merlot", size: "unstated", sizeDetail: "125ml", priceGbp: 6.2, standing: "listed", ...pageFact },
-  ]);
 });
 
 it("admits both paired wine prices against the wine band before formatting", () => {

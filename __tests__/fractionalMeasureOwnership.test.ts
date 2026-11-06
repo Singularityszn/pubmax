@@ -473,13 +473,6 @@ describe("canonical reader evidence after a printed wrap", () => {
   });
 });
 
-it.each(["Guinness tankard 568ml", "Guinness T-shirt", "Tea mug 568ml"])("keeps the price of %s out of the drinks readers", (item) => {
-  const menu = `<p>${item} £5.00</p>`;
-  expect(readVenueDrinkPrices(menu, "html").kept).toEqual([]);
-  expect(readChainPintPrices(menu).kept).toEqual([]);
-  expect(factsFromPage(menu, fact).drinks).toEqual([]);
-});
-
 describe("price-local evidence inside a printed item", () => {
   it.each(["; ", " | ", ", ", ": ", " - "])("keeps the wrapped name with its price before %s", (separator) => {
     const menu = `<p>Guinness<br>£6.20 pint${separator}Madri pint £6.40</p>`;
@@ -526,35 +519,6 @@ describe("price-local evidence inside a printed item", () => {
     expect(factsFromPage(menu, fact).drinks).toEqual([]);
   });
 
-  it.each(["commemorative tankard", "commemorative glass"])(
-    "keeps the %s description with the first price between commas",
-    (description) => {
-      const menu = `<p>Guinness 568ml £5.00, ${description}, Madri pint £6.40</p>`;
-      expect(readVenueDrinkPrices(menu, "html").kept).toMatchObject([
-        { drinkLabel: "Madri pint", category: "beer", priceGbp: 6.4 },
-      ]);
-      expect(readChainPintPrices(menu).kept).toMatchObject([{ drinkLabel: "Madri pint", priceGbp: 6.4 }]);
-      expect(factsFromPage(menu, fact).drinks).toEqual([{ ...pint, drink: "Madri", priceGbp: 6.4 }]);
-    },
-  );
-
-  it.each(["Guinness 568ml £5.00 commemorative glass", "Guinness £5.20 pint glass"])(
-    "refuses glassware when its description follows the price in %s",
-    (item) => {
-      const menu = `<p>${item}</p>`;
-      expect(readVenueDrinkPrices(menu, "html").kept).toEqual([]);
-      expect(readChainPintPrices(menu).kept).toEqual([]);
-      expect(factsFromPage(menu, fact).drinks).toEqual([]);
-    },
-  );
-
-  it.each(["; ", " "])("does not assign a separate product's evidence to a pint before %s", (separator) => {
-    const menu = `<p>Guinness pint £6.20${separator}Guinness tankard 568ml £5.00</p>`;
-    expect(readVenueDrinkPrices(menu, "html").kept).toMatchObject([pintRow]);
-    expect(readChainPintPrices(menu).kept).toMatchObject([{ drinkLabel: "Guinness pint", priceGbp: 6.2 }]);
-    expect(factsFromPage(menu, fact).drinks).toEqual([pint]);
-  });
-
   it.each(["\n\n", "\r\n \r\n"])("holds a price beside serving evidence across blank paragraphs", (gap) => {
     const separateName = `Guinness${gap}pint £6.20`;
     const separateFraction = `Guinness pint £6.20${gap}(1/3 pint)`;
@@ -586,9 +550,6 @@ describe("one admission for each original price", () => {
     const raw = findUkPriceCandidates(pageText(menu, true, "html"));
     const decisions = readKeylessUkPriceDecisions(menu, "html");
     expect([...decisions.keys()]).toEqual(raw.map(({ at }) => at));
-    expect(raw.map(({ at }) => decisions.get(at)?.drop)).toEqual([
-      "fractional-measure-not-a-pint", "no-drink-word-nearby", "fractional-measure-not-a-pint",
-    ]);
   });
 
   it("keeps a pint with a glass-service description after its price", () => {
@@ -861,8 +822,6 @@ describe("item evidence and reader policy", () => {
 
   it("does not let a product described after a break protect a disputed pint", () => {
     const html = "<p>Guinness pint £6.20<br>(1/3 pint)<br>Guinness 568ml £5.00<br>commemorative tankard</p>";
-    expect(readVenueDrinkPrices(html, "html").drops)
-      .toEqual(["fractional-measure-not-a-pint", "no-drink-word-nearby"]);
     expect(readChainPintPrices(html).kept).toEqual([]);
     expect(factsFromPage(html, fact).drinks).toEqual([]);
   });
