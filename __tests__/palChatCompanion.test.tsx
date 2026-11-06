@@ -18,7 +18,7 @@ function pal(ownerId: string, name: string): PubPal {
   return {
     ...DEFAULT_PAL_DRAFT, ownerId, name, id: ownerId,
     adultAttestedAt: "2026-10-04T12:00:00.000Z", muted: false, hidden: false,
-    proposalPreferences: {}, masteryPoints: 0,
+    proposalPreferences: { memories: false, routes: true }, masteryPoints: 0,
     createdAt: "2026-10-04T12:00:00.000Z", updatedAt: "2026-10-04T12:00:00.000Z",
   };
 }
