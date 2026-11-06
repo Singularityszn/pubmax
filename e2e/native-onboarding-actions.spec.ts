@@ -41,11 +41,19 @@ for (const viewport of [
       await page.locator(".firstRunStage").evaluate((surface) => {
         surface.scrollTo(0, surface.scrollHeight);
       });
-      const lastArea = page.locator(".firstRunAreaList article").last();
-      await expect(lastArea).toBeInViewport({ ratio: 1 });
-      const areaBox = await lastArea.boundingBox();
       const actionBox = await london.boundingBox();
-      expect(areaBox!.y + areaBox!.height).toBeLessThanOrEqual(actionBox!.y);
+      await expect(page.locator(".firstRunAreaList article")).toHaveCount(0);
+      await expect(page.getByText("PUBMAXX reviewed", { exact: true })).toHaveCount(0);
+      for (const content of [
+        page.locator(".firstRunLondonPhoto"),
+        page.getByRole("heading", { name: "London is ready." }),
+        page.locator(".firstRunLead"),
+      ]) {
+        await expect(content).toBeInViewport({ ratio: 1 });
+        const contentBox = await content.boundingBox();
+        expect(contentBox).not.toBeNull();
+        expect(contentBox!.y + contentBox!.height).toBeLessThanOrEqual(actionBox!.y);
+      }
       await expectReachable(page, london);
       await answerFirstRunQuestions(page);
 
