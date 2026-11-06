@@ -334,6 +334,31 @@
   font-weight: 600;
 }
 
+/* Other cities follow the London directory as their own section: a heading at
+   the round starter's size, then each city as a compact group. */
+.crawlOtherCities {
+  display: grid;
+  gap: var(--space-6);
+  margin: 0 0 var(--space-8);
+}
+
+.crawlOtherCitiesHead {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.crawlOtherCitiesTitle {
+  margin: 0;
+  font-size: var(--text-lg);
+  line-height: var(--leading-tight);
+}
+
+.crawlOtherCitiesNote {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
 /* The rows are the shared RowList (components/ui/rowList.css): no panel
    round a group, one hairline between rows. The link is the whole row, so it
    takes the row's grid here rather than the primitive's title overlay. */
