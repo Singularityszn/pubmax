@@ -117,11 +117,12 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
    says which of the three happened (`palDraftOutcomeLine`). Nothing is saved
    until the drinker locks it in. Pins: `__tests__/palPlanDraft.test.ts`,
    `__tests__/palPlanHandoff.test.ts`, `e2e/pal-plan-keeps-draft.spec.ts`.
-4. **Keyless path (map Ask)** - without `OPENROUTER_API_KEY`, `POST /api/ask`
+4. **Keyless path (map Ask)** - without `ANTHROPIC_API_KEY` or `OPENROUTER_API_KEY`, `POST /api/ask`
    uses deterministic tools and house-voice templates.
    Decision 2 defines the recorded-answer routing exceptions.
-5. **Bounded model loop (map Ask)** — with OpenRouter, tool-calling on
-   `POST /api/ask` is allowlisted, low temperature, capped rounds and tokens.
+5. **Bounded model loop (map Ask)** - with Claude when `ANTHROPIC_API_KEY` is set,
+   else OpenRouter, tool-calling on `POST /api/ask` is allowlisted.
+   It uses low temperature or low effort, with capped rounds and tokens.
    The safety check below precedes this loop. The model selects tools only.
    For model-routed turns, `composeAnswer`
    builds reader copy from returned hints and cards.
@@ -155,12 +156,12 @@ OpenRouter.
 
 The [Pub Pal feature guide](../../README.md#features) owns the user-facing safety response.
 `runAsk` checks the current query and user history through `lib/pubPalLlmFence.ts`
-before deterministic tools, the OpenRouter loop or fallback routing can answer.
+before deterministic tools, the model loop or fallback routing can answer.
 Assistant history does not trigger the check.
 `skipModel` and deterministic menu, price and hours paths use `regexFenceIntent` without a model provider.
 Other paths use `resolvePubPalFenceIntent`, which uses TypeSafe when available and retains the regex fallback.
 A matched turn runs only deterministically selected `journey` and `city_status` tools.
-It composes the shared response through `pubPalGetHomeRegisterAnswer` and returns before the OpenRouter loop.
+It composes the shared response through `pubPalGetHomeRegisterAnswer` and returns before the model loop.
 Regression coverage: `__tests__/askSobrietyParity.test.ts`.
 
 ## Consequences

@@ -5,7 +5,7 @@ import { routeAsk } from "@/lib/ask/routerJudged";
 import { resolveLateFoodQuery } from "@/lib/ask/lateFoodQuestion";
 import { answerLateFoodQuestion } from "@/lib/ask/lateFoodAnswer.server";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
-import { runAskModelLoop } from "@/lib/ask/modelLoop";
+import { askModelConfigured, runAskModelLoop } from "@/lib/ask/modelLoop";
 import {
   resolveAskCityId,
   runAskTool,
@@ -221,7 +221,7 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
     : [];
 
   const allowModel =
-    !lateFood && !deterministicOnly && !input.skipModel && Boolean(process.env.OPENROUTER_API_KEY);
+    !lateFood && !deterministicOnly && !input.skipModel && askModelConfigured();
 
   if (allowModel) {
     const modelOutcome = await runAskModelLoop({

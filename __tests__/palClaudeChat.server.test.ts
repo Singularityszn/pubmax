@@ -130,7 +130,12 @@ describe("runPalClaudeChatTurn", () => {
     expect(bodies).toHaveLength(1);
     const body = bodies[0]!;
     expect(body.model).toBe("claude-haiku-5-5");
-    expect(body.system).toBe(pubPalTypedChatSystemPrompt());
+    // The marker on the prompt caches the tools and the prompt for every
+    // caller; the top-level marker caches the turn's growing tail.
+    expect(body.system).toEqual([
+      { type: "text", text: pubPalTypedChatSystemPrompt(), cache_control: { type: "ephemeral" } },
+    ]);
+    expect(body.cache_control).toEqual({ type: "ephemeral" });
     expect(body.output_config).toEqual({ effort: "low" });
     expect(body).not.toHaveProperty("temperature");
     expect(body).not.toHaveProperty("thinking");

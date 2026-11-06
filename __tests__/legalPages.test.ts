@@ -338,7 +338,7 @@ describe("legal content pages", () => {
     const promptTextRecipients = [
       { name: "Arize", host: "otlp.arize.com", source: "lib/observability/arize.ts" },
       { name: "OpenRouter", host: "openrouter.ai", source: "lib/ask/modelLoop.ts" },
-      { name: "Anthropic", host: "api.anthropic.com", source: "lib/palClaudeChat.server.ts" },
+      { name: "Anthropic", host: "api.anthropic.com", source: "lib/claudeClient.server.ts" },
       { name: "TypeSafe", host: "api.typesafe.ai", source: "lib/ai/typesafe.server.ts" },
     ];
     for (const recipient of promptTextRecipients) {

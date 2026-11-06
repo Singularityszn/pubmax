@@ -789,12 +789,14 @@ export default function PrivacyPage() {
           <div className="legalRow">
             <dt>AI features</dt>
             <dd>
-              If you ask The Landlord about a pub, or talk to Pub Pal by typing
-              or by voice, the text or audio of that request goes to the model
-              provider that answers it (OpenRouter; Anthropic at{" "}
-              <code>api.anthropic.com</code> when Pub Pal typed chat runs on
-              Claude; and ElevenLabs at <code>api.elevenlabs.io</code> for Pub
-              Pal voice, and for typed chat when Claude is not configured). With Pub Pal, the memories you confirmed for your
+              If you ask the map a question, ask The Landlord about a pub, or
+              talk to Pub Pal by typing or by voice, the text or audio of that
+              request goes to the model provider that answers it. Anthropic at{" "}
+              <code>api.anthropic.com</code> answers map questions and Pub Pal
+              typed chat when Claude is configured. OpenRouter answers The
+              Landlord, and map questions when Claude is not configured.
+              ElevenLabs at <code>api.elevenlabs.io</code> answers Pub Pal
+              voice, and typed chat when Claude is not configured. With Pub Pal, the memories you confirmed for your
               Pal go with each chat or voice call too, so it can use them:
               every one of those short preferences, such as a drink you like or
               an access need, up to forty, with the ones about what you just

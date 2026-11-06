@@ -13,7 +13,8 @@ const { modelLoopMock } = vi.hoisted(() => ({
 
 vi.mock("@/lib/serverEnv", () => ({ assertProductionSecrets: () => {} }));
 
-vi.mock("@/lib/ask/modelLoop", () => ({
+vi.mock("@/lib/ask/modelLoop", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/ask/modelLoop")>()),
   runAskModelLoop: modelLoopMock,
 }));
 
@@ -37,6 +38,7 @@ beforeEach(() => {
   isLimitedMock.mockReset().mockResolvedValue(false);
   modelLoopMock.mockReset().mockResolvedValue(null);
   delete process.env.OPENROUTER_API_KEY;
+  delete process.env.ANTHROPIC_API_KEY;
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
 });
@@ -746,6 +748,20 @@ describe("POST /api/ask", () => {
 
     expect(result.answer).toBe("1 pick from the listed pubs, each with its source. The Lamb is listed.");
     expect(result.answer).not.toMatch(/CityMCP|grounded/iu);
+  });
+
+  it("runs the model loop on a Claude key alone, with no OpenRouter key", async () => {
+    process.env.ANTHROPIC_API_KEY = "test-key";
+
+    await runAsk({ query: "Somewhere quiet in Bloomsbury", cityId: "london" });
+
+    expect(modelLoopMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the model loop off with neither key", async () => {
+    await runAsk({ query: "Somewhere quiet in Bloomsbury", cityId: "london" });
+
+    expect(modelLoopMock).not.toHaveBeenCalled();
   });
 });
 

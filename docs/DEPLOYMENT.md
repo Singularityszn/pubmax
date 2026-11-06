@@ -46,7 +46,15 @@ The `x-admin-token` header remains available for scripts.
 | Var | Purpose |
 |---|---|
 | `OPENROUTER_API_KEY` | Enables narrated LLM answers via OpenRouter. Without it, `/api/heritage` returns the grounded, structured-only fallback (reads the facts back, never invents). |
-| `OPENROUTER_MODEL` | Model id. Defaults to `anthropic/claude-sonnet-4-5`. Also used by the optional OpenRouter tool loop on `POST /api/ask` (map Ask). Pal typed chat and voice do not use OpenRouter. |
+| `OPENROUTER_MODEL` | Model id. Defaults to `anthropic/claude-sonnet-4-5`. Also used by the optional OpenRouter tool loop on `POST /api/ask` (map Ask) when `ANTHROPIC_API_KEY` is unset. Pal typed chat and voice do not use OpenRouter. |
+
+### Optional — user chat on Claude
+
+| Var | Purpose |
+|---|---|
+| `ANTHROPIC_API_KEY` | **Server-only** Claude Platform key. When set, Pub Pal typed chat and the map Ask tool loop on `POST /api/ask` run on the Claude API (`lib/claudeClient.server.ts`). Without it, typed chat uses ElevenLabs and map Ask uses OpenRouter. Set a monthly spend limit in the Claude Console. The `pub-pal-chat` and `ask` paid-spend ceilings still apply. |
+| `PUB_PAL_CLAUDE_MODEL` | Typed chat model. Defaults to `claude-haiku-5-5`. |
+| `ASK_CLAUDE_MODEL` | Map Ask model. Defaults to `claude-haiku-5-5`. |
 
 ### Pub Pal voice and hosted typed chat (ElevenLabs)
 

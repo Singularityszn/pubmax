@@ -14,8 +14,9 @@ const MAX_QUERY_LENGTH = 500;
 
 /**
  * Night OS Ask (ADR 0014) — unified grounded agent over the tool registry.
- * Keyless deterministic path always works; OpenRouter tool-calling is optional
- * and withheld in production without a durable limiter (same fence as concierge).
+ * Keyless deterministic path always works; model tool-calling (Claude when
+ * ANTHROPIC_API_KEY is set, else OpenRouter) is optional and withheld in
+ * production without a durable limiter (same fence as concierge).
  */
 export async function POST(request: Request): Promise<Response> {
   try {
@@ -56,7 +57,7 @@ export async function POST(request: Request): Promise<Response> {
     const modelAdmitted = await admitPaidSpend("ask", request);
 
     // Paid-spend guard: without Supabase the durable limiter is only per-instance.
-    // Withhold OpenRouter in that production posture; deterministic tools still answer.
+    // Withhold the model in that production posture; deterministic tools still answer.
     const llmAssistAllowed =
       modelAdmitted && (isSupabaseConfigured() || process.env.NODE_ENV !== "production");
 
