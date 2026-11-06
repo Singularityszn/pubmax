@@ -264,9 +264,9 @@ describe("a mounted Plan composer at the live-account boundary (#2539)", () => {
     writePlanIntakeDraft({
       ...intake,
       skippedSteps: intake.skippedSteps.filter((step) => step !== "accessibility"),
-      settledSteps: [...intake.settledSteps, "accessibility"],
       answers: { ...intake.answers, accessibilityNeeds: ["step-free"] },
     });
+    expect(readPlanIntakeDraft()?.answers.accessibilityNeeds).toEqual(["step-free"]);
     localStorage.setItem("pubmaxx:plan-route-draft:v1", JSON.stringify({ stops: GENERATED.stops }));
     await mountComposer();
     expect(document.querySelectorAll(".planStop")).toHaveLength(3);
