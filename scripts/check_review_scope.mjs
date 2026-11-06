@@ -172,6 +172,17 @@ export const REGENERATED_LANES = [
     ],
   },
   {
+    id: "ask_place_names",
+    output: /^lib\/ask\/placeNames\.generated\.json$/,
+    inputs: [
+      /^scripts\/gen_ask_place_names\.ts$/,
+      /^data\/tfl_station_zones\.json$/,
+      /^public\/data\/london_localities\.json$/,
+      /^lib\/nightAreas\.ts$/,
+      /^public\/data\/night_areas\/uk_cities\.json$/,
+    ],
+  },
+  {
     id: "historic_pubs",
     output: /^public\/data\/historic_pubs\.json$/,
     inputs: [

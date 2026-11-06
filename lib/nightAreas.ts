@@ -1,6 +1,7 @@
 import type { CityId } from "@/lib/cities";
 import type { Daypart } from "@/lib/nightPlanning";
 import derivedAreaData from "@/public/data/night_areas/uk_cities.json";
+import { nearestCompactNightArea } from "@/lib/nightAreaGeometry";
 
 import type { NightAreaSlug } from "@/lib/nightAreaSlugs";
 
@@ -222,14 +223,7 @@ export function getNightAreasForCity(cityId: CityId): NightArea[] {
 
 /** Suggests a public Night Area from the visible map centre without using location history. */
 export function nearestNightAreaForViewport(cityId: CityId, center: [number, number]): NightArea | null {
-  const [lng, lat] = center;
-  return getNightAreasForCity(cityId)
-    .slice()
-    .sort((left, right) => {
-      const leftDistance = Math.hypot((left.centre.lat - lat) * 111, (left.centre.lng - lng) * 70);
-      const rightDistance = Math.hypot((right.centre.lat - lat) * 111, (right.centre.lng - lng) * 70);
-      return leftDistance - rightDistance;
-    })[0] ?? null;
+  return nearestCompactNightArea(getNightAreasForCity(cityId), center);
 }
 
 /**

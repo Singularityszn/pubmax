@@ -1,6 +1,7 @@
 import { existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { GENERIC_MAP_COMMANDS, NEXT_STOP_NOUN_REQUESTS, REFUSED_MAP_COMMANDS, SOCIAL_MAP_COMMANDS } from "./fixtures/askMapCommands";
 
 import { PAL_VOICE_SOUND_SRC } from "@/components/pubpal/palVoiceSounds";
 
@@ -31,8 +32,9 @@ describe("palAsksForMap", () => {
     "let me see the map",
     "Map",
     "the map please",
+    ...GENERIC_MAP_COMMANDS,
+    ...SOCIAL_MAP_COMMANDS,
     "Show me Soho on the map",
-    "Show me the map’s pubs",
   ])("hears an ask for the map: %s", (text) => {
     expect(palAsksForMap(text)).toBe(true);
   });
@@ -47,6 +49,11 @@ describe("palAsksForMap", () => {
     "Show me cheap pints near Soho",
     "Mapping out a big night",
     "The pub on the map looked busy",
+    "Show me the map’s pubs",
+    "Show me the Harp map",
+    "Do not open the full map",
+    "Never show me the whole map please",
+    ...REFUSED_MAP_COMMANDS,
   ])("leaves everything else to the Pal: %s", (text) => {
     expect(palAsksForMap(text)).toBe(false);
   });
@@ -55,11 +62,30 @@ describe("palAsksForMap", () => {
 describe("map requests that still need an answer", () => {
   it.each([
     "Find me four pubs in Soho and show them on the map.",
+    "Show me the map’s pubs",
     "Show me quiet pubs in Soho on the map",
     "Show me Soho on the map",
     "Show me the map with four cheap pubs near Bank",
+    "Date night. Show the map.",
+    "Show the map. Garden.",
+    "Show the map. For four.",
+    "Near Soho. Show the map.",
+    "Any Tube delays? Show me the map.",
+    "Show me the map. Any Tube delays?",
+    "Directions to The Lamb from London Bridge. Show me the map.",
+    "What are the opening hours at The Lamb? Show me the map.",
+    "What is the cheapest Negroni near Soho? Show me the map.",
+    "What is the cheapest pint near Soho? Show me the map.",
+    "Plan a three-pub walk in Soho. Show me the map.",
+    "Tell me about the history of The Lamb. Show me the map.",
+    "Any quizzes tonight? Show me the map.",
+    "I need a desk near Soho. Show me the map.",
   ])("keeps discovery in the conversation: %s", (query) => {
-    expect(palVoiceMapIntent(query, false)).toBeNull();
+    const evidence = "Show the source and date for any price you use.";
+    for (const text of [query, `${evidence} ${query}`, `${query} ${evidence}`]) {
+      expect(palVoiceMapIntent(text, false)).toBeNull();
+      expect(palVoiceMapIntent(text, true)).toBeNull();
+    }
   });
 });
 
@@ -120,7 +146,10 @@ describe("the voice panel cues", () => {
 // read against all the others at once. Each row: the line, what it means with
 // a night on, and what it means with no night on.
 const VOICE_MAP_TABLE: ReadonlyArray<readonly [string, "next-stop" | "map" | null, "map" | null]> = [
+  ...SOCIAL_MAP_COMMANDS.map((text) => [text, "map", "map"] as const),
+  ...REFUSED_MAP_COMMANDS.map((text) => [text, null, null] as const),
   // Next-stop asks.
+  ...NEXT_STOP_NOUN_REQUESTS.map((text) => [text, "next-stop", null] as const),
   ["Next stop", "next-stop", null],
   ["What's next?", "next-stop", null],
   ["where to next", "next-stop", null],
@@ -128,6 +157,7 @@ const VOICE_MAP_TABLE: ReadonlyArray<readonly [string, "next-stop" | "map" | nul
   ["what's next tonight", "next-stop", null],
   // "Stop" inside the ask is the noun, never a refusal.
   ["Next stop please", "next-stop", null],
+  ["Next stop. Next stop please.", "next-stop", null],
   ["ok next stop then", "next-stop", null],
   // Map asks.
   ["Open the map", "map", "map"],
@@ -141,6 +171,10 @@ const VOICE_MAP_TABLE: ReadonlyArray<readonly [string, "next-stop" | "map" | nul
   ["Show me the map for the next stop", "next-stop", "map"],
   ["open the map, where to next?", "next-stop", "map"],
   // Another day, before or after the ask.
+  ["Show me the map for the next stop for this weekend", null, null],
+  ["Show me the map for the next stop this weekend", null, null],
+  ["Next stop this weekend", null, null],
+  ["Show me the map for the next stop for tonight", "next-stop", "map"],
   ["What's next tomorrow?", null, null],
   ["Tomorrow, what's next?", null, null],
   ["where next weekend", null, null],
@@ -161,9 +195,16 @@ const VOICE_MAP_TABLE: ReadonlyArray<readonly [string, "next-stop" | "map" | nul
 ];
 
 describe("what the voice panel does with a line", () => {
+  it.each(REFUSED_MAP_COMMANDS)("rejects a refused next-stop request: %s", (query) => {
+    expect(palAsksForNextStop(query)).toBe(false);
+  });
+
   it.each(VOICE_MAP_TABLE)("%s", (line, withNight, withoutNight) => {
-    expect(palVoiceMapIntent(line, true)).toBe(withNight);
-    expect(palVoiceMapIntent(line, false)).toBe(withoutNight);
+    const evidence = "Show the source and date for any price you use.";
+    for (const query of [line, `${evidence} ${line}`, `${line}. ${evidence}`]) {
+      expect(palVoiceMapIntent(query, true)).toBe(withNight);
+      expect(palVoiceMapIntent(query, false)).toBe(withoutNight);
+    }
   });
 });
 

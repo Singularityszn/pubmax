@@ -139,6 +139,42 @@ describe("what a bundle row owes", () => {
 });
 
 describe("which rows a surface may treat as a fact", () => {
+  it("withholds the North Westward Ho price without pint evidence from older bundles", () => {
+    const withdrawn: UkPriceBundleRow = {
+      venueId: "venue-mcr-y2sfka",
+      name: "North Westward Ho",
+      category: "beer",
+      priceGbp: 2.1,
+      lane: "site-harvest",
+      standing: "listed",
+      sourceUrl: "https://www.northwestwardho.co.uk/menu",
+      publisher: "northwestwardho.co.uk",
+      observedAt: "2026-09-04T14:07:10.622Z",
+      basis: null,
+      sampleSize: null,
+      drinkLabel: "1/3",
+    };
+    const namedPint = { ...withdrawn, drinkLabel: "Pint of lager" };
+    const controls: UkPriceBundleRow[] = [
+      namedPint,
+      { ...withdrawn, category: "wine" },
+      { ...withdrawn, sourceUrl: "https://www.northwestwardho.co.uk/drinks" },
+      { ...withdrawn, priceGbp: 3.15 },
+      { ...withdrawn, lane: "drink-price-update" },
+    ];
+    const oldRows = [withdrawn, ...controls];
+    expect(isValidUkPriceBundleRow(withdrawn)).toBe(true);
+    expect(parseUkPriceBundleRows(oldRows)).toEqual(controls);
+    expect(authoritativeBundleRows(oldRows)).toEqual(controls);
+    expect(bundlePricesForCategory([withdrawn], "beer").listed).toBeNull();
+
+    const otherPrice = { ...namedPint, priceGbp: 5.25 };
+    expect(bundlePricesForCategory([withdrawn, otherPrice], "beer").listed).toMatchObject({
+      priceGbp: 5.25,
+      drinkLabel: "Pint of lager",
+    });
+  });
+
   it("withholds retained elderflower and raspberry soda claims misfiled as wine", () => {
     const ledger = readFileSync("data/uk_prices/site_harvest.jsonl", "utf8")
       .trim()
