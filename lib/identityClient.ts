@@ -139,9 +139,10 @@ export async function resolveCanonicalIdentity(
   // A captured account can lose ownership while its remote identity read waits.
   if (!answer.ok || !current()) return { ok: false };
   const body = answer.body as { handle?: unknown } | null;
-  const handle =
-    typeof body?.handle === "string" ? normalizeHandle(body.handle) : "";
-  if (!handle) return { ok: true, identity: null };
+  if (body?.handle === null) return { ok: true, identity: null };
+  if (typeof body?.handle !== "string") return { ok: false };
+  const handle = normalizeHandle(body.handle);
+  if (!handle) return { ok: false };
   clearClaimedRoundAnonymousHandle(handle, storage);
   keepCurrentIdentityReadDuring(() => syncDeviceHandle(storage, handle));
   return {

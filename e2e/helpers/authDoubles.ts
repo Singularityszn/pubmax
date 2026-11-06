@@ -97,7 +97,7 @@ function rotatedToken(account: Account): string {
   return `${account.refreshToken}-rotated`;
 }
 
-function userBody(account: Account) {
+function userBody(account: Account, avatarUrl?: string) {
   return {
     id: account.id,
     aud: "authenticated",
@@ -105,7 +105,7 @@ function userBody(account: Account) {
     email: account.email,
     email_confirmed_at: "2026-01-01T00:00:00.000Z",
     app_metadata: {},
-    user_metadata: { full_name: account.name },
+    user_metadata: { full_name: account.name, ...(avatarUrl ? { avatar_url: avatarUrl } : {}) },
   };
 }
 
@@ -150,8 +150,14 @@ export async function stubSocialAuthProviders(page: Page): Promise<void> {
 
 export async function installAuthDoubles(
   page: Page,
-  options: { realResumeCookie?: boolean; analyticsConsent?: "denied" | "pending" } = {},
+  options: {
+    realResumeCookie?: boolean;
+    analyticsConsent?: "denied" | "pending";
+    providerAvatars?: Partial<Record<AccountKey, string>>;
+  } = {},
 ): Promise<Stub> {
+  const providerAvatar = (account: Account): string | undefined =>
+    options.providerAvatars?.[account.id === ACCOUNTS.A.id ? "A" : "B"];
   /** undefined: derive the handle from the caller. Otherwise force this answer. */
   let handleOverride: string | null | undefined = undefined;
 
@@ -182,7 +188,7 @@ export async function installAuthDoubles(
   }
 
   await page.addInitScript(
-    ({ accounts, authStorageKey, whichKey, analyticsConsent }) => {
+    ({ accounts, authStorageKey, whichKey, analyticsConsent, providerAvatars }) => {
       if (analyticsConsent === "pending") {
         window.localStorage.removeItem("pubmaxx:analytics-consent:v1");
       } else {
@@ -208,7 +214,10 @@ export async function installAuthDoubles(
             role: "authenticated",
             email: account.email,
             app_metadata: {},
-            user_metadata: { full_name: account.name },
+            user_metadata: {
+              full_name: account.name,
+              avatar_url: providerAvatars?.[which as "A" | "B"],
+            },
             created_at: "2026-07-29T00:00:00.000Z",
           },
         }),
@@ -216,6 +225,7 @@ export async function installAuthDoubles(
     },
     {
       accounts: ACCOUNTS,
+      providerAvatars: options.providerAvatars,
       authStorageKey: AUTH_STORAGE_KEY,
       whichKey: WHICH_ACCOUNT_KEY,
       analyticsConsent: options.analyticsConsent ?? "denied",
@@ -266,7 +276,7 @@ export async function installAuthDoubles(
           expires_in: 3_600,
           expires_at: JWT_EXPIRY_SECONDS,
           token_type: "bearer",
-          user: userBody(account),
+          user: userBody(account, providerAvatar(account)),
         }),
       });
       return;
@@ -283,7 +293,7 @@ export async function installAuthDoubles(
     }
     const body =
       url.includes("/auth/v1/user") && bearer
-        ? userBody(bearer)
+        ? userBody(bearer, providerAvatar(bearer))
         : {};
     await route.fulfill({
       status: 200,

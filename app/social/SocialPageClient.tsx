@@ -400,7 +400,7 @@ function SocialPageAccountState({
   publicAlternatives,
 }: SocialPageClientProps) {
   const surfaceName = socialSurfaceName(friendsLaunchEnabled);
-  const { accountRevision, identityResolved } = useAuth();
+  const { accountRevision, identityResolved, identityUnavailable, retryIdentity } = useAuth();
   const viewerSession = useViewerSession();
   const viewerPhase: SocialViewerPhase =
     viewerSession.unresolved
@@ -472,7 +472,7 @@ function SocialPageAccountState({
       return;
     }
     if (!identityResolved) {
-      void Promise.resolve().then(() => setAccess("checking"));
+      void Promise.resolve().then(() => setAccess(identityUnavailable ? "unavailable" : "checking"));
       return;
     }
 
@@ -515,6 +515,7 @@ function SocialPageAccountState({
     accountRevision,
     friendsLaunchEnabled,
     identityResolved,
+    identityUnavailable,
     initialState.tab,
     viewerSession.phase,
   ]);
@@ -950,7 +951,10 @@ function SocialPageAccountState({
                 friendsLaunchEnabled={friendsLaunchEnabled}
                 onRetry={
                   access === "unavailable"
-                    ? () => setAccessAttempt((value) => value + 1)
+                    ? () => {
+                        if (identityUnavailable) retryIdentity();
+                        setAccessAttempt((value) => value + 1);
+                      }
                     : undefined
                 }
                 adultPrompt={adultPrompt}

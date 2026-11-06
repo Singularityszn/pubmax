@@ -17,7 +17,7 @@
 .profilePage .profileMain {
   width: 100%;
   box-sizing: border-box;
-  padding-block: clamp(32px, 6vw, 64px);
+  padding-block: clamp(20px, 3vw, 36px);
   /* .container (Tailwind) sets width but no inline padding, so without this the
      profile body text touched the screen edge on phones. Cap the shell at the
      shared --content-max-wide (1240px) so it stops widening past the marketing
@@ -27,16 +27,10 @@
   padding-inline: var(--page-gutter);
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: clamp(32px, 5vw, 52px);
+  gap: 24px;
 }
 
-/* ── Desktop multi-pane (≥1024) ───────────────────────────────────────────
-   SOC-3: on a wide monitor the profile stops being one narrow column in a
-   1240px void. The identity/bio docks into a sticky left pane and the passport /
-   drops / saved content flows in a wider main pane. The three wrappers are
-   display:contents below the breakpoint, so every child stays a direct grid item
-   of .profileMain there and the phone layout is byte-for-byte unchanged.
-   Signed-out /u/you never renders this — it keeps its single-column invite. */
+/* The hero spans the page. Desktop places the passport beside the activity. */
 .profilePage .profileLayout,
 .profilePage .profileIdentityPane,
 .profilePage .profileContentPane {
@@ -44,7 +38,25 @@
 }
 
 .profilePage .profileOwnerUtilities {
-  display: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.profilePage .profilePageKicker {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+.profilePage .profileSidebar,
+.profilePage .profileJournal {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  min-width: 0;
+  gap: 24px;
 }
 
 @media (min-width: 641px) {
@@ -52,7 +64,7 @@
     display: flex;
     min-height: 44px;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: space-between;
   }
 }
 
@@ -60,7 +72,7 @@
   .profilePage .profileLayout {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    row-gap: clamp(28px, 4vw, 44px);
+    row-gap: 24px;
   }
 
   .profilePage .profileOwnerUtilities {
@@ -80,9 +92,23 @@
   .profilePage .profileContentPane {
     display: grid;
     grid-column: 1;
-    gap: clamp(28px, 4vw, 44px);
+    gap: 28px;
     min-width: 0;
   }
+
+  .profilePage .profileContentPaneOwn {
+    grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .profilePage .profileContentPaneOwn .profileSidebar { grid-column: 1; grid-row: 1; }
+  .profilePage .profileContentPaneOwn .profileJournal { grid-column: 2; grid-row: 1; }
+  .profilePage .profileContentPaneOwn .passportHead { flex-wrap: wrap; gap: 12px; }
+  .profilePage .profileContentPaneOwn .passportGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 1023px) {
+  .profilePage .profileContentPaneOwn { display: grid; gap: 24px; }
 }
 
 .profilePage .profileSectionHeading,
@@ -169,18 +195,17 @@
   }
 }
 
-/* Invite-your-lot is the crew loop's primary action, so it wears the brass fill
-   the pub-pal / edit pills leave quiet. Shares the pill geometry above. */
+/* The invite stays beside the profile editor as a quiet link. */
 .profilePage .profileInviteLink {
   min-height: var(--control-height);
   padding: 10px var(--control-pad-x);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--brass);
+  border: 1px solid var(--line);
   border-radius: var(--control-radius);
-  background: var(--brass);
-  color: var(--color-on-accent);
+  background: transparent;
+  color: var(--ink);
   font-size: var(--text-sm);
   font-weight: 700;
   text-decoration: none;
@@ -188,7 +213,7 @@
 
 .profilePage .youProfileTabs {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(44px, 1fr));
   border-block: 1px solid var(--line);
 }
 .profilePage .youProfileTabs a {
@@ -203,7 +228,33 @@
   text-align: center;
   overflow-wrap: anywhere;
 }
-.profilePage .youProfileTabs a:first-child { color: var(--ink); box-shadow: inset 0 -2px var(--ink); }
+.profilePage .youProfileTabs a[aria-current="location"] {
+  color: var(--state-selected-ink);
+  box-shadow: inset 0 -3px var(--state-selected-border);
+}
+.profilePage .youProfileTabs a:hover { background: var(--panel); color: var(--ink); }
+.profilePage .youProfileTabs a:focus-visible { outline: 2px solid var(--ink); outline-offset: -4px; }
+.profilePage :is(#timeline, #posts, #passport, #wanted, #saved-pubs, #account-settings) {
+  scroll-margin-block-start: 24px;
+}
+.profilePage .profileMomentsEmpty {
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: clamp(24px, 4vw, 40px);
+  border-block: 1px solid var(--line);
+  background: var(--panel-raised);
+}
+.profilePage .profileMomentsEmpty .emptyStateTitle { font-size: var(--text-lg); max-width: 24ch; }
+.profilePage .profileMomentsEmpty .emptyStateAction a { color: var(--ink); text-decoration: underline; min-height: 44px; display: inline-flex; align-items: center; }
+.profilePage .profileJournal .profileTimeline { max-width: none; }
+.profilePage .profileSidebar .pintPassport { padding: 22px; box-shadow: none; }
+.profilePage .profileSidebar .passportHolder { font-size: var(--text-lg); }
+.profilePage .profileSidebar .passportFirstRunCopy { font-size: var(--text-sm); }
+.profilePage .profileJournal .firstActionsRow { margin: 0; }
+
 
 /* Follow/edit action slot rides at the far end of the identity row. */
 .profilePage .profileActions {
@@ -271,7 +322,7 @@
 .profilePage .profileHeader {
   /* The face overlaps the band, so the avatar's size and how far it hangs
      below the cover are ONE pair of numbers the whole hero reads. */
-  --profile-avatar-size: clamp(88px, 11vw, 156px);
+  --profile-avatar-size: clamp(88px, 9vw, 124px);
   --profile-avatar-overlap: calc(var(--profile-avatar-size) * 0.42);
   --profile-hero-pad: clamp(18px, 3vw, 32px);
   position: relative;
@@ -281,7 +332,7 @@
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--panel-raised);
-  box-shadow: var(--shadow);
+  box-shadow: none;
   overflow: hidden;
 }
 
@@ -294,10 +345,32 @@
    only be four hundred pixels of nothing above the fold. */
 .profilePage .profileCover {
   position: relative;
-  height: clamp(116px, 15vw, 190px);
+  height: clamp(132px, 13vw, 164px);
   overflow: hidden;
   background: var(--panel);
   pointer-events: none;
+}
+
+.profilePage .profileHeader:not(.profileHeaderWithCover):not(.profileHeaderLoading) .profileCover {
+  background: var(--ink-deep);
+}
+.profilePage .profileCoverDefault {
+  height: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 24px var(--profile-hero-pad);
+  color: var(--color-on-inverse);
+}
+.profilePage .profileCoverWordmark {
+  font: 750 var(--text-xs)/1.2 var(--font-body);
+  letter-spacing: .12em;
+}
+.profilePage .profileCoverMotto {
+  font: 700 clamp(1.4rem, 3vw, 2.25rem)/1.02 var(--font-display);
+  letter-spacing: -.035em;
+  text-align: right;
 }
 
 /* Holding a photograph, the band's rendered aspect ratio IS the cropper's
@@ -356,6 +429,7 @@
 .profilePage .profileIdentity {
   position: relative;
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-end;
   gap: clamp(14px, 2vw, 26px);
   margin-top: calc(-1 * var(--profile-avatar-overlap));
@@ -553,8 +627,11 @@
 
 /* The whole tile is the target, so the 44px floor is the tile, not the label. */
 .profilePage .profileStatLink {
-  display: block;
-  min-height: 44px;
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: center;
+  gap: 6px;
+  min-height: 76px;
   padding: 12px 16px;
   border-radius: inherit;
   color: inherit;
@@ -1134,6 +1211,7 @@
   transition: background 0.18s ease, color 0.18s ease;
 }
 
+.profilePage .profileEditToggle,
 .profilePage .profileClaimBtn {
   background: var(--brass);
   color: var(--color-on-accent);
@@ -1141,7 +1219,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .profilePage .profileEditToggle:hover {
-    background: color-mix(in srgb, var(--brass) 12%, transparent);
+    background: color-mix(in srgb, var(--brass) 88%, var(--ink));
   }
   .profilePage .profileClaimBtn:hover {
     background: color-mix(in srgb, var(--brass) 88%, var(--ink));
@@ -1539,6 +1617,18 @@
 }
 
 /* ── Responsive ──────────────────────────────────────────────────────── */
+@media (min-width: 641px) {
+  /* The default cover keeps the avatar overlap. Names and actions sit below it. */
+  .profilePage .profileHeader:not(.profileHeaderWithCover):not(.profileHeaderLoading) .profileIdentity {
+    margin-top: 0;
+    padding-top: 18px;
+    align-items: flex-start;
+  }
+  .profilePage .profileHeader:not(.profileHeaderWithCover):not(.profileHeaderLoading) .profileAvatar {
+    margin-top: calc(-1 * (var(--profile-avatar-overlap) + 18px));
+  }
+}
+
 @media (max-width: 640px) {
 
   /* On a phone the name goes UNDER the face rather than beside it: at 390px a
@@ -1588,10 +1678,10 @@
   .profilePage .youProfileIdentity .profileActions > * { flex: 1 1 140px; min-width: 0; overflow-wrap: anywhere; text-align: center; }
 
   /* Two-up stat tiles read better than one long column on a phone. */
-  .profilePage .youProfileIdentity .profileHeader { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+  .profilePage .youProfileIdentity .profileHeader { box-shadow: none; }
   .profilePage .profileStats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .profilePage .youProfileIdentity .profileStats { gap: 6px; background: transparent; }
-  .profilePage .youProfileIdentity .profileStat { background: transparent; text-align: center; }
+  .profilePage .youProfileIdentity .profileStats { gap: 1px; }
+  .profilePage .youProfileIdentity .profileStat { text-align: center; }
   .profilePage .youProfileIdentity .profileStatLink { padding: 9px 6px; }
   .profilePage .youProfileIdentity .profileStatLabel { font-size: var(--text-xs); }
   .profilePage .youProfileIdentity .profileStatValue { font-size: var(--text-md); }
