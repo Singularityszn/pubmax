@@ -1,4 +1,4 @@
-// Migration 0220 proof against a real migrated PostgreSQL cluster.
+// Migration 0221 proof against a real migrated PostgreSQL cluster.
 // The schedule reproduces the exact final-read -> committed close -> insert gap.
 // It does not use sleep, a mock database or a source-string oracle.
 import { spawn } from "node:child_process";
@@ -120,7 +120,7 @@ describe.skipIf(skipReason !== null)("a receipt spend cannot land after its Roun
       await finish("commit");
       const result = await insert;
       expect(result.ok).toBe(false);
-      expect(result.said).toContain("P0220");
+      expect(result.said).toContain("P0221");
       expect(result.said).toContain("round_spend_round_closed");
       expect(db().sql(`select count(*) from public.round_spends where round_id='${ROUND}'`)).toBe("0");
     } finally {
@@ -152,7 +152,7 @@ describe.skipIf(skipReason !== null)("a receipt spend cannot land after its Roun
   });
 
   it("rolls back only the guard and reproduces the original late insert", async () => {
-    const name = "20261106190000_0220_round_spend_closed_guard";
+    const name = "20261106190000_0221_round_spend_closed_guard";
     db().applyFile(join(process.cwd(), `supabase/migrations/rollback/${name}_rollback.sql`));
     try {
       db().sql(asServiceRole(`update public.rounds set closed_at=now() where id='${ROUND}'`));

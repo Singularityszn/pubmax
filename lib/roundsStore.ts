@@ -367,7 +367,7 @@ const supabaseRoundsStore: RoundsStore = {
       let receiptPhotoKey = await uploadRoundReceipt(clean.venueId, id, input.receipt);
       // The bill upload awaited Storage, so the Round may have been called
       // meanwhile. Read closed_at again before the insert. A close that lands
-      // between this read and the insert is refused atomically by migration 0220's
+      // between this read and the insert is refused atomically by migration 0221's
       // parent-row lock. This read only avoids an unnecessary insert.
       const { data: current, error: currentError } = await admin()
         .from(ROUNDS)
@@ -412,7 +412,7 @@ const supabaseRoundsStore: RoundsStore = {
       if (error?.code && receiptPhotoKey) {
         await deletePhotos([receiptPhotoKey]);
       }
-      if (error?.code === "P0220" && error.message === "round_spend_round_closed") {
+      if (error?.code === "P0221" && error.message === "round_spend_round_closed") {
         return { ok: false, error: "closed" };
       }
       if (error && (error as { code?: string }).code !== "23505") {

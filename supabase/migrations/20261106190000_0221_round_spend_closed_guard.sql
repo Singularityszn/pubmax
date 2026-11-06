@@ -23,7 +23,7 @@ begin
                where s.round_id = new.round_id and s.client_ref = new.client_ref) then
       raise exception using errcode = '23505', message = 'round_spend_client_ref_replay';
     end if;
-    raise exception using errcode = 'P0220', message = 'round_spend_round_closed';
+    raise exception using errcode = 'P0221', message = 'round_spend_round_closed';
   end if;
   return new;
 end;
