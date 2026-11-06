@@ -58,7 +58,7 @@ import TonightYourPubs from "./TonightYourPubs";
 import AreaNewsRail from "@/components/desktop/AreaNewsRail";
 import PlacePhoto from "@/components/listing/PlacePhoto";
 import type { PlacePhoto as PlacePhotoData } from "@/components/listing/placePhotoRules";
-import { nearestNightAreaForViewport } from "@/lib/nightAreas";
+import { compactDealAnchor, nearestCompactNightArea, type CompactNightArea } from "@/lib/nightAreaGeometry";
 import TonightShareButton from "./TonightShareButton";
 import TonightSoftPlansModule from "./TonightSoftPlansModule";
 import { useFirstListingsRead } from "./useFirstListingsRead";
@@ -103,9 +103,8 @@ import { dealDigestNote } from "@/lib/dealsDigest";
 import {
   dealEndsCaption,
   dealListingAgeCaption,
-  dealProximityAnchor,
   orderDealsInPlace,
-} from "@/lib/dealsHonesty";
+} from "@/lib/dealsHonestyCore";
 import { groupTonightListings } from "@/lib/tonightListGrouping";
 
 const LOCATION_SURFACE = "tonight-walk-and-last-train" as const;
@@ -181,9 +180,10 @@ function hypedPubCount(rows: readonly HypedPub[] | undefined): number {
 // already told us. Never stored, and never a new location ask.
 function areaNewsSlug(
   tonightNear: ReturnType<typeof resolveTonightNear>,
+  areas: readonly CompactNightArea[] | undefined,
 ): string | null {
   if (!tonightNear) return null;
-  const area = nearestNightAreaForViewport("london", [
+  const area = nearestCompactNightArea(areas, [
     tonightNear.near.lng,
     tonightNear.near.lat,
   ]);
@@ -307,7 +307,9 @@ export default function TonightClient({
   initialListings,
   photos,
   operatorFacts,
+  nightAreas,
 }: {
+  nightAreas?: readonly CompactNightArea[];
   initialListings?: InitialListings;
   /** Server-composed quiet-pint module; null outside a quiet window. */
   quietPint?: QuietPintModule | null;
@@ -475,8 +477,8 @@ export default function TonightClient({
   // of the viewer's nearest area, never their own fix. Same coarse read the
   // area news rail below already takes.
   const dealAnchor = useMemo(
-    () => dealProximityAnchor(tonightNear?.near ?? null),
-    [tonightNear],
+    () => compactDealAnchor(nightAreas, tonightNear?.near),
+    [tonightNear, nightAreas],
   );
   const groupedAll = useMemo(() => {
     const groups = groupTonightListings(primaryListingRows, tonightNear?.near ?? null);
@@ -681,7 +683,7 @@ export default function TonightClient({
       <MusicTonightLane rows={secondaryHeroes} asOf={musicLaneObservedAt} />
     </>
   );
-  const newsArea = areaNewsSlug(tonightNear);
+  const newsArea = areaNewsSlug(tonightNear, nightAreas);
   const { lead: leadPhoto, pubs: pubPhotos } = tonightPagePhotos(photos, newsArea);
   const summaryRows = grouped.map((group) => group.row);
 

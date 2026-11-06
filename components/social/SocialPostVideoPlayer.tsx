@@ -21,7 +21,7 @@ export default function SocialPostVideoPlayer({
 }: {
   video: SocialPostVideo;
   caption: string;
-  onOpen?: () => void;
+  onOpen?: (opener: HTMLButtonElement) => void;
 }) {
   const ref = useRef<HTMLVideoElement>(null);
 
@@ -49,7 +49,7 @@ export default function SocialPostVideoPlayer({
         aria-label={caption ? `Video: ${caption}` : "Video"}
       />
       {onOpen ? (
-        <button type="button" className="socialPostVideo__open" onClick={onOpen} aria-label="Watch full screen">
+        <button type="button" className="socialPostVideo__open" onClick={(event) => onOpen(event.currentTarget)} aria-label="Watch full screen">
           <Play size={16} aria-hidden="true" />
           {video.durationSeconds !== null ? <span>{formatSocialVideoDuration(video.durationSeconds)}</span> : null}
         </button>
