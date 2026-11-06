@@ -3303,7 +3303,9 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       );
     };
     // Only the pending URL from the live MapLibre Style can end this wait.
-    // A queued theme owns the next style, so its predecessor cannot fail it.
+    // While a theme is queued, a failed predecessor does not end the wait
+    // early. The queue drains only on `style.load`, so in that case the
+    // failure surfaces at the style-load timeout.
     function isCurrentFallbackStyleError(event: {
       error?: { url?: unknown };
       style?: unknown;
