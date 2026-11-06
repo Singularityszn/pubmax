@@ -92,6 +92,51 @@ describe("late-food questions through Ask", () => {
   });
 
   it.each([
+    "Food in Soho at noon",
+    "Food in Soho at midnight",
+    "Food in Soho on Friday",
+    "Food in Soho on 2026-10-23",
+    "Food in Soho tonight",
+    "Food in Soho tomorrow",
+    "Late food in Soho",
+    "Food in Soho at midnight and 01:00 on 2026-10-26",
+    "Food in Soho at noon and 01:00 on 2026-10-26",
+    "Food in Soho at midnight and noon on 2026-10-26",
+  ])("clarifies incomplete or multiple requested food times: %s", async (query) => {
+    const typed = await ask(query);
+    const voice = await runAskTool("search_venues", {}, {
+      query, cityId: "london", now: OCTOBER_REVIEW_NOW, skipModel: true, fetchImpl: offlineFetch,
+    });
+    for (const response of [typed, voice]) {
+      expect(response.cards).toEqual([]);
+      expect(response.proposals).toEqual([]);
+      expect("sources" in response ? response.sources : response.provenance).toEqual([]);
+      expect("answer" in response ? response.answer : response.answerHint).toContain("Which night and time");
+    }
+  });
+
+  it.each(["Vegan", "Halal", "Kosher", "Gluten-free", "Dairy-free", "Sandwiches", "Breakfast", "Snacks"])("retains %s constraints beside transport wording in another sentence", async (constraint) => {
+    const query = `Food in Soho tonight at 1am. ${constraint} please, close to the tube`;
+    const typed = await ask(query);
+    const voice = await runAskTool("search_venues", {}, {
+      query, cityId: "london", now: OCTOBER_REVIEW_NOW, skipModel: true, fetchImpl: offlineFetch,
+    });
+    for (const response of [typed, voice]) {
+      expect(response.cards).toEqual([]);
+      expect(response.proposals).toEqual([]);
+      expect("sources" in response ? response.sources : response.provenance).toEqual([]);
+      expect("answer" in response ? response.answer : response.answerHint).toMatch(/no current.*record/i);
+    }
+  });
+
+  it("uses the recorded Sunday service at midnight on Monday", async () => {
+    const response = await ask("Food in Soho at midnight on 2026-10-26", Date.parse("2026-10-25T18:00:00.000Z"));
+    expect(response.cards.map((card) => card.title)).toEqual(["Balans No.60"]);
+    expect(response.sources).toContainEqual(expect.objectContaining({ url: SOHO_HOURS_SOURCE }));
+    expect(response.proposals).toEqual([]);
+  });
+
+  it.each([
     "Find pubs with food at The Devonshire in Soho",
     "Food at The Devonshire in Soho",
   ])("does not treat a food location as timing: %s", async (query) => {
@@ -461,6 +506,43 @@ describe("late-food questions through Ask", () => {
 
 
 describe("late-food clarification context", () => {
+  it.each(["Vegan", "Halal", "Kosher", "Gluten-free", "Dairy-free", "Sandwiches", "Breakfast", "Snacks"])("retains a separate %s requirement after an area correction", async (constraint) => {
+    const turns = [{ role: "user" as const, content: `Food in Victoria tonight at 1am. ${constraint} please, close to the tube` }];
+    const query = "Soho?";
+    const typed = await runAsk({ query, turns, now: OCTOBER_REVIEW_NOW, cityId: "london", skipModel: true, fetchImpl: offlineFetch });
+    const voice = await runAskTool("search_venues", {}, {
+      query: resolvePubPalToolQuery({ turnQuery: query, args: {}, turns }),
+      cityId: "london", now: OCTOBER_REVIEW_NOW, skipModel: true, fetchImpl: offlineFetch,
+    });
+    for (const response of [typed, voice]) {
+      expect(response.cards).toEqual([]);
+      expect(response.proposals).toEqual([]);
+      expect("sources" in response ? response.sources : response.provenance).toEqual([]);
+      expect("answer" in response ? response.answer : response.answerHint).toMatch(/no current.*record/i);
+    }
+  });
+
+  it.each([
+    { previous: "Food in Soho at 01:00 on 2026-10-26", query: "midnight please", now: Date.parse("2026-10-25T18:00:00.000Z"), names: ["Balans No.60"] },
+    { previous: "Food in Soho at noon on 2026-10-23", query: "01:00 please", now: OCTOBER_REVIEW_NOW, names: ["Balans No.60"] },
+    { previous: "Food in Soho at 01:00 on 2026-10-23", query: "noon please", now: OCTOBER_REVIEW_NOW, names: ["Balans No.60"] },
+    { previous: "Food in Soho at 01:00 on 2026-10-26", query: "midnight and 01:00 please", now: OCTOBER_REVIEW_NOW, names: [] },
+  ])("replaces every time representation during a correction: $query", async ({ previous, query, now, names }) => {
+    const turns = [{ role: "user" as const, content: previous }];
+    const typed = await runAsk({ query, turns, now, cityId: "london", skipModel: true, fetchImpl: offlineFetch });
+    const voice = await runAskTool("search_venues", {}, {
+      query: resolvePubPalToolQuery({ turnQuery: query, args: {}, turns }),
+      cityId: "london", now, skipModel: true, fetchImpl: offlineFetch,
+    });
+    for (const response of [typed, voice]) {
+      expect(response.cards.map((card) => card.title)).toEqual(names);
+      expect(response.proposals).toEqual([]);
+      if (names.length === 0) {
+        expect("answer" in response ? response.answer : response.answerHint).toContain("Which night and time");
+      }
+    }
+  });
+
   it.each(["sandwiches", "breakfast", "snacks", "lunch", "dinner", "supper", "burgers", "chips"])("retains restaurant and %s requirements through field corrections", async (food) => {
     for (const { previous, query } of [
       { previous: `Find restaurants serving ${food} in Victoria at 01:00 on 2026-11-07`, query: "Soho?" },

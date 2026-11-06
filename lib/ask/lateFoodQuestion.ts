@@ -16,11 +16,11 @@ export type LateFoodQuestion = {
 };
 
 const LATE_WORDS = /\b(?:late(?:[- ]night)?|after\s+midnight|midnight)\b/i;
-const CLOCK = /\b(?:at\s+|(?=\d{1,2}(?::\d{2}|\s*[ap]\.?m\.?\b)))(\d{1,2})(?::(\d{2}))?\s*([ap]\.?m\.?)?\b/gi;
+const CLOCK = /\b(?:(?:at\s+|(?=\d{1,2}(?::\d{2}|\s*[ap]\.?m\.?\b)))(\d{1,2})(?::(\d{2}))?\s*([ap]\.?m\.?)?|(?:at\s+)?(midnight|noon))\b/gi;
 const CONTEXT_AREA = /\b(?:near|in|around)\s+(.+?)(?=\s+(?:tonight|at|on|tomorrow|after|before|with|that|which|serving|for)\b|\s+\d{1,2}(?::\d{2}|\s*[ap]\.?m\.?\b)|\s+(?:(?:and|actually)\s+)?(?:near|in|around)\b|[?,.!;]|$)/gi;
 const CONTEXT_DATE = /\bon\s+\d{4}-\d{2}-\d{2}\b/gi;
 const CONTEXT_NIGHT = /\b(?:tonight|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/gi;
-const AT_MIDNIGHT = /\bat midnight\b/gi;
+const TIME_SIGNAL = new RegExp(`${LATE_WORDS.source}|${CONTEXT_NIGHT.source}|\\b(?:time|\\d{4}-\\d{2}-\\d{2})\\b`, "i");
 const CUISINES = [
   [/\bpizzas?\b/i, "pizza"], [/\bkebabs?\b/i, "kebab"],
   [/\bcafes?\b/i, "cafe"], [/\brestaurants?\b/i, "restaurant"],
@@ -66,9 +66,9 @@ function unrecordedFoodWording(query: string): string {
 
 function requestedMinutes(query: string): number | null {
   const clocks = [...query.matchAll(CLOCK)];
-  if (clocks.length === 0) return /\bat midnight\b/i.test(query) ? 0 : null;
   if (clocks.length !== 1) return null;
   const clock = clocks[0]!;
+  if (clock[4]) return clock[4].toLowerCase() === "noon" ? 12 * 60 : 0;
   let hour = Number(clock[1]);
   const minute = Number(clock[2] ?? 0);
   const meridiem = clock[3]?.toLowerCase().replaceAll(".", "");
@@ -114,12 +114,13 @@ function londonInstant(day: string, minutes: number): string | null {
 
 /** Explicit food timing uses service evidence rather than static pub amenities. */
 export function parseLateFoodQuestion(query: string, now: number): LateFoodQuestion | null {
-  const wording = foodRequestWording(query);
-  if (!FOOD_RE.test(wording) || (!LATE_WORDS.test(wording) && !/\b(?:tonight|tomorrow|time)\b/i.test(wording) && ![...wording.matchAll(CLOCK)].length)) return null;
-  const minutes = requestedMinutes(wording);
+  const wholeQuestion = foodWording(query);
+  if (!FOOD_RE.test(wholeQuestion) || (!TIME_SIGNAL.test(wholeQuestion) && ![...wholeQuestion.matchAll(CLOCK)].length)) return null;
+  const minutes = requestedMinutes(wholeQuestion);
+  const wording = foodRequestWording(wholeQuestion);
   const day = minutes === null ? null : requestedDay(wording, minutes, now);
   const at = day === null || minutes === null ? null : londonInstant(day, minutes);
-  const requiresPub = requiresPubKitchen(wording);
+  const requiresPub = requiresPubKitchen(wholeQuestion);
   const areas = [...wording.matchAll(CONTEXT_AREA)]
     .map((match) => match[1]!.trim());
   const dietary = [
@@ -132,12 +133,12 @@ export function parseLateFoodQuestion(query: string, now: number): LateFoodQuest
     areas,
     at,
     dietary: [
-      ...dietary.filter(([pattern]) => pattern.test(wording)).map(([, tag]) => tag),
-      ...(foodConstraints(wording).some((constraint) => !/^(?:vegan|vegetarian|gluten[- ]free|halal)$/i.test(constraint))
+      ...dietary.filter(([pattern]) => pattern.test(wholeQuestion)).map(([, tag]) => tag),
+      ...(foodConstraints(wholeQuestion).some((constraint) => !/^(?:vegan|vegetarian|gluten[- ]free|halal)$/i.test(constraint))
         ? ["unrecorded-dietary-constraint"] : []),
     ],
     cuisines: [
-      ...foodCategories(wording),
+      ...foodCategories(wholeQuestion),
       ...(unrecordedFoodWording(wording) ? ["unrecorded-food-constraint"] : []),
     ],
     requiresPub,
@@ -164,7 +165,6 @@ function isFoodClarification(query: string): boolean {
   const rest = fragment
     .replace(CONTEXT_AREA, " ")
     .replace(CLOCK, " ")
-    .replace(AT_MIDNIGHT, " ")
     .replace(CONTEXT_DATE, " ")
     .replace(CONTEXT_NIGHT, " ")
     .replace(FOOD_CONSTRAINT, " ")
@@ -190,8 +190,8 @@ function correctFoodQuery(previous: string, rawFragment: string): string {
   const correctedAreas = [...fragment.matchAll(CONTEXT_AREA)].map((match) => match[1]!.trim());
   const areas = correctedAreas.length ? correctedAreas : priorAreas;
   let query = previous.replace(CONTEXT_AREA, " ");
-  if ([...fragment.matchAll(CLOCK)].length || /\bat midnight\b/i.test(fragment)) {
-    query = query.replace(CLOCK, " ").replace(AT_MIDNIGHT, " ");
+  if ([...fragment.matchAll(CLOCK)].length) {
+    query = query.replace(CLOCK, " ");
   }
   if ([...fragment.matchAll(CONTEXT_DATE)].length || [...fragment.matchAll(CONTEXT_NIGHT)].length) {
     query = query.replace(CONTEXT_DATE, " ").replace(CONTEXT_NIGHT, " ");
