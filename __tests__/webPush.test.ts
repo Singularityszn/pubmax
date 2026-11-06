@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { registerWebPush } from "@/lib/webPush";
+import { registerWebPush, WEB_PUSH_SUBSCRIBE_CEILING_MS } from "@/lib/webPush";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -114,10 +114,35 @@ describe("registerWebPush", () => {
     });
     await flushRegistrationMicrotasks();
     expect(subscribe).toHaveBeenCalledOnce();
-    await vi.advanceTimersByTimeAsync(10_000);
+    await vi.advanceTimersByTimeAsync(WEB_PUSH_SUBSCRIBE_CEILING_MS - 1);
+    expect(settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
 
     expect(settled).toBe(true);
     await expect(registration).resolves.toBeNull();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  // Design review, 6 Nov 2026: Chrome's first push subscription in a fresh
+  // profile took 27 to 32 s, and the old 10 s deadline cancelled every first
+  // "Turn weekly nudge on". A slow first subscription now registers.
+  it("waits out a slow first browser subscription and registers it", async () => {
+    vi.useFakeTimers();
+    vi.stubEnv("NEXT_PUBLIC_VAPID_PUBLIC_KEY", "A".repeat(87));
+    const slow: { resolve: (value: PushSubscription) => void } = { resolve: () => {} };
+    const { subscribe, fetch, subscription } = browserHarness({
+      subscribe: () => new Promise<PushSubscription>((resolve) => { slow.resolve = resolve; }),
+    });
+
+    const registration = registerWebPush();
+    await flushRegistrationMicrotasks();
+    expect(subscribe).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(31_800);
+    expect(fetch).not.toHaveBeenCalled();
+    slow.resolve(subscription);
+
+    await expect(registration).resolves.toMatch(/^webpush:/);
+    expect(fetch).toHaveBeenCalledOnce();
     expect(vi.getTimerCount()).toBe(0);
   });
 

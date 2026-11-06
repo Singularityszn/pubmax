@@ -7,6 +7,17 @@ import { encodeWebPushSubscription } from "@/lib/webPushSubscription";
 
 const WEB_PUSH_REGISTRATION_CEILING_MS = 10_000;
 
+/**
+ * A browser's FIRST push subscription is its own, slower wait. Chrome asks
+ * its push service for a new endpoint, and in a fresh profile that took 27.4 s,
+ * 27.6 s and 31.8 s (design review, 6 Nov 2026), so the old single 10 s
+ * deadline cancelled the first "Turn weekly nudge on" every time and only a
+ * second tap worked. The subscribe call alone gets a minute; the service
+ * worker, the existing-subscription read and the token request keep 10 s each,
+ * so a step that never settles still releases the prompt.
+ */
+export const WEB_PUSH_SUBSCRIBE_CEILING_MS = 60_000;
+
 function webPushAbortReason(signal: AbortSignal): unknown {
   return abortReason(signal, "The web push registration was cancelled.");
 }
@@ -25,9 +36,9 @@ function waitForWebPushWork<T>(work: PromiseLike<T>, signal?: AbortSignal): Prom
   });
 }
 
-/** A signal that aborts on the caller's signal or after the registration ceiling.
- * dispose() clears the timer and the listener once the registration settles. */
-function registrationScope(parentSignal?: AbortSignal): {
+/** A signal that aborts on the caller's signal or after `ceilingMs`.
+ * dispose() clears the timer and the listener once the step settles. */
+function registrationScope(parentSignal?: AbortSignal, ceilingMs = WEB_PUSH_REGISTRATION_CEILING_MS): {
   signal: AbortSignal;
   dispose(): void;
 } {
@@ -39,7 +50,7 @@ function registrationScope(parentSignal?: AbortSignal): {
   else parentSignal?.addEventListener("abort", onParentAbort, { once: true });
   const timeout = setTimeout(() => {
     controller.abort(new DOMException("Web push registration timed out.", "TimeoutError"));
-  }, WEB_PUSH_REGISTRATION_CEILING_MS);
+  }, ceilingMs);
   return {
     signal: controller.signal,
     dispose() {
@@ -93,46 +104,49 @@ export async function registerWebPush(signal?: AbortSignal): Promise<string | nu
   if (signal?.aborted) return null;
 
   // The person's time on the permission dialog is theirs: only the caller can
-  // cancel it. The scope's deadline starts once permission is granted, and every
-  // exit path after that disposes it.
+  // cancel it. Each step after the grant runs inside its own deadline (a new
+  // subscription gets the longer one), and every exit path disposes it.
   let scope: ReturnType<typeof registrationScope> | null = null;
+  const step = (ceilingMs?: number) => {
+    scope?.dispose();
+    scope = registrationScope(signal, ceilingMs);
+    return scope.signal;
+  };
   try {
     const permission = Notification.permission === "default"
       ? await waitForWebPushWork(Notification.requestPermission(), signal)
       : Notification.permission;
     if (permission !== "granted") return null;
 
-    scope = registrationScope(signal);
-    const registration = await waitForWebPushWork(
-      navigator.serviceWorker.ready,
-      scope.signal,
-    );
+    const ready = step();
+    const registration = await waitForWebPushWork(navigator.serviceWorker.ready, ready);
     const subscription = await waitForWebPushWork(
       registration.pushManager.getSubscription(),
-      scope.signal,
+      ready,
     ) ?? await waitForWebPushWork(
       registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: key,
       }),
-      scope.signal,
+      step(WEB_PUSH_SUBSCRIBE_CEILING_MS),
     );
     const token = encodeWebPushSubscription(subscription.toJSON());
     if (!token) return null;
 
+    const request = step();
     const response = await waitForWebPushWork(
       fetch("/api/push-tokens", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ token, platform: "web" }),
-        signal: scope.signal,
+        signal: request,
       }),
-      scope.signal,
+      request,
     );
     return response.ok ? token : null;
   } catch {
     return null;
   } finally {
-    scope?.dispose();
+    (scope as ReturnType<typeof registrationScope> | null)?.dispose();
   }
 }
