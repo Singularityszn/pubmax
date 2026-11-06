@@ -99,6 +99,7 @@ describe("POST /api/pub-pal/chat", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
   });
@@ -519,7 +520,7 @@ describe("POST /api/pub-pal/chat", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("picks off a signed-in person's own patch and habits instead of asking, keyless", async () => {
+  it.each(["where should I go", "Food tonight at 1am"])("keeps main's keyless taste fallback for %s", async (query) => {
     vi.stubEnv("ELEVENLABS_API_KEY", "");
     vi.stubGlobal("fetch", offlineFetch);
     authState.userId = "11111111-1111-4111-8111-111111111111";
@@ -542,7 +543,7 @@ describe("POST /api/pub-pal/chat", () => {
       new Request("http://localhost/api/pub-pal/chat", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ query: "where should I go", cityId: "london" }),
+        body: JSON.stringify({ query, cityId: "london" }),
       }),
     );
     expect(response.status).toBe(200);
@@ -550,6 +551,43 @@ describe("POST /api/pub-pal/chat", () => {
     expect(body.answer).toMatch(/^Going off Soho, your usual patch, the quiet pints you log and about what you usually pay\./);
     expect(body.cards.length).toBeGreaterThan(0);
     expect(body.toolsUsed).toContain("search_venues");
+  });
+
+  it.each([
+    { query: "01:00", previous: "Food after midnight near Soho", clarification: true },
+    { query: "Tonight", previous: "Food after midnight near Soho", clarification: true },
+    { query: "Food in Soho tonight", previous: "", clarification: true },
+    { query: "1am", previous: "Food in Soho at 06:00 on 2026-10-23", clarification: false },
+  ])("preserves a food answer before the keyless taste fallback: $query", async ({ query, previous, clarification }) => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-22T18:00:00.000Z"));
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
+    vi.stubEnv("TYPESAFE_API_KEY", "");
+    vi.stubEnv("OPENROUTER_API_KEY", "");
+    vi.stubGlobal("fetch", offlineFetch);
+    authState.userId = "11111111-1111-4111-8111-111111111111";
+    tasteState.taste = {
+      visits: 6, distinctPubs: 3, lastVisit: { name: "The Crown", on: "2026-10-10" },
+      patches: ["Soho"], regulars: [], loved: [], notKeen: [], drinks: [],
+      usualPintGbp: 5.6, vibes: ["quiet pint"], style: null, favouriteNight: null, wishlist: [],
+    };
+    const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ query, cityId: "london", turns: previous ? [{ role: "user", content: previous }] : [] }),
+    }));
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.proposals).toEqual([]);
+    expect(body.answer).not.toContain("Going off Soho");
+    if (clarification) {
+      expect(body.answer).toContain("Which night and time");
+      expect(body.cards).toEqual([]);
+      expect(body.sources).toEqual([]);
+    } else {
+      expect(body.cards).toHaveLength(1);
+      expect(body.cards[0]).toMatchObject({ title: "Balans No.60", venueId: "", price: null });
+      expect(body.sources).toContainEqual(expect.objectContaining({ url: "https://balans.co.uk/locations/soho-no-60/" }));
+    }
   });
 
   it("still asks a signed-in person with nothing logged, keyless", async () => {

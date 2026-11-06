@@ -2,6 +2,7 @@ import "server-only";
 
 import { composeAnswer } from "@/lib/ask/runAsk";
 import { resolveLateFoodQuery } from "@/lib/ask/lateFoodQuestion";
+import { answerLateFoodQuestion } from "@/lib/ask/lateFoodAnswer.server";
 import {
   resolveAskCityId,
   runAskTool,
@@ -121,7 +122,9 @@ export async function invokePubPalAskTool(input: {
   // can take seconds, so they run together. A fenced turn drops the tool's
   // answer unread: nothing from it is appended, spoken or returned. A price ask
   // the tools cannot answer starts no tool at all.
-  const startTool = () => runAskTool(input.toolName, args, { cityId, query, skipModel: true });
+  const startTool = async () => (!isIndependentAskTool(input.toolName)
+    ? answerLateFoodQuestion({ cityId, query, skipModel: true }) : null)
+    ?? runAskTool(input.toolName, args, { cityId, query, skipModel: true });
   const toolRun = priceRefusal ? null : startTool();
   // Awaited below on the unfenced path; this only keeps a fenced turn's
   // discarded run from surfacing as an unhandled rejection.

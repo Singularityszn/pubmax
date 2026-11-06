@@ -18,17 +18,12 @@ export function answerLateFoodQuestion(ctx: AskToolContext): AskToolResult | nul
   const question = parseLateFoodQuestion(ctx.query, now);
   if (!question) return null;
   if (ctx.cityId !== "london") return emptyFoodAnswer("I have no current late-food record for this city.", ["late_food_area"]);
-  if (question.areas.length === 0) return emptyFoodAnswer("Which area do you mean for late food?", ["late_food_area"]);
-  const resolvedAreas = question.areas.map((name) => normalizeLateFoodArea(name)
-    ?? normalizeLateFoodArea(nightAreaForMapQuery(ctx.cityId, name)?.slug));
-  const areaChoices = resolvedAreas.map((area, index) => area ?? question.areas[index]!.toLocaleLowerCase());
-  if (new Set(areaChoices).size > 1) return emptyFoodAnswer("Which area do you want food in? Choose one area.", ["late_food_area"]);
-  const area = resolvedAreas[0];
-  if (!area) return emptyFoodAnswer(`I have no current late-food record for ${question.areas[0]}.`, ["late_food_area"]);
+  const area = normalizeLateFoodArea(question.area)
+    ?? normalizeLateFoodArea(nightAreaForMapQuery(ctx.cityId, question.area)?.slug);
+  if (!area) return emptyFoodAnswer(`I have no current late-food record for ${question.area}.`, ["late_food_area"]);
   if (!question.at) return emptyFoodAnswer("Which night and time do you want food?", ["requested_time"]);
-  if (question.requiresPub) return emptyFoodAnswer("I have no recorded pub kitchen hours for that time.", ["pub_kitchen_hours"]);
   const terminals = shortlistFoodHandoffs(getLateFoodForArea(area, [], { now, at: question.at })
-    .filter((terminal) => question.cuisines.length <= 1 && question.cuisines.every((category) => terminal.category === category))
+    .filter((terminal) => question.category === null || terminal.category === question.category)
     .filter((terminal) => question.dietary.every((tag) => terminal.dietary.some((choice) => choice === tag))));
   if (terminals.length === 0) {
     return emptyFoodAnswer(

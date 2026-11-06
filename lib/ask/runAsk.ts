@@ -1,6 +1,6 @@
 // Orchestrate one Night OS Ask turn: deterministic tools and optional model loop.
 
-import { isIndependentAskTool, isVenueHoursQuestion, recordedDrinkComparison, refineRoutedAskQuery, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
+import { isVenueHoursQuestion, recordedDrinkComparison, refineRoutedAskQuery, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
 import { routeAsk } from "@/lib/ask/routerJudged";
 import { resolveLateFoodQuery } from "@/lib/ask/lateFoodQuestion";
 import { answerLateFoodQuestion } from "@/lib/ask/lateFoodAnswer.server";
@@ -215,12 +215,13 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
     };
   }
 
-  let toolResults: AskToolResult[] = deterministicOnly
+  const lateFood = unsupported ? null : answerLateFoodQuestion(ctx);
+  let toolResults: AskToolResult[] = lateFood ? [lateFood] : deterministicOnly
     ? await Promise.all(routeAskDeterministically(query).map((call) => runAskTool(call.name, { ...call.args, query }, ctx)))
     : [];
 
   const allowModel =
-    !deterministicOnly && !input.skipModel && Boolean(process.env.OPENROUTER_API_KEY);
+    !lateFood && !deterministicOnly && !input.skipModel && Boolean(process.env.OPENROUTER_API_KEY);
 
   if (allowModel) {
     const modelOutcome = await runAskModelLoop({
@@ -264,10 +265,6 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
     }
   }
 
-  const lateFood = unsupported ? null : answerLateFoodQuestion(ctx);
-  if (lateFood) {
-    toolResults = [lateFood, ...toolResults.filter((result) => isIndependentAskTool(result.tool))];
-  }
   const merged = mergeToolResults(toolResults);
   return {
     answer: hoursQuestion && !unsupported
