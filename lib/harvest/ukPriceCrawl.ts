@@ -239,15 +239,6 @@ function* groupOfferMatches(text: string): Iterable<RegExpMatchArray> {
 export const MIN_PRICED_LINES_FOR_LIST = 4;
 
 /**
- * Whether a figure is the HALF price on a draught line.
- *
- * A draught list states the measure once and then both figures:
- * "Peroni Half £3.55 £7.10". The half is the first figure after the word, so a
- * figure with `half` behind it and no other figure in between is the half
- * price. Cheapest-wins would otherwise put £3.55 on the pub's card as the price
- * of a pint, which is a real price for a drink nobody asked about.
- */
-/**
  * Whether a beer figure is a BOTTLE or a CAN rather than a draught pour.
  *
  * A drinks list states its bottled beers beside its draught ones, and a 330ml
