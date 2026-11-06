@@ -25,6 +25,8 @@ async function seedPal(page: Page, hidden = false): Promise<void> {
     const now = "2026-10-04T12:00:00.000Z";
     window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
+    window.localStorage.setItem("pubmax-theme", "light");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
     // The cached Pal counts only for the account stamped on this device.
@@ -162,9 +164,16 @@ test.describe("the Pal on the map", () => {
     test.setTimeout(120_000);
     await seedPal(page, true);
     await page.goto(`/map?sel=${VENUE_ID}`);
-    await expect(page.locator(".maplibregl-canvas")).toBeVisible({ timeout: 60_000 });
+    // A slow renderer can offer the real map retry. Exercise that recovery
+    // before checking privacy, rather than passing on an unloaded map.
+    await expect(async () => {
+      const retry = page.getByRole("button", { name: "Retry", exact: true });
+      if (await retry.isVisible()) await retry.click();
+      await expect(page.locator(".maplibregl-canvas")).toBeVisible({ timeout: 5_000 });
+    }).toPass({ timeout: 60_000 });
     await page.waitForTimeout(3_000);
     await expect(page.locator(".palMapMarker")).toHaveCount(0);
+    await page.screenshot({ path: `${SHOTS}/pal-hidden-on-map.png` });
   });
 
   test("walks the crawl route once, then rests beside the last stop", async ({ page }) => {

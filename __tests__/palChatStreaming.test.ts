@@ -16,9 +16,6 @@ vi.mock("next/link", () => ({
   default: ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) =>
     createElement("a", { href: String(href), ...props }, children),
 }));
-vi.mock("@/components/auth/AuthProvider", () => ({
-  useAuth: () => ({ user: null, session: null }),
-}));
 vi.mock("@/components/nav/SiteNav", () => ({
   default: () => createElement("nav", null, "Navigation"),
 }));

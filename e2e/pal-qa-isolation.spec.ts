@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { writeFile } from 'node:fs/promises';
 import { DEFAULT_PAL_DRAFT } from '../lib/pubPal';
 import { ACCOUNTS, AUTH_STORAGE_KEY, DEVICE_ACCOUNTS_KEY, installAuthDoubles, seedSignedIn } from './helpers/authDoubles';
 import { installDeterministicMapBasemap } from './helpers/mapNetworkFixtures';
@@ -36,6 +37,8 @@ async function switchToB(page: Page) {
   await menu.getByRole('button',{name:'Switch account',exact:true}).click();
   await menu.locator('.authSwitcherRow').filter({has:page.getByText('@'+ACCOUNTS.B.handle,{exact:true})}).click();
   await expect(page.getByRole('button',{name:'Account options for '+ACCOUNTS.B.name,exact:true})).toBeVisible();
+  // Keep subsequent document navigations on the account selected through the UI.
+  await page.evaluate(() => localStorage.setItem('__e2e_signed_in_account', 'B'));
 }
 async function shot(page: Page, name: string) {
   if (EVIDENCE) {
@@ -46,34 +49,42 @@ async function shot(page: Page, name: string) {
 
 test('account B opens Plan without account A\'s saved request or accessibility answers', async ({ page }) => {
   await seed(page);
-  await page.goto('/pal/chat');
+  await page.goto('/plan');
+  await expect(page.getByRole('button',{name:'Account options for '+ACCOUNTS.A.name,exact:true})).toBeVisible();
+  const query = page.locator('#plan-describe-first-query');
+  await query.fill('A private outing in Soho');
+  await expect.poll(() => page.evaluate(() => {
+    const raw = sessionStorage.getItem('pubmax:plan-draft:v2');
+    return raw ? JSON.parse(raw).draft.conciergeQuery : null;
+  })).toBe('A private outing in Soho');
   const intake = createPlanIntakeDraft({kind:'patch',id:'soho'});
   intake.answers.accessibilityNeeds = ['step-free'];
   await page.evaluate(({intake, stops}) => {
     const now = new Date().toISOString();
-    const draft = {
-      title: 'A private night', creatorName: 'Private host A', startTime: now,
-      conciergeQuery: 'A private outing in Soho',
-      stops: stops.map((venueId, key) => ({key,venueId,venueName:venueId})),
-      requestIntake: intake,
-    };
-    sessionStorage.setItem('pubmaxx:plan-draft:v1',JSON.stringify(draft));
+    // Additional private persisted inputs use the approved account-clearing
+    // contract. The query itself was entered and saved by the real form.
     localStorage.setItem('pubmax:plan-intake:v1',JSON.stringify({
       storageVersion:1,savedAt:now,expiresAt:new Date(Date.now()+86400000).toISOString(),draft:intake,
     }));
+    for (const key of ['pubmaxx:plan-route-draft:v1','pubmax:plan-route-draft:v2']) {
+      localStorage.setItem(key,JSON.stringify({stops:stops.map(venueId=>({venueId,venueName:venueId}))}));
+    }
   }, {intake,stops:STOPS});
-  await page.goto('/plan');
-  await expect(page.locator('#plan-describe-first-query, #plan-concierge-query').first()).toHaveValue('A private outing in Soho');
+  await expect(query).toHaveValue('A private outing in Soho');
+  await shot(page, 'plan-private-account-a');
   await page.goto('/pal/chat');
   await switchToB(page);
-  expect(await page.evaluate(() => sessionStorage.getItem('pubmaxx:plan-draft:v1'))).toBeNull();
-  expect(await page.evaluate(() => localStorage.getItem('pubmax:plan-intake:v1'))).toBeNull();
+  for (const key of ['pubmaxx:plan-draft:v1','pubmax:plan-draft:v2']) {
+    expect(await page.evaluate(key => sessionStorage.getItem(key),key)).toBeNull();
+  }
+  for (const key of ['pubmaxx:plan-route-draft:v1','pubmax:plan-route-draft:v2','pubmax:plan-intake:v1']) {
+    expect(await page.evaluate(key => localStorage.getItem(key),key)).toBeNull();
+  }
   await page.goto('/plan');
+  await expect(page.getByRole('button',{name:'Account options for '+ACCOUNTS.B.name,exact:true})).toBeVisible();
   await expect(page.locator('#plan-describe-first-query')).toHaveValue('');
-  const values = await page.locator('input').evaluateAll(inputs => inputs.map(input => input.value));
-  expect(values).not.toContain('A private night');
-  expect(values).not.toContain('Private host A');
   await expect(page.getByRole('button',{name:/Step.free/i,pressed:true})).toHaveCount(0);
+  await shot(page, 'plan-private-account-b');
 });
 
 // F12 is the oracle: personal shortcuts and portraits belong to the live account.
@@ -232,4 +243,173 @@ test('the Pal page retires personal memories when the live account changes', asy
   await expect(page.getByRole('heading',{name:'Ripley',exact:true})).toHaveCount(0);
   await expect(page.getByText('Private account A memory',{exact:true})).toHaveCount(0);
   await shot(page,'pal-private-account-b');
+});
+
+// F12 requires raw cache transitions to retire a server portrait even when both
+// snapshots are hidden. A stale server answer is the deliberate adversary here.
+for (const transition of ['hidden', 'removed'] as const) {
+  test(`chat retires a stale server portrait after hidden-to-${transition} cache changes`, async ({ page }) => {
+    await seed(page);
+    let failed = false;
+    await page.route('**/api/pub-pal', route => failed
+      ? route.fulfill({status:503,json:{error:'Disposable outage'}})
+      : route.fulfill({json:{pal:{...pal,name:'Pending hide Raven'}}}));
+    await page.goto('/pal/chat');
+    const companion = page.locator('.palChatCompanion');
+    await expect(companion.getByRole('img',{name:/Pending hide Raven/})).toBeVisible();
+    const optimisticRead = page.waitForResponse(response => response.url().endsWith('/api/pub-pal'));
+    await page.evaluate(pal => {
+      localStorage.setItem('pubmax_pub_pal_v1', JSON.stringify({...pal,hidden:true}));
+      window.dispatchEvent(new Event('pubmax:local-pal-changed'));
+    },pal);
+    await optimisticRead;
+    await expect(companion.getByRole('img',{name:/Pending hide Raven/})).toBeVisible();
+    failed = true;
+    await page.evaluate(({transition, pal}) => {
+      if (transition === 'removed') localStorage.removeItem('pubmax_pub_pal_v1');
+      else localStorage.setItem('pubmax_pub_pal_v1',JSON.stringify({...pal,hidden:true,updatedAt:'2026-11-06T12:00:01.000Z'}));
+      window.dispatchEvent(new Event('pubmax:local-pal-changed'));
+    },{transition,pal});
+    await expect(companion.locator('[data-genome]')).toHaveCount(0);
+    await shot(page, `chat-hidden-to-${transition}`);
+  });
+}
+
+test('public production defaults show no seeded drops or ambient visitors', async ({ page, request }) => {
+  const drops = await request.get('/api/pint-drops');
+  expect(drops.ok()).toBe(true);
+  const dropBody = await drops.json();
+  expect(dropBody.drops).toEqual([]);
+  const presence = await request.get('/api/presence');
+  expect(presence.ok()).toBe(true);
+  const presenceBody = await presence.json();
+  expect(presenceBody.presence.filter((row: {provenance?: string}) => row.provenance === 'demo')).toEqual([]);
+  if (EVIDENCE) await writeFile(`${EVIDENCE}/public-demo-api.json`, JSON.stringify({drops:dropBody,presence:presenceBody},null,2));
+  const response = await page.goto('/social');
+  expect(response?.status()).toBe(200);
+  await expect(page.locator('main.socialPage')).toBeVisible();
+  await expect(page.getByText('DEMO',{exact:true})).toHaveCount(0);
+  await shot(page,'public-demo-default-off');
+});
+
+async function seedActiveNight(page: Page) {
+  const now = new Date(Date.now()-3600000).toISOString();
+  await page.route(`**/api/plans/${PLAN_ID}/**`, route => route.fulfill({json:
+    route.request().url().endsWith('/session') ? {active:true,role:'host',collaborationAuthorized:true} : {visibility:'member',pals:[],stops:[]}
+  }));
+  await page.route(`**/api/plans/${PLAN_ID}`, route => route.fulfill({json:{
+    plan:{id:PLAN_ID,title:'Disposable private night',startTime:now,createdAt:now,status:'active',routeRevision:1},
+    stops:STOPS.map((venueId,position)=>({venueId,venueName:['The Nellie Dean','The Crown & Two Chairmen','The Dog & Duck'][position],position})),crew:[],actions:[],context:{nightArea:'soho'},
+  }}));
+  await page.addInitScript(({id,ownerId,startTime})=>{
+    if(sessionStorage.getItem('private-night-seeded')) return;
+    sessionStorage.setItem('private-night-seeded','1');
+    localStorage.setItem('pubmax_active_plan',JSON.stringify({version:1,id,ownerId,startTime,stopIndex:0,role:'host'}));
+  },{id:PLAN_ID,ownerId:ACCOUNTS.A.id,startTime:now});
+}
+
+test('B opens Pal and returns to the map without inheriting A\'s night', async ({page})=>{
+  await seed(page);
+  await seedActiveNight(page);
+  await installDeterministicMapBasemap(page);
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await page.route('**/api/pub-pal',route=>route.fulfill({json:{pal:{...pal,ownerId:ACCOUNTS.B.id,id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2',name:'Moss'},adultOnFile:true}}));
+  await page.route('**/api/pub-pal/memories',route=>route.fulfill({json:{memories:[]}}));
+  await page.goto('/map');
+  await expect(page.locator('.palMapMarker[role="button"]')).toBeVisible({timeout:60000});
+  await switchToB(page);
+  await page.locator('a[href="/pal"]').first().click();
+  await expect(page.getByRole('heading',{name:'Moss',exact:true})).toBeVisible();
+  await page.locator('a[href="/map"]').first().click();
+  await expect(page.locator('.palSummon')).toContainText('Moss');
+  await expect(page.locator('.palSummon small')).not.toContainText(/Stop|kept/i);
+  await expect(page.locator('.palMapMarker[role="button"]')).toHaveCount(0);
+  expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('pubmax_active_plan')!).ownerId)).toBe(ACCOUNTS.A.id);
+  await shot(page,'map-b-no-inherited-night');
+});
+
+test('B receives a clean choice for the same leg after A chose a way on the map', async ({page})=>{
+  await seed(page);
+  await seedActiveNight(page);
+  await installDeterministicMapBasemap(page);
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await page.route('**/api/leg-options**',route=>{
+    const params=new URL(route.request().url()).searchParams;
+    const point=(key:string)=>params.get(key)!.split(',').map(Number).reverse();
+    return route.fulfill({json:{status:'ok',options:[{id:'private-way-a',kind:'transit',minutes:6,farePence:null,estimate:false,fastest:false,cheapest:false,parts:[{mode:'tube',line:'Central',minutes:6,path:[point('from'),point('to')]}]}]}});
+  });
+  await page.goto('/tonight');
+  await page.getByRole('button',{name:"Show tonight's plan"}).click();
+  await page.getByRole('button',{name:'Ways to get there',exact:true}).click();
+  await page.locator('.nightWays__option').click();
+  await expect(page).toHaveURL(/\/map/);
+  await expect(page.locator('.palMapMarkerSay')).toHaveText("TfL won't say the fare. Bold choice.",{timeout:60000});
+  await shot(page,'chosen-way-account-a');
+  await switchToB(page);
+  // Install B's disposable active plan with the identical leg without reloading
+  // the document. A reload would erase module state and conceal the regression.
+  await page.evaluate(({pal,ownerId})=>{
+    localStorage.setItem('pubmax_pub_pal_v1',JSON.stringify({...pal,id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2',ownerId,name:'Moss'}));
+    const prior=JSON.parse(localStorage.getItem('pubmax_active_plan')!);
+    localStorage.setItem('pubmax_active_plan',JSON.stringify({...prior,ownerId}));
+    window.dispatchEvent(new Event('pubmax:local-pal-changed'));
+    window.dispatchEvent(new Event('pubmax:active-plan'));
+  },{pal,ownerId:ACCOUNTS.B.id});
+  await expect(page.locator('.palSummon')).toContainText('Moss');
+  await expect(page.locator('.palMapMarker[role="button"]')).toBeVisible();
+  await expect(page.locator('.palMapMarkerSay')).not.toHaveText("TfL won't say the fare. Bold choice.");
+  await page.locator('a[href="/tonight"]').first().click();
+  await page.getByRole('button',{name:"Show tonight's plan"}).click();
+  await page.getByRole('button',{name:'Ways to get there',exact:true}).click();
+  await expect(page.locator('.nightWays__option')).toHaveAttribute('aria-pressed','false');
+  await shot(page,'chosen-way-account-b-clean');
+  await page.locator('.nightWays__option').click();
+  await expect(page.locator('.palMapMarkerSay')).toHaveText("TfL won't say the fare. Bold choice.",{timeout:60000});
+  await shot(page,'chosen-way-account-b-own-choice');
+});
+
+test('crew portraits retire with A\'s active night when B signs in', async ({page})=>{
+  await seed(page);
+  await seedActiveNight(page);
+  await installDeterministicMapBasemap(page);
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await page.route(`**/api/plans/${PLAN_ID}/pals`,route=>route.fulfill({json:{visibility:'member',pals:[{id:'crew-pal-private-a',name:'Private crew A',species:'fox',personality:pal.personality,muted:false}]}}));
+  await page.goto('/map');
+  const crew=page.locator('.palMapMarker[data-pal-crew]');
+  await expect(crew).toHaveCount(1,{timeout:60000});
+  await shot(page,'crew-private-account-a');
+  await switchToB(page);
+  await expect(crew).toHaveCount(0);
+  await shot(page,'crew-private-account-b');
+});
+
+test('the voice panel and written chat reject A\'s next-stop shortcut for B', async ({page})=>{
+  await seed(page);
+  await seedActiveNight(page);
+  await installDeterministicMapBasemap(page);
+  await page.route('**/api/pub-pal',route=>route.fulfill({json:{pal:{...pal,ownerId:ACCOUNTS.B.id,id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2',name:'Moss'},adultOnFile:true}}));
+  await page.route('**/api/pub-pal/memories',route=>route.fulfill({json:{memories:[]}}));
+  await page.route('**/api/pub-pal/voice-token',route=>route.fulfill({json:{available:true,retention:'provider_default'}}));
+  let questions = 0;
+  await page.route('**/api/pub-pal/chat',route=>{
+    if (route.request().method() === 'POST') questions += 1;
+    return route.fulfill({json:{answer:'Disposable answer for account B.',cards:[],proposals:[],sources:[],conversationId:'conv_privacyshortcuts'}});
+  });
+  await page.goto('/map');
+  await expect(page.locator('.palMapMarker[role="button"]')).toBeVisible({timeout:60000});
+  await switchToB(page);
+  await page.locator('a[href="/pal"]').first().click();
+  await expect(page.getByRole('heading',{name:'Moss',exact:true})).toBeVisible();
+  const voiceInput=page.getByRole('textbox',{name:/^Message your Pub Pal/});
+  await voiceInput.fill('next stop');
+  await voiceInput.press('Enter');
+  await expect(page).toHaveURL(/\/pal\/chat\?/);
+  await expect.poll(()=>questions).toBe(1);
+  await expect(page).not.toHaveURL(/\/map/);
+  const written=page.getByRole('textbox',{name:'Where, how many, what budget',exact:true});
+  await written.fill('next stop');
+  await page.getByRole('button',{name:'Ask',exact:true}).click();
+  await expect(page).not.toHaveURL(/\/map/);
+  await expect.poll(()=>questions).toBe(2);
+  await shot(page,'pal-shortcuts-account-b');
 });
