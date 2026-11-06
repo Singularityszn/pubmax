@@ -1,5 +1,6 @@
 "use client";
 
+
 import { useCallback, useEffect, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -11,7 +12,9 @@ import {
   SocialViewerState,
   type SocialViewerPhase,
 } from "@/components/social/SocialViewerState";
-import SocialComposer from "./SocialComposer";
+import { socialLazy } from "./SocialLazy";
+
+const SocialComposer = socialLazy(() => import("./SocialComposer"), "Edit controls", <button type="button" disabled>Loading edit controls…</button>);
 
 type LegacyOutboxItem = {
   id: string;

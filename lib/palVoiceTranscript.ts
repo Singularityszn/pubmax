@@ -15,6 +15,8 @@
 
 import { palAsksForCurrentMap, palAsksForVenueDiscovery, palMapAskTarget } from "@/lib/palMapAsk";
 import { venueMapUrl } from "@/lib/venueMapUrl";
+import { GENERIC_MAP_COMMAND_RE, navigationIsRefused, semanticAskRequest } from "@/lib/ask/requestPolicy";
+import { askHasPriorityOverMap } from "@/lib/ask/routingPolicy";
 
 export type PalVoiceSpeaker = "you" | "pal";
 
@@ -98,28 +100,17 @@ export function tentativeUserTranscriptFrom(event: unknown): string | null {
   return typeof text === "string" ? text.trim() : null;
 }
 
-const MAP_NEGATION_RE = /\b(?:don'?t|do not|dont|never|no need to|not|stop)\b/;
-// A verb that asks to SEE the map, at most four words before it: "show me
-// the map", "can you open up the pub map", "take me back to the map".
-const MAP_VERB_RE =
-  /\b(?:show|open|see|view|pull up|bring up|load|display|go to|go back to|back to|take me to|take me back to|switch to|get me|give me|let me see)\b(?:\s+[a-z']+){0,4}?\s+maps?\b/;
-// The whole ask is the map: "map", "the map please", "map view".
-const BARE_MAP_RE = /^(?:(?:the|a|my)\s+)?maps?(?:\s+view)?(?:\s+(?:please|now|then))?$/;
 
 /** Does the person ask, in their own words, to see the map? */
 export function palAsksForMap(text: string): boolean {
   const normalized = text
     .toLowerCase()
     .replace(/[’`]/g, "'")
-    .replace(/[^a-z'\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-  if (!normalized || !/\bmaps?\b/.test(normalized)) return false;
-  if (BARE_MAP_RE.test(normalized)) return true;
-  const verb = MAP_VERB_RE.exec(normalized);
-  if (!verb) return false;
-  // "Don't show me the map" and "not the map yet" are not asks.
-  return !MAP_NEGATION_RE.test(normalized.slice(0, verb.index + verb[0].length));
+  if (!normalized || !/\bmaps?\b/.test(normalized) || navigationIsRefused(text)) return false;
+  return GENERIC_MAP_COMMAND_RE.test(normalized)
+    || palAsksForCurrentMap(text) || palMapAskTarget(text) !== null;
 }
 
 // A planned night's next stop: "next stop", "the next pub", "where next",
@@ -127,29 +118,24 @@ export function palAsksForMap(text: string): boolean {
 // a night is on (the session checks), so a question about tomorrow is not one.
 const NEXT_STOP_RE =
   /\b(?:next\s+(?:stop|pub|bar|one|place)|where(?:'s|\s+is)?\s+next|where\s+to\s+next|what'?s\s+next|what\s+is\s+next)\b/;
-const NEXT_STOP_NEGATION_RE = /\b(?:don'?t|do not|dont|never|not|no need to|stop)\b/;
-// After the ask, "stop" may only be the noun ("next stop"), so it is not read
-// as a refusal there: "what's next, but do not open it yet" is.
-const NEXT_STOP_AFTER_NEGATION_RE = /\b(?:don'?t|do not|dont|never|not|no need to|hold off)\b/;
 // "What's next tomorrow", "Tomorrow, what's next?" and "where next weekend"
 // ask about another day, not this night's next stop, wherever the day sits.
 const NEXT_STOP_LATER_RE =
   /\b(?:tomorrow|weekend|week|month|year|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/;
 
-/** Does the person ask, in their own words, for the next stop of their night? */
-export function palAsksForNextStop(text: string): boolean {
-  const normalized = text
+function normalizeNextStopRequest(text: string): string {
+  return text
     .toLowerCase()
     .replace(/[’`]/g, "'")
     .replace(/[^a-z'\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-  const ask = NEXT_STOP_RE.exec(normalized);
-  if (!ask) return false;
-  // "Don't take me to the next stop yet" and "what's next, but not yet" are
-  // not asks. "Stop" inside the ask itself ("next stop") is the noun.
-  if (NEXT_STOP_NEGATION_RE.test(normalized.slice(0, ask.index))) return false;
-  if (NEXT_STOP_AFTER_NEGATION_RE.test(normalized.slice(ask.index + ask[0].length))) return false;
+}
+
+/** Does the person ask, in their own words, for the next stop of their night? */
+export function palAsksForNextStop(text: string): boolean {
+  const normalized = normalizeNextStopRequest(text);
+  if (!NEXT_STOP_RE.test(normalized) || navigationIsRefused(text)) return false;
   return !NEXT_STOP_LATER_RE.test(normalized);
 }
 
@@ -160,13 +146,18 @@ export function palAsksForNextStop(text: string): boolean {
  * an ordinary map ask.
  */
 export function palVoiceMapIntent(text: string, nightIsOn: boolean): "next-stop" | "pub" | "map" | null {
+  // Read the requested day before presentation parsing removes map time tails.
+  const nextStopRequest = normalizeNextStopRequest(text);
+  if (NEXT_STOP_RE.test(nextStopRequest) && NEXT_STOP_LATER_RE.test(nextStopRequest)) return null;
+  text = semanticAskRequest(text);
+  if (navigationIsRefused(text)) return null;
   if (nightIsOn && palAsksForNextStop(text)) return "next-stop";
   if (palAsksForCurrentMap(text)) return "map";
   if (palAsksForVenueDiscovery(text)) return null;
   // One pub on the map ("take me there", "where is The Lamb?"): the caller
   // names it (lib/palMapAsk.ts), else a map ask still opens the map.
   if (palMapAskTarget(text)) return "pub";
-  if (palAsksForMap(text)) return "map";
+  if (palAsksForMap(text) && !askHasPriorityOverMap(text)) return "map";
   return null;
 }
 

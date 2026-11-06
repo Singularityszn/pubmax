@@ -52,6 +52,8 @@ export type PerfRoute = {
   path: string;
   /** Rendered proof the route arrived; measurement waits for it. */
   readySelector: string;
+  /** The document status required before measurement. Defaults to 200. */
+  expectedStatus?: 200 | 404;
   /** Optional loading affordance that must be gone before measuring. */
   settledSelectorHidden?: string;
   /**
@@ -314,7 +316,15 @@ export async function resetPerfState(page: Page): Promise<void> {
 
 /** Loads the route and returns the interactive moment on the page's own clock. */
 export async function loadPerfRoute(page: Page, route: PerfRoute): Promise<number> {
-  await page.goto(route.path, { waitUntil: "load" });
+  const expectedStatus = "expectedStatus" in route ? route.expectedStatus : 200;
+  if (expectedStatus !== 200 && expectedStatus !== 404) {
+    throw new Error(`${route.path} expectedStatus must be numeric 200 or 404 when configured.`);
+  }
+  const response = await page.goto(route.path, { waitUntil: "load" });
+  expect(
+    response?.status(),
+    `${route.path} must answer HTTP ${expectedStatus} before its cost is measured.`,
+  ).toBe(expectedStatus);
   await expect(page.locator(route.readySelector).first()).toBeVisible({
     timeout: ROUTE_READY_TIMEOUT_MS,
   });
