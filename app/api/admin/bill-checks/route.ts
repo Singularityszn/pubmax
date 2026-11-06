@@ -27,7 +27,8 @@ import {
   isBillCheckReviewDecision,
   type BillCheckRecord,
 } from "@/lib/billCheckStore";
-import { moderateCommunityPriceWithState } from "@/lib/communityPriceStore";
+import { findCommunityPriceObservation, moderateCommunityPriceWithState } from "@/lib/communityPriceStore";
+import { submitCategoryLabel } from "@/lib/communityPrice";
 import { drinkMeasureName, statedDrinkMeasure } from "@/lib/drinkMeasure";
 import { log } from "@/lib/log";
 import { isLimited } from "@/lib/pintDrops";
@@ -65,11 +66,21 @@ async function withContext(checks: BillCheckRecord[]): Promise<ModeratorBillChec
   return Promise.all(checks.map(async (check) => {
     const hit = check.pintDropId ? dropById.get(check.pintDropId) : undefined;
     let receiptPhotoUrl = hit?.receiptPhotoUrl ?? null;
+    let submittedDrink = hit?.drink;
+    const communityOnly = !!check.communityPriceId && !check.pintDropId && !check.roundSource;
+    if (communityOnly) {
+      const { observation } = await findCommunityPriceObservation(check.communityPriceId!);
+      if (observation && observation.venueId === check.venueId &&
+        observation.submittedAt === check.communityPriceSubmittedAt && observation.priceGbp === check.priceGbp) {
+        submittedDrink = submitCategoryLabel(observation.drinkCategory);
+      }
+    }
     if (!check.pintDropId && check.roundSource) {
       const spend = await roundsStore().getSpendById(check.roundSource.spendId);
       const item = spend?.items[check.roundSource.lineIndex];
       if (spend && spend.venueId === check.venueId && item?.pricePence === Math.round(check.priceGbp * 100)) {
         receiptPhotoUrl = await resolveStorageUrl(spend.receiptPhotoKey, true);
+        submittedDrink = item.drinkName;
       }
     }
     return {
@@ -81,6 +92,8 @@ async function withContext(checks: BillCheckRecord[]): Promise<ModeratorBillChec
       lines: check.lines,
       checkedAt: check.checkedAt,
       receiptPhotoUrl,
+      submittedDrink,
+      communityOnly,
       ...(check.pintDropId ? { pintDropId: check.pintDropId } : {}),
       ...(check.communityPriceId ? { communityPriceId: check.communityPriceId } : {}),
       ...(hit

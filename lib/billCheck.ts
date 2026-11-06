@@ -32,6 +32,7 @@ import { drinkCategoryFromText, drinkKeywordSpans } from "@/lib/drinkCategoryFro
 import { brandsForCategory, normalizeDrinkHaystack } from "@/lib/drinkBrands";
 import { DRINK_CATEGORIES } from "@/lib/drinks";
 import { BEERS } from "@/lib/beers";
+import { drinkBrandCategoryAtStart } from "@/lib/drinkSubtypes";
 
 /** The three answers a bill check can give. */
 export const BILL_CHECK_RESULTS = ["match", "mismatch", "unreadable"] as const;
@@ -119,7 +120,7 @@ function billItem(name: string): { name: string; measure?: string } {
     if (match.index === 0 && /^(single|double|half|pint)$/.test(match[0]) &&
       /^(single|double|half|pint)\b/.test(following)) return true;
     const words = normalizeDrinkHaystack(following);
-    const brandCategory = DRINK_CATEGORIES.find((category) =>
+    const brandCategory = drinkBrandCategoryAtStart(following) ?? DRINK_CATEGORIES.find((category) =>
       [...brandsForCategory(category), ...(category === "beer" ? BEERS : [])].some((brand) =>
         [brand.label, ...(brand.aliases ?? [])].some((label) => {
           const prefix = normalizeDrinkHaystack(label);
@@ -211,6 +212,8 @@ export type ModeratorBillCheck = {
   pintDropId?: string;
   communityPriceId?: string;
   receiptPhotoUrl: string | null;
+  submittedDrink?: string;
+  communityOnly?: boolean;
   drop?: {
     id: string;
     handle: string;

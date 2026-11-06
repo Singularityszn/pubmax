@@ -28,7 +28,8 @@ const seams = vi.hoisted(() => ({
   hidePrice: vi.fn(async () => ({ status: "ok" as const, changed: true, kind: "price" as const })),
   syncHidden: vi.fn(async () => ({ status: "synced" as const })),
 }));
-vi.mock("@/lib/communityPriceStore", () => ({
+vi.mock("@/lib/communityPriceStore", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/communityPriceStore")>(),
   moderateCommunityPriceWithState: seams.hidePrice,
 }));
 vi.mock("@/lib/priceTrustImpact.server", () => ({
@@ -40,6 +41,7 @@ import { __resetBillChecks, memoryBillCheckStore } from "@/lib/billCheckStore";
 import { __resetPintDrops, addPintDrop, findPintDropsByIds, type PintDrop } from "@/lib/pintDrops";
 import { memoryPintDropStore } from "@/lib/pintDropsStore";
 import { __resetMemoryRounds, memoryRoundsStore } from "@/lib/roundsStore";
+import { __resetCommunityPrices, memoryCommunityPriceStore } from "@/lib/communityPriceStore";
 
 const URL_BASE = "http://localhost/api/admin/bill-checks";
 const VENUE = "venue-1vle947";
@@ -72,12 +74,35 @@ beforeEach(() => {
   __resetBillChecks();
   __resetPintDrops();
   __resetMemoryRounds();
+  __resetCommunityPrices();
   receiptSigning.sign.mockClear();
   seams.hidePrice.mockClear();
   seams.syncHidden.mockClear();
 });
 
 describe("GET /api/admin/bill-checks", () => {
+  it("returns the submitted community drink and price with the read lines and no photo", async () => {
+    const submittedAt = Date.parse("2026-11-05T19:30:00.000Z");
+    const { price } = await memoryCommunityPriceStore.submit({
+      venueId: VENUE, drinkCategory: "coffee", priceGbp: 4,
+    }, submittedAt);
+    if (!price) throw new Error("Community price was not saved");
+    await memoryBillCheckStore.record({
+      communityPriceId: price.id, communityPriceSubmittedAt: submittedAt,
+      billHash: "c".repeat(64), venueId: VENUE, priceGbp: 4,
+      result: "mismatch", lines: [{ name: "Coffee", priceGbp: 3 }],
+    });
+
+    const response = await GET(new Request(URL_BASE));
+    expect(response.status).toBe(200);
+    expect((await response.json()).checks).toEqual([expect.objectContaining({
+      communityPriceId: price.id, submittedDrink: "Coffee", priceGbp: 4,
+      communityOnly: true, receiptPhotoUrl: null,
+      lines: [{ name: "Coffee", priceGbp: 3 }],
+    })]);
+    expect(receiptSigning.sign).not.toHaveBeenCalled();
+  });
+
   it("refuses anybody who is not a moderator", async () => {
     gate.open = false;
     const res = await GET(new Request(URL_BASE));
