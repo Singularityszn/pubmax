@@ -62,7 +62,7 @@ Moved from [`lib/AGENTS.md`](../../lib/AGENTS.md). Authoritative policy detail l
 
   The store maps only the exact database error pair `P0221` and `round_spend_round_closed` to `closed`. Receipt cleanup follows the [bill rule](lib-images-uploads-and-photo-walls.md#a-new-price-comes-with-the-bill-and-the-pint-photo-is-the-fun-one). Existing unique constraints still refuse duplicate client references with `23505`. After closure, the trigger also returns `23505` for an existing reference, before a concurrent deletion can permit a replacement spend.
 
-  Until `0221` is applied, the application checks closure again after the receipt upload. Closure can still commit between that check and insertion. The [rollback](../../supabase/migrations/rollback/20261106190000_0221_round_spend_closed_guard_rollback.sql) removes the database guard and restores that gap without deleting spends. Regression coverage: `__tests__/roundSpendCloseRaceEffective.test.ts` and `__tests__/roundsReceiptStore.test.ts`.
+  The application also checks closure after the receipt upload. Without `0221`, closure can still commit between that check and insertion. The [rollback](../../supabase/migrations/rollback/20261106190000_0221_round_spend_closed_guard_rollback.sql) removes the database guard and restores that gap without deleting spends. Regression coverage: `__tests__/roundSpendCloseRaceEffective.test.ts` and `__tests__/roundsReceiptStore.test.ts`.
 
 <a id="ask-tool-selection-is-regex-when-keyless-and-a-typesafe-choice-when-keyed"></a>
 
