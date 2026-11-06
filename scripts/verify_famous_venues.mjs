@@ -135,32 +135,25 @@ export async function anchorRenewalBlock(row, headSource) {
   if (!rowOwnSourceUrls(row).some((source) => isUnderSource(source, anchorUrl))) {
     return "anchor_source_not_row_source";
   }
-  let current = anchorUrl;
-  const visited = new Set();
-  // The accepted spelling may add both www. and a trailing slash in two hops.
-  for (let redirects = 0; redirects <= 3; redirects += 1) {
-    if (visited.has(current)) return "anchor_source_redirected";
-    visited.add(current);
-    let head;
+  let head;
+  try {
+    head = await headSource(anchorUrl);
+  } catch {
+    return "anchor_source_unreachable";
+  }
+  if (head.status >= 300 && head.status < 400) {
     try {
-      head = await headSource(current);
-    } catch {
-      return "anchor_source_unreachable";
-    }
-    if (!Number.isInteger(head?.status) || head.status < 200 || head.status >= 400) {
-      return "anchor_source_unreachable";
-    }
-    if (head.status < 300) return null;
-    if (!head.location || redirects === 3) return "anchor_source_redirected";
-    try {
-      const next = new URL(head.location, current).href;
-      if (canonicalPage(next) !== canonicalPage(anchorUrl)) return "anchor_source_redirected";
-      current = next;
+      if (
+        !head.location ||
+        canonicalPage(new URL(head.location, anchorUrl).href) !== canonicalPage(anchorUrl)
+      ) {
+        return "anchor_source_redirected";
+      }
     } catch {
       return "anchor_source_redirected";
     }
   }
-  return "anchor_source_redirected";
+  return null;
 }
 
 export async function verifyRowWithPlaces(row, searchText, headSource) {

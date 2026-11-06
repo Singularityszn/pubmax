@@ -59,36 +59,33 @@ describe("famous venue anchor permission", () => {
     expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({ method: "HEAD", redirect: "manual" });
   });
 
-  it.each([403, 404, 429, 500, 503])("does not renew a row when its anchor HEAD answers HTTP %i", async (status) => {
+  it.each([403, 404, 429, 500, 503])("preserves renewal when its permitted anchor HEAD answers HTTP %i", async (status) => {
     const { applyVerification, verifyRowWithPlaces } = await import("../scripts/verify_famous_venues.mjs");
     const fixture = JSON.parse(
       readFileSync(path.join(__dirname, "fixtures", "famous_venues", "places", "operational_match.json"), "utf8"),
     );
     const check = await verifyRowWithPlaces(row, async () => fixture, async () => ({ status, location: null }));
-    expect(check).toMatchObject({ outcome: "unverified", result: "anchor_source_unreachable" });
+    expect(check).toMatchObject({ outcome: "confirmed", result: "places_operational" });
     const packs = applyVerification(new Map([["late_food.json", [row]]]), [check], "2026-11-06");
-    expect(packs.get("late_food.json")).toEqual([row]);
+    expect(packs.get("late_food.json")?.[0]).toMatchObject({
+      observedAt: "2026-11-06",
+      expiresAt: "2026-12-06",
+    });
   });
 
   it.each([
-    ["target robots deny", "https://www.wongkei.example/menu", "deny", 200, "unverified", "anchor_source_unreachable"],
-    ["target returns 404", "https://www.wongkei.example/menu", "allow", 404, "unverified", "anchor_source_unreachable"],
-    ["malformed location", "http://[", "allow", 200, "unverified", "anchor_source_redirected"],
-    ["noncanonical target", "https://other.example/menu", "allow", 200, "unverified", "anchor_source_redirected"],
-    ["permitted canonical target", "https://www.wongkei.example/menu", "allow", 200, "confirmed", "places_operational"],
-  ] as const)("checks %s before renewal", async (_label, location, targetPolicy, targetStatus, outcome, result) => {
-    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
-      const url = new URL(String(input));
-      if (url.pathname === "/robots.txt") {
-        const rules =
-          url.hostname.startsWith("www.") && targetPolicy === "deny"
-            ? "User-agent: *\nDisallow: /menu\n"
-            : "User-agent: *\nDisallow:\n";
-        return new Response(rules, { status: 200 });
+    ["missing location", null, "unverified", "anchor_source_redirected"],
+    ["malformed location", "http://[", "unverified", "anchor_source_redirected"],
+    ["noncanonical target", "https://other.example/menu", "unverified", "anchor_source_redirected"],
+    ["private target", "http://127.0.0.1/menu", "unverified", "anchor_source_redirected"],
+    ["www target", "https://www.wongkei.example/menu", "confirmed", "places_operational"],
+    ["relative trailing slash", "/menu/", "confirmed", "places_operational"],
+  ] as const)("classifies %s without requesting the target", async (_label, location, outcome, result) => {
+    const fetchMock = vi.fn(async (input: string | URL | Request, ..._rest: unknown[]) => {
+      if (String(input) === "https://wongkei.example/robots.txt") {
+        return new Response("User-agent: *\nDisallow:\n", { status: 200 });
       }
-      expect(init).toMatchObject({ method: "HEAD", redirect: "manual" });
-      if (url.hostname === "wongkei.example") return new Response(null, { status: 301, headers: { location } });
-      return new Response(null, { status: targetStatus });
+      return new Response(null, { status: 301, headers: location === null ? {} : { location } });
     });
     vi.stubGlobal("fetch", fetchMock);
     const { applyVerification, headAnchorSource, verifyRowWithPlaces } = await import(
@@ -100,12 +97,8 @@ describe("famous venue anchor permission", () => {
     const check = await verifyRowWithPlaces(row, async () => fixture, headAnchorSource);
     expect(check).toMatchObject({ outcome, result });
     const calls = fetchMock.mock.calls.map(([url]) => String(url));
-    expect(calls.slice(0, 2)).toEqual(["https://wongkei.example/robots.txt", row.anchor.sourceUrl]);
-    if (location.startsWith("https://www.")) {
-      expect(calls[2]).toBe("https://www.wongkei.example/robots.txt");
-      if (targetPolicy === "deny") expect(calls).toHaveLength(3);
-      else expect(calls).toEqual([...calls.slice(0, 3), location]);
-    } else expect(calls).toHaveLength(2);
+    expect(calls).toEqual(["https://wongkei.example/robots.txt", row.anchor.sourceUrl]);
+    expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({ method: "HEAD", redirect: "manual" });
     const packs = applyVerification(new Map([["late_food.json", [row]]]), [check], "2026-11-06");
     const stamped = packs.get("late_food.json")?.[0];
     if (outcome === "confirmed") expect(stamped?.observedAt).toBe("2026-11-06");
