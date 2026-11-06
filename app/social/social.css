@@ -43,7 +43,8 @@ html[data-text-scale="large"] .socialPage .screenHead {
   align-items: start;
 }
 
-.socialControlRail {
+.socialControlRail,
+.socialViewerCards {
   display: grid;
   gap: 12px;
   min-width: 0;
@@ -1311,22 +1312,12 @@ span.socialPostAvatar {
 
 @media (min-width: 1024px) {
   .socialLayout {
-    grid-template-columns: minmax(220px, 240px) minmax(0, 620px) minmax(
-        260px,
-        300px
-      );
+    grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
     justify-content: center;
     gap: 24px;
   }
 
-  /* Signed-out and other states omit SocialContextRail, which used to reserve
-     a third column and leave ~300px of dead ink beside the door. */
-  .socialLayout:not(:has(.socialContextRail)) {
-    grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
-  }
-
-  .socialControlRail,
-  .socialContextRail {
+  .socialControlRail {
     position: sticky;
     top: 20px;
   }
@@ -1350,11 +1341,6 @@ span.socialPostAvatar {
 
   .socialControlRail {
     grid-column: 1;
-    grid-row: 1;
-  }
-
-  .socialContextRail {
-    grid-column: 3;
     grid-row: 1;
   }
 

@@ -296,9 +296,12 @@ describe("Social post card, photo-app layout", () => {
 });
 
 describe("desktop Social rail", () => {
-  it("preserves layout without policy helper copy", () => {
+  it("keeps the Activity card during a refresh without policy helper copy", () => {
     const html = renderToStaticMarkup(
-      createElement(SocialContextRail, { status: "loading" }),
+      createElement(SocialContextRail, {
+        status: "loading",
+        items: [{ id: "existing-comment", kind: "comment", readAt: null, createdAt: "2026-08-05T19:00:00.000Z" }],
+      }),
     );
 
     expect(html).toContain('class="socialContextRail"');
@@ -335,7 +338,7 @@ describe("desktop Social rail", () => {
     expect(html).not.toContain("Open Activity");
   });
 
-  it.each(["unavailable", "ready"] as const)(
+  it.each(["idle", "loading", "unavailable", "ready"] as const)(
     "does not reserve a dead rail for %s without items",
     (status) => {
       const html = renderToStaticMarkup(

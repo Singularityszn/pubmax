@@ -148,6 +148,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
 - **Social** - `/social` is the canonical mobile and desktop Social shell, live by default with chronological Following, Nearby, and Across town lanes plus public pub discovery. Full posts and private activity stay closed unless the server confirms Social access; set `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0` only for an emergency preview rollback. `/feed` and `/stories` now lead to this shell; `/discover` and `/drinks` open its Discover view. Plan joins use the [host connection policy](docs/prd/SOCIAL_LAUNCH_PRD.md#wp7---friend-graph-formation-crews-search-invites-m-l). Each new follow created by a join gives the person followed a private follow entry in `/activity`. Notification storage failures can prevent delivery. Existing follows and join retries add no duplicate entry. The entry names the follower and carries no plan or membership details.
 
+  Available Social notifications appear in **Activity** in the desktop sidebar.
+
   If the signed-out London feed is empty, its [public next actions](docs/design/LAUNCH_SCREENS.md#social-action-order) appear before the body sign-in offer.
 
   On phones, posts appear before crews and other supporting tools. Desktop keeps those tools beside the feed. The Posts view links to **Messages**, **Your Pub Pal**, **Plan a crawl**, and **Save a Moment**. **Post** opens a composer with visibility guidance and a character count.

@@ -39,13 +39,34 @@ class SocialLoadBoundary extends Component<BoundaryProps, { failed: boolean }> {
  * them recovers them all. `frame` places the wait and the failure, for a tool
  * whose loaded form is not drawn where it is mounted (a full-screen layer).
  */
+export type SocialLazyTool<P extends object> = ComponentType<P> & {
+  /** Start the download early. A copy mounted after it lands draws at once. */
+  preload: () => Promise<void>;
+};
+
 export function socialLazy<P extends object>(
   load: () => Promise<{ default: ComponentType<P> }>,
   label: string,
   loading: ReactNode,
   frame?: (state: ReactNode, props: P) => ReactNode,
-): ComponentType<P> {
-  let Current = lazy(load);
+): SocialLazyTool<P> {
+  // Code that has arrived renders directly, so no wait is ever committed for
+  // it. React.lazy suspends on the first render of each lazy even when its
+  // download already finished.
+  let loaded: ComponentType<P> | null = null;
+  const remember = (module: { default: ComponentType<P> }) => {
+    loaded = module.default;
+    return module;
+  };
+  const fresh = () => lazy(() => load().then(remember));
+  let Current = fresh();
+  let early: Promise<void> | null = null;
+  const preload = (): Promise<void> => {
+    if (loaded) return Promise.resolve();
+    // A failed early download is left to the mounted tool, which retries.
+    early ??= load().then(remember).then(() => undefined, () => { early = null; });
+    return early;
+  };
   let generation = 0;
   const listeners = new Set<() => void>();
   const subscribe = (listener: () => void) => {
@@ -60,7 +81,7 @@ export function socialLazy<P extends object>(
   function SocialLazyTool(props: P) {
     const attempt = useSyncExternalStore(subscribe, readGeneration, readGeneration);
     const transfer = useRef(false);
-    const Tool = Current;
+    const Tool = loaded ?? Current;
     const place = (state: ReactNode) => (frame ? frame(state, props) : state);
     return (
       <SocialLoadBoundary
@@ -68,7 +89,7 @@ export function socialLazy<P extends object>(
         onFailure={() => {
           // One rejected download fails every mounted instance. Replace it
           // once, and never replace a newer download that has not failed.
-          if (Current === Tool) Current = lazy(load);
+          if (Current === Tool) Current = fresh();
         }}
         failed={place(<SocialToolFocus key="failed" label={label} transfer={transfer}><div role="alert">{label} could not load. <button type="button" onClick={retry}>Try again</button></div></SocialToolFocus>)}
       >
@@ -78,5 +99,5 @@ export function socialLazy<P extends object>(
       </SocialLoadBoundary>
     );
   }
-  return SocialLazyTool;
+  return Object.assign(SocialLazyTool, { preload });
 }

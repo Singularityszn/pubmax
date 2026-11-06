@@ -14,7 +14,7 @@ import {
 } from "@/components/social/SocialViewerState";
 import { socialLazy } from "./SocialLazy";
 
-const SocialComposer = socialLazy(() => import("./SocialComposer"), "Edit controls", <button type="button" disabled>Loading edit controls…</button>);
+const SocialComposer = socialLazy(() => import("./SocialComposer"), "Edit controls", <button type="button" className="socialEditButton" disabled>Edit post</button>);
 
 type LegacyOutboxItem = {
   id: string;

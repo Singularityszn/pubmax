@@ -19,6 +19,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useIsSample } from "@/components/ui/sample-skeleton-context";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import {
@@ -104,6 +105,7 @@ export default function CrewsPanel({
   resolveAccess?: boolean;
 }) {
   const { identityResolved, user } = useAuth();
+  const sampled = useIsSample();
   const viewerPhase: SocialViewerPhase =
     !identityResolved ? "unresolved" : user ? "resolved" : "signed-out";
   const [gate, setGate] = useState<"checking" | "open" | "closed">(
@@ -128,7 +130,7 @@ export default function CrewsPanel({
   const venueDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (!resolveAccess || !identityResolved) return;
+    if (sampled || !resolveAccess || !identityResolved) return;
     if (!user) return;
     const controller = new AbortController();
     void (async () => {
@@ -151,10 +153,10 @@ export default function CrewsPanel({
       }
     })();
     return () => controller.abort();
-  }, [identityResolved, resolveAccess, user]);
+  }, [identityResolved, resolveAccess, user, sampled]);
 
   useEffect(() => {
-    if (gate !== "open" || viewerPhase !== "resolved") return;
+    if (sampled || gate !== "open" || viewerPhase !== "resolved") return;
     const controller = new AbortController();
     void Promise.resolve().then(() => setStatus("loading"));
     authedActionFetch("/api/social/crews", {
@@ -179,9 +181,10 @@ export default function CrewsPanel({
         setStatus("error");
       });
     return () => controller.abort();
-  }, [attempt, gate, viewerPhase]);
+  }, [attempt, gate, viewerPhase, sampled]);
 
   useEffect(() => {
+    if (sampled) return;
     if (venueDebounce.current) clearTimeout(venueDebounce.current);
     const query = venueQuery.trim();
     if (viewerPhase !== "resolved" || query.length < 2) {
@@ -214,7 +217,7 @@ export default function CrewsPanel({
       controller.abort();
       if (venueDebounce.current) clearTimeout(venueDebounce.current);
     };
-  }, [venueQuery, viewerPhase]);
+  }, [venueQuery, viewerPhase, sampled]);
 
   const startCrew = useCallback(async () => {
     if (start === "working") return;
@@ -290,7 +293,7 @@ export default function CrewsPanel({
     (crew) => hasMoreCrews || phaseFilter === "all" || crew.phase === phaseFilter,
   );
 
-  if (viewerPhase !== "resolved") {
+  if (viewerPhase !== "resolved" && !sampled) {
     return (
       <section
         className={compact ? "crews crews--compact" : "crews"}
@@ -355,7 +358,7 @@ export default function CrewsPanel({
         </div>
       ) : null}
 
-      {status === "loading" ? (
+      {status === "loading" && !sampled ? (
         <div role="status" aria-label="Loading your crews" aria-busy="true">
           <div className="crews__skeletons" aria-hidden="true">
             <span />

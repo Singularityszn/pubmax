@@ -36,6 +36,8 @@ import {
 } from "@/lib/socialCrew";
 import type { OpenPlanPlaceKind } from "@/lib/openSocialCrew";
 
+export { CREW_EMPTY_COPY, CREW_WHAT_IT_IS } from "@/lib/socialCrewsCopy";
+
 /**
  * The cap on the name a drinker types when starting a crew. Narrower than the
  * plan store's own PLAN_TITLE_MAX (80) on purpose: a crew name is read in a row
@@ -109,9 +111,6 @@ export function canLeaveCrew(role: SocialCrewRole): boolean {
 export const CREW_OWNER_LEAVE_NOTE =
   "A host can't leave their own night. Hand the crew to somebody else first.";
 
-/** What a crew is, in one line, on the surface that offers to start one. */
-export const CREW_WHAT_IT_IS =
-  "A crew is one night out, shared with your lot. Name the night, pick where it starts, and bring people in.";
 
 /** Why a stranger cannot be invited. The database refuses it, so the copy owns it. */
 export const CREW_MUTUALS_ONLY_NOTE =
@@ -121,8 +120,6 @@ export const CREW_MUTUALS_ONLY_NOTE =
 export const CREW_INVITE_LINK_NOTE =
   "Send this link to your mate. It only works for them.";
 
-export const CREW_EMPTY_COPY =
-  "No crews yet. Start one and your lot can join the night.";
 
 export const CREW_LIST_UNAVAILABLE_COPY =
   "Couldn't load your crews. That's us, not you.";

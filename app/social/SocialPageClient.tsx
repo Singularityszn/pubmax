@@ -12,6 +12,7 @@ import IntentLink from "@/components/nav/IntentLink";
 import SiteNav from "@/components/nav/SiteNav";
 import CreatorListsLane from "@/components/social/CreatorListsLane";
 import FindYourLot from "@/components/social/FindYourLot";
+import CrewsPanelPlaceholder from "@/components/social/CrewsPanelPlaceholder";
 import PeopleDirectory from "@/components/social/PeopleDirectory";
 import ReelsPending from "@/components/social/ReelsPending";
 import SharedSocialPostCard from "@/components/social/SocialPostCard";
@@ -24,6 +25,7 @@ import {
 } from "@/components/social/SocialViewerState";
 import EmptyState from "@/components/ui/empty-state";
 import Screen from "@/components/ui/screen";
+import SampleSkeleton from "@/components/ui/sample-skeleton";
 import { ADULT_SELF_ASSERTION_ACTION } from "@/lib/adultGate";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { subscribeDeviceIdentity } from "@/lib/deviceAccountIdentity";
@@ -57,11 +59,17 @@ import "./social.css";
 import SocialLondonLane from "./SocialLondonLane";
 import { socialLazy } from "./SocialLazy";
 
-const SocialComposer = socialLazy(() => import("./SocialComposer"), "Post controls", <button type="button" disabled>Loading post controls…</button>);
+// The wait keeps the shape of what it stands for: the Post door keeps its
+// word and width, and tools that often draw nothing (an empty tag inbox, no
+// posts of your own) are announced, not drawn, so the feed never jumps.
+const SocialComposer = socialLazy(() => import("./SocialComposer"), "Post controls", <button type="button" className="socialButton socialComposeOpen" disabled>Post</button>);
 const CrewsPanel = socialLazy(() => import("@/components/social/CrewsPanel"), "Your crews", <p role="status">Loading your crews…</p>);
 const PubRankingPanel = socialLazy(() => import("@/components/social/PubRankingPanel"), "Your pub ranking", <p role="status">Loading your pub ranking…</p>);
-const SocialTagInbox = socialLazy(() => import("./SocialTagInbox"), "Tags", <p role="status">Loading tags…</p>);
-const SocialOutbox = socialLazy(() => import("./SocialOutbox"), "Your posts", <p role="status">Loading your posts…</p>);
+const SocialTagInbox = socialLazy(() => import("./SocialTagInbox"), "Tags", <p role="status" className="sr-only">Loading tags…</p>);
+const SocialOutbox = socialLazy(() => import("./SocialOutbox"), "Your posts", <p role="status" className="sr-only">Loading your posts…</p>);
+// A signed-in reader on the posts tab gets these tools once access answers.
+// Their code downloads during that check, so they draw at once afterwards.
+const VERIFIED_POSTS_TOOLS = [SocialComposer, CrewsPanel, PubRankingPanel, SocialTagInbox, SocialOutbox];
 const ReelsViewer = socialLazy(
   () => import("@/components/social/ReelsViewer"),
   "Video",
@@ -346,7 +354,7 @@ export function SocialContextRail({
   if (
     status === "idle" ||
     status === "unavailable" ||
-    (status === "ready" && items.length === 0)
+    items.length === 0
   ) {
     return null;
   }
@@ -693,6 +701,11 @@ function SocialPageAccountState({
     isPosts &&
     viewerPhase === "resolved" &&
     access === "verified";
+  const checkingPosts = friendsLaunchEnabled && isPosts && viewerPhase === "resolved" && access === "checking";
+  useEffect(() => {
+    if (!checkingPosts) return;
+    for (const tool of VERIFIED_POSTS_TOOLS) void tool.preload();
+  }, [checkingPosts]);
   // A signed-out reader meets the door in the body, so the packs go beside it
   // there rather than in the narrow rail, where they left the column empty.
   const packsBesideTheDoor =
@@ -759,6 +772,36 @@ function SocialPageAccountState({
     friendsLaunchEnabled && isPosts ? (
       <a href="#find-lot-title">Find your lot</a>
     ) : undefined;
+
+  const nightLinks = (
+    <nav className="socialNightLinks" aria-label="Your night out">
+      <Link prefetch={false} href="/messages">Messages</Link>
+      <Link prefetch={false} href="/pal">Your Pub Pal</Link>
+      <Link prefetch={false} href="/plan">Plan a crawl</Link>
+      <SocialMomentLink />
+    </nav>
+  );
+  const feedHeading = initialState.tab === "posts" ? (
+    <header className="socialFeedHeading">
+      <h2>{initialState.feed === "following" ? "Your lot, lately" : initialState.feed === "nearby" ? "Around your patch" : "Across the pub tables"}</h2>
+      <p>{initialState.feed === "following" ? "Posts from people you follow. Newest first." : initialState.feed === "nearby" ? "Public posts tagged in this area. Newest first." : activeTag ? `Public posts tagged #${activeTag}. Newest first.` : "Public posts from across town. Newest first."}</p>
+    </header>
+  ) : null;
+  const emptyFeedState = initialState.tab === "posts" ? (
+    <EmptyState title="No posts here yet." action={
+      initialState.feed === "following"
+        ? <Link prefetch={false} href="/social?feed=discover">See posts across town</Link>
+        : <Link prefetch={false} href="/social">Back to your following feed</Link>
+    }>
+      {activeTag
+        ? `No public posts tagged #${activeTag} yet.`
+        : initialState.feed === "following"
+        ? "Your noticeboard is waiting for a good pub story. Find your lot below or share one of your own."
+        : initialState.feed === "nearby"
+          ? "No public posts in this patch yet. Pick another area or start the conversation."
+          : "A quiet noticeboard, for now. Share a pub you rate or a photo from your night."}
+    </EmptyState>
+  ) : null;
 
   // A STRANGER ON THE POSTS TAB READS ONE COLUMN. Until the account answers,
   // and once it has answered nobody, the posts tab under the friends launch has
@@ -858,18 +901,16 @@ function SocialPageAccountState({
         <>
         <div className="socialFeedNavigation">
           {switcher}
-          {showPostsControls ? (
-            <nav className="socialNightLinks" aria-label="Your night out">
-              <Link prefetch={false} href="/messages">Messages</Link>
-              <Link prefetch={false} href="/pal">Your Pub Pal</Link>
-              <Link prefetch={false} href="/plan">Plan a crawl</Link>
-              <SocialMomentLink />
-            </nav>
+          {showPostsControls ? nightLinks : checkingPosts ? (
+            <SampleSkeleton label="Loading your night links">{nightLinks}</SampleSkeleton>
           ) : null}
         </div>
         <div className={isPosts ? "socialLayout" : "socialLayout socialLayout--discover"}>
           <div className="socialFeedColumn">
             {showPostsControls ? <PostsControls state={initialState} /> : null}
+            {checkingPosts && initialState.tab === "posts" ? (
+              <SampleSkeleton label="Loading post lanes"><PostsControls state={initialState} /></SampleSkeleton>
+            ) : null}
             {showViewerCards ? <SocialOutbox draftScope={draftScope} submittedPost={submittedPost} onPostChanged={(updated) => {
               if (updated) setSubmittedPost(updated);
               setFeedAttempt((value) => value + 1);
@@ -898,9 +939,10 @@ function SocialPageAccountState({
               friendsLaunchEnabled={friendsLaunchEnabled}
             />
           ) : access === "checking" ? (
-            <section className="socialBoundary" role="status" aria-busy="true">
-              <h2>Checking {surfaceName} access…</h2>
-            </section>
+            <SampleSkeleton className="socialFeed" label={`Checking ${surfaceName} access…`}>
+              {feedHeading}
+              <div className="socialFeedEmpty">{emptyFeedState}</div>
+            </SampleSkeleton>
           ) : access !== "verified" ? (
             <>
               <SocialAccessBoundary
@@ -933,10 +975,7 @@ function SocialPageAccountState({
               aria-label={`${surfaceName} posts`}
               aria-busy={feedStatus === "loading" || loadingMore}
             >
-              <header className="socialFeedHeading">
-                <h2>{initialState.feed === "following" ? "Your lot, lately" : initialState.feed === "nearby" ? "Around your patch" : "Across the pub tables"}</h2>
-                <p>{initialState.feed === "following" ? "Posts from people you follow. Newest first." : initialState.feed === "nearby" ? "Public posts tagged in this area. Newest first." : activeTag ? `Public posts tagged #${activeTag}. Newest first.` : "Public posts from across town. Newest first."}</p>
-              </header>
+              {feedHeading}
               {activeTag ? (
                 <p className="socialTagChip">
                   <span>Tag: #{activeTag}</span>
@@ -979,19 +1018,7 @@ function SocialPageAccountState({
                 </div>
               ) : posts.length === 0 ? (
                 <div className="socialFeedEmpty" role="status">
-                  <EmptyState title="No posts here yet." action={
-                    initialState.feed === "following"
-                      ? <Link prefetch={false} href="/social?feed=discover">See posts across town</Link>
-                      : <Link prefetch={false} href="/social">Back to your following feed</Link>
-                  }>
-                    {activeTag
-                      ? `No public posts tagged #${activeTag} yet.`
-                      : initialState.feed === "following"
-                      ? "Your noticeboard is waiting for a good pub story. Find your lot below or share one of your own."
-                      : initialState.feed === "nearby"
-                        ? "No public posts in this patch yet. Pick another area or start the conversation."
-                        : "A quiet noticeboard, for now. Share a pub you rate or a photo from your night."}
-                  </EmptyState>
+                  {emptyFeedState}
                   {/* The search-and-invite surface is the rail's, once. */}
                   <PeopleDirectory myHandle={viewerHandle} />
                 </div>
@@ -1029,6 +1056,14 @@ function SocialPageAccountState({
 
           </div>
           <aside className="socialControlRail" aria-label={`${surfaceName} views`}>
+            {checkingPosts ? (
+              <SampleSkeleton className="socialViewerCards" label="Loading your Social tools">
+                <PubRankingPanel />
+                {/* A static shape, not the lazy panel: the wait reserves the
+                    crews card without its download or data read. */}
+                <CrewsPanelPlaceholder />
+              </SampleSkeleton>
+            ) : null}
             {showViewerCards ? <SocialTagInbox /> : null}
 
             {/* Crews render their own neutral identity state before the
@@ -1061,11 +1096,10 @@ function SocialPageAccountState({
                 copies carried `id="find-lot-title"`, which left every
                 `aria-labelledby` on the page pointing at the first. */}
             {friendsLaunchEnabled && isPosts ? <FindYourLot myHandle={viewerHandle} compact query={findLotQuery} onQueryChange={setFindLotQuery} /> : null}
+            {showPostsControls ? (
+              <SocialContextRail status={visibleActivityStatus} items={visibleActivityItems} />
+            ) : null}
           </aside>
-
-          {showPostsControls ? (
-            <SocialContextRail status={visibleActivityStatus} items={visibleActivityItems} />
-          ) : null}
         </div>
         </>
         )}

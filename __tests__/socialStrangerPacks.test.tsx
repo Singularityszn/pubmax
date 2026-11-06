@@ -204,11 +204,16 @@ describe("Social viewer surfaces", () => {
 
     await renderSocial();
 
-    expect(
-      Array.from(host.querySelectorAll<HTMLElement>("[data-viewer-card]"),
-        (card) => card.dataset.viewerCard,
-      ),
-    ).toEqual(["composer", "outbox", "tag-inbox", "crews"]);
+    // The crews card is lazy: its code is a real import, so wait for it rather
+    // than for a fixed number of ticks, which a loaded runner can outlast.
+    await vi.waitFor(async () => {
+      await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+      expect(
+        Array.from(host.querySelectorAll<HTMLElement>("[data-viewer-card]"),
+          (card) => card.dataset.viewerCard,
+        ),
+      ).toEqual(["composer", "outbox", "tag-inbox", "crews"]);
+    });
   });
 
   it("withholds viewer cards while viewer session is unresolved", async () => {
