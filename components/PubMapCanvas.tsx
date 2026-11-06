@@ -731,6 +731,38 @@ function announceOpeningFrame(
   });
 }
 
+function usePalAccountBoundaryRetirement(
+  pal: ReturnType<typeof useOwnPal>,
+  {
+    palVisitKeyRef,
+    palLeadKeyRef,
+    palLeadReportedRef,
+    palWalkRef,
+    palNextRef,
+    palSpokeWalkRef,
+    palSpokePerchRef,
+  }: {
+    palVisitKeyRef: { current: string };
+    palLeadKeyRef: { current: string | null };
+    palLeadReportedRef: { current: string | null };
+    palWalkRef: { current: Parameters<PalMapMarker["walk"]>[0] | null };
+    palNextRef: { current: Parameters<PalMapMarker["nextStop"]>[0] };
+    palSpokeWalkRef: { current: string };
+    palSpokePerchRef: { current: string };
+  },
+) {
+  const ownerId = pal?.ownerId;
+  useLayoutEffect(() => {
+    palVisitKeyRef.current = "";
+    palLeadKeyRef.current = null;
+    palLeadReportedRef.current = null;
+    palWalkRef.current = null;
+    palNextRef.current = null;
+    palSpokeWalkRef.current = "";
+    palSpokePerchRef.current = "";
+  }, [ownerId, palVisitKeyRef, palLeadKeyRef, palLeadReportedRef, palWalkRef, palNextRef, palSpokeWalkRef, palSpokePerchRef]);
+}
+
 export default function PubMapCanvas(props: PubMapCanvasProps) {
   // `useMemo` keyed on `props` recomputes whenever the parent renders. It is
   // here for React Compiler, which treats a value handed to a helper it cannot
@@ -4499,15 +4531,15 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   // above once routed), and goes to a stop the reader taps; with no crawl it
   // perches beside the selected pin.
   const routeIds = route.map((v) => v.id).join(",");
-  useLayoutEffect(() => {
-    palVisitKeyRef.current = "";
-    palLeadKeyRef.current = null;
-    palLeadReportedRef.current = null;
-    palWalkRef.current = null;
-    palNextRef.current = null;
-    palSpokeWalkRef.current = "";
-    palSpokePerchRef.current = "";
-  }, [ownPal?.ownerId]);
+  usePalAccountBoundaryRetirement(ownPal, {
+    palVisitKeyRef,
+    palLeadKeyRef,
+    palLeadReportedRef,
+    palWalkRef,
+    palNextRef,
+    palSpokeWalkRef,
+    palSpokePerchRef,
+  });
   useLayoutEffect(() => {
     const map = mapRef.current;
     if (!mapReady || !map || !ownPal) return;
