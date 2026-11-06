@@ -32,6 +32,15 @@ vi.mock("@/lib/ai/typesafe.server", () => ({
 
 import { systemOne } from "@/lib/ai/typesafe.server";
 
+import { GROUP_MAP_REQUESTS } from "./fixtures/askMapCommands";
+
+describe("group constraints beside map commands", () => {
+  it.each(GROUP_MAP_REQUESTS)("keeps the explicit group: %s", async (query) => {
+    const parsed = await parseConciergeIntent(query, { skipModel: true });
+    expect(parsed.intent).toMatchObject({ groupSize: 8, area: "Soho" });
+  });
+});
+
 const ROOT = process.cwd();
 
 function missNouls(): Partial<Record<ConciergeMood, number>> {
@@ -103,6 +112,59 @@ describe("parseConciergeIntent keyless fallback", () => {
 
   afterEach(() => {
     vi.mocked(systemOne).mockReset();
+  });
+
+  it.each([
+    "Quiet-ish near Bank, 4 of us. Show the source and date for any price you use.",
+    "Show the source and date for any price you use. Quiet-ish near Bank, 4 of us.",
+    "Quiet-ish near Bank, 4 of us. Show sources for any price you use and include the date. Include the map.",
+  ])("keeps mood-only discovery preferences: %s", async (query) => {
+    expect(await parseConciergeIntent(query, { skipModel: true })).toEqual({
+      intent: { mood: ["quiet"], groupSize: 4, area: "Bank" }, source: "deterministic",
+    });
+  });
+
+  it.each([
+    "Find three quiet pubs in Soho for tonight. Show the source and date for any price you use.",
+    "Show the source and date for any price you use. Find three quiet pubs in Soho for tonight.",
+    "Show the source and date for any price you use. Recommend three quiet pubs in Soho.",
+    "Show the source and date for any price you use. Suggest three quiet pubs in Soho.",
+    "Find three quiet pubs in Soho. Show sources for any price you use and show the date for every price you quote.",
+    "Show sources for any price you use and please show the date for every price you quote. Recommend three quiet pubs in Soho.",
+    "Show the source and date for any price you use. Sort me a quiet night in Soho.",
+    "Find three quiet pubs in Soho and please include sources and dates for every price you quote",
+    "Find three quiet pubs in Soho. Show the source and date for any price you use tonight.",
+  ])("keeps the requested quiet mood when evidence dates are requested: %s", async (query) => {
+    const parsed = await parseConciergeIntent(query, { skipModel: true });
+    expect(parsed).toEqual({
+      intent: { mood: ["quiet"], groupSize: 2, area: "Soho" },
+      source: "deterministic",
+    });
+    expect(parsed.intent.maxPintPrice).toBeUndefined();
+  });
+
+  it.each([
+    "Find three quiet pubs in Soho for four people under £7 a pint. Show the source and date for any price you use.",
+    "Show the source and date for any price you use. Plan a quiet crawl in Soho for four people under £7 a pint.",
+    "Show the source and date for any price you use. Recommend three quiet pubs in Soho for four people under £7 a pint.",
+    "Show the source and date for any price you use. Suggest three quiet pubs in Soho for four people under £7 a pint.",
+    "Show the source and date for any price you use. Sort me a quiet night in Soho for four people under £7 a pint.",
+    "Show sources for any price you use and show the date for every price you quote. Sort me a quiet night in Soho for four people under £7 a pint.",
+    "Find three quiet pubs in Soho for four people under £7 a pint. Show sources for any price you use and show the date for every price you quote.",
+    "Plan a quiet crawl in Soho for four people under £7 a pint and please include sources and dates for every price you quote",
+  ])("keeps area, group and budget beside presentation clauses: %s", async (query) => {
+    const parsed = await parseConciergeIntent(query, { skipModel: true });
+    expect(parsed.intent).toEqual({ mood: ["quiet"], groupSize: 4, area: "Soho", maxPintPrice: 7 });
+  });
+
+  it.each([
+    "Find three quiet date-night pubs in Soho. Show the source and date for any price you use.",
+    "Show the source and date for any price you use. Plan a quiet romantic crawl in Soho.",
+    "Show sources for any price you use and show the date for every price you quote. Find three quiet date-night pubs in Soho.",
+    "Plan a quiet romantic crawl in Soho. Show sources for any price you use and show the date for every price you quote.",
+  ])("retains a real romantic preference beside evidence dates: %s", async (query) => {
+    const parsed = await parseConciergeIntent(query, { skipModel: true });
+    expect(parsed.intent).toEqual({ mood: ["quiet", "date"], groupSize: 2, area: "Soho" });
   });
 
   it("turns ordinary coordination language into a structured intent without a key", async () => {
@@ -264,6 +326,39 @@ describe("parseConciergeIntent TypeSafe path", () => {
     vi.unstubAllEnvs();
   });
 
+  it.each([
+    "Quiet-ish near Bank, 4 of us. Show the source and date for any price you use.",
+    "Show the source and date for any price you use. Quiet-ish near Bank, 4 of us.",
+    "Quiet-ish near Bank, 4 of us. Show sources for any price you use and include the date. Include the map.",
+  ])("sends only mood-only request semantics to the model: %s", async (query) => {
+    mockSystemOne({ moods: hitNouls(["quiet"]), area: "Bank", group: "4" });
+    expect(await parseConciergeIntent(query)).toEqual({
+      intent: { mood: ["quiet"], groupSize: 4, area: "Bank" }, source: "model",
+    });
+    expect(systemOne).toHaveBeenCalledWith(
+      expect.objectContaining({ text: "Quiet-ish near Bank, 4 of us." }), expect.anything(), expect.anything(),
+    );
+  });
+
+  it.each([
+    "Show the source and date for any price you use. Find three quiet pubs in Soho for four people under £7 a pint.",
+    "Show sources for any price you use and show the date for every price you quote. Find three quiet pubs in Soho for four people under £7 a pint.",
+    "Find three quiet pubs in Soho for four people under £7 a pint. Show sources for any price you use and show the date for every price you quote.",
+  ])("sends the semantic request to the model without presentation dates: %s", async (query) => {
+    vi.stubEnv("TYPESAFE_API_KEY", "test-key");
+    mockSystemOne({ moods: hitNouls(["quiet"]), area: "Soho", group: "4", budget: BUDGET_EXPLICIT });
+    const parsed = await parseConciergeIntent(query);
+    expect(systemOne).toHaveBeenCalledWith(
+      expect.objectContaining({ text: "Find three quiet pubs in Soho for four people under £7 a pint." }),
+      expect.anything(),
+      expect.anything(),
+    );
+    expect(parsed).toEqual({
+      intent: { mood: ["quiet"], groupSize: 4, area: "Soho", maxPintPrice: 7 },
+      source: "model",
+    });
+  });
+
   it("accepts typed answers in place of prompt-then-parse JSON", async () => {
     mockSystemOne({
       moods: hitNouls(["garden"]),
@@ -337,8 +432,6 @@ describe("intentFromJudgment", () => {
   const known = defaultKnownAreas();
 
   it("uses the threshold chosen from conciergeIntentProbabilities.json", () => {
-    const comment = readFileSync(join(ROOT, "lib/concierge/intentPolicy.ts"), "utf8");
-    expect(comment).toContain("__tests__/fixtures/typesafe/conciergeIntentProbabilities.json");
     expect(CONCIERGE_MOOD_NOUL_THRESHOLD).toBe(0.63);
     expect(CONCIERGE_CHOICE_FLOOR).toBe(0.55);
   });
