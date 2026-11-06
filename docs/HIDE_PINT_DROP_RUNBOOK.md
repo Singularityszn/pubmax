@@ -15,7 +15,7 @@ with the admin token or the Supabase SQL editor does.
 
 A Pint Drop has one moderation column, `status`, with three values:
 `visible`, `hidden` and `pending` (`lib/pintDropShared.ts`). Only `visible`
-reaches a reader. The moderator decision is `POST /api/pint-drops` with
+reaches public Pint Drop lists. The moderator decision is `POST /api/pint-drops` with
 `action: "keep_hidden"` (or `"restore"` to undo), gated by `isModerator`
 (`lib/adminAuth.ts`: the `x-admin-token` header or the admin session cookie).
 On the durable store it is one update, in `supabasePintDropStore.moderate`
@@ -44,7 +44,7 @@ first (step 1) and the action sent directly (step 2).
 
 ## Every public Pint Drop read already filters on `status`
 
-Audited on 15 Oct 2026 against `main` at `9d7a17c`. No Pint Drop surface
+Audited on 15 Oct 2026 against `main` at `9d7a17c`. No public Pint Drop list
 reads around it. The paired community price is a different record, covered
 above.
 
@@ -56,8 +56,12 @@ above.
 | Stories (crawl recap `/recap/[storyId]`) | `pintDropsStore().listVisible` | `.eq("status", "visible")` |
 | Contributor stats | `GET /api/pint-drops/stats` to `listVisible` | `.eq("status", "visible")` |
 | Permalinks (`/ledger/[id]`, `/bar-tab/[id]`, OG image) | `lib/pintDropLookup.ts` | `.eq("status", "visible")`, else the not-found state |
-| Confirmed prices, price missions, pin colour | `listConfirmedDrops`, `listConfirmedVenueIds`, `listConfirmationCandidates` | `.eq("status", "visible")` |
+| Confirmed prices, mission dating, pin colour | `listConfirmedDrops`, `listConfirmedVenueIds`, `listConfirmationCandidates` | `.eq("status", "visible")` |
 | Direct Supabase reads by a signed-in client | RLS `pint_drops_public_surface_select` | `rls_can_read_visit_report` requires `status = 'visible'`; `anon` is denied |
+
+Mission eligibility uses a separate private coverage read. The
+[price mission rules](rules/lib-prices-trust-and-drinks.md#a-price-evidence-mission-is-one-useful-community-price-task-never-a-reservation)
+own its treatment of hidden contributions.
 
 `GET /api/pint-drops` answers `no-store`, so there is no CDN copy to purge. A
 browser that already has the venue sheet open keeps the drop on screen until
