@@ -632,7 +632,7 @@ Before launch, prove that `plan_invite_sent`, `plan_accepted`, `crew_committed` 
 
 1. Make the events. Use two browsers: the host, and a second phone or a private window as the guest. In each browser, accept analytics in the consent bar and turn off Do Not Track, because each of the two stops every event.
    1. Host: make a plan on `/plan` and lock it in. This sends `plan_accepted`.
-   2. Host: send the invite with "Send on WhatsApp" or "Copy invite link". This sends `plan_invite_sent`.
+   2. Host: use "Send on WhatsApp" for this check. Read copy actions separately under the [invitation definitions](analytics/METRICS.md#32-invitation-response-measures).
    3. Guest: open the invite and join, or RSVP Going. The second person on the plan sends `crew_committed`.
    4. Host: in night mode, end the night and save the ending. This sends `plan_completed`.
 2. Wait five minutes. Then run this HogQL in PostHog's SQL editor (`https://eu.posthog.com/project/219466`), with the first 7 characters of the commit in the release line (8.3.3) in place of `<release>`:

@@ -173,10 +173,19 @@ describe("what may win a cheapest line", () => {
       row({ drinkLabel: "Neck Oil half", priceGbp: 1.85 }),
       row({ servingSize: "half", drinkLabel: "Pale", priceGbp: 1.9 }),
       row({ servingSize: "Btl", drinkLabel: "Peroni", priceGbp: 1.95 }),
+      row({ drinkLabel: "Peroni 330ml", priceGbp: 1.98 }),
+      row({ drinkLabel: "Pale Ale bottle", priceGbp: 1.99 }),
       row({ drinkLabel: "Half Moon IPA", priceGbp: 4.4 }),
     ]);
     // "Half Moon IPA" is a beer's name, not a measure, so it stands at its own figure.
     expect(pints.map((pint) => pint.priceGbp)).toEqual([4.4]);
+  });
+
+  it("keeps explicit non-pint servings out of London's hunt", () => {
+    const half = londonVenue("venue-lon2", "The Test Arms", 2);
+    half.prices[0]!.measure = "half";
+    const bottle = londonVenue("venue-lon3", "The Test Inn", 2.1, { pintName: "Peroni 330ml" });
+    expect(londonHuntPints([half, bottle], NOW)).toEqual([]);
   });
 
   it("never names a bar the public cannot walk into", () => {

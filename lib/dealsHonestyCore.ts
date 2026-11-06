@@ -2,7 +2,8 @@
 //
 // The deal kind already carries everything this module needs: `endsAt` (every
 // row in public/data/whats_on/deals_london.json has one, because a deal window
-// is exact) and `observedAt` (the listing file's own generatedAt). So nothing
+// is exact) and `observedAt` (the day the deal's source was checked, not the
+// day the file was built; see WETHERSPOONS_DEALS_OBSERVED_AT). So nothing
 // here derives a figure. It reads what the row says, or it says nothing.
 //
 // Three jobs, all pure so any surface can compose them:

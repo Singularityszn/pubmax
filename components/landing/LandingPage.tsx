@@ -291,6 +291,7 @@ export default function LandingPage({
               <Link prefetch={false} href="/near">Find my pint</Link>
               <Link prefetch={false} href="/tonight">Tonight</Link>
               <Link prefetch={false} href="/plan">Plan a night</Link>
+              <Link prefetch={false} href="/crawls">London pub crawl routes</Link>
             </div>
             <div className="lpFooterCol">
               <h2>More</h2>

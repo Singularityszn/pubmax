@@ -98,7 +98,7 @@ export default function LastCrewInvite({
     } else if (outcome === "failed") {
       try {
         await navigator.clipboard.writeText(message);
-        trackEvent("plan_invite_sent", { channel: "copy" });
+        trackEvent("plan_invite_link_copied");
         trackEvent("next_night_committed", nextNightCommittedProps("crew-reinvite", crew));
         setStatus("Invite copied. Paste it to the usual lot.");
       } catch {
