@@ -1,4 +1,5 @@
 import type { CityId } from "@/lib/cities";
+import { isVerifiedClosedCuratedVenue } from "@/lib/verifiedClosedPubs";
 
 type MapSearchCity = {
   id: CityId;
@@ -101,7 +102,7 @@ export function buildMapSearchIndex(
   for (const pack of packs) {
     if (!knownCities.has(pack.cityId)) continue;
     for (const venue of pack.venues) {
-      if (!venue.id || !venue.name) continue;
+      if (!venue.id || !venue.name || isVerifiedClosedCuratedVenue(venue.id)) continue;
       venues.push({
         id: venue.id,
         name: venue.name,

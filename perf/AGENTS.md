@@ -20,3 +20,4 @@ Full rules: [`docs/rules/perf-budgets-and-measured-findings.md`](../docs/rules/p
 - [A ROUTE THE SITEMAP ADVERTISES CARRIES A BUDGET.](../docs/rules/perf-budgets-and-measured-findings.md#a-route-the-sitemap-advertises-carries-a-budget)
 - [Speed is a number, and the number is enforced.](../docs/rules/perf-budgets-and-measured-findings.md#speed-is-a-number-and-the-number-is-enforced)
 - [A ROUTE THAT REDIRECTS IS MEASURED AS A REDIRECT, NEVER AS ITS TARGET.](../docs/rules/perf-budgets-and-measured-findings.md#a-route-that-redirects-is-measured-as-a-redirect-never-as-its-target)
+- [THE BASEMAP ALREADY RIDES A CDN, SO THE FIRST TILE IS WON IN THE ENGINE, NOT ON THE WIRE.](../docs/rules/perf-budgets-and-measured-findings.md#the-basemap-already-rides-a-cdn-so-the-first-tile-is-won-in-the-engine-not-on-th)

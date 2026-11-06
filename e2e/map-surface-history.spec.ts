@@ -7,7 +7,6 @@ import {
 } from "./helpers/mapSurfaceDrawers";
 import {
   expectMapToolbarReady,
-  mapToolbar,
   selectFirstToolbarVenue,
 } from "./helpers/mapToolbar";
 
@@ -65,6 +64,7 @@ async function openMap(page: Page, path = "/map"): Promise<void> {
   await expectMapToolbarReady(page);
 }
 
+<<<<<<< HEAD
 async function selectToolbarVenue(page: Page, query = "The French House"): Promise<void> {
   const search = mapToolbar(page).getByRole("combobox", { name: "Search places" });
   const option = page
@@ -80,6 +80,8 @@ async function selectToolbarVenue(page: Page, query = "The French House"): Promi
   }).toPass({ timeout: 60_000 });
 }
 
+=======
+>>>>>>> origin/main
 function planner(page: Page) {
   return desktopPlannerDrawer(page);
 }
@@ -265,7 +267,7 @@ test.describe("one Map surface history owner", () => {
     await prepareMap(page);
     await page.goto("/tonight", { waitUntil: "domcontentloaded" });
     await openMap(page, "/map?history-race=1");
-    await selectToolbarVenue(page);
+    await selectFirstToolbarVenue(page, "The French House");
     await expectSoleDrawer(page, "venue");
     await expect(page).toHaveURL(/\/map\?.*sel=/);
 

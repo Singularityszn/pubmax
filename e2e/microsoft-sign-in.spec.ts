@@ -16,7 +16,22 @@ function serveCanonicalOriginLocally(page: import("@playwright/test").Page, base
 }
 
 function stubSupabaseSettings(page: import("@playwright/test").Page, external: Record<string, boolean>) {
-  return page.route(`${SUPABASE_HOST}/**`, async (route) => {
+  return Promise.all([
+    page.route("**/api/auth/providers**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        headers: {
+          "cache-control": "public, max-age=0, s-maxage=300, stale-while-revalidate=60",
+        },
+        body: JSON.stringify({
+          google: external.google === true,
+          apple: external.apple === true,
+          microsoft: external.azure === true,
+        }),
+      });
+    }),
+    page.route(`${SUPABASE_HOST}/**`, async (route) => {
     const url = route.request().url();
     if (url.includes("/auth/v1/settings")) {
       await route.fulfill({
@@ -37,7 +52,8 @@ function stubSupabaseSettings(page: import("@playwright/test").Page, external: R
       headers: { "access-control-allow-origin": "*" },
       body: "{}",
     });
-  });
+    }),
+  ]);
 }
 
 test.describe("Microsoft sign-in button", () => {

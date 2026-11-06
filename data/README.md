@@ -49,7 +49,11 @@ because `public/data/pint_prices_app_dataset.json` is LAYERED - the outer-London
 OSM merge, the Wikipedia London list and the two gazetteer seeds add rows the CSV
 does not carry. A plain re-export publishes 2,719 rows over the 3,761 committed
 ones, so the export now refuses that loss unless `--allow-row-loss` says it is
-intended.
+intended. The amenity cells stamped from each pub's own website are layered too:
+the CSV does not carry them and the row-loss guard cannot see them, so after a
+re-export run `npm run harvest:pub-website-amenities -- --restamp`. It stamps
+`data/amenities/london_pub_website_evidence.json` back onto the dataset with no
+fetch and no model call; the script header owns the details.
 
 The 2026-09-04 re-collection read 964 pages with no errors and re-observed 2,624
 of the 2,788 priced rows (94.1%); 55 prices had moved. The other 164 priced rows
@@ -169,7 +173,7 @@ python3 scripts/build_app_dataset.py
 
 ## Shapes
 
-Five committed files are probed by hand often enough to write down. Paths are from the repo root.
+Six committed files are probed by hand often enough to write down. Paths are from the repo root.
 
 | File | Top-level shape | Fields a row carries | Gotcha |
 | --- | --- | --- | --- |
@@ -178,3 +182,4 @@ Five committed files are probed by hand often enough to write down. Paths are fr
 | `public/data/venues_slim.core.json`, `public/data/venues_slim.cell.*.json`, `public/data/cities/*/venues_slim.json`, `public/data/cities/*/venues_slim.core.json` | `{revision, rows}` | `id`, `name`, `lat`, `lng` | Same row pack as the index, without `generatedAt`. |
 | `public/data/venues_slim.manifest.json` | `{version, revision, grid, shards}` | shard: `id`, `core`, `partition`, `url`, `count`, `bbox` | The list is `shards`, not `files` or `cells`. `grid` is the step (`originLat`, `originLon`, `latStep`, `lonStep`), not the cells. A city manifest (`public/data/cities/*/venues_slim.manifest.json`) is `{version, revision, shards}` with no `grid`. |
 | `data/osm/uk/chunks.json` | object | `chunkStats` rows: `id`, `bbox`, `elements`, `timestamp` | `chunks` is a count, not an array. The cells are `chunkStats`. There is no `grid` key. |
+| `data/coffee_pilot/shoreditch.json` | `{version, area, checkedOn, rows}` | `venueId`, `venueName`, `drink`, `priceGbp`, `sourceUrl`, `observedAt`, `standing` | `rows` may be empty. `drink` is `flat white`, `latte` or `matcha latte`. `standing` is `listed`. No `cheapestPrice`. The map does not read this file. |

@@ -81,7 +81,9 @@ pin reveal at 10,581.5 ms:
   pins ready to reveal, 79.6% of the measured browser-clock wait.
 - The deliberate phone compositor guard is the final 500 ms of that lane. The
   preceding 7,162.5 ms is waiting for MapLibre's basemap, GeoJSON worker/source,
-  and confirmed render path.
+  and confirmed render path. Superseded 2026-10-03: the fixed 500 ms guard is
+  now two animation frames after the render that includes the visible pins
+  (`PHONE_PIN_COMPOSITE_CONFIRM_FRAMES` in `components/PubMapCanvas.tsx`).
 
 This run ended through the `tiles` path, not the 12-second readiness ceiling.
 Current marks do not distinguish whether basemap tile paint or `pubs` source

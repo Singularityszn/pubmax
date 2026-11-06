@@ -70,6 +70,10 @@ function buildBaseScratch(): string {
     join(scratchScripts, "lib", "validateLateFoodEvidence.mjs"),
   );
   cpSync(
+    join(ROOT, "scripts", "lib", "coffeePilotRows.mjs"),
+    join(scratchScripts, "lib", "coffeePilotRows.mjs"),
+  );
+  cpSync(
     join(ROOT, "scripts", "lib", "slimShards.mjs"),
     join(scratchScripts, "lib", "slimShards.mjs"),
   );

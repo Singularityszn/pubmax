@@ -52,6 +52,7 @@ const GENERATED_PATHS = [
   /(?:^|\/)__generated__(?:\/|$)/,
   /(?:^|\/)[^/]+\.generated\.[^/]+$/,
   /^next-env\.d\.ts$/,
+  /^types\/database\.ts$/,
 ];
 /**
  * A GENERATED LANE MAY RIDE THE REVIEW THAT PRODUCED IT.
@@ -115,6 +116,17 @@ export const REGENERATED_LANES = [
     inputs: [
       /^scripts\/build_uk_pub_search_index\.mjs$/,
       /^data\/osm\/uk\/uk_osm_pubs\.json$/,
+    ],
+  },
+  {
+    id: "database_types",
+    output: /^types\/database\.ts$/,
+    inputs: [
+      /^scripts\/db\/generate-database-types\.mjs$/,
+      /^scripts\/db\/renderDatabaseTypes\.mjs$/,
+      /^scripts\/db\/introspect-public-schema\.sql$/,
+      /^scripts\/rls\/session-fixture\.sql$/,
+      /^supabase\/migrations\/.+\.sql$/,
     ],
   },
 ];

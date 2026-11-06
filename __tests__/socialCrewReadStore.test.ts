@@ -12,6 +12,7 @@ const trusted = vi.hoisted(() => ({
 vi.mock("@/lib/supabase", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/supabase")>()),
   requireSupabaseAdmin: () => ({ rpc: supabase.rpc }),
+  requireDynamicSupabaseAdmin: () => ({ rpc: supabase.rpc }),
 }));
 
 vi.mock("@/lib/trustedSigningKey.server", () => ({

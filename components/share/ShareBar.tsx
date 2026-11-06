@@ -2,7 +2,7 @@
 
 import { offlineOrMessage } from "@/lib/apiErrorMessage";
 
-import { useCallback, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import {
   readWebShareAvailable,
@@ -89,6 +89,10 @@ export default function ShareBar({ url, title, text, compact = false }: ShareBar
     serverWebShareAvailable,
   );
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // A bar that unmounts inside the copied flash takes its reset timer with it.
+  useEffect(() => () => {
+    if (resetTimer.current) clearTimeout(resetTimer.current);
+  }, []);
 
   const shareText = text?.trim() || title;
   const isPlanInvite = /^\/plan\/[^/?#]+/.test(url);
