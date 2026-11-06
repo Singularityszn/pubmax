@@ -3883,9 +3883,8 @@ export default function PlanComposer() {
     () => true,
     () => false,
   );
-  // The account boundary clears the stored drafts this form recovers from, but
-  // not the copy the mounted form holds. When the live account departs, the
-  // form is mounted again from the cleared storage (#2539).
+  // A departure must discard both mounted inputs and recovery candidates.
+  // Ignore storage and URL prefills for the rest of this composer's lifetime.
   const accountGeneration = useLiveAccountGeneration();
   useLayoutEffect(() => {
     if (accountGeneration === 0) return;

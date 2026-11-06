@@ -16,8 +16,8 @@
 // `resolveCanonicalIdentity` rewrites the handle on the next tick.
 //
 // WHAT IS NOT HERE: a device-only artifact that never claimed account backing.
-// A Night Profile typed on this device stays. A profile mirrored from an
-// account leaves with that account.
+// Night Profile clearing and provider sign-out retention follow
+// docs/rules/lib-identity-accounts-and-sessions.md.
 
 import {
   NIGHT_PROFILE_DEVICE_KEY,
