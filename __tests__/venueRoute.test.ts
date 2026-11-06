@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -33,6 +33,49 @@ beforeEach(() => {
 });
 
 describe("GET /api/venue/[id]", () => {
+  it("never attaches a later manifest identity to cached fallback rows", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "detail-identity-"));
+    const manifest = path.join(dir, "index.json");
+    setVenueDetailIndexFileForTests(manifest);
+    try {
+      const first = await GET(new Request("http://localhost/api/venue/venue-16pnwmm"), ctx("venue-16pnwmm"));
+      expect(first.status).toBe(200);
+      expect((await first.json()).priceDatasetDigest).toBeNull();
+      writeFileSync(manifest, JSON.stringify({ version: 1, detailsFile: "venue_details.jsonl", count: 0, venues: {}, priceDatasetDigest: "abcdefghijklmnopqrstuv" }));
+      const second = await GET(new Request("http://localhost/api/venue/venue-16pnwmm"), ctx("venue-16pnwmm"));
+      expect(second.status).toBe(200);
+      expect((await second.json()).priceDatasetDigest).toBeNull();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("does not attach a manifest identity to altered detail bytes", async () => {
+    const original = JSON.parse(readFileSync(path.join(ROOT, "data/generated/venue_detail_index.json"), "utf8")) as {
+      priceDatasetDigest: string; venues: Record<string, { offset: number; length: number; rowCount: number; rowDigest: string }>;
+    };
+    const id = "venue-16pnwmm";
+    const entry = defined(original.venues[id]);
+    const all = readFileSync(path.join(ROOT, "data/generated/venue_details.jsonl"));
+    const line = all.subarray(entry.offset, entry.offset + entry.length).toString("utf8");
+    const changed = line.replace(/("pint_name":".)/, "$1X");
+    expect(changed).not.toBe(line);
+    const dir = mkdtempSync(path.join(tmpdir(), "detail-changed-"));
+    try {
+      const details = path.join(dir, "rows.jsonl");
+      const manifest = path.join(dir, "index.json");
+      writeFileSync(details, changed);
+      writeFileSync(manifest, JSON.stringify({ version: 1, detailsFile: "venue_details.jsonl", count: 1,
+        priceDatasetDigest: original.priceDatasetDigest, venues: { [id]: { ...entry, offset: 0, length: Buffer.byteLength(changed) } } }));
+      setVenueDetailRowsFileForTests(details);
+      setVenueDetailIndexFileForTests(manifest);
+      const response = await GET(new Request(`http://localhost/api/venue/${id}`), ctx(id));
+      expect(response.status).toBe(200);
+      expect((await response.json()).priceDatasetDigest).toBeNull();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
   it("answers a pub that left the map as not found, unless the reader asks to name it", async () => {
     // The Duck, Birmingham: retired in public/data/cities/venue_id_aliases.json.
     const id = "venue-bhm-17j3xm7";
@@ -59,6 +102,8 @@ describe("GET /api/venue/[id]", () => {
     expect(Array.isArray(body.venue.prices)).toBe(true);
     expect(body.venue.prices.length).toBeGreaterThan(0);
     expect(body.venue.address.length).toBeGreaterThan(0);
+    const manifest = JSON.parse(readFileSync(path.join(ROOT, "data", "generated", "venue_detail_index.json"), "utf8")) as { priceDatasetDigest: string };
+    expect(body.priceDatasetDigest).toBe(manifest.priceDatasetDigest);
   });
 
   // WHAT THE BUNDLE HOLDS RIDES ON THE DETAIL THE SHEET ALREADY FETCHES, so a

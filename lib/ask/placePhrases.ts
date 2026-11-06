@@ -1,6 +1,4 @@
-import stationZones from "@/data/tfl_station_zones.json";
-import { NIGHT_AREAS } from "@/lib/nightAreas";
-import localityGazetteer from "@/public/data/london_localities.json";
+import placeNames from "@/lib/ask/placeNames.generated.json";
 
 /** Lower-case words only: "&" reads as "and", apostrophes drop, other marks split. */
 export function wordsOnly(value: string): string {
@@ -16,9 +14,9 @@ export function wordsOnly(value: string): string {
 export const PLACE_PHRASES: readonly string[][] = [
   ...new Set(
     [
-      ...NIGHT_AREAS.flatMap((area) => [area.name, ...area.aliases, ...area.transportAnchors]),
-      ...localityGazetteer.localities.map((locality) => locality.name),
-      ...stationZones.stations.map((station) => station.name),
+      ...placeNames.nightAreas.flatMap((area) => [area.name, ...area.aliases, ...area.transportAnchors]),
+      ...placeNames.localityNames,
+      ...placeNames.stationNames,
     ].map(wordsOnly),
   ),
 ]

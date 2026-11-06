@@ -321,7 +321,16 @@ test("on a short phone each step opens at the top with the progress bar and Skip
   const useLondon = page.getByRole("button", { name: "Use London" });
   const stage = page.locator(".firstRunStage");
   await expect(useLondon).toBeInViewport({ ratio: 1 });
-  await page.locator(".firstRunAreaList article").last().scrollIntoViewIfNeeded();
+  await expect(page.locator(".firstRunAreaList article")).toHaveCount(0);
+  await expect(page.getByText("PUBMAXX reviewed", { exact: true })).toHaveCount(0);
+  const londonCopy = page.locator(".firstRunLead");
+  await londonCopy.scrollIntoViewIfNeeded();
+  await expect(londonCopy).toBeInViewport({ ratio: 1 });
+  const copyBox = await londonCopy.boundingBox();
+  const actionBox = await useLondon.boundingBox();
+  expect(copyBox).not.toBeNull();
+  expect(actionBox).not.toBeNull();
+  expect(copyBox!.y + copyBox!.height).toBeLessThanOrEqual(actionBox!.y);
   const overflows = await stage.evaluate((node) => node.scrollHeight > node.clientHeight);
   if (overflows) {
     await expect.poll(() => stage.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);

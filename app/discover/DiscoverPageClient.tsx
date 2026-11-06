@@ -504,7 +504,6 @@ export function DiscoverBody({
                 prefetch={false}
                 className="catShowcase__link discoverLowNoLink"
                 href={lowNoMapHref}
-                aria-label="Explore low and no alcohol drinks"
               >
                 <span
                   className="catShowcase__swatch discoverLowNoBadge"

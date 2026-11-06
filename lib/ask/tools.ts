@@ -3,6 +3,7 @@
 
 import { DEFAULT_CITY_ID, parseCityId, type CityId } from "@/lib/cities";
 import { isIndependentAskTool, isVenueDiscoveryAsk, isVenueHoursQuestion, resolveAskJourney, resolveAskPriceIntent, routeAskDeterministically } from "@/lib/ask/router";
+import { isGenericMapAsk } from "@/lib/ask/routingPolicy";
 import { communityCategoryEvidence, listedPintEvidence } from "@/lib/ask/toolContract";
 import { formatGbp } from "@/lib/formatGbp";
 import { comparablePint } from "@/lib/comparablePint.mjs";
@@ -783,6 +784,19 @@ async function toolProposeMapAction(
   ctx: AskToolContext,
 ): Promise<AskToolResult> {
   const venueId = str(args.venueId);
+  // The plain map names no pub. Neither its leftover words nor a name a model
+  // attached may become one ("OK. Show me the map" once opened Me'An O'Brien's).
+  if (!venueId && isGenericMapAsk(ctx.query)) {
+    return {
+      ok: true,
+      tool: "propose_map_action",
+      data: null,
+      provenance: [],
+      cards: [],
+      proposals: [],
+      answerHint: "Open the map to see every listed pub.",
+    };
+  }
   const venues = await loadConciergeVenues(ctx.cityId);
   const venue =
     (venueId ? venues.find((v) => v.id === venueId) : null) ??
