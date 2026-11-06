@@ -9,7 +9,7 @@ and per-user opt-in exist.
 
 | Concern | File | Notes |
 | --- | --- | --- |
-| Delivery provider | `lib/emailProvider.ts` | `EmailProvider.send(messages)`; `noopEmailProvider` (active until keys) / `resendEmailProvider` (stub). `selectEmailProvider()` picks by env — same shape as `lib/pushProvider.ts` and `lib/storeBackend.ts`. |
+| Delivery provider | `lib/emailProvider.ts` | `EmailProvider.send(messages)`; `noopEmailProvider` (active until keys) / `resendEmailProvider` (stub). `selectEmailProvider()` picks by env — same shape as `lib/pushProvider.ts` and `lib/storeBackend.ts`. `isResendConfigured` and the digest script's send gate both read `lib/emailProviderConfigured.mjs`. |
 | Content generator + render | `lib/weeklyDigest.ts` | Pure + unit-tested. `generateWeeklyDigest(input)` → structured digest; `renderWeeklyDigestHtml` / `renderWeeklyDigestText`; `resolveDigestRecipients` (opt-in gate). Imports no store/env/fs. |
 | Trigger | `scripts/send_weekly_digest.mjs` + `.github/workflows/weekly-digest.yml` | Batch orchestration + safety gates. Cron is commented out until keys land; manual dispatch exercises the safe no-op. |
 

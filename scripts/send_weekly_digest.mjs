@@ -17,10 +17,10 @@
 // ── Why this stops short of sending (honest, like resendEmailProvider) ────────
 // The generator/renderer/provider live in TypeScript behind the "@/..." path
 // alias, which a plain .mjs cannot import. Rather than fork that tested logic
-// into drift-prone JS here, this script owns exactly the two runtime decisions
-// that DON'T belong in a pure lib — "is a provider configured?" and "who has
-// opted in?" — and documents the wiring the production drop-in performs. When
-// the owner wires delivery, the real send path becomes a tiny server entry
+// into drift-prone JS here, this script calls lib/emailProviderConfigured.mjs
+// for "is a provider configured?" and still owns "who has opted in?". It
+// documents the wiring the production drop-in performs. When the owner wires
+// delivery, the real send path becomes a tiny server entry
 // (e.g. a Next.js route handler or a `tsx`-run module) that does:
 //
 //   1. const provider = selectEmailProvider();                 // lib/emailProvider
@@ -42,6 +42,8 @@
 // Each row's venueId resolves to a borough via venues_slim.json so drops /
 // what's-on (which carry no borough) can be scoped to a user's area.
 
+import { isEmailProviderConfigured } from "../lib/emailProviderConfigured.mjs";
+
 const args = new Set(process.argv.slice(2));
 const DRY_RUN = args.has("--dry-run");
 
@@ -49,13 +51,7 @@ function log(msg) {
   console.info(`[send_weekly_digest] ${msg}`);
 }
 
-// Provider gate — mirrors lib/emailProvider.isResendConfigured. Kept in lockstep
-// by a test note; the pure lib is the authority the real send path imports.
-function isEmailProviderConfigured() {
-  return Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM);
-}
-
-// Recipient source gate — emails live only in Supabase Auth (profiles has no
+// Recipient source gate. Emails live only in Supabase Auth (profiles has no
 // email column). No admin client ⇒ no recipients can be resolved.
 function isRecipientSourceConfigured() {
   return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);

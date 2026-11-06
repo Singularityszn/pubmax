@@ -4,10 +4,11 @@
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { createElement } from "react";
+import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const venueLookup = vi.hoisted(() => ({ throwNext: false }));
 const requestHeaders = vi.hoisted(() => vi.fn(async () => new Headers()));
 const artifacts = vi.hoisted(() => ({
   manifest: "",
@@ -22,6 +23,27 @@ const artifacts = vi.hoisted(() => ({
 }));
 
 vi.mock("server-only", () => ({}));
+vi.mock("@/lib/venueDetailIndex", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/venueDetailIndex")>();
+  return {
+    ...actual,
+    lookupVenueDetail: (id: string, options?: Parameters<typeof actual.lookupVenueDetail>[1]) => {
+      if (venueLookup.throwNext) {
+        venueLookup.throwNext = false;
+        return Promise.reject(new Error("venue read threw"));
+      }
+      return actual.lookupVenueDetail(id, options);
+    },
+  };
+});
+vi.mock("next/og", () => ({
+  ImageResponse: class ImageResponse {
+    element: unknown;
+    constructor(element: unknown) {
+      this.element = element;
+    }
+  },
+}));
 vi.mock("next/headers", () => ({ headers: requestHeaders }));
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 vi.mock("@/components/venue/VenuePhotoWall", () => ({
@@ -85,6 +107,9 @@ vi.mock("fs", async (importOriginal) => {
   return { ...actual, promises, default: { ...actual, promises } };
 });
 
+import BarTabCard from "@/app/bar-tab/[id]/opengraph-image";
+import { clampOgText } from "@/lib/ogCardText";
+import type { VenueDetailArtifact } from "@/lib/venueDetailIndex";
 import BarTabPage, { generateMetadata as barTabMetadata } from "@/app/bar-tab/[id]/page";
 import LedgerPage, { generateMetadata as ledgerMetadata } from "@/app/ledger/[id]/page";
 import { __resetPintDrops, addPintDrop } from "@/lib/pintDrops";
@@ -98,6 +123,13 @@ const read = (file: string): string => readFileSync(join(ROOT, file), "utf8");
 const rows = JSON.parse(read("public/data/pint_prices_app_dataset.json")) as VenuePrice[];
 const venues = groupVenuePrices(rows);
 const venue = venues[0];
+const FAMOUS_BAR_ID = "bar-american-bar-savoy";
+const FAMOUS_BAR_NAME = "American Bar at The Savoy";
+const famousSeeds = JSON.parse(read("data/famous_venues/bars.json")) as NonNullable<
+  VenueDetailArtifact["famous"]
+>["seed"][];
+const famousSeed = famousSeeds.find((seed) => seed.id === FAMOUS_BAR_ID);
+if (!famousSeed) throw new Error("Committed famous-bar fixture is missing");
 const aliasDoc = JSON.parse(read("public/data/venue_id_aliases.json")) as {
   aliases: Record<string, string>;
 };
@@ -108,13 +140,31 @@ const mergedCanonical = venues.find((row) => row.id === aliasDoc.aliases[mergedI
 // file is written, and the pages still use the real lookup/cache/alias code.
 const fixtureVenues = new Map([venue, mergedCanonical].map((row) => [row.id, row]));
 const manifestEntries: Record<string, { offset: number; length: number; rowCount: number }> = {};
+const fixtureArtifacts: VenueDetailArtifact[] = [
+  ...Array.from(fixtureVenues.values(), (row) => ({ id: row.id, rows: row.prices })),
+  {
+    id: famousSeed.id,
+    famous: {
+      seed: famousSeed,
+      slim: {
+        id: famousSeed.id,
+        name: famousSeed.name,
+        lat: famousSeed.lat,
+        lng: famousSeed.lng,
+        cheapestPrice: famousSeed.anchor.price,
+        borough: famousSeed.borough,
+        kind: famousSeed.kind,
+      },
+    },
+  },
+];
 let details = "";
-for (const row of fixtureVenues.values()) {
-  const line = `${JSON.stringify({ id: row.id, rows: row.prices })}\n`;
-  manifestEntries[row.id] = {
+for (const artifact of fixtureArtifacts) {
+  const line = `${JSON.stringify(artifact)}\n`;
+  manifestEntries[artifact.id] = {
     offset: Buffer.byteLength(details, "utf8"),
     length: Buffer.byteLength(line, "utf8"),
-    rowCount: row.prices.length,
+    rowCount: artifact.rows?.length ?? 1,
   };
   details += line;
 }
@@ -124,6 +174,29 @@ async function render(page: (props: { params: Promise<{ id: string }> }) => Prom
   return renderToStaticMarkup(createElement(() => element as React.ReactElement));
 }
 
+function visibleText(node: ReactNode): string {
+  if (node == null || typeof node === "boolean") return "";
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(visibleText).join("");
+  if (typeof node === "object" && "props" in node) {
+    return visibleText((node as { props?: { children?: ReactNode } }).props?.children);
+  }
+  return "";
+}
+
+async function renderCard(id: string): Promise<string> {
+  const response = (await BarTabCard({
+    params: Promise.resolve({ id }),
+  })) as unknown as { element: ReactNode };
+  return visibleText(response.element);
+}
+
+function titleVenueName(title: unknown): string {
+  const named = String(title).match(/^The Bar Tab: (.+)\. PUBMAXXING$/)?.[1];
+  if (!named) throw new Error(`Bar Tab title did not name a pub: ${String(title)}`);
+  return named;
+}
+
 beforeEach(() => {
   // Exercise deployment semantics: failed manifests cannot fall back to the
   // raw development dataset and conceal unavailable detail reads.
@@ -131,7 +204,7 @@ beforeEach(() => {
   artifacts.manifest = JSON.stringify({
     version: 1,
     detailsFile: "venue_details.jsonl",
-    count: fixtureVenues.size,
+    count: fixtureArtifacts.length,
     venues: manifestEntries,
   });
   artifacts.details = details;
@@ -142,6 +215,7 @@ beforeEach(() => {
   artifacts.datasetReads = 0;
   artifacts.failAliases = false;
   artifacts.aliasReads = 0;
+  venueLookup.throwNext = false;
   requestHeaders.mockClear();
   resetVenueAliasesForTests();
   resetVenueDetailCachesForTests();
@@ -286,5 +360,167 @@ describe.each([
       expect(found.alternates?.canonical).toBe(`/ledger/${mergedCanonical.id}`);
     }
     expect(artifacts.datasetReads).toBe(0);
+  });
+});
+
+describe.each([
+  {
+    surface: "the Bar Tab",
+    page: BarTabPage,
+    metadata: barTabMetadata,
+    href: `/bar-tab/${encodeURIComponent(venue.id)}`,
+    notFoundLine: "on the tab",
+    titleClass: "barTabEmptyTitle",
+  },
+  {
+    surface: "the Ledger",
+    page: LedgerPage,
+    metadata: ledgerMetadata,
+    href: `/ledger/${encodeURIComponent(venue.id)}`,
+    notFoundLine: "in the ledger",
+    titleClass: "ledgerEmptyTitle",
+  },
+])("$surface when lookupCanonicalVenueId cannot read the alias file", ({ page, metadata, href, notFoundLine, titleClass }) => {
+  it("answers unavailable, reads again on the next request, and does not cache the failure", async () => {
+    // This id is in the dataset under its own key. The old page returned it
+    // without asking the alias file. The detail module asks first, so an
+    // unreadable alias file is unavailable, never a found pub and never the
+    // not-found card.
+    artifacts.failAliases = true;
+    const markup = await render(page, venue.id);
+    expect(markup).toContain("We could not load this pub");
+    // One route family, one heading structure: the not-found card on these two
+    // routes ships an h1, and this document must ship one too.
+    expect(markup).toMatch(
+      new RegExp(`<h1 class="${titleClass}">We could not load this pub</h1>`),
+    );
+    expect(markup).toContain("could not answer just now");
+    expect(markup).toContain(`href="${href}"`);
+    expect(markup).toContain("Try again");
+    expect(markup).not.toContain(notFoundLine);
+    expect(markup).not.toContain("moved");
+    // docs/VOICE.md: never a closed door.
+    expect(markup).not.toMatch(/check back later|try again later|please try again/i);
+    expect(artifacts.aliasReads).toBe(1);
+
+    // The unfurl claims nothing either way.
+    const failed = await metadata({ params: Promise.resolve({ id: venue.id }) });
+    expect(JSON.stringify(failed)).not.toContain(venue.name);
+    expect(failed.robots).toEqual({ index: false, follow: false });
+    expect(artifacts.aliasReads).toBe(2);
+
+    // The failure was not cached: the file is readable again, and this request
+    // opens it and finds the pub.
+    artifacts.failAliases = false;
+    const found = await metadata({ params: Promise.resolve({ id: venue.id }) });
+    expect(String(found.title)).toContain(venue.name);
+    expect(artifacts.aliasReads).toBe(3);
+  });
+
+  it("answers a missing id with the not-found card", async () => {
+    const markup = await render(page, "venue-does-not-exist");
+    expect(markup).toContain(notFoundLine);
+    expect(markup).not.toContain("We could not load this pub");
+  });
+
+  it("opens a famous-venue seed the dataset index does not hold", async () => {
+    const markup = await render(page, FAMOUS_BAR_ID);
+    expect(markup).toContain(FAMOUS_BAR_NAME);
+    // The found page keeps its own title class. The empty title is the
+    // not-found card and the unavailable surface. "on the tab" also appears
+    // in the found Bar Tab count, so that phrase is not the card.
+    expect(markup).not.toContain(`class="${titleClass}"`);
+    expect(markup).not.toContain("We could not load this pub");
+  });
+
+  it("answers unavailable when the alias read throws over a merged duplicate id, and reads again", async () => {
+    // The dataset parses; only the alias artifact fails. A merged duplicate id
+    // is not in the dataset under its own key, so the alias read decides, and a
+    // read we could not run may not be worded as a pub that is not here.
+    artifacts.failAliases = true;
+    const markup = await render(page, mergedId);
+    expect(markup).toContain("We could not load this pub");
+    expect(markup).not.toContain(notFoundLine);
+    expect(markup).not.toContain("moved");
+    expect(artifacts.aliasReads).toBe(1);
+
+    // Nothing was cached from that failure: the next request opens the file.
+    const again = await render(page, mergedId);
+    expect(again).toContain("We could not load this pub");
+    expect(artifacts.aliasReads).toBe(2);
+
+    // The file is readable again: the losing id opens its surviving pub.
+    artifacts.failAliases = false;
+    const resolved = await render(page, mergedId);
+    expect(resolved).not.toContain("We could not load this pub");
+    expect(resolved).toContain(mergedCanonical.name);
+  });
+});
+
+function ledgerStructuredAddress(markup: string): { addressRegion?: string } {
+  const match = markup.match(/<script type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/);
+  if (!match?.[1]) throw new Error("Ledger did not emit structured data");
+  const data = JSON.parse(match[1]) as { address?: { addressRegion?: string } };
+  return data.address ?? {};
+}
+
+describe("the Ledger structured address", () => {
+  it("names Manchester for a Manchester pub, and London for a London pub", async () => {
+    const manchester = await render(LedgerPage, "venue-mcr-iy010v");
+    expect(manchester).toContain("Grove Alehouse");
+    expect(ledgerStructuredAddress(manchester).addressRegion).toBe("Manchester");
+
+    const london = await render(LedgerPage, venue.id);
+    expect(ledgerStructuredAddress(london).addressRegion).toBe("London");
+  });
+});
+
+describe("the Bar Tab share card", () => {
+  it("names the same pub the page title names", async () => {
+    for (const id of [venue.id, mergedId, FAMOUS_BAR_ID]) {
+      const meta = await barTabMetadata({ params: Promise.resolve({ id }) });
+      const named = titleVenueName(meta.title);
+      const card = await renderCard(id);
+      const painted = clampOgText(named, 36, "A London pub", {
+        collapseWhitespace: true,
+        collapseBeforeFilter: true,
+      });
+      expect(painted, id).not.toBe("A London pub");
+      expect(card, id).toContain(painted);
+      if (id === FAMOUS_BAR_ID) expect(named).toBe(FAMOUS_BAR_NAME);
+    }
+  });
+
+  it("keeps the generic poster when the pub is missing", async () => {
+    const meta = await barTabMetadata({
+      params: Promise.resolve({ id: "venue-does-not-exist" }),
+    });
+    const card = await renderCard("venue-does-not-exist");
+    expect(meta.title).toBe("Bar Tab: PUBMAXXING");
+    expect(card).toContain("A London pub");
+    expect(card).not.toContain("the cheapest pint on the tab");
+  });
+
+  it("does not name a pub the page could not load", async () => {
+    artifacts.failAliases = true;
+    for (const { id, name } of [
+      { id: venue.id, name: venue.name },
+      { id: mergedId, name: mergedCanonical.name },
+    ]) {
+      const meta = await barTabMetadata({ params: Promise.resolve({ id }) });
+      const card = await renderCard(id);
+      expect(String(meta.title), id).not.toContain(name);
+      expect(card, id).not.toContain(name);
+      expect(card, id).toContain("A London pub");
+      expect(card, id).not.toContain("the cheapest pint on the tab");
+    }
+  });
+
+  it("keeps the generic poster when the venue read throws", async () => {
+    venueLookup.throwNext = true;
+    const card = await renderCard(venue.id);
+    expect(card).toContain("A London pub");
+    expect(card).not.toContain(venue.name);
+    expect(card).not.toContain("the cheapest pint on the tab");
   });
 });

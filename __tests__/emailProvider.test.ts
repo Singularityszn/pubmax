@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 // The email provider seam (lib/emailProvider.ts): env-based selection mirrors
 // storeBackend.selectStore and pushProvider.selectPushProvider. No live Resend —
 // selection is driven with vi.stubEnv, exactly like the push suite.
+import { isEmailProviderConfigured } from "@/lib/emailProviderConfigured.mjs";
 import {
   isResendConfigured,
   noopEmailProvider,
@@ -29,6 +30,21 @@ const MSG: EmailMessage = {
 
 afterEach(() => {
   vi.unstubAllEnvs();
+});
+
+describe("isEmailProviderConfigured", () => {
+  it("is false when both keys are absent, the way the digest script gates", () => {
+    vi.stubEnv("RESEND_API_KEY", "");
+    vi.stubEnv("EMAIL_FROM", "");
+    expect(isEmailProviderConfigured()).toBe(false);
+    expect(isResendConfigured()).toBe(false);
+  });
+
+  it("is true when both keys are set, the way the digest script gates", () => {
+    stubResendEnv();
+    expect(isEmailProviderConfigured()).toBe(true);
+    expect(isResendConfigured()).toBe(true);
+  });
 });
 
 describe("isResendConfigured", () => {
