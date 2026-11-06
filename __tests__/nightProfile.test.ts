@@ -123,6 +123,23 @@ describe("Night Profile contracts", () => {
     expect(confirmedNightProfileMerge(state, "keep-account").writesAccount).toBe(false);
   });
 
+  it("keeps a device-only drink category out of account merge conflicts", () => {
+    const device = {
+      ...DEFAULT_NIGHT_PROFILE_INPUT,
+      context: { ...DEFAULT_NIGHT_PROFILE_INPUT.context, drinkCategory: "wine" as const },
+    };
+    const account: NightProfile = {
+      ...DEFAULT_NIGHT_PROFILE_INPUT,
+      createdAt: "2026-11-06T12:00:00Z",
+      updatedAt: "2026-11-06T12:00:00Z",
+    };
+    expect(nightProfileMergeState(device, account)).toEqual({ kind: "none" });
+    expect(nightProfileMergeState({
+      ...device,
+      context: { ...device.context, budget: "value" },
+    }, account).kind).toBe("conflict");
+  });
+
   it("uses optimistic concurrency and keeps identical PUTs idempotent", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-07-16T20:00:00.000Z"));

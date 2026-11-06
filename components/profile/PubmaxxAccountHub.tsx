@@ -604,9 +604,8 @@ export default function PubmaxxAccountHub() {
     }
     setAccountNightProfile(body.profile);
     setNightProfileDraft(nightProfileInput(body.profile));
-    writeDeviceNightProfile(nightProfileInput(body.profile), undefined, "account");
-    setDeviceNightProfile(nightProfileInput(body.profile));
-    setMessage("Your device preferences are now on your account.");
+    setDeviceNightProfile(mirrorAccountNightProfileToDevice(body.profile));
+    setMessage("Your account preferences are saved. Your drink choice stays on this device.");
   }
 
   async function confirmPlanRecapClaim(
@@ -702,8 +701,7 @@ export default function PubmaxxAccountHub() {
     const input = nightProfileInput(body.profile);
     setAccountNightProfile(body.profile);
     setNightProfileDraft(input);
-    writeDeviceNightProfile(input, undefined, "account");
-    setDeviceNightProfile(input);
+    setDeviceNightProfile(mirrorAccountNightProfileToDevice(body.profile));
     setMessage("Night Profile saved to your account.");
   }
 

@@ -10,6 +10,7 @@ import type { CityId } from "@/lib/cities";
 import type { NightContext } from "@/lib/nightPlanning";
 import {
   NIGHT_PROFILE_DEVICE_KEY,
+  readDeviceNightProfileProvenance,
   type NightProfileDeviceSource,
 } from "@/lib/nightProfileDeviceProvenance";
 
@@ -79,6 +80,10 @@ export function mirrorAccountNightProfileToDevice(
   storage = browserStorage(),
 ): NightProfileInput | null {
   if (!account) return null;
+  const device = readDeviceNightProfile(storage);
+  if (device?.context.drinkCategory != null && readDeviceNightProfileProvenance(storage) === "device") {
+    return device;
+  }
   const input = nightProfileInput(account);
   // Stamped "account": this copy is the account's answer, so an account change
   // takes it with it (lib/deviceAccountIdentity.ts).
@@ -122,7 +127,8 @@ export function nightProfileMergeState(
   if (!device) return { kind: "none" };
   if (!account) return { kind: "device-only", device };
   const accountInput = nightProfileInput(account);
-  return JSON.stringify(device) === JSON.stringify(accountInput)
+  const syncedDevice = { ...device, context: { ...device.context, drinkCategory: accountInput.context.drinkCategory } };
+  return JSON.stringify(syncedDevice) === JSON.stringify(accountInput)
     ? { kind: "none" }
     : { kind: "conflict", device, account };
 }

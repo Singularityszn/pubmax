@@ -4,6 +4,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DEFAULT_NIGHT_PROFILE_INPUT, type NightProfileInput } from "@/lib/nightProfile";
+import { mirrorAccountNightProfileToDevice, writeDeviceNightContext, writeDeviceNightProfile } from "@/lib/nightProfileClient";
+import { clearDeviceAccountArtifacts } from "@/lib/deviceAccountIdentity";
 import { savedDrinkFromProfile, savedDrinkIsShowing } from "@/lib/savedDrinkPreference";
 
 const { profileState, authState, owners } = vi.hoisted(() => ({
@@ -64,10 +66,13 @@ describe("NearMeSavedDrink", () => {
     host = document.body.appendChild(document.createElement("div"));
     root = createRoot(host);
     authState.current = { signedIn: true };
+    profileState.current = { profile: null, status: "signed-out" };
+    localStorage.clear();
   });
   afterEach(() => {
     act(() => root.unmount());
     host.remove();
+    localStorage.clear();
     vi.unstubAllGlobals();
   });
 
@@ -77,7 +82,8 @@ describe("NearMeSavedDrink", () => {
   }
 
   it("offers the saved drink and switches the map only when tapped", () => {
-    profileState.current = { profile: profile({ drinkCategory: "wine" }), status: "ready" };
+    writeDeviceNightContext(profile({ drinkCategory: "wine" }).context, "london");
+    profileState.current = { profile: profile({}), status: "ready" };
     const onShow = render("beer");
     expect(host.textContent).toContain("Your saved drink is Wine.");
     expect(onShow).not.toHaveBeenCalled();
@@ -86,11 +92,15 @@ describe("NearMeSavedDrink", () => {
     expect(onShow).toHaveBeenCalledWith({ kind: "lane", category: "wine", label: "Wine" });
   });
 
-  it("shows nothing when the map already shows it, while loading, or when signed out", () => {
+  it("shows nothing without a device choice or when the map already shows it", () => {
     owners.length = 0;
     profileState.current = { profile: profile({ drinkCategory: "wine" }), status: "ready" };
+    render("beer");
+    expect(host.textContent).toBe("");
+    act(() => { writeDeviceNightContext(profile({ drinkCategory: "wine" }).context, "london"); });
     render("wine");
     expect(host.textContent).toBe("");
+    localStorage.clear();
     profileState.current = { profile: null, status: "loading" };
     render("beer");
     expect(host.textContent).toBe("");
@@ -98,7 +108,65 @@ describe("NearMeSavedDrink", () => {
     profileState.current = { profile: profile({ drinkCategory: "wine" }), status: "ready" };
     render("beer");
     expect(host.textContent).toBe("");
-    // A signed-out viewer never asks for a saved profile at all.
     expect(owners.at(-1)).toBeNull();
+  });
+
+  it.each([true, false])("offers this device's choice with signedIn=%s", (signedIn) => {
+    authState.current = { signedIn };
+    writeDeviceNightContext(profile({ drinkCategory: "wine" }).context, "london");
+    profileState.current = { profile: null, status: "unavailable" };
+    render("beer");
+    expect(host.textContent).toContain("Your saved drink is Wine.");
+    profileState.current = { profile: null, status: "loading" };
+    render("beer");
+    expect(host.textContent).toContain("Your saved drink is Wine.");
+  });
+
+  it("updates the offer when Plan changes the device choice", () => {
+    render("beer");
+    expect(host.textContent).toBe("");
+    act(() => { writeDeviceNightContext(profile({ drinkCategory: "wine" }).context, "london"); });
+    expect(host.textContent).toContain("Your saved drink is Wine.");
+    act(() => { writeDeviceNightContext(profile({ drinkCategory: "cider" }).context, "london"); });
+    expect(host.textContent).toContain("Your saved drink is Cider.");
+    act(() => { writeDeviceNightContext(profile({ drinkCategory: "beer" }).context, "london"); });
+    expect(host.textContent).toBe("");
+    act(() => { writeDeviceNightContext(profile({ drinkCategory: "wine" }).context, "manchester"); });
+    expect(host.textContent).toBe("");
+  });
+
+  it("keeps the account's alcohol-free choice ahead of the device category", () => {
+    writeDeviceNightContext(profile({ drinkCategory: "wine" }).context, "london");
+    profileState.current = { profile: profile({ zeroProof: true }), status: "ready" };
+    const onShow = render("beer");
+    expect(host.textContent).toContain("Your saved drink is Alcohol-free.");
+    act(() => host.querySelector("button")?.click());
+    expect(onShow).toHaveBeenCalledWith({ kind: "zero-proof", label: "Alcohol-free" });
+    authState.current = { signedIn: false };
+    render("beer");
+    expect(host.textContent).toContain("Your saved drink is Wine.");
+  });
+
+  it("retains a device category after an account import and sign-out", () => {
+    writeDeviceNightContext(profile({ drinkCategory: "wine" }).context, "london");
+    const account = { ...profile({}), createdAt: "2026-11-06T12:00:00Z", updatedAt: "2026-11-06T12:00:00Z" };
+    mirrorAccountNightProfileToDevice(account);
+    profileState.current = { profile: account, status: "ready" };
+    render("beer");
+    expect(host.textContent).toContain("Your saved drink is Wine.");
+    clearDeviceAccountArtifacts(localStorage, sessionStorage);
+    authState.current = { signedIn: false };
+    render("beer");
+    expect(host.textContent).toContain("Your saved drink is Wine.");
+  });
+
+  it("does not retain an account mirror after the account changes", () => {
+    writeDeviceNightProfile(profile({ zeroProof: true }), undefined, "account");
+    render("beer");
+    expect(host.textContent).toContain("Your saved drink is Alcohol-free.");
+    clearDeviceAccountArtifacts(localStorage, sessionStorage);
+    authState.current = { signedIn: false };
+    render("beer");
+    expect(host.textContent).toBe("");
   });
 });

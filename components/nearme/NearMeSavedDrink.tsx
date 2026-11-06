@@ -1,8 +1,10 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
 import { useAuth } from "@/components/auth/authContext";
 import { Button } from "@/components/ui/button";
 import type { DrinkCategory } from "@/lib/drinks";
+import { readDeviceNightProfile, subscribeDeviceNightProfile } from "@/lib/nightProfileClient";
 import { savedDrinkFromProfile, savedDrinkIsShowing, type SavedDrink } from "@/lib/savedDrinkPreference";
 import { useSavedNightProfile } from "@/lib/useSavedNightProfile";
 
@@ -16,18 +18,19 @@ export type NearMeSavedDrinkProps = {
   onShow: (saved: SavedDrink) => void;
 };
 
-/**
- * One line above the map's Near me list: the drink this account saved, and a
- * tap to show it on the map. It never switches the map by itself, so a drink
- * the reader picked this visit always stays theirs.
- */
 export default function NearMeSavedDrink({ cityId, drinkLane, noAlcoholView, onShow }: NearMeSavedDrinkProps) {
   const auth = useAuth();
   const accountId = auth.user?.id ?? auth.session?.user.id ?? "account";
   const ownerKey = auth.identityResolved && auth.providerAuthState === "authenticated"
     ? `${accountId}:${auth.accountRevision}` : null;
   const account = useSavedNightProfile(ownerKey);
-  const saved = account.status === "ready" ? savedDrinkFromProfile(account.profile, cityId) : null;
+  const deviceDrink = useSyncExternalStore(
+    subscribeDeviceNightProfile,
+    () => savedDrinkFromProfile(readDeviceNightProfile(), cityId),
+    () => null,
+  );
+  const accountDrink = account.status === "ready" ? savedDrinkFromProfile(account.profile, cityId) : null;
+  const saved = accountDrink?.kind === "zero-proof" ? accountDrink : deviceDrink;
   if (!saved || savedDrinkIsShowing(saved, { drinkLane, noAlcoholView })) return null;
   return (
     <div className="nmnSavedDrink">
