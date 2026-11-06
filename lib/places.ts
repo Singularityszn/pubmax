@@ -104,7 +104,7 @@ export type PlacesCityRow = {
   pricesListed: boolean;
   /** The capability profile's own sentence about prices. Never re-worded here. */
   pricesLine: string;
-  /** ISO collection date behind a listed price, or null when there is none. */
+  /** The capability profile's collection date, or null when the profile records none. */
   pricesAsOf: string | null;
   areaCount: number;
 };
@@ -126,11 +126,11 @@ export function placesCityRows(): PlacesCityRow[] {
 }
 
 /**
- * The rows the list screen shows: only cities whose prices are listed.
+ * City rows whose capability profile permits listed-price browsing.
  *
- * Every other enabled city keeps its panel (`/places?city=`), its map
- * (`/map/{city}`) and its search answer; it is just not listed as a choice
- * until there are prices behind it.
+ * An unavailable capability does not prove that a city has no collected prices.
+ * The current list screen opens London directly. Other enabled cities keep
+ * their panels (`/places?city=`), maps (`/map/{city}`) and search answers.
  */
 export function placesLiveCityRows(): PlacesCityRow[] {
   return placesCityRows().filter((row) => row.pricesListed);
