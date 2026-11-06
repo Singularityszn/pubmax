@@ -185,6 +185,7 @@ for (const theme of ["light", "dark"] as const) {
       expect(overflow, "Social horizontal overflow").toBeLessThanOrEqual(0);
       expect(await page.evaluate(() => localStorage.getItem("pubmaxx:analytics-consent:v1"))).toBe("denied");
       expect(beacons, "analytics fired without Allow").toEqual([]);
+      await test.info().attach("social-primary-enlarged-text", { body: await page.screenshot(), contentType: "image/png" });
 
       await primary.click();
       await expect(page).toHaveURL(/\/plan\/?$/);
@@ -341,6 +342,7 @@ for (const viewport of WIDTHS) {
       expect(paint.boxShadow === "none" || paint.boxShadow === "").toBe(true);
       expect(paint.borderRadius).toBe("0px");
       expect(beacons, "analytics fired before Allow").toEqual([]);
+      await test.info().attach("consent-and-first-answer", { body: await page.screenshot(), contentType: "image/png" });
 
       await prompt.getByRole("button", { name: "No thanks", exact: true }).click();
       await expect(prompt).toHaveCount(0);

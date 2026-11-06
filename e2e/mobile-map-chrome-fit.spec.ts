@@ -1384,6 +1384,35 @@ for (const width of [641, 1440]) {
 test.describe("story and credit placement", () => {
   test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: "block" });
 
+  test("320px story defers the price-coverage notice until dismissed", async ({ page }, testInfo) => {
+    await seedAnsweredConsentAndPal(page, true);
+    await installDeterministicMapBasemap(page);
+    await preparePhoneMap(page, VIEWPORTS[2], "reduce", "/map/glasgow?band=subcrawl");
+    const story = page.locator(".bandOnboardingChip");
+    const coverage = page.locator(".cityPubsOnlyNote");
+    await expect(story).toBeVisible();
+    await expect(coverage).toBeHidden();
+    await page.evaluate(() => document.fonts.ready);
+    const credit = page.locator(".appShell .mapStage .maplibregl-ctrl-attrib");
+    await credit.locator(".maplibregl-ctrl-attrib-button").click();
+    await expect(credit).toHaveClass(/maplibregl-compact-show/);
+    await expect.poll(() => credit.evaluate(element => element.getAnimations().length)).toBe(0);
+    await expect(coverage).toBeHidden();
+    await story.getByRole("button", { name: "Dismiss Place story intro" }).click();
+    await expect(story).toHaveCount(0);
+    await expect(coverage).toBeVisible();
+    await expect(coverage).toContainText("no prices yet");
+    await expect(coverage.getByRole("link")).toBeVisible();
+    await expect(credit).toHaveClass(/maplibregl-compact-show/);
+    const geometry = await page.evaluate(() => ({
+      credit: document.querySelector(".maplibregl-ctrl-attrib")!.getBoundingClientRect().toJSON(),
+      coverage: document.querySelector(".cityPubsOnlyNote")!.getBoundingClientRect().toJSON(),
+    }));
+    await testInfo.attach("story-coverage-geometry", { body: JSON.stringify(geometry), contentType: "application/json" });
+    await testInfo.attach("story-coverage", { body: await page.screenshot(), contentType: "image/png" });
+    expect(overlaps(geometry.credit, geometry.coverage), "the credit covers the city's price-coverage notice").toBe(false);
+  });
+
   for (const viewport of VIEWPORTS) {
     for (const consentVisible of [false, true]) {
       test(`${viewport.width}px story and credit stay clear with consent ${consentVisible ? "visible" : "answered"}`, async ({
@@ -1475,10 +1504,33 @@ test.describe("story and credit placement", () => {
             return { top: last.top, bottom: last.bottom, viewportTop: viewport.top, viewportBottom: viewport.bottom };
           });
           expect(lastLine.top).toBeGreaterThanOrEqual(lastLine.viewportTop);
-          expect(lastLine.bottom).toBeLessThanOrEqual(lastLine.viewportBottom);
+          // scrollHeight rounds to an integer, while Range keeps subpixels.
+          expect(lastLine.bottom).toBeLessThanOrEqual(lastLine.viewportBottom + 1);
           expect(await page.evaluate(() => ({ x: scrollX, y: scrollY }))).toEqual(documentScroll);
+          await storyText.focus();
           await page.keyboard.press("Home");
           await expect.poll(() => storyText.evaluate(element => element.scrollTop)).toBe(0);
+          if (textViewport.scrollHeight > textViewport.height) {
+            const textBox = (await storyText.boundingBox())!;
+            const session = await page.context().newCDPSession(page);
+            try {
+              await session.send("Input.synthesizeScrollGesture", {
+                x: textBox.x + textBox.width / 2,
+                y: textBox.y + textBox.height / 2,
+                yDistance: -160,
+                gestureSourceType: "touch",
+                speed: 300,
+              });
+              await expect.poll(() => storyText.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
+              expect(await page.evaluate(() => ({ x: scrollX, y: scrollY }))).toEqual(documentScroll);
+              await testInfo.attach("story-touch-scroll", { body: await page.screenshot(), contentType: "image/png" });
+            } finally {
+              await session.detach();
+            }
+            await storyText.focus();
+            await page.keyboard.press("Home");
+            await expect.poll(() => storyText.evaluate(element => element.scrollTop)).toBe(0);
+          }
           for (const action of await chip.getByRole("button").all()) {
             const box = (await action.boundingBox())!;
             expect(box.width).toBeGreaterThanOrEqual(44);

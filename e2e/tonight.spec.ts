@@ -741,6 +741,25 @@ test("a night of only excluded rows keeps pub suggestions and an event-scoped em
     "A Night at the Playhouse",
   );
   await expect(page.getByTestId("tonight-list")).toHaveCount(0);
+  await expect(page.getByTestId("tonight-chain-lanes")).toContainText("Curry Club");
+});
+
+// The advertised chain section must contain an eligible listing. An ended
+// deal cannot justify directing a reader to a section that is absent.
+test("an ended chain deal does not advertise chain listings below", async ({ page }) => {
+  const now = Date.now();
+  await mockTonightSpine(page, [{
+    ...jdwCurryClub(now),
+    startsAt: new Date(now - 3_600_000).toISOString(),
+    endsAt: new Date(now - 60_000).toISOString(),
+  }]);
+  await mockReadyEmptyOut(page);
+  await page.goto("/tonight");
+  await expect(page.getByTestId("listings-skeleton")).toHaveCount(0);
+  await expect(page.getByTestId("tonight-screen")).toHaveAttribute("data-listings-status", "empty");
+  await expectNoEventsWithPubSuggestions(page);
+  await expect(page.getByText("Chain listings are available below.")).toHaveCount(0);
+  await expect(page.getByTestId("tonight-chain-lanes")).toHaveCount(0);
 });
 
 // Site audit D8, 13 Sep 2026: desktop /tonight was one 784px column beside a
