@@ -101,11 +101,10 @@ export type UkPriceBundleRow = {
 };
 
 /**
- * Source-ledger observations with a printed item that contradicts its assigned
- * category, or a beer line whose printed measure is a half or a bottle and not a
- * pint. Keep the observations in site_harvest.jsonl for audit, but do not
- * let these exact claims become listed facts. Match the source and printed item
- * as well as category and price, so other drinks on these menus still publish.
+ * These reviewed claims have a printed item that contradicts the assigned
+ * category or insufficient evidence of a full pint. Keep the observations
+ * in site_harvest.jsonl for audit. Match the source and printed item as well
+ * as category and price so other drinks on these menus still publish.
  */
 const CATEGORY_QUARANTINE: ReadonlyArray<
   Pick<UkPriceBundleRow, "sourceUrl" | "category" | "priceGbp" | "drinkLabel">
@@ -285,6 +284,7 @@ const CATEGORY_QUARANTINE: ReadonlyArray<
   { sourceUrl: "https://venue5.com/banquet-hall-menu/", category: "soft-drink", priceGbp: 3.25, drinkLabel: "Pi\u00f1a Colada {Alcoholic}" },
   { sourceUrl: "https://venue5.com/banquet-hall-menu/", category: "soft-drink", priceGbp: 2.75, drinkLabel: `Soft Drinks Package ${String.fromCodePoint(0x2014)} Non-Veg Non-Veg Coke` },
   { sourceUrl: "https://venue5.com/banquet-hall-menu/", category: "soft-drink", priceGbp: 2.75, drinkLabel: "Water" },
+  { sourceUrl: "https://www.northwestwardho.co.uk/menu", category: "beer", priceGbp: 2.1, drinkLabel: "1/3" },
 ];
 
 export function isCategoryQuarantined(row: UkPriceBundleRow): boolean {
