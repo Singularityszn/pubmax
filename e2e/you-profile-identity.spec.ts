@@ -52,7 +52,7 @@ for (const mode of [
   test.describe(mode.name, () => {
     test.use({ viewport: mode.viewport, hasTouch: mode.touch, isMobile: mode.touch });
 
-    test("an account without a profile photo never borrows the provider picture", async ({ page }) => {
+    test("an account without a profile photo never borrows the provider picture", async ({ page }, testInfo) => {
       test.setTimeout(60_000);
       await storeThemeChoice(page, "light");
       const browserTime = Date.now();
@@ -135,6 +135,7 @@ for (const mode of [
         await expect.poll(() => heldProfileState().requested).toBeGreaterThan(0);
         expect(heldProfileState().completed).toBe(0);
         await expectSameDocument();
+        await page.screenshot({ path: testInfo.outputPath("switch-pending-profile.png") });
 
         const receivedProfile = page.waitForResponse(async (response) => {
           if (new URL(response.url()).pathname !== `/api/profiles/${ACCOUNTS.B.handle}` || response.status() !== 200) return false;
@@ -160,6 +161,7 @@ for (const mode of [
       await expect(loginCard.locator(".loginPageWho")).toHaveText(updatedSecondaryName);
       await expect(loginCard.locator(".loginPageHandle")).toHaveText(`@${ACCOUNTS.B.handle}`);
       await expect(loginCard.locator(".loginPageIdentity .authAvatarFallback")).toHaveText("KM");
+      await page.screenshot({ path: testInfo.outputPath("login-active-account-initials.png") });
 
       if (mode.touch) {
         // Signing out only B would activate the remembered A session.
