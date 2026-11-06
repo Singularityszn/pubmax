@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
+import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 import { expectMapLoadingFrameReleased, expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobileMapShell";
 import { storeThemeChoice } from "./helpers/themeClock";
@@ -158,39 +160,84 @@ async function expectPreviewState(page: Page, width: number, selected: boolean) 
 // share one line, and the bar is no taller than one 44px target plus its
 // padding. The 1100px cap once wrapped every inner page onto two rows here.
 for (const width of [1280, 1440, 1920]) {
-  test(`inner-page navigation is one row at ${width}px at default text`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 900 });
-    await page.addInitScript(() => {
-      localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
-    });
-    for (const path of ["/plan", "/tonight"]) {
-      await page.goto(path);
-      const header = page.locator(".siteNavBar");
-      await expect(header).toBeVisible();
-      await page.evaluate(() => document.fonts.ready);
-      await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe("16px");
-      const row = await header.evaluate((bar) => {
-        const centre = (node: Element) => {
-          const box = node.getBoundingClientRect();
-          return { top: box.top, bottom: box.bottom, middle: box.top + box.height / 2 };
-        };
-        const parts = [...bar.children].filter((node) => node.getBoundingClientRect().width > 0);
-        const doors = [...bar.querySelectorAll(".siteNavLinks a")];
-        const utilities = [...bar.querySelectorAll(".siteNavActions > *")].filter((node) => node.getBoundingClientRect().width > 0);
-        return {
-          height: bar.getBoundingClientRect().height,
-          middles: [...parts, ...doors, ...utilities].map((node) => centre(node).middle),
-          doors: doors.length,
-          utilities: utilities.length,
-        };
+  for (const signedIn of [false, true]) {
+    test(`inner-page navigation is one row at ${width}px at default text, ${signedIn ? "signed in with a 10ch Pal name" : "signed out"}`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await storeThemeChoice(page, "light");
+      await page.addInitScript(() => {
+        localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
       });
-      expect(row.doors, `${path}: doors`).toBe(6);
-      expect(row.utilities, `${path}: utilities`).toBeGreaterThan(0);
-      expect(row.height, `${path}: bar height`).toBeLessThanOrEqual(66);
-      const spread = Math.max(...row.middles) - Math.min(...row.middles);
-      expect(spread, `${path}: every part shares one row`).toBeLessThanOrEqual(1);
-    }
-  });
+      const palName = "WWWWWWWWWW";
+      if (signedIn) {
+        await installAuthDoubles(page);
+        const now = "2026-11-06T12:00:00.000Z";
+        const pal = {
+          ...DEFAULT_PAL_DRAFT,
+          id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+          ownerId: ACCOUNTS.A.id,
+          name: palName,
+          adultAttestedAt: now,
+          muted: false,
+          hidden: false,
+          proposalPreferences: {},
+          masteryPoints: 0,
+          createdAt: now,
+          updatedAt: now,
+        };
+        await page.route("**/api/pub-pal", (route) => route.fulfill({ json: { pal, adultOnFile: true } }));
+        await page.addInitScript((storedPal) => {
+          localStorage.setItem("pubmax_account_owner", storedPal.ownerId);
+          localStorage.setItem("pubmax_pub_pal_v1", JSON.stringify(storedPal));
+        }, pal);
+        await seedSignedIn(page, "A");
+      }
+      for (const path of ["/plan", "/tonight"]) {
+        await page.goto(path);
+        const header = page.locator(".siteNavBar");
+        await expect(header).toBeVisible();
+        await page.evaluate(() => document.fonts.ready);
+        await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe("16px");
+        if (signedIn) {
+          const pal = header.getByRole("link", { name: `Pub Pal, ${palName}`, exact: true });
+          await expect(pal).toBeVisible();
+          await expect(pal).toHaveText(palName);
+          await expect(header.getByRole("button", { name: /Account options/ })).toBeVisible();
+          await expectHitTarget(header.locator('a[href="/activity"]'));
+          await expectHitTarget(header.locator('a[href="/messages"]'));
+          await expectHitTarget(pal);
+          const label = pal.locator(".siteNavPalName");
+          const truncation = await label.evaluate((node) => ({
+            width: node.clientWidth,
+            contentWidth: node.scrollWidth,
+            overflow: getComputedStyle(node).textOverflow,
+          }));
+          expect(truncation.width).toBeGreaterThan(0);
+          expect(truncation.contentWidth).toBeGreaterThan(truncation.width);
+          expect(truncation.overflow).toBe("ellipsis");
+        }
+        const row = await header.evaluate((bar) => {
+          const centre = (node: Element) => {
+            const box = node.getBoundingClientRect();
+            return { top: box.top, bottom: box.bottom, middle: box.top + box.height / 2 };
+          };
+          const parts = [...bar.children].filter((node) => node.getBoundingClientRect().width > 0);
+          const doors = [...bar.querySelectorAll(".siteNavLinks a")];
+          const utilities = [...bar.querySelectorAll(".siteNavActions > *")].filter((node) => node.getBoundingClientRect().width > 0);
+          return {
+            height: bar.getBoundingClientRect().height,
+            middles: [...parts, ...doors, ...utilities].map((node) => centre(node).middle),
+            doors: doors.length,
+            utilities: utilities.length,
+          };
+        });
+        expect(row.doors, `${path}: doors`).toBe(6);
+        expect(row.utilities, `${path}: utilities`).toBeGreaterThan(0);
+        expect(row.height, `${path}: bar height`).toBeLessThanOrEqual(66);
+        const spread = Math.max(...row.middles) - Math.min(...row.middles);
+        expect(spread, `${path}: every part shares one row`).toBeLessThanOrEqual(1);
+      }
+    });
+  }
 }
 
 for (const theme of ["light", "dark"] as const) {
