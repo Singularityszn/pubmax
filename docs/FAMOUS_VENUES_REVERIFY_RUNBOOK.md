@@ -38,9 +38,22 @@ Anyone with a Google Places API key who can reach `places.googleapis.com`. The n
 2. Run `npm run verify:famous-venues -- --write`. Each row prints one outcome:
    - `CONFIRMED`: the row's `observedAt` and `expiresAt` move to today and today plus 30 days.
    - `CLOSED`: Places reports the venue permanently closed, so `--write` drops the row. The output names the ids to add to `data/famous_venues/removed.json`. Add them in the same change, or the next step refuses to drop a venue the last slim shipped.
-   - `UNVERIFIED`: no confident match, an ambiguous one, a temporary closure, or a price anchor that has moved. The row is left as it was and keeps its old `expiresAt`.
+   - `UNVERIFIED`: no confident match, an ambiguous one, a temporary closure, or a price anchor that fails the checks below. The row keeps its existing values, including its old `expiresAt`.
 
-   The run writes `data/famous_venues/verification_<today>.json`. It exits nonzero when any row is unverified, after writing. A failed Places call stops the run before anything is written. A second `--write` on the same day refuses to overwrite that day's file.
+   A confident Places match also needs a price anchor under one of the row's own source pages.
+   The verifier checks [source policy and robots permission](rules/scripts-harvest-and-source-permission.md) before sending one anchor HEAD request, which reads response headers.
+   Permission refusals and request failures produce `anchor_source_unreachable` and leave the row unverified.
+
+   The anchor HEAD never follows a redirect or requests its target.
+   A redirect that only adds or removes `www.` or a trailing slash still counts as the same page.
+   A missing or malformed redirect location, or a redirect to another page, produces `anchor_source_redirected` and leaves the row unverified.
+
+   The run writes `data/famous_venues/verification_<today>.json`.
+   A full run exits nonzero after writing if any row is unverified.
+   A `--write --limit N` batch records unverified rows and exits successfully.
+   A failed Places call stops the run before anything is written.
+   Without `--limit`, a second `--write` on the same day refuses to overwrite that day's file.
+   With `--limit`, today's checks count towards N, and new checks merge into the existing file.
 3. For each `UNVERIFIED` row, open its `sourceUrl` and decide:
    - **The venue still trades and the match was the problem.** Fix the row (name, address, `lat`/`lng` or `anchor`) and re-check it on a later day with `npm run verify:famous-venues -- --write --limit N`, where N is the number of rows you fixed. It cannot be re-checked the same day: the full run's checks count against `--limit`, so a same-day `--limit` run calls Places for nothing. On a later day the run takes rows oldest `observedAt` first, and an unverified row kept its old date while every confirmed row moved to the full run's day, so the rows it picks are the ones you fixed. Then repeat steps 4 to 8.
    - **The venue is gone.** Delete the row and add its id to `removed.json`.

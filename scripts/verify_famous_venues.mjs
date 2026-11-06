@@ -10,11 +10,8 @@
  *                --write drops it.
  *   unverified — anything else: no result, no confident or an ambiguous match,
  *                or a temporary closure. The row is left unchanged and listed.
- *                A Places match whose price anchor is missing, redirects to
- *                another page, or sits off the row's own source pages is
- *                unverified too, so a renewal never re-publishes a price from
- *                a page that moved on. A redirect that only adds or drops www.
- *                or a trailing slash is the same page.
+ *                A Places match also needs an acceptable price anchor. See
+ *                docs/FAMOUS_VENUES_REVERIFY_RUNBOOK.md for the renewal rules.
  *                A full run exits nonzero. A --limit batch records them and
  *                exits 0 so the next day can take the rows not yet checked.
  *
@@ -119,7 +116,7 @@ function canonicalPage(url) {
 
 const checkRobots = createRobotsChecker();
 
-/** Asks the anchor page only after source policy and robots permit it. */
+/** Keep redirects manual: permission for the anchor does not permit its target. */
 export async function headAnchorSource(url) {
   if (!isHarvestableOperatorUrl(url)) throw new Error("Source policy refused anchor URL");
   const permission = await checkRobots(url);
