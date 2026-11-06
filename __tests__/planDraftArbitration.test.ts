@@ -183,6 +183,22 @@ describe("requested-count recovery", () => {
     expect(resolveRequestedPlanIntent(plan, { ...plan.draft, requestedStopCount: 3 }, localCount(5, NOW + 1)).stopCount).toBeUndefined();
   });
 
+  it("requires agreement before restoring an undated request's picker count", () => {
+    const saved = v2Plan(NOW, { requestedStopCount: undefined });
+    const legacy: ParsedPlanDraft = { ...saved, storageVersion: 1, savedAt: null, expiresAt: null, legacy: true };
+    const picker = {
+      ...localCount(5, NOW + 1),
+      draft: { ...local.draft, answers: { ...local.draft.answers, stopCount: 5 as const, stopCountSource: "picker" as const } },
+    };
+    expect(resolveRequestedPlanIntent(legacy, legacy.draft, picker)).toEqual({
+      stopCount: undefined, conciergeQuery: "", descriptionUnavailable: true,
+    });
+    const matching = { ...legacy, draft: { ...legacy.draft, requestedStopCount: 5 as const } };
+    expect(resolveRequestedPlanIntent(matching, matching.draft, picker)).toEqual({
+      stopCount: 5, conciergeQuery: "", descriptionUnavailable: true,
+    });
+  });
+
   it("discards a description when only newer local intent survives", () => {
     const stale = v2Plan(NOW, { conciergeQuery: "Six pubs in Clapham tonight", requestedStopCount: 6 });
     const unknown = { ...local, savedAt: new Date(NOW + 1).toISOString() };
@@ -1035,7 +1051,7 @@ describe("request-only recovery", () => {
       .toMatchObject({ requestOnly: !routeWins, routeWins, acceptanceUnavailable: !routeWins });
   });
 
-  function expiredGeneration(malformedProof = false) {
+  function expiredGeneration(malformedProof = false, format: "v1" | "v2" = "v1") {
     const session = memoryStorage();
     const local = memoryStorage();
     const routeTime = NOW + 1000;
@@ -1044,7 +1060,7 @@ describe("request-only recovery", () => {
     const nightContext = { ...inferNightContext("Clapham tonight").context, stopCount: 3 as const };
     expect(writePlanDraftEnvelope(cleared, "manual", session, NOW).v2).toBe(true);
     expect(writePlanRouteDraftEnvelope(routeValue({ nightContext, groundingProof: proof }), "plan-generated", local, routeTime).v1).toBe(true);
-    local.removeItem(PLAN_ROUTE_DRAFT_V2_KEY);
+    if (format === "v1") local.removeItem(PLAN_ROUTE_DRAFT_V2_KEY);
     const savedAt = new Date(routeTime).toISOString();
     const blank = createPlanIntakeDraft();
     expect(writePlanIntakeDraft({ ...blank, answers: { ...blank.answers, area: "clapham", stopCount: 3, stopCountSource: "text" } },
@@ -1058,7 +1074,7 @@ describe("request-only recovery", () => {
     const plan = readPlanDraftEnvelope(session, readAt)!;
     const route = readPlanRouteDraftEnvelope(local, readAt)!;
     const intake = readPlanIntakeDraftWithMetadata(local, readAt)!;
-    expect(route).toMatchObject({ savedAt, legacy: true, value: {
+    expect(route).toMatchObject({ savedAt, legacy: format === "v1", value: {
       groundingProof: null, operationKey: "operation-1", routeStale: true,
     } });
     return { plan, legacyDraft: plan.draft, intake, route, freshRoute, proof, readAt, session, local };
@@ -1078,6 +1094,235 @@ describe("request-only recovery", () => {
       intakeDraft: input.intake, retainedPreviewReference: input.intake.routeReference,
     });
     expect(recovered.intent.stopCount).toBe(3);
+  });
+
+  it.each(["v1", "v2"] as const)("retains a correlated expired %s route without Session", (format) => {
+    const { intake, route, freshRoute } = expiredGeneration(false, format);
+    const input = { plan: null, legacyDraft: null, intake, route };
+    expect(recoverPlanDrafts({ ...input, route: freshRoute })).toMatchObject({
+      requestOnly: false, routeWins: true, acceptanceUnavailable: false, retainedPreviewReference: null,
+    });
+    expect(recoverPlanDrafts(input)).toMatchObject({
+      requestOnly: false, routeWins: true, acceptanceUnavailable: true, planDraft: null, planningIntent: null,
+      retainedPreviewReference: intake.routeReference, intakeDraft: intake,
+      intent: { stopCount: 3, stopCountSource: "text", explicitNightContext: { nightArea: "clapham" },
+        conciergeQuery: "", descriptionUnavailable: true },
+    });
+  });
+
+  it("recovers explicit legacy inputs when the correlated intake has no input map", () => {
+    const { intake, route } = expiredGeneration();
+    const explicitNightContext = { zeroProof: true, drinkCategory: null };
+    const input = {
+      plan: null, legacyDraft: null,
+      intake: { ...intake, explicitNightContext: undefined },
+      route: { ...route, explicitNightContext },
+    };
+    expect(recoverPlanDrafts(input)).toMatchObject({
+      acceptanceUnavailable: true,
+      retainedPreviewReference: intake.routeReference,
+      intent: { explicitNightContext, stopCount: 3, stopCountSource: "text", descriptionUnavailable: true },
+    });
+  });
+
+  it.each(["v1", "v2"] as const)("starts from a newer accepted pub before an expired local %s route", (format) => {
+    const { intake, route, readAt, freshRoute } = expiredGeneration(false, format);
+    const planningIntent = createPlanningIntent(options, readAt)!;
+    const input = { plan: null, legacyDraft: null, intake, route, planningIntent };
+    expect(recoverPlanDrafts(input)).toMatchObject({
+      routeWins: false, requestOnly: true, preserveStoredDrafts: true,
+      planningIntent: { acceptedVenueId: options.acceptedVenueId, acceptedAt: new Date(readAt).toISOString() },
+      intakeDraft: null, requestIntake: null, retainedPreviewReference: null,
+    });
+    expect(recoverPlanDrafts({ ...input, intake: null })).toMatchObject({
+      routeWins: false, requestOnly: true, preserveStoredDrafts: true, planningIntent,
+    });
+    expect(recoverPlanDrafts({ ...input, route: freshRoute })).toMatchObject({
+      routeWins: true, requestOnly: false, planningIntent: null,
+    });
+    const sameDate = createPlanningIntent(options, Date.parse(intake.savedAt));
+    expect(recoverPlanDrafts({ ...input, planningIntent: sameDate })).toMatchObject({
+      routeWins: true, requestOnly: false, planningIntent: null, retainedPreviewReference: intake.routeReference,
+    });
+    expect(recoverPlanDrafts({ ...input, route: { ...route, ambiguous: true } })).toMatchObject({
+      requestOnly: false, planningIntent: null, retainedPreviewReference: null,
+    });
+    expect(recoverPlanDrafts({ ...input, intake: { ...intake, savedAt: new Date(readAt + 1).toISOString() } })).toMatchObject({
+      routeWins: true, requestOnly: false, planningIntent: null,
+    });
+  });
+
+  it.each(["v1", "v2"] as const)("keeps a saved provisional %s pub as a request before and after release", (format) => {
+    const { intake, route, readAt } = expiredGeneration();
+    const intent = createPlanningIntent(options, readAt)!;
+    const editedAt = readAt + 1000;
+    const session = memoryStorage({ throwOnSet: format === "v1" ? 2 : undefined });
+    const namedStop = { key: 1, venueId: intent.acceptedVenueId, venueName: "Our pub" };
+    const accepted = storedPlan({
+      title: "Our title", stops: [namedStop], provisionalStop: true, acceptedAnchor: {
+        venueId: intent.acceptedVenueId, source: intent.source, cityId: intent.cityId,
+        acceptedArea: intent.acceptedArea, startsAt: intent.startsAt, expiresAt: intent.expiresAt,
+      },
+    });
+    expect(writePlanDraftEnvelope(accepted, "planning-intent", session, editedAt)).toMatchObject({
+      v1: true, v2: format === "v2",
+    });
+    const plan = readPlanDraftEnvelope(session, editedAt)!;
+    const legacyDraft = parsePlanDraftEnvelope(null, session.getItem(PLAN_DRAFT_KEY), editedAt)!.draft;
+    const input = { plan, legacyDraft, intake, route, planningIntent: intent };
+    expect(recoverPlanDrafts(input)).toMatchObject({
+      requestOnly: true, provisionalRequest: true, preserveStoredDrafts: true,
+      recoveredDraft: { title: "Our title", stops: [namedStop] }, planDraft: { savedAt: plan.savedAt },
+      intakeDraft: null,
+    });
+    expect(recoverPlanDrafts({ ...input, route: null })).toMatchObject({
+      requestOnly: true, provisionalRequest: true, preserveStoredDrafts: true,
+      recoveredDraft: { stops: [namedStop], provisionalStop: true },
+      planningIntent: intent, intakeDraft: null,
+    });
+    expect(recoverPlanDrafts({ ...input, legacyDraft: { ...legacyDraft, acceptedAnchor: undefined } }).provisionalRequest).toBe(false);
+    if (format === "v2") {
+      expect(recoverPlanDrafts({ ...input, legacyDraft: null, legacyDraftMissing: true })).toMatchObject({
+        requestOnly: true, provisionalRequest: true, planningIntent: intent,
+        recoveredDraft: { title: "Our title", stops: [namedStop] },
+      });
+      expect(recoverPlanDrafts({ ...input, legacyDraft: null }).provisionalRequest).toBe(false);
+      const differentDate = { ...legacyDraft, provisionalSavedAt: new Date(editedAt - 1).toISOString() };
+      expect(recoverPlanDrafts({ ...input, legacyDraft: differentDate, legacyDraftMissing: true }).provisionalRequest).toBe(false);
+      session.setItem(PLAN_DRAFT_KEY, JSON.stringify({ ...legacyDraft, provisionalStop: undefined, provisionalSavedAt: undefined }));
+      const unmarkedLegacy = parsePlanDraftEnvelope(null, session.getItem(PLAN_DRAFT_KEY), editedAt)!.draft;
+      expect(readPlanDraftEnvelope(session, editedAt)?.draft.provisionalStop).toBe(true);
+      expect(recoverPlanDrafts({ ...input, legacyDraft: unmarkedLegacy })).toMatchObject({
+        provisionalRequest: false, retainedPreviewReference: null, planningIntent: null,
+      });
+    }
+
+    const releasedDraft = { ...legacyDraft, acceptedAnchor: undefined, routeReference: null };
+    const released = { ...plan, draft: releasedDraft };
+    const releasedInput = { ...input, plan: released, legacyDraft: releasedDraft, planningIntent: null };
+    expect(recoverPlanDrafts(releasedInput)).toMatchObject({
+      requestOnly: true, provisionalRequest: true, preserveStoredDrafts: true,
+      recoveredDraft: { stops: [namedStop], routeReference: null }, planningIntent: null,
+    });
+    // The same one-stop shape can be a genuine route edit whose Local save
+    // refused. Its older, different Local route cannot establish provenance.
+    const genuineEdit = { ...releasedDraft, provisionalStop: undefined, provisionalSavedAt: undefined };
+    expect(recoverPlanDrafts({ ...releasedInput, plan: { ...released, draft: genuineEdit }, legacyDraft: genuineEdit })).toMatchObject({
+      requestOnly: false, provisionalRequest: false,
+    });
+  });
+
+  it.each([
+    { transition: "released" },
+    { transition: "expired acceptance" },
+  ] as const)(
+    "orders Local generation after a dated $transition provisional request",
+    ({ transition }) => {
+      const intent = createPlanningIntent({ ...options, acceptedVenueId: "venue-a" }, NOW)!;
+      const generationAt = Date.parse(intent.expiresAt) - 1000;
+      const reloadAt = Date.parse(intent.expiresAt);
+      const session = memoryStorage({ throwOnSet: 2 });
+      const local = memoryStorage();
+      const anchor = transition === "released" ? undefined : {
+        venueId: intent.acceptedVenueId, source: intent.source, cityId: intent.cityId,
+        acceptedArea: intent.acceptedArea, startsAt: intent.startsAt, expiresAt: intent.expiresAt,
+      };
+      const provisional = storedPlan({
+        stops: [{ key: 1, venueId: intent.acceptedVenueId, venueName: "Held pub" }],
+        acceptedAnchor: anchor, provisionalStop: true, routeReference: anchor ? undefined : null,
+      });
+      expect(writePlanDraftEnvelope(provisional, anchor ? "planning-intent" : "manual", session, NOW + 1000))
+        .toMatchObject({ v1: true, v2: false });
+      const plan = readPlanDraftEnvelope(session, reloadAt)!;
+      expect(plan).toMatchObject({ savedAt: null, legacy: true, draft: { provisionalStop: true } });
+      expect(plan.draft.acceptedAnchor).toBeUndefined();
+      expect(plan.draft.provisionalSavedAt).toBe(new Date(NOW + 1000).toISOString());
+
+      const nightContext = { ...inferNightContext("Clapham tonight").context, stopCount: 3 as const };
+      const operationKey = "later-generation";
+      const generated = routeValue({
+        nightContext, operationKey, groundingProof: fakeProof(reloadAt + 60_000),
+        anchorVenueId: anchor?.venueId ?? null, anchorSource: anchor?.source ?? null,
+        outcome: anchor ? "route" : "unanchored",
+      });
+      expect(writePlanRouteDraftEnvelope(generated, "plan-generated", local, generationAt).v2).toBe(true);
+      const blank = createPlanIntakeDraft();
+      const generationIntake = { ...blank, answers: { ...blank.answers, area: "clapham" as const, stopCount: 3 as const, stopCountSource: "text" as const } };
+      const reference = { savedAt: new Date(generationAt).toISOString(), operationKey };
+      expect(writePlanIntakeDraft(generationIntake, local, generationAt, reference)).toBe(true);
+      const route = readPlanRouteDraftEnvelope(local, reloadAt)!;
+      const intake = readPlanIntakeDraftWithMetadata(local, reloadAt)!;
+      expect(route).toMatchObject({ savedAt: reference.savedAt, value: { operationKey, routeStale: false } });
+      const records = { plan, legacyDraft: plan.draft, intake, route };
+      expect(recoverPlanDrafts(records)).toMatchObject({
+        routeWins: true, requestOnly: false, provisionalRequest: false,
+        recoveredDraft: null, planDraft: null, intakeDraft: { routeReference: reference },
+        intent: { stopCount: 3, stopCountSource: "text" },
+      });
+      expect(recoverPlanDrafts({ ...records, intake: null })).toMatchObject({
+        routeWins: false, provisionalRequest: true,
+      });
+      expect(recoverPlanDrafts({ ...records, intake: { ...intake, routeReference: null } }).routeWins).toBe(false);
+      expect(recoverPlanDrafts({ ...records, intake: {
+        ...intake, routeReference: { ...reference, operationKey: "different-operation" },
+      } }).routeWins).toBe(false);
+      expect(recoverPlanDrafts({ ...records, route: { ...route, ambiguous: true } }).routeWins).toBe(false);
+      const expired = readPlanRouteDraftEnvelope(local, reloadAt + 60_001)!;
+      expect(expired.value).toMatchObject({ routeStale: true, groundingProof: null });
+      expect(recoverPlanDrafts({ ...records, route: expired })).toMatchObject({
+        routeWins: true, retainedPreviewReference: reference,
+        acceptanceUnavailable: true, planningIntent: null, intakeDraft: { routeReference: reference },
+      });
+      expect(recoverPlanDrafts({ ...records, planningIntent: createPlanningIntent(options, reloadAt) }).routeWins).toBe(false);
+
+      const genuineEdit = { ...plan.draft, provisionalStop: undefined, provisionalSavedAt: undefined, routeReference: null };
+      expect(recoverPlanDrafts({ ...records, plan: { ...plan, draft: genuineEdit }, legacyDraft: genuineEdit }))
+        .toMatchObject({ routeWins: false, provisionalRequest: false });
+
+      const equalDate = { ...plan.draft, provisionalSavedAt: reference.savedAt };
+      expect(recoverPlanDrafts({ ...records, plan: { ...plan, draft: equalDate }, legacyDraft: equalDate }).routeWins).toBe(false);
+      const releaseAt = reloadAt + 1000;
+      const releaseRef = { savedAt: new Date(releaseAt).toISOString(), operationKey };
+      expect(writePlanRouteDraftEnvelope({
+        ...generated, anchorVenueId: null, anchorSource: null, outcome: "unanchored", groundingProof: null,
+      }, "manual", local, releaseAt).v2).toBe(true);
+      expect(writePlanIntakeDraft(generationIntake, local, releaseAt, releaseRef)).toBe(true);
+      const releasedRoute = readPlanRouteDraftEnvelope(local, releaseAt)!;
+      const releasedIntake = readPlanIntakeDraftWithMetadata(local, releaseAt)!;
+      const released = { ...records, route: releasedRoute, intake: releasedIntake };
+      expect(recoverPlanDrafts(released)).toMatchObject({
+        routeWins: true, acceptanceUnavailable: true, planningIntent: null,
+        retainedPreviewReference: releaseRef, intakeDraft: { routeReference: releaseRef },
+      });
+      expect(recoverPlanDrafts({ ...released, intake: { ...releasedIntake, routeReference: undefined } }).routeWins).toBe(false);
+      expect(recoverPlanDrafts({ ...released, intake: { ...releasedIntake, routeReference: reference } }).routeWins).toBe(false);
+      expect(recoverPlanDrafts({ ...released, intake: { ...releasedIntake, draft: {
+        ...generationIntake, answers: { ...generationIntake.answers, stopCount: 2 },
+      } } }).routeWins).toBe(false);
+      expect(writePlanIntakeDraft({
+        ...generationIntake, answers: { ...generationIntake.answers, stopCount: 2 },
+      }, local, releaseAt + 1000, null)).toBe(true);
+      expect(recoverPlanDrafts({ ...released, intake: readPlanIntakeDraftWithMetadata(local, releaseAt + 1000) })).toMatchObject({
+        routeWins: false, retainedPreviewReference: null, intent: { stopCount: 2 },
+      });
+    },
+  );
+
+  it.each(["missing intake", "revoked reference", "changed operation", "changed route date", "changed answers", "undated route",
+    "ambiguous route", "later acceptance"] as const)("does not retain a local-only expired route reference after %s", (condition) => {
+    const { intake, route, readAt } = expiredGeneration();
+    if (condition === "revoked reference") intake.routeReference = null;
+    if (condition === "changed operation") intake.routeReference!.operationKey = "another-operation";
+    if (condition === "changed route date") intake.routeReference!.savedAt = new Date(NOW).toISOString();
+    if (condition === "changed answers") intake.draft.answers.stopCount = 2;
+    if (condition === "undated route") route.savedAt = null;
+    const planningIntent = condition === "later acceptance" ? createPlanningIntent(options, readAt) : null;
+    if (condition === "later acceptance") expect(planningIntent).not.toBeNull();
+    const recovered = recoverPlanDrafts({
+      plan: null, legacyDraft: null, intake: condition === "missing intake" ? null : intake, planningIntent,
+      route: { ...route, ambiguous: condition === "ambiguous route" },
+    });
+    expect(recovered.retainedPreviewReference).toBeNull();
   });
 
   it.each(["missing-intake", "revoked-intake", "operation", "route-date", "answers", "ambiguous", "undated-route", "undated-request", "later-clear"] as const)(
