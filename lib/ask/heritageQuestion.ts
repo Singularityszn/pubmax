@@ -13,7 +13,9 @@ export function heritageQuestionVenueName(query: string): string | null {
   const patterns = [
     /^heritage\s+story\s+for\s+(.+)$/i,
     /^(?:(?:please\s+)?tell me(?:\s+about)?\s+|what(?:'s|\s+is)\s+)?(?:the\s+)?(?:history|heritage|story)\s+(?:of|behind)\s+(.+)$/i,
+    /^(?:please\s+)?tell me about\s+(.+?)(?:'s|’s)\s+history$/i,
     /^(?:please\s+)?tell me about\s+(.+)$/i,
+    /^is\s+(.+)\s+a listed building$/i,
     /^when was\s+(.+?)\s+(?:built|opened|founded|established)$/i,
     /^who\s+(?:built|opened|founded)\s+(.+)$/i,
     /^(.+?)(?:'s|’s)?\s+(?:history|heritage)$/i,

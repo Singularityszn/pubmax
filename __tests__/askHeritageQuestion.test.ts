@@ -23,6 +23,28 @@ afterEach(() => {
 
 describe("typed heritage questions", () => {
   it.each([
+    { query: "Tell me about The Blackfriar's history", expectedIds: ["venue-eltcmh"] },
+    { query: "Is The Blackfriar a listed building?", expectedIds: ["venue-eltcmh"] },
+    { query: "Tell me about The Blackfriar Arms's history", expectedIds: [] },
+    { query: "Is The Blackfriar Arms a listed building?", expectedIds: [] },
+  ])("preserves the complete subject in the approved question forms: $query", async ({ query, expectedIds }) => {
+    const response = await runAsk({
+      query, cityId: "london", skipModel: true, fetchImpl: offlineFetch,
+    });
+    expect(response.toolsUsed).toContain("venue_heritage");
+    expect(response.cards.map((card) => card.venueId)).toEqual(expectedIds);
+    expect(response.proposals.map((proposal) => proposal.kind === "open_venue" ? proposal.venueId : null)).toEqual(expectedIds);
+    const tool = await runAskTool("venue_heritage", { venueId: "venue-eltcmh", venueName: "The Blackfriar" }, {
+      query, cityId: "london", skipModel: true, fetchImpl: offlineFetch,
+    });
+    expect(tool.cards.map((card) => card.venueId)).toEqual(expectedIds);
+    if (expectedIds.length === 0) {
+      expect(response.sources).toEqual([]);
+      expect(tool.sources).toEqual([]);
+    }
+  });
+
+  it.each([
     ...[
       { venueName: "The Blackfriar" },
       { name: "The Blackfriar" },
