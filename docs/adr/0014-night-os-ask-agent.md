@@ -126,17 +126,15 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
    The safety check below precedes this loop. The model selects tools only.
    For model-routed turns, `composeAnswer`
    builds reader copy from returned hints and cards.
-6. **Pal typed chat and voice (ElevenLabs when configured)** — without
-   `ELEVENLABS_API_KEY` and `ELEVENLABS_PUB_PAL_AGENT_ID`, typed chat on
-   `POST /api/pub-pal/chat` uses the same keyless `runAsk` tool path as map Ask
-   (`skipModel: true`). With both values set, typed chat and voice share one
-   ElevenLabs agent, subject to the menu and price routing in decision 2.
-   [Pub Pal setup](../PUB_PAL_SETUP.md) owns the session transport details. Server
+6. **Pal typed chat and voice.** [Pub Pal setup](../PUB_PAL_SETUP.md) owns provider selection and session transport.
+   After the menu and price routing in decision 2, typed chat uses the configured provider.
+   Without a typed-chat provider, `POST /api/pub-pal/chat` uses the keyless `runAsk` tools with `skipModel: true`.
+   Voice uses the ElevenLabs agent. Server
    webhook tools at `POST /api/pub-pal/tools/{name}` invoke the same ADR 0014
    handlers as `/api/ask`. Tool-turn correlation uses `pub_pal_tool_turns`
    (`lib/pubPalToolTurnStore.ts`): webhook bodies may carry only a short query
    fragment, so the server prefers the correlated full ask and merges routed
-   args before invoking handlers. Setup: `docs/PUB_PAL_SETUP.md`.
+   args before invoking handlers.
 7. **In-thread memory only** — the client may resend recent turns for
    refinement. Durable Pal memory stays confirm-gated (ADR 0006).
 

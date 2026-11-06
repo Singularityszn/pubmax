@@ -20,9 +20,9 @@
 // so the AI SDK's own spans (whose prompts this module never sees) are
 // covered too. Moderation spans never carry the signed image URLs they send.
 //
-// INERT BY DEFAULT: nothing registers and nothing is sent unless BOTH
+// ARIZE IS INERT BY DEFAULT: nothing registers with or sends to Arize unless BOTH
 // `ARIZE_API_KEY` and `ARIZE_SPACE_KEY` are present, so local dev, tests,
-// CI and every keyless deployment stay silent. The space key is the Arize
+// CI and every keyless deployment send nothing to Arize. The space key is the Arize
 // SPACE ID (Arize's own tooling names it `ARIZE_SPACE_ID`); this app reads it
 // from `ARIZE_SPACE_KEY` so one naming convention covers local files and the
 // Vercel project. See docs/observability/arize.md for the operator setup.

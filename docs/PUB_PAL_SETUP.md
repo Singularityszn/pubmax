@@ -1,20 +1,20 @@
 # Pub Pal setup: text now, voice when you switch it on
 
-Pub Pal typed chat answers keylessly via `/api/pub-pal/chat` (the same grounded
-`runAsk` tools as map Ask, no OpenRouter). Voice and the hosted-LLM typed path
-share one ElevenLabs agent when the four values below are set and the agent
-script has run. [ADR 0014](adr/0014-night-os-ask-agent.md) owns the deterministic
-menu and price routing that precedes provider selection.
-Map Ask still answers keylessly via `/api/ask`.
+Pub Pal typed chat and map Ask both work without provider keys.
+Typed chat uses `/api/pub-pal/chat`. Map Ask uses `/api/ask`.
+Both use grounded `runAsk` tools on the keyless path.
+[ADR 0014](adr/0014-night-os-ask-agent.md) owns the deterministic menu and price routing that precedes provider selection.
 
 ## Typed chat on Claude
 
 Typed chat can run on Claude instead of the ElevenLabs agent. Voice stays on
 ElevenLabs.
 
-1. Make an API key in the Claude Console. Set a monthly spend limit there.
+1. Create a Claude Platform API key in the account that holds the intended credits.
 2. Set `ANTHROPIC_API_KEY` on the deployment (server-only).
 3. Optional: set `PUB_PAL_CLAUDE_MODEL` for both Pub Pal typed chat and map Ask. The default is `claude-haiku-5-5`.
+
+Set a monthly spend limit in the Claude Console.
 
 When the key is set, `/api/pub-pal/chat` sends each typed ask to Claude
 (`lib/palClaudeChat.server.ts`). It needs a signed-in session and spends the
@@ -22,12 +22,16 @@ same `pub-pal-chat` ceiling. The safety fence, the answers from records, the
 memories and the taste read run before Claude is asked, as they do for
 ElevenLabs. Claude uses the same tools (`lib/pubPalToolCatalog.mjs`) and the
 same prompt rules (`lib/palVoicePrompt.mjs`, without the spoken parts). Our
-server runs each tool itself, so no webhook is involved. To go back to
-ElevenLabs for typed chat, remove the key.
+server runs each tool itself, so no webhook is involved.
 
 The same key also moves map Ask's model loop (`/api/ask`) from OpenRouter to
 Claude. Both paths use the shared client, model setting and prompt cache
 markers (`lib/claudeClient.server.ts`). Ask spends the `ask` ceiling.
+
+Without a Claude key, typed chat uses the configured ElevenLabs agent, or the keyless tools when ElevenLabs is not configured.
+Map Ask uses OpenRouter when its key is set, or the keyless tools otherwise.
+A failed Claude request does not switch to another paid provider.
+Map Ask retains completed tool results or uses its keyless fallback. Typed chat returns its existing failure response.
 
 Nothing here changes what the Pal may SAY. Text and voice run the same
 source-backed tool registry (ADR 0014) and the same propose-then-confirm rule
@@ -39,11 +43,11 @@ source-backed tool registry (ADR 0014) and the same propose-then-confirm rule
 
 | Surface | Keyless | Notes |
 |---|---|---|
-| `/pal/chat` text ask | Yes | `/api/pub-pal/chat`. Provider selection follows ADR 0014 |
+| `/pal/chat` text ask | Yes | `/api/pub-pal/chat`. The provider rules above apply when keys are set |
 | Map Ask | Yes | Same `/api/ask` path |
 | Concierge tools (prices, tonight, drinks, desk, crowd) | Yes | Every one of them reads a lane we already hold |
-| Model tool selection | Keyless regex | With ElevenLabs, the hosted LLM on the agent picks webhook tools; neither path calls OpenRouter |
-| Reader wording | Yes | House output comes from returned rows and hints; the model does not write the answer |
+| Model tool selection | Keyless regex | The provider rules above apply when keys are set |
+| Reader wording | Yes | Keyless replies and map Ask use returned rows and hints. Provider-backed Pal chat uses the shared prompt rules |
 | Voice | No | Needs the four ElevenLabs values below |
 
 With voice off, `/pal` says so in the Pal's own words and offers the writing
@@ -197,7 +201,7 @@ normal update and drift check.
 The [tool identity CLI proof](proof/2026-10-08-pubpal-tool-identity/README.md)
 records the regression fixture, captured results, and proof limits.
 
-Provider-backed typed chat uses the agent in text-only mode via `/api/pub-pal/chat`.
+ElevenLabs typed chat uses the agent in text-only mode via `/api/pub-pal/chat`.
 The server opens its WebSocket. Voice opens a browser WebSocket from the signed URL.
 Live proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base-url https://pubmaxxing.com`.
 
@@ -296,7 +300,7 @@ Voice uses the same opening builder in its first-message override.
    a missing key is on). The setting is read fresh before every read, so
    turning it off stops the next turn reading the favourite drink or logs, past the cache, and a
    Pal that cannot be read fails closed.
-   Without ElevenLabs keys, a signed-in ask with no area, mood or budget runs
+   Without a typed-chat provider, a signed-in ask with no area, mood or budget runs
    `search_venues` off the read's patch, vibe and usual price instead of
    asking for one.
 3. **Voices** and per-session `voice_id` overrides (unchanged).
