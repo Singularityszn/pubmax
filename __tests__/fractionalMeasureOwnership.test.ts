@@ -669,7 +669,7 @@ describe("item evidence and reader policy", () => {
     expect(claims.map(({ label }) => label)).toEqual(["Guinness pint", "Madri pint"]);
   });
 
-  it.each(["When you order a meal", "Available only with a meal", "Available only<br>with a meal", "2/3<br>discount"])(
+  it.each(["When you order a meal", "Available only with a meal", "Available only<br>with a meal"])(
     "keeps the leading offer clause %s with the first item",
     (condition) => {
       const menu = "<p>" + condition + "<br>Guinness pint £6.20; Madri pint £6.40</p>";
@@ -680,6 +680,15 @@ describe("item evidence and reader policy", () => {
       expect(factsFromPage(menu, fact).drinks).toEqual([{ ...pint, drink: "Madri", priceGbp: 6.4 }]);
     },
   );
+
+  it("withholds both paragraph prices after a fractional discount split across an inline break", () => {
+    const menu = "<p>2/3<br>discount<br>Guinness pint £6.20; Madri pint £6.40</p>";
+    const reading = readVenueDrinkPrices(menu, "html");
+    expect(reading.drops).toEqual(["offer-not-a-menu-price", "offer-not-a-menu-price"]);
+    expect(reading.kept).toEqual([]);
+    expect(readChainPintPrices(menu).kept).toEqual([]);
+    expect(factsFromPage(menu, fact).drinks).toEqual([]);
+  });
 
   it("keeps the UK contextual offer check after it resolves a sibling's fractional discount", () => {
     const menu = "<p>Peroni pint happy hour £5.20 2/3 off; Guinness pint £6.20</p>";
