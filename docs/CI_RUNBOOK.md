@@ -88,16 +88,22 @@ with no `sudo`. So a Mac job:
   Playwright run passes `--workers=1`, or uses the prod-smoke config, which
   sets `workers: 1`.
 
-The repository is public, so a pull request from a fork never starts a Mac
-job. The layout pins are the only Mac jobs on the pull-request path, and
-their `if` carries the fork guard:
+The repository is public. The runner-up coordinator refuses jobs from forks
+by default through its fork guard. This coordinator control is the runner
+access boundary. The repository setting "Require approval for all outside
+collaborators" adds a GitHub approval control. These controls sit outside
+pull-request-controlled YAML.
+
+The layout pins are the only Mac jobs on the pull-request path. Their `if`
+condition adds defence in depth. A fork can edit workflow YAML, so this
+condition cannot enforce runner access:
 
 ```yaml
 (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
 ```
 
-The other Mac jobs run only on `schedule`, `workflow_dispatch` or
-`deployment_status`, which a fork cannot start. No workflow with a Mac job
+The other Mac jobs listen only for `schedule`, `workflow_dispatch` or
+`deployment_status`. No workflow with a Mac job
 listens for `pull_request_target`. A skipped job counts as passed in branch
 protection, so a fork pull request reports its layout pins as skipped. Read
 such a pull request's screen changes by hand, or push its branch to this

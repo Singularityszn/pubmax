@@ -44,8 +44,7 @@ jobs:
       (github.event.deployment_status.state == 'success' &&
        startsWith(github.event.deployment.environment, 'Production'))
     # Proved on macOS, and runs on the pubmax-mac self-hosted pool. It runs
-    # once per production deploy, never on the pull request path, so no fork
-    # code reaches that machine through it.
+    # once per production deploy, outside the pull request path.
     runs-on: pubmax-mac
     timeout-minutes: 30
     steps:

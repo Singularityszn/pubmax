@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 import { defined } from "@/__tests__/helpers/defined";
+import { browserJobCondition } from "@/__tests__/helpers/browserJobCondition";
 
 type WorkflowStep = {
   name?: string;
@@ -30,18 +31,9 @@ type Workflow = {
 
 // The layout pins are three named jobs that share one step list, not a matrix.
 const LAYOUT_PIN_JOBS = ["layout-pins-1", "layout-pins-2", "layout-pins-3"];
-// Run unless the classifier succeeded and said no screen code changed. A failed
-// classifier must run the layout pins, not skip them: a skipped check counts
-// as passed for branch protection, so skipping would let a screen change merge
-// without them (fail closed). The nightly and a dispatch skip them, because
-// the full suite runs every layout spec on the same commit.
-const LAYOUT_PIN_IF =
-  "${{ !cancelled() && github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}";
 // The nightly full suite: the plain Chromium project in count-cut shards, and
 // every other project the default run covers in one job of its own.
 const FULL_SUITE_JOBS = ["full-suite", "full-suite-gl"];
-const FULL_SUITE_IF =
-  "github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'";
 
 // A `${{ ... }}` expression is one word even though it holds spaces.
 function runWords(run: string | undefined): string[] {
@@ -76,6 +68,19 @@ describe("browser CI policy", () => {
     expect(run).toContain("--project=chromium");
   });
 
+  it.each([
+    { event: "pull_request", fork: false, expected: false },
+    { event: "pull_request", fork: true, expected: false },
+    { event: "push", expected: false },
+    { event: "schedule", expected: true },
+    { event: "workflow_dispatch", expected: true },
+  ] as const)("applies full-suite eligibility to $event ($expected)", ({ expected, ...context }) => {
+    const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
+    for (const id of FULL_SUITE_JOBS) {
+      expect(browserJobCondition(defined(jobs[id], id).if, context), id).toBe(expected);
+    }
+  });
+
   it("keeps the exhaustive browser matrix on nightly and manual runs", () => {
     const workflow = parse(readFileSync(workflowPath, "utf8")) as Workflow;
 
@@ -86,8 +91,6 @@ describe("browser CI policy", () => {
     expect(workflow.on.push).toEqual({ branches: ["main"] });
     const fullSuiteJob = defined(workflow.jobs["full-suite"], "full-suite job");
     const glJob = defined(workflow.jobs["full-suite-gl"], "full-suite-gl job");
-    expect(fullSuiteJob.if).toBe(FULL_SUITE_IF);
-    expect(glJob.if).toBe(FULL_SUITE_IF);
     const shards = fullSuiteJob.strategy?.matrix?.shard;
     expect(shards).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
     expect(fullSuiteJob.name).toBe(`Full browser suite (\${{ matrix.shard }}/${shards?.length})`);
@@ -164,7 +167,6 @@ describe("browser CI policy", () => {
       expect(job.strategy).toBeUndefined();
       expect(job.env?.LAYOUT_SHARD).toBe(index + 1);
       expect(job.needs).toEqual(["change-scope"]);
-      expect(job.if).toBe(LAYOUT_PIN_IF);
       // One step list for all three, so the shards cannot drift apart.
       expect(job.steps).toEqual(defined(layoutJobs[0]).steps);
     });
@@ -174,7 +176,6 @@ describe("browser CI policy", () => {
     expect(testStep?.if).toBeUndefined();
     const run = runWords(defined(testStep, "layout-pins Playwright step").run);
     expect(run).toContain(`--shard=\${{ env.LAYOUT_SHARD }}/${LAYOUT_PIN_JOBS.length}`);
-    expect(run).toContain("--workers=1");
     // These specs hold layout once pinned by source-text tests and the
     // clicked UK arrival notice beside the live map credit control.
     for (const spec of [

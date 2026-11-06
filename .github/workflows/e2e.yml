@@ -221,9 +221,9 @@ jobs:
     # They run on macOS, on the pubmax-mac self-hosted pool. The specs were
     # proved on macOS glyph widths, and on ubuntu-latest (16 Oct 2026) four
     # of them failed on a measured edge, for example 7px short at 320px.
-    # A pull request from a fork never reaches that machine: the fork guard
-    # in `if` skips these jobs for it (docs/CI_RUNBOOK.md, "Self-hosted Mac
-    # runners").
+    # Runner-up's fork guard controls runner access. GitHub also requires
+    # approval for all outside collaborators. The `if` condition adds defence
+    # in depth only (docs/CI_RUNBOOK.md, "Self-hosted Mac runners").
     # The nightly and a dispatch skip them: the full suite below runs every
     # one of these specs on the same commit, and the three jobs would hold
     # the pool while the full suite waits for them.
