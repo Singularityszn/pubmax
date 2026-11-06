@@ -517,7 +517,9 @@ describe("a native start queued behind an older canonical installation after a r
     await mountHeldPage(1);
     await enterEmail();
     await click(submitButton());
-    await vi.waitFor(() => expect(h.otpBody).not.toBeNull(), { timeout: 1000 });
+    await act(async () => {
+      await vi.waitFor(() => expect(h.otpBody).not.toBeNull(), { timeout: 1000 });
+    });
     h.otpBody = null;
     let queued: (typeof uiOperations)[number] | undefined;
     try {
@@ -674,6 +676,9 @@ describe("a native provider start held at its fresh provider settings read", () 
     await mountSurface("page");
     await enterEmail();
     await click(container.querySelector<HTMLButtonElement>('.authMagicLink button[type="submit"]')!);
+    await act(async () => {
+      await vi.waitFor(() => expect(h.otpBody?.email).toBe("native@example.test"), { timeout: 1000 });
+    });
     await vi.waitFor(() => expect(cancelButton()).not.toBeNull(), { timeout: 1000 });
     expect(h.otpBody?.email).toBe("native@example.test");
     expect(localStorage.getItem(RECEIPT)).not.toBeNull();

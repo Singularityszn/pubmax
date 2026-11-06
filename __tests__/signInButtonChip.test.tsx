@@ -86,8 +86,9 @@ describe("SignInButton account chip", () => {
 
     expect(String(fetchStub.mock.calls[0]?.[0])).toBe("/api/profiles/qa_alice");
     expect(trigger.getAttribute("aria-label")).toBe("Account options for Alice Archer");
-    expect(trigger.querySelector("img.authAvatar")?.getAttribute("src")).toBe(
-      "/api/profiles/a/avatar?v=1",
+    // The chip draws the face through HandleAvatar (next/image), so compare the resolved address.
+    expect(trigger.querySelector<HTMLImageElement>("img.authAvatar")?.src).toBe(
+      new URL("/api/profiles/a/avatar?v=1", window.location.href).href,
     );
   });
 
