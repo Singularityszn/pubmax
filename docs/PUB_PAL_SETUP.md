@@ -333,6 +333,12 @@ passes those paths so `script-src` can stay `'self'` plus the nonce. Do not put
 `lib/palElevenLabsChat.server.ts` emits private `pub_pal.chat_failed` warnings
 with a failure code, stage, elapsed milliseconds and an optional signed-session reason.
 Caller cancellation does not emit this warning.
+
+ElevenLabs failures at stage `deadline` also include a `progress` snapshot.
+The snapshot contains elapsed times, event counts, the pending tool count and reply eligibility.
+The [progress type](../lib/palChatDeadlineProgress.ts) defines the fields.
+Other failure stages and the Claude transport omit this snapshot.
+
 The diagnostic excludes prompts, transcripts, URLs, headers, secrets and personal data.
 It does not change the public error response or establish a provider failure's cause.
 

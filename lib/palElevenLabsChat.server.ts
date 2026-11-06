@@ -169,9 +169,8 @@ export type PalChatFailureRecorder = (
 ) => void;
 
 /**
- * Logs a failed turn once, with its stage and duration. A cancelled caller is
- * not a failure. A deadline failure also carries `deadlineProgress`, the turn's
- * content-free milestones and counters, when the transport keeps them.
+ * Caller cancellation emits no failure warning.
+ * See docs/PUB_PAL_SETUP.md for the diagnostic contract.
  */
 export function palChatFailureRecorder(
   input: PalElevenLabsChatInput,

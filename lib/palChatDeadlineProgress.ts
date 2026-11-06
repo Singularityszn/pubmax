@@ -2,9 +2,10 @@
  * What a typed Pub Pal turn had reached when it ran out of time.
  *
  * A deadline failure says only "TIMEOUT", which cannot tell a slow socket from
- * a slow tool or an agent that never answered. This record holds fixed
- * milestones (milliseconds since the turn started) and counters, and nothing
- * else: no ask, no reply text, no frame content, no conversation id, no owner.
+ * a slow tool or an agent that never answered. This record holds elapsed times,
+ * counters and reply eligibility, and nothing else: no ask, no reply text,
+ * no frame content, no conversation id, no owner.
+ * Times are milliseconds since tracking started.
  * It is attached to the `pub_pal.chat_failed` log line for the deadline stage
  * only.
  */
