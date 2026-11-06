@@ -5,7 +5,7 @@ import type { Route } from "next";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { isPlanActiveNow, msUntilActivePlanEdge, readActivePlan, subscribeActivePlan } from "@/lib/activePlan";
+import { isPlanActiveNow, msUntilActivePlanEdge, subscribeActivePlan } from "@/lib/activePlan";
 import {
   msUntilPalNightBoundary,
   PAL_NIGHT_ANSWER_STORAGE_KEY,
@@ -17,6 +17,7 @@ import {
   writePalNightAnswer,
   type PalNightChoice,
 } from "@/lib/palNightQuestion";
+import { useOwnedActivePlan } from "@/components/night/useOwnedActivePlan";
 import { planInviteShareUrl } from "@/lib/planCrewInviteUrl";
 import { ensurePlanInviteToken } from "@/lib/planInviteTokenClient";
 import { planPalRouteHandoffHref } from "@/lib/planOccasion";
@@ -59,6 +60,7 @@ const LONGEST_TIMER_MS = 2 ** 31 - 1;
  * yesterday's plan is never offered at the next noon.
  */
 function useTonightsCrew(): Crew | null {
+  const ref = useOwnedActivePlan();
   const [crew, setCrew] = useState<Crew | null>(null);
   useEffect(() => {
     let active = true;
@@ -70,7 +72,6 @@ function useTonightsCrew(): Crew | null {
       if (!active) return;
       const mine = ++generation;
       const now = Date.now();
-      const ref = readActivePlan();
       window.clearTimeout(timer);
       const edge = msUntilActivePlanEdge(ref, now);
       // A second past the edge, so the clock has crossed it.
@@ -96,8 +97,8 @@ function useTonightsCrew(): Crew | null {
       window.clearTimeout(timer);
       unsubscribe();
     };
-  }, []);
-  return crew;
+  }, [ref]);
+  return crew?.planId === ref?.id ? crew : null;
 }
 
 /**

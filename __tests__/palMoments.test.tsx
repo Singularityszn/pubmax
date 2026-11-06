@@ -3,6 +3,7 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/components/auth/authContext", () => ({ useAuth: () => ({ user: { id: "owner" }, loading: false, getCurrentUserId: () => "owner" }) }));
 vi.mock("next/navigation", () => ({ usePathname: () => "/map" }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 
@@ -25,6 +26,7 @@ function pal(overrides: Partial<PubPal> = {}): PubPal {
 }
 
 function store(value: PubPal) {
+  window.localStorage.setItem("pubmax_account_owner", "owner");
   window.localStorage.setItem("pubmax_pub_pal_v1", JSON.stringify(value));
 }
 
@@ -137,10 +139,10 @@ describe("the summon chip on a moment", () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date(2026, 9, 18, 21, 0));
     store(pal());
-    writeActivePlan({ id: "11111111-1111-4111-8111-111111111111", startTime: new Date(2026, 9, 18, 19, 0).toISOString(), stopIndex: 1 });
+    writeActivePlan({ id: "11111111-1111-4111-8111-111111111111", ownerId: "owner", startTime: new Date(2026, 9, 18, 19, 0).toISOString(), stopIndex: 1, palContext: { id: pal().id, name: pal().name } });
     await render(createElement(PubPalSummon));
     expect(host.querySelector(".palSummon small")!.textContent).toBe("Night's on. Stop 2");
-    act(() => writeActivePlan({ id: "11111111-1111-4111-8111-111111111111", startTime: new Date(2026, 9, 18, 19, 0).toISOString(), stopIndex: 2 }));
+    await act(async () => writeActivePlan({ id: "11111111-1111-4111-8111-111111111111", ownerId: "owner", startTime: new Date(2026, 9, 18, 19, 0).toISOString(), stopIndex: 2, palContext: { id: pal().id, name: pal().name } }));
     expect(host.querySelector(".palSummon small")!.textContent).toBe("Night's on. Stop 3");
   });
 });

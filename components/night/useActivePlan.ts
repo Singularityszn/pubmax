@@ -6,11 +6,11 @@ import {
   isNightModeDismissed,
   isPlanActiveNow,
   isWithinRecapGrace,
-  readActivePlan,
   subscribeActivePlan,
   subscribeNightModeDismiss,
   type ActivePlanRef,
 } from "@/lib/activePlan";
+import { useOwnedActivePlan } from "./useOwnedActivePlan";
 import { readPendingPlanRecap, subscribePendingPlanRecap } from "@/lib/planRecap";
 import { restorePlanCapability } from "@/lib/planSessionCapability";
 
@@ -30,8 +30,7 @@ export type NightModeState = {
 
 const IDLE: NightModeState = { ref: null, visible: false, dismissed: false };
 
-function resolve(now: number): NightModeState {
-  const ref = readActivePlan();
+function resolve(now: number, ref: ActivePlanRef | null): NightModeState {
   if (!ref) return IDLE;
   // Once the active window closes the card normally retires — unless the night
   // ended with a private recap still unsaved on this device. That recap can only
@@ -54,10 +53,11 @@ function resolve(now: number): NightModeState {
  * after mount (no hydration mismatch, since the pointer is client-only state).
  */
 export function useActivePlan(): NightModeState {
+  const ref = useOwnedActivePlan();
   const [state, setState] = useState<NightModeState>(IDLE);
 
   useEffect(() => {
-    const recompute = () => setState(resolve(Date.now()));
+    const recompute = () => setState(resolve(Date.now(), ref));
     recompute();
     const unsubPlan = subscribeActivePlan(recompute);
     const unsubDismiss = subscribeNightModeDismiss(recompute);
@@ -67,7 +67,7 @@ export function useActivePlan(): NightModeState {
       unsubDismiss();
       window.clearInterval(timer);
     };
-  }, []);
+  }, [ref]);
 
   useEffect(() => {
     if (state.ref?.id) void restorePlanCapability(state.ref.id).catch(() => undefined);
@@ -79,8 +79,8 @@ export function useActivePlan(): NightModeState {
   useEffect(() => {
     const id = state.ref?.id;
     if (!id) return;
-    return subscribePendingPlanRecap(id, () => setState(resolve(Date.now())));
-  }, [state.ref?.id]);
+    return subscribePendingPlanRecap(id, () => setState(resolve(Date.now(), ref)));
+  }, [state.ref?.id, ref]);
 
-  return state;
+  return state.ref?.id === ref?.id && state.ref?.ownerId === ref?.ownerId ? state : IDLE;
 }

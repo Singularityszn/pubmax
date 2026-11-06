@@ -10,7 +10,6 @@ const askSession = vi.hoisted(() => vi.fn());
 const loadSlim = vi.hoisted(() => vi.fn());
 const loadSlimResult = vi.hoisted(() => vi.fn());
 const sessionAnswer = vi.hoisted(() => ({ value: null as unknown }));
-const activePlan = vi.hoisted(() => ({ value: null as unknown, on: false }));
 const planRead = vi.hoisted(() => vi.fn());
 
 vi.mock("next/navigation", () => ({
@@ -19,9 +18,6 @@ vi.mock("next/navigation", () => ({
 vi.mock("next/link", () => ({
   default: ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) =>
     createElement("a", { href: String(href), ...props }, children),
-}));
-vi.mock("@/components/auth/AuthProvider", () => ({
-  useAuth: () => ({ user: null, session: null }),
 }));
 vi.mock("@/components/nav/SiteNav", () => ({
   default: () => createElement("nav", null, "Navigation"),
@@ -41,15 +37,12 @@ vi.mock("@/lib/palChatClient", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/palChatClient")>()),
   createPalChatSession: () => askSession,
 }));
-vi.mock("@/lib/activePlan", () => ({
-  readActivePlan: () => activePlan.value,
-  isPlanActiveNow: () => activePlan.on,
-}));
 vi.mock("@/components/plan/usePlanMemberRead", () => ({
   readPlanMemberProjection: planRead,
 }));
 
 import PalChat from "@/components/pal/PalChat";
+import { clearActivePlan, writeActivePlan } from "@/lib/activePlan";
 import { clearSurfaceCache } from "@/lib/surfaceDataCache";
 import { defined } from "@/__tests__/helpers/defined";
 
@@ -88,8 +81,7 @@ beforeEach(async () => {
     ],
   });
   sessionAnswer.value = answer;
-  activePlan.value = null;
-  activePlan.on = false;
+  clearActivePlan();
   planRead.mockReset().mockResolvedValue(null);
   askSession.mockReset().mockImplementation(() => Promise.resolve(sessionAnswer.value));
   container = document.createElement("div");
@@ -106,6 +98,7 @@ afterEach(async () => {
   });
   root = null;
   container.remove();
+  clearActivePlan();
 });
 
 async function askPal(text: string): Promise<void> {
@@ -275,8 +268,11 @@ describe("Pal map asks in the written chat", () => {
   });
 
   it("opens the next stop of a planned night that is on", async () => {
-    activePlan.value = { id: "plan-1", stopIndex: 0 };
-    activePlan.on = true;
+    writeActivePlan({
+      id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+      startTime: new Date().toISOString(),
+      stopIndex: 0,
+    });
     planRead.mockResolvedValue({
       stops: [
         { venueId: "venue-a", venueName: "The Anchor" },
@@ -286,14 +282,17 @@ describe("Pal map asks in the written chat", () => {
     await askPal("where next?");
 
     expect(askSession).not.toHaveBeenCalled();
-    expect(planRead).toHaveBeenCalledWith("plan-1");
+    expect(planRead).toHaveBeenCalledWith("dddddddd-dddd-4ddd-8ddd-dddddddddddd");
     expect(container.textContent).toContain("Opening The Crown, your next stop");
     expect(router.push).toHaveBeenCalledWith("/map?sel=venue-b");
   });
 
   it("retires an outstanding next-stop read when a new conversation starts", async () => {
-    activePlan.value = { id: "plan-1", stopIndex: 0 };
-    activePlan.on = true;
+    writeActivePlan({
+      id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+      startTime: new Date().toISOString(),
+      stopIndex: 0,
+    });
     let release!: (value: unknown) => void;
     planRead.mockReturnValue(new Promise((resolve) => { release = resolve; }));
     await askPal("where next?");

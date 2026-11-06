@@ -1,40 +1,37 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { DEFAULT_PAL_DRAFT, type PalAnimationState, type PubPal } from "@/lib/pubPal";
 import { palGenomeFor } from "@/lib/palGenome";
-import { readLocalPal, subscribeLocalPal } from "@/lib/localPal";
+import { useAuth } from "@/components/auth/authContext";
+import { useOwnPalSnapshot } from "./useOwnPal";
 import PalPortrait from "./PalPortrait";
 
 /** The chat keeps the person's selected companion beside the conversation. */
 export default function PalChatCompanion({ owner, state }: { owner: string | null; state: PalAnimationState }) {
-  const [pal, setPal] = useState<PubPal | null>(null);
+  const snapshot = useOwnPalSnapshot();
+  const localPal = useMemo(() => snapshot ? JSON.parse(snapshot) as PubPal : null, [snapshot]);
+  const { user, loading, getCurrentUserId } = useAuth();
+  const accountId = !loading && user && getCurrentUserId() === user.id ? user.id : null;
+  const source = useMemo(() => ({ owner, accountId, snapshot }), [owner, accountId, snapshot]);
+  const [loaded, setLoaded] = useState<{ pal: PubPal | null; source: typeof source } | null>(null);
   useEffect(() => {
-    if (!owner || owner === "anonymous") return;
-    let controller: AbortController | null = null;
-    const refresh = () => {
-      controller?.abort();
-      const request = new AbortController();
-      controller = request;
-      void authedActionFetch("/api/pub-pal", { signal: request.signal }, { requiresIdentity: true })
+    const { owner, accountId } = source;
+    if (!accountId || owner !== accountId) return;
+    const request = new AbortController();
+    void authedActionFetch("/api/pub-pal", { signal: request.signal }, { requiresIdentity: true })
       .then(async response => {
         if (!response.ok) return;
         const body = await response.json() as { pal?: PubPal | null };
         if (request.signal.aborted) return;
-        setPal(body.pal?.ownerId === owner ? body.pal : null);
+        setLoaded({ pal: body.pal?.ownerId === owner ? body.pal : null, source });
       })
-      .catch(() => { /* The original default companion remains available. */ });
-    };
-    const unsubscribe = subscribeLocalPal(() => {
-      const local = readLocalPal();
-      setPal(local?.ownerId === owner ? local : null);
-      refresh();
-    });
-    refresh();
-    return () => { unsubscribe(); controller?.abort(); };
-  }, [owner]);
-  const ownedPal = owner && owner !== "anonymous" && pal?.ownerId === owner ? pal : null;
+      .catch(() => {});
+    return () => request.abort();
+  }, [source]);
+  const candidate = loaded?.source === source ? loaded.pal : localPal;
+  const ownedPal = owner === accountId && candidate?.ownerId === accountId && !candidate.hidden ? candidate : null;
   return (
     <div className="palChatCompanion">
       <PalPortrait

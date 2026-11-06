@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("@/components/auth/authContext", () => ({ useAuth: () => ({ user: { id: "owner" }, loading: false, getCurrentUserId: () => "owner" }) }));
 
 import VenuePintNeedle from "@/components/map/VenuePintNeedle";
 import { pintNeedleAngle, pintNeedleArc, pintNeedlePoint, pintNeedlePosition } from "@/components/map/pintNeedle";
@@ -100,6 +102,7 @@ describe("the needle on a pub", () => {
   });
 
   it("seats the person's own Pal at the pivot, and hops it only for a cheap pint", async () => {
+    window.localStorage.setItem("pubmax_account_owner", "owner");
     window.localStorage.setItem("pubmax_pub_pal_v1", JSON.stringify(pal()));
     const thresholds = priceBandThresholdsFor(priceBandAreaForVenue(LONDON_PUB));
     await render(thresholds.cheapMaxGbp - 0.4);
@@ -118,6 +121,7 @@ describe("the needle on a pub", () => {
     act(() => root?.unmount());
     host.remove();
 
+    window.localStorage.setItem("pubmax_account_owner", "owner");
     window.localStorage.setItem("pubmax_pub_pal_v1", JSON.stringify(pal({ hidden: true })));
     await render(5);
     expect(host.querySelector(".venuePintNeedlePal")).toBeNull();

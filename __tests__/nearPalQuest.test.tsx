@@ -16,6 +16,7 @@ const state = vi.hoisted(() => ({
   held: null as null | (() => void),
 }));
 
+vi.mock("@/components/auth/authContext", () => ({ useAuth: () => ({ getCurrentUserId: () => state.pal?.ownerId ?? null }) }));
 vi.mock("@/components/pal/useOwnPal", () => ({ useOwnPal: () => state.pal }));
 vi.mock("@/components/map/useCommunityPrices", () => ({ useCommunityPrices: () => ({}) }));
 vi.mock("@/components/nearme/usePriceEvidenceMission", () => ({
@@ -39,6 +40,7 @@ vi.mock("@/components/pal/PubPalMascot", () => ({ PubPalMascot: () => null }));
 
 import NearPriceEvidenceMission from "@/components/nearme/NearPriceEvidenceMission";
 import { LOCAL_PAL_KEY } from "@/lib/localPal";
+import { DEVICE_ACCOUNT_OWNER_KEY } from "@/lib/deviceAccountIdentity";
 import { PAL_QUEST_STAMPS_KEY } from "@/lib/palQuest";
 import { londonDayKey } from "@/lib/pintContributions";
 
@@ -90,8 +92,10 @@ describe("the Pal's price quest while /near stays open", () => {
 
   // The device's stored Pal, as the account bound to the device holds it.
   function storePal(pal: PubPal | null) {
-    if (pal) window.localStorage.setItem(LOCAL_PAL_KEY, JSON.stringify(pal));
-    else window.localStorage.removeItem(LOCAL_PAL_KEY);
+    if (pal) {
+      window.localStorage.setItem(DEVICE_ACCOUNT_OWNER_KEY, pal.ownerId);
+      window.localStorage.setItem(LOCAL_PAL_KEY, JSON.stringify(pal));
+    } else window.localStorage.removeItem(LOCAL_PAL_KEY);
   }
 
   beforeEach(() => {

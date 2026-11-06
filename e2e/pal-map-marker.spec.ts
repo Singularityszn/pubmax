@@ -2,6 +2,8 @@ import { expect, test, type Page } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
 
 import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
+import { ACCOUNTS, DEVICE_ACCOUNTS_KEY, installAuthDoubles, seedSignedIn, switchRememberedAccount } from "./helpers/authDoubles";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
 // The Pal on the map (components/map/canvas/palMarker.ts): the reader's own
 // Pub Pal perches beside the pub they open, takes no taps from the pins under
@@ -9,28 +11,84 @@ import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
 // the next stop as the one button it ever is, and a tap opens that pub. Shots land in
 // artifacts/pal-map-marker/ (gitignored).
 
-const SHOTS = "artifacts/pal-map-marker";
+const SHOTS = process.env.PUBMAX_TEST_EVIDENCE_DIR ?? "artifacts/pal-map-marker";
 const VENUE_ID = "venue-xjf3n0";
 // Three Soho stops from the "Victorian Soho" curated crawl (alt-crawls.spec.ts).
 const CRAWL = "venue-1ufn31x,venue-1t8siin,venue-xiesdn";
 const PLAN_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 
 async function seedPal(page: Page, hidden = false): Promise<void> {
-  await page.addInitScript(({ appearance, personality, voice, hidden: palHidden }) => {
+  await installDeterministicMapBasemap(page);
+  await installAuthDoubles(page);
+  await seedSignedIn(page, "A");
+  await page.addInitScript(({ appearance, personality, voice, hidden: palHidden, ownerId: palOwnerId }) => {
     const now = "2026-10-04T12:00:00.000Z";
     window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
+    window.localStorage.setItem("pubmax-theme", "light");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    // The cached Pal counts only for the account stamped on this device.
+    window.localStorage.setItem("pubmax_account_owner", palOwnerId);
     window.localStorage.setItem("pubmax_pub_pal_v1", JSON.stringify({
-      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId: "owner-e2e", name: "Ripley",
+      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId: palOwnerId, name: "Ripley",
       adultAttestedAt: now, appearance, personality, voice, muted: false, hidden: palHidden,
       proposalPreferences: {}, masteryPoints: 0, createdAt: now, updatedAt: now,
     }));
-  }, { ...DEFAULT_PAL_DRAFT, hidden });
+  }, { ...DEFAULT_PAL_DRAFT, hidden, ownerId: ACCOUNTS.A.id });
 }
 
 test.describe("the Pal on the map", () => {
+  test("retires A's next-stop marker when the account menu switches to B on /map", async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await seedPal(page);
+    const stops = CRAWL.split(",");
+    await page.route(`**/api/plans/${PLAN_ID}`, (route) => route.fulfill({
+      json: { stops: stops.map((venueId, position) => ({ venueId, venueName: venueId, position })) },
+    }));
+    await page.route(`**/api/plans/${PLAN_ID}/pals`, (route) => route.fulfill({ json: { visibility: "member", pals: [] } }));
+    await page.addInitScript(({ accounts, accountsKey, planId }) => {
+      window.localStorage.setItem(accountsKey, JSON.stringify(Object.values(accounts).map((account) => ({
+        userId: account.id, refreshToken: account.refreshToken, email: account.email,
+        handle: account.handle, lastActiveAt: Date.now(),
+      }))));
+      window.localStorage.setItem("pubmax_active_plan", JSON.stringify({
+        version: 1, ownerId: accounts.A.id, id: planId, startTime: new Date(Date.now() - 60 * 60 * 1000).toISOString(), stopIndex: 0,
+      }));
+    }, { accounts: ACCOUNTS, accountsKey: DEVICE_ACCOUNTS_KEY, planId: PLAN_ID });
+    await page.goto("/map");
+
+    const marker = page.locator(".palMapMarker:not([data-pal-crew])");
+    await expect(marker).toHaveAttribute("role", "button", { timeout: 60_000 });
+    const oldMarker = await marker.elementHandle();
+    const canvas = await page.locator(".maplibregl-canvas").elementHandle();
+    expect(oldMarker).not.toBeNull();
+    expect(canvas).not.toBeNull();
+    await mkdir(SHOTS, { recursive: true });
+    await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 60_000 });
+    await expect(marker).toBeVisible();
+    await page.screenshot({ path: `${SHOTS}/pal-account-a.png` });
+    await switchRememberedAccount(page, "A", "B");
+    await expect(marker).toHaveCount(0);
+    expect(await oldMarker!.evaluate((element) => element.isConnected)).toBe(false);
+    await page.keyboard.press("Escape");
+    const url = page.url();
+    await oldMarker!.evaluate((element) => {
+      (element as HTMLElement).click();
+      element.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      element.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
+    });
+    await expect(page).toHaveURL(url);
+    expect(await canvas!.evaluate((element) => element.isConnected)).toBe(true);
+    await expect(marker).toHaveCount(0);
+    await page.screenshot({ path: `${SHOTS}/pal-account-b.png` });
+    await oldMarker!.dispose();
+    await canvas!.dispose();
+  });
+
   test("perches beside the open pub and takes no taps", async ({ page }) => {
     test.setTimeout(120_000);
     await page.setViewportSize({ width: 390, height: 844 });
@@ -61,14 +119,14 @@ test.describe("the Pal on the map", () => {
     }));
     await page.route(`**/api/plans/${PLAN_ID}/pals`, (route) => route.fulfill({ json: { visibility: "member", pals: [] } }));
     await seedPal(page);
-    await page.addInitScript((planId) => {
+    await page.addInitScript(({ planId, ownerId }) => {
       // Set once, so a reload or a later cursor write in the test is kept.
       if (window.sessionStorage.getItem("e2e-plan-seeded")) return;
       window.sessionStorage.setItem("e2e-plan-seeded", "1");
       window.localStorage.setItem("pubmax_active_plan", JSON.stringify({
-        version: 1, id: planId, startTime: new Date(Date.now() - 60 * 60 * 1000).toISOString(), stopIndex: 0,
+        version: 1, ownerId, id: planId, startTime: new Date(Date.now() - 60 * 60 * 1000).toISOString(), stopIndex: 0,
       }));
-    }, PLAN_ID);
+    }, { planId: PLAN_ID, ownerId: ACCOUNTS.A.id });
     await page.goto("/map");
 
     // On the first stop, tonight's next stop is the second: the Pal waits there as a button.
@@ -106,9 +164,16 @@ test.describe("the Pal on the map", () => {
     test.setTimeout(120_000);
     await seedPal(page, true);
     await page.goto(`/map?sel=${VENUE_ID}`);
-    await expect(page.locator(".maplibregl-canvas")).toBeVisible({ timeout: 60_000 });
+    // A slow renderer can offer the real map retry. Exercise that recovery
+    // before checking privacy, rather than passing on an unloaded map.
+    await expect(async () => {
+      const retry = page.getByRole("button", { name: "Retry", exact: true });
+      if (await retry.isVisible()) await retry.click();
+      await expect(page.locator(".maplibregl-canvas")).toBeVisible({ timeout: 5_000 });
+    }).toPass({ timeout: 60_000 });
     await page.waitForTimeout(3_000);
     await expect(page.locator(".palMapMarker")).toHaveCount(0);
+    await page.screenshot({ path: `${SHOTS}/pal-hidden-on-map.png` });
   });
 
   test("walks the crawl route once, then rests beside the last stop", async ({ page }) => {

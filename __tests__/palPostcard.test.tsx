@@ -4,7 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const auth = vi.hoisted(() => ({ userId: "owner" as string | null }));
-vi.mock("@/components/auth/authContext", () => ({ useAuth: () => ({ user: auth.userId ? { id: auth.userId } : null }) }));
+vi.mock("@/components/auth/authContext", () => ({ useAuth: () => ({ user: auth.userId ? { id: auth.userId } : null, getCurrentUserId: () => auth.userId }) }));
 
 import PalPostcard from "@/components/pal/PalPostcard";
 import {
@@ -29,6 +29,7 @@ function pal(overrides: Partial<PubPal> = {}): PubPal {
 }
 
 function store(value: PubPal) {
+  window.localStorage.setItem("pubmax_account_owner", "owner");
   window.localStorage.setItem("pubmax_pub_pal_v1", JSON.stringify(value));
 }
 

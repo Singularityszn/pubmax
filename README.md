@@ -98,7 +98,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Memory cards in text and voice need your confirmation. Approved past-night reports can retain your stated visits, drinks and spending. Recorded pint prices never establish your bill. Correct or delete memories on your Pal page.
 
-  Written chat shows your Pub Pal with the conversation. It uses the default companion when your Pal is unavailable. The composer waits for your earlier conversation to load. If restoration fails, **New conversation** lets you continue.
+  Written chat shows your Pub Pal with the conversation. It uses the default companion when your Pal is unavailable. Switching accounts or signing out removes your Pal from open shortcuts, map markers, celebrations and postcards. The [cached Pal ownership rule](docs/rules/lib-saves-nudges-rounds-reports-and-pub-pal.md#cached-pal-ownership) explains the privacy checks. The composer waits for your earlier conversation to load. If restoration fails, **New conversation** lets you continue.
 
   Large portraits use the seven authorised original species models, with pointer and keyboard controls. Original images remain visible until the model draws, and return if it fails. Reduced motion and compact avatars keep the still artwork. Local browser acceptance and live voice verification remain separate requirements. The [setup guide](docs/PUB_PAL_SETUP.md) explains provider requirements and verification limits.
 
@@ -292,7 +292,7 @@ On phones, tap the map credit control to expand its text and links. The Pub Pal 
 
 ## Demo data
 
-The community layer ships alive: hand-written Pint Drops and Featured crawls are seeded so the map has content on day one. Seeded content is tagged `demo` and stays **visibly distinct** — it never masquerades as organic contributor signal and is filtered out before it can move any price or story metric. Provenance chips (`Sourced` / `Contributor` / `Anecdote` / `Demo`) are the product's trust signal.
+The community layer includes optional demo Pint Drops and Featured crawls. Enabled demo content carries a `demo` tag and stays visibly distinct from contributor activity. It cannot affect price or story metrics. Provenance chips distinguish `Sourced`, `Contributor`, `Anecdote` and `Demo` content.
 
 Seeded content is opt-in: it renders only in a build where
 `NEXT_PUBLIC_DEMO_CONTENT` is the literal value `on`, in lists and by id. Leave

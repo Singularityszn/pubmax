@@ -30,7 +30,7 @@ import { discardBody } from "@/lib/responseBody";
 // writes the same capability event (role "guest") the host gets at creation
 // (role "host"), so a mate who joins mid-visit picks this up live, no reload.
 export default function ActivePlanMarker({ id, startTime }: { id: string; startTime: string }) {
-  const { identityResolved, session, user } = useAuth();
+  const { identityResolved, session, user, loading, getCurrentUserId } = useAuth();
   const capabilitySnapshot = useSyncExternalStore(
     (onChange) => {
       const event = planCapabilityEvent(id);
@@ -45,11 +45,11 @@ export default function ActivePlanMarker({ id, startTime }: { id: string; startT
   const restoreAttempt = useRef({ planId: id, identityResolved, attempted: false });
 
   useEffect(() => {
-    if (role === "host" || role === "guest") {
-      markActivePlan(id, startTime);
+    if (!loading && (role === "host" || role === "guest")) {
+      markActivePlan(id, startTime, Date.now(), getCurrentUserId());
       setActivePlanRole(id, role);
     }
-  }, [id, startTime, role]);
+  }, [id, startTime, role, loading, user?.id, getCurrentUserId]);
 
   useEffect(() => {
     const attempt = restoreAttempt.current;

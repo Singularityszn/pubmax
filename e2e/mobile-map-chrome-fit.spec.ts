@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { PHONE_NAV_ITEMS } from "../components/nav/navigationModel";
 import { PERFORMANCE_BUDGETS } from "../lib/performanceBudgets";
+import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 import { expectStreamedPageSettled } from "./helpers/streamedPage";
 import {
@@ -1067,7 +1068,9 @@ const REQUIRED_MEMBERS = [
 ] as const;
 
 async function seedAnsweredConsentAndPal(page: Page, consentVisible = false): Promise<void> {
-  await page.addInitScript((visibleConsent: boolean) => {
+  // The pill wears a stored Pal only for the signed-in account that owns it.
+  await installAuthDoubles(page, { analyticsConsent: consentVisible ? "pending" : "denied" });
+  await page.addInitScript(({ visibleConsent, ownerId }) => {
     if (visibleConsent) {
       window.localStorage.removeItem("pubmaxx:analytics-consent:v1");
       window.sessionStorage.removeItem("pubmax:prompt-budget:v1");
@@ -1077,11 +1080,12 @@ async function seedAnsweredConsentAndPal(page: Page, consentVisible = false): Pr
     }
     window.localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
     const now = "2026-01-01T00:00:00.000Z";
+    window.localStorage.setItem("pubmax_account_owner", ownerId);
     window.localStorage.setItem(
       "pubmax_pub_pal_v1",
       JSON.stringify({
         id: "pal-e2e",
-        ownerId: "owner-e2e",
+        ownerId,
         name: "Ada",
         adultAttestedAt: now,
         appearance: {},
@@ -1095,7 +1099,8 @@ async function seedAnsweredConsentAndPal(page: Page, consentVisible = false): Pr
         updatedAt: now,
       }),
     );
-  }, consentVisible);
+  }, { visibleConsent: consentVisible, ownerId: ACCOUNTS.A.id });
+  await seedSignedIn(page, "A");
 }
 
 function overlaps(a: Rect, b: Rect): boolean {

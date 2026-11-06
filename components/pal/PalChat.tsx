@@ -56,7 +56,7 @@ import {
   palKnownVenueIds,
   resolvePalVenueOpenTarget,
 } from "@/lib/palOpenVenue";
-import { isPlanActiveNow, readActivePlan } from "@/lib/activePlan";
+import { isPlanActiveNow, readOwnedActivePlan } from "@/lib/activePlan";
 import { readPlanMemberProjection } from "@/components/plan/usePlanMemberRead";
 import {
   palNextStop,
@@ -289,7 +289,7 @@ export default function PalChat() {
 
 function PalChatBody({ owner }: { owner: string | null }) {
   const router = useRouter();
-  const { user, session, providerAuthState } = useAuth();
+  const { user, session, providerAuthState, getCurrentUserId } = useAuth();
   const viewerSession = useViewerSession();
   const auth = captureAccountAuth(user?.id ?? null, session);
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -469,7 +469,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
     async (text: string): Promise<boolean> => {
       const request = ++mapAskRef.current;
       const accountSignal = readProviderAccountSignal();
-      const plan = readActivePlan();
+      const plan = readOwnedActivePlan(getCurrentUserId());
       const intent = palVoiceMapIntent(text, isPlanActiveNow(plan, Date.now()));
       if (!intent) return false;
       if (intent === "map") {
@@ -525,7 +525,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
       router.push(href as Route);
       return true;
     },
-    [knownVenueIds, nextId, router],
+    [knownVenueIds, nextId, router, getCurrentUserId],
   );
 
   const ask = useCallback(

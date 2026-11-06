@@ -75,7 +75,8 @@ import {
   type PalVoiceLine,
 } from "@/lib/palVoiceTranscript";
 import type { PalVoiceSignal } from "@/lib/palVoiceSignal";
-import { isPlanActiveNow, readActivePlan } from "@/lib/activePlan";
+import { useAuth } from "@/components/auth/authContext";
+import { isPlanActiveNow, readOwnedActivePlan } from "@/lib/activePlan";
 import { readPlanMemberProjection } from "@/components/plan/usePlanMemberRead";
 import type { PalGenome } from "@/lib/palGenome";
 import { palMapAskTarget, palPubAskVenue } from "@/lib/palMapAsk";
@@ -181,6 +182,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
   genome?: PalGenome;
   onMemoryChange?: () => void;
 }) {
+  const { getCurrentUserId } = useAuth();
   const router = useRouter();
   const {
     startSession,
@@ -270,21 +272,21 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
   // "Next stop" during a planned night that is on: the map opens on the stop
   // after the one the person reached (their own Night Mode cursor). With no
   // night on it is an ordinary question for the Pal, so it answers false.
-  const nightIsOn = useCallback((): boolean => isPlanActiveNow(readActivePlan(), Date.now()), []);
+  const nightIsOn = useCallback((): boolean => isPlanActiveNow(readOwnedActivePlan(getCurrentUserId()), Date.now()), [getCurrentUserId]);
   const openNextStop = useCallback(async (): Promise<void> => {
-    const plan = readActivePlan();
+    const plan = readOwnedActivePlan(getCurrentUserId());
     if (!plan) return;
     const request = ++nextStopRequestRef.current;
     const body = await readPlanMemberProjection(plan.id);
     if (disposedRef.current || request !== nextStopRequestRef.current) return;
     // The cursor may have moved while the read was out: go from where the
     // person is now, and only while the same night is still on.
-    const current = readActivePlan();
+    const current = readOwnedActivePlan(getCurrentUserId());
     if (!current || current.id !== plan.id || !isPlanActiveNow(current, Date.now())) return;
     const next = palNextStop(palNightStopsFrom(body), current.stopIndex);
     if (next) openMapRef.current(next.href, `Opening ${next.venueName}, your next stop`);
     else openMapRef.current();
-  }, []);
+  }, [getCurrentUserId]);
   const nightIsOnRef = useRef(nightIsOn);
   const openNextStopRef = useRef(openNextStop);
   useEffect(() => {

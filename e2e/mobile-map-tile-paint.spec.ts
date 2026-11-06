@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import sharp from "sharp";
+import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
 
 const VIEWPORT = { width: 390, height: 844 };
@@ -149,13 +150,16 @@ test.describe("mobile map tile paint", () => {
   test("390px bottom map controls do not overlap and stay visible", async ({ page }) => {
     test.setTimeout(120_000);
     await seedMap(page);
-    await page.addInitScript(() => {
+    // The pill wears a stored Pal only for the signed-in account that owns it.
+    await installAuthDoubles(page);
+    await page.addInitScript((ownerId: string) => {
       const now = "2026-01-01T00:00:00.000Z";
+      window.localStorage.setItem("pubmax_account_owner", ownerId);
       window.localStorage.setItem(
         "pubmax_pub_pal_v1",
         JSON.stringify({
           id: "pal-e2e",
-          ownerId: "owner-e2e",
+          ownerId,
           name: "Ada",
           adultAttestedAt: now,
           appearance: {},
@@ -169,7 +173,8 @@ test.describe("mobile map tile paint", () => {
           updatedAt: now,
         }),
       );
-    });
+    }, ACCOUNTS.A.id);
+    await seedSignedIn(page, "A");
 
     await page.goto("/map");
     await expectMobileMapShellReady(page, 45_000);

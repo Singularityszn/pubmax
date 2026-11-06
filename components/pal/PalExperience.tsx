@@ -58,7 +58,7 @@ import { Button } from "@/components/ui/button";
 import Screen from "@/components/ui/screen";
 import { setActivePlanPalContext } from "@/lib/activePlan";
 import { readFirstRunCompanion } from "@/lib/firstRunTour";
-import { announceLocalPalChange, LOCAL_PAL_KEY } from "@/lib/localPal";
+import { announceLocalPalChange, LOCAL_PAL_KEY, readLocalPal } from "@/lib/localPal";
 import { safeLocalStorage } from "@/lib/safeStorage";
 import { useStepHistory } from "@/lib/useStepHistory";
 
@@ -175,15 +175,9 @@ function readStored(key: string): string | null {
   }
 }
 
-function readStoredPal(ownerId: string): PubPal | null {
-  try {
-    const value = JSON.parse(readStored(LOCAL_PAL_KEY) ?? "null") as (PubPal & { proposalPreferences?: PubPal["proposalPreferences"] }) | null;
-    return value?.ownerId === ownerId
-      ? { ...value, proposalPreferences: value.proposalPreferences ?? { memories: true, routes: true } }
-      : null;
-  } catch {
-    return null;
-  }
+function readStoredPal(ownerId: string | null): PubPal | null {
+  const value = readLocalPal(ownerId);
+  return value ? { ...value, proposalPreferences: value.proposalPreferences ?? { memories: true, routes: true } } : null;
 }
 
 function ChoiceButton({
@@ -573,7 +567,7 @@ function PalOnboardingScreen({
 }
 
 export default function PalExperience() {
-  const { user, session, loading, configured } = useAuth();
+  const { user, session, loading, configured, getCurrentUserId } = useAuth();
   const palViewerSession = useViewerSession();
   // The account gate is a claim about the viewer, so it waits for the live
   // session rather than reading a null user as a settled sign-out.
@@ -707,7 +701,7 @@ export default function PalExperience() {
       setEditingMemoryId("");
       setEditingMemoryValue("");
       setError(null);
-      setActivePlanPalContext(null);
+      setActivePlanPalContext(null, getCurrentUserId());
       palMutationRef.current = null;
       setSaving(false);
       controlSavingRef.current = null;
@@ -721,9 +715,9 @@ export default function PalExperience() {
         const body = await response.json().catch(() => ({})) as { pal?: PubPal | null; adultOnFile?: boolean };
         if (controller.signal.aborted || activeOwnerRef.current !== ownerId) return;
         setAdultOnFile(response.ok && body.adultOnFile === true);
-        const next = response.ok ? body.pal ?? null : readStoredPal(user.id);
+        const next = response.ok ? body.pal ?? null : readStoredPal(getCurrentUserId());
         if (next?.ownerId === ownerId) {
-          setActivePlanPalContext({ id: next.id, name: next.name });
+          setActivePlanPalContext({ id: next.id, name: next.name }, getCurrentUserId());
           writeStored(LOCAL_PAL_KEY, next);
           setPal(next);
           setDraft({
@@ -760,16 +754,16 @@ export default function PalExperience() {
       })
       .catch(() => {
         if (controller.signal.aborted || activeOwnerRef.current !== ownerId) return;
-        const next = readStoredPal(user.id);
+        const next = readStoredPal(getCurrentUserId());
         if (next?.ownerId === ownerId) {
-          setActivePlanPalContext({ id: next.id, name: next.name });
+          setActivePlanPalContext({ id: next.id, name: next.name }, getCurrentUserId());
           setPal(next);
           setMode("home");
         }
         setReady(true);
       });
     return () => controller.abort();
-  }, [user]);
+  }, [user, getCurrentUserId]);
 
   // Creating the Pal swaps the whole screen. The page kept the scroll position
   // the person had reached at the foot of setup, so it landed on "You stay in
@@ -830,7 +824,7 @@ export default function PalExperience() {
       writeStored(LOCAL_PAL_KEY, next);
       writeStored(`${PRIVACY_KEY}:${ownerId}`, { proposeMemories: privacy.proposeMemories });
       setPal(next);
-      setActivePlanPalContext({ id: next.id, name: next.name });
+      setActivePlanPalContext({ id: next.id, name: next.name }, getCurrentUserId());
       setMode("home");
       clearPalOnboardingDraft(draftOwner);
     } catch (cause) {
@@ -1039,7 +1033,7 @@ export default function PalExperience() {
       if (activeOwnerRef.current !== ownerId) return;
       removeStored(LOCAL_PAL_KEY);
       removeStored(`${PRIVACY_KEY}:${ownerId}`);
-      setActivePlanPalContext(null);
+      setActivePlanPalContext(null, getCurrentUserId());
       setMemories([]);
       setPal(null);
       setDraft(DEFAULT_PAL_DRAFT);

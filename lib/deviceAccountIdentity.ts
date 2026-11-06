@@ -16,14 +16,14 @@
 // `resolveCanonicalIdentity` rewrites the handle on the next tick.
 //
 // WHAT IS NOT HERE: a device-only artifact that never claimed account backing.
-// A signed-out drinker's self-asserted handle and a Night Profile saved on this
-// device are theirs; this module only ever runs for a signed-in session, and
-// the Night Profile is dropped only when it was MIRRORED from an account.
+// A Night Profile typed on this device stays. A profile mirrored from an
+// account leaves with that account.
 
 import {
   NIGHT_PROFILE_DEVICE_KEY,
   readDeviceNightProfileProvenance,
 } from "@/lib/nightProfileDeviceProvenance";
+import { showLegRouteOnMap } from "@/lib/legRouteOnMap";
 
 /** Which account the device-cached identity artifacts below belong to. */
 export const DEVICE_ACCOUNT_OWNER_KEY = "pubmax_account_owner";
@@ -51,6 +51,9 @@ export const DEVICE_IDENTITY_LOCAL_KEYS = [
   "pubmax-badge-event-opt-ins",
   // The host name the plan composer remembers prints on every share card.
   "pubmax:plan-host-name:v1",
+  "pubmaxx:plan-route-draft:v1",
+  "pubmax:plan-route-draft:v2",
+  "pubmax:plan-intake:v1",
   // The Pub Pal this browser last saved (lib/localPal.ts): its name and
   // portrait stand in the dock, on the map and on the recap postcard.
   "pubmax_pub_pal_v1",
@@ -65,6 +68,8 @@ export const DEVICE_IDENTITY_LOCAL_KEYS = [
 
 /** The sessionStorage half of the same set. */
 export const DEVICE_IDENTITY_SESSION_KEYS = [
+  "pubmaxx:plan-draft:v1",
+  "pubmax:plan-draft:v2",
   // Private turn orders for this account's Rounds, kept only in this tab.
   "pubmax:wild-round-rota:v1",
   // Who a referral asked the arriving account to follow back.
@@ -126,6 +131,7 @@ export function clearDeviceAccountArtifacts(
 
 /** Clear this tab's private artifacts without changing another tab's shared owner. */
 export function clearDeviceAccountSessionArtifacts(session: WritableStorage | null): void {
+  showLegRouteOnMap(null);
   for (const key of DEVICE_IDENTITY_SESSION_KEYS) removeKey(session, key);
 }
 

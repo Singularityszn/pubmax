@@ -11,7 +11,7 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("@/components/auth/useViewerHandle", () => ({ useViewerHandle: () => null }));
 vi.mock("@/components/auth/useViewerSession", () => ({ useViewerSession: () => ({ signedIn: false }) }));
-vi.mock("@/components/auth/authContext", () => ({ useAuth: () => ({ user: auth.userId ? { id: auth.userId } : null }) }));
+vi.mock("@/components/auth/authContext", () => ({ useAuth: () => ({ user: auth.userId ? { id: auth.userId } : null, getCurrentUserId: () => auth.userId }) }));
 
 import MobileTabBar from "@/components/nav/MobileTabBar";
 import {
@@ -39,6 +39,7 @@ function pal(overrides: Partial<PubPal> = {}): PubPal {
 }
 
 function store(value: PubPal) {
+  window.localStorage.setItem("pubmax_account_owner", "owner");
   window.localStorage.setItem("pubmax_pub_pal_v1", JSON.stringify(value));
 }
 

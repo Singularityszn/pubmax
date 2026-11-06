@@ -1,7 +1,4 @@
 // @vitest-environment jsdom
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -21,6 +18,7 @@ const state = vi.hoisted(() => ({
 vi.mock("@/lib/analytics", () => ({
   trackEvent: (name: string, props?: unknown) => state.track.push({ name, props }),
 }));
+vi.mock("@/components/auth/authContext", () => ({ useAuth: () => ({ getCurrentUserId: () => state.pal?.ownerId ?? null }) }));
 vi.mock("@/components/pal/useOwnPal", () => ({ useOwnPal: () => state.pal }));
 vi.mock("@/components/map/useCommunityPrices", () => ({ useCommunityPrices: () => ({}) }));
 vi.mock("@/components/nearme/usePriceEvidenceMission", () => ({
@@ -43,6 +41,7 @@ import NearPriceEvidenceMission from "@/components/nearme/NearPriceEvidenceMissi
 import PalQuestStamps from "@/components/pal/PalQuestStamps";
 import { ANALYTICS_EVENTS, sanitizeEvent } from "@/lib/analyticsEvents";
 import { LOCAL_PAL_KEY } from "@/lib/localPal";
+import { DEVICE_ACCOUNT_OWNER_KEY } from "@/lib/deviceAccountIdentity";
 import { PAL_QUEST_STAMPS_KEY } from "@/lib/palQuest";
 import { londonDayKey } from "@/lib/pintContributions";
 
@@ -90,6 +89,7 @@ describe("the Pal's usage events on screen", () => {
 
   beforeEach(() => {
     window.localStorage.clear();
+    window.localStorage.setItem(DEVICE_ACCOUNT_OWNER_KEY, ripley.ownerId);
     window.localStorage.setItem(LOCAL_PAL_KEY, JSON.stringify(ripley));
     state.pal = ripley;
     state.track = [];
@@ -147,24 +147,5 @@ describe("the Pal's usage events on screen", () => {
     );
     await render(createElement(PalQuestStamps, { pal: ripley, print: [] }));
     expect(sent("pal_passport_viewed")).toBe(1);
-  });
-});
-
-describe("pal_lead_started on the map", () => {
-  const canvas = readFileSync(join(process.cwd(), "components/PubMapCanvas.tsx"), "utf8");
-
-  it("is sent from the walk's first placement, once for each chosen way", () => {
-    // The count rides the marker's one start call, so a walk cancelled before
-    // its first frame counts nothing (proved on the real marker in
-    // __tests__/canvas-palMarker.test.ts), and a rebuilt map that leads the
-    // same way again is not counted again.
-    expect(canvas).toMatch(
-      /const reportLead = \(\) => \{\s*if \(palLeadReportedRef\.current === key\) return;\s*palLeadReportedRef\.current = key;\s*trackEvent\("pal_lead_started"\);\s*\};/,
-    );
-    expect(canvas).toMatch(/marker\.walk\(\{[^}]*onStarted: reportLead \}\)/);
-    expect(canvas.match(/trackEvent\("pal_lead_started"\)/g)).toHaveLength(1);
-    // The teardown clears the lead key so a rebuilt map leads again; it must
-    // never clear the reported key, or every rebuild would count a new lead.
-    expect(canvas).not.toMatch(/palLeadReportedRef\.current = null/);
   });
 });

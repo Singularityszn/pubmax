@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { useAuth } from "@/components/auth/authContext";
 import { useCommunityPrices } from "@/components/map/useCommunityPrices";
 import PalQuest from "@/components/pal/PalQuest";
 import { useOwnPal } from "@/components/pal/useOwnPal";
@@ -52,6 +53,7 @@ export default function NearPriceEvidenceMission({
   // The quest state belongs to the Pal's owner: an account switch starts it
   // afresh, and the book is read again when another tab changes it.
   const pal = useOwnPal();
+  const { getCurrentUserId } = useAuth();
   const owner = pal ? `${pal.ownerId}:${pal.id}` : "";
   const [answeredBy, setAnswered] = useState<{ owner: string; mission: PriceEvidenceMission } | null>(null);
   const answered = answeredBy && answeredBy.owner === owner ? answeredBy.mission : null;
@@ -124,7 +126,7 @@ export default function NearPriceEvidenceMission({
           // write is the old owner's, the book is now the next owner's), even
           // after this page has gone. So the owner is read again, from the
           // stored Pal, right before the write, and a different one stamps nothing.
-          const stored = readLocalPal();
+          const stored = readLocalPal(getCurrentUserId());
           if (!stored || stored.hidden || `${stored.ownerId}:${stored.id}` !== owner) return;
           // Only a stamp this answer added is shown as its own: a day another
           // tab stamped meanwhile ends the quest without claiming that pub.
