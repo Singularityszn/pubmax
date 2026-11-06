@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Break
 
-This skill takes one component and renders it on a fresh page under every scenario that can actually reach it. That page is the deliverable: a visual report the user scrolls through, every scenario side by side, with the breaks marked.
+This skill takes one component and renders it on a harness page under every scenario that can actually reach it. That page is the deliverable: a visual report the user scrolls through, every scenario side by side, with the breaks marked.
 
 It observes rather than judges. A finding here is something that visibly broke on the page, named in the vocabulary of the domain skill that owns the fix. Reviewing code against a standard is `interface-review` and `better-interface`; exploring design alternatives is `variant`; working through a component's product states one at a time is `state-machine`.
 
@@ -30,11 +30,11 @@ Write the kept scenarios down before building, one line each. Then say which axe
 
 ## 3. Build the harness page
 
-One throwaway page renders the component once per scenario in a single column, with a short text label above each instance.
+The harness page renders the component once per scenario in a single column, with a short text label above each instance.
 
 A scratch route inside the app holds the real component, imported from the project and untouched. The route inherits the app's layout, fonts, global styles and providers for free.
 
-For fixtures that cross the server and client boundary, follow the [fixture boundary guidance](../state-machine/SKILL.md#3-build-the-throwaway-page). Check that every instance receives its fixture data.
+Where fixtures cross a server and client boundary, follow the [fixture boundary guidance](../state-machine/SKILL.md#3-build-the-throwaway-page). Check that every instance receives its fixture data.
 
 Labels, container widths and fixture props are everything the page adds. No fonts or styles of its own, no simulated themes or token swaps, no probes. A component observed under any of those is a different component.
 
