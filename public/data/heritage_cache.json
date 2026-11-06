@@ -3,17 +3,20 @@
     {
       "source": "seed",
       "fact": "Riverside Wapping pub usually dated to 1520.",
-      "sourceRef": "https://en.wikipedia.org/wiki/Prospect_of_Whitby"
+      "sourceRef": "https://en.wikipedia.org/wiki/Prospect_of_Whitby",
+      "address": "57 Wapping Wall"
     },
     {
       "source": "wikipedia",
       "fact": "The Prospect of Whitby is a Grade II* listed pub on Wapping Wall in the East End, reputed to be one of the oldest riverside taverns in London, dating from around 1520.",
-      "sourceRef": "https://en.wikipedia.org/wiki/Prospect_of_Whitby"
+      "sourceRef": "https://en.wikipedia.org/wiki/Prospect_of_Whitby",
+      "address": "57 Wapping Wall"
     },
     {
       "source": "wikidata",
       "fact": "historic public house on the banks of the Thames at Wapping, London",
-      "sourceRef": "https://en.wikipedia.org/wiki/Prospect_of_Whitby"
+      "sourceRef": "https://en.wikipedia.org/wiki/Prospect_of_Whitby",
+      "address": "57 Wapping Wall"
     }
   ],
   "the grapes": [
@@ -76,17 +79,20 @@
     {
       "source": "seed",
       "fact": "Victorian Bloomsbury pub with preserved interior detail.",
-      "sourceRef": "https://en.wikipedia.org/wiki/The_Lamb,_Bloomsbury"
+      "sourceRef": "https://en.wikipedia.org/wiki/The_Lamb,_Bloomsbury",
+      "address": "94 Lamb's Conduit Street"
     },
     {
       "source": "wikipedia",
       "fact": "The Lamb is a Grade II listed public house on Lamb's Conduit Street, Bloomsbury, noted for its surviving Victorian snob screens above the bar.",
-      "sourceRef": "https://en.wikipedia.org/wiki/The_Lamb,_Bloomsbury"
+      "sourceRef": "https://en.wikipedia.org/wiki/The_Lamb,_Bloomsbury",
+      "address": "94 Lamb's Conduit Street"
     },
     {
       "source": "wikidata",
       "fact": "pub in Bloomsbury, London",
-      "sourceRef": "https://en.wikipedia.org/wiki/The_Lamb,_Bloomsbury"
+      "sourceRef": "https://en.wikipedia.org/wiki/The_Lamb,_Bloomsbury",
+      "address": "94 Lamb's Conduit Street"
     }
   ],
   "the sun tavern": [
@@ -426,7 +432,8 @@
     {
       "source": "wikidata",
       "fact": "Historic pub in London",
-      "sourceRef": "https://en.wikipedia.org/wiki/Argyll_Arms"
+      "sourceRef": "https://en.wikipedia.org/wiki/Argyll_Arms",
+      "address": "18 Argyll Street"
     }
   ],
   "the army & navy": [
@@ -482,12 +489,15 @@
     {
       "source": "wikidata",
       "fact": "pub in Kilburn, London",
-      "sourceRef": "https://en.wikipedia.org/wiki/Black_Lion,_Kilburn"
+      "sourceRef": "https://en.wikipedia.org/wiki/Black_Lion,_Kilburn",
+      "address": "274 Kilburn High Road"
     },
     {
       "source": "wikidata",
       "fact": "pub in Hammersmith, London",
-      "sourceRef": "https://en.wikipedia.org/wiki/Black_Lion,_Hammersmith"
+      "sourceRef": "https://en.wikipedia.org/wiki/Black_Lion,_Hammersmith",
+      "address": "W6 9TJ",
+      "addressSourceRef": "https://www.blacklion.london/"
     }
   ],
   "black prince, bexley": [

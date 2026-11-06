@@ -23,6 +23,10 @@ const response: AskResponseBody = {
 const now = Date.parse(dataset.now);
 const knownCase = dataset.cases.find((entry) => entry.venueName === "The Clachan")!;
 function expectations(entry: typeof dataset.cases[number]): PalEvalAnswerExpectations {
+  // These duplicate records have no canonical alias that resolves the name.
+  if (entry.id === "heritage-millers-well") {
+    return { expectedTools: ["venue_heritage"], expectEmpty: true, answerIncludes: ["cannot tell which pub"] };
+  }
   return { heritageAnswer: { venueId: entry.venueId, venueName: entry.venueName, facts: entry.facts } };
 }
 async function ask(entry: typeof dataset.cases[number]): Promise<AskResponseBody> {
@@ -61,8 +65,14 @@ describe("Pal fail-closed heritage eval", () => {
   });
 
   it.each(dataset.cases)("$id answers through the shared tool without network access", async (entry) => {
-    const result = gradePalCase(await ask(entry), expectations(entry), index);
+    const body = await ask(entry);
+    const expected = expectations(entry);
+    const result = gradePalCase(body, expected, index);
     expect(result.checks.filter((check) => !check.pass)).toEqual([]);
+    if (expected.expectEmpty) {
+      expect(body.sources).toEqual([]);
+      expect(body.proposals).toEqual([]);
+    }
   });
 
   it.each([

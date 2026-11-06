@@ -55,6 +55,11 @@ import {
 import { uniqueExactVenueNameMatch } from "@/lib/ask/venueResolution";
 import { matchVenueByName } from "@/lib/ask/venueResolution.server";
 import { searchVenueHours } from "@/lib/ask/venueHours.server";
+import {
+  HERITAGE_AMBIGUOUS_PUB_HINT,
+  heritageQuestionVenueSubjects,
+  heritageVenueNameMatches,
+} from "@/lib/ask/heritageQuestion";
 import { resolveCanonicalVenueId } from "@/lib/venueAliases";
 import { STATIC_STATIONS } from "@/lib/staticStations";
 import type {
@@ -279,19 +284,15 @@ async function toolVenueHeritage(
 ): Promise<AskToolResult> {
   const venueName = str(args.venueName) || str(args.name);
   const venueId = str(args.venueId);
-  let name = venueName;
-  let id = venueId;
-  if (!name) {
-    const venues = await loadConciergeVenues(ctx.cityId);
-    const hit =
-      (id ? venues.find((v) => v.id === id) : null) ??
-      (await matchVenueByName(venues, ctx.query.replace(/\?+$/, ""), { wholeQuestion: true }));
-    if (hit) {
-      name = hit.name;
-      id = hit.id;
-    }
-  }
-  if (!name) {
+  const venues = await loadConciergeVenues(ctx.cityId);
+  const subjects = heritageQuestionVenueSubjects(venues, ctx.query);
+  const requested = subjects.flatMap((matches) => matches.length === 1 ? matches : []);
+  const candidates = requested.filter((venue) =>
+    (!venueId || venue.id === venueId) &&
+    (!venueName || heritageVenueNameMatches([venue], venueName).length === 1),
+  );
+  const ambiguous = subjects.some((matches) => matches.length > 1);
+  if (!candidates.length) {
     return {
       ok: false,
       tool: "venue_heritage",
@@ -299,55 +300,57 @@ async function toolVenueHeritage(
       provenance: [],
       cards: [],
       proposals: [],
-      answerHint: "Name a listed pub to ask about its story.",
+      answerHint: ambiguous
+        ? HERITAGE_AMBIGUOUS_PUB_HINT
+        : "Name a listed pub to ask about its story.",
     };
   }
-  const facts = await retrieveHeritage({
-    ...(id ? { venueId: id } : {}),
+  const records = await Promise.all(candidates.map(async ({ name, id }) => ({
+    venueId: id,
     venueName: name,
-  });
-  const provenance: AskProvenance[] = facts.map((f) => ({
+    facts: await retrieveHeritage({ venueId: id, venueName: name }),
+  })));
+  const provenance: AskProvenance[] = records.flatMap(({ facts }) => facts.map((f) => ({
     label: f.source.toUpperCase(),
     ...(f.sourceRef ? { url: f.sourceRef } : {}),
     kind: "heritage" as const,
-  }));
-  const note = facts.length
-    ? facts
+  })));
+  const missingStory = "I've got the basics but no fuller story on record yet. I won't make one up.";
+  const cards: AskCard[] = records.map(({ venueId, venueName, facts }) => ({
+    key: venueId,
+    venueId,
+    title: venueName,
+    place: "",
+    note: facts.length
+      ? facts
         .slice(0, 3)
         .map((f) => f.fact)
         .join(" ")
-    : "I've got the basics but no fuller story on record yet. I won't make one up.";
-  const cards: AskCard[] = [
-    {
-      key: id || name,
-      venueId: id,
-      title: name,
-      place: "",
-      note,
-      price: null,
-      provenance: provenance[0] ?? { label: "Heritage", kind: "heritage" },
-    },
-  ];
-  const proposals: AskProposal[] = id
-    ? [
-        {
-          id: proposalId("open", id),
-          kind: "open_venue",
-          label: `Open ${name}`,
-          venueId: id,
-        },
-      ]
-    : [];
+      : missingStory,
+    price: null,
+    provenance: facts[0]
+      ? { label: facts[0].source.toUpperCase(), ...(facts[0].sourceRef ? { url: facts[0].sourceRef } : {}), kind: "heritage" }
+      : { label: "Heritage", kind: "heritage" },
+  }));
+  const proposals: AskProposal[] = records.map(({ venueId, venueName }) => ({
+    id: proposalId("open", venueId),
+    kind: "open_venue",
+    label: `Open ${venueName}`,
+    venueId,
+  }));
   return {
     ok: true,
     tool: "venue_heritage",
-    data: { venueId: id || null, venueName: name, facts },
+    data: records.length === 1 ? records[0] : { venues: records },
     provenance,
     cards,
     proposals,
-    answerHint: facts.length
-      ? `On record for ${name}: ${facts.length} fact${facts.length === 1 ? "" : "s"}.`
-      : note,
+    answerHint: [
+      ...records.map(({ venueName, facts }) => facts.length
+        ? `On record for ${venueName}: ${facts.length} fact${facts.length === 1 ? "" : "s"}.`
+        : missingStory),
+      ...(ambiguous ? [HERITAGE_AMBIGUOUS_PUB_HINT] : []),
+    ].join(" "),
   };
 }
 

@@ -228,7 +228,7 @@ describe("routeAsk judged path (SDK mocked)", () => {
     });
     expect(result.source).toBe("judged");
     expect(result.calls[0]?.name).toBe("venue_heritage");
-    expect(result.calls[0]?.args.venueName).toBe("The Lamb");
+    expect(result.calls[0]?.args).toEqual({ query: "Tell me the history of The Lamb" });
   });
 });
 

@@ -1,10 +1,3 @@
-import { readFile } from "node:fs/promises";
-
-vi.mock("node:fs/promises", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("node:fs/promises")>();
-  return { ...actual, readFile: vi.fn(actual.readFile) };
-});
-
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/serverEnv", () => ({
@@ -13,6 +6,7 @@ vi.mock("@/lib/serverEnv", () => ({
 }));
 
 import { POST } from "@/app/api/heritage/route";
+import * as historic from "@/lib/historic";
 import {
   answerHeritage,
   retrieveHeritage,
@@ -64,13 +58,16 @@ const SOURCED_SOURCES = new Set(["osm", "wikidata", "wikipedia", "seed"]);
 describe("retrieveHeritage — trust boundary", () => {
   it("reads a repeated fact once while keeping both source citations", async () => {
     const cacheFact = "The Black Friar was built about 1875.";
-    const read = vi.mocked(readFile);
-    read.mockResolvedValueOnce(JSON.stringify({
-      "the blackfriar": [
+    const [record] = await historic.loadHistoricPubs();
+    if (!record) throw new Error("The heritage fixture is missing.");
+    const read = vi.spyOn(historic, "loadHistoricPubs").mockResolvedValueOnce([{
+      ...record,
+      venueId: "venue-eltcmh",
+      facts: [
         { source: "wikipedia", fact: cacheFact, sourceRef: "https://example.org/history" },
         { source: "seed", fact: ` ${cacheFact} `, sourceRef: "https://example.org/archive" },
       ],
-    }));
+    }]);
     try {
       const result = await answerHeritage({ venueName: "The Blackfriar", question: "Tell me about this pub" });
       expect(result.answer.match(/built about 1875/g)).toHaveLength(1);
@@ -79,8 +76,7 @@ describe("retrieveHeritage — trust boundary", () => {
         { source: "seed", ref: "https://example.org/archive" },
       ]);
     } finally {
-      read.mockReset();
-      read.mockImplementation((await vi.importActual<typeof import("node:fs/promises")>("node:fs/promises")).readFile);
+      read.mockRestore();
     }
   });
 
@@ -411,20 +407,20 @@ describe("The Landlord LLM bounds (mocked OpenRouter)", () => {
 
   it("strips valid fact-id markers from the answer", async () => {
     global.fetch = vi.fn(async () =>
-      okResponse("Dating to 1520 [F1], it is a famous riverside pub."),
+      okResponse("Riverside Wapping pub usually dated to 1520 [F1]."),
     ) as unknown as typeof fetch;
 
     const res = await answerHeritage({
       venueName: "Prospect of Whitby",
       question: "How old is this pub?",
     });
-    expect(res.answer).toBe("Dating to 1520, it is a famous riverside pub.");
+    expect(res.answer).toBe("Riverside Wapping pub usually dated to 1520.");
   });
 
   // P2 — 5-minute answer cache. Same venue+question serves the cached answer
   // without a second paid call; a different venue must NOT collide.
   it("serves a cached LLM answer for the same venue+question", async () => {
-    const fetchMock = vi.fn(async () => okResponse("Built in 1520."));
+    const fetchMock = vi.fn(async () => okResponse("Riverside Wapping pub usually dated to 1520."));
     global.fetch = fetchMock as unknown as typeof fetch;
 
     const first = await answerHeritage({ venueName: "Prospect of Whitby", question: "How old?" });
@@ -435,16 +431,13 @@ describe("The Landlord LLM bounds (mocked OpenRouter)", () => {
   });
 
   it("bounds the answer cache to a fixed maximum (oldest entry evicted)", async () => {
-    // Every LLM call returns a distinct short answer so cache keys don't collide
-    // on the (venue, question) axis and the size test measures the bound.
-    global.fetch = vi.fn(async () => okResponse("cached.")) as unknown as typeof fetch;
+    global.fetch = vi.fn(async () => okResponse("Riverside Wapping pub usually dated to 1520.")) as unknown as typeof fetch;
 
-    // Fill just past the bound with unique venue names.
     const overshoot = 5;
     for (let i = 0; i < __HERITAGE_CACHE_MAX_FOR_TESTS + overshoot; i += 1) {
       await answerHeritage({
-        venueName: `Bounded Pub ${i}`,
-        question: "How old is this pub?",
+        venueName: "Prospect of Whitby",
+        question: `What is on record? ${i}`,
       });
     }
 
@@ -455,14 +448,14 @@ describe("The Landlord LLM bounds (mocked OpenRouter)", () => {
     global.fetch = vi.fn(async (_url: unknown, init?: RequestInit) => {
       const body = JSON.parse(init!.body as string);
       const isWhitby = body.messages[1].content.includes("Grade II* listed");
-      return okResponse(isWhitby ? "Whitby answer." : "Other answer.");
+      return okResponse(isWhitby ? "Riverside Wapping pub usually dated to 1520." : "Other answer.");
     }) as unknown as typeof fetch;
 
     const q = "Tell me about this pub?";
     const a = await answerHeritage({ venueName: "Prospect of Whitby", question: q });
     const b = await answerHeritage({ venueName: "Nowhere Tavern", question: q });
 
-    expect(a.answer).toBe("Whitby answer.");
+    expect(a.answer).toBe("Riverside Wapping pub usually dated to 1520.");
     expect(b.answer).not.toBe(a.answer); // distinct key → distinct answer
   });
 
@@ -489,7 +482,7 @@ describe("The Landlord LLM bounds (mocked OpenRouter)", () => {
         sources: ["https://history.example/red-lion-b"],
       }),
     ]);
-    const fetchMock = vi.fn(async () => okResponse("Distinct answer."));
+    const fetchMock = vi.fn(async () => okResponse("The Red Lion in Clapham has stood here for centuries."));
     global.fetch = fetchMock as unknown as typeof fetch;
 
     await answerHeritage({

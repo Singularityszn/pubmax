@@ -28,15 +28,11 @@ describe("historic pub identity markup", () => {
     expect(document).toContain('href="https://www.alastairhiltonphotographer.com/product-page/the-grapes"');
   });
 
-  it("describes the page without combining different pubs into one place", async () => {
+  it("describes only the verified Hammersmith Black Lion", async () => {
     const { document, schema } = await historicSchema("black-lion");
-    expect(schema["@type"]).toBe("WebPage");
-    expect(schema.url).toBe("https://pubmaxxing.com/historic/black-lion");
-    expect(schema).not.toHaveProperty("description");
-    expect(schema).not.toHaveProperty("address");
-    expect(schema).not.toHaveProperty("geo");
-    expect(schema).not.toHaveProperty("sameAs");
-    expect(document).toContain('href="https://en.wikipedia.org/wiki/Black_Lion,_Kilburn"');
+    expect(schema["@type"]).toBe("LandmarksOrHistoricalBuildings");
+    expect(schema.sameAs).toEqual(["https://en.wikipedia.org/wiki/Black_Lion,_Hammersmith"]);
+    expect(document).not.toContain('href="https://en.wikipedia.org/wiki/Black_Lion,_Kilburn"');
     expect(document).toContain('href="https://en.wikipedia.org/wiki/Black_Lion,_Hammersmith"');
   });
 });

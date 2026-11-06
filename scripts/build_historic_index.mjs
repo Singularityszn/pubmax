@@ -1,14 +1,13 @@
 // Build the HISTORIC PUBS index the "Historic Pubs" feature reads.
 //
 // This is a deterministic JOIN of two server-owned files:
-//   • public/data/heritage_cache.json      — cited heritage facts, keyed by the
-//     SAME normalised venue name the app keys by (normaliseVenueName in
-//     lib/curation.ts = trim + lowercase + collapse-spaces).
+//   • public/data/heritage_cache.json      — cited heritage facts grouped by
+//     normalised name (trim + lowercase + collapse-spaces). Publication resolves
+//     venue identity before runtime retrieval reads these facts by venue id.
 //   • public/data/pint_prices_app_dataset.json — the canonical venue rows, from
 //     which we recover the stable "venue-…" id via venueGroupingKey +
 //     stableVenueIdFromKey (the exact id the map + /api/venue/[id] link by).
 //
-// It writes public/data/historic_pubs.json: one record per heritage_cache entry.
 //
 // Provenance contract: we NEVER invent facts. `hook`/`facts` are copied verbatim
 // from the cache. `date*` and `listed` are EXTRACTED from the cited fact text by
@@ -28,12 +27,6 @@
 // description.
 //   • lib/heritageLanguageGate.mjs refuses a sentence written for us rather
 //     than for a reader.
-//   • lib/heritagePlaceConflict.mjs refuses a fact that names a London borough
-//     other than the borough of the venue it was joined to. Facts are keyed by
-//     pub NAME and London has several of nearly every name, so one key collects
-//     facts about several pubs; the join then hangs them all on whichever venue
-//     came first. That is how The Cheshire Cheese card ended up labelled
-//     Westminster over a description of a City of London pub.
 //
 // Determinism: output is sorted (era ascending, nulls last, then name) and
 // pretty-printed with a trailing newline, so running twice is byte-identical.
@@ -85,38 +78,52 @@ function stableVenueIdFromKey(key) {
   return `venue-${(hash >>> 0).toString(36)}`;
 }
 
-// Index the dataset by normalised pub name → the FIRST-SEEN venue group's
-// identity. Grouping mirrors groupVenuePrices / build_slim_index: rows share a
-// venueGroupingKey, and the first row of a group supplies name/lat/lng/borough.
-// When several distinct groups share a normalised name (e.g. two "The Grapes"),
-// the first in dataset order wins — a stable, deterministic choice.
 function buildVenueNameIndex(dataset) {
-  const seenGroups = new Set();
   const byName = new Map();
-  for (const row of dataset) {
-    const key = venueGroupingKey(row);
-    if (seenGroups.has(key)) continue;
-    seenGroups.add(key);
-    const name = normaliseVenueName(row.pub_name);
-    if (byName.has(name)) {
-      // First group per normalised name wins (deterministic), but flag the
-      // collision so a genuinely distinct second venue isn't silently dropped.
-      console.warn(
-        `buildVenueNameIndex: duplicate normalised venue name "${name}" — keeping first group, ignoring "${row.pub_name}"`,
-      );
-      continue;
-    }
-    const lat = Number(row.latitude);
-    const lng = Number(row.longitude);
-    byName.set(name, {
-      venueId: stableVenueIdFromKey(key),
-      name: String(row.pub_name),
-      borough: row.primary_borough ? String(row.primary_borough) : null,
-      lat: Number.isFinite(lat) ? lat : null,
-      lng: Number.isFinite(lng) ? lng : null,
-    });
+  for (const venue of buildVenueIdIndex(dataset).values()) {
+    const name = normaliseVenueName(venue.name);
+    const matches = byName.get(name) ?? [];
+    matches.push(venue);
+    byName.set(name, matches);
   }
   return byName;
+}
+
+function normaliseAddress(value) {
+  return String(value ?? "").toLowerCase()
+    .replace(/['’]/g, "")
+    .replace(/\bst\b/g, "street")
+    .replace(/\brd\b/g, "road")
+    .replace(/\bln\b/g, "lane")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function addressMatches(venue, fact) {
+  const address = normaliseAddress(venue.address);
+  const text = normaliseAddress(fact.address ?? fact.fact);
+  const postcodePattern = /\b[a-z]{1,2}\d[a-z\d]?\s*\d[a-z]{2}\b/gi;
+  const postcodes = (value) => [...value.matchAll(postcodePattern)].map((m) => m[0].replace(/\s/g, ""));
+  const venuePostcodes = postcodes(address);
+  const factPostcodes = postcodes(text);
+  if (factPostcodes.length > 0) {
+    return venuePostcodes.length === 1 && factPostcodes.length === 1 && venuePostcodes[0] === factPostcodes[0];
+  }
+  const streetAddress = String(venue.address ?? "").replace(/^(\s*\d+[a-z]?(?:-\d+)?),\s*/i, "$1 ").split(",")[0];
+  const street = normaliseAddress(streetAddress).split(/\s+london\b|\s+[a-z]{1,2}\d[a-z\d]?\b/)[0].trim();
+  return /^\d+[a-z]?(?: \d+)? /.test(street) &&
+    street.split(" ").length >= 3 && ` ${text} `.includes(` ${street} `);
+}
+
+function coordinatesMatch(venue, fact) {
+  const lat = fact.latitude;
+  const lng = fact.longitude;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180 ||
+      !Number.isFinite(venue.lat) || !Number.isFinite(venue.lng)) return false;
+  const radians = (value) => value * Math.PI / 180;
+  const a = Math.sin(radians(lat - venue.lat) / 2) ** 2 +
+    Math.cos(radians(lat)) * Math.cos(radians(venue.lat)) * Math.sin(radians(lng - venue.lng) / 2) ** 2;
+  return 6371000 * 2 * Math.asin(Math.sqrt(Math.min(1, a))) <= 150;
 }
 
 // Index the dataset by the stable venue id, so a heritage key whose name has
@@ -131,6 +138,7 @@ export function buildVenueIdIndex(dataset) {
     byId.set(venueId, {
       venueId,
       name: String(row.pub_name),
+      address: String(row.address ?? ""),
       borough: row.primary_borough ? String(row.primary_borough) : null,
       lat: Number.isFinite(lat) ? lat : null,
       lng: Number.isFinite(lng) ? lng : null,
@@ -183,7 +191,7 @@ function curatedVenueMatch(cacheKey, idIndex, aliases, curatedIds) {
   if (!curated) return null;
   const row = idIndex.get(resolveVenueAlias(curated, aliases));
   if (!row) return null;
-  return { venueId: row.venueId, name: null, borough: row.borough, lat: row.lat, lng: row.lng };
+  return { venueId: row.venueId, name: null, address: row.address, borough: row.borough, lat: row.lat, lng: row.lng };
 }
 
 // --- text helpers ------------------------------------------------------------
@@ -326,90 +334,105 @@ export function buildHistoricPublication({
   for (const cacheKey of Object.keys(heritageCache).sort()) {
     const rawFacts = heritageCache[cacheKey];
     if (!Array.isArray(rawFacts) || rawFacts.length === 0) continue;
-    const cited = rawFacts
-      .filter((f) => f && typeof f.fact === "string" && f.fact.trim())
-      .map(normaliseFact);
-    if (cited.length === 0) continue;
+    const raw = rawFacts.filter((entry) => entry && typeof entry.fact === "string" && entry.fact.trim());
+    if (raw.length === 0) continue;
 
-    const match =
-      venueIndex.get(cacheKey) ??
-      curatedVenueMatch(cacheKey, venueIdIndex, venueAliases, venueIdsByCacheKey);
-    const name = match && match.name ? match.name : titleCase(cacheKey);
-
-    // Publication gates. Refusing is all they do; the cache is where a refused
-    // fact is fixed. The venue row the record was joined to is the geographic
-    // authority here: it is where the card's coordinates, map link and borough
-    // label all come from, so a fact that contradicts it is about another pub.
-    const venueBorough = match ? match.borough : null;
-    const facts = [];
-    for (const fact of cited) {
-      const finding = internalLanguageFinding(fact.fact);
-      if (finding) {
-        quarantined.push({
-          cacheKey,
-          name,
-          reason: "internal-language",
-          detail: describeInternalLanguage(finding),
-          fact: fact.fact,
-        });
+    const curated = curatedVenueMatch(cacheKey, venueIdIndex, venueAliases, venueIdsByCacheKey);
+    const candidates = venueIndex.get(cacheKey) ?? (curated ? [curated] : []);
+    const byVenue = new Map();
+    for (const entry of raw) {
+      const fact = normaliseFact(entry);
+      const evidence = entry.sourceRef
+        ? raw.filter((other) => other.sourceRef === entry.sourceRef)
+        : [entry];
+      const matches = candidates.length > 1
+        ? candidates.filter((venue) => evidence.some((item) => addressMatches(venue, item) || coordinatesMatch(venue, item)))
+        : candidates.length === 1 ? candidates : [{
+          venueId: null, name: null, borough: null, lat: null, lng: null,
+        }];
+      if (matches.length !== 1) {
+        quarantined.push({ cacheKey, name: titleCase(cacheKey), reason: "unresolved-venue-identity",
+          detail: "the shared name has no unique address, postcode or coordinate match", fact: fact.fact });
         continue;
       }
-      const conflict = heritagePlaceConflict({
-        text: fact.fact,
-        sourceRef: fact.sourceRef,
-        venueBorough,
-      });
-      if (conflict) {
-        quarantined.push({
-          cacheKey,
-          name,
-          reason: conflict.reason,
-          detail: conflict.why,
-          fact: fact.fact,
-        });
-        continue;
-      }
-      facts.push(fact);
+      const match = matches[0];
+      const group = byVenue.get(match.venueId) ?? { match, cited: [] };
+      group.cited.push(fact);
+      byVenue.set(match.venueId, group);
     }
-    if (facts.length === 0) {
-      quarantined.push({
-        cacheKey,
+    for (const { match, cited: venueFacts } of [...byVenue.values()].sort((a, b) => a.match.venueId.localeCompare(b.match.venueId))) {
+      const name = match.name || titleCase(cacheKey);
+
+      const facts = [];
+      for (const fact of venueFacts) {
+        const finding = internalLanguageFinding(fact.fact);
+        if (finding) {
+          quarantined.push({
+            cacheKey,
+            name,
+            reason: "internal-language",
+            detail: describeInternalLanguage(finding),
+            fact: fact.fact,
+          });
+          continue;
+        }
+        const conflict = heritagePlaceConflict({
+          text: fact.fact,
+          sourceRef: fact.sourceRef,
+          venueBorough: match.borough,
+        });
+        if (conflict) {
+          quarantined.push({
+            cacheKey,
+            name,
+            reason: conflict.reason,
+            detail: conflict.why,
+            fact: fact.fact,
+          });
+          continue;
+        }
+        facts.push(fact);
+      }
+      if (facts.length === 0) {
+        quarantined.push({
+          cacheKey,
+          name,
+          reason: "no-publishable-facts",
+          detail: "every cited fact for this pub was withheld",
+          fact: null,
+        });
+        continue;
+      }
+
+      // The date and the listing grade are scanned across ALL published fact text
+      // for this venue. `era` is deliberately NARROWER than `date`: it carries the
+      // value only when the type is evidence of age, so an event year reaches the
+      // card as a labelled event and reaches no ordering at all.
+      const allText = facts.map((f) => f.fact).join("  ");
+      const date = classifyHeritageDate(allText);
+      const era = date && date.ageSortYear != null ? date.value : null;
+      const eraSort = date ? date.ageSortYear : null;
+      const listed = extractListed(allText);
+
+      records.push({
+        venueId: match.venueId,
         name,
-        reason: "no-publishable-facts",
-        detail: "every cited fact for this pub was withheld",
-        fact: null,
+        borough: match.borough,
+        lat: match.lat,
+        lng: match.lng,
+        hook: pickHook(facts),
+        facts,
+        era,
+        dateValue: date ? date.value : null,
+        datePrecision: date ? date.precision : null,
+        dateType: date ? date.type : null,
+        dateLabel: date ? date.label : null,
+        listed,
+        sourced: true,
+        venueStatus: VENUE_STATUS_BY_CACHE_KEY[cacheKey] ?? null,
+        _eraSort: eraSort, // private sort key, stripped before emit
       });
-      continue;
     }
-
-    // The date and the listing grade are scanned across ALL published fact text
-    // for this venue. `era` is deliberately NARROWER than `date`: it carries the
-    // value only when the type is evidence of age, so an event year reaches the
-    // card as a labelled event and reaches no ordering at all.
-    const allText = facts.map((f) => f.fact).join("  ");
-    const date = classifyHeritageDate(allText);
-    const era = date && date.ageSortYear != null ? date.value : null;
-    const eraSort = date ? date.ageSortYear : null;
-    const listed = extractListed(allText);
-
-    records.push({
-      venueId: match ? match.venueId : null,
-      name,
-      borough: match ? match.borough : null,
-      lat: match ? match.lat : null,
-      lng: match ? match.lng : null,
-      hook: pickHook(facts),
-      facts,
-      era,
-      dateValue: date ? date.value : null,
-      datePrecision: date ? date.precision : null,
-      dateType: date ? date.type : null,
-      dateLabel: date ? date.label : null,
-      listed,
-      sourced: true,
-      venueStatus: VENUE_STATUS_BY_CACHE_KEY[cacheKey] ?? null,
-      _eraSort: eraSort, // private sort key, stripped before emit
-    });
   }
 
   // Sort: era ascending (earliest first), records with no era last, then name.
@@ -463,7 +486,6 @@ async function readJson(filePath) {
   return JSON.parse(await readFile(filePath, "utf8"));
 }
 
-// The alias file is a courtesy input: a run without it still joins by name.
 async function readVenueAliases(aliasPath) {
   try {
     const parsed = await readJson(aliasPath);

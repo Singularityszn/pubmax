@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import historicPubs from "@/public/data/historic_pubs.json";
 import {
+  HISTORIC_PUB_COUNT,
   LONDON_MAP_OUTLINES,
   LONDON_MAP_PINS,
   LONDON_MAP_PUB_COUNT,
@@ -40,6 +41,10 @@ const generated = readFileSync(
 const MAX_KB = 80;
 
 describe("the landing's generated London data", () => {
+  it("reports the same cited pub count as the published historic directory", () => {
+    expect(HISTORIC_PUB_COUNT).toBe(pubs.length);
+  });
+
   it("stays under the generated module's size ceiling", () => {
     const kb = Buffer.byteLength(generated, "utf8") / 1024;
     expect(kb).toBeLessThan(MAX_KB);

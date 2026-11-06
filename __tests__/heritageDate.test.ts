@@ -183,10 +183,10 @@ describe("the shipped index", () => {
   });
 
   it("keeps a founding date where the source states one", () => {
-    const queens = byName("The Queens Arms");
-    expect(queens.era).toBe("1846");
-    expect(queens.dateType).toBe("founding");
-    expect(queens.dateLabel).toBe("Founded 1846");
+    const grapes = byName("The Grapes");
+    expect(grapes.era).toBe("1583");
+    expect(grapes.dateType).toBe("founding");
+    expect(grapes.dateLabel).toBe("Founded 1583");
   });
 
   it("never carries an era whose type is not age evidence", () => {
