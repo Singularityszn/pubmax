@@ -338,13 +338,8 @@
   overflow: hidden;
 }
 
-/* ── Cover photo ─────────────────────────────────────────────────────────
-   A full-width banner BAND, in normal flow. An unfilled slot is the recessed
-   panel (it was a coral wash: a tint spent on decoration, taste plan 18 Oct
-   2026), which is why the falloff is
-   painted whether or not an image loaded, and it takes a SHORTER band: there
-   is no photograph up there to crop, so four hundred pixels of gradient would
-   only be four hundred pixels of nothing above the fold. */
+/* The default cover uses a shorter band because it has no photograph to crop.
+   Only uploaded covers need the falloff behind the avatar. */
 .profilePage .profileCover {
   position: relative;
   height: clamp(132px, 13vw, 164px);
