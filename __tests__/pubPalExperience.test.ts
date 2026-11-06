@@ -6,11 +6,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const authState = vi.hoisted(() => ({
   current: { user: null as { id: string } | null, loading: false, configured: false },
+  getCurrentUserId: (): string | null => authState.current.user?.id ?? null,
 }));
 const transport = vi.hoisted(() => ({ request: vi.fn<typeof fetch>() }));
 
 vi.mock("@/components/auth/AuthProvider", () => ({
-  useAuth: () => authState.current,
+  useAuth: () => ({ ...authState.current, getCurrentUserId: authState.getCurrentUserId }),
 }));
 vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
 vi.mock("@/lib/authedFetch", async (original) => ({

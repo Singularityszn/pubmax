@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 
 import { useAuth } from "@/components/auth/authContext";
-import { readLocalPal, subscribeLocalPal } from "@/lib/localPal";
+import { readLocalPalSnapshot, subscribeLocalPal } from "@/lib/localPal";
 import type { PubPal } from "@/lib/pubPal";
 
 /**
@@ -12,15 +12,14 @@ import type { PubPal } from "@/lib/pubPal";
  * is read again when it changes, in this tab or another.
  */
 export function useOwnPal(): PubPal | null {
-  const [pal, setPal] = useState<PubPal | null>(null);
-  const accountId = useAuth().user?.id ?? null;
-  useEffect(() => {
-    const read = () => {
-      const stored = readLocalPal();
-      setPal(stored && !stored.hidden && accountId && stored.ownerId === accountId ? stored : null);
-    };
-    queueMicrotask(read);
-    return subscribeLocalPal(read);
-  }, [accountId]);
-  return pal;
+  const { user, loading, getCurrentUserId } = useAuth();
+  const snapshot = useSyncExternalStore(
+    subscribeLocalPal,
+    () => readLocalPalSnapshot(user && !loading && getCurrentUserId() === user.id ? user.id : null),
+    () => null,
+  );
+  return useMemo(() => {
+    const pal = snapshot ? JSON.parse(snapshot) as PubPal : null;
+    return pal && !pal.hidden ? pal : null;
+  }, [snapshot]);
 }

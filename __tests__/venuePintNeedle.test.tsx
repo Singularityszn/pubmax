@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("@/components/auth/authContext", () => ({ useAuth: () => ({ user: { id: "owner" }, loading: false, getCurrentUserId: () => "owner" }) }));
 
 import VenuePintNeedle from "@/components/map/VenuePintNeedle";
 import { pintNeedleAngle, pintNeedleArc, pintNeedlePoint, pintNeedlePosition } from "@/components/map/pintNeedle";

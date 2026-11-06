@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, createElement, type ComponentProps } from "react";
+import { act, createElement, Fragment, type ComponentProps } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -12,6 +12,22 @@ const boundary = vi.hoisted(() => ({
   events: [] as Array<{ name: string; props: unknown }>,
   reducedMotion: false,
 }));
+
+const auth = vi.hoisted(() => ({ userId: "owner-a" as string | null, liveId: "owner-a" as string | null, loading: false }));
+vi.mock("@/components/auth/authContext", () => ({
+  useAuth: () => ({ user: auth.userId ? { id: auth.userId } : null, loading: auth.loading, getCurrentUserId: () => auth.liveId }),
+}));
+vi.mock("next/navigation", () => ({ usePathname: () => "/map", useRouter: () => ({ prefetch() {} }) }));
+vi.mock("@/components/pal/usePalHead3D", () => ({ usePalHead3D() {} }));
+vi.mock("@/lib/authedFetch", async (original) => ({
+  ...await original<typeof import("@/lib/authedFetch")>(),
+  authedActionFetch: async () => new Response(null, { status: 503 }),
+}));
+vi.mock("@/components/map/useCommunityPrices", () => ({ useCommunityPrices: () => ({}) }));
+vi.mock("@/components/nearme/usePriceEvidenceMission", () => ({
+  usePriceEvidenceMission: () => ({ mission: { venueId: "venue-a", reason: "missing" }, dismiss() {}, complete() {} }),
+}));
+vi.mock("@/components/nearme/PriceEvidenceMissionSlot", () => ({ default: () => null }));
 
 vi.mock("next/dynamic", () => ({ default: () => () => null }));
 vi.mock("@/lib/analytics", () => ({
@@ -101,6 +117,13 @@ vi.mock("maplibre-gl", () => ({
   },
 }));
 
+import VenuePintNeedle from "@/components/map/VenuePintNeedle";
+import PalCheer from "@/components/pal/PalCheer";
+import PalPostcard from "@/components/pal/PalPostcard";
+import PalChatCompanion from "@/components/pal/PalChatCompanion";
+import PubPalSummon from "@/components/pubpal/PubPalSummon";
+import { PalMapEdgeButton } from "@/components/nav/PalNavButton";
+import NearPriceEvidenceMission from "@/components/nearme/NearPriceEvidenceMission";
 import PubMapCanvas from "@/components/PubMapCanvas";
 import {
   bindDeviceAccountOwner,
@@ -108,7 +131,7 @@ import {
   emitDeviceIdentityChanged,
   releaseDeviceAccountOwner,
 } from "@/lib/deviceAccountIdentity";
-import { LOCAL_PAL_KEY } from "@/lib/localPal";
+import { announceLocalPalChange, LOCAL_PAL_KEY } from "@/lib/localPal";
 import { showLegRouteOnMap } from "@/lib/legRouteOnMap";
 import type { LegOption } from "@/lib/legOptions";
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
@@ -163,6 +186,8 @@ describe("canvas Pal delivery under TRACKING_PLAN 5.7 and F12 account isolation"
   }
 
   beforeEach(() => {
+    auth.userId = auth.liveId = "owner-a";
+    auth.loading = false;
     boundary.maps = [];
     boundary.placements = [];
     boundary.events = [];
@@ -239,7 +264,7 @@ describe("canvas Pal delivery under TRACKING_PLAN 5.7 and F12 account isolation"
     expect(leads()).toHaveLength(2);
   });
 
-  it.each(["same-tab switch", "cross-tab switch", "sign-out"])(
+  it.each(["same-tab switch", "cross-tab switch", "sign-out", "provider sign-out"])(
     "retires the own marker and its actions under F12 after %s without rebuilding the map",
     async (transition) => {
       boundary.reducedMotion = true;
@@ -256,9 +281,13 @@ describe("canvas Pal delivery under TRACKING_PLAN 5.7 and F12 account isolation"
       expect(host.querySelector(".palMapMarker")).toBe(marker);
 
       await act(async () => {
-        if (transition === "sign-out") {
+        if (transition === "provider sign-out") {
+          auth.userId = auth.liveId = null;
+        } else if (transition === "sign-out") {
+          auth.userId = auth.liveId = null;
           releaseDeviceAccountOwner(window.localStorage, window.sessionStorage);
         } else {
+          if (transition === "same-tab switch") auth.userId = auth.liveId = "owner-b";
           bindDeviceAccountOwner("owner-b", window.localStorage, window.sessionStorage);
         }
         if (transition === "cross-tab switch") {
@@ -285,6 +314,88 @@ describe("canvas Pal delivery under TRACKING_PLAN 5.7 and F12 account isolation"
       expect(boundary.maps[0]!.removed).toBe(false);
     },
   );
+
+  it.each(["account switch", "provider sign-out"])(
+    "isolates every mounted cached Pal consumer on /map after %s under F12",
+    async (transition) => {
+      boundary.reducedMotion = true;
+      const openStop = vi.fn();
+      const consumers = () => createElement(Fragment, null,
+        createElement(PubMapCanvas, { ...props, onRouteStopClick: openStop }),
+        createElement(VenuePintNeedle, { venueId: "venue-xjf3n0", priceGbp: 5 }),
+        createElement(PalCheer, { moment: "crawl-finished", stops: 2 }),
+        createElement(PalPostcard, { stops: ["The Lamb", "The Crown"], title: "The night", completedAt: null }),
+        createElement(PalMapEdgeButton, { pathname: "/map" }),
+        createElement(PubPalSummon),
+        createElement(PalChatCompanion, { owner: auth.userId, state: "idle" }),
+        createElement(NearPriceEvidenceMission, { cards: route as unknown as ComponentProps<typeof NearPriceEvidenceMission>["cards"], enabled: true }),
+      );
+      const renderConsumers = () => act(async () => root.render(consumers()));
+      const assertPersonal = (name: string | null) => {
+        expect(Boolean(host.querySelector(".venuePintNeedlePal"))).toBe(name !== null);
+        expect(host.querySelector(".palCheer")?.textContent ?? "").toBe(name ? `${name} walked all 2 stops with you.` : "");
+        expect(host.querySelector(".mobileMapPalDoor")?.getAttribute("aria-label")).toBe(name ? `Pub Pal, ${name}` : "Pub Pal");
+        expect(host.querySelector(".palSummon")?.getAttribute("aria-label") ?? null).toBe(name ? `Summon ${name}, your Pub Pal` : null);
+        expect(host.querySelector(".palPostcardHeading")?.textContent ?? null).toBe(name ? `A postcard from ${name}` : null);
+        expect(Boolean(host.querySelector(".palChatCompanion [data-genome]"))).toBe(name !== null);
+        const quest = host.querySelector("[data-testid='pal-quest']");
+        if (name) expect(quest?.textContent).toContain(name);
+        else expect(quest).toBeNull();
+      };
+      await renderConsumers();
+      await ready();
+      assertPersonal("Ripley");
+      const oldMarker = host.querySelector<HTMLElement>(".palMapMarker")!;
+      expect(oldMarker.getAttribute("aria-label")).toBe("Next stop: The Crown");
+      oldMarker.click();
+      expect(openStop).toHaveBeenCalledExactlyOnceWith("venue-b");
+      openStop.mockClear();
+      const cachedA = localStorage.getItem(LOCAL_PAL_KEY)!;
+      await act(async () => {
+        auth.liveId = transition === "account switch" ? "owner-b" : null;
+        if (transition === "account switch") localStorage.setItem(DEVICE_ACCOUNT_OWNER_KEY, "owner-b");
+        emitDeviceIdentityChanged();
+      });
+      assertPersonal(null);
+      expect(host.querySelector(".palMapMarker")).toBeNull();
+      expect(oldMarker.isConnected).toBe(false);
+      oldMarker.click();
+      oldMarker.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      oldMarker.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
+      expect(openStop).not.toHaveBeenCalled();
+      expect(localStorage.getItem(LOCAL_PAL_KEY)).toBe(cachedA);
+      if (transition === "provider sign-out") expect(localStorage.getItem(DEVICE_ACCOUNT_OWNER_KEY)).toBe("owner-a");
+      auth.userId = auth.liveId;
+      await renderConsumers();
+      assertPersonal(null);
+      if (transition === "account switch") {
+        await act(async () => {
+          localStorage.setItem(LOCAL_PAL_KEY, JSON.stringify({ ...JSON.parse(cachedA), id: "pal-b", ownerId: "owner-b", name: "Moss" }));
+          announceLocalPalChange();
+        });
+        assertPersonal("Moss");
+        const newMarker = host.querySelector<HTMLElement>(".palMapMarker")!;
+        expect(newMarker).not.toBe(oldMarker);
+        newMarker.click();
+        expect(openStop).toHaveBeenCalledExactlyOnceWith("venue-b");
+      }
+      await choose("walk");
+      await frame();
+      expect(boundary.maps).toHaveLength(1);
+      expect(boundary.maps[0]!.removed).toBe(false);
+    },
+  );
+
+  it.each(["signed-out", "loading"])("creates no own marker for a %s account with a retained cache", async (state) => {
+    if (state === "signed-out") auth.userId = auth.liveId = null;
+    else auth.loading = true;
+    await render();
+    await ready();
+    await choose("walk");
+    await frame();
+    expect(host.querySelector(".palMapMarker")).toBeNull();
+    expect(leads()).toHaveLength(0);
+  });
 
   it("does not count a choice cancelled before placement", async () => {
     await render();

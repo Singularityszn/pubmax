@@ -1,6 +1,6 @@
 import type { PubPal } from "@/lib/pubPal";
 import { safeLocalStorage } from "@/lib/safeStorage";
-import { deviceAccountOwner } from "@/lib/deviceAccountIdentity";
+import { deviceAccountOwner, subscribeDeviceIdentity } from "@/lib/deviceAccountIdentity";
 
 // The Pal this browser last saved (PalExperience writes it). Surfaces outside
 // /pal read it to show the person's own Pal; it is a cache, never the source of
@@ -11,19 +11,24 @@ import { deviceAccountOwner } from "@/lib/deviceAccountIdentity";
 // owner is the account stamped on this device.
 export const LOCAL_PAL_KEY = "pubmax_pub_pal_v1";
 
-export function readLocalPal(): PubPal | null {
+export function readLocalPalSnapshot(accountId: string | null): string | null {
   try {
     const storage = safeLocalStorage();
     const ownerId = deviceAccountOwner(storage);
-    if (!ownerId) return null;
+    if (!accountId || ownerId !== accountId) return null;
     const raw = storage?.getItem(LOCAL_PAL_KEY);
     if (!raw) return null;
     const value = JSON.parse(raw) as Partial<PubPal> | null;
     if (!value || typeof value !== "object" || !value.id || !value.appearance || value.ownerId !== ownerId) return null;
-    return value as PubPal;
+    return raw;
   } catch {
     return null;
   }
+}
+
+export function readLocalPal(accountId: string | null): PubPal | null {
+  const snapshot = readLocalPalSnapshot(accountId);
+  return snapshot ? JSON.parse(snapshot) as PubPal : null;
 }
 
 // A browser sends `storage` only to OTHER tabs, so the page that writes the Pal
@@ -41,13 +46,10 @@ export function announceLocalPalChange(): void {
 
 /** Call `onChange` when the stored Pal changes in this tab or another. */
 export function subscribeLocalPal(onChange: () => void): () => void {
-  const onStorage = (event: StorageEvent) => {
-    if (event.key === null || event.key === LOCAL_PAL_KEY) onChange();
-  };
+  const unsubscribeIdentity = subscribeDeviceIdentity(onChange);
   window.addEventListener(LOCAL_PAL_CHANGED_EVENT, onChange);
-  window.addEventListener("storage", onStorage);
   return () => {
     window.removeEventListener(LOCAL_PAL_CHANGED_EVENT, onChange);
-    window.removeEventListener("storage", onStorage);
+    unsubscribeIdentity();
   };
 }

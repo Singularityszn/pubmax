@@ -3,7 +3,7 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/components/auth/authContext", () => ({ useAuth: () => ({ user: { id: "owner" }, loading: false }) }));
+vi.mock("@/components/auth/authContext", () => ({ useAuth: () => ({ user: { id: "owner" }, loading: false, getCurrentUserId: () => "owner" }) }));
 vi.mock("next/navigation", () => ({ usePathname: () => "/map" }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 

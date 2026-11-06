@@ -4,11 +4,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/auth/authContext";
-import { subscribeDeviceIdentity } from "@/lib/deviceAccountIdentity";
-import type { PubPal } from "@/lib/pubPal";
 import { trackEvent } from "@/lib/analytics";
 import { isPlanActiveNow, readActivePlan, subscribeActivePlan } from "@/lib/activePlan";
-import { readLocalPal, subscribeLocalPal } from "@/lib/localPal";
+import { useOwnPal } from "@/components/pal/useOwnPal";
 import { readShowableMorningNight } from "@/lib/morningReentry";
 import { palSummonLine } from "@/lib/palSummonLine";
 import { subscribePalMoments, type PalMoment } from "@/lib/palMoments";
@@ -40,25 +38,9 @@ export default function PubPalSummon() {
 }
 
 function OwnedPubPalSummon({ ownerId, pathname }: { ownerId: string; pathname: string }) {
-  const [pal, setPal] = useState<PubPal | null>(null);
+  const pal = useOwnPal();
   const [cheer, setCheer] = useState<PalMoment | null>(null);
   const [offer, setOffer] = useState<{ nightOnStop: number | null; nightKept: boolean; hour: number } | null>(null);
-  useEffect(() => {
-    let active = true;
-    const read = () => {
-      if (!active) return;
-      const value = readLocalPal();
-      setPal(ownerId && value?.ownerId === ownerId ? value : null);
-    };
-    queueMicrotask(read);
-    const unsubscribePal = subscribeLocalPal(read);
-    const unsubscribeIdentity = subscribeDeviceIdentity(read);
-    return () => {
-      active = false;
-      unsubscribePal();
-      unsubscribeIdentity();
-    };
-  }, [pathname, ownerId]);
   // What the Pal offers now: a night that is on, a kept night, or the hour.
   useEffect(() => {
     let active = true;

@@ -4,7 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const auth = vi.hoisted(() => ({ user: { id: "account-a" } as { id: string } | null, loading: false }));
-vi.mock("@/components/auth/authContext", () => ({ useAuth: () => auth }));
+vi.mock("@/components/auth/authContext", () => ({ useAuth: () => ({ ...auth, getCurrentUserId: () => auth.user?.id ?? null }) }));
 vi.mock("next/navigation", () => ({ usePathname: () => "/map" }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 

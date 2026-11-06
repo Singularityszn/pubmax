@@ -16,6 +16,7 @@ const state = vi.hoisted(() => ({
   held: null as null | (() => void),
 }));
 
+vi.mock("@/components/auth/authContext", () => ({ useAuth: () => ({ getCurrentUserId: () => state.pal?.ownerId ?? null }) }));
 vi.mock("@/components/pal/useOwnPal", () => ({ useOwnPal: () => state.pal }));
 vi.mock("@/components/map/useCommunityPrices", () => ({ useCommunityPrices: () => ({}) }));
 vi.mock("@/components/nearme/usePriceEvidenceMission", () => ({

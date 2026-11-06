@@ -3,7 +3,6 @@ import * as maplibregl from "maplibre-gl";
 import { palGenomeFor, palGenomeStyle } from "@/lib/palGenome";
 import { pubPalMascotSlugFor, pubPalMascotSrc, pubPalMascotTalkSrc } from "@/lib/pubPalMascot";
 import type { PubPal } from "@/lib/pubPal";
-import { readLocalPal } from "@/lib/localPal";
 import { palMomentIsFinish, subscribePalMoments } from "@/lib/palMoments";
 import { palVisitMs, palWalkAt, palWalkPlan, palWalkPointAt, type LngLat, type PalWalkPlan } from "./palWalk";
 import "./palMarker.css";
@@ -183,10 +182,10 @@ export function palMarkerElement(pal: PalMarkerLook): HTMLElement | null {
  * step behind the one before it, and only the reader's own Pal answers the
  * reader's Pal moments.
  */
-export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerLook; index: number }): PalMapMarker {
-  const own = crew ? null : readLocalPal();
-  if (!crew && (!own || own.hidden)) return NO_PAL;
-  const pal: PalMarkerLook = crew ? crew.pal : own!;
+export function createPalMapMarker(map: maplibregl.Map, options: { pal: (PalMarkerLook & { hidden?: boolean }) | null; index?: number }): PalMapMarker {
+  const crew = options.index === undefined ? null : { pal: options.pal, index: options.index };
+  const pal = options.pal;
+  if (!pal || pal.hidden) return NO_PAL;
   const element = palMarkerElement(pal);
   if (!element) return NO_PAL;
   const crewStep = crew ? (crew.index + 1) * CREW_STEP_PX : 0;

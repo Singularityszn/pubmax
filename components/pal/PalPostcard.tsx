@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/authContext";
+import { readLocalPal } from "@/lib/localPal";
+import { useOwnPal } from "@/components/pal/useOwnPal";
 import { palCheerLine } from "@/components/pal/PalCheer";
 import PalPrint from "@/components/pal/PalPrint";
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
@@ -13,7 +15,6 @@ import {
   palPostcardStops,
   type PalPostcardPoint,
 } from "@/components/pal/palPostcardLayout";
-import { readLocalPal, subscribeLocalPal } from "@/lib/localPal";
 import { PAL_PRINT_SIZE, palGenomeFor, palGenomeStyle, type PalGenome } from "@/lib/palGenome";
 import type { PubPal } from "@/lib/pubPal";
 import { pubPalMascotSlugFor, pubPalMascotSrc } from "@/lib/pubPalMascot";
@@ -98,22 +99,19 @@ export default function PalPostcard({
   title: string;
   completedAt: string | null;
 }) {
-  const [pal, setPal] = useState<PubPal | null>(null);
+  const pal = useOwnPal();
+  return pal ? <OwnedPalPostcard key={`${pal.ownerId}:${pal.id}`} pal={pal} stops={stops} title={title} completedAt={completedAt} /> : null;
+}
+
+function OwnedPalPostcard({ pal, stops, title, completedAt }: {
+  pal: PubPal;
+  stops: readonly string[];
+  title: string;
+  completedAt: string | null;
+}) {
+  const { getCurrentUserId } = useAuth();
   const [save, setSave] = useState<SaveState>("idle");
   const cardRef = useRef<HTMLElement>(null);
-  // The stored Pal is a device cache, so it stands on the card only for the
-  // signed-in account that owns it. It is read again when it changes, in this
-  // tab or another, so a Pal hidden or deleted leaves this card too.
-  const accountId = useAuth().user?.id ?? null;
-  useEffect(() => {
-    const read = () => {
-      const stored = readLocalPal();
-      setPal(stored && accountId && stored.ownerId === accountId ? stored : null);
-    };
-    queueMicrotask(read);
-    return subscribeLocalPal(read);
-  }, [accountId]);
-
   // The image is drawn ahead, once the card is on screen, so a tap on Save
   // postcard can hand it to the share sheet at once: iOS refuses a share that
   // waits on image loads or a canvas first.
@@ -134,8 +132,7 @@ export default function PalPostcard({
   }, []);
   useEffect(() => {
     preparedRef.current = null;
-    const own = pal && accountId && pal.ownerId === accountId ? pal : null;
-    const content = postcardContent(own, stopsKey.split("\n"), title, completedAt);
+    const content = postcardContent(pal, stopsKey.split("\n"), title, completedAt);
     const card = cardRef.current;
     if (!content || !card) return;
     let cancelled = false;
@@ -152,18 +149,20 @@ export default function PalPostcard({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [pal, accountId, stopsKey, title, completedAt, themeVersion]);
+  }, [pal, stopsKey, title, completedAt, themeVersion]);
 
-  // Checked again against the account signed in now, during render, so an
-  // account switch never paints the last account's Pal before the read above.
-  const ownPal = pal && accountId && pal.ownerId === accountId ? pal : null;
-  const content = postcardContent(ownPal, stops, title, completedAt);
+  const content = postcardContent(pal, stops, title, completedAt);
   if (!content) return null;
   const { pal: shown, genome, names, line, date } = content;
   const points = palPostcardPoints(names.length, VIEW_W, VIEW_H, VIEW_INSET, VIEW_TOP);
   const last = points[points.length - 1]!;
 
+  const stillOwned = () => {
+    const current = readLocalPal(getCurrentUserId());
+    return current?.ownerId === pal.ownerId && current.id === pal.id && !current.hidden;
+  };
   const onSave = async () => {
+    if (!stillOwned()) return;
     const card = cardRef.current;
     if (!card || save === "working") return;
     const prepared = preparedRef.current;
@@ -176,6 +175,7 @@ export default function PalPostcard({
     setSave("working");
     try {
       const blob = await drawPostcard(card, content);
+      if (!stillOwned()) return;
       const file = new File([blob], POSTCARD_FILE, { type: "image/png" });
       preparedRef.current = file;
       setSave(await shareOrDownload(file, shown.name));

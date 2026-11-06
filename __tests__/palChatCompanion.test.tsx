@@ -6,7 +6,8 @@ import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
 
 const fetches = vi.hoisted(() => ({ fetch: vi.fn() }));
 vi.mock("@/lib/authedFetch", () => ({ authedActionFetch: fetches.fetch }));
-vi.mock("@/lib/localPal", () => ({ readLocalPal: () => null, subscribeLocalPal: () => () => {} }));
+const auth = vi.hoisted(() => ({ userId: "owner-a" as string | null }));
+vi.mock("@/components/auth/authContext", () => ({ useAuth: () => ({ user: auth.userId ? { id: auth.userId } : null, loading: false, getCurrentUserId: () => auth.userId }) }));
 vi.mock("@/components/pal/PalPortrait", () => ({ default: ({ name }: { name: string }) => createElement("span", null, name) }));
 import PalChatCompanion from "@/components/pal/PalChatCompanion";
 
@@ -16,6 +17,7 @@ function response(ownerId: string, name: string) {
   return new Response(JSON.stringify({ pal: { ownerId, name, id: ownerId, appearance: DEFAULT_PAL_DRAFT.appearance, personality: DEFAULT_PAL_DRAFT.personality } }));
 }
 async function render(owner: string | null) {
+  auth.userId = owner === "anonymous" ? null : owner;
   await act(async () => { root.render(createElement(PalChatCompanion, { owner, state: "idle" })); });
 }
 beforeEach(() => {

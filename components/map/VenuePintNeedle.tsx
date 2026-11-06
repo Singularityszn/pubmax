@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties } from "react";
+import type { CSSProperties } from "react";
 
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
 import { formatGbp } from "@/lib/formatGbp";
-import { readLocalPal } from "@/lib/localPal";
+import { useOwnPal } from "@/components/pal/useOwnPal";
 import { palGenomeFor, palGenomeStyle } from "@/lib/palGenome";
 import {
   PRICE_BANDS,
@@ -14,7 +14,6 @@ import {
   priceBandClass,
   priceBandLabel,
 } from "@/lib/priceBand";
-import type { PubPal } from "@/lib/pubPal";
 import { pubPalMascotSlugFor } from "@/lib/pubPalMascot";
 import { pintNeedleAngle, pintNeedleArc, pintNeedlePosition } from "./pintNeedle";
 import "./venuePintNeedle.css";
@@ -32,11 +31,7 @@ const CY = 100;
 const RADIUS = 78;
 
 export default function VenuePintNeedle({ venueId, priceGbp }: { venueId: string; priceGbp: number | null | undefined }) {
-  const [pal, setPal] = useState<PubPal | null>(null);
-  useEffect(() => {
-    const stored = readLocalPal();
-    queueMicrotask(() => setPal(stored && !stored.hidden && pubPalMascotSlugFor(stored.appearance.species) ? stored : null));
-  }, []);
+  const pal = useOwnPal();
 
   const area = priceBandAreaForVenue(venueId);
   const band = priceBand(priceGbp, area);
@@ -67,7 +62,7 @@ export default function VenuePintNeedle({ venueId, priceGbp }: { venueId: string
         </g>
         <circle className="venuePintNeedleHub" cx={CX} cy={CY} r={9} />
       </svg>
-      {pal ? (
+      {pal && pubPalMascotSlugFor(pal.appearance.species) ? (
         <span
           className={"venuePintNeedlePal" + (band === "cheap" ? " isCheering" : "")}
           aria-hidden="true"

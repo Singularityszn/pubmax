@@ -15,8 +15,7 @@ import { createPalMapMarker, palPinIsCheap, type PalMapMarker } from "@/componen
 import { legRouteToLines } from "@/components/map/canvas/legRouteScene";
 import { legRouteForCurrentLeg, readLegRouteOnMap, subscribeLegRouteOnMap } from "@/lib/legRouteOnMap";
 import { trackEvent } from "@/lib/analytics";
-import { deviceAccountOwner, subscribeDeviceIdentity } from "@/lib/deviceAccountIdentity";
-import { safeLocalStorage } from "@/lib/safeStorage";
+import { useOwnPal } from "@/components/pal/useOwnPal";
 import { palLeadLine, palLeadPath, planWalkAfterLead } from "@/lib/palLead";
 import { palFirstLegLabel, palPerchSpeechForPin, palWalkLine } from "@/lib/palMapLines";
 import { crewPalLook, type CrewPal } from "@/lib/crewPals";
@@ -1267,6 +1266,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   }, [filteredVenueCount, queryVenues, venues]);
   const selectedIdRef = useRef(selectedVenueId);
   // The reader's Pub Pal perched beside the selected pin (palMarker.ts).
+  const ownPal = useOwnPal();
   const palMarkerRef = useRef<PalMapMarker | null>(null);
   // The last crawl stop the Pal was sent to, so a re-render never resends it.
   const palVisitKeyRef = useRef("");
@@ -3781,13 +3781,6 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     const donutSync: DonutClusterSync = createDonutClusterSync(map, cinematic, {
       enabled: useDomDonutClusters,
     });
-    palMarkerRef.current = createPalMapMarker(map);
-    const palOwnerId = deviceAccountOwner(safeLocalStorage());
-    const unsubscribePalIdentity = subscribeDeviceIdentity(() => {
-      if (deviceAccountOwner(safeLocalStorage()) === palOwnerId) return;
-      palMarkerRef.current?.destroy();
-      palMarkerRef.current = null;
-    });
     // One RAF loop for motivated feedback only: pin entrance, route direction,
     // and the selected-pin pulse. The old perpetual camera orbit changed the
     // whole canvas every frame while idle, forcing tile churn that read as
@@ -3958,7 +3951,6 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       window.removeEventListener("blur", onBlur);
       window.removeEventListener("focus", onFocus);
       donutSync.destroy();
-      unsubscribePalIdentity();
       palMarkerRef.current?.destroy();
       palMarkerRef.current = null;
       // The lead belonged to that marker: after WebGL recovery the new marker
@@ -4505,11 +4497,26 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   // above once routed), and goes to a stop the reader taps; with no crawl it
   // perches beside the selected pin.
   const routeIds = route.map((v) => v.id).join(",");
+  useLayoutEffect(() => {
+    const map = mapRef.current;
+    if (!mapReady || !map || !ownPal) return;
+    const marker = createPalMapMarker(map, { pal: ownPal });
+    palMarkerRef.current = marker;
+    palVisitKeyRef.current = "";
+    palLeadKeyRef.current = null;
+    palSpokeWalkRef.current = "";
+    palSpokePerchRef.current = "";
+    return () => {
+      marker.destroy();
+      if (palMarkerRef.current === marker) palMarkerRef.current = null;
+    };
+  }, [ownPal, mapReady]);
   useEffect(() => {
     if (!mapReady) return;
     const stops = palWalkStopsFromKey(routeCoordKey);
     if (stops.length > 1) {
-      walkPals({ key: routeCoordKey, stops, path: stops });
+      const routed = routedLineRef.current?.key === routeCoordKey ? routedLineRef.current.line : null;
+      walkPals({ key: routeCoordKey, stops, path: routed ? palWalkPathFrom(routed) : stops, road: routed !== null });
       const stop = selectedVenueId ? routeIds.split(",").indexOf(selectedVenueId) : -1;
       const visitKey = `${routeCoordKey}|${selectedVenueId}`;
       if (stop >= 0 && visitKey !== palVisitKeyRef.current && !palLeadKeyRef.current) palMarkerRef.current?.visit(stop);
@@ -4532,7 +4539,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     const speech = palPerchSpeechForPin(palSpokePerchRef.current, venue?.id ?? null, pin?.properties);
     palSpokePerchRef.current = speech.spoken;
     if (speech.say !== undefined) palMarkerRef.current?.say(speech.say);
-  }, [routeCoordKey, routeIds, selectedVenueId, venues, venueSignals, favoritePint, drinkCategory, lensPrices, spoonsValue, mapReady, walkPals]);
+  }, [routeCoordKey, routeIds, selectedVenueId, venues, venueSignals, favoritePint, drinkCategory, lensPrices, spoonsValue, mapReady, walkPals, ownPal]);
 
   // Tonight's next stop: the reader's Pal waits beside it and, tapped there,
   // opens it the way a tapped route stop does.
@@ -4548,7 +4555,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     palNextRef.current = next;
     if (!palLeadKeyRef.current) palMarkerRef.current?.nextStop(next);
     for (const marker of crewMarkersRef.current) marker.nextStop(next);
-  }, [palNextVenueId, palNextName, routeIds, mapReady]);
+  }, [palNextVenueId, palNextName, routeIds, mapReady, ownPal]);
 
   // Pal leads the way: the way the reader chose to tonight's next stop, walked
   // by their own Pal along its exact path, with one line about the choice
@@ -4600,7 +4607,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     marker.walk({ key, stops: [path[0]!, path.at(-1)!], path, road: true, cheer: true, onStarted: reportLead });
     marker.nextStop({ stop: 1, name: palNextName, open: () => onRouteStopClickRef.current(palNextVenueId) });
     marker.say(palLeadLine(shownLeg.option));
-  }, [shownLeg, palNextVenueId, palNextName, routeCoordKey, mapReady]);
+  }, [shownLeg, palNextVenueId, palNextName, routeCoordKey, mapReady, ownPal]);
 
   // The crew's Pals: made when the crew read lands, walked on the route the
   // reader's own Pal is on, and gone with the plan's route.

@@ -1,12 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
-import { readLocalPal } from "@/lib/localPal";
+import { useOwnPal } from "@/components/pal/useOwnPal";
 import { palGenomeFor, palGenomeStyle } from "@/lib/palGenome";
 import type { PalMomentKind } from "@/lib/palMoments";
-import type { PubPal } from "@/lib/pubPal";
 import "./palCheer.css";
 
 /** The line the Pal says for a moment: what happened, never a score. */
@@ -21,12 +18,8 @@ export function palCheerLine(name: string, moment: PalMomentKind, stops = 0): st
 // held by the Pal's genome; a hidden Pal, or none, shows nothing. It jumps once
 // and only when the person allows motion; a muted Pal is still.
 export default function PalCheer({ moment, stops }: { moment: PalMomentKind; stops?: number }) {
-  const [pal, setPal] = useState<PubPal | null>(null);
-  useEffect(() => {
-    const stored = readLocalPal();
-    queueMicrotask(() => setPal(stored));
-  }, []);
-  if (!pal || pal.hidden) return null;
+  const pal = useOwnPal();
+  if (!pal) return null;
   const genome = palGenomeFor(pal.id, pal.personality);
   return (
     <div className="palCheer" data-testid="pal-cheer" data-pal-state={pal.muted ? "sleeping" : undefined}>

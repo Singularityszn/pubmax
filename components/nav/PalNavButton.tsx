@@ -8,7 +8,7 @@ import { useAuth } from "@/components/auth/authContext";
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
 import NavPendingIndicator from "@/components/nav/NavPendingIndicator";
 import { IconButton } from "@/components/ui/icon-button";
-import { readLocalPal, subscribeLocalPal } from "@/lib/localPal";
+import { useOwnPal } from "@/components/pal/useOwnPal";
 import { palGenomeFor, palGenomeStyle } from "@/lib/palGenome";
 import { subscribePalMoments } from "@/lib/palMoments";
 import type { PubPal } from "@/lib/pubPal";
@@ -59,18 +59,10 @@ export function palNavActive(pathname: string): boolean {
   return pathname === PAL_NAV_HREF || pathname.startsWith(`${PAL_NAV_HREF}/`);
 }
 
-function usePalForNav(pathname: string): { pal: PubPal | null; cheering: boolean } {
+function usePalForNav(): { pal: PubPal | null; cheering: boolean } {
   const accountId = useAuth().user?.id ?? null;
-  const [pal, setPal] = useState<PubPal | null>(null);
+  const pal = useOwnPal();
   const [cheering, setCheering] = useState(false);
-  // Read after mount, on every page change and whenever the stored Pal
-  // changes, in this tab or another, so a Pal made, renamed, hidden or deleted
-  // on /pal shows here at once.
-  useEffect(() => {
-    const read = () => setPal(palForNav(readLocalPal(), accountId));
-    queueMicrotask(read);
-    return subscribeLocalPal(read);
-  }, [pathname, accountId]);
   useEffect(() => {
     let timer = 0;
     const unsubscribe = subscribePalMoments(() => {
@@ -125,7 +117,7 @@ function PalIconDoor({
   className: string;
   variant: "ghost" | "secondary";
 }) {
-  const { pal, cheering } = usePalForNav(pathname);
+  const { pal, cheering } = usePalForNav();
   const active = palNavActive(pathname);
   return (
     <IconButton
@@ -160,7 +152,7 @@ export function PalMapEdgeButton({ pathname }: { pathname: string }) {
 
 /** The Pal button in the desktop bar: the face and the Pal's name. */
 export function PalSiteNavButton({ pathname }: { pathname: string }) {
-  const { pal, cheering } = usePalForNav(pathname);
+  const { pal, cheering } = usePalForNav();
   const active = palNavActive(pathname);
   return (
     <Link

@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import type * as maplibregl from "maplibre-gl";
+import { readLocalPal } from "@/lib/localPal";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const markerHarness = vi.hoisted(() => ({
@@ -111,11 +112,11 @@ const crawlKey = crawl.map((stop) => stop.join(",")).join(";");
 
 describe("the Pal on the map", () => {
   it("makes no marker without a stored Pal, or for one the reader hid", () => {
-    createPalMapMarker(map).perch([-0.1, 51.5]);
+    createPalMapMarker(map, { pal: readLocalPal("owner") }).perch([-0.1, 51.5]);
     store(pal({ hidden: true }));
-    createPalMapMarker(map).perch([-0.1, 51.5]);
+    createPalMapMarker(map, { pal: readLocalPal("owner") }).perch([-0.1, 51.5]);
     store({ id: "pal-e2e", appearance: {} });
-    createPalMapMarker(map).perch([-0.1, 51.5]);
+    createPalMapMarker(map, { pal: readLocalPal("owner") }).perch([-0.1, 51.5]);
     expect(markerHarness.instances).toHaveLength(0);
   });
 
@@ -142,7 +143,7 @@ describe("the Pal on the map", () => {
 
   it("perches beside the pin, hops to a new one, and steps off with no selection", () => {
     store(pal());
-    const marker = createPalMapMarker(map);
+    const marker = createPalMapMarker(map, { pal: readLocalPal("owner") });
     marker.perch([-0.1, 51.5]);
     expect(markerHarness.instances).toHaveLength(1);
     const [instance] = markerHarness.instances;
@@ -177,7 +178,7 @@ describe("the Pal on the map", () => {
       },
       off: (event: string, listener: () => void) => listeners.get(event)?.delete(listener),
     } as unknown as maplibregl.Map;
-    const marker = createPalMapMarker(viewportMap);
+    const marker = createPalMapMarker(viewportMap, { pal: readLocalPal("owner") });
     marker.walk({ key: crawlKey, stops: crawl, path: crawl });
     const instance = markerHarness.instances[0]!;
     const contained = () => {
@@ -239,7 +240,7 @@ describe("the Pal on the map", () => {
       on: (event: string, listener: () => void) => listeners.set(event, listener),
       off: (event: string) => listeners.delete(event),
     } as unknown as maplibregl.Map;
-    const marker = createPalMapMarker(viewportMap);
+    const marker = createPalMapMarker(viewportMap, { pal: readLocalPal("owner") });
     marker.walk({ key: crawlKey, stops: crawl, path: crawl });
     runFrames(1);
     const instance = markerHarness.instances[0]!;
@@ -262,7 +263,7 @@ describe("the Pal on the map", () => {
 
   it("lands with a happy hop beside a cheap pin, and a plain landing beside any other", () => {
     store(pal());
-    const marker = createPalMapMarker(map);
+    const marker = createPalMapMarker(map, { pal: readLocalPal("owner") });
     marker.perch([-0.1, 51.5], { cheap: true });
     const element = markerHarness.instances[0]!.options.element;
     expect(element.classList.contains("isCheering")).toBe(true);
@@ -277,7 +278,7 @@ describe("the Pal on the map", () => {
 
   it("lands again when the pin it stands beside changes band", () => {
     store(pal());
-    const marker = createPalMapMarker(map);
+    const marker = createPalMapMarker(map, { pal: readLocalPal("owner") });
     marker.perch([-0.1, 51.5], { cheap: false });
     const element = markerHarness.instances[0]!.options.element;
     expect(element.dataset.palPin).toBeUndefined();
@@ -301,7 +302,7 @@ describe("the Pal on the map", () => {
 
   it("walks a crawl once, standing on the line, then rests beside the last stop", () => {
     store(pal());
-    const marker = createPalMapMarker(map);
+    const marker = createPalMapMarker(map, { pal: readLocalPal("owner") });
     marker.walk({ key: crawlKey, stops: crawl, path: crawl });
     runFrames(1);
     const [instance] = markerHarness.instances;
@@ -328,7 +329,7 @@ describe("the Pal on the map", () => {
 
   it("pauses beside the intermediate stop so its number remains visible", () => {
     store(pal());
-    const marker = createPalMapMarker(map);
+    const marker = createPalMapMarker(map, { pal: readLocalPal("owner") });
     marker.walk({ key: crawlKey, stops: crawl, path: crawl });
     runFrames(1);
     const instance = markerHarness.instances[0]!;
@@ -346,7 +347,7 @@ describe("the Pal on the map", () => {
 
   it("carries on along the road line at the same point of the walk", () => {
     store(pal());
-    const marker = createPalMapMarker(map);
+    const marker = createPalMapMarker(map, { pal: readLocalPal("owner") });
     marker.walk({ key: crawlKey, stops: crawl, path: crawl });
     runFrames(20);
     const road: LngLat[] = [crawl[0]!, [-0.095, 51.4995], crawl[1]!, [-0.093, 51.503], crawl[2]!];
@@ -365,10 +366,10 @@ describe("the Pal on the map", () => {
   it("never walks under reduced motion, or for a sleeping Pal: it waits at the first stop", () => {
     reducedMotion(true);
     store(pal());
-    createPalMapMarker(map).walk({ key: crawlKey, stops: crawl, path: crawl });
+    createPalMapMarker(map, { pal: readLocalPal("owner") }).walk({ key: crawlKey, stops: crawl, path: crawl });
     reducedMotion(false);
     store(pal({ muted: true }));
-    createPalMapMarker(map).walk({ key: crawlKey, stops: crawl, path: crawl });
+    createPalMapMarker(map, { pal: readLocalPal("owner") }).walk({ key: crawlKey, stops: crawl, path: crawl });
     expect(frames).toHaveLength(0);
     for (const instance of markerHarness.instances) {
       expect(instance.lngLat).toEqual(crawl[0]);
@@ -379,7 +380,7 @@ describe("the Pal on the map", () => {
 
   it("ends the walk when the crawl goes and a pub is perched on instead", () => {
     store(pal());
-    const marker = createPalMapMarker(map);
+    const marker = createPalMapMarker(map, { pal: readLocalPal("owner") });
     marker.walk({ key: crawlKey, stops: crawl, path: crawl });
     runFrames(3);
     marker.perch([-0.2, 51.4]);
@@ -392,7 +393,7 @@ describe("the Pal on the map", () => {
 
   it("holds its place through a held frame, so a hidden tab never jumps it ahead", () => {
     store(pal());
-    const marker = createPalMapMarker(map);
+    const marker = createPalMapMarker(map, { pal: readLocalPal("owner") });
     marker.walk({ key: crawlKey, stops: crawl, path: crawl });
     runFrames(1, 60_000);
     const plan = palWalkPlan(crawl, crawl)!;
@@ -408,7 +409,7 @@ describe("the Pal on the map", () => {
       once: (_event: string, handler: () => void) => handlers.push(handler),
       off: vi.fn(),
     } as unknown as maplibregl.Map;
-    createPalMapMarker(loading).walk({ key: crawlKey, stops: crawl, path: crawl });
+    createPalMapMarker(loading, { pal: readLocalPal("owner") }).walk({ key: crawlKey, stops: crawl, path: crawl });
     const [instance] = markerHarness.instances;
     expect(instance!.lngLat).toEqual(crawl[0]);
     expect(instance!.options.element.dataset.palWalk).toBe("setting-off");
@@ -424,7 +425,7 @@ describe("the Pal on the map", () => {
     it("comes on the first painted frame, once, and not on the same walk again", () => {
       store(pal());
       const onStarted = vi.fn();
-      const marker = createPalMapMarker(map);
+      const marker = createPalMapMarker(map, { pal: readLocalPal("owner") });
       marker.walk({ key: crawlKey, stops: crawl, path: crawl, onStarted });
       expect(onStarted).not.toHaveBeenCalled();
       runFrames(1);
@@ -443,7 +444,7 @@ describe("the Pal on the map", () => {
         off: vi.fn(),
       } as unknown as maplibregl.Map;
       const ready = vi.fn();
-      createPalMapMarker(loading).walk({ key: crawlKey, stops: crawl, path: crawl, onStarted: ready });
+      createPalMapMarker(loading, { pal: readLocalPal("owner") }).walk({ key: crawlKey, stops: crawl, path: crawl, onStarted: ready });
       handlers.forEach((handler) => handler());
       expect(ready).not.toHaveBeenCalled();
       runFrames(1);
@@ -451,7 +452,7 @@ describe("the Pal on the map", () => {
 
       handlers.length = 0;
       const retired = vi.fn();
-      const doomed = createPalMapMarker(loading);
+      const doomed = createPalMapMarker(loading, { pal: readLocalPal("owner") });
       doomed.walk({ key: crawlKey, stops: crawl, path: crawl, onStarted: retired });
       doomed.destroy();
       handlers.forEach((handler) => handler());
@@ -462,14 +463,14 @@ describe("the Pal on the map", () => {
     it("never comes for a walk destroyed or replaced before its first frame", () => {
       store(pal());
       const first = vi.fn();
-      const marker = createPalMapMarker(map);
+      const marker = createPalMapMarker(map, { pal: readLocalPal("owner") });
       marker.walk({ key: crawlKey, stops: crawl, path: crawl, onStarted: first });
       marker.destroy();
       runFrames(1_000);
       expect(first).not.toHaveBeenCalled();
 
       const replaced = vi.fn();
-      const second = createPalMapMarker(map);
+      const second = createPalMapMarker(map, { pal: readLocalPal("owner") });
       second.walk({ key: crawlKey, stops: crawl, path: crawl, onStarted: replaced });
       second.perch([-0.2, 51.4]);
       runFrames(1_000);
@@ -479,12 +480,12 @@ describe("the Pal on the map", () => {
     it("comes at once for a still Pal that waits instead of walking, and never for a hidden one", () => {
       store(pal({ muted: true }));
       const still = vi.fn();
-      createPalMapMarker(map).walk({ key: crawlKey, stops: crawl, path: crawl, onStarted: still });
+      createPalMapMarker(map, { pal: readLocalPal("owner") }).walk({ key: crawlKey, stops: crawl, path: crawl, onStarted: still });
       expect(still).toHaveBeenCalledTimes(1);
 
       store(pal({ hidden: true }));
       const hidden = vi.fn();
-      createPalMapMarker(map).walk({ key: crawlKey, stops: crawl, path: crawl, onStarted: hidden });
+      createPalMapMarker(map, { pal: readLocalPal("owner") }).walk({ key: crawlKey, stops: crawl, path: crawl, onStarted: hidden });
       runFrames(1_000);
       expect(hidden).not.toHaveBeenCalled();
     });
@@ -498,7 +499,7 @@ describe("the Pal on the map", () => {
       once: (_event: string, handler: () => void) => handlers.push(handler),
       off: vi.fn(),
     } as unknown as maplibregl.Map;
-    const marker = createPalMapMarker(loading);
+    const marker = createPalMapMarker(loading, { pal: readLocalPal("owner") });
     marker.walk({ key: crawlKey, stops: crawl, path: crawl });
     marker.say("Fastest way. Keep up.");
     const bubble = markerHarness.instances[0]!.options.element.querySelector<HTMLElement>(".palMapMarkerSay")!;
@@ -510,7 +511,7 @@ describe("the Pal on the map", () => {
 
   it("says nothing while asleep (muted), and a crew Pal says nothing", () => {
     store(pal({ muted: true }));
-    const sleeping = createPalMapMarker(map);
+    const sleeping = createPalMapMarker(map, { pal: readLocalPal("owner") });
     sleeping.perch([-0.1, 51.5]);
     sleeping.say("7 min to the next pub. Race you.");
     const crew = createPalMapMarker(map, { pal: pal({ id: "aaaaaaaa-aaaa-4aaa-8aaa-000000000002" }), index: 0 });
@@ -539,7 +540,7 @@ describe("the Pal on the map", () => {
 
     it("walks only as far as the next stop, and waits there as a button that opens it", () => {
       store(pal());
-      const marker = createPalMapMarker(map);
+      const marker = createPalMapMarker(map, { pal: readLocalPal("owner") });
       const lamb = nextStop(1, "The Lamb");
       marker.walk({ key: crawlKey, stops: crawl, path: crawl });
       marker.nextStop(lamb.target);
@@ -568,7 +569,7 @@ describe("the Pal on the map", () => {
 
     it("walks on to a new next stop, decorative on the way, and opens the new one", () => {
       store(pal());
-      const marker = createPalMapMarker(map);
+      const marker = createPalMapMarker(map, { pal: readLocalPal("owner") });
       const lamb = nextStop(1, "The Lamb");
       marker.walk({ key: crawlKey, stops: crawl, path: crawl });
       marker.nextStop(lamb.target);
@@ -589,7 +590,7 @@ describe("the Pal on the map", () => {
 
     it("turns for a newer next stop while still on its way to the old one, but not on a trip the reader asked for", () => {
       store(pal());
-      const marker = createPalMapMarker(map);
+      const marker = createPalMapMarker(map, { pal: readLocalPal("owner") });
       const four: LngLat[] = [...crawl, [-0.1, 51.51]];
       marker.walk({ key: four.map((stop) => stop.join(",")).join(";"), stops: four, path: four });
       marker.nextStop(nextStop(1, "The Lamb").target);
@@ -622,7 +623,7 @@ describe("the Pal on the map", () => {
 
     it("takes no taps beside any other stop, or once the plan has no next stop", () => {
       store(pal());
-      const marker = createPalMapMarker(map);
+      const marker = createPalMapMarker(map, { pal: readLocalPal("owner") });
       const lamb = nextStop(1, "The Lamb");
       marker.walk({ key: crawlKey, stops: crawl, path: crawl });
       marker.nextStop(lamb.target);
@@ -656,7 +657,7 @@ describe("the Pal on the map", () => {
     it("waits at the next stop, not the first, for a still Pal", () => {
       reducedMotion(true);
       store(pal());
-      const marker = createPalMapMarker(map);
+      const marker = createPalMapMarker(map, { pal: readLocalPal("owner") });
       const lamb = nextStop(1, "The Lamb");
       marker.nextStop(lamb.target);
       marker.walk({ key: crawlKey, stops: crawl, path: crawl });
@@ -671,7 +672,7 @@ describe("the Pal on the map", () => {
       vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
       try {
         store(pal());
-        const marker = createPalMapMarker(map);
+        const marker = createPalMapMarker(map, { pal: readLocalPal("owner") });
         // A way that bends round a corner from this stop to the next.
         const path: LngLat[] = [crawl[0]!, [-0.1, 51.502], crawl[1]!];
         marker.walk({ key: "lead:a>b:walk", stops: [crawl[0]!, crawl[1]!], path, road: true, cheer: true });
@@ -708,7 +709,7 @@ describe("the Pal on the map", () => {
       vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
       try {
         store(pal());
-        const marker = createPalMapMarker(map);
+        const marker = createPalMapMarker(map, { pal: readLocalPal("owner") });
         marker.perch([-0.1, 51.5]);
         const bubble = markerHarness.instances[0]!.options.element.querySelector<HTMLElement>(".palMapMarkerSay")!;
         marker.say("Fastest way. Keep up.");
@@ -745,7 +746,7 @@ describe("the Pal on the map", () => {
 
   it("walks back along the route to a tapped stop and jumps for joy beside it", () => {
     store(pal());
-    const marker = createPalMapMarker(map);
+    const marker = createPalMapMarker(map, { pal: readLocalPal("owner") });
     marker.walk({ key: crawlKey, stops: crawl, path: crawl });
     runFrames(1_000);
     const [instance] = markerHarness.instances;
@@ -782,7 +783,7 @@ describe("the Pal on the map", () => {
 
   it("leaves the crawl walk for a stop tapped mid-walk, and does not go back to it", () => {
     store(pal());
-    const marker = createPalMapMarker(map);
+    const marker = createPalMapMarker(map, { pal: readLocalPal("owner") });
     marker.walk({ key: crawlKey, stops: crawl, path: crawl });
     runFrames(10);
     marker.visit(2);
@@ -797,7 +798,7 @@ describe("the Pal on the map", () => {
   it("steps a still Pal straight to a tapped stop", () => {
     reducedMotion(true);
     store(pal());
-    const marker = createPalMapMarker(map);
+    const marker = createPalMapMarker(map, { pal: readLocalPal("owner") });
     marker.walk({ key: crawlKey, stops: crawl, path: crawl });
     marker.visit(1);
     expect(frames).toHaveLength(0);
@@ -815,7 +816,7 @@ describe("the Pal on the map", () => {
       once: (_event: string, handler: () => void) => handlers.push(handler),
       off: vi.fn(),
     } as unknown as maplibregl.Map;
-    const marker = createPalMapMarker(loading);
+    const marker = createPalMapMarker(loading, { pal: readLocalPal("owner") });
     marker.walk({ key: crawlKey, stops: crawl, path: crawl });
     marker.visit(1);
     expect(frames).toHaveLength(0);
@@ -828,7 +829,7 @@ describe("the Pal on the map", () => {
 
   it("celebrates a finished crawl beside the last stop, running there first", () => {
     store(pal());
-    const marker = createPalMapMarker(map);
+    const marker = createPalMapMarker(map, { pal: readLocalPal("owner") });
     marker.walk({ key: crawlKey, stops: crawl, path: crawl });
     runFrames(5);
     const [instance] = markerHarness.instances;
@@ -880,7 +881,7 @@ describe("the Pal on the map", () => {
 
   it("celebrates beside a perched pub, and not at all once gone", () => {
     store(pal());
-    const marker = createPalMapMarker(map);
+    const marker = createPalMapMarker(map, { pal: readLocalPal("owner") });
     // Not on the map yet: nothing to celebrate with.
     announcePalMoment({ kind: "crawl-finished", stops: 2 });
     expect(markerHarness.instances).toHaveLength(0);
@@ -896,7 +897,7 @@ describe("the Pal on the map", () => {
 
   it("hops for joy where it stands for a price the reader added", () => {
     store(pal());
-    const marker = createPalMapMarker(map);
+    const marker = createPalMapMarker(map, { pal: readLocalPal("owner") });
     marker.walk({ key: crawlKey, stops: crawl, path: crawl });
     runFrames(5);
     const [instance] = markerHarness.instances;
