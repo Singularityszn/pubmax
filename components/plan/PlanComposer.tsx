@@ -963,7 +963,12 @@ function projectComposerRecovery(
     });
     handoff = candidate.active ? candidate : null;
   } catch {}
-  return { ...resolved, route, handoff };
+  const provisionalRequest = resolved.provisionalRequest || Boolean(seedProvisionalStop1({
+    acceptedVenueId: handoff?.heldVenueId,
+    recoveredRouteStops: route.route?.stops,
+    recoveredPlanStops: resolved.recoveredDraft?.stops,
+  }));
+  return { ...resolved, provisionalRequest, route, handoff };
 }
 
 type ComposerPreviewCopy = {
