@@ -1881,6 +1881,38 @@ span.socialPostAvatar {
   color: #fff;
 }
 
+/* The reel layer while its viewer downloads or after that download failed:
+   the same black stage, with the wait or the retry in its centre. */
+.reels__pendingBody {
+  display: grid;
+  height: 100%;
+  place-items: center;
+  padding: 72px 24px;
+  text-align: center;
+}
+
+.reels__pendingBody [role="alert"] {
+  display: grid;
+  gap: 16px;
+  justify-items: center;
+}
+
+.reels__pendingBody [role="alert"] button {
+  min-height: 44px;
+  padding: 0 20px;
+  border: 1px solid color-mix(in srgb, #fff 70%, transparent);
+  border-radius: 999px;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+}
+
+.reels__pendingBody [role="alert"] button:focus-visible {
+  outline: 2px solid var(--river);
+  outline-offset: 2px;
+}
+
 .reels__track {
   height: 100%;
   overflow-y: auto;

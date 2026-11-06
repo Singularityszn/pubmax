@@ -1,6 +1,6 @@
 "use client";
 
-import { Component, lazy, Suspense, useLayoutEffect, useRef, useState, type ComponentType, type ReactNode, type RefObject } from "react";
+import { Component, lazy, Suspense, useLayoutEffect, useRef, useSyncExternalStore, type ComponentType, type ReactNode, type RefObject } from "react";
 
 function SocialToolFocus({ children, label, transfer }: { children: ReactNode; label: string; transfer: RefObject<boolean> }) {
   const start = useRef<HTMLSpanElement>(null);
@@ -33,24 +33,46 @@ class SocialLoadBoundary extends Component<BoundaryProps, { failed: boolean }> {
   render() { return this.state.failed ? this.props.failed : this.props.children; }
 }
 
-/** A failed optional Social tool stays local and can request its chunk again. */
+/**
+ * A failed optional Social tool stays local and can request its chunk again.
+ * Every instance of one tool shares a single download, so a retry from any of
+ * them recovers them all. `frame` places the wait and the failure, for a tool
+ * whose loaded form is not drawn where it is mounted (a full-screen layer).
+ */
 export function socialLazy<P extends object>(
   load: () => Promise<{ default: ComponentType<P> }>,
   label: string,
   loading: ReactNode,
+  frame?: (state: ReactNode, props: P) => ReactNode,
 ): ComponentType<P> {
   let Current = lazy(load);
+  let generation = 0;
+  const listeners = new Set<() => void>();
+  const subscribe = (listener: () => void) => {
+    listeners.add(listener);
+    return () => { listeners.delete(listener); };
+  };
+  const readGeneration = () => generation;
+  const retry = () => {
+    generation += 1;
+    for (const listener of listeners) listener();
+  };
   function SocialLazyTool(props: P) {
-    const [attempt, setAttempt] = useState(0);
+    const attempt = useSyncExternalStore(subscribe, readGeneration, readGeneration);
     const transfer = useRef(false);
     const Tool = Current;
+    const place = (state: ReactNode) => (frame ? frame(state, props) : state);
     return (
       <SocialLoadBoundary
         key={attempt}
-        onFailure={() => { Current = lazy(load); }}
-        failed={<SocialToolFocus key="failed" label={label} transfer={transfer}><div role="alert">{label} could not load. <button type="button" onClick={() => setAttempt((value) => value + 1)}>Try again</button></div></SocialToolFocus>}
+        onFailure={() => {
+          // One rejected download fails every mounted instance. Replace it
+          // once, and never replace a newer download that has not failed.
+          if (Current === Tool) Current = lazy(load);
+        }}
+        failed={place(<SocialToolFocus key="failed" label={label} transfer={transfer}><div role="alert">{label} could not load. <button type="button" onClick={retry}>Try again</button></div></SocialToolFocus>)}
       >
-        <Suspense fallback={<SocialToolFocus key="loading" label={label} transfer={transfer}>{loading}</SocialToolFocus>}>
+        <Suspense fallback={place(<SocialToolFocus key="loading" label={label} transfer={transfer}>{loading}</SocialToolFocus>)}>
           <SocialToolFocus key="ready" label={label} transfer={transfer}><Tool {...props} /></SocialToolFocus>
         </Suspense>
       </SocialLoadBoundary>

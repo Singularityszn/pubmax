@@ -13,6 +13,7 @@ import SiteNav from "@/components/nav/SiteNav";
 import CreatorListsLane from "@/components/social/CreatorListsLane";
 import FindYourLot from "@/components/social/FindYourLot";
 import PeopleDirectory from "@/components/social/PeopleDirectory";
+import ReelsPending from "@/components/social/ReelsPending";
 import SharedSocialPostCard from "@/components/social/SocialPostCard";
 import SocialMomentLink from "@/components/social/SocialMomentLink";
 import StarterPacks from "@/components/social/StarterPacks";
@@ -61,7 +62,12 @@ const CrewsPanel = socialLazy(() => import("@/components/social/CrewsPanel"), "Y
 const PubRankingPanel = socialLazy(() => import("@/components/social/PubRankingPanel"), "Your pub ranking", <p role="status">Loading your pub ranking…</p>);
 const SocialTagInbox = socialLazy(() => import("./SocialTagInbox"), "Tags", <p role="status">Loading tags…</p>);
 const SocialOutbox = socialLazy(() => import("./SocialOutbox"), "Your posts", <p role="status">Loading your posts…</p>);
-const ReelsViewer = socialLazy(() => import("@/components/social/ReelsViewer"), "Video", <p role="status">Loading video…</p>);
+const ReelsViewer = socialLazy(
+  () => import("@/components/social/ReelsViewer"),
+  "Video",
+  <p role="status">Loading video…</p>,
+  (state, { opener, onClose }) => <ReelsPending opener={opener} onClose={onClose}>{state}</ReelsPending>,
+);
 
 export type SocialBoundaryState = SocialBoundaryCopyState;
 

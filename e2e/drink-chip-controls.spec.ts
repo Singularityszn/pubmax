@@ -572,9 +572,11 @@ for (const width of [1280, 1440]) {
     // Source credits can replace the anchor between locator resolution and
     // evaluation. Resolve it inside the same task that measures and hit-tests it.
     const hit = await attribution.evaluate((control) => {
-      const credit = control.querySelector<HTMLAnchorElement>(
+      // The last credit, as the click below takes the last OpenStreetMap link.
+      const credits = control.querySelectorAll<HTMLAnchorElement>(
         'a[href="https://www.openstreetmap.org/copyright"]',
       );
+      const credit = credits[credits.length - 1];
       if (!credit) throw new Error("The current OpenStreetMap credit is missing");
       const box = credit.getBoundingClientRect();
       const x = box.x + box.width / 2;

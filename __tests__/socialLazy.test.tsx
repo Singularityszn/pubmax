@@ -129,3 +129,24 @@ it("keeps a named focus position when loaded controls still need preparation", a
     host.remove();
   }
 });
+
+it("recovers every instance of a tool when the reader retries one of them", async () => {
+  const load = vi.fn().mockRejectedValueOnce(new Error("offline"))
+    .mockResolvedValueOnce({ default: () => <button>Edit post</button> });
+  const Tool = socialLazy(load, "Edit controls", <p>Loading edit controls</p>);
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const root = createRoot(host);
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  try {
+    await act(async () => { root.render(<><Tool /><Tool /></>); });
+    expect(host.querySelectorAll('[role="alert"]')).toHaveLength(2);
+    await act(async () => { host.querySelector<HTMLButtonElement>('[role="alert"] button')!.click(); });
+    expect(host.querySelectorAll('[role="alert"]')).toHaveLength(0);
+    expect([...host.querySelectorAll("button")].map((node) => node.textContent)).toEqual(["Edit post", "Edit post"]);
+    expect(load).toHaveBeenCalledTimes(2);
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+  }
+});
