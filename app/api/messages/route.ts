@@ -8,14 +8,17 @@
 // handle when the JWT's user owns a profile; otherwise the asserted handle may
 // be claimed on first write via gateHandleAction. A read is allowed only when
 // that account owns the handle: an unowned row and a tombstone are refused
-// the same way as a handle owned by somebody else. Unsigned requests get 401.
+// the same way as a handle owned by somebody else. Unsigned requests with an
+// asserted handle get 401. An unsigned inbox request without a handle returns
+// an empty ready inbox so the page can render.
 // The store still enforces the participant check; the DB denies all anon access
 // (RLS-on / no-policy, migration 0019).
 // ─────────────────────────────────────────────────────────────────────────────
 //
-// Reads are fail-soft so an outage never 500s the inbox, but fail-soft is not
-// fail-silent: the body carries the read's own `status`, and `degraded` means a
-// read could not be run rather than that there is nothing here. EVERY write action is rate-limited per handle (~20/min)
+// A failed linked-profile or ownership lookup returns a retryable 503 before
+// the inbox read. Message-store reads carry their own `status`: `degraded`
+// means a read could not run, rather than that there are no conversations.
+// EVERY write action is rate-limited per handle (~20/min)
 // by one limiter above the action switch, and a recipient handle must resolve to
 // a live profile before any conversation row is written. Opening and sending
 // also ask the one adult gate, and a block in either direction (or between any
