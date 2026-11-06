@@ -150,3 +150,60 @@ it("recovers every instance of a tool when the reader retries one of them", asyn
     host.remove();
   }
 });
+
+it("draws a tool with no wait when its code arrived before it mounted", async () => {
+  const load = vi.fn().mockResolvedValue({ default: () => <button>Rank a pub</button> });
+  const Tool = socialLazy(load, "Your pub ranking", <p role="status">Loading your pub ranking</p>);
+  await act(async () => { await Tool.preload(); });
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const root = createRoot(host);
+  try {
+    // One synchronous render: no status line is ever committed, so nothing moves.
+    act(() => { root.render(<Tool />); });
+    expect(host.querySelector('[role="status"]')).toBeNull();
+    expect(host.querySelector("button")?.textContent).toBe("Rank a pub");
+    expect(load).toHaveBeenCalledTimes(1);
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+  }
+});
+
+it("draws a later copy with no wait once the first copy has loaded", async () => {
+  const load = vi.fn().mockResolvedValue({ default: () => <button>Your crews</button> });
+  const Tool = socialLazy(load, "Your crews", <p role="status">Loading your crews</p>);
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const root = createRoot(host);
+  try {
+    await act(async () => { root.render(<Tool key="sample" />); });
+    expect(host.querySelector("button")?.textContent).toBe("Your crews");
+    act(() => { root.render(<Tool key="verified" />); });
+    expect(host.querySelector('[role="status"]')).toBeNull();
+    expect(host.querySelector("button")?.textContent).toBe("Your crews");
+    expect(load).toHaveBeenCalledTimes(1);
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+  }
+});
+
+it("lets a failed early download fall back to the normal retry", async () => {
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  const load = vi.fn().mockRejectedValueOnce(new Error("offline"))
+    .mockResolvedValue({ default: () => <button>Tags</button> });
+  const Tool = socialLazy(load, "Tags", <p role="status">Loading tags</p>);
+  await act(async () => { await Tool.preload(); });
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const root = createRoot(host);
+  try {
+    await act(async () => { root.render(<Tool />); });
+    expect(host.querySelector("button")?.textContent).toBe("Tags");
+    expect(load).toHaveBeenCalledTimes(2);
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+  }
+});

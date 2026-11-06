@@ -58,11 +58,17 @@ import "./social.css";
 import SocialLondonLane from "./SocialLondonLane";
 import { socialLazy } from "./SocialLazy";
 
-const SocialComposer = socialLazy(() => import("./SocialComposer"), "Post controls", <button type="button" disabled>Loading post controls…</button>);
+// The wait keeps the shape of what it stands for: the Post door keeps its
+// word and width, and tools that often draw nothing (an empty tag inbox, no
+// posts of your own) are announced, not drawn, so the feed never jumps.
+const SocialComposer = socialLazy(() => import("./SocialComposer"), "Post controls", <button type="button" className="socialButton socialComposeOpen" disabled>Post</button>);
 const CrewsPanel = socialLazy(() => import("@/components/social/CrewsPanel"), "Your crews", <p role="status">Loading your crews…</p>);
 const PubRankingPanel = socialLazy(() => import("@/components/social/PubRankingPanel"), "Your pub ranking", <p role="status">Loading your pub ranking…</p>);
-const SocialTagInbox = socialLazy(() => import("./SocialTagInbox"), "Tags", <p role="status">Loading tags…</p>);
-const SocialOutbox = socialLazy(() => import("./SocialOutbox"), "Your posts", <p role="status">Loading your posts…</p>);
+const SocialTagInbox = socialLazy(() => import("./SocialTagInbox"), "Tags", <p role="status" className="sr-only">Loading tags…</p>);
+const SocialOutbox = socialLazy(() => import("./SocialOutbox"), "Your posts", <p role="status" className="sr-only">Loading your posts…</p>);
+// A signed-in reader on the posts tab gets these tools once access answers.
+// Their code downloads during that check, so they draw at once afterwards.
+const VERIFIED_POSTS_TOOLS = [SocialComposer, CrewsPanel, PubRankingPanel, SocialTagInbox, SocialOutbox];
 const ReelsViewer = socialLazy(
   () => import("@/components/social/ReelsViewer"),
   "Video",
@@ -695,6 +701,10 @@ function SocialPageAccountState({
     viewerPhase === "resolved" &&
     access === "verified";
   const checkingPosts = friendsLaunchEnabled && isPosts && viewerPhase === "resolved" && access === "checking";
+  useEffect(() => {
+    if (!checkingPosts) return;
+    for (const tool of VERIFIED_POSTS_TOOLS) void tool.preload();
+  }, [checkingPosts]);
   // A signed-out reader meets the door in the body, so the packs go beside it
   // there rather than in the narrow rail, where they left the column empty.
   const packsBesideTheDoor =
