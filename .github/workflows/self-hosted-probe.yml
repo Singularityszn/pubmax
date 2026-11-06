@@ -1,7 +1,7 @@
 name: Hosted runner probe
 
-# workflow_dispatch smoke for the GitHub-hosted runner. The Mac identity
-# check is retired with the self-hosted runners. See docs/CI_RUNBOOK.md.
+# workflow_dispatch smoke for the GitHub-hosted runner. This probe checks
+# only ubuntu-latest. See docs/CI_RUNBOOK.md for Mac runner checks.
 
 on:
   workflow_dispatch:

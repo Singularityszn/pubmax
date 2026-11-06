@@ -302,9 +302,10 @@ the run.
 
 From 6 to 15 September 2026 the budget job and the UX lane report ran on a
 4 vCPU runner (`avrea-ubuntu-latest-4-vcpu`, then `blacksmith-4vcpu-ubuntu-2404`)
-while every other job in `.github/workflows/ci.yml` ran on a 2 vCPU label. Since
-15 September every job runs on GitHub-hosted `ubuntu-latest`, a 2 vCPU box on a
-private repository. On the 2 vCPU box the sweep could not measure itself. Its own method check reported LCP
+while every other job in `.github/workflows/ci.yml` ran on a 2 vCPU label. On
+15 September jobs moved to GitHub-hosted `ubuntu-latest`, a 2 vCPU box on the
+then-private repository. The [CI runbook](CI_RUNBOOK.md#runners) owns the current runner configuration.
+On the 2 vCPU box the sweep could not measure itself. Its own method check reported LCP
 samples spread 37 to 51 per cent on `/today`, `/discover`, `/drinks` and
 `/crawls`, and a server-render spread of 320 per cent on `/feed`, all past the
 12 per cent width this method tracks. Inside one run of one commit `/crawls`

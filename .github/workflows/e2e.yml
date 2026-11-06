@@ -16,8 +16,8 @@ concurrency:
   # older run. Main pushes share one group (captain, 19 Oct 2026): the run
   # in progress finishes, and only the newest push waits behind it, because
   # GitHub keeps one waiting run per group and cancels the older one. Each
-  # push holds 3 of the free plan's 5 macOS runners, and on 19 Oct 22 merges
-  # queued 66 macOS jobs that held pull requests up to 72 minutes. The
+  # push starts three layout-pin jobs. On 19 Oct 22 merges queued 66 hosted
+  # macOS jobs that held pull requests up to 72 minutes. The
   # newest main commit holds every older one, so main is still tested.
   # The schedule and a dispatch each get a group of their own, so GitHub
   # never drops one while it waits.
@@ -145,15 +145,14 @@ jobs:
   change-scope:
     name: Change scope
     # Decides once, on Linux, whether this change needs the macOS layout
-    # pins. The free plan runs only 5 macOS jobs at once and every pull
-    # request held 3 of them, even a docs-only one whose steps were all
-    # skipped. The layout-pin jobs below read the "layout" output and are
-    # skipped whole when it is not "ui", so a pull request that changes no
+    # pins. A docs-only pull request used to hold Mac runners even when
+    # all its steps were skipped. The layout-pin jobs read the "layout" output
+    # and are skipped whole when it is not "ui", so a pull request that changes no
     # screen code starts no macOS runner. They are three named jobs, not a
     # matrix: a skipped matrix job reports under its unexpanded name, but a
     # skipped named job reports under its own name and counts as passed for
     # branch protection.
-    # The layout jobs fail closed: if this job fails, they run anyway, so a
+    # For eligible events, the layout jobs run even if this job fails, so a
     # broken classifier can never turn a code change into a skipped (passed)
     # layout check.
     runs-on: ubuntu-latest
@@ -378,7 +377,7 @@ jobs:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: pubmax-mac
     timeout-minutes: 45
-    # A macOS runner gives Playwright one worker. Two shards of about
+    # The hosted macOS runners gave Playwright one worker. Two shards of about
     # 645 tests each did not finish inside the 45-minute ceiling (4 Oct 2026
     # nightly and dispatch), so the suite was cut into four. By 28 Oct the four
     # shards held about 620 tests each: shard 4 was cancelled at 45 minutes on
