@@ -192,7 +192,7 @@ function cleanAlternatives(value: unknown, exactKeys: boolean, context: NightCon
   return unique;
 }
 
-function cleanStops(value: unknown, exactKeys: boolean, context: NightContext | null): StoredRouteStop[] | null {
+function cleanStops(value: unknown, exactKeys: boolean, context: NightContext | null, unfinished: boolean): StoredRouteStop[] | null {
   if (!Array.isArray(value) || value.length < 1 || value.length > 12) return null;
   const stops = value.map((candidate, index) => {
     if (!isRecord(candidate)) return null;
@@ -207,6 +207,9 @@ function cleanStops(value: unknown, exactKeys: boolean, context: NightContext | 
     const venueId = text(candidate.venueId, 200);
     const venueName = text(candidate.venueName ?? candidate.name, 200);
     const alternatives = cleanAlternatives(candidate.alternatives ?? candidate.options ?? [], exactKeys, context);
+    if (unfinished && candidate.venueId === "" && candidate.venueName === "" && alternatives) {
+      return { key: index + 1, venueId: "", venueName: "", alternatives: [] };
+    }
     if (!venueId || !venueName || !alternatives) return null;
     const reason = nullableText(candidate.reason ?? null, 500);
     if (reason === undefined) return null;
@@ -333,9 +336,10 @@ type CleanedRouteIdentity = Pick<
 function cleanRouteFields(
   value: Record<string, unknown>,
   exactKeys: boolean,
+  unfinished: boolean,
 ): CleanedRouteFields | null {
   const nightContext = value.nightContext === null ? null : cleanNightContext(value.nightContext);
-  const stops = cleanStops(value.stops, exactKeys, nightContext);
+  const stops = cleanStops(value.stops, exactKeys, nightContext, unfinished);
   const alternatives = cleanAlternatives(value.alternatives ?? [], exactKeys, nightContext);
   const routeTotals = cleanRouteTotals(value.routeTotals ?? null);
   const planningConfidence = cleanPlanningConfidence(value.planningConfidence ?? null);
@@ -397,9 +401,26 @@ function cleanEnvelopeValue(
   value: Record<string, unknown>,
   now: number,
   exactKeys: boolean,
+  unfinished = false,
 ): ParsedPlanRouteDraft["value"] | null {
-  const fields = cleanRouteFields(value, exactKeys);
+  const fields = cleanRouteFields(value, exactKeys, unfinished);
   if (!fields) return null;
+  if (fields.stops.some((stop) => !stop.venueId || !stop.venueName)) return {
+    stops: fields.stops.map(({ key, venueId, venueName }) => ({ key, venueId, venueName, alternatives: [] })),
+    alternatives: [],
+    nightContext: null,
+    routeTotals: null,
+    transportBasis: null,
+    planningConfidence: null,
+    warnings: [],
+    operationKey: null,
+    routeRevision: null,
+    anchorVenueId: null,
+    anchorSource: null,
+    outcome: "unanchored",
+    groundingProof: null,
+    routeStale: true,
+  };
   const identity = cleanRouteIdentity(value, fields.stops);
   if (!identity) return null;
   const inspectedProof = proofState(value.groundingProof, fields.operationKey, now);
@@ -454,14 +475,37 @@ function parseLegacyPlanRouteDraft(
   try {
     const value: unknown = JSON.parse(raw);
     if (!isRecord(value)) return null;
-    const parsed = cleanEnvelopeValue(value, now, false);
+    const anchor = isRecord(value.planAnchor) ? value.planAnchor : null;
+    const parsed = cleanEnvelopeValue({
+      ...value,
+      ...(Object.hasOwn(value, "planAnchor") ? {
+        anchorVenueId: anchor?.venueId ?? null,
+        anchorSource: anchor?.source ?? null,
+        outcome: anchor?.outcome ?? "unanchored",
+      } : {}),
+    }, now, false, true);
+    const savedAt = canonicalTimestamp(value.savedAt);
+    // A dated V1 copy carries the accepted pub, but V1 has no expiry of its
+    // own. Past the route lifetime it stays a preview: the stops remain, and
+    // it no longer certifies or holds the accepted pub.
+    const expired = savedAt !== null && now >= savedAt.time + PLAN_ROUTE_DRAFT_TTL_MS;
     return parsed
       ? {
           storageVersion: 1,
-          savedAt: null,
+          savedAt: savedAt && savedAt.time <= now + PLAN_ROUTE_DRAFT_MAX_FUTURE_SKEW_MS ? savedAt.value : null,
           expiresAt: null,
           origin: "manual",
-          value: parsed,
+          value: expired
+            ? {
+                ...parsed,
+                anchorVenueId: null,
+                anchorSource: null,
+                outcome: "unanchored",
+                groundingProof: null,
+                operationKey: null,
+                routeStale: true,
+              }
+            : parsed,
           legacy: true,
         }
       : null;
@@ -470,12 +514,63 @@ function parseLegacyPlanRouteDraft(
   }
 }
 
+export function reconcilePlanRouteDrafts(
+  rawV2: string | null,
+  rawV1: string | null,
+  now = Date.now(),
+): { envelope: ParsedPlanRouteDraft | null; conflicting: boolean; ambiguous: boolean } {
+  const canonical = parsePlanRouteDraftV2(rawV2, now);
+  const legacy = parseLegacyPlanRouteDraft(rawV1, now);
+  if (!canonical) return { envelope: legacy, conflicting: false, ambiguous: false };
+  if (!legacy) return { envelope: canonical, conflicting: rawV1 !== null, ambiguous: false };
+  const projection = (route: ParsedPlanRouteDraft) => ({
+    ...legacyValue(route.value),
+    anchorVenueId: route.value.anchorVenueId,
+    anchorSource: route.value.anchorSource,
+    outcome: route.value.outcome,
+  });
+  const rawLegacy: unknown = JSON.parse(rawV1 ?? "{}");
+  const context = canonical.value.nightContext;
+  const routeNight = !canonical.value.routeStale && (context?.nightArea || context?.daypart) ? {
+    ...(context.nightArea ? { nightArea: context.nightArea } : {}),
+    ...(context.daypart ? { daypart: context.daypart } : {}),
+  } : null;
+  const matches = (!legacy.savedAt || legacy.savedAt === canonical.savedAt)
+    && JSON.stringify(projection(legacy)) === JSON.stringify(projection(canonical))
+    && (!isRecord(rawLegacy) || !Object.hasOwn(rawLegacy, "routeNight")
+      || JSON.stringify(rawLegacy.routeNight) === JSON.stringify(routeNight));
+  if (matches) return { envelope: canonical, conflicting: false, ambiguous: false };
+  if (canonical.savedAt && legacy.savedAt && canonical.savedAt !== legacy.savedAt) {
+    return {
+      envelope: Date.parse(canonical.savedAt) > Date.parse(legacy.savedAt) ? canonical : legacy,
+      conflicting: true,
+      ambiguous: false,
+    };
+  }
+  return {
+    envelope: {
+      ...legacy,
+      value: {
+        ...legacy.value,
+        anchorVenueId: null,
+        anchorSource: null,
+        outcome: "unanchored",
+        groundingProof: null,
+        operationKey: null,
+        routeStale: true,
+      },
+    },
+    conflicting: true,
+    ambiguous: true,
+  };
+}
+
 export function parsePlanRouteDraftEnvelope(
   rawV2: string | null,
   rawV1: string | null,
   now = Date.now(),
 ): ParsedPlanRouteDraft | null {
-  return parsePlanRouteDraftV2(rawV2, now) ?? parseLegacyPlanRouteDraft(rawV1, now);
+  return reconcilePlanRouteDrafts(rawV2, rawV1, now).envelope;
 }
 
 export function readPlanRouteDraftEnvelope(
@@ -530,7 +625,13 @@ export function writePlanRouteDraftEnvelope(
     origin,
     ...candidate,
   };
-  const rawV1 = JSON.stringify(legacyValue(candidate));
+  const rawV1 = JSON.stringify({
+    ...legacyValue(candidate),
+    savedAt: envelope.savedAt,
+    anchorVenueId: candidate.anchorVenueId,
+    anchorSource: candidate.anchorSource,
+    outcome: candidate.outcome,
+  });
   const rawV2 = JSON.stringify(envelope);
   if (byteLength(rawV1) > PLAN_ROUTE_DRAFT_MAX_RAW_BYTES || byteLength(rawV2) > PLAN_ROUTE_DRAFT_MAX_RAW_BYTES) {
     return { v1: false, v2: false, envelope: null };

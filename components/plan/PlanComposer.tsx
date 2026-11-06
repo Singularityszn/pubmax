@@ -1,5 +1,7 @@
 "use client";
 
+import { recoverPlanDrafts, resolveRequestedPlanIntent } from "@/lib/planDraftArbitration";
+
 import {
   FormEvent,
   useCallback,
@@ -58,7 +60,7 @@ import {
   planVenueOptions,
   type PlanVenueOption,
 } from "@/lib/planVenueOptions";
-import { cleanNightContext, cleanNightContextPatch, type NightContext } from "@/lib/nightPlanning";
+import { cleanNightContext, cleanNightContextPatch, inferNightContext, type NightContext } from "@/lib/nightPlanning";
 import { planUsesPintPrices } from "@/lib/planGenerationDto";
 import { categoryLabel, DRINK_CATEGORIES, type DrinkCategory } from "@/lib/drinks";
 import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
@@ -66,16 +68,20 @@ export { selectedDrinkPriceDescription } from "@/lib/planSelectedDrinkPriceEvide
 import { CITIES, DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 import {
   isPlanStopCount,
+  cleanPlanStopCountSource,
+  matchPlanStopCount,
   MAX_PLAN_STOP_COUNT,
   normalizePlanStopCount,
+  resolvePlanStopCountIntent,
   planOutingNoun,
   planStopCountPhrase,
   PLAN_STOP_COUNTS,
   type PlanStopCount,
+  type PlanStopCountSource,
 } from "@/lib/planStopCount";
 import { planHasRoute, type PlanState } from "@/lib/plan";
-import { parsePlanDraft, PLAN_DRAFT_KEY, readPlanDraftEnvelope, writePlanDraftEnvelope } from "@/lib/planDraft";
-import { readPlanRouteDraftEnvelope } from "@/lib/planRouteDraft";
+import { parsePlanDraft, PLAN_DRAFT_KEY, readPlanDraftEnvelope, writePlanDraftEnvelope, type StoredPlanDraft } from "@/lib/planDraft";
+import { parsePlanRouteDraftV2, reconcilePlanRouteDrafts, PLAN_ROUTE_DRAFT_V2_KEY, type ParsedPlanRouteDraft } from "@/lib/planRouteDraft";
 import {
   PLANNING_INTENT_SOURCES,
   readPlanningIntent,
@@ -120,18 +126,24 @@ import {
   londonDateTimeInputFromIso,
   londonDateTimeInputToIso,
   londonNightsAhead,
+  nextLondonOccurrenceIso,
   nightAreaForPlanIntakePatch,
+  parsePlanIntakeDraftWithMetadata,
   planIntakeHandoff,
   planIntakeNightContextPatch,
-  readPlanIntakeDraft,
+  planIntakeStepHasAnswer,
+  PLAN_INTAKE_STORAGE_KEY,
+  PLAN_TIME_WINDOWS,
   readPlanIntakeDraftWithMetadata,
   reopenPlanIntakeStep,
   resolveFutureLondonStartIso,
   resolvePlanIntakeAreaSeed,
+  settlePlanIntakeStep,
   skipRemainingPlanIntake,
   tonightLondonStartInput,
   writePlanIntakeDraft,
   type PlanIntakeDraft,
+  type PlanIntakeStep,
 } from "@/lib/planIntake";
 
 // These parts load when the composer renders them. The describe-first arrival
@@ -292,8 +304,10 @@ const PLAN_ROUTE_DRAFT_KEY = "pubmaxx:plan-route-draft:v1";
 type RouteNight = Pick<Partial<NightContext>, "nightArea" | "daypart">;
 
 export type StoredRouteDraft = {
+  savedAt?: string;
   stops: DraftStop[];
   nightContext: NightContext | null;
+  explicitNightContext?: Partial<NightContext>;
   routeNight: RouteNight | null;
   routeRevision: RouteRevision | null;
   routeStale: boolean;
@@ -629,6 +643,10 @@ function generatedStopPrice(row: {
 
 /** Keep the generator's alternatives attached to their stop for preview swaps. */
 export function routeStopsFromGenerated(value: unknown, alternativePool?: unknown): DraftStop[] {
+  return routeStopsFromValue(value, alternativePool, false);
+}
+
+function routeStopsFromValue(value: unknown, alternativePool: unknown, unfinished: boolean): DraftStop[] {
   if (!Array.isArray(value)) return [];
   const candidates = value.slice(0, 6);
   const currentVenueIds = new Set(candidates.flatMap((candidate) => {
@@ -662,7 +680,8 @@ export function routeStopsFromGenerated(value: unknown, alternativePool?: unknow
     const venueName = typeof row.venueName === "string"
       ? row.venueName.trim()
       : typeof row.name === "string" ? row.name.trim() : "";
-    if (!venueId || !venueName) return [];
+    if (!venueId || !venueName) return unfinished && row.venueId === "" && row.venueName === ""
+      ? [{ key: index + 1, venueId: "", venueName: "", alternatives: [] }] : [];
     const nested = routeAlternatives(row.alternatives ?? row.options);
     const alternatives = [...nested, ...pool].filter((alternative, alternativeIndex, all) => (
       !currentVenueIds.has(alternative.venueId)
@@ -746,13 +765,15 @@ export function nightContextChanged(before: NightContext | null, after: NightCon
 export function applyPlanStopCount(
   draft: PlanIntakeDraft,
   context: NightContext | null,
-  stopCount: PlanStopCount,
+  stopCount: PlanStopCount | undefined,
+  stopCountSource?: PlanStopCountSource,
 ): { draft: PlanIntakeDraft; context: NightContext | null } {
+  stopCountSource = cleanPlanStopCountSource(stopCountSource, stopCount);
   return {
-    draft: normalizePlanStopCount(draft.answers.stopCount) === stopCount
+    draft: draft.answers.stopCount === stopCount && draft.answers.stopCountSource === stopCountSource
       ? draft
-      : { ...draft, answers: { ...draft.answers, stopCount } },
-    context: !context || normalizePlanStopCount(context.stopCount) === stopCount
+      : { ...draft, answers: { ...draft.answers, stopCount, stopCountSource } },
+    context: !context || stopCount === undefined || context.stopCount === stopCount
       ? context
       : { ...context, stopCount },
   };
@@ -770,13 +791,21 @@ export function parsePlanRouteDraft(raw: string | null): StoredRouteDraft | null
   if (!raw || raw.length > 30_000) return null;
   try {
     const value = JSON.parse(raw) as Partial<StoredRouteDraft>;
-    const stops = routeStopsFromGenerated(value.stops);
+    const stops = routeStopsFromValue(value.stops, undefined, true);
     if (!stops.length) return null;
     const nightContext = cleanNightContext(value.nightContext) ?? null;
+    const explicitNightContext = cleanNightContextPatch(value.explicitNightContext);
     const routeStale = value.routeStale === true;
+    const savedAtTime = typeof value.savedAt === "string" ? Date.parse(value.savedAt) : NaN;
+    const savedAt = Number.isFinite(savedAtTime)
+      && new Date(savedAtTime).toISOString() === value.savedAt
+      && savedAtTime <= Date.now() + 5 * 60 * 1000
+      ? value.savedAt : undefined;
     return {
+      ...(savedAt ? { savedAt } : {}),
       stops,
       nightContext,
+      ...(explicitNightContext && Object.keys(explicitNightContext).length ? { explicitNightContext } : {}),
       routeNight: value.routeNight === undefined && !routeStale
         ? routeNightOf(nightContext)
         : routeNightOf(cleanNightContextPatch(value.routeNight)),
@@ -793,6 +822,568 @@ export function parsePlanRouteDraft(raw: string | null): StoredRouteDraft | null
   } catch {
     return null;
   }
+}
+
+type ComposerRoutePair = { v1: string | null; v2: string | null };
+
+function readComposerRouteDraft(): {
+  route: StoredRouteDraft | null;
+  envelope: ParsedPlanRouteDraft | null;
+  conflicting: boolean;
+  ambiguous: boolean;
+  otherSavedAt: string | null;
+  pair: ComposerRoutePair | null;
+} {
+  const storage = safeLocalStorage();
+  let raw: string | null | undefined;
+  let rawV2: string | null | undefined;
+  try { raw = storage?.getItem(PLAN_ROUTE_DRAFT_KEY); } catch {}
+  try { rawV2 = storage?.getItem(PLAN_ROUTE_DRAFT_V2_KEY); } catch {}
+  const pair = raw !== undefined && rawV2 !== undefined ? { v1: raw, v2: rawV2 } : null;
+  const route = parsePlanRouteDraft(raw ?? null);
+  const { envelope, conflicting, ambiguous } = reconcilePlanRouteDrafts(rawV2 ?? null, raw ?? null);
+  const otherSavedAt = ambiguous ? parsePlanRouteDraftV2(rawV2 ?? null)?.savedAt ?? null : null;
+  const value = envelope?.value;
+  const planAnchor: GeneratedPlanAnchor | null = value?.anchorVenueId && value.anchorSource && value.outcome !== "unanchored"
+    ? { venueId: value.anchorVenueId, source: value.anchorSource, outcome: value.outcome }
+    : null;
+  if (value?.stops.some((stop) => !stop.venueId || !stop.venueName)) return {
+    conflicting,
+    ambiguous,
+    otherSavedAt,
+    pair,
+    envelope,
+    route: {
+      savedAt: envelope?.savedAt ?? undefined,
+      stops: value.stops,
+      nightContext: null,
+      routeNight: null,
+      routeRevision: null,
+      routeStale: true,
+      groundingProof: null,
+      createOperationKey: null,
+      planAnchor: null,
+    },
+  };
+  if (!envelope || envelope.legacy) return {
+    conflicting,
+    ambiguous,
+    otherSavedAt,
+    pair,
+    route: route && {
+      ...route,
+      ...(conflicting && value ? {
+        routeStale: value.routeStale,
+        groundingProof: value.groundingProof,
+        createOperationKey: value.operationKey,
+      } : {}),
+      planAnchor: envelope ? planAnchor : route.planAnchor,
+    },
+    envelope,
+  };
+  const canonical = parsePlanRouteDraft(JSON.stringify({
+    ...envelope.value,
+    savedAt: envelope.savedAt,
+    createOperationKey: envelope.value.operationKey,
+    planAnchor,
+  }));
+  return {
+    conflicting,
+    ambiguous,
+    otherSavedAt,
+    pair,
+    route: canonical && (!conflicting && route
+      ? { ...canonical, stops: route.stops, routeNight: route.routeNight, explicitNightContext: route.explicitNightContext } : canonical),
+    envelope,
+  };
+}
+
+function projectComposerRecovery(
+  records: Omit<Parameters<typeof recoverPlanDrafts>[0], "route">,
+  routeRecovery: ReturnType<typeof readComposerRouteDraft>,
+) {
+  const resolved = recoverPlanDrafts({
+    ...records,
+    route: routeRecovery.envelope ? {
+      ...routeRecovery.envelope,
+      conflicting: routeRecovery.conflicting,
+      ambiguous: routeRecovery.ambiguous,
+      otherSavedAt: routeRecovery.otherSavedAt,
+      explicitNightContext: routeRecovery.route?.explicitNightContext,
+    } : null,
+  });
+  const previewStops = resolved.sessionWins && resolved.planDraft
+    ? resolved.planDraft.draft.stops : routeRecovery.route?.stops;
+  const sessionCandidatesChanged = resolved.sessionWins
+    && JSON.stringify(resolved.planDraft?.draft.stops) !== JSON.stringify(routeRecovery.route?.stops
+      .map(({ key, venueId, venueName }) => ({ key, venueId, venueName })));
+  const useSessionCandidateDate = sessionCandidatesChanged || (resolved.sessionWins && routeRecovery.ambiguous);
+  const needsPreview = (resolved.sessionWins || resolved.acceptanceUnavailable)
+    && routeRecovery.route;
+  const route = resolved.requestOnly ? { ...routeRecovery, route: null, envelope: null }
+    : needsPreview && previewStops?.length ? {
+      ...routeRecovery,
+      envelope: null,
+      route: {
+        savedAt: useSessionCandidateDate ? resolved.planDraft?.savedAt ?? undefined : routeRecovery.route?.savedAt,
+        explicitNightContext: resolved.intent.explicitNightContext,
+        stops: previewStops.map(({ key, venueId, venueName }) => ({ key, venueId, venueName, alternatives: [] })),
+        nightContext: null,
+        routeNight: null,
+        routeRevision: null,
+        routeStale: true,
+        groundingProof: null,
+        createOperationKey: null,
+        planAnchor: null,
+      },
+    } : routeRecovery;
+  let handoff: ComposerHydration | null = null;
+  try {
+    const candidate = resolveComposerHydration({
+      planDraft: resolved.acceptanceUnavailable ? null : resolved.planDraft,
+      routeDraft: route.envelope,
+      intakeDraft: resolved.intakeDraft,
+      planningIntent: resolved.planningIntent,
+      rememberedArea: resolved.routeWins ? null : readRememberedArea(),
+    });
+    handoff = candidate.active ? candidate : null;
+  } catch {}
+  return { ...resolved, route, handoff };
+}
+
+type ComposerPreviewCopy = {
+  route: StoredRouteDraft;
+  corroboratedSessionDate: string | null;
+  originalPair: ComposerRoutePair;
+};
+
+function canCopyRecoveredRoute(
+  corroboratedSessionDate: string | null,
+  stored: ReturnType<typeof readComposerRouteDraft>,
+  originalPair?: ComposerRoutePair,
+): boolean {
+  if (!stored.pair || !stored.envelope || !stored.route) return false;
+  if (originalPair && (originalPair.v1 !== stored.pair.v1 || originalPair.v2 !== stored.pair.v2)) return false;
+  if (!stored.ambiguous) return true;
+  const sessionTime = Date.parse(corroboratedSessionDate ?? "");
+  return sessionTime > Date.parse(stored.route.savedAt ?? "")
+    && sessionTime > Date.parse(stored.otherSavedAt ?? "");
+}
+
+function recoveredPreviewForStorage(
+  recovery: ReturnType<typeof projectComposerRecovery>,
+  stored: ReturnType<typeof readComposerRouteDraft>,
+): ComposerPreviewCopy | null {
+  const preview = recovery.route.route;
+  if (recovery.route === stored || !preview?.routeStale || !stored.route || !stored.pair) return null;
+  const corroboratedSessionDate = recovery.sessionWins ? recovery.planDraft?.savedAt ?? null : null;
+  if (!canCopyRecoveredRoute(corroboratedSessionDate, stored)) return null;
+  return preview.savedAt !== stored.route.savedAt || composerRouteContent(preview) !== composerRouteContent(stored.route)
+    ? { route: preview, corroboratedSessionDate, originalPair: stored.pair } : null;
+}
+
+function selectRecoveredComposerIntake(recovery: ReturnType<typeof projectComposerRecovery> | null) {
+  const base = recovery?.route.route ? skipRemainingPlanIntake(createPlanIntakeDraft()) : createPlanIntakeDraft();
+  return {
+    draft: recovery?.requestIntake ?? base,
+    hasDurableDraft: recovery?.hasStoredIntake ?? false,
+    intent: recovery?.intent ?? resolveRequestedPlanIntent(null, null, null),
+  };
+}
+
+function acceptedAnchorForPlanDraft(anchor: ComposerHydration["acceptedAnchor"] | undefined, firstVenueId: string | undefined): StoredPlanDraft["acceptedAnchor"] {
+  return anchor?.expiresAt && firstVenueId === anchor.venueId
+    ? { ...anchor, expiresAt: anchor.expiresAt } : undefined;
+}
+
+function pendingComposerAcceptanceTime(
+  handoff: ComposerHydration | null,
+  anchor: StoredPlanDraft["acceptedAnchor"],
+  previousSession: ReturnType<typeof readPlanDraftEnvelope>,
+): number | null {
+  if (!anchor || !handoff?.acceptedIntentAt) return null;
+  const savedAnchor = previousSession?.draft.acceptedAnchor;
+  if (savedAnchor?.venueId === anchor.venueId && savedAnchor.source === anchor.source
+    && savedAnchor.expiresAt === anchor.expiresAt) return null;
+  return Date.parse(handoff.acceptedIntentAt);
+}
+
+function samePlanRequest(left: StoredPlanDraft, right: StoredPlanDraft | null | undefined): boolean {
+  return Boolean(right && JSON.stringify(cleanNightContextPatch(left.explicitNightContext)) === JSON.stringify(cleanNightContextPatch(right.explicitNightContext))
+    && (["title", "creatorName", "startTime", "conciergeQuery", "requestedStopCount", "requestedStopCountSource", "acceptedAnchor", "entryMode"] as const)
+    .every((field) => JSON.stringify(left[field]) === JSON.stringify(right[field])));
+}
+
+function savedSessionRequestChanged(draft: StoredPlanDraft, session: ReturnType<typeof readPlanDraftEnvelope>, intake: ReturnType<typeof readPlanIntakeDraftWithMetadata>): boolean {
+  if (!session || samePlanRequest(draft, session.draft)) return false;
+  return !intake || Date.parse(session.savedAt ?? "") >= Date.parse(intake.savedAt);
+}
+
+function samePlanIntake(left: PlanIntakeDraft, right: PlanIntakeDraft): boolean {
+  return left.completed === right.completed && (left.completed || left.currentStep === right.currentStep)
+    && JSON.stringify(left.settledSteps) === JSON.stringify(right.settledSteps)
+    && JSON.stringify(left.skippedSteps) === JSON.stringify(right.skippedSteps)
+    && left.answers.stopCount === right.answers.stopCount
+    && left.answers.stopCountSource === right.answers.stopCountSource
+    && JSON.stringify(planIntakeHandoff(left)) === JSON.stringify(planIntakeHandoff(right));
+}
+
+function savedIntakeRequestChanged(intake: ReturnType<typeof readPlanIntakeDraftWithMetadata>, session: ReturnType<typeof readPlanDraftEnvelope>, recovered: PlanIntakeDraft): boolean {
+  if (!intake || samePlanIntake(intake.draft, recovered)) return false;
+  return !session || Date.parse(intake.savedAt) >= Date.parse(session.savedAt ?? "");
+}
+
+function composerRequestMutated(input: {
+  actualMutation: boolean;
+  routeChanged: boolean;
+  hasRequestWork: boolean;
+  recoveredDraft: StoredPlanDraft | null;
+  sessionDraft: StoredPlanDraft;
+  recoveredRequest: StoredPlanDraft;
+  previousIntake: ReturnType<typeof readPlanIntakeDraftWithMetadata>;
+  previousSession: ReturnType<typeof readPlanDraftEnvelope>;
+  recoveredIntake: PlanIntakeDraft;
+  sameIntake: boolean | null;
+}): boolean {
+  return input.actualMutation && (input.routeChanged || input.hasRequestWork || Boolean(input.recoveredDraft
+    && savedIntakeRequestChanged(input.previousIntake, input.previousSession, input.recoveredIntake) && !input.sameIntake)
+    || Boolean(input.recoveredDraft && savedSessionRequestChanged(input.sessionDraft, input.previousSession, input.previousIntake))
+    || !samePlanRequest(input.sessionDraft, input.recoveredRequest));
+}
+
+function normalizedComposerRoute(routeDraft: StoredRouteDraft | null): StoredRouteDraft | null {
+  return parsePlanRouteDraft(JSON.stringify({ ...routeDraft, savedAt: undefined }));
+}
+
+function composerRouteContent(routeDraft: StoredRouteDraft | null): string {
+  return JSON.stringify(normalizedComposerRoute(routeDraft));
+}
+
+function planRequestSaveTime(editTime: number | null, now: number, savedTimes: number[]): number {
+  if (editTime !== null) return editTime;
+  const dated = savedTimes.filter(Number.isFinite);
+  return !dated.length ? now : Math.max(...dated);
+}
+
+function persistComposerRouteDraft(
+  routeDraft: StoredRouteDraft,
+  mayWrite: boolean,
+  passivePreview: ComposerPreviewCopy | null,
+) {
+  const hasRouteDetails = Boolean(routeDraft.nightContext || routeDraft.routeNight || routeDraft.routeRevision !== null
+    || routeDraft.groundingProof || routeDraft.createOperationKey || routeDraft.planAnchor
+    || routeDraft.stops.some((stop) => stop.alternatives.length > 0));
+  const routeStorage = safeLocalStorage();
+  let routeSaved = false;
+  let previewSaved = false;
+  if (hasRouteDetails || routeDraft.routeStale) {
+    const storedRecovery = readComposerRouteDraft();
+    const stored = storedRecovery.route;
+    const storedTime = Date.parse(stored?.savedAt ?? "");
+    const copyTime = Date.parse(routeDraft.savedAt ?? "");
+    const newerStoredRoute = Number.isFinite(storedTime) && (!Number.isFinite(copyTime) || storedTime > copyTime);
+    const mayReplaceStoredRoute = !passivePreview || canCopyRecoveredRoute(
+      passivePreview.corroboratedSessionDate, storedRecovery, passivePreview.originalPair,
+    );
+    previewSaved = !hasRouteDetails && !storedRecovery.ambiguous && Boolean(stored && stored.stops.length === routeDraft.stops.length
+      && stored.stops.every((stop, index) => stop.venueId === routeDraft.stops[index]?.venueId
+        && stop.venueName === routeDraft.stops[index]?.venueName));
+    try {
+      if (routeStorage && mayWrite && mayReplaceStoredRoute && !newerStoredRoute && (hasRouteDetails || !previewSaved || stored?.savedAt)) {
+        routeStorage.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify({
+          savedAt: routeDraft.savedAt,
+          ...routeDraft,
+          explicitNightContext: Object.values(routeDraft.explicitNightContext ?? {}).some((value) => value !== undefined)
+            ? routeDraft.explicitNightContext : undefined,
+        }));
+      }
+    } catch {
+    }
+    const remaining = readComposerRouteDraft().route;
+    previewSaved = previewSaved && JSON.stringify(remaining) === JSON.stringify(stored);
+    routeSaved = Boolean(remaining && remaining.savedAt === routeDraft.savedAt
+      && composerRouteContent(remaining) === composerRouteContent(routeDraft));
+  }
+  return { hasRouteDetails, routeSaved, previewSaved, routeReference: composerRouteReference(routeDraft, routeSaved) };
+}
+
+function composerRouteReference(routeDraft: StoredRouteDraft, saved: boolean): StoredPlanDraft["routeReference"] {
+  const stored = saved ? readComposerRouteDraft().envelope : null;
+  return stored && stored.savedAt && !stored.value.routeStale && !routeDraft.routeStale
+    && stored.savedAt === routeDraft.savedAt && stored.value.operationKey === routeDraft.createOperationKey
+    && stored.value.operationKey && stored.value.groundingProof
+    ? { savedAt: stored.savedAt, operationKey: stored.value.operationKey } : undefined;
+}
+
+type ComposerRouteCopy = {
+  identity: string;
+  content: string;
+  savedAt: string | undefined;
+  generation: number;
+  pending: boolean;
+};
+
+function saveComposerRouteCopy(
+  routeDraft: StoredRouteDraft,
+  routeCopy: { current: ComposerRouteCopy },
+  input: {
+    savedAt: number;
+    successfulGeneration: number;
+    actualMutation: boolean;
+    preserveStoredDrafts: boolean;
+    recoveredRouteDraft: StoredRouteDraft | null;
+    recoveredPreviewToCopy: ComposerPreviewCopy | null;
+  },
+) {
+  const { savedAt, successfulGeneration, actualMutation, preserveStoredDrafts, recoveredRouteDraft, recoveredPreviewToCopy } = input;
+  const passivePreview = !actualMutation && routeCopy.current.pending ? recoveredPreviewToCopy : null;
+  const { stops, planAnchor, nightContext } = routeDraft;
+  const identity = JSON.stringify({ stops, planAnchor, nightContext });
+  const content = composerRouteContent(routeDraft);
+  const generationChanged = successfulGeneration !== routeCopy.current.generation;
+  const routeChanged = stops.length > 0 && (identity !== routeCopy.current.identity || generationChanged);
+  let mayWrite = content !== routeCopy.current.content || routeCopy.current.pending;
+  if (routeChanged) {
+    const routeSavedAt = actualMutation || generationChanged
+      ? new Date(savedAt).toISOString() : routeCopy.current.savedAt;
+    routeCopy.current = { identity, content, savedAt: routeSavedAt, generation: successfulGeneration, pending: false };
+    mayWrite = true;
+  }
+  routeCopy.current.content = content;
+  routeCopy.current.pending = false;
+  const mayPersistRoute = stops.length > 0 && (!preserveStoredDrafts || recoveredRouteDraft || successfulGeneration > 0);
+  const routeToRead = passivePreview?.route ?? { ...routeDraft, savedAt: routeCopy.current.savedAt };
+  const mayWriteRoute = actualMutation ? mayWrite : passivePreview !== null;
+  const saved = mayPersistRoute
+    ? persistComposerRouteDraft(routeToRead, mayWriteRoute, passivePreview)
+    : { hasRouteDetails: false, routeSaved: false, previewSaved: false, routeReference: undefined };
+  return { routeChanged, ...saved };
+}
+
+function readRetainedComposerPreview(
+  routeDraft: StoredRouteDraft,
+  reference: NonNullable<StoredPlanDraft["routeReference"]>,
+  intakeReference: StoredPlanDraft["routeReference"],
+) {
+  const stored = readComposerRouteDraft();
+  const envelope = stored.envelope;
+  const previewSaved = Boolean(stored.pair && !stored.ambiguous && envelope?.value.routeStale
+    && envelope.value.groundingProof === null && envelope.savedAt === reference.savedAt
+    && envelope.value.operationKey === reference.operationKey
+    && composerStopIdentity(envelope.value.stops) === composerStopIdentity(routeDraft.stops));
+  const matchesIntake = intakeReference?.savedAt === reference.savedAt && intakeReference.operationKey === reference.operationKey;
+  return {
+    routeChanged: false, hasRouteDetails: false, routeSaved: false, previewSaved,
+    routeReference: previewSaved && matchesIntake ? reference : undefined,
+  };
+}
+
+function retainedComposerPreviewForSave(
+  routeDraft: StoredRouteDraft,
+  input: {
+    reference: NonNullable<StoredPlanDraft["routeReference"]> | null;
+    routeSorted: boolean;
+    routeSaveRevoked: boolean;
+    successfulGeneration: number;
+    hasRequestWork: boolean;
+    conciergeQuery: string;
+    recoveredQuery: string;
+    startTime: string;
+    recoveredStartTime: string;
+    wizardChosen: boolean;
+    recoveredDraft: StoredPlanDraft | null;
+    recoveredRouteDraft: StoredRouteDraft | null;
+    sameIntake: boolean | null;
+    previousIntake: ReturnType<typeof readPlanIntakeDraftWithMetadata>;
+  },
+) {
+  const matchingIntakeContext = input.sameIntake && JSON.stringify(input.previousIntake?.explicitNightContext)
+    === JSON.stringify(cleanNightContextPatch(routeDraft.explicitNightContext) ?? undefined);
+  return input.reference && input.routeSorted && routeDraft.routeStale && !input.routeSaveRevoked
+    && !input.successfulGeneration && !input.hasRequestWork && input.conciergeQuery === input.recoveredQuery
+    && input.startTime === input.recoveredStartTime && input.wizardChosen === (input.recoveredDraft?.entryMode === "wizard")
+    && composerRouteContent(routeDraft) === composerRouteContent(input.recoveredRouteDraft)
+    ? readRetainedComposerPreview(routeDraft, input.reference, matchingIntakeContext ? input.previousIntake?.routeReference : null)
+    : null;
+}
+
+function canSaveRecoveredComposerDraft(
+  stops: DraftStop[],
+  preserveStoredDrafts: boolean,
+  recoveredRouteDraft: StoredRouteDraft | null,
+  acceptedIntentTime: number | null,
+  recoveredPreviewReference: StoredPlanDraft["routeReference"],
+): boolean {
+  return !recoveredPreviewReference && stops.length > 0 && !preserveStoredDrafts && Boolean(recoveredRouteDraft || acceptedIntentTime !== null);
+}
+
+function canSaveRecoveredComposerRequest(
+  requestAmbiguous: boolean,
+  routeSavedAt: string | undefined,
+  acceptedIntentTime: number | null,
+): boolean {
+  return !requestAmbiguous && (routeSavedAt !== undefined || acceptedIntentTime !== null);
+}
+
+function persistComposerIntake(
+  draft: PlanIntakeDraft,
+  savedAt: number,
+  request: StoredPlanDraft,
+  actualMutation: boolean,
+  input: {
+    retainedPreview: ReturnType<typeof retainedComposerPreviewForSave>;
+    hasDurableIntakeDraft: boolean;
+    hasRequestWork: boolean;
+    previousIntake: ReturnType<typeof readPlanIntakeDraftWithMetadata>;
+    requestedStopCount: PlanStopCount | undefined;
+  },
+): boolean {
+  return !input.retainedPreview && (input.hasDurableIntakeDraft || input.hasRequestWork || (!input.previousIntake && input.requestedStopCount !== undefined))
+    ? actualMutation && writePlanIntakeDraft(draft, undefined, savedAt, request.routeReference, request.explicitNightContext)
+    : false;
+}
+
+function preserveComposerRouteRevocation(
+  routeSorted: boolean,
+  recoveredDraft: StoredPlanDraft | null,
+  previousIntake: ReturnType<typeof readPlanIntakeDraftWithMetadata>,
+): boolean {
+  return !routeSorted && (recoveredDraft?.routeReference === null || previousIntake?.routeReference === null);
+}
+
+type ComposerDraftSaveFailure = "all" | "route" | "route-details" | "description" | "request" | null;
+
+function composerStopIdentity(stops: StoredPlanDraft["stops"]): string {
+  return JSON.stringify(stops.map(({ venueId, venueName }) => venueId ? { venueId } : { venueName }));
+}
+
+function composerRouteRecoveryContent(routeDraft: StoredRouteDraft): string {
+  const route = normalizedComposerRoute(routeDraft);
+  return JSON.stringify(route && {
+    ...route,
+    stops: route.stops.map((stop) => ({ ...stop, venueName: stop.venueId ? "" : stop.venueName })),
+  });
+}
+
+function composerRouteDetailsRecovered(
+  expected: StoredRouteDraft,
+  routeSorted: boolean,
+  recovery: ReturnType<typeof projectComposerRecovery>,
+): boolean {
+  if (!routeSorted) return true;
+  const selected = recovery.route.route;
+  if (expected.routeStale) return selected?.routeStale ?? Boolean(recovery.recoveredDraft?.stops.length);
+  return Boolean(selected && selected.savedAt === expected.savedAt
+    && composerRouteRecoveryContent(selected) === composerRouteRecoveryContent(expected));
+}
+
+function certifyComposerRecovery(input: {
+  draft: StoredPlanDraft;
+  intakeDraft: PlanIntakeDraft;
+  routeDraft: StoredRouteDraft;
+  routeSorted: boolean;
+  records: Omit<Parameters<typeof recoverPlanDrafts>[0], "route">;
+}) {
+  const { draft, intakeDraft, routeDraft, routeSorted, records } = input;
+  const recovery = projectComposerRecovery({
+    ...records,
+    planningIntent: readPlanningIntent({ cleanupInvalid: false }),
+  }, readComposerRouteDraft());
+  const { recoveredDraft, handoff, intent } = recovery;
+  const fields = initialComposerDraftFields(handoff, recoveredDraft);
+  const startTime = typeof fields.startTime === "function" ? fields.startTime() : fields.startTime;
+  const stops = initialComposerStops(recovery.route.route, recoveredDraft, handoff);
+  const recoveredRequest: StoredPlanDraft = {
+    ...fields,
+    startTime,
+    stops,
+    conciergeQuery: intent.conciergeQuery,
+    requestedStopCount: intent.stopCount,
+    requestedStopCountSource: intent.stopCountSource,
+    explicitNightContext: intent.explicitNightContext,
+    entryMode: recoveredDraft?.entryMode,
+    acceptedAnchor: acceptedAnchorForPlanDraft(handoff?.acceptedAnchor, stops[0]?.venueId),
+  };
+  const recoveredIntake = initialComposerIntake(selectRecoveredComposerIntake(recovery).draft,
+    intent.stopCount, intent.stopCountSource, startTime);
+  const requestSaved = samePlanRequest(draft, recoveredRequest) && samePlanIntake(intakeDraft, recoveredIntake);
+  const descriptionLost = Boolean(draft.conciergeQuery.trim()) && draft.conciergeQuery !== recoveredRequest.conciergeQuery;
+  const requestLoss = requestSaved ? null : descriptionLost ? "description" as const : "request" as const;
+  const stopsLost = composerStopIdentity(routeDraft.stops) !== composerStopIdentity(stops);
+  const routeDetailsLost = !stopsLost && !composerRouteDetailsRecovered(routeDraft, routeSorted, recovery);
+  return { requestLoss, stopsLost, routeDetailsLost };
+}
+
+function readComposerIntakeForSave(cleanupInvalid = false): ReturnType<typeof readPlanIntakeDraftWithMetadata> {
+  if (cleanupInvalid) return readPlanIntakeDraftWithMetadata();
+  try {
+    return parsePlanIntakeDraftWithMetadata(safeLocalStorage()?.getItem(PLAN_INTAKE_STORAGE_KEY) ?? null);
+  } catch {
+    return null;
+  }
+}
+
+function composerRequestSaveStatus(input: {
+  draft: StoredPlanDraft;
+  intakeDraft: PlanIntakeDraft;
+  writtenSession: { v1: boolean; v2: boolean };
+  writtenIntake: boolean;
+  savedAt: number;
+  routeDraft: StoredRouteDraft;
+  routeSorted: boolean;
+  actualMutation: boolean;
+  requestChanged: boolean;
+}) {
+  const { draft, intakeDraft, writtenSession, writtenIntake, savedAt, routeDraft, routeSorted } = input;
+  const { routeStale } = routeDraft;
+  const storage = safeSessionStorage();
+  const canonicalRequest = (value: StoredPlanDraft) => JSON.stringify(parsePlanDraft(JSON.stringify(value)));
+  const canonical = canonicalRequest(draft);
+  const envelope = readPlanDraftEnvelope(storage);
+  let v2Draft = envelope?.draft;
+  if (!input.actualMutation && v2Draft && !v2Draft.requestIntake) v2Draft = { ...v2Draft, requestIntake: draft.requestIntake };
+  if (routeStale && draft.routeReference === null && v2Draft && v2Draft.routeReference === undefined
+    && envelope?.savedAt === new Date(savedAt).toISOString()) v2Draft = { ...v2Draft, routeReference: null };
+  let v1 = false;
+  let legacyDraft: StoredPlanDraft | null = null;
+  try {
+    legacyDraft = parsePlanDraft(storage?.getItem(PLAN_DRAFT_KEY) ?? null);
+    let legacy = legacyDraft;
+    if (!input.actualMutation && legacy && !legacy.requestIntake) legacy = { ...legacy, requestIntake: draft.requestIntake };
+    v1 = Boolean(legacy && canonicalRequest(legacy) === canonical);
+  } catch {}
+  const intake = readComposerIntakeForSave();
+  const sessionWrite = {
+    v1: writtenSession.v1 || v1,
+    v2: writtenSession.v2 || Boolean(envelope && !envelope.legacy && v2Draft && canonicalRequest(v2Draft) === canonical),
+  };
+  const matchingIntake = intake && samePlanIntake(intakeDraft, intake.draft)
+    && JSON.stringify(intake.routeReference) === JSON.stringify(draft.routeReference)
+    && JSON.stringify(intake.explicitNightContext) === JSON.stringify(cleanNightContextPatch(draft.explicitNightContext) ?? undefined);
+  const certificate = input.requestChanged
+    ? certifyComposerRecovery({ draft, intakeDraft, routeDraft, routeSorted, records: { plan: envelope, legacyDraft, intake } })
+    : null;
+  return { sessionWrite, intakeSaved: writtenIntake || Boolean(matchingIntake), certificate };
+}
+
+function composerDraftSaveFailure(input: {
+  hasRequestWork: boolean;
+  sessionWrite: { v1: boolean; v2: boolean };
+  intakeSaved: boolean;
+  hasStops: boolean;
+  routeSaved: boolean;
+  previewSaved: boolean;
+  hasRouteDetails: boolean;
+  certificate: ReturnType<typeof certifyComposerRecovery> | null;
+}): ComposerDraftSaveFailure {
+  const { v1, v2 } = input.sessionWrite;
+  if ((input.hasRequestWork || input.hasStops) && !v1 && !v2 && !input.intakeSaved) return "all";
+  if (input.certificate?.stopsLost) return "route";
+  if (input.certificate?.routeDetailsLost) return "route-details";
+  if (input.hasStops && !input.routeSaved && !input.previewSaved && (input.hasRouteDetails || (!v1 && !v2))) {
+    return v1 && v2 ? "route-details" : "route";
+  }
+  return input.certificate?.requestLoss ?? null;
 }
 
 export type NightAreaSelectorGroup = {
@@ -1192,6 +1783,16 @@ function nextEvening(): string {
 }
 
 /**
+ * A start at or before now belongs to a night that began without this plan.
+ * The lock refuses it, so a request never carries it: a recovered draft keeps
+ * showing what was saved, and the next request takes the current default.
+ */
+function startHasPassed(input: string, now = Date.now()): boolean {
+  const iso = londonDateTimeInputToIso(input);
+  return iso !== null && Date.parse(iso) <= now;
+}
+
+/**
  * The name of the night the late default stepped over, for the one-tap choice
  * beside the field: null whenever `tonightLondonStartInput` has no slot left
  * to offer. Read on every render, and the slot itself read again on the tap,
@@ -1314,7 +1915,6 @@ type ComposerDraftFields = {
   title: string;
   creatorName: string;
   startTime: string | (() => string);
-  conciergeQuery: string;
 };
 
 /**
@@ -1327,11 +1927,12 @@ function initialComposerDraftFields(
   handoff: ComposerHydration | null,
   recoveredDraft: ReturnType<typeof parsePlanDraft>,
 ): ComposerDraftFields {
+  const startTime = handoff?.startsAt ?? recoveredDraft?.startTime;
   return {
     title: handoff?.title ?? recoveredDraft?.title ?? "Tonight, sorted",
     creatorName: handoff?.creatorName ?? recoveredDraft?.creatorName ?? "",
-    startTime: handoff?.startsAt ?? recoveredDraft?.startTime ?? nextEvening,
-    conciergeQuery: recoveredDraft?.conciergeQuery ?? "",
+    startTime: startTime?.endsWith("Z")
+      ? londonDateTimeInputFromIso(startTime) ?? startTime : startTime ?? nextEvening,
   };
 }
 
@@ -1393,6 +1994,49 @@ type UrlPrefill = {
 
 const NO_URL_PREFILL: UrlPrefill = { ask: null, handoffAsk: null };
 
+function planWindowContainsStart(option: (typeof PLAN_TIME_WINDOWS)[number], exactStartIso: string): boolean {
+  const clock = londonDateTimeInputFromIso(exactStartIso)?.slice(11);
+  if (!clock) return false;
+  return option.end === null
+    ? clock >= option.start || clock < "04:00"
+    : clock >= option.start && clock < option.end;
+}
+
+function reconcilePlanStart(draft: PlanIntakeDraft, value: string): PlanIntakeDraft {
+  if (!draft.answers.timeWindow) return draft;
+  const exactStartIso = londonDateTimeInputToIso(value, new Date());
+  if (!exactStartIso) return reopenPlanIntakeStep({ ...draft, answers: { ...draft.answers, exactStartIso: null } }, "time-window");
+  const current = PLAN_TIME_WINDOWS.find((option) => option.id === draft.answers.timeWindow);
+  const option = current && planWindowContainsStart(current, exactStartIso) ? current
+    : PLAN_TIME_WINDOWS.find((candidate) => planWindowContainsStart(candidate, exactStartIso));
+  if (option?.id === draft.answers.timeWindow && exactStartIso === draft.answers.exactStartIso) return draft;
+  const next = { ...draft, answers: { ...draft.answers, timeWindow: option?.id ?? null, exactStartIso: option ? exactStartIso : null } };
+  return settlePlanIntakeStep({ ...next, currentStep: "time-window" }, { skip: !option });
+}
+
+function initialComposerIntake(
+  intake: PlanIntakeDraft,
+  count: PlanStopCount | undefined,
+  source: PlanStopCountSource | undefined,
+  startTime: string,
+): PlanIntakeDraft {
+  return reconcilePlanStart(applyPlanStopCount(intake, null, count, source).draft, startTime);
+}
+
+function tuneTimeAnswers(daypart: NightContext["daypart"], displayedStart: string, savedExactStartIso: string | null): Pick<PlanIntakeDraft["answers"], "timeWindow" | "exactStartIso"> {
+  const option = PLAN_TIME_WINDOWS.find((window) => window.daypart === daypart);
+  if (!option) return { timeWindow: null, exactStartIso: null };
+  const now = new Date();
+  const exactStartIso = resolveFutureLondonStartIso(displayedStart, savedExactStartIso, now)
+    ?? londonDateTimeInputToIso(displayedStart, now) ?? savedExactStartIso;
+  if (exactStartIso && Date.parse(exactStartIso) > now.getTime() && planWindowContainsStart(option, exactStartIso)) {
+    return { timeWindow: option.id, exactStartIso };
+  }
+  const input = exactStartIso && londonDateTimeInputFromIso(exactStartIso);
+  const nextStart = input && londonDateTimeInputToIso(`${input.slice(0, 10)}T${option.start}`, now);
+  return { timeWindow: option.id, exactStartIso: nextStart || nextLondonOccurrenceIso(option.id, now) };
+}
+
 /**
  * The ask a `/plan` URL carries, both the wide answer and the narrow one.
  *
@@ -1424,14 +2068,24 @@ function PlanComposerForm({
   recoveredDraft,
   recoveredRouteDraft,
   recoveredIntake,
+  recoveredPreviewToCopy,
+  recoveredPreviewReference,
+  recoveredIntent,
   hasDurableIntakeDraft,
+  requestAmbiguous,
+  preserveStoredDrafts,
   handoff: hydratedHandoff,
   canPersist,
 }: {
   recoveredDraft: ReturnType<typeof parsePlanDraft>;
   recoveredRouteDraft: StoredRouteDraft | null;
   recoveredIntake: PlanIntakeDraft;
+  recoveredPreviewToCopy: ComposerPreviewCopy | null;
+  recoveredPreviewReference: NonNullable<StoredPlanDraft["routeReference"]> | null;
+  recoveredIntent: ReturnType<typeof resolveRequestedPlanIntent>;
   hasDurableIntakeDraft: boolean;
+  requestAmbiguous: boolean;
+  preserveStoredDrafts: boolean;
   handoff: ComposerHydration | null;
   canPersist: boolean;
 }) {
@@ -1455,7 +2109,14 @@ function PlanComposerForm({
   const draftFields = initialComposerDraftFields(handoff, recoveredDraft);
   const [title, setTitle] = useState(draftFields.title);
   const [creatorName, setCreatorName] = useState(draftFields.creatorName);
-  const [startTime, setStartTime] = useState(draftFields.startTime);
+  const automaticCreatorName = useRef<string | null>(null);
+  const pendingDraftSave = useRef(false);
+  const requestEditTime = useRef<number | null>(null);
+  const [initialStartTime] = useState(draftFields.startTime);
+  const [startTime, setStartTime] = useState(initialStartTime);
+  const recoveredRequestTitle = recoveredDraft?.title ?? draftFields.title;
+  const recoveredRequestCreator = recoveredDraft?.creatorName ?? draftFields.creatorName;
+  const recoveredRequestStart = recoveredDraft?.startTime ?? initialStartTime;
   const [stops, setStops] = useState<DraftStop[]>(
     initialComposerStops(recoveredRouteDraft, recoveredDraft, handoff),
   );
@@ -1467,14 +2128,22 @@ function PlanComposerForm({
     canPersist ? describeAskFromLocation() : NO_URL_PREFILL,
   );
   const urlAsk = urlPrefill.ask;
+  const recoveredStopCount = urlAsk
+    ? matchPlanStopCount(urlAsk)
+    : recoveredIntent.stopCount;
   // Describe-first is the default open. A returning visitor with real,
   // unfinished wizard progress lands back on the wizard instead, so their
   // answers so far are not hidden behind the question they already passed.
   // ONLY the Pub Pal handoff overrides that: it is a fresh ask the drinker
   // just chose, and describe-first is the only surface that can show it. A
   // chip link (`occasion`, `describe`) does not, so those keep the rule.
+  // A sole area may come from the remembered-area seed. Only a recorded
+  // choice or legacy progress beyond that seed can reopen the wizard.
+  const wizardProgress = recoveredIntake.skippedSteps.includes("area")
+    || recoveredIntake.settledSteps.some((step) => step !== "area");
   const initialEntryMode: "describe" | "wizard" =
-    hasDurableIntakeDraft && !recoveredIntake.completed && !urlPrefill.handoffAsk
+    (recoveredDraft?.entryMode === "wizard" || (hasDurableIntakeDraft && wizardProgress))
+      && !recoveredIntake.completed && !urlPrefill.handoffAsk
       ? "wizard"
       : "describe";
   // A URL ask is never dropped in silence. Where describe-first cannot render
@@ -1489,10 +2158,13 @@ function PlanComposerForm({
       entryMode: initialEntryMode,
     });
   const [conciergeQuery, setConciergeQuery] = useState(
-    (askNeedsConciergeField ? urlAsk ?? "" : "") || draftFields.conciergeQuery,
+    (askNeedsConciergeField ? urlAsk ?? "" : "") || recoveredIntent.conciergeQuery,
   );
-  const [planIntake, setPlanIntake] = useState(recoveredIntake);
-  const initialPlanIntakeRef = useRef(recoveredIntake);
+  const [planIntake, setPlanIntake] = useState(() =>
+    initialComposerIntake(recoveredIntake, recoveredStopCount, urlAsk ? "text" : recoveredIntent.stopCountSource, startTime));
+  const requestedStopCount = planIntake.answers.stopCount;
+  const [draftSaveFailure, setDraftSaveFailure] = useState<ComposerDraftSaveFailure>(null);
+  const [wizardChosen, setWizardChosen] = useState(recoveredDraft?.entryMode === "wizard");
   const [entryMode, setEntryMode] = useState<"describe" | "wizard">(initialEntryMode);
   const [askDraftQuery, setAskDraftQuery] = useState(urlAsk ?? "");
   const askDraftConsumedRef = useRef(false);
@@ -1504,6 +2176,34 @@ function PlanComposerForm({
   // The planner's report line for the route it last built, with the stops it
   // was about, so the lock hands the plan card a line only for that route.
   const generatedReportRef = useRef<{ line: string; venueIds: string } | null>(null);
+  // WHETHER THE GENERATOR HAS ANSWERED, which is the moment the page's one
+  // painted primary becomes `Lock it in` and the concierge control above steps
+  // back. It is NOT "a Stop names a pub": a held acceptance seeds Stop 1 and
+  // has no route at all, and asking the stops made `Make a plan` disappear on
+  // exactly the surface that still needs it (e2e/plan-held-acceptance.spec.ts).
+  // A recovered route draft IS a route, so it seeds this true.
+  const [routeSorted, setRouteSorted] = useState(Boolean(recoveredRouteDraft));
+  const routeSaveRevoked = useRef(Boolean(urlAsk));
+  const adoptFreshAsk = useCallback((query: string) => {
+    pendingDraftSave.current = true;
+    routeSaveRevoked.current = true;
+    setRouteStale(routeSorted);
+    setGroundingProof(null);
+    setCreateOperationKey(null);
+    setRouteStatus("Your new description needs a fresh route before you lock it in.");
+    setAskDraftQuery(query);
+    setConciergeQuery(query);
+    setExplicitNightContext({});
+    setPlanIntake((current) => {
+      const draft = createPlanIntakeDraft();
+      return applyPlanStopCount(
+        current.completed ? skipRemainingPlanIntake(draft) : draft,
+        null,
+        matchPlanStopCount(query),
+        matchPlanStopCount(query) === undefined ? undefined : "text",
+      ).draft;
+    });
+  }, [routeSorted]);
   useLayoutEffect(() => {
     if (!canPersist) return;
     const fresh = describeAskFromLocation();
@@ -1511,60 +2211,59 @@ function PlanComposerForm({
     if (appliedUrlAskRef.current === fresh.ask) return;
     const ask = fresh.ask;
     appliedUrlAskRef.current = ask;
+    routeSaveRevoked.current = true;
     const opensDescribeFirstForHandoff =
       Boolean(fresh.handoffAsk) && hasDurableIntakeDraft && !recoveredIntake.completed;
-    const entryForSurface: "describe" | "wizard" =
-      hasDurableIntakeDraft && !recoveredIntake.completed && !fresh.handoffAsk
-        ? "wizard"
-        : "describe";
-    const askNeedsConciergeSurface = !planComposerShowsDescribeFirst({
-      heldVenueId,
-      completed: recoveredIntake.completed,
-      entryMode: entryForSurface,
-    });
     // Deferred out of the effect body (react-hooks/set-state-in-effect). The
     // draft restore below is scheduled from a PASSIVE effect, so its microtask
     // is queued after this one and the URL ask still lands first.
     void Promise.resolve().then(() => {
-      setAskDraftQuery(ask);
-      if (opensDescribeFirstForHandoff) setEntryMode("describe");
-      if (askNeedsConciergeSurface) setConciergeQuery(ask);
+      adoptFreshAsk(ask);
+      if (opensDescribeFirstForHandoff) {
+        setWizardChosen(false);
+        setEntryMode("describe");
+      }
     });
-  }, [canPersist, pathname, heldVenueId, recoveredIntake.completed, hasDurableIntakeDraft]);
+  }, [canPersist, pathname, heldVenueId, recoveredIntake.completed, hasDurableIntakeDraft, adoptFreshAsk]);
   useEffect(() => {
     // The URL ask is already in state; this effect exists to SPEND the draft,
     // which is a storage write and so waits for a browser that can persist.
     if (!canPersist) return;
     if (askDraftConsumedRef.current) return;
     askDraftConsumedRef.current = true;
-    void Promise.resolve().then(() => {
+    try {
+      // The ask draft is one-shot, so it is SPENT whichever prefill wins: a
+      // URL that carries its own describe used to leave the draft behind for
+      // the next /plan visit to open on somebody's earlier ask.
+      let raw: string | null = null;
       try {
-        // The ask draft is one-shot, so it is SPENT whichever prefill wins: a
-        // URL that carries its own describe used to leave the draft behind for
-        // the next /plan visit to open on somebody's earlier ask.
-        let raw: string | null = null;
-        try {
-          const askDraftStore = safeSessionStorage();
-          raw = askDraftStore?.getItem(ASK_PLAN_DRAFT_STORAGE_KEY) ?? null;
-          if (raw) askDraftStore?.removeItem(ASK_PLAN_DRAFT_STORAGE_KEY);
-        } catch {
-          raw = null;
-        }
-        // The address is re-read HERE rather than closed over: this effect is
-        // scheduled by the mount render, which on a client-side navigation
-        // still saw the previous route, so a captured ask would read as none
-        // and hand the field back to the draft the URL just beat.
-        const askOnScreen = describeAskFromLocation().ask ?? appliedUrlAskRef.current;
-        if (askOnScreen || !raw) return;
-        const parsed = JSON.parse(raw) as AskPlanDraft;
-        const query = typeof parsed?.query === "string" ? parsed.query.trim().slice(0, 500) : "";
-        if (!query) return;
-        setAskDraftQuery(query);
+        const askDraftStore = safeSessionStorage();
+        raw = askDraftStore?.getItem(ASK_PLAN_DRAFT_STORAGE_KEY) ?? null;
+        if (raw) askDraftStore?.removeItem(ASK_PLAN_DRAFT_STORAGE_KEY);
       } catch {
-        /* private mode or bad JSON */
+        raw = null;
       }
-    });
-  }, [canPersist]);
+      // The address is re-read HERE rather than closed over: this effect is
+      // scheduled by the mount render, which on a client-side navigation
+      // still saw the previous route, so a captured ask would read as none
+      // and hand the field back to the draft the URL just beat.
+      const askOnScreen = describeAskFromLocation().ask ?? appliedUrlAskRef.current;
+      if (askOnScreen || !raw) return;
+      const parsed = JSON.parse(raw) as AskPlanDraft;
+      const query = typeof parsed?.query === "string" ? parsed.query.trim().slice(0, 500) : "";
+      if (!query) return;
+      routeSaveRevoked.current = true;
+      void Promise.resolve().then(() => {
+        adoptFreshAsk(query);
+        if (hasDurableIntakeDraft && !recoveredIntake.completed) {
+          setWizardChosen(false);
+          setEntryMode("describe");
+        }
+      });
+    } catch {
+      /* private mode or bad JSON */
+    }
+  }, [canPersist, hasDurableIntakeDraft, recoveredIntake.completed, adoptFreshAsk]);
   const palHandoffAutoGenerateStartedRef = useRef(false);
   // D3: a generated route must be SEEN. The reveal is requested by the
   // generation success path and runs in an effect, because on a describe-first
@@ -1600,6 +2299,7 @@ function PlanComposerForm({
     setCreatorName((current) => {
       if (current.trim()) return current;
       const seeded = creatorNameFromAccount({ handle: viewerHandle, user });
+      if (seeded) automaticCreatorName.current = seeded;
       return seeded || current;
     });
   }, [identityResolved, user, viewerHandle]);
@@ -1612,7 +2312,12 @@ function PlanComposerForm({
   useEffect(() => {
     if (!identityResolved || deviceCreatorNameSeededRef.current) return;
     deviceCreatorNameSeededRef.current = true;
-    setCreatorName((current) => current.trim() ? current : readRememberedPlanHostName(safeLocalStorage()) || current);
+    setCreatorName((current) => {
+      if (current.trim()) return current;
+      const seeded = readRememberedPlanHostName(safeLocalStorage());
+      if (seeded) automaticCreatorName.current = seeded;
+      return seeded || current;
+    });
   }, [identityResolved]);
   useEffect(() => {
     if (!canPersist) return;
@@ -1632,6 +2337,7 @@ function PlanComposerForm({
         handoffAsk.trim(),
         undefined,
         skipRemainingPlanIntake(createPlanIntakeDraft()),
+        {},
       );
     });
     // submitFromEntry is intentionally excluded: it is recreated on render,
@@ -1641,20 +2347,34 @@ function PlanComposerForm({
   const [conciergeNote, setConciergeNote] = useState("");
   const routeDraftFields = initialComposerRouteDraft(recoveredRouteDraft);
   const [nightContext, setNightContext] = useState<NightContext | null>(routeDraftFields.nightContext);
-  const [explicitNightContext, setExplicitNightContext] = useState<Partial<NightContext>>({});
+  const recoveredExplicitNightContext = recoveredIntent.explicitNightContext;
+  const [explicitNightContext, setExplicitNightContext] = useState<Partial<NightContext> | undefined>(urlAsk ? {} : recoveredExplicitNightContext);
+  const intakeContext = planIntakeNightContextPatch(planIntake);
+  const editableBase = nightContext ?? ((hasDurableIntakeDraft && Object.keys(intakeContext).some((key) => key !== "stopCount")) || explicitNightContext !== undefined ? {
+    ...inferNightContext(conciergeQuery).context,
+    ...intakeContext,
+    stopCount: normalizePlanStopCount(requestedStopCount),
+  } : null);
+  const editableContext = editableBase ? { ...editableBase, ...explicitNightContext } : null;
+  const requestContext = { nightArea: askDraftQuery ? undefined : nightContext?.nightArea, ...explicitNightContext };
   const [routeRevision, setRouteRevision] = useState<RouteRevision | null>(routeDraftFields.routeRevision);
   const [routeNight, setRouteNight] = useState<RouteNight | null>(routeDraftFields.routeNight);
-  const [routeStale, setRouteStale] = useState(routeDraftFields.routeStale);
-  // WHETHER THE GENERATOR HAS ANSWERED, which is the moment the page's one
-  // painted primary becomes `Lock it in` and the concierge control above steps
-  // back. It is NOT "a Stop names a pub": a held acceptance seeds Stop 1 and
-  // has no route at all, and asking the stops made `Make a plan` disappear on
-  // exactly the surface that still needs it (e2e/plan-held-acceptance.spec.ts).
-  // A recovered route draft IS a route, so it seeds this true.
-  const [routeSorted, setRouteSorted] = useState(Boolean(recoveredRouteDraft));
+  const [routeStale, setRouteStale] = useState(routeDraftFields.routeStale || (!recoveredRouteDraft && Boolean(recoveredDraft?.stops.length)));
+
   const [groundingProof, setGroundingProof] = useState(routeDraftFields.groundingProof);
   const [createOperationKey, setCreateOperationKey] = useState(routeDraftFields.createOperationKey);
   const [planAnchor, setPlanAnchor] = useState(routeDraftFields.planAnchor);
+  const [successfulGeneration, setSuccessfulGeneration] = useState(0);
+  useLayoutEffect(() => {
+    if (successfulGeneration > 0) routeSaveRevoked.current = false;
+  }, [successfulGeneration]);
+  const routeCopy = useRef({
+    identity: JSON.stringify({ stops: recoveredRouteDraft?.stops, planAnchor: recoveredRouteDraft?.planAnchor, nightContext: recoveredRouteDraft?.nightContext }),
+    content: composerRouteContent(recoveredRouteDraft),
+    savedAt: recoveredRouteDraft?.savedAt,
+    generation: 0,
+    pending: true,
+  });
   const [sorting, setSorting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   // Walk minutes the browser measured between stops, merged over the route's
@@ -1708,7 +2428,7 @@ function PlanComposerForm({
   const composerVisible =
     planIntake.completed
     || stops.length > 0
-    || Boolean(recoveredDraft || recoveredRouteDraft || heldVenueId);
+    || Boolean(heldVenueId);
   // The route comes before the request controls in result mode. "Tune details"
   // holds the description, context and templates. Name and start-time fields
   // stay below the cards for locking the plan.
@@ -1726,7 +2446,7 @@ function PlanComposerForm({
   const nameField = (
     <div className="planComposer__field">
       <label htmlFor="plan-name">Your name</label>
-      <input id="plan-name" type="text" ref={nameInputRef} autoComplete="name" maxLength={CREW_NAME_MAX} required value={creatorName} onChange={(event) => setCreatorName(event.target.value)} placeholder="Shown on the invite" />
+      <input id="plan-name" type="text" ref={nameInputRef} autoComplete="name" maxLength={CREW_NAME_MAX} required value={creatorName} onChange={(event) => { pendingDraftSave.current = true; automaticCreatorName.current = null; setCreatorName(event.target.value); }} placeholder="Shown on the invite" />
     </div>
   );
   // An unresolved Stop 1 carries an empty name on purpose, and an empty string
@@ -1835,46 +2555,110 @@ function PlanComposerForm({
     if (recoveredDraft) trackEvent("draft_recovered", { kind: "plan", surface: "plan" });
   }, [recoveredDraft]);
 
+  const intakeChanged = !samePlanIntake(planIntake,
+    applyPlanStopCount(recoveredIntake, null, recoveredIntent.stopCount, recoveredIntent.stopCountSource).draft);
+  const explicitContextChanged = JSON.stringify(cleanNightContextPatch(explicitNightContext))
+    !== JSON.stringify(cleanNightContextPatch(recoveredExplicitNightContext));
+  const hasRequestWork = intakeChanged || explicitContextChanged;
+
   useEffect(() => {
-    if (!canPersist) return;
+    if (!canPersist || (routeSaveRevoked.current && routeSorted && !routeStale)) return;
+    function showSaveFailure(failure: ComposerDraftSaveFailure) {
+      let cancelled = false;
+      void Promise.resolve().then(() => {
+        if (!cancelled) setDraftSaveFailure(failure);
+      });
+      return () => { cancelled = true; };
+    }
+    const actualMutation = pendingDraftSave.current;
+    pendingDraftSave.current = false;
     const acceptedAnchor = handoff?.acceptedAnchor;
-    const persistedAcceptedAnchor = acceptedAnchor?.expiresAt
-      && stops[0]?.venueId === acceptedAnchor.venueId
-      ? { ...acceptedAnchor, expiresAt: acceptedAnchor.expiresAt }
-      : null;
-    writePlanDraftEnvelope({
+    const persistedAcceptedAnchor = acceptedAnchorForPlanDraft(acceptedAnchor, stops[0]?.venueId);
+    const previousSession = readPlanDraftEnvelope(safeSessionStorage());
+    const acceptedIntentTime = pendingComposerAcceptanceTime(handoff, persistedAcceptedAnchor, previousSession);
+    if (!actualMutation && !canSaveRecoveredComposerDraft(
+      stops, preserveStoredDrafts, recoveredRouteDraft, acceptedIntentTime, recoveredPreviewReference,
+    )) return;
+    const savedAt = Date.now();
+    const previousIntake = readComposerIntakeForSave(actualMutation);
+    const sameIntake = previousIntake && samePlanIntake(planIntake, previousIntake.draft);
+    const routeDraft = {
+      stops,
+      nightContext,
+      explicitNightContext,
+      routeNight,
+      routeRevision,
+      routeStale,
+      groundingProof,
+      createOperationKey,
+      planAnchor,
+    };
+    const retainedPreview = retainedComposerPreviewForSave(routeDraft, {
+      reference: recoveredPreviewReference, routeSorted, routeSaveRevoked: routeSaveRevoked.current,
+      successfulGeneration, hasRequestWork, conciergeQuery, recoveredQuery: recoveredIntent.conciergeQuery,
+      startTime, recoveredStartTime: recoveredRequestStart, wizardChosen, recoveredDraft, recoveredRouteDraft,
+      sameIntake, previousIntake,
+    });
+    if (retainedPreview && !retainedPreview.routeReference) return showSaveFailure("request");
+    const { routeChanged, hasRouteDetails, routeSaved, previewSaved, routeReference } = retainedPreview
+      ?? saveComposerRouteCopy(routeDraft, routeCopy, {
+        savedAt, successfulGeneration, actualMutation, preserveStoredDrafts, recoveredRouteDraft, recoveredPreviewToCopy,
+      });
+    if (!actualMutation && !canSaveRecoveredComposerRequest(requestAmbiguous, routeCopy.current.savedAt, acceptedIntentTime)) return;
+    const keepRevocation = preserveComposerRouteRevocation(routeSorted, recoveredDraft, previousIntake);
+    const sessionDraft: StoredPlanDraft = {
       title,
-      creatorName,
+      creatorName: automaticCreatorName.current === creatorName ? "" : creatorName,
       startTime,
       conciergeQuery,
       stops,
+      requestIntake: planIntake,
+      ...(wizardChosen ? { entryMode: "wizard" } : {}),
+      explicitNightContext,
+      routeReference: retainedPreview?.routeReference ?? (routeStale || routeSaveRevoked.current || keepRevocation ? null : routeReference),
+      ...(requestedStopCount !== undefined ? { requestedStopCount } : {}),
+      requestedStopCountSource: planIntake.answers.stopCountSource,
       ...(persistedAcceptedAnchor ? { acceptedAnchor: persistedAcceptedAnchor } : {}),
-    }, persistedAcceptedAnchor ? "planning-intent" : "manual", safeSessionStorage());
-  }, [canPersist, conciergeQuery, creatorName, handoff?.acceptedAnchor, startTime, stops, title]);
-
-  useEffect(() => {
-    if (!canPersist) return;
-    if (!nightContext && routeRevision === null && !stops.some((stop) => stop.alternatives.length > 0)) return;
-    try {
-      safeLocalStorage()?.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify({
-        stops,
-        nightContext,
-        routeNight,
-        routeRevision,
-        routeStale,
-        groundingProof,
-        createOperationKey,
-        planAnchor,
-      } satisfies StoredRouteDraft));
-    } catch {
-      // A blocked localStorage should not make the route editor unusable.
-    }
-  }, [canPersist, createOperationKey, groundingProof, nightContext, planAnchor, routeNight, routeRevision, routeStale, stops]);
-
-  useEffect(() => {
-    if (planIntake === initialPlanIntakeRef.current) return;
-    writePlanIntakeDraft(planIntake);
-  }, [planIntake]);
+    };
+    const sameRequest = samePlanRequest(sessionDraft, previousSession?.draft);
+    const recoveredRequest = {
+      title: recoveredRequestTitle,
+      creatorName: recoveredRequestCreator,
+      startTime: recoveredRequestStart,
+      conciergeQuery: recoveredIntent.conciergeQuery,
+      requestedStopCount: recoveredIntent.stopCount,
+      requestedStopCountSource: recoveredIntent.stopCountSource,
+      acceptedAnchor: recoveredDraft?.acceptedAnchor,
+      entryMode: recoveredDraft?.entryMode,
+      explicitNightContext: recoveredExplicitNightContext,
+      stops: [],
+    };
+    if (composerRequestMutated({
+      actualMutation, routeChanged, hasRequestWork, recoveredDraft, sessionDraft, recoveredRequest, previousIntake, previousSession, recoveredIntake, sameIntake,
+    })) requestEditTime.current = savedAt;
+    const requestChanged = requestEditTime.current !== null;
+    const routeSavedAt = Date.parse(routeCopy.current.savedAt ?? "");
+    const previousRequestTime = sameRequest && previousSession ? Date.parse(previousSession.savedAt ?? "") : NaN;
+    const previousIntakeTime = sameIntake ? Date.parse(previousIntake.savedAt) : NaN;
+    const sessionSavedAt = planRequestSaveTime(requestEditTime.current, savedAt,
+      [routeSavedAt, previousRequestTime, previousIntakeTime, acceptedIntentTime ?? NaN]);
+    const writtenSession = writePlanDraftEnvelope(sessionDraft,
+      persistedAcceptedAnchor ? "planning-intent" : "manual", safeSessionStorage(), sessionSavedAt,
+      { requireV1: retainedPreview !== null });
+    const writtenIntake = persistComposerIntake(planIntake, sessionSavedAt, sessionDraft, actualMutation, {
+      retainedPreview, hasDurableIntakeDraft, hasRequestWork, previousIntake, requestedStopCount,
+    });
+    const { sessionWrite, intakeSaved, certificate } = composerRequestSaveStatus({
+      draft: sessionDraft, intakeDraft: planIntake, writtenSession, writtenIntake, savedAt: sessionSavedAt,
+      routeDraft: { ...routeDraft, savedAt: routeCopy.current.savedAt }, routeSorted, actualMutation, requestChanged,
+    });
+    const hasStops = stops.some((stop) => stop.venueId || stop.venueName);
+    return showSaveFailure(composerDraftSaveFailure({
+      hasRequestWork, sessionWrite, intakeSaved, hasStops,
+      routeSaved,
+      previewSaved, hasRouteDetails, certificate,
+    }));
+  }, [canPersist, conciergeQuery, createOperationKey, creatorName, explicitNightContext, groundingProof, handoff, hasDurableIntakeDraft, hasRequestWork, nightContext, planAnchor, planIntake, preserveStoredDrafts, recoveredDraft, recoveredExplicitNightContext, recoveredIntake, recoveredIntent, recoveredPreviewReference, recoveredPreviewToCopy, recoveredRequestCreator, recoveredRequestStart, recoveredRequestTitle, recoveredRouteDraft, requestAmbiguous, requestedStopCount, routeNight, routeRevision, routeSorted, routeStale, startTime, stops, successfulGeneration, title, wizardChosen]);
 
   useEffect(() => {
     if (hasDurableIntakeDraft) return;
@@ -1889,7 +2673,7 @@ function PlanComposerForm({
         const seeded = createPlanIntakeDraft(seed);
         return current.answers.stopCount === undefined
           ? seeded
-          : applyPlanStopCount(seeded, null, current.answers.stopCount).draft;
+          : applyPlanStopCount(seeded, null, current.answers.stopCount, current.answers.stopCountSource).draft;
       });
     }
     function seedRememberedSoon(): void {
@@ -1938,9 +2722,10 @@ function PlanComposerForm({
   ]);
 
   function updatePlanIntake(next: PlanIntakeDraft) {
+    if (!samePlanIntake(next, planIntake)) pendingDraftSave.current = true;
     const reconciled = next.answers.stopCount === undefined
       ? { draft: next, context: nightContext }
-      : applyPlanStopCount(next, nightContext, next.answers.stopCount);
+      : applyPlanStopCount(next, nightContext, next.answers.stopCount, next.answers.stopCountSource);
     const answersChanged = JSON.stringify(planIntakeHandoff(planIntake))
       !== JSON.stringify(planIntakeHandoff(reconciled.draft));
     if (answersChanged && nightContext) {
@@ -1964,9 +2749,12 @@ function PlanComposerForm({
 
   /** Step by step from describe-first: the guide opens on the count the reader chose there. */
   function openGuide(stopCount?: PlanStopCount) {
+    pendingDraftSave.current = true;
+    setWizardChosen(true);
     setEntryMode("wizard");
-    if (stopCount === undefined || planIntake.answers.stopCount === stopCount) return;
-    updatePlanIntake({ ...planIntake, answers: { ...planIntake.answers, stopCount } });
+    if (stopCount === undefined) return;
+    const intent = resolvePlanStopCountIntent(conciergeQuery, planIntake.answers.stopCount, planIntake.answers.stopCountSource);
+    updatePlanIntake(applyPlanStopCount(planIntake, null, stopCount, intent.stopCountSource).draft);
   }
 
   function adoptDescribePrefillQuery(value: string) {
@@ -1981,44 +2769,42 @@ function PlanComposerForm({
 
   function submitFromEntry(
     query: string,
-    requestedStopCount?: PlanStopCount,
+    stopCount: PlanStopCount | undefined = matchPlanStopCount(query),
     intakeBase: PlanIntakeDraft = planIntake,
+    context?: Partial<NightContext>,
   ) {
     // Computed once and threaded through explicitly: setPlanIntake has not
     // re-rendered yet when sortWithConcierge runs below, so reading the
     // planIntake state variable here would still see the pre-skip draft and
     // send a body the server flags as PLAN_INTAKE_MALFORMED.
     const areaSynced = syncPlanIntakeAreaFromQuery(intakeBase, query);
+    const intent = resolvePlanStopCountIntent(query, intakeBase.answers.stopCount, intakeBase.answers.stopCountSource);
     const skippedIntake = skipRemainingPlanIntake({
       ...areaSynced,
       answers: {
         ...areaSynced.answers,
-        ...(requestedStopCount !== undefined ? { stopCount: requestedStopCount } : {}),
+        stopCount,
+        stopCountSource: intent.stopCountSource,
       },
     });
     setConciergeQuery(query);
+    setExplicitNightContext({ ...(context ?? explicitNightContext), stopCount });
     updatePlanIntake(skippedIntake);
-    sortWithConcierge(
-      query,
-      skippedIntake,
-      requestedStopCount === undefined ? undefined : { stopCount: requestedStopCount },
-    );
+    sortWithConcierge(query, skippedIntake, context);
   }
 
   function updatePlanStartTime(value: string) {
+    if (value !== startTime) pendingDraftSave.current = true;
     setStartTime(value);
-    const exactStartIso = londonDateTimeInputToIso(value, new Date());
     if (planIntake.answers.timeWindow) {
-      const next = {
-        ...planIntake,
-        answers: { ...planIntake.answers, exactStartIso },
-      };
-      updatePlanIntake(exactStartIso ? next : reopenPlanIntakeStep(next, "time-window"));
-      if (nightContext) {
-        setRouteStale(true);
-        setRouteStatus("Route needs refreshing after the exact start time changed.");
+      const next = reconcilePlanStart(planIntake, value);
+      updatePlanIntake(next);
+      const option = PLAN_TIME_WINDOWS.find((candidate) => candidate.id === next.answers.timeWindow);
+      if (next.answers.timeWindow !== planIntake.answers.timeWindow && londonDateTimeInputToIso(value, new Date())) {
+        const daypart = option?.daypart ?? "daytime";
+        setExplicitNightContext((current) => ({ ...current, daypart }));
+        setNightContext((current) => current && { ...current, daypart });
       }
-      return;
     }
     if (nightContext) {
       setRouteStale(true);
@@ -2047,6 +2833,7 @@ function PlanComposerForm({
       setRouteStatus("The accepted pub stays as Stop 1. Refresh the route to change the other stops.");
       return false;
     }
+    pendingDraftSave.current = true;
     const stopIdentitiesChanged = stops.length !== mutation.stops.length
       || stops.some((stop, index) => stop.venueId !== mutation.stops[index]?.venueId);
     if (stopIdentitiesChanged) {
@@ -2076,8 +2863,10 @@ function PlanComposerForm({
     // the asked-for count follows the route the drinker now has. Without this
     // the count stayed at what was generated, Lock it in went quietly dead on
     // the mismatch, and the next Sort put the removed Stop straight back.
-    if (isPlanStopCount(mutation.stops.length)) {
-      const reconciled = applyPlanStopCount(planIntake, nightContext, mutation.stops.length);
+    const stopCount = mutation.stops.length;
+    if (stops.length !== stopCount && isPlanStopCount(stopCount)) {
+      const reconciled = applyPlanStopCount(planIntake, nightContext, stopCount, "route-edit");
+      setExplicitNightContext((current) => ({ ...current, stopCount }));
       setPlanIntake(reconciled.draft);
       setNightContext(reconciled.context);
     }
@@ -2088,6 +2877,7 @@ function PlanComposerForm({
   }
 
   function dropAcceptance() {
+    pendingDraftSave.current = true;
     releaseAcceptedPlanContext({
       planDraft: canPersist ? safeSessionStorage() : null,
       routeDraft: canPersist ? safeLocalStorage() : null,
@@ -2167,17 +2957,40 @@ function PlanComposerForm({
   }
 
   function updateNightContext(patch: Partial<NightContext>) {
-    if (!nightContext) return;
-    const next = { ...nightContext, ...patch };
-    if (nightContextChanged(nightContext, next)) {
+    if (!editableContext) return;
+    pendingDraftSave.current = true;
+    const next = { ...editableContext, ...patch };
+    if ((routeSorted || routeStale) && nightContextChanged(editableContext, next)) {
       setRouteStale(true);
+      setGroundingProof(null);
+      setCreateOperationKey(null);
       setRouteStatus("Route needs refreshing after that context change.");
     }
-    const reconciled = next.stopCount === undefined
-      ? { draft: planIntake, context: next }
-      : applyPlanStopCount(planIntake, next, next.stopCount);
-    setNightContext(reconciled.context);
+    let draft = patch.nightArea
+      ? syncPlanIntakeAreaFromQuery(planIntake, getNightArea(patch.nightArea).name)
+      : planIntake;
+    draft = { ...draft, answers: {
+      ...draft.answers,
+      ...(patch.daypart !== undefined ? tuneTimeAnswers(patch.daypart, startTime, draft.answers.exactStartIso) : {}),
+      ...(patch.groupSize !== undefined ? { groupSize: patch.groupSize } : {}),
+      ...(patch.budget !== undefined ? { budget: patch.budget } : {}),
+      ...(patch.budgetLimitPence !== undefined ? { budget: next.budget, budgetLimitPence: patch.budgetLimitPence } : {}),
+    } };
+    const editedSteps: PlanIntakeStep[] = [
+      ...(patch.daypart !== undefined ? ["time-window" as const] : []),
+      ...(patch.groupSize !== undefined ? ["group-size" as const] : []),
+      ...(patch.budget !== undefined || patch.budgetLimitPence !== undefined ? ["budget" as const] : []),
+    ];
+    for (const step of editedSteps) {
+      draft = settlePlanIntakeStep({ ...draft, currentStep: step }, { skip: !planIntakeStepHasAnswer(draft, step) });
+    }
+    const reconciled = patch.stopCount === undefined
+      ? { draft, context: next }
+      : applyPlanStopCount(draft, next, patch.stopCount, "picker");
+    if (routeSorted || routeStale) setNightContext(reconciled.context);
     setPlanIntake(reconciled.draft);
+    const exactStartInput = reconciled.draft.answers.exactStartIso && londonDateTimeInputFromIso(reconciled.draft.answers.exactStartIso);
+    if (patch.daypart !== undefined && exactStartInput) setStartTime(exactStartInput);
     setExplicitNightContext((current) => ({ ...current, ...patch }));
     if (!user) writeDeviceNightContext(reconciled.context ?? next);
   }
@@ -2207,28 +3020,26 @@ function PlanComposerForm({
   async function sortWithConcierge(
     queryOverride?: string,
     intakeOverride?: PlanIntakeDraft,
-    explicitContextOverride?: Partial<NightContext>,
+    context: Partial<NightContext> = requestContext,
   ) {
     // Both overrides (from the describe-first entry surface) are threaded
     // through explicitly before React re-renders, so state reads here cannot
     // send the pre-skip intake to the server.
     const query = queryOverride ?? conciergeQuery;
     const queryArea = nightAreaFromPlanQuery(query);
-    const explicitContextBase = explicitContextOverride
-      ? { ...explicitNightContext, ...explicitContextOverride }
-      : explicitNightContext;
-    const explicitContext = Object.prototype.hasOwnProperty.call(explicitContextBase, "nightArea")
-      ? explicitContextBase
-      : nightContext?.nightArea
-        ? { ...explicitContextBase, nightArea: nightContext.nightArea }
-        : explicitContextBase;
+    const intakeBase = intakeOverride ?? planIntake;
+    const { stopCount, stopCountSource } = resolvePlanStopCountIntent(query, intakeBase.answers.stopCount, intakeBase.answers.stopCountSource);
+    const explicitContext = { ...context, stopCount };
     if (queryArea.kind !== "none") {
       setExplicitNightContext((current) => ({
         ...current,
         nightArea: queryArea.kind === "unsupported-patch" ? null : queryArea.slug,
       }));
     }
-    const intake = syncPlanIntakeAreaFromQuery(intakeOverride ?? planIntake, query);
+    const intake = syncPlanIntakeAreaFromQuery(
+      applyPlanStopCount(intakeBase, null, stopCount, stopCountSource).draft,
+      query,
+    );
     if (queryOverride === undefined && intake !== planIntake) {
       updatePlanIntake(intake);
     }
@@ -2247,6 +3058,8 @@ function PlanComposerForm({
       setConciergeNote(conciergeStatusText(false, blockedUnsupportedPatch, ""));
       return;
     }
+    pendingDraftSave.current = true;
+    if (queryOverride !== undefined) setPlanIntake(intake);
     const submittedContext = mergeSubmittedNightContext(
       explicitContext,
       intakeContextForSort,
@@ -2255,6 +3068,13 @@ function PlanComposerForm({
     if (!submittedContext.nightArea && queryArea.kind === "none") {
       const area = venueNightArea(venues.find((venue) => venue.id === heldVenueId), acceptedCityId);
       if (area) submittedContext.nightArea = area;
+    }
+    // A start that passed while the page stayed open is not sent. The field
+    // takes the current default, and that is the start the request carries.
+    let submittedStart = startTime;
+    if (startHasPassed(submittedStart)) {
+      submittedStart = nextEvening();
+      setStartTime(submittedStart);
     }
     setSorting(true);
     setError("");
@@ -2267,9 +3087,10 @@ function PlanComposerForm({
         body: JSON.stringify(buildPlanGenerationIntakeBody(
           intake,
           query,
-          nightContext,
+          null,
           submittedContext,
           handoff?.acceptedAnchor,
+          londonDateTimeInputToIso(submittedStart),
         )),
       });
       responseStatus = response.status;
@@ -2308,7 +3129,9 @@ function PlanComposerForm({
         setRouteStatus(NO_VENUES_MATCHED);
         return;
       }
+      pendingDraftSave.current = true;
       setStops(suggested);
+      setSuccessfulGeneration((generation) => generation + 1);
       setRouteCheckNoticeText(routeCheckNotice(body.planningConfidence));
       setRouteSorted(true);
       setCultureOpener(cleanCultureOpener(body.cultureOpener));
@@ -2357,6 +3180,7 @@ function PlanComposerForm({
       const failureStatus = planGenerationFailureStatus(message, routeSorted);
       trackErrorShown("plan", errorShownKindFromStatus(responseStatus));
       setError(failureStatus);
+      pendingDraftSave.current = true;
       if (routeSorted) setRouteStale(true);
       setRouteStatus(failureStatus);
       setRouteRevealTick((tick) => tick + 1);
@@ -2390,7 +3214,7 @@ function PlanComposerForm({
       setError(stopCountError);
       return;
     }
-    if (routeStale) {
+    if (routeSaveRevoked.current || routeStale) {
       setError("Refresh the route before locking it in. Your previous preview is still safe.");
       setRouteStatus("The route is still a preview because its context changed. Refresh it before locking.");
       return;
@@ -2497,7 +3321,7 @@ function PlanComposerForm({
     }
   }
 
-  const routeStaleNotice = routeStale ? (
+  const routeStaleNotice = routeStale && stops.length ? (
     <div className="planComposer__routeStale" role="group" aria-labelledby="plan-route-stale-title">
       <div>
         <strong id="plan-route-stale-title">This route needs a refresh</strong>
@@ -2518,11 +3342,40 @@ function PlanComposerForm({
     <p id="plan-route-status" className={resultMode ? "planResult__status" : "planComposer__routeStatus"} role="status" aria-live="polite" tabIndex={-1}>
       {error && routeStatus === error
         ? null
-        : routeStatus || (routeStale ? "The route needs refreshing before it can be locked." : "Review the route preview. It stays private until you lock it in.")}
+        : routeStatus || (stops.length
+          ? routeStale ? "The route needs refreshing before it can be locked." : "Review the route preview. It stays private until you lock it in."
+          : "")}
     </p>
+  );
+  const draftSaveMessage = draftSaveFailure === "all"
+    ? "Your changes could not be saved on this device. Keep this page open to keep them."
+    : draftSaveFailure === "route"
+      ? "Your route could not be saved on this device. Keep this page open to keep it."
+      : draftSaveFailure === "route-details"
+        ? "Your stops were saved, but your route details, checks and starting pub could not be saved. Keep this page open to keep them."
+        : draftSaveFailure === "request"
+          ? "Your plan details could not be saved on this device. Keep this page open to keep them."
+        : draftSaveFailure === "description"
+          ? "Your description could not be saved on this device. Keep this page open to keep it."
+          : "";
+  const descriptionRestoreMessage = recoveredIntent.descriptionUnavailable && !conciergeQuery.trim() && !askDraftQuery.trim()
+    ? "Your latest description could not be restored. Enter it again." : "";
+  const draftSaveNotice = draftSaveMessage || descriptionRestoreMessage ? (
+    <>
+      {draftSaveMessage ? <p className="planComposer__error" role="alert">{draftSaveMessage}</p> : null}
+      {descriptionRestoreMessage ? <p className="planComposer__error" role="alert">{descriptionRestoreMessage}</p> : null}
+    </>
+  ) : null;
+  const stopCountControl = (
+      <label htmlFor="plan-context-stops">Stops<select id="plan-context-stops" aria-describedby="plan-route-status" value={normalizePlanStopCount(requestedStopCount)} onChange={(event) => {
+        const stopCount = normalizePlanStopCount(Number(event.target.value));
+        if (editableContext) updateNightContext({ stopCount });
+        else updatePlanIntake(applyPlanStopCount(planIntake, null, stopCount, "picker").draft);
+      }}>{PLAN_STOP_COUNTS.map((count) => <option key={count} value={count}>{count}</option>)}</select></label>
   );
   const renderConcierge = (inSheet: boolean) => (
     <section className="planComposer__concierge" {...(inSheet ? { "aria-label": "Describe your outing" } : { "aria-labelledby": "plan-concierge-title" })} aria-busy={sorting}>
+      {inSheet ? draftSaveNotice : null}
       {inSheet ? null : (
         <div>
           <span className="planPage__eyebrow">Describe your outing</span>
@@ -2531,7 +3384,7 @@ function PlanComposerForm({
       )}
       <div className="planComposer__conciergeInput">
         <label className="planComposer__srOnly" htmlFor="plan-concierge-query">{PLAN_FIELD_LABEL}</label>
-        <input id="plan-concierge-query" type="text" aria-describedby="plan-concierge-status" value={conciergeQuery} onChange={(event) => setConciergeQuery(event.target.value)} onKeyDown={inSheet ? (event) => { if (event.key === "Enter") { event.preventDefault(); if (!sorting && canSortWithCurrentGenerator) sortWithConcierge(); } } : undefined} placeholder="Add a mood, occasion or anything we missed" maxLength={500} />
+        <input id="plan-concierge-query" type="text" aria-describedby="plan-concierge-status" value={conciergeQuery} onChange={(event) => { pendingDraftSave.current = true; setConciergeQuery(event.target.value); }} onKeyDown={inSheet ? (event) => { if (event.key === "Enter") { event.preventDefault(); if (!sorting && canSortWithCurrentGenerator) sortWithConcierge(); } } : undefined} placeholder="Add a mood, occasion or anything we missed" maxLength={500} />
         {/* ONE PAINTED PRIMARY PER SCREEN. Once a route is on the page,
             `Lock it in` is the thing to do next, and two coral fills on one
             screen is the reader choosing between them. This control keeps
@@ -2556,11 +3409,12 @@ function PlanComposerForm({
         {conciergeStatus}
       </p>
       {inSheet ? null : routeStaleNotice}
-      {nightContext ? (
+      {!editableContext ? <div className="planComposer__context">{stopCountControl}</div> : null}
+      {editableContext ? (
         <fieldset className="planComposer__context">
           <legend>What PUBMAXX understood. Edit anything.</legend>
           <p id="plan-context-note" className="planComposer__contextNote">We only call an area crawl-ready when its prices are fresh and checked. An area that is not ready yet may not give a route.</p>
-          <label htmlFor="plan-context-area">Area<select id="plan-context-area" aria-describedby="plan-context-note plan-route-status" value={nightContext.nightArea ?? ""} onChange={(event) => updateNightContext({ nightArea: event.target.value as NightContext["nightArea"] })}>
+          <label htmlFor="plan-context-area">Area<select id="plan-context-area" aria-describedby="plan-context-note plan-route-status" value={editableContext.nightArea ?? ""} onChange={(event) => updateNightContext({ nightArea: event.target.value as NightContext["nightArea"] })}>
             {areaGroups.map((group) => (
               <optgroup key={group.label} label={group.label}>
                 {group.areas.map((area) => (
@@ -2571,19 +3425,19 @@ function PlanComposerForm({
               </optgroup>
             ))}
           </select></label>
-          <label htmlFor="plan-context-time">Time<select id="plan-context-time" aria-describedby="plan-route-status" value={nightContext.daypart} onChange={(event) => updateNightContext({ daypart: event.target.value as NightContext["daypart"] })}>
+          <label htmlFor="plan-context-time">Time<select id="plan-context-time" aria-describedby="plan-route-status" value={editableContext.daypart} onChange={(event) => updateNightContext({ daypart: event.target.value as NightContext["daypart"] })}>
             <option value="daytime">Daytime</option><option value="after_work">After work</option><option value="evening">Evening</option><option value="late_night">Late night</option><option value="get_home">Get home</option>
           </select></label>
-          <label htmlFor="plan-context-group">Group<select id="plan-context-group" aria-describedby="plan-route-status" value={nightContext.partyType} onChange={(event) => updateNightContext({ partyType: event.target.value as NightContext["partyType"] })}>
+          <label htmlFor="plan-context-group">Group<select id="plan-context-group" aria-describedby="plan-route-status" value={editableContext.partyType} onChange={(event) => updateNightContext({ partyType: event.target.value as NightContext["partyType"] })}>
             <option value="solo">Solo</option><option value="friends">Friends</option><option value="work">Work</option>
           </select></label>
-          <label htmlFor="plan-context-people">People<input id="plan-context-people" aria-describedby="plan-route-status" type="number" min="1" max="30" value={nightContext.groupSize ?? ""} onChange={(event) => updateNightContext({ groupSize: event.target.value ? Number(event.target.value) : null })} /></label>
-          <label htmlFor="plan-context-stops">Stops<select id="plan-context-stops" aria-describedby="plan-route-status" value={normalizePlanStopCount(nightContext.stopCount)} onChange={(event) => updateNightContext({ stopCount: normalizePlanStopCount(Number(event.target.value)) })}>{PLAN_STOP_COUNTS.map((count) => <option key={count} value={count}>{count}</option>)}</select></label>
-          <label htmlFor="plan-context-budget">Budget<select id="plan-context-budget" aria-describedby="plan-route-status" value={nightContext.budget} onChange={(event) => updateNightContext({ budget: event.target.value as NightContext["budget"] })}>
+          <label htmlFor="plan-context-people">People<input id="plan-context-people" aria-describedby="plan-route-status" type="number" min="1" max="30" value={editableContext.groupSize ?? ""} onChange={(event) => updateNightContext({ groupSize: event.target.value ? Number(event.target.value) : null })} /></label>
+          {stopCountControl}
+          <label htmlFor="plan-context-budget">Budget<select id="plan-context-budget" aria-describedby="plan-route-status" value={editableContext.budget} onChange={(event) => updateNightContext({ budget: event.target.value as NightContext["budget"] })}>
             <option value="value">Value</option><option value="standard">Standard</option><option value="treat">Treat</option>
           </select></label>
-          <label htmlFor="plan-context-budget-limit">Max per person<input id="plan-context-budget-limit" aria-describedby="plan-route-status" type="number" inputMode="decimal" min="5" max="500" step="1" value={nightContext.budgetLimitPence === null ? "" : nightContext.budgetLimitPence / 100} onChange={(event) => updateNightContext({ budgetLimitPence: event.target.value ? Math.round(Number(event.target.value) * 100) : null })} /></label>
-          <label htmlFor="plan-context-zero-proof">Drinks<select id="plan-context-zero-proof" aria-describedby="plan-route-status" value={nightContext.zeroProof ? "zero-proof" : nightContext.drinkCategory ?? "any"} onChange={(event) => {
+          <label htmlFor="plan-context-budget-limit">Max per person<input id="plan-context-budget-limit" aria-describedby="plan-route-status" type="number" inputMode="decimal" min="5" max="500" step="1" value={editableContext.budgetLimitPence === null ? "" : editableContext.budgetLimitPence / 100} onChange={(event) => updateNightContext({ budgetLimitPence: event.target.value ? Math.round(Number(event.target.value) * 100) : null })} /></label>
+          <label htmlFor="plan-context-zero-proof">Drinks<select id="plan-context-zero-proof" aria-describedby="plan-route-status" value={editableContext.zeroProof ? "zero-proof" : editableContext.drinkCategory ?? "any"} onChange={(event) => {
             const choice = event.target.value;
             updateNightContext({
               zeroProof: choice === "zero-proof",
@@ -2616,6 +3470,7 @@ function PlanComposerForm({
             type="button"
             className="planComposer__template"
             onClick={() => {
+              pendingDraftSave.current = true;
               setTitle("Usual lot · tonight");
               setConciergeNote(`Re-invite ${usualLot.names.join(", ")} after you lock it in.`);
             }}
@@ -2628,6 +3483,7 @@ function PlanComposerForm({
           in its window and is absent outside it (lib/planTemplates.ts). */}
       <PlanTemplateRow
         onPick={(template) => {
+          pendingDraftSave.current = true;
           const merged = mergePlanTemplateFields({
             title,
             conciergeQuery,
@@ -2637,7 +3493,7 @@ function PlanComposerForm({
               handoff?.answeredArea
               || planIntake.answers.area
               || nightContext?.nightArea
-              || explicitNightContext.nightArea,
+              || explicitNightContext?.nightArea,
             ),
           });
           setTitle(merged.title);
@@ -2718,7 +3574,7 @@ function PlanComposerForm({
     <>
       <div className="planComposer__field planComposer__field--wide">
         <label htmlFor="plan-title">Name the night</label>
-        <input id="plan-title" type="text" maxLength={80} value={title} onChange={(event) => setTitle(event.target.value)} />
+        <input id="plan-title" type="text" maxLength={80} value={title} onChange={(event) => { pendingDraftSave.current = true; setTitle(event.target.value); }} />
       </div>
       {nameInLockBar ? null : nameField}
       <div className="planComposer__field">
@@ -2857,6 +3713,7 @@ function PlanComposerForm({
 
   return (
     <form id="plan-composer" className="planComposer" data-result={resultMode ? "true" : undefined} onSubmit={submit} noValidate>
+      {tuneOpen ? null : draftSaveNotice}
       {handoff && (
         <AcceptedContextPanel
           handoff={handoff}
@@ -2871,9 +3728,12 @@ function PlanComposerForm({
       }) ? (
         <PlanDescribeFirst
           ready={canPersist}
-          initialQuery={askDraftQuery}
+          initialQuery={askDraftQuery || recoveredIntent.conciergeQuery}
+          initialStopCount={requestedStopCount}
+          initialStopCountSource={planIntake.answers.stopCountSource}
+          onStopCountChange={(count) => { pendingDraftSave.current = true; setPlanIntake((current) => applyPlanStopCount(current, null, count, "picker").draft); }}
           onSubmit={submitFromEntry}
-          onQueryChange={setConciergeQuery}
+          onQueryChange={(query) => { pendingDraftSave.current = true; setConciergeQuery(query); }}
           onPrefillQueryChange={adoptDescribePrefillQuery}
           onGuideMeInstead={openGuide}
         />
@@ -2884,7 +3744,13 @@ function PlanComposerForm({
       }) ? (
         <PlanIntake
           draft={planIntake}
-          onChange={updatePlanIntake}
+          onChange={(draft) => {
+            if (!draft.completed && !wizardChosen) {
+              pendingDraftSave.current = true;
+              setWizardChosen(true);
+            }
+            updatePlanIntake(draft);
+          }}
         />
       ) : null}
       {composerVisible ? (
@@ -2922,7 +3788,7 @@ function PlanComposerForm({
           old floating create action: PlanAstra measured it 40% covered at 390.
           It is now a full-width bar above the reserved chrome, carrying the one
           line that qualifies it, so the two can never separate. */}
-      <div className="planComposer__lock" data-name-seat={nameInLockBar ? "true" : undefined}>
+      {stops.length ? <div className="planComposer__lock" data-name-seat={nameInLockBar ? "true" : undefined}>
         {nameInLockBar ? nameField : null}
         <button
           className="planComposer__submit"
@@ -2933,7 +3799,7 @@ function PlanComposerForm({
         >{submitting ? "Locking it in…" : "Lock it in"}</button>
         {lockHint ? <p id="plan-lock-hint" className="planComposer__lockHint">{lockHint}</p> : null}
         <p className="planComposer__trust">Anyone with the link can see the plan. Joining only asks for a name.</p>
-      </div>
+      </div> : null}
         </>
       ) : null}
     </form>
@@ -2946,39 +3812,25 @@ export default function PlanComposer() {
     () => true,
     () => false,
   );
-  // L11: resolve persisted state through arbitration before the form writes a
-  // product default. A generic Plan with no recovered context gets no panel.
-  const handoff = useMemo<ComposerHydration | null>(() => {
+  const recovery = useMemo(() => {
     if (!hydrated) return null;
     try {
-      const resolved = resolveComposerHydration({
-        planDraft: readPlanDraftEnvelope(safeSessionStorage()),
-        routeDraft: readPlanRouteDraftEnvelope(safeLocalStorage()),
-        intakeDraft: readPlanIntakeDraftWithMetadata(),
-        planningIntent: readPlanningIntent(),
-        rememberedArea: readRememberedArea(),
-      });
-      return resolved.active ? resolved : null;
-    } catch {
-      return null;
-    }
+      let legacyDraft: ReturnType<typeof parsePlanDraft> = null;
+      try { legacyDraft = parsePlanDraft(safeSessionStorage()?.getItem(PLAN_DRAFT_KEY) ?? null); } catch {}
+      const routeRecovery = readComposerRouteDraft();
+      const recovery = projectComposerRecovery({
+        plan: readPlanDraftEnvelope(safeSessionStorage()),
+        legacyDraft,
+        intake: readPlanIntakeDraftWithMetadata(),
+        planningIntent: readPlanningIntent({ cleanupInvalid: false }),
+      }, routeRecovery);
+      return { ...recovery, previewToCopy: recoveredPreviewForStorage(recovery, routeRecovery) };
+    } catch { return null; }
   }, [hydrated]);
-  const recoveredDraft = useMemo(() => {
-    if (!hydrated) return null;
-    try { return parsePlanDraft(safeSessionStorage()?.getItem(PLAN_DRAFT_KEY) ?? null); } catch { return null; }
-  }, [hydrated]);
-  const recoveredRouteDraft = useMemo(() => {
-    if (!hydrated) return null;
-    try { return parsePlanRouteDraft(safeLocalStorage()?.getItem(PLAN_ROUTE_DRAFT_KEY) ?? null); } catch { return null; }
-  }, [hydrated]);
-  const recoveredIntake = useMemo(() => {
-    if (!hydrated) return { draft: createPlanIntakeDraft(), hasDurableDraft: false };
-    const durableDraft = readPlanIntakeDraft();
-    return {
-      draft: durableDraft ?? createPlanIntakeDraft(),
-      hasDurableDraft: Boolean(durableDraft),
-    };
-  }, [hydrated]);
+  const recoveredDraft = recovery?.recoveredDraft ?? null;
+  const recoveredRouteDraft = recovery?.route.route ?? null;
+  const handoff = recovery?.handoff ?? null;
+  const recoveredIntake = useMemo(() => selectRecoveredComposerIntake(recovery), [recovery]);
   // The form is MOUNTED AGAIN once hydrated when there is something to recover,
   // so its state initialisers read the recovered drafts and the URL's ask.
   // Whatever the server-painted form held is thrown away with it, so that form
@@ -3011,7 +3863,12 @@ export default function PlanComposer() {
       recoveredDraft={recoveredDraft}
       recoveredRouteDraft={recoveredRouteDraft}
       recoveredIntake={recoveredIntake.draft}
+      recoveredPreviewToCopy={recovery?.previewToCopy ?? null}
+      recoveredPreviewReference={recovery?.retainedPreviewReference ?? null}
+      recoveredIntent={recoveredIntake.intent}
       hasDurableIntakeDraft={recoveredIntake.hasDurableDraft}
+      requestAmbiguous={recovery?.requestAmbiguous ?? false}
+      preserveStoredDrafts={recovery?.preserveStoredDrafts ?? false}
       handoff={handoff}
       canPersist={hydrated}
     />
