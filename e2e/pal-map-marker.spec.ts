@@ -3,6 +3,7 @@ import { mkdir } from "node:fs/promises";
 
 import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
 import { ACCOUNTS, DEVICE_ACCOUNTS_KEY, installAuthDoubles, seedSignedIn, switchRememberedAccount } from "./helpers/authDoubles";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
 // The Pal on the map (components/map/canvas/palMarker.ts): the reader's own
 // Pub Pal perches beside the pub they open, takes no taps from the pins under
@@ -10,13 +11,14 @@ import { ACCOUNTS, DEVICE_ACCOUNTS_KEY, installAuthDoubles, seedSignedIn, switch
 // the next stop as the one button it ever is, and a tap opens that pub. Shots land in
 // artifacts/pal-map-marker/ (gitignored).
 
-const SHOTS = "artifacts/pal-map-marker";
+const SHOTS = process.env.PUBMAX_TEST_EVIDENCE_DIR ?? "artifacts/pal-map-marker";
 const VENUE_ID = "venue-xjf3n0";
 // Three Soho stops from the "Victorian Soho" curated crawl (alt-crawls.spec.ts).
 const CRAWL = "venue-1ufn31x,venue-1t8siin,venue-xiesdn";
 const PLAN_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 
 async function seedPal(page: Page, hidden = false): Promise<void> {
+  await installDeterministicMapBasemap(page);
   await installAuthDoubles(page);
   await seedSignedIn(page, "A");
   await page.addInitScript(({ appearance, personality, voice, hidden: palHidden, ownerId: palOwnerId }) => {
@@ -63,6 +65,8 @@ test.describe("the Pal on the map", () => {
     const canvas = await page.locator(".maplibregl-canvas").elementHandle();
     expect(oldMarker).not.toBeNull();
     expect(canvas).not.toBeNull();
+    await mkdir(SHOTS, { recursive: true });
+    await page.screenshot({ path: `${SHOTS}/pal-account-a.png` });
     await switchRememberedAccount(page, "A", "B");
     await expect(marker).toHaveCount(0);
     expect(await oldMarker!.evaluate((element) => element.isConnected)).toBe(false);
@@ -76,6 +80,7 @@ test.describe("the Pal on the map", () => {
     await expect(page).toHaveURL(url);
     expect(await canvas!.evaluate((element) => element.isConnected)).toBe(true);
     await expect(marker).toHaveCount(0);
+    await page.screenshot({ path: `${SHOTS}/pal-account-b.png` });
     await oldMarker!.dispose();
     await canvas!.dispose();
   });

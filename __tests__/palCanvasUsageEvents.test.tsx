@@ -140,8 +140,8 @@ import type { Venue } from "@/lib/venues";
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const route = [
-  { id: "venue-a", name: "The Lamb", longitude: -0.1, latitude: 51.5 },
-  { id: "venue-b", name: "The Crown", longitude: -0.09, latitude: 51.5 },
+  { id: "venue-a", name: "The Lamb", longitude: -0.1, latitude: 51.5, amenities: {} },
+  { id: "venue-b", name: "The Crown", longitude: -0.09, latitude: 51.5, amenities: {} },
 ] as Venue[];
 const way = (id: string): LegOption => ({
   id, kind: "walk", minutes: 6, farePence: 0, estimate: false, fastest: false, cheapest: true,
