@@ -121,10 +121,10 @@ describe("verify:famous-venues anchor guard", () => {
     ["www.", "https://www.wongkei.example/wardour-street/menu"],
     ["a trailing slash in a relative location", "/wardour-street/menu/"],
   ])("renews an anchor page whose redirect only adds %s", async (_label, location) => {
-    const { check, renewed } = await renewal(
-      wongKei("https://wongkei.example/wardour-street/menu"),
-      async () => ({ status: 301, location }),
-    );
+    const anchor = "https://wongkei.example/wardour-street/menu";
+    const head = vi.fn(async () => ({ status: 301, location }));
+    const { check, renewed } = await renewal(wongKei(anchor), head);
+    expect(head).toHaveBeenCalledExactlyOnceWith(anchor);
     expect(check).toMatchObject({ outcome: "confirmed", result: "places_operational" });
     expect(renewed?.observedAt).toBe("2026-10-05");
   });
