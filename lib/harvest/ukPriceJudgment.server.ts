@@ -18,6 +18,7 @@ import {
   findUkPriceCandidates,
   pageText,
   readKeylessUkPriceDecisions,
+  readStatedWineIdentities,
   readVenueDrinkPrices,
   statedWineIdentity,
   type UkPriceCandidate,
@@ -139,6 +140,7 @@ function applyJudgmentToCandidate(
   raw: UkPriceRawCandidate,
   probs: UkPriceJudgmentProbabilities,
   ctx: { pubName: string; pageUrl: string },
+  printedWine?: ReturnType<typeof statedWineIdentity>,
 ): {
   kept?: UkPriceCandidate;
   drops: UkPriceDropReason[];
@@ -164,7 +166,7 @@ function applyJudgmentToCandidate(
   if (decision.category) {
     const priceAtInSnippet = raw.at - Math.max(0, raw.at - UK_PRICE_JUDGMENT_SNIPPET_CHARS);
     const wineIdentity = decision.category === "wine"
-      ? statedWineIdentity(raw.snippet, raw.verbatim, priceAtInSnippet)
+      ? printedWine ?? statedWineIdentity(raw.snippet, raw.verbatim, priceAtInSnippet)
       : null;
     const drinkLabel =
       wineIdentity?.drinkLabel ?? drinkLabelFromPriceContext(
@@ -259,6 +261,7 @@ export async function readVenueDrinkPricesJudged(
   const review: UkPriceJudgmentReviewRow[] = [];
   const batches = batchUkPriceCandidates(ctx, candidates);
   const keylessDecisions = readKeylessUkPriceDecisions(html, sourceFormat);
+  const printedWines = readStatedWineIdentities(html, sourceFormat);
 
   for (const batch of batches) {
     const verbatimBatch = batch.filter((raw) => {
@@ -287,7 +290,7 @@ export async function readVenueDrinkPricesJudged(
         drops.push("typesafe-judgment-malformed-answer");
         continue;
       }
-      const outcome = applyJudgmentToCandidate(raw, probs, ctx);
+      const outcome = applyJudgmentToCandidate(raw, probs, ctx, printedWines.get(raw.at));
       if (outcome.kept) kept.push(outcome.kept);
       drops.push(...outcome.drops);
       if (outcome.review) review.push(outcome.review);

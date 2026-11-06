@@ -24,6 +24,8 @@ import {
   tonightAllowance,
   venueKey,
 } from "@/lib/harvest/tavilyNightlyPass";
+import { findUkPriceCandidates, readVenueDrinkPrices } from "@/lib/harvest/ukPriceCrawl";
+import { readChainPintPrices } from "@/lib/harvest/chainMenuPrices";
 import { defined } from "@/__tests__/helpers/defined";
 
 const FIXTURES = path.join(__dirname, "fixtures", "tavily-nightly");
@@ -601,6 +603,80 @@ describe("arguments and redaction", () => {
 
 const listedQueue = { version: 1 as const, standingRule: "listed" as const, venues: [] };
 const pageFact = { sourceUrl: "https://eastbrookpub.co.uk/drink-menu.html", seenOn: "2026-10-01" };
+
+describe("complete price tokens at item boundaries", () => {
+  const separators = [
+    " ",
+    ...[",", ".", ";", ":", "|", "•", "·", "!", "?"].flatMap((mark) =>
+      [mark, `${mark} `, ` ${mark}`, ` ${mark} `]),
+    " - ", "  -  ", "\t-\t",
+  ];
+
+  it.each([
+    ["£6", "£7", 6, 7],
+    ["£6.2", "£6.4", 6.2, 6.4],
+    ["£6.20", "£6.40", 6.2, 6.4],
+    ["£6.2", "£6.40", 6.2, 6.4],
+  ] as const)("keeps complete %s and %s figures across every separator", (first, second, firstPrice, secondPrice) => {
+    for (const separator of separators) {
+      const line = `Guinness pint ${first}${separator}Madri pint ${second}`;
+      expect(findUkPriceCandidates(line).map((row) => row.priceGbp), line).toEqual([firstPrice, secondPrice]);
+      expect(factsFromPage(line, pageFact).drinks.map(({ drink, priceGbp }) => ({ drink, priceGbp })), line).toEqual([
+        { drink: "Guinness", priceGbp: firstPrice },
+        { drink: "Madri", priceGbp: secondPrice },
+      ]);
+    }
+  });
+
+  it.each(["£6", "£6.0", "£6.00"])("keeps the %s token beside a fractional suffix", (price) => {
+    for (const measure of ["2/3 pint", "⅔ pint", "two-thirds pint"]) {
+      for (const separator of separators.filter((boundary) => boundary.trim())) {
+        const line = `Kernel stout ${price} (${measure})${separator}Guinness pint £6.2`;
+        expect(factsFromPage(line, pageFact).drinks.map(({ drink, priceGbp, sizeDetail }) =>
+          ({ drink, priceGbp, sizeDetail })), line).toEqual([
+          { drink: "Kernel stout", priceGbp: 6, sizeDetail: "two-thirds" },
+          { drink: "Guinness", priceGbp: 6.2, sizeDetail: "pint" },
+        ]);
+      }
+    }
+  });
+
+  it.each(["£6.200", "£6.20.5", "£123", "£6.2x", "£6.20GBP"])("does not split a malformed %s token into a price", (price) => {
+    const line = `Guinness pint ${price}`;
+    expect(findUkPriceCandidates(line), line).toEqual([]);
+    expect(factsFromPage(line, pageFact).drinks, line).toEqual([]);
+    const beside = `${line}; Madri pint £6.40`;
+    expect(factsFromPage(beside, pageFact).drinks.map(({ drink, priceGbp }) => ({ drink, priceGbp })), beside).toEqual([
+      { drink: "Madri", priceGbp: 6.4 },
+    ]);
+  });
+
+  it.each(["£5.5/£6.500", "£5.500/£6.5", "£5.5/£123", "£5.5/£6.5x"])("rejects incomplete paired-measure figures from %s", (prices) => {
+    expect(factsFromPage(`House wine 125/175ml ${prices}`, pageFact).drinks).toEqual([]);
+  });
+
+  it("carries the printed name across complete one-decimal glass prices", () => {
+    const line = "House Merlot 175ml £6.5 / 250ml £8.5";
+    expect(factsFromPage(line, pageFact).drinks.map(({ drink, priceGbp, sizeDetail }) =>
+      ({ drink, priceGbp, sizeDetail }))).toEqual([
+      { drink: "House Merlot", priceGbp: 6.5, sizeDetail: "175ml" },
+      { drink: "House Merlot", priceGbp: 8.5, sizeDetail: "250ml" },
+    ]);
+  });
+
+  it.each([
+    ["£5/£7", [5, 7]],
+    ["£5.5/£6.5", [5.5, 6.5]],
+    ["£5.50/£6.50", [5.5, 6.5]],
+  ] as const)("keeps complete paired-measure figures from %s", (prices, expected) => {
+    const line = `House wine 125/175ml ${prices}`;
+    expect(factsFromPage(line, pageFact).drinks.map(({ drink, priceGbp, sizeDetail }) =>
+      ({ drink, priceGbp, sizeDetail })), line).toEqual([
+      { drink: "House wine", priceGbp: expected[0], sizeDetail: "125ml" },
+      { drink: "House wine", priceGbp: expected[1], sizeDetail: "175ml" },
+    ]);
+  });
+});
 
 function expectDrinkNameOwnedByLine(text: string, drinks: ReadonlyArray<{ drink: string }>): void {
   for (const drink of drinks) {
@@ -2345,3 +2421,361 @@ describe("a night that fails part way", () => {
   });
 });
 
+
+
+
+describe("a named Off Menu serving", () => {
+  const offMenuPint = { drink: "Off Menu pale ale", size: "pint", sizeDetail: "pint", priceGbp: 5.2,
+    standing: "listed", ...pageFact };
+  const adjacentPint = { drink: "Guinness", size: "pint", sizeDetail: "pint", priceGbp: 6.2,
+    standing: "listed", ...pageFact };
+
+  it("keeps Off Menu as a drink name", () => {
+    expect(factsFromPage("Off Menu pale ale pint £5.20", pageFact).drinks).toEqual([offMenuPint]);
+  });
+
+  it.each([["1/3", "one-third"], ["⅔", "two-thirds"], ["two-thirds", "two-thirds"]] as const)(
+    "retains the explicit %s serving without reading the name as an offer",
+    (fraction, sizeDetail) => {
+      const named = { ...offMenuPint, size: "unstated", sizeDetail };
+      for (const item of [
+        `${fraction} pint Off Menu pale ale £5.20`,
+        `Off Menu pale ale (${fraction} pint) £5.20`,
+        `Off Menu pale ale £5.20 (${fraction} pint)`,
+      ]) {
+        expect(factsFromPage(item, pageFact).drinks, item).toEqual([named]);
+        expect(factsFromPage(`Guinness pint £6.20;${item}`, pageFact).drinks, item)
+          .toEqual([adjacentPint, named]);
+      }
+    },
+  );
+});
+
+describe("serving precedence at the same printed price", () => {
+  it.each(["1 two-thirds", "1-2/3", "1 and 2/3", "10 2/3"])("rejects the mixed %s pint measure", (measure) => {
+    expect(factsFromPage(`Peroni ${measure} pint £5.20`, pageFact).drinks).toEqual([]);
+  });
+
+  it.each(["Kronenbourg 1664", "Heineken 0.0"])("preserves the printed number in %s", (drink) => {
+    expect(factsFromPage(`${drink} two-thirds pint £5.20`, pageFact).drinks).toEqual([
+      { drink, size: "unstated", sizeDetail: "two-thirds", priceGbp: 5.2,
+        standing: "listed", ...pageFact },
+    ]);
+  });
+
+  it("keeps the explicit pint measure beside a bottle description", () => {
+    expect(factsFromPage("Peroni £5.20 (1/3 pint, bottle conditioned)", pageFact).drinks).toEqual([
+      { drink: "Peroni", size: "unstated", sizeDetail: "one-third", priceGbp: 5.2,
+        standing: "listed", ...pageFact },
+    ]);
+  });
+
+  it.each(["2/3pint Kernel stout £6.00", "Kernel stout 2/3pint £6.00"])(
+    "keeps the printed name and joined serving in %s",
+    (line) => {
+      expect(factsFromPage(line, pageFact).drinks).toEqual([
+        { drink: "Kernel stout", size: "unstated", sizeDetail: "two-thirds", priceGbp: 6,
+          standing: "listed", ...pageFact },
+      ]);
+    },
+  );
+
+  it.each(["⅔pint", "2/3pint", "2/3 pint"])("keeps the drink name after %s of", (measure) => {
+    expect(factsFromPage(`${measure} of Guinness £6.20`, pageFact).drinks).toEqual([
+      { drink: "Guinness", size: "unstated", sizeDetail: "two-thirds", priceGbp: 6.2,
+        standing: "listed", ...pageFact },
+    ]);
+  });
+
+  it("keeps an explicit bottle serving beside a bare fractional suffix", () => {
+    expect(factsFromPage("Peroni 330ml bottle £5.20 (1/3)", pageFact).drinks).toEqual([
+      { drink: "Peroni", size: "bottle", sizeDetail: "330ml", priceGbp: 5.2,
+        standing: "listed", ...pageFact },
+    ]);
+  });
+});
+
+describe("a wrapped qualifier only withholds its own priced pint", () => {
+  it("keeps the drinks heading and price on a preformatted menu", () => {
+    const menu = "<pre>Drinks\nGuinness pint £6.20</pre>";
+    const fact = { ...pageFact, sourceUrl: "https://example.test/menu" };
+    expect(factsFromPage(menu, fact).drinks).toEqual([
+      { drink: "Guinness", size: "pint", sizeDetail: "pint", priceGbp: 6.2,
+        standing: "listed", ...fact },
+    ]);
+  });
+
+  it.each([
+    "<p>Guinness pint £6.20; Madri pint £6.20<br>(1/3 pint)</p>",
+    "<p>Guinness pint £6.20</p><p>Madri pint £6.20<br>\n(1/3 pint)</p>",
+  ])("retains the separate equal-priced pint in %s", (menu) => {
+    expect(factsFromPage(menu, pageFact).drinks).toEqual([
+      { drink: "Guinness", size: "pint", sizeDetail: "pint", priceGbp: 6.2,
+        standing: "listed", ...pageFact },
+    ]);
+  });
+
+  it("retains the paired wine prices before a disputed pint", () => {
+    const menu = "<p>House Merlot 125/175ml £5.20/£6.20;Guinness pint £6.20<br>(1/3 pint)</p>";
+    expect(factsFromPage(menu, pageFact).drinks).toEqual([
+      { drink: "House Merlot", size: "unstated", sizeDetail: "125ml", priceGbp: 5.2,
+        standing: "listed", ...pageFact },
+      { drink: "House Merlot", size: "unstated", sizeDetail: "175ml", priceGbp: 6.2,
+        standing: "listed", ...pageFact },
+    ]);
+  });
+});
+
+describe("printed drink names and measures across wraps", () => {
+  it("withholds a full pint after a fraction and a wrapped name", () => {
+    const menu = "<p>2/3 pint<br>Guinness<br>pint £6.20</p><p>Madri pint £6.20</p>";
+    expect(factsFromPage(menu, pageFact).drinks).toEqual([
+      { drink: "Madri", size: "pint", sizeDetail: "pint", priceGbp: 6.2, standing: "listed", ...pageFact },
+    ]);
+  });
+
+  it("keeps the stated glasses when the wine name wraps before two prices", () => {
+    const menu = "<p>House Merlot<br>175ml £6.50 / 250ml £8.50</p>";
+    expect(factsFromPage(menu, pageFact).drinks).toEqual([
+      { drink: "House Merlot", size: "unstated", sizeDetail: "175ml", priceGbp: 6.5, standing: "listed", ...pageFact },
+      { drink: "House Merlot", size: "unstated", sizeDetail: "250ml", priceGbp: 8.5, standing: "listed", ...pageFact },
+    ]);
+  });
+
+  it("keeps a measured pour from a glass and withholds a priced glass", () => {
+    const menu = "<p>Glass of Merlot 175ml £6.50</p><p>Guinness commemorative glass 568ml £5.00</p>";
+    expect(factsFromPage(menu, pageFact).drinks).toEqual([
+      { drink: "Merlot", size: "unstated", sizeDetail: "175ml", priceGbp: 6.5, standing: "listed", ...pageFact },
+    ]);
+  });
+});
+
+describe("reader admission on a complete printed item", () => {
+  it("keeps an explicitly sized bottle after a wrapped name", () => {
+    const menu = "<p>Peroni<br>330ml bottle £5.20</p>";
+    expect(factsFromPage(menu, pageFact).drinks).toEqual([
+      { drink: "Peroni", size: "bottle", sizeDetail: "330ml", priceGbp: 5.2, standing: "listed", ...pageFact },
+    ]);
+  });
+
+  it("carries every printed name fragment to its own measure", () => {
+    const menu = "<p>House<br>Merlot<br>175ml £6.50</p><p>Guinness<br>£6.20 pint</p>";
+    expect(factsFromPage(menu, pageFact).drinks).toEqual([
+      { drink: "House Merlot", size: "unstated", sizeDetail: "175ml", priceGbp: 6.5, standing: "listed", ...pageFact },
+      { drink: "Guinness", size: "pint", sizeDetail: "pint", priceGbp: 6.2, standing: "listed", ...pageFact },
+    ]);
+  });
+
+  it("does not use a wrapped drink name as the heading that admits the page", () => {
+    const menu = "<p>Kernel stout<br>pint £6.20</p>";
+    const generic = { ...pageFact, sourceUrl: "https://example.test/menu" };
+    expect(factsFromPage(menu, generic).drinks).toEqual([]);
+    expect(factsFromPage(`<h2>Drinks</h2>${menu}`, generic).drinks).toEqual([
+      { drink: "Kernel stout", size: "pint", sizeDetail: "pint", priceGbp: 6.2, standing: "listed", ...generic },
+    ]);
+  });
+});
+
+it("keeps a drinks heading separate from a following wrapped name", () => {
+  const menu = "<p>Craft Beer<br>Guinness<br>pint £6.20</p>";
+  const generic = { ...pageFact, sourceUrl: "https://example.test/menu" };
+  for (const fact of [pageFact, generic]) {
+    expect(factsFromPage(menu, fact).drinks).toEqual([
+      { drink: "Guinness", size: "pint", sizeDetail: "pint", priceGbp: 6.2, standing: "listed", ...fact },
+    ]);
+  }
+});
+
+it("carries a product exclusion through paired-size rewriting by exact price", () => {
+  const menu = "<p>House Merlot 125/175ml £6.20/£6.20 commemorative tankard</p>";
+  expect(factsFromPage(menu, pageFact).drinks).toEqual([
+    { drink: "House Merlot", size: "unstated", sizeDetail: "125ml", priceGbp: 6.2, standing: "listed", ...pageFact },
+  ]);
+});
+
+it("admits both paired wine prices against the wine band before formatting", () => {
+  const menu = "<p>House Merlot 175/250ml £6.50/£15.50 Guinness pint £6.20</p>";
+  expect(factsFromPage(menu, pageFact).drinks).toEqual([
+    { drink: "House Merlot", size: "unstated", sizeDetail: "175ml", priceGbp: 6.5, standing: "listed", ...pageFact },
+    { drink: "House Merlot", size: "unstated", sizeDetail: "250ml", priceGbp: 15.5, standing: "listed", ...pageFact },
+    { drink: "Guinness", size: "pint", sizeDetail: "pint", priceGbp: 6.2, standing: "listed", ...pageFact },
+  ]);
+});
+
+describe("serving output from the original price record", () => {
+  it("keeps a separate drink when a sibling combines an ordinary offer and a fractional discount", () => {
+    const menu = "Peroni pint happy hour £5.20 2/3 off; Guinness pint £6.20";
+    expect(factsFromPage(menu, pageFact).drinks).toEqual([
+      { drink: "Guinness", size: "pint", sizeDetail: "pint", priceGbp: 6.2, standing: "listed", ...pageFact },
+    ]);
+  });
+
+  it("still refuses unassigned offer wording outside a proven fractional sibling", () => {
+    const menu = "Peroni pint £5.20 2/3 off; Guinness pint £6.20 happy hour Madri pint £6.40";
+    expect(factsFromPage(menu, pageFact).drinks).toEqual([]);
+  });
+
+  it("does not borrow the word discount from a proven next item in an unassigned gap", () => {
+    const menu = "Guinness pint £6.20, Peroni pint 2/3 discount: £5.20";
+    expect(factsFromPage(menu, pageFact).drinks).toEqual([
+      { drink: "Guinness", size: "pint", sizeDetail: "pint", priceGbp: 6.2, standing: "listed", ...pageFact },
+    ]);
+  });
+
+  it("keeps the ordinary wording of a named discounted sibling within its delimiter", () => {
+    const menu = "Guinness pint £6.20, Peroni pint (happy hour) 2/3 discount: £5.20";
+    expect(factsFromPage(menu, pageFact).drinks).toEqual([
+      { drink: "Guinness", size: "pint", sizeDetail: "pint", priceGbp: 6.2, standing: "listed", ...pageFact },
+    ]);
+  });
+
+  it("distinguishes a strength note from a named drink beside the same fraction", () => {
+    const pint = "Guinness pint £6.20";
+    expect(factsFromPage("<p>" + pint + "<br>2/3 pint (4.2% ABV)</p>", pageFact).drinks).toEqual([]);
+    expect(factsFromPage("<p>" + pint + "<br>2/3 pint Hawkstone (4.2% ABV)</p>", pageFact).drinks).toEqual([
+      { drink: "Guinness", size: "pint", sizeDetail: "pint", priceGbp: 6.2, standing: "listed", ...pageFact },
+    ]);
+  });
+
+  it("does not use a neighbouring soft-drink band for a stated pint", () => {
+    const menu = "<p>Hawkstone pint £8.50; Coca-Cola can £1.50</p>";
+    expect(factsFromPage(menu, pageFact).drinks).toEqual([
+      { drink: "Hawkstone", size: "pint", sizeDetail: "pint", priceGbp: 8.5, standing: "listed", ...pageFact },
+      { drink: "Coca-Cola", size: "can", sizeDetail: "can", priceGbp: 1.5, standing: "listed", ...pageFact },
+    ]);
+  });
+
+  it("keeps the named third after a pair of Peroni sizes", () => {
+    const menu = "<p>Peroni 330/440ml £4.50/£5.50 Two-thirds of Guinness £5.20</p>";
+    expect(factsFromPage(menu, pageFact).drinks).toEqual([
+      { drink: "Peroni", size: "unstated", sizeDetail: "330ml", priceGbp: 4.5, standing: "listed", ...pageFact },
+      { drink: "Peroni", size: "unstated", sizeDetail: "440ml", priceGbp: 5.5, standing: "listed", ...pageFact },
+      { drink: "Guinness", size: "unstated", sizeDetail: "two-thirds", priceGbp: 5.2, standing: "listed", ...pageFact },
+    ]);
+  });
+
+  it("keeps the separately named measure after a pair of wine sizes", () => {
+    const menu = "<p>House Merlot 175/250ml £6.50/£8.50 50ml vodka £5.50</p>";
+    expect(factsFromPage(menu, pageFact).drinks).toEqual([
+      { drink: "House Merlot", size: "unstated", sizeDetail: "175ml", priceGbp: 6.5, standing: "listed", ...pageFact },
+      { drink: "House Merlot", size: "unstated", sizeDetail: "250ml", priceGbp: 8.5, standing: "listed", ...pageFact },
+      { drink: "vodka", size: "unstated", sizeDetail: "50ml", priceGbp: 5.5, standing: "listed", ...pageFact },
+    ]);
+  });
+});
+
+describe("menu heading scope", () => {
+  const generic = { ...pageFact, sourceUrl: "https://example.test/menu" };
+  const price = "<p>Guinness pint £6.20</p>";
+  const row = { drink: "Guinness", size: "pint", sizeDetail: "pint", priceGbp: 6.2, standing: "listed" };
+
+  it("refuses a membership condition and lets an independent section admit its own price", () => {
+    const members = "<section><h2>Only for members</h2>" + price + "</section>";
+    const regular = "<section><h2>Drinks</h2><p>Madri pint £6.40</p></section>";
+    expect(factsFromPage(members + regular, pageFact).drinks)
+      .toEqual([{ ...row, drink: "Madri", priceGbp: 6.4, ...pageFact }]);
+    expect(factsFromPage("<p>Only for members<br>Guinness pint £6.20</p>", pageFact).drinks).toEqual([]);
+  });
+
+  it("keeps an explicit offer condition when its heading wraps", () => {
+    const html = "<section><h2>Happy<br>hour</h2>" + price + "</section>";
+    expect(factsFromPage(html, pageFact).drinks).toEqual([]);
+  });
+
+  it.each(["Gluten-free beers", "Drinks from the bar"])(
+    "keeps a nonconditional drinks heading in %s",
+    (heading) => {
+      expect(factsFromPage("<p>" + heading + "<br>Guinness pint £6.20</p>", generic).drinks)
+        .toEqual([{ ...row, ...generic }]);
+    },
+  );
+
+  it("keeps an explicit ancestor when a plain heading refines it", () => {
+    const menu = "## Drinks\nBeer\n### New arrivals\nGuinness pint £6.20";
+    expect(factsFromPage(menu, generic).drinks).toEqual([{ ...row, ...generic }]);
+  });
+
+  it("ends an inline container's heading before a price on the same normalised line", () => {
+    const aside = "<aside><h2>Drinks</h2><span>Notice.</span></aside><span>Guinness pint £6.20</span>";
+    expect(factsFromPage(aside, generic).drinks).toEqual([]);
+    const preformatted = "<pre>Drinks\nGuinness pint £6.20</pre>Madri pint £6.40";
+    expect(factsFromPage(preformatted, generic).drinks).toEqual([{ ...row, ...generic }]);
+  });
+
+  it("does not admit a generic menu price under a closed drinks heading", () => {
+    const html = "<section><h2>Drinks</h2></section><section><h2>Events</h2>" + price + "</section>";
+    expect(factsFromPage(html, generic).drinks).toEqual([]);
+    expect(factsFromPage(html, { ...generic, boundSnippet: true }).drinks).toEqual([{ ...row, ...generic }]);
+  });
+
+  it("ends a drinks heading when a new heading of the same level starts", () => {
+    const html = "<section><h2>Drinks</h2><h2>Events</h2>" + price + "</section>";
+    expect(factsFromPage(html, generic).drinks).toEqual([]);
+    expect(factsFromPage("<section><h2>Drinks</h2><div><h2>Events</h2>" + price + "</div></section>", generic).drinks)
+      .toEqual([]);
+    expect(factsFromPage("## Drinks\n## Events\nGuinness pint £6.20", generic).drinks).toEqual([]);
+  });
+
+  it("retains an enclosing drinks heading across rows without lending a food heading to the next row", () => {
+    const first = "<p>Madri pint £6.40</p>";
+    const html = "<section><h2>Drinks</h2><ul><li><h3>Food</h3>" + first + "<li>" + price + "</ul></section>";
+    expect(factsFromPage(html, generic).drinks).toEqual([{ ...row, ...generic }]);
+  });
+
+  it("uses the heading inside the current section and preserves the independent URL cue", () => {
+    expect(factsFromPage("<section><h2>Drinks</h2><div>" + price + "</div></section>", generic).drinks)
+      .toEqual([{ ...row, ...generic }]);
+    expect(factsFromPage("<section><h2>Food</h2></section><section>" + price + "</section>", pageFact).drinks)
+      .toEqual([{ ...row, ...pageFact }]);
+  });
+
+  it("does not lend a heading from a closed aside, preformatted block or price description", () => {
+    expect(factsFromPage("<aside><h2>Drinks</h2></aside><main>" + price + "</main>", generic).drinks).toEqual([]);
+    expect(factsFromPage("<pre>Drinks</pre>" + price, generic).drinks).toEqual([]);
+    for (const note of ["served with wine", "served<br>with wine", "served with<br>wine"]) {
+      const description = "<p>Madri pint £6.40<br>" + note + "</p>";
+      expect(factsFromPage(description + price, generic).drinks).toEqual([]);
+    }
+    expect(factsFromPage("<p>Madri pint £6.40 served<br>with wine</p>" + price, generic).drinks).toEqual([]);
+  });
+});
+
+
+describe("offline R18 public regressions", () => {
+  const fact = { sourceUrl: "https://example.test/drink-menu.html", seenOn: "2026-10-23" };
+  const guinness = { drink: "Guinness", size: "pint", sizeDetail: "pint", priceGbp: 6.2, standing: "listed", ...fact };
+  const madri = { ...guinness, drink: "Madri", priceGbp: 6.4 };
+
+  it.each(["Regular drinks", "Regular beers"])("keeps the regular price after %s", (heading) => {
+    const menu = `<pre>Happy hour\nGuinness pint £6.20\n${heading}\nMadri pint £6.40</pre>`;
+    expect(factsFromPage(menu, fact).drinks).toEqual([madri]);
+  });
+
+  it("retains an outer membership condition", () => {
+    const menu = "<section><h2>Only for members</h2><pre>Regular drinks\nGuinness pint £6.20</pre></section>";
+    expect(factsFromPage(menu, fact).drinks).toEqual([]);
+  });
+
+  it.each(["only today 2/3 discount", "today only: 2/3 discount"])(
+    "keeps the independent pint after %s", (clause) => {
+      const menu = `<p>Peroni pint £5.20, ${clause}; Guinness pint £6.20</p>`;
+      expect(readVenueDrinkPrices(menu, "html").kept.map(({ drinkLabel, category, priceGbp }) =>
+        [drinkLabel, category, priceGbp])).toEqual([["Guinness pint", "beer", 6.2]]);
+      expect(readChainPintPrices(menu).kept.map(({ drinkLabel, priceGbp }) => [drinkLabel, priceGbp]))
+        .toEqual([["Guinness pint", 6.2]]);
+      expect(factsFromPage(menu, fact).drinks).toEqual([guinness]);
+    },
+  );
+
+  it.each(["2 for £10", "all draught beer pints £5.20"])(
+    "refuses a child price under the priced offer %s", (offer) => {
+      const menu = `<section><h2>Happy hour: ${offer}</h2><p>Guinness pint £6.20</p></section>`;
+      expect(factsFromPage(menu, fact).drinks).toEqual([]);
+    },
+  );
+
+  it("retains an independent named-price heading boundary", () => {
+    const menu = "<section><h2>Happy hour Guinness pint £6.20</h2><p>Madri pint £6.40</p></section>";
+    expect(factsFromPage(menu, fact).drinks).toEqual([madri]);
+  });
+});
