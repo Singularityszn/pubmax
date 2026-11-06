@@ -2,7 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { installDeterministicMapBasemap } from "@/e2e/helpers/mapNetworkFixtures";
 import { priceBandLegendLabel } from "@/lib/priceBand";
-import { mobileMapShellControl } from "@/e2e/helpers/mobileMapShell";
+import { expectMapLoadingFrameReleased, mobileMapShellControl } from "@/e2e/helpers/mobileMapShell";
 
 const VIEWPORT = { width: 390, height: 844 };
 const CHIP_LABELS = ["Beer", "Wine", "Cocktails", "Whisky", "Gin", "Rum", "Coffee", "Alcohol-free", "Soft drinks"];
@@ -431,8 +431,10 @@ for (const width of [390, 320]) {
   }) => {
     test.setTimeout(90_000);
     await page.setViewportSize({ width, height: 844 });
+    await installDeterministicMapBasemap(page);
     const response = await page.goto("/map");
     expect(response?.status()).toBe(200);
+    await expectMapLoadingFrameReleased(page);
 
     const attribution = page.locator(".maplibregl-ctrl-attrib");
     await expect(attribution).toBeVisible({ timeout: 45_000 });
@@ -551,8 +553,10 @@ for (const width of [1280, 1440]) {
   }) => {
     test.setTimeout(90_000);
     await page.setViewportSize({ width, height: 900 });
+    await installDeterministicMapBasemap(page);
     const response = await page.goto("/map");
     expect(response?.status()).toBe(200);
+    await expectMapLoadingFrameReleased(page);
 
     const attribution = page.locator(".maplibregl-ctrl-attrib");
     await expect(attribution).toBeVisible({ timeout: 45_000 });
@@ -565,13 +569,10 @@ for (const width of [1280, 1440]) {
       .getByRole("link", { name: "OpenStreetMap", exact: true })
       .last();
     await expect(openStreetMap).toBeVisible();
-    const box = await openStreetMap.boundingBox();
-    expect(box).not.toBeNull();
-    const centre = {
-      x: box!.x + box!.width / 2,
-      y: box!.y + box!.height / 2,
-    };
-    const hit = await openStreetMap.evaluate((credit, { x, y }) => {
+    const hit = await openStreetMap.evaluate((credit) => {
+      const box = credit.getBoundingClientRect();
+      const x = box.x + box.width / 2;
+      const y = box.y + box.height / 2;
       const element = document.elementFromPoint(x, y);
       return {
         isCredit: element === credit,
@@ -585,7 +586,7 @@ for (const width of [1280, 1440]) {
           element?.textContent?.replace(/\s+/g, " ").trim() ??
           null,
       };
-    }, centre);
+    });
     expect(
       hit.isCredit,
       `credit centre belongs to ${JSON.stringify(hit)}`,
@@ -602,7 +603,9 @@ for (const width of [1280, 1440]) {
         })
         .then(() => ({ kind: "navigation", url: page.url() })),
     ]);
-    await page.mouse.click(centre.x, centre.y);
+    // Rail credits can redraw this link after the hit check. A locator click
+    // uses its current centre and waits for a stable physical click target.
+    await openStreetMap.click();
     const destination = await opened;
     expect(destination.kind).toMatch(/^(popup|navigation)$/);
     expect(destination.url).toMatch(
