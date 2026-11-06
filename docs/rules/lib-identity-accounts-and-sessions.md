@@ -13,7 +13,7 @@ Moved from [`lib/AGENTS.md`](../../lib/AGENTS.md). Authoritative policy detail l
   `AuthProvider` distinguishes pending, unavailable and resolved canonical identity reads.
   A failed read or an eight-second timeout sets `identityUnavailable` without setting `identityResolved`.
   `resolveCanonicalIdentity` accepts only an explicit `handle: null` as a confirmed missing handle.
-  Missing, non-string or empty normalised handles are failed reads.
+  Apart from explicit `null`, missing, non-string or empty normalised handles are failed reads.
   `retryIdentity` clears the shared read and starts a new attempt for the current account.
   Late read results from an expired attempt or a previous account cannot replace the current identity.
 
