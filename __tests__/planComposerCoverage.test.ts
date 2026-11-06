@@ -760,15 +760,21 @@ describe("PlanComposer route preview seam", () => {
   });
 
   it("carries the generator's price for the alternative, and keeps the old one for a swap back", () => {
+    const source = { label: "Pub menu", url: "https://example.com/menu", observedAt: "2026-10-02" };
     const [stop] = routeStopsFromGenerated([{
-      venueId: "a", venueName: "A", estimatedPintPricePence: 449, priceEvidence: { source: "listed" },
+      venueId: "a", venueName: "A", estimatedPintPricePence: 449,
+      priceEvidence: { pence: 449, source, confidenceState: "fresh" },
       alternatives: [{ venueId: "b", venueName: "B", estimatedPintPricePence: 395 }],
     }]);
     expect(stop?.alternatives[0]).toMatchObject({ venueId: "b", estimatedPintPricePence: 395, priceKind: "estimated" });
 
     const swapped = swapDraftStop(stop!);
     expect(swapped).toMatchObject({ venueId: "b", estimatedPintPricePence: 395, priceKind: "estimated" });
-    expect(swapped.alternatives).toContainEqual({ venueId: "a", venueName: "A", estimatedPintPricePence: 449, priceKind: "listed" });
+    expect(swapped.pintPriceEvidence).toBeUndefined();
+    expect(swapped.alternatives).toContainEqual({
+      venueId: "a", venueName: "A", estimatedPintPricePence: 449, priceKind: "listed",
+      pintPriceEvidence: { venueId: "a", pence: 449, serving: "pint", source },
+    });
     expect(swapDraftStop(swapped)).toMatchObject({ venueId: "a", estimatedPintPricePence: 449, priceKind: "listed" });
   });
 

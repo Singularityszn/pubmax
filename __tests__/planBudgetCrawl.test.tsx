@@ -12,6 +12,7 @@ import {
   planBudgetMissLine,
 } from "@/lib/planBudgetCrawl";
 import { planPriceLimits } from "@/lib/planPriceLimits";
+import type { PlanPintPriceEvidence } from "@/lib/planPintPrice";
 import {
   cheapestGroundedPlanRoute,
   selectGroundedPlanRoute,
@@ -25,6 +26,10 @@ import {
 // nothing fits names the cheapest route found and its total.
 
 const NOW = Date.parse("2026-10-26T12:00:00.000Z");
+
+function pintQuote(venueId: string, pence: number, observedAt: string | null): PlanPintPriceEvidence {
+  return { venueId, pence, serving: "pint", source: { label: "Pub menu", url: "https://example.com/menu", observedAt } };
+}
 
 function candidate(id: string, score: number, pence: number | null, dLat = 0): GroundedPlanRouteCandidate<string> {
   return {
@@ -158,17 +163,17 @@ describe("the refusal says so with the cheapest route and its total", () => {
 
 describe("the running total", () => {
   const stops = [
-    { venueName: "The Crown", pricePence: 480, priceKind: "listed" as const, priceObservedAt: "2026-10-02T12:00:00.000Z" },
-    { venueName: "The Ship", pricePence: 510, priceKind: "listed" as const, priceObservedAt: null },
-    { venueName: "The Lamb", pricePence: 600, priceKind: "listed" as const, priceObservedAt: "2026-09-14" },
+    { venueId: "crown", venueName: "The Crown", pricePence: 480, priceKind: "listed" as const, pintPriceEvidence: pintQuote("crown", 480, "2026-10-02") },
+    { venueId: "ship", venueName: "The Ship", pricePence: 510, priceKind: "listed" as const, pintPriceEvidence: pintQuote("ship", 510, null) },
+    { venueId: "lamb", venueName: "The Lamb", pricePence: 600, priceKind: "listed" as const, pintPriceEvidence: pintQuote("lamb", 600, "2026-09-14") },
   ];
 
   it("adds one listed pint a stop, with each price's day", () => {
     const ledger = planBudgetLedger(stops, 2000);
-    expect(ledger.rows.map((row) => [row.price, row.readLine, row.runningTotal])).toEqual([
-      ["£4.80", "listed 2 Oct", "£4.80"],
-      ["£5.10", "read date not recorded", "£9.90"],
-      ["£6.00", "listed 14 Sept", "£15.90"],
+    expect(ledger.rows.map((row) => [row.price, row.pintPriceEvidence?.source.observedAt, row.runningTotal])).toEqual([
+      ["£4.80", "2026-10-02", "£4.80"],
+      ["£5.10", null, "£9.90"],
+      ["£6.00", "2026-09-14", "£15.90"],
     ]);
     expect(ledger).toMatchObject({ totalPence: 1590, fits: true });
     expect(ledger.summary).toBe("£15.90 for one pint at each stop, inside your £20.00.");
@@ -180,9 +185,19 @@ describe("the running total", () => {
     expect(ledger.summary).toBe("£15.90 for one pint at each stop, over your £15.00.");
   });
 
+  it("keeps the amount and limit comparison when the same price evidence belongs to another venue", () => {
+    const ledger = planBudgetLedger([
+      stops[0]!,
+      { ...stops[1]!, pintPriceEvidence: pintQuote("crown", 510, "2026-10-02") },
+    ], 2000);
+    expect(ledger.rows[1]).toMatchObject({ price: "£5.10", pintPriceEvidence: null, runningTotal: "£9.90" });
+    expect(ledger).toMatchObject({ totalPence: 990, fits: true, allPintServingsKnown: false });
+    expect(ledger.summary).toBe("£9.90 in listed prices, inside your £20.00.");
+  });
+
   it("never sums an estimate or a missing figure into a total", () => {
     const ledger = planBudgetLedger(
-      [stops[0]!, { venueName: "The Guess", pricePence: 400, priceKind: "estimated" }, stops[2]!],
+      [stops[0]!, { venueId: "guess", venueName: "The Guess", pricePence: 400, priceKind: "estimated" }, stops[2]!],
       2000,
     );
     expect(ledger.rows[1]).toMatchObject({ price: null, runningTotal: null });
@@ -193,20 +208,23 @@ describe("the running total", () => {
 });
 
 describe("the surfaces render", () => {
-  it("the ledger prints each price with its day and the running total", () => {
+  it("the ledger prints each price with its serving, publisher, full read day and the running total", () => {
     const html = renderToStaticMarkup(
       <PlanBudgetLedger
         limitPence={2000}
         stops={[
-          { venueName: "The Crown", pricePence: 480, priceKind: "listed", priceObservedAt: "2026-10-02" },
-          { venueName: "The Ship", pricePence: 510, priceKind: "listed", priceObservedAt: "2026-10-02" },
+          { venueId: "crown", venueName: "The Crown", pricePence: 480, priceKind: "listed", pintPriceEvidence: pintQuote("crown", 480, "2026-10-01T23:30:00.000Z") },
+          { venueId: "ship", venueName: "The Ship", pricePence: 510, priceKind: "listed", pintPriceEvidence: pintQuote("ship", 510, "2026-10-02") },
         ]}
       />,
     );
     expect(html).toContain("Your £20.00 crawl, one pint a stop");
     expect(html).toContain("1. The Crown");
     expect(html).toContain("£4.80");
-    expect(html).toContain("listed 2 Oct");
+    expect(html).toContain("1 pint");
+    expect(html).toContain('href="https://example.com/menu"');
+    expect(html).toContain("Pub menu");
+    expect(html).toContain("2 October 2026");
     expect(html).toContain("Running total £9.90");
     expect(html).toContain("£9.90 for one pint at each stop, inside your £20.00.");
   });

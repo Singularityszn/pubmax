@@ -364,7 +364,63 @@ describe("PlanStopList", () => {
   it("prints the route's area only on stops the generator placed there", async () => {
     await mount();
     const meta = cards().map((card) => card.querySelector(".planStop__meta")?.textContent ?? null);
-    expect(meta).toEqual(["Clapham · Listed pint price", null, "Clapham · Listed pint price"]);
+    expect(meta).toEqual(["Clapham · Listed price", null, "Clapham · Listed price"]);
+  });
+
+  it("shows the selected serving, publisher and full London source-read day beside its price", async () => {
+    await mount({ stops: [{
+      ...generated,
+      venueName: "The Beehive",
+      estimatedPintPricePence: 289,
+      pintPriceEvidence: {
+        venueId: generated.venueId, pence: 289, serving: "pint",
+        source: { label: "Pint Prices", url: "https://pint-prices.com/", observedAt: "2026-10-01T23:30:00.000Z" },
+      },
+    }] });
+    const card = cards()[0]!;
+    expect(card.querySelector(".planStop__price")?.textContent).toBe("£2.89");
+    expect(card.querySelector(".planStop__price")?.classList.contains("priceBand-cheap")).toBe(true);
+    expect(card.querySelector(".planStop__meta")?.textContent).toContain("Listed pint price");
+    expect(card.querySelector("small")?.textContent).toBe("1 pint · Pint Prices · Source read 2 October 2026");
+    expect(card.querySelector('a[href="https://pint-prices.com/"]')?.getAttribute("rel")).toBe("noopener noreferrer");
+  });
+
+  it("shows a named publisher without an unsafe link, and marks an estimate's evidence as missing", async () => {
+    const evidence = {
+      venueId: generated.venueId, pence: 620, serving: null,
+      source: { label: "Pub menu", url: null, observedAt: null },
+    };
+    await mount({ stops: [
+      { ...generated, pintPriceEvidence: evidence },
+      { ...third, priceKind: "estimated", pintPriceEvidence: evidence },
+    ] });
+    expect(cards()[0]!.querySelector("small")?.textContent).toBe(
+      "Serving size not recorded · Pub menu · Link unavailable · Source read date unknown",
+    );
+    expect(cards()[0]!.querySelector("small a")).toBeNull();
+    expect(cards()[0]!.querySelector(".planStop__price")?.className).toBe("planStop__price");
+    expect(cards()[0]!.querySelector(".planStop__meta")?.textContent).toBe("Clapham · Listed price");
+    expect(cards()[1]!.querySelector(".planStop__meta")?.textContent).toBe("Clapham · Estimated price");
+    expect(cards()[1]!.querySelector(".planStop__price")?.className).toBe("planStop__price");
+    expect(cards()[1]!.querySelector("small")?.textContent).toBe(
+      "Serving size not recorded · Publisher not recorded · Source read date unknown",
+    );
+  });
+
+  it("keeps the amount in neutral ink when the same price belongs to another pub", async () => {
+    await mount({ stops: [{
+      ...generated,
+      pintPriceEvidence: {
+        venueId: "another-pub", pence: 620, serving: "pint",
+        source: { label: "Another pub menu", url: "https://example.com/another", observedAt: "2026-10-02" },
+      },
+    }] });
+    const card = cards()[0]!;
+    expect(card.querySelector(".planStop__price")?.textContent).toBe("£6.20");
+    expect(card.querySelector(".planStop__price")?.className).toBe("planStop__price");
+    expect(card.querySelector("small")?.textContent).toBe(
+      "Serving size not recorded · Publisher not recorded · Source read date unknown",
+    );
   });
 
   it("prints the area on an unpriced first stop the generator placed", async () => {
