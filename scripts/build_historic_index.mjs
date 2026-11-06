@@ -20,13 +20,8 @@
 // sorted among the oldest pubs in London on 1701, the year the pirate it is
 // named after was hanged.
 //
-// Publication contract: a fact copied verbatim is still checked before it is
-// published, by two gates that both QUARANTINE and never rewrite. A withheld
-// fact is reported by name so it is fixed at the cache, and a record left with
-// nothing publishable is withheld whole rather than shown with an empty
-// description.
-//   • lib/heritageLanguageGate.mjs refuses a sentence written for us rather
-//     than for a reader.
+// Publication and quarantine rules live in:
+// docs/rules/scripts-builders-and-publishers.md#the-historic-directory-publishes-through-three-gates-and-each-one-refuses-rather
 //
 // Determinism: output is sorted (era ascending, nulls last, then name) and
 // pretty-printed with a trailing newline, so running twice is byte-identical.
