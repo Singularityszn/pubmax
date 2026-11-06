@@ -56,6 +56,7 @@ import {
   isWithinMaxAge,
   marksMapProvisionally,
   roundToPennies,
+  SUBMITTABLE_DRINK_CATEGORIES,
   submitterBucket,
   type CommunityPrice,
   type CommunityPriceInput,
@@ -77,6 +78,8 @@ import type {
   ContributionRecordReadResult,
 } from "@/lib/contributorLeaderboard";
 import { normalizeHandle } from "@/lib/profiles";
+import { MAX_PRICE_EVIDENCE_MISSION_VENUE_IDS } from "@/lib/priceEvidenceMissionLimits";
+import { pintDropsStore } from "@/lib/pintDropsStore";
 import type { RoundPriceSource } from "@/lib/rounds";
 import {
   markRoundPriceSourcePromoted,
@@ -140,6 +143,11 @@ export type CommunityContributorCount = {
 
 export type CommunityPriceReadResult = {
   prices: CommunityPrice[];
+  degraded: boolean;
+};
+
+export type CommunityPriceActorCoverageReadResult = {
+  pairs: CommunityPriceObservationPair[];
   degraded: boolean;
 };
 
@@ -214,6 +222,12 @@ export type CommunityPriceStore = {
     storedIds: readonly string[],
     now?: number,
   ): Promise<CommunityPriceReadResult>;
+  /** Current own categories, including hidden rows, for a bounded mission read. */
+  currentActorCoverage(
+    storedIdGroups: ReadonlyArray<readonly string[]>,
+    actor: string,
+    now: number,
+  ): Promise<CommunityPriceActorCoverageReadResult>;
   /** Freshest report per venue-signal question with derived trust counts. */
   latestSignalsForVenue(
     storedIds: readonly string[],
@@ -827,6 +841,23 @@ function rowsUnder<T extends { venueId: string }>(
   );
 }
 
+function currentActorCoveragePairs(
+  rows: readonly StoredPrice[],
+  actor: string,
+  now: number,
+): CommunityPriceObservationPair[] {
+  const pairs = new Map<string, CommunityPriceObservationPair>();
+  for (const row of rows) {
+    if (row.actor !== actor || !isWithinMaxAge(row, now)) continue;
+    if (!SUBMITTABLE_DRINK_CATEGORIES.includes(row.drinkCategory)) continue;
+    pairs.set(`${row.venueId}\u0000${row.drinkCategory}`, {
+      venueId: row.venueId,
+      drinkCategory: row.drinkCategory,
+    });
+  }
+  return [...pairs.values()];
+}
+
 /**
  * The stored observation with this id, price or venue signal, or null. A linear
  * scan on purpose: moderation is a handful of calls a day against a
@@ -1062,6 +1093,17 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
     if (!keys) return { prices: [], degraded: false };
     return {
       prices: freshestPerCategory(rowsUnder(venues, keys), now),
+      degraded: false,
+    };
+  },
+
+  async currentActorCoverage(storedIdGroups, actor, now) {
+    return {
+      pairs: currentActorCoveragePairs(
+        storedKeyGroups(storedIdGroups).flatMap((keys) => rowsUnder(venues, keys)),
+        actor,
+        now,
+      ),
       degraded: false,
     };
   },
@@ -1540,6 +1582,45 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
         prices: await selectVenuePrices(keys, now),
         degraded: false,
       }),
+    });
+  },
+
+  async currentActorCoverage(storedIdGroups, actor, now) {
+    const groups = storedKeyGroups(storedIdGroups);
+    const currentOf = new Map(groups.flatMap((keys) => keys.map((key) => [key, keys[0]] as const)));
+    return guard<CommunityPriceActorCoverageReadResult>({
+      context: "mission-actor-coverage",
+      onSchemaMiss: async () => ({ pairs: [], degraded: true }),
+      message: "mission actor coverage read failed",
+      onError: () => ({ pairs: [], degraded: true }),
+      run: async () => {
+        const { data, error, count } = await admin()
+          .from("community_prices")
+          .select("venue_id, drink_category, submitted_at, actor", { count: "exact" })
+          .eq("actor", actor)
+          .in("venue_id", [...currentOf.keys()])
+          .in("drink_category", [...SUBMITTABLE_DRINK_CATEGORIES])
+          .gte("submitted_at", new Date(now - COMMUNITY_PRICE_MAX_AGE_MS).toISOString())
+          .limit(VENUE_SCAN_ROWS);
+        if (error) throw new Error(error.message);
+        if (!Array.isArray(data) || count !== data.length || data.length > VENUE_SCAN_ROWS) {
+          return { pairs: [], degraded: true };
+        }
+        const pairs = new Map<string, CommunityPriceObservationPair>();
+        for (const raw of data) {
+          if (!raw || typeof raw !== "object") return { pairs: [], degraded: true };
+          const row = raw as Record<string, unknown>;
+          const venueId = currentOf.get(cleanVenueId(row.venue_id));
+          if (!venueId || row.actor !== actor || !isDrinkCategory(row.drink_category)
+            || !SUBMITTABLE_DRINK_CATEGORIES.includes(row.drink_category)
+            || typeof row.submitted_at !== "string"
+            || !isWithinMaxAge({ submittedAt: Date.parse(row.submitted_at) }, now)) {
+            return { pairs: [], degraded: true };
+          }
+          pairs.set(`${venueId}\u0000${row.drink_category}`, { venueId, drinkCategory: row.drink_category });
+        }
+        return { pairs: [...pairs.values()], degraded: false };
+      },
     });
   },
 
@@ -2027,6 +2108,43 @@ export async function readCommunityPricesWithStatus(
 ): Promise<CommunityPriceReadResult> {
   const aliases = await loadVenueAliasResolver();
   return communityPriceStore().latestForVenue(aliases.storedIds(venueId), now);
+}
+
+/** A missing durable coverage read cannot become an independent-check task. */
+export async function readCurrentCommunityPriceActorCoverage(
+  rawVenueIds: readonly string[],
+  actor: string,
+  accountId: string,
+  now: number = Date.now(),
+): Promise<CommunityPriceActorCoverageReadResult> {
+  const venueIds = [...new Set(rawVenueIds.map(cleanVenueId).filter(Boolean))];
+  if (venueIds.length > MAX_PRICE_EVIDENCE_MISSION_VENUE_IDS || !actor || !accountId.trim() || !Number.isFinite(now)) {
+    return { pairs: [], degraded: true };
+  }
+  if (venueIds.length === 0) return { pairs: [], degraded: false };
+  const aliases = await loadVenueAliasResolver();
+  const groups = venueIds.map((venueId) => aliases.storedIds(venueId));
+  let coverage: CommunityPriceActorCoverageReadResult;
+  let pintVenueIds: Set<string>;
+  try {
+    [coverage, pintVenueIds] = await Promise.all([
+      communityPriceStore().currentActorCoverage(groups, actor, now),
+      pintDropsStore().currentActorCoverage(groups, accountId, now),
+    ]);
+  } catch {
+    return { pairs: [], degraded: true };
+  }
+  if (coverage.degraded) return coverage;
+  const pairs = new Map(coverage.pairs.map((pair) => [`${pair.venueId}\u0000${pair.drinkCategory}`, pair]));
+  for (const venueId of pintVenueIds) {
+    pairs.set(`${venueId}\u0000beer`, { venueId, drinkCategory: "beer" });
+  }
+  return {
+    pairs: venueIds.flatMap((venueId) => [...pairs.values()]
+      .filter((pair) => pair.venueId === aliases.canonical(venueId))
+      .map((pair) => ({ ...pair, venueId }))),
+    degraded: false,
+  };
 }
 
 export function readCommunityVenueSignals(

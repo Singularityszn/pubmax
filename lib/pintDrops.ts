@@ -436,6 +436,19 @@ export function addPintDrop(drop: PintDrop): void {
   drops.set(drop.venueId, [drop, ...(drops.get(drop.venueId) ?? [])]);
 }
 
+export function hasCurrentPricedPintDrop(
+  venueId: string,
+  authorityKey: string,
+  since: number,
+): boolean {
+  return (drops.get(venueId) ?? []).some((drop) =>
+    drop.authorityKey === authorityKey
+    && typeof drop.priceGbp === "number"
+    && Number.isFinite(drop.priceGbp)
+    && Date.parse(drop.createdAt) >= since,
+  );
+}
+
 /**
  * Duplicate guard (feat/price-drops-v2): has this identity already logged a
  * PRICED drop at this venue on the same London calendar day? One priced

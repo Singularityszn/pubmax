@@ -100,6 +100,17 @@ describe("an undated pub comes first inside its own reason", () => {
 });
 
 describe("rankPriceEvidenceMission", () => {
+  it("keeps the undated tie-break after excluding an actor-covered category", () => {
+    const mission = rankPriceEvidenceMission([
+      { venueId: "venue-own", prices: [row("venue-own", "beer")], actorCoveredCategories: ["beer"], undated: true },
+      { venueId: "venue-dated", prices: [row("venue-dated", "beer")], undated: false },
+      { venueId: "venue-undated", prices: [row("venue-undated", "wine")], undated: true },
+    ], NOW);
+    expect(mission).toEqual({
+      venueId: "venue-undated", reason: "provisional", drinkCategory: "wine", observedAt: NOW - 3_600_000,
+    });
+  });
+
   it("ranks a current provisional category first", () => {
     const mission = rankPriceEvidenceMission(
       venues([
