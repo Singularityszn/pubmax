@@ -181,11 +181,12 @@ export type MapResumeWriter = (
 ) => boolean;
 
 /**
- * The map writes its resume snapshot after every settled camera move, but the
- * rows only change when the resident pins do. The camera and the rows are
- * separate records: a move writes the small camera record, the rows are
- * compacted and written once per pins array, and a move that lands on the
- * camera already written writes nothing. Returns whether it wrote.
+ * Public venue rows remain reusable without a camera. Separate records let
+ * location exposure erase the camera without discarding those rows.
+ * A current public-place authorisation permits a camera write. Without one,
+ * the writer clears camera records. It compacts rows only when the pins array
+ * or city changes and skips unchanged authorised views. Returns whether it
+ * scheduled a row or camera write, excluding camera erasure.
  */
 export function createMapResumeWriter(storage?: Storage | null): MapResumeWriter {
   let heldPins: Venue[] | null = null;

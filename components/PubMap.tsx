@@ -2881,7 +2881,7 @@ export default function PubMap({
       ringLoadPendingKeyRef.current = null;
       targetViewportLoadStartedRef.current = false;
     };
-  }, [arrivalSearch, cameraOwnership, city.mapView, cityId, deferInitialSpatialLoad, initialShardReady, initialShardViewport, mapResumeSeed, mergeSlimVenues, readInitialShardStart, refreshCountCoverage, scheduleRingLoad, ukNationalBrowse, ukPlaceArrival, venueIndexAttempt]);
+  }, [arrivalSearch, cameraOwnership, city.mapView, cityId, deferInitialSpatialLoad, initialShardReady, initialShardViewport, mapCameraTouchedRef, mapResumeSeed, mergeSlimVenues, readInitialShardStart, refreshCountCoverage, scheduleRingLoad, ukNationalBrowse, ukPlaceArrival, venueIndexAttempt]);
 
   // Lazy outer shards: whenever the map settles on a viewport, load the shards
   // it intersects and merge their pins. Already-loaded shards are skipped by

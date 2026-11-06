@@ -50,6 +50,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   If both map styles conclusively fail before the map loads, **Map tiles unavailable** appears without waiting for the fallback timeout. **Retry**, the pub list and the planner remain available. A pending or uncertain fallback request keeps its eight-second timeout. A map that already loaded keeps its existing recovery notice.
 
+  The [saved map view rules](docs/MAP_URL_PARAMS.md#saved-map-views-and-location-privacy) explain which views can return and how location requests clear stored views.
+
 - **Pub features** - open **Filters** on desktop or phone to select the following choices.
 
   - **Beer garden** uses listed pub records and dated OpenStreetMap facts.
@@ -107,6 +109,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
   If **Tonight near me** cannot select a checked area, type an area in the description. Choose **Plan it**. You can still make an editable draft. Check the [opening and travel notice beside the stops](docs/rules/components-venue-plan-and-message-surfaces.md#the-plan-result-is-a-route-and-the-settings-sit-behind-it) before you go. Restored drafts also show when these checks are unavailable.
 
   On a shared invite, **Open the plan** stays available when this browser restores guest access, including after a page reload.
+
+  The route map's accessible description uses the areas recorded for its stops. It names every distinct area when the route crosses areas. If any stop lacks a specific area, the description omits geography. Search distance does not establish a borough boundary.
 
   A saved Plan needs at least two stops in one city to offer a walking route. **See the walking route** and the main **Map** link then open the saved stops. Unsaved edits do not change that destination. Each stop's **Open on the map** link keeps the walk and selects that pub. **Show whole walk** restores the route view on phones and desktop after you move the map or search elsewhere. If street routing is unavailable, dashed lines show stop order only.
 
