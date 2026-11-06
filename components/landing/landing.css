@@ -764,10 +764,10 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
 }
 
 
-/* Reserve the consent lane before it mounts, so the primary stays clear
-   on short phones without moving when the reader reaches a second route. */
+/* Clear the top header by its own inset and height. The bottom tab bar's
+   height is not part of this gap and pushes the primary under consent. */
 @media (max-width: 640px) and (max-height: 640px) {
-  .lpHero { padding-top: calc(var(--tabbar-h, 64px) + var(--space-2)); }
+  .lpHero { padding-top: calc(max(10px, env(safe-area-inset-top)) + var(--topbar-h, 52px) + var(--space-2)); }
   .lpHero .screenHead { gap: var(--space-1); }
   .lpHero .screenAnswer { margin-top: 0; }
   .lpHero .lpHuntCard { padding-block: var(--space-2); }

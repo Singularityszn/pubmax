@@ -122,26 +122,26 @@
   margin-top: 0;
 }
 
-/* Content pages embed the bar inside a narrow reading column (~880px), which
-   cannot fit the full eight-label link row — labels used to ellipsize into
-   unreadable fragments at 1440px even with nothing else crowding them. On
-   desktop the bar now self-sizes: a centred pill up to the room the VIEWPORT
-   actually has, escaping the host column symmetrically via the auto-negative
-   margin pair below (still centred because every host column is itself
-   centred). The floating map variant and the ≤640px compact bar keep their
-   own geometry — this rule is scoped away from both. */
-/* Issue #215 — re-verified at 1440/1280/1180/1024/900px on /pubs, /feed,
-   /crawls, /borough, /discover: with the compact single-"Sign in" disclosure
-   above (auth.css .authUserNav hides the two full provider buttons in every
-   nav host) every link's scrollWidth already fits its clientWidth — 0 of the
-   9 labels ellipsis-clip at any of those widths. --site-nav-width keeps a
-   little extra headroom over that measured floor (1100px, up from 1080px) so
-   future label/utility additions don't reopen the clip. */
+/* Viewport-based width lets the bar escape a narrow reading column while
+   keeping it centred. The floating map and compact phone bars use separate
+   geometry. The layout contract and regression coverage are in
+   docs/rules/components-design-system-and-launch-primitives.md,
+   "A text button is one row of tokens, and the tablet bar is measured". */
 @media (min-width: 641px) {
   .siteNavBar:not(.siteNavBarFloating) {
-    --site-nav-width: min(1100px, 100vw - 48px);
+    --site-nav-width: min(1240px, 100vw - 48px);
     width: var(--site-nav-width);
     margin-inline: calc((100% - var(--site-nav-width)) / 2);
+  }
+}
+
+@media (min-width: 1280px) {
+  .siteNavBar:not(.siteNavBarFloating) {
+    gap: 4px;
+  }
+
+  .siteNavBar:not(.siteNavBarFloating) .siteNavActions {
+    gap: 2px;
   }
 }
 
