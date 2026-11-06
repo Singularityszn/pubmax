@@ -1,9 +1,8 @@
 import "server-only";
 
 // THE VISION LANE. One photo in, one JSON answer out, and nothing written
-// anywhere. Every reader that shows a vision model a drinker's photo goes
-// through this one client: the board reader (lib/boardRead.server.ts, review
-// item A4) and the bill check (lib/billCheck.server.ts, captain 5 Nov 2026).
+// anywhere. The board reader (lib/boardRead.server.ts, review item A4) and
+// the bill check (lib/billCheck.server.ts, captain 5 Nov 2026) share this client.
 // A second client would be a second set of retention and schema settings to
 // keep in step, so there is none.
 //

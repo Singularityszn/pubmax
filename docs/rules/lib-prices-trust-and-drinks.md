@@ -77,7 +77,7 @@ Moved from [`lib/AGENTS.md`](../../lib/AGENTS.md). Authoritative policy detail l
      Serving recognition uses the shared drink taxonomy, including canonical brand names such as Heineken and London Pride.
      A bill line without a stated serving can still match by name and price.
      An outer serving word in `Double Single Malt Whisky` leaves `Single Malt Whisky` as the product name.
-     If no named line satisfies the price and serving constraints, the verdict is `mismatch`.
+     If the drink is identified but no line satisfies the price and serving constraints, the verdict is `mismatch`.
      A bill without an identifiable priced line for the drink is `unreadable`.
      Only `match` grants a priced Pint Drop `receipt` through `grantBillMatch` and signals maps to read again.
      The check never hides or deletes a price.

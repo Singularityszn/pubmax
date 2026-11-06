@@ -1185,11 +1185,9 @@ function isUnknownMeasureCheckError(
 /**
  * Additive-rollout guard for the receipt column (migration 0153).
  *
- * The RULE is the write door's (lib/pintDropReceipt.ts) and it reads no column,
- * so a deploy that lands before the captain applies 0153 still refuses a price
- * with no bill. What it must not do is refuse the price because it cannot store
- * the key: the drop is saved without it, and a photo is lost where a price
- * would have been.
+ * lib/pintDropReceipt.ts owns the write rule independently of this column.
+ * A missing receipt key column must not prevent the drop from saving.
+ * The separate price-evidence guard still applies.
  */
 export function isMissingReceiptColumnError(error: { code?: string; message?: string } | null): boolean {
   if (!error) return false;

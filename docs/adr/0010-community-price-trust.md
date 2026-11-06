@@ -155,9 +155,8 @@ The one-tap community price door (`POST /api/price-submit`) and the Round
 diary still refuse a price without a bill. Their community price row has no
 evidence column yet, so this amendment does not reach them.
 
-**Rollout.** Until the captain applies `0218`, the store refuses an unchecked
-price and the route answers with the old bill line. Saving it without its
-word would read it as billed and mark the pin.
+**Rollout.** The [unchecked-price rule](../rules/lib-prices-trust-and-drinks.md#a-typed-price-without-a-bill-is-unchecked)
+owns the current refusal when migration `0218` is missing, including prices submitted with a bill.
 
 ## Alternatives Considered
 
