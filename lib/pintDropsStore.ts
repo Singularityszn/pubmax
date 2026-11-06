@@ -823,10 +823,11 @@ export const memoryPintDropStore: PintDropStore = {
   async currentActorCoverage(storedIdGroups, accountId, now) {
     const covered = new Set<string>();
     for (const keys of storedIdGroups) {
-      if (keys.some((key) => {
+      const currentId = keys[0];
+      if (currentId && keys.some((key) => {
         const authorityKey = pintDropAuthorityKey(key, accountId);
         return authorityKey && hasCurrentPricedPintDrop(key, authorityKey, now - COMMUNITY_PRICE_MAX_AGE_MS);
-      })) covered.add(keys[0]);
+      })) covered.add(currentId);
     }
     return covered;
   },
