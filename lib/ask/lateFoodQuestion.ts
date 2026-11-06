@@ -24,7 +24,6 @@ const AT_MIDNIGHT = /\bat midnight\b/gi;
 const CUISINES = [
   [/\bpizzas?\b/i, "pizza"], [/\bkebabs?\b/i, "kebab"],
   [/\bcafes?\b/i, "cafe"], [/\brestaurants?\b/i, "restaurant"],
-  [/\bburgers?\b/i, "burger"], [/\bbreakfast\b/i, "breakfast"], [/\bsandwich(?:es)?\b/i, "sandwich"],
 ] as const;
 // An unknown free-from requirement remains a constraint until evidence supports it.
 const FOOD_CONSTRAINT = /\b(?:vegan|vegetarian|halal|kosher|pescatarian|coeliac|celiac|[a-z]+(?:-[a-z]+)*[- ]free|free\s+(?:of|from)\s+[a-z]+(?:-[a-z]+)*|(?:without|no|avoid)\s+(?:gluten|nuts?|peanuts?|dairy|milk|lactose|eggs?|soy|soya|sesame|shellfish|wheat|mustard|celery|lupin|sulphites?|sulfites?|meat|fish|seafood|cheese|butter|cream|honey|gelatine|gelatin)|allerg(?:y|ies|ic|en|ens)|intoleran(?:t|ce))\b/gi;
@@ -33,13 +32,20 @@ function foodConstraints(query: string): string[] {
   return [...foodWording(query).matchAll(FOOD_CONSTRAINT)].map((match) => match[0]);
 }
 
+function foodCategories(query: string): string[] {
+  return [...new Set([...query.matchAll(new RegExp(FOOD_RE.source, "gi"))]
+    .map((match) => match[0].toLowerCase())
+    .filter((word) => !/^(?:food|eat|eating|meals?|kitchens?)$/.test(word))
+    .map((word) => CUISINES.find(([pattern]) => pattern.test(word))?.[1] ?? word))];
+}
+
 function requiresPubKitchen(query: string): boolean {
   return /\bpubs?\b/i.test(query);
 }
 
 function foodRequestWording(query: string): string {
   return foodWording(query)
-    .split(new RegExp(String.raw`(?<=[.!?])\s+(?=(?:${FOOD_RE.source}|${FOOD_CONSTRAINT.source}|${LATE_WORDS.source}))`, "i"))
+    .split(new RegExp(String.raw`(?<=[.!?])\s+(?=(?:${FOOD_RE.source.replace(/\((?!\?)/g, "(?:")}|${FOOD_CONSTRAINT.source}|${LATE_WORDS.source}))`, "i"))
     .flatMap(askRequestClauses)
     .filter((clause) => FOOD_RE.test(clause) || !/\b(?:directions|journey|transport|trains?|tube|buses?|delays?|weather|city status)\b/i.test(clause))
     .join(" ");
@@ -131,7 +137,7 @@ export function parseLateFoodQuestion(query: string, now: number): LateFoodQuest
         ? ["unrecorded-dietary-constraint"] : []),
     ],
     cuisines: [
-      ...CUISINES.filter(([pattern]) => pattern.test(wording)).map(([, category]) => category),
+      ...foodCategories(wording),
       ...(unrecordedFoodWording(wording) ? ["unrecorded-food-constraint"] : []),
     ],
     requiresPub,
@@ -171,7 +177,7 @@ function isFoodClarification(query: string): boolean {
 function retainedFoodConstraints(query: string): string[] {
   // Area replacement cannot remove independently detected food requirements.
   const wording = foodWording(query);
-  const cuisines = CUISINES.filter(([pattern]) => pattern.test(wording)).map(([, category]) => category);
+  const cuisines = foodCategories(wording);
   return [...new Set([
     ...foodConstraints(wording), ...cuisines, unrecordedFoodWording(query),
     ...(requiresPubKitchen(wording) ? ["pub kitchen"] : []),

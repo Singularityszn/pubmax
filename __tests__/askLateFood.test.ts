@@ -121,6 +121,12 @@ describe("late-food questions through Ask", () => {
   it.each([
     "restaurants serving sandwiches",
     "restaurants serving breakfast",
+    "restaurants serving snacks",
+    "restaurants serving lunch",
+    "restaurants serving dinner",
+    "restaurants serving supper",
+    "restaurants serving burgers",
+    "restaurants serving chips",
     "cafes and restaurants",
     "restaurants and cafes",
   ])("does not discard categories in a timed request for %s", async (food) => {
@@ -139,6 +145,12 @@ describe("late-food questions through Ask", () => {
 
   it("keeps recommendations for a single recorded restaurant category", async () => {
     const response = await ask("Find restaurants in Soho at 01:00 on 2026-11-07");
+    expect(response.cards.map((card) => card.title)).toEqual(["Balans No.60"]);
+    expect(response.sources).toContainEqual(expect.objectContaining({ url: SOHO_HOURS_SOURCE }));
+  });
+
+  it.each(["food", "eat", "eating", "meal", "meals", "kitchen", "somewhere to eat"])("does not treat generic %s wording as a category", async (food) => {
+    const response = await ask(`Find restaurants with ${food} in Soho at 01:00 on 2026-11-07`);
     expect(response.cards.map((card) => card.title)).toEqual(["Balans No.60"]);
     expect(response.sources).toContainEqual(expect.objectContaining({ url: SOHO_HOURS_SOURCE }));
   });
@@ -307,6 +319,25 @@ describe("late-food questions through Ask", () => {
     expect(response.sources).toContainEqual(expect.objectContaining({ url: SOHO_HOURS_SOURCE }));
   });
 
+  it.each([
+    { food: "Vegan food", names: [] },
+    { food: "Late food", names: ["Balans No.60"] },
+  ])("handles a $food sentence after transport without throwing", async ({ food, names }) => {
+    const query = `Directions to London Bridge from The Blackfriar. ${food} at 01:00 on 2026-11-07 near Soho`;
+    const typed = await ask(query);
+    const voice = await runAskTool("search_venues", {}, {
+      query, cityId: "london", now: OCTOBER_REVIEW_NOW, skipModel: true, fetchImpl: offlineFetch,
+    });
+    for (const response of [typed, voice]) {
+      expect(response.cards.map((card) => card.title)).toEqual(names);
+      expect(response.proposals).toEqual([]);
+      if (names.length === 0) {
+        expect("sources" in response ? response.sources : response.provenance).toEqual([]);
+        expect("answer" in response ? response.answer : response.answerHint).toMatch(/no current.*record/i);
+      }
+    }
+  });
+
   it("keeps transport timing separate from the food service date", async () => {
     const response = await ask("Food at 01:00 on 2026-10-23 near Soho. Any tube delays tonight?");
     expect(response.cards).toContainEqual(expect.objectContaining({ title: "Balans No.60", venueId: "", price: null }));
@@ -401,7 +432,7 @@ describe("late-food questions through Ask", () => {
 
 
 describe("late-food clarification context", () => {
-  it.each(["sandwiches", "breakfast"])("retains restaurant and %s requirements through field corrections", async (food) => {
+  it.each(["sandwiches", "breakfast", "snacks", "lunch", "dinner", "supper", "burgers", "chips"])("retains restaurant and %s requirements through field corrections", async (food) => {
     for (const { previous, query } of [
       { previous: `Find restaurants serving ${food} in Victoria at 01:00 on 2026-11-07`, query: "Soho?" },
       { previous: `Find restaurants serving ${food} in Soho at 06:00 on 2026-11-07`, query: "01:00 please" },
