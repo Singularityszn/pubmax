@@ -195,6 +195,13 @@ describe("lookupUkBasePub", () => {
     });
   });
 
+  it("treats a pub verified permanently closed as missing", async () => {
+    const osmRef = await firstCommittedOsmRef();
+    expect(await lookupUkBasePub(ukBaseIdFor(osmRef), new Set([osmRef]))).toEqual({
+      status: "missing",
+    });
+  });
+
   it("rejects a curated venue id without opening the pack as found", async () => {
     expect(await lookupUkBasePub("venue-7l4pei")).toEqual({ status: "missing" });
   });

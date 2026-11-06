@@ -11,9 +11,10 @@
  *
  * THE RULE this table encodes: a row exists because OSM STATES the thing.
  * `restaurant` is not a drinking venue, so only a restaurant that states a bar,
- * a microbrewery or real ale is taken; `fast_food` is not a night venue, so only
- * one that states alcohol or 24/7 hours is taken. Nothing is inferred from a
- * name, a chain or a postcode.
+ * a microbrewery, real ale, `alcohol=yes|served`, or an alcoholic `drink:*`
+ * key is taken; a `club=*` and a casino are taken on the same stated terms;
+ * `fast_food` is not a night venue, so only one that states alcohol or 24/7
+ * hours is taken. Nothing is inferred from a name, a chain or a postcode.
  *
  * OSM data is © OpenStreetMap contributors, ODbL 1.0.
  */
@@ -31,6 +32,98 @@ import { normalizeOsmVenueElement, sortOsmPubs } from "./osmPubNormalizer.mjs";
  */
 
 const yes = (value) => value === "yes";
+
+/**
+ * Alcoholic `drink:*` keys, the Alcoholic list on OSM wiki Key:drink:*.
+ * Non-alcoholic keys on that page (coffee, tea, juice, soft_drink, …) are
+ * absent on purpose: a restaurant that states coffee is not a drinking venue.
+ * https://wiki.openstreetmap.org/wiki/Key:drink:*
+ */
+export const ALCOHOLIC_DRINK_KEYS = [
+  "drink:aperol_spritz",
+  "drink:beer",
+  "drink:cider",
+  "drink:cocktail",
+  "drink:cognac",
+  "drink:craft_beer",
+  "drink:gin",
+  "drink:liqueur",
+  "drink:liquor",
+  "drink:long_drink",
+  "drink:pastis",
+  "drink:rum",
+  "drink:sake",
+  "drink:sangria",
+  "drink:shochu",
+  "drink:sparkling_wine",
+  "drink:tequila",
+  "drink:viez",
+  "drink:vodka",
+  "drink:whisky",
+  "drink:wine",
+];
+
+/** Availability values Key:drink:* documents as the drink being on offer.
+ * `yes` and `served` are the values the fast-food `alcohol` selector already
+ * accepts. `draught` and `bottled` are the other values that page lists for a
+ * drink that is actually available. `no`, `retail` and `sales` do not qualify.
+ */
+const DRINK_AVAILABLE = ["yes", "served", "draught", "bottled"];
+
+/** `alcohol` values this pipeline already treats as "alcohol is served". */
+const ALCOHOL_SERVED = ["yes", "served"];
+
+const REAL_ALE_SERVED = ["yes", "only", "sometimes"];
+
+function statedAvailable(value) {
+  if (!value) return false;
+  // OSM lists several availabilities in one tag, separated by semicolons.
+  return value.split(";").some((part) => DRINK_AVAILABLE.includes(part.trim()));
+}
+
+/** Overpass match for a qualifying availability, alone or as one semicolon-separated token. */
+function drinkAvailablePattern() {
+  const token = DRINK_AVAILABLE.join("|");
+  return `^(?:[^;]*;)*\\s*(?:${token})\\s*(?:;.*)?$`;
+}
+
+/**
+ * The element states that it serves alcohol: a bar, a microbrewery, real ale,
+ * `alcohol=yes|served`, `drink` set to an alcoholic name, or an alcoholic
+ * `drink:*` key on offer. A coffee tag and `alcohol=no` do not.
+ *
+ * @param {Record<string, string>} tags
+ */
+export function statesAlcohol(tags) {
+  if (yes(tags.bar) || yes(tags.microbrewery)) return true;
+  if (REAL_ALE_SERVED.includes(tags.real_ale ?? "")) return true;
+  if (ALCOHOL_SERVED.includes(tags.alcohol ?? "")) return true;
+  if (ALCOHOLIC_DRINK_KEYS.some((key) => statedAvailable(tags[key]))) return true;
+  const generic = tags.drink ?? "";
+  return ALCOHOLIC_DRINK_KEYS.some((key) => key.slice("drink:".length) === generic);
+}
+
+/**
+ * Overpass selectors for `base` narrowed to elements that state alcohol, one
+ * per clause of `statesAlcohol`.
+ *
+ * @param {string} base an Overpass tag filter, e.g. `["amenity"="restaurant"]`
+ */
+function alcoholStatedSelectors(base) {
+  const drinkNames = ALCOHOLIC_DRINK_KEYS.map((key) => key.slice("drink:".length)).join("|");
+  const drinkKeys = ALCOHOLIC_DRINK_KEYS.join("|");
+  return [
+    `${base}["bar"="yes"]`,
+    `${base}["microbrewery"="yes"]`,
+    `${base}["real_ale"~"^(yes|only|sometimes)$"]`,
+    `${base}["alcohol"~"^(yes|served)$"]`,
+    `${base}["drink"~"^(${drinkNames})$"]`,
+    `${base}[~"^(${drinkKeys})$"~"${drinkAvailablePattern()}"]`,
+  ];
+}
+
+const ALCOHOL_STATED_NOTE =
+  "a bar, a microbrewery, real ale, alcohol=yes|served, drink=<alcoholic name>, or an alcoholic drink:* key as yes, served, draught or bottled, including when that value is one token in a semicolon-separated list";
 
 /** @type {TaxonomyRow[]} */
 export const UK_VENUE_TAXONOMY = [
@@ -59,20 +152,28 @@ export const UK_VENUE_TAXONOMY = [
     note: "amenity=biergarten",
   },
   {
+    key: "nightclub",
+    kind: "club",
+    group: "drink",
+    selectors: ['["amenity"="nightclub"]'],
+    match: (tags) => tags.amenity === "nightclub",
+    note: "amenity=nightclub",
+  },
+  {
+    key: "music_venue",
+    kind: "club",
+    group: "drink",
+    selectors: ['["amenity"="music_venue"]'],
+    match: (tags) => tags.amenity === "music_venue",
+    note: "amenity=music_venue",
+  },
+  {
     key: "restaurant_bar",
     kind: "restaurant",
     group: "drink",
-    selectors: [
-      '["amenity"="restaurant"]["bar"="yes"]',
-      '["amenity"="restaurant"]["microbrewery"="yes"]',
-      '["amenity"="restaurant"]["real_ale"~"^(yes|only|sometimes)$"]',
-    ],
-    match: (tags) =>
-      tags.amenity === "restaurant" &&
-      (yes(tags.bar) ||
-        yes(tags.microbrewery) ||
-        ["yes", "only", "sometimes"].includes(tags.real_ale ?? "")),
-    note: "amenity=restaurant only where OSM states a bar, a microbrewery or real ale",
+    selectors: alcoholStatedSelectors('["amenity"="restaurant"]'),
+    match: (tags) => tags.amenity === "restaurant" && statesAlcohol(tags),
+    note: `amenity=restaurant only where OSM states ${ALCOHOL_STATED_NOTE}`,
   },
   {
     key: "hotel_bar",
@@ -81,6 +182,22 @@ export const UK_VENUE_TAXONOMY = [
     selectors: ['["tourism"="hotel"]["bar"="yes"]'],
     match: (tags) => tags.tourism === "hotel" && yes(tags.bar),
     note: "tourism=hotel only where OSM states a bar; a hotel with no stated bar is not a lounge",
+  },
+  {
+    key: "social_club",
+    kind: "club",
+    group: "drink",
+    selectors: alcoholStatedSelectors('["club"]'),
+    match: (tags) => Boolean(tags.club) && statesAlcohol(tags),
+    note: `club=* (a social, members' or sports club) only where OSM states ${ALCOHOL_STATED_NOTE}`,
+  },
+  {
+    key: "casino_bar",
+    kind: "other",
+    group: "drink",
+    selectors: alcoholStatedSelectors('["amenity"="casino"]'),
+    match: (tags) => tags.amenity === "casino" && statesAlcohol(tags),
+    note: `amenity=casino only where OSM states ${ALCOHOL_STATED_NOTE}`,
   },
   {
     key: "off_licence",

@@ -6,6 +6,7 @@ import type { CrawlEnding, EndingSelection, PlanCompletionDTO } from "@/lib/plan
 import { completionFromRow } from "@/lib/planStore";
 import { SocialCrewStoreError } from "@/lib/socialCrewStore";
 import { requireSupabaseAdmin } from "@/lib/supabase";
+import type { Database } from "@/types/database";
 
 type CompletionInput = {
   actorAccountId: string;
@@ -19,9 +20,10 @@ type CompletionInput = {
 };
 
 type CompletionResult = { completion: PlanCompletionDTO; created: boolean };
+type CompletionRpcArgs = Database["public"]["Functions"]["complete_social_crew_plan_atomic"]["Args"];
 
 type Dependencies = {
-  rpc(input: Record<string, unknown>): Promise<string>;
+  rpc(input: CompletionRpcArgs): Promise<string>;
   completion(planId: string): Promise<PlanCompletionDTO | null>;
 };
 

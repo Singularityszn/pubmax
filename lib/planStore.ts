@@ -441,12 +441,13 @@ export const supabasePlanStore: PlanStore = {
     const admin = requireSupabaseAdmin();
     if (update.stops) {
       const stops = cleanReplacementStops(update.stops);
-      if (!stops || !Number.isInteger(update.expectedRouteRevision) || update.expectedRouteRevision! < 1 || update.status) return { ok: false, error: "invalid" };
+      const expectedRouteRevision = update.expectedRouteRevision;
+      if (!stops || typeof expectedRouteRevision !== "number" || !Number.isInteger(expectedRouteRevision) || expectedRouteRevision < 1 || update.status) return { ok: false, error: "invalid" };
       try {
         const { data, error } = await admin.rpc("replace_plan_route_atomic", {
           p_plan_id: id,
           p_token_hash: hashPlanMemberToken(rawToken),
-          p_expected_route_revision: update.expectedRouteRevision,
+          p_expected_route_revision: expectedRouteRevision,
           p_stops: stops.map(({ venueId, venueName, selectedDrinkPriceEvidence, alternatives }) => ({
             venueId, venueName,
             ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),

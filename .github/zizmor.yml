@@ -4,8 +4,8 @@
 # (zizmor's default hash-pin policy), and Dependabot's github-actions updater
 # moves the pins. Every checkout sets `persist-credentials: false`.
 rules:
-  # GitHub's `$/` self-repository syntax is newer than the runners this repo
-  # has proved it on. Keep `./` until a run on pubmax-mac shows `$/` resolves.
+  # GitHub's `$/` self-repository syntax stays remapped until a hosted run
+  # shows it resolves. Keep `./`.
   self-repository:
     remap:
       severity: informational

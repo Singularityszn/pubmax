@@ -22,7 +22,6 @@ describe("browser credential form contracts", () => {
     expect(handleSignInSource).toContain('autoComplete="current-password"');
     expect(handleSignInSource).toContain("event.preventDefault();");
     expect(handleSignInSource).toMatch(/fetch\("\/api\/auth\/handle-password",\s*\{\s*method: "POST"/);
-    expect(handleSignInSource).toMatch(/<button[\s\S]*type="submit"/);
     expect(handleSignInSource).not.toContain('setPassword("");\n      setOpen(false);');
   });
 

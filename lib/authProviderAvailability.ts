@@ -44,12 +44,66 @@ function availabilityFromClerkEnvironment(
   };
 }
 
+/** Same-origin read of provider flags. The browser never calls Supabase for this. */
+export const SOCIAL_AUTH_PROVIDERS_PATH = "/api/auth/providers";
+
+function socialAuthProvidersUrl(fresh: boolean): string {
+  return fresh ? `${SOCIAL_AUTH_PROVIDERS_PATH}?fresh=1` : SOCIAL_AUTH_PROVIDERS_PATH;
+}
+
+function availabilityFromApiPayload(
+  payload: unknown,
+): SocialAuthProviderAvailability | null {
+  if (!isRecord(payload)) return null;
+  if (
+    typeof payload.google !== "boolean" ||
+    typeof payload.apple !== "boolean" ||
+    typeof payload.microsoft !== "boolean"
+  ) {
+    return null;
+  }
+  return {
+    google: payload.google,
+    apple: payload.apple,
+    microsoft: payload.microsoft,
+  };
+}
+
 /**
- * Read Supabase Auth's public provider settings. Unknown is distinct from an
- * all-disabled response so callers can fail closed without claiming the read
- * succeeded.
+ * Read which social providers are enabled. The browser calls the same-origin
+ * route so a signed-out page does not open a third-party connection. Credentials
+ * stay `same-origin` so a Vercel deployment-protection cookie is sent on that
+ * read and is not attached to any other host. `fresh` skips the shared cache
+ * and is the recheck immediately before OAuth starts.
+ * Unknown is distinct from an all-disabled response so callers can fail closed
+ * without claiming the read succeeded.
  */
 export async function loadSocialAuthProviders(
+  fetchImpl: typeof fetch = globalThis.fetch,
+  options: { fresh?: boolean } = {},
+): Promise<SocialAuthProviderAvailability | null> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  if (!supabaseUrl || !publishableKey) return null;
+
+  try {
+    const response = await withAuthFetchTimeout(fetchImpl)(
+      socialAuthProvidersUrl(options.fresh === true),
+      { credentials: "same-origin" },
+    );
+    if (!response.ok) return null;
+    return availabilityFromApiPayload(await response.json());
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Server-side read of Supabase Auth's public provider settings. The publishable
+ * key stays on this request so the browser never sends a cross-origin `apikey`
+ * header. Unknown is distinct from an all-disabled response.
+ */
+export async function readSupabaseSocialAuthProviders(
   fetchImpl: typeof fetch = globalThis.fetch,
 ): Promise<SocialAuthProviderAvailability | null> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -140,8 +194,8 @@ function unavailableMessage(provider: SocialAuthProvider): string {
 export async function guardSocialAuthProvider(
   provider: SocialAuthProvider,
   start: () => Promise<AuthStartResult>,
-  load: () => Promise<SocialAuthProviderAvailability | null> =
-    loadSocialAuthProviders,
+  load: () => Promise<SocialAuthProviderAvailability | null> = () =>
+    loadSocialAuthProviders(globalThis.fetch, { fresh: true }),
 ): Promise<{
   availability: SocialAuthProviderAvailability | null;
   result: AuthStartResult;

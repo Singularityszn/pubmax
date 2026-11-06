@@ -150,9 +150,13 @@ export function CreatorListsContent({
     <section className="creatorListsLane" aria-labelledby="creator-lists-title">
       <h2 id="creator-lists-title">Creator lists</h2>
       {status === "loading" ? (
-        <p className="creatorListsState" role="status">
-          Loading creator lists…
-        </p>
+        // The empty and unavailable answers both settle as a line and a
+        // control row, so the read holds that row: the Discover board below
+        // the lane on /social does not jump 52px when it lands.
+        <div className="creatorListsState" role="status">
+          <p>Loading creator lists…</p>
+          <span className="creatorListsControlHold" aria-hidden="true" />
+        </div>
       ) : status === "unavailable" ? (
         <div className="creatorListsState" role="status">
           <p>We could not reach creator lists.</p>

@@ -52,7 +52,7 @@ test("a real signed-out browser reaches account-first sign-in at the same venue"
     }
   });
   page.on("response", (response) => {
-    if (response.url().includes("/auth/v1/settings")) {
+    if (response.url().includes("/api/auth/providers")) {
       authSettingsStatuses.push(response.status());
     }
   });

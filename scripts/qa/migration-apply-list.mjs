@@ -19,10 +19,16 @@
 //
 //   node scripts/qa/migration-apply-list.mjs --against <file>
 //     Print only the migrations not yet applied, oldest first.
-//     <file> holds one applied version per line, the same 14-digit
-//     version `supabase migration list` prints in its Local column.
-//     Blank lines and lines with no 14-digit version are skipped, so a
-//     raw pasted CLI table works as-is.
+//     A migration counts as applied when its 14-digit version is in the
+//     file, when its four-digit label is, or when the name after that label
+//     is. The version is what `supabase migration list` prints. The label is
+//     what the captain applies by. The name still matches when production
+//     stored the same migration under a different timestamp and dropped the
+//     label from the ledger name. A label that more than one migration
+//     carries, such as 0123, says nothing on its own: those files match only
+//     by version or name. A raw pasted CLI table works: a row counts only
+//     when its Remote column is filled, and blank lines and lines with none
+//     of the three are skipped.
 //
 // Pure filesystem plus argv/stdin. No network call. No secret read.
 // supabase/migrations/rollback/ is a subdirectory, so a plain (non-recursive)
@@ -34,6 +40,8 @@ import { fileURLToPath } from "node:url";
 
 const VERSION_RE = /^(\d{14})_.+\.sql$/;
 const VERSION_TOKEN_RE = /\b(\d{14})\b/;
+const LABEL_IN_FILENAME_RE = /^(?:\d{14}_)?(\d{4})(?:_|$)/;
+const LABEL_TOKEN_RE = /(?:^|[^0-9])(\d{4})(?=_[A-Za-z0-9])/g;
 
 const REPO_ROOT = path.resolve(fileURLToPath(new URL("../../", import.meta.url)));
 const MIGRATIONS_DIR = path.join(REPO_ROOT, "supabase", "migrations");
@@ -52,22 +60,119 @@ export function versionOf(filename) {
   return match ? match[1] : null;
 }
 
+// Returns the four-digit label the captain applies by, or null when the
+// filename has none. The label sits after the timestamp
+// (20261002210000_0170_profiles_table_door.sql) and is not the timestamp.
+export function labelOf(filename) {
+  const stem = filename.replace(/\.sql$/, "");
+  const match = stem.match(LABEL_IN_FILENAME_RE);
+  return match ? match[1] : null;
+}
+
+// The name after the timestamp and the optional label. Production sometimes
+// records only this (`plan_membership_account_claim`) for a file named
+// `20260831140000_0127_plan_membership_account_claim.sql`.
+export function descriptiveNameOf(filename) {
+  const stem = filename.replace(/\.sql$/, "");
+  return stem.replace(/^\d{14}_/, "").replace(/^\d{4}_/, "");
+}
+
+// The lines of an applied list that can describe an applied migration. A
+// pasted `supabase migration list` row is `Local | Remote | Time`, and a row
+// whose Remote cell is blank is a repo file the database has not run. A
+// two-cell `version | name` ledger row stays, even when its name is null.
+function appliedLines(text) {
+  return text.split(/\r?\n/).filter((line) => {
+    const cells = line.split("|").map((cell) => cell.trim());
+    const cliRow = cells.length >= 3 && /^(?:\d{14})?$/.test(cells[0]);
+    return !cliRow || cells[1] !== "";
+  });
+}
+
 // Reads applied versions out of free-form text, one 14-digit version per
 // line found. Header rows, separator rows, and blank lines have no match
 // and are skipped.
 export function parseAppliedVersions(text) {
   const applied = new Set();
-  for (const line of text.split(/\r?\n/)) {
+  for (const line of appliedLines(text)) {
     const match = line.match(VERSION_TOKEN_RE);
     if (match) applied.add(match[1]);
   }
   return applied;
 }
 
-// Filters a migration list down to the ones whose version is not in the
-// applied set. Keeps the input order, so callers pass an already-sorted list.
-export function unappliedMigrations(migrations, appliedVersions) {
-  return migrations.filter((name) => !appliedVersions.has(versionOf(name)));
+// Reads four-digit labels out of free-form text. A label is a line that is
+// only the four digits, or four digits followed by `_name`, including inside
+// `20261003050416_0170_profiles_table_door`. A bare 14-digit version is not a
+// label: the digits have to be a token of their own.
+export function parseAppliedLabels(text) {
+  const labels = new Set();
+  for (const line of appliedLines(text)) {
+    const trimmed = line.trim();
+    if (/^\d{4}$/.test(trimmed)) labels.add(trimmed);
+    LABEL_TOKEN_RE.lastIndex = 0;
+    let match;
+    while ((match = LABEL_TOKEN_RE.exec(line))) labels.add(match[1]);
+  }
+  return labels;
+}
+
+// Reads descriptive names out of free-form text. A ledger row's name may be
+// the full `0170_profiles_table_door` or only the tail. Both become the tail.
+export function parseAppliedNames(text) {
+  const names = new Set();
+  for (const line of appliedLines(text)) {
+    const trimmed = line.trim();
+    if (/^[A-Za-z][A-Za-z0-9_]*$/.test(trimmed)) {
+      names.add(descriptiveNameOf(trimmed));
+    }
+    const named = trimmed.match(/\d{14}[\s|,;\t]+([A-Za-z0-9_]+)/);
+    if (named) names.add(descriptiveNameOf(named[1]));
+    const embedded = trimmed.match(/(?:^|[^A-Za-z0-9])(\d{4}_[a-z0-9_]+)/);
+    if (embedded) names.add(descriptiveNameOf(embedded[1]));
+  }
+  return names;
+}
+
+// Labels that two or more differently named migrations carry, such as 0123
+// for harvest_venue_overlays and social_admin_moderation. A bare 0123 cannot
+// say which of them was applied. A file re-timestamped under the same label
+// and name is still one migration, so it does not make its label shared.
+function sharedLabels(migrations) {
+  const namesByLabel = new Map();
+  for (const filename of migrations) {
+    const label = labelOf(filename);
+    if (!label) continue;
+    if (!namesByLabel.has(label)) namesByLabel.set(label, new Set());
+    namesByLabel.get(label).add(descriptiveNameOf(filename));
+  }
+  const shared = new Set();
+  for (const [label, names] of namesByLabel) {
+    if (names.size > 1) shared.add(label);
+  }
+  return shared;
+}
+
+// Filters a migration list down to the ones not yet applied. Keeps the input
+// order, so callers pass an already-sorted list. A file is applied when its
+// timestamp version was recorded, its descriptive name was, or its four-digit
+// label was and no other migration carries that label. Version differs
+// across production and the repo; the label or the name is what the two
+// sides still share.
+export function unappliedMigrations(
+  migrations,
+  appliedVersions,
+  appliedLabels = new Set(),
+  appliedNames = new Set(),
+) {
+  const shared = sharedLabels(migrations);
+  return migrations.filter((filename) => {
+    const version = versionOf(filename);
+    if (version && appliedVersions.has(version)) return false;
+    const label = labelOf(filename);
+    if (label && !shared.has(label) && appliedLabels.has(label)) return false;
+    return !appliedNames.has(descriptiveNameOf(filename));
+  });
 }
 
 function main() {
@@ -83,8 +188,13 @@ function main() {
       process.exitCode = 1;
       return;
     }
-    const appliedVersions = parseAppliedVersions(readFileSync(appliedFile, "utf8"));
-    output = unappliedMigrations(migrations, appliedVersions);
+    const appliedText = readFileSync(appliedFile, "utf8");
+    output = unappliedMigrations(
+      migrations,
+      parseAppliedVersions(appliedText),
+      parseAppliedLabels(appliedText),
+      parseAppliedNames(appliedText),
+    );
   }
 
   for (const name of output) {

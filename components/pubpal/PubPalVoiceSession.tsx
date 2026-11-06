@@ -21,6 +21,7 @@ import {
   useConversationMode,
   useConversationStatus,
 } from "@elevenlabs/react";
+import { useRouter } from "next/navigation";
 import { Mic, MicOff, Send } from "lucide-react";
 
 import { useAuth } from "@/components/auth/authContext";
@@ -78,7 +79,24 @@ type VoiceSessionAttempt = {
   voiceEndReason: VoiceEndReason | null;
 };
 
+<<<<<<< HEAD
 async function releaseVoiceSession(auth: AccountAuthSnapshot, durationSeconds: number): Promise<void> {
+=======
+/**
+ * Where a typed message goes when no voice session is live: the written Pal
+ * thread, with the question already asked through its `?ask=` deep link. The
+ * ElevenLabs SDK only takes text inside a running conversation, so the box
+ * beside the Start button must not depend on one.
+ */
+function palWrittenAskHref(value: string): string {
+  return `/pal/chat?${new URLSearchParams({ ask: value }).toString()}`;
+}
+
+async function syncVoiceToolTurn(input: {
+  conversationId: string;
+  threadTurn?: { role: "user"; content: string };
+}): Promise<void> {
+>>>>>>> origin/main
   try {
     // Release the granted account's reservation after an account switch too.
     const response = await accountBoundFetch(auth, "/api/pub-pal/voice-token", {
@@ -93,7 +111,11 @@ async function releaseVoiceSession(auth: AccountAuthSnapshot, durationSeconds: n
 }
 
 function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimationState) => void }) {
+<<<<<<< HEAD
   const { user, session } = useAuth();
+=======
+  const router = useRouter();
+>>>>>>> origin/main
   const { startSession, endSession, sendUserMessage } = useConversationControls();
   const { status } = useConversationStatus();
   const { isListening, isSpeaking } = useConversationMode();
@@ -365,8 +387,11 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
     }
   };
 
+  const voiceConnecting = isStarting || status === "connecting";
+
   const send = () => {
     const value = text.trim();
+<<<<<<< HEAD
     if (!value || status !== "connected" || isStarting) return;
     const attempt = activeAttemptRef.current;
     if (!attempt || !ownsAttempt(attempt)) return;
@@ -378,6 +403,16 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
       return;
     }
     setError(null);
+=======
+    if (!value || voiceConnecting) return;
+    if (status !== "connected") {
+      // No live conversation: sendUserMessage would throw and the Pal would
+      // sit on "thinking" forever. Ask the written Pal instead.
+      setText("");
+      router.push(palWrittenAskHref(value));
+      return;
+    }
+>>>>>>> origin/main
     onStateChange?.("thinking");
     const conversationId = conversationIdRef.current;
     if (conversationId) {
@@ -419,6 +454,7 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
           <input
             value={text}
             onChange={(event) => setText(event.target.value)}
+<<<<<<< HEAD
             onKeyDown={(event) => {
               if (event.key !== "Enter") return;
               event.preventDefault();
@@ -427,6 +463,18 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
             placeholder={status === "connected" ? "Or type the night you want…" : "Connect voice to send text"}
           />
           <button type="button" onClick={send} disabled={status !== "connected" || isStarting || !text.trim()} aria-label="Send message">
+=======
+            onKeyDown={(event) => { if (event.key === "Enter") send(); }}
+            maxLength={500}
+            placeholder="Or type the night you want…"
+          />
+          <button
+            type="button"
+            onClick={send}
+            disabled={voiceConnecting}
+            aria-label="Send message"
+          >
+>>>>>>> origin/main
             <Send size={17} />
           </button>
         </label>
@@ -436,6 +484,7 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
           </Link>
         ) : null}
       </div>
+      {voiceConnecting && <p className="palVoiceHint">Connecting voice…</p>}
       {error && <p className="palVoiceError" role="alert">{error}</p>}
       <p className="palVoicePrivacy">
         No audio or transcript becomes memory. The Pal proposes facts for you to approve separately.

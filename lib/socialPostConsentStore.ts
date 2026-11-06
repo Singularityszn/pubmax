@@ -9,7 +9,8 @@ import {
   type SocialPostDTO,
   type SocialPostVisibility,
 } from "@/lib/socialPosts";
-import { requireSupabaseAdmin } from "@/lib/supabase";
+import type { Database } from "@/types/database";
+import { requireDynamicSupabaseAdmin, requireSupabaseAdmin } from "@/lib/supabase";
 import { trustedSigningKey } from "@/lib/trustedSigningKey.server";
 
 type SocialPostTag = { handle: string };
@@ -116,8 +117,27 @@ function row(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-async function rpc(name: string, input: Record<string, unknown>): Promise<unknown> {
-  const { data, error } = await requireSupabaseAdmin().rpc(name, input);
+type SocialPostConsentRpc =
+  | "act_social_post_tag"
+  | "moderate_social_post"
+  | "moderate_social_post_admin"
+  | "read_social_post_media"
+  | "read_social_post_media_admin"
+  | "read_social_post_moderation_queue"
+  | "read_social_post_moderation_queue_admin"
+  | "read_social_post_outbox"
+  | "read_social_post_tags_many"
+  | "read_social_tag_inbox";
+
+function consentRpcNamesMatchCatalog(
+  _ok: SocialPostConsentRpc extends keyof Database["public"]["Functions"] ? true : never,
+): void {
+  void _ok;
+}
+consentRpcNamesMatchCatalog(true);
+
+async function rpc(name: SocialPostConsentRpc, input: Record<string, unknown>): Promise<unknown> {
+  const { data, error } = await requireDynamicSupabaseAdmin().rpc(name, input);
   if (error) {
     throw new SocialPostConsentStoreError(
       error.message,

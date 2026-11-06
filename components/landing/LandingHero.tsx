@@ -78,6 +78,8 @@ import { LONDON_MAP_PUB_COUNT } from "./londonMapGeometry";
 
 /** What the card really paints at: the answer column, capped at the card. */
 const ANSWER_PHOTO_SIZES = "(max-width: 959px) calc(100vw - 2rem), 480px";
+/** Phone and tablet only: on desktop the Thames picture is the largest paint. */
+const ANSWER_PHOTO_PRELOAD_MEDIA = "(max-width: 959px)";
 const LONDON_DAY = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
   month: "long",
@@ -418,7 +420,11 @@ function AnswerCard({
       className="lpPubCard lpAnswerCard lpPubCard--photo"
       aria-labelledby="lp-answer-name"
     >
-      <LandingPhoto resolved={photo} sizes={ANSWER_PHOTO_SIZES} />
+      <LandingPhoto
+        resolved={photo}
+        sizes={ANSWER_PHOTO_SIZES}
+        preloadMedia={ANSWER_PHOTO_PRELOAD_MEDIA}
+      />
       <div className="lpAnswerHead">
         <Kicker tone="muted">
           {kicker}

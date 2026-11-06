@@ -632,7 +632,7 @@ function amenityChipsFor(
     { key: "heritage", label: "Heritage", status: derivedAmenityStatus(venue.hasStory) },
     { key: "writerPick", label: "Writer's pick", status: derivedAmenityStatus(Boolean(venue.curation.writerPick)) },
     { key: "beerGarden", label: "Beer garden", status: status.beerGarden },
-    { key: "nonAlcoholic", label: "Alcohol-free beer", status: status.nonAlcoholic },
+    { key: "nonAlcoholic", label: "Alcohol-free options", status: status.nonAlcoholic },
     { key: "liveSports", label: "Live sports", status: status.liveSports },
     { key: "food", label: "Serves food", status: status.food },
     { key: "cocktails", label: "Cocktails", status: status.cocktails },
